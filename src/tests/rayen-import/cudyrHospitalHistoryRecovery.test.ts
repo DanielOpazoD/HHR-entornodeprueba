@@ -2,7 +2,10 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { cudyrPlacementsFromPatientFlow } from '@/features/rayen-import/mapping/cudyrPatientFlowPlacements';
 import { resolveCudyrHospitalAdmission } from '@/domain/cudyr/cudyrHospitalAdmission';
 import { persistCudyrSyncCapture } from '@/features/rayen-import/domain/persistCudyrSyncCapture';
-import { recoverCudyrHospitalHistory } from '@/features/rayen-import/bridge/cudyrHospitalHistoryRecovery';
+import {
+  recoverCudyrHospitalHistory,
+  resetArchivedFlowEpisodesForTests,
+} from '@/features/rayen-import/bridge/cudyrHospitalHistoryRecovery';
 import { readCudyrEpisodeCaptures } from '@/services/cudyr/cudyrHistoryService';
 import { requestPatientFlowReport } from '@/features/rayen-import/bridge/patientFlowBridge';
 import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
@@ -21,7 +24,10 @@ const observedAt = '2026-10-08T15:00:00Z';
 const placements = () => cudyrPlacementsFromPatientFlow(text, episode, '11.111.111-1', observedAt);
 
 describe('historical hospital admission from the official flow report', () => {
-  beforeEach(() => vi.resetAllMocks());
+  beforeEach(() => {
+    vi.resetAllMocks();
+    resetArchivedFlowEpisodesForTests();
+  });
   it('recovers an old October day from a report captured later, excluding Urgencias', () => {
     const history = placements().map(placement => ({
       placement,
@@ -262,6 +268,27 @@ describe('historical hospital admission from the official flow report', () => {
     ).toEqual([]);
     expect(readCudyrEpisodeCaptures).toHaveBeenCalledTimes(2);
     expect(requestPatientFlowReport).not.toHaveBeenCalled();
+  });
+  it('does not ask the server again for an episode already found in the archive', async () => {
+    vi.mocked(readCudyrEpisodeCaptures).mockResolvedValue({
+      captures: [{ capture: { clinicalEpisodeId: episode, sourcePlacements: placements() } }],
+      nextCursor: null,
+    } as never);
+    const recover = () =>
+      recoverCudyrHospitalHistory(episode, '111111111', new AbortController().signal, observedAt);
+    await recover();
+    expect(await recover()).toEqual([]);
+    expect(readCudyrEpisodeCaptures).toHaveBeenCalledOnce();
+    expect(requestPatientFlowReport).not.toHaveBeenCalled();
+  });
+  it('keeps looking up an episode the archive does not have yet', async () => {
+    vi.mocked(readCudyrEpisodeCaptures).mockResolvedValue({ captures: [], nextCursor: null });
+    vi.mocked(requestPatientFlowReport).mockResolvedValue({ error: 'sintético' } as never);
+    const recover = () =>
+      recoverCudyrHospitalHistory(episode, '111111111', new AbortController().signal, observedAt);
+    await expect(recover()).rejects.toThrow();
+    await expect(recover()).rejects.toThrow();
+    expect(readCudyrEpisodeCaptures).toHaveBeenCalledTimes(2);
   });
   it('deduplicates repeated report rows and allows 32 unique assignments before merging', () => {
     const rows = Array.from(

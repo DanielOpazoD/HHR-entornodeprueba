@@ -7,6 +7,11 @@ import {
   cudyrPlacementsFromPatientFlow,
 } from '../mapping/cudyrPatientFlowPlacements';
 
+// The archive is permanent, so an episode found there never has to be looked up again.
+const episodesWithArchivedFlow = new Set<string>();
+
+export const resetArchivedFlowEpisodesForTests = (): void => episodesWithArchivedFlow.clear();
+
 /** Run only as part of an authorized census sync. Archived flow prevents repeated PDF reads. */
 export const recoverCudyrHospitalHistory = async (
   episode: string,
@@ -17,6 +22,7 @@ export const recoverCudyrHospitalHistory = async (
   maternalRut?: string
 ) => {
   signal.throwIfAborted();
+  if (episodesWithArchivedFlow.has(episode)) return [];
   let cursor;
   const seen = new Set<string>();
   do {
@@ -33,8 +39,10 @@ export const recoverCudyrHospitalHistory = async (
           item.capture.clinicalEpisodeId === episode &&
           item.capture.sourcePlacements?.some(p => p.sourceVersion === CUDYR_PATIENT_FLOW_SOURCE)
       )
-    )
+    ) {
+      episodesWithArchivedFlow.add(episode);
       return [];
+    }
     cursor = page.nextCursor;
     if (cursor) {
       if (seen.has(cursor.id) || seen.size >= 1000)
