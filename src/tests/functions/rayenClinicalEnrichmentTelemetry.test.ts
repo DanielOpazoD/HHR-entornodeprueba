@@ -109,7 +109,7 @@ describe('Rayen clinical enrichment telemetry', () => {
     );
   });
 
-  it('records matched shadow parity without clinical identifiers', async () => {
+  it('records matched enforced parity without clinical identifiers', async () => {
     const remote = makeClinicalRecord();
     remote.beds.H2C1 = {
       ...remote.beds.H2C1,
@@ -117,12 +117,12 @@ describe('Rayen clinical enrichment telemetry', () => {
       vitalSigns: { systolic: 120 },
       clinicalSyncCheckpoint: { version: 1, sources: {} },
     } as never;
-    const admin = createClinicalAdminMock(remote, { clinicalBatchMode: 'shadow' });
+    const admin = createClinicalAdminMock(remote);
 
     let clock = 0;
     await createApi(admin, {
       monotonicNow: () => (clock += 120),
-    }).applyRayenClinicalEnrichmentBatch.run({ ...makePayload(), mode: 'shadow' }, makeContext());
+    }).applyRayenClinicalEnrichmentBatch.run(makePayload(), makeContext());
 
     expect(admin.telemetryAdd).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -188,31 +188,6 @@ describe('Rayen clinical enrichment telemetry', () => {
     expect(JSON.stringify(admin.telemetryAdd.mock.calls[0]?.[0])).not.toMatch(
       /H2C1|episode-secret|Paciente reservado|11\.111|run-1|mutation-1/
     );
-  });
-
-  it('records a mismatch when established persistence differs from the batch', async () => {
-    const admin = createClinicalAdminMock(undefined, { clinicalBatchMode: 'shadow' });
-
-    let clock = 0;
-    await createApi(admin, {
-      monotonicNow: () => (clock += 120),
-    }).applyRayenClinicalEnrichmentBatch.run({ ...makePayload(), mode: 'shadow' }, makeContext());
-
-    expect(admin.telemetryAdd).toHaveBeenCalledWith(
-      expect.objectContaining({
-        context: expect.objectContaining({
-          resultParity: 'mismatch',
-          parityContractVersion: 2,
-          mismatchTargetCount: 1,
-          mismatchFieldCount: 3,
-          mismatchDeviceFieldCount: 0,
-          mismatchScoreFieldCount: 1,
-          mismatchVitalFieldCount: 1,
-          mismatchCheckpointFieldCount: 1,
-        }),
-      })
-    );
-    expectClinicalTelemetryMetadata(admin.telemetryAdd.mock.calls[0]?.[0]);
   });
 
   it('records unavailable parity when validation fails before comparison', async () => {

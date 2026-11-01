@@ -133,45 +133,6 @@ describe('guarded remote-first daily-record persistence', () => {
     expect(Object.keys(policy.remoteAuthorityPatch)).not.toContain('beds.R1.clinicalCrib.devices');
   });
 
-  it('does not sanitize a first crib object written by guarded Rayen enrichment', () => {
-    const baseRecord = DataFactory.createMockDailyRecord('2026-05-23', {
-      beds: {
-        R1: DataFactory.createMockPatient('R1', {
-          clinicalEpisodeId: 'parent-episode',
-          clinicalCrib: undefined,
-        }),
-      },
-    });
-    const newCrib = DataFactory.createMockPatient('R1', {
-      bedMode: 'Cuna',
-      clinicalEpisodeId: 'crib-rayen',
-      patientName: 'RN desde Rayen',
-      devices: ['VVP'],
-    });
-    const patch = { 'beds.R1.clinicalCrib': newCrib };
-
-    const policy = buildGuardedDailyRecordPatchPolicy({
-      patch,
-      mergedPatches: patch,
-      baseRecord,
-      options: {
-        rayenClinicalWriteGuard: {
-          runId: 'rayen-run',
-          importMode: 'preview',
-          clinicalBatchMode: 'shadow',
-          revision: 1,
-          sourceDate: '2026-05-23',
-          recordScope: 'run',
-        },
-      },
-      readRemoteRecord: vi.fn(),
-    });
-
-    expect(policy.remoteAuthorityFirst).toBe(true);
-    expect(policy.clinicalCribCreate).toBeUndefined();
-    expect(policy.remoteAuthorityPatch).toEqual(patch);
-  });
-
   it('adopts the authoritative record when a guarded command was already applied', async () => {
     const rejection = new Error('stale expected version');
     const authoritativeRecord = {

@@ -25,7 +25,6 @@ import {
 } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import type { UserRole } from '@/types/authRoleTypes';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
-import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 import type {
   ClinicalCribCreateRequest,
   IntentionalBedClearRequest,
@@ -46,7 +45,6 @@ export interface DailyRecordPartialWriteOptions {
   /** See PartialUpdateDailyRecordOptions.historyPolicy. Without it, copies follow the hourly cadence. */
   historyPolicy?: 'snapshot' | 'skip';
   /** Frozen Rayen run policy revalidated atomically with the legacy clinical write. */
-  rayenClinicalWriteGuard?: RayenClinicalWriteGuard;
   /** Explicit, CAS-protected request to replace exactly one occupied bed with an empty bed. */
   intentionalBedClear?: IntentionalBedClearRequest;
   /** Explicit create-only command whose empty Rayen fields must not overwrite server authority. */

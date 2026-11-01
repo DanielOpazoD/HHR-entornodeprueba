@@ -192,39 +192,6 @@ describe('clinical batch on a split day (phase 1a P5)', () => {
     expect(writes(fake)).toEqual([]);
   });
 
-  it.each([
-    ['only the devices differ', { devices: ['CVC'] }, 0, 1],
-    ['the history differs', { vitalSignsHistory: NEW_VITALS }, 1, 0],
-  ])(
-    'shadow parity v3 compares with the combined remote (%s) and writes nothing',
-    async (_label, fields, vitalMismatches, deviceMismatches) => {
-      const { fake, api } = setup(splitDay('shadow'), 'shadow');
-      seedSplitDocs(fake);
-      const request = payload({
-        mode: 'shadow',
-        patches: [
-          {
-            bedId: 'R2',
-            clinicalEpisodeId: 'ep_pasaporte_2',
-            // The document already holds this history; the remote day no longer embeds it.
-            fields: { vitalSignsHistory: [vitals('2026-11-01', 66)], ...fields },
-          },
-        ],
-        checkpoints: [],
-      });
-
-      const response = await api.applyRayenClinicalEnrichmentBatch.run(request, makeContext());
-
-      expect(response.resultParity).toBe('mismatch');
-      expect(writes(fake)).toEqual([]);
-      expect(fake.telemetry()[0].context).toMatchObject({
-        parityContractVersion: 3,
-        mismatchVitalFieldCount: vitalMismatches,
-        mismatchDeviceFieldCount: deviceMismatches,
-      });
-    }
-  );
-
   it('rejects field contract v1 with moved fields on a marked day, but not without them', async () => {
     const { fake, api } = setup(splitDay());
     seedSplitDocs(fake);
@@ -396,6 +363,28 @@ describe('clinical batch on a split day (phase 1a P5)', () => {
       expect((stored.beds.R2.evaluationScores as Record<string, unknown>).cudyr).toEqual(cudyr);
       expect(fake.touched('/clinicalDerived/')).toEqual([]);
     }
+  });
+
+  it('keeps an episode without a valid document id embedded', async () => {
+    vi.stubEnv(SPLIT_ENV, PRIOR_DAY);
+    const day = makeDay({ rayenSyncHistory: [runEvent('enforced')] });
+    (day.beds as Day['beds']).R2.clinicalEpisodeId = 'ep/invalid';
+    const { fake, api } = setup(day);
+    await api.applyRayenClinicalEnrichmentBatch.run(
+      payload({
+        patches: [
+          {
+            bedId: 'R2',
+            clinicalEpisodeId: 'ep/invalid',
+            fields: { vitalSignsHistory: NEW_VITALS },
+          },
+        ],
+        checkpoints: [],
+      }),
+      makeContext()
+    );
+    expect((fake.read(dayPath()) as Day).beds.R2.vitalSignsHistory).toEqual(NEW_VITALS);
+    expect(fake.touched('/clinicalDerived/')).toEqual([]);
   });
 
   it('checks the size of every episode document it writes', async () => {

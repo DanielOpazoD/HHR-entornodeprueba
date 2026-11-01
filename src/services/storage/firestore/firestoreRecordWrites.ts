@@ -58,10 +58,6 @@ import {
   type DailyRecordSaveWriteOptions,
 } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import {
-  buildGuardedRayenFallbackData,
-  extractGuardedRayenClinicalPatch,
-} from '@/services/storage/firestore/firestoreRayenGuardedPatch';
-import {
   createDirectFirestoreWriteReceipt,
   type DirectFirestoreWriteReceipt,
 } from './firestoreDirectWriteReceipt';
@@ -267,18 +263,6 @@ export const updateRecordPartial = async (
       ...sanitizedPatch,
       lastUpdated: Timestamp.now(),
     }) as Record<string, unknown>;
-    const rayenClinicalWriteGuard = options.rayenClinicalWriteGuard;
-    const guardedPatch = rayenClinicalWriteGuard
-      ? (sanitizeForFirestore(
-          extractGuardedRayenClinicalPatch(
-            partialData as unknown as Record<string, unknown>,
-            rayenClinicalWriteGuard.recordScope
-          )
-        ) as Record<string, unknown>)
-      : null;
-    const guardedFallbackData = guardedPatch
-      ? buildGuardedRayenFallbackData(guardedPatch, Timestamp.now())
-      : null;
     try {
       const persist = async () => {
         if (specialistScopedPatch && (await shouldRouteSpecialistPatchViaCallable())) {
@@ -291,27 +275,6 @@ export const updateRecordPartial = async (
           });
         }
 
-        if (rayenClinicalWriteGuard && guardedPatch) {
-          // Build the callable payload from the original shape so clinical objects stay atomic.
-          return withRetry(
-            () =>
-              patchDailyRecordWithClinicalAuthorityCallable({
-                date,
-                patch: guardedPatch,
-                expectedLastUpdated,
-                mode: 'shadow',
-                origin: 'legacy_guarded_clinical_patch',
-                rayenClinicalWriteGuard,
-                historyPolicy: options.historyPolicy,
-                syncContract: buildAuthorityPatchSyncContract(options.syncContract, guardedPatch),
-              }),
-            {
-              onRetry: (err: unknown, attempt: number) =>
-                logFirestoreWriteRetry('partialUpdate', date, attempt, err),
-              shouldRetry: shouldRetryDailyRecordAuthorityError,
-            }
-          );
-        }
         const isClinicalPatchForAuthority = shouldRouteClinicalAuthorityPatch(sanitizedPatch);
         const authorityPatch = extractClinicalAuthorityPatch(sanitizedPatch);
         const authorityPaths = new Set(Object.keys(authorityPatch));
@@ -476,9 +439,7 @@ export const updateRecordPartial = async (
       const storageError = error as { code?: string };
       if (storageError?.code === 'not-found' && !options.specialtyIntent) {
         firestoreWriteLogger.warn('Firestore write fallback: partialUpdateNotFound', { date });
-        await withRetry(() =>
-          setDoc(docRef, guardedFallbackData ?? sanitizedData, { merge: true })
-        );
+        await withRetry(() => setDoc(docRef, sanitizedData, { merge: true }));
       } else {
         throw error;
       }

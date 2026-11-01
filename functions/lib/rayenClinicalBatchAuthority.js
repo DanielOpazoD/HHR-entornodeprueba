@@ -3,7 +3,6 @@ const functions = require('firebase-functions/v1');
 
 const POLICY_SCHEMA_VERSION = 2;
 const LEGACY_POLICY_SCHEMA_VERSION = 1;
-const CLINICAL_BATCH_MODES = new Set(['shadow', 'enforced']);
 const IMPORT_MODES = new Set(['preview', 'auto']);
 
 const failPolicyAuthority = () => {
@@ -19,7 +18,7 @@ const parseGlobalPolicy = snapshot => {
   if (
     policy.schemaVersion !== POLICY_SCHEMA_VERSION ||
     !IMPORT_MODES.has(policy.mode) ||
-    !CLINICAL_BATCH_MODES.has(policy.clinicalBatchMode) ||
+    policy.clinicalBatchMode !== 'enforced' ||
     !Number.isInteger(policy.revision) ||
     policy.revision < 1
   ) {

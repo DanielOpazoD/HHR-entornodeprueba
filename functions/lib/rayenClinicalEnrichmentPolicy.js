@@ -232,14 +232,13 @@ const parseClinicalEnrichmentPayload = data => {
   }
   const runId = assertString(data?.runId, 'runId', 120);
   const mutationId = assertString(data?.mutationId, 'mutationId', 160);
-  if (data?.mode !== 'shadow' && data?.mode !== 'enforced') {
+  if (data?.mode !== 'enforced') {
     throw new functions.https.HttpsError(
       'invalid-argument',
-      'Clinical enrichment mode must be shadow or enforced.'
+      'Clinical enrichment mode must be enforced.'
     );
   }
   const mode = data.mode;
-  const dryRun = mode === 'shadow';
   if (
     data?.fieldContractVersion !== undefined &&
     data.fieldContractVersion !== 1 &&
@@ -368,7 +367,6 @@ const parseClinicalEnrichmentPayload = data => {
     runId,
     mutationId,
     mode,
-    dryRun,
     fieldContractVersion,
     patches: clinicalPatches.sort(
       (left, right) =>
@@ -404,7 +402,6 @@ const toMillis = value => {
 
 const assertRecordRevision = (record, payload) => {
   const currentRevision = resolveRecordRevision(record);
-  if (payload.mode === 'shadow') return currentRevision;
   if (payload.baseRevision !== undefined && currentRevision !== payload.baseRevision) {
     throw new functions.https.HttpsError(
       'aborted',

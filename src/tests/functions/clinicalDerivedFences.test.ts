@@ -12,7 +12,6 @@ import {
   dayPath,
   episodeDoc,
   episodePath,
-  guardedPatch,
   makeContext,
   makeDay,
   marker,
@@ -167,9 +166,8 @@ describe('split-day fences of the clinical batch', () => {
   // v3 only where parity sees the split layout (D13).
   it.each([
     ['an unmarked day, switch off', 2, undefined, false, 'enforced'],
-    ['an unmarked day the shadow batch would mark', 2, DAY, false, 'shadow'],
     ['an unmarked day the enforced batch marks', 3, DAY, false, 'enforced'],
-    ['a marked day, switch off', 3, undefined, true, 'shadow'],
+    ['a marked day, switch off', 3, undefined, true, 'enforced'],
   ] as const)(
     '%s reports parity contract v%s',
     async (_label, version, switchValue, marked, mode) => {
@@ -255,14 +253,6 @@ describe('split counters describe the attempt that answered', () => {
   };
 
   it.each([
-    [
-      'guarded patch',
-      (fake: Fake) =>
-        writeApi(fake).patchDailyRecordWithClinicalAuthority.run(
-          guardedPatch({ 'beds.R2.vitalSignsHistory': [vitals(DAY, 72)] }),
-          makeContext()
-        ),
-    ],
     [
       'full save creating the day',
       (fake: Fake) => {

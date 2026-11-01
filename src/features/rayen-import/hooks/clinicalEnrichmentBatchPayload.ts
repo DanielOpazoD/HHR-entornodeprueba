@@ -159,7 +159,6 @@ export const prepareClinicalEnrichmentBatchPayload = ({
         ? { baseRevision: revision }
         : {}),
       mode: mode,
-      dryRun: false,
       ...sectionsPayload,
     },
     evidence,
