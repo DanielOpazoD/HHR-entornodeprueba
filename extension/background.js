@@ -443,6 +443,7 @@ const handleDeviceReportSave = async args => {
 // / Downton scales) and VITAL_SIGNS (latest vitals: PA, FC, SatO2, Temp, FR, EVA) — to stay lean. The
 // practitionerId is the logged-in viewer (from the list URL).
 const handleScalesReportRequest = async ({ encId, sender }) => {
+  await patientFlowRuntime.authorizationReady;
   if (!patientFlowRuntime.canRequestClinicalEpisode(sender, encId)) return { error: 'Las escalas no fueron autorizadas para el episodio de esta pestaña.', errorCode: 'episode_not_authorized' };
   const infoResult = await resolveFichaClinicalSession({ sender });
   return infoResult.error ? { error: infoResult.error, errorCode: 'session_required' } : fetchScalesReportWithInfo(encId, infoResult.info);
@@ -775,6 +776,7 @@ const { read: handleStatisticalDischargeEvidenceRead } =
     fetchReport: fetchStatisticalDischargeReport,
     bufferToBase64,
     isAuthorized: patientFlowRuntime.isAuthorized,
+    authorizationReady: patientFlowRuntime.authorizationReady,
   });
 
 const parseClinicalTimestamp = value => {

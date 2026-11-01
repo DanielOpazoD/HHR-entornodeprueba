@@ -1,9 +1,10 @@
 /** Private evidence reader for an exact episode authorized by the current HHR sync. */
 (function (root) {
   'use strict';
-  const create = ({ fetchReport, bufferToBase64, isAuthorized }) => {
+  const create = ({ fetchReport, bufferToBase64, isAuthorized, authorizationReady }) => {
     const read = async ({ encId, sender }) => {
       const encounterId = String(encId || '').trim();
+      await authorizationReady;
       if (!isAuthorized(sender, encounterId)) {
         return { error: 'El egreso individual no fue autorizado para esta sincronización.' };
       }
