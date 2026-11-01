@@ -138,6 +138,24 @@
         "src/tests/functions/nursingAccounts.test.ts",
         "src/tests/emulator/nursing-accounts.emulator.test.ts"
       ]
+    },
+    {
+      "id": "preview_daily_record_restore",
+      "functionFile": "functions/lib/dailyRecordRestoreFunctions.js",
+      "endpoint": "previewDailyRecordRestore",
+      "testFiles": [
+        "src/tests/functions/dailyRecordRestoreFunctions.test.ts",
+        "src/tests/functions/dailyRecordPitrReader.test.ts"
+      ]
+    },
+    {
+      "id": "restore_daily_record",
+      "functionFile": "functions/lib/dailyRecordRestoreFunctions.js",
+      "endpoint": "restoreDailyRecord",
+      "testFiles": [
+        "src/tests/functions/dailyRecordRestoreFunctions.test.ts",
+        "src/tests/functions/dailyRecordPitrReader.test.ts"
+      ]
     }
   ]
 }

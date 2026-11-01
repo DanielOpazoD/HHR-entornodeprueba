@@ -1,9 +1,16 @@
-import React from 'react';
+import React, { lazy, Suspense, useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import { DataMaintenancePanel } from './internal/DataMaintenancePanel';
 import { Database } from 'lucide-react';
 import { useCensusContext } from '@/context/CensusContext';
 
+const DailyRecordRestorePanel = lazy(() =>
+  import('./DailyRecordRestorePanel').then(module => ({ default: module.DailyRecordRestorePanel }))
+);
+
 export const DataMaintenanceView: React.FC = () => {
+  const { currentUser } = useAuth();
+  const [showRestore, setShowRestore] = useState(false);
   const { fileOps } = useCensusContext();
 
   return (
@@ -25,6 +32,21 @@ export const DataMaintenanceView: React.FC = () => {
         </div>
       </div>
 
+      {currentUser?.role === 'admin' && (
+        <div className="mb-6">
+          <button
+            className="rounded border bg-white p-3"
+            onClick={() => setShowRestore(value => !value)}
+          >
+            {showRestore ? 'Cerrar restauración' : 'Abrir restauración de un día'}
+          </button>
+          {showRestore && (
+            <Suspense fallback={<p>Cargando restauración…</p>}>
+              <DailyRecordRestorePanel />
+            </Suspense>
+          )}
+        </div>
+      )}
       <DataMaintenancePanel
         onDailyExport={fileOps.handleExportJSON}
         onDailyImport={() => {

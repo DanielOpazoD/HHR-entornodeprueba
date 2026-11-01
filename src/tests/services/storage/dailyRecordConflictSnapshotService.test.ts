@@ -188,4 +188,18 @@ describe('dailyRecordConflictSnapshotService', () => {
       getConflictVersionSnapshot('2026-06-26', 'cid__remote_premerge')
     ).resolves.toBeNull();
   });
+  it.each(['daily_restore_day', 'daily_restore_episode'])(
+    'keeps %s out of the legacy restore path',
+    async snapshotType => {
+      const data = {
+        snapshotType,
+        expireAt: { toMillis: () => Date.now() + 60000 },
+        record: { date: '2026-06-26' },
+      };
+      mockGetDocs.mockResolvedValueOnce({ docs: [{ id: 'restore_copy', data: () => data }] });
+      await expect(listConflictVersionSnapshots('2026-06-26')).resolves.toEqual([]);
+      mockGetDoc.mockResolvedValueOnce({ exists: () => true, data: () => data });
+      await expect(getConflictVersionSnapshot('2026-06-26', 'restore_copy')).resolves.toBeNull();
+    }
+  );
 });
