@@ -71,8 +71,10 @@ interface UseRayenImportCaptureInput {
   ) => void;
 }
 
-const isRelayTimeout = (stage?: string): boolean =>
-  stage === 'ficha_main_relay' || stage === 'ficha_tab_relay';
+const isPassingCaptureFailure = (error: string, stage?: string): boolean =>
+  stage === 'ficha_main_relay' ||
+  stage === 'ficha_tab_relay' ||
+  classifyRayenSnapshotError(error, stage).reason === 'snapshot_network_error';
 
 /** Owns extension capture subscriptions and the preflight/request lifecycle for one import flow. */
 export const useRayenImportCapture = ({
@@ -173,11 +175,12 @@ export const useRayenImportCapture = ({
             return;
           }
           // A Ficha Médico tab idle for hours can miss its first read and answer the next in seconds.
+          // A dropped connection also passes on its own (twice in 6 days, the next click worked).
           // The capture only reads, so it gets one silent retry before anyone is told.
           const prepared = preparedSyncContextRef.current;
           const context = executionRef.current.context;
           if (
-            isRelayTimeout(timeoutStage) &&
+            isPassingCaptureFailure(error, timeoutStage) &&
             prepared &&
             context &&
             relayRetryRunRef.current !== runId

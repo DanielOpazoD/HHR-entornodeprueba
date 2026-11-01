@@ -104,12 +104,31 @@ describe('capture when Ficha Médico does not answer in time', () => {
     expect(failRun).toHaveBeenCalledWith('snapshot_timeout', 'run-1');
   });
 
-  it('does not retry any other failure', () => {
+  it('retries a dropped connection once, without telling anyone', () => {
     const { onError, start, failRun } = setup();
 
     act(() => onError('Failed to fetch', 'request-1'));
 
+    expect(start).toHaveBeenCalledOnce();
+    expect(failRun).not.toHaveBeenCalled();
+  });
+
+  it('reports a connection that stays down after the second attempt', () => {
+    const { onError, start, failRun } = setup();
+
+    act(() => onError('Failed to fetch', 'request-1'));
+    act(() => onError('Failed to fetch', 'request-2'));
+
+    expect(start).toHaveBeenCalledOnce();
+    expect(failRun).toHaveBeenCalledWith('snapshot_network_error', 'run-1');
+  });
+
+  it('does not retry a failure that needs a person, such as an expired session', () => {
+    const { onError, start, failRun } = setup();
+
+    act(() => onError('La sesión clínica venció. Inicia sesión.', 'request-1'));
+
     expect(start).not.toHaveBeenCalled();
-    expect(failRun).toHaveBeenCalledOnce();
+    expect(failRun).toHaveBeenCalledWith('ficha_medico_unavailable', 'run-1');
   });
 });
