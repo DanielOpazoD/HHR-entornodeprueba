@@ -96,20 +96,29 @@ const recoverLostAuthorityResponse = async (
 
 export const invokeAuthority = async (
   operation: 'save' | 'patch',
-  payload: DailyRecordAuthorityCallablePayload | DailyRecordAuthorityPatchCallablePayload
+  payload: DailyRecordAuthorityCallablePayload | DailyRecordAuthorityPatchCallablePayload,
+  check: () => void = () => undefined
 ): Promise<DailyRecordAuthorityCallableResponse> => {
+  check();
   const functions = await defaultFunctionsRuntime.getRegionalFunctions(
     DAILY_RECORD_AUTHORITY_FUNCTIONS_REGION
   );
+  check();
   const { httpsCallable } = await import('firebase/functions');
+  check();
   const callable = httpsCallable<typeof payload, DailyRecordAuthorityCallableResponse>(
     functions,
     `${operation}DailyRecordWithClinicalAuthority`,
     { timeout: DAILY_RECORD_AUTHORITY_CALLABLE_TIMEOUT_MS }
   );
   try {
-    return (await callable(withClientRuntimeContractVersion(payload))).data;
+    const result = await callable(withClientRuntimeContractVersion(payload));
+    check();
+    return result.data;
   } catch (error) {
-    return recoverLostAuthorityResponse(error, payload);
+    check();
+    const result = await recoverLostAuthorityResponse(error, payload);
+    check();
+    return result;
   }
 };

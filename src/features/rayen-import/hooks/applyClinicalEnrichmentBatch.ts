@@ -9,6 +9,8 @@ import {
   type RayenClinicalEnrichmentBatchPayload,
 } from '../bridge/rayenClinicalEnrichmentBatchClient';
 import type { ClinicalEnrichmentBatchMode } from '../domain/clinicalEnrichmentBatchMode';
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { createSyncMutationId } from '@/services/storage/sync/syncMutationIdentity';
 import { runExclusiveDailyRecordWrite } from '@/services/repositories/dailyRecordWriteCoordinator';
 import {
@@ -37,6 +39,7 @@ const authorityRevision = (record: DailyRecord): unknown =>
   (record as DailyRecord & { meta?: { revision?: unknown } }).meta?.revision;
 
 interface ApplyClinicalEnrichmentBatchInput {
+  checkSession?: () => void;
   mode: ClinicalEnrichmentBatchMode;
   record: DailyRecord;
   /** Record that owns the synchronization event when the target is the previous census day. */
@@ -55,6 +58,7 @@ interface ApplyClinicalEnrichmentBatchInput {
 
 /** Executes one bounded authority call; enforced never changes persistence owner mid-run. */
 export const applyClinicalEnrichmentBatch = async ({
+  checkSession,
   mode,
   record,
   authorityDate,
@@ -66,12 +70,21 @@ export const applyClinicalEnrichmentBatch = async ({
   invoke = callRayenClinicalEnrichmentBatch,
   createMutationId = createSyncMutationId,
 }: ApplyClinicalEnrichmentBatchInput): Promise<ClinicalFillBatchApplyResult> => {
+  const owner = getStoredSessionOwnerKey(),
+    generation = getSessionGeneration();
+  const check = () => {
+    checkSession?.();
+    if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration())
+      throw new Error('La sesión cambió.');
+  };
   return runExclusiveDailyRecordWrite(
     record.date,
     async () => {
+      check();
       // Source reads happen before this turn. Re-read only after earlier writers have settled,
       // and revalidate against the original base before constructing the atomic payload.
       const currentRecord = await refreshRecord();
+      check();
       if (currentRecord.date !== record.date) {
         throw new Error('La lectura autoritativa corresponde a otra fecha del censo.');
       }
@@ -130,11 +143,14 @@ export const applyClinicalEnrichmentBatch = async ({
         batch: ClinicalFillBatchEvidence;
       };
       const invokeEnforced = async (payload: RayenClinicalEnrichmentBatchPayload) => {
+        check();
         callableAttempts += 1;
         let response: Awaited<ReturnType<typeof callRayenClinicalEnrichmentBatch>>;
         try {
           response = await invoke(payload);
+          check();
         } catch (error) {
+          check();
           const reportedRetries = readServerTransactionRetries(error);
           if (reportedRetries == null) transactionEvidenceComplete = false;
           else transactionRetries += reportedRetries;
@@ -149,12 +165,14 @@ export const applyClinicalEnrichmentBatch = async ({
         try {
           checked = await invokeEnforced(activePayload);
         } catch (error) {
+          check();
           if (!isClinicalBatchVersionConflict(error) && !isClinicalBatchRetryableError(error)) {
             throw error;
           }
           retries += 1;
           if (isClinicalBatchVersionConflict(error)) {
             activeRecord = await refreshRecord();
+            check();
             if (!rebuildOperations) {
               throw error;
             }
@@ -209,6 +227,7 @@ export const applyClinicalEnrichmentBatch = async ({
         });
       }
 
+      check();
       const response = checked.response;
       const scope = response.targetScope ?? resolveClinicalPersistenceScope(activePayload);
       if (response.authorityStatus === 'ok') {
@@ -218,8 +237,11 @@ export const applyClinicalEnrichmentBatch = async ({
       batchEvidence.push(checked.batch);
 
       try {
+        check();
         await refreshCommittedRecord();
+        check();
       } catch (error) {
+        check();
         reportRayenSyncWarning('clinical_batch_local_refresh_deferred', {
           runId,
           batchMode: 'enforced',

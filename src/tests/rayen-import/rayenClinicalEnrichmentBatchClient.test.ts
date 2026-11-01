@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CLIENT_RUNTIME_CONTRACT_VERSION } from '@/constants/runtimeContracts';
 import {
   callRayenClinicalEnrichmentBatch,
@@ -38,6 +39,28 @@ describe('clinical batch regional client', () => {
     vi.resetAllMocks();
     mocks.getRegionalFunctions.mockResolvedValue(mocks.regionalInstance);
     mocks.httpsCallable.mockReturnValue(mocks.invoke);
+  });
+
+  afterEach(() => setSessionGeneration(null));
+
+  it('does not send when runtime initialization crosses the session boundary', async () => {
+    setSessionGeneration('session-a');
+    mocks.getRegionalFunctions.mockImplementation(async () => {
+      setSessionGeneration('session-b');
+      return mocks.regionalInstance;
+    });
+    await expect(callRayenClinicalEnrichmentBatch(payload)).rejects.toThrow('La sesión cambió.');
+    expect(mocks.invoke).not.toHaveBeenCalled();
+  });
+
+  it('does not return a late batch response to the replacement session', async () => {
+    setSessionGeneration('session-a');
+    mocks.invoke.mockImplementation(async () => {
+      setSessionGeneration('session-b');
+      return { data: { success: true } };
+    });
+    await expect(callRayenClinicalEnrichmentBatch(payload)).rejects.toThrow('La sesión cambió.');
+    expect(mocks.invoke).toHaveBeenCalledOnce();
   });
 
   it('uses the deployed regional runtime, adds the client contract version and keeps the timeout', async () => {

@@ -1,3 +1,5 @@
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { useCallback, useRef, type MutableRefObject } from 'react';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
@@ -53,6 +55,7 @@ const defaultCreateId = (): string => crypto.randomUUID();
 const MAX_METADATA_WRITE_RETRIES = 2;
 
 interface CompleteRayenSyncRunOptions {
+  checkSession?: () => void;
   retry?: boolean;
   structuralReview?: RayenSyncStructuralReviewEvidence;
 }
@@ -136,17 +139,26 @@ export const useRayenSyncAudit = ({
       fallbackRecord: DailyRecord,
       build: (freshRecord: DailyRecord) => { patch: DailyRecordPatch | null; value: T }
     ): Promise<T> => {
+      const owner = getStoredSessionOwnerKey(),
+        generation = getSessionGeneration();
+      const check = () => {
+        if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration())
+          throw new Error('La sesión cambió.');
+      };
       let base = fallbackRecord;
       let lastError: unknown;
       for (let attempt = 0; attempt <= MAX_METADATA_WRITE_RETRIES; attempt += 1) {
+        check();
         const prepared = build(base);
         if (!prepared.patch) return prepared.value;
         try {
           assertMetadataPatchAccepted(
             await patchDailyRecord({ partial: prepared.patch, options: { baseRecord: base } })
           );
+          check();
           return prepared.value;
         } catch (error) {
+          check();
           lastError = error;
           if (
             !isConcurrencyFailure(error) ||
@@ -156,6 +168,7 @@ export const useRayenSyncAudit = ({
             throw error;
           }
           base = await loadDailyRecord(base.date);
+          check();
         }
       }
       throw lastError;
@@ -255,6 +268,15 @@ export const useRayenSyncAudit = ({
       requestedRunId?: string,
       options?: CompleteRayenSyncRunOptions
     ): Promise<void> => {
+      const owner = getStoredSessionOwnerKey(),
+        generation = getSessionGeneration();
+      const sessionChanged = () =>
+        owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration();
+      const check = () => {
+        options?.checkSession?.();
+        if (sessionChanged()) throw new Error('La sesión cambió.');
+      };
+      check();
       // Use the applied run id even when a newer manual attempt has started.
       const runId = requestedRunId ?? recordAtApply.rayenSync?.runId;
       if (!runId) return;
@@ -282,6 +304,7 @@ export const useRayenSyncAudit = ({
         );
       try {
         const completedEvent = await persistMetadataPatch(fallback, base => {
+          check();
           const appliedEvent = base.rayenSyncHistory?.find(event => event.id === runId);
           if (!appliedEvent) return { patch: null, value: null };
           const event = buildCompletedEvent(appliedEvent);
@@ -291,6 +314,7 @@ export const useRayenSyncAudit = ({
           if (base.rayenSync?.runId === runId) patch.rayenSync = rayenSyncMetaFromEvent(event);
           return { patch, value: event };
         });
+        check();
         if (completedEvent) {
           if (claim) {
             lifecycle.commitTerminal(claim);
@@ -306,12 +330,17 @@ export const useRayenSyncAudit = ({
           reportRayenSyncWarning('sync_audit_event_missing', { runId });
         }
       } catch (error) {
+        if (sessionChanged()) {
+          if (claim) lifecycle.releaseTerminal(claim);
+          check();
+        }
         reportRayenSyncWarning('sync_audit_persist_failed', {
           runId,
           errorKind: classifyRayenSyncError(error),
         });
         try {
           const failedEvent = await persistMetadataPatch(fallback, base => {
+            check();
             const appliedEvent = base.rayenSyncHistory?.find(event => event.id === runId);
             if (!appliedEvent) return { patch: null, value: null };
             const event: RayenSyncEvent = {
@@ -325,6 +354,7 @@ export const useRayenSyncAudit = ({
             if (base.rayenSync?.runId === runId) patch.rayenSync = rayenSyncMetaFromEvent(event);
             return { patch, value: event };
           });
+          check();
           if (failedEvent) {
             if (claim) lifecycle.commitTerminal(claim);
             reportRayenSyncTerminal(
@@ -339,6 +369,7 @@ export const useRayenSyncAudit = ({
           }
         } catch (recoveryError) {
           if (claim) lifecycle.releaseTerminal(claim);
+          check();
           reportRayenSyncWarning('sync_audit_terminal_recovery_failed', {
             runId,
             errorKind: classifyRayenSyncError(recoveryError),

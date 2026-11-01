@@ -5,6 +5,7 @@ import { applyClinicalEnrichmentBatch } from './applyClinicalEnrichmentBatch';
 import { rebuildClinicalEnrichmentOperations } from '../domain/rebuildClinicalEnrichmentOperations';
 
 interface CreateClinicalEnrichmentPersistenceStrategyInput {
+  checkSession?: () => void;
   mode: ClinicalEnrichmentBatchMode;
   record: DailyRecord;
   runId: string;
@@ -17,6 +18,7 @@ interface CreateClinicalEnrichmentPersistenceStrategyInput {
 
 /** Selects one persistence owner once, before the clinical fill starts. */
 export const createClinicalEnrichmentPersistenceStrategy = ({
+  checkSession,
   mode,
   record,
   runId,
@@ -29,6 +31,7 @@ export const createClinicalEnrichmentPersistenceStrategy = ({
     disposition: 'deferred',
     persist: operations =>
       applyBatch({
+        checkSession,
         mode,
         record,
         runId,
