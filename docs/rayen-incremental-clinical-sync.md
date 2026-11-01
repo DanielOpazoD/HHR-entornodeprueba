@@ -53,8 +53,9 @@ retiros se revierte al sincronizar.
 
 La identidad del dispositivo es tipo base más fecha/hora de instalación, dentro del paciente y
 episodio; el número de VVP es sólo su etiqueta local. Al desaparecer otra VVP, la que sigue
-activa conserva instancia y etiqueta. La hora de instalación se compara tal como la entrega la
-fuente, igual que la guardaba la importación y la lectura por PDF.
+activa conserva instancia y etiqueta. La hora siempre queda en Rapa Nui: el JSON trae hora continental
+y se convierte; el PDF ya la imprime en hora local (medido el 2026-11-01). Una instancia antigua
+guardada con el reloj continental pasa a hora local al coincidir con una fila, sin duplicarse.
 
 **Instancias antiguas sin `source`:** fecha, hora y ubicación no prueban origen, porque las rutas
 manuales también las guardan. Sí lo prueba una nota con vencimiento ISO

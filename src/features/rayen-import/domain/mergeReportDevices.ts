@@ -23,13 +23,16 @@ const buildNote = (device: MappedDevice): string =>
   [device.location, device.note].filter(part => part.trim().length > 0).join(' · ');
 
 export const sameDeviceInstallation = (
-  item: Pick<DeviceInstance, 'type' | 'installationDate' | 'installationTime'>,
+  item: Pick<DeviceInstance, 'type' | 'installationDate' | 'installationTime' | 'source'>,
   device: MappedDevice
 ): boolean =>
   canonicalizeRayenDeviceType(item.type) === canonicalizeRayenDeviceType(device.type) &&
   Boolean(item.installationDate && item.installationTime) &&
-  item.installationDate === device.installationDate &&
-  item.installationTime === device.installationTime;
+  ((item.installationDate === device.installationDate &&
+    item.installationTime === device.installationTime) ||
+    (!item.source &&
+      item.installationDate === device.legacyInstallation?.date &&
+      item.installationTime === device.legacyInstallation?.time));
 
 const canonicalizePersistedDeviceType = (type: string): string =>
   /^VVP#\d+$/i.test(type.trim()) ? type.trim().toUpperCase() : canonicalizeRayenDeviceType(type);
@@ -160,6 +163,8 @@ export const mergeReportDevices = (
       const current = history[activeIdx];
       const refreshed = {
         ...history[activeIdx],
+        // A dated source row proves an unmarked instance came from Eloísa.
+        ...(matches[0] && !current.source ? { source: 'eloisa' as const } : {}),
         status: 'Active' as const,
         installationDate: device.installationDate || history[activeIdx].installationDate,
         installationTime: device.installationTime || history[activeIdx].installationTime,

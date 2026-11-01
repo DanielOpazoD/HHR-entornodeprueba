@@ -6,6 +6,7 @@
  */
 
 import { z } from 'zod';
+import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import type { InvasiveDeviceRow } from './parseInvasiveDevices';
 import { isNasogastricDevice } from '@/constants/clinicalDeviceConstants';
 
@@ -17,6 +18,8 @@ export interface MappedDevice {
   /** HH:MM. */
   installationTime: string;
   location: string;
+  /** Compatibility for unmarked instances saved before offset-aware device mapping. */
+  legacyInstallation?: { date: string; time: string };
   /** Free note (carries the expiration date, when the report provides one). */
   note: string;
 }
@@ -93,24 +96,35 @@ const parseInstall = (raw: string): { date: string; time: string } => {
 /** Converts the direct JSON endpoint into the same canonical rows used by the PDF fallback. */
 export const mapRayenInvasiveDeviceEntries = (
   entries: RayenInvasiveDeviceEntry[]
-): MappedDevice[] =>
-  mapInvasiveDevices(
-    entries
-      .filter(
-        entry =>
-          !entry.deleted &&
-          !entry.archived &&
-          !entry.removedDatetime &&
-          String(entry.name || '').trim()
-      )
-      .map(entry => ({
-        nombre: String(entry.name || '').trim(),
-        ubicacion: String(entry.location || '').trim(),
-        nro: entry.measuredNumber == null ? '' : String(entry.measuredNumber),
-        fechaInstalacion: String(entry.installationDatetime || ''),
-        fechaExpiracion: String(entry.expirationDatetime || ''),
-      }))
+): MappedDevice[] => {
+  const active = entries.filter(
+    entry =>
+      !entry.deleted && !entry.archived && !entry.removedDatetime && String(entry.name || '').trim()
   );
+  return mapInvasiveDevices(
+    active.map(entry => ({
+      nombre: String(entry.name || '').trim(),
+      ubicacion: String(entry.location || '').trim(),
+      nro: entry.measuredNumber == null ? '' : String(entry.measuredNumber),
+      fechaInstalacion: String(entry.installationDatetime || ''),
+      fechaExpiracion: String(entry.expirationDatetime || ''),
+    }))
+  ).map((device, index) => {
+    const raw = active[index]?.installationDatetime;
+    if (!raw || !/(?:Z|[+-]\d{2}:\d{2})$/.test(raw)) return device;
+    const instant = new Date(raw);
+    if (!Number.isFinite(instant.getTime())) return device;
+    const stamp = calendarStampInClinicalTimeZone(instant);
+    if (stamp.iso === device.installationDate && stamp.hhmm === device.installationTime)
+      return device;
+    return {
+      ...device,
+      legacyInstallation: { date: device.installationDate, time: device.installationTime },
+      installationDate: stamp.iso,
+      installationTime: stamp.hhmm,
+    };
+  });
+};
 
 export const mapInvasiveDevices = (rows: InvasiveDeviceRow[]): MappedDevice[] => {
   let vvpCount = 0;

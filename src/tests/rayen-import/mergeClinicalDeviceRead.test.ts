@@ -196,11 +196,11 @@ describe('current complete Eloísa JSON device reconciliation', () => {
     expect(sync(before, [])).toBe(before);
   });
 
-  it('keeps the source installation clock and converts an explicit removal to Rapa Nui', () => {
+  it('converts offset installation and removal events to Rapa Nui, including the previous calendar day', () => {
     const before = sync(base(), [row('CVC', '00:25')]);
     expect(history(before)[0]).toMatchObject({
-      installationDate: '2026-10-16',
-      installationTime: '00:25',
+      installationDate: '2026-10-15',
+      installationTime: '22:25',
     });
     const result = sync(before, [
       { ...row('CVC', '00:25'), removedDatetime: '2026-10-18T00:58:33.14-03:00' },
@@ -227,7 +227,7 @@ describe('current complete Eloísa JSON device reconciliation', () => {
     }
   );
 
-  it('does not duplicate an unmarked legacy instance whose old parser retained the source offset clock', () => {
+  it('moves an unmarked instance saved with the continental clock to Rapa Nui without duplicating it', () => {
     const before = sync(base(), [cvc]);
     delete history(before)[0].source;
     history(before)[0].installationTime = '13:15';
@@ -235,9 +235,9 @@ describe('current complete Eloísa JSON device reconciliation', () => {
     expect(history(result)).toHaveLength(1);
     expect(history(result)[0]).toMatchObject({
       id: history(before)[0].id,
-      installationTime: '13:15',
+      installationTime: '11:15',
+      source: 'eloisa',
     });
-    expect(history(result)[0].source).toBeUndefined();
   });
 
   it('reactivates only an absence retirement with the same installation, clears removal fields, and is idempotent', () => {

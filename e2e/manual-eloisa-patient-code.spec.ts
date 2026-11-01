@@ -122,12 +122,12 @@ test.describe('Manual Eloísa patient code', () => {
         expect.objectContaining({
           type: 'CVC',
           installationDate: date,
-          installationTime: '07:15',
+          installationTime: '08:15',
         }),
         expect.objectContaining({
           type: 'CUP',
           installationDate: date,
-          installationTime: '07:30',
+          installationTime: '08:30',
         }),
       ]),
       encounterRoute: 'nurse',
