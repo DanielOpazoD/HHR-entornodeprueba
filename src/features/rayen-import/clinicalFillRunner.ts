@@ -57,7 +57,6 @@ const message = (error: unknown): string =>
 const READ_CONCURRENCY = 4;
 export { countClinicalFillEligiblePatients } from './domain/clinicalFillCandidates';
 export { createClinicalFillWatchdog } from './domain/clinicalFillWatchdog';
-export { selectHistoricalCudyrPersistence } from './hooks/historicalCudyrPersistenceSelection';
 export {
   createDailyCudyrRecoveryReader,
   collectDailyCudyrRecoveryEpisodes,
@@ -131,10 +130,7 @@ export const runClinicalFill = async (
     performance.writeObserver,
     deps.signal
   );
-  const persistenceStrategy = deps.persistenceStrategy ?? {
-    disposition: 'immediate' as const,
-    persist: async () => undefined,
-  };
+  const persistenceStrategy = deps.persistenceStrategy;
   const pendingBatch: ClinicalFillPatchOperation[] = [];
   const cudyr = cudyrPreflight.then(async ({ source, unavailableError }) => {
     if (unavailableError) summary.errors.unshift(unavailableError);
@@ -146,7 +142,6 @@ export const runClinicalFill = async (
       source,
       recovery,
       applyBatch: deps.applyHistoricalCudyrBatch,
-      applySingle: deps.applyHistoricalCudyr,
       enqueueWrite: operation => writes.enqueue(operation, { scope: 'historical' }),
       onPersistenceEvidence: performance.recordPersistenceEvidence,
       onRetries: performance.recordRetries,
@@ -343,45 +338,18 @@ export const runClinicalFill = async (
     );
     if (Object.keys(patch).length === 0) return;
 
-    if (persistenceStrategy.disposition !== 'immediate') {
-      pendingBatch.push({
-        patch,
-        clinicalFieldCount,
-        checkpointChanged,
-        target: {
-          censusDate: fecha,
-          bedId,
-          clinicalEpisodeId: encId,
-          ...(clinicalCrib ? { clinicalCrib: true as const } : {}),
-        },
-      });
-      if (persistenceStrategy.disposition === 'deferred') {
-        if (historicalCudyrPatched && clinicalFieldCount === 0) summary.patched += 1;
-        return;
-      }
-    }
-
-    if (deps.signal?.aborted) {
-      reportPatientError('patch', message(deps.signal.reason ?? 'Clinical stage timeout'));
-      return;
-    }
-    try {
-      await writes.applyPatientPatch(
-        async captureHistorySnapshot => {
-          await deps.applyPatch(patch, {
-            censusDate: fecha,
-            bedId,
-            clinicalEpisodeId: encId,
-            captureHistorySnapshot,
-            ...(clinicalCrib ? { clinicalCrib: true as const } : {}),
-          });
-        },
-        { clinicalChange: clinicalFieldCount > 0 }
-      );
-      if (clinicalFieldCount > 0 || historicalCudyrPatched) summary.patched += 1;
-    } catch (error) {
-      reportPatientError('patch', message(error));
-    }
+    pendingBatch.push({
+      patch,
+      clinicalFieldCount,
+      checkpointChanged,
+      target: {
+        censusDate: fecha,
+        bedId,
+        clinicalEpisodeId: encId,
+        ...(clinicalCrib ? { clinicalCrib: true as const } : {}),
+      },
+    });
+    if (historicalCudyrPatched && clinicalFieldCount === 0) summary.patched += 1;
   };
 
   await Promise.all(
@@ -398,7 +366,6 @@ export const runClinicalFill = async (
 
   const batchPersistence = await persistClinicalBatch({
     operations: pendingBatch,
-    diagnosticRunId: deps.diagnosticRunId,
     strategy: persistenceStrategy,
     applyWithMetrics: operation => writes.applyBatch(operation, { scope: 'current' }),
     recordRetries: performance.recordRetries,

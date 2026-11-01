@@ -169,7 +169,6 @@ describeEmulator('clinical batch client recovers a lost committed response', () 
             },
           },
         ],
-        applyPatch,
         refreshRecord,
         invoke,
         createMutationId,
@@ -352,9 +351,6 @@ describeEmulator('clinical batch client recovers a lost committed response', () 
             record: baseRecord,
             runId: 'synthetic-run',
             operations,
-            applyPatch: async () => {
-              throw new Error('No legacy writer');
-            },
             refreshRecord: read,
             invoke,
             rebuildOperations: currentRecord =>
@@ -405,9 +401,6 @@ describeEmulator('clinical batch client recovers a lost committed response', () 
             patch: { 'beds.R1.evaluationScores': { ...reread.beds.R1.evaluationScores, braden } },
           },
         ],
-        applyPatch: async () => {
-          throw new Error('No legacy writer');
-        },
         refreshRecord: read,
         // An older field-v2 client may echo an accepted documentary score while changing Braden.
         invoke: payload => invoke({ ...payload, fieldContractVersion: 2 }),
@@ -425,9 +418,6 @@ describeEmulator('clinical batch client recovers a lost committed response', () 
               patch: { 'beds.R1.evaluationScores': { braden } },
             },
           ],
-          applyPatch: async () => {
-            throw new Error('No legacy writer');
-          },
           refreshRecord: read,
           invoke,
         })

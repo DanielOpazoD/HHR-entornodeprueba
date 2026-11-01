@@ -58,17 +58,16 @@ export interface DailyRecordAuthorityRolloutSummary {
   recommendation: DailyRecordAuthorityRolloutRecommendation;
 }
 
-export type RayenClinicalEnrichmentRolloutRecommendation = RolloutRecommendation;
+export type RayenClinicalEnrichmentRolloutRecommendation = Exclude<
+  RolloutRecommendation,
+  'ready_for_enforced'
+>;
 
 export interface RayenClinicalEnrichmentRolloutSummary {
   parityContractVersion: number;
   /** Complete audit totals for the active parity contract. */
   total: number;
-  shadowRuns: number;
   enforcedWrites: number;
-  matchedShadowRuns: number;
-  mismatchedShadowRuns: number;
-  unavailableShadowRuns: number;
   failureCount: number;
   blockedCount: number;
   permissionDeniedCount: number;
@@ -77,7 +76,6 @@ export interface RayenClinicalEnrichmentRolloutSummary {
   lastEntryAt?: string;
   /** Consecutive non-blocking evidence after the latest mismatch or operational failure. */
   cleanWindowRuns: number;
-  cleanMatchedShadowRuns: number;
   cleanEnforcedWrites: number;
   cleanEvidenceHours: number;
   lastBlockingSignalAt?: string;

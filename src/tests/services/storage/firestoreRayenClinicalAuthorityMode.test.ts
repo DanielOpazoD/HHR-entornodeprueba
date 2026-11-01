@@ -92,12 +92,12 @@ describe('firestoreRayenClinicalAuthorityMode', () => {
     }
   );
 
-  it('promotes client-only daily-record authority while the global policy is shadow', async () => {
+  it('ignores retired shadow policy when resolving deployment authority', async () => {
     mocks.getDoc.mockResolvedValue(
       policySnapshot({ schemaVersion: 2, clinicalBatchMode: 'shadow' })
     );
 
-    await expect(resolveEffectiveDailyRecordAuthorityMode(runtime)).resolves.toBe('shadow');
+    await expect(resolveEffectiveDailyRecordAuthorityMode(runtime)).resolves.toBe('client_only');
   });
 
   it('does not promote from an old, off or missing policy', async () => {

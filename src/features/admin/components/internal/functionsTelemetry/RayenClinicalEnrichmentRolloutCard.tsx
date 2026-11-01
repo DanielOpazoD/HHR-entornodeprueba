@@ -1,13 +1,9 @@
 import React from 'react';
-import { AlertTriangle, CheckCircle2, Gauge, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Gauge, ShieldCheck } from 'lucide-react';
 import type {
   RayenClinicalEnrichmentRolloutRecommendation,
   RayenClinicalEnrichmentRolloutSummary,
 } from '@/types/functionsTelemetry';
-import {
-  MIN_MATCHED_SHADOW_RUNS,
-  MIN_SHADOW_EVIDENCE_HOURS,
-} from '@/services/admin/functionsTelemetryService';
 
 interface Props {
   summary: RayenClinicalEnrichmentRolloutSummary;
@@ -18,14 +14,9 @@ const recommendationCopy: Record<
   { label: string; tone: string; icon: React.ReactNode }
 > = {
   insufficient_data: {
-    label: 'Reunir más evidencia shadow',
+    label: 'Sin evidencia del lote',
     tone: 'bg-slate-50 border-slate-200 text-slate-700',
     icon: <Gauge size={18} />,
-  },
-  ready_for_enforced: {
-    label: 'Listo para activar el lote',
-    tone: 'bg-emerald-50 border-emerald-200 text-emerald-700',
-    icon: <CheckCircle2 size={18} />,
   },
   monitor_enforced: {
     label: 'Lote activo en monitoreo',
@@ -33,7 +24,7 @@ const recommendationCopy: Record<
     icon: <ShieldCheck size={18} />,
   },
   investigate: {
-    label: 'Investigar antes de activar',
+    label: 'Revisar fallos del lote',
     tone: 'bg-amber-50 border-amber-200 text-amber-700',
     icon: <AlertTriangle size={18} />,
   },
@@ -60,9 +51,8 @@ export const RayenClinicalEnrichmentRolloutCard: React.FC<Props> = ({ summary })
             </h2>
           </div>
           <p className="mt-1 text-xs opacity-75">
-            Gate operativo: racha de mínimo {MIN_MATCHED_SHADOW_RUNS} ejecuciones shadow
-            coincidentes, {MIN_SHADOW_EVIDENCE_HOURS} horas y cero señales bloqueantes. Un mismatch
-            o fallo reinicia la racha sin borrar la auditoría.
+            Monitoreo de ejecuciones transaccionales. Un fallo o una paridad no confirmada reinicia
+            la racha sin borrar la auditoría.
             {summary.parityContractVersion > 0
               ? ` Evidencia del contrato v${summary.parityContractVersion}.`
               : ''}
@@ -75,12 +65,8 @@ export const RayenClinicalEnrichmentRolloutCard: React.FC<Props> = ({ summary })
       </div>
 
       <div className="mt-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 text-sm">
-        <Metric label="Racha OK" value={summary.cleanMatchedShadowRuns} />
+        <Metric label="Racha OK" value={summary.cleanEnforcedWrites} />
         <Metric label="Horas limpias" value={summary.cleanEvidenceHours} />
-        <Metric label="Shadow" value={summary.shadowRuns} />
-        <Metric label="Paridad OK" value={summary.matchedShadowRuns} />
-        <Metric label="Mismatch" value={summary.mismatchedShadowRuns} />
-        <Metric label="Sin paridad" value={summary.unavailableShadowRuns} />
         <Metric label="Enforced" value={summary.enforcedWrites} />
         <Metric label="Fallas" value={summary.failureCount} />
         <Metric label="Bloqueos" value={summary.blockedCount} />
@@ -88,7 +74,7 @@ export const RayenClinicalEnrichmentRolloutCard: React.FC<Props> = ({ summary })
         <Metric label="Horas auditadas" value={summary.evidenceHours} />
       </div>
       <p className="mt-2 text-xs opacity-70">
-        La racha limpia decide el gate; los demás contadores conservan la auditoría completa del
+        La racha muestra ejecuciones sin fallos; los demás contadores conservan la auditoría del
         contrato.
       </p>
     </section>

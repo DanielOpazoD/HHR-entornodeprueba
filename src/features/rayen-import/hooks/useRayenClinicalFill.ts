@@ -1,16 +1,9 @@
 import { useCallback } from 'react';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
-import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import { extractDeviceTextItems } from '../mapping/extractDeviceTextItems';
-import type {
-  ClinicalFillSummary,
-  ClinicalFillPatchTarget,
-  HistoricalCudyrApplyResult,
-} from '../clinicalFillRunner';
+import type { ClinicalFillSummary } from '../clinicalFillRunner';
 import type {
   HistoricalCudyrBatchItem,
-  HistoricalCudyrBatchItemResult,
   HistoricalCudyrBatchExecutionResult,
 } from '../contracts/clinicalFillContracts';
 import {
@@ -25,11 +18,7 @@ import { createClinicalFillReaders } from '../bridge/clinicalFillReaders';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
 import { reconcileNursingShiftProposal } from '../domain/applyNursingShiftProposal';
 import { enqueueLatestRayenClinicalFill } from '../domain/rayenClinicalFillQueue';
-import {
-  resolveClinicalEnrichmentBatchPolicyForRun,
-  usesLegacyClinicalWriter,
-} from '../domain/clinicalEnrichmentBatchMode';
-import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
+import { resolveClinicalEnrichmentBatchPolicyForRun } from '../domain/clinicalEnrichmentBatchMode';
 import type { RayenSyncStructuralReviewEvidence } from '@/types/domain/rayenSync';
 import {
   buildGlobalClinicalFillError,
@@ -59,24 +48,6 @@ interface UseRayenClinicalFillInput {
   tensCatalog: string[];
   loadDailyRecord: (date: string) => Promise<DailyRecord>;
   loadCudyrIdentityContext?: (date: string) => Promise<DailyRecord | null>;
-  /** `baseRecord` is what the patch was computed from (its rebuild base), never a write base. */
-  patchDailyRecord: (
-    patch: DailyRecordPatch,
-    target: ClinicalFillPatchTarget,
-    writeGuard: RayenClinicalWriteGuard,
-    baseRecord: DailyRecord
-  ) => Promise<unknown>;
-  applyHistoricalCudyr: (
-    encId: string,
-    censusDay: string,
-    cudyr: ImportedCudyr,
-    writeGuard?: RayenClinicalWriteGuard
-  ) => Promise<HistoricalCudyrApplyResult>;
-  applyHistoricalCudyrBatch?: (
-    censusDay: string,
-    items: HistoricalCudyrBatchItem[],
-    writeGuard?: RayenClinicalWriteGuard
-  ) => Promise<HistoricalCudyrBatchItemResult[]>;
   applyHistoricalCudyrEnforcedBatch?: (
     sourceRecord: DailyRecord,
     censusDay: string,
@@ -114,9 +85,6 @@ export const useRayenClinicalFill = ({
   tensCatalog,
   loadDailyRecord,
   loadCudyrIdentityContext,
-  patchDailyRecord,
-  applyHistoricalCudyr,
-  applyHistoricalCudyrBatch,
   applyHistoricalCudyrEnforcedBatch,
   completeRun,
   onStaffingProposal,
@@ -149,7 +117,6 @@ export const useRayenClinicalFill = ({
             createClinicalFillWatchdog,
             runClinicalFill,
             collectDailyCudyrRecoveryEpisodes,
-            selectHistoricalCudyrPersistence,
             createDailyCudyrRecoveryReader,
           } = await import('../clinicalFillRunner');
           const requestedEligibleCount = countClinicalFillEligiblePatients(
@@ -232,16 +199,6 @@ export const useRayenClinicalFill = ({
             };
           }
           const batchMode = runPolicy.clinicalBatchMode;
-          const legacyWriterEnabled = usesLegacyClinicalWriter(batchMode);
-          const historicalWriteGuard: RayenClinicalWriteGuard | undefined = legacyWriterEnabled
-            ? { ...runPolicy, recordScope: 'historical' }
-            : undefined;
-          const historicalCudyrPersistence = selectHistoricalCudyrPersistence(
-            { applyHistoricalCudyr, applyHistoricalCudyrBatch, applyHistoricalCudyrEnforcedBatch },
-            historicalWriteGuard,
-            freshRecord,
-            runPolicy.runId
-          );
           const auditRunId = requestedRunId ?? freshRecord.rayenSync?.runId;
           const eligibleCount = countClinicalFillEligiblePatients(
             freshRecord,
@@ -301,10 +258,6 @@ export const useRayenClinicalFill = ({
               mode: batchMode,
               record: fillRecord,
               runId: runPolicy.runId,
-              applyPatch: operation =>
-                patchDailyRecord(operation.patch, operation.target, runPolicy, fillRecord).then(
-                  () => undefined
-                ),
               refreshRecord: refreshFillRecord,
               // After a committed batch the day is only refreshed, never rebuilt: no documents.
               refreshCommittedRecord: () => loadDailyRecord(freshRecord.date),
@@ -317,33 +270,29 @@ export const useRayenClinicalFill = ({
                 signal: watchdog.signal,
                 allowedClinicalEpisodeIds,
                 historicalCudyrEpisodeIds,
-                ...(batchMode === 'enforced'
-                  ? {
-                      recoverMissingCudyr: createDailyCudyrRecoveryReader({
-                        signal: watchdog.signal,
-                        loadDay: loadCudyrIdentityContext ?? loadDailyRecord,
-                      }),
-                    }
-                  : {}),
+                recoverMissingCudyr: createDailyCudyrRecoveryReader({
+                  signal: watchdog.signal,
+                  loadDay: loadCudyrIdentityContext ?? loadDailyRecord,
+                }),
                 pendingReads: retryRequest?.pendingReads,
                 ...createClinicalFillReaders(watchdog.signal, clinicalCandidates),
                 extractDeviceItems: extractDeviceTextItems,
-                applyPatch: async (patch, target) => {
-                  await patchDailyRecord(patch, target, runPolicy, fillRecord);
-                },
                 persistenceStrategy,
-                ...historicalCudyrPersistence,
-                ...(batchMode === 'enforced'
-                  ? {
-                      archiveCudyrCapture: (
-                        request: import('@/types/domain/cudyrHistory').ArchiveCudyrHistoryRequest
-                      ) =>
-                        import('@/services/cudyr/cudyrArchiveQueue').then(
-                          ({ persistCudyrArchivePart }) =>
-                            persistCudyrArchivePart(request, watchdog.signal)
-                        ),
-                    }
-                  : {}),
+                applyHistoricalCudyrBatch: (censusDay, items) => {
+                  if (!applyHistoricalCudyrEnforcedBatch) {
+                    throw new Error('El lote histórico autoritativo no está disponible.');
+                  }
+                  return applyHistoricalCudyrEnforcedBatch(
+                    freshRecord,
+                    censusDay,
+                    items,
+                    runPolicy.runId
+                  );
+                },
+                archiveCudyrCapture: request =>
+                  import('@/services/cudyr/cudyrArchiveQueue').then(({ persistCudyrArchivePart }) =>
+                    persistCudyrArchivePart(request, watchdog.signal)
+                  ),
                 now: () => new Date(),
                 createId,
                 nurseCatalog,
@@ -439,8 +388,6 @@ export const useRayenClinicalFill = ({
           };
     },
     [
-      applyHistoricalCudyr,
-      applyHistoricalCudyrBatch,
       applyHistoricalCudyrEnforcedBatch,
       completeRun,
       createId,
@@ -449,6 +396,5 @@ export const useRayenClinicalFill = ({
       nurseCatalog,
       tensCatalog,
       onStaffingProposal,
-      patchDailyRecord,
     ]
   );

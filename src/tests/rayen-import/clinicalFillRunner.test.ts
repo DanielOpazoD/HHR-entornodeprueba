@@ -1,9 +1,6 @@
+import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  runClinicalFill,
-  type ClinicalFillDeps,
-  type ClinicalFillError,
-} from '@/features/rayen-import';
+import { type ClinicalFillError } from '@/features/rayen-import';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const BRADEN_HISTORY_EVENT = {
@@ -386,22 +383,6 @@ describe('runClinicalFill', () => {
     expectCheckpointOnlyPatch(deps.applyPatch, 'H1C2');
   });
 
-  it('a failing patient never blocks another (patch error on one bed only)', async () => {
-    const applyPatch = vi.fn().mockImplementation(async (patch: Record<string, unknown>) => {
-      if (Object.keys(patch)[0]?.includes('H1C1')) throw new Error('patch rechazado');
-    });
-    const deps = okDeps({ applyPatch });
-    const summary = await runClinicalFill(
-      record({ H1C1: { encId: 'E9' }, H1C2: { encId: 'E1' } }),
-      '2026-07-10',
-      deps
-    );
-
-    expect(summary.total).toBe(2);
-    expect(summary.patched).toBe(1);
-    expect(summary.errors).toEqual([patientError('patch', 'patch rechazado', 'H1C1', 'E9')]);
-  });
-
   it('fetches patients concurrently but serializes census writes to avoid self-conflicts', async () => {
     let activeWrites = 0;
     let maxActiveWrites = 0;
@@ -442,7 +423,7 @@ describe('runClinicalFill', () => {
       false,
       false,
     ]);
-    expect(summary.incremental).toMatchObject({ patientWrites: 4, historySnapshots: 1 });
+    expect(summary.incremental).toMatchObject({ patientWrites: 1, historySnapshots: 1 });
   });
 
   it('reports progress per patient and skips beds without episode/name', async () => {

@@ -1,11 +1,10 @@
+import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { renderHook } from '@testing-library/react';
 import { vi } from 'vitest';
 import {
   applyCensusImportDiff,
   applyEgresoReport,
   reconcileCensus,
-  runClinicalFill,
-  type ClinicalFillDeps,
   type RayenHistoryScaleEvent,
   type RayenInvasiveDeviceEntry,
 } from '@/features/rayen-import';
@@ -79,7 +78,7 @@ export const replay = async (
   const run = audit.result.current.startRun(undefined, undefined, {
     mode: 'preview',
     revision: 1,
-    clinicalBatchMode: 'shadow',
+    clinicalBatchMode: 'enforced',
   });
   const prepared = await prepareRayenSyncTemporalContext({
     displayedRecord: current,

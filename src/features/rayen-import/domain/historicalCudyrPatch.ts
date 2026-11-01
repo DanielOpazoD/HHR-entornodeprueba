@@ -10,12 +10,6 @@ import {
   hasAcceptedCudyr,
 } from '@/domain/evaluationScales/documentaryCudyr';
 
-export interface HistoricalCudyrPatchResolution {
-  matched: boolean;
-  patch: DailyRecordPatch | null;
-  administrativeOverridePreserved?: boolean;
-}
-
 interface LocatedHistoricalCudyrTarget {
   bedId: string;
   clinicalCrib?: true;
@@ -59,43 +53,6 @@ const sameCudyr = (current: ImportedCudyr | undefined, cudyr: ImportedCudyr): bo
     clinicalValuesEqual(current.items ?? [], cudyr.items ?? []) &&
     clinicalValuesEqual(current.history ?? [], cudyr.history ?? [])
   );
-
-/**
- * Builds the narrow historical patch for an official CUDYR result.
- * Ordinary imported copies may be refreshed. Documentary results and administrative corrections
- * retain their accepted value; daily synchronization does not replace them.
- */
-export const resolveHistoricalCudyrPatch = (
-  record: DailyRecord,
-  clinicalEpisodeId: string,
-  cudyr: ImportedCudyr
-): HistoricalCudyrPatchResolution => {
-  const target = locateHistoricalCudyrTarget(record, clinicalEpisodeId);
-  if (!target) return { matched: false, patch: null };
-  if (
-    target.evaluationScores?.cudyr?.source === CUDYR_DOCUMENTARY_SOURCE ||
-    (cudyr.source === CUDYR_DOCUMENTARY_SOURCE && hasAcceptedCudyr(target.patient))
-  )
-    return {
-      matched: true,
-      patch: null,
-      ...(isAdministrativeCudyrAdjustment(target.evaluationScores?.cudyr)
-        ? { administrativeOverridePreserved: true }
-        : {}),
-    };
-  assertDocumentaryCudyrTarget(record, target.patient, cudyr);
-  if (sameCudyr(target.evaluationScores?.cudyr, cudyr)) return { matched: true, patch: null };
-  if (isAdministrativeCudyrAdjustment(target.evaluationScores?.cudyr)) {
-    return { matched: true, patch: null, administrativeOverridePreserved: true };
-  }
-
-  const path = target.clinicalCrib
-    ? `beds.${target.bedId}.clinicalCrib.evaluationScores.cudyr`
-    : `beds.${target.bedId}.evaluationScores.cudyr`;
-  const patch: DailyRecordPatch = {};
-  patch[path] = cudyr;
-  return { matched: true, patch };
-};
 
 /**
  * Builds the narrow historical CUDYR delta accepted by the backend authority.

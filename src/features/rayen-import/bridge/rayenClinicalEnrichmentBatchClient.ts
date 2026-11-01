@@ -41,7 +41,7 @@ export interface RayenClinicalEnrichmentBatchPayload {
   fieldContractVersion:
     | typeof RAYEN_CLINICAL_ENRICHMENT_FIELD_CONTRACT_VERSION
     | typeof RAYEN_DOCUMENTARY_CUDYR_FIELD_CONTRACT_VERSION;
-  mode: 'shadow' | 'enforced';
+  mode: 'enforced';
   dryRun?: boolean;
   patches: RayenClinicalEnrichmentTarget[];
   checkpoints?: RayenClinicalCheckpointTarget[];
@@ -50,7 +50,7 @@ export interface RayenClinicalEnrichmentBatchPayload {
 export interface RayenClinicalEnrichmentBatchResponse {
   success: boolean;
   date: string;
-  mode: 'shadow' | 'enforced';
+  mode: 'enforced';
   authorityStatus: 'ok' | 'idempotent';
   revision?: number;
   targetCount: number;

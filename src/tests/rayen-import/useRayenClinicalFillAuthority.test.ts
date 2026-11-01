@@ -19,7 +19,7 @@ vi.mock('@/features/rayen-import/hooks/useRayenFillStatus', () => ({
   registerRayenFillAbort: vi.fn(),
 }));
 
-const legacyRunEvidence = (runId: string) => ({
+const enforcedRunEvidence = (runId: string) => ({
   rayenSync: { runId },
   rayenSyncHistory: [
     {
@@ -27,7 +27,8 @@ const legacyRunEvidence = (runId: string) => ({
       startedAt: '2026-07-14T10:00:00.000Z',
       by: 'Operador HHR',
       status: 'applied' as const,
-      policy: { mode: 'preview' as const, revision: 1 },
+      sourceDate: '2026-07-14',
+      policy: { mode: 'preview' as const, clinicalBatchMode: 'enforced' as const, revision: 1 },
     },
   ],
 });
@@ -39,7 +40,7 @@ const createRecord = (runId: string, withEvidence = false) =>
     discharges: [],
     transfers: [],
     cma: [],
-    ...(withEvidence ? legacyRunEvidence(runId) : { rayenSync: { runId } }),
+    ...(withEvidence ? enforcedRunEvidence(runId) : { rayenSync: { runId } }),
   }) as unknown as DailyRecord;
 
 const renderClinicalFill = (overrides: Record<string, unknown> = {}) =>
@@ -48,8 +49,6 @@ const renderClinicalFill = (overrides: Record<string, unknown> = {}) =>
       nurseCatalog: [],
       tensCatalog: [],
       loadDailyRecord: vi.fn(),
-      patchDailyRecord: vi.fn(),
-      applyHistoricalCudyr: vi.fn(),
       completeRun: vi.fn().mockResolvedValue(undefined),
       onStaffingProposal: vi.fn(),
       createId: () => 'id',
@@ -143,4 +142,26 @@ describe('useRayenClinicalFill authority revalidation', () => {
       'run-persisted-later'
     );
   });
+  it.each(['off', 'shadow', undefined] as const)(
+    'keeps a run with retired or absent mode %s retryable without starting clinical work',
+    async clinicalBatchMode => {
+      const record = createRecord('retired-run', true);
+      record.rayenSyncHistory![0].policy!.clinicalBatchMode = clinicalBatchMode;
+      const completeRun = vi.fn();
+      const historicalWriter = vi.fn();
+      const { result } = renderClinicalFill({
+        loadDailyRecord: vi.fn().mockResolvedValue(record),
+        completeRun,
+        applyHistoricalCudyrEnforcedBatch: historicalWriter,
+      });
+      let outcome;
+      await act(async () => {
+        outcome = await result.current(record);
+      });
+      expect(outcome).toMatchObject({ status: 'failed', retry: { type: 'clinical_retry' } });
+      expect(mocks.beginRayenFill).not.toHaveBeenCalled();
+      expect(historicalWriter).not.toHaveBeenCalled();
+      expect(completeRun).not.toHaveBeenCalled();
+    }
+  );
 });

@@ -23,7 +23,7 @@ vi.mock('@/features/rayen-import/hooks/useRayenFillStatus', () => ({
   registerRayenFillAbort: vi.fn(),
 }));
 
-const legacyRunEvidence = (runId = 'legacy-run') => ({
+const enforcedRunEvidence = (runId = 'legacy-run') => ({
   rayenSync: { runId },
   rayenSyncHistory: [
     {
@@ -31,7 +31,8 @@ const legacyRunEvidence = (runId = 'legacy-run') => ({
       startedAt: '2026-07-14T10:00:00.000Z',
       by: 'Operador HHR',
       status: 'applied' as const,
-      policy: { mode: 'preview' as const, revision: 1 },
+      sourceDate: '2026-07-14',
+      policy: { mode: 'preview' as const, clinicalBatchMode: 'enforced' as const, revision: 1 },
     },
   ],
 });
@@ -55,15 +56,13 @@ describe('useRayenClinicalFill', () => {
       discharges: [],
       transfers: [],
       cma: [],
-      ...legacyRunEvidence(),
+      ...enforcedRunEvidence(),
     } as unknown as DailyRecord;
     const { result } = renderHook(() =>
       useRayenClinicalFill({
         nurseCatalog: [],
         tensCatalog: [],
         loadDailyRecord: vi.fn().mockResolvedValue(record),
-        patchDailyRecord: vi.fn(),
-        applyHistoricalCudyr: vi.fn().mockResolvedValue({ persisted: false, changed: false }),
         completeRun,
         onStaffingProposal: vi.fn(),
         createId: () => 'id',
@@ -118,8 +117,6 @@ describe('useRayenClinicalFill', () => {
         nurseCatalog: [],
         tensCatalog: [],
         loadDailyRecord: vi.fn().mockRejectedValue(new Error('offline')),
-        patchDailyRecord: vi.fn(),
-        applyHistoricalCudyr: vi.fn().mockResolvedValue({ persisted: false, changed: false }),
         completeRun,
         onStaffingProposal: vi.fn(),
         createId: () => 'id',
@@ -166,15 +163,13 @@ describe('useRayenClinicalFill', () => {
       discharges: [],
       transfers: [],
       cma: [],
-      ...legacyRunEvidence(),
+      ...enforcedRunEvidence(),
     } as unknown as DailyRecord;
     const { result } = renderHook(() =>
       useRayenClinicalFill({
         nurseCatalog: ['Camila Soto'],
         tensCatalog: [],
         loadDailyRecord: vi.fn().mockResolvedValue(record),
-        patchDailyRecord: vi.fn(),
-        applyHistoricalCudyr: vi.fn(),
         completeRun: vi.fn().mockResolvedValue(undefined),
         onStaffingProposal,
         createId: () => 'id',
@@ -211,15 +206,13 @@ describe('useRayenClinicalFill', () => {
       discharges: [],
       transfers: [],
       cma: [],
-      ...legacyRunEvidence(),
+      ...enforcedRunEvidence(),
     } as unknown as DailyRecord;
     const { result } = renderHook(() =>
       useRayenClinicalFill({
         nurseCatalog: [],
         tensCatalog: [],
         loadDailyRecord: vi.fn().mockResolvedValue(record),
-        patchDailyRecord: vi.fn(),
-        applyHistoricalCudyr: vi.fn(),
         completeRun,
         onStaffingProposal,
         createId: () => 'id',
@@ -244,15 +237,13 @@ describe('useRayenClinicalFill', () => {
       discharges: [],
       transfers: [],
       cma: [],
-      ...legacyRunEvidence(),
+      ...enforcedRunEvidence(),
     } as unknown as DailyRecord;
     const { result } = renderHook(() =>
       useRayenClinicalFill({
         nurseCatalog: [],
         tensCatalog: [],
         loadDailyRecord: vi.fn().mockResolvedValue(record),
-        patchDailyRecord: vi.fn(),
-        applyHistoricalCudyr: vi.fn(),
         completeRun: vi.fn().mockRejectedValue(new Error('audit unavailable')),
         onStaffingProposal: vi.fn(),
         createId: () => 'id',

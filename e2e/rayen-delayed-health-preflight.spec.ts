@@ -15,7 +15,7 @@ test.describe('Rayen delayed extension health preflight', () => {
     await page.addInitScript(() => {
       localStorage.setItem(
         'hhr_e2e_rayen_import_policy',
-        JSON.stringify({ mode: 'preview', clinicalBatchMode: 'off', revision: 1 })
+        JSON.stringify({ mode: 'preview', clinicalBatchMode: 'enforced', revision: 1 })
       );
       let connected = false;
       let initialPassiveGreen = true;
