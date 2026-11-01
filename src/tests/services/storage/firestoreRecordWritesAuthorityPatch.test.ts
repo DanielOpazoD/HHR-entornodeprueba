@@ -386,7 +386,7 @@ describe('firestoreRecordWrites authority patch routing', () => {
 
       expect(mockAuthorityCallable).toHaveBeenCalledWith(
         expect.objectContaining({
-          mode: 'shadow',
+          mode: 'enforced',
           patch: { 'beds.R1.pathology': 'Diagnóstico protegido por schema v2' },
         })
       );

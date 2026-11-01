@@ -13,16 +13,11 @@ import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSup
 import { firestoreWriteLogger } from '@/services/storage/storageLoggers';
 import { resolveFirebaseUserRole } from '@/services/auth/authAccessResolution';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
-import { shouldShadowDailyRecordAuthorityCallable } from '@/services/storage/firestore/dailyRecordAuthorityMode';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import {
   isServerClinicalWriteFenceActive,
   resolveEffectiveDailyRecordAuthorityMode,
 } from '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode';
-import {
-  patchDailyRecordWithClinicalAuthorityCallable,
-  saveDailyRecordWithClinicalAuthorityCallable,
-} from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import type { UserRole } from '@/types/authRoleTypes';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import type {
@@ -181,7 +176,7 @@ export const shouldRouteDailyRecordSaveViaCallable = async (): Promise<boolean> 
 };
 
 export const resolveAuthenticatedDailyRecordAuthorityMode = async (): Promise<
-  'shadow' | 'enforced' | null
+  'enforced' | null
 > => {
   if (isE2EDailyRecordAuthorityCallableForced()) return 'enforced';
   const mode = await resolveEffectiveDailyRecordAuthorityMode();
@@ -207,73 +202,6 @@ export const shouldRouteStructuralBedPatchViaCallable = async (): Promise<boolea
   } catch (error) {
     firestoreWriteLogger.warn('Rayen structural callable routing check failed', { error });
     return false;
-  }
-};
-
-export const tryShadowDailyRecordSaveViaCallable = async (
-  record: DailyRecord,
-  expectedLastUpdated?: string,
-  syncContract?: SyncTaskContract
-): Promise<void> => {
-  if (!shouldShadowDailyRecordAuthorityCallable()) {
-    return;
-  }
-
-  try {
-    await defaultAuthRuntime.ready;
-    const firebaseUser = defaultAuthRuntime.getCurrentUser();
-    if (!firebaseUser || firebaseUser.isAnonymous) {
-      return;
-    }
-
-    await saveDailyRecordWithClinicalAuthorityCallable({
-      date: record.date,
-      record,
-      expectedLastUpdated,
-      mode: 'shadow',
-      origin: 'shadow_save',
-      syncContract,
-      dryRun: true,
-    });
-  } catch (error) {
-    firestoreWriteLogger.warn('Daily record authority shadow validation failed', {
-      date: record.date,
-      error,
-    });
-  }
-};
-
-export const tryShadowDailyRecordPatchViaCallable = async (
-  date: string,
-  patch: Record<string, unknown>,
-  expectedLastUpdated?: string,
-  syncContract?: SyncTaskContract
-): Promise<void> => {
-  if (!shouldShadowDailyRecordAuthorityCallable()) {
-    return;
-  }
-
-  try {
-    await defaultAuthRuntime.ready;
-    const firebaseUser = defaultAuthRuntime.getCurrentUser();
-    if (!firebaseUser || firebaseUser.isAnonymous) {
-      return;
-    }
-
-    await patchDailyRecordWithClinicalAuthorityCallable({
-      date,
-      patch,
-      expectedLastUpdated,
-      mode: 'shadow',
-      origin: 'shadow_partial_update',
-      syncContract,
-      dryRun: true,
-    });
-  } catch (error) {
-    firestoreWriteLogger.warn('Daily record authority shadow patch validation failed', {
-      date,
-      error,
-    });
   }
 };
 

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  configuredMode: 'client_only' as 'client_only' | 'shadow' | 'enforced',
+  configuredMode: 'client_only' as 'client_only' | 'enforced',
   getDoc: vi.fn(),
   doc: vi.fn((_db: unknown, path: string) => ({ path })),
 }));
@@ -16,7 +16,6 @@ vi.mock('@/services/storage/firestore/dailyRecordAuthorityMode', () => ({
 }));
 
 import {
-  isServerClinicalBatchEnforced,
   isServerClinicalWriteFenceActive,
   resolveEffectiveDailyRecordAuthorityMode,
 } from '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode';
@@ -44,14 +43,6 @@ describe('firestoreRayenClinicalAuthorityMode', () => {
     mocks.getDoc.mockResolvedValue(policySnapshot(null));
 
     await expect(resolveEffectiveDailyRecordAuthorityMode(runtime)).resolves.toBe('enforced');
-    expect(mocks.getDoc).toHaveBeenCalledOnce();
-  });
-
-  it('does not report server Rayen enforcement from the legacy deployment flag', async () => {
-    mocks.configuredMode = 'enforced';
-    mocks.getDoc.mockResolvedValue(policySnapshot({ schemaVersion: 2, clinicalBatchMode: 'off' }));
-
-    await expect(isServerClinicalBatchEnforced(runtime)).resolves.toBe(false);
     expect(mocks.getDoc).toHaveBeenCalledOnce();
   });
 
@@ -111,10 +102,13 @@ describe('firestoreRayenClinicalAuthorityMode', () => {
     }
   });
 
-  it('preserves the configured mode when the policy cannot be read', async () => {
-    mocks.configuredMode = 'shadow';
-    mocks.getDoc.mockRejectedValue(new Error('offline'));
-
-    await expect(resolveEffectiveDailyRecordAuthorityMode(runtime)).resolves.toBe('shadow');
-  });
+  it.each(['client_only', 'enforced'] as const)(
+    'preserves configured %s when the policy cannot be read',
+    async mode => {
+      mocks.configuredMode = mode;
+      mocks.getDoc.mockRejectedValue(new Error('offline'));
+      await expect(resolveEffectiveDailyRecordAuthorityMode(runtime)).resolves.toBe(mode);
+      await expect(isServerClinicalWriteFenceActive(runtime)).resolves.toBe(false);
+    }
+  );
 });

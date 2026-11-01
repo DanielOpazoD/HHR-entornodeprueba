@@ -26,10 +26,11 @@ publish writes none.
 A client write is either published directly to Firestore or handed to a server callable:
 
 - **Deployment mode** — `resolveDailyRecordAuthorityMode`: `VITE_DAILY_RECORD_AUTHORITY_MODE`
-  (`client_only` | `shadow` | `enforced`), else `VITE_DAILY_RECORD_AUTHORITY_CALLABLE=true` →
+  (`client_only` | `enforced`), else `VITE_DAILY_RECORD_AUTHORITY_CALLABLE=true` →
   `enforced`, else `client_only`. `.env.example` uses `client_only` and notes that a release must
   use `enforced`; the value each Netlify environment actually sets is not in the repo, so check it
-  before extrapolating a test to an environment.
+  before extrapolating a test to an environment. A retired `shadow` value is treated as
+  undefined, falling back to the legacy flag or `client_only` before policy promotion.
 - **Server policy** — `resolveEffectiveDailyRecordAuthorityMode` uses the stronger of the
   deployment mode and `settings/rayenImportPolicy` (`schemaVersion: 2`, `clinicalBatchMode`). The
   policy can promote a client, never weaken it.
@@ -43,9 +44,11 @@ A client write is either published directly to Firestore or handed to a server c
 
 "Callable off by default" therefore describes only a `client_only` deployment without the v2
 policy. With the fence, full saves, queue publishes and bed-tree patches go through the authority
-callables even when the deployment mode is `client_only`; they are sent as `mode: 'shadow'`,
-which the server commits like `enforced` (only `dryRun: true` skips the write). Without the
-fence, `enforced` routes full saves, queue publishes and clinical patches, but structural bed
+callables even when the deployment mode is `client_only`; they are sent as `mode: 'enforced'`,
+including when an initial policy read fails and a later read confirms authority. A lost response
+can then be recovered from a server-only receipt for the exact mutation, without another write.
+The server still accepts `shadow` from older open tabs (only `dryRun: true` skips its write).
+Without the fence, `enforced` routes full saves, queue publishes and clinical patches, but structural bed
 patches stay direct: the server rejects them unless the fence is active.
 
 ## Write paths
@@ -283,8 +286,8 @@ latest mutation marker does not by itself acknowledge the other mutations.
 5. **Publish** — enforced or fenced: the save callable, whose response must carry the committed
    record. A merged task still sends its own base, so the callable refuses it while the stored day
    is newer and the task stays queued (a known limit: it is held, not lost). Otherwise `runTransaction` re-runs steps 1–4 against the transactional snapshot and
-   writes with `{ merge: true }`, so beds absent from the payload are never dropped. With the
-   deployment mode `shadow`, a dry-run callable runs first and its failure never blocks.
+   writes with `{ merge: true }`, so beds absent from the payload are never dropped. The client
+   no longer sends shadow dry-run validations.
 6. **Acknowledge** — `completeClaimedSyncTask` writes any detached conflict, deletes the task and,
    when no other task for that date is unresolved, adopts the authoritative record into IndexedDB,
    all in the same Dexie transaction.

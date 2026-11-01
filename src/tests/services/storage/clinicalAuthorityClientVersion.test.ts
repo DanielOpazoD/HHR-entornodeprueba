@@ -57,8 +57,8 @@ describe('clinical authority callables · client runtime contract version', () =
   it.each([
     [
       'saveDailyRecordWithClinicalAuthority',
-      () => save({ date, record, mode: 'shadow', syncContract }),
-      { date, record, mode: 'shadow', syncContract },
+      () => save({ date, record, mode: 'enforced', syncContract }),
+      { date, record, mode: 'enforced', syncContract },
     ],
     [
       'patchDailyRecordWithClinicalAuthority',
@@ -66,14 +66,14 @@ describe('clinical authority callables · client runtime contract version', () =
         patch({
           date,
           patch: { 'beds.R1.cudyr': { changeClothes: 2 } },
-          mode: 'shadow',
+          mode: 'enforced',
           origin: 'legacy_guarded_clinical_patch',
           syncContract,
         }),
       {
         date,
         patch: { 'beds.R1.cudyr': { changeClothes: 2 } },
-        mode: 'shadow',
+        mode: 'enforced',
         origin: 'legacy_guarded_clinical_patch',
         syncContract,
       },

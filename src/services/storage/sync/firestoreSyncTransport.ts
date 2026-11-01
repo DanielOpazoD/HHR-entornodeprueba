@@ -348,7 +348,7 @@ const syncDailyRecord = async (
           date: recordToWrite.date,
           record: recordToWrite,
           expectedLastUpdated: task.syncContract?.expectedVersion,
-          mode: effectiveAuthorityMode === 'enforced' ? 'enforced' : 'shadow',
+          mode: 'enforced',
           origin: task.origin,
           syncContract: resolved.detached?.task.syncContract ?? task.syncContract,
         }).catch(error => {
@@ -378,22 +378,6 @@ const syncDailyRecord = async (
           selectedTruth: 'authority_intent_invariants',
         });
         return { authoritativeRecord };
-      }
-
-      if (effectiveAuthorityMode === 'shadow') {
-        try {
-          await saveDailyRecordWithClinicalAuthorityCallable({
-            date: recordToWrite.date,
-            record: recordToWrite,
-            expectedLastUpdated: task.syncContract?.expectedVersion,
-            mode: 'shadow',
-            origin: task.origin,
-            syncContract: resolved.detached?.task.syncContract ?? task.syncContract,
-            dryRun: true,
-          });
-        } catch {
-          // Shadow mode must never block legacy direct publish.
-        }
       }
 
       const committed = await runTransaction(runtime.getDb(), async transaction => {
