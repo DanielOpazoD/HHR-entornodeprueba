@@ -62,7 +62,8 @@ function harness(payloads: unknown[] = [[], []]) {
     fetchWithTimeout,
     classifyRejection,
     markSessionVerified,
-    authorizeVerifiedEncounter,
+    authorizeVerifiedEncounter: (sender: unknown) => (id: string) =>
+      authorizeVerifiedEncounter(sender, id),
   });
   const queriedTypes = () =>
     fetchWithTimeout.mock.calls.map(([url]) =>
@@ -315,7 +316,7 @@ describe('Gestión de Camas RUN/maternal RUN discharge query runtime', () => {
     expect(background).toContain('markSessionVerified: markGestionCamasSessionVerified');
     expect(background).toContain('classifyRejection: classifyGestionCamasRejection');
     expect(background).toContain(
-      'authorizeVerifiedEncounter: (sender, encounterId) => patientFlowRuntime.authorizeVerifiedEncounter(sender, encounterId)'
+      'authorizeVerifiedEncounter: sender => patientFlowRuntime.captureVerifiedEncounter(sender)'
     );
   });
 });

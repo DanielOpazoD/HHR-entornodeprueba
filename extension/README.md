@@ -343,6 +343,12 @@ paneles u otras rutas sin episodio abre directamente **Hospitalizados** y deja d
 del paciente actual. Los accesos contextuales de Indicaciones y Receta médica se mantienen solamente en
 la tabla de fármacos de Gestión de cuidados.
 
+### El permiso termina con la sesión HHR (0.48.63)
+
+Cambiar la generación de sesión HHR revoca en silencio los permisos de episodio de esa pestaña,
+incluso al despertar el worker. Una captura o consulta de egreso iniciada antes del cambio no puede
+reconcederlos: hace falta una nueva captura. La sesión compartida de Eloísa no cambia.
+
 ### El catálogo de diagnósticos dura 12 horas (0.48.62)
 
 El catálogo CIE-10 casi no cambia, pero se volvía a leer tras una hora. Como las sincronizaciones suelen
