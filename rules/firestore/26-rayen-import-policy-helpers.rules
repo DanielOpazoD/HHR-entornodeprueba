@@ -5,7 +5,7 @@
              ]) &&
              policy.schemaVersion == 2 &&
              policy.mode in ['preview', 'auto'] &&
-             policy.clinicalBatchMode in ['off', 'shadow', 'enforced'] &&
+             policy.clinicalBatchMode == 'enforced' &&
              policy.revision is int &&
              policy.revision >= 1 &&
              policy.updatedAt is timestamp &&

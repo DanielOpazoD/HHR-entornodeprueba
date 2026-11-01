@@ -10,7 +10,6 @@ import {
   dayPath,
   episodeDoc,
   episodePath,
-  guardedPatch,
   makeContext,
   makeDay,
   marker,
@@ -23,7 +22,7 @@ import {
  * D14: an episode document's id is the episode, not the generation. A day deleted and recreated
  * (an administrator's backup restore) gets a new generation, so its first split write `set`s over
  * the previous life's document. That document must survive in the day's history whatever the
- * writer: the guarded patch, the batch (also checkpoint-only, which keeps no run copy) and the full
+ * writer: the batch (also checkpoint-only, which keeps no run copy) and the full
  * save (which writes no episode document). Synthetic data only.
  */
 
@@ -157,24 +156,6 @@ describe('displaced episode documents (D14)', () => {
     expect(fake.read(episodePath('ep_rn_1'))).toMatchObject({
       vitalSignsHistory: [vitals(DAY, 150)],
     });
-  });
-
-  it('a guarded patch keeps the whole leftover, not only the moved values of its run copy', async () => {
-    vi.stubEnv(SPLIT_ENV, DAY);
-    const fake = setup(recreatedDay({ rayenSyncHistory: makeDay().rayenSyncHistory }));
-    fake.seed(POLICY_PATH, { ...ENFORCED, clinicalBatchMode: 'shadow' });
-    const leftover = leftoverOf('ep_pasaporte_2', 'R2', 66);
-    fake.seed(episodePath('ep_pasaporte_2'), leftover);
-
-    await writeApi(fake).patchDailyRecordWithClinicalAuthority.run(
-      guardedPatch({ 'beds.R2.clinicalSyncCheckpoint': checkpoint('p-2') }),
-      makeContext()
-    );
-
-    expect(fake.read(episodePath('ep_pasaporte_2'))).toMatchObject({
-      clinicalSyncCheckpoint: checkpoint('p-2'),
-    });
-    expect(keptDocuments(fake, 'ep_pasaporte_2')).toContainEqual(leftover);
   });
 
   it('keeps no copy when the replaced document is the current one', async () => {

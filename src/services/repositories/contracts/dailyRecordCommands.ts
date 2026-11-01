@@ -1,7 +1,6 @@
 import type { SpecialistHandoffTarget } from '@/types/domain/specialistHandoffTarget';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 import type { DailyRecordWriteLease } from '@/services/repositories/dailyRecordWriteCoordinator';
 import type { SpecialtyManualIntent } from '@/types/domain/specialtyDecision';
 import type {
@@ -77,7 +76,6 @@ export interface PartialUpdateDailyRecordOptions {
    * Forces this Rayen clinical patch through an atomic remote policy check before it may enter
    * local persistence/outbox. Reserved for synchronization code; ordinary census edits omit it.
    */
-  rayenClinicalWriteGuard?: RayenClinicalWriteGuard;
   /**
    * Requires the expected record version to be checked inside the same transaction as the patch.
    * Used by metadata checkpoints that precede an authoritative clinical handoff.

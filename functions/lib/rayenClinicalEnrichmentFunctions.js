@@ -92,11 +92,11 @@ const summarizeRequest = data => {
   );
   const date =
     typeof data?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.date) ? data.date : null;
-  const mode = data?.mode === 'shadow' || data?.mode === 'enforced' ? data.mode : 'invalid';
+  const mode = data?.mode === 'enforced' ? data.mode : 'invalid';
   return {
     date,
     mode,
-    dryRun: mode === 'shadow',
+    dryRun: false,
     targetCount: targetKeys.size,
     clinicalTargetCount: clinicalKeys.size,
     checkpointTargetCount: checkpoints.length,
@@ -125,7 +125,7 @@ const summarizeRequest = data => {
 const summarizePayload = payload => ({
   date: payload.date,
   mode: payload.mode,
-  dryRun: payload.dryRun,
+  dryRun: false,
   targetCount: payload.targets.length,
   clinicalTargetCount: payload.patches.length,
   checkpointTargetCount: payload.checkpoints.length,
@@ -140,7 +140,7 @@ const summarizePayload = payload => ({
   hasExpectedVersion: Boolean(payload.expectedLastUpdated),
   hasBaseRevision: payload.baseRevision !== undefined,
   fieldContractVersion: payload.fieldContractVersion,
-  versionGuardEnforced: payload.mode === 'enforced',
+  versionGuardEnforced: true,
   targetScope: resolveTargetScope(payload),
   runCorrelationId: correlationId(payload.runId),
   mutationCorrelationId: correlationId(payload.mutationId),
@@ -297,7 +297,7 @@ const createRayenClinicalEnrichmentFunctions = ({
           });
           const view = derived?.view ?? remoteData;
           parityContractVersion =
-            isClinicalDerivedSplitDay(remoteData) || (derived && !payload.dryRun)
+            isClinicalDerivedSplitDay(remoteData) || derived
               ? PARITY_CONTRACT_VERSION
               : UNSPLIT_PARITY_CONTRACT_VERSION;
           const authoritySnapshot =
@@ -404,7 +404,7 @@ const createRayenClinicalEnrichmentFunctions = ({
             guardScalarChanges: process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT === 'enabled',
           });
           const automaticSpecialtyDecisions =
-            process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT === 'enabled' && !payload.dryRun
+            process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT === 'enabled'
               ? applyPendingSpecialtyRules({
                   catalogEnabled: isCurrentRapaNuiDay(payload.date),
                   remoteRecord: remoteData,
@@ -423,16 +423,13 @@ const createRayenClinicalEnrichmentFunctions = ({
               decisions: automaticSpecialtyDecisions,
             })
           );
-          // Shadow runs after the established per-patient writes. Compare against that independently
-          // persisted record; comparing with our own projection would certify the request tautologically.
-          const parityRecord = payload.dryRun ? view : nextRecord;
           parityDiagnostics = summarizeClinicalEnrichmentMismatches(
-            parityRecord,
+            nextRecord,
             effectiveTargets,
             payload.fieldContractVersion
           );
           resultParity = parityDiagnostics.mismatchFieldCount === 0 ? 'matched' : 'mismatch';
-          if (resultParity !== 'matched' && !payload.dryRun) {
+          if (resultParity !== 'matched') {
             throw new functions.https.HttpsError(
               'failed-precondition',
               'Clinical enrichment result did not match the requested batch.'
@@ -470,7 +467,6 @@ const createRayenClinicalEnrichmentFunctions = ({
             derivedWrite && historyRef ? derivedWrite.withRunPrevious(runCopy) : runCopy;
           assertPersistedDocumentSize(persistedRecord);
           assertPersistedDocumentSize(historySnapshot);
-          if (payload.dryRun) return { historySnapshotWritten: false };
 
           revision = nextRecord.meta.revision;
           const historySnapshotWritten =
@@ -533,7 +529,7 @@ const createRayenClinicalEnrichmentFunctions = ({
         checkpointOnlyTargetCount: requestSummary.checkpointOnlyTargetCount,
         fieldCount: countFields(payload.targets),
         resultParity,
-        patientWrites: authorityStatus === 'ok' && !payload.dryRun ? 1 : 0,
+        patientWrites: authorityStatus === 'ok' ? 1 : 0,
         historySnapshots: transactionOutcome.historySnapshotWritten ? 1 : 0,
         targetScope: resolveTargetScope(payload),
         transactionAttempts,

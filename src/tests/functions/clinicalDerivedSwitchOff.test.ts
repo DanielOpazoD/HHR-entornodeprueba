@@ -9,7 +9,6 @@ import {
   checkpoint,
   createFakeFirestore,
   dayPath,
-  guardedPatch,
   makeContext,
   makeDay,
   shadowPolicy,
@@ -54,27 +53,6 @@ const outcome = (fake: ReturnType<typeof createFakeFirestore>, response: unknown
   docs: [...fake.docs.entries()].filter(([path]) => !path.includes('/functionsTelemetry/')),
   log: fake.log,
 });
-
-const runPatch = async () => {
-  const fake = createFakeFirestore();
-  fake.seed(POLICY_PATH, shadowPolicy);
-  fake.seed(dayPath(), makeDay());
-  const response = await writeApi(
-    fake,
-    'nurse_hospital',
-    false
-  ).patchDailyRecordWithClinicalAuthority.run(
-    guardedPatch(
-      {
-        'beds.R2.vitalSignsHistory': NEW_VITALS,
-        'beds.R2.clinicalSyncCheckpoint': checkpoint('p-2'),
-      },
-      { clientRuntimeContractVersion: undefined }
-    ),
-    makeContext()
-  );
-  return { fake, response };
-};
 
 const runBatch = async () => {
   const fake = createFakeFirestore();
@@ -168,7 +146,6 @@ describe('clinicalDerived switch (D5)', () => {
 
 describe('every callable behaves as before while the switch is off and no day is marked', () => {
   it.each([
-    ['guarded patch', runPatch],
     ['clinical batch', runBatch],
     ['full saves (creation with carryover, then an update)', runSaves],
   ])(
@@ -196,18 +173,6 @@ describe('every callable behaves as before while the switch is off and no day is
       }
     }
   );
-
-  it('guarded patch: the moved fields stay embedded in the day and in the response', async () => {
-    setEnv(undefined);
-    const { fake, response } = await runPatch();
-    const day = fake.read(dayPath()) as { beds: Record<string, Record<string, unknown>> };
-    expect(day.beds.R2.vitalSignsHistory).toEqual(NEW_VITALS);
-    expect(day.beds.R2.clinicalSyncCheckpoint).toEqual(checkpoint('p-2'));
-    expect(response.recordState.record.beds.R2.vitalSignsHistory).toEqual(NEW_VITALS);
-    expect(fake.read(`${dayPath()}/history/rayen-${RUN_ID}`)).not.toHaveProperty(
-      'clinicalDerivedPrevious'
-    );
-  });
 
   it('clinical batch: v1 is still accepted and the history copy keeps the plain snapshot', async () => {
     setEnv(undefined);

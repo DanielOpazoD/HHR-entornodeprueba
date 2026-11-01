@@ -10,7 +10,7 @@ import {
   SPLIT_ENV,
   createDailyRecordWriteAuthorityFunctions,
   createRayenClinicalEnrichmentFunctions,
-  guardedPatch,
+  clinicalBatch,
   makeContext,
   makeDay,
   shadowPolicy,
@@ -158,17 +158,22 @@ const HISTORY = [vitals(DAY, 72), vitals(PRIOR_DAY, 70)];
 
   /** A split day with R2's history in its document, then its JSON backup, then deleted. */
   const splitBackUpAndDelete = async () => {
-    await db.doc(`${hospital}/settings/rayenImportPolicy`).set(shadowPolicy);
+    await db
+      .doc(`${hospital}/settings/rayenImportPolicy`)
+      .set({ ...shadowPolicy, clinicalBatchMode: 'enforced' });
     const day = makeDay();
     const beds = day.beds as Record<string, Data>;
     beds.R1.clinicalSyncCheckpoint = checkpoint('m-1');
     beds.R2.clinicalSyncCheckpoint = checkpoint('p-1');
     await dayDoc().set(day);
-    await api('nurse_hospital').patchDailyRecordWithClinicalAuthority.run(
-      guardedPatch({
-        'beds.R2.vitalSignsHistory': HISTORY,
-        'beds.R2.clinicalSyncCheckpoint': checkpoint('p-2'),
-      }),
+    await api('nurse_hospital').applyRayenClinicalEnrichmentBatch.run(
+      clinicalBatch([
+        {
+          bedId: 'R2',
+          clinicalEpisodeId: 'ep_pasaporte_2',
+          fields: { vitalSignsHistory: HISTORY, clinicalSyncCheckpoint: checkpoint('p-2') },
+        },
+      ]),
       makeContext()
     );
 
@@ -391,27 +396,24 @@ const HISTORY = [vitals(DAY, 72), vitals(PRIOR_DAY, 70)];
     }
   );
 
-  it('a guarded patch after the restore keeps the history and one displaced copy on retry', async () => {
+  it('a clinical batch after the restore keeps the history and one displaced copy on retry', async () => {
     const { backup, leftover } = await splitBackUpAndDelete();
     await importRecordsFromBackup(backup);
     await dayDoc().update({ rayenSyncHistory: makeDay().rayenSyncHistory });
-    const payload = guardedPatch(
-      { 'beds.R2.clinicalSyncCheckpoint': checkpoint('p-guarded') },
-      {
-        expectedLastUpdated: iso((await read()).lastUpdated),
-        syncContract: {
-          mutationId: 'patch-after-restore',
-          changedPaths: ['beds.R2.clinicalSyncCheckpoint'],
-        },
-      }
-    );
+    const payload = clinicalBatch([], {
+      mutationId: 'batch-after-restore',
+      expectedLastUpdated: iso((await read()).lastUpdated),
+      checkpoints: [
+        { bedId: 'R2', clinicalEpisodeId: 'ep_pasaporte_2', checkpoint: checkpoint('p-batch') },
+      ],
+    });
 
-    await api('nurse_hospital').patchDailyRecordWithClinicalAuthority.run(payload, makeContext());
-    await api('nurse_hospital').patchDailyRecordWithClinicalAuthority.run(payload, makeContext());
+    await api('nurse_hospital').applyRayenClinicalEnrichmentBatch.run(payload, makeContext());
+    await api('nurse_hospital').applyRayenClinicalEnrichmentBatch.run(payload, makeContext());
 
     expect((await episodeRef('ep_pasaporte_2').get()).data()).toMatchObject({
       vitalSignsHistory: HISTORY,
-      clinicalSyncCheckpoint: checkpoint('p-guarded'),
+      clinicalSyncCheckpoint: checkpoint('p-batch'),
     });
     const copies = await dayDoc()
       .collection('history')

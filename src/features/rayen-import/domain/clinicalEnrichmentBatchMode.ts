@@ -1,5 +1,4 @@
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
-import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 
 export type ClinicalEnrichmentBatchMode = 'enforced';
 export type ClinicalEnrichmentBatchModeResolution = ClinicalEnrichmentBatchMode | 'unavailable';
@@ -8,7 +7,7 @@ const isImportMode = (value: unknown): value is 'preview' | 'auto' =>
   value === 'preview' || value === 'auto';
 
 export type ClinicalEnrichmentBatchPolicyResolution =
-  | (RayenClinicalWriteGuard & { clinicalBatchMode: 'enforced' })
+  | { runId: string; clinicalBatchMode: 'enforced'; revision: number; sourceDate: string }
   | 'unavailable';
 
 /** Resolves the immutable policy proof captured by the synchronization event. */
@@ -35,11 +34,9 @@ export const resolveClinicalEnrichmentBatchPolicyForRun = (
   if (sourceDate !== record.date) return 'unavailable';
   return {
     runId,
-    importMode: event.policy.mode,
     clinicalBatchMode,
     revision: event.policy.revision,
     sourceDate,
-    recordScope: 'run',
   };
 };
 

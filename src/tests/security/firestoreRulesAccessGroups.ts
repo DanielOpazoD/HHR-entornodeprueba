@@ -1495,7 +1495,7 @@ export function registerFirestoreRulesAccessGroups({
       revision: number,
       updatedByUid = 'user_admin',
       mode: 'preview' | 'auto' = 'preview',
-      clinicalBatchMode: 'off' | 'shadow' | 'enforced' = 'off'
+      clinicalBatchMode: 'off' | 'shadow' | 'enforced' = 'enforced'
     ) => ({
       schemaVersion: 2,
       mode,
@@ -1559,7 +1559,7 @@ export function registerFirestoreRulesAccessGroups({
       await assertSucceeds(
         admin()
           .doc(rayenImportPolicyPath)
-          .set(rayenPolicy(2, 'user_admin', 'auto', 'shadow'))
+          .set(rayenPolicy(2, 'user_admin', 'auto', 'enforced'))
       );
       await assertFails(admin().doc(rayenImportPolicyPath).set(rayenPolicy(4)));
       await assertFails(admin().doc(rayenImportPolicyPath).set(rayenPolicy(3, 'another-admin')));
@@ -1578,9 +1578,26 @@ export function registerFirestoreRulesAccessGroups({
       await assertSucceeds(
         admin()
           .doc(rayenImportPolicyPath)
-          .set(rayenPolicy(4, 'user_admin', 'auto', 'shadow'))
+          .set(rayenPolicy(4, 'user_admin', 'auto', 'enforced'))
       );
     });
+
+    it.each(['off', 'shadow'] as const)(
+      'Rejects retired clinical policy mode %s on create and update',
+      async mode => {
+        await assertFails(
+          admin()
+            .doc(rayenImportPolicyPath)
+            .set(rayenPolicy(1, 'user_admin', 'preview', mode))
+        );
+        await setupDocBypass(rayenImportPolicyPath, rayenPolicy(1));
+        await assertFails(
+          admin()
+            .doc(rayenImportPolicyPath)
+            .set(rayenPolicy(2, 'user_admin', 'preview', mode))
+        );
+      }
+    );
 
     it('Rejects caller-supplied Rayen policy timestamps on create and update', async () => {
       await assertFails(

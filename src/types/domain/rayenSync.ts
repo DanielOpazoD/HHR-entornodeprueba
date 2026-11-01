@@ -26,23 +26,6 @@ export interface RayenSyncPolicy {
   revision: number;
 }
 
-/**
- * Frozen authority proof attached only to legacy clinical writes from one synchronization run.
- * Firestore revalidates it atomically before committing so a later promotion to `enforced`
- * cannot leave an older client writing through the legacy path.
- */
-export interface RayenClinicalWriteGuard {
-  runId: string;
-  /** Structural import mode frozen by the same server-confirmed policy revision. */
-  importMode: 'preview' | 'auto';
-  clinicalBatchMode: 'off' | 'shadow' | 'enforced';
-  revision: number;
-  /** Daily record that owns the authoritative synchronization event. */
-  sourceDate: string;
-  /** Historical CUDYR targets live in another daily record; sourceDate still owns the run event. */
-  recordScope: 'run' | 'historical';
-}
-
 export type RayenExtensionEndpointStatus = 'ready' | 'missing' | 'stale';
 
 export const RAYEN_SYNC_ISSUE_SOURCES = [

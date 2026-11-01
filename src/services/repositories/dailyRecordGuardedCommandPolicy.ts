@@ -45,9 +45,6 @@ export const buildGuardedDailyRecordRemoteWriteOptions = ({
   // Only confirmed writes take the committed record; plain local-first writes stay receipt-less.
   ...(policy.requireConfirmedRecord ? { returnCommittedRecord: true } : {}),
   ...(options.historyPolicy ? { historyPolicy: options.historyPolicy } : {}),
-  ...(options.rayenClinicalWriteGuard
-    ? { rayenClinicalWriteGuard: options.rayenClinicalWriteGuard }
-    : {}),
   ...(options.intentionalBedClear ? { intentionalBedClear: options.intentionalBedClear } : {}),
   ...(options.specialtyIntent ? { specialtyIntent: options.specialtyIntent } : {}),
   ...(policy.clinicalCribCreate ? { clinicalCribCreate: policy.clinicalCribCreate } : {}),
@@ -291,7 +288,6 @@ export const buildGuardedDailyRecordPatchPolicy = ({
     requireAtomicCas: Boolean(manualClinicalCribCreation || options.specialtyIntent),
     clinicalCribCreate: manualClinicalCribCreation?.request,
     remoteAuthorityFirst: Boolean(
-      options.rayenClinicalWriteGuard ||
       options.requireRemoteAuthorityFirst ||
       options.intentionalBedClear ||
       options.specialtyIntent ||

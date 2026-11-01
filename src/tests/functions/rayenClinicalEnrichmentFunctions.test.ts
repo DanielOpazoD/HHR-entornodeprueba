@@ -357,7 +357,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
     expect(admin.set).not.toHaveBeenCalled();
   });
 
-  it('returns a compatible idempotent shadow response when canonical data already matches', async () => {
+  it('returns an idempotent response when canonical data already matches', async () => {
     const remote = makeClinicalRecord();
     remote.beds.H2C1 = {
       ...remote.beds.H2C1,
@@ -365,13 +365,11 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
       vitalSigns: { systolic: 120 },
       clinicalSyncCheckpoint: { version: 1, sources: {} },
     } as never;
-    const admin = createClinicalAdminMock(remote, { clinicalBatchMode: 'shadow' });
+    const admin = createClinicalAdminMock(remote);
     const payload = {
       ...makePayload(),
-      mode: 'shadow',
-      dryRun: false,
-      baseRevision: 1,
-      expectedLastUpdated: '2026-07-27T10:00:00.000Z',
+      baseRevision: remote.meta.revision,
+      expectedLastUpdated: remote.lastUpdated,
     };
     const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
       payload,
@@ -380,7 +378,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
 
     expect(result).toMatchObject({
       success: true,
-      mode: 'shadow',
+      mode: 'enforced',
       authorityStatus: 'idempotent',
       resultParity: 'matched',
       patientWrites: 0,
@@ -413,22 +411,24 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
     expect(admin.set).not.toHaveBeenCalled();
   });
 
-  it('reports a shadow mismatch when established persistence differs from the batch', async () => {
-    const admin = createClinicalAdminMock(undefined, { clinicalBatchMode: 'shadow' });
-    const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
-      { ...makePayload(), mode: 'shadow' },
-      makeContext()
-    );
-
-    expect(result).toMatchObject({
-      success: true,
-      mode: 'shadow',
-      resultParity: 'mismatch',
-      patientWrites: 0,
-      historySnapshots: 0,
-    });
-    expect(admin.set).not.toHaveBeenCalled();
-  });
+  it.each(['off', 'shadow', undefined])(
+    'rejects retired batch mode %j before reading the census',
+    async mode => {
+      const admin = createClinicalAdminMock();
+      await expect(
+        createApi(admin).applyRayenClinicalEnrichmentBatch.run(
+          { ...makePayload(), mode },
+          makeContext()
+        )
+      ).rejects.toMatchObject({
+        code: 'invalid-argument',
+        message: 'Clinical enrichment mode must be enforced.',
+      });
+      expect(admin.runTransaction).not.toHaveBeenCalled();
+      expect(admin.set).not.toHaveBeenCalled();
+      expect(admin.create).not.toHaveBeenCalled();
+    }
+  );
 
   it('persists a checkpoint-only batch without creating a clinical history snapshot', async () => {
     const admin = createClinicalAdminMock();

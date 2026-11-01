@@ -238,7 +238,7 @@ export const makeDay = (overrides: Data = {}, policy = { mode: 'preview', revisi
       id: RUN_ID,
       status: 'applied',
       sourceDate: DAY,
-      policy: { ...policy, clinicalBatchMode: 'shadow' },
+      policy: { ...policy, clinicalBatchMode: 'enforced' },
     },
   ],
   ...overrides,
@@ -286,21 +286,15 @@ export const batchApi = (fake: FakeFirestore, role = 'nurse_hospital') =>
     resolveRoleForEmail: vi.fn().mockResolvedValue(role),
   });
 
-/** A guarded Rayen fill patch (modes `off`/`shadow`) for the run frozen in `makeDay`. */
-export const guardedPatch = (patch: Data, overrides: Data = {}): Data => ({
+export const clinicalBatch = (patches: Data[], overrides: Data = {}): Data => ({
   date: DAY,
-  mode: 'shadow',
+  authorityDate: DAY,
+  runId: RUN_ID,
+  mutationId: 'mutation-batch-1',
   expectedLastUpdated: `${DAY}T10:00:00.000Z`,
-  patch,
-  syncContract: { mutationId: 'mutation-patch-1', changedPaths: Object.keys(patch) },
-  rayenClinicalWriteGuard: {
-    runId: RUN_ID,
-    importMode: 'preview',
-    clinicalBatchMode: 'shadow',
-    revision: 4,
-    sourceDate: DAY,
-    recordScope: 'run',
-  },
+  fieldContractVersion: 2,
+  mode: 'enforced',
+  patches,
   clientRuntimeContractVersion: 3,
   ...overrides,
 });

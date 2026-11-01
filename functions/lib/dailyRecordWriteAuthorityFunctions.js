@@ -41,20 +41,11 @@ const {
 } = require('./specialtyAuditAuthority');
 const { buildJevEvidence } = require('./specialtyJevEvidence');
 const {
-  RAYEN_CLINICAL_FIELDS,
   RAYEN_BATCH_ONLY_CLINICAL_FIELDS,
   isRayenClinicalWriteFenceActive,
   preserveRayenClinicalFields,
   shouldPreserveRayenClinicalFields,
 } = require('./dailyRecordClinicalFieldPreservation');
-const {
-  assertGuardedClinicalPatch,
-  assertRayenLegacyClinicalWriteAuthority,
-  isGuardedClinicalPatchPath,
-  isHistoricalCudyrPatchPath,
-  parseRayenClinicalWriteGuard,
-} = require('./rayenLegacyClinicalWriteAuthority');
-
 const ALLOWED_DAILY_RECORD_WRITE_ROLES = new Set([
   'admin',
   'nurse_hospital',
@@ -77,7 +68,6 @@ const ALLOWED_DAILY_RECORD_BED_TYPE_OVERRIDE_VALUES = new Set(['UTI', 'UCI', 'ME
 const STRUCTURAL_DAILY_RECORD_PATCH_ROLES = new Set(['admin', 'nurse_hospital']);
 
 const FORBIDDEN_PATCH_PATH_SEGMENTS = new Set(['__proto__', 'prototype', 'constructor']);
-const RAYEN_CLINICAL_PATCH_FIELDS = new Set(RAYEN_CLINICAL_FIELDS);
 
 const assertStringField = (value, fieldName) => {
   if (typeof value !== 'string' || !value.trim()) {
@@ -394,13 +384,7 @@ const specialtyFieldSnapshot = record => {
   return fields;
 };
 
-const parseAuthorizedPatchPath = (
-  path,
-  role,
-  guardedClinicalWrite = false,
-  guardedRecordScope = 'run',
-  intentionalBedClear = null
-) => {
+const parseAuthorizedPatchPath = (path, role, intentionalBedClear = null) => {
   const parts = String(path)
     .split('.')
     .map(part => part.trim())
@@ -418,18 +402,6 @@ const parseAuthorizedPatchPath = (
       kind: 'structuralField',
       bedId: intentionalBedClear.bedId,
       field: intentionalBedClear.target === 'clinicalCrib' ? 'clinicalCrib' : 'bed',
-    };
-  }
-
-  if (
-    guardedClinicalWrite &&
-    (isGuardedClinicalPatchPath(path, RAYEN_CLINICAL_PATCH_FIELDS) ||
-      (guardedRecordScope === 'historical' && isHistoricalCudyrPatchPath(path)))
-  ) {
-    return {
-      kind: 'rayenClinicalField',
-      bedId: parts[1],
-      field: parts[parts.length - 1],
     };
   }
 
@@ -503,24 +475,11 @@ const assertAuthorizedPatchValue = ({ path, value, parsedPath, patchPaths }) => 
   }
 };
 
-const inspectAuthorizedPatch = ({
-  remoteData,
-  patch,
-  role,
-  guardedClinicalWrite = false,
-  guardedRecordScope = 'run',
-  intentionalBedClear = null,
-}) => {
+const inspectAuthorizedPatch = ({ remoteData, patch, role, intentionalBedClear = null }) => {
   const patchPaths = new Set(Object.keys(patch));
   let requiresStructuralAuthority = false;
   Object.entries(patch).forEach(([path, value]) => {
-    const parsedPath = parseAuthorizedPatchPath(
-      path,
-      role,
-      guardedClinicalWrite,
-      guardedRecordScope,
-      intentionalBedClear
-    );
+    const parsedPath = parseAuthorizedPatchPath(path, role, intentionalBedClear);
     if (parsedPath.kind === 'structuralField') {
       const patient = remoteData?.beds?.[parsedPath.bedId];
       if (!isPlainObject(patient)) {
@@ -838,9 +797,7 @@ const assertIntentionalBedClearRequest = ({
 // vallados para parches directos: los dispositivos (devices/deviceDetails/
 // deviceInstanceHistory) son datos operacionales que enfermería gestiona a
 // mano entre corridas — vallarlos dejaba «agregar LA/SNG» guardando solo en
-// local y perdiéndose al recargar (verificado en vivo 31-08). El canal
-// guardado del lote (rayenClinicalWriteGuard) sigue escribiendo el conjunto
-// completo.
+// local y perdiéndose al recargar (verificado en vivo 31-08).
 const RAYEN_FENCED_PATCH_FIELDS = new Set(RAYEN_BATCH_ONLY_CLINICAL_FIELDS);
 
 const isRayenClinicalOwnedPatchPath = path => {
@@ -1036,6 +993,11 @@ const parsePayload = data => {
 };
 
 const parsePatchPayload = data => {
+  if (data && Object.hasOwn(data, 'rayenClinicalWriteGuard'))
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      'Legacy Rayen clinical write guards are no longer supported.'
+    );
   const date = assertStringField(data?.date, 'date');
   const patch = data?.patch;
   const syncContract = isPlainObject(data?.syncContract) ? data.syncContract : undefined;
@@ -1054,7 +1016,6 @@ const parsePatchPayload = data => {
     dryRun: data?.dryRun === true,
     syncContract,
     specialtyIntent: parseSpecialtyIntent(data?.specialtyIntent),
-    rayenClinicalWriteGuard: parseRayenClinicalWriteGuard(data?.rayenClinicalWriteGuard),
     intentionalBedClear: parseIntentionalBedClear(data?.intentionalBedClear),
     historyPolicy: data?.historyPolicy === 'skip' ? 'skip' : 'snapshot',
     expectedLastUpdated:
@@ -1619,7 +1580,6 @@ const createDailyRecordWriteAuthorityFunctions = ({
         dryRun,
         syncContract,
         expectedLastUpdated,
-        rayenClinicalWriteGuard,
         intentionalBedClear,
         specialtyIntent,
       } = parsePatchPayload(data);
@@ -1632,10 +1592,6 @@ const createDailyRecordWriteAuthorityFunctions = ({
         specialtyIntent?.kind === 'accept_ai'
           ? hospitalRef.collection('specialtyAiRequests').doc(specialtyIntent.requestId)
           : null;
-      const sourceRef =
-        rayenClinicalWriteGuard?.recordScope === 'historical'
-          ? hospitalRef.collection('dailyRecords').doc(rayenClinicalWriteGuard.sourceDate)
-          : docRef;
       let authority;
       let coverage;
       let revision;
@@ -1643,9 +1599,6 @@ const createDailyRecordWriteAuthorityFunctions = ({
       let clinicalDerivedTelemetry;
       const clinicalDerived = createClinicalDerivedStore({ FieldValue });
       const mutationId = normalizeShortString(syncContract?.mutationId);
-      const guardedHistoryRef = rayenClinicalWriteGuard
-        ? docRef.collection('history').doc(`rayen-${rayenClinicalWriteGuard.runId}`)
-        : null;
 
       try {
         txnStartedAt = Date.now();
@@ -1653,23 +1606,15 @@ const createDailyRecordWriteAuthorityFunctions = ({
           txnAttempts += 1;
           pendingHistoryData = null;
           clinicalDerivedTelemetry = undefined;
-          const [
-            snapshot,
-            policySnapshot,
-            sourceSnapshot,
-            guardedHistorySnapshot,
-            specialtyPolicySnapshot,
-            aiRequestSnapshot,
-          ] = await Promise.all([
-            transaction.get(docRef),
-            transaction.get(policyRef),
-            rayenClinicalWriteGuard?.recordScope === 'historical'
-              ? transaction.get(sourceRef)
-              : Promise.resolve(null),
-            guardedHistoryRef ? transaction.get(guardedHistoryRef) : Promise.resolve(null),
-            specialtyEpisodeEnabled() ? transaction.get(specialtyPolicyRef) : Promise.resolve(null),
-            aiRequestRef ? transaction.get(aiRequestRef) : Promise.resolve(null),
-          ]);
+          const [snapshot, policySnapshot, specialtyPolicySnapshot, aiRequestSnapshot] =
+            await Promise.all([
+              transaction.get(docRef),
+              transaction.get(policyRef),
+              specialtyEpisodeEnabled()
+                ? transaction.get(specialtyPolicyRef)
+                : Promise.resolve(null),
+              aiRequestRef ? transaction.get(aiRequestRef) : Promise.resolve(null),
+            ]);
           if (!snapshot.exists) {
             throw new functions.https.HttpsError(
               'failed-precondition',
@@ -1691,7 +1636,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
           }
 
           if (!dryRun) assertVerifiableWriteBase({ snapshot, syncContract, expectedLastUpdated });
-          if (rayenClinicalWriteGuard || intentionalBedClear) {
+          if (intentionalBedClear) {
             assertExactExpectedVersion({ snapshot, expectedLastUpdated });
           } else {
             assertExpectedVersion({ snapshot, expectedLastUpdated });
@@ -1756,26 +1701,6 @@ const createDailyRecordWriteAuthorityFunctions = ({
               promptVersion: request.result.promptVersion,
             };
           }
-          if (rayenClinicalWriteGuard) {
-            assertGuardedClinicalPatch({
-              patch,
-              clinicalFields: RAYEN_CLINICAL_PATCH_FIELDS,
-              recordScope: rayenClinicalWriteGuard.recordScope,
-            });
-            const runRecord =
-              rayenClinicalWriteGuard.recordScope === 'historical'
-                ? sourceSnapshot?.exists
-                  ? sourceSnapshot.data() || {}
-                  : null
-                : remoteData;
-            assertRayenLegacyClinicalWriteAuthority({
-              policySnapshot,
-              runRecord,
-              targetDate: date,
-              guard: rayenClinicalWriteGuard,
-              role,
-            });
-          }
           const canonicalIntentionalBedClearPatch = assertIntentionalBedClearRequest({
             patch,
             role,
@@ -1788,15 +1713,9 @@ const createDailyRecordWriteAuthorityFunctions = ({
             remoteData,
             patch: authorizedPatch,
             role,
-            guardedClinicalWrite: Boolean(rayenClinicalWriteGuard),
-            guardedRecordScope: rayenClinicalWriteGuard?.recordScope,
             intentionalBedClear,
           });
-          if (
-            isRayenClinicalWriteFenceActive(policySnapshot) &&
-            !rayenClinicalWriteGuard &&
-            !intentionalBedClear
-          ) {
+          if (isRayenClinicalWriteFenceActive(policySnapshot) && !intentionalBedClear) {
             assertNoRayenClinicalOwnedPatch(patch);
           }
           if (patchInspection.requiresStructuralAuthority) {
@@ -1819,9 +1738,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
             patch: authorizedPatch,
           });
           const patchedRecord =
-            isRayenClinicalWriteFenceActive(policySnapshot) &&
-            !rayenClinicalWriteGuard &&
-            !intentionalBedClear
+            isRayenClinicalWriteFenceActive(policySnapshot) && !intentionalBedClear
               ? preserveRayenClinicalFields({
                   remoteRecord: remoteData,
                   incomingRecord: patchedCandidate,
@@ -1902,26 +1819,8 @@ const createDailyRecordWriteAuthorityFunctions = ({
             return;
           }
 
-          if (guardedHistoryRef) {
-            if (!guardedHistorySnapshot?.exists) {
-              const runCopy = buildSlimHistorySnapshot(remoteData, now);
-              transaction.set(
-                guardedHistoryRef,
-                derivedWrite ? derivedWrite.withRunPrevious(runCopy) : runCopy
-              );
-            } else {
-              derivedWrite?.extendRunCopy({
-                transaction,
-                ref: guardedHistoryRef,
-                snapshot: guardedHistorySnapshot,
-              });
-            }
-          } else {
-            // El snapshot de historial se escribe DESPUÉS del commit y adelgazado:
-            // dentro de la transacción duplicaba el payload del registro completo
-            // y alargaba cada comando cama–cuna sin proteger ningún invariante.
-            pendingHistoryData = buildSlimHistorySnapshot(remoteData, now);
-          }
+          // El snapshot de historial se escribe después del commit y adelgazado.
+          pendingHistoryData = buildSlimHistorySnapshot(remoteData, now);
 
           // Escribir sólo los paths tocados (con sus valores FINALES, ya
           // canonicalizados en patchedRecord) en lugar de reescribir el registro

@@ -255,111 +255,59 @@ describe('daily-record authoritative clinical field fence', () => {
     }
   );
 
-  it('applies a legacy clinical patch only when policy and frozen run match atomically', async () => {
-    const policy = {
-      schemaVersion: 2,
-      mode: 'preview',
-      clinicalBatchMode: 'shadow',
-      revision: 4,
-    };
-    const remote = {
-      ...makeRecord(),
-      rayenSyncHistory: [
-        {
-          id: 'run-1',
-          status: 'applied',
-          sourceDate: '2026-05-13',
-          policy: { mode: 'preview', clinicalBatchMode: 'shadow', revision: 4 },
+  it.each(['off', 'shadow', 'enforced', null, 'malformed'])(
+    'rejects a retired guard (%j) even on an otherwise writable operational patch',
+    async clinicalBatchMode => {
+      const remote = makeRecord();
+      const { admin, set, update } = createAdminMock({
+        remoteData: remote,
+        policyData: {
+          schemaVersion: 2,
+          mode: 'preview',
+          clinicalBatchMode: 'enforced',
+          revision: 7,
         },
-      ],
-      beds: { R1: { ...makeRecord().beds.R1, vitalSigns: { systolic: 118 } } },
-    };
-    const { admin, set, update, docRef, historyDoc } = createAdminMock({
-      remoteData: remote,
-      policyData: policy,
-    });
-    const functionsApi = createDailyRecordWriteAuthorityFunctions({
-      firestore: admin.firestore(),
-      Timestamp: admin.firestore.Timestamp,
-      resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),
-    });
-
-    await functionsApi.patchDailyRecordWithClinicalAuthority.run(
-      {
+      });
+      const api = createDailyRecordWriteAuthorityFunctions({
+        firestore: admin.firestore(),
+        Timestamp: admin.firestore.Timestamp,
+        resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),
+      });
+      const request = {
         date: remote.date,
-        mode: 'shadow',
         expectedLastUpdated: remote.lastUpdated,
-        historyPolicy: 'skip',
-        patch: { 'beds.R1.vitalSigns': { systolic: 120 } },
-        rayenClinicalWriteGuard: {
-          runId: 'run-1',
-          importMode: 'preview',
-          clinicalBatchMode: 'shadow',
-          revision: 4,
-          sourceDate: remote.date,
-          recordScope: 'run',
-        },
-      },
-      makeContext()
-    );
+        patch: { 'beds.R1.devices': ['VVP'] },
+      };
+      await api.patchDailyRecordWithClinicalAuthority.run(request, makeContext());
+      set.mockClear();
+      update.mockClear();
 
-    expect(update).toHaveBeenCalledWith(
-      docRef,
-      expect.objectContaining({
-        'beds.R1.vitalSigns': { systolic: 120 },
-      })
-    );
-    expect(set).toHaveBeenCalledWith(
-      historyDoc,
-      expect.objectContaining({
-        beds: { R1: expect.objectContaining({ vitalSigns: { systolic: 118 } }) },
-      })
-    );
-  });
-
-  it('rejects a legacy clinical patch after the global policy revision changes', async () => {
-    const remote = {
-      ...makeRecord(),
-      rayenSyncHistory: [
-        {
-          id: 'run-1',
-          status: 'applied',
-          sourceDate: '2026-05-13',
-          policy: { mode: 'preview', clinicalBatchMode: 'shadow', revision: 4 },
-        },
-      ],
-    };
-    const { admin, set } = createAdminMock({
-      remoteData: remote,
-      policyData: { schemaVersion: 2, mode: 'preview', clinicalBatchMode: 'shadow', revision: 5 },
-    });
-    const functionsApi = createDailyRecordWriteAuthorityFunctions({
-      firestore: admin.firestore(),
-      Timestamp: admin.firestore.Timestamp,
-      resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),
-    });
-
-    await expect(
-      functionsApi.patchDailyRecordWithClinicalAuthority.run(
-        {
-          date: remote.date,
-          mode: 'shadow',
-          expectedLastUpdated: remote.lastUpdated,
-          patch: { 'beds.R1.vitalSigns': { systolic: 120 } },
-          rayenClinicalWriteGuard: {
-            runId: 'run-1',
-            importMode: 'preview',
-            clinicalBatchMode: 'shadow',
-            revision: 4,
-            sourceDate: remote.date,
-            recordScope: 'run',
+      await expect(
+        api.patchDailyRecordWithClinicalAuthority.run(
+          {
+            ...request,
+            rayenClinicalWriteGuard:
+              clinicalBatchMode === null
+                ? null
+                : {
+                    runId: 'run-1',
+                    importMode: 'preview',
+                    clinicalBatchMode,
+                    revision: 7,
+                    sourceDate: remote.date,
+                    recordScope: 'run',
+                  },
           },
-        },
-        makeContext()
-      )
-    ).rejects.toMatchObject({ code: 'failed-precondition' });
-    expect(set).not.toHaveBeenCalled();
-  });
+          makeContext()
+        )
+      ).rejects.toMatchObject({
+        code: 'failed-precondition',
+        message: 'Legacy Rayen clinical write guards are no longer supported.',
+      });
+      expect(set).not.toHaveBeenCalled();
+      expect(update).not.toHaveBeenCalled();
+    }
+  );
 
   it('rejects nurse structural edits to a legacy record outside the derived calendar window', async () => {
     vi.setSystemTime(new Date('2026-05-16T12:00:00.000Z'));

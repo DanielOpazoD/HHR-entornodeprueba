@@ -144,7 +144,6 @@ export const buildGranularPatchStaleVersionRetryHooks = <TResult>({
   const manualSpecialty = options.specialtyIntent?.kind === 'manual';
   const eligible =
     !isReclassification &&
-    !options.rayenClinicalWriteGuard &&
     (manualSpecialty ||
       (!options.requireAtomicCas && !policy.requireAtomicCas && !policy.remoteAuthorityFirst)) &&
     semanticChangedPaths.length > 0 &&

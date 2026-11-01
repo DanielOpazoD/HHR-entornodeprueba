@@ -432,18 +432,10 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
     );
     expect(saveToIndexedDB).not.toHaveBeenCalled();
   });
-  it('persists guarded Rayen patches remotely before local cache without queuing a stale retry', async () => {
+  it('persists explicit remote-first patches before local cache without queuing a stale retry', async () => {
     const hydratedBase = buildRecord('2026-02-13');
     hydratedBase.lastUpdated = '2026-02-13T08:00:00.000Z';
     hydratedBase.beds = { R1: buildPatient('R1', 'Paciente local') };
-    const rayenClinicalWriteGuard = {
-      runId: 'rayen-run-guarded',
-      importMode: 'preview',
-      clinicalBatchMode: 'shadow',
-      revision: 7,
-      sourceDate: '2026-02-13',
-      recordScope: 'run',
-    } as const;
     vi.mocked(updateRecordPartialToFirestore).mockResolvedValueOnce({
       success: true,
       date: '2026-02-13',
@@ -477,14 +469,14 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
     const result = await updatePartialDetailed(
       '2026-02-13',
       { 'beds.R1.vitalSigns': { heartRate: 72 } },
-      { baseRecord: hydratedBase, rayenClinicalWriteGuard }
+      { baseRecord: hydratedBase, requireRemoteAuthorityFirst: true, requireConfirmedRecord: true }
     );
     expect(result.outcome).toBe('clean');
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       '2026-02-13',
       expect.any(Object),
       hydratedBase.lastUpdated,
-      expect.objectContaining({ rayenClinicalWriteGuard })
+      expect.objectContaining({ returnCommittedRecord: true })
     );
     expect(vi.mocked(updateRecordPartialToFirestore).mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(adoptAuthoritativeDailyRecordAtomically).mock.invocationCallOrder[0]

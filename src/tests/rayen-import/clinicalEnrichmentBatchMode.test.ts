@@ -44,11 +44,9 @@ describe('clinicalEnrichmentBatchMode', () => {
     );
     expect(resolveClinicalEnrichmentBatchPolicyForRun(record('enforced'), 'latest-run')).toEqual({
       runId: 'latest-run',
-      importMode: 'preview',
       clinicalBatchMode: 'enforced',
       revision: 8,
       sourceDate: '2026-08-04',
-      recordScope: 'run',
     });
   });
 
