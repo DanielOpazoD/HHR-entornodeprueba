@@ -60,7 +60,7 @@ el parser anterior, sin cambiar su procedencia ni duplicarlas.
 **Instancias antiguas sin `source`:** fecha, hora y ubicación no prueban origen, porque las rutas
 manuales también las guardan. Sí lo prueba una nota con vencimiento ISO
 (`Vence: 2026-11-28T02:00:00-03:00`), que solo escribe la importación JSON: esa instancia se
-retira por ausencia y queda marcada `source: eloisa`. El resto de las instancias sin marca se
+retira por ausencia. Esa fecha no se usa como señal clínica: en Eloísa es de llenado obligatorio y no indica nada. El resto de las instancias sin marca se
 conserva. El 2026-11-01 las 18 instancias activas del censo tenían esa nota. Los dispositivos sin
 instancia se conservan. No hay migraciones ni scripts sobre pacientes reales.
 

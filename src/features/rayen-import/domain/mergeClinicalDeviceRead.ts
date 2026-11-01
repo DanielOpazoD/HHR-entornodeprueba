@@ -41,7 +41,7 @@ const datedStamp = (raw?: string | null): { date: string; time: string } | undef
 };
 
 // Instances saved before `source` existed: only the JSON import writes an ISO expiration in the note.
-const LEGACY_IMPORT_NOTE = /Vence: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+const LEGACY_IMPORT_NOTE = /(?:^| · )Vence: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}\S*$/;
 const cameFromEloisa = (item: DeviceInstance): boolean =>
   item.source === 'eloisa' || (!item.source && LEGACY_IMPORT_NOTE.test(item.note ?? ''));
 
@@ -101,7 +101,6 @@ const reconcileDeviceRetirements = (
     changedTypes.add(item.type);
     const retired = {
       ...item,
-      source: 'eloisa' as const,
       status: 'Removed' as const,
       removalDate: explicit?.date ?? current.iso,
       removalSource: explicit ? ('eloisa' as const) : ('eloisa-absence' as const),

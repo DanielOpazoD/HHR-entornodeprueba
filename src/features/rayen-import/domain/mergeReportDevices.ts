@@ -114,7 +114,6 @@ export const mergeReportDevices = (
     const matching = matches[0] ?? (undated.length === 1 ? undated[0] : undefined);
     const reactivating =
       matching?.status === 'Removed' &&
-      matching.source === 'eloisa' &&
       matching.removalSource === 'eloisa-absence' &&
       ctx.allowAbsenceReactivation;
     // Nursing/explicit/legacy retirements are never undone by an old source row.

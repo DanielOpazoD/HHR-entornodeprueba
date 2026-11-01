@@ -178,10 +178,22 @@ describe('current complete Eloísa JSON device reconciliation', () => {
 
     const relisted = sync(result, [
       cvc,
-      { ...row('Vía venosa periférica', '14:25'), installationDatetime: '2026-10-15T23:11:00' },
+      {
+        ...row('Vía venosa periférica', '14:25'),
+        installationDatetime: '2026-10-15T23:11:33.14-03:00',
+      },
     ]);
     expect(byId(relisted, 'old-vvp-1').status).toBe('Active');
     expect(history(relisted)).toHaveLength(5);
+  });
+
+  it('does not read a retirement origin from an expiration typed inside a longer note', () => {
+    const before = installed();
+    for (const item of history(before)) {
+      delete item.source;
+      item.note = 'Revisar Vence: 2026-11-28T02:00:00-03:00 con turno';
+    }
+    expect(sync(before, [])).toBe(before);
   });
 
   it('converts offset installation and removal events to Rapa Nui, including the previous calendar day', () => {
