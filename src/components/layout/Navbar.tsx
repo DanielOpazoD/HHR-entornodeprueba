@@ -216,6 +216,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 throw error;
               }
             }}
+            onSelectPreset={async presetId => {
+              try {
+                await userAvatar.selectPresetAvatar(presetId);
+                const feedback = buildUserAvatarFeedback('saved');
+                success(feedback.title, feedback.message);
+              } catch (error) {
+                const message =
+                  error instanceof Error ? error.message : 'No se pudo guardar el ícono.';
+                notifyError('No se pudo guardar el ícono', message);
+                throw error;
+              }
+            }}
             onRemove={async () => {
               try {
                 await userAvatar.removeAvatar();

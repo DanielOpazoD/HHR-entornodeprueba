@@ -11,6 +11,7 @@ export interface UseUserAvatarProfileResult {
   isSaving: boolean;
   error: string | null;
   uploadAvatar: (file: File) => Promise<UserAvatarProfile>;
+  selectPresetAvatar: (presetId: string) => Promise<UserAvatarProfile>;
   removeAvatar: () => Promise<void>;
   clearError: () => void;
 }
@@ -112,6 +113,34 @@ export const useUserAvatarProfile = (
     [user?.email, user?.uid]
   );
 
+  const selectPresetAvatar = useCallback(
+    async (presetId: string) => {
+      if (!user?.uid) {
+        throw new Error('No se pudo identificar al usuario actual.');
+      }
+
+      setIsSaving(true);
+      setError(null);
+      try {
+        const service = await loadUserAvatarProfileService();
+        const nextProfile = await service.selectPresetAvatar({
+          uid: user.uid,
+          email: user.email,
+          presetId,
+        });
+        setProfile(nextProfile);
+        return nextProfile;
+      } catch (selectError) {
+        const message = resolveErrorMessage(selectError);
+        setError(message);
+        throw new Error(message);
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [user?.email, user?.uid]
+  );
+
   const removeAvatar = useCallback(async () => {
     if (!user?.uid) {
       return;
@@ -138,6 +167,7 @@ export const useUserAvatarProfile = (
     isSaving,
     error,
     uploadAvatar,
+    selectPresetAvatar,
     removeAvatar,
     clearError: () => setError(null),
   };
