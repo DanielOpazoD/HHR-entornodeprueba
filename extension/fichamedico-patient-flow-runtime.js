@@ -55,7 +55,8 @@
       }
     };
     return Object.freeze({
-      authorizationReady: authorization.ready,
+      authorizationReady: authorization.ready, revokeAuthorization: authorization.revoke,
+      captureVerifiedEncounter: authorization.capture,
       authorizeSnapshotResponse,
       authorizeBundleResponse,
       authorizeVerifiedEncounter,
@@ -67,7 +68,6 @@
       }),
     });
   };
-  const api = Object.freeze({ create });
-  root.HhrFichaMedicoPatientFlowRuntime = api;
+  const api = Object.freeze({ create }); root.HhrFichaMedicoPatientFlowRuntime = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof self !== 'undefined' ? self : globalThis);

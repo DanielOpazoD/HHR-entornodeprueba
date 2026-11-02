@@ -415,6 +415,12 @@
       "command": "npx playwright test e2e/report-flow.spec.ts --project=chromium"
     },
     {
+      "file": "e2e/shared-computer-acceptance.spec.ts",
+      "lane": "manual",
+      "reason": "Standalone shared computer acceptance with Auth/Firestore emulators; existing account CI launcher timed out before running this scenario locally.",
+      "command": "bash scripts/run-shared-computer-acceptance.sh"
+    },
+    {
       "file": "e2e/session-cleanup-isolation.spec.ts",
       "lane": "manual",
       "reason": "Retained session cleanup isolation scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
