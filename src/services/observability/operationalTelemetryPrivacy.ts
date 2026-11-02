@@ -18,6 +18,7 @@
  */
 
 import { RAYEN_SYNC_FAILURE_REASONS, RAYEN_SYNC_ISSUE_REASONS } from '@/types/domain/rayenSync';
+import { withErrorServiceCause } from './operationalTelemetryErrorCause';
 
 /** Allowlists are written as whitespace separated literals to stay readable and compact. */
 const tokens = (raw: string): string[] => raw.split(/\s+/).filter(Boolean);
@@ -306,7 +307,11 @@ export const sanitizeOperationalTelemetryEvent = (
   const status = asString(input.status);
   const date = asString(input.date);
   const runtimeState = asString(input.runtimeState);
-  const { context, droppedCount } = sanitizeOperationalTelemetryContextValues(input.context);
+  const { context, droppedCount } = sanitizeOperationalTelemetryContextValues(
+    input.operation === 'error_service_log'
+      ? withErrorServiceCause(input.context, input.issues)
+      : input.context
+  );
   const drops = Math.min(
     droppedCount + countCarriedDrops(input.droppedContextKeys),
     OPERATIONAL_TELEMETRY_MAX_CONTEXT_KEYS

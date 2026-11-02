@@ -368,6 +368,14 @@ describe('operational telemetry privacy: whole event', () => {
         timestamp: '2026-09-11T03:10:00.000Z',
         context: { runId: 'run-1', userId: 'uid-1', count: 2 },
       },
+      {
+        category: 'sync',
+        status: 'failed',
+        operation: 'error_service_log',
+        timestamp: '2026-09-11T03:10:00.000Z',
+        issues: [`Unhandled Promise Rejection: TypeError: ${PATIENT}`],
+        context: { type: 'unhandledrejection', reason: { name: 'TypeError', message: PATIENT } },
+      },
     ]) {
       const once = sanitizeOperationalTelemetryEvent(input);
       expect(sanitizeOperationalTelemetryEvent(once)).toEqual(once);

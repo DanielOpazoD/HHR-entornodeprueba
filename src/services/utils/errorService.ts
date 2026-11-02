@@ -103,11 +103,7 @@ class ErrorService {
           // An Error clones and serializes to nothing useful; keep its cause readable locally.
           reason:
             event.reason instanceof Error
-              ? {
-                  name: event.reason.name,
-                  message: event.reason.message,
-                  code: (event.reason as { code?: unknown }).code,
-                }
+              ? { name: event.reason.name, message: event.reason.message }
               : event.reason,
         },
       });
@@ -121,7 +117,6 @@ class ErrorService {
         stack: event.error?.stack,
         context: {
           type: 'error',
-          errorName: event.error instanceof Error ? event.error.name : undefined,
           filename: event.filename,
           lineno: event.lineno,
           colno: event.colno,

@@ -42,21 +42,35 @@ describe('an error-service alert says what failed without the message', () => {
     expect(errorService).toBeDefined();
   });
 
-  it('names an unhandled Firestore rejection by source, class and code', async () => {
+  it('names an unhandled Firestore rejection by source and class', async () => {
     rejectUnhandled(
-      Object.assign(new Error(PATIENT_TEXT), { name: 'FirebaseError', code: 'permission-denied' })
+      Object.assign(new Error(`Missing or insufficient permissions. ${PATIENT_TEXT}`), {
+        name: 'FirebaseError',
+      })
     );
 
     const body = await mailForLastError();
+    expect(body).toContain('- auth_issue');
     expect(body).toContain('- errorSource: unhandled_rejection');
     expect(body).toContain('- errorName: FirebaseError');
-    expect(body).toContain('- errorCode: permission-denied');
     expect(body).not.toContain('Juan');
+  });
+
+  it('keeps the Firebase code of a logged Firebase failure', async () => {
+    errorService.logFirebaseError({ code: 'permission-denied' }, 'saveRecord');
+
+    const body = await mailForLastError();
+    expect(body).toContain('- errorSource: logged');
+    expect(body).toContain('- errorCode: permission-denied');
   });
 
   it('names an uncaught error', async () => {
     window.dispatchEvent(
-      new ErrorEvent('error', { message: PATIENT_TEXT, error: new TypeError(PATIENT_TEXT) })
+      // Chrome prefixes the class to the message of an uncaught error.
+      new ErrorEvent('error', {
+        message: `Uncaught TypeError: ${PATIENT_TEXT}`,
+        error: new TypeError(PATIENT_TEXT),
+      })
     );
 
     const body = await mailForLastError();

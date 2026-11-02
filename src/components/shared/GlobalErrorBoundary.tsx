@@ -42,13 +42,12 @@ export class GlobalErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     // Log error to error service
     errorService.logError({
-      message: `React Error Boundary: ${error.message}`,
+      // `${error}` keeps the class (`TypeError: …`), which telemetry reports as a code.
+      message: `React Error Boundary: ${error}`,
       severity: 'critical',
       error,
       stack: errorInfo.componentStack || undefined,
       context: {
-        type: 'error_boundary',
-        errorName: error.name,
         componentStack: errorInfo.componentStack || undefined,
         errorInfo,
       },

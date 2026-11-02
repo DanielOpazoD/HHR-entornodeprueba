@@ -23,36 +23,6 @@ export const indexedDbErrorSink: ErrorServiceSink = async errorLog => {
 const mapSeverityToTelemetryStatus = (severity: ErrorLog['severity']): 'degraded' | 'failed' =>
   severity === 'critical' || severity === 'high' ? 'failed' : 'degraded';
 
-const ERROR_SOURCE_BY_TYPE: Record<string, string> = {
-  unhandledrejection: 'unhandled_rejection',
-  error: 'uncaught_error',
-  error_boundary: 'render_crash',
-};
-
-const stringField = (value: unknown): string | undefined =>
-  typeof value === 'string' && value ? value : undefined;
-
-/**
- * The message never leaves the device, so the alert needs codes that say what failed: where the
- * error surfaced, its class and its Firebase code. The sanitizer keeps only values it knows.
- */
-const describeErrorCause = (context: ErrorLog['context']): Record<string, string> => {
-  const reason =
-    context?.reason && typeof context.reason === 'object'
-      ? (context.reason as Record<string, unknown>)
-      : {};
-  const errorName = stringField(context?.errorName) ?? stringField(reason.name);
-  const errorCode =
-    stringField(context?.errorCode) ??
-    stringField(reason.code) ??
-    stringField(context?.firebaseCode);
-  return {
-    errorSource: ERROR_SOURCE_BY_TYPE[stringField(context?.type) ?? ''] ?? 'logged',
-    ...(errorName ? { errorName } : {}),
-    ...(errorCode ? { errorCode } : {}),
-  };
-};
-
 export const externalTelemetryErrorSink: ErrorServiceSink = async errorLog => {
   await dispatchOperationalTelemetryExternally({
     category: 'sync',
@@ -60,7 +30,8 @@ export const externalTelemetryErrorSink: ErrorServiceSink = async errorLog => {
     operation: 'error_service_log',
     timestamp: errorLog.timestamp,
     issues: [errorLog.message],
-    context: describeErrorCause(errorLog.context),
+    // Raw on purpose: the lazily loaded privacy gate turns it into codes before anything leaves.
+    context: errorLog.context,
   });
 };
 
