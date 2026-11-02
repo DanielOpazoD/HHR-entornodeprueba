@@ -193,6 +193,11 @@ Al abrir la aplicación, el sistema sincroniza automáticamente los datos del d�
 3. Si no hay redirect, intenta rehidratar una sesión Firebase ya persistida.
 4. Recién después queda suscripto al observer continuo de `onAuthStateChanged`.
 
+En el ingreso por RUT, si `signInWithRut` devuelve un rol confirmado y la identidad
+coincide con el usuario Firebase resultante, se usa esa confirmación sin una consulta
+adicional a `checkUserRole`. Si faltan esos campos se conserva la consulta habitual;
+Google conserva su flujo. [Contrato de acceso](AUTH_ACCESS_MODEL.md).
+
 Esto reduce los casos donde una sesión válida tarda en materializarse después de un deploy nuevo.
 
 ### Verdad Operativa de Sync

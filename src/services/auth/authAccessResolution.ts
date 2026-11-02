@@ -4,7 +4,11 @@ import { resolveGeneralLoginAccessForEmail } from '@/services/auth/authPolicy';
 import { createAuthError, toAuthUser } from '@/services/auth/authShared';
 import { recordAuthOperationalError } from '@/services/auth/authOperationalTelemetry';
 import { type AuthRuntime, defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
-import { clearConfirmedAuthRole, rememberConfirmedAuthRole } from '@/services/auth/authRoleLookup';
+import {
+  clearConfirmedAuthRole,
+  getCredentialSignInRole,
+  rememberConfirmedAuthRole,
+} from '@/services/auth/authRoleLookup';
 import { resolveUserRoleClaim } from '@/services/auth/authClaimSyncService';
 
 const STANDARD_UNAUTHORIZED_MESSAGE =
@@ -110,6 +114,11 @@ const resolveFirebaseUserRoleFromPolicy = async (
   isCurrent: () => boolean
 ): Promise<UserRole | null> => {
   try {
+    const credentialRole = getCredentialSignInRole(firebaseUser);
+    if (credentialRole && isCurrent()) {
+      await rememberConfirmedAuthRole(firebaseUser, credentialRole, isCurrent);
+      return credentialRole;
+    }
     const loginAccess = await resolveGeneralLoginAccessForEmail(firebaseUser.email || '');
     if (loginAccess.allowed && loginAccess.role) {
       await rememberConfirmedAuthRole(firebaseUser, loginAccess.role, isCurrent);

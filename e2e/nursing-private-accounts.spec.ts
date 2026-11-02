@@ -155,9 +155,12 @@ test('initial RUT access, password visibility, mandatory setup and email recover
     await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
     await expect(page.getByTestId('login-google-button')).toBeVisible();
     await page.getByLabel('Usuario', { exact: true }).fill('222222222');
+    const checksBeforeRutSignIn = successfulRoleChecks;
     await page.getByLabel('Contraseña', { exact: true }).fill('Changed browser phrase 629!');
     await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
     await expect(menu).toBeVisible();
+    await page.clock.runFor(100);
+    expect(successfulRoleChecks).toBe(checksBeforeRutSignIn);
     expect(
       await page.evaluate(() =>
         JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } })

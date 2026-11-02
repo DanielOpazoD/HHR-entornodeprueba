@@ -134,6 +134,13 @@ del cambio. Las pruebas sintéticas verifican el orden de admisión y confirmaci
 revocación, fallo temporal, expiración y aislamiento; el efecto sobre los tiempos
 hasta filas requiere una medición comparable después de publicar.
 
+El responsable midió además unos 0,7 s en la consulta de rol posterior al ingreso
+por RUT. El callable ahora puede devolver el rol usando el documento y token ya
+verificados, y el cliente evita esa consulta si coincide la cuenta Firebase.
+Respuestas antiguas mantienen el camino de consulta. Esta eliminación se verifica
+con transporte sintético y el escenario de cuentas en emuladores; no constituye
+una medición de latencia en producción.
+
 ## Import redundante del shell autenticado — 2026-11-02
 
 Métrica objetivo: **fin de `auth-role:lookup-done` → `table_paint_opportunity`**.

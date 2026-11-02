@@ -66,9 +66,7 @@ Listar fortalezas reales y específicas.
 
 -
 -
--
-
----
+- ***
 
 ## 4. Hallazgos principales
 
@@ -76,9 +74,7 @@ Describir lo más importante que hoy limita calidad, velocidad o estabilidad.
 
 -
 -
--
-
----
+- ***
 
 ## 5. Riesgos actuales
 
@@ -92,9 +88,7 @@ Separar el riesgo técnico del riesgo operativo.
 ### Riesgo operativo / clínico
 
 -
--
-
----
+- ***
 
 ## 6. Hotspots y archivos clave
 
@@ -145,9 +139,7 @@ Ordenar por impacto y retorno.
 ### P3
 
 -
--
-
----
+- ***
 
 ## 9. Plan de mejoras por bloques
 
@@ -190,9 +182,7 @@ Elegir una sola:
 
 Justificación:
 
--
-
----
+- ***
 
 ## 11. Estado deseado después de la ronda
 
@@ -200,9 +190,7 @@ Describir cómo se vería el módulo si la siguiente ola sale bien.
 
 -
 -
--
-
----
+- ***
 
 ## 12. Cierre de evaluación
 
