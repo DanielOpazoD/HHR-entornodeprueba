@@ -4,6 +4,7 @@ import {
   NURSING_PASSWORD_HINT,
 } from '@/services/auth/nursingPasswordPolicy';
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   accountErrorMessage,
   establishNursingSession,
@@ -50,7 +51,8 @@ export default function NursingPasswordDialog({ onClose }: { onClose: () => void
       setBusy(false);
     }
   };
-  return (
+  // The navbar's transform would make `fixed` relative to the bar, cutting the dialog off.
+  return createPortal(
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4"
       role="dialog"
@@ -115,6 +117,7 @@ export default function NursingPasswordDialog({ onClose }: { onClose: () => void
           </button>
         </div>
       </form>
-    </div>
+    </div>,
+    document.body
   );
 }
