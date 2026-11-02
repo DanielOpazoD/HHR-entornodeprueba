@@ -42,11 +42,18 @@ se borra.
 
 | Qué ves                                    | Qué hacer                                                                  |
 | ------------------------------------------ | -------------------------------------------------------------------------- |
-| El censo no carga o no hay internet        | Recarga la página. Si sigue igual, anota en papel y avisa.                 |
+| El censo no carga o no hay internet        | Recarga la página. Si sigue igual, sigue el plan de abajo y avisa.         |
 | Sincronizar no conecta con Eloísa          | Revisa que Ficha Médico y Gestión de Camas tengan sesión iniciada.         |
 | Un aviso dice que una edición no se guardó | No cierres la sesión. Avisa al responsable de HHR.                         |
 | Un dato del censo no coincide con Eloísa   | Sincroniza. Si persiste, avisa con la cama y la hora.                      |
 | El censo de un día quedó mal               | No intentes arreglarlo copiando datos. El administrador puede restaurarlo. |
+
+## Si HHR no está disponible
+
+1. Sigue registrando lo clínico en Eloísa, como siempre: no depende de HHR.
+2. Haz la entrega de turno en papel.
+3. Cuando HHR vuelva, sincroniza y transcribe la entrega.
+4. Avisa al responsable de HHR. Si los datos del censo quedaron mal, no los arregles a mano.
 
 **Nunca** borres los datos del navegador ni reinstales nada por tu cuenta: ahí pueden estar las
 ediciones que aún no se envían.
