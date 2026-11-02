@@ -16,11 +16,13 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import ts from 'typescript';
 
 const ROOT = process.cwd();
 const BASELINE_PATH = 'scripts/config/empty-on-failure-reads-baseline.json';
 const AREAS = [
   'src/services/repositories',
+  'src/services/reminders',
   'src/services/storage/firestore',
   'src/services/storage/indexeddb',
   'src/services/storage/sync',
@@ -72,6 +74,58 @@ const findEntries = () => {
   for (const file of AREAS.flatMap(walk)) {
     const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
     const lines = source.split('\n');
+    // Subscription error callbacks are reads too: emitting [] after onError masks failure.
+    const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
+    const visit = node => {
+      if (ts.isCallExpression(node) && node.expression.getText(tree) === 'onSnapshot') {
+        // Firestore accepts options, next/error/complete callbacks, or an observer object.
+        // A trailing completion callback and an omitted error callback are not read failures.
+        const second = node.arguments[1];
+        const isFunction = value =>
+          value && (ts.isArrowFunction(value) || ts.isFunctionExpression(value));
+        const errorOf = observer =>
+          ts.isObjectLiteralExpression(observer)
+            ? observer.properties.find(property => property.name?.getText(tree) === 'error')
+            : undefined;
+        const isObserver = value =>
+          value &&
+          ts.isObjectLiteralExpression(value) &&
+          value.properties.some(property =>
+            ['next', 'error', 'complete'].includes(property.name?.getText(tree))
+          );
+        const nextIndex =
+          second && ts.isObjectLiteralExpression(second) && !isObserver(second) ? 2 : 1;
+        const next = node.arguments[nextIndex];
+        const errorProperty = next && isObserver(next) ? errorOf(next) : undefined;
+        const handler = errorProperty
+          ? ts.isPropertyAssignment(errorProperty)
+            ? errorProperty.initializer
+            : errorProperty
+          : isFunction(next)
+            ? node.arguments[nextIndex + 1]
+            : undefined;
+        if (handler && (isFunction(handler) || ts.isMethodDeclaration(handler))) {
+          const emitsEmpty = child => {
+            if (
+              ts.isCallExpression(child) &&
+              child.arguments.length === 1 &&
+              child.arguments.some(
+                arg =>
+                  (ts.isArrayLiteralExpression(arg) && arg.elements.length === 0) ||
+                  arg.kind === ts.SyntaxKind.NullKeyword
+              )
+            ) {
+              const lineIndex = source.slice(0, node.getStart(tree)).split('\n').length - 1;
+              entries.push(`${file}::${enclosingName(lines, lineIndex)}`);
+            }
+            ts.forEachChild(child, emitsEmpty);
+          };
+          emitsEmpty(handler.body);
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(tree);
     for (const match of source.matchAll(/\bcatch\s*(?:\([^)]*\))?\s*\{/g)) {
       let depth = 1;
       let end = match.index + match[0].length;

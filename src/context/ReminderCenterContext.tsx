@@ -118,7 +118,6 @@ export const ReminderCenterProvider: React.FC<{ children: React.ReactNode }> = (
         if (outcome.status === 'degraded' || outcome.status === 'failed') {
           setLoading(false);
           setIsAvailable(false);
-          setIsOpen(false);
           recordOperationalTelemetry({
             category: 'reminders',
             operation: 'center_subscription_ready',
@@ -135,7 +134,8 @@ export const ReminderCenterProvider: React.FC<{ children: React.ReactNode }> = (
   }, [isAuthenticated, remoteSyncStatus]);
 
   React.useEffect(() => {
-    if (!isAvailable || !currentUser?.uid || visibleReminders.length === 0) {
+    if (!isAvailable) return;
+    if (!currentUser?.uid || visibleReminders.length === 0) {
       setReadReminderIds([]);
       return;
     }
