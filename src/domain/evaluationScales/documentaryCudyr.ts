@@ -23,9 +23,35 @@ export const isProtectedCudyrDay = (record: DailyRecord): boolean =>
   );
 
 /** Include sparse movement rows and both people in an undo snapshot. */
+const stamp = (date?: string, time?: string): string =>
+  date ? `${date.slice(0, 10)}T${time || '00:00'}` : '';
+
+/**
+ * A same-document episode outside the evaluated night is a readmission, not an ambiguity: it began
+ * after that census day, or it ended before this episode began. Missing dates stay ambiguous.
+ */
+const isOutsideEvaluatedNight = (
+  entry: object,
+  patient: PatientData,
+  censusDay: string
+): boolean => {
+  const candidate = entry as { admissionDate?: string; movementDate?: string; time?: string };
+  const admitted = candidate.admissionDate?.slice(0, 10);
+  if (admitted && admitted > censusDay) return true;
+  const ended = stamp(candidate.movementDate, candidate.time);
+  const began = stamp(patient.admissionDate, patient.admissionTime);
+  return Boolean(ended && began && candidate.time && patient.admissionTime && ended < began);
+};
+
+const movementStamp = (movement: object) => {
+  const { movementDate, time } = movement as { movementDate?: string; time?: string };
+  return { movementDate, time };
+};
+
 export const hasUniqueDocumentaryCudyrIdentity = (
   records: readonly DailyRecord[],
-  patient: PatientData
+  patient: PatientData,
+  censusDay?: string
 ): boolean => {
   const candidates = records.flatMap(record => [
     ...Object.values(record.beds).flatMap(p => (p.clinicalCrib ? [p, p.clinicalCrib] : [p])),
@@ -42,7 +68,7 @@ export const hasUniqueDocumentaryCudyrIdentity = (
                 ? [
                     m.originalData,
                     ...(m.originalData.clinicalCrib ? [m.originalData.clinicalCrib] : []),
-                  ]
+                  ].map(p => ({ ...p, ...movementStamp(m) }))
                 : []),
             ]
     ),
@@ -50,14 +76,24 @@ export const hasUniqueDocumentaryCudyrIdentity = (
   const sameDocument = candidates.filter(
     c => cudyrDocumentKey(c.rut) === cudyrDocumentKey(patient.rut)
   );
+  const outside = new Set(
+    censusDay
+      ? sameDocument.filter(
+          c =>
+            c.clinicalEpisodeId !== patient.clinicalEpisodeId &&
+            isOutsideEvaluatedNight(c, patient, censusDay)
+        )
+      : []
+  );
   return (
     sameDocument.length > 0 &&
     sameDocument.every(
       c =>
-        (!('documentType' in c) || c.documentType !== 'Pasaporte') &&
-        (!('neonatalMaternalRut' in c) || !c.neonatalMaternalRut) &&
-        c.clinicalEpisodeId === patient.clinicalEpisodeId &&
-        cudyrIdentity(c.rut, c.patientName) === cudyrIdentity(patient.rut, patient.patientName)
+        outside.has(c) ||
+        ((!('documentType' in c) || c.documentType !== 'Pasaporte') &&
+          (!('neonatalMaternalRut' in c) || !c.neonatalMaternalRut) &&
+          c.clinicalEpisodeId === patient.clinicalEpisodeId &&
+          cudyrIdentity(c.rut, c.patientName) === cudyrIdentity(patient.rut, patient.patientName))
     )
   );
 };
@@ -78,7 +114,7 @@ export const assertDocumentaryCudyrTarget = (
     !evidence ||
     !evidence.reportId ||
     episodeMatches.length !== 1 ||
-    !hasUniqueDocumentaryCudyrIdentity([record], patient) ||
+    !hasUniqueDocumentaryCudyrIdentity([record], patient, record.date) ||
     !Number.isInteger(evidence.sourceRow) ||
     evidence.sourceDate !== getNextDay(record.date) ||
     cudyr.recordedDate !== record.date ||

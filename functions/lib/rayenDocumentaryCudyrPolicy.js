@@ -34,12 +34,15 @@ const identities = record => [
               clinicalEpisodeId: m.clinicalEpisodeId || m.originalData?.clinicalEpisodeId,
               documentType: m.documentType,
               neonatalMaternalRut: m.neonatalMaternalRut,
+              admissionDate: m.admissionDate,
+              movementDate: m.movementDate,
+              time: m.time,
             },
             ...(m.originalData
               ? [
                   m.originalData,
                   ...(m.originalData.clinicalCrib ? [m.originalData.clinicalCrib] : []),
-                ]
+                ].map(p => ({ ...p, movementDate: m.movementDate, time: m.time }))
               : []),
           ]
   ),
@@ -148,9 +151,22 @@ const assertDocumentaryCudyrAuthority = async ({
       cudyr.history
     )
       reject();
+    // A readmission outside the evaluated night is not an ambiguity: it began after that census
+    // day, or ended before this episode began. Missing dates stay ambiguous.
+    const outsideNight = p =>
+      p.clinicalEpisodeId !== target.clinicalEpisodeId &&
+      (String(p.admissionDate || '').slice(0, 10) > payload.date ||
+        Boolean(
+          p.movementDate &&
+          p.time &&
+          patient.admissionDate &&
+          patient.admissionTime &&
+          `${String(p.movementDate).slice(0, 10)}T${p.time}` <
+            `${String(patient.admissionDate).slice(0, 10)}T${patient.admissionTime}`
+        ));
     const sameDocument = context
       .flatMap(identities)
-      .filter(p => documentKey(p.rut) === documentKey(patient.rut));
+      .filter(p => documentKey(p.rut) === documentKey(patient.rut) && !outsideNight(p));
     if (
       !documentKey(patient.rut) ||
       sameDocument.some(

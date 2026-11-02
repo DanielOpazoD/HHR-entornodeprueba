@@ -208,6 +208,20 @@ export const selectEligibleEgresoRows = (
       ? hasRecordedMovement(record, '', reportedEpisode)
       : Boolean(run) && hasRecordedMovement(record, run);
     if (!current && !currentCrib && !activeCrib && !provisional && alreadyRecorded) continue;
+    // Same-day readmission: the discharge is already applied and ended before the active episode,
+    // so it can no longer describe that hospitalization. Unapplied rows still ask for review.
+    if (
+      alreadyRecorded &&
+      !reportedEpisode &&
+      reportPredatesActiveAdmission(
+        diff,
+        row,
+        run,
+        stamp,
+        current ?? currentCrib?.patient ?? activeCrib?.patient ?? provisional?.patient
+      )
+    )
+      continue;
     // Etiqueta estable de los conflictos de FILA: applyEgresoReport descarta esa
     // revisión si el pipeline termina construyendo el egreso de esa cama/RUN por
     // el lookup exacto (visto en vivo el 02-09: RN bajo el RUN de la madre → dos

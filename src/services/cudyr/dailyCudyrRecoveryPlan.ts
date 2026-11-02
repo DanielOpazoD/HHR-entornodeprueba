@@ -99,6 +99,15 @@ export type DailyCudyrGapResolution =
   // the CUDYR views show it as «Sin registro», and that is where a person can act on it.
   | { kind: 'not_recorded' };
 
+const hasKnownReadmission = (records: readonly DailyRecord[], patient: PatientData): boolean =>
+  records.some(record =>
+    patients(record).some(
+      other =>
+        cudyrDocumentKey(other.rut) === cudyrDocumentKey(patient.rut) &&
+        other.clinicalEpisodeId !== patient.clinicalEpisodeId
+    )
+  );
+
 /** No name-only, bed, maternal-document or duplicate-episode attribution. Blank means unknown. */
 export const recoverDailyCudyrGap = (
   gap: DailyCudyrGap,
@@ -131,16 +140,25 @@ export const recoverDailyCudyrGap = (
   if (
     !hasUniqueDocumentaryCudyrIdentity(
       records.filter(record => record.date === gap.date || record.date === sourceDate),
-      patient
+      patient,
+      gap.date
     )
   )
     return { kind: 'attribution_unreliable' };
   // A repeated documentary row may represent a readmission; do not pick the latest/first row.
   const rows = source.report.patients.filter(p => cudyrDocumentKey(p.document) === document);
   if (rows.length === 0) return withoutCategory();
-  if (rows.length !== 1 || cudyrIdentity(rows[0].document, rows[0].patientName) !== identity)
+  if (rows.some(row => cudyrIdentity(row.document, row.patientName) !== identity))
     return { kind: 'attribution_unreliable' };
-  const cells = rows[0].days.filter(d => d.sourceDate === sourceDate);
+  // A readmission may repeat the row. With one episode that night, only one row can answer for it.
+  const answering = rows.filter(row =>
+    row.days.some(d => d.sourceDate === sourceDate && d.state === 'category')
+  );
+  if (rows.length > 1 && !hasKnownReadmission(records, patient))
+    return { kind: 'attribution_unreliable' };
+  if (answering.length > 1) return { kind: 'attribution_unreliable' };
+  const row = answering[0] ?? rows[0];
+  const cells = row.days.filter(d => d.sourceDate === sourceDate);
   const category = cells[0]?.category;
   if (
     !category ||
@@ -157,7 +175,7 @@ export const recoverDailyCudyrGap = (
       source: CUDYR_DOCUMENTARY_SOURCE,
       documentaryEvidence: {
         reportId: source.reportId,
-        sourceRow: rows[0].sourceRow,
+        sourceRow: row.sourceRow,
         sourceDate,
         clinicalEpisodeId: gap.clinicalEpisodeId,
         document: patient.rut,
