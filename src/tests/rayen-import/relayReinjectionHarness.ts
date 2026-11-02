@@ -102,6 +102,7 @@ export const MANIFEST = {
         'content-hhr.js',
         'content-hhr-patient-flow.js',
         'content-hhr-epicrisis.js',
+        'content-hhr-audit-documents.js',
         'content-hhr-patient-documents.js',
         'content-hhr-statistical-discharge.js',
         'content-hhr-statistical-evidence.js',

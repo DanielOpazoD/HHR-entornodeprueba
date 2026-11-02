@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { chunkForModule } from '../../../scripts/config/chunkingPolicy';
+
 interface BundleBudgetConfig {
   precacheIgnoredAssetPatterns: string[];
 }
@@ -57,6 +59,18 @@ describe('PWA precache policy', () => {
       ).toBe(false);
       expect(viteConfig).not.toContain(`**/assets/${chunk}-*.js`);
     }
+  });
+
+  it('keeps the audit download of Eloísa reports online only, in its own chunk', () => {
+    const viteConfig = readViteConfig();
+    const patterns = readBundleBudgetConfig().precacheIgnoredAssetPatterns.map(
+      pattern => new RegExp(pattern)
+    );
+    expect(viteConfig).toContain('**/assets/audit-documents-*.js');
+    expect(patterns.some(pattern => pattern.test('assets/audit-documents-fixture.js'))).toBe(true);
+    expect(
+      chunkForModule('/repo/src/features/audit-documents/components/AuditDocumentsView.tsx')
+    ).toBe('audit-documents');
   });
 
   it('loads MEDIF on demand with its PDF template while retaining the offline clinical library', () => {

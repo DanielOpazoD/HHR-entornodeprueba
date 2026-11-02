@@ -86,8 +86,9 @@ describe('bundle budget config', () => {
       config.startupChunkBudgets.find(budget => budget.label === 'app-authenticated-shell')
     ).toMatchObject({
       // Preserve confirmed-cache ordering, episode metadata and split-day write hygiene within
-      // measured allowances, including shared crash-cart review (docs/BUNDLE_RISK_LEDGER.md).
-      maxBytes: 634560,
+      // measured allowances, including shared crash-cart review and the audit documents module
+      // (docs/BUNDLE_RISK_LEDGER.md).
+      maxBytes: 635136,
       severity: 'error',
     });
   });

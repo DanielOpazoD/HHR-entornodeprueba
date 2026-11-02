@@ -150,6 +150,11 @@ export const RoleManagementView = lazyWithRetry(() =>
     default: module.RoleManagementView,
   }))
 );
+export const AuditDocumentsView = lazyWithRetry(() =>
+  import(/* webpackChunkName: "audit-documents" */ '@/features/audit-documents').then(module => ({
+    default: module.AuditDocumentsView,
+  }))
+);
 export const ReminderAdminView = lazyWithRetry(() =>
   import('@/application/reminders/public').then(module => ({
     default: module.ReminderAdminView,
