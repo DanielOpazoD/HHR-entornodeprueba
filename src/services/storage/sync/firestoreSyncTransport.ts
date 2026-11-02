@@ -43,12 +43,17 @@ import { recordSyncQueueTruthSelectionTelemetry } from '@/services/storage/sync/
 import {
   assertNoSamePathRemoteMutation,
   hasRemoteAppliedMutation,
+  hasUnchangedPatchBase,
 } from '@/services/storage/sync/firestoreSyncConflictPolicy';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import type { DetachedOccupantWork } from './dayTaskOccupantDetach';
 import type { SpecialistNoteValue } from './dayTaskReplayGuard';
 import { nursingHandoffPaths } from './nursingHandoffTasks';
-import { resolveOptionalBaseRevision, UNKNOWN_SERVER_VERSION } from './syncTaskContractPolicy';
+import {
+  resolveOptionalBaseRevision,
+  resolveRecordBaseRevision,
+  UNKNOWN_SERVER_VERSION,
+} from './syncTaskContractPolicy';
 import {
   adoptStoredClinicalDerivedState,
   withClearedStoredMovedFields,
@@ -151,6 +156,8 @@ interface ResolvedSyncRecordForTask {
   acceptedVersion?: string;
   /** Stored day this resolution read; undefined when the day does not exist yet. */
   storedData?: Record<string, unknown>;
+  /** Eligibility checked against the original task, before stripping notes or detached edits. */
+  canRebasePatch?: boolean;
   /** Edits left out because their bed or crib now holds another patient or episode. */
   detached?: DetachedOccupantWork;
 }
@@ -242,6 +249,7 @@ const resolveRecordForSyncTask = async (
   }
 
   const remoteRecord = docToRecord(remoteData, record.date);
+  const canRebasePatch = !detached && hasUnchangedPatchBase(queuedTask, remoteRecord, queuedRecord);
   if (task.nursingHandoffRecovery) {
     record = resolveDailyRecordConflict(remoteRecord, record, {
       changedPaths: task.syncContract?.changedPaths,
@@ -253,6 +261,9 @@ const resolveRecordForSyncTask = async (
   if (
     !detached &&
     !shouldRevalidateAgainstRemote(remoteLastUpdated, task.syncContract?.expectedVersion) &&
+    (!canRebasePatch ||
+      contract?.baseRevision === undefined ||
+      contract.baseRevision === resolveRecordBaseRevision(remoteRecord)) &&
     !checks?.hasOtherOccupantInUntouchedBed(task, record, remoteRecord)
   ) {
     assertSyncQueueConcurrency(record, remoteLastUpdated);
@@ -264,7 +275,7 @@ const resolveRecordForSyncTask = async (
     };
   }
 
-  assertNoSamePathRemoteMutation(task, remoteData, remoteRecord, record);
+  if (!canRebasePatch) assertNoSamePathRemoteMutation(task, remoteData, remoteRecord, record);
   const mergedRecord = resolveDailyRecordConflict(remoteRecord, record, {
     changedPaths: task.syncContract?.changedPaths,
   });
@@ -303,6 +314,7 @@ const resolveRecordForSyncTask = async (
     acceptedVersion: consistency.record.lastUpdated,
     storedData: remoteData,
     detached,
+    canRebasePatch,
   };
 };
 
@@ -390,15 +402,28 @@ const syncDailyRecord = async (
       const effectiveAuthorityMode = await resolveEffectiveDailyRecordAuthorityMode(runtime);
       const writeFenceActive = await isServerClinicalWriteFenceActive(runtime);
       if (effectiveAuthorityMode === 'enforced' || writeFenceActive) {
+        const publishTask = resolved.detached?.task ?? task;
+        const freshBase =
+          !task.nursingHandoffRecovery &&
+          resolved.resolution === 'merged' &&
+          resolved.storedData &&
+          resolved.canRebasePatch
+            ? {
+                expectedVersion: getRemoteLastUpdated(resolved.storedData),
+                baseRevision: resolveRecordBaseRevision(
+                  docToRecord(resolved.storedData, recordToWrite.date)
+                ),
+              }
+            : undefined;
         assertCanPublish?.();
         const response = await saveDailyRecordWithClinicalAuthorityCallable(
           {
             date: recordToWrite.date,
             record: recordToWrite,
-            expectedLastUpdated: task.syncContract?.expectedVersion,
+            expectedLastUpdated: freshBase?.expectedVersion ?? task.syncContract?.expectedVersion,
             mode: 'enforced',
             origin: task.origin,
-            syncContract: resolved.detached?.task.syncContract ?? task.syncContract,
+            syncContract: { ...publishTask.syncContract, ...freshBase },
           },
           assertCanPublish
         ).catch(error => {
