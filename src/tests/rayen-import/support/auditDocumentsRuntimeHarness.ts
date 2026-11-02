@@ -73,7 +73,7 @@ export const ongoing = row({
 export interface Setup {
   history?: Record<string, unknown[] | number>;
   pharmacological?: Record<string, unknown[] | number>;
-  pdfStatus?: (url: URL) => { fatal?: boolean; error?: string } | null;
+  pdfStatus?: (url: URL) => { fatal?: boolean; status?: number; error?: string } | null;
   pdfBytes?: number;
   now?: number;
   tabReply?: (message: ChunkMessage) => unknown;
@@ -138,6 +138,7 @@ export const makeRuntime = (setup: Setup = {}) => {
     zipWriter: globals.HhrZipStoreWriter,
     now: () => setup.now ?? NOW,
     isHhrTabUrl: (url: string) => url.startsWith('https://testinghhr.netlify.app/'),
+    retryDelayMs: 0,
   });
   const runtime: AuditRuntime = {
     ...raw,

@@ -343,6 +343,14 @@ paneles u otras rutas sin episodio abre directamente **Hospitalizados** y deja d
 del paciente actual. Los accesos contextuales de Indicaciones y Receta médica se mantienen solamente en
 la tabla de fármacos de Gestión de cuidados.
 
+### Reintento de informes de auditoría (0.48.66)
+
+En la primera descarga real (17 RUT), el servidor de informes de Eloísa respondió HTTP 500 a 5 de
+los primeros 6 historiales, todos de estadías largas, y después entregó estadías igual de largas.
+Ahora un error del servidor o de conexión se reintenta al final, de a uno, hasta dos veces más con
+una pausa. Un rechazo de sesión no se reintenta. Lo que siga sin bajar queda en `00 Resumen.csv`
+con el número de intentos.
+
 ### Documentos para auditoría (0.48.65)
 
 HHR entrega una lista de hasta 20 RUN, con fechas globales o por RUN, y la extensión descarga un ZIP

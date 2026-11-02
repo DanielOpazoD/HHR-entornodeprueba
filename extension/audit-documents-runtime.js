@@ -22,6 +22,15 @@
   /** Data URLs of several MB are unreliable in Chrome; the ZIP travels in parts to the HHR tab. */
   const FILE_CHUNK_BYTES = 4 * 1024 * 1024;
   const MAX_ARCHIVE_BYTES = 200 * 1024 * 1024;
+  /**
+   * Measured 2026-11-02: Eloísa's report server answered HTTP 500 to 5 of the first 6 histories of
+   * a 17-RUT run, all long stays, and then served stays as long as those. A later, one-at-a-time
+   * attempt is what recovers them.
+   */
+  const RETRY_ATTEMPTS = 2;
+  const RETRY_DELAY_MS = 3000;
+  const isRetryable = result =>
+    !result.buffer && !result.fatal && (result.status == null || result.status >= 500);
 
   const DOCUMENT_TYPES = Object.freeze({
     history: Object.freeze({
@@ -165,8 +174,9 @@
   const create = dependencies => {
     const {
       chromeApi, getFetchInfo, fetchWithTimeout, fetchOfficialPdf, mapWithConcurrency,
-      bufferToBase64, zipWriter, now, isHhrTabUrl,
+      bufferToBase64, zipWriter, now, isHhrTabUrl, retryDelayMs = RETRY_DELAY_MS,
     } = dependencies || {};
+    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     if (
       !chromeApi || !chromeApi.tabs || typeof chromeApi.tabs.sendMessage !== 'function' ||
       typeof getFetchInfo !== 'function' || typeof fetchWithTimeout !== 'function' ||
@@ -388,23 +398,59 @@
         : 'No hay hospitalizaciones en las fechas pedidas. No se descargó nada.';
     };
 
+    const fetchDocument = (job, item) => fetchOfficialPdf({
+      url: reportUrl(job.info, item.documentType, item, job.nowIso),
+      token: job.info.token,
+      label: 'el informe ' + DOCUMENT_TYPES[item.documentType].summary.toLowerCase(),
+    });
+
     const downloadDocuments = async (job, planned) => {
       let downloaded = 0;
       let sessionError = '';
       job.progress('downloading', 0, planned.length);
       const documents = await mapWithConcurrency(planned, CONCURRENCY, async item => {
         if (job.isCancelled() || sessionError) return { ...item, error: 'No se intentó.' };
-        const result = await fetchOfficialPdf({
-          url: reportUrl(job.info, item.documentType, item, job.nowIso),
-          token: job.info.token,
-          label: 'el informe ' + DOCUMENT_TYPES[item.documentType].summary.toLowerCase(),
-        });
+        const result = await fetchDocument(job, item);
         downloaded += 1;
         job.progress('downloading', downloaded, planned.length);
         if (result.fatal) sessionError = result.error;
-        return result.buffer ? { ...item, buffer: result.buffer } : { ...item, error: result.error || 'Falló la descarga.' };
+        return result.buffer
+          ? { ...item, buffer: result.buffer }
+          : { ...item, error: result.error || 'Falló la descarga.', retryable: isRetryable(result) };
       });
       return { documents, sessionError };
+    };
+
+    /** Tries one document again, after a pause; returns the session error that stops the run. */
+    const retryDocument = async (job, document) => {
+      let attempts = 1;
+      while (attempts <= RETRY_ATTEMPTS && !job.isCancelled()) {
+        await wait(retryDelayMs * attempts);
+        attempts += 1;
+        const result = await fetchDocument(job, document);
+        if (result.fatal) return result.error;
+        if (result.buffer) {
+          document.buffer = result.buffer;
+          delete document.error;
+          return '';
+        }
+        document.error = result.error || 'Falló la descarga.';
+        if (!isRetryable(result)) break;
+      }
+      document.error += ` (${attempts} intentos)`;
+      return '';
+    };
+
+    /** Server errors are retried at the end, one at a time, so a busy report server can recover. */
+    const retryDocuments = async (job, documents) => {
+      const pending = documents.filter(document => document.retryable);
+      job.progress('retrying', 0, pending.length);
+      for (let index = 0; index < pending.length && !job.isCancelled(); index += 1) {
+        const sessionError = await retryDocument(job, pending[index]);
+        if (sessionError) return sessionError;
+        job.progress('retrying', index + 1, pending.length);
+      }
+      return '';
     };
 
     const packArchive = (job, patients, documents) => {
@@ -464,6 +510,11 @@
       const { documents, sessionError } = await downloadDocuments(job, planned);
       if (job.isCancelled()) return cancelledResult;
       if (sessionError) return { error: sessionError + ' No se descargó el ZIP.' };
+      if (documents.some(document => document.retryable)) {
+        const retryError = await retryDocuments(job, documents);
+        if (job.isCancelled()) return cancelledResult;
+        if (retryError) return { error: retryError + ' No se descargó el ZIP.' };
+      }
       const archive = packArchive(job, patients, documents);
       if (archive.error) return { summary: publicSummary(patients, documents), error: archive.error };
       if (job.isCancelled()) return cancelledResult;
