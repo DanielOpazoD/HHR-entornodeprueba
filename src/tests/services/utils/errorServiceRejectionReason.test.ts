@@ -10,6 +10,7 @@ vi.mock('@/services/observability/operationalTelemetryExternalAdapter', () => ({
   dispatchOperationalTelemetryExternally: mocks.external,
 }));
 
+import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
 import { errorService } from '@/services/utils/errorService';
 
 const reject = (reason: unknown) =>
@@ -51,6 +52,9 @@ describe('the cause of an uncaught rejection', () => {
     reject(new Error('Detalle sintético'));
 
     await vi.waitFor(() => expect(mocks.external).toHaveBeenCalled());
-    expect(mocks.external.mock.calls[0][0].context).not.toHaveProperty('reason');
+    // The adapter sends only what the privacy gate returns.
+    const sent = sanitizeOperationalTelemetryEvent(mocks.external.mock.calls[0][0]);
+    expect(sent.context).not.toHaveProperty('reason');
+    expect(JSON.stringify(sent)).not.toContain('Detalle sintético');
   });
 });

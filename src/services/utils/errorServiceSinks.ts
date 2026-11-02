@@ -30,11 +30,8 @@ export const externalTelemetryErrorSink: ErrorServiceSink = async errorLog => {
     operation: 'error_service_log',
     timestamp: errorLog.timestamp,
     issues: [errorLog.message],
-    context: {
-      errorId: errorLog.id,
-      severity: errorLog.severity,
-      url: errorLog.url,
-    },
+    // Raw on purpose: the lazily loaded privacy gate turns it into codes before anything leaves.
+    context: errorLog.context,
   });
 };
 

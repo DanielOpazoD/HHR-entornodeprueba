@@ -228,6 +228,39 @@ describe('operational telemetry privacy: context', () => {
     });
   });
 
+  it('keeps which Eloísa source made a sync fail and why a patch step failed', () => {
+    const context = { failureReason: 'ficha_medico_stale', issueReason: 'source_timeout' };
+    expect(sanitizeOperationalTelemetryContextValues(context)).toEqual({
+      context,
+      droppedCount: 0,
+    });
+    expect(
+      sanitizeOperationalTelemetryContextValues({ failureReason: PATIENT, issueReason: RUT })
+    ).toEqual({ context: {}, droppedCount: 2 });
+  });
+
+  it('keeps known error classes and reports any other class only as other_error', () => {
+    expect(
+      sanitizeOperationalTelemetryContextValues({
+        errorSource: 'render_crash',
+        errorName: 'DailyRecordFreshnessGateError',
+        errorCode: 'not-found',
+      }).context
+    ).toEqual({
+      errorSource: 'render_crash',
+      errorName: 'DailyRecordFreshnessGateError',
+      errorCode: 'not-found',
+    });
+    const unknown = sanitizeOperationalTelemetryEvent({
+      ...realEvent(),
+      context: { errorName: PATIENT, errorSource: PATIENT },
+    });
+    expect(unknown.context).toEqual({ errorName: 'other_error' });
+    expect(unknown.droppedContextKeys).toHaveLength(1);
+    expect(sanitizeOperationalTelemetryEvent(unknown)).toEqual(unknown);
+    expectNoLeak(unknown, PATIENT);
+  });
+
   it('keeps the clinicalDerived read codes: an unloadable reader and a failed carryover overlay', () => {
     for (const context of [
       { readScope: 'episode', errorCode: 'reader_unavailable' },
@@ -334,6 +367,14 @@ describe('operational telemetry privacy: whole event', () => {
         operation: 'save',
         timestamp: '2026-09-11T03:10:00.000Z',
         context: { runId: 'run-1', userId: 'uid-1', count: 2 },
+      },
+      {
+        category: 'sync',
+        status: 'failed',
+        operation: 'error_service_log',
+        timestamp: '2026-09-11T03:10:00.000Z',
+        issues: [`Unhandled Promise Rejection: TypeError: ${PATIENT}`],
+        context: { type: 'unhandledrejection', reason: { name: 'TypeError', message: PATIENT } },
       },
     ]) {
       const once = sanitizeOperationalTelemetryEvent(input);
