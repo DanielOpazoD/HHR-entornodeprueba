@@ -49,7 +49,7 @@ export const ReminderModal: React.FC = () => {
       }
     >
       <div className="space-y-4">
-        {!isAvailable ? (
+        {!isAvailable && reminders.length === 0 ? (
           <div className="rounded-[1.75rem] border border-amber-200 bg-amber-50 p-10 text-center text-sm font-semibold text-amber-800">
             No fue posible cargar los avisos. Revisa permisos vigentes o despliegue de rules.
           </div>

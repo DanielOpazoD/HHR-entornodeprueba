@@ -101,4 +101,67 @@ describe('check-empty-on-failure-reads', () => {
       'src/services/storage/indexeddb/reads.ts::getMonth',
     ]);
   });
+  it('rejects a subscription error emitted as an empty feed but accepts a genuine empty snapshot', () => {
+    const subscribe = (failure: string) => `export const subscribe = () => {
+  return onSnapshot(ref, snapshot => callback([]), error => { ${failure} });
+};`;
+    const bad = createRepository(
+      {
+        'src/services/reminders/ReminderRepository.ts': subscribe('onError(error); callback([]);'),
+      },
+      []
+    );
+    expect(runGuard(bad)).toEqual({
+      status: 1,
+      output: expect.stringContaining(
+        'new: src/services/reminders/ReminderRepository.ts::subscribe'
+      ),
+    });
+    const good = createRepository(
+      {
+        'src/services/reminders/ReminderRepository.ts': subscribe('onError(error);'),
+      },
+      []
+    );
+    expect(runGuard(good).status).toBe(0);
+  });
+
+  it('handles onSnapshot options without confusing a missing document with a read failure', () => {
+    const root = createRepository(
+      {
+        'src/services/reminders/ReminderRepository.ts': `export const subscribe = () => {
+  return onSnapshot(ref, { includeMetadataChanges: true }, snap => callback(null, snap.metadata), error => onError(error));
+};`,
+      },
+      []
+    );
+    expect(runGuard(root).status).toBe(0);
+    const bad = createRepository(
+      {
+        'src/services/reminders/ReminderRepository.ts': `export const subscribe = () => {
+  return onSnapshot(ref, {}, snap => callback(snap), error => callback([]));
+};`,
+      },
+      []
+    );
+    expect(runGuard(bad).status).toBe(1);
+  });
+  it.each([
+    'onSnapshot(ref, {}, snap => callback([]))',
+    'onSnapshot(ref, snap => callback([]), error => onError(error), () => callback([]))',
+    'onSnapshot(ref, { next: snap => callback([]) })',
+  ])('accepts successful empty feeds and completion callbacks: %s', call => {
+    const root = createRepository({ 'src/services/reminders/feed.ts': call }, []);
+    expect(runGuard(root).status).toBe(0);
+  });
+
+  it.each([
+    'onSnapshot(ref, snap => callback(snap), error => callback([]), () => done())',
+    'onSnapshot(ref, {}, snap => callback(snap), error => callback([]), () => done())',
+    'onSnapshot(ref, { next: snap => callback(snap), error: error => callback([]) })',
+    'onSnapshot(ref, {}, { next: snap => callback(snap), error(error) { callback([]); } })',
+  ])('rejects empty failure callbacks in supported overloads: %s', call => {
+    const root = createRepository({ 'src/services/reminders/feed.ts': call }, []);
+    expect(runGuard(root).status).toBe(1);
+  });
 });
