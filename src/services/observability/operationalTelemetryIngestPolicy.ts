@@ -103,11 +103,25 @@ export const parseOperationalTelemetryBody = (
   return { ok: true, event: sanitizeOperationalTelemetryEvent(parsed.data.event) };
 };
 
+/**
+ * An Eloísa sync that failed only because a source was unreachable or slow is repeated by the
+ * next run and the screen already says so. Nobody has to fix anything, so it is logged, not mailed.
+ */
+const RETRYABLE_SYNC_ISSUES: ReadonlySet<string> = new Set(['unavailable_issue', 'timeout_issue']);
+
+const isRetryableSyncFailure = (operation: string, issues: readonly string[] = []): boolean =>
+  operation === 'rayen_sync_run' &&
+  issues.length > 0 &&
+  issues.every(issue => RETRYABLE_SYNC_ISSUES.has(issue));
+
 /** Only outcomes that need a human are mailed; everything else is just logged. */
 export const shouldAlertOperationalTelemetry = (
-  event: Pick<SanitizedOperationalTelemetryEvent, 'status' | 'operation'>
+  event: Pick<SanitizedOperationalTelemetryEvent, 'status' | 'operation'> & {
+    issues?: readonly string[];
+  }
 ): boolean =>
-  event.operation === OPERATIONAL_TELEMETRY_PROBE_OPERATION || event.status === 'failed';
+  event.operation === OPERATIONAL_TELEMETRY_PROBE_OPERATION ||
+  (event.status === 'failed' && !isRetryableSyncFailure(event.operation, event.issues));
 
 const PRIVACY_NOTE =
   'Por privacidad, los mensajes de error detallados NO salen del dispositivo: quedan solo en el ' +
