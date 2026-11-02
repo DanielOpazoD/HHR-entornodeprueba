@@ -4,6 +4,10 @@ const mocks = vi.hoisted(() => ({
   persistence: vi.fn(),
   callable: vi.fn(),
   clearRoles: vi.fn(),
+  prepareRole: vi.fn(() => () => {}),
+  getRole: vi.fn(),
+  rememberRole: vi.fn(),
+  clearConfirmation: vi.fn(),
   auth: { currentUser: null as object | null, app: { options: { apiKey: 'synthetic-key' } } },
 }));
 vi.mock('firebase/auth', () => ({
@@ -18,7 +22,13 @@ vi.mock('@/services/firebase-runtime/authRuntime', () => ({
 vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
   defaultFunctionsRuntime: { getFunctions: async () => ({}) },
 }));
-vi.mock('@/services/auth/authRoleLookup', () => ({ clearRecentAuthRoleLookups: mocks.clearRoles }));
+vi.mock('@/services/auth/authRoleLookup', () => ({
+  clearRecentAuthRoleLookups: mocks.clearRoles,
+  clearConfirmedAuthRole: mocks.clearConfirmation,
+  prepareCredentialSignInRole: mocks.prepareRole,
+  getCredentialSignInRole: mocks.getRole,
+  rememberConfirmedAuthRole: mocks.rememberRole,
+}));
 import { establishNursingSession } from '@/services/auth/nursingAccountService';
 import { runSessionStorageTransition } from '@/services/storage/sessionStorageTransition';
 import { beginPendingLogout } from '@/services/auth/authLogoutState';

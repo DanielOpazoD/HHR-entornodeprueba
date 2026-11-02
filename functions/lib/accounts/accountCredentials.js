@@ -1,3 +1,4 @@
+const { resolveCurrentIndividualAccountRole } = require('./accountAccess');
 const { timingSafeEqual } = require('node:crypto');
 const { beginInitialPassword } = require('./accountInitialPassword');
 const {
@@ -136,18 +137,20 @@ const createAccountCredentials = ({
     if (initial) return initial;
     // Unknown accounts take the same password-provider path and return the same public error.
     const email = `${uid || 'unknown-account'}@accounts.hhr.invalid`;
-    const verifiedUid = await passwordVerifier({
+    const verifiedSession = await passwordVerifier({
       auth,
       email,
       password: data?.password,
       apiKey: data?.apiKey,
+      returnVerifiedSession: true,
     });
-    if (!uid || uid !== verifiedUid) throw genericFailure();
+    if (!uid || uid !== verifiedSession.uid) throw genericFailure();
     const account = (await firestore.collection(ACCESS).doc(uid).get()).data();
-    if (account?.status !== 'active' || account.credentialOperation) throw genericFailure();
+    const role = resolveCurrentIndividualAccountRole(account, { auth: verifiedSession }, now());
+    if (role === 'unauthorized' || !role) throw genericFailure();
     // Claims are published only by serialized credential/admin transitions.
     // A delayed login must not overwrite a newer password/revocation version.
-    return { credentialEmail: email };
+    return { credentialEmail: email, uid, role };
   };
 
   const changeAccountPassword = async (data, context) => {

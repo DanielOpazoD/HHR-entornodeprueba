@@ -17,8 +17,17 @@ import {
   createUnauthorizedAuthSessionState,
   toAnonymousSignatureAuthSessionState,
 } from '@/services/auth/authSessionState';
-import { clearRecentAuthRoleLookups } from '@/services/auth/authRoleLookup';
+import {
+  clearConfirmedAuthRole,
+  getConfirmedAuthRole,
+  getDynamicRoleForEmail,
+  rememberConfirmedAuthRole,
+  clearRecentAuthRoleLookups,
+} from '@/services/auth/authRoleLookup';
 import { type AuthRuntime, defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
+import { toAuthUser } from '@/services/auth/authShared';
+import { toResolvedAuthSessionState } from '@/services/auth/authSessionState';
+import { getLogoutRevision } from '@/services/auth/authLogoutState';
 import { markPerf } from '@/shared/runtime/perfAudit';
 
 interface AuthRuntimeOptions {
@@ -33,6 +42,7 @@ const resolveAuthRuntime = ({ authRuntime }: AuthRuntimeOptions = {}): AuthRunti
 
 export const signOut = async (options?: AuthRuntimeOptions): Promise<void> => {
   logoutGeneration += 1;
+  clearConfirmedAuthRole();
   const authRuntime = resolveAuthRuntime(options);
   await authRuntime.ready;
   const userEmail = authRuntime.getCurrentUser()?.email;
@@ -77,14 +87,19 @@ export const onAuthSessionStateChange = (
       const detach = onAuthStateChanged(authRuntime.auth, async (firebaseUser: User | null) => {
         const eventRevision = ++revision;
         const generation = logoutGeneration;
+        const closureRevision = getLogoutRevision();
         const isCurrent = () =>
-          active && revision === eventRevision && generation === logoutGeneration;
+          active &&
+          revision === eventRevision &&
+          generation === logoutGeneration &&
+          closureRevision === getLogoutRevision();
         if (!isCurrent()) return;
         markPerf('auth-session:firebase-event', firebaseUser ? 'user' : 'null');
         if (firebaseUser) {
           markPerf('auth-session:user-event');
         }
         if (!firebaseUser) {
+          clearConfirmedAuthRole();
           clearRecentAuthRoleLookups();
           resetAuthClaimSyncSnapshot();
           await callback(createUnauthenticatedAuthSessionState());
@@ -104,28 +119,57 @@ export const onAuthSessionStateChange = (
           return;
         }
 
+        const rememberedRole = getConfirmedAuthRole(firebaseUser);
         try {
+          if (rememberedRole) {
+            await callback(toResolvedAuthSessionState(toAuthUser(firebaseUser, rememberedRole)));
+            if (!isCurrent()) return;
+          }
           markPerf('auth-session:role-resolution-start');
           const sessionState = await resolveAuthSessionState(firebaseUser, {
             signOutUnauthorizedUser: async () => {
-              if (isCurrent()) await firebaseSignOut(authRuntime.auth);
+              if (isCurrent()) {
+                clearConfirmedAuthRole();
+                if (rememberedRole) {
+                  await callback(
+                    createUnauthorizedAuthSessionState('role_not_resolved', {
+                      email: firebaseUser.email,
+                    })
+                  );
+                }
+                // The app callback may already have begun its canonical logout.
+                if (isCurrent()) await firebaseSignOut(authRuntime.auth);
+              }
             },
-            // The observer is the authoritative reconciliation point. It must
-            // not accept the bootstrap cache because role revocations need to
-            // take effect during an ordinary restored session too.
-            resolveFirebaseUserRole,
+            // Remembered admission never turns a transport failure or old claim into
+            // a new confirmation. The lookup owns the existing silent retry delays.
+            resolveFirebaseUserRole: async user => {
+              if (!rememberedRole) return resolveFirebaseUserRole(user, isCurrent);
+              const role = await getDynamicRoleForEmail(user.email || '');
+              if (role && isCurrent()) await rememberConfirmedAuthRole(user, role, isCurrent);
+              return role;
+            },
           });
           if (!isCurrent()) return;
           markPerf('auth-session:role-resolution-done', sessionState.status);
           if (sessionState.status !== 'authorized') {
             resetAuthClaimSyncSnapshot();
           }
-          await callback(sessionState);
+          if (
+            !(
+              rememberedRole &&
+              sessionState.status === 'authorized' &&
+              sessionState.user.role === rememberedRole
+            )
+          ) {
+            await callback(sessionState);
+          }
           if (isCurrent() && sessionState.status === 'authorized' && sessionState.user.role) {
             void ensureUserRoleClaim(firebaseUser, sessionState.user.role);
           }
         } catch (error) {
           if (!isCurrent()) return;
+          if (rememberedRole) return;
           resetAuthClaimSyncSnapshot();
           const operationalError = recordAuthOperationalError(
             'on_auth_session_state_change',
@@ -190,13 +234,16 @@ export const resolveCurrentAuthSessionState = async (
 ): Promise<AuthSessionState | null> => {
   const authRuntime = resolveAuthRuntime(options);
   const generation = logoutGeneration;
+  const closureRevision = getLogoutRevision();
   markPerf('auth-current:runtime-ready-wait-start');
   await authRuntime.ready;
   markPerf('auth-current:runtime-ready-done');
   const firebaseUser = authRuntime.getCurrentUser();
-  if (generation !== logoutGeneration) return null;
+  if (generation !== logoutGeneration || closureRevision !== getLogoutRevision()) return null;
   const isCurrent = () =>
-    generation === logoutGeneration && authRuntime.getCurrentUser() === firebaseUser;
+    generation === logoutGeneration &&
+    closureRevision === getLogoutRevision() &&
+    authRuntime.getCurrentUser() === firebaseUser;
   markPerf('auth-current:user-state', firebaseUser ? 'user' : 'null');
 
   if (!firebaseUser) {
@@ -214,13 +261,19 @@ export const resolveCurrentAuthSessionState = async (
     });
   }
 
+  const rememberedRole = getConfirmedAuthRole(firebaseUser);
+  if (rememberedRole) return toResolvedAuthSessionState(toAuthUser(firebaseUser, rememberedRole));
+
   try {
     markPerf('auth-current:role-resolution-start');
     const sessionState = await resolveAuthSessionState(firebaseUser, {
       signOutUnauthorizedUser: async () => {
-        if (isCurrent()) await firebaseSignOut(authRuntime.auth);
+        if (isCurrent()) {
+          clearConfirmedAuthRole();
+          await firebaseSignOut(authRuntime.auth);
+        }
       },
-      resolveFirebaseUserRole: resolveFirebaseUserRoleForBootstrap,
+      resolveFirebaseUserRole: user => resolveFirebaseUserRoleForBootstrap(user, isCurrent),
     });
     if (!isCurrent()) return null;
     markPerf('auth-current:role-resolution-done', sessionState.status);

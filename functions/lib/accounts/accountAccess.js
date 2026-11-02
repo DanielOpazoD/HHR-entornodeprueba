@@ -1,11 +1,14 @@
 const { ACCESS, POLICY, hasCurrentAccountSession, protectedRole } = require('./accountPolicy');
 
+const resolveCurrentIndividualAccountRole = (account, context, now = Date.now()) =>
+  hasCurrentAccountSession(account, context, now) ? account.role : 'unauthorized';
+
 // null means the legacy policy applies; unauthorized is a definitive denial.
 const resolveIndividualAccountRole = async (firestore, context) => {
   if (!context?.auth?.uid) return null;
   const account = await firestore.collection(ACCESS).doc(context.auth.uid).get();
   if (account.exists) {
-    return hasCurrentAccountSession(account.data(), context) ? account.data().role : 'unauthorized';
+    return resolveCurrentIndividualAccountRole(account.data(), context);
   }
   if (
     context.auth.uid.startsWith('hhrn_') ||
@@ -18,4 +21,4 @@ const resolveIndividualAccountRole = async (firestore, context) => {
   return policy.data()?.enabled ? protectedRole(policy.data(), context) || 'unauthorized' : null;
 };
 
-module.exports = { resolveIndividualAccountRole };
+module.exports = { resolveIndividualAccountRole, resolveCurrentIndividualAccountRole };

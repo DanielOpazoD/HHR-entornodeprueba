@@ -96,6 +96,8 @@ const enabled = Boolean(
       });
       return context(result.idToken);
     };
+    // Cold Firestore/Storage rules compilation exceeded 30s under CPU contention.
+    // Budget only this preparation; assertion and per-test timeouts stay unchanged.
     beforeAll(async () => {
       app = initializeApp({ projectId }, 'nursing-accounts-emulator');
       auth = getAuth(app);
@@ -111,7 +113,7 @@ const enabled = Boolean(
           rules: readFileSync('storage.rules', 'utf8'),
         },
       });
-    });
+    }, 90_000);
     afterAll(async () => {
       await rules?.cleanup();
       await firestore?.terminate();

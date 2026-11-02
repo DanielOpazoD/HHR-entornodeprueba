@@ -17,4 +17,4 @@ fs.writeFileSync(process.argv[2], JSON.stringify({ firestore: { rules: path.reso
 NODE
 npm run build:rules-assets
 "$firebase_bin" emulators:exec --config "$config" --project demo-hhr-nursing-accounts --only auth,firestore \
-  'npx playwright test -c playwright.shared-computer.config.ts'
+  'node scripts/preload-shared-computer-rules.mjs && npx playwright test -c playwright.shared-computer.config.ts'
