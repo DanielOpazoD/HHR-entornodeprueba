@@ -68,6 +68,22 @@ describe('reingreso el mismo día', () => {
   it.each([
     ['el alta no se aplicó', '01-11-2026 11:55', []],
     ['el alta es posterior al ingreso activo', '01-11-2026 23:00', [applied]],
+    [
+      'el alta registrada es del episodio activo',
+      '01-11-2026 11:55',
+      [{ ...applied, clinicalEpisodeId: 'synthetic-new' }],
+    ],
+    [
+      'el alta registrada no tiene episodio',
+      '01-11-2026 11:55',
+      [{ ...applied, clinicalEpisodeId: '' }],
+    ],
+    ['la fila no coincide con el alta registrada', '01-11-2026 16:00', [applied]],
+    [
+      'el alta registrada es posterior al ingreso',
+      '01-11-2026 21:30',
+      [{ ...applied, time: '21:30' }],
+    ],
   ])('pide revisión si %s', (_case, fechaEgreso, discharges) => {
     const result = selectEligibleEgresoRows(
       emptyDiff(),

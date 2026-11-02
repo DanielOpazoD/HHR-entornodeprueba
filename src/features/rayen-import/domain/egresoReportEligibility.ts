@@ -91,6 +91,37 @@ const resolveLocalBedTurnoverEgreso = ({
 };
 
 /**
+ * Bulk cells may mix clock conventions, so the row counts under its printed clock or the converted
+ * one. The order against the admission uses only the stored times, which are exact evidence.
+ */
+const isAppliedDischargeOfEarlierEpisode = (
+  record: DailyRecord,
+  row: EgresoReportRow,
+  run: string,
+  stamp: { hhmm: string },
+  current?: OccupiedBedEvidence
+): boolean => {
+  const activeEpisode = current?.clinicalEpisodeId?.trim();
+  const admissionDay = current?.admissionDate?.slice(0, 10);
+  const admissionTime = current?.admissionTime;
+  if (!activeEpisode || !admissionDay || !admissionTime) return false;
+  const printed = row.fechaEgreso.match(/\b(\d{1,2}):(\d{2})/);
+  const printedTime = printed ? `${printed[1].padStart(2, '0')}:${printed[2]}` : '';
+  return (record.discharges ?? []).some(discharge => {
+    const episode = String(discharge.clinicalEpisodeId ?? '').trim();
+    const day = String(discharge.movementDate ?? record.date).slice(0, 10);
+    return (
+      !discharge.deletedAt &&
+      normalizeRut(discharge.rut) === run &&
+      Boolean(episode) &&
+      episode !== activeEpisode &&
+      (discharge.time === printedTime || discharge.time === stamp.hhmm) &&
+      `${day}T${discharge.time}` < `${admissionDay}T${admissionTime}`
+    );
+  });
+};
+
+/**
  * Filters report rows that have enough episode and temporal evidence to affect the census.
  * Invalid or ambiguous rows stay visible as review conflicts instead of vacating a bed.
  */
@@ -208,19 +239,9 @@ export const selectEligibleEgresoRows = (
       ? hasRecordedMovement(record, '', reportedEpisode)
       : Boolean(run) && hasRecordedMovement(record, run);
     if (!current && !currentCrib && !activeCrib && !provisional && alreadyRecorded) continue;
-    // Same-day readmission: the discharge is already applied and ended before the active episode,
-    // so it can no longer describe that hospitalization. Unapplied rows still ask for review.
-    if (
-      alreadyRecorded &&
-      !reportedEpisode &&
-      reportPredatesActiveAdmission(
-        diff,
-        row,
-        run,
-        stamp,
-        current ?? currentCrib?.patient ?? activeCrib?.patient ?? provisional?.patient
-      )
-    )
+    // Same-day readmission: this row is a discharge already applied to an earlier episode, so it
+    // no longer describes the active one. Unapplied rows still ask for review.
+    if (!reportedEpisode && isAppliedDischargeOfEarlierEpisode(record, row, run, stamp, current))
       continue;
     // Etiqueta estable de los conflictos de FILA: applyEgresoReport descarta esa
     // revisión si el pipeline termina construyendo el egreso de esa cama/RUN por
