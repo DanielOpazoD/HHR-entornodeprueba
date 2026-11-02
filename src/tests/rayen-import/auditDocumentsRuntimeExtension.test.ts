@@ -85,7 +85,11 @@ interface ChunkMessage {
   base64: string;
 }
 
-const HHR_TAB = { tab: { id: 42, url: 'https://testinghhr.netlify.app/census' }, frameId: 0 };
+const HHR_TAB = {
+  tab: { id: 42, url: 'https://testinghhr.netlify.app/census' },
+  frameId: 0,
+  documentId: 'synthetic-document',
+};
 
 const makeRuntime = (setup: Setup = {}) => {
   const indexes = {
@@ -163,6 +167,11 @@ describe('audit download of official Eloísa reports', () => {
     });
 
     expect(result).toMatchObject({ ok: true, documentCount: 4, failedCount: 0 });
+    // Delivered only to the document that asked, never to a page the tab navigated to.
+    expect(sendTabMessage.mock.calls.at(-1)?.[2]).toEqual({
+      frameId: 0,
+      documentId: 'synthetic-document',
+    });
     expect(zipChunks()).toEqual([
       expect.objectContaining({
         requestId: 'req-1',

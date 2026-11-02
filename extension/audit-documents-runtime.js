@@ -161,7 +161,11 @@
     const deliverZip = async ({ sender, requestId, bytes, filename }) => {
       const tabId = sender && sender.tab && sender.tab.id;
       if (tabId == null) return { error: 'No se encontró la pestaña de HHR que pidió el ZIP.' };
-      const options = typeof sender.frameId === 'number' ? { frameId: sender.frameId } : undefined;
+      // The exact requesting document: if the tab navigated meanwhile, the parts go nowhere.
+      const options = {
+        ...(typeof sender.frameId === 'number' ? { frameId: sender.frameId } : {}),
+        ...(typeof sender.documentId === 'string' ? { documentId: sender.documentId } : {}),
+      };
       const total = Math.ceil(bytes.length / FILE_CHUNK_BYTES);
       try {
         for (let index = 0; index < total; index += 1) {
