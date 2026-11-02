@@ -90,6 +90,8 @@ const resolveLocalBedTurnoverEgreso = ({
   };
 };
 
+const CLOCK_STAMP = /^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/;
+
 /**
  * Bulk cells may mix clock conventions, so the row counts under its printed clock or the converted
  * one. The order against the admission uses only the stored times, which are exact evidence.
@@ -102,21 +104,23 @@ const isAppliedDischargeOfEarlierEpisode = (
   current?: OccupiedBedEvidence
 ): boolean => {
   const activeEpisode = current?.clinicalEpisodeId?.trim();
-  const admissionDay = current?.admissionDate?.slice(0, 10);
-  const admissionTime = current?.admissionTime;
-  if (!activeEpisode || !admissionDay || !admissionTime) return false;
-  const printed = row.fechaEgreso.match(/\b(\d{1,2}):(\d{2})/);
-  const printedTime = printed ? `${printed[1].padStart(2, '0')}:${printed[2]}` : '';
+  const admission = `${current?.admissionDate?.slice(0, 10)}T${current?.admissionTime}`;
+  const printed = row.fechaEgreso.match(/^\s*(\d{2})[-/](\d{2})[-/](\d{4})[\sT]+(\d{2}:\d{2})/);
+  if (!activeEpisode || !CLOCK_STAMP.test(admission) || !printed) return false;
+  const printedDay = `${printed[3]}-${printed[2]}-${printed[1]}`;
   return (record.discharges ?? []).some(discharge => {
     const episode = String(discharge.clinicalEpisodeId ?? '').trim();
-    const day = String(discharge.movementDate ?? record.date).slice(0, 10);
+    const applied = `${discharge.movementDate}T${discharge.time}`;
     return (
       !discharge.deletedAt &&
       normalizeRut(discharge.rut) === run &&
+      discharge.bedId === current?.bedId &&
       Boolean(episode) &&
       episode !== activeEpisode &&
-      (discharge.time === printedTime || discharge.time === stamp.hhmm) &&
-      `${day}T${discharge.time}` < `${admissionDay}T${admissionTime}`
+      CLOCK_STAMP.test(applied) &&
+      discharge.movementDate === printedDay &&
+      (discharge.time === printed[4] || discharge.time === stamp.hhmm) &&
+      applied < admission
     );
   });
 };

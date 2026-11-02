@@ -53,7 +53,13 @@ describe('reingreso el mismo día', () => {
       motivo: 'Alta hospitalaria',
       exactEpisodeVerification: 'unverified',
     }) as never;
-  const applied = { rut: '11.111.111-1', clinicalEpisodeId: 'synthetic-old', time: '11:55' };
+  const applied = {
+    rut: '11.111.111-1',
+    clinicalEpisodeId: 'synthetic-old',
+    time: '11:55',
+    movementDate: '2026-11-01',
+    bedId: 'R2',
+  };
 
   it('no reabre un alta ya aplicada anterior al episodio activo', () => {
     const result = selectEligibleEgresoRows(
@@ -79,6 +85,14 @@ describe('reingreso el mismo día', () => {
       [{ ...applied, clinicalEpisodeId: '' }],
     ],
     ['la fila no coincide con el alta registrada', '01-11-2026 16:00', [applied]],
+    ['el alta registrada es de otra cama', '01-11-2026 11:55', [{ ...applied, bedId: 'R1' }]],
+    [
+      'el alta registrada no tiene día',
+      '01-11-2026 11:55',
+      [{ ...applied, movementDate: undefined }],
+    ],
+    ['la hora registrada está malformada', '01-11-2026 9:55', [{ ...applied, time: '9:55' }]],
+    ['la fila es de otro día', '31-10-2026 11:55', [applied]],
     [
       'el alta registrada es posterior al ingreso',
       '01-11-2026 21:30',
