@@ -65,7 +65,7 @@ lea este archivo.
 | Regla                                                                                                                                                        | Qué la impone                               |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------- |
 | Las reglas se editan en `rules/`; `firestore.rules` y `storage.rules` se generan. Editar el archivo generado se pierde al correr las pruebas.                | `check-rules-generated` en `check:security` |
-| Publicar, desplegar Functions o reglas, o cambiar la configuración de Netlify, solo si el responsable lo pide. Un merge a `main` ya publica.                 | **[docs]**                                  |
+| Publicar, desplegar Functions o reglas, o cambiar la configuración de Netlify, solo si el responsable lo pide. Un merge a `main` ya publica.                 | **[docs]**; desfase: `rules-drift.yml`      |
 | `ci-summary` es el único check requerido, y `main` exige ramas al día. No saltarlo ni relajarlo.                                                             | Ruleset de `main`                           |
 | CI del SHA final acredita sus controles: no duplicar la matriz local. Verificar alcance y fallos conocidos; ver `docs/SAFE_CHANGE_CHECKLIST.md`.             | `ci-summary`; **[docs]** para no duplicar   |
 | Un agente mergea solo sus propias PRs, en verde y de a una. Las PRs de otros hilos no se tocan.                                                              | Ruleset en parte; **[docs]**                |

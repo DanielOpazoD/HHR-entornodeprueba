@@ -1,0 +1,62 @@
+name: Published rules match main
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# Rules are published by hand, only when the owner asks (AGENTS.md). This daily read-only check
+# fails when the Firestore or Storage rules in production differ from the generated files on main,
+# so a merged rules change that was never published is noticed within a day. It never deploys.
+#
+# Uses FIREBASE_SERVICE_ACCOUNT_HHR (see deploy-functions.yml); its Firebase Develop Viewer role
+# already grants firebaserules.releases.get and firebaserules.rulesets.get.
+
+on:
+  schedule:
+    # 12:00 UTC is 07:00 in Rapa Nui during summer time and 06:00 in winter.
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rules-drift
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    name: published-rules-match-main
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Write service account credentials to disk
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HHR }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
+            echo "::error::Missing GitHub secret FIREBASE_SERVICE_ACCOUNT_HHR."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/firebase"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase/service-account.json"
+          chmod 600 "$RUNNER_TEMP/firebase/service-account.json"
+
+      - name: Compare published rules with main
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase/service-account.json
+        run: node scripts/check-deployed-rules.mjs --project hhr-pruebas
+
+      - name: Cleanup credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase/service-account.json"
