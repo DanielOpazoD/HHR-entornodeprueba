@@ -13,3 +13,6 @@ export const SESSION_TIMEOUT_MS = 60 * 60 * 1000;
 
 // Events that count as user activity for resetting the session timer
 export const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'];
+
+// Loading chrome stand-in used before the real account is known. Never shown as a person.
+export const BOOTSTRAP_PLACEHOLDER_UID = 'bootstrap-user';

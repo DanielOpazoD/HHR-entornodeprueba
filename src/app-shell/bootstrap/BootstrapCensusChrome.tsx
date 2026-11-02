@@ -1,3 +1,4 @@
+import { BOOTSTRAP_PLACEHOLDER_UID } from '@/constants/security';
 import { UISettingsProvider } from '@/context/UISettingsContext';
 import { resolveCurrentClinicalDay } from '@/utils/clinicalDayUtils';
 import { CensusToolbarLoadingActions } from '@/components/layout/date-strip/CensusToolbarLoadingActions';
@@ -192,7 +193,7 @@ const buildBootstrapAuthContextValue = (
   const currentUser =
     persistedUser ??
     ({
-      uid: 'bootstrap-user',
+      uid: BOOTSTRAP_PLACEHOLDER_UID,
       email: 'bootstrap@hospital.cl',
       displayName: 'Bootstrap User',
       role: DEFAULT_BOOTSTRAP_ROLE,

@@ -32,7 +32,7 @@ export default function UserMenuPanel({
 }: UserMenuPanelProps) {
   return (
     <div
-      className="absolute right-0 mt-2 w-64 origin-top-right bg-white text-slate-800 rounded-xl shadow-xl border border-slate-200/80 ring-1 ring-black/[0.04] z-50 overflow-hidden"
+      className="absolute right-0 top-full z-50 mt-2 w-64 origin-top-right bg-white text-slate-800 rounded-xl shadow-xl border border-slate-200/80 ring-1 ring-black/[0.04] z-50 overflow-hidden"
       data-testid="user-profile-menu-panel"
     >
       <div className="px-4 py-3.5 border-b border-slate-100">
