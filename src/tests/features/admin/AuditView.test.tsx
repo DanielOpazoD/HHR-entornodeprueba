@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -81,7 +81,10 @@ const logs = (): AuditLogEntry[] => [
 ];
 
 const renderView = async () => {
-  render(<AuditView />);
+  // Flush the loaded groups' initial preference effects before clicking their expand controls.
+  await act(async () => {
+    render(<AuditView />);
+  });
   await screen.findByText('José Pérez', undefined, { timeout: 5000 });
 };
 
