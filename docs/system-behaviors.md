@@ -193,6 +193,11 @@ Al abrir la aplicación, el sistema sincroniza automáticamente los datos del d�
 3. Si no hay redirect, intenta rehidratar una sesión Firebase ya persistida.
 4. Recién después queda suscripto al observer continuo de `onAuthStateChanged`.
 
+En el ingreso por RUT, si `signInWithRut` devuelve un rol confirmado y la identidad
+coincide con el usuario Firebase resultante, se usa esa confirmación sin una consulta
+adicional a `checkUserRole`. Si faltan esos campos se conserva la consulta habitual;
+Google conserva su flujo. [Contrato de acceso](AUTH_ACCESS_MODEL.md).
+
 Esto reduce los casos donde una sesión válida tarda en materializarse después de un deploy nuevo.
 
 ### Verdad Operativa de Sync
@@ -258,6 +263,12 @@ Usuarios con "passport" pueden trabajar sin conexión a internet.
 - Si la sesión sigue válida, `F5` debe volver al mismo contexto funcional mínimo:
   - módulo;
   - fecha seleccionada.
+- Con Firebase restaurado y un rol confirmado vigente para el mismo UID y correo,
+  el shell se admite sin esperar `checkUserRole`; el observador confirma en segundo plano.
+  Un cambio de rol se aplica; una denegación o ausencia de rol cierra la sesión.
+  Un fallo de red conserva lo recordado, sin renovar el vencimiento, y reintenta en silencio.
+- Sin ese registro, si venció o pertenece a otra cuenta, se espera la consulta habitual.
+  Cerrar sesión lo borra. El contrato de identidad y plazo está en [AUTH_ACCESS_MODEL](AUTH_ACCESS_MODEL.md).
 - Si la sesión expiró o quedó inválida, debe mostrarse login.
 - Si el cliente quedó desactualizado frente a runtime/schema incompatible, debe exigirse actualización segura.
 

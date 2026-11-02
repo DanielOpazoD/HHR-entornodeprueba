@@ -123,13 +123,32 @@ export const accountFixture = () => {
     ),
   };
   const passwordVerifier = vi.fn(
-    async ({ email, password }: { email: string; password: string }) => {
+    async ({
+      email,
+      password,
+      returnVerifiedSession = false,
+    }: {
+      email: string;
+      password: string;
+      returnVerifiedSession?: boolean;
+    }) => {
       const user = [...users.values()].find(
         candidate =>
           candidate.email === email && candidate.password === password && !candidate.disabled
       );
       if (!user) throw new Error('invalid');
-      return user.uid;
+      return returnVerifiedSession
+        ? {
+            uid: user.uid,
+            token: {
+              ...(typeof user.customClaims === 'object' && user.customClaims !== null
+                ? user.customClaims
+                : {}),
+              auth_time: now() / 1000,
+              firebase: { sign_in_provider: 'password' },
+            },
+          }
+        : user.uid;
     }
   );
   return { firestore, auth, helpers, now, documents, users, context, passwordVerifier };

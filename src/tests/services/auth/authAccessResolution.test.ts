@@ -236,7 +236,7 @@ describe('authAccessResolution', () => {
     ).resolves.toBe('doctor_specialist');
   });
 
-  it('allows cached role resolution only in the bootstrap rehydration path', async () => {
+  it('requires a server role when bootstrap has no account-bound confirmation', async () => {
     mockResolveGeneralLoginAccessForEmail.mockResolvedValue({
       allowed: true,
       role: 'admin',
@@ -250,8 +250,6 @@ describe('authAccessResolution', () => {
       } as never)
     ).resolves.toBe('admin');
 
-    expect(mockResolveGeneralLoginAccessForEmail).toHaveBeenCalledWith('bootstrap@hospital.cl', {
-      allowCachedRole: true,
-    });
+    expect(mockResolveGeneralLoginAccessForEmail).toHaveBeenCalledWith('bootstrap@hospital.cl');
   });
 });

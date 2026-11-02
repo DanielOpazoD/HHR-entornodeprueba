@@ -119,3 +119,23 @@ same environment, sample count, record fixture, Node/lockfile and cache policy.
 Diagnostic profilers must be local and removed before the merge gate. The normal
 production build and remote CI determine readiness; profiler build payloads are
 not release-budget evidence.
+
+## Confirmación del rol fuera del camino de F5 (02-11-2026)
+
+El responsable midió en producción 2,4–3 s hasta ver filas después de F5, con
+0,7–0,8 s bloqueados por `checkUserRole`. La decisión aprobada permite usar la
+confirmación de la misma cuenta durante la recarga y comprobarla en segundo plano;
+ver [el contrato de acceso](AUTH_ACCESS_MODEL.md). Sin confirmación vigente se
+mantiene la espera. No se usa el caché histórico por correo para admitir una cuenta.
+
+Estas cifras son la evidencia de entrada aportada por el responsable, no resultados
+del cambio. Las pruebas sintéticas verifican el orden de admisión y confirmación,
+revocación, fallo temporal, expiración y aislamiento; el efecto sobre los tiempos
+hasta filas requiere una medición comparable después de publicar.
+
+El responsable midió además unos 0,7 s en la consulta de rol posterior al ingreso
+por RUT. El callable ahora puede devolver el rol usando el documento y token ya
+verificados, y el cliente evita esa consulta si coincide la cuenta Firebase.
+Respuestas antiguas mantienen el camino de consulta. Esta eliminación se verifica
+con transporte sintético y el escenario de cuentas en emuladores; no constituye
+una medición de latencia en producción.

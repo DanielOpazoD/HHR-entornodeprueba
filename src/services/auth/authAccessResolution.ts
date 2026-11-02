@@ -4,6 +4,11 @@ import { resolveGeneralLoginAccessForEmail } from '@/services/auth/authPolicy';
 import { createAuthError, toAuthUser } from '@/services/auth/authShared';
 import { recordAuthOperationalError } from '@/services/auth/authOperationalTelemetry';
 import { type AuthRuntime, defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
+import {
+  clearConfirmedAuthRole,
+  getCredentialSignInRole,
+  rememberConfirmedAuthRole,
+} from '@/services/auth/authRoleLookup';
 import { resolveUserRoleClaim } from '@/services/auth/authClaimSyncService';
 
 const STANDARD_UNAUTHORIZED_MESSAGE =
@@ -28,6 +33,7 @@ const rejectUnauthorizedUser = async (
   if (isCurrent && !isCurrent()) {
     throw createAuthError('auth/cancelled-popup-request', 'Inicio cancelado.');
   }
+  clearConfirmedAuthRole();
   await firebaseSignOut(authRuntime.auth);
   throw new Error(message);
 };
@@ -42,6 +48,11 @@ export const authorizeFirebaseUser = async (
     throw createAuthError('auth/cancelled-popup-request', 'Inicio cancelado.');
   }
   if (allowed && role) {
+    await rememberConfirmedAuthRole(
+      user,
+      role,
+      options?.isCurrent ?? (() => authRuntime.getCurrentUser() === user)
+    );
     return toAuthUser(user, role);
   }
 
@@ -84,28 +95,33 @@ export const authorizeCurrentFirebaseUser = async (
   }
 };
 
-export const resolveFirebaseUserRole = async (firebaseUser: User): Promise<UserRole | null> => {
-  return resolveFirebaseUserRoleFromPolicy(firebaseUser);
+export const resolveFirebaseUserRole = async (
+  firebaseUser: User,
+  isCurrent: () => boolean = () => defaultAuthRuntime.getCurrentUser() === firebaseUser
+): Promise<UserRole | null> => {
+  return resolveFirebaseUserRoleFromPolicy(firebaseUser, isCurrent);
 };
 
 export const resolveFirebaseUserRoleForBootstrap = async (
-  firebaseUser: User
+  firebaseUser: User,
+  isCurrent: () => boolean = () => defaultAuthRuntime.getCurrentUser() === firebaseUser
 ): Promise<UserRole | null> => {
-  return resolveFirebaseUserRoleFromPolicy(firebaseUser, { allowCachedRole: true });
+  return resolveFirebaseUserRoleFromPolicy(firebaseUser, isCurrent);
 };
 
 const resolveFirebaseUserRoleFromPolicy = async (
   firebaseUser: User,
-  options: { allowCachedRole?: boolean } = {}
+  isCurrent: () => boolean
 ): Promise<UserRole | null> => {
   try {
-    const loginAccess =
-      options.allowCachedRole && !firebaseUser.uid.startsWith('hhrn_')
-        ? await resolveGeneralLoginAccessForEmail(firebaseUser.email || '', {
-            allowCachedRole: true,
-          })
-        : await resolveGeneralLoginAccessForEmail(firebaseUser.email || '');
+    const credentialRole = getCredentialSignInRole(firebaseUser);
+    if (credentialRole && isCurrent()) {
+      await rememberConfirmedAuthRole(firebaseUser, credentialRole, isCurrent);
+      return credentialRole;
+    }
+    const loginAccess = await resolveGeneralLoginAccessForEmail(firebaseUser.email || '');
     if (loginAccess.allowed && loginAccess.role) {
+      await rememberConfirmedAuthRole(firebaseUser, loginAccess.role, isCurrent);
       return loginAccess.role;
     }
 

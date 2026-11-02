@@ -179,6 +179,50 @@ Puntos clave:
 - si aparece un alias legacy de rol en `config/roles`, backend y Gestión de Roles lo recanonizan a `viewer`
 - Gestión de Roles además intenta resincronizar el custom claim del usuario afectado cuando detecta esa recanonización
 
+### Rol confirmado en el ingreso por RUT (decisión aprobada, 02-11-2026)
+
+`signInWithRut` devuelve `uid`, `credentialEmail` y `role` para una cuenta activa.
+Usa el token que ya verificó al comprobar la contraseña y el documento de acceso
+ya leído: la misma función de autoridad que `resolveIndividualAccountRole` comprueba
+estado, versión, proveedor, bloqueo de credenciales y plazo de sesión, sin otra lectura.
+Una cuenta pendiente solo puede recibir el flujo de establecimiento de clave; una
+cuenta retirada no recibe acceso ni rol.
+
+El cliente espera el usuario Firebase y exige coincidencia de UID y correo con esa
+respuesta antes de usar el rol. La respuesta queda ligada al intento vigente, tanto
+si primero llega el observador como si primero termina el SDK. Ese ingreso comparte
+la confirmación con el monitor mediante la ventana existente de diez segundos y
+no llama `checkUserRole`. Cancelar, cerrar o reemplazar la sesión invalida el intento.
+El rol confirmado queda recordado para la misma cuenta según el contrato de F5.
+
+Una respuesta antigua sin rol o sin identidad suficiente usa la consulta habitual.
+Servidor nuevo con cliente antiguo y cliente nuevo con servidor antiguo mantienen
+un camino válido: los campos añadidos son compatibles y la confirmación en el
+siguiente F5 sigue consultando al servidor. Google conserva su flujo.
+
+### Rol confirmado al recargar (decisión aprobada del responsable, 02-11-2026)
+
+Con Firebase ya restaurado, F5 puede admitir el último rol confirmado por el servidor
+para ese mismo UID y correo normalizado. `authRoleLookup.ts` lo recuerda en
+`sessionStorage` (`hhr_confirmed_auth_role_v1`), con vencimiento limitado a las doce
+horas desde `auth_time`. El caché histórico por correo y los claims usados como
+fallback no crean esta confirmación. Sin registro válido, el arranque espera la
+consulta habitual. La admisión sigue esperando la reconciliación del propietario
+del almacenamiento antes de mostrar datos.
+
+El observador confirma `checkUserRole` en segundo plano. Un rol idéntico no cambia
+la pantalla; uno distinto aplica los permisos mediante la admisión existente. Una
+respuesta sin rol o denegación autoritativa retira la confirmación y activa el cierre automático existente
+si el shell ya estaba admitido (o cierra Firebase durante el arranque), conservando la cola durable. Un fallo temporal conserva
+el rol recordado sin renovar su vencimiento, y la consulta usa los reintentos
+silenciosos `ROLE_LOOKUP_RETRY_DELAYS_MS` (SAVE-01). Resultados de una sesión anterior
+se descartan. Cerrar sesión borra el registro, que nunca sobrevive a la limpieza
+de sesión; UID y correo deben coincidir para impedir herencia entre personas.
+
+Esto adelanta la presentación de un rol previamente confirmado, sin cambiar reglas,
+Functions ni autorización del servidor. No acredita por sí solo un ahorro de tiempo
+en producción; debe medirse tras publicar.
+
 ### Un solo ciclo de sesión por pestaña
 
 El ciclo de sesión de React pertenece únicamente a `AuthProvider`. Los módulos,
