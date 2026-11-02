@@ -156,12 +156,12 @@ Esta consolidación no cambia código de producción ni acredita un despliegue.
 El responsable acepta los riesgos indicados **hasta después del 2026-11-08**;
 la fecha no autoriza resolverlos automáticamente ni convierte el defecto en correcto.
 
-| Hallazgo                                                   | Estado al consolidar                                                   | Destino de la evidencia                                                                                                                               |
-| ---------------------------------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P1: dos escrituras directas del mismo campo tienen éxito   | **Pendiente aceptado** por el responsable hasta después del 2026-11-08 | Caso 3 directo en `twoUsersRehearsalContracts.emulator-ui.test.ts`, con `it.fails` y motivo.                                                          |
-| P1: reenvío directo sobrescribe la edición confirmada de B | **Pendiente aceptado** con el mismo plazo                              | Caso 5 directo/mismo campo en la suite consolidada, como fallo esperado.                                                                              |
-| P2: edición offline de otra cama retenida en autoridad     | **Pendiente en curso**, no aceptado como riesgo en este encargo        | Rama `claude/offline-edit-other-bed-no-conflict-20261101`; ya posee `twoUsersRehearsal.emulator-ui.test.ts`. No se incorpora ni modifica ese archivo. |
-| P3: mensaje de dotación atribuye incorrectamente el cambio | **Pendiente en curso**, no marcado como corregido ni aceptado          | Rama `claude/staffing-save-message-20261101`; se deja allí el contrato de mensaje. No tiene PR de corrección acreditada al consolidar.                |
+| Hallazgo                                                   | Estado al consolidar                                                   | Destino de la evidencia                                                                                                                |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| P1: dos escrituras directas del mismo campo tienen éxito   | **Pendiente aceptado** por el responsable hasta después del 2026-11-08 | Caso 3 directo en `twoUsersRehearsalContracts.emulator-ui.test.ts`, con `it.fails` y motivo.                                           |
+| P1: reenvío directo sobrescribe la edición confirmada de B | **Pendiente aceptado** con el mismo plazo                              | Caso 5 directo/mismo campo en la suite consolidada, como fallo esperado.                                                               |
+| P2: edición offline de otra cama retenida en autoridad     | **Diferido hasta después del 8-11**                                    | #1151 en borrador: reducido a diagnóstico y estado por identidad; sin ella la edición queda retenida, sin pérdida                      |
+| P3: mensaje de dotación atribuye incorrectamente el cambio | **Pendiente en curso**, no marcado como corregido ni aceptado          | Rama `claude/staffing-save-message-20261101`; se deja allí el contrato de mensaje. No tiene PR de corrección acreditada al consolidar. |
 
 ### Destino de cada prueba original
 
