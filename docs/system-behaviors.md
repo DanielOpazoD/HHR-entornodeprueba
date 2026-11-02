@@ -258,6 +258,12 @@ Usuarios con "passport" pueden trabajar sin conexión a internet.
 - Si la sesión sigue válida, `F5` debe volver al mismo contexto funcional mínimo:
   - módulo;
   - fecha seleccionada.
+- Con Firebase restaurado y un rol confirmado vigente para el mismo UID y correo,
+  el shell se admite sin esperar `checkUserRole`; el observador confirma en segundo plano.
+  Un cambio de rol se aplica; una denegación o ausencia de rol cierra la sesión.
+  Un fallo de red conserva lo recordado, sin renovar el vencimiento, y reintenta en silencio.
+- Sin ese registro, si venció o pertenece a otra cuenta, se espera la consulta habitual.
+  Cerrar sesión lo borra. El contrato de identidad y plazo está en [AUTH_ACCESS_MODEL](AUTH_ACCESS_MODEL.md).
 - Si la sesión expiró o quedó inválida, debe mostrarse login.
 - Si el cliente quedó desactualizado frente a runtime/schema incompatible, debe exigirse actualización segura.
 
