@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RayenImportButton } from '@/features/rayen-import/components/RayenImportButton';
 import { RAYEN_EXTENSION_PROTOCOL_VERSION } from '@/features/rayen-import/bridge/extensionHealthBridge';
@@ -52,6 +52,14 @@ vi.mock('@/features/rayen-import/components/RayenImportPreviewModal', () => ({
   RayenImportPreviewModal: () => null,
 }));
 
+const clickLazyControl = async (control: HTMLElement) => {
+  await act(async () => {
+    fireEvent.click(control);
+    // The panel is a real lazy import; wait for its module graph before checking its contents.
+    await vi.dynamicImportSettled();
+  });
+};
+
 describe('RayenImportButton feedback', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -103,7 +111,9 @@ describe('RayenImportButton feedback', () => {
     });
     render(<RayenImportButton />);
     expect(screen.queryByTestId('sync-queue-status-chip')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }));
+    await clickLazyControl(
+      screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' })
+    );
     expect(await screen.findByText('Guardado local · 17 por enviar')).toBeInTheDocument();
     expect(screen.getAllByText(/CUDYR · autorización anterior/)).toHaveLength(1);
     expect(screen.queryByText('Registro del censo')).not.toBeInTheDocument();
@@ -117,7 +127,9 @@ describe('RayenImportButton feedback', () => {
       refresh: vi.fn(),
     });
     render(<RayenImportButton />);
-    fireEvent.click(screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }));
+    await clickLazyControl(
+      screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' })
+    );
     expect(await screen.findByText('Guardado local · 2 por enviar')).toBeInTheDocument();
     expect(screen.getByText('2 reintentando.')).toBeInTheDocument();
     expect(mocks.triggerImport).not.toHaveBeenCalled();
@@ -149,7 +161,9 @@ describe('RayenImportButton feedback', () => {
         })
       );
       render(<RayenImportButton />);
-      fireEvent.click(screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }));
+      await clickLazyControl(
+        screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' })
+      );
       expect(await screen.findByText('Guardado local · 25 por enviar')).toBeVisible();
       expect(screen.queryByText('Censo del 22-10-2026')).not.toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Ver más envíos' }));
@@ -183,7 +197,9 @@ describe('RayenImportButton feedback', () => {
     };
     mocks.useSyncQueueMonitor.mockReturnValue(queue);
     const { rerender } = render(<RayenImportButton />);
-    fireEvent.click(screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }));
+    await clickLazyControl(
+      screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' })
+    );
     expect(await screen.findByText('Guardado local · por comprobar')).toBeInTheDocument();
     expect(screen.getByText('No se pudo leer la cola local.')).toBeInTheDocument();
     expect(screen.queryByText('Guardado local · 0 por enviar')).not.toBeInTheDocument();
@@ -344,7 +360,7 @@ describe('RayenImportButton feedback', () => {
     });
 
     render(<RayenImportButton />);
-    fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    await clickLazyControl(screen.getByTestId('rayen-sync-history-button'));
     await screen.findByTestId('rayen-sync-history-modal');
 
     expect(screen.getByText('3 comprobaciones sin cambios')).toBeInTheDocument();
@@ -380,7 +396,7 @@ describe('RayenImportButton feedback', () => {
     render(<RayenImportButton />);
 
     expect(screen.getByRole('status')).toHaveTextContent('Sincronización pendiente de completar');
-    fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    await clickLazyControl(screen.getByTestId('rayen-sync-history-button'));
     await screen.findByTestId('rayen-sync-history-modal');
     expect(screen.getAllByText('Censo aplicado')).toHaveLength(2);
     expect(screen.queryByText('2 comprobaciones sin cambios')).not.toBeInTheDocument();
