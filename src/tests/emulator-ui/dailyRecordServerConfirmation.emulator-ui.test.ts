@@ -51,6 +51,7 @@ describeEmulator('server confirmation with real Firestore cache metadata', () =>
   let environment: RulesTestEnvironment;
   const cleanups: Array<() => void> = [];
 
+  // Compiling the real rules exceeded the 30s hook budget under CPU contention.
   beforeAll(async () => {
     const endpoint = /^(127\.0\.0\.1|localhost):(\d+)$/.exec(host ?? '');
     if (!endpoint) throw new Error('Use the canonical loopback Firestore emulator launcher.');
@@ -62,7 +63,7 @@ describeEmulator('server confirmation with real Firestore cache metadata', () =>
         rules: readFileSync(resolve(process.cwd(), 'firestore.rules'), 'utf8'),
       },
     });
-  });
+  }, 90_000);
 
   beforeEach(async () => {
     await environment.clearFirestore();
@@ -137,8 +138,11 @@ describeEmulator('server confirmation with real Firestore cache metadata', () =>
       expect(getDailyRecordFreshnessStatus(date)).toBe('stale_due_to_inactivity');
       expect(read()?.runtime.serverConfirmed).toBe(false);
       await db.enableNetwork();
-      await waitFor(() =>
-        expect(getDailyRecordFreshnessStatus(date)).toBe('fresh_remote_confirmed')
+      // enableNetwork resumes the listener before its metadata-only server update arrives.
+      // A real emulator transport can exceed RTL's 1s DOM wait (reproduced with 1.2s latency).
+      await waitFor(
+        () => expect(getDailyRecordFreshnessStatus(date)).toBe('fresh_remote_confirmed'),
+        { timeout: 10_000 }
       );
       expect(read()?.runtime.serverConfirmed).toBe(true);
       expect(read()?.record?.nursesDayShift).toEqual(record.nursesDayShift);
