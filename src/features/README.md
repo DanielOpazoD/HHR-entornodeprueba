@@ -14,6 +14,7 @@ Organización principal por módulo funcional (feature-first). Cada feature agru
 | `admin/`            | Paneles de administración, roles, auditoría                                                             | Activo                       |
 | `analytics/`        | KPIs MINSAL/DEIS, visualización y ruta propia `/statistics`                                             | Activo                       |
 | `backup/`           | Gestión de respaldos y archivos                                                                         | Activo                       |
+| `audit-documents/`  | Descarga en ZIP de informes oficiales de Eloísa para auditoría (lista de RUT, vía extensión)            | Activo                       |
 | `cudyr/`            | Módulo clínico CUDYR                                                                                    | Activo                       |
 | `clinical-library/` | Biblioteca del censo: formularios, protocolos, infografías y herramientas clínicas (botón «Documentos») | Activo                       |
 | `whatsapp/`         | Integración y configuración WhatsApp                                                                    | Activo                       |

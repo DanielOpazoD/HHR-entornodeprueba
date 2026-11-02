@@ -31,6 +31,7 @@ importScripts(
   'clinical-score-write-runtime.js',
   'hospitalization-report-search-runtime.js', 'hospitalization-reports-runtime.js',
   'epicrisis-pdf-download.js', 'epicrisis-download-runtime.js',
+  'zip-store-writer.js', 'audit-documents-runtime.js',
   'clinical-report-runtime.js',
   'clinical-batch-print-runtime.js',
   'prescription-print.js',
@@ -761,6 +762,12 @@ const {
   createCompletePrescriptionPdf,
 } = clinicalReportRuntime;
 
+const auditDocumentsRuntime = self.HhrAuditDocumentsRuntime.create({
+  chromeApi: chrome, getFetchInfo: () => getFichaFetchInfo(), fetchWithTimeout, fetchOfficialPdf,
+  mapWithConcurrency, bufferToBase64, zipWriter: self.HhrZipStoreWriter, now: () => Date.now(),
+  isHhrTabUrl: url => self.HhrAppOrigins.matchesUrl(url),
+});
+
 const fetchStatisticalDischargeReport = self.HhrGestionCamasStatisticalReportFetcher.create({
   resolveSession: resolveGestionCamasSession,
   fetchOfficialPdf,
@@ -1246,7 +1253,10 @@ const runtimeMessageRoutes = Object.freeze({
     message => handleDeviceReportRequest({ encId: message.encId, fecha: message.fecha, acceptEntries: message.acceptEntries === true }),
     'No se pudo leer el reporte de dispositivos.'
   ),
-  [RUNTIME_MESSAGES.HHR_SESSION_CHANGED]: runtimeRoute((_message, sender) => patientFlowRuntime.revokeAuthorization(sender), ''),
+  [RUNTIME_MESSAGES.HHR_SESSION_CHANGED]: runtimeRoute((_message, sender) => {
+    auditDocumentsRuntime.cancelAll();
+    return patientFlowRuntime.revokeAuthorization(sender);
+  }, ''),
   [RUNTIME_MESSAGES.PATIENT_FLOW_REPORT_REQUEST]: patientFlowRuntime.route,
   [RUNTIME_MESSAGES.DEVICE_REPORT_SAVE]: runtimeRoute(
     message => handleDeviceReportSave({ encId: message.encId, fecha: message.fecha }),
@@ -1354,6 +1364,14 @@ const runtimeMessageRoutes = Object.freeze({
     (message, sender) =>
       handleNursingMedicalEpicrisisPrintRequest({ ...message, sender }),
     'No se pudo imprimir la epicrisis médica.'
+  ),
+  [RUNTIME_MESSAGES.AUDIT_DOCUMENTS_REQUEST]: runtimeRoute(
+    (message, sender) => auditDocumentsRuntime.handleRequest({ ...message, sender }),
+    'No se pudieron descargar los documentos para auditoría.'
+  ),
+  [RUNTIME_MESSAGES.AUDIT_DOCUMENTS_CANCEL]: runtimeRoute(
+    message => auditDocumentsRuntime.cancel(message.requestId),
+    'No se pudo cancelar la descarga para auditoría.'
   ),
   [RUNTIME_MESSAGES.EXAM_REQUEST_COMBINE_PRINT_REQUEST]: runtimeRoute(
     (message, sender) =>

@@ -2,6 +2,7 @@
   "features": {
     "admin": ["backup", "clinical-documents", "handoff", "rayen-import", "reminders", "whatsapp"],
     "analytics": [],
+    "audit-documents": [],
     "auth": [],
     "backup": [],
     "census": [

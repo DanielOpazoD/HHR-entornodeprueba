@@ -36,6 +36,9 @@ export const chunkForModule = (moduleId: string): string | undefined => {
     return 'replanRayenStructure';
   }
 
+  // The audit download needs Eloísa and the extension online; it stays out of offline startup.
+  if (has('/src/features/audit-documents/')) return 'audit-documents';
+
   if (
     has('/src/components/layout/app-content/AppContentOverlays.tsx') ||
     has('/src/components/layout/app-content/appContentOverlaysController.ts') ||

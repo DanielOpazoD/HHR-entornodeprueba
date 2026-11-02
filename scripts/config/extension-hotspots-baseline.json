@@ -9,8 +9,12 @@
     "xlsx.full.min.js"
   ],
   "files": {
+    "audit-documents-runtime.js": {
+      "maxLines": 533,
+      "hotspots": {}
+    },
     "background.js": {
-      "maxLines": 1479,
+      "maxLines": 1497,
       "hotspots": {
         "variable:handleExamRequestCombinePrint": 25,
         "variable:handleImagingFormPrintRequest": 18,
@@ -158,6 +162,10 @@
     },
     "content-gestioncamas.js": {
       "maxLines": 209,
+      "hotspots": {}
+    },
+    "content-hhr-audit-documents.js": {
+      "maxLines": 116,
       "hotspots": {}
     },
     "content-hhr-connection-repair.js": {
@@ -566,7 +574,7 @@
       "hotspots": {}
     },
     "message-contract.js": {
-      "maxLines": 285,
+      "maxLines": 289,
       "hotspots": {}
     },
     "offscreen-contract.js": {
@@ -630,7 +638,7 @@
       "hotspots": {}
     },
     "relay-reinjection-manifest.js": {
-      "maxLines": 95,
+      "maxLines": 96,
       "hotspots": {}
     },
     "relay-reinjection-operations.js": {
@@ -719,6 +727,10 @@
     },
     "tab-encounter-authorization.js": {
       "maxLines": 88,
+      "hotspots": {}
+    },
+    "zip-store-writer.js": {
+      "maxLines": 121,
       "hotspots": {}
     }
   }

@@ -2,6 +2,7 @@ import {
   LayoutList,
   MessageSquare,
   FolderArchive,
+  FileDown,
   BarChart3,
   Settings,
   Activity,
@@ -26,7 +27,8 @@ export type ModuleType =
   | 'DATA'
   | 'COMMUNICATIONS'
   | 'ROLE_MANAGEMENT'
-  | 'REMINDERS';
+  | 'REMINDERS'
+  | 'AUDIT_DOCUMENTS';
 
 export type NavActionType = 'MODULE_CHANGE';
 
@@ -74,6 +76,15 @@ export const NAVIGATION_CONFIG: NavItemConfig[] = [
     isUtility: true,
     adminOnly: true,
     requiredModule: 'ANALYTICS',
+  },
+  {
+    id: 'audit-documents',
+    label: 'Documentos para auditoría',
+    icon: FileDown,
+    module: 'AUDIT_DOCUMENTS',
+    actionType: 'MODULE_CHANGE',
+    isUtility: true,
+    requiredModule: 'AUDIT_DOCUMENTS',
   },
   {
     id: 'backup-files',

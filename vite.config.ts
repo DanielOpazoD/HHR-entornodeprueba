@@ -306,6 +306,8 @@ export default defineConfig(({ mode }) => {
             // Official hospitalization reports need a live Eloisa session. Their deferred
             // dialog already contains chunk failures without replacing the editable census.
             '**/assets/PatientHospitalizationReportsDialog-*.js',
+            // Audit downloads of official Eloísa reports work only with Eloísa and the extension.
+            '**/assets/audit-documents-*.js',
             '**/assets/ClinicalPanelDrawer-*.js',
             // Sync history panel: reviewed on demand while Eloísa is connected.
             '**/assets/RayenSyncHistoryModal-*.js',

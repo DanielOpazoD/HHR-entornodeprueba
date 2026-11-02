@@ -428,3 +428,17 @@ Keep all offline assets, exclusions, warning ratios and other limits unchanged.
 
 Rollback: revert the importer check and this allowance together. Rows stored by
 earlier imports are not touched by this change or by its rollback.
+
+## Documentos para auditoría (2026-11-02)
+
+Owner request: download official Eloísa reports for a list of RUTs as one ZIP. The screen and its
+logic live in the lazy `audit-documents` chunk (11.9 KB). It needs Eloísa and the extension online,
+so it joins the online-only exclusions next to `PatientHospitalizationReportsDialog`; precache does
+not grow.
+
+The new module still adds its menu item, route and entries in the module lists to
+`app-authenticated-shell`: 634,544 → 635,069 bytes measured locally (+525). Raise only that ceiling
+by 576 bytes (634,560 → 635,136). The icon reuses `FileDown`, already in the bundle.
+
+Rollback: revert the module and this allowance together. Nothing is stored, so rollback touches no
+data.

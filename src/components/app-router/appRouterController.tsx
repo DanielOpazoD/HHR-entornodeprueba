@@ -4,6 +4,7 @@ import type { UserRole } from '@/context';
 import type { UseUIStateReturn } from '@/hooks/useUIState';
 import {
   AnalyticsView,
+  AuditDocumentsView,
   AuditView,
   BackupFilesView,
   CensusView,
@@ -145,6 +146,12 @@ export const SIMPLE_MODULE_ROUTE_DEFINITIONS: readonly SimpleModuleRouteDefiniti
     sectionName: 'Avisos al Personal',
     requiresAccessCheck: true,
     render: () => <ReminderAdminView />,
+  },
+  {
+    module: 'AUDIT_DOCUMENTS',
+    sectionName: 'Documentos para auditoría',
+    requiresAccessCheck: true,
+    render: () => <AuditDocumentsView />,
   },
 ];
 

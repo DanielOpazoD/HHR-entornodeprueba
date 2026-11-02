@@ -343,6 +343,20 @@ paneles u otras rutas sin episodio abre directamente **Hospitalizados** y deja d
 del paciente actual. Los accesos contextuales de Indicaciones y Receta médica se mantienen solamente en
 la tabla de fármacos de Gestión de cuidados.
 
+### Documentos para auditoría (0.48.65)
+
+HHR entrega una lista de hasta 20 RUN, con fechas globales o por RUN, y la extensión descarga un ZIP
+con el historial de hospitalización y el reporte de cuidados farmacológicos de Eloísa, un PDF por
+hospitalización. Busca en ambos índices de informes, porque el del historial omite la
+hospitalización en curso, y filtra por el día de Rapa Nui. El ZIP viaja por partes de 4 MB al relé de la
+pestaña HHR, que lo guarda como Blob: una URL `data:` de varios MB no es confiable en Chrome. HHR
+solo recibe cuántos documentos quedaron por RUN. Una lista que Eloísa no entregó
+se informa como falla de ese RUN, nunca como «sin hospitalizaciones», y una hospitalización sin
+fecha o RUT verificable se cuenta aparte para revisarla en Eloísa. Solo entra el RUN propio: un
+recién nacido con el RUN de la madre es otra persona. El ZIP incluye `00 Resumen.csv` y solo llega
+al documento HHR que lo pidió. Se detiene, aunque sus partes ya estén viajando, si cambia la sesión
+HHR, si se cancela o si la pantalla se rinde por tiempo. Máximo 100 documentos por descarga.
+
 ### El permiso termina con la sesión HHR (0.48.64)
 
 Cambiar la generación de sesión HHR revoca en silencio los permisos de episodio de esa pestaña,
