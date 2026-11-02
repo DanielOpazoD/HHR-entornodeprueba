@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import type { User } from 'firebase/auth';
 import type { UserRole } from '@/types/authRoleTypes';
 import { normalizeEmail } from '@/services/auth/authShared';
@@ -34,21 +33,17 @@ export const resolveCallableRole = (
 // deliberately not evidence for restored-session admission.
 export const CONFIRMED_AUTH_ROLE_KEY = 'hhr_confirmed_auth_role_v1';
 const CONFIRMED_ROLE_TTL_MS = 12 * 60 * 60 * 1000;
-const confirmedRoleSchema = z.object({
-  uid: z.string().min(1),
-  email: z.string().min(1),
-  role: z.string().refine(isGeneralLoginRole),
-  confirmedAt: z.number().finite(),
-  expiresAt: z.number().finite(),
-});
+type ConfirmedRole = {
+  uid: string;
+  email: string;
+  role: UserRole;
+  confirmedAt: number;
+  expiresAt: number;
+};
 
-const credentialRoleSchema = z.object({
-  uid: z.string().min(1),
-  credentialEmail: z.string().min(1),
-  role: z.string().refine(isGeneralLoginRole),
-});
+type CredentialRole = { uid: string; credentialEmail: string; role: UserRole };
 let pendingCredentialRole: {
-  response: z.infer<typeof credentialRoleSchema>;
+  response: CredentialRole;
   isCurrent: () => boolean;
 } | null = null;
 
@@ -64,20 +59,17 @@ export const clearConfirmedAuthRole = (): void => {
 export const getConfirmedAuthRole = (user: Pick<User, 'uid' | 'email'>): UserRole | null => {
   try {
     const raw = sessionStorage.getItem(CONFIRMED_AUTH_ROLE_KEY);
-    const parsed = confirmedRoleSchema.safeParse(raw ? JSON.parse(raw) : null);
-    if (!parsed.success) return null;
-    const entry = parsed.data;
+    const entry = (raw ? JSON.parse(raw) : {}) as ConfirmedRole;
     const now = Date.now();
-    if (
-      entry.uid !== user.uid ||
-      entry.email !== normalizeEmail(user.email || '') ||
-      entry.confirmedAt > now ||
-      entry.expiresAt <= now ||
-      entry.expiresAt > entry.confirmedAt + CONFIRMED_ROLE_TTL_MS ||
-      !isGeneralLoginRole(entry.role)
-    )
-      return null;
-    return entry.role;
+    // Written so a missing or non-numeric field fails each comparison.
+    return entry.uid === user.uid &&
+      entry.email === normalizeEmail(user.email || '') &&
+      entry.confirmedAt <= now &&
+      entry.expiresAt > now &&
+      entry.expiresAt <= entry.confirmedAt + CONFIRMED_ROLE_TTL_MS &&
+      isGeneralLoginRole(entry.role)
+      ? entry.role
+      : null;
   } catch {
     return null;
   }
@@ -191,12 +183,6 @@ export const createAuthRoleLookupService = (
   };
 
   return {
-    rememberSignInRole: (email: string, role: UserRole): void => {
-      recentLookups.set(normalizeEmail(email), {
-        role,
-        expiresAt: Date.now() + RECENT_ROLE_LOOKUP_REUSE_MS,
-      });
-    },
     clearRecentLookups: (): void => {
       lookupGeneration += 1;
       recentLookups.clear();
@@ -237,13 +223,14 @@ export const prepareCredentialSignInRole = (
   response: unknown,
   isCurrent: () => boolean
 ): (() => void) => {
-  const parsed = credentialRoleSchema.safeParse(response);
-  if (!parsed.success || parsed.data.credentialEmail !== `${parsed.data.uid}@accounts.hhr.invalid`)
+  const parsed = (response ?? {}) as CredentialRole;
+  if (
+    !parsed.uid ||
+    !isGeneralLoginRole(parsed.role) ||
+    parsed.credentialEmail !== `${parsed.uid}@accounts.hhr.invalid`
+  )
     return () => {};
-  const pending = {
-    response: parsed.data,
-    isCurrent,
-  };
+  const pending = { response: parsed, isCurrent };
   pendingCredentialRole = pending;
   return () => {
     if (pendingCredentialRole === pending) pendingCredentialRole = null;
@@ -255,12 +242,7 @@ export const getCredentialSignInRole = (user: Pick<User, 'uid' | 'email'>): User
   const pending = pendingCredentialRole;
   if (!pending || !pending.isCurrent()) return null;
   const { response } = pending;
-  if (
-    user.uid !== response.uid ||
-    normalizeEmail(user.email || '') !== response.credentialEmail ||
-    !isGeneralLoginRole(response.role)
-  )
+  if (user.uid !== response.uid || normalizeEmail(user.email || '') !== response.credentialEmail)
     return null;
-  authRoleLookupService.rememberSignInRole(response.credentialEmail, response.role);
   return response.role;
 };
