@@ -35,14 +35,8 @@ import { DefaultRepositoryProvider } from '@/services/RepositoryContext';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/config/queryClient';
 import { useAppBootstrapState } from '@/app-shell/bootstrap/useAppBootstrapState';
-import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { AuthenticatedAppShell } from '@/app-shell/runtime/AuthenticatedAppShell';
 import { markPerf } from '@/shared/runtime/perfAudit';
-
-const AuthenticatedAppShell = lazyWithRetry(() =>
-  import('@/app-shell/runtime/AuthenticatedAppShell').then(module => ({
-    default: module.AuthenticatedAppShell,
-  }))
-);
 
 const VersionedAppShell = ({ children }: { children: React.ReactNode }) => (
   <VersionProvider>
