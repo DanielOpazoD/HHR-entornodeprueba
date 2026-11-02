@@ -9,8 +9,14 @@ import type { Functions } from 'firebase/functions';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
-import { clearRecentAuthRoleLookups } from './authRoleLookup';
-import { waitForPendingLogout } from './authLogoutState';
+import {
+  clearConfirmedAuthRole,
+  clearRecentAuthRoleLookups,
+  prepareCredentialSignInRole,
+  getCredentialSignInRole,
+  rememberConfirmedAuthRole,
+} from './authRoleLookup';
+import { getLogoutRevision, waitForPendingLogout } from './authLogoutState';
 import { captureSessionProfessionalIdentity } from '@/services/user-profile/sessionProfessionalIdentity';
 import {
   runSessionStorageTransition,
@@ -127,6 +133,8 @@ export const establishNursingSession = async (
   await defaultAuthRuntime.ready;
   // A logout still under way would leave this sign-in with its user, generation and token.
   await waitForPendingLogout();
+  const closureRevision = getLogoutRevision();
+  const isRequestCurrent = () => isCurrent() && closureRevision === getLogoutRevision();
   const auth = defaultAuthRuntime.auth;
   const initialUser = auth.currentUser;
   const generation = localStorage.getItem(SESSION_GENERATION_KEY);
@@ -136,7 +144,7 @@ export const establishNursingSession = async (
   });
   if ('requiresSetup' in response) {
     if (
-      !isCurrent() ||
+      !isRequestCurrent() ||
       auth.currentUser !== initialUser ||
       localStorage.getItem(SESSION_GENERATION_KEY) !== generation
     ) {
@@ -146,7 +154,7 @@ export const establishNursingSession = async (
   }
   await runSessionStorageTransition(async () => {
     if (
-      !isCurrent() ||
+      !isRequestCurrent() ||
       auth.currentUser !== initialUser ||
       localStorage.getItem(SESSION_GENERATION_KEY) !== generation
     ) {
@@ -154,17 +162,29 @@ export const establishNursingSession = async (
     }
     clearRecentAuthRoleLookups();
     await setPersistence(auth, browserSessionPersistence);
-    const result = await signInWithEmailAndPassword(
-      auth,
-      response.credentialEmail,
-      String(data.password)
-    );
-    if (auth.currentUser === result.user && isCurrent()) {
-      captureSessionProfessionalIdentity({
-        uid: result.user.uid,
-        name: result.user.displayName ?? '',
-        rut: data.rut,
-      });
+    clearConfirmedAuthRole();
+    const finishRole =
+      action === 'signInWithRut'
+        ? prepareCredentialSignInRole(response, isRequestCurrent)
+        : () => {};
+    try {
+      const result = await signInWithEmailAndPassword(
+        auth,
+        response.credentialEmail,
+        String(data.password)
+      );
+      const isResultCurrent = () => auth.currentUser === result.user && isRequestCurrent();
+      if (isResultCurrent()) {
+        const role = getCredentialSignInRole(result.user);
+        if (role) await rememberConfirmedAuthRole(result.user, role, isResultCurrent);
+        captureSessionProfessionalIdentity({
+          uid: result.user.uid,
+          name: result.user.displayName ?? '',
+          rut: data.rut,
+        });
+      }
+    } finally {
+      finishRole();
     }
   });
 };

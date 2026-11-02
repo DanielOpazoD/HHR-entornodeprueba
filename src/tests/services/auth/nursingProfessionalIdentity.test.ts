@@ -23,7 +23,13 @@ vi.mock('@/services/firebase-runtime/authRuntime', () => ({
 vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
   defaultFunctionsRuntime: { getFunctions: async () => ({}) },
 }));
-vi.mock('@/services/auth/authRoleLookup', () => ({ clearRecentAuthRoleLookups: mocks.clearRoles }));
+vi.mock('@/services/auth/authRoleLookup', () => ({
+  clearRecentAuthRoleLookups: mocks.clearRoles,
+  clearConfirmedAuthRole: vi.fn(),
+  prepareCredentialSignInRole: vi.fn(() => () => {}),
+  getCredentialSignInRole: vi.fn(),
+  rememberConfirmedAuthRole: vi.fn(),
+}));
 import { establishNursingSession } from '@/services/auth/nursingAccountService';
 import {
   clearPendingProfessionalIdentity,
