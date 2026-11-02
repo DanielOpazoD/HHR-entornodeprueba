@@ -15,6 +15,8 @@ import { useDropdownMenu } from '@/hooks/useDropdownMenu';
 interface UserMenuProps {
   userEmail: string;
   displayName?: string | null;
+  /** The loading chrome has no confirmed account yet: show nobody rather than a placeholder. */
+  identityPending?: boolean;
   isIndividualAccount?: boolean;
   role: UserRole;
   isFirebaseConnected?: boolean;
@@ -27,6 +29,7 @@ interface UserMenuProps {
 export const UserMenu: React.FC<UserMenuProps> = ({
   userEmail,
   displayName,
+  identityPending = false,
   isIndividualAccount = false,
   role,
   isFirebaseConnected = false,
@@ -49,7 +52,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({
           : 'Offline';
   const isRemoteReady = remoteSyncStatus ? remoteSyncStatus === 'ready' : isFirebaseConnected;
   const userLabel = isIndividualAccount ? displayName || 'Enfermería' : userEmail;
-  const userInitial = userLabel.charAt(0);
+  const userInitial = identityPending ? '' : userLabel.charAt(0);
   const requestLogout = async () => {
     if (loggingOut) return;
     setLoggingOut(true);
@@ -64,7 +67,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({
 
   const logoutFallback = (
     <button
-      className="absolute right-0 mt-2 rounded-lg bg-white px-4 py-3 text-sm text-red-600 shadow-lg"
+      className="absolute right-0 top-full mt-2 rounded-lg bg-white px-4 py-3 text-sm text-red-600 shadow-lg"
       disabled={loggingOut}
       onClick={() => void requestLogout()}
     >
@@ -79,12 +82,14 @@ export const UserMenu: React.FC<UserMenuProps> = ({
           <NursingPasswordDialog onClose={() => setPasswordOpen(false)} />
         </Suspense>
       )}
-      <span
-        className="hidden max-w-[10rem] truncate text-xs font-medium text-white lg:block"
-        data-testid="active-account-name"
-      >
-        {userLabel}
-      </span>
+      {!identityPending && (
+        <span
+          className="hidden max-w-[10rem] truncate text-xs font-medium text-white lg:block"
+          data-testid="active-account-name"
+        >
+          {userLabel}
+        </span>
+      )}
       <button
         onClick={toggle}
         aria-expanded={isOpen}
