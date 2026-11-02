@@ -109,6 +109,8 @@ actualizar el `Estado` y apuntar al ADR reemplazante.
 Documentos que ayudan a ejecutar trabajo, validar cambios o entender un área concreta.
 
 - `docs/testing/*`
+- [Ensayo de dos equipos: evidencia y cierre](testing/TWO_USERS_REHEARSAL_20261101.md)
+- [Ensayo de Chrome compartido: evidencia y cierre](testing/SHARED_COMPUTER_REHEARSAL_20261101.md)
 - `docs/features/*`
 - `docs/architecture/*`
 - `docs/compliance/*`
