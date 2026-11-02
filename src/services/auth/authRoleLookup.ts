@@ -183,6 +183,12 @@ export const createAuthRoleLookupService = (
   };
 
   return {
+    seedRole: (email: string, role: UserRole): void => {
+      recentLookups.set(normalizeEmail(email), {
+        role,
+        expiresAt: Date.now() + RECENT_ROLE_LOOKUP_REUSE_MS,
+      });
+    },
     clearRecentLookups: (): void => {
       lookupGeneration += 1;
       recentLookups.clear();
@@ -244,5 +250,6 @@ export const getCredentialSignInRole = (user: Pick<User, 'uid' | 'email'>): User
   const { response } = pending;
   if (user.uid !== response.uid || normalizeEmail(user.email || '') !== response.credentialEmail)
     return null;
+  authRoleLookupService.seedRole(response.credentialEmail, response.role);
   return response.role;
 };
