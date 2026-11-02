@@ -85,7 +85,7 @@ interface ChunkMessage {
   base64: string;
 }
 
-const HHR_TAB = { tab: { id: 42 }, frameId: 0 };
+const HHR_TAB = { tab: { id: 42, url: 'https://testinghhr.netlify.app/census' }, frameId: 0 };
 
 const makeRuntime = (setup: Setup = {}) => {
   const indexes = {
@@ -130,6 +130,7 @@ const makeRuntime = (setup: Setup = {}) => {
     },
     zipWriter: globals.HhrZipStoreWriter,
     now: () => NOW,
+    isHhrTabUrl: (url: string) => url.startsWith('https://testinghhr.netlify.app/'),
   });
   const runtime: AuditRuntime = {
     ...raw,
@@ -358,6 +359,37 @@ describe('audit download of official Eloísa reports', () => {
     expect(result).toMatchObject({ cancelled: true });
     expect(setup.fetchOfficialPdf).toHaveBeenCalledTimes(1);
     expect(setup.zipChunks()).toEqual([]);
+  });
+
+  it('accepts a bulk export only from an HHR tab', async () => {
+    const { runtime, fetchWithTimeout } = makeRuntime();
+
+    const result = await runtime.handleRequest({
+      requestId: 'req-13',
+      patients: [{ run: PATIENT_A }],
+      documentTypes: BOTH,
+      sender: { tab: { id: 7, url: 'https://fichamedico.rayensalud.cl/dashboard' }, frameId: 0 },
+    });
+
+    expect(result.error).toBe('La descarga para auditoría solo se puede pedir desde HHR.');
+    expect(fetchWithTimeout).not.toHaveBeenCalled();
+  });
+
+  it('keeps a name from running as a formula when the summary opens in a spreadsheet', async () => {
+    const formula = { ...discharged, patientName: '=HYPERLINK("http://example.test")' };
+    const { runtime, archive } = makeRuntime({
+      history: { '111111111': [formula] },
+      pharmacological: { '111111111': [] },
+    });
+
+    await runtime.handleRequest({
+      requestId: 'req-14',
+      patients: [{ run: PATIENT_A }],
+      documentTypes: ['history'],
+    });
+
+    const summary = strFromU8(archive()['00 Resumen.csv']);
+    expect(summary).toContain(`;"'=HYPERLINK(""http://example.test"")";`);
   });
 
   it('hands a large ZIP to the HHR tab in parts that rebuild the same archive', async () => {

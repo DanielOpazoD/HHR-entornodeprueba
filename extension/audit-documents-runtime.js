@@ -98,7 +98,9 @@
     (!dateFrom || endDate >= dateFrom) && (!dateTo || startDate <= dateTo);
 
   const csvCell = value => {
-    const text = String(value == null ? '' : value);
+    const raw = String(value == null ? '' : value);
+    // A leading = + - @ would run as a formula when the summary is opened in a spreadsheet.
+    const text = /^[=+\-@\t\r]/.test(raw) ? "'" + raw : raw;
     return /[;"\n\r]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
   };
 
@@ -143,14 +145,14 @@
   const create = dependencies => {
     const {
       chromeApi, getFetchInfo, fetchWithTimeout, fetchOfficialPdf, mapWithConcurrency,
-      bufferToBase64, zipWriter, now,
+      bufferToBase64, zipWriter, now, isHhrTabUrl,
     } = dependencies || {};
     if (
       !chromeApi || !chromeApi.tabs || typeof chromeApi.tabs.sendMessage !== 'function' ||
       typeof getFetchInfo !== 'function' || typeof fetchWithTimeout !== 'function' ||
       typeof fetchOfficialPdf !== 'function' || typeof mapWithConcurrency !== 'function' ||
       typeof bufferToBase64 !== 'function' || !zipWriter || typeof zipWriter.build !== 'function' ||
-      typeof now !== 'function'
+      typeof now !== 'function' || typeof isHhrTabUrl !== 'function'
     ) {
       throw new Error('No se pudo inicializar la descarga de documentos para auditoría.');
     }
@@ -437,6 +439,10 @@
     /** One audit download at a time: several people share the same computer and Eloísa session. */
     const handleRequest = async ({ requestId, patients, documentTypes, sender }) => {
       if (typeof requestId !== 'string' || !requestId) return { error: 'La solicitud no es válida.' };
+      // Only an HHR tab may ask for a bulk export, and the ZIP goes back to that same tab.
+      if (!sender || !sender.tab || !isHhrTabUrl(String(sender.tab.url || ''))) {
+        return { error: 'La descarga para auditoría solo se puede pedir desde HHR.' };
+      }
       if (running) return { error: 'Ya hay una descarga para auditoría en curso. Espera a que termine.' };
       const validated = validateRequest({ patients, documentTypes });
       if (validated.error) return { error: validated.error };

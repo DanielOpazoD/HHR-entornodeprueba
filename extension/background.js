@@ -765,6 +765,7 @@ const {
 const auditDocumentsRuntime = self.HhrAuditDocumentsRuntime.create({
   chromeApi: chrome, getFetchInfo: () => getFichaFetchInfo(), fetchWithTimeout, fetchOfficialPdf,
   mapWithConcurrency, bufferToBase64, zipWriter: self.HhrZipStoreWriter, now: () => Date.now(),
+  isHhrTabUrl: url => self.HhrAppOrigins.matchesUrl(url),
 });
 
 const fetchStatisticalDischargeReport = self.HhrGestionCamasStatisticalReportFetcher.create({

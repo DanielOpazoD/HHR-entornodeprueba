@@ -10,11 +10,11 @@
   ],
   "files": {
     "audit-documents-runtime.js": {
-      "maxLines": 475,
+      "maxLines": 481,
       "hotspots": {}
     },
     "background.js": {
-      "maxLines": 1496,
+      "maxLines": 1497,
       "hotspots": {
         "variable:handleExamRequestCombinePrint": 25,
         "variable:handleImagingFormPrintRequest": 18,
