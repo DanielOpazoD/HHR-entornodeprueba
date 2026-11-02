@@ -17,6 +17,16 @@ describe('private credential transport', () => {
       verifyPassword({ auth, email, password, apiKey: 'synthetic-key', fetchImpl })
     ).resolves.toBe('correct');
     expect(auth.verifyIdToken).toHaveBeenCalledWith('synthetic-token', true);
+    await expect(
+      verifyPassword({
+        auth,
+        email,
+        password,
+        apiKey: 'synthetic-key',
+        fetchImpl,
+        returnVerifiedSession: true,
+      })
+    ).resolves.toEqual({ uid: 'correct', token: { uid: 'correct', email } });
     auth.verifyIdToken.mockResolvedValueOnce({ uid: 'other', email: 'other@accounts.hhr.invalid' });
     await expect(
       verifyPassword({ auth, email, password, apiKey: 'synthetic-key', fetchImpl })
