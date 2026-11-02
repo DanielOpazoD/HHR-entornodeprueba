@@ -90,6 +90,41 @@ const resolveLocalBedTurnoverEgreso = ({
   };
 };
 
+const CLOCK_STAMP = /^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/;
+
+/**
+ * Bulk cells may mix clock conventions, so the row counts under its printed clock or the converted
+ * one. The order against the admission uses only the stored times, which are exact evidence.
+ */
+const isAppliedDischargeOfEarlierEpisode = (
+  record: DailyRecord,
+  row: EgresoReportRow,
+  run: string,
+  stamp: { hhmm: string },
+  current?: OccupiedBedEvidence
+): boolean => {
+  const activeEpisode = current?.clinicalEpisodeId?.trim();
+  const admission = `${current?.admissionDate?.slice(0, 10)}T${current?.admissionTime}`;
+  const printed = row.fechaEgreso.match(/^\s*(\d{2})[-/](\d{2})[-/](\d{4})[\sT]+(\d{2}:\d{2})/);
+  if (!activeEpisode || !CLOCK_STAMP.test(admission) || !printed) return false;
+  const printedDay = `${printed[3]}-${printed[2]}-${printed[1]}`;
+  return (record.discharges ?? []).some(discharge => {
+    const episode = String(discharge.clinicalEpisodeId ?? '').trim();
+    const applied = `${discharge.movementDate}T${discharge.time}`;
+    return (
+      !discharge.deletedAt &&
+      normalizeRut(discharge.rut) === run &&
+      discharge.bedId === current?.bedId &&
+      Boolean(episode) &&
+      episode !== activeEpisode &&
+      CLOCK_STAMP.test(applied) &&
+      discharge.movementDate === printedDay &&
+      (discharge.time === printed[4] || discharge.time === stamp.hhmm) &&
+      applied < admission
+    );
+  });
+};
+
 /**
  * Filters report rows that have enough episode and temporal evidence to affect the census.
  * Invalid or ambiguous rows stay visible as review conflicts instead of vacating a bed.
@@ -208,6 +243,10 @@ export const selectEligibleEgresoRows = (
       ? hasRecordedMovement(record, '', reportedEpisode)
       : Boolean(run) && hasRecordedMovement(record, run);
     if (!current && !currentCrib && !activeCrib && !provisional && alreadyRecorded) continue;
+    // Same-day readmission: this row is a discharge already applied to an earlier episode, so it
+    // no longer describes the active one. Unapplied rows still ask for review.
+    if (!reportedEpisode && isAppliedDischargeOfEarlierEpisode(record, row, run, stamp, current))
+      continue;
     // Etiqueta estable de los conflictos de FILA: applyEgresoReport descarta esa
     // revisión si el pipeline termina construyendo el egreso de esa cama/RUN por
     // el lookup exacto (visto en vivo el 02-09: RN bajo el RUN de la madre → dos

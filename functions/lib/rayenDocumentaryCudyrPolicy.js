@@ -34,16 +34,27 @@ const identities = record => [
               clinicalEpisodeId: m.clinicalEpisodeId || m.originalData?.clinicalEpisodeId,
               documentType: m.documentType,
               neonatalMaternalRut: m.neonatalMaternalRut,
+              admissionDate: m.admissionDate,
+              movementDate: m.movementDate,
+              time: m.time,
             },
             ...(m.originalData
               ? [
                   m.originalData,
                   ...(m.originalData.clinicalCrib ? [m.originalData.clinicalCrib] : []),
-                ]
+                ].map(p => ({ ...p, movementDate: m.movementDate, time: m.time }))
               : []),
           ]
   ),
 ];
+const isoDay = value => {
+  const day = String(value || '').slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : '';
+};
+const isoStamp = (date, time) => {
+  const day = isoDay(date);
+  return day && /^([01]\d|2[0-3]):[0-5]\d$/.test(String(time || '')) ? `${day}T${time}` : '';
+};
 const documentaryTargets = payload =>
   payload.patches.filter(target => {
     const cudyr = target.fields?.evaluationScores?.cudyr;
@@ -148,9 +159,19 @@ const assertDocumentaryCudyrAuthority = async ({
       cudyr.history
     )
       reject();
+    // A readmission outside the evaluated night is not an ambiguity: it began after that census
+    // day, or ended before this episode began. Missing dates stay ambiguous.
+    const outsideNight = p => {
+      if (p.clinicalEpisodeId === target.clinicalEpisodeId) return false;
+      const admitted = isoDay(p.admissionDate);
+      if (admitted && admitted > payload.date) return true;
+      const ended = isoStamp(p.movementDate, p.time);
+      const began = isoStamp(patient.admissionDate, patient.admissionTime);
+      return Boolean(ended && began && ended < began);
+    };
     const sameDocument = context
       .flatMap(identities)
-      .filter(p => documentKey(p.rut) === documentKey(patient.rut));
+      .filter(p => documentKey(p.rut) === documentKey(patient.rut) && !outsideNight(p));
     if (
       !documentKey(patient.rut) ||
       sameDocument.some(
