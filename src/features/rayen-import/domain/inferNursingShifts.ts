@@ -42,6 +42,7 @@ interface LocalStamp {
 
 /** Ficha Médico history stamps are Rapa Nui wall-clock values without an offset. */
 const parseLocalStamp = (value: string): LocalStamp | null => {
+  // clinical-clock-allow raw-offset-clock: Ficha Medico history stamps have no offset and already use Rapa Nui local time.
   const match = value.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{1,2}):(\d{2})/);
   if (!match) return null;
   const hour = Number(match[2]);

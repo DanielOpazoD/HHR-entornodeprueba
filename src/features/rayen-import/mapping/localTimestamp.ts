@@ -32,6 +32,7 @@ export const buildSortableLocalTimestamp = (
 
 /** Parses only complete ISO instants whose local calendar and UTC offset are both valid. */
 export const parseStrictIsoInstant = (value: string): Date | null => {
+  // clinical-clock-allow raw-offset-clock: Strict instant parser validates and consumes the captured offset with Date.parse below.
   const match =
     /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?(Z|([+-])(\d{2}):(\d{2}))$/.exec(
       value

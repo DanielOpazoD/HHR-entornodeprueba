@@ -133,6 +133,7 @@ export const recoverHistoricalReportEpisodes = async (
       if (evidence.admissionAt > cutoff) return null;
       // clinical-clock-allow instant-calendar-slice: Parsed report dischargeAt is unzoned hospital wall time; preserve its official calendar day.
       const day = evidence.dischargeAt.slice(0, 10);
+      // clinical-clock-allow raw-offset-clock: Statistical report dischargeAt is parsed unzoned Rapa Nui wall time.
       const time = evidence.dischargeAt.slice(11, 16);
       return {
         ...row,
@@ -140,6 +141,7 @@ export const recoverHistoricalReportEpisodes = async (
         exactEpisodeVerification: 'verified',
         // clinical-clock-allow instant-calendar-slice: Parsed report admissionAt is unzoned hospital wall time; preserve its official calendar day.
         admissionDay: evidence.admissionAt.slice(0, 10),
+        // clinical-clock-allow raw-offset-clock: Statistical report admissionAt is parsed unzoned Rapa Nui wall time.
         admissionTime: evidence.admissionAt.slice(11, 16),
         correctedDay: resolveClinicalDayForDateTime(day, time),
         correctedTime: time,

@@ -41,6 +41,7 @@ interface ReportOnlyDischargeDependencies {
 
 // clinical-clock-allow instant-calendar-slice: The statistical report parser supplies unzoned hospital admission/discharge wall time.
 const exactDay = (timestamp: string): string => timestamp.slice(0, 10);
+// clinical-clock-allow raw-offset-clock: Statistical report parser supplies unzoned Rapa Nui discharge wall time.
 const exactTime = (timestamp: string): string => timestamp.slice(11, 16);
 const censusDay = (timestamp: string): string | undefined =>
   resolveClinicalDayForDateTime(exactDay(timestamp), exactTime(timestamp));

@@ -8,6 +8,7 @@ export interface ParsedClock {
 }
 
 export const parseClock = (recordedAt: string): ParsedClock | null => {
+  // clinical-clock-allow raw-offset-clock: Scale application identity compares unzoned local report clocks, never absolute instants.
   const match = recordedAt.match(/(?:^|[T\s])(\d{1,2}):(\d{2})(?::(\d{2}))?/);
   if (!match) return null;
   const hour = Number(match[1]);
