@@ -22,18 +22,18 @@ Son los tiempos redondeados que muestra HHR. `—` es una métrica ausente, no c
 La captura dual incluye las dos fuentes paralelas; la persistencia suma esperas
 por paciente y no debe sumarse al total de pared.
 
-| Condición     | Resultado                        | Total | Captura dual | Ficha Médico | Gestión de Camas | Lecturas clínicas | Persistencia sumada | Hechos nuevos |
-| ------------- | -------------------------------- | ----: | -----------: | -----------: | ---------------: | ----------------: | ------------------: | ------------: |
-| A1            | Completa 14/14                   |  64 s |        9,3 s |        7,6 s |            2,3 s |             6,7 s |              39,2 s |            35 |
-| A2            | Completa 14/14                   |  76 s |       39,9 s |       39,1 s |            1,8 s |            10,1 s |              23,5 s |             0 |
-| A3            | Fallida, sin métricas de captura |  46 s |            — |            — |                — |                 — |                   — |             — |
-| A3, reintento | Completa 14/14                   |  74 s |       21,9 s |       21,5 s |            2,2 s |            33,8 s |              12,9 s |             0 |
-| B1            | Completa 14/14                   |  49 s |       12,2 s |       11,1 s |           11,3 s |             9,3 s |              16,8 s |             2 |
-| B2            | Completa 14/14                   |  35 s |        6,3 s |        5,9 s |            1,7 s |             4,2 s |              18,7 s |             0 |
-| B3            | Completa 14/14                   |  40 s |        6,6 s |        5,6 s |            3,5 s |             8,3 s |              20,4 s |             1 |
-| C1            | Completa 14/14                   |  51 s |         15 s |       14,5 s |            1,2 s |             3,9 s |              21,7 s |             2 |
-| C2            | Completa 14/14                   |  38 s |        4,8 s |        4,5 s |            0,4 s |             4,4 s |              21,5 s |             1 |
-| C3            | Completa 14/14                   |  27 s |        3,2 s |        2,9 s |            0,9 s |             4,4 s |              14,4 s |             0 |
+| Condición | Resultado | Total | Captura dual | Ficha Médico | Gestión de Camas | Lecturas clínicas | Persistencia sumada | Hechos nuevos |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| A1 | Completa 14/14 | 64 s | 9,3 s | 7,6 s | 2,3 s | 6,7 s | 39,2 s | 35 |
+| A2 | Completa 14/14 | 76 s | 39,9 s | 39,1 s | 1,8 s | 10,1 s | 23,5 s | 0 |
+| A3 | Fallida, sin métricas de captura | 46 s | — | — | — | — | — | — |
+| A3, reintento | Completa 14/14 | 74 s | 21,9 s | 21,5 s | 2,2 s | 33,8 s | 12,9 s | 0 |
+| B1 | Completa 14/14 | 49 s | 12,2 s | 11,1 s | 11,3 s | 9,3 s | 16,8 s | 2 |
+| B2 | Completa 14/14 | 35 s | 6,3 s | 5,9 s | 1,7 s | 4,2 s | 18,7 s | 0 |
+| B3 | Completa 14/14 | 40 s | 6,6 s | 5,6 s | 3,5 s | 8,3 s | 20,4 s | 1 |
+| C1 | Completa 14/14 | 51 s | 15 s | 14,5 s | 1,2 s | 3,9 s | 21,7 s | 2 |
+| C2 | Completa 14/14 | 38 s | 4,8 s | 4,5 s | 0,4 s | 4,4 s | 21,5 s | 1 |
+| C3 | Completa 14/14 | 27 s | 3,2 s | 2,9 s | 0,9 s | 4,4 s | 14,4 s | 0 |
 
 Entre las nueve ejecuciones completas, las medianas descriptivas fueron 74 s
 en A (rango 64–76), 40 s en B (35–49) y 38 s en C (27–51). Algunas tuvieron

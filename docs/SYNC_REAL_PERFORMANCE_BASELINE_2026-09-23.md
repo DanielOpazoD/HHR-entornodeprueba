@@ -15,14 +15,14 @@ horas exactas, nombres, identificadores, camas y valores clínicos. Los tiempos 
 se presentan redondeados por la interfaz; por ello estos valores no tienen precisión de
 milisegundos ni deben sumarse como si todas las etapas fueran secuenciales.
 
-| Ejecución   |    Total | Captura dual | Lecturas clínicas | Guardado estructural | Persistencia sumada |
-| ----------- | -------: | -----------: | ----------------: | -------------------: | ------------------: |
-| A           |     23 s |        3,8 s |             7,0 s |                3,8 s |              13,4 s |
-| B           |     23 s |        6,6 s |             3,9 s |                4,2 s |               8,3 s |
-| C           |     20 s |        5,3 s |             3,8 s |                4,2 s |               8,5 s |
-| D           |     34 s |        2,1 s |             4,5 s |                3,3 s |              25,2 s |
-| E           |     22 s |        4,2 s |             3,0 s |                2,8 s |              13,4 s |
-| **Mediana** | **23 s** |    **4,2 s** |         **3,9 s** |            **3,8 s** |          **13,4 s** |
+| Ejecución | Total | Captura dual | Lecturas clínicas | Guardado estructural | Persistencia sumada |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| A | 23 s | 3,8 s | 7,0 s | 3,8 s | 13,4 s |
+| B | 23 s | 6,6 s | 3,9 s | 4,2 s | 8,3 s |
+| C | 20 s | 5,3 s | 3,8 s | 4,2 s | 8,5 s |
+| D | 34 s | 2,1 s | 4,5 s | 3,3 s | 25,2 s |
+| E | 22 s | 4,2 s | 3,0 s | 2,8 s | 13,4 s |
+| **Mediana** | **23 s** | **4,2 s** | **3,9 s** | **3,8 s** | **13,4 s** |
 
 La persistencia sumada incluye operaciones por paciente y una corrección histórica de
 CUDYR. No es una porción exclusiva del reloj total: puede solaparse con otras lecturas y

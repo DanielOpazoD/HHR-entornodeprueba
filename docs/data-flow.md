@@ -35,23 +35,22 @@ sequenceDiagram
 
 Para evitar el efecto "rubber-banding" (el cursor salta porque llega una actualización remota de lo que el usuario acaba de escribir), el sistema implementa:
 
-- **hasPendingWrites**: El hook `useDailyRecordSync` ignora actualizaciones de Firestore si sabe que hay escrituras locales en curso.
-- **Debouncing**: Los campos de texto (`DebouncedTextarea`) esperan a que el usuario deje de escribir antes de enviar el patch a Firestore.
-- **Timestamp Check**: Al reconectar, el sistema compara `lastUpdated` entre Local y Cloud para decidir cuál versión prevalece.
+*   **hasPendingWrites**: El hook `useDailyRecordSync` ignora actualizaciones de Firestore si sabe que hay escrituras locales en curso.
+*   **Debouncing**: Los campos de texto (`DebouncedTextarea`) esperan a que el usuario deje de escribir antes de enviar el patch a Firestore.
+*   **Timestamp Check**: Al reconectar, el sistema compara `lastUpdated` entre Local y Cloud para decidir cuál versión prevalece.
 
 ## 4. Gestión de Personal (Single Source of Truth)
 
 > [!IMPORTANT]
 > El Censo Diario es la **Única Fuente de Verdad** para el personal de turno.
 
-- Los nombres de Enfermeros y TENS se guardan en el `DailyRecord`.
-- La vista de **Entrega de Turno (Handoff)** consume estos datos directamente.
-- **NO** se debe guardar personal en colecciones separadas para evitar inconsistencias por desfase de fechas.
+*   Los nombres de Enfermeros y TENS se guardan en el `DailyRecord`.
+*   La vista de **Entrega de Turno (Handoff)** consume estos datos directamente.
+*   **NO** se debe guardar personal en colecciones separadas para evitar inconsistencias por desfase de fechas.
 
 ## 5. Modo Offline
 
 En caso de pérdida de conexión:
-
 1.  El sistema detecta el estado `navigator.onLine = false`.
 2.  Las escrituras continúan en `LocalStorage`.
 3.  Se muestra un indicador de `OFFLINE` al usuario.
