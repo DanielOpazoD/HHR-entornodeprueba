@@ -209,4 +209,93 @@ describe('userAvatarProfileService', () => {
       { merge: true }
     );
   });
+
+  describe('preset icons', () => {
+    const build = () =>
+      createUserAvatarProfileService({
+        repository,
+        storageRuntime,
+        now: () => '2026-11-02T12:00:00.000Z',
+      });
+    const select = () =>
+      build().selectPresetAvatar({
+        uid: 'user-1',
+        email: 'enfermera@hospital.cl',
+        presetId: 'corazon',
+      });
+
+    it('saves the chosen icon for that user without touching Storage', async () => {
+      const profile = await select();
+
+      expect(profile).toMatchObject({
+        uid: 'user-1',
+        photoURL: '/avatars/corazon.svg',
+        storagePath: 'preset:corazon',
+      });
+      expect(repository.setDoc).toHaveBeenCalledWith(
+        'userSettings',
+        'user-1',
+        { userAvatarProfile: profile },
+        { merge: true }
+      );
+      expect(storageModule.uploadBytes).not.toHaveBeenCalled();
+      expect(storageModule.deleteObject).not.toHaveBeenCalled();
+      expect(readCachedUserAvatarProfile('user-1')?.photoURL).toBe('/avatars/corazon.svg');
+    });
+
+    it('replaces an uploaded photo and deletes its file', async () => {
+      repository.getDoc.mockResolvedValue({
+        userAvatarProfile: {
+          photoURL: 'https://storage.test/avatar',
+          storagePath: 'user-avatars/user-1/avatar',
+        },
+      });
+
+      await select();
+
+      expect(storageModule.deleteObject).toHaveBeenCalledWith(storageRef);
+    });
+
+    it('keeps the saved icon when the leftover photo cannot be deleted', async () => {
+      repository.getDoc.mockResolvedValue({
+        userAvatarProfile: {
+          photoURL: 'https://storage.test/avatar',
+          storagePath: 'user-avatars/user-1/avatar',
+        },
+      });
+      storageModule.deleteObject.mockRejectedValue({ code: 'storage/unknown' });
+
+      await expect(select()).resolves.toMatchObject({ storagePath: 'preset:corazon' });
+    });
+
+    it('rejects an icon that does not exist and does not save', async () => {
+      await expect(
+        build().selectPresetAvatar({ uid: 'user-1', presetId: 'https://otro.sitio/x.svg' })
+      ).rejects.toThrow('no está disponible');
+      expect(repository.setDoc).not.toHaveBeenCalled();
+    });
+
+    it('does not present a failed save as stored', async () => {
+      repository.setDoc.mockRejectedValueOnce(new Error('sin permiso'));
+
+      await expect(select()).rejects.toThrow('sin permiso');
+      expect(readCachedUserAvatarProfile('user-1')).toBeNull();
+    });
+
+    it('removes a preset without calling Storage', async () => {
+      repository.getDoc.mockResolvedValue({
+        userAvatarProfile: { photoURL: '/avatars/corazon.svg', storagePath: 'preset:corazon' },
+      });
+
+      await build().removeAvatar('user-1');
+
+      expect(storageModule.deleteObject).not.toHaveBeenCalled();
+      expect(repository.setDoc).toHaveBeenCalledWith(
+        'userSettings',
+        'user-1',
+        { userAvatarProfile: null },
+        { merge: true }
+      );
+    });
+  });
 });
