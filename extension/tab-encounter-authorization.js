@@ -1,8 +1,7 @@
 /**
  * Short-lived exact-episode authorization scoped to one trusted HHR tab.
- * The worker sleeps within seconds, so a person reviewing a sync would lose grants kept only in
- * memory. `chrome.storage.session` is memory-only, cleared with the browser, closed to content
- * scripts by default. `has` stays synchronous and denies until `ready`: callers await it first.
+ * Session storage survives worker sleep. Revocation fences pending captures and restores.
+ * `has` stays synchronous and denies until `ready`: callers await it first.
  */
 (function (root) {
   'use strict';
@@ -11,10 +10,8 @@
     const authorizedByTab = new Map();
     const generationByTab = new Map();
     const persist = () => {
-      const stored = [...authorizedByTab].map(([tabId, { encounterIds, expiresAt }]) => [
-        tabId, { encounterIds: [...encounterIds], expiresAt },
-      ]);
-      // A lost write only sends HHR through its existing recovery, which re-proves the episodes.
+      const stored = [...authorizedByTab].map(([tabId, { encounterIds, expiresAt }]) =>
+        [tabId, { encounterIds: [...encounterIds], expiresAt }]);
       Promise.resolve(storage?.set({ [STORAGE_KEY]: stored })).catch(() => undefined);
     };
     const restore = async () => {
@@ -22,7 +19,7 @@
       if (!Array.isArray(stored)) return;
       for (const [tabId, grant] of stored) {
         // A grant issued while this read was pending is newer than the stored one.
-        if (grant?.expiresAt >= Date.now() && !authorizedByTab.has(tabId)) {
+        if (grant?.expiresAt >= Date.now() && !authorizedByTab.has(tabId) && !generationByTab.has(tabId)) {
           authorizedByTab.set(tabId, { encounterIds: new Set(grant.encounterIds), expiresAt: grant.expiresAt });
         }
       }
@@ -42,29 +39,23 @@
       const tabId = trustedTabId(sender);
       const generation = tabId === null ? null : (generationByTab.get(tabId) || 0) + 1;
       if (tabId !== null) generationByTab.set(tabId, generation);
-      const response = await promise;
-      if (tabId === null || generationByTab.get(tabId) !== generation) return response;
+      const response = await promise; if (tabId === null || generationByTab.get(tabId) !== generation) return response;
       const items = selectItems(response);
       if (!Array.isArray(items)) {
         authorizedByTab.delete(tabId);
         persist();
         return response;
       }
-      const encounterIds = new Set(
-        items.map(item => String(item?.encounterId || '')).filter(id => /^\d+$/.test(id))
-      );
+      const encounterIds = new Set(items.map(item => String(item?.encounterId || '')).filter(id => /^\d+$/.test(id)));
       authorizedByTab.set(tabId, { encounterIds, expiresAt: Date.now() + ttlMs });
       persist();
       return response;
     };
     const add = (sender, encId) => {
-      const tabId = trustedTabId(sender);
-      const encounterId = String(encId || '');
+      const tabId = trustedTabId(sender), encounterId = String(encId || '');
       if (tabId === null || !/^\d+$/.test(encounterId)) return false;
       const current = authorizedByTab.get(tabId);
-      const encounterIds = current?.expiresAt >= Date.now()
-        ? new Set(current.encounterIds)
-        : new Set();
+      const encounterIds = current?.expiresAt >= Date.now() ? new Set(current.encounterIds) : new Set();
       encounterIds.add(encounterId);
       authorizedByTab.set(tabId, { encounterIds, expiresAt: Date.now() + ttlMs });
       persist();
@@ -81,7 +72,16 @@
       }
       return current.encounterIds.has(String(encId || ''));
     };
-    return Object.freeze({ add, authorizeResponse, has, ready });
+    const revoke = async sender => {
+      const tabId = trustedTabId(sender); if (tabId === null) return false;
+      generationByTab.set(tabId, (generationByTab.get(tabId) || 0) + 1);
+      authorizedByTab.delete(tabId); await ready; persist(); return true;
+    };
+    const capture = sender => {
+      const tabId = trustedTabId(sender), generation = generationByTab.get(tabId);
+      return encId => generationByTab.get(tabId) === generation && add(sender, encId);
+    };
+    return Object.freeze({ add, capture, revoke, authorizeResponse, has, ready });
   };
   root.HhrTabEncounterAuthorization = Object.freeze({ create });
 })(typeof self !== 'undefined' ? self : globalThis);

@@ -215,7 +215,6 @@ describe('ReminderCenterProvider', () => {
         options?: { onError?: (error: unknown, kind: string) => void }
       ) => {
         options?.onError?.({ code: 'permission-denied' }, 'permission_denied');
-        callback([]);
         return () => undefined;
       }
     );

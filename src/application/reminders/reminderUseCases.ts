@@ -142,15 +142,17 @@ export const createReminderUseCases = ({
   reminderImageServiceLoader = loadDefaultReminderImageService,
 }: ReminderUseCasesDependencies = {}) => ({
   subscribeToReminderFeed({ onOutcome }: SubscribeRemindersOptions): () => void {
+    let lastKnownReminders: Reminder[] = [];
     return reminderRepository.subscribe(
       reminders => {
+        lastKnownReminders = reminders;
         onOutcome(createApplicationSuccess(reminders));
       },
       {
         onError: (error, kind) => {
           const issue = buildReminderIssue(kind, error, 'No fue posible suscribirse a los avisos.');
           onOutcome(
-            createApplicationDegraded([], [issue], {
+            createApplicationDegraded(lastKnownReminders, [issue], {
               reason: kind,
               userSafeMessage: issue.userSafeMessage,
             })

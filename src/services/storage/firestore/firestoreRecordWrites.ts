@@ -381,7 +381,7 @@ export const updateRecordPartial = async (
                 asFirestoreUpdatePayload(sanitizedData),
                 expectedLastUpdated,
                 isStaffingPatch
-                  ? 'La dotación cambió en otro equipo. Recarga el censo antes de volver a guardar.'
+                  ? 'El censo cambió. Este cambio de dotación no se guardó. Recarga el censo y revisa la dotación antes de volver a guardar.'
                   : 'El egreso fue modificado por otro usuario. Recarga el censo antes de reclasificarlo.',
                 isStaffingPatch ? 'staffing update' : 'movement reclassification',
                 { historyPolicy: options.historyPolicy }

@@ -46,10 +46,10 @@ describe('reminder listener alerts', () => {
     expect(onError).toHaveBeenCalledWith(expect.anything(), 'permission_denied');
   });
 
-  it('still mails an unexpected listener failure', async () => {
+  it('keeps an unavailable read silent while exposing the error to its consumer', async () => {
     const { status, onError } = await failSubscription(new Error('sintético'));
     expect(shouldAlertOperationalTelemetry({ status, operation: 'subscribe_reminders' })).toBe(
-      true
+      false
     );
     expect(onError).toHaveBeenCalledWith(expect.anything(), 'unknown');
   });
