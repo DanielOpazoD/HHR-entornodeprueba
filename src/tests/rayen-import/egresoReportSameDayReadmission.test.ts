@@ -67,7 +67,7 @@ describe('reingreso el mismo día', () => {
 
   it.each([
     ['el alta no se aplicó', '01-11-2026 11:55', []],
-    ['el alta es posterior al ingreso activo', '01-11-2026 21:00', [applied]],
+    ['el alta es posterior al ingreso activo', '01-11-2026 23:00', [applied]],
   ])('pide revisión si %s', (_case, fechaEgreso, discharges) => {
     const result = selectEligibleEgresoRows(
       emptyDiff(),
