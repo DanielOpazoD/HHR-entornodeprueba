@@ -31,6 +31,7 @@ const BOUNDARY_REASON = {
 type BoundaryEvidenceTone = 'neutral' | 'warning';
 
 const formatLocalStamp = (value: string): string => {
+  // clinical-clock-allow raw-offset-clock: History boundary evidence is an unzoned Rapa Nui wall-clock stamp.
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})/);
   if (!match) return value;
   return `${match[3]}-${match[2]} ${match[4].padStart(2, '0')}:${match[5]}`;

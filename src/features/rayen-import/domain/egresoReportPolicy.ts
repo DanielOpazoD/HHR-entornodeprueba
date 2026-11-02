@@ -276,6 +276,7 @@ export const toIsoDay = (raw: string): string => {
 };
 
 const timeFrom = (raw?: string): string | undefined => {
+  // clinical-clock-allow raw-offset-clock: Report scale and discharge clocks are already unzoned hospital-local evidence.
   const match = (raw ?? '').match(/(?:^|[T\s])(\d{1,2}):(\d{2})/);
   if (!match) return undefined;
   const hour = Number(match[1]);

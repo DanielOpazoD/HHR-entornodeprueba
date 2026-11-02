@@ -73,6 +73,7 @@ export const canonicalizeRayenDeviceType = (nombre: string): string => {
 
 /** "29/06/26 10:32" → { date: '2026-06-29', time: '10:32' }. */
 const parseInstall = (raw: string): { date: string; time: string } => {
+  // clinical-clock-allow raw-offset-clock: Legacy raw device clock is retained for matching saved instances; JSON display time is converted below.
   const iso = String(raw || '').match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2}))?/);
   if (iso) {
     return {

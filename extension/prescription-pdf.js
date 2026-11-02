@@ -25,6 +25,7 @@
     var normalized = text(value);
     var displayMatch = normalized.match(/^(\d{2})-(\d{2})-(\d{4})\s+(\d{2}:\d{2})/);
     if (displayMatch) return displayMatch[1] + '-' + displayMatch[2] + '-' + displayMatch[3] + ' ' + displayMatch[4];
+    // clinical-clock-allow raw-offset-clock: Offset-bearing prescriptions are converted with Intl immediately below; local fallback keeps wall time.
     var isoMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
     if (isoMatch && /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized)) {
       var instant = new Date(normalized);

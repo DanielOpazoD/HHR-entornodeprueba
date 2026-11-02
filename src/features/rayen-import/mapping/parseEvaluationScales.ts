@@ -210,6 +210,7 @@ const orderingKeyForApplication = (
 ): number => {
   const day = when.iso.replace(/-/g, '');
   if (!/^\d{8}$/.test(day)) return (Number(form.encounterEventId) || 0) + applicationIndex;
+  // clinical-clock-allow raw-offset-clock: Scale report application clocks are unzoned Rapa Nui local time.
   const clock = when.raw.match(/(?:^|[T ])(\d{1,2}):(\d{2}):(\d{2})/);
   const timestamp = `${day}${clock ? `${pad2(clock[1])}${clock[2]}${clock[3]}` : '000000'}`;
   const key = Number(timestamp);

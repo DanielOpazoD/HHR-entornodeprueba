@@ -105,6 +105,7 @@
           ' ' + part('hour') + ':' + part('minute');
       }
     }
+    // clinical-clock-allow raw-offset-clock: Offset-bearing values return through Intl above; remaining prescription text is local wall time.
     return formatDateLabel(normalized) + ' ' + normalized.slice(11, 16);
   };
 

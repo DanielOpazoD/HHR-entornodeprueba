@@ -122,6 +122,7 @@ export const recoverPreviousCensusDischarges = async (
             return [];
           // clinical-clock-allow instant-calendar-slice: Parsed report dischargeAt is unzoned hospital wall time; preserve its official calendar day.
           const calendarIso = evidence.dischargeAt.slice(0, 10);
+          // clinical-clock-allow raw-offset-clock: Statistical report dischargeAt is parsed unzoned Rapa Nui wall time.
           const hhmm = evidence.dischargeAt.slice(11, 16);
           const iso = resolveClinicalDayForDateTime(calendarIso, hhmm) ?? calendarIso;
           stamp = { iso, calendarIso, hhmm, text: evidence.dischargeAt };

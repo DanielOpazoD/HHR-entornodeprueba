@@ -594,7 +594,7 @@
       "hotspots": {}
     },
     "prescription-pdf.js": {
-      "maxLines": 669,
+      "maxLines": 670,
       "hotspots": {
         "iife>variable:createPrescriptionLayout": 38,
         "iife>variable:drawPrescriptionPatientHeader": 26,
@@ -604,7 +604,7 @@
       }
     },
     "prescription-print.js": {
-      "maxLines": 1546,
+      "maxLines": 1547,
       "hotspots": {
         "iife>variable:applyProfessionalValidationDates": 26,
         "iife>variable:buildClinicalReportUrl": 16,

@@ -66,6 +66,7 @@ const codeOfForm = (formName: string): EvaluationScaleCode | null => {
 
 /** `publishDatetime` → { iso day, monotonic key }. Null when it isn't a datable stamp. */
 const parsePublishDatetime = (raw: string): { iso: string; key: number } | null => {
+  // clinical-clock-allow raw-offset-clock: publishDatetime from the history report has no offset and is Rapa Nui wall time.
   const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}):(\d{2}))?/);
   if (!m) return null;
   const [, y, mo, d, hh = '00', mi = '00', ss = '00'] = m;
