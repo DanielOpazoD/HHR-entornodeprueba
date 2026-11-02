@@ -7,6 +7,12 @@
 
 ## Sync Queue
 
+Cuando la transacción de dotación rechaza una versión antigua del censo, el aviso
+dice que cambió el censo y que la dotación no se guardó; pide recargar y revisar.
+No atribuye el rechazo a un cambio de dotación sin evidencia. Se mantiene el bloqueo
+transaccional. La regresión usa escritor, reglas y emulador con datos sintéticos,
+normalización del aviso y componente de notificación; no acredita producción.
+
 El cliente usa `enforced` para guardar por autoridad, también si falla una primera
 lectura de política y una posterior acredita el modo o el cerco. Si se pierde la
 respuesta, conserva la recuperación por comprobante exacto de mutación. Se retiran
