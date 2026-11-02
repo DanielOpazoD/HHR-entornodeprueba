@@ -389,8 +389,18 @@ describe('audit download of official Eloísa reports', () => {
       patientName: 'RN Paciente Prueba Uno',
     });
     const deleted = row({ ...discharged, encounterId: 703, deleted: true });
+    // An echo of the searched RUN never outweighs the RUT of another person.
+    const echoed = {
+      ...row({ ...discharged, encounterId: 704, patientIdentifier: '123456785' }),
+      preferredIdentifierCode: '111111111',
+    };
+    // Two identifiers that disagree: the row belongs to someone else.
+    const conflicting = {
+      ...row({ ...discharged, encounterId: 705, patientIdentifier: '123456785' }),
+      patient: { identifier: '111111111' },
+    };
     const { runtime, archive } = makeRuntime({
-      history: { '111111111': [discharged, other, newborn, deleted] },
+      history: { '111111111': [discharged, other, newborn, deleted, echoed, conflicting] },
       pharmacological: { '111111111': [] },
     });
 
@@ -408,7 +418,11 @@ describe('audit download of official Eloísa reports', () => {
   });
 
   it('reports a hospitalization it cannot verify instead of claiming there are none', async () => {
-    const noIdentifier = row({ ...discharged, encounterId: 801, patientIdentifier: undefined });
+    // Only the echo of the searched RUN: nothing proves who this stay belongs to.
+    const noIdentifier = {
+      ...row({ ...discharged, encounterId: 801, patientIdentifier: undefined }),
+      preferredIdentifierCode: '111111111',
+    };
     const unreadableEnd = row({
       ...discharged,
       encounterId: 802,

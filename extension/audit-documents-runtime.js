@@ -105,8 +105,9 @@
     return /[;"\n\r]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
   };
 
+  // The top-level preferredIdentifierCode may only echo the query parameter, so it proves nothing.
   const ROW_IDENTIFIERS = row => [
-    row.patientIdentifier, row.preferredIdentifierCode, row.identifier,
+    row.patientIdentifier, row.identifier,
     row.patient && row.patient.identifier, row.patient && row.patient.preferredIdentifierCode,
   ];
 
@@ -119,7 +120,8 @@
       .filter(value => value != null && String(value).trim())
       .map(normalizeRun);
     if (identifiers.length === 0) return 'unknown';
-    return identifiers.includes(run) ? 'match' : 'other';
+    // Any identifier that names someone else wins over one that matches.
+    return identifiers.every(identifier => identifier === run) ? 'match' : 'other';
   };
 
   const validatePatient = (raw, seen) => {

@@ -10,7 +10,7 @@
   ],
   "files": {
     "audit-documents-runtime.js": {
-      "maxLines": 531,
+      "maxLines": 533,
       "hotspots": {}
     },
     "background.js": {
