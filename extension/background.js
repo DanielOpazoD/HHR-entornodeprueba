@@ -321,7 +321,7 @@ const { request: handleEgresoLookup } = self.HhrGestionCamasEgresoQueryRuntime.c
   classifyRejection: classifyGestionCamasRejection,
   markSessionVerified: markGestionCamasSessionVerified,
   fetchWithTimeout,
-  authorizeVerifiedEncounter: (sender, encounterId) => patientFlowRuntime.authorizeVerifiedEncounter(sender, encounterId),
+  authorizeVerifiedEncounter: sender => patientFlowRuntime.captureVerifiedEncounter(sender),
 });
 // Base64-encode an ArrayBuffer in chunks (btoa chokes on huge apply() arg lists).
 const bufferToBase64 = buffer => {
@@ -1203,8 +1203,7 @@ const runtimeMessageRoutes = Object.freeze({
     healthHeartbeat.pushAfter(() => handleDisconnectGestionCamas(), 'gc-disconnected'),
     'No se pudo olvidar la conexión de Gestión de Camas.'
   ),
-  // A failed read changes Ficha Médico health (read blocked, v0.48.4): push it right away
-  // instead of leaving HHR's button enabled until the next heartbeat.
+    // instead of leaving HHR's button enabled until the next heartbeat.
   [RUNTIME_MESSAGES.SNAPSHOT_REQUEST]: runtimeRoute(
     healthHeartbeat.pushAfter((_message, sender) => readAuthorizedSnapshot(sender), 'snapshot-read'),
     'No se pudo leer el censo de Ficha Médico.'
@@ -1247,6 +1246,7 @@ const runtimeMessageRoutes = Object.freeze({
     message => handleDeviceReportRequest({ encId: message.encId, fecha: message.fecha, acceptEntries: message.acceptEntries === true }),
     'No se pudo leer el reporte de dispositivos.'
   ),
+  [RUNTIME_MESSAGES.HHR_SESSION_CHANGED]: runtimeRoute((_message, sender) => patientFlowRuntime.revokeAuthorization(sender), ''),
   [RUNTIME_MESSAGES.PATIENT_FLOW_REPORT_REQUEST]: patientFlowRuntime.route,
   [RUNTIME_MESSAGES.DEVICE_REPORT_SAVE]: runtimeRoute(
     message => handleDeviceReportSave({ encId: message.encId, fecha: message.fecha }),

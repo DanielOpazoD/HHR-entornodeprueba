@@ -90,6 +90,7 @@ actualizar el `Estado` y apuntar al ADR reemplazante.
 - [RUNBOOK_AI_PROVIDER_OPERATIONS](RUNBOOK_AI_PROVIDER_OPERATIONS.md) — providers AI (Gemini/OpenAI/Anthropic)
 - [RUNBOOK_OPERATIONAL_BUDGETS](RUNBOOK_OPERATIONAL_BUDGETS.md) — presupuestos operacionales
 - [RUNBOOK_DAILY_CENSUS_RECOVERY](RUNBOOK_DAILY_CENSUS_RECOVERY.md) — recuperación de altas, movimientos y conflictos del censo diario
+- [GUIA_TURNO_ENFERMERIA](GUIA_TURNO_ENFERMERIA.md) — guía de una página para enfermería en el computador compartido
 - [RUNBOOK_DAILY_RECORD_RESTORE](RUNBOOK_DAILY_RECORD_RESTORE.md) — restaurar un día del censo a un momento anterior
 - [RUNBOOK_DAILY_RECORD_AUTHORITY_ROLLOUT](RUNBOOK_DAILY_RECORD_AUTHORITY_ROLLOUT.md) — transición de autoridad de escrituras diarias
 - [RUNBOOK_DAILY_RECORD_MOVEMENT_TOMBSTONES](RUNBOOK_DAILY_RECORD_MOVEMENT_TOMBSTONES.md) — recuperación de movimientos eliminados

@@ -66,6 +66,7 @@ const createHarness = (
     clearTimeout,
     HhrRayenMessageContract: {
       types: {
+        HHR_SESSION_CHANGED: 'RAYEN_HHR_SESSION_CHANGED',
         EXTENSION_RUNTIME_CONTEXT_REQUEST: 'RAYEN_EXTENSION_RUNTIME_CONTEXT_REQUEST',
         EXTENSION_HEALTH_REQUEST: 'RAYEN_EXTENSION_HEALTH_REQUEST',
         GC_CONNECT_REQUEST: 'RAYEN_GC_CONNECT_REQUEST',
@@ -416,4 +417,20 @@ describe('content-hhr · relé de conexión de Gestión de Camas', () => {
       bridgeGeneration: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
     });
   });
+});
+
+it('forwards session revocation silently and rejects messages from another origin or window', async () => {
+  const send = vi.fn().mockResolvedValue({ ok: true });
+  const h = createHarness(send);
+  h.onMessage({
+    source: h.windowObject,
+    data: { type: 'HHR_RAYEN_SESSION_CHANGED' },
+    origin: 'https://untrusted.invalid',
+  });
+  h.onMessage({ source: {}, data: { type: 'HHR_RAYEN_SESSION_CHANGED' } });
+  expect(send).not.toHaveBeenCalled();
+  h.onMessage({ source: h.windowObject, data: { type: 'HHR_RAYEN_SESSION_CHANGED' } });
+  await Promise.resolve();
+  expect(send).toHaveBeenCalledExactlyOnceWith({ type: 'RAYEN_HHR_SESSION_CHANGED' });
+  expect(h.postMessage).not.toHaveBeenCalled();
 });

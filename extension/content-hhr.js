@@ -17,9 +17,6 @@
  * Capability health (no clinical data or token access):
  *   Page → us:  { type: 'HHR_RAYEN_EXTENSION_HEALTH_REQUEST', reqId }
  *   us  → page: { type: 'HHR_RAYEN_EXTENSION_HEALTH_RESULT', reqId, report, error? }
- * Health heartbeat (background-initiated; same report, no request needed):
- *   bg → us → page: salud ordenada por `publicationSequence`.
- * Gestión de Camas connect (opens the official login window from HHR):
  *   Page → us:  { type: 'HHR_RAYEN_GC_CONNECT_REQUEST', reqId, renew? }
  *   us  → page: { type: 'HHR_RAYEN_GC_CONNECT_RESULT', reqId, ok, error? }
  */
@@ -78,8 +75,11 @@
     return undefined;
   };
   chrome.runtime.onMessage.addListener(onRuntimeMessage);
-  const isOwnMessage = event => ownsRelay() && Boolean(chrome.runtime?.id) &&
-    event.source === window && event.origin === window.location.origin;
+  const acceptPageMessage = event => {
+    if (!ownsRelay() || !chrome.runtime?.id || event.source !== window || event.origin !== window.location.origin) return false;
+    if (event.data?.type !== 'HHR_RAYEN_SESSION_CHANGED') return true;
+    chrome.runtime.sendMessage({ type: runtimeMessages.HHR_SESSION_CHANGED }).catch(() => undefined); return false;
+  };
   const postFailure = (type, reqId, error, fallback = {}) => {
     if (!chrome.runtime?.id) return;
     console.warn('[Rayen→HHR] ' + type + ' error:', error);
@@ -101,7 +101,7 @@
     },
   }));
   const onPageMessage = event => {
-    if (!isOwnMessage(event)) return;
+    if (!acceptPageMessage(event)) return;
     const data = event.data;
     if (!data) return;
     if (data.type === 'HHR_RAYEN_EXTENSION_HEALTH_REQUEST') {
