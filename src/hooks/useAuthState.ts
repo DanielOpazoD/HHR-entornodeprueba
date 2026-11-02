@@ -169,6 +169,8 @@ export const useAuthState = (): UseAuthStateReturn => {
     () => createHandleLogout(currentUser, signOut, setSessionState),
     [currentUser, setSessionState]
   );
+  const closeSessionRef = useRef(closeSession);
+  closeSessionRef.current = closeSession;
   const { handleLogout, logoutPrompt } = useNursingHandoffLogout(currentUser, closeSession);
   const isFirebaseConnected = useFirebaseConnectionStatus(
     currentUser,
@@ -181,12 +183,16 @@ export const useAuthState = (): UseAuthStateReturn => {
   // el bootstrap lo usa como dependencia y una identidad nueva por render lo
   // re-suscribía en bucle (OOM en tests).
   const setSessionStatePreservingUnauthorizedReason = useCallback(
-    (next: AuthSessionState) =>
+    (next: AuthSessionState) => {
+      if (next.status === 'unauthorized' && sessionStateRef.current.status === 'authorized') {
+        void closeSessionRef.current('automatic');
+      }
       setSessionState(
         shouldPreserveUnauthorizedSessionReason(sessionStateRef.current, next)
           ? sessionStateRef.current
           : next
-      ),
+      );
+    },
     [setSessionState]
   );
   useInactivityLogout(currentUser, handleLogout);

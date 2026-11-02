@@ -1,3 +1,4 @@
+import { clearConfirmedAuthRole } from '@/services/auth/authRoleLookup';
 import { useEffect, useRef, useState } from 'react';
 import { startSessionActivityMonitor } from '@/services/auth/sessionActivityMonitor';
 import { beginPendingLogout, markRecentManualLogout } from '@/services/auth/authLogoutState';
@@ -130,6 +131,7 @@ export const createHandleLogout =
     clearQueryCache();
     clearCachedUserAvatarProfiles();
 
+    clearConfirmedAuthRole();
     clearRecentAuthenticatedSessionHint();
     try {
       if (typeof localStorage !== 'undefined') {
