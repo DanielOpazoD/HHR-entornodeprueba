@@ -34,6 +34,7 @@ import {
 } from '@/services/repositories/conflictResolutionUtils';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { UNKNOWN_SERVER_VERSION } from '@/services/storage/sync/syncTaskContractPolicy';
+import { capturePatchBaseContext } from './dailyRecordPatchBase';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { applyPatches } from '@/utils/patchUtils';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
@@ -185,6 +186,7 @@ const foldWriteIntoOutbox = ({
   unresolved,
   rebase,
   wholeRecordBase,
+  patchWrite,
 }: {
   task: SyncTask;
   existing: SyncTask | null;
@@ -192,6 +194,7 @@ const foldWriteIntoOutbox = ({
   unresolved: SyncTask[];
   rebase: PendingProjectionRebase | undefined;
   wholeRecordBase?: DailyRecord;
+  patchWrite?: DailyRecordPatchWrite;
 }): SyncTask => {
   const owner = unresolved.find(
     candidate => stored && hasSameComparableValue(candidate.payload, stored)
@@ -214,10 +217,31 @@ const foldWriteIntoOutbox = ({
   const rebased = stored && rebase ? rebase(stored, pendingPaths) : null;
   const merged = mergeSyncTaskContracts(existing?.syncContract, task.syncContract);
   const payload = rebased ?? (task.payload as DailyRecord);
-  const baseContract = existing?.syncContract ?? owner?.syncContract;
+  const previous = existing ?? owner;
+  const baseContract = previous?.syncContract;
+  const patchBaseValues = { ...previous?.patchBaseValues };
+  if (patchWrite) {
+    const base = patchWrite.prepare(patchWrite.baseRecord, {});
+    for (const path of Object.keys(patchWrite.patch)) {
+      const overlapsPending = (previous?.syncContract?.changedPaths ?? ['*']).some(
+        pending =>
+          pending === '*' ||
+          pending === path ||
+          pending.startsWith(`${path}.`) ||
+          path.startsWith(`${pending}.`)
+      );
+      if (!previous || !overlapsPending) patchBaseValues[path] = getValueAtPath(base, path);
+    }
+  }
   return {
     ...task,
     payload,
+    patchBaseValues,
+    patchBaseContext: previous
+      ? previous.patchBaseContext
+      : patchWrite
+        ? capturePatchBaseContext(patchWrite.baseRecord)
+        : undefined,
     localProjectionBaseIds: [...localProjectionIds(owner)],
     syncContract: {
       ...buildDailyRecordSyncContract(payload, merged),
@@ -529,6 +553,7 @@ export const saveDailyRecordInOutbox = (
         rebase,
         stored,
         wholeRecordBase,
+        patchWrite: (await noteTasksFor(record.date)).length ? undefined : patchWrite,
         unresolved: holders.filter(
           candidate =>
             candidate.type === task.type && matchesOwner(task.ownerKey, candidate.ownerKey)
