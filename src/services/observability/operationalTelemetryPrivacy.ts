@@ -17,6 +17,8 @@
  * Browser-safe by construction: no `Buffer`, no `crypto`, no Node built-ins, no dependencies.
  */
 
+import { RAYEN_SYNC_FAILURE_REASONS, RAYEN_SYNC_ISSUE_REASONS } from '@/types/domain/rayenSync';
+
 /** Allowlists are written as whitespace separated literals to stay readable and compact. */
 const tokens = (raw: string): string[] => raw.split(/\s+/).filter(Boolean);
 
@@ -42,6 +44,7 @@ export const OPERATIONAL_TELEMETRY_STATUSES = ['success', 'partial', 'degraded',
 export type OperationalTelemetryPrivacyStatus = (typeof OPERATIONAL_TELEMETRY_STATUSES)[number];
 
 const RUNTIME_STATES = tokens('retryable recoverable degraded blocked unauthorized');
+const OTHER_ERROR_NAME = 'other_error';
 
 /** Deliberate end-to-end check of the alert channel. Never an incident. */
 export const OPERATIONAL_TELEMETRY_PROBE_OPERATION = 'telemetry_delivery_probe';
@@ -170,10 +173,27 @@ const STRING_ENUMS = new Map<string, ReadonlySet<string>>(
     region: 'us-central1 southamerica-east1 southamerica-west1',
     errorCode: `functions/internal functions/unavailable functions/deadline-exceeded
       permission-denied unauthenticated unavailable deadline-exceeded resource-exhausted
-      failed-precondition cancelled internal unknown invalid_document reader_unavailable`,
+      failed-precondition cancelled internal unknown invalid_document reader_unavailable
+      not-found aborted already-exists invalid-argument`,
     readScope: 'day episode',
+    // Where an error-service failure came from, and the class of the thrown error.
+    errorSource: 'unhandled_rejection uncaught_error render_crash logged',
+    errorName: `Error TypeError RangeError ReferenceError SyntaxError AggregateError
+      AbortError QuotaExceededError DataCloneError InvalidStateError NotFoundError NetworkError
+      SecurityError TimeoutError UnknownError ConstraintError VersionError DataError
+      TransactionInactiveError DatabaseClosedError OpenFailedError MissingAPIError UpgradeError
+      FirebaseError HttpsError ConcurrencyError VersionMismatchError SyncQueueAckError
+      DailyRecordFreshnessGateError DailyRecordWriteBlockedOutcomeError DataRegressionError
+      AuthoritativeDailyRecordConflictError ClinicalDerivedReadError CensusMonthUnavailableError
+      RayenRunSupersededError RayenStructuralPlanChangedError OperationalError
+      ${OTHER_ERROR_NAME}`,
+    failureReason: RAYEN_SYNC_FAILURE_REASONS.join(' '),
+    issueReason: RAYEN_SYNC_ISSUE_REASONS.join(' '),
   }).map(([key, values]) => [key, new Set(tokens(values))])
 );
+
+/** An error class outside the list still says that an error was thrown, without its name. */
+const STRING_ENUM_FALLBACKS = new Map<string, string>([['errorName', OTHER_ERROR_NAME]]);
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const asString = (value: unknown): string => (typeof value === 'string' ? value : '');
@@ -221,6 +241,11 @@ export const sanitizeOperationalTelemetryContextValues = (
     const allowedValues = STRING_ENUMS.get(key);
     if (allowedValues && typeof raw === 'string' && allowedValues.has(raw)) {
       out[key] = raw;
+      continue;
+    }
+    const fallback = STRING_ENUM_FALLBACKS.get(key);
+    if (fallback && typeof raw === 'string') {
+      out[key] = fallback;
       continue;
     }
     droppedCount += 1;

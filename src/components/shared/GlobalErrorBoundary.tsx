@@ -47,6 +47,8 @@ export class GlobalErrorBoundary extends Component<Props, State> {
       error,
       stack: errorInfo.componentStack || undefined,
       context: {
+        type: 'error_boundary',
+        errorName: error.name,
         componentStack: errorInfo.componentStack || undefined,
         errorInfo,
       },
