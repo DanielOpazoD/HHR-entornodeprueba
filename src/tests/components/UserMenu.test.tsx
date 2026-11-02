@@ -40,6 +40,13 @@ describe('UserMenu', () => {
     expect(screen.getByTestId('active-account-name')).toHaveTextContent('Enfermera Sintética');
   });
 
+  it('shows nobody while the loading chrome has no confirmed account', () => {
+    render(<UserMenu {...defaultProps} userEmail="bootstrap@hospital.cl" identityPending />);
+
+    expect(screen.queryByTestId('active-account-name')).not.toBeInTheDocument();
+    expect(screen.getByTestId('user-avatar-initial-fallback').textContent).toBe('');
+  });
+
   it('shows the complete menu on the first click without an intermediate logout-only panel', async () => {
     render(<UserMenu {...defaultProps} />);
 
@@ -223,5 +230,13 @@ describe('UserMenu', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cambiar mi clave' })).toBeInTheDocument();
     expect(screen.queryByText('opaque@accounts.hhr.invalid')).not.toBeInTheDocument();
+  });
+
+  it('opens the menu below the account, not over the browser bar', async () => {
+    render(<UserMenu {...defaultProps} />);
+
+    fireEvent.click(screen.getByTestId('authenticated-user-menu-button'));
+
+    expect(await screen.findByTestId('user-profile-menu-panel')).toHaveClass('top-full');
   });
 });

@@ -11,6 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { NavbarMenu } from './NavbarMenu';
 import { NavbarTabs } from './NavbarTabs';
 import { UserMenu } from './UserMenu';
+import { BOOTSTRAP_PLACEHOLDER_UID } from '@/constants/security';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { getVisibleAppModules } from '@/shared/access/operationalAccessPolicy';
 import { useUserAvatarProfile } from '@/hooks/useUserAvatarProfile';
@@ -183,6 +184,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <UserMenu
               userEmail={userEmail}
               displayName={currentUser?.displayName}
+              identityPending={currentUser?.uid === BOOTSTRAP_PLACEHOLDER_UID}
               isIndividualAccount={currentUser?.uid.startsWith('hhrn_')}
               role={role}
               isFirebaseConnected={isFirebaseConnected}
