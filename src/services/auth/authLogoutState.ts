@@ -65,6 +65,8 @@ export const clearRecentManualLogout = (): void => {
 /** A sign-in never waits longer than this for a logout of the same tab (its steps are bounded). */
 const PENDING_LOGOUT_MAX_WAIT_MS = 5_000;
 let pendingLogout: Promise<void> | null = null;
+let logoutRevision = 0;
+export const getLogoutRevision = (): number => logoutRevision;
 
 /**
  * Marks a logout of this tab still under way: audit, Firebase sign-out and storage cleanup. A
@@ -73,6 +75,7 @@ let pendingLogout: Promise<void> | null = null;
  * Returns the function that marks the logout done; calling it again is harmless.
  */
 export const beginPendingLogout = (): (() => void) => {
+  logoutRevision += 1;
   clearPendingProfessionalIdentity();
   let finish: () => void = () => undefined;
   const done = new Promise<void>(resolve => {
