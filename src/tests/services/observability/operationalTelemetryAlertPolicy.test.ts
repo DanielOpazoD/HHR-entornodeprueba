@@ -9,6 +9,36 @@ describe('who gets an email for an operational event', () => {
     );
   });
 
+  it.each([
+    ['without permission to save', ['auth_issue']],
+    ['with an unexplained cause', ['unclassified_issue']],
+    ['unreachable and also with a schema problem', ['unavailable_issue', 'schema_issue']],
+  ])('mails an Eloísa sync that failed %s', (_case, issues) => {
+    expect(
+      shouldAlertOperationalTelemetry({ status: 'failed', operation: 'rayen_sync_run', issues })
+    ).toBe(true);
+  });
+
+  it.each([
+    ['Eloísa or the extension was unreachable', ['unavailable_issue']],
+    ['the capture ran out of time', ['timeout_issue']],
+    ['both', ['unavailable_issue', 'timeout_issue']],
+  ])('only logs an Eloísa sync that failed because %s', (_case, issues) => {
+    expect(
+      shouldAlertOperationalTelemetry({ status: 'failed', operation: 'rayen_sync_run', issues })
+    ).toBe(false);
+  });
+
+  it('still mails an unreachable source outside the Eloísa sync', () => {
+    expect(
+      shouldAlertOperationalTelemetry({
+        status: 'failed',
+        operation: 'send_census_email',
+        issues: ['unavailable_issue'],
+      })
+    ).toBe(true);
+  });
+
   it('mails the controlled probe of the channel', () => {
     expect(
       shouldAlertOperationalTelemetry({
