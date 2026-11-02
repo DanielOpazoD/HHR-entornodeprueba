@@ -1,3 +1,5 @@
+import { z } from 'zod';
+import type { User } from 'firebase/auth';
 import type { UserRole } from '@/types/authRoleTypes';
 import { normalizeEmail } from '@/services/auth/authShared';
 import { isGeneralLoginRole } from '@/shared/access/roleAccessMatrix';
@@ -26,6 +28,75 @@ export const resolveCallableRole = (
   }
 
   return role;
+};
+
+// Tab-scoped, never part of KEYS_SURVIVING_LOGOUT. The old email-only cache is
+// deliberately not evidence for restored-session admission.
+export const CONFIRMED_AUTH_ROLE_KEY = 'hhr_confirmed_auth_role_v1';
+const CONFIRMED_ROLE_TTL_MS = 12 * 60 * 60 * 1000;
+const confirmedRoleSchema = z.object({
+  uid: z.string().min(1),
+  email: z.string().min(1),
+  role: z.string().refine(isGeneralLoginRole),
+  confirmedAt: z.number().finite(),
+  expiresAt: z.number().finite(),
+});
+
+export const clearConfirmedAuthRole = (): void => {
+  try {
+    sessionStorage.removeItem(CONFIRMED_AUTH_ROLE_KEY);
+  } catch {
+    // Unavailable session storage must not prevent sign-out.
+  }
+};
+
+export const getConfirmedAuthRole = (user: Pick<User, 'uid' | 'email'>): UserRole | null => {
+  try {
+    const raw = sessionStorage.getItem(CONFIRMED_AUTH_ROLE_KEY);
+    const parsed = confirmedRoleSchema.safeParse(raw ? JSON.parse(raw) : null);
+    if (!parsed.success) return null;
+    const entry = parsed.data;
+    const now = Date.now();
+    if (
+      entry.uid !== user.uid ||
+      entry.email !== normalizeEmail(user.email || '') ||
+      entry.confirmedAt > now ||
+      entry.expiresAt <= now ||
+      entry.expiresAt > entry.confirmedAt + CONFIRMED_ROLE_TTL_MS ||
+      !isGeneralLoginRole(entry.role)
+    )
+      return null;
+    return entry.role;
+  } catch {
+    return null;
+  }
+};
+
+/** Only a successful server answer may create or renew this record. */
+export const rememberConfirmedAuthRole = async (
+  user: User,
+  role: UserRole,
+  isCurrent: () => boolean
+): Promise<void> => {
+  try {
+    const token = await user.getIdTokenResult();
+    const authTime = Number(token.claims.auth_time);
+    const now = Date.now();
+    const expiresAt = Math.min(now + CONFIRMED_ROLE_TTL_MS, (authTime + 43200) * 1000);
+    if (!isCurrent() || !user.email || !Number.isFinite(expiresAt) || expiresAt <= now) return;
+    sessionStorage.setItem(
+      CONFIRMED_AUTH_ROLE_KEY,
+      JSON.stringify({
+        uid: user.uid,
+        email: normalizeEmail(user.email),
+        role,
+        confirmedAt: now,
+        expiresAt,
+      })
+    );
+  } catch {
+    // Remembering is optional; a failed write keeps the blocking server path on F5.
+  }
 };
 
 const wait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));

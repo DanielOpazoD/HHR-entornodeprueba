@@ -23,6 +23,12 @@ test('initial RUT access, password visibility, mandatory setup and email recover
     let createdNurseUid = '';
     let recoveryCode = '';
     let successfulRoleChecks = 0;
+    let holdRoleCheck = false;
+    let pendingRoleChecks = 0;
+    let releaseRoleCheck: () => void = () => {};
+    const roleGate = new Promise<void>(resolve => {
+      releaseRoleCheck = resolve;
+    });
     const sendMail = async ({ email, code }: { email: string; code: string }) => {
       expect(email).toBe('nurse@example.invalid');
       recoveryCode = code;
@@ -54,7 +60,21 @@ test('initial RUT access, password visibility, mandatory setup and email recover
           .authorization?.replace(/^Bearer /, '');
         const decoded = bearer ? await auth.verifyIdToken(bearer, true) : null;
         if (decoded?.email === 'daniel.opazo@hospitalhangaroa.cl') {
+          if (!adminContext) {
+            // This browser scenario must also run without another suite seeding its policy.
+            await firestore.doc('config/individualAccounts').set(
+              {
+                enabled: true,
+                protectedGoogle: { [decoded.email]: decoded.uid },
+              },
+              { merge: true }
+            );
+          }
           adminContext = { uid: decoded.uid, token: decoded };
+        }
+        if (name === 'checkUserRole' && holdRoleCheck) {
+          pendingRoleChecks += 1;
+          await roleGate;
         }
         const result = await api[name].run(route.request().postDataJSON()?.data, {
           auth: decoded ? { uid: decoded.uid, token: decoded } : undefined,
@@ -158,8 +178,14 @@ test('initial RUT access, password visibility, mandatory setup and email recover
     await page.getByRole('button', { name: 'Establecer clave e ingresar' }).click();
     await expect(menu).toBeVisible();
     const checksBeforeReload = successfulRoleChecks;
+    holdRoleCheck = true;
     await page.reload();
+    // The actual shell must be usable while the restored account's server check is held.
     await expect(menu).toBeVisible();
+    await expect.poll(() => pendingRoleChecks).toBe(1);
+    expect(successfulRoleChecks).toBe(checksBeforeReload);
+    holdRoleCheck = false;
+    releaseRoleCheck();
     // Bootstrap and the initial monitor share one authorization; polling stays fresh below.
     await expect.poll(() => successfulRoleChecks).toBe(checksBeforeReload + 1);
     await page.clock.runFor(100);

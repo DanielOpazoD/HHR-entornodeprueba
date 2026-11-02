@@ -179,6 +179,29 @@ Puntos clave:
 - si aparece un alias legacy de rol en `config/roles`, backend y Gestión de Roles lo recanonizan a `viewer`
 - Gestión de Roles además intenta resincronizar el custom claim del usuario afectado cuando detecta esa recanonización
 
+### Rol confirmado al recargar (decisión aprobada del responsable, 02-11-2026)
+
+Con Firebase ya restaurado, F5 puede admitir el último rol confirmado por el servidor
+para ese mismo UID y correo normalizado. `authRoleLookup.ts` lo recuerda en
+`sessionStorage` (`hhr_confirmed_auth_role_v1`), con vencimiento limitado a las doce
+horas desde `auth_time`. El caché histórico por correo y los claims usados como
+fallback no crean esta confirmación. Sin registro válido, el arranque espera la
+consulta habitual. La admisión sigue esperando la reconciliación del propietario
+del almacenamiento antes de mostrar datos.
+
+El observador confirma `checkUserRole` en segundo plano. Un rol idéntico no cambia
+la pantalla; uno distinto aplica los permisos mediante la admisión existente. Una
+respuesta sin rol o denegación autoritativa retira la confirmación y activa el cierre automático existente
+si el shell ya estaba admitido (o cierra Firebase durante el arranque), conservando la cola durable. Un fallo temporal conserva
+el rol recordado sin renovar su vencimiento, y la consulta usa los reintentos
+silenciosos `ROLE_LOOKUP_RETRY_DELAYS_MS` (SAVE-01). Resultados de una sesión anterior
+se descartan. Cerrar sesión borra el registro, que nunca sobrevive a la limpieza
+de sesión; UID y correo deben coincidir para impedir herencia entre personas.
+
+Esto adelanta la presentación de un rol previamente confirmado, sin cambiar reglas,
+Functions ni autorización del servidor. No acredita por sí solo un ahorro de tiempo
+en producción; debe medirse tras publicar.
+
 ### Un solo ciclo de sesión por pestaña
 
 El ciclo de sesión de React pertenece únicamente a `AuthProvider`. Los módulos,
