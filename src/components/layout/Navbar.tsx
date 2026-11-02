@@ -11,6 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { NavbarMenu } from './NavbarMenu';
 import { NavbarTabs } from './NavbarTabs';
 import { UserMenu } from './UserMenu';
+import { BOOTSTRAP_PLACEHOLDER_UID } from '@/constants/security';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { getVisibleAppModules } from '@/shared/access/operationalAccessPolicy';
 import { useUserAvatarProfile } from '@/hooks/useUserAvatarProfile';
@@ -183,6 +184,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <UserMenu
               userEmail={userEmail}
               displayName={currentUser?.displayName}
+              identityPending={currentUser?.uid === BOOTSTRAP_PLACEHOLDER_UID}
               isIndividualAccount={currentUser?.uid.startsWith('hhrn_')}
               role={role}
               isFirebaseConnected={isFirebaseConnected}
@@ -211,6 +213,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 const message =
                   error instanceof Error ? error.message : 'No se pudo guardar la foto de perfil.';
                 notifyError('No se pudo guardar la foto', message);
+                throw error;
+              }
+            }}
+            onSelectPreset={async presetId => {
+              try {
+                await userAvatar.selectPresetAvatar(presetId);
+                const feedback = buildUserAvatarFeedback('saved');
+                success(feedback.title, feedback.message);
+              } catch (error) {
+                const message =
+                  error instanceof Error ? error.message : 'No se pudo guardar el ícono.';
+                notifyError('No se pudo guardar el ícono', message);
                 throw error;
               }
             }}

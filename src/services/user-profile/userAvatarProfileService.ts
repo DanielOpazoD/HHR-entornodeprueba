@@ -11,6 +11,8 @@ import {
   type UserAvatarProfile,
 } from '@/services/user-profile/userAvatarProfileCache';
 
+import { USER_AVATAR_PRESETS } from '@/services/user-profile/userAvatarPresets';
+
 export { readCachedUserAvatarProfile, writeCachedUserAvatarProfile };
 export type { UserAvatarProfile };
 
@@ -20,6 +22,12 @@ export interface UserAvatarUploadInput {
   uid: string;
   email?: string | null;
   file: File;
+}
+
+export interface UserAvatarPresetInput {
+  uid: string;
+  email?: string | null;
+  presetId: string;
 }
 
 interface UserSettingsDocument {
@@ -87,8 +95,11 @@ const isStorageUnauthorizedError = (error: unknown): boolean => {
   return code.includes('storage/unauthorized') || code.includes('unauthorized');
 };
 
-const isFirestoreBackedAvatarPath = (storagePath: string): boolean =>
-  storagePath.startsWith('firestore:user-avatar:');
+/** Only an uploaded photo owns a Storage file; a preset or an inline photo has nothing to delete. */
+const isStorageBackedAvatarPath = (storagePath: string): boolean =>
+  Boolean(storagePath) &&
+  !storagePath.startsWith('firestore:user-avatar:') &&
+  !storagePath.startsWith('preset:');
 
 const blobToDataUrl = async (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -121,6 +132,21 @@ export const createUserAvatarProfileService = ({
     const profile = parseProfile(normalizedUid, settings?.userAvatarProfile);
     writeCachedUserAvatarProfile(profile, normalizedUid);
     return profile;
+  };
+
+  const deleteStoredAvatar = async (storagePath: string): Promise<void> => {
+    if (!isStorageBackedAvatarPath(storagePath)) {
+      return;
+    }
+    const storage = await storageRuntime.getStorage();
+    const storageModule = await storageRuntime.loadStorageModule();
+    try {
+      await storageModule.deleteObject(storageModule.ref(storage, storagePath));
+    } catch (error) {
+      if (!isObjectNotFoundError(error)) {
+        throw error;
+      }
+    }
   };
 
   return {
@@ -215,6 +241,37 @@ export const createUserAvatarProfileService = ({
       return profile;
     },
 
+    async selectPresetAvatar(input: UserAvatarPresetInput): Promise<UserAvatarProfile> {
+      const uid = normalizeUserAvatarUid(input.uid);
+      if (!uid) {
+        throw new Error('No se pudo identificar al usuario actual.');
+      }
+      const preset = USER_AVATAR_PRESETS.find(candidate => candidate.id === input.presetId);
+      if (!preset) {
+        throw new Error('El ícono seleccionado no está disponible.');
+      }
+      const previous = await getProfile(uid);
+      const profile: UserAvatarProfile = {
+        uid,
+        email: String(input.email || '').trim(),
+        photoURL: preset.url,
+        storagePath: `preset:${preset.id}`,
+        updatedAt: now(),
+      };
+      if (isFirestoreEnabled()) {
+        await repository.setDoc<UserSettingsDocument>(
+          USER_SETTINGS_COLLECTION,
+          uid,
+          { userAvatarProfile: profile },
+          { merge: true }
+        );
+      }
+      writeCachedUserAvatarProfile(profile, uid);
+      // The choice is saved; a leftover earlier photo must not turn that into a failure.
+      await deleteStoredAvatar(previous?.storagePath ?? '').catch(() => undefined);
+      return profile;
+    },
+
     async removeAvatar(uidInput: string): Promise<void> {
       const uid = normalizeUserAvatarUid(uidInput);
       if (!uid) {
@@ -222,18 +279,7 @@ export const createUserAvatarProfileService = ({
       }
 
       const profile = await getProfile(uid);
-      if (profile?.storagePath && !isFirestoreBackedAvatarPath(profile.storagePath)) {
-        const storage = await storageRuntime.getStorage();
-        const storageModule = await storageRuntime.loadStorageModule();
-        const storageRef = storageModule.ref(storage, profile.storagePath);
-        try {
-          await storageModule.deleteObject(storageRef);
-        } catch (error) {
-          if (!isObjectNotFoundError(error)) {
-            throw error;
-          }
-        }
-      }
+      await deleteStoredAvatar(profile?.storagePath ?? '');
 
       if (!isFirestoreEnabled()) {
         writeCachedUserAvatarProfile(null, uid);

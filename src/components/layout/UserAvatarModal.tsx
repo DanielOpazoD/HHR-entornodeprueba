@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Camera, ImagePlus, Trash2 } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { createCenteredAvatarFile } from '@/components/layout/userAvatarImageController';
+import { USER_AVATAR_PRESETS } from '@/services/user-profile/userAvatarPresets';
 
 interface UserAvatarModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface UserAvatarModalProps {
   isSaving?: boolean;
   onClose: () => void;
   onUpload: (file: File) => Promise<void>;
+  onSelectPreset: (presetId: string) => Promise<void>;
   onRemove: () => Promise<void>;
 }
 
@@ -22,10 +24,12 @@ export const UserAvatarModal: React.FC<UserAvatarModalProps> = ({
   isSaving = false,
   onClose,
   onUpload,
+  onSelectPreset,
   onRemove,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPreparing, setIsPreparing] = useState(false);
@@ -41,11 +45,13 @@ export const UserAvatarModal: React.FC<UserAvatarModalProps> = ({
   const clearSelection = () => {
     setPreviewUrl(null);
     setSelectedFile(null);
+    setSelectedPresetId(null);
     setError(null);
   };
 
   const handleSelectFile = async (file: File | null) => {
     setError(null);
+    setSelectedPresetId(null);
     if (!file) {
       setSelectedFile(null);
       setPreviewUrl(null);
@@ -75,13 +81,25 @@ export const UserAvatarModal: React.FC<UserAvatarModalProps> = ({
     onClose();
   };
 
-  const visibleAvatarUrl = useMemo(() => previewUrl || avatarUrl || null, [avatarUrl, previewUrl]);
+  const selectedPreset = USER_AVATAR_PRESETS.find(preset => preset.id === selectedPresetId);
+  const visibleAvatarUrl = useMemo(
+    () => selectedPreset?.url || previewUrl || avatarUrl || null,
+    [avatarUrl, previewUrl, selectedPreset]
+  );
 
-  const handleUpload = async () => {
-    if (!selectedFile) return;
+  const handleSelectPreset = (presetId: string) => {
+    setPreviewUrl(null);
+    setSelectedFile(null);
+    setError(null);
+    setSelectedPresetId(presetId);
+  };
+
+  const handleSave = async () => {
+    if (!selectedFile && !selectedPresetId) return;
     setError(null);
     try {
-      await onUpload(selectedFile);
+      if (selectedPresetId) await onSelectPreset(selectedPresetId);
+      else if (selectedFile) await onUpload(selectedFile);
       handleClose();
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : 'No se pudo guardar la foto.');
@@ -125,6 +143,28 @@ export const UserAvatarModal: React.FC<UserAvatarModalProps> = ({
             )}
           </div>
           <p className="max-w-full truncate text-sm font-semibold text-slate-700">{userEmail}</p>
+        </div>
+
+        <div>
+          <p className="mb-2 text-xs font-semibold text-slate-600">Elegir un ícono</p>
+          <div className="grid grid-cols-6 gap-2" role="group" aria-label="Íconos disponibles">
+            {USER_AVATAR_PRESETS.map(preset => (
+              <button
+                key={preset.id}
+                type="button"
+                aria-label={preset.label}
+                aria-pressed={selectedPresetId === preset.id}
+                title={preset.label}
+                disabled={isSaving}
+                onClick={() => handleSelectPreset(preset.id)}
+                className={`aspect-square overflow-hidden rounded-full border-2 transition-transform hover:scale-105 ${
+                  selectedPresetId === preset.id ? 'border-sky-600' : 'border-transparent'
+                }`}
+              >
+                <img src={preset.url} alt="" className="h-full w-full" />
+              </button>
+            ))}
+          </div>
         </div>
 
         <input
@@ -175,11 +215,11 @@ export const UserAvatarModal: React.FC<UserAvatarModalProps> = ({
           </button>
           <button
             type="button"
-            onClick={handleUpload}
-            disabled={!selectedFile || isSaving || isPreparing}
+            onClick={handleSave}
+            disabled={(!selectedFile && !selectedPresetId) || isSaving || isPreparing}
             className="rounded-lg bg-sky-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isSaving ? 'Guardando...' : 'Guardar foto'}
+            {isSaving ? 'Guardando...' : 'Guardar'}
           </button>
         </div>
       </div>
