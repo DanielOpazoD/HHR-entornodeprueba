@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuditDocumentsView } from '@/features/audit-documents/components/AuditDocumentsView';
 import {
   AUDIT_DOCUMENTS_ACK_TIMEOUT_MS,
+  AUDIT_DOCUMENTS_IDLE_TIMEOUT_MS,
   AUDIT_DOCUMENTS_CANCEL_TYPE,
   AUDIT_DOCUMENTS_REQUEST_TYPE,
 } from '@/features/audit-documents/services/auditDocumentsBridge';
@@ -129,6 +130,42 @@ describe('Documentos para auditoría', () => {
     const [request, cancel] = sentToExtension(postMessage);
     expect(cancel).toEqual({ type: AUDIT_DOCUMENTS_CANCEL_TYPE, reqId: request.reqId });
     expect(mockAuditContextValue.logEvent).not.toHaveBeenCalled();
+  });
+
+  it('shows the second attempts and keeps waiting while the extension reports any progress', async () => {
+    vi.useFakeTimers();
+    render(<AuditDocumentsView />);
+    typeRuts('11111111-1');
+    fireEvent.click(screen.getByRole('button', { name: /descargar zip/i }));
+    const reqId = sentToExtension(postMessage)[0].reqId;
+
+    fromExtension({
+      type: 'HHR_RAYEN_AUDIT_DOCUMENTS_PROGRESS',
+      reqId,
+      phase: 'retrying',
+      done: 0,
+      total: 2,
+    });
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Reintentando los documentos que Eloísa no entregó: 0 de 2'
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(AUDIT_DOCUMENTS_IDLE_TIMEOUT_MS - 1_000);
+    });
+    // A phase this page does not know yet still proves the extension is working.
+    fromExtension({
+      type: 'HHR_RAYEN_AUDIT_DOCUMENTS_PROGRESS',
+      reqId,
+      phase: 'future-phase',
+      done: 1,
+      total: 2,
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(AUDIT_DOCUMENTS_IDLE_TIMEOUT_MS - 1_000);
+    });
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('0 de 2');
   });
 
   it('cancels the download in the extension', async () => {

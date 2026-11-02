@@ -182,6 +182,97 @@ describe('audit download requests, cancellation and delivery', () => {
   });
 });
 
+describe('second attempts at reports the Eloísa server failed', () => {
+  const isLongHistory = (url: URL) =>
+    url.pathname.endsWith('GetHospitalizedEncounterHistory') &&
+    url.searchParams.get('enc_id') === '502';
+
+  it('recovers a history the busy report server failed the first time', async () => {
+    const attempts = new Map<string, number>();
+    const { runtime, archive, fetchOfficialPdf, sendTabMessage } = makeRuntime({
+      pdfStatus: url => {
+        if (!isLongHistory(url)) return null;
+        const seen = (attempts.get(url.href) ?? 0) + 1;
+        attempts.set(url.href, seen);
+        return seen === 1 ? { status: 500, error: 'HTTP 500' } : null;
+      },
+    });
+
+    const result = await runtime.handleRequest({
+      requestId: 'req-30',
+      patients: [{ run: PATIENT_A }],
+      documentTypes: BOTH,
+    });
+
+    expect(result).toMatchObject({ ok: true, documentCount: 4, failedCount: 0 });
+    expect(fetchOfficialPdf).toHaveBeenCalledTimes(5);
+    expect(Object.keys(archive())).toHaveLength(5);
+    expect(sendTabMessage).toHaveBeenCalledWith(42, {
+      type: 'RAYEN_AUDIT_DOCUMENTS_PROGRESS',
+      requestId: 'req-30',
+      phase: 'retrying',
+      done: 1,
+      total: 1,
+    });
+  });
+
+  it('gives up after three attempts and says so in the summary', async () => {
+    const { runtime, archive, fetchOfficialPdf } = makeRuntime({
+      pdfStatus: url => (isLongHistory(url) ? { status: 500, error: 'HTTP 500' } : null),
+    });
+
+    const result = await runtime.handleRequest({
+      requestId: 'req-31',
+      patients: [{ run: PATIENT_A }],
+      documentTypes: BOTH,
+    });
+
+    expect(result).toMatchObject({ ok: true, documentCount: 3, failedCount: 1 });
+    expect(fetchOfficialPdf).toHaveBeenCalledTimes(6);
+    expect(strFromU8(archive()['00 Resumen.csv'])).toContain(
+      'No descargado: HTTP 500 (3 intentos)'
+    );
+  });
+
+  it('does not repeat a report Eloísa refused for a reason a retry cannot change', async () => {
+    const { runtime, fetchOfficialPdf } = makeRuntime({
+      pdfStatus: url => (isLongHistory(url) ? { status: 404, error: 'HTTP 404' } : null),
+    });
+
+    const result = await runtime.handleRequest({
+      requestId: 'req-32',
+      patients: [{ run: PATIENT_A }],
+      documentTypes: BOTH,
+    });
+
+    expect(result).toMatchObject({ ok: true, failedCount: 1 });
+    expect(fetchOfficialPdf).toHaveBeenCalledTimes(4);
+  });
+
+  it('saves nothing when the session is rejected during a second attempt', async () => {
+    const attempts = new Map<string, number>();
+    const { runtime, zipChunks } = makeRuntime({
+      pdfStatus: url => {
+        if (!isLongHistory(url)) return null;
+        const seen = (attempts.get(url.href) ?? 0) + 1;
+        attempts.set(url.href, seen);
+        return seen === 1
+          ? { status: 500, error: 'HTTP 500' }
+          : { fatal: true, status: 401, error: 'Eloísa no autorizó el informe.' };
+      },
+    });
+
+    const result = await runtime.handleRequest({
+      requestId: 'req-33',
+      patients: [{ run: PATIENT_A }],
+      documentTypes: BOTH,
+    });
+
+    expect(result.error).toContain('Eloísa no autorizó el informe. No se descargó el ZIP.');
+    expect(zipChunks()).toEqual([]);
+  });
+});
+
 describe('stored ZIP writer', () => {
   it('computes the standard CRC-32', () => {
     expect(globals.HhrZipStoreWriter.crc32(new TextEncoder().encode('123456789'))).toBe(0xcbf43926);

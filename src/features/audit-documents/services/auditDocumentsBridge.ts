@@ -15,7 +15,7 @@ export const AUDIT_DOCUMENTS_ACK_TIMEOUT_MS = 4_000;
 /** Every Eloísa read has a 45 s limit and each one reports progress, so this is ample. */
 export const AUDIT_DOCUMENTS_IDLE_TIMEOUT_MS = 120_000;
 
-export type AuditDocumentsPhase = 'accepted' | 'listing' | 'downloading' | 'packing';
+export type AuditDocumentsPhase = 'accepted' | 'listing' | 'downloading' | 'retrying' | 'packing';
 
 export interface AuditDocumentsProgress {
   phase: AuditDocumentsPhase;
@@ -44,7 +44,13 @@ export interface AuditDocumentsResult {
   error?: string;
 }
 
-const PHASES: readonly AuditDocumentsPhase[] = ['accepted', 'listing', 'downloading', 'packing'];
+const PHASES: readonly AuditDocumentsPhase[] = [
+  'accepted',
+  'listing',
+  'downloading',
+  'retrying',
+  'packing',
+];
 
 const count = (value: unknown): number =>
   typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : 0;
@@ -112,13 +118,13 @@ export const requestAuditDocuments = ({
     const data = event.data as Record<string, unknown> | null;
     if (!data || data.reqId !== reqId) return;
     if (data.type === AUDIT_DOCUMENTS_PROGRESS_TYPE) {
-      const phase = PHASES.find(candidate => candidate === data.phase);
-      if (!phase) return;
+      // Any sign of life counts, even a phase from a newer extension this page does not name yet.
       waitFor(
         AUDIT_DOCUMENTS_IDLE_TIMEOUT_MS,
         'La extensión Eloísa dejó de responder. Revisa que Ficha Médico siga abierta y vuelve a intentarlo.'
       );
-      onProgress({ phase, done: count(data.done), total: count(data.total) });
+      const phase = PHASES.find(candidate => candidate === data.phase);
+      if (phase) onProgress({ phase, done: count(data.done), total: count(data.total) });
       return;
     }
     if (data.type !== AUDIT_DOCUMENTS_RESULT_TYPE) return;

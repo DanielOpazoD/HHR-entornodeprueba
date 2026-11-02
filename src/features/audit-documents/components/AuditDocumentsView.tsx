@@ -27,6 +27,9 @@ const progressText = (progress: AuditDocumentsProgress): string => {
   if (progress.phase === 'downloading') {
     return `Descargando documentos: ${progress.done} de ${progress.total}…`;
   }
+  if (progress.phase === 'retrying') {
+    return `Reintentando los documentos que Eloísa no entregó: ${progress.done} de ${progress.total}…`;
+  }
   if (progress.phase === 'packing') return 'Armando el archivo ZIP…';
   return 'Conectando con la extensión Eloísa…';
 };
