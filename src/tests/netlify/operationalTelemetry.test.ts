@@ -28,7 +28,7 @@ const failedRun = (overrides: Record<string, unknown> = {}) => ({
   operation: 'rayen_sync_run',
   timestamp: '2026-09-11T03:10:00.000Z',
   date: '2026-09-10',
-  issues: ['Structural persist timeout: el guardado del censo superó los 90 s.'],
+  issues: ['Structural persist rejected: el guardado del censo fue rechazado.'],
   context: { runId: 'run-1', stage: 'persisting_structure', durationMs: 91000 },
   ...overrides,
 });
@@ -129,7 +129,7 @@ describe('operational-telemetry netlify function', () => {
     const mail = sendEmail.mock.calls[0][0];
     expect(mail.recipients).toEqual(['guardia@hospital.cl', 'jefe@hospital.cl']);
     expect(mail.subject).toBe('[HHR] FALLO · rayen_sync_run · 2026-09-10');
-    expect(mail.body).not.toContain('Structural persist timeout');
+    expect(mail.body).not.toContain('Structural persist rejected');
     expect(mail.body).toContain('Referencia de entrega:');
     expect(mail.body).not.toContain('Juan');
 
@@ -138,6 +138,18 @@ describe('operational-telemetry netlify function', () => {
     expect(line.event.context).toEqual({});
     expect(line.event.droppedContextKeys.length).toBeGreaterThan(0);
     expect(JSON.stringify(line)).not.toContain('Juan');
+  });
+
+  it('only logs an Eloísa sync that failed because a source was slow or unreachable', async () => {
+    for (const issue of ['snapshot_timeout', 'gestion_camas_unavailable']) {
+      log.mockClear();
+      const response = await handler(request(envelope(failedRun({ issues: [issue] }))));
+      expect(response.statusCode).toBe(202);
+      expect(JSON.parse(response.body)).toEqual({ accepted: true, alert: 'not_alertable' });
+      const line = JSON.parse(log.mock.calls[0][0]);
+      expect(line.event).toMatchObject({ status: 'failed', operation: 'rayen_sync_run' });
+    }
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 
   it('only logs successes and throttles repeated alerts per operation', async () => {
