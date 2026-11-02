@@ -23,6 +23,10 @@
   };
   const receiveChunk = message => {
     const { requestId, index, total, filename, base64 } = message;
+    if (message.discard === true) {
+      parts.delete(requestId);
+      return { ok: true };
+    }
     if (typeof requestId !== 'string' || typeof base64 !== 'string' || typeof filename !== 'string' ||
       !Number.isInteger(index) || !Number.isInteger(total) || index < 0 || index >= total) {
       return { error: 'Parte del ZIP no válida.' };
@@ -42,7 +46,12 @@
     return { ok: true, saved: true };
   };
 
-  chrome.runtime.onMessage.removeListener(globalThis.__hhrAuditDocumentsProgressListener);
+  // Chrome rejects removeListener(undefined), which is the case on the first injection.
+  try {
+    if (globalThis.__hhrAuditDocumentsProgressListener) {
+      chrome.runtime.onMessage.removeListener(globalThis.__hhrAuditDocumentsProgressListener);
+    }
+  } catch (_error) {}
   chrome.runtime.onMessage.addListener((globalThis.__hhrAuditDocumentsProgressListener = (message, _sender, sendResponse) => {
     if (message && message.type === runtimeMessages.AUDIT_DOCUMENTS_FILE_CHUNK) {
       try {
@@ -83,7 +92,11 @@
       patients: data.patients,
       documentTypes: data.documentTypes,
     }).then(response => {
-      if (response?.cancelled === true) return;
+      if (response?.cancelled === true) {
+        // Also stopped by a session change elsewhere: the screen must not wait for its timer.
+        post({ type: 'HHR_RAYEN_AUDIT_DOCUMENTS_RESULT', reqId: data.reqId, ok: false, cancelled: true, error: response.error });
+        return;
+      }
       post({
         type: 'HHR_RAYEN_AUDIT_DOCUMENTS_RESULT',
         reqId: data.reqId,

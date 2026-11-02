@@ -79,7 +79,7 @@ describe('Documentos para auditoría', () => {
           run: '111111111',
           name: 'Paciente Prueba Uno',
           hospitalizations: 1,
-          undated: 0,
+          unverified: 0,
           downloaded: 1,
           failed: 0,
         },
@@ -88,7 +88,7 @@ describe('Documentos para auditoría', () => {
           name: '',
           error: 'Eloísa respondió HTTP 500',
           hospitalizations: 0,
-          undated: 0,
+          unverified: 0,
           downloaded: 0,
           failed: 0,
         },
@@ -125,6 +125,9 @@ describe('Documentos para auditoría', () => {
     });
 
     expect(screen.getByRole('alert')).toHaveTextContent('versión 0.48.65 o superior');
+    // Giving up also frees the extension's single download slot.
+    const [request, cancel] = sentToExtension(postMessage);
+    expect(cancel).toEqual({ type: AUDIT_DOCUMENTS_CANCEL_TYPE, reqId: request.reqId });
     expect(mockAuditContextValue.logEvent).not.toHaveBeenCalled();
   });
 

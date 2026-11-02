@@ -19,7 +19,11 @@ type RuntimeListener = (
   sendResponse?: (response: unknown) => void
 ) => unknown;
 
-const install = (origin: string, sendMessage = vi.fn(async (_message: unknown) => ({}))) => {
+const install = (
+  origin: string,
+  sendMessage = vi.fn(async (_message: unknown) => ({})),
+  onMessageOverrides: { removeListener?: (listener: unknown) => void } = {}
+) => {
   let onPageMessage: PageListener | undefined;
   let onRuntimeMessage: RuntimeListener | undefined;
   const postMessage = vi.fn();
@@ -49,7 +53,7 @@ const install = (origin: string, sendMessage = vi.fn(async (_message: unknown) =
         id: 'current-extension',
         sendMessage,
         onMessage: {
-          removeListener: () => undefined,
+          removeListener: onMessageOverrides.removeListener ?? (() => undefined),
           addListener: (listener: RuntimeListener) => {
             onRuntimeMessage = listener;
           },
@@ -142,7 +146,7 @@ describe('HHR audit documents content bridge', () => {
     );
   });
 
-  it('relays progress and cancellation, and stays silent after a cancelled download', async () => {
+  it('relays progress and cancellation, and tells the screen when the worker stopped', async () => {
     const sendMessage = vi.fn(async (_message: unknown) => ({
       cancelled: true,
       error: 'cancelada',
@@ -180,10 +184,52 @@ describe('HHR audit documents content bridge', () => {
       type: 'RAYEN_AUDIT_DOCUMENTS_CANCEL',
       requestId: 'audit-2',
     });
-    expect(bridge.postMessage).not.toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'HHR_RAYEN_AUDIT_DOCUMENTS_RESULT' }),
-      expect.anything()
+    await vi.waitFor(() =>
+      expect(bridge.postMessage).toHaveBeenLastCalledWith(
+        {
+          type: 'HHR_RAYEN_AUDIT_DOCUMENTS_RESULT',
+          reqId: 'audit-2',
+          ok: false,
+          cancelled: true,
+          error: 'cancelada',
+        },
+        'http://localhost:3001'
+      )
     );
+  });
+
+  it('installs on the first injection although Chrome rejects removing a missing listener', () => {
+    const bridge = install('https://testinghhr.netlify.app', undefined, {
+      removeListener: (listener: unknown) => {
+        if (listener === undefined) throw new TypeError('No matching signature.');
+      },
+    });
+
+    expect(bridge.onRuntimeMessage()).toEqual(expect.any(Function));
+    expect(bridge.windowObject.addEventListener).toHaveBeenCalledWith(
+      'message',
+      expect.any(Function)
+    );
+  });
+
+  it('drops the parts of a ZIP the worker discarded after a cancel', () => {
+    const bridge = install('https://testinghhr.netlify.app');
+    const send = (message: Record<string, unknown>) => {
+      const replies: unknown[] = [];
+      bridge.onRuntimeMessage()?.(
+        { type: 'RAYEN_AUDIT_DOCUMENTS_FILE_CHUNK', requestId: 'audit-5', ...message },
+        {},
+        reply => replies.push(reply)
+      );
+      return replies[0];
+    };
+
+    send({ index: 0, total: 2, filename: 'Auditoria.zip', base64: 'AA==' });
+    expect(send({ discard: true })).toEqual({ ok: true });
+    expect(send({ index: 1, total: 2, filename: 'Auditoria.zip', base64: 'AA==' })).toEqual({
+      error: 'Las partes del ZIP llegaron desordenadas.',
+    });
+    expect(bridge.saved).toEqual([]);
   });
 
   it('joins the ZIP parts in order and saves the file in this tab', async () => {

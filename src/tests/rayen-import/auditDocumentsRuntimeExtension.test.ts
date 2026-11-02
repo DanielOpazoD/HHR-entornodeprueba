@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { unzipSync, strFromU8 } from 'fflate';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 
 import '../../../extension/message-contract.js';
 import '../../../extension/zip-store-writer.js';
@@ -41,7 +43,9 @@ const NOW = Date.parse('2026-11-02T21:10:00Z');
 
 interface SyntheticRow {
   encounterId: number;
-  patientIdentifier: string;
+  patientIdentifier?: string;
+  patientIdentifierTypeId?: number;
+  deleted?: boolean;
   patientName: string;
   startPeriod: string;
   endPeriod: string | null;
@@ -73,6 +77,7 @@ interface Setup {
   pharmacological?: Record<string, unknown[] | number>;
   pdfStatus?: (url: URL) => { fatal?: boolean; error?: string } | null;
   pdfBytes?: number;
+  now?: number;
   tabReply?: (message: ChunkMessage) => unknown;
 }
 
@@ -133,7 +138,7 @@ const makeRuntime = (setup: Setup = {}) => {
       return results;
     },
     zipWriter: globals.HhrZipStoreWriter,
-    now: () => NOW,
+    now: () => setup.now ?? NOW,
     isHhrTabUrl: (url: string) => url.startsWith('https://testinghhr.netlify.app/'),
   });
   const runtime: AuditRuntime = {
@@ -209,7 +214,12 @@ describe('audit download of official Eloísa reports', () => {
     );
     expect(pharmacological).toContain('GetPharmacologicalCareController?enc_id=501&fac_id=7');
     expect(result.summary).toEqual([
-      expect.objectContaining({ run: '111111111', hospitalizations: 2, downloaded: 4, failed: 0 }),
+      expect.objectContaining({
+        run: '111111111',
+        hospitalizations: 2,
+        downloaded: 4,
+        unverified: 0,
+      }),
     ]);
   });
 
@@ -368,6 +378,161 @@ describe('audit download of official Eloísa reports', () => {
     expect(result).toMatchObject({ cancelled: true });
     expect(setup.fetchOfficialPdf).toHaveBeenCalledTimes(1);
     expect(setup.zipChunks()).toEqual([]);
+  });
+
+  it('downloads only this person: another RUT, a newborn under this RUN and deleted rows stay out', async () => {
+    const other = row({ ...discharged, encounterId: 701, patientIdentifier: '123456785' });
+    const newborn = row({
+      ...discharged,
+      encounterId: 702,
+      patientIdentifierTypeId: 4,
+      patientName: 'RN Paciente Prueba Uno',
+    });
+    const deleted = row({ ...discharged, encounterId: 703, deleted: true });
+    const { runtime, archive } = makeRuntime({
+      history: { '111111111': [discharged, other, newborn, deleted] },
+      pharmacological: { '111111111': [] },
+    });
+
+    const result = await runtime.handleRequest({
+      requestId: 'req-15',
+      patients: [{ run: PATIENT_A }],
+      documentTypes: ['history'],
+    });
+
+    expect(result).toMatchObject({ ok: true, documentCount: 1 });
+    expect(Object.keys(archive())).toEqual([
+      '00 Resumen.csv',
+      'Paciente Prueba Uno - 11111111-1 - Historial hospitalizacion - ingreso 2026-07-13.pdf',
+    ]);
+  });
+
+  it('reports a hospitalization it cannot verify instead of claiming there are none', async () => {
+    const noIdentifier = row({ ...discharged, encounterId: 801, patientIdentifier: undefined });
+    const unreadableEnd = row({
+      ...discharged,
+      encounterId: 802,
+      endPeriod: '2026-07-17T12:00:00',
+    });
+    const { runtime, archive } = makeRuntime({
+      history: { '111111111': [noIdentifier, unreadableEnd], '123456785': [] },
+      pharmacological: { '111111111': [], '123456785': [] },
+    });
+    const other = row({ ...discharged, encounterId: 803, patientIdentifier: '123456785' });
+    const second = makeRuntime({
+      history: { '111111111': [noIdentifier, unreadableEnd], '123456785': [other] },
+      pharmacological: { '111111111': [], '123456785': [] },
+    });
+
+    const empty = await runtime.handleRequest({
+      requestId: 'req-16',
+      patients: [{ run: PATIENT_A }],
+      documentTypes: ['history'],
+    });
+    const partial = await second.runtime.handleRequest({
+      requestId: 'req-17',
+      patients: [{ run: PATIENT_A }, { run: PATIENT_B }],
+      documentTypes: ['history'],
+    });
+
+    expect(empty.summary?.[0]).toMatchObject({ hospitalizations: 0, unverified: 2 });
+    expect(partial.summary?.[0]).toMatchObject({ hospitalizations: 0, unverified: 2 });
+    const summary = strFromU8(second.archive()['00 Resumen.csv']);
+    expect(summary).toContain(
+      '11111111-1;;;;;2 hospitalización(es) que Eloísa entregó sin fecha o RUT verificable'
+    );
+    expect(summary).not.toContain('11111111-1;;;;;Sin hospitalizaciones');
+    expect(() => archive()).toThrow('No ZIP was delivered');
+  });
+
+  it('includes stays that touch either end of the range and reads today in Rapa Nui', async () => {
+    const endsOnFrom = row({
+      ...discharged,
+      encounterId: 901,
+      endPeriod: '2026-07-01T10:00:00.0-04:00',
+    });
+    const startsOnTo = row({
+      ...discharged,
+      encounterId: 902,
+      startPeriod: '2026-07-31T10:00:00.00-04:00',
+      endPeriod: '2026-08-05T10:00:00.0-04:00',
+    });
+    const ranged = makeRuntime({
+      history: { '111111111': [endsOnFrom, startsOnTo] },
+      pharmacological: { '111111111': [] },
+    });
+    // 03:00 UTC on Nov 3 is still Nov 2 in Rapa Nui, so a stay in course does not reach Nov 3 yet.
+    const lateEvening = makeRuntime({ now: Date.parse('2026-11-03T03:00:00Z') });
+
+    const inRange = await ranged.runtime.handleRequest({
+      requestId: 'req-18',
+      patients: [{ run: PATIENT_A, dateFrom: '2026-07-01', dateTo: '2026-07-31' }],
+      documentTypes: ['history'],
+    });
+    const fromTomorrow = await lateEvening.runtime.handleRequest({
+      requestId: 'req-19',
+      patients: [{ run: PATIENT_A, dateFrom: '2026-11-03' }],
+      documentTypes: ['history'],
+    });
+
+    expect(inRange).toMatchObject({ ok: true, documentCount: 2 });
+    expect(fromTomorrow.error).toBe(
+      'No hay hospitalizaciones en las fechas pedidas. No se descargó nada.'
+    );
+  });
+
+  it('never reads a passport as a RUT when called directly', async () => {
+    const { runtime, fetchWithTimeout } = makeRuntime();
+
+    const result = await runtime.handleRequest({
+      requestId: 'req-20',
+      patients: [{ run: 'P11111111-1' }],
+      documentTypes: BOTH,
+    });
+
+    expect(result.error).toBe('Uno de los RUT no es válido.');
+    expect(fetchWithTimeout).not.toHaveBeenCalled();
+  });
+
+  it('does not save the ZIP when a cancel arrives while its parts travel', async () => {
+    let runtime: AuditRuntime | null = null;
+    const setup = makeRuntime({
+      pdfBytes: 2_500_000,
+      tabReply: chunk => {
+        if (chunk.requestId === 'req-21' && chunk.index === 0) runtime?.cancelAll();
+        return { ok: true };
+      },
+    });
+    runtime = setup.runtime;
+
+    const result = await runtime.handleRequest({
+      requestId: 'req-21',
+      patients: [{ run: PATIENT_A }],
+      documentTypes: BOTH,
+    });
+    const busy = await runtime.handleRequest({
+      requestId: 'req-22',
+      patients: [{ run: PATIENT_A }],
+      documentTypes: BOTH,
+    });
+
+    expect(result).toMatchObject({ cancelled: true });
+    const sent = setup.sendTabMessage.mock.calls
+      .map(call => call[1] as Record<string, unknown>)
+      .filter(
+        message =>
+          message.type === 'RAYEN_AUDIT_DOCUMENTS_FILE_CHUNK' && message.requestId === 'req-21'
+      );
+    expect(sent.map(message => message.discard ?? message.index)).toEqual([0, true]);
+    expect(busy.ok).toBe(true);
+  });
+
+  it('is stopped by an HHR session change in the worker', () => {
+    const background = readFileSync(path.resolve('extension/background.js'), 'utf8');
+    const route = background.slice(background.indexOf('[RUNTIME_MESSAGES.HHR_SESSION_CHANGED]'));
+    expect(
+      route.slice(0, route.indexOf('}, ')).includes('auditDocumentsRuntime.cancelAll();')
+    ).toBe(true);
   });
 
   it('accepts a bulk export only from an HHR tab', async () => {

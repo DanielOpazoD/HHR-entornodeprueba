@@ -42,7 +42,8 @@
     'getPharmacologicalCareReport',
   ]);
 
-  const normalizeRun = value => String(value || '').toUpperCase().replace(/[^0-9K]/g, '');
+  // Only dots, dashes and spaces are dropped: a passport such as «P1234567» never becomes a RUN.
+  const normalizeRun = value => String(value == null ? '' : value).toUpperCase().replace(/[.\s-]/g, '');
   const runVerifier = body => {
     let sum = 0;
     let factor = 2;
@@ -104,6 +105,23 @@
     return /[;"\n\r]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
   };
 
+  const ROW_IDENTIFIERS = row => [
+    row.patientIdentifier, row.preferredIdentifierCode, row.identifier,
+    row.patient && row.patient.identifier, row.patient && row.patient.preferredIdentifierCode,
+  ];
+
+  /** 'match', 'other' (another person) or 'unknown' (Eloísa gave nothing to check against). */
+  const rowIdentity = (row, run) => {
+    // A newborn listed under the mother's RUN is a different person (ID-03).
+    const type = row.patientIdentifierTypeId;
+    if (type != null && type !== '' && Number(type) !== RUN_IDENTIFIER_TYPE) return 'other';
+    const identifiers = ROW_IDENTIFIERS(row)
+      .filter(value => value != null && String(value).trim())
+      .map(normalizeRun);
+    if (identifiers.length === 0) return 'unknown';
+    return identifiers.includes(run) ? 'match' : 'other';
+  };
+
   const validatePatient = (raw, seen) => {
     const run = normalizeRun(raw && raw.run);
     if (!isValidRun(run)) return { error: 'Uno de los RUT no es válido.' };
@@ -157,24 +175,40 @@
       throw new Error('No se pudo inicializar la descarga de documentos para auditoría.');
     }
 
-    /** The relay of the requesting HHR tab joins the parts and saves the ZIP as a Blob. */
-    const deliverZip = async ({ sender, requestId, bytes, filename }) => {
-      const tabId = sender && sender.tab && sender.tab.id;
-      if (tabId == null) return { error: 'No se encontró la pestaña de HHR que pidió el ZIP.' };
-      // The exact requesting document: if the tab navigated meanwhile, the parts go nowhere.
-      const options = {
+    /** The exact requesting document: if the tab navigated meanwhile, the parts go nowhere. */
+    const deliveryTarget = sender => ({
+      tabId: sender && sender.tab ? sender.tab.id : undefined,
+      options: {
         ...(typeof sender.frameId === 'number' ? { frameId: sender.frameId } : {}),
         ...(typeof sender.documentId === 'string' ? { documentId: sender.documentId } : {}),
-      };
+      },
+    });
+
+    const sendPart = async (target, message) => {
+      const reply = await chromeApi.tabs.sendMessage(target.tabId, message, target.options);
+      if (!reply || reply.ok !== true) throw new Error((reply && reply.error) || 'la pestaña no confirmó');
+    };
+
+    /** The relay of the requesting HHR tab joins the parts and saves the ZIP as a Blob. */
+    const deliverZip = async ({ sender, requestId, bytes, filename, isCancelled }) => {
+      const target = deliveryTarget(sender);
+      if (target.tabId == null) return { error: 'No se encontró la pestaña de HHR que pidió el ZIP.' };
       const total = Math.ceil(bytes.length / FILE_CHUNK_BYTES);
       try {
         for (let index = 0; index < total; index += 1) {
+          // The last part saves the file, so a cancel that arrives meanwhile must stop before it.
+          if (isCancelled()) {
+            if (index > 0) {
+              await sendPart(target, { type: FILE_CHUNK_MESSAGE_TYPE, requestId, discard: true })
+                .catch(() => undefined);
+            }
+            return { cancelled: true };
+          }
           const part = bytes.subarray(index * FILE_CHUNK_BYTES, (index + 1) * FILE_CHUNK_BYTES);
-          const reply = await chromeApi.tabs.sendMessage(tabId, {
+          await sendPart(target, {
             type: FILE_CHUNK_MESSAGE_TYPE, requestId, index, total, filename,
             base64: bufferToBase64(part),
-          }, options);
-          if (!reply || reply.ok !== true) throw new Error((reply && reply.error) || 'la pestaña no confirmó');
+          });
         }
         return { ok: true };
       } catch (error) {
@@ -225,21 +259,24 @@
       const failed = indexes.find(index => index.error);
       if (failed) return failed;
       const byEncounter = new Map();
+      const unknownIdentity = new Set();
       indexes.forEach(index => index.rows.forEach(row => {
         if (!row || !isEncounter(row.encounterId) || row.deleted === true) return;
-        if (normalizeRun(row.patientIdentifier) !== patient.run) return;
+        const identity = rowIdentity(row, patient.run);
         const encId = String(row.encounterId);
-        if (!byEncounter.has(encId)) byEncounter.set(encId, row);
+        if (identity === 'unknown') unknownIdentity.add(encId);
+        if (identity === 'match' && !byEncounter.has(encId)) byEncounter.set(encId, row);
       }));
       const encounters = [];
-      let undated = 0;
+      let unverified = [...unknownIdentity].filter(encId => !byEncounter.has(encId)).length;
       byEncounter.forEach((row, encId) => {
         const startDate = hospitalDate(row.startPeriod);
-        if (!startDate) {
-          undated += 1;
+        const endDate = hospitalDate(row.endPeriod);
+        // A date Eloísa gave but that cannot be read is reported, never guessed.
+        if (!startDate || (row.endPeriod && !endDate)) {
+          unverified += 1;
           return;
         }
-        const endDate = hospitalDate(row.endPeriod);
         if (!overlapsRange({ startDate, endDate: endDate || today }, patient)) return;
         encounters.push({
           encId,
@@ -252,7 +289,7 @@
         });
       });
       encounters.sort((left, right) => left.startDate.localeCompare(right.startDate));
-      return { encounters, undated };
+      return { encounters, unverified };
     };
 
     const reportUrl = (info, documentType, encounter, nowIso) => {
@@ -284,11 +321,11 @@
           lines.push([run, '', '', '', '', 'No se pudo consultar Eloísa: ' + patient.error, '']);
           return;
         }
-        if (patient.undated) {
-          lines.push([run, patient.name, '', '', '', `${patient.undated} hospitalización(es) sin fecha de ingreso válida en Eloísa`, '']);
+        if (patient.unverified) {
+          lines.push([run, patient.name, '', '', '', `${patient.unverified} hospitalización(es) que Eloísa entregó sin fecha o RUT verificable. Revisar en Eloísa`, '']);
         }
         const own = documents.filter(document => document.run === patient.run);
-        if (own.length === 0 && !patient.undated) {
+        if (own.length === 0 && !patient.unverified) {
           lines.push([run, patient.name, '', '', '', 'Sin hospitalizaciones en el periodo', '']);
         }
         own.forEach(document => lines.push([
@@ -309,7 +346,7 @@
         name: patient.name,
         ...(patient.error ? { error: patient.error } : {}),
         hospitalizations: new Set(own.map(document => document.encId)).size,
-        undated: patient.undated || 0,
+        unverified: patient.unverified || 0,
         downloaded: own.filter(document => document.buffer).length,
         failed: own.filter(document => document.error).length,
       };
@@ -325,7 +362,7 @@
         job.progress('listing', listed, patients.length);
         if (result.error) return { ...patient, fatal: result.fatal === true, error: result.error, encounters: [] };
         const named = result.encounters.find(encounter => encounter.patientName);
-        return { ...patient, name: named ? named.patientName : '', encounters: result.encounters, undated: result.undated };
+        return { ...patient, name: named ? named.patientName : '', encounters: result.encounters, unverified: result.unverified };
       });
     };
 
@@ -428,7 +465,10 @@
       const archive = packArchive(job, patients, documents);
       if (archive.error) return { summary: publicSummary(patients, documents), error: archive.error };
       if (job.isCancelled()) return cancelledResult;
-      const saved = await deliverZip({ sender, requestId, bytes: archive.bytes, filename: archive.filename });
+      const saved = await deliverZip({
+        sender, requestId, bytes: archive.bytes, filename: archive.filename, isCancelled: job.isCancelled,
+      });
+      if (saved.cancelled) return cancelledResult;
       if (saved.error) return { error: saved.error };
       return {
         ok: true,
@@ -447,7 +487,13 @@
       if (!sender || !sender.tab || !isHhrTabUrl(String(sender.tab.url || ''))) {
         return { error: 'La descarga para auditoría solo se puede pedir desde HHR.' };
       }
-      if (running) return { error: 'Ya hay una descarga para auditoría en curso. Espera a que termine.' };
+      if (running) {
+        return {
+          error: cancelled.has(running)
+            ? 'La descarga anterior se está deteniendo. Vuelve a intentarlo en unos segundos.'
+            : 'Ya hay una descarga para auditoría en curso. Espera a que termine.',
+        };
+      }
       const validated = validateRequest({ patients, documentTypes });
       if (validated.error) return { error: validated.error };
       running = requestId;

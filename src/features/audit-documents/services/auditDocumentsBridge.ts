@@ -28,7 +28,8 @@ export interface AuditDocumentsPatientSummary {
   name: string;
   error?: string;
   hospitalizations: number;
-  undated: number;
+  /** Hospitalizations Eloísa listed without a readable date or a RUT to verify. */
+  unverified: number;
   downloaded: number;
   failed: number;
 }
@@ -60,7 +61,7 @@ const parseSummary = (value: unknown): AuditDocumentsPatientSummary[] | undefine
         name: typeof row.name === 'string' ? row.name : '',
         ...(typeof row.error === 'string' && row.error ? { error: row.error } : {}),
         hospitalizations: count(row.hospitalizations),
-        undated: count(row.undated),
+        unverified: count(row.unverified),
         downloaded: count(row.downloaded),
         failed: count(row.failed),
       },
@@ -99,7 +100,11 @@ export const requestAuditDocuments = ({
 
   const waitFor = (ms: number, error: string) => {
     if (timer !== undefined) clearTimeout(timer);
-    timer = setTimeout(() => settle({ ok: false, error }), ms);
+    timer = setTimeout(() => {
+      // Giving up here must also stop the extension, or it keeps the single download slot busy.
+      window.postMessage({ type: AUDIT_DOCUMENTS_CANCEL_TYPE, reqId }, window.location.origin);
+      settle({ ok: false, error });
+    }, ms);
   };
 
   function onMessage(event: MessageEvent): void {
@@ -117,6 +122,10 @@ export const requestAuditDocuments = ({
       return;
     }
     if (data.type !== AUDIT_DOCUMENTS_RESULT_TYPE) return;
+    if (data.cancelled === true) {
+      settle({ ok: false, cancelled: true, error: 'Descarga cancelada.' });
+      return;
+    }
     settle({
       ok: data.ok === true,
       filename: typeof data.filename === 'string' ? data.filename : undefined,

@@ -10,7 +10,9 @@ const patientStatus = (patient: AuditDocumentsPatientSummary): string => {
   if (patient.error) return `No se pudo consultar Eloísa: ${patient.error}`;
   const notes = [
     patient.failed > 0 ? `${patient.failed} no descargado(s)` : '',
-    patient.undated > 0 ? `${patient.undated} sin fecha de ingreso en Eloísa` : '',
+    patient.unverified > 0
+      ? `${patient.unverified} sin fecha o RUT verificable en Eloísa: revisar allí`
+      : '',
   ].filter(Boolean);
   if (patient.hospitalizations === 0 && notes.length === 0) {
     return 'Sin hospitalizaciones en el periodo';
@@ -19,7 +21,7 @@ const patientStatus = (patient: AuditDocumentsPatientSummary): string => {
 };
 
 const needsAttention = (patient: AuditDocumentsPatientSummary): boolean =>
-  Boolean(patient.error) || patient.failed > 0 || patient.undated > 0;
+  Boolean(patient.error) || patient.failed > 0 || patient.unverified > 0;
 
 export const AuditDocumentsResultPanel: React.FC<{ result: AuditDocumentsResult }> = ({
   result,

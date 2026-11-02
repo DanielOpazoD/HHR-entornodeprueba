@@ -10,7 +10,7 @@
   ],
   "files": {
     "audit-documents-runtime.js": {
-      "maxLines": 485,
+      "maxLines": 531,
       "hotspots": {}
     },
     "background.js": {
@@ -165,7 +165,7 @@
       "hotspots": {}
     },
     "content-hhr-audit-documents.js": {
-      "maxLines": 103,
+      "maxLines": 116,
       "hotspots": {}
     },
     "content-hhr-connection-repair.js": {
