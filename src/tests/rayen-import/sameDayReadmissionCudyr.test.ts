@@ -106,6 +106,7 @@ describe('CUDYR of the night before a same-day readmission', () => {
   it.each([
     ['admitted on or before that night', { admissionDate: '2026-10-26', admissionTime: '20:24' }],
     ['with no admission date', { admissionDate: '' }],
+    ['with a malformed admission date', { admissionDate: 'sin fecha' }],
   ])('stays unreliable with another episode %s', (_case, admission) => {
     expect(
       recoverDailyCudyrGap(gap, [historicalDay(), nextDay(readmitted(admission))], parsedSource())
@@ -153,6 +154,12 @@ describe('server rule for a same-day readmission', () => {
 
   it('accepts the night of the discharged episode', async () => {
     await expect(authorize(nextDay())).resolves.toBeUndefined();
+  });
+
+  it('rejects when another episode has a malformed admission date', async () => {
+    await expect(authorize(nextDay(readmitted({ admissionDate: 'sin fecha' })))).rejects.toThrow(
+      /unambiguous/
+    );
   });
 
   it('rejects when another episode overlaps that night', async () => {

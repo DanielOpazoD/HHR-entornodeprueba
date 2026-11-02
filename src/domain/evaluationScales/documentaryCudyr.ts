@@ -23,12 +23,18 @@ export const isProtectedCudyrDay = (record: DailyRecord): boolean =>
   );
 
 /** Include sparse movement rows and both people in an undo snapshot. */
-const stamp = (date?: string, time?: string): string =>
-  date ? `${date.slice(0, 10)}T${time || '00:00'}` : '';
+const isoDay = (value?: string): string => {
+  const day = String(value ?? '').slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : '';
+};
+const isoStamp = (date?: string, time?: string): string => {
+  const day = isoDay(date);
+  return day && /^([01]\d|2[0-3]):[0-5]\d$/.test(String(time ?? '')) ? `${day}T${time}` : '';
+};
 
 /**
  * A same-document episode outside the evaluated night is a readmission, not an ambiguity: it began
- * after that census day, or it ended before this episode began. Missing dates stay ambiguous.
+ * after that census day, or it ended before this episode began. Missing or malformed dates stay ambiguous.
  */
 const isOutsideEvaluatedNight = (
   entry: object,
@@ -36,11 +42,11 @@ const isOutsideEvaluatedNight = (
   censusDay: string
 ): boolean => {
   const candidate = entry as { admissionDate?: string; movementDate?: string; time?: string };
-  const admitted = candidate.admissionDate?.slice(0, 10);
+  const admitted = isoDay(candidate.admissionDate);
   if (admitted && admitted > censusDay) return true;
-  const ended = stamp(candidate.movementDate, candidate.time);
-  const began = stamp(patient.admissionDate, patient.admissionTime);
-  return Boolean(ended && began && candidate.time && patient.admissionTime && ended < began);
+  const ended = isoStamp(candidate.movementDate, candidate.time);
+  const began = isoStamp(patient.admissionDate, patient.admissionTime);
+  return Boolean(ended && began && ended < began);
 };
 
 const movementStamp = (movement: object) => {

@@ -47,6 +47,14 @@ const identities = record => [
           ]
   ),
 ];
+const isoDay = value => {
+  const day = String(value || '').slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : '';
+};
+const isoStamp = (date, time) => {
+  const day = isoDay(date);
+  return day && /^([01]\d|2[0-3]):[0-5]\d$/.test(String(time || '')) ? `${day}T${time}` : '';
+};
 const documentaryTargets = payload =>
   payload.patches.filter(target => {
     const cudyr = target.fields?.evaluationScores?.cudyr;
@@ -153,17 +161,14 @@ const assertDocumentaryCudyrAuthority = async ({
       reject();
     // A readmission outside the evaluated night is not an ambiguity: it began after that census
     // day, or ended before this episode began. Missing dates stay ambiguous.
-    const outsideNight = p =>
-      p.clinicalEpisodeId !== target.clinicalEpisodeId &&
-      (String(p.admissionDate || '').slice(0, 10) > payload.date ||
-        Boolean(
-          p.movementDate &&
-          p.time &&
-          patient.admissionDate &&
-          patient.admissionTime &&
-          `${String(p.movementDate).slice(0, 10)}T${p.time}` <
-            `${String(patient.admissionDate).slice(0, 10)}T${patient.admissionTime}`
-        ));
+    const outsideNight = p => {
+      if (p.clinicalEpisodeId === target.clinicalEpisodeId) return false;
+      const admitted = isoDay(p.admissionDate);
+      if (admitted && admitted > payload.date) return true;
+      const ended = isoStamp(p.movementDate, p.time);
+      const began = isoStamp(patient.admissionDate, patient.admissionTime);
+      return Boolean(ended && began && ended < began);
+    };
     const sameDocument = context
       .flatMap(identities)
       .filter(p => documentKey(p.rut) === documentKey(patient.rut) && !outsideNight(p));
