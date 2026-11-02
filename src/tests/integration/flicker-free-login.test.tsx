@@ -23,6 +23,11 @@ vi.mock('@/features/auth/components/LoginPage', () => ({
   ),
 }));
 
+// App imports the shell statically; its runtime effects belong to their own tests, not to login.
+vi.mock('@/app-shell/runtime/AuthenticatedAppShell', () => ({
+  AuthenticatedAppShell: () => <div data-testid="authenticated-app-shell" />,
+}));
+
 vi.mock('./setup', () => ({
   render: (ui: ReactNode) => render(ui),
 }));
