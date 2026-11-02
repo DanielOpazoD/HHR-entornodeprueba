@@ -21,6 +21,14 @@ const uid = 'synthetic-login-account';
 const email = `${uid}@accounts.hhr.invalid`;
 const input = { rut, password: 'Synthetic1', apiKey: 'synthetic-key' };
 
+const verifiedSession = () => ({
+  uid,
+  token: {
+    hhrAccountVersion: 1,
+    auth_time: Date.parse('2026-10-20T03:00:00Z') / 1000,
+    firebase: { sign_in_provider: 'password' },
+  },
+});
 const setup = () => {
   const f = accountFixture();
   const indexPath = `${INDEX}/${digest(normalizeRut(rut))}`;
@@ -60,7 +68,7 @@ const setup = () => {
   };
   const passwordVerifier = vi.fn(async () => {
     events.push('provider');
-    return uid;
+    return verifiedSession();
   });
   const credentials = createAccountCredentials({ ...f, firestore, passwordVerifier });
   return {
@@ -80,6 +88,8 @@ describe('RUT sign-in reads without permission caching', () => {
     const f = setup();
     await expect(f.credentials.signInWithRut(input, f.context)).resolves.toEqual({
       credentialEmail: email,
+      uid,
+      role: 'nurse_hospital',
     });
     expect(f.batchReads).toEqual([
       [
@@ -94,6 +104,7 @@ describe('RUT sign-in reads without permission caching', () => {
       email,
       password: input.password,
       apiKey: input.apiKey,
+      returnVerifiedSession: true,
     });
     expect(f.auth.setCustomUserClaims).not.toHaveBeenCalled();
     expect(f.auth.updateUser).not.toHaveBeenCalled();
@@ -107,12 +118,50 @@ describe('RUT sign-in reads without permission caching', () => {
     const f = setup();
     f.passwordVerifier.mockImplementationOnce(async () => {
       f.documents.set(f.accessPath, { ...f.documents.get(f.accessPath), ...changed });
-      return uid;
+      return verifiedSession();
     });
     await expect(f.credentials.signInWithRut(input, f.context)).rejects.toMatchObject({
       code: 'permission-denied',
     });
     expect(f.auth.setCustomUserClaims).not.toHaveBeenCalled();
+  });
+
+  it.each(['pending', 'retired'])('never returns a role for a %s account', async status => {
+    const f = setup();
+    f.documents.set(f.accessPath, { status, version: 1, role: 'admin' });
+    await expect(f.credentials.signInWithRut(input, f.context)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+  });
+
+  it.each(['admin', 'doctor_hospital', 'nurse_hospital'])(
+    'returns the current active role %s without another read',
+    async role => {
+      const f = setup();
+      f.documents.set(f.accessPath, { status: 'active', version: 1, role });
+      await expect(f.credentials.signInWithRut(input, f.context)).resolves.toEqual({
+        credentialEmail: email,
+        uid,
+        role,
+      });
+      expect(f.events).toEqual(['provider', `read:${f.accessPath}`]);
+    }
+  );
+
+  it.each([
+    { hhrAccountVersion: 2 },
+    { auth_time: Date.parse('2026-10-19T03:00:00Z') / 1000 },
+    { firebase: { sign_in_provider: 'google.com' } },
+  ])('uses the same session authority as checkUserRole: %j', async tokenChange => {
+    const f = setup();
+    const verified = verifiedSession();
+    f.passwordVerifier.mockResolvedValueOnce({
+      ...verified,
+      token: { ...verified.token, ...tokenChange },
+    });
+    await expect(f.credentials.signInWithRut(input, f.context)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
   });
 
   it('rechecks access on the next login instead of reusing the previous active result', async () => {

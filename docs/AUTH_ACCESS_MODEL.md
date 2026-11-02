@@ -179,6 +179,27 @@ Puntos clave:
 - si aparece un alias legacy de rol en `config/roles`, backend y Gestión de Roles lo recanonizan a `viewer`
 - Gestión de Roles además intenta resincronizar el custom claim del usuario afectado cuando detecta esa recanonización
 
+### Rol confirmado en el ingreso por RUT (decisión aprobada, 02-11-2026)
+
+`signInWithRut` devuelve `uid`, `credentialEmail` y `role` para una cuenta activa.
+Usa el token que ya verificó al comprobar la contraseña y el documento de acceso
+ya leído: la misma función de autoridad que `resolveIndividualAccountRole` comprueba
+estado, versión, proveedor, bloqueo de credenciales y plazo de sesión, sin otra lectura.
+Una cuenta pendiente solo puede recibir el flujo de establecimiento de clave; una
+cuenta retirada no recibe acceso ni rol.
+
+El cliente espera el usuario Firebase y exige coincidencia de UID y correo con esa
+respuesta antes de usar el rol. La respuesta queda ligada al intento vigente, tanto
+si primero llega el observador como si primero termina el SDK. Ese ingreso comparte
+la confirmación con el monitor mediante la ventana existente de diez segundos y
+no llama `checkUserRole`. Cancelar, cerrar o reemplazar la sesión invalida el intento.
+El rol confirmado queda recordado para la misma cuenta según el contrato de F5.
+
+Una respuesta antigua sin rol o sin identidad suficiente usa la consulta habitual.
+Servidor nuevo con cliente antiguo y cliente nuevo con servidor antiguo mantienen
+un camino válido: los campos añadidos son compatibles y la confirmación en el
+siguiente F5 sigue consultando al servidor. Google conserva su flujo.
+
 ### Rol confirmado al recargar (decisión aprobada del responsable, 02-11-2026)
 
 Con Firebase ya restaurado, F5 puede admitir el último rol confirmado por el servidor

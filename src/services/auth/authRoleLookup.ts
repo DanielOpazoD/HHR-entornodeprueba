@@ -42,7 +42,18 @@ const confirmedRoleSchema = z.object({
   expiresAt: z.number().finite(),
 });
 
+const credentialRoleSchema = z.object({
+  uid: z.string().min(1),
+  credentialEmail: z.string().min(1),
+  role: z.string().refine(isGeneralLoginRole),
+});
+let pendingCredentialRole: {
+  response: z.infer<typeof credentialRoleSchema>;
+  isCurrent: () => boolean;
+} | null = null;
+
 export const clearConfirmedAuthRole = (): void => {
+  pendingCredentialRole = null;
   try {
     sessionStorage.removeItem(CONFIRMED_AUTH_ROLE_KEY);
   } catch {
@@ -180,6 +191,12 @@ export const createAuthRoleLookupService = (
   };
 
   return {
+    rememberSignInRole: (email: string, role: UserRole): void => {
+      recentLookups.set(normalizeEmail(email), {
+        role,
+        expiresAt: Date.now() + RECENT_ROLE_LOOKUP_REUSE_MS,
+      });
+    },
     clearRecentLookups: (): void => {
       lookupGeneration += 1;
       recentLookups.clear();
@@ -210,4 +227,40 @@ export const createAuthRoleLookupService = (
 
 const authRoleLookupService = createAuthRoleLookupService();
 export const getDynamicRoleForEmail = authRoleLookupService.getDynamicRoleForEmail;
-export const clearRecentAuthRoleLookups = authRoleLookupService.clearRecentLookups;
+export const clearRecentAuthRoleLookups = (): void => {
+  pendingCredentialRole = null;
+  authRoleLookupService.clearRecentLookups();
+};
+
+/** Scope the callable answer to the password sign-in that is about to materialize. */
+export const prepareCredentialSignInRole = (
+  response: unknown,
+  isCurrent: () => boolean
+): (() => void) => {
+  const parsed = credentialRoleSchema.safeParse(response);
+  if (!parsed.success || parsed.data.credentialEmail !== `${parsed.data.uid}@accounts.hhr.invalid`)
+    return () => {};
+  const pending = {
+    response: parsed.data,
+    isCurrent,
+  };
+  pendingCredentialRole = pending;
+  return () => {
+    if (pendingCredentialRole === pending) pendingCredentialRole = null;
+  };
+};
+
+/** Both the observer and SDK completion must validate the resulting Firebase account. */
+export const getCredentialSignInRole = (user: Pick<User, 'uid' | 'email'>): UserRole | null => {
+  const pending = pendingCredentialRole;
+  if (!pending || !pending.isCurrent()) return null;
+  const { response } = pending;
+  if (
+    user.uid !== response.uid ||
+    normalizeEmail(user.email || '') !== response.credentialEmail ||
+    !isGeneralLoginRole(response.role)
+  )
+    return null;
+  authRoleLookupService.rememberSignInRole(response.credentialEmail, response.role);
+  return response.role;
+};

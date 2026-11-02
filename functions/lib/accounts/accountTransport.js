@@ -37,7 +37,14 @@ const rateLimit = async (firestore, context, key, readRef) => {
   return result.readSnapshot;
 };
 
-const verifyPassword = async ({ auth, email, password, apiKey, fetchImpl = fetch }) => {
+const verifyPassword = async ({
+  auth,
+  email,
+  password,
+  apiKey,
+  fetchImpl = fetch,
+  returnVerifiedSession = false,
+}) => {
   if (
     typeof password !== 'string' ||
     password.length > 128 ||
@@ -66,7 +73,7 @@ const verifyPassword = async ({ auth, email, password, apiKey, fetchImpl = fetch
     // A client API key is public, but never an authority for project/UID selection.
     const verified = await auth.verifyIdToken(result.idToken, true);
     if (verified.email !== email) throw genericFailure();
-    return verified.uid;
+    return returnVerifiedSession ? { uid: verified.uid, token: verified } : verified.uid;
   } catch {
     // Do not propagate SDK/fetch errors: they can contain credentials or tokens.
     throw genericFailure();
