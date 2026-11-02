@@ -608,7 +608,7 @@ construido. Conserva su envelope, validación de entrada, contexto, CORS y error
 no introduce otro verificador de credenciales. La cuenta de servicio se declara
 como `${resolveFirebaseProjectId()}@appspot.gserviceaccount.com`, conservando la
 identidad de ejecución de Gen1 en vez de heredar la cuenta por defecto de Gen2.
-Santiago usa 1 GiB y 1 CPU, porque verificar la clave y arrancar son trabajo de CPU, concurrencia 1,
+Santiago mantiene 256 MiB, CPU equivalente Gen1 (`gcf_gen1`), concurrencia 1,
 mínimo 0, máximo 10 instancias y 60 segundos de timeout.
 
 Si la ruta regional no entrega una respuesta utilizable, el cliente repite el

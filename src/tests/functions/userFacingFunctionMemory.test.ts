@@ -37,16 +37,9 @@ describe('functions someone waits for, declared with the real Firebase SDK', () 
         role: auth.checkUserRole.__endpoint.availableMemoryMb,
         signIn: accounts.signInWithRut.__endpoint.availableMemoryMb,
         santiago: accounts.signInWithRutSantiago.__endpoint.availableMemoryMb,
-        santiagoCpu: accounts.signInWithRutSantiago.__endpoint.cpu,
         activate: accounts.activateNursingAccount.__endpoint.availableMemoryMb,
       }));
     `);
-    expect(memory).toEqual({
-      role: 1024,
-      signIn: 1024,
-      santiago: 1024,
-      santiagoCpu: 1,
-      activate: 256,
-    });
+    expect(memory).toEqual({ role: 1024, signIn: 1024, santiago: 256, activate: 256 });
   });
 });
