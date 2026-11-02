@@ -121,7 +121,7 @@ Firebase, límite de 60 segundos y errores públicos genéricos.
 Gen2 en `southamerica-west1`; no implementa otra ruta de validación de cuenta.
 Mantiene envelope de datos/respuesta, CORS/preflight, contexto de autorización,
 rechazo de entrada inválida y errores `HttpsError`. La cuenta de servicio Appspot
-del proyecto es explícita; memoria 256 MiB, CPU `gcf_gen1`, concurrencia 1,
+del proyecto es explícita; memoria 1 GiB, 1 CPU, concurrencia 1,
 mínimo 0, máximo 10 instancias y timeout de 60 segundos. El transporte invocable
 no reemplaza la validación de credenciales y estado de la cuenta.
 
