@@ -430,10 +430,22 @@ test.describe('Auth login resilience matrix', () => {
       });
       await warmup.goto('/census?date=2026-02-20');
       await expect(warmup.getByTestId('census-table')).toBeVisible({ timeout: 15000 });
+      // indexedDB.databases() can list HangaRoaDB while its creation is still uncommitted, and
+      // closing the page then rolls it back. An open without a version waits for that creation.
       await expect
         .poll(() =>
-          warmup.evaluate(async () =>
-            (await indexedDB.databases()).some(db => db.name === 'HangaRoaDB')
+          warmup.evaluate(
+            () =>
+              new Promise<boolean>(resolve => {
+                const request = indexedDB.open('HangaRoaDB');
+                request.onupgradeneeded = () => request.transaction?.abort();
+                request.onerror = () => resolve(false);
+                request.onsuccess = () => {
+                  const ready = request.result.objectStoreNames.contains('syncQueue');
+                  request.result.close();
+                  resolve(ready);
+                };
+              })
           )
         )
         .toBe(true);
