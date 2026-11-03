@@ -1374,6 +1374,153 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     await expect(viewer.getByRole('button', { name: 'Lectura HU', exact: true })).toBeEnabled();
   });
 
+  test.describe('on a high-density display', () => {
+    test.use({ deviceScaleFactor: 2 });
+    test('measures the dragged MPR distance even after a click left a pending line', async ({
+      page,
+    }) => {
+      await setup(page);
+      await page.evaluate(() => {
+        const cameras: Record<string, { parallelScale: number }> = {};
+        Object.assign(window, { syntheticMprCameras: cameras, syntheticToolClicks: 0 });
+        document.addEventListener(
+          'CORNERSTONE_CAMERA_MODIFIED',
+          event => {
+            const detail = (event as CustomEvent).detail;
+            if (detail.viewportId.includes('-mpr-'))
+              cameras[detail.viewportId.slice(-1)] = structuredClone(detail.camera);
+          },
+          true
+        );
+        document.addEventListener(
+          'CORNERSTONE_TOOLS_MOUSE_CLICK',
+          () => {
+            (window as unknown as { syntheticToolClicks: number }).syntheticToolClicks++;
+          },
+          true
+        );
+      });
+      const editor = await openSalvador(page);
+      await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+      await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+      const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+      const ready = () =>
+        expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+          timeout: 60000,
+        });
+      await ready();
+      await viewer.getByRole('button', { name: 'MPR', exact: true }).click();
+      await ready();
+      await viewer.getByRole('button', { name: 'Distancia', exact: true }).click();
+      const panes = viewer.locator('.dicom-canvas');
+      // Millimetre offsets (right, up) from a plane's centre, mapped with the plane's camera.
+      const at = async (plane: number, [right, up]: [number, number]) => {
+        const box = (await panes.nth(plane).boundingBox())!;
+        const scale = await page.evaluate(
+          index =>
+            (
+              window as unknown as {
+                syntheticMprCameras: Record<string, { parallelScale: number }>;
+              }
+            ).syntheticMprCameras[index].parallelScale,
+          String(plane)
+        );
+        const mmPerPixel = (2 * scale) / box.height;
+        return {
+          x: Math.round(box.x + box.width / 2 + right / mmPerPixel),
+          y: Math.round(box.y + box.height / 2 - up / mmPerPixel),
+        };
+      };
+      // Cornerstone holds a click for 400 ms to tell it from a double click.
+      const click = async (plane: number, offset: [number, number]) => {
+        const clicks = () =>
+          page.evaluate(
+            () => (window as unknown as { syntheticToolClicks: number }).syntheticToolClicks
+          );
+        const before = await clicks();
+        const point = await at(plane, offset);
+        await page.mouse.click(point.x, point.y);
+        await expect.poll(clicks).toBe(before + 1);
+        return point;
+      };
+      const drag = async (plane: number, from: [number, number], to: [number, number]) => {
+        const [a, b] = [await at(plane, from), await at(plane, to)];
+        await page.mouse.move(a.x, a.y);
+        await page.mouse.down();
+        await page.mouse.move(b.x, b.y, { steps: 12 });
+        await page.mouse.up();
+        return [a, b] as const;
+      };
+      // The distance line, without the reference lines or the dashed link to its label.
+      const drawn = (plane: number) =>
+        panes.nth(plane).evaluate(element => {
+          const svg = element.querySelector('svg.svg-layer')!;
+          const origin = svg.getBoundingClientRect();
+          const lines = [...svg.querySelectorAll('line')].filter(
+            line =>
+              !line.getAttribute('stroke-dasharray') &&
+              !['#fb7185', '#4ade80', '#60a5fa'].includes(line.getAttribute('stroke') ?? '')
+          );
+          const value = (name: string) => Number(lines[0].getAttribute(name));
+          return {
+            lines: lines.length,
+            start: lines[0] && { x: origin.left + value('x1'), y: origin.top + value('y1') },
+            end: lines[0] && { x: origin.left + value('x2'), y: origin.top + value('y2') },
+            mm: Number(svg.textContent?.match(/(\d+(?:\.\d+)?) mm/)?.[1]),
+          };
+        });
+      const expectMeasured = async (
+        plane: number,
+        [a, b]: readonly [{ x: number; y: number }, { x: number; y: number }],
+        millimetres: number
+      ) => {
+        await expect.poll(async () => (await drawn(plane)).lines).toBe(1);
+        // Cornerstone throttles the label, so it can show an intermediate length for 100 ms.
+        await expect
+          .poll(async () => Math.abs((await drawn(plane)).mm - millimetres))
+          .toBeLessThan(0.3);
+        const line = await drawn(plane);
+        expect(Math.hypot(line.start.x - a.x, line.start.y - a.y)).toBeLessThanOrEqual(2);
+        expect(Math.hypot(line.end.x - b.x, line.end.y - b.y)).toBeLessThanOrEqual(2);
+      };
+      const clear = async () => {
+        await viewer.getByRole('button', { name: 'Borrar medidas' }).click();
+        for (const plane of [0, 1, 2])
+          await expect.poll(async () => (await drawn(plane)).lines).toBe(0);
+      };
+
+      // Offsets are physical, so each distance is the hypotenuse of its millimetre offsets.
+      await expectMeasured(0, await drag(0, [-12, -8], [6, 10]), Math.hypot(18, 18));
+      await clear();
+      // A click on a plane leaves Cornerstone's two-click line pending. The next drag must
+      // still measure from where it was pressed, on its own plane, and leave no other line.
+      await click(0, [-18, 14]);
+      await expectMeasured(0, await drag(0, [-10, 6], [14, -10]), Math.hypot(24, 16));
+      await clear();
+      await click(0, [16, 12]);
+      await expectMeasured(1, await drag(1, [-12, 8], [10, -6]), Math.hypot(22, 14));
+      expect((await drawn(0)).lines).toBe(0);
+      await clear();
+      // Two clicks still measure between them.
+      const first = await click(0, [-14, -12]);
+      const second = await click(0, [10, 4]);
+      await expectMeasured(0, [first, second], Math.hypot(24, 16));
+      await clear();
+      await viewer.getByRole('button', { name: 'Ampliar Sagital', exact: true }).click();
+      await expect
+        .poll(() =>
+          panes.nth(2).evaluate(element => {
+            const canvas = element.querySelector('canvas')!;
+            return Math.abs(canvas.width - canvas.clientWidth * devicePixelRatio) <= 1;
+          })
+        )
+        .toBe(true);
+      await click(2, [-20, 12]);
+      await expectMeasured(2, await drag(2, [-16, 10], [18, -8]), Math.hypot(34, 18));
+      await viewer.screenshot({ path: test.info().outputPath('synthetic-mpr-distance.png') });
+    });
+  });
+
   test('links MPR coordinates and renders reversible 3D tissue controls', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await setup(page);
