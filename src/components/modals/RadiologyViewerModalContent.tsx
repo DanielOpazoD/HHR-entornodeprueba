@@ -17,6 +17,7 @@ import {
   buildRadiologyResultsEmptyMessage,
   countMMRADExamsForModality,
   hasMMRADStructuredReport,
+  resolveMMRADExternalViewerLabel,
   shouldHideMMRADStatusBadge,
 } from '@/components/modals/controllers/radiologyViewerContentController';
 
@@ -293,7 +294,7 @@ const RadiologyExamCard = ({
             className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-[11px] font-medium text-violet-700 transition-colors hover:bg-violet-100"
           >
             <Monitor size={12} />
-            Visualizador DICOM HTML5
+            {resolveMMRADExternalViewerLabel(exam.dicom_url)}
           </a>
         )}
         {hasStructuredReport && (
