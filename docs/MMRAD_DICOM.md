@@ -155,10 +155,9 @@ región del sitio.
 sin comprimir de 23 a 25 MB (Explicit VR Little Endian). La compresión genérica apenas las reduce
 (97–98 %). El endpoint WADO de Universitas ignora `Range` y `transferSyntax`, y no admite CORS. Una
 respuesta normal de Netlify lleva como máximo unos 4,5 MB binarios, y una en streaming, 20 MB. Por eso
-la función responde 413 con `code: 'too-large'` y el tamaño cuando MMRAD lo declara. El visor lo dice
-con esas palabras y remite al botón «MMRAD» (Visualizador Universitas). Los TC (unos 0,5 MB por
-imagen) no se ven afectados. Pendiente después del 08-11, con aprobación del responsable: traer los
-originales grandes desde una función de Firebase en Santiago, que admite respuestas de 32 MB.
+`mmrad-dicom` responde 413 con `code: 'too-large'` y el tamaño cuando MMRAD lo declara, y el visor
+pide entonces ese mismo original a la función de Firebase en Santiago (ver «Radiografías completas
+desde Santiago»). Los TC (unos 0,5 MB por imagen) no pasan por ella.
 
 Los HAR privados suministrados permitieron reconocer dos flujos: `examenZip`
 prepara un archivo ZIP; el visor enumera originales con SockJS/DDP
@@ -199,10 +198,47 @@ Para un `403 Origin not allowed` en un Deploy Preview, aplicar el
 [runbook de orígenes de Functions](CI_GATES_AND_FAILURE_RUNBOOKS.md#functions-preview-rechazado-por-origen).
 
 El servidor limita a 3,5 MB cada original para respetar el máximo de respuesta
-serverless, a 100 series/8000 instancias los metadatos y a 25 s su consulta. Las
-cuotas de metadatos (10/min) e imágenes (1500/min) son independientes de la búsqueda
-RIS existente. Las respuestas tienen `no-store`; no se registran identificadores,
-capacidades, cookies, originales ni metadatos clínicos en telemetría.
+serverless (los mayores, hasta 30 MB, llegan desde Santiago), a 100 series/8000
+instancias los metadatos y a 25 s su consulta. Las cuotas de metadatos (10/min) e
+imágenes (1500/min) son independientes de la búsqueda RIS existente. Las respuestas
+tienen `no-store`; no se registran identificadores, capacidades, cookies, originales
+ni metadatos clínicos en telemetría.
+
+### Radiografías completas desde Santiago (desde 2026-11-03)
+
+A pedido del responsable, las radiografías se ven completas en el visor de HHR. Cloud Run admite
+respuestas de hasta 32 MiB y Santiago llega a `visorammym.mmrad.cl`.
+
+- **Función:** `mmradDicomSantiago`, HTTP de segunda generación en `southamerica-west1`
+  (`functions/lib/mmrad/mmradDicomSantiagoFunction.js`). URL:
+  `https://southamerica-west1-<proyecto>.cloudfunctions.net/mmradDicomSantiago`, que la CSP ya admite
+  (`https://*.cloudfunctions.net`). Cuenta de servicio Appspot explícita, 1 GiB, 1 CPU, 4 solicitudes
+  a la vez, 0 a 10 instancias y 180 s.
+- **Qué recibe:** `POST {ticket}` con el Bearer Firebase de la sesión. Verifica el token con el Admin
+  SDK y exige los mismos roles que `mmrad-search`, resueltos con la misma lógica que `checkUserRole`.
+  Solo admite orígenes de HHR (`hhr-hospitalizados.app`, `testinghhr.netlify.app`,
+  `hhr-entorno-prueba.netlify.app` y sus deploy previews). Cuota por usuario: 60 originales por
+  minuto en cada instancia.
+- **Qué acepta:** solo la capacidad de instancia que emitió `mmrad-dicom` para Universitas, del mismo
+  usuario y vigente. Firma y sesión sellada usan las mismas claves derivadas de `MMRAD_PASSWORD`
+  (`functions/lib/mmrad/mmradInstanceAccess.js`); `mmradDicomTicketParity.test.ts` comprueba que lo
+  que emite Netlify se verifica y se abre igual en Firebase, y que lo alterado, vencido, ajeno o del
+  visor anterior se rechaza. Una capacidad vencida y auténtica responde `403` con
+  `code: 'ticket-expired'`, como en Netlify, y el visor la renueva en silencio.
+- **Qué trae:** solo la URL WADO fija del original en `visorammym.mmrad.cl`, con su cookie de sesión,
+  sin redirecciones y con 60 s de plazo. Lee como máximo 30 MB, exige la marca `DICM` y responde
+  `application/dicom` con `no-store`. No registra capacidades, cookies, sesiones, UID ni excepciones.
+- **En el visor:** ante el 413 del puente, `mmradDicomService` pide el original a Santiago con 150 s
+  de plazo y el mismo límite de lectura. Un fallo transitorio (429, 5xx, corte de la descarga) se
+  reintenta como cualquier corte. Si Santiago rechaza el original o no responde (función ausente, sin
+  CORS o sin permiso de invocación), se muestra el mensaje de siempre que remite al botón «MMRAD». La
+  precarga no descarga un original que no cabe en su espacio. La verificación de `PatientID` y los
+  tres UID de cada original sigue igual.
+- **Configuración que exige:** el secreto `MMRAD_PASSWORD` en Secret Manager del proyecto, con el
+  mismo valor exacto que en Netlify (sin salto de línea final), acceso de lectura para la cuenta de
+  servicio Appspot y permiso de metadatos para la cuenta que despliega. Sin el secreto, el despliegue
+  de Functions falla. Al crear la función, el permiso público de invocación lo configura un
+  administrador, como en otros endpoints nuevos (ver el encabezado de `deploy-functions.yml`).
 
 ### Sesión RIS reutilizada (desde 2026-11-03)
 
@@ -247,6 +283,9 @@ llevan ese RUT, y el RIS solo encuentra un ID exacto. Por decisión del responsa
 ## Verificación y continuidad
 
 Pruebas: `src/tests/netlify/mmradDicom.test.ts`,
+`src/tests/functions/mmradDicomSantiagoFunction.test.ts`,
+`src/tests/functions/mmradDicomTicketParity.test.ts`,
+`src/tests/services/radiology/mmradDicomLargeOriginal.test.ts`,
 `src/tests/services/radiology/dicomGeometry.test.ts`,
 `src/tests/services/radiology/dicomResampling.test.ts`,
 `src/tests/services/radiology/dicomVolume.test.ts`,

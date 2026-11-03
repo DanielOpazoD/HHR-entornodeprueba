@@ -7,6 +7,11 @@ import {
 } from './dicomLoadState';
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
 import { normalizeDicomPatientId, type DicomStudy } from './dicomTypes';
+import {
+  LARGE_DICOM_ORIGINAL_TIMEOUT_MS,
+  MAX_LARGE_DICOM_ORIGINAL_BYTES,
+  requestLargeDicomOriginal,
+} from './mmradDicomSantiago';
 
 const request = async (body: object, signal: AbortSignal): Promise<Response> => {
   const auth = await resolveCurrentUserAuthHeaders();
@@ -77,48 +82,105 @@ export const fetchDicomStudy = async (
   return study;
 };
 
-export const fetchDicomInstance = async (
-  ticket: string,
+type InstanceTiming = (value: Partial<DicomLoadState['timings']>, bytes?: number) => void;
+
+/** Reads one instance answer within its own time limit and reports its phases. */
+const readInstance = async (
+  send: (signal: AbortSignal) => Promise<Response>,
+  timeoutMs: number,
   signal: AbortSignal,
-  timing?: (value: Partial<DicomLoadState['timings']>, bytes?: number) => void,
+  timing?: InstanceTiming,
   maxBytes?: number
 ): Promise<Uint8Array> => {
   const start = performance.now();
+  const attemptSignal = AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]);
+  const response = await send(attemptSignal);
+  const headers = performance.now();
+  const bytes = await readDicomBytes(response, attemptSignal, maxBytes);
+  const serverTiming = response.headers.get('server-timing') || '';
+  const duration = (name: string) => {
+    const match = new RegExp(`(?:^|,\\s*)${name};dur=([0-9.]+)(?:,|$)`).exec(serverTiming);
+    const value = match ? Number(match[1]) : NaN;
+    return Number.isFinite(value) && value >= 0 ? value : undefined;
+  };
+  const upstream = duration('upstream');
+  const serverAuth = duration('auth');
+  const upstreamHeaders = duration('upstream_headers');
+  const upstreamBody = duration('upstream_body');
+  timing?.(
+    {
+      headers: headers - start,
+      transfer: performance.now() - headers,
+      ...(upstream !== undefined ? { upstream, upstreamSamples: 1 } : {}),
+      ...(serverAuth !== undefined && upstreamHeaders !== undefined && upstreamBody !== undefined
+        ? { serverAuth, upstreamHeaders, upstreamBody, serverSamples: 1 }
+        : {}),
+    },
+    bytes.byteLength
+  );
+  return bytes;
+};
+
+const isTransientTransfer = (error: unknown): boolean => {
+  const name = error && typeof error === 'object' && 'name' in error ? error.name : '';
+  return (
+    error instanceof TypeError ||
+    (typeof name === 'string' && ['TimeoutError', 'AbortError'].includes(name))
+  );
+};
+
+/**
+ * An original the bridge cannot carry comes from the Santiago function instead, with the same
+ * retry, renewal and cancellation. If that fails too, the bridge's too-large message stays.
+ */
+const fetchLargeOriginal = async (
+  ticket: string,
+  tooLarge: DicomOriginalTooLargeError,
+  signal: AbortSignal,
+  timing?: InstanceTiming,
+  maxBytes?: number
+): Promise<Uint8Array> => {
+  const limit = Math.min(
+    maxBytes ?? MAX_LARGE_DICOM_ORIGINAL_BYTES,
+    MAX_LARGE_DICOM_ORIGINAL_BYTES
+  );
+  // A size MMRAD already declared beyond the limit (or the prefetch room) is not downloaded.
+  if (tooLarge.bytes !== undefined && tooLarge.bytes > limit) throw tooLarge;
   try {
-    const attemptSignal = AbortSignal.any([signal, AbortSignal.timeout(30_000)]);
-    const response = await request({ action: 'instance', ticket }, attemptSignal);
-    const headers = performance.now();
-    const bytes = await readDicomBytes(response, attemptSignal, maxBytes);
-    const serverTiming = response.headers.get('server-timing') || '';
-    const duration = (name: string) => {
-      const match = new RegExp(`(?:^|,\\s*)${name};dur=([0-9.]+)(?:,|$)`).exec(serverTiming);
-      const value = match ? Number(match[1]) : NaN;
-      return Number.isFinite(value) && value >= 0 ? value : undefined;
-    };
-    const upstream = duration('upstream');
-    const serverAuth = duration('auth');
-    const upstreamHeaders = duration('upstream_headers');
-    const upstreamBody = duration('upstream_body');
-    timing?.(
-      {
-        headers: headers - start,
-        transfer: performance.now() - headers,
-        ...(upstream !== undefined ? { upstream, upstreamSamples: 1 } : {}),
-        ...(serverAuth !== undefined && upstreamHeaders !== undefined && upstreamBody !== undefined
-          ? { serverAuth, upstreamHeaders, upstreamBody, serverSamples: 1 }
-          : {}),
-      },
-      bytes.byteLength
+    return await readInstance(
+      attempt => requestLargeDicomOriginal(ticket, tooLarge, attempt),
+      LARGE_DICOM_ORIGINAL_TIMEOUT_MS,
+      signal,
+      timing,
+      limit
     );
-    return bytes;
   } catch (error) {
     signal.throwIfAborted();
-    const name = error && typeof error === 'object' && 'name' in error ? error.name : '';
-    if (
-      error instanceof TypeError ||
-      (typeof name === 'string' && ['TimeoutError', 'AbortError'].includes(name))
-    )
-      throw new DicomTransferError(true);
+    if (error instanceof DicomTransferError) throw error;
+    if (isTransientTransfer(error)) throw new DicomTransferError(true);
+    throw tooLarge;
+  }
+};
+
+export const fetchDicomInstance = async (
+  ticket: string,
+  signal: AbortSignal,
+  timing?: InstanceTiming,
+  maxBytes?: number
+): Promise<Uint8Array> => {
+  try {
+    return await readInstance(
+      attempt => request({ action: 'instance', ticket }, attempt),
+      30_000,
+      signal,
+      timing,
+      maxBytes
+    );
+  } catch (error) {
+    signal.throwIfAborted();
+    if (error instanceof DicomOriginalTooLargeError)
+      return fetchLargeOriginal(ticket, error, signal, timing, maxBytes);
+    if (isTransientTransfer(error)) throw new DicomTransferError(true);
     throw error;
   }
 };
