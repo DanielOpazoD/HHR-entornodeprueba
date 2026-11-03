@@ -201,6 +201,7 @@ describe('MMRAD Universitas viewer', () => {
         .fn()
         .mockResolvedValue({ token: { sub: 'synthetic-user' }, role: 'doctor_urgency' }),
       getFirebaseServer: vi.fn().mockReturnValue({ db: {} }),
+      verifyIdToken: vi.fn().mockResolvedValue({ sub: 'synthetic-user' }),
       loadVendorStudyMetadata: vi.fn(),
       loadUniversitasManifest: vi.fn().mockResolvedValue({ access: ACCESS, manifest: manifest() }),
     });
@@ -238,6 +239,7 @@ describe('MMRAD Universitas viewer', () => {
     const handler = createMMRADDicomHandler({
       authorizeRoleRequest: authorize,
       getFirebaseServer: vi.fn().mockReturnValue({ db: {} }),
+      verifyIdToken: vi.fn().mockResolvedValue({ sub: 'synthetic-user' }),
       loadVendorStudyMetadata,
       loadUniversitasManifest,
     });

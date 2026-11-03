@@ -1,5 +1,9 @@
 import { getFirebaseServer } from './lib/firebase-server';
-import { authorizeRoleRequest, extractBearerToken } from './lib/firebase-auth';
+import {
+  authorizeRoleRequest,
+  extractBearerToken,
+  verifyFirebaseIdToken,
+} from './lib/firebase-auth';
 import {
   buildCorsHeaders,
   buildJsonResponse,
@@ -34,6 +38,7 @@ import { isSameRutWithOtherVerifier, isValidRut } from '../../src/utils/rutUtils
 
 interface Dependencies {
   authorizeRoleRequest: typeof authorizeRoleRequest;
+  verifyIdToken?: (token: string) => Promise<{ sub?: string }>;
   getFirebaseServer: typeof getFirebaseServer;
   loadVendorStudyMetadata: typeof loadVendorStudyMetadata;
   loadUniversitasManifest?: typeof loadUniversitasManifest;
@@ -72,16 +77,34 @@ export const createMMRADDicomHandler =
     if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed' });
     const authorization = getHeader(event.headers, 'authorization');
     const authStart = performance.now();
+    // Opening a study checks the role and issues signed, short-lived tickets bound to this user
+    // (at most 30 min; Universitas about 9). A slice then needs that same user's verified Firebase
+    // token, checked locally, but not the role again: that lookup is a call to `checkUserRole` in
+    // us-central1 of 330-500 ms, which a 227-slice series used to repeat 227 times.
+    const early =
+      event.body && event.body.length <= 6000 && !event.isBase64Encoded
+        ? parseJsonBody<Record<string, unknown>>(event.body)
+        : null;
+    const sliceRequest = Boolean(
+      early?.ok &&
+      early.value &&
+      typeof early.value === 'object' &&
+      early.value.action === 'instance'
+    );
     let subject: string;
     try {
-      extractBearerToken(authorization);
-      const user = await dependencies.authorizeRoleRequest(
-        dependencies.getFirebaseServer().db,
-        authorization,
-        MMRAD_ALLOWED_ROLES
-      );
-      if (!user.token.sub) throw new Error('Authentication required');
-      subject = user.token.sub;
+      const token = extractBearerToken(authorization);
+      const sub = sliceRequest
+        ? (await (dependencies.verifyIdToken ?? verifyFirebaseIdToken)(token)).sub
+        : (
+            await dependencies.authorizeRoleRequest(
+              dependencies.getFirebaseServer().db,
+              authorization,
+              MMRAD_ALLOWED_ROLES
+            )
+          ).token.sub;
+      if (!sub) throw new Error('Authentication required');
+      subject = sub;
     } catch (error) {
       return json(error instanceof Error && error.message.includes('Access denied') ? 403 : 401, {
         error: 'Se requiere una sesión con acceso a radiología.',
