@@ -91,6 +91,7 @@ for (const [request, factory] of [
   ['./lib/woundCareMobileUploadFunctions', 'createWoundCareMobileUploadFunctions'],
   ['./lib/documentScannerFunctions', 'createDocumentScannerFunctions'],
   ['./lib/medicalHandoffSpreadsheetFunctions', 'createMedicalHandoffSpreadsheetFunctions'],
+  ['./lib/mmrad/mmradDicomSantiagoFunction', 'createMmradDicomSantiagoFunction'],
 ]) {
   cache(request, { [factory]: () => ({}) });
 }

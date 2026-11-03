@@ -42,6 +42,8 @@ const { createAccountFunctions } = require('./lib/accounts/accountFunctions');
 
 const { createDailyRecordRestoreFunctions } = require('./lib/dailyRecordRestoreFunctions');
 
+const { createMmradDicomSantiagoFunction } = require('./lib/mmrad/mmradDicomSantiagoFunction');
+
 const authHelpers = createAuthHelpers({ auth, firestore });
 
 module.exports = {
@@ -121,6 +123,10 @@ module.exports = {
     resolvePatientOption: resolveUploadPatientOptionForExactDate,
   }),
   ...createMedicalHandoffSpreadsheetFunctions({
+    resolveRoleForEmail: authHelpers.resolveRoleForEmail,
+  }),
+  mmradDicomSantiago: createMmradDicomSantiagoFunction({
+    verifyIdToken: token => auth.verifyIdToken(token),
     resolveRoleForEmail: authHelpers.resolveRoleForEmail,
   }),
 };

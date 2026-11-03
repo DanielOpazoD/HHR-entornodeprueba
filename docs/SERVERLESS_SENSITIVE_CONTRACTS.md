@@ -25,6 +25,15 @@ ligada al usuario y al estudio/serie/SOP, con vencimiento y límite de 3,5 MB.
 Respuestas `no-store`, sin datos clínicos en logs o telemetría. Protocolo, cotas y
 pruebas: [MMRAD_DICOM.md](MMRAD_DICOM.md).
 
+`mmradDicomSantiago` (Firebase HTTP Gen2, `southamerica-west1`; `POST`, `OPTIONS`) trae
+los originales de más de 3,5 MB que `mmrad-dicom` no puede llevar, hasta 30 MB. Exige
+Bearer Firebase verificado con el Admin SDK, los mismos roles que `mmrad-dicom` con la
+lógica de `checkUserRole`, un origen HHR y una capacidad Universitas vigente del mismo
+usuario, firmada y sellada con `MMRAD_PASSWORD` (Secret Manager). Sólo consulta la URL
+WADO fija del visor; responde `400`, `401`, `403` (`ticket-expired` si venció), `405`,
+`413`, `422`, `429`, `502` o `503`, siempre `no-store` y sin registrar capacidades,
+cookies, sesiones, UID ni excepciones.
+
 - Toda Function sensible debe validar `Origin`.
 - Toda Function sensible debe validar método HTTP.
 - Toda Function sensible debe parsear JSON con helper compartido.

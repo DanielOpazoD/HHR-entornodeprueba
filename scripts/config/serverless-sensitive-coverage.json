@@ -9,6 +9,16 @@
       "testFiles": ["src/tests/netlify/mmradDicom.test.ts"]
     },
     {
+      "id": "mmrad_dicom_santiago",
+      "functionFile": "functions/lib/mmrad/mmradDicomSantiagoFunction.js",
+      "endpoint": "mmradDicomSantiago",
+      "testFiles": [
+        "src/tests/functions/mmradDicomSantiagoFunction.test.ts",
+        "src/tests/functions/mmradDicomTicketParity.test.ts",
+        "src/tests/services/radiology/mmradDicomLargeOriginal.test.ts"
+      ]
+    },
+    {
       "id": "cudyr_permanent_history",
       "functionFile": "functions/lib/cudyrHistoryFunctions.js",
       "endpoint": "archiveCudyrHistory",
