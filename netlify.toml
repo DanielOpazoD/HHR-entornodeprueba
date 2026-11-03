@@ -25,6 +25,9 @@
 [functions."mmrad-dicom"]
   region = "gru"
 
+[functions."mmrad-ris-probe-gru"]
+  region = "gru"
+
 # Public decorative data only, served same-origin without expanding connect-src.
 # Keep these exact routes above the SPA fallback. The renderer validates hashes and sizes.
 [[redirects]]
