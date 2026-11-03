@@ -10,13 +10,24 @@
   'use strict';
 
   const DAY_MS = 24 * 60 * 60 * 1000;
+  /*
+   * Measured 2026-11-03: two stays across Sept 6 lost their whole history, run after run, because
+   * Eloísa dropped the connection on one of its segments. A segment Eloísa does not serve is asked
+   * for in halves, down to single days, and a day it still does not serve is rebuilt like the
+   * skipped one. These limits keep an Eloísa that fails everything from multiplying the requests.
+   */
+  const MAX_SEGMENT_REQUESTS = 20;
+  const MAX_UNSERVED_DAYS = 3;
+  const unserved = result =>
+    !result.buffer && !result.fatal && !result.permanent && (result.status == null || result.status >= 500);
 
   const create = dependencies => {
-    const { fetchOfficialPdf, fetchWithTimeout, pdfLib, getJsPDF, dayAnnex } = dependencies || {};
+    const { fetchOfficialPdf, fetchWithTimeout, pdfLib, getJsPDF, dayAnnex, historySegments } = dependencies || {};
     if (
       typeof fetchOfficialPdf !== 'function' || typeof fetchWithTimeout !== 'function' ||
       !pdfLib || !pdfLib.PDFDocument || typeof getJsPDF !== 'function' ||
-      !dayAnnex || typeof dayAnnex.buildModel !== 'function' || typeof dayAnnex.render !== 'function'
+      !dayAnnex || typeof dayAnnex.buildModel !== 'function' || typeof dayAnnex.render !== 'function' ||
+      !historySegments || typeof historySegments.halves !== 'function' || typeof historySegments.dayOf !== 'function'
     ) {
       throw new Error('No se pudo inicializar la reconstrucción del historial.');
     }
@@ -94,25 +105,71 @@
       enc_id: item.encId, start_date: segment.start, end_date: segment.end,
     }, 'el informe historial de hospitalización');
 
+    /** The official pieces of a segment in time order: { buffer } or { unservedDay }, or a failure. */
+    const fetchSegment = async ({ info, item, segment, budget, keepAlive }) => {
+      if (budget.requests >= MAX_SEGMENT_REQUESTS) return { failure: budget.firstFailure };
+      budget.requests += 1;
+      keepAlive();
+      const result = await segmentPdf(info, item, segment);
+      if (result.buffer) return { pieces: [{ buffer: result.buffer }] };
+      if (!unserved(result)) return { failure: result };
+      budget.firstFailure = budget.firstFailure || result;
+      const halves = historySegments.halves(segment);
+      if (!halves) {
+        if (budget.unservedDays >= MAX_UNSERVED_DAYS) return { failure: budget.firstFailure };
+        budget.unservedDays += 1;
+        return { pieces: [{ unservedDay: historySegments.dayOf(segment.start) }] };
+      }
+      const pieces = [];
+      for (const half of halves) {
+        const part = await fetchSegment({ info, item, segment: half, budget, keepAlive });
+        if (part.failure) return part;
+        pieces.push(...part.pieces);
+      }
+      return { pieces };
+    };
+
     /**
      * Returns { buffer, days: [status] } or the failure of an official segment, which the caller
      * may retry. A failed daily summary or annex is reported in days[] instead of failing the file.
+     * keepAlive is called before each segment request, so a long split still shows progress.
      */
-    const reconstruct = async ({ info, item, split, patient, nowMs }) => {
-      const history = await readHistory({ info, encId: item.encId, earliestDay: split.skipped[0], nowMs });
+    const reconstruct = async ({ info, item, split, patient, nowMs, keepAlive = () => {} }) => {
+      // Read once, back to the earliest day that needs an annex.
+      let history = null;
+      let historyFrom = '';
+      const historyFor = async day => {
+        if (!history || day < historyFrom) {
+          historyFrom = day;
+          history = await readHistory({ info, encId: item.encId, earliestDay: day, nowMs });
+        }
+        return history;
+      };
+      const budget = { requests: 0, unservedDays: 0, firstFailure: null };
       const buffers = [];
       const days = [];
+      const addDay = async (day, extra) => {
+        const rebuilt = await reconstructDay({ info, item, day, history: await historyFor(day), patient, nowMs });
+        if (rebuilt.fatal) return rebuilt;
+        buffers.push(...rebuilt.buffers);
+        days.push({ ...rebuilt.status, ...extra });
+        return null;
+      };
       for (const part of split.parts) {
         if (part.segment) {
-          const result = await segmentPdf(info, item, part.segment);
-          if (!result.buffer) return result;
-          buffers.push(result.buffer);
+          const fetched = await fetchSegment({ info, item, segment: part.segment, budget, keepAlive });
+          if (fetched.failure) return fetched.failure;
+          for (const piece of fetched.pieces) {
+            if (piece.buffer) buffers.push(piece.buffer);
+            else {
+              const fatal = await addDay(piece.unservedDay, { unserved: true });
+              if (fatal) return fatal;
+            }
+          }
           continue;
         }
-        const day = await reconstructDay({ info, item, day: part.skippedDay, history, patient, nowMs });
-        if (day.fatal) return day;
-        buffers.push(...day.buffers);
-        days.push(day.status);
+        const fatal = await addDay(part.skippedDay, {});
+        if (fatal) return fatal;
       }
       if (buffers.length === 0) {
         return { permanent: true, error: `Eloísa no entregó nada para el ${split.skipped.join(' y ')} (cambio de hora)` };

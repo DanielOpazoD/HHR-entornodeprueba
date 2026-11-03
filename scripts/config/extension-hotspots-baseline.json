@@ -14,15 +14,15 @@
       "hotspots": {}
     },
     "audit-documents-runtime.js": {
-      "maxLines": 629,
+      "maxLines": 638,
       "hotspots": {}
     },
     "audit-history-reconstruction.js": {
-      "maxLines": 134,
+      "maxLines": 191,
       "hotspots": {}
     },
     "audit-history-segments.js": {
-      "maxLines": 96,
+      "maxLines": 112,
       "hotspots": {}
     },
     "background.js": {

@@ -343,6 +343,17 @@ paneles u otras rutas sin episodio abre directamente **Hospitalizados** y deja d
 del paciente actual. Los accesos contextuales de Indicaciones y Receta médica se mantienen solamente en
 la tabla de fármacos de Gestión de cuidados.
 
+### Tramos que Eloísa no entrega, por mitades (0.48.70)
+
+El 03-11, dos historiales de septiembre que cruzan el 06-09 no se descargaron en ninguna de cuatro
+corridas: Eloísa cortó la conexión («Failed to fetch») al pedir uno de los tramos alrededor del
+día del cambio de hora. Ahora un tramo que falla por conexión o por error del servidor se pide en
+mitades, hasta llegar a días sueltos. Un día que Eloísa sigue sin entregar se rehace igual que el
+06-09: con el Resumen diario oficial y un anexo HHR, y el resumen lo nombra «Eloísa no entregó su
+historial». Hay dos límites por intento: 20 pedidos de tramos y 3 días rehechos; si se superan, el
+documento queda como no descargado, igual que antes. Cada pedido repite el avance, para que HHR
+siga esperando.
+
 ### Cada campo del anexo con su propio reloj (0.48.69)
 
 El JSON del historial no usa una sola zona horaria. Lo medí campo por campo el 02-11 contra el

@@ -30,7 +30,7 @@ describe('audit download result', () => {
 
     expect(
       screen.getByText(
-        '1 con el día del cambio de hora desde el resumen diario y un anexo HHR no oficial'
+        '1 con días que Eloísa no genera, rehechos desde el resumen diario y un anexo HHR no oficial'
       )
     ).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Revisa 1 RUT con documentos faltantes');
