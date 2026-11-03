@@ -83,6 +83,28 @@ describe('protected MMRAD DICOM bridge', () => {
     expect(network.body).not.toContain('private');
   });
 
+  it('names an original too large for the bridge, with its size when MMRAD declares it', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockResolvedValueOnce(
+      new Response(new Uint8Array(16), { headers: { 'Content-Length': '24263704' } })
+    );
+    const declared = await handler()(event({ action: 'instance', ticket: ticket() }));
+    expect(declared.statusCode).toBe(413);
+    expect(JSON.parse(declared.body)).toMatchObject({ code: 'too-large', bytes: 24263704 });
+    fetchMock.mockResolvedValueOnce(new Response(new Uint8Array(3_600_000)));
+    const streamed = await handler()(event({ action: 'instance', ticket: ticket() }));
+    expect(streamed.statusCode).toBe(413);
+    expect(JSON.parse(streamed.body)).toEqual({
+      error: expect.stringContaining('3,5 MB'),
+      code: 'too-large',
+    });
+    fetchMock.mockResolvedValueOnce(new Response(new Uint8Array(200)));
+    const invalid = await handler()(event({ action: 'instance', ticket: ticket() }));
+    expect(invalid.statusCode).toBe(422);
+    expect(JSON.parse(invalid.body)).not.toHaveProperty('code');
+  });
+
   it('rejects foreign origins, missing auth, denied roles and invalid requests before accessing the vendor', async () => {
     const run = handler();
     expect(
