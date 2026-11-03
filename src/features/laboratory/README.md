@@ -212,3 +212,11 @@ Pruebas de carga reproducibles: 26 informes en transporte, interrupción entre l
 respuesta incompleta, cambio de búsqueda, 80 puntos sin pérdida y escalas decimales.
 Los tests existentes cubren números localizados, unidades, muestras, órdenes coincidentes,
 microbiología y paridad del parser. Ejecutar también `test:e2e:laboratory-smoke`.
+
+## Servidor remoto en Mac mini
+
+`VITE_SYSLAB_TRANSPORT=remote` selecciona explícitamente el servidor detrás de
+`syslab-proxy`; el estado del visor usa ese mismo transporte y no solicita un login de
+extensión. Sin esa opción se conserva la extensión actual. No hay cambio automático de
+transporte después de un error. La configuración y el rollback están en
+[el runbook Syslab](../../../docs/runbooks/laboratory-syslab-issues.md#puente-remoto-del-mac-mini).

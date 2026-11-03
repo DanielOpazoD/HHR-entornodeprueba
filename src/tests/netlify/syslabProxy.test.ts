@@ -31,8 +31,8 @@ describe('syslab-proxy', () => {
       maxAttempts: 1,
     });
     expect(resolveSyslabTelemetryOptions('search')).toEqual({
-      timeoutMs: 15_000,
-      maxAttempts: 3,
+      timeoutMs: 55_000,
+      maxAttempts: 1,
     });
   });
 
@@ -41,6 +41,7 @@ describe('syslab-proxy', () => {
     process.env = {
       ...originalEnv,
       SYSLAB_PROXY_URL: 'https://lab.example.com',
+      SYSLAB_API_TOKEN: 'gateway-token',
       URL: 'https://app.example.com',
       DEPLOY_PRIME_URL: '',
       DEPLOY_URL: '',
@@ -150,7 +151,7 @@ describe('syslab-proxy', () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
-      json: vi.fn().mockResolvedValue({ status: 'ok' }),
+      json: vi.fn().mockResolvedValue({ connected: true }),
     });
 
     const response = await handler({
@@ -162,7 +163,13 @@ describe('syslab-proxy', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       'https://lab.example.com/health',
-      expect.objectContaining({ method: 'GET' })
+      expect.objectContaining({
+        method: 'GET',
+        redirect: 'error',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer gateway-token',
+        }),
+      })
     );
     expect(response.statusCode).toBe(200);
     expect(response.body).toContain('"connected":true');
@@ -305,6 +312,29 @@ describe('syslab-proxy', () => {
     });
   });
 
+  it('fails closed when hosted proxy credentials are missing', async () => {
+    delete process.env.SYSLAB_API_TOKEN;
+    const handler = await loadHandler();
+    const response = await handler({
+      httpMethod: 'GET',
+      headers: { authorization: 'Bearer test' },
+      rawQuery: 'action=search&rut=11111111',
+    });
+    expect(response.statusCode).toBe(503);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('does not mistake an HTML tunnel page for a connected laboratory', async () => {
+    fetchMock.mockResolvedValue(new Response('<html>tunnel offline</html>', { status: 200 }));
+    const handler = await loadHandler();
+    const response = await handler({
+      httpMethod: 'GET',
+      headers: { authorization: 'Bearer test' },
+      rawQuery: 'action=health',
+    });
+    expect(JSON.parse(response.body)).toMatchObject({ connected: false });
+  });
+
   /* ── action=pdf ──────────────────────────────────────────────────────── */
 
   describe('action=pdf', () => {
@@ -326,7 +356,11 @@ describe('syslab-proxy', () => {
       const pdfBytes = Buffer.from('%PDF-1.4 fake content');
       fetchMock.mockResolvedValue({
         ok: true,
-        arrayBuffer: vi.fn().mockResolvedValue(pdfBytes.buffer),
+        arrayBuffer: vi
+          .fn()
+          .mockResolvedValue(
+            pdfBytes.buffer.slice(pdfBytes.byteOffset, pdfBytes.byteOffset + pdfBytes.byteLength)
+          ),
       });
 
       const response = await handler({

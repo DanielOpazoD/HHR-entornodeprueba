@@ -35,7 +35,7 @@ import { readSyslabDetailsInBatches, type SyslabDetailsOptions } from './syslabD
 const syslabLogger = createScopedLogger('syslabService');
 
 /** Default request timeout in milliseconds (30 seconds — Syslab scraping is slow). */
-const DEFAULT_TIMEOUT_MS = 30_000;
+const DEFAULT_TIMEOUT_MS = 55_000;
 
 /** Maximum number of retry attempts for transient network failures. */
 const MAX_RETRIES = 1;
@@ -83,6 +83,9 @@ const shouldSkipPlainViteLocalHealthCheck = (url: string): boolean =>
   isPlainViteLocalRuntime() &&
   isCrossOriginLocalhostUrl(url) &&
   import.meta.env.VITE_SYSLAB_ENABLE_DIRECT_LOCAL !== 'true';
+
+/** Select the Mac mini explicitly; never change transport because a clinical request failed. */
+export const usesRemoteSyslab = (): boolean => import.meta.env.VITE_SYSLAB_TRANSPORT === 'remote';
 
 const directWebTransportConfigured = (): boolean =>
   shouldUseNetlifyProxy() || Boolean(getSyslabBaseUrl());
@@ -186,8 +189,8 @@ const fetchWithRetry = async (
 };
 
 export const checkSyslabConnection = async (): Promise<SyslabConnectionStatus> => {
-  const extensionStatus = await requestSyslabExtensionStatus();
-  if (extensionStatus.bridgeAvailable) {
+  const extensionStatus = usesRemoteSyslab() ? null : await requestSyslabExtensionStatus();
+  if (extensionStatus?.bridgeAvailable) {
     return {
       available: extensionStatus.connected,
       message: extensionStatus.connected
@@ -216,7 +219,11 @@ export const checkSyslabConnection = async (): Promise<SyslabConnectionStatus> =
   }
 
   try {
-    const response = await fetchWithRetry(url, { headers: authHeaders }, 5_000);
+    const response = await fetchWithRetry(
+      url,
+      { headers: authHeaders },
+      usesRemoteSyslab() ? 55_000 : 5_000
+    );
     const data = await readSyslabJson<{ connected?: boolean; success?: boolean; error?: string }>(
       response
     ).catch(error => ({
@@ -246,8 +253,9 @@ export const checkSyslabConnection = async (): Promise<SyslabConnectionStatus> =
  */
 export const searchSyslabExams = async (rut: string): Promise<SyslabSearchResponse> => {
   const cleanRut = cleanRutForSyslab(rut);
-  const extensionResult = await searchSyslabThroughExtension(rut);
-  if (extensionResult.bridgeAvailable) {
+  if (!/^\d{5,9}$/.test(cleanRut)) throw new Error('El RUT seleccionado no es válido para Syslab.');
+  const extensionResult = usesRemoteSyslab() ? null : await searchSyslabThroughExtension(rut);
+  if (extensionResult?.bridgeAvailable) {
     if (extensionResult.error) throw new Error(extensionResult.error);
     if (extensionResult.data) return extensionResult.data;
     throw new Error('La extensión Eloísa respondió sin resultados reconocibles.');

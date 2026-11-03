@@ -78,6 +78,21 @@ describe('exams MMRAD registered with a mistyped check digit', () => {
     });
   });
 
+  it('searches one check digit at a time, because the RIS session drops concurrent results', async () => {
+    let running = 0;
+    let peak = 0;
+    const search = vi.fn(async () => {
+      running++;
+      peak = Math.max(peak, running);
+      await new Promise(resolve => setTimeout(resolve, 1));
+      running--;
+      return [];
+    });
+    await searchMistypedCheckDigitExams({ rut: RUT, patientName: NAME, search, key: String });
+    expect(search).toHaveBeenCalledTimes(10);
+    expect(peak).toBe(1);
+  });
+
   it('does not search other check digits without the census name', async () => {
     const search = vi.fn(async () => []);
     expect(

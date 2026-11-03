@@ -45,7 +45,7 @@ describe('Syslab service extension transport', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal('location', { hostname: 'localhost', port: '3000' });
-    setEnv({ PROD: false, VITE_SYSLAB_API_URL: undefined });
+    setEnv({ PROD: false, VITE_SYSLAB_API_URL: undefined, VITE_SYSLAB_TRANSPORT: undefined });
     bridgeMocks.status.mockResolvedValue({
       bridgeAvailable: false,
       connected: false,
@@ -114,6 +114,39 @@ describe('Syslab service extension transport', () => {
     expect(result.data[0].link).toBe(OPAQUE_LINK);
     expect(bridgeMocks.search).toHaveBeenCalledWith('14.470.055-4');
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('uses the remote server explicitly even if a local extension is disconnected', async () => {
+    setEnv({ PROD: true, VITE_SYSLAB_TRANSPORT: 'remote' });
+    bridgeMocks.status.mockResolvedValue({
+      bridgeAvailable: true,
+      connected: false,
+      loginRequired: true,
+    });
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ success: true, data: [] }), {
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+    await expect(searchSyslabExams('11.111.111-1')).resolves.toMatchObject({ success: true });
+    expect(bridgeMocks.search).not.toHaveBeenCalled();
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/.netlify/functions/syslab-proxy?action=search&rut=11111111',
+      expect.any(Object)
+    );
+  });
+
+  it('checks remote health without depending on the extension', async () => {
+    setEnv({ PROD: true, VITE_SYSLAB_TRANSPORT: 'remote' });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ connected: false }), {
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+    await expect(checkSyslabConnection()).resolves.toMatchObject({ available: false });
+    expect(bridgeMocks.status).not.toHaveBeenCalled();
   });
 
   it('requires the extension when no explicit legacy proxy is configured', async () => {
