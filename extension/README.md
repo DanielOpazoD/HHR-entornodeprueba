@@ -343,6 +343,22 @@ paneles u otras rutas sin episodio abre directamente **Hospitalizados** y deja d
 del paciente actual. Los accesos contextuales de Indicaciones y Receta médica se mantienen solamente en
 la tabla de fármacos de Gestión de cuidados.
 
+### El día del cambio de hora, reconstruido (0.48.68)
+
+Entre los dos tramos, el historial unido lleva ahora, por cada día que el servidor no genera:
+
+1. El **Resumen diario del paciente** oficial de ese día (`api/report/Resumen_diario_paciente.pdf`,
+   otro motor de informes, que sí lo genera). Trae signos, indicaciones, medicamentos, dispositivos
+   y riesgos, pero no evoluciones.
+2. Un **anexo HHR no oficial** (`audit-day-annex.js`) que reproduce sin resumir los registros de
+   ese día desde el historial clínico JSON de Ficha Médico: evoluciones, entregas de turno,
+   administración de medicamentos, signos, escalas, indicaciones, dispositivos y exámenes.
+
+Medido el 02-11: el JSON escribe sus horas en hora continental y sin desfase, y el anexo las
+convierte a Rapa Nui, igual que el PDF oficial. La hora real de administración se muestra tal cual,
+porque el reporte farmacológico oficial la imprime así en el 100 % de los casos comparados. Si falta
+el resumen o el anexo, el historial se arma igual y el nombre y `00 Resumen.csv` dicen qué faltó.
+
 ### Historial que cruza el cambio de hora (0.48.67)
 
 Medido contra Eloísa el 02-11: `GetHospitalizedEncounterHistory` responde HTTP 500 a cualquier

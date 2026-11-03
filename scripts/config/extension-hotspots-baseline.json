@@ -9,16 +9,24 @@
     "xlsx.full.min.js"
   ],
   "files": {
+    "audit-day-annex.js": {
+      "maxLines": 302,
+      "hotspots": {}
+    },
     "audit-documents-runtime.js": {
-      "maxLines": 635,
+      "maxLines": 629,
+      "hotspots": {}
+    },
+    "audit-history-reconstruction.js": {
+      "maxLines": 134,
       "hotspots": {}
     },
     "audit-history-segments.js": {
-      "maxLines": 88,
+      "maxLines": 96,
       "hotspots": {}
     },
     "background.js": {
-      "maxLines": 1497,
+      "maxLines": 1498,
       "hotspots": {
         "variable:handleExamRequestCombinePrint": 25,
         "variable:handleImagingFormPrintRequest": 18,

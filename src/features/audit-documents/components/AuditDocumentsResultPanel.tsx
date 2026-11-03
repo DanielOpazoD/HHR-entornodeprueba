@@ -10,8 +10,11 @@ const patientStatus = (patient: AuditDocumentsPatientSummary): string => {
   if (patient.error) return `No se pudo consultar Eloísa: ${patient.error}`;
   const notes = [
     patient.failed > 0 ? `${patient.failed} no descargado(s)` : '',
+    patient.reconstructed > 0
+      ? `${patient.reconstructed} con el día del cambio de hora desde el resumen diario y un anexo HHR no oficial`
+      : '',
     patient.incomplete > 0
-      ? `${patient.incomplete} sin el día del cambio de hora, que Eloísa no genera`
+      ? `${patient.incomplete} con parte del día del cambio de hora faltante: ver 00 Resumen.csv`
       : '',
     patient.unverified > 0
       ? `${patient.unverified} sin fecha o RUT verificable en Eloísa: revisar allí`
@@ -24,7 +27,11 @@ const patientStatus = (patient: AuditDocumentsPatientSummary): string => {
 };
 
 const needsAttention = (patient: AuditDocumentsPatientSummary): boolean =>
-  Boolean(patient.error) || patient.failed > 0 || patient.unverified > 0 || patient.incomplete > 0;
+  Boolean(patient.error) ||
+  patient.failed > 0 ||
+  patient.unverified > 0 ||
+  patient.reconstructed > 0 ||
+  patient.incomplete > 0;
 
 export const AuditDocumentsResultPanel: React.FC<{ result: AuditDocumentsResult }> = ({
   result,
