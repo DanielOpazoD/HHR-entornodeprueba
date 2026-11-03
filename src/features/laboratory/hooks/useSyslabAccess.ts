@@ -4,6 +4,8 @@ import {
   requestSyslabExtensionStatus,
 } from '@/services/laboratory/syslabExtensionBridge';
 
+import { checkSyslabConnection, usesRemoteSyslab } from '@/services/laboratory/syslabService';
+
 type SyslabAccessState = 'checking' | 'connected' | 'login-required' | 'unavailable';
 
 export interface SyslabAccessModel {
@@ -35,6 +37,14 @@ export const useSyslabAccess = (isOpen: boolean): SyslabAccessModel => {
     if (session.pending) return session.pending;
     session.pending = (async () => {
       try {
+        if (usesRemoteSyslab()) {
+          const status = await checkSyslabConnection();
+          if (!session.active) return;
+          setState(status.available ? 'connected' : 'unavailable');
+          setMessage(status.message);
+          setIsAwaitingLogin(false);
+          return;
+        }
         const status = await requestSyslabExtensionStatus();
         if (!session.active) return;
         const nextState = !status.bridgeAvailable
@@ -99,7 +109,7 @@ export const useSyslabAccess = (isOpen: boolean): SyslabAccessModel => {
 
   const openLogin = useCallback(async () => {
     const session = sessionRef.current;
-    if (!session.active || session.opening) return;
+    if (!session.active || session.opening || usesRemoteSyslab()) return;
     session.opening = true;
     setIsOpening(true);
     try {

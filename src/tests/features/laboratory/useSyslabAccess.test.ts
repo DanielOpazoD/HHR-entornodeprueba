@@ -7,6 +7,12 @@ import {
   requestSyslabExtensionStatus,
 } from '@/services/laboratory/syslabExtensionBridge';
 
+vi.mock('@/services/laboratory/syslabService', () => ({
+  usesRemoteSyslab: vi.fn(() => false),
+  checkSyslabConnection: vi.fn(),
+}));
+import { usesRemoteSyslab, checkSyslabConnection } from '@/services/laboratory/syslabService';
+
 vi.mock('@/services/laboratory/syslabExtensionBridge', () => ({
   requestSyslabExtensionStatus: vi.fn(),
   openSyslabLoginWindow: vi.fn(),
@@ -23,6 +29,7 @@ const deferred = <T>() => {
 describe('useSyslabAccess', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(usesRemoteSyslab).mockReturnValue(false);
     vi.mocked(requestSyslabExtensionStatus).mockResolvedValue({
       bridgeAvailable: true,
       connected: false,
@@ -39,6 +46,16 @@ describe('useSyslabAccess', () => {
     cleanup();
     vi.restoreAllMocks();
     vi.useRealTimers();
+  });
+
+  it('opens the viewer using remote health without requesting an extension login', async () => {
+    vi.mocked(usesRemoteSyslab).mockReturnValue(true);
+    vi.mocked(checkSyslabConnection).mockResolvedValue({ available: true, message: 'Conectado' });
+    const { result } = renderHook(() => useSyslabAccess(true));
+    await waitFor(() => expect(result.current.state).toBe('connected'));
+    await act(async () => result.current.openLogin());
+    expect(requestSyslabExtensionStatus).not.toHaveBeenCalled();
+    expect(openSyslabLoginWindow).not.toHaveBeenCalled();
   });
 
   it('opens the extension form and follows the session until it is connected', async () => {
