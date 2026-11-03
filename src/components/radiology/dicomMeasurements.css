@@ -1,0 +1,85 @@
+.dicom-measure-inline {
+  display: contents;
+}
+.dicom-cursor-hu {
+  min-width: 96px;
+  color: #fde68a;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.dicom-measurements .dicom-popover-body {
+  width: min(380px, calc(100vw - 64px));
+  gap: 10px;
+}
+.dicom-measurement-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dicom-measurement-list li {
+  display: flex;
+  gap: 4px;
+}
+.dicom-viewer .dicom-measurement-go {
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  text-align: left;
+}
+.dicom-measurement-go span:first-child {
+  color: #94a3b8;
+  font-size: 10px;
+}
+.dicom-measurements textarea {
+  width: 100%;
+  font: inherit;
+  color: #e2e8f0;
+  background: #0b1220;
+  border: 1px solid #334155;
+  border-radius: 5px;
+  padding: 4px 6px;
+}
+.dicom-calculator {
+  border-top: 1px solid #243247;
+  padding-top: 8px;
+}
+.dicom-calculator summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.dicom-calculator-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.dicom-calculator-field {
+  display: grid;
+  grid-template-columns: 1fr 72px;
+  gap: 4px 6px;
+  align-items: center;
+}
+.dicom-calculator-field select {
+  grid-column: 1 / -1;
+}
+.dicom-calculator input {
+  width: 72px;
+  font: inherit;
+  color: #e2e8f0;
+  background: #162235;
+  border: 1px solid #334155;
+  border-radius: 5px;
+  padding: 3px 6px;
+}
+.dicom-calculator output {
+  color: #fde68a;
+  line-height: 1.4;
+}

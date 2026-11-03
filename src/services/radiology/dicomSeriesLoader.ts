@@ -9,6 +9,11 @@ import { validateDicomInstanceIdentity } from './dicomInstanceIdentity';
 import { supportsDicomResampling } from './dicomPixelMapping';
 import { hasDicomHuCalibration } from './dicomQuantitative';
 import { isDicomCtLocalizer } from './dicomLocalizer';
+import {
+  readDicomSpacingAttributes,
+  registerDicomImage,
+  releaseDicomImage,
+} from './dicomImageRegistry';
 
 const MAX_RAW_BYTES = 256 * 1024 * 1024;
 const MAX_VOXELS = 128 * 1024 * 1024;
@@ -54,6 +59,7 @@ export const startDicomSeries = (
     released = true;
     for (const id of ids) {
       if (!id) continue;
+      releaseDicomImage(id);
       if (cache.getImageLoadObject(id)) cache.removeImageLoadObject(id, { force: true });
       wadouri.dataSetCacheManager.unload(id.split(':')[1]);
       wadouri.fileManager.remove(Number(id.split(':')[1]));
@@ -76,6 +82,21 @@ export const startDicomSeries = (
     rejectCompletion(signal.reason);
   };
   parentSignal.addEventListener('abort', abort, { once: true });
+  const describeImage = (
+    index: number,
+    data: ReturnType<typeof parseDicom>,
+    huCalibrated: boolean,
+    color: boolean
+  ) => ({
+    seriesUid: series.uid,
+    seriesNumber: series.number,
+    index,
+    instanceUid: series.instances[index].uid,
+    modality: data.string('x00080060')?.trim() || series.modality,
+    huCalibrated,
+    color,
+    spacing: readDicomSpacingAttributes(data),
+  });
   const invalidateOnFailure = async <T>(index: number, action: () => Promise<T>): Promise<T> => {
     try {
       return await action();
@@ -113,6 +134,8 @@ export const startDicomSeries = (
           new Blob([new Uint8Array(bytes)], { type: 'application/dicom' })
         );
         ids[index] = id;
+        // Known before decoding, so Cornerstone builds the image with its radiograph spacing.
+        registerDicomImage(id, describeImage(index, data, false, false));
         const vector = (tag: string) =>
           (data.string(tag) || '').split('\\').filter(Boolean).map(Number);
         geometry[index] = {
@@ -130,9 +153,11 @@ export const startDicomSeries = (
       invalidateOnFailure(index, async () => {
         const decoded = await imageLoader.loadAndCacheImage(ids[index]);
         signal.throwIfAborted();
-        calibrated[index] = hasDicomHuCalibration(
-          parseDicom(bytes, { untilTag: 'x7fe00010' }),
-          decoded
+        const data = parseDicom(bytes, { untilTag: 'x7fe00010' });
+        calibrated[index] = hasDicomHuCalibration(data, decoded);
+        registerDicomImage(
+          ids[index],
+          describeImage(index, data, calibrated[index], Boolean(decoded.color))
         );
         progress(++decodedCount, series.instances.length);
         return ids[index];

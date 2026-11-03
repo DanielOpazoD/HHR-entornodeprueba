@@ -5,17 +5,23 @@ import type { DicomRuntime } from '@/services/radiology/dicomRuntimeTypes';
 import type {
   ComparisonLinks,
   ComparisonState,
+  ComparisonTool,
   DicomComparison,
 } from '@/services/radiology/dicomComparison';
 import type { DicomStudyPrefetch } from '@/services/radiology/dicomStudyPrefetch';
+import type { DicomMeasurement } from '@/services/radiology/dicomMeasurementStore';
 import { DicomFullscreenButton } from './DicomFullscreenButton';
+import { DicomMeasureTools } from './DicomMeasureTools';
+import { DicomMeasurementsPanel } from './DicomMeasurementsPanel';
 import './dicomComparison.css';
 
 const ComparisonPanels: React.FC<{
   primary: DicomSeries;
   secondary: DicomSeries;
   runtime: DicomRuntime;
-}> = ({ primary, secondary, runtime }) => {
+  exam: string;
+  focusElsewhere: (item: DicomMeasurement) => void;
+}> = ({ primary, secondary, runtime, exam, focusElsewhere }) => {
   const elements = useRef<Array<HTMLDivElement | null>>([]);
   const session = useRef<DicomComparison | undefined>(undefined);
   const [state, setState] = useState<ComparisonState | null>(null);
@@ -26,7 +32,12 @@ const ComparisonPanels: React.FC<{
     zoom: false,
     window: false,
   });
-  const [tools, setTools] = useState(['window', 'window']);
+  const [tools, setTools] = useState<ComparisonTool[]>(['window', 'window']);
+  const [comparison, setComparison] = useState<DicomComparison | undefined>();
+  const chooseTool = (tool: ComparisonTool) => {
+    session.current?.tool(tool);
+    setTools(values => values.map((value, index) => (index === active ? tool : value)));
+  };
   useEffect(() => {
     const controller = new AbortController();
     let current: DicomComparison | undefined;
@@ -37,7 +48,10 @@ const ComparisonPanels: React.FC<{
       .then(value => {
         current = value;
         if (controller.signal.aborted) value.dispose();
-        else session.current = value;
+        else {
+          session.current = value;
+          setComparison(value);
+        }
       })
       .catch(() => {
         if (!controller.signal.aborted) setError('No se pudo iniciar la comparación.');
@@ -46,6 +60,7 @@ const ComparisonPanels: React.FC<{
       controller.abort();
       current?.dispose();
       session.current = undefined;
+      setComparison(undefined);
     };
   }, [runtime, secondary]);
   const activate = (panel: number) => {
@@ -73,12 +88,7 @@ const ComparisonPanels: React.FC<{
             title={tool.label}
             aria-pressed={tools[active] === tool.id}
             disabled={controlsDisabled}
-            onClick={() => {
-              session.current?.tool(tool.id);
-              setTools(values =>
-                values.map((value, index) => (index === active ? tool.id : value))
-              );
-            }}
+            onClick={() => chooseTool(tool.id)}
           >
             <tool.icon size={16} />
           </button>
@@ -139,9 +149,28 @@ const ComparisonPanels: React.FC<{
             Reintentar {state.failed} cortes
           </button>
         )}
+        <DicomMeasureTools
+          inline
+          activeTool={tools[active]}
+          choose={chooseTool}
+          undo={() => session.current?.undoMeasurement()}
+          clear={() => session.current?.clearMeasurements()}
+          disabled={controlsDisabled}
+          onCursorHu={comparison?.onCursorHu}
+        />
         <span className="dicom-compare-status" role="status">
           {state?.positionStatus}
         </span>
+        <DicomMeasurementsPanel
+          store={runtime.measurements}
+          exam={exam}
+          sliceInterval={runtime.sliceInterval}
+          focus={item => {
+            const panel = session.current?.focusMeasurement(item.id) ?? -1;
+            if (panel < 0) focusElsewhere(item);
+            else setActive(panel);
+          }}
+        />
       </div>
       {failed && (
         <p className="dicom-status" role="alert">
@@ -185,8 +214,18 @@ const ComparisonPanels: React.FC<{
                 onContextMenu={event => event.preventDefault()}
                 onKeyDownCapture={event => {
                   if (event.key !== 'Escape') event.stopPropagation();
-                  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || failed)
+                  if (failed) return;
+                  if (
+                    (event.ctrlKey || event.metaKey) &&
+                    event.key.toLowerCase() === 'z' &&
+                    !event.shiftKey &&
+                    !event.altKey
+                  ) {
+                    event.preventDefault();
+                    session.current?.undoMeasurement();
                     return;
+                  }
+                  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
                   const delta = { ArrowUp: -1, ArrowDown: 1, PageUp: -10, PageDown: 10 }[event.key];
                   if (delta) {
                     event.preventDefault();
@@ -261,8 +300,11 @@ export const DicomComparisonView: React.FC<{
   primary: DicomSeries;
   runtime: DicomRuntime;
   prefetch?: DicomStudyPrefetch;
+  exam: string;
   close: () => void;
-}> = ({ study, primary, runtime, prefetch, close }) => {
+  /** A measurement of a series that neither panel shows: leave Comparar and open it. */
+  focusElsewhere: (item: DicomMeasurement) => void;
+}> = ({ study, primary, runtime, prefetch, exam, close, focusElsewhere }) => {
   const [uid, setUid] = useState(primary.uid);
   const secondary = study.series.find(series => series.uid === uid) ?? primary;
   return (
@@ -303,6 +345,8 @@ export const DicomComparisonView: React.FC<{
         primary={primary}
         secondary={secondary}
         runtime={runtime}
+        exam={exam}
+        focusElsewhere={focusElsewhere}
       />
     </>
   );

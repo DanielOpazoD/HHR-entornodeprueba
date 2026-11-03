@@ -300,6 +300,12 @@ Pruebas: `src/tests/netlify/mmradDicom.test.ts`,
 `src/tests/services/radiology/dicomVolume.test.ts`,
 `src/tests/services/radiology/dicomSeriesLoader.test.ts`,
 `src/tests/services/radiology/saveDicomPng.test.ts`,
+`src/tests/services/radiology/dicomMeasurementText.test.ts`,
+`src/tests/services/radiology/dicomCalibration.test.ts`,
+`src/tests/services/radiology/dicomMeasurementSession.test.ts`,
+`src/tests/services/radiology/dicomMeasurementReport.test.ts`,
+`src/tests/services/radiology/dicomVolumeEstimates.test.ts`,
+`src/tests/services/radiology/dicomStackMeasurement.test.ts`,
 `src/tests/features/clinical-library/clinicalFormAnnexes.test.ts` y
 `e2e/dicom-viewer.spec.ts`. Los datos DICOM se generan en
 `src/tests/fixtures/syntheticDicom.ts`; no proceden de los HAR.
@@ -327,9 +333,10 @@ mostrar como líneas cruzadas o punto compacto; sus coordenadas son LPS (izquier
 posterior, superior) en milímetros del marco DICOM, no coordenadas de pantalla.
 Mover/zoom cambian la presentación, sin rotar los planos ni alterar la geometría adquirida.
 
-Distancia y ángulo son medidas transitorias en MPR. **Borrar medidas**, cambiar de modo,
-serie o cerrar el visor las elimina. No se guardan en la historia ni en telemetría;
-la captura PNG actual contiene el canvas de imagen, sin estas anotaciones SVG.
+Distancia y ángulo son medidas transitorias en MPR. Se conservan al cambiar de modo o de serie
+mientras el visor está abierto, y se eliminan con **Borrar medidas**, desde el panel de medidas
+o al cerrar el visor (ver «Mediciones en Original y Comparar»). No se guardan en la historia ni
+en telemetría; la captura PNG actual contiene el canvas de imagen, sin estas anotaciones SVG.
 
 **Distancia** mide el segmento arrastrado, desde donde se pulsa hasta donde se suelta, en ese
 plano. También admite dos clics. En Cornerstone 4.22 un clic deja una línea pendiente que sigue al
@@ -384,8 +391,8 @@ rechaza, el visor permanece utilizable en su ventana normal.
 
 **Contraste** activa ventana/nivel por arrastre. **HU** mide un punto y **ROI** permite
 arrastrar una elipse con área en mm², promedio y desviación estándar (DE) en HU.
-Las anotaciones son temporales, se eliminan con «Borrar medidas» o al cambiar/cerrar
-la vista y no se incluyen en PNG ni anexos.
+Las anotaciones son temporales: duran mientras el visor está abierto, se eliminan con
+«Borrar medidas», desde el panel de medidas o al cerrarlo, y no se incluyen en PNG ni anexos.
 
 Los controles cuantitativos se habilitan únicamente si todos los cortes volumétricos
 son CT clásico monocromático, tienen espaciado físico válido y una conversión lineal
@@ -540,8 +547,9 @@ telemetría de contenido ni reutilización entre pacientes.
 
 Con el foco en un plano: arriba/abajo recorre cortes, Re Pág/Av Pág avanza diez,
 izquierda/derecha cambia el foco entre los tres planos, y Ctrl/⌘ Z elimina la última
-medición del visor. El menú Teclado permite desactivar estos atajos y ofrece el
-botón equivalente. Los campos de formulario conservan su manejo de teclado nativo.
+medición de esa serie en la vista actual (Original, MPR o Comparar). El menú Teclado permite
+desactivar estos atajos y ofrece el botón equivalente. Los campos de formulario conservan su
+manejo de teclado nativo.
 
 ### Comparación de series
 
@@ -581,6 +589,66 @@ Validación: geometría sintética (espaciados, orden inverso, matrices, cobertu
 marcos y líneas) y Chromium con dos ventanas sin nuevas solicitudes, navegación
 bidireccional por coordenadas, enlace opcional de ventana/zoom, independencia de
 marcos incompatibles y rechazo de una segunda serie de otro paciente.
+
+### Mediciones en Original y Comparar
+
+Original y cada panel de Comparar tienen **Distancia**, **Ángulo**, **Ángulo de Cobb**,
+**Densidad puntual** y ROI **elíptica**, **rectangular** y **circular** (área, promedio, DE,
+mínimo y máximo). Son las herramientas de `@cornerstonejs/tools` 4.22.13 con nombres propios
+(`dicomStackTools.ts`), para que sus dibujos no se mezclen con los de MPR en el mismo marco de
+referencia. En Comparar la herramienta se elige por panel, como ventana, mover y zoom. Distancia
+reutiliza `dicomLengthGesture.ts`: tras un clic que dejó una línea pendiente, un arrastre mide
+desde donde se pulsó, también entre los dos paneles.
+
+**Densidad.** HU aparece solo en imágenes que pasaron `hasDicomHuCalibration`: TC clásico con
+la conversión lineal validada, igual que en MPR, pero imagen por imagen. Además, Cornerstone debe
+informar HU. En un TC sin esa calibración la ROI muestra solo el área y «HU no disponible». En RX,
+RM y otras modalidades se muestra «valor de píxel», sin unidad; en imágenes en color no se muestra
+densidad. La línea **Cursor: … HU** de la barra de medidas da la HU bajo el puntero con las
+mismas reglas; en MPR solo con corte fino ortogonal calibrado. Fuera de eso queda vacía. Se vuelve
+a leer tras cada imagen dibujada, así que cambiar de corte, mover o ampliar no deja un valor viejo.
+
+**Calibración en radiografías.** Las distancias siguen la clasificación de Cornerstone
+(`getPixelSpacingInformation`) para radiografías de proyección. Un proveedor de metadatos de la
+sesión (`dicomCalibration.ts`) entrega a Cornerstone ese espaciado y su etiqueta:
+
+| Datos del original                                                          | Etiqueta de Cornerstone | Se muestra                                               |
+| --------------------------------------------------------------------------- | ----------------------- | -------------------------------------------------------- |
+| Imager Pixel Spacing con factor de magnificación (ERMF) o distancias fuente | ERMF                    | mm (en paciente, ERMF), espaciado dividido por el factor |
+| Pixel Spacing menor que Imager Pixel Spacing, o calibración GEOMETRY        | ERMF                    | mm (en paciente, ERMF)                                   |
+| Calibración FIDUCIAL                                                        | Calibrated              | mm (calibrada con referencia)                            |
+| Solo Imager Pixel Spacing                                                   | Proj                    | mm (en detector)                                         |
+| Solo Pixel Spacing                                                          | Unknown                 | mm (calibración no declarada)                            |
+| Sin espaciado                                                               | —                       | px (sin calibrar)                                        |
+
+TC y RM conservan su Pixel Spacing, sin etiqueta. Nunca se presentan píxeles como milímetros.
+
+**Panel de medidas.** El botón con el número de medidas lista cada una con su serie, corte y
+valor, de todas las series y vistas. Un clic lleva a su serie, a Original o MPR y a su corte;
+en Comparar, al panel que la muestra. Cada medida se borra por separado o todas juntas.
+**Copiar medidas** copia texto plano en español, una línea por corte, por ejemplo
+«TC tórax, serie 3, corte 87: distancia 12,4 mm; ROI 35 UH (DE 8), área 1,2 cm²». Lleva solo el
+nombre del examen, la serie, el corte y los valores: ningún identificador del paciente. Si el
+navegador no permite copiar, el texto queda seleccionable en el panel.
+
+**Volumen estimado.** Dos calculadoras, rotuladas como estimación y con su fórmula a la vista:
+ABC/2 para hemorragia intracerebral (A diámetro mayor, B perpendicular en el mismo corte,
+C = cortes con hemorragia × intervalo entre cortes) y elipsoide π/6·a·b·c con tres diámetros
+ortogonales, que pueden medirse en MPR. Los diámetros se escriben o se toman de una distancia
+medida en TC o RM; las distancias de radiografías no se ofrecen. El intervalo se propone desde
+Image Position/Orientation de la serie abierta y se puede corregir; si los cortes no son
+equidistantes, lo ingresa el usuario. Se avisa si A y B no están
+en el mismo corte o no son perpendiculares (±15°). No reemplaza la volumetría.
+
+**Duración.** Las medidas viven en la memoria del visor abierto (`dicomMeasurementStore.ts`):
+se conservan al cambiar de serie, de modo, al entrar y salir de Comparar y tras una recuperación
+gráfica, y desaparecen al cerrar el visor. No van a storage, preferencias, MMRAD ni telemetría.
+Al volver a una serie, cada dibujo reaparece cuando su corte se vuelve a cargar y verificar.
+**Borrar medidas** y Ctrl/⌘ Z actúan sobre la serie y vista actuales; el panel puede borrarlas
+todas. Las medidas no se incluyen en PNG ni MP4.
+
+Cada canvas se redimensiona si su panel cambió de tamaño mientras cargaba la primera imagen.
+Antes, un canvas estirado por CSS deformaba la imagen y las distancias medidas sobre ella.
 
 ### MPR oblicuo y espesor
 
@@ -632,7 +700,8 @@ se marcan para subirlos de nuevo desde la caché, sin transferencia de red.
 Se restauran cámara, ventana y corte; en MPR también orientación, espesor
 e intersección. La recuperación no cambia paciente, estudio ni validaciones geométricas.
 Si falla, queda un error explícito y la imagen oculta. No hay bucles de reintentos.
-Las mediciones temporales se retiran al reconstruir sus herramientas; no se guardan.
+Las mediciones temporales se retiran al reconstruir sus herramientas y vuelven a dibujarse desde
+la memoria del visor; no se guardan.
 
 La cámara y ventana de cada modo se conservan sólo durante esa serie. Nada de esta
 continuidad se escribe en storage ni se envía a telemetría. Al cerrar o cambiar de

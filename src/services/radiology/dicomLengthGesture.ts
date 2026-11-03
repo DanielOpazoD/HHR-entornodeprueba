@@ -13,22 +13,28 @@ const DRAG_TOLERANCE_PX = 3;
 /** Cornerstone 4.22's LengthTool also draws with two clicks: a click leaves a line whose far end
  * follows the pointer until the next release. A later drag then only moved that end, so the
  * distance ran from the earlier click, and a drag on another plane was ignored. A drag now always
- * measures from where it was pressed, on that plane. Two clicks still draw a line. */
+ * measures from where it was pressed, on that plane. Two clicks still draw a line. Original and
+ * Comparar use their own Length tool name and one tool group per panel. */
 export const createDicomLengthGesture = (
-  group: ToolTypes.IToolGroup,
+  groups: ToolTypes.IToolGroup | ((viewportId: string) => ToolTypes.IToolGroup | undefined),
   engineId: string,
   viewportIds: string[],
   elements: HTMLDivElement[],
-  discarded: (annotationUID: string) => void
+  discarded: (annotationUID: string) => void,
+  toolName = LengthTool.toolName
 ) => {
-  let latest: { uid: string; viewportId: string } | undefined;
+  const groupFor = typeof groups === 'function' ? groups : () => groups;
+  // Newest last. Lines redrawn from the measurement list also arrive here; keeping a few
+  // lets the pending line be found even if one of those arrived after it.
+  const added: Array<{ uid: string; viewportId: string }> = [];
   const pending = () => {
-    const tool = group.getToolInstance(LengthTool.toolName) as LengthTool | undefined;
-    const draft = tool?.isDrawing && tool.editData?.newAnnotation && tool.editData.annotation;
-    const added = latest;
-    return tool && draft && added && draft.annotationUID === added.uid
-      ? { tool, draft, viewportId: added.viewportId }
-      : undefined;
+    for (const line of [...added].reverse()) {
+      const tool = groupFor(line.viewportId)?.getToolInstance(toolName) as LengthTool | undefined;
+      const draft = tool?.isDrawing && tool.editData?.newAnnotation && tool.editData.annotation;
+      if (tool && draft && draft.annotationUID === line.uid)
+        return { tool, draft, viewportId: line.viewportId };
+    }
+    return undefined;
   };
   const onAdded = (event: Event) => {
     const detail = (event as ToolTypes.EventTypes.AnnotationAddedEventType).detail;
@@ -37,9 +43,11 @@ export const createDicomLengthGesture = (
       uid &&
       detail.renderingEngineId === engineId &&
       viewportIds.includes(detail.viewportId || '') &&
-      detail.annotation.metadata?.toolName === LengthTool.toolName
-    )
-      latest = { uid, viewportId: detail.viewportId! };
+      detail.annotation.metadata?.toolName === toolName
+    ) {
+      added.push({ uid, viewportId: detail.viewportId! });
+      if (added.length > 16) added.shift();
+    }
   };
   // Capture runs before Cornerstone's dispatcher, which ignores presses while a line is pending.
   const onPress = (event: Event) => {

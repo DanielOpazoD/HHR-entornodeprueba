@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { createDicomMeasurementStore } from '@/services/radiology/dicomMeasurementStore';
+import type { DicomMeasurementRequest } from './useDicomMeasurementFocus';
 import { ExternalLink, RefreshCw } from 'lucide-react';
 import { fetchDicomStudy } from '@/services/radiology/mmradDicomService';
 import { formatDicomStudyDate, type DicomStudy } from '@/services/radiology/dicomTypes';
@@ -30,6 +32,14 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
   const [seriesUid, setSeriesUid] = useState('');
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
+  // Measurements of this open viewer only: kept across series and views, dropped on close.
+  const [measurements] = useState(createDicomMeasurementStore);
+  useEffect(() => () => measurements.clear(), [measurements]);
+  const [focus, setFocus] = useState<DicomMeasurementRequest | null>(null);
+  const openSeries = useCallback((uid: string, request: DicomMeasurementRequest) => {
+    setSeriesUid(uid);
+    setFocus(request);
+  }, []);
   useEffect(() => {
     const controller = new AbortController();
     // Code only: overlap engine loading with metadata. Instances still require verified study data.
@@ -92,7 +102,10 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
             <select
               aria-label="Serie DICOM"
               value={seriesUid}
-              onChange={event => setSeriesUid(event.target.value)}
+              onChange={event => {
+                setFocus(null);
+                setSeriesUid(event.target.value);
+              }}
             >
               {study.series.map(item => (
                 <option key={item.uid} value={item.uid}>
@@ -150,6 +163,9 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
             .filter(Boolean)
             .join(' · ')}
           onCapture={onCapture}
+          measurements={measurements}
+          focus={focus}
+          openSeries={openSeries}
         />
       )}
     </div>

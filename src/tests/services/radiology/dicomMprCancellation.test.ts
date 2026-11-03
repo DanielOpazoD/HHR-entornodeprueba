@@ -34,6 +34,14 @@ vi.mock('@cornerstonejs/tools', () => ({
   },
 }));
 import { createMprTools } from '@/services/radiology/dicomMprTools';
+import { createDicomMeasurementStore } from '@/services/radiology/dicomMeasurementStore';
+const measurements = () => ({
+  store: createDicomMeasurementStore(),
+  series: { uid: 'synthetic-series', number: 1, modality: 'CT' },
+  volumeId: 'synthetic-volume',
+  quantitative: () => true,
+  oblique: () => false,
+});
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -56,7 +64,13 @@ it.each([true, false])(
     mocks.cancel.mockImplementation(() => {
       tool.isDrawing = false;
     });
-    const session = createMprTools(group, 'synthetic-engine', ['synthetic-viewport'], vi.fn());
+    const session = createMprTools(
+      group,
+      'synthetic-engine',
+      ['synthetic-viewport'],
+      vi.fn(),
+      measurements()
+    );
     mocks.events.dispatchEvent(
       new CustomEvent('added', {
         detail: {
@@ -85,7 +99,7 @@ it('never removes an annotation owned by a different viewer', () => {
     }),
   } as unknown as Parameters<typeof createMprTools>[0];
   mocks.cancel.mockImplementation(() => undefined);
-  const session = createMprTools(group, 'own-engine', ['own-viewport'], vi.fn());
+  const session = createMprTools(group, 'own-engine', ['own-viewport'], vi.fn(), measurements());
   mocks.events.dispatchEvent(
     new CustomEvent('added', {
       detail: {

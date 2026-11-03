@@ -21,24 +21,33 @@ export const getDicomOrientations = (engine: RenderingEngine, viewportIds: strin
     };
   });
 
-/** Preserve world-space camera position when expanding a plane or entering fullscreen. */
+/** A canvas whose backing size no longer matches its pane is stretched by CSS. */
+export const dicomCanvasMismatch = (
+  element: HTMLDivElement,
+  ratio = window.devicePixelRatio || 1
+) => {
+  const canvas = element.querySelector('canvas');
+  return (
+    !!canvas &&
+    (Math.abs(canvas.width - element.clientWidth * ratio) > 1 ||
+      Math.abs(canvas.height - element.clientHeight * ratio) > 1)
+  );
+};
+
+/**
+ * Preserve world-space camera position when expanding a plane or entering fullscreen. The pane
+ * may also settle while the first image loads, before this observer exists: its first callback
+ * then finds a stretched canvas and resizes it. A stretched canvas would distort the image and
+ * every distance measured on it.
+ */
 export const observeDicomViewportSize = (
   engine: RenderingEngine,
   elements: HTMLDivElement[],
   disposed: () => boolean
 ) => {
-  const sizes = new Map(
-    elements.map(element => [element, [element.clientWidth, element.clientHeight]])
-  );
   const observer = new ResizeObserver(() => {
     if (disposed() || elements.some(element => !element.isConnected)) return;
-    const changed = elements.some(element => {
-      const previous = sizes.get(element)!;
-      return previous[0] !== element.clientWidth || previous[1] !== element.clientHeight;
-    });
-    if (!changed) return;
-    elements.forEach(element => sizes.set(element, [element.clientWidth, element.clientHeight]));
-    engine.resize(true, true);
+    if (elements.some(element => dicomCanvasMismatch(element))) engine.resize(true, true);
   });
   elements.forEach(element => observer.observe(element));
   return observer;
