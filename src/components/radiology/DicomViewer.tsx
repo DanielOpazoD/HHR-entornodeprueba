@@ -9,12 +9,15 @@ import {
   prioritizeDicomSeries,
 } from '@/services/radiology/dicomStudyPrefetch';
 import { DicomPatientBar } from './DicomPatientBar';
+import { describeMMRADRegisteredPatient } from '@/services/radiology/mmradService';
 import './dicomViewer.css';
 import './dicomProgressive.css';
 
 const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
   link,
   patientId,
+  registeredPatientId,
+  registeredPatientName,
   title,
   patientName,
   studyDate,
@@ -32,12 +35,12 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
     // Code only: overlap engine loading with metadata. Instances still require verified study data.
     void import('@/services/radiology/dicomRuntime').catch(() => undefined);
     let session: ReturnType<typeof createDicomStudyPrefetch> | undefined;
-    void fetchDicomStudy(link, patientId, controller.signal)
+    void fetchDicomStudy(link, patientId, controller.signal, registeredPatientId)
       .then(result => {
         if (controller.signal.aborted) return;
         // Expired instance access renews silently by reopening this link for this patient.
         session = createDicomStudyPrefetch(result, undefined, reviewCache, signal =>
-          fetchDicomStudy(link, patientId, signal)
+          fetchDicomStudy(link, patientId, signal, registeredPatientId)
         );
         setPrefetch(session);
         setStudy(result);
@@ -54,7 +57,7 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
       controller.abort();
       session?.dispose();
     };
-  }, [link, patientId, attempt, reviewCache]);
+  }, [link, patientId, registeredPatientId, attempt, reviewCache]);
   const series = study?.series.find(item => item.uid === seriesUid);
   return (
     <div
@@ -111,6 +114,11 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
           <span className="dicom-external-label">MMRAD</span>
         </a>
       </div>
+      {registeredPatientId && (
+        <p className="dicom-status dicom-identity-notice" role="note">
+          {describeMMRADRegisteredPatient(registeredPatientId, registeredPatientName)}
+        </p>
+      )}
       {error ? (
         <div className="dicom-status" role="alert">
           {error}

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchDicomInstance } from '@/services/radiology/mmradDicomService';
+import { fetchDicomInstance, fetchDicomStudy } from '@/services/radiology/mmradDicomService';
 import {
   DicomOriginalTooLargeError,
   DicomTicketExpiredError,
@@ -91,6 +91,38 @@ describe('DICOM transfer diagnostics and retry classification', () => {
       const other = fetchDicomInstance('synthetic-ticket', new AbortController().signal);
       await expect(other).rejects.toMatchObject({ transient: false });
       await expect(other).rejects.not.toBeInstanceOf(DicomTicketExpiredError);
+    }
+  });
+  it('asks for and verifies the MMRAD registration of a mistyped check digit', async () => {
+    const study = (registeredPatientId?: string) => ({
+      uid: '1.2.3',
+      patientId: '111111111',
+      ...(registeredPatientId ? { registeredPatientId } : {}),
+      date: '',
+      series: [{ uid: '1.2.3.4', instances: [] }],
+    });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(study('111111117'))));
+    vi.stubGlobal('fetch', fetchMock);
+    const opened = await fetchDicomStudy(
+      'link',
+      '11.111.111-1',
+      new AbortController().signal,
+      '11.111.111-7'
+    );
+    expect(opened.registeredPatientId).toBe('111111117');
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({
+      patientId: '11.111.111-1',
+      registeredPatientId: '11.111.111-7',
+    });
+    for (const [answer, requested] of [
+      [study(), '11.111.111-7'],
+      [study('111111117'), undefined],
+      [study('111111110'), '11.111.111-7'],
+    ] as const) {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(answer))));
+      await expect(
+        fetchDicomStudy('link', '11.111.111-1', new AbortController().signal, requested)
+      ).rejects.toThrow('no corresponde');
     }
   });
   it('explains an original too large for HHR and points to MMRAD, without retrying it', async () => {

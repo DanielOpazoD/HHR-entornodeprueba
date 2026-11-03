@@ -88,6 +88,9 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
   const autoSearchedRutRef = useRef<string | null>(null);
 
   const uniquePatients = useMemo(() => buildUniqueRadiologyPatients(patients), [patients]);
+  const selectedPatientName = uniquePatients.find(
+    patient => normalizeDicomPatientId(patient.rut) === normalizedRut
+  )?.patientName;
 
   const modalities = useMemo(
     () => (result ? extractMMRADModalities(result.examenes) : []),
@@ -156,6 +159,7 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
     try {
       const data = await searchMMRADExams({
         rut: selectedRut,
+        patientName: selectedPatientName,
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
       });
@@ -167,7 +171,7 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
     } finally {
       if (sequence === searchSequence.current) setIsLoading(false);
     }
-  }, [selectedRut, dateFrom, dateTo]);
+  }, [selectedRut, selectedPatientName, dateFrom, dateTo]);
 
   React.useEffect(() => {
     if (!isOpen) {
@@ -370,10 +374,9 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
             reviewCache={reviewCache}
             link={dicomExam.dicom_url}
             patientId={selectedRut}
-            patientName={
-              uniquePatients.find(patient => normalizeDicomPatientId(patient.rut) === normalizedRut)
-                ?.patientName
-            }
+            registeredPatientId={dicomExam.registered_patient_id}
+            registeredPatientName={dicomExam.registered_patient_name}
+            patientName={selectedPatientName}
             studyDate={dicomExam.fecha_examen}
             reportLink={dicomExam.pdf_url}
             title={dicomExam.nombre_examen}

@@ -42,8 +42,10 @@ describe('RadiologyViewerModal', () => {
     await waitFor(() => {
       expect(mmradMocks.search).toHaveBeenCalledTimes(1);
     });
+    // The census name lets the search find exams MMRAD registered with another check digit.
     expect(mmradMocks.search).toHaveBeenCalledWith({
       rut: patient.rut,
+      patientName: patient.patientName,
       dateFrom: undefined,
       dateTo: undefined,
     });

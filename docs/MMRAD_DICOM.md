@@ -204,6 +204,28 @@ cuotas de metadatos (10/min) e imágenes (1500/min) son independientes de la bú
 RIS existente. Las respuestas tienen `no-store`; no se registran identificadores,
 capacidades, cookies, originales ni metadatos clínicos en telemetría.
 
+### Exámenes registrados con otro dígito verificador (desde 2026-11-03)
+
+MMRAD a veces registra exámenes de un paciente con el mismo número de RUT pero un dígito verificador
+mal digitado. El 2026-11-03 se encontraron así dos TC validados de un paciente. Las imágenes también
+llevan ese RUT, y el RIS solo encuentra un ID exacto. Por decisión del responsable:
+
+- `mmrad-search` recibe el nombre del censo (`name`) y, además del RUT exacto, busca los otros 10
+  dígitos verificadores, 5 a la vez (en una prueba real, unos 1,1 s en total). Conserva una fila solo
+  si su ID tiene ese mismo número, con otro dígito, y si cada palabra del nombre más corto aparece
+  en el otro. Ese nombre debe tener al menos dos palabras sin contar partículas como «de», «la» o
+  «del». Un pasaporte nunca se lee como RUT. Una fila repetida se
+  muestra una vez.
+- Cada examen así marcado lleva `registered_patient_id` y `registered_patient_name`. La tarjeta y
+  el visor muestran el RUT y el nombre con que lo registró MMRAD, para que una persona confirme que
+  es el mismo paciente. Si falla
+  la búsqueda de alguna variante, `check_digit_search: 'partial'` lo avisa, sin quitar exámenes.
+- Para abrir el estudio, el visor envía también `registeredPatientId`. La función lo acepta solo
+  si es el mismo número con otro dígito. Cada original debe traer ese ID como `PatientID`, con la
+  misma verificación de UID de siempre. La caché de revisión y las capturas siguen usando el RUT
+  del censo.
+- Conviene pedir igualmente a MMRAD que corrija el registro.
+
 ## Verificación y continuidad
 
 Pruebas: `src/tests/netlify/mmradDicom.test.ts`,

@@ -30,6 +30,20 @@ describe('identity from original DICOM files', () => {
     const data = parseDicom(syntheticDicom(0));
     expect(() => validateDicomInstanceIdentity(data, study, series, instance)).not.toThrow();
   });
+  it('expects the MMRAD registration when it differs only in a mistyped check digit', () => {
+    const registered = { ...study, registeredPatientId: '111111117' };
+    expect(() =>
+      validateDicomInstanceIdentity(
+        parseDicom(syntheticDicom(0, 24, '11111111-7')),
+        registered,
+        series,
+        instance
+      )
+    ).not.toThrow();
+    expect(() =>
+      validateDicomInstanceIdentity(parseDicom(syntheticDicom(0)), registered, series, instance)
+    ).toThrow('no corresponde');
+  });
   it.each(['patient', 'study', 'series', 'instance', 'missing'] as const)(
     'blocks %s mismatches before decoding or rendering',
     field => {
