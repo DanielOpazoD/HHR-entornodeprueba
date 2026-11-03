@@ -4,6 +4,7 @@ import type {
   NursingActivitySource,
 } from '../contracts/nursingShiftInference';
 import type { RayenStaffingBoundaryExclusion } from '@/types/domain/rayenSync';
+import { fichaMedicoActivityStampInRapaNui } from '../mapping/fichaMedicoHistoryClock';
 
 type BoundaryEvidence = NursingBoundaryExclusion | RayenStaffingBoundaryExclusion;
 
@@ -30,11 +31,12 @@ const BOUNDARY_REASON = {
 
 type BoundaryEvidenceTone = 'neutral' | 'warning';
 
-const formatLocalStamp = (value: string): string => {
-  // clinical-clock-allow raw-offset-clock: History boundary evidence is an unzoned Rapa Nui wall-clock stamp.
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})/);
-  if (!match) return value;
-  return `${match[3]}-${match[2]} ${match[4].padStart(2, '0')}:${match[5]}`;
+/** Evidence keeps Eloísa's raw stamp; it is shown in Rapa Nui time, by the clock of its field. */
+const formatLocalStamp = (item: BoundaryEvidence): string => {
+  const hospital = fichaMedicoActivityStampInRapaNui(item.recordedAt, item.source);
+  const match = hospital?.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):\d{2}$/);
+  if (!match) return item.recordedAt;
+  return `${match[3]}-${match[2]} ${match[4]}:${match[5]}`;
 };
 
 const hasSection = (value: BoundaryEvidence): value is RayenStaffingBoundaryExclusion =>
@@ -92,7 +94,7 @@ export const StaffingBoundaryExclusions: React.FC<{
                 className={`rounded-md border bg-white px-2 py-1.5 text-[11px] text-slate-700 ${palette.item}`}
               >
                 <p className="font-semibold text-slate-800">
-                  {item.name} · {formatLocalStamp(item.recordedAt)}
+                  {item.name} · {formatLocalStamp(item)}
                 </p>
                 <p>
                   {hasSection(item) ? `${SECTION_LABELS[item.section]} · ` : ''}
