@@ -1,4 +1,4 @@
-import type { DicomOrientation } from './dicomRuntimeTypes';
+import type { DicomOrientation } from './dicomTypes';
 
 export interface DicomCineOptions {
   start: number;

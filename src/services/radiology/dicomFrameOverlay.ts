@@ -1,4 +1,4 @@
-import type { DicomOrientation } from './dicomRuntimeTypes';
+import type { DicomOrientation } from './dicomTypes';
 
 const BACKDROP = 'rgba(0,0,0,.7)';
 const edgeSize = (width: number) => Math.max(12, Math.min(22, width / 35));

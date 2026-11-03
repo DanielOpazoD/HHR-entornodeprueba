@@ -1,6 +1,6 @@
 import { utilities, type VolumeViewport, type VolumeViewport3D } from '@cornerstonejs/core';
 import type { DicomCineSession } from './dicomCine';
-import type { DicomOrientation } from './dicomRuntimeTypes';
+import type { DicomOrientation } from './dicomTypes';
 import { turntableDicomCamera, type DicomTurntableAxis } from './dicomVideoPlan';
 import { waitForDicomRender } from './dicomRenderReady';
 import { lockDicomInput } from './dicomInputLock';

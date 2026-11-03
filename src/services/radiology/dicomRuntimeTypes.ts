@@ -1,3 +1,4 @@
+import type { DicomOrientation } from './dicomTypes';
 import type { MprSettings } from '@/domain/radiology/dicomReconstruction';
 import type { MprReconstructionState } from './dicomMprReconstruction';
 import type { createDicomComparison } from './dicomComparison';
@@ -21,12 +22,8 @@ export type DicomTool =
   | 'probe'
   | 'roi';
 export type DicomMode = 'original' | 'mpr' | '3d';
-export interface DicomOrientation {
-  top: string;
-  right: string;
-  bottom: string;
-  left: string;
-}
+// Defined with the study types so overlay, cine and video code can share it without a cycle.
+export type { DicomOrientation } from './dicomTypes';
 
 export interface DicomRuntime {
   readonly sessionId: string;
