@@ -45,3 +45,7 @@ export interface DicomCapture {
 
 export const normalizeDicomPatientId = (value: string): string =>
   value.replace(/[.\s-]/g, '').toUpperCase();
+
+/** DICOM DA (YYYYMMDD) as shown in the viewer; other values pass through unchanged. */
+export const formatDicomStudyDate = (value?: string): string | undefined =>
+  value?.replace(/^(\d{4})(\d{2})(\d{2})$/, '$3/$2/$1');

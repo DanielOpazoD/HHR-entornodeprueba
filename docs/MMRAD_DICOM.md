@@ -388,20 +388,58 @@ permite volver a navegar. Cambiar de serie/paciente o cerrar aborta el trabajo.
 
 MP4 se habilita al completar la verificación de toda la serie; cine admite carga
 progresiva. MP4 usa H.264/WebCodecs con Mediabunny cargado bajo demanda. Se captura un canvas
-sin overlays del DOM, se codifica un cuadro por corte con timestamps explícitos,
+sin overlays del DOM, se codifica un cuadro por posición con timestamps explícitos,
 se valida el conteo y se finaliza antes de ofrecer el archivo. No usa grabación
-de pantalla, audio ni servidor externo. Dimensiones pares hasta 1280x720 sin
-ampliación, bitrate objetivo 4 Mbps y límite de 64 MiB; no se guarda un archivo
-parcial. Cambiar el tamaño de la vista durante el proceso exige reiniciarlo.
+de pantalla, audio ni servidor externo. Límite de 2048 cuadros y 64 MiB; no se guarda
+un archivo parcial. Cambiar el tamaño de la vista durante el proceso exige reiniciarlo.
 Si el navegador no codifica H.264 se explica la incompatibilidad, sin renombrar
-WebM como MP4. El módulo de medios no forma parte del arranque del visor.
+WebM como MP4. El módulo de medios no forma parte del arranque del visor. Al terminar
+o cancelar, Original vuelve al corte que mostraba antes del MP4.
+
+En MPR y 3D, el botón **MP4** de la barra abre el mismo flujo:
+
+- **MPR (barrido):** recorre corte a corte el plano activo (axial, coronal, sagital u
+  oblicuo si se rotó) en el intervalo elegido, con los mismos pasos que la rueda. Usa el
+  espesor y la proyección actuales (Promedio, MIP o MinIP): con MIP de 10 mm se obtiene el
+  «barrido MIP». El panel muestra el plano, la proyección y el corte actual.
+- **3D (giro):** gira la cámara 360° (sin repetir el primer cuadro) o un arco de 180°,
+  90° o 45° centrado en la vista actual, con 4 a 360 cuadros, sobre el eje vertical u
+  horizontal de la pantalla o el eje craneocaudal del paciente. Solo se mueve la cámara:
+  apariencia, opacidad, umbral y recorte se conservan.
+
+Cada cuadro espera `IMAGE_RENDERED`. Durante el trabajo se bloquea la interacción con las
+vistas. Al terminar, cancelar o cerrar se devuelve la cámara guardada: el corte, la
+orientación y el punto de referencia quedan como estaban. Si se pierde el contexto
+gráfico a mitad del video, la recuperación restaura la cámara de antes del video.
+
+Opciones comunes: **Secuencia** «Bucle» (inicio a fin) o «Ida y vuelta» (vuelve sin
+repetir los extremos, para que el bucle no se detenga); **Velocidad** de 5 a 30 cuadros/s;
+**Resolución** «Hasta 720p» (1280×720, por defecto) o «Hasta 1080p» (1920×1080). El cuadro
+se ajusta a esa caja sin ampliar la vista, con dimensiones pares; una vista vertical usa
+la caja girada. Mediabunny elige el nivel H.264 según tamaño y bitrate (3.1 hasta 720p y
+4 hasta 1080p; 4 a 8 Mbps). Si el navegador no codifica 1080p, el video se genera en 720p
+y la vista previa lo dice. Para un 1080p real conviene ampliar el plano o usar pantalla
+completa antes de generar.
+
+**Perfil anónimo** está activado por defecto (decisión del responsable). Cada cuadro lleva
+solo datos no identificables, como el PNG: el corte (`Corte 12/24`) o el plano y la
+proyección (`Coronal · MIP · 10 mm · Corte 12/64`, `Volumen 3D`) y las letras LPS en
+Original y MPR. Al desactivarlo se agrega arriba a la izquierda el nombre, el RUT y la
+fecha del examen. Las mediciones no se graban en el video. En ambos perfiles el archivo
+no lleva fecha: Mediabunny 1.61.6 escribe la hora de codificación en los encabezados
+`mvhd`, `tkhd` y `mdhd` y no permite omitirla (la 1.65 agrega esa opción), así que el
+visor pone esos campos en cero antes de ofrecer el archivo y rechaza uno sin encabezado.
+No se actualizó Mediabunny, por lo que el tamaño de los paquetes no cambia.
 
 El video queda temporalmente en memoria con un URL blob revocable. Antes de
 activar la descarga, debe poder reproducirse en la vista previa y el usuario
-confirma haber revisado todo el video sin identificadores visibles. Esto NO es
+confirma haber revisado todo el video sin identificadores visibles. Con el perfil
+anónimo desactivado confirma, en cambio, que el video incluye nombre, RUT y fecha y
+que lo compartirá solo por canales clínicos autorizados. Esto NO es
 anonimización: los originales pueden contener texto identificable incrustado en
-píxeles. Descartar/cambiar/cerrar revoca el URL. El nombre de descarga es genérico;
-no se agregan identificadores, credenciales ni metadatos clínicos al contenedor.
+píxeles. Descartar/cambiar/cerrar revoca el URL. El nombre de descarga es genérico
+(`secuencia-dicom.mp4`, `barrido-mpr-dicom.mp4`, `giro-3d-dicom.mp4`); no se agregan
+identificadores, credenciales ni metadatos clínicos al contenedor.
 El MP4 es una copia con contraste fijo y compresión, no sustituye al DICOM.
 La CSP permite medios self/blob únicamente para la previsualización local.
 

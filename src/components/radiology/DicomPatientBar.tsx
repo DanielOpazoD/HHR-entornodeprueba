@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { FileDown } from 'lucide-react';
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
 import { buildMMRADPdfUrl } from '@/services/radiology/mmradService';
+import { formatDicomStudyDate } from '@/services/radiology/dicomTypes';
 
 export const DicomPatientBar: React.FC<{
   patientId: string;
@@ -55,7 +56,7 @@ export const DicomPatientBar: React.FC<{
       if (!controller.signal.aborted) setBusy(false);
     }
   };
-  const formattedDate = date?.replace(/^(\d{4})(\d{2})(\d{2})$/, '$3/$2/$1');
+  const formattedDate = formatDicomStudyDate(date);
   return (
     <div className="dicom-patient-bar">
       {patientName && <strong>{patientName}</strong>}

@@ -1,13 +1,21 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Film, Play, Square } from 'lucide-react';
 import type { DicomRuntime } from '@/services/radiology/dicomRuntimeTypes';
 import {
   abortableDicomTask,
   playDicomCine,
   validateCineOptions,
-  type DicomCineProgress,
-  type DicomCineSession,
 } from '@/services/radiology/dicomCine';
+import {
+  DICOM_VIDEO_FPS,
+  defaultDicomVideoOptions,
+  sequenceDicomPositions,
+  sliceDicomPositions,
+  type DicomVideoOptions,
+} from '@/services/radiology/dicomVideoPlan';
+import { toDicomVideoOutput, useDicomVideoJob } from './useDicomVideoJob';
+import { DicomVideoPreview } from './DicomVideoPreview';
+import { DicomVideoSettings } from './DicomVideoSettings';
 import './dicomCine.css';
 
 export const DicomCineControls: React.FC<{
@@ -17,48 +25,18 @@ export const DicomCineControls: React.FC<{
   disabled: boolean;
   complete: boolean;
   busyChanged: (value: boolean) => void;
-}> = ({ runtime, total, available, disabled, complete, busyChanged }) => {
+  /** Name, RUT and study date; burned in only if the user turns the anonymous profile off. */
+  identity?: string;
+}> = ({ runtime, total, available, disabled, complete, busyChanged, identity }) => {
   const [start, setStart] = useState(1);
   const [end, setEnd] = useState(total);
-  const [fps, setFps] = useState(10);
-  const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState<DicomCineProgress | null>(null);
-  const [error, setError] = useState('');
-  const [preview, setPreview] = useState('');
-  const [reviewed, setReviewed] = useState(false);
-  const [playable, setPlayable] = useState(false);
-  const job = useRef<AbortController | null>(null);
-  const previewUrl = useRef('');
-  const alive = useRef(true);
-  const busyCallback = useRef(busyChanged);
-  busyCallback.current = busyChanged;
-  const discard = () => {
-    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
-    previewUrl.current = '';
-    setPreview('');
-    setReviewed(false);
-    setPlayable(false);
-  };
-  useEffect(() => {
-    alive.current = true;
-    return () => {
-      alive.current = false;
-      job.current?.abort();
-      if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
-      busyCallback.current(false);
-    };
-  }, [runtime]);
-  const run = async (exportVideo: boolean) => {
-    if (job.current || disabled || (exportVideo && !complete)) return;
-    const controller = new AbortController();
-    job.current = controller;
-    const options = { start: start - 1, end: end - 1, fps };
-    let session: DicomCineSession | undefined;
-    discard();
-    setError('');
-    setBusy(true);
-    busyChanged(true);
-    try {
+  const [video, setVideo] = useState(() => defaultDicomVideoOptions(10));
+  const job = useDicomVideoJob(runtime, busyChanged);
+  const run = (exportVideo: boolean) => {
+    if (job.busy || disabled || (exportVideo && !complete)) return;
+    const options = { start: start - 1, end: end - 1, fps: video.fps };
+    const identified = !video.anonymous && Boolean(identity);
+    void job.run(async (signal, update) => {
       validateCineOptions(options, total);
       if (
         !exportVideo &&
@@ -66,53 +44,54 @@ export const DicomCineControls: React.FC<{
         !available.some(([from, to]) => options.start >= from && options.end <= to)
       )
         throw new Error('Para cine parcial, selecciona un intervalo continuo disponible.');
-      session = runtime.openCine();
-      const update = (value: DicomCineProgress) => {
-        if (alive.current && !controller.signal.aborted) setProgress(value);
-      };
-      if (exportVideo) {
+      // Playback ends on its last cut; an export returns to the cut shown before it.
+      const session = runtime.openCine({ restoreSlice: exportVideo });
+      try {
+        if (!exportVideo) {
+          await playDicomCine(session, options, total, signal, update);
+          return;
+        }
         const { exportDicomMp4 } = await abortableDicomTask(
           import('@/services/radiology/dicomMp4'),
-          controller.signal
+          signal
         );
-        controller.signal.throwIfAborted();
-        const blob = await exportDicomMp4(session, options, total, controller.signal, update);
-        controller.signal.throwIfAborted();
-        if (!alive.current) return;
-        previewUrl.current = URL.createObjectURL(blob);
-        setPreview(previewUrl.current);
-      } else await playDicomCine(session, options, total, controller.signal, update);
-    } catch (reason) {
-      if (alive.current) {
-        setError(
-          controller.signal.aborted
-            ? 'Operación cancelada. No se guardó ningún video.'
-            : reason instanceof Error
-              ? reason.message
-              : 'No se pudo completar el cine.'
+        signal.throwIfAborted();
+        const positions = sequenceDicomPositions(
+          sliceDicomPositions(options.start, options.end, total),
+          video.sequence
         );
+        const result = await exportDicomMp4(
+          session,
+          positions,
+          {
+            fps: video.fps,
+            resolution: video.resolution,
+            identity: identified ? identity : undefined,
+          },
+          signal,
+          update
+        );
+        return toDicomVideoOutput(result, video.fps, identified, 'secuencia-dicom.mp4');
+      } finally {
+        session.close();
       }
-    } finally {
-      session?.close();
-      job.current = null;
-      if (alive.current) {
-        setBusy(false);
-        busyChanged(false);
-        setProgress(null);
-      }
-    }
+    }, 'No se pudo completar el cine.');
+  };
+  const changeVideo = (patch: Partial<DicomVideoOptions>) => {
+    job.discard();
+    setVideo(current => ({ ...current, ...patch }));
   };
   const changeRange = (action: () => void) => {
-    discard();
+    job.discard();
     action();
   };
   return (
     <details className="dicom-cine">
       <summary aria-label="Cine / MP4" title="Cine / MP4">
-        <Film size={15} /> Cine / MP4 {busy && '· En curso'}
+        <Film size={15} /> Cine / MP4 {job.busy && '· En curso'}
       </summary>
       <div className="dicom-cine-panel">
-        <fieldset disabled={disabled || busy}>
+        <fieldset disabled={disabled || job.busy}>
           <label>
             Desde{' '}
             <input
@@ -139,20 +118,23 @@ export const DicomCineControls: React.FC<{
             Velocidad{' '}
             <select
               aria-label="Velocidad cine"
-              value={fps}
-              onChange={e => changeRange(() => setFps(Number(e.target.value)))}
+              value={video.fps}
+              onChange={e => changeVideo({ fps: Number(e.target.value) })}
             >
-              {[5, 10, 15, 20, 30].map(value => (
+              {DICOM_VIDEO_FPS.map(value => (
                 <option key={value} value={value}>
                   {value} cortes/s
                 </option>
               ))}
             </select>
           </label>
-          <button type="button" onClick={() => void run(false)}>
+          <button type="button" onClick={() => run(false)}>
             <Play size={14} /> Reproducir
           </button>
-          <button type="button" disabled={!complete} onClick={() => void run(true)}>
+        </fieldset>
+        <fieldset disabled={disabled || job.busy} aria-label="Opciones de MP4">
+          <DicomVideoSettings value={video} change={changeVideo} identity={identity} />
+          <button type="button" disabled={!complete} onClick={() => run(true)}>
             Generar MP4
           </button>
         </fieldset>
@@ -166,7 +148,7 @@ export const DicomCineControls: React.FC<{
                   ? `${start - 1},${end - 1}`
                   : ''
               }
-              disabled={busy}
+              disabled={job.busy}
               onChange={event => {
                 const [from, to] = event.target.value.split(',').map(Number);
                 changeRange(() => {
@@ -192,66 +174,34 @@ export const DicomCineControls: React.FC<{
             intervalo continuo ya preparado que selecciones; no omite cortes.
           </p>
         )}
-        {busy && (
-          <button type="button" onClick={() => job.current?.abort()}>
+        {job.busy && (
+          <button type="button" onClick={job.cancel}>
             <Square size={14} /> Cancelar cine / MP4
           </button>
         )}
-        {progress && (
+        {job.progress && (
           <div role="status">
-            {progress.stage} · {progress.completed}/{progress.total}
+            {job.progress.stage} · {job.progress.completed}/{job.progress.total}
             <progress
               aria-label="Progreso cine y MP4"
-              max={progress.total}
-              value={progress.completed}
+              max={job.progress.total}
+              value={job.progress.completed}
             />
           </div>
         )}
-        {error && <p role="alert">{error}</p>}
+        {job.error && <p role="alert">{job.error}</p>}
         <p>
           Una serie, sin audio ni datos de la interfaz. Copia de visualización con contraste fijo;
-          no sustituye al DICOM.
+          no sustituye al DICOM. El MP4 lleva el número de corte y la orientación; sin fecha en el
+          archivo.
         </p>
-        {preview && (
-          <div className="dicom-cine-preview">
-            <video
-              aria-label="Vista previa MP4"
-              src={preview}
-              controls
-              controlsList="nodownload noremoteplayback"
-              disablePictureInPicture
-              disableRemotePlayback
-              onContextMenu={event => event.preventDefault()}
-              playsInline
-              preload="auto"
-              onLoadedData={() => setPlayable(true)}
-              onError={() => {
-                setPlayable(false);
-                setError('No se pudo reproducir el MP4. No lo descargues.');
-              }}
-            />
-            <p>
-              Revisa el video completo: los píxeles originales pueden contener datos identificables.
-              No se anonimiza automáticamente ni se envía a terceros.
-            </p>
-            <label>
-              <input
-                type="checkbox"
-                checked={reviewed}
-                disabled={!playable}
-                onChange={e => setReviewed(e.target.checked)}
-              />{' '}
-              Revisé el video completo y no contiene datos identificables visibles.
-            </label>
-            {reviewed && playable && (
-              <a href={preview} download="secuencia-dicom.mp4">
-                Descargar MP4
-              </a>
-            )}
-            <button type="button" onClick={discard}>
-              Descartar video
-            </button>
-          </div>
+        {job.preview && (
+          <DicomVideoPreview
+            key={job.preview.url}
+            preview={job.preview}
+            discard={job.discard}
+            failed={job.setError}
+          />
         )}
       </div>
     </details>

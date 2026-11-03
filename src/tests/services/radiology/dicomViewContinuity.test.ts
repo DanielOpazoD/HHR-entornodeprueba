@@ -186,3 +186,24 @@ it('keeps the last valid mode snapshot when a different mode failed to build', a
   expect(s.view.getCamera().parallelScale).toBe(42);
   s.continuity.dispose();
 });
+it('recovers the camera from before a video, never a frame in the middle of it', async () => {
+  const s = setup();
+  await s.continuity.show('mpr', [s.element], s.build);
+  s.view.setCamera({ focalPoint: [7, 8, 9], parallelScale: 42 });
+  s.element.dispatchEvent(new Event('camera'));
+  const release = s.continuity.hold();
+  s.view.setCamera({ focalPoint: [7, 8, 20], parallelScale: 42 });
+  s.element.dispatchEvent(new Event('camera'));
+  s.canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
+  await vi.waitFor(() => expect(s.states.at(-1)).toBe('ready'));
+  expect(s.view.getCamera()).toEqual({ focalPoint: [7, 8, 9], parallelScale: 42 });
+  release();
+  release();
+  s.view.setCamera({ focalPoint: [1, 1, 1], parallelScale: 5 });
+  s.element.dispatchEvent(new Event('camera'));
+  s.canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
+  await vi.waitFor(() => expect(s.replace).toHaveBeenCalledTimes(2));
+  await vi.waitFor(() => expect(s.states.at(-1)).toBe('ready'));
+  expect(s.view.getCamera()).toEqual({ focalPoint: [1, 1, 1], parallelScale: 5 });
+  s.continuity.dispose();
+});
