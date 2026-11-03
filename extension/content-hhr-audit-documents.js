@@ -5,13 +5,15 @@
   if (!runtimeMessages || !globalThis.HhrAppOrigins?.has(window.location.origin)) return;
   const post = message => chrome.runtime?.id && window.postMessage(message, window.location.origin);
 
-  // The worker sends the ZIP in parts; this relay saves it, so the PDFs never enter HHR's code.
+  // The worker sends the ZIP in parts. A screen that saves it itself (where the person chooses)
+  // gets the joined Blob; an older one gets it saved straight into Downloads.
   const parts = new Map();
+  const savedByPage = new Set();
+  const joinArchive = chunks => new Blob(chunks.map(base64 => Uint8Array.from(atob(base64), c => c.charCodeAt(0))), {
+    type: 'application/zip',
+  });
   const saveArchive = (filename, chunks) => {
-    const blob = new Blob(chunks.map(base64 => Uint8Array.from(atob(base64), c => c.charCodeAt(0))), {
-      type: 'application/zip',
-    });
-    const url = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(joinArchive(chunks));
     const link = document.createElement('a');
     link.href = url;
     link.download = filename;
@@ -25,6 +27,7 @@
     const { requestId, index, total, filename, base64 } = message;
     if (message.discard === true) {
       parts.delete(requestId);
+      savedByPage.delete(requestId);
       return { ok: true };
     }
     if (typeof requestId !== 'string' || typeof base64 !== 'string' || typeof filename !== 'string' ||
@@ -42,6 +45,10 @@
       return { ok: true };
     }
     parts.delete(requestId);
+    if (savedByPage.delete(requestId)) {
+      post({ type: 'HHR_RAYEN_AUDIT_DOCUMENTS_ARCHIVE', reqId: requestId, filename, blob: joinArchive(received) });
+      return { ok: true, saved: true };
+    }
     saveArchive(filename, received);
     return { ok: true, saved: true };
   };
@@ -84,6 +91,7 @@
       return;
     }
     if (data?.type !== 'HHR_RAYEN_AUDIT_DOCUMENTS_REQUEST') return;
+    if (data.saveInPage === true && typeof data.reqId === 'string') savedByPage.add(data.reqId);
     // Acknowledged at once, so HHR can tell an outdated extension from a slow download.
     post({ type: 'HHR_RAYEN_AUDIT_DOCUMENTS_PROGRESS', reqId: data.reqId, phase: 'accepted', done: 0, total: 0 });
     chrome.runtime.sendMessage({
@@ -92,6 +100,7 @@
       patients: data.patients,
       documentTypes: data.documentTypes,
     }).then(response => {
+      savedByPage.delete(data.reqId);
       if (response?.cancelled === true) {
         // Also stopped by a session change elsewhere: the screen must not wait for its timer.
         post({ type: 'HHR_RAYEN_AUDIT_DOCUMENTS_RESULT', reqId: data.reqId, ok: false, cancelled: true, error: response.error });
@@ -108,6 +117,7 @@
         error: response?.error,
       });
     }).catch(error => {
+      savedByPage.delete(data.reqId);
       console.warn('[Rayen→HHR] Audit documents error:', error);
       post({ type: 'HHR_RAYEN_AUDIT_DOCUMENTS_RESULT', reqId: data.reqId, ok: false, error: String(error) });
     });

@@ -214,7 +214,7 @@ export const AuditDocumentsView: React.FC = () => {
           className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-slate-300"
         >
           {running ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
-          Buscar y descargar ZIP
+          Buscar documentos
         </button>
         {running && (
           <button

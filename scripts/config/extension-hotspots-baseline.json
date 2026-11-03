@@ -177,7 +177,7 @@
       "hotspots": {}
     },
     "content-hhr-audit-documents.js": {
-      "maxLines": 116,
+      "maxLines": 126,
       "hotspots": {}
     },
     "content-hhr-connection-repair.js": {
