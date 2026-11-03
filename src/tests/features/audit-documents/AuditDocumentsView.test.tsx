@@ -97,8 +97,14 @@ describe('Documentos para auditoría', () => {
     });
 
     expect(
-      await screen.findByText(/Se descargó Auditoria_Eloisa_2026-11-02_1610.zip/)
+      await screen.findByText(
+        /ZIP Auditoria_Eloisa_2026-11-02_1610.zip ya quedó en tu carpeta Descargas/
+      )
     ).toHaveTextContent('Revisa 1 RUT con documentos faltantes');
+    // Saved already: pressing the button again searches Eloísa again.
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Volver a pulsar «Buscar y descargar ZIP» repite toda la búsqueda.'
+    );
     expect(screen.getByText('Completo')).toBeInTheDocument();
     expect(
       screen.getByText('No se pudo consultar Eloísa: Eloísa respondió HTTP 500')
