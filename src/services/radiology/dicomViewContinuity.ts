@@ -33,12 +33,13 @@ export const createDicomViewContinuity = (
   let attempts = 0;
   let stopped = false;
   let saveEnabled = false;
+  let held = 0;
   const emit = (next: DicomGraphicsState) => {
     state = next;
     listeners.forEach(listener => listener(next));
   };
   const save = () => {
-    if (!current || !saveEnabled || state !== 'ready') return;
+    if (!current || !saveEnabled || held || state !== 'ready') return;
     const views = engine()?.getViewports() as View[] | undefined;
     if (views?.length && views.every(view => view.element.isConnected))
       snapshots.set(
@@ -179,6 +180,17 @@ export const createDicomViewContinuity = (
         }
         throw error;
       });
+    },
+    /** A video moves the camera frame by frame: keep the camera from before it. */
+    hold: () => {
+      held++;
+      let released = false;
+      return () => {
+        if (released) return;
+        released = true;
+        held--;
+        save();
+      };
     },
     suspend: () => {
       save();

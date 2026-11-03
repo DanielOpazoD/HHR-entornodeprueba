@@ -14,6 +14,7 @@ import type {
 import { DicomWindowControls } from './DicomWindowControls';
 import { DicomKeyboardControls } from './DicomKeyboardControls';
 import { DicomCineControls } from './DicomCineControls';
+import { DicomVolumeVideoControls } from './DicomVolumeVideoControls';
 import { DicomAdvancedControls } from './DicomAdvancedControls';
 import { DicomLoadControls } from './DicomLoadControls';
 import { DicomViewportGrid, dicomPlaneLabels as labels } from './DicomViewportGrid';
@@ -26,8 +27,10 @@ export const DicomSeriesView: React.FC<{
   prefetch?: DicomStudyPrefetch;
   series: DicomSeries;
   title: string;
+  /** Name, RUT and study date for a video whose anonymous profile the user turned off. */
+  identity?: string;
   onCapture?: (capture: DicomCapture) => void;
-}> = ({ study, series, title, onCapture, prefetch }) => {
+}> = ({ study, series, title, identity, onCapture, prefetch }) => {
   const [comparing, setComparing] = useState(false);
   const [keyboard, setKeyboard] = useState(true);
   const [loading, setLoading] = useState<DicomLoadState | null>(null);
@@ -260,6 +263,18 @@ export const DicomSeriesView: React.FC<{
               available={loading?.available ?? []}
               disabled={busy || waitingForSlice || Boolean(error)}
               busyChanged={setCineBusy}
+              identity={identity}
+            />
+          )}
+          {runtime && mode !== 'original' && (
+            <DicomVolumeVideoControls
+              key={`${runtime.sessionId}:${mode}`}
+              runtime={runtime}
+              mode={mode}
+              plane={activePlane}
+              disabled={busy || graphics === 'failed' || Boolean(error)}
+              busyChanged={setCineBusy}
+              identity={identity}
             />
           )}
           <button

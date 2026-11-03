@@ -1,3 +1,4 @@
+import type { DicomOrientation } from './dicomTypes';
 import type { MprSettings } from '@/domain/radiology/dicomReconstruction';
 import type { MprReconstructionState } from './dicomMprReconstruction';
 import type { createDicomComparison } from './dicomComparison';
@@ -8,6 +9,7 @@ import type { DicomStackState } from './dicomProgressiveStack';
 import type { DicomReference, ReferenceStyle } from './dicomMprTools';
 import type { VolumePresentation } from './dicomPresentation';
 import type { captureDicomCanvas } from './dicomCanvasCapture';
+import type { DicomVideoRequest } from './dicomVolumeVideo';
 
 export type DicomTool =
   | 'window'
@@ -20,12 +22,8 @@ export type DicomTool =
   | 'probe'
   | 'roi';
 export type DicomMode = 'original' | 'mpr' | '3d';
-export interface DicomOrientation {
-  top: string;
-  right: string;
-  bottom: string;
-  left: string;
-}
+// Defined with the study types so overlay, cine and video code can share it without a cycle.
+export type { DicomOrientation } from './dicomTypes';
 
 export interface DicomRuntime {
   readonly sessionId: string;
@@ -42,7 +40,12 @@ export interface DicomRuntime {
   ) => Promise<ReturnType<typeof createDicomComparison>>;
   onReconstruction: (listener: (state: MprReconstructionState | null) => void) => () => void;
   reconstruct: (patch: Partial<MprSettings> | null) => void;
-  openCine: () => DicomCineSession;
+  /** restoreSlice returns to the cut shown before the session when it closes (MP4 export). */
+  openCine: (options?: { restoreSlice?: boolean }) => DicomCineSession;
+  /** MPR sweep of one plane or 3D turntable; closing restores the camera it moved. */
+  openVideo: (request: DicomVideoRequest) => DicomCineSession & { total: number };
+  /** Zero-based current slice and slice count of an MPR plane, as the wheel scrolls it. */
+  mprSlices: (plane: number) => { current: number; total: number } | null;
   select: (index: number) => void;
   onStack: (listener: (state: DicomStackState) => void) => () => void;
   show: (mode: DicomMode, elements: HTMLDivElement[]) => Promise<void>;

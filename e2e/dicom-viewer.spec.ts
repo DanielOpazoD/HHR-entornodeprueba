@@ -7,7 +7,7 @@ import {
 import fs from 'node:fs';
 import PizZip from 'pizzip';
 import { Input, BufferSource, MP4 } from 'mediabunny';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import { buildCanonicalE2ERecord, bootstrapSeededRecord } from './fixtures/auth';
 import { installPreviewFirebaseRuntime } from './fixtures/previewFirebase';
 import {
@@ -148,6 +148,109 @@ const openSalvador = async (page: Page, manual = false) => {
     .getAttribute('value');
   await source.selectOption(key!);
   return editor;
+};
+
+/** Seeks each frame of the preview and waits until that exact frame is presented. */
+const sampleVideoFrames = (video: Locator, count: number, fps: number) =>
+  video.evaluate(
+    async (node, { count, fps }) => {
+      const movie = node as HTMLVideoElement;
+      const canvas = document.createElement('canvas');
+      canvas.width = movie.videoWidth;
+      canvas.height = movie.videoHeight;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+      const seekToFrame = async (index: number) => {
+        let callbackId = 0;
+        let timer = 0;
+        let observedTime: number | undefined;
+        const seeked = new Promise<void>(resolve => {
+          movie.addEventListener('seeked', () => resolve(), { once: true });
+        });
+        const presented = new Promise<void>(resolve => {
+          callbackId = movie.requestVideoFrameCallback(function onFrame(_now, metadata) {
+            observedTime = metadata.mediaTime;
+            if (Math.round(metadata.mediaTime * fps) === index) resolve();
+            else callbackId = movie.requestVideoFrameCallback(onFrame);
+          });
+        });
+        const deadline = new Promise<never>((_, reject) => {
+          timer = window.setTimeout(
+            () =>
+              reject(
+                new Error(`Frame ${index} not presented; last mediaTime=${observedTime ?? 'none'}`)
+              ),
+            5000
+          );
+        });
+        try {
+          movie.currentTime = index / fps + 0.05;
+          await Promise.race([Promise.all([seeked, presented]), deadline]);
+        } finally {
+          window.clearTimeout(timer);
+          movie.cancelVideoFrameCallback(callbackId);
+        }
+      };
+      const frames: Array<{ center: number; width: number; height: number }> = [];
+      // Start elsewhere so sampling frame zero also waits for a new presentation.
+      await seekToFrame(count - 1);
+      for (let i = 0; i < count; i++) {
+        await seekToFrame(i);
+        ctx.drawImage(movie, 0, 0);
+        const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        let [left, top, right, bottom] = [canvas.width, canvas.height, -1, -1];
+        // The bright extent skips a margin that holds the burned labels and edge letters.
+        for (let y = 40; y < canvas.height - 40; y++)
+          for (let x = 40; x < canvas.width - 40; x++)
+            if (data[(y * canvas.width + x) * 4] > 40) {
+              left = Math.min(left, x);
+              right = Math.max(right, x);
+              top = Math.min(top, y);
+              bottom = Math.max(bottom, y);
+            }
+        const middle =
+          (Math.floor(canvas.height / 2) * canvas.width + Math.floor(canvas.width / 2)) * 4;
+        frames.push({ center: data[middle], width: right - left + 1, height: bottom - top + 1 });
+      }
+      return frames;
+    },
+    { count, fps }
+  );
+
+/** Movie, track and media headers carry zero as creation and modification time. */
+const expectNoMp4Dates = (bytes: Buffer) => {
+  for (const type of ['mvhd', 'tkhd', 'mdhd']) {
+    const at = bytes.indexOf(type);
+    expect(at, type).toBeGreaterThan(0);
+    const width = bytes[at + 4] === 1 ? 8 : 4;
+    expect([...bytes.subarray(at + 8, at + 8 + width * 2)], type).toEqual(
+      new Array(width * 2).fill(0)
+    );
+  }
+};
+
+/** Downloads the reviewed preview; checks identifiers and dates, and reads its track. */
+const downloadReviewedMp4 = async (page: Page, viewer: Locator, filename: string) => {
+  const downloading = page.waitForEvent('download');
+  await viewer.getByRole('link', { name: 'Descargar MP4', exact: true }).click();
+  const download = await downloading;
+  expect(download.suggestedFilename()).toBe(filename);
+  const bytes = fs.readFileSync((await download.path())!);
+  await test.info().attach(filename, { body: bytes, contentType: 'video/mp4' });
+  expect(bytes.includes(Buffer.from(SYNTHETIC_PATIENT_ID))).toBe(false);
+  expect(bytes.includes(Buffer.from(SYNTHETIC_STUDY_UID))).toBe(false);
+  expectNoMp4Dates(bytes);
+  const input = new Input({ source: new BufferSource(bytes), formats: [MP4] });
+  try {
+    const track = await input.getPrimaryVideoTrack();
+    return {
+      codec: track?.codec,
+      packets: (await track!.computePacketStats()).packetCount,
+      duration: await input.computeDuration(),
+      audio: (await input.getAudioTracks()).length,
+    };
+  } finally {
+    input.dispose();
+  }
 };
 
 test.describe('DICOM viewer and Salvador annexes', () => {
@@ -776,6 +879,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     }
     expect(bytes.includes(Buffer.from(SYNTHETIC_PATIENT_ID))).toBe(false);
     expect(bytes.includes(Buffer.from(SYNTHETIC_STUDY_UID))).toBe(false);
+    expectNoMp4Dates(bytes);
     await viewer.getByRole('button', { name: 'Descartar video', exact: true }).click();
     await expect(video).toHaveCount(0);
     await viewer.getByLabel('Corte final', { exact: true }).fill('24');
@@ -796,6 +900,231 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     await viewer.locator('.dicom-cine summary').click();
     await expect(viewer.getByLabel('Corte inicial', { exact: true })).toHaveValue('1');
     await expect(viewer.getByLabel('Corte final', { exact: true })).toHaveValue('24');
+  });
+  test('sweeps an MPR plane with its MIP slab into a back-and-forth MP4 and restores the view', async ({
+    page,
+  }) => {
+    await setup(page);
+    // One uniform value per axial cut, rising with the cut and inside the W400/L40 window.
+    await page.route('**/.netlify/functions/mmrad-dicom', route => {
+      const body = route.request().postDataJSON();
+      if (body.action !== 'instance') return route.fallback();
+      const index = Number(String(body.ticket).split('-')[1]);
+      return route.fulfill({
+        contentType: 'application/dicom',
+        body: Buffer.from(
+          syntheticDicom(
+            index,
+            24,
+            SYNTHETIC_PATIENT_ID,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            { slope: '1', intercept: '0', unit: 'HU', pixelValue: 20 + index * 8 }
+          )
+        ),
+      });
+    });
+    const editor = await openSalvador(page);
+    await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+    await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+    const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+    await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    await viewer.getByRole('button', { name: 'MPR', exact: true }).click();
+    await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    await viewer.getByLabel('Reconstrucción MPR', { exact: true }).click();
+    await viewer.getByLabel('Espesor MPR en milímetros').fill('10');
+    await viewer.getByLabel('Proyección MPR').selectOption('mip');
+    await expect(viewer.getByLabel('Reconstrucción Axial', { exact: true })).toHaveText(
+      'MIP · 10 mm'
+    );
+    await viewer.getByLabel('Reconstrucción MPR', { exact: true }).click();
+    const coordinates = viewer.getByLabel('Coordenadas del punto LPS');
+    await expect(coordinates).toContainText('mm');
+    const centered = await coordinates.textContent();
+    // Snap the axial plane to a whole cut, the way the sweep renders each cut, and give
+    // Cornerstone two animation frames to draw it before reading the canvas.
+    await viewer.getByRole('button', { name: 'Corte anterior Axial', exact: true }).click();
+    await expect(coordinates).not.toHaveText(centered!);
+    await page.evaluate(
+      () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    );
+    const axial = viewer.locator('.dicom-canvas canvas').first();
+    const sample = () =>
+      axial.evaluate(node => {
+        const canvas = node as HTMLCanvasElement;
+        const copy = document.createElement('canvas');
+        copy.width = canvas.width;
+        copy.height = canvas.height;
+        const ctx = copy.getContext('2d')!;
+        ctx.drawImage(canvas, 0, 0);
+        const { data } = ctx.getImageData(0, 0, copy.width, copy.height);
+        let hash = 2166136261;
+        for (let i = 0; i < data.length; i += 4) hash = Math.imul(hash ^ data[i], 16777619);
+        const middle = (Math.floor(copy.height / 2) * copy.width + Math.floor(copy.width / 2)) * 4;
+        return { hash, center: data[middle] };
+      });
+    const before = await sample();
+    const point = await coordinates.textContent();
+    await viewer.getByLabel('Video MP4', { exact: true }).click();
+    const plane = viewer.getByLabel('Plano del barrido', { exact: true });
+    await expect(plane).toContainText('Axial · MIP · 10 mm · corte actual');
+    const [current, total] = (await plane.textContent())!
+      .match(/corte actual (\d+) de (\d+)/)!
+      .slice(1)
+      .map(Number);
+    expect(total).toBe(24);
+    await expect(viewer.getByLabel('Corte final', { exact: true })).toHaveValue('24');
+    await expect(viewer.getByLabel('Perfil anónimo', { exact: true })).toBeChecked();
+    await viewer.getByLabel('Corte inicial', { exact: true }).fill(String(current));
+    await viewer.getByLabel('Corte final', { exact: true }).fill(String(current + 3));
+    await viewer.getByLabel('Velocidad del video', { exact: true }).selectOption('5');
+    await viewer.getByLabel('Secuencia del video', { exact: true }).selectOption('pingpong');
+    await expect(viewer.getByLabel('Duración del video', { exact: true })).toHaveText(
+      '6 cuadros · 1,2 s'
+    );
+    await viewer.getByRole('button', { name: 'Generar MP4', exact: true }).click();
+    const video = viewer.getByLabel('Vista previa MP4', { exact: true });
+    await expect(video).toBeVisible({ timeout: 60000 });
+    await expect
+      .poll(() => video.evaluate(node => (node as HTMLVideoElement).readyState))
+      .toBeGreaterThanOrEqual(2);
+    expect(await video.evaluate(node => (node as HTMLVideoElement).duration)).toBeCloseTo(1.2, 2);
+    const frames = (await sampleVideoFrames(video, 6, 5)).map(frame => frame.center);
+    // The first frame is the cut shown before, with the same MIP slab; a thin cut would
+    // be two ramp steps away (about 10 grey levels).
+    expect(Math.abs(frames[0] - before.center)).toBeLessThanOrEqual(3);
+    const direction = Math.sign(frames[3] - frames[0]);
+    expect(direction).not.toBe(0);
+    for (let i = 1; i < 4; i++) expect((frames[i] - frames[i - 1]) * direction).toBeGreaterThan(2);
+    expect(Math.abs(frames[4] - frames[2])).toBeLessThanOrEqual(2);
+    expect(Math.abs(frames[5] - frames[1])).toBeLessThanOrEqual(2);
+    await expect(viewer.getByText(/^\d+×\d+ · 6 cuadros · 1,2 s$/)).toBeVisible();
+    await expect(viewer.getByRole('link', { name: 'Descargar MP4', exact: true })).toHaveCount(0);
+    await viewer.getByRole('checkbox', { name: /Revisé el video completo y no contiene/ }).check();
+    const mp4 = await downloadReviewedMp4(page, viewer, 'barrido-mpr-dicom.mp4');
+    expect(mp4).toEqual({ codec: 'avc', packets: 6, duration: expect.closeTo(1.2, 2), audio: 0 });
+    await viewer.getByRole('button', { name: 'Descartar video', exact: true }).click();
+    await expect(video).toHaveCount(0);
+    await expect(coordinates).toHaveText(point!);
+    await expect.poll(async () => (await sample()).hash).toBe(before.hash);
+    await expect(plane).toContainText(`corte actual ${current} de 24`);
+    await expect(viewer.getByLabel('Reconstrucción Axial', { exact: true })).toHaveText(
+      'MIP · 10 mm'
+    );
+  });
+  test('turns the 3D view into an MP4 about a chosen axis, cancels and restores the camera', async ({
+    page,
+  }) => {
+    await setup(page);
+    const editor = await openSalvador(page);
+    await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+    await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+    const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+    await expect(viewer.getByRole('button', { name: '3D', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    await viewer.getByRole('button', { name: '3D', exact: true }).click();
+    await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    const volume = viewer.locator('.dicom-canvas canvas').first();
+    await expect
+      .poll(() =>
+        volume.evaluate(canvas => {
+          const image = canvas as HTMLCanvasElement;
+          const bounds = image.getBoundingClientRect();
+          return (
+            Math.abs(image.width - bounds.width * devicePixelRatio) <= 1 &&
+            Math.abs(image.height - bounds.height * devicePixelRatio) <= 1
+          );
+        })
+      )
+      .toBe(true);
+    const hash = () =>
+      volume.evaluate(node => {
+        const copy = document.createElement('canvas');
+        copy.width = 64;
+        copy.height = 64;
+        const ctx = copy.getContext('2d')!;
+        ctx.drawImage(node as HTMLCanvasElement, 0, 0, 64, 64);
+        const data = ctx.getImageData(0, 0, 64, 64).data;
+        let value = 2166136261;
+        for (let i = 0; i < data.length; i++) value = Math.imul(value ^ data[i], 16777619);
+        return value;
+      });
+    // Two animation frames give any pending Cornerstone render time to reach the canvas.
+    const settled = async () => {
+      let previous: number | undefined;
+      for (let attempt = 0; attempt < 20; attempt++) {
+        await page.evaluate(
+          () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+        );
+        const value = await hash();
+        if (value === previous) return value;
+        previous = value;
+      }
+      throw new Error('The synthetic 3D view did not settle');
+    };
+    const initial = await settled();
+    const initialCenter = await volume.evaluate(node => {
+      const canvas = node as HTMLCanvasElement;
+      const copy = document.createElement('canvas');
+      copy.width = canvas.width;
+      copy.height = canvas.height;
+      const ctx = copy.getContext('2d')!;
+      ctx.drawImage(canvas, 0, 0);
+      return ctx.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1)
+        .data[0];
+    });
+    await viewer.getByLabel('Video MP4', { exact: true }).click();
+    await viewer.getByLabel('Cuadros del giro 3D', { exact: true }).fill('120');
+    await viewer.getByRole('button', { name: 'Generar MP4', exact: true }).click();
+    await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeDisabled();
+    const progress = viewer.getByRole('progressbar', { name: 'Progreso MP4' });
+    // Cancel once the camera has turned, so restoring it is observable. Software WebGL
+    // renders and encodes slowly, hence the generous waits.
+    await expect
+      .poll(() => progress.evaluate(node => (node as HTMLProgressElement).value), {
+        timeout: 60000,
+      })
+      .toBeGreaterThan(1);
+    await viewer.getByRole('button', { name: 'Cancelar MP4', exact: true }).click();
+    await expect(viewer.getByText('Operación cancelada. No se guardó ningún video.')).toBeVisible();
+    await expect(viewer.getByLabel('Vista previa MP4', { exact: true })).toHaveCount(0);
+    await expect.poll(hash, { timeout: 30000 }).toBe(initial);
+    await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeEnabled();
+    await viewer.getByLabel('Eje de giro 3D', { exact: true }).selectOption('horizontal');
+    await viewer.getByLabel('Cuadros del giro 3D', { exact: true }).fill('4');
+    await viewer.getByLabel('Velocidad del video', { exact: true }).selectOption('5');
+    await expect(viewer.getByLabel('Duración del video', { exact: true })).toHaveText(
+      '4 cuadros · 0,8 s'
+    );
+    await viewer.getByLabel('Perfil anónimo', { exact: true }).uncheck();
+    await viewer.getByRole('button', { name: 'Generar MP4', exact: true }).click();
+    const video = viewer.getByLabel('Vista previa MP4', { exact: true });
+    await expect(video).toBeVisible({ timeout: 60000 });
+    await expect
+      .poll(() => video.evaluate(node => (node as HTMLVideoElement).readyState))
+      .toBeGreaterThanOrEqual(2);
+    const frames = await sampleVideoFrames(video, 4, 5);
+    // 0°, 90°, 180° and 270° about the screen's horizontal axis. The first frame is the
+    // view itself; seen from either side, the synthetic volume is taller than from above
+    // or below.
+    expect(Math.abs(frames[0].center - initialCenter)).toBeLessThanOrEqual(8);
+    expect(frames[1].height).toBeGreaterThan(frames[0].height * 1.08);
+    expect(frames[3].height).toBeGreaterThan(frames[2].height * 1.08);
+    await expect(viewer.getByRole('link', { name: 'Descargar MP4', exact: true })).toHaveCount(0);
+    await viewer.getByRole('checkbox', { name: /Incluye nombre, RUT y fecha/ }).check();
+    const mp4 = await downloadReviewedMp4(page, viewer, 'giro-3d-dicom.mp4');
+    expect(mp4).toEqual({ codec: 'avc', packets: 4, duration: expect.closeTo(0.8, 2), audio: 0 });
+    await viewer.getByRole('button', { name: 'Descartar video', exact: true }).click();
+    await expect.poll(hash, { timeout: 30000 }).toBe(initial);
   });
   for (const calibrated of [true, false])
     test(`quantitative MPR ${calibrated ? 'measures calibrated HU and ROI' : 'blocks uncalibrated intensities'}`, async ({

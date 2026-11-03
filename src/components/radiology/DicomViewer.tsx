@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ExternalLink, RefreshCw } from 'lucide-react';
 import { fetchDicomStudy } from '@/services/radiology/mmradDicomService';
-import type { DicomStudy } from '@/services/radiology/dicomTypes';
+import { formatDicomStudyDate, type DicomStudy } from '@/services/radiology/dicomTypes';
 import type { DicomViewerDialogProps } from './DicomViewerDialog';
 import { DicomSeriesView } from './DicomSeriesView';
 import {
@@ -146,6 +146,9 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
           prefetch={prefetch}
           series={series}
           title={title}
+          identity={[patientName, patientId, formatDicomStudyDate(study.date || studyDate)]
+            .filter(Boolean)
+            .join(' · ')}
           onCapture={onCapture}
         />
       )}

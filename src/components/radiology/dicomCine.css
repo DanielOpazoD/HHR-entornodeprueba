@@ -68,3 +68,10 @@
 .dicom-interaction-lock {
   display: contents;
 }
+.dicom-cine fieldset + fieldset {
+  margin-top: 8px;
+}
+.dicom-video-plane {
+  flex-basis: 100%;
+  color: #cbd5e1;
+}

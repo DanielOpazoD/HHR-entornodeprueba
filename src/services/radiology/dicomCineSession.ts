@@ -1,28 +1,31 @@
 import type { StackViewport } from '@cornerstonejs/core';
 import type { createProgressiveStack } from './dicomProgressiveStack';
 import type { DicomCineSession } from './dicomCine';
+import type { DicomOrientation } from './dicomRuntimeTypes';
 import { waitForDicomRender } from './dicomRenderReady';
+import { lockDicomInput } from './dicomInputLock';
 
-/** Owns the original viewport while producing verified, rendered frames. No DOM overlays. */
+/** Owns the original viewport while producing verified, rendered frames. No DOM overlays.
+ * With restoreSlice, closing returns to the cut shown before the session (MP4 export). */
 export const openDicomCineSession = (
   target: StackViewport,
   stack: ReturnType<typeof createProgressiveStack>,
   sessionSignal: AbortSignal,
-  ensureActive: () => void
+  ensureActive: () => void,
+  {
+    total,
+    orientation = () => undefined,
+    restoreSlice = false,
+  }: { total: number; orientation?: () => DicomOrientation | undefined; restoreSlice?: boolean }
 ): DicomCineSession => {
   ensureActive();
   if (stack.state().pending || stack.state().error) throw new Error('Espera al corte actual.');
   const initialSize = [target.getCanvas().width, target.getCanvas().height];
+  const initialSlice = stack.state().current;
   let closed = false;
   let frameBusy = false;
   const controller = new AbortController();
-  const element = target.element.parentElement ?? target.element;
-  const block = (event: Event) => {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-  };
-  const events = ['wheel', 'pointerdown', 'mousedown', 'touchstart', 'keydown'];
-  events.forEach(name => element.addEventListener(name, block, { capture: true, passive: false }));
+  const unlock = lockDicomInput([target.element.parentElement ?? target.element]);
   stack.lock(true);
   return {
     close: () => {
@@ -30,10 +33,14 @@ export const openDicomCineSession = (
       closed = true;
       controller.abort();
       stack.lock(false);
-      events.forEach(name => element.removeEventListener(name, block, true));
+      unlock();
       try {
         ensureActive();
-        stack.select(stack.state().current ?? stack.state().requested);
+        stack.select(
+          restoreSlice && initialSlice !== null
+            ? initialSlice
+            : (stack.state().current ?? stack.state().requested)
+        );
       } catch {
         /* Closed session. */
       }
@@ -55,18 +62,11 @@ export const openDicomCineSession = (
         combined.throwIfAborted();
         ensureActive();
         if (stack.state() !== state) throw new Error('La selección cambió durante el cine.');
-        const source = target.getCanvas();
-        if (source.width !== initialSize[0] || source.height !== initialSize[1])
+        const canvas = target.getCanvas();
+        if (canvas.width !== initialSize[0] || canvas.height !== initialSize[1])
           throw new Error('El tamaño de la vista cambió. Vuelve a iniciar el cine.');
-        const canvas = document.createElement('canvas');
-        // Stable even dimensions, bounded memory, no upscaling.
-        const scale = Math.min(1, 1280 / source.width, 720 / source.height);
-        canvas.width = Math.max(2, Math.floor((source.width * scale) / 2) * 2);
-        canvas.height = Math.max(2, Math.floor((source.height * scale) / 2) * 2);
-        const context = canvas.getContext('2d');
-        if (!context || !source.width || !source.height) throw new Error('Imagen no disponible.');
-        context.drawImage(source, 0, 0, canvas.width, canvas.height);
-        return canvas;
+        if (!canvas.width || !canvas.height) throw new Error('Imagen no disponible.');
+        return { canvas, label: `Corte ${index + 1}/${total}`, edges: orientation() };
       } finally {
         frameBusy = false;
       }
