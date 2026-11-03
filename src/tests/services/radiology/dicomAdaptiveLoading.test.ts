@@ -1,3 +1,4 @@
+import { DICOM_DEFAULT_DOWNLOADS } from '@/services/radiology/dicomDownloadLimits';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { startDicomSeries } from '@/services/radiology/dicomSeriesLoader';
 import { DicomTransferError } from '@/services/radiology/dicomLoadState';
@@ -120,9 +121,12 @@ describe('adaptive verified loading', () => {
       })
     );
     const source = start();
-    await vi.waitFor(() => expect(mocks.fetch.mock.calls.length).toBeGreaterThan(4));
+    await vi.waitFor(() =>
+      expect(mocks.fetch.mock.calls.length).toBeGreaterThan(DICOM_DEFAULT_DOWNLOADS)
+    );
     expect(mocks.decode).toHaveBeenCalledTimes(2);
-    expect(mocks.fetch.mock.calls.length).toBeLessThanOrEqual(10);
+    // Buffered originals stay bounded at twice the download limit, plus the two being decoded.
+    expect(mocks.fetch.mock.calls.length).toBeLessThanOrEqual(DICOM_DEFAULT_DOWNLOADS * 2 + 2);
     const requested = source.request(23);
     expect(source.request(23)).toBe(requested);
     await vi.waitFor(() =>
