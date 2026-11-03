@@ -81,6 +81,25 @@ vigentes no se sustituyen por un documento.
 | CEN-03  | Un ingreso de madrugada con cama comprobada se incorpora al turno nocturno anterior al confirmar la sincronización habitual, si ese censo existe, no está firmado y el operador puede editarlo. Conserva el indicador amarillo de ingreso en su turno. | Es una asignación de turno; no requiere una segunda aceptación. Los días protegidos conservan sus controles.                   |
 | CEN-04  | Si una fila administrativa carece de episodio, completar esa identidad desde Eloísa antes de reconstruir el censo, aunque HHR ya tenga un alta del mismo RUT. Un episodio ya egresado no vuelve a ocupar cama.                                         | La coincidencia de RUT no identifica una hospitalización; repetir una captura no debe reabrir un alta ni confundir reingresos. |
 
+### Zona horaria de cada fuente de Eloísa (TIME-02)
+
+Una hora sin desfase no dice en qué zona está. Cada campo se convierte a Rapa Nui con `Intl`,
+desde la zona que se midió para él, y nunca sumando o restando horas. Medido el 2026-11-02 contra el
+historial oficial de Eloísa, que imprime hora de Rapa Nui (52 días-hospitalización; 2,7 % de
+coincidencias por azar):
+
+| Fuente y campo                                                                                       | Zona medida       | Evidencia                                                                                        | Dónde se lee                                            |
+| ---------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------- |
+| Historial JSON: etiqueta de escalas, evoluciones, registro de administración, entregas de turno      | Chile continental | −2 h en 100 % de 507, 66 % de 218, 56 % de 194, 31 % de 13; un dispositivo con desfase explícito | `fichaMedicoHistoryClock.ts`; anexo de auditoría        |
+| Historial JSON: signos vitales (`PUBLISH_DATE`)                                                      | Rapa Nui          | sin cambio en 66 % de 2.001                                                                      | `fichaMedicoActivityStampInRapaNui`; anexo de auditoría |
+| Historial JSON: hora real de administración (`ACTUAL_PERFORMED_TIME`)                                | Rapa Nui          | sin cambio en 281 de 281 (reporte farmacológico oficial)                                         | anexo de auditoría                                      |
+| Historial JSON: indicaciones de medicamentos (`patientPharmaIndicationResume.PUBLISH_DATETIME`)      | UTC               | comparada con la hora oficial de emisión de la receta                                            | centro de recetas de la extensión; anexo                |
+| Episodios, informes de hospitalización, dispositivos (`installationDatetime`), CUDYR (`crdDateTime`) | desfase explícito | el valor trae su desfase                                                                         | conversión desde el instante                            |
+
+Pendiente: las escalas Braden y Downton todavía guardan el reloj impreso de sus dos fuentes, en
+hora continental, porque su identidad persistida depende de ese reloj. Convertirlas exige migrar
+las aplicaciones ya guardadas sin duplicarlas.
+
 ## Recién nacidos: identidad primero, ubicación después
 
 | ID    | Comportamiento esperado                                                                                                                                                                                                                                                                                                                         | Por qué                                                                                                                                                                                       |

@@ -97,6 +97,8 @@ describe('RayenNursingShiftProposalModal', () => {
     );
     fireEvent.click(screen.getByText('Ver detalle · 2 registros'));
     expect(screen.getByText(/Claudia Saliente · 20-07 08:35/)).toBeVisible();
+    // An administration record is written in mainland time and shown in Rapa Nui time.
+    expect(screen.getByText(/Ana Pérez · 20-07 06:42/)).toBeVisible();
     expect(screen.getAllByText(/Ventana de relevo: primeros 60 min del turno día/)).toHaveLength(2);
 
     expect(screen.getByRole('dialog', { name: 'Dotación clínica identificada' })).toBeVisible();

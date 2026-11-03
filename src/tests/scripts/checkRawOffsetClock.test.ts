@@ -56,7 +56,7 @@ describe('raw offset clock guard', () => {
   ])('accepts explicitly documented unzoned history in %s', name => {
     const result = run(
       `src/features/rayen-import/${name}.ts`,
-      `// clinical-clock-allow raw-offset-clock: History stamps have no offset and are Rapa Nui wall time.\n${devicePattern}`
+      `// clinical-clock-allow raw-offset-clock: This source writes local stamps without an offset.\n${devicePattern}`
     );
     expect(result.status).toBe(0);
   });

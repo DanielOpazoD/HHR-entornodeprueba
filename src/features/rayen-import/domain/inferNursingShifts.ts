@@ -1,4 +1,5 @@
 import { getNextDay, getShiftSchedule, parseTimeMinutes } from '@/utils/clinicalDayUtils';
+import { fichaMedicoActivityStampInRapaNui } from '../mapping/fichaMedicoHistoryClock';
 import type {
   NursingStaffingProposal,
   NursingBoundaryExclusion,
@@ -40,10 +41,10 @@ interface LocalStamp {
   hour: number;
 }
 
-/** Ficha Médico history stamps are Rapa Nui wall-clock values without an offset. */
-const parseLocalStamp = (value: string): LocalStamp | null => {
-  // clinical-clock-allow raw-offset-clock: Ficha Medico history stamps have no offset and already use Rapa Nui local time.
-  const match = value.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{1,2}):(\d{2})/);
+/** The hospital day and minute of a history record, converted by the clock of its field. */
+const parseLocalStamp = (observation: RayenNursingActivity): LocalStamp | null => {
+  const hospital = fichaMedicoActivityStampInRapaNui(observation.recordedAt, observation.source);
+  const match = hospital?.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):\d{2}$/);
   if (!match) return null;
   const hour = Number(match[2]);
   const minute = Number(match[3]);
@@ -117,7 +118,7 @@ const buildSuggestion = (
       staffCatalog,
       observation.authorIdentity
     );
-    const stamp = parseLocalStamp(observation.recordedAt);
+    const stamp = parseLocalStamp(observation);
     if (
       !identity ||
       /^(?:no\s*informad[oa]|sin\s*informaci[oó]n)$/i.test(identity.displayName) ||

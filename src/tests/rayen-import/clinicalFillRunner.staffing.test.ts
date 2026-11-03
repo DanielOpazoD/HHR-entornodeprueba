@@ -33,12 +33,13 @@ const deps = (over: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => ({
   ...over,
 });
 
+// Ficha Médico writes these evolution stamps in mainland time: 12:15 there is 10:15 in Rapa Nui.
 describe('runClinicalFill staffing inference', () => {
   it('registers discovered staff even when no shift can be inferred and reports a storage failure', async () => {
     const activity = {
       author: 'Ana Soto Rojas',
       role: 'Enfermera(o)',
-      recordedAt: '2026-07-10T10:15:00',
+      recordedAt: '2026-07-10T12:15:00',
       source: 'evolution',
     };
     const registerStaff = vi.fn().mockRejectedValue(new Error('storage unavailable'));
@@ -63,13 +64,13 @@ describe('runClinicalFill staffing inference', () => {
         {
           author: 'Ana Enfermera',
           role: 'Enfermera(o)',
-          recordedAt: encId === 'E1' ? '2026-07-10T10:15:00' : '2026-07-10T14:15:00',
+          recordedAt: encId === 'E1' ? '2026-07-10T12:15:00' : '2026-07-10T16:15:00',
           source: 'evolution',
         },
         {
           author: 'Jimena Yáñez',
           role: 'Paramédico',
-          recordedAt: encId === 'E1' ? '2026-07-10T11:15:00' : '2026-07-10T15:15:00',
+          recordedAt: encId === 'E1' ? '2026-07-10T13:15:00' : '2026-07-10T17:15:00',
           source: 'evolution',
         },
       ],
@@ -104,7 +105,7 @@ describe('runClinicalFill staffing inference', () => {
               author: 'Camila Soto Alegria',
               authorIdentity: { firstGivenName: 'Camila', firstSurname: 'Soto' },
               role: 'Enfermera(o)',
-              recordedAt: '2026-07-10T10:20:00',
+              recordedAt: '2026-07-10T12:20:00',
               source: 'evolution',
             },
           ],
@@ -127,7 +128,7 @@ describe('runClinicalFill staffing inference', () => {
             {
               author: 'Jimena Yañez',
               role: 'Paramédico',
-              recordedAt: '2026-07-10T15:20:00',
+              recordedAt: '2026-07-10T17:20:00',
               source: 'vital-signs',
             },
           ],
@@ -148,7 +149,7 @@ describe('runClinicalFill staffing inference', () => {
       nursingActivity: ['Ana Pérez', 'Berta Soto', 'Carla Rojas'].map((author, index) => ({
         author,
         role: 'Enfermera(o)',
-        recordedAt: `2026-07-10T${10 + index}:15:00`,
+        recordedAt: `2026-07-10T${12 + index}:15:00`,
         source: 'evolution',
         encounterId: encId,
       })),

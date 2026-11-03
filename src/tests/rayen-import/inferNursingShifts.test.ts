@@ -7,22 +7,31 @@ import {
   type NursingActivityObservation,
 } from '@/features/rayen-import/domain/inferNursingShifts';
 
+/**
+ * Scenarios are written in Rapa Nui time. Ficha Médico writes these records in mainland time,
+ * 2 h later, except vital signs, which it already writes in Rapa Nui time (TIME-02).
+ */
+const fichaMedicoStamp = (rapaNuiWallClock: string, source = 'evolution'): string =>
+  source === 'vital-signs'
+    ? rapaNuiWallClock
+    : new Date(Date.parse(`${rapaNuiWallClock}Z`) + 2 * 60 * 60 * 1000).toISOString().slice(0, 19);
+
 const activity = (
   author: string,
-  recordedAt: string,
+  rapaNuiWallClock: string,
   encounterId: string,
   overrides: Partial<NursingActivityObservation> = {}
 ): NursingActivityObservation => ({
   author,
   role: 'Enfermera(o)',
-  recordedAt,
   encounterId,
   source: 'evolution',
   ...overrides,
+  recordedAt: fichaMedicoStamp(rapaNuiWallClock, overrides.source),
 });
 
 describe('inferNursingShifts', () => {
-  it('identifies up to two nurses per shift using independent patients and local wall time', () => {
+  it('identifies up to two nurses per shift by the Rapa Nui time of their records', () => {
     const proposal = inferNursingShifts(
       [
         activity('ANA PÉREZ', '2026-07-20T09:10:00', 'E1'),
@@ -40,6 +49,47 @@ describe('inferNursingShifts', () => {
     expect(proposal.day.names).toEqual(['Berta Soto', 'Ana Pérez']);
     expect(proposal.night.names).toEqual(['Carla Rojas', 'Daniela Vera']);
     expect(hasNursingShiftSuggestions(proposal)).toBe(true);
+  });
+
+  it('reads each Ficha Médico stamp on the clock of its field before choosing the shift', () => {
+    const proposal = inferNursingShifts(
+      [
+        // Written 09:10 in mainland time: 07:10 in Rapa Nui, still the night shift of the 19th.
+        {
+          author: 'Nora Noche',
+          role: 'Enfermera(o)',
+          recordedAt: '2026-07-20T09:10:00',
+          encounterId: 'E1',
+          source: 'evolution',
+        },
+        {
+          author: 'Nora Noche',
+          role: 'Enfermera(o)',
+          recordedAt: '2026-07-20T09:40:00',
+          encounterId: 'E2',
+          source: 'medication-administration',
+        },
+        // Vital signs already come in Rapa Nui time: 09:10 is the day shift.
+        {
+          author: 'Diana Día',
+          role: 'Enfermera(o)',
+          recordedAt: '2026-07-20T09:10:00',
+          encounterId: 'E1',
+          source: 'vital-signs',
+        },
+        {
+          author: 'Diana Día',
+          role: 'Enfermera(o)',
+          recordedAt: '2026-07-20T11:00:00',
+          encounterId: 'E2',
+          source: 'vital-signs',
+        },
+      ],
+      '2026-07-20'
+    );
+
+    expect(proposal.day.names).toEqual(['Diana Día']);
+    expect(proposal.night.names).toEqual([]);
   });
 
   it('excludes delayed records in the first hour after each handoff boundary', () => {
@@ -61,12 +111,12 @@ describe('inferNursingShifts', () => {
     expect(proposal.day.ignoredBoundaryEvidence).toEqual([
       expect.objectContaining({
         name: 'Saliente Noche',
-        recordedAt: '2026-07-20T08:30:00',
+        recordedAt: fichaMedicoStamp('2026-07-20T08:30:00'),
         boundary: 'day_start',
       }),
       expect.objectContaining({
         name: 'Saliente Noche',
-        recordedAt: '2026-07-20T08:45:00',
+        recordedAt: fichaMedicoStamp('2026-07-20T08:45:00'),
         boundary: 'day_start',
       }),
     ]);
@@ -74,12 +124,12 @@ describe('inferNursingShifts', () => {
       expect.arrayContaining([
         expect.objectContaining({
           name: 'Saliente Día',
-          recordedAt: '2026-07-20T20:30:00',
+          recordedAt: fichaMedicoStamp('2026-07-20T20:30:00'),
           boundary: 'night_start',
         }),
         expect.objectContaining({
           name: 'Saliente Noche',
-          recordedAt: '2026-07-21T08:30:00',
+          recordedAt: fichaMedicoStamp('2026-07-21T08:30:00'),
           boundary: 'night_end',
         }),
       ])
