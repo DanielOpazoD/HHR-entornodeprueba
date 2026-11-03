@@ -1,5 +1,5 @@
 import { readDicomBytes } from './readDicomBytes';
-import { DicomTransferError, type DicomLoadState } from './dicomLoadState';
+import { DicomTicketExpiredError, DicomTransferError, type DicomLoadState } from './dicomLoadState';
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
 import { normalizeDicomPatientId, type DicomStudy } from './dicomTypes';
 
@@ -17,6 +17,14 @@ const request = async (body: object, signal: AbortSignal): Promise<Response> => 
     const data: unknown = await response.json().catch(() => null);
     const error = data && typeof data === 'object' && 'error' in data ? data.error : null;
     if ('action' in body && body.action === 'instance') {
+      if (
+        response.status === 403 &&
+        data &&
+        typeof data === 'object' &&
+        'code' in data &&
+        data.code === 'ticket-expired'
+      )
+        throw new DicomTicketExpiredError();
       const retry = response.headers.get('retry-after');
       const seconds =
         retry && /^\d+$/.test(retry)

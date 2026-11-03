@@ -108,6 +108,13 @@ export const issueInstanceTicket = (
   return `${payload}.${signature(payload).toString('base64url')}`;
 };
 
+/** An authentic ticket of this very user whose time ran out; the browser may reopen the study. */
+export class InstanceTicketExpiredError extends Error {
+  constructor() {
+    super('El acceso al estudio venció.');
+  }
+}
+
 export const verifyInstanceTicket = (ticket: unknown, subject: string): InstanceTicket => {
   if (typeof ticket !== 'string' || ticket.length > 1500)
     throw new Error('Acceso DICOM no válido.');
@@ -121,7 +128,6 @@ export const verifyInstanceTicket = (ticket: unknown, subject: string): Instance
   if (
     value.subject !== subject ||
     !Number.isFinite(value.expires) ||
-    value.expires <= Date.now() ||
     ![value.study, value.series, value.sop].every(isDicomUid) ||
     !/^[a-zA-Z0-9_-]{1,100}$/.test(value.server) ||
     (value.viewer !== undefined &&
@@ -129,7 +135,9 @@ export const verifyInstanceTicket = (ticket: unknown, subject: string): Instance
         typeof value.session !== 'string' ||
         !/^[A-Za-z0-9_-]{30,400}$/.test(value.session)))
   )
-    throw new Error('El acceso al estudio venció. Vuelve a abrir el visor.');
+    throw new Error('Acceso DICOM no válido.');
+  // Expiry is checked last, so only a signed, well-formed ticket of this user reads as expired.
+  if (value.expires <= Date.now()) throw new InstanceTicketExpiredError();
   return value;
 };
 

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchDicomInstance } from '@/services/radiology/mmradDicomService';
+import { DicomTicketExpiredError } from '@/services/radiology/dicomLoadState';
 vi.mock('@/services/auth/authRequestHeaders', () => ({
   resolveCurrentUserAuthHeaders: async () => ({}),
 }));
@@ -68,6 +69,26 @@ describe('DICOM transfer diagnostics and retry classification', () => {
     const result = fetchDicomInstance('synthetic-ticket', new AbortController().signal);
     await expect(result).rejects.toMatchObject({ transient, retryAfterMs: 3000 });
     await expect(result).rejects.not.toThrow('private');
+  });
+  it('recognises only a 403 coded ticket-expired as renewable access', async () => {
+    const answer = (status: number, body: object) =>
+      vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }));
+    vi.stubGlobal('fetch', answer(403, { error: 'Synthetic expired', code: 'ticket-expired' }));
+    const expired = fetchDicomInstance('synthetic-ticket', new AbortController().signal);
+    await expect(expired).rejects.toBeInstanceOf(DicomTicketExpiredError);
+    await expect(expired).rejects.toMatchObject({
+      transient: false,
+      message: 'No se pudo obtener el corte. Vuelve a abrir el estudio.',
+    });
+    for (const [status, body] of [
+      [403, { error: 'Synthetic invalid' }],
+      [422, { error: 'Synthetic', code: 'ticket-expired' }],
+    ] as const) {
+      vi.stubGlobal('fetch', answer(status, body));
+      const other = fetchDicomInstance('synthetic-ticket', new AbortController().signal);
+      await expect(other).rejects.toMatchObject({ transient: false });
+      await expect(other).rejects.not.toBeInstanceOf(DicomTicketExpiredError);
+    }
   });
   it('retries a body-read AbortError when the patient session was not cancelled', async () => {
     const response = new Response(new Uint8Array([1]), {

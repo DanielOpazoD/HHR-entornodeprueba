@@ -35,7 +35,10 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
     void fetchDicomStudy(link, patientId, controller.signal)
       .then(result => {
         if (controller.signal.aborted) return;
-        session = createDicomStudyPrefetch(result, undefined, reviewCache);
+        // Expired instance access renews silently by reopening this link for this patient.
+        session = createDicomStudyPrefetch(result, undefined, reviewCache, signal =>
+          fetchDicomStudy(link, patientId, signal)
+        );
         setPrefetch(session);
         setStudy(result);
         setSeriesUid(

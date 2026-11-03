@@ -212,7 +212,7 @@ export const normalizeUniversitasStudy = (
           uid: sop,
           number: number(instance.instanceNumber),
           frames: Math.max(1, number(instance.numberOfFrames, 1)),
-          // The ticket ends when the share cookie does, so the viewer asks to reopen in time.
+          // The ticket ends when the share cookie does; the viewer then renews it by reopening.
           ticket: issueInstanceTicket(
             {
               subject,
