@@ -22,8 +22,10 @@ describe('mmrad-search', () => {
     });
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    const { forgetMMRADSession } = await import('../../../netlify/functions/lib/mmrad-session');
+    forgetMMRADSession();
     process.env = {
       ...originalEnv,
       URL: 'https://app.example.com',
@@ -210,7 +212,7 @@ describe('mmrad-search', () => {
       status: 200,
       headers: new Headers(),
       text: vi.fn().mockResolvedValue(
-        `<html><body><table>
+        `<html><body><form><input name="idpaciente" /></form><table>
           <tr>
             <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td>
             <td>01/01/2026</td><td>02/01/2026</td><td>8</td><td>9</td>
@@ -305,7 +307,7 @@ describe('mmrad-search', () => {
       status: 200,
       headers: new Headers(),
       text: vi.fn().mockResolvedValue(
-        `<html><body><table>
+        `<html><body><form><input name="idpaciente" /></form><table>
           <tr>
             <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td>
             <td>01/01/2026</td><td>02/01/2026</td><td>8</td><td>9</td>

@@ -35,7 +35,9 @@ import {
   fetchWithHeaders,
   normalizeMmradUrl,
   decodeResponseHtml,
+  isLoggedInRisPage,
   loginToMMRAD,
+  withMMRADSession,
 } from './lib/mmrad-session';
 
 const resolveMmradAuthorizationErrorMessage = (message: string): string => {
@@ -234,6 +236,8 @@ const searchExamRows = async (
   });
 
   const html = await response.text();
+  // A logged-out page lists no rows; reading it as «sin exámenes» would hide them (SAVE-01).
+  if (!isLoggedInRisPage(html)) throw new Error('La sesión MMRAD no está activa.');
   return parseExamRowsFromHTML(html);
 };
 
@@ -519,51 +523,51 @@ export const createMMRADSearchHandler = (
           hasToFilter: Boolean(queryParams.get('to')),
         },
         fn: async () => {
-          const { cookies, searchActionUrl } = await loginToMMRAD();
+          return withMMRADSession(async ({ cookies, searchActionUrl }) => {
+            if (!searchActionUrl) {
+              return buildJsonResponse(
+                200,
+                {
+                  rut: cleanRut,
+                  examenes: [],
+                },
+                { requestOrigin }
+              );
+            }
 
-          if (!searchActionUrl) {
+            const from = queryParams.get('from') || undefined;
+            const to = queryParams.get('to') || undefined;
+            const search = (patientId: string) =>
+              searchExamRows(patientId, cookies, searchActionUrl, from, to);
+            const exact = (await search(cleanRut)).map(row => row.exam);
+            // Only with the census name: a mistyped check digit is accepted when the name matches.
+            const patientName = (queryParams.get('name') || '').slice(0, 200);
+            const mistyped = patientName
+              ? await searchMistypedCheckDigitExams({
+                  rut: cleanRut,
+                  patientName,
+                  search,
+                  key: examKey,
+                })
+              : null;
+            const known = new Set(exact.map(examKey));
+            const examenes = await hydrateStructuredCtReports(
+              [...exact, ...(mistyped?.exams.filter(exam => !known.has(examKey(exam))) ?? [])],
+              cookies
+            );
+
             return buildJsonResponse(
               200,
               {
                 rut: cleanRut,
-                examenes: [],
+                examenes,
+                ...(mistyped
+                  ? { check_digit_search: mistyped.complete ? 'complete' : 'partial' }
+                  : {}),
               },
               { requestOrigin }
             );
-          }
-
-          const from = queryParams.get('from') || undefined;
-          const to = queryParams.get('to') || undefined;
-          const search = (patientId: string) =>
-            searchExamRows(patientId, cookies, searchActionUrl, from, to);
-          const exact = (await search(cleanRut)).map(row => row.exam);
-          // Only with the census name: a mistyped check digit is accepted when the name matches.
-          const patientName = (queryParams.get('name') || '').slice(0, 200);
-          const mistyped = patientName
-            ? await searchMistypedCheckDigitExams({
-                rut: cleanRut,
-                patientName,
-                search,
-                key: examKey,
-              })
-            : null;
-          const known = new Set(exact.map(examKey));
-          const examenes = await hydrateStructuredCtReports(
-            [...exact, ...(mistyped?.exams.filter(exam => !known.has(examKey(exam))) ?? [])],
-            cookies
-          );
-
-          return buildJsonResponse(
-            200,
-            {
-              rut: cleanRut,
-              examenes,
-              ...(mistyped
-                ? { check_digit_search: mistyped.complete ? 'complete' : 'partial' }
-                : {}),
-            },
-            { requestOrigin }
-          );
+          });
         },
       });
     } catch (error) {

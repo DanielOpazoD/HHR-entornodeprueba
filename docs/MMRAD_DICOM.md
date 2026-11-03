@@ -240,6 +240,22 @@ respuestas de hasta 32 MiB y Santiago llega a `visorammym.mmrad.cl`.
   de Functions falla. Al crear la función, el permiso público de invocación lo configura un
   administrador, como en otros endpoints nuevos (ver el encabezado de `deploy-functions.yml`).
 
+### Sesión RIS reutilizada (desde 2026-11-03)
+
+Iniciar sesión en el RIS toma 1,4–2,2 s, y una búsqueda, 0,4–0,6 s. Una sesión sigue siendo válida
+para pedidos posteriores. Por eso, cada instancia activa de `mmrad-search` y de `mmrad-dicom` reutiliza
+su sesión de la cuenta de servicio hasta 10 minutos (`withMMRADSession`).
+
+- Una página de resultados solo cuenta como sesión viva si trae el formulario de búsqueda
+  (`idpaciente`) y no el de inicio de sesión. Una página sin sesión nunca se lee como «sin
+  exámenes»: se inicia sesión de nuevo y la consulta se repite una vez.
+- En Universitas, si la sesión venció, la página `abrirestudio` no trae el enlace corto, y la
+  consulta también se repite.
+- El PDF y el comprobante siguen iniciando sesión cada vez, porque no comprueban qué les responde
+  MMRAD.
+- Medido con la cuenta de servicio: la segunda búsqueda bajó de 3,2 s a 1,5 s, y la segunda apertura
+  de estudio, de 1,6 s a 0,65 s.
+
 ### Exámenes registrados con otro dígito verificador (desde 2026-11-03)
 
 MMRAD a veces registra exámenes de un paciente con el mismo número de RUT pero un dígito verificador
