@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchDicomInstance } from '@/services/radiology/mmradDicomService';
-import { DicomTicketExpiredError } from '@/services/radiology/dicomLoadState';
+import {
+  DicomOriginalTooLargeError,
+  DicomTicketExpiredError,
+} from '@/services/radiology/dicomLoadState';
 vi.mock('@/services/auth/authRequestHeaders', () => ({
   resolveCurrentUserAuthHeaders: async () => ({}),
 }));
@@ -89,6 +92,25 @@ describe('DICOM transfer diagnostics and retry classification', () => {
       await expect(other).rejects.toMatchObject({ transient: false });
       await expect(other).rejects.not.toBeInstanceOf(DicomTicketExpiredError);
     }
+  });
+  it('explains an original too large for HHR and points to MMRAD, without retrying it', async () => {
+    const answer = (body: object) =>
+      vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status: 413 }));
+    vi.stubGlobal('fetch', answer({ error: 'Synthetic', code: 'too-large', bytes: 24263704 }));
+    const sized = fetchDicomInstance('synthetic-ticket', new AbortController().signal);
+    await expect(sized).rejects.toBeInstanceOf(DicomOriginalTooLargeError);
+    await expect(sized).rejects.toMatchObject({
+      transient: false,
+      message: expect.stringMatching(/pesa 24,3 MB .*3,5 MB.*«MMRAD».*Universitas/),
+    });
+    vi.stubGlobal('fetch', answer({ error: 'Synthetic', code: 'too-large' }));
+    await expect(
+      fetchDicomInstance('synthetic-ticket', new AbortController().signal)
+    ).rejects.toMatchObject({ message: expect.stringMatching(/^Esta imagen supera los 3,5 MB/) });
+    vi.stubGlobal('fetch', answer({ error: 'Synthetic' }));
+    await expect(
+      fetchDicomInstance('synthetic-ticket', new AbortController().signal)
+    ).rejects.not.toBeInstanceOf(DicomOriginalTooLargeError);
   });
   it('retries a body-read AbortError when the patient session was not cancelled', async () => {
     const response = new Response(new Uint8Array([1]), {

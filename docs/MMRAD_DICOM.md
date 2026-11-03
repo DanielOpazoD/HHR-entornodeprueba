@@ -151,6 +151,15 @@ la espera, mientras que Chile, Brasil y Francia respondieron. Por eso `mmrad-dic
 8 s tres veces y São Paulo respondió 200 en 0,2 a 0,8 s. La búsqueda (`mmrad-search`) sigue en la
 región del sitio.
 
+**Radiografías demasiado grandes.** Medido el 2026-11-03: las radiografías (DX) llegan como originales
+sin comprimir de 23 a 25 MB (Explicit VR Little Endian). La compresión genérica apenas las reduce
+(97–98 %). El endpoint WADO de Universitas ignora `Range` y `transferSyntax`, y no admite CORS. Una
+respuesta normal de Netlify lleva como máximo unos 4,5 MB binarios, y una en streaming, 20 MB. Por eso
+la función responde 413 con `code: 'too-large'` y el tamaño cuando MMRAD lo declara. El visor lo dice
+con esas palabras y remite al botón «MMRAD» (Visualizador Universitas). Los TC (unos 0,5 MB por
+imagen) no se ven afectados. Pendiente después del 08-11, con aprobación del responsable: traer los
+originales grandes desde una función de Firebase en Santiago, que admite respuestas de 32 MB.
+
 Los HAR privados suministrados permitieron reconocer dos flujos: `examenZip`
 prepara un archivo ZIP; el visor enumera originales con SockJS/DDP
 `GetStudyMetadata`. Un HAR pequeño de preparación no indica el tamaño del estudio

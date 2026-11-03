@@ -153,6 +153,13 @@ export const instanceWadoUrl = (value: InstanceTicket): string => {
   return `${MMRAD_VIEWER}/__wado_proxy?${new URLSearchParams({ serverId: value.server, url: inner.href })}`;
 };
 
+/** A response larger than the bridge can carry; for originals the viewer explains it. */
+export class BoundedResponseTooLargeError extends Error {
+  constructor() {
+    super('El archivo DICOM supera el tamaño permitido por la conexión.');
+  }
+}
+
 export const readBoundedResponse = async (
   response: Response,
   limit: number
@@ -166,8 +173,7 @@ export const readBoundedResponse = async (
       const { done, value } = await reader.read();
       if (done) break;
       length += value.length;
-      if (length > limit)
-        throw new Error('El archivo DICOM supera el tamaño permitido por la conexión.');
+      if (length > limit) throw new BoundedResponseTooLargeError();
       chunks.push(value);
     }
   } finally {
