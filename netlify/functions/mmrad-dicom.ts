@@ -15,6 +15,7 @@ import {
 import { normalizeMmradUrl, MMRAD_ALLOWED_ROLES } from './lib/mmrad-session';
 import {
   MMRAD_VIEWER,
+  BoundedResponseTooLargeError,
   InstanceTicketExpiredError,
   verifyInstanceTicket,
   instanceWadoUrl,
@@ -38,6 +39,12 @@ interface Dependencies {
   loadUniversitasManifest?: typeof loadUniversitasManifest;
 }
 
+/**
+ * A buffered function response carries at most ~4.5 MB of binary. MMRAD's radiographs are
+ * uncompressed originals of 20-25 MB (measured 2026-11-03), so the viewer is told the size.
+ */
+const MAX_ORIGINAL_BYTES = 3_500_000;
+
 export const createMMRADDicomHandler =
   (
     dependencies: Dependencies = {
@@ -53,6 +60,12 @@ export const createMMRADDicomHandler =
       buildJsonResponse(status, payload, {
         requestOrigin,
         headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
+      });
+    const tooLarge = (bytes?: number) =>
+      json(413, {
+        error: 'El original DICOM supera los 3,5 MB por imagen que admite la conexión.',
+        code: 'too-large',
+        ...(bytes ? { bytes } : {}),
       });
     if (!isOriginAllowed(requestOrigin)) return json(403, { error: 'Origin not allowed' });
     if (event.httpMethod === 'OPTIONS') return json(200, {});
@@ -189,8 +202,13 @@ export const createMMRADDicomHandler =
           }
         );
       }
+      const declared = Number(response.headers.get('content-length'));
+      if (Number.isFinite(declared) && declared > MAX_ORIGINAL_BYTES) {
+        await response.body?.cancel().catch(() => undefined);
+        return tooLarge(declared);
+      }
       const bodyStart = performance.now();
-      const bytes = await readBoundedResponse(response, 3_500_000);
+      const bytes = await readBoundedResponse(response, MAX_ORIGINAL_BYTES);
       const upstreamBodyMs = performance.now() - bodyStart;
       if (bytes.length < 132 || new TextDecoder().decode(bytes.subarray(128, 132)) !== 'DICM')
         throw new Error('Original DICOM no válido');
@@ -212,6 +230,7 @@ export const createMMRADDicomHandler =
         isBase64Encoded: true,
       };
     } catch (error) {
+      if (error instanceof BoundedResponseTooLargeError) return tooLarge();
       const transient =
         !receivedHeaders ||
         error instanceof TypeError ||
