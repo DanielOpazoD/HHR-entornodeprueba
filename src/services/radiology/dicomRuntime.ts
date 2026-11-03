@@ -14,12 +14,18 @@ import { createDicomComparison } from './dicomComparison';
 import { createDicomComparisonOwner } from './dicomComparisonOwner';
 import type { fetchDicomInstance } from './mmradDicomService';
 import { openDicomCineSession } from './dicomCineSession';
+import {
+  DICOM_MPR_PLANE_NAMES,
+  describeDicomPlaneSlices,
+  openDicomVolumeVideo,
+} from './dicomVolumeVideo';
 import { initializeDicom as initialize } from './dicomInitialization';
 import {
   RenderingEngine,
   setVolumesForViewports,
   getShouldUseCPURendering,
   type StackViewport,
+  type VolumeViewport,
   type VolumeViewport3D,
 } from '@cornerstonejs/core';
 import { ToolGroupManager, CrosshairsTool } from '@cornerstonejs/tools';
@@ -227,7 +233,7 @@ export const createDicomRuntime = async (
       if (state.rotate) [referenceEnabled, referenceStyle] = [true, 'lines'];
       activateTool(state.rotate ? 'reference' : 'window');
     },
-    openCine: () => {
+    openCine: options => {
       ensureActive();
       if (mode !== 'original' || !engine || !stack)
         throw new Error('Selecciona Original para cine.');
@@ -235,9 +241,43 @@ export const createDicomRuntime = async (
         engine.getViewport(viewportIds[0]) as StackViewport,
         stack,
         AbortSignal.any([signal, graphicsController.signal]),
-        ensureActive
+        ensureActive,
+        {
+          total: series.instances.length,
+          orientation: () => orientations()[0],
+          restoreSlice: options?.restoreSlice,
+        }
       );
     },
+    openVideo: request => {
+      ensureActive();
+      const owner = engine;
+      const plane = request.kind === 'mpr' ? request.plane : 0;
+      const viewport = owner?.getViewport(viewportIds[plane]) as VolumeViewport | undefined;
+      if (!owner || !viewport || mode !== request.kind || (mode === 'mpr' && !reconstruction))
+        throw new Error('La vista cambió. Vuelve a generar el video.');
+      const prefix = volume?.resampled ? 'Remuestreado · ' : '';
+      return openDicomVolumeVideo({
+        viewport,
+        request,
+        lockElements: owner.getViewports().map(item => item.element.parentElement ?? item.element),
+        signal: AbortSignal.any([signal, graphicsController.signal]),
+        ensureActive: () => {
+          ensureActive();
+          if (engine !== owner) throw new Error('La vista cambió. Vuelve a generar el video.');
+        },
+        hold: continuity.hold,
+        edges: request.kind === 'mpr' ? orientations()[plane] : undefined,
+        describe: (position, total) =>
+          request.kind === 'mpr'
+            ? `${prefix}${DICOM_MPR_PLANE_NAMES[plane]} · ${reconstruction?.state().planes[plane]?.label ?? 'Corte fino'} · Corte ${position + 1}/${total}`
+            : `${prefix}Volumen 3D`,
+      });
+    },
+    mprSlices: plane =>
+      mode === 'mpr' && !disposed && engine
+        ? describeDicomPlaneSlices(engine.getViewport(viewportIds[plane]) as VolumeViewport)
+        : null,
     select: index => {
       if (mode === 'original' && !disposed) stack?.select(index);
     },

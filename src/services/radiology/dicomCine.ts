@@ -1,10 +1,21 @@
+import type { DicomOrientation } from './dicomTypes';
+
 export interface DicomCineOptions {
   start: number;
   end: number;
   fps: number;
 }
+/** The viewport's own canvas after IMAGE_RENDERED: copy it before requesting another frame. */
+export interface DicomVideoFrame {
+  canvas: HTMLCanvasElement;
+  /** Non-identifying description burned into exported frames, as in PNG captures. */
+  label: string;
+  edges?: DicomOrientation;
+}
+/** Owns a view while producing frames. A position is a slice index, or an angle in 3D.
+ * close() unlocks input and restores what the session moved. */
 export interface DicomCineSession {
-  frame: (index: number, signal: AbortSignal) => Promise<HTMLCanvasElement>;
+  frame: (position: number, signal: AbortSignal) => Promise<DicomVideoFrame>;
   close: () => void;
 }
 export type DicomCineProgress = { completed: number; total: number; stage: string };
