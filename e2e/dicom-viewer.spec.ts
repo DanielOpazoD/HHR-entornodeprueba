@@ -1705,6 +1705,68 @@ test.describe('DICOM viewer and Salvador annexes', () => {
 
   test.describe('on a high-density display', () => {
     test.use({ deviceScaleFactor: 2 });
+    test('draws the measurements, but not the crosshairs, into the PNG capture', async ({
+      page,
+    }) => {
+      await setup(page);
+      const editor = await openSalvador(page);
+      await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+      await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+      const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+      const ready = () =>
+        expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+          timeout: 60000,
+        });
+      await ready();
+      // Grayscale CT with white labels: strongly coloured pixels can only be overlays.
+      const colouredPixels = async () => {
+        const download = page.waitForEvent('download');
+        await viewer.getByRole('button', { name: 'PNG', exact: true }).click();
+        const bytes = fs.readFileSync((await (await download).path())!);
+        return page.evaluate(async base64 => {
+          // The app's CSP blocks fetching data: URLs; decode the bytes directly.
+          const blob = new Blob([Uint8Array.from(atob(base64), char => char.charCodeAt(0))], {
+            type: 'image/png',
+          });
+          const bitmap = await createImageBitmap(blob);
+          const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+          const context = canvas.getContext('2d')!;
+          context.drawImage(bitmap, 0, 0);
+          const data = context.getImageData(0, 0, bitmap.width, bitmap.height).data;
+          let count = 0;
+          for (let i = 0; i < data.length; i += 4)
+            if (
+              Math.max(data[i], data[i + 1], data[i + 2]) -
+                Math.min(data[i], data[i + 1], data[i + 2]) >
+              80
+            )
+              count++;
+          return count;
+        }, bytes.toString('base64'));
+      };
+      const pane = viewer.locator('.dicom-canvas').first();
+      const measureDistance = async () => {
+        await viewer.getByRole('button', { name: 'Distancia', exact: true }).click();
+        const box = (await pane.boundingBox())!;
+        await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.35);
+        await page.mouse.down();
+        await page.mouse.move(box.x + box.width * 0.62, box.y + box.height * 0.6, { steps: 12 });
+        await page.mouse.up();
+        await expect(pane.locator('svg.svg-layer')).toContainText(/\d mm/);
+      };
+      // Original.
+      expect(await colouredPixels()).toBe(0);
+      await measureDistance();
+      expect(await colouredPixels()).toBeGreaterThan(40);
+      // MPR: the coloured crosshairs are on screen, yet stay out of the capture.
+      await viewer.getByRole('button', { name: 'MPR', exact: true }).click();
+      await ready();
+      await expect(pane.locator('svg.svg-layer line').first()).toBeAttached();
+      expect(await colouredPixels()).toBe(0);
+      await measureDistance();
+      expect(await colouredPixels()).toBeGreaterThan(40);
+    });
+
     test('measures the dragged MPR distance even after a click left a pending line', async ({
       page,
     }) => {

@@ -336,7 +336,8 @@ Mover/zoom cambian la presentación, sin rotar los planos ni alterar la geometr�
 Distancia y ángulo son medidas transitorias en MPR. Se conservan al cambiar de modo o de serie
 mientras el visor está abierto, y se eliminan con **Borrar medidas**, desde el panel de medidas
 o al cerrar el visor (ver «Mediciones en Original y Comparar»). No se guardan en la historia ni
-en telemetría; la captura PNG actual contiene el canvas de imagen, sin estas anotaciones SVG.
+en telemetría. La captura PNG y la de **Añadir al informe** llevan las medidas visibles sobre la
+imagen; la cruz y las líneas de referencia quedan fuera.
 
 **Distancia** mide el segmento arrastrado, desde donde se pulsa hasta donde se suelta, en ese
 plano. También admite dos clics. En Cornerstone 4.22 un clic deja una línea pendiente que sigue al
@@ -392,7 +393,8 @@ rechaza, el visor permanece utilizable en su ventana normal.
 **Contraste** activa ventana/nivel por arrastre. **HU** mide un punto y **ROI** permite
 arrastrar una elipse con área en mm², promedio y desviación estándar (DE) en HU.
 Las anotaciones son temporales: duran mientras el visor está abierto, se eliminan con
-«Borrar medidas», desde el panel de medidas o al cerrarlo, y no se incluyen en PNG ni anexos.
+«Borrar medidas», desde el panel de medidas o al cerrarlo. Una captura PNG o un anexo
+incluye las medidas visibles en ese momento; la captura no guarda las medidas en el visor.
 
 Los controles cuantitativos se habilitan únicamente si todos los cortes volumétricos
 son CT clásico monocromático, tienen espaciado físico válido y una conversión lineal
@@ -645,7 +647,8 @@ se conservan al cambiar de serie, de modo, al entrar y salir de Comparar y tras 
 gráfica, y desaparecen al cerrar el visor. No van a storage, preferencias, MMRAD ni telemetría.
 Al volver a una serie, cada dibujo reaparece cuando su corte se vuelve a cargar y verificar.
 **Borrar medidas** y Ctrl/⌘ Z actúan sobre la serie y vista actuales; el panel puede borrarlas
-todas. Las medidas no se incluyen en PNG ni MP4.
+todas. Las medidas visibles se incluyen en PNG y anexos, no en MP4. Si el navegador no
+permite dibujarlas, la captura sale sin ellas en vez de fallar.
 
 Cada canvas se redimensiona si su panel cambió de tamaño mientras cargaba la primera imagen.
 Antes, un canvas estirado por CSS deformaba la imagen y las distancias medidas sobre ella.

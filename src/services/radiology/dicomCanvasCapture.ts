@@ -1,8 +1,12 @@
 import type { Types } from '@cornerstonejs/core';
 import type { DicomPlane } from './dicomTypes';
 import { drawDicomFrameLabels } from './dicomFrameOverlay';
+import { drawMeasurementOverlay, measurementOverlayFor } from './dicomMeasurementOverlay';
 
-/** Captures rendered pixels only; interactive measurements and reference lines remain transient. */
+/**
+ * Captures the rendered image with the measurements visible on it (they are still never saved);
+ * crosshairs and reference lines stay out.
+ */
 export const captureDicomCanvas = async (
   target: Types.IStackViewport | Types.IVolumeViewport,
   mode: 'original' | 'mpr' | '3d',
@@ -25,6 +29,9 @@ export const captureDicomCanvas = async (
   const context = canvas.getContext('2d');
   if (!context) throw new Error('El navegador no permite capturar esta vista.');
   context.drawImage(source, 0, 0, canvas.width, canvas.height);
+  const measurements = measurementOverlayFor(target);
+  if (measurements)
+    await drawMeasurementOverlay(context, measurements, canvas.width, canvas.height);
   const sliceLabel =
     originalLabel ||
     (resampled && mode !== 'original' ? 'Remuestreado · ' : '') +
