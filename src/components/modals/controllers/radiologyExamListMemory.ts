@@ -111,8 +111,13 @@ export const openMMRADExamListMemory = (query: MMRADExamListQuery) => {
       if (normalizeDicomPatientId(result.rut) !== normalizeDicomPatientId(query.rut)) return result;
       const key = entryKey(scope, query);
       const previous = remembered.get(key);
+      // The exact and the check-digit answers arrive separately; each keeps what the other set.
       const next = previous
-        ? { ...result, examenes: mergeMMRADExamLists(previous.examenes, result.examenes) }
+        ? {
+            ...previous,
+            ...result,
+            examenes: mergeMMRADExamLists(previous.examenes, result.examenes),
+          }
         : result;
       remembered.set(key, next);
       return next;

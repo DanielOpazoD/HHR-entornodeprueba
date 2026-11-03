@@ -106,16 +106,24 @@ export const fetchMMRADPortalReceiptHtml = async (receiptLink: string): Promise<
   return response.text();
 };
 
-export const searchMMRADExams = async ({
-  rut,
-  patientName,
-  dateFrom,
-  dateTo,
-}: MMRADSearchParams): Promise<MMRADSearchResult> => {
+/**
+ * Exams MMRAD registered under this RUT number with another check digit, checked against the
+ * census name. Slower than the exact search, so the viewer asks for both at once.
+ */
+export const searchMMRADCheckDigitExams = (
+  params: MMRADSearchParams & { patientName: string }
+): Promise<MMRADSearchResult> => searchMMRADExams(params, 'check-digit');
+
+export const searchMMRADExams = async (
+  { rut, patientName, dateFrom, dateTo }: MMRADSearchParams,
+  action?: 'check-digit'
+): Promise<MMRADSearchResult> => {
   const cleanRut = rut.replace(/\./g, '').trim();
   const authHeaders = await resolveCurrentUserAuthHeaders();
 
-  let url = buildMMRADProxyUrl(`?rut=${encodeURIComponent(cleanRut)}`);
+  let url = buildMMRADProxyUrl(
+    `?${action ? `action=${action}&` : ''}rut=${encodeURIComponent(cleanRut)}`
+  );
   if (dateFrom) url += `&from=${encodeURIComponent(dateFrom)}`;
   if (dateTo) url += `&to=${encodeURIComponent(dateTo)}`;
   if (patientName?.trim()) url += `&name=${encodeURIComponent(patientName.trim())}`;

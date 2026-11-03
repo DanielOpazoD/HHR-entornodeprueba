@@ -262,14 +262,16 @@ MMRAD a veces registra exámenes de un paciente con el mismo número de RUT pero
 mal digitado. El 2026-11-03 se encontraron así dos TC validados de un paciente. Las imágenes también
 llevan ese RUT, y el RIS solo encuentra un ID exacto. Por decisión del responsable:
 
-- `mmrad-search` recibe el nombre del censo (`name`) y, además del RUT exacto, busca los otros 10
-  dígitos verificadores **de a uno** (unos 4–5 s en total). Varias búsquedas simultáneas en una misma sesión
-  del RIS vuelven vacías al azar: en paralelo, hasta el RUT exacto respondió 0 de sus 2 filas, mientras
-  que de a una todas fueron correctas (medido el 2026-11-03). Conserva una fila solo
-  si su ID tiene ese mismo número, con otro dígito, y si cada palabra del nombre más corto aparece
-  en el otro. Ese nombre debe tener al menos dos palabras sin contar partículas como «de», «la» o
-  «del». Un pasaporte nunca se lee como RUT. Una fila repetida se
-  muestra una vez.
+- El visor pide dos cosas a la vez. La búsqueda exacta (`?rut=`) responde en unos 1,5 s. La de los
+  otros 10 dígitos verificadores (`?action=check-digit&rut=&name=`) corre en paralelo, en su propia
+  instancia de la función y su propia sesión RIS, y sus exámenes se suman a la lista cuando llegan.
+  Dentro de esa consulta se buscan **de a uno** (unos 4–5 s en total): varias búsquedas simultáneas en
+  una misma sesión del RIS vuelven vacías al azar. En paralelo, hasta el RUT exacto respondió 0 de sus
+  2 filas; de a una, todas fueron correctas (medido el 2026-11-03). Una fila se conserva solo si su ID
+  tiene ese mismo número, con otro dígito, y si cada palabra del nombre más corto aparece en el otro.
+  Ese nombre debe tener al menos dos palabras sin contar partículas como «de», «la» o «del». Un
+  pasaporte nunca se lee como RUT, y una fila repetida se muestra una vez. La cuota por IP de
+  `mmrad-search` subió de 10 a 20 por minuto porque cada búsqueda ahora son dos pedidos.
 - Cada examen así marcado lleva `registered_patient_id` y `registered_patient_name`. La tarjeta y
   el visor muestran el RUT y el nombre con que lo registró MMRAD, para que una persona confirme que
   es el mismo paciente. Si falla
