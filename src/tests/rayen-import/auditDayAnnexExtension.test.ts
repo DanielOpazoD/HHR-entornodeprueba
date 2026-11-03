@@ -28,12 +28,12 @@ const annex = (
         patient: { name: string; run: string; encId: string };
         generatedAt: number;
       }) => ArrayBuffer;
-      rapaNuiSpan: (day: string) => { from: string; to: string };
     };
   }
 ).HhrAuditDayAnnex;
 
-// Synthetic Ficha Médico history: mainland wall-clock times without offset.
+// Synthetic Ficha Médico history. Each field keeps its own clock, as measured: most are mainland,
+// vital signs are already Rapa Nui and medication orders are UTC.
 const events = [
   {
     publishDatetime: '2026-09-06T10:15:00',
@@ -64,6 +64,16 @@ const events = [
         LABEL: 'FC',
         VALUE: '80',
         ORDER: 1,
+      },
+    ],
+    patientPharmaIndicationResume: [
+      {
+        PUBLISH_DATETIME: '2026-09-06T15:00:00',
+        VIRTUAL_MEDICAL_PRODUCT: 'Medicamento sintético 1 g',
+        POSOLOGY: 'cada 12 horas',
+        HCP_NAME: 'Médico Prueba',
+        HCP_ROLE: 'Médico',
+        MRE_ID: 21,
       },
     ],
     pharmaPerformedActivityResume: [
@@ -117,6 +127,7 @@ describe('HHR annex of a day Eloísa cannot report', () => {
   it('keeps only that mainland day and shows every time in Rapa Nui', () => {
     expect(model.sections.map(item => item.title)).toEqual([
       'Evoluciones',
+      'Indicaciones de medicamentos',
       'Administración de medicamentos',
       'Signos vitales',
       'Escalas y evaluaciones',
@@ -135,15 +146,17 @@ describe('HHR annex of a day Eloísa cannot report', () => {
         flags: ['Enmendado'],
       },
     ]);
-    expect(annex.rapaNuiSpan('2026-09-06')).toEqual({
-      from: '05-09-2026 23:00',
-      to: '06-09-2026 21:59',
+    // Medication orders are UTC: 15:00 UTC is 10:00 in Rapa Nui.
+    expect(section('Indicaciones de medicamentos')?.entries[0]).toMatchObject({
+      time: '06-09-2026 10:00',
+      lines: ['Medicamento sintético 1 g', 'Posología: cada 12 horas'],
     });
   });
 
   it('copies values as Eloísa gives them, grouped like the official report', () => {
+    // Vital signs already come in Rapa Nui time: shown unchanged.
     expect(section('Signos vitales')?.entries[0]).toMatchObject({
-      time: '06-09-2026 06:00',
+      time: '06-09-2026 08:00',
       author: 'Enfermera Uno',
       lines: ['FC: 80', 'PA: 120/80'],
     });
@@ -192,7 +205,9 @@ describe('HHR annex of a day Eloísa cannot report', () => {
     expect(text).toContain('Evoluciones');
     expect(text).toContain('06-09-2026 08:15');
     expect(text).toContain('Paciente en ayuno');
-    expect(text).toContain('de 05-09-2026 23:00 a 06-09-2026 21:59, hora de Rapa Nui');
+    expect(text).toContain(
+      'los signos vitales y la hora real de administración ya vienen en hora de Rapa Nui'
+    );
   });
 
   it('says so when Ficha Médico has no records for the day', () => {
