@@ -25,6 +25,11 @@
 [functions."mmrad-dicom"]
   region = "gru"
 
+# The RIS answers faster from São Paulo than from Ohio: login 1.3-1.9 s vs 2.0-2.3 s and each
+# search ~300 ms vs ~400 ms (deploy-preview probes, 2026-11-03). The check-digit search runs ten.
+[functions."mmrad-search"]
+  region = "gru"
+
 # Public decorative data only, served same-origin without expanding connect-src.
 # Keep these exact routes above the SPA fallback. The renderer validates hashes and sizes.
 [[redirects]]
