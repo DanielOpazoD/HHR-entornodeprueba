@@ -129,6 +129,13 @@ los tres UID de cada original, los límites de tamaño y las cuotas.
 Prueba en vivo del 2026-11-02 con un TC de 5 series: manifiesto 200 y el corte central de cada serie
 entregado como DICOM válido con sus tres UID (5/5). No se guardaron imágenes ni identificadores.
 
+**Región de la función.** `visorammym.mmrad.cl` no responde desde Norteamérica, aunque el RIS sí.
+El 2026-11-03, cuatro puntos de prueba en EE. UU. y Canadá y una función de Netlify en Ohio agotaron
+la espera, mientras que Chile, Brasil y Francia respondieron. Por eso `mmrad-dicom` corre en São Paulo
+(`[functions."mmrad-dicom"] region = "gru"` en `netlify.toml`): en una vista previa, Ohio agotó los
+8 s tres veces y São Paulo respondió 200 en 0,2 a 0,8 s. La búsqueda (`mmrad-search`) sigue en la
+región del sitio.
+
 Los HAR privados suministrados permitieron reconocer dos flujos: `examenZip`
 prepara un archivo ZIP; el visor enumera originales con SockJS/DDP
 `GetStudyMetadata`. Un HAR pequeño de preparación no indica el tamaño del estudio
