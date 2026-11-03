@@ -10,7 +10,7 @@
   ],
   "files": {
     "audit-day-annex.js": {
-      "maxLines": 302,
+      "maxLines": 299,
       "hotspots": {}
     },
     "audit-documents-runtime.js": {

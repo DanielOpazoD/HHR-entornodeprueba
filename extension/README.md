@@ -343,6 +343,26 @@ paneles u otras rutas sin episodio abre directamente **Hospitalizados** y deja d
 del paciente actual. Los accesos contextuales de Indicaciones y Receta médica se mantienen solamente en
 la tabla de fármacos de Gestión de cuidados.
 
+### Cada campo del anexo con su propio reloj (0.48.69)
+
+El JSON del historial no usa una sola zona horaria. Lo medí campo por campo el 02-11 contra el
+historial oficial, que imprime hora de Rapa Nui, en 52 días-hospitalización (azar 2,7 %):
+
+| Campo | Coincide con el oficial | Se lee como |
+| --- | --- | --- |
+| Etiqueta de escalas | −2 h en 100 % de 507 | continental |
+| Evoluciones | −2 h en 66 % de 218 | continental |
+| Registro de administración | −2 h en 56 % de 194 | continental |
+| Diagnósticos, indicaciones generales | −2 h en 38–44 % | continental |
+| Entregas de turno | −2 h en 31 % de 13 | continental |
+| Signos vitales | sin cambio en 66 % de 2.001 | Rapa Nui |
+| Hora real de administración | sin cambio en 281 de 281 (reporte farmacológico) | Rapa Nui |
+| Indicaciones de medicamentos | el oficial no la imprime | UTC, como el centro de recetas |
+
+La 0.48.68 convertía todo como continental, de modo que dejaba los signos vitales 2 h antes y las
+indicaciones de medicamentos 3 h después. Los registros se siguen eligiendo por la fecha que les
+puso Ficha Médico, que es la que usa el servidor para cortar sus tramos.
+
 ### El día del cambio de hora, reconstruido (0.48.68)
 
 Entre los dos tramos, el historial unido lleva ahora, por cada día que el servidor no genera:
