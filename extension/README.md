@@ -343,6 +343,18 @@ paneles u otras rutas sin episodio abre directamente **Hospitalizados** y deja d
 del paciente actual. Los accesos contextuales de Indicaciones y Receta médica se mantienen solamente en
 la tabla de fármacos de Gestión de cuidados.
 
+### Historial que cruza el cambio de hora (0.48.67)
+
+Medido contra Eloísa el 02-11: `GetHospitalizedEncounterHistory` responde HTTP 500 a cualquier
+periodo que incluya el 06-09-2026, el día en que Chile continental se saltó la medianoche al pasar a
+horario de verano. Ningún formato de fecha lo evita, y la pantalla Informes de Eloísa envía la misma
+petición, así que también falla ahí. Un periodo que termina el día anterior a las 23:59:59 y otro que
+empieza el día siguiente a las 00:00 sí se generan. Por eso, si el historial completo falla y la estadía
+cruza un día así, `audit-history-segments.js` lo pide en tramos que lo esquivan y los une con pdf-lib.
+El archivo y `00 Resumen.csv` dicen qué día falta, porque ese día no se puede obtener. Los días se
+calculan con la zona de Chile continental, que es la que usa el servidor de informes, y no con fechas
+fijas. Lo corrige de fondo Rayen.
+
 ### Reintento de informes de auditoría (0.48.66)
 
 En la primera descarga real (17 RUT), el servidor de informes de Eloísa respondió HTTP 500 a 5 de

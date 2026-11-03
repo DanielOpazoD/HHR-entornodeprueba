@@ -1,9 +1,11 @@
 /** Synthetic Eloísa indexes, PDFs and HHR tab for the audit download runtime tests. */
 import { vi } from 'vitest';
 import { unzipSync } from 'fflate';
+import * as PDFLib from 'pdf-lib';
 
 import '../../../../extension/message-contract.js';
 import '../../../../extension/zip-store-writer.js';
+import '../../../../extension/audit-history-segments.js';
 import '../../../../extension/audit-documents-runtime.js';
 
 export type Result = Record<string, unknown> & {
@@ -75,6 +77,7 @@ export interface Setup {
   pharmacological?: Record<string, unknown[] | number>;
   pdfStatus?: (url: URL) => { fatal?: boolean; status?: number; error?: string } | null;
   pdfBytes?: number;
+  realPdfPages?: (url: URL) => number;
   now?: number;
   tabReply?: (message: ChunkMessage) => unknown;
 }
@@ -110,6 +113,13 @@ export const makeRuntime = (setup: Setup = {}) => {
     const parsed = new URL(url);
     const failure = setup.pdfStatus?.(parsed);
     if (failure) return failure;
+    if (setup.realPdfPages) {
+      // A real PDF whose page count tells which period was asked for.
+      const document = await PDFLib.PDFDocument.create();
+      for (let page = 0; page < setup.realPdfPages(parsed); page += 1) document.addPage([200, 200]);
+      const saved = await document.save();
+      return { buffer: saved.buffer.slice(saved.byteOffset, saved.byteOffset + saved.byteLength) };
+    }
     const text = new TextEncoder().encode(`%PDF-1.4 ${parsed.pathname}${parsed.search}`);
     const bytes = new Uint8Array(Math.max(text.length, setup.pdfBytes ?? 0));
     bytes.set(text);
@@ -139,6 +149,9 @@ export const makeRuntime = (setup: Setup = {}) => {
     now: () => setup.now ?? NOW,
     isHhrTabUrl: (url: string) => url.startsWith('https://testinghhr.netlify.app/'),
     retryDelayMs: 0,
+    historySegments: (globalThis as unknown as { HhrAuditHistorySegments: unknown })
+      .HhrAuditHistorySegments,
+    pdfLib: PDFLib,
   });
   const runtime: AuditRuntime = {
     ...raw,
