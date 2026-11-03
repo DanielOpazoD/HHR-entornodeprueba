@@ -190,7 +190,7 @@ const sampleVideoFrames = (video: Locator, count: number, fps: number) =>
           movie.cancelVideoFrameCallback(callbackId);
         }
       };
-      const frames: Array<{ center: number; width: number; height: number }> = [];
+      const frames: Array<{ center: number; width: number; height: number; coloured: number }> = [];
       // Start elsewhere so sampling frame zero also waits for a new presentation.
       await seekToFrame(count - 1);
       for (let i = 0; i < count; i++) {
@@ -209,7 +209,21 @@ const sampleVideoFrames = (video: Locator, count: number, fps: number) =>
             }
         const middle =
           (Math.floor(canvas.height / 2) * canvas.width + Math.floor(canvas.width / 2)) * 4;
-        frames.push({ center: data[middle], width: right - left + 1, height: bottom - top + 1 });
+        // Grayscale CT with white labels: strongly coloured pixels can only be overlays.
+        let coloured = 0;
+        for (let i = 0; i < data.length; i += 4)
+          if (
+            Math.max(data[i], data[i + 1], data[i + 2]) -
+              Math.min(data[i], data[i + 1], data[i + 2]) >
+            80
+          )
+            coloured++;
+        frames.push({
+          center: data[middle],
+          width: right - left + 1,
+          height: bottom - top + 1,
+          coloured,
+        });
       }
       return frames;
     },
@@ -2981,6 +2995,73 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       await expect(viewer.getByRole('list', { name: 'Lista de medidas' })).toContainText(
         /serie 4, corte 1.*px \(sin calibrar\)/
       );
+    });
+
+    const expectMeasurementOnlyInSecondFrame = async (viewer: Locator) => {
+      const video = viewer.getByLabel('Vista previa MP4', { exact: true });
+      await expect(video).toBeVisible({ timeout: 60000 });
+      await expect
+        .poll(() => video.evaluate(node => (node as HTMLVideoElement).readyState))
+        .toBeGreaterThanOrEqual(2);
+      const [before, measured, ...after] = (await sampleVideoFrames(video, 4, 5)).map(
+        frame => frame.coloured
+      );
+      expect(measured).toBeGreaterThan(200);
+      // H.264 leaves a faint trace of the line in the next frames; a measurement drawn on the
+      // wrong slice would be whole there.
+      for (const count of [before, ...after]) expect(count).toBeLessThan(measured / 4);
+    };
+
+    test('draws an Original measurement into the MP4 frame of its own slice only', async ({
+      page,
+    }) => {
+      await setup(page);
+      await recordCameras(page);
+      const viewer = await openViewer(page);
+      const { drag, drawn } = paneTools(page, viewer);
+      await expect(viewer.getByLabel('Estado del corte')).toHaveText('13/24');
+      await viewer.getByRole('button', { name: 'Distancia', exact: true }).click();
+      await drag(0, [-12, -8], [6, 10]);
+      await expect.poll(async () => (await drawn(0)).lines).toBe(1);
+      await viewer.locator('.dicom-cine summary').click();
+      await viewer.getByLabel('Corte inicial', { exact: true }).fill('12');
+      await viewer.getByLabel('Corte final', { exact: true }).fill('15');
+      await viewer.getByLabel('Velocidad cine', { exact: true }).selectOption('5');
+      await viewer.getByRole('button', { name: 'Generar MP4', exact: true }).click();
+      await expectMeasurementOnlyInSecondFrame(viewer);
+    });
+
+    test('draws an MPR measurement into the sweep frame of its own slice only', async ({
+      page,
+    }) => {
+      await setup(page);
+      const viewer = await openViewer(page);
+      await viewer.getByRole('button', { name: 'MPR', exact: true }).click();
+      await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+        timeout: 60000,
+      });
+      // Snap the axial plane to a whole cut, where the sweep renders each frame.
+      await viewer.getByRole('button', { name: 'Corte anterior Axial', exact: true }).click();
+      const axial = viewer.locator('.dicom-canvas').first();
+      await viewer.getByRole('button', { name: 'Distancia', exact: true }).click();
+      const box = (await axial.boundingBox())!;
+      await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.35);
+      await page.mouse.down();
+      await page.mouse.move(box.x + box.width * 0.62, box.y + box.height * 0.6, { steps: 12 });
+      await page.mouse.up();
+      await expect(axial.locator('svg.svg-layer')).toContainText(/\d mm/);
+      await viewer.getByLabel('Video MP4', { exact: true }).click();
+      const plane = viewer.getByLabel('Plano del barrido', { exact: true });
+      await expect(plane).toContainText('Axial');
+      const current = Number((await plane.textContent())!.match(/corte actual (\d+) de/)![1]);
+      await viewer.getByLabel('Corte inicial', { exact: true }).fill(String(current - 1));
+      await viewer.getByLabel('Corte final', { exact: true }).fill(String(current + 2));
+      await viewer.getByLabel('Velocidad del video', { exact: true }).selectOption('5');
+      await expect(viewer.getByLabel('Duración del video', { exact: true })).toHaveText(
+        '4 cuadros · 0,8 s'
+      );
+      await viewer.getByRole('button', { name: 'Generar MP4', exact: true }).click();
+      await expectMeasurementOnlyInSecondFrame(viewer);
     });
   });
 });
