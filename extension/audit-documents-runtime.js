@@ -118,13 +118,17 @@
       day.dailySummary ? 'el Resumen diario oficial de Eloísa' : `sin el Resumen diario (${day.dailySummaryError})`,
       day.annex ? `un anexo HHR no oficial con ${day.annexRecords} registro(s) de Ficha Médico` : `sin anexo HHR (${day.annexError})`,
     ];
-    return `el ${day.day} va con ${parts.join(' y ')}`;
+    return `el ${day.day}${day.unserved ? ' (Eloísa no entregó su historial)' : ''} va con ${parts.join(' y ')}`;
   };
 
-  const downloadedNote = document => document.reconstructedDays && document.reconstructedDays.length
-    ? 'Descargado en tramos: Eloísa no genera el historial oficial del día del cambio de hora; ' +
-      document.reconstructedDays.map(dayNote).join('; ')
-    : 'Descargado';
+  const downloadedNote = document => {
+    const days = document.reconstructedDays || [];
+    if (!days.length) return 'Descargado';
+    const why = days.some(day => day.unserved)
+      ? 'Eloísa no entregó el historial oficial de algunos días'
+      : 'Eloísa no genera el historial oficial del día del cambio de hora';
+    return `Descargado en tramos: ${why}; ` + days.map(dayNote).join('; ');
+  };
 
   const overlapsRange = ({ startDate, endDate }, { dateFrom, dateTo }) =>
     (!dateFrom || endDate >= dateFrom) && (!dateTo || startDate <= dateTo);
@@ -214,7 +218,7 @@
     if (!hasDependencies(dependencies)) {
       throw new Error('No se pudo inicializar la descarga de documentos para auditoría.');
     }
-    const reconstruction = historyReconstruction.create({ fetchOfficialPdf, fetchWithTimeout, pdfLib, getJsPDF, dayAnnex });
+    const reconstruction = historyReconstruction.create({ fetchOfficialPdf, fetchWithTimeout, pdfLib, getJsPDF, dayAnnex, historySegments });
 
     /** The exact requesting document: if the tab navigated meanwhile, the parts go nowhere. */
     const deliveryTarget = sender => ({
@@ -443,7 +447,7 @@
       const split = historySegments.segmentsAround({ start: item.startPeriod, end: item.endPeriod || job.nowIso });
       if (!split.skipped.length) return result;
       return reconstruction.reconstruct({
-        info: job.info, item, split, nowMs: job.startedAt,
+        info: job.info, item, split, nowMs: job.startedAt, keepAlive: job.keepAlive,
         patient: { name: item.patientName, run: displayRun(item.run), encId: item.encId },
       });
     };
@@ -528,14 +532,19 @@
         return { error: 'La sesión de Eloísa no permite consultar informes de hospitalización.' };
       }
       const startedAt = now();
+      let lastProgress = null;
+      const send = progress => { try { reportProgress({ requestId, ...progress }); } catch (_error) {} };
       return {
         info, startedAt,
         today: hospitalDateOf(hospitalParts(startedAt)),
         nowIso: new Date(startedAt).toISOString(),
         isCancelled: () => cancelled.has(requestId),
         progress: (phase, done, total) => {
-          try { reportProgress({ requestId, phase, done, total }); } catch (_error) {}
+          lastProgress = { phase, done, total };
+          send(lastProgress);
         },
+        // Repeats the last progress, so HHR keeps waiting while one document takes many requests.
+        keepAlive: () => { if (lastProgress) send(lastProgress); },
       };
     };
 

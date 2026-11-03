@@ -89,7 +89,23 @@
     return { skipped: skipped.map(dayKey), segments, parts };
   };
 
-  const api = Object.freeze({ segmentsAround });
+  /** Two periods that split a segment at a mainland midnight, or null when it lies within one day. */
+  const halves = ({ start, end }) => {
+    const first = serverDay(Date.parse(start));
+    const last = serverDay(Date.parse(end));
+    const days = Math.round((Date.UTC(last.y, last.m - 1, last.d) - Date.UTC(first.y, first.m - 1, first.d)) / 86400000);
+    if (!(days >= 1)) return null;
+    const lastOfFirst = addDays(first, Math.floor((days - 1) / 2));
+    return [
+      { start, end: wallClock(lastOfFirst, '23:59:59') },
+      { start: wallClock(addDays(lastOfFirst, 1), '00:00:00'), end },
+    ];
+  };
+
+  /** The mainland day an instant falls on, as YYYY-MM-DD. */
+  const dayOf = instant => dayKey(serverDay(Date.parse(instant)));
+
+  const api = Object.freeze({ dayOf, halves, segmentsAround });
   root.HhrAuditHistorySegments = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof self !== 'undefined' ? self : globalThis);

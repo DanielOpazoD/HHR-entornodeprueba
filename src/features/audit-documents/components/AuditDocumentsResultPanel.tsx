@@ -11,10 +11,10 @@ const patientStatus = (patient: AuditDocumentsPatientSummary): string => {
   const notes = [
     patient.failed > 0 ? `${patient.failed} no descargado(s)` : '',
     patient.reconstructed > 0
-      ? `${patient.reconstructed} con el día del cambio de hora desde el resumen diario y un anexo HHR no oficial`
+      ? `${patient.reconstructed} con días que Eloísa no genera, rehechos desde el resumen diario y un anexo HHR no oficial`
       : '',
     patient.incomplete > 0
-      ? `${patient.incomplete} con parte del día del cambio de hora faltante: ver 00 Resumen.csv`
+      ? `${patient.incomplete} con parte de un día que Eloísa no genera faltante: ver 00 Resumen.csv`
       : '',
     patient.unverified > 0
       ? `${patient.unverified} sin fecha o RUT verificable en Eloísa: revisar allí`
