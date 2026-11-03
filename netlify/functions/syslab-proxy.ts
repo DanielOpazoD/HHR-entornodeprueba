@@ -35,8 +35,8 @@ import {
   type NetlifyEventLike,
 } from './lib/http';
 
-const TIMEOUT_MS = 60_000; // 60s — PDF parsing can be slow
-const DEFAULT_TELEMETRY_TIMEOUT_MS = 15_000;
+const TIMEOUT_MS = 50_000; // Leave room for the gateway response within the platform budget.
+const DEFAULT_TELEMETRY_TIMEOUT_MS = 55_000;
 const DETAILS_TELEMETRY_TIMEOUT_MS = 55_000;
 const SYSLAB_ALLOWED_ROLES = new Set([
   'admin',
@@ -62,24 +62,21 @@ export const resolveSyslabTelemetryOptions = (
   action: 'search' | 'details' | 'pdf'
 ): { timeoutMs: number; maxAttempts: number } => ({
   timeoutMs: action === 'details' ? DETAILS_TELEMETRY_TIMEOUT_MS : DEFAULT_TELEMETRY_TIMEOUT_MS,
-  maxAttempts: action === 'details' ? 1 : 3,
+  maxAttempts: 1,
 });
 
 const proxyFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    const headers = {
-      ...(options.headers as Record<string, string>),
-      // Skip ngrok free-tier browser interstitial warning page
+  return fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      Authorization: `Bearer ${process.env.SYSLAB_API_TOKEN || ''}`,
       'ngrok-skip-browser-warning': 'true',
       'User-Agent': 'HHR-Netlify-Function',
-    };
-    const response = await fetch(url, { ...options, headers, signal: controller.signal });
-    return response;
-  } finally {
-    clearTimeout(timeout);
-  }
+    },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+    redirect: 'error',
+  });
 };
 
 /* ── Health check ──────────────────────────────────────────────────── */
@@ -95,18 +92,24 @@ const handleHealth = async (proxyUrl: string, requestOrigin?: string) => {
       );
     }
 
+    const health: unknown = await response.json();
+    const connected =
+      typeof health === 'object' &&
+      health !== null &&
+      'connected' in health &&
+      health.connected === true;
     return buildJsonResponse(
       200,
-      { success: true, connected: true, status: response.status },
+      { success: connected, connected, status: response.status },
       { requestOrigin }
     );
-  } catch (error) {
+  } catch {
     return buildJsonResponse(
       200,
       {
         success: false,
         connected: false,
-        error: error instanceof Error ? error.message : 'Syslab unavailable',
+        error: 'El servidor de laboratorio no está disponible. Comprueba el Mac mini.',
       },
       { requestOrigin }
     );
@@ -141,7 +144,12 @@ const handleDetails = async (
   }
 
   const { links } = parsed.value;
-  if (!Array.isArray(links) || links.length === 0) {
+  if (
+    !Array.isArray(links) ||
+    links.length === 0 ||
+    links.length > 3 ||
+    links.some(link => typeof link !== 'string')
+  ) {
     return buildJsonResponse(400, { error: 'Se requiere un array de links' }, { requestOrigin });
   }
 
@@ -174,13 +182,19 @@ const handlePdf = async (proxyUrl: string, params: URLSearchParams, requestOrigi
   }
 
   const buffer = await response.arrayBuffer();
-  const base64 = Buffer.from(buffer).toString('base64');
+  const bytes = Buffer.from(buffer);
+  if (bytes.length > 4 * 1024 * 1024 || bytes.subarray(0, 4).toString() !== '%PDF') {
+    return buildTextResponse(502, 'El servidor no entregó un PDF válido de laboratorio.', {
+      requestOrigin,
+    });
+  }
+  const base64 = bytes.toString('base64');
 
   return {
     statusCode: 200,
     headers: {
       'Content-Type': 'application/pdf',
-      'Cache-Control': 'private, max-age=300',
+      'Cache-Control': 'no-store',
     },
     body: base64,
     isBase64Encoded: true,
@@ -255,6 +269,15 @@ export const createSyslabProxyHandler = (
         : buildJsonResponse(503, { success: false, error }, { requestOrigin });
     }
 
+    if (!process.env.SYSLAB_API_TOKEN && /^https:\/\//.test(proxyUrl)) {
+      const error = 'Falta configurar la conexión segura con el servidor de laboratorio.';
+      return buildJsonResponse(
+        action === 'health' ? 200 : 503,
+        { success: false, connected: false, error },
+        { requestOrigin }
+      );
+    }
+
     try {
       if (action !== 'health' && action !== 'search' && action !== 'details' && action !== 'pdf') {
         return buildJsonResponse(
@@ -286,9 +309,9 @@ export const createSyslabProxyHandler = (
         },
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Error de conexión con el laboratorio';
-      const isTimeout = error instanceof Error && error.name === 'AbortError';
+      const message = 'Error de conexión con el servidor de laboratorio. Comprueba el Mac mini.';
+      const isTimeout =
+        error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError');
       return buildJsonResponse(
         isTimeout ? 504 : 502,
         {

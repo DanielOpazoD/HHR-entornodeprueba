@@ -165,3 +165,29 @@ Se registra explícitamente el crecimiento acotado de cuatro módulos existentes
 Syslab puede responder con un aviso HTML «No hay exámenes validados» en lugar de un informe. La extensión reconoce esa respuesta explícita como una orden sin resultados disponibles y la omite sin alerta. Las demás órdenes siguen cargando. Cada orden solicitada debe quedar contabilizada exactamente una vez: informe con identidad verificada u omisión explícita. Las omisiones no generan columnas ni se guardan como resultados. Una respuesta ausente, ilegible o de otro paciente sigue bloqueando el lote. No se interpreta como un paciente distinto ni se importa contenido sin identidad verificada.
 
 La omisión añade 6 líneas al contrato de resultados y 16 al bridge; la validación de cada resultado se separa en una función pequeña y elimina el hotspot previo de complejidad 17. Se contabiliza la línea final de cada archivo en el presupuesto.
+
+## Puente remoto del Mac mini
+
+Para utilizar el Mac desde otros equipos, configurar `VITE_SYSLAB_TRANSPORT=remote`
+(Builds) y `SYSLAB_PROXY_URL` + `SYSLAB_API_TOKEN` (Functions) en el sitio Netlify.
+Esto requiere un despliegue nuevo. Hasta validar la instalación, conservar
+`VITE_SYSLAB_TRANSPORT=extension` y no apuntar al dominio antiguo por suposición.
+
+El modo remoto omite la extensión del navegador en búsqueda y comprobación de conexión.
+Un fallo remoto no cambia de origen ni se presenta como búsqueda vacía. Los informes de
+una búsqueda de extensión siguen ligados a su lote original; nunca se mezclan con otra
+búsqueda. La función conserva la autorización Firebase y usa una clave distinta para
+acceder al Mac. Ningún secreto ni credencial Syslab se incluye en el build del navegador.
+
+El servidor actualizado emite referencias cifradas `hhr-syslab-remote://report/...` con
+30 minutos de vigencia; verifica el RUN en cada PDF y solo admite tres informes por
+petición, como los lotes del visor actual. No muestra HTML de inicio de sesión como PDF.
+Las búsquedas anteriores deben actualizarse; no se aceptan rutas arbitrarias en el Mac.
+
+Instalación, arranque automático y comprobaciones:
+[API-laboratorioHHR](https://github.com/DanielOpazoD/API-laboratorioHHR#instalación-mañana-en-el-mac-mini).
+El health remoto comprueba una sesión real de Syslab y dispone del mismo presupuesto de
+50 segundos que las consultas; un proceso encendido sin sesión no acredita conexión.
+
+Para volver a la extensión, poner `VITE_SYSLAB_TRANSPORT=extension` y desplegar de nuevo.
+No se modifica el censo ni se realizan escrituras clínicas como parte de esta conexión.
