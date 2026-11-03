@@ -83,7 +83,12 @@ interface InstanceTicket {
   study: string;
   series: string;
   sop: string;
+  /** Legacy viewer proxy server ID, or the PACS AE title of the Universitas viewer. */
   server: string;
+  /** Present for the current Universitas viewer; absent for the legacy one. */
+  viewer?: 'universitas';
+  /** Universitas share session, sealed with AES-GCM (see mmrad-universitas.ts). */
+  session?: string;
   expires: number;
 }
 
@@ -93,9 +98,12 @@ const signature = (payload: string): Buffer => {
   return createHmac('sha256', password).update('hhr-dicom-instance-v1\0').update(payload).digest();
 };
 
-export const issueInstanceTicket = (value: Omit<InstanceTicket, 'expires'>): string => {
+export const issueInstanceTicket = (
+  value: Omit<InstanceTicket, 'expires'>,
+  ttlMs = 30 * 60_000
+): string => {
   const payload = Buffer.from(
-    JSON.stringify({ ...value, expires: Date.now() + 30 * 60_000 })
+    JSON.stringify({ ...value, expires: Date.now() + Math.min(ttlMs, 30 * 60_000) })
   ).toString('base64url');
   return `${payload}.${signature(payload).toString('base64url')}`;
 };
@@ -115,7 +123,11 @@ export const verifyInstanceTicket = (ticket: unknown, subject: string): Instance
     !Number.isFinite(value.expires) ||
     value.expires <= Date.now() ||
     ![value.study, value.series, value.sop].every(isDicomUid) ||
-    !/^[a-zA-Z0-9_-]{1,100}$/.test(value.server)
+    !/^[a-zA-Z0-9_-]{1,100}$/.test(value.server) ||
+    (value.viewer !== undefined &&
+      (value.viewer !== 'universitas' ||
+        typeof value.session !== 'string' ||
+        !/^[A-Za-z0-9_-]{30,400}$/.test(value.session)))
   )
     throw new Error('El acceso al estudio venció. Vuelve a abrir el visor.');
   return value;

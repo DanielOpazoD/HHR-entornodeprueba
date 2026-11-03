@@ -101,6 +101,34 @@ del JavaScript publicado y la CSP estricta del HTML al cambiar el despliegue.
 
 ## Protocolo MMRAD y límites del servidor
 
+### Visor actual: «Visualizador Universitas» (desde noviembre de 2026)
+
+MMRAD reemplazó el visor HTML5 por **Universitas Visor** («Visor radiológico Universitas para
+ClearCanvas PACS»), una aplicación sobre Cornerstone3D en `https://visorammym.mmrad.cl`. La
+búsqueda prefiere su enlace del menú de la fila (`…_spage=/portlet_action/examen/abrirestudio
+…_idexamen=N`); si no aparece, conserva el enlace del visor anterior y `mmrad-dicom` reconoce ambos.
+
+Recorrido observado el 2026-11-02 y reproducido por `netlify/functions/lib/mmrad-universitas.ts`:
+
+1. Con la sesión RIS, la página `abrirestudio` responde un HTML que solo redirige a un enlace
+   corto `https://visorammym.mmrad.cl/s/<código>`. Se exige un único código.
+2. El enlace corto responde 303 hacia `/?public=<sesión>` y fija una cookie httpOnly
+   `cc_public_share_<sesión>` de unos 10 minutos. Se acepta solo la cookie que nombra esa sesión.
+3. `GET /api/public/manifest?session=<sesión>` entrega paciente, estudio y series con sus
+   instancias. Sin la cookie responde 401.
+4. Cada original: `GET /api/public/wado/<AE>?requestType=WADO&studyUID&seriesUID&objectUID&
+contentType=application/dicom&shareSession=<sesión>`, también con la cookie. Las miniaturas
+   (`preview=…`) responden 501 y no se usan.
+
+La sesión y la cookie viajan **cifradas** (AES-256-GCM, clave derivada del secreto MMRAD con
+separación de dominio) dentro de la capacidad firmada de cada instancia; el navegador no puede
+leerlas. La capacidad vence con la cookie (unos 9 minutos): pasado ese plazo hay que volver a abrir
+el visor. Ninguna cookie RIS viaja al host del visor. Se mantienen la validación de `PatientID` y de
+los tres UID de cada original, los límites de tamaño y las cuotas.
+
+Prueba en vivo del 2026-11-02 con un TC de 5 series: manifiesto 200 y el corte central de cada serie
+entregado como DICOM válido con sus tres UID (5/5). No se guardaron imágenes ni identificadores.
+
 Los HAR privados suministrados permitieron reconocer dos flujos: `examenZip`
 prepara un archivo ZIP; el visor enumera originales con SockJS/DDP
 `GetStudyMetadata`. Un HAR pequeño de preparación no indica el tamaño del estudio
