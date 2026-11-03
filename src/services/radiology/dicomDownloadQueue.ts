@@ -1,4 +1,5 @@
 import { availableDicomRanges, DicomTransferError, type DicomLoadState } from './dicomLoadState';
+import { DICOM_DEFAULT_DOWNLOADS, DICOM_DOWNLOAD_LIMITS } from './dicomDownloadLimits';
 
 type Slot = 'queued' | 'fetching' | 'downloaded' | 'decoding' | 'ready' | 'failed';
 const deferred = () => {
@@ -47,8 +48,8 @@ export const createDicomDownloadQueue = (
     available: [],
     activeDownloads: 0,
     activeDecodes: 0,
-    concurrency: 4,
-    limit: 4,
+    concurrency: DICOM_DEFAULT_DOWNLOADS,
+    limit: DICOM_DEFAULT_DOWNLOADS,
     retries: 0,
     rawBytes: 0,
     networkBytes: 0,
@@ -241,7 +242,7 @@ export const createDicomDownloadQueue = (
       pump();
     },
     setLimit: (limit: number) => {
-      if (![1, 2, 3, 4, 5, 6].includes(limit)) return;
+      if (!DICOM_DOWNLOAD_LIMITS.includes(limit)) return;
       state.limit = limit;
       state.concurrency = Math.min(state.concurrency, limit);
       pump();

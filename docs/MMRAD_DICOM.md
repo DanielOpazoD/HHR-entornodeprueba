@@ -461,8 +461,10 @@ La sesión mantiene una cola única por índice de corte. El corte solicitado pr
 al trabajo pendiente, seguido por vecinos con preferencia en la dirección del
 scroll. Las solicitudes ya iniciadas terminan; no se cancelan para desperdiciar
 transferencias al desplazarse. No hay peticiones duplicadas para un mismo corte.
-Descarga y decodificación tienen capacidad separada: hasta 4 descargas por defecto,
-un máximo ajustable entre 1 y 6, y 2 preparaciones simultáneas. La cola de originales
+Descarga y decodificación tienen capacidad separada: hasta 6 descargas por defecto,
+un máximo ajustable entre 1 y 10, y 2 preparaciones simultáneas. Medido desde Chile el 2026-11-03,
+Universitas entrega un original TC de 515 KB en unos 440 ms y mantiene ese ritmo hasta con 12 pedidos a
+la vez: 7,5 originales/s con 4, 12,3/s con 8 y 16,1/s con 12. La cola de originales
 por preparar está acotada; si se llena, deja de aceptar trabajo de fondo.
 
 Ante red interrumpida, timeout, 408, 429, 500, 502, 503 o 504, la concurrencia se

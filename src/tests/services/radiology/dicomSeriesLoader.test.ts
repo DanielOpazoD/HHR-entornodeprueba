@@ -1,3 +1,4 @@
+import { DICOM_DEFAULT_DOWNLOADS } from '@/services/radiology/dicomDownloadLimits';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { planDicomVolume } from '@/domain/radiology/dicomGeometry';
 import { createDicomReviewCache } from '@/services/radiology/dicomReviewCache';
@@ -257,7 +258,7 @@ describe('progressive verified download queue', () => {
         complete = true;
       })
       .catch(() => undefined);
-    await vi.waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(4));
+    await vi.waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(DICOM_DEFAULT_DOWNLOADS));
     expect(mocks.fetch.mock.calls[0][0]).toBe('6');
     const first = source.request(6);
     const selected = source.request(11);

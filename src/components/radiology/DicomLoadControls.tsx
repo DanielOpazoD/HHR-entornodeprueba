@@ -2,6 +2,7 @@ import React from 'react';
 import { Activity } from 'lucide-react';
 import type { DicomStackState } from '@/services/radiology/dicomProgressiveStack';
 import type { DicomLoadState } from '@/services/radiology/dicomLoadState';
+import { DICOM_DOWNLOAD_LIMITS } from '@/services/radiology/dicomDownloadLimits';
 import type { ProgressiveDicomSeries } from '@/services/radiology/dicomSeriesLoader';
 
 export const DicomLoadControls: React.FC<{
@@ -57,7 +58,7 @@ export const DicomLoadControls: React.FC<{
                 disabled={disabled}
                 onChange={event => controller.setLimit(Number(event.target.value))}
               >
-                {[1, 2, 3, 4, 5, 6].map(value => (
+                {DICOM_DOWNLOAD_LIMITS.map(value => (
                   <option key={value}>{value}</option>
                 ))}
               </select>
