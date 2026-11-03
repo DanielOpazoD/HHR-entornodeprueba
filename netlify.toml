@@ -20,6 +20,11 @@
   node_bundler = "esbuild"
   external_node_modules = ["xlsx-populate", "exceljs", "sharp"]
 
+# MMRAD's Universitas viewer host (visorammym.mmrad.cl) does not answer from North America, so the
+# DICOM function runs in South America (São Paulo), where it does. Measured 2026-11-03.
+[functions."mmrad-dicom"]
+  region = "gru"
+
 # Public decorative data only, served same-origin without expanding connect-src.
 # Keep these exact routes above the SPA fallback. The renderer validates hashes and sizes.
 [[redirects]]
