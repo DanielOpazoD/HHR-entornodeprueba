@@ -19,6 +19,7 @@ import {
   type DicomVideoResolution,
 } from './dicomVideoPlan';
 import { drawDicomFrameIdentity, drawDicomFrameLabels } from './dicomFrameOverlay';
+import { drawMeasurementOverlay, type DicomMeasurementOverlay } from './dicomMeasurementOverlay';
 import { clearMp4CreationTimes } from './dicomMp4Metadata';
 
 const MAX_BYTES = 64 * 1024 * 1024;
@@ -72,16 +73,18 @@ const chooseEncoding = async (
   );
 };
 
-const compose = (
+const compose = async (
   context: CanvasRenderingContext2D,
   frame: DicomVideoFrame,
   width: number,
   height: number,
-  identity?: string
+  identity: string | undefined,
+  measurements: DicomMeasurementOverlay | null
 ) => {
   context.fillStyle = 'black';
   context.fillRect(0, 0, width, height);
   context.drawImage(frame.canvas, 0, 0, width, height);
+  if (measurements) await drawMeasurementOverlay(context, measurements, width, height);
   drawDicomFrameLabels(context, width, height, frame.label, frame.edges);
   if (identity) drawDicomFrameIdentity(context, width, identity, Boolean(frame.edges));
 };
@@ -108,6 +111,7 @@ export const exportDicomMp4 = async (
   snapshot.width = sourceSize[0];
   snapshot.height = sourceSize[1];
   snapshot.getContext('2d')?.drawImage(first.canvas, 0, 0);
+  const firstMeasurements = (await session.measurements?.(signal)) ?? null;
   const canvas = document.createElement('canvas');
   let source: CanvasSource | undefined;
   let output: Output | undefined;
@@ -121,12 +125,13 @@ export const exportDicomMp4 = async (
     canvas.height = encoding.height;
     const context = canvas.getContext('2d');
     if (!context) throw new Error('No se pudo preparar el video.');
-    compose(
+    await compose(
       context,
       { ...first, canvas: snapshot },
       canvas.width,
       canvas.height,
-      settings.identity
+      settings.identity,
+      firstMeasurements
     );
     snapshot.width = snapshot.height = 0;
     const target = new BufferTarget();
@@ -159,10 +164,11 @@ export const exportDicomMp4 = async (
       progress({ completed: index, total: count, stage: 'Preparando cuadro' });
       if (index) {
         const frame = await session.frame(positions[index], signal);
+        const measurements = (await session.measurements?.(signal)) ?? null;
         signal.throwIfAborted();
         if (frame.canvas.width !== sourceSize[0] || frame.canvas.height !== sourceSize[1])
           throw new Error('El tamaño de la vista cambió. Vuelve a generar el video.');
-        compose(context, frame, canvas.width, canvas.height, settings.identity);
+        await compose(context, frame, canvas.width, canvas.height, settings.identity, measurements);
       }
       await abortableDicomTask(source.add(index / fps, 1 / fps), signal);
       progress({ completed: index + 1, total: count, stage: 'Codificando MP4' });
