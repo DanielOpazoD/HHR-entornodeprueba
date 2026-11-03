@@ -6,8 +6,15 @@
  * records, so this builds an annex that reproduces them, labelled as made by HHR and not official.
  *
  * Values are copied as Eloísa gives them; nothing is summarised. The JSON writes times without an
- * offset in mainland time (measured 2026-11-02: they match the official PDF, which prints Rapa Nui
- * time, 2 h later in September), so every time is converted to Rapa Nui (TIME-02).
+ * offset, and each field keeps its own clock. Measured 2026-11-02 against the official history,
+ * which prints Rapa Nui time (52 stay-days, chance 2.7 %):
+ * - mainland, converted: scale labels (100 % at -2 h), evolutions (66 %), medication
+ *   administrations (56 %), diagnoses and general orders, shift changes (31 % of 13);
+ * - already Rapa Nui, unchanged: vital signs (66 % at 0 h of 2001), and the actual administration
+ *   time, which the official pharmacological report prints unchanged (281 of 281);
+ * - UTC: medication orders, as the prescription center reads them (compared with an official time).
+ * Every time is shown in Rapa Nui (TIME-02). Records are chosen by the date Ficha Médico wrote,
+ * which is what the report server uses to cut its segments.
  */
 (function (root) {
   'use strict';
@@ -40,31 +47,33 @@
     const p = zoneParts(zone, instant);
     return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - Math.floor(instant / 1000) * 1000;
   };
-  const mainlandInstant = (y, m, d, h, mi, s) => {
+  const zonedInstant = (zone, y, m, d, h, mi, s) => {
     const wall = Date.UTC(y, m - 1, d, h, mi, s);
-    const first = wall - zoneOffsetMs(MAINLAND, wall);
-    return wall - zoneOffsetMs(MAINLAND, first);
+    if (zone === 'UTC') return wall;
+    const first = wall - zoneOffsetMs(zone, wall);
+    return wall - zoneOffsetMs(zone, first);
   };
+  const mainlandInstant = (y, m, d, h, mi, s) => zonedInstant(MAINLAND, y, m, d, h, mi, s);
 
-  /** { instant, mainlandDay } for a JSON time, or null when it cannot be read. */
-  const readTime = value => {
+  /** { instant, recordDay } for a JSON time written in `zone`, or null when it cannot be read. */
+  const readTime = (value, zone = MAINLAND) => {
     const raw = text(value);
     const naive = NAIVE_WALL_CLOCK.exec(raw);
     if (naive) {
       const [, y, m, d, h, mi, s] = naive.map(Number);
-      return { instant: mainlandInstant(y, m, d, h, mi, s || 0), mainlandDay: `${naive[1]}-${naive[2]}-${naive[3]}` };
+      return { instant: zonedInstant(zone, y, m, d, h, mi, s || 0), recordDay: `${naive[1]}-${naive[2]}-${naive[3]}` };
     }
     const instant = Date.parse(raw);
     if (!raw || !Number.isFinite(instant)) return null;
     const p = zoneParts(MAINLAND, instant);
-    return { instant, mainlandDay: `${p.year}-${pad(p.month)}-${pad(p.day)}` };
+    return { instant, recordDay: `${p.year}-${pad(p.month)}-${pad(p.day)}` };
   };
   const readLabel = value => {
     const match = PUBLISHED_LABEL.exec(text(value));
     if (!match) return null;
     const [, d, m, y, h, mi, s] = match.map(Number);
     return {
-      time: { instant: mainlandInstant(y, m, d, h, mi, s || 0), mainlandDay: `${match[3]}-${match[2]}-${match[1]}` },
+      time: { instant: mainlandInstant(y, m, d, h, mi, s || 0), recordDay: `${match[3]}-${match[2]}-${match[1]}` },
       author: text(match[7]),
       role: text(match[8]),
     };
@@ -114,7 +123,7 @@
       field('Texto libre', item.FREE_TEXT_DIAGNOSIS), field('Estado', item.STATUS),
       flag(item.IS_PRINCIPAL) ? 'Diagnóstico principal' : '', flag(item.IS_GES) ? 'GES' : '',
     ] },
-    { list: 'patientPharmaIndicationResume', title: 'Indicaciones de medicamentos', time: 'PUBLISH_DATETIME', lines: item => [
+    { list: 'patientPharmaIndicationResume', title: 'Indicaciones de medicamentos', time: 'PUBLISH_DATETIME', zone: 'UTC', lines: item => [
       text(item.VIRTUAL_MEDICAL_PRODUCT) || text(item.DESCRIPTOR), field('Posología', item.POSOLOGY),
       field('Vía', item.ROUTE_ADMINISTRATION), field('Nota de administración', item.MRE_ADMINISTRATION_NOTE),
       flag(item.IS_DISCHARGE) ? 'Indicación de alta' : '',
@@ -138,7 +147,7 @@
       field('Hora de administración (como en el reporte farmacológico oficial)', text(item.ACTUAL_PERFORMED_TIME).replace(/:\d{2}$/, '')),
       field('Notas', item.PERF_NOTES),
     ] },
-    { list: 'vitalSignObsResume', title: 'Signos vitales', time: 'PUBLISH_DATE', grouped: true, lines: labelValue },
+    { list: 'vitalSignObsResume', title: 'Signos vitales', time: 'PUBLISH_DATE', zone: RAPA_NUI, grouped: true, lines: labelValue },
     { list: 'evaluationInstrumentsResume', title: 'Escalas y evaluaciones', label: 'PUBLISH_DATE_HCP_NAME', grouped: true,
       heading: item => text(item.FORM_NAME), lines: labelValue },
     { list: 'nurseGeneralPhysicalExamResume', title: 'Examen físico de enfermería', label: 'PUBLISH_DATE_HCP_NAME', grouped: true, lines: labelValue },
@@ -167,7 +176,7 @@
       const labelled = readLabel(item[section.label]);
       if (labelled) return labelled;
     }
-    const own = section.time ? readTime(item[section.time]) : null;
+    const own = section.time ? readTime(item[section.time], section.zone) : null;
     return { time: own || readTime(item.PUBLISH_DATETIME || item.PUBLISH_DATE) || readTime(event.publishDatetime), author: '', role: '' };
   };
 
@@ -180,7 +189,7 @@
     const add = (section, item, event) => {
       if (!item || typeof item !== 'object' || seen.has(keyOf(section.list, item))) return;
       const when = recordTime(section, item, event);
-      if (!when.time || when.time.mainlandDay !== day) return;
+      if (!when.time || when.time.recordDay !== day) return;
       seen.add(keyOf(section.list, item));
       const author = when.author || authorOf(item);
       const role = when.role || roleOf(item);
@@ -220,18 +229,6 @@
     };
   };
 
-  /**
-   * A skipped mainland day as Rapa Nui saw it: it starts at 01:00, the first mainland time that
-   * existed, and ends before the next midnight (2026-09-06 runs 05-09 23:00 to 06-09 21:59).
-   */
-  const rapaNuiSpan = day => {
-    const [y, m, d] = day.split('-').map(Number);
-    return {
-      from: rapaNuiClock(mainlandInstant(y, m, d, 1, 0, 0)),
-      to: rapaNuiClock(mainlandInstant(y, m, d + 1, 0, 0, 0) - 60 * 1000),
-    };
-  };
-
   // Helvetica in jsPDF covers Latin-1, which holds Spanish; other characters are replaced.
   const latin1 = value => text(value)
     .replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, '-')
@@ -261,14 +258,14 @@
       y += gap;
     };
     const [yy, mm, dd] = model.day.split('-');
-    const span = rapaNuiSpan(model.day);
     write(`Anexo HHR - registros de Eloísa del ${dd}-${mm}-${yy} (documento no oficial)`, { size: 13, bold: true, gap: 2 });
     write(`Paciente: ${patient.name || 'Sin nombre'} - RUT ${patient.run} - Episodio ${patient.encId}`, { size: 10 });
     write(
       `El informe oficial «Historial de hospitalización» de Eloísa no se puede generar para el ${dd}-${mm}-${yy}: ` +
       'su servidor falla en el día en que Chile continental adelantó la hora. Este anexo reproduce, sin resumir, los ' +
-      `registros de ese día tal como los entrega Ficha Médico (de ${span.from} a ${span.to}, hora de Rapa Nui). ` +
-      'Todas las horas están en hora de Rapa Nui. Va acompañado del Resumen diario oficial de Eloísa del mismo día.',
+      `registros que Ficha Médico fechó el ${dd}-${mm}-${yy}, tal como los entrega. Todas las horas están en hora de ` +
+      'Rapa Nui: Ficha Médico guarda la mayoría en hora continental y aquí se convierten; los signos vitales y la ' +
+      'hora real de administración ya vienen en hora de Rapa Nui. Va acompañado del Resumen diario oficial del mismo día.',
       { size: 9, gap: 1 }
     );
     write(`Generado por HHR el ${rapaNuiClock(generatedAt)} (hora de Rapa Nui).`, { size: 8, gap: 4 });
@@ -295,7 +292,7 @@
     return doc.output('arraybuffer');
   };
 
-  const api = Object.freeze({ buildModel, render, rapaNuiSpan });
+  const api = Object.freeze({ buildModel, render });
   root.HhrAuditDayAnnex = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof self !== 'undefined' ? self : globalThis);
