@@ -7,6 +7,7 @@ import { BaseModal } from '@/components/shared/BaseModal';
 import {
   fetchMMRADPdfBlobUrl,
   fetchMMRADPortalReceiptHtml,
+  searchMMRADCheckDigitExams,
   searchMMRADExams,
   type MMRADExam,
   type MMRADSearchResult,
@@ -191,16 +192,24 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
     setRefreshError(null);
     setResult(memory.remembered ?? null);
 
-    try {
-      const data = await searchMMRADExams({
-        rut,
-        // The census name lets MMRAD's mistyped check digits be matched (see mmrad-search).
-        patientName: patientNameOf(rut),
-        dateFrom: from || undefined,
-        dateTo: to || undefined,
-      });
+    const query = { rut, dateFrom: from || undefined, dateTo: to || undefined };
+    const show = (data: MMRADSearchResult) => {
       const shown = memory.remember(data);
       if (shown && isCurrent()) setResult(shown);
+    };
+    // Exams MMRAD registered with a mistyped check digit come from a slower request that runs at
+    // the same time; they join the list when they arrive (see mmrad-search).
+    const patientName = patientNameOf(rut);
+    if (patientName)
+      void searchMMRADCheckDigitExams({ ...query, patientName }).then(
+        data => {
+          if (normalizeDicomPatientId(data.rut) === normalizeDicomPatientId(rut)) show(data);
+        },
+        () => show({ rut, examenes: [], check_digit_search: 'partial' })
+      );
+
+    try {
+      show(await searchMMRADExams(query));
     } catch (err) {
       if (isCurrent()) {
         const message = err instanceof Error ? err.message : 'Error al buscar exámenes';

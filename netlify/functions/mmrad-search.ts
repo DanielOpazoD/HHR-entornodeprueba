@@ -401,7 +401,8 @@ export const createMMRADSearchHandler = (
 
     // Rate limit only the actual request, not the CORS preflight.
     const clientIp = getClientIp(event);
-    if (isRateLimited(clientIp, { maxPerWindow: 10, windowMs: 60_000 })) {
+    // Each patient search is two requests: the exact RUT and, in parallel, its mistyped check digits.
+    if (isRateLimited(clientIp, { maxPerWindow: 20, windowMs: 60_000 })) {
       return buildTooManyRequestsResponse(requestOrigin);
     }
 
@@ -508,6 +509,15 @@ export const createMMRADSearchHandler = (
     }
 
     const cleanRut = rut.replace(/\./g, '').trim();
+    // The exact RUT answers in about 1.5 s; the ten other check digits, one by one, take about
+    // 4.5 s more. The viewer asks for them in a second request that runs at the same time in its
+    // own function instance and RIS session, and merges them when they arrive.
+    const checkDigitOnly = action === 'check-digit';
+    // Only with the census name: a mistyped check digit is accepted when the name matches.
+    const patientName = (queryParams.get('name') || '').slice(0, 200);
+    if (checkDigitOnly && !patientName.trim()) {
+      return buildJsonResponse(400, { error: 'Nombre del paciente requerido' }, { requestOrigin });
+    }
 
     try {
       return await invokeWithTelemetry({
@@ -518,13 +528,14 @@ export const createMMRADSearchHandler = (
         db,
         hospitalId: process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa',
         context: {
-          action: 'search',
+          action: checkDigitOnly ? 'check-digit' : 'search',
           hasFromFilter: Boolean(queryParams.get('from')),
           hasToFilter: Boolean(queryParams.get('to')),
         },
         fn: async () => {
           return withMMRADSession(async ({ cookies, searchActionUrl }) => {
             if (!searchActionUrl) {
+              if (checkDigitOnly) throw new Error('No se pudo iniciar sesión en MMRAD.');
               return buildJsonResponse(
                 200,
                 {
@@ -539,9 +550,7 @@ export const createMMRADSearchHandler = (
             const to = queryParams.get('to') || undefined;
             const search = (patientId: string) =>
               searchExamRows(patientId, cookies, searchActionUrl, from, to);
-            const exact = (await search(cleanRut)).map(row => row.exam);
-            // Only with the census name: a mistyped check digit is accepted when the name matches.
-            const patientName = (queryParams.get('name') || '').slice(0, 200);
+            const exact = checkDigitOnly ? [] : (await search(cleanRut)).map(row => row.exam);
             const mistyped = patientName
               ? await searchMistypedCheckDigitExams({
                   rut: cleanRut,
