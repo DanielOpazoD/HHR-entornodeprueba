@@ -211,7 +211,9 @@ mal digitado. El 2026-11-03 se encontraron así dos TC validados de un paciente.
 llevan ese RUT, y el RIS solo encuentra un ID exacto. Por decisión del responsable:
 
 - `mmrad-search` recibe el nombre del censo (`name`) y, además del RUT exacto, busca los otros 10
-  dígitos verificadores, 5 a la vez (en una prueba real, unos 1,1 s en total). Conserva una fila solo
+  dígitos verificadores **de a uno** (unos 4–5 s en total). Varias búsquedas simultáneas en una misma sesión
+  del RIS vuelven vacías al azar: en paralelo, hasta el RUT exacto respondió 0 de sus 2 filas, mientras
+  que de a una todas fueron correctas (medido el 2026-11-03). Conserva una fila solo
   si su ID tiene ese mismo número, con otro dígito, y si cada palabra del nombre más corto aparece
   en el otro. Ese nombre debe tener al menos dos palabras sin contar partículas como «de», «la» o
   «del». Un pasaporte nunca se lee como RUT. Una fila repetida se
