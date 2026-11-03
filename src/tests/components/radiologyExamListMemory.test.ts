@@ -123,6 +123,15 @@ describe('session exam list memory', () => {
     expect(readRememberedMMRADExams(query)?.examenes).toEqual([abdomen, chest]);
   });
 
+  it('keeps the check-digit result when the exact answer arrives after it', () => {
+    const memory = openMMRADExamListMemory(query);
+    memory.remember({ ...reply([abdomen]), check_digit_search: 'partial' });
+    const shown = memory.remember(reply([chest]));
+
+    expect(shown?.check_digit_search).toBe('partial');
+    expect(shown?.examenes).toEqual([chest, abdomen]);
+  });
+
   it('forgets every list when the user, the session generation or the session itself changes', () => {
     openMMRADExamListMemory(query).remember(reply([chest]));
     admit('user:synthetic-B');

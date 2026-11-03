@@ -6,6 +6,7 @@ import { setSessionGeneration } from '@/services/storage/sessionStorageTransitio
 
 const mmradMocks = vi.hoisted(() => ({
   search: vi.fn(),
+  checkDigit: vi.fn(),
 }));
 
 vi.mock('@/services/radiology/mmradService', async importOriginal => {
@@ -13,6 +14,7 @@ vi.mock('@/services/radiology/mmradService', async importOriginal => {
   return {
     ...actual,
     searchMMRADExams: mmradMocks.search,
+    searchMMRADCheckDigitExams: mmradMocks.checkDigit,
   };
 });
 
@@ -29,6 +31,11 @@ describe('RadiologyViewerModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mmradMocks.search.mockResolvedValue({ rut: '17752753-1', examenes: [] });
+    mmradMocks.checkDigit.mockImplementation(async ({ rut }: { rut: string }) => ({
+      rut: rut.replace(/\./g, ''),
+      examenes: [],
+      check_digit_search: 'complete',
+    }));
   });
 
   it('searches the initial patient once when direct access requests auto-search', async () => {
@@ -45,8 +52,14 @@ describe('RadiologyViewerModal', () => {
     await waitFor(() => {
       expect(mmradMocks.search).toHaveBeenCalledTimes(1);
     });
-    // The census name lets the search find exams MMRAD registered with another check digit.
     expect(mmradMocks.search).toHaveBeenCalledWith({
+      rut: patient.rut,
+      dateFrom: undefined,
+      dateTo: undefined,
+    });
+    // The census name goes only to the slower check-digit request, which runs at the same time.
+    expect(mmradMocks.checkDigit).toHaveBeenCalledTimes(1);
+    expect(mmradMocks.checkDigit).toHaveBeenCalledWith({
       rut: patient.rut,
       patientName: patient.patientName,
       dateFrom: undefined,
@@ -170,6 +183,11 @@ describe('RadiologyViewerModal with the exam list remembered in this session', (
   beforeEach(async () => {
     // Also drops replies queued by a test that failed before using them.
     mmradMocks.search.mockReset();
+    mmradMocks.checkDigit.mockReset();
+    mmradMocks.checkDigit.mockImplementation(async ({ rut }: { rut: string }) => ({
+      rut: rut.replace(/\./g, ''),
+      examenes: [],
+    }));
     await admitSession('user:synthetic-A');
   });
 
@@ -200,6 +218,40 @@ describe('RadiologyViewerModal with the exam list remembered in this session', (
     expect(screen.getByText('TC ABDOMEN SINTETICO')).toBeInTheDocument();
     expect(screen.getByText('Validado')).toBeInTheDocument();
     expect(screen.getAllByText('TC TORAX SINTETICO')).toHaveLength(1);
+  });
+
+  it('shows the exact exams first and adds those MMRAD registered with another check digit', async () => {
+    const mistyped = deferredReply();
+    mmradMocks.checkDigit.mockReturnValueOnce(mistyped.promise);
+    mmradMocks.search.mockResolvedValueOnce(replyFor(patient.rut, [ct('TC TORAX SINTETICO')]));
+
+    openFor();
+
+    expect(await screen.findByText('TC TORAX SINTETICO')).toBeInTheDocument();
+    expect(screen.queryByText('TC CEREBRO SINTETICO')).not.toBeInTheDocument();
+    await act(async () =>
+      mistyped.resolve({
+        ...replyFor(patient.rut, [
+          ct('TC CEREBRO SINTETICO', { registered_patient_id: '17752753-2' }),
+        ]),
+        check_digit_search: 'complete',
+      })
+    );
+    expect(screen.getByText('TC TORAX SINTETICO')).toBeInTheDocument();
+    expect(screen.getByText('TC CEREBRO SINTETICO')).toBeInTheDocument();
+    expect(screen.getByText(/difiere solo en el dígito verificador/)).toBeInTheDocument();
+  });
+
+  it('keeps the exact exams and notes it when the check-digit request fails', async () => {
+    mmradMocks.checkDigit.mockRejectedValueOnce(new Error('synthetic failure'));
+    mmradMocks.search.mockResolvedValueOnce(replyFor(patient.rut, [ct('TC TORAX SINTETICO')]));
+
+    openFor();
+
+    expect(await screen.findByText('TC TORAX SINTETICO')).toBeInTheDocument();
+    expect(
+      await screen.findByText(/No se pudo revisar si MMRAD tiene exámenes/)
+    ).toBeInTheDocument();
   });
 
   it('shows and refreshes the remembered list when the manual viewer reopens', async () => {

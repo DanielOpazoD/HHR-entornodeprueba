@@ -220,6 +220,38 @@ describe('mmrad-search with mistyped check digits', () => {
     expect(response.body).not.toContain('examenes');
   });
 
+  it('answers only the mistyped check digits when the viewer asks for them separately', async () => {
+    const body = await search(
+      `action=check-digit&rut=11.111.111-1&name=${encodeURIComponent(NAME)}`
+    );
+
+    expect(searches).not.toContain(RUT);
+    expect(searches).toHaveLength(10);
+    expect(body.check_digit_search).toBe('partial');
+    expect(
+      body.examenes.map((exam: Record<string, unknown>) => [
+        exam.nombre_examen,
+        exam.registered_patient_id,
+      ])
+    ).toEqual([['TC TORAX', '11111111-7']]);
+  });
+
+  it('refuses the check-digit request without the census name', async () => {
+    const { createMMRADSearchHandler } = await import('../../../netlify/functions/mmrad-search');
+    const response = await createMMRADSearchHandler({
+      getFirebaseServer: vi.fn().mockReturnValue({ db: {} }),
+      authorizeRoleRequest: vi.fn().mockResolvedValue({ role: 'doctor_urgency' }),
+      extractBearerToken: vi.fn().mockReturnValue('synthetic-token'),
+    } as never)({
+      httpMethod: 'GET',
+      headers: { authorization: 'Bearer synthetic-token' },
+      body: null,
+      rawQuery: 'action=check-digit&rut=11.111.111-1',
+    });
+    expect(response.statusCode).toBe(400);
+    expect(searches).toEqual([]);
+  });
+
   it('keeps the exact search alone when no census name is sent', async () => {
     const body = await search('rut=11.111.111-1');
 
