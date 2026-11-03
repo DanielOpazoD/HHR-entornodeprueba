@@ -462,7 +462,13 @@ describe('buildScoresCellModel — Downton and history', () => {
     const model = buildScoresCellModel(
       patient({
         evaluationScores: {
-          history: [entry({ recordedDate: '2026-07-11', archived: true })],
+          history: [
+            entry({
+              recordedDate: '2026-07-11',
+              recordedAt: '11-07-2026 08:00:00 -06:00',
+              archived: true,
+            }),
+          ],
         },
       }),
       '2026-07-10'

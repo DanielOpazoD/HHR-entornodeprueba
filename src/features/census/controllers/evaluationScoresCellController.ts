@@ -25,6 +25,7 @@ import {
   sourceRiskLabel,
 } from '@/domain/evaluationScales/sourceRiskSeverity';
 import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
+import { evaluationScaleStampInRapaNui } from '@/domain/evaluationScales/evaluationScaleClock';
 
 export interface BradenCellModel {
   entry: EvaluationScoreEntry;
@@ -268,11 +269,29 @@ const latestApplicationEvidence = (
   );
 };
 
+/** Day and clock of an application on the hospital clock; its stored value stays as printed. */
+const inRapaNui = <T extends { recordedDate: string; recordedAt: string }>(value: T): T => {
+  const stamp = evaluationScaleStampInRapaNui(value.recordedAt);
+  return stamp ? { ...value, recordedDate: stamp.slice(0, 10), recordedAt: stamp } : value;
+};
+
+const scaleInRapaNui = (entry: EvaluationScoreEntry): EvaluationScoreEntry => ({
+  ...inRapaNui(entry),
+  ...(entry.latestApplication && { latestApplication: inRapaNui(entry.latestApplication) }),
+});
+
 export const buildScoresCellModel = (
   patient: PatientData,
   censusIsoDay: string
 ): ScoresCellModel => {
-  const scores: PatientEvaluationScores = patient.evaluationScores ?? {};
+  // Braden and Downton keep the mainland clock Eloísa printed (TIME-02); CUDYR reads its own.
+  const stored: PatientEvaluationScores = patient.evaluationScores ?? {};
+  const scores: PatientEvaluationScores = {
+    ...stored,
+    braden: stored.braden && scaleInRapaNui(stored.braden),
+    downton: stored.downton && scaleInRapaNui(stored.downton),
+    history: stored.history?.map(scaleInRapaNui),
+  };
   // Defensive filter for records persisted before census-day bounded histories were introduced.
   const history = dedupeScoreHistory(
     (scores.history ?? []).filter(

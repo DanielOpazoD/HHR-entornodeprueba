@@ -44,9 +44,9 @@ export interface EvaluationScoreEntry {
   total: number | null;
   /** Severity as reported by the source ("Nivel de Severidad"), e.g. "Riesgo bajo". */
   severity: string | null;
-  /** ISO local day (Rapa Nui) it was performed — YYYY-MM-DD. */
+  /** Day it was performed as the source printed it, YYYY-MM-DD; read it with evaluationScaleClock. */
   recordedDate: string;
-  /** When it was performed, verbatim as printed. */
+  /** When it was performed, verbatim as printed (mainland clock, TIME-02). */
   recordedAt: string;
   /** Professional who applied the scale, as reported by Ficha Médico (may be absent on old data). */
   author?: string;

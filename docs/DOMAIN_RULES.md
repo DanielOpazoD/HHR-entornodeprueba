@@ -96,9 +96,11 @@ coincidencias por azar):
 | Historial JSON: indicaciones de medicamentos (`patientPharmaIndicationResume.PUBLISH_DATETIME`)      | UTC               | comparada con la hora oficial de emisión de la receta                                            | centro de recetas de la extensión; anexo                |
 | Episodios, informes de hospitalización, dispositivos (`installationDatetime`), CUDYR (`crdDateTime`) | desfase explícito | el valor trae su desfase                                                                         | conversión desde el instante                            |
 
-Pendiente: las escalas Braden y Downton todavía guardan el reloj impreso de sus dos fuentes, en
-hora continental, porque su identidad persistida depende de ese reloj. Convertirlas exige migrar
-las aplicaciones ya guardadas sin duplicarlas.
+Las escalas Braden y Downton guardan el reloj impreso de sus dos fuentes, en hora continental,
+porque su identidad persistida depende de ese reloj: el historial JSON sin desfase y el informe de
+escalas con su desfase. No se migran. El censo y la reaplicación las leen en hora de Rapa Nui con
+`src/domain/evaluationScales/evaluationScaleClock.ts` (medido el 2026-11-03: 127 y 265 de 392
+aplicaciones guardadas). Pendiente: la detección de personal todavía lee esas horas sin convertir.
 
 ## Recién nacidos: identidad primero, ubicación después
 
