@@ -133,12 +133,14 @@ describe('DICOM transfer diagnostics and retry classification', () => {
     await expect(sized).rejects.toBeInstanceOf(DicomOriginalTooLargeError);
     await expect(sized).rejects.toMatchObject({
       transient: false,
-      message: expect.stringMatching(/pesa 24,3 MB .*3,5 MB.*«MMRAD».*Universitas/),
+      message: expect.stringMatching(/imagen \(24,3 MB\)\. .*«MMRAD».*Universitas/),
     });
     vi.stubGlobal('fetch', answer({ error: 'Synthetic', code: 'too-large' }));
     await expect(
       fetchDicomInstance('synthetic-ticket', new AbortController().signal)
-    ).rejects.toMatchObject({ message: expect.stringMatching(/^Esta imagen supera los 3,5 MB/) });
+    ).rejects.toMatchObject({
+      message: expect.stringMatching(/^No se pudo traer completa esta imagen\. /),
+    });
     vi.stubGlobal('fetch', answer({ error: 'Synthetic' }));
     await expect(
       fetchDicomInstance('synthetic-ticket', new AbortController().signal)

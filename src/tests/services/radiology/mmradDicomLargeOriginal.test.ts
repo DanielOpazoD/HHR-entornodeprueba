@@ -35,7 +35,8 @@ const routed = (
   bridge = () => bridgeTooLarge()
 ) =>
   vi.fn(async (url: string, init: RequestInit) => (url === SANTIAGO ? santiago(init) : bridge()));
-const tooLargeMessage = /^Esta imagen pesa 24,3 MB y supera .*«MMRAD».*Universitas/;
+const tooLargeMessage =
+  /^No se pudo traer completa esta imagen \(24,3 MB\)\. .*«MMRAD».*Universitas/;
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -141,7 +142,7 @@ describe('full radiographs from Santiago when the bridge cannot carry them', () 
     );
     await expect(
       fetchDicomInstance('synthetic-ticket', new AbortController().signal, undefined, 3)
-    ).rejects.toMatchObject({ message: /^Esta imagen supera los 3,5 MB/ });
+    ).rejects.toMatchObject({ message: /^No se pudo traer completa esta imagen\. / });
   });
 
   it('stops at once when the viewer cancels the Santiago download', async () => {
