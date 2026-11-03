@@ -32,6 +32,10 @@ import {
   resolveInitialMMRADModalityTab,
   resolveMMRADDatePresetRange,
 } from '@/components/modals/controllers/radiologyViewerModalController';
+import {
+  openMMRADExamListMemory,
+  readRememberedMMRADExams,
+} from '@/components/modals/controllers/radiologyExamListMemory';
 
 const DicomViewerDialog = React.lazy(() =>
   import('@/components/radiology/DicomViewerDialog').then(module => ({
@@ -67,9 +71,18 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
   const [selectedRut, setSelectedRut] = useState(initialPatientRut || patients[0]?.rut || '');
   const normalizedRut = normalizeDicomPatientId(selectedRut);
   const reviewCache = useDicomReviewCache(isOpen, selectedRut);
-  const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<MMRADSearchResult | null>(null);
+  // A foreground search has nothing to show yet; a background one refreshes a remembered list.
+  const [searchMode, setSearchMode] = useState<'foreground' | 'background' | null>(null);
+  const isLoading = searchMode !== null;
+  const isForegroundLoading = searchMode === 'foreground';
+  // Painted from the first frame when this session remembers the patient's list.
+  const [result, setResult] = useState<MMRADSearchResult | null>(() =>
+    isOpen
+      ? (readRememberedMMRADExams({ rut: selectedRut, dateFrom: '', dateTo: '' }) ?? null)
+      : null
+  );
   const [error, setError] = useState<string | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ pct: number; text: string } | null>(null);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -85,7 +98,7 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
   const context = JSON.stringify([isOpen, selectedRut, dateFrom, dateTo]);
   const latestContext = useRef(context);
   latestContext.current = context;
-  const autoSearchedRutRef = useRef<string | null>(null);
+  const openedForRutRef = useRef<string | null>(null);
 
   const uniquePatients = useMemo(() => buildUniqueRadiologyPatients(patients), [patients]);
   const selectedPatientName = uniquePatients.find(
@@ -102,15 +115,24 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
     [result, activeModTab]
   );
 
+  const tabListRutRef = useRef<string | null>(null);
   React.useEffect(() => {
-    setActiveModTab(resolveInitialMMRADModalityTab(modalities));
+    // A refresh of the patient's list keeps the tab the user chose while it is still offered.
+    const listRut = result ? normalizeDicomPatientId(result.rut) : null;
+    const isRefresh = listRut !== null && listRut === tabListRutRef.current;
+    tabListRutRef.current = listRut;
+    setActiveModTab(current =>
+      isRefresh && (current === null || modalities.includes(current))
+        ? current
+        : resolveInitialMMRADModalityTab(modalities)
+    );
   }, [result, modalities]);
 
   /**
    * Simulated progress bar.
    */
   React.useEffect(() => {
-    if (!isLoading) {
+    if (!isForegroundLoading) {
       if (progress) {
         setProgress({ pct: 100, text: '¡Completado!' });
         const timeout = setTimeout(() => setProgress(null), 600);
@@ -145,52 +167,81 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isForegroundLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSearch = useCallback(async () => {
-    if (!selectedRut) return;
+  const patientsRef = useRef(uniquePatients);
+  patientsRef.current = uniquePatients;
+  const patientNameOf = (rut: string) =>
+    patientsRef.current.find(
+      patient => normalizeDicomPatientId(patient.rut) === normalizeDicomPatientId(rut)
+    )?.patientName;
+
+  // Shows the list remembered in this session at once and refreshes it in the background.
+  const runSearch = useCallback(async (rut: string, from: string, to: string) => {
+    if (!rut) return;
     const sequence = ++searchSequence.current;
-    const requestContext = latestContext.current;
+    // Same shape as `context`, which the rendered selection keeps current.
+    const requestContext = JSON.stringify([true, rut, from, to]);
+    const isCurrent = () =>
+      sequence === searchSequence.current && latestContext.current === requestContext;
+    const memory = openMMRADExamListMemory({ rut, dateFrom: from, dateTo: to });
     setDicomExam(null);
-    setIsLoading(true);
+    setSearchMode(memory.remembered ? 'background' : 'foreground');
     setError(null);
-    setResult(null);
+    setRefreshError(null);
+    setResult(memory.remembered ?? null);
 
     try {
       const data = await searchMMRADExams({
-        rut: selectedRut,
-        patientName: selectedPatientName,
-        dateFrom: dateFrom || undefined,
-        dateTo: dateTo || undefined,
+        rut,
+        // The census name lets MMRAD's mistyped check digits be matched (see mmrad-search).
+        patientName: patientNameOf(rut),
+        dateFrom: from || undefined,
+        dateTo: to || undefined,
       });
-      if (sequence === searchSequence.current && latestContext.current === requestContext)
-        setResult(data);
+      const shown = memory.remember(data);
+      if (shown && isCurrent()) setResult(shown);
     } catch (err) {
-      if (sequence === searchSequence.current && latestContext.current === requestContext)
-        setError(err instanceof Error ? err.message : 'Error al buscar exámenes');
+      if (isCurrent()) {
+        const message = err instanceof Error ? err.message : 'Error al buscar exámenes';
+        // A failed refresh is not "no exams": the remembered list stays.
+        if (memory.remembered) setRefreshError(message);
+        else setError(message);
+      }
     } finally {
-      if (sequence === searchSequence.current) setIsLoading(false);
+      if (sequence === searchSequence.current) setSearchMode(null);
     }
-  }, [selectedRut, selectedPatientName, dateFrom, dateTo]);
+  }, []);
 
+  const handleSearch = useCallback(
+    () => runSearch(selectedRut, dateFrom, dateTo),
+    [runSearch, selectedRut, dateFrom, dateTo]
+  );
+
+  // Once per open: select the initial patient, show what this session remembers for it and refresh
+  // it. Without a remembered list only an auto-search request searches by itself.
   React.useEffect(() => {
     if (!isOpen) {
-      autoSearchedRutRef.current = null;
+      openedForRutRef.current = null;
       return;
     }
-
+    const openedFor = initialPatientRut || '';
+    if (openedForRutRef.current === openedFor) return;
+    openedForRutRef.current = openedFor;
+    const rut = initialPatientRut || selectedRut;
+    setSelectedRut(rut);
+    setError(null);
+    setRefreshError(null);
     if (
-      !autoSearchInitialPatient ||
-      !initialPatientRut ||
-      selectedRut !== initialPatientRut ||
-      autoSearchedRutRef.current === initialPatientRut
+      (autoSearchInitialPatient && initialPatientRut) ||
+      readRememberedMMRADExams({ rut, dateFrom, dateTo })
     ) {
-      return;
+      void runSearch(rut, dateFrom, dateTo);
+    } else {
+      setResult(null);
     }
-
-    autoSearchedRutRef.current = initialPatientRut;
-    void handleSearch();
-  }, [autoSearchInitialPatient, handleSearch, initialPatientRut, isOpen, selectedRut]);
+    // Only an open or a new initial patient restarts this; later choices go through the selector.
+  }, [isOpen, initialPatientRut]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCopyReport = useCallback(async (exam: MMRADExam) => {
     const reportText = exam.report
@@ -270,18 +321,12 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
   };
 
   React.useEffect(() => {
-    if (isOpen && initialPatientRut) {
-      setSelectedRut(initialPatientRut);
-      setResult(null);
-      setError(null);
-    }
-  }, [isOpen, initialPatientRut]);
-
-  React.useEffect(() => {
     if (!isOpen) {
       setPortalReceiptPreview(null);
       setDicomExam(null);
       searchSequence.current++;
+      // The search still running finishes in the background and is remembered, unshown.
+      setSearchMode(null);
     }
   }, [isOpen]);
 
@@ -324,11 +369,14 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
           dateTo={dateTo}
           onPatientChange={rut => {
             searchSequence.current++;
-            setIsLoading(false);
+            setSearchMode(null);
             setDicomExam(null);
             setSelectedRut(rut);
             setResult(null);
             setError(null);
+            setRefreshError(null);
+            if (readRememberedMMRADExams({ rut, dateFrom, dateTo }))
+              void runSearch(rut, dateFrom, dateTo);
           }}
           onSearch={handleSearch}
           onDateFromChange={setDateFrom}
@@ -351,7 +399,7 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
 
         <RadiologyViewerResults
           result={result}
-          isLoading={isLoading}
+          isLoading={isForegroundLoading}
           modalities={modalities}
           activeModTab={activeModTab}
           filteredExams={filteredExams}
@@ -364,6 +412,13 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
           onCopyReport={handleCopyReport}
           copiedReportExamKey={copiedReportExamKey}
         />
+
+        {/* Below the list, so a failed refresh never pushes it down. */}
+        {result && refreshError && (
+          <p role="status" className="mt-3 text-[11px] text-slate-500">
+            No se pudo actualizar desde MMRAD ({refreshError}). Se muestra la última lista conocida.
+          </p>
+        )}
 
         {!result && !isLoading && !error && <RadiologyViewerEmptyState />}
       </BaseModal>
