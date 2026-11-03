@@ -20,6 +20,13 @@ import {
   readBoundedResponse,
 } from './lib/mmrad-dicom-policy';
 import { loadVendorStudyMetadata, normalizeVendorStudy } from './lib/mmrad-dicom-metadata';
+import {
+  isUniversitasLink,
+  loadUniversitasManifest,
+  normalizeUniversitasStudy,
+  UNIVERSITAS_ORIGIN,
+  universitasInstanceRequest,
+} from './lib/mmrad-universitas';
 import { normalizeDicomPatientId } from '../../src/services/radiology/dicomTypes';
 import { isValidRut } from '../../src/utils/rutUtils';
 
@@ -27,6 +34,7 @@ interface Dependencies {
   authorizeRoleRequest: typeof authorizeRoleRequest;
   getFirebaseServer: typeof getFirebaseServer;
   loadVendorStudyMetadata: typeof loadVendorStudyMetadata;
+  loadUniversitasManifest?: typeof loadUniversitasManifest;
 }
 
 export const createMMRADDicomHandler =
@@ -35,6 +43,7 @@ export const createMMRADDicomHandler =
       authorizeRoleRequest,
       getFirebaseServer,
       loadVendorStudyMetadata,
+      loadUniversitasManifest,
     }
   ) =>
   async (event: NetlifyEventLike) => {
@@ -98,6 +107,13 @@ export const createMMRADDicomHandler =
       )
         return json(400, { error: 'Estudio o paciente no válido.' });
       try {
+        // MMRAD's current viewer (Universitas) since 2026-11; the legacy one stays as fallback.
+        if (isUniversitasLink(link)) {
+          const { access, manifest } = await (
+            dependencies.loadUniversitasManifest ?? loadUniversitasManifest
+          )(link, AbortSignal.timeout(25_000));
+          return json(200, normalizeUniversitasStudy(manifest, access, patient, subject));
+        }
         const { uid, metadata } = await dependencies.loadVendorStudyMetadata(
           link,
           AbortSignal.timeout(25_000)
@@ -121,10 +137,21 @@ export const createMMRADDicomHandler =
     let receivedHeaders = false;
     const upstreamStart = performance.now();
     try {
-      const response = await fetch(instanceWadoUrl(ticket), {
+      // Universitas needs its own share cookie; RIS cookies never travel to a viewer host.
+      const universitas =
+        ticket.viewer === 'universitas' && ticket.session
+          ? universitasInstanceRequest({ ...ticket, session: ticket.session })
+          : null;
+      const response = await fetch(universitas ? universitas.url : instanceWadoUrl(ticket), {
         redirect: 'error',
         signal: AbortSignal.timeout(20_000),
-        headers: { Referer: `${MMRAD_VIEWER}/viewer/${ticket.study}`, Accept: 'application/dicom' },
+        headers: universitas
+          ? {
+              Referer: `${UNIVERSITAS_ORIGIN}/`,
+              Accept: 'application/dicom',
+              Cookie: universitas.cookie,
+            }
+          : { Referer: `${MMRAD_VIEWER}/viewer/${ticket.study}`, Accept: 'application/dicom' },
       });
       const upstreamHeadersMs = performance.now() - upstreamStart;
       receivedHeaders = true;

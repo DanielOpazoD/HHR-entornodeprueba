@@ -320,6 +320,13 @@ const parseExamsFromHTML = (html: string): MMRADExam[] => {
     if (dicomMatch?.[1]) {
       dicomUrl = `${MMRAD_BASE_URL}${dicomMatch[1]}`;
     }
+    // «Visualizador Universitas» replaced the legacy viewer (2026-11). Prefer its RIS page when
+    // the row offers it; the DICOM function recognises both kinds of link.
+    const universitasMatch = rowHtml.match(
+      /window\.open\('(https:\/\/ris\.mmrad\.cl\/group\/[^']*abrirestudio[^']*)'/
+    );
+    const universitasUrl = normalizeMmradUrl(universitasMatch?.[1]?.replace(/&amp;/g, '&'));
+    if (universitasUrl) dicomUrl = universitasUrl;
 
     let informeHtmlUrl: string | null = null;
     const reportUrlPatterns = [

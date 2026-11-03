@@ -219,6 +219,8 @@ describe('mmrad-search', () => {
             <td><a href="/informePDF/123">PDF</a></td>
             <td><a href="javascript:window.open('/ingrad-ris-informehtml/UtilServlet?a=1&id=123');void(0);">HTML</a></td>
             <td><a href="javascript:window.open('/web/portalpaciente/comprobante?idexamen=123&idprestacion=456');void(0);">Comprobante Portal Web paciente</a></td>
+            <td><a href="javascript:window.open('/ingrad-ris-informehtml/UtilServlet?a=3&u=1&idexamen=123&idprestacion=0');void(0);">Visualizador DICOM HTML5</a></td>
+            <td><a href="javascript:window.open('https://ris.mmrad.cl/group/hhangaroa/examenes?p_p_id=2_WAR_ingradteleradexamenportlet_INSTANCE_Ab12&amp;p_p_state=exclusive&amp;_2_WAR_ingradteleradexamenportlet_INSTANCE_Ab12__spage=%2Fportlet_action%2Fexamen%2Fabrirestudio&amp;_2_WAR_ingradteleradexamenportlet_INSTANCE_Ab12_idexamen=123');void(0);">Visualizador Universitas</a></td>
           </tr>
         </table></body></html>`
       ),
@@ -252,6 +254,10 @@ describe('mmrad-search', () => {
     expect(body.examenes[0].informe_html_url).toContain('/ingrad-ris-informehtml/UtilServlet?a=1');
     expect(body.examenes[0].portal_web_receipt_url).toBe(
       'https://ris.mmrad.cl/web/portalpaciente/comprobante?idexamen=123&idprestacion=456'
+    );
+    // MMRAD's current viewer wins over the legacy HTML5 one when the row offers both.
+    expect(body.examenes[0].dicom_url).toBe(
+      'https://ris.mmrad.cl/group/hhangaroa/examenes?p_p_id=2_WAR_ingradteleradexamenportlet_INSTANCE_Ab12&p_p_state=exclusive&_2_WAR_ingradteleradexamenportlet_INSTANCE_Ab12__spage=%2Fportlet_action%2Fexamen%2Fabrirestudio&_2_WAR_ingradteleradexamenportlet_INSTANCE_Ab12_idexamen=123'
     );
     expect(body.examenes[0].report.findings).toContain('Parénquima pulmonar');
     expect(body.examenes[0].report.impression).toContain('Cardiomegalia');
