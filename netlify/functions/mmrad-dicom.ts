@@ -15,6 +15,7 @@ import {
 import { normalizeMmradUrl, MMRAD_ALLOWED_ROLES } from './lib/mmrad-session';
 import {
   MMRAD_VIEWER,
+  InstanceTicketExpiredError,
   verifyInstanceTicket,
   instanceWadoUrl,
   readBoundedResponse,
@@ -129,9 +130,11 @@ export const createMMRADDicomHandler =
     let ticket: ReturnType<typeof verifyInstanceTicket>;
     try {
       ticket = verifyInstanceTicket(body.ticket, subject);
-    } catch {
+    } catch (error) {
+      // Only an authentic, expired ticket of this user gets a code: the viewer renews it silently.
       return json(403, {
         error: 'El acceso al estudio no es válido o venció. Vuelve a abrir el visor.',
+        ...(error instanceof InstanceTicketExpiredError ? { code: 'ticket-expired' } : {}),
       });
     }
     let receivedHeaders = false;

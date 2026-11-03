@@ -183,6 +183,39 @@ describe('protected MMRAD DICOM bridge', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('marks only an authentic expired capability of the same user as renewable', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const run = handler();
+    const value = ticket();
+    const [payload, mac] = value.split('.');
+    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString());
+    // Same expired payload pointing at another original, under the original signature.
+    const forged = `${Buffer.from(JSON.stringify({ ...decoded, sop: syntheticSopUid(1) })).toString(
+      'base64url'
+    )}.${mac}`;
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.now() + 31 * 60_000);
+    const answer = async (capability: string) => {
+      const response = await run(event({ action: 'instance', ticket: capability }));
+      return { status: response.statusCode, body: JSON.parse(response.body) };
+    };
+    const expired = await answer(value);
+    expect(expired).toEqual({
+      status: 403,
+      body: { error: expect.any(String), code: 'ticket-expired' },
+    });
+    const invalid = {
+      status: 403,
+      body: { error: 'El acceso al estudio no es válido o venció. Vuelve a abrir el visor.' },
+    };
+    expect(await answer(`${value}x`)).toEqual(invalid);
+    expect(await answer(forged)).toEqual(invalid);
+    authorize.mockResolvedValue({ token: { sub: 'other-user' }, role: 'doctor_urgency' });
+    expect(await answer(value)).toEqual(invalid);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('accepts provider-relative WADO routes and downloads the signed original from the fixed viewer', async () => {
     const metadata = syntheticVendorStudy(3);
     for (const instance of metadata.seriesList[0].instances) {

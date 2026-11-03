@@ -49,3 +49,9 @@ export class DicomTransferError extends Error {
     );
   }
 }
+/** The server recognised an authentic instance ticket whose time ran out (`ticket-expired`). */
+export class DicomTicketExpiredError extends DicomTransferError {
+  constructor() {
+    super(false);
+  }
+}

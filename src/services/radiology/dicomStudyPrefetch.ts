@@ -1,8 +1,9 @@
 import { parseDicom } from 'dicom-parser';
-import { fetchDicomInstance } from './mmradDicomService';
+import type { fetchDicomInstance } from './mmradDicomService';
 import { validateDicomInstanceIdentity } from './dicomInstanceIdentity';
 import type { DicomStudy } from './dicomTypes';
 import { createDicomReviewCache, type DicomReviewCache } from './dicomReviewCache';
+import { createDicomTicketRenewal, type DicomStudyReopen } from './dicomTicketRenewal';
 
 /** Scheduling hint only; never used to infer geometry or exclude localizers. */
 export const prioritizeDicomSeries = (series: DicomStudy['series']) =>
@@ -12,13 +13,18 @@ export const prioritizeDicomSeries = (series: DicomStudy['series']) =>
       Number(/\b(ax|axial|transversal)\b/i.test(a.description))
   );
 
-/** One mounted study owns downloads; the patient review may retain validated originals. */
+/**
+ * One mounted study owns downloads; the patient review may retain validated originals. Callers
+ * keep passing the verified study's original tickets; `reopen` lets expired ones renew silently.
+ */
 export const createDicomStudyPrefetch = (
   study: DicomStudy,
   budget = 256 * 1024 * 1024,
-  reviewCache?: DicomReviewCache
+  reviewCache?: DicomReviewCache,
+  reopen?: DicomStudyReopen
 ) => {
   const cached = reviewCache ?? createDicomReviewCache(study.patientId, budget);
+  const tickets = createDicomTicketRenewal(study, reopen);
   const originals = new Map(
     study.series.flatMap(series =>
       series.instances.map(instance => [instance.ticket, { series, instance }] as const)
@@ -48,7 +54,7 @@ export const createDicomStudyPrefetch = (
     const { series, instance } = entry;
     const value = cached.get(study, series, instance);
     if (value) return value;
-    const downloaded = await fetchDicomInstance(ticket, signal, timing);
+    const downloaded = await tickets.fetch(series, instance, signal, timing);
     signal.throwIfAborted();
     if (disposed) throw new DOMException('Visor cerrado', 'AbortError');
     validateDicomInstanceIdentity(
@@ -80,8 +86,9 @@ export const createDicomStudyPrefetch = (
           controller.signal.throwIfAborted();
           if (disposed || cached.remaining() <= 0) return;
           if (cached.get(study, series, instance)) continue;
-          const value = await fetchDicomInstance(
-            instance.ticket,
+          const value = await tickets.fetch(
+            series,
+            instance,
             controller.signal,
             undefined,
             Math.floor(cached.remaining() / 2)
@@ -113,6 +120,7 @@ export const createDicomStudyPrefetch = (
     dispose: () => {
       disposed = true;
       pause();
+      tickets.dispose();
       if (!reviewCache) cached.dispose();
     },
   };

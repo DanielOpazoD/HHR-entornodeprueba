@@ -122,9 +122,24 @@ contentType=application/dicom&shareSession=<sesión>`, también con la cookie. L
 
 La sesión y la cookie viajan **cifradas** (AES-256-GCM, clave derivada del secreto MMRAD con
 separación de dominio) dentro de la capacidad firmada de cada instancia; el navegador no puede
-leerlas. La capacidad vence con la cookie (unos 9 minutos): pasado ese plazo hay que volver a abrir
-el visor. Ninguna cookie RIS viaja al host del visor. Se mantienen la validación de `PatientID` y de
-los tres UID de cada original, los límites de tamaño y las cuotas.
+leerlas. La capacidad vence con la cookie (unos 9 minutos). Ninguna cookie RIS viaja al host del
+visor. Se mantienen la validación de `PatientID` y de los tres UID de cada original, los límites de
+tamaño y las cuotas.
+
+**Renovación silenciosa.** El servidor comprueba primero la firma, el usuario y la forma de la
+capacidad, y después su plazo. Solo una capacidad auténtica, del mismo usuario y vencida recibe
+`403` con `code: 'ticket-expired'`; una alterada, ajena o de otro usuario conserva su respuesta
+`403` sin código. Ante ese código, el visor vuelve a pedir los metadatos del mismo enlace y paciente
+(`fetchDicomStudy`, que comprueba otra vez el paciente) y reintenta el corte con la nueva capacidad,
+sin aviso. Los cortes que vencen a la vez comparten una sola consulta por estudio abierto, y cada
+generación de capacidades se renueva como máximo una vez, lo que respeta la cuota de metadatos
+(10/min). Las nuevas capacidades se adoptan solo si el estudio tiene el mismo Study Instance UID, el
+mismo paciente y todas las series e instancias ya conocidas; la pantalla sigue mostrando el estudio
+original y cada original se valida igual que antes. Si la consulta falla, cambia el estudio o el
+paciente, falta un original o la capacidad renovada también aparece vencida, se muestra el error de
+siempre («No se pudo obtener el corte. Vuelve a abrir el estudio.»). La serie en curso, los
+reintentos, la precarga y la segunda serie de la comparación usan la misma renovación. También
+aplica a las capacidades de 30 minutos del visor anterior.
 
 Prueba en vivo del 2026-11-02 con un TC de 5 series: manifiesto 200 y el corte central de cada serie
 entregado como DICOM válido con sus tres UID (5/5). No se guardaron imágenes ni identificadores.

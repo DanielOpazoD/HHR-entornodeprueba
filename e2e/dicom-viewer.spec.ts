@@ -930,6 +930,56 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     );
   });
 
+  test('renews expired study access silently and completes the series', async ({ page }) => {
+    await setup(page);
+    let served = 0;
+    let expired = false;
+    const metadata: string[] = [];
+    await page.route('**/.netlify/functions/mmrad-dicom', async route => {
+      const body = route.request().postDataJSON();
+      if (body.action === 'metadata') {
+        metadata.push(expired ? 'renewal' : 'open');
+        if (!expired) return route.fallback();
+        const renewed = {
+          ...study,
+          series: study.series.map(series => ({
+            ...series,
+            instances: series.instances.map(instance => ({
+              ...instance,
+              ticket: instance.ticket.replace('synthetic-', 'renewed-'),
+            })),
+          })),
+        };
+        return route.fulfill({ contentType: 'application/json', body: JSON.stringify(renewed) });
+      }
+      // The share access lapses mid-series: every original ticket now reads as expired.
+      if (String(body.ticket).startsWith('synthetic-') && ++served > 8) {
+        expired = true;
+        return route.fulfill({
+          status: 403,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            error: 'El acceso al estudio no es válido o venció. Vuelve a abrir el visor.',
+            code: 'ticket-expired',
+          }),
+        });
+      }
+      return route.fallback();
+    });
+    const editor = await openSalvador(page);
+    await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+    await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+    const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+    await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeEnabled({
+      timeout: 60000,
+    });
+    await expect(viewer.getByLabel('Descarga de la serie')).toHaveAttribute('value', '24');
+    await expect(viewer.getByRole('alert')).toHaveCount(0);
+    await expect(viewer.getByRole('button', { name: 'Reintentar cortes fallidos' })).toHaveCount(0);
+    expect(expired).toBe(true);
+    expect(metadata).toEqual(['open', 'renewal']);
+  });
+
   test('shows verified cuts progressively and prioritizes navigation before the volume is complete', async ({
     page,
   }) => {
