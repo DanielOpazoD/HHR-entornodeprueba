@@ -31,7 +31,7 @@ importScripts(
   'clinical-score-write-runtime.js',
   'hospitalization-report-search-runtime.js', 'hospitalization-reports-runtime.js',
   'epicrisis-pdf-download.js', 'epicrisis-download-runtime.js',
-  'zip-store-writer.js', 'audit-documents-runtime.js',
+  'zip-store-writer.js', 'audit-history-segments.js', 'audit-documents-runtime.js',
   'clinical-report-runtime.js',
   'clinical-batch-print-runtime.js',
   'prescription-print.js',
@@ -765,7 +765,7 @@ const {
 const auditDocumentsRuntime = self.HhrAuditDocumentsRuntime.create({
   chromeApi: chrome, getFetchInfo: () => getFichaFetchInfo(), fetchWithTimeout, fetchOfficialPdf,
   mapWithConcurrency, bufferToBase64, zipWriter: self.HhrZipStoreWriter, now: () => Date.now(),
-  isHhrTabUrl: url => self.HhrAppOrigins.matchesUrl(url),
+  isHhrTabUrl: url => self.HhrAppOrigins.matchesUrl(url), historySegments: self.HhrAuditHistorySegments, pdfLib: self.PDFLib,
 });
 
 const fetchStatisticalDischargeReport = self.HhrGestionCamasStatisticalReportFetcher.create({

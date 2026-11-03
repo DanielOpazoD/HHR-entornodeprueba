@@ -30,7 +30,7 @@
   const RETRY_ATTEMPTS = 2;
   const RETRY_DELAY_MS = 3000;
   const isRetryable = result =>
-    !result.buffer && !result.fatal && (result.status == null || result.status >= 500);
+    !result.buffer && !result.fatal && !result.permanent && (result.status == null || result.status >= 500);
 
   const DOCUMENT_TYPES = Object.freeze({
     history: Object.freeze({
@@ -99,10 +99,15 @@
     .replace(/\s+/g, ' ')
     .trim();
 
-  const buildFileName = ({ patientName, run, documentType, startDate }) => {
+  const buildFileName = ({ patientName, run, documentType, startDate, missingDays }) => {
     const name = asciiText(patientName).slice(0, 80) || 'Sin nombre';
-    return `${name} - ${displayRun(run)} - ${DOCUMENT_TYPES[documentType].label} - ingreso ${startDate}.pdf`;
+    const missing = missingDays && missingDays.length ? ` - sin ${missingDays.join(' y ')}` : '';
+    return `${name} - ${displayRun(run)} - ${DOCUMENT_TYPES[documentType].label} - ingreso ${startDate}${missing}.pdf`;
   };
+
+  const downloadedNote = document => document.missingDays && document.missingDays.length
+    ? `Descargado sin el ${document.missingDays.join(' y ')}: Eloísa no genera el historial de ese día (cambio de hora)`
+    : 'Descargado';
 
   const overlapsRange = ({ startDate, endDate }, { dateFrom, dateTo }) =>
     (!dateFrom || endDate >= dateFrom) && (!dateTo || startDate <= dateTo);
@@ -171,19 +176,24 @@
     return { patients, documentTypes };
   };
 
+  const REQUIRED_FUNCTIONS = Object.freeze([
+    'getFetchInfo', 'fetchWithTimeout', 'fetchOfficialPdf', 'mapWithConcurrency', 'bufferToBase64',
+    'now', 'isHhrTabUrl',
+  ]);
+  const hasDependencies = deps => Boolean(deps) &&
+    REQUIRED_FUNCTIONS.every(name => typeof deps[name] === 'function') &&
+    Boolean(deps.chromeApi && deps.chromeApi.tabs && typeof deps.chromeApi.tabs.sendMessage === 'function') &&
+    Boolean(deps.zipWriter && typeof deps.zipWriter.build === 'function') &&
+    Boolean(deps.historySegments && typeof deps.historySegments.segmentsAround === 'function') &&
+    Boolean(deps.pdfLib && deps.pdfLib.PDFDocument);
+
   const create = dependencies => {
     const {
       chromeApi, getFetchInfo, fetchWithTimeout, fetchOfficialPdf, mapWithConcurrency,
-      bufferToBase64, zipWriter, now, isHhrTabUrl, retryDelayMs = RETRY_DELAY_MS,
+      bufferToBase64, zipWriter, now, isHhrTabUrl, historySegments, pdfLib, retryDelayMs = RETRY_DELAY_MS,
     } = dependencies || {};
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    if (
-      !chromeApi || !chromeApi.tabs || typeof chromeApi.tabs.sendMessage !== 'function' ||
-      typeof getFetchInfo !== 'function' || typeof fetchWithTimeout !== 'function' ||
-      typeof fetchOfficialPdf !== 'function' || typeof mapWithConcurrency !== 'function' ||
-      typeof bufferToBase64 !== 'function' || !zipWriter || typeof zipWriter.build !== 'function' ||
-      typeof now !== 'function' || typeof isHhrTabUrl !== 'function'
-    ) {
+    if (!hasDependencies(dependencies)) {
       throw new Error('No se pudo inicializar la descarga de documentos para auditoría.');
     }
 
@@ -343,7 +353,7 @@
         own.forEach(document => lines.push([
           run, document.patientName, document.startDate, document.endDate || 'En curso',
           DOCUMENT_TYPES[document.documentType].summary,
-          document.error ? 'No descargado: ' + document.error : 'Descargado',
+          document.error ? 'No descargado: ' + document.error : downloadedNote(document),
           document.fileName || '',
         ]));
       });
@@ -360,6 +370,7 @@
         hospitalizations: new Set(own.map(document => document.encId)).size,
         unverified: patient.unverified || 0,
         downloaded: own.filter(document => document.buffer).length,
+        incomplete: own.filter(document => document.buffer && document.missingDays).length,
         failed: own.filter(document => document.error).length,
       };
     });
@@ -398,11 +409,50 @@
         : 'No hay hospitalizaciones en las fechas pedidas. No se descargó nada.';
     };
 
-    const fetchDocument = (job, item) => fetchOfficialPdf({
-      url: reportUrl(job.info, item.documentType, item, job.nowIso),
+    const fetchReport = (job, item, url) => fetchOfficialPdf({
+      url,
       token: job.info.token,
       label: 'el informe ' + DOCUMENT_TYPES[item.documentType].summary.toLowerCase(),
     });
+
+    const mergePdfs = async buffers => {
+      const merged = await pdfLib.PDFDocument.create();
+      for (const buffer of buffers) {
+        const source = await pdfLib.PDFDocument.load(buffer, { ignoreEncryption: true });
+        (await merged.copyPages(source, source.getPageIndices())).forEach(page => merged.addPage(page));
+      }
+      const bytes = await merged.save();
+      return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    };
+
+    /** The history of a stay that crosses a day the report server cannot build, around that day. */
+    const fetchHistoryInSegments = async (job, item, split) => {
+      if (split.segments.length === 0) {
+        return { permanent: true, error: `Eloísa no genera el historial del ${split.skipped.join(' y ')} (cambio de hora)` };
+      }
+      const buffers = [];
+      for (const segment of split.segments) {
+        const url = new URL('/api/reportServer/' + DOCUMENT_TYPES.history.reportPath, job.info.apiOrigin);
+        url.searchParams.set('enc_id', item.encId);
+        url.searchParams.set('start_date', segment.start);
+        url.searchParams.set('end_date', segment.end);
+        const result = await fetchReport(job, item, url.toString());
+        if (!result.buffer) return result;
+        buffers.push(result.buffer);
+      }
+      try {
+        return { buffer: await mergePdfs(buffers), missingDays: split.skipped };
+      } catch (error) {
+        return { error: 'No se pudieron unir los tramos del historial: ' + String((error && error.message) || error) };
+      }
+    };
+
+    const fetchDocument = async (job, item) => {
+      const result = await fetchReport(job, item, reportUrl(job.info, item.documentType, item, job.nowIso));
+      if (result.buffer || item.documentType !== 'history' || !isRetryable(result)) return result;
+      const split = historySegments.segmentsAround({ start: item.startPeriod, end: item.endPeriod || job.nowIso });
+      return split.skipped.length ? fetchHistoryInSegments(job, item, split) : result;
+    };
 
     const downloadDocuments = async (job, planned) => {
       let downloaded = 0;
@@ -415,7 +465,7 @@
         job.progress('downloading', downloaded, planned.length);
         if (result.fatal) sessionError = result.error;
         return result.buffer
-          ? { ...item, buffer: result.buffer }
+          ? { ...item, buffer: result.buffer, ...(result.missingDays ? { missingDays: result.missingDays } : {}) }
           : { ...item, error: result.error || 'Falló la descarga.', retryable: isRetryable(result) };
       });
       return { documents, sessionError };
@@ -431,6 +481,7 @@
         if (result.fatal) return result.error;
         if (result.buffer) {
           document.buffer = result.buffer;
+          if (result.missingDays) document.missingDays = result.missingDays;
           delete document.error;
           return '';
         }

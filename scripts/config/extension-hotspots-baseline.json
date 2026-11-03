@@ -10,7 +10,11 @@
   ],
   "files": {
     "audit-documents-runtime.js": {
-      "maxLines": 584,
+      "maxLines": 635,
+      "hotspots": {}
+    },
+    "audit-history-segments.js": {
+      "maxLines": 88,
       "hotspots": {}
     },
     "background.js": {
@@ -482,7 +486,7 @@
       }
     },
     "hhr-hospitalized-documents-center.js": {
-      "maxLines": 264,
+      "maxLines": 258,
       "hotspots": {}
     },
     "hhr-imaging-center.js": {
