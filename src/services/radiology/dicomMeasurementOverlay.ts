@@ -29,6 +29,8 @@ const MEASUREMENT_TOOLS = [
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
+export type DicomMeasurementOverlay = { markup: string; width: number; height: number };
+
 type SvgNodeCache = Record<string, Record<string, { domRef?: Element } | undefined> | undefined>;
 
 /**
@@ -38,7 +40,7 @@ type SvgNodeCache = Record<string, Record<string, { domRef?: Element } | undefin
  */
 export const measurementOverlayFor = (
   viewport: Pick<Types.IViewport, 'id' | 'renderingEngineId' | 'element'>
-): { markup: string; width: number; height: number } | null => {
+): DicomMeasurementOverlay | null => {
   const layer = viewport.element.querySelector<SVGSVGElement>('.viewport-element > .svg-layer');
   const cache = (toolsState as unknown as { svgNodeCache?: SvgNodeCache }).svgNodeCache?.[
     `${viewport.id}:${viewport.renderingEngineId}`
@@ -65,9 +67,37 @@ export const measurementOverlayFor = (
 };
 
 /**
- * Draws the measurements over a capture. It is drawn on a scratch canvas first: if the browser
- * would taint the capture with it, the capture keeps the image without measurements instead of
- * failing.
+ * The measurements over a frame that just rendered, for videos. Cornerstone redraws them on the
+ * animation frame after IMAGE_RENDERED, so they are read one animation frame later. A series
+ * without measurements has nothing to wait for.
+ */
+export const measurementOverlayAfterRender = async (
+  viewport: Pick<Types.IViewport, 'id' | 'renderingEngineId' | 'element'>,
+  signal: AbortSignal
+): Promise<DicomMeasurementOverlay | null> => {
+  signal.throwIfAborted();
+  const measured = MEASUREMENT_TOOLS.some(
+    name => (annotation.state.getAnnotations(name, viewport.element) ?? []).length > 0
+  );
+  if (!measured) return null;
+  await new Promise<void>((resolve, reject) => {
+    const abort = () => {
+      cancelAnimationFrame(handle);
+      reject(signal.reason);
+    };
+    const handle = requestAnimationFrame(() => {
+      signal.removeEventListener('abort', abort);
+      resolve();
+    });
+    signal.addEventListener('abort', abort, { once: true });
+  });
+  return measurementOverlayFor(viewport);
+};
+
+/**
+ * Draws the measurements over a capture or a video frame. It is drawn on a scratch canvas first:
+ * if the browser would taint the target with it, the target keeps the image without measurements
+ * instead of failing.
  */
 export const drawMeasurementOverlay = async (
   context: CanvasRenderingContext2D,
@@ -76,11 +106,11 @@ export const drawMeasurementOverlay = async (
   height: number
 ): Promise<boolean> => {
   const url = URL.createObjectURL(new Blob([overlay.markup], { type: 'image/svg+xml' }));
+  const scratch = document.createElement('canvas');
   try {
     const image = new Image();
     image.src = url;
     await image.decode();
-    const scratch = document.createElement('canvas');
     scratch.width = width;
     scratch.height = height;
     const layer = scratch.getContext('2d');
@@ -93,5 +123,6 @@ export const drawMeasurementOverlay = async (
     return false;
   } finally {
     URL.revokeObjectURL(url);
+    scratch.width = scratch.height = 0;
   }
 };

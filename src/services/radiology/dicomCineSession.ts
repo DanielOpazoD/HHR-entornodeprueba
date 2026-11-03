@@ -4,9 +4,11 @@ import type { DicomCineSession } from './dicomCine';
 import type { DicomOrientation } from './dicomRuntimeTypes';
 import { waitForDicomRender } from './dicomRenderReady';
 import { lockDicomInput } from './dicomInputLock';
+import { measurementOverlayAfterRender } from './dicomMeasurementOverlay';
 
-/** Owns the original viewport while producing verified, rendered frames. No DOM overlays.
- * With restoreSlice, closing returns to the cut shown before the session (MP4 export). */
+/** Owns the original viewport while producing verified, rendered frames; MP4 adds the
+ * measurements drawn on each one. With restoreSlice, closing returns to the cut shown before the
+ * session (MP4 export). */
 export const openDicomCineSession = (
   target: StackViewport,
   stack: ReturnType<typeof createProgressiveStack>,
@@ -45,6 +47,11 @@ export const openDicomCineSession = (
         /* Closed session. */
       }
     },
+    measurements: signal =>
+      measurementOverlayAfterRender(
+        target,
+        AbortSignal.any([signal, sessionSignal, controller.signal])
+      ),
     frame: async (index, signal) => {
       if (closed || frameBusy) throw new Error('La sesión de cine no está disponible.');
       frameBusy = true;

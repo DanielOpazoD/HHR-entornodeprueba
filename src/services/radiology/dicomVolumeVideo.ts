@@ -4,6 +4,7 @@ import type { DicomOrientation } from './dicomTypes';
 import { turntableDicomCamera, type DicomTurntableAxis } from './dicomVideoPlan';
 import { waitForDicomRender } from './dicomRenderReady';
 import { lockDicomInput } from './dicomInputLock';
+import { measurementOverlayAfterRender } from './dicomMeasurementOverlay';
 
 export type DicomVideoRequest =
   | { kind: 'mpr'; plane: number }
@@ -97,6 +98,14 @@ export const openDicomVolumeVideo = ({
         release();
       }
     },
+    // MPR measurements belong to their slice; the 3D view has none.
+    measurements: plane
+      ? signal =>
+          measurementOverlayAfterRender(
+            plane,
+            AbortSignal.any([signal, sessionSignal, controller.signal])
+          )
+      : undefined,
     frame: async (position, signal) => {
       if (closed || frameBusy) throw new Error('La sesión de video no está disponible.');
       if (plane && (!Number.isInteger(position) || position < 0 || position >= total))
