@@ -190,8 +190,12 @@ los tres UID. Una URL absoluta o relativa hacia otro host sigue siendo rechazada
 
 Las instancias requieren una capacidad HMAC de 30 minutos, ligada al usuario,
 estudio, serie y SOP; no admite URLs arbitrarias. Se transporta por POST, sin
-identificadores clínicos en la URL de la Function. El acceso exige el mismo Bearer
-y rol en cada petición. Se usa el secreto MMRAD existente con separación de dominio
+identificadores clínicos en la URL de la Function. Abrir el estudio (metadatos) exige
+Bearer y rol. Cada imagen exige el token de Firebase del mismo usuario, verificado en la función,
+pero no repite la consulta de rol: esa consulta es una llamada a `checkUserRole` en us-central1 de
+330–500 ms. Una serie de 227 cortes la repetía 227 veces, cerca de la mitad del tiempo de cada
+imagen (medido el 2026-11-03). Un rol revocado deja de abrir estudios de inmediato. Los tickets ya
+emitidos vencen solos en unos 9 minutos en Universitas, y como máximo en 30. Se usa el secreto MMRAD existente con separación de dominio
 para firmar capacidades; no se requiere otra variable de despliegue.
 
 Para un `403 Origin not allowed` en un Deploy Preview, aplicar el

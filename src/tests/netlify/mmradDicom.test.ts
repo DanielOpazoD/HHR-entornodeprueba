@@ -23,10 +23,13 @@ import {
 const authorize = vi
   .fn()
   .mockResolvedValue({ token: { sub: 'synthetic-user' }, role: 'doctor_urgency' });
+// Slices check only the Firebase token; the role is checked when the study opens.
+const verifyIdToken = vi.fn().mockResolvedValue({ sub: 'synthetic-user' });
 const loadMetadata = vi.fn();
 const handler = () =>
   createMMRADDicomHandler({
     authorizeRoleRequest: authorize,
+    verifyIdToken,
     getFirebaseServer: vi.fn().mockReturnValue({ db: {} }),
     loadVendorStudyMetadata: loadMetadata,
   });
@@ -52,6 +55,7 @@ describe('protected MMRAD DICOM bridge', () => {
     vi.stubEnv('SITE_NAME', '');
     vi.clearAllMocks();
     authorize.mockResolvedValue({ token: { sub: 'synthetic-user' }, role: 'doctor_urgency' });
+    verifyIdToken.mockResolvedValue({ sub: 'synthetic-user' });
   });
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -192,6 +196,27 @@ describe('protected MMRAD DICOM bridge', () => {
     expect(JSON.parse(response.body).patientId).toBe('111111111');
   });
 
+  it("checks the role when the study opens, and only the same user's token for each slice", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(syntheticDicom(0, 3)));
+    vi.stubGlobal('fetch', fetchMock);
+    const run = handler();
+
+    expect((await run(event({ action: 'instance', ticket: ticket() }))).statusCode).toBe(200);
+    expect(authorize).not.toHaveBeenCalled();
+    expect(verifyIdToken).toHaveBeenCalledWith('synthetic-token');
+
+    verifyIdToken.mockRejectedValueOnce(new Error('synthetic expired token'));
+    expect((await run(event({ action: 'instance', ticket: ticket() }))).statusCode).toBe(401);
+    verifyIdToken.mockResolvedValueOnce({ sub: 'other-user' });
+    expect((await run(event({ action: 'instance', ticket: ticket() }))).statusCode).toBe(403);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await run(
+      event({ action: 'metadata', link: 'https://ris.mmrad.cl/x', patientId: '11.111.111-1' })
+    );
+    expect(authorize).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects modified, expired and cross-user capabilities before making an image request', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
@@ -233,7 +258,7 @@ describe('protected MMRAD DICOM bridge', () => {
     };
     expect(await answer(`${value}x`)).toEqual(invalid);
     expect(await answer(forged)).toEqual(invalid);
-    authorize.mockResolvedValue({ token: { sub: 'other-user' }, role: 'doctor_urgency' });
+    verifyIdToken.mockResolvedValue({ sub: 'other-user' });
     expect(await answer(value)).toEqual(invalid);
     expect(fetchMock).not.toHaveBeenCalled();
   });
