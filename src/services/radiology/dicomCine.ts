@@ -1,3 +1,4 @@
+import type { DicomMeasurementOverlay } from './dicomMeasurementOverlay';
 import type { DicomOrientation } from './dicomTypes';
 
 export interface DicomCineOptions {
@@ -16,6 +17,8 @@ export interface DicomVideoFrame {
  * close() unlocks input and restores what the session moved. */
 export interface DicomCineSession {
   frame: (position: number, signal: AbortSignal) => Promise<DicomVideoFrame>;
+  /** The measurements drawn over the frame just produced. Only MP4 asks: playback keeps its pace. */
+  measurements?: (signal: AbortSignal) => Promise<DicomMeasurementOverlay | null>;
   close: () => void;
 }
 export type DicomCineProgress = { completed: number; total: number; stage: string };

@@ -24,6 +24,10 @@ vi.mock('@/services/radiology/dicomRenderReady', () => ({
     signal.throwIfAborted();
   },
 }));
+// The measurement overlay reads Cornerstone's SVG layer, which the e2e suite covers.
+vi.mock('@/services/radiology/dicomMeasurementOverlay', () => ({
+  measurementOverlayAfterRender: async () => null,
+}));
 import {
   describeDicomPlaneSlices,
   openDicomVolumeVideo,

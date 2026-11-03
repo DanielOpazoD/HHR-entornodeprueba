@@ -49,10 +49,12 @@ export const AuditDocumentsResultPanel: React.FC<{ result: AuditDocumentsResult 
               : 'border border-emerald-200 bg-emerald-50 text-emerald-800'
           }`}
         >
-          Se descargó {result.filename} con {result.documentCount} documento(s).
+          El ZIP {result.filename} ya quedó en tu carpeta Descargas, con {result.documentCount}{' '}
+          documento(s).
           {attention
             ? ` Revisa ${attention} RUT con documentos faltantes; el detalle también va en «00 Resumen.csv».`
-            : ''}
+            : ''}{' '}
+          Volver a pulsar «Buscar y descargar ZIP» repite toda la búsqueda.
         </p>
       ) : (
         <p

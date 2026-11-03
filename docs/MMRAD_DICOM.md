@@ -415,8 +415,10 @@ el tiempo. Durante el trabajo se bloquea la interacción con la imagen; cancelar
 permite volver a navegar. Cambiar de serie/paciente o cerrar aborta el trabajo.
 
 MP4 se habilita al completar la verificación de toda la serie; cine admite carga
-progresiva. MP4 usa H.264/WebCodecs con Mediabunny cargado bajo demanda. Se captura un canvas
-sin overlays del DOM, se codifica un cuadro por posición con timestamps explícitos,
+progresiva. MP4 usa H.264/WebCodecs con Mediabunny cargado bajo demanda. Se captura el canvas
+de la imagen, con las medidas visibles en ese corte y sin la cruz ni otros overlays del DOM;
+las medidas se leen en el cuadro de animación siguiente, cuando Cornerstone ya las redibujó
+para ese corte. Se codifica un cuadro por posición con timestamps explícitos,
 se valida el conteo y se finaliza antes de ofrecer el archivo. No usa grabación
 de pantalla, audio ni servidor externo. Límite de 2048 cuadros y 64 MiB; no se guarda
 un archivo parcial. Cambiar el tamaño de la vista durante el proceso exige reiniciarlo.
@@ -647,8 +649,9 @@ se conservan al cambiar de serie, de modo, al entrar y salir de Comparar y tras 
 gráfica, y desaparecen al cerrar el visor. No van a storage, preferencias, MMRAD ni telemetría.
 Al volver a una serie, cada dibujo reaparece cuando su corte se vuelve a cargar y verificar.
 **Borrar medidas** y Ctrl/⌘ Z actúan sobre la serie y vista actuales; el panel puede borrarlas
-todas. Las medidas visibles se incluyen en PNG y anexos, no en MP4. Si el navegador no
-permite dibujarlas, la captura sale sin ellas en vez de fallar.
+todas. Las medidas visibles se incluyen en PNG, anexos y MP4 (cine de Original y barrido MPR;
+el giro 3D no tiene medidas). Si el navegador no permite dibujarlas, la captura o el cuadro
+sale sin ellas en vez de fallar.
 
 Cada canvas se redimensiona si su panel cambió de tamaño mientras cargaba la primera imagen.
 Antes, un canvas estirado por CSS deformaba la imagen y las distancias medidas sobre ella.
