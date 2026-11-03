@@ -10,6 +10,7 @@ import type { DicomReference, ReferenceStyle } from './dicomMprTools';
 import type { VolumePresentation } from './dicomPresentation';
 import type { captureDicomCanvas } from './dicomCanvasCapture';
 import type { DicomVideoRequest } from './dicomVolumeVideo';
+import type { DicomMeasurementStore } from './dicomMeasurementStore';
 
 export type DicomTool =
   | 'window'
@@ -20,7 +21,10 @@ export type DicomTool =
   | 'length'
   | 'angle'
   | 'probe'
-  | 'roi';
+  | 'roi'
+  | 'cobb'
+  | 'rectangle'
+  | 'circle';
 export type DicomMode = 'original' | 'mpr' | '3d';
 // Defined with the study types so overlay, cine and video code can share it without a cycle.
 export type { DicomOrientation } from './dicomTypes';
@@ -56,8 +60,18 @@ export interface DicomRuntime {
   orientations: () => DicomOrientation[];
   reference: (enabled: boolean, style: ReferenceStyle) => void;
   onReference: (listener: (value: DicomReference | null) => void) => () => void;
+  /** Removes the newest measurement of this series in the current view. */
   undoMeasurement: () => void;
+  /** Removes this series' measurements in the current view; others stay in the store. */
   clearMeasurements: () => void;
+  /** The viewer's measurements, shared by every series and view while it is open. */
+  measurements: DicomMeasurementStore;
+  /** Shows the slice of a measurement of this series in the current view. */
+  focusMeasurement: (id: string) => boolean;
+  /** Slice interval from Image Position and Orientation once the series is complete. */
+  sliceInterval: () => number | undefined;
+  /** HU under the pointer on validated CT (thin orthogonal planes in MPR), else null. */
+  onCursorHu: (listener: (value: number | null) => void) => () => void;
   invert: (value: boolean) => void;
   presentation: (value: VolumePresentation) => void;
   isResampled: () => boolean;

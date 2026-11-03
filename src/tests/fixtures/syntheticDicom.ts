@@ -26,7 +26,14 @@ export const syntheticDicom = (
     seriesUid?: string;
     studyUid?: string;
   },
-  calibration?: { slope?: string; intercept?: string; unit?: string; pixelValue?: number }
+  calibration?: { slope?: string; intercept?: string; unit?: string; pixelValue?: number },
+  /** Projection-radiograph spacing: Imager Pixel Spacing, magnification factor, calibration. */
+  radiograph?: {
+    imagerSpacing?: [number, number];
+    magnification?: string;
+    calibrationType?: string;
+    omitPixelSpacing?: boolean;
+  }
 ): Uint8Array => {
   const rows = matrix?.rows ?? 64;
   const columns = matrix?.columns ?? 64;
@@ -72,6 +79,8 @@ export const syntheticDicom = (
   element('00100010', 'PN', 'PACIENTE^SINTETICO');
   element('00100020', 'LO', patientId);
   element('00180050', 'DS', '2');
+  if (radiograph?.magnification) element('00181114', 'DS', radiograph.magnification);
+  if (radiograph?.imagerSpacing) element('00181164', 'DS', radiograph.imagerSpacing.join('\\'));
   element('0020000d', 'UI', plane?.studyUid ?? SYNTHETIC_STUDY_UID);
   element('0020000e', 'UI', plane?.seriesUid ?? SYNTHETIC_SERIES_UID);
   element('00200013', 'IS', String(slice + 1));
@@ -83,12 +92,13 @@ export const syntheticDicom = (
   if (matrix?.functionalGroupMapping) element('00280008', 'IS', '1');
   element('00280010', 'US', rows);
   element('00280011', 'US', columns);
-  element('00280030', 'DS', spacing.join('\\'));
+  if (!radiograph?.omitPixelSpacing) element('00280030', 'DS', spacing.join('\\'));
   element('00280100', 'US', 16);
   element('00280101', 'US', 16);
   element('00280102', 'US', 15);
   element('00280103', 'US', jpeg2000 ? 0 : 1);
   if (matrix?.padding) element('00280120', 'SS', -2000);
+  if (radiograph?.calibrationType) element('00280a02', 'CS', radiograph.calibrationType);
   element('00281050', 'DS', '40');
   element('00281051', 'DS', '400');
   element('00281052', 'DS', calibration?.intercept ?? (jpeg2000 || matrix ? '-1024' : '0'));

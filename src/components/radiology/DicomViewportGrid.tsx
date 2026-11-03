@@ -113,7 +113,7 @@ export const DicomViewportGrid: React.FC<{
                 (event.ctrlKey || event.metaKey) &&
                 event.key.toLowerCase() === 'z' &&
                 !event.shiftKey &&
-                mode === 'mpr'
+                mode !== '3d'
               ) {
                 event.preventDefault();
                 runtime?.undoMeasurement();

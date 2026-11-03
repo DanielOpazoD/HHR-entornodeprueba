@@ -2444,4 +2444,481 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     await expect(viewer.getByRole('button', { name: 'Añadir al informe' })).toBeDisabled();
     await expect(viewer.locator('.dicom-canvas canvas')).toHaveCount(0);
   });
+
+  test.describe('measurements in Original and Comparar', () => {
+    const calibration = (calibrated: boolean) => ({
+      slope: '2',
+      intercept: '-1024',
+      unit: calibrated ? 'HU' : 'US',
+      pixelValue: 533,
+    });
+    // Uniform synthetic CT: 533 × 2 − 1024 = 42 HU wherever the mapping is validated.
+    const routeUniformCt = (page: Page, calibrated: boolean) =>
+      page.route('**/.netlify/functions/mmrad-dicom', async route => {
+        const body = route.request().postDataJSON();
+        if (body.action !== 'instance') return route.fallback();
+        const index = Number(String(body.ticket).split('-')[1]);
+        await route.fulfill({
+          contentType: 'application/dicom',
+          body: Buffer.from(
+            syntheticDicom(
+              index,
+              24,
+              SYNTHETIC_PATIENT_ID,
+              undefined,
+              undefined,
+              undefined,
+              undefined,
+              calibration(calibrated)
+            )
+          ),
+        });
+      });
+    const recordCameras = (page: Page) =>
+      page.evaluate(() => {
+        // Newest last, so a reopened series or a new comparison wins over older viewports.
+        const cameras: Array<{ viewportId: string; parallelScale: number }> = [];
+        Object.assign(window, { syntheticStackCameras: cameras, syntheticToolClicks: 0 });
+        document.addEventListener(
+          'CORNERSTONE_CAMERA_MODIFIED',
+          event => {
+            const detail = (event as CustomEvent).detail;
+            cameras.push({
+              viewportId: detail.viewportId,
+              parallelScale: detail.camera.parallelScale,
+            });
+          },
+          true
+        );
+        document.addEventListener(
+          'CORNERSTONE_TOOLS_MOUSE_CLICK',
+          () => {
+            (window as unknown as { syntheticToolClicks: number }).syntheticToolClicks++;
+          },
+          true
+        );
+      });
+    const openViewer = async (page: Page) => {
+      const editor = await openSalvador(page);
+      await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+      await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+      const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+      await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+        timeout: 60000,
+      });
+      // A stack fits its image without a camera event; a reset reports the fitted camera.
+      await viewer.getByRole('button', { name: 'Restablecer vista', exact: true }).click();
+      return viewer;
+    };
+    /** Physical offsets (mm right, mm up) from a pane's centre, through its own camera. */
+    const paneTools = (page: Page, viewer: ReturnType<Page['getByRole']>) => {
+      const panes = viewer.locator('.dicom-canvas');
+      const at = async (pane: number, [right, up]: [number, number]) => {
+        const box = (await panes.nth(pane).boundingBox())!;
+        const prefix = ['-original-', 'compare-', '-mpr-'][(await panes.count()) - 1];
+        const scale = await page.evaluate(
+          ([prefix, suffix]) =>
+            (
+              window as unknown as {
+                syntheticStackCameras: Array<{ viewportId: string; parallelScale: number }>;
+              }
+            ).syntheticStackCameras
+              .slice()
+              .reverse()
+              .find(
+                camera => camera.viewportId.includes(prefix) && camera.viewportId.endsWith(suffix)
+              )?.parallelScale ?? NaN,
+          [prefix, `-${pane}`] as const
+        );
+        const mmPerPixel = (2 * scale) / box.height;
+        return {
+          x: Math.round(box.x + box.width / 2 + right / mmPerPixel),
+          y: Math.round(box.y + box.height / 2 - up / mmPerPixel),
+        };
+      };
+      const drag = async (pane: number, from: [number, number], to: [number, number]) => {
+        const [a, b] = [await at(pane, from), await at(pane, to)];
+        await page.mouse.move(a.x, a.y);
+        await page.mouse.down();
+        await page.mouse.move(b.x, b.y, { steps: 12 });
+        await page.mouse.up();
+        return [a, b] as const;
+      };
+      const click = async (pane: number, offset: [number, number]) => {
+        const clicks = () =>
+          page.evaluate(
+            () => (window as unknown as { syntheticToolClicks: number }).syntheticToolClicks
+          );
+        const before = await clicks();
+        const point = await at(pane, offset);
+        await page.mouse.click(point.x, point.y);
+        await expect.poll(clicks).toBe(before + 1);
+        return point;
+      };
+      // Solid lines only: Cornerstone links each label to its drawing with a dashed line,
+      // and MPR's reference lines use the plane colours.
+      const drawn = (pane: number) =>
+        panes.nth(pane).evaluate(element => {
+          const svg = element.querySelector('svg.svg-layer');
+          const origin = svg?.getBoundingClientRect();
+          const lines = [...(svg?.querySelectorAll('line') ?? [])].filter(
+            line =>
+              !line.getAttribute('stroke-dasharray') &&
+              !['#fb7185', '#4ade80', '#60a5fa'].includes(line.getAttribute('stroke') ?? '')
+          );
+          const value = (name: string) => Number(lines[0].getAttribute(name));
+          return {
+            lines: lines.length,
+            start: lines[0] && { x: origin!.left + value('x1'), y: origin!.top + value('y1') },
+            end: lines[0] && { x: origin!.left + value('x2'), y: origin!.top + value('y2') },
+            text: svg?.textContent ?? '',
+            mm: Number(svg?.textContent?.match(/(\d+(?:\.\d+)?) mm/)?.[1]),
+          };
+        });
+      const expectLength = async (pane: number, millimetres: number) =>
+        // Cornerstone throttles the label, so it can show an intermediate length for 100 ms.
+        expect.poll(async () => Math.abs((await drawn(pane)).mm - millimetres)).toBeLessThan(0.3);
+      return { panes, at, drag, click, drawn, expectLength };
+    };
+
+    test('measures dragged millimetres in Original and keeps them across views', async ({
+      page,
+    }) => {
+      await setup(page);
+      await recordCameras(page);
+      const viewer = await openViewer(page);
+      const { at, drag, click, drawn, expectLength, panes } = paneTools(page, viewer);
+      await viewer.getByRole('button', { name: 'Distancia', exact: true }).click();
+      const [a, b] = await drag(0, [-12, -8], [6, 10]);
+      await expectLength(0, Math.hypot(18, 18));
+      const line = await drawn(0);
+      expect(line.lines).toBe(1);
+      expect(Math.hypot(line.start.x - a.x, line.start.y - a.y)).toBeLessThanOrEqual(2);
+      expect(Math.hypot(line.end.x - b.x, line.end.y - b.y)).toBeLessThanOrEqual(2);
+      // CT has no projection calibration: the distance is plain millimetres.
+      expect(line.text).not.toMatch(/detector|paciente|sin calibrar/);
+      await viewer.getByRole('button', { name: 'Borrar medidas', exact: true }).click();
+      await expect.poll(async () => (await drawn(0)).lines).toBe(0);
+
+      // #1190 in Original: a click leaves a pending line; the next drag still measures itself.
+      await click(0, [-18, 14]);
+      await drag(0, [-10, 6], [14, -10]);
+      await expectLength(0, Math.hypot(24, 16));
+      await expect.poll(async () => (await drawn(0)).lines).toBe(1);
+
+      await viewer.getByRole('button', { name: 'Ángulo de Cobb', exact: true }).click();
+      await drag(0, [-14, 12], [14, 12]);
+      await drag(0, [-14, -12], [14, -2]);
+      await expect.poll(async () => (await drawn(0)).text).toMatch(/Cobb 19\.\d°|Cobb 2[0-1]\.\d°/);
+
+      // Measurements outlive a view change while the viewer stays open.
+      await viewer.getByRole('button', { name: 'MPR', exact: true }).click();
+      await expect(viewer.getByRole('button', { name: 'Axial', exact: true })).toBeVisible({
+        timeout: 60000,
+      });
+      await viewer.getByRole('button', { name: 'Original', exact: true }).click();
+      await expect(viewer.getByRole('button', { name: 'Distancia', exact: true })).toBeEnabled({
+        timeout: 60000,
+      });
+      await expectLength(0, Math.hypot(24, 16));
+      await expect(viewer.getByLabel('Medidas (2)', { exact: true })).toBeVisible();
+      // Ctrl/⌘ Z removes the newest one in this view: the Cobb angle.
+      await panes.first().focus();
+      await page.keyboard.press('ControlOrMeta+z');
+      await expect(viewer.getByLabel('Medidas (1)', { exact: true })).toBeVisible();
+      await expect.poll(async () => (await drawn(0)).text).not.toContain('Cobb');
+      await expectLength(0, Math.hypot(24, 16));
+      // With a half-drawn line, undo drops only that line.
+      await viewer.getByRole('button', { name: 'Distancia', exact: true }).click();
+      await click(0, [10, -14]);
+      const follow = await at(0, [16, -10]);
+      await page.mouse.move(follow.x, follow.y, { steps: 4 });
+      await expect.poll(async () => (await drawn(0)).lines).toBe(2);
+      await panes.first().focus();
+      await page.keyboard.press('ControlOrMeta+z');
+      await expect.poll(async () => (await drawn(0)).lines).toBe(1);
+      await expect(viewer.getByLabel('Medidas (1)', { exact: true })).toBeVisible();
+      await expectLength(0, Math.hypot(24, 16));
+
+      // An MPR distance also survives a trip to Original and back.
+      await viewer.getByRole('button', { name: 'MPR', exact: true }).click();
+      await expect(viewer.getByRole('button', { name: 'Axial', exact: true })).toBeVisible({
+        timeout: 60000,
+      });
+      await viewer.getByLabel('Planos vinculados').uncheck();
+      await viewer.getByRole('button', { name: 'Distancia', exact: true }).click();
+      await drag(0, [-8, 4], [8, 4]);
+      await expectLength(0, 16);
+      await viewer.getByRole('button', { name: 'Original', exact: true }).click();
+      await expect(viewer.getByLabel('Medidas (2)', { exact: true })).toBeVisible({
+        timeout: 60000,
+      });
+      await viewer.getByRole('button', { name: 'MPR', exact: true }).click();
+      await expect(viewer.getByRole('button', { name: 'Axial', exact: true })).toBeVisible({
+        timeout: 60000,
+      });
+      await expectLength(0, 16);
+      await viewer.getByLabel('Medidas (2)', { exact: true }).click();
+      await expect(viewer.getByRole('list', { name: 'Lista de medidas' })).toContainText(
+        /serie 1, MPR axial, corte \d+: distancia (15,9|16,0|16,1) mm/
+      );
+    });
+
+    for (const calibrated of [true, false])
+      test(`Original ${calibrated ? 'reports HU on validated CT' : 'never shows HU on unvalidated CT'}`, async ({
+        page,
+      }) => {
+        await setup(page);
+        await routeUniformCt(page, calibrated);
+        await recordCameras(page);
+        const viewer = await openViewer(page);
+        const { at, drag, drawn } = paneTools(page, viewer);
+        const centre = await at(0, [0, 0]);
+        await page.mouse.move(centre.x - 20, centre.y);
+        await page.mouse.move(centre.x, centre.y, { steps: 5 });
+        const cursor = viewer.getByLabel('HU bajo el cursor', { exact: true });
+        if (calibrated) await expect(cursor).toHaveText('Cursor: 42 HU');
+        else await expect(cursor).toHaveText('');
+
+        await viewer.getByRole('button', { name: 'ROI elíptica', exact: true }).click();
+        await drag(0, [0, 0], [10, -8]);
+        const svg = viewer.locator('.dicom-canvas').first().locator('svg');
+        await expect(svg).toContainText(/Área: [1-9][0-9.]* mm²/);
+        if (calibrated) {
+          await expect(svg).toContainText('Promedio: 42.0 HU');
+          await expect(svg).toContainText('DE: 0.0 HU');
+        } else {
+          await expect(svg).toContainText('HU no disponible');
+          await expect(svg).not.toContainText('Promedio');
+        }
+        await viewer.getByRole('button', { name: 'Borrar medidas', exact: true }).click();
+        await expect.poll(async () => (await drawn(0)).text).toBe('');
+        await viewer.getByRole('button', { name: 'ROI rectangular', exact: true }).click();
+        await drag(0, [-10, 8], [8, -6]);
+        if (calibrated) await expect(svg).toContainText('Mín/Máx: 42 / 42 HU');
+        else await expect(svg).not.toContainText(/42(\.0)? HU/);
+        await viewer.getByRole('button', { name: 'ROI circular', exact: true }).click();
+        await drag(0, [14, 14], [18, 14]);
+        await viewer.getByRole('button', { name: 'Densidad puntual', exact: true }).click();
+        const probe = await at(0, [-16, -16]);
+        await page.mouse.click(probe.x, probe.y);
+        if (calibrated) await expect(svg).toContainText('42.0 HU');
+        await expect(viewer.getByLabel('Medidas (3)', { exact: true })).toBeVisible();
+        await viewer.getByLabel('Medidas (3)', { exact: true }).click();
+        const list = viewer.getByRole('list', { name: 'Lista de medidas' });
+        if (calibrated) {
+          await expect(list).toContainText('ROI rectangular 42 UH (DE 0)');
+          await expect(list).toContainText('densidad 42 UH');
+        } else {
+          await expect(list).not.toContainText('UH (DE');
+          await expect(list).toContainText('densidad: UH no disponible');
+        }
+      });
+
+    test('lists measurements by slice, jumps to them and copies plain text', async ({
+      page,
+      context,
+    }) => {
+      await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+      await setup(page);
+      await routeUniformCt(page, true);
+      await recordCameras(page);
+      const viewer = await openViewer(page);
+      const { drag, drawn, expectLength, panes } = paneTools(page, viewer);
+      const slice = viewer.getByLabel('Corte solicitado', { exact: true });
+      await expect(slice).toHaveValue('13');
+      await viewer.getByRole('button', { name: 'Distancia', exact: true }).click();
+      await drag(0, [-10, 0], [14, 0]);
+      await expectLength(0, 24);
+      await panes.first().focus();
+      await page.keyboard.press('ArrowDown');
+      await page.keyboard.press('ArrowDown');
+      await expect(slice).toHaveValue('15');
+      await expect.poll(async () => (await drawn(0)).lines).toBe(0);
+      await viewer.getByRole('button', { name: 'ROI elíptica', exact: true }).click();
+      await drag(0, [0, 0], [10, -8]);
+      await expect(panes.first().locator('svg')).toContainText('Promedio: 42.0 HU');
+
+      await viewer.getByLabel('Medidas (2)', { exact: true }).click();
+      const items = viewer.getByRole('list', { name: 'Lista de medidas' }).getByRole('listitem');
+      await expect(items).toHaveCount(2);
+      await expect(items.nth(0)).toContainText('serie 1, corte 13');
+      // 24 mm dragged; the pointer lands on whole pixels, so allow the last decimal to move.
+      await expect(items.nth(0)).toContainText(/distancia (23,9|24,0|24,1) mm/);
+      await expect(items.nth(1)).toContainText('serie 1, corte 15');
+      await expect(items.nth(1)).toContainText(/ROI 42 UH \(DE 0\), área \d+,\d (mm|cm)²/);
+      await items
+        .nth(0)
+        .getByRole('button', { name: /corte 13/ })
+        .click();
+      await expect(slice).toHaveValue('13');
+      await expectLength(0, 24);
+
+      await viewer.getByRole('button', { name: 'Copiar medidas', exact: true }).click();
+      await expect(viewer.getByText('Medidas copiadas. Pégalas en la nota clínica.')).toBeVisible();
+      const copied = await page.evaluate(() => navigator.clipboard.readText());
+      expect(copied).toMatch(
+        /^TAC SINTÉTICO, serie 1, corte 13: distancia (23,9|24,0|24,1) mm\nTAC SINTÉTICO, serie 1, corte 15: ROI 42 UH \(DE 0\), área \d+,\d (mm|cm)²$/
+      );
+      // Plain clinical text: no patient name, RUT or synthetic patient ID.
+      expect(copied).not.toMatch(/PACIENTE|11\.111\.111|111111111/);
+      await viewer.getByText('Volumen estimado', { exact: true }).click();
+      await viewer
+        .getByLabel('A, diámetro mayor (mm): tomar de una distancia', { exact: true })
+        .selectOption({ index: 1 });
+      await viewer
+        .getByLabel('B, perpendicular a A en el mismo corte (mm)', { exact: true })
+        .fill('20');
+      await viewer.getByLabel('Cortes con hemorragia', { exact: true }).fill('5');
+      // Slice interval from the synthetic positions: 2 mm apart. C = 5 × 2 = 10 mm.
+      await expect(viewer.getByLabel('Intervalo entre cortes (mm)', { exact: true })).toHaveValue(
+        '2,0'
+      );
+      await expect(viewer.getByLabel('Resultado ABC/2', { exact: true })).toContainText(
+        /C = 5 × 2,0 mm = 10,0 mm\. ABC\/2 = (23,9|24,0|24,1) × 20,0 × 10,0 \/ 2 = 2,4 mL \(estimado\)/
+      );
+      await viewer.screenshot({ path: test.info().outputPath('synthetic-measurements-panel.png') });
+
+      await items.nth(1).getByRole('button', { name: 'Borrar medida 2', exact: true }).click();
+      await expect(items).toHaveCount(1);
+      await panes.first().focus();
+      await page.keyboard.press('ArrowDown');
+      await page.keyboard.press('ArrowDown');
+      await expect(slice).toHaveValue('15');
+      await expect.poll(async () => (await drawn(0)).text).toBe('');
+
+      // Comparar draws the same measurement in its panel and adds its own to the list.
+      await viewer.getByRole('button', { name: 'Comparar', exact: true }).click();
+      await expect(viewer.getByText('Posición vinculada', { exact: true })).toBeVisible();
+      await viewer.getByLabel('Medidas (1)', { exact: true }).click();
+      await viewer.getByRole('button', { name: /corte 13/ }).click();
+      await expect(viewer.getByLabel('Corte panel 1', { exact: true })).toHaveValue('13');
+      await expectLength(0, 24);
+      await viewer.getByLabel('Medidas (1)', { exact: true }).click();
+      // Both panels show this series; a slice without drawings keeps the new line alone.
+      await viewer.getByLabel('Corte panel 2', { exact: true }).fill('10');
+      await expect(viewer.getByLabel('Corte panel 1', { exact: true })).toHaveValue('10');
+      await viewer.getByRole('button', { name: 'Restablecer panel', exact: true }).click();
+      await viewer.getByRole('button', { name: 'Distancia', exact: true }).click();
+      await drag(1, [-6, 6], [6, 6]);
+      await expectLength(1, 12);
+      await expect(viewer.getByLabel('Medidas (2)', { exact: true })).toBeVisible();
+      await viewer.getByRole('button', { name: 'Volver', exact: true }).click();
+      await expect(viewer.getByRole('button', { name: 'Distancia', exact: true })).toBeEnabled({
+        timeout: 60000,
+      });
+      await expect(viewer.getByLabel('Medidas (2)', { exact: true })).toBeVisible();
+
+      // Closing the viewer drops every measurement.
+      await viewer.getByRole('button', { name: 'Cerrar modal', exact: true }).click();
+      await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+      await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+        timeout: 60000,
+      });
+      await expect(viewer.getByLabel('Medidas (0)', { exact: true })).toBeVisible();
+    });
+
+    test('labels radiograph distances by where they were calibrated', async ({ page }) => {
+      await setup(page);
+      const DX = '1.2.840.10008.5.1.4.1.1.1.1';
+      const kinds = {
+        detector: { imagerSpacing: [0.2, 0.2] as [number, number], omitPixelSpacing: true },
+        patient: {
+          imagerSpacing: [0.2, 0.2] as [number, number],
+          magnification: '1.25',
+          omitPixelSpacing: true,
+        },
+        none: { omitPixelSpacing: true },
+      };
+      const radiographs = Object.keys(kinds).map((kind, i) => ({
+        uid: `1.2.826.0.1.3680043.10.543.7${i}`,
+        number: i + 2,
+        description: `Radiografía sintética ${kind}`,
+        modality: 'DX',
+        rows: 64,
+        columns: 64,
+        instances: [{ uid: syntheticSopUid(0), number: 1, frames: 1, ticket: `rx-${kind}-0` }],
+      }));
+      await page.route('**/.netlify/functions/mmrad-dicom', route => {
+        const body = route.request().postDataJSON();
+        if (body.action === 'metadata')
+          return route.fulfill({
+            contentType: 'application/json',
+            body: JSON.stringify({ ...study, series: radiographs }),
+          });
+        const kind = String(body.ticket).split('-')[1] as keyof typeof kinds;
+        const series = radiographs[Object.keys(kinds).indexOf(kind)];
+        return route.fulfill({
+          contentType: 'application/dicom',
+          body: Buffer.from(
+            syntheticDicom(
+              0,
+              1,
+              SYNTHETIC_PATIENT_ID,
+              undefined,
+              undefined,
+              undefined,
+              { modality: 'DX', sopClass: DX, seriesUid: series.uid },
+              undefined,
+              kinds[kind]
+            )
+          ),
+        });
+      });
+      await recordCameras(page);
+      const viewer = await openViewer(page);
+      const { drawn } = paneTools(page, viewer);
+      const measure = async () => {
+        await viewer.getByRole('button', { name: 'Distancia', exact: true }).click();
+        // The same fraction of each 64 × 64 radiograph, whatever its spacing.
+        const box = (await viewer.locator('.dicom-canvas').first().boundingBox())!;
+        const side = Math.min(box.width, box.height);
+        await page.mouse.move(box.x + box.width / 2 - side / 4, box.y + box.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(box.x + box.width / 2 + side / 4, box.y + box.height / 2, {
+          steps: 12,
+        });
+        await page.mouse.up();
+        // Cornerstone throttles the label: wait until two reads 300 ms apart agree.
+        let settled = '';
+        await expect
+          .poll(async () => {
+            const before = (await drawn(0)).text;
+            await page.waitForTimeout(300);
+            settled = (await drawn(0)).text;
+            return /\d/.test(settled) && settled === before;
+          })
+          .toBe(true);
+        return settled;
+      };
+      const select = async (kind: keyof typeof kinds) => {
+        await viewer
+          .getByLabel('Serie DICOM')
+          .selectOption(radiographs[Object.keys(kinds).indexOf(kind)].uid);
+        await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+          timeout: 60000,
+        });
+      };
+      const value = (text: string) => Number(text.match(/(\d+(?:\.\d+)?) (mm|px)/)![1]);
+      const detector = await measure();
+      expect(detector).toMatch(/^\d+\.\d mm \(en detector\)$/);
+      await select('patient');
+      const patient = await measure();
+      expect(patient).toMatch(/^\d+\.\d mm \(en paciente, ERMF\)$/);
+      await select('none');
+      const pixels = await measure();
+      expect(pixels).toMatch(/^\d+\.\d px \(sin calibrar\)$/);
+      expect(pixels).not.toContain('mm');
+      // Imager Pixel Spacing 0.2 mm, corrected by ERMF 1.25 to 0.16 mm at the patient.
+      expect(value(patient) / value(detector)).toBeCloseTo(0.8, 1);
+      expect(value(detector) / value(pixels)).toBeCloseTo(0.2, 1);
+      // The first radiograph's distance returns with its series.
+      await select('detector');
+      await expect.poll(async () => (await drawn(0)).text).toBe(detector);
+      await viewer.getByLabel('Medidas (3)', { exact: true }).click();
+      await expect(viewer.getByRole('list', { name: 'Lista de medidas' })).toContainText(
+        /serie 4, corte 1.*px \(sin calibrar\)/
+      );
+    });
+  });
 });

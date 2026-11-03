@@ -2,7 +2,11 @@ import { DicomNavigationTools } from './DicomNavigationTools';
 import { DicomComparisonView } from './DicomComparisonView';
 import type { DicomStudyPrefetch } from '@/services/radiology/dicomStudyPrefetch';
 import type { DicomLoadState } from '@/services/radiology/dicomLoadState';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { DicomMeasureTools } from './DicomMeasureTools';
+import { DicomMeasurementsPanel } from './DicomMeasurementsPanel';
+import { useDicomMeasurementFocus, type DicomMeasurementRequest } from './useDicomMeasurementFocus';
+import type { DicomMeasurementStore } from '@/services/radiology/dicomMeasurementStore';
 import { Camera, Columns2, Download } from 'lucide-react';
 import type { DicomCapture, DicomSeries, DicomStudy } from '@/services/radiology/dicomTypes';
 import type {
@@ -30,7 +34,11 @@ export const DicomSeriesView: React.FC<{
   /** Name, RUT and study date for a video whose anonymous profile the user turned off. */
   identity?: string;
   onCapture?: (capture: DicomCapture) => void;
-}> = ({ study, series, title, identity, onCapture, prefetch }) => {
+  /** The viewer's measurements; they outlive this series view. */
+  measurements?: DicomMeasurementStore;
+  focus?: DicomMeasurementRequest | null;
+  openSeries?: (seriesUid: string, request: DicomMeasurementRequest) => void;
+}> = ({ study, series, title, identity, onCapture, prefetch, measurements, focus, openSeries }) => {
   const [comparing, setComparing] = useState(false);
   const [keyboard, setKeyboard] = useState(true);
   const [loading, setLoading] = useState<DicomLoadState | null>(null);
@@ -76,7 +84,8 @@ export const DicomSeriesView: React.FC<{
           (loaded, total) => {
             if (!controller.signal.aborted) setProgress([loaded, total]);
           },
-          prefetch?.fetch
+          prefetch?.fetch,
+          measurements
         )
       )
       .then(value => {
@@ -112,7 +121,7 @@ export const DicomSeriesView: React.FC<{
       controller.abort();
       current?.dispose();
     };
-  }, [study, series, prefetch]);
+  }, [study, series, prefetch, measurements]);
 
   useEffect(() => {
     if (!runtime || comparing) return;
@@ -201,6 +210,22 @@ export const DicomSeriesView: React.FC<{
   };
   const volumetric =
     (series.modality === 'CT' || series.modality === 'MR') && series.instances.length >= 3;
+  const changeMode = useCallback((value: DicomMode) => {
+    captureSequence.current++;
+    setBusy(true);
+    setExpanded(null);
+    setMode(value);
+  }, []);
+  const focusMeasurement = useDicomMeasurementFocus({
+    runtime,
+    seriesUid: series.uid,
+    mode,
+    ready: Boolean(runtime) && !busy && !cineBusy && !error && !comparing,
+    complete: complete && volumetric,
+    request: focus,
+    changeMode,
+    openSeries,
+  });
   if (comparing && runtime)
     return (
       <DicomComparisonView
@@ -208,7 +233,12 @@ export const DicomSeriesView: React.FC<{
         primary={series}
         runtime={runtime}
         prefetch={prefetch}
+        exam={title}
         close={() => setComparing(false)}
+        focusElsewhere={item => {
+          setComparing(false);
+          focusMeasurement(item);
+        }}
       />
     );
   return (
@@ -229,11 +259,7 @@ export const DicomSeriesView: React.FC<{
                 }
                 aria-pressed={mode === value}
                 onClick={() => {
-                  if (mode === value) return;
-                  captureSequence.current++;
-                  setBusy(true);
-                  setExpanded(null);
-                  setMode(value);
+                  if (mode !== value) changeMode(value);
                 }}
               >
                 {value === 'original' ? 'Original' : value === 'mpr' ? 'MPR' : '3D'}
@@ -288,12 +314,20 @@ export const DicomSeriesView: React.FC<{
             <Columns2 size={16} /> Comparar
           </button>
           <span className="dicom-toolbar-spacer" />
+          {runtime && (
+            <DicomMeasurementsPanel
+              store={runtime.measurements}
+              exam={title}
+              focus={focusMeasurement}
+              sliceInterval={runtime.sliceInterval}
+            />
+          )}
           <DicomKeyboardControls
             enabled={keyboard}
             change={setKeyboard}
             undo={() => runtime?.undoMeasurement()}
             disabled={cineBusy || busy || !!error}
-            canUndo={mode === 'mpr'}
+            canUndo={mode !== '3d'}
           />
           <DicomFullscreenButton disabled={cineBusy} />
           <button
@@ -336,6 +370,19 @@ export const DicomSeriesView: React.FC<{
               runtime.tool(tool);
               setActiveTool(tool);
             }}
+          />
+        )}
+        {runtime && mode === 'original' && (
+          <DicomMeasureTools
+            activeTool={activeTool}
+            choose={tool => {
+              runtime.tool(tool);
+              setActiveTool(tool);
+            }}
+            undo={() => runtime.undoMeasurement()}
+            clear={() => runtime.clearMeasurements()}
+            disabled={cineBusy || busy || waitingForSlice || Boolean(error)}
+            onCursorHu={runtime.onCursorHu}
           />
         )}
       </fieldset>

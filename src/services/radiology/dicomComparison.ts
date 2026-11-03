@@ -23,6 +23,18 @@ import {
 } from './dicomComparisonGeometry';
 import { getDicomOrientations, observeDicomViewportSize } from './dicomViewportLayout';
 import type { fetchDicomInstance } from './mmradDicomService';
+import {
+  createDicomStackTools,
+  dicomStackToolName,
+  dicomStackTools,
+  type DicomStackMeasureTool,
+  type DicomStackToolSession,
+} from './dicomStackTools';
+import { createDicomMeasurementStore, type DicomMeasurementStore } from './dicomMeasurementStore';
+import { dicomStackShowsHu, watchDicomCursorHu } from './dicomCursorValue';
+
+export type ComparisonTool = 'window' | 'pan' | 'zoom' | DicomStackMeasureTool;
+const navigation = { window: WindowLevelTool, pan: PanTool, zoom: ZoomTool } as const;
 
 export interface ComparisonLinks {
   position: boolean;
@@ -51,7 +63,8 @@ export const createDicomComparison = (
   signal: AbortSignal,
   notify: (state: ComparisonState) => void,
   fetchInstance?: typeof fetchDicomInstance,
-  initialIndex = source.initialIndex
+  initialIndex = source.initialIndex,
+  measurements: DicomMeasurementStore = createDicomMeasurementStore()
 ) => {
   signal.throwIfAborted();
   const controller = new AbortController();
@@ -64,7 +77,30 @@ export const createDicomComparison = (
     applying = false;
   let links: ComparisonLinks = { position: true, zoom: false, window: false };
   let lastPosition = '';
-  const selectedTools: Array<'window' | 'pan' | 'zoom'> = ['window', 'window'];
+  const selectedTools: ComparisonTool[] = ['window', 'window'];
+  let stackTools: DicomStackToolSession | undefined;
+  let stopCursor: (() => void) | undefined;
+  let cursorListener: ((value: number | null) => void) | undefined;
+  const applyTool = (panel: number) => {
+    const group = ToolGroupManager.getToolGroup(groups[panel]);
+    if (!group) return;
+    [...Object.values(navigation), ...dicomStackTools].forEach(item =>
+      group.setToolPassive(item.toolName)
+    );
+    const tool = selectedTools[panel];
+    group.setToolActive(
+      tool in navigation
+        ? navigation[tool as keyof typeof navigation].toolName
+        : dicomStackToolName(tool)!,
+      { bindings: [{ mouseButton: ToolEnums.MouseBindings.Primary }] }
+    );
+  };
+  const releaseTools = () => {
+    stopCursor?.();
+    stopCursor = undefined;
+    stackTools?.dispose();
+    stackTools = undefined;
+  };
   const ready = [primary.instances.length, same ? primary.instances.length : 0];
   const loaded: Array<LoadedDicomSeries | undefined> = [
     primaryLoaded,
@@ -155,6 +191,7 @@ export const createDicomComparison = (
   let initialized = false;
   const clearViews = async () => {
     resize?.disconnect();
+    releaseTools();
     viewRemovers.splice(0).forEach(remove => remove());
     groups.splice(0).forEach(group => destroyDicomToolGroup(group));
     await Promise.all(stacks.map(stack => stack.detach()));
@@ -206,12 +243,6 @@ export const createDicomComparison = (
       groups.push(group.id);
       [WindowLevelTool, PanTool, ZoomTool].forEach(tool => group.addTool(tool.toolName));
       group.addViewport(view.id, id);
-      group.setToolActive(
-        { window: WindowLevelTool, pan: PanTool, zoom: ZoomTool }[selectedTools[panel]].toolName,
-        {
-          bindings: [{ mouseButton: ToolEnums.MouseBindings.Primary }],
-        }
-      );
       const update = () => {
         if (applying || disposed) return;
         if (panel === active) applyLinks();
@@ -228,6 +259,25 @@ export const createDicomComparison = (
         })
       );
     });
+    // Both panels share one measurement session: the same series shows its drawings in each.
+    stackTools = createDicomStackTools(
+      id,
+      views.map((view, panel) => ({
+        viewportId: view.id,
+        group: ToolGroupManager.getToolGroup(groups[panel])!,
+        element: elements[panel],
+      })),
+      measurements,
+      [...new Set([primary.uid, secondary.uid])]
+    );
+    views.forEach((_, panel) => applyTool(panel));
+    stopCursor = watchDicomCursorHu(
+      id,
+      views.map(view => view.id),
+      elements,
+      viewport => dicomStackShowsHu(viewport as StackViewport),
+      value => cursorListener?.(value)
+    );
 
     await Promise.all(
       views.map((view, panel) => {
@@ -251,6 +301,8 @@ export const createDicomComparison = (
     disposed = true;
     controller.abort();
     const graphics = continuity.dispose();
+    releaseTools();
+    cursorListener = undefined;
     viewRemovers.splice(0).forEach(remove => remove());
     resize?.disconnect();
     removers.forEach(remove => remove());
@@ -347,14 +399,33 @@ export const createDicomComparison = (
       }
     },
     retry: () => second?.loading.retryFailed(),
-    tool: (tool: 'window' | 'pan' | 'zoom') => {
+    tool: (tool: ComparisonTool) => {
       selectedTools[active] = tool;
-      const candidates = { window: WindowLevelTool, pan: PanTool, zoom: ZoomTool };
-      const group = ToolGroupManager.getToolGroup(groups[active]);
-      Object.values(candidates).forEach(item => group?.setToolPassive(item.toolName));
-      group?.setToolActive(candidates[tool].toolName, {
-        bindings: [{ mouseButton: ToolEnums.MouseBindings.Primary }],
-      });
+      stackTools?.cancel();
+      applyTool(active);
+    },
+    undoMeasurement: () => stackTools?.undo(),
+    clearMeasurements: () => stackTools?.clear(),
+    /** Shows a measurement of either series in its panel; -1 when no panel holds it. */
+    focusMeasurement: (measurementId: string) => {
+      const item = measurements.get(measurementId);
+      if (!item || item.view !== 'original' || error || disposed) return -1;
+      const panel =
+        item.seriesUid === secondary.uid && (!same || active === 1)
+          ? 1
+          : item.seriesUid === primary.uid
+            ? 0
+            : -1;
+      if (panel < 0) return -1;
+      active = panel;
+      stacks[panel].select(item.slice);
+      return panel;
+    },
+    onCursorHu: (listener: (value: number | null) => void) => {
+      cursorListener = listener;
+      return () => {
+        if (cursorListener === listener) cursorListener = undefined;
+      };
     },
     window: (width: number, center: number) => {
       views[active].setProperties({

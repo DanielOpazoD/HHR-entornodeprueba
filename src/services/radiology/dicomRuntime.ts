@@ -43,13 +43,18 @@ import { createProgressiveStack } from './dicomProgressiveStack';
 import { getRuntimeOrientations, observeDicomViewportSize } from './dicomViewportLayout';
 import type { DicomStudy, DicomSeries } from '@/services/radiology/dicomTypes';
 import type { DicomTool, DicomMode, DicomOrientation, DicomRuntime } from './dicomRuntimeTypes';
+import { createDicomMeasurementStore, type DicomMeasurementStore } from './dicomMeasurementStore';
+import { createDicomStackTools, type DicomStackToolSession } from './dicomStackTools';
+import { dicomStackShowsHu, watchDicomCursorHu } from './dicomCursorValue';
+import { dicomSliceInterval } from './dicomVolumeEstimates';
 export type { DicomTool, DicomMode, DicomOrientation, DicomRuntime } from './dicomRuntimeTypes';
 export const createDicomRuntime = async (
   study: DicomStudy,
   series: DicomSeries,
   signal: AbortSignal,
   progress: (loaded: number, total: number) => void,
-  fetchInstance?: typeof fetchDicomInstance
+  fetchInstance?: typeof fetchDicomInstance,
+  measurements: DicomMeasurementStore = createDicomMeasurementStore()
 ): Promise<DicomRuntime> => {
   const releaseRuntime = retainDicomRuntime();
   let engine: RenderingEngine | undefined;
@@ -63,6 +68,18 @@ export const createDicomRuntime = async (
   let viewportIds: string[] = [];
   let resize: ResizeObserver | undefined;
   let mpr: ReturnType<typeof createMprTools> | undefined;
+  let stackTools: DicomStackToolSession | undefined;
+  let stopCursor: (() => void) | undefined;
+  let cursorListener: ((value: number | null) => void) | undefined;
+  /** Takes this view's drawings off screen; the store keeps them for a later return. */
+  const releaseTools = () => {
+    stopCursor?.();
+    stopCursor = undefined;
+    stackTools?.dispose();
+    stackTools = undefined;
+    mpr?.dispose();
+    mpr = undefined;
+  };
   let reconstruction: ReturnType<typeof createMprReconstruction> | undefined;
   const reconstructionListeners = new Set<(state: MprReconstructionState | null) => void>();
   const notifyReconstruction = (state: MprReconstructionState | null) => {
@@ -93,8 +110,7 @@ export const createDicomRuntime = async (
       resize?.disconnect();
       reconstruction?.dispose();
       reconstruction = undefined;
-      mpr?.dispose();
-      mpr = undefined;
+      releaseTools();
       if (group) destroyDicomToolGroup(group.id);
       group = undefined;
       await stack?.detach();
@@ -120,7 +136,8 @@ export const createDicomRuntime = async (
     resize?.disconnect();
     reconstruction?.dispose();
     reconstruction = undefined;
-    mpr?.dispose();
+    releaseTools();
+    cursorListener = undefined;
     if (group) destroyDicomToolGroup(group.id);
     const presentation = stack?.detach();
     // Detach this session's canvases now; Cornerstone.destroy clears but retains their DOM nodes.
@@ -155,11 +172,18 @@ export const createDicomRuntime = async (
     signal.throwIfAborted();
     if (disposed) throw new Error('El visor está cerrado.');
   };
+  let interval: number | undefined | null = null;
+  const quantitative = () =>
+    !disposed &&
+    mode === 'mpr' &&
+    Boolean(loaded?.huCalibrated) &&
+    Boolean(reconstruction?.state().quantitative);
   const activateTool = (tool: DicomTool) =>
     activateDicomTool(tool, {
       group,
       mode,
       mpr,
+      stack: stackTools,
       reconstruction,
       calibrated: Boolean(loaded?.huCalibrated),
       referenceEnabled,
@@ -199,6 +223,10 @@ export const createDicomRuntime = async (
         const active = AbortSignal.any([signal, childSignal, transition]);
         active.throwIfAborted();
         mpr?.cancel();
+        // Comparar draws this series' measurements itself; Original redraws them on return.
+        stopCursor?.();
+        stackTools?.dispose();
+        stackTools = undefined;
         resize?.disconnect();
         await stack!.detach();
         active.throwIfAborted();
@@ -212,7 +240,8 @@ export const createDicomRuntime = async (
           active,
           notify,
           fetchInstance,
-          stack!.state().requested
+          stack!.state().requested,
+          measurements
         );
       });
     },
@@ -302,11 +331,33 @@ export const createDicomRuntime = async (
     },
     undoMeasurement: () => {
       mpr?.undo();
+      stackTools?.undo();
       engine?.render();
     },
     clearMeasurements: () => {
       mpr?.clear();
+      stackTools?.clear();
       engine?.render();
+    },
+    measurements,
+    focusMeasurement: measurementId => {
+      const item = measurements.get(measurementId);
+      if (disposed || !item || item.seriesUid !== series.uid) return false;
+      if (mode === 'original' && item.view === 'original' && stack) {
+        stack.select(item.slice);
+        return true;
+      }
+      return mode === 'mpr' && item.view !== 'original' && Boolean(mpr?.focus(measurementId));
+    },
+    sliceInterval: () => {
+      if (loaded && interval === null) interval = dicomSliceInterval(loaded.geometry);
+      return interval ?? undefined;
+    },
+    onCursorHu: listener => {
+      cursorListener = listener;
+      return () => {
+        if (cursorListener === listener) cursorListener = undefined;
+      };
     },
     presentation: value => {
       if (mode === '3d' && !disposed && engine) {
@@ -319,11 +370,7 @@ export const createDicomRuntime = async (
       }
     },
     isResampled: () => mode !== 'original' && Boolean(volume?.resampled),
-    quantitative: () =>
-      !disposed &&
-      mode === 'mpr' &&
-      Boolean(loaded?.huCalibrated) &&
-      Boolean(reconstruction?.state().quantitative),
+    quantitative,
     show: (nextMode, elements) =>
       continuity.show(nextMode, elements, async () => {
         ensureActive();
@@ -361,8 +408,7 @@ export const createDicomRuntime = async (
         mprMemory.remember(reconstruction?.state(), referenceValue);
         reconstruction?.dispose();
         reconstruction = undefined;
-        mpr?.dispose();
-        mpr = undefined;
+        releaseTools();
         if (group) destroyDicomToolGroup(group.id);
         resize?.disconnect();
         if (mode !== nextMode && nextMode === '3d')
@@ -371,6 +417,13 @@ export const createDicomRuntime = async (
         const configured = configureDicomViewports(engine, elements, id, nextMode);
         viewportIds = configured.viewportIds;
         group = configured.group;
+        if (nextMode === 'original')
+          stackTools = createDicomStackTools(
+            id,
+            [{ viewportId: viewportIds[0], group, element: elements[0] }],
+            measurements,
+            [series.uid]
+          );
         activateTool(nextMode === '3d' ? 'rotate' : 'window');
         if (nextMode === 'original') {
           await stack!.show(engine.getViewport(viewportIds[0]) as StackViewport);
@@ -387,7 +440,13 @@ export const createDicomRuntime = async (
           );
         if (nextMode === 'mpr') {
           if (!recoveringTool) [referenceEnabled, referenceStyle] = [true, 'lines'];
-          mpr = createMprTools(group, id, viewportIds, notifyReference);
+          mpr = createMprTools(group, id, viewportIds, notifyReference, {
+            store: measurements,
+            series,
+            volumeId,
+            quantitative,
+            oblique: plane => Boolean(reconstruction?.state().planes[plane]?.oblique),
+          });
           reconstruction = createMprReconstruction(
             engine,
             viewportIds,
@@ -406,6 +465,17 @@ export const createDicomRuntime = async (
           activateTool(recoveringTool);
           recoveringTool = undefined;
         }
+        if (nextMode !== '3d')
+          stopCursor = watchDicomCursorHu(
+            id,
+            viewportIds,
+            elements,
+            viewport =>
+              nextMode === 'original'
+                ? dicomStackShowsHu(viewport as StackViewport)
+                : quantitative(),
+            value => cursorListener?.(value)
+          );
         resize = observeDicomViewportSize(engine, elements, () => disposed);
       }),
     tool: activateTool,

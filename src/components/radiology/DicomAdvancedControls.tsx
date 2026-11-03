@@ -1,4 +1,5 @@
 import { DicomReconstructionControls } from './DicomReconstructionControls';
+import { DicomCursorHu } from './DicomMeasureTools';
 import { useDicomReconstruction } from './useDicomReconstruction';
 import {
   Crosshair,
@@ -102,6 +103,7 @@ export const DicomAdvancedControls: React.FC<{
               ? `L ${reference.point[0].toFixed(1)} · P ${reference.point[1].toFixed(1)} · S ${reference.point[2].toFixed(1)} mm`
               : 'Referencia desactivada'}
           </output>
+          <DicomCursorHu subscribe={runtime.onCursorHu} />
           <div className="dicom-button-group">
             {[
               { id: 'probe', label: 'Lectura HU', icon: Pipette },
@@ -161,10 +163,10 @@ export const DicomAdvancedControls: React.FC<{
           </summary>
           <div className="dicom-popover-body">
             <small>
-              Medidas temporales: no se guardan ni se incluyen en PNG o anexos. HU: pulsa un punto.
-              ROI: arrastra una elipse; DE indica desviación estándar. Solo se habilitan con
-              calibración HU y espaciado válidos. En volúmenes remuestreados las estadísticas
-              corresponden al volumen interpolado.
+              Medidas temporales: duran mientras el visor está abierto, no se guardan ni se incluyen
+              en PNG o anexos. HU: pulsa un punto. ROI: arrastra una elipse; DE indica desviación
+              estándar. Solo se habilitan con calibración HU y espaciado válidos. En volúmenes
+              remuestreados las estadísticas corresponden al volumen interpolado.
             </small>
           </div>
         </details>
