@@ -420,6 +420,12 @@ Each use is listed here; the cap stops at 5,054,464.
   Five source lines. Main was already at the cap: CI shows 4928.0 KB of 4928.0 KB
   on both sides, so the overrun is under 51 bytes.
 
+- Braden and Downton on the Rapa Nui clock (2026-11-03): +1,536 bytes (5,046,784 → 5,048,320).
+  The census cell converts stored applications with a 1 KB module in `src/domain/evaluationScales`;
+  measured locally 5,047,716 bytes in 253 entries, about 1,035 over main. Reusing rayen-import's
+  converters instead would have moved three modules into the precache (+7.7 KB). Remaining
+  authorization: 6,144 bytes.
+
 - PR #1106, Eloísa capture retry: chunk `RayenImportButton` 260,000 → 262,048 bytes. CI measured
   254.2 KB against 253.9 KB. It is online-only and loads after the census, so startup is unaffected.
   Precache unchanged. The owner granted full authority over this program on 2026-10-31.
