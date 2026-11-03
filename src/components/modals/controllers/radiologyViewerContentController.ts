@@ -34,3 +34,9 @@ export const buildRadiologyResultsEmptyMessage = (activeModTab: string | null): 
 
 export const countMMRADExamsForModality = (result: MMRADSearchResult, modality: string): number =>
   result.examenes.filter(exam => (exam.mod || '').trim().toUpperCase() === modality).length;
+
+// Since 2026-11 MMRAD opens its «Visualizador Universitas» from the RIS `abrirestudio` page.
+export const resolveMMRADExternalViewerLabel = (dicomUrl: string): string =>
+  /[?&][^=&]*_spage=[^&]*abrirestudio/i.test(dicomUrl)
+    ? 'Visualizador Universitas'
+    : 'Visualizador DICOM HTML5';

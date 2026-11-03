@@ -81,6 +81,39 @@ describe('RadiologyViewerModalContent', () => {
     expect(onCopyReport).toHaveBeenCalledWith(result.examenes[0]);
   });
 
+  it.each([
+    [
+      'https://ris.mmrad.cl/group/hhangaroa/examenes?p_p_id=2_WAR_ingradteleradexamenportlet_INSTANCE_Ab12' +
+        '&_2_WAR_ingradteleradexamenportlet_INSTANCE_Ab12__spage=%2Fportlet_action%2Fexamen%2Fabrirestudio' +
+        '&_2_WAR_ingradteleradexamenportlet_INSTANCE_Ab12_idexamen=123',
+      'Visualizador Universitas',
+    ],
+    [
+      'https://ris.mmrad.cl/ingrad-ris-informehtml/UtilServlet?a=3&u=1&idexamen=123&idprestacion=0',
+      'Visualizador DICOM HTML5',
+    ],
+  ])('names the external viewer that MMRAD opens for %s', (dicomUrl, label) => {
+    const result = buildResult();
+    const exams = [{ ...result.examenes[0], dicom_url: dicomUrl }];
+
+    render(
+      <RadiologyViewerResults
+        result={{ ...result, examenes: exams }}
+        isLoading={false}
+        modalities={['CT']}
+        activeModTab="CT"
+        filteredExams={exams}
+        onTabChange={vi.fn()}
+        onOpenPdf={vi.fn()}
+        onOpenPortalReceipt={vi.fn()}
+        onCopyReport={vi.fn()}
+        copiedReportExamKey={null}
+      />
+    );
+
+    expect(screen.getByRole('link', { name: label })).toHaveAttribute('href', dicomUrl);
+  });
+
   it('renders portal receipt in a floating preview and prints the iframe from a React button', () => {
     const focus = vi.fn();
     const print = vi.fn();
