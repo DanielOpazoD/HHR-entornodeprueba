@@ -11,6 +11,8 @@ export interface DicomViewerDialogProps {
   reviewCache?: DicomReviewCache;
   link: string;
   patientId: string;
+  /** MMRAD's ID for this patient when it differs only in a mistyped check digit. */
+  registeredPatientId?: string;
   patientName?: string;
   studyDate?: string;
   reportLink?: string | null;

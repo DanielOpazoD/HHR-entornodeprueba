@@ -83,3 +83,29 @@ export const isPassportFormat = (value: string): boolean => {
   const cleaned = value.replace(/[\s-.]/g, '');
   return /^[A-Za-z]/.test(cleaned) || /[A-Za-z]{2,}/.test(cleaned);
 };
+
+/**
+ * The same RUT number registered with another, mistyped check digit, as MMRAD keeps some exams
+ * (observed 2026-11-03). Only RUT-shaped values qualify: a passport is never read as a RUT.
+ */
+export const isSameRutWithOtherVerifier = (rut: string, other: string): boolean => {
+  // Digits with one final check digit: a passport, with letters, never qualifies.
+  if (!isValidRut(rut) || !/^\s*[\d.]+-?[\dkK]\s*$/.test(other)) return false;
+  const expected = normalizeRut(rut);
+  const candidate = normalizeRut(other);
+  return (
+    candidate.length === expected.length &&
+    candidate.slice(0, -1) === expected.slice(0, -1) &&
+    candidate.slice(-1) !== expected.slice(-1)
+  );
+};
+
+/** `body-DV` for every check digit other than the valid one of this RUT. */
+export const otherRutVerifierVariants = (rut: string): string[] => {
+  if (!isValidRut(rut)) return [];
+  const body = normalizeRut(rut).slice(0, -1);
+  const valid = calculateRutVerifier(body);
+  return ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'K']
+    .filter(verifier => verifier !== valid)
+    .map(verifier => `${body}-${verifier}`);
+};

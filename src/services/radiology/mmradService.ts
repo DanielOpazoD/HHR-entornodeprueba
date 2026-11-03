@@ -6,6 +6,7 @@
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import type { MMRADReportSections } from '@/services/radiology/mmradReportSupport';
+import { formatRut } from '@/utils/rutUtils';
 
 const mmradLogger = createScopedLogger('mmradService');
 
@@ -20,15 +21,27 @@ export interface MMRADExam {
   informe_html_url: string | null;
   portal_web_receipt_url?: string | null;
   report: MMRADReportSections | null;
+  /**
+   * Set only when MMRAD registered this exam under the patient's RUT number with another check
+   * digit and the name matched. The viewer then expects this ID inside each original.
+   */
+  registered_patient_id?: string;
 }
 
 export interface MMRADSearchResult {
   rut: string;
   examenes: MMRADExam[];
+  /** The search for mistyped check digits ran fully, or some variant failed. */
+  check_digit_search?: 'complete' | 'partial';
 }
+
+export const describeMMRADRegisteredPatient = (registeredPatientId: string): string =>
+  `MMRAD registró este examen con el RUT ${formatRut(registeredPatientId)}, que difiere solo en el dígito verificador. Se muestra porque coinciden el número y el nombre.`;
 
 export interface MMRADSearchParams {
   rut: string;
+  /** Census name; lets the search include exams MMRAD registered with a mistyped check digit. */
+  patientName?: string;
   /** ISO format YYYY-MM-DD */
   dateFrom?: string;
   /** ISO format YYYY-MM-DD */
@@ -88,6 +101,7 @@ export const fetchMMRADPortalReceiptHtml = async (receiptLink: string): Promise<
 
 export const searchMMRADExams = async ({
   rut,
+  patientName,
   dateFrom,
   dateTo,
 }: MMRADSearchParams): Promise<MMRADSearchResult> => {
@@ -97,6 +111,7 @@ export const searchMMRADExams = async ({
   let url = buildMMRADProxyUrl(`?rut=${encodeURIComponent(cleanRut)}`);
   if (dateFrom) url += `&from=${encodeURIComponent(dateFrom)}`;
   if (dateTo) url += `&to=${encodeURIComponent(dateTo)}`;
+  if (patientName?.trim()) url += `&name=${encodeURIComponent(patientName.trim())}`;
 
   try {
     const response = await fetch(url, {

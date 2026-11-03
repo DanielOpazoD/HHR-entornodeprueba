@@ -20,6 +20,11 @@ export interface DicomStudy {
   uid: string;
   /** Requested patient document. Verified against PatientID in every original before rendering. */
   patientId: string;
+  /**
+   * MMRAD's registration of this same patient when it differs only in a mistyped check digit.
+   * Its originals carry it as PatientID, so it replaces `patientId` in that check only.
+   */
+  registeredPatientId?: string;
   date: string;
   series: DicomSeries[];
 }

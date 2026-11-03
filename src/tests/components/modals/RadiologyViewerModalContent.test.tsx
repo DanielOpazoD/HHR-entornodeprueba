@@ -114,6 +114,31 @@ describe('RadiologyViewerModalContent', () => {
     expect(screen.getByRole('link', { name: label })).toHaveAttribute('href', dicomUrl);
   });
 
+  it('marks an exam MMRAD registered with another check digit and an incomplete check', () => {
+    const result = buildResult();
+    const exams = [{ ...result.examenes[0], registered_patient_id: '11111111-7' }];
+
+    render(
+      <RadiologyViewerResults
+        result={{ ...result, examenes: exams, check_digit_search: 'partial' }}
+        isLoading={false}
+        modalities={['CT']}
+        activeModTab="CT"
+        filteredExams={exams}
+        onTabChange={vi.fn()}
+        onOpenPdf={vi.fn()}
+        onOpenPortalReceipt={vi.fn()}
+        onCopyReport={vi.fn()}
+        copiedReportExamKey={null}
+      />
+    );
+
+    expect(
+      screen.getByText(/MMRAD registró este examen con el RUT 11\.111\.111-7, que difiere solo/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/No se pudo revisar si MMRAD tiene exámenes/)).toBeInTheDocument();
+  });
+
   it('renders portal receipt in a floating preview and prints the iframe from a React button', () => {
     const focus = vi.fn();
     const print = vi.fn();

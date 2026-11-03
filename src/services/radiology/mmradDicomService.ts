@@ -47,12 +47,23 @@ const request = async (body: object, signal: AbortSignal): Promise<Response> => 
 export const fetchDicomStudy = async (
   link: string,
   patientId: string,
-  signal: AbortSignal
+  signal: AbortSignal,
+  registeredPatientId?: string
 ): Promise<DicomStudy> => {
-  const response = await request({ action: 'metadata', link, patientId }, signal);
+  const response = await request(
+    {
+      action: 'metadata',
+      link,
+      patientId,
+      ...(registeredPatientId ? { registeredPatientId } : {}),
+    },
+    signal
+  );
   const study = (await response.json()) as DicomStudy;
   if (
     normalizeDicomPatientId(study.patientId || '') !== normalizeDicomPatientId(patientId) ||
+    normalizeDicomPatientId(study.registeredPatientId || '') !==
+      normalizeDicomPatientId(registeredPatientId || '') ||
     !study.series?.length ||
     !study.uid
   )

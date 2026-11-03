@@ -16,6 +16,7 @@
 import { getFirebaseServer } from './lib/firebase-server';
 import { authorizeRoleRequest, extractBearerToken } from './lib/firebase-auth';
 import { invokeWithTelemetry } from './lib/observability';
+import { searchMistypedCheckDigitExams, type RisExamRow } from './lib/mmrad-check-digit-search';
 import {
   buildCorsHeaders,
   buildJsonResponse,
@@ -67,6 +68,8 @@ interface MMRADExam {
   informe_html_url: string | null;
   portal_web_receipt_url: string | null;
   report: ReturnType<typeof parseMMRADReportSections>;
+  /** Present only on exams MMRAD registered under this RUT number with another check digit. */
+  registered_patient_id?: string;
 }
 
 const buildPdfProxyResponse = async (pdfUrl: string, cookies: string, requestOrigin?: string) => {
@@ -202,13 +205,13 @@ const extractActionUrlByLabel = (rowHtml: string, label: string): string | null 
   return extractActionUrlFromFragment(nearbyFragment);
 };
 
-const searchExams = async (
+const searchExamRows = async (
   rut: string,
   cookies: string,
   searchActionUrl: string,
   dateFrom?: string,
   dateTo?: string
-): Promise<MMRADExam[]> => {
+): Promise<RisExamRow<MMRADExam>[]> => {
   const params: Record<string, string> = { idpaciente: rut };
 
   // Add date filters in DD/MM/YYYY format (RIS expects this, not ISO)
@@ -230,9 +233,11 @@ const searchExams = async (
   });
 
   const html = await response.text();
-  const exams = parseExamsFromHTML(html);
-  return hydrateStructuredCtReports(exams, cookies);
+  return parseExamRowsFromHTML(html);
 };
+
+const examKey = (exam: MMRADExam): string =>
+  JSON.stringify([exam.fecha_examen, exam.nombre_examen, exam.dicom_url, exam.pdf_url]);
 
 const fetchReportSections = async (
   reportUrl: string,
@@ -281,10 +286,10 @@ const hydrateStructuredCtReports = async (
   return hydrated;
 };
 
-const parseExamsFromHTML = (html: string): MMRADExam[] => {
+const parseExamRowsFromHTML = (html: string): RisExamRow<MMRADExam>[] => {
   // Decode HTML entities first so regex can match quotes properly
   const decoded = decodeHtmlEntities(html);
-  const exams: MMRADExam[] = [];
+  const exams: RisExamRow<MMRADExam>[] = [];
   const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
   let rowMatch;
 
@@ -353,7 +358,7 @@ const parseExamsFromHTML = (html: string): MMRADExam[] => {
 
     const portalWebReceiptUrl = extractActionUrlByLabel(rowHtml, 'Comprobante Portal Web paciente');
 
-    exams.push({
+    const exam: MMRADExam = {
       nombre_examen: tds[10] || '',
       fecha_examen: tds[7] || '',
       fecha_asignacion: tds[6] || '',
@@ -364,7 +369,8 @@ const parseExamsFromHTML = (html: string): MMRADExam[] => {
       informe_html_url: informeHtmlUrl,
       portal_web_receipt_url: portalWebReceiptUrl,
       report: null,
-    });
+    };
+    exams.push({ exam, patientId: tds[8] || '', patientName: tds[9] || '' });
   }
 
   return exams;
@@ -525,12 +531,25 @@ export const createMMRADSearchHandler = (
             );
           }
 
-          const examenes = await searchExams(
-            cleanRut,
-            cookies,
-            searchActionUrl,
-            queryParams.get('from') || undefined,
-            queryParams.get('to') || undefined
+          const from = queryParams.get('from') || undefined;
+          const to = queryParams.get('to') || undefined;
+          const search = (patientId: string) =>
+            searchExamRows(patientId, cookies, searchActionUrl, from, to);
+          const exact = (await search(cleanRut)).map(row => row.exam);
+          // Only with the census name: a mistyped check digit is accepted when the name matches.
+          const patientName = (queryParams.get('name') || '').slice(0, 200);
+          const mistyped = patientName
+            ? await searchMistypedCheckDigitExams({
+                rut: cleanRut,
+                patientName,
+                search,
+                key: examKey,
+              })
+            : null;
+          const known = new Set(exact.map(examKey));
+          const examenes = await hydrateStructuredCtReports(
+            [...exact, ...(mistyped?.exams.filter(exam => !known.has(examKey(exam))) ?? [])],
+            cookies
           );
 
           return buildJsonResponse(
@@ -538,6 +557,9 @@ export const createMMRADSearchHandler = (
             {
               rut: cleanRut,
               examenes,
+              ...(mistyped
+                ? { check_digit_search: mistyped.complete ? 'complete' : 'partial' }
+                : {}),
             },
             { requestOrigin }
           );

@@ -28,8 +28,8 @@ import {
   UNIVERSITAS_ORIGIN,
   universitasInstanceRequest,
 } from './lib/mmrad-universitas';
-import { normalizeDicomPatientId } from '../../src/services/radiology/dicomTypes';
-import { isValidRut } from '../../src/utils/rutUtils';
+import { normalizeDicomPatientId, type DicomStudy } from '../../src/services/radiology/dicomTypes';
+import { isSameRutWithOtherVerifier, isValidRut } from '../../src/utils/rutUtils';
 
 interface Dependencies {
   authorizeRoleRequest: typeof authorizeRoleRequest;
@@ -100,26 +100,33 @@ export const createMMRADDicomHandler =
       const link = normalizeMmradUrl(typeof body.link === 'string' ? body.link : null);
       const patient = typeof body.patientId === 'string' ? body.patientId.trim() : '';
       const document = normalizeDicomPatientId(patient);
+      // MMRAD's own registration when it differs only in a mistyped check digit; the search only
+      // offers it when the name matched, and every original must then carry it as PatientID.
+      const registered =
+        typeof body.registeredPatientId === 'string' ? body.registeredPatientId.trim() : '';
       if (
         !link ||
         !/^[0-9.kK\s-]{2,16}$/.test(patient) ||
         !/^\d{1,8}[\dK]$/.test(document) ||
-        !isValidRut(document)
+        !isValidRut(document) ||
+        (registered && !isSameRutWithOtherVerifier(document, registered))
       )
         return json(400, { error: 'Estudio o paciente no válido.' });
+      const identity = (study: DicomStudy): DicomStudy =>
+        registered ? { ...study, registeredPatientId: normalizeDicomPatientId(registered) } : study;
       try {
         // MMRAD's current viewer (Universitas) since 2026-11; the legacy one stays as fallback.
         if (isUniversitasLink(link)) {
           const { access, manifest } = await (
             dependencies.loadUniversitasManifest ?? loadUniversitasManifest
           )(link, AbortSignal.timeout(25_000));
-          return json(200, normalizeUniversitasStudy(manifest, access, patient, subject));
+          return json(200, identity(normalizeUniversitasStudy(manifest, access, patient, subject)));
         }
         const { uid, metadata } = await dependencies.loadVendorStudyMetadata(
           link,
           AbortSignal.timeout(25_000)
         );
-        return json(200, normalizeVendorStudy(metadata, uid, patient, subject));
+        return json(200, identity(normalizeVendorStudy(metadata, uid, patient, subject)));
       } catch {
         return json(502, {
           error:
