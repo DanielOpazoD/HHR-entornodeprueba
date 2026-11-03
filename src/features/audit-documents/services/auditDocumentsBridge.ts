@@ -1,6 +1,7 @@
 /**
- * Page side of the audit download. The extension reads Eloísa with its own session and saves the
- * ZIP itself; this page only sends the RUT list and receives counts per RUT.
+ * Page side of the audit download. The extension reads Eloísa with its own session and hands the
+ * ZIP to this page, which saves it where the person chooses. An extension older than 0.48.71 saves
+ * it straight into Downloads instead, and only the counts per RUT come back.
  */
 import type { AuditDocumentType, AuditPatientRequest } from '../domain/auditDocumentsRequest';
 
@@ -8,6 +9,7 @@ export const AUDIT_DOCUMENTS_REQUEST_TYPE = 'HHR_RAYEN_AUDIT_DOCUMENTS_REQUEST';
 export const AUDIT_DOCUMENTS_CANCEL_TYPE = 'HHR_RAYEN_AUDIT_DOCUMENTS_CANCEL';
 export const AUDIT_DOCUMENTS_PROGRESS_TYPE = 'HHR_RAYEN_AUDIT_DOCUMENTS_PROGRESS';
 export const AUDIT_DOCUMENTS_RESULT_TYPE = 'HHR_RAYEN_AUDIT_DOCUMENTS_RESULT';
+export const AUDIT_DOCUMENTS_ARCHIVE_TYPE = 'HHR_RAYEN_AUDIT_DOCUMENTS_ARCHIVE';
 export const AUDIT_DOCUMENTS_MINIMUM_EXTENSION_VERSION = '0.48.65';
 
 /** The extension acknowledges at once; silence means it is missing or older than this feature. */
@@ -48,6 +50,8 @@ export interface AuditDocumentsResult {
   failedCount?: number;
   summary?: AuditDocumentsPatientSummary[];
   error?: string;
+  /** The ZIP, still unsaved; absent when an older extension already saved it into Downloads. */
+  archive?: Blob;
 }
 
 const PHASES: readonly AuditDocumentsPhase[] = [
@@ -101,6 +105,7 @@ export const requestAuditDocuments = ({
   let settle: (result: AuditDocumentsResult) => void = () => undefined;
   let settled = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let archive: Blob | undefined;
 
   const result = new Promise<AuditDocumentsResult>(resolve => {
     settle = value => {
@@ -135,6 +140,10 @@ export const requestAuditDocuments = ({
       if (phase) onProgress({ phase, done: count(data.done), total: count(data.total) });
       return;
     }
+    if (data.type === AUDIT_DOCUMENTS_ARCHIVE_TYPE) {
+      if (data.blob instanceof Blob) archive = data.blob;
+      return;
+    }
     if (data.type !== AUDIT_DOCUMENTS_RESULT_TYPE) return;
     if (data.cancelled === true) {
       settle({ ok: false, cancelled: true, error: 'Descarga cancelada.' });
@@ -147,6 +156,7 @@ export const requestAuditDocuments = ({
       failedCount: count(data.failedCount),
       summary: parseSummary(data.summary),
       error: typeof data.error === 'string' ? data.error : undefined,
+      ...(data.ok === true && archive ? { archive } : {}),
     });
   }
 
@@ -157,7 +167,7 @@ export const requestAuditDocuments = ({
       `${AUDIT_DOCUMENTS_MINIMUM_EXTENSION_VERSION} o superior: actualízala y recarga esta página.`
   );
   window.postMessage(
-    { type: AUDIT_DOCUMENTS_REQUEST_TYPE, reqId, patients, documentTypes },
+    { type: AUDIT_DOCUMENTS_REQUEST_TYPE, reqId, patients, documentTypes, saveInPage: true },
     window.location.origin
   );
 

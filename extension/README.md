@@ -343,6 +343,14 @@ paneles u otras rutas sin episodio abre directamente **Hospitalizados** y deja d
 del paciente actual. Los accesos contextuales de Indicaciones y Receta médica se mantienen solamente en
 la tabla de fármacos de Gestión de cuidados.
 
+### El ZIP de auditoría se guarda donde la persona elige (0.48.71)
+
+El responsable pidió buscar primero y después elegir dónde guardar el ZIP; Chrome lo guardaba solo
+en Descargas al terminar la búsqueda. Si la pantalla lo pide (`saveInPage`), el relé ya no hace clic
+en un enlace de descarga: une las partes y entrega el Blob a la pantalla, que ofrece «Descargar ZIP»
+con el diálogo de guardado del sistema. Una pantalla anterior, que no lo pide, sigue recibiendo el
+ZIP en Descargas.
+
 ### Tramos que Eloísa no entrega, por mitades (0.48.70)
 
 El 03-11, dos historiales de septiembre que cruzan el 06-09 no se descargaron en ninguna de cuatro
@@ -416,8 +424,9 @@ HHR entrega una lista de hasta 20 RUN, con fechas globales o por RUN, y la exten
 con el historial de hospitalización y el reporte de cuidados farmacológicos de Eloísa, un PDF por
 hospitalización. Busca en ambos índices de informes, porque el del historial omite la
 hospitalización en curso, y filtra por el día de Rapa Nui. El ZIP viaja por partes de 4 MB al relé de la
-pestaña HHR, que lo guarda como Blob: una URL `data:` de varios MB no es confiable en Chrome. HHR
-solo recibe cuántos documentos quedaron por RUN. Una lista que Eloísa no entregó
+pestaña HHR, que lo une como Blob: una URL `data:` de varios MB no es confiable en Chrome. Desde 0.48.71
+el relé entrega ese Blob a la pantalla, que lo guarda donde la persona elige; antes lo guardaba solo
+en Descargas. Una lista que Eloísa no entregó
 se informa como falla de ese RUN, nunca como «sin hospitalizaciones», y una hospitalización sin
 fecha o RUT verificable se cuenta aparte para revisarla en Eloísa. Solo entra el RUN propio: un
 recién nacido con el RUN de la madre es otra persona. El ZIP incluye `00 Resumen.csv` y solo llega

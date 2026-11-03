@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { FileDown } from 'lucide-react';
 
 import { displayRut } from '../domain/auditDocumentsRequest';
 import type {
   AuditDocumentsPatientSummary,
   AuditDocumentsResult,
 } from '../services/auditDocumentsBridge';
+import { saveAuditZip } from '../services/saveAuditZip';
 
 const patientStatus = (patient: AuditDocumentsPatientSummary): string => {
   if (patient.error) return `No se pudo consultar Eloísa: ${patient.error}`;
@@ -38,24 +40,64 @@ export const AuditDocumentsResultPanel: React.FC<{ result: AuditDocumentsResult 
 }) => {
   const summary = result.summary ?? [];
   const attention = summary.filter(needsAttention).length;
+  const { archive, filename } = result;
+  // Tied to this ZIP, so a new search starts clean.
+  const [saveState, setSaveState] = useState<{ archive: Blob; savedAs?: string; error?: string }>();
+  const current = saveState?.archive === archive ? saveState : undefined;
+  const savedAs = current?.savedAs;
+  const saveError = current?.error;
+  const save = async () => {
+    if (!archive || !filename) return;
+    try {
+      const name = await saveAuditZip(archive, filename);
+      setSaveState(name ? { archive, savedAs: name } : { archive, savedAs });
+    } catch {
+      setSaveState({
+        archive,
+        error: 'No se pudo guardar el ZIP. Vuelve a intentarlo o elige otra carpeta.',
+      });
+    }
+  };
+  const missing = attention
+    ? ` Revisa ${attention} RUT con documentos faltantes; el detalle también va en «00 Resumen.csv».`
+    : '';
   return (
     <section className="mt-6 rounded-[1.75rem] border border-slate-100 bg-white p-5 shadow-sm">
       {result.ok ? (
-        <p
-          role="status"
+        <div
           className={`rounded-xl p-3 text-sm font-semibold ${
             attention
               ? 'border border-amber-200 bg-amber-50 text-amber-800'
               : 'border border-emerald-200 bg-emerald-50 text-emerald-800'
           }`}
         >
-          El ZIP {result.filename} ya quedó en tu carpeta Descargas, con {result.documentCount}{' '}
-          documento(s).
-          {attention
-            ? ` Revisa ${attention} RUT con documentos faltantes; el detalle también va en «00 Resumen.csv».`
-            : ''}{' '}
-          Volver a pulsar «Buscar y descargar ZIP» repite toda la búsqueda.
-        </p>
+          {archive ? (
+            <>
+              <p role="status">
+                El ZIP tiene {result.documentCount} documento(s).{missing}{' '}
+                {savedAs ? `Guardado como ${savedAs}.` : 'Elige dónde guardarlo.'}
+              </p>
+              <button
+                type="button"
+                onClick={() => void save()}
+                className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-white transition hover:bg-black"
+              >
+                <FileDown size={14} />
+                Descargar ZIP
+              </button>
+              {saveError && (
+                <p role="alert" className="mt-2 text-rose-700">
+                  {saveError}
+                </p>
+              )}
+            </>
+          ) : (
+            <p role="status">
+              El ZIP {filename} ya quedó en tu carpeta Descargas, con {result.documentCount}{' '}
+              documento(s).{missing} Para elegir dónde guardarlo, actualiza la extensión Eloísa.
+            </p>
+          )}
+        </div>
       ) : (
         <p
           role={result.cancelled ? 'status' : 'alert'}

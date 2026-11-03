@@ -59,6 +59,7 @@ describe('deriveHealthState', () => {
     ['0.48.68', true],
     ['0.48.69', true],
     ['0.48.70', true],
+    ['0.48.71', true],
     ['0.48.100', true],
     ['0.49.0', true],
     ['1.0', true],

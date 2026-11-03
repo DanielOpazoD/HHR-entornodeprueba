@@ -260,6 +260,50 @@ describe('HHR audit documents content bridge', () => {
     expect(await bridge.saved[0].blob.text()).toBe('PK-first-second');
   });
 
+  it('hands the joined ZIP to a screen that saves it where the person chooses', async () => {
+    const bridge = install(
+      'https://testinghhr.netlify.app',
+      vi.fn(async () => new Promise(() => undefined))
+    );
+    bridge.fromPage({
+      type: 'HHR_RAYEN_AUDIT_DOCUMENTS_REQUEST',
+      reqId: 'audit-5',
+      patients: [{ run: '111111111' }],
+      documentTypes: ['history'],
+      saveInPage: true,
+    });
+    const chunk = (index: number, text: string) => {
+      const replies: unknown[] = [];
+      bridge.onRuntimeMessage()?.(
+        {
+          type: 'RAYEN_AUDIT_DOCUMENTS_FILE_CHUNK',
+          requestId: 'audit-5',
+          index,
+          total: 2,
+          filename: 'Auditoria_Eloisa_2026-11-03_1129.zip',
+          base64: Buffer.from(text).toString('base64'),
+        },
+        {},
+        reply => replies.push(reply)
+      );
+      return replies[0];
+    };
+
+    chunk(0, 'PK-first-');
+    expect(chunk(1, 'second')).toEqual({ ok: true, saved: true });
+
+    // Nothing lands in Downloads; the screen gets the file.
+    expect(bridge.saved).toEqual([]);
+    const handed = bridge.postMessage.mock.calls
+      .map(call => call[0] as { type: string; reqId?: string; filename?: string; blob?: Blob })
+      .find(message => message.type === 'HHR_RAYEN_AUDIT_DOCUMENTS_ARCHIVE');
+    expect(handed).toMatchObject({
+      reqId: 'audit-5',
+      filename: 'Auditoria_Eloisa_2026-11-03_1129.zip',
+    });
+    expect(await handed?.blob?.text()).toBe('PK-first-second');
+  });
+
   it('refuses a ZIP part that arrives out of order', () => {
     const bridge = install('https://testinghhr.netlify.app');
     const replies: unknown[] = [];
