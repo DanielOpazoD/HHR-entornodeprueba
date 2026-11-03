@@ -148,8 +148,11 @@ entregado como DICOM válido con sus tres UID (5/5). No se guardaron imágenes n
 El 2026-11-03, cuatro puntos de prueba en EE. UU. y Canadá y una función de Netlify en Ohio agotaron
 la espera, mientras que Chile, Brasil y Francia respondieron. Por eso `mmrad-dicom` corre en São Paulo
 (`[functions."mmrad-dicom"] region = "gru"` en `netlify.toml`): en una vista previa, Ohio agotó los
-8 s tres veces y São Paulo respondió 200 en 0,2 a 0,8 s. La búsqueda (`mmrad-search`) sigue en la
-región del sitio.
+8 s tres veces y São Paulo respondió 200 en 0,2 a 0,8 s. Desde el 2026-11-03 la búsqueda (`mmrad-search`) también corre en São Paulo. Sondas temporales en una
+vista previa midieron 3 rondas por región. Desde Ohio, el inicio de sesión RIS tomó 2,0–2,3 s y cada
+búsqueda unos 400 ms; desde São Paulo, 1,3–1,9 s y unos 300 ms. La consulta de rol a `checkUserRole`
+(us-central1) sube de unos 65 ms a unos 220 ms, pero la búsqueda de los 10 dígitos alternativos ahorra
+alrededor de 1 s y Firestore está en `southamerica-west1`.
 
 **Radiografías demasiado grandes.** Medido el 2026-11-03: las radiografías (DX) llegan como originales
 sin comprimir de 23 a 25 MB (Explicit VR Little Endian). La compresión genérica apenas las reduce
