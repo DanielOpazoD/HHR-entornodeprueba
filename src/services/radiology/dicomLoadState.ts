@@ -59,7 +59,8 @@ export class DicomTicketExpiredError extends DicomTransferError {
 export class DicomOriginalTooLargeError extends DicomTransferError {
   constructor(public readonly bytes?: number) {
     super(false);
-    const size = bytes ? `pesa ${(bytes / 1_000_000).toFixed(1).replace('.', ',')} MB y ` : '';
-    this.message = `Esta imagen ${size}supera los 3,5 MB por imagen que HHR puede traer. Ábrela con el botón «MMRAD», que usa el Visualizador Universitas.`;
+    // Shown only when the Santiago function could not bring it either, or it exceeds 30 MB.
+    const size = bytes ? ` (${(bytes / 1_000_000).toFixed(1).replace('.', ',')} MB)` : '';
+    this.message = `No se pudo traer completa esta imagen${size}. Ábrela con el botón «MMRAD», que usa el Visualizador Universitas.`;
   }
 }
