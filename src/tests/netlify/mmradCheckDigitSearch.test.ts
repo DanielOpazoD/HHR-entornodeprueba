@@ -31,6 +31,9 @@ describe('exams MMRAD registered with a mistyped check digit', () => {
     // A relative shares surnames, not the given name.
     expect(samePersonName(NAME, 'JUAN PRUEBA UNO')).toBe(false);
     expect(samePersonName(NAME, 'ANA')).toBe(false);
+    // Particles never count as a name: «DE LA CRUZ» is one word for this rule.
+    expect(samePersonName('María de la Cruz Pérez', 'DE LA CRUZ')).toBe(false);
+    expect(samePersonName('María de la Cruz Pérez', 'MARIA DE LA CRUZ')).toBe(true);
     expect(samePersonName(NAME, '')).toBe(false);
   });
 
@@ -64,7 +67,13 @@ describe('exams MMRAD registered with a mistyped check digit', () => {
     expect(search).toHaveBeenCalledTimes(10);
     expect(search).not.toHaveBeenCalledWith(RUT);
     expect(result).toEqual({
-      exams: [{ id: 'ct', registered_patient_id: '11.111.111-7' }],
+      exams: [
+        {
+          id: 'ct',
+          registered_patient_id: '11.111.111-7',
+          registered_patient_name: 'PRUEBA UNO ANA',
+        },
+      ],
       complete: false,
     });
   });

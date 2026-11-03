@@ -375,6 +375,7 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
             link={dicomExam.dicom_url}
             patientId={selectedRut}
             registeredPatientId={dicomExam.registered_patient_id}
+            registeredPatientName={dicomExam.registered_patient_name}
             patientName={selectedPatientName}
             studyDate={dicomExam.fecha_examen}
             reportLink={dicomExam.pdf_url}

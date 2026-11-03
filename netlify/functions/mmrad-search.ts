@@ -70,6 +70,7 @@ interface MMRADExam {
   report: ReturnType<typeof parseMMRADReportSections>;
   /** Present only on exams MMRAD registered under this RUT number with another check digit. */
   registered_patient_id?: string;
+  registered_patient_name?: string;
 }
 
 const buildPdfProxyResponse = async (pdfUrl: string, cookies: string, requestOrigin?: string) => {

@@ -203,10 +203,13 @@ llevan ese RUT, y el RIS solo encuentra un ID exacto. Por decisión del responsa
 
 - `mmrad-search` recibe el nombre del censo (`name`) y, además del RUT exacto, busca los otros 10
   dígitos verificadores, 5 a la vez (en una prueba real, unos 1,1 s en total). Conserva una fila solo
-  si su ID tiene ese mismo número, con otro dígito, y si cada palabra del nombre más corto, que debe
-  tener al menos dos, aparece en el otro. Un pasaporte nunca se lee como RUT. Una fila repetida se
+  si su ID tiene ese mismo número, con otro dígito, y si cada palabra del nombre más corto aparece
+  en el otro. Ese nombre debe tener al menos dos palabras sin contar partículas como «de», «la» o
+  «del». Un pasaporte nunca se lee como RUT. Una fila repetida se
   muestra una vez.
-- Cada examen así marcado lleva `registered_patient_id`, y la tarjeta y el visor lo dicen. Si falla
+- Cada examen así marcado lleva `registered_patient_id` y `registered_patient_name`. La tarjeta y
+  el visor muestran el RUT y el nombre con que lo registró MMRAD, para que una persona confirme que
+  es el mismo paciente. Si falla
   la búsqueda de alguna variante, `check_digit_search: 'partial'` lo avisa, sin quitar exámenes.
 - Para abrir el estudio, el visor envía también `registeredPatientId`. La función lo acepta solo
   si es el mismo número con otro dígito. Cada original debe traer ese ID como `PatientID`, con la

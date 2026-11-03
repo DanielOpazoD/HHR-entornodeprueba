@@ -17,6 +17,7 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
   link,
   patientId,
   registeredPatientId,
+  registeredPatientName,
   title,
   patientName,
   studyDate,
@@ -115,7 +116,7 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
       </div>
       {registeredPatientId && (
         <p className="dicom-status dicom-identity-notice" role="note">
-          {describeMMRADRegisteredPatient(registeredPatientId)}
+          {describeMMRADRegisteredPatient(registeredPatientId, registeredPatientName)}
         </p>
       )}
       {error ? (

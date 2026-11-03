@@ -116,7 +116,13 @@ describe('RadiologyViewerModalContent', () => {
 
   it('marks an exam MMRAD registered with another check digit and an incomplete check', () => {
     const result = buildResult();
-    const exams = [{ ...result.examenes[0], registered_patient_id: '11111111-7' }];
+    const exams = [
+      {
+        ...result.examenes[0],
+        registered_patient_id: '11111111-7',
+        registered_patient_name: 'PRUEBA UNO ANA',
+      },
+    ];
 
     render(
       <RadiologyViewerResults
@@ -134,7 +140,9 @@ describe('RadiologyViewerModalContent', () => {
     );
 
     expect(
-      screen.getByText(/MMRAD registró este examen con el RUT 11\.111\.111-7, que difiere solo/)
+      screen.getByText(
+        /MMRAD registró este examen con el RUT 11\.111\.111-7, a nombre de PRUEBA UNO ANA, que difiere solo.*confirma que es el mismo paciente/
+      )
     ).toBeInTheDocument();
     expect(screen.getByText(/No se pudo revisar si MMRAD tiene exámenes/)).toBeInTheDocument();
   });

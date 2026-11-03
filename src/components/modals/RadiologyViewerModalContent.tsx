@@ -264,7 +264,7 @@ const RadiologyExamCard = ({
           role="note"
           className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800"
         >
-          {describeMMRADRegisteredPatient(exam.registered_patient_id)}
+          {describeMMRADRegisteredPatient(exam.registered_patient_id, exam.registered_patient_name)}
         </p>
       )}
       <div className="flex flex-wrap gap-2">

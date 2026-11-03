@@ -26,6 +26,8 @@ export interface MMRADExam {
    * digit and the name matched. The viewer then expects this ID inside each original.
    */
   registered_patient_id?: string;
+  /** The name MMRAD shows for that registration, for a person to confirm. */
+  registered_patient_name?: string;
 }
 
 export interface MMRADSearchResult {
@@ -35,8 +37,13 @@ export interface MMRADSearchResult {
   check_digit_search?: 'complete' | 'partial';
 }
 
-export const describeMMRADRegisteredPatient = (registeredPatientId: string): string =>
-  `MMRAD registró este examen con el RUT ${formatRut(registeredPatientId)}, que difiere solo en el dígito verificador. Se muestra porque coinciden el número y el nombre.`;
+export const describeMMRADRegisteredPatient = (
+  registeredPatientId: string,
+  registeredPatientName?: string
+): string =>
+  `MMRAD registró este examen con el RUT ${formatRut(registeredPatientId)}${
+    registeredPatientName ? `, a nombre de ${registeredPatientName}` : ''
+  }, que difiere solo en el dígito verificador. Se muestra porque coinciden el número y el nombre; confirma que es el mismo paciente.`;
 
 export interface MMRADSearchParams {
   rut: string;

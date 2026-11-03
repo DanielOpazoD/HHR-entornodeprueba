@@ -8,15 +8,34 @@ export interface RisExamRow<T> {
   patientName: string;
 }
 
+// Particles join surnames; they never identify a person on their own.
+const NAME_PARTICLES = new Set([
+  'DA',
+  'DAS',
+  'DE',
+  'DEL',
+  'DO',
+  'DOS',
+  'LA',
+  'LAS',
+  'LOS',
+  'VAN',
+  'VON',
+  'Y',
+]);
+
 const nameTokens = (value: string): Set<string> =>
   new Set(
     removeAccents(value)
       .toUpperCase()
       .split(/[^A-Z]+/)
-      .filter(token => token.length >= 2)
+      .filter(token => token.length >= 2 && !NAME_PARTICLES.has(token))
   );
 
-/** Every word of the shorter name, which needs at least two, appears in the longer one. */
+/**
+ * Every word of the shorter name, which needs at least two besides particles, appears in the
+ * longer one. The viewer also shows MMRAD's name so a person confirms it.
+ */
 export const samePersonName = (a: string, b: string): boolean => {
   const [shorter, longer] = [nameTokens(a), nameTokens(b)].sort((x, y) => x.size - y.size);
   return shorter.size >= 2 && [...shorter].every(token => longer.has(token));
@@ -40,7 +59,10 @@ export const searchMistypedCheckDigitExams = async <T>({
   search: (patientId: string) => Promise<RisExamRow<T>[]>;
   key: (exam: T) => string;
   concurrency?: number;
-}): Promise<{ exams: Array<T & { registered_patient_id: string }>; complete: boolean }> => {
+}): Promise<{
+  exams: Array<T & { registered_patient_id: string; registered_patient_name: string }>;
+  complete: boolean;
+}> => {
   const variants = patientName.trim() ? otherRutVerifierVariants(rut) : [];
   const found: Array<RisExamRow<T>[]> = [];
   let complete = true;
@@ -69,7 +91,13 @@ export const searchMistypedCheckDigitExams = async <T>({
       const id = key(row.exam);
       if (seen.has(id)) return [];
       seen.add(id);
-      return [{ ...row.exam, registered_patient_id: row.patientId.trim() }];
+      return [
+        {
+          ...row.exam,
+          registered_patient_id: row.patientId.trim(),
+          registered_patient_name: row.patientName.trim(),
+        },
+      ];
     });
   return { exams, complete };
 };
