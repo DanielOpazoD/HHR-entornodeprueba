@@ -137,7 +137,7 @@ export const normalizeMmradUrl = (rawUrl: string | null | undefined): string | n
   }
 };
 
-interface LoginResult {
+export interface LoginResult {
   cookies: string;
   searchActionUrl: string | null;
 }
@@ -198,4 +198,42 @@ export const loginToMMRAD = async (signal?: AbortSignal): Promise<LoginResult> =
   }
 
   return { cookies, searchActionUrl: null };
+};
+
+/** A RIS results page belongs to a live session only when it still carries the patient search. */
+export const isLoggedInRisPage = (html: string): boolean =>
+  !html.includes('_58_login') && /name="[^"]*idpaciente"/.test(html);
+
+// Logging in takes 1.4-2.2 s and a search 0.4-0.6 s (measured 2026-11-03), and a RIS session
+// stays valid across requests. A warm function instance reuses its service-account session for a
+// few minutes; work done with a reused session that fails is repeated once after a fresh login.
+const SESSION_REUSE_MS = 10 * 60_000;
+let reusable: { login: LoginResult; at: number } | undefined;
+
+export const forgetMMRADSession = (): void => {
+  reusable = undefined;
+};
+
+/**
+ * Runs `work` with the RIS session. `work` must throw when a page shows it was not logged in
+ * (see `isLoggedInRisPage`), never read such a page as an empty answer.
+ */
+export const withMMRADSession = async <T>(
+  work: (login: LoginResult) => Promise<T>,
+  signal?: AbortSignal,
+  login: (signal?: AbortSignal) => Promise<LoginResult> = loginToMMRAD
+): Promise<T> => {
+  const kept = reusable && Date.now() - reusable.at < SESSION_REUSE_MS ? reusable : undefined;
+  if (kept) {
+    try {
+      return await work(kept.login);
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      if (reusable === kept) reusable = undefined;
+    }
+  }
+  const fresh = await login(signal);
+  const result = await work(fresh);
+  if (fresh.searchActionUrl) reusable = { login: fresh, at: Date.now() };
+  return result;
 };

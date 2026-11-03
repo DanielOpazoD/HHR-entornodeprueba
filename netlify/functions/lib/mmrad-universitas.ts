@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
-import { fetchWithHeaders, loginToMMRAD, MMRAD_BASE_URL } from './mmrad-session';
+import { fetchWithHeaders, MMRAD_BASE_URL, withMMRADSession } from './mmrad-session';
 import { isDicomUid, issueInstanceTicket, readBoundedResponse } from './mmrad-dicom-policy';
 import {
   normalizeDicomPatientId,
@@ -91,15 +91,18 @@ export const loadUniversitasManifest = async (
   link: string,
   signal: AbortSignal
 ): Promise<{ access: UniversitasAccess; manifest: unknown }> => {
-  const { cookies, searchActionUrl } = await loginToMMRAD(signal);
-  if (!searchActionUrl) throw new Error('No se pudo iniciar sesión en MMRAD.');
-  const page = await fetchWithHeaders(link, {
-    signal,
-    headers: { Cookie: cookies, Referer: `${MMRAD_BASE_URL}/group/hhangaroa/examenes` },
-  });
-  const code = universitasShortLinkFromHtml(
-    new TextDecoder('latin1').decode(await readBoundedResponse(page, 200_000))
-  );
+  // A reused RIS session that expired answers the login page, which has no short link: the
+  // lookup throws and runs again after a fresh login.
+  const code = await withMMRADSession(async ({ cookies, searchActionUrl }) => {
+    if (!searchActionUrl) throw new Error('No se pudo iniciar sesión en MMRAD.');
+    const page = await fetchWithHeaders(link, {
+      signal,
+      headers: { Cookie: cookies, Referer: `${MMRAD_BASE_URL}/group/hhangaroa/examenes` },
+    });
+    return universitasShortLinkFromHtml(
+      new TextDecoder('latin1').decode(await readBoundedResponse(page, 200_000))
+    );
+  }, signal);
   const redirect = await fetch(`${UNIVERSITAS_ORIGIN}/s/${code}`, { signal, redirect: 'manual' });
   const session = publicSessionFromRedirect(redirect.headers.get('location'));
   const { cookie, ttlMs } = shareCookieFrom(redirect.headers.getSetCookie(), session);

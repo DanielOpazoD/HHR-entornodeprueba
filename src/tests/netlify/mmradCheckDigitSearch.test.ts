@@ -119,9 +119,11 @@ describe('mmrad-search with mistyped check digits', () => {
     `<td><a href="javascript:window.open('https://ris.mmrad.cl/group/hhangaroa/examenes?p_p_id=2_WAR_ingradteleradexamenportlet_INSTANCE_Ab12&amp;_2_WAR_ingradteleradexamenportlet_INSTANCE_Ab12__spage=%2Fportlet_action%2Fexamen%2Fabrirestudio&amp;_2_WAR_ingradteleradexamenportlet_INSTANCE_Ab12_idexamen=${idexamen}');void(0);">Visualizador Universitas</a></td></tr>`;
   const searches: string[] = [];
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     searches.length = 0;
+    const { forgetMMRADSession } = await import('../../../netlify/functions/lib/mmrad-session');
+    forgetMMRADSession();
     process.env = {
       ...originalEnv,
       URL: 'https://app.example.com',
@@ -152,7 +154,7 @@ describe('mmrad-search with mistyped check digits', () => {
               ? row('11111111-7', 'PRUEBA UNO ANA', 'TC TORAX', 'CT', 2) +
                 row('11111111-7', 'JUAN PRUEBA UNO', 'TC CEREBRO', 'CT', 3)
               : '';
-        return page(`<table>${rows}</table>`);
+        return page(`<form><input name="idpaciente" /></form><table>${rows}</table>`);
       }
       throw new Error(`unexpected request ${url}`);
     });
@@ -195,6 +197,27 @@ describe('mmrad-search with mistyped check digits', () => {
       ['Examen CHEST', undefined],
       ['TC TORAX', '11111111-7'],
     ]);
+  });
+
+  it('never reads a logged-out results page as a patient without exams', async () => {
+    const answer = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === searchActionUrl ? page('<form><input name="_58_login" /></form>') : answer(url, init)
+    );
+    const { createMMRADSearchHandler } = await import('../../../netlify/functions/mmrad-search');
+    const response = await createMMRADSearchHandler({
+      getFirebaseServer: vi.fn().mockReturnValue({ db: {} }),
+      authorizeRoleRequest: vi.fn().mockResolvedValue({ role: 'doctor_urgency' }),
+      extractBearerToken: vi.fn().mockReturnValue('synthetic-token'),
+    } as never)({
+      httpMethod: 'GET',
+      headers: { authorization: 'Bearer synthetic-token' },
+      body: null,
+      rawQuery: 'rut=11.111.111-1',
+    });
+
+    expect(response.statusCode).toBe(500);
+    expect(response.body).not.toContain('examenes');
   });
 
   it('keeps the exact search alone when no census name is sent', async () => {
