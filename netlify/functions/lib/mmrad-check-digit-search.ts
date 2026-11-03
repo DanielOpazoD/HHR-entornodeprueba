@@ -46,13 +46,16 @@ export const samePersonName = (a: string, b: string): boolean => {
  * digit (two validated CTs, 2026-11-03), and the RIS only matches an ID exactly. Each other check
  * digit is searched; a row is kept only when its ID is that very number and its name matches the
  * census name. A failed variant leaves the result incomplete, which the caller reports.
+ *
+ * One at a time: concurrent searches in one RIS session come back empty at random (measured
+ * 2026-11-03: in parallel even the exact RUT answered 0 of its 2 rows; one by one, all correct).
  */
 export const searchMistypedCheckDigitExams = async <T>({
   rut,
   patientName,
   search,
   key,
-  concurrency = 5,
+  concurrency = 1,
 }: {
   rut: string;
   patientName: string;
