@@ -11,6 +11,7 @@ import {
 } from '@/services/radiology/dicomMeasurementReport';
 import { DicomVolumeCalculator } from './DicomVolumeCalculator';
 import './dicomMeasurements.css';
+import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 
 export const useDicomMeasurements = (store: DicomMeasurementStore) =>
   useSyncExternalStore(store.subscribe, store.list, store.list);
@@ -38,7 +39,7 @@ export const DicomMeasurementsPanel: React.FC<{
   const copy = async () => {
     const text = dicomMeasurementsText(items, exam);
     try {
-      await navigator.clipboard.writeText(text);
+      await writeClipboardText(text);
       setCopied({ items, manual: '', status: 'Medidas copiadas. Pégalas en la nota clínica.' });
     } catch {
       // Without clipboard permission the text stays selectable here.
