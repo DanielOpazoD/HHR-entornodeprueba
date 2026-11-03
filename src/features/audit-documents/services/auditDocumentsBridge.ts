@@ -31,7 +31,11 @@ export interface AuditDocumentsPatientSummary {
   /** Hospitalizations Eloísa listed without a readable date or a RUT to verify. */
   unverified: number;
   downloaded: number;
-  /** Histories saved without a day Eloísa cannot generate (the day summer time began). */
+  /**
+   * Histories of stays that cross the day summer time began, which Eloísa's report cannot build:
+   * `reconstructed` carry that day's official daily summary and an HHR annex; `incomplete` lack one.
+   */
+  reconstructed: number;
   incomplete: number;
   failed: number;
 }
@@ -71,6 +75,7 @@ const parseSummary = (value: unknown): AuditDocumentsPatientSummary[] | undefine
         hospitalizations: count(row.hospitalizations),
         unverified: count(row.unverified),
         downloaded: count(row.downloaded),
+        reconstructed: count(row.reconstructed),
         incomplete: count(row.incomplete),
         failed: count(row.failed),
       },

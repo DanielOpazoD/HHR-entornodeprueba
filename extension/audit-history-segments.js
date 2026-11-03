@@ -60,25 +60,33 @@
 
   /**
    * Periods of a stay that avoid every day the report server cannot build.
-   * Returns { skipped: ['YYYY-MM-DD'], segments: [{ start, end }] }; no skipped days means no split.
+   * Returns { skipped: ['YYYY-MM-DD'], segments: [{ start, end }], parts } where parts lists the
+   * segments and the skipped days in time order; no skipped days means no split.
    */
   const segmentsAround = ({ start, end }) => {
     const startAt = Date.parse(start);
     const endAt = Date.parse(end);
-    if (!Number.isFinite(startAt) || !Number.isFinite(endAt) || startAt > endAt) return { skipped: [], segments: [] };
+    const none = { skipped: [], segments: [], parts: [] };
+    if (!Number.isFinite(startAt) || !Number.isFinite(endAt) || startAt > endAt) return none;
     const lastDay = serverDay(endAt);
     const skipped = skippedDaysBetween(serverDay(startAt), lastDay);
-    if (skipped.length === 0) return { skipped: [], segments: [] };
+    if (skipped.length === 0) return none;
     const segments = [];
+    const parts = [];
     let from = start;
     let fromDay = serverDay(startAt);
+    const addSegment = segment => {
+      segments.push(segment);
+      parts.push({ segment });
+    };
     skipped.forEach(day => {
-      if (compareDays(fromDay, day) < 0) segments.push({ start: from, end: wallClock(addDays(day, -1), '23:59:59') });
+      if (compareDays(fromDay, day) < 0) addSegment({ start: from, end: wallClock(addDays(day, -1), '23:59:59') });
+      parts.push({ skippedDay: dayKey(day) });
       fromDay = addDays(day, 1);
       from = wallClock(fromDay, '00:00:00');
     });
-    if (compareDays(fromDay, lastDay) <= 0) segments.push({ start: from, end });
-    return { skipped: skipped.map(dayKey), segments };
+    if (compareDays(fromDay, lastDay) <= 0) addSegment({ start: from, end });
+    return { skipped: skipped.map(dayKey), segments, parts };
   };
 
   const api = Object.freeze({ segmentsAround });

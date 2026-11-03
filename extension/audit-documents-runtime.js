@@ -99,14 +99,31 @@
     .replace(/\s+/g, ' ')
     .trim();
 
-  const buildFileName = ({ patientName, run, documentType, startDate, missingDays }) => {
-    const name = asciiText(patientName).slice(0, 80) || 'Sin nombre';
-    const missing = missingDays && missingDays.length ? ` - sin ${missingDays.join(' y ')}` : '';
-    return `${name} - ${displayRun(run)} - ${DOCUMENT_TYPES[documentType].label} - ingreso ${startDate}${missing}.pdf`;
+  const isComplete = day => day.dailySummary && day.annex;
+  const daySuffix = day => {
+    if (isComplete(day)) return `${day.day} con resumen diario y anexo HHR`;
+    if (day.dailySummary) return `${day.day} solo resumen diario`;
+    if (day.annex) return `${day.day} solo anexo HHR`;
+    return `sin ${day.day}`;
   };
 
-  const downloadedNote = document => document.missingDays && document.missingDays.length
-    ? `Descargado sin el ${document.missingDays.join(' y ')}: Eloísa no genera el historial de ese día (cambio de hora)`
+  const buildFileName = ({ patientName, run, documentType, startDate, reconstructedDays }) => {
+    const name = asciiText(patientName).slice(0, 80) || 'Sin nombre';
+    const days = reconstructedDays && reconstructedDays.length ? ` - ${reconstructedDays.map(daySuffix).join(' - ')}` : '';
+    return `${name} - ${displayRun(run)} - ${DOCUMENT_TYPES[documentType].label} - ingreso ${startDate}${days}.pdf`;
+  };
+
+  const dayNote = day => {
+    const parts = [
+      day.dailySummary ? 'el Resumen diario oficial de Eloísa' : `sin el Resumen diario (${day.dailySummaryError})`,
+      day.annex ? `un anexo HHR no oficial con ${day.annexRecords} registro(s) de Ficha Médico` : `sin anexo HHR (${day.annexError})`,
+    ];
+    return `el ${day.day} va con ${parts.join(' y ')}`;
+  };
+
+  const downloadedNote = document => document.reconstructedDays && document.reconstructedDays.length
+    ? 'Descargado en tramos: Eloísa no genera el historial oficial del día del cambio de hora; ' +
+      document.reconstructedDays.map(dayNote).join('; ')
     : 'Descargado';
 
   const overlapsRange = ({ startDate, endDate }, { dateFrom, dateTo }) =>
@@ -185,17 +202,19 @@
     Boolean(deps.chromeApi && deps.chromeApi.tabs && typeof deps.chromeApi.tabs.sendMessage === 'function') &&
     Boolean(deps.zipWriter && typeof deps.zipWriter.build === 'function') &&
     Boolean(deps.historySegments && typeof deps.historySegments.segmentsAround === 'function') &&
-    Boolean(deps.pdfLib && deps.pdfLib.PDFDocument);
+    Boolean(deps.historyReconstruction && typeof deps.historyReconstruction.create === 'function');
 
   const create = dependencies => {
     const {
       chromeApi, getFetchInfo, fetchWithTimeout, fetchOfficialPdf, mapWithConcurrency,
-      bufferToBase64, zipWriter, now, isHhrTabUrl, historySegments, pdfLib, retryDelayMs = RETRY_DELAY_MS,
+      bufferToBase64, zipWriter, now, isHhrTabUrl, historySegments, historyReconstruction, dayAnnex, pdfLib,
+      getJsPDF, retryDelayMs = RETRY_DELAY_MS,
     } = dependencies || {};
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     if (!hasDependencies(dependencies)) {
       throw new Error('No se pudo inicializar la descarga de documentos para auditoría.');
     }
+    const reconstruction = historyReconstruction.create({ fetchOfficialPdf, fetchWithTimeout, pdfLib, getJsPDF, dayAnnex });
 
     /** The exact requesting document: if the tab navigated meanwhile, the parts go nowhere. */
     const deliveryTarget = sender => ({
@@ -370,7 +389,10 @@
         hospitalizations: new Set(own.map(document => document.encId)).size,
         unverified: patient.unverified || 0,
         downloaded: own.filter(document => document.buffer).length,
-        incomplete: own.filter(document => document.buffer && document.missingDays).length,
+        reconstructed: own.filter(document => document.buffer && document.reconstructedDays &&
+          document.reconstructedDays.every(isComplete)).length,
+        incomplete: own.filter(document => document.buffer && document.reconstructedDays &&
+          !document.reconstructedDays.every(isComplete)).length,
         failed: own.filter(document => document.error).length,
       };
     });
@@ -415,43 +437,15 @@
       label: 'el informe ' + DOCUMENT_TYPES[item.documentType].summary.toLowerCase(),
     });
 
-    const mergePdfs = async buffers => {
-      const merged = await pdfLib.PDFDocument.create();
-      for (const buffer of buffers) {
-        const source = await pdfLib.PDFDocument.load(buffer, { ignoreEncryption: true });
-        (await merged.copyPages(source, source.getPageIndices())).forEach(page => merged.addPage(page));
-      }
-      const bytes = await merged.save();
-      return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-    };
-
-    /** The history of a stay that crosses a day the report server cannot build, around that day. */
-    const fetchHistoryInSegments = async (job, item, split) => {
-      if (split.segments.length === 0) {
-        return { permanent: true, error: `Eloísa no genera el historial del ${split.skipped.join(' y ')} (cambio de hora)` };
-      }
-      const buffers = [];
-      for (const segment of split.segments) {
-        const url = new URL('/api/reportServer/' + DOCUMENT_TYPES.history.reportPath, job.info.apiOrigin);
-        url.searchParams.set('enc_id', item.encId);
-        url.searchParams.set('start_date', segment.start);
-        url.searchParams.set('end_date', segment.end);
-        const result = await fetchReport(job, item, url.toString());
-        if (!result.buffer) return result;
-        buffers.push(result.buffer);
-      }
-      try {
-        return { buffer: await mergePdfs(buffers), missingDays: split.skipped };
-      } catch (error) {
-        return { error: 'No se pudieron unir los tramos del historial: ' + String((error && error.message) || error) };
-      }
-    };
-
     const fetchDocument = async (job, item) => {
       const result = await fetchReport(job, item, reportUrl(job.info, item.documentType, item, job.nowIso));
       if (result.buffer || item.documentType !== 'history' || !isRetryable(result)) return result;
       const split = historySegments.segmentsAround({ start: item.startPeriod, end: item.endPeriod || job.nowIso });
-      return split.skipped.length ? fetchHistoryInSegments(job, item, split) : result;
+      if (!split.skipped.length) return result;
+      return reconstruction.reconstruct({
+        info: job.info, item, split, nowMs: job.startedAt,
+        patient: { name: item.patientName, run: displayRun(item.run), encId: item.encId },
+      });
     };
 
     const downloadDocuments = async (job, planned) => {
@@ -465,7 +459,7 @@
         job.progress('downloading', downloaded, planned.length);
         if (result.fatal) sessionError = result.error;
         return result.buffer
-          ? { ...item, buffer: result.buffer, ...(result.missingDays ? { missingDays: result.missingDays } : {}) }
+          ? { ...item, buffer: result.buffer, ...(result.days ? { reconstructedDays: result.days } : {}) }
           : { ...item, error: result.error || 'Falló la descarga.', retryable: isRetryable(result) };
       });
       return { documents, sessionError };
@@ -481,7 +475,7 @@
         if (result.fatal) return result.error;
         if (result.buffer) {
           document.buffer = result.buffer;
-          if (result.missingDays) document.missingDays = result.missingDays;
+          if (result.days) document.reconstructedDays = result.days;
           delete document.error;
           return '';
         }

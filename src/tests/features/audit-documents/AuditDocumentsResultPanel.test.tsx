@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { AuditDocumentsResultPanel } from '@/features/audit-documents/components/AuditDocumentsResultPanel';
 
 describe('audit download result', () => {
-  it('flags a history saved without the day of the change of time', () => {
+  it('flags a history whose change-of-time day comes from the daily summary and an HHR annex', () => {
     render(
       <AuditDocumentsResultPanel
         result={{
@@ -19,7 +19,8 @@ describe('audit download result', () => {
               hospitalizations: 1,
               unverified: 0,
               downloaded: 2,
-              incomplete: 1,
+              reconstructed: 1,
+              incomplete: 0,
               failed: 0,
             },
           ],
@@ -28,7 +29,9 @@ describe('audit download result', () => {
     );
 
     expect(
-      screen.getByText('1 sin el día del cambio de hora, que Eloísa no genera')
+      screen.getByText(
+        '1 con el día del cambio de hora desde el resumen diario y un anexo HHR no oficial'
+      )
     ).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Revisa 1 RUT con documentos faltantes');
   });

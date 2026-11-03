@@ -2,10 +2,13 @@
 import { vi } from 'vitest';
 import { unzipSync } from 'fflate';
 import * as PDFLib from 'pdf-lib';
+import { jsPDF } from 'jspdf';
 
 import '../../../../extension/message-contract.js';
 import '../../../../extension/zip-store-writer.js';
 import '../../../../extension/audit-history-segments.js';
+import '../../../../extension/audit-day-annex.js';
+import '../../../../extension/audit-history-reconstruction.js';
 import '../../../../extension/audit-documents-runtime.js';
 
 export type Result = Record<string, unknown> & {
@@ -78,6 +81,8 @@ export interface Setup {
   pdfStatus?: (url: URL) => { fatal?: boolean; status?: number; error?: string } | null;
   pdfBytes?: number;
   realPdfPages?: (url: URL) => number;
+  /** Ficha Médico's clinical history JSON: events, or an HTTP status. */
+  historyJson?: unknown[] | number;
   now?: number;
   tabReply?: (message: ChunkMessage) => unknown;
 }
@@ -104,6 +109,12 @@ export const makeRuntime = (setup: Setup = {}) => {
   };
   const fetchWithTimeout = vi.fn(async (rawUrl: string) => {
     const url = new URL(rawUrl);
+    if (url.pathname.includes('getPatientEncounterHistoryReportServer')) {
+      const history = setup.historyJson ?? [];
+      if (typeof history === 'number')
+        return { ok: false, status: history, json: async () => null };
+      return { ok: true, status: 200, json: async () => history };
+    }
     const index = url.pathname.split('/').pop() as keyof typeof indexes;
     const answer = indexes[index][url.searchParams.get('prefferedIdentifierCode') ?? ''] ?? [];
     if (typeof answer === 'number') return { ok: false, status: answer, json: async () => null };
@@ -152,6 +163,10 @@ export const makeRuntime = (setup: Setup = {}) => {
     historySegments: (globalThis as unknown as { HhrAuditHistorySegments: unknown })
       .HhrAuditHistorySegments,
     pdfLib: PDFLib,
+    historyReconstruction: (globalThis as unknown as { HhrAuditHistoryReconstruction: unknown })
+      .HhrAuditHistoryReconstruction,
+    dayAnnex: (globalThis as unknown as { HhrAuditDayAnnex: unknown }).HhrAuditDayAnnex,
+    getJsPDF: () => jsPDF,
   });
   const runtime: AuditRuntime = {
     ...raw,
