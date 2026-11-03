@@ -1,4 +1,5 @@
 import { createDicomInputBoundary } from './dicomInputBoundary';
+import { createDicomLengthGesture } from './dicomLengthGesture';
 import { eventTarget, getEnabledElementByIds, type Types } from '@cornerstonejs/core';
 import {
   cancelActiveManipulations,
@@ -41,6 +42,10 @@ export const createMprTools = (
     .map(viewportId => getEnabledElementByIds(viewportId, engineId)?.viewport.element)
     .filter((element): element is HTMLDivElement => !!element);
   const inputBoundary = createDicomInputBoundary(elements);
+  // After the boundary, so a stale press is rejected before it can discard a pending line.
+  const lengthGesture = createDicomLengthGesture(group, engineId, viewportIds, elements, uid =>
+    owned.delete(uid)
+  );
   const onAdded = (event: Event) => {
     const detail = (event as ToolTypes.EventTypes.AnnotationAddedEventType).detail;
     if (
@@ -157,6 +162,7 @@ export const createMprTools = (
     dispose: () => {
       cancel();
       inputBoundary.dispose();
+      lengthGesture.dispose();
       group.setToolDisabled(CrosshairsTool.toolName);
       eventTarget.removeEventListener(Enums.Events.ANNOTATION_ADDED, onAdded);
       eventTarget.removeEventListener(Enums.Events.CROSSHAIR_TOOL_CENTER_CHANGED, onCenter);

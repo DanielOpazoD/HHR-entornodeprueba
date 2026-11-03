@@ -322,6 +322,16 @@ Distancia y ángulo son medidas transitorias en MPR. **Borrar medidas**, cambiar
 serie o cerrar el visor las elimina. No se guardan en la historia ni en telemetría;
 la captura PNG actual contiene el canvas de imagen, sin estas anotaciones SVG.
 
+**Distancia** mide el segmento arrastrado, desde donde se pulsa hasta donde se suelta, en ese
+plano. También admite dos clics. En Cornerstone 4.22 un clic deja una línea pendiente que sigue al
+cursor, y el arrastre siguiente solo movía su extremo: medía desde el clic anterior, y en otro
+plano no dibujaba nada. `dicomLengthGesture.ts` fija el inicio en el punto pulsado cuando el
+arrastre supera la tolerancia de 3 px de Cornerstone, y descarta la línea pendiente si se pulsa
+otro plano. Medido con el volumen sintético: un clic seguido de un arrastre de 28,8 mm marcaba
+39,9 mm, con el inicio a 83 px del punto pulsado. La geometría no era la causa: sin clic previo
+los extremos quedan a menos de 1 px del arrastre con densidad de píxeles 1 y 2, plano ampliado,
+pantalla completa y ventana reducida.
+
 3D permite elegir apariencia por modalidad (CT: hueso, tejidos blandos, músculo,
 grasa, pulmón; RM: general/T2), ajustar opacidad e iluminación, y desplazar los umbrales
 CT en HU. Son funciones de transferencia de intensidad, **no segmentación de órganos**.
