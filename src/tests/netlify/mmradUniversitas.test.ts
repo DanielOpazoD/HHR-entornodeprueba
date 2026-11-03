@@ -195,6 +195,38 @@ describe('MMRAD Universitas viewer', () => {
     expect(request.cookie).toBe(COOKIE);
   });
 
+  it("accepts MMRAD's registration only for the same RUT number with another check digit", async () => {
+    const handler = createMMRADDicomHandler({
+      authorizeRoleRequest: vi
+        .fn()
+        .mockResolvedValue({ token: { sub: 'synthetic-user' }, role: 'doctor_urgency' }),
+      getFirebaseServer: vi.fn().mockReturnValue({ db: {} }),
+      loadVendorStudyMetadata: vi.fn(),
+      loadUniversitasManifest: vi.fn().mockResolvedValue({ access: ACCESS, manifest: manifest() }),
+    });
+    const metadata = (registeredPatientId?: string) =>
+      handler({
+        httpMethod: 'POST',
+        headers: { origin: 'https://app.example.com', authorization: 'Bearer synthetic-token' },
+        body: JSON.stringify({
+          action: 'metadata',
+          link: PORTLET,
+          patientId: '11.111.111-1',
+          registeredPatientId,
+        }),
+      });
+
+    const registered = await metadata('11.111.111-7');
+    expect(registered.statusCode).toBe(200);
+    expect(JSON.parse(registered.body)).toMatchObject({
+      patientId: '111111111',
+      registeredPatientId: '111111117',
+    });
+    expect(JSON.parse((await metadata()).body)).not.toHaveProperty('registeredPatientId');
+    for (const other of ['11.111.111-1', '22.222.222-2', 'AB1111111'])
+      expect((await metadata(other)).statusCode).toBe(400);
+  });
+
   it('opens a Universitas study end to end through the protected function', async () => {
     const authorize = vi
       .fn()

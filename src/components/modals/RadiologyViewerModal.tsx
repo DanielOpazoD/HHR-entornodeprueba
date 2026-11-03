@@ -101,6 +101,9 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
   const openedForRutRef = useRef<string | null>(null);
 
   const uniquePatients = useMemo(() => buildUniqueRadiologyPatients(patients), [patients]);
+  const selectedPatientName = uniquePatients.find(
+    patient => normalizeDicomPatientId(patient.rut) === normalizedRut
+  )?.patientName;
 
   const modalities = useMemo(
     () => (result ? extractMMRADModalities(result.examenes) : []),
@@ -166,6 +169,13 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
     return () => clearInterval(interval);
   }, [isForegroundLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const patientsRef = useRef(uniquePatients);
+  patientsRef.current = uniquePatients;
+  const patientNameOf = (rut: string) =>
+    patientsRef.current.find(
+      patient => normalizeDicomPatientId(patient.rut) === normalizeDicomPatientId(rut)
+    )?.patientName;
+
   // Shows the list remembered in this session at once and refreshes it in the background.
   const runSearch = useCallback(async (rut: string, from: string, to: string) => {
     if (!rut) return;
@@ -184,6 +194,8 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
     try {
       const data = await searchMMRADExams({
         rut,
+        // The census name lets MMRAD's mistyped check digits be matched (see mmrad-search).
+        patientName: patientNameOf(rut),
         dateFrom: from || undefined,
         dateTo: to || undefined,
       });
@@ -417,10 +429,9 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
             reviewCache={reviewCache}
             link={dicomExam.dicom_url}
             patientId={selectedRut}
-            patientName={
-              uniquePatients.find(patient => normalizeDicomPatientId(patient.rut) === normalizedRut)
-                ?.patientName
-            }
+            registeredPatientId={dicomExam.registered_patient_id}
+            registeredPatientName={dicomExam.registered_patient_name}
+            patientName={selectedPatientName}
             studyDate={dicomExam.fecha_examen}
             reportLink={dicomExam.pdf_url}
             title={dicomExam.nombre_examen}

@@ -19,7 +19,7 @@ export const validateDicomInstanceIdentity = (
     data.string('x00080018') !== instance.uid ||
     !study.patientId ||
     normalizeDicomPatientId(data.string('x00100020') || '') !==
-      normalizeDicomPatientId(study.patientId)
+      normalizeDicomPatientId(study.registeredPatientId || study.patientId)
   )
     throw new Error('Un original DICOM no corresponde al paciente o al estudio seleccionado.');
 };
