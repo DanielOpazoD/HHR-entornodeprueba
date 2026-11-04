@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const functions = require('firebase-functions/v1');
 const { DOCUMENTARY_FIELD_CONTRACT_VERSION } = require('./rayenDocumentaryCudyrPolicy');
+const { RAYEN_CLINICAL_FIELDS } = require('./dailyRecordAuthorityContract');
 
 const MAX_BATCH_TARGETS = 32;
 const MAX_BATCH_BYTES = 500_000;
@@ -8,16 +9,7 @@ const MAX_PERSISTED_DOCUMENT_BYTES = 900_000;
 const MAX_RECEIPTS = 16;
 const CANONICAL_FIELD_CONTRACT_VERSION = 2;
 
-const ALLOWED_FIELDS = new Set([
-  'devices',
-  'deviceDetails',
-  'deviceInstanceHistory',
-  'evaluationScores',
-  'vitalSigns',
-  'vitalSignsHistory',
-  'clinicalSyncCheckpoint',
-  'clinicalCarryover',
-]);
+const ALLOWED_FIELDS = new Set(RAYEN_CLINICAL_FIELDS);
 const CHECKPOINT_FIELD = 'clinicalSyncCheckpoint';
 
 const MISMATCH_SECTION_BY_FIELD = Object.freeze({

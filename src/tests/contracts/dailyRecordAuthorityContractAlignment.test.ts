@@ -26,6 +26,7 @@ import { RAYEN_OWNED_CLINICAL_FIELDS } from '@/types/domain/rayenClinicalFields'
 const require = createRequire(import.meta.url);
 const serverContract = require('../../../functions/lib/dailyRecordAuthorityContract.js');
 const serverPreservation = require('../../../functions/lib/dailyRecordClinicalFieldPreservation.js');
+const serverEnrichmentPolicy = require('../../../functions/lib/rayenClinicalEnrichmentPolicy.js');
 
 describe('contrato único de autoridad · alineación entre capas', () => {
   it('cliente y servidor cargan EXACTAMENTE el mismo módulo de contrato', () => {
@@ -43,6 +44,10 @@ describe('contrato único de autoridad · alineación entre capas', () => {
     // RAYEN_OWNED_CLINICAL_FIELDS conserva su literal por el tipado
     // `satisfies keyof PatientData`; este pin impide su deriva.
     expect([...RAYEN_OWNED_CLINICAL_FIELDS]).toEqual([...RAYEN_CLINICAL_FIELDS]);
+  });
+
+  it('el lote clínico del servidor acepta exactamente los campos Rayen del contrato', () => {
+    expect([...serverEnrichmentPolicy.ALLOWED_FIELDS]).toEqual([...RAYEN_CLINICAL_FIELDS]);
   });
 
   it('la preservación del servidor consume el contrato (dispositivos vs lote)', () => {

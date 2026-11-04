@@ -10,7 +10,8 @@ export type CanonicalClinicalField =
   | 'vitalSigns'
   | 'vitalSignsHistory'
   | 'clinicalSyncCheckpoint'
-  | 'clinicalCarryover';
+  | 'clinicalCarryover'
+  | 'clinicalAlerts';
 
 const sortedByCanonicalValue = <T>(items: T[]): T[] =>
   [...items].sort((left, right) =>
@@ -86,6 +87,9 @@ const normalizeClinicalFieldValue = (
     return sortedByCanonicalValue<unknown>(Array.isArray(value) ? [...value] : []);
   }
   if (field === 'evaluationScores') return normalizeEvaluationScores(value);
+  if (field === 'clinicalAlerts') {
+    return sortedByCanonicalValue<unknown>(Array.isArray(value) ? [...value] : []);
+  }
   return value;
 };
 

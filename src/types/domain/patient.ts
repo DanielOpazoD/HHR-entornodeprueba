@@ -1,4 +1,5 @@
 import type { ClinicalCarryover } from './clinicalCarryover';
+import type { PatientClinicalAlert } from './clinicalAlerts';
 import type { NeonatalPlacementDecision } from './neonatalPlacementDecision';
 import type { PatientIdentityStatus } from './patientIdentity';
 import type { Specialty, PatientStatus } from './patientClassification';
@@ -188,6 +189,9 @@ export interface PatientData {
   /** Versioned, privacy-safe cursors for incremental Eloisa clinical enrichment. */
   clinicalSyncCheckpoint?: ClinicalSyncCheckpoint;
   clinicalCarryover?: ClinicalCarryover;
+
+  /** Active «Alertas» notes of the Eloísa chart, newest first, from the day's sync. */
+  clinicalAlerts?: PatientClinicalAlert[];
 
   // Obstetric delivery tracking (Ginecobstetricia only)
   deliveryRoute?: DeliveryRoute;

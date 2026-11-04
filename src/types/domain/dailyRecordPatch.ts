@@ -6,6 +6,7 @@ import type { CudyrScore } from './cudyr';
 import type { DeviceDetails, DeviceInstance } from './devices';
 import type { ImportedCudyr, PatientEvaluationScores } from './evaluationScores';
 import type { PatientVitalSigns } from './vitalSigns';
+import type { PatientClinicalAlert } from './clinicalAlerts';
 import type { FhirResource } from './fhir';
 import type { CMAData, DischargeData, TransferData } from './movements';
 import type {
@@ -128,6 +129,7 @@ export type DailyRecordPatch = {
                   | PatientEvaluationScores
                   | PatientVitalSigns
                   | PatientVitalSigns[]
+                  | PatientClinicalAlert[]
                   | PatientStatus
                   | Specialty
                   | ClinicalEvent[]
