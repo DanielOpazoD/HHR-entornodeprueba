@@ -11,7 +11,7 @@ import {
 import type { CensusMovementActionKind } from '@/features/census/types/censusMovementActionTypes';
 
 export const MOVEMENT_ACTION_BUTTON_CLASS =
-  'census-movement-action inline-flex h-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-700 transition-colors hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600';
+  'census-movement-action inline-flex h-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-700 transition-colors hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700';
 
 const ACTION_ICONS = {
   undo: RotateCcw,

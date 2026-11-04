@@ -50,7 +50,7 @@ export const DischargeTypeSelector: React.FC<DischargeTypeSelectorProps> = ({
       <div className="pt-1 animate-fade-in">
         <input
           type="text"
-          placeholder="Especifique motivo..."
+          placeholder="Especifique motivo…"
           value={otherDetails}
           onChange={event => onOtherDetailsChange(event.target.value)}
           className={clsx(

@@ -29,14 +29,14 @@ export const ClinicalPanelHeading: React.FC<ClinicalPanelHeadingProps> = ({
       aria-pressed={isWide}
       aria-label={isWide ? 'Reducir panel de lectura' : 'Ampliar panel de lectura'}
       title={isWide ? 'Reducir lectura' : 'Ampliar lectura'}
-      className="hidden size-8 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800 sm:inline-flex focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700"
+      className="hidden size-8 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800 sm:inline-flex focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
     >
       {isWide ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
     </button>
     <button
       type="button"
       onClick={onClose}
-      className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700"
+      className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
       title="Cerrar"
       aria-label="Cerrar panel clínico"
     >

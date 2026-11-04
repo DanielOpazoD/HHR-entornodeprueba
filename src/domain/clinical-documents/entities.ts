@@ -137,6 +137,8 @@ export interface ClinicalDocumentRecord {
     procedimientoCodigo?: string;
     intervencionCodigo?: string;
     tratanteRut?: string;
+    tratanteNombreCompleto?: string;
+    tratanteEspecialidad?: string;
   };
 }
 
