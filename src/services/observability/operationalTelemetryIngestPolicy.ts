@@ -114,6 +114,12 @@ const isRetryableSyncFailure = (operation: string, issues: readonly string[] = [
   issues.length > 0 &&
   issues.every(issue => RETRYABLE_SYNC_ISSUES.has(issue));
 
+/**
+ * A section that could not load (usually a release replaced it while the tab was open) shows its
+ * own reload action in place. The person already has the fix; a mail cannot add anything.
+ */
+const RESOLVED_IN_PLACE_OPERATIONS: ReadonlySet<string> = new Set(['chunk_load_recovery']);
+
 /** Only outcomes that need a human are mailed; everything else is just logged. */
 export const shouldAlertOperationalTelemetry = (
   event: Pick<SanitizedOperationalTelemetryEvent, 'status' | 'operation'> & {
@@ -121,7 +127,9 @@ export const shouldAlertOperationalTelemetry = (
   }
 ): boolean =>
   event.operation === OPERATIONAL_TELEMETRY_PROBE_OPERATION ||
-  (event.status === 'failed' && !isRetryableSyncFailure(event.operation, event.issues));
+  (event.status === 'failed' &&
+    !RESOLVED_IN_PLACE_OPERATIONS.has(event.operation) &&
+    !isRetryableSyncFailure(event.operation, event.issues));
 
 const PRIVACY_NOTE =
   'Por privacidad, los mensajes de error detallados NO salen del dispositivo: quedan solo en el ' +

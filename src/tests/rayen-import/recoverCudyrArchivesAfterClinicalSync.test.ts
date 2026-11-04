@@ -90,7 +90,11 @@ describe('CUDYR recovery after the normal clinical synchronization', () => {
       recoverCudyrArchivesAfterClinicalSync({ status: 'complete' }, 'ready', 'enforced', 'session')
     ).resolves.toBeUndefined();
     expect(mocks.telemetry).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'failed', operation: 'cudyr_archive_recovery_unavailable' })
+      expect.objectContaining({
+        status: 'degraded',
+        runtimeState: 'recoverable',
+        operation: 'cudyr_archive_recovery_unavailable',
+      })
     );
   });
   it.each(['fallback', 'revision'] as const)(
