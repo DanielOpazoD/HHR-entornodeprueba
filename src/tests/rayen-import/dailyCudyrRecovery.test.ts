@@ -3,6 +3,7 @@ import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalF
 import { describe, expect, it, vi } from 'vitest';
 import { createDailyCudyrRecoveryReader } from '@/features/rayen-import/hooks/dailyCudyrRecoveryReader';
 import { captureCudyrMonthlyReport } from '@/services/cudyr/cudyrMonthlyReportCapture';
+import { CudyrReportUnreadableError } from '@/services/cudyr/cudyrSupplementFile';
 import { parseCudyrSupplementBinary } from '@/services/cudyr/cudyrSupplementBinary';
 import { recoverDailyCudyrGap, planDailyCudyrGaps } from '@/services/cudyr/dailyCudyrRecoveryPlan';
 import { resolveHistoricalCudyrBatchOperation } from '@/features/rayen-import/domain/historicalCudyrPatch';
@@ -161,6 +162,35 @@ describe('daily documentary CUDYR recovery', () => {
     });
     expect(capture).toHaveBeenCalledOnce();
     expect(result.current.size).toBe(2);
+  });
+  it.each([
+    [
+      'a report HHR cannot read',
+      new CudyrReportUnreadableError('Fila 9: sintética.'),
+      'invalid_response',
+    ],
+    ['an interrupted read', new Error('synthetic offline'), undefined],
+  ])('tells %s apart in the read failure', async (_case, failure, cause) => {
+    const reader = createDailyCudyrRecoveryReader({
+      signal: new AbortController().signal,
+      now,
+      loadDay: async () => null,
+      capture: async () => {
+        throw failure;
+      },
+    });
+    const result = await reader(historicalDay(), [patient().clinicalEpisodeId], {
+      map: new Map(),
+      historyAvailable: true,
+    });
+    expect(result.errors).toEqual([
+      expect.objectContaining({
+        source: 'cudyr',
+        reason: 'source_unavailable',
+        cudyrRecovery: expect.objectContaining({ kind: 'read_failed' }),
+      }),
+    ]);
+    expect(result.errors[0].cause).toBe(cause);
   });
   it.each([
     'failed',

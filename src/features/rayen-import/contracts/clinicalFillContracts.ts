@@ -182,6 +182,8 @@ export interface ClinicalFillError {
   source: RayenSyncIssueSource;
   /** Bounded cause shared by telemetry and persisted history; never inferred from message copy. */
   reason: RayenSyncIssueReason;
+  /** Read cause known by the producer; otherwise the history derives it from the message. */
+  cause?: ClinicalReadErrorCode;
   /** Transient diagnostic detail. This value is never persisted in synchronization history. */
   message: string;
 }

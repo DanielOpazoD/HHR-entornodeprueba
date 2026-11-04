@@ -35,6 +35,12 @@ describe('the sync history explains why a source could not be read', () => {
     ).not.toContain(message);
   });
 
+  it('keeps the cause the reader already knew instead of guessing it from the message', () => {
+    expect(causeOf({ ...failure('Fila 9: sintética.'), cause: 'invalid_response' })).toBe(
+      'invalid_response'
+    );
+  });
+
   it('leaves out the cause when the failure was not reading a source', () => {
     expect(causeOf(failure('Otro escritor cambió el censo.', 'concurrent_write'))).toBeUndefined();
   });

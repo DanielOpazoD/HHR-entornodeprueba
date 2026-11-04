@@ -1,5 +1,5 @@
 import { requestViaBridgeChannel } from '@/services/transport/extensionRequestChannel';
-import { readCudyrSupplementFile } from './cudyrSupplementFile';
+import { CudyrReportUnreadableError, readCudyrSupplementFile } from './cudyrSupplementFile';
 import { importCudyrSupplement } from './cudyrSupplementService';
 
 type SourceReport = { month: string; base64: string; capturedAt: string };
@@ -52,7 +52,8 @@ export const captureCudyrMonthlyReport = async (
   const bytes = Uint8Array.from(atob(source.base64), c => c.charCodeAt(0));
   const parsed = await ports.readFile(new File([bytes], `Categorizacion_${month}.xls`), signal);
   check();
-  if (parsed.report.month !== month) throw new Error('El informe corresponde a otro mes.');
+  if (parsed.report.month !== month)
+    throw new CudyrReportUnreadableError('El informe corresponde a otro mes.');
   let saved: Awaited<ReturnType<typeof ports.save>>;
   try {
     saved = await ports.save(
