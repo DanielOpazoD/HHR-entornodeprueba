@@ -344,7 +344,7 @@ export const UpcClassificationWindow: React.FC<UpcClassificationWindowProps> = (
           )}
         </ul>
 
-        <div className="flex min-h-0 flex-col items-center overflow-y-auto p-3">
+        <div className="flex min-h-0 flex-col items-stretch overflow-y-auto p-3">
           {selectedRow && selectedPatient && actor ? (
             <UpcBedCriteriaDraftPanel
               row={selectedRow}
@@ -353,7 +353,6 @@ export const UpcClassificationWindow: React.FC<UpcClassificationWindowProps> = (
               saving={isSaving}
               onToggleUci={toggleDraftUci(selectedRow)}
               onToggleUti={toggleDraftUti(selectedRow)}
-              onClose={() => setSelectedRowKey(null)}
               patient={selectedPatient}
               date={currentDateString}
             />
