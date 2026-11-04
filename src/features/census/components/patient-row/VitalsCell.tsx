@@ -12,9 +12,9 @@ import { useClinicalDerivedDayRevision } from './clinicalDerivedDayContext';
 import {
   buildVitalSignsView,
   type VitalReadingView,
-  type VitalStatus,
 } from '@/features/census/controllers/vitalSignsView';
 import { resolveVitalSignsProfile } from '@/utils/vitalSignsProfileResolver';
+import { VITAL_STATUS_TEXT } from './vitalStatusTone';
 
 const VitalsDetailModal = lazy(() =>
   import('./VitalsDetailModal').then(module => ({ default: module.VitalsDetailModal }))
@@ -27,13 +27,6 @@ const CELL_READINGS: ReadonlyArray<{ key: VitalReadingView['key']; label: string
   { key: 'spo2', label: 'SAT' },
   { key: 'temp', label: 'T°' },
 ];
-
-const STATUS_TEXT: Record<VitalStatus, string> = {
-  neutral: 'text-slate-500',
-  normal: 'text-slate-600',
-  warn: 'text-amber-600',
-  alert: 'text-red-600',
-};
 
 const GRID_CLASS =
   'census-vitals-grid mx-auto grid w-full max-w-[144px] grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-x-1 gap-y-0.5 px-0.5 text-left text-[10px] leading-tight tabular-nums';
@@ -89,7 +82,7 @@ export const VitalsCell: React.FC<VitalsCellProps> = ({
                 <span key={key} className={READING_CLASS}>
                   <span className="font-medium text-slate-500">{label}</span>
                   <span
-                    className={`inline-flex min-w-0 items-center justify-center font-semibold ${reading ? STATUS_TEXT[reading.status] : 'text-slate-300'}`}
+                    className={`inline-flex min-w-0 items-center justify-center font-semibold ${reading ? VITAL_STATUS_TEXT[reading.status] : 'text-slate-300'}`}
                   >
                     {reading ? reading.value : '—'}
                   </span>

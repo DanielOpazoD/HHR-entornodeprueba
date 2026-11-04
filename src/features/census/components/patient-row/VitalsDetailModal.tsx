@@ -1,7 +1,7 @@
 /**
- * Detail modal for the census "Signos vitales" column: the latest readings as quiet cards, plus a
+ * Detail modal for the census "Signos vitales" column: the latest readings as cards, plus a
  * scrollable history table grouped by day (several days of measurements), so a patient's trend is
- * easy to review at a glance. Informational only.
+ * easy to review at a glance. Values keep the census cell's severity tone. Informational only.
  */
 
 import React from 'react';
@@ -15,6 +15,7 @@ import {
 } from '@/features/census/controllers/vitalSignsView';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
 import { resolveVitalSignsProfile } from '@/utils/vitalSignsProfileResolver';
+import { VITAL_STATUS_CARD, VITAL_STATUS_TEXT } from './vitalStatusTone';
 import {
   resolveVitalsDetailHistory,
   useClinicalDerivedVitalsHistory,
@@ -113,12 +114,14 @@ export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
             {vitals.readings.map(reading => (
               <div
                 key={reading.key}
-                className="flex flex-col items-center rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-slate-700"
+                className={`flex flex-col items-center rounded-lg border px-2 py-2 text-slate-700 ${VITAL_STATUS_CARD[reading.status]}`}
               >
                 <span className="text-[10px] font-medium uppercase tracking-wide opacity-70">
                   {reading.label}
                 </span>
-                <span className="text-lg font-bold leading-tight tabular-nums">
+                <span
+                  className={`text-lg font-bold leading-tight tabular-nums ${VITAL_STATUS_TEXT[reading.status]}`}
+                >
                   {reading.value}
                 </span>
                 <span className="text-[9px] opacity-60">{reading.unit}</span>
@@ -197,7 +200,7 @@ export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
                             return (
                               <td
                                 key={column.key}
-                                className={`px-2 py-1 text-center ${cell ? 'text-slate-700' : 'text-slate-300'}`}
+                                className={`px-2 py-1 text-center ${cell ? VITAL_STATUS_TEXT[cell.status] : 'text-slate-300'}`}
                               >
                                 {cell ? (
                                   <span className="inline-flex items-center justify-center gap-0.5">

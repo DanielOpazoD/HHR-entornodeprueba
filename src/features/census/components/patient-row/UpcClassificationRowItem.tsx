@@ -9,7 +9,7 @@ export const isAlreadySignedWithoutCriteria = (row: UpcClassificationRow): boole
 const chipClass = (row: UpcClassificationRow): string => {
   if (row.pendingReason) return 'bg-slate-50 text-slate-600 ring-slate-200';
   if (row.classification === 'UPC_UCI') return 'bg-red-50 text-red-700 ring-red-200';
-  if (row.classification === 'UPC_UTI') return 'bg-amber-50 text-amber-800 ring-amber-200';
+  if (row.classification === 'UPC_UTI') return 'bg-amber-50 text-amber-700 ring-amber-200';
   return 'bg-slate-50 text-slate-600 ring-slate-200';
 };
 
