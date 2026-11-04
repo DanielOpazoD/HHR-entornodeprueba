@@ -1,9 +1,14 @@
 /**
- * Legacy mainland-clock interpretation of bulk-report cells from Gestión de Camas.
+ * Bulk-report cells from Gestión de Camas, read on the clock each one was written with.
  *
- * Bulk cells have no zone and may mix clock conventions. Keep this compatibility path for
- * discovery; exact episode API/PDF evidence supplies the confirmed clock. Never pass a local
- * per-episode API clock here: use encounterWallClockInRapaNui before assigning its census day.
+ * Bulk cells have no zone: they print the wall clock of the stored discharge. Measured on
+ * 2026-11-04 against each episode's offset-bearing `endPeriod`: every cell from 2026-08-01 to
+ * 2026-09-22 was mainland time (142/142) and every cell from 2026-09-24 to 2026-11-04 is Rapa Nui
+ * time (97/97, e.g. the 11:55 discharge the responsible confirmed). No discharge fell on 09-23.
+ * July 2026 was mixed (24 mainland, 20 Rapa Nui), as Eloísa's own stored offsets were.
+ * Exact episode API/PDF evidence still supplies the confirmed clock; this is its fallback.
+ * Never pass a local per-episode API clock here: use encounterWallClockInRapaNui before assigning
+ * its census day.
  */
 
 import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
@@ -23,6 +28,8 @@ export interface StatisticalEgresoStamp {
 const pad2 = (value: number): string => String(value).padStart(2, '0');
 
 const SOURCE_TIME_ZONE = 'America/Santiago';
+/** First calendar day whose bulk cells Gestión de Camas prints on the Rapa Nui clock. */
+const RAPA_NUI_CELLS_FROM = '2026-09-23';
 
 interface DateTimeParts {
   year: number;
@@ -110,7 +117,16 @@ export const parseStatisticalEgresoStamp = (fechaEgreso: string): StatisticalEgr
     calendarProbe.getUTCDate() === day;
   if (!isValid) return null;
 
-  return stampFromInstant(mainlandWallClockInstant({ year, month, day, hour, minute }));
+  const calendarIso = `${year}-${pad2(month)}-${pad2(day)}`;
+  if (calendarIso < RAPA_NUI_CELLS_FROM)
+    return stampFromInstant(mainlandWallClockInstant({ year, month, day, hour, minute }));
+  const hhmm = `${pad2(hour)}:${pad2(minute)}`;
+  return {
+    iso: resolveClinicalDayForDateTime(calendarIso, hhmm) ?? calendarIso,
+    calendarIso,
+    hhmm,
+    text: `${pad2(day)}-${pad2(month)}-${year} ${hhmm}`,
+  };
 };
 
 /** Converts an API timestamp carrying an explicit offset/UTC marker into the Rapa Nui census zone. */

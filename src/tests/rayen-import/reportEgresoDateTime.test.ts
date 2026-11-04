@@ -40,6 +40,26 @@ describe('parseStatisticalEgresoStamp', () => {
     });
   });
 
+  it('reads cells from 2026-09-23 on the Rapa Nui clock they print', () => {
+    // Measured 2026-11-04: 97/97 cells since 09-24 equal the episode time in Rapa Nui.
+    expect(parseStatisticalEgresoStamp('02-11-2026 11:55')).toEqual({
+      iso: '2026-11-02',
+      calendarIso: '2026-11-02',
+      hhmm: '11:55',
+      text: '02-11-2026 11:55',
+    });
+  });
+
+  it('keeps a morning discharge after the handoff in its own census day', () => {
+    // Read as mainland time, 09:30 became 07:30 and moved the discharge to the previous day.
+    expect(parseStatisticalEgresoStamp('04-11-2026 09:30')?.iso).toBe('2026-11-04');
+  });
+
+  it('still converts cells up to 2026-09-22 from the mainland clock', () => {
+    expect(parseStatisticalEgresoStamp('22-09-2026 14:10')?.hhmm).toBe('12:10');
+    expect(parseStatisticalEgresoStamp('24-09-2026 14:10')?.hhmm).toBe('14:10');
+  });
+
   it('returns null for an unparseable or impossible stamp', () => {
     expect(parseStatisticalEgresoStamp('')).toBeNull();
     expect(parseStatisticalEgresoStamp('sin fecha')).toBeNull();
