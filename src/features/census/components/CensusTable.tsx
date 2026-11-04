@@ -287,7 +287,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
               <button
                 type="button"
                 onClick={onClearAttentionFilter}
-                className="rounded-md px-2 py-1 font-semibold text-teal-700 transition-colors hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-600"
+                className="rounded-md px-2 py-1 font-semibold text-teal-700 transition-colors hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700"
               >
                 Ver censo completo
               </button>

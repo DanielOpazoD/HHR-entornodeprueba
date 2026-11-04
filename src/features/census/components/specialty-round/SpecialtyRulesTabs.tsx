@@ -52,7 +52,7 @@ export const SpecialtyRulesTabs = ({
             onChange(tabs[next][0]);
             refs.current[next]?.focus();
           }}
-          className={`border-b-2 px-3 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600 ${
+          className={`border-b-2 px-3 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 ${
             active === key
               ? 'border-teal-700 text-teal-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'

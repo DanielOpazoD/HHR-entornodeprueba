@@ -1,5 +1,3 @@
-import clsx from 'clsx';
-
 export interface PatientBedIndicatorsParams {
   isCunaMode: boolean;
   hasCompanion: boolean;
@@ -31,31 +29,3 @@ export const resolvePatientBedIndicators = ({
 
   return indicators;
 };
-
-export const resolveCompanionButtonModel = (hasCompanion: boolean) => ({
-  className: clsx(
-    'text-[10px] font-bold uppercase tracking-tight px-2 py-2.5 rounded-md flex items-center justify-between transition-all w-full group/item',
-    hasCompanion
-      ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-      : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
-  ),
-  dotClassName: clsx(
-    'w-1.5 h-1.5 rounded-full transition-all',
-    hasCompanion ? 'bg-emerald-500 scale-125 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-300'
-  ),
-});
-
-export const resolveClinicalCribButtonModel = (hasClinicalCrib: boolean) => ({
-  className: clsx(
-    'text-[10px] font-bold uppercase tracking-tight px-2 py-2.5 rounded-md flex items-center justify-between transition-all w-full group/item',
-    hasClinicalCrib
-      ? 'bg-purple-50 text-purple-700 hover:bg-purple-100'
-      : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
-  ),
-  dotClassName: clsx(
-    'w-1.5 h-1.5 rounded-full transition-all',
-    hasClinicalCrib
-      ? 'bg-purple-500 scale-125 shadow-[0_0_8px_rgba(168,85,247,0.5)]'
-      : 'bg-slate-300'
-  ),
-});

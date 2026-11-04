@@ -65,7 +65,7 @@ export const SyncStatusIndicator: React.FC = () => {
 
   const timeString = lastSyncTime
     ? `Última sync: ${lastSyncTime.toLocaleTimeString('es-CL', { timeZone: CLINICAL_TIME_ZONE, hour: '2-digit', minute: '2-digit' })}`
-    : 'Esperando conexión...';
+    : 'Esperando conexión…';
 
   return (
     <div

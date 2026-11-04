@@ -90,7 +90,7 @@ export const TransferReceivingSection: React.FC<TransferReceivingSectionProps> =
               )}
               value={receivingCenterOther}
               onChange={event => onReceivingCenterOtherChange(event.target.value)}
-              placeholder="Nombre del centro..."
+              placeholder="Nombre del centro…"
               autoFocus
             />
             {otherCenterError && (

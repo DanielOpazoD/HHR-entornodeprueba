@@ -77,7 +77,8 @@ export const BookmarkEditorModal: React.FC<BookmarkEditorModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={initialData ? 'Editar Marcador' : 'Nuevo Marcador'}
-      icon={<BookmarkIcon size={14} className="text-slate-400" />}
+      icon={<BookmarkIcon size={14} />}
+      headerIconColor="text-slate-500"
       variant="white"
       size="sm"
       className="!rounded-lg border-slate-100 shadow-xl"

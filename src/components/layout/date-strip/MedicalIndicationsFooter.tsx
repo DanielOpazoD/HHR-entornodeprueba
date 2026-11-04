@@ -47,7 +47,7 @@ export const MedicalIndicationsFooter: React.FC<MedicalIndicationsFooterProps> =
         className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-[12px] font-semibold text-emerald-700 shadow-sm transition-all hover:border-emerald-300 hover:bg-emerald-100 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 sm:flex-none"
       >
         <Save size={13} />
-        {isSavingRecord ? 'Guardando...' : 'Guardar indicaciones'}
+        {isSavingRecord ? 'Guardando…' : 'Guardar indicaciones'}
       </button>
       <button
         onClick={onPrint}
@@ -55,7 +55,7 @@ export const MedicalIndicationsFooter: React.FC<MedicalIndicationsFooterProps> =
         className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-b from-medical-500 to-medical-600 px-4 py-1.5 text-[12px] font-semibold text-white shadow-md shadow-medical-600/25 transition-all hover:from-medical-600 hover:to-medical-700 hover:shadow-lg hover:shadow-medical-600/30 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none sm:flex-none"
       >
         <Printer size={13} />
-        {isPrinting ? 'Generando...' : 'Imprimir PDF'}
+        {isPrinting ? 'Generando…' : 'Imprimir PDF'}
       </button>
     </div>
   </div>

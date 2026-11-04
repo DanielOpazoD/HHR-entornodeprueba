@@ -165,7 +165,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
                     ? 'border-red-300 focus:ring-red-100'
                     : config.inputFocusClass
                 )}
-                placeholder="Nombre completo..."
+                placeholder="Nombre completo…"
                 value={newStaffName}
                 onChange={event => {
                   setNewStaffName(event.target.value);

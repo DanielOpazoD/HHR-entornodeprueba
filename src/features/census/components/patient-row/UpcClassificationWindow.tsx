@@ -292,7 +292,8 @@ export const UpcClassificationWindow: React.FC<UpcClassificationWindowProps> = (
       isOpen
       onClose={requestClose}
       title={`Clasificación UPC · ${rows.length} ${rows.length === 1 ? 'cama ocupada' : 'camas ocupadas'}`}
-      icon={<ShieldCheck size={16} className="text-medical-700" aria-hidden="true" />}
+      icon={<ShieldCheck aria-hidden="true" />}
+      headerIconColor="text-medical-700"
       size="5xl"
       closeOnBackdrop
       headerActions={
@@ -344,7 +345,7 @@ export const UpcClassificationWindow: React.FC<UpcClassificationWindowProps> = (
           )}
         </ul>
 
-        <div className="flex min-h-0 flex-col items-center overflow-y-auto p-3">
+        <div className="flex min-h-0 flex-col items-stretch overflow-y-auto p-3">
           {selectedRow && selectedPatient && actor ? (
             <UpcBedCriteriaDraftPanel
               row={selectedRow}
@@ -353,7 +354,6 @@ export const UpcClassificationWindow: React.FC<UpcClassificationWindowProps> = (
               saving={isSaving}
               onToggleUci={toggleDraftUci(selectedRow)}
               onToggleUti={toggleDraftUti(selectedRow)}
-              onClose={() => setSelectedRowKey(null)}
               patient={selectedPatient}
               date={currentDateString}
             />

@@ -74,7 +74,7 @@ export const UpcChecklistCell: React.FC<UpcChecklistCellProps> = ({
         }
         aria-haspopup="dialog"
         className={clsx(
-          'inline-flex min-h-8 min-w-8 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-1 text-[10px] font-semibold leading-tight transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-700',
+          'inline-flex min-h-8 min-w-8 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-1 text-[10px] font-semibold leading-tight transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700',
           !reviewReason && 'min-w-[56px]',
           readOnly && 'cursor-default',
           freshnessPause.pauseClassName,

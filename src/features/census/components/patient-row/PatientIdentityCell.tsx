@@ -346,7 +346,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                   {!physicianReadOnly && onMultipleUpdate && data.clinicalEpisodeId?.trim() && (
                     <button
                       type="button"
-                      className="rounded p-0.5 text-slate-400 opacity-0 transition-opacity hover:text-slate-700 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-500 group-hover/physician:opacity-100"
+                      className="rounded p-0.5 text-slate-400 opacity-0 transition-opacity hover:text-slate-700 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700 group-hover/physician:opacity-100"
                       aria-label={`Quitar médico tratante ${visibleTreatingPhysicianName}`}
                       title={`Quitar médico tratante ${visibleTreatingPhysicianName}`}
                       onClick={() =>
