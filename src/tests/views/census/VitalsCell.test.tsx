@@ -174,7 +174,7 @@ describe('VitalsCell', () => {
     expect(screen.getByText('88')).toHaveClass('text-red-600');
   });
 
-  it('keeps age-only readings neutral and aligned between the cell and history table', async () => {
+  it('keeps age-only readings aligned between the cell and history table', async () => {
     const latest = { ...VITALS, heartRate: 79 };
     renderCell(latest, 'R3', {
       age: '21d',
@@ -194,10 +194,33 @@ describe('VitalsCell', () => {
     const historySection = (await screen.findByText('Historial · 2 tomas')).closest('section');
     expect(historySection).not.toBeNull();
     const history = within(historySection as HTMLElement);
-    expect(history.getByText('79').closest('td')).toHaveClass('text-slate-700');
+    // The latest row keeps the census cell's tone; an older one cannot be classified by age alone.
+    expect(screen.getAllByText('79')[0]).toHaveClass('text-red-600');
+    expect(history.getByText('79').closest('td')).toHaveClass('text-red-600');
     expect(
       history.getByText('79').parentElement?.querySelector('[aria-label="Fuera de rango"]')
     ).toBeNull();
-    expect(history.getByText('78').closest('td')).toHaveClass('text-slate-700');
+    expect(history.getByText('78').closest('td')).toHaveClass('text-slate-500');
+  });
+
+  it('keeps the severity tone of the census cell in the detail cards and history', async () => {
+    renderCell(VITALS, 'R3', {
+      age: '52',
+      birthDate: undefined,
+      vitalSignsHistory: [VITALS, { ...VITALS, recordedAt: '11-07-2026 06:00' }],
+    });
+    expect(screen.getByText('88')).toHaveClass('text-red-600');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+    await screen.findByText('Última toma');
+    const dialog = within(screen.getByRole('dialog'));
+    const card = dialog.getAllByText('88')[0];
+    expect(card).toHaveClass('text-red-600');
+    expect(card.parentElement).toHaveClass('border-red-200', 'bg-red-50');
+    const history = within(
+      (await screen.findByText('Historial · 2 tomas')).closest('section') as HTMLElement
+    );
+    // Newest first: the latest row matches the cell.
+    expect(history.getAllByText('88')[0].closest('td')).toHaveClass('text-red-600');
   });
 });

@@ -177,6 +177,17 @@ describe('ScoresDetailModal', () => {
     expect(screen.getByRole('tab', { name: 'Braden' })).toHaveAttribute('aria-selected', 'true');
   });
 
+  it('shows risk in the same tone as the census Scores chip', async () => {
+    const user = userEvent.setup();
+    render(
+      <ScoresDetailModal patientName="Paciente de prueba" model={model()} onClose={vi.fn()} />
+    );
+    expect(screen.getByText('22')).toHaveClass('text-emerald-600');
+    expect(screen.getAllByText('Riesgo bajo')[0]).toHaveClass('text-emerald-700');
+    await user.click(screen.getByRole('tab', { name: 'Downton' }));
+    expect(screen.getAllByText('Riesgo medio')[0]).toHaveClass('text-amber-700');
+  });
+
   it('keeps both tabs available when a scale has no result', async () => {
     const user = userEvent.setup();
     const empty = { ...model(), braden: null, downton: null, history: [] };
