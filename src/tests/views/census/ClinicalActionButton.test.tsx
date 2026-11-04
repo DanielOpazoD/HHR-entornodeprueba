@@ -27,7 +27,7 @@ describe('ClinicalActionButton', () => {
         clinical: 'medical',
         laboratory: 'emerald',
         radiology: 'violet',
-        documents: 'teal',
+        documents: 'indigo',
       }[tone];
       expect(button).toHaveClass('bg-transparent', `text-${color}-700`);
       expect(button).not.toHaveClass('text-slate-600');
