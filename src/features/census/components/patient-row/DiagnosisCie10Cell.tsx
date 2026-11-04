@@ -47,7 +47,7 @@ const DiagnosisCie10Cell = ({
           isSubRow && 'text-xs h-6',
           freshnessPause.pauseClassName
         )}
-        placeholder="Buscar diagnóstico CIE-10..."
+        placeholder="Buscar diagnóstico CIE-10…"
         value={
           data.cie10Description || (data.cie10Code ? getCIE10Description(data.cie10Code) : '') || ''
         }

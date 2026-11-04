@@ -26,7 +26,7 @@ export const CensusEmailTestModeSection: React.FC<CensusEmailTestModeSectionProp
           <h4 className="text-[9px] font-bold text-blue-800 uppercase tracking-wider">
             Modo Prueba
           </h4>
-          <p className="text-[8px] text-blue-600/80 font-medium">Solo a cuenta de validación.</p>
+          <p className="text-[9px] text-blue-600/80 font-medium">Solo a cuenta de validación.</p>
         </div>
         <label className="relative inline-flex items-center cursor-pointer">
           <input

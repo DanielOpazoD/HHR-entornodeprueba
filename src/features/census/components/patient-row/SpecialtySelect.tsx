@@ -47,7 +47,7 @@ export const SpecialtySelect: React.FC<SpecialtySelectProps> = ({
             )}
             value={data.specialty === 'Otro' ? '' : data.specialty || ''}
             onChange={val => dispatchTextChangeValue(onChange, 'specialty', val)}
-            placeholder="Especifique..."
+            placeholder="Especifique…"
             autoFocus
             disabled={readOnly}
             title={readOnlyReason}

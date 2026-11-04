@@ -51,7 +51,7 @@ export const RayenEncounterButton: React.FC<RayenEncounterButtonProps> = ({
       onClick={() => void handleOpen()}
       disabled={isOpening}
       aria-busy={isOpening}
-      className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-teal-100 bg-teal-50 transition-colors hover:border-teal-200 hover:bg-teal-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-600 disabled:cursor-progress disabled:opacity-60"
+      className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-teal-100 bg-teal-50 transition-colors hover:border-teal-200 hover:bg-teal-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700 disabled:cursor-progress disabled:opacity-60"
       title="Abrir este episodio en Ficha Médico"
       aria-label={`Abrir a ${patientName} en Eloísa`}
     >

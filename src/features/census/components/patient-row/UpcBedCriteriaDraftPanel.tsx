@@ -14,7 +14,6 @@ interface UpcBedCriteriaDraftPanelProps {
   date: string;
   onToggleUci: (id: string) => void;
   onToggleUti: (id: string) => void;
-  onClose: () => void;
 }
 
 /**
@@ -30,7 +29,6 @@ export const UpcBedCriteriaDraftPanel: React.FC<UpcBedCriteriaDraftPanelProps> =
   date,
   onToggleUci,
   onToggleUti,
-  onClose,
 }) => {
   const uci = new Set(criteria.uci);
   const uti = new Set(criteria.uti);
@@ -47,7 +45,7 @@ export const UpcBedCriteriaDraftPanel: React.FC<UpcBedCriteriaDraftPanelProps> =
       uciAllowed={row.uciAllowed}
       onToggleUci={onToggleUci}
       onToggleUti={onToggleUti}
-      onClose={onClose}
+      embedded
       historyContent={<UpcEvaluationHistoryPanel patient={patient} date={date} />}
     />
   );
