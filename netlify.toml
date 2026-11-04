@@ -1,5 +1,6 @@
 [build]
-  command = "npm ci && npm run build"
+  # The last step keeps recent releases' /assets/* reachable for tabs opened before this one.
+  command = "npm ci && npm run build && node scripts/link-previous-release-assets.mjs"
   publish = "dist"
   functions = "netlify/functions"
 
