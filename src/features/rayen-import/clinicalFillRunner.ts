@@ -7,6 +7,7 @@ import { parseHistoryScales } from './mapping/parseHistoryScales';
 import { parseEvaluationScales } from './mapping/parseEvaluationScales';
 import { mergeScaleSources } from './mapping/mergeScaleSources';
 import { parseVitalSigns } from './mapping/parseVitalSigns';
+import { parseClinicalAlerts } from './mapping/parseClinicalAlerts';
 import { mergeReportVitals } from './domain/mergeReportVitals';
 import { inferNursingShifts, type NursingActivityObservation } from './domain/inferNursingShifts';
 import { createConcurrencyGate } from './domain/concurrencyGate';
@@ -177,20 +178,22 @@ export const runClinicalFill = async (
       fecha,
       deps.now()
     );
-    const [deviceResult, historyResult, formsResult] = await readClinicalPatientSources({
-      encId,
-      fecha,
-      lookbackDays: historyReadPolicy.lookbackDays,
-      pendingReads: deps.pendingReads,
-      deps,
-      performance,
-      slots: {
-        devices: withDeviceReadSlot,
-        history: withHistoryReadSlot,
-        forms: withFormsReadSlot,
-        bundle: withBundleReadSlot,
-      },
-    });
+    const [deviceResult, historyResult, formsResult, alertsRead] = await readClinicalPatientSources(
+      {
+        encId,
+        fecha,
+        lookbackDays: historyReadPolicy.lookbackDays,
+        pendingReads: deps.pendingReads,
+        deps,
+        performance,
+        slots: {
+          devices: withDeviceReadSlot,
+          history: withHistoryReadSlot,
+          forms: withFormsReadSlot,
+          bundle: withBundleReadSlot,
+        },
+      }
+    );
     if (deviceResult.status === 'rejected') {
       reportPatientError('devices', message(deviceResult.reason));
     } else if (deviceResult.status === 'fulfilled') {
@@ -199,6 +202,12 @@ export const runClinicalFill = async (
       } catch (error) {
         reportPatientError('devices', message(error));
       }
+    }
+    // Eloísa lists the alerts active now: a failed, skipped or missing read keeps the stored ones
+    // and the next sync reads them again. Only its timeout is counted, as for the other sources.
+    performance.recordTimeout(alertsRead?.error);
+    if (alertsRead && !alertsRead.error && !alertsRead.skipped) {
+      merged = { ...merged, clinicalAlerts: parseClinicalAlerts(alertsRead.alerts) };
     }
     // One forms read supplies both scales and vital signs.
     const formsReadError =

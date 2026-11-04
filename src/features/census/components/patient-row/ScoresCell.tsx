@@ -3,12 +3,13 @@
  * each with its OWN visual identity (Braden violet · Downton indigo · CUDYR teal) — see
  * `ScaleChip` for the anatomy (identity | value-by-severity | separated reapplication countdown).
  * Hovering a chip shows the sticky note with when it was applied and by whom. Clicking the cell
- * opens the detail modal with the conducta and the unified risk history. Read-only by design:
- * Ficha Médico is the source of truth (ownership `remoteCanonical`).
+ * opens the detail modal with the conducta and the unified risk history. Below them, an «Alertas»
+ * button lists the active notes of the Eloísa chart. Read-only by design: Ficha Médico is the
+ * source of truth (ownership `remoteCanonical`).
  */
 
 import React, { lazy, useState } from 'react';
-import { Bandage, ClipboardList, Footprints } from 'lucide-react';
+import { AlertTriangle, Bandage, ClipboardList, Footprints } from 'lucide-react';
 import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
 import { ClinicalDetailLoadBoundary } from './ClinicalDetailLoadBoundary';
@@ -21,6 +22,9 @@ import { cudyrModality } from '@/domain/cudyr/cudyrModality';
 
 const ScoresDetailModal = lazy(() =>
   import('./ScoresDetailModal').then(module => ({ default: module.ScoresDetailModal }))
+);
+const ClinicalAlertsModal = lazy(() =>
+  import('./ClinicalAlertsModal').then(module => ({ default: module.ClinicalAlertsModal }))
 );
 
 interface ScoresCellProps extends BaseCellProps {
@@ -47,6 +51,7 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
   currentDateString,
 }) => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isAlertsOpen, setIsAlertsOpen] = useState(false);
 
   if (isEmpty && !isSubRow) {
     return <PatientEmptyCell tdClassName="py-0.5 px-1 border-r border-slate-200 relative" />;
@@ -63,7 +68,8 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
     isCudyrPatientEligible(currentDateString, data)
       ? resolveCudyrPendingStatus(currentDateString)
       : null;
-  const hasCellContent = model.hasAny || cudyrPending != null;
+  const alerts = data.clinicalAlerts ?? [];
+  const hasCellContent = model.hasAny || cudyrPending != null || alerts.length > 0;
 
   return (
     <td className="py-0.5 px-1 border-r border-slate-200 relative">
@@ -159,6 +165,24 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
               <span>{cudyrPending.label}</span>
             </div>
           )}
+          {alerts.length > 0 && (
+            <button
+              type="button"
+              onClick={e => {
+                e.stopPropagation();
+                setIsAlertsOpen(true);
+              }}
+              className="flex w-full cursor-pointer items-center justify-between gap-1 rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-700"
+              aria-label={`Ver ${alerts.length === 1 ? '1 alerta' : `${alerts.length} alertas`} de la ficha de Eloísa`}
+              data-testid="clinical-alerts-button"
+            >
+              <span className="flex items-center gap-0.5">
+                <AlertTriangle size={10} aria-hidden="true" />
+                Alertas
+              </span>
+              <span className="tabular-nums">{alerts.length}</span>
+            </button>
+          )}
         </div>
       ) : (
         <div
@@ -180,6 +204,18 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
             importedCudyr={data.evaluationScores?.cudyr}
             model={model}
             onClose={() => setIsDetailOpen(false)}
+          />
+        </ClinicalDetailLoadBoundary>
+      )}
+      {isAlertsOpen && (
+        <ClinicalDetailLoadBoundary
+          title={`Alertas de la ficha — ${data.patientName}`}
+          onClose={() => setIsAlertsOpen(false)}
+        >
+          <ClinicalAlertsModal
+            patientName={data.patientName}
+            alerts={alerts}
+            onClose={() => setIsAlertsOpen(false)}
           />
         </ClinicalDetailLoadBoundary>
       )}

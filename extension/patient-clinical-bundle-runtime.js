@@ -1,18 +1,14 @@
 /**
- * One patient's three clinical reads (devices + scales history + forms) resolved in a single
- * runtime message (capability "patient-clinical-bundle"): fewer MV3 round-trips and ONE timeout
- * window instead of three. Each section degrades independently ({error}) so HHR keeps its
+ * One patient's clinical reads (devices + scales history + forms + chart alerts) resolved in a
+ * single runtime message (capability "patient-clinical-bundle"): fewer MV3 round-trips and ONE
+ * timeout window. Each section degrades independently ({error}) so HHR keeps its
  * per-source coverage classification. Classic UMD for the MV3 service worker.
  */
 (function (root) {
   'use strict';
 
-  const create = ({ readDevices, readHistory, readForms }) => {
-    if (
-      typeof readDevices !== 'function' ||
-      typeof readHistory !== 'function' ||
-      typeof readForms !== 'function'
-    ) {
+  const create = ({ readDevices, readHistory, readForms, readAlerts }) => {
+    if ([readDevices, readHistory, readForms, readAlerts].some(read => typeof read !== 'function')) {
       throw new Error('Falta un lector clínico para el paquete por paciente.');
     }
     const section = async read => {
@@ -24,12 +20,13 @@
       }
     };
     return async ({ encId, fecha, censusDate, lookbackDays, acceptEntries, sender }) => {
-      const [devices, history, forms] = await Promise.all([
+      const [devices, history, forms, alerts] = await Promise.all([
         section(() => readDevices({ encId, fecha, acceptEntries: acceptEntries === true })),
         section(() => readHistory({ encId, censusDate, lookbackDays })),
         section(() => readForms({ encId, sender })),
+        section(() => readAlerts({ encId, fecha, sender })),
       ]);
-      return { ok: true, devices, history, forms };
+      return { ok: true, devices, history, forms, alerts };
     };
   };
 

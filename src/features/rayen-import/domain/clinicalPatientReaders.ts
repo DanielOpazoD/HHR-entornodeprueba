@@ -60,8 +60,8 @@ const settleOnce = async <T>(
 };
 
 /**
- * Las tres lecturas de Eloísa de un paciente (dispositivos, historial de
- * escalas y formularios) viajan en un solo mensaje. Una sección que falle se
+ * Las lecturas de Eloísa de un paciente (dispositivos, historial de escalas,
+ * formularios y alertas) viajan en un solo mensaje. Una sección que falle se
  * reintenta una única vez por su canal individual. Las recuperaciones parciales
  * consultan sólo las fuentes pendientes por sus canales individuales.
  */
@@ -137,7 +137,7 @@ const readPatientSources = async ({
       needs(source)
         ? settleOnce(read, deps.signal)
         : Promise.resolve({ status: 'skipped' } as const);
-    const results = await Promise.all([
+    const [devices, history, forms] = await Promise.all([
       selected('devices', () =>
         retryClinicalReadOnce(readDevices, () => false, countRetry, deps.signal)
       ),
@@ -149,7 +149,8 @@ const readPatientSources = async ({
       ),
     ]);
     deps.signal?.throwIfAborted();
-    return results;
+    // Alerts travel only in the bundle; without it the stored alerts stay as they are.
+    return [devices, history, forms, undefined] as const;
   }
 
   const devicesResult = (async (): Promise<PromiseSettledResult<DeviceRead>> => {
@@ -176,9 +177,9 @@ const readPatientSources = async ({
     return settleOnce(readForms, deps.signal);
   })();
 
-  const results = await Promise.all([devicesResult, historyResult, formsResult]);
+  const [devices, history, forms] = await Promise.all([devicesResult, historyResult, formsResult]);
   deps.signal?.throwIfAborted();
-  return results;
+  return [devices, history, forms, bundle.alerts] as const;
 };
 
 export const readClinicalPatientSources = async (input: ClinicalPatientReadInput) => {
@@ -188,6 +189,6 @@ export const readClinicalPatientSources = async (input: ClinicalPatientReadInput
     if (!input.deps.signal?.aborted || reason !== input.deps.signal.reason) throw reason;
     // Preserve the runner's settled-results contract without exposing late successes.
     const cancelled = { status: 'rejected' as const, reason: input.deps.signal.reason ?? reason };
-    return [cancelled, cancelled, cancelled] as const;
+    return [cancelled, cancelled, cancelled, undefined] as const;
   }
 };

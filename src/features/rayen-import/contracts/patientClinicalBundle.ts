@@ -34,6 +34,15 @@ export interface RayenScalesFormsResult extends ClinicalReadFailure {
 }
 
 /**
+ * Notas de «Alertas» de la ficha tal como las entrega Eloísa. Son las vigentes al leer, por eso
+ * la extensión solo las lee para el día clínico en curso y marca `skipped` en otro día.
+ */
+export interface RayenClinicalAlertsResult extends ClinicalReadFailure {
+  alerts: unknown[];
+  skipped?: boolean;
+}
+
+/**
  * Las tres lecturas clínicas de un paciente resueltas en UN solo mensaje a la
  * extensión (capability `patient-clinical-bundle`). Cada sección degrada por
  * separado con `{error}`, así la cobertura por fuente se clasifica igual que
@@ -43,4 +52,6 @@ export interface RayenPatientClinicalBundle {
   devices: RayenDeviceReportResult;
   history: RayenHistoryScalesResult;
   forms: RayenScalesFormsResult;
+  /** Ausente en extensiones anteriores a 0.48.72: las alertas guardadas se conservan. */
+  alerts?: RayenClinicalAlertsResult;
 }
