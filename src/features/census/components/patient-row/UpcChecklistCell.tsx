@@ -3,10 +3,8 @@ import clsx from 'clsx';
 import { ClipboardList } from 'lucide-react';
 import { resolveUpcReviewReason } from '@/shared/census/upcEvaluationPolicy';
 import { resolveEffectiveUpcState, isUpcEligibleBedId } from '@/shared/census/upcBedPolicy';
-import {
-  resolveUpcClassificationLabel,
-  resolveUpcBadgeColor,
-} from '@/domain/upc/upcClassification';
+import { resolveUpcClassificationLabel } from '@/domain/upc/upcClassification';
+import { resolveUpcBadgeColor } from './upcClassificationTone';
 import type { UpcChecklistRecord } from '@/features/census/contracts/censusUpcContracts';
 import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';

@@ -2,15 +2,15 @@ import React from 'react';
 import clsx from 'clsx';
 import { CheckCheck } from 'lucide-react';
 import type { UpcClassificationRow } from './upcClassificationWindowModel';
+import { resolveUpcBadgeColor } from './upcClassificationTone';
 
 export const isAlreadySignedWithoutCriteria = (row: UpcClassificationRow): boolean =>
   row.pendingReason === null && row.classification === null;
 
 const chipClass = (row: UpcClassificationRow): string => {
-  if (row.pendingReason) return 'bg-slate-50 text-slate-600 ring-slate-200';
-  if (row.classification === 'UPC_UCI') return 'bg-red-50 text-red-700 ring-red-200';
-  if (row.classification === 'UPC_UTI') return 'bg-amber-50 text-amber-700 ring-amber-200';
-  return 'bg-slate-50 text-slate-600 ring-slate-200';
+  if (row.pendingReason || !row.classification) return 'bg-slate-50 text-slate-600 ring-slate-200';
+  const { bg, text, ring } = resolveUpcBadgeColor(row.classification);
+  return `${bg} ${text} ${ring}`;
 };
 
 /** Null when the chip would repeat the pending marker, which already shows with its icon. */

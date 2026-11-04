@@ -8,7 +8,8 @@ import {
   upcEvaluationKey,
 } from '@/domain/upc/upcEvaluationHistory';
 import { formatDateDDMMYYYY, formatDateTimeCL } from '@/utils/dateDisplayUtils';
-import { resolveUpcBadgeColor, type UpcClassification } from '@/domain/upc/upcClassification';
+import type { UpcClassification } from '@/domain/upc/upcClassification';
+import { resolveUpcBadgeColor } from './upcClassificationTone';
 
 const dateLabel = (date: string) => formatDateDDMMYYYY(date);
 const PAGE_SIZE = 4;

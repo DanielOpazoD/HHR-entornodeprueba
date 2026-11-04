@@ -33,16 +33,3 @@ export const resolveUpcClassificationLabel = (classification: UpcClassification)
       return '';
   }
 };
-
-export const resolveUpcBadgeColor = (
-  classification: UpcClassification
-): { text: string; bg: string; border: string } => {
-  switch (classification) {
-    case 'UPC_UCI':
-      return { text: 'text-red-700', bg: 'bg-red-50', border: 'border-red-200' };
-    case 'UPC_UTI':
-      return { text: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200' };
-    default:
-      return { text: 'text-slate-400', bg: 'bg-transparent', border: 'border-transparent' };
-  }
-};
