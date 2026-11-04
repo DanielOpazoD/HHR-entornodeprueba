@@ -1,6 +1,6 @@
 /**
  * «Alertas» view of the census: one cell in place of Signos, DMI, Scores and UPC with the three
- * newest chart alerts, message and time only. Clicking opens every alert.
+ * newest chart alerts, date and message only. Clicking opens every alert with its time.
  */
 
 import React, { useState } from 'react';

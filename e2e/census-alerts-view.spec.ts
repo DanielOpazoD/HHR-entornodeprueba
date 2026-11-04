@@ -85,7 +85,8 @@ test('reads the three newest chart alerts in place of the clinical columns at 13
   await page.screenshot({ path: testInfo.outputPath('census-normal-header.png') });
   await page.getByTestId('census-alerts-view-toggle').click();
   const view = row.getByTestId('clinical-alerts-view');
-  await expect(view).toContainText('03-04 08:40');
+  await expect(view).toContainText('03-04');
+  await expect(view).not.toContainText('08:40');
   await expect(view).toContainText(
     'Pauta caídas (RM) adjunta en ficha, próxima evaluación 06/04/26'
   );

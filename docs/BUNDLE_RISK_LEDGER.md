@@ -434,7 +434,7 @@ Each use is listed here; the cap stops at 5,054,464.
   The owner asked to read the chart alerts in place of Signos, DMI, Scores and UPC, and to hide
   Braden and Downton, which nursing reports in those alerts instead. Measured locally 5,055,386
   bytes in 254 entries, 4,611 over main (`census-view` +4,144). This uses the last 3,072 bytes and
-  goes 2,048 over the program cap (5,054,464); the owner authorizes that overrun.
+  goes 2,048 over the program cap (5,054,464); the owner authorized that overrun on 2026-11-04.
 
 - PR #1106, Eloísa capture retry: chunk `RayenImportButton` 260,000 → 262,048 bytes. CI measured
   254.2 KB against 253.9 KB. It is online-only and loads after the census, so startup is unaffected.

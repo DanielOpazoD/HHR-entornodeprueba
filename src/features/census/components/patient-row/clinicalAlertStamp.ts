@@ -2,5 +2,5 @@
 export const clinicalAlertStamp = (recordedAt: string) => {
   const [day = '', time = ''] = recordedAt.split('T');
   const [year = '', month = '', date = ''] = day.split('-');
-  return { day, short: `${date}-${month} ${time}`, full: `${date}-${month}-${year} ${time}` };
+  return { day, short: `${date}-${month}`, full: `${date}-${month}-${year} ${time}` };
 };

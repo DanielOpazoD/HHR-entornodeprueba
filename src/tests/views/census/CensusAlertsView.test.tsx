@@ -75,7 +75,7 @@ describe('census view for the Eloísa chart alerts', () => {
     expect(screen.getByText('UPC')).toBeInTheDocument();
   });
 
-  it('shows the three newest alerts as time and message, and every alert on click', async () => {
+  it('shows the three newest alerts as date and message, and every alert on click', async () => {
     const alerts = [
       alert('a-4', '4', 'Pauta caídas adjunta, próxima evaluación 06/11'),
       alert('a-3', '3', 'Pauta Braden adjunta, próxima evaluación 05/11'),
@@ -96,9 +96,11 @@ describe('census view for the Eloísa chart alerts', () => {
 
     const cell = screen.getByRole('button', { name: 'Ver las 4 alertas de la ficha' });
     expect(cell.closest('td')).toHaveAttribute('colspan', '4');
+    // Date and message only: the time stays in the detail.
     expect(cell).toHaveTextContent(
-      '04-11 09:30Pauta caídas adjunta, próxima evaluación 06/1103-11 09:30Pauta Braden adjunta, próxima evaluación 05/1102-11 09:30Nota sintética dos+1 más'
+      '04-11Pauta caídas adjunta, próxima evaluación 06/1103-11Pauta Braden adjunta, próxima evaluación 05/1102-11Nota sintética dos+1 más'
     );
+    expect(cell).not.toHaveTextContent('09:30');
     expect(cell).not.toHaveTextContent('Profesional Sintético');
 
     fireEvent.click(cell);
