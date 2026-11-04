@@ -5,6 +5,7 @@ import {
 import { requestViaBridgeChannel } from './bridgeRequestChannel';
 import { CLINICAL_READ_TIMEOUT_MS } from '../contracts/clinicalReadPolicy';
 import type {
+  RayenClinicalAlertsResult,
   RayenDeviceReportResult,
   RayenHistoryScaleEvent,
   RayenHistoryScalesResult,
@@ -61,6 +62,19 @@ export const mapScalesFormsPayload = (data: Record<string, unknown>): RayenScale
   ...decodeClinicalReadFailure(
     data,
     Array.isArray(data.forms) ? undefined : 'La extensión no entregó formularios clínicos válidos.'
+  ),
+});
+
+export const mapClinicalAlertsPayload = (
+  data: Record<string, unknown>
+): RayenClinicalAlertsResult => ({
+  alerts: Array.isArray(data.alerts) ? data.alerts : [],
+  ...(data.skipped === true ? { skipped: true } : {}),
+  ...decodeClinicalReadFailure(
+    data,
+    Array.isArray(data.alerts) || data.skipped === true
+      ? undefined
+      : 'La extensión no entregó alertas válidas.'
   ),
 });
 
@@ -124,6 +138,9 @@ export const requestPatientClinicalBundle = (
         devices: mapDeviceReportPayload(section(data.devices, fallback)),
         history: mapHistoryScalesPayload(section(data.history, fallback)),
         forms: mapScalesFormsPayload(section(data.forms, fallback)),
+        ...(data.alerts && typeof data.alerts === 'object'
+          ? { alerts: mapClinicalAlertsPayload(data.alerts as Record<string, unknown>) }
+          : {}),
       };
     },
   });

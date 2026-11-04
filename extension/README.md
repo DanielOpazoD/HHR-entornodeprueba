@@ -116,8 +116,12 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
   segundos. Una respuesta rápida continúa inmediatamente y un timeout real mantiene el
   reintento disponible. Los resultados se asignan por la fecha/turno de registro en Rapa
   Nui: una categoría antigua visible en Eloísa no prueba que exista para el censo elegido.
-- `patient-clinical-bundle-runtime.js` coordina dispositivos, historial de escalas y
-  formularios; cada sección falla de forma independiente. No decide qué persistir en HHR.
+- `patient-clinical-bundle-runtime.js` coordina dispositivos, historial de escalas,
+  formularios y alertas de la ficha; cada sección falla de forma independiente. No decide qué
+  persistir en HHR.
+- `fichamedico-alert-entry-runtime.js` lee las **Alertas** del episodio
+  (`entrySummary/alertEntry`) solo para el día clínico en curso, porque Eloísa entrega las
+  vigentes al momento de leer. Otro día responde `skipped` sin consultar Eloísa.
 - El canal HHR negocia `acceptEntries: true` también en el paquete clínico. Para el día
   clínico actual se permite el lector JSON de dispositivos; fechas históricas, clientes
   sin opt-in y datos no soportados conservan el respaldo PDF. No confundir una respuesta
@@ -342,6 +346,14 @@ Cuando la vista tiene un episodio activo, **Recetas** abre primero **Paciente ac
 paneles u otras rutas sin episodio abre directamente **Hospitalizados** y deja deshabilitada la pestaña
 del paciente actual. Los accesos contextuales de Indicaciones y Receta médica se mantienen solamente en
 la tabla de fármacos de Gestión de cuidados.
+
+### Alertas de la ficha en el censo (0.48.72)
+
+El responsable pidió ver en el censo diario las **Alertas** de la ficha de hospitalizados. El
+paquete clínico por paciente agrega una cuarta lectura, `entrySummary/alertEntry`, la misma que usa
+el panel de Ficha Médico. Solo se lee para el día clínico en curso y entrega únicamente los campos
+que HHR guarda o necesita para distinguir una nota vigente. Si falla, HHR conserva las alertas que
+ya tenía. Una extensión anterior no las envía y HHR sigue sincronizando igual.
 
 ### El ZIP de auditoría se guarda donde la persona elige (0.48.71)
 

@@ -279,7 +279,7 @@
             reqId,
             devices: response && response.devices,
             history: response && response.history,
-            forms: response && response.forms,
+            forms: response && response.forms, alerts: response && response.alerts,
             error: response && response.error,
           });
         })

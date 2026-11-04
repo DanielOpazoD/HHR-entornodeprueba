@@ -426,6 +426,10 @@ Each use is listed here; the cap stops at 5,054,464.
   converters instead would have moved three modules into the precache (+7.7 KB). Remaining
   authorization: 6,144 bytes.
 
+- Eloísa chart alerts in the census (2026-11-03): +3,072 bytes (5,048,320 → 5,051,392). The
+  «Alertas» button in the SCORE cell and its lazy 1.9 KB list (`ClinicalAlertsModal`); measured
+  locally 5,050,778 bytes in 254 entries, about 3,060 over main. Remaining authorization: 3,072 bytes.
+
 - PR #1106, Eloísa capture retry: chunk `RayenImportButton` 260,000 → 262,048 bytes. CI measured
   254.2 KB against 253.9 KB. It is online-only and loads after the census, so startup is unaffected.
   Precache unchanged. The owner granted full authority over this program on 2026-10-31.

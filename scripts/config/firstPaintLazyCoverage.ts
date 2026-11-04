@@ -57,6 +57,8 @@ const OPTIONAL_TARGETS: Record<string, string> = {
   'src/features/census/components/PatientHospitalizationReportsDialog':
     'Reports open on request with a local error boundary.',
   'src/features/census/components/StaffShiftDetailsModal': 'Staff detail dialog opens on request.',
+  'src/features/census/components/patient-row/ClinicalAlertsModal':
+    'Eloísa chart alerts open on request.',
   'src/features/census/components/patient-row/ClinicalPanelAntecedents':
     'Part of the online clinical drawer.',
   'src/features/census/components/patient-row/ClinicalPanelDrawer':

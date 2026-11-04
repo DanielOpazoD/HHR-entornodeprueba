@@ -275,6 +275,10 @@
       "maxLines": 27,
       "hotspots": {}
     },
+    "fichamedico-alert-entry-runtime.js": {
+      "maxLines": 65,
+      "hotspots": {}
+    },
     "fichamedico-capture-cache.js": {
       "maxLines": 15,
       "hotspots": {}
