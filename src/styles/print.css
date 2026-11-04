@@ -92,7 +92,6 @@
   /* Ocultar elementos de UI */
   .no-print,
   .btn,
-  .btn-ripple,
   nav,
   footer {
     display: none !important;

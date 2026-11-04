@@ -38,6 +38,20 @@ describe('UPC history view', () => {
     expect(screen.getAllByText('Texto conservado al firmar')).toHaveLength(2);
     expect(screen.getAllByText('Registrado por: Cuenta de prueba')).toHaveLength(2);
   });
+  it('shows each classification in the same tone as the census UPC cell', async () => {
+    vi.mocked(loadPatientUpcHistory).mockResolvedValueOnce({
+      entries: [
+        { ...entries[0], classification: 'UPC_UCI' },
+        { ...entries[1], classification: 'UPC_UTI' },
+        entries[2],
+      ],
+      warning: null,
+    });
+    render(<UpcEvaluationHistoryPanel patient={patient} date="2026-09-04" />);
+    expect(await screen.findByText('UCI')).toHaveClass('bg-red-50', 'text-red-700');
+    expect(screen.getByText('UTI')).toHaveClass('bg-amber-50', 'text-amber-700');
+    expect(screen.getByText('Sin criterios UPC')).toHaveClass('bg-slate-100', 'text-slate-600');
+  });
   it('exposes partial history and offers refresh without writing anything', async () => {
     vi.mocked(loadPatientUpcHistory).mockResolvedValueOnce({
       entries: [entries[0]],

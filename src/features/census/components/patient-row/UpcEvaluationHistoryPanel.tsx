@@ -8,9 +8,17 @@ import {
   upcEvaluationKey,
 } from '@/domain/upc/upcEvaluationHistory';
 import { formatDateDDMMYYYY, formatDateTimeCL } from '@/utils/dateDisplayUtils';
+import { resolveUpcBadgeColor, type UpcClassification } from '@/domain/upc/upcClassification';
 
 const dateLabel = (date: string) => formatDateDDMMYYYY(date);
 const PAGE_SIZE = 4;
+
+/** Same tone as the census UPC cell: UCI red, UTI amber, no criteria neutral. */
+const classificationBadge = (classification: UpcClassification): string => {
+  if (!classification) return 'bg-slate-100 text-slate-600';
+  const { bg, text } = resolveUpcBadgeColor(classification);
+  return `${bg} ${text}`;
+};
 
 export const UpcEvaluationHistoryPanel = ({
   patient,
@@ -110,7 +118,9 @@ export const UpcEvaluationHistoryPanel = ({
                 <time dateTime={entry.evaluatedAt} className="font-semibold text-slate-800">
                   {formatDateTimeCL(entry.evaluatedAt)}
                 </time>
-                <span className="rounded bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-800">
+                <span
+                  className={`rounded px-1.5 py-0.5 font-semibold ${classificationBadge(entry.classification)}`}
+                >
                   {entry.classification === 'UPC_UCI'
                     ? 'UCI'
                     : entry.classification === 'UPC_UTI'
