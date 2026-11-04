@@ -88,6 +88,7 @@ const PATIENT_FIELD_OWNERSHIP = {
   medicalHandoffEntries: 'mergeById',
   clinicalSyncCheckpoint: 'mergeById',
   clinicalCarryover: 'remoteCanonical',
+  clinicalAlerts: 'remoteCanonical',
   fhir_resource: 'derivedProjection',
 } as const satisfies Record<keyof PatientData, DailyRecordSyncOwnership>;
 

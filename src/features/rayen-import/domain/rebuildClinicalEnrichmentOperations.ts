@@ -20,6 +20,7 @@ const CLINICAL_FIELDS = new Set<CanonicalClinicalField>([
   'vitalSignsHistory',
   'clinicalSyncCheckpoint',
   'clinicalCarryover',
+  'clinicalAlerts',
 ]);
 
 interface LocatedClinicalPatient {

@@ -66,6 +66,7 @@ const RAYEN_BATCH_ONLY_CLINICAL_FIELDS = Object.freeze([
   'vitalSignsHistory',
   'clinicalSyncCheckpoint',
   'clinicalCarryover',
+  'clinicalAlerts',
 ]);
 
 const RAYEN_CLINICAL_FIELDS = Object.freeze([

@@ -61,6 +61,23 @@ describe('clinical field canonicalization', () => {
       'beds.H1C2.vitalSigns'
     );
   });
+  it('sends Eloísa alerts only when a note changes, not when the read reorders them', () => {
+    const first = { id: 'a-1', text: 'Nota sintética uno', recordedAt: '2026-07-09T10:00' };
+    const second = { id: 'a-2', text: 'Nota sintética dos', recordedAt: '2026-07-10T09:30' };
+    const withAlerts = (clinicalAlerts?: PatientData['clinicalAlerts']) =>
+      ({ clinicalAlerts }) as PatientData;
+    const patient = withAlerts([second, first]);
+
+    expect(
+      buildClinicalPatientPatch(patient, withAlerts([first, second]), 'H1C2', false).patch
+    ).toEqual({});
+    expect(buildClinicalPatientPatch(withAlerts(), withAlerts([]), 'H1C2', false).patch).toEqual(
+      {}
+    );
+    expect(buildClinicalPatientPatch(patient, withAlerts([second]), 'H1C2', false).patch).toEqual({
+      'beds.H1C2.clinicalAlerts': [second],
+    });
+  });
   it('does not resend nullable vital fields after the authoritative Firestore hydration', () => {
     const reading = vital('2', 80);
     const source = {
