@@ -1,4 +1,6 @@
 import React, { Suspense, lazy, useMemo, useState } from 'react';
+import { Scissors } from 'lucide-react';
+import { BaseModal } from '@/components/shared/BaseModal';
 import { createPortal } from 'react-dom';
 
 import type { CMAData } from '@/features/census/contracts/censusMovementContracts';
@@ -180,67 +182,68 @@ export const CmaSectionRow: React.FC<CmaSectionRowProps> = React.memo(
             document.body
           )}
 
-        {showEditDialog &&
-          createPortal(
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/35 p-4 print:hidden">
-              <div className="w-full max-w-sm rounded-lg bg-white p-4 shadow-xl">
-                <h3 className="text-sm font-semibold text-slate-800">Editar datos CMA</h3>
-                <div className="mt-4 space-y-3">
-                  <label className="block text-xs font-medium text-slate-600">
-                    Tipo
-                    <select
-                      className="mt-1 w-full rounded border border-slate-200 bg-white p-2 text-sm"
-                      value={draftInterventionType}
-                      onChange={event =>
-                        setDraftInterventionType(event.target.value as CMAData['interventionType'])
-                      }
-                    >
-                      {CMA_INTERVENTION_TYPES.map(option => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block text-xs font-medium text-slate-600">
-                    Hora egreso
-                    <input
-                      type="time"
-                      step="300"
-                      className="mt-1 w-full rounded border border-slate-200 p-2 text-sm"
-                      value={draftDischargeTime}
-                      onChange={event => setDraftDischargeTime(event.target.value)}
-                    />
-                  </label>
-                  <label className="block text-xs font-medium text-slate-600">
-                    Diagnóstico de egreso
-                    <textarea
-                      className="mt-1 min-h-20 w-full rounded border border-slate-200 p-2 text-sm text-slate-700"
-                      value={draftDiagnosis}
-                      onChange={event => setDraftDiagnosis(event.target.value)}
-                    />
-                  </label>
-                </div>
-                <div className="mt-5 flex justify-end gap-2">
-                  <button
-                    type="button"
-                    className="rounded border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                    onClick={() => setShowEditDialog(false)}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700"
-                    onClick={saveEditDialog}
-                  >
-                    Guardar
-                  </button>
-                </div>
-              </div>
-            </div>,
-            document.body
-          )}
+        {showEditDialog && (
+          <BaseModal
+            isOpen
+            onClose={() => setShowEditDialog(false)}
+            title={`Editar datos CMA — ${item.patientName}`}
+            icon={<Scissors size={16} />}
+            size="sm"
+          >
+            <div className="space-y-3">
+              <label className="block text-xs font-medium text-slate-600">
+                Tipo
+                <select
+                  className="mt-1 w-full rounded border border-slate-200 bg-white p-2 text-sm"
+                  value={draftInterventionType}
+                  onChange={event =>
+                    setDraftInterventionType(event.target.value as CMAData['interventionType'])
+                  }
+                >
+                  {CMA_INTERVENTION_TYPES.map(option => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-xs font-medium text-slate-600">
+                Hora egreso
+                <input
+                  type="time"
+                  step="300"
+                  className="mt-1 w-full rounded border border-slate-200 p-2 text-sm"
+                  value={draftDischargeTime}
+                  onChange={event => setDraftDischargeTime(event.target.value)}
+                />
+              </label>
+              <label className="block text-xs font-medium text-slate-600">
+                Diagnóstico de egreso
+                <textarea
+                  className="mt-1 min-h-20 w-full rounded border border-slate-200 p-2 text-sm text-slate-700"
+                  value={draftDiagnosis}
+                  onChange={event => setDraftDiagnosis(event.target.value)}
+                />
+              </label>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                onClick={() => setShowEditDialog(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="rounded bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700"
+                onClick={saveEditDialog}
+              >
+                Guardar
+              </button>
+            </div>
+          </BaseModal>
+        )}
       </>
     );
   }

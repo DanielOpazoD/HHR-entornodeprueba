@@ -176,6 +176,33 @@ describe('CmaSectionRow', () => {
     expect(onDelete).toHaveBeenCalledWith(item);
   });
 
+  it('edits CMA data in an accessible dialog that closes with Escape', () => {
+    const item = DataFactory.createMockCMA({ id: 'cma-edit', patientName: 'Paciente Test' });
+
+    render(
+      <table>
+        <tbody>
+          <CmaSectionRow
+            item={item}
+            recordDate="2026-04-30"
+            onUpdate={vi.fn()}
+            onUndo={vi.fn().mockResolvedValue(undefined)}
+            onDelete={vi.fn()}
+            onConvertToDischarge={vi.fn()}
+          />
+        </tbody>
+      </table>
+    );
+
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /editar datos cma/i }));
+    const dialog = screen.getByRole('dialog', { name: /Editar datos CMA — Paciente Test/ });
+    expect(dialog).toHaveTextContent('Diagnóstico de egreso');
+
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
   it('opens clinical documents for a discharged CMA case from the shared menu', async () => {
     const item = DataFactory.createMockCMA({
       id: 'cma-docs',
