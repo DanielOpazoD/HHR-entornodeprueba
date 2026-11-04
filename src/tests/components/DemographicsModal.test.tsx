@@ -102,13 +102,13 @@ describe('DemographicsModal', () => {
     expect(screen.getByText('Faltan 9')).toBeInTheDocument();
     expect(screen.queryByText(/falta completar: nombre/i)).not.toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'Fecha de ingreso' })).toHaveTextContent(
-      '30/04/2026'
+      '30-04-2026'
     );
     expect(screen.getByRole('combobox', { name: 'Fecha de ingreso' })).toHaveTextContent(
-      '01/05/2026'
+      '01-05-2026'
     );
     expect(screen.getByRole('combobox', { name: 'Fecha de ingreso' })).toHaveTextContent(
-      '02/05/2026'
+      '02-05-2026'
     );
     expect(screen.getByRole('combobox', { name: 'Hora de ingreso - horas' })).toHaveValue('');
     expect(screen.getByRole('combobox', { name: 'Hora de ingreso - minutos' })).toHaveValue('');

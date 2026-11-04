@@ -9,7 +9,7 @@ import {
 } from '@/domain/upc/upcEvaluationHistory';
 import { formatDateDDMMYYYY, formatDateTimeCL } from '@/utils/dateDisplayUtils';
 
-const dateLabel = (date: string) => formatDateDDMMYYYY(date).replace(/^0(\d-)/, '$1');
+const dateLabel = (date: string) => formatDateDDMMYYYY(date);
 const PAGE_SIZE = 4;
 
 export const UpcEvaluationHistoryPanel = ({
@@ -108,7 +108,7 @@ export const UpcEvaluationHistoryPanel = ({
             >
               <div className="flex flex-wrap items-center justify-between gap-1">
                 <time dateTime={entry.evaluatedAt} className="font-semibold text-slate-800">
-                  {formatDateTimeCL(entry.evaluatedAt).replace(/^0(\d-)/, '$1')}
+                  {formatDateTimeCL(entry.evaluatedAt)}
                 </time>
                 <span className="rounded bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-800">
                   {entry.classification === 'UPC_UCI'

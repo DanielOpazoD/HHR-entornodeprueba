@@ -8,7 +8,7 @@ export interface AdmissionDateOption {
 
 const formatAdmissionDateOptionLabel = (value: string) => {
   const [year, month, day] = value.split('-');
-  return `${day}/${month}/${year}`;
+  return `${day}-${month}-${year}`;
 };
 
 export const resolveAllowedAdmissionDates = (recordDate: string): string[] => {
