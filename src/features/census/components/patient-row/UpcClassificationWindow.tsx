@@ -292,7 +292,8 @@ export const UpcClassificationWindow: React.FC<UpcClassificationWindowProps> = (
       isOpen
       onClose={requestClose}
       title={`Clasificación UPC · ${rows.length} ${rows.length === 1 ? 'cama ocupada' : 'camas ocupadas'}`}
-      icon={<ShieldCheck size={16} className="text-medical-700" aria-hidden="true" />}
+      icon={<ShieldCheck aria-hidden="true" />}
+      headerIconColor="text-medical-700"
       size="5xl"
       closeOnBackdrop
       headerActions={

@@ -84,16 +84,9 @@ export const LabResultsViewerModal: React.FC<LabResultsViewerModalProps> = ({
       dataTestId="lab-results-viewer-modal"
       className="!rounded-2xl ring-1 ring-black/[0.03]"
       bodyClassName="max-h-[90vh] overflow-y-auto px-5 pt-3 pb-0"
-      title={
-        <span className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-md shadow-emerald-500/20">
-            <FlaskConical size={16} />
-          </span>
-          <span className="text-[15px] font-bold tracking-tight text-slate-800">
-            Laboratorio / Exámenes Syslab
-          </span>
-        </span>
-      }
+      title="Laboratorio / Exámenes Syslab"
+      icon={<FlaskConical size={16} />}
+      headerIconColor="text-emerald-600"
       headerActions={
         onRequestExams ? (
           <button

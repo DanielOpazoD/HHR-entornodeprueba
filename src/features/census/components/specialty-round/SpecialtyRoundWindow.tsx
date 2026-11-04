@@ -35,7 +35,8 @@ export const SpecialtyRoundWindow = ({ date, disabled, onClose }: SpecialtyRound
       closeOnBackdrop={false}
       size="5xl"
       title={`Asignación de especialidades · ${date}`}
-      icon={<Sparkles size={20} className="text-teal-700" aria-hidden="true" />}
+      icon={<Sparkles aria-hidden="true" />}
+      headerIconColor="text-teal-700"
     >
       <div className="space-y-4 text-sm text-slate-700">
         <p>
