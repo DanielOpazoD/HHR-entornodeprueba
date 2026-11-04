@@ -151,19 +151,24 @@ export const parseCudyrSupplementMatrix = ({
     const ordinalText = row[header[0]] || '';
     if (isMetadataRow(row)) continue;
     // Jasper can split textual cells across a repeated page header. Accept only the
-    // observed continuation shape, bounded by sequential numbered patient rows.
+    // observed continuation shape, bounded by the next numbered patient row or by the end
+    // of the report (measured 2026-11-04: the last patient's service split onto page 2).
     const previous = patients[patients.length - 1];
     const textColumns = new Set([header[1], header[4], header[6]]);
     const next = values[r + 1];
+    const endsReport = values
+      .slice(r + 1)
+      .every(rest => !rest.some(Boolean) || isMetadataRow(rest));
     if (
       !ordinalText &&
       previous &&
       headerCount > 1 &&
       r === headerRow + 1 &&
       row.every((value, index) => !value || textColumns.has(index)) &&
-      next &&
-      /^\d+$/.test(next[header[0]] || '') &&
-      Number(next[header[0]]) === previous.ordinal + 1
+      (endsReport ||
+        (next &&
+          /^\d+$/.test(next[header[0]] || '') &&
+          Number(next[header[0]]) === previous.ordinal + 1))
     ) {
       const continuations = [
         ['patientName', header[1]],

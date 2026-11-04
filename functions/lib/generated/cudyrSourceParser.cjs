@@ -142,7 +142,8 @@ var parseCudyrSupplementMatrix = ({
     const previous = patients[patients.length - 1];
     const textColumns = /* @__PURE__ */ new Set([header[1], header[4], header[6]]);
     const next = values[r + 1];
-    if (!ordinalText && previous && headerCount > 1 && r === headerRow + 1 && row.every((value, index) => !value || textColumns.has(index)) && next && /^\d+$/.test(next[header[0]] || "") && Number(next[header[0]]) === previous.ordinal + 1) {
+    const endsReport = values.slice(r + 1).every((rest) => !rest.some(Boolean) || isMetadataRow(rest));
+    if (!ordinalText && previous && headerCount > 1 && r === headerRow + 1 && row.every((value, index) => !value || textColumns.has(index)) && (endsReport || next && /^\d+$/.test(next[header[0]] || "") && Number(next[header[0]]) === previous.ordinal + 1)) {
       const continuations = [
         ["patientName", header[1]],
         ["diagnosis", header[4]],
