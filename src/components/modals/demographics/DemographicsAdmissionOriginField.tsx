@@ -75,7 +75,7 @@ export const DemographicsAdmissionOriginField: React.FC<DemographicsAdmissionOri
               ? missingRequiredClass
               : 'bg-white border-slate-200 focus:ring-blue-500/20 focus:border-blue-500'
           )}
-          placeholder="Especifique origen..."
+          placeholder="Especifique origen…"
           value={localData.admissionOriginDetails}
           onChange={e =>
             setLocalData(current => ({ ...current, admissionOriginDetails: e.target.value }))

@@ -117,6 +117,8 @@ export const clinicalDocumentRecordSchema = z.object({
   renderedText: z.string().optional(),
   integrityHash: z.string().optional(),
   annexContent: z.string().optional(),
+  annexIncludedInPrint: z.boolean().optional(),
+  includePatientSignature: z.boolean().optional(),
   ieehDraft: z
     .object({
       cie10Code: z.string(),
@@ -130,6 +132,8 @@ export const clinicalDocumentRecordSchema = z.object({
       procedimientoDescrip: z.string().optional(),
       procedimientoCodigo: z.string().optional(),
       tratanteRut: z.string().optional(),
+      tratanteNombreCompleto: z.string().optional(),
+      tratanteEspecialidad: z.string().optional(),
     })
     .optional(),
 });

@@ -79,7 +79,7 @@ const EmptyBedRowComponent: React.FC<EmptyBedRowProps> = ({
         {!readOnly && !isPendingClear ? (
           <button
             type="button"
-            className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-slate-500 opacity-0 transition-all duration-150 group-hover:opacity-100 focus:opacity-100 group-focus-within:opacity-100 hover:bg-medical-50 hover:text-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-600"
+            className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-slate-500 opacity-0 transition-all duration-150 group-hover:opacity-100 focus:opacity-100 group-focus-within:opacity-100 hover:bg-medical-50 hover:text-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700"
             onClick={onClick}
           >
             <Plus size={12} aria-hidden="true" />

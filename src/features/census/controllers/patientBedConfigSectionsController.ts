@@ -7,10 +7,6 @@ import type { RowMenuAlign } from '@/features/census/components/patient-row/pati
 
 interface PatientBedConfigMenuBindings {
   align: RowMenuAlign;
-  clinicalCribModel: {
-    className: string;
-    dotClassName: string;
-  };
   showClinicalCribToggle: boolean;
   showClinicalCribActions: boolean;
   showLegacyCompanionCleanup: boolean;
@@ -56,7 +52,6 @@ interface BuildPatientBedConfigSectionsParams {
       title?: string;
       label: string;
     }>;
-    clinicalCribModel: PatientBedConfigMenuBindings['clinicalCribModel'];
     showDaysCounter: boolean;
     showIndicators: boolean;
     showMenu: boolean;
@@ -94,7 +89,6 @@ export const buildPatientBedConfigSections = ({
     },
     menu: {
       align: props.align || 'top',
-      clinicalCribModel: viewState.clinicalCribModel,
       showClinicalCribToggle: viewState.showClinicalCribToggle,
       showClinicalCribActions: viewState.showClinicalCribActions,
       showLegacyCompanionCleanup: viewState.showLegacyCompanionCleanup,

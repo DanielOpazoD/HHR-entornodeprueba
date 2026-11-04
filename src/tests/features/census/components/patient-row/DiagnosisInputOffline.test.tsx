@@ -116,7 +116,7 @@ describe('DiagnosisInput unavailable CIE-10 chunk', () => {
     expect(screen.getByPlaceholderText('Diagnóstico (texto libre)')).toBe(input);
     expect(input).toHaveValue('Borrador al reconectar');
     act(() => input.blur());
-    expect(await screen.findByPlaceholderText('Buscar diagnóstico CIE-10...')).toHaveValue(
+    expect(await screen.findByPlaceholderText('Buscar diagnóstico CIE-10…')).toHaveValue(
       'Prematuro sintético'
     );
     expect(save).toHaveBeenCalledWith('pathology', 'Borrador al reconectar');
@@ -198,7 +198,7 @@ describe('DiagnosisInput unavailable CIE-10 chunk', () => {
   it('still loads the real CIE-10 editor and saves code selection through the normal patch', async () => {
     setOnline(true);
     const { multiple } = await mount({ fails: false });
-    expect(await screen.findByPlaceholderText('Buscar diagnóstico CIE-10...')).toHaveValue(
+    expect(await screen.findByPlaceholderText('Buscar diagnóstico CIE-10…')).toHaveValue(
       'Prematuro sintético'
     );
     expect(screen.queryByText(/Buscador CIE-10 no disponible/)).not.toBeInTheDocument();

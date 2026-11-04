@@ -148,6 +148,12 @@
     overscroll-behavior: none;
   }
 
+  /* One keyboard focus ring (census teal) for controls without their own focus style. */
+  :where(button, [role='button'], a[href], summary):focus-visible {
+    outline: 2px solid #0f766e;
+    outline-offset: 2px;
+  }
+
   /* Premium Aesthetics Modifiers */
   :root.aesthetic-typography {
     --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;

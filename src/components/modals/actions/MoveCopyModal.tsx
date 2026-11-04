@@ -181,7 +181,7 @@ export const MoveCopyModal: React.FC<MoveCopyModalProps> = ({
                     </div>
                     <p
                       className={clsx(
-                        'text-[8px] uppercase tracking-wider font-semibold',
+                        'text-[9px] uppercase tracking-wider font-semibold',
                         bed.isSelected ? 'text-medical-600' : 'text-slate-400'
                       )}
                     >

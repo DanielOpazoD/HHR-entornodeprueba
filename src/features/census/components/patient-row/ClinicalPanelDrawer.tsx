@@ -138,7 +138,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
       aria-label={count === null ? label : `${label} (${count})`}
       aria-pressed={tab === key}
       className={clsx(
-        'min-w-0 flex-1 rounded-md px-2 py-1 text-[12px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700',
+        'min-w-0 flex-1 rounded-md px-2 py-1 text-[12px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
         tab === key ? 'bg-white text-medical-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
       )}
     >
@@ -197,7 +197,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
                 type="button"
                 onClick={onNavigatePrevious}
                 disabled={!canNavigatePrevious}
-                className="inline-flex size-7 items-center justify-center rounded text-slate-500 hover:bg-white hover:text-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700 disabled:cursor-not-allowed disabled:text-slate-300"
+                className="inline-flex size-7 items-center justify-center rounded text-slate-500 hover:bg-white hover:text-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:text-slate-300"
                 title="Paciente anterior"
                 aria-label="Ir al paciente anterior"
               >
@@ -207,7 +207,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
                 type="button"
                 onClick={onNavigateNext}
                 disabled={!canNavigateNext}
-                className="inline-flex size-7 items-center justify-center rounded text-slate-500 hover:bg-white hover:text-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700 disabled:cursor-not-allowed disabled:text-slate-300"
+                className="inline-flex size-7 items-center justify-center rounded text-slate-500 hover:bg-white hover:text-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:text-slate-300"
                 title="Paciente siguiente"
                 aria-label="Ir al paciente siguiente"
               >
@@ -217,7 +217,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
             <button
               type="button"
               onClick={onOpenHospitalizationReports}
-              className="inline-flex h-7 min-w-7 shrink-0 items-center justify-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-1.5 text-[11px] font-semibold text-sky-700 transition-colors hover:border-sky-300 hover:bg-sky-100 hover:text-sky-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sky-600"
+              className="inline-flex h-7 min-w-7 shrink-0 items-center justify-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-1.5 text-[11px] font-semibold text-sky-700 transition-colors hover:border-sky-300 hover:bg-sky-100 hover:text-sky-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700"
               title="Informes de hospitalización"
               aria-label={`Abrir informes de hospitalización de ${patientName}`}
             >
@@ -234,7 +234,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
               type="button"
               onClick={reload}
               disabled={state.phase === 'loading'}
-              className="disabled:cursor-wait disabled:opacity-50 ml-auto inline-flex size-8 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700"
+              className="disabled:cursor-wait disabled:opacity-50 ml-auto inline-flex size-8 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
               title="Actualizar desde Ficha Médico"
               aria-label="Actualizar panel clínico"
             >

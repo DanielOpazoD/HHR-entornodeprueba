@@ -178,7 +178,7 @@ describe('RadiologyViewerModal with the exam list remembered in this session', (
     await screen.findByText('TC TORAX SINTETICO');
     view.unmount();
   };
-  const foregroundProgress = 'Conectando con el servidor de imágenes...';
+  const foregroundProgress = 'Conectando con el servidor de imágenes…';
 
   beforeEach(async () => {
     // Also drops replies queued by a test that failed before using them.
