@@ -108,6 +108,30 @@ describe('clinicalDocumentRuntimeContracts', () => {
     expect(record.especialidad).toBe('Cirugía');
   });
 
+  it('keeps print and IEEH choices through the repository contract', () => {
+    // ClinicalDocumentRepository parses with the domain contract on save and on read.
+    const record = parseDomainClinicalDocumentRecord({
+      ...buildRecord(),
+      includePatientSignature: false,
+      annexIncludedInPrint: true,
+      ieehDraft: {
+        cie10Code: 'A00',
+        cie10Description: 'Cólera',
+        diagnosticoPrincipal: 'Cólera',
+        condicionEgreso: '1',
+        intervencionQuirurgica: '2',
+        procedimiento: '2',
+        tratanteNombreCompleto: 'Pérez Soto Ana María',
+        tratanteEspecialidad: 'Cirugía Adulto',
+      },
+    });
+
+    expect(record.includePatientSignature).toBe(false);
+    expect(record.annexIncludedInPrint).toBe(true);
+    expect(record.ieehDraft?.tratanteNombreCompleto).toBe('Pérez Soto Ana María');
+    expect(record.ieehDraft?.tratanteEspecialidad).toBe('Cirugía Adulto');
+  });
+
   it('safe parses invalid runtime records and templates', () => {
     const invalidRecord = safeParseClinicalDocumentRecord({
       ...buildRecord(),
