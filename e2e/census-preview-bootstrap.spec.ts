@@ -451,9 +451,14 @@ test.describe('Production Preview Bootstrap', () => {
 
     await page.evaluate(() => window.scrollTo(0, 360));
     const header = page.getByTestId('census-table').locator('thead');
-    const chromeHeight = await page
-      .locator('.hhr-date-strip')
-      .evaluate(element => element.getBoundingClientRect().bottom);
+    // The header sticks under the date strip, or under the stale-day banner when it is shown.
+    const chromeHeight = await page.evaluate(() =>
+      Math.max(
+        ...[...document.querySelectorAll('.hhr-date-strip, [data-app-top-bar][role="alert"]')].map(
+          element => element.getBoundingClientRect().bottom
+        )
+      )
+    );
     await expect.poll(async () => (await header.boundingBox())?.y).toBeCloseTo(chromeHeight, 0);
     await expect(header).toBeInViewport({ ratio: 1 });
     await assertPreviewBootCompleted(page, runtimeCollector.failures);
