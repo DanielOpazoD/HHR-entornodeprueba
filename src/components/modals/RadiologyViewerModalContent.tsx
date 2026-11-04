@@ -81,7 +81,7 @@ export const RadiologyViewerControls = ({
       <button
         onClick={onSearch}
         disabled={!selectedRut || isLoading}
-        className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-b from-violet-500 to-violet-600 px-4 py-2 text-[13px] font-semibold text-white shadow-md shadow-violet-600/25 transition-all hover:from-violet-600 hover:to-violet-700 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2 text-[13px] font-semibold text-white shadow-md shadow-teal-600/25 transition-all hover:bg-teal-700 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
       >
         {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
         Buscar
