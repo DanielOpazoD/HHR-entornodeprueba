@@ -62,12 +62,22 @@ export const BaseModalHeader: React.FC<BaseModalHeaderProps> = ({
       id={titleId}
       className="font-display flex min-w-0 items-center gap-2 font-bold tracking-tight text-slate-800"
     >
-      {icon && <span className={headerIconColor}>{icon}</span>}
+      {/* One header pattern: the tool's icon on a soft badge of its own colour. */}
+      {icon && (
+        <span
+          className={clsx(
+            'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-current/10 [&_svg]:size-4',
+            headerIconColor
+          )}
+        >
+          {icon}
+        </span>
+      )}
       {title}
     </h3>
     <div className="flex min-w-0 items-center gap-2">
       {headerActions && (
-        <div className="mr-1 flex min-w-0 items-center gap-1.6">{headerActions}</div>
+        <div className="mr-1 flex min-w-0 items-center gap-1.5">{headerActions}</div>
       )}
       {showCloseButton && (
         <button

@@ -27,7 +27,7 @@ export const PatientMainRowActionCell: React.FC<PatientMainRowActionCellProps> =
   <td className="p-0 text-center border-r border-slate-200 relative z-[36] w-10 overflow-visible print:hidden">
     {isPendingClear ? (
       <span
-        className="inline-flex h-full min-h-8 w-full items-center justify-center text-amber-700"
+        className="inline-flex h-full min-h-8 w-full items-center justify-center text-slate-500"
         role="status"
         title="Confirmando limpieza…"
         aria-label="Confirmando limpieza de la cama"

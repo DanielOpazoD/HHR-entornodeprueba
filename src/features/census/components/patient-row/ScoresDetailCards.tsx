@@ -6,7 +6,7 @@
 
 import React from 'react';
 import clsx from 'clsx';
-import { Bandage, CalendarClock, Footprints, Layers3 } from 'lucide-react';
+import { Bandage, CalendarClock, Footprints, ClipboardList } from 'lucide-react';
 import type {
   BradenCellModel,
   CudyrCellModel,
@@ -160,7 +160,7 @@ export const CudyrCard: React.FC<{ cudyr: CudyrCellModel }> = ({ cudyr }) => {
     : { chip: NEUTRAL_TOKENS.chip, accent: NEUTRAL_TOKENS.accent, number: NEUTRAL_TOKENS.number };
   return (
     <ScoreCard
-      icon={<Layers3 size={16} />}
+      icon={<ClipboardList size={16} />}
       name="CUDYR"
       sub="Riesgo y dependencia"
       value={cudyr.category}
