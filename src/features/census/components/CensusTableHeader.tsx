@@ -5,10 +5,8 @@ import { CensusActionHeaderCell } from '@/features/census/components/CensusActio
 import { CensusDiagnosisHeaderCell } from '@/features/census/components/CensusDiagnosisHeaderCell';
 import { buildCensusHeaderCellModels } from '@/features/census/controllers/censusTableHeaderController';
 import type { CensusTableHeaderProps } from '@/features/census/types/censusTableComponentContracts';
-import {
-  AlertsViewToggle,
-  NursingScalesToggle,
-} from '@/features/census/components/CensusViewToggles';
+import { AlertsViewToggle } from '@/features/census/components/CensusViewToggles';
+import { useNursingScalesVisible } from '@/features/census/hooks/useNursingScalesVisible';
 import { useCensusViewPreferences } from '@/features/census/hooks/useCensusViewPreferences';
 import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 
@@ -35,6 +33,7 @@ export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
     columns.actions + headerCells.reduce((sum, cell) => sum + columns[cell.key], 0);
   const responsiveShare = (width: number): string => `${(width / visibleWidth) * 100}%`;
   const view = useCensusViewPreferences();
+  const nursingScalesVisible = useNursingScalesVisible();
   const canSwitchView = !isSpecialistCensusAccessProfile(accessProfile ?? 'default');
   const alertsView = view.alertsView && canSwitchView;
   const alertsWidth = ALERTS_VIEW_COLUMNS.reduce((sum, key) => sum + columns[key], 0);
@@ -99,14 +98,14 @@ export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
               minWidth={cell.key === 'status' ? 32 : undefined}
             >
               {cell.key === 'scores' && canSwitchView ? (
-                <span className="inline-flex items-center justify-center gap-1">
+                <span className="inline-flex flex-wrap items-center justify-center gap-1">
                   <span>{cell.label}</span>
                   {/* The reapplication shortcut only counts Braden and Downton. */}
-                  {!view.nursingScalesHidden && scoresAction}
-                  <NursingScalesToggle hidden={view.nursingScalesHidden} />
+                  {nursingScalesVisible && scoresAction}
+                  <AlertsViewToggle active={false} />
                 </span>
               ) : cell.key === 'admission' && canSwitchView ? (
-                <span className="inline-flex items-center justify-center gap-1">
+                <span className="inline-flex flex-wrap items-center justify-center gap-1">
                   <span>{cell.label}</span>
                   <AlertsViewToggle active={false} />
                 </span>

@@ -357,6 +357,22 @@ describe('CensusTable layout and actions', () => {
     expect(localStorage.getItem('hhr_diagnosis_mode')).toBe('free');
   });
 
+  it('applies the admin choice to hide Braden and Downton and their reapplication shortcut', () => {
+    const tableConfig = createTableConfigMock();
+    vi.mocked(useTableConfig).mockReturnValue({
+      ...tableConfig,
+      config: { ...tableConfig.config, nursingScalesVisible: false },
+    });
+    render(
+      <CensusTable
+        currentDateString="2025-01-08"
+        scoresAction={<span>Atajo de reaplicación</span>}
+      />
+    );
+    expect(screen.getByText('Scores')).toBeInTheDocument();
+    expect(screen.queryByText('Atajo de reaplicación')).toBeNull();
+  });
+
   it('scrolls by keyboard only when the table region itself is focused', () => {
     render(<CensusTable currentDateString="2025-01-08" />);
     const region = screen.getByRole('region', { name: 'Censo de pacientes, tabla desplazable' });

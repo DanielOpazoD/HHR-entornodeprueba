@@ -1,5 +1,7 @@
 import { observeCensusTable } from '@/shared/runtime/observeCensusTable';
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTableConfig } from '@/context/TableConfigContext';
+import { NursingScalesVisibleContext } from '@/features/census/hooks/useNursingScalesVisible';
 import { CensusTableViewport } from './CensusTableViewport';
 import { CensusTableHeader } from '@/features/census/components/CensusTableHeader';
 import { CensusTableBody } from '@/features/census/components/CensusTableBody';
@@ -65,6 +67,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
   scoresAction,
 }) => {
   const [activeEmptyBedId, setActiveEmptyBedId] = useState<string | null>(null);
+  const nursingScalesVisible = useTableConfig().config.nursingScalesVisible !== false;
   const [isEloisaCodeImportOpen, setIsEloisaCodeImportOpen] = useState(false);
   const tableRootRef = useRef<HTMLDivElement>(null);
   const freshnessUi = useDailyRecordFreshnessUi(currentDateString);
@@ -297,17 +300,19 @@ export const CensusTable: React.FC<CensusTableProps> = ({
             className="text-left border-collapse print:text-xs relative text-[12px] leading-tight table-fixed"
             style={tableStyle}
           >
-            <CensusTableHeader {...headerProps} scoresAction={scoresAction} />
-            <ClinicalDerivedDayProvider value={clinicalDerivedDay}>
-              <CensusTableBody
-                {...bodyProps}
-                recordLastUpdated={record?.lastUpdated}
-                unifiedRows={filteredUnifiedRows}
-                onActivateEmptyBed={openEmptyBedDemographics}
-                dragDrop={readOnly || clinicalEditingDisabled ? undefined : dragDrop}
-                clinicalDocumentInfoByBedId={clinicalDocumentInfoByBedId}
-              />
-            </ClinicalDerivedDayProvider>
+            <NursingScalesVisibleContext.Provider value={nursingScalesVisible}>
+              <CensusTableHeader {...headerProps} scoresAction={scoresAction} />
+              <ClinicalDerivedDayProvider value={clinicalDerivedDay}>
+                <CensusTableBody
+                  {...bodyProps}
+                  recordLastUpdated={record?.lastUpdated}
+                  unifiedRows={filteredUnifiedRows}
+                  onActivateEmptyBed={openEmptyBedDemographics}
+                  dragDrop={readOnly || clinicalEditingDisabled ? undefined : dragDrop}
+                  clinicalDocumentInfoByBedId={clinicalDocumentInfoByBedId}
+                />
+              </ClinicalDerivedDayProvider>
+            </NursingScalesVisibleContext.Provider>
           </table>
         </CensusTableViewport>
       </div>

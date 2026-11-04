@@ -1,7 +1,7 @@
-/** Header switches for this computer's census view; see `useCensusViewPreferences`. */
+/** Header switch for this computer's census view; see `useCensusViewPreferences`. */
 
 import React from 'react';
-import { AlertTriangle, Columns3, Eye, EyeOff } from 'lucide-react';
+import { AlertTriangle, Columns3 } from 'lucide-react';
 import { setCensusViewPreference } from '@/features/census/hooks/useCensusViewPreferences';
 
 const toggleClassName =
@@ -26,19 +26,5 @@ export const AlertsViewToggle: React.FC<{ active: boolean }> = ({ active }) => (
       <AlertTriangle size={10} aria-hidden="true" />
     )}
     {active ? 'Columnas' : 'Alertas'}
-  </button>
-);
-
-export const NursingScalesToggle: React.FC<{ hidden: boolean }> = ({ hidden }) => (
-  <button
-    type="button"
-    aria-pressed={!hidden}
-    aria-label={hidden ? 'Mostrar Braden y Downton' : 'Ocultar Braden y Downton'}
-    title={hidden ? 'Mostrar Braden y Downton' : 'Ocultar Braden y Downton'}
-    onClick={() => setCensusViewPreference({ nursingScalesHidden: !hidden })}
-    className={toggleClassName}
-    data-testid="census-nursing-scales-toggle"
-  >
-    {hidden ? <EyeOff size={10} aria-hidden="true" /> : <Eye size={10} aria-hidden="true" />}
   </button>
 );

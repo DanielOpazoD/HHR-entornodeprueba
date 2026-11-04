@@ -1,5 +1,6 @@
 import React, { Suspense, lazy } from 'react';
-import { FlaskConical, Lock, Radio } from 'lucide-react';
+import { FlaskConical, Lock } from 'lucide-react';
+import { XRayIcon } from '@/components/ui/XRayIcon';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
 import { DATE_STRIP_QUICK_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
 
@@ -110,7 +111,7 @@ export const DateStripQuickActions: React.FC<DateStripQuickActionsProps> = ({
                 className={`${DATE_STRIP_QUICK_ACTION_BASE_CLASS} border-slate-200 bg-slate-50 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-700`}
                 title="Radiología / Imagenología"
               >
-                <Radio size={13} />
+                <XRayIcon size={13} />
                 <span className="hidden sm:inline">MMRAD</span>
               </button>
               {isRadiologyOpen ? (
@@ -124,7 +125,7 @@ export const DateStripQuickActions: React.FC<DateStripQuickActionsProps> = ({
               ) : null}
             </>
           ) : (
-            renderPlaceholderAction('MMRAD', Radio)
+            renderPlaceholderAction('MMRAD', XRayIcon)
           ))}
 
         {!hideClinicalQuickActions &&

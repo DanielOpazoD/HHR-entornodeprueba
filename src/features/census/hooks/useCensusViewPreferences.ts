@@ -1,27 +1,23 @@
 import { useSyncExternalStore } from 'react';
 
 /**
- * View choices of this computer for the census table (2026-11-04, the owner's request): nursing
+ * View choice of this computer for the census table (2026-11-04, the owner's request): nursing
  * uses the Eloísa chart alerts to report scales, so the census can read them in place of the
- * clinical columns and hide the Braden and Downton chips nobody fills in.
+ * clinical columns. Hiding Braden and Downton is global, in the table configuration.
  */
 export interface CensusViewPreferences {
   alertsView: boolean;
-  nursingScalesHidden: boolean;
 }
 
 const preferenceKey = 'hhr_census_view_v1';
-const DEFAULTS: CensusViewPreferences = { alertsView: false, nursingScalesHidden: false };
+const DEFAULTS: CensusViewPreferences = { alertsView: false };
 const listeners = new Set<() => void>();
 let snapshot: CensusViewPreferences | undefined;
 
 const read = (): CensusViewPreferences => {
   try {
     const stored = JSON.parse(localStorage.getItem(preferenceKey) ?? 'null');
-    return {
-      alertsView: stored?.alertsView === true,
-      nursingScalesHidden: stored?.nursingScalesHidden === true,
-    };
+    return { alertsView: stored?.alertsView === true };
   } catch {
     return DEFAULTS;
   }

@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Check, ClipboardCopy, Loader2, Radio, X } from 'lucide-react';
+import { Check, ClipboardCopy, Loader2, X } from 'lucide-react';
+import { XRayIcon } from '@/components/ui/XRayIcon';
 
 import { searchMMRADExams, type MMRADExam } from '@/services/radiology/mmradService';
 import { buildMMRADReportClipboardText } from '@/services/radiology/mmradReportSupport';
@@ -116,7 +117,7 @@ const ClinicalDocumentMMRADCopySession: React.FC<ClinicalDocumentMMRADCopyDialog
     <div className="absolute right-0 top-10 z-50 w-[360px] rounded-xl border border-violet-200 bg-white shadow-xl">
       <div className="flex items-center justify-between border-b border-violet-100 px-3 py-2">
         <div className="flex items-center gap-1.5">
-          <Radio size={13} className="text-violet-600" />
+          <XRayIcon size={13} className="text-violet-600" />
           <span className="text-[11px] font-bold text-slate-700">Copiar informe MMRAD</span>
         </div>
         <button

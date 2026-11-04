@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { useDicomReviewCache } from '@/components/radiology/useDicomReviewCache';
-import { Radio } from 'lucide-react';
+import { XRayIcon } from '@/components/ui/XRayIcon';
 import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 import { normalizeDicomPatientId, type DicomCapture } from '@/services/radiology/dicomTypes';
 import { BaseModal } from '@/components/shared/BaseModal';
@@ -362,7 +362,7 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
         title={
           <span className="flex items-center gap-2.5">
             <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-violet-700 text-white shadow-md shadow-violet-500/20">
-              <Radio size={16} />
+              <XRayIcon size={16} />
             </span>
             <span className="text-[15px] font-bold tracking-tight text-slate-800">
               Radiología / Imagenología
