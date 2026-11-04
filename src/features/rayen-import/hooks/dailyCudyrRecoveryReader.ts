@@ -10,7 +10,12 @@ import {
   captureCudyrMonthlyReport,
   CudyrMonthlyReportArchiveError,
 } from '@/services/cudyr/cudyrMonthlyReportCapture';
-import type { CudyrRecoveryDetail, RayenSyncIssueReason } from '@/types/domain/rayenSync';
+import { CudyrReportUnreadableError } from '@/services/cudyr/cudyrSupplementFile';
+import type {
+  ClinicalReadErrorCode,
+  CudyrRecoveryDetail,
+  RayenSyncIssueReason,
+} from '@/types/domain/rayenSync';
 import { planDailyCudyrGaps, recoverDailyCudyrGap } from '@/services/cudyr/dailyCudyrRecoveryPlan';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
@@ -70,7 +75,8 @@ export const createDailyCudyrRecoveryReader = ({
       episode: string | undefined,
       cudyrRecovery: CudyrRecoveryDetail,
       reason: RayenSyncIssueReason = 'source_unavailable',
-      error: unknown = cudyrRecovery.kind
+      error: unknown = cudyrRecovery.kind,
+      cause?: ClinicalReadErrorCode
     ) =>
       result.errors.push(
         buildClinicalFillError({
@@ -80,6 +86,7 @@ export const createDailyCudyrRecoveryReader = ({
           reason,
           cudyrRecovery,
           error,
+          ...(cause ? { cause } : {}),
         })
       );
     if (resolveCudyrPendingStatus(previousDate, now()).phase === 'overdue') {
@@ -161,6 +168,8 @@ export const createDailyCudyrRecoveryReader = ({
       } catch (error) {
         check();
         const archiveFailed = error instanceof CudyrMonthlyReportArchiveError;
+        // Eloísa delivered the report but HHR cannot read it: a retry reads the same file.
+        const unreadable = error instanceof CudyrReportUnreadableError;
         for (const gap of monthGaps)
           warn(
             gap.clinicalEpisodeId,
@@ -169,7 +178,8 @@ export const createDailyCudyrRecoveryReader = ({
               targetDate: gap.date,
             },
             archiveFailed ? 'historical_archive_failed' : 'source_unavailable',
-            error
+            error,
+            unreadable ? 'invalid_response' : undefined
           );
       }
     }

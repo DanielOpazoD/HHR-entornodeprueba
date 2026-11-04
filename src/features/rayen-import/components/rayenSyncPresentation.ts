@@ -274,7 +274,12 @@ export const presentRayenCoverageIssue = (issue: RayenSyncCoverageIssue): string
     detail?.kind === 'read_failed' &&
     (issue.reason === 'record_load_failed' || detail.targetDate === null)
       ? 'contexto censal sin comprobar; reintenta'
-      : issueReasonLabel[detail?.kind ?? issue.reason];
+      : detail?.kind === 'read_failed' && issue.cause === 'invalid_response'
+        ? // Eloísa delivered the report and HHR could not read it: retrying reads the same file.
+          unable(
+            'leer el informe mensual de Eloísa; reintentar no lo resuelve, avisa al administrador de HHR'
+          )
+        : issueReasonLabel[detail?.kind ?? issue.reason];
   return `${scope} · ${issueSourceLabel[issue.source]}: ${label}.`;
 };
 
