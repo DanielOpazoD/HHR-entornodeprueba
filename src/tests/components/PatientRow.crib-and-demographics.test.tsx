@@ -205,7 +205,7 @@ describe('PatientRow crib and demographics', () => {
     );
 
     fireEvent.click(screen.getByTitle('Configuración de cama'));
-    fireEvent.click(screen.getByTitle('Eliminar Cuna'));
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar cuna' }));
 
     expect(mockContext.updateClinicalCrib).toHaveBeenCalledWith('R1', 'remove');
   });

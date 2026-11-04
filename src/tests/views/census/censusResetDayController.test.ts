@@ -52,7 +52,7 @@ describe('censusResetDayController', () => {
 
   it('exposes a stable confirmation descriptor for reset day action', () => {
     expect(RESET_DAY_CONFIRM_DIALOG).toMatchObject({
-      title: '⚠️ Reiniciar registro del día',
+      title: 'Reiniciar registro del día',
       confirmText: 'Sí, reiniciar',
       cancelText: 'Cancelar',
       variant: 'danger',

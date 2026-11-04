@@ -31,7 +31,6 @@ const buildSections = (
     viewState: {
       daysHospitalized: 1,
       indicators: [],
-      clinicalCribModel: { className: 'crib', dotClassName: 'crib-dot' },
       showDaysCounter: true,
       showIndicators: false,
       showMenu: false,
@@ -84,10 +83,6 @@ describe('patientBedConfigSectionsController', () => {
             label: 'C',
           },
         ],
-        clinicalCribModel: {
-          className: 'crib',
-          dotClassName: 'crib-dot',
-        },
         showDaysCounter: true,
         showIndicators: true,
         showMenu: true,
