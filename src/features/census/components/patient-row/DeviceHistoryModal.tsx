@@ -46,7 +46,7 @@ export const DeviceHistoryModal: React.FC<DeviceHistoryModalProps> = ({
     <Modal
       isOpen={true}
       onClose={onClose}
-      title={`Historial de Dispositivos - ${patientName}`}
+      title={`Historial de dispositivos — ${patientName}`}
       size="lg"
       variant="white"
     >
