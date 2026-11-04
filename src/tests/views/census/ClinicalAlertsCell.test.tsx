@@ -2,22 +2,18 @@ import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ScoresCell } from '@/features/census/components/patient-row/ScoresCell';
+import { ClinicalAlertsViewCell } from '@/features/census/components/patient-row/ClinicalAlertsViewCell';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { PatientClinicalAlert } from '@/types/domain/clinicalAlerts';
 
-const renderCell = (clinicalAlerts?: PatientClinicalAlert[]) =>
+const patient = (clinicalAlerts?: PatientClinicalAlert[]) =>
+  DataFactory.createMockPatient('R1', { patientName: 'Paciente Sintético', clinicalAlerts });
+
+const renderRow = (cell: React.ReactNode) =>
   render(
     <table>
       <tbody>
-        <tr>
-          <ScoresCell
-            data={DataFactory.createMockPatient('R1', {
-              patientName: 'Paciente Sintético',
-              clinicalAlerts,
-            })}
-            currentDateString="2026-11-03"
-          />
-        </tr>
+        <tr>{cell}</tr>
       </tbody>
     </table>
   );
@@ -25,32 +21,41 @@ const renderCell = (clinicalAlerts?: PatientClinicalAlert[]) =>
 describe('census «Alertas» from the Eloísa chart', () => {
   afterEach(() => vi.useRealTimers());
 
-  it('shows nothing extra for a patient without active alerts', () => {
-    renderCell([]);
-    expect(screen.queryByTestId('clinical-alerts-button')).toBeNull();
+  it('keeps the Scores column free of alerts: they live in the «Alertas» view', () => {
+    renderRow(
+      <ScoresCell
+        data={patient([{ id: 'a-1', text: 'Nota sintética', recordedAt: '2026-11-03T08:00' }])}
+        currentDateString="2026-11-03"
+      />
+    );
+    expect(screen.queryByText(/Alertas/)).toBeNull();
   });
 
   it('opens the active notes with author, age on the hospital calendar and visitor mark', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     // 2026-11-03 12:00 in Rapa Nui (UTC-5).
     vi.setSystemTime(new Date('2026-11-03T17:00:00.000Z'));
-    renderCell([
-      {
-        id: 'a-2',
-        text: 'Nota sintética reciente',
-        recordedAt: '2026-10-31T08:15',
-        author: 'Profesional Sintético',
-        role: 'Enfermera(o)',
-      },
-      {
-        id: 'a-1',
-        text: 'Nota sintética para visitas',
-        recordedAt: '2026-09-25T23:40',
-        visitor: true,
-      },
-    ]);
+    renderRow(
+      <ClinicalAlertsViewCell
+        data={patient([
+          {
+            id: 'a-2',
+            text: 'Nota sintética reciente',
+            recordedAt: '2026-10-31T08:15',
+            author: 'Profesional Sintético',
+            role: 'Enfermera(o)',
+          },
+          {
+            id: 'a-1',
+            text: 'Nota sintética para visitas',
+            recordedAt: '2026-09-25T23:40',
+            visitor: true,
+          },
+        ])}
+      />
+    );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ver 2 alertas de la ficha de Eloísa' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ver las 2 alertas de la ficha' }));
 
     const notes = await screen.findAllByRole('listitem');
     expect(within(screen.getByRole('dialog')).getAllByRole('listitem')).toEqual(notes);

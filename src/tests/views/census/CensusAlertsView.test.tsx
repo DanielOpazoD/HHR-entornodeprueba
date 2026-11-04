@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CensusTableHeader } from '@/features/census/components/CensusTableHeader';
 import { ClinicalAlertsViewCell } from '@/features/census/components/patient-row/ClinicalAlertsViewCell';
@@ -8,6 +8,11 @@ import { setCensusViewPreference } from '@/features/census/hooks/useCensusViewPr
 import type { CensusTableHeaderProps } from '@/features/census/types/censusTableComponentContracts';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { PatientClinicalAlert } from '@/types/domain/clinicalAlerts';
+
+const scales = vi.hoisted(() => ({ visible: true }));
+vi.mock('@/features/census/hooks/useNursingScalesVisible', () => ({
+  useNursingScalesVisible: () => scales.visible,
+}));
 
 const columns: CensusTableHeaderProps['columns'] = {
   actions: 40,
@@ -54,12 +59,14 @@ const alert = (id: string, day: string, text: string): PatientClinicalAlert => (
 
 describe('census view for the Eloísa chart alerts', () => {
   afterEach(() => {
-    act(() => setCensusViewPreference({ alertsView: false, nursingScalesHidden: false }));
+    act(() => setCensusViewPreference({ alertsView: false }));
+    scales.visible = true;
   });
 
   it('swaps Signos, DMI, Scores and UPC for one alerts column and back, remembered here', () => {
     renderHeader();
-    fireEvent.click(screen.getByRole('button', { name: 'Alertas' }));
+    // The switch next to SCORE works like the one next to Signos.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Alertas' })[1]);
 
     const merged = screen.getByRole('columnheader', { name: /Alertas de la ficha/ });
     expect(merged).toHaveAttribute('colspan', '4');
@@ -107,7 +114,7 @@ describe('census view for the Eloísa chart alerts', () => {
     expect(await screen.findAllByRole('listitem')).toHaveLength(4);
   });
 
-  it('hides Braden and Downton, and their reapplication shortcut, when turned off', () => {
+  it('hides Braden and Downton, and their reapplication shortcut, when an admin turns them off', () => {
     const patient = DataFactory.createMockPatient('R1', {
       evaluationScores: {
         braden: {
@@ -121,23 +128,29 @@ describe('census view for the Eloísa chart alerts', () => {
         },
       },
     });
-    renderHeader();
-    render(
-      <table>
-        <tbody>
-          <tr>
-            <ScoresCell data={patient} currentDateString="2026-11-03" />
-          </tr>
-        </tbody>
-      </table>
-    );
+    const renderCensus = () => {
+      renderHeader();
+      render(
+        <table>
+          <tbody>
+            <tr>
+              <ScoresCell data={patient} currentDateString="2026-11-03" />
+            </tr>
+          </tbody>
+        </table>
+      );
+    };
+    renderCensus();
     expect(screen.getByText('Braden')).toBeInTheDocument();
     expect(screen.getByText('Atajo de reaplicación')).toBeInTheDocument();
+    cleanup();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ocultar Braden y Downton' }));
+    scales.visible = false;
+    renderCensus();
 
     expect(screen.queryByText('Braden')).toBeNull();
     expect(screen.queryByText('Atajo de reaplicación')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Mostrar Braden y Downton' })).toBeInTheDocument();
+    // The «Alertas» switch sits next to both Signos and Scores.
+    expect(screen.getAllByRole('button', { name: 'Alertas' })).toHaveLength(2);
   });
 });
