@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { RayenSyncHistoryModal } from '@/features/rayen-import/components/RayenSyncHistoryModal';
 import { RayenSyncEventSchema } from '@/schemas/zod/dailyRecord';
 
-const eventWith = (kind: string, reason = 'source_unavailable') =>
+const eventWith = (kind: string, reason = 'source_unavailable', cause?: string) =>
   RayenSyncEventSchema.parse({
     id: 'synthetic-documentary-recovery',
     sourceDate: '2026-10-27',
@@ -21,6 +21,7 @@ const eventWith = (kind: string, reason = 'source_unavailable') =>
           bedId: '*',
           source: 'cudyr',
           reason,
+          ...(cause ? { cause } : {}),
           cudyrRecovery: { kind, targetDate: '2026-10-26' },
         },
       ],
@@ -57,6 +58,17 @@ describe('documentary CUDYR outcomes in synchronization history', () => {
     );
     expect(screen.queryByText(/confirmar el guardado/)).not.toBeInTheDocument();
     expect(screen.queryByText(/No registrado/)).not.toBeInTheDocument();
+  });
+
+  it('does not ask to retry when Eloísa delivered a report HHR cannot read', () => {
+    showEvent(eventWith('read_failed', 'source_unavailable', 'invalid_response'));
+    expect(
+      screen.getByText(
+        /no se pudo leer el informe mensual de Eloísa; reintentar no lo resuelve, avisa al administrador de HHR/
+      )
+    ).toBeVisible();
+    expect(screen.queryByText(/consultar el informe; reintenta/)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ver censo · 26-10-2026' })).toBeVisible();
   });
 
   it('distinguishes an unconfirmed source archive from an unconfirmed clinical write', () => {
