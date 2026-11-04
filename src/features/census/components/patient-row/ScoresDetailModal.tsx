@@ -4,7 +4,7 @@
 
 import React, { useId, useState } from 'react';
 import clsx from 'clsx';
-import { Activity } from 'lucide-react';
+import { Gauge } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type { ScoresCellModel } from '@/features/census/controllers/evaluationScoresCellController';
 import { BradenCard, DowntonCard } from './ScoresDetailCards';
@@ -47,7 +47,7 @@ export const ScoresDetailModal: React.FC<ScoresDetailModalProps> = ({
       isOpen
       onClose={onClose}
       title={`Escalas de enfermería — ${patientName}`}
-      icon={<Activity size={18} />}
+      icon={<Gauge size={18} />}
       size="3xl"
       bodyClassName="!px-4 !py-2"
       dataModule="census-scores"

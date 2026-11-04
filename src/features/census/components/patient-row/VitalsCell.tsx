@@ -106,6 +106,7 @@ export const VitalsCell: React.FC<VitalsCellProps> = ({
         <ClinicalDetailLoadBoundary
           title={`Signos vitales — ${data.patientName}`}
           onClose={() => setIsDetailOpen(false)}
+          size="lg"
         >
           <VitalsDetailModal
             patientName={data.patientName}

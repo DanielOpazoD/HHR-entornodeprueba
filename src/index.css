@@ -108,16 +108,16 @@
     --accent-900: #134e4a;
   }
 
-  /* Laboratory: Amber */
+  /* Laboratory: Emerald, like its flask in the census row; amber stays for «needs attention». */
   [data-module='laboratory'] {
-    --accent-50: #fffbeb;
-    --accent-100: #fef3c7;
-    --accent-200: #fde68a;
-    --accent-500: #f59e0b;
-    --accent-600: #d97706;
-    --accent-700: #b45309;
-    --accent-800: #92400e;
-    --accent-900: #78350f;
+    --accent-50: #ecfdf5;
+    --accent-100: #d1fae5;
+    --accent-200: #a7f3d0;
+    --accent-500: #10b981;
+    --accent-600: #059669;
+    --accent-700: #047857;
+    --accent-800: #065f46;
+    --accent-900: #064e3b;
   }
 
   /* Clinical Documents: Indigo */

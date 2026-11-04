@@ -359,16 +359,9 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
         size="3xl"
         className="!rounded-2xl ring-1 ring-black/[0.03]"
         bodyClassName="max-h-[85vh] overflow-y-auto px-5 py-4"
-        title={
-          <span className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-violet-700 text-white shadow-md shadow-violet-500/20">
-              <XRayIcon size={16} />
-            </span>
-            <span className="text-[15px] font-bold tracking-tight text-slate-800">
-              Radiología / Imagenología
-            </span>
-          </span>
-        }
+        title="Radiología / Imagenología"
+        icon={<XRayIcon size={16} />}
+        headerIconColor="text-violet-600"
       >
         <RadiologyViewerControls
           uniquePatients={uniquePatients}

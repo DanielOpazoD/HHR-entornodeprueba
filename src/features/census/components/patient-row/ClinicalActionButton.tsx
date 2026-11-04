@@ -6,7 +6,7 @@ const tones = {
   clinical: 'text-medical-700 hover:bg-medical-50',
   laboratory: 'text-emerald-700 hover:bg-emerald-50',
   radiology: 'text-violet-700 hover:bg-violet-50',
-  documents: 'text-teal-700 hover:bg-teal-50',
+  documents: 'text-indigo-700 hover:bg-indigo-50',
 };
 
 interface ClinicalActionButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
