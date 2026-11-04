@@ -69,7 +69,8 @@ export const BookmarkManagerModal: React.FC<BookmarkManagerModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Gestionar Marcadores"
-      icon={<GripVertical size={16} className="text-slate-400" />}
+      icon={<GripVertical size={16} />}
+      headerIconColor="text-slate-500"
       variant="white"
       size="md"
       className="!rounded-xl"

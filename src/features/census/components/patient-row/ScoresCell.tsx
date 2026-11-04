@@ -188,6 +188,7 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
         <ClinicalDetailLoadBoundary
           title={`Escalas de enfermería — ${data.patientName}`}
           onClose={() => setIsDetailOpen(false)}
+          size="3xl"
         >
           <ScoresDetailModal
             patientName={data.patientName}

@@ -39,6 +39,7 @@ export const ClinicalAlertsModal: React.FC<ClinicalAlertsModalProps> = ({
       onClose={onClose}
       title={`Alertas de la ficha — ${patientName}`}
       icon={<AlertTriangle size={18} />}
+      headerIconColor="text-amber-600"
       size="md"
       variant="white"
       dataModule="census-clinical-alerts"
