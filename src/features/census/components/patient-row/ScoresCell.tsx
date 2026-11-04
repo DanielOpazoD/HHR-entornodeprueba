@@ -13,8 +13,13 @@ import { AlertTriangle, Bandage, ClipboardList, Footprints } from 'lucide-react'
 import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
 import { ClinicalDetailLoadBoundary } from './ClinicalDetailLoadBoundary';
+import { ClinicalAlertsDetail } from './ClinicalAlertsDetail';
 import { ScaleChip } from './ScaleChip';
-import { buildScoresCellModel } from '@/features/census/controllers/evaluationScoresCellController';
+import {
+  buildScoresCellModel,
+  type ScoresCellModel,
+} from '@/features/census/controllers/evaluationScoresCellController';
+import { useCensusViewPreferences } from '@/features/census/hooks/useCensusViewPreferences';
 import { isCudyrPatientEligible } from '@/domain/cudyr/cudyrEligibility';
 import { isCudyrScoreComplete } from '@/domain/cudyr/cudyrCompletion';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
@@ -23,9 +28,15 @@ import { cudyrModality } from '@/domain/cudyr/cudyrModality';
 const ScoresDetailModal = lazy(() =>
   import('./ScoresDetailModal').then(module => ({ default: module.ScoresDetailModal }))
 );
-const ClinicalAlertsModal = lazy(() =>
-  import('./ClinicalAlertsModal').then(module => ({ default: module.ClinicalAlertsModal }))
-);
+
+/** This computer hides Braden and Downton: nursing reports them in the chart alerts instead. */
+const withoutNursingScales = (model: ScoresCellModel): ScoresCellModel => ({
+  ...model,
+  braden: null,
+  downton: null,
+  history: [],
+  hasAny: model.cudyr != null,
+});
 
 interface ScoresCellProps extends BaseCellProps {
   currentDateString: string;
@@ -52,12 +63,14 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
 }) => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
+  const { nursingScalesHidden } = useCensusViewPreferences();
 
   if (isEmpty && !isSubRow) {
     return <PatientEmptyCell tdClassName="py-0.5 px-1 border-r border-slate-200 relative" />;
   }
 
-  const model = buildScoresCellModel(data, currentDateString);
+  const syncedModel = buildScoresCellModel(data, currentDateString);
+  const model = nursingScalesHidden ? withoutNursingScales(syncedModel) : syncedModel;
   const hasCompleteManualCudyr = isCudyrScoreComplete(data.cudyr);
   const cudyrPending =
     !isSubRow &&
@@ -208,16 +221,11 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
         </ClinicalDetailLoadBoundary>
       )}
       {isAlertsOpen && (
-        <ClinicalDetailLoadBoundary
-          title={`Alertas de la ficha — ${data.patientName}`}
+        <ClinicalAlertsDetail
+          patientName={data.patientName}
+          alerts={alerts}
           onClose={() => setIsAlertsOpen(false)}
-        >
-          <ClinicalAlertsModal
-            patientName={data.patientName}
-            alerts={alerts}
-            onClose={() => setIsAlertsOpen(false)}
-          />
-        </ClinicalDetailLoadBoundary>
+        />
       )}
     </td>
   );
