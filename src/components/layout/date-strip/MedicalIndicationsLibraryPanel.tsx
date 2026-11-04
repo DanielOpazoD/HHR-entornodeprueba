@@ -51,7 +51,7 @@ export const MedicalIndicationsLibraryPanel: React.FC<MedicalIndicationsLibraryP
         className="min-h-[74px] w-full resize-none rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-[12px] leading-relaxed text-slate-700 placeholder:text-slate-300 focus:border-emerald-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:opacity-50"
         value={draftText}
         onChange={event => setDraftText(event.target.value)}
-        placeholder="Guardar una indicación frecuente..."
+        placeholder="Guardar una indicación frecuente…"
         disabled={disabled || isSaving}
       />
       <button
@@ -71,7 +71,7 @@ export const MedicalIndicationsLibraryPanel: React.FC<MedicalIndicationsLibraryP
           Inicia sesión para usar tu biblioteca personal.
         </div>
       ) : isLoading ? (
-        <div className="px-4 py-8 text-center text-[12px] text-slate-400">Cargando...</div>
+        <div className="px-4 py-8 text-center text-[12px] text-slate-400">Cargando…</div>
       ) : templates.length === 0 ? (
         <div className="px-4 py-8 text-center text-[12px] text-slate-400">
           Aún no hay indicaciones guardadas.

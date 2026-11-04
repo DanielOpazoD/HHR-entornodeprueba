@@ -64,7 +64,7 @@ export const BedReasonDialog: React.FC<BedReasonDialogProps> = ({
                 ? 'border-red-300 focus:ring-red-100'
                 : 'border-slate-200 focus:border-medical-500 focus:ring-medical-500'
             )}
-            placeholder="Ej: Mantención, Aislamiento..."
+            placeholder="Ej: Mantención, Aislamiento…"
             value={reason}
             onChange={event => onReasonChange(event.target.value)}
             onKeyDown={event => event.key === 'Enter' && onConfirm()}

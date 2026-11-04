@@ -100,7 +100,7 @@ export const CensusEmailRecipientsSection: React.FC<CensusEmailRecipientsSection
               : 'Se estan usando destinatarios por defecto hasta crear una lista global.'}
         </p>
         {isRecipientsSyncing && (
-          <p className="text-[9px] text-blue-700 mt-1 font-medium">Sincronizando cambios...</p>
+          <p className="text-[9px] text-blue-700 mt-1 font-medium">Sincronizando cambios…</p>
         )}
         {recipientsSyncError && (
           <p className="text-[9px] text-amber-700 mt-1 font-medium">{recipientsSyncError}</p>
@@ -308,7 +308,7 @@ export const CensusEmailRecipientsSection: React.FC<CensusEmailRecipientsSection
           <div className="relative">
             <input
               type="email"
-              placeholder="Agregar correo..."
+              placeholder="Agregar correo…"
               value={newRecipient}
               onChange={event => onNewRecipientChange(event.target.value)}
               onKeyDown={event => event.key === 'Enter' && onAddRecipient()}

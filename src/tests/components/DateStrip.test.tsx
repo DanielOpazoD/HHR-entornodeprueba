@@ -145,7 +145,7 @@ describe('DateStrip', () => {
   it('shows email status indicators', async () => {
     // Correct text for status indicators in EmailDropdown
     const { rerender } = render(<DateStrip {...defaultProps} emailStatus="loading" />);
-    expect(await screen.findByText('Enviando...')).toBeInTheDocument();
+    expect(await screen.findByText('Enviando…')).toBeInTheDocument();
     expect(await screen.findByTitle('Enviar censo')).toHaveAttribute(
       'data-email-status',
       'loading'
@@ -179,7 +179,7 @@ describe('DateStrip', () => {
     // Sync status is actually reflected in SaveDropdown 'isArchived' and 'isBackingUp' props
     const { rerender } = render(<DateStrip {...defaultProps} isBackingUp={true} />);
     const savingButton = await screen.findByTitle('Opciones de guardado');
-    expect(savingButton).toHaveAttribute('aria-label', 'Guardando...');
+    expect(savingButton).toHaveAttribute('aria-label', 'Guardando…');
     expect(savingButton).toHaveAttribute('data-save-status', 'loading');
 
     rerender(<DateStrip {...defaultProps} isArchived={true} />);

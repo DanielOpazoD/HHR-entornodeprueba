@@ -69,7 +69,7 @@ export const ImagingRequestDialog: React.FC<ImagingRequestDialogProps> = ({
             size={14}
             className={isPrinting ? 'animate-bounce' : 'group-hover:rotate-12 transition-transform'}
           />
-          <span>{isPrinting ? 'Preparando...' : 'Imprimir'}</span>
+          <span>{isPrinting ? 'Preparando…' : 'Imprimir'}</span>
         </button>
       }
       size="full"

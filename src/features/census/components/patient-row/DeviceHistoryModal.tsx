@@ -126,7 +126,7 @@ export const DeviceHistoryModal: React.FC<DeviceHistoryModalProps> = ({
                             type="text"
                             value={item.location || ''}
                             onChange={e => updateRecord(item.id, { location: e.target.value })}
-                            placeholder="Ubicación..."
+                            placeholder="Ubicación…"
                             className="text-[10px] bg-transparent border-none p-0 focus:ring-0 text-slate-500 hover:text-medical-600 w-24"
                           />
                         </div>

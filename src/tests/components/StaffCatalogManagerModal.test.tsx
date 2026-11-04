@@ -46,7 +46,7 @@ describe('StaffCatalogManagerModal', () => {
       />
     );
 
-    const input = screen.getByPlaceholderText('Nombre completo...');
+    const input = screen.getByPlaceholderText('Nombre completo…');
     fireEvent.change(input, { target: { value: '   Maria   ' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
@@ -67,7 +67,7 @@ describe('StaffCatalogManagerModal', () => {
       />
     );
 
-    const input = screen.getByPlaceholderText('Nombre completo...');
+    const input = screen.getByPlaceholderText('Nombre completo…');
     fireEvent.change(input, { target: { value: 'A' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 

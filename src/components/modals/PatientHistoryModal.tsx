@@ -211,7 +211,7 @@ export const PatientHistoryModal: React.FC<PatientHistoryModalProps> = ({
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-8 text-slate-400">
             <Loader2 size={24} className="animate-spin mb-2 text-blue-500" />
-            <span className="text-xs font-medium">Buscando historial clínico...</span>
+            <span className="text-xs font-medium">Buscando historial clínico…</span>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-8 text-slate-400 bg-slate-50 rounded-xl border border-slate-100 border-dashed">

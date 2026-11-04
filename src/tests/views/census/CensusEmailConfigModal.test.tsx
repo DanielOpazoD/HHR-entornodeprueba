@@ -45,7 +45,7 @@ describe('CensusEmailConfigModal', () => {
     const props = buildProps();
     render(<CensusEmailConfigModal {...props} />);
 
-    const input = screen.getByPlaceholderText('Agregar correo...');
+    const input = screen.getByPlaceholderText('Agregar correo…');
 
     fireEvent.change(input, {
       target: { value: ' B@MAIL.COM ' },
