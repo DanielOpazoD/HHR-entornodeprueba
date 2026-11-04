@@ -381,7 +381,7 @@ export const UpcClassificationWindow: React.FC<UpcClassificationWindowProps> = (
           onClick={() => void confirmChanges()}
           disabled={isSaving || selectedCount === 0 || !quickAvailability.allowed}
           title={quickAvailability.reason ?? 'Confirmar las camas marcadas sin criterios UPC'}
-          className="inline-flex items-center gap-1.5 rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-emerald-50 disabled:text-emerald-800 disabled:shadow-none disabled:ring-1 disabled:ring-inset disabled:ring-emerald-200"
+          className="inline-flex items-center gap-1.5 rounded-md bg-teal-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-teal-50 disabled:text-teal-800 disabled:shadow-none disabled:ring-1 disabled:ring-inset disabled:ring-emerald-200"
         >
           {isSaving ? (
             <LoaderCircle size={13} className="animate-spin" aria-hidden="true" />

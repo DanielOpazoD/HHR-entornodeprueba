@@ -293,7 +293,7 @@ export const StaffShiftDetailsModal: React.FC<StaffShiftDetailsModalProps> = ({
           type="button"
           onClick={handleSave}
           disabled={isSaving}
-          className="rounded-full bg-medical-600 px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-full bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSaving ? 'Guardando...' : 'Guardar cambios'}
         </button>

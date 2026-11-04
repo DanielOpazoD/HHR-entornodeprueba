@@ -302,7 +302,7 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
                   <button
                     type="button"
                     data-testid={`clinical-block-save-${data.bedId}`}
-                    className="inline-flex items-center gap-1 rounded border border-medical-600 bg-medical-600 px-2 py-1 text-[12px] font-semibold text-white hover:bg-medical-700"
+                    className="inline-flex items-center gap-1 rounded border border-teal-600 bg-teal-600 px-2 py-1 text-[12px] font-semibold text-white hover:bg-teal-700"
                     disabled={saveState.isSaving}
                     onClick={() => void saveDraft()}
                   >

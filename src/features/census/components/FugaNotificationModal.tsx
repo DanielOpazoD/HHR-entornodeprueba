@@ -163,7 +163,7 @@ export const FugaNotificationModal: React.FC<FugaNotificationModalProps> = ({
             type="button"
             onClick={handleSend}
             disabled={isSending}
-            className="px-3 py-1.5 text-xs rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+            className="px-3 py-1.5 text-xs rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
           >
             {isSending ? 'Enviando...' : 'Enviar notificación'}
           </button>

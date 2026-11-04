@@ -368,3 +368,24 @@ test('keeps toolbar cards at their own height when opening monthly CUDYR', async
     await page.getByRole('button', { name: 'Mostrar camas y movimientos' }).click();
   }
 });
+
+test('keeps the stale-day banner readable above the sticky table header while scrolling', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 640 });
+  await seedCensus(page);
+  await page.goto(`/?date=${DATE}`);
+  await expect(page.getByText(PATIENT, { exact: true })).toBeVisible();
+  const banner = page.locator('[data-app-top-bar][role="alert"]');
+  await expect(banner).toBeVisible();
+  await page.mouse.wheel(0, 900);
+  await page.waitForTimeout(300);
+  const header = page.getByTestId('census-table').locator('thead');
+  const [bannerBox, headerBox] = await Promise.all([banner.boundingBox(), header.boundingBox()]);
+  expect(bannerBox).not.toBeNull();
+  expect(headerBox).not.toBeNull();
+  // The header sticks right under the banner instead of covering it.
+  expect(headerBox!.y).toBeGreaterThanOrEqual(bannerBox!.y + bannerBox!.height - 1);
+  expect(headerBox!.y).toBeLessThanOrEqual(bannerBox!.y + bannerBox!.height + 2);
+  await expect(banner.getByRole('button', { name: 'Ir a hoy' })).toBeVisible();
+});

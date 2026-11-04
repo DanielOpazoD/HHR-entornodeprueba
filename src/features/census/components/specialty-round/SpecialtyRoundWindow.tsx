@@ -195,7 +195,7 @@ export const SpecialtyRoundWindow = ({ date, disabled, onClose }: SpecialtyRound
             type="button"
             onClick={() => void round.saveAll()}
             disabled={disabled || round.busy || round.isSyncCommit || !selected}
-            className="rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg bg-teal-600 px-4 py-2 font-semibold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Confirmar {selected} {selected === 1 ? 'asignación' : 'asignaciones'}
           </button>
