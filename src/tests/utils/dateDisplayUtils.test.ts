@@ -32,11 +32,11 @@ describe('formatDateTimeCL', () => {
   it('reads instants on the hospital clock, not the device clock', () => {
     expect(formatDateTimeCL('2026-07-17T07:00:00.000Z')).toContain('01:00');
     // 04:30Z on Oct 22 is still Oct 21 in Rapa Nui (UTC-5) but Oct 22 in Santiago.
-    expect(formatDateTimeCL('2026-10-22T04:30:00.000Z')).toMatch(/^21-10-2026, 23:30$/);
+    expect(formatDateTimeCL('2026-10-22T04:30:00.000Z')).toMatch(/^21-10-2026 23:30$/);
   });
 
   it('shows zone-less wall-clock readings (Rayen, datetime-local) as written', () => {
-    expect(formatDateTimeCL('2026-07-16T00:30')).toMatch(/^16-07-2026, 00:30$/);
+    expect(formatDateTimeCL('2026-07-16T00:30')).toMatch(/^16-07-2026 00:30$/);
     expect(formatTimeHHMM('2026-07-16 10:05:00')).toBe('10:05');
   });
 });

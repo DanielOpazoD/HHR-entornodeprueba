@@ -10,7 +10,7 @@ import {
 import { formatDateDDMMYYYY, formatDateTimeCL } from '@/utils/dateDisplayUtils';
 import { resolveUpcBadgeColor, type UpcClassification } from '@/domain/upc/upcClassification';
 
-const dateLabel = (date: string) => formatDateDDMMYYYY(date).replace(/^0(\d-)/, '$1');
+const dateLabel = (date: string) => formatDateDDMMYYYY(date);
 const PAGE_SIZE = 4;
 
 /** Same tone as the census UPC cell: UCI red, UTI amber, no criteria neutral. */
@@ -116,7 +116,7 @@ export const UpcEvaluationHistoryPanel = ({
             >
               <div className="flex flex-wrap items-center justify-between gap-1">
                 <time dateTime={entry.evaluatedAt} className="font-semibold text-slate-800">
-                  {formatDateTimeCL(entry.evaluatedAt).replace(/^0(\d-)/, '$1')}
+                  {formatDateTimeCL(entry.evaluatedAt)}
                 </time>
                 <span
                   className={`rounded px-1.5 py-0.5 font-semibold ${classificationBadge(entry.classification)}`}

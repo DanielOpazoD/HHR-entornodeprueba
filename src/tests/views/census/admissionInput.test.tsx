@@ -29,7 +29,7 @@ describe('AdmissionInput', () => {
       </table>
     );
 
-    expect(screen.getByText('20/02/2026')).toBeInTheDocument();
+    expect(screen.getByText('20-02-2026')).toBeInTheDocument();
     expect(screen.queryByLabelText('Editar fecha y hora de ingreso')).not.toBeInTheDocument();
     expect(
       screen.queryByRole('dialog', { name: 'Configurar fecha y hora de ingreso' })
@@ -62,7 +62,7 @@ describe('AdmissionInput', () => {
       </table>
     );
 
-    expect(screen.getByText('11/03/2026')).toBeInTheDocument();
+    expect(screen.getByText('11-03-2026')).toBeInTheDocument();
     expect(screen.queryByLabelText('Editar fecha y hora de ingreso')).not.toBeInTheDocument();
   });
 
@@ -93,7 +93,7 @@ describe('AdmissionInput', () => {
       </table>
     );
 
-    expect(screen.getByText('01/01/2024')).toBeInTheDocument();
+    expect(screen.getByText('01-01-2024')).toBeInTheDocument();
     expect(screen.queryByLabelText('Corregir fecha de ingreso sugerida')).not.toBeInTheDocument();
     expect(onMultipleUpdate).not.toHaveBeenCalled();
   });
@@ -122,7 +122,7 @@ describe('AdmissionInput', () => {
       </table>
     );
 
-    expect(screen.getByText('10/03/2026')).toBeInTheDocument();
+    expect(screen.getByText('10-03-2026')).toBeInTheDocument();
     expect(screen.queryByLabelText('Editar fecha y hora de ingreso')).not.toBeInTheDocument();
   });
 
@@ -150,7 +150,7 @@ describe('AdmissionInput', () => {
       </table>
     );
 
-    expect(screen.getByText('10/03/2024')).toBeInTheDocument();
+    expect(screen.getByText('10-03-2024')).toBeInTheDocument();
     expect(screen.queryByLabelText('Editar fecha y hora de ingreso')).not.toBeInTheDocument();
   });
 
@@ -179,7 +179,7 @@ describe('AdmissionInput', () => {
       </table>
     );
 
-    expect(screen.getByText('10/03/2026')).toBeInTheDocument();
+    expect(screen.getByText('10-03-2026')).toBeInTheDocument();
     expect(screen.queryByLabelText('Editar fecha y hora de ingreso')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Corregir fecha de ingreso sugerida')).not.toBeInTheDocument();
   });

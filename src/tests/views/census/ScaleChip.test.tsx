@@ -115,7 +115,7 @@ describe('ScaleChip', () => {
 
     fireEvent.mouseEnter(screen.getByText('Braden').closest('.grid') as HTMLElement);
 
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Registrado: 02-08-2026, 01:23');
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Registrado: 02-08-2026 01:23');
     expect(screen.getByRole('tooltip')).not.toHaveTextContent('08-02-2026');
   });
 
@@ -136,7 +136,7 @@ describe('ScaleChip', () => {
 
     fireEvent.focus(screen.getByText('Braden').closest('.grid') as HTMLElement);
 
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Registrado: 02-08-2026, 01:23');
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Registrado: 02-08-2026 01:23');
   });
 
   it('converts both date and time when an absolute timestamp crosses midnight in Rapa Nui', () => {
@@ -156,7 +156,7 @@ describe('ScaleChip', () => {
 
     fireEvent.focus(screen.getByText('Braden').closest('.grid') as HTMLElement);
 
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Registrado: 01-08-2026, 21:00');
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Registrado: 01-08-2026 21:00');
   });
 
   it('falls back to the census day and local clock for a calendar-invalid ISO timestamp', () => {
@@ -176,6 +176,6 @@ describe('ScaleChip', () => {
 
     fireEvent.focus(screen.getByText('Braden').closest('.grid') as HTMLElement);
 
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Registrado: 02-08-2026, 07:23');
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Registrado: 02-08-2026 07:23');
   });
 });

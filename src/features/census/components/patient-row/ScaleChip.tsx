@@ -105,7 +105,7 @@ const absoluteMomentFromRecordedAt = (recordedAt?: string): string => {
       }).formatToParts(instant);
       const part = (type: Intl.DateTimeFormatPartTypes): string =>
         parts.find(candidate => candidate.type === type)?.value ?? '';
-      return `${part('day')}-${part('month')}-${part('year')}, ${part('hour')}:${part('minute')}`;
+      return `${part('day')}-${part('month')}-${part('year')} ${part('hour')}:${part('minute')}`;
     }
   }
 
@@ -124,7 +124,7 @@ const formatRecordedMoment = (recordedDate: string, recordedAt?: string): string
   if (absoluteMoment) return absoluteMoment;
 
   const clock = localClockFromRecordedAt(recordedAt);
-  return `${formatDayLong(recordedDate)}${clock ? `, ${clock}` : ''}`;
+  return `${formatDayLong(recordedDate)}${clock ? ` ${clock}` : ''}`;
 };
 
 /**
