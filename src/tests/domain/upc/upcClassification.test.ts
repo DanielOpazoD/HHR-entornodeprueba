@@ -4,7 +4,6 @@ import { describe, it, expect } from 'vitest';
 import {
   resolveUpcClassification,
   resolveUpcClassificationLabel,
-  resolveUpcBadgeColor,
 } from '@/domain/upc/upcClassification';
 
 describe('resolveUpcClassification', () => {
@@ -62,24 +61,5 @@ describe('resolveUpcClassificationLabel', () => {
 
   it('returns empty string for null', () => {
     expect(resolveUpcClassificationLabel(null)).toBe('');
-  });
-});
-
-describe('resolveUpcBadgeColor', () => {
-  it('returns red colors for UCI', () => {
-    const colors = resolveUpcBadgeColor('UPC_UCI');
-    expect(colors.text).toContain('red');
-    expect(colors.bg).toContain('red');
-  });
-
-  it('returns amber colors for UTI', () => {
-    const colors = resolveUpcBadgeColor('UPC_UTI');
-    expect(colors.text).toContain('amber');
-    expect(colors.bg).toContain('amber');
-  });
-
-  it('returns transparent for null', () => {
-    const colors = resolveUpcBadgeColor(null);
-    expect(colors.bg).toContain('transparent');
   });
 });

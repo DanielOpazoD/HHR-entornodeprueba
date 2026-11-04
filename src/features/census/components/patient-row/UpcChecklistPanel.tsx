@@ -2,10 +2,8 @@ import React, { useState } from 'react';
 import clsx from 'clsx';
 import { History, ShieldCheck, X } from 'lucide-react';
 import { UPC_UCI_CRITERIA, UPC_UTI_CRITERIA } from '@/domain/upc/upcCriteria';
-import {
-  resolveUpcClassificationLabel,
-  resolveUpcBadgeColor,
-} from '@/domain/upc/upcClassification';
+import { resolveUpcClassificationLabel } from '@/domain/upc/upcClassification';
+import { resolveUpcBadgeColor } from './upcClassificationTone';
 import type { UpcClassification } from '@/domain/upc/upcClassification';
 
 /** Width of the evaluation panel, shared by the day window that embeds it. */
