@@ -10,16 +10,16 @@ const row: EgresoReportRow = {
   edad: '40 años',
   destino: 'Domicilio',
   motivo: 'Alta',
-  fechaEgreso: '21-09-2030 09:14',
+  fechaEgreso: '21-09-2024 09:14',
 };
 const episode = {
   encId: '300',
   patientName: 'PACIENTE SINTETICO',
-  startDate: '2030-09-20',
-  endDate: '2030-09-21',
+  startDate: '2024-09-20',
+  endDate: '2024-09-21',
   active: false,
 };
-const pdf = (admission = '2 0 - 0 9 - 3 0', discharge = '2 1 - 0 9 - 3 0') => `
+const pdf = (admission = '2 0 - 0 9 - 2 4', discharge = '2 1 - 0 9 - 2 4') => `
 Informe Estadístico de Egreso Hospitalario
 1.RUN:
 1 2 3 4 5 6 7 8 - 5
@@ -45,7 +45,7 @@ describe('historical administrative rows resolved through the report index', () 
   it('omits a uniquely identified episode admitted after the selected night, without PDF work', async () => {
     const h = harness();
     const original = structuredClone(row);
-    expect(await enrichReportOnlyDischarges([row], '2030-09-15', h)).toEqual([]);
+    expect(await enrichReportOnlyDischarges([row], '2024-09-15', h)).toEqual([]);
     expect(h.fetchStatisticalDischarge).not.toHaveBeenCalled();
     expect(row).toEqual(original);
   });
@@ -54,16 +54,16 @@ describe('historical administrative rows resolved through the report index', () 
     const h = harness();
     h.lookupHospitalizations.mockResolvedValue({
       ok: true,
-      episodes: [{ ...episode, startDate: '2030-09-10' }],
+      episodes: [{ ...episode, startDate: '2024-09-10' }],
     });
-    h.extractText.mockResolvedValue(pdf('1 0 - 0 9 - 3 0'));
-    const [result] = await enrichReportOnlyDischarges([row], '2030-09-15', h);
+    h.extractText.mockResolvedValue(pdf('1 0 - 0 9 - 2 4'));
+    const [result] = await enrichReportOnlyDischarges([row], '2024-09-15', h);
     expect(h.lookupEgresos).toHaveBeenLastCalledWith([{ run: row.run, encounterId: '300' }]);
     expect(result).toMatchObject({
       encounterId: '300',
       exactEpisodeVerification: 'verified',
-      admissionDay: '2030-09-10',
-      correctedDay: '2030-09-21',
+      admissionDay: '2024-09-10',
+      correctedDay: '2024-09-21',
       correctedTime: '09:14',
     });
   });
@@ -72,13 +72,13 @@ describe('historical administrative rows resolved through the report index', () 
     const h = harness();
     h.lookupHospitalizations.mockResolvedValue({
       ok: true,
-      episodes: [{ ...episode, startDate: '2030-09-16' }],
+      episodes: [{ ...episode, startDate: '2024-09-16' }],
     });
-    h.extractText.mockResolvedValue(pdf('1 6 - 0 9 - 3 0'));
-    expect(await enrichReportOnlyDischarges([row], '2030-09-15', h)).toEqual([
+    h.extractText.mockResolvedValue(pdf('1 6 - 0 9 - 2 4'));
+    expect(await enrichReportOnlyDischarges([row], '2024-09-15', h)).toEqual([
       expect.objectContaining({
         encounterId: '300',
-        admissionDay: '2030-09-16',
+        admissionDay: '2024-09-16',
         admissionTime: '01:00',
       }),
     ]);
@@ -90,7 +90,7 @@ describe('historical administrative rows resolved through the report index', () 
       ok: true,
       episodes: [{ ...episode, patientName: 'RN de Paciente Sintetico' }],
     });
-    expect(await enrichReportOnlyDischarges([row], '2030-09-15', h)).toEqual([
+    expect(await enrichReportOnlyDischarges([row], '2024-09-15', h)).toEqual([
       { ...row, exactEpisodeVerification: 'unverified' },
     ]);
     expect(h.fetchStatisticalDischarge).not.toHaveBeenCalled();
@@ -109,7 +109,7 @@ describe('historical administrative rows resolved through the report index', () 
         },
       ],
     });
-    expect(await enrichReportOnlyDischarges([partial], '2030-09-15', h)).toEqual([]);
+    expect(await enrichReportOnlyDischarges([partial], '2024-09-15', h)).toEqual([]);
     expect(h.fetchStatisticalDischarge).not.toHaveBeenCalled();
   });
 
@@ -124,7 +124,7 @@ describe('historical administrative rows resolved through the report index', () 
         identifierType: 2,
       };
       if (kind === 'maternal') candidate.identifierType = 4;
-      if (kind === 'past') candidate.startDate = '2030-09-10';
+      if (kind === 'past') candidate.startDate = '2024-09-10';
       if (kind === 'short-name') {
         partial.patientName = 'Paciente Sintetico';
         candidate.patientName = 'Paciente Sintetico Perez';
@@ -134,7 +134,7 @@ describe('historical administrative rows resolved through the report index', () 
         ok: true,
         episodes: kind === 'ambiguous' ? [candidate, { ...candidate, encId: '301' }] : [candidate],
       });
-      expect(await enrichReportOnlyDischarges([partial], '2030-09-15', h)).toEqual([
+      expect(await enrichReportOnlyDischarges([partial], '2024-09-15', h)).toEqual([
         { ...partial, exactEpisodeVerification: 'unverified' },
       ]);
       expect(h.fetchStatisticalDischarge).not.toHaveBeenCalled();
@@ -147,10 +147,10 @@ describe('historical administrative rows resolved through the report index', () 
       const h = harness();
       h.lookupHospitalizations.mockResolvedValue({
         ok: true,
-        episodes: [{ ...episode, startDate: '2030-09-10' }],
+        episodes: [{ ...episode, startDate: '2024-09-10' }],
       });
       const crib = { ...row, bedLabel };
-      expect(await enrichReportOnlyDischarges([crib], '2030-09-15', h)).toEqual([
+      expect(await enrichReportOnlyDischarges([crib], '2024-09-15', h)).toEqual([
         { ...crib, exactEpisodeVerification: 'unverified' },
       ]);
       expect(h.fetchStatisticalDischarge).not.toHaveBeenCalled();
@@ -163,7 +163,7 @@ describe('historical administrative rows resolved through the report index', () 
       ok: true,
       episodes: [episode, { ...episode, encId: '301' }],
     });
-    expect(await enrichReportOnlyDischarges([row], '2030-09-15', h)).toEqual([
+    expect(await enrichReportOnlyDischarges([row], '2024-09-15', h)).toEqual([
       { ...row, exactEpisodeVerification: 'unverified' },
     ]);
   });
@@ -173,14 +173,14 @@ describe('historical administrative rows resolved through the report index', () 
     { ok: true, episodes: [] },
     { ok: true, episodes: [{ ...episode, patientName: undefined }] },
     { ok: true, episodes: [{ ...episode, startDate: '' }] },
-    { ok: true, episodes: [{ ...episode, startDate: '2030-02-30' }] },
-    { ok: true, episodes: [{ ...episode, endDate: '2030-09-22' }] },
+    { ok: true, episodes: [{ ...episode, startDate: '2024-02-30' }] },
+    { ok: true, episodes: [{ ...episode, endDate: '2024-09-22' }] },
   ])(
     'preserves unverified rows for incomplete, legacy or contradictory index evidence: %j',
     async result => {
       const h = harness();
       h.lookupHospitalizations.mockResolvedValue(result);
-      expect(await enrichReportOnlyDischarges([row], '2030-09-15', h)).toEqual([
+      expect(await enrichReportOnlyDischarges([row], '2024-09-15', h)).toEqual([
         { ...row, exactEpisodeVerification: 'unverified' },
       ]);
     }
@@ -189,7 +189,7 @@ describe('historical administrative rows resolved through the report index', () 
   it('keeps the row when the optional index rejects instead of failing other verified work', async () => {
     const h = harness();
     h.lookupHospitalizations.mockRejectedValue(new Error('Unavailable'));
-    expect(await enrichReportOnlyDischarges([row], '2030-09-15', h)).toEqual([
+    expect(await enrichReportOnlyDischarges([row], '2024-09-15', h)).toEqual([
       { ...row, exactEpisodeVerification: 'unverified' },
     ]);
   });
@@ -200,9 +200,9 @@ describe('historical administrative rows resolved through the report index', () 
       const h = harness();
       h.lookupHospitalizations.mockResolvedValue({
         ok: true,
-        episodes: [{ ...episode, startDate: '2030-09-10' }],
+        episodes: [{ ...episode, startDate: '2024-09-10' }],
       });
-      h.extractText.mockResolvedValue(pdf('1 0 - 0 9 - 3 0'));
+      h.extractText.mockResolvedValue(pdf('1 0 - 0 9 - 2 4'));
       if (kind === 'wrong-run')
         h.lookupEgresos.mockResolvedValue([
           { run: '11.111.111-1', encounterId: '300', egreso: { id: '300' } },
@@ -216,8 +216,8 @@ describe('historical administrative rows resolved through the report index', () 
           pdf().replace('1 2 3 4 5 6 7 8 - 5', '1 1 1 1 1 1 1 1 - 1')
         );
       if (kind === 'pdf-interval')
-        h.extractText.mockResolvedValue(pdf('1 0 - 0 9 - 3 0', '2 2 - 0 9 - 3 0'));
-      expect(await enrichReportOnlyDischarges([row], '2030-09-15', h)).toEqual([
+        h.extractText.mockResolvedValue(pdf('1 0 - 0 9 - 2 4', '2 2 - 0 9 - 2 4'));
+      expect(await enrichReportOnlyDischarges([row], '2024-09-15', h)).toEqual([
         { ...row, exactEpisodeVerification: 'unverified' },
       ]);
     }
@@ -226,14 +226,14 @@ describe('historical administrative rows resolved through the report index', () 
   it('never converts a passport into a numeric RUN for either lookup', async () => {
     const h = harness();
     const passport = { ...row, run: 'A12345678' };
-    expect(await enrichReportOnlyDischarges([passport], '2030-09-15', h)).toEqual([passport]);
+    expect(await enrichReportOnlyDischarges([passport], '2024-09-15', h)).toEqual([passport]);
     expect(h.lookupEgresos).not.toHaveBeenCalled();
     expect(h.lookupHospitalizations).not.toHaveBeenCalled();
   });
 
   it('does not add historical index reads to a current-day import', async () => {
     const h = { ...harness(), allReportDays: false };
-    await enrichReportOnlyDischarges([row], '2030-09-21', h);
+    await enrichReportOnlyDischarges([row], '2024-09-21', h);
     expect(h.lookupHospitalizations).not.toHaveBeenCalled();
   });
 
@@ -242,7 +242,7 @@ describe('historical administrative rows resolved through the report index', () 
     expect(
       await enrichReportOnlyDischarges(
         [row, { ...row, diagnostico: 'Other diagnosis' }],
-        '2030-09-15',
+        '2024-09-15',
         h
       )
     ).toEqual([]);
