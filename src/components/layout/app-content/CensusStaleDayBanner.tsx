@@ -18,7 +18,8 @@ interface CensusStaleDayBannerProps {
  * non-modal cue in smaller type. Renders nothing when already on the clinical day, so
  * the night shift working its own clinical day before the rollover never sees it.
  *
- * Shares the responsive chrome offset; z below the date strip's z-40.
+ * Shares the responsive chrome offset; z below the date strip's z-40. Its fixed one-line height
+ * (`h-7`) is what the census table header adds to its own sticky offset, so neither covers the other.
  */
 export const CensusStaleDayBanner: React.FC<CensusStaleDayBannerProps> = ({
   currentDateString,
@@ -36,16 +37,15 @@ export const CensusStaleDayBanner: React.FC<CensusStaleDayBannerProps> = ({
     <div
       data-app-top-bar
       role="alert"
-      className="sticky top-[var(--hhr-chrome-height)] z-30 flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-1 text-slate-600 print:hidden"
+      className="sticky top-[var(--hhr-chrome-height)] z-30 flex h-7 items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 text-slate-600 print:hidden"
     >
       <CalendarClock size={13} className="shrink-0 text-slate-500" aria-hidden="true" />
-      <p className="flex-1 text-[11px] leading-tight">
+      <p className="flex-1 truncate text-[11px] leading-tight">
         Estás viendo el <span className="font-semibold">{viewedLabel}</span>. El día de hoy es{' '}
         <span className="font-semibold">{todayLabel}</span>.
       </p>
       <button
         onClick={onGoToToday}
-        aria-label="Ir a hoy"
         className="shrink-0 rounded-md border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800"
       >
         Ir a hoy
