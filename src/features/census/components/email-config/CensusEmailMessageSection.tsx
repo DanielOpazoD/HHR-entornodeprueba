@@ -24,7 +24,7 @@ export const CensusEmailMessageSection: React.FC<CensusEmailMessageSectionProps>
         onChange={event => onMessageChange(event.target.value)}
         rows={8}
         className="w-full border border-slate-200 rounded-lg px-2.5 py-2 text-[11px] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white flex-1 min-h-[150px] lg:min-h-[210px]"
-        placeholder="Escribe el mensaje aquí..."
+        placeholder="Escribe el mensaje aquí…"
       />
       <div className="flex justify-end pt-0.5">
         <button

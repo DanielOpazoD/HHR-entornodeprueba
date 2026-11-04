@@ -115,7 +115,7 @@ export const ExcelViewerModal: React.FC<ExcelViewerModalProps> = ({
                     {isParsing ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-10 p-12 text-center">
                             <Loader2 className="w-10 h-10 text-emerald-600 animate-spin mb-4" />
-                            <p className="text-slate-600 font-bold">Cargando censo diario...</p>
+                            <p className="text-slate-600 font-bold">Cargando censo diario…</p>
                             <p className="text-slate-400 text-xs mt-1">Optimizando visualización de todas las hojas</p>
                         </div>
                     ) : parseError ? (

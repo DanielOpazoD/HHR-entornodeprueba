@@ -45,7 +45,7 @@ describe('MedicalIndicationsQuickAction', () => {
   const openDialog = async () => {
     fireEvent.click(screen.getByTitle('Indicaciones médicas'));
     await screen.findByText('Mis indicaciones');
-    await waitFor(() => expect(screen.queryByText('Cargando...')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText('Cargando…')).not.toBeInTheDocument());
   };
 
   it('habilita edición de indicaciones por defecto', async () => {
@@ -55,7 +55,7 @@ describe('MedicalIndicationsQuickAction', () => {
 
     expect(screen.getByRole('button', { name: 'Editando' })).toBeInTheDocument();
 
-    const draftInput = screen.getByPlaceholderText('Escribe una indicación y presiona Enter...');
+    const draftInput = screen.getByPlaceholderText('Escribe una indicación y presiona Enter…');
     expect(draftInput).toBeEnabled();
   });
 
@@ -64,7 +64,7 @@ describe('MedicalIndicationsQuickAction', () => {
 
     await openDialog();
 
-    fireEvent.change(screen.getByPlaceholderText('Escribe una indicación y presiona Enter...'), {
+    fireEvent.change(screen.getByPlaceholderText('Escribe una indicación y presiona Enter…'), {
       target: { value: 'Control de signos vitales cada 6 horas' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Agregar' }));
@@ -192,7 +192,7 @@ describe('MedicalIndicationsQuickAction', () => {
 
     await openDialog();
 
-    fireEvent.change(screen.getByPlaceholderText('Escribe una indicación y presiona Enter...'), {
+    fireEvent.change(screen.getByPlaceholderText('Escribe una indicación y presiona Enter…'), {
       target: { value: 'Mantener control de signos vitales cada 6 horas' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Agregar' }));

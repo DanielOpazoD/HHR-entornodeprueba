@@ -28,7 +28,7 @@ export const LabViewerComparisonToolbar: React.FC<LabViewerComparisonToolbarProp
         type="text"
         value={searchQuery}
         onChange={event => onSearchChange(event.target.value)}
-        placeholder="Buscar variable..."
+        placeholder="Buscar variable…"
         className="w-full rounded-lg border border-slate-200 bg-white py-1 pl-7 pr-2 text-[10px] text-slate-700 placeholder:text-slate-300 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/10"
       />
     </div>

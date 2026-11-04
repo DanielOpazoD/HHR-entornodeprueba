@@ -172,7 +172,7 @@ export const GlobalPatientSearchModal: React.FC<GlobalPatientSearchModalProps> =
             type="text"
             value={search.query}
             onChange={e => search.setQuery(e.target.value)}
-            placeholder="Buscar por nombre, apellido o RUT..."
+            placeholder="Buscar por nombre, apellido o RUT…"
             className="flex-1 text-sm text-slate-800 placeholder-slate-400 outline-none bg-transparent"
             autoComplete="off"
             spellCheck={false}

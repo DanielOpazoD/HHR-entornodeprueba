@@ -143,11 +143,11 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
     }
 
     const steps = [
-      { pct: 10, text: 'Conectando con el servidor de imágenes...' },
-      { pct: 30, text: 'Iniciando sesión en RIS MMRAD...' },
-      { pct: 50, text: 'Buscando exámenes del paciente...' },
-      { pct: 70, text: 'Extrayendo informes y enlaces...' },
-      { pct: 85, text: 'Procesando resultados...' },
+      { pct: 10, text: 'Conectando con el servidor de imágenes…' },
+      { pct: 30, text: 'Iniciando sesión en RIS MMRAD…' },
+      { pct: 50, text: 'Buscando exámenes del paciente…' },
+      { pct: 70, text: 'Extrayendo informes y enlaces…' },
+      { pct: 85, text: 'Procesando resultados…' },
     ];
 
     let step = 0;
@@ -161,7 +161,7 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
       } else {
         setProgress(prev =>
           prev && prev.pct < 95
-            ? { pct: Math.min(prev.pct + 1, 95), text: 'Finalizando consulta...' }
+            ? { pct: Math.min(prev.pct + 1, 95), text: 'Finalizando consulta…' }
             : prev
         );
       }

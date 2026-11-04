@@ -110,7 +110,7 @@ export const MedicalIndicationsListSection: React.FC<MedicalIndicationsListSecti
                 addIndication();
               }
             }}
-            placeholder="Escribe una indicación y presiona Enter..."
+            placeholder="Escribe una indicación y presiona Enter…"
           />
           {indicationDraft.trim() && (
             <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">
