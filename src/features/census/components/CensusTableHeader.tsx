@@ -104,11 +104,6 @@ export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
                   {nursingScalesVisible && scoresAction}
                   <AlertsViewToggle active={false} />
                 </span>
-              ) : cell.key === 'admission' && canSwitchView ? (
-                <span className="inline-flex flex-wrap items-center justify-center gap-1">
-                  <span>{cell.label}</span>
-                  <AlertsViewToggle active={false} />
-                </span>
               ) : (
                 cell.label
               )}
