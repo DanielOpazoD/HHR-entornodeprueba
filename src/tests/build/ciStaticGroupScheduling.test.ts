@@ -35,7 +35,7 @@ describe('CI static group scheduling', () => {
   it('runs lint and typecheck independently and waits for both before producing evidence', () => {
     const { jobs } = parseWorkflow(source);
     const base = jobs['quality-static-base'];
-    expect(base.strategy?.matrix.check).toEqual(['lint', 'typecheck']);
+    expect(base.strategy?.matrix.check).toEqual(['lint', 'typecheck', 'check:unchecked-index']);
     expect(base.strategy?.['fail-fast']).toBe(false);
     expect(
       base.steps.some(
