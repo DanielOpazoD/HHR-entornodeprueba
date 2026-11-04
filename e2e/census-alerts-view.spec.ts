@@ -83,9 +83,9 @@ test('reads the three newest chart alerts in place of the clinical columns at 13
   await expect(row).toContainText('PACIENTE SINTÉTICA CON ALERTAS', { timeout: 20_000 });
 
   await page.screenshot({ path: testInfo.outputPath('census-normal-header.png') });
-  // One switch sits next to Signos and another next to Scores.
-  await expect(page.getByTestId('census-alerts-view-toggle')).toHaveCount(2);
-  await page.getByTestId('census-alerts-view-toggle').last().click();
+  // The switch sits only next to Scores.
+  await expect(page.getByTestId('census-alerts-view-toggle')).toHaveCount(1);
+  await page.getByTestId('census-alerts-view-toggle').click();
   const view = row.getByTestId('clinical-alerts-view');
   await expect(view).toContainText('03-04');
   await expect(view).not.toContainText('08:40');
@@ -122,5 +122,5 @@ test('reads the three newest chart alerts in place of the clinical columns at 13
   });
   await page.getByRole('button', { name: 'Columnas' }).click();
   await expect(page.getByRole('columnheader', { name: /Alertas de la ficha/ })).toHaveCount(0);
-  await expect(page.getByTestId('census-alerts-view-toggle').first()).toHaveText('Alertas');
+  await expect(page.getByTestId('census-alerts-view-toggle')).toHaveText('Alertas');
 });

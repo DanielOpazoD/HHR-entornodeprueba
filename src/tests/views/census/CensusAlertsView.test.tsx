@@ -65,8 +65,7 @@ describe('census view for the Eloísa chart alerts', () => {
 
   it('swaps Signos, DMI, Scores and UPC for one alerts column and back, remembered here', () => {
     renderHeader();
-    // The switch next to SCORE works like the one next to Signos.
-    fireEvent.click(screen.getAllByRole('button', { name: 'Alertas' })[1]);
+    fireEvent.click(screen.getByRole('button', { name: 'Alertas' }));
 
     const merged = screen.getByRole('columnheader', { name: /Alertas de la ficha/ });
     expect(merged).toHaveAttribute('colspan', '4');
@@ -150,7 +149,10 @@ describe('census view for the Eloísa chart alerts', () => {
 
     expect(screen.queryByText('Braden')).toBeNull();
     expect(screen.queryByText('Atajo de reaplicación')).toBeNull();
-    // The «Alertas» switch sits next to both Signos and Scores.
-    expect(screen.getAllByRole('button', { name: 'Alertas' })).toHaveLength(2);
+    // The «Alertas» switch sits only next to Scores.
+    expect(screen.getAllByRole('button', { name: 'Alertas' })).toHaveLength(1);
+    expect(screen.getByText('Signos').closest('th')).not.toContainElement(
+      screen.getByRole('button', { name: 'Alertas' })
+    );
   });
 });
