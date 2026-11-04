@@ -79,8 +79,8 @@ describe('PatientHospitalizationReportsDialog', () => {
       />
     );
 
-    expect(await screen.findByText('18/07/2026 – hospitalización vigente')).toBeInTheDocument();
-    expect(screen.getByText('01/05/2025 – 05/05/2025')).toBeInTheDocument();
+    expect(await screen.findByText('18-07-2026 – hospitalización vigente')).toBeInTheDocument();
+    expect(screen.getByText('01-05-2025 – 05-05-2025')).toBeInTheDocument();
     expect(screen.getByText('Episodio del censo')).toBeInTheDocument();
     expect(mocks.list).toHaveBeenCalledWith({
       patientName: 'Paciente de prueba',
@@ -186,7 +186,7 @@ describe('PatientHospitalizationReportsDialog', () => {
       />
     );
 
-    expect(await screen.findByText('20/07/2026 – estado no verificado')).toBeInTheDocument();
+    expect(await screen.findByText('20-07-2026 – estado no verificado')).toBeInTheDocument();
     const historyButton = screen.getByRole('button', { name: 'Ficha completa' });
     expect(historyButton).toBeEnabled();
 
@@ -221,7 +221,7 @@ describe('PatientHospitalizationReportsDialog', () => {
       />
     );
 
-    expect(await screen.findByText('20/07/2026 – estado no verificado')).toBeInTheDocument();
+    expect(await screen.findByText('20-07-2026 – estado no verificado')).toBeInTheDocument();
     expect(screen.getByText('Fecha de ingreso no disponible')).toBeInTheDocument();
     const historyButtons = screen.getAllByRole('button', { name: 'Ficha completa' });
     expect(historyButtons[0]).toBeEnabled();

@@ -18,7 +18,7 @@ interface PatientHospitalizationReportsDialogProps {
 const formatDate = (value?: string): string => {
   if (!value) return '';
   const [year, month, day] = value.split('-');
-  return year && month && day ? `${day}/${month}/${year}` : value;
+  return year && month && day ? `${day}-${month}-${year}` : value;
 };
 
 export const PatientHospitalizationReportsDialog: React.FC<
