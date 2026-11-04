@@ -113,7 +113,8 @@ describe('bundle budget config', () => {
         2048 +
         512 +
         1536 +
-        3072
+        3072 +
+        5120
     );
     expect(findBudget(config, '^vendor-zod-.*\\.js$')).toMatchObject({ maxBytes: 96000 });
     expect(

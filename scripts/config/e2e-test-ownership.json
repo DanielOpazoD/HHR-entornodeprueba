@@ -76,6 +76,12 @@
       "command": "npx playwright test e2e/census-13-inch-visual.spec.ts --project=chromium"
     },
     {
+      "file": "e2e/census-alerts-view.spec.ts",
+      "lane": "manual",
+      "reason": "Census «Alertas» view at 13-inch width with synthetic chart alerts; explicit local validation like the 13-inch visual scenario.",
+      "command": "npx playwright test e2e/census-alerts-view.spec.ts --project=chromium"
+    },
+    {
       "file": "e2e/census-closing.spec.ts",
       "lane": "manual",
       "reason": "Retained census closing scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",

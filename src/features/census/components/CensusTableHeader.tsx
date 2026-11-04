@@ -5,6 +5,15 @@ import { CensusActionHeaderCell } from '@/features/census/components/CensusActio
 import { CensusDiagnosisHeaderCell } from '@/features/census/components/CensusDiagnosisHeaderCell';
 import { buildCensusHeaderCellModels } from '@/features/census/controllers/censusTableHeaderController';
 import type { CensusTableHeaderProps } from '@/features/census/types/censusTableComponentContracts';
+import {
+  AlertsViewToggle,
+  NursingScalesToggle,
+} from '@/features/census/components/CensusViewToggles';
+import { useCensusViewPreferences } from '@/features/census/hooks/useCensusViewPreferences';
+import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+
+/** Columns the «Alertas» view replaces with one cell, as `ClinicalAlertsViewCell` spans them. */
+const ALERTS_VIEW_COLUMNS = ['admission', 'dmi', 'scores', 'upc'] as const;
 
 export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
   scoresAction,
@@ -25,6 +34,10 @@ export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
   const visibleWidth =
     columns.actions + headerCells.reduce((sum, cell) => sum + columns[cell.key], 0);
   const responsiveShare = (width: number): string => `${(width / visibleWidth) * 100}%`;
+  const view = useCensusViewPreferences();
+  const canSwitchView = !isSpecialistCensusAccessProfile(accessProfile ?? 'default');
+  const alertsView = view.alertsView && canSwitchView;
+  const alertsWidth = ALERTS_VIEW_COLUMNS.reduce((sum, key) => sum + columns[key], 0);
 
   return (
     <thead className="sticky top-0 z-30">
@@ -42,7 +55,26 @@ export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
         />
 
         {headerCells.map(cell =>
-          cell.kind === 'diagnosis' ? (
+          alertsView && (ALERTS_VIEW_COLUMNS as readonly string[]).includes(cell.key) ? (
+            cell.key === 'admission' && (
+              <th
+                key="alerts"
+                colSpan={ALERTS_VIEW_COLUMNS.length}
+                className={clsx(headerClassName, 'border-r-0')}
+                style={
+                  {
+                    width: `${alertsWidth}px`,
+                    '--census-column-share': responsiveShare(alertsWidth),
+                  } as React.CSSProperties
+                }
+              >
+                <span className="inline-flex items-center justify-center gap-1.5">
+                  <span>Alertas de la ficha</span>
+                  <AlertsViewToggle active />
+                </span>
+              </th>
+            )
+          ) : cell.kind === 'diagnosis' ? (
             <CensusDiagnosisHeaderCell
               key={cell.key}
               width={columns.diagnosis}
@@ -66,10 +98,17 @@ export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
               ariaLabel={cell.key === 'status' ? 'Estado clínico' : undefined}
               minWidth={cell.key === 'status' ? 32 : undefined}
             >
-              {cell.key === 'scores' && scoresAction ? (
+              {cell.key === 'scores' && canSwitchView ? (
                 <span className="inline-flex items-center justify-center gap-1">
                   <span>{cell.label}</span>
-                  {scoresAction}
+                  {/* The reapplication shortcut only counts Braden and Downton. */}
+                  {!view.nursingScalesHidden && scoresAction}
+                  <NursingScalesToggle hidden={view.nursingScalesHidden} />
+                </span>
+              ) : cell.key === 'admission' && canSwitchView ? (
+                <span className="inline-flex items-center justify-center gap-1">
+                  <span>{cell.label}</span>
+                  <AlertsViewToggle active={false} />
                 </span>
               ) : (
                 cell.label

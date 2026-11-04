@@ -54,11 +54,14 @@ describe('census «Alertas» from the Eloísa chart', () => {
 
     const notes = await screen.findAllByRole('listitem');
     expect(within(screen.getByRole('dialog')).getAllByRole('listitem')).toEqual(notes);
-    expect(notes[0]).toHaveTextContent('Enfermera(o) Profesional Sintético');
-    expect(notes[0]).toHaveTextContent('Hace 3 días · 31-10-2026 08:15');
-    expect(notes[0]).toHaveTextContent('Nota sintética reciente');
-    expect(notes[1]).toHaveTextContent('Autor no informado');
-    expect(notes[1]).toHaveTextContent('Hace 39 días · 25-09-2026 23:40');
-    expect(notes[1]).toHaveTextContent('Visita');
+    // Message first, then date, age on the hospital calendar and only the author's name.
+    expect(notes[0]).toHaveTextContent(
+      'Nota sintética reciente31-10-2026 08:15 · hace 3 días · Profesional Sintético'
+    );
+    expect(notes[1]).toHaveTextContent(
+      'Nota sintética para visitas25-09-2026 23:40 · hace 39 días · Visita'
+    );
+    expect(screen.getByRole('dialog')).not.toHaveTextContent('Enfermera(o)');
+    expect(screen.getByRole('dialog')).not.toHaveTextContent('Copia de la ficha');
   });
 });

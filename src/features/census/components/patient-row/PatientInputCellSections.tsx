@@ -6,6 +6,8 @@ import { VitalsCell } from './VitalsCell';
 import { DevicesCell } from './DevicesCell';
 import { ScoresCell } from './ScoresCell';
 import { UpcChecklistCell } from './UpcChecklistCell';
+import { ClinicalAlertsViewCell } from './ClinicalAlertsViewCell';
+import { useCensusViewPreferences } from '@/features/census/hooks/useCensusViewPreferences';
 import { ClinicalInitialBlockCells } from './ClinicalInitialBlockCells';
 import { useClinicalDerivedEpisodeGeneration } from './clinicalDerivedDayContext';
 import type {
@@ -143,6 +145,16 @@ export const PatientInputFlowSection: React.FC<
   PatientInputFlowSectionBindings & { accessProfile?: CensusAccessProfile }
 > = ({ shared, onChange, accessProfile = 'default' }) => {
   const layoutGeneration = useClinicalDerivedEpisodeGeneration(shared.data.clinicalEpisodeId);
+  const { alertsView } = useCensusViewPreferences();
+  if (alertsView && !isSpecialistCensusAccessProfile(accessProfile)) {
+    return (
+      <ClinicalAlertsViewCell
+        data={shared.data}
+        isSubRow={shared.isSubRow}
+        isEmpty={shared.isEmpty}
+      />
+    );
+  }
   return (
     <>
       {/* Rediseño censo 2026 "centro de vigilancia": la columna de Ingreso se reutiliza para los
@@ -185,11 +197,14 @@ export const PatientInputFlowSection: React.FC<
 export const PatientInputFlagsSection: React.FC<PatientInputFlagsSectionBindings> = ({
   shared,
 }) => {
+  const { alertsView } = useCensusViewPreferences();
   const fieldLocks = shared.clinicalFieldLocks;
   const upcLocked = isRemoteLocked(fieldLocks?.upc);
   // Legacy "lock" flags are freshness hints, not exclusive locks. La confirmación del panel UPC
   // revalida la evaluación contra el episodio y la fecha antes de escribir.
   const baseClinicalReadOnly = shared.isLocked || shared.clinicalEditingDisabled;
+  // The «Alertas» view already spans the UPC column.
+  if (alertsView) return null;
 
   return (
     <>
