@@ -1,7 +1,4 @@
-import {
-  resolveClinicalCribButtonModel,
-  resolvePatientBedIndicators,
-} from '@/features/census/controllers/patientBedConfigMenuController';
+import { resolvePatientBedIndicators } from '@/features/census/controllers/patientBedConfigMenuController';
 import { calculateHospitalizedDays } from '@/features/census/controllers/patientBedConfigViewController';
 
 interface BuildPatientBedConfigCardStateParams {
@@ -35,13 +32,11 @@ export const buildPatientBedConfigCardState = ({
     hasCompanion,
     hasClinicalCrib,
   });
-  const clinicalCribModel = resolveClinicalCribButtonModel(hasClinicalCrib);
 
   return {
     daysHospitalized,
     hasPatient,
     indicators,
-    clinicalCribModel,
     showDaysCounter: !isBlocked && hasPatient && daysHospitalized !== null,
     showIndicators: !isBlocked,
     showMenu: !isBlocked && !readOnly,

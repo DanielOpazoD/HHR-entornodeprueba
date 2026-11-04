@@ -17,7 +17,7 @@ export const PatientActionMenuUtilityGrid: React.FC<PatientActionMenuUtilityGrid
         key={action}
         type="button"
         onClick={() => onAction(action)}
-        className={`flex min-h-8 min-w-0 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-1.5 py-1.5 text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600 ${iconClassName}`}
+        className={`flex min-h-8 min-w-0 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-1.5 py-1.5 text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 ${iconClassName}`}
         title={title}
       >
         <Icon size={13} className="shrink-0" aria-hidden="true" />

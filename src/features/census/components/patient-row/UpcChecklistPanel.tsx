@@ -20,12 +20,15 @@ interface UpcChecklistPanelProps {
   uciAllowed: boolean;
   onToggleUci: (id: string) => void;
   onToggleUti: (id: string) => void;
-  onClose: () => void;
+  /** Required for the floating card; the embedded pane has no close of its own. */
+  onClose?: () => void;
   saving?: boolean;
   bedId?: string;
   evaluationControls?: React.ReactNode;
   historyContent?: React.ReactNode;
   readOnly?: boolean;
+  /** Inside the UPC classification window: a flat pane, not a floating card with its own close. */
+  embedded?: boolean;
 }
 
 const CriterionCheckbox: React.FC<{
@@ -73,6 +76,7 @@ export const UpcChecklistPanel: React.FC<UpcChecklistPanelProps> = ({
   onToggleUci,
   onToggleUti,
   onClose,
+  embedded = false,
   saving = false,
   bedId,
   evaluationControls,
@@ -86,9 +90,14 @@ export const UpcChecklistPanel: React.FC<UpcChecklistPanelProps> = ({
 
   return (
     <div
-      className="flex max-h-[inherit] max-w-[calc(100vw-16px)] flex-col rounded-xl border border-slate-200 bg-white shadow-xl"
-      style={{ width: UPC_CHECKLIST_PANEL_WIDTH }}
-      role="dialog"
+      className={clsx(
+        'flex max-h-[inherit] flex-col bg-white',
+        embedded
+          ? 'w-full'
+          : 'max-w-[calc(100vw-16px)] rounded-xl border border-slate-200 shadow-xl'
+      )}
+      style={embedded ? undefined : { width: UPC_CHECKLIST_PANEL_WIDTH }}
+      role={embedded ? 'region' : 'dialog'}
       aria-label="Checklist de clasificación UPC"
     >
       {/* Header */}
@@ -119,13 +128,15 @@ export const UpcChecklistPanel: React.FC<UpcChecklistPanelProps> = ({
             </span>
           )}
         </div>
-        <button
-          onClick={onClose}
-          aria-label="Cerrar checklist UPC"
-          className="p-0.5 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-        >
-          <X size={14} />
-        </button>
+        {!embedded && onClose && (
+          <button
+            onClick={onClose}
+            aria-label="Cerrar checklist UPC"
+            className="p-0.5 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            <X size={14} />
+          </button>
+        )}
       </div>
 
       {historyContent && (

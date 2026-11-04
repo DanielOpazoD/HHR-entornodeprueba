@@ -95,7 +95,7 @@ const ClinicalPanelImportFallback: React.FC<{
             type="button"
             onClick={closeAndRestoreFocus}
             aria-label="Cerrar panel clínico"
-            className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700"
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
           >
             <X size={16} />
           </button>

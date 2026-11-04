@@ -83,7 +83,7 @@ export const resolveResetDayPermission = ({
 };
 
 export const RESET_DAY_CONFIRM_DIALOG: ControllerConfirmDescriptor = {
-  title: '⚠️ Reiniciar registro del día',
+  title: 'Reiniciar registro del día',
   message:
     '¿Está seguro de que desea ELIMINAR todos los datos del día?\n\nEsto eliminará el registro completo y podrá crear uno nuevo (copiar del anterior o en blanco).',
   confirmText: 'Sí, reiniciar',
