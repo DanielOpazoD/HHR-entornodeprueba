@@ -1,5 +1,5 @@
 import React from 'react';
-import { Radio } from 'lucide-react';
+import { XRayIcon } from '@/components/ui/XRayIcon';
 
 import { isValidRut } from '@/utils/rutUtils';
 import type { PatientData } from './patientRowContracts';
@@ -61,7 +61,7 @@ export const PatientRadiologyTrigger: React.FC<PatientRadiologyTriggerProps> = (
           hint="Imagenología"
           label={`Abrir MMRAD de ${patientName}`}
         >
-          <Radio size={14} />
+          <XRayIcon size={14} />
         </ClinicalActionButton>
       </span>
 

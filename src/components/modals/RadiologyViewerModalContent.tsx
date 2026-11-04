@@ -8,9 +8,9 @@ import {
   Loader2,
   Monitor,
   Printer,
-  Radio,
   Search,
 } from 'lucide-react';
+import { XRayIcon } from '@/components/ui/XRayIcon';
 import {
   describeMMRADRegisteredPatient,
   type MMRADExam,
@@ -380,7 +380,7 @@ export const RadiologyViewerResults = ({
 
       {filteredExams.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-10 text-center">
-          <Radio size={28} className="mb-2 text-slate-200" />
+          <XRayIcon size={28} className="mb-2 text-slate-200" />
           <p className="text-[13px] text-slate-400">
             {buildRadiologyResultsEmptyMessage(activeModTab)}
           </p>
@@ -405,7 +405,7 @@ export const RadiologyViewerResults = ({
 export const RadiologyViewerEmptyState = () => (
   <div className="flex flex-col items-center justify-center py-12 text-center">
     <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-300">
-      <Radio size={26} />
+      <XRayIcon size={26} />
     </span>
     <p className="text-[13px] font-medium text-slate-400">Selecciona un paciente y busca</p>
     <p className="mt-0.5 text-[11px] text-slate-300">
