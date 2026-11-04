@@ -231,7 +231,7 @@ export const CmaSectionRow: React.FC<CmaSectionRowProps> = React.memo(
                   </button>
                   <button
                     type="button"
-                    className="rounded bg-medical-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-medical-700"
+                    className="rounded bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700"
                     onClick={saveEditDialog}
                   >
                     Guardar

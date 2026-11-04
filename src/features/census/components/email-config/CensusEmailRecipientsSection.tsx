@@ -195,7 +195,7 @@ export const CensusEmailRecipientsSection: React.FC<CensusEmailRecipientsSection
                   setShowCreatePanel(false);
                 });
               }}
-              className="inline-flex items-center justify-center gap-1 rounded-md bg-blue-600 px-2.5 py-1.5 text-[10px] font-bold text-white hover:bg-blue-700"
+              className="inline-flex items-center justify-center gap-1 rounded-md bg-teal-600 px-2.5 py-1.5 text-[10px] font-bold text-white hover:bg-teal-700"
             >
               <ChevronDown size={11} className="rotate-[-90deg]" />
               Crear
@@ -241,7 +241,7 @@ export const CensusEmailRecipientsSection: React.FC<CensusEmailRecipientsSection
             </button>
             <button
               onClick={onBulkSave}
-              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold shadow-sm"
+              className="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-bold shadow-sm"
             >
               Guardar
             </button>

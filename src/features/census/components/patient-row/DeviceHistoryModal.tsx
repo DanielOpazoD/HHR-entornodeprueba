@@ -171,7 +171,7 @@ export const DeviceHistoryModal: React.FC<DeviceHistoryModalProps> = ({
           </button>
           <button
             onClick={handleSave}
-            className="px-6 py-2 bg-medical-600 text-white rounded-lg text-[11px] font-bold hover:bg-medical-700 transition-all shadow-md shadow-medical-500/10 uppercase tracking-wider"
+            className="px-6 py-2 bg-teal-600 text-white rounded-lg text-[11px] font-bold hover:bg-teal-700 transition-all shadow-md shadow-teal-600/10 uppercase tracking-wider"
           >
             Guardar Cambios
           </button>

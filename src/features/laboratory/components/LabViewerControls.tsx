@@ -76,7 +76,7 @@ export const LabViewerControls: React.FC<LabViewerControlsProps> = ({
         <button
           onClick={onSearch}
           disabled={!selectedRut || isLoading}
-          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm shadow-emerald-600/20 transition-all hover:bg-emerald-700 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm shadow-teal-600/20 transition-all hover:bg-teal-700 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
         >
           {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
           Buscar

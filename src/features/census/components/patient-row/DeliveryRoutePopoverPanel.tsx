@@ -123,7 +123,7 @@ export const DeliveryRoutePopoverPanel: React.FC<DeliveryRoutePopoverPanelProps>
           className={clsx(
             'flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all',
             canSave
-              ? 'bg-medical-600 text-white hover:bg-medical-500 shadow-sm'
+              ? 'bg-teal-600 text-white hover:bg-teal-700 shadow-sm'
               : 'bg-slate-100 text-slate-400 cursor-not-allowed'
           )}
         >

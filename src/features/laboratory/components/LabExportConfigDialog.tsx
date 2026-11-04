@@ -108,7 +108,7 @@ export const LabExportConfigDialog: React.FC<LabExportConfigDialogProps> = ({
         <button
           onClick={() => onExport({ selectedDates, selectedVars, includeTimeInColumns })}
           disabled={selectedDates.size === 0 || selectedVars.size === 0}
-          className="rounded-lg bg-emerald-600 px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+          className="rounded-lg bg-teal-600 px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
         >
           Exportar Excel
         </button>
