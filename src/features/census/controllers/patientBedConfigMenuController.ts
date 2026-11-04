@@ -23,7 +23,7 @@ export const resolvePatientBedIndicators = ({
       key: 'cuna',
       label: 'CUNA',
       className:
-        'text-[8px] bg-pink-100 text-pink-700 font-bold px-1 rounded-sm border border-pink-200',
+        'text-[9px] bg-pink-100 text-pink-700 font-bold px-1 rounded-sm border border-pink-200',
     });
   }
 

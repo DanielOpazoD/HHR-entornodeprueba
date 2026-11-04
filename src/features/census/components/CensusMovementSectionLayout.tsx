@@ -72,7 +72,7 @@ export const CensusMovementSectionLayout: React.FC<CensusMovementSectionLayoutPr
         >
           <table
             className={clsx(
-              'w-full text-left text-sm [&_td]:px-3 [&_td]:align-middle [&_td]:break-words print:text-xs',
+              'w-full text-left text-xs [&_td]:px-3 [&_td]:align-middle [&_td]:break-words',
               tableClassName
             )}
           >
