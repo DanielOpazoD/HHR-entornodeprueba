@@ -40,6 +40,11 @@ export interface TableColumnConfig {
 export interface TableConfig {
   columns: TableColumnConfig;
   pageMargin: number; // margin in pixels for the page container
+  /**
+   * The census shows Braden and Downton unless an admin turns them off for everyone in
+   * Configuración › Visual (2026-11-04): nursing reports those scales in the chart alerts.
+   */
+  nursingScalesVisible?: boolean;
   lastUpdated: string;
   version: number;
 }

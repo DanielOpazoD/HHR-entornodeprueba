@@ -24,6 +24,7 @@ import {
 } from '@/components/modals/SettingsModalTabs';
 import { TreatingPhysiciansSettings } from './TreatingPhysiciansSettings';
 import { VitalSignsVisualRangesSettings } from './VitalSignsVisualRangesSettings';
+import { CensusNursingScalesSetting } from './CensusNursingScalesSetting';
 
 const LazyClinicalDocumentTemplatesManager = lazy(() =>
   import('./ClinicalDocumentTemplatesManager').then(module => ({
@@ -164,6 +165,7 @@ export const ConfigurationView: React.FC = () => {
         {activeTab === 'VISUAL' && (
           <>
             <SettingsVisualTab settings={settings} updateSetting={updateSetting} />
+            <CensusNursingScalesSetting />
             <VitalSignsVisualRangesSettings />
           </>
         )}
