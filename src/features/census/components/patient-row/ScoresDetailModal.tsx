@@ -91,7 +91,7 @@ export const ScoresDetailModal: React.FC<ScoresDetailModalProps> = ({
                   document.getElementById(`${id}-${next}`)?.focus();
                 }}
                 className={clsx(
-                  'flex items-center gap-2 border-b-2 px-4 py-1 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600',
+                  'flex items-center gap-2 border-b-2 px-4 py-1 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
                   active === code
                     ? 'border-teal-600 text-teal-700'
                     : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -107,7 +107,7 @@ export const ScoresDetailModal: React.FC<ScoresDetailModalProps> = ({
           id={`${id}-panel`}
           aria-labelledby={`${id}-${active}`}
           tabIndex={0}
-          className="space-y-2 focus-visible:outline-teal-600"
+          className="space-y-2 focus-visible:outline-teal-700"
         >
           {active === 'CUDYR' && cudyrHistory && (
             <CudyrHistoryPanel cudyr={model.cudyr} entry={cudyrHistory} />

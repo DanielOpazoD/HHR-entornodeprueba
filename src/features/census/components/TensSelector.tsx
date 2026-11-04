@@ -76,7 +76,7 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
         <button
           type="button"
           onClick={onOpenDetailedStaffing}
-          className="-m-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-medical-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-medical-600"
+          className="-m-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-medical-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
           aria-label="Abrir configuración detallada de TENS"
           title="Abrir configuración detallada de TENS"
         >

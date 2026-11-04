@@ -65,7 +65,7 @@ export const DevicesCell: React.FC<DevicesCellProps> = ({
             e.stopPropagation();
             openHistory();
           }}
-          className="absolute right-0 top-0 z-10 inline-flex size-7 items-center justify-center rounded-bl-lg bg-slate-100 text-slate-500 opacity-0 transition-all duration-200 hover:bg-slate-200 hover:text-slate-700 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-slate-500 group-hover:opacity-100"
+          className="absolute right-0 top-0 z-10 inline-flex size-7 items-center justify-center rounded-bl-lg bg-slate-100 text-slate-500 opacity-0 transition-all duration-200 hover:bg-slate-200 hover:text-slate-700 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700 group-hover:opacity-100"
           title="Ver historial detallado de dispositivos"
           aria-label="Ver historial detallado de dispositivos"
         >
