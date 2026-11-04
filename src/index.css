@@ -167,10 +167,6 @@
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 150ms;
   }
-
-  :root.aesthetic-animations .premium-transition {
-    transition-duration: 300ms;
-  }
 }
 
 /* Custom scrollbar for a more premium look */
@@ -217,29 +213,6 @@
     @apply bg-white rounded-xl shadow-premium border border-slate-100 overflow-hidden;
   }
 
-  .premium-card {
-    @apply bg-white rounded-2xl border border-slate-100/50 transition-all duration-300;
-    box-shadow:
-      0 4px 6px -1px rgba(0, 0, 0, 0.02),
-      0 2px 4px -1px rgba(0, 0, 0, 0.01);
-  }
-
-  :root.aesthetic-glass .premium-card {
-    @apply bg-white/70 backdrop-blur-xl border-white/40 shadow-glass;
-  }
-
-  .premium-card-hover:hover {
-    @apply -translate-y-1 cursor-pointer;
-    border-color: color-mix(in srgb, var(--accent-200) 50%, transparent);
-    box-shadow:
-      0 20px 25px -5px rgba(0, 0, 0, 0.05),
-      0 8px 10px -6px rgba(0, 0, 0, 0.05);
-  }
-
-  .glass-card {
-    @apply bg-white/70 backdrop-blur-md border border-white/30 shadow-glass rounded-xl;
-  }
-
   .input-field {
     @apply w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 transition-all;
     --tw-ring-color: color-mix(in srgb, var(--accent-500) 20%, transparent);
@@ -250,17 +223,6 @@
 
   .label {
     @apply block text-sm font-medium text-slate-600 mb-1;
-  }
-
-  /* Specialized Hover Effects */
-  .aesthetic-hover-glow {
-    @apply transition-all duration-300;
-  }
-
-  :root.aesthetic-animations .aesthetic-hover-glow:hover {
-    @apply ring-4;
-    --tw-ring-color: color-mix(in srgb, var(--accent-500) 10%, transparent);
-    border-color: color-mix(in srgb, var(--accent-200) 30%, transparent);
   }
 }
 
@@ -437,38 +399,6 @@
 
 .storage-status-badge-bounce {
   animation: storageStatusBadgeBounce 3s infinite ease-in-out;
-}
-
-/* Button click ripple effect */
-@keyframes ripple {
-  from {
-    opacity: 0.5;
-    transform: scale(0);
-  }
-
-  to {
-    opacity: 0;
-    transform: scale(2.5);
-  }
-}
-
-.btn-ripple {
-  position: relative;
-  overflow: hidden;
-}
-
-.btn-ripple::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, transparent 70%);
-  opacity: 0;
-  transform: scale(0);
-  pointer-events: none;
-}
-
-.btn-ripple:active::after {
-  animation: ripple 0.4s ease-out;
 }
 
 .handoff-cudyr-print {
