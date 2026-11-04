@@ -39,6 +39,16 @@ describe('who gets an email for an operational event', () => {
     ).toBe(true);
   });
 
+  it('only logs a section that could not load, since it offers its own reload', () => {
+    expect(
+      shouldAlertOperationalTelemetry({
+        status: 'failed',
+        operation: 'chunk_load_recovery',
+        issues: ['unavailable_issue'],
+      })
+    ).toBe(false);
+  });
+
   it('mails the controlled probe of the channel', () => {
     expect(
       shouldAlertOperationalTelemetry({

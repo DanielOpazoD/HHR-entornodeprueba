@@ -64,11 +64,13 @@ export const recoverCudyrArchivesAfterClinicalSync = async (
     if (!isAuthorized() || generation !== getSessionGeneration()) return;
     await recoverPolicyBlockedCudyrArchives(true, generation, isAuthorized);
   } catch {
-    // A recovery chunk failure cannot undo an already confirmed clinical stage.
+    // A recovery chunk failure cannot undo an already confirmed clinical stage. The archives stay
+    // in the durable queue and the next complete sync releases them, so nobody has to act.
     recordOperationalTelemetry({
       category: 'sync',
       operation: 'cudyr_archive_recovery_unavailable',
-      status: 'failed',
+      status: 'degraded',
+      runtimeState: 'recoverable',
       issues: ['El archivo CUDYR sigue pendiente.'],
     });
   }
