@@ -129,6 +129,15 @@
     z-index: 38;
   }
 
+  /* The stale-day banner (the only top bar with role=alert) sticks under the date strip too:
+     stack below its fixed h-7 (28px). */
+  :root:has([data-app-top-bar][role='alert'])
+    .census-table-scroll[data-horizontal-overflow='false']
+    > table
+    > thead {
+    top: calc(var(--hhr-chrome-height) + 28px);
+  }
+
   .census-table-scroll[data-horizontal-overflow='false'] > table > thead > tr > th {
     position: relative;
     top: auto;

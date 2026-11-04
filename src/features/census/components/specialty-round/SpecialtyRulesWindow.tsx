@@ -345,7 +345,7 @@ export const SpecialtyRulesWindow = ({
               disabled || !dirty || busy || (memoryPendingDeploy && setup?.policy.memoryEnabled)
             }
             onClick={() => void save()}
-            className="rounded bg-blue-700 px-4 py-2 font-semibold text-white disabled:opacity-50"
+            className="rounded bg-teal-600 px-4 py-2 font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
           >
             {busy ? 'Publicando…' : 'Guardar reglas'}
           </button>
