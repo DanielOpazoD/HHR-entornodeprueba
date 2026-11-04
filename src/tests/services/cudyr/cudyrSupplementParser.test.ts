@@ -103,20 +103,34 @@ describe('monthly CUDYR documentary evidence parser', () => {
     expect(result.report.patients[0].days[0].category).toBe('C2');
     expect(result.report.patients[1].sourceRow).toBe(8);
   });
+  it('retains the last patient text split onto a final page', () => {
+    const input = matrix();
+    const continuation = ['', '', '', '', '', '', '', '', 'continuación servicio'];
+    input.rows.push(header(), continuation, [], ['Página 2 de 2']);
+    const result = parseCudyrSupplementMatrix(input);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.report.patients).toHaveLength(1);
+    expect(result.report.patients[0].service).toBe(
+      'Área Médico Quirúrgica Indiferenciada continuación servicio'
+    );
+  });
   it.each([
-    'no header',
-    'nonsequential ordinal',
-    'document in fragment',
-    'category in fragment',
-    'no next row',
-  ])('rejects unsupported unnumbered rows: %s', kind => {
+    ['no header', true],
+    ['nonsequential ordinal', true],
+    ['document in fragment', true],
+    ['category in fragment', true],
+    ['document in final fragment', false],
+    ['category in final fragment', false],
+    ['no header before final fragment', false],
+  ] as const)('rejects unsupported unnumbered rows: %s', (kind, nextPatient) => {
     const input = matrix();
     const fragment = ['', 'Unnumbered text'];
-    if (kind === 'document in fragment') fragment[3] = 'ANOTHER-ID';
-    if (kind === 'category in fragment') fragment[11] = 'C2';
-    if (kind !== 'no header') input.rows.push(header());
+    if (kind.startsWith('document')) fragment[3] = 'ANOTHER-ID';
+    if (kind.startsWith('category')) fragment[11] = 'C2';
+    if (!kind.startsWith('no header')) input.rows.push(header());
     input.rows.push(fragment);
-    if (kind !== 'no next row') input.rows.push(patient(kind === 'nonsequential ordinal' ? 3 : 2));
+    if (nextPatient) input.rows.push(patient(kind === 'nonsequential ordinal' ? 3 : 2));
     expect(parseCudyrSupplementMatrix(input).ok).toBe(false);
   });
   it('does not interpret clinical content as document identity', () => {
