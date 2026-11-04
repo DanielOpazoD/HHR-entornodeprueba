@@ -154,7 +154,7 @@ describe('LabViewerComparisonTable', () => {
 
   it('renders search input', () => {
     render(<LabViewerComparisonTable data={MOCK_ANALYSIS} patient={MOCK_PATIENT} />);
-    expect(screen.getByPlaceholderText('Buscar variable...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Buscar variable…')).toBeInTheDocument();
   });
 
   it('filters rows when search query entered', async () => {
@@ -177,7 +177,7 @@ describe('LabViewerComparisonTable', () => {
     expect(screen.getByText('Hemoglobina')).toBeInTheDocument();
     expect(screen.getByText('Glucosa')).toBeInTheDocument();
 
-    await userEvent.type(screen.getByPlaceholderText('Buscar variable...'), 'Gluc');
+    await userEvent.type(screen.getByPlaceholderText('Buscar variable…'), 'Gluc');
     expect(screen.getByText('Glucosa')).toBeInTheDocument();
     expect(screen.queryByText('Hemoglobina')).not.toBeInTheDocument();
   });

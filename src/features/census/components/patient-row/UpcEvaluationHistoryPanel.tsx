@@ -144,7 +144,7 @@ export const UpcEvaluationHistoryPanel = ({
                 <p className="text-[10px] text-amber-800">Registro anterior sin firma completa</p>
               )}
               <details className="mt-1">
-                <summary className="cursor-pointer text-emerald-800 focus-visible:outline-emerald-600">
+                <summary className="cursor-pointer text-emerald-800 focus-visible:outline-teal-700">
                   Ver criterios y registro
                 </summary>
                 {criteria.length ? (

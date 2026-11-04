@@ -94,7 +94,7 @@ export const LabViewerExamCard: React.FC<LabViewerExamCardProps> = ({
           {copiedExamId === exam.id
             ? 'Copiado'
             : copyingExamId === exam.id
-              ? 'Copiando...'
+              ? 'Copiando…'
               : 'Copiar resumen'}
         </button>
       </div>

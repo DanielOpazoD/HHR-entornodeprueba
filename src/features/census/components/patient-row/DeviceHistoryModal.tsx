@@ -96,7 +96,7 @@ export const DeviceHistoryModal: React.FC<DeviceHistoryModalProps> = ({
                         <span className="text-xs font-bold text-slate-700">{item.type}</span>
                         <span
                           className={clsx(
-                            'text-[8px] px-1.5 py-0.5 rounded uppercase font-bold tracking-tight',
+                            'text-[9px] px-1.5 py-0.5 rounded uppercase font-bold tracking-tight',
                             item.status === 'Active'
                               ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
                               : 'bg-slate-100 text-slate-500 border border-slate-200'
@@ -126,7 +126,7 @@ export const DeviceHistoryModal: React.FC<DeviceHistoryModalProps> = ({
                             type="text"
                             value={item.location || ''}
                             onChange={e => updateRecord(item.id, { location: e.target.value })}
-                            placeholder="Ubicación..."
+                            placeholder="Ubicación…"
                             className="text-[10px] bg-transparent border-none p-0 focus:ring-0 text-slate-500 hover:text-medical-600 w-24"
                           />
                         </div>

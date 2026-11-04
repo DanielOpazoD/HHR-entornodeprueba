@@ -12,7 +12,7 @@ describe('resolveSaveButtonUiState', () => {
       variant: 'census',
     });
 
-    expect(state.label).toBe('Guardando...');
+    expect(state.label).toBe('Guardando…');
     expect(state.iconKind).toBe('loading');
     expect(state.buttonClassName).toContain('slate');
     expect(state.buttonClassName).not.toContain('btn-primary');
@@ -63,7 +63,7 @@ describe('resolveEmailButtonUiState', () => {
       status: 'loading',
     });
 
-    expect(state.label).toBe('Enviando...');
+    expect(state.label).toBe('Enviando…');
     expect(state.title).toBe('Enviar censo');
     expect(state.widthClassName).toBe('min-w-[116px]');
   });

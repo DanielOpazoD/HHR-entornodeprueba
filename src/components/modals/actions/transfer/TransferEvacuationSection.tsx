@@ -86,7 +86,7 @@ export const TransferEvacuationSection: React.FC<TransferEvacuationSectionProps>
               <input
                 type="text"
                 className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all shadow-sm h-9"
-                placeholder="Especifique..."
+                placeholder="Especifique…"
                 value={transferEscort}
                 onChange={event => onEscortValueChange(event.target.value)}
                 autoFocus
@@ -118,7 +118,7 @@ export const TransferEvacuationSection: React.FC<TransferEvacuationSectionProps>
             )}
             value={evacuationMethodOther}
             onChange={event => onEvacuationMethodOtherChange(event.target.value)}
-            placeholder="Nombre del método..."
+            placeholder="Nombre del método…"
             autoFocus
           />
           {evacuationOtherError && (

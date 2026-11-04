@@ -191,7 +191,7 @@ export const UserAvatarModal: React.FC<UserAvatarModalProps> = ({
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
           >
             <ImagePlus size={16} />
-            {isPreparing ? 'Preparando...' : 'Elegir imagen'}
+            {isPreparing ? 'Preparando…' : 'Elegir imagen'}
           </button>
           <button
             type="button"
@@ -219,7 +219,7 @@ export const UserAvatarModal: React.FC<UserAvatarModalProps> = ({
             disabled={(!selectedFile && !selectedPresetId) || isSaving || isPreparing}
             className="rounded-lg bg-sky-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isSaving ? 'Guardando...' : 'Guardar'}
+            {isSaving ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
       </div>

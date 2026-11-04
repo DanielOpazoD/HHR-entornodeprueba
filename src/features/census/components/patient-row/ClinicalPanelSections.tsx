@@ -94,7 +94,7 @@ export const EvolutionCard: React.FC<{ entry: ClinicalPanelEntry; isLatest?: boo
               aria-label={
                 showAnnulledText ? 'Ocultar evolución anulada' : 'Mostrar evolución anulada'
               }
-              className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700"
+              className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
             >
               <ChevronRight
                 size={12}
@@ -136,7 +136,7 @@ const IndicationLine: React.FC<{ entry: ClinicalPanelEntry; muted?: boolean }> =
     )}
     title={[entry.author, entry.role, formatTime(entry.publishedAt)].filter(Boolean).join(' · ')}
   >
-    <span className="mt-0.5 rounded bg-slate-100 px-1 py-px text-[8px] font-bold uppercase tracking-wide text-slate-500">
+    <span className="mt-0.5 rounded bg-slate-100 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-slate-500">
       {INDICATION_KIND_LABEL[entry.kind]}
     </span>
     <span className={clsx('min-w-0', muted && 'line-through decoration-slate-400')}>
@@ -145,7 +145,7 @@ const IndicationLine: React.FC<{ entry: ClinicalPanelEntry; muted?: boolean }> =
     </span>
     {!muted && entry.kind === 'pharma' && entry.validitySource === 'daily-validation' && (
       <span
-        className="shrink-0 rounded bg-emerald-50 px-1 py-px text-[8px] font-bold uppercase text-emerald-700 ring-1 ring-emerald-200"
+        className="shrink-0 rounded bg-emerald-50 px-1 py-px text-[9px] font-bold uppercase text-emerald-700 ring-1 ring-emerald-200"
         title={`Vigente por validación diaria del tratamiento${entry.prescribedAt ? ` · indicada el ${formatWhen(entry.prescribedAt)}` : ''}`}
       >
         Vigente
@@ -154,7 +154,7 @@ const IndicationLine: React.FC<{ entry: ClinicalPanelEntry; muted?: boolean }> =
     {muted && (
       <span
         className={clsx(
-          'shrink-0 rounded px-1 py-px text-[8px] font-bold uppercase',
+          'shrink-0 rounded px-1 py-px text-[9px] font-bold uppercase',
           entry.suspended ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'
         )}
       >

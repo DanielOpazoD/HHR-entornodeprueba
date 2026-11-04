@@ -20,7 +20,7 @@ export const PatientActionMenuClinicalSection: React.FC<PatientActionMenuClinica
         key={action}
         type="button"
         onClick={() => onAction(action)}
-        className="flex min-h-9 w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-slate-700 transition-colors hover:bg-slate-50 focus-visible:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-teal-600"
+        className="flex min-h-9 w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-slate-700 transition-colors hover:bg-slate-50 focus-visible:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-teal-700"
       >
         <Icon size={15} className={`${iconClassName} shrink-0`} aria-hidden="true" />
         <span className="text-[13px] font-medium">{label}</span>

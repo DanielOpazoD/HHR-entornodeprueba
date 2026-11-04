@@ -63,7 +63,7 @@ export const ClinicalPanelHistoryPrintButton: React.FC<ClinicalPanelHistoryPrint
       type="button"
       onClick={() => void openCompleteHistory()}
       disabled={isOpening}
-      className="ml-auto inline-flex size-6 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white hover:text-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-500 disabled:cursor-progress disabled:opacity-50"
+      className="ml-auto inline-flex size-6 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white hover:text-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700 disabled:cursor-progress disabled:opacity-50"
       title="Imprimir historial completo de la hospitalización"
       aria-label={`Imprimir en PDF el historial completo de la hospitalización de ${patientName}`}
     >

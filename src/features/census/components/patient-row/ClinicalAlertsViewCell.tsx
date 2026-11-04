@@ -26,7 +26,7 @@ export const ClinicalAlertsViewCell: React.FC<BaseCellProps> = ({ data, isEmpty 
             e.stopPropagation();
             setIsOpen(true);
           }}
-          className="block w-full cursor-pointer rounded text-left hover:bg-amber-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-700"
+          className="block w-full cursor-pointer rounded text-left hover:bg-amber-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700"
           aria-label={`Ver ${alerts.length === 1 ? 'la alerta' : `las ${alerts.length} alertas`} de la ficha`}
           data-testid="clinical-alerts-view"
         >

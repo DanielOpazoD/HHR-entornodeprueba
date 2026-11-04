@@ -72,7 +72,7 @@ export const VitalsCell: React.FC<VitalsCellProps> = ({
             e.stopPropagation();
             setIsDetailOpen(true);
           }}
-          className="flex w-full cursor-pointer flex-col items-center gap-0.5 rounded-md py-1 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-700"
+          className="flex w-full cursor-pointer flex-col items-center gap-0.5 rounded-md py-1 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700"
           aria-label="Ver signos vitales"
         >
           <span className={GRID_CLASS}>
@@ -106,6 +106,7 @@ export const VitalsCell: React.FC<VitalsCellProps> = ({
         <ClinicalDetailLoadBoundary
           title={`Signos vitales — ${data.patientName}`}
           onClose={() => setIsDetailOpen(false)}
+          size="lg"
         >
           <VitalsDetailModal
             patientName={data.patientName}

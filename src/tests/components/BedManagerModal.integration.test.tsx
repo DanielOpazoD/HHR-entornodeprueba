@@ -52,7 +52,7 @@ describe('BedManagerModal integration', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
     expect(toggleBlockBed).not.toHaveBeenCalledWith('R2', expect.anything());
 
-    fireEvent.change(screen.getByPlaceholderText('Ej: Mantención, Aislamiento...'), {
+    fireEvent.change(screen.getByPlaceholderText('Ej: Mantención, Aislamiento…'), {
       target: { value: 'Aislamiento respiratorio' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }));

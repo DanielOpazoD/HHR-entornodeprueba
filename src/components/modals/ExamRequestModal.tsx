@@ -215,7 +215,7 @@ export const ExamRequestModal: React.FC<ExamRequestModalProps> = ({
                 )}
                 {column.footerLabel && column.footerExams ? (
                   <div className="bg-white border-t border-slate-300 p-2">
-                    <span className="text-[8px] font-black text-slate-400 uppercase block mb-1 underline">
+                    <span className="text-[9px] font-black text-slate-400 uppercase block mb-1 underline">
                       {column.footerLabel}
                     </span>
                     {column.footerExams.map(exam => renderExamItem(exam, column.footerLabel!))}

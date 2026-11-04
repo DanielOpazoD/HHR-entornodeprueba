@@ -99,7 +99,7 @@ export const LabViewerPdf: React.FC<LabViewerPdfProps> = ({ exam, onBack }) => {
         {isLoading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10">
             <Loader2 size={24} className="animate-spin text-emerald-500 mb-2" />
-            <p className="text-[12px] text-slate-400">Obteniendo PDF desde Syslab...</p>
+            <p className="text-[12px] text-slate-400">Obteniendo PDF desde Syslab…</p>
             <p className="text-[10px] text-slate-300 mt-1">Esto puede tardar unos segundos</p>
           </div>
         )}

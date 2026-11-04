@@ -48,7 +48,7 @@ export const CensusAttentionBar: React.FC<CensusAttentionBarProps> = ({
         data-testid="census-attention-filter-scale"
         title={`${scaleLabel(summary.scale)} por reaplicar`}
         onClick={() => onFilterChange?.(active ? 'all' : 'scale')}
-        className={`inline-flex items-center gap-1 rounded-md border ${compact ? 'min-h-7 px-1.5 py-0.5 text-[10px]' : 'min-h-8 px-2 py-1 text-[11px]'} font-semibold tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 ${
+        className={`inline-flex items-center gap-1 rounded-md border ${compact ? 'min-h-7 px-1.5 py-0.5 text-[10px]' : 'min-h-8 px-2 py-1 text-[11px]'} font-semibold tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 ${
           active
             ? 'border-amber-400 bg-amber-100 text-amber-800'
             : 'border-slate-200 bg-white text-slate-700 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700'

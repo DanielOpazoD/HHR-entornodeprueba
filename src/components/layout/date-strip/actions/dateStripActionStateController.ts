@@ -20,7 +20,7 @@ export const resolveSaveButtonUiState = ({
 }: SaveButtonUiStateInput): SaveButtonUiState => {
   if (isBackingUp) {
     return {
-      label: 'Guardando...',
+      label: 'Guardando…',
       buttonClassName:
         variant === 'handoff'
           ? 'bg-slate-100 text-slate-400 border-slate-200'
@@ -71,7 +71,7 @@ export const resolveEmailButtonUiState = ({
 }: EmailButtonUiStateInput): EmailButtonUiState => {
   if (status === 'loading') {
     return {
-      label: 'Enviando...',
+      label: 'Enviando…',
       title: 'Enviar censo',
       buttonClassName: 'btn-primary bg-teal-600 opacity-70 cursor-not-allowed',
       widthClassName: 'min-w-[116px]',

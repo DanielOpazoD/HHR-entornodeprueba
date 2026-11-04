@@ -56,7 +56,7 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
             'focus:ring-2 focus:ring-medical-500/20 focus:border-medical-500/50 outline-none shadow-sm',
             className
           )}
-          placeholder={placeholder || 'Buscar diagnóstico...'}
+          placeholder={placeholder || 'Buscar diagnóstico…'}
           title={title}
           value={query}
           onClick={() => {
@@ -124,7 +124,7 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
               autoFocus
               type="text"
               className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-medical-500 focus:outline-none text-sm pl-11 pr-28 shadow-inner bg-slate-50/50"
-              placeholder="Describa el diagnóstico o ingrese código..."
+              placeholder="Describa el diagnóstico o ingrese código…"
               value={query}
               onChange={e => {
                 const val = e.target.value;
@@ -221,7 +221,7 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
                 </div>
                 <p className="text-sm text-slate-500 font-medium">
                   {query.length < 2
-                    ? 'Escriba al menos 2 caracteres...'
+                    ? 'Escriba al menos 2 caracteres…'
                     : 'No se encontraron diagnósticos exactos.'}
                 </p>
                 <p className="text-xs text-slate-400 mt-1">

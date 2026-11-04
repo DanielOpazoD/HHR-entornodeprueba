@@ -41,7 +41,7 @@ export const RecoverCensusStaffButton = () => {
         type="button"
         onClick={() => void recover()}
         disabled={busy}
-        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-teal-700 hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600 disabled:opacity-60"
+        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-teal-700 hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 disabled:opacity-60"
       >
         {busy ? <Loader2 size={14} className="animate-spin" /> : <History size={14} />} Buscar
         profesionales en censos

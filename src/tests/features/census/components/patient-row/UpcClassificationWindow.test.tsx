@@ -185,7 +185,7 @@ describe('UpcClassificationWindow', () => {
     fireEvent.click(within(cribRow).getByRole('button', { name: 'Ver detalle' }));
 
     expect(
-      within(screen.getByRole('dialog', { name: 'Checklist de clasificación UPC' })).getByText(
+      within(screen.getByRole('region', { name: 'Checklist de clasificación UPC' })).getByText(
         '· R1 · cuna clínica'
       )
     ).toBeInTheDocument();
@@ -312,8 +312,9 @@ describe('UpcClassificationWindow', () => {
     expect(screen.getByRole('button', { name: 'Confirmar cambios (1)' })).toBeDisabled();
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Ver detalle' })[0]);
-    expect(
-      screen.getByRole('dialog', { name: 'Checklist de clasificación UPC' })
-    ).toBeInTheDocument();
+    // A pane of the window, not a second dialog with its own close.
+    const detail = screen.getByRole('region', { name: 'Checklist de clasificación UPC' });
+    expect(within(detail).queryByRole('button', { name: 'Cerrar checklist UPC' })).toBeNull();
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
   });
 });
