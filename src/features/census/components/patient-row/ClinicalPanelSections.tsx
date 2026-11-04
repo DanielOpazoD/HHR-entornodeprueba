@@ -94,7 +94,7 @@ export const EvolutionCard: React.FC<{ entry: ClinicalPanelEntry; isLatest?: boo
               aria-label={
                 showAnnulledText ? 'Ocultar evolución anulada' : 'Mostrar evolución anulada'
               }
-              className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700"
+              className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
             >
               <ChevronRight
                 size={12}
