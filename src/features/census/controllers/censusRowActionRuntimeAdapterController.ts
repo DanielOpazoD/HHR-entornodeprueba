@@ -14,6 +14,7 @@ interface BuildRowActionRuntimeActionsParams {
   clearPatient: RowActionRuntimeActions['clearPatient'];
   addCMA: RowActionRuntimeActions['addCMA'];
   markInvalidEpisode: RowActionRuntimeActions['markInvalidEpisode'];
+  cleanInvalidEpisodePreviousDay: RowActionRuntimeActions['cleanInvalidEpisodePreviousDay'];
   setActionState: Dispatch<SetStateAction<ActionState>>;
   setDischargeState: Dispatch<SetStateAction<DischargeState>>;
   setTransferState: Dispatch<SetStateAction<TransferState>>;
@@ -23,6 +24,7 @@ export const buildRowActionRuntimeActions = ({
   clearPatient,
   addCMA,
   markInvalidEpisode,
+  cleanInvalidEpisodePreviousDay,
   setActionState,
   setDischargeState,
   setTransferState,
@@ -30,6 +32,7 @@ export const buildRowActionRuntimeActions = ({
   clearPatient,
   addCMA,
   markInvalidEpisode,
+  cleanInvalidEpisodePreviousDay,
   setMovement: setActionState,
   openDischarge: dischargePatch => {
     setDischargeState(previousState => applyDischargePatch(previousState, dischargePatch));

@@ -23,6 +23,7 @@ describe('censusRowActionRuntimeController', () => {
         clearPatient: vi.fn().mockResolvedValue(true),
         addCMA: vi.fn(),
         markInvalidEpisode: vi.fn(),
+        cleanInvalidEpisodePreviousDay: vi.fn().mockResolvedValue(null),
         setMovement: vi.fn(),
         openDischarge: vi.fn(),
         openTransfer: vi.fn(),
@@ -48,6 +49,7 @@ describe('censusRowActionRuntimeController', () => {
         clearPatient,
         addCMA: vi.fn(),
         markInvalidEpisode: vi.fn(),
+        cleanInvalidEpisodePreviousDay: vi.fn().mockResolvedValue(null),
         setMovement: vi.fn(),
         openDischarge: vi.fn(),
         openTransfer: vi.fn(),
@@ -92,6 +94,7 @@ describe('censusRowActionRuntimeController', () => {
         clearPatient,
         addCMA: vi.fn(),
         markInvalidEpisode: vi.fn(),
+        cleanInvalidEpisodePreviousDay: vi.fn().mockResolvedValue(null),
         setMovement: vi.fn(),
         openDischarge: vi.fn(),
         openTransfer: vi.fn(),
@@ -137,6 +140,7 @@ describe('censusRowActionRuntimeController', () => {
         clearPatient,
         addCMA: vi.fn(),
         markInvalidEpisode: vi.fn(),
+        cleanInvalidEpisodePreviousDay: vi.fn().mockResolvedValue(null),
         setMovement: vi.fn(),
         openDischarge: vi.fn(),
         openTransfer: vi.fn(),
@@ -165,6 +169,7 @@ describe('censusRowActionRuntimeController', () => {
         clearPatient,
         addCMA: vi.fn(),
         markInvalidEpisode: vi.fn(),
+        cleanInvalidEpisodePreviousDay: vi.fn().mockResolvedValue(null),
         setMovement: vi.fn(),
         openDischarge: vi.fn(),
         openTransfer: vi.fn(),
@@ -190,6 +195,7 @@ describe('censusRowActionRuntimeController', () => {
         clearPatient,
         addCMA: vi.fn(),
         markInvalidEpisode: vi.fn(),
+        cleanInvalidEpisodePreviousDay: vi.fn().mockResolvedValue(null),
         setMovement: vi.fn(),
         openDischarge: vi.fn(),
         openTransfer: vi.fn(),
@@ -219,6 +225,7 @@ describe('censusRowActionRuntimeController', () => {
         clearPatient,
         addCMA: vi.fn(),
         markInvalidEpisode: vi.fn(),
+        cleanInvalidEpisodePreviousDay: vi.fn().mockResolvedValue(null),
         setMovement: vi.fn(),
         openDischarge: vi.fn(),
         openTransfer: vi.fn(),
@@ -248,6 +255,7 @@ describe('censusRowActionRuntimeController', () => {
         clearPatient: vi.fn().mockResolvedValue(true),
         addCMA: vi.fn(),
         markInvalidEpisode: vi.fn(),
+        cleanInvalidEpisodePreviousDay: vi.fn().mockResolvedValue(null),
         setMovement,
         openDischarge: vi.fn(),
         openTransfer: vi.fn(),
@@ -276,6 +284,7 @@ describe('censusRowActionRuntimeController', () => {
         clearPatient,
         addCMA,
         markInvalidEpisode: vi.fn(),
+        cleanInvalidEpisodePreviousDay: vi.fn().mockResolvedValue(null),
         setMovement: vi.fn(),
         openDischarge: vi.fn(),
         openTransfer: vi.fn(),
@@ -299,6 +308,7 @@ describe('censusRowActionRuntimeController', () => {
       clearPatient: vi.fn().mockResolvedValue(true),
       addCMA: vi.fn(),
       markInvalidEpisode,
+      cleanInvalidEpisodePreviousDay: vi.fn().mockResolvedValue(null),
       setMovement: vi.fn(),
       openDischarge: vi.fn(),
       openTransfer: vi.fn(),
@@ -365,6 +375,32 @@ describe('censusRowActionRuntimeController', () => {
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.error.message).toContain('No se eliminó nada');
       expect(offline.clearPatient).not.toHaveBeenCalled();
+    });
+
+    it('clears today and then reports what is left on the previous day', async () => {
+      const actions = runtime();
+      actions.cleanInvalidEpisodePreviousDay.mockResolvedValue(
+        'El 04-11-2026 está firmado y no se modificó.'
+      );
+
+      const result = await executeRowActionController({
+        action: 'invalid',
+        bedId: 'BOX2',
+        patient: marked(),
+        stabilityRules: unlockedRules,
+        actions,
+        confirmRuntime: { confirm: vi.fn().mockResolvedValue(true) },
+      });
+
+      expect(actions.clearPatient).toHaveBeenCalled();
+      expect(actions.cleanInvalidEpisodePreviousDay).toHaveBeenCalledWith('900200');
+      expect(result).toEqual({
+        ok: false,
+        error: {
+          code: 'PREVIOUS_DAY_PENDING',
+          message: 'El 04-11-2026 está firmado y no se modificó.',
+        },
+      });
     });
 
     it('tells the person to finish with «Limpiar» when the bed could not be cleared', async () => {

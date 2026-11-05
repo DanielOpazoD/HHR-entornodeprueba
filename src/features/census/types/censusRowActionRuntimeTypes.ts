@@ -17,6 +17,8 @@ export interface RowActionRuntimeActions {
   addCMA: (data: Omit<CMAData, 'id' | 'timestamp'>) => void;
   /** Records the «paciente no válido» mark; resolves only once the server holds it. */
   markInvalidEpisode: (mark: { clinicalEpisodeId: string; bedId: string }) => Promise<void>;
+  /** Removes the same episode from the editable previous day; returns what is left to review. */
+  cleanInvalidEpisodePreviousDay: (clinicalEpisodeId: string) => Promise<string | null>;
   setMovement: (nextActionState: ActionState) => void;
   openDischarge: (dischargePatch: Partial<DischargeState>) => void;
   openTransfer: (transferPatch: Partial<TransferState>) => void;

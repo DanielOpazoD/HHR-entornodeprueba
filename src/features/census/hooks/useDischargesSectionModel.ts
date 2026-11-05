@@ -8,6 +8,7 @@ import { useCensusActionCommands } from '../context/censusActionContexts';
 import { useCensusMovementData } from './useCensusMovementData';
 import { useMovementSectionModel } from './useMovementSectionModel';
 import type { DischargeData } from '@/features/census/contracts/censusMovementContracts';
+import { PREVIOUS_DAY_UNCHECKED_MESSAGE } from '@/features/census/controllers/censusActionNotificationController';
 import {
   buildMovementTypeConversionConfirmDialog,
   DISCHARGE_DELETE_CONFIRM_DIALOG,
@@ -32,7 +33,7 @@ export const useDischargesSectionModel = () => {
   const canMarkInvalid =
     canPerformActions && (canEditAppModule(role, 'CENSUS') || isE2EEditableRecordOverrideEnabled());
   const { confirm } = useConfirmDialog();
-  const { error: notifyError } = useNotification();
+  const { error: notifyError, warning } = useNotification();
   const sectionModel = useMovementSectionModel({
     items: discharges,
     undoDialog: DISCHARGE_UNDO_CONFIRM_DIALOG,
@@ -93,6 +94,18 @@ export const useDischargesSectionModel = () => {
       return;
     }
     deleteDischarge(discharge.id);
+    let previousDay: string | null;
+    try {
+      const { cleanAndDescribePreviousDay } =
+        await import('@/features/census/controllers/invalidEpisodePreviousDayCleanup');
+      previousDay = await cleanAndDescribePreviousDay({
+        censusDate: recordDate,
+        clinicalEpisodeId,
+      });
+    } catch {
+      previousDay = PREVIOUS_DAY_UNCHECKED_MESSAGE;
+    }
+    if (previousDay) warning('Revisar el día anterior', previousDay);
   };
 
   return {
