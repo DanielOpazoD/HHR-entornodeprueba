@@ -1,7 +1,11 @@
 import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
 import type { PatientData } from '@/types/domain/patient';
 import type { CapturedCudyrMonthlyReport } from './cudyrMonthlyReportCapture';
-import { cudyrDocumentKey, cudyrIdentity } from '@/domain/cudyr/cudyrSourceIdentity';
+import {
+  cudyrDocumentKey,
+  cudyrFullNameKey,
+  cudyrIdentity,
+} from '@/domain/cudyr/cudyrSourceIdentity';
 import { buildImportedCudyr } from '@/domain/evaluationScales/importedCudyr';
 import {
   CUDYR_DOCUMENTARY_SOURCE,
@@ -35,6 +39,15 @@ const recoveryCandidates = (record: DailyRecord) =>
 const hasDocumentaryIdentity = (patient: PatientData): boolean =>
   patient.documentType === 'RUT' &&
   isValidRut(patient.rut) &&
+  Boolean(patient.patientName.trim()) &&
+  !patient.neonatalMaternalRut &&
+  patient.identityStatus !== 'provisional';
+
+/** A passport is compared only with the same passport, never as a RUN (ID-01). */
+const isPassportDocument = (patient: PatientData): boolean =>
+  patient.documentType === 'Pasaporte' &&
+  Boolean(cudyrDocumentKey(patient.rut)) &&
+  !isValidRut(patient.rut) &&
   Boolean(patient.patientName.trim()) &&
   !patient.neonatalMaternalRut &&
   patient.identityStatus !== 'provisional';
@@ -132,11 +145,40 @@ export const recoverDailyCudyrGap = (
     )
   )
     return { kind: 'attribution_unreliable' };
-  if (patient.clinicalEpisodeId !== gap.clinicalEpisodeId || !hasDocumentaryIdentity(patient))
+  const passport = isPassportDocument(patient);
+  if (
+    patient.clinicalEpisodeId !== gap.clinicalEpisodeId ||
+    (!hasDocumentaryIdentity(patient) && !passport)
+  )
     return { kind: 'attribution_unreliable' };
   if (source.report.month !== sourceDate.slice(0, 7)) return { kind: 'documentary_inconclusive' };
   const document = cudyrDocumentKey(patient.rut);
   const identity = cudyrIdentity(patient.rut, patient.patientName);
+  if (passport) {
+    // A passport never receives a documentary category, but its own blank night still answers
+    // that nobody recorded it (CUD-07), so it does not keep every sync partial.
+    // A missing row may sit under another identifier, so only the same passport and name answer.
+    const rows = source.report.patients.filter(p => cudyrDocumentKey(p.document) === document);
+    const [row] = rows;
+    if (!row || rows.length > 1 || cudyrIdentity(row.document, row.patientName) !== identity)
+      return { kind: 'attribution_unreliable' };
+    const categorizedThatMorning = (candidate: typeof row) =>
+      candidate.days.some(d => d.sourceDate === sourceDate && d.state === 'category');
+    // The same person may also appear under another identifier: a categorized row with the same
+    // name or clinical record contradicts «nobody recorded it».
+    const name = cudyrFullNameKey(patient.patientName);
+    const contradicted = source.report.patients.some(
+      other =>
+        other !== row &&
+        (cudyrFullNameKey(other.patientName) === name ||
+          (Boolean(row.clinicalRecord.trim()) &&
+            other.clinicalRecord.trim() === row.clinicalRecord.trim())) &&
+        categorizedThatMorning(other)
+    );
+    return categorizedThatMorning(row) || contradicted
+      ? { kind: 'attribution_unreliable' }
+      : withoutCategory();
+  }
   if (
     !hasUniqueDocumentaryCudyrIdentity(
       records.filter(record => record.date === gap.date || record.date === sourceDate),
