@@ -155,6 +155,22 @@ describe('usePatientTransfers', () => {
     expect(mockSaveAndUpdate).toHaveBeenCalled();
   });
 
+  it('reports failed persistence to the inline editor', async () => {
+    const record = {
+      ...mockRecord,
+      transfers: [{ id: 'transfer-1', patientName: 'Sintético', time: '' }],
+    } as unknown as DailyRecord;
+    mockSaveAndUpdate.mockRejectedValueOnce(new Error('Synthetic save failure'));
+    const { result } = renderHook(() => usePatientTransfers(record, mockSaveAndUpdate));
+    let saved;
+    await act(async () => {
+      saved = await result.current.updateTransfer('transfer-1', {
+        receivingCenter: 'Centro Sintético',
+      });
+    });
+    expect(saved).toBe(false);
+  });
+
   it('updates transfer through a movement patch when available', () => {
     const recordWithTransfer = {
       ...mockRecord,
