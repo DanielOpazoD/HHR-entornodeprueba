@@ -1,3 +1,4 @@
+import { sortByMmradStampDesc } from '@/services/radiology/mmradStamp';
 import { BEDS } from '@/constants/beds';
 import type { MMRADExam, MMRADSearchResult } from '@/services/radiology/mmradService';
 import { getTodayISO } from '@/utils/dateCoreUtils';
@@ -41,16 +42,6 @@ export const extractMMRADModalities = (exams: MMRADExam[]): string[] => {
   });
 };
 
-const mmradDateToTimestamp = (raw: string): number => {
-  if (!raw) return 0;
-  const parts = raw.split(/[/.-]/);
-  if (parts.length === 3 && parts[0].length <= 2) {
-    const [dd, mm, yyyy] = parts;
-    return new Date(`${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`).getTime() || 0;
-  }
-  return new Date(raw).getTime() || 0;
-};
-
 export const buildFilteredMMRADExams = (
   result: MMRADSearchResult | null,
   activeModTab: string | null
@@ -59,10 +50,11 @@ export const buildFilteredMMRADExams = (
 
   const exams = activeModTab
     ? result.examenes.filter(exam => (exam.mod || '').trim().toUpperCase() === activeModTab)
-    : [...result.examenes];
+    : result.examenes;
 
-  exams.sort((a, b) => mmradDateToTimestamp(b.fecha_examen) - mmradDateToTimestamp(a.fecha_examen));
-  return exams;
+  // Stamps with a time ("DD/MM/YYYY HH:MM") used to lose their day and month here, so a list with
+  // times kept MMRAD's own order instead of newest first.
+  return sortByMmradStampDesc(exams);
 };
 
 export const resolveInitialMMRADModalityTab = (modalities: string[]): string | null => {
