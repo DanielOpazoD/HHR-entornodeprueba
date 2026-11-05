@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FirebaseConfigRuntimeAdapter } from '@/services/firebase-runtime/firebaseConfigRuntimeAdapter';
+import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
 
 const firestore = vi.hoisted(() => ({
   doc: vi.fn((_db: unknown, path: string, id: string) => ({ path: `${path}/${id}` })),
@@ -9,13 +10,18 @@ const firestore = vi.hoisted(() => ({
   serverTimestamp: vi.fn(() => 'SERVER_TIME'),
   collection: vi.fn(),
   getDocsFromServer: vi.fn(),
+  deleteDoc: vi.fn(),
 }));
 vi.mock('firebase/firestore', async importOriginal => ({
   ...(await importOriginal<typeof import('firebase/firestore')>()),
   ...firestore,
 }));
 
-import { markClinicalEpisodeInvalid } from '@/services/census/invalidClinicalEpisodeService';
+import {
+  listInvalidClinicalEpisodes,
+  markClinicalEpisodeInvalid,
+  removeInvalidClinicalEpisodeMark,
+} from '@/services/census/invalidClinicalEpisodeService';
 
 const adapter = (uid: string | null = 'user_nurse') =>
   ({
@@ -68,5 +74,53 @@ describe('markClinicalEpisodeInvalid', () => {
       markClinicalEpisodeInvalid({ ...mark, clinicalEpisodeId: ' ' }, adapter())
     ).rejects.toThrow();
     expect(firestore.setDoc).not.toHaveBeenCalled();
+  });
+});
+
+describe('admin review of the marks', () => {
+  const runtime = {
+    ready: Promise.resolve(),
+    getDb: () => ({}),
+  } as unknown as FirestoreServiceRuntimePort;
+
+  it('lists the marks newest first, with the server stamp', async () => {
+    const at = (iso: string) => ({ toDate: () => new Date(iso) });
+    firestore.getDocsFromServer.mockResolvedValue({
+      docs: [
+        {
+          id: '900100',
+          data: () => ({
+            censusDate: '2026-11-04',
+            bedId: 'H1C1',
+            markedAt: at('2026-11-04T12:00:00Z'),
+            markedBy: 'u1',
+          }),
+        },
+        {
+          id: '900200',
+          data: () => ({
+            censusDate: '2026-11-05',
+            bedId: 'NEO1',
+            markedAt: at('2026-11-05T20:00:00Z'),
+            markedBy: 'u2',
+          }),
+        },
+      ],
+    });
+
+    const marks = await listInvalidClinicalEpisodes(runtime);
+
+    expect(marks.map(mark => mark.clinicalEpisodeId)).toEqual(['900200', '900100']);
+    expect(marks[0]).toMatchObject({ bedId: 'NEO1', markedAt: '2026-11-05T20:00:00.000Z' });
+  });
+
+  it('removes a mark by its episode', async () => {
+    firestore.deleteDoc.mockResolvedValue(undefined);
+
+    await removeInvalidClinicalEpisodeMark('900200', runtime);
+
+    expect(firestore.deleteDoc).toHaveBeenCalledWith({
+      path: expect.stringMatching(/\/invalidClinicalEpisodes\/900200$/),
+    });
   });
 });

@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDocFromServer,
   getDocsFromServer,
@@ -106,4 +107,50 @@ export const markClinicalEpisodeInvalid = async (
   } finally {
     if (timer) clearTimeout(timer);
   }
+};
+
+export interface InvalidClinicalEpisodeRecord extends InvalidClinicalEpisodeMark {
+  /** ISO instant the server stamped, or null while it is still pending. */
+  markedAt: string | null;
+  /** Uid of the editor who marked it. */
+  markedBy: string;
+}
+
+const toIsoInstant = (value: unknown): string | null => {
+  const toDate = (value as { toDate?: () => Date } | null)?.toDate;
+  return typeof toDate === 'function' ? toDate.call(value).toISOString() : null;
+};
+
+/** Every mark, newest first, read from the server for the admin review. */
+export const listInvalidClinicalEpisodes = async (
+  runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
+): Promise<InvalidClinicalEpisodeRecord[]> => {
+  await ensureFirestoreRuntimeReady(runtime);
+  const snapshot = await getDocsFromServer(
+    collection(runtime.getDb(), invalidClinicalEpisodesPath())
+  );
+  return snapshot.docs
+    .map(document => {
+      const data = document.data();
+      return {
+        clinicalEpisodeId: document.id,
+        censusDate: String(data.censusDate ?? ''),
+        bedId: String(data.bedId ?? ''),
+        markedAt: toIsoInstant(data.markedAt),
+        markedBy: String(data.markedBy ?? ''),
+      };
+    })
+    .sort((left, right) => (right.markedAt ?? '').localeCompare(left.markedAt ?? ''));
+};
+
+/**
+ * Admin undo. The next sync treats the episode like any other: it comes back while Eloísa keeps
+ * it open, or its egreso is filed once Eloísa closes it.
+ */
+export const removeInvalidClinicalEpisodeMark = async (
+  clinicalEpisodeId: string,
+  runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
+): Promise<void> => {
+  await ensureFirestoreRuntimeReady(runtime);
+  await deleteDoc(doc(runtime.getDb(), invalidClinicalEpisodesPath(), clinicalEpisodeId));
 };
