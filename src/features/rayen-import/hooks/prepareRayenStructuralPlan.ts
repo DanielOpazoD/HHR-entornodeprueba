@@ -3,6 +3,7 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
 import { createRayenSnapshotEvidenceClient } from './rayenSnapshotEvidenceClient';
 import type { CapturedRayenStructuralEvidence } from './replanRayenStructure';
+import type { InvalidClinicalEpisodeIds } from '../domain/invalidClinicalEpisodePolicy';
 
 interface EvidenceCounters {
   requests: number;
@@ -20,6 +21,8 @@ interface PrepareRayenStructuralPlanInput {
   isAdmin: boolean;
   counters: EvidenceCounters;
   measureEvidence: <T>(operation: () => Promise<T>) => Promise<T>;
+  /** Episodes marked «paciente no válido», read from the server before planning. */
+  invalidEpisodeIds: InvalidClinicalEpisodeIds;
   /** Test seam for the browser bridge; production always creates the live client. */
   evidenceClient?: ReturnType<typeof createRayenSnapshotEvidenceClient>;
   /** Test seam for PDF layouts; production uses the real PDF.js extractor. */
@@ -29,7 +32,7 @@ interface PrepareRayenStructuralPlanInput {
 /** Captures the immutable evidence used by every CAS replan in one execution. */
 export const prepareRayenStructuralPlan = async ({
   baseRecord,
-  planningSnapshot,
+  planningSnapshot: capturedSnapshot,
   bundle,
   isHistoricalDay,
   reportDate,
@@ -37,12 +40,17 @@ export const prepareRayenStructuralPlan = async ({
   isAdmin,
   counters,
   measureEvidence,
+  invalidEpisodeIds,
   evidenceClient,
   extractStatisticalText,
 }: PrepareRayenStructuralPlanInput) => {
   // Structural reconstruction depends on live Eloisa evidence, so keep its comparatively large
   // resolver graph out of the offline census shell and load it only when a sync is requested.
   const { replanRayenStructure } = await import('./replanRayenStructure');
+  const { excludeInvalidEpisodeRows, excludeInvalidEpisodesFromSnapshot } =
+    await import('../domain/invalidClinicalEpisodePolicy');
+  const planningSnapshot = excludeInvalidEpisodesFromSnapshot(capturedSnapshot, invalidEpisodeIds);
+  const reportRows = excludeInvalidEpisodeRows(bundle.egresoRows, invalidEpisodeIds);
   const { enrichReportOnlyDischarges } = await import('../domain/enrichReportOnlyDischarges');
   const {
     fetchPatientFlowReport,
@@ -70,24 +78,22 @@ export const prepareRayenStructuralPlan = async ({
   if (previous && previous.date !== previousDate) {
     throw new Error('No se pudo verificar el censo previo: la fecha recibida no corresponde.');
   }
-  const previousCensusCandidates = [
-    ...new Map(
-      [
-        ...previousCensusEgresoCandidates(previous, bundle.egresoRows, reportDate),
-        ...previousCensusEgresoCandidates(
-          baseRecord,
-          bundle.egresoRows,
-          reportDate,
-          isHistoricalDay
-        ),
-      ].map(candidate => [
-        [candidate.encounterId, candidate.dischargeDay, candidate.patientName].join('|'),
-        candidate,
-      ])
-    ).values(),
-  ];
-  const egresoRows = await measureEvidence(() =>
-    enrichReportOnlyDischarges(bundle.egresoRows, reportDate, {
+  const previousCensusCandidates = excludeInvalidEpisodeRows(
+    [
+      ...new Map(
+        [
+          ...previousCensusEgresoCandidates(previous, reportRows, reportDate),
+          ...previousCensusEgresoCandidates(baseRecord, reportRows, reportDate, isHistoricalDay),
+        ].map(candidate => [
+          [candidate.encounterId, candidate.dischargeDay, candidate.patientName].join('|'),
+          candidate,
+        ])
+      ).values(),
+    ],
+    invalidEpisodeIds
+  );
+  const enrichedRows = await measureEvidence(() =>
+    enrichReportOnlyDischarges(reportRows, reportDate, {
       fetchStatisticalDischarge,
       lookupEgresos,
       previousCensusCandidates,
@@ -110,12 +116,15 @@ export const prepareRayenStructuralPlan = async ({
     })
   );
 
+  // Enrichment can attach a marked episode to a report row that arrived without one.
+  const egresoRows = excludeInvalidEpisodeRows(enrichedRows, invalidEpisodeIds);
   const { planRayenCensusImport } = await import('../importRayenCensusUseCase');
   const { applyEgresoReport } = await import('../domain/applyEgresoReport');
   const { recoverPreviousCensusDischarges } =
     await import('../domain/recoverPreviousCensusDischarges');
   const preliminaryDiff = applyEgresoReport(
-    planRayenCensusImport({ current: baseRecord, snapshot: planningSnapshot }).diff,
+    planRayenCensusImport({ current: baseRecord, snapshot: planningSnapshot, invalidEpisodeIds })
+      .diff,
     egresoRows,
     baseRecord
   );
@@ -132,9 +141,10 @@ export const prepareRayenStructuralPlan = async ({
 
   const capturedEvidence: CapturedRayenStructuralEvidence = {
     sourceSnapshot: planningSnapshot,
-    egresoRows: [...egresoRows, ...recoveredRows],
+    egresoRows: [...egresoRows, ...excludeInvalidEpisodeRows(recoveredRows, invalidEpisodeIds)],
     reportDate,
     isHistoricalDay,
+    invalidEpisodeIds,
   };
   const replanDiff = (record: DailyRecord) =>
     replanRayenStructure(record, capturedEvidence, {

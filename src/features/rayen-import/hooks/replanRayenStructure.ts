@@ -24,6 +24,10 @@ import {
   previousCensusContinuityConflicts,
 } from '../domain/previousCensusContinuity';
 import { collectEgresoLookupTargets } from './rayenSnapshotLookupTargets';
+import {
+  scrubInvalidEpisodesFromDiff,
+  type InvalidClinicalEpisodeIds,
+} from '../domain/invalidClinicalEpisodePolicy';
 
 export interface CapturedRayenStructuralEvidence {
   /** Immutable Ficha Medico capture used throughout this execution. */
@@ -31,6 +35,8 @@ export interface CapturedRayenStructuralEvidence {
   egresoRows: readonly EgresoReportRow[];
   reportDate: string;
   isHistoricalDay: boolean;
+  /** Episodes marked «paciente no válido», read once from the server for this execution. */
+  invalidEpisodeIds: InvalidClinicalEpisodeIds;
 }
 
 interface ReplanRayenStructureDependencies {
@@ -84,6 +90,7 @@ export const replanRayenStructure = async (
   dependencies: ReplanRayenStructureDependencies
 ): Promise<CensusImportDiff> => {
   const measure = dependencies.measureEvidence ?? (async operation => operation());
+  const { invalidEpisodeIds } = evidence;
   let evidenceSnapshot = evidence.sourceSnapshot;
   let lookupResults: EgresoLookupResult[] = [];
   let diff: CensusImportDiff;
@@ -103,10 +110,18 @@ export const replanRayenStructure = async (
       )
     );
     evidenceSnapshot = reconstruction.snapshot;
-    diff = planRayenCensusImport({ current: record, snapshot: evidenceSnapshot }).diff;
+    diff = planRayenCensusImport({
+      current: record,
+      snapshot: evidenceSnapshot,
+      invalidEpisodeIds,
+    }).diff;
     diff = appendConflicts(diff, reconstruction.conflicts);
   } else {
-    diff = planRayenCensusImport({ current: record, snapshot: evidenceSnapshot }).diff;
+    diff = planRayenCensusImport({
+      current: record,
+      snapshot: evidenceSnapshot,
+      invalidEpisodeIds,
+    }).diff;
     diff = applyEgresoReport(diff, [...evidence.egresoRows], record);
     lookupResults = await measure(() =>
       dependencies.lookupEgresos(collectEgresoLookupTargets(diff))
@@ -118,7 +133,7 @@ export const replanRayenStructure = async (
         diff,
         lookupResults,
         { fetchReport: dependencies.fetchPatientFlowReport },
-        snapshot => planRayenCensusImport({ current: record, snapshot }).diff
+        snapshot => planRayenCensusImport({ current: record, snapshot, invalidEpisodeIds }).diff
       )
     );
     const traceability = await measure(() =>
@@ -127,7 +142,7 @@ export const replanRayenStructure = async (
         recovered.snapshot,
         recovered.diff,
         { fetchReport: dependencies.fetchPatientFlowReport },
-        snapshot => planRayenCensusImport({ current: record, snapshot }).diff
+        snapshot => planRayenCensusImport({ current: record, snapshot, invalidEpisodeIds }).diff
       )
     );
     evidenceSnapshot = traceability.snapshot;
@@ -146,6 +161,8 @@ export const replanRayenStructure = async (
     diff = applyEgresoLookupFallback(diff, lookupResults, record);
   }
   diff = applyPreviousCensusEgresoScope(diff, evidence.egresoRows);
+  // Before any previous-day planning, so no correction is ever derived from a marked episode.
+  diff = scrubInvalidEpisodesFromDiff(diff, invalidEpisodeIds);
   diff = await measure(() =>
     verifyPreviousDayAdmissionPlacements(diff, evidence.reportDate, {
       fetchReport: dependencies.fetchPatientFlowReport,
@@ -170,7 +187,10 @@ export const replanRayenStructure = async (
     if (previousRecord.date !== previousDate) {
       throw new Error('No se pudo verificar el censo previo: la fecha recibida no corresponde.');
     }
-    diff = appendConflicts(diff, previousCensusContinuityConflicts(previousRecord, record, diff));
+    diff = scrubInvalidEpisodesFromDiff(
+      appendConflicts(diff, previousCensusContinuityConflicts(previousRecord, record, diff)),
+      invalidEpisodeIds
+    );
   }
   if (evidence.isHistoricalDay) {
     // Keep actionable continuity conflicts from the prior HHR day before rejecting a wholly

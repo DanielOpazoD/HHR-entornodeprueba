@@ -25,6 +25,11 @@ import {
   prepareRayenSnapshotEvidence,
   returnRayenReplanToReview,
 } from './rayenSnapshotPreviewPreparation';
+import { raceWithTimeout } from '../domain/raceWithTimeout';
+
+const INVALID_EPISODE_LOAD_TIMEOUT_MS = 30_000;
+const INVALID_EPISODE_LOAD_ERROR =
+  'No se pudo leer la lista de pacientes no válidos. Revisa la conexión y reintenta.';
 
 export const useRayenSnapshotPreview = ({
   dailyRecord,
@@ -45,6 +50,8 @@ export const useRayenSnapshotPreview = ({
   structuralPersistenceExecutionKeysRef,
   runSerializedPersistence,
   loadAuthoritativeStructuralRecord,
+  loadInvalidEpisodeIds,
+  invalidEpisodeLoadTimeoutMs = INVALID_EPISODE_LOAD_TIMEOUT_MS,
   monotonicNow = defaultMonotonicNow,
 }: UseRayenSnapshotPreviewInput) => {
   const prepareTreatingPhysicianSnapshot = useTreatingPhysicianCatalogSync();
@@ -115,6 +122,25 @@ export const useRayenSnapshotPreview = ({
         }));
         return;
       }
+      // Without the marks the sync could admit a removed patient again or file its egreso.
+      let invalidEpisodeIds: ReadonlySet<string>;
+      try {
+        invalidEpisodeIds = await metrics.measureEvidence(() =>
+          raceWithTimeout(
+            loadInvalidEpisodeIds(),
+            invalidEpisodeLoadTimeoutMs,
+            () => new Error(INVALID_EPISODE_LOAD_ERROR)
+          )
+        );
+      } catch {
+        if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
+        execution.transition({ type: 'failed' });
+        preparedSyncContextRef.current = null;
+        void failRun('apply_failed', run.id).catch(() => undefined);
+        setState(prev => ({ ...prev, error: INVALID_EPISODE_LOAD_ERROR }));
+        return;
+      }
+      if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
       const structuralPlan = await prepareRayenStructuralPlan({
         baseRecord: authoritativeBaseRecord,
         planningSnapshot,
@@ -125,6 +151,7 @@ export const useRayenSnapshotPreview = ({
         isAdmin,
         counters: metrics.counters,
         measureEvidence: metrics.measureEvidence,
+        invalidEpisodeIds,
       });
       const { replanDiff } = structuralPlan;
       let diff = structuralPlan.diff;
@@ -314,6 +341,8 @@ export const useRayenSnapshotPreview = ({
       getRun,
       isAdmin,
       loadAuthoritativeStructuralRecord,
+      loadInvalidEpisodeIds,
+      invalidEpisodeLoadTimeoutMs,
       monotonicNow,
       preparedSyncContextRef,
       prepareTreatingPhysicianSnapshot,

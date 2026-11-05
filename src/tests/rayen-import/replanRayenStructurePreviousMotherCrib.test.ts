@@ -98,6 +98,7 @@ describe('current-day mother/newborn discharge continuity from exact D-1 evidenc
         ],
         reportDate: TODAY,
         isHistoricalDay: false,
+        invalidEpisodeIds: new Set<string>(),
       },
       {
         dailyRecord: repository,
@@ -201,6 +202,7 @@ const prepare = async (baseRecord: DailyRecord, previous: DailyRecord) => {
     planningSnapshot,
     bundle,
     isHistoricalDay: false,
+    invalidEpisodeIds: new Set<string>(),
     reportDate: TODAY,
     dailyRecord: repository,
     isAdmin: false,

@@ -37,5 +37,8 @@ export interface UseRayenSnapshotPreviewInput {
   structuralPersistenceExecutionKeysRef: RefObject<Set<string>>;
   runSerializedPersistence: RunSerializedRayenPersistence;
   loadAuthoritativeStructuralRecord: (date: string) => Promise<DailyRecord>;
+  /** Server read of the episodes marked «paciente no válido»; the run stops if it fails. */
+  loadInvalidEpisodeIds: () => Promise<ReadonlySet<string>>;
+  invalidEpisodeLoadTimeoutMs?: number;
   monotonicNow?: () => number;
 }

@@ -814,6 +814,17 @@ service cloud.firestore {
       allow read: if canReadClinicalData();
       allow create, update, delete: if false;
     }
+    match /hospitals/{hospitalId}/invalidClinicalEpisodes/{episodeId} {
+      allow read: if canReadClinicalData();
+      allow create: if canEdit() &&
+        request.resource.data.keys().hasOnly(['clinicalEpisodeId', 'censusDate', 'bedId', 'markedAt', 'markedBy']) &&
+        request.resource.data.clinicalEpisodeId == episodeId &&
+        request.resource.data.censusDate is string &&
+        request.resource.data.bedId is string &&
+        request.resource.data.markedAt == request.time &&
+        request.resource.data.markedBy == request.auth.uid;
+      allow delete: if isAdmin();
+    }
     match /hospitals/{hospitalId}/specialtyAiRequests/{requestId} {
       allow read, create, update, delete: if false;
     }

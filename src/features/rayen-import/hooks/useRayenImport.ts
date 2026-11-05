@@ -44,6 +44,10 @@ import {
   type ClinicalStageResult,
 } from '../contracts/clinicalStageResult';
 import type { DailyRecordWriteLease } from '@/services/repositories/dailyRecordWriteCoordinator';
+/** Loaded with the sync run, not with the census button. */
+const loadInvalidEpisodeIds = async () =>
+  (await import('@/services/census/invalidClinicalEpisodeService')).loadInvalidClinicalEpisodeIds();
+
 export const useRayenImport = (selectedCensusDate?: string) => {
   const queryClient = useQueryClient();
   // Automatic discovery does not confer the evidence bonus of a manually curated roster.
@@ -241,6 +245,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     structuralPersistenceExecutionKeysRef,
     runSerializedPersistence,
     loadAuthoritativeStructuralRecord,
+    loadInvalidEpisodeIds,
   });
   const triggerImport = useRayenImportCapture({
     currentRecord,

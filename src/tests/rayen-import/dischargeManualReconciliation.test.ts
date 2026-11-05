@@ -280,6 +280,7 @@ describe('absent D-1 patient with diagnosis-expanded discharge report', () => {
             egresoRows: [row, { ...row, diagnostico: 'Diagnóstico B' }],
           },
           isHistoricalDay: false,
+          invalidEpisodeIds: new Set<string>(),
           reportDate: current.date,
           dailyRecord: repository,
           isAdmin: false,

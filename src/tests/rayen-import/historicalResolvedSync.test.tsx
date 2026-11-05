@@ -77,6 +77,7 @@ describe('resolved historical synchronization', () => {
       planningSnapshot,
       bundle: { egresoRows: [row] } as RayenSyncBundle,
       isHistoricalDay: true,
+      invalidEpisodeIds: new Set<string>(),
       reportDate: record.date,
       dailyRecord: repository,
       isAdmin: true,

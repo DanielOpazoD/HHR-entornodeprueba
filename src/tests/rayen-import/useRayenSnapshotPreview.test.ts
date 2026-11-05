@@ -110,7 +110,12 @@ const initialState: RayenImportState = {
 const renderPreview = ({
   monotonicNow = Date.now,
   reviewRequirement,
-}: { monotonicNow?: () => number; reviewRequirement?: 'day_bootstrap' } = {}) => {
+  loadInvalidEpisodeIds = vi.fn().mockResolvedValue(new Set<string>()),
+}: {
+  monotonicNow?: () => number;
+  reviewRequirement?: 'day_bootstrap';
+  loadInvalidEpisodeIds?: () => Promise<ReadonlySet<string>>;
+} = {}) => {
   const setState = vi.fn();
   const dispatchExecution = vi.fn();
   const runClinicalStage = vi.fn().mockResolvedValue({ status: 'complete' });
@@ -173,6 +178,7 @@ const renderPreview = ({
       structuralPersistenceExecutionKeysRef,
       runSerializedPersistence: operation => operation(),
       loadAuthoritativeStructuralRecord: vi.fn(),
+      loadInvalidEpisodeIds,
       monotonicNow,
     })
   );
@@ -226,6 +232,35 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
       error: null,
     });
     expect(harness.failRun).not.toHaveBeenCalled();
+  });
+
+  it('plans against the patients marked as not valid, read from the server', async () => {
+    mocks.prepareRayenStructuralPlan.mockResolvedValue({
+      diff: admissionDiff,
+      replanDiff: vi.fn(),
+    });
+    const marked = new Set(['900001']);
+    const harness = renderPreview({ loadInvalidEpisodeIds: vi.fn().mockResolvedValue(marked) });
+
+    await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
+
+    expect(mocks.prepareRayenStructuralPlan).toHaveBeenCalledWith(
+      expect.objectContaining({ invalidEpisodeIds: marked })
+    );
+  });
+
+  it('stops the run instead of planning when the list of patients not valid cannot be read', async () => {
+    const harness = renderPreview({
+      loadInvalidEpisodeIds: vi.fn().mockRejectedValue(new Error('unavailable')),
+    });
+
+    await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
+
+    expect(mocks.prepareRayenStructuralPlan).not.toHaveBeenCalled();
+    expect(harness.failRun).toHaveBeenCalledWith('apply_failed', 'run-1');
+    expect(appliedState(harness.setState)).toMatchObject({
+      error: 'No se pudo leer la lista de pacientes no válidos. Revisa la conexión y reintenta.',
+    });
   });
 
   it('keeps a day created from Eloisa under human review', async () => {

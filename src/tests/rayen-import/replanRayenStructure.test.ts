@@ -66,6 +66,7 @@ describe('replanRayenStructure', () => {
             egresoRows: [],
             reportDate: record.date,
             isHistoricalDay: true,
+            invalidEpisodeIds: new Set<string>(),
           },
           dependencies
         )
@@ -86,6 +87,7 @@ describe('replanRayenStructure', () => {
         egresoRows: [],
         reportDate: record.date,
         isHistoricalDay: true,
+        invalidEpisodeIds: new Set<string>(),
       },
       dependencies
     );
@@ -132,6 +134,7 @@ describe('replanRayenStructure', () => {
           sourceSnapshot: { ...snapshot, encounters: [] },
           reportDate: current.date,
           isHistoricalDay: false,
+          invalidEpisodeIds: new Set<string>(),
           egresoRows: [
             {
               run: patient.rut,
@@ -174,6 +177,7 @@ describe('replanRayenStructure', () => {
       egresoRows: [],
       reportDate: '2026-07-28',
       isHistoricalDay: false,
+      invalidEpisodeIds: new Set<string>(),
     } as const;
 
     const initial = await replanRayenStructure(makeRecord({}), evidence, dependencies);
@@ -198,6 +202,7 @@ describe('replanRayenStructure', () => {
       egresoRows: [],
       reportDate: '2026-07-28',
       isHistoricalDay: false,
+      invalidEpisodeIds: new Set<string>(),
     } as const;
 
     const conflicted = await replanRayenStructure(

@@ -144,6 +144,7 @@ describe('invariantes de identidad entre vista previa y aplicación de egresos R
         egresoRows: [makeReportRow(scenario.reportRun, scenario.reportEpisode)],
         reportDate: '2026-09-02',
         isHistoricalDay: false,
+        invalidEpisodeIds: new Set<string>(),
       },
       {
         dailyRecord: repository,

@@ -19,6 +19,8 @@ export interface PlanRayenCensusImportInput {
   snapshot: RayenCensusSnapshot;
   /** Reference date for age computation (defaults to now). */
   reference?: Date;
+  /** Episodes marked «paciente no válido», never planned again. */
+  invalidEpisodeIds?: ReadonlySet<string>;
 }
 
 export interface PlanRayenCensusImportResult {
@@ -29,7 +31,10 @@ export const planRayenCensusImport = (
   input: PlanRayenCensusImportInput
 ): PlanRayenCensusImportResult => ({
   diff: {
-    ...reconcileCensus(input.current, input.snapshot, { reference: input.reference }),
+    ...reconcileCensus(input.current, input.snapshot, {
+      reference: input.reference,
+      invalidEpisodeIds: input.invalidEpisodeIds,
+    }),
     clinicalCribDischargeRepairs: planClinicalCribDischargeRepairs(input.current),
   },
 });
