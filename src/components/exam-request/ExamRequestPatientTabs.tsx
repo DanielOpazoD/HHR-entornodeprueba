@@ -47,9 +47,10 @@ export const ExamRequestPatientTabs: React.FC<ExamRequestPatientTabsProps> = ({
             : event.key === 'End'
               ? last
               : null;
-    if (next === null) return;
+    const target = next === null ? undefined : orders[next];
+    if (next === null || !target) return;
     event.preventDefault();
-    onSelect(orders[next].key);
+    onSelect(target.key);
     tabRefs.current[next]?.focus();
   };
   return (

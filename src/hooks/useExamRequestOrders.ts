@@ -112,7 +112,8 @@ export const useExamRequestOrders = ({
           keys,
           activeKey:
             current.activeKey === key
-              ? keys[Math.min(position, keys.length - 1)]
+              ? // Never empty here: the last patient cannot be removed.
+                (keys[Math.min(position, keys.length - 1)] ?? '')
               : current.activeKey,
           byKey,
         };
