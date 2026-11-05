@@ -1,0 +1,100 @@
+import { expect, test, type Page } from '@playwright/test';
+import {
+  seedVisualCensus,
+  VISUAL_DATE as DATE,
+  VISUAL_PATIENT as PATIENT,
+  VISUAL_SECOND_PATIENT as SECOND_PATIENT,
+} from './fixtures/censusVisualSeed';
+
+const openExplorerFromBed = async (page: Page, bedId: string): Promise<void> => {
+  await page.getByTestId(`clinical-panel-trigger-${bedId}`).click();
+  const drawer = page.getByTestId(`clinical-panel-drawer-${bedId}`);
+  await expect(drawer).toBeVisible({ timeout: 20_000 });
+  await drawer.getByRole('button', { name: /Abrir explorador clínico de/ }).click();
+  await expect(page.getByTestId('clinical-explorer')).toBeVisible({ timeout: 20_000 });
+};
+
+const screenshot = (page: Page, name: string) =>
+  page.screenshot({
+    path: process.env.CENSUS_VISUAL_OUTPUT_DIR
+      ? `${process.env.CENSUS_VISUAL_OUTPUT_DIR}/${name}.png`
+      : test.info().outputPath(`${name}.png`),
+    animations: 'disabled',
+  });
+
+test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns to the census', async ({
+  page,
+}) => {
+  await seedVisualCensus(page);
+  await page.goto(`/?date=${DATE}`);
+  const row = page.locator('[data-testid="patient-row"][data-bed-id="R1"]');
+  await expect(row).toContainText(PATIENT, { timeout: 20_000 });
+
+  await openExplorerFromBed(page, 'R1');
+  const explorer = page.getByTestId('clinical-explorer');
+  const header = page.getByTestId('clinical-explorer-patient');
+  await expect(header).toContainText(PATIENT);
+  // The census stays mounted but out of sight: coming back is instant and loses nothing.
+  await expect(page.locator('.census-register')).toBeHidden();
+
+  for (const [zoom, width, height] of [
+    ['100', 1280, 832],
+    ['125', 1024, 666],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    await expect(header).toContainText(PATIENT);
+
+    // Nothing pushes the page sideways.
+    const overflow = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+    }));
+    expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
+
+    // Patient list beside the panel, both inside the viewport.
+    const list = page.getByRole('complementary', { name: 'Pacientes del censo' });
+    const listBounds = await list.boundingBox();
+    const headerBounds = await header.boundingBox();
+    const explorerBounds = await explorer.boundingBox();
+    expect(listBounds).not.toBeNull();
+    expect(headerBounds).not.toBeNull();
+    expect(explorerBounds).not.toBeNull();
+    expect(listBounds!.x + listBounds!.width).toBeLessThanOrEqual(headerBounds!.x + 1);
+    expect(headerBounds!.width).toBeGreaterThanOrEqual(explorerBounds!.width * 0.6);
+    expect(explorerBounds!.x + explorerBounds!.width).toBeLessThanOrEqual(width + 1);
+
+    // The four areas are announced by name; the tab strip keeps one row.
+    const tabs = page.getByRole('tablist', { name: 'Áreas' });
+    await expect(tabs.getByRole('tab')).toHaveCount(5);
+    const tabBounds = await tabs.boundingBox();
+    expect(tabBounds!.height).toBeLessThanOrEqual(40);
+    for (const area of ['Laboratorio', 'Imágenes', 'Evoluciones', 'Indicaciones']) {
+      await expect(page.getByRole('region', { name: area })).toBeVisible();
+    }
+
+    // Syslab and MMRAD are out of reach here: a source that cannot be read is never shown as an
+    // empty hospitalization (SAVE-01).
+    await expect(page.getByRole('region', { name: 'Laboratorio' })).not.toContainText(
+      'Sin informes de laboratorio'
+    );
+    await expect(page.getByRole('region', { name: 'Imágenes' })).not.toContainText(
+      'Sin estudios de imágenes'
+    );
+
+    await page.mouse.move(1, 1);
+    await screenshot(page, `clinical-explorer-${zoom}`);
+  }
+
+  // Next and previous patient, by button and by keyboard.
+  await page.getByRole('button', { name: 'Paciente siguiente' }).click();
+  await expect(header).toContainText(SECOND_PATIENT);
+  await page.keyboard.press('ArrowLeft');
+  await expect(header).toContainText(PATIENT);
+
+  // Back to the census: same day, same row, focus on the trigger that opened the explorer.
+  await page.getByRole('button', { name: 'Volver al censo' }).click();
+  await expect(page.getByTestId('clinical-explorer')).toHaveCount(0);
+  await expect(page.locator('.census-register')).toBeVisible();
+  await expect(row).toContainText(PATIENT);
+  await expect(page.getByTestId('clinical-panel-trigger-R1')).toBeFocused();
+});

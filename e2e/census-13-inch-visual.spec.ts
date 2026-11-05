@@ -1,74 +1,9 @@
-import { expect, test, type Page } from '@playwright/test';
-import { buildCanonicalE2ERecord, MOCK_USERS } from './fixtures/auth';
+import { expect, test } from '@playwright/test';
 import {
-  installPreviewFirebaseRuntime,
-  type FirebasePreviewConfig,
-} from './fixtures/previewFirebase';
-
-const DATE = process.env.E2E_FIXED_DATE ?? '2026-04-03';
-const PATIENT = 'MARÍA ANTONIETA DEL CARMEN PAKOMIO RIVERO';
-
-const seedCensus = async (page: Page) => {
-  const config = await installPreviewFirebaseRuntime(page);
-  const base = buildCanonicalE2ERecord(DATE);
-  const beds = base.beds as Record<string, Record<string, unknown>>;
-  const record = buildCanonicalE2ERecord(DATE, {
-    beds: {
-      ...beds,
-      R1: {
-        ...beds.R1,
-        patientName: PATIENT,
-        rut: '12345678-5',
-        clinicalEpisodeId: 'visual-episode',
-        age: '44',
-        admissionDate: '2026-03-29',
-        pathology:
-          'Diagnóstico clínico sintético de descripción extensa para comprobar el ajuste de columnas',
-        devices: ['VVP', 'VVP#2', 'Sonda Nasogástrica'],
-        vitalSigns: {
-          recordedDate: DATE,
-          recordedAt: `${DATE} 12:00`,
-          systolic: 130,
-          diastolic: 82,
-          heartRate: 84,
-          spo2: 88,
-          temperature: 36.5,
-        },
-      },
-      R2: {
-        ...beds.R2,
-        patientName: 'PACIENTE SINTÉTICA DE NOMBRE LARGO',
-        rut: '12345678-5',
-        clinicalEpisodeId: 'visual-episode-r2',
-        age: '52',
-        admissionDate: '2026-03-29',
-        specialty: 'Medicina Interna',
-      },
-    },
-  });
-
-  await page.addInitScript(
-    ({
-      date,
-      seededRecord,
-      bootstrapUser,
-      runtimeConfig,
-    }: {
-      date: string;
-      seededRecord: unknown;
-      bootstrapUser: unknown;
-      runtimeConfig: FirebasePreviewConfig;
-    }) => {
-      const runtimeWindow = window as Window & { __HHR_E2E_OVERRIDE__?: Record<string, unknown> };
-      runtimeWindow.__HHR_E2E_OVERRIDE__ = { [date]: seededRecord };
-      localStorage.setItem('hhr_e2e_bootstrap_user', JSON.stringify(bootstrapUser));
-      localStorage.setItem('firebase:authUser:test:[DEFAULT]', JSON.stringify({ uid: 'preview' }));
-      localStorage.setItem('hhr_firebase_config', JSON.stringify(runtimeConfig));
-      localStorage.setItem('hanga_roa_hospital_data', JSON.stringify({ [date]: seededRecord }));
-    },
-    { date: DATE, seededRecord: record, bootstrapUser: MOCK_USERS.admin, runtimeConfig: config }
-  );
-};
+  seedVisualCensus as seedCensus,
+  VISUAL_DATE as DATE,
+  VISUAL_PATIENT as PATIENT,
+} from './fixtures/censusVisualSeed';
 
 test('keeps long identity, vital grid, devices and open clinical panels legible at 13-inch 100% and 125%', async ({
   page,
