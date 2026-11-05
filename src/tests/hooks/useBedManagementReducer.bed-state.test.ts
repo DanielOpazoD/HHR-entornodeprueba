@@ -215,6 +215,7 @@ describe('bedManagementReducer bed state controls', () => {
     expect(patch).toEqual({
       'beds.R1.clinicalCrib.patientName': 'RN Temporal',
       'beds.R1.clinicalCrib.pathology': 'Observación',
+      'beds.R1.clinicalCrib.diagnosisManualOverride': true,
     });
   });
 
@@ -234,7 +235,10 @@ describe('bedManagementReducer bed state controls', () => {
       bedId: 'R1',
       fields: { patientName: 'RN Temporal', pathology: 'Ictericia' },
     });
-    expect(patch).toEqual({ 'beds.R1.clinicalCrib.pathology': 'Ictericia' });
+    expect(patch).toEqual({
+      'beds.R1.clinicalCrib.pathology': 'Ictericia',
+      'beds.R1.clinicalCrib.diagnosisManualOverride': true,
+    });
 
     // Todo idéntico → diff vacío (el dispatch lo corta sin escribir ni auditar).
     const noop = bedManagementReducer(record, {

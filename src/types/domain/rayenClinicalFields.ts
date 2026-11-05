@@ -11,6 +11,7 @@ export const RAYEN_OWNED_CLINICAL_FIELDS = [
   'clinicalSyncCheckpoint',
   'clinicalCarryover',
   'clinicalAlerts',
+  'fluidBalance',
 ] as const satisfies readonly (keyof PatientData)[];
 
 export type RayenOwnedClinicalField = (typeof RAYEN_OWNED_CLINICAL_FIELDS)[number];

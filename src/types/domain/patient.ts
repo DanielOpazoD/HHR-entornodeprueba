@@ -1,4 +1,5 @@
 import type { ClinicalCarryover } from './clinicalCarryover';
+import type { PatientFluidBalance } from './fluidBalance';
 import type { PatientClinicalAlert } from './clinicalAlerts';
 import type { NeonatalPlacementDecision } from './neonatalPlacementDecision';
 import type { PatientIdentityStatus } from './patientIdentity';
@@ -88,6 +89,8 @@ export interface PatientData {
 
   isRapanui?: boolean;
   pathology: string;
+  /** A deliberate local diagnosis edit survives subsequent Eloísa imports for this episode. */
+  diagnosisManualOverride?: boolean;
   snomedCode?: string; // Standardized SNOMED CT code
   cie10Code?: string; // Standardized CIE-10 code
   cie10Description?: string; // Official CIE-10 description recorded at selection
@@ -192,6 +195,7 @@ export interface PatientData {
 
   /** Active «Alertas» notes of the Eloísa chart, newest first, from the day's sync. */
   clinicalAlerts?: PatientClinicalAlert[];
+  fluidBalance?: PatientFluidBalance;
 
   // Obstetric delivery tracking (Ginecobstetricia only)
   deliveryRoute?: DeliveryRoute;

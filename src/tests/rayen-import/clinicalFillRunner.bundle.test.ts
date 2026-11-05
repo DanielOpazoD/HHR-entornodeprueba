@@ -224,7 +224,8 @@ describe('runClinicalFill · paquete clínico por paciente', () => {
         status: 'rejected',
         reason: expect.objectContaining({ name: 'AbortError' }),
       }),
-      // A cancelled run reads no alerts, so the stored ones stay untouched.
+      // Cancellation exposes neither alerts nor balance, preserving both stored sections.
+      undefined,
       undefined,
     ]);
   });

@@ -16,7 +16,7 @@ importScripts(
   'gestion-camas-egreso-lookup.js', 'gestion-camas-egreso-query-runtime.js', 'gestion-camas-egreso-report-runtime.js', 'gestion-camas-monthly-cudyr-runtime.js', 'gestion-camas-active-beds.js', 'gestion-camas-clinical-cribs.js',
   'gestion-camas-statistical-report-fetcher.js', 'gestion-camas-discharge-report-runtime.js', 'gestion-camas-statistical-evidence-runtime.js',
   'cudyr-capture-support.js', 'cudyr-placement-support.js', 'gestion-camas-cudyr.js',
-  'patient-clinical-bundle-runtime.js', 'fichamedico-alert-entry-runtime.js',
+  'patient-clinical-bundle-runtime.js', 'fichamedico-alert-entry-runtime.js', 'fichamedico-fluid-balance-runtime.js',
   'runtime-generation-recovery.js', 'runtime-generation.js', 'connection-repair-runtime.js',
   'health-report-cache-runtime.js', 'health-request-runtime.js', 'health-push-ordering-runtime.js', 'health-heartbeat-runtime.js', 'health-tab-events-runtime.js', 'health-relay-self-repair.js',
   'relay-reinjection-manifest.js', 'relay-reinjection-health.js', 'relay-reinjection-operations.js', 'relay-reinjection-session.js', 'relay-reinjection-tab-events.js', 'relay-reinjection-runtime.js',
@@ -1173,6 +1173,7 @@ const runtimeRoute = (handle, fallback) => Object.freeze({ handle, fallback });
 const handlePatientClinicalBundleRequest = self.HhrPatientClinicalBundleRuntime.create({
   readDevices: handleDeviceReportRequest, readHistory: handleHistoryScalesRequest, readForms: handleScalesReportRequest,
   readAlerts: self.HhrFichaMedicoAlertEntryRuntime.create({ authorize: async (sender, encId) => { await patientFlowRuntime.authorizationReady; return patientFlowRuntime.canRequestClinicalEpisode(sender, encId); }, resolveSession: resolveFichaClinicalSession, readJson: options => fichaMedicoClinicalClient.readJson(options), clinicalDayAt: self.HhrClinicalDayRuntime.clinicalDayAt, classify: self.HhrClinicalReadErrors.classify }).fetchAlertEntries,
+  readFluidBalance: self.HhrFichaMedicoFluidBalanceRuntime.create({ authorize: async (sender, encId) => { await patientFlowRuntime.authorizationReady; return patientFlowRuntime.canRequestClinicalEpisode(sender, encId); }, resolveSession: resolveFichaClinicalSession, readJson: options => fichaMedicoClinicalClient.readJson(options), clinicalDayAt: self.HhrClinicalDayRuntime.clinicalDayAt, classify: self.HhrClinicalReadErrors.classify }).fetchFluidBalance,
 });
 
 const runtimeMessageRoutes = Object.freeze({

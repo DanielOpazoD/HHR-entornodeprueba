@@ -133,7 +133,7 @@ export const buildVitalSignsView = (
     }
   }
 
-  if (readings.length === 0) return null;
+  if (readings.length === 0 && vitals.meanArterialPressure == null) return null;
 
   const worst = readings.reduce<VitalStatus>((acc, r) => worseOf(acc, r.status), 'neutral');
 
@@ -159,10 +159,11 @@ export const buildVitalSignsView = (
 
 /** Columns of the vitals history table, in clinical reading order. */
 export const VITALS_HISTORY_COLUMNS: ReadonlyArray<{
-  key: VitalReadingView['key'];
+  key: VitalReadingView['key'] | 'pam';
   label: string;
 }> = [
   { key: 'pa', label: 'PA' },
+  { key: 'pam', label: 'PAM' },
   { key: 'fc', label: 'FC' },
   { key: 'spo2', label: 'SAT' },
   { key: 'temp', label: 'T°' },
@@ -180,7 +181,7 @@ export interface VitalsHistoryRow {
   when: string;
   observations: string | null;
   /** Value + status per column key (absent readings omitted). */
-  cells: Partial<Record<VitalReadingView['key'], { value: string; status: VitalStatus }>>;
+  cells: Partial<Record<VitalReadingView['key'] | 'pam', { value: string; status: VitalStatus }>>;
 }
 
 const dayLabel = (isoDay: string): string => {
@@ -201,6 +202,9 @@ export const buildVitalsHistory = (
     const resolvedProfile = typeof profile === 'function' ? profile(record) : profile;
     const view = buildVitalSignsView(record, resolvedProfile);
     const cells: VitalsHistoryRow['cells'] = {};
+    if (record.meanArterialPressure != null && Number.isFinite(record.meanArterialPressure)) {
+      cells.pam = { value: String(Math.round(record.meanArterialPressure)), status: 'neutral' };
+    }
     view?.readings.forEach(reading => {
       cells[reading.key] = { value: reading.value, status: reading.status };
     });

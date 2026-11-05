@@ -32,6 +32,7 @@ const PATIENT_FIELD_OWNERSHIP = {
   vitalSigns: 'remoteCanonical',
   vitalSignsHistory: 'remoteCanonical',
   pathology: 'remoteCanonical',
+  diagnosisManualOverride: 'remoteCanonical',
   snomedCode: 'remoteCanonical',
   cie10Code: 'remoteCanonical',
   cie10Description: 'remoteCanonical',
@@ -89,6 +90,7 @@ const PATIENT_FIELD_OWNERSHIP = {
   clinicalSyncCheckpoint: 'mergeById',
   clinicalCarryover: 'remoteCanonical',
   clinicalAlerts: 'remoteCanonical',
+  fluidBalance: 'remoteCanonical',
   fhir_resource: 'derivedProjection',
 } as const satisfies Record<keyof PatientData, DailyRecordSyncOwnership>;
 

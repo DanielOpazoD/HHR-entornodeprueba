@@ -25,6 +25,7 @@
 const CLINICAL_AUTHORITY_BED_FIELDS = Object.freeze([
   'pathology',
   'diagnosisComments',
+  'diagnosisManualOverride',
   'snomedCode',
   'cie10Code',
   'cie10Description',
@@ -67,6 +68,7 @@ const RAYEN_BATCH_ONLY_CLINICAL_FIELDS = Object.freeze([
   'clinicalSyncCheckpoint',
   'clinicalCarryover',
   'clinicalAlerts',
+  'fluidBalance',
 ]);
 
 const RAYEN_CLINICAL_FIELDS = Object.freeze([

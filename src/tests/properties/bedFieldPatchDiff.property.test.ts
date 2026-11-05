@@ -40,8 +40,8 @@ import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
 const RECORD_DATE = '2026-04-20';
 
 /**
- * Campos sin acompañantes legítimos: un cambio en uno de ellos debe viajar
- * SOLO. Quedan fuera a propósito `specialty`/`ginecobstetriciaType` (limpian
+ * Campos sin acompañantes salvo pathology, que agrega su marca de edición manual.
+ * Los demás cambios deben viajar solos. Quedan fuera a propósito `specialty`/`ginecobstetriciaType` (limpian
  * campos gineco), `upcChecklist` (arrastra `bedTypeOverrides`) y `rut`
  * (reemplazo de persona ⇒ limpieza clínica): esos acompañantes son contrato,
  * no ruido.
@@ -269,7 +269,7 @@ describe('buildUpdatePatientPatches · reenvío del paciente', () => {
     );
   });
 
-  it('un único cambio real viaja solo, con su valor, aunque venga con el resto del paciente', () => {
+  it('un único cambio real conserva su valor y solo el diagnóstico agrega su marca manual', () => {
     const changeArb = stateArb.chain(state =>
       fc
         .tuple(
@@ -300,7 +300,9 @@ describe('buildUpdatePatientPatches · reenvío del paciente', () => {
         const patch = buildUpdatePatientPatches(state.record, state.bedId, updates);
         const path = `beds.${state.bedId}.${key}`;
 
-        expect(Object.keys(patch)).toStrictEqual([path]);
+        const manualPath = `beds.${state.bedId}.diagnosisManualOverride`;
+        expect(Object.keys(patch)).toStrictEqual(key === 'pathology' ? [path, manualPath] : [path]);
+        if (key === 'pathology') expect(patch[manualPath]).toBe(true);
         expect(arePatchValuesDeepEqual((patch as Record<string, unknown>)[path], fresh[key])).toBe(
           true
         );

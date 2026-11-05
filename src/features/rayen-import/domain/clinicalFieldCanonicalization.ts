@@ -11,7 +11,8 @@ export type CanonicalClinicalField =
   | 'vitalSignsHistory'
   | 'clinicalSyncCheckpoint'
   | 'clinicalCarryover'
-  | 'clinicalAlerts';
+  | 'clinicalAlerts'
+  | 'fluidBalance';
 
 const sortedByCanonicalValue = <T>(items: T[]): T[] =>
   [...items].sort((left, right) =>
@@ -49,6 +50,7 @@ const normalizeEvaluationScores = (value: unknown): unknown => {
 const NULLABLE_VITAL_FIELDS = [
   'systolic',
   'diastolic',
+  'meanArterialPressure',
   'heartRate',
   'spo2',
   'temperature',

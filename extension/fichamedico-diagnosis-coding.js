@@ -22,8 +22,11 @@
       ? classificationId(item.diagnosisId) : null);
 
   const selectPrincipalDiagnosis = (rows, header, listItem) => {
+    // Encounter events are monotonic; response array order and the principal flag are not recency.
     const principal = (Array.isArray(rows) ? rows : [])
-      .find(row => active(row) && flag(row.isPrincipal));
+      .filter(row => active(row) && firstText(row.diagnosisName, row.name, row.description, row.freeTextDiagnosis))
+      .sort((a, b) => (Number(b.encounterEventId) || Number(b.id) || 0) -
+        (Number(a.encounterEventId) || Number(a.id) || 0))[0];
     const h = header || {};
     const item = listItem || {};
     const principalName = text(h.principalDiagName);
@@ -32,23 +35,19 @@
     const listId = classificationId(item.diagnosisId);
     const admissionId = admissionClassificationId(h, item, admissionName, listName);
 
-    if (principal) {
-      return {
-        name: firstText(principal.diagnosisName, principal.name, principal.description,
-          principal.freeTextDiagnosis, principalName, admissionName, listName),
-        code: text(principal.internalCode),
-        classificationId: classificationId(principal.diagnosisClassifyId),
-        source: 'principal-entry',
-      };
-    }
-    if (principalName) {
-      return {
-        name: principalName,
-        code: '',
-        classificationId: classificationId(h.principalDiagId),
-        source: 'principal-header',
-      };
-    }
+    if (principal) return {
+      name: firstText(principal.diagnosisName, principal.name, principal.description,
+        principal.freeTextDiagnosis, principalName, admissionName, listName),
+      code: text(principal.internalCode),
+      classificationId: classificationId(principal.diagnosisClassifyId),
+      source: 'principal-entry',
+    };
+    if (principalName) return {
+      name: principalName,
+      code: '',
+      classificationId: classificationId(h.principalDiagId),
+      source: 'principal-header',
+    };
     return {
       name: admissionName || listName,
       code: '',

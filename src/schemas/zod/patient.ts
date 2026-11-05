@@ -236,6 +236,7 @@ export const PatientDataSchema: z.ZodType<PatientData, unknown> = z.lazy(() =>
         emptyStringToUndefined(z.enum(['Residente', 'Turista Nacional', 'Turista Extranjero']))
       ),
       isRapanui: nullableOptional(z.boolean()),
+      diagnosisManualOverride: nullableOptional(z.boolean()),
       pathology: DefaultEmptyStringSchema,
       snomedCode: NullableOptionalStringSchema,
       cie10Code: NullableOptionalStringSchema,

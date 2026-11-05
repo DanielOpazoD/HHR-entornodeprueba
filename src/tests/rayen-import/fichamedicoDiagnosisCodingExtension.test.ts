@@ -23,6 +23,27 @@ const coding = (
 ).HhrFichaMedicoDiagnosisCoding;
 
 describe('Ficha Médico diagnosis coding', () => {
+  it('selects the latest active event regardless of principal flag or response order', () => {
+    const rows = [
+      { id: 1, encounterEventId: 100, isPrincipal: true, diagnosisName: 'Inicial' },
+      {
+        id: 2,
+        encounterEventId: 120,
+        isPrincipal: false,
+        diagnosisName: 'Vigente',
+        internalCode: 'J18.9',
+      },
+      { id: 3, encounterEventId: 140, diagnosisName: 'Archivado', archived: true },
+      { id: 4, encounterEventId: 160, diagnosisName: 'Borrado', deleted: true },
+    ];
+    for (const ordered of [rows, [...rows].reverse()]) {
+      expect(coding.selectPrincipalDiagnosis(ordered)).toMatchObject({
+        name: 'Vigente',
+        code: 'J18.9',
+      });
+    }
+  });
+
   it('preserves a coded principal diagnosis when enriching uncoded admissions', async () => {
     let reads = 0;
     const enricher = coding.createEnricher(async () => {

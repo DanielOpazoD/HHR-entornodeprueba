@@ -150,7 +150,7 @@ const readPatientSources = async ({
     ]);
     deps.signal?.throwIfAborted();
     // Alerts travel only in the bundle; without it the stored alerts stay as they are.
-    return [devices, history, forms, undefined] as const;
+    return [devices, history, forms, undefined, undefined] as const;
   }
 
   const devicesResult = (async (): Promise<PromiseSettledResult<DeviceRead>> => {
@@ -179,7 +179,7 @@ const readPatientSources = async ({
 
   const [devices, history, forms] = await Promise.all([devicesResult, historyResult, formsResult]);
   deps.signal?.throwIfAborted();
-  return [devices, history, forms, bundle.alerts] as const;
+  return [devices, history, forms, bundle.alerts, bundle.fluidBalance] as const;
 };
 
 export const readClinicalPatientSources = async (input: ClinicalPatientReadInput) => {
@@ -189,6 +189,6 @@ export const readClinicalPatientSources = async (input: ClinicalPatientReadInput
     if (!input.deps.signal?.aborted || reason !== input.deps.signal.reason) throw reason;
     // Preserve the runner's settled-results contract without exposing late successes.
     const cancelled = { status: 'rejected' as const, reason: input.deps.signal.reason ?? reason };
-    return [cancelled, cancelled, cancelled, undefined] as const;
+    return [cancelled, cancelled, cancelled, undefined, undefined] as const;
   }
 };

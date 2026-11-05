@@ -84,7 +84,10 @@ describe('bedManagementDispatchController · split de patches mezclados', () => 
     const [structuralPatch] = patchRecord.mock.calls[0];
     const [clinicalPatch] = patchRecord.mock.calls[1];
     expect(Object.keys(structuralPatch)).toEqual(['beds.R1.admissionTime']);
-    expect(Object.keys(clinicalPatch)).toEqual(['beds.R1.pathology']);
+    expect(clinicalPatch).toEqual({
+      'beds.R1.pathology': 'Neumonía adquirida en la comunidad',
+      'beds.R1.diagnosisManualOverride': true,
+    });
   });
 
   it('la clasificación UPC viaja en UN solo comando clínico con su bedTypeOverrides', async () => {
@@ -207,5 +210,9 @@ describe('bedManagementDispatchController · split de patches mezclados', () => 
 
     expect(result).toBe(true);
     expect(patchRecord).toHaveBeenCalledTimes(1);
+    expect(patchRecord).toHaveBeenCalledWith({
+      'beds.R1.pathology': 'Bronquitis aguda',
+      'beds.R1.diagnosisManualOverride': true,
+    });
   });
 });
