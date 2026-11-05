@@ -1,4 +1,5 @@
 import type { ClinicalCarryover } from './clinicalCarryover';
+import type { PatientFluidBalance } from './fluidBalance';
 import type { PatientClinicalAlert } from './clinicalAlerts';
 import type { NeonatalPlacementDecision } from './neonatalPlacementDecision';
 import type { PatientIdentityStatus } from './patientIdentity';
@@ -192,6 +193,7 @@ export interface PatientData {
 
   /** Active «Alertas» notes of the Eloísa chart, newest first, from the day's sync. */
   clinicalAlerts?: PatientClinicalAlert[];
+  fluidBalance?: PatientFluidBalance;
 
   // Obstetric delivery tracking (Ginecobstetricia only)
   deliveryRoute?: DeliveryRoute;

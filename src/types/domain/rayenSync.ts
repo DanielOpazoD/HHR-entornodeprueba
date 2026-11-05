@@ -33,6 +33,7 @@ export const RAYEN_SYNC_ISSUE_SOURCES = [
   'devices',
   'scales',
   'vitals',
+  'fluid_balance',
   'staffing',
   'cudyr',
   'bed_history',

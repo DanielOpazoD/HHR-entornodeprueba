@@ -11,7 +11,8 @@ export type CanonicalClinicalField =
   | 'vitalSignsHistory'
   | 'clinicalSyncCheckpoint'
   | 'clinicalCarryover'
-  | 'clinicalAlerts';
+  | 'clinicalAlerts'
+  | 'fluidBalance';
 
 const sortedByCanonicalValue = <T>(items: T[]): T[] =>
   [...items].sort((left, right) =>

@@ -65,6 +65,7 @@ export const RAYEN_BATCH_ONLY_CLINICAL_FIELDS = [
   'clinicalSyncCheckpoint',
   'clinicalCarryover',
   'clinicalAlerts',
+  'fluidBalance',
 ] as const;
 
 export const RAYEN_CLINICAL_FIELDS = [

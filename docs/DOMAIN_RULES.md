@@ -81,6 +81,22 @@ vigentes no se sustituyen por un documento.
 | CEN-03  | Un ingreso de madrugada con cama comprobada se incorpora al turno nocturno anterior al confirmar la sincronización habitual, si ese censo existe, no está firmado y el operador puede editarlo. Conserva el indicador amarillo de ingreso en su turno. | Es una asignación de turno; no requiere una segunda aceptación. Los días protegidos conservan sus controles.                   |
 | CEN-04  | Si una fila administrativa carece de episodio, completar esa identidad desde Eloísa antes de reconstruir el censo, aunque HHR ya tenga un alta del mismo RUT. Un episodio ya egresado no vuelve a ocupar cama.                                         | La coincidencia de RUT no identifica una hospitalización; repetir una captura no debe reabrir un alta ni confundir reingresos. |
 
+### Ingresos y diuresis del detalle
+
+El balance sincronizado corresponde a un episodio y un día del censo: 08:00–07:59
+siguiente en Pacific/Easter. Día comprende 08:00–19:59; noche, 20:00–07:59.
+Se suman todos los ingresos y, entre los egresos, únicamente Diuresis, sin filtrar
+por autor ni profesión. Una captura correcta sustituye los totales; una lectura
+fallida o con horarios ambiguos conserva lo conocido y registra el fallo de fuente.
+El detalle distingue un período sin registros de uno con volúmenes cero registrados.
+No muestra un balance arrastrado de otro día como si fuera el actual.
+
+El contrato de campos procede de los módulos públicos 21622 y 55326 de Eloísa:
+`regDatetime`, `hydBalType` (IN/EG), `hydBalName`, `inputQuantity` y
+`outputQuantity` (negativo en el editor de egresos). El episodio inspeccionado no
+tenía movimientos de balance; por ello sólo se aceptan instantes con desfase explícito.
+Un `regDatetime` sin zona requiere verificar su semántica antes de habilitarlo.
+
 ### Zona horaria de cada fuente de Eloísa (TIME-02)
 
 Una hora sin desfase no dice en qué zona está. Cada campo se convierte a Rapa Nui con `Intl`,

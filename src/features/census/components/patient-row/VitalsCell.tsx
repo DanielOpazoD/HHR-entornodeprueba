@@ -65,7 +65,7 @@ export const VitalsCell: React.FC<VitalsCellProps> = ({
     vitals?.readings.find(reading => reading.key === key);
   return (
     <td className="py-0.5 px-1 border-r border-slate-200 relative">
-      {vitals ? (
+      {vitals || data.fluidBalance ? (
         <button
           type="button"
           onClick={e => {
@@ -102,7 +102,7 @@ export const VitalsCell: React.FC<VitalsCellProps> = ({
         </div>
       )}
 
-      {isDetailOpen && vitals && (
+      {isDetailOpen && (vitals || data.fluidBalance) && (
         <ClinicalDetailLoadBoundary
           title={`Signos vitales — ${data.patientName}`}
           onClose={() => setIsDetailOpen(false)}
@@ -110,7 +110,9 @@ export const VitalsCell: React.FC<VitalsCellProps> = ({
         >
           <VitalsDetailModal
             patientName={data.patientName}
-            vitals={vitals}
+            vitals={vitals ?? undefined}
+            fluidBalance={data.fluidBalance}
+            censusDate={date}
             vitalSignsHistory={data.vitalSignsHistory}
             latestReading={data.vitalSigns}
             episodeDocument={
