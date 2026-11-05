@@ -52,6 +52,8 @@
     "^assets/PatientHospitalizationReportsDialog-.*\\.js$",
     "^assets/audit-documents-.*\\.js$",
     "^assets/ClinicalPanelDrawer-.*\\.js$",
+    "^assets/ClinicalExplorerView-.*\\.js$",
+    "^assets/useClinicalPanelSnapshot-.*\\.js$",
     "^assets/RayenSyncHistoryModal-.*\\.js$",
     "^assets/perfAuditReport-.*\\.js$",
     "^assets/sendCensusEmailUseCases-.*\\.js$",

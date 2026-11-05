@@ -1,4 +1,4 @@
-import React, { Suspense, type CSSProperties, useState } from 'react';
+import React, { Suspense, type CSSProperties, useMemo, useState } from 'react';
 import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
 import type { Statistics } from '@/types/domain/statistics';
 import type { DailyRecord } from '@/features/census/contracts/censusRecordContracts';
@@ -18,10 +18,20 @@ import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcu
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import '../styles/censusLayout.css';
 import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
+import { listClinicalExplorerPatients } from '@/features/census/controllers/clinicalExplorerController';
+import { ClinicalExplorerMenuEntry } from './clinical-explorer/ClinicalExplorerMenuEntry';
+import { useClinicalExplorerSelection } from './clinical-explorer/clinicalExplorerStore';
 
 const LazyCensusRegisterSections = lazyWithRetry(() =>
   import('./CensusRegisterSections').then(module => ({
     default: module.CensusRegisterSections,
+  }))
+);
+
+// Online-only consultation mode; it reads Eloísa, Syslab and MMRAD and never joins the precache.
+const LazyClinicalExplorerView = lazyWithRetry(() =>
+  import('./clinical-explorer/ClinicalExplorerView').then(module => ({
+    default: module.ClinicalExplorerView,
   }))
 );
 
@@ -60,6 +70,11 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
   const dailyRecordStatus = useDailyRecordStatus();
   const writeStatus = useDailyRecordWriteStatus(currentDateString);
   const editingReadOnly = readOnly || writeStatus.isSyncCommit;
+  const explorer = useClinicalExplorerSelection(currentDateString);
+  const explorerPatients = useMemo(
+    () => listClinicalExplorerPatients({ visibleBeds, beds }),
+    [visibleBeds, beds]
+  );
   const operationalState = resolveCensusOperationalState({
     branch: 'register',
     bootstrapPhase: dailyRecordStatus.bootstrapPhase,
@@ -71,8 +86,10 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
   return (
     <CensusActionsProvider>
       <CensusPrintHeader currentDateString={currentDateString} />
+      <ClinicalExplorerMenuEntry censusDate={currentDateString} patients={explorerPatients} />
 
-      <div className="census-register space-y-4" style={marginStyle}>
+      {/* The census stays mounted behind the explorer so returning keeps its state and edits. */}
+      <div className="census-register space-y-4" style={marginStyle} hidden={explorer !== null}>
         <CensusOperationalStateBanner state={operationalState} />
         <CensusStaffHeader
           selectedDate={currentDateString}
@@ -122,6 +139,24 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
           </Suspense>
         ) : null}
       </div>
+      {explorer ? (
+        <Suspense
+          fallback={
+            <div
+              className="h-40 animate-pulse rounded-xl bg-slate-100"
+              style={marginStyle}
+              data-testid="clinical-explorer-loading"
+            />
+          }
+        >
+          <LazyClinicalExplorerView
+            censusDate={currentDateString}
+            bedId={explorer.bedId}
+            patients={explorerPatients}
+            marginStyle={marginStyle}
+          />
+        </Suspense>
+      ) : null}
     </CensusActionsProvider>
   );
 };

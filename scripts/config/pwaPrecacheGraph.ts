@@ -23,6 +23,11 @@ export const PRECACHE_STATIC_IMPORT_EXCEPTIONS = [
   { name: 'useCudyrReport', reason: 'Optional historical CUDYR report state.' },
   { name: 'ClinicalFormTool', reason: 'Optional network-loaded clinical forms.' },
   { name: 'ClinicalPanelDrawer', reason: 'Eloisa clinical drawer needs the online source.' },
+  {
+    name: 'useClinicalPanelSnapshot',
+    reason:
+      'Ficha Médico reader shared by the clinical drawer, its antecedents and the clinical explorer; all of them need Eloisa online.',
+  },
   { name: 'terminologyService', reason: 'Online clinical terminology search.' },
 ];
 
