@@ -50,6 +50,14 @@ export const useCensusRowActionCommand = ({
           actions: buildRowActionRuntimeActions({
             clearPatient: clearPatientRef.current,
             addCMA: addCmaRef.current,
+            markInvalidEpisode: async mark => {
+              const { markClinicalEpisodeInvalid } =
+                await import('@/services/census/invalidClinicalEpisodeService');
+              await markClinicalEpisodeInvalid({
+                ...mark,
+                censusDate: recordRef.current?.date ?? '',
+              });
+            },
             setActionState,
             setDischargeState,
             setTransferState,

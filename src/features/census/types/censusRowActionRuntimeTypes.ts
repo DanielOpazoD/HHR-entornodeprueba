@@ -15,6 +15,8 @@ export interface RowActionRuntimeActions {
     confirmedAssociatedCrib?: ConfirmedBedOccupantIdentity | null
   ) => Promise<boolean>;
   addCMA: (data: Omit<CMAData, 'id' | 'timestamp'>) => void;
+  /** Records the «paciente no válido» mark; resolves only once the server holds it. */
+  markInvalidEpisode: (mark: { clinicalEpisodeId: string; bedId: string }) => Promise<void>;
   setMovement: (nextActionState: ActionState) => void;
   openDischarge: (dischargePatch: Partial<DischargeState>) => void;
   openTransfer: (transferPatch: Partial<TransferState>) => void;

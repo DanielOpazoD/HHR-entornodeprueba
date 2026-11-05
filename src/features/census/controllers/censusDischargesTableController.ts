@@ -2,6 +2,7 @@ import type { DischargeData } from '@/features/census/contracts/censusMovementCo
 import { buildCensusMovementTableHeaders } from './censusMovementTableHeaders';
 import { buildMovementRowActions } from '@/features/census/controllers/censusMovementRowActionsController';
 import { canReclassifyHomeDischarge } from '@/application/census/movementTypeConversionPolicy';
+import { isClinicalCribDischarge } from '@/application/census/movementTombstonePolicy';
 
 export const DISCHARGES_TABLE_HEADERS = buildCensusMovementTableHeaders(['Tipo Alta', 'Estado']);
 
@@ -17,6 +18,7 @@ interface DischargeRowActionHandlers {
   deleteDischarge: (id: string) => void;
   convertDischargeToCma: (id: string) => void;
   convertDischargeToTransfer?: (id: string) => void;
+  markDischargeInvalid?: (discharge: DischargeData) => void;
 }
 
 export const buildDischargeRowActions = (
@@ -65,6 +67,18 @@ export const buildDischargeRowActions = (
     });
   }
 
+  // An Eloísa episode created by mistake; a newborn's alta goes with its mother's row.
+  if (
+    handlers.markDischargeInvalid &&
+    discharge.clinicalEpisodeId?.trim() &&
+    !isClinicalCribDischarge(discharge)
+  ) {
+    actions.push({
+      kind: 'invalid',
+      title: 'Paciente no válido',
+      onClick: () => handlers.markDischargeInvalid?.(discharge),
+    });
+  }
   actions.push(deleteAction);
   return actions;
 };

@@ -18,7 +18,12 @@ export type {
   RowActionConfirmDescriptor,
 } from '@/features/census/types/censusRowActionCommandTypes';
 
-export type RowActionErrorCode = 'ACTIONS_LOCKED' | 'PATIENT_NAME_REQUIRED' | 'PERSISTENCE_FAILED';
+export type RowActionErrorCode =
+  | 'ACTIONS_LOCKED'
+  | 'PATIENT_NAME_REQUIRED'
+  | 'PERSISTENCE_FAILED'
+  | 'EPISODE_REQUIRED'
+  | 'CLINICAL_CRIB_ATTACHED';
 
 export type RowActionError = ControllerError<RowActionErrorCode>;
 
@@ -62,6 +67,35 @@ export const resolveRowActionCommand = ({
           variant: 'warning',
         },
       });
+
+    case 'invalid': {
+      const clinicalEpisodeId = patient.clinicalEpisodeId?.trim();
+      if (!clinicalEpisodeId) {
+        return failWithCode(
+          'EPISODE_REQUIRED',
+          'Solo un paciente con episodio de Eloísa se marca como no válido. Usa «Limpiar».'
+        );
+      }
+      // The newborn is another person (ID-03): never remove it with its mother's episode.
+      if (patient.clinicalCrib) {
+        return failWithCode(
+          'CLINICAL_CRIB_ATTACHED',
+          'Esta cama tiene una cuna asociada. Mueve o limpia la cuna antes de marcar al paciente como no válido.'
+        );
+      }
+      return ok({
+        kind: 'confirmInvalid',
+        bedId,
+        clinicalEpisodeId,
+        confirm: {
+          title: 'Paciente no válido',
+          message:
+            'Úsalo solo para un ingreso creado por error, por ejemplo un doble ingreso. El paciente se elimina del censo, no cuenta en las estadísticas y la sincronización con Eloísa no lo volverá a ingresar ni registrará su egreso. Un reingreso real tiene otro episodio y no se ve afectado.',
+          confirmText: 'Sí, eliminar',
+          variant: 'danger',
+        },
+      });
+    }
 
     case 'copy':
     case 'move':

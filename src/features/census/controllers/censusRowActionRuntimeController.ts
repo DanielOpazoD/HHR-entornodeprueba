@@ -88,6 +88,44 @@ export const executeRowActionController = async ({
       }
       return ok({ applied: true });
     }
+    case 'confirmInvalid': {
+      if (!(await confirmRuntime.confirm(command.confirm))) {
+        return ok({ applied: false });
+      }
+      // Mark first: once the bed is empty, only the mark keeps the sync from admitting it again.
+      try {
+        await actions.markInvalidEpisode({
+          clinicalEpisodeId: command.clinicalEpisodeId,
+          bedId: command.bedId,
+        });
+      } catch {
+        return {
+          ok: false,
+          error: {
+            code: 'PERSISTENCE_FAILED',
+            message:
+              'No se pudo registrar al paciente como no válido. No se eliminó nada; revisa la conexión y reintenta.',
+          },
+        };
+      }
+      const cleared = await actions.clearPatient(
+        command.bedId,
+        confirmedLastUpdated,
+        buildConfirmedBedOccupantIdentity(patient),
+        null
+      );
+      if (!cleared) {
+        return {
+          ok: false,
+          error: {
+            code: 'PERSISTENCE_FAILED',
+            message:
+              'El paciente quedó marcado como no válido, pero no se pudo limpiar la cama. Usa «Limpiar» para terminar.',
+          },
+        };
+      }
+      return ok({ applied: true });
+    }
     case 'setMovement':
       actions.setMovement(command.nextActionState);
       return ok({ applied: true });

@@ -33,6 +33,8 @@ export interface PatientMainRowActionCellProps
   medicalIndicationsPatient?: MedicalIndicationsPatientOption;
   clinicalDocumentCount?: number;
   isPendingClear?: boolean;
+  /** Only an Eloísa episode can be marked «paciente no válido». */
+  canMarkInvalid?: boolean;
 }
 
 export interface PatientMainRowViewProps

@@ -27,6 +27,12 @@ export type RowActionCommand =
       transferPatch: Partial<TransferState>;
     }
   | {
+      kind: 'confirmInvalid';
+      bedId: string;
+      clinicalEpisodeId: string;
+      confirm: RowActionConfirmDescriptor;
+    }
+  | {
       kind: 'confirmCma';
       bedId: string;
       cmaData: Omit<CMAData, 'id' | 'timestamp'>;

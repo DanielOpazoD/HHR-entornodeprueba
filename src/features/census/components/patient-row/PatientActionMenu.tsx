@@ -38,6 +38,8 @@ interface PatientActionMenuProps
   medicalIndicationsPatient?: MedicalIndicationsPatientOption;
   /** Number of active clinical documents for this patient episode. */
   clinicalDocumentCount?: number;
+  /** Only an Eloísa episode can be marked «paciente no válido». */
+  canMarkInvalid?: boolean;
 }
 
 const PatientActionPrimaryIcon: React.FC<{
@@ -82,6 +84,7 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
   medicalIndicationsPatient,
   clinicalDocumentCount,
   allowedActions,
+  canMarkInvalid = false,
 }) => {
   const {
     isOpen,
@@ -186,6 +189,7 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
             binding={binding}
             utilityActions={utilityActions}
             allowedActions={allowedActions}
+            canMarkInvalid={canMarkInvalid}
             onClose={close}
             onAction={handleAction}
             onViewHistory={handleViewHistory}

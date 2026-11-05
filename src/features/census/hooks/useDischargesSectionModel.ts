@@ -3,9 +3,11 @@ import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { useCensusActionCommands } from '../context/censusActionContexts';
 import { useCensusMovementData } from './useCensusMovementData';
 import { useMovementSectionModel } from './useMovementSectionModel';
+import type { DischargeData } from '@/features/census/contracts/censusMovementContracts';
 import {
   buildMovementTypeConversionConfirmDialog,
   DISCHARGE_DELETE_CONFIRM_DIALOG,
+  DISCHARGE_INVALID_CONFIRM_DIALOG,
   DISCHARGE_UNDO_CONFIRM_DIALOG,
 } from '../controllers/censusMovementActionConfirmController';
 
@@ -55,6 +57,34 @@ export const useDischargesSectionModel = () => {
     }
   };
 
+  const handleMarkDischargeInvalid = async (discharge: DischargeData) => {
+    const clinicalEpisodeId = discharge.clinicalEpisodeId?.trim();
+    if (!clinicalEpisodeId) return;
+    try {
+      if (!(await confirm(DISCHARGE_INVALID_CONFIRM_DIALOG))) return;
+    } catch {
+      notifyError('No se pudo marcar como no válido', 'No se pudo confirmar la acción.');
+      return;
+    }
+    // Mark first: once the alta is gone, only the mark keeps the sync from filing it again.
+    try {
+      const { markClinicalEpisodeInvalid } =
+        await import('@/services/census/invalidClinicalEpisodeService');
+      await markClinicalEpisodeInvalid({
+        clinicalEpisodeId,
+        censusDate: recordDate,
+        bedId: discharge.bedId,
+      });
+    } catch {
+      notifyError(
+        'No se pudo marcar como no válido',
+        'No se eliminó nada; revisa la conexión y reintenta.'
+      );
+      return;
+    }
+    deleteDischarge(discharge.id);
+  };
+
   return {
     recordDate,
     sectionModel,
@@ -62,5 +92,6 @@ export const useDischargesSectionModel = () => {
     updateDischarge,
     handleConvertDischargeToCma,
     handleConvertDischargeToTransfer,
+    handleMarkDischargeInvalid,
   };
 };
