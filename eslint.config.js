@@ -5,6 +5,20 @@ import react from 'eslint-plugin-react';
 import tseslint from 'typescript-eslint';
 import boundaries from 'eslint-plugin-boundaries';
 
+// Glossary enforcement — only terms with zero current usage are banned (see docs/GLOSSARY.md).
+// Adding new ones requires first migrating all legitimate uses; otherwise the rule produces noise
+// instead of signal.
+const GLOSSARY_SYNTAX_RESTRICTIONS = [
+  {
+    selector: 'Identifier[name="intake"]',
+    message: 'Use "admission" / "admisión" instead of "intake" — see docs/GLOSSARY.md',
+  },
+  {
+    selector: 'Identifier[name="swap"]',
+    message: 'Use "moveOrCopy" / "bedMovement" instead of "swap" — see docs/GLOSSARY.md',
+  },
+];
+
 export default tseslint.config(
   {
     ignores: [
@@ -151,20 +165,25 @@ export default tseslint.config(
         },
       ],
 
-      // Glossary enforcement — only terms with zero current usage are banned
-      // (see docs/GLOSSARY.md). Adding new ones requires first migrating all
-      // legitimate uses; otherwise the rule produces noise instead of signal.
       'no-restricted-syntax': [
         'warn',
+        ...GLOSSARY_SYNTAX_RESTRICTIONS,
         {
-          selector: 'Identifier[name="intake"]',
-          message: 'Use "admission" / "admisión" instead of "intake" — see docs/GLOSSARY.md',
-        },
-        {
-          selector: 'Identifier[name="swap"]',
-          message: 'Use "moveOrCopy" / "bedMovement" instead of "swap" — see docs/GLOSSARY.md',
+          // One session scope: the sender in sessionStorageTransition notifies every listener
+          // synchronously. Listening to the window message elsewhere brought back reads of the
+          // previous person twice (clinical explorer, 2026-11-05).
+          selector: 'Literal[value="HHR_RAYEN_SESSION_CHANGED"]',
+          message:
+            'Observa el cambio de sesión con onSessionChange() o useSessionEpoch(), no con el mensaje HHR_RAYEN_SESSION_CHANGED (AGENTS.md).',
         },
       ],
+    },
+  },
+  {
+    // The sender of the session message and the tests that assert the page bridge.
+    files: ['src/services/storage/sessionStorageTransition.ts', 'src/tests/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': ['warn', ...GLOSSARY_SYNTAX_RESTRICTIONS],
     },
   },
   {

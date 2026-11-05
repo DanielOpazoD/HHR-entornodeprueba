@@ -1,4 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react';
+import { onSessionChange } from '@/services/storage/sessionStorageTransition';
 
 export interface ClinicalExplorerSelection {
   /** Census day the explorer was opened from. It never changes while the explorer is open. */
@@ -71,10 +72,7 @@ export const useClinicalExplorerSelection = (
   return matches ? current : null;
 };
 
-if (typeof window !== 'undefined') {
-  // setSessionGeneration posts this on every admission and logout: the next person starts in
-  // the census. Closing is always safe, so the sender is not checked.
-  window.addEventListener('message', event => {
-    if (event.data?.type === 'HHR_RAYEN_SESSION_CHANGED') closeClinicalExplorer();
-  });
-}
+// Every admission and logout: the next person starts in the census.
+onSessionChange(() => {
+  closeClinicalExplorer();
+});

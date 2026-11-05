@@ -1,3 +1,4 @@
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
@@ -13,7 +14,10 @@ const Probe = ({ censusDate }: { censusDate: string }) => {
 };
 
 describe('clinicalExplorerStore', () => {
-  afterEach(() => act(() => closeClinicalExplorer()));
+  afterEach(() => {
+    act(() => closeClinicalExplorer());
+    act(() => setSessionGeneration(null));
+  });
 
   it('opens, moves between beds and closes for the day it was opened from', () => {
     render(<Probe censusDate="2026-11-04" />);
@@ -39,11 +43,7 @@ describe('clinicalExplorerStore', () => {
   it('closes when the Eloísa session changes, so the next person starts in the census', () => {
     render(<Probe censusDate="2026-11-04" />);
     act(() => openClinicalExplorer({ censusDate: '2026-11-04', bedId: 'R1' }));
-    act(() => {
-      window.dispatchEvent(
-        new MessageEvent('message', { data: { type: 'HHR_RAYEN_SESSION_CHANGED' } })
-      );
-    });
+    act(() => setSessionGeneration(`synthetic-${Date.now()}`));
     expect(screen.getByRole('status')).toHaveTextContent('censo');
   });
 });
