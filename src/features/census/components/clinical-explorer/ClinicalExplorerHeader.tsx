@@ -1,18 +1,12 @@
-import React, { lazy, Suspense, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { ChevronLeft, ChevronRight, FlaskConical, FolderOpen } from 'lucide-react';
 import { XRayIcon } from '@/components/ui/XRayIcon';
 import type { ClinicalExplorerPatient } from '@/features/census/controllers/clinicalExplorerController';
 import { calculateHospitalizedDays } from '@/features/census/controllers/patientBedConfigViewController';
 import { formatAge } from '@/utils/ageDisplayUtils';
-import { normalizeRut } from '@/utils/rutUtils';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { StatusDot } from './clinicalExplorerUi';
 
-const LazyExamRequestModal = lazy(() =>
-  import('@/components/modals/ExamRequestModal').then(module => ({
-    default: module.ExamRequestModal,
-  }))
-);
 const LazyImagingRequestDialog = lazy(() =>
   import('@/components/modals/ImagingRequestDialog').then(module => ({
     default: module.ImagingRequestDialog,
@@ -24,15 +18,12 @@ const LazyClinicalDocumentsModal = lazy(() =>
   }))
 );
 
-type QuickAction = 'exam' | 'imaging' | 'documents';
-
-const examOrderKey = (item: ClinicalExplorerPatient): string =>
-  `${normalizeRut(item.data.rut)}:${item.episodeId}`;
+type QuickAction = 'imaging' | 'documents';
 
 interface ClinicalExplorerHeaderProps {
   patient: ClinicalExplorerPatient;
-  /** Census patients of the day: a laboratory request may include several of them. */
-  patients: ClinicalExplorerPatient[];
+  /** The laboratory request belongs to the explorer: it may gather several patients. */
+  onRequestExams: () => void;
   censusDate: string;
   position: { index: number; total: number };
   previousBedId: string | null;
@@ -48,7 +39,7 @@ const QUICK_BUTTON =
 /** Who is being reviewed (patient and episode), where they are, and the quick requests. */
 export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
   patient,
-  patients,
+  onRequestExams,
   censusDate,
   position,
   previousBedId,
@@ -61,17 +52,6 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
   const [open, setOpen] = useState<{ identity: string; kind: QuickAction } | null>(null);
   const action = open?.identity === identity ? open.kind : null;
   const setAction = (kind: QuickAction | null): void => setOpen(kind ? { identity, kind } : null);
-  // An order belongs to the patient and episode, not to the bed: it follows a move to another
-  // bed and never passes to a new occupant.
-  const examCandidates = useMemo(
-    () =>
-      patients.map(item => ({
-        key: examOrderKey(item),
-        label: item.bedId,
-        patient: item.data,
-      })),
-    [patients]
-  );
 
   const patientName = data.patientName.trim();
   const days = calculateHospitalizedDays({
@@ -155,7 +135,7 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
         aria-label="Solicitudes para este paciente"
         className="flex basis-full flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2"
       >
-        <button type="button" className={QUICK_BUTTON} onClick={() => setAction('exam')}>
+        <button type="button" className={QUICK_BUTTON} onClick={onRequestExams}>
           <FlaskConical size={14} aria-hidden="true" className="text-emerald-700" />
           Solicitar exámenes
         </button>
@@ -169,18 +149,6 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
         </button>
       </div>
 
-      {action === 'exam' && (
-        <Suspense fallback={null}>
-          <LazyExamRequestModal
-            isOpen
-            onClose={() => setAction(null)}
-            patient={data}
-            recordDate={censusDate}
-            candidates={examCandidates}
-            patientKey={examOrderKey(patient)}
-          />
-        </Suspense>
-      )}
       {action === 'imaging' && (
         <Suspense fallback={null}>
           <LazyImagingRequestDialog isOpen onClose={() => setAction(null)} patient={data} />

@@ -56,17 +56,19 @@ export const useExamRequestOrders = ({
   candidates,
   initialKey,
 }: UseExamRequestOrdersParams): UseExamRequestOrdersResult => {
-  const byCandidateKey = useMemo(
-    () => new Map(candidates.map(candidate => [candidate.key, candidate])),
-    [candidates]
-  );
+  // One order per key; should a key repeat, the first candidate stands for it everywhere.
+  const byCandidateKey = useMemo(() => {
+    const map = new Map<string, ExamRequestCandidate>();
+    candidates.forEach(candidate => {
+      if (!map.has(candidate.key)) map.set(candidate.key, candidate);
+    });
+    return map;
+  }, [candidates]);
   const [state, setState] = useState<OrdersState>(() => ({
     keys: [initialKey],
     activeKey: initialKey,
     byKey: {
-      [initialKey]: buildExamRequestOpenState(
-        candidates.find(candidate => candidate.key === initialKey)?.patient.insurance
-      ),
+      [initialKey]: buildExamRequestOpenState(byCandidateKey.get(initialKey)?.patient.insurance),
     },
   }));
 

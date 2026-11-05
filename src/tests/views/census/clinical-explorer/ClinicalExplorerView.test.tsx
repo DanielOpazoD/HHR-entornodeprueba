@@ -138,7 +138,7 @@ const panelWithOlderActiveTreatment = {
   ],
 };
 
-const Harness = () => {
+const Harness = ({ list = patients }: { list?: typeof patients }) => {
   const selection = useClinicalExplorerSelection(DATE);
   return (
     <>
@@ -148,7 +148,7 @@ const Harness = () => {
       {selection ? (
         <>
           <ClinicalExplorerBar censusDate={DATE} bedId={selection.bedId} />
-          <ClinicalExplorerView censusDate={DATE} bedId={selection.bedId} patients={patients} />
+          <ClinicalExplorerView censusDate={DATE} bedId={selection.bedId} patients={list} />
         </>
       ) : (
         <p>Censo visible</p>
@@ -275,6 +275,23 @@ describe('ClinicalExplorerView', () => {
     expect(await screen.findByRole('dialog', { name: 'Orden de imágenes' })).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Documentos clínicos' }));
     expect(await screen.findByRole('dialog', { name: 'Documentos clínicos' })).toBeVisible();
+  });
+
+  it('keeps the laboratory request open when its patient moves to another bed', async () => {
+    const view = open();
+    fireEvent.click(screen.getByRole('button', { name: 'Solicitar exámenes' }));
+    expect(await screen.findByRole('dialog', { name: 'Solicitud de exámenes' })).toHaveTextContent(
+      'PRIMERA SINTÉTICA'
+    );
+    // Same patient and episode, now in another bed: R1, still on screen, is empty.
+    view.rerender(<Harness list={[{ ...patients[0], bedId: 'R2' }, patients[1]]} />);
+    expect(screen.getByText(/Este paciente ya no está en el censo del día/)).toBeVisible();
+    expect(screen.getByRole('dialog', { name: 'Solicitud de exámenes' })).toHaveTextContent(
+      'PRIMERA SINTÉTICA'
+    );
+    // Once the patient leaves the census, the request leaves with them.
+    view.rerender(<Harness list={[patients[1]]} />);
+    expect(screen.queryByRole('dialog', { name: 'Solicitud de exámenes' })).toBeNull();
   });
 
   it('shows a failed read as a failure with retry, never as an empty record', async () => {

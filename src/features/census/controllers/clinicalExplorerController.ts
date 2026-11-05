@@ -1,6 +1,6 @@
 import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
 import type { PatientData } from '@/features/census/types/censusTablePatientContracts';
-import { isValidRut } from '@/utils/rutUtils';
+import { isValidRut, normalizeRut } from '@/utils/rutUtils';
 import { buildCensusBedRows } from './censusTableViewController';
 
 export interface ClinicalExplorerPatient {
@@ -19,11 +19,11 @@ export const canExploreClinicalPatient = (data: PatientData): boolean => {
   const rut = data.rut.trim();
   return Boolean(
     data.patientName.trim() &&
-      rut &&
-      rut !== '-' &&
-      data.documentType !== 'Pasaporte' &&
-      isValidRut(rut) &&
-      data.clinicalEpisodeId?.trim()
+    rut &&
+    rut !== '-' &&
+    data.documentType !== 'Pasaporte' &&
+    isValidRut(rut) &&
+    data.clinicalEpisodeId?.trim()
   );
 };
 
@@ -38,12 +38,35 @@ export const listClinicalExplorerPatients = ({
       : []
   );
 
+/** Who a request is for: patient and episode (ID-01), never the bed, which is only a place. */
+export const clinicalExplorerPatientIdentity = (patient: ClinicalExplorerPatient): string =>
+  `${normalizeRut(patient.data.rut)}:${patient.episodeId}`;
+
+export interface ClinicalExplorerExamCandidate {
+  key: string;
+  /** Where the patient is now. */
+  label: string;
+  data: PatientData;
+}
+
+/**
+ * Patients a laboratory request may include, once each. If the census lists one patient and
+ * episode in two beds, the first bed in census order stands for that person.
+ */
+export const listClinicalExplorerExamCandidates = (
+  patients: ClinicalExplorerPatient[]
+): ClinicalExplorerExamCandidate[] => {
+  const seen = new Set<string>();
+  return patients.flatMap(patient => {
+    const key = clinicalExplorerPatientIdentity(patient);
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [{ key, label: patient.bedId, data: patient.data }];
+  });
+};
+
 const normalize = (value: string): string =>
-  value
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .trim();
+  value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
 export const filterClinicalExplorerPatients = (
   patients: ClinicalExplorerPatient[],

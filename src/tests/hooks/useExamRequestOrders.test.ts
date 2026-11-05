@@ -40,6 +40,21 @@ describe('useExamRequestOrders', () => {
     expect([...(result.current.active?.selectedExams ?? [])]).toEqual(['HEMATOLOGIA|HEMOGRAMA']);
   });
 
+  it('lets the first candidate stand for a repeated key, for data and insurance alike', () => {
+    const { result } = renderHook(() =>
+      useExamRequestOrders({
+        candidates: [
+          candidate('111:ep-1', 'PRIMERA FILA', 'Fonasa'),
+          candidate('111:ep-1', 'FILA REPETIDA', 'Isapre'),
+        ],
+        initialKey: '111:ep-1',
+      })
+    );
+    expect(result.current.orders).toHaveLength(1);
+    expect(result.current.active?.patient.patientName).toBe('PRIMERA FILA');
+    expect(result.current.active?.prevision).toBe('FONASA');
+  });
+
   it('never hands an order to a new occupant of the same bed', () => {
     const { result, rerender } = renderHook(
       ({ candidates }) => useExamRequestOrders({ candidates, initialKey: 'R1:ep-1' }),

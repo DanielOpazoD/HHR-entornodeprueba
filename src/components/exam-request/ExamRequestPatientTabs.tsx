@@ -111,26 +111,30 @@ export const ExamRequestPatientTabs: React.FC<ExamRequestPatientTabsProps> = ({
       {pickerOpen && (
         <fieldset className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg border border-slate-200 bg-slate-50/60 p-2 sm:grid-cols-3">
           <legend className="sr-only">Pacientes del censo para esta solicitud</legend>
-          {candidates.map(candidate => {
-            const included = isIncluded(candidate.key);
-            return (
-              <label
-                key={candidate.key}
-                className="flex min-w-0 cursor-pointer items-center gap-1.5 text-[12px] text-slate-700"
-              >
-                <input
-                  type="checkbox"
-                  checked={included}
-                  // The request keeps at least one patient.
-                  disabled={included && orders.length === 1}
-                  onChange={() => onTogglePatient(candidate.key)}
-                  className="h-3.5 w-3.5 accent-emerald-600"
-                />
-                <span className="font-bold">{candidate.label}</span>
-                <span className="truncate uppercase">{candidate.patient.patientName.trim()}</span>
-              </label>
-            );
-          })}
+          {candidates
+            .filter(
+              (candidate, index) => candidates.findIndex(c => c.key === candidate.key) === index
+            )
+            .map(candidate => {
+              const included = isIncluded(candidate.key);
+              return (
+                <label
+                  key={candidate.key}
+                  className="flex min-w-0 cursor-pointer items-center gap-1.5 text-[12px] text-slate-700"
+                >
+                  <input
+                    type="checkbox"
+                    checked={included}
+                    // The request keeps at least one patient.
+                    disabled={included && orders.length === 1}
+                    onChange={() => onTogglePatient(candidate.key)}
+                    className="h-3.5 w-3.5 accent-emerald-600"
+                  />
+                  <span className="font-bold">{candidate.label}</span>
+                  <span className="truncate uppercase">{candidate.patient.patientName.trim()}</span>
+                </label>
+              );
+            })}
         </fieldset>
       )}
     </div>
