@@ -31,6 +31,7 @@ export const TransferRow: React.FC<TransferRowProps> = React.memo(
       <>
         <TransferRowView
           viewModel={viewModel}
+          clinicalEpisodeId={item.clinicalEpisodeId}
           recordDate={recordDate}
           onOpenEpicrisis={() => setShowHospitalizationReports(true)}
         />

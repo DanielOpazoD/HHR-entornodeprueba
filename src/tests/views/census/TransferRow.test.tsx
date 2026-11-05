@@ -15,10 +15,54 @@ vi.mock('@/features/census/components/PatientHospitalizationReportsDialog', () =
     isOpen ? <div data-testid="hospitalization-reports-dialog">{currentEpisodeId}</div> : null,
 }));
 
+const downloadReport = vi.hoisted(() => vi.fn().mockResolvedValue({ ok: true, opened: true }));
+vi.mock('@/context/UIContext', () => ({
+  useNotification: () => ({ success: vi.fn(), error: vi.fn() }),
+}));
+vi.mock('@/features/rayen-import/census-status', () => ({
+  requestRayenStatisticalDischargeReport: downloadReport,
+}));
+
 describe('TransferRow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
+
+  it.each(['900001', undefined, 'invalid'])(
+    'offers the shared discharge download only for a valid episode (%s)',
+    clinicalEpisodeId => {
+      const item = DataFactory.createMockTransfer({
+        clinicalEpisodeId,
+        movementProvenance: {
+          source: 'gestion_camas',
+          lineageId: 'synthetic-transfer',
+          syncRunId: 'synthetic-run',
+          classifiedAt: '2026-04-03T12:00:00.000Z',
+        },
+      });
+      render(
+        <table>
+          <tbody>
+            <TransferRow
+              item={item}
+              recordDate="2026-04-03"
+              onUndo={vi.fn()}
+              onEdit={vi.fn()}
+              onDelete={vi.fn()}
+            />
+          </tbody>
+        </table>
+      );
+      const button = screen.queryByRole('button', { name: /Descargar PDF del egreso/ });
+      if (clinicalEpisodeId === '900001') {
+        expect(button).toHaveClass('bg-white');
+        fireEvent.click(button!);
+        expect(downloadReport).toHaveBeenCalledWith('900001');
+      } else {
+        expect(button).not.toBeInTheDocument();
+      }
+    }
+  );
 
   it('renders transfer center/escort and dispatches actions', () => {
     const item = DataFactory.createMockTransfer({

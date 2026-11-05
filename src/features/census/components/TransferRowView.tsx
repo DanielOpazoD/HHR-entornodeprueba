@@ -9,12 +9,14 @@ import { CensusMovementEpicrisisButton } from './CensusMovementEpicrisisButton';
 interface TransferRowViewProps {
   viewModel: TransferRowViewModel;
   recordDate: string;
+  clinicalEpisodeId?: string;
   onOpenEpicrisis?: () => void;
 }
 
 export const TransferRowView: React.FC<TransferRowViewProps> = ({
   viewModel,
   recordDate,
+  clinicalEpisodeId,
   onOpenEpicrisis,
 }) => (
   <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50 print:border-slate-300">
@@ -42,6 +44,12 @@ export const TransferRowView: React.FC<TransferRowViewProps> = ({
       movementDate={viewModel.movementDate}
       movementTime={viewModel.movementTime}
       movementProvenance={viewModel.movementProvenance}
+      statisticalDischargeReport={
+        viewModel.movementProvenance?.source === 'gestion_camas' &&
+        /^\d+$/.test(clinicalEpisodeId || '')
+          ? { clinicalEpisodeId: clinicalEpisodeId || '', patientName: viewModel.patientName }
+          : undefined
+      }
       actions={viewModel.actions}
     >
       {onOpenEpicrisis && (
