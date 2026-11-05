@@ -78,6 +78,16 @@ export const filterUnchangedBedFieldPatches = (
   return filtered;
 };
 
+const markManualDiagnosis = (
+  patches: Record<string, unknown>,
+  prefix: string,
+  field: string
+): void => {
+  if (['pathology', 'cie10Code', 'cie10Description'].includes(field)) {
+    patches[`${prefix}.diagnosisManualOverride`] = true;
+  }
+};
+
 const buildPatientFieldPatches = ({
   bedId,
   currentPatient,
@@ -90,6 +100,7 @@ const buildPatientFieldPatches = ({
   recordDate: string;
 }): Record<string, unknown> => {
   const patches: Record<string, unknown> = {};
+  const manualDiagnosisPatches: Record<string, unknown> = {};
   let hasIdentityChange = false;
   const updatesSpecialty = Object.prototype.hasOwnProperty.call(updates, 'specialty');
   const updatesGinecobstetriciaType = Object.prototype.hasOwnProperty.call(
@@ -103,6 +114,10 @@ const buildPatientFieldPatches = ({
     patches[`beds.${bedId}.${key}`] =
       key === 'isUPC' ? resolveNormalizedUpcFlag(bedId, Boolean(value)) : value;
 
+    if (value !== currentPatient[key as keyof PatientData]) {
+      markManualDiagnosis(manualDiagnosisPatches, `beds.${bedId}`, key);
+    }
+
     if (
       (key === 'rut' || key === 'patientName') &&
       value !== currentPatient[key as keyof PatientData]
@@ -111,17 +126,7 @@ const buildPatientFieldPatches = ({
     }
   });
 
-  if (
-    ['pathology', 'cie10Code', 'cie10Description'].some(
-      field =>
-        Object.prototype.hasOwnProperty.call(updates, field) &&
-        !arePatchValuesDeepEqual(
-          updates[field as keyof PatientData],
-          currentPatient[field as keyof PatientData]
-        )
-    )
-  )
-    patches[`beds.${bedId}.diagnosisManualOverride`] = true;
+  Object.assign(patches, manualDiagnosisPatches);
 
   if (
     currentPatient.clinicalEpisodeId &&
@@ -313,14 +318,13 @@ export const buildClinicalCribMultipleFieldPatches = (
   // todo es cambio.
   const currentCrib = state.beds[bedId]?.clinicalCrib as Record<string, unknown> | undefined;
   const patches: Record<string, unknown> = {};
+  const manualDiagnosisPatches: Record<string, unknown> = {};
   Object.entries(fields).forEach(([key, value]) => {
     if (currentCrib && arePatchValuesDeepEqual(value, currentCrib[key])) return;
     patches[`beds.${bedId}.clinicalCrib.${key}`] = value;
-    if (['pathology', 'cie10Code', 'cie10Description'].includes(key)) {
-      patches[`beds.${bedId}.clinicalCrib.diagnosisManualOverride`] = true;
-    }
+    markManualDiagnosis(manualDiagnosisPatches, `beds.${bedId}.clinicalCrib`, key);
   });
-  return patches as DailyRecordPatch;
+  return Object.assign(patches, manualDiagnosisPatches) as DailyRecordPatch;
 };
 
 export const buildUpdatePatientPatches = (
@@ -413,10 +417,10 @@ export const buildUpdateClinicalCribPatches = (
   bedId: string,
   field: keyof PatientData,
   value: PatientFieldValue
-): DailyRecordPatch =>
-  ({
+): DailyRecordPatch => {
+  const patches: Record<string, unknown> = {
     [`beds.${bedId}.clinicalCrib.${field}`]: value,
-    ...(['pathology', 'cie10Code', 'cie10Description'].includes(field)
-      ? { [`beds.${bedId}.clinicalCrib.diagnosisManualOverride`]: true }
-      : {}),
-  }) as DailyRecordPatch;
+  };
+  markManualDiagnosis(patches, `beds.${bedId}.clinicalCrib`, field);
+  return patches as DailyRecordPatch;
+};

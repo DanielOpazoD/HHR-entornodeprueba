@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import {
+  buildUpdatePatientPatches,
+  buildClinicalCribMultipleFieldPatches,
+} from '@/hooks/controllers/bedManagementPatchController';
 import { bedManagementReducer } from '@/hooks/useBedManagementReducer';
 import {
   applyReviewedPatientChanges,
@@ -13,6 +17,25 @@ const diagnosis = {
   cie10Description: 'Fiebre',
 };
 describe('diagnosis authority', () => {
+  it.each([false, true])(
+    'diagnosis edits win over a stale marker in either property order (stored %s)',
+    initial => {
+      const record = DataFactory.createMockDailyRecord('2026-11-04');
+      record.beds.R1.diagnosisManualOverride = initial;
+      record.beds.R1.clinicalCrib = DataFactory.createMockPatient('R1', {
+        diagnosisManualOverride: initial,
+      });
+      for (const fields of [
+        { pathology: 'Nueva edición manual', diagnosisManualOverride: false },
+        { diagnosisManualOverride: false, pathology: 'Nueva edición manual' },
+      ]) {
+        const adult = buildUpdatePatientPatches(record, 'R1', fields);
+        expect(adult['beds.R1.diagnosisManualOverride'] ?? initial).toBe(true);
+        const crib = buildClinicalCribMultipleFieldPatches(record, 'R1', fields);
+        expect(crib['beds.R1.clinicalCrib.diagnosisManualOverride'] ?? initial).toBe(true);
+      }
+    }
+  );
   it('marks manual text and code edits in the same patient patch', () => {
     const record = DataFactory.createMockDailyRecord('2026-11-04');
     expect(
