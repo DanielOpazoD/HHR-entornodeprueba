@@ -7,6 +7,8 @@ const ROOT = process.cwd();
 const SRC_FEATURES_ROOT = path.join(ROOT, 'src', 'features');
 const MATRIX_PATH = path.join(ROOT, 'scripts', 'feature-dependency-matrix.json');
 const ALLOWLIST_PATH = path.join(ROOT, 'scripts', 'feature-dependency-allowlist.json');
+// Governed public modules besides public/index, shared with check-feature-public-api-boundary.
+const PUBLIC_API_ALLOWLIST_PATH = path.join(ROOT, 'scripts', 'feature-public-api-allowlist.json');
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
 const IMPORT_REGEX =
   /(?:^|\n)\s*import(?:[\s\S]*?\sfrom\s*)?["']([^"']+)["']|(?:^|\n)\s*export\s+[^;\n]*\sfrom\s*["']([^"']+)["']/g;
@@ -86,9 +88,13 @@ const publicImportPatterns =
     ? matrix.publicImportPatterns
     : ['@/features/{feature}', '@/features/{feature}/index', '@/features/{feature}/public'];
 
+const publicModulesByFeature =
+  loadJson(PUBLIC_API_ALLOWLIST_PATH, { publicModulesByFeature: {} }).publicModulesByFeature || {};
+
 const isPublicImportPath = (importPath, importedFeature) =>
   publicImportPatterns
     .map(pattern => pattern.replace('{feature}', importedFeature))
+    .concat(publicModulesByFeature[importedFeature] || [])
     .includes(importPath);
 
 const files = walkFiles(SRC_FEATURES_ROOT);

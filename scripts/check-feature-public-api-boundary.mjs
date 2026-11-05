@@ -43,6 +43,8 @@ const allowlist = fs.existsSync(ALLOWLIST_PATH)
   : { exceptionsByFeature: {} };
 
 const exceptionsByFeature = allowlist.exceptionsByFeature || {};
+// Governed entry points besides public/index, e.g. a lightweight module a lazy consumer loads.
+const publicModulesByFeature = allowlist.publicModulesByFeature || {};
 
 const featureLabel = name =>
   name
@@ -71,6 +73,7 @@ for (const feature of features) {
       feature,
       sources,
       label: `${featureLabel(feature)} (generic)`,
+      extraPublicModules: publicModulesByFeature[feature] || [],
       allowException: ({ importerPath, importPath }) =>
         exceptions.has(`${importerPath} -> ${importPath}`),
     });

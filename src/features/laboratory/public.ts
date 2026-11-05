@@ -28,16 +28,12 @@ export {
   bedSortKey,
 } from './controllers/labFormattingController';
 
-// Re-export from service layer (single source of truth)
-export {
-  cleanRutForSyslab,
-  fetchSyslabExamDetails,
-  searchSyslabExams,
-} from '@/services/laboratory/syslabService';
-
-// Syslab session and raw-value parsing, shared with the census clinical explorer.
-export { useSyslabAccess } from './hooks/useSyslabAccess';
+// The Syslab reports of one hospitalization live behind `./hospitalization-reports`, the entry the
+// census clinical explorer loads on demand. How Syslab is searched and read stays inside this
+// feature.
 export type { SyslabAccessModel } from './hooks/useSyslabAccess';
+
+// Raw-value parsing, shared with the census clinical explorer's chart model.
 export { parseLabMeasurement } from './controllers/labNumericParser';
 export { parseDateDDMMYYYY } from './controllers/labFormattingController';
 
