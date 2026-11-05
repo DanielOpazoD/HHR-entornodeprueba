@@ -20,6 +20,16 @@ vi.mock('@/components/modals/ImagingRequestDialog', () => ({
 vi.mock('@/features/clinical-documents', () => ({
   ClinicalDocumentsModal: () => <div role="dialog" aria-label="Documentos clínicos" />,
 }));
+// MMRAD answers with no studies here; the imaging card is covered by its own test.
+vi.mock('@/services/radiology/mmradService', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/services/radiology/mmradService')>();
+  return {
+    ...actual,
+    searchMMRADExams: ({ rut }: { rut: string }) => Promise.resolve({ rut, examenes: [] }),
+    searchMMRADCheckDigitExams: ({ rut }: { rut: string }) => Promise.resolve({ rut, examenes: [] }),
+  };
+});
+vi.mock('@/components/radiology/useDicomReviewCache', () => ({ useDicomReviewCache: () => undefined }));
 // Syslab is out of reach in this test: the laboratory card shows a quiet failure.
 vi.mock('@/features/laboratory', async importOriginal => {
   const actual = await importOriginal<typeof import('@/features/laboratory')>();

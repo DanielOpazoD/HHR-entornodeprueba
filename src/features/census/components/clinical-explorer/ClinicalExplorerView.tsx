@@ -6,6 +6,7 @@ import {
 } from '@/features/census/controllers/clinicalExplorerController';
 import { selectClinicalExplorerBed } from './clinicalExplorerStore';
 import { ClinicalExplorerHeader } from './ClinicalExplorerHeader';
+import { ClinicalExplorerImaging } from './ClinicalExplorerImaging';
 import { ClinicalExplorerLab } from './ClinicalExplorerLab';
 import { ClinicalExplorerNotes } from './ClinicalExplorerNotes';
 import { ClinicalExplorerPatientPanel } from './ClinicalExplorerPatientPanel';
@@ -102,15 +103,22 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
                   tab === 'all' && 'xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]'
                 )}
               >
-                {(tab === 'all' || tab === 'lab') && (
-                  <ClinicalExplorerLab
-                    patient={patient}
-                    censusDate={censusDate}
-                    tab={tab}
-                    onShowAll={setTab}
-                  />
+                {(tab === 'all' || tab === 'lab' || tab === 'img') && (
+                  <div className="flex min-w-0 flex-col gap-3">
+                    {tab !== 'img' && (
+                      <ClinicalExplorerLab
+                        patient={patient}
+                        censusDate={censusDate}
+                        tab={tab}
+                        onShowAll={setTab}
+                      />
+                    )}
+                    {tab !== 'lab' && (
+                      <ClinicalExplorerImaging patient={patient} tab={tab} onShowAll={setTab} />
+                    )}
+                  </div>
                 )}
-                {tab !== 'lab' && (
+                {tab !== 'lab' && tab !== 'img' && (
                   <div className="flex min-w-0 flex-col gap-3">
                     <ClinicalExplorerNotes
                       episodeId={patient.episodeId}
