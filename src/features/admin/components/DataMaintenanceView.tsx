@@ -7,10 +7,16 @@ import { useCensusContext } from '@/context/CensusContext';
 const DailyRecordRestorePanel = lazy(() =>
   import('./DailyRecordRestorePanel').then(module => ({ default: module.DailyRecordRestorePanel }))
 );
+const InvalidClinicalEpisodesPanel = lazy(() =>
+  import('./InvalidClinicalEpisodesPanel').then(module => ({
+    default: module.InvalidClinicalEpisodesPanel,
+  }))
+);
 
 export const DataMaintenanceView: React.FC = () => {
   const { currentUser } = useAuth();
   const [showRestore, setShowRestore] = useState(false);
+  const [showInvalidEpisodes, setShowInvalidEpisodes] = useState(false);
   const { fileOps } = useCensusContext();
 
   return (
@@ -43,6 +49,21 @@ export const DataMaintenanceView: React.FC = () => {
           {showRestore && (
             <Suspense fallback={<p>Cargando restauración…</p>}>
               <DailyRecordRestorePanel />
+            </Suspense>
+          )}
+        </div>
+      )}
+      {currentUser?.role === 'admin' && (
+        <div className="mb-6">
+          <button
+            className="rounded border bg-white p-3"
+            onClick={() => setShowInvalidEpisodes(value => !value)}
+          >
+            {showInvalidEpisodes ? 'Cerrar pacientes no válidos' : 'Ver pacientes no válidos'}
+          </button>
+          {showInvalidEpisodes && (
+            <Suspense fallback={<p>Cargando pacientes no válidos…</p>}>
+              <InvalidClinicalEpisodesPanel />
             </Suspense>
           )}
         </div>

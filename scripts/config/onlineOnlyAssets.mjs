@@ -53,6 +53,7 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
   { glob: '**/assets/clinicalDerived-*.js', reason: 'Same policy as the entry above.' },
   { glob: '**/assets/NursingAccountsPanel-*.js', reason: 'Account administration, activation and password changes require Firebase online.' },
   { glob: '**/assets/RoleManagementPanel-*.js', reason: 'Same policy as the entry above.' },
+  { glob: '**/assets/InvalidClinicalEpisodesPanel-*.js', reason: 'The admin review of «paciente no válido» marks reads and removes them on the server only.' },
   { glob: '**/assets/NursingPasswordDialog-*.js', reason: 'Same policy as the entry above.' },
   { glob: '**/assets/NursingAccessForm-*.js', reason: 'Same policy as the entry above.' },
   { glob: '**/assets/CudyrReportExplorer-*.js', reason: 'Contextual CUDYR reports read server-authoritative history and cannot load offline. Keep the new explorer and workbook on demand as well.' },
