@@ -82,6 +82,27 @@ export const resolveResetDayPermission = ({
   };
 };
 
+export interface ResetDayMenuEntryState {
+  visible: boolean;
+  enabled: boolean;
+  title: string;
+}
+
+/** Read-only viewers without the permission do not see the entry; others see why it is off. */
+export const resolveResetDayMenuEntryState = ({
+  readOnly,
+  canDeleteRecord,
+  deniedMessage,
+}: {
+  readOnly: boolean;
+  canDeleteRecord: boolean;
+  deniedMessage: string;
+}): ResetDayMenuEntryState => ({
+  visible: !readOnly || canDeleteRecord,
+  enabled: canDeleteRecord,
+  title: canDeleteRecord ? 'Eliminar todos los datos del día' : deniedMessage,
+});
+
 export const RESET_DAY_CONFIRM_DIALOG: ControllerConfirmDescriptor = {
   title: 'Reiniciar registro del día',
   message:

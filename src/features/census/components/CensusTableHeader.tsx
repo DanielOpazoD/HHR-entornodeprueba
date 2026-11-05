@@ -2,6 +2,7 @@ import React from 'react';
 import clsx from 'clsx';
 import { ResizableHeader } from '@/components/ui/ResizableHeader';
 import { CensusActionHeaderCell } from '@/features/census/components/CensusActionHeaderCell';
+import { CensusResetDayMenuEntry } from '@/features/census/components/CensusResetDayMenuEntry';
 import { CensusDiagnosisHeaderCell } from '@/features/census/components/CensusDiagnosisHeaderCell';
 import { buildCensusHeaderCellModels } from '@/features/census/controllers/censusTableHeaderController';
 import type { CensusTableHeaderProps } from '@/features/census/types/censusTableComponentContracts';
@@ -40,6 +41,12 @@ export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
 
   return (
     <thead className="sticky top-0 z-30">
+      <CensusResetDayMenuEntry
+        readOnly={readOnly}
+        canDeleteRecord={accessProfile === 'specialist' ? false : canDeleteRecord}
+        deniedMessage={resetDayDeniedMessage}
+        onClearAll={onClearAll}
+      />
       <tr className="border-b border-slate-200 print:static">
         <CensusActionHeaderCell
           width={columns.actions}
@@ -47,10 +54,6 @@ export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
           isEditMode={isEditMode}
           onResize={onResizeColumn('actions')}
           headerClassName={clsx(headerClassName, 'census-column-actions')}
-          readOnly={readOnly}
-          canDeleteRecord={accessProfile === 'specialist' ? false : canDeleteRecord}
-          deniedMessage={resetDayDeniedMessage}
-          onClearAll={onClearAll}
         />
 
         {headerCells.map(cell =>
