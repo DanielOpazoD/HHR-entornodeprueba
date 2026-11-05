@@ -16,7 +16,7 @@ export interface PatientVitalSigns {
   systolic: number | null;
   /** Diastolic blood pressure (mmHg). */
   diastolic: number | null;
-  /** Mean arterial pressure reported by Eloísa (mmHg), rounded to the nearest integer. */
+  /** Mean arterial pressure calculated as in Eloísa (mmHg), rounded to the nearest integer. */
   meanArterialPressure?: number | null;
   /** Heart rate / pulse (bpm). */
   heartRate: number | null;

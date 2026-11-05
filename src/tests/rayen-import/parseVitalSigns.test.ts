@@ -29,38 +29,32 @@ const vitalsForm = (over: Record<string, unknown> = {}) => ({
 
 describe('parseVitalSigns', () => {
   it.each([
-    ['94,4', 94],
-    ['94.5', 95],
-  ])('rounds a reported PAM %s without requiring other readings', (value, expected) => {
-    const [reading] = parseVitalSigns([
-      vitalsForm({ metaCampList: [{ id: 'source-pam', label: 'PAM', value }] }),
-    ]);
-    expect(reading.meanArterialPressure).toBe(expected);
-  });
-  it.each([
-    ['PAM 94,9. Paciente estable', 95],
-    ['PAM 94.9. Paciente estable', 95],
-    ['PAM 94,9; diuresis (+)', 95],
-    ['PAM 94, diuresis (+)', 94],
-    ['PAM 94,9,5', null],
-  ])('consumes the complete PAM token in %s', (observations, expected) => {
-    const [reading] = parseVitalSigns([
-      vitalsForm({
-        metaCampList: [campo('global_Pulso', '80'), campo('global_Observaciones', observations)],
-      }),
-    ]);
-    expect(reading.meanArterialPressure).toBe(expected);
-  });
-
-  it('extracts an explicit numeric PAM from observations without inventing a value from PA', () => {
-    expect(parseVitalSigns([vitalsForm()])[0].meanArterialPressure).toBe(94);
-    expect(
-      parseVitalSigns([
+    ['120', '80', 93],
+    ['121', '80', 94],
+    ['120,5', '80', 94],
+    ['120', '', null],
+    ['', '80', null],
+    ['0', '0', null],
+    ['80', '120', null],
+    ['80', '80', null],
+    ['invalid', '80', null],
+  ])(
+    'matches Eloísa PAM for pressure %s/%s, rounded to an integer',
+    (systolic, diastolic, expected) => {
+      const [reading] = parseVitalSigns([
         vitalsForm({
-          metaCampList: [campo('global_PASSent', '120'), campo('global_PADSent', '60')],
+          metaCampList: [
+            campo('global_Pulso', '80'),
+            campo('global_PASSent', systolic),
+            campo('global_PADSent', diastolic),
+          ],
         }),
-      ])[0].meanArterialPressure
-    ).toBeNull();
+      ]);
+      expect(reading.meanArterialPressure).toBe(expected);
+    }
+  );
+  it('uses the pressure calculation shown by Eloísa, independent of free-text observations', () => {
+    expect(parseVitalSigns([vitalsForm()])[0].meanArterialPressure).toBe(98);
   });
 
   it('parses a full VITAL_SIGNS form into a vitals record (Rapa Nui day + local time)', () => {
