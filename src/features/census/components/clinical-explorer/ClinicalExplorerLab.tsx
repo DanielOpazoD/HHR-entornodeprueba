@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { Check, FileText, FlaskConical } from 'lucide-react';
 import type { ClinicalExplorerPatient } from '@/features/census/controllers/clinicalExplorerController';
+import { useSyslabHospitalizationReports } from '@/features/laboratory/hospitalization-reports';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { ClinicalExplorerLabCharts } from './ClinicalExplorerLabCharts';
 import {
@@ -17,7 +18,6 @@ import {
   SkeletonLines,
   type ClinicalExplorerTab,
 } from './clinicalExplorerUi';
-import { useClinicalExplorerLab } from './useClinicalExplorerLab';
 
 interface ClinicalExplorerLabProps {
   patient: ClinicalExplorerPatient;
@@ -40,7 +40,7 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
   const expanded = tab === 'lab';
   const limit = expanded ? EXPANDED_VARIABLES : COMPACT_VARIABLES;
   const identity = `${patient.data.rut.trim()}:${patient.episodeId}`;
-  const lab = useClinicalExplorerLab({
+  const lab = useSyslabHospitalizationReports({
     rut: patient.data.rut.trim(),
     episodeId: patient.episodeId,
     admissionDate: patient.data.admissionDate,

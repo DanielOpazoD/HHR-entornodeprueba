@@ -2,20 +2,23 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryClient as appQueryClient } from '@/config/queryClient';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
-import { onSessionChange } from '@/services/storage/sessionStorageTransition';
 import {
-  buildAnalysisData,
+  SYSLAB_LIST_RETENTION_MS,
+  SYSLAB_LIST_REUSE_MS,
+} from '@/services/laboratory/syslabLinkPolicy';
+import {
   cleanRutForSyslab,
   fetchSyslabExamDetails,
-  parseDateDDMMYYYY,
   searchSyslabExams,
-  useSyslabAccess,
-  type SyslabAccessModel,
-} from '@/features/laboratory';
+} from '@/services/laboratory/syslabService';
+import { onSessionChange } from '@/services/storage/sessionStorageTransition';
 import type { LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
 import type { SyslabExamItem } from '@/types/domain/labExamTypes';
+import { buildAnalysisData } from '../controllers/labAnalyticsController';
+import { parseDateDDMMYYYY } from '../controllers/labFormattingController';
+import { useSyslabAccess, type SyslabAccessModel } from './useSyslabAccess';
 
-export type ClinicalExplorerLabPhase =
+export type SyslabHospitalizationPhase =
   | 'checking'
   | 'login-required'
   | 'unavailable'
@@ -25,8 +28,8 @@ export type ClinicalExplorerLabPhase =
   | 'ready'
   | 'error';
 
-export interface ClinicalExplorerLabResult {
-  phase: ClinicalExplorerLabPhase;
+export interface SyslabHospitalizationReports {
+  phase: SyslabHospitalizationPhase;
   access: SyslabAccessModel;
   message: string;
   progress: { completed: number; total: number } | null;
@@ -37,12 +40,12 @@ export interface ClinicalExplorerLabResult {
   retry: () => void;
 }
 
-interface ExplorerLabAnalysis {
+interface HospitalizationAnalysis {
   analysis: LabAnalysisData;
   pending: number;
 }
 
-interface UseClinicalExplorerLabParams {
+interface UseSyslabHospitalizationReportsParams {
   rut: string;
   episodeId: string;
   /** ISO day; reports before it belong to an earlier attention and are left out. */
@@ -50,7 +53,8 @@ interface UseClinicalExplorerLabParams {
   enabled: boolean;
 }
 
-const EXPLORER_KEY = ['laboratory', 'explorer'] as const;
+/** Reports of one hospitalization; under the laboratory namespace of the query cache. */
+const HOSPITALIZATION_KEY = ['laboratory', 'hospitalization'] as const;
 
 /** Reports of this hospitalization: with a link, and not before the admission day. */
 const filterHospitalizationExams = (
@@ -60,25 +64,25 @@ const filterHospitalizationExams = (
   (items ?? []).filter(
     exam => exam.link && (!admissionDate || parseDateDDMMYYYY(exam.date) >= admissionDate)
   );
-const LIST_STALE_MS = 10 * 60_000;
-const GC_MS = 30 * 60_000;
 
-// Several people share one computer: a new Eloísa session forgets every explorer read, whether or
-// not the explorer is mounted at that moment; the session epoch keeps old keys from coming back.
+// Several people share one computer: a new Eloísa session forgets every hospitalization read,
+// whether or not a reader is mounted at that moment; the session epoch keeps old keys from coming
+// back.
 onSessionChange(() => {
-  void appQueryClient.removeQueries({ queryKey: EXPLORER_KEY });
+  void appQueryClient.removeQueries({ queryKey: HOSPITALIZATION_KEY });
 });
 
 /**
  * Lab reports of one patient's hospitalization: the Syslab list, then every report read once and
  * kept in memory for this tab only. A failed read is a failure, never an empty list (SAVE-01).
+ * The census clinical explorer renders this; the laboratory feature owns how Syslab is read.
  */
-export const useClinicalExplorerLab = ({
+export const useSyslabHospitalizationReports = ({
   rut,
   episodeId,
   admissionDate,
   enabled,
-}: UseClinicalExplorerLabParams): ClinicalExplorerLabResult => {
+}: UseSyslabHospitalizationReportsParams): SyslabHospitalizationReports => {
   const access = useSyslabAccess(enabled);
   const queryClient = useQueryClient();
   const rutBody = cleanRutForSyslab(rut);
@@ -87,12 +91,12 @@ export const useClinicalExplorerLab = ({
   const generation = useSessionEpoch();
 
   const connected = enabled && access.state === 'connected' && rutBody.length > 0;
-  const listKey = [...EXPLORER_KEY, generation, 'exams', rutBody];
+  const listKey = [...HOSPITALIZATION_KEY, generation, 'exams', rutBody];
   const list = useQuery({
     queryKey: listKey,
     enabled: connected,
-    staleTime: LIST_STALE_MS,
-    gcTime: GC_MS,
+    staleTime: SYSLAB_LIST_REUSE_MS,
+    gcTime: SYSLAB_LIST_RETENTION_MS,
     retry: false,
     queryFn: async () => {
       const response = await searchSyslabExams(rut);
@@ -101,7 +105,7 @@ export const useClinicalExplorerLab = ({
     },
   });
 
-  // Search links expire after 15 minutes. A stale list is renewed before any report is asked.
+  // Search links expire (see syslabLinkPolicy). A stale list is renewed before any report is asked.
   const listFresh = list.isSuccess && !list.isStale;
   useEffect(() => {
     if (connected && list.isSuccess && list.isStale && !list.isFetching) void list.refetch();
@@ -113,14 +117,14 @@ export const useClinicalExplorerLab = ({
   );
   const examIds = exams.map(exam => exam.id).join(',');
 
-  const analysis = useQuery<ExplorerLabAnalysis, Error>({
-    queryKey: [...EXPLORER_KEY, generation, 'analysis', rutBody, episodeId, examIds],
+  const analysis = useQuery<HospitalizationAnalysis, Error>({
+    queryKey: [...HOSPITALIZATION_KEY, generation, 'analysis', rutBody, episodeId, examIds],
     enabled: listFresh && exams.length > 0,
     // Reports already read do not change; reports Syslab could not deliver are asked again.
-    staleTime: query => (query.state.data?.pending ? LIST_STALE_MS : Infinity),
-    gcTime: GC_MS,
+    staleTime: query => (query.state.data?.pending ? SYSLAB_LIST_REUSE_MS : Infinity),
+    gcTime: SYSLAB_LIST_RETENTION_MS,
     retry: false,
-    queryFn: async ({ signal }): Promise<ExplorerLabAnalysis> => {
+    queryFn: async ({ signal }): Promise<HospitalizationAnalysis> => {
       // Links come from the list as cached now, not from the render that started this read, so a
       // retry after renewing the list never asks for links that already expired.
       const current = filterHospitalizationExams(
@@ -143,7 +147,7 @@ export const useClinicalExplorerLab = ({
     },
   });
 
-  const phase: ClinicalExplorerLabPhase =
+  const phase: SyslabHospitalizationPhase =
     access.state === 'checking'
       ? 'checking'
       : access.state === 'login-required'

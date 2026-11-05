@@ -9,15 +9,18 @@ const mocks = vi.hoisted(() => ({
   access: vi.fn(),
 }));
 
-vi.mock('@/features/laboratory', async importOriginal => {
-  const actual = await importOriginal<typeof import('@/features/laboratory')>();
+// The laboratory feature owns the Syslab read; the test replaces its transport and session only.
+vi.mock('@/services/laboratory/syslabService', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/services/laboratory/syslabService')>();
   return {
     ...actual,
     searchSyslabExams: (...args: unknown[]) => mocks.search(...args),
     fetchSyslabExamDetails: (...args: unknown[]) => mocks.details(...args),
-    useSyslabAccess: () => mocks.access(),
   };
 });
+vi.mock('@/features/laboratory/hooks/useSyslabAccess', () => ({
+  useSyslabAccess: () => mocks.access(),
+}));
 
 import { BEDS } from '@/constants/beds';
 import { ClinicalExplorerLab } from '@/features/census/components/clinical-explorer/ClinicalExplorerLab';
