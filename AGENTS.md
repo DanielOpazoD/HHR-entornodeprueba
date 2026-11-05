@@ -52,14 +52,15 @@ lea este archivo.
 
 ### Código y dependencias
 
-| Regla                                                                                                                       | Qué la impone                                                          |
-| --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Todo paquete importado está declarado en `package.json`.                                                                    | `npm run check:declared-dependencies`                                  |
-| No hay ciclos de imports en tiempo de ejecución.                                                                            | `npm run check:import-cycles`                                          |
-| Los módulos son cohesivos y tienen como máximo 600 líneas.                                                                  | `npm run check:module-size`                                            |
-| Las dependencias de la raíz y de Functions pasan la auditoría sin hallazgos altos ni críticos, y sin excepciones aceptadas. | `scripts/check-dependency-vulnerabilities.mjs` en `security-audit.yml` |
-| Sin reescrituras, plataformas ni colas nuevas. Un cambio de rendimiento necesita una etapa y una causa medidas.             | **[docs]**                                                             |
-| No borrar `Formularios/` ni `Hospital Salvador/`. Preguntar antes de tocar `printables/` o los PNG de la raíz.              | **[docs]**                                                             |
+| Regla                                                                                                                                                                                    | Qué la impone                                                                                               |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Todo paquete importado está declarado en `package.json`.                                                                                                                                 | `npm run check:declared-dependencies`                                                                       |
+| No hay ciclos de imports en tiempo de ejecución.                                                                                                                                         | `npm run check:import-cycles`                                                                               |
+| Un feature importa otro solo si `scripts/feature-dependency-matrix.json` lo permite, y solo por su superficie pública (`public.ts`, `index.ts` o un módulo de `publicModulesByFeature`). | ESLint (`no-restricted-imports` generado desde la matriz); `npm run check:feature-dependencies` de respaldo |
+| Los módulos son cohesivos y tienen como máximo 600 líneas.                                                                                                                               | `npm run check:module-size`                                                                                 |
+| Las dependencias de la raíz y de Functions pasan la auditoría sin hallazgos altos ni críticos, y sin excepciones aceptadas.                                                              | `scripts/check-dependency-vulnerabilities.mjs` en `security-audit.yml`                                      |
+| Sin reescrituras, plataformas ni colas nuevas. Un cambio de rendimiento necesita una etapa y una causa medidas.                                                                          | **[docs]**                                                                                                  |
+| No borrar `Formularios/` ni `Hospital Salvador/`. Preguntar antes de tocar `printables/` o los PNG de la raíz.                                                                           | **[docs]**                                                                                                  |
 
 ### Producción y pull requests
 
