@@ -24,6 +24,7 @@ describe('explicitLocalCensusPatchPolicy', () => {
   it('keeps the explicit and pending clinical census field lists aligned', () => {
     const expectedClinicalFields = [
       'pathology',
+      'diagnosisManualOverride',
       'diagnosisComments',
       'snomedCode',
       'cie10Code',
