@@ -93,6 +93,8 @@ const OPTIONAL_TARGETS: Record<string, string> = {
     'Optional deferred diagnostics are caught by their loader.',
   'src/services/auth/authAccessResolution':
     'Authorization lookup for an explicit specialty action.',
+  'src/services/census/invalidClinicalEpisodeService':
+    'The «paciente no válido» mark starts on request; without the server nothing is removed.',
   'src/services/exporters/censusMasterExport': 'Export starts only on request.',
   'src/services/firebase-runtime/authRuntime':
     'Authorization lookup for an explicit specialty action.',
