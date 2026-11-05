@@ -40,7 +40,7 @@ const reportedPam = (campos: RawCampo[], observations: string): number | null =>
   const match = observations.match(
     /\bPAM\s*(?:[:=(]\s*)?([0-9]+(?:[.,][0-9]+)?)(?![0-9]|[.,][0-9])\s*(?:mmHg\b|\)|[.,;]|$)/i
   );
-  const value = structured ?? (match ? num(match[1]) : null);
+  const value = structured ?? num(str(match?.[1]));
   return value == null ? null : Math.round(value);
 };
 
