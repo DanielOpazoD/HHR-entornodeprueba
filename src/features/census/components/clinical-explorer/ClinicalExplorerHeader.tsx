@@ -7,11 +7,6 @@ import { formatAge } from '@/utils/ageDisplayUtils';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { StatusDot } from './clinicalExplorerUi';
 
-const LazyExamRequestModal = lazy(() =>
-  import('@/components/modals/ExamRequestModal').then(module => ({
-    default: module.ExamRequestModal,
-  }))
-);
 const LazyImagingRequestDialog = lazy(() =>
   import('@/components/modals/ImagingRequestDialog').then(module => ({
     default: module.ImagingRequestDialog,
@@ -23,10 +18,12 @@ const LazyClinicalDocumentsModal = lazy(() =>
   }))
 );
 
-type QuickAction = 'exam' | 'imaging' | 'documents';
+type QuickAction = 'imaging' | 'documents';
 
 interface ClinicalExplorerHeaderProps {
   patient: ClinicalExplorerPatient;
+  /** The laboratory request belongs to the explorer: it may gather several patients. */
+  onRequestExams: () => void;
   censusDate: string;
   position: { index: number; total: number };
   previousBedId: string | null;
@@ -42,6 +39,7 @@ const QUICK_BUTTON =
 /** Who is being reviewed (patient and episode), where they are, and the quick requests. */
 export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
   patient,
+  onRequestExams,
   censusDate,
   position,
   previousBedId,
@@ -53,8 +51,7 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
   // A request dialog belongs to one patient; moving on drops it instead of carrying it over.
   const [open, setOpen] = useState<{ identity: string; kind: QuickAction } | null>(null);
   const action = open?.identity === identity ? open.kind : null;
-  const setAction = (kind: QuickAction | null): void =>
-    setOpen(kind ? { identity, kind } : null);
+  const setAction = (kind: QuickAction | null): void => setOpen(kind ? { identity, kind } : null);
 
   const patientName = data.patientName.trim();
   const days = calculateHospitalizedDays({
@@ -138,7 +135,7 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
         aria-label="Solicitudes para este paciente"
         className="flex basis-full flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2"
       >
-        <button type="button" className={QUICK_BUTTON} onClick={() => setAction('exam')}>
+        <button type="button" className={QUICK_BUTTON} onClick={onRequestExams}>
           <FlaskConical size={14} aria-hidden="true" className="text-emerald-700" />
           Solicitar exámenes
         </button>
@@ -152,16 +149,6 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
         </button>
       </div>
 
-      {action === 'exam' && (
-        <Suspense fallback={null}>
-          <LazyExamRequestModal
-            isOpen
-            onClose={() => setAction(null)}
-            patient={data}
-            recordDate={censusDate}
-          />
-        </Suspense>
-      )}
       {action === 'imaging' && (
         <Suspense fallback={null}>
           <LazyImagingRequestDialog isOpen onClose={() => setAction(null)} patient={data} />

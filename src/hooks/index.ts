@@ -55,7 +55,7 @@ export { useCensusEmail } from './useCensusEmail';
 export { useHandoffLogic } from './useHandoffLogic';
 
 // Exam Request
-export { useExamRequest } from './useExamRequest';
+export { useExamRequestOrders } from './useExamRequestOrders';
 
 // Re-export types from hooks that define them
 export type {

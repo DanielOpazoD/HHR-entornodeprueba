@@ -87,7 +87,7 @@ export const EXAM_REQUEST_PRINT_STYLES = `
         width: 100% !important;
     }
 
-    #exam-request-form {
+    .exam-request-form {
         width: 100% !important;
         max-width: none !important;
         margin: 0 !important;
