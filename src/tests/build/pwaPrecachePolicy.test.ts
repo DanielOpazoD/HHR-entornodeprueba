@@ -1,21 +1,20 @@
 // @vitest-environment node
+import { ONLINE_ONLY_ASSET_GLOBS, ONLINE_ONLY_PRECACHE_PATTERNS } from '../../../scripts/config/onlineOnlyAssets.mjs';
 import fs from 'node:fs';
-import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { chunkForModule } from '../../../scripts/config/chunkingPolicy';
 
-interface BundleBudgetConfig {
-  precacheIgnoredAssetPatterns: string[];
-}
-
+// The single online-only list feeds Workbox (globs) and the budget check (patterns). The text
+// form keeps the older assertions readable: each glob quoted on its own line.
 const readViteConfig = (): string =>
-  fs.readFileSync(path.join(process.cwd(), 'vite.config.ts'), 'utf8');
+  `globIgnores: [\n${ONLINE_ONLY_ASSET_GLOBS.map(glob => `'${glob}',`).join('\n')}\n]`;
+// What the real config must do with that list; the text form above only renders it.
+const readViteConfigSource = (): string => fs.readFileSync('vite.config.ts', 'utf8');
 
-const readBundleBudgetConfig = (): BundleBudgetConfig =>
-  JSON.parse(
-    fs.readFileSync(path.join(process.cwd(), 'scripts/config/bundle-budget.json'), 'utf8')
-  ) as BundleBudgetConfig;
+const readBundleBudgetConfig = (): { precacheIgnoredAssetPatterns: readonly string[] } => ({
+  precacheIgnoredAssetPatterns: ONLINE_ONLY_PRECACHE_PATTERNS,
+});
 
 describe('PWA precache policy', () => {
   it('loads optional send review tools with the Eloisa panel while retaining offline persistence', () => {
@@ -238,7 +237,7 @@ describe('PWA precache policy', () => {
   it('keeps heavyweight optional references and runtimes out of the install-time precache', () => {
     const viteConfig = readViteConfig();
 
-    expect(viteConfig).toContain('globIgnores');
+    expect(readViteConfigSource()).toContain('globIgnores: [...ONLINE_ONLY_ASSET_GLOBS]');
     expect(viteConfig).toContain('**/docs/**');
     expect(viteConfig).toContain('**/templates/**');
     expect(viteConfig).toContain('**/images/forms/**');
