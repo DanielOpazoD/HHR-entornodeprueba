@@ -14,8 +14,10 @@ vi.mock('@/context/UIContext', () => ({
 import { panelResult } from '../clinicalPanelDrawer.fixture';
 import { BEDS } from '@/constants/beds';
 import { ClinicalExplorerMenuEntry } from '@/features/census/components/clinical-explorer/ClinicalExplorerMenuEntry';
+import { ClinicalExplorerBar } from '@/features/census/components/clinical-explorer/ClinicalExplorerBar';
 import {
   closeClinicalExplorer,
+  openClinicalExplorer,
   useClinicalExplorerSelection,
 } from '@/features/census/components/clinical-explorer/clinicalExplorerStore';
 import { ClinicalPanelDrawer } from '@/features/census/components/patient-row/ClinicalPanelDrawer';
@@ -91,6 +93,24 @@ describe('clinical explorer entries', () => {
     fireEvent.click(entry);
     expect(screen.getByRole('status')).toHaveTextContent('R1');
     target.remove();
+  });
+
+  it('the bar outside the lazy body brings the census back with a click or Escape', () => {
+    act(() => openClinicalExplorer({ censusDate: DATE, bedId: 'H3C1' }));
+    render(
+      <>
+        <ClinicalExplorerBar censusDate={DATE} bedId="H3C1" />
+        <Probe />
+      </>
+    );
+    expect(screen.getByText('Censo del miércoles, 4 de noviembre de 2026')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Volver al censo' })).toHaveFocus();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.getByText('censo')).toBeVisible();
+
+    act(() => openClinicalExplorer({ censusDate: DATE, bedId: 'H3C1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Volver al censo' }));
+    expect(screen.getByText('censo')).toBeVisible();
   });
 
   it('the menu entry is disabled when no patient of the day can be explored', () => {

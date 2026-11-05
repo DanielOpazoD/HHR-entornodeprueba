@@ -8,6 +8,7 @@ export interface ClinicalExplorerSelection {
 
 // Memory only: several people share one computer, so a reload never reopens someone else's view.
 let selection: ClinicalExplorerSelection | null = null;
+let opener: HTMLElement | null = null;
 const listeners = new Set<() => void>();
 const emit = (): void => listeners.forEach(listener => listener());
 const subscribe = (listener: () => void) => {
@@ -20,8 +21,26 @@ const read = (): ClinicalExplorerSelection | null => selection;
 const readServer = (): ClinicalExplorerSelection | null => null;
 
 export const openClinicalExplorer = (next: ClinicalExplorerSelection): void => {
+  const active = typeof document === 'undefined' ? null : document.activeElement;
+  opener = active instanceof HTMLElement && active !== document.body ? active : null;
   selection = next;
   emit();
+};
+
+const isReachable = (element: HTMLElement | null | undefined): element is HTMLElement =>
+  Boolean(element?.isConnected && !element.closest('[hidden]'));
+
+/**
+ * Focus returns to whoever opened the explorer, else to the row's clinical trigger or the «⋯»
+ * menu. Call it once the census is visible again, with the opener that close() handed back.
+ */
+export const restoreClinicalExplorerFocus = (bedId: string, from: HTMLElement | null): void => {
+  const target = [
+    from,
+    document.querySelector<HTMLElement>(`[data-testid="clinical-panel-trigger-${bedId}"]`),
+    document.querySelector<HTMLElement>('[aria-label="Más opciones del censo"]'),
+  ].find(isReachable);
+  target?.focus();
 };
 
 export const selectClinicalExplorerBed = (bedId: string): void => {
@@ -30,10 +49,14 @@ export const selectClinicalExplorerBed = (bedId: string): void => {
   emit();
 };
 
-export const closeClinicalExplorer = (): void => {
-  if (!selection) return;
+/** Closes and hands back the element that opened it; automatic closes drop that reference too. */
+export const closeClinicalExplorer = (): HTMLElement | null => {
+  const from = opener;
+  opener = null;
+  if (!selection) return from;
   selection = null;
   emit();
+  return from;
 };
 
 /** Changing the census day leaves the explorer: it belongs to the day it was opened from. */

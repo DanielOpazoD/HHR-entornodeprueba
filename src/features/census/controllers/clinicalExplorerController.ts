@@ -66,3 +66,22 @@ export const resolveClinicalExplorerNeighbour = (
   if (index < 0) return null;
   return patients[index + step]?.bedId ?? null;
 };
+
+interface IndicationDayLike {
+  active: readonly unknown[];
+  suspended: readonly unknown[];
+}
+
+/**
+ * Days the combined view shows: the newest days with active indications, up to the limit. Only
+ * when no day has an active one, the newest days with suspended orders. A treatment on an older
+ * day is never hidden behind newer days that only hold suspended orders.
+ */
+export const resolveCompactIndicationDays = <T extends IndicationDayLike>(
+  days: readonly T[],
+  limit: number
+): T[] => {
+  const active = days.filter(day => day.active.length > 0);
+  const pool = active.length > 0 ? active : days.filter(day => day.suspended.length > 0);
+  return pool.slice(0, limit);
+};

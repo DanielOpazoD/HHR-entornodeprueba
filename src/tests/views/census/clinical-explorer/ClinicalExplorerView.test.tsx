@@ -23,6 +23,7 @@ vi.mock('@/features/clinical-documents', () => ({
 
 import { panelResult } from '../clinicalPanelDrawer.fixture';
 import { BEDS } from '@/constants/beds';
+import { ClinicalExplorerBar } from '@/features/census/components/clinical-explorer/ClinicalExplorerBar';
 import { ClinicalExplorerView } from '@/features/census/components/clinical-explorer/ClinicalExplorerView';
 import {
   closeClinicalExplorer,
@@ -72,17 +73,46 @@ const panelWithActiveIndication = {
   ],
 };
 
+// Two recent days with suspended orders only, and an older day with the active treatment.
+const pharma = panelResult.events[0].patientPharmaIndicationResume;
+const panelWithOlderActiveTreatment = {
+  ...panelResult,
+  carePlan: {
+    ...panelResult.carePlan,
+    medicationStates: [
+      { id: 7, suspended: true, archived: false },
+      { id: 9, suspended: true, archived: false },
+      { id: 8, suspended: false, archived: false, finalized: false },
+    ],
+  },
+  events: [
+    {
+      ...panelResult.events[0],
+      patientPharmaIndicationResume: [
+        { ...pharma[0], PUBLISH_DATETIME: '2026-07-13T08:00:00' },
+        { ...pharma[0], MRE_ID: 9, DESCRIPTOR: 'OMEPRAZOL 20 mg', PUBLISH_DATETIME: '2026-07-12T08:00:00' },
+        { ...pharma[1], FINALIZED: false, PUBLISH_DATETIME: '2026-07-11T08:30:00' },
+      ],
+    },
+  ],
+};
+
 const Harness = () => {
   const selection = useClinicalExplorerSelection(DATE);
-  return selection ? (
-    <ClinicalExplorerView
-      censusDate={DATE}
-      bedId={selection.bedId}
-      patients={patients}
-      marginStyle={{}}
-    />
-  ) : (
-    <p>Censo visible</p>
+  return (
+    <>
+      <button type="button" data-testid="clinical-panel-trigger-R1">
+        Ficha R1
+      </button>
+      {selection ? (
+        <>
+          <ClinicalExplorerBar censusDate={DATE} bedId={selection.bedId} />
+          <ClinicalExplorerView censusDate={DATE} bedId={selection.bedId} patients={patients} />
+        </>
+      ) : (
+        <p>Censo visible</p>
+      )}
+    </>
   );
 };
 
@@ -142,6 +172,22 @@ describe('ClinicalExplorerView', () => {
     expect(within(card).getByText('CEFTRIAXONA 2 g')).toBeVisible();
   });
 
+  it('keeps an older active treatment visible in the combined view behind days of suspended orders', async () => {
+    mocks.request.mockResolvedValue(panelWithOlderActiveTreatment);
+    open();
+    const card = await screen.findByRole('region', { name: 'Indicaciones' });
+    await within(card).findByText('AMOXICILINA 500 mg');
+    expect(card).toHaveTextContent('1 vigentes');
+    expect(within(card).queryByText('Sin indicaciones vigentes en Ficha Médico.')).toBeNull();
+    // The compact view holds the active day only; the suspended days wait in the full area.
+    expect(within(card).queryByRole('button', { name: /Mostrar/ })).toBeNull();
+    fireEvent.click(within(card).getByRole('button', { name: 'Ver todas ›' }));
+    const full = screen.getByRole('region', { name: 'Indicaciones' });
+    fireEvent.click(within(full).getByRole('button', { name: 'Mostrar 2 suspendidas' }));
+    expect(within(full).getByText('AMOXICILINA 500 mg')).toBeVisible();
+    expect(within(full).getByText('OMEPRAZOL 20 mg')).toBeVisible();
+  });
+
   it('filters evolutions by profession and opens all of them from the combined view', async () => {
     open();
     await screen.findByText('Evolución médica estable.');
@@ -161,6 +207,12 @@ describe('ClinicalExplorerView', () => {
     act(() => openClinicalExplorer({ censusDate: DATE, bedId: 'H1C1' }));
     fireEvent.click(screen.getByRole('button', { name: 'Volver al censo' }));
     expect(screen.getByText('Censo visible')).toBeVisible();
+  });
+
+  it('returns the focus to the row that opened it, so the keyboard user is not lost', async () => {
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Volver al censo' }));
+    await waitFor(() => expect(screen.getByTestId('clinical-panel-trigger-R1')).toHaveFocus());
   });
 
   it('opens the exam request for this patient and lets the dialog own Escape', async () => {

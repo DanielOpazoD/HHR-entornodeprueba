@@ -1,4 +1,5 @@
 import React, { Suspense, type CSSProperties, useMemo, useState } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
 import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
 import type { Statistics } from '@/types/domain/statistics';
 import type { DailyRecord } from '@/features/census/contracts/censusRecordContracts';
@@ -20,6 +21,7 @@ import '../styles/censusLayout.css';
 import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
 import { listClinicalExplorerPatients } from '@/features/census/controllers/clinicalExplorerController';
 import { ClinicalExplorerMenuEntry } from './clinical-explorer/ClinicalExplorerMenuEntry';
+import { ClinicalExplorerBar } from './clinical-explorer/ClinicalExplorerBar';
 import { useClinicalExplorerSelection } from './clinical-explorer/clinicalExplorerStore';
 
 const LazyCensusRegisterSections = lazyWithRetry(() =>
@@ -140,22 +142,34 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
         ) : null}
       </div>
       {explorer ? (
-        <Suspense
-          fallback={
-            <div
-              className="h-40 animate-pulse rounded-xl bg-slate-100"
-              style={marginStyle}
-              data-testid="clinical-explorer-loading"
-            />
-          }
-        >
-          <LazyClinicalExplorerView
-            censusDate={currentDateString}
-            bedId={explorer.bedId}
-            patients={explorerPatients}
-            marginStyle={marginStyle}
-          />
-        </Suspense>
+        <section aria-label="Explorador clínico" className="flex flex-col gap-3" style={marginStyle}>
+          {/* The way back never depends on the online-only chunk: it stays here while the body
+              loads, if it cannot load, and once it is open. */}
+          <ClinicalExplorerBar censusDate={currentDateString} bedId={explorer.bedId} />
+          <ErrorBoundary
+            resetKeys={[explorer.bedId]}
+            fallbackRender={() => (
+              <p role="alert" className="text-[12px] text-slate-600">
+                No se pudo abrir el explorador. Revisa la conexión y vuelve a intentarlo.
+              </p>
+            )}
+          >
+            <Suspense
+              fallback={
+                <div
+                  className="h-40 animate-pulse rounded-xl bg-slate-100 motion-reduce:animate-none"
+                  data-testid="clinical-explorer-loading"
+                />
+              }
+            >
+              <LazyClinicalExplorerView
+                censusDate={currentDateString}
+                bedId={explorer.bedId}
+                patients={explorerPatients}
+              />
+            </Suspense>
+          </ErrorBoundary>
+        </section>
       ) : null}
     </CensusActionsProvider>
   );

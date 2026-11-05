@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import clsx from 'clsx';
 import { BookOpenText, ClipboardList, RefreshCw } from 'lucide-react';
+import { resolveCompactIndicationDays } from '@/features/census/controllers/clinicalExplorerController';
 import { useClinicalPanelSnapshot, type PanelState } from '../patient-row/useClinicalPanelSnapshot';
 import { EvolutionCard } from '../patient-row/ClinicalPanelSections';
 import {
@@ -56,17 +57,14 @@ const IndicationDays: React.FC<{ days: ClinicalPanelIndicationDay[]; compact: bo
   compact,
 }) => {
   const [showSuspended, setShowSuspended] = useState(false);
-  const shown = compact ? days.slice(0, COMPACT_INDICATION_DAYS) : days;
-  const suspendedCount = shown.reduce((total, day) => total + day.suspended.length, 0);
-  const withContent = shown.filter(
+  const baseDays = compact ? resolveCompactIndicationDays(days, COMPACT_INDICATION_DAYS) : days;
+  const suspendedCount = baseDays.reduce((total, day) => total + day.suspended.length, 0);
+  const shown = baseDays.filter(
     day => day.active.length > 0 || (showSuspended && day.suspended.length > 0)
   );
-  if (withContent.length === 0 && suspendedCount === 0) {
-    return <EmptyNote>Sin indicaciones vigentes en Ficha Médico.</EmptyNote>;
-  }
   return (
     <>
-      {withContent.map(day => (
+      {shown.map(day => (
         <div key={day.day} className="flex flex-col gap-1">
           <h4 className="text-[11px] font-semibold tabular-nums text-slate-600">{day.label}</h4>
           <ul className="flex flex-col gap-1">
@@ -80,9 +78,7 @@ const IndicationDays: React.FC<{ days: ClinicalPanelIndicationDay[]; compact: bo
           </ul>
         </div>
       ))}
-      {withContent.length === 0 && (
-        <EmptyNote>Sin indicaciones vigentes en Ficha Médico.</EmptyNote>
-      )}
+      {shown.length === 0 && <EmptyNote>Sin indicaciones vigentes en Ficha Médico.</EmptyNote>}
       {suspendedCount > 0 && (
         <LinkButton
           className="!text-slate-500"
@@ -117,6 +113,10 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
   const activeIndications = panel
     ? panel.indicationDays.reduce((total, day) => total + day.active.length, 0)
     : 0;
+  const hasMoreIndicationDays = panel
+    ? panel.indicationDays.length >
+      resolveCompactIndicationDays(panel.indicationDays, COMPACT_INDICATION_DAYS).length
+    : false;
 
   const reloadButton = (
     <button
@@ -197,7 +197,7 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
           source={SOURCE}
           actions={
             <>
-              {compact && panel && panel.indicationDays.length > COMPACT_INDICATION_DAYS && (
+              {compact && hasMoreIndicationDays && (
                 <LinkButton onClick={() => onShowAll('indications')}>Ver todas ›</LinkButton>
               )}
               {tab === 'indications' && reloadButton}
