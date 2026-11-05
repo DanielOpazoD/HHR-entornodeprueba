@@ -243,6 +243,8 @@ describe('bedManagementDispatchController', () => {
     await Promise.resolve();
 
     expect(warnSpy).toHaveBeenCalledWith('Bed management patch failed', patchError);
+    // The event builder loads on demand, after the failure.
+    await vi.waitFor(() => expect(telemetryMocks.recordOperationalTelemetry).toHaveBeenCalled());
     expect(telemetryMocks.recordOperationalTelemetry).toHaveBeenCalledWith({
       category: 'daily_record',
       operation: 'daily_record_bed_patch_failed',
@@ -299,6 +301,7 @@ describe('bedManagementDispatchController', () => {
 
     expect(result).toBe(false);
     expect(auditPatientChange).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(telemetryMocks.recordOperationalTelemetry).toHaveBeenCalled());
     expect(telemetryMocks.recordOperationalTelemetry).toHaveBeenCalledWith(
       expect.objectContaining({
         operation: 'daily_record_bed_patch_failed',

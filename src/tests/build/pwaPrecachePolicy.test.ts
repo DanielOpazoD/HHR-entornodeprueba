@@ -72,6 +72,16 @@ describe('PWA precache policy', () => {
     ).toBe('audit-documents');
   });
 
+  it('keeps the Syslab analysis view and its Excel export online only, like the chart they need', () => {
+    const patterns = readBundleBudgetConfig().precacheIgnoredAssetPatterns.map(
+      pattern => new RegExp(pattern)
+    );
+    for (const chunk of ['LineChart', 'LabViewerAnalysis', 'labExcelService']) {
+      expect(readViteConfig()).toContain(`**/assets/${chunk}-*.js`);
+      expect(patterns.some(pattern => pattern.test(`assets/${chunk}-fixture.js`))).toBe(true);
+    }
+  });
+
   it('loads MEDIF on demand with its PDF template while retaining the offline clinical library', () => {
     const viteConfig = readViteConfig();
     const patterns = readBundleBudgetConfig().precacheIgnoredAssetPatterns.map(
