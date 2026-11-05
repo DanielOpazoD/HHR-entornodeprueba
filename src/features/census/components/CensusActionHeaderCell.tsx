@@ -1,7 +1,7 @@
 import React from 'react';
-import { Trash2, ShieldAlert } from 'lucide-react';
+import { Compass } from 'lucide-react';
 import { ResizableHeader } from '@/components/ui/ResizableHeader';
-import { resolveActionHeaderState } from '@/features/census/controllers/censusActionHeaderController';
+import { useClinicalExplorerLaunch } from './clinical-explorer/clinicalExplorerLaunch';
 
 interface CensusActionHeaderCellProps {
   width: number;
@@ -9,28 +9,17 @@ interface CensusActionHeaderCellProps {
   isEditMode: boolean;
   onResize: (width: number) => void;
   headerClassName: string;
-  readOnly: boolean;
-  canDeleteRecord: boolean;
-  deniedMessage: string;
-  onClearAll: () => Promise<void>;
 }
 
+/** Corner of the census table: opens the clinical explorer on the first patient of the day. */
 export const CensusActionHeaderCell: React.FC<CensusActionHeaderCellProps> = ({
   width,
   responsiveShare,
   isEditMode,
   onResize,
   headerClassName,
-  readOnly,
-  canDeleteRecord,
-  deniedMessage,
-  onClearAll,
 }) => {
-  const state = resolveActionHeaderState({
-    readOnly,
-    canDeleteRecord,
-    deniedMessage,
-  });
+  const launchExplorer = useClinicalExplorerLaunch();
 
   return (
     <ResizableHeader
@@ -40,17 +29,20 @@ export const CensusActionHeaderCell: React.FC<CensusActionHeaderCellProps> = ({
       onResize={onResize}
       className={`${headerClassName} print:hidden`}
     >
-      {state.shouldRenderButton && (
-        <button
-          onClick={() => {
-            void onClearAll();
-          }}
-          className={state.buttonClassName}
-          title={state.title}
-        >
-          {state.icon === 'trash' ? <Trash2 size={12} /> : <ShieldAlert size={10} />}
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => launchExplorer?.()}
+        disabled={!launchExplorer}
+        aria-label="Abrir explorador clínico"
+        title={
+          launchExplorer
+            ? 'Abrir explorador clínico'
+            : 'Sin pacientes con RUT y episodio en este censo'
+        }
+        className="mx-auto block rounded-md p-1 text-slate-400 transition-colors hover:bg-teal-50 hover:text-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+      >
+        <Compass size={13} aria-hidden="true" />
+      </button>
     </ResizableHeader>
   );
 };

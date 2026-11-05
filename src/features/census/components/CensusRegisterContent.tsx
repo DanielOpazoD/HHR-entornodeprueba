@@ -22,7 +22,11 @@ import type { RenderCensusMedicalHandoffAction } from '@/features/census/contrac
 import { listClinicalExplorerPatients } from '@/features/census/controllers/clinicalExplorerController';
 import { ClinicalExplorerMenuEntry } from './clinical-explorer/ClinicalExplorerMenuEntry';
 import { ClinicalExplorerBar } from './clinical-explorer/ClinicalExplorerBar';
-import { useClinicalExplorerSelection } from './clinical-explorer/clinicalExplorerStore';
+import {
+  openClinicalExplorer,
+  useClinicalExplorerSelection,
+} from './clinical-explorer/clinicalExplorerStore';
+import { ClinicalExplorerLaunchContext } from './clinical-explorer/clinicalExplorerLaunch';
 
 const LazyCensusRegisterSections = lazyWithRetry(() =>
   import('./CensusRegisterSections').then(module => ({
@@ -77,6 +81,14 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
     () => listClinicalExplorerPatients({ visibleBeds, beds }),
     [visibleBeds, beds]
   );
+  const firstExplorerBedId = explorerPatients[0]?.bedId;
+  const launchExplorer = useMemo(
+    () =>
+      firstExplorerBedId
+        ? () => openClinicalExplorer({ censusDate: currentDateString, bedId: firstExplorerBedId })
+        : null,
+    [currentDateString, firstExplorerBedId]
+  );
   const operationalState = resolveCensusOperationalState({
     branch: 'register',
     bootstrapPhase: dailyRecordStatus.bootstrapPhase,
@@ -91,58 +103,64 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
       <ClinicalExplorerMenuEntry censusDate={currentDateString} patients={explorerPatients} />
 
       {/* The census stays mounted behind the explorer so returning keeps its state and edits. */}
-      <div className="census-register space-y-4" style={marginStyle} hidden={explorer !== null}>
-        <CensusOperationalStateBanner state={operationalState} />
-        <CensusStaffHeader
-          selectedDate={currentDateString}
-          readOnly={readOnly}
-          stats={stats}
-          accessProfile={accessProfile}
-          visibleBeds={visibleBeds}
-          renderMedicalHandoffAction={renderMedicalHandoffAction}
-          rayenBootstrapRequestId={rayenBootstrapRequestId}
-          onRayenBootstrapHandled={onRayenBootstrapHandled}
-        />
+      <ClinicalExplorerLaunchContext.Provider value={launchExplorer}>
+        <div className="census-register space-y-4" style={marginStyle} hidden={explorer !== null}>
+          <CensusOperationalStateBanner state={operationalState} />
+          <CensusStaffHeader
+            selectedDate={currentDateString}
+            readOnly={readOnly}
+            stats={stats}
+            accessProfile={accessProfile}
+            visibleBeds={visibleBeds}
+            renderMedicalHandoffAction={renderMedicalHandoffAction}
+            rayenBootstrapRequestId={rayenBootstrapRequestId}
+            onRayenBootstrapHandled={onRayenBootstrapHandled}
+          />
 
-        <CensusRegisterMainContent
-          currentDateString={currentDateString}
-          readOnly={editingReadOnly}
-          visibleBeds={visibleBeds}
-          beds={beds}
-          accessProfile={accessProfile}
-          attentionFilter={attentionFilter}
-          onClearAttentionFilter={() => setAttentionFilter('all')}
-          scoresAction={
-            <CensusAttentionBar
-              compact
-              beds={beds}
-              censusIsoDay={currentDateString}
-              activeFilter={attentionFilter}
-              onFilterChange={setAttentionFilter}
-            />
-          }
-        />
-
-        {shouldRenderDeferredSections ? (
-          <Suspense
-            fallback={
-              <div
-                className="h-20 animate-pulse rounded-xl bg-slate-100"
-                data-testid="census-register-sections-loading"
+          <CensusRegisterMainContent
+            currentDateString={currentDateString}
+            readOnly={editingReadOnly}
+            visibleBeds={visibleBeds}
+            beds={beds}
+            accessProfile={accessProfile}
+            attentionFilter={attentionFilter}
+            onClearAttentionFilter={() => setAttentionFilter('all')}
+            scoresAction={
+              <CensusAttentionBar
+                compact
+                beds={beds}
+                censusIsoDay={currentDateString}
+                activeFilter={attentionFilter}
+                onFilterChange={setAttentionFilter}
               />
             }
-          >
-            <LazyCensusRegisterSections
-              readOnly={readOnly}
-              showBedManagerModal={showBedManagerModal}
-              onCloseBedManagerModal={onCloseBedManagerModal}
-              accessProfile={accessProfile}
-            />
-          </Suspense>
-        ) : null}
-      </div>
+          />
+
+          {shouldRenderDeferredSections ? (
+            <Suspense
+              fallback={
+                <div
+                  className="h-20 animate-pulse rounded-xl bg-slate-100"
+                  data-testid="census-register-sections-loading"
+                />
+              }
+            >
+              <LazyCensusRegisterSections
+                readOnly={readOnly}
+                showBedManagerModal={showBedManagerModal}
+                onCloseBedManagerModal={onCloseBedManagerModal}
+                accessProfile={accessProfile}
+              />
+            </Suspense>
+          ) : null}
+        </div>
+      </ClinicalExplorerLaunchContext.Provider>
       {explorer ? (
-        <section aria-label="Explorador clínico" className="flex flex-col gap-3" style={marginStyle}>
+        <section
+          aria-label="Explorador clínico"
+          className="flex flex-col gap-3"
+          style={marginStyle}
+        >
           {/* The way back never depends on the online-only chunk: it stays here while the body
               loads, if it cannot load, and once it is open. */}
           <ClinicalExplorerBar censusDate={currentDateString} bedId={explorer.bedId} />

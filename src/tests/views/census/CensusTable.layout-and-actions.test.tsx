@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { REGULAR_BEDS } from '@/constants/beds';
@@ -19,6 +19,7 @@ import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { useAuth } from '@/context/AuthContext';
 import { useCensusActionCommands } from '@/features/census/context/censusActionContexts';
 import { CensusTable } from '@/features/census/components/CensusTable';
+import { CensusToolbarMenuTargetContext } from '@/shared/ui/CensusToolbarMenuTargetContext';
 import { DataFactory } from '../../factories/DataFactory';
 import {
   ensureDailyRecordRemoteFreshness,
@@ -336,11 +337,19 @@ describe('CensusTable layout and actions', () => {
       })
     );
 
-    render(<CensusTable currentDateString="2025-01-08" />);
+    // The action lives in the date-bar «⋯» menu; the table corner opens the clinical explorer.
+    const menu = document.createElement('div');
+    document.body.appendChild(menu);
+    render(
+      <CensusToolbarMenuTargetContext.Provider value={menu}>
+        <CensusTable currentDateString="2025-01-08" />
+      </CensusToolbarMenuTargetContext.Provider>
+    );
 
     await act(async () => {
-      fireEvent.click(screen.getByTitle('Limpiar todos los datos del día'));
+      fireEvent.click(within(menu).getByRole('button', { name: 'Limpiar datos del día' }));
     });
+    menu.remove();
 
     expect(mockConfirm).toHaveBeenCalled();
     expect(mockResetDay).toHaveBeenCalled();
