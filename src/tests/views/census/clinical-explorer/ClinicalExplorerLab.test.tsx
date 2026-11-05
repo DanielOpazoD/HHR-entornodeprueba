@@ -183,6 +183,28 @@ describe('ClinicalExplorerLab', () => {
     expect(within(next).getByRole('img', { name: /Hemoglobina/ })).toBeVisible();
   });
 
+  it('shows only the charted variables until the rest of the list is asked for', async () => {
+    mocks.details.mockImplementation((links: string[]) => {
+      const details = detailsFor(links);
+      details.data[0].findings.push(
+        buildFinding({ section: 'BIOQUIMICA', analysis: 'Potasio', result: '4,1', unit: 'mEq/L', refValue: '3,5 - 5,1' })
+      );
+      return Promise.resolve(details);
+    });
+    renderLab();
+    const card = await screen.findByRole('region', { name: 'Laboratorio' });
+    await within(card).findByRole('img', { name: /Creatinina/ });
+    const variables = within(card).getByRole('group', { name: 'Variables' });
+    expect(within(variables).queryByRole('button', { name: 'Potasio' })).toBeNull();
+    const more = within(variables).getByRole('button', { name: 'Más exámenes (1)' });
+    expect(more).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(more);
+    fireEvent.click(within(variables).getByRole('button', { name: 'Potasio' }));
+    expect(await within(card).findByRole('img', { name: /Potasio/ })).toBeVisible();
+    fireEvent.click(within(variables).getByRole('button', { name: 'Menos exámenes' }));
+    expect(within(variables).getByRole('button', { name: 'Potasio' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it('says plainly when the hospitalization has no reports', async () => {
     mocks.search.mockResolvedValue({ success: true, data: [exams[0]] });
     renderLab();

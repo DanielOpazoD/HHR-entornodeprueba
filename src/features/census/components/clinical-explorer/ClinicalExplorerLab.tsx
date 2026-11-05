@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import clsx from 'clsx';
-import { Check, FileText, FlaskConical } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, FileText, FlaskConical } from 'lucide-react';
 import type { ClinicalExplorerPatient } from '@/features/census/controllers/clinicalExplorerController';
 import { useSyslabHospitalizationReports } from '@/features/laboratory/hospitalization-reports';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
@@ -55,6 +55,8 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
     { identity, names: [], day: null }
   );
   const selection = stored.identity === identity ? stored : { identity, names: [], day: null };
+  // Only the charted variables show by default; the rest of the list opens on demand.
+  const [allVariablesShown, setAllVariablesShown] = useState(false);
 
   // Selection by series id, so a variable keeps its place when its shown name gains a unit.
   const names = useMemo(() => {
@@ -130,10 +132,14 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
       .map(id => model.variables.find(variable => variable.id === id))
       .filter((variable): variable is NonNullable<typeof variable> => Boolean(variable));
     const selectedAnalyses = new Set(selected.map(variable => variable.analysis));
+    const hiddenCount = model.variables.length - selected.length;
+    const shownVariables = allVariablesShown
+      ? model.variables
+      : model.variables.filter(variable => names.includes(variable.id));
     return (
       <>
         <div role="group" aria-label="Variables" className="flex flex-wrap items-center gap-1">
-          {model.variables.map(variable => {
+          {shownVariables.map(variable => {
             const on = names.includes(variable.id);
             return (
               <button
@@ -153,7 +159,24 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
               </button>
             );
           })}
-          <span className="ml-1 text-[10px] text-slate-400">hasta {limit} a la vez</span>
+          {(allVariablesShown || hiddenCount > 0) && (
+            <button
+              type="button"
+              aria-expanded={allVariablesShown}
+              onClick={() => setAllVariablesShown(shown => !shown)}
+              className="inline-flex h-6 items-center gap-0.5 rounded-md px-1.5 text-[11px] font-semibold text-teal-700 hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
+            >
+              {allVariablesShown ? 'Menos exámenes' : `Más exámenes (${hiddenCount})`}
+              {allVariablesShown ? (
+                <ChevronUp size={12} aria-hidden="true" />
+              ) : (
+                <ChevronDown size={12} aria-hidden="true" />
+              )}
+            </button>
+          )}
+          {allVariablesShown && (
+            <span className="ml-1 text-[10px] text-slate-400">hasta {limit} a la vez</span>
+          )}
         </div>
         {selected.length > 0 ? (
           <ClinicalExplorerLabCharts
