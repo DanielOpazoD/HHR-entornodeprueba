@@ -357,6 +357,31 @@ describe('rayenCensusPersistenceGuard', () => {
     });
   });
 
+  it('keeps the clinical stage away from an episode marked as not valid that still holds a bed', () => {
+    const record = buildRecord('run-1', {
+      beds: {
+        H1C1: {
+          bedId: 'H1C1',
+          patientName: 'Paciente seguro',
+          clinicalEpisodeId: 'episode-safe',
+        },
+        BOX2: {
+          bedId: 'BOX2',
+          patientName: 'Ingreso duplicado',
+          clinicalEpisodeId: 'episode-invalid',
+        },
+      } as unknown as DailyRecord['beds'],
+    });
+    const diff = { conflicts: [], invalidClinicalEpisodeIds: ['episode-invalid'] } as never;
+
+    const handoff = resolveConfirmedRayenCensusHandoff(
+      { record, result: buildResult() },
+      { date: record.date, runId: 'run-1', diff }
+    );
+
+    expect(handoff.safeClinicalEpisodeIds).toEqual(['episode-safe']);
+  });
+
   it('isolates the persisted occupant when a conflict names a different incoming episode', () => {
     const record = buildRecord('run-1', {
       beds: {

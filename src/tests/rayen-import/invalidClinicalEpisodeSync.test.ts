@@ -75,11 +75,13 @@ const plan = async (
   baseRecord: DailyRecord,
   source: RayenCensusSnapshot,
   invalidEpisodeIds: ReadonlySet<string>,
-  egresoRows: EgresoReportRow[] = []
+  egresoRows: EgresoReportRow[] = [],
+  previous: DailyRecord | null = null
 ): Promise<CensusImportDiff> => {
+  const previousFor = async (day: string) => (previous?.date === day ? previous : null);
   const dailyRecord = {
-    getAuthoritativeForDate: vi.fn().mockResolvedValue(null),
-    getForDate: vi.fn().mockResolvedValue(null),
+    getAuthoritativeForDate: vi.fn(previousFor),
+    getForDate: vi.fn(previousFor),
     getLocalForDateWithMeta: vi.fn().mockResolvedValue({
       record: null,
       hasPendingWrites: false,
@@ -172,6 +174,24 @@ describe('the Eloísa sync respects a patient marked as not valid', () => {
     const diff = await plan(current, source, marked);
     expect(entriesNaming(diff, DUPLICATE)).toEqual([]);
     expect(diff.discharges).toEqual([]);
+  });
+
+  it('raises no review for a marked episode that was still in the previous census', async () => {
+    const current = record({ NEO1: occupant('NEO1', VALID) });
+    const source = snapshot([encounter(VALID, 'NEO1')]);
+    const previous = {
+      ...record({ NEO1: occupant('NEO1', VALID), BOX2: occupant('BOX2', DUPLICATE) }),
+      date: '2026-11-04',
+    };
+
+    const control = await plan(current, source, unmarked, [], previous);
+    expect(entriesNaming(control, DUPLICATE)).not.toEqual([]);
+    expect(control.summary.conflicts).toBeGreaterThan(0);
+
+    const diff = await plan(current, source, marked, [], previous);
+    expect(entriesNaming(diff, DUPLICATE)).toEqual([]);
+    expect(diff.conflicts).toEqual([]);
+    expect(diff.summary.conflicts).toBe(0);
   });
 
   it('still admits a real readmission of the same person, which is another episode', async () => {

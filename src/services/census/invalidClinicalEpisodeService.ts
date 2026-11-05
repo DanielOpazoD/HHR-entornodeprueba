@@ -11,10 +11,15 @@ const invalidClinicalEpisodesPath = (): string =>
 /** The seeded E2E runtime has no Firestore backend; its marks come from localStorage. */
 export const E2E_INVALID_CLINICAL_EPISODES_KEY = 'hhr_e2e_invalid_clinical_episodes';
 
-const readE2EInvalidClinicalEpisodeIds = (): ReadonlySet<string> => {
-  const stored: unknown = JSON.parse(
-    localStorage.getItem(E2E_INVALID_CLINICAL_EPISODES_KEY) || '[]'
-  );
+/**
+ * Marks seeded for E2E, or `null` when the run talks to Firebase. Any localhost counts as an E2E
+ * runtime, so a local run against real Firebase must still read the server unless seeded.
+ */
+const readE2EInvalidClinicalEpisodeIds = (): ReadonlySet<string> | null => {
+  if (typeof window === 'undefined' || !isE2ERuntimeEnabled()) return null;
+  const seeded = localStorage.getItem(E2E_INVALID_CLINICAL_EPISODES_KEY);
+  if (seeded === null && import.meta.env?.VITE_E2E_MODE !== 'true') return null;
+  const stored: unknown = JSON.parse(seeded || '[]');
   return new Set(Array.isArray(stored) ? stored.map(String) : []);
 };
 
@@ -25,9 +30,8 @@ const readE2EInvalidClinicalEpisodeIds = (): ReadonlySet<string> => {
 export const loadInvalidClinicalEpisodeIds = async (
   runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
 ): Promise<ReadonlySet<string>> => {
-  if (isE2ERuntimeEnabled() && typeof window !== 'undefined') {
-    return readE2EInvalidClinicalEpisodeIds();
-  }
+  const seeded = readE2EInvalidClinicalEpisodeIds();
+  if (seeded) return seeded;
   await ensureFirestoreRuntimeReady(runtime);
   const snapshot = await getDocsFromServer(
     collection(runtime.getDb(), invalidClinicalEpisodesPath())

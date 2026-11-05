@@ -294,6 +294,11 @@ export interface CensusImportDiff {
   activeClinicalCribs?: ActiveClinicalCribEntry[];
   /** Every active hospitalization episode present in the captured Ficha snapshot. */
   activeClinicalEpisodeIds?: string[];
+  /**
+   * Episodes marked «paciente no válido» that this sync excluded. The clinical stage skips them
+   * even when an HHR bed still holds one.
+   */
+  invalidClinicalEpisodeIds?: string[];
   /** Whether absence from the captured Ficha census is safe to use as evidence. */
   snapshotComplete?: boolean;
   /**

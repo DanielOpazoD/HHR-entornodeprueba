@@ -73,7 +73,7 @@ const conflictEpisodes = (entry: ConflictEntry): unknown[] => [
 /**
  * Last line of defence after planning: local records and Eloísa lookups can still name a marked
  * episode (a previous day that kept it, a report row enriched with its episode). None of those
- * entries may reach the census.
+ * entries may reach the census, and the clinical stage receives the marks so it skips them too.
  */
 export const scrubInvalidEpisodesFromDiff = (
   diff: CensusImportDiff,
@@ -82,18 +82,49 @@ export const scrubInvalidEpisodesFromDiff = (
   if (invalidEpisodeIds.size === 0) return diff;
   const keeps = (episodes: unknown[]): boolean =>
     !episodes.some(episodeId => isInvalidClinicalEpisode(invalidEpisodeIds, episodeId));
+  const admissions = diff.admissions.filter(entry => keeps(admissionEpisodes(entry)));
+  const updates = diff.updates.filter(entry =>
+    keeps([entry.patient.clinicalEpisodeId, entry.source?.encounterId])
+  );
+  const moves = diff.moves.filter(entry => keeps([entry.source.encounterId]));
+  // A valid mother still leaves; a marked newborn in her crib leaves with no egreso of its own.
+  const discharges = diff.discharges
+    .filter(entry => keeps(dischargeEpisodes(entry)))
+    .map(entry =>
+      isInvalidClinicalEpisode(invalidEpisodeIds, entry.associatedClinicalCrib?.clinicalEpisodeId)
+        ? { ...entry, associatedClinicalCrib: undefined }
+        : entry
+    );
+  const pendingAdministrativeDischarges = diff.pendingAdministrativeDischarges.filter(entry =>
+    keeps([entry.encounterId, entry.source?.encounterId])
+  );
+  const conflicts = diff.conflicts.filter(entry => keeps(conflictEpisodes(entry)));
+  const removed = (before: readonly unknown[], after: readonly unknown[]): number =>
+    before.length - after.length;
+  const recount = (count: number, before: readonly unknown[], after: readonly unknown[]) =>
+    Math.max(0, count - removed(before, after));
   return {
     ...diff,
-    admissions: diff.admissions.filter(entry => keeps(admissionEpisodes(entry))),
-    updates: diff.updates.filter(entry =>
-      keeps([entry.patient.clinicalEpisodeId, entry.source?.encounterId])
-    ),
-    moves: diff.moves.filter(entry => keeps([entry.source.encounterId])),
-    discharges: diff.discharges.filter(entry => keeps(dischargeEpisodes(entry))),
-    pendingAdministrativeDischarges: diff.pendingAdministrativeDischarges.filter(entry =>
-      keeps([entry.encounterId, entry.source?.encounterId])
-    ),
-    conflicts: diff.conflicts.filter(entry => keeps(conflictEpisodes(entry))),
+    admissions,
+    updates,
+    moves,
+    discharges,
+    pendingAdministrativeDischarges,
+    conflicts,
+    summary: {
+      ...diff.summary,
+      admissions: recount(diff.summary.admissions, diff.admissions, admissions),
+      updates: recount(diff.summary.updates, diff.updates, updates),
+      moves: recount(diff.summary.moves, diff.moves, moves),
+      discharges: recount(diff.summary.discharges, diff.discharges, discharges),
+      pendingAdministrativeDischarges: recount(
+        diff.summary.pendingAdministrativeDischarges,
+        diff.pendingAdministrativeDischarges,
+        pendingAdministrativeDischarges
+      ),
+      conflicts: recount(diff.summary.conflicts, diff.conflicts, conflicts),
+    },
+    invalidClinicalEpisodeIds: [...invalidEpisodeIds],
     ...(diff.reportEgresos
       ? { reportEgresos: excludeInvalidEpisodeRows(diff.reportEgresos, invalidEpisodeIds) }
       : {}),
@@ -101,6 +132,13 @@ export const scrubInvalidEpisodesFromDiff = (
       ? {
           previousDayAdmissionCandidates: diff.previousDayAdmissionCandidates.filter(entry =>
             keeps(admissionEpisodes(entry))
+          ),
+        }
+      : {}),
+    ...(diff.activeClinicalCribs
+      ? {
+          activeClinicalCribs: diff.activeClinicalCribs.filter(entry =>
+            keeps([entry.patient.clinicalEpisodeId, entry.source.encounterId])
           ),
         }
       : {}),

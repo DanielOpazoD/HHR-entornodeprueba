@@ -140,7 +140,10 @@ export const resolveConfirmedRayenCensusHandoff = (
     startedAt?: string;
     diff?: Pick<
       CensusImportDiff,
-      'conflicts' | 'deferredHistoricalAdmissionBedIds' | 'snapshotComplete'
+      | 'conflicts'
+      | 'deferredHistoricalAdmissionBedIds'
+      | 'snapshotComplete'
+      | 'invalidClinicalEpisodeIds'
     >;
   }
 ): ConfirmedRayenCensusHandoff => {
@@ -197,7 +200,9 @@ export const resolveConfirmedRayenCensusHandoff = (
     selectedDate: expected.date,
     clinicalDay: expected.clinicalDay ?? expected.date,
     acceptedRevision: record.lastUpdated,
-    safeClinicalEpisodeIds: collectSafeClinicalEpisodeIds(record, isolatedConflicts),
+    safeClinicalEpisodeIds: collectSafeClinicalEpisodeIds(record, isolatedConflicts).filter(
+      episodeId => !expected.diff?.invalidClinicalEpisodeIds?.includes(episodeId)
+    ),
     isolatedConflicts,
     snapshotComplete: expected.diff?.snapshotComplete === true,
     ...(expected.diff?.deferredHistoricalAdmissionBedIds?.length
