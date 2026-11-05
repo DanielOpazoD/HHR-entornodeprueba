@@ -12,7 +12,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
-import { ChevronLeft, ChevronRight, FileDown, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Compass, FileDown, RefreshCw } from 'lucide-react';
 import { type EvolutionProfession } from '@/features/rayen-import/clinical-panel';
 import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 import { CareDayCard, EvolutionCard, IndicationDayCard } from './ClinicalPanelSections';
@@ -51,6 +51,8 @@ interface ClinicalPanelDrawerProps {
   onNavigatePrevious?: () => void;
   onNavigateNext?: () => void;
   onOpenHospitalizationReports: () => void;
+  /** Opens the clinical explorer on this patient; absent for cribs and days without a census. */
+  onOpenClinicalExplorer?: () => void;
   onClose: () => void;
 }
 
@@ -84,6 +86,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
   onNavigatePrevious,
   onNavigateNext,
   onOpenHospitalizationReports,
+  onOpenClinicalExplorer,
   onClose,
 }) => {
   const { state, documentState, reload } = useClinicalPanelSnapshot(clinicalEpisodeId);
@@ -224,6 +227,18 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
               <FileDown size={14} aria-hidden="true" />
               <span>Informes</span>
             </button>
+            {onOpenClinicalExplorer && (
+              <button
+                type="button"
+                onClick={onOpenClinicalExplorer}
+                className="inline-flex h-7 min-w-7 shrink-0 items-center justify-center gap-1 rounded-md border border-slate-200 bg-white px-1.5 text-[11px] font-semibold text-slate-600 transition-colors hover:border-teal-200 hover:bg-teal-50 hover:text-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700"
+                title="Explorador clínico (experimental)"
+                aria-label={`Abrir explorador clínico de ${patientName}`}
+              >
+                <Compass size={14} aria-hidden="true" />
+                <span>Explorador</span>
+              </button>
+            )}
             <PatientDocumentManagerButton
               patientName={patientName}
               loading={documentState.phase === 'loading'}

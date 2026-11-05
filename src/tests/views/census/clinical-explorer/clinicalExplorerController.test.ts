@@ -1,0 +1,82 @@
+import { describe, expect, it } from 'vitest';
+import { BEDS } from '@/constants/beds';
+import {
+  canExploreClinicalPatient,
+  filterClinicalExplorerPatients,
+  listClinicalExplorerPatients,
+  resolveClinicalExplorerNeighbour,
+  resolveCompactIndicationDays,
+} from '@/features/census/controllers/clinicalExplorerController';
+import { DataFactory } from '@/tests/factories/DataFactory';
+
+const patient = (bedId: string, overrides = {}) =>
+  DataFactory.createMockPatient(bedId, {
+    patientName: `Paciente ${bedId}`,
+    rut: '12.345.678-5',
+    clinicalEpisodeId: `ep-${bedId}`,
+    ...overrides,
+  });
+
+const visibleBeds = BEDS.filter(bed => !bed.isExtra);
+
+describe('clinicalExplorerController', () => {
+  it('lists the census patients in bed order and leaves out those without RUT or episode', () => {
+    const beds = {
+      H1C1: patient('H1C1'),
+      R1: patient('R1'),
+      R2: patient('R2', { documentType: 'Pasaporte' }),
+      R3: patient('R3', { clinicalEpisodeId: '' }),
+      R4: patient('R4', { rut: '12.345.678-9' }),
+      H2C1: patient('H2C1', {
+        clinicalCrib: patient('H2C1', { patientName: 'RN sintético', clinicalEpisodeId: 'ep-rn' }),
+      }),
+    };
+    const listed = listClinicalExplorerPatients({ visibleBeds, beds });
+    expect(listed.map(entry => entry.bedId)).toEqual(['R1', 'H1C1', 'H2C1']);
+    expect(listed[0].episodeId).toBe('ep-R1');
+  });
+
+  it('treats a blocked bed and a passport holder as not explorable', () => {
+    expect(canExploreClinicalPatient(patient('R1', { documentType: 'Pasaporte' }))).toBe(false);
+    expect(canExploreClinicalPatient(patient('R1', { rut: '-' }))).toBe(false);
+    expect(canExploreClinicalPatient(patient('R1'))).toBe(true);
+  });
+
+  it('filters by name without accents, by RUT and by bed', () => {
+    const patients = listClinicalExplorerPatients({
+      visibleBeds,
+      beds: {
+        R1: patient('R1', { patientName: 'MARÍA SINTÉTICA' }),
+        H1C1: patient('H1C1', { patientName: 'PEDRO SINTÉTICO', rut: '5.844.865-6' }),
+      },
+    });
+    expect(filterClinicalExplorerPatients(patients, 'maria').map(p => p.bedId)).toEqual(['R1']);
+    expect(filterClinicalExplorerPatients(patients, '5.844').map(p => p.bedId)).toEqual(['H1C1']);
+    expect(filterClinicalExplorerPatients(patients, 'h1c1').map(p => p.bedId)).toEqual(['H1C1']);
+    expect(filterClinicalExplorerPatients(patients, '  ')).toHaveLength(2);
+  });
+
+  it('moves to the neighbouring bed and stops at both ends', () => {
+    const patients = listClinicalExplorerPatients({
+      visibleBeds,
+      beds: { R1: patient('R1'), R2: patient('R2'), H1C1: patient('H1C1') },
+    });
+    expect(resolveClinicalExplorerNeighbour(patients, 'R2', -1)).toBe('R1');
+    expect(resolveClinicalExplorerNeighbour(patients, 'R2', 1)).toBe('H1C1');
+    expect(resolveClinicalExplorerNeighbour(patients, 'R1', -1)).toBeNull();
+    expect(resolveClinicalExplorerNeighbour(patients, 'H1C1', 1)).toBeNull();
+    expect(resolveClinicalExplorerNeighbour(patients, 'NEO 1', 1)).toBeNull();
+  });
+
+  it('picks the newest days with active indications, and suspended days only when none is active', () => {
+    const day = (id: string, active: number, suspended: number) => ({
+      id,
+      active: Array(active).fill('a'),
+      suspended: Array(suspended).fill('s'),
+    });
+    const days = [day('13', 0, 1), day('12', 0, 1), day('11', 1, 0), day('10', 2, 1)];
+    expect(resolveCompactIndicationDays(days, 2).map(d => d.id)).toEqual(['11', '10']);
+    expect(resolveCompactIndicationDays(days.slice(0, 2), 2).map(d => d.id)).toEqual(['13', '12']);
+    expect(resolveCompactIndicationDays([], 2)).toEqual([]);
+  });
+});

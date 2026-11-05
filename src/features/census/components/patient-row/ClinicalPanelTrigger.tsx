@@ -13,6 +13,7 @@ import { resolveClinicalPanelNavigation } from '@/features/census/controllers/cl
 import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 import { useActiveClinicalPanel } from './useActiveClinicalPanel';
 import { ClinicalActionButton } from './ClinicalActionButton';
+import { openClinicalExplorer } from '../clinical-explorer/clinicalExplorerStore';
 import { RecoverableClinicalPanelModule, PanelModuleRetry } from './RecoverableClinicalPanelModule';
 import { DeferredHospitalizationReportsDialog } from '../DeferredHospitalizationReportsDialog';
 
@@ -206,6 +207,14 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
                 onOpenHospitalizationReports: () => {
                   setAreReportsOpen(true);
                 },
+                // The explorer lists main rows only; a crib keeps its drawer without the entry.
+                onOpenClinicalExplorer:
+                  censusDate && triggerKey === bedId
+                    ? () => {
+                        close();
+                        openClinicalExplorer({ censusDate, bedId });
+                      }
+                    : undefined,
                 onClose: close,
               }}
             />

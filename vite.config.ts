@@ -309,6 +309,11 @@ export default defineConfig(({ mode }) => {
             // Audit downloads of official Eloísa reports work only with Eloísa and the extension.
             '**/assets/audit-documents-*.js',
             '**/assets/ClinicalPanelDrawer-*.js',
+            // The clinical explorer reads Eloísa, Syslab and MMRAD; it is a consultation mode
+            // opened on demand, never part of the offline census. The Ficha Médico reader it
+            // shares with the drawer only works while Eloísa is connected.
+            '**/assets/ClinicalExplorerView-*.js',
+            '**/assets/useClinicalPanelSnapshot-*.js',
             // Sync history panel: reviewed on demand while Eloísa is connected.
             '**/assets/RayenSyncHistoryModal-*.js',
             // Census email delivery always needs the network; local exports stay cached.
