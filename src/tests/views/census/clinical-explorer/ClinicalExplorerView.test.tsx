@@ -31,20 +31,16 @@ vi.mock('@/services/radiology/mmradService', async importOriginal => {
 });
 vi.mock('@/components/radiology/useDicomReviewCache', () => ({ useDicomReviewCache: () => undefined }));
 // Syslab is out of reach in this test: the laboratory card shows a quiet failure.
-vi.mock('@/features/laboratory', async importOriginal => {
-  const actual = await importOriginal<typeof import('@/features/laboratory')>();
-  return {
-    ...actual,
-    useSyslabAccess: () => ({
-      state: 'unavailable',
-      message: 'Syslab no está disponible.',
-      isOpening: false,
-      isAwaitingLogin: false,
-      refresh: vi.fn(),
-      openLogin: vi.fn(),
-    }),
-  };
-});
+vi.mock('@/features/laboratory/hooks/useSyslabAccess', () => ({
+  useSyslabAccess: () => ({
+    state: 'unavailable',
+    message: 'Syslab no está disponible.',
+    isOpening: false,
+    isAwaitingLogin: false,
+    refresh: vi.fn(),
+    openLogin: vi.fn(),
+  }),
+}));
 
 import { panelResult } from '../clinicalPanelDrawer.fixture';
 import { BEDS } from '@/constants/beds';
