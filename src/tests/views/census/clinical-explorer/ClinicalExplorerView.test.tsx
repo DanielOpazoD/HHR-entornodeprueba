@@ -192,6 +192,9 @@ describe('ClinicalExplorerView', () => {
       expect.stringContaining('H1C1'),
     ]);
     expect(items[0]).toHaveAttribute('aria-current', 'true');
+    // Days in hospital up to the census day, not the episode number (the header keeps it).
+    expect(items[0]).toHaveTextContent('3 d');
+    expect(items[0]).not.toHaveTextContent('ep-r1');
     fireEvent.click(screen.getByRole('tab', { name: 'Indicaciones' }));
     fireEvent.click(screen.getByRole('button', { name: 'Paciente siguiente' }));
     expect(screen.getByTestId('clinical-explorer-patient')).toHaveTextContent('SEGUNDO SINTÉTICO');

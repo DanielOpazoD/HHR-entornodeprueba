@@ -14,10 +14,6 @@ type ActionHeaderProps = {
   isEditMode: boolean;
   onResize: (width: number) => void;
   headerClassName: string;
-  readOnly: boolean;
-  canDeleteRecord: boolean;
-  deniedMessage: string;
-  onClearAll: () => Promise<void>;
 };
 
 type DiagnosisHeaderProps = {
