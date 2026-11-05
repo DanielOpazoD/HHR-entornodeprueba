@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '../../../features/laboratory/labAnalyticsController.testSupport';
 
 const mocks = vi.hoisted(() => ({
@@ -86,6 +87,8 @@ const renderLab = (tab: 'all' | 'lab' = 'all') => {
 };
 
 describe('ClinicalExplorerLab', () => {
+  afterEach(() => act(() => setSessionGeneration(null)));
+
   beforeEach(() => {
     mocks.search.mockReset();
     mocks.details.mockReset();
@@ -148,7 +151,7 @@ describe('ClinicalExplorerLab', () => {
   it('forgets what it showed when the Eloísa session changes and reads again for the new one', async () => {
     renderLab();
     await screen.findByRole('img', { name: /Creatinina/ });
-    window.dispatchEvent(new MessageEvent('message', { data: { type: 'HHR_RAYEN_SESSION_CHANGED' } }));
+    act(() => setSessionGeneration(`synthetic-${Date.now()}`));
     await waitFor(() => expect(screen.queryByRole('img', { name: /Creatinina/ })).toBeNull());
     await waitFor(() => expect(mocks.search).toHaveBeenCalledTimes(2));
   });

@@ -10,9 +10,39 @@ export const getLogoutGeneration = (): string | null => {
   // already belong to a replacement in another tab; it is not local proof.
   return admittedGeneration;
 };
+type SessionChangeListener = (generation: string | null) => void;
+const sessionChangeListeners = new Set<SessionChangeListener>();
+let sessionEpoch = 0;
+
+/** Admissions and logouts this document has seen: the key for anything remembered per person. */
+export const getSessionEpoch = (): number => sessionEpoch;
+
+/**
+ * The one place to learn that the Eloísa session changed. Listeners run synchronously, before the
+ * window message the extension bridge reads, so nothing remembered for the previous person
+ * outlives the change by even a tick. Nobody else listens to that message.
+ */
+export const onSessionChange = (listener: SessionChangeListener): (() => void) => {
+  sessionChangeListeners.add(listener);
+  return () => {
+    sessionChangeListeners.delete(listener);
+  };
+};
+
 export const setSessionGeneration = (generation: string | null): void => {
   if (admittedGeneration === generation) return;
   admittedGeneration = generation;
+  sessionEpoch += 1;
+  for (const listener of sessionChangeListeners) {
+    // A listener that moved the session on again has already notified everyone with the newer
+    // generation; the older one must not reach the remaining listeners afterwards.
+    if (admittedGeneration !== generation) break;
+    try {
+      listener(generation);
+    } catch {
+      // A listener that fails must not stop the others, nor the admission itself.
+    }
+  }
   if (typeof window !== 'undefined') {
     window.postMessage({ type: 'HHR_RAYEN_SESSION_CHANGED' }, window.location.origin);
   }

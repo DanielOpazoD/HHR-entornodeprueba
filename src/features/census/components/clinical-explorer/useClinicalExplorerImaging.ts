@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import {
   mergeMMRADExamLists,
   openMMRADExamListMemory,
@@ -71,24 +72,7 @@ const fromRemembered = (result: MMRADSearchResult): ImagingState => ({
   partial: result.check_digit_search === 'partial',
 });
 
-// Several people share one computer: what a session read leaves with it, whether or not the area
-// is mounted when the session changes. The memory module forgets on the same message.
-let sessionGeneration = 0;
-const generationListeners = new Set<() => void>();
-const subscribeToGeneration = (listener: () => void) => {
-  generationListeners.add(listener);
-  return () => {
-    generationListeners.delete(listener);
-  };
-};
-const readGeneration = (): number => sessionGeneration;
-if (typeof window !== 'undefined') {
-  window.addEventListener('message', event => {
-    if (event.data?.type !== 'HHR_RAYEN_SESSION_CHANGED') return;
-    sessionGeneration += 1;
-    generationListeners.forEach(listener => listener());
-  });
-}
+
 
 /**
  * MMRAD studies of the hospitalization, the same two searches the radiology modal runs (exact RUT
@@ -101,7 +85,9 @@ export const useClinicalExplorerImaging = ({
   admissionDate,
   enabled,
 }: UseClinicalExplorerImagingParams): ClinicalExplorerImagingResult => {
-  const generation = useSyncExternalStore(subscribeToGeneration, readGeneration, readGeneration);
+  // What a session read leaves with it, whether or not the area is mounted when it changes; the
+  // MMRAD memory forgets on the same change.
+  const generation = useSessionEpoch();
   const dateFrom = asMmradDateBound(admissionDate) ?? '';
   const key = `${generation}|${rut}|${dateFrom}`;
   // State belongs to one search key; another patient starts from what the session remembers.

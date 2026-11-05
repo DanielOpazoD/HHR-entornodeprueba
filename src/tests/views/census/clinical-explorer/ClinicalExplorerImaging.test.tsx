@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ search: vi.fn(), checkDigit: vi.fn(), pdf: vi.fn() }));
 
@@ -77,6 +78,8 @@ const renderImaging = (tab: 'all' | 'img' = 'all') =>
   render(<ClinicalExplorerImaging patient={patient!} tab={tab} onShowAll={vi.fn()} />);
 
 describe('ClinicalExplorerImaging', () => {
+  afterEach(() => act(() => setSessionGeneration(null)));
+
   beforeEach(() => {
     mocks.search.mockReset();
     mocks.checkDigit.mockReset();
@@ -158,7 +161,7 @@ describe('ClinicalExplorerImaging', () => {
   it('forgets what it showed when the Eloísa session changes, even while mounted', async () => {
     renderImaging();
     await screen.findByText('Rx tórax AP');
-    window.dispatchEvent(new MessageEvent('message', { data: { type: 'HHR_RAYEN_SESSION_CHANGED' } }));
+    act(() => setSessionGeneration(`synthetic-${Date.now()}`));
     await waitFor(() => expect(screen.queryByText('Rx tórax AP')).toBeNull());
     await waitFor(() => expect(mocks.search).toHaveBeenCalledTimes(2));
   });
