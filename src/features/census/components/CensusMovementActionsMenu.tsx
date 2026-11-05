@@ -20,10 +20,10 @@ interface CensusMovementActionsMenuProps {
 }
 
 const isFinalAction = ({ kind }: CensusMovementActionViewModel) =>
-  kind === 'undo' || kind === 'delete';
+  kind === 'undo' || kind === 'delete' || kind === 'invalid';
 
 const actionTextClassName = (kind: CensusMovementActionViewModel['kind']): string => {
-  if (kind === 'delete') return 'text-red-700 hover:bg-red-50';
+  if (kind === 'delete' || kind === 'invalid') return 'text-red-700 hover:bg-red-50';
   if (kind === 'viewDocuments') return 'text-blue-700 hover:bg-blue-50';
   if (kind === 'hospitalizationReports') return 'text-sky-700 hover:bg-sky-50';
   if (kind === 'convert') return 'text-orange-700 hover:bg-orange-50';

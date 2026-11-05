@@ -19,6 +19,7 @@ describe('censusRowActionRuntimeAdapterController', () => {
     const actions = buildRowActionRuntimeActions({
       clearPatient,
       addCMA,
+      markInvalidEpisode: vi.fn(),
       setActionState,
       setDischargeState,
       setTransferState,
@@ -52,6 +53,7 @@ describe('censusRowActionRuntimeAdapterController', () => {
     const actions = buildRowActionRuntimeActions({
       clearPatient: vi.fn(),
       addCMA: vi.fn(),
+      markInvalidEpisode: vi.fn(),
       setActionState,
       setDischargeState,
       setTransferState,

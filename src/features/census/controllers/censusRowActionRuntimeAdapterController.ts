@@ -13,6 +13,7 @@ import type { RowActionRuntimeActions } from '@/features/census/types/censusRowA
 interface BuildRowActionRuntimeActionsParams {
   clearPatient: RowActionRuntimeActions['clearPatient'];
   addCMA: RowActionRuntimeActions['addCMA'];
+  markInvalidEpisode: RowActionRuntimeActions['markInvalidEpisode'];
   setActionState: Dispatch<SetStateAction<ActionState>>;
   setDischargeState: Dispatch<SetStateAction<DischargeState>>;
   setTransferState: Dispatch<SetStateAction<TransferState>>;
@@ -21,12 +22,14 @@ interface BuildRowActionRuntimeActionsParams {
 export const buildRowActionRuntimeActions = ({
   clearPatient,
   addCMA,
+  markInvalidEpisode,
   setActionState,
   setDischargeState,
   setTransferState,
 }: BuildRowActionRuntimeActionsParams): RowActionRuntimeActions => ({
   clearPatient,
   addCMA,
+  markInvalidEpisode,
   setMovement: setActionState,
   openDischarge: dischargePatch => {
     setDischargeState(previousState => applyDischargePatch(previousState, dischargePatch));

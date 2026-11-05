@@ -1,11 +1,17 @@
 import { useDailyRecordMovementActions } from '@/context/useDailyRecordScopedActions';
+import { useAuth } from '@/context/AuthContext';
+import { useStabilityRules } from '@/hooks/useStabilityRules';
+import { canEditAppModule } from '@/shared/access/operationalAccessPolicy';
+import { isE2EEditableRecordOverrideEnabled } from '@/shared/runtime/e2eRuntime';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { useCensusActionCommands } from '../context/censusActionContexts';
 import { useCensusMovementData } from './useCensusMovementData';
 import { useMovementSectionModel } from './useMovementSectionModel';
+import type { DischargeData } from '@/features/census/contracts/censusMovementContracts';
 import {
   buildMovementTypeConversionConfirmDialog,
   DISCHARGE_DELETE_CONFIRM_DIALOG,
+  DISCHARGE_INVALID_CONFIRM_DIALOG,
   DISCHARGE_UNDO_CONFIRM_DIALOG,
 } from '../controllers/censusMovementActionConfirmController';
 
@@ -19,6 +25,12 @@ export const useDischargesSectionModel = () => {
     convertDischargeToTransfer,
   } = useDailyRecordMovementActions();
   const { handleEditDischarge } = useCensusActionCommands();
+  const { role } = useAuth();
+  const { canPerformActions } = useStabilityRules(recordDate ? { date: recordDate } : null);
+  // Same permission as «Limpiar»: a census editor, on a day still open to actions. The mark has no
+  // date check of its own in the rules, so a locked or read-only day must never offer it.
+  const canMarkInvalid =
+    canPerformActions && (canEditAppModule(role, 'CENSUS') || isE2EEditableRecordOverrideEnabled());
   const { confirm } = useConfirmDialog();
   const { error: notifyError } = useNotification();
   const sectionModel = useMovementSectionModel({
@@ -55,6 +67,34 @@ export const useDischargesSectionModel = () => {
     }
   };
 
+  const handleMarkDischargeInvalid = async (discharge: DischargeData) => {
+    const clinicalEpisodeId = discharge.clinicalEpisodeId?.trim();
+    if (!canMarkInvalid || !clinicalEpisodeId) return;
+    try {
+      if (!(await confirm(DISCHARGE_INVALID_CONFIRM_DIALOG))) return;
+    } catch {
+      notifyError('No se pudo marcar como no válido', 'No se pudo confirmar la acción.');
+      return;
+    }
+    // Mark first: once the alta is gone, only the mark keeps the sync from filing it again.
+    try {
+      const { markClinicalEpisodeInvalid } =
+        await import('@/services/census/invalidClinicalEpisodeService');
+      await markClinicalEpisodeInvalid({
+        clinicalEpisodeId,
+        censusDate: recordDate,
+        bedId: discharge.bedId,
+      });
+    } catch {
+      notifyError(
+        'No se pudo marcar como no válido',
+        'No se eliminó nada; revisa la conexión y reintenta.'
+      );
+      return;
+    }
+    deleteDischarge(discharge.id);
+  };
+
   return {
     recordDate,
     sectionModel,
@@ -62,5 +102,6 @@ export const useDischargesSectionModel = () => {
     updateDischarge,
     handleConvertDischargeToCma,
     handleConvertDischargeToTransfer,
+    handleMarkDischargeInvalid: canMarkInvalid ? handleMarkDischargeInvalid : undefined,
   };
 };

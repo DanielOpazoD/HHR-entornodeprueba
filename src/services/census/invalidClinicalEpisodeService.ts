@@ -1,9 +1,20 @@
-import { collection, getDocsFromServer } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDocFromServer,
+  getDocsFromServer,
+  serverTimestamp,
+  setDoc,
+} from 'firebase/firestore';
 import { getHospitalPath, HOSPITAL_COLLECTIONS } from '@/constants/firestorePaths';
 import { ensureFirestoreRuntimeReady } from '@/services/storage/firestore';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
+import {
+  defaultFirebaseConfigRuntimeAdapter,
+  type FirebaseConfigRuntimeAdapter,
+} from '@/services/firebase-runtime/firebaseConfigRuntimeAdapter';
 
 const invalidClinicalEpisodesPath = (): string =>
   `${getHospitalPath()}/${HOSPITAL_COLLECTIONS.INVALID_CLINICAL_EPISODES}`;
@@ -37,4 +48,62 @@ export const loadInvalidClinicalEpisodeIds = async (
     collection(runtime.getDb(), invalidClinicalEpisodesPath())
   );
   return new Set(snapshot.docs.map(document => document.id));
+};
+
+export interface InvalidClinicalEpisodeMark {
+  clinicalEpisodeId: string;
+  /** Census day on which the patient was removed. */
+  censusDate: string;
+  bedId: string;
+}
+
+const MARK_TIMEOUT_MS = 15_000;
+
+/**
+ * Marks an Eloísa episode «paciente no válido». The caller removes the patient only after this
+ * resolves, so the sync can never bring back a patient that was just removed. The mark is
+ * immutable: when another editor marked the same episode first, the outcome is the same.
+ */
+export const markClinicalEpisodeInvalid = async (
+  mark: InvalidClinicalEpisodeMark,
+  adapter: FirebaseConfigRuntimeAdapter = defaultFirebaseConfigRuntimeAdapter,
+  timeoutMs = MARK_TIMEOUT_MS
+): Promise<void> => {
+  const clinicalEpisodeId = mark.clinicalEpisodeId.trim();
+  if (!clinicalEpisodeId) throw new Error('El paciente no tiene episodio de Eloísa.');
+  const seeded = readE2EInvalidClinicalEpisodeIds();
+  if (seeded) {
+    const marked = [...new Set([...seeded, clinicalEpisodeId])];
+    localStorage.setItem(E2E_INVALID_CLINICAL_EPISODES_KEY, JSON.stringify(marked));
+    return;
+  }
+  await adapter.readyFirestore;
+  const markedBy = adapter.getAuth().currentUser?.uid;
+  if (!markedBy) throw new Error('La sesión no está activa.');
+  const reference = doc(adapter.getDb(), invalidClinicalEpisodesPath(), clinicalEpisodeId);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    // Offline, setDoc waits for the server: without a ceiling the action would never answer.
+    await Promise.race([
+      setDoc(reference, {
+        clinicalEpisodeId,
+        censusDate: mark.censusDate,
+        bedId: mark.bedId,
+        markedAt: serverTimestamp(),
+        markedBy,
+      }),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error('No se pudo confirmar la marca en el servidor.')),
+          timeoutMs
+        );
+      }),
+    ]);
+  } catch (error) {
+    const existing = await getDocFromServer(reference).catch(() => null);
+    if (existing?.exists()) return;
+    throw error;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 };

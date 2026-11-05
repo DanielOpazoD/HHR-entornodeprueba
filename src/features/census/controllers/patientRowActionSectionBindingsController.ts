@@ -117,5 +117,6 @@ export const buildPatientActionSectionBinding = ({
     ),
     medicalIndicationsPatient: hasPatientIdentity ? medicalIndicationsPatient : undefined,
     clinicalDocumentCount,
+    canMarkInvalid: Boolean(data.clinicalEpisodeId?.trim()),
   };
 };

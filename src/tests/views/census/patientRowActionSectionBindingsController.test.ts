@@ -86,6 +86,18 @@ describe('patientRowActionSectionBindingsController', () => {
     });
 
     expect(namedBinding.medicalIndicationsPatient?.label).toContain('Paciente Uno');
+    expect(namedBinding.canMarkInvalid).toBe(false);
+
+    const eloisaBinding = buildPatientActionSectionBinding({
+      ...baseParams,
+      data: DataFactory.createMockPatient('R1', {
+        patientName: 'Paciente Uno',
+        clinicalEpisodeId: '900200',
+        admissionDate: '2026-03-05',
+      }),
+    });
+
+    expect(eloisaBinding.canMarkInvalid).toBe(true);
 
     const unnamedBinding = buildPatientActionSectionBinding({
       ...baseParams,

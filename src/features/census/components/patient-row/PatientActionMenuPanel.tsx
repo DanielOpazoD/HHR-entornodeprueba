@@ -1,4 +1,5 @@
 import React from 'react';
+import { Ban } from 'lucide-react';
 import { PatientRowMenuPortal } from './PatientRowMenuPortal';
 
 import type { PatientActionMenuBinding } from '@/features/census/components/patient-row/patientRowActionContracts';
@@ -18,6 +19,7 @@ interface PatientActionMenuPanelProps {
   onAction: (action: PatientRowAction) => void;
   onViewHistory: () => void;
   allowedActions?: readonly PatientRowAction[];
+  canMarkInvalid?: boolean;
 }
 
 export const PatientActionMenuPanel: React.FC<PatientActionMenuPanelProps> = ({
@@ -29,6 +31,7 @@ export const PatientActionMenuPanel: React.FC<PatientActionMenuPanelProps> = ({
   onAction,
   onViewHistory,
   allowedActions,
+  canMarkInvalid = false,
 }) => {
   if (!isOpen) {
     return null;
@@ -44,6 +47,11 @@ export const PatientActionMenuPanel: React.FC<PatientActionMenuPanelProps> = ({
   if (!model.shouldRender) {
     return null;
   }
+  // Whoever may clear the bed may also remove an episode created by mistake.
+  const showInvalidAction =
+    canMarkInvalid &&
+    model.showUtilityActions &&
+    model.utilityActions.some(action => action.action === 'clear');
 
   return (
     <PatientRowMenuPortal anchorRef={anchorRef} align={binding.align} onClose={onClose}>
@@ -61,6 +69,18 @@ export const PatientActionMenuPanel: React.FC<PatientActionMenuPanelProps> = ({
             clinicalActions={model.clinicalActions}
             onAction={onAction}
           />
+        )}
+
+        {showInvalidAction && (
+          <button
+            type="button"
+            onClick={() => onAction('invalid')}
+            title="Ingreso creado por error: se elimina del censo y la sincronización no lo vuelve a traer"
+            className="flex w-full items-center gap-2 border-t border-slate-100 px-3 py-2 text-left text-[12px] font-medium text-red-700 transition-colors hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-red-700"
+          >
+            <Ban size={13} aria-hidden="true" />
+            Paciente no válido
+          </button>
         )}
       </div>
     </PatientRowMenuPortal>

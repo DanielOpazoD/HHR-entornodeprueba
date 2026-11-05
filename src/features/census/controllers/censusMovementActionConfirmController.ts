@@ -73,6 +73,15 @@ export const DISCHARGE_DELETE_CONFIRM_DIALOG: MovementConfirmDialog = {
   variant: 'danger',
 };
 
+export const DISCHARGE_INVALID_CONFIRM_DIALOG: MovementConfirmDialog = {
+  title: 'Paciente no válido',
+  message:
+    'Úsalo solo para un ingreso creado por error, por ejemplo un doble ingreso. Se elimina esta alta, no cuenta en las estadísticas y la sincronización con Eloísa no la volverá a registrar. Un reingreso real tiene otro episodio y no se ve afectado.',
+  confirmText: 'Sí, eliminar',
+  cancelText: 'Cancelar',
+  variant: 'danger',
+};
+
 export const TRANSFER_UNDO_CONFIRM_DIALOG: MovementConfirmDialog = {
   title: 'Deshacer traslado',
   message: 'Esta acción restaurará al paciente a su cama. ¿Deseas continuar?',
