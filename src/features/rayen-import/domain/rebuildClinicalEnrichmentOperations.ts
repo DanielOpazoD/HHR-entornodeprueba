@@ -21,6 +21,7 @@ const CLINICAL_FIELDS = new Set<CanonicalClinicalField>([
   'clinicalSyncCheckpoint',
   'clinicalCarryover',
   'clinicalAlerts',
+  'fluidBalance',
 ]);
 
 interface LocatedClinicalPatient {

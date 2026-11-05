@@ -28,6 +28,35 @@ const vitalsForm = (over: Record<string, unknown> = {}) => ({
 });
 
 describe('parseVitalSigns', () => {
+  it.each([
+    ['120', '80', 93],
+    ['121', '80', 94],
+    ['120,5', '80', 94],
+    ['120', '', null],
+    ['', '80', null],
+    ['0', '0', null],
+    ['80', '120', null],
+    ['80', '80', null],
+    ['invalid', '80', null],
+  ])(
+    'matches Eloísa PAM for pressure %s/%s, rounded to an integer',
+    (systolic, diastolic, expected) => {
+      const [reading] = parseVitalSigns([
+        vitalsForm({
+          metaCampList: [
+            campo('global_Pulso', '80'),
+            campo('global_PASSent', systolic),
+            campo('global_PADSent', diastolic),
+          ],
+        }),
+      ]);
+      expect(reading.meanArterialPressure).toBe(expected);
+    }
+  );
+  it('uses the pressure calculation shown by Eloísa, independent of free-text observations', () => {
+    expect(parseVitalSigns([vitalsForm()])[0].meanArterialPressure).toBe(98);
+  });
+
   it('parses a full VITAL_SIGNS form into a vitals record (Rapa Nui day + local time)', () => {
     const [v] = parseVitalSigns([vitalsForm()]);
     expect(v).toMatchObject({

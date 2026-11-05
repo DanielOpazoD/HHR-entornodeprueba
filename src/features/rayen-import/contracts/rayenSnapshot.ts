@@ -43,7 +43,7 @@ export interface RayenEncounter {
   admissionDatetime?: string;
   /** Admission diagnosis text — Rayen `haoDiagName` / `diagnosisName`. */
   diagnosis?: string;
-  /** CIE-10 code of the first active principal diagnosis in Ficha Medico. */
+  /** CIE-10 code of the latest active diagnosis in Ficha Medico. */
   diagnosisCode?: string;
   /** Display name paired with `diagnosisCode`. */
   diagnosisDescription?: string;

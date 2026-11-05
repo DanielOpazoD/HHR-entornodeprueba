@@ -5,6 +5,8 @@
  */
 
 import React from 'react';
+import type { PatientFluidBalance } from '@/types/domain/fluidBalance';
+import { FluidBalanceDetail } from './FluidBalanceDetail';
 import { Activity } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import {
@@ -24,7 +26,9 @@ import {
 
 interface VitalsDetailModalProps {
   patientName: string;
-  vitals: VitalSignsView;
+  vitals?: VitalSignsView;
+  fluidBalance?: PatientFluidBalance;
+  censusDate?: string;
   /** The day's embedded history and latest reading. */
   vitalSignsHistory?: PatientVitalSigns[];
   latestReading?: PatientVitalSigns;
@@ -45,6 +49,8 @@ const dayHeading = (isoDay: string): string => {
 export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
   patientName,
   vitals,
+  fluidBalance,
+  censusDate,
   vitalSignsHistory,
   latestReading,
   episodeDocument,
@@ -88,7 +94,7 @@ export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
 
     // An undated age cannot safely reconstruct an older measurement. Keep only
     // the latest row consistent with the census cell and leave older rows neutral.
-    return record.recordedDate === vitals.recordedDate && record.recordedAt === vitals.recordedAt
+    return record.recordedDate === vitals?.recordedDate && record.recordedAt === vitals?.recordedAt
       ? profile
       : 'unknown';
   });
@@ -105,36 +111,42 @@ export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
       dataModule="census-vitals"
     >
       <div className="space-y-3">
-        <section>
-          <div className="mb-1.5 flex items-center justify-between text-[11px] text-slate-400">
-            <span className="font-semibold uppercase tracking-wide">Última toma</span>
-            <span className="tabular-nums">{vitals.recordedAt}</span>
-          </div>
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-            {vitals.readings.map(reading => (
-              <div
-                key={reading.key}
-                className={`flex flex-col items-center rounded-lg border px-2 py-2 text-slate-700 ${VITAL_STATUS_CARD[reading.status]}`}
-              >
-                <span className="text-[10px] font-medium uppercase tracking-wide opacity-70">
-                  {reading.label}
-                </span>
-                <span
-                  className={`text-lg font-bold leading-tight tabular-nums ${VITAL_STATUS_TEXT[reading.status]}`}
+        <FluidBalanceDetail
+          balance={fluidBalance}
+          censusDate={censusDate ?? episodeDocument?.date}
+        />
+        {vitals && (
+          <section>
+            <div className="mb-1.5 flex items-center justify-between text-[11px] text-slate-400">
+              <span className="font-semibold uppercase tracking-wide">Última toma</span>
+              <span className="tabular-nums">{vitals.recordedAt}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+              {vitals.readings.map(reading => (
+                <div
+                  key={reading.key}
+                  className={`flex flex-col items-center rounded-lg border px-2 py-2 text-slate-700 ${VITAL_STATUS_CARD[reading.status]}`}
                 >
-                  {reading.value}
-                </span>
-                <span className="text-[9px] opacity-60">{reading.unit}</span>
-              </div>
-            ))}
-          </div>
-          {vitals.observations && (
-            <p className="mt-2 rounded-md bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
-              <span className="font-medium text-slate-500">Observaciones:</span>{' '}
-              {vitals.observations}
-            </p>
-          )}
-        </section>
+                  <span className="text-[10px] font-medium uppercase tracking-wide opacity-70">
+                    {reading.label}
+                  </span>
+                  <span
+                    className={`text-lg font-bold leading-tight tabular-nums ${VITAL_STATUS_TEXT[reading.status]}`}
+                  >
+                    {reading.value}
+                  </span>
+                  <span className="text-[9px] opacity-60">{reading.unit}</span>
+                </div>
+              ))}
+            </div>
+            {vitals.observations && (
+              <p className="mt-2 rounded-md bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
+                <span className="font-medium text-slate-500">Observaciones:</span>{' '}
+                {vitals.observations}
+              </p>
+            )}
+          </section>
+        )}
 
         {notice === 'loading' && (
           <p role="status" className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">
@@ -161,7 +173,7 @@ export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
           </div>
         )}
 
-        {rows.length > 1 && (
+        {(rows.length > 1 || rows.some(row => row.cells.pam)) && (
           <section>
             <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
               Historial · {rows.length} tomas

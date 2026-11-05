@@ -31,6 +31,7 @@ const vitalContentIdentity = (record: PatientVitalSigns): string =>
     record.recordedAt,
     record.systolic,
     record.diastolic,
+    record.meanArterialPressure ?? null,
     record.heartRate,
     record.spo2,
     record.temperature,

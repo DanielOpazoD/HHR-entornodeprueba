@@ -23,6 +23,7 @@
 export const CLINICAL_AUTHORITY_BED_FIELDS = [
   'pathology',
   'diagnosisComments',
+  'diagnosisManualOverride',
   'snomedCode',
   'cie10Code',
   'cie10Description',
@@ -65,6 +66,7 @@ export const RAYEN_BATCH_ONLY_CLINICAL_FIELDS = [
   'clinicalSyncCheckpoint',
   'clinicalCarryover',
   'clinicalAlerts',
+  'fluidBalance',
 ] as const;
 
 export const RAYEN_CLINICAL_FIELDS = [

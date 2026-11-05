@@ -34,6 +34,7 @@ export const buildClinicalPatientPatch = (
   copyChanged('clinicalSyncCheckpoint');
   copyChanged('clinicalCarryover');
   copyChanged('clinicalAlerts');
+  copyChanged('fluidBalance');
 
   const checkpointPath = `${prefix}.clinicalSyncCheckpoint`;
   const checkpointChanged = Object.prototype.hasOwnProperty.call(patch, checkpointPath);

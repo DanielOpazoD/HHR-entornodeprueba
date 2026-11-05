@@ -48,10 +48,17 @@ export interface RayenClinicalAlertsResult extends ClinicalReadFailure {
  * separado con `{error}`, así la cobertura por fuente se clasifica igual que
  * con los canales individuales.
  */
+export interface RayenFluidBalanceResult extends ClinicalReadFailure {
+  entries: unknown[];
+  censusDate: string;
+}
+
 export interface RayenPatientClinicalBundle {
   devices: RayenDeviceReportResult;
   history: RayenHistoryScalesResult;
   forms: RayenScalesFormsResult;
   /** Ausente en extensiones anteriores a 0.48.72: las alertas guardadas se conservan. */
   alerts?: RayenClinicalAlertsResult;
+  /** Missing in older extensions: preserve the last known totals. */
+  fluidBalance?: RayenFluidBalanceResult;
 }

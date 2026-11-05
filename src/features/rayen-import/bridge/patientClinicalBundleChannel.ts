@@ -78,6 +78,17 @@ export const mapClinicalAlertsPayload = (
   ),
 });
 
+export const mapFluidBalancePayload = (data: Record<string, unknown>) => ({
+  entries: Array.isArray(data.entries) ? data.entries : [],
+  censusDate: typeof data.censusDate === 'string' ? data.censusDate : '',
+  ...decodeClinicalReadFailure(
+    data,
+    Array.isArray(data.entries) && typeof data.censusDate === 'string'
+      ? undefined
+      : 'La extensión no entregó un balance verificable.'
+  ),
+});
+
 const section = (value: unknown, fallbackError: string): Record<string, unknown> =>
   value && typeof value === 'object'
     ? (value as Record<string, unknown>)
@@ -138,6 +149,9 @@ export const requestPatientClinicalBundle = (
         devices: mapDeviceReportPayload(section(data.devices, fallback)),
         history: mapHistoryScalesPayload(section(data.history, fallback)),
         forms: mapScalesFormsPayload(section(data.forms, fallback)),
+        ...(data.fluidBalance && typeof data.fluidBalance === 'object'
+          ? { fluidBalance: mapFluidBalancePayload(data.fluidBalance as Record<string, unknown>) }
+          : {}),
         ...(data.alerts && typeof data.alerts === 'object'
           ? { alerts: mapClinicalAlertsPayload(data.alerts as Record<string, unknown>) }
           : {}),

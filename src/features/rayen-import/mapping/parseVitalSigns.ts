@@ -31,6 +31,12 @@ const num = (raw: string): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
+/** Same calculation as Eloísa's vital-signs form (module 89366), rounded for the census detail. */
+const roundedPam = (systolic: number | null, diastolic: number | null): number | null =>
+  systolic != null && diastolic != null && systolic > 0 && diastolic > 0 && diastolic < systolic
+    ? Math.round((systolic + 2 * diastolic) / 3)
+    : null;
+
 const pad2 = (value: string): string => value.padStart(2, '0');
 
 /**
@@ -122,6 +128,7 @@ export const parseVitalSigns = (raw: unknown): PatientVitalSigns[] => {
       // reciente (reportado en vivo el 01-09 en R1).
       recordedDate: epoch != null ? rapaNuiDay(epoch) : when.iso,
       recordedAt: epoch != null ? rapaNuiClock(epoch) : clinicalStamp || when.raw,
+      meanArterialPressure: roundedPam(num(get(FIELD_IDS.systolic)), num(get(FIELD_IDS.diastolic))),
       systolic: num(get(FIELD_IDS.systolic)),
       diastolic: num(get(FIELD_IDS.diastolic)),
       heartRate: num(get(FIELD_IDS.heartRate)),
@@ -141,6 +148,7 @@ export const parseVitalSigns = (raw: unknown): PatientVitalSigns[] => {
     // HGT and insulin count too: a glucose check or an insulin administration can be recorded on a
     // form of its own, and we still want that row in the history.
     const hasReading =
+      record.meanArterialPressure != null ||
       record.systolic != null ||
       record.diastolic != null ||
       record.heartRate != null ||

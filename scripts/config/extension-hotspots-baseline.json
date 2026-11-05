@@ -301,6 +301,10 @@
       "maxLines": 108,
       "hotspots": {}
     },
+    "fichamedico-fluid-balance-runtime.js": {
+      "maxLines": 48,
+      "hotspots": {}
+    },
     "fichamedico-history-read-model.js": {
       "maxLines": 82,
       "hotspots": {}

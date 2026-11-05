@@ -11,6 +11,7 @@ import { parseClinicalAlerts } from './mapping/parseClinicalAlerts';
 import { mergeReportVitals } from './domain/mergeReportVitals';
 import { inferNursingShifts, type NursingActivityObservation } from './domain/inferNursingShifts';
 import { createConcurrencyGate } from './domain/concurrencyGate';
+import { parseFluidBalance } from './mapping/parseFluidBalance';
 import { readClinicalPatientSources } from './domain/clinicalPatientReaders';
 import { collectClinicalFillCandidates } from './domain/clinicalFillCandidates';
 import { createClinicalCheckpointAccumulator } from './domain/clinicalCheckpointAccumulator';
@@ -178,8 +179,8 @@ export const runClinicalFill = async (
       fecha,
       deps.now()
     );
-    const [deviceResult, historyResult, formsResult, alertsRead] = await readClinicalPatientSources(
-      {
+    const [deviceResult, historyResult, formsResult, alertsRead, fluidBalanceRead] =
+      await readClinicalPatientSources({
         encId,
         fecha,
         lookbackDays: historyReadPolicy.lookbackDays,
@@ -192,8 +193,7 @@ export const runClinicalFill = async (
           forms: withFormsReadSlot,
           bundle: withBundleReadSlot,
         },
-      }
-    );
+      });
     if (deviceResult.status === 'rejected') {
       reportPatientError('devices', message(deviceResult.reason));
     } else if (deviceResult.status === 'fulfilled') {
@@ -208,6 +208,25 @@ export const runClinicalFill = async (
     performance.recordTimeout(alertsRead?.error);
     if (alertsRead && !alertsRead.error && !alertsRead.skipped) {
       merged = { ...merged, clinicalAlerts: parseClinicalAlerts(alertsRead.alerts) };
+    }
+    performance.recordTimeout(fluidBalanceRead?.error);
+    if (fluidBalanceRead?.error || fluidBalanceRead?.errorCode) {
+      reportPatientError(
+        'fluid_balance',
+        fluidBalanceRead.error || 'No se pudo verificar el balance.'
+      );
+    }
+    if (fluidBalanceRead && !fluidBalanceRead.error && !fluidBalanceRead.errorCode) {
+      try {
+        if (fluidBalanceRead.censusDate !== fecha)
+          throw new Error('El balance corresponde a otro día.');
+        merged = { ...merged, fluidBalance: parseFluidBalance(fluidBalanceRead.entries, fecha) };
+      } catch {
+        reportPatientError(
+          'fluid_balance',
+          'No se pudo verificar el período o los registros del balance.'
+        );
+      }
     }
     // One forms read supplies both scales and vital signs.
     const formsReadError =
