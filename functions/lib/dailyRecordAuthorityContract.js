@@ -25,6 +25,7 @@
 const CLINICAL_AUTHORITY_BED_FIELDS = Object.freeze([
   'pathology',
   'diagnosisComments',
+  'diagnosisManualOverride',
   'snomedCode',
   'cie10Code',
   'cie10Description',

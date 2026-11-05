@@ -22,8 +22,11 @@
       ? classificationId(item.diagnosisId) : null);
 
   const selectPrincipalDiagnosis = (rows, header, listItem) => {
+    // Encounter events are monotonic; response array order and the principal flag are not recency.
     const principal = (Array.isArray(rows) ? rows : [])
-      .find(row => active(row) && flag(row.isPrincipal));
+      .filter(row => active(row) && firstText(row.diagnosisName, row.name, row.description, row.freeTextDiagnosis))
+      .sort((a, b) => (Number(b.encounterEventId) || Number(b.id) || 0) -
+        (Number(a.encounterEventId) || Number(a.id) || 0))[0];
     const h = header || {};
     const item = listItem || {};
     const principalName = text(h.principalDiagName);

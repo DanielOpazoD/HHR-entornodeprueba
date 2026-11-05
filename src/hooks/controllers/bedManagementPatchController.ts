@@ -111,6 +111,26 @@ const buildPatientFieldPatches = ({
     }
   });
 
+  if (
+    ['pathology', 'cie10Code', 'cie10Description'].some(
+      field =>
+        Object.prototype.hasOwnProperty.call(updates, field) &&
+        !arePatchValuesDeepEqual(
+          updates[field as keyof PatientData],
+          currentPatient[field as keyof PatientData]
+        )
+    )
+  )
+    patches[`beds.${bedId}.diagnosisManualOverride`] = true;
+
+  if (
+    currentPatient.clinicalEpisodeId &&
+    updates.clinicalEpisodeId &&
+    currentPatient.clinicalEpisodeId !== updates.clinicalEpisodeId
+  ) {
+    patches[`beds.${bedId}.diagnosisManualOverride`] = undefined;
+  }
+
   const nextPatientName = String(updates.patientName ?? currentPatient.patientName ?? '');
   const nextRut = String(updates.rut ?? currentPatient.rut ?? '');
   const hadPatientIdentity = Boolean(
@@ -296,6 +316,9 @@ export const buildClinicalCribMultipleFieldPatches = (
   Object.entries(fields).forEach(([key, value]) => {
     if (currentCrib && arePatchValuesDeepEqual(value, currentCrib[key])) return;
     patches[`beds.${bedId}.clinicalCrib.${key}`] = value;
+    if (['pathology', 'cie10Code', 'cie10Description'].includes(key)) {
+      patches[`beds.${bedId}.clinicalCrib.diagnosisManualOverride`] = true;
+    }
   });
   return patches as DailyRecordPatch;
 };
@@ -393,4 +416,7 @@ export const buildUpdateClinicalCribPatches = (
 ): DailyRecordPatch =>
   ({
     [`beds.${bedId}.clinicalCrib.${field}`]: value,
+    ...(['pathology', 'cie10Code', 'cie10Description'].includes(field)
+      ? { [`beds.${bedId}.clinicalCrib.diagnosisManualOverride`]: true }
+      : {}),
   }) as DailyRecordPatch;

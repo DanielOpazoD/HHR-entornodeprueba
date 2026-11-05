@@ -88,6 +88,8 @@ export interface PatientData {
 
   isRapanui?: boolean;
   pathology: string;
+  /** A deliberate local diagnosis edit survives subsequent Eloísa imports for this episode. */
+  diagnosisManualOverride?: boolean;
   snomedCode?: string; // Standardized SNOMED CT code
   cie10Code?: string; // Standardized CIE-10 code
   cie10Description?: string; // Official CIE-10 description recorded at selection

@@ -69,6 +69,19 @@ vigentes no se sustituyen por un documento.
 | SRC-02 | Conservar procedencia y correcciones justificadas. HHR contiene información sincronizada y datos locales; no todo campo es una copia automática de Eloísa.                                               | Permite explicar qué se observó, qué se corrigió y con qué respaldo.                     |
 | SRC-03 | Para la estadística hospitalaria, Eloísa es la referencia oficial, incluso si el cierre administrativo fue posterior al egreso físico. No igualar automáticamente sus fechas con las del antiguo manual. | Concordancia administrativa y hora física son hechos distintos.                          |
 
+### Diagnóstico del censo
+
+La sincronización toma el último diagnóstico activo de Eloísa por orden de evento, aunque no esté
+marcado como principal. Una edición manual del diagnóstico en HHR (texto o código, incluyendo
+vaciarlo) queda marcada con `diagnosisManualOverride` y prevalece en el mismo episodio; un cambio
+hecho después de abrir la revisión también debe conservarse. El marcador se guarda con el parche
+clínico y se limpia al reemplazar paciente o episodio. No se modifica el diagnóstico de otro paciente
+ni el de la cuna acompañante.
+
+Los registros anteriores no contienen este marcador: no es posible atribuir retrospectivamente una
+edición manual sólo a partir del texto. Las pruebas acreditan la protección de las ediciones realizadas
+con esta versión; no acreditan una migración de autoría de diagnósticos históricos.
+
 ## Fechas y población del censo
 
 | ID      | Comportamiento esperado                                                                                                                                                                                                                                | Por qué                                                                                                                        |

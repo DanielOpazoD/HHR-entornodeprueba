@@ -70,6 +70,14 @@ export const diffSyncablePatientFields = (
       (field === 'treatingPhysicianId' || field === 'treatingPhysicianName')
     )
       continue;
+    if (
+      current.diagnosisManualOverride &&
+      (!current.clinicalEpisodeId ||
+        !incoming.clinicalEpisodeId ||
+        current.clinicalEpisodeId === incoming.clinicalEpisodeId) &&
+      ['pathology', 'cie10Code', 'cie10Description'].includes(field)
+    )
+      continue;
     const from = current[field];
     const to = incoming[field];
     if (field === 'clinicalEpisodeId' && !incoming.clinicalEpisodeId) continue;
@@ -125,6 +133,13 @@ export const diffSyncablePatientFields = (
 
 export const mergeSyncablePatient = (current: PatientData, incoming: PatientData): PatientData => {
   const merged = { ...current };
+  if (
+    current.clinicalEpisodeId &&
+    incoming.clinicalEpisodeId &&
+    current.clinicalEpisodeId !== incoming.clinicalEpisodeId
+  ) {
+    delete merged.diagnosisManualOverride;
+  }
   for (const change of diffSyncablePatientFields(current, incoming)) {
     (merged as unknown as Record<string, unknown>)[change.field] = change.to;
   }
@@ -153,6 +168,14 @@ const preserveClinicalCribSpecialty = (
         ...incoming,
         specialty: current.specialty,
         specialtyAssignment: current.specialtyAssignment,
+        ...(current.diagnosisManualOverride
+          ? {
+              pathology: current.pathology,
+              cie10Code: current.cie10Code,
+              cie10Description: current.cie10Description,
+              diagnosisManualOverride: true,
+            }
+          : {}),
       }
     : incoming;
 };
@@ -164,7 +187,23 @@ export const applyReviewedPatientChanges = (
   changes: FieldChange[]
 ): PatientData => {
   const merged = { ...current } as unknown as Record<string, unknown>;
+  if (
+    changes.some(
+      change =>
+        change.field === 'clinicalEpisodeId' &&
+        change.to &&
+        current.clinicalEpisodeId &&
+        change.to !== current.clinicalEpisodeId
+    )
+  ) {
+    delete merged.diagnosisManualOverride;
+  }
   for (const change of changes) {
+    if (
+      merged.diagnosisManualOverride === true &&
+      ['pathology', 'cie10Code', 'cie10Description'].includes(change.field)
+    )
+      continue;
     if (change.field === 'specialty' || change.field === 'specialtyAssignment') continue;
     if (
       (change.field === 'treatingPhysicianId' || change.field === 'treatingPhysicianName') &&

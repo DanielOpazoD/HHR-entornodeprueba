@@ -130,6 +130,7 @@ export const getClearClinicalDataPatches = (bedId: string): Record<string, unkno
   [`beds.${bedId}.cie10Code`]: undefined,
   [`beds.${bedId}.cie10Description`]: undefined,
   [`beds.${bedId}.pathology`]: '',
+  [`beds.${bedId}.diagnosisManualOverride`]: undefined,
   [`beds.${bedId}.treatingPhysicianId`]: undefined,
   [`beds.${bedId}.treatingPhysicianName`]: undefined,
   [`beds.${bedId}.dismissedTreatingPhysician`]: undefined,
