@@ -84,6 +84,9 @@ export const cleanInvalidEpisodeFromPreviousDay = async ({
     }
     for (const bedId of bedIds) {
       const current: DailyRecord = record;
+      // Re-read before each write: the bed must still hold this episode.
+      const occupant = current.beds[bedId];
+      if (occupant?.clinicalEpisodeId !== clinicalEpisodeId) continue;
       assertDailyRecordWriteAccepted(
         await repository.updatePartialDetailed(day, buildClearPatientPatches(current, bedId), {
           requireConfirmedRecord: true,
@@ -92,7 +95,7 @@ export const cleanInvalidEpisodeFromPreviousDay = async ({
           intentionalBedClear: {
             bedId,
             confirmedLastUpdated: current.lastUpdated,
-            confirmedOccupant: buildConfirmedBedOccupantIdentity(current.beds[bedId]),
+            confirmedOccupant: buildConfirmedBedOccupantIdentity(occupant),
           },
         })
       );
