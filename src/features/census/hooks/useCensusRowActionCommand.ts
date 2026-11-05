@@ -5,6 +5,8 @@ import type { PatientData } from '@/features/census/controllers/censusActionPati
 import { executeRowActionController } from '@/features/census/controllers/censusRowActionRuntimeController';
 import { buildRowActionRuntimeActions } from '@/features/census/controllers/censusRowActionRuntimeAdapterController';
 import {
+  PREVIOUS_DAY_UNCHECKED_MESSAGE,
+  buildPreviousDayPendingNotification,
   buildRowActionBlockedNotification,
   buildRowActionUnexpectedNotification,
   type CensusActionNotification,
@@ -58,6 +60,18 @@ export const useCensusRowActionCommand = ({
                 censusDate: recordRef.current?.date ?? '',
               });
             },
+            cleanInvalidEpisodePreviousDay: async clinicalEpisodeId => {
+              try {
+                const { cleanAndDescribePreviousDay } =
+                  await import('@/features/census/controllers/invalidEpisodePreviousDayCleanup');
+                return await cleanAndDescribePreviousDay({
+                  censusDate: recordRef.current?.date ?? '',
+                  clinicalEpisodeId,
+                });
+              } catch {
+                return PREVIOUS_DAY_UNCHECKED_MESSAGE;
+              }
+            },
             setActionState,
             setDischargeState,
             setTransferState,
@@ -67,7 +81,11 @@ export const useCensusRowActionCommand = ({
         });
 
         if (!result.ok) {
-          notifyError(buildRowActionBlockedNotification(result.error.message));
+          notifyError(
+            result.error.code === 'PREVIOUS_DAY_PENDING'
+              ? buildPreviousDayPendingNotification(result.error.message)
+              : buildRowActionBlockedNotification(result.error.message)
+          );
         }
       } catch {
         notifyError(buildRowActionUnexpectedNotification());

@@ -56,6 +56,8 @@ const OPTIONAL_TARGETS: Record<string, string> = {
     'Deferred reminder provider has a local fallback if unavailable.',
   'src/features/census/components/FugaNotificationModal':
     'Fuga notification can mount on first paint; failures stay inside Altas del Día.',
+  'src/features/census/controllers/invalidEpisodePreviousDayCleanup':
+    'Previous-day cleanup runs after a «paciente no válido» mark; a failure is reported.',
   'src/features/census/components/PatientHospitalizationReportsDialog':
     'Reports open on request with a local error boundary.',
   'src/features/census/components/StaffShiftDetailsModal': 'Staff detail dialog opens on request.',

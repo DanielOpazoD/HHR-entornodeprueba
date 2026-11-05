@@ -23,7 +23,8 @@ export type RowActionErrorCode =
   | 'PATIENT_NAME_REQUIRED'
   | 'PERSISTENCE_FAILED'
   | 'EPISODE_REQUIRED'
-  | 'CLINICAL_CRIB_ATTACHED';
+  | 'CLINICAL_CRIB_ATTACHED'
+  | 'PREVIOUS_DAY_PENDING';
 
 export type RowActionError = ControllerError<RowActionErrorCode>;
 

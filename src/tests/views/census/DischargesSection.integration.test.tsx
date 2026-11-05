@@ -31,6 +31,10 @@ vi.mock('@/hooks/useStabilityRules', () => ({
 }));
 
 const markClinicalEpisodeInvalid = vi.hoisted(() => vi.fn());
+const cleanAndDescribePreviousDay = vi.hoisted(() => vi.fn());
+vi.mock('@/features/census/controllers/invalidEpisodePreviousDayCleanup', () => ({
+  cleanAndDescribePreviousDay,
+}));
 vi.mock('@/services/census/invalidClinicalEpisodeService', () => ({
   markClinicalEpisodeInvalid,
 }));
@@ -146,6 +150,7 @@ describe('DischargesSection integration', () => {
 
     it('marks the episode and then removes its alta', async () => {
       markClinicalEpisodeInvalid.mockResolvedValue(undefined);
+      cleanAndDescribePreviousDay.mockResolvedValue(null);
 
       await markFromMenu();
 
@@ -155,6 +160,22 @@ describe('DischargesSection integration', () => {
         censusDate: '2026-02-14',
         bedId: 'NEO1',
       });
+    });
+
+    it('also cleans the previous day and tells what is left to review', async () => {
+      markClinicalEpisodeInvalid.mockResolvedValue(undefined);
+      cleanAndDescribePreviousDay.mockResolvedValue('El 13-02-2026 está firmado y no se modificó.');
+
+      await markFromMenu();
+
+      await waitFor(() =>
+        expect(cleanAndDescribePreviousDay).toHaveBeenCalledWith(
+          expect.objectContaining({ censusDate: '2026-02-14', clinicalEpisodeId: '900200' })
+        )
+      );
+      expect(
+        await screen.findByText('El 13-02-2026 está firmado y no se modificó.')
+      ).toBeInTheDocument();
     });
 
     it('keeps the alta when the mark cannot be saved', async () => {

@@ -124,6 +124,10 @@ export const executeRowActionController = async ({
           },
         };
       }
+      const previousDay = await actions.cleanInvalidEpisodePreviousDay(command.clinicalEpisodeId);
+      if (previousDay) {
+        return { ok: false, error: { code: 'PREVIOUS_DAY_PENDING', message: previousDay } };
+      }
       return ok({ applied: true });
     }
     case 'setMovement':

@@ -18,6 +18,15 @@ export const buildRowActionBlockedNotification = (message: string): CensusAction
   message,
 });
 
+/** Today is already clean; only the previous day may still hold the episode. */
+export const PREVIOUS_DAY_UNCHECKED_MESSAGE =
+  'Se eliminó de este día, pero no se pudo revisar el día anterior. Ábrelo y usa «Paciente no válido» si el paciente aparece ahí.';
+
+export const buildPreviousDayPendingNotification = (message: string): CensusActionNotification => ({
+  title: 'Revisar el día anterior',
+  message,
+});
+
 export const buildRowActionUnexpectedNotification = (): CensusActionNotification => ({
   title: 'No se pudo ejecutar la acción',
   message: 'Ocurrió un error inesperado al procesar la acción del paciente.',
