@@ -125,9 +125,10 @@ export const usePatientTransfers = (
 
   const updateTransfer: UpdateTransferAction = useCallback(
     (id, updates) => {
-      withCurrentRecord(currentRecord => {
+      return withCurrentRecord(currentRecord => {
         const previous = currentRecord.transfers.find(transfer => transfer.id === id);
-        void executeTransferMutation(
+        if (!previous) return Promise.resolve(false);
+        return executeTransferMutation(
           (record, movementId) =>
             resolveUpdateTransferMovement({
               record,
@@ -160,9 +161,11 @@ export const usePatientTransfers = (
                 logTransferAuditFailure('diagnosis_change', error);
               }
             }
+            return true;
           })
           .catch(error => {
             logTransferPersistenceFailure('update', error);
+            return false;
           });
       });
     },

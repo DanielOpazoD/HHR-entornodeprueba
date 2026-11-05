@@ -1,3 +1,4 @@
+import type { UpdateTransferAction } from '@/types/movements';
 import React, { useState } from 'react';
 
 import type { TransferData } from '@/features/census/contracts/censusMovementContracts';
@@ -9,6 +10,7 @@ import { resolveMovementHistoricalAdmissionDate } from '@/types/domain/movements
 interface TransferRowProps {
   item: TransferData;
   recordDate: string;
+  onUpdate?: UpdateTransferAction;
   onUndo: (id: string) => Promise<void>;
   onEdit: (item: TransferData) => void;
   onDelete: (id: string) => Promise<void>;
@@ -17,7 +19,16 @@ interface TransferRowProps {
 }
 
 export const TransferRow: React.FC<TransferRowProps> = React.memo(
-  ({ item, recordDate, onUndo, onEdit, onDelete, onConvertToHomeDischarge, onConvertToCma }) => {
+  ({
+    item,
+    recordDate,
+    onUpdate,
+    onUndo,
+    onEdit,
+    onDelete,
+    onConvertToHomeDischarge,
+    onConvertToCma,
+  }) => {
     const [showHospitalizationReports, setShowHospitalizationReports] = useState(false);
     const viewModel = resolveTransferRowViewModel(item, {
       undoTransfer: onUndo,
@@ -31,6 +42,19 @@ export const TransferRow: React.FC<TransferRowProps> = React.memo(
       <>
         <TransferRowView
           viewModel={viewModel}
+          clinicalEpisodeId={item.clinicalEpisodeId}
+          onSaveField={
+            onUpdate
+              ? async (field, value) => {
+                  if (/^(otro|extrasistema)$/i.test(value.trim())) return false;
+                  const updates =
+                    field === 'method'
+                      ? { evacuationMethod: value, evacuationMethodOther: '' }
+                      : { receivingCenter: value, receivingCenterOther: '' };
+                  return (await onUpdate(item.id, updates)) === true;
+                }
+              : undefined
+          }
           recordDate={recordDate}
           onOpenEpicrisis={() => setShowHospitalizationReports(true)}
         />

@@ -34,6 +34,8 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
   { glob: '**/assets/pdf-*.js', reason: 'Same policy as the entry above.' },
   { glob: '**/assets/vendor-pdf-*.js', reason: 'Same policy as the entry above.' },
   { glob: '**/assets/LineChart-*.js', reason: 'Same policy as the entry above.' },
+  { glob: '**/assets/LabViewerAnalysis-*.js', reason: 'The Syslab analysis view shows reports just read from Syslab and statically needs the online-only LineChart chunk, so it never opened offline. Its lazy loader waits for the network.' },
+  { glob: '**/assets/labExcelService-*.js', reason: 'Excel export of that analysis; loaded only from it, and its ExcelJS runtime is already online-only.' },
   { glob: '**/assets/vendor-excel-*.js', reason: 'Same policy as the entry above.' },
   { glob: '**/assets/vendor-canvas-*.js', reason: 'Same policy as the entry above.' },
   { glob: '**/assets/terminologyService-*.js', reason: 'Same policy as the entry above.' },
