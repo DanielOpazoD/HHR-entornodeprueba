@@ -71,9 +71,10 @@
     },
     {
       "file": "e2e/census-13-inch-visual.spec.ts",
-      "lane": "manual",
-      "reason": "Retained census 13 inch visual scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/census-13-inch-visual.spec.ts --project=chromium"
+      "lane": "nightly",
+      "reason": "Census layout at 13 inches (100% and 125%) against the production build; nightly visual evidence.",
+      "command": "npm run test:e2e:census-visual:ci",
+      "workflow": ".github/workflows/nightly-census-visual.yml"
     },
     {
       "file": "e2e/census-alerts-view.spec.ts",
@@ -175,6 +176,13 @@
       "lane": "manual",
       "reason": "Retained clinical document formatting panel scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
       "command": "npx playwright test e2e/clinical-document-formatting-panel.spec.ts --project=chromium"
+    },
+    {
+      "file": "e2e/clinical-explorer-visual.spec.ts",
+      "lane": "nightly",
+      "reason": "Clinical explorer layout at 13 inches against the production build; runs with the census visual spec.",
+      "command": "npm run test:e2e:census-visual:ci",
+      "workflow": ".github/workflows/nightly-census-visual.yml"
     },
     {
       "file": "e2e/clinical-library-pharmacy.spec.ts",
