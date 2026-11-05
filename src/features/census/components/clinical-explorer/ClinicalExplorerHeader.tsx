@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState } from 'react';
+import React, { lazy, Suspense, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, FlaskConical, FolderOpen } from 'lucide-react';
 import { XRayIcon } from '@/components/ui/XRayIcon';
 import type { ClinicalExplorerPatient } from '@/features/census/controllers/clinicalExplorerController';
@@ -27,6 +27,8 @@ type QuickAction = 'exam' | 'imaging' | 'documents';
 
 interface ClinicalExplorerHeaderProps {
   patient: ClinicalExplorerPatient;
+  /** Census patients of the day: a laboratory request may include several of them. */
+  patients: ClinicalExplorerPatient[];
   censusDate: string;
   position: { index: number; total: number };
   previousBedId: string | null;
@@ -42,6 +44,7 @@ const QUICK_BUTTON =
 /** Who is being reviewed (patient and episode), where they are, and the quick requests. */
 export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
   patient,
+  patients,
   censusDate,
   position,
   previousBedId,
@@ -53,8 +56,11 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
   // A request dialog belongs to one patient; moving on drops it instead of carrying it over.
   const [open, setOpen] = useState<{ identity: string; kind: QuickAction } | null>(null);
   const action = open?.identity === identity ? open.kind : null;
-  const setAction = (kind: QuickAction | null): void =>
-    setOpen(kind ? { identity, kind } : null);
+  const setAction = (kind: QuickAction | null): void => setOpen(kind ? { identity, kind } : null);
+  const examCandidates = useMemo(
+    () => patients.map(item => ({ key: item.bedId, label: item.bedId, patient: item.data })),
+    [patients]
+  );
 
   const patientName = data.patientName.trim();
   const days = calculateHospitalizedDays({
@@ -159,6 +165,8 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
             onClose={() => setAction(null)}
             patient={data}
             recordDate={censusDate}
+            candidates={examCandidates}
+            patientKey={bedId}
           />
         </Suspense>
       )}

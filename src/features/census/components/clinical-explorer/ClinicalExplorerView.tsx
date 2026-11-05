@@ -68,6 +68,7 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
             <>
               <ClinicalExplorerHeader
                 patient={patient}
+                patients={patients}
                 censusDate={censusDate}
                 position={{ index, total: patients.length }}
                 previousBedId={previousBedId}
