@@ -9,6 +9,8 @@ import { chunkForModule } from '../../../scripts/config/chunkingPolicy';
 // form keeps the older assertions readable: each glob quoted on its own line.
 const readViteConfig = (): string =>
   `globIgnores: [\n${ONLINE_ONLY_ASSET_GLOBS.map(glob => `'${glob}',`).join('\n')}\n]`;
+// What the real config must do with that list; the text form above only renders it.
+const readViteConfigSource = (): string => fs.readFileSync('vite.config.ts', 'utf8');
 
 const readBundleBudgetConfig = (): { precacheIgnoredAssetPatterns: readonly string[] } => ({
   precacheIgnoredAssetPatterns: ONLINE_ONLY_PRECACHE_PATTERNS,
@@ -235,7 +237,7 @@ describe('PWA precache policy', () => {
   it('keeps heavyweight optional references and runtimes out of the install-time precache', () => {
     const viteConfig = readViteConfig();
 
-    expect(viteConfig).toContain('globIgnores');
+    expect(readViteConfigSource()).toContain('globIgnores: [...ONLINE_ONLY_ASSET_GLOBS]');
     expect(viteConfig).toContain('**/docs/**');
     expect(viteConfig).toContain('**/templates/**');
     expect(viteConfig).toContain('**/images/forms/**');
