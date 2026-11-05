@@ -86,6 +86,7 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
   { glob: '**/assets/vendor-dicom-*.js', reason: 'DICOM is online-only and must not download during PWA installation or census startup.' },
   { glob: '**/assets/RadiologyViewerModal-*.js', reason: 'Same policy as the entry above.' },
   { glob: '**/assets/radiologyExamListMemory-*.js', reason: 'MMRAD list memory shared by the imaging modal, the DICOM viewer and the explorer.' },
+  { glob: '**/assets/mmradStudySearch-*.js', reason: 'MMRAD study search shared by the imaging modal and the explorer; both are online-only.' },
   { glob: '**/assets/Dicom*-*', reason: 'Same policy as the entry above.' },
   { glob: '**/assets/dicom*-*.js', reason: 'Same policy as the entry above.' },
   { glob: '**/assets/decodeImageFrameWorker-*.js', reason: 'Same policy as the entry above.' },
