@@ -2,6 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { ONLINE_ONLY_PRECACHE_PATTERNS } from './config/onlineOnlyAssets.mjs';
 
 const rootDir = process.cwd();
 const distDir = path.join(rootDir, 'dist');
@@ -37,9 +38,8 @@ try {
 const entryMaxBytes = Number(parsedConfig?.entryMaxBytes || 0);
 const chunkMaxBytes = Number(parsedConfig?.chunkMaxBytes || 0);
 const precacheMaxBytes = Number(parsedConfig?.precacheMaxBytes || 0);
-const precacheIgnoredAssetPatterns = Array.isArray(parsedConfig?.precacheIgnoredAssetPatterns)
-  ? parsedConfig.precacheIgnoredAssetPatterns
-  : [];
+// The online-only list is shared with vite.config.ts, so the budget sees what Workbox skips.
+const precacheIgnoredAssetPatterns = [...ONLINE_ONLY_PRECACHE_PATTERNS];
 const forbiddenAssetPatterns = Array.isArray(parsedConfig?.forbiddenAssetPatterns)
   ? parsedConfig.forbiddenAssetPatterns
   : [];
@@ -58,7 +58,7 @@ if (!entryMaxBytes || !chunkMaxBytes) {
 }
 
 if (!precacheMaxBytes || precacheIgnoredAssetPatterns.length === 0) {
-  fail('Config must include positive precacheMaxBytes and precacheIgnoredAssetPatterns');
+  fail('Config must include positive precacheMaxBytes, and onlineOnlyAssets.mjs must list assets');
 }
 
 if (forbiddenAssetPatterns.length === 0) {

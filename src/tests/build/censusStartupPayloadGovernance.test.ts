@@ -1,3 +1,4 @@
+import { ONLINE_ONLY_ASSET_GLOBS, ONLINE_ONLY_PRECACHE_PATTERNS } from '../../../scripts/config/onlineOnlyAssets.mjs';
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
@@ -124,16 +125,15 @@ describe('census startup payload', () => {
   });
 
   it('does not pretend the CIE-10 search or the Rayen import work offline', () => {
-    const budget = JSON.parse(read('scripts/config/bundle-budget.json'));
     // The catalogue itself is already outside precache; caching only its wrapper
     // would suggest an offline capability that does not exist.
-    expect(budget.precacheIgnoredAssetPatterns).toEqual(
+    expect(ONLINE_ONLY_PRECACHE_PATTERNS).toEqual(
       expect.arrayContaining([
         '^assets/terminologyService-.*\\.js$',
         '^assets/DiagnosisCie10Cell-.*\\.js$',
         '^assets/RayenImportButton-.*\\.js$',
       ])
     );
-    expect(read('vite.config.ts')).toContain("'**/assets/DiagnosisCie10Cell-*.js'");
+    expect(ONLINE_ONLY_ASSET_GLOBS).toContain('**/assets/DiagnosisCie10Cell-*.js');
   });
 });

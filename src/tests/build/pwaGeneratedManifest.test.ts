@@ -1,37 +1,17 @@
 // @vitest-environment node
+import { ONLINE_ONLY_ASSET_GLOBS, ONLINE_ONLY_PRECACHE_PATTERNS } from '../../../scripts/config/onlineOnlyAssets.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
-import ts from 'typescript';
 import { build } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { expect, it } from 'vitest';
 
 it('generates the same precache membership that the budget accounts for', async () => {
-  const config = ts.createSourceFile(
-    'vite.config.ts',
-    fs.readFileSync('vite.config.ts', 'utf8'),
-    ts.ScriptTarget.Latest,
-    true
-  );
-  const globIgnores: string[] = [];
-  const visit = (node: ts.Node): void => {
-    if (
-      ts.isPropertyAssignment(node) &&
-      node.name.getText(config) === 'globIgnores' &&
-      ts.isArrayLiteralExpression(node.initializer)
-    ) {
-      node.initializer.elements.forEach(element => {
-        if (ts.isStringLiteral(element)) globIgnores.push(element.text);
-      });
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(config);
+  // vite.config.ts spreads this same list into Workbox's globIgnores.
+  const globIgnores = [...ONLINE_ONLY_ASSET_GLOBS];
   expect(globIgnores.length).toBeGreaterThan(0);
-  const budget = JSON.parse(fs.readFileSync('scripts/config/bundle-budget.json', 'utf8')) as {
-    precacheIgnoredAssetPatterns: string[];
-  };
-  const patterns = budget.precacheIgnoredAssetPatterns.map(pattern => new RegExp(pattern));
+  expect(fs.readFileSync('vite.config.ts', 'utf8')).toContain('globIgnores: [...ONLINE_ONLY_ASSET_GLOBS]');
+  const patterns = ONLINE_ONLY_PRECACHE_PATTERNS.map(pattern => new RegExp(pattern));
   const assets = Array.from(
     new Set([
       ...globIgnores.map(glob =>
