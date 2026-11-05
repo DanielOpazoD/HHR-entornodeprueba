@@ -1,0 +1,59 @@
+name: Nightly Census Visual
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# The census layout at 13 inches (100% and 125%) and the clinical explorer, checked against the
+# production build every night. Pull requests run the faster lanes; this one owns the pixels.
+on:
+  workflow_dispatch:
+  schedule:
+    # 09:00 UTC = 04:00 in Rapa Nui, outside clinical hours.
+    - cron: '0 9 * * *'
+
+jobs:
+  nightly-census-visual:
+    name: nightly-census-visual
+    # Same browser host as the PR clinical E2E lane.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Java (Firestore emulator)
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        uses: ./.github/actions/setup-ci-chromium
+        timeout-minutes: 15
+
+      - name: Run census and clinical explorer visual checks on the production build
+        run: npm run test:e2e:census-visual:ci
+        env:
+          CI: true
+
+      - name: Upload visual evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: census-visual-nightly
+          path: |
+            reports/e2e/census-visual-nightly-report.json
+            reports/e2e/census-visual/**
+            test-results/**
+            playwright-report/**
+          retention-days: 30

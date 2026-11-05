@@ -44,6 +44,7 @@
     "test:e2e:clinical-visual-release": "bash scripts/run-clinical-visual-release-ci.sh",
     "test:e2e:clinical-stability": "unset NO_COLOR; PLAYWRIGHT_JSON_OUTPUT=reports/e2e/clinical-stability-report.json playwright test -c playwright.emulator-critical.config.ts e2e/authenticated-clinical-smoke.spec.ts e2e/admit-edit-discharge-smoke.spec.ts e2e/census-persistence-reload.spec.ts e2e/sync-conflict-resolution.spec.ts e2e/clinical-document-ai-import.spec.ts e2e/handoff-shift-export-smoke.spec.ts e2e/backup-restore-export-smoke.spec.ts --project=chromium",
     "test:e2e:clinical-stability:ci": "bash scripts/run-e2e-clinical-stability-ci.sh",
+    "test:e2e:census-visual:ci": "bash scripts/run-census-visual-nightly-ci.sh",
     "test:e2e:laboratory-smoke": "unset NO_COLOR; playwright test -c playwright.emulator-critical.config.ts e2e/laboratory-flow-smoke.spec.ts",
     "test:e2e:rayen-extension-runtime": "node scripts/smoke-rayen-extension-runtime.mjs",
     "test:e2e:rayen-extension-upgrade": "node scripts/smoke-rayen-extension-cross-version.mjs",

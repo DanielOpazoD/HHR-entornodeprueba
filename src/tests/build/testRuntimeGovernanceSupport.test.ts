@@ -38,6 +38,25 @@ afterEach(() => {
   for (const root of temporaryRoots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
+// The workflows the contract reads: PR CI, the nightly runtime one and any a nightly suite names.
+const governedWorkflows = (): string[] => {
+  const config = JSON.parse(fs.readFileSync('scripts/config/test-runtime-governance.json', 'utf8'));
+  const named = (config.nightlySuites as Array<{ workflow?: string }>).map(suite => suite.workflow);
+  return Array.from(
+    new Set(['.github/workflows/ci-cd.yml', '.github/workflows/nightly-test-runtime.yml', ...named])
+  ).filter((workflow): workflow is string => Boolean(workflow));
+};
+const copyGovernedFiles = (root: string): void => {
+  for (const relative of [
+    ...governedWorkflows(),
+    'scripts/config/unit-shard-balance.json',
+    'src/tests/services/storage/syncQueueLoad.test.ts',
+  ]) {
+    fs.mkdirSync(path.dirname(path.join(root, relative)), { recursive: true });
+    fs.copyFileSync(relative, path.join(root, relative));
+  }
+};
+
 describe('test runtime governance support', () => {
   it('keeps PR-critical and nightly test surfaces explicit', () => {
     const report = buildTestRuntimeGovernanceReport(process.cwd());
@@ -63,15 +82,7 @@ describe('test runtime governance support', () => {
 
   it('reads the workflows by structure, not by indentation or list style', () => {
     const root = makeReportRoot();
-    for (const relative of [
-      '.github/workflows/ci-cd.yml',
-      '.github/workflows/nightly-test-runtime.yml',
-      'scripts/config/unit-shard-balance.json',
-      'src/tests/services/storage/syncQueueLoad.test.ts',
-    ]) {
-      fs.mkdirSync(path.dirname(path.join(root, relative)), { recursive: true });
-      fs.copyFileSync(relative, path.join(root, relative));
-    }
+    copyGovernedFiles(root);
     for (const relative of ['src/tests/support', 'src/tests/utils', 'src/tests/integration']) {
       fs.mkdirSync(path.join(root, relative), { recursive: true });
     }
@@ -92,15 +103,7 @@ describe('test runtime governance support', () => {
     'rejects a nightly load suite reintroduced through %s expansion',
     script => {
       const root = makeReportRoot();
-      for (const relative of [
-        '.github/workflows/ci-cd.yml',
-        '.github/workflows/nightly-test-runtime.yml',
-        'scripts/config/unit-shard-balance.json',
-        'src/tests/services/storage/syncQueueLoad.test.ts',
-      ]) {
-        fs.mkdirSync(path.dirname(path.join(root, relative)), { recursive: true });
-        fs.copyFileSync(relative, path.join(root, relative));
-      }
+      copyGovernedFiles(root);
       for (const relative of ['src/tests/support', 'src/tests/utils']) {
         fs.mkdirSync(path.join(root, relative), { recursive: true });
       }

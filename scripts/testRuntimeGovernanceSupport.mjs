@@ -57,9 +57,7 @@ const blockUnder = (lines, keyPattern) => {
 
 /** Workflow text without comments, or null when the file is missing. */
 const readWorkflow = (root, workflowPath) =>
-  fs.existsSync(path.join(root, workflowPath))
-    ? stripComments(readText(root, workflowPath))
-    : null;
+  fs.existsSync(path.join(root, workflowPath)) ? stripComments(readText(root, workflowPath)) : null;
 
 /** Whether `text` runs `npm run <script>`, also when a folded scalar wraps the command. */
 const runsScript = (text, script) =>
@@ -75,9 +73,7 @@ const jobText = (workflow, jobName) => {
   const jobs = blockUnder(lines, /^jobs:\s*$/);
   const firstKey = jobs?.find(line => line.trim());
   if (!firstKey) return null;
-  const jobKey = new RegExp(
-    `^ {${indentOf(firstKey)}}['"]?${escapeRegExp(jobName)}['"]?:\\s*$`
-  );
+  const jobKey = new RegExp(`^ {${indentOf(firstKey)}}['"]?${escapeRegExp(jobName)}['"]?:\\s*$`);
   const job = blockUnder(jobs, jobKey);
   return job ? job.join('\n') : null;
 };
@@ -90,7 +86,11 @@ const listValues = (text, key) => {
   if (!line) return null;
   const inline = line.slice(line.indexOf(':') + 1).trim();
   const unquote = value => value.trim().replace(/^['"]|['"]$/g, '');
-  if (inline.startsWith('[')) return inline.replace(/^\[|\]$/g, '').split(',').map(unquote);
+  if (inline.startsWith('['))
+    return inline
+      .replace(/^\[|\]$/g, '')
+      .split(',')
+      .map(unquote);
   return (blockUnder(lines, keyPattern) ?? [])
     .filter(item => /^\s*-\s/.test(item))
     .map(item => unquote(item.replace(/^\s*-\s/, '')));
@@ -105,12 +105,21 @@ const workflowTriggers = workflow => {
   const onLine = lines.find(line => /^['"]?on['"]?:/.test(line));
   if (!onLine) return [];
   const inline = onLine.slice(onLine.indexOf(':') + 1).trim();
-  if (inline) return inline.replace(/^\[|\]$/g, '').split(',').map(value => value.trim());
+  if (inline)
+    return inline
+      .replace(/^\[|\]$/g, '')
+      .split(',')
+      .map(value => value.trim());
   const block = blockUnder(lines, /^['"]?on['"]?:\s*$/) ?? [];
   const keyIndent = Math.min(...block.filter(line => line.trim()).map(indentOf));
   return block
     .filter(line => line.trim() && indentOf(line) === keyIndent)
-    .map(line => line.trim().replace(/:.*$/, '').replace(/^['"]|['"]$/g, ''));
+    .map(line =>
+      line
+        .trim()
+        .replace(/:.*$/, '')
+        .replace(/^['"]|['"]$/g, '')
+    );
 };
 
 const commandForScript = (packageScripts, scriptName) => packageScripts?.[scriptName] || '';
@@ -308,7 +317,6 @@ export const collectTestRuntimeGovernanceIssues = root => {
   if (!ciWorkflow) issues.push(`Missing ${CI_WORKFLOW_PATH}`);
   if (!nightlyWorkflow) issues.push(`Missing ${NIGHTLY_WORKFLOW_PATH}`);
   const ciCommands = ciWorkflow ?? '';
-  const nightlyCommands = nightlyWorkflow ?? '';
 
   for (const suite of config.prBlockingSuites) {
     const job = jobText(readWorkflow(root, suite.workflow), suite.job);
@@ -362,19 +370,31 @@ export const collectTestRuntimeGovernanceIssues = root => {
     issues.push('package.json is missing script report:ci-runtime-observed-profile.');
   }
 
-  const nightlyTriggers = workflowTriggers(nightlyWorkflow);
-  if (nightlyTriggers.includes('pull_request')) {
-    issues.push('nightly-test-runtime must not run on pull_request.');
-  }
-  if (!nightlyTriggers.includes('workflow_dispatch') || !nightlyTriggers.includes('schedule')) {
-    issues.push('nightly-test-runtime must support workflow_dispatch and schedule.');
+  // Every nightly workflow, the runtime one and any a suite names, runs on schedule or by hand.
+  const nightlyWorkflowPaths = new Set([
+    NIGHTLY_WORKFLOW_PATH,
+    ...config.nightlySuites.map(suite => suite.workflow).filter(Boolean),
+  ]);
+  for (const workflowPath of nightlyWorkflowPaths) {
+    const workflow = readWorkflow(root, workflowPath);
+    if (!workflow) {
+      if (workflowPath !== NIGHTLY_WORKFLOW_PATH) issues.push(`Missing ${workflowPath}`);
+      continue;
+    }
+    const name = path.basename(workflowPath, '.yml');
+    const triggers = workflowTriggers(workflow);
+    if (triggers.includes('pull_request')) issues.push(`${name} must not run on pull_request.`);
+    if (!triggers.includes('workflow_dispatch') || !triggers.includes('schedule')) {
+      issues.push(`${name} must support workflow_dispatch and schedule.`);
+    }
   }
   for (const suite of config.nightlySuites) {
+    const suiteWorkflow = readWorkflow(root, suite.workflow ?? NIGHTLY_WORKFLOW_PATH) ?? '';
     for (const script of scriptNamesForSuite(suite)) {
       if (!packageJson.scripts?.[script]) {
         issues.push(`${suite.id}: package.json is missing script ${script}.`);
       }
-      if (!runsScript(nightlyCommands, script)) {
+      if (!runsScript(suiteWorkflow, script)) {
         issues.push(`${suite.id}: nightly workflow does not run ${script}.`);
       }
       if (runsScript(ciCommands, script)) {

@@ -74,6 +74,14 @@
       "script": "test:e2e:clinical-stability:ci",
       "maxMinutes": 20,
       "reason": "Long browser scenario suite belongs in nightly coverage, not the PR critical path."
+    },
+    {
+      "id": "census-visual",
+      "label": "Census and clinical explorer visual checks",
+      "workflow": ".github/workflows/nightly-census-visual.yml",
+      "script": "test:e2e:census-visual:ci",
+      "maxMinutes": 15,
+      "reason": "Layout at 13 inches against the production build is nightly evidence; PRs keep the faster lanes."
     }
   ],
   "fixtureGovernance": {
