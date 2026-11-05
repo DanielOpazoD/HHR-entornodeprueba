@@ -161,7 +161,7 @@ export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
           </div>
         )}
 
-        {rows.length > 1 && (
+        {(rows.length > 1 || rows.some(row => row.cells.pam)) && (
           <section>
             <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
               Historial · {rows.length} tomas

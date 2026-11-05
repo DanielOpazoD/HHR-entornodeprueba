@@ -111,6 +111,14 @@ describe('VitalsCell', () => {
     expect(screen.queryByTitle('Sin signos vitales')).not.toBeInTheDocument();
   });
 
+  it('shows rounded PAM only in the detail table, including a single measurement', async () => {
+    renderCell({ ...VITALS, spo2: 98, meanArterialPressure: 87.7 }, 'R1', { age: '44' });
+    expect(screen.queryByText('PAM')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+    expect(await screen.findByRole('columnheader', { name: 'PAM' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: '88' })).toBeInTheDocument();
+  });
+
   it('keeps detail-only readings available without adding an inline warning', async () => {
     renderCell({ ...VITALS, spo2: 98, painEva: 8 }, 'R1', { age: '44' });
 

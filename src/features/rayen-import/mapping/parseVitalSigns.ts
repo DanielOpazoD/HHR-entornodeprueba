@@ -31,6 +31,19 @@ const num = (raw: string): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
+/** Only explicit PAM values, never inferred from systolic/diastolic pressure. */
+const reportedPam = (campos: RawCampo[], observations: string): number | null => {
+  const field = campos.find(campo =>
+    /^(pam|presi[oó]n arterial media)(?:\s*\(mmhg\))?$/i.test(str(campo.label))
+  );
+  const structured = field ? num(str(field.value)) : null;
+  const match = observations.match(
+    /\bPAM\s*(?:[:=(]\s*)?([0-9]+(?:[.,][0-9]+)?)(?![0-9]|[.,][0-9])\s*(?:mmHg\b|\)|[.,;]|$)/i
+  );
+  const value = structured ?? (match ? num(match[1]) : null);
+  return value == null ? null : Math.round(value);
+};
+
 const pad2 = (value: string): string => value.padStart(2, '0');
 
 /**
@@ -122,6 +135,7 @@ export const parseVitalSigns = (raw: unknown): PatientVitalSigns[] => {
       // reciente (reportado en vivo el 01-09 en R1).
       recordedDate: epoch != null ? rapaNuiDay(epoch) : when.iso,
       recordedAt: epoch != null ? rapaNuiClock(epoch) : clinicalStamp || when.raw,
+      meanArterialPressure: reportedPam(campos, get(OBS_IDS)),
       systolic: num(get(FIELD_IDS.systolic)),
       diastolic: num(get(FIELD_IDS.diastolic)),
       heartRate: num(get(FIELD_IDS.heartRate)),
@@ -141,6 +155,7 @@ export const parseVitalSigns = (raw: unknown): PatientVitalSigns[] => {
     // HGT and insulin count too: a glucose check or an insulin administration can be recorded on a
     // form of its own, and we still want that row in the history.
     const hasReading =
+      record.meanArterialPressure != null ||
       record.systolic != null ||
       record.diastolic != null ||
       record.heartRate != null ||

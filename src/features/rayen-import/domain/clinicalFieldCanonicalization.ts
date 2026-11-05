@@ -49,6 +49,7 @@ const normalizeEvaluationScores = (value: unknown): unknown => {
 const NULLABLE_VITAL_FIELDS = [
   'systolic',
   'diastolic',
+  'meanArterialPressure',
   'heartRate',
   'spo2',
   'temperature',
