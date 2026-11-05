@@ -35,23 +35,19 @@
     const listId = classificationId(item.diagnosisId);
     const admissionId = admissionClassificationId(h, item, admissionName, listName);
 
-    if (principal) {
-      return {
-        name: firstText(principal.diagnosisName, principal.name, principal.description,
-          principal.freeTextDiagnosis, principalName, admissionName, listName),
-        code: text(principal.internalCode),
-        classificationId: classificationId(principal.diagnosisClassifyId),
-        source: 'principal-entry',
-      };
-    }
-    if (principalName) {
-      return {
-        name: principalName,
-        code: '',
-        classificationId: classificationId(h.principalDiagId),
-        source: 'principal-header',
-      };
-    }
+    if (principal) return {
+      name: firstText(principal.diagnosisName, principal.name, principal.description,
+        principal.freeTextDiagnosis, principalName, admissionName, listName),
+      code: text(principal.internalCode),
+      classificationId: classificationId(principal.diagnosisClassifyId),
+      source: 'principal-entry',
+    };
+    if (principalName) return {
+      name: principalName,
+      code: '',
+      classificationId: classificationId(h.principalDiagId),
+      source: 'principal-header',
+    };
     return {
       name: admissionName || listName,
       code: '',
