@@ -39,6 +39,15 @@ const hasDocumentaryIdentity = (patient: PatientData): boolean =>
   !patient.neonatalMaternalRut &&
   patient.identityStatus !== 'provisional';
 
+/** A passport is compared only with the same passport, never as a RUN (ID-01). */
+const isPassportDocument = (patient: PatientData): boolean =>
+  patient.documentType === 'Pasaporte' &&
+  Boolean(cudyrDocumentKey(patient.rut)) &&
+  !isValidRut(patient.rut) &&
+  Boolean(patient.patientName.trim()) &&
+  !patient.neonatalMaternalRut &&
+  patient.identityStatus !== 'provisional';
+
 export interface DailyCudyrGap {
   clinicalEpisodeId: string;
   date: string;
@@ -132,11 +141,26 @@ export const recoverDailyCudyrGap = (
     )
   )
     return { kind: 'attribution_unreliable' };
-  if (patient.clinicalEpisodeId !== gap.clinicalEpisodeId || !hasDocumentaryIdentity(patient))
+  const passport = isPassportDocument(patient);
+  if (
+    patient.clinicalEpisodeId !== gap.clinicalEpisodeId ||
+    (!hasDocumentaryIdentity(patient) && !passport)
+  )
     return { kind: 'attribution_unreliable' };
   if (source.report.month !== sourceDate.slice(0, 7)) return { kind: 'documentary_inconclusive' };
   const document = cudyrDocumentKey(patient.rut);
   const identity = cudyrIdentity(patient.rut, patient.patientName);
+  if (passport) {
+    // A passport never receives a documentary category, but its own blank night still answers
+    // that nobody recorded it (CUD-07), so it does not keep every sync partial.
+    // A missing row may sit under another identifier, so only the same passport and name answer.
+    const rows = source.report.patients.filter(p => cudyrDocumentKey(p.document) === document);
+    const [row] = rows;
+    if (!row || rows.length > 1 || cudyrIdentity(row.document, row.patientName) !== identity)
+      return { kind: 'attribution_unreliable' };
+    const categorized = row.days.some(d => d.sourceDate === sourceDate && d.state === 'category');
+    return categorized ? { kind: 'attribution_unreliable' } : withoutCategory();
+  }
   if (
     !hasUniqueDocumentaryCudyrIdentity(
       records.filter(record => record.date === gap.date || record.date === sourceDate),

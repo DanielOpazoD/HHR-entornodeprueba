@@ -110,3 +110,75 @@ describe('CUDYR recovery for a patient under eight hours at the cutoff', () => {
     expect(result.previous).toEqual([]);
   });
 });
+
+describe('CUDYR recovery for a patient identified by passport (ID-01)', () => {
+  const PASSPORT = 'N12345678';
+  const passportPatient = (rut = PASSPORT) =>
+    ({ ...patient(), rut, documentType: 'Pasaporte' }) as unknown as ReturnType<typeof patient>;
+  const reportWithPassport = (night: 'category' | 'blank') => {
+    const source = parsedSource();
+    const answered = structuredClone(source.report.patients[0]);
+    source.report.patients[0] = {
+      ...source.report.patients[0],
+      document: PASSPORT,
+      days: source.report.patients[0].days.map(day =>
+        day.sourceDate === '2026-10-27' && night === 'blank'
+          ? { ...day, category: null, state: 'blank' as const }
+          : day
+      ),
+    };
+    // Another patient was categorized that morning, so the report covers it.
+    source.report.patients.push({
+      ...answered,
+      document: '22.222.222-2',
+      patientName: 'Otra Paciente Sintética',
+    });
+    return source;
+  };
+  const resolve = (bedPatient: ReturnType<typeof patient>, source = parsedSource()) =>
+    recoverDailyCudyrGap(gapFor(bedPatient), [dayWith(bedPatient)], source);
+
+  it('answers «not recorded» when the same passport and name left that night blank', () => {
+    expect(resolve(passportPatient(), reportWithPassport('blank'))).toEqual({
+      kind: 'not_recorded',
+    });
+  });
+
+  it('never writes a documentary category for a passport; a person enters it', () => {
+    expect(resolve(passportPatient(), reportWithPassport('category'))).toEqual({
+      kind: 'attribution_unreliable',
+    });
+  });
+
+  it('never compares a passport as a RUN, even when it reads as one', () => {
+    expect(resolve(passportPatient(patient().rut))).toEqual({ kind: 'attribution_unreliable' });
+  });
+
+  it('does not keep the sync partial over a passport night nobody recorded', async () => {
+    const admitted = passportPatient();
+    const reader = createDailyCudyrRecoveryReader({
+      signal: new AbortController().signal,
+      now,
+      loadDay: async () => dayWith(admitted),
+      capture: async () => reportWithPassport('blank'),
+    });
+
+    const result = await reader({ ...currentDay(), beds: {} }, [admitted.clinicalEpisodeId], {
+      map: new Map(),
+      historyAvailable: true,
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.previous).toEqual([]);
+  });
+
+  it('stays unattributable without its own row or with another name on it', () => {
+    const missing = reportWithPassport('blank');
+    missing.report.patients = missing.report.patients.slice(1);
+    expect(resolve(passportPatient(), missing)).toEqual({ kind: 'attribution_unreliable' });
+
+    const renamed = reportWithPassport('blank');
+    renamed.report.patients[0] = { ...renamed.report.patients[0], patientName: 'Nombre Distinto' };
+    expect(resolve(passportPatient(), renamed)).toEqual({ kind: 'attribution_unreliable' });
+  });
+});
