@@ -81,6 +81,23 @@ describe('cleanInvalidEpisodeFromPreviousDay', () => {
     expect(discharges.find(item => item.id === 'd-other')?.deletedAt).toBeUndefined();
   });
 
+  it('never writes a day past its 48 h, even before the morning handoff', async () => {
+    // 07:00 on 2026-11-05 in Rapa Nui: the census day is still 2026-11-04, and 2026-11-03 began
+    // 55 hours earlier.
+    const early = repositoryFor(yesterday({ date: '2026-11-03' }));
+
+    expect(
+      await cleanInvalidEpisodeFromPreviousDay({
+        repository: early as never,
+        censusDate: '2026-11-04',
+        clinicalEpisodeId: EPISODE,
+        now: new Date('2026-11-05T12:00:00Z'),
+      })
+    ).toEqual({ status: 'not_applicable' });
+    expect(early.getAuthoritativeForDate).not.toHaveBeenCalled();
+    expect(early.updatePartialDetailed).not.toHaveBeenCalled();
+  });
+
   it('leaves past census days, days without the episode and missing days alone', async () => {
     const past = repositoryFor(yesterday());
     expect(await clean(past, '2026-11-04')).toEqual({ status: 'not_applicable' });
