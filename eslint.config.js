@@ -4,6 +4,97 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import react from 'eslint-plugin-react';
 import tseslint from 'typescript-eslint';
 import boundaries from 'eslint-plugin-boundaries';
+import { readFileSync } from 'node:fs';
+
+// Feature boundaries. scripts/feature-dependency-matrix.json says which features a feature may
+// import, and the public-API allowlist which entry points of a feature are public. ESLint turns
+// both into `no-restricted-imports` patterns so a violation shows in the editor and fails
+// `npm run lint`; `npm run check:feature-dependencies` keeps the same rule as a backstop in CI.
+const readJson = relativePath =>
+  JSON.parse(readFileSync(new URL(relativePath, import.meta.url), 'utf8'));
+const FEATURE_MATRIX = readJson('./scripts/feature-dependency-matrix.json');
+const FEATURE_PUBLIC_MODULES =
+  readJson('./scripts/feature-public-api-allowlist.json').publicModulesByFeature ?? {};
+// Known deep imports the dependency check tolerates: `rule|importer|importPath|feature`.
+const FEATURE_IMPORT_DEBT = (
+  readJson('./scripts/feature-dependency-allowlist.json').violations ?? []
+)
+  .map(entry => entry.split('|'))
+  .filter(([rule]) => rule === 'feature-must-use-public-api')
+  .map(([, importer, importPath]) => ({ importer, importPath }));
+const FEATURE_NAMES = Object.keys(FEATURE_MATRIX.features);
+
+const featurePublicPaths = feature => [
+  ...FEATURE_MATRIX.publicImportPatterns.map(pattern => pattern.replace('{feature}', feature)),
+  ...(FEATURE_PUBLIC_MODULES[feature] ?? []),
+];
+
+/** `no-restricted-imports` patterns for sources of `feature`; `tolerated` are deep paths one allowlisted importer may still use. */
+const featureImportPatterns = (feature, tolerated = []) => {
+  const allowed = new Set(FEATURE_MATRIX.features[feature] ?? []);
+  return FEATURE_NAMES.filter(other => other !== feature).map(other => {
+    const toleratedHere = tolerated
+      .filter(path => path.startsWith(`@/features/${other}/`))
+      .map(path => `!${path}`);
+    if (!allowed.has(other)) {
+      return {
+        group: [`@/features/${other}`, `@/features/${other}/**`, ...toleratedHere],
+        message: `«${feature}» no depende de «${other}» en scripts/feature-dependency-matrix.json. Agrega la dependencia allí o resuelve la necesidad en otra capa.`,
+      };
+    }
+    const publicPaths = featurePublicPaths(other);
+    return {
+      // `/**` leaves the bare `@/features/<other>` path alone: that one is public.
+      group: [
+        `@/features/${other}/**`,
+        ...publicPaths.filter(path => path !== `@/features/${other}`).map(path => `!${path}`),
+        ...toleratedHere,
+      ],
+      message: `Importa «${other}» por su superficie pública: ${publicPaths.join(', ')}.`,
+    };
+  });
+};
+
+// cudyr and handoff also keep data access behind controllers/use-cases/ports.
+const DATA_ACCESS_RESTRICTION = {
+  group: [
+    '@/services/repositories/*',
+    '@/services/RepositoryContext',
+    '@/services/infrastructure/*',
+  ],
+  message:
+    'Usa controllers/use-cases/ports para acceder a datos. No importes repositorios ni infraestructura directo desde UI/feature shell.',
+};
+const FEATURES_WITHOUT_DIRECT_DATA_ACCESS = new Set(['cudyr', 'handoff']);
+const featureOf = importer => importer.match(/^src\/features\/([^/]+)\//)?.[1];
+const restrictedImportsFor = (feature, tolerated = []) => [
+  'error',
+  {
+    patterns: [
+      ...featureImportPatterns(feature, tolerated),
+      ...(FEATURES_WITHOUT_DIRECT_DATA_ACCESS.has(feature) ? [DATA_ACCESS_RESTRICTION] : []),
+    ],
+  },
+];
+const FEATURE_BOUNDARY_CONFIGS = [
+  ...FEATURE_NAMES.map(feature => ({
+    files: [`src/features/${feature}/**/*.{ts,tsx}`],
+    ignores: ['**/*.test.{ts,tsx}', '**/*.stories.{ts,tsx}'],
+    rules: { 'no-restricted-imports': restrictedImportsFor(feature) },
+  })),
+  // One block per allowlisted importer: its tolerated deep paths, and nothing else.
+  ...Object.entries(
+    FEATURE_IMPORT_DEBT.reduce((byImporter, { importer, importPath }) => {
+      (byImporter[importer] ??= []).push(importPath);
+      return byImporter;
+    }, {})
+  )
+    .filter(([importer]) => featureOf(importer))
+    .map(([importer, tolerated]) => ({
+      files: [importer],
+      rules: { 'no-restricted-imports': restrictedImportsFor(featureOf(importer), tolerated) },
+    })),
+];
 
 // Glossary enforcement — only terms with zero current usage are banned (see docs/GLOSSARY.md).
 // Adding new ones requires first migrating all legitimate uses; otherwise the rule produces noise
@@ -194,30 +285,12 @@ export default tseslint.config(
     },
   },
   {
-    files: [
-      'src/features/cudyr/**/*.{ts,tsx}',
-      'src/features/handoff/**/*.{ts,tsx}',
-      'src/components/layout/**/*.{ts,tsx}',
-    ],
+    files: ['src/components/layout/**/*.{ts,tsx}'],
     rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              group: [
-                '@/services/repositories/*',
-                '@/services/RepositoryContext',
-                '@/services/infrastructure/*',
-              ],
-              message:
-                'Usa controllers/use-cases/ports para acceder a datos. No importes repositorios ni infraestructura directo desde UI/feature shell.',
-            },
-          ],
-        },
-      ],
+      'no-restricted-imports': ['error', { patterns: [DATA_ACCESS_RESTRICTION] }],
     },
   },
+  ...FEATURE_BOUNDARY_CONFIGS,
   {
     extends: [js.configs.recommended],
     files: ['functions/**/*.js', 'netlify/functions/**/*.js'],
