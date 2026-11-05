@@ -21,6 +21,15 @@ vi.mock('@/features/census/context/censusActionContexts', () => ({
   useCensusActionCommands: vi.fn(),
 }));
 
+const access = vi.hoisted(() => ({ role: 'nurse_hospital', canPerformActions: true }));
+vi.mock('@/context/AuthContext', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/context/AuthContext')>()),
+  useAuth: () => ({ role: access.role }),
+}));
+vi.mock('@/hooks/useStabilityRules', () => ({
+  useStabilityRules: () => ({ canPerformActions: access.canPerformActions }),
+}));
+
 const markClinicalEpisodeInvalid = vi.hoisted(() => vi.fn());
 vi.mock('@/services/census/invalidClinicalEpisodeService', () => ({
   markClinicalEpisodeInvalid,
@@ -113,6 +122,8 @@ describe('DischargesSection integration', () => {
     });
 
     beforeEach(() => {
+      access.role = 'nurse_hospital';
+      access.canPerformActions = true;
       vi.mocked(useDailyRecordMovements).mockReturnValue(
         asHookValue<ReturnType<typeof useDailyRecordMovements>>({
           discharges: [duplicate],
@@ -153,6 +164,23 @@ describe('DischargesSection integration', () => {
 
       expect(await screen.findByText(/No se eliminó nada/)).toBeInTheDocument();
       expect(deleteDischarge).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['a role that cannot edit the census', () => (access.role = 'viewer')],
+      ['a day closed to actions', () => (access.canPerformActions = false)],
+    ])('is not offered on %s', async (_case, restrict) => {
+      restrict();
+      render(
+        <UIProvider>
+          <DischargesSection />
+        </UIProvider>
+      );
+      fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+      await screen.findByRole('menuitem', { name: 'Editar' });
+
+      expect(screen.queryByRole('menuitem', { name: 'Paciente no válido' })).toBeNull();
+      expect(markClinicalEpisodeInvalid).not.toHaveBeenCalled();
     });
 
     it('is not offered for an alta without an Eloísa episode', async () => {

@@ -1,4 +1,8 @@
 import { useDailyRecordMovementActions } from '@/context/useDailyRecordScopedActions';
+import { useAuth } from '@/context/AuthContext';
+import { useStabilityRules } from '@/hooks/useStabilityRules';
+import { canEditAppModule } from '@/shared/access/operationalAccessPolicy';
+import { isE2EEditableRecordOverrideEnabled } from '@/shared/runtime/e2eRuntime';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { useCensusActionCommands } from '../context/censusActionContexts';
 import { useCensusMovementData } from './useCensusMovementData';
@@ -21,6 +25,12 @@ export const useDischargesSectionModel = () => {
     convertDischargeToTransfer,
   } = useDailyRecordMovementActions();
   const { handleEditDischarge } = useCensusActionCommands();
+  const { role } = useAuth();
+  const { canPerformActions } = useStabilityRules(recordDate ? { date: recordDate } : null);
+  // Same permission as «Limpiar»: a census editor, on a day still open to actions. The mark has no
+  // date check of its own in the rules, so a locked or read-only day must never offer it.
+  const canMarkInvalid =
+    canPerformActions && (canEditAppModule(role, 'CENSUS') || isE2EEditableRecordOverrideEnabled());
   const { confirm } = useConfirmDialog();
   const { error: notifyError } = useNotification();
   const sectionModel = useMovementSectionModel({
@@ -59,7 +69,7 @@ export const useDischargesSectionModel = () => {
 
   const handleMarkDischargeInvalid = async (discharge: DischargeData) => {
     const clinicalEpisodeId = discharge.clinicalEpisodeId?.trim();
-    if (!clinicalEpisodeId) return;
+    if (!canMarkInvalid || !clinicalEpisodeId) return;
     try {
       if (!(await confirm(DISCHARGE_INVALID_CONFIRM_DIALOG))) return;
     } catch {
@@ -92,6 +102,6 @@ export const useDischargesSectionModel = () => {
     updateDischarge,
     handleConvertDischargeToCma,
     handleConvertDischargeToTransfer,
-    handleMarkDischargeInvalid,
+    handleMarkDischargeInvalid: canMarkInvalid ? handleMarkDischargeInvalid : undefined,
   };
 };
