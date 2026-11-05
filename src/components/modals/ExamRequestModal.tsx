@@ -7,7 +7,7 @@
  * @see /docs/LABORATORY_FORM_GUIDE.md for design specifications
  */
 
-import React, { useMemo } from 'react';
+import React, { useId, useMemo } from 'react';
 import { Printer, FlaskConical, UserRound } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { useExamRequestOrders, type ExamRequestCandidate } from '@/hooks/useExamRequestOrders';
@@ -15,7 +15,11 @@ import type { PatientData } from '@/types/domain/patient';
 import { EXAM_REQUEST_PRINT_STYLES } from '@/components/modals/examRequestPrintStyles';
 import { buildExamRequestModalShellModel } from '@/components/modals/controllers/examRequestModalController';
 import { ExamRequestForm } from '@/components/exam-request/ExamRequestForm';
-import { ExamRequestPatientTabs } from '@/components/exam-request/ExamRequestPatientTabs';
+import {
+  ExamRequestPatientTabs,
+  examRequestPanelId,
+  examRequestTabId,
+} from '@/components/exam-request/ExamRequestPatientTabs';
 
 interface ExamRequestModalProps {
   isOpen: boolean;
@@ -57,6 +61,7 @@ const ExamRequestDialog: React.FC<ExamRequestModalProps> = ({
     initialKey: severalPatients && patientKey ? patientKey : SINGLE_PATIENT_KEY,
   });
   const shellModel = buildExamRequestModalShellModel(requests.active?.patient ?? patient);
+  const idPrefix = useId();
   const orderCount = requests.orders.length;
 
   return (
@@ -100,6 +105,7 @@ const ExamRequestDialog: React.FC<ExamRequestModalProps> = ({
     >
       {severalPatients && candidates && (
         <ExamRequestPatientTabs
+          idPrefix={idPrefix}
           candidates={candidates}
           orders={requests.orders}
           activeKey={requests.active?.key}
@@ -156,6 +162,14 @@ const ExamRequestDialog: React.FC<ExamRequestModalProps> = ({
             onPrevisionChange={requests.setPrevision}
             className={order.key === requests.active?.key ? undefined : 'hidden print:block'}
             style={index < orderCount - 1 ? { breakAfter: 'page' } : undefined}
+            panel={
+              severalPatients
+                ? {
+                    id: examRequestPanelId(idPrefix, index),
+                    labelledBy: examRequestTabId(idPrefix, index),
+                  }
+                : undefined
+            }
           />
         ))}
       </div>

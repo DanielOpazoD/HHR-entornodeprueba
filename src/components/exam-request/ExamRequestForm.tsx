@@ -29,6 +29,8 @@ interface ExamRequestFormProps {
   onPrevisionChange: (value: string) => void;
   className?: string;
   style?: React.CSSProperties;
+  /** With several patients, the form is the panel of its tab. */
+  panel?: { id: string; labelledBy: string };
 }
 
 const examRequestColumns = buildExamRequestFormColumns();
@@ -46,6 +48,7 @@ export const ExamRequestForm: React.FC<ExamRequestFormProps> = ({
   onPrevisionChange,
   className,
   style,
+  panel,
 }) => {
   const renderExamItem = (exam: string, categoryTitle: string) => (
     <ExamCheckbox
@@ -106,6 +109,9 @@ export const ExamRequestForm: React.FC<ExamRequestFormProps> = ({
   return (
     <div
       data-testid="exam-request-form"
+      id={panel?.id}
+      role={panel ? 'tabpanel' : undefined}
+      aria-labelledby={panel?.labelledBy}
       className={clsx(
         'exam-request-form bg-white p-2 border border-slate-300 shadow-sm mx-auto max-w-[800px] font-sans text-slate-900 print:p-0 print:border-none print:shadow-none print:m-0 print:max-w-none',
         className

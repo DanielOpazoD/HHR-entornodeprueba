@@ -15,6 +15,31 @@ const census = [
 ];
 
 describe('useExamRequestOrders', () => {
+  it('keeps the order of a patient moved to another bed: the key is patient and episode', () => {
+    const { result, rerender } = renderHook(
+      ({ candidates }) => useExamRequestOrders({ candidates, initialKey: '111:ep-1' }),
+      {
+        initialProps: {
+          candidates: [
+            { ...candidate('111:ep-1', 'PRIMERA SINTÉTICA'), label: 'R1' },
+            { ...candidate('222:ep-2', 'SEGUNDO SINTÉTICO'), label: 'R2' },
+          ],
+        },
+      }
+    );
+    act(() => result.current.togglePatient('222:ep-2'));
+    act(() => result.current.toggleExam('HEMATOLOGIA|HEMOGRAMA'));
+    rerender({
+      candidates: [
+        { ...candidate('111:ep-1', 'PRIMERA SINTÉTICA'), label: 'R1' },
+        { ...candidate('222:ep-2', 'SEGUNDO SINTÉTICO'), label: 'R3' },
+      ],
+    });
+    expect(result.current.orders).toHaveLength(2);
+    expect(result.current.active?.label).toBe('R3');
+    expect([...(result.current.active?.selectedExams ?? [])]).toEqual(['HEMATOLOGIA|HEMOGRAMA']);
+  });
+
   it('never hands an order to a new occupant of the same bed', () => {
     const { result, rerender } = renderHook(
       ({ candidates }) => useExamRequestOrders({ candidates, initialKey: 'R1:ep-1' }),

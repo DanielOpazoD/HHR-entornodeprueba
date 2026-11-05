@@ -4,6 +4,7 @@ import { XRayIcon } from '@/components/ui/XRayIcon';
 import type { ClinicalExplorerPatient } from '@/features/census/controllers/clinicalExplorerController';
 import { calculateHospitalizedDays } from '@/features/census/controllers/patientBedConfigViewController';
 import { formatAge } from '@/utils/ageDisplayUtils';
+import { normalizeRut } from '@/utils/rutUtils';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { StatusDot } from './clinicalExplorerUi';
 
@@ -24,6 +25,9 @@ const LazyClinicalDocumentsModal = lazy(() =>
 );
 
 type QuickAction = 'exam' | 'imaging' | 'documents';
+
+const examOrderKey = (item: ClinicalExplorerPatient): string =>
+  `${normalizeRut(item.data.rut)}:${item.episodeId}`;
 
 interface ClinicalExplorerHeaderProps {
   patient: ClinicalExplorerPatient;
@@ -57,11 +61,12 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
   const [open, setOpen] = useState<{ identity: string; kind: QuickAction } | null>(null);
   const action = open?.identity === identity ? open.kind : null;
   const setAction = (kind: QuickAction | null): void => setOpen(kind ? { identity, kind } : null);
-  // Keyed by bed and episode: the bed is a place, so a new occupant never inherits an order.
+  // An order belongs to the patient and episode, not to the bed: it follows a move to another
+  // bed and never passes to a new occupant.
   const examCandidates = useMemo(
     () =>
       patients.map(item => ({
-        key: `${item.bedId}:${item.episodeId}`,
+        key: examOrderKey(item),
         label: item.bedId,
         patient: item.data,
       })),
@@ -172,7 +177,7 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
             patient={data}
             recordDate={censusDate}
             candidates={examCandidates}
-            patientKey={identity}
+            patientKey={examOrderKey(patient)}
           />
         </Suspense>
       )}

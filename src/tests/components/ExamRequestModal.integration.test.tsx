@@ -104,6 +104,17 @@ describe('ExamRequestModal integration', () => {
 
     fireEvent.click(first);
     expect(screen.getAllByTestId('exam-request-form')[0]).not.toHaveClass('hidden');
+
+    // A tab list: arrows move between patients, and each tab names the form it shows.
+    expect(first).toHaveAttribute('tabindex', '0');
+    expect(added).toHaveAttribute('tabindex', '-1');
+    fireEvent.keyDown(first, { key: 'ArrowRight' });
+    expect(added).toHaveAttribute('aria-selected', 'true');
+    expect(added).toHaveFocus();
+    const panel = screen.getByRole('tabpanel', { name: /R2/ });
+    expect(added).toHaveAttribute('aria-controls', panel.id);
+    fireEvent.keyDown(added, { key: 'Home' });
+    expect(first).toHaveFocus();
   });
 
   it('updates the selected exam count when a visible exam is toggled', async () => {

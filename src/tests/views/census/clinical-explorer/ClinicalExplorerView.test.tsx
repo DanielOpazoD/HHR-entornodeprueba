@@ -265,9 +265,9 @@ describe('ClinicalExplorerView', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Solicitud de exámenes' });
     expect(dialog).toHaveTextContent('PRIMERA SINTÉTICA');
     // Opened for this patient, with the census patients it may add as further orders.
-    // Orders are keyed by bed and episode, so a new occupant of a bed never inherits one.
+    // Orders are keyed by patient and episode: they follow a move and never pass to another person.
     expect(within(dialog).getByTestId('exam-request-scope')).toHaveTextContent(
-      'R1:ep-r1 de R1:ep-r1,H1C1:ep-h1c1'
+      '123456785:ep-r1 de 123456785:ep-r1,58448656:ep-h1c1'
     );
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByText('Censo visible')).toBeNull();
