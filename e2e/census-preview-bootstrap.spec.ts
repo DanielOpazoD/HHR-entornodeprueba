@@ -1066,7 +1066,13 @@ test('keeps movement context and explicit missing values visible in its action m
   const section = page.locator('.census-movement-section').filter({
     has: page.getByRole('heading', { name: 'Traslados', exact: true }),
   });
-  await expect(section.getByText('Sin informar', { exact: true })).toHaveCount(3);
+  await expect(section.getByText('Sin informar', { exact: true })).toHaveCount(1);
+  await expect(section.getByRole('button', { name: 'Editar Medio de traslado', exact: true })).toHaveText(
+    'Sin informar · Completar'
+  );
+  await expect(section.getByRole('button', { name: 'Editar Centro destino' })).toHaveText(
+    'Sin informar · Completar'
+  );
   const trigger = section.getByTitle('Abrir menú de acciones');
   const epicrisis = section.getByRole('button', { name: /epicrisis/i });
   expect((await trigger.boundingBox())?.height).toBe(32);

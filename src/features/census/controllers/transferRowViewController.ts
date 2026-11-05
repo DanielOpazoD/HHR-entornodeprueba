@@ -31,7 +31,8 @@ export const resolveTransferRowViewModel = (
   movementDate: item.movementDate,
   movementTime: item.time,
   movementProvenance: item.movementProvenance,
-  evacuationMethodLabel: item.evacuationMethod,
+  evacuationMethodLabel:
+    item.evacuationMethod === 'Otro' ? item.evacuationMethodOther || '' : item.evacuationMethod,
   receivingCenterLabel: getTransferCenterLabel(item),
   transferEscortLabel: getTransferEscortLabel(item),
   actions: buildTransferRowActions(item, handlers),
