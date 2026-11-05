@@ -74,6 +74,7 @@ describe('contrato único de autoridad · alineación entre capas', () => {
     const casos: Array<{ ruta: string; escalarClinico: boolean; override: boolean }> = [
       // sobre clínico
       { ruta: 'beds.R1.pathology', escalarClinico: true, override: false },
+      { ruta: 'beds.R1.diagnosisManualOverride', escalarClinico: true, override: false },
       { ruta: 'beds.R1.upcChecklist', escalarClinico: true, override: false },
       { ruta: 'beds.R1.isUPC', escalarClinico: true, override: false },
       { ruta: 'bedTypeOverrides.R1', escalarClinico: false, override: true },
