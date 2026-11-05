@@ -5,13 +5,8 @@ import {
   openMMRADExamListMemory,
   readRememberedMMRADExams,
 } from '@/components/modals/controllers/radiologyExamListMemory';
-import { normalizeDicomPatientId } from '@/services/radiology/dicomTypes';
-import {
-  searchMMRADCheckDigitExams,
-  searchMMRADExams,
-  type MMRADExam,
-  type MMRADSearchResult,
-} from '@/services/radiology/mmradService';
+import { searchMmradStudies } from '@/components/modals/controllers/mmradStudySearch';
+import type { MMRADExam, MMRADSearchResult } from '@/services/radiology/mmradService';
 import { asMmradDateBound, sortStudiesNewestFirst } from './clinicalExplorerImagingModel';
 
 export type ClinicalExplorerImagingPhase = 'listing' | 'ready' | 'empty' | 'error';
@@ -111,48 +106,29 @@ export const useClinicalExplorerImaging = ({
       }));
 
     const timer = window.setTimeout(() => {
-      const query = { rut, dateFrom: dateFrom || undefined };
-      const show = (data: MMRADSearchResult, complete: boolean): void => {
-        const shown = memory.remember(data);
-        if (!shown || !isCurrent()) return;
-        // Without a session scope the memory does not merge, so the two answers are merged here.
-        // Only a successful exact search clears an earlier failure.
-        update(current => ({
-          ...current,
-          studies: sortStudiesNewestFirst(mergeMMRADExamLists(current.studies, shown.examenes)),
-          complete: complete || current.complete,
-          error: complete ? null : current.error,
-          refreshMessage: complete ? null : current.refreshMessage,
-          partial: current.partial || shown.check_digit_search === 'partial',
-        }));
-      };
-      const settleAlternate = (): void => {
-        if (isCurrent()) update(current => ({ ...current, alternateSettled: true }));
-      };
-      if (patientName) {
-        void searchMMRADCheckDigitExams({ ...query, patientName })
-          .then(
-            data => {
-              if (normalizeDicomPatientId(data.rut) === normalizeDicomPatientId(rut)) {
-                show(data, false);
-              }
-            },
-            () => show({ rut, examenes: [], check_digit_search: 'partial' }, false)
-          )
-          .finally(settleAlternate);
-      } else {
-        settleAlternate();
-      }
-      void searchMMRADExams(query).then(
-        data => show(data, true),
-        (error: unknown) => {
-          if (!isCurrent()) return;
-          const message = error instanceof Error ? error.message : 'No se pudo consultar MMRAD.';
-          update(current =>
-            current.studies.length > 0
-              ? { ...current, refreshMessage: message }
-              : { ...current, error: message }
-          );
+      // The same routine the radiology modal runs; this hook only decides what to keep.
+      searchMmradStudies(
+        { rut, patientName, dateFrom, dateTo: '' },
+        {
+          isCurrent,
+          // Without a session scope the memory does not merge, so the two answers are merged here.
+          // Only a successful exact search clears an earlier failure.
+          onShown: (shown, exact) =>
+            update(current => ({
+              ...current,
+              studies: sortStudiesNewestFirst(mergeMMRADExamLists(current.studies, shown.examenes)),
+              complete: exact || current.complete,
+              error: exact ? null : current.error,
+              refreshMessage: exact ? null : current.refreshMessage,
+              partial: current.partial || shown.check_digit_search === 'partial',
+            })),
+          onExactError: message =>
+            update(current =>
+              current.studies.length > 0
+                ? { ...current, refreshMessage: message }
+                : { ...current, error: message }
+            ),
+          onAlternateSettled: () => update(current => ({ ...current, alternateSettled: true })),
         }
       );
     }, SETTLE_MS);

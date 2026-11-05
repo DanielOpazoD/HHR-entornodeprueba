@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
+import { searchMmradStudies } from '@/components/modals/controllers/mmradStudySearch';
 import { useDicomReviewCache } from '@/components/radiology/useDicomReviewCache';
 import { XRayIcon } from '@/components/ui/XRayIcon';
 import { LAYER_Z_INDEX } from '@/shared/ui/layering';
@@ -7,8 +8,6 @@ import { BaseModal } from '@/components/shared/BaseModal';
 import {
   fetchMMRADPdfBlobUrl,
   fetchMMRADPortalReceiptHtml,
-  searchMMRADCheckDigitExams,
-  searchMMRADExams,
   type MMRADExam,
   type MMRADSearchResult,
 } from '@/services/radiology/mmradService';
@@ -33,10 +32,7 @@ import {
   resolveInitialMMRADModalityTab,
   resolveMMRADDatePresetRange,
 } from '@/components/modals/controllers/radiologyViewerModalController';
-import {
-  openMMRADExamListMemory,
-  readRememberedMMRADExams,
-} from '@/components/modals/controllers/radiologyExamListMemory';
+import { readRememberedMMRADExams } from '@/components/modals/controllers/radiologyExamListMemory';
 
 const DicomViewerDialog = React.lazy(() =>
   import('@/components/radiology/DicomViewerDialog').then(module => ({
@@ -185,41 +181,24 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
     const requestContext = JSON.stringify([true, rut, from, to]);
     const isCurrent = () =>
       sequence === searchSequence.current && latestContext.current === requestContext;
-    const memory = openMMRADExamListMemory({ rut, dateFrom: from, dateTo: to });
     setDicomExam(null);
-    setSearchMode(memory.remembered ? 'background' : 'foreground');
     setError(null);
     setRefreshError(null);
-    setResult(memory.remembered ?? null);
-
-    const query = { rut, dateFrom: from || undefined, dateTo: to || undefined };
-    const show = (data: MMRADSearchResult) => {
-      const shown = memory.remember(data);
-      if (shown && isCurrent()) setResult(shown);
-    };
-    // Exams MMRAD registered with a mistyped check digit come from a slower request that runs at
-    // the same time; they join the list when they arrive (see mmrad-search).
-    const patientName = patientNameOf(rut);
-    if (patientName)
-      void searchMMRADCheckDigitExams({ ...query, patientName }).then(
-        data => {
-          if (normalizeDicomPatientId(data.rut) === normalizeDicomPatientId(rut)) show(data);
-        },
-        () => show({ rut, examenes: [], check_digit_search: 'partial' })
-      );
-
-    try {
-      show(await searchMMRADExams(query));
-    } catch (err) {
-      if (isCurrent()) {
-        const message = err instanceof Error ? err.message : 'Error al buscar exámenes';
+    // The exact and the check-digit searches, and the session memory, are one shared routine.
+    const search = searchMmradStudies(
+      { rut, patientName: patientNameOf(rut), dateFrom: from, dateTo: to },
+      {
+        isCurrent,
+        onShown: shown => setResult(shown),
         // A failed refresh is not "no exams": the remembered list stays.
-        if (memory.remembered) setRefreshError(message);
-        else setError(message);
+        onExactError: (message, remembered) =>
+          remembered ? setRefreshError(message) : setError(message),
       }
-    } finally {
-      if (sequence === searchSequence.current) setSearchMode(null);
-    }
+    );
+    setSearchMode(search.remembered ? 'background' : 'foreground');
+    setResult(search.remembered ?? null);
+    await search.done;
+    if (sequence === searchSequence.current) setSearchMode(null);
   }, []);
 
   const handleSearch = useCallback(
