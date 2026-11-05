@@ -9,6 +9,7 @@ import viteCompression from 'vite-plugin-compression';
 import { VitePWA } from 'vite-plugin-pwa';
 import { chunkForModule } from './scripts/config/chunkingPolicy';
 import { createPrecacheGraphGuard } from './scripts/config/pwaPrecacheGraph';
+import { ONLINE_ONLY_ASSET_GLOBS } from './scripts/config/onlineOnlyAssets.mjs';
 import { minsalSharedInteropPlugin } from './scripts/config/minsalSharedInteropPlugin';
 import { netlifyFunctionDevServerPlugin } from './scripts/config/netlifyFunctionDevServer';
 import { bindReleaseEvidenceToBuild } from './scripts/config/releaseEvidenceRuntimeAsset';
@@ -203,137 +204,10 @@ export default defineConfig(({ mode }) => {
           swSrc: 'src/service-worker.ts',
           injectionPoint: 'self.__WB_MANIFEST',
           manifestTransforms: [precacheGraph.manifestTransform],
-          // Keep large optional references/runtime chunks out of install-time
-          // precache. They remain available as normal on-demand assets, while
-          // first-run PWA install stays focused on app shell/critical runtime.
-          globIgnores: [
-            // Optional mascot artwork is cached on use by the existing image route.
-            '**/images/moa/**',
-            // Optional profile icons are only opened on demand.
-            '**/avatars/**',
-            // Opt-in decorative scenes; no clinical dependency lives in this chunk.
-            '**/assets/MoaCompanion-*.js',
-            '**/assets/MoaCompanion-*.css',
-            '**/downloads/**',
-            '**/docs/**',
-            '**/templates/**',
-            '**/images/forms/**',
-            // MEDIF is opened explicitly and needs the original PDF under docs/,
-            // already fetched on demand. Keep its editor under the same policy;
-            // the library's offline calculators and transfer cover stay cached.
-            '**/assets/MedifTool-*.js',
-            '**/assets/MedifTool-*.css',
-            // The additional PDF editors use the same explicit-load policy as MEDIF.
-            '**/assets/ClinicalFormTool-*.js',
-            '**/assets/ClinicalFormTool-*.css',
-            // Word export needs the form's template under docs/, already on demand.
-            '**/assets/clinicalFormDocx-*.js',
-            '**/vendor/exceljs.bare.min.js',
-            '**/assets/exceljs.min-*.js',
-            '**/assets/pdf.worker-*.mjs',
-            // Optional monthly XLS import; loaded only when a file is selected.
-            '**/assets/cudyrSupplement.worker-*.js',
-            '**/assets/vendor-pdfjs-*.js',
-            '**/assets/pdf-*.js',
-            '**/assets/vendor-pdf-*.js',
-            '**/assets/LineChart-*.js',
-            '**/assets/vendor-excel-*.js',
-            '**/assets/vendor-canvas-*.js',
-            '**/assets/terminologyService-*.js',
-            // CIE-10 cell: its catalogue is already outside precache, so caching the
-            // wrapper alone would not make the search work offline.
-            '**/assets/DiagnosisCie10Cell-*.js',
-            '**/assets/fonasaDatabase-*.js',
-            '**/assets/clinicalDocumentTemplateEditorController-*.js',
-            '**/assets/vendor-heic2any-*.js',
-            // The specialist note callable and its queued replay need the network. They load
-            // through the shared Functions loader, which queues the note while offline.
-            '**/assets/specialistMedicalHandoffClient-*.js',
-            // Carryover verification requires fresh remote clinical reports; load it with sync.
-            // The copied evidence and its creation seed remain available in offline precache.
-            '**/assets/clinicalCarryoverVerification-*.js',
-            // Shared callable-batch support is consumed only by the online sync chunks above.
-            // Cache it on demand with those owners; offline day creation does not import it.
-            '**/assets/clinicalEnrichmentBatchExecutionSupport-*.js',
-            // Split-day reads (phase 1a, D10) load on demand and need the server or the SDK cache;
-            // a reader that cannot load keeps the day's embedded copy, as it shows today.
-            '**/assets/dailyRecordClinicalDerivedReadService-*.js',
-            '**/assets/clinicalDerivedEpisodeReader-*.js',
-            // The backup restore of split days shares the contract and the episode schema with
-            // them. A restore that cannot load it reports those days partial, never clean.
-            '**/assets/clinicalDerivedBackupRestore-*.js',
-            '**/assets/clinicalDerivedContract-*.js',
-            '**/assets/clinicalDerived-*.js',
-            // Account administration, activation and password changes require Firebase online.
-            '**/assets/NursingAccountsPanel-*.js',
-            '**/assets/RoleManagementPanel-*.js',
-            '**/assets/NursingPasswordDialog-*.js',
-            '**/assets/NursingAccessForm-*.js',
-            // Contextual CUDYR reports read server-authoritative history and cannot
-            // load offline. Keep the new explorer and workbook on demand as well.
-            '**/assets/CudyrReportExplorer-*.js',
-            // Optional census indicator uses the same on-demand historical reader.
-            '**/assets/CudyrMonthlyIndicator-*.js',
-            '**/assets/useCudyrReport-*.js',
-            '**/assets/cudyrReportWorkbook-*.js',
-            // The simplified Excel uses the same on-demand ExcelJS runtime.
-            '**/assets/cudyrEssentialWorkbook-*.js',
-            '**/assets/cudyrSourceWorkbook-*.js',
-            '**/assets/cudyrReportLoader-*.js',
-            // Shared historical reconstruction split from the report loader; same on-demand policy.
-            '**/assets/cudyrReportModel-*.js',
-            // Shared report facts and recovery require a verified Firebase/Eloisa read.
-            '**/assets/cudyrReportFacts-*.js',
-            '**/assets/publicCudyrPolicyRecovery-*.js',
-            // Rayen enrichment only runs while Eloisa is connected, so it is
-            // an on-demand online workflow rather than PWA install payload.
-            '**/assets/applyClinicalEnrichmentBatch-*.js',
-            '**/assets/applyHistoricalCudyr-*.js',
-            '**/assets/clinicalFillRunner-*.js',
-            '**/assets/clinicalEnrichmentBatchPayload-*.js',
-            '**/assets/clinicalEnrichmentPersistenceStrategy-*.js',
-            '**/assets/replanRayenStructure-*.js',
-            // The Rayen import workflow requires a live Eloisa session, so it is an
-            // online-only surface rather than PWA install payload.
-            '**/assets/RayenImportButton-*.js',
-            // Optional send review and backup tools belong to that same on-demand panel.
-            // They never participate in clinical capture, persistence or queue processing.
-            '**/assets/RayenSyncQueueDetails-*.js',
-            '**/assets/DailyRecordTaskRecovery-*.js',
-            // The patient repository requires a live Eloisa/extension session and is opened
-            // explicitly from the clinical drawer, so it remains an online-only lazy surface.
-            '**/assets/PatientDocumentManagerDialog-*.js',
-            // Official hospitalization reports need a live Eloisa session. Their deferred
-            // dialog already contains chunk failures without replacing the editable census.
-            '**/assets/PatientHospitalizationReportsDialog-*.js',
-            // Audit downloads of official Eloísa reports work only with Eloísa and the extension.
-            '**/assets/audit-documents-*.js',
-            '**/assets/ClinicalPanelDrawer-*.js',
-            // The clinical explorer reads Eloísa, Syslab and MMRAD; it is a consultation mode
-            // opened on demand, never part of the offline census. The Ficha Médico reader it
-            // shares with the drawer only works while Eloísa is connected.
-            '**/assets/ClinicalExplorerView-*.js',
-            '**/assets/useClinicalPanelSnapshot-*.js',
-            // Sync history panel: reviewed on demand while Eloísa is connected.
-            '**/assets/RayenSyncHistoryModal-*.js',
-            // Census email delivery always needs the network; local exports stay cached.
-            '**/assets/sendCensusEmailUseCases-*.js',
-            // Optional console-only formatter. Core timing capture remains offline-capable.
-            '**/assets/perfAuditReport-*.js',
-            '**/assets/SystemHealthReporterBridge-*.js',
-            '**/assets/healthService-*.js',
-            // DICOM is online-only and must not download during PWA installation or census startup.
-            '**/assets/vendor-dicom-*.js',
-            '**/assets/RadiologyViewerModal-*.js',
-            // MMRAD list memory shared by the imaging modal, the DICOM viewer and the explorer.
-            '**/assets/radiologyExamListMemory-*.js',
-            '**/assets/Dicom*-*',
-            '**/assets/dicom*-*.js',
-            '**/assets/decodeImageFrameWorker-*.js',
-            '**/assets/computeWorker-*.js',
-            '**/assets/jpeg-*.js',
-            '**/*.wasm',
-          ],
+          // Online-only assets stay out of the install-time precache. The single list, with the
+          // reason for each entry, lives in scripts/config/onlineOnlyAssets.mjs; the budget check
+          // and the tests read the same list.
+          globIgnores: [...ONLINE_ONLY_ASSET_GLOBS],
         },
         registerType: 'autoUpdate',
         injectRegister: 'script',

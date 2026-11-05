@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { ONLINE_ONLY_PRECACHE_PATTERNS } from '../../../scripts/config/onlineOnlyAssets.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { build } from 'vite';
@@ -71,10 +72,7 @@ it('keeps the real generated login and callable graph available from precache', 
   const chunks = (Array.isArray(result) ? result : [result])
     .flatMap(output => ('output' in output ? output.output : []))
     .filter(output => output.type === 'chunk');
-  const { precacheIgnoredAssetPatterns } = JSON.parse(
-    fs.readFileSync(absolute('scripts/config/bundle-budget.json'), 'utf8')
-  );
-  const ignored = precacheIgnoredAssetPatterns.map((pattern: string) => new RegExp(pattern));
+  const ignored = ONLINE_ONLY_PRECACHE_PATTERNS.map((pattern: string) => new RegExp(pattern));
   const manifest = chunks
     .filter(chunk => !ignored.some((pattern: RegExp) => pattern.test(chunk.fileName)))
     .map(chunk => ({ url: chunk.fileName, revision: null }));
