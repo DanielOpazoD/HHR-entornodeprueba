@@ -36,7 +36,9 @@ features/laboratory/
 │   ├── useLabViewer.ts          # Fachada pública del visor
 │   ├── useLabViewerQuery.ts     # Búsqueda, cache y selección de paciente
 │   ├── useLabViewerSelection.ts # Filtros y selección de órdenes
-│   └── useLabViewerAnalysis.ts  # Análisis, clipboard y progreso
+│   ├── useLabViewerAnalysis.ts  # Análisis, clipboard y progreso
+│   ├── useSyslabAccess.ts       # Sesión de Syslab a través de la extensión
+│   └── useSyslabHospitalizationReports.ts # Informes de una hospitalización (explorador clínico del censo)
 ├── services/
 │   ├── labExcelService.ts    # Exportación Excel con resumen + datos de identificación
 │   └── labFirestoreService.ts # Persistencia Firestore

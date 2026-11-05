@@ -13,6 +13,17 @@ describe('laboratory loading boundaries', () => {
     );
   });
 
+  it('hands the clinical explorer its hospitalization hook outside the precached barrel', () => {
+    // The explorer loads on demand and is not precached; through `public.ts` the hook would land
+    // in the precached laboratory chunk instead (bundle budget, 2026-11-05).
+    expect(
+      source('src/features/census/components/clinical-explorer/ClinicalExplorerLab.tsx')
+    ).toContain("from '@/features/laboratory/hospitalization-reports'");
+    expect(source('src/features/laboratory/public.ts')).not.toContain(
+      'useSyslabHospitalizationReports'
+    );
+  });
+
   it.each([
     ['LaboratoryQuickAction', 'LabResultsViewerModal'],
     ['LabResultsViewerModal', 'LabViewerAnalysis'],

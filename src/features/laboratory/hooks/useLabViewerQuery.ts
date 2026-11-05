@@ -1,6 +1,10 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { searchSyslabExams } from '@/services/laboratory/syslabService';
+import {
+  SYSLAB_LIST_RETENTION_MS,
+  SYSLAB_LIST_REUSE_MS,
+} from '@/services/laboratory/syslabLinkPolicy';
 import { queryKeys } from '@/config/queryClient';
 import type { LabPatient, SyslabExamItem } from '@/types/domain/labExamTypes';
 import {
@@ -55,8 +59,8 @@ export const useLabViewerQuery = ({
     queryKey: labQueryKey,
     queryFn: () => searchSyslabExams(selectedRut),
     enabled: searchEnabled && !!selectedRut,
-    staleTime: 10 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
+    staleTime: SYSLAB_LIST_REUSE_MS,
+    gcTime: SYSLAB_LIST_RETENTION_MS,
     retry: (failureCount, error) => failureCount < 1 && shouldRetryLabViewerSearchError(error),
   });
 
