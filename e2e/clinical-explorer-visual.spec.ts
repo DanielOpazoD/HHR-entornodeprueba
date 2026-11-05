@@ -1,3 +1,4 @@
+import { writeFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import {
   seedVisualCensus,
@@ -97,4 +98,40 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
   await expect(page.locator('.census-register')).toBeVisible();
   await expect(row).toContainText(PATIENT);
   await expect(page.getByTestId('clinical-panel-trigger-R1')).toBeFocused();
+});
+
+test('prints the laboratory orders of several patients as one document, one page each', async ({
+  page,
+}) => {
+  await seedVisualCensus(page);
+  await page.goto(`/?date=${DATE}`);
+  await expect(page.locator('[data-testid="patient-row"][data-bed-id="R1"]')).toContainText(
+    PATIENT,
+    { timeout: 20_000 }
+  );
+  await openExplorerFromBed(page, 'R1');
+
+  await page.getByRole('button', { name: 'Solicitar exámenes' }).click();
+  const dialog = page.getByTestId('exam-request-modal');
+  await expect(dialog).toBeVisible({ timeout: 20_000 });
+  await dialog.getByRole('button', { name: /Pacientes/ }).click();
+  await dialog.getByRole('checkbox', { name: /R2/ }).check();
+  const tabs = dialog.getByRole('tablist', { name: 'Pacientes de la solicitud' });
+  await expect(tabs.getByRole('tab')).toHaveCount(2);
+  await expect(tabs.getByRole('tab', { selected: true })).toContainText(SECOND_PATIENT);
+
+  // On screen only the active order shows; the printed document carries both.
+  const forms = dialog.getByTestId('exam-request-form');
+  await expect(forms).toHaveCount(2);
+  await expect(forms.nth(0)).toBeHidden();
+  await page.emulateMedia({ media: 'print' });
+  await expect(forms.nth(0)).toBeVisible();
+  await expect(forms.nth(1)).toBeVisible();
+
+  const pdf = await page.pdf({ format: 'Letter', printBackground: true });
+  const pages = pdf.toString('latin1').match(/\/Type\s*\/Page(?!s)/g) ?? [];
+  expect(pages).toHaveLength(2);
+  if (process.env.CENSUS_VISUAL_OUTPUT_DIR) {
+    writeFileSync(`${process.env.CENSUS_VISUAL_OUTPUT_DIR}/exam-orders-two-patients.pdf`, pdf);
+  }
 });

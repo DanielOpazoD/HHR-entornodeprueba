@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import clsx from 'clsx';
 import {
+  clinicalExplorerPatientIdentity,
+  listClinicalExplorerExamCandidates,
   resolveClinicalExplorerNeighbour,
   type ClinicalExplorerPatient,
 } from '@/features/census/controllers/clinicalExplorerController';
@@ -11,6 +13,12 @@ import { ClinicalExplorerLab } from './ClinicalExplorerLab';
 import { ClinicalExplorerNotes } from './ClinicalExplorerNotes';
 import { ClinicalExplorerPatientPanel } from './ClinicalExplorerPatientPanel';
 import { EXPLORER_TABS, type ClinicalExplorerTab } from './clinicalExplorerUi';
+
+const LazyExamRequestModal = lazy(() =>
+  import('@/components/modals/ExamRequestModal').then(module => ({
+    default: module.ExamRequestModal,
+  }))
+);
 
 export interface ClinicalExplorerViewProps {
   censusDate: string;
@@ -33,6 +41,21 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
   patients,
 }) => {
   const [tab, setTab] = useState<ClinicalExplorerTab>('all');
+  // The laboratory request is tied to the patient who opened it, not to the bed on screen: it
+  // stays open if that patient moves to another bed and closes only if they leave the census.
+  const [examRequestFor, setExamRequestFor] = useState<string | null>(null);
+  const examCandidates = useMemo(
+    () =>
+      listClinicalExplorerExamCandidates(patients).map(candidate => ({
+        key: candidate.key,
+        label: candidate.label,
+        patient: candidate.data,
+      })),
+    [patients]
+  );
+  const examOpener = examCandidates.find(candidate => candidate.key === examRequestFor);
+  // Leaving the census closes the request for good: it does not reopen if the patient returns.
+  if (examRequestFor && !examOpener) setExamRequestFor(null);
   const index = patients.findIndex(patient => patient.bedId === bedId);
   const patient = index >= 0 ? patients[index] : null;
   const previousBedId = resolveClinicalExplorerNeighbour(patients, bedId, -1);
@@ -69,6 +92,7 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
             <>
               <ClinicalExplorerHeader
                 patient={patient}
+                onRequestExams={() => setExamRequestFor(clinicalExplorerPatientIdentity(patient))}
                 censusDate={censusDate}
                 position={{ index, total: patients.length }}
                 previousBedId={previousBedId}
@@ -137,6 +161,18 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
             </p>
           )}
         </div>
+      {examOpener && (
+        <Suspense fallback={null}>
+          <LazyExamRequestModal
+            isOpen
+            onClose={() => setExamRequestFor(null)}
+            patient={examOpener.patient}
+            recordDate={censusDate}
+            candidates={examCandidates}
+            patientKey={examOpener.key}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };

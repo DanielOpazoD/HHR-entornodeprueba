@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { BEDS } from '@/constants/beds';
 import {
   canExploreClinicalPatient,
+  clinicalExplorerPatientIdentity,
   filterClinicalExplorerPatients,
+  listClinicalExplorerExamCandidates,
   listClinicalExplorerPatients,
   resolveClinicalExplorerNeighbour,
   resolveCompactIndicationDays,
@@ -34,6 +36,29 @@ describe('clinicalExplorerController', () => {
     const listed = listClinicalExplorerPatients({ visibleBeds, beds });
     expect(listed.map(entry => entry.bedId)).toEqual(['R1', 'H1C1', 'H2C1']);
     expect(listed[0].episodeId).toBe('ep-R1');
+  });
+
+  it('names request candidates by patient and episode, once each, in census order', () => {
+    const listed = listClinicalExplorerPatients({
+      visibleBeds,
+      beds: {
+        R1: patient('R1', { clinicalEpisodeId: 'ep-same', patientName: 'Primera fila' }),
+        R2: patient('R2', { clinicalEpisodeId: 'ep-same', patientName: 'Fila repetida' }),
+        R3: patient('R3', { rut: '5.844.865-6' }),
+      },
+    });
+    expect(clinicalExplorerPatientIdentity(listed[0])).toBe('123456785:ep-same');
+    // The same patient and episode in two beds is one person: the first bed stands for it.
+    expect(
+      listClinicalExplorerExamCandidates(listed).map(candidate => [
+        candidate.key,
+        candidate.label,
+        candidate.data.patientName,
+      ])
+    ).toEqual([
+      ['123456785:ep-same', 'R1', 'Primera fila'],
+      ['58448656:ep-R3', 'R3', 'Paciente R3'],
+    ]);
   });
 
   it('treats a blocked bed and a passport holder as not explorable', () => {

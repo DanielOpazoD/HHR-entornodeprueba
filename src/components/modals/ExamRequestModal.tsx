@@ -1,113 +1,68 @@
 /**
  * ExamRequestModal Component
  *
- * Modularized laboratory exam request form with print functionality.
- * Uses extracted components and hooks for better maintainability.
- * Premium aesthetic matching MedicalIndicationsDialog style.
+ * Laboratory request form with print. From a census row it serves one patient; the clinical
+ * explorer passes the census patients, and each one added gets its own tab and printed page.
  *
  * @see /docs/LABORATORY_FORM_GUIDE.md for design specifications
  */
 
-import React from 'react';
+import React, { useId, useMemo } from 'react';
 import { Printer, FlaskConical, UserRound } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
-import { useExamRequest } from '@/hooks/useExamRequest';
+import { useExamRequestOrders, type ExamRequestCandidate } from '@/hooks/useExamRequestOrders';
 import type { PatientData } from '@/types/domain/patient';
 import { EXAM_REQUEST_PRINT_STYLES } from '@/components/modals/examRequestPrintStyles';
+import { buildExamRequestModalShellModel } from '@/components/modals/controllers/examRequestModalController';
+import { ExamRequestForm } from '@/components/exam-request/ExamRequestForm';
 import {
-  buildExamRequestFooterFields,
-  buildExamRequestFooterSection,
-  buildExamRequestFormColumns,
-  buildExamRequestModalShellModel,
-} from '@/components/modals/controllers/examRequestModalController';
-import { ExamCheckbox } from '@/components/exam-request/ExamCheckbox';
-import { ExamFormHeader } from '@/components/exam-request/ExamFormHeader';
-import { ExamPatientInfo } from '@/components/exam-request/ExamPatientInfo';
-import { ExamMetadata } from '@/components/exam-request/ExamMetadata';
+  ExamRequestPatientTabs,
+  examRequestPanelId,
+  examRequestTabId,
+} from '@/components/exam-request/ExamRequestPatientTabs';
 
 interface ExamRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
   patient: PatientData;
   recordDate?: string;
+  /** Census patients that may join this request: a tab each, printed one page per patient. */
+  candidates?: ExamRequestCandidate[];
+  /** Key of `patient` among `candidates`. */
+  patientKey?: string;
 }
 
-const examRequestColumns = buildExamRequestFormColumns();
-const examRequestFooterSection = buildExamRequestFooterSection();
-const examRequestFooterFields = buildExamRequestFooterFields();
+const SINGLE_PATIENT_KEY = 'patient';
 
-export const ExamRequestModal: React.FC<ExamRequestModalProps> = ({
+/** Mounted only while open, so every opening starts with nothing marked. */
+export const ExamRequestModal: React.FC<ExamRequestModalProps> = props =>
+  props.isOpen ? <ExamRequestDialog {...props} /> : null;
+
+const ExamRequestDialog: React.FC<ExamRequestModalProps> = ({
   isOpen,
   onClose,
   patient,
   recordDate,
+  candidates,
+  patientKey,
 }) => {
-  const {
-    selectedExams,
-    procedencia,
-    prevision,
-    setProcedencia,
-    setPrevision,
-    toggleExam,
-    handlePrint,
-  } = useExamRequest({ patient, isOpen });
-  const shellModel = buildExamRequestModalShellModel(patient);
-
-  const renderExamItem = (exam: string, categoryTitle: string) => (
-    <ExamCheckbox
-      key={`${categoryTitle}|${exam}`}
-      exam={exam}
-      categoryTitle={categoryTitle}
-      isSelected={selectedExams.has(`${categoryTitle}|${exam}`)}
-      onToggle={toggleExam}
-    />
+  const severalPatients = Boolean(
+    patientKey && candidates?.some(candidate => candidate.key === patientKey)
   );
-
-  const renderSection = (
-    title: string,
-    exams: string[],
-    options?: {
-      tube?: string;
-      columns?: 1 | 2;
-      muted?: boolean;
-      withTopBorder?: boolean;
-      withBottomBorder?: boolean;
-    }
-  ) => (
-    <React.Fragment key={title}>
-      <div
-        className={[
-          'bg-white text-slate-900 py-0.5 text-center flex flex-col items-center',
-          options?.withTopBorder ? 'border-t-2 border-slate-900' : '',
-          'border-b-2 border-slate-900',
-        ]
-          .filter(Boolean)
-          .join(' ')}
-      >
-        <span className="text-[9px] font-black tracking-widest uppercase">{title}</span>
-        {options?.tube ? (
-          <span className="text-[6px] text-slate-500 font-bold">({options.tube})</span>
-        ) : null}
-      </div>
-      <div
-        className={[
-          'p-2 flex flex-col gap-0.5',
-          options?.muted ? 'bg-slate-50/50 flex-1' : '',
-          options?.withBottomBorder ? 'border-b border-slate-200' : '',
-        ]
-          .filter(Boolean)
-          .join(' ')}
-      >
-        {options?.columns === 2 ? (
-          <div className="grid grid-cols-2 gap-x-2">
-            {exams.map(exam => renderExamItem(exam, title))}
-          </div>
-        ) : (
-          exams.map(exam => renderExamItem(exam, title))
-        )}
-      </div>
-    </React.Fragment>
+  const pool = useMemo<ExamRequestCandidate[]>(
+    () =>
+      severalPatients && candidates
+        ? candidates
+        : [{ key: SINGLE_PATIENT_KEY, label: '', patient }],
+    [severalPatients, candidates, patient]
   );
+  const requests = useExamRequestOrders({
+    candidates: pool,
+    initialKey: severalPatients && patientKey ? patientKey : SINGLE_PATIENT_KEY,
+  });
+  const shellModel = buildExamRequestModalShellModel(requests.active?.patient ?? patient);
+  const idPrefix = useId();
+  const orderCount = requests.orders.length;
 
   return (
     <BaseModal
@@ -135,14 +90,31 @@ export const ExamRequestModal: React.FC<ExamRequestModalProps> = ({
       bodyClassName="max-h-[90vh] overflow-y-auto px-5 py-4"
       headerActions={
         <button
-          onClick={handlePrint}
+          onClick={requests.print}
+          title={
+            orderCount > 1
+              ? `Imprime las ${orderCount} órdenes en un solo documento, una página por paciente`
+              : undefined
+          }
           className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 px-4 py-2 text-[13px] font-semibold text-white shadow-md shadow-emerald-600/25 transition-all hover:from-emerald-600 hover:to-emerald-700 hover:shadow-lg hover:shadow-emerald-600/30 active:scale-[0.98] print:hidden"
         >
           <Printer size={14} />
-          Imprimir
+          {orderCount > 1 ? `Imprimir ${orderCount} órdenes` : 'Imprimir'}
         </button>
       }
     >
+      {severalPatients && candidates && (
+        <ExamRequestPatientTabs
+          idPrefix={idPrefix}
+          candidates={candidates}
+          orders={requests.orders}
+          activeKey={requests.active?.key}
+          isIncluded={requests.isIncluded}
+          onSelect={requests.selectOrder}
+          onTogglePatient={requests.togglePatient}
+        />
+      )}
+
       {/* Patient info banner */}
       <div className="mb-4 flex items-center gap-3 rounded-xl border border-emerald-100 bg-gradient-to-r from-emerald-50/80 via-emerald-50/40 to-transparent px-4 py-3 print:hidden">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
@@ -175,83 +147,31 @@ export const ExamRequestModal: React.FC<ExamRequestModalProps> = ({
         </div>
       </div>
 
+      {/* Only the active order shows; printing takes every order, one page each. */}
       <div className="flex flex-col gap-4">
-        {/* PDF Replica Container */}
-        <div
-          id="exam-request-form"
-          className="bg-white p-2 border border-slate-300 shadow-sm mx-auto max-w-[800px] font-sans text-slate-900 print:p-0 print:border-none print:shadow-none print:m-0 print:max-w-none"
-        >
-          <ExamFormHeader />
-          <ExamMetadata
-            procedencia={procedencia}
-            prevision={prevision}
-            onProcedenciaChange={setProcedencia}
-            onPrevisionChange={setPrevision}
+        {requests.orders.map((order, index) => (
+          <ExamRequestForm
+            key={order.key}
+            patient={order.patient}
+            recordDate={recordDate}
+            selectedExams={order.selectedExams}
+            procedencia={order.procedencia}
+            prevision={order.prevision}
+            onToggleExam={requests.toggleExam}
+            onProcedenciaChange={requests.setProcedencia}
+            onPrevisionChange={requests.setPrevision}
+            className={order.key === requests.active?.key ? undefined : 'hidden print:block'}
+            style={index < orderCount - 1 ? { breakAfter: 'page' } : undefined}
+            panel={
+              severalPatients
+                ? {
+                    id: examRequestPanelId(idPrefix, index),
+                    labelledBy: examRequestTabId(idPrefix, index),
+                  }
+                : undefined
+            }
           />
-          <ExamPatientInfo patient={patient} recordDate={recordDate} />
-
-          {/* Exams Grid */}
-          <div className="grid grid-cols-12 border-2 border-slate-900 rounded-lg overflow-hidden min-h-[480px]">
-            {examRequestColumns.map((column, columnIndex) => (
-              <div
-                key={`column-${columnIndex}`}
-                className={[
-                  'col-span-4 flex flex-col',
-                  columnIndex < examRequestColumns.length - 1 ? 'border-r-2 border-slate-900' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-              >
-                {column.sections.map((section, sectionIndex) =>
-                  renderSection(section.title, section.exams, {
-                    tube: section.tube,
-                    columns: section.columns,
-                    muted: section.muted,
-                    withTopBorder: sectionIndex > 0,
-                    withBottomBorder:
-                      columnIndex === examRequestColumns.length - 1 &&
-                      sectionIndex < column.sections.length - 1,
-                  })
-                )}
-                {column.footerLabel && column.footerExams ? (
-                  <div className="bg-white border-t border-slate-300 p-2">
-                    <span className="text-[9px] font-black text-slate-400 uppercase block mb-1 underline">
-                      {column.footerLabel}
-                    </span>
-                    {column.footerExams.map(exam => renderExamItem(exam, column.footerLabel!))}
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </div>
-
-          {/* Footer Section */}
-          <div className="grid grid-cols-12 border-2 border-slate-900 rounded-lg mt-0.5 overflow-hidden">
-            <div className="col-span-4 border-r-2 border-slate-900 flex flex-col">
-              {renderSection(examRequestFooterSection.title, examRequestFooterSection.exams, {
-                tube: examRequestFooterSection.tube,
-              })}
-            </div>
-
-            <div className="col-span-8 p-2 flex flex-col gap-4 justify-center">
-              {examRequestFooterFields.map(field => (
-                <div key={field.label} className="flex items-center gap-2">
-                  <span className="text-[9px] font-black text-slate-900 uppercase whitespace-nowrap">
-                    {field.label}:
-                  </span>
-                  {field.lines === 2 ? (
-                    <div className="flex-1 flex flex-col gap-3">
-                      <div className="border-b border-slate-900 h-0.5 w-full"></div>
-                      <div className="border-b border-slate-900 h-0.5 w-full"></div>
-                    </div>
-                  ) : (
-                    <div className="border-b border-slate-900 flex-1 h-0.5 mt-1"></div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: EXAM_REQUEST_PRINT_STYLES }} />

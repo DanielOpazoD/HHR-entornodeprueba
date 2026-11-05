@@ -8,9 +8,20 @@ vi.mock('@/features/rayen-import/clinical-panel', async importOriginal => {
   return { ...actual, requestClinicalPanel: (...args: unknown[]) => mocks.request(...args) };
 });
 vi.mock('@/components/modals/ExamRequestModal', () => ({
-  ExamRequestModal: ({ patient }: { patient: { patientName: string } }) => (
+  ExamRequestModal: ({
+    patient,
+    candidates,
+    patientKey,
+  }: {
+    patient: { patientName: string };
+    candidates?: Array<{ key: string }>;
+    patientKey?: string;
+  }) => (
     <div role="dialog" aria-label="Solicitud de exámenes">
       {patient.patientName}
+      <span data-testid="exam-request-scope">
+        {patientKey} de {candidates?.map(candidate => candidate.key).join(',')}
+      </span>
     </div>
   ),
 }));
@@ -26,10 +37,13 @@ vi.mock('@/services/radiology/mmradService', async importOriginal => {
   return {
     ...actual,
     searchMMRADExams: ({ rut }: { rut: string }) => Promise.resolve({ rut, examenes: [] }),
-    searchMMRADCheckDigitExams: ({ rut }: { rut: string }) => Promise.resolve({ rut, examenes: [] }),
+    searchMMRADCheckDigitExams: ({ rut }: { rut: string }) =>
+      Promise.resolve({ rut, examenes: [] }),
   };
 });
-vi.mock('@/components/radiology/useDicomReviewCache', () => ({ useDicomReviewCache: () => undefined }));
+vi.mock('@/components/radiology/useDicomReviewCache', () => ({
+  useDicomReviewCache: () => undefined,
+}));
 // Syslab is out of reach in this test: the laboratory card shows a quiet failure.
 vi.mock('@/features/laboratory/hooks/useSyslabAccess', () => ({
   useSyslabAccess: () => ({
@@ -112,14 +126,19 @@ const panelWithOlderActiveTreatment = {
       ...panelResult.events[0],
       patientPharmaIndicationResume: [
         { ...pharma[0], PUBLISH_DATETIME: '2026-07-13T08:00:00' },
-        { ...pharma[0], MRE_ID: 9, DESCRIPTOR: 'OMEPRAZOL 20 mg', PUBLISH_DATETIME: '2026-07-12T08:00:00' },
+        {
+          ...pharma[0],
+          MRE_ID: 9,
+          DESCRIPTOR: 'OMEPRAZOL 20 mg',
+          PUBLISH_DATETIME: '2026-07-12T08:00:00',
+        },
         { ...pharma[1], FINALIZED: false, PUBLISH_DATETIME: '2026-07-11T08:30:00' },
       ],
     },
   ],
 };
 
-const Harness = () => {
+const Harness = ({ list = patients }: { list?: typeof patients }) => {
   const selection = useClinicalExplorerSelection(DATE);
   return (
     <>
@@ -129,7 +148,7 @@ const Harness = () => {
       {selection ? (
         <>
           <ClinicalExplorerBar censusDate={DATE} bedId={selection.bedId} />
-          <ClinicalExplorerView censusDate={DATE} bedId={selection.bedId} patients={patients} />
+          <ClinicalExplorerView censusDate={DATE} bedId={selection.bedId} patients={list} />
         </>
       ) : (
         <p>Censo visible</p>
@@ -183,7 +202,9 @@ describe('ClinicalExplorerView', () => {
       'aria-selected',
       'true'
     );
-    await waitFor(() => expect(mocks.request).toHaveBeenLastCalledWith('ep-h1c1', undefined, expect.anything()));
+    await waitFor(() =>
+      expect(mocks.request).toHaveBeenLastCalledWith('ep-h1c1', undefined, expect.anything())
+    );
     expect(screen.getByRole('button', { name: 'Paciente siguiente' })).toBeDisabled();
   });
 
@@ -246,12 +267,37 @@ describe('ClinicalExplorerView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Solicitar exámenes' }));
     const dialog = await screen.findByRole('dialog', { name: 'Solicitud de exámenes' });
     expect(dialog).toHaveTextContent('PRIMERA SINTÉTICA');
+    // Opened for this patient, with the census patients it may add as further orders.
+    // Orders are keyed by patient and episode: they follow a move and never pass to another person.
+    expect(within(dialog).getByTestId('exam-request-scope')).toHaveTextContent(
+      '123456785:ep-r1 de 123456785:ep-r1,58448656:ep-h1c1'
+    );
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByText('Censo visible')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Orden de radiología' }));
     expect(await screen.findByRole('dialog', { name: 'Orden de imágenes' })).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Documentos clínicos' }));
     expect(await screen.findByRole('dialog', { name: 'Documentos clínicos' })).toBeVisible();
+  });
+
+  it('keeps the laboratory request open when its patient moves to another bed', async () => {
+    const view = open();
+    fireEvent.click(screen.getByRole('button', { name: 'Solicitar exámenes' }));
+    expect(await screen.findByRole('dialog', { name: 'Solicitud de exámenes' })).toHaveTextContent(
+      'PRIMERA SINTÉTICA'
+    );
+    // Same patient and episode, now in another bed: R1, still on screen, is empty.
+    view.rerender(<Harness list={[{ ...patients[0], bedId: 'R2' }, patients[1]]} />);
+    expect(screen.getByText(/Este paciente ya no está en el censo del día/)).toBeVisible();
+    expect(screen.getByRole('dialog', { name: 'Solicitud de exámenes' })).toHaveTextContent(
+      'PRIMERA SINTÉTICA'
+    );
+    // Once the patient leaves the census, the request leaves with them.
+    view.rerender(<Harness list={[patients[1]]} />);
+    expect(screen.queryByRole('dialog', { name: 'Solicitud de exámenes' })).toBeNull();
+    // And it does not reopen by itself if the patient comes back.
+    view.rerender(<Harness />);
+    expect(screen.queryByRole('dialog', { name: 'Solicitud de exámenes' })).toBeNull();
   });
 
   it('shows a failed read as a failure with retry, never as an empty record', async () => {
@@ -269,7 +315,9 @@ describe('ClinicalExplorerView', () => {
   it('tells when the selected patient left the census and keeps the list usable', () => {
     open('H6C2');
     expect(screen.getByText(/ya no está en el censo del día/)).toBeVisible();
-    fireEvent.click(within(screen.getByRole('list', { name: 'Lista de pacientes' })).getAllByRole('button')[1]);
+    fireEvent.click(
+      within(screen.getByRole('list', { name: 'Lista de pacientes' })).getAllByRole('button')[1]
+    );
     expect(screen.getByTestId('clinical-explorer-patient')).toHaveTextContent('SEGUNDO SINTÉTICO');
   });
 });
