@@ -54,6 +54,8 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
     [patients]
   );
   const examOpener = examCandidates.find(candidate => candidate.key === examRequestFor);
+  // Leaving the census closes the request for good: it does not reopen if the patient returns.
+  if (examRequestFor && !examOpener) setExamRequestFor(null);
   const index = patients.findIndex(patient => patient.bedId === bedId);
   const patient = index >= 0 ? patients[index] : null;
   const previousBedId = resolveClinicalExplorerNeighbour(patients, bedId, -1);

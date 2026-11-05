@@ -292,6 +292,9 @@ describe('ClinicalExplorerView', () => {
     // Once the patient leaves the census, the request leaves with them.
     view.rerender(<Harness list={[patients[1]]} />);
     expect(screen.queryByRole('dialog', { name: 'Solicitud de exámenes' })).toBeNull();
+    // And it does not reopen by itself if the patient comes back.
+    view.rerender(<Harness />);
+    expect(screen.queryByRole('dialog', { name: 'Solicitud de exámenes' })).toBeNull();
   });
 
   it('shows a failed read as a failure with retry, never as an empty record', async () => {
