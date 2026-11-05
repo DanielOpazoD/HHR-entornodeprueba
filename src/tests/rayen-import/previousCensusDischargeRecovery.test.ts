@@ -84,6 +84,7 @@ const fixture = () => {
         egresoRows: [],
       },
       isHistoricalDay: historical,
+      invalidEpisodeIds: new Set<string>(),
       reportDate: baseRecord.date,
       dailyRecord,
       isAdmin: true,

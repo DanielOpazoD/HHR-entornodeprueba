@@ -8,6 +8,7 @@ import { registerFirestoreRulesIdentityGroups } from './firestoreRulesIdentityGr
 import { registerFirestoreRulesSuite } from './firestoreRulesTestHarness';
 import { registerClinicalDocumentIntegrityRules } from './firestoreRulesClinicalDocumentIntegrity';
 import { registerFirestoreRulesTemporalBoundaries } from './firestoreRulesTemporalBoundaries';
+import { registerInvalidClinicalEpisodeRules } from './firestoreRulesInvalidClinicalEpisodes';
 
 registerFirestoreRulesSuite(harness => {
   registerFirestoreRulesAccessGroups(harness);
@@ -16,5 +17,6 @@ registerFirestoreRulesSuite(harness => {
   registerMigrationReleaseGuards(harness);
   registerFirestoreRulesIdentityGroups(harness);
   registerClinicalDocumentIntegrityRules(harness);
+  registerInvalidClinicalEpisodeRules(harness);
   registerFirestoreRulesTemporalBoundaries();
 });

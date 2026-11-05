@@ -75,6 +75,8 @@ export const HOSPITAL_COLLECTIONS = {
   MEDICAL_INDICATION_RECORDS: 'medicalIndicationRecords',
   /** Server-owned statistical specialty reclassifications for analytics reporting */
   ANALYTICS_SPECIALTY_RECLASSIFICATIONS: 'analyticsSpecialtyReclassifications',
+  /** Eloísa episodes marked «paciente no válido»; the sync never brings them back */
+  INVALID_CLINICAL_EPISODES: 'invalidClinicalEpisodes',
 } as const;
 
 // ============================================================================

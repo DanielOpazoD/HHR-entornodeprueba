@@ -67,6 +67,7 @@ const runPipeline = async (rows: EgresoReportRow[]) => {
       egresoRows: rows,
       reportDate: '2026-09-02',
       isHistoricalDay: false,
+      invalidEpisodeIds: new Set<string>(),
     },
     {
       dailyRecord: repository,

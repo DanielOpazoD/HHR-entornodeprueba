@@ -31,7 +31,9 @@ export const preparePavilionRecoverySyncScope = (
   snapshot: RayenCensusSnapshot,
   current: DailyRecord,
   occupiedBedIds: ReadonlySet<string>,
-  findCurrent: (encounter: RayenEncounter) => { bedId: string } | undefined
+  findCurrent: (encounter: RayenEncounter) => { bedId: string } | undefined,
+  /** Episodes marked «paciente no válido»: ignored exactly like a recovery position. */
+  invalidEpisodeIds: ReadonlySet<string> = new Set()
 ) => {
   const allActive = snapshot.encounters.filter(encounter => !isDischargedEncounter(encounter));
   const ignoredEncounters = snapshot.encounters.filter(isPavilionRecoveryEncounter);
@@ -41,6 +43,7 @@ export const preparePavilionRecoverySyncScope = (
       ...(snapshot.activeBedAssignments ?? [])
         .filter(assignment => isPavilionRecoveryLocation(assignment.bedId))
         .map(assignment => assignment.encounterId),
+      ...invalidEpisodeIds,
     ].filter(Boolean)
   );
   const isIgnoredEncounter = (encounter: RayenEncounter): boolean =>

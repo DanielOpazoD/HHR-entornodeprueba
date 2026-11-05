@@ -41,6 +41,8 @@ import {
 export { requiresReview } from './censusReconciliationPredicates';
 export interface ReconcileOptions {
   reference?: Date;
+  /** Episodes marked «paciente no válido»; their HHR beds are left to the marking action. */
+  invalidEpisodeIds?: ReadonlySet<string>;
 }
 export const reconcileCensus = (
   current: DailyRecord,
@@ -98,7 +100,8 @@ export const reconcileCensus = (
     snapshot,
     current,
     occupiedBedIds,
-    findCurrent
+    findCurrent,
+    options.invalidEpisodeIds
   );
   const active = activeScope.activeEncounters;
   const discharged = activeScope.dischargedEncounters;

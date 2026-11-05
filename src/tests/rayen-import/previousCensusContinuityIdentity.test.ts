@@ -109,6 +109,7 @@ const replanSetup = (previous: DailyRecord | null) => {
     egresoRows: [],
     reportDate: TODAY,
     isHistoricalDay: false,
+    invalidEpisodeIds: new Set<string>(),
   };
   return {
     getAuthoritativeForDate,

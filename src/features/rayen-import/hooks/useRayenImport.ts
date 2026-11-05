@@ -11,6 +11,7 @@ import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useAuth } from '@/context/AuthContext';
 import * as dailyRecordQuery from '@/hooks/useDailyRecordQuery';
 import { useRepositories } from '@/services/RepositoryContext';
+import { loadInvalidClinicalEpisodeIds } from '@/services/census/invalidClinicalEpisodeService';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { resolveRayenPolicyBlockMessage, useRayenImportMode } from './useRayenImportMode';
 import { INITIAL_RAYEN_IMPORT_STATE, type RayenImportState } from './rayenImportState';
@@ -241,6 +242,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     structuralPersistenceExecutionKeysRef,
     runSerializedPersistence,
     loadAuthoritativeStructuralRecord,
+    loadInvalidEpisodeIds: loadInvalidClinicalEpisodeIds,
   });
   const triggerImport = useRayenImportCapture({
     currentRecord,

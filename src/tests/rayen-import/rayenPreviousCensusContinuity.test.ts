@@ -117,6 +117,7 @@ const setup = (
           egresoRows: [],
           reportDate: TODAY,
           isHistoricalDay: false,
+          invalidEpisodeIds: new Set<string>(),
         },
         dependencies
       ),
