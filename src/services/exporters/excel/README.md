@@ -24,6 +24,7 @@ Este módulo construye el Excel maestro del censo diario y agrega tres hojas de 
 - Al abrir el archivo, la hoja activa sigue siendo la última hoja diaria visible.
 - La contraseña `HHR` protege la estructura del libro y las hojas UPC de bloqueo cosmético.
 - `UPC PAC` y `UPC DET` permanecen visibles como pestañas y quedan desbloqueadas.
+- El adjunto del correo reemplaza diagnósticos de especialidad primaria o secundaria de psiquiatría por `[Diagnostico reservado]`, incluyendo movimientos y hojas de soporte. La copia se transforma en el servidor; el censo clínico y la descarga local conservan sus diagnósticos.
 - El correo puede cifrar la apertura del archivo completo; la descarga local no.
 - La agregación de hojas ocultas opera sobre un solo snapshot lógico por fecha calendario.
 

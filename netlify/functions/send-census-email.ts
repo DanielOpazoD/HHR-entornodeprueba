@@ -1,3 +1,4 @@
+import { reserveCensusEmailDiagnoses } from '../../src/services/exporters/censusEmailDiagnosisPrivacy';
 import { generateCensusPassword } from '../../src/services/security/passwordGenerator';
 import { sendCensusEmail } from '../../src/services/email/gmailClient';
 import { getFirebaseServer } from './lib/firebase-server';
@@ -136,9 +137,12 @@ export const handler = async (event: NetlifyEventLike) => {
 
     const { buildCensusMasterBuffer, getCensusMasterFilename } =
       await import('../../src/services/exporters/censusMasterWorkbook');
-    const attachmentBufferRaw = await buildCensusMasterBuffer(monthRecords, {
-      sheetDescriptors: Array.isArray(sheetDescriptors) ? sheetDescriptors : undefined,
-    });
+    const attachmentBufferRaw = await buildCensusMasterBuffer(
+      monthRecords.map(reserveCensusEmailDiagnoses),
+      {
+        sheetDescriptors: Array.isArray(sheetDescriptors) ? sheetDescriptors : undefined,
+      }
+    );
     const attachmentName = getCensusMasterFilename(date);
 
     // Validate buffer before proceeding

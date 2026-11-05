@@ -41,7 +41,10 @@ export type AddTransferAction = (
   movementDate?: string
 ) => void;
 
-export type UpdateTransferAction = (id: string, updates: Partial<TransferData>) => void;
+export type UpdateTransferAction = (
+  id: string,
+  updates: Partial<TransferData>
+) => void | Promise<boolean>;
 export type DeleteTransferAction = (id: string) => void;
 export type UndoTransferAction = (id: string) => void;
 export type ConvertTransferToHomeDischargeAction = (id: string) => void;

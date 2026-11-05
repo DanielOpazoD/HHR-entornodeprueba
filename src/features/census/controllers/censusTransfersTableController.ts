@@ -5,7 +5,7 @@ import { buildMovementRowActions } from '@/features/census/controllers/censusMov
 export const TRANSFERS_TABLE_HEADERS = buildCensusMovementTableHeaders(['Medio', 'Centro Destino']);
 
 export const getTransferCenterLabel = (transfer: TransferData): string =>
-  transfer.receivingCenter === 'Otro'
+  transfer.receivingCenter === 'Otro' || transfer.receivingCenter === 'Extrasistema'
     ? transfer.receivingCenterOther || ''
     : transfer.receivingCenter;
 

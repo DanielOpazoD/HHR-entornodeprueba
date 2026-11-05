@@ -15,6 +15,9 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   // Transport only: the census email request drops the clinical-sync derived fields from the
   // preserved snapshots before upload. The workbook never reads them; values are not interpreted.
   'src/services/integrations/censusEmailRequestPayload.ts',
+  // Email privacy only: historical specialty can require redaction, never reveal a diagnosis.
+  // The export copy is masked; the source snapshot and clinical/statistical truth are unchanged.
+  'src/services/exporters/censusEmailDiagnosisPrivacy.ts',
   'src/features/census/controllers/patientMovementDischargeMutationController.ts',
   'src/features/census/controllers/movementClinicalDocumentsController.ts',
   'src/features/census/controllers/patientMovementTransferMutationController.ts',

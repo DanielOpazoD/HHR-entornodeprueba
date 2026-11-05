@@ -10,6 +10,7 @@ import { useTransfersSectionModel } from '@/features/census/hooks/useTransfersSe
 export const TransfersSection: React.FC = () => {
   const {
     recordDate,
+    updateTransfer,
     sectionModel,
     handleEditTransfer,
     handleConvertTransferToHomeDischarge,
@@ -32,6 +33,7 @@ export const TransfersSection: React.FC = () => {
           recordDate={recordDate}
           onUndo={sectionModel.handleUndo}
           onEdit={handleEditTransfer}
+          onUpdate={updateTransfer}
           onDelete={sectionModel.handleDelete}
           onConvertToHomeDischarge={handleConvertTransferToHomeDischarge}
           onConvertToCma={handleConvertTransferToCma}
