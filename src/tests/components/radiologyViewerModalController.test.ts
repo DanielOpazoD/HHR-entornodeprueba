@@ -67,6 +67,13 @@ describe('radiologyViewerModalController', () => {
     expect(resolveInitialMMRADModalityTab(['CT', 'CR'])).toBe('CT');
     expect(buildFilteredMMRADExams(result, 'CT')).toHaveLength(1);
     expect(buildFilteredMMRADExams(result, null)[0].nombre_examen).toBe('TC Abdomen');
+    // Stamps with a time are ordered by their own day and month, whatever order MMRAD sent.
+    const reversed: MMRADSearchResult = { rut: '1-1', examenes: [...exams].reverse() };
+    expect(buildFilteredMMRADExams(reversed, null).map(exam => exam.fecha_examen)).toEqual([
+      '10/04/2026 09:00',
+      '09/04/2026 09:00',
+    ]);
+    expect(reversed.examenes[0].fecha_examen).toBe('09/04/2026 09:00');
   });
 
   it('builds preset date ranges and exam keys', () => {
