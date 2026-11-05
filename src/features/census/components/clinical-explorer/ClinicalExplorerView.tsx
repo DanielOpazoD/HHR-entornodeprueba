@@ -59,6 +59,7 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
   return (
     <div data-testid="clinical-explorer" className="grid gap-4 lg:grid-cols-[264px_minmax(0,1fr)]">
         <ClinicalExplorerPatientPanel
+          censusDate={censusDate}
           patients={patients}
           selectedBedId={bedId}
           onSelect={selectClinicalExplorerBed}
