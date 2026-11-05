@@ -4,7 +4,9 @@ export type CensusMovementActionKind =
   | 'hospitalizationReports'
   | 'edit'
   | 'delete'
-  | 'convert';
+  | 'convert'
+  /** «Paciente no válido»: removes the movement and keeps the sync from filing it again. */
+  | 'invalid';
 
 export interface CensusMovementActionDescriptor {
   kind: CensusMovementActionKind;

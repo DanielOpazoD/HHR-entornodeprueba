@@ -14,6 +14,7 @@ export const DischargesSection: React.FC = () => {
     handleEditDischarge,
     handleConvertDischargeToCma,
     handleConvertDischargeToTransfer,
+    handleMarkDischargeInvalid,
   } = useDischargesSectionModel();
 
   return (
@@ -35,6 +36,7 @@ export const DischargesSection: React.FC = () => {
           onDelete={sectionModel.handleDelete}
           onConvertToCma={handleConvertDischargeToCma}
           onConvertToTransfer={handleConvertDischargeToTransfer}
+          onMarkInvalid={handleMarkDischargeInvalid}
         />
       )}
     />

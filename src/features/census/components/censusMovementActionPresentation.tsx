@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Ban,
   FileClock,
   FileText,
   Pencil,
@@ -20,6 +21,7 @@ const ACTION_ICONS = {
   edit: Pencil,
   delete: Trash2,
   convert: Repeat2,
+  invalid: Ban,
 } satisfies Record<CensusMovementActionKind, LucideIcon>;
 
 export const renderCensusMovementActionIcon = (kind: CensusMovementActionKind) => {

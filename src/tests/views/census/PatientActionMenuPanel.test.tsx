@@ -150,4 +150,68 @@ describe('PatientActionMenuPanel', () => {
 
     expect(container.firstChild).toBeNull();
   });
+
+  describe('paciente no válido', () => {
+    const binding = {
+      align: 'bottom' as const,
+      isBlocked: false,
+      readOnly: false,
+      showCmaAction: true,
+      indicators: { hasClinicalDocument: false, isNewAdmission: false },
+      availability: {
+        showDemographicsAction: true,
+        showMenuTrigger: true,
+        showHistoryAction: true,
+        showUtilityActions: true,
+        showClinicalSection: true,
+        showBuiltInClinicalActions: true,
+        showClinicalDocumentsAction: true,
+        showExamRequestAction: true,
+        showImagingRequestAction: true,
+        showMedicalIndicationsAction: false,
+      },
+    };
+    const clear = {
+      action: 'clear' as const,
+      label: 'Limpiar',
+      title: 'Borrar datos',
+      icon: Trash2,
+      iconClassName: 'x',
+      visibleWhenBlocked: true,
+    };
+    const renderPanel = (canMarkInvalid: boolean, utilityActions = [clear]) => {
+      const onAction = vi.fn();
+      render(
+        <PatientActionMenuPanel
+          anchorRef={{ current: null }}
+          isOpen={true}
+          binding={binding}
+          utilityActions={utilityActions}
+          canMarkInvalid={canMarkInvalid}
+          onClose={vi.fn()}
+          onAction={onAction}
+          onViewHistory={vi.fn()}
+        />
+      );
+      return onAction;
+    };
+
+    it('offers the option for an Eloísa episode to whoever may clear the bed', () => {
+      const onAction = renderPanel(true);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Paciente no válido' }));
+
+      expect(onAction).toHaveBeenCalledWith('invalid');
+    });
+
+    it('hides it without an Eloísa episode or without permission to clear', () => {
+      renderPanel(false);
+      expect(screen.queryByRole('button', { name: 'Paciente no válido' })).toBeNull();
+    });
+
+    it('hides it when the person cannot clear the bed', () => {
+      renderPanel(true, []);
+      expect(screen.queryByRole('button', { name: 'Paciente no válido' })).toBeNull();
+    });
+  });
 });

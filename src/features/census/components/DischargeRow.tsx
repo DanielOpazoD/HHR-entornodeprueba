@@ -22,10 +22,20 @@ interface DischargeRowProps {
   onDelete: (id: string) => Promise<void>;
   onConvertToCma: (id: string) => Promise<void>;
   onConvertToTransfer?: (id: string) => Promise<void>;
+  onMarkInvalid?: (item: DischargeData) => Promise<void>;
 }
 
 export const DischargeRow: React.FC<DischargeRowProps> = React.memo(
-  ({ item, recordDate, onUndo, onEdit, onDelete, onConvertToCma, onConvertToTransfer }) => {
+  ({
+    item,
+    recordDate,
+    onUndo,
+    onEdit,
+    onDelete,
+    onConvertToCma,
+    onConvertToTransfer,
+    onMarkInvalid,
+  }) => {
     const [showClinicalDocuments, setShowClinicalDocuments] = useState(false);
     const [showHospitalizationReports, setShowHospitalizationReports] = useState(false);
     const clinicalDocumentsPatient = useMemo(
@@ -40,6 +50,7 @@ export const DischargeRow: React.FC<DischargeRowProps> = React.memo(
       deleteDischarge: onDelete,
       convertDischargeToCma: onConvertToCma,
       convertDischargeToTransfer: onConvertToTransfer,
+      markDischargeInvalid: onMarkInvalid,
     });
 
     return (

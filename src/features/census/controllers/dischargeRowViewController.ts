@@ -23,6 +23,7 @@ interface DischargeRowActionHandlers {
   deleteDischarge: (id: string) => void | Promise<void>;
   convertDischargeToCma: (id: string) => void | Promise<void>;
   convertDischargeToTransfer?: (id: string) => void | Promise<void>;
+  markDischargeInvalid?: (discharge: DischargeData) => void | Promise<void>;
 }
 
 export const resolveDischargeRowViewModel = (

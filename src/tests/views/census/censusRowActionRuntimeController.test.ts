@@ -22,6 +22,7 @@ describe('censusRowActionRuntimeController', () => {
       actions: {
         clearPatient: vi.fn().mockResolvedValue(true),
         addCMA: vi.fn(),
+        markInvalidEpisode: vi.fn(),
         setMovement: vi.fn(),
         openDischarge: vi.fn(),
         openTransfer: vi.fn(),
@@ -46,6 +47,7 @@ describe('censusRowActionRuntimeController', () => {
       actions: {
         clearPatient,
         addCMA: vi.fn(),
+        markInvalidEpisode: vi.fn(),
         setMovement: vi.fn(),
         openDischarge: vi.fn(),
         openTransfer: vi.fn(),
@@ -89,6 +91,7 @@ describe('censusRowActionRuntimeController', () => {
       actions: {
         clearPatient,
         addCMA: vi.fn(),
+        markInvalidEpisode: vi.fn(),
         setMovement: vi.fn(),
         openDischarge: vi.fn(),
         openTransfer: vi.fn(),
@@ -133,6 +136,7 @@ describe('censusRowActionRuntimeController', () => {
       actions: {
         clearPatient,
         addCMA: vi.fn(),
+        markInvalidEpisode: vi.fn(),
         setMovement: vi.fn(),
         openDischarge: vi.fn(),
         openTransfer: vi.fn(),
@@ -160,6 +164,7 @@ describe('censusRowActionRuntimeController', () => {
       actions: {
         clearPatient,
         addCMA: vi.fn(),
+        markInvalidEpisode: vi.fn(),
         setMovement: vi.fn(),
         openDischarge: vi.fn(),
         openTransfer: vi.fn(),
@@ -184,6 +189,7 @@ describe('censusRowActionRuntimeController', () => {
       actions: {
         clearPatient,
         addCMA: vi.fn(),
+        markInvalidEpisode: vi.fn(),
         setMovement: vi.fn(),
         openDischarge: vi.fn(),
         openTransfer: vi.fn(),
@@ -212,6 +218,7 @@ describe('censusRowActionRuntimeController', () => {
       actions: {
         clearPatient,
         addCMA: vi.fn(),
+        markInvalidEpisode: vi.fn(),
         setMovement: vi.fn(),
         openDischarge: vi.fn(),
         openTransfer: vi.fn(),
@@ -240,6 +247,7 @@ describe('censusRowActionRuntimeController', () => {
       actions: {
         clearPatient: vi.fn().mockResolvedValue(true),
         addCMA: vi.fn(),
+        markInvalidEpisode: vi.fn(),
         setMovement,
         openDischarge: vi.fn(),
         openTransfer: vi.fn(),
@@ -267,6 +275,7 @@ describe('censusRowActionRuntimeController', () => {
       actions: {
         clearPatient,
         addCMA,
+        markInvalidEpisode: vi.fn(),
         setMovement: vi.fn(),
         openDischarge: vi.fn(),
         openTransfer: vi.fn(),
@@ -277,5 +286,125 @@ describe('censusRowActionRuntimeController', () => {
     expect(result).toEqual({ ok: true, value: { applied: true } });
     expect(addCMA).toHaveBeenCalledOnce();
     expect(clearPatient).not.toHaveBeenCalled();
+  });
+
+  describe('paciente no válido', () => {
+    const marked = (overrides: Record<string, unknown> = {}) =>
+      DataFactory.createMockPatient('BOX2', {
+        patientName: 'Paciente Sintética',
+        clinicalEpisodeId: '900200',
+        ...overrides,
+      });
+    const runtime = (markInvalidEpisode = vi.fn().mockResolvedValue(undefined)) => ({
+      clearPatient: vi.fn().mockResolvedValue(true),
+      addCMA: vi.fn(),
+      markInvalidEpisode,
+      setMovement: vi.fn(),
+      openDischarge: vi.fn(),
+      openTransfer: vi.fn(),
+    });
+
+    it('marks the episode before clearing the bed', async () => {
+      const actions = runtime();
+      const order: string[] = [];
+      actions.markInvalidEpisode.mockImplementation(async () => void order.push('mark'));
+      actions.clearPatient.mockImplementation(async () => (order.push('clear'), true));
+      const confirm = vi.fn().mockResolvedValue(true);
+
+      const result = await executeRowActionController({
+        action: 'invalid',
+        bedId: 'BOX2',
+        patient: marked(),
+        stabilityRules: unlockedRules,
+        actions,
+        confirmRuntime: { confirm },
+        confirmedLastUpdated: '2026-11-05T16:00:00.000Z',
+      });
+
+      expect(result).toEqual({ ok: true, value: { applied: true } });
+      expect(confirm).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Paciente no válido', variant: 'danger' })
+      );
+      expect(actions.markInvalidEpisode).toHaveBeenCalledWith({
+        clinicalEpisodeId: '900200',
+        bedId: 'BOX2',
+      });
+      expect(actions.clearPatient).toHaveBeenCalledWith(
+        'BOX2',
+        '2026-11-05T16:00:00.000Z',
+        expect.objectContaining({ clinicalEpisodeId: '900200' }),
+        null
+      );
+      expect(order).toEqual(['mark', 'clear']);
+    });
+
+    it('removes nothing when the person cancels or the mark cannot be saved', async () => {
+      const cancelled = runtime();
+      expect(
+        await executeRowActionController({
+          action: 'invalid',
+          bedId: 'BOX2',
+          patient: marked(),
+          stabilityRules: unlockedRules,
+          actions: cancelled,
+          confirmRuntime: { confirm: vi.fn().mockResolvedValue(false) },
+        })
+      ).toEqual({ ok: true, value: { applied: false } });
+      expect(cancelled.markInvalidEpisode).not.toHaveBeenCalled();
+      expect(cancelled.clearPatient).not.toHaveBeenCalled();
+
+      const offline = runtime(vi.fn().mockRejectedValue(new Error('offline')));
+      const result = await executeRowActionController({
+        action: 'invalid',
+        bedId: 'BOX2',
+        patient: marked(),
+        stabilityRules: unlockedRules,
+        actions: offline,
+        confirmRuntime: { confirm: vi.fn().mockResolvedValue(true) },
+      });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.message).toContain('No se eliminó nada');
+      expect(offline.clearPatient).not.toHaveBeenCalled();
+    });
+
+    it('tells the person to finish with «Limpiar» when the bed could not be cleared', async () => {
+      const actions = runtime();
+      actions.clearPatient.mockResolvedValue(false);
+
+      const result = await executeRowActionController({
+        action: 'invalid',
+        bedId: 'BOX2',
+        patient: marked(),
+        stabilityRules: unlockedRules,
+        actions,
+        confirmRuntime: { confirm: vi.fn().mockResolvedValue(true) },
+      });
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.message).toContain('Usa «Limpiar»');
+    });
+
+    it('refuses a patient without an Eloísa episode or with an attached crib', async () => {
+      for (const [patient, code] of [
+        [marked({ clinicalEpisodeId: '' }), 'EPISODE_REQUIRED'],
+        [
+          marked({ clinicalCrib: DataFactory.createMockPatient('BOX2', { patientName: 'RN' }) }),
+          'CLINICAL_CRIB_ATTACHED',
+        ],
+      ] as const) {
+        const actions = runtime();
+        const result = await executeRowActionController({
+          action: 'invalid',
+          bedId: 'BOX2',
+          patient,
+          stabilityRules: unlockedRules,
+          actions,
+          confirmRuntime: { confirm: vi.fn().mockResolvedValue(true) },
+        });
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.error.code).toBe(code);
+        expect(actions.markInvalidEpisode).not.toHaveBeenCalled();
+      }
+    });
   });
 });
