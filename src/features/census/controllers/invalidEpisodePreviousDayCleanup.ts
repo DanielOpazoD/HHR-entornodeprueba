@@ -60,7 +60,7 @@ export const cleanInvalidEpisodeFromPreviousDay = async ({
   if (censusDate !== resolveCurrentClinicalDay(now)) return { status: 'not_applicable' };
   const day = getPreviousDay(censusDate);
   // Before the morning handoff today's census is still yesterday's, so its previous day is already
-  // past the window. Checked here for every role: the server does not limit admin writes.
+  // past its 48 h. Checked here for every role: the server does not limit admin writes.
   if (now.getTime() - clinicalWallClockToDate(day, '00:00').getTime() >= EDITING_WINDOW_MS) {
     return { status: 'not_applicable' };
   }
