@@ -15,7 +15,6 @@ import { bedManagementReducer } from '@/hooks/useBedManagementReducer';
 import { bedManagementDispatchLogger } from '@/hooks/controllers/hookControllerLoggers';
 import { buildBedMovementAuditDetails } from '@/services/admin/auditClinicalEventCatalog';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
-import { buildBedPatchFailureTelemetryEvent } from '@/hooks/controllers/bedManagementHealthTelemetry';
 import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
 import { isClinicalAuthorityCallablePatchPath } from '@/services/storage/dailyRecordAuthorityContract';
 import { isFeatureEnabled } from '@/services/utils/featureFlags';
@@ -428,9 +427,16 @@ export const executeBedManagementAction = async ({
       return true;
     } catch (error) {
       bedManagementDispatchLogger.warn('Bed management patch failed', error);
-      recordOperationalTelemetry(
-        buildBedPatchFailureTelemetryEvent(currentRecord, validatedAction, error)
-      );
+      // Only a failed patch needs the event builder, so it loads here instead of at startup.
+      void import('@/hooks/controllers/bedManagementHealthTelemetry')
+        .then(({ buildBedPatchFailureTelemetryEvent }) =>
+          recordOperationalTelemetry(
+            buildBedPatchFailureTelemetryEvent(currentRecord, validatedAction, error)
+          )
+        )
+        .catch(loadError =>
+          bedManagementDispatchLogger.warn('Bed patch failure telemetry unavailable', loadError)
+        );
       return false;
     }
   } catch (error) {
