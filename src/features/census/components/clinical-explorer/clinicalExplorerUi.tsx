@@ -3,10 +3,12 @@ import clsx from 'clsx';
 import { PatientStatus } from '@/types/domain/patientClassification';
 
 /** Areas of the explorer. The combined view shows every area at once. */
-export type ClinicalExplorerTab = 'all' | 'evolutions' | 'indications';
+export type ClinicalExplorerTab = 'all' | 'lab' | 'img' | 'evolutions' | 'indications';
 
 export const EXPLORER_TABS: ReadonlyArray<{ key: ClinicalExplorerTab; label: string }> = [
   { key: 'all', label: 'Vista conjunta' },
+  { key: 'lab', label: 'Laboratorio' },
+  { key: 'img', label: 'Imágenes' },
   { key: 'evolutions', label: 'Evoluciones' },
   { key: 'indications', label: 'Indicaciones' },
 ];

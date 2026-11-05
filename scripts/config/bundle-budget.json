@@ -78,6 +78,7 @@
     "^assets/Dicom.*-.*$",
     "^assets/dicom.*-.*\\.js$",
     "^assets/RadiologyViewerModal-.*\\.js$",
+    "^assets/radiologyExamListMemory-.*\\.js$",
     "^assets/decodeImageFrameWorker-.*\\.js$",
     "^assets/computeWorker-.*\\.js$",
     "^assets/jpeg-.*\\.js$",

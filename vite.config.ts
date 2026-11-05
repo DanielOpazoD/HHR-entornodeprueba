@@ -325,6 +325,8 @@ export default defineConfig(({ mode }) => {
             // DICOM is online-only and must not download during PWA installation or census startup.
             '**/assets/vendor-dicom-*.js',
             '**/assets/RadiologyViewerModal-*.js',
+            // MMRAD list memory shared by the imaging modal, the DICOM viewer and the explorer.
+            '**/assets/radiologyExamListMemory-*.js',
             '**/assets/Dicom*-*',
             '**/assets/dicom*-*.js',
             '**/assets/decodeImageFrameWorker-*.js',

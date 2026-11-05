@@ -29,7 +29,17 @@ export {
 } from './controllers/labFormattingController';
 
 // Re-export from service layer (single source of truth)
-export { cleanRutForSyslab } from '@/services/laboratory/syslabService';
+export {
+  cleanRutForSyslab,
+  fetchSyslabExamDetails,
+  searchSyslabExams,
+} from '@/services/laboratory/syslabService';
+
+// Syslab session and raw-value parsing, shared with the census clinical explorer.
+export { useSyslabAccess } from './hooks/useSyslabAccess';
+export type { SyslabAccessModel } from './hooks/useSyslabAccess';
+export { parseLabMeasurement } from './controllers/labNumericParser';
+export { parseDateDDMMYYYY } from './controllers/labFormattingController';
 
 export {
   buildAnalysisData,
