@@ -20,6 +20,31 @@ vi.mock('@/components/modals/ImagingRequestDialog', () => ({
 vi.mock('@/features/clinical-documents', () => ({
   ClinicalDocumentsModal: () => <div role="dialog" aria-label="Documentos clínicos" />,
 }));
+// MMRAD answers with no studies here; the imaging card is covered by its own test.
+vi.mock('@/services/radiology/mmradService', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/services/radiology/mmradService')>();
+  return {
+    ...actual,
+    searchMMRADExams: ({ rut }: { rut: string }) => Promise.resolve({ rut, examenes: [] }),
+    searchMMRADCheckDigitExams: ({ rut }: { rut: string }) => Promise.resolve({ rut, examenes: [] }),
+  };
+});
+vi.mock('@/components/radiology/useDicomReviewCache', () => ({ useDicomReviewCache: () => undefined }));
+// Syslab is out of reach in this test: the laboratory card shows a quiet failure.
+vi.mock('@/features/laboratory', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/features/laboratory')>();
+  return {
+    ...actual,
+    useSyslabAccess: () => ({
+      state: 'unavailable',
+      message: 'Syslab no está disponible.',
+      isOpening: false,
+      isAwaitingLogin: false,
+      refresh: vi.fn(),
+      openLogin: vi.fn(),
+    }),
+  };
+});
 
 import { panelResult } from '../clinicalPanelDrawer.fixture';
 import { BEDS } from '@/constants/beds';
@@ -32,6 +57,7 @@ import {
 } from '@/features/census/components/clinical-explorer/clinicalExplorerStore';
 import { listClinicalExplorerPatients } from '@/features/census/controllers/clinicalExplorerController';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 
 const DATE = '2026-11-04';
 const patients = listClinicalExplorerPatients({
@@ -118,7 +144,8 @@ const Harness = () => {
 
 const open = (bedId = 'R1') => {
   act(() => openClinicalExplorer({ censusDate: DATE, bedId }));
-  return render(<Harness />);
+  const { wrapper } = createQueryClientTestWrapper();
+  return render(<Harness />, { wrapper });
 };
 
 describe('ClinicalExplorerView', () => {
@@ -231,10 +258,11 @@ describe('ClinicalExplorerView', () => {
   it('shows a failed read as a failure with retry, never as an empty record', async () => {
     mocks.request.mockResolvedValueOnce({ events: [], error: 'Eloísa sin sesión' });
     open();
-    const alerts = await screen.findAllByRole('alert');
-    expect(alerts[0]).toHaveTextContent('Eloísa sin sesión');
+    const evolutions = await screen.findByRole('region', { name: 'Evoluciones' });
+    const alert = await within(evolutions).findByRole('alert');
+    expect(alert).toHaveTextContent('Eloísa sin sesión');
     expect(screen.queryByText('Sin evoluciones en Ficha Médico.')).toBeNull();
-    fireEvent.click(within(alerts[0]).getByRole('button', { name: 'Reintentar' }));
+    fireEvent.click(within(alert).getByRole('button', { name: 'Reintentar' }));
     expect(await screen.findByText('Evolución médica estable.')).toBeVisible();
     expect(mocks.request).toHaveBeenCalledTimes(2);
   });
