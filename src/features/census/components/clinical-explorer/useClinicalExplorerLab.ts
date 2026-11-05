@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryClient as appQueryClient } from '@/config/queryClient';
+import { useSessionEpoch } from '@/hooks/useSessionEpoch';
+import { onSessionChange } from '@/services/storage/sessionStorageTransition';
 import {
   buildAnalysisData,
   cleanRutForSyslab,
@@ -62,24 +64,10 @@ const LIST_STALE_MS = 10 * 60_000;
 const GC_MS = 30 * 60_000;
 
 // Several people share one computer: a new Eloísa session forgets every explorer read, whether or
-// not the explorer is mounted at that moment, and the generation keeps old keys from coming back.
-let sessionGeneration = 0;
-const generationListeners = new Set<() => void>();
-const subscribeToGeneration = (listener: () => void) => {
-  generationListeners.add(listener);
-  return () => {
-    generationListeners.delete(listener);
-  };
-};
-const readGeneration = (): number => sessionGeneration;
-if (typeof window !== 'undefined') {
-  window.addEventListener('message', event => {
-    if (event.data?.type !== 'HHR_RAYEN_SESSION_CHANGED') return;
-    sessionGeneration += 1;
-    void appQueryClient.removeQueries({ queryKey: EXPLORER_KEY });
-    generationListeners.forEach(listener => listener());
-  });
-}
+// not the explorer is mounted at that moment; the session epoch keeps old keys from coming back.
+onSessionChange(() => {
+  void appQueryClient.removeQueries({ queryKey: EXPLORER_KEY });
+});
 
 /**
  * Lab reports of one patient's hospitalization: the Syslab list, then every report read once and
@@ -96,7 +84,7 @@ export const useClinicalExplorerLab = ({
   const rutBody = cleanRutForSyslab(rut);
   const [progress, setProgress] = useState<{ completed: number; total: number } | null>(null);
   // Part of every key: what was on screen leaves with the session that read it.
-  const generation = useSyncExternalStore(subscribeToGeneration, readGeneration, readGeneration);
+  const generation = useSessionEpoch();
 
   const connected = enabled && access.state === 'connected' && rutBody.length > 0;
   const listKey = [...EXPLORER_KEY, generation, 'exams', rutBody];

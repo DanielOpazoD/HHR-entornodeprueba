@@ -2,7 +2,7 @@ import { buildMMRADExamKey } from '@/components/modals/controllers/radiologyView
 import { normalizeDicomPatientId } from '@/services/radiology/dicomTypes';
 import type { MMRADExam, MMRADSearchResult } from '@/services/radiology/mmradService';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { getSessionGeneration, onSessionChange } from '@/services/storage/sessionStorageTransition';
 
 export interface MMRADExamListQuery {
   rut: string;
@@ -81,13 +81,8 @@ const currentScope = (): string | null => {
 const entryKey = (scope: string, query: MMRADExamListQuery) =>
   JSON.stringify([scope, normalizeDicomPatientId(query.rut), query.dateFrom, query.dateTo]);
 
-if (typeof window !== 'undefined') {
-  // setSessionGeneration posts this on every admission and logout. Forgetting is always safe, so
-  // the sender is not checked.
-  window.addEventListener('message', event => {
-    if (event.data?.type === 'HHR_RAYEN_SESSION_CHANGED') forget();
-  });
-}
+// Every admission and logout. Forgetting is always safe.
+onSessionChange(forget);
 
 export const readRememberedMMRADExams = (
   query: MMRADExamListQuery
