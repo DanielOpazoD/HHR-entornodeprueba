@@ -1,11 +1,11 @@
 // @vitest-environment node
+import { ONLINE_ONLY_PRECACHE_PATTERNS } from '../../../scripts/config/onlineOnlyAssets.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 interface BundleBudgetConfig {
   precacheMaxBytes: number;
-  precacheIgnoredAssetPatterns: string[];
   forbiddenAssetPatterns: string[];
   assetPatternBudgets: Array<{
     pattern: string;
@@ -118,10 +118,10 @@ describe('bundle budget config', () => {
     );
     expect(findBudget(config, '^vendor-zod-.*\\.js$')).toMatchObject({ maxBytes: 96000 });
     expect(
-      config.precacheIgnoredAssetPatterns.some(pattern => /sessionActivity|auth/i.test(pattern))
+      ONLINE_ONLY_PRECACHE_PATTERNS.some(pattern => /sessionActivity|auth/i.test(pattern))
     ).toBe(false);
-    expect(config.precacheIgnoredAssetPatterns.some(pattern => /upc/i.test(pattern))).toBe(false);
-    expect(config.precacheIgnoredAssetPatterns).toEqual(
+    expect(ONLINE_ONLY_PRECACHE_PATTERNS.some(pattern => /upc/i.test(pattern))).toBe(false);
+    expect(ONLINE_ONLY_PRECACHE_PATTERNS).toEqual(
       expect.arrayContaining([
         '^docs/',
         '^templates/',

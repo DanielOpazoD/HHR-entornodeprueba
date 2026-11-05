@@ -1,3 +1,4 @@
+import { ONLINE_ONLY_PRECACHE_PATTERNS } from '../../../scripts/config/onlineOnlyAssets.mjs';
 import fs from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { jobNeeds, parseWorkflow } from './workflowYamlTestSupport';
@@ -76,7 +77,7 @@ describe('census measurement release gate', () => {
         (b: { label: string }) => b.label === 'app-authenticated-shell'
       ).maxBytes
     ).toBe(634560 + 576);
-    expect(bundle.precacheIgnoredAssetPatterns).not.toContain('^assets/censusStartupPerf-.*\\.js$');
+    expect(ONLINE_ONLY_PRECACHE_PATTERNS).not.toContain('^assets/censusStartupPerf-.*\\.js$');
   });
 });
 

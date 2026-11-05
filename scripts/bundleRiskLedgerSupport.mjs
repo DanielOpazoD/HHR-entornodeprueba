@@ -1,3 +1,4 @@
+import { ONLINE_ONLY_PRECACHE_PATTERNS } from './config/onlineOnlyAssets.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -20,7 +21,12 @@ const hasStartupBudget = ({ surface, bundleBudgetConfig }) => {
 const hasPrecacheExclusion = ({ surface, bundleBudgetConfig }) => {
   const pattern = surface.precacheIgnoredPattern;
   if (!pattern) return null;
-  return asArray(bundleBudgetConfig?.precacheIgnoredAssetPatterns).includes(pattern);
+  // The budget file no longer carries the list; it comes from onlineOnlyAssets.mjs unless a
+  // caller (tests) supplies one explicitly.
+  const patterns = Array.isArray(bundleBudgetConfig?.precacheIgnoredAssetPatterns)
+    ? bundleBudgetConfig.precacheIgnoredAssetPatterns
+    : ONLINE_ONLY_PRECACHE_PATTERNS;
+  return patterns.includes(pattern);
 };
 
 const buildSurface = ({ surface, bundleBudgetConfig }) => {
