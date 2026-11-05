@@ -11,7 +11,6 @@ import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useAuth } from '@/context/AuthContext';
 import * as dailyRecordQuery from '@/hooks/useDailyRecordQuery';
 import { useRepositories } from '@/services/RepositoryContext';
-import { loadInvalidClinicalEpisodeIds } from '@/services/census/invalidClinicalEpisodeService';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { resolveRayenPolicyBlockMessage, useRayenImportMode } from './useRayenImportMode';
 import { INITIAL_RAYEN_IMPORT_STATE, type RayenImportState } from './rayenImportState';
@@ -45,6 +44,10 @@ import {
   type ClinicalStageResult,
 } from '../contracts/clinicalStageResult';
 import type { DailyRecordWriteLease } from '@/services/repositories/dailyRecordWriteCoordinator';
+/** Loaded with the sync run, not with the census button. */
+const loadInvalidEpisodeIds = async () =>
+  (await import('@/services/census/invalidClinicalEpisodeService')).loadInvalidClinicalEpisodeIds();
+
 export const useRayenImport = (selectedCensusDate?: string) => {
   const queryClient = useQueryClient();
   // Automatic discovery does not confer the evidence bonus of a manually curated roster.
@@ -242,7 +245,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     structuralPersistenceExecutionKeysRef,
     runSerializedPersistence,
     loadAuthoritativeStructuralRecord,
-    loadInvalidEpisodeIds: loadInvalidClinicalEpisodeIds,
+    loadInvalidEpisodeIds,
   });
   const triggerImport = useRayenImportCapture({
     currentRecord,

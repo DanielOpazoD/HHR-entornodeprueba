@@ -3,11 +3,7 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
 import { createRayenSnapshotEvidenceClient } from './rayenSnapshotEvidenceClient';
 import type { CapturedRayenStructuralEvidence } from './replanRayenStructure';
-import {
-  excludeInvalidEpisodeRows,
-  excludeInvalidEpisodesFromSnapshot,
-  type InvalidClinicalEpisodeIds,
-} from '../domain/invalidClinicalEpisodePolicy';
+import type { InvalidClinicalEpisodeIds } from '../domain/invalidClinicalEpisodePolicy';
 
 interface EvidenceCounters {
   requests: number;
@@ -48,11 +44,13 @@ export const prepareRayenStructuralPlan = async ({
   evidenceClient,
   extractStatisticalText,
 }: PrepareRayenStructuralPlanInput) => {
-  const planningSnapshot = excludeInvalidEpisodesFromSnapshot(capturedSnapshot, invalidEpisodeIds);
-  const reportRows = excludeInvalidEpisodeRows(bundle.egresoRows, invalidEpisodeIds);
   // Structural reconstruction depends on live Eloisa evidence, so keep its comparatively large
   // resolver graph out of the offline census shell and load it only when a sync is requested.
   const { replanRayenStructure } = await import('./replanRayenStructure');
+  const { excludeInvalidEpisodeRows, excludeInvalidEpisodesFromSnapshot } =
+    await import('../domain/invalidClinicalEpisodePolicy');
+  const planningSnapshot = excludeInvalidEpisodesFromSnapshot(capturedSnapshot, invalidEpisodeIds);
+  const reportRows = excludeInvalidEpisodeRows(bundle.egresoRows, invalidEpisodeIds);
   const { enrichReportOnlyDischarges } = await import('../domain/enrichReportOnlyDischarges');
   const {
     fetchPatientFlowReport,
