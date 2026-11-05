@@ -127,11 +127,12 @@ describe('CUDYR recovery for a patient identified by passport (ID-01)', () => {
           : day
       ),
     };
-    // Another patient was categorized that morning, so the report covers it.
+    // Another patient, with her own clinical record, was categorized that morning.
     source.report.patients.push({
       ...answered,
       document: '22.222.222-2',
       patientName: 'Otra Paciente Sintética',
+      clinicalRecord: 'OTRA-FICHA',
     });
     return source;
   };
@@ -170,6 +171,25 @@ describe('CUDYR recovery for a patient identified by passport (ID-01)', () => {
 
     expect(result.errors).toEqual([]);
     expect(result.previous).toEqual([]);
+  });
+
+  it('stays unattributable when the same person is categorized under another identifier', () => {
+    const sameName = reportWithPassport('blank');
+    sameName.report.patients.push({
+      ...sameName.report.patients[1],
+      document: 'P87654321',
+      patientName: patient().patientName,
+    });
+    expect(resolve(passportPatient(), sameName)).toEqual({ kind: 'attribution_unreliable' });
+
+    const sameRecord = reportWithPassport('blank');
+    sameRecord.report.patients.push({
+      ...sameRecord.report.patients[1],
+      document: 'P87654321',
+      patientName: 'Nombre Registrado Distinto',
+      clinicalRecord: sameRecord.report.patients[0].clinicalRecord,
+    });
+    expect(resolve(passportPatient(), sameRecord)).toEqual({ kind: 'attribution_unreliable' });
   });
 
   it('stays unattributable without its own row or with another name on it', () => {

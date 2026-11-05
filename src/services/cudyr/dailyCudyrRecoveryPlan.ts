@@ -1,7 +1,11 @@
 import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
 import type { PatientData } from '@/types/domain/patient';
 import type { CapturedCudyrMonthlyReport } from './cudyrMonthlyReportCapture';
-import { cudyrDocumentKey, cudyrIdentity } from '@/domain/cudyr/cudyrSourceIdentity';
+import {
+  cudyrDocumentKey,
+  cudyrFullNameKey,
+  cudyrIdentity,
+} from '@/domain/cudyr/cudyrSourceIdentity';
 import { buildImportedCudyr } from '@/domain/evaluationScales/importedCudyr';
 import {
   CUDYR_DOCUMENTARY_SOURCE,
@@ -158,8 +162,22 @@ export const recoverDailyCudyrGap = (
     const [row] = rows;
     if (!row || rows.length > 1 || cudyrIdentity(row.document, row.patientName) !== identity)
       return { kind: 'attribution_unreliable' };
-    const categorized = row.days.some(d => d.sourceDate === sourceDate && d.state === 'category');
-    return categorized ? { kind: 'attribution_unreliable' } : withoutCategory();
+    const categorizedThatMorning = (candidate: typeof row) =>
+      candidate.days.some(d => d.sourceDate === sourceDate && d.state === 'category');
+    // The same person may also appear under another identifier: a categorized row with the same
+    // name or clinical record contradicts «nobody recorded it».
+    const name = cudyrFullNameKey(patient.patientName);
+    const contradicted = source.report.patients.some(
+      other =>
+        other !== row &&
+        (cudyrFullNameKey(other.patientName) === name ||
+          (Boolean(row.clinicalRecord.trim()) &&
+            other.clinicalRecord.trim() === row.clinicalRecord.trim())) &&
+        categorizedThatMorning(other)
+    );
+    return categorizedThatMorning(row) || contradicted
+      ? { kind: 'attribution_unreliable' }
+      : withoutCategory();
   }
   if (
     !hasUniqueDocumentaryCudyrIdentity(
