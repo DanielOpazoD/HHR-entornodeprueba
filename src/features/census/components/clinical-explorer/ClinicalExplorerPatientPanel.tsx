@@ -5,9 +5,12 @@ import {
   filterClinicalExplorerPatients,
   type ClinicalExplorerPatient,
 } from '@/features/census/controllers/clinicalExplorerController';
+import { calculateHospitalizedDays } from '@/features/census/controllers/patientBedConfigViewController';
 import { StatusDot } from './clinicalExplorerUi';
 
 interface ClinicalExplorerPatientPanelProps {
+  /** Census day: days in hospital are counted up to it. */
+  censusDate: string;
   patients: ClinicalExplorerPatient[];
   selectedBedId: string;
   onSelect: (bedId: string) => void;
@@ -15,6 +18,7 @@ interface ClinicalExplorerPatientPanelProps {
 
 /** Patients of the census day in bed order. The bed is where the patient is, not who they are. */
 export const ClinicalExplorerPatientPanel: React.FC<ClinicalExplorerPatientPanelProps> = ({
+  censusDate,
   patients,
   selectedBedId,
   onSelect,
@@ -52,6 +56,10 @@ export const ClinicalExplorerPatientPanel: React.FC<ClinicalExplorerPatientPanel
       <ul className="min-h-0 flex-1 overflow-y-auto py-1" aria-label="Lista de pacientes">
         {visible.map(patient => {
           const selected = patient.bedId === selectedBedId;
+          const days = calculateHospitalizedDays({
+            admissionDate: patient.data.admissionDate,
+            currentDate: censusDate,
+          });
           return (
             <li key={patient.bedId}>
               <button
@@ -72,9 +80,14 @@ export const ClinicalExplorerPatientPanel: React.FC<ClinicalExplorerPatientPanel
                 </span>
                 <span className="col-start-2 flex gap-1.5 whitespace-nowrap text-[10px] tabular-nums text-slate-500">
                   {patient.data.rut.trim()}
-                  <span className="rounded bg-slate-50 px-1 font-mono text-[9.5px] text-slate-600">
-                    Ep. {patient.episodeId}
-                  </span>
+                  {days !== null && (
+                    <span
+                      className="rounded bg-slate-50 px-1 text-[9.5px] text-slate-600"
+                      title="Días hospitalizado al día del censo"
+                    >
+                      {days} d
+                    </span>
+                  )}
                 </span>
               </button>
             </li>
