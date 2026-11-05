@@ -6,6 +6,7 @@ import {
 } from '@/features/census/controllers/clinicalExplorerController';
 import { selectClinicalExplorerBed } from './clinicalExplorerStore';
 import { ClinicalExplorerHeader } from './ClinicalExplorerHeader';
+import { ClinicalExplorerLab } from './ClinicalExplorerLab';
 import { ClinicalExplorerNotes } from './ClinicalExplorerNotes';
 import { ClinicalExplorerPatientPanel } from './ClinicalExplorerPatientPanel';
 import { EXPLORER_TABS, type ClinicalExplorerTab } from './clinicalExplorerUi';
@@ -97,11 +98,27 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
               </div>
               <div
                 className={clsx(
-                  'grid gap-3',
+                  'grid items-start gap-3',
                   tab === 'all' && 'xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]'
                 )}
               >
-                <ClinicalExplorerNotes episodeId={patient.episodeId} tab={tab} onShowAll={setTab} />
+                {(tab === 'all' || tab === 'lab') && (
+                  <ClinicalExplorerLab
+                    patient={patient}
+                    censusDate={censusDate}
+                    tab={tab}
+                    onShowAll={setTab}
+                  />
+                )}
+                {tab !== 'lab' && (
+                  <div className="flex min-w-0 flex-col gap-3">
+                    <ClinicalExplorerNotes
+                      episodeId={patient.episodeId}
+                      tab={tab}
+                      onShowAll={setTab}
+                    />
+                  </div>
+                )}
               </div>
             </>
           ) : (
