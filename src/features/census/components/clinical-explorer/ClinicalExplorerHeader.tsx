@@ -57,8 +57,14 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
   const [open, setOpen] = useState<{ identity: string; kind: QuickAction } | null>(null);
   const action = open?.identity === identity ? open.kind : null;
   const setAction = (kind: QuickAction | null): void => setOpen(kind ? { identity, kind } : null);
+  // Keyed by bed and episode: the bed is a place, so a new occupant never inherits an order.
   const examCandidates = useMemo(
-    () => patients.map(item => ({ key: item.bedId, label: item.bedId, patient: item.data })),
+    () =>
+      patients.map(item => ({
+        key: `${item.bedId}:${item.episodeId}`,
+        label: item.bedId,
+        patient: item.data,
+      })),
     [patients]
   );
 
@@ -166,7 +172,7 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
             patient={data}
             recordDate={censusDate}
             candidates={examCandidates}
-            patientKey={bedId}
+            patientKey={identity}
           />
         </Suspense>
       )}

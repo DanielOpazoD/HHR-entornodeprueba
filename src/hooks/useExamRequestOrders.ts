@@ -14,7 +14,7 @@ import {
 } from '@/hooks/controllers/examRequestController';
 
 export interface ExamRequestCandidate {
-  /** Stable while the dialog is open: the bed of the census day. */
+  /** Who the order is for: bed and episode, never the bed alone (a bed is a place). */
   key: string;
   /** Short label for the tab, such as the bed. */
   label: string;
