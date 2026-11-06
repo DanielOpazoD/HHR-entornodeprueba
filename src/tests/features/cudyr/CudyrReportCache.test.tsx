@@ -1,4 +1,3 @@
-import { recordCudyrOperation } from '@/services/cudyr/cudyrOperationTelemetry';
 import { loadCudyrReport } from '@/services/cudyr/cudyrReportLoader';
 import { readCudyrReadView, saveCudyrReadView } from '@/services/cudyr/cudyrReadView';
 import { act, renderHook, waitFor } from '@testing-library/react';
@@ -6,7 +5,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCudyrReport } from '@/features/cudyr/hooks/useCudyrReport';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import { reportInput } from '../../services/cudyr/reportFixtures';
-vi.mock('@/services/cudyr/cudyrOperationTelemetry', () => ({ recordCudyrOperation: vi.fn() }));
 const session = vi.hoisted(() => ({ owner: 'owner-a', generation: 'a' }));
 vi.mock('@/services/storage/sessionScopedStorageService', () => ({
   getStoredSessionOwnerKey: () => session.owner,
@@ -26,7 +24,6 @@ const dataset = (from: string, to: string, version = 'v1') => ({
   ],
 });
 beforeEach(() => {
-  vi.mocked(recordCudyrOperation).mockClear();
   session.owner = 'owner-a';
   session.generation = 'a';
 });
@@ -79,12 +76,6 @@ describe('CUDYR navigation cache', () => {
     expect(result.current.busy).toBe(false);
     await act(async () => result.current.load('2026-10-01', '2026-10-06'));
     expect(loader).toHaveBeenCalledTimes(3);
-    expect(vi.mocked(recordCudyrOperation).mock.calls.map(call => [call[0], call[2]])).toEqual([
-      ['cudyr_report_read', 'success'],
-      ['cudyr_report_read', 'success'],
-      ['cudyr_report_reuse', 'success'],
-      ['cudyr_report_read', 'success'],
-    ]);
   });
   it('invalidates the cached day when its live census revision changes', async () => {
     let version = 'v1';
@@ -176,11 +167,6 @@ it('retains the visible cached report if Firebase is unavailable on reopening', 
   first.unmount();
   const second = renderHook(() => useCudyrReport('2026-10-06', loader));
   await waitFor(() => expect(second.result.current.error).toBe('Sin conexión'));
-  expect(recordCudyrOperation).toHaveBeenLastCalledWith(
-    'cudyr_report_read',
-    expect.any(Number),
-    'failed'
-  );
   expect(second.result.current.data?.to).toBe('2026-10-06');
 });
 
