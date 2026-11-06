@@ -56,10 +56,7 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
   const examOpener = examCandidates.find(candidate => candidate.key === examRequestFor);
   // Leaving the census closes the request for good: it does not reopen if the patient returns.
   if (examRequestFor && !examOpener) setExamRequestFor(null);
-  const index = patients.findIndex(patient => patient.bedId === bedId);
-  const patient = index >= 0 ? patients[index] : null;
-  const previousBedId = resolveClinicalExplorerNeighbour(patients, bedId, -1);
-  const nextBedId = resolveClinicalExplorerNeighbour(patients, bedId, 1);
+  const patient = patients.find(candidate => candidate.bedId === bedId) ?? null;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -80,87 +77,81 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
   }, [patients, bedId]);
 
   return (
-    <div data-testid="clinical-explorer" className="grid gap-4 lg:grid-cols-[264px_minmax(0,1fr)]">
-        <ClinicalExplorerPatientPanel
-          censusDate={censusDate}
-          patients={patients}
-          selectedBedId={bedId}
-          onSelect={selectClinicalExplorerBed}
-        />
-        <div className="flex min-w-0 flex-col gap-3">
-          {patient ? (
-            <>
-              <ClinicalExplorerHeader
-                patient={patient}
-                onRequestExams={() => setExamRequestFor(clinicalExplorerPatientIdentity(patient))}
-                censusDate={censusDate}
-                position={{ index, total: patients.length }}
-                previousBedId={previousBedId}
-                nextBedId={nextBedId}
-                onSelect={selectClinicalExplorerBed}
-              />
-              <div
-                role="tablist"
-                aria-label="Áreas"
-                className="inline-flex gap-0.5 self-start rounded-[10px] bg-slate-100 p-[3px]"
-              >
-                {EXPLORER_TABS.map(item => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === item.key}
-                    onClick={() => setTab(item.key)}
-                    className={clsx(
-                      'h-[30px] rounded-lg px-3 text-[12px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
-                      tab === item.key
-                        ? 'bg-white text-medical-700 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
-                    )}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-              <div
-                className={clsx(
-                  'grid items-start gap-3',
-                  tab === 'all' && 'xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]'
-                )}
-              >
-                {(tab === 'all' || tab === 'lab' || tab === 'img') && (
-                  <div className="flex min-w-0 flex-col gap-3">
-                    {tab !== 'img' && (
-                      <ClinicalExplorerLab
-                        patient={patient}
-                        censusDate={censusDate}
-                        tab={tab}
-                        onShowAll={setTab}
-                      />
-                    )}
-                    {tab !== 'lab' && (
-                      <ClinicalExplorerImaging patient={patient} tab={tab} onShowAll={setTab} />
-                    )}
-                  </div>
-                )}
-                {tab !== 'lab' && tab !== 'img' && (
-                  <div className="flex min-w-0 flex-col gap-3">
-                    <ClinicalExplorerNotes
-                      episodeId={patient.episodeId}
+    <div data-testid="clinical-explorer" className="grid gap-3 lg:grid-cols-[248px_minmax(0,1fr)]">
+      <ClinicalExplorerPatientPanel
+        patients={patients}
+        selectedBedId={bedId}
+        onSelect={selectClinicalExplorerBed}
+      />
+      <div className="flex min-w-0 flex-col gap-3">
+        {patient ? (
+          <>
+            <ClinicalExplorerHeader
+              patient={patient}
+              onRequestExams={() => setExamRequestFor(clinicalExplorerPatientIdentity(patient))}
+              censusDate={censusDate}
+            />
+            <div
+              role="tablist"
+              aria-label="Áreas"
+              className="inline-flex max-w-full gap-0.5 self-start overflow-x-auto rounded-lg bg-slate-100 p-0.5"
+            >
+              {EXPLORER_TABS.map(item => (
+                <button
+                  key={item.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === item.key}
+                  onClick={() => setTab(item.key)}
+                  className={clsx(
+                    'h-7 shrink-0 rounded-md px-3 text-[12px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
+                    tab === item.key
+                      ? 'bg-white text-medical-700 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  )}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <div
+              className={clsx(
+                'grid items-start gap-3',
+                tab === 'all' && 'xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]'
+              )}
+            >
+              {(tab === 'all' || tab === 'lab' || tab === 'img') && (
+                <div className="flex min-w-0 flex-col gap-3">
+                  {tab !== 'img' && (
+                    <ClinicalExplorerLab
+                      patient={patient}
+                      censusDate={censusDate}
                       tab={tab}
                       onShowAll={setTab}
                     />
-                  </div>
-                )}
-              </div>
-            </>
-          ) : (
-            <p className="rounded-[10px] border border-slate-200 bg-white px-4 py-6 text-[12px] text-slate-600">
-              Este paciente ya no está en el censo del día. Elige otro de la lista o vuelve al
-              censo.
-            </p>
-          )}
-        </div>
+                  )}
+                  {tab !== 'lab' && (
+                    <ClinicalExplorerImaging patient={patient} tab={tab} onShowAll={setTab} />
+                  )}
+                </div>
+              )}
+              {tab !== 'lab' && tab !== 'img' && (
+                <div className="flex min-w-0 flex-col gap-3">
+                  <ClinicalExplorerNotes
+                    episodeId={patient.episodeId}
+                    tab={tab}
+                    onShowAll={setTab}
+                  />
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <p className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-[12px] text-slate-600">
+            Este paciente ya no está en el censo del día. Elige otro de la lista o vuelve al censo.
+          </p>
+        )}
+      </div>
       {examOpener && (
         <Suspense fallback={null}>
           <LazyExamRequestModal

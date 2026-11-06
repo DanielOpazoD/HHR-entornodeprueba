@@ -170,20 +170,23 @@ describe('ClinicalExplorerView', () => {
   });
   afterEach(() => act(() => closeClinicalExplorer()));
 
-  it('shows the census day, the patient with its episode, and reads Ficha Médico once', async () => {
+  it('shows the census day and a compact patient header, and reads Ficha Médico once', async () => {
     open();
     expect(screen.getByText('Censo del miércoles, 4 de noviembre de 2026')).toBeVisible();
     const header = screen.getByTestId('clinical-explorer-patient');
     expect(header).toHaveTextContent('PRIMERA SINTÉTICA');
-    expect(header).toHaveTextContent('Ep. ep-r1');
     expect(header).toHaveTextContent('Ingreso 01-11-2026 · 3 d');
-    expect(header).toHaveTextContent('1 de 2');
+    // The episode number and the previous/next buttons are gone: the side list is enough.
+    expect(header).not.toHaveTextContent('ep-r1');
+    expect(header).not.toHaveTextContent('1 de 2');
+    expect(screen.queryByRole('button', { name: 'Paciente siguiente' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Paciente anterior' })).toBeNull();
     expect(await screen.findByText('Evolución médica estable.')).toBeVisible();
     expect(mocks.request).toHaveBeenCalledTimes(1);
     expect(mocks.request.mock.calls[0][0]).toBe('ep-r1');
   });
 
-  it('lists patients in bed order and keeps the area when moving to the next patient', async () => {
+  it('lists patients in bed order and keeps the area when choosing another patient', async () => {
     open();
     const list = screen.getByRole('list', { name: 'Lista de pacientes' });
     const items = within(list).getAllByRole('button');
@@ -192,11 +195,11 @@ describe('ClinicalExplorerView', () => {
       expect.stringContaining('H1C1'),
     ]);
     expect(items[0]).toHaveAttribute('aria-current', 'true');
-    // Days in hospital up to the census day, not the episode number (the header keeps it).
-    expect(items[0]).toHaveTextContent('3 d');
+    // Bed, name and RUT only: neither days in hospital nor the episode number.
+    expect(items[0]).not.toHaveTextContent('3 d');
     expect(items[0]).not.toHaveTextContent('ep-r1');
     fireEvent.click(screen.getByRole('tab', { name: 'Indicaciones' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Paciente siguiente' }));
+    fireEvent.click(items[1]);
     expect(screen.getByTestId('clinical-explorer-patient')).toHaveTextContent('SEGUNDO SINTÉTICO');
     expect(screen.getByRole('tab', { name: 'Indicaciones' })).toHaveAttribute(
       'aria-selected',
@@ -205,7 +208,7 @@ describe('ClinicalExplorerView', () => {
     await waitFor(() =>
       expect(mocks.request).toHaveBeenLastCalledWith('ep-h1c1', undefined, expect.anything())
     );
-    expect(screen.getByRole('button', { name: 'Paciente siguiente' })).toBeDisabled();
+    expect(within(list).getAllByRole('button')[1]).toHaveAttribute('aria-current', 'true');
   });
 
   it('hides suspended indications until asked and shows no kind labels', async () => {
@@ -264,7 +267,7 @@ describe('ClinicalExplorerView', () => {
 
   it('opens the exam request for this patient and lets the dialog own Escape', async () => {
     open();
-    fireEvent.click(screen.getByRole('button', { name: 'Solicitar exámenes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Exámenes' }));
     const dialog = await screen.findByRole('dialog', { name: 'Solicitud de exámenes' });
     expect(dialog).toHaveTextContent('PRIMERA SINTÉTICA');
     // Opened for this patient, with the census patients it may add as further orders.
@@ -274,15 +277,15 @@ describe('ClinicalExplorerView', () => {
     );
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByText('Censo visible')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Orden de radiología' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Radiología' }));
     expect(await screen.findByRole('dialog', { name: 'Orden de imágenes' })).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: 'Documentos clínicos' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Documentos' }));
     expect(await screen.findByRole('dialog', { name: 'Documentos clínicos' })).toBeVisible();
   });
 
   it('keeps the laboratory request open when its patient moves to another bed', async () => {
     const view = open();
-    fireEvent.click(screen.getByRole('button', { name: 'Solicitar exámenes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Exámenes' }));
     expect(await screen.findByRole('dialog', { name: 'Solicitud de exámenes' })).toHaveTextContent(
       'PRIMERA SINTÉTICA'
     );
