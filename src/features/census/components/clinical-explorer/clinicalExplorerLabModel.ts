@@ -81,7 +81,10 @@ const byDayAndTime = (a: LabPoint, b: LabPoint): number =>
 
 /** "umol/L", "µmol/L" and "μmol/L" are one unit; spacing and case do not split a series either. */
 const normalizeUnit = (unit: string): string =>
-  unit.replace(/\s+/g, '').replace(/[\u00b5\u03bc]/g, 'u').toLowerCase();
+  unit
+    .replace(/\s+/g, '')
+    .replace(/[\u00b5\u03bc]/g, 'u')
+    .toLowerCase();
 
 /**
  * Numeric series per analysis and unit from the comparison matrix, in the raw unit Syslab used.
@@ -180,8 +183,28 @@ export const addCalendarDays = (iso: string, days: number): string => {
   return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())}`;
 };
 
+/** Bound date labels by available pixels, not by the length of a hospitalization. */
+export const buildLabAxisDays = (startIso: string, endIso: string, width: number): string[] => {
+  const lastDay = Math.max(0, calendarDaysBetween(startIso, endIso));
+  if (lastDay === 0) return [endIso];
+  const spacing = startIso.slice(0, 4) === endIso.slice(0, 4) ? 72 : 104;
+  const slots = Math.max(2, Math.floor(width / spacing) + 1);
+  const step = Math.max(1, Math.ceil(lastDay / (slots - 1)));
+  const days: string[] = [];
+  for (let offset = 0; offset < lastDay; offset += step) {
+    // Reserve enough room for the final date and its census label.
+    if (offset > 0 && lastDay - offset < step * 0.75) continue;
+    days.push(addCalendarDays(startIso, offset));
+  }
+  days.push(endIso);
+  return days;
+};
+
 /** Round scale with three to five clean ticks around the values. */
-export const buildNiceTicks = (min: number, max: number): { min: number; max: number; ticks: number[] } => {
+export const buildNiceTicks = (
+  min: number,
+  max: number
+): { min: number; max: number; ticks: number[] } => {
   const span = max - min || Math.abs(max) || 1;
   const raw = span / 2;
   const power = 10 ** Math.floor(Math.log10(raw));
