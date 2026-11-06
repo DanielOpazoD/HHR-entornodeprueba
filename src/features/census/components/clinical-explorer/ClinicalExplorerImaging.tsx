@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState } from 'react';
+import React, { lazy, Suspense, useLayoutEffect, useRef, useState } from 'react';
 import { FileText, Images } from 'lucide-react';
 import { XRayIcon } from '@/components/ui/XRayIcon';
 import { hasMMRADStructuredReport } from '@/components/modals/controllers/radiologyViewerContentController';
@@ -10,9 +10,10 @@ import {
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import {
   describeMMRADRegisteredPatient,
-  fetchMMRADPdfBlobUrl,
+  fetchMMRADPdfBlob,
   type MMRADExam,
 } from '@/services/radiology/mmradService';
+import { getSessionEpoch, onSessionChange } from '@/services/storage/sessionStorageTransition';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import { formatStudyStamp, isCtStudy, studyKey } from './clinicalExplorerImagingModel';
 import {
@@ -92,25 +93,65 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
   const [pdfMessage, setPdfMessage] = useState<string | null>(null);
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
 
+  const pdfOperation = useRef<{ controller: AbortController; popup: Window } | null>(null);
+
+  useLayoutEffect(() => {
+    setPdfBusy(null);
+    setPdfMessage(null);
+    const cancel = (): void => {
+      const pending = pdfOperation.current;
+      pdfOperation.current = null;
+      pending?.controller.abort();
+      pending?.popup.close();
+    };
+    const unsubscribe = onSessionChange(() => {
+      cancel();
+      setPdfBusy(null);
+      setPdfMessage(null);
+    });
+    return () => {
+      unsubscribe();
+      cancel();
+    };
+  }, [patientIdentity, sessionEpoch]);
+
   const studies = expanded ? imaging.studies : imaging.studies.slice(0, COMPACT_STUDIES);
   const viewerExam = imaging.studies.find(exam => studyKey(exam) === viewerKey) ?? null;
 
   const openPdf = async (exam: MMRADExam): Promise<void> => {
-    if (!exam.pdf_url) return;
+    if (!exam.pdf_url || pdfOperation.current || getSessionEpoch() !== sessionEpoch) return;
     const popup = defaultBrowserWindowRuntime.open('', '_blank');
     if (!popup) return;
+    const operation = { controller: new AbortController(), popup };
+    pdfOperation.current = operation;
+    const isCurrent = (): boolean =>
+      pdfOperation.current === operation &&
+      !operation.controller.signal.aborted &&
+      getSessionEpoch() === sessionEpoch;
     setPdfMessage(null);
     setPdfBusy(studyKey(exam));
     try {
-      const url = await fetchMMRADPdfBlobUrl(exam.pdf_url);
-      popup.location.href = url;
-      popup.focus();
-      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      const blob = await fetchMMRADPdfBlob(exam.pdf_url, operation.controller.signal);
+      if (!isCurrent() || popup.closed) return;
+      const url = URL.createObjectURL(blob);
+      try {
+        popup.location.href = url;
+        popup.focus();
+        window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      } catch (error) {
+        URL.revokeObjectURL(url);
+        throw error;
+      }
     } catch (error) {
-      popup.close();
-      setPdfMessage(error instanceof Error ? error.message : 'No se pudo abrir el informe.');
+      if (isCurrent()) {
+        popup.close();
+        setPdfMessage(error instanceof Error ? error.message : 'No se pudo abrir el informe.');
+      }
     } finally {
-      setPdfBusy(null);
+      if (pdfOperation.current === operation) {
+        pdfOperation.current = null;
+        setPdfBusy(null);
+      }
     }
   };
 
@@ -188,7 +229,7 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
                       <button
                         type="button"
                         className={SMALL_BUTTON}
-                        disabled={pdfBusy === key}
+                        disabled={pdfBusy !== null}
                         onClick={() => void openPdf(exam)}
                       >
                         <FileText size={13} aria-hidden="true" className="text-slate-500" />

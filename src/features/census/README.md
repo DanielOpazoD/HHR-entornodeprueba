@@ -307,6 +307,11 @@ de paciente o episodio restablece la fecha, y cambiar de sesión cierra el explo
 Las indicaciones suspendidas siguen disponibles bajo su botón. Un fallo de lectura
 se presenta como fallo, nunca como una fecha sin indicaciones.
 
+La impresión libera sus controles si el navegador falla al abrir el diálogo o si
+el documento local no carga en 30 segundos. El frame fallido se elimina y una carga
+tardía no imprime; la persona puede reintentar. El diálogo ya abierto conserva su
+ciclo habitual, sin cambiar el contenido ni la fecha de las indicaciones.
+
 ### Jerarquía del explorador clínico
 
 La vista conjunta presenta evoluciones primero y la última toma de signos vitales
