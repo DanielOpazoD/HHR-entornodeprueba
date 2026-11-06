@@ -317,3 +317,9 @@ con fecha de toma, unidades y los mismos perfiles visuales del censo; no realiza
 una lectura nueva ni modifican datos. Un valor ausente no se transforma en cero.
 El acceso de regreso es un botón independiente, disponible incluso si el explorador
 no termina de cargar; conserva Escape, el foco y el censo montado detrás.
+
+En escritorio, el regreso ocupa el espacio sobre la lista de pacientes y se alinea
+con la identidad, sin una franja superior adicional. Sigue fuera del módulo de
+carga diferida. La lista tiene altura según su contenido, máximo visible y scroll.
+Las acciones del paciente y las pestañas usan menos bordes; los iconos de sección
+son neutros y los colores de vitales conservan su significado clínico.

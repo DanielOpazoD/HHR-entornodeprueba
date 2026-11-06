@@ -116,7 +116,13 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
   const body = (): React.ReactNode => {
     if (imaging.phase === 'listing') return <SkeletonLines label="Consultando MMRAD" />;
     if (imaging.phase === 'error')
-      return <ReadFailure message={imaging.message} onRetry={imaging.retry} />;
+      return (
+        <ReadFailure
+          summary="No se pudo consultar imágenes."
+          message={imaging.message}
+          onRetry={imaging.retry}
+        />
+      );
     if (imaging.phase === 'empty') {
       return (
         <>
@@ -225,7 +231,6 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
   return (
     <AreaCard
       icon={<XRayIcon size={14} />}
-      iconClassName="text-violet-700"
       title="Imágenes"
       subtitle={
         imaging.phase === 'ready' || imaging.phase === 'empty'

@@ -213,7 +213,10 @@ describe('ClinicalExplorerImaging', () => {
     mocks.search.mockRejectedValueOnce(new Error('Demasiadas solicitudes.'));
     renderImaging();
     const alert = await screen.findByRole('alert');
+    expect(within(alert).getByText('No se pudo consultar imágenes.')).toBeVisible();
     expect(alert).toHaveTextContent('Demasiadas solicitudes.');
+    fireEvent.click(within(alert).getByText('Detalle de la consulta'));
+    expect(within(alert).getByText('Demasiadas solicitudes.')).toBeVisible();
     expect(screen.queryByText(/Sin estudios/)).toBeNull();
     fireEvent.click(within(alert).getByRole('button', { name: 'Reintentar' }));
     await waitFor(() => expect(mocks.search).toHaveBeenCalledTimes(2));

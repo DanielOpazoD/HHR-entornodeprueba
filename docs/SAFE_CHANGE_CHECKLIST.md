@@ -91,7 +91,8 @@ usan la última toma ya disponible del paciente/episodio en el censo, con los pe
 visuales existentes. Se conserva la lectura compartida de evoluciones/indicaciones,
 la fecha seleccionada y el regreso al censo incluso durante carga o fallo del módulo.
 Validar pruebas focalizadas, escritorio de 1280/1024 px y móvil, valores ausentes/cero,
-cambio de episodio, fecha/hora hospitalaria, teclado/foco, build/budgets, revisión
+cambio de episodio, fecha/hora hospitalaria, teclado/foco, regreso alineado con
+la identidad y lista de altura natural en escritorio, build/budgets, revisión
 independiente y CI del head definitivo. No cambia fuentes, permisos ni persistencia.
 
 La continuidad visual del acceso y el espaciado de Enfermería/TENS son `safe_local_ui`.

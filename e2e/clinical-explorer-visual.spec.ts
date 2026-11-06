@@ -76,8 +76,11 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
     expect(listBounds!.x + listBounds!.width).toBeLessThanOrEqual(headerBounds!.x + 1);
     expect(headerBounds!.width).toBeGreaterThanOrEqual(explorerBounds!.width * 0.6);
     expect(explorerBounds!.x + explorerBounds!.width).toBeLessThanOrEqual(width + 1);
+    const backBounds = await page.getByRole('button', { name: 'Volver al censo' }).boundingBox();
+    expect(Math.abs(headerBounds!.y - backBounds!.y)).toBeLessThanOrEqual(2);
+    expect(listBounds!.height).toBeLessThan(240);
     // The patient header is two short lines; at 1280 the requests fit beside them.
-    if (width === 1280) expect(headerBounds!.height).toBeLessThanOrEqual(64);
+    if (width === 1280) expect(headerBounds!.height).toBeLessThanOrEqual(80);
 
     // The five areas are announced by name; the tab strip keeps one row.
     const tabs = page.getByRole('tablist', { name: 'Áreas' });

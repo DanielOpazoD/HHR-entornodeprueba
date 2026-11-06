@@ -33,26 +33,23 @@ export const ClinicalExplorerVitals: React.FC<{ patient: ClinicalExplorerPatient
   }
 
   return (
-    <AreaCard
-      icon={<Activity />}
-      iconClassName="text-teal-700"
-      title="Signos vitales"
-      source="Censo · Eloísa"
-    >
+    <AreaCard icon={<Activity />} title="Signos vitales" source="Censo · Eloísa">
       {vitals && (
         <p className="text-[11px] text-slate-500">
           Última toma disponible · {formatDateTimeCL(vitals.recordedAt)}
         </p>
       )}
       {readings.length > 0 ? (
-        <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <dl className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2">
           {readings.map(reading => (
             <div
               key={reading.label}
               className={`rounded-lg border px-2 py-2 text-center ${VITAL_STATUS_CARD[reading.status]}`}
             >
               <dt className="text-[11px] font-medium text-slate-500">{reading.label}</dt>
-              <dd className={`text-lg font-bold tabular-nums ${VITAL_STATUS_TEXT[reading.status]}`}>
+              <dd
+                className={`text-xl font-semibold tabular-nums ${VITAL_STATUS_TEXT[reading.status]}`}
+              >
                 {reading.value}
                 <span className="block text-[10px] font-normal text-slate-500">{reading.unit}</span>
               </dd>

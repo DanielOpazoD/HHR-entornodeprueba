@@ -33,12 +33,12 @@ export const ClinicalExplorerBar: React.FC<ClinicalExplorerBarProps> = ({ bedId 
   }, [close]);
 
   return (
-    <div className="sticky top-[var(--hhr-chrome-height)] z-30 self-start">
+    <div className="sticky top-[var(--hhr-chrome-height)] z-30 self-start lg:col-start-1 lg:row-start-1">
       <button
         ref={backRef}
         type="button"
         onClick={close}
-        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-700 px-3 text-[12px] font-semibold text-white hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+        className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-[13px] font-medium text-slate-600 hover:bg-white hover:text-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
       >
         <ArrowLeft size={14} aria-hidden="true" />
         Volver al censo

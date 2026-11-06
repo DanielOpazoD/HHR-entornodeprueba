@@ -86,13 +86,16 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
   }, [patients, bedId]);
 
   return (
-    <div data-testid="clinical-explorer" className="grid gap-3 lg:grid-cols-[248px_minmax(0,1fr)]">
+    <div
+      data-testid="clinical-explorer"
+      className="grid items-start gap-3 lg:col-span-2 lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:grid-cols-[240px_minmax(0,1fr)] lg:grid-rows-[36px_minmax(0,1fr)]"
+    >
       <ClinicalExplorerPatientPanel
         patients={patients}
         selectedBedId={bedId}
         onSelect={selectClinicalExplorerBed}
       />
-      <div className="flex min-w-0 flex-col gap-3">
+      <div className="flex min-w-0 flex-col gap-3 lg:col-start-2 lg:row-start-1 lg:row-span-2">
         {patient ? (
           <>
             <ClinicalExplorerHeader
@@ -103,7 +106,7 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
             <div
               role="tablist"
               aria-label="Áreas"
-              className="inline-flex max-w-full gap-0.5 self-start overflow-x-auto rounded-lg bg-slate-100 p-0.5"
+              className="flex max-w-full gap-x-1 overflow-x-auto border-b border-slate-200"
             >
               {EXPLORER_TABS.map(item => (
                 <button
@@ -113,10 +116,10 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
                   aria-selected={tab === item.key}
                   onClick={() => setTab(item.key)}
                   className={clsx(
-                    'h-7 shrink-0 rounded-md px-3 text-[12px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
+                    'min-h-9 shrink-0 border-b-2 px-2 text-[12px] font-medium sm:px-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
                     tab === item.key
-                      ? 'bg-white text-medical-700 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
+                      ? 'border-teal-700 text-teal-800'
+                      : 'border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-800'
                   )}
                 >
                   {item.label}
