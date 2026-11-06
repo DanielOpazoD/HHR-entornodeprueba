@@ -296,3 +296,13 @@ confirmación permanecen en sus capas actuales.
 - La esquina del resumen alterna camas/movimientos y cumplimiento CUDYR del mes seleccionado. La vista mensual se carga sólo al abrirla, reutiliza el reporte guardado de HHR y su caché por sesión, sin consultar Eloísa. Excluye hoy y días futuros en Rapa Nui; las ventanas de aplicación abiertas tampoco contribuyen al consolidado. Una lectura pendiente o fallida nunca se presenta como oficial.
 
 El lector mensual es un chunk opcional bajo demanda, igual que el lector histórico CUDYR del que depende. No aumenta el precache de instalación; una primera apertura sin red puede no disponer del módulo. El censo y los controles de escalas mantienen su precache.
+
+### Indicaciones del explorador clínico
+
+La fecha inicial es el día calendario actual de Rapa Nui, independiente de la fecha
+del censo y del corte del turno. La fecha seleccionada filtra la hoja diaria ya leída
+de Ficha Médico; no arrastra un tratamiento de otro día cuando no hay registros.
+«Hoy» sigue el cambio de día; una fecha elegida explícitamente se conserva. Cambiar
+de paciente o episodio restablece la fecha, y cambiar de sesión cierra el explorador.
+Las indicaciones suspendidas siguen disponibles bajo su botón. Un fallo de lectura
+se presenta como fallo, nunca como una fecha sin indicaciones.

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { BookOpenText, ClipboardList, RefreshCw } from 'lucide-react';
-import { resolveCompactIndicationDays } from '@/features/census/controllers/clinicalExplorerController';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { useClinicalPanelSnapshot, type PanelState } from '../patient-row/useClinicalPanelSnapshot';
 import { EvolutionCard } from '../patient-row/ClinicalPanelSections';
 import {
@@ -21,7 +21,6 @@ type EvolutionProfession = NonNullable<ClinicalPanelEntry['profession']>;
 
 const SOURCE = 'Eloísa · Ficha Médico';
 const COMPACT_EVOLUTIONS = 3;
-const COMPACT_INDICATION_DAYS = 2;
 
 type ProfessionFilter = 'all' | EvolutionProfession;
 const PROFESSIONS: ReadonlyArray<{ key: ProfessionFilter; label: string }> = [
@@ -33,6 +32,8 @@ const PROFESSIONS: ReadonlyArray<{ key: ProfessionFilter; label: string }> = [
 
 interface ClinicalExplorerNotesProps {
   episodeId: string;
+  selectedDate: string | null;
+  onSelectDate: (date: string | null) => void;
   tab: ClinicalExplorerTab;
   onShowAll: (tab: ClinicalExplorerTab) => void;
 }
@@ -52,33 +53,28 @@ const IndicationLine: React.FC<{ entry: ClinicalPanelEntry; muted?: boolean }> =
   </li>
 );
 
-const IndicationDays: React.FC<{ days: ClinicalPanelIndicationDay[]; compact: boolean }> = ({
-  days,
-  compact,
-}) => {
+const IndicationDay: React.FC<{ day: ClinicalPanelIndicationDay | undefined }> = ({ day }) => {
   const [showSuspended, setShowSuspended] = useState(false);
-  const baseDays = compact ? resolveCompactIndicationDays(days, COMPACT_INDICATION_DAYS) : days;
-  const suspendedCount = baseDays.reduce((total, day) => total + day.suspended.length, 0);
-  const shown = baseDays.filter(
-    day => day.active.length > 0 || (showSuspended && day.suspended.length > 0)
-  );
+  const suspendedCount = day?.suspended.length ?? 0;
   return (
     <>
-      {shown.map(day => (
-        <div key={day.day} className="flex flex-col gap-1">
-          <h4 className="text-[11px] font-semibold tabular-nums text-slate-600">{day.label}</h4>
-          <ul className="flex flex-col gap-1">
-            {day.active.map(entry => (
-              <IndicationLine key={`${entry.kind}-${entry.id}`} entry={entry} />
+      {day && (day.active.length > 0 || (showSuspended && suspendedCount > 0)) ? (
+        <ul className="flex flex-col gap-1">
+          {day.active.map(entry => (
+            <IndicationLine key={`${entry.kind}-${entry.id}`} entry={entry} />
+          ))}
+          {showSuspended &&
+            day.suspended.map(entry => (
+              <IndicationLine key={`${entry.kind}-${entry.id}`} entry={entry} muted />
             ))}
-            {showSuspended &&
-              day.suspended.map(entry => (
-                <IndicationLine key={`${entry.kind}-${entry.id}`} entry={entry} muted />
-              ))}
-          </ul>
-        </div>
-      ))}
-      {shown.length === 0 && <EmptyNote>Sin indicaciones vigentes en Ficha Médico.</EmptyNote>}
+        </ul>
+      ) : (
+        <EmptyNote>
+          {day
+            ? 'Sin indicaciones vigentes para esta fecha.'
+            : 'Sin indicaciones registradas para esta fecha.'}
+        </EmptyNote>
+      )}
       {suspendedCount > 0 && (
         <LinkButton
           className="!text-slate-500"
@@ -97,6 +93,8 @@ const IndicationDays: React.FC<{ days: ClinicalPanelIndicationDay[]; compact: bo
 /** Evolutions and indications read from Eloísa for the selected episode, one read for both. */
 export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
   episodeId,
+  selectedDate,
+  onSelectDate,
   tab,
   onShowAll,
 }) => {
@@ -110,13 +108,22 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
     panel ? panel.evolutions.filter(e => key === 'all' || e.profession === key).length : 0;
   const compact = tab === 'all';
   const shownEvolutions = compact ? evolutions.slice(0, COMPACT_EVOLUTIONS) : evolutions;
-  const activeIndications = panel
-    ? panel.indicationDays.reduce((total, day) => total + day.active.length, 0)
-    : 0;
-  const hasMoreIndicationDays = panel
-    ? panel.indicationDays.length >
-      resolveCompactIndicationDays(panel.indicationDays, COMPACT_INDICATION_DAYS).length
-    : false;
+  const [today, setToday] = useState(() => getClinicalCalendarDateISO());
+  const indicationDate = selectedDate ?? today;
+  const indicationDay = panel?.indicationDays.find(day => day.day === indicationDate);
+
+  useEffect(() => {
+    const refresh = (): void => setToday(getClinicalCalendarDateISO());
+    const onVisible = (): void => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    const interval = window.setInterval(refresh, 60_000);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
 
   const reloadButton = (
     <button
@@ -193,19 +200,33 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
           icon={<ClipboardList />}
           iconClassName="text-teal-700"
           title="Indicaciones"
-          subtitle={panel ? `${activeIndications} vigentes` : undefined}
+          subtitle={panel ? `${indicationDay?.active.length ?? 0} vigentes` : undefined}
           source={SOURCE}
-          actions={
-            <>
-              {compact && hasMoreIndicationDays && (
-                <LinkButton onClick={() => onShowAll('indications')}>Ver todas ›</LinkButton>
-              )}
-              {tab === 'indications' && reloadButton}
-            </>
-          }
+          actions={tab === 'indications' ? reloadButton : undefined}
         >
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="date"
+              aria-label="Fecha de indicaciones"
+              value={indicationDate}
+              max={today}
+              onChange={event => onSelectDate(event.target.value || null)}
+              className="h-7 min-w-0 rounded-md border border-slate-200 bg-white px-2 text-[12px] tabular-nums text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
+            />
+            <button
+              type="button"
+              aria-pressed={selectedDate === null}
+              onClick={() => {
+                setToday(getClinicalCalendarDateISO());
+                onSelectDate(null);
+              }}
+              className="h-7 rounded-md px-2 text-[11px] font-semibold text-teal-700 hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
+            >
+              Hoy
+            </button>
+          </div>
           {body(() => (
-            <IndicationDays days={panel!.indicationDays} compact={compact} />
+            <IndicationDay key={indicationDate} day={indicationDay} />
           ))}
         </AreaCard>
       )}

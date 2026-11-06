@@ -56,6 +56,7 @@ vi.mock('@/features/laboratory/hooks/useSyslabAccess', () => ({
   }),
 }));
 
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { panelResult } from '../clinicalPanelDrawer.fixture';
 import { BEDS } from '@/constants/beds';
 import { ClinicalExplorerBar } from '@/features/census/components/clinical-explorer/ClinicalExplorerBar';
@@ -165,10 +166,18 @@ const open = (bedId = 'R1') => {
 
 describe('ClinicalExplorerView', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-07-14T04:30:00Z'));
     mocks.request.mockReset();
     mocks.request.mockResolvedValue(panelWithActiveIndication);
   });
-  afterEach(() => act(() => closeClinicalExplorer()));
+  afterEach(() => {
+    act(() => {
+      closeClinicalExplorer();
+      setSessionGeneration(null);
+    });
+    vi.useRealTimers();
+  });
 
   it('shows the census day and a compact patient header, and reads Ficha Médico once', async () => {
     open();
@@ -222,20 +231,111 @@ describe('ClinicalExplorerView', () => {
     expect(within(card).getByText('CEFTRIAXONA 2 g')).toBeVisible();
   });
 
-  it('keeps an older active treatment visible in the combined view behind days of suspended orders', async () => {
+  it('shows only the Rapa Nui calendar day, independently of UTC and the census date', async () => {
     mocks.request.mockResolvedValue(panelWithOlderActiveTreatment);
     open();
     const card = await screen.findByRole('region', { name: 'Indicaciones' });
-    await within(card).findByText('AMOXICILINA 500 mg');
+    await within(card).findByText('Sin indicaciones vigentes para esta fecha.');
+    expect(within(card).getByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-13');
+    expect(card).toHaveTextContent('0 vigentes');
+    expect(within(card).queryByText('AMOXICILINA 500 mg')).toBeNull();
+    fireEvent.click(within(card).getByRole('button', { name: 'Mostrar 1 suspendida' }));
+    expect(within(card).getByText('CEFTRIAXONA 2 g')).toBeVisible();
+    expect(within(card).queryByText('OMEPRAZOL 20 mg')).toBeNull();
+    fireEvent.change(within(card).getByLabelText('Fecha de indicaciones'), {
+      target: { value: '2026-07-11' },
+    });
+    expect(within(card).getByText('AMOXICILINA 500 mg')).toBeVisible();
     expect(card).toHaveTextContent('1 vigentes');
-    expect(within(card).queryByText('Sin indicaciones vigentes en Ficha Médico.')).toBeNull();
-    // The compact view holds the active day only; the suspended days wait in the full area.
-    expect(within(card).queryByRole('button', { name: /Mostrar/ })).toBeNull();
-    fireEvent.click(within(card).getByRole('button', { name: 'Ver todas ›' }));
-    const full = screen.getByRole('region', { name: 'Indicaciones' });
-    fireEvent.click(within(full).getByRole('button', { name: 'Mostrar 2 suspendidas' }));
-    expect(within(full).getByText('AMOXICILINA 500 mg')).toBeVisible();
-    expect(within(full).getByText('OMEPRAZOL 20 mg')).toBeVisible();
+    expect(within(card).queryByText('CEFTRIAXONA 2 g')).toBeNull();
+    fireEvent.click(within(card).getByRole('button', { name: 'Hoy' }));
+    expect(within(card).getByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-13');
+    expect(within(card).queryByText('CEFTRIAXONA 2 g')).toBeNull();
+    expect(within(card).queryByText('AMOXICILINA 500 mg')).toBeNull();
+    expect(mocks.request).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the selected date across laboratory and imaging for the same patient', async () => {
+    mocks.request.mockResolvedValue(panelWithOlderActiveTreatment);
+    open();
+    await screen.findByText('Sin indicaciones vigentes para esta fecha.');
+    fireEvent.change(screen.getByLabelText('Fecha de indicaciones'), {
+      target: { value: '2026-07-11' },
+    });
+    for (const area of ['Laboratorio', 'Imágenes', 'Evoluciones']) {
+      fireEvent.click(screen.getByRole('tab', { name: area }));
+      fireEvent.click(screen.getByRole('tab', { name: 'Indicaciones' }));
+      expect(screen.getByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-11');
+      expect(await screen.findByText('AMOXICILINA 500 mg')).toBeVisible();
+    }
+  });
+
+  it('leaves an empty selected day empty instead of substituting an older treatment', async () => {
+    vi.setSystemTime(new Date('2026-07-14T08:00:00Z'));
+    open();
+    const card = await screen.findByRole('region', { name: 'Indicaciones' });
+    await within(card).findByText('Sin indicaciones registradas para esta fecha.');
+    expect(within(card).getByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-14');
+    expect(card).toHaveTextContent('0 vigentes');
+    expect(within(card).queryByText('AMOXICILINA 500 mg')).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Indicaciones' }));
+    expect(within(card).queryByText('AMOXICILINA 500 mg')).toBeNull();
+  });
+
+  it('advances today on returning after midnight while keeping an explicitly selected day', async () => {
+    open();
+    await screen.findByText('AMOXICILINA 500 mg');
+    vi.setSystemTime(new Date('2026-07-14T06:00:00Z'));
+    fireEvent(document, new Event('visibilitychange'));
+    expect(screen.getByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-14');
+    expect(screen.queryByText('AMOXICILINA 500 mg')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Fecha de indicaciones'), {
+      target: { value: '2026-07-13' },
+    });
+    expect(screen.getByText('AMOXICILINA 500 mg')).toBeVisible();
+    vi.setSystemTime(new Date('2026-07-15T06:00:00Z'));
+    fireEvent(document, new Event('visibilitychange'));
+    expect(screen.getByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-13');
+    fireEvent.click(screen.getByRole('button', { name: 'Hoy' }));
+    expect(screen.getByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-15');
+  });
+
+  it('resets the chosen day and suspended visibility for another patient or session', async () => {
+    open();
+    await screen.findByText('AMOXICILINA 500 mg');
+    fireEvent.change(screen.getByLabelText('Fecha de indicaciones'), {
+      target: { value: '2026-07-11' },
+    });
+    fireEvent.keyDown(document, { key: 'ArrowRight' });
+    expect(screen.getByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-13');
+    await screen.findByText('AMOXICILINA 500 mg');
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar 1 suspendida' }));
+    expect(screen.getByText('CEFTRIAXONA 2 g')).toBeVisible();
+    fireEvent.change(screen.getByLabelText('Fecha de indicaciones'), {
+      target: { value: '2026-07-11' },
+    });
+    act(() => setSessionGeneration('explorer-indications-new-session'));
+    expect(screen.getByText('Censo visible')).toBeVisible();
+    act(() => openClinicalExplorer({ censusDate: DATE, bedId: 'H1C1' }));
+    await screen.findByText('AMOXICILINA 500 mg');
+    expect(screen.queryByText('CEFTRIAXONA 2 g')).toBeNull();
+    expect(screen.getByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-13');
+  });
+
+  it('resets the date when a new episode occupies the same bed', async () => {
+    const view = open();
+    await screen.findByText('AMOXICILINA 500 mg');
+    fireEvent.change(screen.getByLabelText('Fecha de indicaciones'), {
+      target: { value: '2026-07-11' },
+    });
+    view.rerender(
+      <Harness
+        list={patients.map(patient => ({ ...patient, episodeId: `${patient.episodeId}-new` }))}
+      />
+    );
+    expect(screen.getByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-13');
+    await screen.findByText('AMOXICILINA 500 mg');
+    expect(mocks.request).toHaveBeenLastCalledWith('ep-r1-new', undefined, expect.anything());
   });
 
   it('filters evolutions by profession and opens all of them from the combined view', async () => {
