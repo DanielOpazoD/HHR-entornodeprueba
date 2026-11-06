@@ -136,3 +136,15 @@ solo cuando se adjunta ese respaldo, con un límite de 20 KB y fuera del precach
 La descarga espera su lectura y validación antes de ofrecer el archivo; no omite el
 respaldo ni sus comprobaciones si hay un fallo. Los límites de arranque e instalación
 se mantienen.
+
+## Medición de las operaciones
+
+La telemetría existente registra una muestra por lectura interactiva terminada,
+reutilización de reporte y actualización mensual terminada. Incluye duración total
+y contadores de filas o informes guardados, reutilizados y fallidos; no incluye
+fechas clínicas, nombres, documentos, episodios ni mensajes de error. Las operaciones
+canceladas o las respuestas descartadas al cambiar de sesión no se informan como éxitos.
+Los contadores mensuales corresponden a informes CUDYR, no a todas las solicitudes
+de red ni a los censos complementarios. La duración es la de la operación completa;
+no atribuye por separado latencia de Eloísa, Firebase o construcción local.
+El envío externo conserva el muestreo configurado de telemetría.

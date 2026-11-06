@@ -1,6 +1,8 @@
+import { recordCudyrOperation } from '@/services/cudyr/cudyrOperationTelemetry';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CudyrMonthlyRecovery } from '@/features/cudyr/components/CudyrMonthlyRecovery';
+vi.mock('@/services/cudyr/cudyrOperationTelemetry', () => ({ recordCudyrOperation: vi.fn() }));
 const recover = vi.hoisted(() => vi.fn());
 const clock = vi.hoisted(() => ({ closed: true }));
 vi.mock('@/services/cudyr/cudyrMonthlyRecovery', () => ({
@@ -12,6 +14,7 @@ vi.mock('@/domain/cudyr/cudyrPending', () => ({
 }));
 beforeEach(() => {
   recover.mockReset();
+  vi.mocked(recordCudyrOperation).mockClear();
   clock.closed = true;
 });
 describe('explicit monthly documentary action', () => {
@@ -65,6 +68,12 @@ describe('explicit monthly documentary action', () => {
     render(<CudyrMonthlyRecovery month="2026-08" onSaved={saved} />);
     fireEvent.click(screen.getByText('Actualizar CUDYR'));
     await waitFor(() => expect(saved).toHaveBeenCalledOnce());
+    expect(recordCudyrOperation).toHaveBeenCalledExactlyOnceWith(
+      'cudyr_monthly_recovery',
+      expect.any(Number),
+      'success',
+      { recordCount: 1, unchangedCount: 1, failedCount: 0 }
+    );
     expect(screen.getByText(/1 informes guardados · 1 reutilizados/)).toHaveTextContent(
       'Resultados y elegibilidad se informan por separado.'
     );
@@ -82,6 +91,12 @@ describe('explicit monthly documentary action', () => {
     fireEvent.click(screen.getByText('Actualizar CUDYR'));
     await waitFor(() => expect(screen.getByText(/Conecta Gestión de Camas/)).toBeInTheDocument());
     expect(screen.getByText(/1 consultas pendientes/)).toBeInTheDocument();
+    expect(recordCudyrOperation).toHaveBeenCalledExactlyOnceWith(
+      'cudyr_monthly_recovery',
+      expect.any(Number),
+      'partial',
+      { recordCount: 0, unchangedCount: 0, failedCount: 1 }
+    );
   });
   it('aborts on unmount and never refreshes another screen after an in-flight read', async () => {
     let finish: (value: unknown) => void = () => {};
@@ -100,5 +115,6 @@ describe('explicit monthly documentary action', () => {
     finish({ recovered: 1, reused: 0, failures: [] });
     await Promise.resolve();
     expect(saved).not.toHaveBeenCalled();
+    expect(recordCudyrOperation).not.toHaveBeenCalled();
   });
 });
