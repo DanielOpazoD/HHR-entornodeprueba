@@ -71,23 +71,28 @@ export const buildMMRADPdfUrl = (pdfLink: string): string =>
 export const buildMMRADPortalReceiptUrl = (receiptLink: string): string =>
   buildMMRADProxyUrl(`?action=portalReceipt&link=${encodeURIComponent(receiptLink)}`);
 
-export const fetchMMRADPdfBlobUrl = async (pdfLink: string): Promise<string> => {
+export const fetchMMRADPdfBlob = async (pdfLink: string, signal?: AbortSignal): Promise<Blob> => {
   const authHeaders = await resolveCurrentUserAuthHeaders();
+  signal?.throwIfAborted();
   const response = await fetch(buildMMRADPdfUrl(pdfLink), {
     headers: authHeaders,
+    signal,
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(error => {
-      mmradLogger.warn('Failed to parse MMRAD PDF error response body', error);
-      return { error: 'Error de conexión' };
-    });
-    throw new Error(errorData.error || `Error ${response.status}`);
+    throw new Error('No se pudo obtener el PDF original de MMRAD.');
   }
 
   const pdfBlob = await response.blob();
-  return URL.createObjectURL(pdfBlob);
+  signal?.throwIfAborted();
+  if (pdfBlob.type.split(';')[0]?.trim().toLowerCase() !== 'application/pdf') {
+    throw new Error('MMRAD no devolvió un PDF original válido.');
+  }
+  return pdfBlob;
 };
+
+export const fetchMMRADPdfBlobUrl = async (pdfLink: string): Promise<string> =>
+  URL.createObjectURL(await fetchMMRADPdfBlob(pdfLink));
 
 export const fetchMMRADPortalReceiptHtml = async (receiptLink: string): Promise<string> => {
   const authHeaders = await resolveCurrentUserAuthHeaders();
