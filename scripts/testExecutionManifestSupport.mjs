@@ -355,6 +355,13 @@ export const buildRequiredCiSuites = root => {
       files: selectLiteralE2eFiles(root, 'test:e2e:critical', scripts),
     },
     {
+      suiteId: 'cudyr',
+      job: 'e2e-critical-emulator',
+      kind: 'playwright',
+      script: 'test:e2e:cudyr-flow:ci',
+      files: selectLiteralE2eFiles(root, 'test:e2e:cudyr-flow', scripts),
+    },
+    {
       suiteId: 'flow',
       job: 'e2e-critical-emulator',
       kind: 'playwright',

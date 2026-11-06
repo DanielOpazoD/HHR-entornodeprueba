@@ -61,11 +61,11 @@ export const AreaCard: React.FC<AreaCardProps> = ({
   <section
     aria-label={title}
     className={clsx(
-      'flex min-w-0 flex-col rounded-[10px] border border-slate-200 bg-white',
+      'flex min-w-0 flex-col rounded-xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/20',
       className
     )}
   >
-    <header className="flex min-h-10 items-center gap-2 border-b border-slate-100 px-3 py-1.5">
+    <header className="flex min-h-10 items-center gap-2 border-b border-slate-100 bg-slate-50/30 px-3 py-1.5">
       <span aria-hidden="true" className="inline-flex text-slate-500 [&>svg]:size-3.5">
         {icon}
       </span>

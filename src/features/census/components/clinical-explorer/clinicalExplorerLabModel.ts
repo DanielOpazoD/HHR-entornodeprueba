@@ -1,3 +1,4 @@
+import { buildExamColumnKey } from '@/features/laboratory/hospitalization-reports';
 import { formatLabResult, parseDateDDMMYYYY, parseLabMeasurement } from '@/features/laboratory';
 import type { LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
 import type { LabResultRow, SyslabExamItem } from '@/types/domain/labExamTypes';
@@ -219,3 +220,24 @@ export const buildNiceTicks = (
 
 const numberFormat = new Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 });
 export const formatLabNumber = (value: number): string => numberFormat.format(value);
+
+/** Last six source columns, retaining the original order identity even without a visible time. */
+export const buildRecentLabColumns = (
+  analysis: LabAnalysisData,
+  exams: SyslabExamItem[],
+  throughDay: string
+) => {
+  const sources = new Map(exams.map(exam => [buildExamColumnKey(exam, exam.date, exams), exam]));
+  return analysis.examDates
+    .flatMap(key => {
+      const when = parseColumnKey(key);
+      return when && when.dayIso <= throughDay ? [{ key, ...when, exam: sources.get(key) }] : [];
+    })
+    .sort(
+      (a, b) =>
+        b.dayIso.localeCompare(a.dayIso) ||
+        b.time.localeCompare(a.time) ||
+        b.key.localeCompare(a.key)
+    )
+    .slice(0, 6);
+};

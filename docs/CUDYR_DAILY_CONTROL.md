@@ -12,6 +12,16 @@ La navegación reutiliza el caché por cuenta y sesión. La verificación remota
 la versión de fuentes; un fallo conserva la última copia e informa la falta de conexión.
 El cambio de cuenta no reutiliza los datos clínicos de la sesión anterior.
 
+Al regresar del explorador, el registro adopta la copia verificada del período si
+conserva su vigencia. Un período insuficiente, una invalidación o el vencimiento de
+la copia exigen otra lectura antes de habilitar la exportación.
+
+El recorrido de reporte guardado, corrección confirmada, regreso al registro y Excel
+se verifica en CI mediante `e2e/cudyr-flow-critical.spec.ts`, con Firestore emulado,
+funciones de archivo reales y datos sintéticos. También comprueba conservación de la
+copia y bloqueo de exportación ante una lectura fallida, seguido de recuperación.
+Esta prueba no acredita capturas desde una sesión real de Eloísa.
+
 El explorador lee el respaldo mensual complementario después de verificar el reporte,
 evitando descargarlo para copias provisionales. Una nueva consulta vuelve a verificar
 ambas lecturas; la exportación espera a que terminen correctamente.
@@ -126,3 +136,15 @@ solo cuando se adjunta ese respaldo, con un límite de 20 KB y fuera del precach
 La descarga espera su lectura y validación antes de ofrecer el archivo; no omite el
 respaldo ni sus comprobaciones si hay un fallo. Los límites de arranque e instalación
 se mantienen.
+
+## Medición de las operaciones
+
+La telemetría existente registra una muestra por lectura interactiva terminada,
+reutilización de reporte y actualización mensual terminada. Incluye duración total
+y contadores de filas o informes guardados, reutilizados y fallidos; no incluye
+fechas clínicas, nombres, documentos, episodios ni mensajes de error. Las operaciones
+canceladas o las respuestas descartadas al cambiar de sesión no se informan como éxitos.
+Los contadores mensuales corresponden a informes CUDYR, no a todas las solicitudes
+de red ni a los censos complementarios. La duración es la de la operación completa;
+no atribuye por separado latencia de Eloísa, Firebase o construcción local.
+El envío externo conserva el muestreo configurado de telemetría.

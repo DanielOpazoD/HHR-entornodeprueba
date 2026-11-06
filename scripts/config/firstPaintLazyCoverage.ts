@@ -90,6 +90,8 @@ const OPTIONAL_TARGETS: Record<string, string> = {
   'src/features/clinical-documents': 'Clinical document dialogs/export open on request.',
   'src/features/cudyr': 'Monthly summary is an explicit alternate view.',
   'src/features/laboratory': 'Online laboratory viewer opens on request.',
+  'src/features/laboratory/report-pdf':
+    'Original Syslab PDF opens only on request from the online clinical explorer.',
   'src/features/rayen-import/RayenImportButton':
     'Online Eloisa import has an isolated toolbar fallback.',
   'src/features/rayen-manual-import': 'Manual import dialog opens on request.',

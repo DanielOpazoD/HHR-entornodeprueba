@@ -1,3 +1,4 @@
+import { recordCudyrOperation } from '@/services/cudyr/cudyrOperationTelemetry';
 import { useEffect, useRef, useState } from 'react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import {
@@ -49,6 +50,7 @@ export const CudyrMonthlyRecovery = ({
   }, [month]);
   const start = async () => {
     if (active.current || !closed || disabled) return;
+    const startedAt = performance.now();
     const controller = new AbortController();
     active.current = controller;
     setBusy(true);
@@ -66,10 +68,26 @@ export const CudyrMonthlyRecovery = ({
       if (!controller.signal.aborted) {
         setResult(value);
         onSaved();
+        recordCudyrOperation(
+          'cudyr_monthly_recovery',
+          startedAt,
+          value.failures.length ||
+            value.verificationError ||
+            value.verificationResult?.censusIncomplete
+            ? 'partial'
+            : 'success',
+          {
+            recordCount: value.recovered,
+            unchangedCount: value.reused,
+            failedCount: value.failures.length,
+          }
+        );
       }
     } catch (e) {
-      if (!controller.signal.aborted)
+      if (!controller.signal.aborted) {
+        recordCudyrOperation('cudyr_monthly_recovery', startedAt, 'failed');
         setError(e instanceof Error ? e.message : 'No se pudo consultar el archivo.');
+      }
     } finally {
       if (active.current === controller) active.current = null;
       if (mounted.current) setBusy(false);

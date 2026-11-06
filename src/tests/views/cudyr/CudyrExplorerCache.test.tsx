@@ -18,10 +18,12 @@ vi.mock('@/features/cudyr/components/CudyrSupplementPanel', () => ({
   CudyrSupplementPanel: () => null,
 }));
 describe('explorer cache export verification', () => {
-  it.each(['busy', 'thrown', 'partial', 'coverage', 'complete'])(
+  it.each(['busy', 'thrown', 'partial', 'coverage', 'snapshot', 'incomplete', 'complete'])(
     'protects both exports for %s reads',
     state => {
       const data = buildCudyrReport(reportInput());
+      if (state === 'snapshot') data.readViewSnapshot = 'saved';
+      if (state === 'incomplete') data.readIncomplete = true;
       if (state === 'partial') data.issues = ['Lectura incompleta'];
       if (state === 'coverage')
         data.coverage = [{ date: data.to, state: 'error', lastSyncedAt: '', runId: '' }];

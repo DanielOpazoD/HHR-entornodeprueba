@@ -1,3 +1,4 @@
+import { recordCudyrOperation } from '@/services/cudyr/cudyrOperationTelemetry';
 import { readCudyrReadView, saveCudyrReadView } from '@/services/cudyr/cudyrReadView';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
@@ -58,6 +59,7 @@ export const useCudyrReport = (
   const mountedRead = useRef(false);
   const load = useCallback(
     async (from: string, to: string, reuse = false) => {
+      const startedAt = performance.now();
       active.current?.abort();
       const request = new AbortController();
       active.current = request;
@@ -84,6 +86,9 @@ export const useCudyrReport = (
             Date.now() - loadedAt >= 120_000);
       mountedRead.current = true;
       if (!mustVerify) {
+        recordCudyrOperation('cudyr_report_reuse', startedAt, 'success', {
+          rowCount: cached?.rows.length,
+        });
         setBusy(false);
         return;
       }
@@ -124,6 +129,9 @@ export const useCudyrReport = (
             store.put(result);
           }
           const incomplete = cudyrReportReadIncomplete(result);
+          recordCudyrOperation('cudyr_report_read', startedAt, incomplete ? 'partial' : 'success', {
+            rowCount: result.rows.length,
+          });
           if (incomplete) {
             setData(lastGood || result);
             setError(
@@ -141,6 +149,7 @@ export const useCudyrReport = (
         }
       } catch (caught) {
         if (!request.signal.aborted && active.current === request && sessionScope() === scope) {
+          recordCudyrOperation('cudyr_report_read', startedAt, 'failed');
           store.requireVerification();
           setData(lastGood);
           setError(caught instanceof Error ? caught.message : 'No se pudo leer el reporte.');

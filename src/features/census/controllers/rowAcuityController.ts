@@ -112,6 +112,8 @@ const rowMatchesAttentionFilter = (
 ): boolean => {
   if (row.kind !== 'occupied' || row.data.isBlocked || !row.data.patientName?.trim()) return false;
 
+  if (filter === 'isolation') return Boolean(row.data.isIsolated);
+
   const acuity = buildRowAcuity(row.data, censusIsoDay);
   if (filter === 'attention') return acuity.level !== 'none';
   return acuity.reasons.some(reason => reason.kind === filter);

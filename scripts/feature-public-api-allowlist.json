@@ -4,7 +4,10 @@
     "audit-documents": ["@/features/audit-documents/eloisa-history"],
     "census": ["@/features/census/census-view", "@/features/census/public-components"],
     "clinical-documents": ["@/features/clinical-documents/internal"],
-    "laboratory": ["@/features/laboratory/hospitalization-reports"]
+    "laboratory": [
+      "@/features/laboratory/hospitalization-reports",
+      "@/features/laboratory/report-pdf"
+    ]
   },
   "exceptionsByFeature": {
     "laboratory": [

@@ -1,1 +1,1 @@
-npm run typecheck && npm run check:secret-leaks && npx lint-staged
+npx lint-staged && npm run typecheck && npm run check:secret-leaks

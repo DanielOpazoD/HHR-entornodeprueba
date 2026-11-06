@@ -1,3 +1,5 @@
+import { useSessionEpoch } from '@/hooks/useSessionEpoch';
+import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   parseClinicalPanel,
@@ -32,11 +34,14 @@ const panelStateFrom = (result: RayenClinicalPanelResult): PanelState =>
     : { phase: 'ready', panel: parseClinicalPanel(result.events, result.carePlan) };
 
 export const useClinicalPanelSnapshot = (clinicalEpisodeId: string) => {
+  const generation = useSessionEpoch();
   const [snapshot, setSnapshot] = useState<{
+    generation: number;
     episode: string;
     state: PanelState;
     documentState: DocumentState;
   }>({
+    generation,
     episode: clinicalEpisodeId,
     state: { phase: 'loading' },
     documentState: { phase: 'loading' },
@@ -51,36 +56,48 @@ export const useClinicalPanelSnapshot = (clinicalEpisodeId: string) => {
     pending.current = request;
     void requestClinicalPanel(clinicalEpisodeId, undefined, request.controller.signal)
       .then(result => {
-        if (pending.current !== request || request.controller.signal.aborted) return;
+        if (
+          pending.current !== request ||
+          request.controller.signal.aborted ||
+          generation !== getSessionEpoch()
+        )
+          return;
         setSnapshot({
+          generation,
           episode: clinicalEpisodeId,
           state: panelStateFrom(result),
           documentState: documentStateFrom(result),
         });
       })
       .catch(() => {
-        if (pending.current !== request || request.controller.signal.aborted) return;
+        if (
+          pending.current !== request ||
+          request.controller.signal.aborted ||
+          generation !== getSessionEpoch()
+        )
+          return;
         const error = {
           phase: 'error' as const,
           message: 'No se pudo cargar el panel clínico. Vuelve a intentar.',
         };
-        setSnapshot({ episode: clinicalEpisodeId, state: error, documentState: error });
+        setSnapshot({ generation, episode: clinicalEpisodeId, state: error, documentState: error });
       })
       .finally(() => {
         if (pending.current === request) pending.current = null;
       });
     return true;
-  }, [clinicalEpisodeId]);
+  }, [clinicalEpisodeId, generation]);
 
   const reload = useCallback(() => {
     if (load()) {
       setSnapshot({
+        generation,
         episode: clinicalEpisodeId,
         state: { phase: 'loading' },
         documentState: { phase: 'loading' },
       });
     }
-  }, [clinicalEpisodeId, load]);
+  }, [clinicalEpisodeId, generation, load]);
 
   useEffect(() => {
     load();
@@ -91,7 +108,7 @@ export const useClinicalPanelSnapshot = (clinicalEpisodeId: string) => {
   }, [load]);
 
   // Never expose the previous patient's text during the render before effect cleanup.
-  const sameEpisode = snapshot.episode === clinicalEpisodeId;
+  const sameEpisode = snapshot.episode === clinicalEpisodeId && snapshot.generation === generation;
   return {
     state: sameEpisode ? snapshot.state : { phase: 'loading' as const },
     documentState: sameEpisode ? snapshot.documentState : { phase: 'loading' as const },

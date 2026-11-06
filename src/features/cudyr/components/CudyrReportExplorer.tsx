@@ -1,3 +1,4 @@
+import { cudyrReportIsVerified } from '@/services/cudyr/cudyrReportCache';
 import { CudyrMonthlyReconciliation } from './CudyrMonthlyReconciliation';
 import { useCudyrSupplements } from '../hooks/useCudyrSupplements';
 import { CudyrSupplementPanel } from './CudyrSupplementPanel';
@@ -47,11 +48,7 @@ export default function CudyrReportExplorer({
   const totals = useMemo(() => cudyrReportTotals(rows), [rows]);
   const currentPage = Math.min(page, Math.max(0, Math.ceil(rows.length / 50) - 1));
   const selectedRow = data?.rows.find(row => row.key === selected);
-  const unverified =
-    busy ||
-    Boolean(error) ||
-    Boolean(data?.issues.length) ||
-    Boolean(data?.coverage.some(day => day.state === 'error'));
+  const unverified = !cudyrReportIsVerified(data, busy, error);
   const supplements = useCudyrSupplements(unverified ? null : data);
   const exportExcel = async (mode: CudyrReportExportMode) => {
     if (!data || unverified || exporting || !supplements.ready) return;
