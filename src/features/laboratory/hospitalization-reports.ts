@@ -10,3 +10,9 @@ export type {
   SyslabHospitalizationPhase,
   SyslabHospitalizationReports,
 } from './hooks/useSyslabHospitalizationReports';
+
+export {
+  buildExamColumnKey,
+  comparisonSortIndex,
+} from './controllers/labAnalyticsVariableController';
+export { buildComparisonGroups } from './controllers/labComparisonTableController';

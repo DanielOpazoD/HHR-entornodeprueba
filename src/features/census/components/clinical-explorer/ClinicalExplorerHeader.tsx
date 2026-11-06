@@ -54,7 +54,7 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
   return (
     <header
       data-testid="clinical-explorer-patient"
-      className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[10px] border border-slate-200 bg-white px-3 py-2"
+      className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/20 px-3 py-2"
     >
       <span className="inline-flex h-8 min-w-9 items-center justify-center rounded-lg bg-slate-100 px-2 font-display text-[15px] font-bold text-slate-800">
         {bedId}
