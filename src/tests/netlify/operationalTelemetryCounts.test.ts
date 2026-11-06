@@ -177,6 +177,32 @@ describe('daily operational telemetry counts', () => {
     expect(real).toHaveBeenCalledTimes(1);
   });
 
+  it('never reports a rejected write as counted', async () => {
+    for (const status of [400, 401, 403]) {
+      const real = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) =>
+        (init?.method ?? 'GET').toUpperCase() === 'GET'
+          ? new Response(null, { status: 404 })
+          : new Response('denied', { status })
+      );
+      const store = getStore({
+        name: 'operational-counts-v1-preview-test',
+        siteID: 'synthetic-site',
+        token: 'synthetic-token',
+        edgeURL: 'https://edge.invalid',
+        uncachedEdgeURL: 'https://uncached-edge.invalid',
+        fetch: createCountBlobFetch(real as unknown as typeof fetch),
+      });
+      await expect(
+        createDailyTelemetryCounter(store)({
+          operation: 'app_shell_ready',
+          status: 'success',
+          alert: 'not_alertable',
+          receivedAt: NOW,
+        })
+      ).resolves.toBe('count_conflict');
+    }
+  });
+
   it('keeps production counts apart from previews', () => {
     const deploy = { context: 'production', id: 'abc123', published: true };
     expect(countsStoreName({ deploy, site: { url: ORIGIN } })).toBe(
