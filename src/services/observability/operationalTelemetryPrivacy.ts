@@ -105,6 +105,7 @@ const ALLOWED_OPERATIONS = new Set([
     refresh_medical_entry_as_current specialty_note_update confirm_no_changes
     copy_day_locked_by_schedule contador_local_acumulado census_empty_state_visible
     import_json_backup image_upload image_delete pdf_exists_timeout census_exists_timeout
+    cudyr_report_read cudyr_report_reuse cudyr_monthly_recovery
     cudyr_exists_timeout list_storage_files_timeout list_storage_file_unparsed create_reminder
     update_reminder remove_reminder subscribe_reminders list_reminders list_reminder_receipts
     mark_reminder_read check_reminder_read prescription
