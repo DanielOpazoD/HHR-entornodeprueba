@@ -122,13 +122,15 @@ try {
   checks.push('syslab-status-real-manifest-content-bridge');
 
   phase = 'timeout-cancellation-late-completion';
+  // Both requests stay open in the fixture until released below. With a fixed delay, a slow
+  // runner could see them start only after that delay ended, so the abort arrived too late.
   await worker.evaluate(() => {
     const outcome = promise => promise.then(value => ({ value }), error => ({ code: error.code }));
     self.smokeAbort = new AbortController();
     self.smokeTimed = outcome(offscreenCoordinator.request('fixture',
-      { token: 'late-timeout', delayMs: 1300 }, { timeoutMs: 500 }));
+      { token: 'late-timeout', hold: true }, { timeoutMs: 500 }));
     self.smokeCancelled = outcome(offscreenCoordinator.request('fixture',
-      { token: 'late-cancel', delayMs: 1300 }, { signal: self.smokeAbort.signal }));
+      { token: 'late-cancel', hold: true }, { signal: self.smokeAbort.signal }));
   });
   await until(async () => {
     const { events } = await inspect();
@@ -139,7 +141,13 @@ try {
     return Promise.all([self.smokeTimed, self.smokeCancelled]);
   });
   assert.deepEqual(outcomes, [{ code: 'OFFSCREEN_TIMEOUT' }, { code: 'OFFSCREEN_ABORTED' }]);
-  const unaffected = await request('fixture', { token: 'unaffected', delayMs: 1500 });
+  // Complete both late while another request is in flight: neither may settle it.
+  const unaffected = await worker.evaluate(async () => {
+    const pending = offscreenCoordinator.request('fixture', { token: 'unaffected', delayMs: 1500 },
+      { timeoutMs: 5000 });
+    await offscreenCoordinator.request('fixture', { op: 'release', tokens: ['late-timeout', 'late-cancel'] });
+    return pending;
+  });
   assert.equal(unaffected.token, 'unaffected');
   const late = await inspect();
   for (const token of ['late-timeout', 'late-cancel']) {

@@ -2,6 +2,7 @@
 (() => {
   const original = self.HhrOffscreenRouter;
   const events = [];
+  const held = new Map();
   let router;
   const session = () =>
     new Promise((resolve, reject) => {
@@ -37,12 +38,22 @@
                 router: router.getDiagnostics(),
                 events: [...events],
               };
+            if (payload.op === 'release') {
+              for (const token of payload.tokens) held.get(token)?.();
+              return { released: payload.tokens };
+            }
             events.push(`started:${payload.token}`);
             signal.addEventListener('abort', () => events.push(`aborted:${payload.token}`), {
               once: true,
             });
             // Intentionally ignore abort: late completions must not settle another request.
-            await new Promise(resolve => setTimeout(resolve, payload.delayMs || 0));
+            // A held request waits for an explicit release instead of a fixed delay, so the
+            // smoke decides when it completes, not the runner's speed.
+            await new Promise(resolve => {
+              if (payload.hold) held.set(payload.token, resolve);
+              else setTimeout(resolve, payload.delayMs || 0);
+            });
+            held.delete(payload.token);
             events.push(`completed:${payload.token}`);
             if (payload.op === 'error') throw new Error('Synthetic fixture failure');
             return { token: payload.token };
