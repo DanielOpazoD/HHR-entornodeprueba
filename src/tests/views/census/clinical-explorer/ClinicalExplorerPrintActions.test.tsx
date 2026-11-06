@@ -128,6 +128,30 @@ describe('ClinicalExplorerPrintActions', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
+  it.each(['Imprimir indicaciones', 'Receta'])(
+    'allows a new action after a session change cancels %s without waiting for the old reply',
+    async label => {
+      let answer: (value: unknown) => void = () => undefined;
+      const request = label === 'Receta' ? mocks.action : mocks.panel;
+      request.mockReturnValueOnce(new Promise(resolve => (answer = resolve)));
+      renderActions();
+      fireEvent.click(screen.getByRole('button', { name: label }));
+      expect(screen.getByRole('button', { name: label })).toBeDisabled();
+      const signal = request.mock.calls[0][label === 'Receta' ? 3 : 2] as AbortSignal;
+      act(() => setSessionGeneration('synthetic-next-session'));
+      expect(signal.aborted).toBe(true);
+      expect(screen.getByRole('button', { name: label })).toBeEnabled();
+      fireEvent.click(screen.getByRole('button', { name: label }));
+      await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(screen.getByRole('button', { name: label })).toBeEnabled());
+      await act(async () =>
+        answer(label === 'Receta' ? { ok: false, error: 'Old reply' } : panelWithActiveIndication)
+      );
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(mocks.print).toHaveBeenCalledTimes(label === 'Receta' ? 0 : 1);
+    }
+  );
+
   it('hands the print a cancellation that a session change triggers before the dialog opens', async () => {
     mocks.print.mockReturnValue(new Promise(() => undefined));
     renderActions();

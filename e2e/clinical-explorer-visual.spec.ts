@@ -1,5 +1,6 @@
 import { writeFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+import { panelResult } from '../src/tests/views/census/clinicalPanelDrawer.fixture';
 import {
   seedVisualCensus,
   VISUAL_DATE as DATE,
@@ -21,13 +22,49 @@ const screenshot = (page: Page, name: string) =>
       ? `${process.env.CENSUS_VISUAL_OUTPUT_DIR}/${name}.png`
       : test.info().outputPath(`${name}.png`),
     animations: 'disabled',
+    fullPage: true,
+    mask: [page.getByRole('button', { name: /^Usuario / }).locator('..')],
   });
 
 test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns to the census', async ({
   page,
 }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await seedVisualCensus(page);
+  await page.route('**/.netlify/functions/mmrad-search?*', route =>
+    route.fulfill({
+      json: {
+        rut: '12345678-5',
+        examenes: [
+          {
+            nombre_examen: 'Rx tórax sintética',
+            fecha_examen: '03/04/2026 09:40',
+            fecha_asignacion: '03/04/2026',
+            mod: 'CR',
+            estado: 'Validado',
+            pdf_url: null,
+            dicom_url: null,
+            informe_html_url: null,
+            report: null,
+            registered_patient_id: '12345678-9',
+            registered_patient_name: 'PACIENTE SINTÉTICO',
+          },
+        ],
+      },
+    })
+  );
+  await page.addInitScript(panel => {
+    window.addEventListener('message', event => {
+      const request = event.data;
+      if (request?.type !== 'HHR_RAYEN_CLINICAL_PANEL_REQUEST' || !request.reqId) return;
+      window.postMessage(
+        { ...panel, type: 'HHR_RAYEN_CLINICAL_PANEL_RESULT', reqId: request.reqId },
+        window.location.origin
+      );
+    });
+  }, panelResult);
   await page.goto(`/?date=${DATE}`);
+  await page.addStyleTag({ content: 'html { scroll-behavior: auto !important; }' });
   const row = page.locator('[data-testid="patient-row"][data-bed-id="R1"]');
   await expect(row).toContainText(PATIENT, { timeout: 20_000 });
 
@@ -43,6 +80,7 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
     ['125', 1024, 666],
   ] as const) {
     await page.setViewportSize({ width, height });
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
     await expect(header).toContainText(PATIENT);
 
     // Nothing pushes the page sideways.
@@ -63,20 +101,44 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
     expect(listBounds!.x + listBounds!.width).toBeLessThanOrEqual(headerBounds!.x + 1);
     expect(headerBounds!.width).toBeGreaterThanOrEqual(explorerBounds!.width * 0.6);
     expect(explorerBounds!.x + explorerBounds!.width).toBeLessThanOrEqual(width + 1);
+    const backBounds = await page.getByRole('button', { name: 'Volver al censo' }).boundingBox();
+    expect(Math.abs(headerBounds!.y - backBounds!.y)).toBeLessThanOrEqual(2);
+    expect(listBounds!.height).toBeLessThan(240);
     // The patient header is two short lines; at 1280 the requests fit beside them.
-    if (width === 1280) expect(headerBounds!.height).toBeLessThanOrEqual(64);
+    if (width === 1280) expect(headerBounds!.height).toBeLessThanOrEqual(80);
 
-    // The four areas are announced by name; the tab strip keeps one row.
+    // The five areas are announced by name; the tab strip keeps one row.
     const tabs = page.getByRole('tablist', { name: 'Áreas' });
-    await expect(tabs.getByRole('tab')).toHaveCount(5);
+    await expect(tabs.getByRole('tab')).toHaveCount(6);
     const tabBounds = await tabs.boundingBox();
     expect(tabBounds!.height).toBeLessThanOrEqual(40);
-    for (const area of ['Laboratorio', 'Imágenes', 'Evoluciones', 'Indicaciones']) {
+    for (const area of [
+      'Evoluciones',
+      'Signos vitales',
+      'Laboratorio',
+      'Imágenes',
+      'Indicaciones',
+    ]) {
       await expect(page.getByRole('region', { name: area })).toBeVisible();
     }
 
-    // Syslab and MMRAD are out of reach here: a source that cannot be read is never shown as an
-    // empty hospitalization (SAVE-01).
+    const evolutionsBounds = await page.getByRole('region', { name: 'Evoluciones' }).boundingBox();
+    const vitals = page.getByRole('region', { name: 'Signos vitales' });
+    await expect(vitals).toContainText('130/82');
+    const vitalsBounds = await vitals.boundingBox();
+    if (width === 1280) {
+      expect(vitalsBounds!.y).toBe(evolutionsBounds!.y);
+      expect(vitalsBounds!.x).toBeGreaterThan(evolutionsBounds!.x);
+    } else {
+      expect(vitalsBounds!.y).toBeGreaterThan(evolutionsBounds!.y);
+    }
+    await expect(
+      page
+        .getByRole('region', { name: 'Explorador clínico', exact: true })
+        .getByText('Experimental', { exact: true })
+    ).toHaveCount(0);
+
+    // Syslab is unavailable and MMRAD uses synthetic studies; neither is an empty hospitalization.
     await expect(page.getByRole('region', { name: 'Laboratorio' })).not.toContainText(
       'Sin informes de laboratorio'
     );
@@ -84,7 +146,26 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
       'Sin estudios de imágenes'
     );
 
+    const identityNotice = page.getByRole('button', {
+      name: 'Advertencia de identificación del estudio',
+    });
+    await expect(identityNotice).toBeVisible();
+    await expect(page.getByRole('tooltip')).toHaveCount(0);
+    await identityNotice.hover();
+    const tooltip = page.getByRole('tooltip');
+    await expect(tooltip).toContainText('confirma que es el mismo paciente');
+    const tooltipBounds = await tooltip.boundingBox();
+    expect(tooltipBounds!.x + tooltipBounds!.width).toBeLessThanOrEqual(width);
+    await page.keyboard.press('Escape');
+    await expect(tooltip).toHaveCount(0);
+    await expect(explorer).toBeVisible();
+    await header.click();
+    await identityNotice.focus();
+    await expect(tooltip).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(tooltip).toHaveCount(0);
     await page.mouse.move(1, 1);
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
     await screenshot(page, `clinical-explorer-${zoom}`);
   }
 
@@ -98,6 +179,7 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
   await expect(header).toContainText(PATIENT);
 
   await page.setViewportSize({ width: 390, height: 844 });
+  await screenshot(page, 'clinical-explorer-mobile');
   await expect(header).toContainText(PATIENT);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true

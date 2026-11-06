@@ -126,7 +126,13 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
         );
       case 'unavailable':
       case 'error':
-        return <ReadFailure message={lab.message} onRetry={lab.retry} />;
+        return (
+          <ReadFailure
+            summary="No se pudo leer el laboratorio."
+            message={lab.message}
+            onRetry={lab.retry}
+          />
+        );
       case 'empty':
         return <EmptyNote>Sin informes de laboratorio en esta hospitalización.</EmptyNote>;
       case 'ready':
@@ -277,7 +283,6 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
   return (
     <AreaCard
       icon={<FlaskConical />}
-      iconClassName="text-emerald-700"
       title="Laboratorio"
       subtitle={subtitle}
       source="Syslab"

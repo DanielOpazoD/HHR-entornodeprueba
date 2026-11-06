@@ -155,6 +155,42 @@ describe('ClinicalExplorerImaging', () => {
     );
   });
 
+  it('keeps registration discrepancies behind an accessible hover, focus and click notice', async () => {
+    mocks.checkDigit.mockResolvedValue({
+      rut: RUT,
+      examenes: [
+        exam({
+          nombre_examen: 'Rx rodilla sintética',
+          dicom_url: 'https://mmrad.example/dicom/alternate',
+          registered_patient_id: '12.345.678-9',
+          registered_patient_name: 'PACIENTE SINTÉTICO',
+        }),
+      ],
+    });
+    renderImaging();
+    const notice = await screen.findByRole('button', {
+      name: 'Advertencia de identificación del estudio',
+    });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    fireEvent.mouseEnter(notice);
+    expect(screen.getByRole('tooltip')).toHaveTextContent('12.345.678-9');
+    expect(screen.getByRole('tooltip')).toHaveTextContent('confirma que es el mismo paciente');
+    expect(notice).toHaveAccessibleDescription(/PACIENTE SINTÉTICO/);
+    fireEvent.mouseLeave(notice.parentElement!);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    fireEvent.focus(notice);
+    expect(screen.getByRole('tooltip')).toBeVisible();
+    fireEvent.keyDown(notice, { key: 'Escape' });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    fireEvent.click(notice);
+    expect(screen.getByRole('tooltip')).toBeVisible();
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    fireEvent.focus(notice);
+    fireEvent.blur(notice);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+
   it.each(['patient', 'episode'])(
     'never delivers a pending download after changing the %s',
     async change => {
@@ -213,7 +249,10 @@ describe('ClinicalExplorerImaging', () => {
     mocks.search.mockRejectedValueOnce(new Error('Demasiadas solicitudes.'));
     renderImaging();
     const alert = await screen.findByRole('alert');
+    expect(within(alert).getByText('No se pudo consultar imágenes.')).toBeVisible();
     expect(alert).toHaveTextContent('Demasiadas solicitudes.');
+    fireEvent.click(within(alert).getByText('Detalle de la consulta'));
+    expect(within(alert).getByText('Demasiadas solicitudes.')).toBeVisible();
     expect(screen.queryByText(/Sin estudios/)).toBeNull();
     fireEvent.click(within(alert).getByRole('button', { name: 'Reintentar' }));
     await waitFor(() => expect(mocks.search).toHaveBeenCalledTimes(2));

@@ -3,13 +3,14 @@ import clsx from 'clsx';
 import { PatientStatus } from '@/types/domain/patientClassification';
 
 /** Areas of the explorer. The combined view shows every area at once. */
-export type ClinicalExplorerTab = 'all' | 'lab' | 'img' | 'evolutions' | 'indications';
+export type ClinicalExplorerTab = 'all' | 'evolutions' | 'vitals' | 'lab' | 'img' | 'indications';
 
 export const EXPLORER_TABS: ReadonlyArray<{ key: ClinicalExplorerTab; label: string }> = [
   { key: 'all', label: 'Vista conjunta' },
+  { key: 'evolutions', label: 'Evoluciones' },
+  { key: 'vitals', label: 'Signos vitales' },
   { key: 'lab', label: 'Laboratorio' },
   { key: 'img', label: 'Imágenes' },
-  { key: 'evolutions', label: 'Evoluciones' },
   { key: 'indications', label: 'Indicaciones' },
 ];
 
@@ -35,7 +36,6 @@ export const StatusDot: React.FC<{ status: string; className?: string }> = ({
 
 interface AreaCardProps {
   icon: React.ReactNode;
-  iconClassName: string;
   title: string;
   subtitle?: string;
   source: string;
@@ -46,7 +46,6 @@ interface AreaCardProps {
 
 export const AreaCard: React.FC<AreaCardProps> = ({
   icon,
-  iconClassName,
   title,
   subtitle,
   source,
@@ -56,17 +55,20 @@ export const AreaCard: React.FC<AreaCardProps> = ({
 }) => (
   <section
     aria-label={title}
-    className={clsx('flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white', className)}
+    className={clsx(
+      'flex min-w-0 flex-col rounded-[10px] border border-slate-200 bg-white',
+      className
+    )}
   >
     <header className="flex min-h-10 items-center gap-2 border-b border-slate-100 px-3 py-1.5">
-      <span aria-hidden="true" className={clsx('inline-flex [&>svg]:size-3.5', iconClassName)}>
+      <span aria-hidden="true" className="inline-flex text-slate-500 [&>svg]:size-3.5">
         {icon}
       </span>
-      <h3 className="flex items-baseline gap-1.5 text-[13px] font-semibold text-slate-800">
+      <h3 className="flex items-baseline gap-1.5 text-[14px] font-semibold text-slate-800">
         {title}
-        {subtitle && <span className="text-[11px] font-medium text-slate-400">{subtitle}</span>}
+        {subtitle && <span className="text-[12px] font-normal text-slate-500">{subtitle}</span>}
       </h3>
-      <span className="text-[10.5px] text-slate-400">· {source}</span>
+      <span className="text-[11px] text-slate-500">· {source}</span>
       {actions && <span className="ml-auto flex items-center gap-2">{actions}</span>}
     </header>
     <div className="flex flex-col gap-2.5 p-3">{children}</div>
@@ -75,6 +77,7 @@ export const AreaCard: React.FC<AreaCardProps> = ({
 
 export const SkeletonLines: React.FC<{ label: string }> = ({ label }) => (
   <div role="status" aria-label={label} className="space-y-2">
+    <p className="text-[12px] text-slate-500">{label}…</p>
     {[0, 1, 2].map(index => (
       <div
         key={index}
@@ -84,24 +87,35 @@ export const SkeletonLines: React.FC<{ label: string }> = ({ label }) => (
   </div>
 );
 
-export const ReadFailure: React.FC<{ message: string; onRetry: () => void }> = ({
+export const ReadFailure: React.FC<{ message: string; summary?: string; onRetry: () => void }> = ({
   message,
+  summary,
   onRetry,
 }) => (
-  <p role="alert" className="flex flex-wrap items-center gap-2 text-[12px] text-slate-600">
-    <span>{message}</span>
-    <button
-      type="button"
-      onClick={onRetry}
-      className="rounded-md border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
-    >
-      Reintentar
-    </button>
-  </p>
+  <div role="alert" className="text-[12px] text-slate-600">
+    <div className="flex flex-wrap items-center gap-2">
+      <span>{summary ?? message}</span>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="rounded-md border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
+      >
+        Reintentar
+      </button>
+    </div>
+    {summary && summary !== message && (
+      <details className="mt-1 text-[11px] text-slate-500">
+        <summary className="w-fit cursor-pointer rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700">
+          Detalle de la consulta
+        </summary>
+        <p className="mt-1 break-words">{message}</p>
+      </details>
+    )}
+  </div>
 );
 
 export const EmptyNote: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <p className="text-[12px] italic text-slate-400">{children}</p>
+  <p className="text-[12px] text-slate-600">{children}</p>
 );
 
 export const LinkButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({

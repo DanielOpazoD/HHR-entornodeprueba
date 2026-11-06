@@ -8,11 +8,9 @@ interface RenderSingleRowOptions {
   showClinicalDocumentsAction?: boolean;
   showExamRequestAction?: boolean;
   showImagingRequestAction?: boolean;
-  showMedicalIndicationsAction?: boolean;
   onViewClinicalDocuments?: () => void;
   onViewExamRequest?: () => void;
   onViewImagingRequest?: () => void;
-  onViewMedicalIndications?: () => void;
 }
 
 interface RenderMultipleRowsOptions extends RenderSingleRowOptions {
@@ -37,11 +35,9 @@ export const renderSinglePatientRowOrbitalQuickActions = ({
   showClinicalDocumentsAction = true,
   showExamRequestAction = true,
   showImagingRequestAction = true,
-  showMedicalIndicationsAction = false,
   onViewClinicalDocuments = vi.fn(),
   onViewExamRequest = vi.fn(),
   onViewImagingRequest = vi.fn(),
-  onViewMedicalIndications = vi.fn(),
 }: RenderSingleRowOptions = {}) =>
   render(
     <table>
@@ -52,11 +48,9 @@ export const renderSinglePatientRowOrbitalQuickActions = ({
               showClinicalDocumentsAction={showClinicalDocumentsAction}
               showExamRequestAction={showExamRequestAction}
               showImagingRequestAction={showImagingRequestAction}
-              showMedicalIndicationsAction={showMedicalIndicationsAction}
               onViewClinicalDocuments={onViewClinicalDocuments}
               onViewExamRequest={onViewExamRequest}
               onViewImagingRequest={onViewImagingRequest}
-              onViewMedicalIndications={onViewMedicalIndications}
             />
           </td>
         </tr>
@@ -72,11 +66,9 @@ export const renderMultiPatientRowOrbitalQuickActions = ({
   showClinicalDocumentsAction = true,
   showExamRequestAction = true,
   showImagingRequestAction = true,
-  showMedicalIndicationsAction = false,
   onViewClinicalDocuments = vi.fn(),
   onViewExamRequest = vi.fn(),
   onViewImagingRequest = vi.fn(),
-  onViewMedicalIndications = vi.fn(),
 }: RenderMultipleRowsOptions = {}) =>
   render(
     <table>
@@ -93,11 +85,9 @@ export const renderMultiPatientRowOrbitalQuickActions = ({
                 showClinicalDocumentsAction={showClinicalDocumentsAction}
                 showExamRequestAction={showExamRequestAction}
                 showImagingRequestAction={showImagingRequestAction}
-                showMedicalIndicationsAction={showMedicalIndicationsAction}
                 onViewClinicalDocuments={onViewClinicalDocuments}
                 onViewExamRequest={onViewExamRequest}
                 onViewImagingRequest={onViewImagingRequest}
-                onViewMedicalIndications={onViewMedicalIndications}
               />
             </td>
           </tr>

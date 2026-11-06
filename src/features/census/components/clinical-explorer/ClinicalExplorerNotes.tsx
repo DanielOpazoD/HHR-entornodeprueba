@@ -31,6 +31,7 @@ const PROFESSIONS: ReadonlyArray<{ key: ProfessionFilter; label: string }> = [
 ];
 
 interface ClinicalExplorerNotesProps {
+  children?: React.ReactNode;
   episodeId: string;
   selectedDate: string | null;
   onSelectDate: (date: string | null) => void;
@@ -92,6 +93,7 @@ const IndicationDay: React.FC<{ day: ClinicalPanelIndicationDay | undefined }> =
 
 /** Evolutions and indications read from Eloísa for the selected episode, one read for both. */
 export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
+  children,
   episodeId,
   selectedDate,
   onSelectDate,
@@ -149,7 +151,6 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
       {(tab === 'all' || tab === 'evolutions') && (
         <AreaCard
           icon={<BookOpenText />}
-          iconClassName="text-medical-700"
           title="Evoluciones"
           subtitle={panel ? `${panel.evolutions.length}` : undefined}
           source={SOURCE}
@@ -172,7 +173,7 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
                     aria-pressed={profession === item.key}
                     onClick={() => setProfession(item.key)}
                     className={clsx(
-                      'h-6 rounded-md px-2 text-[11px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
+                      'min-h-9 rounded-lg px-2 text-[12px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
                       profession === item.key
                         ? 'bg-medical-50 text-medical-700'
                         : 'text-slate-500 hover:bg-slate-50'
@@ -185,7 +186,7 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
               {shownEvolutions.length === 0 ? (
                 <EmptyNote>Sin evoluciones en Ficha Médico.</EmptyNote>
               ) : (
-                <div className="divide-y divide-slate-100 rounded-md border border-slate-100">
+                <div className="divide-y divide-slate-100">
                   {shownEvolutions.map((entry, index) => (
                     <EvolutionCard key={entry.id} entry={entry} isLatest={index === 0} />
                   ))}
@@ -195,11 +196,12 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
           ))}
         </AreaCard>
       )}
+      {children}
       {(tab === 'all' || tab === 'indications') && (
         <AreaCard
           icon={<ClipboardList />}
-          iconClassName="text-teal-700"
           title="Indicaciones"
+          className={compact ? 'xl:col-span-2' : undefined}
           subtitle={panel ? `${indicationDay?.active.length ?? 0} vigentes` : undefined}
           source={SOURCE}
           actions={tab === 'indications' ? reloadButton : undefined}

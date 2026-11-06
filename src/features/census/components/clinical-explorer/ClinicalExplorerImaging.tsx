@@ -25,6 +25,7 @@ import {
 } from './clinicalExplorerUi';
 import { useClinicalExplorerImaging } from './useClinicalExplorerImaging';
 import { ClinicalExplorerReportActions } from './ClinicalExplorerReportActions';
+import { ClinicalExplorerIdentityNotice } from './ClinicalExplorerIdentityNotice';
 
 const DicomViewerDialog = lazy(() =>
   import('@/components/radiology/DicomViewerDialog').then(module => ({
@@ -116,7 +117,13 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
   const body = (): React.ReactNode => {
     if (imaging.phase === 'listing') return <SkeletonLines label="Consultando MMRAD" />;
     if (imaging.phase === 'error')
-      return <ReadFailure message={imaging.message} onRetry={imaging.retry} />;
+      return (
+        <ReadFailure
+          summary="No se pudo consultar imágenes."
+          message={imaging.message}
+          onRetry={imaging.retry}
+        />
+      );
     if (imaging.phase === 'empty') {
       return (
         <>
@@ -143,16 +150,15 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
                     <p className="truncate text-[12px] font-semibold text-slate-700">
                       {exam.nombre_examen}
                     </p>
-                    <p className="text-[10.5px] tabular-nums text-slate-500">
+                    <p className="relative flex items-center gap-1 text-[10.5px] tabular-nums text-slate-500">
                       {formatStudyStamp(exam.fecha_examen)}
                       {exam.registered_patient_id && (
-                        <span className="ml-2 text-slate-500">
-                          ·{' '}
-                          {describeMMRADRegisteredPatient(
+                        <ClinicalExplorerIdentityNotice
+                          message={describeMMRADRegisteredPatient(
                             exam.registered_patient_id,
                             exam.registered_patient_name
                           )}
-                        </span>
+                        />
                       )}
                     </p>
                   </div>
@@ -225,7 +231,6 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
   return (
     <AreaCard
       icon={<XRayIcon size={14} />}
-      iconClassName="text-violet-700"
       title="Imágenes"
       subtitle={
         imaging.phase === 'ready' || imaging.phase === 'empty'

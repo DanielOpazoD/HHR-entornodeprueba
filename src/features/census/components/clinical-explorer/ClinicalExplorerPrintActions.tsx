@@ -44,7 +44,11 @@ export const ClinicalExplorerPrintActions: React.FC<ClinicalExplorerPrintActions
   useLayoutEffect(() => {
     mounted.current = true;
     const cancel = () => operation.current?.abort();
-    const unsubscribe = onSessionChange(cancel);
+    const unsubscribe = onSessionChange(() => {
+      cancel();
+      operation.current = null;
+      setState({ kind: 'idle' });
+    });
     return () => {
       mounted.current = false;
       cancel();

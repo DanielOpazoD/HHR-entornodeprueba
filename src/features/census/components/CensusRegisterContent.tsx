@@ -158,16 +158,16 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
       {explorer ? (
         <section
           aria-label="Explorador clínico"
-          className="flex flex-col gap-3"
+          className="flex flex-col gap-3 lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start"
           style={marginStyle}
         >
           {/* The way back never depends on the online-only chunk: it stays here while the body
               loads, if it cannot load, and once it is open. */}
-          <ClinicalExplorerBar censusDate={currentDateString} bedId={explorer.bedId} />
+          <ClinicalExplorerBar bedId={explorer.bedId} />
           <ErrorBoundary
             resetKeys={[explorer.bedId]}
             fallbackRender={() => (
-              <p role="alert" className="text-[12px] text-slate-600">
+              <p role="alert" className="text-[12px] text-slate-600 lg:col-start-2 lg:row-start-1">
                 No se pudo abrir el explorador. Revisa la conexión y vuelve a intentarlo.
               </p>
             )}
@@ -175,7 +175,7 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
             <Suspense
               fallback={
                 <div
-                  className="h-40 animate-pulse rounded-xl bg-slate-100 motion-reduce:animate-none"
+                  className="h-40 animate-pulse rounded-xl bg-slate-100 motion-reduce:animate-none lg:col-start-2 lg:row-start-1"
                   data-testid="clinical-explorer-loading"
                 />
               }
