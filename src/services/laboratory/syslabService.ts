@@ -84,8 +84,20 @@ const shouldSkipPlainViteLocalHealthCheck = (url: string): boolean =>
   isCrossOriginLocalhostUrl(url) &&
   import.meta.env.VITE_SYSLAB_ENABLE_DIRECT_LOCAL !== 'true';
 
-/** Select the Mac mini explicitly; never change transport because a clinical request failed. */
-export const usesRemoteSyslab = (): boolean => import.meta.env.VITE_SYSLAB_TRANSPORT === 'remote';
+const usesAutomaticSyslab = (): boolean => import.meta.env.VITE_SYSLAB_TRANSPORT === 'auto';
+
+/** Remote-capable modes use the shared health check instead of requiring an extension login. */
+export const usesRemoteSyslab = (): boolean =>
+  import.meta.env.VITE_SYSLAB_TRANSPORT === 'remote' || usesAutomaticSyslab();
+
+const preferredExtensionStatus = async () => {
+  if (!usesAutomaticSyslab()) {
+    return usesRemoteSyslab() ? null : requestSyslabExtensionStatus();
+  }
+  // An old extension or a cached Syslab tab is not evidence of local network access.
+  const status = await requestSyslabExtensionStatus(4_500, true);
+  return status.bridgeAvailable && status.connected && status.networkVerified ? status : null;
+};
 
 const directWebTransportConfigured = (): boolean =>
   shouldUseNetlifyProxy() || Boolean(getSyslabBaseUrl());
@@ -189,7 +201,7 @@ const fetchWithRetry = async (
 };
 
 export const checkSyslabConnection = async (): Promise<SyslabConnectionStatus> => {
-  const extensionStatus = usesRemoteSyslab() ? null : await requestSyslabExtensionStatus();
+  const extensionStatus = await preferredExtensionStatus();
   if (extensionStatus?.bridgeAvailable) {
     return {
       available: extensionStatus.connected,
@@ -254,11 +266,19 @@ export const checkSyslabConnection = async (): Promise<SyslabConnectionStatus> =
 export const searchSyslabExams = async (rut: string): Promise<SyslabSearchResponse> => {
   const cleanRut = cleanRutForSyslab(rut);
   if (!/^\d{5,9}$/.test(cleanRut)) throw new Error('El RUT seleccionado no es válido para Syslab.');
-  const extensionResult = usesRemoteSyslab() ? null : await searchSyslabThroughExtension(rut);
+  const useExtension = usesAutomaticSyslab()
+    ? Boolean(await preferredExtensionStatus())
+    : !usesRemoteSyslab();
+  const extensionResult = useExtension ? await searchSyslabThroughExtension(rut) : null;
   if (extensionResult?.bridgeAvailable) {
     if (extensionResult.error) throw new Error(extensionResult.error);
     if (extensionResult.data) return extensionResult.data;
     throw new Error('La extensión Eloísa respondió sin resultados reconocibles.');
+  }
+  if (usesAutomaticSyslab() && useExtension) {
+    throw new Error(
+      'La conexión local de Syslab dejó de responder. Actualiza el visor para comprobarla de nuevo.'
+    );
   }
 
   if (!directWebTransportConfigured()) {

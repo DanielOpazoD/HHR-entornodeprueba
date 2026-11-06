@@ -8,7 +8,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import '../../../extension/lab-result-parser.js';
 import '../../../extension/lab-viewer.js';
 
-const bridgeSource = readFileSync(path.resolve('extension/syslab-bridge.js'), 'utf8');
+const bridgeSource =
+  readFileSync('extension/syslab-network-probe.js', 'utf8') +
+  '\n' +
+  readFileSync(path.resolve('extension/syslab-bridge.js'), 'utf8');
 
 describe('Syslab login bridge', () => {
   afterEach(() => {

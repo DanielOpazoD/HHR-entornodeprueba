@@ -62,7 +62,12 @@ describe('relay reinjection runtime (extension)', () => {
     });
     expect(executeScript).toHaveBeenCalledWith({
       target: { tabId: 9, allFrames: true },
-      files: ['lab-result-parser.js', 'lab-viewer.js', 'syslab-bridge.js'],
+      files: [
+        'lab-result-parser.js',
+        'lab-viewer.js',
+        'syslab-network-probe.js',
+        'syslab-bridge.js',
+      ],
     });
     expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
       9,

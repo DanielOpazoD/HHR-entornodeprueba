@@ -24,7 +24,8 @@
     route(resultType, runtimeType, batchPayload);
   const routes = {
     HHR_RAYEN_SYSLAB_STATUS_REQUEST: route(
-      'HHR_RAYEN_SYSLAB_STATUS_RESULT', runtimeMessages.SYSLAB_STATUS_REQUEST
+      'HHR_RAYEN_SYSLAB_STATUS_RESULT', runtimeMessages.SYSLAB_STATUS_REQUEST,
+      data => data.verifyNetwork === true ? { verifyNetwork: true } : {}
     ),
     HHR_RAYEN_SYSLAB_LOGIN_OPEN_REQUEST: route(
       'HHR_RAYEN_SYSLAB_LOGIN_OPEN_RESULT', runtimeMessages.SYSLAB_LOGIN_OPEN_REQUEST
@@ -74,26 +75,23 @@
   });
 
   window.removeEventListener('message', globalThis.__hhrSyslabRelayListener);
-  window.addEventListener('message', (globalThis.__hhrSyslabRelayListener = event => {
+  window.addEventListener('message', (globalThis.__hhrSyslabRelayListener = async event => {
     if (!chrome.runtime?.id || event.source !== window || event.origin !== window.location.origin) return;
     const data = event.data;
     const route = data && routes[data.type];
     if (!route) return;
+    if (data.type === 'HHR_RAYEN_SYSLAB_STATUS_REQUEST' && data.verifyNetwork === true) {
+      post({ type: 'HHR_RAYEN_SYSLAB_STATUS_ACK', reqId: data.reqId });
+    }
 
-    Promise.resolve()
-      .then(() => chrome.runtime.sendMessage({
+    try {
+      const response = await chrome.runtime.sendMessage({
         type: route.runtimeType,
         ...route.payload(data),
-      }))
-      .then(response => post({
-        type: route.resultType,
-        reqId: data.reqId,
-        response,
-      }))
-      .catch(error => post({
-        type: route.resultType,
-        reqId: data.reqId,
-        error: errorMessage(error),
-      }));
+      });
+      post({ type: route.resultType, reqId: data.reqId, response });
+    } catch (error) {
+      post({ type: route.resultType, reqId: data.reqId, error: errorMessage(error) });
+    }
   }));
 })();

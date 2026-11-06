@@ -320,9 +320,8 @@
 
   const handleMessage = async message => {
     if (!message || typeof message.type !== 'string') return null;
-    if (message.type === 'RAYEN_SYSLAB_STATUS') {
-      return { ok: true, bridgeId: BRIDGE_ID, loginRequired: loginRequired(), url: location.href };
-    }
+    if (message.type === 'RAYEN_SYSLAB_STATUS') return self.HhrSyslabNetworkProbe.status(message,
+      { bridgeId: BRIDGE_ID, loginRequired: loginRequired(), url: location.href }, readBytesWithLimit);
     if (message.type === 'RAYEN_SYSLAB_LOGIN') {
       const username = cleanText(message.username);
       const password = String(message.password || '');

@@ -209,7 +209,7 @@
       "hotspots": {}
     },
     "content-hhr-syslab.js": {
-      "maxLines": 100,
+      "maxLines": 98,
       "hotspots": {}
     },
     "content-hhr.js": {
@@ -702,7 +702,7 @@
       "hotspots": {}
     },
     "syslab-bridge.js": {
-      "maxLines": 415,
+      "maxLines": 414,
       "hotspots": {
         "iife>variable:handleMessage": 28
       }
@@ -713,6 +713,10 @@
     },
     "syslab-login.js": {
       "maxLines": 73,
+      "hotspots": {}
+    },
+    "syslab-network-probe.js": {
+      "maxLines": 33,
       "hotspots": {}
     },
     "syslab-offscreen-transport.js": {
@@ -742,7 +746,7 @@
       }
     },
     "syslab-session-transport.js": {
-      "maxLines": 202,
+      "maxLines": 197,
       "hotspots": {}
     },
     "tab-encounter-authorization.js": {

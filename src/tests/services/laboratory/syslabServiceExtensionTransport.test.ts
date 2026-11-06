@@ -123,13 +123,11 @@ describe('Syslab service extension transport', () => {
       connected: false,
       loginRequired: true,
     });
-    const fetchSpy = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        new Response(JSON.stringify({ success: true, data: [] }), {
-          headers: { 'Content-Type': 'application/json' },
-        })
-      );
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ success: true, data: [] }), {
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
     await expect(searchSyslabExams('11.111.111-1')).resolves.toMatchObject({ success: true });
     expect(bridgeMocks.search).not.toHaveBeenCalled();
     expect(fetchSpy).toHaveBeenCalledWith(
@@ -146,6 +144,102 @@ describe('Syslab service extension transport', () => {
       })
     );
     await expect(checkSyslabConnection()).resolves.toMatchObject({ available: false });
+    expect(bridgeMocks.status).not.toHaveBeenCalled();
+  });
+
+  it('uses local health and search in auto mode only after a fresh network verification', async () => {
+    setEnv({ PROD: true, VITE_SYSLAB_TRANSPORT: 'auto' });
+    bridgeMocks.status.mockResolvedValue({
+      bridgeAvailable: true,
+      connected: true,
+      networkVerified: true,
+    });
+    bridgeMocks.search.mockResolvedValue({
+      bridgeAvailable: true,
+      data: { success: true, data: [] },
+    });
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    await expect(checkSyslabConnection()).resolves.toMatchObject({ available: true });
+    await expect(searchSyslabExams('11.111.111-1')).resolves.toEqual({ success: true, data: [] });
+    expect(bridgeMocks.status).toHaveBeenCalledWith(4_500, true);
+    expect(bridgeMocks.search).toHaveBeenCalledOnce();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { bridgeAvailable: false, connected: false },
+    { bridgeAvailable: true, connected: true }, // Old extension: a cached tab is insufficient.
+    { bridgeAvailable: true, connected: true, networkVerified: false },
+    { bridgeAvailable: true, connected: false, loginRequired: true, networkVerified: true },
+  ])('uses the gateway when local access is not ready in auto mode: %j', async status => {
+    setEnv({ PROD: true, VITE_SYSLAB_TRANSPORT: 'auto' });
+    bridgeMocks.status.mockResolvedValue(status);
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(
+        async url =>
+          new Response(
+            JSON.stringify(
+              String(url).includes('action=health')
+                ? { connected: true }
+                : { success: true, data: [] }
+            ),
+            { headers: { 'Content-Type': 'application/json' } }
+          )
+      );
+    await expect(checkSyslabConnection()).resolves.toMatchObject({ available: true });
+    await expect(searchSyslabExams('11.111.111-1')).resolves.toMatchObject({ success: true });
+    expect(bridgeMocks.search).not.toHaveBeenCalled();
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/.netlify/functions/syslab-proxy?action=search&rut=11111111',
+      expect.any(Object)
+    );
+  });
+
+  it.each([
+    { bridgeAvailable: true, error: 'El informe no corresponde al RUN.' },
+    { bridgeAvailable: false }, // The extension timed out after the local search was dispatched.
+  ])('does not repeat a dispatched local search through the tunnel: %j', async response => {
+    setEnv({ PROD: true, VITE_SYSLAB_TRANSPORT: 'auto' });
+    bridgeMocks.status.mockResolvedValue({
+      bridgeAvailable: true,
+      connected: true,
+      networkVerified: true,
+    });
+    bridgeMocks.search.mockResolvedValue(response);
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    await expect(searchSyslabExams('11.111.111-1')).rejects.toThrow();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('keeps existing report links on their original transport after the network changes', async () => {
+    setEnv({ PROD: true, VITE_SYSLAB_TRANSPORT: 'auto' });
+    bridgeMocks.status.mockResolvedValue({
+      bridgeAvailable: true,
+      connected: true,
+      networkVerified: true,
+    });
+    bridgeMocks.details.mockResolvedValue({
+      success: true,
+      data: [{ url: OPAQUE_LINK, findings: [] }],
+    });
+    await fetchSyslabExamDetails([OPAQUE_LINK]);
+    const remoteLink = 'hhr-syslab-remote://report/synthetic';
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: [{ url: remoteLink, findings: [] }],
+        }),
+        { headers: { 'Content-Type': 'application/json' } }
+      )
+    );
+    await fetchSyslabExamDetails([remoteLink]);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining('syslab-proxy?action=details'),
+      expect.any(Object)
+    );
     expect(bridgeMocks.status).not.toHaveBeenCalled();
   });
 

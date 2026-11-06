@@ -1319,7 +1319,7 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudieron buscar los exámenes de laboratorio.'
   ),
   [RUNTIME_MESSAGES.SYSLAB_STATUS_REQUEST]: runtimeRoute(
-    () => syslabRuntime.currentSession(),
+    message => syslabRuntime.currentSession({ verifyNetwork: message.verifyNetwork === true }),
     'No se pudo comprobar la conexión con Syslab.'
   ),
   [RUNTIME_MESSAGES.SYSLAB_LOGIN_REQUEST]: runtimeRoute(

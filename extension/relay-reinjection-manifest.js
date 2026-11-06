@@ -66,7 +66,7 @@
     'syslab-bridge.js': Object.freeze({
       ready: null,
       allFrames: true,
-      isolated: Object.freeze(['lab-result-parser.js', 'lab-viewer.js', 'syslab-bridge.js']),
+      isolated: Object.freeze(['lab-result-parser.js', 'lab-viewer.js', 'syslab-network-probe.js', 'syslab-bridge.js']),
     }),
   });
   const matchesPattern = (url, pattern) => root.HhrAppOrigins.matchesPattern(url, pattern);
