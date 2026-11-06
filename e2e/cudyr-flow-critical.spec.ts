@@ -4,6 +4,24 @@ import path from 'node:path';
 import { DATE, hospital, db, open, screenshot } from './fixtures/cudyrReport';
 const { Workbook } = ExcelJS;
 
+test('reuses the verified period when returning from the explorer without changes', async ({
+  page,
+}) => {
+  test.setTimeout(90000);
+  const { requests, errors } = await open(page, 'admin', true);
+  await expect(page.getByRole('button', { name: 'Excel mensual', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: 'Explorar reporte estadístico' }).click();
+  await expect(page.getByRole('button', { name: 'Excel para Estadística' })).toBeEnabled();
+  const reads = () => requests.filter(request => request.endpoint === 'readCudyrHistory').length;
+  const beforeReturn = reads();
+  await page.getByRole('button', { name: 'Volver al registro CUDYR' }).click();
+  await expect(page.getByRole('heading', { name: 'CUDYR · control diario' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Excel mensual', exact: true })).toBeEnabled();
+  await expect(page.getByText('PACIENTE SINTÉTICO R1', { exact: true })).toBeVisible();
+  expect(reads()).toBe(beforeReturn);
+  expect(errors).toEqual([]);
+});
+
 test('explores the saved period, preserves group totals in Excel and audits a confirmed actual discharge', async ({
   page,
 }) => {

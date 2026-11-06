@@ -143,7 +143,7 @@ export const CudyrView = ({
           readOnly={readOnly}
           onBack={() => {
             setExploring(false);
-            refresh();
+            refresh(true);
           }}
         />
       </Suspense>

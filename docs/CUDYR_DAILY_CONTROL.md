@@ -12,6 +12,10 @@ La navegación reutiliza el caché por cuenta y sesión. La verificación remota
 la versión de fuentes; un fallo conserva la última copia e informa la falta de conexión.
 El cambio de cuenta no reutiliza los datos clínicos de la sesión anterior.
 
+Al regresar del explorador, el registro adopta la copia verificada del período si
+conserva su vigencia. Un período insuficiente, una invalidación o el vencimiento de
+la copia exigen otra lectura antes de habilitar la exportación.
+
 El recorrido de reporte guardado, corrección confirmada, regreso al registro y Excel
 se verifica en CI mediante `e2e/cudyr-flow-critical.spec.ts`, con Firestore emulado,
 funciones de archivo reales y datos sintéticos. También comprueba conservación de la
