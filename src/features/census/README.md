@@ -312,6 +312,10 @@ se presenta como fallo, nunca como una fecha sin indicaciones.
 La vista conjunta presenta evoluciones primero y la última toma de signos vitales
 al lado derecho en escritorio amplio; en pantallas estrechas se apilan en ese orden.
 Después aparecen laboratorio, imágenes e indicaciones. Las pestañas siguen ese orden.
+El historial de evoluciones abre 20 entradas y permite mostrar más por bloques o
+mostrar todas explícitamente. El filtro de profesión y un episodio nuevo comienzan
+con 20 entradas; la vista conjunta conserva su resumen de tres. Se indica cuántas
+entradas se muestran, y un filtro vacío se distingue de una ficha sin evoluciones.
 Los signos vitales usan los datos del paciente/episodio ya disponibles en el censo,
 con fecha de toma, unidades y los mismos perfiles visuales del censo; no realizan
 una lectura nueva ni modifican datos. Un valor ausente no se transforma en cero.
