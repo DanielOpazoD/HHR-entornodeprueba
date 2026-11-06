@@ -17,6 +17,7 @@ import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRunti
 import { formatStudyStamp, isCtStudy, studyKey } from './clinicalExplorerImagingModel';
 import {
   AreaCard,
+  EXPLORER_ACTION_BUTTON,
   EmptyNote,
   LinkButton,
   ReadFailure,
@@ -40,9 +41,6 @@ interface ClinicalExplorerImagingProps {
 }
 
 const COMPACT_STUDIES = 4;
-const SMALL_BUTTON =
-  'inline-flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 disabled:cursor-wait disabled:opacity-60';
-
 const ReportText: React.FC<{ exam: MMRADExam }> = ({ exam }) => {
   const report = exam.report;
   if (!report) return null;
@@ -56,9 +54,7 @@ const ReportText: React.FC<{ exam: MMRADExam }> = ({ exam }) => {
       {sections.map(([label, text]) =>
         text ? (
           <div key={label}>
-            <dt className="text-[9.5px] font-semibold uppercase tracking-wide text-slate-400">
-              {label}
-            </dt>
+            <dt className="text-[11px] font-medium text-slate-500">{label}</dt>
             <dd className={label === 'Impresión' ? 'font-medium text-slate-800' : undefined}>
               {text}
             </dd>
@@ -166,17 +162,17 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
                     {exam.dicom_url && (
                       <button
                         type="button"
-                        className={SMALL_BUTTON}
+                        className={EXPLORER_ACTION_BUTTON}
                         onClick={() => setViewerKey(key)}
                       >
-                        <Images size={13} aria-hidden="true" className="text-violet-700" />
+                        <Images size={13} aria-hidden="true" className="text-slate-500" />
                         Imágenes
                       </button>
                     )}
                     {ct && structured && (
                       <button
                         type="button"
-                        className={SMALL_BUTTON}
+                        className={EXPLORER_ACTION_BUTTON}
                         aria-expanded={openReport === key}
                         onClick={() => setOpenReport(current => (current === key ? null : key))}
                       >
@@ -187,7 +183,7 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
                     {ct && !structured && exam.pdf_url && (
                       <button
                         type="button"
-                        className={SMALL_BUTTON}
+                        className={EXPLORER_ACTION_BUTTON}
                         disabled={pdfBusy === key}
                         onClick={() => void openPdf(exam)}
                       >

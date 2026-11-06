@@ -6,7 +6,7 @@ import { calculateHospitalizedDays } from '@/features/census/controllers/patient
 import { formatAge } from '@/utils/ageDisplayUtils';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { ClinicalExplorerPrintActions } from './ClinicalExplorerPrintActions';
-import { StatusDot } from './clinicalExplorerUi';
+import { StatusDot, EXPLORER_ACTION_BUTTON } from './clinicalExplorerUi';
 
 const LazyImagingRequestDialog = lazy(() =>
   import('@/components/modals/ImagingRequestDialog').then(module => ({
@@ -29,9 +29,6 @@ interface ClinicalExplorerHeaderProps {
   /** Day chosen in the indications area; null means today. Printing uses the same day. */
   indicationDate: string | null;
 }
-
-const QUICK_BUTTON =
-  'inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-[12px] font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700';
 
 /** Who is being reviewed, where they are, and the quick requests, in two short lines. */
 export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
@@ -107,7 +104,7 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
       >
         <button
           type="button"
-          className={QUICK_BUTTON}
+          className={EXPLORER_ACTION_BUTTON}
           onClick={onRequestExams}
           title="Solicitar exámenes de sangre"
         >
@@ -116,7 +113,7 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
         </button>
         <button
           type="button"
-          className={QUICK_BUTTON}
+          className={EXPLORER_ACTION_BUTTON}
           onClick={() => setAction('imaging')}
           title="Orden de radiología"
         >
@@ -125,7 +122,7 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
         </button>
         <button
           type="button"
-          className={QUICK_BUTTON}
+          className={EXPLORER_ACTION_BUTTON}
           onClick={() => setAction('documents')}
           title="Documentos clínicos"
         >

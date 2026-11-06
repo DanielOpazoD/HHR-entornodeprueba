@@ -163,11 +163,11 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
                 className={clsx(
                   'inline-flex h-6 items-center gap-1 rounded-md border px-2 text-[11px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
                   on
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                    ? 'border-teal-200 bg-teal-50 text-teal-800'
                     : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                 )}
               >
-                {on && <Check size={11} aria-hidden="true" className="text-emerald-600" />}
+                {on && <Check size={11} aria-hidden="true" className="text-teal-600" />}
                 {variable.name}
               </button>
             );
@@ -188,7 +188,7 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
             </button>
           )}
           {allVariablesShown && (
-            <span className="ml-1 text-[10px] text-slate-400">hasta {limit} a la vez</span>
+            <span className="ml-1 text-[11px] text-slate-500">hasta {limit} a la vez</span>
           )}
         </div>
         {selected.length > 0 ? (
@@ -236,7 +236,7 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
             </div>
             <table className="w-full text-[11px]">
               <thead>
-                <tr className="text-left text-[9.5px] uppercase tracking-wide text-slate-400">
+                <tr className="text-left text-[11px] text-slate-500">
                   <th className="px-2.5 py-1 font-semibold">Variable</th>
                   <th className="px-2.5 py-1 text-right font-semibold">Resultado</th>
                   <th className="px-2.5 py-1 font-semibold">Unidad</th>
@@ -249,13 +249,13 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
                     key={`${row.name}|${row.columnKey}`}
                     className={clsx(
                       'border-t border-slate-100',
-                      selectedAnalyses.has(row.name) && 'bg-emerald-50/40'
+                      selectedAnalyses.has(row.name) && 'bg-teal-50/40'
                     )}
                   >
                     <td className="px-2.5 py-1 text-slate-700">
                       {row.name}
                       {row.time && (
-                        <span className="ml-1 text-[10px] text-slate-400">{row.time}</span>
+                        <span className="ml-1 text-[11px] text-slate-500">{row.time}</span>
                       )}
                     </td>
                     <td className="px-2.5 py-1 text-right font-semibold tabular-nums text-slate-800">
@@ -293,7 +293,7 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
           )}
           {lab.phase === 'ready' && (
             <span
-              className="inline-flex items-center gap-1 text-[10px] text-slate-400"
+              className="inline-flex items-center gap-1 text-[11px] text-slate-500"
               title="Los valores se muestran tal como los informa Syslab"
             >
               <FileText size={11} aria-hidden="true" />

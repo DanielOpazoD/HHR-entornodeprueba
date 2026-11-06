@@ -6,6 +6,7 @@ import { buildMMRADReportClipboardText } from '@/services/radiology/mmradReportS
 import { fetchMMRADPdfBlob, type MMRADExam } from '@/services/radiology/mmradService';
 import { getSessionEpoch, onSessionChange } from '@/services/storage/sessionStorageTransition';
 import { writePrivateClipboardText } from '@/shared/runtime/browserClipboardRuntime';
+import { EXPLORER_ICON_BUTTON } from './clinicalExplorerUi';
 
 type Action = 'copy' | 'download';
 type ActionState =
@@ -13,9 +14,6 @@ type ActionState =
   | { kind: 'pending'; action: Action }
   | { kind: 'copied' }
   | { kind: 'error'; message: string };
-
-const ICON_BUTTON =
-  'inline-flex h-6 w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 disabled:cursor-default disabled:opacity-40';
 
 /** Mounted for one patient, episode and study by the report's identity key. */
 export const ClinicalExplorerReportActions: React.FC<{ exam: MMRADExam }> = ({ exam }) => {
@@ -104,7 +102,7 @@ export const ClinicalExplorerReportActions: React.FC<{ exam: MMRADExam }> = ({ e
         type="button"
         aria-label="Descargar PDF original"
         title={pdfTitle}
-        className={ICON_BUTTON}
+        className={EXPLORER_ICON_BUTTON}
         disabled={busy || !exam.pdf_url}
         onClick={() => void run('download')}
       >
@@ -118,7 +116,7 @@ export const ClinicalExplorerReportActions: React.FC<{ exam: MMRADExam }> = ({ e
         type="button"
         aria-label="Copiar hallazgos e impresión"
         title={copyTitle}
-        className={ICON_BUTTON}
+        className={EXPLORER_ICON_BUTTON}
         disabled={busy || !clipboardText}
         onClick={() => void run('copy')}
       >

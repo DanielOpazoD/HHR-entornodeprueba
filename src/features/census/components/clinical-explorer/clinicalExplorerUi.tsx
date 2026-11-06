@@ -2,6 +2,11 @@ import React from 'react';
 import clsx from 'clsx';
 import { PatientStatus } from '@/types/domain/patientClassification';
 
+export const EXPLORER_ACTION_BUTTON =
+  'inline-flex min-h-8 items-center gap-1.5 rounded-md px-2 text-[12px] font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 disabled:cursor-wait disabled:opacity-50';
+
+export const EXPLORER_ICON_BUTTON = `${EXPLORER_ACTION_BUTTON} size-8 justify-center px-0`;
+
 /** Areas of the explorer. The combined view shows every area at once. */
 export type ClinicalExplorerTab = 'all' | 'evolutions' | 'vitals' | 'lab' | 'img' | 'indications';
 
@@ -95,11 +100,7 @@ export const ReadFailure: React.FC<{ message: string; summary?: string; onRetry:
   <div role="alert" className="text-[12px] text-slate-600">
     <div className="flex flex-wrap items-center gap-2">
       <span>{summary ?? message}</span>
-      <button
-        type="button"
-        onClick={onRetry}
-        className="rounded-md border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
-      >
+      <button type="button" onClick={onRetry} className={EXPLORER_ACTION_BUTTON}>
         Reintentar
       </button>
     </div>
@@ -126,7 +127,7 @@ export const LinkButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>>
     type="button"
     {...props}
     className={clsx(
-      'self-start text-[11px] font-semibold text-medical-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
+      'min-h-7 self-start rounded text-[12px] font-medium text-teal-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
       className
     )}
   />
