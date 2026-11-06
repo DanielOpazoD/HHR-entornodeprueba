@@ -57,6 +57,14 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
   // Leaving the census closes the request for good: it does not reopen if the patient returns.
   if (examRequestFor && !examOpener) setExamRequestFor(null);
   const patient = patients.find(candidate => candidate.bedId === bedId) ?? null;
+  const patientKey = patient ? clinicalExplorerPatientIdentity(patient) : null;
+  const [indicationSelection, setIndicationSelection] = useState<{
+    patientKey: string | null;
+    date: string | null;
+  }>({ patientKey: null, date: null });
+  if (indicationSelection.patientKey !== patientKey) {
+    setIndicationSelection({ patientKey, date: null });
+  }
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -138,7 +146,10 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
               {tab !== 'lab' && tab !== 'img' && (
                 <div className="flex min-w-0 flex-col gap-3">
                   <ClinicalExplorerNotes
+                    key={patientKey}
                     episodeId={patient.episodeId}
+                    selectedDate={indicationSelection.date}
+                    onSelectDate={date => setIndicationSelection({ patientKey, date })}
                     tab={tab}
                     onShowAll={setTab}
                   />

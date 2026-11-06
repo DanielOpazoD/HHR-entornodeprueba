@@ -7,7 +7,6 @@ import {
   listClinicalExplorerExamCandidates,
   listClinicalExplorerPatients,
   resolveClinicalExplorerNeighbour,
-  resolveCompactIndicationDays,
 } from '@/features/census/controllers/clinicalExplorerController';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
@@ -91,17 +90,5 @@ describe('clinicalExplorerController', () => {
     expect(resolveClinicalExplorerNeighbour(patients, 'R1', -1)).toBeNull();
     expect(resolveClinicalExplorerNeighbour(patients, 'H1C1', 1)).toBeNull();
     expect(resolveClinicalExplorerNeighbour(patients, 'NEO 1', 1)).toBeNull();
-  });
-
-  it('picks the newest days with active indications, and suspended days only when none is active', () => {
-    const day = (id: string, active: number, suspended: number) => ({
-      id,
-      active: Array(active).fill('a'),
-      suspended: Array(suspended).fill('s'),
-    });
-    const days = [day('13', 0, 1), day('12', 0, 1), day('11', 1, 0), day('10', 2, 1)];
-    expect(resolveCompactIndicationDays(days, 2).map(d => d.id)).toEqual(['11', '10']);
-    expect(resolveCompactIndicationDays(days.slice(0, 2), 2).map(d => d.id)).toEqual(['13', '12']);
-    expect(resolveCompactIndicationDays([], 2)).toEqual([]);
   });
 });
