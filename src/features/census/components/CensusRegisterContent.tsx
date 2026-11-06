@@ -163,7 +163,7 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
         >
           {/* The way back never depends on the online-only chunk: it stays here while the body
               loads, if it cannot load, and once it is open. */}
-          <ClinicalExplorerBar censusDate={currentDateString} bedId={explorer.bedId} />
+          <ClinicalExplorerBar bedId={explorer.bedId} />
           <ErrorBoundary
             resetKeys={[explorer.bedId]}
             fallbackRender={() => (

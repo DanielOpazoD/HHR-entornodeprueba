@@ -1,5 +1,6 @@
 import { writeFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+import { panelResult } from '../src/tests/views/census/clinicalPanelDrawer.fixture';
 import {
   seedVisualCensus,
   VISUAL_DATE as DATE,
@@ -21,12 +22,24 @@ const screenshot = (page: Page, name: string) =>
       ? `${process.env.CENSUS_VISUAL_OUTPUT_DIR}/${name}.png`
       : test.info().outputPath(`${name}.png`),
     animations: 'disabled',
+    fullPage: true,
+    mask: [page.getByRole('button', { name: /^Usuario / }).locator('..')],
   });
 
 test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns to the census', async ({
   page,
 }) => {
   await seedVisualCensus(page);
+  await page.addInitScript(panel => {
+    window.addEventListener('message', event => {
+      const request = event.data;
+      if (request?.type !== 'HHR_RAYEN_CLINICAL_PANEL_REQUEST' || !request.reqId) return;
+      window.postMessage(
+        { ...panel, type: 'HHR_RAYEN_CLINICAL_PANEL_RESULT', reqId: request.reqId },
+        window.location.origin
+      );
+    });
+  }, panelResult);
   await page.goto(`/?date=${DATE}`);
   const row = page.locator('[data-testid="patient-row"][data-bed-id="R1"]');
   await expect(row).toContainText(PATIENT, { timeout: 20_000 });
@@ -66,14 +79,36 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
     // The patient header is two short lines; at 1280 the requests fit beside them.
     if (width === 1280) expect(headerBounds!.height).toBeLessThanOrEqual(64);
 
-    // The four areas are announced by name; the tab strip keeps one row.
+    // The five areas are announced by name; the tab strip keeps one row.
     const tabs = page.getByRole('tablist', { name: 'Áreas' });
-    await expect(tabs.getByRole('tab')).toHaveCount(5);
+    await expect(tabs.getByRole('tab')).toHaveCount(6);
     const tabBounds = await tabs.boundingBox();
     expect(tabBounds!.height).toBeLessThanOrEqual(40);
-    for (const area of ['Laboratorio', 'Imágenes', 'Evoluciones', 'Indicaciones']) {
+    for (const area of [
+      'Evoluciones',
+      'Signos vitales',
+      'Laboratorio',
+      'Imágenes',
+      'Indicaciones',
+    ]) {
       await expect(page.getByRole('region', { name: area })).toBeVisible();
     }
+
+    const evolutionsBounds = await page.getByRole('region', { name: 'Evoluciones' }).boundingBox();
+    const vitals = page.getByRole('region', { name: 'Signos vitales' });
+    await expect(vitals).toContainText('130/82');
+    const vitalsBounds = await vitals.boundingBox();
+    if (width === 1280) {
+      expect(vitalsBounds!.y).toBe(evolutionsBounds!.y);
+      expect(vitalsBounds!.x).toBeGreaterThan(evolutionsBounds!.x);
+    } else {
+      expect(vitalsBounds!.y).toBeGreaterThan(evolutionsBounds!.y);
+    }
+    await expect(
+      page
+        .getByRole('region', { name: 'Explorador clínico', exact: true })
+        .getByText('Experimental', { exact: true })
+    ).toHaveCount(0);
 
     // Syslab and MMRAD are out of reach here: a source that cannot be read is never shown as an
     // empty hospitalization (SAVE-01).
@@ -98,6 +133,7 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
   await expect(header).toContainText(PATIENT);
 
   await page.setViewportSize({ width: 390, height: 844 });
+  await screenshot(page, 'clinical-explorer-mobile');
   await expect(header).toContainText(PATIENT);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true

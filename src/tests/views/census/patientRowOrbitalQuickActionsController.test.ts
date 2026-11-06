@@ -50,19 +50,6 @@ describe('patientRowOrbitalQuickActionsController', () => {
       expect(items[0].id).toBe('clinical-documents');
     });
 
-    it('includes medical indications when enabled', () => {
-      const items = buildPatientRowOrbitalQuickActionItems({
-        showClinicalDocumentsAction: false,
-        showExamRequestAction: false,
-        showImagingRequestAction: false,
-        showMedicalIndicationsAction: true,
-      });
-
-      expect(items).toHaveLength(1);
-      expect(items[0].id).toBe('medical-indications');
-      expect(items[0].iconAsset).toBe('manutara');
-    });
-
     it('returns empty array when no actions are visible', () => {
       const items = buildPatientRowOrbitalQuickActionItems({
         showClinicalDocumentsAction: false,
@@ -162,17 +149,6 @@ describe('patientRowOrbitalQuickActionsController', () => {
         })
       ).toBe(false);
     });
-
-    it('returns true for medical indications only', () => {
-      expect(
-        hasPatientRowOrbitalQuickActions({
-          showClinicalDocumentsAction: false,
-          showExamRequestAction: false,
-          showImagingRequestAction: false,
-          showMedicalIndicationsAction: true,
-        })
-      ).toBe(true);
-    });
   });
 
   describe('dispatchPatientRowOrbitalQuickAction', () => {
@@ -180,22 +156,19 @@ describe('patientRowOrbitalQuickActionsController', () => {
       const onViewClinicalDocuments = vi.fn();
       const onViewExamRequest = vi.fn();
       const onViewImagingRequest = vi.fn();
-      const onViewMedicalIndications = vi.fn();
 
       dispatchPatientRowOrbitalQuickAction('clinical-documents', { onViewClinicalDocuments });
       dispatchPatientRowOrbitalQuickAction('exam-request', { onViewExamRequest });
       dispatchPatientRowOrbitalQuickAction('imaging-request', { onViewImagingRequest });
-      dispatchPatientRowOrbitalQuickAction('medical-indications', { onViewMedicalIndications });
 
       expect(onViewClinicalDocuments).toHaveBeenCalledTimes(1);
       expect(onViewExamRequest).toHaveBeenCalledTimes(1);
       expect(onViewImagingRequest).toHaveBeenCalledTimes(1);
-      expect(onViewMedicalIndications).toHaveBeenCalledTimes(1);
     });
 
     it('is a safe no-op when the matching callback is absent', () => {
       expect(() =>
-        dispatchPatientRowOrbitalQuickAction('medical-indications', {
+        dispatchPatientRowOrbitalQuickAction('imaging-request', {
           onViewClinicalDocuments: vi.fn(),
         })
       ).not.toThrow();

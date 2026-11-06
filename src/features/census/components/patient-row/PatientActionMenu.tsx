@@ -94,7 +94,6 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
     utilityActions,
     toggle,
     close,
-    openMedicalIndicationsDialog,
     closeMedicalIndicationsDialog,
     handleAction,
     handleViewHistory,
@@ -134,11 +133,9 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
           showClinicalDocumentsAction={binding.availability.showClinicalDocumentsAction}
           showExamRequestAction={binding.availability.showExamRequestAction}
           showImagingRequestAction={binding.availability.showImagingRequestAction}
-          showMedicalIndicationsAction={binding.availability.showMedicalIndicationsAction}
           onViewClinicalDocuments={handleViewClinicalDocuments}
           onViewExamRequest={handleViewExamRequest}
           onViewImagingRequest={handleViewImagingRequest}
-          onViewMedicalIndications={openMedicalIndicationsDialog}
           badges={
             clinicalDocumentCount && clinicalDocumentCount > 0
               ? { clinicalDocumentCount }

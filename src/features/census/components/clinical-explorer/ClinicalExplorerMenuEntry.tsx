@@ -29,7 +29,7 @@ export const ClinicalExplorerMenuEntry: React.FC<ClinicalExplorerMenuEntryProps>
       className={`${DATE_STRIP_QUICK_ACTION_BASE_CLASS} border-slate-200 bg-slate-50 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50`}
       title={
         first
-          ? 'Laboratorio, imágenes, evoluciones e indicaciones de los pacientes del censo'
+          ? 'Evoluciones, signos vitales, laboratorio, imágenes e indicaciones de los pacientes del censo'
           : 'Sin pacientes con RUT y episodio en este censo'
       }
     >

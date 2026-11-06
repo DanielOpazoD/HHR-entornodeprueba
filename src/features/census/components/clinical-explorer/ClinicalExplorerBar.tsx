@@ -1,10 +1,8 @@
 import React, { useCallback, useEffect, useRef } from 'react';
-import { ArrowLeft, Compass, Lock } from 'lucide-react';
-import { formatCalendarDate, formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
+import { ArrowLeft } from 'lucide-react';
 import { closeClinicalExplorer, restoreClinicalExplorerFocus } from './clinicalExplorerStore';
 
 interface ClinicalExplorerBarProps {
-  censusDate: string;
   bedId: string;
 }
 
@@ -13,7 +11,7 @@ interface ClinicalExplorerBarProps {
  * «Volver al censo» and Escape work while the explorer loads, if it never loads, and once it is
  * open. Dialogs opened from the explorer own the keyboard while they are open.
  */
-export const ClinicalExplorerBar: React.FC<ClinicalExplorerBarProps> = ({ censusDate, bedId }) => {
+export const ClinicalExplorerBar: React.FC<ClinicalExplorerBarProps> = ({ bedId }) => {
   const backRef = useRef<HTMLButtonElement>(null);
 
   const close = useCallback((): void => {
@@ -34,16 +32,8 @@ export const ClinicalExplorerBar: React.FC<ClinicalExplorerBarProps> = ({ census
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [close]);
 
-  const longDate =
-    formatCalendarDate(censusDate, {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    }) ?? formatDateDDMMYYYY(censusDate);
-
   return (
-    <div className="sticky top-[var(--hhr-chrome-height)] z-30 flex min-h-10 flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-1.5 py-1">
+    <div className="sticky top-[var(--hhr-chrome-height)] z-30 self-start">
       <button
         ref={backRef}
         type="button"
@@ -53,17 +43,6 @@ export const ClinicalExplorerBar: React.FC<ClinicalExplorerBarProps> = ({ census
         <ArrowLeft size={14} aria-hidden="true" />
         Volver al censo
       </button>
-      <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-slate-800">
-        <Lock size={13} aria-hidden="true" className="text-slate-500" />
-        Censo del {longDate}
-      </span>
-      <span className="ml-auto inline-flex items-center gap-2 text-[12px] font-semibold text-[#365d87]">
-        <Compass size={15} aria-hidden="true" />
-        Explorador clínico
-        <span className="rounded-full border border-dashed border-slate-400 px-1.5 py-px text-[8.5px] font-bold uppercase tracking-wider text-slate-500">
-          Experimental
-        </span>
-      </span>
     </div>
   );
 };

@@ -31,6 +31,7 @@ const PROFESSIONS: ReadonlyArray<{ key: ProfessionFilter; label: string }> = [
 ];
 
 interface ClinicalExplorerNotesProps {
+  children?: React.ReactNode;
   episodeId: string;
   selectedDate: string | null;
   onSelectDate: (date: string | null) => void;
@@ -92,6 +93,7 @@ const IndicationDay: React.FC<{ day: ClinicalPanelIndicationDay | undefined }> =
 
 /** Evolutions and indications read from Eloísa for the selected episode, one read for both. */
 export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
+  children,
   episodeId,
   selectedDate,
   onSelectDate,
@@ -195,11 +197,13 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
           ))}
         </AreaCard>
       )}
+      {children}
       {(tab === 'all' || tab === 'indications') && (
         <AreaCard
           icon={<ClipboardList />}
           iconClassName="text-teal-700"
           title="Indicaciones"
+          className={compact ? 'xl:col-span-2' : undefined}
           subtitle={panel ? `${indicationDay?.active.length ?? 0} vigentes` : undefined}
           source={SOURCE}
           actions={tab === 'indications' ? reloadButton : undefined}
