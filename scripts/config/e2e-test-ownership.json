@@ -237,6 +237,13 @@
       "workflow": ".github/workflows/ci-cd.yml"
     },
     {
+      "file": "e2e/cudyr-flow-critical.spec.ts",
+      "lane": "ci",
+      "reason": "CUDYR persisted report, confirmed correction, return navigation, Excel and failed-read recovery against the local emulator.",
+      "command": "npm run test:e2e:critical:ci",
+      "workflow": ".github/workflows/ci-cd.yml"
+    },
+    {
       "file": "e2e/cudyr-report-explorer.spec.ts",
       "lane": "manual",
       "reason": "Retained cudyr report explorer scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
