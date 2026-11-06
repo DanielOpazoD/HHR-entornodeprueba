@@ -458,3 +458,17 @@ by 576 bytes (634,560 → 635,136). The icon reuses `FileDown`, already in the b
 
 Rollback: revert the module and this allowance together. Nothing is stored, so rollback touches no
 data.
+
+## Renderizadores opcionales de jsPDF fuera de la precarga (2026-11-05)
+
+jsPDF imports canvg (SVG, with its core-js polyfills) only from `addSvgAsImage()` and DOMPurify
+only from `html()`; HHR calls neither. Rollup emitted them as generic chunks (`index.es`,
+`purify.es`) that entered the install-time precache, although their only importer is the online-only
+`vendor-pdf-core` chunk. They are now named `vendor-pdf-canvg` and `vendor-pdf-purify`, so the
+existing `vendor-pdf-*` online-only entry covers them. Measured on main cf09aad9b: precache
+5,038,234 → 4,851,533 bytes (−186,701; 257 → 255 files). `app-authenticated-shell` stays at
+631,865 bytes; every other chunk keeps its modules and size, except +16 bytes of import names in
+online-only `vendor-pdf-core`. The precache graph no longer needs the `vendor-pdf-core`
+static-import exception. No budget changes.
+
+Rollback: revert the two chunk names and restore the exception together.
