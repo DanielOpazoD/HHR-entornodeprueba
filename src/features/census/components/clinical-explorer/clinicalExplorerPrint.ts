@@ -108,35 +108,48 @@ export const printHtmlDocument = (html: string, signal?: AbortSignal): Promise<v
     });
     let removeTimer: number | undefined;
     const remove = (): void => {
+      clearTimeout(loadTimer);
       if (removeTimer !== undefined) clearTimeout(removeTimer);
       signal?.removeEventListener('abort', onAbort);
+      frame.removeEventListener('load', onLoad);
+      frame.removeEventListener('error', onError);
       frame.remove();
     };
-    function onAbort(): void {
+    function fail(error: Error): void {
       remove();
-      reject(new DOMException('Impresión cancelada.', 'AbortError'));
+      reject(error);
     }
-    signal?.addEventListener('abort', onAbort, { once: true });
-    frame.addEventListener(
-      'load',
-      () => {
-        const frameWindow = frame.contentWindow;
-        if (signal?.aborted || !frameWindow) {
-          remove();
-          reject(new Error('print_unavailable'));
-          return;
-        }
-        // Past this point the dialog belongs to the person who asked for it.
-        signal?.removeEventListener('abort', onAbort);
-        frameWindow.addEventListener('afterprint', () => setTimeout(remove, 0), { once: true });
-        // Some browsers return from print() before the dialog closes: keep the frame meanwhile.
-        removeTimer = window.setTimeout(remove, 120_000);
+    function onAbort(): void {
+      fail(new DOMException('Impresión cancelada.', 'AbortError'));
+    }
+    function onError(): void {
+      fail(new Error('print_unavailable'));
+    }
+    function onLoad(): void {
+      const frameWindow = frame.contentWindow;
+      if (signal?.aborted || !frameWindow) {
+        onError();
+        return;
+      }
+      clearTimeout(loadTimer);
+      // Past this point the dialog belongs to the person who asked for it.
+      signal?.removeEventListener('abort', onAbort);
+      frameWindow.addEventListener('afterprint', () => setTimeout(remove, 0), { once: true });
+      // Some browsers return from print() before the dialog closes: keep the frame meanwhile.
+      removeTimer = window.setTimeout(remove, 120_000);
+      try {
         frameWindow.focus();
         frameWindow.print();
         resolve();
-      },
-      { once: true }
-    );
+      } catch {
+        onError();
+      }
+    }
+    signal?.addEventListener('abort', onAbort, { once: true });
+    frame.addEventListener('load', onLoad, { once: true });
+    frame.addEventListener('error', onError, { once: true });
+    // A local srcdoc that never loads must release the action so the person can retry.
+    const loadTimer = window.setTimeout(() => fail(new Error('print_load_timeout')), 30_000);
     frame.srcdoc = html;
     document.body.appendChild(frame);
   });
