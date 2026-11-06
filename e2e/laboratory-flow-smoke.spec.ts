@@ -35,6 +35,7 @@ const buildLabRecord = (date: string) => {
         age: '45',
         admissionDate: date,
         birthDate: '1980-04-12',
+        clinicalEpisodeId: '900001',
       },
     },
   });
@@ -274,8 +275,7 @@ test.describe('Laboratory UI smoke', () => {
         },
       });
     });
-    await page.getByRole('button', { name: 'Más opciones del censo' }).click();
-    await page.getByTestId('lab-quick-action').filter({ visible: true }).first().click();
+    await page.getByTestId('patient-laboratory-trigger-R1').click();
     const dialog = page.getByTestId('lab-results-viewer-modal');
     await dialog.getByRole('button', { name: /^Buscar$/ }).click();
     await expect(dialog.getByTestId('lab-exam-card-43092336')).toBeVisible();
@@ -302,8 +302,8 @@ test.describe('Laboratory UI smoke', () => {
 
     await openAuthenticatedCensus(page);
 
-    await page.getByRole('button', { name: 'Más opciones del censo' }).click();
-    const labAction = page.getByTestId('lab-quick-action').filter({ visible: true }).first();
+    // The census menu no longer offers Laboratorio: each patient opens it from its row.
+    const labAction = page.getByTestId('patient-laboratory-trigger-R1');
     await expect(labAction).toBeVisible({ timeout: 15000 });
     await labAction.click();
 
@@ -402,8 +402,7 @@ test.describe('Laboratory UI smoke', () => {
         },
       });
     });
-    await page.getByRole('button', { name: 'Más opciones del censo' }).click();
-    await page.getByTestId('lab-quick-action').filter({ visible: true }).first().click();
+    await page.getByTestId('patient-laboratory-trigger-R1').click();
     const dialog = page.getByTestId('lab-results-viewer-modal');
     await dialog.getByRole('button', { name: /^Buscar$/ }).click();
     await expect(dialog.getByTestId('lab-exam-card-900025')).toBeAttached();

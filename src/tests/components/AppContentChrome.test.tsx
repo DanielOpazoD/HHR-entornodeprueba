@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi, beforeAll } from 'vitest';
 
 type LazyBypassProps = Record<string, unknown>;
@@ -69,6 +69,10 @@ vi.mock('@/components/AppRouter', () => ({
       AppRouter
     </div>
   ),
+}));
+
+vi.mock('@/components/clinical-conflicts/CensusConflictQuickAction', () => ({
+  CensusConflictQuickAction: () => null,
 }));
 
 vi.mock('@/features/census/components/global-search/GlobalPatientSearchModal', () => ({
@@ -230,5 +234,28 @@ describe('AppContentChrome', () => {
     );
     expect(renderCensusTrailingActions).toHaveBeenCalledTimes(1);
     expect(readTrailing()).toBeUndefined();
+  });
+
+  it('keeps MMRAD and Laboratorio out of the census options menu', () => {
+    const renderFeatureQuickActions = vi.fn(() => <button type="button">Laboratorio</button>);
+    render(
+      <AppContentChrome
+        ui={ui as never}
+        runtime={runtime as never}
+        onOpenCensusDate={vi.fn()}
+        renderFeatureQuickActions={renderFeatureQuickActions}
+      />
+    );
+    const trailing = (mockDateStrip.mock.lastCall?.[0] as { trailingActions?: React.ReactNode })
+      .trailingActions;
+    render(<>{trailing}</>);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Más opciones del censo' }));
+    const menu = screen.getByRole('group', { name: 'Opciones del censo' });
+    expect(within(menu).getByText('Camas')).toBeInTheDocument();
+    expect(within(menu).queryByText('MMRAD')).not.toBeInTheDocument();
+    expect(within(menu).queryByText('Laboratorio')).not.toBeInTheDocument();
+    expect(within(menu).queryByTitle('Lab (cargando...)')).not.toBeInTheDocument();
+    expect(renderFeatureQuickActions).not.toHaveBeenCalled();
   });
 });
