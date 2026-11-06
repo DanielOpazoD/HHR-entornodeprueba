@@ -67,8 +67,6 @@ const fromRemembered = (result: MMRADSearchResult): ImagingState => ({
   partial: result.check_digit_search === 'partial',
 });
 
-
-
 /**
  * MMRAD studies of the hospitalization, the same two searches the radiology modal runs (exact RUT
  * and mistyped check digit), remembered per session so switching patients back is instant. A
@@ -89,7 +87,8 @@ export const useClinicalExplorerImaging = ({
   const [stored, setStored] = useState<{ key: string; data: ImagingState } | null>(null);
   const [attempt, setAttempt] = useState(0);
   const sequence = useRef(0);
-  const remembered = enabled && rut ? readRememberedMMRADExams({ rut, dateFrom, dateTo: '' }) : undefined;
+  const remembered =
+    enabled && rut ? readRememberedMMRADExams({ rut, dateFrom, dateTo: '' }) : undefined;
   const state = stored?.key === key ? stored.data : remembered ? fromRemembered(remembered) : IDLE;
 
   useEffect(() => {
@@ -101,7 +100,11 @@ export const useClinicalExplorerImaging = ({
       setStored(current => ({
         key,
         data: change(
-          current?.key === key ? current.data : memory.remembered ? fromRemembered(memory.remembered) : IDLE
+          current?.key === key
+            ? current.data
+            : memory.remembered
+              ? fromRemembered(memory.remembered)
+              : IDLE
         ),
       }));
 

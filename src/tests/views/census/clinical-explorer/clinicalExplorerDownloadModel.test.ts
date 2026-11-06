@@ -9,7 +9,6 @@ import {
   describeRecordPart,
   isVersionAtLeast,
   labReadFrom,
-  parseHistorySummary,
   outcome,
   planCtReports,
   planLabPart,
@@ -19,6 +18,11 @@ import {
   zipEntryNames,
   type DownloadDocument,
 } from '@/features/census/components/clinical-explorer/clinicalExplorerDownloadModel';
+import {
+  countPendingInRange,
+  parseHistorySummary,
+  splitCtStudiesByDay,
+} from '@/features/census/components/clinical-explorer/clinicalExplorerDownloadScope';
 import type { MMRADExam } from '@/services/radiology/mmradService';
 import type { LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
 import type { LabResultRow } from '@/types/domain/labExamTypes';
@@ -135,26 +139,37 @@ describe('Syslab results', () => {
       }),
     });
     // Reports Syslab has not delivered yet are missing results, never «sin informes».
-    expect(planLabPart({ kind: 'ready', analysis, pending: 2 }, range)).toEqual({
+    expect(
+      planLabPart({ kind: 'ready', analysis, pendingDays: ['2026-11-06', ''] }, range)
+    ).toEqual({
       outcome: expect.objectContaining({
         status: 'failed',
         problem: 'Syslab aún no entrega resultados de 2 informes del 06-11-2026.',
       }),
     });
     const wholeStay = { from: '2026-11-01', to: '2026-11-06' };
-    expect(planLabPart({ kind: 'ready', analysis, pending: 0 }, wholeStay)).toEqual(
+    expect(planLabPart({ kind: 'ready', analysis, pendingDays: [] }, wholeStay)).toEqual(
       expect.objectContaining({ summary: '2 informes del 01-11-2026 al 06-11-2026' })
     );
-    expect(planLabPart({ kind: 'ready', analysis, pending: 0 }, wholeStay)).not.toHaveProperty(
+    expect(planLabPart({ kind: 'ready', analysis, pendingDays: [] }, wholeStay)).not.toHaveProperty(
       'partialProblem'
     );
-    expect(planLabPart({ kind: 'ready', analysis, pending: 1 }, wholeStay)).toEqual(
+    expect(
+      planLabPart({ kind: 'ready', analysis, pendingDays: ['2026-11-03'] }, wholeStay)
+    ).toEqual(
       expect.objectContaining({ partialProblem: 'Falta 1 informe que Syslab aún no entrega.' })
     );
+    // A report pending outside the chosen days does not make this download partial.
+    expect(
+      planLabPart({ kind: 'ready', analysis, pendingDays: ['2026-10-20'] }, wholeStay)
+    ).not.toHaveProperty('partialProblem');
+    expect(planLabPart({ kind: 'ready', analysis, pendingDays: ['2026-10-20'] }, range)).toEqual({
+      outcome: expect.objectContaining({ status: 'empty' }),
+    });
   });
 
   it('waits while Syslab is asked and reports a session or read failure as such', () => {
-    const base = { message: '', analysis: null, pending: 0, refreshing: false };
+    const base = { message: '', analysis: null, exams: [], pendingLinks: [], refreshing: false };
     expect(settleLabRead({ ...base, phase: 'checking' })).toBeNull();
     expect(settleLabRead({ ...base, phase: 'listing' })).toBeNull();
     expect(settleLabRead({ ...base, phase: 'reading' })).toBeNull();
@@ -167,15 +182,29 @@ describe('Syslab results', () => {
       problem: 'Syslab no respondió.',
     });
     expect(settleLabRead({ ...base, phase: 'empty' })).toEqual({ kind: 'empty' });
-    expect(settleLabRead({ ...base, phase: 'ready', analysis, pending: 1 })).toEqual({
-      kind: 'ready',
-      analysis,
-      pending: 1,
-    });
+    expect(
+      settleLabRead({
+        ...base,
+        phase: 'ready',
+        analysis,
+        exams: [
+          {
+            id: '9',
+            link: 'syslab://9',
+            date: '03/11/2026',
+            time: '08:00:00',
+            patientName: 'SINTÉTICO',
+            origin: 'HOSP',
+            exams: ['PCR'],
+          },
+        ],
+        pendingLinks: ['syslab://9', 'syslab://unknown'],
+      })
+    ).toEqual({ kind: 'ready', analysis, pendingDays: ['2026-11-03', ''] });
   });
 
   it('waits while a cached Syslab read is renewed instead of taking what it had', () => {
-    const renewing = { message: '', pending: 0, refreshing: true };
+    const renewing = { message: '', exams: [], pendingLinks: [], refreshing: true };
     expect(settleLabRead({ ...renewing, phase: 'ready', analysis })).toBeNull();
     expect(settleLabRead({ ...renewing, phase: 'empty', analysis: null })).toBeNull();
     // A failure is still a failure while something else renews.
@@ -353,6 +382,39 @@ describe('extension version and ZIP summary', () => {
       { startDate: '2026-11-01', fileName: '' },
     ]);
     expect(parseHistorySummary('RUT;Nombre\r\n')).toBeNull();
+  });
+
+  it('keeps a stay whose quoted name spans lines, so a duplicate admission is never hidden', () => {
+    const csv =
+      '\uFEFFRUT;Nombre;Ingreso;Egreso;Documento;Resultado;Archivo\r\n' +
+      '12.345.678-5;"Paciente\nSintetico";2026-11-01;2026-11-01;Historial de hospitalización;No descargado: HTTP 500;\r\n' +
+      '12.345.678-5;PACIENTE;2026-11-01;En curso;Historial de hospitalización;Descargado;b.pdf\r\n';
+    expect(parseHistorySummary(csv)).toEqual([
+      { startDate: '2026-11-01', fileName: '' },
+      { startDate: '2026-11-01', fileName: 'b.pdf' },
+    ]);
+    // A cell left open, or a document row without a readable «Ingreso», cannot be trusted.
+    expect(parseHistorySummary(csv.replace('"Paciente', 'Paciente'))).toBeNull();
+    expect(
+      parseHistorySummary(
+        'RUT;Nombre;Ingreso;Egreso;Documento;Resultado;Archivo\r\n1;A;;;Historial de hospitalización;Descargado;a.pdf\r\n'
+      )
+    ).toBeNull();
+  });
+
+  it('sets apart CT studies after a past census day and counts pending reports by range', () => {
+    const before = exam({ nombre_examen: 'TC tórax', fecha_examen: '01/11/2026 09:00' });
+    const after = exam({ nombre_examen: 'TC abdomen', fecha_examen: '05/11/2026 10:00' });
+    expect(splitCtStudiesByDay([before, after], '2026-11-01')).toEqual({
+      kept: [before],
+      later: [after],
+    });
+    expect(splitCtStudiesByDay([before, after], null)).toEqual({
+      kept: [before, after],
+      later: [],
+    });
+    const range = { from: '2026-11-02', to: '2026-11-04' };
+    expect(countPendingInRange(['2026-11-01', '2026-11-03', '', '2026-11-05'], range)).toBe(2);
   });
 });
 

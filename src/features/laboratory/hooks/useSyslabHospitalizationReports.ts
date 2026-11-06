@@ -37,6 +37,8 @@ export interface SyslabHospitalizationReports {
   analysis: LabAnalysisData | null;
   /** Reports Syslab listed but could not deliver yet; they are asked again on the next refresh. */
   pending: number;
+  /** Links of those pending reports, to tell which days they belong to. */
+  pendingLinks: string[];
   /**
    * A cached list or report set is being renewed: what is shown may lack the newest reports. The
    * explorer card keeps showing it; a download waits for the renewed read.
@@ -45,9 +47,13 @@ export interface SyslabHospitalizationReports {
   retry: () => void;
 }
 
+/** One shared empty list, so a consumer's effect does not rerun on every render. */
+const NO_PENDING_LINKS: string[] = [];
+
 interface HospitalizationAnalysis {
   analysis: LabAnalysisData;
   pending: number;
+  pendingLinks: string[];
 }
 
 interface UseSyslabHospitalizationReportsParams {
@@ -148,6 +154,7 @@ export const useSyslabHospitalizationReports = ({
       return {
         analysis: buildAnalysisData(response.data, current),
         pending: response.omittedUrls?.length ?? 0,
+        pendingLinks: response.omittedUrls ?? [],
       };
     },
   });
@@ -196,6 +203,7 @@ export const useSyslabHospitalizationReports = ({
     exams,
     analysis: analysis.data?.analysis ?? null,
     pending: analysis.data?.pending ?? 0,
+    pendingLinks: analysis.data?.pendingLinks ?? NO_PENDING_LINKS,
     refreshing: list.isFetching || analysis.isFetching || (list.isSuccess && list.isStale),
     retry,
   };

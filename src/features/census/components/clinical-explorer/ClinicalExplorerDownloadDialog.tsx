@@ -48,14 +48,14 @@ const LabCollector: React.FC<{ rut: string; episodeId: string; request: LabColle
     admissionDate: request.readFrom,
     enabled: true,
   });
-  const { phase, message, analysis, pending, refreshing } = lab;
+  const { phase, message, analysis, exams, pendingLinks, refreshing } = lab;
   const progress = labProgressText(lab);
   const { onProgress, onSettled } = request;
   useEffect(() => onProgress(progress), [onProgress, progress]);
   useEffect(() => {
-    const settlement = settleLabRead({ phase, message, analysis, pending, refreshing });
+    const settlement = settleLabRead({ phase, message, analysis, exams, pendingLinks, refreshing });
     if (settlement) onSettled(settlement);
-  }, [phase, message, analysis, pending, refreshing, onSettled]);
+  }, [phase, message, analysis, exams, pendingLinks, refreshing, onSettled]);
   return null;
 };
 
@@ -121,6 +121,8 @@ const closingMessage = (
 
 interface ClinicalExplorerDownloadDialogProps {
   patient: ClinicalExplorerPatient;
+  /** Census day the explorer shows; from a past day, later CT studies may be another stay's. */
+  censusDate: string;
   onClose: () => void;
 }
 
@@ -130,6 +132,7 @@ interface ClinicalExplorerDownloadDialogProps {
  */
 export const ClinicalExplorerDownloadDialog: React.FC<ClinicalExplorerDownloadDialogProps> = ({
   patient,
+  censusDate,
   onClose,
 }) => {
   const { data } = patient;
@@ -141,6 +144,7 @@ export const ClinicalExplorerDownloadDialog: React.FC<ClinicalExplorerDownloadDi
   const [format, setFormat] = useState<DownloadFormat>('pdf');
   const { state, labCollector, start, saveAvailable, cancel, reset } = useClinicalExplorerDownload(
     patient,
+    censusDate,
     onClose
   );
 

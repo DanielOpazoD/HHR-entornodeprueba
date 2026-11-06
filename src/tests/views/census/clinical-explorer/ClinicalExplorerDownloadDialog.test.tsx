@@ -189,6 +189,8 @@ describe('ClinicalExplorerDownloadDialog', () => {
       phase: 'ready',
       analysis,
       pending: 0,
+      exams: [],
+      pendingLinks: [],
       message: '',
       progress: null,
     });
@@ -349,6 +351,26 @@ describe('ClinicalExplorerDownloadDialog', () => {
     expect(mocks.download).not.toHaveBeenCalled();
   });
 
+  it('leaves out CT studies after a past census day: they may belong to a later stay', async () => {
+    render(
+      <ClinicalExplorerHeader
+        patient={patient!}
+        onRequestExams={vi.fn()}
+        censusDate="2026-11-02"
+        indicationDate={null}
+      />
+    );
+    const dialog = openDialog();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Descargar' }));
+
+    expect(await within(dialog).findByRole('alert')).toBeVisible();
+    expect(within(dialog).getByRole('list', { name: 'Avance de la descarga' })).toHaveTextContent(
+      /Posteriores al 02-11-2026: TC tórax \(03-11-2026 10:15\)\. No van incluidos/
+    );
+    expect(mocks.pdf).not.toHaveBeenCalled();
+    expect(mocks.download).not.toHaveBeenCalled();
+  });
+
   it('packs what was gathered in another format without asking the sources again', async () => {
     auditAnswers(Promise.resolve({ ok: false, error: 'La extensión Eloísa no respondió.' }));
     renderHeader();
@@ -421,6 +443,8 @@ describe('ClinicalExplorerDownloadDialog', () => {
       phase: 'login-required',
       analysis: null,
       pending: 0,
+      exams: [],
+      pendingLinks: [],
       message: '',
       refreshing: false,
       progress: null,
@@ -438,6 +462,8 @@ describe('ClinicalExplorerDownloadDialog', () => {
       phase: 'empty',
       analysis: null,
       pending: 0,
+      exams: [],
+      pendingLinks: [],
       message: '',
       refreshing: false,
       progress: null,

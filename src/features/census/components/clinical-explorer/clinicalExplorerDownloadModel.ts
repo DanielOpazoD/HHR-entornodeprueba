@@ -12,6 +12,7 @@ import {
 } from '@/services/radiology/mmradStamp';
 import type { LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
+import { countPendingInRange, pendingReportDays } from './clinicalExplorerDownloadScope';
 import { isCtStudy } from './clinicalExplorerImagingModel';
 import { buildLabDayRows, parseColumnKey, type LabDayRow } from './clinicalExplorerLabModel';
 
@@ -170,54 +171,6 @@ export const selectEpisodeHistory = (
   return file ? { kind: 'one', file } : { kind: 'undelivered' };
 };
 
-const splitCsvLine = (line: string): string[] => {
-  const cells: string[] = [];
-  let cell = '';
-  let quoted = false;
-  for (let index = 0; index < line.length; index++) {
-    const character = line.charAt(index);
-    if (quoted) {
-      if (character === '"' && line.charAt(index + 1) === '"') {
-        cell += '"';
-        index++;
-      } else if (character === '"') {
-        quoted = false;
-      } else {
-        cell += character;
-      }
-    } else if (character === '"') {
-      quoted = true;
-    } else if (character === ';') {
-      cells.push(cell);
-      cell = '';
-    } else {
-      cell += character;
-    }
-  }
-  cells.push(cell);
-  return cells;
-};
-
-/**
- * Stays listed in the extension's «00 Resumen.csv» (`;`-separated, quoted cells, BOM): one per
- * history document, with its «Ingreso» and the PDF name when delivered. Null when unreadable.
- */
-export const parseHistorySummary = (text: string): ListedStay[] | null => {
-  const [header, ...lines] = text.replace(/^\uFEFF/, '').split(/\r?\n/);
-  if (!header) return null;
-  const columns = splitCsvLine(header);
-  const start = columns.indexOf('Ingreso');
-  const file = columns.indexOf('Archivo');
-  const kind = columns.indexOf('Documento');
-  if (start < 0 || file < 0 || kind < 0) return null;
-  return lines
-    .map(splitCsvLine)
-    .filter(
-      cells => (cells[kind] ?? '').trim() !== '' && /^\d{4}-\d{2}-\d{2}$/.test(cells[start] ?? '')
-    )
-    .map(cells => ({ startDate: cells[start] ?? '', fileName: (cells[file] ?? '').trim() }));
-};
-
 const SELECTION_PROBLEMS = {
   undelivered: () => 'Eloísa no entregó el historial de esta hospitalización.',
   unverifiable: () =>
@@ -314,11 +267,12 @@ export const describeRecordPart = (
 export type LabSettlement =
   | { kind: 'failed'; problem: string }
   | { kind: 'empty' }
-  | { kind: 'ready'; analysis: LabAnalysisData; pending: number };
+  /** `pendingDays`: ISO day of each report Syslab has not delivered yet ('' when unknown). */
+  | { kind: 'ready'; analysis: LabAnalysisData; pendingDays: string[] };
 
 type LabRead = Pick<
   SyslabHospitalizationReports,
-  'phase' | 'message' | 'analysis' | 'pending' | 'refreshing'
+  'phase' | 'message' | 'analysis' | 'exams' | 'pendingLinks' | 'refreshing'
 >;
 
 /** Null while Syslab is still being asked; then how the read ended. A failure is never «sin informes». */
@@ -342,7 +296,11 @@ export const settleLabRead = (lab: LabRead): LabSettlement | null => {
       return lab.refreshing ? null : { kind: 'empty' };
     case 'ready':
       return lab.analysis && !lab.refreshing
-        ? { kind: 'ready', analysis: lab.analysis, pending: lab.pending }
+        ? {
+            kind: 'ready',
+            analysis: lab.analysis,
+            pendingDays: pendingReportDays(lab.exams, lab.pendingLinks),
+          }
         : null;
   }
 };
@@ -418,18 +376,20 @@ export const planLabPart = (
   const empty = `Sin informes de Syslab ${describeRange(range)}.`;
   if (settlement.kind === 'empty') return { outcome: outcome('empty', empty) };
   const groups = buildLabReportGroups(settlement.analysis, range);
-  const notes = settlement.pending
+  // Only reports of the chosen days are missing results of this download.
+  const pending = countPendingInRange(settlement.pendingDays, range);
+  const notes = pending
     ? [
-        `Syslab aún no entrega resultados de ${plural(settlement.pending, 'informe', 'informes')}; no van incluidos.`,
+        `Syslab aún no entrega resultados de ${plural(pending, 'informe', 'informes')}; no van incluidos.`,
       ]
     : [];
-  if (groups.length === 0 && !settlement.pending) {
+  if (groups.length === 0 && !pending) {
     return { outcome: outcome('empty', empty, { notes }) };
   }
   if (groups.length === 0) {
     return {
       outcome: outcome('failed', 'No incluidos', {
-        problem: `Syslab aún no entrega resultados de ${plural(settlement.pending, 'informe', 'informes')} ${describeRange(range)}.`,
+        problem: `Syslab aún no entrega resultados de ${plural(pending, 'informe', 'informes')} ${describeRange(range)}.`,
       }),
     };
   }
@@ -438,9 +398,9 @@ export const planLabPart = (
     summary: `${plural(groups.length, 'informe', 'informes')} ${describeRange(range)}`,
     notes,
     // Reports still pending at Syslab are missing results: the person decides, as with a failure.
-    ...(settlement.pending
+    ...(pending
       ? {
-          partialProblem: `${settlement.pending === 1 ? 'Falta' : 'Faltan'} ${plural(settlement.pending, 'informe', 'informes')} que Syslab aún no entrega.`,
+          partialProblem: `${pending === 1 ? 'Falta' : 'Faltan'} ${plural(pending, 'informe', 'informes')} que Syslab aún no entrega.`,
         }
       : {}),
   };
@@ -495,6 +455,7 @@ export const describeCtPart = ({
   documents,
   failures,
   searchIncomplete,
+  laterThanCensus = null,
 }: {
   plan: CtReportPlan;
   documents: DownloadDocument[];
@@ -502,6 +463,8 @@ export const describeCtPart = ({
   failures: string[];
   /** The search for studies registered under another check digit did not finish. */
   searchIncomplete: boolean;
+  /** CT studies after a past census day, left out because they may belong to a later stay. */
+  laterThanCensus?: { day: string; studies: string[] } | null;
 }): PartOutcome => {
   const problems = [
     failures.length ? `No se pudo descargar: ${failures.join('; ')}.` : '',
@@ -510,6 +473,9 @@ export const describeCtPart = ({
       : '',
     searchIncomplete
       ? 'La búsqueda de TAC registrados con otro dígito verificador no terminó; puede faltar alguno.'
+      : '',
+    laterThanCensus
+      ? `Posteriores al ${formatDateDDMMYYYY(laterThanCensus.day)}: ${laterThanCensus.studies.join('; ')}. No van incluidos: desde un censo pasado no se puede comprobar que sean de esta hospitalización; ábrelos desde el censo de hoy si sigue hospitalizado.`
       : '',
   ].filter(Boolean);
   const notes = plan.unreported;

@@ -12,13 +12,13 @@ import { formatMmradStamp } from '@/services/radiology/mmradStamp';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import {
   describeRange,
-  parseHistorySummary,
   zipEntryNames,
   type HistoryArchive,
   type DownloadDocument,
   type DownloadRange,
   type LabReportGroup,
 } from './clinicalExplorerDownloadModel';
+import { parseHistorySummary } from './clinicalExplorerDownloadScope';
 
 export { requestAuditDocuments } from '@/features/audit-documents/eloisa-history';
 // The version tells whether the extension hands the ZIP to this page or saves it into Downloads.

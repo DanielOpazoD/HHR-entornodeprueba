@@ -169,7 +169,11 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
         </Suspense>
       )}
       {action === 'download' && (
-        <ClinicalExplorerDownloadDialog patient={patient} onClose={() => setAction(null)} />
+        <ClinicalExplorerDownloadDialog
+          patient={patient}
+          censusDate={censusDate}
+          onClose={() => setAction(null)}
+        />
       )}
     </header>
   );

@@ -11,7 +11,8 @@ import {
 } from '@/utils/clinicalTimeZone';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { formatRut, normalizeRut } from '@/utils/rutUtils';
-import { asMmradDateBound } from './clinicalExplorerImagingModel';
+import { asMmradDateBound, isCtStudy } from './clinicalExplorerImagingModel';
+import { splitCtStudiesByDay } from './clinicalExplorerDownloadScope';
 import {
   EXTENSION_IN_PAGE_HISTORY_VERSION,
   bundleFileName,
@@ -136,6 +137,7 @@ const listMmradStudies = (
  */
 export const useClinicalExplorerDownload = (
   patient: ClinicalExplorerPatient,
+  censusDate: string,
   onSessionEnd: () => void
 ) => {
   const { data } = patient;
@@ -338,7 +340,10 @@ export const useClinicalExplorerDownload = (
       if (listing.kind === 'failed') {
         return outcome('failed', 'No incluidos', { problem: listing.problem });
       }
-      const plan = planCtReports(listing.studies);
+      // From a past census the stay may have ended since: later studies may be another stay's.
+      const lastDay = isIsoDay(censusDate) && censusDate < stamp.iso ? censusDate : null;
+      const { kept, later } = splitCtStudiesByDay(listing.studies, lastDay);
+      const plan = planCtReports(kept);
       const documents: DownloadDocument[] = [];
       const failures: string[] = [];
       for (const [index, { exam, source }] of plan.included.entries()) {
@@ -360,6 +365,10 @@ export const useClinicalExplorerDownload = (
         documents,
         failures,
         searchIncomplete: listing.searchIncomplete,
+        laterThanCensus:
+          lastDay && later.some(isCtStudy)
+            ? { day: lastDay, studies: later.filter(isCtStudy).map(describeCtStudy) }
+            : null,
       });
     };
 
