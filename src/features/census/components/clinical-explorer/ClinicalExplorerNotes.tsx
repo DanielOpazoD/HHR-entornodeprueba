@@ -21,6 +21,7 @@ type EvolutionProfession = NonNullable<ClinicalPanelEntry['profession']>;
 
 const SOURCE = 'Eloísa · Ficha Médico';
 const COMPACT_EVOLUTIONS = 3;
+const EVOLUTION_BATCH = 20;
 
 type ProfessionFilter = 'all' | EvolutionProfession;
 const PROFESSIONS: ReadonlyArray<{ key: ProfessionFilter; label: string }> = [
@@ -102,6 +103,10 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
 }) => {
   const { state, reload } = useClinicalPanelSnapshot(episodeId);
   const [profession, setProfession] = useState<ProfessionFilter>('all');
+  const [historyPage, setHistoryPage] = useState({ episodeId, count: EVOLUTION_BATCH });
+  if (historyPage.episodeId !== episodeId) {
+    setHistoryPage({ episodeId, count: EVOLUTION_BATCH });
+  }
   const panel = state.phase === 'ready' ? state.panel : null;
   const evolutions = panel
     ? panel.evolutions.filter(entry => profession === 'all' || entry.profession === profession)
@@ -109,7 +114,12 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
   const countFor = (key: ProfessionFilter): number =>
     panel ? panel.evolutions.filter(e => key === 'all' || e.profession === key).length : 0;
   const compact = tab === 'all';
-  const shownEvolutions = compact ? evolutions.slice(0, COMPACT_EVOLUTIONS) : evolutions;
+  const shownLimit = compact
+    ? COMPACT_EVOLUTIONS
+    : historyPage.episodeId === episodeId
+      ? historyPage.count
+      : EVOLUTION_BATCH;
+  const shownEvolutions = evolutions.slice(0, shownLimit);
   const [today, setToday] = useState(() => getClinicalCalendarDateISO());
   const indicationDate = selectedDate ?? today;
   const indicationDay = panel?.indicationDays.find(day => day.day === indicationDate);
@@ -157,7 +167,7 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
           actions={
             <>
               {compact && evolutions.length > COMPACT_EVOLUTIONS && (
-                <LinkButton onClick={() => onShowAll('evolutions')}>Ver todas ›</LinkButton>
+                <LinkButton onClick={() => onShowAll('evolutions')}>Ver historial ›</LinkButton>
               )}
               {reloadButton}
             </>
@@ -171,7 +181,10 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
                     key={item.key}
                     type="button"
                     aria-pressed={profession === item.key}
-                    onClick={() => setProfession(item.key)}
+                    onClick={() => {
+                      setProfession(item.key);
+                      setHistoryPage({ episodeId, count: EVOLUTION_BATCH });
+                    }}
                     className={clsx(
                       'min-h-9 rounded-lg px-2 text-[12px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
                       profession === item.key
@@ -184,12 +197,41 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
                 ))}
               </div>
               {shownEvolutions.length === 0 ? (
-                <EmptyNote>Sin evoluciones en Ficha Médico.</EmptyNote>
+                <EmptyNote>
+                  {panel && panel.evolutions.length > 0
+                    ? 'Sin evoluciones para este filtro.'
+                    : 'Sin evoluciones en Ficha Médico.'}
+                </EmptyNote>
               ) : (
                 <div className="divide-y divide-slate-100">
                   {shownEvolutions.map((entry, index) => (
                     <EvolutionCard key={entry.id} entry={entry} isLatest={index === 0} />
                   ))}
+                </div>
+              )}
+              {!compact && evolutions.length > EVOLUTION_BATCH && (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2 text-[12px] text-slate-500">
+                  <span role="status">
+                    Mostrando {shownEvolutions.length} de {evolutions.length}
+                  </span>
+                  {shownEvolutions.length < evolutions.length && (
+                    <span className="flex items-center gap-3">
+                      <LinkButton
+                        onClick={() =>
+                          setHistoryPage({ episodeId, count: shownLimit + EVOLUTION_BATCH })
+                        }
+                      >
+                        Mostrar{' '}
+                        {Math.min(EVOLUTION_BATCH, evolutions.length - shownEvolutions.length)} más
+                      </LinkButton>
+                      <LinkButton
+                        className="!text-slate-500"
+                        onClick={() => setHistoryPage({ episodeId, count: evolutions.length })}
+                      >
+                        Mostrar todas
+                      </LinkButton>
+                    </span>
+                  )}
                 </div>
               )}
             </>
