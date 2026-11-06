@@ -54,9 +54,27 @@ const connected = {
   openLogin: vi.fn(),
 };
 const exams = [
-  buildExam({ id: '9', link: 'hhr-syslab-extension://batch/a/exam/9', date: '20/10/2026', time: '08:00:00', exams: ['PCR'] }),
-  buildExam({ id: '1', link: 'hhr-syslab-extension://batch/a/exam/1', date: '28/10/2026', time: '19:20:00', exams: ['PERFIL'] }),
-  buildExam({ id: '2', link: 'hhr-syslab-extension://batch/a/exam/2', date: '03/11/2026', time: '07:40:00', exams: ['PERFIL'] }),
+  buildExam({
+    id: '9',
+    link: 'hhr-syslab-extension://batch/a/exam/9',
+    date: '20/10/2026',
+    time: '08:00:00',
+    exams: ['PCR'],
+  }),
+  buildExam({
+    id: '1',
+    link: 'hhr-syslab-extension://batch/a/exam/1',
+    date: '28/10/2026',
+    time: '19:20:00',
+    exams: ['PERFIL'],
+  }),
+  buildExam({
+    id: '2',
+    link: 'hhr-syslab-extension://batch/a/exam/2',
+    date: '03/11/2026',
+    time: '07:40:00',
+    exams: ['PERFIL'],
+  }),
 ];
 const detailsFor = (links: string[]) => ({
   success: true,
@@ -64,8 +82,20 @@ const detailsFor = (links: string[]) => ({
     buildDetail({
       url,
       findings: [
-        buildFinding({ section: 'BIOQUIMICA', analysis: 'Creatinina', result: url.endsWith('/1') ? '1,1' : '1,3', unit: 'mg/dL', refValue: '0,7 - 1,2' }),
-        buildFinding({ section: 'HEMOGRAMA', analysis: 'Hemoglobina', result: '12,0', unit: 'g/dL', refValue: '12,0 - 16,0' }),
+        buildFinding({
+          section: 'BIOQUIMICA',
+          analysis: 'Creatinina',
+          result: url.endsWith('/1') ? '1,1' : '1,3',
+          unit: 'mg/dL',
+          refValue: '0,7 - 1,2',
+        }),
+        buildFinding({
+          section: 'HEMOGRAMA',
+          analysis: 'Hemoglobina',
+          result: '12,0',
+          unit: 'g/dL',
+          refValue: '12,0 - 16,0',
+        }),
       ],
     })
   ),
@@ -89,6 +119,11 @@ const renderLab = (tab: 'all' | 'lab' = 'all') => {
   };
 };
 
+const expandTrends = async (card: HTMLElement) => {
+  const toggle = await within(card).findByRole('button', { name: 'Tendencias' });
+  fireEvent.click(toggle);
+};
+
 describe('ClinicalExplorerLab', () => {
   afterEach(() => act(() => setSessionGeneration(null)));
 
@@ -104,6 +139,7 @@ describe('ClinicalExplorerLab', () => {
   it('reads only the reports of this hospitalization and charts one scale per variable', async () => {
     renderLab();
     const card = await screen.findByRole('region', { name: 'Laboratorio' });
+    await expandTrends(card);
     await within(card).findByRole('img', { name: /Creatinina, 2 resultados/ });
     // The report from 20-10 belongs to an earlier attention: it is not even requested.
     expect(mocks.details).toHaveBeenCalledTimes(1);
@@ -126,12 +162,20 @@ describe('ClinicalExplorerLab', () => {
     fireEvent.click(within(card).getByRole('button', { name: 'Día anterior con informes' }));
     expect(card).toHaveTextContent('Día 28-10-2026');
     expect(within(card).getByRole('table')).toHaveTextContent('1,1');
-    fireEvent.click(within(card).getByRole('button', { name: /Creatinina 1,3 mg\/dL el 03-11-2026/ }));
+    await expandTrends(card);
+    await within(card).findByRole('img', { name: /Creatinina/ });
+    fireEvent.click(
+      within(card).getByRole('button', { name: /Creatinina 1,3 mg\/dL el 03-11-2026/ })
+    );
     expect(card).toHaveTextContent('Día 03-11-2026');
   });
 
   it('asks for the Syslab session instead of showing an empty laboratory', async () => {
-    mocks.access.mockReturnValue({ ...connected, state: 'login-required', message: 'Syslab requiere iniciar sesión' });
+    mocks.access.mockReturnValue({
+      ...connected,
+      state: 'login-required',
+      message: 'Syslab requiere iniciar sesión',
+    });
     renderLab();
     const card = await screen.findByRole('region', { name: 'Laboratorio' });
     fireEvent.click(within(card).getByRole('button', { name: 'Iniciar sesión en Syslab' }));
@@ -148,11 +192,12 @@ describe('ClinicalExplorerLab', () => {
     expect(screen.queryByText(/Sin informes/)).toBeNull();
     fireEvent.click(within(alert).getByRole('button', { name: 'Reintentar' }));
     await waitFor(() => expect(mocks.search).toHaveBeenCalledTimes(2));
-    await screen.findByRole('img', { name: /Creatinina/ });
+    await screen.findByRole('table');
   });
 
   it('forgets what it showed when the Eloísa session changes and reads again for the new one', async () => {
     renderLab();
+    await expandTrends(await screen.findByRole('region', { name: 'Laboratorio' }));
     await screen.findByRole('img', { name: /Creatinina/ });
     act(() => setSessionGeneration(`synthetic-${Date.now()}`));
     await waitFor(() => expect(screen.queryByRole('img', { name: /Creatinina/ })).toBeNull());
@@ -172,12 +217,22 @@ describe('ClinicalExplorerLab', () => {
   it('starts the next patient from the defaults, not from the previous selection', async () => {
     const view = renderLab('lab');
     const card = await screen.findByRole('region', { name: 'Laboratorio' });
+    await expandTrends(card);
     await within(card).findByRole('img', { name: /Hemoglobina/ });
     fireEvent.click(within(card).getByRole('button', { name: 'Hemoglobina' }));
     expect(within(card).queryByRole('img', { name: /Hemoglobina/ })).toBeNull();
-    const other = { ...patient!, episodeId: 'ep-2', data: { ...patient!.data, rut: '5.844.865-6' } };
+    const other = {
+      ...patient!,
+      episodeId: 'ep-2',
+      data: { ...patient!.data, rut: '5.844.865-6' },
+    };
     view.switchTo(other);
     const next = await screen.findByRole('region', { name: 'Laboratorio' });
+    expect(await within(next).findByRole('button', { name: 'Tendencias' })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+    await expandTrends(next);
     await within(next).findByRole('img', { name: /Hemoglobina/ });
     fireEvent.click(within(next).getByRole('button', { name: 'Día anterior con informes' }));
     expect(within(next).getByRole('img', { name: /Hemoglobina/ })).toBeVisible();
@@ -187,12 +242,19 @@ describe('ClinicalExplorerLab', () => {
     mocks.details.mockImplementation((links: string[]) => {
       const details = detailsFor(links);
       details.data[0].findings.push(
-        buildFinding({ section: 'BIOQUIMICA', analysis: 'Potasio', result: '4,1', unit: 'mEq/L', refValue: '3,5 - 5,1' })
+        buildFinding({
+          section: 'BIOQUIMICA',
+          analysis: 'Potasio',
+          result: '4,1',
+          unit: 'mEq/L',
+          refValue: '3,5 - 5,1',
+        })
       );
       return Promise.resolve(details);
     });
     renderLab();
     const card = await screen.findByRole('region', { name: 'Laboratorio' });
+    await expandTrends(card);
     await within(card).findByRole('img', { name: /Creatinina/ });
     const variables = within(card).getByRole('group', { name: 'Variables' });
     expect(within(variables).queryByRole('button', { name: 'Potasio' })).toBeNull();
@@ -202,13 +264,37 @@ describe('ClinicalExplorerLab', () => {
     fireEvent.click(within(variables).getByRole('button', { name: 'Potasio' }));
     expect(await within(card).findByRole('img', { name: /Potasio/ })).toBeVisible();
     fireEvent.click(within(variables).getByRole('button', { name: 'Menos exámenes' }));
-    expect(within(variables).getByRole('button', { name: 'Potasio' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(variables).getByRole('button', { name: 'Potasio' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+  });
+
+  it('starts compact and removes charts when collapsed while retaining the chosen variables', async () => {
+    renderLab('lab');
+    const card = screen.getByRole('region', { name: 'Laboratorio' });
+    await within(card).findByRole('table');
+    expect(within(card).queryByRole('img')).toBeNull();
+    expect(within(card).queryByRole('group', { name: 'Variables' })).toBeNull();
+    expect(card).not.toHaveTextContent('valores sin interpretar');
+    await expandTrends(card);
+    await within(card).findByRole('img', { name: /Hemoglobina/ });
+    fireEvent.click(within(card).getByRole('button', { name: 'Hemoglobina' }));
+    fireEvent.click(within(card).getByRole('button', { name: 'Tendencias' }));
+    expect(within(card).queryByRole('img')).toBeNull();
+    expect(within(card).getByRole('table')).toBeVisible();
+    await expandTrends(card);
+    await within(card).findByRole('img', { name: /Creatinina/ });
+    expect(within(card).queryByRole('img', { name: /Hemoglobina/ })).toBeNull();
+    expect(mocks.details).toHaveBeenCalledTimes(1);
   });
 
   it('says plainly when the hospitalization has no reports', async () => {
     mocks.search.mockResolvedValue({ success: true, data: [exams[0]] });
     renderLab();
-    expect(await screen.findByText('Sin informes de laboratorio en esta hospitalización.')).toBeVisible();
+    expect(
+      await screen.findByText('Sin informes de laboratorio en esta hospitalización.')
+    ).toBeVisible();
     expect(mocks.details).not.toHaveBeenCalled();
   });
 });

@@ -238,8 +238,30 @@ test('compares six original laboratory reports on desktop and opens the exact PD
   page,
 }) => {
   const pageErrors: string[] = [];
+  const consoleErrors: string[] = [];
+  const trendRequests: string[] = [];
+  page.on('console', message => {
+    if (message.type() === 'error') consoleErrors.push(message.text());
+  });
+  page.on('request', request => {
+    if (/ClinicalExplorerLabTrends-[^/]+\.js/.test(request.url()))
+      trendRequests.push(request.url());
+  });
   page.on('pageerror', error => pageErrors.push(error.message));
   await seedVisualCensus(page);
+  // The synthetic census has no exported files in Storage.
+  await page.route(
+    'https://firebasestorage.googleapis.com/v0/b/demo-hhr-e2e.firebasestorage.app/o?*',
+    route =>
+      route.fulfill({
+        json: { prefixes: [], items: [] },
+        headers: {
+          'access-control-allow-origin': '*',
+          'access-control-allow-headers': 'authorization, *',
+          'access-control-allow-methods': 'GET, OPTIONS',
+        },
+      })
+  );
   await page.route('**/.netlify/functions/mmrad-search?*', route =>
     route.fulfill({ json: { rut: '12345678-5', examenes: [] } })
   );
@@ -325,16 +347,37 @@ test('compares six original laboratory reports on desktop and opens the exact PD
     });
   }, panelResult);
   await page.goto(`/?date=${DATE}`);
+  await expect(page).toHaveTitle(/HHR/);
+  await expect(page).toHaveURL(/\/census\?date=/);
   await expect(page.locator('[data-testid="patient-row"][data-bed-id="R1"]')).toContainText(
     PATIENT,
     { timeout: 20_000 }
   );
   await openExplorerFromBed(page, 'R1');
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await expect(page.getByRole('table', { name: /Últimos 6 informes/ })).toBeVisible({
+    timeout: 20_000,
+  });
+  await screenshot(page, 'clinical-explorer-overview-1440');
   await page.getByRole('tab', { name: 'Laboratorio', exact: true }).click();
   const table = page.getByRole('table', { name: /Últimos 6 informes/ });
   await expect(table).toBeVisible({ timeout: 20_000 });
   await expect(table.getByRole('button', { name: /Abrir PDF/ })).toHaveCount(6);
-  await expect(table).not.toContainText('10:00');
+  await expect(table).toContainText('10:00:59');
+  await expect(table).not.toContainText('Hemograma');
+  await expect(table).not.toContainText('Función renal / electrolitos');
+  await expect(page.getByText('valores sin interpretar')).toHaveCount(0);
+  const trends = page.getByRole('button', { name: 'Tendencias', exact: true });
+  await expect(trends).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('img', { name: /Creatinina/ })).toHaveCount(0);
+  expect(trendRequests).toEqual([]);
+  const search = page.getByRole('searchbox', { name: 'Buscar examen de laboratorio' });
+  await search.fill('CREATINÍNA');
+  await expect(table).not.toContainText('Hemoglobina');
+  await expect(table).toContainText('Creatinina');
+  await search.fill('sin coincidencias');
+  await expect(table.getByRole('status')).toContainText('Sin exámenes que coincidan');
+  await page.getByRole('button', { name: 'Limpiar búsqueda de exámenes' }).click();
   await expect(page.getByRole('complementary', { name: 'Pacientes del censo' })).not.toContainText(
     '12345678'
   );
@@ -349,8 +392,36 @@ test('compares six original laboratory reports on desktop and opens the exact PD
     await table.scrollIntoViewIfNeeded();
     await screenshot(page, `clinical-explorer-laboratory-${width}`);
   }
+  await trends.click();
+  await expect(page.getByRole('img', { name: /Creatinina/ })).toBeVisible();
+  expect(trendRequests).toHaveLength(1);
+  await screenshot(page, 'clinical-explorer-trends-open-1024');
+  await trends.click();
+  await expect(page.getByRole('img', { name: /Creatinina/ })).toHaveCount(0);
+  await trends.click();
+  await expect(page.getByRole('img', { name: /Creatinina/ })).toBeVisible();
+  expect(trendRequests).toHaveLength(1);
+  await trends.click();
+  expect(consoleErrors).toEqual([]);
   await table.getByRole('button', { name: 'Abrir PDF del informe 105 del 03-04-2026' }).click();
   await expect(page.getByRole('dialog')).toContainText('El informe se abrió en una pestaña segura');
   await expect(page.locator('html')).toHaveAttribute('data-opened-lab-pdf', /\/exam\/105$/);
   expect(pageErrors).toEqual([]);
+  await page.route('**/assets/ClinicalExplorerLabTrends-*.js', route => route.abort());
+  await page.reload();
+  await expect(page.locator('[data-testid="patient-row"][data-bed-id="R1"]')).toContainText(
+    PATIENT,
+    { timeout: 20_000 }
+  );
+  await openExplorerFromBed(page, 'R1');
+  await page.getByRole('tab', { name: 'Laboratorio', exact: true }).click();
+  await page.getByRole('button', { name: 'Tendencias', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Laboratorio' }).getByRole('alert')).toContainText(
+    'No se pudo cargar esta sección'
+  );
+  await expect(page.getByRole('table', { name: /Últimos 6 informes/ })).toBeVisible();
+  await page.getByRole('searchbox', { name: 'Buscar examen de laboratorio' }).fill('creatinina');
+  await expect(page.getByRole('table')).not.toContainText('Hemoglobina');
+  await page.getByRole('button', { name: 'Volver al censo' }).click();
+  await expect(page.locator('.census-register')).toBeVisible();
 });
