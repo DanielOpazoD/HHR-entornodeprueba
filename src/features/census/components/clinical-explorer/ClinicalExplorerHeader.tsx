@@ -1,12 +1,13 @@
 import React, { lazy, Suspense, useState } from 'react';
-import { FlaskConical, FolderOpen } from 'lucide-react';
+import { Download, FlaskConical, FolderOpen } from 'lucide-react';
 import { XRayIcon } from '@/components/ui/XRayIcon';
 import type { ClinicalExplorerPatient } from '@/features/census/controllers/clinicalExplorerController';
 import { calculateHospitalizedDays } from '@/features/census/controllers/patientBedConfigViewController';
 import { formatAge } from '@/utils/ageDisplayUtils';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
+import { ClinicalExplorerDownloadDialog } from './ClinicalExplorerDownloadDialog';
 import { ClinicalExplorerPrintActions } from './ClinicalExplorerPrintActions';
-import { StatusDot, EXPLORER_ACTION_BUTTON } from './clinicalExplorerUi';
+import { StatusDot, EXPLORER_ACTION_BUTTON, EXPLORER_ICON_BUTTON } from './clinicalExplorerUi';
 
 const LazyImagingRequestDialog = lazy(() =>
   import('@/components/modals/ImagingRequestDialog').then(module => ({
@@ -19,7 +20,7 @@ const LazyClinicalDocumentsModal = lazy(() =>
   }))
 );
 
-type QuickAction = 'imaging' | 'documents';
+type QuickAction = 'imaging' | 'documents' | 'download';
 
 interface ClinicalExplorerHeaderProps {
   patient: ClinicalExplorerPatient;
@@ -30,6 +31,8 @@ interface ClinicalExplorerHeaderProps {
   indicationDate: string | null;
 }
 
+const DOWNLOAD_LABEL = 'Descargar ficha, exámenes e informes';
+
 /** Who is being reviewed, where they are, and the quick requests, in two short lines. */
 export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
   patient,
@@ -38,11 +41,14 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
   indicationDate,
 }) => {
   const { data, bedId, episodeId } = patient;
-  const identity = `${bedId}:${episodeId}`;
+  // Requests belong to the patient and episode in this bed: a corrected RUN or admission closes them.
+  const identity = `${bedId}:${episodeId}:${data.rut.trim()}:${data.admissionDate}`;
   // A request dialog belongs to one patient; moving on drops it instead of carrying it over.
   const [open, setOpen] = useState<{ identity: string; kind: QuickAction } | null>(null);
   const action = open?.identity === identity ? open.kind : null;
   const setAction = (kind: QuickAction | null): void => setOpen(kind ? { identity, kind } : null);
+  // A download stopped by leaving the patient does not reopen when they come back.
+  if (open?.kind === 'download' && open.identity !== identity) setOpen(null);
 
   const patientName = data.patientName.trim();
   const days = calculateHospitalizedDays({
@@ -54,7 +60,7 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
   return (
     <header
       data-testid="clinical-explorer-patient"
-      className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[10px] border border-slate-200 bg-white px-3 py-2"
+      className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/20 px-3 py-2"
     >
       <span className="inline-flex h-8 min-w-9 items-center justify-center rounded-lg bg-slate-100 px-2 font-display text-[15px] font-bold text-slate-800">
         {bedId}
@@ -135,6 +141,15 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
           patient={patient}
           indicationDate={indicationDate}
         />
+        <button
+          type="button"
+          className={EXPLORER_ICON_BUTTON}
+          onClick={() => setAction('download')}
+          aria-label={DOWNLOAD_LABEL}
+          title={DOWNLOAD_LABEL}
+        >
+          <Download size={13} aria-hidden="true" />
+        </button>
       </div>
 
       {action === 'imaging' && (
@@ -152,6 +167,13 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
             bedId={bedId}
           />
         </Suspense>
+      )}
+      {action === 'download' && (
+        <ClinicalExplorerDownloadDialog
+          patient={patient}
+          censusDate={censusDate}
+          onClose={() => setAction(null)}
+        />
       )}
     </header>
   );

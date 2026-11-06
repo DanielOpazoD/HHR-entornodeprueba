@@ -233,3 +233,124 @@ test('prints the laboratory orders of several patients as one document, one page
     writeFileSync(`${process.env.CENSUS_VISUAL_OUTPUT_DIR}/exam-orders-two-patients.pdf`, pdf);
   }
 });
+
+test('compares six original laboratory reports on desktop and opens the exact PDF', async ({
+  page,
+}) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await seedVisualCensus(page);
+  await page.route('**/.netlify/functions/mmrad-search?*', route =>
+    route.fulfill({ json: { rut: '12345678-5', examenes: [] } })
+  );
+  await page.addInitScript(panel => {
+    const dates = [
+      '29/03/2026',
+      '30/03/2026',
+      '31/03/2026',
+      '01/04/2026',
+      '02/04/2026',
+      '03/04/2026',
+      '03/04/2026',
+    ];
+    const exams = dates.map((date, index) => ({
+      id: String(100 + index),
+      date,
+      time: index === 6 ? '10:00:59' : '10:00:00',
+      patientName: 'PACIENTE SINTÉTICO',
+      origin: 'HOSP',
+      exams: ['HEMOGRAMA', 'BIOQUIMICA'],
+    }));
+    window.addEventListener('message', event => {
+      const request = event.data;
+      if (!request?.reqId) return;
+      if (request.type === 'HHR_RAYEN_CLINICAL_PANEL_REQUEST') {
+        window.postMessage(
+          { ...panel, type: 'HHR_RAYEN_CLINICAL_PANEL_RESULT', reqId: request.reqId },
+          window.location.origin
+        );
+        return;
+      }
+      const responses: Record<string, object> = {
+        HHR_RAYEN_SYSLAB_STATUS_REQUEST: { ok: true, connected: true },
+        HHR_RAYEN_SYSLAB_SEARCH_REQUEST: {
+          ok: true,
+          batchId: '00000000-0000-4000-8000-000000000001',
+          rutBody: request.rutBody,
+          exams,
+        },
+        HHR_RAYEN_SYSLAB_DETAILS_REQUEST: {
+          ok: true,
+          analysis: {
+            reports: exams
+              .map((exam, index) => ({
+                examId: exam.id,
+                findings: [
+                  {
+                    section: 'BIOQUIMICA',
+                    analysis: 'Creatinina',
+                    result: `1,${index}`,
+                    unit: 'mg/dL',
+                    refValue: '0,7 - 1,2',
+                  },
+                  ...(index === 6
+                    ? [
+                        {
+                          section: 'HEMOGRAMA',
+                          analysis: 'Hemoglobina',
+                          result: '12,0',
+                          unit: 'g/dL',
+                          refValue: '12 - 16',
+                        },
+                      ]
+                    : []),
+                ],
+              }))
+              .filter(report =>
+                request.links?.some((link: string) => link.endsWith(`/exam/${report.examId}`))
+              ),
+          },
+        },
+        HHR_RAYEN_SYSLAB_PDF_REQUEST: { ok: true },
+      };
+      const response = responses[request.type];
+      if (response) {
+        if (request.type === 'HHR_RAYEN_SYSLAB_PDF_REQUEST')
+          document.documentElement.dataset.openedLabPdf = request.link;
+        window.postMessage(
+          { type: request.type.replace(/_REQUEST$/, '_RESULT'), reqId: request.reqId, response },
+          window.location.origin
+        );
+      }
+    });
+  }, panelResult);
+  await page.goto(`/?date=${DATE}`);
+  await expect(page.locator('[data-testid="patient-row"][data-bed-id="R1"]')).toContainText(
+    PATIENT,
+    { timeout: 20_000 }
+  );
+  await openExplorerFromBed(page, 'R1');
+  await page.getByRole('tab', { name: 'Laboratorio', exact: true }).click();
+  const table = page.getByRole('table', { name: /Últimos 6 informes/ });
+  await expect(table).toBeVisible({ timeout: 20_000 });
+  await expect(table.getByRole('button', { name: /Abrir PDF/ })).toHaveCount(6);
+  await expect(table).not.toContainText('10:00');
+  await expect(page.getByRole('complementary', { name: 'Pacientes del censo' })).not.toContainText(
+    '12345678'
+  );
+  const haemoglobin = table.getByRole('row', { name: /Hemoglobina/ });
+  await expect(haemoglobin.getByRole('cell')).toHaveText(['12,0', '—', '—', '—', '—', '—']);
+  for (const width of [1440, 1024]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(page.locator('vite-error-overlay')).toHaveCount(0);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
+    ).toBe(true);
+    await table.scrollIntoViewIfNeeded();
+    await screenshot(page, `clinical-explorer-laboratory-${width}`);
+  }
+  await table.getByRole('button', { name: 'Abrir PDF del informe 105 del 03-04-2026' }).click();
+  await expect(page.getByRole('dialog')).toContainText('El informe se abrió en una pestaña segura');
+  await expect(page.locator('html')).toHaveAttribute('data-opened-lab-pdf', /\/exam\/105$/);
+  expect(pageErrors).toEqual([]);
+});

@@ -63,6 +63,8 @@ const OPTIONAL_TARGETS: Record<string, string> = {
   'src/features/census/components/StaffShiftDetailsModal': 'Staff detail dialog opens on request.',
   'src/features/census/components/clinical-explorer/ClinicalExplorerView':
     'Consultation mode opens on request and reads online sources; the census stays mounted behind it.',
+  'src/features/census/components/clinical-explorer/clinicalExplorerDownloadBundle':
+    'The explorer download loads its PDF/ZIP tools only when a person presses «Descargar»; a failure is shown in its dialog.',
   'src/features/census/components/patient-row/ClinicalAlertsModal':
     'Eloísa chart alerts open on request.',
   'src/features/census/components/patient-row/ClinicalPanelAntecedents':
@@ -88,6 +90,8 @@ const OPTIONAL_TARGETS: Record<string, string> = {
   'src/features/clinical-documents': 'Clinical document dialogs/export open on request.',
   'src/features/cudyr': 'Monthly summary is an explicit alternate view.',
   'src/features/laboratory': 'Online laboratory viewer opens on request.',
+  'src/features/laboratory/report-pdf':
+    'Original Syslab PDF opens only on request from the online clinical explorer.',
   'src/features/rayen-import/RayenImportButton':
     'Online Eloisa import has an isolated toolbar fallback.',
   'src/features/rayen-manual-import': 'Manual import dialog opens on request.',

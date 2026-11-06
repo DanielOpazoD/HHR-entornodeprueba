@@ -5,11 +5,8 @@ import type { ClinicalExplorerPatient } from '@/features/census/controllers/clin
 import { useSyslabHospitalizationReports } from '@/features/laboratory/hospitalization-reports';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { ClinicalExplorerLabCharts } from './ClinicalExplorerLabCharts';
-import {
-  buildLabDayRows,
-  buildLabSeriesModel,
-  selectDefaultLabVariables,
-} from './clinicalExplorerLabModel';
+import { ClinicalExplorerLabTable } from './ClinicalExplorerLabTable';
+import { buildLabSeriesModel, selectDefaultLabVariables } from './clinicalExplorerLabModel';
 import {
   AreaCard,
   EmptyNote,
@@ -28,9 +25,8 @@ interface ClinicalExplorerLabProps {
 
 const COMPACT_VARIABLES = 4;
 const EXPANDED_VARIABLES = 6;
-const COMPACT_ROWS = 6;
 
-/** Syslab reports of the hospitalization: one chart per variable and the full table of one day. */
+/** Syslab reports of the hospitalization: six recent source reports followed by trends per variable. */
 export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
   patient,
   censusDate,
@@ -74,12 +70,6 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
       ? selection.day
       : (model?.days[model.days.length - 1] ?? null);
   const dayIndex = day && model ? model.days.indexOf(day) : -1;
-  const rows = useMemo(
-    () => (lab.analysis && day ? buildLabDayRows(lab.analysis, day) : []),
-    [lab.analysis, day]
-  );
-  const shownRows = expanded ? rows : rows.slice(0, COMPACT_ROWS);
-
   // Both start from the selection of the current identity, never from another patient's.
   const selectDay = (next: string | undefined): void => {
     if (next) setSelection({ identity, names: selection.names, day: next });
@@ -144,13 +134,54 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
     const selected = names
       .map(id => model.variables.find(variable => variable.id === id))
       .filter((variable): variable is NonNullable<typeof variable> => Boolean(variable));
-    const selectedAnalyses = new Set(selected.map(variable => variable.analysis));
     const hiddenCount = model.variables.length - selected.length;
     const shownVariables = allVariablesShown
       ? model.variables
       : model.variables.filter(variable => names.includes(variable.id));
     return (
       <>
+        {day && (
+          <>
+            <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50 px-2.5 py-1.5 text-[11px] text-slate-600">
+              <span>
+                Día{' '}
+                <b className="font-semibold tabular-nums text-slate-800">
+                  {formatDateDDMMYYYY(day)}
+                </b>
+              </span>
+              <span className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white">
+                <button
+                  type="button"
+                  disabled={dayIndex <= 0}
+                  onClick={() => selectDay(model.days[dayIndex - 1])}
+                  className="px-1.5 text-[11px] text-slate-600 hover:bg-slate-50 disabled:text-slate-300"
+                  aria-label="Día anterior con informes"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  disabled={dayIndex >= model.days.length - 1}
+                  onClick={() => selectDay(model.days[dayIndex + 1])}
+                  className="border-l border-slate-200 px-1.5 text-[11px] text-slate-600 hover:bg-slate-50 disabled:text-slate-300"
+                  aria-label="Día siguiente con informes"
+                >
+                  ›
+                </button>
+              </span>
+            </div>
+
+            <ClinicalExplorerLabTable
+              analysis={lab.analysis}
+              exams={lab.exams}
+              day={day}
+              identity={identity}
+            />
+          </>
+        )}
+        <div className="border-t border-slate-100 pt-3 text-[11px] font-medium text-slate-500">
+          Tendencias
+        </div>
         <div role="group" aria-label="Variables" className="flex flex-wrap items-center gap-1">
           {shownVariables.map(variable => {
             const on = names.includes(variable.id);
@@ -203,78 +234,6 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
           />
         ) : (
           <EmptyNote>Sin variables numéricas que graficar.</EmptyNote>
-        )}
-        {day && (
-          <div className="overflow-hidden rounded-lg border border-slate-200">
-            <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50 px-2.5 py-1.5 text-[11px] text-slate-600">
-              <span>
-                Día{' '}
-                <b className="font-semibold tabular-nums text-slate-800">
-                  {formatDateDDMMYYYY(day)}
-                </b>
-              </span>
-              <span className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white">
-                <button
-                  type="button"
-                  disabled={dayIndex <= 0}
-                  onClick={() => selectDay(model.days[dayIndex - 1])}
-                  className="px-1.5 text-[11px] text-slate-600 hover:bg-slate-50 disabled:text-slate-300"
-                  aria-label="Día anterior con informes"
-                >
-                  ‹
-                </button>
-                <button
-                  type="button"
-                  disabled={dayIndex >= model.days.length - 1}
-                  onClick={() => selectDay(model.days[dayIndex + 1])}
-                  className="border-l border-slate-200 px-1.5 text-[11px] text-slate-600 hover:bg-slate-50 disabled:text-slate-300"
-                  aria-label="Día siguiente con informes"
-                >
-                  ›
-                </button>
-              </span>
-            </div>
-            <table className="w-full text-[11px]">
-              <thead>
-                <tr className="text-left text-[11px] text-slate-500">
-                  <th className="px-2.5 py-1 font-semibold">Variable</th>
-                  <th className="px-2.5 py-1 text-right font-semibold">Resultado</th>
-                  <th className="px-2.5 py-1 font-semibold">Unidad</th>
-                  <th className="px-2.5 py-1 font-semibold">Referencia</th>
-                </tr>
-              </thead>
-              <tbody>
-                {shownRows.map(row => (
-                  <tr
-                    key={`${row.name}|${row.columnKey}`}
-                    className={clsx(
-                      'border-t border-slate-100',
-                      selectedAnalyses.has(row.name) && 'bg-teal-50/40'
-                    )}
-                  >
-                    <td className="px-2.5 py-1 text-slate-700">
-                      {row.name}
-                      {row.time && (
-                        <span className="ml-1 text-[11px] text-slate-500">{row.time}</span>
-                      )}
-                    </td>
-                    <td className="px-2.5 py-1 text-right font-semibold tabular-nums text-slate-800">
-                      {row.display}
-                    </td>
-                    <td className="px-2.5 py-1 text-slate-600">{row.unit}</td>
-                    <td className="px-2.5 py-1 tabular-nums text-slate-500">{row.refValue}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!expanded && rows.length > shownRows.length && (
-              <div className="border-t border-slate-100 px-2.5 py-1.5">
-                <LinkButton onClick={() => onShowAll('lab')}>
-                  + {rows.length - shownRows.length} analitos más de este día
-                </LinkButton>
-              </div>
-            )}
-          </div>
         )}
       </>
     );

@@ -340,3 +340,19 @@ El eje temporal del laboratorio ajusta sus etiquetas al ancho disponible, conser
 los extremos y señala el día del censo. Al cruzar de año incluye el año en la fecha.
 Las etiquetas de calendario son limitadas por espacio; los resultados, sus valores,
 los puntos seleccionables y la tabla diaria se conservan íntegros.
+
+### Descarga del explorador clínico
+
+El botón de descarga del encabezado del paciente reúne, a pedido, la ficha clínica de Eloísa
+(«Historial hospitalización» de las estadías que se cruzan con la actual, vía la extensión
+0.48.71 o posterior), los resultados de Syslab del periodo elegido (por defecto, del ingreso
+a hoy en Rapa Nui) y los informes de TAC de MMRAD de la hospitalización. Sale como un PDF
+unido (ficha, exámenes y TAC, cada uno del más antiguo al más reciente) o como archivos
+separados en un ZIP. No guarda nada en HHR ni en el navegador. Una parte que falla, o que
+puede venir incompleta, se nombra con su motivo y la persona decide si descarga el resto; una
+fuente sin documentos se informa como tal, distinta de un fallo. Un TAC que MMRAD registró con
+otro dígito verificador no se incluye: se nombra para revisarlo en Imágenes. Una lectura de
+Syslab que se está renovando se espera antes de escribir los resultados. Cambiar de sesión o de
+paciente detiene la descarga, también la de la extensión, y no guarda nada. Las herramientas de
+PDF y ZIP se cargan sólo al pulsar «Descargar», fuera del precache; el texto que escribe HHR
+transcribe a caracteres imprimibles los símbolos que la fuente del PDF no tiene.
