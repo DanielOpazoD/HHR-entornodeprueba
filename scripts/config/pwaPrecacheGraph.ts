@@ -12,7 +12,6 @@ export const PRECACHE_STATIC_IMPORT_EXCEPTIONS = [
   { name: 'LineChart', reason: 'Optional laboratory trend viewer, opened from a report.' },
   { name: 'vendor-dicom-vtk', reason: 'Optional imaging renderer and codecs.' },
   { name: 'dicomTypes', reason: 'Shared runtime contracts for the optional imaging viewer.' },
-  { name: 'vendor-pdf-core', reason: 'Optional PDF rendering and download runtime.' },
   { name: 'vendor-excel-zip', reason: 'Optional Excel archive generation runtime.' },
   { name: 'clinicalDocumentTemplateEditorController', reason: 'Online document template editing.' },
   { name: 'healthService', reason: 'Optional operational diagnostics.' },

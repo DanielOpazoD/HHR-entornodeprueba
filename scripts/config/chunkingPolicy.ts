@@ -183,6 +183,18 @@ export const chunkForModule = (moduleId: string): string | undefined => {
     if (has('/node_modules/jspdf/')) {
       return 'vendor-pdf-core';
     }
+
+    // jsPDF imports its SVG renderer (canvg, with its core-js polyfills) and DOMPurify only from
+    // addSvgAsImage() and html(), which HHR never calls. Unnamed, they became generic chunks
+    // (index.es, purify.es) in the install-time precache, although their only importer is the
+    // online-only jsPDF chunk. The vendor-pdf- prefix keeps them online-only with jsPDF.
+    if (has('/node_modules/canvg/')) {
+      return 'vendor-pdf-canvg';
+    }
+
+    if (has('/node_modules/dompurify/')) {
+      return 'vendor-pdf-purify';
+    }
   }
 
   return undefined;
