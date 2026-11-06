@@ -229,6 +229,7 @@
       },
       { "id": "check:critical-any", "group": "type-safety" },
       { "id": "check:source-any", "group": "type-safety" },
+      { "id": "check:unchecked-index", "group": "type-safety" },
       { "id": "check:repo-hygiene", "group": "hygiene" },
       { "id": "check:clinical-mutation-audit-policy", "group": "security" },
       { "id": "check:security", "group": "security" },
