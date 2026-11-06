@@ -171,6 +171,21 @@ describe('ClinicalExplorerDownloadDialog: one patient, one episode', () => {
     expect(mocks.download).not.toHaveBeenCalled();
   });
 
+  it('never searches MMRAD without an admission day, so no other stay can come in', async () => {
+    const withoutAdmission = { ...patient!, data: { ...patient!.data, admissionDate: '' } };
+    renderHeader(withoutAdmission);
+    const dialog = openDialog();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Descargar' }));
+
+    expect(await within(dialog).findByRole('alert')).toBeVisible();
+    expect(within(dialog).getByRole('list', { name: 'Avance de la descarga' })).toHaveTextContent(
+      'no se puede saber qué TAC son de esta hospitalización'
+    );
+    expect(mocks.search).not.toHaveBeenCalled();
+    expect(mocks.pdf).not.toHaveBeenCalled();
+    expect(mocks.download).not.toHaveBeenCalled();
+  });
+
   it('leaves out CT studies after a past census day: they may belong to a later stay', async () => {
     render(
       <ClinicalExplorerHeader

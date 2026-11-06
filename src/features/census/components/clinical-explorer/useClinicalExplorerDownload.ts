@@ -11,7 +11,7 @@ import {
 } from '@/utils/clinicalTimeZone';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { formatRut, normalizeRut } from '@/utils/rutUtils';
-import { asMmradDateBound, isCtStudy } from './clinicalExplorerImagingModel';
+import { isCtStudy } from './clinicalExplorerImagingModel';
 import { splitCtStudiesByDay } from './clinicalExplorerDownloadScope';
 import {
   EXTENSION_IN_PAGE_HISTORY_VERSION,
@@ -331,11 +331,15 @@ export const useClinicalExplorerDownload = (
     };
 
     const collectCt = async (bundle: Bundle): Promise<PartOutcome> => {
+      // Without the admission day MMRAD would be searched with no start: other stays would come.
+      if (!isIsoDay(admissionDate)) {
+        return outcome('failed', 'No incluidos', {
+          problem:
+            'El paciente no tiene una fecha de ingreso válida: no se puede saber qué TAC son de esta hospitalización.',
+        });
+      }
       report('ct', 'Buscando estudios en MMRAD…');
-      const listing = await listMmradStudies(
-        { rut, patientName, dateFrom: asMmradDateBound(admissionDate) ?? '' },
-        signal
-      );
+      const listing = await listMmradStudies({ rut, patientName, dateFrom: admissionDate }, signal);
       stopIfStale();
       if (listing.kind === 'failed') {
         return outcome('failed', 'No incluidos', { problem: listing.problem });
