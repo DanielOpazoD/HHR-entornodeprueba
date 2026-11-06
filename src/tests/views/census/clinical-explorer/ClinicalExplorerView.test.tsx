@@ -289,7 +289,7 @@ describe('ClinicalExplorerView', () => {
       target: { value: '2026-07-11' },
     });
     const header = screen.getByTestId('clinical-explorer-patient');
-    fireEvent.click(within(header).getByRole('button', { name: 'Indicaciones' }));
+    fireEvent.click(within(header).getByRole('button', { name: 'Imprimir indicaciones' }));
     await waitFor(() => expect(mocks.print).toHaveBeenCalledTimes(1));
     expect(mocks.print.mock.calls[0][0]).toContain('Indicaciones médicas del 11-07-2026');
     expect(mocks.print.mock.calls[0][0]).toContain('AMOXICILINA 500 mg');

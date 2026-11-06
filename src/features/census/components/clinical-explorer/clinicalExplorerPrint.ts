@@ -83,9 +83,16 @@ export const buildIndicationsPrintHtml = ({
 </body></html>`;
 };
 
-/** Prints a self-contained page from a hidden frame, so the census page itself is not printed. */
-export const printHtmlDocument = (html: string): Promise<void> =>
+/**
+ * Prints a self-contained page from a hidden frame, so the census page itself is not printed.
+ * An abort before the frame loads (session or patient change) removes it and prints nothing.
+ */
+export const printHtmlDocument = (html: string, signal?: AbortSignal): Promise<void> =>
   new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('Impresión cancelada.', 'AbortError'));
+      return;
+    }
     const frame = document.createElement('iframe');
     frame.setAttribute('aria-hidden', 'true');
     frame.tabIndex = -1;
@@ -102,17 +109,25 @@ export const printHtmlDocument = (html: string): Promise<void> =>
     let removeTimer: number | undefined;
     const remove = (): void => {
       if (removeTimer !== undefined) clearTimeout(removeTimer);
+      signal?.removeEventListener('abort', onAbort);
       frame.remove();
     };
+    function onAbort(): void {
+      remove();
+      reject(new DOMException('Impresión cancelada.', 'AbortError'));
+    }
+    signal?.addEventListener('abort', onAbort, { once: true });
     frame.addEventListener(
       'load',
       () => {
         const frameWindow = frame.contentWindow;
-        if (!frameWindow) {
+        if (signal?.aborted || !frameWindow) {
           remove();
           reject(new Error('print_unavailable'));
           return;
         }
+        // Past this point the dialog belongs to the person who asked for it.
+        signal?.removeEventListener('abort', onAbort);
         frameWindow.addEventListener('afterprint', () => setTimeout(remove, 0), { once: true });
         // Some browsers return from print() before the dialog closes: keep the frame meanwhile.
         removeTimer = window.setTimeout(remove, 120_000);

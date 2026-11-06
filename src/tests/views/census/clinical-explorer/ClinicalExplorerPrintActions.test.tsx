@@ -19,7 +19,10 @@ vi.mock(
       await importOriginal<
         typeof import('@/features/census/components/clinical-explorer/clinicalExplorerPrint')
       >();
-    return { ...actual, printHtmlDocument: (html: string) => mocks.print(html) };
+    return {
+      ...actual,
+      printHtmlDocument: (html: string, signal?: AbortSignal) => mocks.print(html, signal),
+    };
   }
 );
 
@@ -77,7 +80,7 @@ describe('ClinicalExplorerPrintActions', () => {
 
   it('reads Ficha Médico again and prints only the active indications of the chosen day', async () => {
     renderActions();
-    fireEvent.click(screen.getByRole('button', { name: 'Indicaciones' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Imprimir indicaciones' }));
     await waitFor(() => expect(mocks.print).toHaveBeenCalledTimes(1));
     expect(mocks.panel.mock.calls[0][0]).toBe('147950');
     const html = mocks.print.mock.calls[0][0] as string;
@@ -85,7 +88,7 @@ describe('ClinicalExplorerPrintActions', () => {
     expect(html).toContain('AMOXICILINA 500 mg');
     expect(html).not.toContain('CEFTRIAXONA');
     expect(html).toContain('PACIENTE SINTÉTICO');
-    expect(screen.getByRole('button', { name: 'Indicaciones' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Imprimir indicaciones' })).toHaveAttribute(
       'title',
       'Imprimir las indicaciones del 13-07-2026'
     );
@@ -93,7 +96,7 @@ describe('ClinicalExplorerPrintActions', () => {
 
   it('says there is nothing to print when the day has no active indication', async () => {
     renderActions('2026-07-20');
-    fireEvent.click(screen.getByRole('button', { name: 'Indicaciones' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Imprimir indicaciones' }));
     expect(await screen.findByRole('status')).toHaveTextContent(
       'Sin indicaciones vigentes el 20-07-2026: no hay nada que imprimir.'
     );
@@ -107,7 +110,7 @@ describe('ClinicalExplorerPrintActions', () => {
       error: 'Sin sesión',
     });
     renderActions();
-    fireEvent.click(screen.getByRole('button', { name: 'Indicaciones' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Imprimir indicaciones' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'No se pudo leer Ficha Médico: Sin sesión'
     );
@@ -118,11 +121,22 @@ describe('ClinicalExplorerPrintActions', () => {
     let answer: (value: unknown) => void = () => undefined;
     mocks.panel.mockReturnValue(new Promise(resolve => (answer = resolve)));
     renderActions();
-    fireEvent.click(screen.getByRole('button', { name: 'Indicaciones' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Imprimir indicaciones' }));
     act(() => setSessionGeneration('synthetic-other-person'));
     await act(async () => answer(panelWithActiveIndication));
     expect(mocks.print).not.toHaveBeenCalled();
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('hands the print a cancellation that a session change triggers before the dialog opens', async () => {
+    mocks.print.mockReturnValue(new Promise(() => undefined));
+    renderActions();
+    fireEvent.click(screen.getByRole('button', { name: 'Imprimir indicaciones' }));
+    await waitFor(() => expect(mocks.print).toHaveBeenCalledTimes(1));
+    const signal = mocks.print.mock.calls[0][1] as AbortSignal;
+    expect(signal.aborted).toBe(false);
+    act(() => setSessionGeneration('synthetic-other-person'));
+    expect(signal.aborted).toBe(true);
   });
 
   it('opens the official current prescription and reports when Eloísa cannot', async () => {

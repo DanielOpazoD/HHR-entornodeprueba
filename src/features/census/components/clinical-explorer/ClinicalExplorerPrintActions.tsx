@@ -84,11 +84,15 @@ export const ClinicalExplorerPrintActions: React.FC<ClinicalExplorerPrintActions
         date,
         indications: active.map(entry => ({ title: entry.title, text: entry.text })),
         printedAt: new Date(),
-      })
+      }),
+      controller.signal
     );
     if (isCurrent(controller)) setState({ kind: 'idle' });
   };
 
+  // Once sent, the extension opens Eloísa's document by itself: an abort only stops waiting here.
+  // The prescription button of the clinical panel behaves the same; the document is authorised by
+  // the Eloísa session, which an HHR session change does not alter.
   const openPrescription = async (controller: AbortController): Promise<void> => {
     const result = await requestClinicalAction(
       patient.episodeId,
@@ -145,7 +149,8 @@ export const ClinicalExplorerPrintActions: React.FC<ClinicalExplorerPrintActions
       )}
       <button
         type="button"
-        className={ACTION_BUTTON}
+        className={`${ACTION_BUTTON} w-7 justify-center px-0`}
+        aria-label="Imprimir indicaciones"
         title={indicationsLabel}
         disabled={pending !== null}
         onClick={() => void run('indications')}
@@ -155,7 +160,6 @@ export const ClinicalExplorerPrintActions: React.FC<ClinicalExplorerPrintActions
         ) : (
           <Printer size={13} aria-hidden="true" className="text-teal-700" />
         )}
-        Indicaciones
       </button>
       <button
         type="button"
