@@ -99,11 +99,11 @@ describe('clinical explorer entries', () => {
     act(() => openClinicalExplorer({ censusDate: DATE, bedId: 'H3C1' }));
     render(
       <>
-        <ClinicalExplorerBar censusDate={DATE} bedId="H3C1" />
+        <ClinicalExplorerBar bedId="H3C1" />
         <Probe />
       </>
     );
-    expect(screen.getByText('Censo del miércoles, 4 de noviembre de 2026')).toBeVisible();
+    expect(screen.queryByText('Censo del miércoles, 4 de noviembre de 2026')).toBeNull();
     expect(screen.getByRole('button', { name: 'Volver al censo' })).toHaveFocus();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.getByText('censo')).toBeVisible();

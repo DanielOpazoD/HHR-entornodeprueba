@@ -101,7 +101,11 @@ const renderImaging = (tab: 'all' | 'img' = 'all') =>
   render(<ClinicalExplorerImaging patient={patient!} tab={tab} onShowAll={vi.fn()} />);
 
 describe('ClinicalExplorerImaging', () => {
-  afterEach(() => act(() => setSessionGeneration(null)));
+  afterEach(() => {
+    act(() => setSessionGeneration(null));
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
 
   beforeEach(() => {
     mocks.search.mockReset();
@@ -133,6 +137,89 @@ describe('ClinicalExplorerImaging', () => {
     });
   });
 
+  const preparePdf = () => {
+    mocks.search.mockResolvedValue({
+      rut: RUT,
+      examenes: [exam({ mod: 'CT', pdf_url: 'https://mmrad.example/pdf/synthetic' })],
+    });
+    const popup = { location: { href: '' }, focus: vi.fn(), close: vi.fn(), closed: false };
+    vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
+    const createUrl = vi.fn(() => 'blob:synthetic-report');
+    const revokeUrl = vi.fn();
+    const OriginalURL = URL;
+    vi.stubGlobal(
+      'URL',
+      class extends OriginalURL {
+        static createObjectURL = createUrl;
+        static revokeObjectURL = revokeUrl;
+      }
+    );
+    return { popup, createUrl, revokeUrl };
+  };
+
+  it.each(['patient', 'episode', 'session', 'unmount'])(
+    'cancels a pending PDF and closes its empty window on %s change',
+    async change => {
+      const { popup, createUrl } = preparePdf();
+      let answer: (blob: Blob) => void = () => {};
+      mocks.blob.mockReturnValueOnce(
+        new Promise<Blob>(resolve => {
+          answer = resolve;
+        })
+      );
+      const view = renderImaging('img');
+      fireEvent.click(await screen.findByRole('button', { name: 'Informe (PDF)' }));
+      const signal = mocks.blob.mock.calls[0]![1] as AbortSignal;
+      if (change === 'session') act(() => setSessionGeneration('synthetic-next-pdf-session'));
+      else if (change === 'unmount') view.unmount();
+      else
+        view.rerender(
+          <ClinicalExplorerImaging
+            patient={
+              change === 'episode'
+                ? { ...patient!, episodeId: 'ep-next' }
+                : {
+                    ...patient!,
+                    data: { ...patient!.data, rut: '11.111.111-1', patientName: 'OTRO SINTÉTICO' },
+                  }
+            }
+            tab="img"
+            onShowAll={vi.fn()}
+          />
+        );
+      expect(signal.aborted).toBe(true);
+      expect(popup.close).toHaveBeenCalledTimes(1);
+      await act(async () => answer(new Blob(['synthetic'], { type: 'application/pdf' })));
+      expect(createUrl).not.toHaveBeenCalled();
+      expect(popup.location.href).toBe('');
+      expect(popup.focus).not.toHaveBeenCalled();
+    }
+  );
+
+  it('delivers the PDF to the requested window and releases the button', async () => {
+    const { popup, createUrl } = preparePdf();
+    mocks.blob.mockResolvedValueOnce(new Blob(['synthetic'], { type: 'application/pdf' }));
+    renderImaging('img');
+    const button = await screen.findByRole('button', { name: 'Informe (PDF)' });
+    fireEvent.click(button);
+    await waitFor(() => expect(popup.location.href).toBe('blob:synthetic-report'));
+    expect(createUrl).toHaveBeenCalledTimes(1);
+    expect(popup.focus).toHaveBeenCalledTimes(1);
+    expect(button).toBeEnabled();
+    expect(popup.close).not.toHaveBeenCalled();
+  });
+
+  it('closes the empty PDF window on failure and allows another attempt', async () => {
+    const { popup } = preparePdf();
+    mocks.blob.mockRejectedValueOnce(new Error('No se pudo leer el PDF.'));
+    renderImaging('img');
+    const button = await screen.findByRole('button', { name: 'Informe (PDF)' });
+    fireEvent.click(button);
+    expect(await screen.findByText('No se pudo leer el PDF.')).toBeVisible();
+    expect(popup.close).toHaveBeenCalledTimes(1);
+    expect(button).toBeEnabled();
+  });
+
   it('offers the report only for CT and opens the viewer for studies with images', async () => {
     renderImaging('img');
     const card = await screen.findByRole('region', { name: 'Imágenes' });
@@ -153,6 +240,42 @@ describe('ClinicalExplorerImaging', () => {
     expect(await screen.findByRole('dialog', { name: 'Visor DICOM' })).toHaveTextContent(
       `Rx tórax AP|https://mmrad.example/dicom/1|${RUT}`
     );
+  });
+
+  it('keeps registration discrepancies behind an accessible hover, focus and click notice', async () => {
+    mocks.checkDigit.mockResolvedValue({
+      rut: RUT,
+      examenes: [
+        exam({
+          nombre_examen: 'Rx rodilla sintética',
+          dicom_url: 'https://mmrad.example/dicom/alternate',
+          registered_patient_id: '12.345.678-9',
+          registered_patient_name: 'PACIENTE SINTÉTICO',
+        }),
+      ],
+    });
+    renderImaging();
+    const notice = await screen.findByRole('button', {
+      name: 'Advertencia de identificación del estudio',
+    });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    fireEvent.mouseEnter(notice);
+    expect(screen.getByRole('tooltip')).toHaveTextContent('12.345.678-9');
+    expect(screen.getByRole('tooltip')).toHaveTextContent('confirma que es el mismo paciente');
+    expect(notice).toHaveAccessibleDescription(/PACIENTE SINTÉTICO/);
+    fireEvent.mouseLeave(notice.parentElement!);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    fireEvent.focus(notice);
+    expect(screen.getByRole('tooltip')).toBeVisible();
+    fireEvent.keyDown(notice, { key: 'Escape' });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    fireEvent.click(notice);
+    expect(screen.getByRole('tooltip')).toBeVisible();
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    fireEvent.focus(notice);
+    fireEvent.blur(notice);
+    expect(screen.queryByRole('tooltip')).toBeNull();
   });
 
   it.each(['patient', 'episode'])(
@@ -213,7 +336,10 @@ describe('ClinicalExplorerImaging', () => {
     mocks.search.mockRejectedValueOnce(new Error('Demasiadas solicitudes.'));
     renderImaging();
     const alert = await screen.findByRole('alert');
+    expect(within(alert).getByText('No se pudo consultar imágenes.')).toBeVisible();
     expect(alert).toHaveTextContent('Demasiadas solicitudes.');
+    fireEvent.click(within(alert).getByText('Detalle de la consulta'));
+    expect(within(alert).getByText('Demasiadas solicitudes.')).toBeVisible();
     expect(screen.queryByText(/Sin estudios/)).toBeNull();
     fireEvent.click(within(alert).getByRole('button', { name: 'Reintentar' }));
     await waitFor(() => expect(mocks.search).toHaveBeenCalledTimes(2));

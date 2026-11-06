@@ -6,6 +6,7 @@ import { useClinicalPanelSnapshot, type PanelState } from '../patient-row/useCli
 import { EvolutionCard } from '../patient-row/ClinicalPanelSections';
 import {
   AreaCard,
+  EXPLORER_ICON_BUTTON,
   EmptyNote,
   LinkButton,
   ReadFailure,
@@ -21,6 +22,7 @@ type EvolutionProfession = NonNullable<ClinicalPanelEntry['profession']>;
 
 const SOURCE = 'Eloísa · Ficha Médico';
 const COMPACT_EVOLUTIONS = 3;
+const EVOLUTION_BATCH = 20;
 
 type ProfessionFilter = 'all' | EvolutionProfession;
 const PROFESSIONS: ReadonlyArray<{ key: ProfessionFilter; label: string }> = [
@@ -31,6 +33,7 @@ const PROFESSIONS: ReadonlyArray<{ key: ProfessionFilter; label: string }> = [
 ];
 
 interface ClinicalExplorerNotesProps {
+  children?: React.ReactNode;
   episodeId: string;
   selectedDate: string | null;
   onSelectDate: (date: string | null) => void;
@@ -92,6 +95,7 @@ const IndicationDay: React.FC<{ day: ClinicalPanelIndicationDay | undefined }> =
 
 /** Evolutions and indications read from Eloísa for the selected episode, one read for both. */
 export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
+  children,
   episodeId,
   selectedDate,
   onSelectDate,
@@ -100,6 +104,10 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
 }) => {
   const { state, reload } = useClinicalPanelSnapshot(episodeId);
   const [profession, setProfession] = useState<ProfessionFilter>('all');
+  const [historyPage, setHistoryPage] = useState({ episodeId, count: EVOLUTION_BATCH });
+  if (historyPage.episodeId !== episodeId) {
+    setHistoryPage({ episodeId, count: EVOLUTION_BATCH });
+  }
   const panel = state.phase === 'ready' ? state.panel : null;
   const evolutions = panel
     ? panel.evolutions.filter(entry => profession === 'all' || entry.profession === profession)
@@ -107,7 +115,12 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
   const countFor = (key: ProfessionFilter): number =>
     panel ? panel.evolutions.filter(e => key === 'all' || e.profession === key).length : 0;
   const compact = tab === 'all';
-  const shownEvolutions = compact ? evolutions.slice(0, COMPACT_EVOLUTIONS) : evolutions;
+  const shownLimit = compact
+    ? COMPACT_EVOLUTIONS
+    : historyPage.episodeId === episodeId
+      ? historyPage.count
+      : EVOLUTION_BATCH;
+  const shownEvolutions = evolutions.slice(0, shownLimit);
   const [today, setToday] = useState(() => getClinicalCalendarDateISO());
   const indicationDate = selectedDate ?? today;
   const indicationDay = panel?.indicationDays.find(day => day.day === indicationDate);
@@ -130,7 +143,7 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
       type="button"
       onClick={reload}
       disabled={state.phase === 'loading'}
-      className="inline-flex size-7 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 disabled:cursor-wait disabled:opacity-50"
+      className={EXPLORER_ICON_BUTTON}
       title="Volver a leer Ficha Médico"
       aria-label="Volver a leer Ficha Médico"
     >
@@ -149,14 +162,13 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
       {(tab === 'all' || tab === 'evolutions') && (
         <AreaCard
           icon={<BookOpenText />}
-          iconClassName="text-medical-700"
           title="Evoluciones"
           subtitle={panel ? `${panel.evolutions.length}` : undefined}
           source={SOURCE}
           actions={
             <>
               {compact && evolutions.length > COMPACT_EVOLUTIONS && (
-                <LinkButton onClick={() => onShowAll('evolutions')}>Ver todas ›</LinkButton>
+                <LinkButton onClick={() => onShowAll('evolutions')}>Ver historial ›</LinkButton>
               )}
               {reloadButton}
             </>
@@ -170,11 +182,14 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
                     key={item.key}
                     type="button"
                     aria-pressed={profession === item.key}
-                    onClick={() => setProfession(item.key)}
+                    onClick={() => {
+                      setProfession(item.key);
+                      setHistoryPage({ episodeId, count: EVOLUTION_BATCH });
+                    }}
                     className={clsx(
-                      'h-6 rounded-md px-2 text-[11px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
+                      'min-h-9 rounded-lg px-2 text-[12px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
                       profession === item.key
-                        ? 'bg-medical-50 text-medical-700'
+                        ? 'bg-teal-50 text-teal-800'
                         : 'text-slate-500 hover:bg-slate-50'
                     )}
                   >
@@ -183,23 +198,53 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
                 ))}
               </div>
               {shownEvolutions.length === 0 ? (
-                <EmptyNote>Sin evoluciones en Ficha Médico.</EmptyNote>
+                <EmptyNote>
+                  {panel && panel.evolutions.length > 0
+                    ? 'Sin evoluciones para este filtro.'
+                    : 'Sin evoluciones en Ficha Médico.'}
+                </EmptyNote>
               ) : (
-                <div className="divide-y divide-slate-100 rounded-md border border-slate-100">
+                <div className="divide-y divide-slate-100">
                   {shownEvolutions.map((entry, index) => (
                     <EvolutionCard key={entry.id} entry={entry} isLatest={index === 0} />
                   ))}
+                </div>
+              )}
+              {!compact && evolutions.length > EVOLUTION_BATCH && (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2 text-[12px] text-slate-500">
+                  <span role="status">
+                    Mostrando {shownEvolutions.length} de {evolutions.length}
+                  </span>
+                  {shownEvolutions.length < evolutions.length && (
+                    <span className="flex items-center gap-3">
+                      <LinkButton
+                        onClick={() =>
+                          setHistoryPage({ episodeId, count: shownLimit + EVOLUTION_BATCH })
+                        }
+                      >
+                        Mostrar{' '}
+                        {Math.min(EVOLUTION_BATCH, evolutions.length - shownEvolutions.length)} más
+                      </LinkButton>
+                      <LinkButton
+                        className="!text-slate-500"
+                        onClick={() => setHistoryPage({ episodeId, count: evolutions.length })}
+                      >
+                        Mostrar todas
+                      </LinkButton>
+                    </span>
+                  )}
                 </div>
               )}
             </>
           ))}
         </AreaCard>
       )}
+      {children}
       {(tab === 'all' || tab === 'indications') && (
         <AreaCard
           icon={<ClipboardList />}
-          iconClassName="text-teal-700"
           title="Indicaciones"
+          className={compact ? 'xl:col-span-2' : undefined}
           subtitle={panel ? `${indicationDay?.active.length ?? 0} vigentes` : undefined}
           source={SOURCE}
           actions={tab === 'indications' ? reloadButton : undefined}

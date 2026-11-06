@@ -1,12 +1,22 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ request: vi.fn() }));
+const mocks = vi.hoisted(() => ({ request: vi.fn(), print: vi.fn() }));
 
 vi.mock('@/features/rayen-import/clinical-panel', async importOriginal => {
   const actual = await importOriginal<typeof import('@/features/rayen-import/clinical-panel')>();
   return { ...actual, requestClinicalPanel: (...args: unknown[]) => mocks.request(...args) };
 });
+vi.mock(
+  '@/features/census/components/clinical-explorer/clinicalExplorerPrint',
+  async importOriginal => {
+    const actual =
+      await importOriginal<
+        typeof import('@/features/census/components/clinical-explorer/clinicalExplorerPrint')
+      >();
+    return { ...actual, printHtmlDocument: (html: string) => mocks.print(html) };
+  }
+);
 vi.mock('@/components/modals/ExamRequestModal', () => ({
   ExamRequestModal: ({
     patient,
@@ -148,7 +158,7 @@ const Harness = ({ list = patients }: { list?: typeof patients }) => {
       </button>
       {selection ? (
         <>
-          <ClinicalExplorerBar censusDate={DATE} bedId={selection.bedId} />
+          <ClinicalExplorerBar bedId={selection.bedId} />
           <ClinicalExplorerView censusDate={DATE} bedId={selection.bedId} patients={list} />
         </>
       ) : (
@@ -179,9 +189,11 @@ describe('ClinicalExplorerView', () => {
     vi.useRealTimers();
   });
 
-  it('shows the census day and a compact patient header, and reads Ficha Médico once', async () => {
+  it('shows only a back button above the patient header, and reads Ficha Médico once', async () => {
     open();
-    expect(screen.getByText('Censo del miércoles, 4 de noviembre de 2026')).toBeVisible();
+    expect(screen.queryByText(/Censo del miércoles/)).toBeNull();
+    expect(screen.queryByText('Experimental')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Volver al censo' })).toBeVisible();
     const header = screen.getByTestId('clinical-explorer-patient');
     expect(header).toHaveTextContent('PRIMERA SINTÉTICA');
     expect(header).toHaveTextContent('Ingreso 01-11-2026 · 3 d');
@@ -193,6 +205,25 @@ describe('ClinicalExplorerView', () => {
     expect(await screen.findByText('Evolución médica estable.')).toBeVisible();
     expect(mocks.request).toHaveBeenCalledTimes(1);
     expect(mocks.request.mock.calls[0][0]).toBe('ep-r1');
+  });
+
+  it('prioritizes evolutions and vitals, followed by laboratory, imaging and indications', async () => {
+    open();
+    await screen.findByText('Evolución médica estable.');
+    const areas = ['Evoluciones', 'Signos vitales', 'Laboratorio', 'Imágenes', 'Indicaciones'];
+    const regions = areas.map(name => screen.getByRole('region', { name }));
+    regions.slice(1).forEach((region, index) => {
+      expect(
+        regions[index].compareDocumentPosition(region) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+    });
+    expect(screen.getAllByRole('tab').map(tab => tab.textContent)).toEqual([
+      'Vista conjunta',
+      ...areas,
+    ]);
+    fireEvent.click(screen.getByRole('tab', { name: 'Signos vitales' }));
+    expect(screen.getByRole('region', { name: 'Signos vitales' })).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'Evoluciones' })).toBeNull();
   });
 
   it('lists patients in bed order and keeps the area when choosing another patient', async () => {
@@ -262,12 +293,28 @@ describe('ClinicalExplorerView', () => {
     fireEvent.change(screen.getByLabelText('Fecha de indicaciones'), {
       target: { value: '2026-07-11' },
     });
-    for (const area of ['Laboratorio', 'Imágenes', 'Evoluciones']) {
+    for (const area of ['Laboratorio', 'Imágenes', 'Evoluciones', 'Signos vitales']) {
       fireEvent.click(screen.getByRole('tab', { name: area }));
       fireEvent.click(screen.getByRole('tab', { name: 'Indicaciones' }));
       expect(screen.getByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-11');
       expect(await screen.findByText('AMOXICILINA 500 mg')).toBeVisible();
     }
+  });
+
+  it('prints from the patient header the same day chosen in the indications area', async () => {
+    mocks.request.mockResolvedValue(panelWithOlderActiveTreatment);
+    mocks.print.mockResolvedValue(undefined);
+    open();
+    await screen.findByText('Sin indicaciones vigentes para esta fecha.');
+    fireEvent.change(screen.getByLabelText('Fecha de indicaciones'), {
+      target: { value: '2026-07-11' },
+    });
+    const header = screen.getByTestId('clinical-explorer-patient');
+    fireEvent.click(within(header).getByRole('button', { name: 'Imprimir indicaciones' }));
+    await waitFor(() => expect(mocks.print).toHaveBeenCalledTimes(1));
+    expect(mocks.print.mock.calls[0][0]).toContain('Indicaciones médicas del 11-07-2026');
+    expect(mocks.print.mock.calls[0][0]).toContain('AMOXICILINA 500 mg');
+    expect(within(header).getByRole('button', { name: 'Receta' })).toBeVisible();
   });
 
   it('leaves an empty selected day empty instead of substituting an older treatment', async () => {

@@ -10,6 +10,7 @@ import { selectClinicalExplorerBed } from './clinicalExplorerStore';
 import { ClinicalExplorerHeader } from './ClinicalExplorerHeader';
 import { ClinicalExplorerImaging } from './ClinicalExplorerImaging';
 import { ClinicalExplorerLab } from './ClinicalExplorerLab';
+import { ClinicalExplorerVitals } from './ClinicalExplorerVitals';
 import { ClinicalExplorerNotes } from './ClinicalExplorerNotes';
 import { ClinicalExplorerPatientPanel } from './ClinicalExplorerPatientPanel';
 import { EXPLORER_TABS, type ClinicalExplorerTab } from './clinicalExplorerUi';
@@ -85,24 +86,28 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
   }, [patients, bedId]);
 
   return (
-    <div data-testid="clinical-explorer" className="grid gap-3 lg:grid-cols-[248px_minmax(0,1fr)]">
+    <div
+      data-testid="clinical-explorer"
+      className="grid items-start gap-3 lg:col-span-2 lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:grid-cols-[240px_minmax(0,1fr)] lg:grid-rows-[36px_minmax(0,1fr)]"
+    >
       <ClinicalExplorerPatientPanel
         patients={patients}
         selectedBedId={bedId}
         onSelect={selectClinicalExplorerBed}
       />
-      <div className="flex min-w-0 flex-col gap-3">
+      <div className="flex min-w-0 flex-col gap-3 lg:col-start-2 lg:row-start-1 lg:row-span-2">
         {patient ? (
           <>
             <ClinicalExplorerHeader
               patient={patient}
               onRequestExams={() => setExamRequestFor(clinicalExplorerPatientIdentity(patient))}
               censusDate={censusDate}
+              indicationDate={indicationSelection.date}
             />
             <div
               role="tablist"
               aria-label="Áreas"
-              className="inline-flex max-w-full gap-0.5 self-start overflow-x-auto rounded-lg bg-slate-100 p-0.5"
+              className="flex max-w-full gap-x-1 overflow-x-auto border-b border-slate-200"
             >
               {EXPLORER_TABS.map(item => (
                 <button
@@ -112,10 +117,10 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
                   aria-selected={tab === item.key}
                   onClick={() => setTab(item.key)}
                   className={clsx(
-                    'h-7 shrink-0 rounded-md px-3 text-[12px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
+                    'min-h-9 shrink-0 border-b-2 px-2 text-[12px] font-medium sm:px-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
                     tab === item.key
-                      ? 'bg-white text-medical-700 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
+                      ? 'border-teal-700 text-teal-800'
+                      : 'border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-800'
                   )}
                 >
                   {item.label}
@@ -128,32 +133,44 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
                 tab === 'all' && 'xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]'
               )}
             >
-              {(tab === 'all' || tab === 'lab' || tab === 'img') && (
-                <div className="flex min-w-0 flex-col gap-3">
-                  {tab !== 'img' && (
-                    <ClinicalExplorerLab
-                      patient={patient}
-                      censusDate={censusDate}
-                      tab={tab}
-                      onShowAll={setTab}
-                    />
+              {(tab === 'all' || tab === 'evolutions' || tab === 'indications') && (
+                <ClinicalExplorerNotes
+                  key={patientKey}
+                  episodeId={patient.episodeId}
+                  selectedDate={indicationSelection.date}
+                  onSelectDate={date => setIndicationSelection({ patientKey, date })}
+                  tab={tab}
+                  onShowAll={setTab}
+                >
+                  {tab === 'all' && (
+                    <>
+                      <ClinicalExplorerVitals patient={patient} />
+                      <div className="min-w-0 xl:col-span-2">
+                        <ClinicalExplorerLab
+                          patient={patient}
+                          censusDate={censusDate}
+                          tab={tab}
+                          onShowAll={setTab}
+                        />
+                      </div>
+                      <div className="min-w-0 xl:col-span-2">
+                        <ClinicalExplorerImaging patient={patient} tab={tab} onShowAll={setTab} />
+                      </div>
+                    </>
                   )}
-                  {tab !== 'lab' && (
-                    <ClinicalExplorerImaging patient={patient} tab={tab} onShowAll={setTab} />
-                  )}
-                </div>
+                </ClinicalExplorerNotes>
               )}
-              {tab !== 'lab' && tab !== 'img' && (
-                <div className="flex min-w-0 flex-col gap-3">
-                  <ClinicalExplorerNotes
-                    key={patientKey}
-                    episodeId={patient.episodeId}
-                    selectedDate={indicationSelection.date}
-                    onSelectDate={date => setIndicationSelection({ patientKey, date })}
-                    tab={tab}
-                    onShowAll={setTab}
-                  />
-                </div>
+              {tab === 'vitals' && <ClinicalExplorerVitals patient={patient} />}
+              {tab === 'lab' && (
+                <ClinicalExplorerLab
+                  patient={patient}
+                  censusDate={censusDate}
+                  tab={tab}
+                  onShowAll={setTab}
+                />
+              )}
+              {tab === 'img' && (
+                <ClinicalExplorerImaging patient={patient} tab={tab} onShowAll={setTab} />
               )}
             </div>
           </>

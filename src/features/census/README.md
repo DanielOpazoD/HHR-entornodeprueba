@@ -55,11 +55,11 @@ hover/focus fila ocupada
   -> PatientRowOrbitalQuickActions
   -> usePatientRowOrbitalLauncherRuntime
   -> portal fuera de la tabla
-  -> 4 acciones rápidas: documentos / laboratorio / imágenes / indicaciones médicas
+  -> 3 acciones rápidas: documentos / laboratorio / imágenes
 ```
 
 - El launcher orbital vive visualmente fuera del borde izquierdo de la tabla, aunque se ancla a la fila del paciente.
-- Expone accesos rápidos clínicos: `Documentos clínicos`, `Solicitud Exámenes`, `Solicitud de Imágenes` e `Indicaciones Médicas` (manutara).
+- Expone accesos rápidos clínicos: `Documentos clínicos`, `Solicitud Exámenes`, `Solicitud de Imágenes`.
 - El panel clásico conserva la gestión clínica histórica (`Dar de Alta`, `Trasladar`, `Egreso CMA`) y no debe duplicar estas aperturas rápidas.
 - En desktop aparece por `hover` de la fila o del área externa del launcher; en touch permanece visible.
 - Solo un launcher puede permanecer activo a la vez para no perder foco visual al recorrer otras filas.
@@ -306,3 +306,37 @@ de Ficha Médico; no arrastra un tratamiento de otro día cuando no hay registro
 de paciente o episodio restablece la fecha, y cambiar de sesión cierra el explorador.
 Las indicaciones suspendidas siguen disponibles bajo su botón. Un fallo de lectura
 se presenta como fallo, nunca como una fecha sin indicaciones.
+
+La impresión libera sus controles si el navegador falla al abrir el diálogo o si
+el documento local no carga en 30 segundos. El frame fallido se elimina y una carga
+tardía no imprime; la persona puede reintentar. El diálogo ya abierto conserva su
+ciclo habitual, sin cambiar el contenido ni la fecha de las indicaciones.
+
+### Jerarquía del explorador clínico
+
+La vista conjunta presenta evoluciones primero y la última toma de signos vitales
+al lado derecho en escritorio amplio; en pantallas estrechas se apilan en ese orden.
+Después aparecen laboratorio, imágenes e indicaciones. Las pestañas siguen ese orden.
+El historial de evoluciones abre 20 entradas y permite mostrar más por bloques o
+mostrar todas explícitamente. El filtro de profesión y un episodio nuevo comienzan
+con 20 entradas; la vista conjunta conserva su resumen de tres. Se indica cuántas
+entradas se muestran, y un filtro vacío se distingue de una ficha sin evoluciones.
+Los signos vitales usan los datos del paciente/episodio ya disponibles en el censo,
+con fecha de toma, unidades y los mismos perfiles visuales del censo; no realizan
+una lectura nueva ni modifican datos. Un valor ausente no se transforma en cero.
+El acceso de regreso es un botón independiente, disponible incluso si el explorador
+no termina de cargar; conserva Escape, el foco y el censo montado detrás.
+
+En escritorio, el regreso ocupa el espacio sobre la lista de pacientes y se alinea
+con la identidad, sin una franja superior adicional. Sigue fuera del módulo de
+carga diferida. La lista tiene altura según su contenido, máximo visible y scroll.
+Las acciones del paciente y las pestañas usan menos bordes; los iconos de sección
+son neutros y los colores de vitales conservan su significado clínico. Los controles
+de acción comparten altura, tipografía y foco; las selecciones usan verde azulado.
+Las fechas y metadatos secundarios mantienen contraste legible sin competir con
+los resultados clínicos.
+
+El eje temporal del laboratorio ajusta sus etiquetas al ancho disponible, conserva
+los extremos y señala el día del censo. Al cruzar de año incluye el año en la fecha.
+Las etiquetas de calendario son limitadas por espacio; los resultados, sus valores,
+los puntos seleccionables y la tabla diaria se conservan íntegros.

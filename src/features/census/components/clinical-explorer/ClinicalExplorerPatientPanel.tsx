@@ -24,7 +24,7 @@ export const ClinicalExplorerPatientPanel: React.FC<ClinicalExplorerPatientPanel
   return (
     <aside
       aria-label="Pacientes del censo"
-      className="flex max-h-[calc(100vh-var(--hhr-chrome-height)-5.5rem)] min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white lg:sticky lg:top-[calc(var(--hhr-chrome-height)+4rem)]"
+      className="flex w-full self-start lg:row-start-2 max-h-[calc(100vh-var(--hhr-chrome-height)-5.5rem)] min-h-0 flex-col overflow-hidden rounded-[10px] border border-slate-200 bg-white lg:sticky lg:top-[calc(var(--hhr-chrome-height)+4rem)]"
     >
       <div className="flex flex-col gap-2 border-b border-slate-100 px-3 pb-2 pt-2.5">
         <div className="flex items-center text-[11px] font-semibold uppercase tracking-wide text-slate-700">
@@ -60,7 +60,7 @@ export const ClinicalExplorerPatientPanel: React.FC<ClinicalExplorerPatientPanel
                 onClick={() => onSelect(patient.bedId)}
                 className={clsx(
                   'grid w-full grid-cols-[48px_minmax(0,1fr)] items-center gap-x-2 border-l-2 px-2.5 py-1 text-left transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-teal-700',
-                  selected ? 'border-l-medical-600 bg-medical-50' : 'border-l-transparent'
+                  selected ? 'border-l-teal-600 bg-teal-50' : 'border-l-transparent'
                 )}
               >
                 <span className="flex items-center gap-1 whitespace-nowrap font-display text-[13px] font-bold text-slate-800">
