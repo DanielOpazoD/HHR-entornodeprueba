@@ -35,7 +35,7 @@ describe('CI static group scheduling', () => {
   it('runs lint and typecheck independently and waits for both before producing evidence', () => {
     const { jobs } = parseWorkflow(source);
     const base = jobs['quality-static-base'];
-    expect(base.strategy?.matrix.check).toEqual(['lint', 'typecheck', 'check:unchecked-index']);
+    expect(base.strategy?.matrix.check).toEqual(['lint', 'typecheck']);
     expect(base.strategy?.['fail-fast']).toBe(false);
     expect(
       base.steps.some(
@@ -46,6 +46,16 @@ describe('CI static group scheduling', () => {
     ).toBe(true);
     expect(jobNeeds(jobs['quality-static-governance-snapshots'])).toContain('quality-static-base');
     expect(jobNeeds(jobs.build)).toEqual(['quality-static-governance-snapshots']);
+  });
+  it('runs the unchecked-index gate through the quality aggregate, locally and in CI', () => {
+    // `npm run check:quality` must catch what CI rejects: the gate lives in the aggregate only.
+    const governance = JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), 'scripts/config/guardrail-governance.json'), 'utf8')
+    ) as { qualityAggregate: { checks: Array<{ id: string; group: string }> } };
+    expect(governance.qualityAggregate.checks).toContainEqual({
+      id: 'check:unchecked-index',
+      group: 'type-safety',
+    });
   });
   it('generates API docs alongside the full test gates', () => {
     const docs = parseWorkflow(source).jobs.docs;
