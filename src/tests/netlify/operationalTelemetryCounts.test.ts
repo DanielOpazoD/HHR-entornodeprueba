@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createOperationalTelemetryHandler } from '../../../netlify/functions/operational-telemetry';
+import { getStore } from '@netlify/blobs';
 import {
   COUNT_BUDGET_MS,
   addTelemetryCount,
+  createCountBlobFetch,
   countsStoreName,
   createDailyTelemetryCounter,
   type DailyTelemetryCounts,
@@ -134,6 +136,45 @@ describe('daily operational telemetry counts', () => {
       })
     ).resolves.toBe('count_conflict');
     expect(losing.setJSON).toHaveBeenCalledTimes(4);
+  });
+
+  it('never lets the Blobs SDK retry: a failing store costs one request, not five sleeps', async () => {
+    const real = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) =>
+      (init?.method ?? 'GET').toUpperCase() === 'GET'
+        ? new Response(null, { status: 404 })
+        : new Response('down', { status: 503 })
+    );
+    const store = getStore({
+      name: 'operational-counts-v1-preview-test',
+      siteID: 'synthetic-site',
+      token: 'synthetic-token',
+      edgeURL: 'https://edge.invalid',
+      uncachedEdgeURL: 'https://uncached-edge.invalid',
+      fetch: createCountBlobFetch(real as unknown as typeof fetch),
+    });
+    const count = createDailyTelemetryCounter(store);
+    await expect(
+      count({
+        operation: 'app_shell_ready',
+        status: 'success',
+        alert: 'not_alertable',
+        receivedAt: NOW,
+      })
+    ).resolves.toBe('count_conflict');
+    // Four compare-and-set rounds of one read and one write each, and nothing retried in between.
+    expect(real).toHaveBeenCalledTimes(8);
+
+    real.mockImplementation(async () => new Response('down', { status: 503 }));
+    real.mockClear();
+    await expect(
+      count({
+        operation: 'app_shell_ready',
+        status: 'success',
+        alert: 'not_alertable',
+        receivedAt: NOW,
+      })
+    ).rejects.toThrow();
+    expect(real).toHaveBeenCalledTimes(1);
   });
 
   it('keeps production counts apart from previews', () => {

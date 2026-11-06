@@ -8,7 +8,7 @@
  */
 import { getStore, type Store } from '@netlify/blobs';
 import { getClinicalCalendarDateISO } from '../../../src/utils/clinicalTimeZone';
-import { createAlertBlobFetch, type TelemetryRuntimeContext } from './telemetry-alerts/store';
+import type { TelemetryRuntimeContext } from './telemetry-alerts/store';
 
 export interface TelemetryCountEntry {
   operation: string;
@@ -94,13 +94,47 @@ export const createDailyTelemetryCounter =
     return 'count_conflict';
   };
 
+const NOT_RETRIED = 499;
+const PRECONDITION_FAILED = 412;
+
+/**
+ * One attempt per request, never a retry. The Blobs SDK retries thrown errors, 429 and 5xx with
+ * 5 s sleeps, so a failure is handed back as an answer it does not retry: a failed PUT as 412 (the
+ * SDK reports any other conditional PUT status as modified), anything else as 499, which makes the
+ * SDK throw at once. The count may then be lost or, rarely after a PUT timeout that did land,
+ * repeated: these are operational counts, and the beacon is never held for them.
+ */
+export const createCountBlobFetch =
+  (fetcher: typeof fetch = fetch, deadlineAt = Infinity): typeof fetch =>
+  async (input, init) => {
+    const failed = (): Response =>
+      new Response(null, {
+        status: (init?.method ?? 'GET').toUpperCase() === 'PUT' ? PRECONDITION_FAILED : NOT_RETRIED,
+      });
+    const remaining = deadlineAt - Date.now();
+    if (remaining < 50) return failed();
+    try {
+      const signals = [
+        ...(Number.isFinite(remaining) ? [AbortSignal.timeout(Math.ceil(remaining))] : []),
+        ...(init?.signal ? [init.signal] : []),
+      ];
+      const response = await fetcher(input, {
+        ...init,
+        ...(signals.length > 0 ? { signal: AbortSignal.any(signals) } : {}),
+      });
+      return response.status === 429 || response.status >= 500 ? failed() : response;
+    } catch {
+      return failed();
+    }
+  };
+
 export const createRuntimeTelemetryCounter = (context: TelemetryRuntimeContext) => {
   const deadlineAt = Date.now() + COUNT_BUDGET_MS;
   return createDailyTelemetryCounter(
     getStore({
       name: countsStoreName(context),
       consistency: 'strong',
-      fetch: createAlertBlobFetch(fetch, deadlineAt),
+      fetch: createCountBlobFetch(fetch, deadlineAt),
     })
   );
 };
