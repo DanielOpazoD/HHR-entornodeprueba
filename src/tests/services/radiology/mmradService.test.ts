@@ -16,6 +16,7 @@ vi.mock('@/services/auth/authRequestHeaders', () => ({
 import {
   buildMMRADPdfUrl,
   buildMMRADPortalReceiptUrl,
+  fetchMMRADPdfBlob,
   fetchMMRADPdfBlobUrl,
   fetchMMRADPortalReceiptHtml,
   searchMMRADExams,
@@ -110,6 +111,53 @@ describe('mmradService', () => {
         }),
       })
     );
+  });
+
+  it('returns the original PDF blob unchanged and forwards cancellation to the authenticated proxy', async () => {
+    const original = new Blob(['%PDF synthetic original'], { type: 'application/pdf' });
+    const controller = new AbortController();
+    mockFetch.mockResolvedValueOnce({ ok: true, blob: () => Promise.resolve(original) });
+
+    expect(await fetchMMRADPdfBlob('https://mmrad.example/pdf/1', controller.signal)).toBe(
+      original
+    );
+    expect(mockFetch).toHaveBeenCalledWith(buildMMRADPdfUrl('https://mmrad.example/pdf/1'), {
+      headers: { Authorization: 'Bearer token-123' },
+      signal: controller.signal,
+    });
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it.each(['text/html', 'application/json', 'application/octet-stream', ''])(
+    'rejects a non-PDF MIME type (%s) before creating a URL',
+    async type => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        blob: () => Promise.resolve(new Blob(['not a PDF'], { type })),
+      });
+      await expect(fetchMMRADPdfBlobUrl('https://mmrad.example/pdf/1')).rejects.toThrow(
+        'MMRAD no devolvió un PDF original válido.'
+      );
+      expect(URL.createObjectURL).not.toHaveBeenCalled();
+    }
+  );
+
+  it('does not start a request after its owner cancelled during authentication', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      fetchMMRADPdfBlob('https://mmrad.example/pdf/1', controller.signal)
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('does not expose a failed PDF response body to callers', async () => {
+    const readBody = vi.fn().mockResolvedValue({ error: 'private upstream exception' });
+    mockFetch.mockResolvedValueOnce({ ok: false, json: readBody });
+    await expect(fetchMMRADPdfBlob('https://mmrad.example/pdf/1')).rejects.toThrow(
+      'No se pudo obtener el PDF original de MMRAD.'
+    );
+    expect(readBody).not.toHaveBeenCalled();
   });
 
   it('fetches the portal receipt HTML with auth headers', async () => {

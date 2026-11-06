@@ -2,7 +2,13 @@ import { setSessionGeneration } from '@/services/storage/sessionStorageTransitio
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ search: vi.fn(), checkDigit: vi.fn(), pdf: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  search: vi.fn(),
+  checkDigit: vi.fn(),
+  pdf: vi.fn(),
+  blob: vi.fn(),
+  download: vi.fn(),
+}));
 
 vi.mock('@/services/radiology/mmradService', async importOriginal => {
   const actual = await importOriginal<typeof import('@/services/radiology/mmradService')>();
@@ -11,13 +17,25 @@ vi.mock('@/services/radiology/mmradService', async importOriginal => {
     searchMMRADExams: (...args: unknown[]) => mocks.search(...args),
     searchMMRADCheckDigitExams: (...args: unknown[]) => mocks.checkDigit(...args),
     fetchMMRADPdfBlobUrl: (...args: unknown[]) => mocks.pdf(...args),
+    fetchMMRADPdfBlob: (...args: unknown[]) => mocks.blob(...args),
   };
 });
+vi.mock('@/services/exporters/exportDownload', () => ({
+  downloadBlob: (...args: unknown[]) => mocks.download(...args),
+}));
 vi.mock('@/components/radiology/useDicomReviewCache', () => ({
   useDicomReviewCache: () => undefined,
 }));
 vi.mock('@/components/radiology/DicomViewerDialog', () => ({
-  DicomViewerDialog: ({ title, link, patientId }: { title: string; link: string; patientId: string }) => (
+  DicomViewerDialog: ({
+    title,
+    link,
+    patientId,
+  }: {
+    title: string;
+    link: string;
+    patientId: string;
+  }) => (
     <div role="dialog" aria-label="Visor DICOM">
       {`${title}|${link}|${patientId}`}
     </div>
@@ -71,7 +89,12 @@ const studies = [
       impression: 'Estudio sin hallazgos agudos.',
     },
   }),
-  exam({ nombre_examen: 'Rx abdomen simple', fecha_examen: '29/10/2026 17:05', dicom_url: null, estado: 'Pendiente' }),
+  exam({
+    nombre_examen: 'Rx abdomen simple',
+    fecha_examen: '29/10/2026 17:05',
+    dicom_url: null,
+    estado: 'Pendiente',
+  }),
 ];
 
 const renderImaging = (tab: 'all' | 'img' = 'all') =>
@@ -84,6 +107,8 @@ describe('ClinicalExplorerImaging', () => {
     mocks.search.mockReset();
     mocks.checkDigit.mockReset();
     mocks.pdf.mockReset();
+    mocks.blob.mockReset();
+    mocks.download.mockReset();
     mocks.search.mockResolvedValue({ rut: RUT, examenes: studies });
     mocks.checkDigit.mockResolvedValue({ rut: RUT, examenes: [] });
   });
@@ -114,12 +139,74 @@ describe('ClinicalExplorerImaging', () => {
     const items = await within(card).findAllByRole('listitem');
     expect(within(items[0]!).queryByRole('button', { name: /Informe/ })).toBeNull();
     expect(within(items[1]!).queryByRole('button', { name: /Imágenes|Informe/ })).toBeNull();
+    expect(within(items[2]!).queryByRole('button', { name: 'Descargar PDF original' })).toBeNull();
+    expect(
+      within(items[2]!).queryByRole('button', { name: 'Copiar hallazgos e impresión' })
+    ).toBeNull();
     fireEvent.click(within(items[2]!).getByRole('button', { name: 'Informe' }));
     expect(items[2]).toHaveTextContent('Estudio sin hallazgos agudos.');
+    expect(within(items[2]!).getByRole('button', { name: 'Descargar PDF original' })).toBeVisible();
+    expect(
+      within(items[2]!).getByRole('button', { name: 'Copiar hallazgos e impresión' })
+    ).toBeVisible();
     fireEvent.click(within(items[0]!).getByRole('button', { name: 'Imágenes' }));
     expect(await screen.findByRole('dialog', { name: 'Visor DICOM' })).toHaveTextContent(
       `Rx tórax AP|https://mmrad.example/dicom/1|${RUT}`
     );
+  });
+
+  it.each(['patient', 'episode'])(
+    'never delivers a pending download after changing the %s',
+    async change => {
+      let resolvePdf: (blob: Blob) => void = () => {};
+      mocks.blob.mockReturnValueOnce(
+        new Promise<Blob>(resolve => {
+          resolvePdf = resolve;
+        })
+      );
+      const view = renderImaging('img');
+      fireEvent.click(await screen.findByRole('button', { name: 'Informe' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Descargar PDF original' }));
+      const nextPatient =
+        change === 'episode'
+          ? { ...patient!, episodeId: 'ep-2' }
+          : {
+              ...patient!,
+              data: {
+                ...patient!.data,
+                rut: '11.111.111-1',
+                patientName: 'OTRO PACIENTE SINTÉTICO',
+              },
+            };
+      view.rerender(
+        <ClinicalExplorerImaging patient={nextPatient} tab="img" onShowAll={vi.fn()} />
+      );
+      expect(mocks.blob.mock.calls[0]![1].aborted).toBe(true);
+      await act(async () => resolvePdf(new Blob(['original'], { type: 'application/pdf' })));
+      expect(mocks.download).not.toHaveBeenCalled();
+      expect(screen.queryByRole('alert')).toBeNull();
+    }
+  );
+
+  it('stops delivery synchronously when the session changes before the deferred PDF settles', async () => {
+    let resolvePdf: (blob: Blob) => void = () => {};
+    mocks.blob.mockReturnValueOnce(
+      new Promise<Blob>(resolve => {
+        resolvePdf = resolve;
+      })
+    );
+    renderImaging('img');
+    fireEvent.click(await screen.findByRole('button', { name: 'Informe' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Descargar PDF original' }));
+    await act(async () => {
+      setSessionGeneration('synthetic-replacement');
+      expect(mocks.blob.mock.calls[0]![1].aborted).toBe(true);
+      resolvePdf(new Blob(['original'], { type: 'application/pdf' }));
+      await Promise.resolve();
+      expect(mocks.download).not.toHaveBeenCalled();
+    });
+    expect(mocks.download).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('shows a failed first read as a failure with retry, never as "sin estudios"', async () => {
@@ -136,20 +223,30 @@ describe('ClinicalExplorerImaging', () => {
   it('says "sin estudios" only when both searches answered, and notes an unfinished one', async () => {
     mocks.search.mockResolvedValue({ rut: RUT, examenes: [] });
     let failAlternate: (error: Error) => void = () => {};
-    mocks.checkDigit.mockReturnValue(new Promise((_, reject) => { failAlternate = reject; }));
+    mocks.checkDigit.mockReturnValue(
+      new Promise((_, reject) => {
+        failAlternate = reject;
+      })
+    );
     renderImaging();
     await waitFor(() => expect(mocks.search).toHaveBeenCalled());
     await new Promise(resolve => setTimeout(resolve, 20));
     expect(screen.queryByText(/Sin estudios/)).toBeNull();
     failAlternate(new Error('timeout'));
-    expect(await screen.findByText('Sin estudios de imágenes en esta hospitalización.')).toBeVisible();
+    expect(
+      await screen.findByText('Sin estudios de imágenes en esta hospitalización.')
+    ).toBeVisible();
     expect(screen.getByText(/La búsqueda por dígito verificador no terminó/)).toBeVisible();
   });
 
   it('keeps the failure of the exact search when the alternate answer arrives later', async () => {
     mocks.search.mockRejectedValueOnce(new Error('Demasiadas solicitudes.'));
     let answerAlternate: (value: unknown) => void = () => {};
-    mocks.checkDigit.mockReturnValueOnce(new Promise(resolve => { answerAlternate = resolve; }));
+    mocks.checkDigit.mockReturnValueOnce(
+      new Promise(resolve => {
+        answerAlternate = resolve;
+      })
+    );
     renderImaging();
     await screen.findByRole('alert');
     answerAlternate({ rut: RUT, examenes: [] });

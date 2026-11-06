@@ -3,7 +3,11 @@ import { FileText, Images } from 'lucide-react';
 import { XRayIcon } from '@/components/ui/XRayIcon';
 import { hasMMRADStructuredReport } from '@/components/modals/controllers/radiologyViewerContentController';
 import { useDicomReviewCache } from '@/components/radiology/useDicomReviewCache';
-import type { ClinicalExplorerPatient } from '@/features/census/controllers/clinicalExplorerController';
+import {
+  clinicalExplorerPatientIdentity,
+  type ClinicalExplorerPatient,
+} from '@/features/census/controllers/clinicalExplorerController';
+import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import {
   describeMMRADRegisteredPatient,
   fetchMMRADPdfBlobUrl,
@@ -20,6 +24,7 @@ import {
   type ClinicalExplorerTab,
 } from './clinicalExplorerUi';
 import { useClinicalExplorerImaging } from './useClinicalExplorerImaging';
+import { ClinicalExplorerReportActions } from './ClinicalExplorerReportActions';
 
 const DicomViewerDialog = lazy(() =>
   import('@/components/radiology/DicomViewerDialog').then(module => ({
@@ -70,6 +75,8 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
   onShowAll,
 }) => {
   const expanded = tab === 'img';
+  const sessionEpoch = useSessionEpoch();
+  const patientIdentity = clinicalExplorerPatientIdentity(patient);
   const rut = patient.data.rut.trim();
   const patientName = patient.data.patientName.trim();
   const imaging = useClinicalExplorerImaging({
@@ -184,7 +191,15 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
                     )}
                   </div>
                 </div>
-                {openReport === key && <ReportText exam={exam} />}
+                {openReport === key && (
+                  <>
+                    <ReportText exam={exam} />
+                    <ClinicalExplorerReportActions
+                      key={`${patientIdentity}:${sessionEpoch}:${key}`}
+                      exam={exam}
+                    />
+                  </>
+                )}
               </li>
             );
           })}
