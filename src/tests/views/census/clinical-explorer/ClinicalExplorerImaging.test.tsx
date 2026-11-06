@@ -101,7 +101,11 @@ const renderImaging = (tab: 'all' | 'img' = 'all') =>
   render(<ClinicalExplorerImaging patient={patient!} tab={tab} onShowAll={vi.fn()} />);
 
 describe('ClinicalExplorerImaging', () => {
-  afterEach(() => act(() => setSessionGeneration(null)));
+  afterEach(() => {
+    act(() => setSessionGeneration(null));
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
 
   beforeEach(() => {
     mocks.search.mockReset();
@@ -131,6 +135,89 @@ describe('ClinicalExplorerImaging', () => {
       dateFrom: '2026-10-28',
       patientName: 'PACIENTE SINTÉTICO',
     });
+  });
+
+  const preparePdf = () => {
+    mocks.search.mockResolvedValue({
+      rut: RUT,
+      examenes: [exam({ mod: 'CT', pdf_url: 'https://mmrad.example/pdf/synthetic' })],
+    });
+    const popup = { location: { href: '' }, focus: vi.fn(), close: vi.fn(), closed: false };
+    vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
+    const createUrl = vi.fn(() => 'blob:synthetic-report');
+    const revokeUrl = vi.fn();
+    const OriginalURL = URL;
+    vi.stubGlobal(
+      'URL',
+      class extends OriginalURL {
+        static createObjectURL = createUrl;
+        static revokeObjectURL = revokeUrl;
+      }
+    );
+    return { popup, createUrl, revokeUrl };
+  };
+
+  it.each(['patient', 'episode', 'session', 'unmount'])(
+    'cancels a pending PDF and closes its empty window on %s change',
+    async change => {
+      const { popup, createUrl } = preparePdf();
+      let answer: (blob: Blob) => void = () => {};
+      mocks.blob.mockReturnValueOnce(
+        new Promise<Blob>(resolve => {
+          answer = resolve;
+        })
+      );
+      const view = renderImaging('img');
+      fireEvent.click(await screen.findByRole('button', { name: 'Informe (PDF)' }));
+      const signal = mocks.blob.mock.calls[0]![1] as AbortSignal;
+      if (change === 'session') act(() => setSessionGeneration('synthetic-next-pdf-session'));
+      else if (change === 'unmount') view.unmount();
+      else
+        view.rerender(
+          <ClinicalExplorerImaging
+            patient={
+              change === 'episode'
+                ? { ...patient!, episodeId: 'ep-next' }
+                : {
+                    ...patient!,
+                    data: { ...patient!.data, rut: '11.111.111-1', patientName: 'OTRO SINTÉTICO' },
+                  }
+            }
+            tab="img"
+            onShowAll={vi.fn()}
+          />
+        );
+      expect(signal.aborted).toBe(true);
+      expect(popup.close).toHaveBeenCalledTimes(1);
+      await act(async () => answer(new Blob(['synthetic'], { type: 'application/pdf' })));
+      expect(createUrl).not.toHaveBeenCalled();
+      expect(popup.location.href).toBe('');
+      expect(popup.focus).not.toHaveBeenCalled();
+    }
+  );
+
+  it('delivers the PDF to the requested window and releases the button', async () => {
+    const { popup, createUrl } = preparePdf();
+    mocks.blob.mockResolvedValueOnce(new Blob(['synthetic'], { type: 'application/pdf' }));
+    renderImaging('img');
+    const button = await screen.findByRole('button', { name: 'Informe (PDF)' });
+    fireEvent.click(button);
+    await waitFor(() => expect(popup.location.href).toBe('blob:synthetic-report'));
+    expect(createUrl).toHaveBeenCalledTimes(1);
+    expect(popup.focus).toHaveBeenCalledTimes(1);
+    expect(button).toBeEnabled();
+    expect(popup.close).not.toHaveBeenCalled();
+  });
+
+  it('closes the empty PDF window on failure and allows another attempt', async () => {
+    const { popup } = preparePdf();
+    mocks.blob.mockRejectedValueOnce(new Error('No se pudo leer el PDF.'));
+    renderImaging('img');
+    const button = await screen.findByRole('button', { name: 'Informe (PDF)' });
+    fireEvent.click(button);
+    expect(await screen.findByText('No se pudo leer el PDF.')).toBeVisible();
+    expect(popup.close).toHaveBeenCalledTimes(1);
+    expect(button).toBeEnabled();
   });
 
   it('offers the report only for CT and opens the viewer for studies with images', async () => {
