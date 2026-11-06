@@ -1,3 +1,4 @@
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RayenClinicalPanelResult } from '@/features/rayen-import/bridge/clinicalPanelBridge';
@@ -34,6 +35,28 @@ const deferred = () => {
 
 describe('clinical panel snapshot ownership', () => {
   beforeEach(() => mocks.request.mockReset());
+
+  it('discards a late read and clears documents when the session changes in the same episode', async () => {
+    const stale = deferred();
+    const next = deferred();
+    mocks.request
+      .mockResolvedValueOnce(payload('old'))
+      .mockReturnValueOnce(stale.promise)
+      .mockReturnValueOnce(next.promise);
+    const { result } = renderHook(() => useClinicalPanelSnapshot('same-episode'));
+    await waitFor(() => expect(result.current.state.phase).toBe('ready'));
+    act(() => result.current.reload());
+    const signal = mocks.request.mock.calls[1][2] as AbortSignal;
+    act(() => setSessionGeneration('replacement-session'));
+    expect(result.current.documentState.phase).toBe('loading');
+    expect(signal.aborted).toBe(true);
+    await act(async () => next.resolve(payload('new')));
+    await act(async () => stale.resolve(payload('stale')));
+    expect(result.current.documentState).toMatchObject({
+      phase: 'ready',
+      documents: [{ id: 'new' }],
+    });
+  });
 
   it('coalesces repeated refresh clicks while the current request is pending', async () => {
     const pending = deferred();
