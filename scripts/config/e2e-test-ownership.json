@@ -178,6 +178,13 @@
       "command": "npx playwright test e2e/clinical-document-formatting-panel.spec.ts --project=chromium"
     },
     {
+      "file": "e2e/clinical-explorer-history.spec.ts",
+      "lane": "nightly",
+      "reason": "Synthetic long-history batching, profession filters and full-history access; runs with the clinical explorer on the production build.",
+      "command": "npm run test:e2e:census-visual:ci",
+      "workflow": ".github/workflows/nightly-census-visual.yml"
+    },
+    {
       "file": "e2e/clinical-explorer-visual.spec.ts",
       "lane": "nightly",
       "reason": "Clinical explorer layout at 13 inches against the production build; runs with the census visual spec.",
