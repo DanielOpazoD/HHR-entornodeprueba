@@ -2,6 +2,12 @@
 
 Cómo y cuándo usar `scripts/config/flaky-quarantine.json`. El objetivo es desbloquear el pipeline ante un flake real **sin convertir la cuarentena en un basurero permanente**.
 
+## Medir antes de decidir
+
+`npm run report:ci-reruns -- --days 7` lista los intentos de `CI/CD Pipeline` que fallaron y
+pasaron al reintentar el mismo commit, agrupados por job y por prueba (o por el primer paso
+fallido cuando no hay prueba). Solo lee con `gh api`; `--json` da el detalle con los mensajes.
+
 ## Cuándo cuarentenar
 
 Usar **sólo** si se cumplen las tres condiciones:
