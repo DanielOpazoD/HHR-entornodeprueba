@@ -117,6 +117,20 @@ describe('ClinicalExplorerPrintActions', () => {
     expect(mocks.print).not.toHaveBeenCalled();
   });
 
+  it('releases the controls after a browser print failure and allows retry', async () => {
+    mocks.print.mockRejectedValueOnce(new Error('print_unavailable'));
+    renderActions();
+    const button = screen.getByRole('button', { name: 'Imprimir indicaciones' });
+    fireEvent.click(button);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'No se pudieron imprimir las indicaciones.'
+    );
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    await waitFor(() => expect(mocks.print).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+  });
+
   it('prints nothing if the session changes while Ficha Médico answers', async () => {
     let answer: (value: unknown) => void = () => undefined;
     mocks.panel.mockReturnValue(new Promise(resolve => (answer = resolve)));
