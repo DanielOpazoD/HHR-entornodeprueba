@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import CudyrReportExplorer from '@/features/cudyr/components/CudyrReportExplorer';
+import { CudyrView } from '@/features/cudyr/components/CudyrView';
 import { loadCudyrReport } from '@/services/cudyr/cudyrReportLoader';
 import { loadCudyrSupplements } from '@/services/cudyr/cudyrSupplementService';
 import { cudyrReportCache } from '@/services/cudyr/cudyrReportCache';
@@ -9,6 +10,10 @@ import { reportInput } from '@/tests/services/cudyr/reportFixtures';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 
 const session = vi.hoisted(() => ({ generation: 0 }));
+vi.mock('@/context/DailyRecordContext', () => ({
+  useDailyRecordData: () => ({ record: null, bootstrapPhase: 'loading' }),
+}));
+vi.mock('@/hooks/useUIState', () => ({ useUIState: () => ({ setCurrentModule: vi.fn() }) }));
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ role: 'viewer', currentUser: { uid: 'synthetic' } }),
 }));
@@ -19,7 +24,10 @@ vi.mock('@/services/storage/sessionStorageTransition', () => ({
   getSessionGeneration: () => String(session.generation),
 }));
 vi.mock('@/services/cudyr/cudyrReportLoader', () => ({ loadCudyrReport: vi.fn() }));
-vi.mock('@/services/cudyr/cudyrSupplementService', () => ({ loadCudyrSupplements: vi.fn() }));
+vi.mock('@/services/cudyr/cudyrSupplementService', () => ({
+  loadCudyrSupplements: vi.fn(),
+  importCudyrSupplement: vi.fn(),
+}));
 vi.mock('@/services/cudyr/cudyrReadView', () => ({
   readCudyrReadView: vi.fn().mockResolvedValue(null),
   saveCudyrReadView: vi.fn(),
@@ -43,7 +51,13 @@ const deferred = <T,>() => {
   return { promise, resolve, reject };
 };
 const report = () => ({
-  ...buildCudyrReport(reportInput({ from: '2026-10-01', to: '2026-10-02' })),
+  ...buildCudyrReport(
+    reportInput({
+      from: '2026-10-01',
+      to: '2026-10-02',
+      generatedAt: new Date().toISOString(),
+    })
+  ),
   loadedAt: new Date().toISOString(),
 });
 const seed = (data: CudyrReportDataset) =>
@@ -60,6 +74,62 @@ beforeEach(() => {
 });
 
 describe('CUDYR explorer loading with real report and supplement hooks', () => {
+  const enterFromDaily = async (data: CudyrReportDataset) => {
+    vi.mocked(loadCudyrReport).mockResolvedValue(data);
+    render(<CudyrView currentDate={data.to} readOnly />);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Excel mensual' })).toBeEnabled()
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Explorar reporte estadístico' }));
+    await waitFor(() => exports().forEach(button => expect(button).toBeEnabled()));
+    expect(loadCudyrReport).toHaveBeenCalledTimes(2);
+  };
+
+  it('adopts the report just verified in the explorer without another read on return', async () => {
+    const data = report();
+    await enterFromDaily(data);
+    const updated = {
+      ...data,
+      rows: data.rows.map(row => ({ ...row, patientName: 'Paciente actualizado' })),
+    };
+    vi.mocked(loadCudyrReport).mockResolvedValue(updated);
+    fireEvent.submit(screen.getByLabelText('Desde').closest('form')!);
+    await waitFor(() => exports().forEach(button => expect(button).toBeEnabled()));
+    fireEvent.click(screen.getByRole('button', { name: 'Volver al registro CUDYR' }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Excel mensual' })).toBeEnabled()
+    );
+    expect(screen.getByText('Paciente actualizado')).toBeVisible();
+    expect(loadCudyrReport).toHaveBeenCalledTimes(3);
+  });
+
+  it.each(['expired', 'invalidated'])(
+    'verifies a %s copy again before exporting on return',
+    async state => {
+      const data = report();
+      await enterFromDaily(data);
+      const store = cudyrReportCache(loadCudyrReport, `synthetic:${session.generation}`, true);
+      const clock =
+        state === 'expired'
+          ? vi
+              .spyOn(Date, 'now')
+              .mockReturnValue(Date.parse(store.get(data.from, data.to)!.loadedAt!) + 120_001)
+          : null;
+      if (state === 'invalidated') store.requireVerification();
+      const pending = deferred<CudyrReportDataset>();
+      vi.mocked(loadCudyrReport).mockReturnValueOnce(pending.promise);
+      try {
+        fireEvent.click(screen.getByRole('button', { name: 'Volver al registro CUDYR' }));
+        expect(loadCudyrReport).toHaveBeenCalledTimes(3);
+        expect(screen.getByRole('button', { name: 'Excel mensual' })).toBeDisabled();
+        await act(async () => pending.resolve(data));
+        expect(screen.getByRole('button', { name: 'Excel mensual' })).toBeEnabled();
+      } finally {
+        clock?.mockRestore();
+      }
+    }
+  );
+
   it('reads the monthly backup once per verified report, including explicit refresh', async () => {
     const data = report();
     seed(data);
