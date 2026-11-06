@@ -35,7 +35,6 @@ export default function CudyrReportExplorer({
   const { role, currentUser } = useAuth();
   const canEdit = canCorrectCudyrDischarge({ role, readOnly });
   const { data, busy, error, load } = useCudyrReport(initialDate);
-  const supplements = useCudyrSupplements(data);
   const [from, setFrom] = useState(initialDate.slice(0, 7) + '-01');
   const [to, setTo] = useState(initialDate);
   const [filters, setFilters] = useState({ ...EMPTY_CUDYR_REPORT_FILTERS });
@@ -53,6 +52,7 @@ export default function CudyrReportExplorer({
     Boolean(error) ||
     Boolean(data?.issues.length) ||
     Boolean(data?.coverage.some(day => day.state === 'error'));
+  const supplements = useCudyrSupplements(unverified ? null : data);
   const exportExcel = async (mode: CudyrReportExportMode) => {
     if (!data || unverified || exporting || !supplements.ready) return;
     setExporting(true);

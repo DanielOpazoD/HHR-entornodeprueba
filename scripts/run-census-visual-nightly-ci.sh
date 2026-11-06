@@ -14,4 +14,4 @@ export PLAYWRIGHT_JSON_OUTPUT="${PLAYWRIGHT_JSON_OUTPUT:-reports/e2e/census-visu
 export CENSUS_VISUAL_OUTPUT_DIR="${CENSUS_VISUAL_OUTPUT_DIR:-reports/e2e/census-visual}"
 mkdir -p "$(dirname "$PLAYWRIGHT_JSON_OUTPUT")" "$CENSUS_VISUAL_OUTPUT_DIR"
 
-run_firestore_emulator_exec "npx playwright test -c playwright.emulator-critical.config.ts e2e/census-13-inch-visual.spec.ts e2e/clinical-explorer-visual.spec.ts --project=chromium"
+run_firestore_emulator_exec "npx playwright test -c playwright.emulator-critical.config.ts e2e/census-13-inch-visual.spec.ts e2e/clinical-explorer-visual.spec.ts e2e/clinical-explorer-history.spec.ts --project=chromium"

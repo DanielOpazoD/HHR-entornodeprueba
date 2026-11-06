@@ -16,12 +16,20 @@ import {
 import type { AlertQueue } from './lib/telemetry-alerts/queueTypes';
 import { createRuntimeAlertQueue, logAlertDelivery } from './lib/telemetry-alerts/runtime';
 import type { TelemetryRuntimeContext } from './lib/telemetry-alerts/store';
+import {
+  countWithinBudget,
+  createRuntimeTelemetryCounter,
+  type TelemetryCountEntry,
+  type TelemetryCountResult,
+} from './lib/telemetry-counts';
 
 const RATE_LIMIT = { maxPerWindow: 60, windowMs: 60_000 };
 export interface OperationalTelemetryHandlerDeps {
   queue: () => AlertQueue;
   now: () => number;
   log: (line: string) => void;
+  /** Daily counts by operation, status and alert outcome. A failure never changes the answer. */
+  count?: (entry: TelemetryCountEntry) => Promise<TelemetryCountResult>;
 }
 export const createOperationalTelemetryHandler =
   (deps: OperationalTelemetryHandlerDeps) => async (event: NetlifyEventLike) => {
@@ -47,13 +55,21 @@ export const createOperationalTelemetryHandler =
     const parsed = parseOperationalTelemetryBody(event.body);
     if (!parsed.ok)
       return response(parsed.reason === 'too_large' ? 413 : 400, { error: parsed.reason });
+    const receivedAt = deps.now();
+    const count = async (alert: string): Promise<TelemetryCountResult | undefined> => {
+      if (!deps.count) return undefined;
+      const { operation, status } = parsed.event;
+      return countWithinBudget(deps.count, { operation, status, alert, receivedAt });
+    };
     let delivery: { alert: string; id?: string } = { alert: 'not_alertable' };
     try {
       if (shouldAlertOperationalTelemetry(parsed.event)) {
         const queue = deps.queue();
         delivery = await queue.enqueue(parsed.event);
-        if (delivery.alert === 'queue_full')
+        if (delivery.alert === 'queue_full') {
+          await count('queue_full');
           return response(503, { accepted: false, error: 'alert_queue_full' });
+        }
         if (delivery.alert === 'queued' && delivery.id) delivery = await queue.deliver(delivery.id);
       }
     } catch {
@@ -63,6 +79,7 @@ export const createOperationalTelemetryHandler =
           source: 'operational-telemetry',
           kind: 'delivery_unavailable',
           code: 'alert_store_unavailable',
+          count: await count('alert_store_unavailable'),
         })
       );
       return response(503, { accepted: false, error: 'alert_store_unavailable' });
@@ -71,8 +88,9 @@ export const createOperationalTelemetryHandler =
       JSON.stringify({
         source: 'operational-telemetry',
         kind: 'event',
-        receivedAt: new Date(deps.now()).toISOString(),
+        receivedAt: new Date(receivedAt).toISOString(),
         ...delivery,
+        count: await count(delivery.alert),
         event: parsed.event,
       })
     );
@@ -104,6 +122,7 @@ export default async (request: Request, context: TelemetryRuntimeContext): Promi
     queue: () => createRuntimeAlertQueue(context),
     now: Date.now,
     log: logAlertDelivery,
+    count: entry => createRuntimeTelemetryCounter(context)(entry),
   });
   const result = await handler({
     httpMethod: request.method,

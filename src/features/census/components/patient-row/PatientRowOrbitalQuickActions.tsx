@@ -30,7 +30,6 @@ interface PatientRowOrbitalQuickActionsProps extends PatientRowOrbitalQuickActio
   onViewClinicalDocuments?: () => void;
   onViewExamRequest?: () => void;
   onViewImagingRequest?: () => void;
-  onViewMedicalIndications?: () => void;
   badges?: PatientRowOrbitalQuickActionBadges;
 }
 
@@ -38,11 +37,9 @@ export const PatientRowOrbitalQuickActions: React.FC<PatientRowOrbitalQuickActio
   showClinicalDocumentsAction,
   showExamRequestAction,
   showImagingRequestAction,
-  showMedicalIndicationsAction,
   onViewClinicalDocuments,
   onViewExamRequest,
   onViewImagingRequest,
-  onViewMedicalIndications,
   badges,
 }) => {
   const { isOpen, menuRef, setIsOpen, toggle, close } = useDropdownMenu();
@@ -55,14 +52,8 @@ export const PatientRowOrbitalQuickActions: React.FC<PatientRowOrbitalQuickActio
       showClinicalDocumentsAction,
       showExamRequestAction,
       showImagingRequestAction,
-      showMedicalIndicationsAction,
     }),
-    [
-      showClinicalDocumentsAction,
-      showExamRequestAction,
-      showImagingRequestAction,
-      showMedicalIndicationsAction,
-    ]
+    [showClinicalDocumentsAction, showExamRequestAction, showImagingRequestAction]
   );
 
   const orbitalItems = React.useMemo(
@@ -132,7 +123,6 @@ export const PatientRowOrbitalQuickActions: React.FC<PatientRowOrbitalQuickActio
       onViewClinicalDocuments,
       onViewExamRequest,
       onViewImagingRequest,
-      onViewMedicalIndications,
     });
     close();
   };

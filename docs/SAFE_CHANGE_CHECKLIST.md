@@ -84,6 +84,17 @@ La clasificación remota `docs-only` se decide en CI; no forzar ni omitir checks
 
 ### Checklist de cierre
 
+La simplificación de acciones rápidas y la jerarquía del explorador clínico son
+`safe_local_ui`: la tortuga ofrece documentos, laboratorio e imágenes; el explorador
+prioriza evoluciones, signos vitales, laboratorio, imágenes e indicaciones. Los vitales
+usan la última toma ya disponible del paciente/episodio en el censo, con los perfiles
+visuales existentes. Se conserva la lectura compartida de evoluciones/indicaciones,
+la fecha seleccionada y el regreso al censo incluso durante carga o fallo del módulo.
+Validar pruebas focalizadas, escritorio de 1280/1024 px y móvil, valores ausentes/cero,
+cambio de episodio, fecha/hora hospitalaria, teclado/foco, regreso alineado con
+la identidad y lista de altura natural en escritorio, build/budgets, revisión
+independiente y CI del head definitivo. No cambia fuentes, permisos ni persistencia.
+
 La continuidad visual del acceso y el espaciado de Enfermería/TENS son `safe_local_ui`.
 El ingreso aceptado mantiene el panel de progreso hasta que avanza la sesión; comprobar
 también error de autorización, cierre de sesión y carga inicial sin reaparecer credenciales.

@@ -15,15 +15,10 @@ export interface PatientRowOrbitalQuickActionsAvailability {
   showClinicalDocumentsAction: boolean;
   showExamRequestAction: boolean;
   showImagingRequestAction: boolean;
-  showMedicalIndicationsAction?: boolean;
 }
 
 /** Icon asset identifiers used by the orbital action items. */
-export type PatientRowOrbitalQuickActionAsset =
-  | 'rongorongo'
-  | 'mangai'
-  | 'ahutepitokura'
-  | 'manutara';
+export type PatientRowOrbitalQuickActionAsset = 'rongorongo' | 'mangai' | 'ahutepitokura';
 
 /**
  * Badge counts passed from the census table to the orbital launcher.
@@ -36,7 +31,7 @@ export interface PatientRowOrbitalQuickActionBadges {
 
 /** A single action item rendered in the orbital launcher. */
 export interface PatientRowOrbitalQuickActionItem {
-  id: 'clinical-documents' | 'exam-request' | 'imaging-request' | 'medical-indications';
+  id: 'clinical-documents' | 'exam-request' | 'imaging-request';
   label: string;
   tooltip: string;
   iconAsset: PatientRowOrbitalQuickActionAsset;
@@ -49,7 +44,6 @@ export interface PatientRowOrbitalQuickActionCallbacks {
   onViewClinicalDocuments?: () => void;
   onViewExamRequest?: () => void;
   onViewImagingRequest?: () => void;
-  onViewMedicalIndications?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -84,14 +78,6 @@ const ORBITAL_ACTION_DEFINITIONS: OrbitalActionDefinition[] = [
     iconAsset: 'ahutepitokura',
     buttonClassName: 'bg-white text-slate-700 hover:bg-slate-100',
     visible: 'showImagingRequestAction',
-  },
-  {
-    id: 'medical-indications',
-    label: 'Indicaciones',
-    tooltip: 'Indicaciones médicas',
-    iconAsset: 'manutara',
-    buttonClassName: 'bg-white text-slate-700 hover:bg-slate-100',
-    visible: 'showMedicalIndicationsAction',
   },
 ];
 
@@ -143,8 +129,7 @@ export const hasPatientRowOrbitalQuickActions = (
 ): boolean =>
   availability.showClinicalDocumentsAction ||
   availability.showExamRequestAction ||
-  availability.showImagingRequestAction ||
-  Boolean(availability.showMedicalIndicationsAction);
+  availability.showImagingRequestAction;
 
 export const dispatchPatientRowOrbitalQuickAction = (
   itemId: PatientRowOrbitalQuickActionItem['id'],
@@ -164,6 +149,4 @@ export const dispatchPatientRowOrbitalQuickAction = (
     callbacks.onViewImagingRequest?.();
     return;
   }
-
-  callbacks.onViewMedicalIndications?.();
 };

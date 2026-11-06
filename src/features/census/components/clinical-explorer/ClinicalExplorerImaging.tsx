@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState } from 'react';
+import React, { lazy, Suspense, useLayoutEffect, useRef, useState } from 'react';
 import { FileText, Images } from 'lucide-react';
 import { XRayIcon } from '@/components/ui/XRayIcon';
 import { hasMMRADStructuredReport } from '@/components/modals/controllers/radiologyViewerContentController';
@@ -10,13 +10,15 @@ import {
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import {
   describeMMRADRegisteredPatient,
-  fetchMMRADPdfBlobUrl,
+  fetchMMRADPdfBlob,
   type MMRADExam,
 } from '@/services/radiology/mmradService';
+import { getSessionEpoch, onSessionChange } from '@/services/storage/sessionStorageTransition';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import { formatStudyStamp, isCtStudy, studyKey } from './clinicalExplorerImagingModel';
 import {
   AreaCard,
+  EXPLORER_ACTION_BUTTON,
   EmptyNote,
   LinkButton,
   ReadFailure,
@@ -25,6 +27,7 @@ import {
 } from './clinicalExplorerUi';
 import { useClinicalExplorerImaging } from './useClinicalExplorerImaging';
 import { ClinicalExplorerReportActions } from './ClinicalExplorerReportActions';
+import { ClinicalExplorerIdentityNotice } from './ClinicalExplorerIdentityNotice';
 
 const DicomViewerDialog = lazy(() =>
   import('@/components/radiology/DicomViewerDialog').then(module => ({
@@ -39,9 +42,6 @@ interface ClinicalExplorerImagingProps {
 }
 
 const COMPACT_STUDIES = 4;
-const SMALL_BUTTON =
-  'inline-flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 disabled:cursor-wait disabled:opacity-60';
-
 const ReportText: React.FC<{ exam: MMRADExam }> = ({ exam }) => {
   const report = exam.report;
   if (!report) return null;
@@ -55,9 +55,7 @@ const ReportText: React.FC<{ exam: MMRADExam }> = ({ exam }) => {
       {sections.map(([label, text]) =>
         text ? (
           <div key={label}>
-            <dt className="text-[9.5px] font-semibold uppercase tracking-wide text-slate-400">
-              {label}
-            </dt>
+            <dt className="text-[11px] font-medium text-slate-500">{label}</dt>
             <dd className={label === 'Impresión' ? 'font-medium text-slate-800' : undefined}>
               {text}
             </dd>
@@ -91,32 +89,78 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
   const [pdfMessage, setPdfMessage] = useState<string | null>(null);
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
 
+  const pdfOperation = useRef<{ controller: AbortController; popup: Window } | null>(null);
+
+  useLayoutEffect(() => {
+    setPdfBusy(null);
+    setPdfMessage(null);
+    const cancel = (): void => {
+      const pending = pdfOperation.current;
+      pdfOperation.current = null;
+      pending?.controller.abort();
+      pending?.popup.close();
+    };
+    const unsubscribe = onSessionChange(() => {
+      cancel();
+      setPdfBusy(null);
+      setPdfMessage(null);
+    });
+    return () => {
+      unsubscribe();
+      cancel();
+    };
+  }, [patientIdentity, sessionEpoch]);
+
   const studies = expanded ? imaging.studies : imaging.studies.slice(0, COMPACT_STUDIES);
   const viewerExam = imaging.studies.find(exam => studyKey(exam) === viewerKey) ?? null;
 
   const openPdf = async (exam: MMRADExam): Promise<void> => {
-    if (!exam.pdf_url) return;
+    if (!exam.pdf_url || pdfOperation.current || getSessionEpoch() !== sessionEpoch) return;
     const popup = defaultBrowserWindowRuntime.open('', '_blank');
     if (!popup) return;
+    const operation = { controller: new AbortController(), popup };
+    pdfOperation.current = operation;
+    const isCurrent = (): boolean =>
+      pdfOperation.current === operation &&
+      !operation.controller.signal.aborted &&
+      getSessionEpoch() === sessionEpoch;
     setPdfMessage(null);
     setPdfBusy(studyKey(exam));
     try {
-      const url = await fetchMMRADPdfBlobUrl(exam.pdf_url);
-      popup.location.href = url;
-      popup.focus();
-      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      const blob = await fetchMMRADPdfBlob(exam.pdf_url, operation.controller.signal);
+      if (!isCurrent() || popup.closed) return;
+      const url = URL.createObjectURL(blob);
+      try {
+        popup.location.href = url;
+        popup.focus();
+        window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      } catch (error) {
+        URL.revokeObjectURL(url);
+        throw error;
+      }
     } catch (error) {
-      popup.close();
-      setPdfMessage(error instanceof Error ? error.message : 'No se pudo abrir el informe.');
+      if (isCurrent()) {
+        popup.close();
+        setPdfMessage(error instanceof Error ? error.message : 'No se pudo abrir el informe.');
+      }
     } finally {
-      setPdfBusy(null);
+      if (pdfOperation.current === operation) {
+        pdfOperation.current = null;
+        setPdfBusy(null);
+      }
     }
   };
 
   const body = (): React.ReactNode => {
     if (imaging.phase === 'listing') return <SkeletonLines label="Consultando MMRAD" />;
     if (imaging.phase === 'error')
-      return <ReadFailure message={imaging.message} onRetry={imaging.retry} />;
+      return (
+        <ReadFailure
+          summary="No se pudo consultar imágenes."
+          message={imaging.message}
+          onRetry={imaging.retry}
+        />
+      );
     if (imaging.phase === 'empty') {
       return (
         <>
@@ -143,16 +187,15 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
                     <p className="truncate text-[12px] font-semibold text-slate-700">
                       {exam.nombre_examen}
                     </p>
-                    <p className="text-[10.5px] tabular-nums text-slate-500">
+                    <p className="relative flex items-center gap-1 text-[10.5px] tabular-nums text-slate-500">
                       {formatStudyStamp(exam.fecha_examen)}
                       {exam.registered_patient_id && (
-                        <span className="ml-2 text-slate-500">
-                          ·{' '}
-                          {describeMMRADRegisteredPatient(
+                        <ClinicalExplorerIdentityNotice
+                          message={describeMMRADRegisteredPatient(
                             exam.registered_patient_id,
                             exam.registered_patient_name
                           )}
-                        </span>
+                        />
                       )}
                     </p>
                   </div>
@@ -160,17 +203,17 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
                     {exam.dicom_url && (
                       <button
                         type="button"
-                        className={SMALL_BUTTON}
+                        className={EXPLORER_ACTION_BUTTON}
                         onClick={() => setViewerKey(key)}
                       >
-                        <Images size={13} aria-hidden="true" className="text-violet-700" />
+                        <Images size={13} aria-hidden="true" className="text-slate-500" />
                         Imágenes
                       </button>
                     )}
                     {ct && structured && (
                       <button
                         type="button"
-                        className={SMALL_BUTTON}
+                        className={EXPLORER_ACTION_BUTTON}
                         aria-expanded={openReport === key}
                         onClick={() => setOpenReport(current => (current === key ? null : key))}
                       >
@@ -181,8 +224,8 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
                     {ct && !structured && exam.pdf_url && (
                       <button
                         type="button"
-                        className={SMALL_BUTTON}
-                        disabled={pdfBusy === key}
+                        className={EXPLORER_ACTION_BUTTON}
+                        disabled={pdfBusy !== null}
                         onClick={() => void openPdf(exam)}
                       >
                         <FileText size={13} aria-hidden="true" className="text-slate-500" />
@@ -225,7 +268,6 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
   return (
     <AreaCard
       icon={<XRayIcon size={14} />}
-      iconClassName="text-violet-700"
       title="Imágenes"
       subtitle={
         imaging.phase === 'ready' || imaging.phase === 'empty'
