@@ -92,6 +92,10 @@ test.describe('Auth login resilience matrix', () => {
       await route.continue();
     });
     try {
+      // The startup shell and the login page each read the hospital clock to pick day or night.
+      // Both must read one instant: a run that crosses 08:00 or 20:00 in Rapa Nui would
+      // otherwise compare a day wallpaper with a night one.
+      await page.clock.setFixedTime(Date.now());
       await page.reload({ waitUntil: 'domcontentloaded' });
       await expect.poll(() => moduleRequested).toBe(true);
       await expect(page.getByTestId('login-loading-shell')).toBeVisible();
