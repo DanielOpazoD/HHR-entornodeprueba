@@ -79,8 +79,8 @@ type CtListing =
 
 /**
  * The MMRAD studies of the stay, by the same search the explorer runs, once both the exact and the
- * check-digit answers are in. A failed exact search with a list this session already showed keeps
- * that list; without one it is a failure, never «sin TAC» (SAVE-01).
+ * check-digit answers are in. A failed exact search is a failure, never «sin TAC» (SAVE-01): what
+ * the session remembers may come from a check-digit answer alone, so it proves nothing.
  */
 const listMmradStudies = (
   query: { rut: string; patientName: string; dateFrom: string },
@@ -97,20 +97,11 @@ const listMmradStudies = (
       const notes = partial
         ? ['La búsqueda por dígito verificador no terminó; puede faltar algún TAC.']
         : [];
-      if (exactError === null) {
-        resolve({ kind: 'ready', studies, notes });
-      } else if (handle.remembered) {
-        resolve({
-          kind: 'ready',
-          studies: mergeMMRADExamLists(handle.remembered.examenes, studies),
-          notes: [
-            `No se pudo actualizar la lista de MMRAD (${exactError}); se usan los estudios ya listados.`,
-            ...notes,
-          ],
-        });
-      } else {
-        resolve({ kind: 'failed', problem: `MMRAD no respondió: ${exactError}` });
-      }
+      resolve(
+        exactError === null
+          ? { kind: 'ready', studies, notes }
+          : { kind: 'failed', problem: `MMRAD no respondió: ${exactError}` }
+      );
     };
     signal.addEventListener('abort', () => resolve({ kind: 'failed', problem: '' }), {
       once: true,

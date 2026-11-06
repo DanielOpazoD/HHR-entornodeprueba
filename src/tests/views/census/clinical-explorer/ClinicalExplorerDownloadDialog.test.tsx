@@ -38,6 +38,8 @@ vi.mock('@/services/exporters/exportDownload', () => ({
 import { BEDS } from '@/constants/beds';
 import { ClinicalExplorerHeader } from '@/features/census/components/clinical-explorer/ClinicalExplorerHeader';
 import { listClinicalExplorerPatients } from '@/features/census/controllers/clinicalExplorerController';
+import { openMMRADExamListMemory } from '@/components/modals/controllers/radiologyExamListMemory';
+import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
@@ -277,6 +279,29 @@ describe('ClinicalExplorerDownloadDialog', () => {
       expect.stringMatching(/^Informes de TAC · MMRADSin TAC en esta hospitalización\./),
     ]);
     expect(mocks.pdf).not.toHaveBeenCalled();
+  });
+
+  it('reports a failed MMRAD search as a failure, never as a stay without CT', async () => {
+    // The session already remembers an empty check-digit answer for this stay: that proves nothing.
+    localStorage.setItem(SESSION_OWNER_KEY, 'owner-synthetic');
+    act(() => setSessionGeneration('session-a'));
+    openMMRADExamListMemory({ rut: RUT, dateFrom: '2026-11-01', dateTo: '' }).remember({
+      rut: RUT,
+      examenes: [],
+      check_digit_search: 'partial',
+    });
+    mocks.search.mockRejectedValue(new Error('Servidor MMRAD no disponible.'));
+    mocks.checkDigit.mockResolvedValue({ rut: RUT, examenes: [], check_digit_search: 'partial' });
+    renderHeader();
+    const dialog = openDialog();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Descargar' }));
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/Falta parte de lo pedido/);
+    const progress = within(dialog).getByRole('list', { name: 'Avance de la descarga' });
+    expect(progress).toHaveTextContent('MMRAD no respondió: Servidor MMRAD no disponible.');
+    expect(progress).not.toHaveTextContent('Sin TAC');
+    expect(mocks.download).not.toHaveBeenCalled();
+    localStorage.removeItem(SESSION_OWNER_KEY);
   });
 
   it('reads Syslab from an earlier «desde» and leaves out the parts not chosen', async () => {
