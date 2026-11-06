@@ -179,7 +179,10 @@ describe('ClinicalExplorerPrintActions', () => {
 
   it('opens the official current prescription and reports when Eloísa cannot', async () => {
     renderActions();
-    fireEvent.click(screen.getByRole('button', { name: 'Receta' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Receta' }));
+    });
+    expect(screen.getByRole('button', { name: 'Receta' })).toBeEnabled();
     await waitFor(() => expect(mocks.action).toHaveBeenCalledTimes(1));
     expect(mocks.action.mock.calls[0].slice(0, 2)).toEqual(['147950', 'prescription']);
     expect(screen.queryByRole('alert')).toBeNull();
