@@ -5,6 +5,7 @@ import type { ClinicalExplorerPatient } from '@/features/census/controllers/clin
 import { calculateHospitalizedDays } from '@/features/census/controllers/patientBedConfigViewController';
 import { formatAge } from '@/utils/ageDisplayUtils';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
+import { ClinicalExplorerPrintActions } from './ClinicalExplorerPrintActions';
 import { StatusDot } from './clinicalExplorerUi';
 
 const LazyImagingRequestDialog = lazy(() =>
@@ -25,6 +26,8 @@ interface ClinicalExplorerHeaderProps {
   /** The laboratory request belongs to the explorer: it may gather several patients. */
   onRequestExams: () => void;
   censusDate: string;
+  /** Day chosen in the indications area; null means today. Printing uses the same day. */
+  indicationDate: string | null;
 }
 
 const QUICK_BUTTON =
@@ -35,6 +38,7 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
   patient,
   onRequestExams,
   censusDate,
+  indicationDate,
 }) => {
   const { data, bedId, episodeId } = patient;
   const identity = `${bedId}:${episodeId}`;
@@ -58,7 +62,7 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
       <span className="inline-flex h-8 min-w-11 items-center justify-center rounded-lg bg-slate-100 px-2 font-display text-[15px] font-bold text-slate-800">
         {bedId}
       </span>
-      <div className="flex min-w-0 flex-1 basis-[26rem] flex-col gap-0.5">
+      <div className="flex min-w-0 flex-1 basis-[24rem] flex-col gap-0.5">
         <h2 className="flex min-w-0 items-baseline gap-2 text-[13.5px] font-semibold uppercase leading-tight text-slate-800">
           <span className="truncate" title={patientName}>
             {patientName}
@@ -126,6 +130,12 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
           <FolderOpen size={13} aria-hidden="true" className="text-slate-500" />
           Documentos
         </button>
+        <span aria-hidden="true" className="mx-0.5 h-5 w-px bg-slate-200" />
+        <ClinicalExplorerPrintActions
+          key={identity}
+          patient={patient}
+          indicationDate={indicationDate}
+        />
       </div>
 
       {action === 'imaging' && (
