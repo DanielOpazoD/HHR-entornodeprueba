@@ -1,5 +1,8 @@
 // @vitest-environment node
-import { ONLINE_ONLY_ASSET_GLOBS, ONLINE_ONLY_PRECACHE_PATTERNS } from '../../../scripts/config/onlineOnlyAssets.mjs';
+import {
+  ONLINE_ONLY_ASSET_GLOBS,
+  ONLINE_ONLY_PRECACHE_PATTERNS,
+} from '../../../scripts/config/onlineOnlyAssets.mjs';
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
@@ -79,6 +82,23 @@ describe('PWA precache policy', () => {
     for (const chunk of ['LineChart', 'LabViewerAnalysis', 'labExcelService']) {
       expect(readViteConfig()).toContain(`**/assets/${chunk}-*.js`);
       expect(patterns.some(pattern => pattern.test(`assets/${chunk}-fixture.js`))).toBe(true);
+    }
+  });
+
+  it('keeps the SVG and HTML renderers that only jsPDF loads online only, like jsPDF', () => {
+    const patterns = readBundleBudgetConfig().precacheIgnoredAssetPatterns.map(
+      pattern => new RegExp(pattern)
+    );
+    for (const [moduleId, chunk] of [
+      ['/repo/node_modules/jspdf/dist/jspdf.es.min.js', 'vendor-pdf-core'],
+      ['/repo/node_modules/canvg/lib/index.es.js', 'vendor-pdf-canvg'],
+      ['/repo/node_modules/dompurify/dist/purify.es.mjs', 'vendor-pdf-purify'],
+    ]) {
+      expect(chunkForModule(moduleId), moduleId).toBe(chunk);
+      expect(
+        patterns.some(pattern => pattern.test(`assets/${chunk}-fixture.js`)),
+        chunk
+      ).toBe(true);
     }
   });
 
