@@ -8,7 +8,7 @@ import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 export const useCudyrSupplements = (data: CudyrReportDataset | null) => {
   const { currentUser, role } = useAuth();
   const uid = currentUser?.uid;
-  const key = data ? `${uid}:${role}:${data.from}:${data.to}:${data.generatedAt}` : '';
+  const key = data && uid ? `${uid}:${role}:${data.from}:${data.to}:${data.generatedAt}` : '';
   const [revision, setRevision] = useState(0);
   const [state, setState] = useState<{
     key: string;
@@ -16,6 +16,7 @@ export const useCudyrSupplements = (data: CudyrReportDataset | null) => {
     error: string;
     ready: boolean;
   }>({ key: '', reports: [], error: '', ready: false });
+  if (state.key !== key) setState({ key, reports: [], error: '', ready: false });
   useEffect(() => {
     if (!data || !uid) return;
     const controller = new AbortController();

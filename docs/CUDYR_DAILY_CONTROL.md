@@ -12,6 +12,10 @@ La navegación reutiliza el caché por cuenta y sesión. La verificación remota
 la versión de fuentes; un fallo conserva la última copia e informa la falta de conexión.
 El cambio de cuenta no reutiliza los datos clínicos de la sesión anterior.
 
+El explorador lee el respaldo mensual complementario después de verificar el reporte,
+evitando descargarlo para copias provisionales. Una nueva consulta vuelve a verificar
+ambas lecturas; la exportación espera a que terminen correctamente.
+
 ## Interpretación
 
 - **Registrado:** existe una categorización en Eloísa; no implica elegibilidad.
