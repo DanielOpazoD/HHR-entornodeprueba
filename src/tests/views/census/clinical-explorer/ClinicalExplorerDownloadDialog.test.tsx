@@ -155,7 +155,12 @@ const okRecord = async (): Promise<AuditDocumentsResult> => ({
 
 const renderHeader = (current = patient!) =>
   render(
-    <ClinicalExplorerHeader patient={current} onRequestExams={vi.fn()} censusDate="2026-11-06" />
+    <ClinicalExplorerHeader
+      patient={current}
+      onRequestExams={vi.fn()}
+      censusDate="2026-11-06"
+      indicationDate={null}
+    />
   );
 
 const openDialog = () => {
@@ -485,13 +490,19 @@ describe('ClinicalExplorerDownloadDialog', () => {
         patient={otherPatient!}
         onRequestExams={vi.fn()}
         censusDate="2026-11-06"
+        indicationDate={null}
       />
     );
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(mocks.auditCancel).toHaveBeenCalledTimes(1);
 
     view.rerender(
-      <ClinicalExplorerHeader patient={patient!} onRequestExams={vi.fn()} censusDate="2026-11-06" />
+      <ClinicalExplorerHeader
+        patient={patient!}
+        onRequestExams={vi.fn()}
+        censusDate="2026-11-06"
+        indicationDate={null}
+      />
     );
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(mocks.download).not.toHaveBeenCalled();
