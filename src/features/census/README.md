@@ -328,3 +328,8 @@ con la identidad, sin una franja superior adicional. Sigue fuera del módulo de
 carga diferida. La lista tiene altura según su contenido, máximo visible y scroll.
 Las acciones del paciente y las pestañas usan menos bordes; los iconos de sección
 son neutros y los colores de vitales conservan su significado clínico.
+
+El eje temporal del laboratorio ajusta sus etiquetas al ancho disponible, conserva
+los extremos y señala el día del censo. Al cruzar de año incluye el año en la fecha.
+Las etiquetas de calendario son limitadas por espacio; los resultados, sus valores,
+los puntos seleccionables y la tabla diaria se conservan íntegros.

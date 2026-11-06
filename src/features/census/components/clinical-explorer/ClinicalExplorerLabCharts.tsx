@@ -2,7 +2,7 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import {
-  addCalendarDays,
+  buildLabAxisDays,
   buildNiceTicks,
   calendarDaysBetween,
   formatLabNumber,
@@ -69,8 +69,8 @@ export const ClinicalExplorerLabCharts: React.FC<ClinicalExplorerLabChartsProps>
   const xFor = (dayIso: string): number =>
     PAD_LEFT + ((calendarDaysBetween(startIso, dayIso) + 0.5) / dayCount) * innerWidth;
   const panelHeight = expanded ? 136 : 100;
-  const labelEvery = dayCount > 20 ? 5 : dayCount > 10 ? 2 : 1;
-  const axisDays = Array.from({ length: dayCount }, (_, index) => addCalendarDays(startIso, index));
+  const axisDays = buildLabAxisDays(startIso, endIso, innerWidth);
+  const spansYears = startIso.slice(0, 4) !== endIso.slice(0, 4);
   const showAdmission = admissionIso >= startIso && admissionIso <= endIso;
 
   return (
@@ -79,9 +79,13 @@ export const ClinicalExplorerLabCharts: React.FC<ClinicalExplorerLabChartsProps>
         const values = variable.points.map(point => point.value);
         const scale = buildNiceTicks(Math.min(...values), Math.max(...values));
         const yFor = (value: number): number =>
-          TOP + (1 - (value - scale.min) / (scale.max - scale.min || 1)) * (panelHeight - TOP - BOTTOM);
+          TOP +
+          (1 - (value - scale.min) / (scale.max - scale.min || 1)) * (panelHeight - TOP - BOTTOM);
         const path = variable.points
-          .map((point, index) => `${index ? 'L' : 'M'}${xFor(point.dayIso).toFixed(1)} ${yFor(point.value).toFixed(1)}`)
+          .map(
+            (point, index) =>
+              `${index ? 'L' : 'M'}${xFor(point.dayIso).toFixed(1)} ${yFor(point.value).toFixed(1)}`
+          )
           .join(' ');
         const last = variable.points[variable.points.length - 1];
         return (
@@ -100,26 +104,65 @@ export const ClinicalExplorerLabCharts: React.FC<ClinicalExplorerLabChartsProps>
             >
               {scale.ticks.map(tick => (
                 <g key={tick}>
-                  <line x1={PAD_LEFT} x2={PAD_LEFT + innerWidth} y1={yFor(tick)} y2={yFor(tick)} stroke="#f1f5f9" />
-                  <text x={PAD_LEFT - 6} y={yFor(tick) + 3} textAnchor="end" fontSize={10} fill="#94a3b8" className="tabular-nums">
+                  <line
+                    x1={PAD_LEFT}
+                    x2={PAD_LEFT + innerWidth}
+                    y1={yFor(tick)}
+                    y2={yFor(tick)}
+                    stroke="#f1f5f9"
+                  />
+                  <text
+                    x={PAD_LEFT - 6}
+                    y={yFor(tick) + 3}
+                    textAnchor="end"
+                    fontSize={10}
+                    fill="#94a3b8"
+                    className="tabular-nums"
+                  >
                     {formatLabNumber(tick)}
                   </text>
                 </g>
               ))}
               {showAdmission && (
                 <>
-                  <line x1={xFor(admissionIso)} x2={xFor(admissionIso)} y1={TOP - 4} y2={panelHeight - BOTTOM} stroke="#94a3b8" strokeDasharray="2 3" />
+                  <line
+                    x1={xFor(admissionIso)}
+                    x2={xFor(admissionIso)}
+                    y1={TOP - 4}
+                    y2={panelHeight - BOTTOM}
+                    stroke="#94a3b8"
+                    strokeDasharray="2 3"
+                  />
                   {panelIndex === 0 && (
-                    <text x={xFor(admissionIso) + 3} y={TOP - 6} fontSize={9} fontWeight={600} fill="#64748b">
+                    <text
+                      x={xFor(admissionIso) + 3}
+                      y={TOP - 6}
+                      fontSize={9}
+                      fontWeight={600}
+                      fill="#64748b"
+                    >
                       Ingreso
                     </text>
                   )}
                 </>
               )}
               {selectedDay && selectedDay >= startIso && selectedDay <= endIso && (
-                <line x1={xFor(selectedDay)} x2={xFor(selectedDay)} y1={TOP - 4} y2={panelHeight - BOTTOM} stroke="#0369a1" />
+                <line
+                  x1={xFor(selectedDay)}
+                  x2={xFor(selectedDay)}
+                  y1={TOP - 4}
+                  y2={panelHeight - BOTTOM}
+                  stroke="#0369a1"
+                />
               )}
-              <path d={path} fill="none" stroke="#059669" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+              <path
+                d={path}
+                fill="none"
+                stroke="#059669"
+                strokeWidth={2}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
               {variable.points.map(point => (
                 <circle
                   key={point.columnKey}
@@ -132,7 +175,14 @@ export const ClinicalExplorerLabCharts: React.FC<ClinicalExplorerLabChartsProps>
                 />
               ))}
               {last && (
-                <text x={xFor(last.dayIso) + 9} y={yFor(last.value) + 4} fontSize={11} fontWeight={600} fill="#334155" className="tabular-nums">
+                <text
+                  x={xFor(last.dayIso) + 9}
+                  y={yFor(last.value) + 4}
+                  fontSize={11}
+                  fontWeight={600}
+                  fill="#334155"
+                  className="tabular-nums"
+                >
                   {last.display}
                 </text>
               )}
@@ -148,8 +198,22 @@ export const ClinicalExplorerLabCharts: React.FC<ClinicalExplorerLabChartsProps>
                   tabIndex={0}
                   role="button"
                   aria-label={`${variable.name} ${point.display} ${variable.unit} el ${formatDateDDMMYYYY(point.dayIso)}${point.time ? ` ${point.time}` : ''}`}
-                  onMouseEnter={() => setHover({ variable: variable.name, point, x: xFor(point.dayIso), y: yFor(point.value) + panelIndex * (panelHeight + 2) })}
-                  onFocus={() => setHover({ variable: variable.name, point, x: xFor(point.dayIso), y: yFor(point.value) + panelIndex * (panelHeight + 2) })}
+                  onMouseEnter={() =>
+                    setHover({
+                      variable: variable.name,
+                      point,
+                      x: xFor(point.dayIso),
+                      y: yFor(point.value) + panelIndex * (panelHeight + 2),
+                    })
+                  }
+                  onFocus={() =>
+                    setHover({
+                      variable: variable.name,
+                      point,
+                      x: xFor(point.dayIso),
+                      y: yFor(point.value) + panelIndex * (panelHeight + 2),
+                    })
+                  }
                   onMouseLeave={() => setHover(null)}
                   onBlur={() => setHover(null)}
                   onClick={() => onSelectDay(point.dayIso)}
@@ -165,12 +229,16 @@ export const ClinicalExplorerLabCharts: React.FC<ClinicalExplorerLabChartsProps>
           </div>
         );
       })}
-      <svg aria-hidden="true" viewBox={`0 0 ${width} ${AXIS_HEIGHT}`} width={width} height={AXIS_HEIGHT} className="block overflow-visible font-sans">
+      <svg
+        aria-hidden="true"
+        viewBox={`0 0 ${width} ${AXIS_HEIGHT}`}
+        width={width}
+        height={AXIS_HEIGHT}
+        className="block overflow-visible font-sans"
+      >
         <line x1={PAD_LEFT} x2={PAD_LEFT + innerWidth} y1={1} y2={1} stroke="#e2e8f0" />
-        {axisDays.map((dayIso, index) => {
+        {axisDays.map(dayIso => {
           const isCensus = dayIso === endIso;
-          const nearCensus = !isCensus && dayCount - 1 - index === 1;
-          if (!(isCensus || (index % labelEvery === 0 && !nearCensus))) return null;
           return (
             <text
               key={dayIso}
@@ -182,7 +250,7 @@ export const ClinicalExplorerLabCharts: React.FC<ClinicalExplorerLabChartsProps>
               fill={isCensus ? '#334155' : '#94a3b8'}
               className="tabular-nums"
             >
-              {ddmm(dayIso)}
+              {spansYears ? formatDateDDMMYYYY(dayIso) : ddmm(dayIso)}
               {isCensus ? ' censo' : ''}
             </text>
           );
@@ -196,7 +264,8 @@ export const ClinicalExplorerLabCharts: React.FC<ClinicalExplorerLabChartsProps>
           )}
           style={{ left: Math.min(hover.x + 10, width - 150), top: hover.y + 10 }}
         >
-          <b className="font-semibold">{hover.variable}</b> · {formatDateDDMMYYYY(hover.point.dayIso)}
+          <b className="font-semibold">{hover.variable}</b> ·{' '}
+          {formatDateDDMMYYYY(hover.point.dayIso)}
           {hover.point.time ? ` ${hover.point.time}` : ''}
           <br />
           {hover.point.display}
