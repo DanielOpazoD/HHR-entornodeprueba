@@ -17,6 +17,7 @@ import type { AlertQueue } from './lib/telemetry-alerts/queueTypes';
 import { createRuntimeAlertQueue, logAlertDelivery } from './lib/telemetry-alerts/runtime';
 import type { TelemetryRuntimeContext } from './lib/telemetry-alerts/store';
 import {
+  countWithinBudget,
   createRuntimeTelemetryCounter,
   type TelemetryCountEntry,
   type TelemetryCountResult,
@@ -54,14 +55,11 @@ export const createOperationalTelemetryHandler =
     const parsed = parseOperationalTelemetryBody(event.body);
     if (!parsed.ok)
       return response(parsed.reason === 'too_large' ? 413 : 400, { error: parsed.reason });
+    const receivedAt = deps.now();
     const count = async (alert: string): Promise<TelemetryCountResult | undefined> => {
       if (!deps.count) return undefined;
-      try {
-        const { operation, status } = parsed.event;
-        return await deps.count({ operation, status, alert });
-      } catch {
-        return 'count_failed';
-      }
+      const { operation, status } = parsed.event;
+      return countWithinBudget(deps.count, { operation, status, alert, receivedAt });
     };
     let delivery: { alert: string; id?: string } = { alert: 'not_alertable' };
     try {
@@ -90,7 +88,7 @@ export const createOperationalTelemetryHandler =
       JSON.stringify({
         source: 'operational-telemetry',
         kind: 'event',
-        receivedAt: new Date(deps.now()).toISOString(),
+        receivedAt: new Date(receivedAt).toISOString(),
         ...delivery,
         count: await count(delivery.alert),
         event: parsed.event,

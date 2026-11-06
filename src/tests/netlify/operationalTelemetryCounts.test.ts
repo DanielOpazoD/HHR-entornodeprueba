@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createOperationalTelemetryHandler } from '../../../netlify/functions/operational-telemetry';
 import {
+  COUNT_BUDGET_MS,
   addTelemetryCount,
   countsStoreName,
   createDailyTelemetryCounter,
@@ -67,6 +68,7 @@ describe('daily operational telemetry counts', () => {
       operation: 'census_exists_timeout',
       status: 'degraded',
       alert: 'not_alertable',
+      receivedAt: NOW,
     };
     const first = addTelemetryCount(null, '2026-11-08', entry);
     const second = addTelemetryCount(first, '2026-11-08', entry);
@@ -85,6 +87,7 @@ describe('daily operational telemetry counts', () => {
       operation: 'Juan Pérez 12.345.678-5',
       status: 'failed',
       alert: 'sent',
+      receivedAt: NOW,
     });
     expect(counts.operations).toEqual({ other: { failed: 1 } });
     let full: DailyTelemetryCounts | null = null;
@@ -93,6 +96,7 @@ describe('daily operational telemetry counts', () => {
         operation: `op_${index}`,
         status: 'success',
         alert: 'not_alertable',
+        receivedAt: NOW,
       });
     }
     expect(Object.keys(full!.operations)).toHaveLength(201);
@@ -101,8 +105,13 @@ describe('daily operational telemetry counts', () => {
 
   it('keeps every count when two events race on the same day', async () => {
     const store = createEtagStore();
-    const count = createDailyTelemetryCounter(store as unknown as CounterStore, () => NOW);
-    const entry = { operation: 'app_shell_ready', status: 'success', alert: 'not_alertable' };
+    const count = createDailyTelemetryCounter(store as unknown as CounterStore);
+    const entry = {
+      operation: 'app_shell_ready',
+      status: 'success',
+      alert: 'not_alertable',
+      receivedAt: NOW,
+    };
     const results = await Promise.all([count(entry), count(entry), count(entry)]);
     expect(results).toEqual(['counted', 'counted', 'counted']);
     expect(store.data.get('daily/2026-11-08')?.value).toEqual({
@@ -115,9 +124,14 @@ describe('daily operational telemetry counts', () => {
   it('reports a lost race instead of overwriting the day', async () => {
     const store = createEtagStore();
     const losing = { ...store, setJSON: vi.fn(async () => ({ modified: false })) };
-    const count = createDailyTelemetryCounter(losing as unknown as CounterStore, () => NOW);
+    const count = createDailyTelemetryCounter(losing as unknown as CounterStore);
     await expect(
-      count({ operation: 'app_shell_ready', status: 'success', alert: 'not_alertable' })
+      count({
+        operation: 'app_shell_ready',
+        status: 'success',
+        alert: 'not_alertable',
+        receivedAt: NOW,
+      })
     ).resolves.toBe('count_conflict');
     expect(losing.setJSON).toHaveBeenCalledTimes(4);
   });
@@ -157,6 +171,7 @@ describe('operational telemetry handler counting', () => {
       operation: 'daily_record_resume_refresh_failed',
       status: 'degraded',
       alert: 'not_alertable',
+      receivedAt: NOW,
     });
     expect(JSON.parse(log.mock.calls[0][0])).toMatchObject({ kind: 'event', count: 'counted' });
   });
@@ -175,6 +190,40 @@ describe('operational telemetry handler counting', () => {
     expect(result.statusCode).toBe(202);
     expect(JSON.parse(log.mock.calls[0][0])).toMatchObject({ count: 'count_failed' });
     expect(log.mock.calls[0][0]).not.toContain('blob store down');
+  });
+
+  it('counts on the day the event arrived, even if alert delivery ends after midnight', async () => {
+    // Arrives at 23:59:55 on the 8th in Rapa Nui; the clock reads 00:00:05 when counting starts.
+    const arrival = Date.parse('2026-11-09T04:59:55.000Z');
+    const clock = [arrival, arrival + 10_000];
+    const store = createEtagStore();
+    const handler = createOperationalTelemetryHandler({
+      queue: silentQueue,
+      now: () => clock.shift() ?? arrival + 10_000,
+      log: vi.fn(),
+      count: createDailyTelemetryCounter(store as unknown as CounterStore),
+    });
+    expect((await handler(request(resumeFailure))).statusCode).toBe(202);
+    expect([...store.data.keys()]).toEqual(['daily/2026-11-08']);
+  });
+
+  it('answers within the counting budget when the store never answers', async () => {
+    vi.useFakeTimers();
+    try {
+      const log = vi.fn();
+      const handler = createOperationalTelemetryHandler({
+        queue: silentQueue,
+        now: () => NOW,
+        log,
+        count: () => new Promise(() => undefined),
+      });
+      const pending = handler(request(resumeFailure));
+      await vi.advanceTimersByTimeAsync(COUNT_BUDGET_MS);
+      expect((await pending).statusCode).toBe(202);
+      expect(JSON.parse(log.mock.calls[0][0])).toMatchObject({ count: 'count_timeout' });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not count a rejected payload', async () => {

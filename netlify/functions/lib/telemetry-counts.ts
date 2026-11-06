@@ -14,6 +14,8 @@ export interface TelemetryCountEntry {
   operation: string;
   status: string;
   alert: string;
+  /** When the event arrived (ms). The day is that instant's, not the one after alert delivery. */
+  receivedAt: number;
 }
 
 export interface DailyTelemetryCounts {
@@ -24,13 +26,14 @@ export interface DailyTelemetryCounts {
   alerts: Record<string, number>;
 }
 
-export type TelemetryCountResult = 'counted' | 'count_conflict' | 'count_failed';
+export type TelemetryCountResult = 'counted' | 'count_conflict' | 'count_failed' | 'count_timeout';
 
 const CODE = /^[a-z0-9_]{1,80}$/;
 /** A misbehaving client cannot grow a day without bound: further names count as «other». */
 const MAX_OPERATIONS = 200;
 const MAX_ATTEMPTS = 4;
-const COUNT_BUDGET_MS = 2_500;
+/** Whole-operation limit, including the Blobs SDK's own retry waits. */
+export const COUNT_BUDGET_MS = 2_500;
 
 export const dailyCountsKey = (date: string): string => `daily/${date}`;
 
@@ -69,9 +72,9 @@ export const addTelemetryCount = (
 
 /** Compare-and-set on the day's document; a lost race is retried, never overwritten. */
 export const createDailyTelemetryCounter =
-  (store: Pick<Store, 'getWithMetadata' | 'setJSON'>, now: () => number) =>
+  (store: Pick<Store, 'getWithMetadata' | 'setJSON'>) =>
   async (entry: TelemetryCountEntry): Promise<TelemetryCountResult> => {
-    const date = getClinicalCalendarDateISO(new Date(now()));
+    const date = getClinicalCalendarDateISO(new Date(entry.receivedAt));
     const key = dailyCountsKey(date);
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       const current = await store.getWithMetadata(key, { type: 'json', consistency: 'strong' });
@@ -98,7 +101,28 @@ export const createRuntimeTelemetryCounter = (context: TelemetryRuntimeContext) 
       name: countsStoreName(context),
       consistency: 'strong',
       fetch: createAlertBlobFetch(fetch, deadlineAt),
-    }),
-    Date.now
+    })
   );
+};
+
+/**
+ * Bounds a count to COUNT_BUDGET_MS whatever the store does: on a 5xx the Blobs SDK sleeps between
+ * its own retries even after the transport deadline, and the beacon must not wait for that.
+ */
+export const countWithinBudget = async (
+  count: (entry: TelemetryCountEntry) => Promise<TelemetryCountResult>,
+  entry: TelemetryCountEntry,
+  budgetMs = COUNT_BUDGET_MS
+): Promise<TelemetryCountResult> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<TelemetryCountResult>(resolve => {
+    timer = setTimeout(() => resolve('count_timeout'), budgetMs);
+  });
+  try {
+    return await Promise.race([count(entry), timeout]);
+  } catch {
+    return 'count_failed';
+  } finally {
+    clearTimeout(timer);
+  }
 };
