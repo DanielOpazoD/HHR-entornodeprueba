@@ -398,6 +398,7 @@ export const runClinicalFill = async (
     applyWithMetrics: operation => writes.applyBatch(operation, { scope: 'current' }),
     recordRetries: performance.recordRetries,
     recordPersistenceEvidence: performance.recordPersistenceEvidence,
+    signal: deps.signal,
   });
   summary.patched += batchPersistence.patched;
   summary.errors.push(...batchPersistence.errors);

@@ -139,7 +139,9 @@ export const buildRayenSyncCoverage = (
       reason: error.reason,
       ...(error.reason === 'source_unavailable' || error.reason === 'source_timeout'
         ? { cause: error.cause ?? classifyClinicalReadCause(error.message) }
-        : {}),
+        : error.reason === 'write_failed' && error.cause
+          ? { cause: error.cause }
+          : {}),
       ...(error.source === 'cudyr' && error.cudyrRecovery
         ? { cudyrRecovery: error.cudyrRecovery }
         : {}),

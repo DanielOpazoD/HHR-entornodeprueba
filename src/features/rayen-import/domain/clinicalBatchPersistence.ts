@@ -6,8 +6,14 @@ import type {
   ClinicalFillPersistenceStrategy,
   ClinicalPersistenceEvidence,
 } from '../contracts/clinicalFillContracts';
-import { buildClinicalFillError } from '../observability/rayenSyncDiagnostics';
-import { readPersistenceFailureEvidence } from '../hooks/clinicalEnrichmentBatchExecutionSupport';
+import {
+  buildClinicalFillError,
+  classifyRayenWriteCause,
+} from '../observability/rayenSyncDiagnostics';
+import {
+  isClinicalBatchTransportFailure,
+  readPersistenceFailureEvidence,
+} from '../hooks/clinicalEnrichmentBatchExecutionSupport';
 
 interface PersistClinicalBatchInput {
   operations: ClinicalFillPatchOperation[];
@@ -17,7 +23,30 @@ interface PersistClinicalBatchInput {
   ) => Promise<ClinicalFillBatchApplyResult>;
   recordRetries: (count: number) => void;
   recordPersistenceEvidence: (evidence: ClinicalPersistenceEvidence) => void;
+  /** The run's stop signal: no second attempt once the run is cancelled. */
+  signal?: AbortSignal;
+  wait?: (ms: number, signal?: AbortSignal) => Promise<void>;
 }
+
+/**
+ * Measured 2026-11-06: a write turn failed in 0.6 s without reaching the server, right after a
+ * page reload, and the same batch was saved by the next synchronization two minutes later. One
+ * calm second attempt re-reads the census and rebuilds the batch, so it never writes twice.
+ */
+export const CLINICAL_BATCH_TRANSPORT_RETRY_DELAY_MS = 1500;
+
+const waitFor = (ms: number, signal?: AbortSignal): Promise<void> =>
+  new Promise(resolve => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      { once: true }
+    );
+  });
 
 interface PersistClinicalBatchResult {
   patched: number;
@@ -37,10 +66,25 @@ export const persistClinicalBatch = async ({
   applyWithMetrics,
   recordRetries,
   recordPersistenceEvidence,
+  signal,
+  wait = waitFor,
 }: PersistClinicalBatchInput): Promise<PersistClinicalBatchResult> => {
   if (operations.length > 0) {
+    const attempt = () => applyWithMetrics(() => strategy.persist(operations));
     try {
-      const result = await applyWithMetrics(() => strategy.persist(operations));
+      let result: ClinicalFillBatchApplyResult;
+      try {
+        result = await attempt();
+      } catch (error) {
+        // Only a failure that got no answer is repeated; a server answer or a stale batch is final.
+        if (!isClinicalBatchTransportFailure(error) || signal?.aborted) throw error;
+        const evidence = readPersistenceFailureEvidence(error);
+        if (evidence) recordPersistenceEvidence(evidence);
+        recordRetries(1);
+        await wait(CLINICAL_BATCH_TRANSPORT_RETRY_DELAY_MS, signal);
+        if (signal?.aborted) throw error;
+        result = await attempt();
+      }
       if (result.persistence) recordPersistenceEvidence(result.persistence);
       else recordRetries(result.retries ?? 0);
       return {
@@ -60,6 +104,7 @@ export const persistClinicalBatch = async ({
             bedId: operation.target.bedId,
             clinicalEpisodeId: operation.target.clinicalEpisodeId,
             source: 'patch',
+            cause: classifyRayenWriteCause(error),
             error,
           })
         ),
