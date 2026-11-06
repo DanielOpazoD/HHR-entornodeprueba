@@ -677,6 +677,27 @@ jobs:
           E2E_BUDGET_AUTH_FEEDBACK_MS: 3000
           E2E_BUDGET_CENSO_VISIBLE_MS: 8000
 
+      - name: Run integrated CUDYR flow with a fresh Firestore emulator
+        run: >-
+          node scripts/report-test-execution-manifest.mjs
+          --capture playwright --suite cudyr
+          --report reports/e2e/cudyr-playwright-report.json
+          --output reports/execution/cudyr.evidence.json
+          -- npm run test:e2e:cudyr-flow:ci
+        env:
+          CI: true
+          E2E_CRITICAL_BROWSERS: chromium
+
+      - name: Upload CUDYR browser execution evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-execution-evidence-cudyr
+          path: reports/execution/cudyr.evidence.json
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Upload critical browser execution evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -775,11 +796,16 @@ jobs:
         with:
           name: test-execution-evidence-flow
           path: reports/execution
-      - name: Require all seven execution reports and validate provenance
+      - name: Download same-run CUDYR execution evidence
+        uses: actions/download-artifact@v7
+        with:
+          name: test-execution-evidence-cudyr
+          path: reports/execution
+      - name: Require all eight execution reports and validate provenance
         shell: bash
         run: |
           inputs=()
-          for suite in unit-1 unit-2 unit-3 unit-4 storage critical flow; do
+          for suite in unit-1 unit-2 unit-3 unit-4 storage critical flow cudyr; do
             evidence="reports/execution/$suite.evidence.json"
             test -f "$evidence" || { echo "::error::Missing $suite execution evidence"; exit 1; }
             inputs+=(--input "$evidence")
