@@ -142,7 +142,7 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
       {(tab === 'all' || tab === 'evolutions') && (
         <AreaCard
           icon={<BookOpenText />}
-          iconClassName="bg-medical-50 text-medical-700"
+          iconClassName="text-medical-700"
           title="Evoluciones"
           subtitle={panel ? `${panel.evolutions.length}` : undefined}
           source={SOURCE}
@@ -191,7 +191,7 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
       {(tab === 'all' || tab === 'indications') && (
         <AreaCard
           icon={<ClipboardList />}
-          iconClassName="bg-teal-50 text-teal-700"
+          iconClassName="text-teal-700"
           title="Indicaciones"
           subtitle={panel ? `${activeIndications} vigentes` : undefined}
           source={SOURCE}

@@ -43,14 +43,14 @@ export const ClinicalExplorerBar: React.FC<ClinicalExplorerBarProps> = ({ census
     }) ?? formatDateDDMMYYYY(censusDate);
 
   return (
-    <div className="sticky top-[var(--hhr-chrome-height)] z-30 flex min-h-12 flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-2 py-1.5">
+    <div className="sticky top-[var(--hhr-chrome-height)] z-30 flex min-h-10 flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-1.5 py-1">
       <button
         ref={backRef}
         type="button"
         onClick={close}
-        className="inline-flex h-9 items-center gap-2 rounded-lg bg-teal-700 px-3.5 text-[12px] font-semibold text-white hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-700 px-3 text-[12px] font-semibold text-white hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
       >
-        <ArrowLeft size={15} aria-hidden="true" />
+        <ArrowLeft size={14} aria-hidden="true" />
         Volver al censo
       </button>
       <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-slate-800">

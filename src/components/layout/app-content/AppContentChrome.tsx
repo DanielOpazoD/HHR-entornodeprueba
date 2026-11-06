@@ -106,13 +106,12 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
                   >
                     <CensusQuickActions
                       menuLayout
+                      hideClinicalQuickActions
                       onOpenBedManager={
                         isSpecialistCensusAccessProfile(dateStripProps.accessProfile ?? 'default')
                           ? undefined
                           : dateStripProps.onOpenBedManager
                       }
-                      medicalIndicationsPatients={medicalIndicationsPatients}
-                      renderFeatureQuickActions={renderFeatureQuickActions}
                     />
                   </React.Suspense>
                   {canAccessAppModuleRoute({ role: auth.role, module: 'CUDYR' }) && (

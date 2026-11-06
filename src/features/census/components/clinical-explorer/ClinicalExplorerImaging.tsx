@@ -50,8 +50,12 @@ const ReportText: React.FC<{ exam: MMRADExam }> = ({ exam }) => {
       {sections.map(([label, text]) =>
         text ? (
           <div key={label}>
-            <dt className="text-[9.5px] font-semibold uppercase tracking-wide text-slate-400">{label}</dt>
-            <dd className={label === 'Impresión' ? 'font-medium text-slate-800' : undefined}>{text}</dd>
+            <dt className="text-[9.5px] font-semibold uppercase tracking-wide text-slate-400">
+              {label}
+            </dt>
+            <dd className={label === 'Impresión' ? 'font-medium text-slate-800' : undefined}>
+              {text}
+            </dd>
           </div>
         ) : null
       )}
@@ -104,7 +108,8 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
 
   const body = (): React.ReactNode => {
     if (imaging.phase === 'listing') return <SkeletonLines label="Consultando MMRAD" />;
-    if (imaging.phase === 'error') return <ReadFailure message={imaging.message} onRetry={imaging.retry} />;
+    if (imaging.phase === 'error')
+      return <ReadFailure message={imaging.message} onRetry={imaging.retry} />;
     if (imaging.phase === 'empty') {
       return (
         <>
@@ -128,19 +133,29 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
               <li key={key} className="flex flex-col py-1.5 first:pt-0 last:pb-0">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[12px] font-semibold text-slate-700">{exam.nombre_examen}</p>
+                    <p className="truncate text-[12px] font-semibold text-slate-700">
+                      {exam.nombre_examen}
+                    </p>
                     <p className="text-[10.5px] tabular-nums text-slate-500">
                       {formatStudyStamp(exam.fecha_examen)}
                       {exam.registered_patient_id && (
                         <span className="ml-2 text-slate-500">
-                          · {describeMMRADRegisteredPatient(exam.registered_patient_id, exam.registered_patient_name)}
+                          ·{' '}
+                          {describeMMRADRegisteredPatient(
+                            exam.registered_patient_id,
+                            exam.registered_patient_name
+                          )}
                         </span>
                       )}
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5">
                     {exam.dicom_url && (
-                      <button type="button" className={SMALL_BUTTON} onClick={() => setViewerKey(key)}>
+                      <button
+                        type="button"
+                        className={SMALL_BUTTON}
+                        onClick={() => setViewerKey(key)}
+                      >
                         <Images size={13} aria-hidden="true" className="text-violet-700" />
                         Imágenes
                       </button>
@@ -181,8 +196,10 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
         )}
         {(imaging.partial || imaging.refreshMessage || pdfMessage) && (
           <p className="text-[11px] text-slate-500">
-            {imaging.partial && 'La búsqueda por dígito verificador no terminó; puede faltar algún estudio. '}
-            {imaging.refreshMessage && `No se pudo actualizar la lista: ${imaging.refreshMessage}. `}
+            {imaging.partial &&
+              'La búsqueda por dígito verificador no terminó; puede faltar algún estudio. '}
+            {imaging.refreshMessage &&
+              `No se pudo actualizar la lista: ${imaging.refreshMessage}. `}
             {pdfMessage}
           </p>
         )}
@@ -193,7 +210,7 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
   return (
     <AreaCard
       icon={<XRayIcon size={14} />}
-      iconClassName="bg-violet-50 text-violet-700"
+      iconClassName="text-violet-700"
       title="Imágenes"
       subtitle={
         imaging.phase === 'ready' || imaging.phase === 'empty'
@@ -209,7 +226,13 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
     >
       {body()}
       {viewerExam?.dicom_url && (
-        <Suspense fallback={<p role="status" className="text-[11px] text-slate-500">Cargando visor…</p>}>
+        <Suspense
+          fallback={
+            <p role="status" className="text-[11px] text-slate-500">
+              Cargando visor…
+            </p>
+          }
+        >
           <DicomViewerDialog
             key={`${rut}:${viewerExam.dicom_url}`}
             reviewCache={reviewCache}

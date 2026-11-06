@@ -56,25 +56,17 @@ export const AreaCard: React.FC<AreaCardProps> = ({
 }) => (
   <section
     aria-label={title}
-    className={clsx('flex min-w-0 flex-col rounded-[10px] border border-slate-200 bg-white', className)}
+    className={clsx('flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white', className)}
   >
-    <header className="flex items-center gap-2 border-b border-slate-100 px-3 py-2">
-      <span
-        aria-hidden="true"
-        className={clsx(
-          'inline-flex size-[26px] items-center justify-center rounded-lg [&>svg]:size-3.5',
-          iconClassName
-        )}
-      >
+    <header className="flex min-h-10 items-center gap-2 border-b border-slate-100 px-3 py-1.5">
+      <span aria-hidden="true" className={clsx('inline-flex [&>svg]:size-3.5', iconClassName)}>
         {icon}
       </span>
       <h3 className="flex items-baseline gap-1.5 text-[13px] font-semibold text-slate-800">
         {title}
-        {subtitle && <span className="text-[10.5px] font-medium text-slate-400">{subtitle}</span>}
+        {subtitle && <span className="text-[11px] font-medium text-slate-400">{subtitle}</span>}
       </h3>
-      <span className="rounded border border-slate-200 bg-slate-50 px-1.5 text-[9.5px] font-semibold text-slate-500">
-        {source}
-      </span>
+      <span className="text-[10.5px] text-slate-400">· {source}</span>
       {actions && <span className="ml-auto flex items-center gap-2">{actions}</span>}
     </header>
     <div className="flex flex-col gap-2.5 p-3">{children}</div>
@@ -84,7 +76,10 @@ export const AreaCard: React.FC<AreaCardProps> = ({
 export const SkeletonLines: React.FC<{ label: string }> = ({ label }) => (
   <div role="status" aria-label={label} className="space-y-2">
     {[0, 1, 2].map(index => (
-      <div key={index} className="h-3 animate-pulse rounded bg-slate-100 motion-reduce:animate-none" />
+      <div
+        key={index}
+        className="h-3 animate-pulse rounded bg-slate-100 motion-reduce:animate-none"
+      />
     ))}
   </div>
 );

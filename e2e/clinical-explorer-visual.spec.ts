@@ -63,6 +63,8 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
     expect(listBounds!.x + listBounds!.width).toBeLessThanOrEqual(headerBounds!.x + 1);
     expect(headerBounds!.width).toBeGreaterThanOrEqual(explorerBounds!.width * 0.6);
     expect(explorerBounds!.x + explorerBounds!.width).toBeLessThanOrEqual(width + 1);
+    // The patient header is two short lines; at 1280 the requests fit beside them.
+    if (width === 1280) expect(headerBounds!.height).toBeLessThanOrEqual(64);
 
     // The four areas are announced by name; the tab strip keeps one row.
     const tabs = page.getByRole('tablist', { name: 'Áreas' });
@@ -86,11 +88,25 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
     await screenshot(page, `clinical-explorer-${zoom}`);
   }
 
-  // Next and previous patient, by button and by keyboard.
-  await page.getByRole('button', { name: 'Paciente siguiente' }).click();
+  // Another patient from the side list, and back with the keyboard.
+  await page
+    .getByRole('list', { name: 'Lista de pacientes' })
+    .getByRole('button', { name: new RegExp(SECOND_PATIENT) })
+    .click();
   await expect(header).toContainText(SECOND_PATIENT);
   await page.keyboard.press('ArrowLeft');
   await expect(header).toContainText(PATIENT);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(header).toContainText(PATIENT);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true
+  );
+  const indicationsTab = page.getByRole('tab', { name: 'Indicaciones', exact: true });
+  await indicationsTab.scrollIntoViewIfNeeded();
+  await indicationsTab.click();
+  await expect(indicationsTab).toHaveAttribute('aria-selected', 'true');
+  await page.setViewportSize({ width: 1024, height: 666 });
 
   // Back to the census: same day, same row, focus on the trigger that opened the explorer.
   await page.getByRole('button', { name: 'Volver al censo' }).click();
@@ -111,7 +127,7 @@ test('prints the laboratory orders of several patients as one document, one page
   );
   await openExplorerFromBed(page, 'R1');
 
-  await page.getByRole('button', { name: 'Solicitar exámenes' }).click();
+  await page.getByRole('button', { name: 'Exámenes', exact: true }).click();
   const dialog = page.getByTestId('exam-request-modal');
   await expect(dialog).toBeVisible({ timeout: 20_000 });
   await dialog.getByRole('button', { name: /Pacientes/ }).click();

@@ -5,12 +5,9 @@ import {
   filterClinicalExplorerPatients,
   type ClinicalExplorerPatient,
 } from '@/features/census/controllers/clinicalExplorerController';
-import { calculateHospitalizedDays } from '@/features/census/controllers/patientBedConfigViewController';
 import { StatusDot } from './clinicalExplorerUi';
 
 interface ClinicalExplorerPatientPanelProps {
-  /** Census day: days in hospital are counted up to it. */
-  censusDate: string;
   patients: ClinicalExplorerPatient[];
   selectedBedId: string;
   onSelect: (bedId: string) => void;
@@ -18,7 +15,6 @@ interface ClinicalExplorerPatientPanelProps {
 
 /** Patients of the census day in bed order. The bed is where the patient is, not who they are. */
 export const ClinicalExplorerPatientPanel: React.FC<ClinicalExplorerPatientPanelProps> = ({
-  censusDate,
   patients,
   selectedBedId,
   onSelect,
@@ -56,10 +52,6 @@ export const ClinicalExplorerPatientPanel: React.FC<ClinicalExplorerPatientPanel
       <ul className="min-h-0 flex-1 overflow-y-auto py-1" aria-label="Lista de pacientes">
         {visible.map(patient => {
           const selected = patient.bedId === selectedBedId;
-          const days = calculateHospitalizedDays({
-            admissionDate: patient.data.admissionDate,
-            currentDate: censusDate,
-          });
           return (
             <li key={patient.bedId}>
               <button
@@ -67,27 +59,19 @@ export const ClinicalExplorerPatientPanel: React.FC<ClinicalExplorerPatientPanel
                 aria-current={selected ? 'true' : undefined}
                 onClick={() => onSelect(patient.bedId)}
                 className={clsx(
-                  'grid w-full grid-cols-[52px_minmax(0,1fr)] items-center gap-x-2 border-l-2 px-2.5 py-1.5 text-left transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-teal-700',
+                  'grid w-full grid-cols-[48px_minmax(0,1fr)] items-center gap-x-2 border-l-2 px-2.5 py-1 text-left transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-teal-700',
                   selected ? 'border-l-medical-600 bg-medical-50' : 'border-l-transparent'
                 )}
               >
-                <span className="flex items-center gap-1 whitespace-nowrap font-display text-[14px] font-bold text-slate-800">
-                  <StatusDot status={patient.data.status} />
+                <span className="flex items-center gap-1 whitespace-nowrap font-display text-[13px] font-bold text-slate-800">
+                  <StatusDot status={patient.data.status} className="size-2" />
                   {patient.bedId}
                 </span>
-                <span className="truncate text-[12px] font-semibold uppercase text-slate-700">
+                <span className="truncate text-[11.5px] font-semibold uppercase text-slate-700">
                   {patient.data.patientName.trim()}
                 </span>
-                <span className="col-start-2 flex gap-1.5 whitespace-nowrap text-[10px] tabular-nums text-slate-500">
+                <span className="col-start-2 whitespace-nowrap text-[10px] tabular-nums text-slate-500">
                   {patient.data.rut.trim()}
-                  {days !== null && (
-                    <span
-                      className="rounded bg-slate-50 px-1 text-[9.5px] text-slate-600"
-                      title="Días hospitalizado al día del censo"
-                    >
-                      {days} d
-                    </span>
-                  )}
                 </span>
               </button>
             </li>

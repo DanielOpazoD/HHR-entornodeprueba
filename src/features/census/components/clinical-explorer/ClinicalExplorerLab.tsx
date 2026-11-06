@@ -51,9 +51,11 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
     [lab.analysis, lab.exams]
   );
   // Selections belong to one patient and episode; another identity starts from the defaults.
-  const [stored, setSelection] = useState<{ identity: string; names: string[]; day: string | null }>(
-    { identity, names: [], day: null }
-  );
+  const [stored, setSelection] = useState<{
+    identity: string;
+    names: string[];
+    day: string | null;
+  }>({ identity, names: [], day: null });
   const selection = stored.identity === identity ? stored : { identity, names: [], day: null };
   // Only the charted variables show by default; the rest of the list opens on demand.
   const [allVariablesShown, setAllVariablesShown] = useState(false);
@@ -62,7 +64,10 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
   const names = useMemo(() => {
     if (!model) return [];
     const chosen = selection.names.filter(id => model.variables.some(v => v.id === id));
-    return (chosen.length ? chosen : selectDefaultLabVariables(model.variables, limit)).slice(0, limit);
+    return (chosen.length ? chosen : selectDefaultLabVariables(model.variables, limit)).slice(
+      0,
+      limit
+    );
   }, [model, selection.names, limit]);
   const day =
     selection.day && model?.days.includes(selection.day)
@@ -80,7 +85,9 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
     if (next) setSelection({ identity, names: selection.names, day: next });
   };
   const toggleVariable = (id: string): void => {
-    const next = names.includes(id) ? names.filter(item => item !== id) : [...names, id].slice(-limit);
+    const next = names.includes(id)
+      ? names.filter(item => item !== id)
+      : [...names, id].slice(-limit);
     setSelection({ identity, names: next, day: selection.day });
   };
 
@@ -195,7 +202,10 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
           <div className="overflow-hidden rounded-lg border border-slate-200">
             <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50 px-2.5 py-1.5 text-[11px] text-slate-600">
               <span>
-                Día <b className="font-semibold tabular-nums text-slate-800">{formatDateDDMMYYYY(day)}</b>
+                Día{' '}
+                <b className="font-semibold tabular-nums text-slate-800">
+                  {formatDateDDMMYYYY(day)}
+                </b>
               </span>
               <span className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white">
                 <button
@@ -231,13 +241,20 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
                 {shownRows.map(row => (
                   <tr
                     key={`${row.name}|${row.columnKey}`}
-                    className={clsx('border-t border-slate-100', selectedAnalyses.has(row.name) && 'bg-emerald-50/40')}
+                    className={clsx(
+                      'border-t border-slate-100',
+                      selectedAnalyses.has(row.name) && 'bg-emerald-50/40'
+                    )}
                   >
                     <td className="px-2.5 py-1 text-slate-700">
                       {row.name}
-                      {row.time && <span className="ml-1 text-[10px] text-slate-400">{row.time}</span>}
+                      {row.time && (
+                        <span className="ml-1 text-[10px] text-slate-400">{row.time}</span>
+                      )}
                     </td>
-                    <td className="px-2.5 py-1 text-right font-semibold tabular-nums text-slate-800">{row.display}</td>
+                    <td className="px-2.5 py-1 text-right font-semibold tabular-nums text-slate-800">
+                      {row.display}
+                    </td>
                     <td className="px-2.5 py-1 text-slate-600">{row.unit}</td>
                     <td className="px-2.5 py-1 tabular-nums text-slate-500">{row.refValue}</td>
                   </tr>
@@ -260,7 +277,7 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
   return (
     <AreaCard
       icon={<FlaskConical />}
-      iconClassName="bg-emerald-50 text-emerald-700"
+      iconClassName="text-emerald-700"
       title="Laboratorio"
       subtitle={subtitle}
       source="Syslab"
@@ -270,7 +287,10 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
             <LinkButton onClick={() => onShowAll('lab')}>Ver todo ›</LinkButton>
           )}
           {lab.phase === 'ready' && (
-            <span className="inline-flex items-center gap-1 text-[10px] text-slate-400" title="Los valores se muestran tal como los informa Syslab">
+            <span
+              className="inline-flex items-center gap-1 text-[10px] text-slate-400"
+              title="Los valores se muestran tal como los informa Syslab"
+            >
               <FileText size={11} aria-hidden="true" />
               valores sin interpretar
             </span>
