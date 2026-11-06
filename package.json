@@ -167,6 +167,7 @@
     "report:operational-health": "node scripts/report-operational-health.mjs",
     "report:clinical-release-validation": "node scripts/report-clinical-release-validation.mjs",
     "report:ci-runtime-baseline": "node scripts/report-ci-runtime-baseline.mjs",
+    "report:ci-reruns": "node scripts/report-ci-reruns.mjs",
     "report:clinical-release-signoff": "node scripts/report-clinical-release-signoff.mjs",
     "report:system-confidence": "node scripts/report-system-confidence.mjs",
     "report:legacy-retirement-debt": "node scripts/report-legacy-retirement-debt.mjs",
