@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   checkDigit: vi.fn(),
   pdf: vi.fn(),
   download: vi.fn(),
+  joinGate: null as Promise<void> | null,
 }));
 
 vi.mock('@/features/audit-documents/eloisa-history', () => ({
@@ -33,6 +34,13 @@ vi.mock('@/services/radiology/mmradService', async importOriginal => {
 });
 vi.mock('@/services/exporters/exportDownload', () => ({
   downloadBlob: (...args: unknown[]) => mocks.download(...args),
+}));
+// The real pdf-lib, behind a gate a test can hold to act while the PDF is being joined.
+vi.mock('@/services/pdf/pdfLibRuntime', () => ({
+  loadPdfLibGenerationRuntime: async () => {
+    await mocks.joinGate;
+    return import('pdf-lib');
+  },
 }));
 
 import { BEDS } from '@/constants/beds';
@@ -158,6 +166,7 @@ const openDialog = () => {
 describe('ClinicalExplorerDownloadDialog', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    mocks.joinGate = null;
     // 01:30 on 7 November in Santiago is still 6 November at the hospital (TIME-02).
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-11-07T04:30:00Z'));
@@ -219,6 +228,9 @@ describe('ClinicalExplorerDownloadDialog', () => {
     expect(mocks.lab).toHaveBeenCalledWith(
       expect.objectContaining({ rut: RUT, episodeId: 'ep-1', admissionDate: '2026-11-01' })
     );
+    expect(mocks.search).toHaveBeenCalledWith(
+      expect.objectContaining({ rut: RUT, dateFrom: '2026-11-01' })
+    );
     expect(mocks.pdf).toHaveBeenCalledTimes(1);
     expect(await within(dialog).findByRole('status')).toHaveTextContent(
       'Descargado como «PACIENTE SINTETICO - Ficha examenes e informes TAC - 2026-11-06.pdf».'
@@ -249,6 +261,124 @@ describe('ClinicalExplorerDownloadDialog', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Descargar lo disponible' }));
     await waitFor(() => expect(mocks.download).toHaveBeenCalledTimes(1));
     expect(await downloadedWidths()).toEqual([595, 300]);
+  });
+
+  it('packs what was gathered in another format without asking the sources again', async () => {
+    auditAnswers(Promise.resolve({ ok: false, error: 'La extensión Eloísa no respondió.' }));
+    renderHeader();
+    const dialog = openDialog();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Descargar' }));
+    await within(dialog).findByRole('alert');
+
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Archivos separados (ZIP)' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Descargar lo disponible' }));
+
+    await waitFor(() => expect(mocks.download).toHaveBeenCalledTimes(1));
+    const [blob, name] = mocks.download.mock.calls[0] as [Blob, string];
+    expect(name).toMatch(/\.zip$/);
+    expect(Object.keys(new PizZip(await readBytes(blob)).files)).toEqual([
+      '2 PACIENTE SINTETICO - Examenes de laboratorio - 2026-11-01 a 2026-11-06.pdf',
+      '3 PACIENTE SINTETICO - Informe TAC - 2026-11-03 - TC torax.pdf',
+    ]);
+    expect(mocks.audit).toHaveBeenCalledTimes(1);
+    expect(mocks.search).toHaveBeenCalledTimes(1);
+  });
+
+  it('names the CT report that did not come and writes the one MMRAD has only as text', async () => {
+    const textOnly: MMRADExam = {
+      ...ctExam,
+      nombre_examen: 'TC cerebro',
+      fecha_examen: '02/11/2026 18:00',
+      pdf_url: null,
+      report: {
+        title: 'TC de cerebro',
+        technique: null,
+        antecedentesClinicos: null,
+        findings: 'Hallazgo sintético.',
+        impression: 'Impresión sintética.',
+      },
+    };
+    const missing: MMRADExam = {
+      ...ctExam,
+      nombre_examen: 'TC abdomen',
+      fecha_examen: '05/11/2026 09:00',
+      pdf_url: 'https://mmrad.example/pdf/missing',
+    };
+    mocks.search.mockResolvedValue({ rut: RUT, examenes: [missing, ctExam, textOnly] });
+    mocks.pdf.mockImplementation(async (url: string) => {
+      if (url.endsWith('missing')) throw new Error('No se pudo obtener el PDF original de MMRAD.');
+      return new Blob([await syntheticPdf(300)], { type: 'application/pdf' });
+    });
+    renderHeader();
+    const dialog = openDialog();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Descargar' }));
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/Falta parte de lo pedido/);
+    expect(within(dialog).getByRole('list', { name: 'Avance de la descarga' })).toHaveTextContent(
+      'No se pudo descargar: TC abdomen (05-11-2026 09:00).'
+    );
+    // Only the CT studies with an original PDF are asked to MMRAD; the text one is written here.
+    expect(mocks.pdf.mock.calls.map(call => call[0])).toEqual([
+      'https://mmrad.example/pdf/synthetic',
+      'https://mmrad.example/pdf/missing',
+    ]);
+    expect(mocks.download).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Descargar lo disponible' }));
+    await waitFor(() => expect(mocks.download).toHaveBeenCalledTimes(1));
+    // Ficha, results, then the CT studies oldest first: the text report (A4) and the original.
+    expect(await downloadedWidths()).toEqual([100, 595, 595, 300]);
+  });
+
+  it('tells a Syslab that asks for its session from one without reports', async () => {
+    mocks.lab.mockReturnValue({
+      phase: 'login-required',
+      analysis: null,
+      pending: 0,
+      message: '',
+      refreshing: false,
+      progress: null,
+    });
+    renderHeader();
+    const dialog = openDialog();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Descargar' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/Falta parte de lo pedido/);
+    expect(within(dialog).getByRole('list', { name: 'Avance de la descarga' })).toHaveTextContent(
+      'Syslab pide iniciar sesión.'
+    );
+    expect(mocks.download).not.toHaveBeenCalled();
+
+    mocks.lab.mockReturnValue({
+      phase: 'empty',
+      analysis: null,
+      pending: 0,
+      message: '',
+      refreshing: false,
+      progress: null,
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Volver a intentar' }));
+    await waitFor(() => expect(mocks.download).toHaveBeenCalledTimes(1));
+    expect(within(dialog).getByRole('list', { name: 'Avance de la descarga' })).toHaveTextContent(
+      'Sin informes de Syslab del 01-11-2026 al 06-11-2026.'
+    );
+    expect(await downloadedWidths()).toEqual([100, 300]);
+  });
+
+  it('saves nothing when cancelled while the file is being joined', async () => {
+    let open: () => void = () => undefined;
+    mocks.joinGate = new Promise(resolve => (open = resolve));
+    renderHeader();
+    const dialog = openDialog();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Descargar' }));
+    expect(await within(dialog).findByText('Armando el archivo…')).toBeVisible();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+    await act(async () => {
+      open();
+      await new Promise(resolve => setTimeout(resolve, 20));
+    });
+    expect(mocks.download).not.toHaveBeenCalled();
+    expect(within(dialog).getByRole('button', { name: 'Descargar' })).toBeEnabled();
   });
 
   it('states a stay without CT and packs separate files when the ZIP is chosen', async () => {

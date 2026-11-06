@@ -144,7 +144,7 @@ describe('Syslab results', () => {
   });
 
   it('waits while Syslab is asked and reports a session or read failure as such', () => {
-    const base = { message: '', analysis: null, pending: 0 };
+    const base = { message: '', analysis: null, pending: 0, refreshing: false };
     expect(settleLabRead({ ...base, phase: 'checking' })).toBeNull();
     expect(settleLabRead({ ...base, phase: 'listing' })).toBeNull();
     expect(settleLabRead({ ...base, phase: 'reading' })).toBeNull();
@@ -162,6 +162,21 @@ describe('Syslab results', () => {
       analysis,
       pending: 1,
     });
+  });
+
+  it('waits while a cached Syslab read is renewed instead of taking what it had', () => {
+    const renewing = { message: '', pending: 0, refreshing: true };
+    expect(settleLabRead({ ...renewing, phase: 'ready', analysis })).toBeNull();
+    expect(settleLabRead({ ...renewing, phase: 'empty', analysis: null })).toBeNull();
+    // A failure is still a failure while something else renews.
+    expect(
+      settleLabRead({
+        ...renewing,
+        phase: 'error',
+        analysis: null,
+        message: 'Syslab no respondió.',
+      })
+    ).toEqual({ kind: 'failed', problem: 'Syslab no respondió.' });
   });
 });
 
@@ -264,16 +279,24 @@ describe('MMRAD CT reports', () => {
       ['TC abdomen', 'pdf'],
     ]);
     expect(plan.ctCount).toBe(4);
-    expect(plan.notes).toEqual([
-      'TC cuello (03-11-2026 10:15): MMRAD lo registró con otro dígito verificador; no va incluido. Revísalo en Imágenes.',
+    expect(plan.withheld).toEqual(['TC cuello (03-11-2026 10:15)']);
+    expect(plan.unreported).toEqual([
       'TC pelvis (04-11-2026 12:00): MMRAD aún no publica su informe.',
     ]);
   });
 
   it('states a stay without CT, and names a report that could not be downloaded', () => {
     const none = planCtReports([exam({ mod: 'CR' })]);
-    expect(describeCtPart({ plan: none, documents: [], failures: [], searchNotes: [] })).toEqual(
+    const settled = { documents: [], failures: [], searchIncomplete: false };
+    expect(describeCtPart({ plan: none, ...settled })).toEqual(
       expect.objectContaining({ status: 'empty', summary: 'Sin TAC en esta hospitalización.' })
+    );
+    expect(describeCtPart({ plan: planCtReports([exam({})]), ...settled })).toEqual(
+      expect.objectContaining({
+        status: 'empty',
+        summary: 'Ningún TAC de la hospitalización tiene informe publicado.',
+        notes: ['TC tórax (03-11-2026 10:15): MMRAD aún no publica su informe.'],
+      })
     );
     const plan = planCtReports([
       exam({ pdf_url: 'a' }),
@@ -283,7 +306,7 @@ describe('MMRAD CT reports', () => {
       plan,
       documents: [pdf('ct', 'a.pdf')],
       failures: ['TC abdomen (03-11-2026 10:15)'],
-      searchNotes: [],
+      searchIncomplete: false,
     });
     expect(partial).toEqual(
       expect.objectContaining({
@@ -292,8 +315,37 @@ describe('MMRAD CT reports', () => {
       })
     );
     expect(
-      describeCtPart({ plan, documents: [], failures: ['a', 'b'], searchNotes: [] }).status
+      describeCtPart({ plan, documents: [], failures: ['a', 'b'], searchIncomplete: false }).status
     ).toBe('failed');
+  });
+
+  it('asks before leaving out a study held for its check digit or an unfinished search', () => {
+    const settled = { documents: [], failures: [], searchIncomplete: false };
+    const held = describeCtPart({
+      plan: planCtReports([exam({ pdf_url: 'x', registered_patient_id: '123456780' })]),
+      ...settled,
+    });
+    expect(held).toEqual(
+      expect.objectContaining({
+        status: 'failed',
+        summary: 'No incluidos',
+        problem:
+          'MMRAD registró con otro dígito verificador: TC tórax (03-11-2026 10:15). No van incluidos; revísalos en Imágenes.',
+      })
+    );
+    const unfinished = describeCtPart({
+      plan: planCtReports([exam({ mod: 'CR' })]),
+      ...settled,
+      searchIncomplete: true,
+    });
+    expect(unfinished).toEqual(
+      expect.objectContaining({
+        status: 'failed',
+        problem:
+          'La búsqueda de TAC registrados con otro dígito verificador no terminó; puede faltar alguno.',
+      })
+    );
+    expect(reviewDownload(['ct'], { ct: unfinished }).incomplete).toEqual(['ct']);
   });
 });
 

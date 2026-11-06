@@ -22,8 +22,40 @@ import {
 export { requestAuditDocuments } from '@/features/audit-documents/eloisa-history';
 
 const MARGIN = 14;
-/** Helvetica covers Latin-1; the Greek mu some units carry prints as the micro sign it means. */
-const printable = (value: string): string => value.replace(/\u03bc/g, '\u00b5');
+/**
+ * Helvetica in jsPDF prints Latin-1 only: other characters vanish or turn into stray bytes (the en
+ * dash of a measured range disappears and «5 to 10 mm» reads «510 mm»). Known symbols are spelled
+ * the way a person would type them; anything else outside Latin-1 shows as «?», never dropped.
+ */
+const PDF_TEXT_SUBSTITUTES: Readonly<Record<string, string>> = {
+  '\u2010': '-',
+  '\u2011': '-',
+  '\u2013': '-',
+  '\u2014': '-',
+  '\u2212': '-',
+  '\u2022': '-',
+  '\u2264': '<=',
+  '\u2265': '>=',
+  '\u2190': '<-',
+  '\u2192': '->',
+  '\u2018': "'",
+  '\u2019': "'",
+  '\u201a': "'",
+  '\u201c': '"',
+  '\u201d': '"',
+  '\u201e': '"',
+  '\u2026': '...',
+  '\u03bc': '\u00b5',
+  '\u2009': ' ',
+  '\u202f': ' ',
+  '\u200b': '',
+};
+const SUPERSCRIPT_DIGITS = '\u2070\u00b9\u00b2\u00b3\u2074\u2075\u2076\u2077\u2078\u2079';
+export const printable = (value: string): string =>
+  value.replace(/[^\x00-\xff]/gu, char => {
+    const digit = SUPERSCRIPT_DIGITS.indexOf(char);
+    return PDF_TEXT_SUBSTITUTES[char] ?? (digit >= 0 ? `^${digit}` : '?');
+  });
 
 /** The bytes of a Blob; FileReader where `Blob.arrayBuffer` is missing, as in older engines. */
 export const readBlobBytes = async (blob: Blob): Promise<Uint8Array> => {

@@ -37,6 +37,11 @@ export interface SyslabHospitalizationReports {
   analysis: LabAnalysisData | null;
   /** Reports Syslab listed but could not deliver yet; they are asked again on the next refresh. */
   pending: number;
+  /**
+   * A cached list or report set is being renewed: what is shown may lack the newest reports. The
+   * explorer card keeps showing it; a download waits for the renewed read.
+   */
+  refreshing: boolean;
   retry: () => void;
 }
 
@@ -156,7 +161,7 @@ export const useSyslabHospitalizationReports = ({
           ? 'unavailable'
           : list.isError || analysis.isError
             ? 'error'
-            : list.isPending || list.isFetching && !list.data
+            : list.isPending || (list.isFetching && !list.data)
               ? 'listing'
               : exams.length === 0
                 ? 'empty'
@@ -191,6 +196,7 @@ export const useSyslabHospitalizationReports = ({
     exams,
     analysis: analysis.data?.analysis ?? null,
     pending: analysis.data?.pending ?? 0,
+    refreshing: list.isFetching || analysis.isFetching || (list.isSuccess && list.isStale),
     retry,
   };
 };

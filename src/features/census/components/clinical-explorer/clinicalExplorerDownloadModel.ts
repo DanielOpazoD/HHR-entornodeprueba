@@ -194,7 +194,10 @@ export type LabSettlement =
   | { kind: 'empty' }
   | { kind: 'ready'; analysis: LabAnalysisData; pending: number };
 
-type LabRead = Pick<SyslabHospitalizationReports, 'phase' | 'message' | 'analysis' | 'pending'>;
+type LabRead = Pick<
+  SyslabHospitalizationReports,
+  'phase' | 'message' | 'analysis' | 'pending' | 'refreshing'
+>;
 
 /** Null while Syslab is still being asked; then how the read ended. A failure is never «sin informes». */
 export const settleLabRead = (lab: LabRead): LabSettlement | null => {
@@ -212,10 +215,13 @@ export const settleLabRead = (lab: LabRead): LabSettlement | null => {
     case 'unavailable':
     case 'error':
       return { kind: 'failed', problem: lab.message || 'No se pudo leer Syslab.' };
+    // A cached list or report set being renewed may lack the newest reports: wait for it.
     case 'empty':
-      return { kind: 'empty' };
+      return lab.refreshing ? null : { kind: 'empty' };
     case 'ready':
-      return lab.analysis ? { kind: 'ready', analysis: lab.analysis, pending: lab.pending } : null;
+      return lab.analysis && !lab.refreshing
+        ? { kind: 'ready', analysis: lab.analysis, pending: lab.pending }
+        : null;
   }
 };
 
@@ -308,8 +314,10 @@ export const planLabPart = (
 export interface CtReportPlan {
   /** CT studies whose report goes in, oldest first: the original PDF, or its text when MMRAD has no PDF. */
   included: Array<{ exam: MMRADExam; source: 'pdf' | 'text' }>;
-  /** CT studies seen in MMRAD that do not go in, and why. */
-  notes: string[];
+  /** CT studies MMRAD registered under another check digit: a person confirms them first. */
+  withheld: string[];
+  /** CT studies whose report MMRAD has not published yet. */
+  unreported: string[];
   ctCount: number;
 }
 
@@ -322,51 +330,65 @@ export const planCtReports = (studies: readonly MMRADExam[]): CtReportPlan => {
     .sort((a, b) =>
       mmradStampSortKey(a.fecha_examen).localeCompare(mmradStampSortKey(b.fecha_examen))
     );
-  const included: CtReportPlan['included'] = [];
-  const notes: string[] = [];
+  const plan: CtReportPlan = { included: [], withheld: [], unreported: [], ctCount: cts.length };
   for (const exam of cts) {
     if (exam.registered_patient_id) {
       // A study registered under another check digit is shown in the explorer for a person to
       // confirm; it never goes into this patient's file unconfirmed (ID-01).
-      notes.push(
-        `${describeCtStudy(exam)}: MMRAD lo registró con otro dígito verificador; no va incluido. Revísalo en Imágenes.`
-      );
+      plan.withheld.push(describeCtStudy(exam));
     } else if (exam.pdf_url) {
-      included.push({ exam, source: 'pdf' });
+      plan.included.push({ exam, source: 'pdf' });
     } else if (hasMMRADStructuredReport(exam)) {
-      included.push({ exam, source: 'text' });
+      plan.included.push({ exam, source: 'text' });
     } else {
-      notes.push(`${describeCtStudy(exam)}: MMRAD aún no publica su informe.`);
+      plan.unreported.push(`${describeCtStudy(exam)}: MMRAD aún no publica su informe.`);
     }
   }
-  return { included, notes, ctCount: cts.length };
+  return plan;
 };
 
-/** The CT part once every report was asked for; `failures` name the studies that did not come. */
+/**
+ * The CT part once every report was asked for. A report that did not come, a study held back for
+ * its check digit, or an unfinished check-digit search may leave a CT out: the person decides.
+ */
 export const describeCtPart = ({
   plan,
   documents,
   failures,
-  searchNotes,
+  searchIncomplete,
 }: {
   plan: CtReportPlan;
   documents: DownloadDocument[];
+  /** Studies whose report could not be downloaded. */
   failures: string[];
-  searchNotes: string[];
+  /** The search for studies registered under another check digit did not finish. */
+  searchIncomplete: boolean;
 }): PartOutcome => {
-  const notes = [...searchNotes, ...plan.notes];
-  if (plan.ctCount === 0) return outcome('empty', 'Sin TAC en esta hospitalización.', { notes });
-  if (plan.included.length === 0) {
-    return outcome('empty', 'Ningún TAC de la hospitalización tiene informe disponible.', {
+  const problems = [
+    failures.length ? `No se pudo descargar: ${failures.join('; ')}.` : '',
+    plan.withheld.length
+      ? `MMRAD registró con otro dígito verificador: ${plan.withheld.join('; ')}. No van incluidos; revísalos en Imágenes.`
+      : '',
+    searchIncomplete
+      ? 'La búsqueda de TAC registrados con otro dígito verificador no terminó; puede faltar alguno.'
+      : '',
+  ].filter(Boolean);
+  const notes = plan.unreported;
+  const summary = documents.length
+    ? plural(documents.length, 'informe', 'informes')
+    : plan.ctCount === 0
+      ? 'Sin TAC en esta hospitalización.'
+      : plan.included.length === 0 && plan.withheld.length === 0
+        ? 'Ningún TAC de la hospitalización tiene informe publicado.'
+        : 'No incluidos';
+  if (problems.length) {
+    return outcome(documents.length ? 'partial' : 'failed', summary, {
+      documents,
       notes,
+      problem: problems.join(' '),
     });
   }
-  const summary = plural(documents.length, 'informe', 'informes');
-  if (failures.length === 0) return outcome('complete', summary, { documents, notes });
-  const problem = `No se pudo descargar: ${failures.join('; ')}.`;
-  return documents.length
-    ? outcome('partial', summary, { documents, notes, problem })
-    : outcome('failed', 'No incluidos', { notes, problem });
+  return outcome(documents.length ? 'complete' : 'empty', summary, { documents, notes });
 };
 
 // ---------------------------------------------------------------------------------------------

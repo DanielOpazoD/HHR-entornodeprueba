@@ -48,14 +48,14 @@ const LabCollector: React.FC<{ rut: string; episodeId: string; request: LabColle
     admissionDate: request.readFrom,
     enabled: true,
   });
-  const { phase, message, analysis, pending } = lab;
+  const { phase, message, analysis, pending, refreshing } = lab;
   const progress = labProgressText(lab);
   const { onProgress, onSettled } = request;
   useEffect(() => onProgress(progress), [onProgress, progress]);
   useEffect(() => {
-    const settlement = settleLabRead({ phase, message, analysis, pending });
+    const settlement = settleLabRead({ phase, message, analysis, pending, refreshing });
     if (settlement) onSettled(settlement);
-  }, [phase, message, analysis, pending, onSettled]);
+  }, [phase, message, analysis, pending, refreshing, onSettled]);
   return null;
 };
 
@@ -149,8 +149,7 @@ export const ClinicalExplorerDownloadDialog: React.FC<ClinicalExplorerDownloadDi
   const blocker =
     parts.length === 0 ? 'Elige al menos una parte.' : includesLab ? rangeProblem(range) : null;
   const review = state.request ? reviewDownload(state.request.parts, state.outcomes) : null;
-  const canSaveAvailable =
-    state.phase === 'review' && Boolean(review?.documents.length) && !state.error;
+  const canSaveAvailable = state.phase === 'review' && Boolean(review?.documents.length);
   const message = closingMessage(state);
   const shownParts = state.request?.parts ?? [];
 
@@ -249,10 +248,8 @@ export const ClinicalExplorerDownloadDialog: React.FC<ClinicalExplorerDownloadDi
                 name="clinical-explorer-download-format"
                 className="accent-teal-700"
                 checked={format === option.key}
-                onChange={() => {
-                  setFormat(option.key);
-                  reset();
-                }}
+                // The format only shapes the file: what was gathered stays and can be saved again.
+                onChange={() => setFormat(option.key)}
               />
               {option.label}
             </label>
@@ -304,7 +301,7 @@ export const ClinicalExplorerDownloadDialog: React.FC<ClinicalExplorerDownloadDi
             Cancelar
           </button>
           {canSaveAvailable && (
-            <button type="button" className={SECONDARY} onClick={() => void saveAvailable()}>
+            <button type="button" className={SECONDARY} onClick={() => void saveAvailable(format)}>
               Descargar lo disponible
             </button>
           )}

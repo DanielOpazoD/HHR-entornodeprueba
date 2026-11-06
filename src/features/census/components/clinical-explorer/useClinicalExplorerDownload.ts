@@ -28,6 +28,7 @@ import {
   reviewDownload,
   type ArchiveFile,
   type DownloadDocument,
+  type DownloadFormat,
   type DownloadOutcomes,
   type DownloadPart,
   type DownloadRequest,
@@ -74,7 +75,7 @@ const IDLE: ClinicalExplorerDownloadState = {
 class RunStopped extends Error {}
 
 type CtListing =
-  | { kind: 'ready'; studies: MMRADExam[]; notes: string[] }
+  | { kind: 'ready'; studies: MMRADExam[]; searchIncomplete: boolean }
   | { kind: 'failed'; problem: string };
 
 /**
@@ -94,12 +95,9 @@ const listMmradStudies = (
     let alternateSettled = false;
     const finish = (): void => {
       if (signal.aborted || !exactSettled || !alternateSettled) return;
-      const notes = partial
-        ? ['La búsqueda por dígito verificador no terminó; puede faltar algún TAC.']
-        : [];
       resolve(
         exactError === null
-          ? { kind: 'ready', studies, notes }
+          ? { kind: 'ready', studies, searchIncomplete: partial }
           : { kind: 'failed', problem: `MMRAD no respondió: ${exactError}` }
       );
     };
@@ -189,19 +187,19 @@ export const useClinicalExplorerDownload = (
 
   const save = async (
     bundle: Bundle,
-    request: DownloadRequest,
+    format: DownloadFormat,
     documents: DownloadDocument[],
     isCurrent: () => boolean
   ): Promise<void> => {
     setState(current => ({ ...current, phase: 'saving', error: null }));
     try {
       const bytes =
-        request.format === 'pdf'
+        format === 'pdf'
           ? await bundle.mergePdfDocuments(documents)
           : bundle.zipDocuments(documents);
       if (!isCurrent()) return;
-      const fileName = bundleFileName(patientName, getClinicalCalendarDateISO(), request.format);
-      const type = request.format === 'pdf' ? 'application/pdf' : 'application/zip';
+      const fileName = bundleFileName(patientName, getClinicalCalendarDateISO(), format);
+      const type = format === 'pdf' ? 'application/pdf' : 'application/zip';
       downloadBlob(new Blob([bytes], { type }), fileName);
       setState(current => ({ ...current, phase: 'saved', savedAs: fileName }));
     } catch (error) {
@@ -326,7 +324,12 @@ export const useClinicalExplorerDownload = (
           failures.push(describeCtStudy(exam));
         }
       }
-      return describeCtPart({ plan, documents, failures, searchNotes: listing.notes });
+      return describeCtPart({
+        plan,
+        documents,
+        failures,
+        searchIncomplete: listing.searchIncomplete,
+      });
     };
 
     try {
@@ -357,7 +360,7 @@ export const useClinicalExplorerDownload = (
         setState(current => ({ ...current, phase: 'review' }));
         return;
       }
-      await save(bundle, request, review.documents, isCurrent);
+      await save(bundle, request.format, review.documents, isCurrent);
     } catch (error) {
       if (error instanceof RunStopped || !isCurrent()) return;
       setState(current => ({
@@ -370,8 +373,8 @@ export const useClinicalExplorerDownload = (
     }
   };
 
-  /** After the person read what is missing: saves what did come. */
-  const saveAvailable = async (): Promise<void> => {
+  /** After the person read what is missing: saves what did come, in the format chosen now. */
+  const saveAvailable = async (format: DownloadFormat): Promise<void> => {
     const bundle = bundleRef.current;
     const { request, outcomes, phase } = state;
     if (phase !== 'review' || !bundle || !request) return;
@@ -380,7 +383,7 @@ export const useClinicalExplorerDownload = (
     const opened = openRun();
     if (!opened) return;
     try {
-      await save(bundle, request, review.documents, opened.isCurrent);
+      await save(bundle, format, review.documents, opened.isCurrent);
     } finally {
       if (runRef.current === opened.run) runRef.current = null;
     }

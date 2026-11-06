@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DownloadAssemblyError,
   mergePdfDocuments,
+  printable,
   readHistoryArchive,
   renderCtReportTextPdf,
   renderLabResultsPdf,
@@ -82,6 +83,15 @@ describe('explorer download assembly', () => {
     );
     expect(Object.keys(zip.files)).toEqual(['1 ficha.pdf', '2 lab.pdf', '3 tac.pdf']);
     expect(zip.file('1 ficha.pdf')?.asUint8Array()).toEqual(ficha);
+  });
+
+  it('spells clinical symbols Helvetica cannot print instead of dropping them', () => {
+    expect(printable('Nódulo de 5–10 mm; TFG ≥ 60 mL/min; “sin cambios”')).toBe(
+      'Nódulo de 5-10 mm; TFG >= 60 mL/min; "sin cambios"'
+    );
+    expect(printable('10⁹/L μmol/L')).toBe('10^9/L µmol/L');
+    // Anything else outside Latin-1 stays visible as a mark, never vanishes.
+    expect(printable('a😀b')).toBe('a?b');
   });
 
   it('writes the Syslab results and a CT report text as readable PDFs', async () => {
