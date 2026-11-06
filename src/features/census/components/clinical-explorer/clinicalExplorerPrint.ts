@@ -106,10 +106,9 @@ export const printHtmlDocument = (html: string, signal?: AbortSignal): Promise<v
       pointerEvents: 'none',
       border: '0',
     });
-    let loadTimer: number | undefined;
     let removeTimer: number | undefined;
     const remove = (): void => {
-      if (loadTimer !== undefined) clearTimeout(loadTimer);
+      clearTimeout(loadTimer);
       if (removeTimer !== undefined) clearTimeout(removeTimer);
       signal?.removeEventListener('abort', onAbort);
       frame.removeEventListener('load', onLoad);
@@ -132,7 +131,7 @@ export const printHtmlDocument = (html: string, signal?: AbortSignal): Promise<v
         onError();
         return;
       }
-      if (loadTimer !== undefined) clearTimeout(loadTimer);
+      clearTimeout(loadTimer);
       // Past this point the dialog belongs to the person who asked for it.
       signal?.removeEventListener('abort', onAbort);
       frameWindow.addEventListener('afterprint', () => setTimeout(remove, 0), { once: true });
@@ -150,7 +149,7 @@ export const printHtmlDocument = (html: string, signal?: AbortSignal): Promise<v
     frame.addEventListener('load', onLoad, { once: true });
     frame.addEventListener('error', onError, { once: true });
     // A local srcdoc that never loads must release the action so the person can retry.
-    loadTimer = window.setTimeout(() => fail(new Error('print_load_timeout')), 30_000);
+    const loadTimer = window.setTimeout(() => fail(new Error('print_load_timeout')), 30_000);
     frame.srcdoc = html;
     document.body.appendChild(frame);
   });
