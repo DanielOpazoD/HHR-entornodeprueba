@@ -58,6 +58,26 @@ describe('clinical panel snapshot ownership', () => {
     });
   });
 
+  it('hides an already settled snapshot while the same episode is read in the new session', async () => {
+    const next = deferred();
+    mocks.request.mockResolvedValueOnce(payload('old-ready')).mockReturnValueOnce(next.promise);
+    const { result } = renderHook(() => useClinicalPanelSnapshot('same-episode'));
+    await waitFor(() =>
+      expect(result.current.documentState).toMatchObject({
+        phase: 'ready',
+        documents: [{ id: 'old-ready' }],
+      })
+    );
+    act(() => setSessionGeneration('settled-replacement-session'));
+    expect(result.current.state.phase).toBe('loading');
+    expect(result.current.documentState.phase).toBe('loading');
+    await act(async () => next.resolve(payload('new-ready')));
+    expect(result.current.documentState).toMatchObject({
+      phase: 'ready',
+      documents: [{ id: 'new-ready' }],
+    });
+  });
+
   it('coalesces repeated refresh clicks while the current request is pending', async () => {
     const pending = deferred();
     mocks.request.mockReturnValue(pending.promise);
