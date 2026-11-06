@@ -29,7 +29,30 @@ const screenshot = (page: Page, name: string) =>
 test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns to the census', async ({
   page,
 }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await seedVisualCensus(page);
+  await page.route('**/.netlify/functions/mmrad-search?*', route =>
+    route.fulfill({
+      json: {
+        rut: '12345678-5',
+        examenes: [
+          {
+            nombre_examen: 'Rx tórax sintética',
+            fecha_examen: '03/04/2026 09:40',
+            fecha_asignacion: '03/04/2026',
+            mod: 'CR',
+            estado: 'Validado',
+            pdf_url: null,
+            dicom_url: null,
+            informe_html_url: null,
+            report: null,
+            registered_patient_id: '12345678-9',
+            registered_patient_name: 'PACIENTE SINTÉTICO',
+          },
+        ],
+      },
+    })
+  );
   await page.addInitScript(panel => {
     window.addEventListener('message', event => {
       const request = event.data;
@@ -56,6 +79,7 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
     ['125', 1024, 666],
   ] as const) {
     await page.setViewportSize({ width, height });
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
     await expect(header).toContainText(PATIENT);
 
     // Nothing pushes the page sideways.
@@ -113,8 +137,7 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
         .getByText('Experimental', { exact: true })
     ).toHaveCount(0);
 
-    // Syslab and MMRAD are out of reach here: a source that cannot be read is never shown as an
-    // empty hospitalization (SAVE-01).
+    // Syslab is unavailable and MMRAD uses synthetic studies; neither is an empty hospitalization.
     await expect(page.getByRole('region', { name: 'Laboratorio' })).not.toContainText(
       'Sin informes de laboratorio'
     );
@@ -122,7 +145,26 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
       'Sin estudios de imágenes'
     );
 
+    const identityNotice = page.getByRole('button', {
+      name: 'Advertencia de identificación del estudio',
+    });
+    await expect(identityNotice).toBeVisible();
+    await expect(page.getByRole('tooltip')).toHaveCount(0);
+    await identityNotice.hover();
+    const tooltip = page.getByRole('tooltip');
+    await expect(tooltip).toContainText('confirma que es el mismo paciente');
+    const tooltipBounds = await tooltip.boundingBox();
+    expect(tooltipBounds!.x + tooltipBounds!.width).toBeLessThanOrEqual(width);
+    await page.keyboard.press('Escape');
+    await expect(tooltip).toHaveCount(0);
+    await expect(explorer).toBeVisible();
+    await header.click();
+    await identityNotice.focus();
+    await expect(tooltip).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(tooltip).toHaveCount(0);
     await page.mouse.move(1, 1);
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
     await screenshot(page, `clinical-explorer-${zoom}`);
   }
 
