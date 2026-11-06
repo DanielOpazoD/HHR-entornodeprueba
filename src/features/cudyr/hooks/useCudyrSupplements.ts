@@ -17,7 +17,12 @@ export const useCudyrSupplements = (data: CudyrReportDataset | null) => {
     ready: boolean;
   }>({ key: '', reports: [], error: '', ready: false });
   useEffect(() => {
-    if (!data || !uid) return;
+    if (!data || !uid) {
+      setState(previous =>
+        previous.key ? { key: '', reports: [], error: '', ready: false } : previous
+      );
+      return;
+    }
     const controller = new AbortController();
     void loadCudyrSupplements(data.from, data.to, controller.signal)
       .then(reports => {
