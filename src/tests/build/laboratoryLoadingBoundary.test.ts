@@ -24,6 +24,15 @@ describe('laboratory loading boundaries', () => {
     );
   });
 
+  it('defers the trend model and charts behind the explorer disclosure', () => {
+    const owner = source(
+      'src/features/census/components/clinical-explorer/ClinicalExplorerLab.tsx'
+    );
+    expect(owner).not.toContain("from './ClinicalExplorerLabCharts'");
+    expect(owner).not.toContain('buildLabSeriesModel');
+    expect(owner).toContain("import('./ClinicalExplorerLabTrends')");
+  });
+
   it.each([
     ['LaboratoryQuickAction', 'LabResultsViewerModal'],
     ['LabResultsViewerModal', 'LabViewerAnalysis'],

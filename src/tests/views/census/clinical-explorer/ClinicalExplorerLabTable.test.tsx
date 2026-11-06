@@ -58,7 +58,7 @@ describe('six original laboratory reports', () => {
       buildRecentLabColumns(analysis, exams, '2026-11-03').map(column => column.exam?.id)
     ).toEqual(['2', '1', '0']);
   });
-  it('uses the legacy clinical groups, omits visible hours and does not fill missing measurements', () => {
+  it('keeps legacy exam order without group headings, shows source hours and does not fill missing measurements', () => {
     render(
       <ClinicalExplorerLabTable
         analysis={analysis}
@@ -74,7 +74,9 @@ describe('six original laboratory reports', () => {
         .filter(cell => cell.getAttribute('scope') === 'row')
         .map(cell => cell.textContent)
     ).toEqual([expect.stringContaining('Hemoglobina'), expect.stringContaining('Creatinina')]);
-    expect(table).not.toHaveTextContent(/08:00/);
+    expect(table).toHaveTextContent('08:00:59');
+    expect(table).not.toHaveTextContent('Hemograma');
+    expect(table).not.toHaveTextContent('Función renal / electrolitos');
     const haemoglobin = within(table).getByRole('row', { name: /Hemoglobina/ });
     expect(
       within(haemoglobin)
@@ -83,6 +85,25 @@ describe('six original laboratory reports', () => {
     ).toEqual(['12,0', '—', '—', '—', '—', '—']);
     expect(table).toHaveTextContent('Ref. 0,7 - 1,2');
   });
+  it('filters names without case or accent sensitivity, clears the query and resets for another identity', () => {
+    const props = { analysis, exams, day: '2026-11-07', identity: 'synthetic-a' };
+    const view = render(<ClinicalExplorerLabTable {...props} />);
+    const search = screen.getByRole('searchbox', { name: 'Buscar examen de laboratorio' });
+    fireEvent.change(search, { target: { value: 'CREATINÍNA' } });
+    expect(screen.getByRole('table')).toHaveTextContent('Creatinina');
+    expect(screen.getByRole('table')).not.toHaveTextContent('Hemoglobina');
+    expect(screen.getAllByRole('button', { name: /Abrir PDF/ })).toHaveLength(6);
+    fireEvent.change(search, { target: { value: 'zzz' } });
+    expect(screen.getByRole('status')).toHaveTextContent('Sin exámenes que coincidan');
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar búsqueda de exámenes' }));
+    expect(screen.getByRole('table')).toHaveTextContent('Hemoglobina');
+    fireEvent.change(search, { target: { value: 'creatinina' } });
+    view.rerender(<ClinicalExplorerLabTable {...props} identity="synthetic-b" />);
+    expect(search).toHaveValue('');
+    view.rerender(<ClinicalExplorerLabTable {...props} />);
+    expect(search).toHaveValue('');
+  });
+
   it('keeps different reference ranges with their source cells even when units match', () => {
     const changed = structuredClone(analysis);
     const columns = buildRecentLabColumns(changed, exams, '2026-11-07');
