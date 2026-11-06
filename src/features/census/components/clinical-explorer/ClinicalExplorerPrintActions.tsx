@@ -11,6 +11,7 @@ import { getSessionEpoch, onSessionChange } from '@/services/storage/sessionStor
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { buildIndicationsPrintHtml, printHtmlDocument } from './clinicalExplorerPrint';
+import { EXPLORER_ACTION_BUTTON } from './clinicalExplorerUi';
 
 type Action = 'indications' | 'prescription';
 type ActionState =
@@ -18,9 +19,6 @@ type ActionState =
   | { kind: 'pending'; action: Action }
   | { kind: 'notice'; message: string }
   | { kind: 'error'; message: string };
-
-const ACTION_BUTTON =
-  'inline-flex h-7 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 disabled:cursor-wait disabled:opacity-60';
 
 interface ClinicalExplorerPrintActionsProps {
   patient: ClinicalExplorerPatient;
@@ -153,7 +151,7 @@ export const ClinicalExplorerPrintActions: React.FC<ClinicalExplorerPrintActions
       )}
       <button
         type="button"
-        className={`${ACTION_BUTTON} w-7 justify-center px-0`}
+        className={`${EXPLORER_ACTION_BUTTON} w-8 justify-center px-0`}
         aria-label="Imprimir indicaciones"
         title={indicationsLabel}
         disabled={pending !== null}
@@ -167,7 +165,7 @@ export const ClinicalExplorerPrintActions: React.FC<ClinicalExplorerPrintActions
       </button>
       <button
         type="button"
-        className={ACTION_BUTTON}
+        className={EXPLORER_ACTION_BUTTON}
         title="Ver o imprimir la receta vigente de Eloísa"
         disabled={pending !== null}
         onClick={() => void run('prescription')}
@@ -175,7 +173,7 @@ export const ClinicalExplorerPrintActions: React.FC<ClinicalExplorerPrintActions
         {pending === 'prescription' ? (
           <Loader2 size={13} aria-hidden="true" className="animate-spin" />
         ) : (
-          <FileText size={13} aria-hidden="true" className="text-sky-700" />
+          <FileText size={13} aria-hidden="true" className="text-slate-500" />
         )}
         Receta
       </button>

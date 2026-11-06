@@ -6,6 +6,7 @@ import { useClinicalPanelSnapshot, type PanelState } from '../patient-row/useCli
 import { EvolutionCard } from '../patient-row/ClinicalPanelSections';
 import {
   AreaCard,
+  EXPLORER_ICON_BUTTON,
   EmptyNote,
   LinkButton,
   ReadFailure,
@@ -142,7 +143,7 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
       type="button"
       onClick={reload}
       disabled={state.phase === 'loading'}
-      className="inline-flex size-7 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 disabled:cursor-wait disabled:opacity-50"
+      className={EXPLORER_ICON_BUTTON}
       title="Volver a leer Ficha Médico"
       aria-label="Volver a leer Ficha Médico"
     >
@@ -188,7 +189,7 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
                     className={clsx(
                       'min-h-9 rounded-lg px-2 text-[12px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
                       profession === item.key
-                        ? 'bg-medical-50 text-medical-700'
+                        ? 'bg-teal-50 text-teal-800'
                         : 'text-slate-500 hover:bg-slate-50'
                     )}
                   >

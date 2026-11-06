@@ -331,7 +331,10 @@ En escritorio, el regreso ocupa el espacio sobre la lista de pacientes y se alin
 con la identidad, sin una franja superior adicional. Sigue fuera del módulo de
 carga diferida. La lista tiene altura según su contenido, máximo visible y scroll.
 Las acciones del paciente y las pestañas usan menos bordes; los iconos de sección
-son neutros y los colores de vitales conservan su significado clínico.
+son neutros y los colores de vitales conservan su significado clínico. Los controles
+de acción comparten altura, tipografía y foco; las selecciones usan verde azulado.
+Las fechas y metadatos secundarios mantienen contraste legible sin competir con
+los resultados clínicos.
 
 El eje temporal del laboratorio ajusta sus etiquetas al ancho disponible, conserva
 los extremos y señala el día del censo. Al cruzar de año incluye el año en la fecha.

@@ -60,7 +60,7 @@ export const ClinicalExplorerPatientPanel: React.FC<ClinicalExplorerPatientPanel
                 onClick={() => onSelect(patient.bedId)}
                 className={clsx(
                   'grid w-full grid-cols-[48px_minmax(0,1fr)] items-center gap-x-2 border-l-2 px-2.5 py-1 text-left transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-teal-700',
-                  selected ? 'border-l-medical-600 bg-medical-50' : 'border-l-transparent'
+                  selected ? 'border-l-teal-600 bg-teal-50' : 'border-l-transparent'
                 )}
               >
                 <span className="flex items-center gap-1 whitespace-nowrap font-display text-[13px] font-bold text-slate-800">
