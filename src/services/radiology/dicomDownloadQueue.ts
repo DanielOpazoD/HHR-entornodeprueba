@@ -111,6 +111,7 @@ export const createDicomDownloadQueue = (
       drain();
       return;
     }
+    const now = Date.now();
     while (state.activeDecodes < 2) {
       const index = next('downloaded');
       if (index === undefined) break;
@@ -149,8 +150,8 @@ export const createDicomDownloadQueue = (
     }
     // Bound queued originals; leave one buffer slot available for the foreground cut.
     const buffered = () => buffers.size + state.activeDownloads;
-    while (state.activeDownloads < state.concurrency && Date.now() >= cooldown) {
-      const index = next('queued', i => retryAt[i] <= Date.now());
+    while (state.activeDownloads < state.concurrency && now >= cooldown) {
+      const index = next('queued', i => retryAt[i] <= now);
       if (index === undefined || buffered() >= state.limit * 2 + (index === priority ? 1 : 0))
         break;
       slots[index] = 'fetching';
@@ -201,12 +202,10 @@ export const createDicomDownloadQueue = (
         });
     }
     const delayed = slots.flatMap((s, i) =>
-      s === 'queued' && Math.max(retryAt[i], cooldown) > Date.now()
-        ? [Math.max(retryAt[i], cooldown)]
-        : []
+      s === 'queued' && Math.max(retryAt[i], cooldown) > now ? [Math.max(retryAt[i], cooldown)] : []
     );
     if (delayed.length)
-      timer = setTimeout(pump, Math.min(120_000, Math.max(1, Math.min(...delayed) - Date.now())));
+      timer = setTimeout(pump, Math.min(120_000, Math.max(1, Math.min(...delayed) - now)));
     emit();
     drain();
   };
