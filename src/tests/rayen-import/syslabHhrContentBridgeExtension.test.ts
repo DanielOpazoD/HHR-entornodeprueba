@@ -50,6 +50,26 @@ const createHarness = (sendMessage = vi.fn(async () => ({ ok: true }))) => {
 };
 
 describe('HHR Syslab content bridge', () => {
+  it('forwards only the patient-free verification flag for a local probe', async () => {
+    const { onMessage, sendMessage, windowObject } = createHarness();
+    onMessage?.({
+      source: windowObject,
+      origin: windowObject.location.origin,
+      data: {
+        type: 'HHR_RAYEN_SYSLAB_STATUS_REQUEST',
+        reqId: 'probe-1',
+        verifyNetwork: true,
+        rutBody: '11111111',
+        url: 'https://other.example/',
+      },
+    });
+    await vi.waitFor(() =>
+      expect(sendMessage).toHaveBeenCalledWith({
+        type: 'RAYEN_SYSLAB_STATUS_REQUEST',
+        verifyNetwork: true,
+      })
+    );
+  });
   it.each(['http://localhost:3000', 'http://localhost:3001', 'https://testinghhr.netlify.app'])(
     'installs on the trusted HHR origin %s',
     origin => {
@@ -104,13 +124,15 @@ describe('HHR Syslab content bridge', () => {
         rutDisplay: '',
       })
     );
-    expect(postMessage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'HHR_RAYEN_SYSLAB_SEARCH_RESULT',
-        reqId: 'syslab-search-1',
-        response: expect.objectContaining({ ok: true }),
-      }),
-      'http://localhost:3000'
+    await vi.waitFor(() =>
+      expect(postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'HHR_RAYEN_SYSLAB_SEARCH_RESULT',
+          reqId: 'syslab-search-1',
+          response: expect.objectContaining({ ok: true }),
+        }),
+        'http://localhost:3000'
+      )
     );
   });
 
@@ -126,13 +148,15 @@ describe('HHR Syslab content bridge', () => {
     await vi.waitFor(() =>
       expect(sendMessage).toHaveBeenCalledWith({ type: 'RAYEN_SYSLAB_LOGIN_OPEN_REQUEST' })
     );
-    expect(postMessage).toHaveBeenCalledWith(
-      {
-        type: 'HHR_RAYEN_SYSLAB_LOGIN_OPEN_RESULT',
-        reqId: 'login-open-1',
-        response: { ok: true },
-      },
-      'http://localhost:3000'
+    await vi.waitFor(() =>
+      expect(postMessage).toHaveBeenCalledWith(
+        {
+          type: 'HHR_RAYEN_SYSLAB_LOGIN_OPEN_RESULT',
+          reqId: 'login-open-1',
+          response: { ok: true },
+        },
+        'http://localhost:3000'
+      )
     );
   });
 

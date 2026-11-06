@@ -217,8 +217,15 @@ microbiología y paridad del parser. Ejecutar también `test:e2e:laboratory-smok
 
 ## Servidor remoto en Mac mini
 
-`VITE_SYSLAB_TRANSPORT=remote` selecciona explícitamente el servidor detrás de
-`syslab-proxy`; el estado del visor usa ese mismo transporte y no solicita un login de
-extensión. Sin esa opción se conserva la extensión actual. No hay cambio automático de
-transporte después de un error. La configuración y el rollback están en
+`VITE_SYSLAB_TRANSPORT=auto` comprueba primero el acceso local mediante la extensión
+0.48.75 o posterior. El probe solicita el formulario oficial vacío por GET, con cookies,
+sin caché ni RUT; tiene un timeout de dos segundos y rechaza redirecciones. Una pestaña
+antigua, una extensión anterior o una sesión vencida no acreditan acceso local listo.
+Solo una respuesta fresca y autenticada elige la extensión; en otro caso se usa el
+servidor detrás de `syslab-proxy`, sin pedir un login local. El sondeo no descarga informes.
+
+La elección se repite antes de una búsqueda nueva, nunca al abrir cada PDF. Los enlaces
+de informes conservan el transporte de su búsqueda incluso al cambiar de red. Una vez
+enviada una consulta local, un fallo o un resultado vacío no la repite mediante el túnel.
+`remote` fuerza el Mac mini y `extension` conserva el comportamiento anterior. La configuración y el rollback están en
 [el runbook Syslab](../../../docs/runbooks/laboratory-syslab-issues.md#puente-remoto-del-mac-mini).

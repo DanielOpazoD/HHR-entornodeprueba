@@ -86,6 +86,26 @@ const createHarness = (
 };
 
 describe('Syslab background runtime', () => {
+  it('checks a fresh network response instead of trusting the cached Syslab tab', async () => {
+    const sendMessage = vi.fn(
+      async ({ request }: { request: { type: string; verifyNetwork?: boolean } }) => ({
+        bridgeId: 'bridge-1',
+        loginRequired: request.verifyNetwork === true,
+        ...(request.verifyNetwork ? { networkVerified: true } : {}),
+      })
+    );
+    const { runtime } = createHarness(sendMessage);
+    await expect(runtime.currentSession({ verifyNetwork: true })).resolves.toMatchObject({
+      connected: false,
+      loginRequired: true,
+      networkVerified: true,
+    });
+    expect(sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: { type: 'RAYEN_SYSLAB_STATUS', verifyNetwork: true },
+      })
+    );
+  });
   beforeEach(() => vi.restoreAllMocks());
 
   it('reports the shared offscreen session without opening or managing another document', async () => {
@@ -333,7 +353,7 @@ declare global {
   };
   var HhrSyslabRuntime: {
     create: (dependencies: Record<string, unknown>) => {
-      currentSession: () => Promise<Record<string, unknown>>;
+      currentSession: (options?: { verifyNetwork?: boolean }) => Promise<Record<string, unknown>>;
       login: (input: { username: string; password: string }) => Promise<Record<string, unknown>>;
       search: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
       openPdf: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;

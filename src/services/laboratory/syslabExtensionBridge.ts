@@ -38,6 +38,8 @@ interface SyslabExtensionResponse {
 export interface SyslabExtensionStatus {
   bridgeAvailable: boolean;
   connected: boolean;
+  /** A fresh, patient-free request reached the official Syslab form. */
+  networkVerified?: boolean;
   loginRequired: boolean;
   message: string;
 }
@@ -71,6 +73,7 @@ const requestExtension = (
       if (settled) return;
       settled = true;
       clearTimeout(timeoutId);
+      clearTimeout(discoveryTimeoutId);
       window.removeEventListener('message', onMessage);
       resolve(result);
     };
@@ -79,6 +82,10 @@ const requestExtension = (
       if (event.source !== window || event.origin !== window.location.origin) return;
       const data = event.data;
       if (!data || data.reqId !== reqId) return;
+      if (operation === 'status' && data.type === 'HHR_RAYEN_SYSLAB_STATUS_ACK') {
+        clearTimeout(discoveryTimeoutId);
+        return;
+      }
 
       if (operation === 'pdfBundle' && data.type === PROGRESS_TYPES.pdfBundle) {
         const progress = data.progress as Record<string, unknown> | undefined;
@@ -110,6 +117,11 @@ const requestExtension = (
 
     window.addEventListener('message', onMessage);
     const timeoutId = setTimeout(() => finish({ bridgeAvailable: false }), timeoutMs);
+    // An absent/old extension must not delay remote access for the full network probe budget.
+    const discoveryTimeoutId =
+      operation === 'status' && payload.verifyNetwork === true
+        ? setTimeout(() => finish({ bridgeAvailable: false }), 250)
+        : undefined;
     window.postMessage(
       { type: REQUEST_TYPES[operation], reqId, ...payload },
       window.location.origin
@@ -123,9 +135,14 @@ const responseError = (result: SyslabExtensionResponse, fallback: string): strin
 };
 
 export const requestSyslabExtensionStatus = async (
-  timeoutMs?: number
+  timeoutMs?: number,
+  verifyNetwork = false
 ): Promise<SyslabExtensionStatus> => {
-  const result = await requestExtension('status', {}, timeoutMs);
+  const result = await requestExtension(
+    'status',
+    verifyNetwork ? { verifyNetwork: true } : {},
+    timeoutMs
+  );
   if (!result.bridgeAvailable) {
     return {
       bridgeAvailable: false,
@@ -140,6 +157,7 @@ export const requestSyslabExtensionStatus = async (
   return {
     bridgeAvailable: true,
     connected,
+    ...(verifyNetwork ? { networkVerified: response?.networkVerified === true } : {}),
     loginRequired: response?.loginRequired === true || response?.status === 'login-required',
     message:
       responseError(result, 'No se pudo comprobar Syslab.') ||

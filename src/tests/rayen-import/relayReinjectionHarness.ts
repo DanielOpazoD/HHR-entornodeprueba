@@ -111,7 +111,7 @@ export const MANIFEST = {
     },
     {
       matches: ['http://10.4.69.90/syslab/*'],
-      js: ['lab-result-parser.js', 'lab-viewer.js', 'syslab-bridge.js'],
+      js: ['lab-result-parser.js', 'lab-viewer.js', 'syslab-network-probe.js', 'syslab-bridge.js'],
       all_frames: true,
     },
     {

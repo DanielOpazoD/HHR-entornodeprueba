@@ -173,6 +173,20 @@ Para utilizar el Mac desde otros equipos, configurar `VITE_SYSLAB_TRANSPORT=remo
 Esto requiere un despliegue nuevo. Hasta validar la instalación, conservar
 `VITE_SYSLAB_TRANSPORT=extension` y no apuntar al dominio antiguo por suposición.
 
+Para priorizar la red local, usar `VITE_SYSLAB_TRANSPORT=auto` (Builds, producción)
+y desplegar de nuevo. La extensión 0.48.75 o posterior comprueba el formulario vacío
+`parbusqueRut.php` con una solicitud fresca, cookies y timeout de dos segundos. Rechaza
+redirecciones, respuestas desconocidas y sesiones vencidas. HHR espera como máximo
+4,5 segundos al puente; una extensión ausente o antigua se descarta en 250 ms
+al faltar su acuse inmediato. Sin confirmación fresca y autenticada utiliza el Mac mini.
+Una extensión anterior sigue funcionando con `extension`, pero en `auto` se usa el
+servidor hasta actualizarla y recargar las pestañas de HHR/Syslab. No se añaden permisos.
+
+La comprobación se hace antes de cada búsqueda nueva y no incluye RUT ni descarga PDF.
+En red local lista no se llama a Netlify ni al túnel. Al abrir o analizar un informe,
+se conserva el transporte de su enlace. Un fallo tras enviar una consulta local no
+la repite por otra vía ni convierte el error en ausencia de exámenes.
+
 El modo remoto omite la extensión del navegador en búsqueda y comprobación de conexión.
 Un fallo remoto no cambia de origen ni se presenta como búsqueda vacía. Los informes de
 una búsqueda de extensión siguen ligados a su lote original; nunca se mezclan con otra
@@ -191,3 +205,8 @@ El health remoto comprueba una sesión real de Syslab y dispone del mismo presup
 
 Para volver a la extensión, poner `VITE_SYSLAB_TRANSPORT=extension` y desplegar de nuevo.
 No se modifica el censo ni se realizan escrituras clínicas como parte de esta conexión.
+
+El sondeo de red vive en `syslab-network-probe.js`, separado de la navegación clínica
+y sin búsquedas de pacientes. El paquete y la reinyección cargan esta dependencia
+antes del puente. Se mantienen los límites existentes de tamaño y complejidad; el
+relay usa async/await y el transporte comparte la respuesta de indisponibilidad.

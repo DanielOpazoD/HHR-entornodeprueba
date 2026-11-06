@@ -41,8 +41,8 @@
       delay,
     });
 
-    const currentSession = async () => ({
-      ...await sessionTransport.currentSession(),
+    const currentSession = async options => ({
+      ...await sessionTransport.currentSession(options),
       pdfBundleSupported: true,
     });
 

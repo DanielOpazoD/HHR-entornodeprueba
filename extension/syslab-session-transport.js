@@ -152,23 +152,23 @@
       throw new Error(lastError);
     };
 
-    const currentSession = async () => {
+    const unavailableSession = message => ({ ok: true, status: 'unavailable', connected: false, message });
+
+    const currentSession = async ({ verifyNetwork = false } = {}) => {
       try {
-        const session = await resolve();
-        const bridge = session.status;
+        const session = await resolve({ offscreenTimeoutMs: verifyNetwork ? 1_500 : 8_000 });
+        const bridge = verifyNetwork
+          ? await send(session, { ...STATUS_MESSAGE, verifyNetwork: true }, 2_500)
+          : session.status;
         if (!bridge || bridge.error) {
-          return {
-            ok: true,
-            status: 'unavailable',
-            connected: false,
-            message: String(bridge && bridge.error || 'La sesión interna de Syslab no responde.'),
-          };
+          return unavailableSession(String(bridge && bridge.error || 'La sesión interna de Syslab no responde.'));
         }
         const connected = !bridge.loginRequired;
         return {
           ok: true,
           status: connected ? 'ready' : 'login-required',
           connected,
+          ...(verifyNetwork ? { networkVerified: bridge.networkVerified === true } : {}),
           loginRequired: !connected,
           message: connected
             ? session.kind === 'visible-tab'
@@ -177,12 +177,7 @@
             : 'Syslab requiere iniciar sesión.',
         };
       } catch (_error) {
-        return {
-          ok: true,
-          status: 'unavailable',
-          connected: false,
-          message: 'No se pudo conectar con Syslab en la red local.',
-        };
+        return unavailableSession('No se pudo conectar con Syslab en la red local.');
       }
     };
 

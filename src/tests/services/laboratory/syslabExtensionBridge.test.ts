@@ -5,6 +5,7 @@ import {
   fetchSyslabDetailsThroughExtension,
   openSyslabLoginWindow,
   openSyslabPdfThroughExtension,
+  requestSyslabExtensionStatus,
   searchSyslabThroughExtension,
 } from '@/services/laboratory/syslabExtensionBridge';
 
@@ -33,7 +34,73 @@ const installBridgeResponse = (
   });
 
 describe('Syslab extension page bridge', () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it('stops discovery after 250 ms when no updated extension acknowledges the probe', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+    const pending = requestSyslabExtensionStatus(4_500, true);
+    await vi.advanceTimersByTimeAsync(250);
+    await expect(pending).resolves.toMatchObject({ bridgeAvailable: false });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each([500, undefined])(
+    'allows an acknowledged probe to finish, with a bounded timeout (%s)',
+    async responseDelay => {
+      vi.useFakeTimers();
+      vi.spyOn(window, 'postMessage').mockImplementation(message => {
+        const request = message as Record<string, unknown>;
+        const receive = (type: string, response?: Record<string, unknown>) =>
+          window.dispatchEvent(
+            new MessageEvent('message', {
+              source: window,
+              origin: window.location.origin,
+              data: { type, reqId: request.reqId, response },
+            })
+          );
+        queueMicrotask(() => receive('HHR_RAYEN_SYSLAB_STATUS_ACK'));
+        if (responseDelay !== undefined)
+          setTimeout(
+            () =>
+              receive('HHR_RAYEN_SYSLAB_STATUS_RESULT', {
+                connected: true,
+                networkVerified: true,
+              }),
+            responseDelay
+          );
+      });
+      const pending = requestSyslabExtensionStatus(4_500, true);
+      await vi.advanceTimersByTimeAsync(responseDelay ?? 4_500);
+      await expect(pending).resolves.toMatchObject(
+        responseDelay === undefined
+          ? { bridgeAvailable: false }
+          : { bridgeAvailable: true, connected: true, networkVerified: true }
+      );
+      expect(vi.getTimerCount()).toBe(0);
+    }
+  );
+
+  it.each([true, undefined])(
+    'requires an explicit fresh-network acknowledgement (%s)',
+    async networkVerified => {
+      const postMessage = installBridgeResponse(() => ({ connected: true, networkVerified }));
+      await expect(requestSyslabExtensionStatus(4_500, true)).resolves.toMatchObject({
+        connected: true,
+        networkVerified: networkVerified === true,
+      });
+      expect(postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'HHR_RAYEN_SYSLAB_STATUS_REQUEST',
+          verifyNetwork: true,
+        }),
+        window.location.origin
+      );
+    }
+  );
 
   it('searches with the RUT body only and returns opaque report locators', async () => {
     const postMessage = installBridgeResponse(request => {
