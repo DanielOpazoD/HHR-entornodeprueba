@@ -1,3 +1,4 @@
+import { cudyrReportIsVerified } from '@/services/cudyr/cudyrReportCache';
 import { monthlyRecoveryWindow } from '@/services/cudyr/cudyrMonthlyRecoveryPlan';
 import { CudyrNightStaff } from './CudyrNightStaff';
 import { CudyrExclusionSummary } from './CudyrExclusionSummary';
@@ -99,14 +100,7 @@ export const CudyrView = ({
       evaluatedCoverage.some(day => day.state !== 'disponible') ||
       totals.review)
   );
-  const canExport = Boolean(
-    data &&
-    !busy &&
-    !data.readViewSnapshot &&
-    !error &&
-    !data.issues.length &&
-    !evaluatedCoverage.some(day => day.state === 'error')
-  );
+  const canExport = cudyrReportIsVerified(data, busy, error, evaluatedCoverage);
   const selectedRow =
     !busy &&
     !data?.readViewSnapshot &&

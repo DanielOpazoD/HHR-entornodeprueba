@@ -400,6 +400,20 @@ describe('CUDYR daily control', () => {
     expect(screen.getByText('Paciente Sintético')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Excel mensual' })).toBeDisabled();
   });
+  it.each(['snapshot', 'incomplete', 'coverage', 'issues'])(
+    'keeps %s data visible but unavailable for export',
+    state => {
+      const data = fixture();
+      if (state === 'snapshot') data.readViewSnapshot = 'saved';
+      if (state === 'incomplete') data.readIncomplete = true;
+      if (state === 'issues') data.issues = ['Fuente pendiente'];
+      if (state === 'coverage') data.coverage[0].state = 'error';
+      mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
+      render(<CudyrView />);
+      expect(screen.getByText('Paciente Sintético')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Excel mensual' })).toBeDisabled();
+    }
+  );
   it('shows missing component scores as unknown instead of zero', () => {
     const data = fixture();
     const patient = data.rows.find(row => row.eligibility === 'elegible')!;

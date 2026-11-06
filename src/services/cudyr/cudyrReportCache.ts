@@ -11,6 +11,23 @@ export const cudyrReportReadIncomplete = (report: CudyrReportDataset) =>
   (report.readIncomplete ?? Boolean(report.issues.length)) ||
   report.coverage.some(day => day.state === 'error');
 
+/** A displayed copy is not necessarily verified enough for export or supplemental reads. */
+export const cudyrReportIsVerified = (
+  report: CudyrReportDataset | null | undefined,
+  busy: boolean,
+  error: string,
+  coverage = report?.coverage || []
+): boolean =>
+  Boolean(
+    report &&
+    !busy &&
+    !error &&
+    !report.readViewSnapshot &&
+    !report.issues.length &&
+    !report.readIncomplete &&
+    !coverage.some(day => day.state === 'error')
+  );
+
 const STORAGE_KEY = 'hhr_cudyr_report_cache_v11';
 const caches = new WeakMap<object, { scope: string; reports: Map<string, CachedReport> }>();
 const key = (from: string, to: string) => `${from}:${to}`;
