@@ -240,7 +240,7 @@
       "file": "e2e/cudyr-flow-critical.spec.ts",
       "lane": "ci",
       "reason": "CUDYR persisted report, confirmed correction, return navigation, Excel and failed-read recovery against the local emulator.",
-      "command": "npm run test:e2e:critical:ci",
+      "command": "npm run test:e2e:cudyr-flow:ci",
       "workflow": ".github/workflows/ci-cd.yml"
     },
     {
