@@ -1,12 +1,13 @@
 import React, { lazy, Suspense, useState } from 'react';
-import { FlaskConical, FolderOpen } from 'lucide-react';
+import { Download, FlaskConical, FolderOpen } from 'lucide-react';
 import { XRayIcon } from '@/components/ui/XRayIcon';
 import type { ClinicalExplorerPatient } from '@/features/census/controllers/clinicalExplorerController';
 import { calculateHospitalizedDays } from '@/features/census/controllers/patientBedConfigViewController';
 import { formatAge } from '@/utils/ageDisplayUtils';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
+import { ClinicalExplorerDownloadDialog } from './ClinicalExplorerDownloadDialog';
 import { ClinicalExplorerPrintActions } from './ClinicalExplorerPrintActions';
-import { StatusDot, EXPLORER_ACTION_BUTTON } from './clinicalExplorerUi';
+import { StatusDot, EXPLORER_ACTION_BUTTON, EXPLORER_ICON_BUTTON } from './clinicalExplorerUi';
 
 const LazyImagingRequestDialog = lazy(() =>
   import('@/components/modals/ImagingRequestDialog').then(module => ({
@@ -19,7 +20,7 @@ const LazyClinicalDocumentsModal = lazy(() =>
   }))
 );
 
-type QuickAction = 'imaging' | 'documents';
+type QuickAction = 'imaging' | 'documents' | 'download';
 
 interface ClinicalExplorerHeaderProps {
   patient: ClinicalExplorerPatient;
@@ -29,6 +30,8 @@ interface ClinicalExplorerHeaderProps {
   /** Day chosen in the indications area; null means today. Printing uses the same day. */
   indicationDate: string | null;
 }
+
+const DOWNLOAD_LABEL = 'Descargar ficha, exámenes e informes';
 
 /** Who is being reviewed, where they are, and the quick requests, in two short lines. */
 export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
@@ -43,6 +46,8 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
   const [open, setOpen] = useState<{ identity: string; kind: QuickAction } | null>(null);
   const action = open?.identity === identity ? open.kind : null;
   const setAction = (kind: QuickAction | null): void => setOpen(kind ? { identity, kind } : null);
+  // A download stopped by leaving the patient does not reopen when they come back.
+  if (open?.kind === 'download' && open.identity !== identity) setOpen(null);
 
   const patientName = data.patientName.trim();
   const days = calculateHospitalizedDays({
@@ -135,6 +140,15 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
           patient={patient}
           indicationDate={indicationDate}
         />
+        <button
+          type="button"
+          className={EXPLORER_ICON_BUTTON}
+          onClick={() => setAction('download')}
+          aria-label={DOWNLOAD_LABEL}
+          title={DOWNLOAD_LABEL}
+        >
+          <Download size={13} aria-hidden="true" />
+        </button>
       </div>
 
       {action === 'imaging' && (
@@ -152,6 +166,9 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
             bedId={bedId}
           />
         </Suspense>
+      )}
+      {action === 'download' && (
+        <ClinicalExplorerDownloadDialog patient={patient} onClose={() => setAction(null)} />
       )}
     </header>
   );

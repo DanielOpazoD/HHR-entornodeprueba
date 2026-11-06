@@ -63,6 +63,8 @@ const OPTIONAL_TARGETS: Record<string, string> = {
   'src/features/census/components/StaffShiftDetailsModal': 'Staff detail dialog opens on request.',
   'src/features/census/components/clinical-explorer/ClinicalExplorerView':
     'Consultation mode opens on request and reads online sources; the census stays mounted behind it.',
+  'src/features/census/components/clinical-explorer/clinicalExplorerDownloadBundle':
+    'The explorer download loads its PDF/ZIP tools only when a person presses «Descargar»; a failure is shown in its dialog.',
   'src/features/census/components/patient-row/ClinicalAlertsModal':
     'Eloísa chart alerts open on request.',
   'src/features/census/components/patient-row/ClinicalPanelAntecedents':
