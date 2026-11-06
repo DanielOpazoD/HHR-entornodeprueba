@@ -237,9 +237,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # check:unchecked-index compiles once more with noUncheckedIndexedAccess; it runs in
-        # parallel so the gate does not get slower.
-        check: [lint, typecheck, 'check:unchecked-index']
+        # check:unchecked-index runs in the quality aggregate (group type-safety, CI lane
+        # security), so `npm run check:quality` locally runs the same gate CI does.
+        check: [lint, typecheck]
 
     steps:
       - name: Checkout code
