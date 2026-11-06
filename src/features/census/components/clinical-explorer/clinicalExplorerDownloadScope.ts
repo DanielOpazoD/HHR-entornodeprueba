@@ -6,7 +6,14 @@
 import type { SyslabExamItem } from '@/types/domain/labExamTypes';
 import type { MMRADExam } from '@/services/radiology/mmradService';
 import { mmradStampSortKey } from '@/services/radiology/mmradStamp';
-import type { DownloadRange, ListedStay } from './clinicalExplorerDownloadModel';
+
+/** One stay listed in the ZIP's «00 Resumen.csv», delivered or not. */
+export interface ListedStay {
+  /** «Ingreso», `YYYY-MM-DD` in Rapa Nui as the extension writes it. */
+  startDate: string;
+  /** The PDF in the ZIP, or '' when Eloísa did not deliver it. */
+  fileName: string;
+}
 
 /**
  * Rows of a `;`-separated CSV with quoted cells, read as a whole: a quoted cell may hold `;`, `"` as
@@ -104,5 +111,7 @@ export const pendingReportDays = (
   });
 
 /** Pending reports that fall in the chosen range; one of unknown day counts, to be safe. */
-export const countPendingInRange = (days: readonly string[], range: DownloadRange): number =>
-  days.filter(day => !day || (day >= range.from && day <= range.to)).length;
+export const countPendingInRange = (
+  days: readonly string[],
+  range: { from: string; to: string }
+): number => days.filter(day => !day || (day >= range.from && day <= range.to)).length;

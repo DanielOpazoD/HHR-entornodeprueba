@@ -1,10 +1,9 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { PDFDocument } from 'pdf-lib';
 import PizZip from 'pizzip';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuditDocumentsResult } from '@/features/audit-documents/eloisa-history';
 import type { MMRADExam } from '@/services/radiology/mmradService';
-import type { LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
 
 const mocks = vi.hoisted(() => ({
   audit: vi.fn(),
@@ -48,47 +47,25 @@ vi.mock('@/services/pdf/pdfLibRuntime', () => ({
   },
 }));
 
-import { BEDS } from '@/constants/beds';
 import { ClinicalExplorerHeader } from '@/features/census/components/clinical-explorer/ClinicalExplorerHeader';
-import { listClinicalExplorerPatients } from '@/features/census/controllers/clinicalExplorerController';
 import { openMMRADExamListMemory } from '@/components/modals/controllers/radiologyExamListMemory';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
-import { DataFactory } from '@/tests/factories/DataFactory';
 
-const RUT = '12.345.678-5';
-const [patient, otherPatient] = listClinicalExplorerPatients({
-  visibleBeds: BEDS.filter(bed => !bed.isExtra),
-  beds: {
-    R1: DataFactory.createMockPatient('R1', {
-      patientName: 'PACIENTE SINTÉTICO',
-      rut: RUT,
-      clinicalEpisodeId: 'ep-1',
-      admissionDate: '2026-11-01',
-    }),
-    R2: DataFactory.createMockPatient('R2', {
-      patientName: 'OTRO SINTÉTICO',
-      rut: '5.844.865-6',
-      clinicalEpisodeId: 'ep-2',
-      admissionDate: '2026-11-03',
-    }),
-  },
-});
-
-/** A synthetic PDF whose page width tells which source it came from. */
-const syntheticPdf = async (width: number): Promise<Uint8Array> => {
-  const doc = await PDFDocument.create();
-  doc.addPage([width, 400]);
-  return doc.save();
-};
-
-const readBytes = (blob: Blob): Promise<Uint8Array> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsArrayBuffer(blob);
-  });
+import {
+  HISTORY_NAME,
+  RUT,
+  analysis,
+  ctExam,
+  okRecord,
+  openDialog,
+  otherPatient,
+  patient,
+  readBytes,
+  renderHeader,
+  syntheticPdf,
+  xRay,
+} from './clinicalExplorerDownload.testSupport';
 
 const downloadedWidths = async (): Promise<number[]> => {
   const [blob] = mocks.download.mock.calls[0] as [Blob, string];
@@ -96,86 +73,8 @@ const downloadedWidths = async (): Promise<number[]> => {
   return doc.getPages().map(page => Math.round(page.getWidth()));
 };
 
-const HISTORY_NAME =
-  'PACIENTE SINTETICO - 12345678-5 - Historial hospitalizacion - ingreso 2026-11-01.pdf';
-
-const historyArchive = async (): Promise<Blob> => {
-  const zip = new PizZip();
-  zip.file(
-    '00 Resumen.csv',
-    '\uFEFFRUT;Nombre;Ingreso;Egreso;Documento;Resultado;Archivo\r\n' +
-      `12.345.678-5;PACIENTE SINTÉTICO;2026-11-01;En curso;Historial de hospitalización;Descargado;${HISTORY_NAME}\r\n`
-  );
-  zip.file(HISTORY_NAME, await syntheticPdf(100), { binary: true });
-  return new Blob([zip.generate({ type: 'uint8array' })], { type: 'application/zip' });
-};
-
-const analysis: LabAnalysisData = {
-  trendGroups: [],
-  examDates: [],
-  microbiologyEntries: [],
-  comparison: {
-    Creatinina: {
-      '02/11/2026 08:30': {
-        section: 'BIOQUIMICA',
-        analysis: 'Creatinina',
-        result: '1.1',
-        unit: 'mg/dL',
-        refValue: '0.7 - 1.3',
-      },
-    },
-  },
-};
-
-const ctExam: MMRADExam = {
-  nombre_examen: 'TC tórax',
-  fecha_examen: '03/11/2026 10:15',
-  fecha_asignacion: '03/11/2026',
-  mod: 'CT',
-  estado: 'Validado',
-  pdf_url: 'https://mmrad.example/pdf/synthetic',
-  dicom_url: null,
-  informe_html_url: null,
-  report: null,
-};
-const xRay: MMRADExam = { ...ctExam, nombre_examen: 'Rx tórax', mod: 'CR', pdf_url: 'rx' };
-
 const auditAnswers = (result: Promise<AuditDocumentsResult>) =>
   mocks.audit.mockReturnValue({ result, cancel: mocks.auditCancel });
-
-const okRecord = async (): Promise<AuditDocumentsResult> => ({
-  ok: true,
-  documentCount: 1,
-  failedCount: 0,
-  archive: await historyArchive(),
-  summary: [
-    {
-      run: '123456785',
-      name: 'PACIENTE SINTETICO',
-      hospitalizations: 1,
-      unverified: 0,
-      downloaded: 1,
-      reconstructed: 0,
-      incomplete: 0,
-      failed: 0,
-    },
-  ],
-});
-
-const renderHeader = (current = patient!) =>
-  render(
-    <ClinicalExplorerHeader
-      patient={current}
-      onRequestExams={vi.fn()}
-      censusDate="2026-11-06"
-      indicationDate={null}
-    />
-  );
-
-const openDialog = () => {
-  fireEvent.click(screen.getByRole('button', { name: 'Descargar ficha, exámenes e informes' }));
-  return screen.getByRole('dialog', { name: /Descargar ficha, exámenes e informes/ });
-};
 
 describe('ClinicalExplorerDownloadDialog', () => {
   beforeEach(async () => {
@@ -281,94 +180,6 @@ describe('ClinicalExplorerDownloadDialog', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Descargar lo disponible' }));
     await waitFor(() => expect(mocks.download).toHaveBeenCalledTimes(1));
     expect(await downloadedWidths()).toEqual([595, 300]);
-  });
-
-  it('checks the extension version first and never starts an old one that saves on its own', async () => {
-    mocks.health.mockResolvedValue({
-      report: { version: '0.48.65', protocolVersion: 5, checkedAt: '2026-11-04T12:00:00Z' },
-    });
-    renderHeader();
-    const dialog = openDialog();
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Descargar' }));
-
-    expect(await within(dialog).findByRole('alert')).toBeVisible();
-    expect(within(dialog).getByRole('list', { name: 'Avance de la descarga' })).toHaveTextContent(
-      'La extensión Eloísa v0.48.65 no puede entregar la ficha a esta página. Actualízala a la versión 0.48.71 o superior para incluirla.'
-    );
-    expect(mocks.audit).not.toHaveBeenCalled();
-    expect(mocks.download).not.toHaveBeenCalled();
-  });
-
-  it('leaves the record out when two stays start on the admission day, and says why', async () => {
-    const zip = new PizZip();
-    const second = HISTORY_NAME.replace('.pdf', ' (2).pdf');
-    zip.file(
-      '00 Resumen.csv',
-      '\uFEFFRUT;Nombre;Ingreso;Egreso;Documento;Resultado;Archivo\r\n' +
-        `12.345.678-5;PACIENTE SINTÉTICO;2026-11-01;En curso;Historial de hospitalización;Descargado;${HISTORY_NAME}\r\n` +
-        `12.345.678-5;PACIENTE SINTÉTICO;2026-11-01;2026-11-04;Historial de hospitalización;Descargado;${second}\r\n`
-    );
-    zip.file(HISTORY_NAME, await syntheticPdf(100), { binary: true });
-    zip.file(second, await syntheticPdf(110), { binary: true });
-    const archive = new Blob([zip.generate({ type: 'uint8array' })], { type: 'application/zip' });
-    auditAnswers(Promise.resolve({ ...(await okRecord()), archive }));
-    renderHeader();
-    const dialog = openDialog();
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Descargar' }));
-
-    expect(await within(dialog).findByRole('alert')).toBeVisible();
-    expect(within(dialog).getByRole('list', { name: 'Avance de la descarga' })).toHaveTextContent(
-      /2 hospitalizaciones de este RUT que empiezan el 01-11-2026/
-    );
-    expect(mocks.download).not.toHaveBeenCalled();
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Descargar lo disponible' }));
-    await waitFor(() => expect(mocks.download).toHaveBeenCalledTimes(1));
-    // Neither history goes in: only the lab results and the CT report.
-    expect(await downloadedWidths()).toEqual([595, 300]);
-  });
-
-  it('stops and closes when the RUN of the patient in the bed is corrected mid-run', async () => {
-    auditAnswers(new Promise(() => undefined));
-    const view = renderHeader();
-    const dialog = openDialog();
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Descargar' }));
-    await waitFor(() => expect(mocks.audit).toHaveBeenCalledTimes(1));
-
-    const corrected = { ...patient!, data: { ...patient!.data, rut: '11.111.111-1' } };
-    view.rerender(
-      <ClinicalExplorerHeader
-        patient={corrected}
-        onRequestExams={vi.fn()}
-        censusDate="2026-11-06"
-        indicationDate={null}
-      />
-    );
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(mocks.auditCancel).toHaveBeenCalledTimes(1);
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 20));
-    });
-    expect(mocks.download).not.toHaveBeenCalled();
-  });
-
-  it('leaves out CT studies after a past census day: they may belong to a later stay', async () => {
-    render(
-      <ClinicalExplorerHeader
-        patient={patient!}
-        onRequestExams={vi.fn()}
-        censusDate="2026-11-02"
-        indicationDate={null}
-      />
-    );
-    const dialog = openDialog();
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Descargar' }));
-
-    expect(await within(dialog).findByRole('alert')).toBeVisible();
-    expect(within(dialog).getByRole('list', { name: 'Avance de la descarga' })).toHaveTextContent(
-      /Posteriores al 02-11-2026: TC tórax \(03-11-2026 10:15\)\. No van incluidos/
-    );
-    expect(mocks.pdf).not.toHaveBeenCalled();
-    expect(mocks.download).not.toHaveBeenCalled();
   });
 
   it('packs what was gathered in another format without asking the sources again', async () => {

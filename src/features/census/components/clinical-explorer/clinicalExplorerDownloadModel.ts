@@ -12,7 +12,13 @@ import {
 } from '@/services/radiology/mmradStamp';
 import type { LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
-import { countPendingInRange, pendingReportDays } from './clinicalExplorerDownloadScope';
+import {
+  countPendingInRange,
+  pendingReportDays,
+  type ListedStay,
+} from './clinicalExplorerDownloadScope';
+
+export type { ListedStay } from './clinicalExplorerDownloadScope';
 import { isCtStudy } from './clinicalExplorerImagingModel';
 import { buildLabDayRows, parseColumnKey, type LabDayRow } from './clinicalExplorerLabModel';
 
@@ -116,14 +122,6 @@ export const recordProgressText = (progress: AuditDocumentsProgress | null): str
 export interface ArchiveFile {
   name: string;
   bytes: Uint8Array;
-}
-
-/** One stay listed in the ZIP's «00 Resumen.csv», delivered or not. */
-export interface ListedStay {
-  /** «Ingreso», `YYYY-MM-DD` in Rapa Nui as the extension writes it. */
-  startDate: string;
-  /** The PDF in the ZIP, or '' when Eloísa did not deliver it. */
-  fileName: string;
 }
 
 export interface HistoryArchive {
