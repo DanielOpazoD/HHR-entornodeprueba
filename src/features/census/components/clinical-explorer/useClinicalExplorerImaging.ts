@@ -42,6 +42,12 @@ interface ImagingState {
   partial: boolean;
 }
 
+const newRead = (state: ImagingState): ImagingState => ({
+  ...state,
+  complete: false,
+  alternateSettled: false,
+});
+
 const IDLE: ImagingState = {
   studies: [],
   complete: false,
@@ -67,8 +73,6 @@ const fromRemembered = (result: MMRADSearchResult): ImagingState => ({
   partial: result.check_digit_search === 'partial',
 });
 
-
-
 /**
  * MMRAD studies of the hospitalization, the same two searches the radiology modal runs (exact RUT
  * and mistyped check digit), remembered per session so switching patients back is instant. A
@@ -86,11 +90,21 @@ export const useClinicalExplorerImaging = ({
   const dateFrom = asMmradDateBound(admissionDate) ?? '';
   const key = `${generation}|${rut}|${dateFrom}`;
   // State belongs to one search key; another patient starts from what the session remembers.
-  const [stored, setStored] = useState<{ key: string; data: ImagingState } | null>(null);
+  const [stored, setStored] = useState<{ key: string; attempt: number; data: ImagingState } | null>(
+    null
+  );
   const [attempt, setAttempt] = useState(0);
   const sequence = useRef(0);
-  const remembered = enabled && rut ? readRememberedMMRADExams({ rut, dateFrom, dateTo: '' }) : undefined;
-  const state = stored?.key === key ? stored.data : remembered ? fromRemembered(remembered) : IDLE;
+  const remembered =
+    enabled && rut ? readRememberedMMRADExams({ rut, dateFrom, dateTo: '' }) : undefined;
+  const state =
+    stored?.key === key
+      ? stored.attempt === attempt
+        ? stored.data
+        : newRead(stored.data)
+      : remembered
+        ? fromRemembered(remembered)
+        : IDLE;
 
   useEffect(() => {
     if (!enabled || !rut) return;
@@ -100,8 +114,15 @@ export const useClinicalExplorerImaging = ({
     const update = (change: (current: ImagingState) => ImagingState): void =>
       setStored(current => ({
         key,
+        attempt,
         data: change(
-          current?.key === key ? current.data : memory.remembered ? fromRemembered(memory.remembered) : IDLE
+          current?.key === key
+            ? current.attempt === attempt
+              ? current.data
+              : newRead(current.data)
+            : memory.remembered
+              ? fromRemembered(memory.remembered)
+              : IDLE
         ),
       }));
 
