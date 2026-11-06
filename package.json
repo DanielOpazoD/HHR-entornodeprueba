@@ -381,7 +381,11 @@
     }
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx,json,css,md}": [
+    "*.{ts,tsx,js,jsx,mjs,cjs,mts,cts}": [
+      "npm exec -- prettier --write --ignore-unknown",
+      "npm exec -- eslint --max-warnings 0 --no-warn-ignored"
+    ],
+    "*.{json,css,md}": [
       "npm exec -- prettier --write --ignore-unknown"
     ]
   }
