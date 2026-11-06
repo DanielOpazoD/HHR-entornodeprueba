@@ -9,7 +9,7 @@ import {
 import { formatLabResult } from '@/features/laboratory';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import type { LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
-import type { SyslabExamItem } from '@/types/domain/labExamTypes';
+import type { LabResultRow, SyslabExamItem } from '@/types/domain/labExamTypes';
 import { buildRecentLabColumns } from './clinicalExplorerLabModel';
 
 const ReportPdf = lazy(() => import('@/features/laboratory/report-pdf'));
@@ -33,7 +33,7 @@ export const ClinicalExplorerLabTable = ({
   const pdf = opened?.scope === scope ? opened.exam : null;
   const columns = buildRecentLabColumns(analysis, exams, day);
   const names = Object.keys(analysis.comparison)
-    .filter(name => columns.some(column => analysis.comparison[name][column.key]))
+    .filter(name => columns.some(column => analysis.comparison[name]?.[column.key]))
     .sort((a, b) => comparisonSortIndex(a) - comparisonSortIndex(b) || a.localeCompare(b, 'es'));
   const groups = buildComparisonGroups(names, names, new Set());
   return (
@@ -62,7 +62,9 @@ export const ClinicalExplorerLabTable = ({
                     {column.exam?.link && (
                       <button
                         type="button"
-                        onClick={() => setOpened({ scope, exam: column.exam! })}
+                        onClick={() => {
+                          if (column.exam) setOpened({ scope, exam: column.exam });
+                        }}
                         aria-label={`Abrir PDF del informe ${column.exam.id} del ${formatDateDDMMYYYY(column.dayIso)}`}
                         title="Abrir PDF original"
                         className="inline-flex size-7 items-center justify-center rounded text-slate-400 hover:bg-white hover:text-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
@@ -92,13 +94,17 @@ export const ClinicalExplorerLabTable = ({
                 </th>
               </tr>
               {group.rows.map(name => {
-                const cells = columns.map(column => analysis.comparison[name][column.key]);
+                const cells = columns.map(column => analysis.comparison[name]?.[column.key]);
                 const units = new Set(
                   cells
-                    .filter(Boolean)
+                    .filter((row): row is LabResultRow => row !== undefined)
                     .map(row => formatLabResult(row.result, row.unit).displayUnit || row.unit)
                 );
-                const references = new Set(cells.filter(Boolean).map(row => row.refValue));
+                const references = new Set(
+                  cells
+                    .filter((row): row is LabResultRow => row !== undefined)
+                    .map(row => row.refValue)
+                );
                 const commonReference =
                   units.size <= 1 && references.size === 1 ? [...references][0] : null;
                 return (
@@ -122,35 +128,38 @@ export const ClinicalExplorerLabTable = ({
                         </span>
                       )}
                     </th>
-                    {cells.map((row, index) => (
-                      <td
-                        key={columns[index].key}
-                        className={`px-2 py-2 text-right tabular-nums ${index === 0 ? 'bg-teal-50/20 font-semibold text-slate-900' : 'text-slate-600'}`}
-                        title={
-                          row
-                            ? `${row.result} ${row.unit}${row.refValue ? ` · Referencia: ${row.refValue}` : ''}`
-                            : 'No informado en esta toma'
-                        }
-                      >
-                        {row ? (
-                          <>
-                            {formatLabResult(row.result, row.unit).display}
-                            {!commonReference && row.refValue && (
-                              <span className="block text-[10px] font-normal text-slate-400">
-                                Ref. {row.refValue}
-                              </span>
-                            )}
-                            {units.size > 1 && (
-                              <span className="block text-[10px] font-normal text-slate-400">
-                                {formatLabResult(row.result, row.unit).displayUnit || row.unit}
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          <span className="text-slate-300">—</span>
-                        )}
-                      </td>
-                    ))}
+                    {columns.map((column, index) => {
+                      const row = cells[index];
+                      return (
+                        <td
+                          key={column.key}
+                          className={`px-2 py-2 text-right tabular-nums ${index === 0 ? 'bg-teal-50/20 font-semibold text-slate-900' : 'text-slate-600'}`}
+                          title={
+                            row
+                              ? `${row.result} ${row.unit}${row.refValue ? ` · Referencia: ${row.refValue}` : ''}`
+                              : 'No informado en esta toma'
+                          }
+                        >
+                          {row ? (
+                            <>
+                              {formatLabResult(row.result, row.unit).display}
+                              {!commonReference && row.refValue && (
+                                <span className="block text-[10px] font-normal text-slate-400">
+                                  Ref. {row.refValue}
+                                </span>
+                              )}
+                              {units.size > 1 && (
+                                <span className="block text-[10px] font-normal text-slate-400">
+                                  {formatLabResult(row.result, row.unit).displayUnit || row.unit}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
+                      );
+                    })}
                   </tr>
                 );
               })}
