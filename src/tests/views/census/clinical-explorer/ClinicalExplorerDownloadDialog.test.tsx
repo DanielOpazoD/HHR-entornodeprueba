@@ -14,11 +14,16 @@ const mocks = vi.hoisted(() => ({
   checkDigit: vi.fn(),
   pdf: vi.fn(),
   download: vi.fn(),
+  health: vi.fn(),
   joinGate: null as Promise<void> | null,
 }));
 
 vi.mock('@/features/audit-documents/eloisa-history', () => ({
   requestAuditDocuments: (...args: unknown[]) => mocks.audit(...args),
+}));
+vi.mock('@/features/rayen-import/clinical-panel', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/rayen-import/clinical-panel')>()),
+  requestRayenExtensionHealth: (...args: unknown[]) => mocks.health(...args),
 }));
 vi.mock('@/features/laboratory/hospitalization-reports', () => ({
   useSyslabHospitalizationReports: (params: unknown) => mocks.lab(params),
@@ -96,7 +101,11 @@ const HISTORY_NAME =
 
 const historyArchive = async (): Promise<Blob> => {
   const zip = new PizZip();
-  zip.file('00 Resumen.csv', 'RUT;Nombre\r\n');
+  zip.file(
+    '00 Resumen.csv',
+    '\uFEFFRUT;Nombre;Ingreso;Egreso;Documento;Resultado;Archivo\r\n' +
+      `12.345.678-5;PACIENTE SINTÉTICO;2026-11-01;En curso;Historial de hospitalización;Descargado;${HISTORY_NAME}\r\n`
+  );
   zip.file(HISTORY_NAME, await syntheticPdf(100), { binary: true });
   return new Blob([zip.generate({ type: 'uint8array' })], { type: 'application/zip' });
 };
@@ -183,6 +192,9 @@ describe('ClinicalExplorerDownloadDialog', () => {
       message: '',
       progress: null,
     });
+    mocks.health.mockReset().mockResolvedValue({
+      report: { version: '0.48.74', protocolVersion: 5, checkedAt: '2026-11-04T12:00:00Z' },
+    });
     mocks.search.mockResolvedValue({ rut: RUT, examenes: [ctExam, xRay] });
     mocks.checkDigit.mockResolvedValue({ rut: RUT, examenes: [], check_digit_search: 'complete' });
     const ct = await syntheticPdf(300);
@@ -226,7 +238,8 @@ describe('ClinicalExplorerDownloadDialog', () => {
     expect(await downloadedWidths()).toEqual([100, 595, 300]);
     expect(mocks.audit).toHaveBeenCalledWith(
       expect.objectContaining({
-        patients: [{ run: '123456785', dateFrom: '2026-11-01', dateTo: '2026-11-06' }],
+        // Only the stays that touch the admission day: the episode's is chosen from them.
+        patients: [{ run: '123456785', dateFrom: '2026-11-01', dateTo: '2026-11-01' }],
         documentTypes: ['history'],
       })
     );
@@ -266,6 +279,74 @@ describe('ClinicalExplorerDownloadDialog', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Descargar lo disponible' }));
     await waitFor(() => expect(mocks.download).toHaveBeenCalledTimes(1));
     expect(await downloadedWidths()).toEqual([595, 300]);
+  });
+
+  it('checks the extension version first and never starts an old one that saves on its own', async () => {
+    mocks.health.mockResolvedValue({
+      report: { version: '0.48.65', protocolVersion: 5, checkedAt: '2026-11-04T12:00:00Z' },
+    });
+    renderHeader();
+    const dialog = openDialog();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Descargar' }));
+
+    expect(await within(dialog).findByRole('alert')).toBeVisible();
+    expect(within(dialog).getByRole('list', { name: 'Avance de la descarga' })).toHaveTextContent(
+      'La extensión Eloísa v0.48.65 no puede entregar la ficha a esta página. Actualízala a la versión 0.48.71 o superior para incluirla.'
+    );
+    expect(mocks.audit).not.toHaveBeenCalled();
+    expect(mocks.download).not.toHaveBeenCalled();
+  });
+
+  it('leaves the record out when two stays start on the admission day, and says why', async () => {
+    const zip = new PizZip();
+    const second = HISTORY_NAME.replace('.pdf', ' (2).pdf');
+    zip.file(
+      '00 Resumen.csv',
+      '\uFEFFRUT;Nombre;Ingreso;Egreso;Documento;Resultado;Archivo\r\n' +
+        `12.345.678-5;PACIENTE SINTÉTICO;2026-11-01;En curso;Historial de hospitalización;Descargado;${HISTORY_NAME}\r\n` +
+        `12.345.678-5;PACIENTE SINTÉTICO;2026-11-01;2026-11-04;Historial de hospitalización;Descargado;${second}\r\n`
+    );
+    zip.file(HISTORY_NAME, await syntheticPdf(100), { binary: true });
+    zip.file(second, await syntheticPdf(110), { binary: true });
+    const archive = new Blob([zip.generate({ type: 'uint8array' })], { type: 'application/zip' });
+    auditAnswers(Promise.resolve({ ...(await okRecord()), archive }));
+    renderHeader();
+    const dialog = openDialog();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Descargar' }));
+
+    expect(await within(dialog).findByRole('alert')).toBeVisible();
+    expect(within(dialog).getByRole('list', { name: 'Avance de la descarga' })).toHaveTextContent(
+      /2 hospitalizaciones de este RUT que empiezan el 01-11-2026/
+    );
+    expect(mocks.download).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Descargar lo disponible' }));
+    await waitFor(() => expect(mocks.download).toHaveBeenCalledTimes(1));
+    // Neither history goes in: only the lab results and the CT report.
+    expect(await downloadedWidths()).toEqual([595, 300]);
+  });
+
+  it('stops and closes when the RUN of the patient in the bed is corrected mid-run', async () => {
+    auditAnswers(new Promise(() => undefined));
+    const view = renderHeader();
+    const dialog = openDialog();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Descargar' }));
+    await waitFor(() => expect(mocks.audit).toHaveBeenCalledTimes(1));
+
+    const corrected = { ...patient!, data: { ...patient!.data, rut: '11.111.111-1' } };
+    view.rerender(
+      <ClinicalExplorerHeader
+        patient={corrected}
+        onRequestExams={vi.fn()}
+        censusDate="2026-11-06"
+        indicationDate={null}
+      />
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(mocks.auditCancel).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 20));
+    });
+    expect(mocks.download).not.toHaveBeenCalled();
   });
 
   it('packs what was gathered in another format without asking the sources again', async () => {

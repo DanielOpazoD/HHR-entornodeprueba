@@ -13,12 +13,14 @@ import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { formatRut, normalizeRut } from '@/utils/rutUtils';
 import { asMmradDateBound } from './clinicalExplorerImagingModel';
 import {
+  EXTENSION_IN_PAGE_HISTORY_VERSION,
   bundleFileName,
   ctFileName,
   describeCtPart,
   describeCtStudy,
   describeRecordPart,
   isIsoDay,
+  isVersionAtLeast,
   labFileName,
   labReadFrom,
   outcome,
@@ -26,8 +28,8 @@ import {
   planLabPart,
   recordProgressText,
   reviewDownload,
-  type ArchiveFile,
   type DownloadDocument,
+  type HistoryArchive,
   type DownloadFormat,
   type DownloadOutcomes,
   type DownloadPart,
@@ -140,6 +142,10 @@ export const useClinicalExplorerDownload = (
   const patientName = data.patientName.trim();
   const rut = data.rut.trim();
   const admissionDate = data.admissionDate;
+  // A run belongs to one patient and episode (ID-01): a corrected RUN or admission ends it.
+  const identity = `${normalizeRut(rut)}|${patient.episodeId}|${admissionDate}`;
+  const identityRef = useRef(identity);
+  identityRef.current = identity;
   const [state, setState] = useState<ClinicalExplorerDownloadState>(IDLE);
   const [labCollector, setLabCollector] = useState<LabCollectorRequest | null>(null);
   const runRef = useRef<Run | null>(null);
@@ -175,13 +181,15 @@ export const useClinicalExplorerDownload = (
   const openRun = (): { run: Run; isCurrent: () => boolean } | null => {
     if (runRef.current) return null;
     const epoch = getSessionEpoch();
+    const runIdentity = identityRef.current;
     const run: Run = { controller: new AbortController() };
     runRef.current = run;
     const isCurrent = (): boolean =>
       mounted.current &&
       runRef.current === run &&
       !run.controller.signal.aborted &&
-      getSessionEpoch() === epoch;
+      getSessionEpoch() === epoch &&
+      identityRef.current === runIdentity;
     return { run, isCurrent };
   };
 
@@ -238,14 +246,36 @@ export const useClinicalExplorerDownload = (
     setState({ ...IDLE, phase: 'collecting', request });
 
     const collectRecord = async (bundle: Bundle): Promise<PartOutcome> => {
+      if (!isIsoDay(admissionDate)) {
+        return outcome('failed', 'No incluida', {
+          problem:
+            'El paciente no tiene una fecha de ingreso válida para identificar su hospitalización en Eloísa.',
+        });
+      }
+      report('record', 'Comprobando la extensión Eloísa…');
+      // An extension older than in-page delivery would save the ZIP into Downloads on its own,
+      // outside the person's decision: it is checked before anything is asked of Eloísa.
+      const health = await bundle.requestRayenExtensionHealth();
+      stopIfStale();
+      if (!health.report) {
+        return outcome('failed', 'No incluida', {
+          problem:
+            'La extensión Eloísa no respondió. Revisa que esté instalada y que Ficha Médico siga abierta.',
+        });
+      }
+      if (!isVersionAtLeast(health.report.version, EXTENSION_IN_PAGE_HISTORY_VERSION)) {
+        return outcome('failed', 'No incluida', {
+          problem: `La extensión Eloísa v${health.report.version} no puede entregar la ficha a esta página. Actualízala a la versión ${EXTENSION_IN_PAGE_HISTORY_VERSION} o superior para incluirla.`,
+        });
+      }
       report('record', recordProgressText(null));
       const audit = bundle.requestAuditDocuments({
         patients: [
           {
             run: normalizeRut(rut),
-            // The stays that overlap this one; without a usable admission, the one in course.
-            dateFrom: isIsoDay(admissionDate) ? admissionDate : stamp.iso,
-            dateTo: stamp.iso,
+            // Only the stays that touch the admission day; the episode's is chosen from them below.
+            dateFrom: admissionDate,
+            dateTo: admissionDate,
           },
         ],
         documentTypes: ['history'],
@@ -255,10 +285,10 @@ export const useClinicalExplorerDownload = (
       const result = await audit.result;
       run.cancelRecord = undefined;
       stopIfStale();
-      let files: ArchiveFile[] | null = null;
+      let archive: HistoryArchive | null = null;
       if (result.ok && result.archive) {
         try {
-          files = await bundle.readHistoryArchive(result.archive);
+          archive = await bundle.readHistoryArchive(result.archive);
         } catch {
           return outcome('failed', 'No incluida', {
             problem: 'No se pudo abrir el ZIP que entregó la extensión Eloísa.',
@@ -266,7 +296,7 @@ export const useClinicalExplorerDownload = (
         }
         stopIfStale();
       }
-      return describeRecordPart(result, files);
+      return describeRecordPart(result, archive, admissionDate);
     };
 
     const collectLab = async (bundle: Bundle): Promise<PartOutcome> => {
@@ -291,9 +321,10 @@ export const useClinicalExplorerDownload = (
         range: request.range,
         groups: plan.groups,
       });
-      return outcome('complete', plan.summary, {
+      return outcome(plan.partialProblem ? 'partial' : 'complete', plan.summary, {
         notes: plan.notes,
         documents: [{ part: 'lab', fileName: labFileName(patientName, request.range), bytes }],
+        ...(plan.partialProblem ? { problem: plan.partialProblem } : {}),
       });
     };
 

@@ -29,9 +29,14 @@ const heading = {
 };
 
 describe('explorer download assembly', () => {
-  it('takes the history PDFs of the extension ZIP in admission order and leaves the summary out', async () => {
+  it('reads the history PDFs and the stays the extension summary lists', async () => {
     const zip = new PizZip();
-    zip.file('00 Resumen.csv', 'RUT;Nombre\r\n');
+    zip.file(
+      '00 Resumen.csv',
+      '\uFEFFRUT;Nombre;Ingreso;Egreso;Documento;Resultado;Archivo\r\n' +
+        '12345678-5;PACIENTE;2026-11-03;En curso;Historial de hospitalización;Descargado;PACIENTE - 12345678-5 - Historial hospitalizacion - ingreso 2026-11-03.pdf\r\n' +
+        '12345678-5;PACIENTE;2026-10-01;2026-11-03;Historial de hospitalización;Descargado;PACIENTE - 12345678-5 - Historial hospitalizacion - ingreso 2026-10-01.pdf\r\n'
+    );
     zip.file(
       'PACIENTE - 12345678-5 - Historial hospitalizacion - ingreso 2026-11-03.pdf',
       await syntheticPdf(200),
@@ -44,13 +49,23 @@ describe('explorer download assembly', () => {
     );
     const archive = new Blob([zip.generate({ type: 'uint8array' })], { type: 'application/zip' });
 
-    const files = await readHistoryArchive(archive);
+    const history = await readHistoryArchive(archive);
 
-    expect(files.map(file => file.name)).toEqual([
+    expect(history.files.map(file => file.name)).toEqual([
       'PACIENTE - 12345678-5 - Historial hospitalizacion - ingreso 2026-10-01.pdf',
       'PACIENTE - 12345678-5 - Historial hospitalizacion - ingreso 2026-11-03.pdf',
     ]);
-    expect(await widths(files[0]!.bytes)).toEqual([210]);
+    expect(await widths(history.files[0]!.bytes)).toEqual([210]);
+    expect(history.stays?.map(stay => stay.startDate)).toEqual(['2026-11-03', '2026-10-01']);
+  });
+
+  it('reports no verifiable stays when the summary is missing', async () => {
+    const zip = new PizZip();
+    zip.file('a.pdf', await syntheticPdf(200), { binary: true });
+    const history = await readHistoryArchive(
+      new Blob([zip.generate({ type: 'uint8array' })], { type: 'application/zip' })
+    );
+    expect(history.stays).toBeNull();
   });
 
   it('joins every page of every document in the order given', async () => {

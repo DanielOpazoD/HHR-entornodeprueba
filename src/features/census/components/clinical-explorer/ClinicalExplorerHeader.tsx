@@ -41,7 +41,8 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
   indicationDate,
 }) => {
   const { data, bedId, episodeId } = patient;
-  const identity = `${bedId}:${episodeId}`;
+  // Requests belong to the patient and episode in this bed: a corrected RUN or admission closes them.
+  const identity = `${bedId}:${episodeId}:${data.rut.trim()}:${data.admissionDate}`;
   // A request dialog belongs to one patient; moving on drops it instead of carrying it over.
   const [open, setOpen] = useState<{ identity: string; kind: QuickAction } | null>(null);
   const action = open?.identity === identity ? open.kind : null;

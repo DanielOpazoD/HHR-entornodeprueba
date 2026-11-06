@@ -117,6 +117,117 @@ export interface ArchiveFile {
   bytes: Uint8Array;
 }
 
+/** One stay listed in the ZIP's «00 Resumen.csv», delivered or not. */
+export interface ListedStay {
+  /** «Ingreso», `YYYY-MM-DD` in Rapa Nui as the extension writes it. */
+  startDate: string;
+  /** The PDF in the ZIP, or '' when Eloísa did not deliver it. */
+  fileName: string;
+}
+
+export interface HistoryArchive {
+  files: ArchiveFile[];
+  /** Null when the summary is missing or unreadable: then no stay can be verified. */
+  stays: ListedStay[] | null;
+}
+
+/** In-page delivery of the history ZIP, so it can be joined here, starts with this version. */
+export const EXTENSION_IN_PAGE_HISTORY_VERSION = '0.48.71';
+
+/** True when `version` (e.g. «0.48.74») is at least `minimum`; anything unreadable is false. */
+export const isVersionAtLeast = (version: string, minimum: string): boolean => {
+  if (!/^\d+(?:\.\d+){0,3}$/.test(version)) return false;
+  const have = version.split('.').map(Number);
+  const need = minimum.split('.').map(Number);
+  for (let index = 0; index < Math.max(have.length, need.length); index++) {
+    const difference = (have[index] ?? 0) - (need[index] ?? 0);
+    if (difference !== 0) return difference > 0;
+  }
+  return true;
+};
+
+/**
+ * Eloísa is asked by RUN and the admission day, so the ZIP may list another stay of the same person
+ * that touches that day (a same-day readmission, a duplicate admission). Only a stay that starts on
+ * this episode's admission day can be this episode's. Every listed stay counts, delivered or not:
+ * if two start that day and one failed, the delivered one may be the other episode (ID-01).
+ */
+export const selectEpisodeHistory = (
+  archive: HistoryArchive,
+  admissionDate: string
+):
+  | { kind: 'one'; file: ArchiveFile }
+  | { kind: 'undelivered' }
+  | { kind: 'unverifiable' }
+  | { kind: 'none' }
+  | { kind: 'several'; count: number } => {
+  if (!archive.stays) return { kind: 'unverifiable' };
+  const matches = archive.stays.filter(stay => stay.startDate === admissionDate);
+  if (matches.length > 1) return { kind: 'several', count: matches.length };
+  const [stay] = matches;
+  if (!stay) return { kind: 'none' };
+  const file = stay.fileName ? archive.files.find(item => item.name === stay.fileName) : undefined;
+  return file ? { kind: 'one', file } : { kind: 'undelivered' };
+};
+
+const splitCsvLine = (line: string): string[] => {
+  const cells: string[] = [];
+  let cell = '';
+  let quoted = false;
+  for (let index = 0; index < line.length; index++) {
+    const character = line.charAt(index);
+    if (quoted) {
+      if (character === '"' && line.charAt(index + 1) === '"') {
+        cell += '"';
+        index++;
+      } else if (character === '"') {
+        quoted = false;
+      } else {
+        cell += character;
+      }
+    } else if (character === '"') {
+      quoted = true;
+    } else if (character === ';') {
+      cells.push(cell);
+      cell = '';
+    } else {
+      cell += character;
+    }
+  }
+  cells.push(cell);
+  return cells;
+};
+
+/**
+ * Stays listed in the extension's «00 Resumen.csv» (`;`-separated, quoted cells, BOM): one per
+ * history document, with its «Ingreso» and the PDF name when delivered. Null when unreadable.
+ */
+export const parseHistorySummary = (text: string): ListedStay[] | null => {
+  const [header, ...lines] = text.replace(/^\uFEFF/, '').split(/\r?\n/);
+  if (!header) return null;
+  const columns = splitCsvLine(header);
+  const start = columns.indexOf('Ingreso');
+  const file = columns.indexOf('Archivo');
+  const kind = columns.indexOf('Documento');
+  if (start < 0 || file < 0 || kind < 0) return null;
+  return lines
+    .map(splitCsvLine)
+    .filter(
+      cells => (cells[kind] ?? '').trim() !== '' && /^\d{4}-\d{2}-\d{2}$/.test(cells[start] ?? '')
+    )
+    .map(cells => ({ startDate: cells[start] ?? '', fileName: (cells[file] ?? '').trim() }));
+};
+
+const SELECTION_PROBLEMS = {
+  undelivered: () => 'Eloísa no entregó el historial de esta hospitalización.',
+  unverifiable: () =>
+    'No se pudo leer el resumen que entrega la extensión Eloísa, así que no se puede comprobar a qué hospitalización corresponde el historial.',
+  none: (day: string) =>
+    `Eloísa no muestra una hospitalización de este RUT que empiece el ${day}; no se incluye para no traer otra estadía.`,
+  several: (day: string, count: number) =>
+    `Eloísa tiene ${count} hospitalizaciones de este RUT que empiezan el ${day} (por ejemplo, un ingreso duplicado); no se incluye para no mezclar episodios. Ábrela desde Eloísa.`,
+} as const;
+
 /**
  * The extension answers with a ZIP of official «Historial hospitalización» PDFs; `files` are those
  * PDFs, or null when the result brought no ZIP. An extension older than 0.48.71 saves the ZIP into
@@ -124,10 +235,11 @@ export interface ArchiveFile {
  */
 export const describeRecordPart = (
   result: AuditDocumentsResult,
-  files: readonly ArchiveFile[] | null
+  archive: HistoryArchive | null,
+  admissionDate: string
 ): PartOutcome => {
   const row = result.summary?.[0];
-  if (result.ok && !files) {
+  if (result.ok && !archive) {
     return outcome('failed', 'No incluida', {
       problem:
         `La extensión Eloísa es anterior a la versión 0.48.71 y guardó la ficha aparte en Descargas` +
@@ -136,7 +248,10 @@ export const describeRecordPart = (
   }
   if (!result.ok) {
     if (row && !row.error && row.hospitalizations === 0 && row.unverified === 0) {
-      return outcome('empty', 'Eloísa no lista hospitalizaciones desde el ingreso.');
+      // A hospitalized episode always has a history: none listed that day is a mismatch, not «nothing».
+      return outcome('failed', 'No incluida', {
+        problem: SELECTION_PROBLEMS.none(formatDateDDMMYYYY(admissionDate)),
+      });
     }
     return outcome('failed', 'No incluida', {
       problem: row?.error
@@ -146,7 +261,19 @@ export const describeRecordPart = (
           : result.error || 'No se pudo descargar la ficha de Eloísa.',
     });
   }
-  const pdfs = files ?? [];
+  const selection = archive
+    ? selectEpisodeHistory(archive, admissionDate)
+    : ({ kind: 'undelivered' } as const);
+  if (selection.kind !== 'one') {
+    const day = formatDateDDMMYYYY(admissionDate);
+    return outcome('failed', 'No incluida', {
+      problem:
+        selection.kind === 'several'
+          ? SELECTION_PROBLEMS.several(day, selection.count)
+          : SELECTION_PROBLEMS[selection.kind](day),
+    });
+  }
+  const pdfs = [selection.file];
   const notes = [
     row?.reconstructed
       ? `${plural(row.reconstructed, 'historial tiene', 'historiales tienen')} días que Eloísa no genera, rehechos con su resumen diario y un anexo HHR no oficial.`
@@ -167,18 +294,13 @@ export const describeRecordPart = (
     pdfs.length === 1
       ? 'Historial de la hospitalización'
       : `${plural(pdfs.length, 'historial', 'historiales')} de hospitalización`;
-  const failed = row?.failed ?? result.failedCount ?? 0;
-  if (pdfs.length === 0) {
-    return outcome('failed', 'No incluida', {
-      problem: 'Eloísa no entregó el historial.',
-      notes,
-    });
-  }
-  if (failed > 0) {
+  // A history with a missing day, or stays Eloísa lists without a verifiable date or RUN, is not the
+  // whole record: the person decides whether to download it as it is.
+  if ((row?.incomplete ?? 0) > 0 || (row?.unverified ?? 0) > 0) {
     return outcome('partial', summary, {
       documents,
       notes,
-      problem: `Eloísa no entregó ${failed} de ${plural(failed + pdfs.length, 'historial', 'historiales')}.`,
+      problem: 'La ficha de Eloísa puede estar incompleta (ver notas).',
     });
   }
   return outcome('complete', summary, { documents, notes });
@@ -287,7 +409,9 @@ export const describeRange = (range: DownloadRange): string =>
 export const planLabPart = (
   settlement: LabSettlement,
   range: DownloadRange
-): { outcome: PartOutcome } | { groups: LabReportGroup[]; summary: string; notes: string[] } => {
+):
+  | { outcome: PartOutcome }
+  | { groups: LabReportGroup[]; summary: string; notes: string[]; partialProblem?: string } => {
   if (settlement.kind === 'failed') {
     return { outcome: outcome('failed', 'No incluidos', { problem: settlement.problem }) };
   }
@@ -299,11 +423,26 @@ export const planLabPart = (
         `Syslab aún no entrega resultados de ${plural(settlement.pending, 'informe', 'informes')}; no van incluidos.`,
       ]
     : [];
-  if (groups.length === 0) return { outcome: outcome('empty', empty, { notes }) };
+  if (groups.length === 0 && !settlement.pending) {
+    return { outcome: outcome('empty', empty, { notes }) };
+  }
+  if (groups.length === 0) {
+    return {
+      outcome: outcome('failed', 'No incluidos', {
+        problem: `Syslab aún no entrega resultados de ${plural(settlement.pending, 'informe', 'informes')} ${describeRange(range)}.`,
+      }),
+    };
+  }
   return {
     groups,
     summary: `${plural(groups.length, 'informe', 'informes')} ${describeRange(range)}`,
     notes,
+    // Reports still pending at Syslab are missing results: the person decides, as with a failure.
+    ...(settlement.pending
+      ? {
+          partialProblem: `${settlement.pending === 1 ? 'Falta' : 'Faltan'} ${plural(settlement.pending, 'informe', 'informes')} que Syslab aún no entrega.`,
+        }
+      : {}),
   };
 };
 

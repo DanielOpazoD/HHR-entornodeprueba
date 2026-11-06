@@ -7,7 +7,9 @@ import {
   defaultDownloadRange,
   describeCtPart,
   describeRecordPart,
+  isVersionAtLeast,
   labReadFrom,
+  parseHistorySummary,
   outcome,
   planCtReports,
   planLabPart,
@@ -132,15 +134,23 @@ describe('Syslab results', () => {
         summary: 'Sin informes de Syslab del 06-11-2026.',
       }),
     });
+    // Reports Syslab has not delivered yet are missing results, never «sin informes».
     expect(planLabPart({ kind: 'ready', analysis, pending: 2 }, range)).toEqual({
       outcome: expect.objectContaining({
-        status: 'empty',
-        notes: ['Syslab aún no entrega resultados de 2 informes; no van incluidos.'],
+        status: 'failed',
+        problem: 'Syslab aún no entrega resultados de 2 informes del 06-11-2026.',
       }),
     });
-    expect(
-      planLabPart({ kind: 'ready', analysis, pending: 0 }, { from: '2026-11-01', to: '2026-11-06' })
-    ).toEqual(expect.objectContaining({ summary: '2 informes del 01-11-2026 al 06-11-2026' }));
+    const wholeStay = { from: '2026-11-01', to: '2026-11-06' };
+    expect(planLabPart({ kind: 'ready', analysis, pending: 0 }, wholeStay)).toEqual(
+      expect.objectContaining({ summary: '2 informes del 01-11-2026 al 06-11-2026' })
+    );
+    expect(planLabPart({ kind: 'ready', analysis, pending: 0 }, wholeStay)).not.toHaveProperty(
+      'partialProblem'
+    );
+    expect(planLabPart({ kind: 'ready', analysis, pending: 1 }, wholeStay)).toEqual(
+      expect.objectContaining({ partialProblem: 'Falta 1 informe que Syslab aún no entrega.' })
+    );
   });
 
   it('waits while Syslab is asked and reports a session or read failure as such', () => {
@@ -181,38 +191,103 @@ describe('Syslab results', () => {
 });
 
 describe('Eloísa record', () => {
-  const files = [
-    {
-      name: 'PACIENTE - 12345678-5 - Historial hospitalizacion - ingreso 2026-11-01.pdf',
-      bytes: new Uint8Array([1]),
-    },
-  ];
+  const ADMISSION = '2026-11-01';
+  const own = 'PACIENTE - 12345678-5 - Historial hospitalizacion - ingreso 2026-11-01.pdf';
+  const other = 'PACIENTE - 12345678-5 - Historial hospitalizacion - ingreso 2026-10-25.pdf';
+  const archive = (stays: Array<[string, string]>) => ({
+    files: stays
+      .filter(([, fileName]) => fileName)
+      .map(([, fileName]) => ({ name: fileName, bytes: new Uint8Array([1]) })),
+    stays: stays.map(([startDate, fileName]) => ({ startDate, fileName })),
+  });
+  const ok: AuditDocumentsResult = { ok: true, summary: [summaryRow({})] };
 
-  it('takes the history PDFs of the extension ZIP', () => {
-    const result: AuditDocumentsResult = { ok: true, summary: [summaryRow({})] };
-    expect(describeRecordPart(result, files)).toEqual(
+  it('takes only the history of the stay that starts on the admission day', () => {
+    // A stay discharged that day (same-day readmission) also touches the day: it stays out.
+    const part = describeRecordPart(
+      ok,
+      archive([
+        [ADMISSION, own],
+        ['2026-10-25', other],
+      ]),
+      ADMISSION
+    );
+    expect(part).toEqual(
       expect.objectContaining({ status: 'complete', summary: 'Historial de la hospitalización' })
     );
+    expect(part.documents.map(document => document.fileName)).toEqual([own]);
   });
 
-  it('names what Eloísa did not deliver and asks before going on', () => {
-    const result: AuditDocumentsResult = {
-      ok: true,
-      summary: [summaryRow({ hospitalizations: 2, failed: 1, incomplete: 1 })],
-    };
-    const part = describeRecordPart(result, files);
-    expect(part.status).toBe('partial');
-    expect(part.problem).toBe('Eloísa no entregó 1 de 2 historiales.');
-    expect(part.notes).toEqual(['1 historial queda sin parte de un día que Eloísa no genera.']);
+  it('includes nothing when two stays start that day, as a duplicate admission does', () => {
+    const part = describeRecordPart(
+      ok,
+      archive([
+        [ADMISSION, own],
+        [
+          ADMISSION,
+          'PACIENTE - 12345678-5 - Historial hospitalizacion - ingreso 2026-11-01 (2).pdf',
+        ],
+      ]),
+      ADMISSION
+    );
+    expect(part.status).toBe('failed');
+    expect(part.documents).toEqual([]);
+    expect(part.problem).toMatch(/2 hospitalizaciones de este RUT que empiezan el 01-11-2026/);
+  });
+
+  it('never takes the delivered stay when another one of that day failed to arrive', () => {
+    const part = describeRecordPart(
+      ok,
+      archive([
+        [ADMISSION, own],
+        [ADMISSION, ''],
+      ]),
+      ADMISSION
+    );
+    expect(part.status).toBe('failed');
+    expect(part.documents).toEqual([]);
+  });
+
+  it('names a stay that Eloísa listed but did not deliver, or did not list at all', () => {
+    expect(describeRecordPart(ok, archive([[ADMISSION, '']]), ADMISSION).problem).toBe(
+      'Eloísa no entregó el historial de esta hospitalización.'
+    );
+    expect(describeRecordPart(ok, archive([['2026-10-25', other]]), ADMISSION).problem).toMatch(
+      /no muestra una hospitalización de este RUT que empiece el 01-11-2026/
+    );
+    expect(
+      describeRecordPart(
+        ok,
+        { files: [{ name: own, bytes: new Uint8Array([1]) }], stays: null },
+        ADMISSION
+      ).problem
+    ).toMatch(/no se puede comprobar a qué hospitalización corresponde/);
+  });
+
+  it('asks before going on when the history may be incomplete', () => {
+    for (const gap of [{ incomplete: 1 }, { unverified: 1 }]) {
+      const part = describeRecordPart(
+        { ok: true, summary: [summaryRow({ hospitalizations: 1, ...gap })] },
+        archive([[ADMISSION, own]]),
+        ADMISSION
+      );
+      expect(part.status).toBe('partial');
+      expect(part.documents).toHaveLength(1);
+      expect(part.problem).toBe('La ficha de Eloísa puede estar incompleta (ver notas).');
+    }
   });
 
   it('says an old extension saved the record apart instead of omitting it', () => {
-    const part = describeRecordPart({ ok: true, filename: 'Auditoria_Eloisa.zip' }, null);
+    const part = describeRecordPart(
+      { ok: true, filename: 'Auditoria_Eloisa.zip' },
+      null,
+      ADMISSION
+    );
     expect(part.status).toBe('failed');
     expect(part.problem).toMatch(/anterior a la versión 0\.48\.71.*Auditoria_Eloisa\.zip/);
   });
 
-  it('separates «no hospitalizations» from a failed Eloísa read', () => {
+  it('treats «no stay that day» and a failed Eloísa read as failures, never as an empty record', () => {
     expect(
       describeRecordPart(
         {
@@ -220,12 +295,14 @@ describe('Eloísa record', () => {
           error: 'No hay hospitalizaciones',
           summary: [summaryRow({ hospitalizations: 0, downloaded: 0 })],
         },
-        null
+        null,
+        ADMISSION
       ).status
-    ).toBe('empty');
+    ).toBe('failed');
     const failed = describeRecordPart(
       { ok: false, summary: [summaryRow({ hospitalizations: 0, error: 'HTTP 500' })] },
-      null
+      null,
+      ADMISSION
     );
     expect(failed).toEqual(
       expect.objectContaining({
@@ -234,9 +311,9 @@ describe('Eloísa record', () => {
       })
     );
     expect(
-      describeRecordPart({ ok: false, error: 'La extensión Eloísa no respondió.' }, null).problem
+      describeRecordPart({ ok: false, error: 'La extensión Eloísa no respondió.' }, null, ADMISSION)
+        .problem
     ).toBe('La extensión Eloísa no respondió.');
-    // Stays Eloísa lists without a date or RUT to check are a gap to review, not «sin ficha».
     expect(
       describeRecordPart(
         {
@@ -244,7 +321,8 @@ describe('Eloísa record', () => {
           error: 'No hay hospitalizaciones en las fechas pedidas.',
           summary: [summaryRow({ hospitalizations: 0, downloaded: 0, unverified: 1 })],
         },
-        null
+        null,
+        ADMISSION
       )
     ).toEqual(
       expect.objectContaining({
@@ -252,6 +330,29 @@ describe('Eloísa record', () => {
         problem: 'Eloísa lista 1 hospitalización sin fecha o RUT verificable; revísalas allí.',
       })
     );
+  });
+});
+
+describe('extension version and ZIP summary', () => {
+  it('compares versions numerically and rejects unreadable ones', () => {
+    expect(isVersionAtLeast('0.48.74', '0.48.71')).toBe(true);
+    expect(isVersionAtLeast('0.48.71', '0.48.71')).toBe(true);
+    expect(isVersionAtLeast('0.48.9', '0.48.71')).toBe(false);
+    expect(isVersionAtLeast('0.49', '0.48.71')).toBe(true);
+    expect(isVersionAtLeast('dev', '0.48.71')).toBe(false);
+  });
+
+  it('reads each listed stay and its file from the extension summary, quotes included', () => {
+    const csv =
+      '\uFEFFRUT;Nombre;Ingreso;Egreso;Documento;Resultado;Archivo\r\n' +
+      '12.345.678-5;"PÉREZ; ANA";2026-11-01;En curso;Historial de hospitalización;Descargado;"a.pdf"\r\n' +
+      '12.345.678-5;PÉREZ;2026-11-01;2026-11-01;Historial de hospitalización;No descargado: HTTP 500;\r\n' +
+      '12.345.678-5;;;;;Sin hospitalizaciones en el periodo;\r\n';
+    expect(parseHistorySummary(csv)).toEqual([
+      { startDate: '2026-11-01', fileName: 'a.pdf' },
+      { startDate: '2026-11-01', fileName: '' },
+    ]);
+    expect(parseHistorySummary('RUT;Nombre\r\n')).toBeNull();
   });
 });
 

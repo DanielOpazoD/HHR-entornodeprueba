@@ -12,14 +12,17 @@ import { formatMmradStamp } from '@/services/radiology/mmradStamp';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import {
   describeRange,
+  parseHistorySummary,
   zipEntryNames,
-  type ArchiveFile,
+  type HistoryArchive,
   type DownloadDocument,
   type DownloadRange,
   type LabReportGroup,
 } from './clinicalExplorerDownloadModel';
 
 export { requestAuditDocuments } from '@/features/audit-documents/eloisa-history';
+// The version tells whether the extension hands the ZIP to this page or saves it into Downloads.
+export { requestRayenExtensionHealth } from '@/features/rayen-import/clinical-panel';
 
 const MARGIN = 14;
 /**
@@ -72,12 +75,17 @@ export const readBlobBytes = async (blob: Blob): Promise<Uint8Array> => {
 };
 
 /** The PDFs of the extension's ZIP, in name order (the name ends with the admission day). */
-export const readHistoryArchive = async (archive: Blob): Promise<ArchiveFile[]> => {
+export const readHistoryArchive = async (archive: Blob): Promise<HistoryArchive> => {
   const zip = new PizZip(await readBlobBytes(archive));
-  return Object.values(zip.files)
-    .filter(file => !file.dir && /\.pdf$/i.test(file.name))
-    .map(file => ({ name: file.name, bytes: file.asUint8Array() }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const entries = Object.values(zip.files).filter(file => !file.dir);
+  const summary = entries.find(file => /(^|\/)00 resumen\.csv$/i.test(file.name));
+  return {
+    files: entries
+      .filter(file => /\.pdf$/i.test(file.name))
+      .map(file => ({ name: file.name, bytes: file.asUint8Array() }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    stays: summary ? parseHistorySummary(new TextDecoder().decode(summary.asUint8Array())) : null,
+  };
 };
 
 interface PatientHeading {
