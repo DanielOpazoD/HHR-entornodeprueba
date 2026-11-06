@@ -85,7 +85,7 @@ export const fetchMMRADPdfBlob = async (pdfLink: string, signal?: AbortSignal): 
 
   const pdfBlob = await response.blob();
   signal?.throwIfAborted();
-  if (pdfBlob.type.split(';')[0].trim().toLowerCase() !== 'application/pdf') {
+  if (pdfBlob.type.split(';')[0]?.trim().toLowerCase() !== 'application/pdf') {
     throw new Error('MMRAD no devolvió un PDF original válido.');
   }
   return pdfBlob;
