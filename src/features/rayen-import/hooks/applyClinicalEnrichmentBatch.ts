@@ -26,6 +26,7 @@ import {
   buildBoundedClinicalBatchChunks,
   isClinicalBatchRetryableError,
   isClinicalBatchVersionConflict,
+  markClinicalBatchTransportFailure,
   mergeBatchEvidence,
   readReportedTransactionRetries,
   readServerTransactionRetries,
@@ -83,7 +84,13 @@ export const applyClinicalEnrichmentBatch = async ({
       check();
       // Source reads happen before this turn. Re-read only after earlier writers have settled,
       // and revalidate against the original base before constructing the atomic payload.
-      const currentRecord = await refreshRecord();
+      let currentRecord: DailyRecord;
+      try {
+        currentRecord = await refreshRecord();
+      } catch (error) {
+        check();
+        throw markClinicalBatchTransportFailure(error);
+      }
       check();
       if (currentRecord.date !== record.date) {
         throw new Error('La lectura autoritativa corresponde a otra fecha del censo.');
@@ -154,7 +161,7 @@ export const applyClinicalEnrichmentBatch = async ({
           const reportedRetries = readServerTransactionRetries(error);
           if (reportedRetries == null) transactionEvidenceComplete = false;
           else transactionRetries += reportedRetries;
-          throw error;
+          throw markClinicalBatchTransportFailure(error);
         }
         const reportedRetries = readReportedTransactionRetries(response);
         if (reportedRetries == null) transactionEvidenceComplete = false;

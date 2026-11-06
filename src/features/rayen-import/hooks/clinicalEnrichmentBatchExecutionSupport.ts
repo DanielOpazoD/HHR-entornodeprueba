@@ -69,6 +69,22 @@ export const resolveClinicalPersistenceScope = (
 ): ClinicalPersistenceEvidence['scope'] =>
   payload.date === payload.authorityDate ? 'current' : 'historical';
 
+/**
+ * A failure that got no answer from the authority: the re-read of the census at the write turn, or a
+ * call that failed in the browser before the server replied. Repeating it a moment later can work;
+ * a server answer (`functions/…`) or a stale batch would fail again the same way.
+ */
+export const markClinicalBatchTransportFailure = (error: unknown): unknown => {
+  if (errorCode(error).startsWith('functions/')) return error;
+  const target = error && typeof error === 'object' ? error : new Error(failureMessage(error));
+  Object.assign(target, { clinicalBatchTransportFailure: true });
+  return target;
+};
+
+export const isClinicalBatchTransportFailure = (error: unknown): boolean =>
+  (error as { clinicalBatchTransportFailure?: unknown } | null)?.clinicalBatchTransportFailure ===
+  true;
+
 export const withClinicalBatchRetryCount = (error: unknown, clientRetries: number): unknown => {
   const target = error && typeof error === 'object' ? error : new Error(failureMessage(error));
   Object.assign(target, { clinicalBatchRetries: clientRetries });

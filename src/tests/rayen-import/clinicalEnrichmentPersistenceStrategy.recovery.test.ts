@@ -55,6 +55,7 @@ const setup = (current: DailyRecord) => {
       applyWithMetrics: operation => operation(),
       recordRetries: vi.fn(),
       recordPersistenceEvidence: vi.fn(),
+      wait: async () => undefined,
     });
   return { ...deps, persist };
 };
@@ -104,17 +105,18 @@ describe('clinical persistence recovery composition', () => {
     expect(deps.applyPatch).not.toHaveBeenCalled();
   });
 
-  it('leaves the batch pending when fresh authority is unavailable without sending the old base', async () => {
+  it('leaves the batch pending when fresh authority stays unavailable without sending the old base', async () => {
     const current = record('R2', 70, 2);
     const deps = setup(current);
     const before = structuredClone(current);
-    deps.refreshRecord.mockRejectedValueOnce(new Error('offline'));
+    deps.refreshRecord.mockRejectedValue(new Error('offline'));
 
     expect(await deps.persist()).toMatchObject({
       patched: 0,
       errors: [expect.objectContaining({ bedId: 'R1', source: 'patch' })],
     });
-    expect(deps.refreshRecord).toHaveBeenCalledOnce();
+    // One calm second read; the old base is never sent.
+    expect(deps.refreshRecord).toHaveBeenCalledTimes(2);
     expect(deps.invoke).not.toHaveBeenCalled();
     expect(deps.createMutationId).not.toHaveBeenCalled();
     expect(deps.applyPatch).not.toHaveBeenCalled();

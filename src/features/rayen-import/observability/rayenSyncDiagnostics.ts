@@ -1,4 +1,5 @@
 import type {
+  ClinicalReadErrorCode,
   RayenApplyFailureReason,
   RayenSyncFailureReason,
   RayenSyncIssueReason,
@@ -119,6 +120,28 @@ export const classifyRayenSyncIssueReason = (
   if (kind === 'concurrency') return 'concurrent_write';
   if (kind === 'timeout') return 'source_timeout';
   return source === 'patch' ? 'write_failed' : 'source_unavailable';
+};
+
+/**
+ * Bounded cause of a clinical batch that was not saved, persisted with the issue so the next
+ * occurrence says whether it was the network, the server or the batch itself. Never a raw message.
+ */
+export const classifyRayenWriteCause = (error: unknown): ClinicalReadErrorCode => {
+  switch (classifyRayenSyncError(error)) {
+    case 'unavailable':
+    case 'policy_unavailable':
+      return 'source_unavailable';
+    case 'timeout':
+      return 'source_timeout';
+    case 'permission_denied':
+      return 'permission_denied';
+    case 'invalid_response':
+      return 'invalid_response';
+    case 'unsupported':
+      return 'invalid_request';
+    default:
+      return 'unexpected';
+  }
 };
 
 type ClinicalFillErrorInput = Omit<ClinicalFillError, 'message' | 'reason'> & {
