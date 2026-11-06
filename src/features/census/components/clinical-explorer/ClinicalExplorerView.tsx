@@ -102,6 +102,7 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
               patient={patient}
               onRequestExams={() => setExamRequestFor(clinicalExplorerPatientIdentity(patient))}
               censusDate={censusDate}
+              indicationDate={indicationSelection.date}
             />
             <div
               role="tablist"

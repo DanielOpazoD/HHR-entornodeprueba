@@ -64,6 +64,7 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
     });
   }, panelResult);
   await page.goto(`/?date=${DATE}`);
+  await page.addStyleTag({ content: 'html { scroll-behavior: auto !important; }' });
   const row = page.locator('[data-testid="patient-row"][data-bed-id="R1"]');
   await expect(row).toContainText(PATIENT, { timeout: 20_000 });
 

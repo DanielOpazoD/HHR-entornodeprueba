@@ -1,12 +1,22 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ request: vi.fn() }));
+const mocks = vi.hoisted(() => ({ request: vi.fn(), print: vi.fn() }));
 
 vi.mock('@/features/rayen-import/clinical-panel', async importOriginal => {
   const actual = await importOriginal<typeof import('@/features/rayen-import/clinical-panel')>();
   return { ...actual, requestClinicalPanel: (...args: unknown[]) => mocks.request(...args) };
 });
+vi.mock(
+  '@/features/census/components/clinical-explorer/clinicalExplorerPrint',
+  async importOriginal => {
+    const actual =
+      await importOriginal<
+        typeof import('@/features/census/components/clinical-explorer/clinicalExplorerPrint')
+      >();
+    return { ...actual, printHtmlDocument: (html: string) => mocks.print(html) };
+  }
+);
 vi.mock('@/components/modals/ExamRequestModal', () => ({
   ExamRequestModal: ({
     patient,
@@ -289,6 +299,22 @@ describe('ClinicalExplorerView', () => {
       expect(screen.getByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-11');
       expect(await screen.findByText('AMOXICILINA 500 mg')).toBeVisible();
     }
+  });
+
+  it('prints from the patient header the same day chosen in the indications area', async () => {
+    mocks.request.mockResolvedValue(panelWithOlderActiveTreatment);
+    mocks.print.mockResolvedValue(undefined);
+    open();
+    await screen.findByText('Sin indicaciones vigentes para esta fecha.');
+    fireEvent.change(screen.getByLabelText('Fecha de indicaciones'), {
+      target: { value: '2026-07-11' },
+    });
+    const header = screen.getByTestId('clinical-explorer-patient');
+    fireEvent.click(within(header).getByRole('button', { name: 'Imprimir indicaciones' }));
+    await waitFor(() => expect(mocks.print).toHaveBeenCalledTimes(1));
+    expect(mocks.print.mock.calls[0][0]).toContain('Indicaciones médicas del 11-07-2026');
+    expect(mocks.print.mock.calls[0][0]).toContain('AMOXICILINA 500 mg');
+    expect(within(header).getByRole('button', { name: 'Receta' })).toBeVisible();
   });
 
   it('leaves an empty selected day empty instead of substituting an older treatment', async () => {

@@ -5,6 +5,7 @@ import type { ClinicalExplorerPatient } from '@/features/census/controllers/clin
 import { calculateHospitalizedDays } from '@/features/census/controllers/patientBedConfigViewController';
 import { formatAge } from '@/utils/ageDisplayUtils';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
+import { ClinicalExplorerPrintActions } from './ClinicalExplorerPrintActions';
 import { StatusDot } from './clinicalExplorerUi';
 
 const LazyImagingRequestDialog = lazy(() =>
@@ -25,6 +26,8 @@ interface ClinicalExplorerHeaderProps {
   /** The laboratory request belongs to the explorer: it may gather several patients. */
   onRequestExams: () => void;
   censusDate: string;
+  /** Day chosen in the indications area; null means today. Printing uses the same day. */
+  indicationDate: string | null;
 }
 
 const QUICK_BUTTON =
@@ -35,6 +38,7 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
   patient,
   onRequestExams,
   censusDate,
+  indicationDate,
 }) => {
   const { data, bedId, episodeId } = patient;
   const identity = `${bedId}:${episodeId}`;
@@ -128,6 +132,12 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
           <FolderOpen size={13} aria-hidden="true" className="text-slate-500" />
           Documentos
         </button>
+        <span aria-hidden="true" className="mx-0.5 h-5 w-px bg-slate-200" />
+        <ClinicalExplorerPrintActions
+          key={identity}
+          patient={patient}
+          indicationDate={indicationDate}
+        />
       </div>
 
       {action === 'imaging' && (
