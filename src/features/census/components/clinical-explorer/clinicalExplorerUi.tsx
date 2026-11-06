@@ -3,7 +3,7 @@ import clsx from 'clsx';
 import { PatientStatus } from '@/types/domain/patientClassification';
 
 export const EXPLORER_ACTION_BUTTON =
-  'inline-flex min-h-8 items-center gap-1.5 rounded-md px-2 text-[12px] font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 disabled:cursor-wait disabled:opacity-50';
+  'inline-flex min-h-8 items-center gap-1.5 rounded-md px-2 text-[12px] font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 disabled:cursor-default disabled:opacity-50';
 
 export const EXPLORER_ICON_BUTTON = `${EXPLORER_ACTION_BUTTON} size-8 justify-center px-0`;
 
