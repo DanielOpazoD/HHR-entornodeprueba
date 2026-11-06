@@ -81,6 +81,7 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
   { glob: '**/assets/audit-documents-*.js', reason: 'Audit downloads of official Eloísa reports work only with Eloísa and the extension.' },
   { glob: '**/assets/ClinicalPanelDrawer-*.js', reason: 'Same policy as the entry above.' },
   { glob: '**/assets/ClinicalExplorerView-*.js', reason: 'The clinical explorer reads Eloísa, Syslab and MMRAD; it is a consultation mode opened on demand, never part of the offline census. The Ficha Médico reader it shares with the drawer only works while Eloísa is connected.' },
+  { glob: '**/assets/clinicalExplorerDownloadBundle-*.js', reason: 'The explorer download joins what Eloísa, Syslab and MMRAD deliver while online; it loads only when a person presses «Descargar».' },
   { glob: '**/assets/useClinicalPanelSnapshot-*.js', reason: 'Same policy as the entry above.' },
   { glob: '**/assets/RayenSyncHistoryModal-*.js', reason: 'Sync history panel: reviewed on demand while Eloísa is connected.' },
   { glob: '**/assets/sendCensusEmailUseCases-*.js', reason: 'Census email delivery always needs the network; local exports stay cached.' },

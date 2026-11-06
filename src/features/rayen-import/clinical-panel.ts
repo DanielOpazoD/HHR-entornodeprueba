@@ -20,3 +20,5 @@ export type {
 } from './bridge/clinicalAntecedentDetail';
 export { requestRayenEncounterNavigation } from './bridge/encounterNavigationBridge';
 export { requestRayenHospitalizationDocument } from './bridge/hospitalizationReportsBridge';
+// The version tells the explorer's download whether the extension hands files to the page.
+export { requestRayenExtensionHealth } from './bridge/extensionHealthBridge';
