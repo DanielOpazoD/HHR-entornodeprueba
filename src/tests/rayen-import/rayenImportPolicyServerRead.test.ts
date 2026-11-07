@@ -1,8 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Timestamp, type Firestore } from 'firebase/firestore';
 
+const session = vi.hoisted(() => ({
+  owner: 'user:synthetic-a',
+  generation: 'generation-a',
+  headers: vi.fn(async () => ({ Authorization: 'Bearer synthetic-token' })),
+}));
+
 vi.mock('@/services/auth/authRequestHeaders', () => ({
-  resolveCurrentUserAuthHeaders: vi.fn(async () => ({ Authorization: 'Bearer synthetic-token' })),
+  resolveCurrentUserAuthHeaders: session.headers,
+}));
+vi.mock('@/services/storage/sessionOwnerKey', () => ({
+  getStoredSessionOwnerKey: () => session.owner,
+}));
+vi.mock('@/services/storage/sessionStorageTransition', () => ({
+  getSessionGeneration: () => session.generation,
 }));
 
 import readRayenImportPolicyFromServer from '@/features/rayen-import/settings/policyServerRead';
@@ -12,7 +24,11 @@ const respond = (status: number, body: unknown = {}) =>
   vi.fn(async () => new Response(JSON.stringify(body), { status }));
 
 describe('reading the sync policy straight from the Firestore server', () => {
-  beforeEach(() => vi.unstubAllGlobals());
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+    session.owner = 'user:synthetic-a';
+    session.generation = 'generation-a';
+  });
   afterEach(() => vi.unstubAllGlobals());
 
   it('asks the server with the person’s session, bypassing every cache', async () => {
@@ -50,5 +66,17 @@ describe('reading the sync policy straight from the Firestore server', () => {
     await expect(readRayenImportPolicyFromServer(db)).rejects.toMatchObject({
       code: 'unavailable',
     });
+  });
+
+  it('discards an answer obtained with the previous person’s session', async () => {
+    session.headers.mockImplementationOnce(async () => {
+      // The person changes while the token is being obtained.
+      session.owner = 'user:synthetic-b';
+      session.generation = 'generation-b';
+      return { Authorization: 'Bearer synthetic-a' };
+    });
+    vi.stubGlobal('fetch', respond(200, { fields: { mode: { stringValue: 'preview' } } }));
+
+    await expect(readRayenImportPolicyFromServer(db)).rejects.toMatchObject({ code: 'cancelled' });
   });
 });

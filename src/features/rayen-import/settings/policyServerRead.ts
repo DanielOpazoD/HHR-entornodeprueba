@@ -1,6 +1,8 @@
 import { Timestamp, type Firestore } from 'firebase/firestore';
 import { getSettingsDocPath, SETTINGS_DOCS } from '@/constants/firestorePaths';
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 
 type RestValue = {
   stringValue?: string;
@@ -25,11 +27,21 @@ const fromRestValue = (value: RestValue): unknown => {
 const readRayenImportPolicyFromServer = async (
   db: Firestore
 ): Promise<Record<string, unknown> | null> => {
+  // An answer obtained with the previous person's session is never applied to the next one.
+  const owner = getStoredSessionOwnerKey();
+  const generation = getSessionGeneration();
+  const sameSession = () =>
+    owner === getStoredSessionOwnerKey() && generation === getSessionGeneration();
   const url = `https://firestore.googleapis.com/v1/projects/${db.app.options.projectId}/databases/(default)/documents/${getSettingsDocPath(SETTINGS_DOCS.RAYEN_IMPORT_POLICY)}`;
   const response = await fetch(url, {
     headers: await resolveCurrentUserAuthHeaders(),
     cache: 'no-store',
   });
+  if (!sameSession()) {
+    throw Object.assign(new Error('La sesión cambió mientras se leía la política.'), {
+      code: 'cancelled',
+    });
+  }
   if (response.status === 404) return null;
   if (!response.ok) {
     throw Object.assign(new Error(`La política no se pudo leer (HTTP ${response.status}).`), {
