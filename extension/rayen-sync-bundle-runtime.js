@@ -88,7 +88,7 @@
   const completeCapture = async context => {
     const after = await context.measuredRead('captureHealthAfter', () => context.readHealth({ force: true }));
     if (context.isCancelled()) return { error: 'Sincronización cancelada desde HHR.', cancelled: true };
-    if (!bothSourcesReady(after)) return { error: 'Una fuente se desconectó durante la captura. ' + sourceFailureMessage(after) };
+    if (after?.fichaMedico?.status !== 'ready') return { error: 'Una fuente se desconectó durante la captura. ' + (after?.fichaMedico?.message || 'Ficha Médico no está conectada.') }; // GC's download re-checked its own session; a sleeping GC tab failed 4/102 runs here.
     const completed = context.now();
     const temporalError = root.HhrCensusSyncHorizonRuntime?.validateCaptureBoundary(context.started, completed);
     if (temporalError) return { error: temporalError };
