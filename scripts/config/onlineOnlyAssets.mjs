@@ -13,7 +13,21 @@
 
 /** @type {readonly OnlineOnlyAsset[]} */
 export const ONLINE_ONLY_ASSETS = Object.freeze([
-  { glob: '**/assets/admission-audit-*.js', reason: 'Administrator admission auditing reads a server-verified period and historical Eloisa records; its downloaded HTML book remains self-contained offline.' },
+  {
+    glob: '**/assets/census-inbox-*.js',
+    reason:
+      'The new laboratory inbox reads owner-scoped work and results from the Mac mini. It has no offline clinical data store and is opened only on request.',
+  },
+  {
+    glob: '**/assets/syslabJobs-*.js',
+    reason:
+      'Short authenticated requests to the Mac mini queue. Existing laboratory offline assets remain cached.',
+  },
+  {
+    glob: '**/assets/admission-audit-*.js',
+    reason:
+      'Administrator admission auditing reads a server-verified period and historical Eloisa records; its downloaded HTML book remains self-contained offline.',
+  },
   {
     glob: '**/images/moa/**',
     reason: 'Optional mascot artwork is cached on use by the existing image route.',

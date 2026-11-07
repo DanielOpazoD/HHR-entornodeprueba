@@ -72,8 +72,8 @@ describe('experimental evidence provenance and completeness', () => {
       hash: 'cd5ac1130f825cab1212853ffcf993d1d0e1be878b4f36dcf7bb35bbf82a5bbd',
     });
     expect(fingerprintIsolationCorpus(report(previewCorpus, false))).toEqual({
-      count: 64,
-      hash: '0f01cda2e6ba015fe5c0efd9a2797e468730016b476246f55555004e6b4d191c',
+      count: 66,
+      hash: '36cb1bd446364695c41f49d53184cba5b567d3c3582a2c1feef39b37251f79d0',
     });
     expect(collectIsolationExperimentIssues(fixture())).toEqual([]);
     expect(collectIsolationExperimentIssues(fixture('A'))).toEqual([]);
