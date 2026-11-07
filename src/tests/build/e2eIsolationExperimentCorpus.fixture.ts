@@ -73,6 +73,10 @@ export const criticalCorpus = {
 };
 
 export const previewCorpus = {
+  'e2e/mmrad-history-recovery.spec.ts': [
+    '3285bdd2a8a223bb3f74-fc13f0214eb44b185bff',
+    '3285bdd2a8a223bb3f74-5307f23f6d94589d8357',
+  ],
   'e2e/census-laboratory-inbox.spec.ts':
     '0445977deb33007a1732-6c9d1f9fceb83a1d30dd 0445977deb33007a1732-f21f9763a903a5ab61d2'.split(
       ' '

@@ -17,7 +17,7 @@ it('runs census, library, pharmacy, clinical-panel, sync-navigation and DICOM/ca
   const scripts = JSON.parse(fs.readFileSync('package.json', 'utf8')).scripts;
 
   expect(scripts['ci:preview-smoke:built']).toBe(
-    'PLAYWRIGHT_SKIP_PREVIEW_BUILD=1 playwright test -c playwright.preview.config.ts e2e/census-preview-bootstrap.spec.ts e2e/clinical-library-smoke.spec.ts e2e/clinical-library-pharmacy.spec.ts e2e/clinical-panel-reading-smoke.spec.ts e2e/census-sync-history-navigation.spec.ts e2e/dicom-viewer.spec.ts e2e/clinical-carryover-preview.spec.ts e2e/census-laboratory-inbox.spec.ts --project=chromium'
+    'PLAYWRIGHT_SKIP_PREVIEW_BUILD=1 playwright test -c playwright.preview.config.ts e2e/census-preview-bootstrap.spec.ts e2e/clinical-library-smoke.spec.ts e2e/clinical-library-pharmacy.spec.ts e2e/clinical-panel-reading-smoke.spec.ts e2e/census-sync-history-navigation.spec.ts e2e/dicom-viewer.spec.ts e2e/clinical-carryover-preview.spec.ts e2e/census-laboratory-inbox.spec.ts e2e/mmrad-history-recovery.spec.ts --project=chromium'
   );
   expect(scripts['ci:preview-gate'].split(' && ')).toEqual([
     'npm run check:bundle-budget',
@@ -92,6 +92,7 @@ it('splits the canonical preview pack into lanes that cover every spec', () => {
   expect(new Set(laneSpecs)).toEqual(new Set(specs));
   expect(lanes.app).toContain('e2e/clinical-library-pharmacy.spec.ts');
   expect(lanes.app).toContain('e2e/census-laboratory-inbox.spec.ts');
+  expect(lanes.app).toContain('e2e/mmrad-history-recovery.spec.ts');
   expect(lanes.app).not.toContain(DICOM_PREVIEW_SPEC);
   expect(lanes['dicom-graphics-stress']).toEqual([
     DICOM_PREVIEW_SPEC,

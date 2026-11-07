@@ -157,6 +157,54 @@ describe('ClinicalExplorerImaging', () => {
     return { popup, createUrl, revokeUrl };
   };
 
+  it.each(['patient', 'episode', 'session'])(
+    'reveals earlier studies and scopes the period to the current %s',
+    async change => {
+      mocks.search.mockImplementation(async ({ dateFrom }: { dateFrom?: string }) => ({
+        rut: RUT,
+        examenes: dateFrom ? [] : [studies[1]],
+      }));
+      const view = renderImaging();
+      await screen.findByText(
+        'Sin estudios de imágenes desde el ingreso. Puede haber exámenes anteriores.'
+      );
+      fireEvent.click(
+        screen.getByRole('checkbox', { name: 'Incluir exámenes anteriores al ingreso' })
+      );
+      await screen.findByText('TC tórax sin contraste');
+      expect(mocks.search).toHaveBeenLastCalledWith({
+        rut: RUT,
+        dateFrom: undefined,
+        dateTo: undefined,
+      });
+      expect(
+        screen.getByText(/Período: todo el historial disponible en MMRAD, hasta hoy/)
+      ).toBeVisible();
+      if (change === 'session') act(() => setSessionGeneration('another-synthetic-session'));
+      else
+        view.rerender(
+          <ClinicalExplorerImaging
+            patient={
+              change === 'episode'
+                ? { ...patient!, episodeId: 'another-synthetic-episode' }
+                : {
+                    ...patient!,
+                    data: { ...patient!.data, rut: '11.111.111-1', patientName: 'OTRO SINTÉTICO' },
+                  }
+            }
+            tab="all"
+            onShowAll={vi.fn()}
+          />
+        );
+      expect(
+        screen.getByRole('checkbox', { name: 'Incluir exámenes anteriores al ingreso' })
+      ).not.toBeChecked();
+      await screen.findByText(
+        'Sin estudios de imágenes desde el ingreso. Puede haber exámenes anteriores.'
+      );
+    }
+  );
+
   it.each(['patient', 'episode', 'session', 'unmount'])(
     'cancels a pending PDF and closes its empty window on %s change',
     async change => {
@@ -360,7 +408,9 @@ describe('ClinicalExplorerImaging', () => {
     expect(screen.queryByText(/Sin estudios/)).toBeNull();
     failAlternate(new Error('timeout'));
     expect(
-      await screen.findByText('Sin estudios de imágenes en esta hospitalización.')
+      await screen.findByText(
+        'Sin estudios de imágenes desde el ingreso. Puede haber exámenes anteriores.'
+      )
     ).toBeVisible();
     expect(screen.getByText(/La búsqueda por dígito verificador no terminó/)).toBeVisible();
   });

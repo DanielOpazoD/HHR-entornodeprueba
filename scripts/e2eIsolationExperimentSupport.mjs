@@ -30,7 +30,7 @@ const phaseScripts = {
 };
 const corpus = {
   critical: { count: 46, hash: 'cd5ac1130f825cab1212853ffcf993d1d0e1be878b4f36dcf7bb35bbf82a5bbd' },
-  preview: { count: 66, hash: '36cb1bd446364695c41f49d53184cba5b567d3c3582a2c1feef39b37251f79d0' },
+  preview: { count: 68, hash: 'd5ba0edb7b8d1ef98e641a8f9cef3d875a5b1a4234a792a1978c054ddf17ff19' },
 };
 const versionKeys =
   'node java playwright chromium firestore lockfile runnerImage runnerOS runnerArch'.split(' ');

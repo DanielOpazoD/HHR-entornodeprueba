@@ -8,6 +8,8 @@ import {
   type ClinicalExplorerPatient,
 } from '@/features/census/controllers/clinicalExplorerController';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
+import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import {
   describeMMRADRegisteredPatient,
   fetchMMRADPdfBlob,
@@ -75,12 +77,16 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
   const expanded = tab === 'img';
   const sessionEpoch = useSessionEpoch();
   const patientIdentity = clinicalExplorerPatientIdentity(patient);
+  const historyScope = `${sessionEpoch}:${patientIdentity}`;
+  const [historyFor, setHistoryFor] = useState<string | null>(null);
+  const includeHistory = historyFor === historyScope;
+  const today = formatDateDDMMYYYY(getClinicalCalendarDateISO());
   const rut = patient.data.rut.trim();
   const patientName = patient.data.patientName.trim();
   const imaging = useClinicalExplorerImaging({
     rut,
     patientName,
-    admissionDate: patient.data.admissionDate,
+    admissionDate: includeHistory ? '' : patient.data.admissionDate,
     enabled: true,
   });
   const reviewCache = useDicomReviewCache(true, rut);
@@ -164,7 +170,11 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
     if (imaging.phase === 'empty') {
       return (
         <>
-          <EmptyNote>Sin estudios de imágenes en esta hospitalización.</EmptyNote>
+          <EmptyNote>
+            {includeHistory
+              ? 'Sin estudios de imágenes en MMRAD para este paciente.'
+              : 'Sin estudios de imágenes desde el ingreso. Puede haber exámenes anteriores.'}
+          </EmptyNote>
           {imaging.partial && (
             <p className="text-[11px] text-slate-500">
               La búsqueda por dígito verificador no terminó; puede faltar algún estudio.
@@ -288,6 +298,21 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
         ) : undefined
       }
     >
+      <div className="mb-2 space-y-1 border-b border-slate-100 pb-2 text-[11px] text-slate-600">
+        <p>
+          {includeHistory
+            ? `Período: todo el historial disponible en MMRAD, hasta hoy (${today}).`
+            : `Período: desde el ingreso (${formatDateDDMMYYYY(patient.data.admissionDate)}) hasta hoy (${today}).`}
+        </p>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={includeHistory}
+            onChange={event => setHistoryFor(event.target.checked ? historyScope : null)}
+          />
+          Incluir exámenes anteriores al ingreso
+        </label>
+      </div>
       {body()}
       {viewerExam?.dicom_url && (
         <Suspense
