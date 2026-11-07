@@ -5,6 +5,7 @@ import {
   buildCanonicalE2ERecord,
   ensureAuthenticated,
 } from './fixtures/auth';
+import { openPatientClinicalTopic } from './fixtures/patientClinicalTopics';
 
 const E2E_DATE = process.env.E2E_FIXED_DATE ?? '2026-02-20';
 const LAB_PATIENT_NAME = 'PACIENTE LAB E2E';
@@ -275,7 +276,7 @@ test.describe('Laboratory UI smoke', () => {
         },
       });
     });
-    await page.getByTestId('patient-laboratory-trigger-R1').click();
+    await openPatientClinicalTopic(page, 'R1', 'Laboratorio');
     const dialog = page.getByTestId('lab-results-viewer-modal');
     await dialog.getByRole('button', { name: /^Buscar$/ }).click();
     await expect(dialog.getByTestId('lab-exam-card-43092336')).toBeVisible();
@@ -302,10 +303,12 @@ test.describe('Laboratory UI smoke', () => {
 
     await openAuthenticatedCensus(page);
 
-    // The census menu no longer offers Laboratorio: each patient opens it from its row.
-    const labAction = page.getByTestId('patient-laboratory-trigger-R1');
-    await expect(labAction).toBeVisible({ timeout: 15000 });
-    await labAction.click();
+    // Each patient opens Laboratorio from the turtle in its bed column.
+    await expect(page.locator('[data-testid="patient-row"][data-bed-id="R1"]')).toContainText(
+      LAB_PATIENT_NAME,
+      { timeout: 15000 }
+    );
+    await openPatientClinicalTopic(page, 'R1', 'Laboratorio');
 
     const labDialog = page.getByTestId('lab-results-viewer-modal');
     await expect(labDialog).toBeVisible({ timeout: 15000 });
@@ -402,7 +405,7 @@ test.describe('Laboratory UI smoke', () => {
         },
       });
     });
-    await page.getByTestId('patient-laboratory-trigger-R1').click();
+    await openPatientClinicalTopic(page, 'R1', 'Laboratorio');
     const dialog = page.getByTestId('lab-results-viewer-modal');
     await dialog.getByRole('button', { name: /^Buscar$/ }).click();
     await expect(dialog.getByTestId('lab-exam-card-900025')).toBeAttached();

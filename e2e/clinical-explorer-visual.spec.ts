@@ -7,9 +7,10 @@ import {
   VISUAL_PATIENT as PATIENT,
   VISUAL_SECOND_PATIENT as SECOND_PATIENT,
 } from './fixtures/censusVisualSeed';
+import { openPatientClinicalTopic } from './fixtures/patientClinicalTopics';
 
 const openExplorerFromBed = async (page: Page, bedId: string): Promise<void> => {
-  await page.getByTestId(`clinical-panel-trigger-${bedId}`).click();
+  await openPatientClinicalTopic(page, bedId, 'Ficha clínica');
   const drawer = page.getByTestId(`clinical-panel-drawer-${bedId}`);
   await expect(drawer).toBeVisible({ timeout: 20_000 });
   await drawer.getByRole('button', { name: /Abrir explorador clínico de/ }).click();
@@ -332,7 +333,13 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
   await expect(page.locator('.census-register')).toBeVisible();
   await expect(page.locator('.hhr-date-strip')).toBeVisible();
   await expect(row).toContainText(PATIENT);
-  await expect(page.getByTestId('clinical-panel-trigger-R1')).toBeFocused();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        document.activeElement?.closest('[data-testid="patient-row"]')?.getAttribute('data-bed-id')
+      )
+    )
+    .toBe('R1');
 });
 
 test('prints the laboratory orders of several patients as one document, one page each', async ({

@@ -35,6 +35,9 @@ export interface PatientMainRowActionCellProps
   isPendingClear?: boolean;
   /** Only an Eloísa episode can be marked «paciente no válido». */
   canMarkInvalid?: boolean;
+  /** The bed's patient, for the turtle's clinical topics; absent on a blocked bed. */
+  clinicalPatient?: PatientData;
+  censusDate?: string;
 }
 
 export interface PatientMainRowViewProps
