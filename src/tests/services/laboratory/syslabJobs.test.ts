@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { readRemoteSyslabDetailsJob } from '@/services/laboratory/syslabJobs';
+import { readRemoteSyslabDetailsJob, requestSyslabJob } from '@/services/laboratory/syslabJobs';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 
 vi.mock('@/services/auth/authRequestHeaders', () => ({
@@ -94,5 +94,45 @@ describe('remote Syslab durable details', () => {
       )
     );
     await expect(readRemoteSyslabDetailsJob(links, {})).rejects.toThrow('incompleto');
+  });
+  it('honors Retry-After for progress without changing the server request budget', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ success: false }), {
+          status: 429,
+          headers: { 'Retry-After': '60' },
+        })
+      )
+      .mockResolvedValueOnce(json({ job: job(32, 'completed') }));
+    vi.stubGlobal('fetch', fetch);
+    const pending = requestSyslabJob('job-status', undefined, jobId);
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(pending).resolves.toMatchObject({ job: { status: 'completed' } });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('never retries a throttled job creation and stops a waiting read when its session changes', async () => {
+    const fetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ success: false, error: 'Rate limited' }), {
+          status: 429,
+          headers: { 'Retry-After': '60' },
+        })
+    );
+    vi.stubGlobal('fetch', fetch);
+    await expect(requestSyslabJob('job-create', { kind: 'census' })).rejects.toThrow(
+      'Rate limited'
+    );
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const pending = requestSyslabJob('job-status', undefined, jobId);
+    const rejection = expect(pending).rejects.toThrow('cancelada');
+    await vi.advanceTimersByTimeAsync(0);
+    setSessionGeneration('changed-during-backoff');
+    await vi.advanceTimersByTimeAsync(60_000);
+    await rejection;
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });

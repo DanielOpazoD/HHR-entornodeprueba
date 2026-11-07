@@ -60,7 +60,8 @@ export const requestSyslabJob = async <T>(
   body?: unknown,
   id?: string,
   isCurrent: () => boolean = () => true,
-  offset?: number
+  offset?: number,
+  rateLimitAttempt = 0
 ): Promise<T> => {
   const epoch = getSessionEpoch();
   const assertCurrent = () => {
@@ -88,6 +89,26 @@ export const requestSyslabJob = async <T>(
     });
     const value = (await response.json()) as T & { success?: boolean; error?: string };
     assertCurrent();
+    const progressRead =
+      action === 'job-status' || action === 'job-result' || action === 'census-state';
+    if (response.status === 429 && progressRead && rateLimitAttempt < 3) {
+      clearTimeout(timeout);
+      const requestedSeconds = Number(response.headers.get('Retry-After'));
+      const seconds =
+        Number.isFinite(requestedSeconds) && requestedSeconds > 0
+          ? Math.min(requestedSeconds, 300)
+          : 60;
+      await new Promise(resolve => setTimeout(resolve, seconds * 1000));
+      assertCurrent();
+      return requestSyslabJob<T>(
+        action,
+        body,
+        id,
+        () => getSessionEpoch() === epoch && isCurrent(),
+        offset,
+        rateLimitAttempt + 1
+      );
+    }
     if (!response.ok || value.success !== true) {
       throw new Error(value.error || 'No se pudo consultar la cola del Mac mini.');
     }
