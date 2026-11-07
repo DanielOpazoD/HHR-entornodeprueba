@@ -71,10 +71,23 @@ interface UseRayenImportCaptureInput {
   ) => void;
 }
 
-const isPassingCaptureFailure = (error: string, stage?: string): boolean =>
-  stage === 'ficha_main_relay' ||
-  stage === 'ficha_tab_relay' ||
-  classifyRayenSnapshotError(error, stage).reason === 'snapshot_network_error';
+/** Longer than the extension's 3 s health cache, so the second attempt probes the tab afresh. */
+export const GESTION_CAMAS_CAPTURE_RETRY_DELAY_MS = 5000;
+
+/** Gestión de Camas messages that ask a person to act; repeating the read would not help. */
+const GESTION_CAMAS_NEEDS_PERSON =
+  /vencio|inicia sesion|pestana nueva|no esta abierta|completa el acceso|permiso|recarga/;
+
+/** Delay before the one silent retry of a failure that passes on its own; null = tell the person. */
+const passingCaptureRetryDelayMs = (error: string, stage?: string): number | null => {
+  if (stage === 'ficha_main_relay' || stage === 'ficha_tab_relay') return 0;
+  const { reason } = classifyRayenSnapshotError(error, stage);
+  if (reason === 'snapshot_network_error') return 0;
+  const normalized = error.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  return reason === 'gestion_camas_unavailable' && !GESTION_CAMAS_NEEDS_PERSON.test(normalized)
+    ? GESTION_CAMAS_CAPTURE_RETRY_DELAY_MS
+    : null;
+};
 
 /** Owns extension capture subscriptions and the preflight/request lifecycle for one import flow. */
 export const useRayenImportCapture = ({
@@ -176,22 +189,43 @@ export const useRayenImportCapture = ({
           }
           // A Ficha Médico tab idle for hours can miss its first read and answer the next in seconds.
           // A dropped connection also passes on its own (twice in 6 days, the next click worked).
-          // The capture only reads, so it gets one silent retry before anyone is told.
+          // Gestión de Camas «no disponible» failed 4 of 102 runs in 13 days and the next click,
+          // 1–2 minutes later, always worked. The capture only reads, so it gets one silent retry
+          // before anyone is told; Gestión de Camas first gets a few seconds to wake up.
           const prepared = preparedSyncContextRef.current;
-          const context = executionRef.current.context;
+          const retryDelayMs = passingCaptureRetryDelayMs(error, timeoutStage);
           if (
-            isPassingCaptureFailure(error, timeoutStage) &&
+            retryDelayMs !== null &&
             prepared &&
-            context &&
+            executionRef.current.context &&
             relayRetryRunRef.current !== runId
           ) {
             relayRetryRunRef.current = runId;
             recordRunPerformance({ counters: { retries: 1 } }, runId);
-            const retryRequestId = startCaptureRequest(prepared, runId);
-            dispatchExecution({
-              type: 'activate',
-              context: { ...context, requestId: retryRequestId },
-            });
+            const retry = () => {
+              // A cancel, a new run or leaving the page while waiting ends the retry; the request's
+              // own timeout stays armed meanwhile, so the run never hangs in «capturing».
+              const context = executionRef.current.context;
+              if (
+                !mountedRef.current ||
+                !context ||
+                preparedSyncContextRef.current !== prepared ||
+                !isRayenSyncExecutionCurrent(executionRef.current, {
+                  runId,
+                  requestId,
+                  selectedDate,
+                })
+              ) {
+                return;
+              }
+              const retryRequestId = startCaptureRequest(prepared, runId);
+              dispatchExecution({
+                type: 'activate',
+                context: { ...context, requestId: retryRequestId },
+              });
+            };
+            if (retryDelayMs === 0) retry();
+            else setTimeout(retry, retryDelayMs);
             return;
           }
           clearSyncTimeout();
