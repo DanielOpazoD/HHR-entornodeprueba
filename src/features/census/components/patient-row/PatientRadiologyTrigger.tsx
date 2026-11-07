@@ -11,23 +11,34 @@ const RadiologyViewerModal = React.lazy(() =>
   }))
 );
 
+const ImagingRequestDialog = React.lazy(() =>
+  import('@/components/modals/ImagingRequestDialog').then(module => ({
+    default: module.ImagingRequestDialog,
+  }))
+);
+
 interface PatientRadiologyTriggerProps {
   patient: PatientData;
   triggerKey?: string;
+}
+
+interface OpenPatientRadiologySurface {
+  kind: 'viewer' | 'request';
+  patientIdentity: string;
 }
 
 export const PatientRadiologyTrigger: React.FC<PatientRadiologyTriggerProps> = ({
   patient,
   triggerKey = patient.bedId,
 }) => {
-  const [openPatientIdentity, setOpenPatientIdentity] = React.useState<string | null>(null);
+  const [openSurface, setOpenSurface] = React.useState<OpenPatientRadiologySurface | null>(null);
   const patientName = patient.patientName.trim();
   const patientRut = patient.rut.trim();
   const patientIdentity = `${patientRut}:${patient.clinicalEpisodeId?.trim() ?? ''}`;
-  const isOpen = openPatientIdentity === patientIdentity;
+  const activeSurface = openSurface?.patientIdentity === patientIdentity ? openSurface.kind : null;
 
   React.useEffect(() => {
-    setOpenPatientIdentity(current => (current === patientIdentity ? current : null));
+    setOpenSurface(current => (current?.patientIdentity === patientIdentity ? current : null));
   }, [patientIdentity]);
 
   if (
@@ -55,7 +66,7 @@ export const PatientRadiologyTrigger: React.FC<PatientRadiologyTriggerProps> = (
           tone="radiology"
           data-testid={`patient-radiology-trigger-${triggerKey}`}
           onClick={() => {
-            setOpenPatientIdentity(patientIdentity);
+            setOpenSurface({ kind: 'viewer', patientIdentity });
           }}
           title="Radiología / Imagenología MMRAD"
           hint="Imagenología"
@@ -65,15 +76,22 @@ export const PatientRadiologyTrigger: React.FC<PatientRadiologyTriggerProps> = (
         </ClinicalActionButton>
       </span>
 
-      {isOpen && (
+      {activeSurface === 'viewer' && (
         <React.Suspense fallback={null}>
           <RadiologyViewerModal
             isOpen
-            onClose={() => setOpenPatientIdentity(null)}
+            onClose={() => setOpenSurface(null)}
             patients={[radiologyPatient]}
             initialPatientRut={patientRut}
             autoSearchInitialPatient
+            onRequestImaging={() => setOpenSurface({ kind: 'request', patientIdentity })}
           />
+        </React.Suspense>
+      )}
+
+      {activeSurface === 'request' && (
+        <React.Suspense fallback={null}>
+          <ImagingRequestDialog isOpen onClose={() => setOpenSurface(null)} patient={patient} />
         </React.Suspense>
       )}
     </>

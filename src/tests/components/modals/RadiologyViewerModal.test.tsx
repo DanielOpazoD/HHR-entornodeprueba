@@ -81,6 +81,26 @@ describe('RadiologyViewerModal', () => {
     expect(mmradMocks.search).not.toHaveBeenCalled();
   });
 
+  it('offers an imaging request only when the opener can take it', async () => {
+    const onRequestImaging = vi.fn();
+    const { rerender } = render(
+      <RadiologyViewerModal isOpen onClose={vi.fn()} patients={[patient]} />
+    );
+    expect(screen.queryByRole('button', { name: 'Solicitar imagen' })).toBeNull();
+
+    rerender(
+      <RadiologyViewerModal
+        isOpen
+        onClose={vi.fn()}
+        patients={[patient]}
+        onRequestImaging={onRequestImaging}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Solicitar imagen' }));
+
+    expect(onRequestImaging).toHaveBeenCalledTimes(1);
+  });
+
   it('ignores a late search result after selecting another patient', async () => {
     let finish: (result: unknown) => void = () => undefined;
     mmradMocks.search.mockImplementationOnce(
