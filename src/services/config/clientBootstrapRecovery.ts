@@ -174,12 +174,25 @@ const getFallbackVersionInfo = (): VersionInfo | null => {
 };
 
 const performRecoveryReload = async (
-  reason: BootstrapRecoveryReason
+  reason: BootstrapRecoveryReason,
+  {
+    canReload = () => true,
+    beforeReload,
+  }: { canReload?: () => boolean; beforeReload?: () => void } = {}
 ): Promise<ClientBootstrapRecoveryResult> => {
-  writeRecoveryAttempt(reason);
   clearBootstrapRuntimeCache();
   await clearBrowserCaches();
   await unregisterServiceWorkers(() => true);
+  // The cleanup does not disturb the running page; only the reload does. Asked last, so a person
+  // who started working during the cleanup is not interrupted and nothing is recorded as adopted.
+  if (!canReload()) {
+    return {
+      status: 'continue',
+      reason: null,
+    };
+  }
+  beforeReload?.();
+  writeRecoveryAttempt(reason);
   defaultBrowserWindowRuntime.reload();
   return {
     status: 'reload',
@@ -263,14 +276,20 @@ const runClientBootstrapRecovery = async ({
       serverVersion: serverVersion.version,
     });
 
-    defaultBrowserWindowRuntime.setLocalStorageItem(VERSION_KEY, serverVersion.version);
-    writePostDeployRecentRecordRefreshMarker({
-      fromVersion: localVersion,
-      toVersion: serverVersion.version,
-    });
+    const adoptServerVersion = () => {
+      defaultBrowserWindowRuntime.setLocalStorageItem(VERSION_KEY, serverVersion.version);
+      writePostDeployRecentRecordRefreshMarker({
+        fromVersion: localVersion,
+        toVersion: serverVersion.version,
+      });
+    };
     if (recoveryAttempt !== 'version-change') {
-      return performRecoveryReload('version-change');
+      return performRecoveryReload('version-change', {
+        canReload: canReloadForNewVersion,
+        beforeReload: adoptServerVersion,
+      });
     }
+    adoptServerVersion();
   }
 
   clearRecoveryAttempt();
