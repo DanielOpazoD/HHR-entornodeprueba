@@ -1,6 +1,7 @@
 import type {
   ClinicalReadErrorCode,
   RayenApplyFailureReason,
+  RayenCaptureFailureCheck,
   RayenSyncFailureReason,
   RayenSyncIssueReason,
   RayenSyncIssueSource,
@@ -45,6 +46,8 @@ interface RayenSyncDiagnosticData {
   batchRunId?: string;
   outcome?: RayenSyncTerminalOutcome;
   failureReason?: RayenSyncFailureReason;
+  /** Which capture check failed; bounded code, never the extension's message. */
+  captureCheck?: RayenCaptureFailureCheck;
   cancellationReason?: 'operator' | 'superseded';
   errorKind?: RayenSyncOperationalErrorKind;
   issueReason?: RayenSyncIssueReason;
@@ -206,6 +209,7 @@ export const reportRayenSyncTerminal = (
         outcome,
         ...(Number.isFinite(durationMs) ? { durationMs } : {}),
         ...(data.failureReason ? { failureReason: data.failureReason } : {}),
+        ...(data.captureCheck ? { captureCheck: data.captureCheck } : {}),
         ...(data.issueReason ? { issueReason: data.issueReason } : {}),
         ...(data.errorKind ? { errorKind: data.errorKind } : {}),
         ...(typeof data.issueCount === 'number' ? { issueCount: data.issueCount } : {}),

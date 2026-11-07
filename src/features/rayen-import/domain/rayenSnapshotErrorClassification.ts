@@ -1,4 +1,4 @@
-import type { RayenSyncFailureReason } from '@/types/domain/rayenSync';
+import type { RayenCaptureFailureCheck, RayenSyncFailureReason } from '@/types/domain/rayenSync';
 
 /**
  * Clasifica el error que la extensión devuelve al capturar el censo
@@ -17,6 +17,8 @@ import type { RayenSyncFailureReason } from '@/types/domain/rayenSync';
 export interface RayenSnapshotErrorClassification {
   reason: RayenSyncFailureReason;
   message: string;
+  /** Which check failed; finer than `reason`, for telemetry only. */
+  check: RayenCaptureFailureCheck;
 }
 
 const MAX_MESSAGE_LENGTH = 300;
@@ -103,6 +105,24 @@ const unwrapTransportDetail = (raw: string): string => {
   return match ? raw.slice(raw.length - (normalized.length - match[0].length)).trim() : raw;
 };
 
+/** Gestión de Camas checks, in order; Ficha Médico's causes are already told apart by `reason`. */
+const CHECK_RULES: readonly (readonly [RegExp, RayenCaptureFailureCheck])[] = [
+  [/desconecto durante la captura.*gestion de camas/, 'gc_after_capture'],
+  [/desconecto durante la captura/, 'ficha_after_capture'],
+  [
+    /(gestion de camas|puente interno).*(no respondio|perdio conexion|no confirmo)|agotado .*gestion de camas/,
+    'gc_tab_unresponsive',
+  ],
+  [/gestion de camas.*(desactualizada|vigente)/, 'gc_tab_outdated'],
+  [/sesion de gestion de camas vencio|ventana oficial de gestion/, 'gc_session_expired'],
+  [/sesion cambio durante/, 'gc_session_changed'],
+  [/mismo establecimiento/, 'other'],
+  [/gestion de camas|token de gestion/, 'gc_session_missing'],
+  [/reporte|informe de egresos/, 'gc_report_failed'],
+];
+const classifyCheck = (detailNormalized: string): RayenCaptureFailureCheck =>
+  CHECK_RULES.find(([test]) => test.test(detailNormalized))?.[1] ?? 'other';
+
 export const classifyRayenSnapshotError = (
   rawError: unknown,
   timeoutStage?: string
@@ -112,6 +132,7 @@ export const classifyRayenSnapshotError = (
       reason: 'snapshot_timeout',
       message:
         'El lector de Ficha Médico no terminó dentro del plazo. Revisa esa pestaña y vuelve a sincronizar.',
+      check: 'ficha_relay_timeout',
     };
   }
   if (timeoutStage === 'ficha_tab_relay') {
@@ -119,21 +140,25 @@ export const classifyRayenSnapshotError = (
       reason: 'snapshot_timeout',
       message:
         'La pestaña de Ficha Médico no respondió a la extensión dentro del plazo. Recárgala y vuelve a sincronizar.',
+      check: 'ficha_relay_timeout',
     };
   }
   const raw = typeof rawError === 'string' ? rawError.trim() : '';
   const detail = unwrapTransportDetail(raw);
   const detailNormalized = normalize(detail);
+  const check = classifyCheck(detailNormalized);
 
   for (const rule of RULES) {
     if (!rule.test.test(detailNormalized)) continue;
     return {
       reason: rule.reason,
       message: rule.remedy ? withDetail(rule.remedy, detail) : capAtWordBoundary(detail),
+      check,
     };
   }
   return {
     reason: 'snapshot_error',
     message: detail ? capAtWordBoundary(detail) : GENERIC_MESSAGE,
+    check,
   };
 };

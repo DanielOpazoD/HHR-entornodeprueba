@@ -461,7 +461,12 @@ describe('useRayenImportCapture', () => {
 
     expect(preparedSyncContextRef.current).toBeNull();
     expect(recordRunPerformance).toHaveBeenCalledWith({ counters: { timeouts: 1 } }, 'run-1');
-    expect(failRun).toHaveBeenCalledWith('snapshot_timeout', 'run-1');
+    expect(failRun).toHaveBeenCalledWith(
+      'snapshot_timeout',
+      'run-1',
+      undefined,
+      'capture_no_answer'
+    );
     const stateUpdater = setState.mock.calls.at(-1)?.[0] as (
       state: typeof INITIAL_RAYEN_IMPORT_STATE
     ) => typeof INITIAL_RAYEN_IMPORT_STATE;

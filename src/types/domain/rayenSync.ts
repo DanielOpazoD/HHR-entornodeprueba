@@ -160,6 +160,26 @@ export const RAYEN_SYNC_FAILURE_REASONS = [
 
 export type RayenSyncFailureReason = (typeof RAYEN_SYNC_FAILURE_REASONS)[number];
 
+/**
+ * Which check of the Eloísa capture failed, so a failed run explains itself in telemetry. Bounded
+ * codes derived from the extension's message; the message itself is never kept.
+ */
+export const RAYEN_CAPTURE_FAILURE_CHECKS = [
+  'capture_no_answer',
+  'ficha_relay_timeout',
+  'ficha_after_capture',
+  'gc_after_capture',
+  'gc_tab_unresponsive',
+  'gc_tab_outdated',
+  'gc_session_missing',
+  'gc_session_expired',
+  'gc_session_changed',
+  'gc_report_failed',
+  'other',
+] as const;
+
+export type RayenCaptureFailureCheck = (typeof RAYEN_CAPTURE_FAILURE_CHECKS)[number];
+
 /** Causas que puede producir la etapa de aplicación (las demás son de captura). */
 export type RayenApplyFailureReason = Extract<RayenSyncFailureReason, `apply_${string}`>;
 

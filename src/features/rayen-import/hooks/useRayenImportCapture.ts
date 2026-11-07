@@ -22,7 +22,11 @@ import type { RayenExtensionHealthState } from './useRayenExtensionHealth';
 import { resetRayenFillProgress } from './useRayenFillStatus';
 import { getRayenImportErrorMessage, type RayenImportState } from './rayenImportState';
 import type { RayenSyncRequestController } from './rayenSyncRequestLifecycle';
-import type { RayenSyncFailureReason, RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
+import type {
+  RayenCaptureFailureCheck,
+  RayenSyncFailureReason,
+  RayenSyncPerformanceDelta,
+} from '@/types/domain/rayenSync';
 import type { RayenImportPolicy } from '../settings/rayenImportSettings';
 import { resolveRayenPolicyBlockMessage, type RayenImportPolicyStatus } from './useRayenImportMode';
 import {
@@ -60,7 +64,12 @@ interface UseRayenImportCaptureInput {
     policy?: RayenImportPolicy,
     reviewRequirement?: RayenImportCaptureOptions['reviewRequirement']
   ) => RayenSyncRun;
-  failRun: (reason: RayenSyncFailureReason, runId?: string) => Promise<void>;
+  failRun: (
+    reason: RayenSyncFailureReason,
+    runId?: string,
+    error?: unknown,
+    captureCheck?: RayenCaptureFailureCheck
+  ) => Promise<void>;
   cancelRun?: () => void;
   recordRunPerformance: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
   previewSnapshot: (
@@ -146,7 +155,7 @@ export const useRayenImportCapture = ({
         });
         preparedSyncContextRef.current = null;
         recordRunPerformance({ counters: { timeouts: 1 } }, runId);
-        void failRun('snapshot_timeout', runId);
+        void failRun('snapshot_timeout', runId, undefined, 'capture_no_answer');
         setState(previous => ({
           ...previous,
           error:
@@ -241,7 +250,7 @@ export const useRayenImportCapture = ({
           if (captureRetries)
             recordRunPerformance({ counters: { retries: captureRetries } }, runId);
           const classified = classifyRayenSnapshotError(error, timeoutStage);
-          void failRun(classified.reason, runId);
+          void failRun(classified.reason, runId, undefined, classified.check);
           setState(previous => ({
             ...previous,
             error: classified.message,

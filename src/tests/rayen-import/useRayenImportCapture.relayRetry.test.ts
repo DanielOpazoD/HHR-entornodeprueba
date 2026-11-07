@@ -112,7 +112,12 @@ describe('capture when Ficha Médico does not answer in time', () => {
     act(() => onError('Tiempo de espera', 'request-2', 'ficha_main_relay'));
 
     expect(start).toHaveBeenCalledOnce();
-    expect(failRun).toHaveBeenCalledWith('snapshot_timeout', 'run-1');
+    expect(failRun).toHaveBeenCalledWith(
+      'snapshot_timeout',
+      'run-1',
+      undefined,
+      'ficha_relay_timeout'
+    );
   });
 
   it('retries a dropped connection once, without telling anyone', () => {
@@ -131,7 +136,7 @@ describe('capture when Ficha Médico does not answer in time', () => {
     act(() => onError('Failed to fetch', 'request-2'));
 
     expect(start).toHaveBeenCalledOnce();
-    expect(failRun).toHaveBeenCalledWith('snapshot_network_error', 'run-1');
+    expect(failRun).toHaveBeenCalledWith('snapshot_network_error', 'run-1', undefined, 'other');
   });
 
   it('does not retry a failure that needs a person, such as an expired session', () => {
@@ -140,7 +145,7 @@ describe('capture when Ficha Médico does not answer in time', () => {
     act(() => onError('La sesión clínica venció. Inicia sesión.', 'request-1'));
 
     expect(start).not.toHaveBeenCalled();
-    expect(failRun).toHaveBeenCalledWith('ficha_medico_unavailable', 'run-1');
+    expect(failRun).toHaveBeenCalledWith('ficha_medico_unavailable', 'run-1', undefined, 'other');
   });
 });
 
@@ -183,21 +188,29 @@ describe('capture when Gestión de Camas is not ready', () => {
     );
 
     expect(start).toHaveBeenCalledOnce();
-    expect(failRun).toHaveBeenCalledWith('gestion_camas_unavailable', 'run-1');
+    expect(failRun).toHaveBeenCalledWith(
+      'gestion_camas_unavailable',
+      'run-1',
+      undefined,
+      'gc_tab_unresponsive'
+    );
   });
 
   it.each([
-    'La sesión de Gestión de Camas venció. Vuelve a conectarla.',
-    'Abre Gestión de Camas e inicia sesión para sincronizar.',
-    'Abre una pestaña nueva de Gestión de Camas: la pestaña actual está desactualizada.',
-    'Gestión de Camas no está abierta.',
-  ])('does not retry what only a person can solve: %s', message => {
+    ['La sesión de Gestión de Camas venció. Vuelve a conectarla.', 'gc_session_expired'],
+    ['Abre Gestión de Camas e inicia sesión para sincronizar.', 'gc_session_missing'],
+    [
+      'Abre una pestaña nueva de Gestión de Camas: la pestaña actual está desactualizada.',
+      'gc_tab_outdated',
+    ],
+    ['Gestión de Camas no está abierta.', 'gc_session_missing'],
+  ])('does not retry what only a person can solve: %s', (message, check) => {
     const { onError, start, failRun } = setup();
 
     act(() => onError(message, 'request-1'));
 
     expect(start).not.toHaveBeenCalled();
-    expect(failRun).toHaveBeenCalledWith('gestion_camas_unavailable', 'run-1');
+    expect(failRun).toHaveBeenCalledWith('gestion_camas_unavailable', 'run-1', undefined, check);
   });
 
   it('does not start the retry after the run was cancelled during the wait', () => {
