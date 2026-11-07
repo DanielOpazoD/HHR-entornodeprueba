@@ -426,7 +426,7 @@ describe('ClinicalExplorerView', () => {
     expect(screen.queryByText('Censo visible')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Radiología' }));
     expect(await screen.findByRole('dialog', { name: 'Orden de imágenes' })).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: 'Documentos' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Informes locales' }));
     expect(await screen.findByRole('dialog', { name: 'Documentos clínicos' })).toBeVisible();
   });
 

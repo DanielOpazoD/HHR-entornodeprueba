@@ -12,7 +12,11 @@ import { CensusOperationalStateBanner } from './CensusOperationalStateBanner';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import { useDeferredCensusEnhancement } from '@/features/census/hooks/useDeferredCensusEnhancement';
-import { useDailyRecordStatus } from '@/context/DailyRecordContext';
+import { useDailyRecordData, useDailyRecordStatus } from '@/context/DailyRecordContext';
+import {
+  ClinicalDerivedDayProvider,
+  useCensusClinicalDerivedDay,
+} from './patient-row/clinicalDerivedDayContext';
 import { useDailyRecordWriteStatus } from '@/hooks/useDailyRecordWriteStatus';
 import { resolveCensusOperationalState } from '@/features/census/controllers/censusOperationalStateController';
 import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
@@ -74,6 +78,8 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
   const shouldRenderDeferredSections = useDeferredCensusEnhancement(shouldRenderSections);
   const [attentionFilter, setAttentionFilter] = useState<CensusAttentionFilter>('all');
   const dailyRecordStatus = useDailyRecordStatus();
+  const { record } = useDailyRecordData();
+  const clinicalDerivedDay = useCensusClinicalDerivedDay(record, currentDateString);
   const writeStatus = useDailyRecordWriteStatus(currentDateString);
   const editingReadOnly = readOnly || writeStatus.isSyncCommit;
   const explorer = useClinicalExplorerSelection(currentDateString);
@@ -180,11 +186,13 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
                 />
               }
             >
-              <LazyClinicalExplorerView
-                censusDate={currentDateString}
-                bedId={explorer.bedId}
-                patients={explorerPatients}
-              />
+              <ClinicalDerivedDayProvider value={clinicalDerivedDay}>
+                <LazyClinicalExplorerView
+                  censusDate={currentDateString}
+                  bedId={explorer.bedId}
+                  patients={explorerPatients}
+                />
+              </ClinicalDerivedDayProvider>
             </Suspense>
           </ErrorBoundary>
         </section>

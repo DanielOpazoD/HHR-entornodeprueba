@@ -43,7 +43,8 @@ interface AreaCardProps {
   icon: React.ReactNode;
   title: string;
   subtitle?: string;
-  source: string;
+  source?: string;
+  onTitleClick?: () => void;
   actions?: React.ReactNode;
   className?: string;
   children: React.ReactNode;
@@ -54,6 +55,7 @@ export const AreaCard: React.FC<AreaCardProps> = ({
   title,
   subtitle,
   source,
+  onTitleClick,
   actions,
   className,
   children,
@@ -70,10 +72,20 @@ export const AreaCard: React.FC<AreaCardProps> = ({
         {icon}
       </span>
       <h3 className="flex items-baseline gap-1.5 text-[14px] font-semibold text-slate-800">
-        {title}
+        {onTitleClick ? (
+          <button
+            type="button"
+            onClick={onTitleClick}
+            className="rounded hover:text-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
+          >
+            {title}
+          </button>
+        ) : (
+          title
+        )}
         {subtitle && <span className="text-[12px] font-normal text-slate-500">{subtitle}</span>}
       </h3>
-      <span className="text-[11px] text-slate-500">· {source}</span>
+      {source && <span className="text-[11px] text-slate-500">· {source}</span>}
       {actions && <span className="ml-auto flex items-center gap-2">{actions}</span>}
     </header>
     <div className="flex flex-col gap-2.5 p-3">{children}</div>

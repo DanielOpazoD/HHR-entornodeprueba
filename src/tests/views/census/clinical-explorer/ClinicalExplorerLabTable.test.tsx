@@ -49,14 +49,55 @@ const analysis = buildAnalysisData(
   exams
 );
 
-describe('six original laboratory reports', () => {
-  it('keeps the last six source identities, newest first, including same-minute reports', () => {
+describe('compact original laboratory reports', () => {
+  it('keeps up to ten source identities, newest first, including same-minute reports', () => {
     const columns = buildRecentLabColumns(analysis, exams, '2026-11-07');
-    expect(columns.map(column => column.exam?.id)).toEqual(['7', '6', '5', '4', '3', '2']);
-    expect(new Set(columns.map(column => column.key)).size).toBe(6);
+    expect(columns.map(column => column.exam?.id)).toEqual([
+      '7',
+      '6',
+      '5',
+      '4',
+      '3',
+      '2',
+      '1',
+      '0',
+    ]);
+    expect(new Set(columns.map(column => column.key)).size).toBe(8);
     expect(
       buildRecentLabColumns(analysis, exams, '2026-11-03').map(column => column.exam?.id)
     ).toEqual(['2', '1', '0']);
+  });
+  it('shows ten recent reports and excludes older reports beyond that window', () => {
+    const manyExams = Array.from({ length: 12 }, (_, i) =>
+      buildExam({
+        id: String(i),
+        date: `${String(i + 1).padStart(2, '0')}/11/2026`,
+        time: '08:00:00',
+        link: `hhr-syslab-extension://batch/synthetic/exam/${i}`,
+      })
+    );
+    const manyAnalysis = buildAnalysisData(
+      manyExams.map(exam =>
+        buildDetail({
+          url: exam.link!,
+          findings: [buildFinding({ analysis: 'Creatinina', result: '1,0', unit: 'mg/dL' })],
+        })
+      ),
+      manyExams
+    );
+    const columns = buildRecentLabColumns(manyAnalysis, manyExams, '2026-11-12');
+    expect(columns.map(column => column.exam?.id)).toEqual([
+      '11',
+      '10',
+      '9',
+      '8',
+      '7',
+      '6',
+      '5',
+      '4',
+      '3',
+      '2',
+    ]);
   });
   it('keeps legacy exam order without group headings, shows source hours and does not fill missing measurements', () => {
     render(
@@ -74,7 +115,8 @@ describe('six original laboratory reports', () => {
         .filter(cell => cell.getAttribute('scope') === 'row')
         .map(cell => cell.textContent)
     ).toEqual([expect.stringContaining('Hemoglobina'), expect.stringContaining('Creatinina')]);
-    expect(table).toHaveTextContent('08:00:59');
+    expect(table).toHaveTextContent('08:00');
+    expect(table).not.toHaveTextContent('08:00:59');
     expect(table).not.toHaveTextContent('Hemograma');
     expect(table).not.toHaveTextContent('Función renal / electrolitos');
     const haemoglobin = within(table).getByRole('row', { name: /Hemoglobina/ });
@@ -82,8 +124,9 @@ describe('six original laboratory reports', () => {
       within(haemoglobin)
         .getAllByRole('cell')
         .map(cell => cell.textContent)
-    ).toEqual(['12,0', '—', '—', '—', '—', '—']);
-    expect(table).toHaveTextContent('Ref. 0,7 - 1,2');
+    ).toEqual(['12,0', '—', '—', '—', '—', '—', '—', '—']);
+    expect(table).not.toHaveTextContent('Ref.');
+    expect(table.querySelector('[title*="Referencia"]')).toBeNull();
   });
   it('filters names without case or accent sensitivity, clears the query and resets for another identity', () => {
     const props = { analysis, exams, day: '2026-11-07', identity: 'synthetic-a' };
@@ -92,7 +135,7 @@ describe('six original laboratory reports', () => {
     fireEvent.change(search, { target: { value: 'CREATINÍNA' } });
     expect(screen.getByRole('table')).toHaveTextContent('Creatinina');
     expect(screen.getByRole('table')).not.toHaveTextContent('Hemoglobina');
-    expect(screen.getAllByRole('button', { name: /Abrir PDF/ })).toHaveLength(6);
+    expect(screen.getAllByRole('button', { name: /Abrir PDF/ })).toHaveLength(8);
     fireEvent.change(search, { target: { value: 'zzz' } });
     expect(screen.getByRole('status')).toHaveTextContent('Sin exámenes que coincidan');
     fireEvent.click(screen.getByRole('button', { name: 'Limpiar búsqueda de exámenes' }));
@@ -104,7 +147,7 @@ describe('six original laboratory reports', () => {
     expect(search).toHaveValue('');
   });
 
-  it('keeps different reference ranges with their source cells even when units match', () => {
+  it('omits reference ranges from rows, cells and tooltips even when they differ', () => {
     const changed = structuredClone(analysis);
     const columns = buildRecentLabColumns(changed, exams, '2026-11-07');
     changed.comparison.Creatinina[columns[1].key].refValue = '0,5 - 1,0';
@@ -119,8 +162,10 @@ describe('six original laboratory reports', () => {
     const row = screen.getByRole('row', { name: /Creatinina/ });
     expect(within(row).getByRole('rowheader')).not.toHaveTextContent('Ref.');
     const cells = within(row).getAllByRole('cell');
-    expect(cells[0]).toHaveTextContent('Ref. 0,7 - 1,2');
-    expect(cells[1]).toHaveTextContent('Ref. 0,5 - 1,0');
+    expect(cells[0]).toHaveTextContent('1,7');
+    expect(cells[1]).toHaveTextContent('1,6');
+    expect(row).not.toHaveTextContent(/0,7 - 1,2|0,5 - 1,0/);
+    expect(cells[0]).toHaveAttribute('title', '1,7 mg/dL');
   });
   it('opens the PDF of the exact same-minute source, and never reopens it after a patient switch', async () => {
     const view = render(

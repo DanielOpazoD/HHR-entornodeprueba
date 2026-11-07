@@ -322,8 +322,12 @@ mostrar todas explícitamente. El filtro de profesión y un episodio nuevo comie
 con 20 entradas; la vista conjunta conserva su resumen de tres. Se indica cuántas
 entradas se muestran, y un filtro vacío se distingue de una ficha sin evoluciones.
 Los signos vitales usan los datos del paciente/episodio ya disponibles en el censo,
-con fecha de toma, unidades y los mismos perfiles visuales del censo; no realizan
-una lectura nueva ni modifican datos. Un valor ausente no se transforma en cero.
+con fecha de toma, unidades y los mismos perfiles visuales del censo. Pulsar el título
+o una medición abre el mismo visor histórico del censo, con lectura bajo demanda
+del episodio en días clinicalDerived y el mismo tratamiento de fallos. Los balances
+de ingresos y diuresis del día aparecen en el panel, seguidos de las alertas activas
+del paciente. Aislamiento se indica debajo de la cama en encabezado y lista; la
+creación de documentos se abre desde «Informes locales». No modifica datos. Un valor ausente no se transforma en cero.
 El acceso de regreso es un botón independiente, disponible incluso si el explorador
 no termina de cargar; conserva Escape, el foco y el censo montado detrás.
 
@@ -340,6 +344,11 @@ El eje temporal del laboratorio ajusta sus etiquetas al ancho disponible, conser
 los extremos y señala el día del censo. Al cruzar de año incluye el año en la fecha.
 Las etiquetas de calendario son limitadas por espacio; los resultados, sus valores,
 los puntos seleccionables y la tabla diaria se conservan íntegros.
+
+El laboratorio del explorador muestra hasta diez informes recientes, sin segundos ni
+rangos de referencia en la tabla. Las filas compactas conservan unidades y valores
+ausentes; cada columna mantiene la identidad del informe original y su acceso PDF,
+incluso cuando dos informes comparten fecha y minuto.
 
 ### Descarga del explorador clínico
 
