@@ -10,6 +10,7 @@ const isValidAdmissionDay = (value: string): boolean => {
   const timestamp = parseCalendarDateUtcNoon(value);
   if (timestamp === null) return false;
   const [year, month, day] = value.split('-').map(Number);
+  if (year === undefined || month === undefined || day === undefined) return false;
   const date = new Date(timestamp);
   return (
     date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day

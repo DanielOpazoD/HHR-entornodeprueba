@@ -58,7 +58,7 @@ const InboxContent = ({
   scope,
 }: Props & { scope: string }) => {
   const [pages, setPages] = useState([0]);
-  const offset = pages[pages.length - 1];
+  const offset = pages.at(-1) ?? 0;
   const [onlyUnread, setOnlyUnread] = useState(true);
   const [force, setForce] = useState(false);
   const [selected, setSelected] = useState<CensusLabEntry | null>(null);

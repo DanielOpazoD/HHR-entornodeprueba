@@ -160,6 +160,11 @@ export const readRemoteSyslabDetailsJob = async (
   const isCurrent = () =>
     getSessionEpoch() === epoch && (!options.isCurrent || options.isCurrent());
   const selected = [...new Set(links)];
+  const requestedUrl = (index: number): string => {
+    const link = selected[index];
+    if (typeof link !== 'string') throw new Error('Índice de informe no válido.');
+    return link;
+  };
   const created = await requestSyslabJob<{ job: LaboratoryJob }>(
     'job-create',
     { kind: 'details', links: selected },
@@ -196,9 +201,12 @@ export const readRemoteSyslabDetailsJob = async (
         )
           throw new Error('Índice de informe no válido.');
         response.data.push(
-          ...page.data.map(detail => ({ url: selected[detail.index], findings: detail.findings }))
+          ...page.data.map(detail => ({
+            url: requestedUrl(detail.index),
+            findings: detail.findings,
+          }))
         );
-        response.omittedUrls!.push(...page.omittedIndices.map(index => selected[index]));
+        response.omittedUrls!.push(...page.omittedIndices.map(requestedUrl));
         if (
           page.nextOffset !== null &&
           (!Number.isInteger(page.nextOffset) || page.nextOffset <= offset)
