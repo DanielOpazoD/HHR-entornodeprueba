@@ -159,7 +159,7 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
     await page.keyboard.press('Escape');
     await expect(tooltip).toHaveCount(0);
     await expect(explorer).toBeVisible();
-    await header.click();
+    await header.getByRole('heading', { level: 2 }).click();
     await identityNotice.focus();
     await expect(tooltip).toBeVisible();
     await page.keyboard.press('Escape');
