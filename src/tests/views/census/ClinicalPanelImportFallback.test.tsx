@@ -17,16 +17,19 @@ vi.mock('@/features/census/components/patient-row/ClinicalPanelDrawer', async ()
 });
 
 import { ClinicalPanelTrigger } from '@/features/census/components/patient-row/ClinicalPanelTrigger';
+import { FichaAccess } from '@/tests/views/census/clinicalPanelFichaAccess';
 
 describe('clinical panel deferred import', () => {
   it('shows a usable drawer immediately and replaces it when the module arrives', async () => {
     render(
-      <ClinicalPanelTrigger
-        bedId="R2"
-        patientName="Paciente de prueba"
-        patientRun="17.752.753-1"
-        clinicalEpisodeId="141336"
-      />
+      <FichaAccess patientName="Paciente de prueba" panelKey="R2:141336">
+        <ClinicalPanelTrigger
+          bedId="R2"
+          patientName="Paciente de prueba"
+          patientRun="17.752.753-1"
+          clinicalEpisodeId="141336"
+        />
+      </FichaAccess>
     );
     const trigger = screen.getByRole('button', {
       name: 'Abrir panel clínico de Paciente de prueba',

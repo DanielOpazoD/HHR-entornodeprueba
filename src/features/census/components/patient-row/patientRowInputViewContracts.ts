@@ -10,6 +10,18 @@ import type { PatientBedConfigCallbacks } from '@/features/census/components/pat
 import type { RowMenuAlign } from '@/features/census/components/patient-row/patientRowUiContracts';
 import type { HydratedRemoteClinicalFieldLocks } from '@/hooks/controllers/dailyRecordHydratedRemotePatchRiskController';
 
+/** What the «Accesos» cell needs: the patient, and the requests and documents the row allows. */
+export interface PatientClinicalAccessProps {
+  patient: PatientData;
+  censusDate?: string;
+  /** A crib reads only its ficha: laboratory, imaging and documents belong to the bed's patient. */
+  isSubRow?: boolean;
+  onRequestExams?: () => void;
+  onRequestImaging?: () => void;
+  onViewClinicalDocuments?: () => void;
+  clinicalDocumentCount?: number;
+}
+
 export interface PatientInputCellsProps {
   data: PatientData;
   parentBedId?: string;
@@ -24,6 +36,8 @@ export interface PatientInputCellsProps {
   clinicalFieldLocks?: HydratedRemoteClinicalFieldLocks;
   diagnosisMode?: DiagnosisMode;
   accessProfile?: CensusAccessProfile;
+  /** Absent on a bed without a patient: the «Accesos» cell stays empty. */
+  clinicalAccess?: PatientClinicalAccessProps;
 }
 
 export interface PatientBedConfigProps extends PatientBedConfigCallbacks {

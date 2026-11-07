@@ -209,15 +209,10 @@ test('synthetic census interactions produce a privacy-safe timing baseline', asy
         )
       );
       await page.keyboard.press('Escape');
-      // The panel opens from the turtle's «Ficha clínica»; the sample starts at that click.
-      await page
-        .locator('[data-testid="patient-row"][data-bed-id="R1"] .census-identity-cell')
-        .hover();
-      await page.getByTestId('clinical-topics-trigger-R1').click();
       results.clinicalPanel.push(
         await measureOpen(
           page,
-          'button[aria-label^="Ficha clínica"]',
+          '[data-testid="clinical-access-ficha-R1"]',
           '[data-testid="clinical-panel-drawer-R1"]'
         )
       );

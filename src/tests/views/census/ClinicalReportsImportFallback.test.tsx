@@ -35,16 +35,19 @@ vi.mock('@/features/census/components/PatientHospitalizationReportsDialog', asyn
 });
 
 import { ClinicalPanelTrigger } from '@/features/census/components/patient-row/ClinicalPanelTrigger';
+import { FichaAccess } from '@/tests/views/census/clinicalPanelFichaAccess';
 
 describe('deferred hospitalization reports', () => {
   it('keeps the modal available while its module loads and allows Escape to close it', async () => {
     render(
-      <ClinicalPanelTrigger
-        bedId="R2"
-        patientName="Paciente de prueba"
-        patientRun="17.752.753-1"
-        clinicalEpisodeId="141336"
-      />
+      <FichaAccess patientName="Paciente de prueba" panelKey="R2:141336">
+        <ClinicalPanelTrigger
+          bedId="R2"
+          patientName="Paciente de prueba"
+          patientRun="17.752.753-1"
+          clinicalEpisodeId="141336"
+        />
+      </FichaAccess>
     );
     fireEvent.click(
       screen.getByRole('button', { name: 'Abrir panel clínico de Paciente de prueba' })

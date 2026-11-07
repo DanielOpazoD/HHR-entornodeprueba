@@ -5,7 +5,10 @@ import type {
   PatientMainRowBedTypeCellProps,
   PatientMainRowBlockedCellProps,
 } from '@/features/census/components/patient-row/patientRowContracts';
-import type { PatientActionSectionBinding } from '@/features/census/controllers/patientRowActionSectionBindingsController';
+import {
+  buildPatientClinicalAccessBinding,
+  type PatientActionSectionBinding,
+} from '@/features/census/controllers/patientRowActionSectionBindingsController';
 
 export interface PatientMainRowSections {
   action: PatientActionSectionBinding;
@@ -60,5 +63,6 @@ export const buildPatientMainRowSections = (
     clinicalFieldLocks: props.clinicalFieldLocks,
     diagnosisMode: props.diagnosisMode,
     accessProfile: props.accessProfile,
+    clinicalAccess: buildPatientClinicalAccessBinding(action),
   },
 });

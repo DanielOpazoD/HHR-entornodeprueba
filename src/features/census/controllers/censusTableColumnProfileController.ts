@@ -73,8 +73,9 @@ export const resolveVisibleCensusColumns = (
     actions: Math.max(columns.actions, 40),
     bed: Math.max(columns.bed, 54),
     // Keep patient identity compact while reserving enough space for a readable diagnosis.
-    // Identity still includes the name, RUT, specialty and three clinical shortcuts.
-    name: Math.max(columns.name, 310),
+    // The clinical shortcuts left the name for «Accesos»; together they keep the old 310.
+    name: Math.max(columns.name, 246),
+    access: Math.max(columns.access, 64),
     diagnosis: Math.max(columns.diagnosis, 280),
     status: Math.max(columns.status, 32),
     admission: Math.max(columns.admission, 116),

@@ -84,6 +84,11 @@ export const PatientSubRowView: React.FC<PatientSubRowViewProps> = ({
         clinicalEditingDisabled={clinicalEditingDisabled}
         clinicalFieldLocks={clinicalFieldLocks}
         accessProfile={accessProfile}
+        clinicalAccess={
+          isPendingClear
+            ? undefined
+            : { patient: data, censusDate: currentDateString, isSubRow: true }
+        }
       />
     </tr>
   );

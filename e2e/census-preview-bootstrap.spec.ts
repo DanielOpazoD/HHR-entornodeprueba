@@ -303,7 +303,7 @@ test.describe('Production Preview Bootstrap', () => {
     await page.evaluate(() => document.fonts.ready);
     const parent = page.locator('[data-bed-id="R1"][data-testid="patient-row"]');
     const crib = page.locator('tr[data-testid="patient-row"]').filter({ hasText: 'C-R1' });
-    await expect(crib.getByTestId('clinical-panel-trigger-R1-clinical-crib')).toBeVisible();
+    await expect(crib.getByTestId('clinical-access-ficha-R1-clinical-crib')).toBeVisible();
     await expect(crib.locator('input[name="patientName"]')).toHaveValue(
       'RN DE PACIENTE VALIDACION'
     );
@@ -317,8 +317,8 @@ test.describe('Production Preview Bootstrap', () => {
         const age = cell.querySelector(
           '[aria-label="Edad del paciente, abre datos demográficos"]'
         )!;
-        // Only a crib keeps a panel button; a mother opens her ficha from the turtle.
-        const clinical = cell.querySelector('[data-testid^="clinical-panel-trigger"]');
+        // Mother and crib open their ficha from the same «Accesos» column.
+        const clinical = element.querySelector('[data-clinical-access="ficha"]')!;
         const origin = element.getBoundingClientRect();
         const relative = (node: Element) => {
           const box = node.getBoundingClientRect();
@@ -327,18 +327,18 @@ test.describe('Production Preview Bootstrap', () => {
         return {
           name: relative(name),
           age: relative(age),
-          clinical: clinical ? relative(clinical) : null,
+          clinical: relative(clinical),
         };
       });
     const motherGeometry = await geometry(parent);
     const newbornGeometry = await geometry(crib);
-    expect(motherGeometry.clinical).toBeNull();
-    for (const part of ['name', 'age'] as const) {
+    for (const part of ['name', 'age', 'clinical'] as const) {
       expect(Math.abs(newbornGeometry[part].y - motherGeometry[part].y), part).toBeLessThanOrEqual(
         1
       );
     }
-    expect(newbornGeometry.age.x).toBeLessThan(newbornGeometry.clinical!.x);
+    expect(newbornGeometry.age.x).toBeLessThan(newbornGeometry.clinical.x);
+    expect(Math.abs(newbornGeometry.clinical.x - motherGeometry.clinical.x)).toBeLessThanOrEqual(1);
     const wrappedParent = page.locator('[data-bed-id="R2"][data-testid="patient-row"]');
     const secondCrib = page.locator('tr[data-testid="patient-row"]').filter({ hasText: 'C-R2' });
     expect(
@@ -360,7 +360,7 @@ test.describe('Production Preview Bootstrap', () => {
     await expectSeededPatientVisible(page);
     await expect(nav).toHaveCSS('background-color', 'rgb(32, 87, 119)');
     await expect(nav).toHaveCSS('background-image', /linear-gradient/);
-    await expect(crib.getByTestId('clinical-panel-trigger-R1-clinical-crib')).toBeVisible();
+    await expect(crib.getByTestId('clinical-access-ficha-R1-clinical-crib')).toBeVisible();
     await test.info().attach('new-navbar-after-reload', {
       body: await page.screenshot(),
       contentType: 'image/png',

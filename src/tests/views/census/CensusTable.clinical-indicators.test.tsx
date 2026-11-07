@@ -146,6 +146,7 @@ describe('CensusTable clinical indicators', () => {
           bed: 80,
           type: 60,
           name: 200,
+          access: 64,
           rut: 100,
           age: 50,
           diagnosis: 200,
