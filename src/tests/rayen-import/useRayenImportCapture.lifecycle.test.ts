@@ -150,7 +150,12 @@ describe('useRayenImportCapture lifecycle guards', () => {
     act(() => onError('capture failed', 'request-1', 'ficha_main_relay'));
     expect(clearSyncTimeout).toHaveBeenCalledOnce();
     expect(preparedSyncContextRef.current).toBeNull();
-    expect(failRun).toHaveBeenCalledWith('snapshot_timeout', 'run-1');
+    expect(failRun).toHaveBeenCalledWith(
+      'snapshot_timeout',
+      'run-1',
+      undefined,
+      'ficha_relay_timeout'
+    );
     const stateUpdater = setState.mock.calls[0]?.[0] as (
       state: typeof INITIAL_RAYEN_IMPORT_STATE
     ) => typeof INITIAL_RAYEN_IMPORT_STATE;
@@ -211,7 +216,7 @@ describe('useRayenImportCapture lifecycle guards', () => {
       )
     );
     expect(recordRunPerformance).toHaveBeenCalledWith({ counters: { retries: 1 } }, 'run-1');
-    expect(failRun).toHaveBeenCalledWith('snapshot_network_error', 'run-1');
+    expect(failRun).toHaveBeenCalledWith('snapshot_network_error', 'run-1', undefined, 'other');
     const stateUpdater = setState.mock.calls[0]?.[0] as (
       state: typeof INITIAL_RAYEN_IMPORT_STATE
     ) => typeof INITIAL_RAYEN_IMPORT_STATE;

@@ -5,6 +5,7 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type {
   RayenSyncEvent,
+  RayenCaptureFailureCheck,
   RayenSyncFailureReason,
   RayenSyncPerformanceDelta,
   RayenSyncPolicy,
@@ -382,7 +383,12 @@ export const useRayenSyncAudit = ({
   );
 
   const failRun = useCallback(
-    async (reason: RayenSyncFailureReason, runId?: string, error?: unknown): Promise<void> => {
+    async (
+      reason: RayenSyncFailureReason,
+      runId?: string,
+      error?: unknown,
+      captureCheck?: RayenCaptureFailureCheck
+    ): Promise<void> => {
       const id = runId ?? lifecycle.getActiveRun()?.id;
       const run = id ? lifecycle.getRun(id) : undefined;
       const record = currentRecordRef.current;
@@ -408,7 +414,12 @@ export const useRayenSyncAudit = ({
         }
       }
       lifecycle.commitTerminal(claim);
-      reportRayenSyncTerminal(run, 'failed', { failureReason: reason }, event.completedAt);
+      reportRayenSyncTerminal(
+        run,
+        'failed',
+        { failureReason: reason, ...(captureCheck ? { captureCheck } : {}) },
+        event.completedAt
+      );
     },
     [currentRecordRef, lifecycle, now, persistMetadataPatch]
   );

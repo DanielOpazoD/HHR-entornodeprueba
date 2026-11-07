@@ -17,7 +17,11 @@
  * Browser-safe by construction: no `Buffer`, no `crypto`, no Node built-ins, no dependencies.
  */
 
-import { RAYEN_SYNC_FAILURE_REASONS, RAYEN_SYNC_ISSUE_REASONS } from '@/types/domain/rayenSync';
+import {
+  RAYEN_CAPTURE_FAILURE_CHECKS,
+  RAYEN_SYNC_FAILURE_REASONS,
+  RAYEN_SYNC_ISSUE_REASONS,
+} from '@/types/domain/rayenSync';
 import { withErrorServiceCause } from './operationalTelemetryErrorCause';
 
 /** Allowlists are written as whitespace separated literals to stay readable and compact. */
@@ -190,6 +194,7 @@ const STRING_ENUMS = new Map<string, ReadonlySet<string>>(
       RayenRunSupersededError RayenStructuralPlanChangedError OperationalError
       ${OTHER_ERROR_NAME}`,
     failureReason: RAYEN_SYNC_FAILURE_REASONS.join(' '),
+    captureCheck: RAYEN_CAPTURE_FAILURE_CHECKS.join(' '),
     issueReason: RAYEN_SYNC_ISSUE_REASONS.join(' '),
   }).map(([key, values]) => [key, new Set(tokens(values))])
 );
