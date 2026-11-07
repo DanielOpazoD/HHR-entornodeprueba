@@ -1,8 +1,11 @@
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
 import type { PreparedRayenSyncContext } from '@/features/rayen-import/hooks/rayenSyncTemporalContext';
-import { useRayenImportCapture } from '@/features/rayen-import/hooks/useRayenImportCapture';
+import {
+  GESTION_CAMAS_CAPTURE_RETRY_DELAY_MS,
+  useRayenImportCapture,
+} from '@/features/rayen-import/hooks/useRayenImportCapture';
 import { createActiveExecutionHarness } from './support/executionHarness';
 
 const bridge = vi.hoisted(() => ({
@@ -44,7 +47,7 @@ const setup = () => {
   const recordRunPerformance = vi.fn();
   const preparedSyncContextRef = { current: prepared as PreparedRayenSyncContext | null };
   const harness = createActiveExecutionHarness();
-  renderHook(() =>
+  const view = renderHook(() =>
     useRayenImportCapture({
       ...harness,
       currentRecord: record,
@@ -70,7 +73,15 @@ const setup = () => {
   const [onError] = bridge.subscribeErrors.mock.calls[0] as unknown as [
     (error: string, requestId: string, timeoutStage?: string) => void,
   ];
-  return { onError, start, failRun, recordRunPerformance, harness, preparedSyncContextRef };
+  return {
+    onError,
+    start,
+    failRun,
+    recordRunPerformance,
+    harness,
+    preparedSyncContextRef,
+    unmount: view.unmount,
+  };
 };
 
 describe('capture when Ficha Médico does not answer in time', () => {
@@ -130,5 +141,87 @@ describe('capture when Ficha Médico does not answer in time', () => {
 
     expect(start).not.toHaveBeenCalled();
     expect(failRun).toHaveBeenCalledWith('ficha_medico_unavailable', 'run-1');
+  });
+});
+
+describe('capture when Gestión de Camas is not ready', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it.each([
+    'La pestaña de Gestión de Camas no respondió a la comprobación.',
+    'El relé de Gestión de Camas perdió conexión con la extensión.',
+    'Gestión de Camas está abierta, pero su sesión todavía no está disponible.',
+    'El servidor de reportes respondió HTTP 500.',
+  ])('waits a few seconds and tries once more in silence: %s', message => {
+    const { onError, start, failRun, recordRunPerformance, harness } = setup();
+
+    act(() => onError(message, 'request-1'));
+
+    expect(failRun).not.toHaveBeenCalled();
+    expect(start).not.toHaveBeenCalled();
+    expect(harness.executionRef.current.stage).toEqual({ type: 'capturing' });
+    act(() => vi.advanceTimersByTime(GESTION_CAMAS_CAPTURE_RETRY_DELAY_MS));
+    expect(start).toHaveBeenCalledOnce();
+    expect(start.mock.calls[0].slice(0, 3)).toEqual(['2026-08-02', '2026-08-02', 'run-1']);
+    expect(harness.executionRef.current.context?.requestId).toBe('request-2');
+    expect(recordRunPerformance).toHaveBeenCalledWith({ counters: { retries: 1 } }, 'run-1');
+  });
+
+  it('tells the person when Gestión de Camas fails again after the retry', () => {
+    const { onError, start, failRun } = setup();
+
+    act(() =>
+      onError('La pestaña de Gestión de Camas no respondió a la comprobación.', 'request-1')
+    );
+    act(() => vi.advanceTimersByTime(GESTION_CAMAS_CAPTURE_RETRY_DELAY_MS));
+    act(() =>
+      onError('La pestaña de Gestión de Camas no respondió a la comprobación.', 'request-2')
+    );
+
+    expect(start).toHaveBeenCalledOnce();
+    expect(failRun).toHaveBeenCalledWith('gestion_camas_unavailable', 'run-1');
+  });
+
+  it.each([
+    'La sesión de Gestión de Camas venció. Vuelve a conectarla.',
+    'Abre Gestión de Camas e inicia sesión para sincronizar.',
+    'Abre una pestaña nueva de Gestión de Camas: la pestaña actual está desactualizada.',
+    'Gestión de Camas no está abierta.',
+  ])('does not retry what only a person can solve: %s', message => {
+    const { onError, start, failRun } = setup();
+
+    act(() => onError(message, 'request-1'));
+
+    expect(start).not.toHaveBeenCalled();
+    expect(failRun).toHaveBeenCalledWith('gestion_camas_unavailable', 'run-1');
+  });
+
+  it('does not start the retry after the run was cancelled during the wait', () => {
+    const { onError, start, failRun, harness } = setup();
+
+    act(() =>
+      onError('La pestaña de Gestión de Camas no respondió a la comprobación.', 'request-1')
+    );
+    act(() => harness.dispatchExecution({ type: 'cancel', runId: 'run-1' }));
+    act(() => vi.advanceTimersByTime(GESTION_CAMAS_CAPTURE_RETRY_DELAY_MS));
+
+    expect(start).not.toHaveBeenCalled();
+    expect(failRun).not.toHaveBeenCalled();
+  });
+
+  it('does not start the retry after leaving the page during the wait', () => {
+    const { onError, start, unmount } = setup();
+
+    act(() =>
+      onError('La pestaña de Gestión de Camas no respondió a la comprobación.', 'request-1')
+    );
+    unmount();
+    act(() => vi.advanceTimersByTime(GESTION_CAMAS_CAPTURE_RETRY_DELAY_MS));
+
+    expect(start).not.toHaveBeenCalled();
   });
 });
