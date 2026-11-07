@@ -6,7 +6,7 @@ import {
   type VitalReadingView,
 } from '@/features/census/controllers/vitalSignsView';
 import { resolveVitalSignsProfile } from '@/utils/vitalSignsProfileResolver';
-import { formatDateTimeCL } from '@/utils/dateDisplayUtils';
+import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { VITAL_STATUS_CARD, VITAL_STATUS_TEXT } from '../patient-row/vitalStatusTone';
 import { ClinicalDetailLoadBoundary } from '../patient-row/ClinicalDetailLoadBoundary';
 import { FluidBalanceDetail } from '../patient-row/FluidBalanceDetail';
@@ -61,7 +61,7 @@ export const ClinicalExplorerVitals: React.FC<{
       >
         {vitals && (
           <p className="text-[11px] tabular-nums text-slate-500">
-            {formatDateTimeCL(vitals.recordedAt)}
+            {formatDateDDMMYYYY(vitals.recordedDate)}
           </p>
         )}
         {readings.length > 0 ? (

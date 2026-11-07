@@ -29,9 +29,10 @@ const patient = (vitalSigns?: PatientVitalSigns) => ({
 });
 
 describe('ClinicalExplorerVitals', () => {
-  it('shows the available measurement, hospital time, units and census severity tones', () => {
+  it('shows the measurement date without time, units and census severity tones', () => {
     render(<ClinicalExplorerVitals patient={patient(reading)} censusDate="2026-07-11" />);
-    expect(screen.getByText('11-07-2026 17:00')).toBeVisible();
+    expect(screen.getByText('11-07-2026')).toBeVisible();
+    expect(screen.queryByText(/17:00|23:00/)).toBeNull();
     expect(screen.queryByText(/Última toma disponible|Censo · Eloísa/)).toBeNull();
     expect(screen.getByText('130/82')).toHaveTextContent('mmHg');
     expect(screen.getByText('PAM').nextElementSibling).toHaveTextContent('98');
