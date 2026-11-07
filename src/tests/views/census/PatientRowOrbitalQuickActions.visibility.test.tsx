@@ -24,9 +24,11 @@ describe('PatientRowOrbitalQuickActions visibility', () => {
             <tr key={bedId} data-testid="patient-row" data-bed-id={bedId}>
               <td>
                 <PatientRowOrbitalQuickActions
+                  showClinicalPanelAction={false}
+                  showLaboratoryAction={false}
+                  showImagingAction={false}
                   showClinicalDocumentsAction
-                  showExamRequestAction={false}
-                  showImagingRequestAction={false}
+                  showClinicalExplorerAction={false}
                   onViewClinicalDocuments={vi.fn()}
                 />
               </td>
@@ -54,9 +56,11 @@ describe('PatientRowOrbitalQuickActions visibility', () => {
             <tr data-testid="patient-row" data-bed-id="R1">
               <td>
                 <PatientRowOrbitalQuickActions
+                  showClinicalPanelAction={false}
+                  showLaboratoryAction={false}
+                  showImagingAction={false}
                   showClinicalDocumentsAction
-                  showExamRequestAction={false}
-                  showImagingRequestAction={false}
+                  showClinicalExplorerAction={false}
                   onViewClinicalDocuments={vi.fn()}
                 />
               </td>

@@ -1,7 +1,7 @@
 /**
  * Tests for the orbital quick actions controller.
  *
- * Validates action visibility, display order, and badge assignment.
+ * Validates topic visibility, display order, badge assignment and dispatch.
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -9,168 +9,121 @@ import {
   buildPatientRowOrbitalQuickActionItems,
   dispatchPatientRowOrbitalQuickAction,
   hasPatientRowOrbitalQuickActions,
+  type PatientRowOrbitalQuickActionsAvailability,
 } from '@/features/census/controllers/patientRowOrbitalQuickActionsController';
+
+const NONE: PatientRowOrbitalQuickActionsAvailability = {
+  showClinicalPanelAction: false,
+  showLaboratoryAction: false,
+  showImagingAction: false,
+  showClinicalDocumentsAction: false,
+  showClinicalExplorerAction: false,
+};
+
+const ALL: PatientRowOrbitalQuickActionsAvailability = {
+  showClinicalPanelAction: true,
+  showLaboratoryAction: true,
+  showImagingAction: true,
+  showClinicalDocumentsAction: true,
+  showClinicalExplorerAction: true,
+};
 
 describe('patientRowOrbitalQuickActionsController', () => {
   describe('buildPatientRowOrbitalQuickActionItems', () => {
-    it('builds visible quick action items in the configured display order', () => {
-      const items = buildPatientRowOrbitalQuickActionItems({
-        showClinicalDocumentsAction: true,
-        showExamRequestAction: true,
-        showImagingRequestAction: true,
-      });
+    it('lists one topic each, in the order ficha, laboratorio, imágenes, documentos, vista integrada', () => {
+      const items = buildPatientRowOrbitalQuickActionItems(ALL);
 
-      expect(items.map(item => item.id)).toEqual([
-        'clinical-documents',
-        'exam-request',
-        'imaging-request',
+      expect(items.map(item => [item.id, item.label, item.iconAsset])).toEqual([
+        ['clinical-panel', 'Ficha clínica', 'manutara'],
+        ['laboratory', 'Laboratorio', 'mangai'],
+        ['imaging', 'Imágenes', 'ahutepitokura'],
+        ['clinical-documents', 'Documentos', 'rongorongo'],
+        ['clinical-explorer', 'Vista integrada', 'rapa'],
       ]);
-      expect(items[0]).toMatchObject({
-        label: 'Documentos',
-        iconAsset: 'rongorongo',
-      });
-      expect(items[1]).toMatchObject({
-        label: 'Laboratorio',
-        iconAsset: 'mangai',
-      });
-      expect(items[2]).toMatchObject({
-        label: 'Imágenes',
-        iconAsset: 'ahutepitokura',
-      });
     });
 
-    it('excludes hidden actions', () => {
+    it('names both reading and requesting in the laboratory and imaging tooltips', () => {
+      const items = buildPatientRowOrbitalQuickActionItems(ALL);
+
+      expect(items.find(item => item.id === 'laboratory')?.tooltip).toMatch(
+        /resultados y solicitud/
+      );
+      expect(items.find(item => item.id === 'imaging')?.tooltip).toMatch(/estudios y solicitud/);
+    });
+
+    it('excludes hidden topics', () => {
       const items = buildPatientRowOrbitalQuickActionItems({
+        ...NONE,
         showClinicalDocumentsAction: true,
-        showExamRequestAction: false,
-        showImagingRequestAction: false,
+        showImagingAction: true,
       });
 
-      expect(items).toHaveLength(1);
-      expect(items[0].id).toBe('clinical-documents');
+      expect(items.map(item => item.id)).toEqual(['imaging', 'clinical-documents']);
     });
 
-    it('returns empty array when no actions are visible', () => {
-      const items = buildPatientRowOrbitalQuickActionItems({
-        showClinicalDocumentsAction: false,
-        showExamRequestAction: false,
-        showImagingRequestAction: false,
-      });
-
-      expect(items).toEqual([]);
+    it('returns an empty list when no topic is visible', () => {
+      expect(buildPatientRowOrbitalQuickActionItems(NONE)).toEqual([]);
     });
   });
 
   describe('badge assignment', () => {
-    it('assigns clinicalDocumentCount badge to clinical-documents action', () => {
-      const items = buildPatientRowOrbitalQuickActionItems(
-        {
-          showClinicalDocumentsAction: true,
-          showExamRequestAction: true,
-          showImagingRequestAction: false,
-        },
-        { clinicalDocumentCount: 3 }
-      );
+    it('puts the document count on Documentos only', () => {
+      const items = buildPatientRowOrbitalQuickActionItems(ALL, { clinicalDocumentCount: 3 });
 
-      const docItem = items.find(i => i.id === 'clinical-documents');
-      expect(docItem?.badge).toBe(3);
+      expect(items.map(item => [item.id, item.badge])).toEqual([
+        ['clinical-panel', undefined],
+        ['laboratory', undefined],
+        ['imaging', undefined],
+        ['clinical-documents', 3],
+        ['clinical-explorer', undefined],
+      ]);
     });
 
-    it('does not assign badge to non-document actions', () => {
-      const items = buildPatientRowOrbitalQuickActionItems(
-        {
-          showClinicalDocumentsAction: true,
-          showExamRequestAction: true,
-          showImagingRequestAction: true,
-        },
-        { clinicalDocumentCount: 5 }
-      );
+    it('shows no badge for a zero or missing count', () => {
+      const withDocuments = { ...NONE, showClinicalDocumentsAction: true };
 
-      const labItem = items.find(i => i.id === 'exam-request');
-      const imgItem = items.find(i => i.id === 'imaging-request');
-      expect(labItem?.badge).toBeUndefined();
-      expect(imgItem?.badge).toBeUndefined();
-    });
-
-    it('does not assign badge when count is 0', () => {
-      const items = buildPatientRowOrbitalQuickActionItems(
-        {
-          showClinicalDocumentsAction: true,
-          showExamRequestAction: false,
-          showImagingRequestAction: false,
-        },
-        { clinicalDocumentCount: 0 }
-      );
-
-      expect(items[0].badge).toBeUndefined();
-    });
-
-    it('does not assign badge when badges parameter is undefined', () => {
-      const items = buildPatientRowOrbitalQuickActionItems({
-        showClinicalDocumentsAction: true,
-        showExamRequestAction: false,
-        showImagingRequestAction: false,
-      });
-
-      expect(items[0].badge).toBeUndefined();
-    });
-
-    it('does not assign badge when clinical-documents action is hidden', () => {
-      const items = buildPatientRowOrbitalQuickActionItems(
-        {
-          showClinicalDocumentsAction: false,
-          showExamRequestAction: true,
-          showImagingRequestAction: false,
-        },
-        { clinicalDocumentCount: 2 }
-      );
-
-      expect(items.every(i => i.badge === undefined)).toBe(true);
+      expect(
+        buildPatientRowOrbitalQuickActionItems(withDocuments, { clinicalDocumentCount: 0 })[0].badge
+      ).toBeUndefined();
+      expect(buildPatientRowOrbitalQuickActionItems(withDocuments)[0].badge).toBeUndefined();
     });
   });
 
   describe('hasPatientRowOrbitalQuickActions', () => {
-    it('returns true when any action is available', () => {
-      expect(
-        hasPatientRowOrbitalQuickActions({
-          showClinicalDocumentsAction: true,
-          showExamRequestAction: false,
-          showImagingRequestAction: false,
-        })
-      ).toBe(true);
-    });
+    it.each(Object.keys(NONE) as Array<keyof PatientRowOrbitalQuickActionsAvailability>)(
+      'is true when only %s is available',
+      key => {
+        expect(hasPatientRowOrbitalQuickActions({ ...NONE, [key]: true })).toBe(true);
+      }
+    );
 
-    it('returns false when no actions are available', () => {
-      expect(
-        hasPatientRowOrbitalQuickActions({
-          showClinicalDocumentsAction: false,
-          showExamRequestAction: false,
-          showImagingRequestAction: false,
-        })
-      ).toBe(false);
+    it('is false when no topic is available', () => {
+      expect(hasPatientRowOrbitalQuickActions(NONE)).toBe(false);
     });
   });
 
   describe('dispatchPatientRowOrbitalQuickAction', () => {
-    it('dispatches to the matching callback for each action id', () => {
-      const onViewClinicalDocuments = vi.fn();
-      const onViewExamRequest = vi.fn();
-      const onViewImagingRequest = vi.fn();
+    it('dispatches each topic to its own callback', () => {
+      const callbacks = {
+        onViewClinicalPanel: vi.fn(),
+        onViewLaboratory: vi.fn(),
+        onViewImaging: vi.fn(),
+        onViewClinicalDocuments: vi.fn(),
+        onOpenClinicalExplorer: vi.fn(),
+      };
 
-      dispatchPatientRowOrbitalQuickAction('clinical-documents', { onViewClinicalDocuments });
-      dispatchPatientRowOrbitalQuickAction('exam-request', { onViewExamRequest });
-      dispatchPatientRowOrbitalQuickAction('imaging-request', { onViewImagingRequest });
+      for (const item of buildPatientRowOrbitalQuickActionItems(ALL)) {
+        dispatchPatientRowOrbitalQuickAction(item.id, callbacks);
+      }
 
-      expect(onViewClinicalDocuments).toHaveBeenCalledTimes(1);
-      expect(onViewExamRequest).toHaveBeenCalledTimes(1);
-      expect(onViewImagingRequest).toHaveBeenCalledTimes(1);
+      for (const callback of Object.values(callbacks)) {
+        expect(callback).toHaveBeenCalledTimes(1);
+      }
     });
 
     it('is a safe no-op when the matching callback is absent', () => {
       expect(() =>
-        dispatchPatientRowOrbitalQuickAction('imaging-request', {
-          onViewClinicalDocuments: vi.fn(),
-        })
+        dispatchPatientRowOrbitalQuickAction('imaging', { onViewClinicalDocuments: vi.fn() })
       ).not.toThrow();
     });
   });

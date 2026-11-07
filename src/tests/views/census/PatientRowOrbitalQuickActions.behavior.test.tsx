@@ -17,31 +17,33 @@ describe('PatientRowOrbitalQuickActions behavior', () => {
     mockMatchMedia(true);
   });
 
-  it('opens the orbital launcher and dispatches each clinical callback', async () => {
-    const onViewClinicalDocuments = vi.fn();
-    const onViewExamRequest = vi.fn();
-    const onViewImagingRequest = vi.fn();
+  it('opens the orbital launcher and dispatches each clinical topic', async () => {
+    const callbacks = {
+      onViewClinicalPanel: vi.fn(),
+      onViewLaboratory: vi.fn(),
+      onViewImaging: vi.fn(),
+      onViewClinicalDocuments: vi.fn(),
+      onOpenClinicalExplorer: vi.fn(),
+    };
 
     renderSinglePatientRowOrbitalQuickActions({
-      onViewClinicalDocuments,
-      onViewExamRequest,
-      onViewImagingRequest,
+      showClinicalPanelAction: true,
+      showClinicalExplorerAction: true,
+      ...callbacks,
     });
 
-    fireEvent.mouseMove(screen.getByTestId('patient-row'), { clientX: 0 });
-    fireEvent.click(await screen.findByRole('button', { name: /acciones clínicas rápidas/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /documentos clínicos/i }));
-    expect(onViewClinicalDocuments).toHaveBeenCalledTimes(1);
-
-    fireEvent.mouseMove(screen.getByTestId('patient-row'), { clientX: 0 });
-    fireEvent.click(await screen.findByRole('button', { name: /acciones clínicas rápidas/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /solicitud exámenes/i }));
-    expect(onViewExamRequest).toHaveBeenCalledTimes(1);
-
-    fireEvent.mouseMove(screen.getByTestId('patient-row'), { clientX: 0 });
-    fireEvent.click(await screen.findByRole('button', { name: /acciones clínicas rápidas/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /solicitud de imágenes/i }));
-    expect(onViewImagingRequest).toHaveBeenCalledTimes(1);
+    for (const [name, callback] of [
+      [/ficha clínica/i, callbacks.onViewClinicalPanel],
+      [/laboratorio: resultados y solicitud/i, callbacks.onViewLaboratory],
+      [/imágenes: estudios y solicitud/i, callbacks.onViewImaging],
+      [/documentos clínicos/i, callbacks.onViewClinicalDocuments],
+      [/vista integrada/i, callbacks.onOpenClinicalExplorer],
+    ] as const) {
+      fireEvent.mouseMove(screen.getByTestId('patient-row'), { clientX: 0 });
+      fireEvent.click(await screen.findByRole('button', { name: /acciones clínicas rápidas/i }));
+      fireEvent.click(await screen.findByRole('button', { name }));
+      expect(callback).toHaveBeenCalledTimes(1);
+    }
   });
 
   it('supports keyboard opening and arrow navigation across actions', async () => {
@@ -51,32 +53,30 @@ describe('PatientRowOrbitalQuickActions behavior', () => {
     trigger.focus();
     fireEvent.keyDown(trigger, { key: 'ArrowDown' });
 
-    const documentsButton = await screen.findByRole('button', { name: /documentos clínicos/i });
+    const laboratoryButton = await screen.findByRole('button', { name: /laboratorio/i });
     await waitFor(() => {
-      expect(documentsButton).toHaveFocus();
+      expect(laboratoryButton).toHaveFocus();
     });
 
-    fireEvent.keyDown(documentsButton, { key: 'ArrowDown' });
+    fireEvent.keyDown(laboratoryButton, { key: 'ArrowDown' });
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /solicitud exámenes/i })).toHaveFocus();
+      expect(screen.getByRole('button', { name: /imágenes/i })).toHaveFocus();
     });
 
-    fireEvent.keyDown(screen.getByRole('button', { name: /solicitud exámenes/i }), {
+    fireEvent.keyDown(screen.getByRole('button', { name: /imágenes/i }), {
       key: 'Escape',
     });
 
     await waitFor(() => {
-      expect(
-        screen.queryByRole('button', { name: /documentos clínicos/i })
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /laboratorio/i })).not.toBeInTheDocument();
       expect(trigger).toHaveFocus();
     });
   });
 
   it('closes when clicking the invisible backdrop', async () => {
     renderSinglePatientRowOrbitalQuickActions({
-      showExamRequestAction: false,
-      showImagingRequestAction: false,
+      showLaboratoryAction: false,
+      showImagingAction: false,
     });
 
     fireEvent.mouseMove(screen.getByTestId('patient-row'), { clientX: 0 });
@@ -103,15 +103,15 @@ describe('PatientRowOrbitalQuickActions behavior', () => {
     fireEvent.click(await screen.findByRole('button', { name: /acciones clínicas rápidas/i }));
 
     const documentsButton = await screen.findByRole('button', { name: /documentos clínicos/i });
-    const laboratoryButton = screen.getByRole('button', { name: /solicitud exámenes/i });
-    const imagingButton = screen.getByRole('button', { name: /solicitud de imágenes/i });
+    const laboratoryButton = screen.getByRole('button', { name: /laboratorio/i });
+    const imagingButton = screen.getByRole('button', { name: /imágenes/i });
 
     expect(documentsButton).toHaveTextContent('Documentos');
     expect(laboratoryButton).toHaveTextContent('Laboratorio');
     expect(imagingButton).toHaveTextContent('Imágenes');
     expect(screen.queryByRole('button', { name: /indicaciones médicas/i })).toBeNull();
 
-    const stack = documentsButton.parentElement!.parentElement!;
+    const stack = laboratoryButton.parentElement!.parentElement!;
     expect(stack.className).toContain('flex-col');
     expect(stack).toHaveStyle({
       marginLeft: `-${resolveActionStackHorizontalShift({
@@ -126,7 +126,7 @@ describe('PatientRowOrbitalQuickActions behavior', () => {
     expect(wrapperDivs).toHaveLength(3);
 
     const buttonsInOrder = wrapperDivs.map(wrapper => wrapper.querySelector('button'));
-    expect(buttonsInOrder).toEqual([documentsButton, laboratoryButton, imagingButton]);
+    expect(buttonsInOrder).toEqual([laboratoryButton, imagingButton, documentsButton]);
   });
 
   it('keeps the open menu fully visible on narrow screens', () => {
@@ -158,8 +158,8 @@ describe('PatientRowOrbitalQuickActions behavior', () => {
     fireEvent.click(await screen.findByRole('button', { name: /acciones clínicas rápidas/i }));
 
     const documentsButton = await screen.findByRole('button', { name: /documentos clínicos/i });
-    const examButton = screen.getByRole('button', { name: /solicitud exámenes/i });
-    const imagingButton = screen.getByRole('button', { name: /solicitud de imágenes/i });
+    const examButton = screen.getByRole('button', { name: /laboratorio/i });
+    const imagingButton = screen.getByRole('button', { name: /imágenes/i });
 
     for (const button of [documentsButton, examButton, imagingButton]) {
       expect(button.className).toContain('cursor-pointer');
@@ -168,7 +168,7 @@ describe('PatientRowOrbitalQuickActions behavior', () => {
 
   it('backdrop does not intercept clicks on action buttons', async () => {
     renderSinglePatientRowOrbitalQuickActions({
-      showImagingRequestAction: false,
+      showImagingAction: false,
     });
 
     fireEvent.mouseMove(screen.getByTestId('patient-row'), { clientX: 0 });
@@ -187,19 +187,19 @@ describe('PatientRowOrbitalQuickActions behavior', () => {
   it('does not leak quick-action button clicks to document listeners', async () => {
     const documentClick = vi.fn();
     document.addEventListener('click', documentClick);
-    const onViewImagingRequest = vi.fn();
+    const onViewImaging = vi.fn();
 
     renderSinglePatientRowOrbitalQuickActions({
-      onViewImagingRequest,
+      onViewImaging,
     });
 
     fireEvent.mouseMove(screen.getByTestId('patient-row'), { clientX: 0 });
     fireEvent.click(await screen.findByRole('button', { name: /acciones clínicas rápidas/i }));
     documentClick.mockClear();
 
-    fireEvent.click(await screen.findByRole('button', { name: /solicitud de imágenes/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /imágenes/i }));
 
-    expect(onViewImagingRequest).toHaveBeenCalledTimes(1);
+    expect(onViewImaging).toHaveBeenCalledTimes(1);
     expect(documentClick).not.toHaveBeenCalled();
 
     document.removeEventListener('click', documentClick);

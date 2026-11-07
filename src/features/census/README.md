@@ -55,11 +55,13 @@ hover/focus fila ocupada
   -> PatientRowOrbitalQuickActions
   -> usePatientRowOrbitalLauncherRuntime
   -> portal fuera de la tabla
-  -> 3 acciones rápidas: documentos / laboratorio / imágenes
+  -> temas del paciente: ficha clínica / laboratorio / imágenes / documentos / vista integrada
 ```
 
-- El launcher orbital vive visualmente fuera del borde izquierdo de la tabla, aunque se ancla a la fila del paciente.
-- Expone accesos rápidos clínicos: `Documentos clínicos`, `Solicitud Exámenes`, `Solicitud de Imágenes`.
+- El launcher orbital (la tortuga) vive visualmente fuera del borde izquierdo de la tabla, aunque se ancla a la fila del paciente.
+- Es la única puerta clínica de la fila: cada tema abre una ventana donde se lee y, si la fila puede editar, se solicita. Laboratorio e Imágenes abren su visor con «Solicitar exámenes» o «Solicitar imagen» (`PatientClinicalTopicSurfaces`).
+- Ficha clínica abre el panel lateral sin botón en la fila (`ClinicalPanelTrigger headless`); sus flechas ‹ › recorren las marcas `data-clinical-panel-key`. Solo una cuna conserva su botón de ficha junto al nombre.
+- Los temas de lectura aparecen también en un censo de solo lectura; las solicitudes, no.
 - El panel clásico conserva la gestión clínica histórica (`Dar de Alta`, `Trasladar`, `Egreso CMA`) y no debe duplicar estas aperturas rápidas.
 - En desktop aparece por `hover` de la fila o del área externa del launcher; en touch permanece visible.
 - Solo un launcher puede permanecer activo a la vez para no perder foco visual al recorrer otras filas.

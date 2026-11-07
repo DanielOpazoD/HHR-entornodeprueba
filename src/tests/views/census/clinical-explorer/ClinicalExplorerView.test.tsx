@@ -153,9 +153,9 @@ const Harness = ({ list = patients }: { list?: typeof patients }) => {
   const selection = useClinicalExplorerSelection(DATE);
   return (
     <>
-      <button type="button" data-testid="clinical-panel-trigger-R1">
-        Ficha R1
-      </button>
+      <div data-testid="patient-row" data-bed-id="R1">
+        <button type="button" data-testid="row-action-R1" aria-label="Datos de R1" />
+      </div>
       {selection ? (
         <>
           <ClinicalExplorerBar bedId={selection.bedId} />
@@ -420,7 +420,7 @@ describe('ClinicalExplorerView', () => {
   it('returns the focus to the row that opened it, so the keyboard user is not lost', async () => {
     open();
     fireEvent.click(screen.getByRole('button', { name: 'Volver al censo' }));
-    await waitFor(() => expect(screen.getByTestId('clinical-panel-trigger-R1')).toHaveFocus());
+    await waitFor(() => expect(screen.getByTestId('row-action-R1')).toHaveFocus());
   });
 
   it('opens the exam request for this patient and lets the dialog own Escape', async () => {
