@@ -187,7 +187,18 @@ const performRecoveryReload = async (
   };
 };
 
-const runClientBootstrapRecovery = async (): Promise<ClientBootstrapRecoveryResult> => {
+export interface ClientBootstrapRecoveryOptions {
+  /**
+   * Asked right before a version reload, after `version.json` answered. A runtime check passes it
+   * so a person who resumed work meanwhile is not interrupted; the stored version is left as is,
+   * so the next check tries again. Startup omits it: nothing is in progress yet.
+   */
+  canReloadForNewVersion?: () => boolean;
+}
+
+const runClientBootstrapRecovery = async ({
+  canReloadForNewVersion = () => true,
+}: ClientBootstrapRecoveryOptions = {}): Promise<ClientBootstrapRecoveryResult> => {
   if (!canUseBrowser()) {
     return {
       status: 'continue',
@@ -241,6 +252,12 @@ const runClientBootstrapRecovery = async (): Promise<ClientBootstrapRecoveryResu
   }
 
   if (localVersion !== serverVersion.version) {
+    if (!canReloadForNewVersion()) {
+      return {
+        status: 'continue',
+        reason: null,
+      };
+    }
     bootstrapRecoveryLogger.warn('Detected deploy version mismatch during bootstrap', {
       localVersion,
       serverVersion: serverVersion.version,
@@ -265,9 +282,11 @@ const runClientBootstrapRecovery = async (): Promise<ClientBootstrapRecoveryResu
 
 let pendingRecovery: Promise<ClientBootstrapRecoveryResult> | null = null;
 
-export const prepareClientBootstrap = (): Promise<ClientBootstrapRecoveryResult> => {
+export const prepareClientBootstrap = (
+  options?: ClientBootstrapRecoveryOptions
+): Promise<ClientBootstrapRecoveryResult> => {
   if (pendingRecovery) return pendingRecovery;
-  const recovery = runClientBootstrapRecovery();
+  const recovery = runClientBootstrapRecovery(options);
   pendingRecovery = recovery;
   const release = () => {
     if (pendingRecovery === recovery) pendingRecovery = null;

@@ -4,6 +4,7 @@ import {
 } from '@/services/auth/firebaseStartupUiPolicy';
 import {
   prepareClientBootstrap,
+  type ClientBootstrapRecoveryOptions,
   type ClientBootstrapRecoveryResult,
 } from '@/services/config/clientBootstrapRecovery';
 import { shouldUseStickyIndexedDbFallback } from '@/services/storage/indexeddb/indexedDbRecoveryPolicy';
@@ -129,8 +130,9 @@ const resolveBlockedBootstrapResult = (
   };
 };
 
-export const reconcileBootstrapRuntime = async (): Promise<ClientBootstrapRecoveryResult> =>
-  prepareClientBootstrap();
+export const reconcileBootstrapRuntime = async (
+  options?: ClientBootstrapRecoveryOptions
+): Promise<ClientBootstrapRecoveryResult> => prepareClientBootstrap(options);
 
 export const resolveFirebaseBootstrapRuntime = async (
   clientRecovery: ClientBootstrapRecoveryResult

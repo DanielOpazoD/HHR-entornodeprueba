@@ -215,4 +215,24 @@ describe('prepareClientBootstrap', () => {
     });
     expect(mockReload).toHaveBeenCalledTimes(1);
   });
+
+  it('leaves a new version for the next check when the person resumed work meanwhile', async () => {
+    mockGetLocalStorageItem.mockReturnValue('deploy-001');
+    const { bootstrapRecoveryKey, postDeployRecentRecordRefreshKey } =
+      getClientBootstrapRecoveryConstants();
+
+    const deferred = await prepareClientBootstrap({ canReloadForNewVersion: () => false });
+
+    expect(deferred).toEqual({ status: 'continue', reason: null });
+    expect(mockReload).not.toHaveBeenCalled();
+    expect(mockCachesDelete).not.toHaveBeenCalled();
+    expect(mockSetLocalStorageItem).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(bootstrapRecoveryKey)).toBeNull();
+    expect(localStorage.getItem(postDeployRecentRecordRefreshKey)).toBeNull();
+
+    const later = await prepareClientBootstrap({ canReloadForNewVersion: () => true });
+
+    expect(later).toEqual({ status: 'reload', reason: 'version-change' });
+    expect(mockReload).toHaveBeenCalledTimes(1);
+  });
 });

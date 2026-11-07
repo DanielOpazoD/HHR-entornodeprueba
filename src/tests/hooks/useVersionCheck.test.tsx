@@ -167,4 +167,19 @@ describe('useVersionCheck while the census is in use', () => {
 
     expect(mockReconcileBootstrapRuntime).toHaveBeenCalledTimes(before + 1);
   });
+
+  it('asks again right before reloading, after the version answer arrives', async () => {
+    renderHook(() => useVersionCheck());
+    await advance(1000);
+    const [options] = mockReconcileBootstrapRuntime.mock.calls[0] as [
+      { canReloadForNewVersion: () => boolean },
+    ];
+    expect(options.canReloadForNewVersion()).toBe(true);
+
+    act(() => {
+      window.dispatchEvent(new MouseEvent('mousedown'));
+    });
+
+    expect(options.canReloadForNewVersion()).toBe(false);
+  });
 });

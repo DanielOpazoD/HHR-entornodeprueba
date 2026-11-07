@@ -22,10 +22,12 @@ export const useVersionCheck = (): void => {
       lastActivityAt = Date.now();
     };
 
+    const isIdle = () => Date.now() - lastActivityAt >= VERSION_RELOAD_IDLE_MS;
     const checkVersion = async () => {
-      if (Date.now() - lastActivityAt < VERSION_RELOAD_IDLE_MS) return;
+      if (!isIdle()) return;
       try {
-        await reconcileBootstrapRuntime();
+        // Asked again once version.json answers: the person may have come back meanwhile.
+        await reconcileBootstrapRuntime({ canReloadForNewVersion: isIdle });
       } catch (error) {
         versionCheckLogger.warn('Check failed (offline?)', error);
       }
