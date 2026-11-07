@@ -84,7 +84,7 @@ const ALLOWED_OPERATIONS = new Set([
     daily_record_clinical_inputs_block_started daily_record_clinical_inputs_block_completed
     daily_record_clinical_inputs_block_failed daily_record_clinical_inputs_block_duration
     confirmed_null_realtime_record unavailable_null_realtime_record
-    recovered_null_realtime_record reconcile_null_realtime_record
+    recovered_null_realtime_record reconcile_null_realtime_record server_contradicted_missing_record
     firestore_read firestore_write sync_queue_ack_failure sync_queue_backpressure_rejected
     sync_queue_budget_threshold sync_queue_clear_all_failure sync_queue_enqueue_failure
     sync_queue_owner_clear_failure sync_queue_process_failure sync_queue_quarantine_retry

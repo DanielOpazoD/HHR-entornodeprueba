@@ -46,7 +46,11 @@ describe('reading the sync policy straight from the Firestore server', () => {
 
     expect(fetch).toHaveBeenCalledWith(
       'https://firestore.googleapis.com/v1/projects/demo-hhr/databases/(default)/documents/hospitals/hanga_roa/settings/rayenImportPolicy',
-      { headers: { Authorization: 'Bearer synthetic-token' }, cache: 'no-store' }
+      {
+        headers: { Authorization: 'Bearer synthetic-token' },
+        cache: 'no-store',
+        signal: expect.any(AbortSignal),
+      }
     );
     expect(result).toMatchObject({ mode: 'preview', revision: 7, schemaVersion: 2 });
     expect(result?.updatedAt).toBeInstanceOf(Timestamp);
