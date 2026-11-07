@@ -1,7 +1,8 @@
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import React, { useEffect, useState } from 'react';
 import clsx from 'clsx';
-import { BookOpenText, ClipboardList, RefreshCw } from 'lucide-react';
+import { BookOpenText, ChevronRight, ClipboardList, RefreshCw } from 'lucide-react';
+import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { useClinicalPanelSnapshot, type PanelState } from '../patient-row/useClinicalPanelSnapshot';
 import { EvolutionCard } from '../patient-row/ClinicalPanelSections';
@@ -256,30 +257,57 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
           source={SOURCE}
           actions={tab === 'indications' ? reloadButton : undefined}
         >
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              type="date"
-              aria-label="Fecha de indicaciones"
-              value={indicationDate}
-              max={today}
-              onChange={event => onSelectDate(event.target.value || null)}
-              className="h-7 min-w-0 rounded-md border border-slate-200 bg-white px-2 text-[12px] tabular-nums text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
-            />
-            <button
-              type="button"
-              aria-pressed={selectedDate === null}
-              onClick={() => {
-                setToday(getClinicalCalendarDateISO());
-                onSelectDate(null);
-              }}
-              className="h-7 rounded-md px-2 text-[11px] font-semibold text-teal-700 hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
-            >
-              Hoy
-            </button>
-          </div>
-          {body(() => (
-            <IndicationDay key={indicationDate} day={indicationDay} />
-          ))}
+          {body(() => {
+            const content = (
+              <>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="date"
+                    aria-label="Fecha de indicaciones"
+                    value={indicationDate}
+                    max={today}
+                    onChange={event => onSelectDate(event.target.value || null)}
+                    className="h-7 min-w-0 rounded-md border border-slate-200 bg-white px-2 text-[12px] tabular-nums text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
+                  />
+                  <button
+                    type="button"
+                    aria-pressed={selectedDate === null}
+                    onClick={() => {
+                      setToday(getClinicalCalendarDateISO());
+                      onSelectDate(null);
+                    }}
+                    className="h-7 rounded-md px-2 text-[11px] font-semibold text-teal-700 hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
+                  >
+                    Hoy
+                  </button>
+                </div>
+                <IndicationDay key={indicationDate} day={indicationDay} />
+              </>
+            );
+            return compact ? (
+              <details key={`${sessionEpoch}:${episodeId}`} className="group">
+                <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md text-[12px] text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 [&::-webkit-details-marker]:hidden">
+                  <ChevronRight
+                    size={14}
+                    aria-hidden="true"
+                    className="transition-transform group-open:rotate-90"
+                  />
+                  <time dateTime={indicationDate} className="tabular-nums">
+                    {formatDateDDMMYYYY(indicationDate)}
+                  </time>
+                  <span className="ml-auto text-teal-700 group-open:hidden">
+                    Mostrar indicaciones
+                  </span>
+                  <span className="ml-auto hidden text-teal-700 group-open:inline">
+                    Ocultar indicaciones
+                  </span>
+                </summary>
+                <div className="flex flex-col gap-2.5 pt-2">{content}</div>
+              </details>
+            ) : (
+              content
+            );
+          })}
         </AreaCard>
       )}
     </>
