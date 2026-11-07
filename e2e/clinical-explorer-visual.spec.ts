@@ -30,7 +30,7 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await seedVisualCensus(page, { includeClinicalDetails: true });
+  await seedVisualCensus(page, { includeClinicalDetails: true, extraVitalReadings: true });
   await page.route('**/.netlify/functions/mmrad-search?*', route =>
     route.fulfill({
       json: {
@@ -140,6 +140,17 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
     const evolutionsBounds = await page.getByRole('region', { name: 'Evoluciones' }).boundingBox();
     const vitals = page.getByRole('region', { name: 'Signos vitales' });
     await expect(vitals).toContainText('130/82');
+    const readings = vitals.getByRole('button', { name: /\. Ver historial$/ });
+    await expect(readings).toHaveCount(7);
+    const readingBoxes = await readings.all();
+    const rowTop = (await readingBoxes[0].boundingBox())!.y;
+    for (const reading of readingBoxes) {
+      expect(Math.abs((await reading.boundingBox())!.y - rowTop)).toBeLessThanOrEqual(1);
+      await expect(reading).toBeVisible();
+    }
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
+    ).toBe(true);
     const vitalsBounds = await vitals.boundingBox();
     if (width === 1280) {
       expect(vitalsBounds!.y).toBe(evolutionsBounds!.y);
@@ -208,6 +219,9 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
     .getByRole('button', { name: new RegExp(SECOND_PATIENT) })
     .click();
   await expect(header).toContainText(SECOND_PATIENT);
+  await expect(
+    page.getByText('Ingresos y diuresis sin datos sincronizados para este día.')
+  ).toHaveCount(0);
   await expect(header.getByRole('img', { name: /Aislamiento/ })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Alertas', exact: true })).not.toContainText(
     'Alerta clínica sintética'
