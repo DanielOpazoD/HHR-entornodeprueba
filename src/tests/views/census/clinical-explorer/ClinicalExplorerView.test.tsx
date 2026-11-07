@@ -253,6 +253,7 @@ describe('ClinicalExplorerView', () => {
 
   it('hides suspended indications until asked and shows no kind labels', async () => {
     open();
+    fireEvent.click(screen.getByRole('tab', { name: 'Indicaciones' }));
     const card = await screen.findByRole('region', { name: 'Indicaciones' });
     await within(card).findByText('AMOXICILINA 500 mg');
     expect(within(card).queryByText('CEFTRIAXONA 2 g')).toBeNull();
@@ -265,6 +266,7 @@ describe('ClinicalExplorerView', () => {
   it('shows only the Rapa Nui calendar day, independently of UTC and the census date', async () => {
     mocks.request.mockResolvedValue(panelWithOlderActiveTreatment);
     open();
+    fireEvent.click(screen.getByRole('tab', { name: 'Indicaciones' }));
     const card = await screen.findByRole('region', { name: 'Indicaciones' });
     await within(card).findByText('Sin indicaciones vigentes para esta fecha.');
     expect(within(card).getByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-13');
@@ -289,6 +291,7 @@ describe('ClinicalExplorerView', () => {
   it('keeps the selected date across laboratory and imaging for the same patient', async () => {
     mocks.request.mockResolvedValue(panelWithOlderActiveTreatment);
     open();
+    fireEvent.click(screen.getByRole('tab', { name: 'Indicaciones' }));
     await screen.findByText('Sin indicaciones vigentes para esta fecha.');
     fireEvent.change(screen.getByLabelText('Fecha de indicaciones'), {
       target: { value: '2026-07-11' },
@@ -296,7 +299,7 @@ describe('ClinicalExplorerView', () => {
     for (const area of ['Laboratorio', 'Imágenes', 'Evoluciones', 'Signos vitales']) {
       fireEvent.click(screen.getByRole('tab', { name: area }));
       fireEvent.click(screen.getByRole('tab', { name: 'Indicaciones' }));
-      expect(screen.getByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-11');
+      expect(await screen.findByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-11');
       expect(await screen.findByText('AMOXICILINA 500 mg')).toBeVisible();
     }
   });
@@ -305,6 +308,7 @@ describe('ClinicalExplorerView', () => {
     mocks.request.mockResolvedValue(panelWithOlderActiveTreatment);
     mocks.print.mockResolvedValue(undefined);
     open();
+    fireEvent.click(screen.getByRole('tab', { name: 'Indicaciones' }));
     await screen.findByText('Sin indicaciones vigentes para esta fecha.');
     fireEvent.change(screen.getByLabelText('Fecha de indicaciones'), {
       target: { value: '2026-07-11' },
@@ -320,6 +324,7 @@ describe('ClinicalExplorerView', () => {
   it('leaves an empty selected day empty instead of substituting an older treatment', async () => {
     vi.setSystemTime(new Date('2026-07-14T08:00:00Z'));
     open();
+    fireEvent.click(screen.getByRole('tab', { name: 'Indicaciones' }));
     const card = await screen.findByRole('region', { name: 'Indicaciones' });
     await within(card).findByText('Sin indicaciones registradas para esta fecha.');
     expect(within(card).getByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-14');
@@ -331,10 +336,11 @@ describe('ClinicalExplorerView', () => {
 
   it('advances today on returning after midnight while keeping an explicitly selected day', async () => {
     open();
+    fireEvent.click(screen.getByRole('tab', { name: 'Indicaciones' }));
     await screen.findByText('AMOXICILINA 500 mg');
     vi.setSystemTime(new Date('2026-07-14T06:00:00Z'));
     fireEvent(document, new Event('visibilitychange'));
-    expect(screen.getByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-14');
+    expect(await screen.findByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-14');
     expect(screen.queryByText('AMOXICILINA 500 mg')).toBeNull();
     fireEvent.change(screen.getByLabelText('Fecha de indicaciones'), {
       target: { value: '2026-07-13' },
@@ -342,19 +348,20 @@ describe('ClinicalExplorerView', () => {
     expect(screen.getByText('AMOXICILINA 500 mg')).toBeVisible();
     vi.setSystemTime(new Date('2026-07-15T06:00:00Z'));
     fireEvent(document, new Event('visibilitychange'));
-    expect(screen.getByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-13');
+    expect(await screen.findByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-13');
     fireEvent.click(screen.getByRole('button', { name: 'Hoy' }));
-    expect(screen.getByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-15');
+    expect(await screen.findByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-15');
   });
 
   it('resets the chosen day and suspended visibility for another patient or session', async () => {
     open();
+    fireEvent.click(screen.getByRole('tab', { name: 'Indicaciones' }));
     await screen.findByText('AMOXICILINA 500 mg');
     fireEvent.change(screen.getByLabelText('Fecha de indicaciones'), {
       target: { value: '2026-07-11' },
     });
     fireEvent.keyDown(document, { key: 'ArrowRight' });
-    expect(screen.getByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-13');
+    expect(await screen.findByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-13');
     await screen.findByText('AMOXICILINA 500 mg');
     fireEvent.click(screen.getByRole('button', { name: 'Mostrar 1 suspendida' }));
     expect(screen.getByText('CEFTRIAXONA 2 g')).toBeVisible();
@@ -366,11 +373,12 @@ describe('ClinicalExplorerView', () => {
     act(() => openClinicalExplorer({ censusDate: DATE, bedId: 'H1C1' }));
     await screen.findByText('AMOXICILINA 500 mg');
     expect(screen.queryByText('CEFTRIAXONA 2 g')).toBeNull();
-    expect(screen.getByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-13');
+    expect(await screen.findByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-13');
   });
 
   it('resets the date when a new episode occupies the same bed', async () => {
     const view = open();
+    fireEvent.click(screen.getByRole('tab', { name: 'Indicaciones' }));
     await screen.findByText('AMOXICILINA 500 mg');
     fireEvent.change(screen.getByLabelText('Fecha de indicaciones'), {
       target: { value: '2026-07-11' },
@@ -380,7 +388,7 @@ describe('ClinicalExplorerView', () => {
         list={patients.map(patient => ({ ...patient, episodeId: `${patient.episodeId}-new` }))}
       />
     );
-    expect(screen.getByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-13');
+    expect(await screen.findByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-13');
     await screen.findByText('AMOXICILINA 500 mg');
     expect(mocks.request).toHaveBeenLastCalledWith('ep-r1-new', undefined, expect.anything());
   });

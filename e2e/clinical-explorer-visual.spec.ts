@@ -106,6 +106,22 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
   await expect(notes.getByText('Evolución médica estable.')).toBeVisible();
   await notes.getByRole('button', { name: /Ocultar evolución de Médico/ }).click();
   await expect(notes.getByText('Evolución médica estable.')).toHaveCount(0);
+  const indications = page.getByRole('region', { name: 'Indicaciones' });
+  const dateControl = indications.getByLabel('Fecha de indicaciones');
+  await expect(indications.getByText('Mostrar indicaciones', { exact: true })).toBeVisible();
+  await expect(dateControl).toBeHidden();
+  await indications.getByText('Mostrar indicaciones', { exact: true }).click();
+  await expect(dateControl).toBeVisible();
+  await dateControl.fill('2026-07-13');
+  await indications.getByText('Ocultar indicaciones', { exact: true }).click();
+  await expect(indications.getByText('13-07-2026', { exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Laboratorio', exact: true }).click();
+  await page.getByRole('tab', { name: 'Indicaciones', exact: true }).click();
+  await expect(dateControl).toHaveValue('2026-07-13');
+  await expect(dateControl).toBeVisible();
+  await page.getByRole('tab', { name: 'Vista conjunta', exact: true }).click();
+  await expect(dateControl).toBeHidden();
+  await expect(indications.getByText('13-07-2026', { exact: true })).toBeVisible();
 
   // The census stays mounted but out of sight: coming back is instant and loses nothing.
   await expect(page.locator('.census-register')).toBeHidden();
