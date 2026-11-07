@@ -146,12 +146,12 @@ describe('ClinicalExplorerLab', () => {
     expect(mocks.details.mock.calls[0][0]).toEqual([exams[1].link, exams[2].link]);
     expect(card).toHaveTextContent('2 informes');
     expect(within(card).getByRole('img', { name: /Hemoglobina, 2 resultados/ })).toBeVisible();
-    // No interpretation: nothing flags the value, the reference stays as Syslab text.
+    // Values keep their source units without interpretation or reference ranges.
     expect(within(card).queryByText(/alto|bajo/i)).toBeNull();
     const table = within(card).getByRole('table');
     expect(table).toHaveTextContent('Creatinina');
     expect(table).toHaveTextContent('1,3');
-    expect(table).toHaveTextContent('0,7 - 1,2');
+    expect(table).not.toHaveTextContent('0,7 - 1,2');
     expect(card).toHaveTextContent('Día 03-11-2026');
   });
 

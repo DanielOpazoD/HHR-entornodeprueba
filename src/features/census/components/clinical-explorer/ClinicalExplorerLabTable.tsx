@@ -10,7 +10,7 @@ import { formatLabResult } from '@/features/laboratory';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import type { LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
 import type { LabResultRow, SyslabExamItem } from '@/types/domain/labExamTypes';
-import { buildRecentLabColumns } from './clinicalExplorerLabModel';
+import { buildRecentLabColumns, formatLabReportTime } from './clinicalExplorerLabModel';
 
 const searchText = (text: string) =>
   text
@@ -21,7 +21,7 @@ const searchText = (text: string) =>
 
 const ReportPdf = lazy(() => import('@/features/laboratory/report-pdf'));
 
-/** Six original reports, newest first. Missing measurements stay missing; never carry forward. */
+/** Ten original reports, newest first. Missing measurements stay missing; never carry forward. */
 export const ClinicalExplorerLabTable = ({
   analysis,
   exams,
@@ -79,7 +79,7 @@ export const ClinicalExplorerLabTable = ({
         <span className="shrink-0 text-[10px] text-slate-400">Más reciente primero</span>
       </div>
       <div className="max-h-[460px] overflow-auto rounded-lg border border-slate-200/80">
-        <table className="w-full min-w-[660px] border-collapse text-[12px]">
+        <table className="w-full min-w-[860px] border-collapse text-[12px]">
           <caption className="sr-only">
             Últimos {columns.length} informes disponibles · más reciente primero
           </caption>
@@ -87,7 +87,7 @@ export const ClinicalExplorerLabTable = ({
             <tr className="bg-slate-50/70">
               <th
                 scope="col"
-                className="sticky left-0 z-10 min-w-[170px] bg-slate-50 px-3 py-2 text-left font-medium text-slate-500"
+                className="sticky left-0 z-10 min-w-[140px] bg-slate-50 px-2 py-0.5 text-left font-medium text-slate-500"
               >
                 Examen
               </th>
@@ -95,7 +95,7 @@ export const ClinicalExplorerLabTable = ({
                 <th
                   scope="col"
                   key={column.key}
-                  className={`min-w-[82px] px-2 py-2 text-right font-medium tabular-nums ${index === 0 ? 'bg-teal-50/60 text-teal-900' : 'text-slate-600'}`}
+                  className={`min-w-[68px] px-1.5 py-0.5 text-right font-medium tabular-nums ${index === 0 ? 'bg-teal-50/60 text-teal-900' : 'text-slate-600'}`}
                 >
                   <span className="block whitespace-nowrap text-[11px]">
                     {formatDateDDMMYYYY(column.dayIso)}
@@ -105,7 +105,7 @@ export const ClinicalExplorerLabTable = ({
                       className="text-[9px] font-normal text-slate-400"
                       title="Hora informada por Syslab"
                     >
-                      {column.exam?.time || column.time || '—'}
+                      {formatLabReportTime(column.exam?.time || column.time) || '—'}
                     </span>
                     {column.exam?.link && (
                       <button
@@ -135,13 +135,6 @@ export const ClinicalExplorerLabTable = ({
                     .filter((row): row is LabResultRow => row !== undefined)
                     .map(row => formatLabResult(row.result, row.unit).displayUnit || row.unit)
                 );
-                const references = new Set(
-                  cells
-                    .filter((row): row is LabResultRow => row !== undefined)
-                    .map(row => row.refValue)
-                );
-                const commonReference =
-                  units.size <= 1 && references.size === 1 ? [...references][0] : null;
                 return (
                   <tr
                     key={name}
@@ -149,17 +142,12 @@ export const ClinicalExplorerLabTable = ({
                   >
                     <th
                       scope="row"
-                      className="sticky left-0 z-10 bg-white px-3 py-2 text-left font-medium text-slate-700"
+                      className="sticky left-0 z-10 bg-white px-2 py-0.5 text-left font-medium text-slate-700"
                     >
                       {name}
                       {units.size === 1 && (
                         <span className="ml-1.5 text-[10px] font-normal text-slate-400">
                           {[...units][0]}
-                        </span>
-                      )}
-                      {commonReference && (
-                        <span className="block text-[10px] font-normal text-slate-400">
-                          Ref. {commonReference}
                         </span>
                       )}
                     </th>
@@ -168,21 +156,12 @@ export const ClinicalExplorerLabTable = ({
                       return (
                         <td
                           key={column.key}
-                          className={`px-2 py-2 text-right tabular-nums ${index === 0 ? 'bg-teal-50/20 font-semibold text-slate-900' : 'text-slate-600'}`}
-                          title={
-                            row
-                              ? `${row.result} ${row.unit}${row.refValue ? ` · Referencia: ${row.refValue}` : ''}`
-                              : 'No informado en esta toma'
-                          }
+                          className={`px-1.5 py-0.5 text-right tabular-nums ${index === 0 ? 'bg-teal-50/20 font-semibold text-slate-900' : 'text-slate-600'}`}
+                          title={row ? `${row.result} ${row.unit}` : 'No informado en esta toma'}
                         >
                           {row ? (
                             <>
                               {formatLabResult(row.result, row.unit).display}
-                              {!commonReference && row.refValue && (
-                                <span className="block text-[10px] font-normal text-slate-400">
-                                  Ref. {row.refValue}
-                                </span>
-                              )}
                               {units.size > 1 && (
                                 <span className="block text-[10px] font-normal text-slate-400">
                                   {formatLabResult(row.result, row.unit).displayUnit || row.unit}

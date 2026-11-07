@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useState } from 'react';
 import { Download, FlaskConical, FolderOpen } from 'lucide-react';
 import { XRayIcon } from '@/components/ui/XRayIcon';
+import { IsolationBadge } from '../patient-row/IsolationBadge';
 import type { ClinicalExplorerPatient } from '@/features/census/controllers/clinicalExplorerController';
 import { calculateHospitalizedDays } from '@/features/census/controllers/patientBedConfigViewController';
 import { formatAge } from '@/utils/ageDisplayUtils';
@@ -62,8 +63,16 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
       data-testid="clinical-explorer-patient"
       className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/20 px-3 py-2"
     >
-      <span className="inline-flex h-8 min-w-9 items-center justify-center rounded-lg bg-slate-100 px-2 font-display text-[15px] font-bold text-slate-800">
-        {bedId}
+      <span className="flex shrink-0 flex-col items-center gap-1">
+        <span className="inline-flex h-8 min-w-9 items-center justify-center rounded-lg bg-slate-100 px-2 font-display text-[15px] font-bold text-slate-800">
+          {bedId}
+        </span>
+        {data.isIsolated && (
+          <IsolationBadge
+            isolationType={data.isolationType}
+            microorganism={data.isolationMicroorganism}
+          />
+        )}
       </span>
       <div className="flex min-w-0 flex-1 basis-[18rem] flex-col gap-0.5">
         <h2 className="flex min-w-0 items-baseline gap-2 text-[15px] font-semibold leading-snug text-slate-800">
@@ -130,10 +139,10 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
           type="button"
           className={EXPLORER_ACTION_BUTTON}
           onClick={() => setAction('documents')}
-          title="Documentos clínicos"
+          title="Informes locales"
         >
           <FolderOpen size={13} aria-hidden="true" className="text-slate-500" />
-          Documentos
+          Informes locales
         </button>
         <span aria-hidden="true" className="mx-0.5 h-5 w-px bg-slate-200" />
         <ClinicalExplorerPrintActions

@@ -6,6 +6,7 @@ import {
   buildNiceTicks,
   calendarDaysBetween,
   formatLabNumber,
+  formatLabReportTime,
   type LabPoint,
   type LabVariable,
 } from './clinicalExplorerLabModel';
@@ -197,7 +198,7 @@ export const ClinicalExplorerLabCharts: React.FC<ClinicalExplorerLabChartsProps>
                   className="cursor-pointer"
                   tabIndex={0}
                   role="button"
-                  aria-label={`${variable.name} ${point.display} ${variable.unit} el ${formatDateDDMMYYYY(point.dayIso)}${point.time ? ` ${point.time}` : ''}`}
+                  aria-label={`${variable.name} ${point.display} ${variable.unit} el ${formatDateDDMMYYYY(point.dayIso)}${point.time ? ` ${formatLabReportTime(point.time)}` : ''}`}
                   onMouseEnter={() =>
                     setHover({
                       variable: variable.name,
@@ -266,7 +267,7 @@ export const ClinicalExplorerLabCharts: React.FC<ClinicalExplorerLabChartsProps>
         >
           <b className="font-semibold">{hover.variable}</b> ·{' '}
           {formatDateDDMMYYYY(hover.point.dayIso)}
-          {hover.point.time ? ` ${hover.point.time}` : ''}
+          {hover.point.time ? ` ${formatLabReportTime(hover.point.time)}` : ''}
           <br />
           {hover.point.display}
         </div>

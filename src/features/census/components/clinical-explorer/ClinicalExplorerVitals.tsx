@@ -1,20 +1,37 @@
-import React from 'react';
-import { Activity } from 'lucide-react';
+import React, { lazy, useState } from 'react';
+import { Activity, AlertTriangle } from 'lucide-react';
 import type { ClinicalExplorerPatient } from '@/features/census/controllers/clinicalExplorerController';
 import {
   buildVitalSignsView,
   type VitalReadingView,
 } from '@/features/census/controllers/vitalSignsView';
 import { resolveVitalSignsProfile } from '@/utils/vitalSignsProfileResolver';
-import { formatDateTimeCL } from '@/utils/dateDisplayUtils';
+import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { VITAL_STATUS_CARD, VITAL_STATUS_TEXT } from '../patient-row/vitalStatusTone';
-import { AreaCard, EmptyNote } from './clinicalExplorerUi';
+import { ClinicalDetailLoadBoundary } from '../patient-row/ClinicalDetailLoadBoundary';
+import { FluidBalanceDetail } from '../patient-row/FluidBalanceDetail';
+import { clinicalAlertStamp } from '../patient-row/clinicalAlertStamp';
+import {
+  useClinicalDerivedDayRevision,
+  useClinicalDerivedEpisodeGeneration,
+} from '../patient-row/clinicalDerivedDayContext';
+import { AreaCard, EmptyNote, LinkButton } from './clinicalExplorerUi';
 
-/** Latest measurement already available for this census patient and episode. */
-export const ClinicalExplorerVitals: React.FC<{ patient: ClinicalExplorerPatient }> = ({
-  patient,
-}) => {
-  const { data } = patient;
+const VitalsDetailModal = lazy(() =>
+  import('../patient-row/VitalsDetailModal').then(module => ({ default: module.VitalsDetailModal }))
+);
+
+/** Latest census readings, with the same on-demand history and balances as the daily census. */
+export const ClinicalExplorerVitals: React.FC<{
+  patient: ClinicalExplorerPatient;
+  censusDate: string;
+}> = ({ patient, censusDate }) => {
+  const { data, episodeId } = patient;
+  const scope = `${censusDate}:${data.rut}:${episodeId}`;
+  const [opened, setOpened] = useState<string | null>(null);
+  if (opened && opened !== scope) setOpened(null);
+  const layoutGeneration = useClinicalDerivedEpisodeGeneration(episodeId);
+  const dayRevision = useClinicalDerivedDayRevision();
   const profile = resolveVitalSignsProfile({
     age: data.age,
     birthDate: data.birthDate,
@@ -31,35 +48,104 @@ export const ClinicalExplorerVitals: React.FC<{ patient: ClinicalExplorerPatient
       status: 'neutral',
     });
   }
+  const alerts = data.clinicalAlerts ?? [];
+  const showHistory = () => setOpened(scope);
 
   return (
-    <AreaCard icon={<Activity />} title="Signos vitales" source="Censo · Eloísa">
-      {vitals && (
-        <p className="text-[11px] text-slate-500">
-          Última toma disponible · {formatDateTimeCL(vitals.recordedAt)}
-        </p>
-      )}
-      {readings.length > 0 ? (
-        <dl className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2">
-          {readings.map(reading => (
-            <div
-              key={reading.label}
-              className={`rounded-lg border px-2 py-2 text-center ${VITAL_STATUS_CARD[reading.status]}`}
-            >
-              <dt className="text-[11px] font-medium text-slate-500">{reading.label}</dt>
-              <dd
-                className={`text-xl font-semibold tabular-nums ${VITAL_STATUS_TEXT[reading.status]}`}
+    <div className="flex min-w-0 flex-col gap-3">
+      <AreaCard
+        icon={<Activity />}
+        title="Signos vitales"
+        onTitleClick={showHistory}
+        actions={<LinkButton onClick={showHistory}>Ver historial</LinkButton>}
+      >
+        {vitals && (
+          <p className="text-[11px] tabular-nums text-slate-500">
+            {formatDateDDMMYYYY(vitals.recordedDate)}
+          </p>
+        )}
+        {readings.length > 0 ? (
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(100px,1fr))] gap-1.5">
+            {readings.map(reading => (
+              <button
+                type="button"
+                key={reading.label}
+                onClick={showHistory}
+                aria-label={`${reading.label}: ${reading.value} ${reading.unit}. Ver historial`}
+                className={`rounded-lg border px-2 py-1.5 text-center hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 ${VITAL_STATUS_CARD[reading.status]}`}
               >
-                {reading.value}
-                <span className="block text-[10px] font-normal text-slate-500">{reading.unit}</span>
-              </dd>
-            </div>
-          ))}
-        </dl>
-      ) : (
-        <EmptyNote>Sin signos vitales disponibles en este censo.</EmptyNote>
+                <span className="block text-[11px] font-medium text-slate-500">
+                  {reading.label}
+                </span>
+                <span
+                  className={`block text-xl font-semibold tabular-nums ${VITAL_STATUS_TEXT[reading.status]}`}
+                >
+                  {reading.value}
+                  <span className="block text-[10px] font-normal text-slate-500">
+                    {reading.unit}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <EmptyNote>Sin signos vitales disponibles en este censo.</EmptyNote>
+        )}
+        {vitals?.observations && (
+          <p className="text-[12px] text-slate-600">{vitals.observations}</p>
+        )}
+        <FluidBalanceDetail key={scope} balance={data.fluidBalance} censusDate={censusDate} />
+      </AreaCard>
+      <AreaCard icon={<AlertTriangle />} title="Alertas">
+        {alerts.length ? (
+          <ul className="divide-y divide-slate-100">
+            {alerts.map(alert => (
+              <li key={alert.id} className="py-1 first:pt-0 last:pb-0">
+                <p className="whitespace-pre-wrap break-words text-[12px] text-slate-800">
+                  {alert.text}
+                </p>
+                <p className="text-[11px] tabular-nums text-slate-500">
+                  {[
+                    clinicalAlertStamp(alert.recordedAt).full,
+                    alert.author,
+                    alert.visitor && 'Visita',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyNote>Sin alertas registradas en este censo.</EmptyNote>
+        )}
+      </AreaCard>
+      {opened === scope && (
+        <ClinicalDetailLoadBoundary
+          title={`Signos vitales — ${data.patientName}`}
+          size="lg"
+          onClose={() => setOpened(null)}
+        >
+          <VitalsDetailModal
+            key={scope}
+            patientName={data.patientName}
+            vitals={vitals ?? undefined}
+            fluidBalance={data.fluidBalance}
+            censusDate={censusDate}
+            vitalSignsHistory={data.vitalSignsHistory}
+            latestReading={data.vitalSigns}
+            episodeDocument={
+              layoutGeneration
+                ? { date: censusDate, clinicalEpisodeId: episodeId, layoutGeneration, dayRevision }
+                : undefined
+            }
+            age={data.age}
+            birthDate={data.birthDate}
+            profile={profile}
+            onClose={() => setOpened(null)}
+          />
+        </ClinicalDetailLoadBoundary>
       )}
-      {vitals?.observations && <p className="text-[12px] text-slate-600">{vitals.observations}</p>}
-    </AreaCard>
+    </div>
   );
 };

@@ -8,7 +8,10 @@ export const VISUAL_PATIENT = 'MARÍA ANTONIETA DEL CARMEN PAKOMIO RIVERO';
 export const VISUAL_SECOND_PATIENT = 'PACIENTE SINTÉTICA DE NOMBRE LARGO';
 
 /** Seeds one census day with two synthetic patients so visual specs share the same screen. */
-export const seedVisualCensus = async (page: Page): Promise<void> => {
+export const seedVisualCensus = async (
+  page: Page,
+  options: { includeClinicalDetails?: boolean } = {}
+): Promise<void> => {
   const config = await installPreviewFirebaseRuntime(page);
   const base = buildCanonicalE2ERecord(VISUAL_DATE);
   const beds = base.beds as Record<string, Record<string, unknown>>;
@@ -21,6 +24,43 @@ export const seedVisualCensus = async (page: Page): Promise<void> => {
         rut: '12345678-5',
         clinicalEpisodeId: 'visual-episode',
         age: '44',
+        ...(options.includeClinicalDetails
+          ? {
+              isIsolated: true,
+              isolationType: 'Contacto',
+              clinicalAlerts: [
+                {
+                  id: 'visual-alert',
+                  text: 'Alerta clínica sintética del paciente',
+                  recordedAt: `${VISUAL_DATE}T12:00`,
+                  author: 'Profesional sintético',
+                },
+              ],
+              fluidBalance: {
+                censusDate: VISUAL_DATE,
+                day: { intakeMl: 1200, urineOutputMl: 700, records: 2 },
+                night: { intakeMl: 500, urineOutputMl: 400, records: 1 },
+              },
+              vitalSignsHistory: [
+                {
+                  recordedDate: VISUAL_DATE,
+                  recordedAt: `${VISUAL_DATE} 08:00`,
+                  systolic: 110,
+                  diastolic: 70,
+                  heartRate: 80,
+                },
+                {
+                  recordedDate: VISUAL_DATE,
+                  recordedAt: `${VISUAL_DATE} 12:00`,
+                  systolic: 130,
+                  diastolic: 82,
+                  heartRate: 84,
+                  spo2: 88,
+                  temperature: 36.5,
+                },
+              ],
+            }
+          : {}),
         admissionDate: '2026-03-29',
         pathology:
           'Diagnóstico clínico sintético de descripción extensa para comprobar el ajuste de columnas',
