@@ -80,87 +80,88 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
     <>
       {!isSignatureMode && <Navbar {...navbarProps} />}
 
-      {showDateStrip && (
-        <DateStrip
-          {...dateStripProps}
-          hideQuickActions={ui.currentModule === 'CENSUS'}
-          trailingActions={
-            ui.currentModule === 'CENSUS' ? (
-              <>
-                {renderCensusTrailingActions?.(medicalIndicationsPatients)}
-                <CensusOptionsMenu>
-                  {dateStripProps.onOpenPatientSearch && (
-                    <button
-                      type="button"
-                      data-census-menu-action
-                      onClick={dateStripProps.onOpenPatientSearch}
-                      title="Buscar paciente (Ctrl+K)"
-                      className="flex items-center gap-2 rounded-md text-slate-600"
+      <div className="census-operational-chrome contents">
+        {showDateStrip && (
+          <DateStrip
+            {...dateStripProps}
+            hideQuickActions={ui.currentModule === 'CENSUS'}
+            trailingActions={
+              ui.currentModule === 'CENSUS' ? (
+                <>
+                  {renderCensusTrailingActions?.(medicalIndicationsPatients)}
+                  <CensusOptionsMenu>
+                    {dateStripProps.onOpenPatientSearch && (
+                      <button
+                        type="button"
+                        data-census-menu-action
+                        onClick={dateStripProps.onOpenPatientSearch}
+                        title="Buscar paciente (Ctrl+K)"
+                        className="flex items-center gap-2 rounded-md text-slate-600"
+                      >
+                        <Search size={14} />
+                        Buscar paciente
+                      </button>
+                    )}
+                    <React.Suspense
+                      fallback={<span className="text-xs text-slate-500">Cargando opciones…</span>}
                     >
-                      <Search size={14} />
-                      Buscar paciente
-                    </button>
+                      <CensusQuickActions
+                        menuLayout
+                        hideClinicalQuickActions
+                        onOpenBedManager={
+                          isSpecialistCensusAccessProfile(dateStripProps.accessProfile ?? 'default')
+                            ? undefined
+                            : dateStripProps.onOpenBedManager
+                        }
+                      />
+                    </React.Suspense>
+                    {canAccessAppModuleRoute({ role: auth.role, module: 'CUDYR' }) && (
+                      <button
+                        type="button"
+                        data-census-menu-action
+                        onClick={() => ui.setCurrentModule('CUDYR')}
+                        className="flex items-center gap-2 rounded-md text-teal-800"
+                      >
+                        <BarChart3 size={14} />
+                        CUDYR · control diario
+                      </button>
+                    )}
+                    <div ref={setHandoffTarget} />
+                  </CensusOptionsMenu>
+                  {auth.role === 'admin' && (
+                    <React.Suspense fallback={<CensusConflictToolbarFallback />}>
+                      <CensusConflictQuickAction />
+                    </React.Suspense>
                   )}
-                  <React.Suspense
-                    fallback={<span className="text-xs text-slate-500">Cargando opciones…</span>}
-                  >
-                    <CensusQuickActions
-                      menuLayout
-                      hideClinicalQuickActions
-                      onOpenBedManager={
-                        isSpecialistCensusAccessProfile(dateStripProps.accessProfile ?? 'default')
-                          ? undefined
-                          : dateStripProps.onOpenBedManager
-                      }
-                    />
-                  </React.Suspense>
-                  {canAccessAppModuleRoute({ role: auth.role, module: 'CUDYR' }) && (
-                    <button
-                      type="button"
-                      data-census-menu-action
-                      onClick={() => ui.setCurrentModule('CUDYR')}
-                      className="flex items-center gap-2 rounded-md text-teal-800"
-                    >
-                      <BarChart3 size={14} />
-                      CUDYR · control diario
-                    </button>
-                  )}
-                  <div ref={setHandoffTarget} />
-                </CensusOptionsMenu>
-                {auth.role === 'admin' && (
-                  <React.Suspense fallback={<CensusConflictToolbarFallback />}>
-                    <CensusConflictQuickAction />
-                  </React.Suspense>
-                )}
-              </>
-            ) : undefined
-          }
-        />
-      )}
-
-      {showDateStrip &&
-        ui.currentModule === 'CENSUS' &&
-        dateStripProps.clinicalToday &&
-        dateStripProps.goToClinicalToday && (
-          <CensusStaleDayBanner
-            currentDateString={dateStripProps.currentDateString}
-            clinicalToday={dateStripProps.clinicalToday}
-            onGoToToday={dateStripProps.goToClinicalToday}
+                </>
+              ) : undefined
+            }
           />
         )}
 
-      {shouldRenderBookmarkBar({
-        currentModule: ui.currentModule,
-        censusViewMode: ui.censusViewMode,
-        isSignatureMode,
-        showBookmarksBar: ui.showBookmarksBar,
-        role: auth.role,
-      }) && (
-        <React.Suspense fallback={null}>
-          <BookmarkBar />
-        </React.Suspense>
-      )}
+        {showDateStrip &&
+          ui.currentModule === 'CENSUS' &&
+          dateStripProps.clinicalToday &&
+          dateStripProps.goToClinicalToday && (
+            <CensusStaleDayBanner
+              currentDateString={dateStripProps.currentDateString}
+              clinicalToday={dateStripProps.clinicalToday}
+              onGoToToday={dateStripProps.goToClinicalToday}
+            />
+          )}
 
+        {shouldRenderBookmarkBar({
+          currentModule: ui.currentModule,
+          censusViewMode: ui.censusViewMode,
+          isSignatureMode,
+          showBookmarksBar: ui.showBookmarksBar,
+          role: auth.role,
+        }) && (
+          <React.Suspense fallback={null}>
+            <BookmarkBar />
+          </React.Suspense>
+        )}
+      </div>
       <main className="max-w-screen-2xl mx-auto px-4 pt-4 pb-20 flex-1 w-full print:p-0 print:pb-0 print:max-w-none">
         <CensusToolbarMenuTargetContext.Provider value={handoffTarget}>
           <AppRouter ui={ui} shell={appRouterShellState} />

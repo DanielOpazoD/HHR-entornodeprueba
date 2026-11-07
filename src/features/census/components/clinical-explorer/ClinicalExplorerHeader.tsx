@@ -1,5 +1,5 @@
-import React, { lazy, Suspense, useState } from 'react';
-import { Download, FlaskConical, FolderOpen } from 'lucide-react';
+import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { Download, FlaskConical, FolderOpen, MoreHorizontal } from 'lucide-react';
 import { XRayIcon } from '@/components/ui/XRayIcon';
 import { IsolationBadge } from '../patient-row/IsolationBadge';
 import type { ClinicalExplorerPatient } from '@/features/census/controllers/clinicalExplorerController';
@@ -42,12 +42,28 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
   indicationDate,
 }) => {
   const { data, bedId, episodeId } = patient;
+  const moreRef = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const outside = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        moreRef.current &&
+        !moreRef.current.contains(event.target)
+      )
+        moreRef.current.open = false;
+    };
+    document.addEventListener('pointerdown', outside);
+    return () => document.removeEventListener('pointerdown', outside);
+  }, []);
   // Requests belong to the patient and episode in this bed: a corrected RUN or admission closes them.
   const identity = `${bedId}:${episodeId}:${data.rut.trim()}:${data.admissionDate}`;
   // A request dialog belongs to one patient; moving on drops it instead of carrying it over.
   const [open, setOpen] = useState<{ identity: string; kind: QuickAction } | null>(null);
   const action = open?.identity === identity ? open.kind : null;
-  const setAction = (kind: QuickAction | null): void => setOpen(kind ? { identity, kind } : null);
+  const setAction = (kind: QuickAction | null): void => {
+    if (moreRef.current) moreRef.current.open = false;
+    setOpen(kind ? { identity, kind } : null);
+  };
   // A download stopped by leaving the patient does not reopen when they come back.
   if (open?.kind === 'download' && open.identity !== identity) setOpen(null);
 
@@ -61,7 +77,7 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
   return (
     <header
       data-testid="clinical-explorer-patient"
-      className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/20 px-3 py-2"
+      className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/20 px-3 py-2"
     >
       <span className="flex shrink-0 flex-col items-center gap-1">
         <span className="inline-flex h-8 min-w-9 items-center justify-center rounded-lg bg-slate-100 px-2 font-display text-[15px] font-bold text-slate-800">
@@ -74,7 +90,7 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
           />
         )}
       </span>
-      <div className="flex min-w-0 flex-1 basis-[18rem] flex-col gap-0.5">
+      <div className="flex min-w-0 flex-1 basis-[16rem] flex-col gap-0.5">
         <h2 className="flex min-w-0 items-baseline gap-2 text-[15px] font-semibold leading-snug text-slate-800">
           <span className="min-w-0 truncate" title={patientName}>
             {patientName}
@@ -89,7 +105,9 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
             </span>
           )}
         </h2>
-        <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-[12px] leading-relaxed text-slate-600 sm:flex-nowrap">
+        <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-[11px] leading-relaxed text-slate-600">
+          <span className="shrink-0 tabular-nums">Censo {formatDateDDMMYYYY(censusDate)}</span>
+          <span aria-hidden="true">·</span>
           <span className="shrink-0 tabular-nums">{data.rut.trim()}</span>
           <span aria-hidden="true">·</span>
           <span className="shrink-0 tabular-nums">
@@ -135,30 +153,54 @@ export const ClinicalExplorerHeader: React.FC<ClinicalExplorerHeaderProps> = ({
           <XRayIcon size={13} className="text-slate-500" />
           Radiología
         </button>
-        <button
-          type="button"
-          className={EXPLORER_ACTION_BUTTON}
-          onClick={() => setAction('documents')}
-          title="Informes locales"
-        >
-          <FolderOpen size={13} aria-hidden="true" className="text-slate-500" />
-          Informes locales
-        </button>
-        <span aria-hidden="true" className="mx-0.5 h-5 w-px bg-slate-200" />
         <ClinicalExplorerPrintActions
-          key={identity}
+          key={`print:${identity}`}
+          compact
           patient={patient}
           indicationDate={indicationDate}
         />
-        <button
-          type="button"
-          className={EXPLORER_ICON_BUTTON}
-          onClick={() => setAction('download')}
-          aria-label={DOWNLOAD_LABEL}
-          title={DOWNLOAD_LABEL}
+        <details
+          key={`more:${identity}`}
+          ref={moreRef}
+          className="relative"
+          onKeyDown={event => {
+            if (event.key === 'Escape' && moreRef.current?.open) {
+              event.preventDefault();
+              event.stopPropagation();
+              moreRef.current.open = false;
+              moreRef.current.querySelector('summary')?.focus();
+            }
+          }}
         >
-          <Download size={13} aria-hidden="true" />
-        </button>
+          <summary
+            role="button"
+            aria-label="Más acciones del paciente"
+            className={`${EXPLORER_ICON_BUTTON} list-none cursor-pointer [&::-webkit-details-marker]:hidden`}
+          >
+            <MoreHorizontal size={16} aria-hidden="true" />
+          </summary>
+          <div className="absolute right-0 top-full z-50 mt-1 flex min-w-48 flex-col items-stretch gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
+            <button
+              type="button"
+              className={`${EXPLORER_ACTION_BUTTON} w-full`}
+              onClick={() => setAction('documents')}
+              title="Informes locales"
+            >
+              <FolderOpen size={13} aria-hidden="true" className="text-slate-500" />
+              Informes locales
+            </button>
+            <button
+              type="button"
+              className={`${EXPLORER_ACTION_BUTTON} w-full`}
+              onClick={() => setAction('download')}
+              aria-label={DOWNLOAD_LABEL}
+              title={DOWNLOAD_LABEL}
+            >
+              <Download size={13} aria-hidden="true" />
+              Descargar ficha y exámenes
+            </button>
+          </div>
+        </details>
       </div>
 
       {action === 'imaging' && (

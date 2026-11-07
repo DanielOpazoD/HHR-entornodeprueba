@@ -426,8 +426,20 @@ describe('ClinicalExplorerView', () => {
     expect(screen.queryByText('Censo visible')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Radiología' }));
     expect(await screen.findByRole('dialog', { name: 'Orden de imágenes' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Más acciones del paciente' }));
     fireEvent.click(screen.getByRole('button', { name: 'Informes locales' }));
     expect(await screen.findByRole('dialog', { name: 'Documentos clínicos' })).toBeVisible();
+  });
+
+  it('closes secondary actions with Escape without leaving the explorer', async () => {
+    open();
+    const more = screen.getByRole('button', { name: 'Más acciones del paciente' });
+    fireEvent.click(more);
+    expect(more.closest('details')).toHaveAttribute('open');
+    fireEvent.keyDown(more, { key: 'Escape' });
+    expect(more.closest('details')).not.toHaveAttribute('open');
+    expect(screen.getByTestId('clinical-explorer')).toBeVisible();
+    expect(more).toHaveFocus();
   });
 
   it('keeps the laboratory request open when its patient moves to another bed', async () => {

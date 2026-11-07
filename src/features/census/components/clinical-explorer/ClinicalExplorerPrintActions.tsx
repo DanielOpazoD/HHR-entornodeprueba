@@ -24,6 +24,7 @@ interface ClinicalExplorerPrintActionsProps {
   patient: ClinicalExplorerPatient;
   /** Day chosen in the indications area; null means today in Rapa Nui. */
   indicationDate: string | null;
+  compact?: boolean;
 }
 
 /**
@@ -33,6 +34,7 @@ interface ClinicalExplorerPrintActionsProps {
 export const ClinicalExplorerPrintActions: React.FC<ClinicalExplorerPrintActionsProps> = ({
   patient,
   indicationDate,
+  compact = false,
 }) => {
   const epoch = useSessionEpoch();
   const mounted = useRef(false);
@@ -165,7 +167,8 @@ export const ClinicalExplorerPrintActions: React.FC<ClinicalExplorerPrintActions
       </button>
       <button
         type="button"
-        className={EXPLORER_ACTION_BUTTON}
+        className={`${EXPLORER_ACTION_BUTTON} ${compact ? 'w-8 justify-center px-0' : ''}`}
+        aria-label="Receta"
         title="Ver o imprimir la receta vigente de Eloísa"
         disabled={pending !== null}
         onClick={() => void run('prescription')}
@@ -175,7 +178,7 @@ export const ClinicalExplorerPrintActions: React.FC<ClinicalExplorerPrintActions
         ) : (
           <FileText size={13} aria-hidden="true" className="text-slate-500" />
         )}
-        Receta
+        {!compact && 'Receta'}
       </button>
     </>
   );
