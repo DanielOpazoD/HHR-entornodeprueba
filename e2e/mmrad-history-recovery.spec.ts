@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { seedVisualCensus, VISUAL_DATE } from './fixtures/censusVisualSeed';
+import { openPatientClinicalTopic } from './fixtures/patientClinicalTopics';
 
 for (const width of [1440, 390]) {
   test(`recovers earlier MMRAD studies while the laboratory tunnel is unavailable at ${width}px`, async ({
@@ -45,7 +46,7 @@ for (const width of [1440, 390]) {
     });
     await page.goto(`/censo?date=${VISUAL_DATE}`);
     await expect(page.getByTestId('census-table')).toBeVisible({ timeout: 30_000 });
-    await page.getByTestId('clinical-panel-trigger-R1').click();
+    await openPatientClinicalTopic(page, 'R1', 'Ficha clínica');
     const drawer = page.getByTestId('clinical-panel-drawer-R1');
     await drawer.getByRole('button', { name: /Abrir explorador clínico de/ }).click();
     const imaging = page.getByRole('region', { name: 'Imágenes' });
