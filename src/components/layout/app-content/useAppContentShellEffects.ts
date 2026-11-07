@@ -8,6 +8,7 @@ import {
   shouldRecordAppShellTelemetry,
 } from '@/components/layout/app-content/appContentShellEffectsController';
 import { useAppContentEventBridge } from '@/components/layout/app-content/useAppContentEventBridge';
+import { checkStorageHeadroom } from '@/services/storage/indexeddb/storageHeadroom';
 
 interface UseAppContentShellEffectsParams {
   role: AuthContextType['role'];
@@ -52,5 +53,7 @@ export const useAppContentShellEffects = ({
       allowSuccess: true,
     });
     appShellTelemetryRecordedRef.current = true;
+    // Early warning before a nearly full disk breaks local saves.
+    void checkStorageHeadroom();
   }, [currentModule, isSignatureMode, role]);
 };

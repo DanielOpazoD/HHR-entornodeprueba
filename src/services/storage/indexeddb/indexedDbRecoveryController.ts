@@ -1,5 +1,6 @@
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import type { OperationalRuntimeState } from '@/services/observability/operationalRuntimeState';
+import { checkStorageHeadroom } from './storageHeadroom';
 
 export const recordIndexedDbRecoveryFailure = (
   error: unknown,
@@ -16,6 +17,8 @@ export const recordIndexedDbRecoveryFailure = (
     issues: [error instanceof Error ? error.message : 'Recovery failed'],
     context: options.context,
   });
+  // A full disk was behind the IndexedDB failures of 2026-11-07.
+  void checkStorageHeadroom();
 };
 
 export const recordIndexedDbFallbackMode = (
@@ -31,6 +34,8 @@ export const recordIndexedDbFallbackMode = (
     issues: [errorMessage || 'IndexedDB fallback activated'],
     context: { errorName, ...context },
   });
+  // A full disk was behind the IndexedDB failures of 2026-11-07.
+  void checkStorageHeadroom();
 };
 
 export const recordIndexedDbRecoveryNotice = (
@@ -47,4 +52,6 @@ export const recordIndexedDbRecoveryNotice = (
     issues: [issue],
     context,
   });
+  // A full disk was behind the IndexedDB failures of 2026-11-07.
+  void checkStorageHeadroom();
 };
