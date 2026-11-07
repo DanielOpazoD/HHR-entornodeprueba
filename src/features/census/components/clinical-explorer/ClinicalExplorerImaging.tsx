@@ -182,24 +182,31 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
             const structured = hasMMRADStructuredReport(exam);
             return (
               <li key={key} className="flex flex-col py-1.5 first:pt-0 last:pb-0">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[12px] font-semibold text-slate-700">
-                      {exam.nombre_examen}
-                    </p>
-                    <p className="relative flex items-center gap-1 text-[10.5px] tabular-nums text-slate-500">
-                      {formatStudyStamp(exam.fecha_examen)}
-                      {exam.registered_patient_id && (
-                        <ClinicalExplorerIdentityNotice
-                          message={describeMMRADRegisteredPatient(
-                            exam.registered_patient_id,
-                            exam.registered_patient_name
-                          )}
-                        />
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1.5">
+                <div className="grid min-w-0 grid-cols-1 items-center gap-x-3 gap-y-1 sm:grid-cols-[minmax(0,1fr)_136px_208px]">
+                  <p
+                    title={exam.nombre_examen}
+                    className="min-w-0 line-clamp-2 text-[12px] font-semibold text-slate-700"
+                  >
+                    {exam.nombre_examen}
+                  </p>
+                  <p
+                    data-testid="clinical-imaging-date"
+                    className="relative flex items-center gap-1 text-[10.5px] tabular-nums text-slate-500"
+                  >
+                    {formatStudyStamp(exam.fecha_examen)}
+                    {exam.registered_patient_id && (
+                      <ClinicalExplorerIdentityNotice
+                        message={describeMMRADRegisteredPatient(
+                          exam.registered_patient_id,
+                          exam.registered_patient_name
+                        )}
+                      />
+                    )}
+                  </p>
+                  <div
+                    data-testid="clinical-imaging-actions"
+                    className="flex items-center gap-1.5 whitespace-nowrap sm:justify-end"
+                  >
                     {exam.dicom_url && (
                       <button
                         type="button"
