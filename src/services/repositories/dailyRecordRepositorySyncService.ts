@@ -13,6 +13,7 @@ import {
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { migrateLegacyData } from '@/services/repositories/dataMigration';
 import { loadRemoteRecordWithFallback } from '@/services/repositories/dailyRecordRemoteLoader';
+import { confirmDailyRecordMissingOnServer } from '@/services/repositories/dailyRecordServerAbsence';
 import { measureRepositoryOperation } from '@/services/repositories/repositoryPerformance';
 import { createSyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { dailyRecordSyncLogger } from '@/services/repositories/repositoryLoggers';
@@ -184,6 +185,10 @@ export const subscribeDetailed = (
       const revision = ++issued;
       void (async () => {
         const migrated = record ? migrateLegacyData(record, date) : null;
+        const serverConfirmed = isServerConfirmedSnapshot(metadata);
+        if (!migrated && !hasPendingWrites && serverConfirmed) {
+          await confirmDailyRecordMissingOnServer(date);
+        }
         return hasPendingWrites
           ? createSyncDailyRecordResult({
               date,
@@ -194,12 +199,8 @@ export const subscribeDetailed = (
               recoveryAction: 'none',
               observabilityTags: ['daily_record', 'sync', 'subscription_pending_write'],
             })
-          : resolveSubscriptionResult(
-              date,
-              migrated,
-              isServerConfirmedSnapshot(metadata),
-              undefined,
-              () => isCurrent(revision)
+          : resolveSubscriptionResult(date, migrated, serverConfirmed, undefined, () =>
+              isCurrent(revision)
             );
       })().then(
         result => {
