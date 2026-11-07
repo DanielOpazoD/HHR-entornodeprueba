@@ -98,34 +98,39 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
       <div className="flex min-w-0 flex-col gap-3 lg:col-start-2 lg:row-start-1 lg:row-span-2">
         {patient ? (
           <>
-            <ClinicalExplorerHeader
-              patient={patient}
-              onRequestExams={() => setExamRequestFor(clinicalExplorerPatientIdentity(patient))}
-              censusDate={censusDate}
-              indicationDate={indicationSelection.date}
-            />
             <div
-              role="tablist"
-              aria-label="Áreas"
-              className="flex max-w-full gap-x-1 overflow-x-auto border-b border-slate-200"
+              data-testid="clinical-explorer-reading-header"
+              className="sticky top-[var(--hhr-chrome-height)] z-30 flex flex-col gap-1 bg-slate-100 pb-1"
             >
-              {EXPLORER_TABS.map(item => (
-                <button
-                  key={item.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === item.key}
-                  onClick={() => setTab(item.key)}
-                  className={clsx(
-                    'min-h-9 shrink-0 border-b-2 px-2 text-[12px] font-medium sm:px-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
-                    tab === item.key
-                      ? 'border-teal-700 text-teal-800'
-                      : 'border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-800'
-                  )}
-                >
-                  {item.label}
-                </button>
-              ))}
+              <ClinicalExplorerHeader
+                patient={patient}
+                onRequestExams={() => setExamRequestFor(clinicalExplorerPatientIdentity(patient))}
+                censusDate={censusDate}
+                indicationDate={indicationSelection.date}
+              />
+              <div
+                role="tablist"
+                aria-label="Áreas"
+                className="flex max-w-full gap-x-1 overflow-x-auto border-b border-slate-200"
+              >
+                {EXPLORER_TABS.map(item => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === item.key}
+                    onClick={() => setTab(item.key)}
+                    className={clsx(
+                      'min-h-9 shrink-0 border-b-2 px-2 text-[12px] font-medium sm:px-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
+                      tab === item.key
+                        ? 'border-teal-700 text-teal-800'
+                        : 'border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-800'
+                    )}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div
               className={clsx(

@@ -12,13 +12,12 @@ export const FluidBalanceDetail: React.FC<{
   censusDate?: string;
 }> = ({ balance, censusDate }) => {
   const [period, setPeriod] = useState<(typeof PERIODS)[number]['key']>('total');
-  if (!balance || (censusDate && balance.censusDate !== censusDate)) {
-    return (
-      <p className="text-xs text-slate-500">
-        Ingresos y diuresis sin datos sincronizados para este día.
-      </p>
-    );
-  }
+  if (
+    !balance ||
+    (censusDate && balance.censusDate !== censusDate) ||
+    balance.day.records + balance.night.records === 0
+  )
+    return null;
   const selected =
     period === 'total'
       ? {

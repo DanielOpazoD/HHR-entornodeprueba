@@ -166,3 +166,12 @@
     width: 44px;
   }
 }
+
+/* Consultation is already represented by its mounted region. Derive only layout here so the
+   shell does not load feature state, and the operational controls keep their mounted state. */
+:root:has([data-clinical-explorer-open]) {
+  --hhr-chrome-height: var(--hhr-navbar-height);
+}
+:root:has([data-clinical-explorer-open]) .census-operational-chrome {
+  display: none;
+}

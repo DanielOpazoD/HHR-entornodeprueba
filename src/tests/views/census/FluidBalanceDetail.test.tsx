@@ -23,8 +23,39 @@ describe('minimal balance in clinical detail', () => {
   });
   it('does not present yesterday’s carried balance as today’s totals', () => {
     render(<FluidBalanceDetail balance={balance} censusDate="2026-11-05" />);
-    expect(screen.getByText(/sin datos sincronizados/)).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Ingresos y diuresis' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/sin datos sincronizados/)).not.toBeInTheDocument();
     expect(screen.queryByText('600 ml')).not.toBeInTheDocument();
+  });
+  it('stays absent without a balance or when the day has no records', () => {
+    const view = render(<FluidBalanceDetail censusDate={balance.censusDate} />);
+    expect(view.container).toBeEmptyDOMElement();
+    view.rerender(
+      <FluidBalanceDetail
+        censusDate={balance.censusDate}
+        balance={{
+          ...balance,
+          day: { intakeMl: 0, urineOutputMl: 0, records: 0 },
+          night: { intakeMl: 0, urineOutputMl: 0, records: 0 },
+        }}
+      />
+    );
+    expect(view.container).toBeEmptyDOMElement();
+  });
+  it('retains a recorded zero rather than treating it as missing data', () => {
+    render(
+      <FluidBalanceDetail
+        censusDate={balance.censusDate}
+        balance={{
+          ...balance,
+          day: { intakeMl: 0, urineOutputMl: 0, records: 1 },
+          night: { intakeMl: 0, urineOutputMl: 0, records: 0 },
+        }}
+      />
+    );
+    expect(screen.getAllByText('0 ml')).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Noche' }));
+    expect(screen.getByText('Sin registros de ingresos o diuresis en este período.')).toBeVisible();
   });
   it('allows opening detail when only balance is available, without adding volumes to census', async () => {
     render(

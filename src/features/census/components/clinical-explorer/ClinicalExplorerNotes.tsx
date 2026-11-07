@@ -1,3 +1,4 @@
+import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import React, { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { BookOpenText, ClipboardList, RefreshCw } from 'lucide-react';
@@ -103,6 +104,7 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
   onShowAll,
 }) => {
   const { state, reload } = useClinicalPanelSnapshot(episodeId);
+  const sessionEpoch = useSessionEpoch();
   const [profession, setProfession] = useState<ProfessionFilter>('all');
   const [historyPage, setHistoryPage] = useState({ episodeId, count: EVOLUTION_BATCH });
   if (historyPage.episodeId !== episodeId) {
@@ -206,7 +208,12 @@ export const ClinicalExplorerNotes: React.FC<ClinicalExplorerNotesProps> = ({
               ) : (
                 <div className="divide-y divide-slate-100">
                   {shownEvolutions.map((entry, index) => (
-                    <EvolutionCard key={entry.id} entry={entry} isLatest={index === 0} />
+                    <EvolutionCard
+                      key={`${sessionEpoch}:${profession}:${entry.id}`}
+                      entry={entry}
+                      isLatest={index === 0}
+                      collapsible={compact}
+                    />
                   ))}
                 </div>
               )}

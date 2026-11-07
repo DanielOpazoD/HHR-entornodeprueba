@@ -163,6 +163,7 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
       </ClinicalExplorerLaunchContext.Provider>
       {explorer ? (
         <section
+          data-clinical-explorer-open=""
           aria-label="Explorador clínico"
           className="flex flex-col gap-3 lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start"
           style={marginStyle}

@@ -10,7 +10,7 @@ export const VISUAL_SECOND_PATIENT = 'PACIENTE SINTÉTICA DE NOMBRE LARGO';
 /** Seeds one census day with two synthetic patients so visual specs share the same screen. */
 export const seedVisualCensus = async (
   page: Page,
-  options: { includeClinicalDetails?: boolean } = {}
+  options: { includeClinicalDetails?: boolean; extraVitalReadings?: boolean } = {}
 ): Promise<void> => {
   const config = await installPreviewFirebaseRuntime(page);
   const base = buildCanonicalE2ERecord(VISUAL_DATE);
@@ -66,6 +66,9 @@ export const seedVisualCensus = async (
           'Diagnóstico clínico sintético de descripción extensa para comprobar el ajuste de columnas',
         devices: ['VVP', 'VVP#2', 'Sonda Nasogástrica'],
         vitalSigns: {
+          ...(options.extraVitalReadings
+            ? { meanArterialPressure: 98, respiratoryRate: 18, painEva: 0 }
+            : {}),
           recordedDate: VISUAL_DATE,
           recordedAt: `${VISUAL_DATE} 12:00`,
           systolic: 130,

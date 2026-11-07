@@ -123,7 +123,7 @@ describe('ClinicalExplorerVitals', () => {
     render(<ClinicalExplorerVitals patient={current} censusDate="2026-07-11" />);
     expect(screen.queryByText('999 ml')).toBeNull();
     expect(
-      screen.getByText('Ingresos y diuresis sin datos sincronizados para este día.')
-    ).toBeVisible();
+      screen.queryByText('Ingresos y diuresis sin datos sincronizados para este día.')
+    ).toBeNull();
   });
 });
