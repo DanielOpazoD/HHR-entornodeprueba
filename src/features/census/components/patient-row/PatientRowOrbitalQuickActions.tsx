@@ -4,6 +4,7 @@ import {
   buildPatientRowOrbitalQuickActionItems,
   dispatchPatientRowOrbitalQuickAction,
   hasPatientRowOrbitalQuickActions,
+  type PatientRowOrbitalQuickActionCallbacks,
   type PatientRowOrbitalQuickActionsAvailability,
   type PatientRowOrbitalQuickActionBadges,
 } from '@/features/census/controllers/patientRowOrbitalQuickActionsController';
@@ -26,21 +27,22 @@ const LazyPatientRowOrbitalQuickActionsPortal = lazy(() =>
   )
 );
 
-interface PatientRowOrbitalQuickActionsProps extends PatientRowOrbitalQuickActionsAvailability {
-  onViewClinicalDocuments?: () => void;
-  onViewExamRequest?: () => void;
-  onViewImagingRequest?: () => void;
+interface PatientRowOrbitalQuickActionsProps
+  extends PatientRowOrbitalQuickActionsAvailability, PatientRowOrbitalQuickActionCallbacks {
   badges?: PatientRowOrbitalQuickActionBadges;
+  /** Names the turtle of one bed, e.g. `clinical-topics-trigger-R1`. */
+  triggerTestId?: string;
 }
 
 export const PatientRowOrbitalQuickActions: React.FC<PatientRowOrbitalQuickActionsProps> = ({
+  showClinicalPanelAction,
+  showLaboratoryAction,
+  showImagingAction,
   showClinicalDocumentsAction,
-  showExamRequestAction,
-  showImagingRequestAction,
-  onViewClinicalDocuments,
-  onViewExamRequest,
-  onViewImagingRequest,
+  showClinicalExplorerAction,
   badges,
+  triggerTestId,
+  ...callbacks
 }) => {
   const { isOpen, menuRef, setIsOpen, toggle, close } = useDropdownMenu();
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);
@@ -49,11 +51,19 @@ export const PatientRowOrbitalQuickActions: React.FC<PatientRowOrbitalQuickActio
 
   const availability = React.useMemo(
     () => ({
+      showClinicalPanelAction,
+      showLaboratoryAction,
+      showImagingAction,
       showClinicalDocumentsAction,
-      showExamRequestAction,
-      showImagingRequestAction,
+      showClinicalExplorerAction,
     }),
-    [showClinicalDocumentsAction, showExamRequestAction, showImagingRequestAction]
+    [
+      showClinicalPanelAction,
+      showLaboratoryAction,
+      showImagingAction,
+      showClinicalDocumentsAction,
+      showClinicalExplorerAction,
+    ]
   );
 
   const orbitalItems = React.useMemo(
@@ -119,11 +129,7 @@ export const PatientRowOrbitalQuickActions: React.FC<PatientRowOrbitalQuickActio
   );
 
   const handleItemClick = (itemId: (typeof orbitalItems)[number]['id']) => {
-    dispatchPatientRowOrbitalQuickAction(itemId, {
-      onViewClinicalDocuments,
-      onViewExamRequest,
-      onViewImagingRequest,
-    });
+    dispatchPatientRowOrbitalQuickAction(itemId, callbacks);
     close();
   };
 
@@ -211,6 +217,7 @@ export const PatientRowOrbitalQuickActions: React.FC<PatientRowOrbitalQuickActio
           triggerCenterX={triggerCenterX}
           triggerCenterY={triggerCenterY}
           triggerRef={triggerRef}
+          triggerTestId={triggerTestId}
         />
       </Suspense>
     </>

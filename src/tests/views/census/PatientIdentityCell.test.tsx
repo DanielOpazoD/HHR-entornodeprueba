@@ -65,7 +65,11 @@ describe('PatientIdentityCell', () => {
 
     expect(screen.getByText('12.345.678-5')).toBeInTheDocument();
     expect(screen.getByTitle('RUT válido')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Abrir MMRAD de Juana Rapu' })).toBeVisible();
+    // Ficha, laboratorio e imágenes open from the turtle in the bed column, not from the name.
+    expect(
+      screen.queryByRole('button', { name: /Abrir (MMRAD|laboratorio|panel clínico) de/ })
+    ).toBeNull();
+    expect(container.querySelector('.census-identity-actions')).toBeNull();
   });
 
   it.each(['provisional', 'official'] as const)(

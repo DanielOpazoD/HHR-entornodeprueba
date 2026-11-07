@@ -1,17 +1,24 @@
 /**
- * ClinicalPanelTrigger — discreet per-patient button that opens the ClinicalPanelDrawer
- * (evoluciones + indicaciones + cuidados from Ficha Médico, live view). Self-contained (button + drawer
- * state) so host cells only add one element. Rendered only for synced patients — the panel is
+ * ClinicalPanelTrigger — owns a patient's ClinicalPanelDrawer (evoluciones + indicaciones + cuidados
+ * from Ficha Médico, live view). A crib shows its own button; a main row is `headless` and opens from
+ * the turtle menu through `openClinicalPanel`. Rendered only for synced patients — the panel is
  * fetched by `clinicalEpisodeId`, which exists only after an Eloísa sync.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { BookOpenText, X } from 'lucide-react';
 
-import { resolveClinicalPanelNavigation } from '@/features/census/controllers/clinicalPanelNavigationController';
+import {
+  buildClinicalPanelKey,
+  resolveClinicalPanelNavigation,
+} from '@/features/census/controllers/clinicalPanelNavigationController';
 import { LAYER_Z_INDEX } from '@/shared/ui/layering';
-import { useActiveClinicalPanel } from './useActiveClinicalPanel';
+import {
+  openClinicalPanel,
+  useActiveClinicalPanel,
+  useClinicalPanelOpener,
+} from './useActiveClinicalPanel';
 import { ClinicalActionButton } from './ClinicalActionButton';
 import { openClinicalExplorer } from '../clinical-explorer/clinicalExplorerStore';
 import { RecoverableClinicalPanelModule, PanelModuleRetry } from './RecoverableClinicalPanelModule';
@@ -34,6 +41,8 @@ interface ClinicalPanelTriggerProps {
   encounterRouteHint?: 'medical' | 'nurse';
   admissionDate?: string;
   censusDate?: string;
+  /** No row button: the turtle menu opens the panel, and a marker keeps its place for ‹ ›. */
+  headless?: boolean;
 }
 
 /** Occupies the drawer while its deferred code loads, so the first click has immediate feedback. */
@@ -140,6 +149,7 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
   encounterRouteHint,
   admissionDate,
   censusDate,
+  headless = false,
 }) => {
   const triggerRef = useRef<HTMLSpanElement>(null);
   const [areReportsOpen, setAreReportsOpen] = useState(false);
@@ -147,8 +157,14 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
   const { isOpen, open, close } = useActiveClinicalPanel(
     JSON.stringify([triggerKey, episode, patientRun, censusDate, patientName])
   );
-  if (!episode || !patientName.trim()) return null;
-  const panelKey = `${bedId}:${episode}`;
+  const canOpen = Boolean(episode && patientName.trim());
+  const panelKey = buildClinicalPanelKey(bedId, episode);
+  const openPanel = useCallback(() => {
+    setAreReportsOpen(false);
+    open();
+  }, [open]);
+  useClinicalPanelOpener(canOpen ? panelKey : null, openPanel);
+  if (!canOpen) return null;
   const navigation = isOpen
     ? resolveClinicalPanelNavigation(document, panelKey)
     : { previous: null, next: null };
@@ -157,27 +173,28 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
     const target = resolveClinicalPanelNavigation(document, panelKey)[direction];
     if (!target) return;
     close();
-    target.click();
+    openClinicalPanel(target);
   };
 
   return (
     <>
-      <span ref={triggerRef} className="inline-flex shrink-0 items-center">
-        <ClinicalActionButton
-          tone="clinical"
-          data-testid={`clinical-panel-trigger-${triggerKey}`}
-          data-clinical-panel-key={panelKey}
-          onClick={() => {
-            setAreReportsOpen(false);
-            open();
-          }}
-          title="Panel clínico (evoluciones, indicaciones y cuidados de Eloísa)"
-          hint="Ficha clínica"
-          label={`Abrir panel clínico de ${patientName}`}
-        >
-          <BookOpenText size={14} />
-        </ClinicalActionButton>
-      </span>
+      {headless ? (
+        <span ref={triggerRef} data-clinical-panel-key={panelKey} aria-hidden="true" />
+      ) : (
+        <span ref={triggerRef} className="inline-flex shrink-0 items-center">
+          <ClinicalActionButton
+            tone="clinical"
+            data-testid={`clinical-panel-trigger-${triggerKey}`}
+            data-clinical-panel-key={panelKey}
+            onClick={openPanel}
+            title="Panel clínico (evoluciones, indicaciones y cuidados de Eloísa)"
+            hint="Ficha clínica"
+            label={`Abrir panel clínico de ${patientName}`}
+          >
+            <BookOpenText size={14} />
+          </ClinicalActionButton>
+        </span>
+      )}
       {isOpen && (
         <RecoverableClinicalPanelModule
           resetModule={resetDrawerModule}

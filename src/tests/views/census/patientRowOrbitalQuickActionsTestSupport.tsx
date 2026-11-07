@@ -3,15 +3,13 @@ import { render } from '@testing-library/react';
 import { vi } from 'vitest';
 
 import { PatientRowOrbitalQuickActions } from '@/features/census/components/patient-row/PatientRowOrbitalQuickActions';
+import type {
+  PatientRowOrbitalQuickActionCallbacks,
+  PatientRowOrbitalQuickActionsAvailability,
+} from '@/features/census/controllers/patientRowOrbitalQuickActionsController';
 
-interface RenderSingleRowOptions {
-  showClinicalDocumentsAction?: boolean;
-  showExamRequestAction?: boolean;
-  showImagingRequestAction?: boolean;
-  onViewClinicalDocuments?: () => void;
-  onViewExamRequest?: () => void;
-  onViewImagingRequest?: () => void;
-}
+type RenderSingleRowOptions = Partial<PatientRowOrbitalQuickActionsAvailability> &
+  PatientRowOrbitalQuickActionCallbacks;
 
 interface RenderMultipleRowsOptions extends RenderSingleRowOptions {
   rows?: Array<{ testId: string; bedId: string }>;
@@ -31,27 +29,40 @@ export const mockMatchMedia = (matches: boolean) => {
 
 export const parsePx = (value: string): number => Number.parseFloat(value.replace('px', ''));
 
-export const renderSinglePatientRowOrbitalQuickActions = ({
+/** Laboratory, imaging and documents by default: three topics, as the layout tests measure. */
+const OrbitalQuickActions: React.FC<RenderSingleRowOptions> = ({
+  showClinicalPanelAction = false,
+  showLaboratoryAction = true,
+  showImagingAction = true,
   showClinicalDocumentsAction = true,
-  showExamRequestAction = true,
-  showImagingRequestAction = true,
+  showClinicalExplorerAction = false,
+  onViewClinicalPanel = vi.fn(),
+  onViewLaboratory = vi.fn(),
+  onViewImaging = vi.fn(),
   onViewClinicalDocuments = vi.fn(),
-  onViewExamRequest = vi.fn(),
-  onViewImagingRequest = vi.fn(),
-}: RenderSingleRowOptions = {}) =>
+  onOpenClinicalExplorer = vi.fn(),
+}) => (
+  <PatientRowOrbitalQuickActions
+    showClinicalPanelAction={showClinicalPanelAction}
+    showLaboratoryAction={showLaboratoryAction}
+    showImagingAction={showImagingAction}
+    showClinicalDocumentsAction={showClinicalDocumentsAction}
+    showClinicalExplorerAction={showClinicalExplorerAction}
+    onViewClinicalPanel={onViewClinicalPanel}
+    onViewLaboratory={onViewLaboratory}
+    onViewImaging={onViewImaging}
+    onViewClinicalDocuments={onViewClinicalDocuments}
+    onOpenClinicalExplorer={onOpenClinicalExplorer}
+  />
+);
+
+export const renderSinglePatientRowOrbitalQuickActions = (options: RenderSingleRowOptions = {}) =>
   render(
     <table>
       <tbody>
         <tr className="group/patient-row" data-testid="patient-row">
           <td className="relative">
-            <PatientRowOrbitalQuickActions
-              showClinicalDocumentsAction={showClinicalDocumentsAction}
-              showExamRequestAction={showExamRequestAction}
-              showImagingRequestAction={showImagingRequestAction}
-              onViewClinicalDocuments={onViewClinicalDocuments}
-              onViewExamRequest={onViewExamRequest}
-              onViewImagingRequest={onViewImagingRequest}
-            />
+            <OrbitalQuickActions {...options} />
           </td>
         </tr>
       </tbody>
@@ -63,12 +74,7 @@ export const renderMultiPatientRowOrbitalQuickActions = ({
     { testId: 'patient-row', bedId: 'R2' },
     { testId: 'patient-row-secondary', bedId: 'R3' },
   ],
-  showClinicalDocumentsAction = true,
-  showExamRequestAction = true,
-  showImagingRequestAction = true,
-  onViewClinicalDocuments = vi.fn(),
-  onViewExamRequest = vi.fn(),
-  onViewImagingRequest = vi.fn(),
+  ...options
 }: RenderMultipleRowsOptions = {}) =>
   render(
     <table>
@@ -81,14 +87,7 @@ export const renderMultiPatientRowOrbitalQuickActions = ({
             data-bed-id={row.bedId}
           >
             <td className="relative">
-              <PatientRowOrbitalQuickActions
-                showClinicalDocumentsAction={showClinicalDocumentsAction}
-                showExamRequestAction={showExamRequestAction}
-                showImagingRequestAction={showImagingRequestAction}
-                onViewClinicalDocuments={onViewClinicalDocuments}
-                onViewExamRequest={onViewExamRequest}
-                onViewImagingRequest={onViewImagingRequest}
-              />
+              <OrbitalQuickActions {...options} />
             </td>
           </tr>
         ))}

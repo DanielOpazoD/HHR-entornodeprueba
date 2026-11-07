@@ -13,6 +13,15 @@ import type { RowMenuAlign } from './patientRowUiContracts';
 import { usePatientActionMenu } from './usePatientActionMenu';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
 import { resolvePatientActionMenuDemographicsInteraction } from '@/features/census/controllers/patientActionMenuController';
+import { resolvePatientClinicalTopics } from '@/features/census/controllers/patientClinicalTopicsController';
+import { buildClinicalPanelKey } from '@/features/census/controllers/clinicalPanelNavigationController';
+import { openClinicalExplorer } from '../clinical-explorer/clinicalExplorerStore';
+import { openClinicalPanel } from './useActiveClinicalPanel';
+import {
+  PatientClinicalTopicSurfaces,
+  usePatientClinicalTopicSurface,
+} from './PatientClinicalTopicSurfaces';
+import type { PatientData } from './patientRowContracts';
 
 const LazyPatientActionMenuPanel = lazy(() =>
   import('@/features/census/components/patient-row/PatientActionMenuPanel').then(module => ({
@@ -40,6 +49,9 @@ interface PatientActionMenuProps
   clinicalDocumentCount?: number;
   /** Only an Eloísa episode can be marked «paciente no válido». */
   canMarkInvalid?: boolean;
+  /** A main row's patient: the turtle opens its ficha, laboratory, imaging and integrated view. */
+  clinicalPatient?: PatientData;
+  censusDate?: string;
 }
 
 const PatientActionPrimaryIcon: React.FC<{
@@ -85,6 +97,8 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
   clinicalDocumentCount,
   allowedActions,
   canMarkInvalid = false,
+  clinicalPatient,
+  censusDate,
 }) => {
   const {
     isOpen,
@@ -121,6 +135,11 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
     allowedActions,
   });
 
+  const topics = resolvePatientClinicalTopics(clinicalPatient);
+  const topicSurface = usePatientClinicalTopicSurface(clinicalPatient);
+  const canRequestExams = binding.availability.showExamRequestAction;
+  const canRequestImaging = binding.availability.showImagingRequestAction;
+
   const handleViewDemographics = resolvePatientActionMenuDemographicsInteraction({
     accessProfile,
     onViewDemographics,
@@ -130,17 +149,49 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
     <div className="flex flex-col items-center gap-0.5 relative py-0.5" ref={menuRef}>
       {hasPatientIdentity ? (
         <PatientRowOrbitalQuickActions
+          showClinicalPanelAction={topics.clinicalPanel}
+          // Without an episode or a Chilean RUT there is nothing to read, but a request still fits.
+          showLaboratoryAction={topics.laboratory || canRequestExams}
+          showImagingAction={topics.imaging || canRequestImaging}
           showClinicalDocumentsAction={binding.availability.showClinicalDocumentsAction}
-          showExamRequestAction={binding.availability.showExamRequestAction}
-          showImagingRequestAction={binding.availability.showImagingRequestAction}
+          showClinicalExplorerAction={topics.clinicalExplorer && Boolean(censusDate)}
+          onViewClinicalPanel={() => {
+            if (clinicalPatient?.clinicalEpisodeId) {
+              openClinicalPanel(
+                buildClinicalPanelKey(clinicalPatient.bedId, clinicalPatient.clinicalEpisodeId)
+              );
+            }
+          }}
+          onViewLaboratory={
+            topics.laboratory ? () => topicSurface.open('laboratory') : handleViewExamRequest
+          }
+          onViewImaging={
+            topics.imaging ? () => topicSurface.open('imaging') : handleViewImagingRequest
+          }
           onViewClinicalDocuments={handleViewClinicalDocuments}
-          onViewExamRequest={handleViewExamRequest}
-          onViewImagingRequest={handleViewImagingRequest}
+          onOpenClinicalExplorer={() => {
+            if (clinicalPatient && censusDate) {
+              openClinicalExplorer({ censusDate, bedId: clinicalPatient.bedId });
+            }
+          }}
           badges={
             clinicalDocumentCount && clinicalDocumentCount > 0
               ? { clinicalDocumentCount }
               : undefined
           }
+          triggerTestId={
+            clinicalPatient ? `clinical-topics-trigger-${clinicalPatient.bedId}` : undefined
+          }
+        />
+      ) : null}
+      {clinicalPatient ? (
+        <PatientClinicalTopicSurfaces
+          patient={clinicalPatient}
+          censusDate={censusDate}
+          surface={topicSurface.surface}
+          onClose={topicSurface.close}
+          onRequestExams={canRequestExams ? handleViewExamRequest : undefined}
+          onRequestImaging={canRequestImaging ? handleViewImagingRequest : undefined}
         />
       ) : null}
 

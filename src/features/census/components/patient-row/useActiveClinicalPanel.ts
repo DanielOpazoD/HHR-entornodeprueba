@@ -30,3 +30,24 @@ export const useActiveClinicalPanel = (identity: string) => {
   useEffect(() => close, [close]);
   return { isOpen, open, close };
 };
+
+// Each mounted panel registers how to open it, so the turtle menu and the drawer's
+// previous/next arrows open a patient's panel without clicking a row button.
+const openersByKey = new Map<string, () => void>();
+
+export const useClinicalPanelOpener = (key: string | null, open: () => void): void => {
+  useEffect(() => {
+    if (!key) return;
+    openersByKey.set(key, open);
+    return () => {
+      if (openersByKey.get(key) === open) openersByKey.delete(key);
+    };
+  }, [key, open]);
+};
+
+/** Opens the mounted panel registered under `key`; false when no row offers it. */
+export const openClinicalPanel = (key: string): boolean => {
+  const open = openersByKey.get(key);
+  open?.();
+  return Boolean(open);
+};
