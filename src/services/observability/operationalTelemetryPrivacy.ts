@@ -94,8 +94,8 @@ const ALLOWED_OPERATIONS = new Set([
     session_state_change session_owner_changed session_owner_changed_cleanup
     session_owner_cleared_cleanup session_cleanup_failed session_permission_storm_logout
     indexeddb_recovery indexeddb_fallback_mode indexeddb_unexpected_close indexeddb_database_closed
-    indexeddb_open_stalled indexeddb_blocked indexeddb_initial_open_failed indexeddb_save_record_failed
-    indexeddb_recovery_stopped storage_headroom_low create_clinical_document delete_clinical_document
+    indexeddb_open_stalled indexeddb_blocked indexeddb_initial_open_failed indexeddb_save_record
+    indexeddb_recovery_stopped create_clinical_document delete_clinical_document
     duplicate_clinical_document autosave_clinical_document autosave_clinical_document_rejected
     export_clinical_document_pdf export_clinical_document_json import_clinical_document_json
     import_clinical_document_ai open_clinical_document_print_preview clinical_document_import
@@ -139,7 +139,6 @@ const COUNT_KEYS = tokens(`
   clinicalFieldCount pendingTasks maxPendingTasks retryCount attempt attempts maxAttempts batchSize
   pageCount rowCount totalCount failedCount blockedCount occupiedCount unchangedCount selectedCount
   eligibleCount correctionCount limitCount categorizedCount localErrorCount droppedCount
-  storageQuotaMb storageUsedMb
 `);
 const DURATION_KEYS = tokens(`
   durationMs elapsedMs timeoutMs remainingMs ttlMs ageMs pendingAgeMs oldestPendingAgeMs debounceMs blockedForMs
