@@ -224,7 +224,7 @@ test.describe('Clinical library (preview build)', () => {
 
     // Pantalla angosta: el botón conserva su nombre y el panel ocupa el ancho útil.
     await page.setViewportSize({ width: 375, height: 812 });
-    const mobileTrigger = page.getByRole('button', { name: 'Documentos' });
+    const mobileTrigger = page.getByTestId('clinical-library-quick-action');
     await expect(mobileTrigger).toBeVisible();
     await mobileTrigger.click();
     await expect(page.getByTestId('clinical-library-drawer')).toBeVisible();

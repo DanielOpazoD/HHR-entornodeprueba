@@ -57,12 +57,7 @@ const openClinicalDocumentsFromR1 = async (page: Page) => {
   const patientRow = page.locator('[data-testid="patient-row"][data-bed-id="R1"]').first();
   await expect(patientRow).toBeVisible({ timeout: 10000 });
 
-  const demographicsButton = patientRow.getByRole('button', { name: /Datos del Paciente/i });
-  await demographicsButton.focus();
-  await expect(page.getByLabel('Acciones clínicas rápidas')).toBeVisible({ timeout: 10000 });
-  await page.getByLabel('Acciones clínicas rápidas').click();
-
-  const documentsAction = page.getByTitle('Documentos clínicos');
+  const documentsAction = patientRow.getByTestId('clinical-access-documents-R1');
   await expect(documentsAction).toBeVisible({ timeout: 10000 });
   await documentsAction.click();
   await expect(page.getByTestId('clinical-documents-workspace')).toBeVisible({ timeout: 15000 });
