@@ -124,11 +124,14 @@ export const useLabViewerAnalysis = ({
     try {
       const data = await fetchSyslabExamDetails(links, {
         isCurrent,
-        onProgress: ({ completed, total }) => {
+        onProgress: ({ completed, total, status }) => {
           if (isCurrent())
             setProgress({
               pct: total ? Math.round((completed / total) * 80) : 0,
-              text: `Informes leídos: ${completed} de ${total}`,
+              text:
+                status === 'queued'
+                  ? `En cola del Mac mini: ${total} informes`
+                  : `Informes leídos: ${completed} de ${total}`,
             });
         },
       });

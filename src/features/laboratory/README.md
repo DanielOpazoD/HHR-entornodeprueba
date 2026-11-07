@@ -229,3 +229,36 @@ de informes conservan el transporte de su búsqueda incluso al cambiar de red. U
 enviada una consulta local, un fallo o un resultado vacío no la repite mediante el túnel.
 `remote` fuerza el Mac mini y `extension` conserva el comportamiento anterior. La configuración y el rollback están en
 [el runbook Syslab](../../../docs/runbooks/laboratory-syslab-issues.md#puente-remoto-del-mac-mini).
+
+## Actualización del censo y resultados nuevos
+
+En «Más opciones del censo → Resultados nuevos» se captura la cohorte actual,
+incluidas las cunas con RUN y episodio propios. Sin RUN válido, episodio o ingreso
+verificable se excluye al sujeto de forma explícita. La consulta abarca desde el
+ingreso hasta la fecha seleccionada; cama y nombre son presentación, nunca identidad.
+
+«Actualizar exámenes del censo» crea un trabajo en el Mac mini. La primera lectura
+reúne los informes disponibles sin revisar. Las siguientes reutilizan los conocidos
+y consultan órdenes nuevas o con cambios de validación. La opción de volver a leer
+también los conocidos comprueba correcciones sin cambio en la lista fuente. Una
+actualización fallida conserva lo conocido y su estado por paciente. La revisión
+es personal por operador y versión de informe, no una confirmación clínica compartida.
+
+Las lecturas remotas de selecciones extensas también usan la cola, con una sesión
+Syslab y progreso por informe. Netlify sólo crea trabajos y consulta estados/páginas
+breves. La ruta local de extensión conserva sus lotes y no pasa por el túnel. Las
+órdenes explícitamente sin exámenes validados son pendientes, no fallos de la selección.
+El análisis se publica sólo cuando se comprueba la cobertura completa de la selección.
+
+La cola cifrada sobrevive al cierre del navegador y a reinicios del servicio. El
+gateway autoriza cada acceso y deriva el propietario del UID verificado; cambiar
+usuario, rol, sesión o cohorte descarta lo presentado y bloquea respuestas viejas.
+No modifica documentos, reglas ni colas de sincronización de Firebase o del censo.
+El contrato y mantenimiento de archivos de la cola viven en el README del repositorio
+[API-laboratorioHHR](https://github.com/DanielOpazoD/API-laboratorioHHR). Actualizar ese
+servicio antes de publicar esta interfaz. Para revertir, revertir las PRs y conservar
+el directorio privado `state/`; no elimina trabajo ni datos locales.
+
+Pruebas: `src/tests/services/laboratory/syslabJobs.test.ts`,
+`src/tests/views/census/censusLaboratoryController.test.ts`, gateway Syslab y
+`e2e/census-laboratory-inbox.spec.ts` (escritorio y móvil, datos sintéticos).

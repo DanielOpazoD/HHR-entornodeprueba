@@ -6,7 +6,8 @@
     "clinical-documents": ["@/features/clinical-documents/internal"],
     "laboratory": [
       "@/features/laboratory/hospitalization-reports",
-      "@/features/laboratory/report-pdf"
+      "@/features/laboratory/report-pdf",
+      "@/features/laboratory/census-inbox"
     ],
     "admin": ["@/features/admin/admission-audit"],
     "rayen-import": ["@/features/rayen-import/admission-audit"]

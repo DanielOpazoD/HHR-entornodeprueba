@@ -84,7 +84,7 @@ export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
       case 'reading':
         return (
           <p role="status" className="text-[12px] text-slate-500">
-            Leyendo informes
+            {lab.progress?.status === 'queued' ? 'En cola del Mac mini' : 'Leyendo informes'}
             {lab.progress ? ` · ${lab.progress.completed} de ${lab.progress.total}` : '…'}
           </p>
         );

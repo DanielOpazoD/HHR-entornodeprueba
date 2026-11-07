@@ -20,6 +20,7 @@
  *   - pdf:     GET  /api/exams/pdf?link=<url>  (returns raw PDF bytes)
  */
 
+import { createHash } from 'node:crypto';
 import { getFirebaseServer } from './lib/firebase-server';
 import { authorizeRoleRequest, extractBearerToken } from './lib/firebase-auth';
 import { invokeWithTelemetry } from './lib/observability';
@@ -201,6 +202,57 @@ const handlePdf = async (proxyUrl: string, params: URLSearchParams, requestOrigi
   };
 };
 
+const JOB_ACTIONS = new Set([
+  'job-create',
+  'job-status',
+  'job-result',
+  'job-cancel',
+  'job-retry',
+  'census-state',
+  'census-review',
+]);
+
+const handleJobAction = async (
+  proxyUrl: string,
+  action: string,
+  params: URLSearchParams,
+  event: NetlifyEventLike,
+  owner: string,
+  requestOrigin?: string
+) => {
+  const read = action === 'job-status' || action === 'job-result';
+  if (event.httpMethod !== (read ? 'GET' : 'POST')) {
+    return buildJsonResponse(405, { error: 'Método no permitido.' }, { requestOrigin });
+  }
+  let path: string;
+  let payload: unknown;
+  if (read || action === 'job-cancel' || action === 'job-retry') {
+    const id = params.get('id') || '';
+    if (!/^[a-f0-9-]{36}$/i.test(id))
+      return buildJsonResponse(400, { error: 'Trabajo no válido.' }, { requestOrigin });
+    path = `/api/jobs/${id}${action === 'job-result' ? `/result?offset=${encodeURIComponent(params.get('offset') || '0')}` : read ? '' : action === 'job-cancel' ? '/cancel' : '/retry'}`;
+  } else {
+    const parsed = parseJsonBody<Record<string, unknown>>(event.body);
+    if (!parsed.ok || !parsed.value || typeof parsed.value !== 'object') {
+      return buildJsonResponse(400, { error: 'Solicitud no válida.' }, { requestOrigin });
+    }
+    payload = parsed.value;
+    if (action === 'job-create') {
+      const kind = parsed.value.kind;
+      if (kind !== 'details' && kind !== 'census')
+        return buildJsonResponse(400, { error: 'Tipo no válido.' }, { requestOrigin });
+      path = `/api/jobs/${kind}`;
+    } else path = action === 'census-state' ? '/api/census/state' : '/api/census/review';
+  }
+  const response = await proxyFetch(proxyUrl + path, {
+    method: read ? 'GET' : 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-HHR-Lab-Owner': owner },
+    ...(!read ? { body: JSON.stringify(payload || {}) } : {}),
+  });
+  const body: unknown = await response.json();
+  return buildJsonResponse(response.status, body, { requestOrigin });
+};
+
 /* ── Handler ─────────────────────────────────────────────────────────── */
 
 export const createSyslabProxyHandler = (
@@ -221,9 +273,18 @@ export const createSyslabProxyHandler = (
       return buildJsonResponse(200, {}, { requestOrigin });
     }
 
-    // Rate limit only the actual request, not the CORS preflight.
+    const params = new URLSearchParams(event.rawQuery || '');
+    const action = params.get('action');
+    const isJobRead =
+      action === 'job-status' || action === 'job-result' || action === 'census-state';
+    // Progress polling has its own bounded budget; it must not exhaust clinical searches.
     const clientIp = getClientIp(event);
-    if (isRateLimited(clientIp, { maxPerWindow: 20, windowMs: 60_000 })) {
+    if (
+      isRateLimited(isJobRead ? `syslab-progress:${clientIp}` : clientIp, {
+        maxPerWindow: isJobRead ? 60 : 20,
+        windowMs: 60_000,
+      })
+    ) {
       return buildTooManyRequestsResponse(requestOrigin);
     }
 
@@ -245,8 +306,13 @@ export const createSyslabProxyHandler = (
     }
 
     const { db } = dependencies.getFirebaseServer();
+    let actor: Awaited<ReturnType<typeof authorizeRoleRequest>>;
     try {
-      await dependencies.authorizeRoleRequest(db, authorizationHeader, SYSLAB_ALLOWED_ROLES);
+      actor = await dependencies.authorizeRoleRequest(
+        db,
+        authorizationHeader,
+        SYSLAB_ALLOWED_ROLES
+      );
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'No autorizado para consultar laboratorio.';
@@ -254,9 +320,6 @@ export const createSyslabProxyHandler = (
         message.includes('Access denied') || message.includes('no email claim') ? 403 : 401;
       return buildJsonResponse(statusCode, { error: message }, { requestOrigin });
     }
-
-    const params = new URLSearchParams(event.rawQuery || '');
-    const action = params.get('action');
 
     const proxyUrl = getProxyUrl();
     if (!proxyUrl) {
@@ -279,6 +342,24 @@ export const createSyslabProxyHandler = (
     }
 
     try {
+      if (action && JOB_ACTIONS.has(action)) {
+        if (!actor.token?.sub)
+          return buildJsonResponse(
+            401,
+            { error: 'Sesión de operador requerida.' },
+            { requestOrigin }
+          );
+        const owner = createHash('sha256')
+          .update(
+            JSON.stringify([
+              actor.token.aud,
+              actor.token.sub,
+              process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa',
+            ])
+          )
+          .digest('hex');
+        return await handleJobAction(proxyUrl, action, params, event, owner, requestOrigin);
+      }
       if (action !== 'health' && action !== 'search' && action !== 'details' && action !== 'pdf') {
         return buildJsonResponse(
           400,
