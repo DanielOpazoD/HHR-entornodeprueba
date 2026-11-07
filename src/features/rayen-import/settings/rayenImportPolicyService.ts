@@ -1,4 +1,4 @@
-import { doc, getDocFromServer, onSnapshot, type DocumentSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, type DocumentData } from 'firebase/firestore';
 import { getSettingsDocPath, SETTINGS_DOCS } from '@/constants/firestorePaths';
 import { ensureFirestoreRuntimeReady } from '@/services/storage/firestore';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
@@ -63,15 +63,14 @@ export const subscribeToRayenImportPolicy = (
   let active = true;
   let latest = 0;
   let unsubscribe = () => {};
-  const deliver = (snapshot: DocumentSnapshot) => {
-    const data = snapshot.exists() ? snapshot.data() : null;
+  const deliver = (data?: DocumentData | null, fromCache = false, hasPendingWrites = false) => {
     const policy = data ? normalizeRayenImportPolicy(data) : null;
     handlers.onSnapshot({
       policy,
-      exists: snapshot.exists(),
-      requiresMigration: Boolean(policy && data?.schemaVersion === 1),
-      fromCache: snapshot.metadata.fromCache,
-      hasPendingWrites: snapshot.metadata.hasPendingWrites,
+      exists: !!data,
+      requiresMigration: !!policy && data?.schemaVersion === 1,
+      fromCache,
+      hasPendingWrites,
     });
   };
   void ensureFirestoreRuntimeReady(runtime)
@@ -82,17 +81,20 @@ export const subscribeToRayenImportPolicy = (
         { includeMetadataChanges: true },
         snapshot => {
           const turn = ++latest;
-          if (snapshot.exists() || snapshot.metadata.fromCache) {
-            deliver(snapshot);
+          const { fromCache, hasPendingWrites } = snapshot.metadata;
+          if (snapshot.exists() || fromCache) {
+            deliver(snapshot.data(), fromCache, hasPendingWrites);
             return;
           }
           // The browser's local copy can keep a stale «does not exist» that the listener reports as
           // confirmed (2026-11-07: right after IndexedDB closed under the app, sync stayed blocked
           // as «not configured» while the server had the policy). Only the server may say missing.
-          getDocFromServer(policyRef(runtime)).then(
-            confirmed => active && turn === latest && deliver(confirmed),
-            error => active && turn === latest && handlers.onError(error)
-          );
+          import('./policyServerRead')
+            .then(server => server.default(runtime.getDb()))
+            .then(
+              confirmed => active && turn === latest && deliver(confirmed),
+              error => active && turn === latest && handlers.onError(error)
+            );
         },
         handlers.onError
       );

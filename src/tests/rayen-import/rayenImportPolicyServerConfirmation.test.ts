@@ -3,7 +3,7 @@ import { Timestamp } from 'firebase/firestore';
 
 const firestore = vi.hoisted(() => ({
   listener: null as null | ((snapshot: unknown) => void),
-  getDocFromServer: vi.fn(),
+  readFromServer: vi.fn(),
 }));
 
 vi.mock('firebase/firestore', async importOriginal => ({
@@ -13,7 +13,9 @@ vi.mock('firebase/firestore', async importOriginal => ({
     firestore.listener = next;
     return vi.fn();
   }),
-  getDocFromServer: firestore.getDocFromServer,
+}));
+vi.mock('@/features/rayen-import/settings/policyServerRead', () => ({
+  default: firestore.readFromServer,
 }));
 vi.mock('@/services/storage/firestore', () => ({
   ensureFirestoreRuntimeReady: vi.fn(async () => undefined),
@@ -53,11 +55,11 @@ const subscribe = async () => {
 describe('Eloísa sync policy: a missing document is confirmed with the server', () => {
   beforeEach(() => {
     firestore.listener = null;
-    firestore.getDocFromServer.mockReset();
+    firestore.readFromServer.mockReset();
   });
 
   it('uses the server policy when the local copy wrongly says it does not exist', async () => {
-    firestore.getDocFromServer.mockResolvedValue(docSnapshot(POLICY));
+    firestore.readFromServer.mockResolvedValue(POLICY);
     const { snapshots } = await subscribe();
 
     firestore.listener!(docSnapshot(null));
@@ -71,7 +73,7 @@ describe('Eloísa sync policy: a missing document is confirmed with the server',
   });
 
   it('reports the policy missing only when the server confirms it', async () => {
-    firestore.getDocFromServer.mockResolvedValue(docSnapshot(null));
+    firestore.readFromServer.mockResolvedValue(null);
     const { snapshots } = await subscribe();
 
     firestore.listener!(docSnapshot(null));
@@ -82,7 +84,7 @@ describe('Eloísa sync policy: a missing document is confirmed with the server',
 
   it('treats a failed confirmation as a failed read, never as «not configured»', async () => {
     const failure = Object.assign(new Error('offline'), { code: 'unavailable' });
-    firestore.getDocFromServer.mockRejectedValue(failure);
+    firestore.readFromServer.mockRejectedValue(failure);
     const { snapshots, errors } = await subscribe();
 
     firestore.listener!(docSnapshot(null));
@@ -93,13 +95,13 @@ describe('Eloísa sync policy: a missing document is confirmed with the server',
 
   it('lets a newer listener answer win over a late confirmation', async () => {
     let answer: (value: unknown) => void = () => undefined;
-    firestore.getDocFromServer.mockReturnValue(new Promise(resolve => (answer = resolve)));
+    firestore.readFromServer.mockReturnValue(new Promise(resolve => (answer = resolve)));
     const { snapshots } = await subscribe();
 
     firestore.listener!(docSnapshot(null));
     firestore.listener!(docSnapshot(POLICY));
-    answer(docSnapshot(null));
-    await Promise.resolve();
+    answer(null);
+    await new Promise(resolve => setTimeout(resolve, 0));
 
     expect(snapshots).toEqual([expect.objectContaining({ exists: true })]);
   });
@@ -109,7 +111,7 @@ describe('Eloísa sync policy: a missing document is confirmed with the server',
 
     firestore.listener!(docSnapshot(null, true));
 
-    expect(firestore.getDocFromServer).not.toHaveBeenCalled();
+    expect(firestore.readFromServer).not.toHaveBeenCalled();
     expect(snapshots).toEqual([expect.objectContaining({ exists: false, fromCache: true })]);
   });
 });
