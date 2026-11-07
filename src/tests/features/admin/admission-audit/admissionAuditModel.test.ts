@@ -56,6 +56,33 @@ const vital = (at: string, heartRate: number): PatientVitalSigns => ({
 });
 
 describe('admission audit projection', () => {
+  it('discovers a discharged episode from historical identity and admission metadata without a live bed', () => {
+    const originalData = DataFactory.createMockPatient('R1', {
+      patientName: patient.patientName,
+      rut: patient.document,
+      clinicalEpisodeId: patient.episodeId,
+      admissionDate: patient.admissionDate,
+      admissionTime: patient.admissionTime,
+    });
+    const discharge = DataFactory.createMockDischarge({
+      patientName: patient.patientName,
+      rut: patient.document,
+      clinicalEpisodeId: undefined,
+      admissionDate: undefined,
+      originalData,
+    });
+    const rows = collectAdmissionCandidates(
+      [DataFactory.createMockDailyRecord('2026-07-13', { beds: {}, discharges: [discharge] })],
+      { from: '2026-07-13', to: '2026-07-13' }
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      episodeId: patient.episodeId,
+      document: patient.document,
+      admissionDate: patient.admissionDate,
+      admissionTime: patient.admissionTime,
+    });
+  });
   it.each(['sin fecha', '13-07-2026'])(
     'does not select a later measurement over an incomplete take: %s',
     stamp => {

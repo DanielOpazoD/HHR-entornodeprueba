@@ -161,11 +161,12 @@ export const collectAdmissionCandidates = (
     for (const m of [...record.discharges, ...record.transfers]) {
       if (m.deletedAt) continue;
       add({
-        ...m.originalData,
         patientName: m.patientName,
         rut: m.rut,
         clinicalEpisodeId: m.clinicalEpisodeId || m.originalData?.clinicalEpisodeId,
         admissionDate: m.admissionDate || m.originalData?.admissionDate,
+        admissionTime: m.originalData?.admissionTime,
+        documentType: m.originalData?.documentType,
       });
     }
   }

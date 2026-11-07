@@ -17,6 +17,8 @@ incluye camas, cunas clínicas y movimientos de alta/traslado no eliminados. Se 
 un día a cada extremo para los ingresos nocturnos. Un traslado no es un nuevo ingreso:
 la identidad es persona + episodio. Se requiere episodio y fecha identificables;
 no es un censo completo de todas las hospitalizaciones de Eloísa ni incluye CMA.
+Los snapshots de movimientos sólo aportan identidad, episodio y metadatos del ingreso;
+el contenido de evoluciones, signos vitales e indicaciones siempre se consulta en Eloísa.
 
 Se elige la primera evolución médica vigente desde la fecha/hora de ingreso:
 no enfermería, entrega de turno, texto archivado o tachado. Si falta la hora, se usa el

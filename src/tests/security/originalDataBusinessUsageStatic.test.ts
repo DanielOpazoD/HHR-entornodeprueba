@@ -48,6 +48,10 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   'src/application/census/movementTombstonePolicy.ts',
   'src/domain/CensusManager.ts',
   'src/services/admin/admissionDateBackfillPlanner.ts',
+  // Read-only admission audit cohort: a completed movement supplies only the historical person,
+  // episode and admission metadata. Notes, vital signs and orders are fetched from Eloísa,
+  // never from this snapshot; it is not evidence of current occupancy or a write target.
+  'src/features/admin/admission-audit/admissionAuditModel.ts',
   // Read-only historical audit: recover signed UPC evaluations from the patient
   // snapshot preserved in a completed movement, matched by patient and episode.
   'src/services/patient/patientUpcHistoryService.ts',
