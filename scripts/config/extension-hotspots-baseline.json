@@ -70,6 +70,10 @@
       "maxLines": 211,
       "hotspots": {}
     },
+    "clinical-antecedents-transport.js": {
+      "maxLines": 39,
+      "hotspots": {}
+    },
     "clinical-antecedents-window.js": {
       "maxLines": 40,
       "hotspots": {}

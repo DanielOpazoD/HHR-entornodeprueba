@@ -1,6 +1,6 @@
 (function (root) {
   'use strict';
-  const create = ({ externalJson, openTab, getAuthorizationKey, run, list, text }) => {
+  const create = ({ openTab, getAuthorizationKey, run, list, text }) => {
     const attachmentSupport = root.HhrClinicalAntecedentsAttachment.create({ list, text, openTab });
     const { remember, readHistory } = root.HhrClinicalAntecedentsCache;
     const recentHistory = new Map(), recentDetails = new Map(), detailWaiters = [];
@@ -43,7 +43,7 @@
         await assertCurrentAuthorization();
         return detail;
       }
-      const pending = withDetailSlot(() => externalJson(
+      const pending = withDetailSlot(() => history.readHistoryJson(
         '/api/ObtenerDetalleHistorialClinicoPrimaria', 'ParametroFUC',
         { IdentificacionAtencion: selected.id, ParametroBase: history.base }
       )).then(data => {

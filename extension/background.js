@@ -23,7 +23,7 @@ importScripts(
   'clinical-panel-fetch.js',
   'clinical-panel-history.js', 'clinical-panel-runtime.js',
   'clinical-antecedents-attachment.js', 'clinical-antecedents-fields.js', 'clinical-antecedents-cache.js', 'clinical-antecedents-detail.js', 'clinical-antecedents-window.js',
-  'clinical-antecedents-runtime.js',
+  'clinical-antecedents-transport.js', 'clinical-antecedents-runtime.js',
   'clinical-write-recovery-policy.js', 'clinical-write-runtime.js',
   'clinical-handoff-runtime.js',
   'clinical-score-runtime.js',

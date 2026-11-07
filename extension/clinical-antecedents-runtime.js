@@ -1,32 +1,12 @@
 /** Read-only HCC history. Patient identity and access URLs never come from the HHR DOM. */
 (function (root) {
   'use strict';
-  const API = 'https://saludteintegrachileapi.rayensalud.cl';
   const list = value => Array.isArray(value) ? value : value && typeof value === 'object' ? [value] : [];
   const text = value => (typeof value === 'string' ? value : '');
   const run = value => String(value || '').replace(/[^0-9k]/gi, '').toUpperCase();
   const create = ({ getContext, readJson, fetchImpl, openTab, getAuthorizationKey, now = () => new Date() }) => {
-    const externalJson = async (path, parameter, value, timeoutMs = 15000) => {
-      const url = new URL(path, API);
-      url.searchParams.set(parameter, JSON.stringify(value));
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      try {
-        const response = await fetchImpl(url.href, {
-          headers: { Accept: 'application/json, text/plain, */*' },
-          credentials: 'omit',
-          cache: 'no-store',
-          signal: controller.signal,
-        });
-        if (!response.ok) throw new Error(`Visor de antecedentes: HTTP ${response.status}`);
-        try { return await response.json(); }
-        catch { throw new Error('El visor devolvió una respuesta no JSON.'); }
-      } finally {
-        clearTimeout(timer);
-      }
-    };
+    const authorize = root.HhrClinicalAntecedentsTransport.create({ fetchImpl });
     const detailSupport = root.HhrClinicalAntecedentsDetail.create({
-      externalJson,
       openTab,
       getAuthorizationKey,
       run,
@@ -77,9 +57,7 @@
         !parts[4]
       )
         throw new Error('El visor de antecedentes no corresponde al paciente seleccionado.');
-      const token = await externalJson('/api/ObtenerToken', 'Parametro', { TokenAcceso: parts[4] });
-      if (!token?.ObtenerTokenSesionResult?.TokenSesion)
-        throw new Error('La sesión del visor de antecedentes venció.');
+      const readHistoryJson = await authorize(parts[4]);
       // The viewer accepts bounded windows, including older ones requested on demand.
       const time = new Intl.DateTimeFormat('en-GB', {
         timeZone: 'Pacific/Easter',
@@ -108,7 +86,7 @@
       };
       const sources = await Promise.allSettled(
         ['Primaria', 'Secundaria'].map(async source => {
-          const data = await externalJson(`/api/ObtenerResumenHistorialClinico${source}`,
+          const data = await readHistoryJson(`/api/ObtenerResumenHistorialClinico${source}`,
             'ParametroFUC', params, source === 'Secundaria' ? 45000 : 15000);
           const result = data?.ObtenerResumenHistorialClinicoResult;
           if (
@@ -140,6 +118,7 @@
       return {
         base,
         patientRun,
+        readHistoryJson,
         ...window,
         rows: sources.flatMap(source => (source.status === 'fulfilled' ? source.value : [])),
         warnings: sources.flatMap((source, i) =>
