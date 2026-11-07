@@ -117,8 +117,8 @@ const CHECK_RULES: readonly (readonly [RegExp, RayenCaptureFailureCheck])[] = [
   [/sesion de gestion de camas vencio|ventana oficial de gestion/, 'gc_session_expired'],
   [/sesion cambio durante/, 'gc_session_changed'],
   [/mismo establecimiento/, 'other'],
-  [/gestion de camas|token de gestion/, 'gc_session_missing'],
   [/reporte|informe de egresos/, 'gc_report_failed'],
+  [/gestion de camas|token de gestion/, 'gc_session_missing'],
 ];
 const classifyCheck = (detailNormalized: string): RayenCaptureFailureCheck =>
   CHECK_RULES.find(([test]) => test.test(detailNormalized))?.[1] ?? 'other';

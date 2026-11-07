@@ -49,6 +49,7 @@ const EXTENSION_MESSAGES: [string, string][] = [
   ['Sin token de Gestión de Camas. Recarga la pestaña e inicia sesión.', 'gc_session_missing'],
   ['Falló la descarga del reporte: Tiempo de espera agotado.', 'gc_report_failed'],
   ['El servidor de reportes respondió HTTP 500.', 'gc_report_failed'],
+  ['Gestión de Camas no entregó el informe de egresos.', 'gc_report_failed'],
   ['Ficha Médico y Gestión de Camas no corresponden al mismo establecimiento.', 'other'],
   ['Las fuentes fueron capturadas con demasiado desfase; vuelve a sincronizar.', 'other'],
   ['No hay una pestaña de Rayen disponible. Abre Ficha Médico e inicia sesión.', 'other'],
