@@ -8,12 +8,13 @@ import type {
 import type { SyslabDetailsOptions } from './syslabDetailsBatch';
 import { assertSyslabDetailsMatch } from './syslabDetailsBatch';
 
-import type { CensusLabPatient } from '@/shared/contracts/censusLaboratory';
-export type { CensusLabPatient } from '@/shared/contracts/censusLaboratory';
+import type { CensusLabPatient, CensusLabDateRange } from '@/shared/contracts/censusLaboratory';
+export type { CensusLabPatient, CensusLabDateRange } from '@/shared/contracts/censusLaboratory';
 
 export interface CensusLabInput {
   patients: CensusLabPatient[];
   censusDate: string;
+  dateRange?: CensusLabDateRange;
   force?: boolean;
   offset?: number;
   onlyUnread?: boolean;

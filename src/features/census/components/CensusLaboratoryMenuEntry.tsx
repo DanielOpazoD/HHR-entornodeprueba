@@ -7,6 +7,7 @@ import { useCensusToolbarMenuTarget } from '@/shared/ui/CensusToolbarMenuTargetC
 import { DATE_STRIP_QUICK_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import type { CensusLabPatient } from '@/features/laboratory/census-inbox';
+import type { CensusLabDateRange } from '@/shared/contracts/censusLaboratory';
 
 const Inbox = lazyWithRetry(() =>
   import('@/features/laboratory/census-inbox').then(module => ({
@@ -28,6 +29,7 @@ export const CensusLaboratoryMenuEntry = ({
   const epoch = useSessionEpoch();
   const scope = `${currentUser?.uid}:${currentUser?.role}:${epoch}:${censusDate}`;
   const [opened, setOpened] = useState<string | null>(null);
+  const [period, setPeriod] = useState<{ scope: string; range?: CensusLabDateRange } | null>(null);
   return (
     <>
       {target &&
@@ -57,6 +59,8 @@ export const CensusLaboratoryMenuEntry = ({
             patients={patients}
             excluded={excluded}
             censusDate={censusDate}
+            dateRange={period?.scope === scope ? period.range : undefined}
+            onDateRangeChange={range => setPeriod({ scope, range })}
             onClose={() => setOpened(null)}
           />
         </Suspense>

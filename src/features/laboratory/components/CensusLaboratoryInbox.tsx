@@ -4,8 +4,19 @@ import { BaseModal } from '@/components/shared/BaseModal';
 import { useAuth } from '@/context/AuthContext';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { useCensusLaboratoryInbox } from '../hooks/useCensusLaboratoryInbox';
-import type { CensusLabEntry, CensusLabPatient } from '@/services/laboratory/syslabJobs';
+import type {
+  CensusLabEntry,
+  CensusLabPatient,
+  CensusLabDateRange,
+} from '@/services/laboratory/syslabJobs';
+import { CensusLaboratoryPeriod } from './CensusLaboratoryPeriod';
+import {
+  censusLaboratoryDraftRange,
+  censusLaboratoryPeriodProblem,
+  type CensusLaboratoryPeriodDraft,
+} from '../controllers/censusLaboratoryPeriod';
 const ReportPdf = lazy(() =>
   import('./LabViewerPdf').then(module => ({ default: module.LabViewerPdf }))
 );
@@ -14,6 +25,8 @@ interface Props {
   patients: CensusLabPatient[];
   censusDate: string;
   excluded: number;
+  dateRange?: CensusLabDateRange;
+  onDateRangeChange: (range?: CensusLabDateRange) => void;
   onClose: () => void;
 }
 const buttonClass =
@@ -45,6 +58,7 @@ export const CensusLaboratoryInbox = (props: Props) => {
     currentUser?.role,
     epoch,
     props.censusDate,
+    props.dateRange,
     props.patients.map(patient => [patient.rutBody, patient.episodeId, patient.admissionDate]),
   ]);
   return <InboxContent key={scope} {...props} scope={scope} />;
@@ -56,6 +70,8 @@ const InboxContent = ({
   excluded,
   onClose,
   scope,
+  dateRange,
+  onDateRangeChange,
 }: Props & { scope: string }) => {
   const [pages, setPages] = useState([0]);
   const offset = pages.at(-1) ?? 0;
@@ -63,7 +79,19 @@ const InboxContent = ({
   const [force, setForce] = useState(false);
   const [selected, setSelected] = useState<CensusLabEntry | null>(null);
   const [showPdf, setShowPdf] = useState(false);
-  const inbox = useCensusLaboratoryInbox({ patients, censusDate, offset, onlyUnread }, scope);
+  const [periodDraft, setPeriodDraft] = useState<CensusLaboratoryPeriodDraft>({
+    mode: dateRange ? 'custom' : 'admission',
+    from: dateRange?.from ?? patients.map(patient => patient.admissionDate).sort()[0] ?? censusDate,
+    to: dateRange?.to ?? censusDate,
+  });
+  const today = getClinicalCalendarDateISO();
+  const draftRange = censusLaboratoryDraftRange(periodDraft);
+  const periodProblem = draftRange ? censusLaboratoryPeriodProblem(draftRange, today) : null;
+  const periodDirty = JSON.stringify(draftRange) !== JSON.stringify(dateRange);
+  const inbox = useCensusLaboratoryInbox(
+    { patients, censusDate, dateRange, offset, onlyUnread },
+    scope
+  );
   const data = inbox.state.data;
   const entries = data?.entries.filter(entry => !onlyUnread || !entry.reviewedAt) || [];
   const activeJob = data?.jobs.find(job => job.status === 'queued' || job.status === 'running');
@@ -89,17 +117,33 @@ const InboxContent = ({
               {patients.length} pacientes · Censo {censusDate}
             </p>
             <p className="text-xs text-slate-500">
-              Desde el día de ingreso de cada episodio hasta el día seleccionado. Revisión personal.
+              Informes del período aplicado. Revisión personal.
             </p>
           </div>
           <button
             className="min-h-9 rounded-lg border border-teal-700 bg-teal-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 disabled:opacity-50"
-            disabled={!patients.length || Boolean(activeJob) || inbox.update.isPending}
+            disabled={
+              !patients.length ||
+              Boolean(activeJob) ||
+              inbox.update.isPending ||
+              periodDirty ||
+              Boolean(periodProblem)
+            }
             onClick={() => inbox.update.mutate(force)}
           >
             {inbox.update.isPending ? 'Enviando…' : 'Actualizar exámenes del censo'}
           </button>
         </div>
+        <CensusLaboratoryPeriod
+          draft={periodDraft}
+          applied={dateRange}
+          censusDate={censusDate}
+          today={today}
+          problem={periodProblem}
+          dirty={periodDirty}
+          onDraft={setPeriodDraft}
+          onApply={() => onDateRangeChange(draftRange)}
+        />
         {excluded > 0 && (
           <p className="text-xs text-slate-600">
             {excluded} pacientes excluidos por no tener RUN válido, episodio o fecha de ingreso
