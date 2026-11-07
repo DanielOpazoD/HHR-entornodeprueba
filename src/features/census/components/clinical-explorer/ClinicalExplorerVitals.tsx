@@ -65,20 +65,20 @@ export const ClinicalExplorerVitals: React.FC<{
           </p>
         )}
         {readings.length > 0 ? (
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(100px,1fr))] gap-1.5">
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-none sm:grid-flow-col sm:auto-cols-[minmax(max-content,1fr)] overflow-x-auto pb-0.5">
             {readings.map(reading => (
               <button
                 type="button"
                 key={reading.label}
                 onClick={showHistory}
                 aria-label={`${reading.label}: ${reading.value} ${reading.unit}. Ver historial`}
-                className={`rounded-lg border px-2 py-1.5 text-center hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 ${VITAL_STATUS_CARD[reading.status]}`}
+                className={`rounded-lg border px-1 py-1.5 text-center hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 ${VITAL_STATUS_CARD[reading.status]}`}
               >
                 <span className="block text-[11px] font-medium text-slate-500">
                   {reading.label}
                 </span>
                 <span
-                  className={`block text-xl font-semibold tabular-nums ${VITAL_STATUS_TEXT[reading.status]}`}
+                  className={`block font-semibold tabular-nums ${readings.length > 4 ? 'text-sm' : 'text-xl'} ${VITAL_STATUS_TEXT[reading.status]}`}
                 >
                   {reading.value}
                   <span className="block text-[10px] font-normal text-slate-500">
