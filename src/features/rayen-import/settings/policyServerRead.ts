@@ -37,19 +37,23 @@ const readRayenImportPolicyFromServer = async (
     headers: await resolveCurrentUserAuthHeaders(),
     cache: 'no-store',
   });
+  const body = response.ok
+    ? ((await response.json()) as { fields?: Record<string, RestValue> })
+    : null;
+  // Checked once the whole answer is in: the session may change while the body is still arriving.
   if (!sameSession()) {
     throw Object.assign(new Error('La sesión cambió mientras se leía la política.'), {
       code: 'cancelled',
     });
   }
   if (response.status === 404) return null;
-  if (!response.ok) {
+  if (!body) {
     throw Object.assign(new Error(`La política no se pudo leer (HTTP ${response.status}).`), {
       code:
         response.status === 401 || response.status === 403 ? 'permission-denied' : 'unavailable',
     });
   }
-  const { fields = {} } = (await response.json()) as { fields?: Record<string, RestValue> };
+  const { fields = {} } = body;
   return Object.fromEntries(
     Object.entries(fields).map(([key, value]) => [key, fromRestValue(value)])
   );

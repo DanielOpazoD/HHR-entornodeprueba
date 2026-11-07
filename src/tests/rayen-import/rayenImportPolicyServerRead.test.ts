@@ -79,4 +79,21 @@ describe('reading the sync policy straight from the Firestore server', () => {
 
     await expect(readRayenImportPolicyFromServer(db)).rejects.toMatchObject({ code: 'cancelled' });
   });
+
+  it('discards an answer whose body arrived after the session changed', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        const response = new Response(JSON.stringify({ fields: {} }), { status: 200 });
+        const json = response.json.bind(response);
+        response.json = async () => {
+          session.owner = 'user:synthetic-b';
+          return json();
+        };
+        return response;
+      })
+    );
+
+    await expect(readRayenImportPolicyFromServer(db)).rejects.toMatchObject({ code: 'cancelled' });
+  });
 });
