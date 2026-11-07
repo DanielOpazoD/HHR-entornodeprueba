@@ -1,6 +1,6 @@
 import React from 'react';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi, beforeAll, afterEach } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { describe, expect, it, vi, beforeAll } from 'vitest';
 
 type LazyBypassProps = Record<string, unknown>;
 
@@ -35,10 +35,6 @@ vi.mock('@/utils/lazyWithRetry', () => {
   };
 });
 
-import {
-  openClinicalExplorer,
-  closeClinicalExplorer,
-} from '@/features/census/components/clinical-explorer/clinicalExplorerStore';
 import { AppContentChrome } from '@/components/layout/app-content/AppContentChrome';
 
 const mockDateStrip = vi.fn();
@@ -87,11 +83,6 @@ vi.mock('@/features/census/components/global-search/GlobalPatientSearchModal', (
 beforeAll(() => Promise.all(_lazyPending));
 
 describe('AppContentChrome', () => {
-  afterEach(() =>
-    act(() => {
-      closeClinicalExplorer();
-    })
-  );
   const ui = {
     currentModule: 'CENSUS',
     setCurrentModule: vi.fn(),
@@ -160,20 +151,6 @@ describe('AppContentChrome', () => {
     expect(screen.getByTestId('bookmark-bar')).toBeInTheDocument();
     expect(screen.getByTestId('app-router')).toBeInTheDocument();
     expect(screen.getByTestId('app-router')).toHaveAttribute('data-has-open-date', 'true');
-  });
-
-  it('keeps operational controls mounted but hidden while the explorer is open, then restores them', () => {
-    render(<AppContentChrome ui={ui as never} runtime={runtime as never} />);
-    const toolbar = screen.getByTestId('datestrip');
-    act(() => openClinicalExplorer({ censusDate: runtime.dateNav.currentDateString, bedId: 'R1' }));
-    expect(toolbar).not.toBeVisible();
-    expect(screen.getByTestId('bookmark-bar')).not.toBeVisible();
-    expect(screen.getByTestId('navbar')).toBeVisible();
-    act(() => {
-      closeClinicalExplorer();
-    });
-    expect(screen.getByTestId('datestrip')).toBe(toolbar);
-    expect(toolbar).toBeVisible();
   });
 
   it('hides navigation chrome in signature mode', () => {

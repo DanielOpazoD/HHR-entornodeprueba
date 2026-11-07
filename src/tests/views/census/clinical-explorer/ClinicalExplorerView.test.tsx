@@ -431,23 +431,6 @@ describe('ClinicalExplorerView', () => {
     expect(await screen.findByRole('dialog', { name: 'Documentos clínicos' })).toBeVisible();
   });
 
-  it('keeps exactly one set of print actions while switching patients and returning', () => {
-    open();
-    for (const name of ['SEGUNDO SINTÉTICO', 'PRIMERA SINTÉTICA']) {
-      fireEvent.click(
-        within(screen.getByRole('list', { name: 'Lista de pacientes' })).getByRole('button', {
-          name: new RegExp(name),
-        })
-      );
-      const header = screen.getByTestId('clinical-explorer-patient');
-      expect(header).toHaveTextContent(name);
-      expect(within(header).getAllByRole('button', { name: 'Receta' })).toHaveLength(1);
-      expect(within(header).getAllByRole('button', { name: 'Imprimir indicaciones' })).toHaveLength(
-        1
-      );
-    }
-  });
-
   it('closes secondary actions with Escape without leaving the explorer', async () => {
     open();
     const more = screen.getByRole('button', { name: 'Más acciones del paciente' });

@@ -1,7 +1,6 @@
 import { canAccessAppModuleRoute } from '@/shared/access/operationalAccessPolicy';
 import { CensusConflictToolbarFallback } from '@/components/layout/date-strip/CensusToolbarLoadingActions';
 import React from 'react';
-import { useClinicalExplorerSelection } from '@/features/census/explorer-state';
 import { Navbar } from '@/components/layout/Navbar';
 import { DateStrip } from '@/components/layout/DateStrip';
 import { CensusStaleDayBanner } from '@/components/layout/app-content/CensusStaleDayBanner';
@@ -71,13 +70,6 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
   const navbarProps = buildNavbarProps({ ui, runtime });
   const appRouterShellState = buildAppRouterShellState({ ui, runtime, onOpenCensusDate });
 
-  const selection = useClinicalExplorerSelection(dateStripProps.currentDateString);
-  const explorerOpen =
-    ui.currentModule === 'CENSUS' && ui.censusViewMode === 'REGISTER' && selection !== null;
-  const readingStyle: React.CSSProperties & { '--hhr-chrome-height'?: string } = explorerOpen
-    ? { '--hhr-chrome-height': 'var(--hhr-navbar-height)' }
-    : {};
-
   const showDateStrip = shouldRenderDateStrip({
     currentModule: ui.currentModule,
     censusViewMode: ui.censusViewMode,
@@ -88,11 +80,7 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
     <>
       {!isSignatureMode && <Navbar {...navbarProps} />}
 
-      <div
-        data-testid="census-operational-chrome"
-        hidden={explorerOpen}
-        style={{ display: explorerOpen ? 'none' : 'contents' }}
-      >
+      <div className="census-operational-chrome contents">
         {showDateStrip && (
           <DateStrip
             {...dateStripProps}
@@ -174,10 +162,7 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
           </React.Suspense>
         )}
       </div>
-      <main
-        style={readingStyle}
-        className="max-w-screen-2xl mx-auto px-4 pt-4 pb-20 flex-1 w-full print:p-0 print:pb-0 print:max-w-none"
-      >
+      <main className="max-w-screen-2xl mx-auto px-4 pt-4 pb-20 flex-1 w-full print:p-0 print:pb-0 print:max-w-none">
         <CensusToolbarMenuTargetContext.Provider value={handoffTarget}>
           <AppRouter ui={ui} shell={appRouterShellState} />
         </CensusToolbarMenuTargetContext.Provider>
