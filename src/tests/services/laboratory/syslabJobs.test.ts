@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { readRemoteSyslabDetailsJob, requestSyslabJob } from '@/services/laboratory/syslabJobs';
+import {
+  createCensusLaboratoryJob,
+  readCensusLaboratoryState,
+  readRemoteSyslabDetailsJob,
+  requestSyslabJob,
+} from '@/services/laboratory/syslabJobs';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 
 vi.mock('@/services/auth/authRequestHeaders', () => ({
@@ -27,6 +32,34 @@ describe('remote Syslab durable details', () => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
     setSessionGeneration(null);
+  });
+
+  it('sends the same custom dates to creation and inbox reads while preserving the census date and excluding display data', async () => {
+    const fetch = vi.fn(async () => json({}));
+    vi.stubGlobal('fetch', fetch);
+    const input = {
+      censusDate: '2026-11-01',
+      dateRange: { from: '2026-10-01', to: '2026-11-07' },
+      patients: [
+        {
+          rutBody: '11111111',
+          episodeId: 'synthetic',
+          admissionDate: '2026-10-28',
+          patientName: 'SYNTHETIC',
+          bedLabel: 'TEST',
+        },
+      ],
+    };
+    await createCensusLaboratoryJob(input);
+    await readCensusLaboratoryState(input);
+    for (const call of fetch.mock.calls) {
+      const body = JSON.parse((call as unknown as [string, RequestInit])[1].body as string);
+      expect(body.dateRange).toEqual(input.dateRange);
+      expect(body.censusDate).toBe(input.censusDate);
+      expect(body.patients).toEqual([
+        { rutBody: '11111111', episodeId: 'synthetic', admissionDate: '2026-10-28' },
+      ]);
+    }
   });
 
   it('creates one job for 32 reports and assembles paginated results before publishing', async () => {
