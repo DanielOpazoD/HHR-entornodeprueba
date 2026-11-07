@@ -4,6 +4,7 @@ import type { UserRole } from '@/context';
 import type { UseUIStateReturn } from '@/hooks/useUIState';
 import {
   AnalyticsView,
+  AdmissionAuditView,
   AuditDocumentsView,
   AuditView,
   BackupFilesView,
@@ -76,6 +77,12 @@ export interface CoreModuleRouteDefinition {
 }
 
 export const SIMPLE_MODULE_ROUTE_DEFINITIONS: readonly SimpleModuleRouteDefinition[] = [
+  {
+    module: 'ADMISSION_AUDIT',
+    sectionName: 'Ingresos médicos',
+    requiresAccessCheck: true,
+    render: () => <AdmissionAuditView />,
+  },
   {
     module: 'AUDIT',
     sectionName: 'Auditoría',

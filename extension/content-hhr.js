@@ -293,11 +293,11 @@
     if (data.type === 'HHR_RAYEN_CLINICAL_PANEL_REQUEST') {
       const reqId = data.reqId;
       chrome.runtime
-        .sendMessage({ type: runtimeMessages.CLINICAL_PANEL_REQUEST, encId: data.encId })
+        .sendMessage({ type: runtimeMessages.CLINICAL_PANEL_REQUEST, encId: data.encId, historyFrom: data.historyFrom })
         .then(response => {
           post({
-            type: 'HHR_RAYEN_CLINICAL_PANEL_RESULT',
-            reqId,
+            type: 'HHR_RAYEN_CLINICAL_PANEL_RESULT', reqId,
+            historyFrom: response && response.historyFrom, forms: response && response.forms, formError: response && response.formError,
             events: (response && Array.isArray(response.events) && response.events) || [],
             carePlan: (response && response.carePlan) || {
               carePlanHeaders: [],

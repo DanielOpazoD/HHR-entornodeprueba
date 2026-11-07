@@ -28,7 +28,8 @@ export type ModuleType =
   | 'COMMUNICATIONS'
   | 'ROLE_MANAGEMENT'
   | 'REMINDERS'
-  | 'AUDIT_DOCUMENTS';
+  | 'AUDIT_DOCUMENTS'
+  | 'ADMISSION_AUDIT';
 
 export type NavActionType = 'MODULE_CHANGE';
 
@@ -76,6 +77,16 @@ export const NAVIGATION_CONFIG: NavItemConfig[] = [
     isUtility: true,
     adminOnly: true,
     requiredModule: 'ANALYTICS',
+  },
+  {
+    id: 'admission-audit',
+    label: 'Ingresos médicos',
+    icon: FileDown,
+    module: 'ADMISSION_AUDIT',
+    actionType: 'MODULE_CHANGE',
+    isUtility: true,
+    adminOnly: true,
+    requiredModule: 'ADMISSION_AUDIT',
   },
   {
     id: 'audit-documents',

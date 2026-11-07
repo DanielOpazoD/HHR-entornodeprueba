@@ -44,6 +44,7 @@ const ROLE_ACCESS_MATRIX = {
       'ROLE_MANAGEMENT',
       'REMINDERS',
       'AUDIT_DOCUMENTS',
+      'ADMISSION_AUDIT',
     ],
     canEdit: [
       'CENSUS',
@@ -64,6 +65,7 @@ const ROLE_ACCESS_MATRIX = {
       'ROLE_MANAGEMENT',
       'REMINDERS',
       'AUDIT_DOCUMENTS',
+      'ADMISSION_AUDIT',
     ],
     censusAccessProfile: 'default',
     specialistRestrictedMedicalAccess: false,

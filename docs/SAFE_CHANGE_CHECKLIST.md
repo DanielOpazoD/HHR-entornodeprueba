@@ -84,6 +84,14 @@ La clasificación remota `docs-only` se decide en CI; no forzar ni omitir checks
 
 ### Checklist de cierre
 
+La [auditoría de ingresos médicos](ADMISSION_MEDICAL_AUDIT.md) es
+`architecture_contracts`: ruta de administrador, lectura histórica con cobertura
+explícita y libro HTML por autor/período. Validar denegación por rol y ruta directa,
+identidad persona/episodio, primera evolución y órdenes fuente, fechas hospitalarias,
+sesión/cancelación, conservación ante fallo, extensión anterior y exportación escapada.
+Exige `ci:merge-gate`, `test:release-confidence`, release gate de extensión,
+navegador con datos sintéticos y revisión independiente del head definitivo.
+
 La simplificación de acciones rápidas y la jerarquía del explorador clínico son
 `safe_local_ui`: la tortuga ofrece documentos, laboratorio e imágenes; el explorador
 prioriza evoluciones, signos vitales, laboratorio, imágenes e indicaciones. Los vitales

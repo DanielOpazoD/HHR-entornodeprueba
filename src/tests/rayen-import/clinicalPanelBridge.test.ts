@@ -10,6 +10,32 @@ describe('clinical panel request lifetime', () => {
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
+  it('forwards and returns confirmed admission coverage and historical vital forms', async () => {
+    const post = vi.spyOn(window, 'postMessage').mockImplementation(() => {});
+    const pending = requestClinicalPanel('101', 30000, undefined, { historyFrom: '2026-07-13' });
+    const request = post.mock.calls[0][0];
+    expect(request).toMatchObject({ encId: '101', historyFrom: '2026-07-13' });
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        source: window,
+        origin: window.location.origin,
+        data: {
+          type: RAYEN_CLINICAL_PANEL_RESULT_TYPE,
+          reqId: request.reqId,
+          historyFrom: '2026-07-13',
+          events: [],
+          forms: [{ formCodigo: 'VITAL_SIGNS' }],
+          formError: 'Advertencia sintética',
+        },
+      })
+    );
+    expect(await pending).toMatchObject({
+      historyFrom: '2026-07-13',
+      forms: [{ formCodigo: 'VITAL_SIGNS' }],
+      formError: 'Advertencia sintética',
+    });
+    expect(vi.getTimerCount()).toBe(0);
+  });
 
   it('releases its message listener and timeout immediately when closed', async () => {
     const post = vi.spyOn(window, 'postMessage').mockImplementation(() => {});

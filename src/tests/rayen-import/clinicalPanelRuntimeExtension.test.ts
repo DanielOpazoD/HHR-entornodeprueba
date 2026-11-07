@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import '../../../extension/clinical-panel-fetch.js';
+import '../../../extension/clinical-panel-history.js';
 import '../../../extension/clinical-panel-runtime.js';
 
 type FetchInput = {
@@ -26,11 +27,15 @@ type ClinicalPanelDependencies = {
   ) => unknown[];
   resolveSession: () => Promise<unknown>;
   fetchCurrentValidation: (encId: string, info: unknown) => Promise<unknown>;
+  fetchAuditForms: (encId: string, info: unknown) => Promise<unknown>;
   timeoutMs: number;
 };
 
 type ClinicalPanelRuntime = {
-  handleRequest: (input: { encId: string }) => Promise<Record<string, unknown>>;
+  handleRequest: (input: {
+    encId: string;
+    historyFrom?: string;
+  }) => Promise<Record<string, unknown>>;
 };
 
 const globals = globalThis as typeof globalThis & {
@@ -60,6 +65,7 @@ const createHarness = (overrides: Partial<ClinicalPanelDependencies> = {}) => {
     unwrapRequiredSources: globals.HhrClinicalPanelFetch.unwrapRequiredSources,
     resolveSession: vi.fn().mockResolvedValue({ info }),
     fetchCurrentValidation: vi.fn().mockResolvedValue({ validation: null }),
+    fetchAuditForms: vi.fn().mockResolvedValue({ forms: [] }),
     timeoutMs: 15_000,
     ...overrides,
   };
@@ -71,6 +77,54 @@ const createHarness = (overrides: Partial<ClinicalPanelDependencies> = {}) => {
 
 describe('clinical panel read runtime', () => {
   afterEach(() => vi.restoreAllMocks());
+  it('reads the admission window using history only and confirms coverage for old admissions', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-11-07T12:00:00Z'));
+    const { runtime, dependencies } = createHarness();
+    const result = await runtime.handleRequest({ encId: '101', historyFrom: '2026-01-01' });
+    expect(result).toMatchObject({ ok: true, historyFrom: '2026-01-01', events: [], forms: [] });
+    expect(dependencies.fetchAuditForms).toHaveBeenCalledWith('101', info);
+    expect(dependencies.fetchClinicalJson).toHaveBeenCalledTimes(1);
+    const input = vi.mocked(dependencies.fetchClinicalJson).mock.calls[0][0];
+    expect(input.path).toMatch(/getPatientEncounterHistoryReportServer\/false\/0\/0\/-31[0-9]$/);
+    expect(dependencies.fetchCurrentValidation).not.toHaveBeenCalled();
+  });
+  it('rejects invalid audit dates and malformed history rather than confirming an empty first note', async () => {
+    const { runtime, dependencies } = createHarness();
+    expect(await runtime.handleRequest({ encId: '101', historyFrom: '2026-02-31' })).toHaveProperty(
+      'error'
+    );
+    expect(dependencies.fetchClinicalJson).not.toHaveBeenCalled();
+    vi.mocked(dependencies.fetchClinicalJson).mockResolvedValue({ invalid: true });
+    expect(await runtime.handleRequest({ encId: '101', historyFrom: '2026-11-01' })).toHaveProperty(
+      'error'
+    );
+  });
+  it('retains history and marks a failed historical vital read independently', async () => {
+    const { runtime } = createHarness({
+      fetchAuditForms: vi.fn().mockRejectedValue(new Error('Fallo sintético')),
+    });
+    const result = await runtime.handleRequest({ encId: '101', historyFrom: '2026-11-01' });
+    expect(result).toMatchObject({ ok: true, events: [], historyFrom: '2026-11-01' });
+    expect(result.formError).toContain('signos vitales');
+    expect(result.forms).toBeUndefined();
+  });
+  it('minimizes historical forms to vital signs and leaves normal drawer reads unchanged', async () => {
+    const { runtime, dependencies } = createHarness({
+      fetchAuditForms: vi
+        .fn()
+        .mockResolvedValue({
+          forms: [
+            { formCodigo: 'INSTRUMENTO' },
+            { formCodigo: 'VITAL_SIGNS', encounterEventId: 1 },
+          ],
+        }),
+    });
+    const result = await runtime.handleRequest({ encId: '101', historyFrom: '2026-11-01' });
+    expect(result.forms).toEqual([{ formCodigo: 'VITAL_SIGNS', encounterEventId: 1 }]);
+    vi.mocked(dependencies.fetchAuditForms).mockClear();
+    await runtime.handleRequest({ encId: '101' });
+    expect(dependencies.fetchAuditForms).not.toHaveBeenCalled();
+  });
   it('fails closed when any explicit runtime dependency is missing', () => {
     expect(() =>
       globals.HhrClinicalPanelRuntime.create({ timeoutMs: 15_000 } as ClinicalPanelDependencies)
@@ -313,7 +367,9 @@ describe('clinical panel read runtime', () => {
       'No se pudo cargar el cliente clínico de lectura de Ficha Médico.'
     );
     expect(background).toContain('timeoutMs: CLINICAL_PANEL_REQUEST_TIMEOUT_MS');
-    expect(background).toContain('const handleClinicalPanelRequest = async ({ encId, sender }) =>');
+    expect(background).toContain(
+      'const handleClinicalPanelRequest = async ({ encId, historyFrom, sender }) =>'
+    );
     expect(background).toContain('clinicalPanelRuntime.handleRequest({ encId })');
     expect(background).toContain('patientDocumentManagerRuntime.list({ encId, sender })');
     expect(background).toContain("'Tiempo de espera agotado consultando documentos.'");

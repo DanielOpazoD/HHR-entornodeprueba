@@ -6,6 +6,7 @@ const PASSIVE_BACKUP_EDITABLE_MODULES = {
 } as const satisfies Partial<Record<ModuleType, ModuleType>>;
 
 const ADMIN_MAINTENANCE_MODULES = new Set<ModuleType>([
+  'ADMISSION_AUDIT',
   'DATA_MAINTENANCE',
   'DIAGNOSTICS',
   'PATIENT_MASTER_INDEX',

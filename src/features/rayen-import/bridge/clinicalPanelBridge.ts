@@ -43,6 +43,11 @@ export interface RayenClinicalPanelCarePlan {
 }
 
 export interface RayenClinicalPanelResult {
+  /** Present only when the extension read a window reaching this admission date. */
+  historyFrom?: string;
+  /** Historical admission vitals, read with the same Eloísa session, independent of the live census. */
+  forms?: unknown[];
+  formError?: string;
   events: RayenClinicalPanelEvent[];
   carePlan: RayenClinicalPanelCarePlan;
   error?: string;
@@ -63,7 +68,8 @@ const EMPTY_CARE_PLAN: RayenClinicalPanelCarePlan = {
 export const requestClinicalPanel = (
   encId: string,
   timeoutMs = 30000,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  options?: { historyFrom: string }
 ): Promise<RayenClinicalPanelResult> =>
   new Promise(resolve => {
     const failure = (error: string): RayenClinicalPanelResult => ({
@@ -104,6 +110,9 @@ export const requestClinicalPanel = (
       if (!data || data.type !== RAYEN_CLINICAL_PANEL_RESULT_TYPE || data.reqId !== reqId) return;
       cleanup();
       resolve({
+        historyFrom: typeof data.historyFrom === 'string' ? data.historyFrom : undefined,
+        forms: Array.isArray(data.forms) ? data.forms : undefined,
+        formError: typeof data.formError === 'string' ? data.formError : undefined,
         events: Array.isArray(data.events) ? (data.events as RayenClinicalPanelEvent[]) : [],
         carePlan:
           data.carePlan && typeof data.carePlan === 'object'
@@ -144,7 +153,12 @@ export const requestClinicalPanel = (
     }, timeoutMs);
     try {
       window.postMessage(
-        { type: RAYEN_CLINICAL_PANEL_REQUEST_TYPE, reqId, encId },
+        {
+          type: RAYEN_CLINICAL_PANEL_REQUEST_TYPE,
+          reqId,
+          encId,
+          ...(options ? { historyFrom: options.historyFrom } : {}),
+        },
         window.location.origin
       );
     } catch {

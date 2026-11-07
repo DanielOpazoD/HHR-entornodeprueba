@@ -7,7 +7,9 @@
     "laboratory": [
       "@/features/laboratory/hospitalization-reports",
       "@/features/laboratory/report-pdf"
-    ]
+    ],
+    "admin": ["@/features/admin/admission-audit"],
+    "rayen-import": ["@/features/rayen-import/admission-audit"]
   },
   "exceptionsByFeature": {
     "laboratory": [

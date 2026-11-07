@@ -13,6 +13,7 @@
 
 /** @type {readonly OnlineOnlyAsset[]} */
 export const ONLINE_ONLY_ASSETS = Object.freeze([
+  { glob: '**/assets/admission-audit-*.js', reason: 'Administrator admission auditing reads a server-verified period and historical Eloisa records; its downloaded HTML book remains self-contained offline.' },
   {
     glob: '**/images/moa/**',
     reason: 'Optional mascot artwork is cached on use by the existing image route.',
