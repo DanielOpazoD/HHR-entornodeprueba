@@ -123,7 +123,10 @@ describe('clinical batch after a failure that got no answer', () => {
 
     expect(deps.refreshRecord).toHaveBeenCalledOnce();
     expect(deps.invoke).not.toHaveBeenCalled();
-    expect(result.errors).toEqual([expect.objectContaining({ bedId: 'R1', source: 'patch' })]);
+    // The history names the guard that refused it instead of «unexpected».
+    expect(result.errors).toEqual([
+      expect.objectContaining({ bedId: 'R1', source: 'patch', cause: 'batch_field_changed' }),
+    ]);
   });
 
   it('stops without a second attempt once the run is cancelled', async () => {

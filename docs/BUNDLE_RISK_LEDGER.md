@@ -440,6 +440,10 @@ Each use is listed here; the cap stops at 5,054,464.
   254.2 KB against 253.9 KB. It is online-only and loads after the census, so startup is unaffected.
   Precache unchanged. The owner granted full authority over this program on 2026-10-31.
 
+- PR (clinical batch refusal cause): chunk `RayenImportButton` 262,048 → 263,072 bytes. Main
+  measured 262,045 bytes (3 B left). The owner chose +1 KB on 2026-11-07 over splitting a modal out
+  of the sync flow a week before go-live. Online-only, loads after the census; precache unchanged.
+
 Keep all offline assets, exclusions, warning ratios and other limits unchanged.
 
 Rollback: revert the importer check and this allowance together. Rows stored by
