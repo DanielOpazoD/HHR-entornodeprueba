@@ -38,22 +38,27 @@ const INDICATION_KIND_LABEL: Partial<Record<ClinicalPanelEntry['kind'], string>>
   'free-indication': 'Indicación',
 };
 
-export const EvolutionCard: React.FC<{ entry: ClinicalPanelEntry; isLatest?: boolean }> = ({
-  entry,
-  isLatest = false,
-}) => {
+export const EvolutionCard: React.FC<{
+  entry: ClinicalPanelEntry;
+  isLatest?: boolean;
+  collapsible?: boolean;
+}> = ({ entry, isLatest = false, collapsible = false }) => {
+  const [expanded, setExpanded] = useState(isLatest);
   const [showAnnulledText, setShowAnnulledText] = useState(false);
   // Only an ANNULLED (crossed-out) note is dimmed. Archived notes keep normal styling — just the
   // "Archivada" tag — since being superseded doesn't make the text less readable.
   return (
     <article
       className={clsx(
-        'border-l-2 border-transparent px-3 py-3.5',
+        'border-l-2 border-transparent',
+        collapsible ? 'px-2.5 py-2' : 'px-3 py-3.5',
         isLatest && 'border-l-medical-600 bg-medical-50/40',
         entry.crossedOut && 'opacity-60'
       )}
     >
-      <header className="flex items-start justify-between gap-3">
+      <header
+        className={`flex justify-between gap-3 ${collapsible ? 'items-center' : 'items-start'}`}
+      >
         <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
           <span className="text-[12px] font-semibold text-slate-800">
             {entry.author || entry.role || 'Sin autor'}
@@ -79,7 +84,20 @@ export const EvolutionCard: React.FC<{ entry: ClinicalPanelEntry; isLatest?: boo
             </span>
           )}
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
+        <div
+          className={`flex shrink-0 ${collapsible ? 'items-center gap-1.5' : 'flex-col items-end gap-1'}`}
+        >
+          {collapsible && !entry.crossedOut && (
+            <button
+              type="button"
+              aria-expanded={expanded}
+              aria-label={`${expanded ? 'Ocultar' : 'Mostrar'} evolución de ${entry.author || entry.role || 'Sin autor'} del ${formatWhen(entry.publishedAt)}`}
+              onClick={() => setExpanded(value => !value)}
+              className="order-last inline-flex size-6 items-center justify-center rounded text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
+            >
+              <ChevronRight size={13} aria-hidden="true" className={expanded ? 'rotate-90' : ''} />
+            </button>
+          )}
           <time
             className="whitespace-nowrap text-[10px] tabular-nums text-slate-500"
             dateTime={entry.publishedAt}
@@ -106,7 +124,7 @@ export const EvolutionCard: React.FC<{ entry: ClinicalPanelEntry; isLatest?: boo
           )}
         </div>
       </header>
-      {(!entry.crossedOut || showAnnulledText) && (
+      {(entry.crossedOut ? showAnnulledText : !collapsible || expanded) && (
         <div className="mt-2 max-w-[68ch] space-y-2.5 text-[12px] leading-[1.65] text-slate-700">
           {entry.text.split(/\r?\n\s*\r?\n/).map((paragraph, index) => (
             <p

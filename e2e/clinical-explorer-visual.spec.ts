@@ -74,6 +74,17 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
   await expect(header).toContainText(PATIENT);
   await expect(header).toContainText(`Censo ${DATE.split('-').reverse().join('-')}`);
   await expect(page.locator('.hhr-date-strip')).toBeHidden();
+  const notes = page.getByRole('region', { name: 'Evoluciones' });
+  await expect(notes.getByText('Entrega enfermería: sin novedades.')).toBeVisible();
+  await expect(notes.getByText('Evolución médica estable.')).toHaveCount(0);
+  await notes
+    .getByRole('button', { name: /Mostrar evolución de/ })
+    .last()
+    .click();
+  await expect(notes.getByText('Evolución médica estable.')).toBeVisible();
+  await notes.getByRole('button', { name: /Ocultar evolución de Médico/ }).click();
+  await expect(notes.getByText('Evolución médica estable.')).toHaveCount(0);
+
   // The census stays mounted but out of sight: coming back is instant and loses nothing.
   await expect(page.locator('.census-register')).toBeHidden();
 

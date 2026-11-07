@@ -202,14 +202,14 @@ describe('ClinicalExplorerView', () => {
     expect(header).not.toHaveTextContent('1 de 2');
     expect(screen.queryByRole('button', { name: 'Paciente siguiente' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Paciente anterior' })).toBeNull();
-    expect(await screen.findByText('Evolución médica estable.')).toBeVisible();
+    expect(await screen.findByText('Entrega enfermería: sin novedades.')).toBeVisible();
     expect(mocks.request).toHaveBeenCalledTimes(1);
     expect(mocks.request.mock.calls[0][0]).toBe('ep-r1');
   });
 
   it('prioritizes evolutions and vitals, followed by laboratory, imaging and indications', async () => {
     open();
-    await screen.findByText('Evolución médica estable.');
+    await screen.findByText('Entrega enfermería: sin novedades.');
     const areas = ['Evoluciones', 'Signos vitales', 'Laboratorio', 'Imágenes', 'Indicaciones'];
     const regions = areas.map(name => screen.getByRole('region', { name }));
     regions.slice(1).forEach((region, index) => {
@@ -387,10 +387,13 @@ describe('ClinicalExplorerView', () => {
 
   it('filters evolutions by profession and opens all of them from the combined view', async () => {
     open();
-    await screen.findByText('Evolución médica estable.');
+    await screen.findByText('Entrega enfermería: sin novedades.');
     fireEvent.click(screen.getByRole('button', { name: 'Enfermería (1)' }));
     expect(screen.getByText('Entrega enfermería: sin novedades.')).toBeVisible();
     expect(screen.queryByText('Evolución médica estable.')).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Evoluciones' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Todas (3)' }));
+    expect(screen.getByText('Evolución médica estable.')).toBeVisible();
   });
 
   it('returns to the census with the button, with Escape, and with the arrows changes patient', () => {
@@ -470,7 +473,7 @@ describe('ClinicalExplorerView', () => {
     expect(alert).toHaveTextContent('Eloísa sin sesión');
     expect(screen.queryByText('Sin evoluciones en Ficha Médico.')).toBeNull();
     fireEvent.click(within(alert).getByRole('button', { name: 'Reintentar' }));
-    expect(await screen.findByText('Evolución médica estable.')).toBeVisible();
+    expect(await screen.findByText('Entrega enfermería: sin novedades.')).toBeVisible();
     expect(mocks.request).toHaveBeenCalledTimes(2);
   });
 
