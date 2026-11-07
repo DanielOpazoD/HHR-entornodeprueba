@@ -10,6 +10,7 @@ import {
   MigrationCompatibilityIntensity,
 } from '@/services/repositories/dataMigrationContracts';
 import { measureRepositoryOperation } from '@/services/repositories/repositoryPerformance';
+import { confirmDailyRecordMissingOnServer } from '@/services/repositories/dailyRecordServerAbsence';
 
 export type DailyRecordRemoteSource = 'firestore' | 'not_found';
 export type DailyRecordRemoteCompatibilityTier = 'current_firestore' | 'none';
@@ -52,6 +53,9 @@ export const loadRemoteRecordWithFallback = async (
       const remoteRead = await getRecordFromFirestoreDetailed(date, { source });
       if (remoteRead.status === 'failed') {
         throw remoteRead.error ?? new Error(`Remote Firestore read failed for ${date}`);
+      }
+      if (!remoteRead.record && remoteRead.serverConfirmed) {
+        await confirmDailyRecordMissingOnServer(date);
       }
 
       const migrated = remoteRead.record
