@@ -24,6 +24,8 @@ import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import '../styles/censusLayout.css';
 import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
 import { listClinicalExplorerPatients } from '@/features/census/controllers/clinicalExplorerController';
+import { CensusLaboratoryMenuEntry } from './CensusLaboratoryMenuEntry';
+import { buildCensusLaboratoryCohort } from '../controllers/censusLaboratoryController';
 import { ClinicalExplorerMenuEntry } from './clinical-explorer/ClinicalExplorerMenuEntry';
 import { ClinicalExplorerBar } from './clinical-explorer/ClinicalExplorerBar';
 import {
@@ -87,6 +89,10 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
     () => listClinicalExplorerPatients({ visibleBeds, beds }),
     [visibleBeds, beds]
   );
+  const laboratoryCohort = useMemo(
+    () => buildCensusLaboratoryCohort(visibleBeds, beds, currentDateString),
+    [visibleBeds, beds, currentDateString]
+  );
   const firstExplorerBedId = explorerPatients[0]?.bedId;
   const launchExplorer = useMemo(
     () =>
@@ -107,6 +113,7 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
     <CensusActionsProvider>
       <CensusPrintHeader currentDateString={currentDateString} />
       <ClinicalExplorerMenuEntry censusDate={currentDateString} patients={explorerPatients} />
+      <CensusLaboratoryMenuEntry {...laboratoryCohort} censusDate={currentDateString} />
 
       {/* The census stays mounted behind the explorer so returning keeps its state and edits. */}
       <ClinicalExplorerLaunchContext.Provider value={launchExplorer}>

@@ -70,6 +70,7 @@ interface PatientRowOrbitalQuickActionsPortalProps {
   triggerCenterX: number;
   triggerCenterY: number;
   triggerRef: React.RefObject<HTMLButtonElement | null>;
+  triggerTestId?: string;
 }
 
 export const PatientRowOrbitalQuickActionsPortal: React.FC<
@@ -95,6 +96,7 @@ export const PatientRowOrbitalQuickActionsPortal: React.FC<
   triggerCenterX,
   triggerCenterY,
   triggerRef,
+  triggerTestId,
 }) => {
   if (!position || typeof document === 'undefined') {
     return null;
@@ -224,6 +226,7 @@ export const PatientRowOrbitalQuickActionsPortal: React.FC<
             onMouseLeave={handleLauncherMouseLeave}
             aria-label="Acciones clínicas rápidas"
             aria-expanded={isOpen}
+            data-testid={triggerTestId}
             ref={triggerRef}
             className={clsx(
               'absolute z-10 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center transition-[opacity,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 active:scale-95',

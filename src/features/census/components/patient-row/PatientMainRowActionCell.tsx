@@ -24,6 +24,8 @@ export const PatientMainRowActionCell: React.FC<PatientMainRowActionCellProps> =
   clinicalDocumentCount,
   isPendingClear = false,
   canMarkInvalid = false,
+  clinicalPatient,
+  censusDate,
 }) => (
   <td className="p-0 text-center border-r border-slate-200 relative z-[36] w-10 overflow-visible print:hidden">
     {isPendingClear ? (
@@ -56,6 +58,8 @@ export const PatientMainRowActionCell: React.FC<PatientMainRowActionCellProps> =
         medicalIndicationsPatient={medicalIndicationsPatient}
         clinicalDocumentCount={clinicalDocumentCount}
         canMarkInvalid={canMarkInvalid}
+        clinicalPatient={clinicalPatient}
+        censusDate={censusDate}
       />
     )}
   </td>

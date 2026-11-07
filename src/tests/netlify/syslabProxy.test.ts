@@ -1,26 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  restoreConsole,
-  type RestorableSpy,
-  suppressConsole,
-  suppressProcessStdout,
-} from '@/tests/utils/consoleTestUtils';
+import { describe, expect, it, vi } from 'vitest';
+import { createSyslabProxyHarness } from './support/syslabProxyHarness';
+import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
 
 describe('syslab-proxy', () => {
-  const originalEnv = { ...process.env };
-  const fetchMock = vi.fn();
-  const getFirebaseServerMock = vi.fn();
-  const authorizeRoleRequestMock = vi.fn();
-  const extractBearerTokenMock = vi.fn();
-  let stdoutSpy: RestorableSpy;
-  const loadHandler = async () => {
-    const { createSyslabProxyHandler } = await import('../../../netlify/functions/syslab-proxy');
-    return createSyslabProxyHandler({
-      getFirebaseServer: getFirebaseServerMock as typeof getFirebaseServerMock,
-      authorizeRoleRequest: authorizeRoleRequestMock as typeof authorizeRoleRequestMock,
-      extractBearerToken: extractBearerTokenMock as typeof extractBearerTokenMock,
-    });
-  };
+  const { fetchMock, authorizeRoleRequestMock, extractBearerTokenMock, loadHandler } =
+    createSyslabProxyHarness();
 
   it('keeps details under the extended telemetry timeout budget', async () => {
     const { resolveSyslabTelemetryOptions } =
@@ -34,34 +18,6 @@ describe('syslab-proxy', () => {
       timeoutMs: 55_000,
       maxAttempts: 1,
     });
-  });
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    process.env = {
-      ...originalEnv,
-      SYSLAB_PROXY_URL: 'https://lab.example.com',
-      SYSLAB_API_TOKEN: 'gateway-token',
-      URL: 'https://app.example.com',
-      DEPLOY_PRIME_URL: '',
-      DEPLOY_URL: '',
-      SITE_URL: '',
-      APP_URL: '',
-    };
-    vi.stubGlobal('fetch', fetchMock);
-    getFirebaseServerMock.mockReturnValue({ db: { kind: 'firestore' } });
-    authorizeRoleRequestMock.mockResolvedValue({
-      email: 'doctor@hospital.cl',
-      role: 'doctor_urgency',
-    });
-    extractBearerTokenMock.mockReturnValue('token-123');
-    stdoutSpy = suppressProcessStdout();
-  });
-
-  afterEach(() => {
-    stdoutSpy.mockRestore();
-    process.env = originalEnv;
-    vi.unstubAllGlobals();
   });
 
   it('returns 200 with CORS headers on OPTIONS', async () => {

@@ -32,7 +32,7 @@ export interface SyslabHospitalizationReports {
   phase: SyslabHospitalizationPhase;
   access: SyslabAccessModel;
   message: string;
-  progress: { completed: number; total: number } | null;
+  progress: { completed: number; total: number; status?: 'queued' | 'running' } | null;
   exams: SyslabExamItem[];
   analysis: LabAnalysisData | null;
   /** Reports Syslab listed but could not deliver yet; they are asked again on the next refresh. */
@@ -97,7 +97,11 @@ export const useSyslabHospitalizationReports = ({
   const access = useSyslabAccess(enabled);
   const queryClient = useQueryClient();
   const rutBody = cleanRutForSyslab(rut);
-  const [progress, setProgress] = useState<{ completed: number; total: number } | null>(null);
+  const [progress, setProgress] = useState<{
+    completed: number;
+    total: number;
+    status?: 'queued' | 'running';
+  } | null>(null);
   // Part of every key: what was on screen leaves with the session that read it.
   const generation = useSessionEpoch();
 
@@ -147,7 +151,9 @@ export const useSyslabHospitalizationReports = ({
         current.map(exam => exam.link as string),
         {
           isCurrent: () => !signal.aborted,
-          onProgress: ({ completed, total }) => setProgress({ completed, total }),
+          onProgress: value => {
+            if (!signal.aborted) setProgress(value);
+          },
         }
       );
       if (!response.success) throw new Error(response.error || 'No se pudieron leer los informes.');

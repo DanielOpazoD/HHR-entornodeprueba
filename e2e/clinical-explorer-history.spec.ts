@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { seedVisualCensus, VISUAL_DATE } from './fixtures/censusVisualSeed';
 import { panelResult } from '../src/tests/views/census/clinicalPanelDrawer.fixture';
+import { openPatientClinicalTopic } from './fixtures/patientClinicalTopics';
 
 test('reads a long clinical history in batches and keeps the full history available', async ({
   page,
@@ -31,7 +32,7 @@ test('reads a long clinical history in batches and keeps the full history availa
     });
   }, panel);
   await page.goto(`/?date=${VISUAL_DATE}`);
-  await page.getByTestId('clinical-panel-trigger-R1').click();
+  await openPatientClinicalTopic(page, 'R1', 'Ficha clínica');
   await page
     .getByTestId('clinical-panel-drawer-R1')
     .getByRole('button', { name: /Abrir explorador clínico de/ })

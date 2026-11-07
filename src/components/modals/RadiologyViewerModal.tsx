@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
+import { ClipboardPlus } from 'lucide-react';
 import { searchMmradStudies } from '@/components/modals/controllers/mmradStudySearch';
 import { useDicomReviewCache } from '@/components/radiology/useDicomReviewCache';
 import { XRayIcon } from '@/components/ui/XRayIcon';
@@ -47,6 +48,7 @@ interface RadiologyViewerModalProps {
   initialPatientRut?: string;
   autoSearchInitialPatient?: boolean;
   onCapture?: (capture: DicomCapture) => void;
+  onRequestImaging?: () => void;
 }
 
 interface RadiologyPatient {
@@ -64,6 +66,7 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
   initialPatientRut,
   autoSearchInitialPatient = false,
   onCapture,
+  onRequestImaging,
 }) => {
   const [selectedRut, setSelectedRut] = useState(initialPatientRut || patients[0]?.rut || '');
   const normalizedRut = normalizeDicomPatientId(selectedRut);
@@ -341,6 +344,18 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
         title="Radiología / Imagenología"
         icon={<XRayIcon size={16} />}
         headerIconColor="text-violet-600"
+        headerActions={
+          onRequestImaging ? (
+            <button
+              type="button"
+              onClick={onRequestImaging}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 text-[12px] font-semibold text-violet-700 transition-colors hover:bg-violet-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-violet-500"
+            >
+              <ClipboardPlus size={14} aria-hidden="true" />
+              Solicitar imagen
+            </button>
+          ) : undefined
+        }
       >
         <RadiologyViewerControls
           uniquePatients={uniquePatients}

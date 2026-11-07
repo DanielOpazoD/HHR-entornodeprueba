@@ -317,23 +317,28 @@ test.describe('Production Preview Bootstrap', () => {
         const age = cell.querySelector(
           '[aria-label="Edad del paciente, abre datos demográficos"]'
         )!;
-        const clinical = cell.querySelector('[data-testid^="clinical-panel-trigger"]')!;
+        // Only a crib keeps a panel button; a mother opens her ficha from the turtle.
+        const clinical = cell.querySelector('[data-testid^="clinical-panel-trigger"]');
         const origin = element.getBoundingClientRect();
         const relative = (node: Element) => {
           const box = node.getBoundingClientRect();
           return { x: box.x - origin.x, y: box.y - origin.y };
         };
-        return { name: relative(name), age: relative(age), clinical: relative(clinical) };
+        return {
+          name: relative(name),
+          age: relative(age),
+          clinical: clinical ? relative(clinical) : null,
+        };
       });
     const motherGeometry = await geometry(parent);
     const newbornGeometry = await geometry(crib);
-    for (const part of ['name', 'age', 'clinical'] as const) {
+    expect(motherGeometry.clinical).toBeNull();
+    for (const part of ['name', 'age'] as const) {
       expect(Math.abs(newbornGeometry[part].y - motherGeometry[part].y), part).toBeLessThanOrEqual(
         1
       );
     }
-    expect(newbornGeometry.age.x).toBeLessThan(newbornGeometry.clinical.x);
-    expect(Math.abs(newbornGeometry.clinical.x - motherGeometry.clinical.x)).toBeLessThanOrEqual(1);
+    expect(newbornGeometry.age.x).toBeLessThan(newbornGeometry.clinical!.x);
     const wrappedParent = page.locator('[data-bed-id="R2"][data-testid="patient-row"]');
     const secondCrib = page.locator('tr[data-testid="patient-row"]').filter({ hasText: 'C-R2' });
     expect(
@@ -341,12 +346,7 @@ test.describe('Production Preview Bootstrap', () => {
     ).toBeGreaterThan(28);
     const wrappedGeometry = await geometry(wrappedParent);
     const secondCribGeometry = await geometry(secondCrib);
-    expect(
-      Math.abs(wrappedGeometry.clinical.y - secondCribGeometry.clinical.y)
-    ).toBeLessThanOrEqual(1);
-    expect(
-      Math.abs(wrappedGeometry.clinical.x - secondCribGeometry.clinical.x)
-    ).toBeLessThanOrEqual(1);
+    expect(Math.abs(wrappedGeometry.name.x - secondCribGeometry.name.x)).toBeLessThanOrEqual(1);
     await expect(secondCrib.locator('input[name="patientName"]')).toHaveValue('RN de Madre');
     const nav = page.getByRole('navigation', { name: 'Navegación principal HHR' });
     await expect(nav).toHaveCSS('background-color', 'rgb(32, 87, 119)');
@@ -1067,9 +1067,9 @@ test('keeps movement context and explicit missing values visible in its action m
     has: page.getByRole('heading', { name: 'Traslados', exact: true }),
   });
   await expect(section.getByText('Sin informar', { exact: true })).toHaveCount(1);
-  await expect(section.getByRole('button', { name: 'Editar Medio de traslado', exact: true })).toHaveText(
-    'Sin informar · Completar'
-  );
+  await expect(
+    section.getByRole('button', { name: 'Editar Medio de traslado', exact: true })
+  ).toHaveText('Sin informar · Completar');
   await expect(section.getByRole('button', { name: 'Editar Centro destino' })).toHaveText(
     'Sin informar · Completar'
   );

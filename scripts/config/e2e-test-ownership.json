@@ -95,6 +95,14 @@
       "command": "npm run test:e2e:census-interactions"
     },
     {
+      "file": "e2e/census-laboratory-inbox.spec.ts",
+      "lane": "ci",
+      "reason": "Built-preview browser smoke for census laboratory jobs and personal review on desktop and mobile.",
+      "command": "npm run ci:preview-smoke:built",
+      "workflow": ".github/workflows/ci-cd.yml",
+      "entryJob": "preview-smoke-lanes"
+    },
+    {
       "file": "e2e/census-mocked.spec.ts",
       "lane": "manual",
       "reason": "Retained census mocked scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
