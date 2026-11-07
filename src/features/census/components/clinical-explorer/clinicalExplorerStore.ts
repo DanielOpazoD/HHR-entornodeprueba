@@ -32,13 +32,16 @@ const isReachable = (element: HTMLElement | null | undefined): element is HTMLEl
   Boolean(element?.isConnected && !element.closest('[hidden]'));
 
 /**
- * Focus returns to whoever opened the explorer, else to the row's clinical trigger or the «⋯»
- * menu. Call it once the census is visible again, with the opener that close() handed back.
+ * Focus returns to whoever opened the explorer, else to the row's first button (its actions
+ * cell) or the «⋯» menu. The turtle menu and the panel that opened it are gone by then. Call it
+ * once the census is visible again, with the opener that close() handed back.
  */
 export const restoreClinicalExplorerFocus = (bedId: string, from: HTMLElement | null): void => {
   const target = [
     from,
-    document.querySelector<HTMLElement>(`[data-testid="clinical-panel-trigger-${bedId}"]`),
+    document.querySelector<HTMLElement>(
+      `[data-testid="patient-row"][data-bed-id="${bedId}"] button:not([disabled])`
+    ),
     document.querySelector<HTMLElement>('[aria-label="Más opciones del censo"]'),
   ].find(isReachable);
   target?.focus();

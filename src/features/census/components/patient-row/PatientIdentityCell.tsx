@@ -33,8 +33,6 @@ import {
 } from '@/shared/census/treatingPhysicianDismissal';
 import { resolveNameInputState } from './nameInputController';
 import { ClinicalPanelTrigger } from './ClinicalPanelTrigger';
-import { PatientLaboratoryTrigger } from './PatientLaboratoryTrigger';
-import { PatientRadiologyTrigger } from './PatientRadiologyTrigger';
 import { SpecialtyChip } from './SpecialtyChip';
 import type { BaseCellProps, DebouncedTextHandler, PatientRowSaveResult } from './inputCellTypes';
 import type { PatientRowPatientPatch } from './patientRowContracts';
@@ -168,7 +166,14 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
       <div
         className={clsx(
           'relative grid min-w-0 items-center gap-x-0.5',
-          isEmpty ? 'grid-cols-1' : 'grid-cols-[minmax(0,1fr)_84px]'
+          // A main row's clinical topics open from the turtle; only a crib keeps its panel button.
+          // The name line keeps that button's height on every row, so mother and crib align.
+          isEmpty
+            ? 'grid-cols-1'
+            : clsx(
+                'grid-rows-[minmax(28px,auto)_auto]',
+                isSubRow ? 'grid-cols-[minmax(0,1fr)_28px]' : 'grid-cols-1'
+              )
         )}
       >
         <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-1">
@@ -366,11 +371,11 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
             </span>
           </div>
         )}
-        {!isEmpty && (
-          <span className="census-identity-actions col-start-2 row-start-1 inline-flex w-[84px] shrink-0 self-start items-center justify-start whitespace-nowrap">
+        {!isEmpty && isSubRow && (
+          <span className="census-identity-actions col-start-2 row-start-1 inline-flex w-[28px] shrink-0 self-start items-center justify-start whitespace-nowrap">
             <ClinicalPanelTrigger
               bedId={data.bedId}
-              triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
+              triggerKey={`${data.bedId}-clinical-crib`}
               patientName={fullName}
               patientRun={data.rut}
               clinicalEpisodeId={data.clinicalEpisodeId}
@@ -378,19 +383,6 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
               admissionDate={data.admissionDate}
               censusDate={currentDateString}
             />
-            {!isSubRow && (
-              <PatientLaboratoryTrigger
-                patient={data}
-                triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
-                censusDate={currentDateString}
-              />
-            )}
-            {!isSubRow && (
-              <PatientRadiologyTrigger
-                patient={data}
-                triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
-              />
-            )}
           </span>
         )}
       </div>

@@ -4,6 +4,7 @@ import {
   VISUAL_DATE as DATE,
   VISUAL_PATIENT as PATIENT,
 } from './fixtures/censusVisualSeed';
+import { openPatientClinicalTopic } from './fixtures/patientClinicalTopics';
 
 test('keeps long identity, vital grid, devices and open clinical panels legible at 13-inch 100% and 125%', async ({
   page,
@@ -27,7 +28,6 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
     const identityCell = row.locator('.census-identity-cell');
     const diagnosisCell = row.locator('.census-diagnosis-cell');
     const diagnosisText = diagnosisCell.getByText(/Diagnóstico clínico sintético/);
-    const identityActions = identityCell.locator('.census-identity-actions');
 
     await expect(name).toBeVisible();
     await expect(vitals).toContainText('PA');
@@ -43,10 +43,8 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
     expect(vitalBounds).not.toBeNull();
     expect(deviceBounds).not.toBeNull();
     expect(nameBounds!.height).toBeLessThanOrEqual(33);
-    const actionsBounds = await identityActions.boundingBox();
-    expect(actionsBounds!.width).toBe(84);
-    expect(actionsBounds!.x).toBeGreaterThanOrEqual(nameBounds!.x + nameBounds!.width - 1);
-    expect(actionsBounds!.y).toBeLessThan(nameBounds!.y + nameBounds!.height);
+    // Ficha, laboratorio e imágenes open from the turtle: the name keeps the whole cell.
+    await expect(identityCell.locator('.census-identity-actions')).toHaveCount(0);
     expect(await diagnosisText.evaluate(element => getComputedStyle(element).webkitLineClamp)).toBe(
       '2'
     );
@@ -113,15 +111,7 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
       );
     }
     const secondIdentity = secondRow.locator('.census-identity-cell');
-    const action = secondRow.getByTestId('clinical-panel-trigger-R2');
     await expect(secondIdentity).toContainText('PACIENTE SINTÉTICA DE NOMBRE LARGO');
-    const detailsBox = await secondIdentity.locator('.census-identity-details').boundingBox();
-    const actionBox = await action.boundingBox();
-    expect(actionBox!.y).toBeLessThan(detailsBox!.y + 8);
-    await action.focus();
-    const rowColor = await secondRow.evaluate(element => getComputedStyle(element).backgroundColor);
-    expect(rowColor).not.toBe('rgb(240, 253, 250)');
-    await action.evaluate(element => element.blur());
     await page.mouse.move(1, 1);
     await page.screenshot({
       path: process.env.CENSUS_VISUAL_OUTPUT_DIR
@@ -148,7 +138,7 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
     expect(menuBounds!.x + menuBounds!.width).toBeLessThanOrEqual(width + 1);
     await page.mouse.click(10, 300);
 
-    await page.getByTestId('clinical-panel-trigger-R1').click();
+    await openPatientClinicalTopic(page, 'R1', 'Ficha clínica');
     const drawer = page.getByTestId('clinical-panel-drawer-R1');
     await expect(drawer).toBeVisible();
     const drawerBounds = await drawer.boundingBox();

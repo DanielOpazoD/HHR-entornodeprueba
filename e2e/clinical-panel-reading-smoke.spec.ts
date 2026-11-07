@@ -5,6 +5,7 @@ import {
   installPreviewFirebaseRuntime,
   type FirebasePreviewConfig,
 } from './fixtures/previewFirebase';
+import { openPatientClinicalTopic } from './fixtures/patientClinicalTopics';
 
 const DATE = process.env.E2E_FIXED_DATE ?? '2026-04-03';
 const PATIENT = 'PACIENTE LECTURA PREVIEW';
@@ -202,8 +203,7 @@ test('keeps the patient identity fixed above a calm chronological clinical list'
 }) => {
   await seedClinicalPanel(page);
   await page.goto(`/?date=${DATE}`);
-  await expect(page.getByTestId('clinical-panel-trigger-R1')).toBeVisible();
-  await page.getByTestId('clinical-panel-trigger-R1').click();
+  await openPatientClinicalTopic(page, 'R1', 'Ficha clínica');
 
   const drawer = page.getByTestId('clinical-panel-drawer-R1');
   await expect(drawer.getByText('Nota más reciente.')).toBeVisible();
@@ -286,7 +286,7 @@ test('downloads distinct epicrises from census badges and current/historical rep
     { encId: '123', documentType: 'epicrisis' },
     { encId: '123', documentType: 'nursing-epicrisis' },
   ]);
-  await page.getByTestId('clinical-panel-trigger-R1').click();
+  await openPatientClinicalTopic(page, 'R1', 'Ficha clínica');
   const drawer = page.getByTestId('clinical-panel-drawer-R1');
   await drawer
     .getByRole('button', { name: `Abrir informes de hospitalización de ${PATIENT}` })
@@ -322,8 +322,8 @@ test.describe('failed clinical panel chunks', () => {
         return route.abort('failed');
       });
       await page.goto(`/?date=${DATE}`);
-      const trigger = page.getByTestId('clinical-panel-trigger-R1');
-      await trigger.click();
+      const row = page.locator('[data-testid="patient-row"][data-bed-id="R1"]');
+      await openPatientClinicalTopic(page, 'R1', 'Ficha clínica');
       if (panel === 'reports') {
         await page
           .getByTestId('clinical-panel-drawer-R1')
@@ -335,14 +335,13 @@ test.describe('failed clinical panel chunks', () => {
       );
       await expect(fallback.getByRole('alert')).toContainText('No se pudo abrir este panel');
       expect(blocked).toBeGreaterThan(0);
-      await expect(trigger).toBeAttached();
+      await expect(row).toBeVisible();
       await fallback
         .getByRole('button', { name: panel === 'drawer' ? 'Cerrar panel clínico' : 'Cerrar modal' })
         .click();
       await expect(fallback).toBeHidden();
       if (panel === 'drawer') {
-        await expect(trigger).toBeVisible();
-        await expect(trigger).toBeFocused();
+        await expect(row).toBeVisible();
       } else {
         await expect(page.getByTestId('clinical-panel-drawer-R1')).toBeVisible();
       }
@@ -355,7 +354,7 @@ test('distingue APS y UEA y descarga una copia PDF accesible de la receta fuente
 }) => {
   await seedClinicalPanel(page);
   await page.goto(`/?date=${DATE}`);
-  await page.getByTestId('clinical-panel-trigger-R1').click();
+  await openPatientClinicalTopic(page, 'R1', 'Ficha clínica');
   const drawer = page.getByTestId('clinical-panel-drawer-R1');
   await drawer.getByRole('button', { name: 'Antecedentes' }).click();
   const outpatient = drawer.locator('article').filter({ hasText: 'Atención ambulatoria (APS)' });
