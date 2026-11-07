@@ -4,6 +4,7 @@ import '../../../extension/clinical-antecedents-fields.js';
 import '../../../extension/clinical-antecedents-cache.js';
 import '../../../extension/clinical-antecedents-detail.js';
 import '../../../extension/clinical-antecedents-window.js';
+import '../../../extension/clinical-antecedents-transport.js';
 import '../../../extension/clinical-antecedents-runtime.js';
 
 type Result = {
