@@ -174,12 +174,25 @@ const getFallbackVersionInfo = (): VersionInfo | null => {
 };
 
 const performRecoveryReload = async (
-  reason: BootstrapRecoveryReason
+  reason: BootstrapRecoveryReason,
+  {
+    canReload = () => true,
+    beforeReload,
+  }: { canReload?: () => boolean; beforeReload?: () => void } = {}
 ): Promise<ClientBootstrapRecoveryResult> => {
-  writeRecoveryAttempt(reason);
   clearBootstrapRuntimeCache();
   await clearBrowserCaches();
   await unregisterServiceWorkers(() => true);
+  // The cleanup does not disturb the running page; only the reload does. Asked last, so a person
+  // who started working during the cleanup is not interrupted and nothing is recorded as adopted.
+  if (!canReload()) {
+    return {
+      status: 'continue',
+      reason: null,
+    };
+  }
+  beforeReload?.();
+  writeRecoveryAttempt(reason);
   defaultBrowserWindowRuntime.reload();
   return {
     status: 'reload',
@@ -187,7 +200,18 @@ const performRecoveryReload = async (
   };
 };
 
-const runClientBootstrapRecovery = async (): Promise<ClientBootstrapRecoveryResult> => {
+export interface ClientBootstrapRecoveryOptions {
+  /**
+   * Asked right before a version reload, after `version.json` answered. A runtime check passes it
+   * so a person who resumed work meanwhile is not interrupted; the stored version is left as is,
+   * so the next check tries again. Startup omits it: nothing is in progress yet.
+   */
+  canReloadForNewVersion?: () => boolean;
+}
+
+const runClientBootstrapRecovery = async ({
+  canReloadForNewVersion = () => true,
+}: ClientBootstrapRecoveryOptions = {}): Promise<ClientBootstrapRecoveryResult> => {
   if (!canUseBrowser()) {
     return {
       status: 'continue',
@@ -241,19 +265,31 @@ const runClientBootstrapRecovery = async (): Promise<ClientBootstrapRecoveryResu
   }
 
   if (localVersion !== serverVersion.version) {
+    if (!canReloadForNewVersion()) {
+      return {
+        status: 'continue',
+        reason: null,
+      };
+    }
     bootstrapRecoveryLogger.warn('Detected deploy version mismatch during bootstrap', {
       localVersion,
       serverVersion: serverVersion.version,
     });
 
-    defaultBrowserWindowRuntime.setLocalStorageItem(VERSION_KEY, serverVersion.version);
-    writePostDeployRecentRecordRefreshMarker({
-      fromVersion: localVersion,
-      toVersion: serverVersion.version,
-    });
+    const adoptServerVersion = () => {
+      defaultBrowserWindowRuntime.setLocalStorageItem(VERSION_KEY, serverVersion.version);
+      writePostDeployRecentRecordRefreshMarker({
+        fromVersion: localVersion,
+        toVersion: serverVersion.version,
+      });
+    };
     if (recoveryAttempt !== 'version-change') {
-      return performRecoveryReload('version-change');
+      return performRecoveryReload('version-change', {
+        canReload: canReloadForNewVersion,
+        beforeReload: adoptServerVersion,
+      });
     }
+    adoptServerVersion();
   }
 
   clearRecoveryAttempt();
@@ -265,9 +301,11 @@ const runClientBootstrapRecovery = async (): Promise<ClientBootstrapRecoveryResu
 
 let pendingRecovery: Promise<ClientBootstrapRecoveryResult> | null = null;
 
-export const prepareClientBootstrap = (): Promise<ClientBootstrapRecoveryResult> => {
+export const prepareClientBootstrap = (
+  options?: ClientBootstrapRecoveryOptions
+): Promise<ClientBootstrapRecoveryResult> => {
   if (pendingRecovery) return pendingRecovery;
-  const recovery = runClientBootstrapRecovery();
+  const recovery = runClientBootstrapRecovery(options);
   pendingRecovery = recovery;
   const release = () => {
     if (pendingRecovery === recovery) pendingRecovery = null;
