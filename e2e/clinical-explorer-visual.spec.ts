@@ -49,6 +49,28 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
             registered_patient_id: '12345678-9',
             registered_patient_name: 'PACIENTE SINTÉTICO',
           },
+          {
+            nombre_examen: 'TC sintética de tórax, abdomen y pelvis con contraste',
+            fecha_examen: '03/04/2026 08:20',
+            fecha_asignacion: '03/04/2026',
+            mod: 'CT',
+            estado: 'Validado',
+            pdf_url: 'https://mmrad.example/pdf/synthetic',
+            dicom_url: 'https://mmrad.example/dicom/synthetic',
+            informe_html_url: null,
+            report: null,
+          },
+          {
+            nombre_examen: 'Rx abdomen sintética',
+            fecha_examen: '02/04/2026 17:05',
+            fecha_asignacion: '02/04/2026',
+            mod: 'CR',
+            estado: 'Validado',
+            pdf_url: null,
+            dicom_url: 'https://mmrad.example/dicom/synthetic-rx',
+            informe_html_url: null,
+            report: null,
+          },
         ],
       },
     })
@@ -108,6 +130,27 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
     await expect(explorer).toBeVisible();
     await expect(page.getByRole('button', { name: 'Informes locales', exact: true })).toBeHidden();
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    const imaging = page.getByRole('region', { name: 'Imágenes' });
+    await expect(imaging.getByTestId('clinical-imaging-date')).toHaveCount(3);
+    for (const cell of ['clinical-imaging-date', 'clinical-imaging-actions']) {
+      const bounds = await imaging.getByTestId(cell).evaluateAll(elements =>
+        elements.map(element => {
+          const rect = element.getBoundingClientRect();
+          return { x: rect.x, width: rect.width };
+        })
+      );
+      for (const rect of bounds.slice(1)) {
+        expect(Math.abs(rect.x - bounds[0].x)).toBeLessThanOrEqual(1);
+        expect(Math.abs(rect.width - bounds[0].width)).toBeLessThanOrEqual(1);
+      }
+    }
+    await expect(imaging.getByRole('button', { name: 'Informe (PDF)' })).toBeVisible();
+    for (const action of await imaging
+      .getByTestId('clinical-imaging-actions')
+      .getByRole('button')
+      .all()) {
+      expect((await action.boundingBox())!.height).toBeLessThanOrEqual(33);
+    }
 
     // Nothing pushes the page sideways.
     const overflow = await page.evaluate(() => ({
