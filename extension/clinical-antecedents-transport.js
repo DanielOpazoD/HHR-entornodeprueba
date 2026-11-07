@@ -12,7 +12,7 @@
         const response = await fetchImpl(url.href, {
           headers: {
             Accept: 'application/json, text/plain, */*',
-            ...(sessionToken ? { Authorization: sessionToken } : {}),
+            ...(sessionToken ? { Authorization: `VHCC-TICKET ${sessionToken}` } : {}),
           },
           credentials: 'omit',
           cache: 'no-store',

@@ -640,8 +640,10 @@ control: prueba de ZIP, release gate y descarga en dev/build. Rollback: revertir
 
 ### Antecedentes APS y UEA (v0.48.42)
 
-Desde v0.48.78, las consultas de resúmenes y detalles HCC envían en `Authorization`
-el `TokenSesion` obtenido por `/api/ObtenerToken`, como hace el visor original.
+Desde v0.48.79, las consultas de resúmenes y detalles HCC envían en `Authorization`
+`VHCC-TICKET <TokenSesion>`, con el token obtenido por `/api/ObtenerToken`, como hace
+el visor original. La versión 0.48.78 enviaba el token sin este esquema y seguía
+recibiendo HTTP 401.
 El lector HTTP autenticado conserva el token en un cierre propio del historial
 efímero verificado por paciente, episodio y autorización, dentro de
 `clinical-antecedents-transport.js`; no lo comparte como estado global ni lo envía a HHR.

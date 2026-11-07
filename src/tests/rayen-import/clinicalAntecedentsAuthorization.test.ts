@@ -2,16 +2,16 @@
 import { describe, expect, it } from 'vitest';
 import { createHarness } from './clinicalAntecedentsRuntime.fixture';
 
-describe('HCC session authorization', () => {
+describe('HCC VHCC-TICKET session authorization', () => {
   it.each(['outpatient', 'emergency'])(
-    'loads %s history and detail when HCC requires its session token',
+    'loads %s history and detail when HCC requires the VHCC-TICKET scheme',
     async careType => {
       const h = createHarness();
       const original = h.fetchImpl.getMockImplementation()!;
       h.fetchImpl.mockImplementation(async (url, options) => {
         const response = await original(url, options);
         if (url.includes('ObtenerToken')) return response;
-        if (options?.headers?.Authorization !== 'fixture-session')
+        if (options?.headers?.Authorization !== 'VHCC-TICKET fixture-session')
           return { ...response, ok: false, status: 401 };
         return {
           ...response,
@@ -56,12 +56,12 @@ describe('HCC session authorization', () => {
       expect(authorizedRequests).toHaveLength(3);
       expect(
         authorizedRequests.every(
-          ([, options]) => options?.headers?.Authorization === 'fixture-session'
+          ([, options]) => options?.headers?.Authorization === 'VHCC-TICKET fixture-session'
         )
       ).toBe(true);
       expect(authorizedRequests.every(([url]) => !url.includes('fixture-session'))).toBe(true);
       expect(JSON.stringify({ history, detail })).not.toMatch(
-        /fixture-session|fixture-access|TokenSesion/
+        /VHCC-TICKET|fixture-session|fixture-access|TokenSesion/
       );
     }
   );
@@ -87,18 +87,18 @@ describe('HCC session authorization', () => {
     await h.api.handleRequest({ encId: '12', operation: 'detail', entryId: 'Primaria:8' });
     const summaries = h.fetchImpl.mock.calls.filter(([url]) => url.includes('ResumenHistorial'));
     expect(summaries.map(([, options]) => options?.headers?.Authorization)).toEqual([
-      'example',
-      'example',
-      'dummy',
-      'dummy',
+      'VHCC-TICKET example',
+      'VHCC-TICKET example',
+      'VHCC-TICKET dummy',
+      'VHCC-TICKET dummy',
     ]);
     const details = h.fetchImpl.mock.calls.filter(([url]) => url.includes('Detalle'));
-    expect(details[0]?.[1]?.headers?.Authorization).toBe('example');
+    expect(details[0]?.[1]?.headers?.Authorization).toBe('VHCC-TICKET example');
 
     h.getAuthorizationKey.mockResolvedValue('tab:renewed-session');
     await h.api.handleRequest({ encId: '12', operation: 'detail', entryId: 'Primaria:8' });
     const renewedDetail = h.fetchImpl.mock.calls.filter(([url]) => url.includes('Detalle')).at(-1);
-    expect(renewedDetail?.[1]?.headers?.Authorization).toBe('fake');
+    expect(renewedDetail?.[1]?.headers?.Authorization).toBe('VHCC-TICKET fake');
   });
 
   it.each(['', '   '])(
