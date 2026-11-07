@@ -640,6 +640,12 @@ control: prueba de ZIP, release gate y descarga en dev/build. Rollback: revertir
 
 ### Antecedentes APS y UEA (v0.48.42)
 
+Desde v0.48.78, las consultas de resúmenes y detalles HCC envían en `Authorization`
+el `TokenSesion` obtenido por `/api/ObtenerToken`, como hace el visor original.
+El token permanece en la caché efímera del historial verificado por paciente,
+episodio y autorización; no se comparte como estado global ni cruza hacia HHR.
+La actualización conserva los permisos existentes y requiere recargar la extensión.
+
 HCC puede rotular ambas atenciones como APS. Tras verificar episodio, RUT y sesión, el
 lector clasifica como UEA únicamente un formulario `Examen Fisico Urgencia` o
 `Examen Físico Segmentario Urgencia` (normalizando acentos y espacios). El texto libre

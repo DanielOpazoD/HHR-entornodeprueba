@@ -43,9 +43,11 @@
         await assertCurrentAuthorization();
         return detail;
       }
+      const { sessionToken } = history;
       const pending = withDetailSlot(() => externalJson(
         '/api/ObtenerDetalleHistorialClinicoPrimaria', 'ParametroFUC',
-        { IdentificacionAtencion: selected.id, ParametroBase: history.base }
+        { IdentificacionAtencion: selected.id, ParametroBase: history.base },
+        { sessionToken }
       )).then(data => {
         const result = data?.ObtenerDetalleHistorialClinicoResult;
         const detail = result?.DetalleHistorial;

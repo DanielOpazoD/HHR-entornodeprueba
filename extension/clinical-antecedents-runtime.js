@@ -6,14 +6,17 @@
   const text = value => (typeof value === 'string' ? value : '');
   const run = value => String(value || '').replace(/[^0-9k]/gi, '').toUpperCase();
   const create = ({ getContext, readJson, fetchImpl, openTab, getAuthorizationKey, now = () => new Date() }) => {
-    const externalJson = async (path, parameter, value, timeoutMs = 15000) => {
+    const externalJson = async (path, parameter, value, { timeoutMs = 15000, sessionToken } = {}) => {
       const url = new URL(path, API);
       url.searchParams.set(parameter, JSON.stringify(value));
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {
         const response = await fetchImpl(url.href, {
-          headers: { Accept: 'application/json, text/plain, */*' },
+          headers: {
+            Accept: 'application/json, text/plain, */*',
+            ...(sessionToken ? { Authorization: sessionToken } : {}),
+          },
           credentials: 'omit',
           cache: 'no-store',
           signal: controller.signal,
@@ -78,7 +81,8 @@
       )
         throw new Error('El visor de antecedentes no corresponde al paciente seleccionado.');
       const token = await externalJson('/api/ObtenerToken', 'Parametro', { TokenAcceso: parts[4] });
-      if (!token?.ObtenerTokenSesionResult?.TokenSesion)
+      const sessionToken = token?.ObtenerTokenSesionResult?.TokenSesion;
+      if (typeof sessionToken !== 'string' || !sessionToken.trim())
         throw new Error('La sesión del visor de antecedentes venció.');
       // The viewer accepts bounded windows, including older ones requested on demand.
       const time = new Intl.DateTimeFormat('en-GB', {
@@ -109,7 +113,7 @@
       const sources = await Promise.allSettled(
         ['Primaria', 'Secundaria'].map(async source => {
           const data = await externalJson(`/api/ObtenerResumenHistorialClinico${source}`,
-            'ParametroFUC', params, source === 'Secundaria' ? 45000 : 15000);
+            'ParametroFUC', params, { timeoutMs: source === 'Secundaria' ? 45000 : 15000, sessionToken });
           const result = data?.ObtenerResumenHistorialClinicoResult;
           if (
             !result ||
@@ -140,6 +144,7 @@
       return {
         base,
         patientRun,
+        sessionToken,
         ...window,
         rows: sources.flatMap(source => (source.status === 'fulfilled' ? source.value : [])),
         warnings: sources.flatMap((source, i) =>
