@@ -72,6 +72,8 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
   const explorer = page.getByTestId('clinical-explorer');
   const header = page.getByTestId('clinical-explorer-patient');
   await expect(header).toContainText(PATIENT);
+  await expect(header).toContainText(`Censo ${DATE.split('-').reverse().join('-')}`);
+  await expect(page.locator('.hhr-date-strip')).toBeHidden();
   // The census stays mounted but out of sight: coming back is instant and loses nothing.
   await expect(page.locator('.census-register')).toBeHidden();
 
@@ -82,6 +84,19 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
     await page.setViewportSize({ width, height });
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
     await expect(header).toContainText(PATIENT);
+
+    const readingHeader = page.getByTestId('clinical-explorer-reading-header');
+    await page.evaluate(() => window.scrollTo({ top: 400, behavior: 'instant' }));
+    await expect(readingHeader).toBeVisible();
+    const pinned = await readingHeader.boundingBox();
+    const navbar = await page.locator('.hhr-navbar').boundingBox();
+    expect(Math.abs(pinned!.y - (navbar!.y + navbar!.height))).toBeLessThanOrEqual(2);
+    await page.getByRole('button', { name: 'Más acciones del paciente' }).click();
+    await expect(page.getByRole('button', { name: 'Informes locales', exact: true })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(explorer).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Informes locales', exact: true })).toBeHidden();
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
 
     // Nothing pushes the page sideways.
     const overflow = await page.evaluate(() => ({
@@ -177,7 +192,9 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
     'Alerta clínica sintética'
   );
   await expect(header.getByRole('img', { name: 'Aislamiento: Contacto' })).toBeVisible();
+  await header.getByRole('button', { name: 'Más acciones del paciente' }).click();
   await expect(header.getByRole('button', { name: 'Informes locales', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
   await vitalsPanel.getByRole('button', { name: 'Signos vitales', exact: true }).click();
   const vitalsDialog = page.getByRole('dialog', { name: /Signos vitales/ });
   await expect(vitalsDialog).toContainText('Historial · 2 tomas');
@@ -214,6 +231,7 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
   await page.getByRole('button', { name: 'Volver al censo' }).click();
   await expect(page.getByTestId('clinical-explorer')).toHaveCount(0);
   await expect(page.locator('.census-register')).toBeVisible();
+  await expect(page.locator('.hhr-date-strip')).toBeVisible();
   await expect(row).toContainText(PATIENT);
   await expect(page.getByTestId('clinical-panel-trigger-R1')).toBeFocused();
 });
