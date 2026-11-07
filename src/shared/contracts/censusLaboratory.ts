@@ -6,3 +6,9 @@ export interface CensusLabPatient {
   patientName: string;
   bedLabel: string;
 }
+
+/** Calendar days, both included; an explicit query window, independent of the census day. */
+export interface CensusLabDateRange {
+  from: string;
+  to: string;
+}
