@@ -64,6 +64,12 @@ export const CLINICAL_READ_ERROR_CODES = [
   'invalid_request',
   'invalid_response',
   'unexpected',
+  // Which guard refused a clinical batch before it reached the server (write_failed only).
+  'batch_field_changed',
+  'batch_episode_changed',
+  'batch_bed_mixed',
+  'batch_too_large',
+  'session_changed',
 ] as const;
 export type ClinicalReadErrorCode = (typeof CLINICAL_READ_ERROR_CODES)[number];
 

@@ -125,6 +125,14 @@ export const classifyRayenSyncIssueReason = (
   return source === 'patch' ? 'write_failed' : 'source_unavailable';
 };
 
+const BATCH_GUARDS: [RegExp, ClinicalReadErrorCode][] = [
+  [/misma cama/, 'batch_bed_mixed'],
+  [/campo cl[ií]nico cambi/, 'batch_field_changed'],
+  [/episodio/, 'batch_episode_changed'],
+  [/excede/, 'batch_too_large'],
+  [/sesi[oó]n cambi/, 'session_changed'],
+];
+
 /**
  * Bounded cause of a clinical batch that was not saved, persisted with the issue so the next
  * occurrence says whether it was the network, the server or the batch itself. Never a raw message.
@@ -143,7 +151,11 @@ export const classifyRayenWriteCause = (error: unknown): ClinicalReadErrorCode =
     case 'unsupported':
       return 'invalid_request';
     default:
-      return 'unexpected';
+      // Twice on 2026-11-06/07 a batch was refused ~13 s after a page load, before reaching the
+      // server, and every refusal read 'unexpected'. Naming the guard says which one it was.
+      return (
+        (BATCH_GUARDS.find(([pattern]) => pattern.test(errorText(error))) ?? [])[1] ?? 'unexpected'
+      );
   }
 };
 
