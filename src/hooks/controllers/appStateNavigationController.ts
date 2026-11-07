@@ -19,6 +19,7 @@ const MODULES_FROM_URL: readonly ModuleType[] = [
   'ROLE_MANAGEMENT',
   'REMINDERS',
   'AUDIT_DOCUMENTS',
+  'ADMISSION_AUDIT',
 ] as const;
 
 export const MODULE_PATH_SEGMENTS: Record<ModuleType, string> = {
@@ -40,6 +41,7 @@ export const MODULE_PATH_SEGMENTS: Record<ModuleType, string> = {
   ROLE_MANAGEMENT: 'role-management',
   REMINDERS: 'reminders',
   AUDIT_DOCUMENTS: 'audit-documents',
+  ADMISSION_AUDIT: 'admission-audit',
 };
 
 const MODULE_FROM_PATH_SEGMENT = Object.fromEntries(

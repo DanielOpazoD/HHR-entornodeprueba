@@ -21,7 +21,7 @@ importScripts(
   'health-report-cache-runtime.js', 'health-request-runtime.js', 'health-push-ordering-runtime.js', 'health-heartbeat-runtime.js', 'health-tab-events-runtime.js', 'health-relay-self-repair.js',
   'relay-reinjection-manifest.js', 'relay-reinjection-health.js', 'relay-reinjection-operations.js', 'relay-reinjection-session.js', 'relay-reinjection-tab-events.js', 'relay-reinjection-runtime.js',
   'clinical-panel-fetch.js',
-  'clinical-panel-runtime.js',
+  'clinical-panel-history.js', 'clinical-panel-runtime.js',
   'clinical-antecedents-attachment.js', 'clinical-antecedents-fields.js', 'clinical-antecedents-cache.js', 'clinical-antecedents-detail.js', 'clinical-antecedents-window.js',
   'clinical-antecedents-runtime.js',
   'clinical-write-recovery-policy.js', 'clinical-write-runtime.js',
@@ -542,10 +542,11 @@ const clinicalPanelRuntime = self.HhrClinicalPanelRuntime.create({
   fetchMedicationPages: self.HhrClinicalPanelFetch.fetchMedicationPages,
   unwrapRequiredSources: self.HhrClinicalPanelFetch.unwrapRequiredSources,
   resolveSession: () => resolveFichaClinicalSession(),
-  fetchCurrentValidation: fetchTreatmentValidation,
+  fetchCurrentValidation: fetchTreatmentValidation, fetchAuditForms: fetchScalesReportWithInfo,
   timeoutMs: CLINICAL_PANEL_REQUEST_TIMEOUT_MS,
 });
-const handleClinicalPanelRequest = async ({ encId, sender }) => {
+const handleClinicalPanelRequest = async ({ encId, historyFrom, sender }) => {
+  if (historyFrom !== undefined) return clinicalPanelRuntime.handleRequest({ encId, historyFrom });
   const [panel, documents] = await Promise.all([
     clinicalPanelRuntime.handleRequest({ encId }),
     withTimeout(
@@ -561,7 +562,6 @@ const handleClinicalPanelRequest = async ({ encId, sender }) => {
       : { documentError: documents.error || 'No se pudieron leer los documentos.' }),
   };
 };
-
 const handlePrescriptionOptionsRequest = async ({ encId }) => {
   const infoResult = await resolveFichaClinicalSession();
   if (infoResult.error) return infoResult;
@@ -1307,7 +1307,7 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo leer el paquete clínico del paciente.'
   ),
   [RUNTIME_MESSAGES.CLINICAL_PANEL_REQUEST]: runtimeRoute(
-    (message, sender) => handleClinicalPanelRequest({ encId: message.encId, sender }),
+    (message, sender) => handleClinicalPanelRequest({ encId: message.encId, historyFrom: message.historyFrom, sender }),
     'No se pudo cargar el panel clínico.'
   ),
   [RUNTIME_MESSAGES.CLINICAL_ANTECEDENTS_REQUEST]: runtimeRoute(

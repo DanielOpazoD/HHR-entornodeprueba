@@ -88,6 +88,8 @@ const OPTIONAL_TARGETS: Record<string, string> = {
     'Specialty round opens on request.',
   'src/features/census/components/specialty-round/SpecialtyRulesWindow':
     'Specialty rules open on request.',
+  'src/features/admin/admission-audit':
+    'Administrator admission audit opens explicitly and requires online census and Eloisa reads.',
   'src/features/census/public-components': 'Global search opens on request.',
   'src/features/clinical-documents': 'Clinical document dialogs/export open on request.',
   'src/features/cudyr': 'Monthly summary is an explicit alternate view.',

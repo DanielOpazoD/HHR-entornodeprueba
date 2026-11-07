@@ -21,6 +21,7 @@ const APP_CONTENT_MODULES: readonly ModuleType[] = [
   'ROLE_MANAGEMENT',
   'REMINDERS',
   'AUDIT_DOCUMENTS',
+  'ADMISSION_AUDIT',
 ];
 
 export const resolveEventBridgeModule = (detail: unknown): ModuleType | null =>

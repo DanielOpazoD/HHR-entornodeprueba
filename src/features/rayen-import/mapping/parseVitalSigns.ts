@@ -65,7 +65,7 @@ const measurementEpoch = (raw: string, recordedEpoch: number | null): number | n
 };
 
 /** Rayen field ids per reading, most-preferred first (matched case-insensitively). */
-const FIELD_IDS = {
+export const FIELD_IDS = {
   systolic: ['global_PASSent'],
   diastolic: ['global_PADSent'],
   heartRate: ['global_Pulso'],
@@ -78,7 +78,7 @@ const FIELD_IDS = {
 } as const;
 const OBS_IDS = ['global_Observaciones'];
 /** Abdominal quadrant where the rapid insulin was injected (paired with `insulinUnits`). */
-const INSULIN_QUADRANT_IDS = ['exam_Fis_Adm_InsulinaSentCUAD'];
+export const INSULIN_QUADRANT_IDS = ['exam_Fis_Adm_InsulinaSentCUAD'];
 /** Clinical measurement time recorded inside the form (falls back to the form stamp for `recordedAt`). */
 const TIME_IDS = ['SIGNS_FechaHora', 'global_FechaHoraSapu'];
 

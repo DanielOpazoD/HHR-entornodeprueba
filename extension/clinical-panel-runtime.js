@@ -2,34 +2,6 @@
 (function (root) {
   'use strict';
 
-  const CLINICAL_PANEL_RESUMES = {
-    evolutionResume: [
-      'OBE_NOTES', 'OBE_PUBLISH_DATETIME', 'OBE_START_DATETIME',
-      'HCPR_NAME', 'HCP_FGN', 'HCP_NGN', 'HCP_FFN', 'HCP_SFN',
-      'HCP_LEGAL', 'ARCHIVED', 'IS_CROSSED_OUT', 'OBE_AMENDED', 'id',
-    ],
-    shiftChangeResume: [
-      'OBSERVATION', 'HCPR_NAME', 'HCP_FGN', 'HCP_NGN', 'HCP_FFN', 'HCP_SFN',
-      'HCP_LEGAL', 'PUBLISH_DATETIME', 'ARCHIVED', 'ID',
-    ],
-    patientPharmaIndicationResume: [
-      'DESCRIPTOR', 'VIRTUAL_MEDICAL_PRODUCT', 'POSOLOGY', 'ROUTE_ADMINISTRATION',
-      'MRE_ADMINISTRATION_NOTE', 'SUSPENDED', 'FINALIZED', 'IS_NEW', 'IS_DISCHARGE',
-      'HCP_NAME', 'HCP_ROLE', 'PUBLISH_DATETIME', 'MRE_ID', 'ARCHIVED',
-      'IS_EXTERNAL', 'is_external', 'ALL_MEDICATION', 'allMedication',
-    ],
-    patientFreeIndicationResume: [
-      'INDICATION', 'HCP_NAME', 'HCP_ROLE', 'PUBLISH_DATETIME',
-      'SUSPENDED', 'IS_NEW', 'IS_DISCHARGE', 'AMRE_ID', 'ARCHIVED',
-    ],
-    nutritionOrderResume: [
-      'DIET_type', 'OBSERVATION', 'HCPR_NAME', 'HCP_LEGAL', 'PUBLISH_DATETIME', 'ARCHIVED',
-    ],
-    restResume: [
-      'rest_type', 'OBSERVATION', 'HCPR_NAME', 'HCP_LEGAL', 'PUBLISH_DATETIME', 'ARCHIVED',
-    ],
-  };
-
   const CARE_PLAN_BODY_FIELDS = [
     'entryGuid',
     'activityId',
@@ -87,7 +59,7 @@
       fetchMedicationPages,
       unwrapRequiredSources,
       resolveSession,
-      fetchCurrentValidation,
+      fetchCurrentValidation, fetchAuditForms,
       timeoutMs,
     } = dependencies || {};
 
@@ -113,7 +85,20 @@
       return slimMedicationStates(rows);
     };
 
-    const handleRequest = async ({ encId }) => {
+    const readAuditForms = async (encId, info) => {
+      try {
+        const result = await fetchAuditForms(encId, info);
+        if (result?.error) return { formError: result.error };
+        if (!Array.isArray(result?.forms)) throw new Error('invalid forms');
+        return { forms: result.forms.filter(form => String(form?.formCodigo || '').toUpperCase() === 'VITAL_SIGNS') };
+      } catch (_) {
+        return { formError: 'No se pudo verificar la lectura histórica de signos vitales.' };
+      }
+    };
+
+    const handleRequest = async ({ encId, historyFrom }) => {
+      const window = root.HhrClinicalPanelHistory.windowFor(historyFrom);
+      if (window.error) return { error: window.error };
       if (!encId) return { error: 'Falta enc_id para el panel clínico.' };
 
       const infoResp = await resolveSession();
@@ -126,11 +111,13 @@
       const encodedEncounter = encodeURIComponent(encId);
       const historyPath =
         `/api/encounter/${encodedEncounter}/` +
-        'getPatientEncounterHistoryReportServer/false/0/0/-14';
+        `getPatientEncounterHistoryReportServer/false/0/0/-${window.lookback}`;
       const carePath = `/api/carePlanAssignedCare/${encodedEncounter}`;
       const medicationPath = `/api/carePlanMedication/${encodedEncounter}`;
 
-      const sourceReads = [
+      const sourceReads = historyFrom ? [
+        ['history', 'historial clínico', () => fetchFichaJson(info, historyPath)],
+      ] : [
         ['history', 'historial clínico', () => fetchFichaJson(info, historyPath)],
         ['care', 'plan de cuidados', () => fetchFichaJson(info, carePath, { page: 0, limit: 100, showAll: false })],
         ['medications_active', 'medicamentos activos', () => fetchMedicationStates(info, medicationPath, false)],
@@ -162,30 +149,13 @@
       const [
         rawHistory,
         carePayload,
-        activeMedicationStates,
-        suspendedMedicationStates,
+        activeMedicationStates = [],
+        suspendedMedicationStates = [],
         validationSource,
       ] = sources;
 
-      const events = [];
-      for (const event of Array.isArray(rawHistory) ? rawHistory : []) {
-        if (!event) continue;
-        const slim = { publishDatetime: event.publishDatetime || '' };
-        const validator = event.healthCarePractitionerValidator;
-        if (validator && typeof validator === 'object') {
-          slim.validationDatetime =
-            validator.creationDatetime || validator.stringTimestamp || validator.timestamp || '';
-        } else if (typeof validator === 'string' && validator.trim()) {
-          slim.validationDatetime = event.publishDatetime || '';
-        }
-        let hasContent = Boolean(slim.validationDatetime);
-        for (const [resume, fields] of Object.entries(CLINICAL_PANEL_RESUMES)) {
-          const picked = pickFields(event[resume], fields);
-          slim[resume] = picked;
-          if (picked.length > 0) hasContent = true;
-        }
-        if (hasContent) events.push(slim);
-      }
+      if (historyFrom && !Array.isArray(rawHistory)) return { error: 'El historial de auditoría no tiene un formato verificable.' };
+      const events = root.HhrClinicalPanelHistory.project(rawHistory);
 
       const currentValidation = validationSource && validationSource.validation || null;
       const currentValidationDatetime =
@@ -202,12 +172,14 @@
         events.push({
           publishDatetime: currentValidationDatetime,
           validationDatetime: currentValidationDatetime,
-          ...Object.fromEntries(Object.keys(CLINICAL_PANEL_RESUMES).map(resume => [resume, []])),
+          ...root.HhrClinicalPanelHistory.emptyResumes(),
         });
       }
 
       return {
         ok: true,
+        ...window.confirmation,
+        ...(historyFrom ? await readAuditForms(encId, info) : {}),
         events,
         carePlan: {
           carePlanHeaders: slimCarePlanHeaders(carePayload),

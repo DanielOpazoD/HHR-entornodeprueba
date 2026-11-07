@@ -103,10 +103,16 @@
       "maxLines": 65,
       "hotspots": {}
     },
-    "clinical-panel-runtime.js": {
-      "maxLines": 224,
+    "clinical-panel-history.js": {
+      "maxLines": 70,
       "hotspots": {
-        "iife>variable:create>variable:handleRequest": 35
+        "iife>variable:project": 16
+      }
+    },
+    "clinical-panel-runtime.js": {
+      "maxLines": 196,
+      "hotspots": {
+        "iife>variable:create>variable:handleRequest": 27
       }
     },
     "clinical-read-error-contract.js": {
