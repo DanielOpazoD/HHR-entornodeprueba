@@ -142,11 +142,26 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
     await expect(vitals).toContainText('130/82');
     const readings = vitals.getByRole('button', { name: /\. Ver historial$/ });
     await expect(readings).toHaveCount(7);
+    const gridBounds = await readings.first().locator('..').boundingBox();
+    expect(gridBounds).not.toBeNull();
     const readingBoxes = await readings.all();
     const rowTop = (await readingBoxes[0].boundingBox())!.y;
     for (const reading of readingBoxes) {
-      expect(Math.abs((await reading.boundingBox())!.y - rowTop)).toBeLessThanOrEqual(1);
+      const bounds = await reading.boundingBox();
+      expect(Math.abs(bounds!.y - rowTop)).toBeLessThanOrEqual(1);
+      expect(bounds!.x).toBeGreaterThanOrEqual(gridBounds!.x - 1);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(gridBounds!.x + gridBounds!.width + 1);
       await expect(reading).toBeVisible();
+      const valueFits = await reading.evaluate(element => {
+        const value = element.children[1]?.firstChild;
+        if (!value) return false;
+        const range = document.createRange();
+        range.selectNode(value);
+        const textBounds = range.getBoundingClientRect();
+        const cellBounds = element.getBoundingClientRect();
+        return textBounds.left >= cellBounds.left && textBounds.right <= cellBounds.right;
+      });
+      expect(valueFits).toBe(true);
     }
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)

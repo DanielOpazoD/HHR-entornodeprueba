@@ -65,7 +65,7 @@ export const ClinicalExplorerVitals: React.FC<{
           </p>
         )}
         {readings.length > 0 ? (
-          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-none sm:grid-flow-col sm:auto-cols-[minmax(68px,1fr)] overflow-x-auto pb-0.5">
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-none sm:grid-flow-col sm:auto-cols-[minmax(max-content,1fr)] overflow-x-auto pb-0.5">
             {readings.map(reading => (
               <button
                 type="button"
@@ -78,7 +78,7 @@ export const ClinicalExplorerVitals: React.FC<{
                   {reading.label}
                 </span>
                 <span
-                  className={`block font-semibold tabular-nums ${readings.length > 4 ? 'text-base' : 'text-xl'} ${VITAL_STATUS_TEXT[reading.status]}`}
+                  className={`block font-semibold tabular-nums ${readings.length > 4 ? 'text-sm' : 'text-xl'} ${VITAL_STATUS_TEXT[reading.status]}`}
                 >
                   {reading.value}
                   <span className="block text-[10px] font-normal text-slate-500">
