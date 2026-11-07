@@ -6,6 +6,7 @@ import {
   type ClinicalExplorerPatient,
 } from '@/features/census/controllers/clinicalExplorerController';
 import { StatusDot } from './clinicalExplorerUi';
+import { IsolationBadge } from '../patient-row/IsolationBadge';
 
 interface ClinicalExplorerPatientPanelProps {
   patients: ClinicalExplorerPatient[];
@@ -63,9 +64,17 @@ export const ClinicalExplorerPatientPanel: React.FC<ClinicalExplorerPatientPanel
                   selected ? 'border-l-teal-600 bg-teal-50' : 'border-l-transparent'
                 )}
               >
-                <span className="flex items-center gap-1 whitespace-nowrap font-display text-[13px] font-bold text-slate-800">
-                  <StatusDot status={patient.data.status} className="size-2" />
-                  {patient.bedId}
+                <span className="flex flex-col items-start gap-1">
+                  <span className="flex items-center gap-1 whitespace-nowrap font-display text-[13px] font-bold text-slate-800">
+                    <StatusDot status={patient.data.status} className="size-2" />
+                    {patient.bedId}
+                  </span>
+                  {patient.data.isIsolated && (
+                    <IsolationBadge
+                      isolationType={patient.data.isolationType}
+                      microorganism={patient.data.isolationMicroorganism}
+                    />
+                  )}
                 </span>
                 <span className="line-clamp-2 text-[12px] font-medium leading-snug text-slate-700">
                   {patient.data.patientName.trim()}

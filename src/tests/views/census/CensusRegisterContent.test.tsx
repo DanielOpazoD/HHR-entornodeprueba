@@ -15,6 +15,7 @@ vi.mock('@/features/census/components/CensusActionsContext', () => ({
 
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordStatus: () => mockUseDailyRecordStatus(),
+  useDailyRecordData: () => ({ record: null }),
 }));
 
 vi.mock('@/context/CensusContext', () => ({

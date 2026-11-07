@@ -30,7 +30,7 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await seedVisualCensus(page);
+  await seedVisualCensus(page, { includeClinicalDetails: true });
   await page.route('**/.netlify/functions/mmrad-search?*', route =>
     route.fulfill({
       json: {
@@ -159,7 +159,7 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
     await page.keyboard.press('Escape');
     await expect(tooltip).toHaveCount(0);
     await expect(explorer).toBeVisible();
-    await header.click();
+    await header.getByRole('heading', { level: 2 }).click();
     await identityNotice.focus();
     await expect(tooltip).toBeVisible();
     await page.keyboard.press('Escape');
@@ -169,12 +169,32 @@ test('keeps the clinical explorer legible at 13-inch 100% and 125% and returns t
     await screenshot(page, `clinical-explorer-${zoom}`);
   }
 
+  const vitalsPanel = page.getByRole('region', { name: 'Signos vitales', exact: true });
+  await expect(vitalsPanel).not.toContainText('Censo · Eloísa');
+  await expect(vitalsPanel).not.toContainText('Última toma disponible');
+  await expect(vitalsPanel).toContainText('1.700 ml');
+  await expect(page.getByRole('region', { name: 'Alertas', exact: true })).toContainText(
+    'Alerta clínica sintética'
+  );
+  await expect(header.getByRole('img', { name: 'Aislamiento: Contacto' })).toBeVisible();
+  await expect(header.getByRole('button', { name: 'Informes locales', exact: true })).toBeVisible();
+  await vitalsPanel.getByRole('button', { name: 'Signos vitales', exact: true }).click();
+  const vitalsDialog = page.getByRole('dialog', { name: /Signos vitales/ });
+  await expect(vitalsDialog).toContainText('Historial · 2 tomas');
+  await expect(vitalsDialog).toContainText('110/70');
+  await page.keyboard.press('Escape');
+  await expect(vitalsDialog).toHaveCount(0);
+
   // Another patient from the side list, and back with the keyboard.
   await page
     .getByRole('list', { name: 'Lista de pacientes' })
     .getByRole('button', { name: new RegExp(SECOND_PATIENT) })
     .click();
   await expect(header).toContainText(SECOND_PATIENT);
+  await expect(header.getByRole('img', { name: /Aislamiento/ })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Alertas', exact: true })).not.toContainText(
+    'Alerta clínica sintética'
+  );
   await page.keyboard.press('ArrowLeft');
   await expect(header).toContainText(PATIENT);
 
@@ -234,7 +254,7 @@ test('prints the laboratory orders of several patients as one document, one page
   }
 });
 
-test('compares six original laboratory reports on desktop and opens the exact PDF', async ({
+test('compares compact original laboratory reports on desktop and opens the exact PDF', async ({
   page,
 }) => {
   const pageErrors: string[] = [];
@@ -272,6 +292,10 @@ test('compares six original laboratory reports on desktop and opens the exact PD
       '31/03/2026',
       '01/04/2026',
       '02/04/2026',
+      '03/04/2026',
+      '03/04/2026',
+      '03/04/2026',
+      '03/04/2026',
       '03/04/2026',
       '03/04/2026',
     ];
@@ -355,15 +379,17 @@ test('compares six original laboratory reports on desktop and opens the exact PD
   );
   await openExplorerFromBed(page, 'R1');
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await expect(page.getByRole('table', { name: /Últimos 6 informes/ })).toBeVisible({
+  await expect(page.getByRole('table', { name: /Últimos 10 informes/ })).toBeVisible({
     timeout: 20_000,
   });
   await screenshot(page, 'clinical-explorer-overview-1440');
   await page.getByRole('tab', { name: 'Laboratorio', exact: true }).click();
-  const table = page.getByRole('table', { name: /Últimos 6 informes/ });
+  const table = page.getByRole('table', { name: /Últimos 10 informes/ });
   await expect(table).toBeVisible({ timeout: 20_000 });
-  await expect(table.getByRole('button', { name: /Abrir PDF/ })).toHaveCount(6);
-  await expect(table).toContainText('10:00:59');
+  await expect(table.getByRole('button', { name: /Abrir PDF/ })).toHaveCount(10);
+  await expect(table).toContainText('10:00');
+  await expect(table).not.toContainText('10:00:59');
+  await expect(table).not.toContainText('Ref.');
   await expect(table).not.toContainText('Hemograma');
   await expect(table).not.toContainText('Función renal / electrolitos');
   await expect(page.getByText('valores sin interpretar')).toHaveCount(0);
@@ -382,7 +408,20 @@ test('compares six original laboratory reports on desktop and opens the exact PD
     '12345678'
   );
   const haemoglobin = table.getByRole('row', { name: /Hemoglobina/ });
-  await expect(haemoglobin.getByRole('cell')).toHaveText(['12,0', '—', '—', '—', '—', '—']);
+  await expect(haemoglobin.getByRole('cell')).toHaveText([
+    '12,0',
+    '—',
+    '—',
+    '—',
+    '—',
+    '—',
+    '—',
+    '—',
+    '—',
+    '—',
+  ]);
+  const compactRowBounds = await table.getByRole('row', { name: /Creatinina/ }).boundingBox();
+  expect(compactRowBounds!.height).toBeLessThanOrEqual(30);
   for (const width of [1440, 1024]) {
     await page.setViewportSize({ width, height: 900 });
     await expect(page.locator('vite-error-overlay')).toHaveCount(0);
@@ -419,7 +458,7 @@ test('compares six original laboratory reports on desktop and opens the exact PD
   await expect(page.getByRole('region', { name: 'Laboratorio' }).getByRole('alert')).toContainText(
     'No se pudo cargar esta sección'
   );
-  await expect(page.getByRole('table', { name: /Últimos 6 informes/ })).toBeVisible();
+  await expect(page.getByRole('table', { name: /Últimos 10 informes/ })).toBeVisible();
   await page.getByRole('searchbox', { name: 'Buscar examen de laboratorio' }).fill('creatinina');
   await expect(page.getByRole('table')).not.toContainText('Hemoglobina');
   await page.getByRole('button', { name: 'Volver al censo' }).click();

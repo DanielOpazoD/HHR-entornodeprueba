@@ -144,7 +144,11 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
                 >
                   {tab === 'all' && (
                     <>
-                      <ClinicalExplorerVitals patient={patient} />
+                      <ClinicalExplorerVitals
+                        key={`${patientKey}:${censusDate}`}
+                        patient={patient}
+                        censusDate={censusDate}
+                      />
                       <div className="min-w-0 xl:col-span-2">
                         <ClinicalExplorerLab
                           patient={patient}
@@ -160,7 +164,13 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
                   )}
                 </ClinicalExplorerNotes>
               )}
-              {tab === 'vitals' && <ClinicalExplorerVitals patient={patient} />}
+              {tab === 'vitals' && (
+                <ClinicalExplorerVitals
+                  key={`${patientKey}:${censusDate}`}
+                  patient={patient}
+                  censusDate={censusDate}
+                />
+              )}
               {tab === 'lab' && (
                 <ClinicalExplorerLab
                   patient={patient}

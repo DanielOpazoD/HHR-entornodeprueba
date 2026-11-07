@@ -221,7 +221,11 @@ export const buildNiceTicks = (
 const numberFormat = new Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 });
 export const formatLabNumber = (value: number): string => numberFormat.format(value);
 
-/** Last six source columns, retaining the original order identity even without a visible time. */
+// Syslab supplies a local wall-clock time, never an ISO instant. Keep seconds only in source keys.
+export const formatLabReportTime = (time: string | undefined): string =>
+  time?.split(':').slice(0, 2).join(':') ?? '';
+
+/** Last ten source columns, retaining the original order identity even without a visible time. */
 export const buildRecentLabColumns = (
   analysis: LabAnalysisData,
   exams: SyslabExamItem[],
@@ -239,5 +243,5 @@ export const buildRecentLabColumns = (
         b.time.localeCompare(a.time) ||
         b.key.localeCompare(a.key)
     )
-    .slice(0, 6);
+    .slice(0, 10);
 };

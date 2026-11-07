@@ -19,6 +19,7 @@ vi.mock('@/services/storage/firestore/clinicalDerivedEpisodeReader', () => ({
   readClinicalDerivedEpisodeDocs: mocks.readDocs,
 }));
 
+import { ClinicalExplorerVitals } from '@/features/census/components/clinical-explorer/ClinicalExplorerVitals';
 import { VitalsCell } from '@/features/census/components/patient-row/VitalsCell';
 import { PatientInputFlowSection } from '@/features/census/components/patient-row/PatientInputCellSections';
 import {
@@ -98,6 +99,28 @@ describe('vitals window on a split day (D10)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.isFirestoreEnabled.mockReturnValue(true);
+  });
+
+  it('opens the same split-episode history from the explorer only on demand', async () => {
+    mocks.readDoc.mockResolvedValue(
+      resolvedWith(episodeDoc({ vitalSignsHistory: [latest, vital(5), vital(4), vital(3)] }))
+    );
+    render(
+      <ClinicalDerivedDayProvider
+        value={{ generation: GENERATION, dayRevision: 4, duplicateEpisodeIds: new Set() }}
+      >
+        <ClinicalExplorerVitals
+          patient={{ bedId: 'R1', episodeId: 'ep_synthetic', data: splitEpisode(patient()) }}
+          censusDate={DATE}
+        />
+      </ClinicalDerivedDayProvider>
+    );
+    expect(mocks.readDoc).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Ver historial' }));
+    expect(await screen.findByText('Historial · 4 tomas')).toBeInTheDocument();
+    expect(mocks.readDoc).toHaveBeenCalledWith(DATE, GENERATION, 'ep_synthetic', {
+      source: 'default',
+    });
   });
 
   it("shows the episode document's history, read once from the SDK default source", async () => {

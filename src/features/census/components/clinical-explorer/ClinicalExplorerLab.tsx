@@ -36,7 +36,7 @@ interface LabSelection {
   trends: 'unopened' | 'open' | 'closed';
 }
 
-/** Syslab reports of the hospitalization: six recent source reports followed by trends per variable. */
+/** Syslab reports of the hospitalization: ten recent source reports followed by trends per variable. */
 export const ClinicalExplorerLab: React.FC<ClinicalExplorerLabProps> = ({
   patient,
   censusDate,
