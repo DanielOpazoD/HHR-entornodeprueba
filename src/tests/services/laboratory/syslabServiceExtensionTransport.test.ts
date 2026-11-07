@@ -226,18 +226,35 @@ describe('Syslab service extension transport', () => {
     });
     await fetchSyslabExamDetails([OPAQUE_LINK]);
     const remoteLink = 'hhr-syslab-remote://report/synthetic';
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          success: true,
-          data: [{ url: remoteLink, findings: [] }],
-        }),
-        { headers: { 'Content-Type': 'application/json' } }
-      )
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async url =>
+        new Response(
+          JSON.stringify(
+            String(url).includes('action=job-create')
+              ? {
+                  success: true,
+                  job: {
+                    id: '123e4567-e89b-12d3-a456-426614174000',
+                    status: 'completed',
+                    completed: 1,
+                    total: 1,
+                  },
+                }
+              : {
+                  success: true,
+                  data: [{ index: 0, findings: [] }],
+                  omittedIndices: [],
+                  nextOffset: null,
+                }
+          ),
+          { headers: { 'Content-Type': 'application/json' } }
+        )
     );
-    await fetchSyslabExamDetails([remoteLink]);
+    await expect(fetchSyslabExamDetails([remoteLink])).resolves.toMatchObject({
+      data: [{ url: remoteLink, findings: [] }],
+    });
     expect(fetchSpy).toHaveBeenCalledWith(
-      expect.stringContaining('syslab-proxy?action=details'),
+      expect.stringContaining('syslab-proxy?action=job-create'),
       expect.any(Object)
     );
     expect(bridgeMocks.status).not.toHaveBeenCalled();

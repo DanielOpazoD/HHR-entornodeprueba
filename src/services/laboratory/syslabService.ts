@@ -310,6 +310,10 @@ export const fetchSyslabExamDetails = async (
   links: string[],
   options: SyslabDetailsOptions = {}
 ): Promise<SyslabDetailsResponse> => {
+  if (links.length > 0 && links.every(link => link.startsWith('hhr-syslab-remote://report/'))) {
+    const { readRemoteSyslabDetailsJob } = await import('./syslabJobs');
+    return readRemoteSyslabDetailsJob(links, options);
+  }
   const extensionLinks = links.filter(isSyslabExtensionLink);
   if (extensionLinks.length > 0) {
     if (extensionLinks.length !== links.length) {
