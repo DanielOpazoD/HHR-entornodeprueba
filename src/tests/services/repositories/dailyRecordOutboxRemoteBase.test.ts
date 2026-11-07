@@ -66,6 +66,26 @@ describe('the outbox publishes pending work against the remote version it was bu
       tensDayShift: ['SINTETICO B'],
     });
     expect(task.syncContract?.expectedVersion).toBe(publishedBase);
+    expect(task.patchBaseValues).toMatchObject({
+      nursesDayShift: ['SINTETICA BASE'],
+      tensDayShift: ['SINTETICO BASE'],
+    });
+  });
+
+  it('compacting another edit of the same field keeps its original remote value', async () => {
+    await updatePartialDetailed(
+      date,
+      { nursesDayShift: ['SINTETICA A'] },
+      { baseRecord: baseRecord() }
+    );
+    await updatePartialDetailed(
+      date,
+      { nursesDayShift: ['SINTETICA B'] },
+      { baseRecord: await localRecord() }
+    );
+    const task = await onlyTask();
+    expect(task.patchBaseValues?.nursesDayShift).toEqual(['SINTETICA BASE']);
+    expect(task.payload).toMatchObject({ nursesDayShift: ['SINTETICA B'] });
   });
 
   it('a whole-day save over a pending edit keeps that edit base', async () => {

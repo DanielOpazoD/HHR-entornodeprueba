@@ -59,6 +59,10 @@ export interface SyncTask {
   origin?: SyncTaskOrigin;
   recoveryPolicy?: string;
   syncContract?: SyncTaskContract;
+  /** Original values of granular edits, kept locally to prove a safe authority rebase. */
+  patchBaseValues?: Record<string, unknown>;
+  /** Original occupant/episode and specialist-note context; never renewed by compaction. */
+  patchBaseContext?: Record<string, unknown>;
   /** Local projection ancestry only; these ids never acknowledge publication of another task. */
   localProjectionBaseIds?: string[];
   /**
