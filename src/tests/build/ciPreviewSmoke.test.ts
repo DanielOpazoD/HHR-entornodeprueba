@@ -30,7 +30,12 @@ it('runs census, library, pharmacy, clinical-panel, sync-navigation and DICOM/ca
   const ownership = JSON.parse(fs.readFileSync('scripts/config/e2e-test-ownership.json', 'utf8'));
   expect(
     collectE2eOwnershipIssues(
-      ownership.specs.map((entry: { file: string }) => entry.file),
+      [
+        ...new Set([
+          ...ownership.specs.map((entry: { file: string }) => entry.file),
+          ...readPreviewSmokeSpecs(),
+        ]),
+      ],
       ownership,
       process.cwd()
     )
