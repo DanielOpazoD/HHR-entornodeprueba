@@ -69,6 +69,7 @@ export const CLINICAL_READ_ERROR_CODES = [
   'batch_episode_changed',
   'batch_bed_mixed',
   'batch_too_large',
+  'batch_cudyr_changed',
   'session_changed',
 ] as const;
 export type ClinicalReadErrorCode = (typeof CLINICAL_READ_ERROR_CODES)[number];

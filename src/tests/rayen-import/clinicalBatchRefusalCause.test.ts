@@ -12,6 +12,12 @@ const REFUSALS: Array<[string, string]> = [
     'batch_too_large',
   ],
   ['Una actualización clínica excede por sí sola el límite transaccional.', 'batch_too_large'],
+  ['El CUDYR ya fue registrado durante la recuperación mensual.', 'batch_cudyr_changed'],
+  ['El censo CUDYR está protegido.', 'batch_cudyr_changed'],
+  [
+    'La evidencia mensual no identifica inequívocamente este episodio y turno.',
+    'batch_cudyr_changed',
+  ],
   ['La sesión cambió.', 'session_changed'],
 ];
 
@@ -34,10 +40,10 @@ describe('a clinical batch refused before reaching the server says which guard r
       startedAt: '2026-11-07T06:38:14.739Z',
       status: 'partial',
       coverage: {
-        total: 6,
+        total: 9,
         completed: 0,
-        errors: 6,
-        sourceErrors: 6,
+        errors: 9,
+        sourceErrors: 9,
         completedAt: '2026-11-07T06:39:11.063Z',
         issues: REFUSALS.map(([, cause]) => ({ ...issue, cause })),
       },

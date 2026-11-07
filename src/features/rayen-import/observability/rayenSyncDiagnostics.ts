@@ -127,6 +127,7 @@ export const classifyRayenSyncIssueReason = (
 
 const BATCH_GUARDS: [RegExp, ClinicalReadErrorCode][] = [
   [/misma cama/, 'batch_bed_mixed'],
+  [/cudyr (ya fue registrado|est[aá] protegido)|evidencia mensual/, 'batch_cudyr_changed'],
   [/campo cl[ií]nico cambi/, 'batch_field_changed'],
   [/episodio/, 'batch_episode_changed'],
   [/excede/, 'batch_too_large'],
