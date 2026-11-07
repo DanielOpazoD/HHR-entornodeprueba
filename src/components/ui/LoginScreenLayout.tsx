@@ -59,7 +59,7 @@ export const LoginScreenLayout: React.FC<LoginScreenLayoutProps> = ({
       </button>
 
       <div className="relative z-10 grid min-h-dvh lg:grid-cols-[minmax(20rem,25rem)_minmax(0,1fr)]">
-        <section className="relative flex min-h-dvh flex-col px-5 pb-4 pt-24 sm:px-8 lg:bg-[#f3efe6] lg:px-8 lg:py-6">
+        <section className="relative flex min-h-dvh flex-col px-5 pb-4 pt-24 max-lg:[@media(max-height:600px)]:pt-16 sm:px-8 lg:bg-[#f3efe6] lg:px-8 lg:py-6">
           <header className="absolute left-5 right-20 top-4 z-20 flex items-center justify-between sm:left-8 lg:static lg:right-auto lg:top-auto lg:z-auto lg:justify-start">
             <div className="hidden items-center gap-3 lg:flex">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-stone-300/80 bg-white/75 p-2 shadow-[0_8px_20px_-14px_rgba(15,23,42,0.5)]">
