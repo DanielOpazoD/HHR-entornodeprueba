@@ -6,9 +6,9 @@ import {
 } from '@/shared/ui/loginBackgroundModeController';
 
 export const LOGIN_INPUT_CLASS =
-  'mt-1.5 min-h-11 w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-base text-slate-950 shadow-[0_1px_2px_rgba(15,23,42,0.04)] outline-none transition placeholder:text-stone-600 hover:border-stone-400 focus:border-teal-700 focus:ring-4 focus:ring-teal-700/10 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-500';
+  'mt-1.5 min-h-12 w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-base text-slate-950 shadow-[0_2px_4px_-2px_rgba(23,62,58,0.12)] outline-none transition-[border-color,box-shadow,background-color] duration-200 placeholder:text-stone-600 enabled:hover:border-stone-400 focus:border-teal-700 focus:ring-4 focus:ring-teal-700/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-500 motion-reduce:transition-none';
 export const LOGIN_SUBMIT_CLASS =
-  'min-h-11 w-full rounded-xl bg-[#173e3a] px-4 py-2.5 text-base font-semibold text-white shadow-[0_10px_24px_-12px_rgba(23,62,58,0.7)] transition hover:-translate-y-px hover:bg-[#0f514b] active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700 disabled:cursor-wait disabled:translate-y-0 disabled:opacity-60';
+  'min-h-12 w-full rounded-xl border border-white/10 bg-[#173e3a] px-4 py-2.5 text-base font-semibold text-white shadow-[0_1px_0_rgba(255,255,255,0.12)_inset,0_6px_14px_-8px_rgba(23,62,58,0.5)] transition-[background-color,box-shadow,translate] duration-200 motion-safe:enabled:hover:-translate-y-px enabled:hover:bg-[#0f514b] enabled:hover:shadow-[0_1px_0_rgba(255,255,255,0.12)_inset,0_8px_18px_-8px_rgba(23,62,58,0.55)] active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700 disabled:cursor-wait disabled:opacity-60 disabled:shadow-none motion-reduce:transition-none';
 
 interface LoginScreenLayoutProps {
   mode: LoginBackgroundMode;
@@ -96,8 +96,8 @@ export const LoginScreenLayout: React.FC<LoginScreenLayoutProps> = ({
           </header>
 
           <main className="mx-auto flex w-full max-w-[21rem] flex-1 flex-col justify-center py-3 lg:mx-0">
-            <div className="mb-4">
-              <h1 className="font-display text-[1.85rem] font-semibold leading-tight text-slate-950">
+            <div className="mb-6">
+              <h1 className="font-display text-[1.85rem] font-semibold leading-tight tracking-[-0.025em] text-slate-950">
                 Iniciar sesión
               </h1>
             </div>
