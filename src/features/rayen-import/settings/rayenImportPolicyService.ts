@@ -1,4 +1,4 @@
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, getDocFromServer, onSnapshot, type DocumentSnapshot } from 'firebase/firestore';
 import { getSettingsDocPath, SETTINGS_DOCS } from '@/constants/firestorePaths';
 import { ensureFirestoreRuntimeReady } from '@/services/storage/firestore';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
@@ -61,7 +61,19 @@ export const subscribeToRayenImportPolicy = (
     return () => undefined;
   }
   let active = true;
+  let latest = 0;
   let unsubscribe = () => {};
+  const deliver = (snapshot: DocumentSnapshot) => {
+    const data = snapshot.exists() ? snapshot.data() : null;
+    const policy = data ? normalizeRayenImportPolicy(data) : null;
+    handlers.onSnapshot({
+      policy,
+      exists: snapshot.exists(),
+      requiresMigration: Boolean(policy && data?.schemaVersion === 1),
+      fromCache: snapshot.metadata.fromCache,
+      hasPendingWrites: snapshot.metadata.hasPendingWrites,
+    });
+  };
   void ensureFirestoreRuntimeReady(runtime)
     .then(() => {
       if (!active) return;
@@ -69,15 +81,18 @@ export const subscribeToRayenImportPolicy = (
         policyRef(runtime),
         { includeMetadataChanges: true },
         snapshot => {
-          const data = snapshot.exists() ? snapshot.data() : null;
-          const policy = data ? normalizeRayenImportPolicy(data) : null;
-          handlers.onSnapshot({
-            policy,
-            exists: snapshot.exists(),
-            requiresMigration: Boolean(policy && data?.schemaVersion === 1),
-            fromCache: snapshot.metadata.fromCache,
-            hasPendingWrites: snapshot.metadata.hasPendingWrites,
-          });
+          const turn = ++latest;
+          if (snapshot.exists() || snapshot.metadata.fromCache) {
+            deliver(snapshot);
+            return;
+          }
+          // The browser's local copy can keep a stale «does not exist» that the listener reports as
+          // confirmed (2026-11-07: right after IndexedDB closed under the app, sync stayed blocked
+          // as «not configured» while the server had the policy). Only the server may say missing.
+          getDocFromServer(policyRef(runtime)).then(
+            confirmed => active && turn === latest && deliver(confirmed),
+            error => active && turn === latest && handlers.onError(error)
+          );
         },
         handlers.onError
       );
