@@ -31,7 +31,7 @@ export const useActiveClinicalPanel = (identity: string) => {
   return { isOpen, open, close };
 };
 
-// Each mounted panel registers how to open it, so the turtle menu and the drawer's
+// Each mounted panel registers how to open it, so the «Accesos» ring and the drawer's
 // previous/next arrows open a patient's panel without clicking a row button.
 const openersByKey = new Map<string, () => void>();
 

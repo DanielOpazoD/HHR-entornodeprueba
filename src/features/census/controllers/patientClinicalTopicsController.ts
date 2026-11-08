@@ -2,7 +2,7 @@ import type { PatientData } from '@/features/census/types/censusTablePatientCont
 import { isValidRut } from '@/utils/rutUtils';
 import { canExploreClinicalPatient } from '@/features/census/controllers/clinicalExplorerController';
 
-/** The patient topics the turtle menu can open, each read from the patient's own identifiers. */
+/** The patient topics the «Accesos» ring can open, each read from the patient's own identifiers. */
 export interface PatientClinicalTopics {
   clinicalPanel: boolean;
   laboratory: boolean;
