@@ -63,6 +63,7 @@ fila con paciente
 - Sin episodio o con pasaporte no hay resultados que leer: si la fila puede editar, Laboratorio e Imágenes abren directo la solicitud. Un tema que no aplica queda gris en el anillo, que nunca cambia de forma.
 - Ficha clínica abre el panel lateral (`ClinicalPanelTrigger`, sin botón propio); sus flechas ‹ › recorren las marcas `data-clinical-panel-key`, incluida la cuna. El centro del anillo abre el explorador clínico en ese paciente; el panel también lo ofrece.
 - El anillo sigue a su botón si la página se desplaza y se cierra con Esc, con un clic fuera o cuando el botón sale de la pantalla; devuelve el foco al botón. Las flechas eligen el sector que señalan.
+- Una marca pequeña de Eloísa, en el borde inferior derecho del botón, abre el episodio en la lista de enfermería de Ficha Médico, en una pestaña nueva. Sin episodio no aparece.
 - Una cuna ofrece solo su ficha. La impresión deja fuera la columna.
 - La tablilla rongorongo es el único ícono rapanui de la columna (`components/patient-row/patientClinicalAccessIcons.ts`); los temas usan los íconos habituales del censo.
 

@@ -109,6 +109,26 @@ describe('PatientClinicalAccess', () => {
     expect(access('Explorador clínico')).toHaveFocus();
   });
 
+  it('opens the episode in Eloísa from the small mark on the access button, in a new tab', () => {
+    renderAccess();
+
+    const eloisa = screen.getByRole('link', { name: 'Abrir a Paciente de prueba en Eloísa' });
+    expect(eloisa).toHaveAttribute(
+      'href',
+      'https://fichamedico.rayensalud.cl/dashboard/encounter-list-nurse/141336'
+    );
+    expect(eloisa).toHaveAttribute('target', '_blank');
+    expect(eloisa).toHaveAttribute('rel', 'noopener noreferrer');
+    fireEvent.click(eloisa);
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('leaves out the Eloísa mark when the patient has no episode', () => {
+    renderAccess({ patient: passportPatient });
+
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
   it('opens ficha, laboratory and imaging and offers no request when reading', async () => {
     renderAccess();
 
