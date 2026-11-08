@@ -157,6 +157,27 @@ describe('ClinicalExplorerImaging', () => {
     return { popup, createUrl, revokeUrl };
   };
 
+  it.each(['', 'Sin fecha'])(
+    'shows the actual full period when admission is %s',
+    async admissionDate => {
+      mocks.search.mockResolvedValue({ rut: RUT, examenes: [] });
+      render(
+        <ClinicalExplorerImaging
+          patient={{ ...patient!, data: { ...patient!.data, admissionDate } }}
+          tab="all"
+          onShowAll={vi.fn()}
+        />
+      );
+      await screen.findByText('Sin estudios de imágenes en MMRAD para este paciente.');
+      expect(
+        screen.getByText(/Período: todo el historial disponible en MMRAD, hasta hoy/)
+      ).toBeVisible();
+      expect(
+        screen.queryByRole('checkbox', { name: 'Incluir exámenes anteriores al ingreso' })
+      ).toBeNull();
+    }
+  );
+
   it.each(['patient', 'episode', 'session'])(
     'reveals earlier studies and scopes the period to the current %s',
     async change => {

@@ -17,7 +17,12 @@ import {
 } from '@/services/radiology/mmradService';
 import { getSessionEpoch, onSessionChange } from '@/services/storage/sessionStorageTransition';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
-import { formatStudyStamp, isCtStudy, studyKey } from './clinicalExplorerImagingModel';
+import {
+  asMmradDateBound,
+  formatStudyStamp,
+  isCtStudy,
+  studyKey,
+} from './clinicalExplorerImagingModel';
 import {
   AreaCard,
   EXPLORER_ACTION_BUTTON,
@@ -81,6 +86,8 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
   const [historyFor, setHistoryFor] = useState<string | null>(null);
   const includeHistory = historyFor === historyScope;
   const today = formatDateDDMMYYYY(getClinicalCalendarDateISO());
+  const hasAdmissionBound = Boolean(asMmradDateBound(patient.data.admissionDate));
+  const fullHistory = includeHistory || !hasAdmissionBound;
   const rut = patient.data.rut.trim();
   const patientName = patient.data.patientName.trim();
   const imaging = useClinicalExplorerImaging({
@@ -171,7 +178,7 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
       return (
         <>
           <EmptyNote>
-            {includeHistory
+            {fullHistory
               ? 'Sin estudios de imágenes en MMRAD para este paciente.'
               : 'Sin estudios de imágenes desde el ingreso. Puede haber exámenes anteriores.'}
           </EmptyNote>
@@ -300,18 +307,20 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
     >
       <div className="mb-2 space-y-1 border-b border-slate-100 pb-2 text-[11px] text-slate-600">
         <p>
-          {includeHistory
+          {fullHistory
             ? `Período: todo el historial disponible en MMRAD, hasta hoy (${today}).`
             : `Período: desde el ingreso (${formatDateDDMMYYYY(patient.data.admissionDate)}) hasta hoy (${today}).`}
         </p>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={includeHistory}
-            onChange={event => setHistoryFor(event.target.checked ? historyScope : null)}
-          />
-          Incluir exámenes anteriores al ingreso
-        </label>
+        {hasAdmissionBound && (
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={includeHistory}
+              onChange={event => setHistoryFor(event.target.checked ? historyScope : null)}
+            />
+            Incluir exámenes anteriores al ingreso
+          </label>
+        )}
       </div>
       {body()}
       {viewerExam?.dicom_url && (
