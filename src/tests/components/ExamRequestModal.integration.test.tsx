@@ -202,6 +202,36 @@ describe('ExamRequestModal integration', () => {
       .forEach(input => expect(input).toHaveValue(''));
   });
 
+  it('never carries a request between patients that no episode or document identifies', () => {
+    // Two provisional newborns: same name and admission day, no RUT and no episode yet.
+    const newborn = { ...mockPatient, rut: '', patientName: 'RN de Madre Sintética' };
+    const first = { ...newborn, admissionTime: '08:10' };
+    const { rerender } = render(
+      <ExamRequestModal isOpen={true} onClose={vi.fn()} patient={first} />
+    );
+    fireEvent.click(screen.getByText('ELECTROLITOS PLASMATICOS'));
+    fireEvent.change(screen.getByRole('textbox', { name: 'OTROS' }), {
+      target: { value: 'Bilirrubina' },
+    });
+
+    // Re-rendering the same record keeps what was typed.
+    rerender(<ExamRequestModal isOpen={true} onClose={vi.fn()} patient={first} />);
+    expect(screen.getByDisplayValue('Bilirrubina')).toBeInTheDocument();
+
+    rerender(
+      <ExamRequestModal
+        isOpen={true}
+        onClose={vi.fn()}
+        patient={{ ...newborn, admissionTime: '21:40' }}
+      />
+    );
+    const form = screen.getByTestId('exam-request-form');
+    expect(within(form).queryByText('X')).not.toBeInTheDocument();
+    within(form)
+      .getAllByRole('textbox')
+      .forEach(input => expect(input).toHaveValue(''));
+  });
+
   it('updates the selected exam count when a visible exam is toggled', async () => {
     render(<ExamRequestModal isOpen={true} onClose={vi.fn()} patient={mockPatient} />);
 

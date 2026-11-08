@@ -60,9 +60,13 @@ export const buildExamRequestModalShellModel = (
   patientBedName: patient.bedName,
 });
 
+const unprovenPatientKeys = new WeakMap<PatientData, string>();
+let unprovenPatientCount = 0;
+
 /**
  * Who a single-patient request belongs to: the episode, or else the document and admission. The
- * bed is only a place, so a new patient in the same bed starts a blank request.
+ * bed is only a place, so a new patient in the same bed starts a blank request. Without episode or
+ * document nothing proves it is the same person, so every new patient record starts blank.
  */
 export const resolveExamRequestPatientIdentity = (patient: PatientData): string => {
   if (patient.clinicalEpisodeId) return `episode:${patient.clinicalEpisodeId}`;
@@ -70,9 +74,14 @@ export const resolveExamRequestPatientIdentity = (patient: PatientData): string 
   // A passport is never read as a RUT.
   const document =
     documentType === 'RUT' ? normalizeRut(patient.rut) : (patient.rut ?? '').trim().toUpperCase();
-  return [documentType, document || patient.patientName.trim(), patient.admissionDate ?? ''].join(
-    ':'
-  );
+  if (document) return [documentType, document, patient.admissionDate ?? ''].join(':');
+  let unprovenKey = unprovenPatientKeys.get(patient);
+  if (!unprovenKey) {
+    unprovenPatientCount += 1;
+    unprovenKey = `unproven:${unprovenPatientCount}`;
+    unprovenPatientKeys.set(patient, unprovenKey);
+  }
+  return unprovenKey;
 };
 
 export const buildExamRequestFormColumns = (): ExamRequestColumnModel[] => [
