@@ -20,6 +20,11 @@ type Result = {
   nextBeforeDate?: string | null;
 };
 type Dependencies = {
+  downloadDau?: (input: {
+    patientRun: string;
+    attentionId: string;
+    assertAuthorization: () => Promise<void>;
+  }) => Promise<unknown>;
   now?: () => Date;
   getContext: (...args: unknown[]) => Promise<unknown>;
   readJson: (input: { path: string }) => Promise<unknown>;

@@ -4,7 +4,7 @@
   const list = value => Array.isArray(value) ? value : value && typeof value === 'object' ? [value] : [];
   const text = value => (typeof value === 'string' ? value : '');
   const run = value => String(value || '').replace(/[^0-9k]/gi, '').toUpperCase();
-  const create = ({ getContext, readJson, fetchImpl, openTab, getAuthorizationKey, now = () => new Date() }) => {
+  const create = ({ getContext, readJson, fetchImpl, openTab, getAuthorizationKey, downloadDau, now = () => new Date() }) => {
     const authorize = root.HhrClinicalAntecedentsTransport.create({ fetchImpl });
     const sourceSupport = root.HhrClinicalAntecedentsSources.create({ run, list, text });
     const detailSupport = root.HhrClinicalAntecedentsDetail.create({
@@ -117,6 +117,16 @@
         ),
       };
     };
+    const officialDauFor = async (history, selected, detail, sender) => {
+      if (selected.source !== 'Primaria' || detailSupport.slim(detail).careType !== 'emergency' || !downloadDau)
+        throw new Error('El DAU oficial no está disponible para esta atención.');
+      return await downloadDau({ patientRun: run(history.patientRun), attentionId: selected.id,
+        assertAuthorization: async () => {
+          if (await getAuthorizationKey(sender) !== history.authorizationKey)
+            throw new Error('La sesión clínica cambió durante la descarga del DAU.');
+        },
+      });
+    };
     const handleRequest = async ({ encId, operation, entryId, beforeDate, sender }) => {
       try {
         if (operation === 'urgency') {
@@ -133,7 +143,7 @@
           await openTab({ url: url.href });
           return { ok: true, opened: true };
         }
-        if (!['list', 'detail', 'attachment'].includes(operation))
+        if (!['list', 'detail', 'attachment', 'dau'].includes(operation))
           throw new Error('La consulta de antecedentes no es válida.');
         const history = await detailSupport.cachedHistoryFor(historyFor, encId, sender, beforeDate, operation === 'list');
         if (operation === 'list')
@@ -150,6 +160,7 @@
         const selected = history.rows.find(row => row.source === source && row.id === id);
         if (!selected) throw new Error('La atención ya no está disponible para este paciente.');
         const detail = await detailSupport.detailFor(history, selected, sender);
+        if (operation === 'dau') return await officialDauFor(history, selected, detail, sender);
         if (operation === 'attachment') {
           if (await getAuthorizationKey(sender) !== history.authorizationKey)
             throw new Error('La sesión clínica cambió durante la consulta de antecedentes.');

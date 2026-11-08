@@ -7,6 +7,7 @@ import {
 } from '@/features/rayen-import/clinical-panel';
 import { formatClinicalAntecedentDate } from './clinicalAntecedentDate';
 import { ClinicalAntecedentContent } from './ClinicalAntecedentContent';
+import { ClinicalAntecedentDau } from './ClinicalAntecedentDau';
 
 export const ClinicalAntecedentCard = ({
   entry,
@@ -56,7 +57,7 @@ export const ClinicalAntecedentCard = ({
   };
 
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+    <article className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
         <time className="font-semibold tabular-nums text-slate-700">
           {formatClinicalAntecedentDate(entry.date)}
@@ -89,7 +90,7 @@ export const ClinicalAntecedentCard = ({
         </button>
       )}
       {canLoadDetail && detailRequested && (
-        <div className="mt-2 whitespace-pre-wrap border-t border-slate-100 pt-2 text-xs leading-relaxed text-slate-600">
+        <div className="mt-1.5 whitespace-pre-wrap border-t border-slate-100 pt-1.5 text-[11px] leading-[1.4] text-slate-600">
           {!result ? (
             <p>Cargando atención…</p>
           ) : result.error ? (
@@ -109,6 +110,13 @@ export const ClinicalAntecedentCard = ({
           ) : result.detail ? (
             <>
               <ClinicalAntecedentContent detail={result.detail} entry={entry} />
+              {entry.source === 'Primaria' && result.detail.careType === 'emergency' && (
+                <ClinicalAntecedentDau
+                  request={signal =>
+                    requestClinicalAction(episode, 'dau', `${entry.source}:${entry.id}`, signal)
+                  }
+                />
+              )}
               {!!result.detail.attachments.length && (
                 <div className="mt-2 border-t border-slate-100 pt-2">
                   <p className="font-semibold text-slate-700">Archivos adjuntos</p>

@@ -48,6 +48,24 @@ describe('antecedent clinical fields', () => {
     download.mockReset();
     download.mockResolvedValue(undefined);
   });
+  it('descarga el DAU oficial sólo de la urgencia seleccionada y muestra un fallo recuperable', async () => {
+    requestClinicalAction.mockImplementation(async (_episode, operation) =>
+      operation === 'detail'
+        ? { ok: true, detail: { ...detail, careType: 'emergency' } }
+        : { ok: false, error: 'Abre Rayen Urgencias e inicia sesión.' }
+    );
+    render(<ClinicalAntecedentCard entry={entry} episode="12" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Descargar DAU oficial (PDF)' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Abre Rayen Urgencias');
+    expect(requestClinicalAction).toHaveBeenCalledWith(
+      '12',
+      'dau',
+      'Primaria:8',
+      expect.any(AbortSignal)
+    );
+    expect(screen.getByText('Hallazgo sintético')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Descargar DAU oficial (PDF)' })).toBeEnabled();
+  });
   it('muestra APS con todos los campos seleccionados y descarga la receta del paciente verificado', async () => {
     requestClinicalAction.mockResolvedValue({
       ok: true,

@@ -781,3 +781,24 @@ RUN distinto y encabezado no verificable. Se conservan los controles de identida
 todos los encabezados de paciente deben coincidir; no basta la primera página.
 El parser elimina separadores de columna al separar unidad y referencia, sin alterar
 valores, escalas ni comparadores. No cambian hosts, permisos, sesión ni CUDYR.
+
+### DAU oficial y antecedentes compactos · 0.48.81
+
+«Descargar DAU oficial (PDF)» está disponible en las urgencias de la fuente primaria.
+HCC verifica el paciente y la atención antes de delegar la lectura en una pestaña HTTPS
+principal de `https://urgencia.saludenred.cl/Emergency/` con sesión iniciada. El permiso
+nuevo `https://urgencia.saludenred.cl/*` permite esa ejecución; no se inyectan scripts
+en pestañas PDF/blob ni se amplía el permiso al API de Urgencias.
+
+El lector usa `API.ADMISSIONS.BY_IDENT`, `EmergencyAdmissionService.newResource`,
+`DAUReport` y `$http` del cliente oficial. Sólo ejecuta GET. Exige un único registro
+con RUN y `PatientCare.Id` exactos, centro igual al de la sesión activa, relaciones paciente/admisión consistentes y un
+DAU_C.pdf del mismo establecimiento, admisión y atención. Comprueba dueño de sesión,
+contenido PDF y autorización hospitalaria antes de descargar. No copia credenciales,
+no persiste datos clínicos y no entrega el PDF ni enlaces de acceso a la página HHR.
+Si Urgencias no está abierto, el botón explica que debe iniciarse esa sesión.
+Los DAU con identificadores secundarios opacos quedan fuera de este contrato: no se
+elige una atención por cercanía de fecha. Owner: `urgency-dau-runtime.js`; rollback:
+retirar su import, acción `dau`, botón y permiso juntos.
+
+El panel reduce separaciones y rellenos, manteniendo todos los campos visibles.

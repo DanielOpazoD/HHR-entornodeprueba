@@ -12,7 +12,7 @@
     if (data && data.type === 'HHR_RAYEN_CLINICAL_ACTION_REQUEST') {
       const request = data.operation === 'prescription'
         ? { type: runtimeMessages.PRESCRIPTION_PRINT_REQUEST, encId: data.encId, selectionKey: 'complete' }
-        : ['list', 'detail', 'attachment', 'urgency'].includes(data.operation)
+        : ['list', 'detail', 'attachment', 'urgency', 'dau'].includes(data.operation)
           ? { type: runtimeMessages.CLINICAL_ANTECEDENTS_REQUEST, encId: data.encId, operation: data.operation, entryId: data.entryId, beforeDate: data.beforeDate }
           : null;
       if (!request) return;

@@ -28,7 +28,7 @@ export interface ClinicalActionResult {
 
 export const requestClinicalAction = (
   encId: string,
-  operation: 'prescription' | 'list' | 'detail' | 'attachment' | 'urgency',
+  operation: 'prescription' | 'list' | 'detail' | 'attachment' | 'urgency' | 'dau',
   entryId?: string,
   signal?: AbortSignal,
   beforeDate?: string
