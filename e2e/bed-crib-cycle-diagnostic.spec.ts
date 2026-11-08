@@ -338,7 +338,7 @@ const openBedConfigMenu = async (row: Locator) => {
 };
 
 const clickAgregarCuna = (page: Page) =>
-  page.getByRole('button', { name: /Agregar Cuna/i }).dispatchEvent('click');
+  page.getByRole('menuitem', { name: /Agregar Cuna/i }).dispatchEvent('click');
 
 const confirmClear = async (page: Page, row: Locator) => {
   await row.getByTitle('Acciones').click({ force: true });
