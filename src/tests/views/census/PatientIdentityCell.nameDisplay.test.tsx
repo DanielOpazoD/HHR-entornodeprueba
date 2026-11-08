@@ -42,4 +42,17 @@ describe('PatientIdentityCell · displayed name', () => {
     expect(screen.queryByText(storedName)).toBeNull();
     expect(container.querySelector('input[name="patientName"]')).toHaveValue(storedName);
   });
+
+  it('shows the whole name when Eloísa sent it all as given names, without surnames', () => {
+    const data = DataFactory.createMockPatient('R1', {
+      patientName: 'Ana María Josefa Soto Rojas',
+      firstName: 'Ana María Josefa Soto Rojas',
+      lastName: '',
+      secondLastName: '',
+    });
+
+    renderCell(data);
+
+    expect(screen.getByText('Ana María Josefa Soto Rojas')).toBeInTheDocument();
+  });
 });

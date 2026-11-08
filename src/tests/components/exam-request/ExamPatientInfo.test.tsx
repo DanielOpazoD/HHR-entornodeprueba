@@ -58,6 +58,22 @@ describe('ExamPatientInfo', () => {
       ).toBeInTheDocument();
     });
 
+    it('shows the whole name when no surname is stored', () => {
+      render(
+        <ExamPatientInfo
+          patient={{
+            ...mockPatient,
+            patientName: 'Ana María Josefa Soto Rojas',
+            firstName: 'Ana María Josefa Soto Rojas',
+            lastName: '',
+            secondLastName: '',
+          }}
+        />
+      );
+
+      expect(screen.getByText('Ana María Josefa Soto Rojas')).toBeInTheDocument();
+    });
+
     it('should render patient RUT', () => {
       render(<ExamPatientInfo patient={mockPatient} />);
 

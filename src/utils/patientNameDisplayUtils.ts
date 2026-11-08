@@ -54,9 +54,9 @@ const couldBeGuessedSplit = (fullName: string, parts: PatientNameFields): boolea
 };
 
 /**
- * Display only: the first three given names followed by both surnames. The limit applies only
- * when the stored split agrees with the full name and cannot be the read-time guess; otherwise
- * the stored full name is shown whole, because a guessed split can cut part of a surname.
+ * Display only: the first three given names followed by the surnames. The limit applies only
+ * when a surname is stored, the split agrees with the full name and it cannot be the read-time
+ * guess; otherwise the stored full name is shown whole, so no surname is ever cut.
  */
 export const formatPatientDisplayName = (patient: PatientNameFields): string => {
   const fullName = normalizeSpaces(patient.patientName);
@@ -64,7 +64,8 @@ export const formatPatientDisplayName = (patient: PatientNameFields): string => 
   const surnames = [patient.lastName, patient.secondLastName].map(normalizeSpaces).filter(Boolean);
   const nameFromParts = [givenNames, ...surnames].filter(Boolean).join(' ');
 
-  if (!givenNames) {
+  // Without a surname the split is unknown (Eloísa may send the whole name as given names).
+  if (!givenNames || surnames.length === 0) {
     return fullName || nameFromParts;
   }
   if (fullName && (!sameName(nameFromParts, fullName) || couldBeGuessedSplit(fullName, patient))) {

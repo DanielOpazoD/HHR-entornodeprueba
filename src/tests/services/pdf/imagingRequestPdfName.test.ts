@@ -37,6 +37,16 @@ const syntheticPatients = [
     }),
     printed: 'MAXIMILIANO BARTOLOMÉ CONSTANTINO RAPAHANGO TEPANO HEREVERI TEAO',
   },
+  {
+    // Eloísa sent the whole name as given names: without a surname nothing is shortened.
+    patient: DataFactory.createMockPatient('R4', {
+      patientName: 'Ana María Josefa Soto Rojas',
+      firstName: 'Ana María Josefa Soto Rojas',
+      lastName: '',
+      secondLastName: '',
+    }),
+    printed: 'ANA MARÍA JOSEFA SOTO ROJAS',
+  },
 ];
 
 const readTextItems = async (bytes: Uint8Array) => {

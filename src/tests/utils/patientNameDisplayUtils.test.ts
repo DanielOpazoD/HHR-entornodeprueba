@@ -61,6 +61,20 @@ describe('formatPatientDisplayName', () => {
     ).toBe(patientName);
   });
 
+  it('shows the whole name when no surname is stored, since the split is unknown', () => {
+    expect(
+      formatPatientDisplayName({
+        patientName: 'Ana María Josefa Soto Rojas',
+        firstName: 'Ana María Josefa Soto Rojas',
+        lastName: '',
+        secondLastName: '',
+      })
+    ).toBe('Ana María Josefa Soto Rojas');
+    expect(formatPatientDisplayName({ firstName: 'Ana María Josefa Soto Rojas' })).toBe(
+      'Ana María Josefa Soto Rojas'
+    );
+  });
+
   it('keeps short names whole, including a single surname', () => {
     expect(
       formatPatientDisplayName({ patientName: 'Tiare Rapu', firstName: 'Tiare', lastName: 'Rapu' })
