@@ -4,7 +4,7 @@
  * Pure logic that maps clinical-document records to per-bed presence
  * indicators. Used by the census table to show which patients have
  * active records and to display count badges in the
- * orbital quick-action launcher.
+ * «Accesos» column.
  *
  * Data flow:
  *   unifiedRows → buildBedEpisodeBindings → episodeKeys
@@ -143,7 +143,7 @@ export const buildClinicalDocumentPresenceByBed = (
 
 /**
  * Maps each bed to detailed document presence info including counts.
- * Used to populate badges in the orbital quick-action launcher.
+ * Used to populate the Documentos badge in the «Accesos» column.
  */
 export const buildClinicalDocumentPresenceInfoByBed = (
   bindings: BedEpisodeBinding[],

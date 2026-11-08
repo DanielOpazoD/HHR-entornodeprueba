@@ -1,0 +1,41 @@
+/* The «Accesos» ring opens from its button: the whole ring turns in, then each sector settles. */
+.clinical-access-radial {
+  animation: clinical-access-radial-in 280ms cubic-bezier(0.2, 0.9, 0.25, 1) both;
+  transform-origin: center;
+}
+
+.clinical-access-radial-base {
+  filter: drop-shadow(0 22px 34px rgb(15 23 42 / 0.18)) drop-shadow(0 2px 5px rgb(15 23 42 / 0.08));
+}
+
+.clinical-access-radial-sector {
+  animation: clinical-access-radial-fade 240ms ease-out both;
+  animation-delay: calc(60ms + var(--sector-index, 0) * 30ms);
+}
+
+@keyframes clinical-access-radial-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6) rotate(-14deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes clinical-access-radial-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clinical-access-radial,
+  .clinical-access-radial-sector {
+    animation: none;
+  }
+}

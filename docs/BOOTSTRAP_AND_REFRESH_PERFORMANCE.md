@@ -112,7 +112,7 @@ signals; their budgets, auth checks and observation semantics are unchanged.
 Focused behavior checks:
 
 ```sh
-npx vitest run src/tests/views/census/PatientRowOrbitalQuickActions.visibility.test.tsx src/tests/views/census/PatientRowOrbitalQuickActions.behavior.test.tsx src/tests/views/census/patientRowOrbitalLauncherRuntimeSupport.test.ts src/tests/features/cudyr/cudyrPending.test.ts
+npx vitest run src/tests/views/census/PatientClinicalAccess.test.tsx src/tests/features/cudyr/cudyrPending.test.ts
 ```
 
 For a new comparable baseline, use `npm run test:e2e:census-performance` with the

@@ -47,6 +47,7 @@ const columns = {
   bed: 96,
   type: 64,
   name: 190,
+  access: 64,
   rut: 128,
   age: 56,
   diagnosis: 220,

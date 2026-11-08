@@ -131,7 +131,7 @@ export default function NursingAccessForm({ onSuccess, disabled, onBusyChange }:
         onSubmit={submit}
         aria-busy={busy}
         autoComplete="off"
-        className="space-y-2.5 text-sm text-slate-800"
+        className="space-y-3 text-sm text-slate-800"
         aria-label="Ingreso con usuario y contraseña"
       >
         {mode !== 'login' && (

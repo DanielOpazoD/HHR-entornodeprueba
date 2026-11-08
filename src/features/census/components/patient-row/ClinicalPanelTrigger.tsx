@@ -1,13 +1,14 @@
 /**
  * ClinicalPanelTrigger — owns a patient's ClinicalPanelDrawer (evoluciones + indicaciones + cuidados
- * from Ficha Médico, live view). A crib shows its own button; a main row is `headless` and opens from
- * the turtle menu through `openClinicalPanel`. Rendered only for synced patients — the panel is
- * fetched by `clinicalEpisodeId`, which exists only after an Eloísa sync.
+ * from Ficha Médico, live view). It has no button: the «Ficha clínica» access opens it through
+ * `openClinicalPanel`, and its marker keeps the row's place for the drawer's ‹ › arrows. Rendered
+ * only for synced patients — the panel is fetched by `clinicalEpisodeId`, which exists only after an
+ * Eloísa sync.
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BookOpenText, X } from 'lucide-react';
+import { X } from 'lucide-react';
 
 import {
   buildClinicalPanelKey,
@@ -19,7 +20,6 @@ import {
   useActiveClinicalPanel,
   useClinicalPanelOpener,
 } from './useActiveClinicalPanel';
-import { ClinicalActionButton } from './ClinicalActionButton';
 import { openClinicalExplorer } from '../clinical-explorer/clinicalExplorerStore';
 import { RecoverableClinicalPanelModule, PanelModuleRetry } from './RecoverableClinicalPanelModule';
 import { DeferredHospitalizationReportsDialog } from '../DeferredHospitalizationReportsDialog';
@@ -41,9 +41,15 @@ interface ClinicalPanelTriggerProps {
   encounterRouteHint?: 'medical' | 'nurse';
   admissionDate?: string;
   censusDate?: string;
-  /** No row button: the turtle menu opens the panel, and a marker keeps its place for ‹ ›. */
-  headless?: boolean;
 }
+
+/** The marker sits in the row's «Accesos» cell; focus goes back to its «Accesos» button. */
+const focusOpener = (marker: HTMLElement | null): void => {
+  marker
+    ?.closest('td')
+    ?.querySelector<HTMLButtonElement>('button[data-clinical-access="menu"]')
+    ?.focus();
+};
 
 /** Occupies the drawer while its deferred code loads, so the first click has immediate feedback. */
 const ClinicalPanelImportFallback: React.FC<{
@@ -57,7 +63,7 @@ const ClinicalPanelImportFallback: React.FC<{
 
   const closeAndRestoreFocus = (): void => {
     onClose();
-    openerRef.current?.querySelector('button')?.focus();
+    focusOpener(openerRef.current);
   };
 
   useEffect(() => {
@@ -66,7 +72,7 @@ const ClinicalPanelImportFallback: React.FC<{
       if (event.key === 'Escape' && panelRef.current?.contains(document.activeElement)) {
         event.stopPropagation();
         onClose();
-        openerRef.current?.querySelector('button')?.focus();
+        focusOpener(openerRef.current);
       }
     };
     document.addEventListener('keydown', onKeyDown);
@@ -149,7 +155,6 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
   encounterRouteHint,
   admissionDate,
   censusDate,
-  headless = false,
 }) => {
   const triggerRef = useRef<HTMLSpanElement>(null);
   const [areReportsOpen, setAreReportsOpen] = useState(false);
@@ -178,23 +183,7 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
 
   return (
     <>
-      {headless ? (
-        <span ref={triggerRef} data-clinical-panel-key={panelKey} aria-hidden="true" />
-      ) : (
-        <span ref={triggerRef} className="inline-flex shrink-0 items-center">
-          <ClinicalActionButton
-            tone="clinical"
-            data-testid={`clinical-panel-trigger-${triggerKey}`}
-            data-clinical-panel-key={panelKey}
-            onClick={openPanel}
-            title="Panel clínico (evoluciones, indicaciones y cuidados de Eloísa)"
-            hint="Ficha clínica"
-            label={`Abrir panel clínico de ${patientName}`}
-          >
-            <BookOpenText size={14} />
-          </ClinicalActionButton>
-        </span>
-      )}
+      <span ref={triggerRef} data-clinical-panel-key={panelKey} aria-hidden="true" />
       {isOpen && (
         <RecoverableClinicalPanelModule
           resetModule={resetDrawerModule}
@@ -232,7 +221,10 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
                         openClinicalExplorer({ censusDate, bedId });
                       }
                     : undefined,
-                onClose: close,
+                onClose: () => {
+                  close();
+                  focusOpener(triggerRef.current);
+                },
               }}
             />
           )}

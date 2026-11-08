@@ -261,9 +261,9 @@ const revealPatientRowQuickActions = async (
   page: Parameters<typeof ensureRecordExists>[0],
   patientRow: ReturnType<Parameters<typeof ensureRecordExists>[0]['locator']>
 ) => {
-  const demographicsButton = patientRow.getByRole('button', { name: /Datos del Paciente/i });
-  await demographicsButton.focus();
-  await expect(page.getByLabel('Acciones clínicas rápidas')).toBeVisible();
+  // Documentos lives in the ring of the row's «Accesos» manutara, visible without hover.
+  await patientRow.getByTestId('clinical-access-R1').click();
+  await expect(page.getByTestId('clinical-access-documents-R1')).toBeVisible();
 };
 
 test.afterAll(async () => {
@@ -347,14 +347,12 @@ test.describe('Startup performance budget', () => {
     const patientRow = page.locator('[data-testid="patient-row"][data-bed-id="R1"]').first();
     const openClinicalDocumentsMenuStart = performance.now();
     await revealPatientRowQuickActions(page, patientRow);
-    await page.getByLabel('Acciones clínicas rápidas').click();
     clinicalDocumentsBreakdown.openMenuMs = Number(
       (performance.now() - openClinicalDocumentsMenuStart).toFixed(2)
     );
-    await expect(page.getByTitle('Documentos clínicos')).toBeVisible();
 
     const startClinicalDocuments = performance.now();
-    await page.getByTitle('Documentos clínicos').click();
+    await page.getByTestId('clinical-access-documents-R1').click();
     await waitForClinicalDocumentsReady(page);
     const clinicalDocumentsVisibleMs = performance.now() - startClinicalDocuments;
     clinicalDocumentsBreakdown.workspaceReadyMs = Number(clinicalDocumentsVisibleMs.toFixed(2));

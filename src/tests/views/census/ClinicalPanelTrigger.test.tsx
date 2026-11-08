@@ -21,6 +21,7 @@ vi.mock('@/features/census/components/patient-row/ClinicalPanelDrawer', () => ({
     censusDate,
     onNavigateNext,
     onOpenHospitalizationReports,
+    onClose,
   }: {
     patientName: string;
     encounterRouteHint?: 'medical' | 'nurse';
@@ -28,6 +29,7 @@ vi.mock('@/features/census/components/patient-row/ClinicalPanelDrawer', () => ({
     censusDate?: string;
     onNavigateNext: () => void;
     onOpenHospitalizationReports: () => void;
+    onClose: () => void;
   }) => (
     <div role="dialog">
       Panel de {patientName}
@@ -35,6 +37,9 @@ vi.mock('@/features/census/components/patient-row/ClinicalPanelDrawer', () => ({
       <span data-testid="drawer-date-range">{`${admissionDate || ''}|${censusDate || ''}`}</span>
       <button type="button" onClick={onNavigateNext}>
         Siguiente paciente
+      </button>
+      <button type="button" onClick={onClose}>
+        Cerrar panel clínico
       </button>
       <button type="button" onClick={onOpenHospitalizationReports}>
         Abrir informes de hospitalización de {patientName}
@@ -58,6 +63,14 @@ vi.mock('@/features/census/components/PatientHospitalizationReportsDialog', () =
 
 import { ClinicalPanelTrigger } from '@/features/census/components/patient-row/ClinicalPanelTrigger';
 import { openClinicalPanel } from '@/features/census/components/patient-row/useActiveClinicalPanel';
+import { FichaAccess } from '@/tests/views/census/clinicalPanelFichaAccess';
+
+/** The «Ficha clínica» access opens a panel by its bed and episode. */
+const openPanelOf = (key: string): void => {
+  act(() => {
+    expect(openClinicalPanel(key)).toBe(true);
+  });
+};
 
 describe('ClinicalPanelTrigger', () => {
   beforeEach(() => {
@@ -77,9 +90,7 @@ describe('ClinicalPanelTrigger', () => {
         censusDate="2026-07-18"
       />
     );
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Abrir panel clínico de Paciente de prueba' })
-    );
+    openPanelOf('R2:141336');
     expect(await screen.findByText('Panel de Paciente de prueba')).toBeInTheDocument();
     expect(screen.getByTestId('drawer-date-range')).toHaveTextContent('2026-07-13|2026-07-18');
   });
@@ -105,9 +116,7 @@ describe('ClinicalPanelTrigger', () => {
         />
       </>
     );
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Abrir panel clínico de Paciente de prueba' })
-    );
+    openPanelOf('R2:141336');
     await screen.findByText('Panel de Paciente de prueba');
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente paciente' }));
 
@@ -145,7 +154,7 @@ describe('ClinicalPanelTrigger', () => {
       </>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir panel clínico de Paciente manual' }));
+    openPanelOf('R1:141336');
     expect(await screen.findByTestId('drawer-route')).toHaveTextContent('nurse');
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente paciente' }));
 
@@ -153,7 +162,7 @@ describe('ClinicalPanelTrigger', () => {
     expect(screen.getByTestId('drawer-route')).toHaveTextContent('medical');
   });
 
-  it('opens a headless main-row panel by key and walks on to a crib button', async () => {
+  it('opens a main-row panel by key and walks on to its crib', async () => {
     mocks.resolveNavigation.mockImplementation((_root: ParentNode, currentKey: string) => ({
       previous: null,
       next: currentKey === 'R1:141336' ? 'R1:141399' : null,
@@ -161,7 +170,6 @@ describe('ClinicalPanelTrigger', () => {
     render(
       <>
         <ClinicalPanelTrigger
-          headless
           bedId="R1"
           patientName="Madre de prueba"
           patientRun="17.752.753-1"
@@ -177,9 +185,7 @@ describe('ClinicalPanelTrigger', () => {
       </>
     );
 
-    expect(
-      screen.queryByRole('button', { name: 'Abrir panel clínico de Madre de prueba' })
-    ).toBeNull();
+    expect(screen.queryByRole('button', { name: /abrir panel clínico/i })).toBeNull();
     expect(document.querySelector('[data-clinical-panel-key="R1:141336"]')).not.toBeNull();
     expect(openClinicalPanel('R1:000000')).toBe(false);
 
@@ -192,6 +198,25 @@ describe('ClinicalPanelTrigger', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent('Panel de RN de prueba');
   });
 
+  it('gives the focus back to the «Ficha clínica» access when the panel closes', async () => {
+    render(
+      <FichaAccess patientName="Paciente de prueba" panelKey="R2:141336">
+        <ClinicalPanelTrigger
+          bedId="R2"
+          patientName="Paciente de prueba"
+          patientRun="17.752.753-1"
+          clinicalEpisodeId="141336"
+        />
+      </FichaAccess>
+    );
+    const ficha = screen.getByRole('button', { name: 'Abrir panel clínico de Paciente de prueba' });
+    fireEvent.click(ficha);
+    fireEvent.click(await screen.findByRole('button', { name: 'Cerrar panel clínico' }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(ficha).toHaveFocus();
+  });
+
   it('moves the episode-aware reports action into the clinical panel', async () => {
     render(
       <ClinicalPanelTrigger
@@ -202,9 +227,7 @@ describe('ClinicalPanelTrigger', () => {
       />
     );
     expect(screen.queryByRole('button', { name: /informes de hospitalización/i })).toBeNull();
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Abrir panel clínico de Paciente de prueba' })
-    );
+    openPanelOf('R2:141336');
     await screen.findByText('Panel de Paciente de prueba');
     fireEvent.click(
       screen.getByRole('button', {
@@ -244,7 +267,7 @@ describe('ClinicalPanelTrigger', () => {
       </>
     );
     expect(mocks.reportMount).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir panel clínico de Synthetic 0' }));
+    openPanelOf('bed-0:episode-0');
     await screen.findByText('Panel de Synthetic 0');
     expect(mocks.reportMount).not.toHaveBeenCalled();
   });
@@ -267,18 +290,18 @@ describe('ClinicalPanelTrigger', () => {
       </>
     );
     expect(mocks.reportMount).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir panel clínico de Paciente A' }));
+    openPanelOf('R1:a');
     await screen.findByText('Panel de Paciente A');
     expect(mocks.reportMount).not.toHaveBeenCalled();
     fireEvent.click(
       screen.getByRole('button', { name: 'Abrir informes de hospitalización de Paciente A' })
     );
     await screen.findByTestId('reports-dialog');
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir panel clínico de Paciente B' }));
+    openPanelOf('R2:b');
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
     expect(screen.getByRole('dialog')).toHaveTextContent('Panel de Paciente B');
     expect(screen.queryByTestId('reports-dialog')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir panel clínico de Paciente A' }));
+    openPanelOf('R1:a');
     expect(screen.queryByTestId('reports-dialog')).toBeNull();
   });
 
@@ -293,7 +316,7 @@ describe('ClinicalPanelTrigger', () => {
         censusDate: '2026-09-05',
       };
       const { rerender } = render(<ClinicalPanelTrigger {...props} />);
-      fireEvent.click(screen.getByRole('button', { name: 'Abrir panel clínico de Paciente A' }));
+      openPanelOf('R1:a');
       await screen.findByRole('dialog');
       rerender(
         <ClinicalPanelTrigger
@@ -316,11 +339,9 @@ describe('ClinicalPanelTrigger', () => {
         clinicalEpisodeId="141336"
       />
     );
-    expect(
-      screen.getByRole('button', { name: 'Abrir panel clínico de Paciente sin RUN' })
-    ).toBeVisible();
+    expect(document.querySelector('[data-clinical-panel-key="R2:141336"]')).not.toBeNull();
     expect(screen.queryByRole('button', { name: /informes de hospitalización/i })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /abrir panel clínico/i }));
+    openPanelOf('R2:141336');
     expect(
       await screen.findByRole('button', { name: /informes de hospitalización/i })
     ).toBeVisible();

@@ -97,6 +97,8 @@ for (const viewport of [
         const input = route.request().postDataJSON();
         expect(input.patients[0].rutBody).toBe('12345678');
         expect(input.patients[0].episodeId).toBe('visual-episode');
+        expect(input.censusDate).toBe(VISUAL_DATE);
+        expect(input.dateRange).toEqual({ from: '2026-03-01', to: VISUAL_DATE });
         created = true;
         return route.fulfill({
           status: 202,
@@ -140,6 +142,22 @@ for (const viewport of [
       inbox.getByRole('button', { name: 'Actualizar exámenes del censo' })
     ).toBeEnabled();
     await expect(inbox.getByText('0 informes sin revisar')).toBeVisible();
+    await expect(
+      inbox.getByText(`desde el ingreso de cada paciente hasta ${VISUAL_DATE}`, { exact: false })
+    ).toBeVisible();
+    await inbox.getByRole('combobox', { name: 'Tipo de período' }).selectOption('custom');
+    await inbox.getByLabel('Desde', { exact: true }).fill('2026-03-01');
+    await inbox.getByLabel('Hasta', { exact: true }).fill('2026-02-01');
+    await expect(inbox.getByRole('alert')).toContainText('Desde debe ser anterior');
+    await expect(
+      inbox.getByRole('button', { name: 'Actualizar exámenes del censo' })
+    ).toBeDisabled();
+    await inbox.getByLabel('Hasta', { exact: true }).fill(VISUAL_DATE);
+    await inbox.getByRole('button', { name: 'Aplicar período' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(
+      inbox.getByText(`Período aplicado: 2026-03-01 → ${VISUAL_DATE}`, { exact: false })
+    ).toBeVisible();
     await inbox.getByRole('button', { name: 'Actualizar exámenes del censo' }).click();
     await expect(inbox.getByText(/En curso/)).toBeVisible();
     await page.keyboard.press('Escape');
@@ -147,6 +165,7 @@ for (const viewport of [
     finished = true;
     await page.getByRole('button', { name: 'Más opciones del censo' }).click();
     await page.getByTestId('census-laboratory-menu-entry').click();
+    await expect(inbox.getByLabel('Desde', { exact: true })).toHaveValue('2026-03-01');
     await expect(inbox.getByText('1 informe sin revisar')).toBeVisible();
     await inbox.getByRole('button', { name: 'Ver resultado' }).click();
     await expect(inbox.getByRole('cell', { name: '90 mg/dL' })).toBeVisible();
