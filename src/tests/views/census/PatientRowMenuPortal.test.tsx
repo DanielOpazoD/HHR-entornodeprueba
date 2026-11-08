@@ -4,6 +4,17 @@ import { describe, expect, it, vi } from 'vitest';
 import { PatientRowMenuPortal } from '@/features/census/components/patient-row/PatientRowMenuPortal';
 
 describe('PatientRowMenuPortal', () => {
+  it('skips disabled items when focusing an opened menu', () => {
+    render(
+      <PatientRowMenuPortal anchorRef={createRef<HTMLDivElement>()} align="top" onClose={vi.fn()}>
+        <button disabled>Disabled</button>
+        <button aria-disabled="true">Unavailable</button>
+        <button>Enabled</button>
+      </PatientRowMenuPortal>
+    );
+    expect(screen.getByRole('button', { name: 'Enabled' })).toHaveFocus();
+  });
+
   it('escapes table overflow, preserves inside clicks and closes on outside click, Escape and scroll', () => {
     const anchorRef = createRef<HTMLDivElement>();
     const onClose = vi.fn();
