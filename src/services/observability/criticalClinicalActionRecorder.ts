@@ -1,3 +1,4 @@
+import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
 import type {
   OperationalTelemetryCategory,
   OperationalTelemetryStatus,
@@ -7,7 +8,7 @@ import { maskRut } from '@/types/auditLogTypes';
 
 interface CriticalClinicalActionInput {
   category: OperationalTelemetryCategory;
-  action: string;
+  action: OperationalTelemetryOperation;
   outcome: OperationalTelemetryStatus;
   clinicalDate?: string;
   bedId?: string;

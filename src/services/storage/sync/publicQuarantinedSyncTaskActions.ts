@@ -1,3 +1,4 @@
+import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
 import type { SyncQueueStorePort } from '@/services/storage/sync/syncQueuePorts';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 
@@ -13,7 +14,11 @@ interface QuarantinedSyncTaskActionDependencies {
   store: SyncQueueStorePort;
   getOwnerKey: () => string | null;
   logger: { warn: (message: string, error?: unknown) => void };
-  recordReadFailure: (operation: string, error: unknown, context?: Record<string, unknown>) => void;
+  recordReadFailure: (
+    operation: OperationalTelemetryOperation,
+    error: unknown,
+    context?: Record<string, unknown>
+  ) => void;
   triggerProcessing: () => void;
 }
 

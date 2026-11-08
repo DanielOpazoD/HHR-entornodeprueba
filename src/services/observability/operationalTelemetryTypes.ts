@@ -1,4 +1,5 @@
 import type { OperationalRuntimeState } from '@/services/observability/operationalRuntimeState';
+import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
 
 export type OperationalTelemetryCategory =
   | 'auth'
@@ -22,7 +23,7 @@ export interface OperationalTelemetryEvent {
   category: OperationalTelemetryCategory;
   status: OperationalTelemetryStatus;
   runtimeState?: OperationalRuntimeState;
-  operation: string;
+  operation: OperationalTelemetryOperation;
   timestamp: string;
   date?: string;
   issues?: string[];

@@ -48,7 +48,7 @@ describe('shared Chrome profile: retained drafts and accepted diagnostic residue
     const event = {
       category: 'sync' as const,
       status: 'failed' as const,
-      operation: 'synthetic_shared_computer_probe',
+      operation: 'firestore_write' as const,
       timestamp: new Date().toISOString(),
       context: { patientName: 'SYNTHETIC PATIENT A', actor: ownerA },
     };

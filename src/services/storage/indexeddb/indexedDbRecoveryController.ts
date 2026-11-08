@@ -1,3 +1,4 @@
+import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import type { OperationalRuntimeState } from '@/services/observability/operationalRuntimeState';
 
@@ -34,7 +35,7 @@ export const recordIndexedDbFallbackMode = (
 };
 
 export const recordIndexedDbRecoveryNotice = (
-  operation: string,
+  operation: OperationalTelemetryOperation,
   issue: string,
   context?: Record<string, unknown>,
   runtimeState: OperationalRuntimeState = 'degraded'

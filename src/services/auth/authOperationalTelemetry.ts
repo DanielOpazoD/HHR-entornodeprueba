@@ -1,3 +1,4 @@
+import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
 import {
   createOperationalError,
   normalizeOperationalError,
@@ -13,14 +14,14 @@ import {
 const authObservability = createDomainObservability('auth', 'Auth');
 
 export const recordAuthOperationalError = (
-  operation: string,
+  operation: OperationalTelemetryOperation,
   error: unknown,
   fallback: OperationalErrorShape,
   options: { context?: Record<string, unknown> } = {}
 ): OperationalError => authObservability.recordError(operation, error, fallback, options);
 
 export const emitAuthOperationalEvent = (
-  operation: string,
+  operation: OperationalTelemetryOperation,
   runtimeState: OperationalRuntimeState,
   input: OperationalErrorShape
 ): OperationalError => {
