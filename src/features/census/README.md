@@ -136,6 +136,7 @@ El IEEH ya no se completa desde el censo: se llena en el panel IEEH de la epicri
 ## Invariantes
 
 - El cálculo de `nuevo ingreso` debe salir del dominio temporal compartido, no de helpers locales de tabla.
+- El punto amarillo de la fila marca el ingreso en su día clínico y también en su día calendario: un ingreso de madrugada del día X se ve en X-1 y en X. El contador «Ingresos» lo cuenta una sola vez, en el día clínico.
 - Los indicadores clínicos de fila deben depender del sujeto correcto: paciente/episodio cuando corresponda, no cama por arrastre.
 - Los modales visibles deben derivar de capabilities/runtime de fila, no solo de estado UI.
 - En pacientes con especialidad `Ginecobstetricia`, la UI del censo puede capturar un
