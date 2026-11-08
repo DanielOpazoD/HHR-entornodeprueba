@@ -23,7 +23,7 @@ import { ClinicalDocumentLabInsertDialog } from '@/features/clinical-documents/c
 
 describe('ClinicalDocumentLabInsertDialog', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     buildLabSummaryText.mockReturnValue('Resumen de laboratorio');
     getLabResults.mockResolvedValue({ exams: {} });
     searchSyslabExams.mockResolvedValue({ success: true, data: [] });
@@ -83,6 +83,7 @@ describe('ClinicalDocumentLabInsertDialog', () => {
 
   it('uses live syslab exams when cache is missing and fetches details before inserting', async () => {
     const onInsert = vi.fn();
+    getLabResults.mockResolvedValueOnce(null);
     searchSyslabExams.mockResolvedValue({
       success: true,
       data: [
@@ -188,6 +189,7 @@ describe('ClinicalDocumentLabInsertDialog', () => {
 
   it('surfaces loading and insertion errors to the user', async () => {
     getLabResults.mockRejectedValueOnce(new Error('network'));
+    searchSyslabExams.mockResolvedValueOnce({ success: false, data: [] });
 
     const { rerender } = render(
       <ClinicalDocumentLabInsertDialog
@@ -226,4 +228,67 @@ describe('ClinicalDocumentLabInsertDialog', () => {
       await screen.findByText(/no se encontraron resultados para este examen/i)
     ).toBeInTheDocument();
   });
+
+  it.each(['failure', 'rejection'])(
+    'shows a read error when both sources fail (%s)',
+    async live => {
+      getLabResults.mockRejectedValueOnce(new Error('cache unavailable'));
+      if (live === 'failure') searchSyslabExams.mockResolvedValueOnce({ success: false, data: [] });
+      else searchSyslabExams.mockRejectedValueOnce(new Error('Syslab unavailable'));
+
+      render(
+        <ClinicalDocumentLabInsertDialog
+          patientRut="11.111.111-1"
+          onInsert={vi.fn()}
+          onClose={vi.fn()}
+        />
+      );
+
+      expect(await screen.findByText(/no se pudieron cargar los exámenes/i)).toBeInTheDocument();
+      expect(screen.queryByText(/no hay exámenes disponibles/i)).not.toBeInTheDocument();
+    }
+  );
+
+  it('shows live exams when the cache read fails', async () => {
+    getLabResults.mockRejectedValueOnce(new Error('cache unavailable'));
+    searchSyslabExams.mockResolvedValueOnce({
+      success: true,
+      data: [
+        { id: 'live-1', date: '09/04/2026', time: '12:45:00', link: 'https://syslab.test/live-1' },
+      ],
+    });
+    render(
+      <ClinicalDocumentLabInsertDialog
+        patientRut="11.111.111-1"
+        onInsert={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    expect(await screen.findByText('09/04/2026 12:45')).toBeInTheDocument();
+    expect(screen.queryByText(/no se pudieron cargar los exámenes/i)).not.toBeInTheDocument();
+  });
+
+  it.each(['cache', 'missing-cache', 'live', 'rejected-live'])(
+    'shows an empty list when one source answers empty (%s)',
+    async source => {
+      if (source === 'live') getLabResults.mockRejectedValueOnce(new Error('cache unavailable'));
+      else if (source === 'rejected-live')
+        searchSyslabExams.mockRejectedValueOnce(new Error('Syslab unavailable'));
+      else {
+        if (source === 'missing-cache') getLabResults.mockResolvedValueOnce(null);
+        searchSyslabExams.mockResolvedValueOnce({ success: false, data: [] });
+      }
+
+      render(
+        <ClinicalDocumentLabInsertDialog
+          patientRut="11.111.111-1"
+          onInsert={vi.fn()}
+          onClose={vi.fn()}
+        />
+      );
+
+      expect(await screen.findByText(/no hay exámenes disponibles/i)).toBeInTheDocument();
+      expect(screen.queryByText(/no se pudieron cargar los exámenes/i)).not.toBeInTheDocument();
+    }
+  );
 });

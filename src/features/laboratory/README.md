@@ -58,6 +58,9 @@ Laboratorio (08/04/2026 14:00): Hb 13 HTO 40% RGB 7.000 PMN 70% Creat 1 ...
 
 Archivos: `ClinicalDocumentLabInsertDialog.tsx`, `ClinicalDocumentFormattingToolbar.tsx`
 
+`getLabResults` rechaza lecturas fallidas y reserva `null` para documentos ausentes.
+La inserción muestra un error si fallan caché y Syslab; una respuesta vacía correcta permite mostrar «No hay exámenes».
+
 Las siglas sistémicas se aplican sólo a resultados no identificados como orina u otros fluidos;
 la normalización conserva la sección del informe. Si no hay resultados abreviables, el resumen
 mantiene el texto explícito y las unidades, también para muestras no sanguíneas. La fila combinada

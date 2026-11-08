@@ -95,15 +95,25 @@ const ClinicalDocumentLabInsertSession: React.FC<ClinicalDocumentLabInsertDialog
       setIsLoading(true);
       setError(null);
 
+      let cacheAnswered = false;
       try {
         // 1. Try Firestore cache first
-        const cached = await getLabResults(patientRut);
+        let cached: Awaited<ReturnType<typeof getLabResults>> = null;
+        try {
+          cached = await getLabResults(patientRut);
+          cacheAnswered = true;
+        } catch {
+          // Syslab can still answer when the cache is unavailable.
+        }
         if (!canUpdate()) return;
         const cachedOpts = buildCachedExamOptions(cached);
         setExams(cachedOpts.sort(sortExamOptionsNewestFirst));
 
         // 2. Also try live Syslab (may have newer exams)
         const live = await searchSyslabExams(patientRut);
+        if (canUpdate() && !live.success && !cacheAnswered) {
+          setError('No se pudieron cargar los exámenes.');
+        }
         if (canUpdate() && live.success && live.data.length > 0) {
           const liveOpts: ExamOption[] = live.data.map(e => ({
             id: e.id,
@@ -119,7 +129,7 @@ const ClinicalDocumentLabInsertSession: React.FC<ClinicalDocumentLabInsertDialog
           setExams(mergeExamOptions(cachedOpts, liveOpts));
         }
       } catch {
-        if (canUpdate()) setError('No se pudieron cargar los exámenes.');
+        if (canUpdate() && !cacheAnswered) setError('No se pudieron cargar los exámenes.');
       } finally {
         if (canUpdate()) setIsLoading(false);
       }

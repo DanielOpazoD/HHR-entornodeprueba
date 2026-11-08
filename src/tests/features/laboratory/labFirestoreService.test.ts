@@ -30,7 +30,7 @@ vi.mock('@/services/utils/loggerScope', async () => {
   return createLoggerScopeMock(loggerMocks);
 });
 
-import { saveLabResults } from '@/features/laboratory/services/labFirestoreService';
+import { getLabResults, saveLabResults } from '@/features/laboratory/services/labFirestoreService';
 import type { SyslabExamDetail, SyslabExamItem } from '@/types/domain/labExamTypes';
 
 describe('labFirestoreService', () => {
@@ -64,6 +64,22 @@ describe('labFirestoreService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setDoc.mockResolvedValue(undefined);
+  });
+
+  it('rejects a failed read instead of reporting a missing document', async () => {
+    const error = new Error('cache unavailable');
+    getDoc.mockRejectedValueOnce(error);
+    await expect(getLabResults('11.111.111-1')).rejects.toBe(error);
+  });
+
+  it('returns null only for a successfully read missing document', async () => {
+    getDoc.mockResolvedValueOnce({ exists: () => false });
+    await expect(getLabResults('11.111.111-1')).resolves.toBeNull();
+  });
+
+  it('rejects an invalid document instead of reporting no exams', async () => {
+    getDoc.mockResolvedValueOnce({ exists: () => true, data: () => ({}) });
+    await expect(getLabResults('11.111.111-1')).rejects.toThrow('Invalid lab results document');
   });
 
   it('downgrades permission-denied cache writes to a warning', async () => {
