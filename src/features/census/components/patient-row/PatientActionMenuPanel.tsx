@@ -73,6 +73,7 @@ export const PatientActionMenuPanel: React.FC<PatientActionMenuPanelProps> = ({
 
         {showInvalidAction && (
           <button
+            role="menuitem"
             type="button"
             onClick={() => onAction('invalid')}
             title="Ingreso creado por error: se elimina del censo y la sincronización no lo vuelve a traer"
