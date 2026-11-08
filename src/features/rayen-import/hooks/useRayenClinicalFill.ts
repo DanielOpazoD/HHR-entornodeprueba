@@ -21,7 +21,10 @@ import type { NursingStaffingProposal } from '../contracts/nursingShiftInference
 import { reconcileNursingShiftProposal } from '../domain/applyNursingShiftProposal';
 import { enqueueLatestRayenClinicalFill } from '../domain/rayenClinicalFillQueue';
 import { resolveClinicalEnrichmentBatchPolicyForRun } from '../domain/clinicalEnrichmentBatchMode';
-import type { RayenSyncStructuralReviewEvidence } from '@/types/domain/rayenSync';
+import type {
+  RayenSyncPerformanceDelta,
+  RayenSyncStructuralReviewEvidence,
+} from '@/types/domain/rayenSync';
 import {
   buildGlobalClinicalFillError,
   classifyRayenSyncError,
@@ -40,6 +43,8 @@ import { collectClinicalFillCandidates } from '../domain/clinicalFillCandidates'
 import {
   buildClinicalRetryToken,
   buildStructuralReviewEvidence,
+  collectBatchFieldConflictEpisodeIds,
+  mergeClinicalConflictRetrySummary,
   mergeClinicalRetrySummary,
   resolveClinicalStageResult,
 } from '../domain/clinicalStageResolution';
@@ -70,6 +75,7 @@ interface UseRayenClinicalFillInput {
   ) => Promise<void>;
   onStaffingProposal: (proposal: NursingStaffingProposal, attemptId: number) => void;
   createId: () => string;
+  recordRunPerformance?: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
 }
 
 export const resolveClinicalFillDay = (
@@ -93,6 +99,7 @@ export const useRayenClinicalFill = ({
   completeRun,
   onStaffingProposal,
   createId,
+  recordRunPerformance,
 }: UseRayenClinicalFillInput) =>
   useCallback(
     async (request: ClinicalFillRequest): Promise<ClinicalStageResult> => {
@@ -260,85 +267,122 @@ export const useRayenClinicalFill = ({
               pendingEpisodeIds: retryRequest?.pendingHistoricalCudyrEpisodeIds,
             });
 
-            let summary: ClinicalFillSummary;
-            const watchdog = createClinicalFillWatchdog({
-              onTimeout: () =>
-                reportRayenSyncWarning('clinical_fill_stage_timeout', { runId: auditRunId }),
-            });
-            registerRayenFillAbort(watchdog.abort, attemptId);
-            try {
-              const { createClinicalEnrichmentPersistenceStrategy } =
-                await import('./clinicalEnrichmentPersistenceStrategy');
-              check();
-              const { registerEloisaStaff } = await import('@/services/staff/eloisaStaffRegistry');
-              check();
-              // The batch re-reads the day at its write turn: overlay that read too (D10).
-              const refreshFillRecord = async (): Promise<DailyRecord> => {
-                check();
-                const day = await loadDailyRecord(freshRecord.date);
-                check();
-                const view = await readClinicalFillDerivedView(day, () =>
-                  loadDailyRecord(freshRecord.date)
-                );
-                check();
-                return view.record;
-              };
-              const persistenceStrategy = createClinicalEnrichmentPersistenceStrategy({
-                checkSession: check,
-                mode: batchMode,
-                record: fillRecord,
-                runId: runPolicy.runId,
-                refreshRecord: refreshFillRecord,
-                // After a committed batch the day is only refreshed, never rebuilt: no documents.
-                refreshCommittedRecord: () => loadDailyRecord(freshRecord.date),
+            // One fill over a day read and its batch write. The field-conflict retry reruns it.
+            const fillOnce = async ({
+              day,
+              view,
+              episodeIds,
+              candidates,
+              historicalEpisodeIds,
+              conflictRetry,
+            }: {
+              day: DailyRecord;
+              view: DailyRecord;
+              episodeIds: readonly string[] | undefined;
+              candidates: typeof clinicalCandidates;
+              historicalEpisodeIds: string[];
+              conflictRetry: boolean;
+            }): Promise<ClinicalFillSummary> => {
+              const watchdog = createClinicalFillWatchdog({
+                onTimeout: () =>
+                  reportRayenSyncWarning('clinical_fill_stage_timeout', { runId: auditRunId }),
               });
-              summary = await runClinicalFill(
-                fillRecord,
-                resolveClinicalFillDay(source, freshRecord),
-                {
-                  diagnosticRunId: auditRunId,
-                  signal: watchdog.signal,
-                  allowedClinicalEpisodeIds,
-                  historicalCudyrEpisodeIds,
-                  recoverMissingCudyr: createDailyCudyrRecoveryReader({
+              registerRayenFillAbort(watchdog.abort, attemptId);
+              try {
+                const { createClinicalEnrichmentPersistenceStrategy } =
+                  await import('./clinicalEnrichmentPersistenceStrategy');
+                check();
+                const { registerEloisaStaff } =
+                  await import('@/services/staff/eloisaStaffRegistry');
+                check();
+                // The batch re-reads the day at its write turn: overlay that read too (D10).
+                const refreshFillRecord = async (): Promise<DailyRecord> => {
+                  check();
+                  const latest = await loadDailyRecord(day.date);
+                  check();
+                  const latestView = await readClinicalFillDerivedView(latest, () =>
+                    loadDailyRecord(day.date)
+                  );
+                  check();
+                  return latestView.record;
+                };
+                const persistenceStrategy = createClinicalEnrichmentPersistenceStrategy({
+                  checkSession: check,
+                  mode: batchMode,
+                  record: view,
+                  runId: runPolicy.runId,
+                  refreshRecord: refreshFillRecord,
+                  // After a committed batch the day is only refreshed, never rebuilt: no documents.
+                  refreshCommittedRecord: () => loadDailyRecord(day.date),
+                });
+                return await runClinicalFill(
+                  view,
+                  resolveClinicalFillDay(source, day),
+                  {
+                    diagnosticRunId: auditRunId,
                     signal: watchdog.signal,
-                    loadDay: loadCudyrIdentityContext ?? loadDailyRecord,
-                  }),
-                  pendingReads: retryRequest?.pendingReads,
-                  ...createClinicalFillReaders(watchdog.signal, clinicalCandidates),
-                  extractDeviceItems: extractDeviceTextItems,
-                  persistenceStrategy,
-                  applyHistoricalCudyrBatch: (censusDay, items) => {
-                    check();
-                    if (!applyHistoricalCudyrEnforcedBatch) {
-                      throw new Error('El lote histórico autoritativo no está disponible.');
-                    }
-                    return applyHistoricalCudyrEnforcedBatch(
-                      freshRecord,
-                      censusDay,
-                      items,
-                      runPolicy.runId,
-                      check
-                    );
-                  },
-                  archiveCudyrCapture: request =>
-                    import('@/services/cudyr/cudyrArchiveQueue').then(
-                      ({ persistCudyrArchivePart }) => {
-                        check();
-                        return persistCudyrArchivePart(request, watchdog.signal, check);
+                    allowedClinicalEpisodeIds: episodeIds,
+                    historicalCudyrEpisodeIds: historicalEpisodeIds,
+                    recoverMissingCudyr: createDailyCudyrRecoveryReader({
+                      signal: watchdog.signal,
+                      loadDay: loadCudyrIdentityContext ?? loadDailyRecord,
+                    }),
+                    pendingReads: conflictRetry ? undefined : retryRequest?.pendingReads,
+                    ...createClinicalFillReaders(watchdog.signal, candidates),
+                    extractDeviceItems: extractDeviceTextItems,
+                    persistenceStrategy,
+                    applyHistoricalCudyrBatch: (censusDay, items) => {
+                      check();
+                      if (!applyHistoricalCudyrEnforcedBatch) {
+                        throw new Error('El lote histórico autoritativo no está disponible.');
                       }
-                    ),
-                  now: () => new Date(),
-                  createId,
-                  nurseCatalog,
-                  tensCatalog,
-                  registerStaff: observations => {
-                    check();
-                    return registerEloisaStaff(observations);
+                      return applyHistoricalCudyrEnforcedBatch(
+                        day,
+                        censusDay,
+                        items,
+                        runPolicy.runId,
+                        check
+                      );
+                    },
+                    // The attempt already archived the census capture; the retry only rewrites.
+                    archiveCudyrCapture: conflictRetry
+                      ? undefined
+                      : request =>
+                          import('@/services/cudyr/cudyrArchiveQueue').then(
+                            ({ persistCudyrArchivePart }) => {
+                              check();
+                              return persistCudyrArchivePart(request, watchdog.signal, check);
+                            }
+                          ),
+                    now: () => new Date(),
+                    createId,
+                    nurseCatalog,
+                    tensCatalog,
+                    registerStaff: observations => {
+                      check();
+                      return registerEloisaStaff(observations);
+                    },
                   },
-                },
-                ({ done, total }) => reportRayenFillProgress(done, total, attemptId)
-              );
+                  conflictRetry
+                    ? undefined
+                    : ({ done, total }) => reportRayenFillProgress(done, total, attemptId)
+                );
+              } finally {
+                watchdog.settle();
+                registerRayenFillAbort(null, attemptId);
+              }
+            };
+
+            let summary: ClinicalFillSummary;
+            try {
+              summary = await fillOnce({
+                day: freshRecord,
+                view: fillRecord,
+                episodeIds: allowedClinicalEpisodeIds,
+                candidates: clinicalCandidates,
+                historicalEpisodeIds: historicalCudyrEpisodeIds,
+                conflictRetry: false,
+              });
             } catch (error) {
               check();
               reportRayenSyncWarning('clinical_fill_failed', {
@@ -351,9 +395,57 @@ export const useRayenClinicalFill = ({
                 patched: 0,
                 errors: [buildGlobalClinicalFillError('unexpected_fill_failure')],
               };
-            } finally {
-              watchdog.settle();
-              registerRayenFillAbort(null, attemptId);
+            }
+
+            // On 2026-11-07 and 11-08 the next sync, a minute later, wrote every patient a field
+            // conflict had left out. Retry them once now, merged on a fresh read of the day.
+            const conflictedEpisodeIds = collectBatchFieldConflictEpisodeIds(summary);
+            if (conflictedEpisodeIds.length > 0) {
+              check();
+              try {
+                const day = await loadDailyRecord(record.date);
+                check();
+                if (!isSuperseded(day)) {
+                  const view = await readClinicalFillDerivedView(day, () =>
+                    loadDailyRecord(record.date)
+                  );
+                  check();
+                  const candidates = collectClinicalFillCandidates(
+                    view.record,
+                    conflictedEpisodeIds
+                  );
+                  // An episode missing from the fresh day keeps its pending issue.
+                  const retriedEpisodeIds = candidates.map(
+                    ({ patient }) => patient.clinicalEpisodeId!
+                  );
+                  if (retriedEpisodeIds.length > 0) {
+                    recordRunPerformance?.({ coordination: { clinicalRetries: 1 } }, auditRunId);
+                    const retrySummary = await fillOnce({
+                      day: view.day,
+                      view: view.record,
+                      episodeIds: retriedEpisodeIds,
+                      candidates,
+                      historicalEpisodeIds: [],
+                      conflictRetry: true,
+                    });
+                    check();
+                    summary = mergeClinicalConflictRetrySummary(
+                      summary,
+                      retrySummary,
+                      new Set(candidates.map(candidate => candidate.bedId)),
+                      new Set(retriedEpisodeIds)
+                    );
+                  }
+                }
+              } catch (error) {
+                // A failed retry leaves the attempt's pending issues as they were.
+                check();
+                reportRayenSyncWarning('clinical_fill_failed', {
+                  runId: auditRunId,
+                  errorKind: classifyRayenSyncError(error),
+                  patientCount: conflictedEpisodeIds.length,
+                });
+              }
             }
 
             check();
@@ -434,5 +526,6 @@ export const useRayenClinicalFill = ({
       nurseCatalog,
       tensCatalog,
       onStaffingProposal,
+      recordRunPerformance,
     ]
   );

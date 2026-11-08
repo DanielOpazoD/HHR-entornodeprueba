@@ -112,6 +112,45 @@ export const mergeClinicalRetrySummary = (
   };
 };
 
+/** Episodes the batch left out because a clinical field changed after the run read its base. */
+export const collectBatchFieldConflictEpisodeIds = (summary: ClinicalFillSummary): string[] => [
+  ...new Set(
+    summary.errors.flatMap(error =>
+      error.source === 'patch' && error.cause === 'batch_field_changed' && error.clinicalEpisodeId
+        ? [error.clinicalEpisodeId]
+        : []
+    )
+  ),
+];
+
+/**
+ * Folds the in-run retry of conflicted episodes into the attempt that left them out. Unlike a
+ * manual retry it redoes only those episodes, so the attempt's census-wide issues and its staffing
+ * inference stay as they were.
+ */
+export const mergeClinicalConflictRetrySummary = (
+  attempt: ClinicalFillSummary,
+  retry: ClinicalFillSummary,
+  retriedBedIds: ReadonlySet<string>,
+  retriedEpisodeIds: ReadonlySet<string>
+): ClinicalFillSummary => ({
+  total: attempt.total,
+  patched: Math.min(attempt.total, attempt.patched + retry.patched),
+  errors: [
+    ...attempt.errors.filter(
+      error =>
+        error.bedId === '*' ||
+        !(error.clinicalEpisodeId
+          ? retriedEpisodeIds.has(error.clinicalEpisodeId)
+          : retriedBedIds.has(error.bedId))
+    ),
+    ...retry.errors.filter(error => error.source !== 'staffing'),
+  ],
+  staffingProposal: attempt.staffingProposal,
+  incremental: addIncrementalMetrics(attempt.incremental, retry.incremental),
+  performance: mergeRayenSyncPerformance(attempt.performance, retry.performance),
+});
+
 export const buildStructuralReviewEvidence = (
   handoff: ConfirmedRayenCensusHandoff | null
 ): RayenSyncStructuralReviewEvidence | undefined => {
