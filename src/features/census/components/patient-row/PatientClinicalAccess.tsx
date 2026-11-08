@@ -48,7 +48,6 @@ export const PatientClinicalAccess: React.FC<PatientClinicalAccessProps> = ({
   const episode = patient.clinicalEpisodeId?.trim();
   const patientName = patient.patientName.trim();
   const triggerKey = isSubRow ? `${patient.bedId}-clinical-crib` : patient.bedId;
-  const hasDocuments = Boolean(viewDocuments && clinicalDocumentCount);
 
   const items: ClinicalAccessRadialItem[] = [
     {
@@ -99,21 +98,14 @@ export const PatientClinicalAccess: React.FC<PatientClinicalAccessProps> = ({
           const button = event.currentTarget;
           setAnchor(open => (open ? null : button));
         }}
-        className="group relative mx-auto flex size-[30px] items-center justify-center rounded-full transition-colors duration-200 hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700"
+        className="group mx-auto flex size-10 items-center justify-center rounded-full transition-colors duration-200 hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700"
       >
         <img
           src={CLINICAL_ACCESS_MANUTARA_SRC}
           alt=""
           draggable={false}
-          className="size-5 object-contain opacity-40 transition duration-300 group-hover:-rotate-[8deg] group-hover:opacity-100 group-focus-visible:opacity-100 group-aria-expanded:opacity-100"
+          className="size-[30px] object-contain opacity-40 transition duration-300 group-hover:-rotate-[8deg] group-hover:opacity-100 group-focus-visible:opacity-100 group-aria-expanded:opacity-100"
         />
-        {hasDocuments && (
-          <span
-            aria-hidden="true"
-            data-testid={`clinical-access-documents-dot-${triggerKey}`}
-            className="absolute right-[3px] top-[3px] size-[5px] rounded-full bg-teal-700 ring-[1.5px] ring-white"
-          />
-        )}
       </button>
       {anchor && (
         <ClinicalAccessRadialMenu

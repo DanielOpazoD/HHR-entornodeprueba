@@ -159,11 +159,10 @@ describe('PatientClinicalAccess', () => {
     expect(onRequestImaging).toHaveBeenCalledTimes(1);
   });
 
-  it('marks documents on the manutara and opens them with their count', () => {
+  it('opens documents with their count in the ring', () => {
     const onViewClinicalDocuments = vi.fn();
     renderAccess({ onViewClinicalDocuments, clinicalDocumentCount: 2 });
 
-    expect(screen.getByTestId('clinical-access-documents-dot-R2')).toBeInTheDocument();
     const documents = access('Documentos');
     expect(documents).toHaveTextContent('2');
     fireEvent.click(documents);
@@ -172,7 +171,6 @@ describe('PatientClinicalAccess', () => {
 
   it('keeps the ring whole and greys out what the patient cannot use', () => {
     renderAccess({ patient: passportPatient, censusDate: undefined });
-    expect(screen.queryByTestId('clinical-access-documents-dot-R2')).toBeNull();
 
     for (const topic of ['Ficha clínica', 'Laboratorio', 'Imágenes', 'Documentos']) {
       expect(access(topic)).toHaveAttribute('aria-disabled', 'true');
