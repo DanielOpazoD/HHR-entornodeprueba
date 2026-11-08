@@ -14,7 +14,10 @@ import { useExamRequestOrders, type ExamRequestCandidate } from '@/hooks/useExam
 import { useCurrentUserSignatureImage } from '@/hooks/useUserSignatureImage';
 import type { PatientData } from '@/types/domain/patient';
 import { EXAM_REQUEST_PRINT_STYLES } from '@/components/modals/examRequestPrintStyles';
-import { buildExamRequestModalShellModel } from '@/components/modals/controllers/examRequestModalController';
+import {
+  buildExamRequestModalShellModel,
+  resolveExamRequestPatientIdentity,
+} from '@/components/modals/controllers/examRequestModalController';
 import { ExamRequestForm } from '@/components/exam-request/ExamRequestForm';
 import {
   ExamRequestPatientTabs,
@@ -35,21 +38,25 @@ interface ExamRequestModalProps {
 
 const SINGLE_PATIENT_KEY = 'patient';
 
-/** Mounted only while open, so every opening starts with nothing marked. */
-export const ExamRequestModal: React.FC<ExamRequestModalProps> = props =>
-  props.isOpen ? <ExamRequestDialog {...props} /> : null;
+const hasSeveralPatients = ({ candidates, patientKey }: ExamRequestModalProps): boolean =>
+  Boolean(patientKey && candidates?.some(candidate => candidate.key === patientKey));
 
-const ExamRequestDialog: React.FC<ExamRequestModalProps> = ({
-  isOpen,
-  onClose,
-  patient,
-  recordDate,
-  candidates,
-  patientKey,
-}) => {
-  const severalPatients = Boolean(
-    patientKey && candidates?.some(candidate => candidate.key === patientKey)
-  );
+/**
+ * Mounted only while open, so every opening starts with nothing marked. With one patient the
+ * request also restarts when another patient or episode takes the bed; with several, each order
+ * is already keyed by patient and episode.
+ */
+export const ExamRequestModal: React.FC<ExamRequestModalProps> = props =>
+  props.isOpen ? (
+    <ExamRequestDialog
+      key={hasSeveralPatients(props) ? 'several' : resolveExamRequestPatientIdentity(props.patient)}
+      {...props}
+    />
+  ) : null;
+
+const ExamRequestDialog: React.FC<ExamRequestModalProps> = props => {
+  const { isOpen, onClose, patient, recordDate, candidates, patientKey } = props;
+  const severalPatients = hasSeveralPatients(props);
   const pool = useMemo<ExamRequestCandidate[]>(
     () =>
       severalPatients && candidates
@@ -165,9 +172,11 @@ const ExamRequestDialog: React.FC<ExamRequestModalProps> = ({
             selectedExams={order.selectedExams}
             procedencia={order.procedencia}
             prevision={order.prevision}
+            freeText={order.freeText}
             onToggleExam={requests.toggleExam}
             onProcedenciaChange={requests.setProcedencia}
             onPrevisionChange={requests.setPrevision}
+            onFreeTextChange={requests.setFreeText}
             className={order.key === requests.active?.key ? undefined : 'hidden print:block'}
             style={index < orderCount - 1 ? { breakAfter: 'page' } : undefined}
             signatureUrl={signature.url}

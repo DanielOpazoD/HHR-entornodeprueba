@@ -8,6 +8,10 @@
 import React from 'react';
 import clsx from 'clsx';
 import type { PatientData } from '@/types/domain/patient';
+import type {
+  ExamRequestFreeText,
+  ExamRequestFreeTextField,
+} from '@/hooks/controllers/examRequestController';
 import {
   buildExamRequestFooterFields,
   buildExamRequestFooterSection,
@@ -24,9 +28,11 @@ interface ExamRequestFormProps {
   selectedExams: ReadonlySet<string>;
   procedencia: string;
   prevision: string;
+  freeText: ExamRequestFreeText;
   onToggleExam: (examKey: string) => void;
   onProcedenciaChange: (value: string) => void;
   onPrevisionChange: (value: string) => void;
+  onFreeTextChange: (field: ExamRequestFreeTextField, value: string) => void;
   className?: string;
   style?: React.CSSProperties;
   /** With several patients, the form is the panel of its tab. */
@@ -39,15 +45,23 @@ const examRequestColumns = buildExamRequestFormColumns();
 const examRequestFooterSection = buildExamRequestFooterSection();
 const examRequestFooterFields = buildExamRequestFooterFields();
 
+const FREE_TEXT_LINE_PX = 16;
+/** One rule under every text line, so wrapped text stays on the form's lines. */
+const RULED_LINES: React.CSSProperties = {
+  backgroundImage: `repeating-linear-gradient(to bottom, transparent 0 ${FREE_TEXT_LINE_PX - 1}px, #0f172a ${FREE_TEXT_LINE_PX - 1}px ${FREE_TEXT_LINE_PX}px)`,
+};
+
 export const ExamRequestForm: React.FC<ExamRequestFormProps> = ({
   patient,
   recordDate,
   selectedExams,
   procedencia,
   prevision,
+  freeText,
   onToggleExam,
   onProcedenciaChange,
   onPrevisionChange,
+  onFreeTextChange,
   className,
   style,
   panel,
@@ -107,6 +121,31 @@ export const ExamRequestForm: React.FC<ExamRequestFormProps> = ({
         )}
       </div>
     </React.Fragment>
+  );
+
+  // Long text wraps onto the next ruled line and the box grows: a request never loses text in
+  // print. Printing uses a plain copy, because a field prints only what fits in its box.
+  const renderFreeText = (field: ExamRequestFreeTextField, label: string, lineCount: number) => (
+    <div className="flex-1 min-w-0">
+      <textarea
+        rows={lineCount}
+        // Shared computers: the browser must not remember what one person typed.
+        autoComplete="off"
+        aria-label={label}
+        value={freeText[field]}
+        onChange={event => onFreeTextChange(field, event.target.value)}
+        className="block w-full resize-none overflow-y-auto border-0 rounded-none bg-transparent px-1 py-0 text-[10px] font-medium leading-4 text-slate-900 outline-none [field-sizing:content] focus:bg-emerald-50 print:hidden"
+        style={{ ...RULED_LINES, minHeight: lineCount * FREE_TEXT_LINE_PX }}
+      />
+      <p
+        data-testid={`exam-request-print-${field}`}
+        aria-hidden="true"
+        className="hidden print:block whitespace-pre-wrap break-words px-1 text-[10px] font-medium leading-4 text-slate-900"
+        style={{ ...RULED_LINES, minHeight: lineCount * FREE_TEXT_LINE_PX }}
+      >
+        {freeText[field]}
+      </p>
+    </div>
   );
 
   return (
@@ -179,7 +218,9 @@ export const ExamRequestForm: React.FC<ExamRequestFormProps> = ({
               <span className="text-[9px] font-black text-slate-900 uppercase whitespace-nowrap">
                 {field.label}:
               </span>
-              {field.lines === 2 ? (
+              {field.freeText ? (
+                renderFreeText(field.freeText, field.label, field.lines ?? 1)
+              ) : field.lines === 2 ? (
                 <div className="flex-1 flex flex-col gap-3">
                   <div className="border-b border-slate-900 h-0.5 w-full"></div>
                   <div className="border-b border-slate-900 h-0.5 w-full"></div>
