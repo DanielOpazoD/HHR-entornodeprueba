@@ -28,6 +28,13 @@ const CELL_READINGS: ReadonlyArray<{ key: VitalReadingView['key']; label: string
   { key: 'temp', label: 'T°' },
 ];
 
+const STATUS_DESCRIPTION: Record<VitalReadingView['status'], string> = {
+  neutral: '',
+  normal: '',
+  warn: ', revisar',
+  alert: ', alerta',
+};
+
 const GRID_CLASS =
   'census-vitals-grid mx-auto grid w-full max-w-[144px] grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-x-1 gap-y-0.5 px-0.5 text-left text-[10px] leading-tight tabular-nums';
 const READING_CLASS =
@@ -63,6 +70,13 @@ export const VitalsCell: React.FC<VitalsCellProps> = ({
   const vitals = buildVitalSignsView(data.vitalSigns, vitalProfile);
   const readingByKey = (key: VitalReadingView['key']): VitalReadingView | undefined =>
     vitals?.readings.find(reading => reading.key === key);
+  const readingsDescription = CELL_READINGS.map(({ key, label }) => {
+    const reading = readingByKey(key);
+    return reading
+      ? `${label} ${reading.value} ${reading.unit}${STATUS_DESCRIPTION[reading.status]}`
+      : `${label} sin informar`;
+  }).join('; ');
+  const accessibleName = `Signos vitales: ${readingsDescription}. Abrir detalle`;
   return (
     <td className="py-0.5 px-1 border-r border-slate-200 relative">
       {vitals || data.fluidBalance ? (
@@ -73,7 +87,7 @@ export const VitalsCell: React.FC<VitalsCellProps> = ({
             setIsDetailOpen(true);
           }}
           className="flex w-full cursor-pointer flex-col items-center gap-0.5 rounded-md py-1 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700"
-          aria-label="Ver signos vitales"
+          aria-label={accessibleName}
         >
           <span className={GRID_CLASS}>
             {CELL_READINGS.map(({ key, label }) => {

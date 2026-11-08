@@ -74,7 +74,7 @@ describe('minimal balance in clinical detail', () => {
       </table>
     );
     expect(screen.queryByText('600 ml')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Signos vitales:/ }));
     expect(await screen.findByText('600 ml')).toBeInTheDocument();
   });
 });
