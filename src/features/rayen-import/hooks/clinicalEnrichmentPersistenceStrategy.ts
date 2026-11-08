@@ -1,8 +1,12 @@
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
-import type { ClinicalFillPersistenceStrategy } from '../contracts/clinicalFillContracts';
+import type {
+  ClinicalFillBatchApplyResult,
+  ClinicalFillPersistenceStrategy,
+} from '../contracts/clinicalFillContracts';
 import type { ClinicalEnrichmentBatchMode } from '../domain/clinicalEnrichmentBatchMode';
 import { applyClinicalEnrichmentBatch } from './applyClinicalEnrichmentBatch';
 import { rebuildClinicalEnrichmentOperations } from '../domain/rebuildClinicalEnrichmentOperations';
+import { operationLogicalTargetKey } from './clinicalEnrichmentBatchExecutionSupport';
 
 interface CreateClinicalEnrichmentPersistenceStrategyInput {
   checkSession?: () => void;
@@ -29,17 +33,34 @@ export const createClinicalEnrichmentPersistenceStrategy = ({
 }: CreateClinicalEnrichmentPersistenceStrategyInput): ClinicalFillPersistenceStrategy => {
   return {
     disposition: 'deferred',
-    persist: operations =>
-      applyBatch({
+    persist: async operations => {
+      // A target left out of any rebuild of this attempt was not written, even if a later rebuild
+      // would accept it: the retried chunk keeps only the targets it started with.
+      const excluded = new Map<
+        string,
+        NonNullable<ClinicalFillBatchApplyResult['excludedTargets']>[number]
+      >();
+      const result = await applyBatch({
         checkSession,
         mode,
         record,
         runId,
         operations,
         rebuildOperations: currentRecord =>
-          rebuildOperations({ baseRecord: record, currentRecord, operations }),
+          rebuildOperations({
+            baseRecord: record,
+            currentRecord,
+            operations,
+            onFieldConflict: (operation, error) =>
+              excluded.set(operationLogicalTargetKey(operation), {
+                target: operation.target,
+                error,
+              }),
+          }),
         refreshRecord,
         ...(refreshCommittedRecord ? { refreshCommittedRecord } : {}),
-      }),
+      });
+      return excluded.size > 0 ? { ...result, excludedTargets: [...excluded.values()] } : result;
+    },
   };
 };
