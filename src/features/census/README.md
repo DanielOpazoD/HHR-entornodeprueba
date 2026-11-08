@@ -67,6 +67,10 @@ fila con paciente
 - Una cuna ofrece solo su ficha. La impresión deja fuera la columna.
 - La tablilla rongorongo es el único ícono rapanui de la columna (`components/patient-row/patientClinicalAccessIcons.ts`); los temas usan los íconos habituales del censo.
 
+### Columna DMI
+
+Muestra como máximo tres dispositivos, para que ninguna fila pase de tres líneas. El resto queda tras «+N», que abre una tarjeta con todos; al imprimir salen todos.
+
 ### Acción de fuga por correo
 
 ```text

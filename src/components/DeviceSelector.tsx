@@ -12,6 +12,7 @@ import { usePortalPopoverRuntime } from '@/hooks/usePortalPopoverRuntime';
 import { DeviceDateConfigModal } from './device-selector/DeviceDateConfigModal';
 import { DeviceBadge } from './device-selector/DeviceBadge';
 import { DeviceMenu } from './device-selector/DeviceMenu';
+import { DeviceOverflowButton } from './device-selector/DeviceOverflowButton';
 import { DeviceRetireModal } from './device-selector/DeviceRetireModal';
 import {
   resolveDeviceMenuPosition,
@@ -27,6 +28,9 @@ import {
   buildRetireDeviceMutation,
   resolveRetiringDeviceLabel,
 } from '@/components/device-selector/deviceSelectorMutationController';
+
+// A census row never grows past three device lines; the rest wait behind «+N».
+const MAX_VISIBLE_DEVICES = 3;
 
 interface DeviceSelectorProps {
   devices: string[];
@@ -281,18 +285,45 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
   // Render
   // ========================================================================
 
+  const hiddenCount = Math.max(0, normalizedDevices.length - MAX_VISIBLE_DEVICES);
+  // Past the third, a badge only prints: on screen «+N» stands in for it.
+  const renderBadges = (onRemove?: (device: string) => void) =>
+    normalizedDevices.map((dev, index) => {
+      const badge = (
+        <DeviceBadge
+          key={dev}
+          device={dev}
+          deviceDetails={draftDetails}
+          currentDate={currentDate}
+          onRemove={onRemove}
+        />
+      );
+      return index < MAX_VISIBLE_DEVICES ? (
+        badge
+      ) : (
+        <span key={dev} className="hidden print:contents">
+          {badge}
+        </span>
+      );
+    });
+  const overflow =
+    hiddenCount > 0 ? (
+      <DeviceOverflowButton
+        devices={normalizedDevices}
+        hiddenCount={hiddenCount}
+        deviceDetails={draftDetails}
+        currentDate={currentDate}
+      />
+    ) : null;
+
   if (disabled) {
     return (
-      <div className="flex min-h-[26px] flex-wrap items-center justify-start gap-0.5 rounded border border-transparent p-0.5">
+      <div
+        className={`relative flex min-h-[26px] flex-wrap items-center justify-start gap-0.5 rounded border border-transparent p-0.5 ${hiddenCount > 0 ? 'pr-5' : ''}`}
+      >
         {normalizedDevices.length === 0 && <span className="text-slate-300 text-xs">-</span>}
-        {normalizedDevices.map(dev => (
-          <DeviceBadge
-            key={dev}
-            device={dev}
-            deviceDetails={draftDetails}
-            currentDate={currentDate}
-          />
-        ))}
+        {renderBadges()}
+        {overflow}
       </div>
     );
   }
@@ -301,7 +332,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
     <>
       <div
         ref={anchorRef}
-        className="relative flex min-h-[26px] cursor-pointer flex-wrap items-center justify-start gap-0.5 rounded border border-transparent p-0.5 transition-colors hover:border-slate-200 hover:bg-slate-50"
+        className={`relative flex min-h-[26px] cursor-pointer flex-wrap items-center justify-start gap-0.5 rounded border border-transparent p-0.5 transition-colors hover:border-slate-200 hover:bg-slate-50 ${hiddenCount > 0 ? 'pr-5' : ''}`}
         onClick={() => {
           if (!showMenu) {
             updateMenuPosition();
@@ -314,15 +345,8 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
             <Plus size={14} />
           </span>
         )}
-        {normalizedDevices.map(dev => (
-          <DeviceBadge
-            key={dev}
-            device={dev}
-            deviceDetails={draftDetails}
-            currentDate={currentDate}
-            onRemove={removeDevice}
-          />
-        ))}
+        {renderBadges(removeDevice)}
+        {overflow}
       </div>
 
       {showMenu && typeof document !== 'undefined'
