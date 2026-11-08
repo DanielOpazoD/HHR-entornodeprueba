@@ -817,7 +817,7 @@ El DAU pregunta dónde guardar el PDF (`saveAs=true`) para que el usuario elija 
 destino explícito. Los demás informes mantienen su descarga habitual por defecto.
 No cambian permisos, no se copia el token y no se persiste el contenido en HHR.
 
-### Sesión personal Exalab · 0.48.84
+### Sesión personal Exalab · 0.48.85
 
 HHR puede abrir `exalab-connect.html` desde su módulo Laboratorio. La página explica
 la vinculación personal y solicita `cookies` y el host Exalab como permisos
