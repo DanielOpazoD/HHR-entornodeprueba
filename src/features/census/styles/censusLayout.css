@@ -43,7 +43,7 @@
   }
 }
 
-/* Keep the turtle outside the table while matching the three movement cards below it. */
+/* Line the table up with the three movement cards below it. */
 @media screen and (min-width: 960px) {
   .census-table-scroll,
   .census-movement-section,
