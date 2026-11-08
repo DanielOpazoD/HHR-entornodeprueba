@@ -90,7 +90,7 @@ const openWindow = (layoutGeneration?: string) => {
       </tbody>
     </table>
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Signos vitales:/ }));
 };
 
 const resolvedWith = (doc: unknown) => ({ status: 'resolved', doc, fromCache: false });
@@ -196,7 +196,7 @@ describe('vitals window on a split day (D10)', () => {
         </table>
       </ClinicalDerivedDayProvider>
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Signos vitales:/ }));
   };
 
   it('gets the date, the episode and the marker from the census row', async () => {
