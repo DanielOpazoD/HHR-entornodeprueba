@@ -245,6 +245,67 @@ describeStorageRules('Storage Security Rules - clinical attachments', () => {
     );
   });
 
+  describe('personal signature', () => {
+    const signaturePath = (uid: string) => `user-signatures/${uid}/signature`;
+    const ownerContext = (uid: string) => testEnv.authenticatedContext(uid).storage();
+
+    it('lets the owner save, read, replace and delete their signature', async () => {
+      const owner = ownerContext('signature_owner');
+      const target = signaturePath('signature_owner');
+      await assertSucceeds(
+        uploadClinicalAttachment(owner, target, new Uint8Array(64), 'image/png')
+      );
+      await assertSucceeds(getBytes(ref(owner, target)));
+      await assertSucceeds(
+        uploadClinicalAttachment(owner, target, new Uint8Array(500 * 1024), 'image/webp')
+      );
+      await assertSucceeds(deleteObject(ref(owner, target)));
+    });
+
+    it('denies every other person, even an admin, and anonymous access', async () => {
+      const target = signaturePath('signature_private');
+      await assertSucceeds(
+        uploadClinicalAttachment(
+          ownerContext('signature_private'),
+          target,
+          new Uint8Array(64),
+          'image/jpeg'
+        )
+      );
+      for (const storage of [
+        testEnv.authenticatedContext('signature_other', { role: 'admin' }).storage(),
+        testEnv.authenticatedContext('signature_nurse', { role: 'nurse_hospital' }).storage(),
+        testEnv.unauthenticatedContext().storage(),
+      ]) {
+        await assertFails(getBytes(ref(storage, target)));
+        await assertFails(
+          uploadClinicalAttachment(storage, target, new Uint8Array(64), 'image/png')
+        );
+        await assertFails(deleteObject(ref(storage, target)));
+      }
+    });
+
+    it('denies other types, oversize images and other file names', async () => {
+      const owner = ownerContext('signature_limits');
+      const target = signaturePath('signature_limits');
+      await assertFails(uploadClinicalAttachment(owner, target, new Uint8Array(64), 'image/gif'));
+      await assertFails(
+        uploadClinicalAttachment(owner, target, new Uint8Array(64), 'image/svg+xml')
+      );
+      await assertFails(
+        uploadClinicalAttachment(owner, target, new Uint8Array(500 * 1024 + 1), 'image/png')
+      );
+      await assertFails(
+        uploadClinicalAttachment(
+          owner,
+          'user-signatures/signature_limits/other.png',
+          new Uint8Array(64),
+          'image/png'
+        )
+      );
+    });
+  });
+
   it('allows wound-care deletion only for the existing clinical writers', async () => {
     const nurse = testEnv.authenticatedContext('wound_nurse', { role: 'nurse_hospital' }).storage();
     const target = 'wound-care/hhr/test/photo.png';

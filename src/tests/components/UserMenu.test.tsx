@@ -7,6 +7,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { UserMenu } from '@/components/layout/UserMenu';
 
+vi.mock('@/services/user-profile/userSignatureService', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/user-profile/userSignatureService')>()),
+  userSignatureService: { load: vi.fn().mockResolvedValue(null), save: vi.fn(), remove: vi.fn() },
+}));
+
 describe('UserMenu', () => {
   const defaultProps = {
     userEmail: 'doctor@hospital.cl',
@@ -176,6 +181,22 @@ describe('UserMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar foto de perfil' }));
 
     expect(defaultProps.onOpenAvatarSettings).toHaveBeenCalled();
+    expect(screen.queryByTestId('user-profile-menu-panel')).not.toBeInTheDocument();
+  });
+
+  it('offers the signed-in person their own signature, and nothing without a uid', async () => {
+    const { unmount } = render(<UserMenu {...defaultProps} />);
+    fireEvent.click(screen.getByRole('button'));
+    await screen.findByTestId('user-profile-menu-panel');
+    expect(screen.queryByRole('button', { name: 'Mi firma' })).not.toBeInTheDocument();
+    unmount();
+
+    render(<UserMenu {...defaultProps} signatureUid="uid-firma" />);
+    fireEvent.click(screen.getByRole('button'));
+    await screen.findByTestId('user-profile-menu-panel');
+    fireEvent.click(screen.getByRole('button', { name: 'Mi firma' }));
+
+    expect(await screen.findByTestId('user-signature-dialog')).toBeInTheDocument();
     expect(screen.queryByTestId('user-profile-menu-panel')).not.toBeInTheDocument();
   });
 

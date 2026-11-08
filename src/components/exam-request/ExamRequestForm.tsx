@@ -37,6 +37,8 @@ interface ExamRequestFormProps {
   style?: React.CSSProperties;
   /** With several patients, the form is the panel of its tab. */
   panel?: { id: string; labelledBy: string };
+  /** The signed-in person's own signature image, drawn on the FIRMA line. */
+  signatureUrl?: string | null;
 }
 
 const examRequestColumns = buildExamRequestFormColumns();
@@ -63,6 +65,7 @@ export const ExamRequestForm: React.FC<ExamRequestFormProps> = ({
   className,
   style,
   panel,
+  signatureUrl,
 }) => {
   const renderExamItem = (exam: string, categoryTitle: string) => (
     <ExamCheckbox
@@ -221,6 +224,15 @@ export const ExamRequestForm: React.FC<ExamRequestFormProps> = ({
                 <div className="flex-1 flex flex-col gap-3">
                   <div className="border-b border-slate-900 h-0.5 w-full"></div>
                   <div className="border-b border-slate-900 h-0.5 w-full"></div>
+                </div>
+              ) : field.label === 'FIRMA' && signatureUrl ? (
+                <div className="relative flex-1 border-b border-slate-900 h-0.5 mt-1">
+                  <img
+                    src={signatureUrl}
+                    alt="Firma"
+                    className="absolute -bottom-1.5 left-2 h-7 max-w-[60%] object-contain object-left-bottom"
+                    draggable={false}
+                  />
                 </div>
               ) : (
                 <div className="border-b border-slate-900 flex-1 h-0.5 mt-1"></div>

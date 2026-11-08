@@ -202,10 +202,19 @@ describe('Centro HHR Laboratorio runtime', () => {
       expect(element?.disabled).toBe(false);
       return element as HTMLButtonElement;
     });
+    const otros = root.querySelector<HTMLInputElement>('.hhr-labreq-otros')!;
+    const medico = root.querySelector<HTMLInputElement>('.hhr-labreq-medico')!;
+    // Shared computers: the browser must not offer one person's entries to the next.
+    expect(otros.getAttribute('autocomplete')).toBe('off');
+    expect(medico.getAttribute('autocomplete')).toBe('off');
+    otros.value = 'Ferritina ';
+    medico.value = 'Dra. Sintética';
     print.click();
 
     expect(requestForms.buildLabRequestPrintHtml).toHaveBeenCalledWith(
       expect.objectContaining({
+        otros: 'Ferritina',
+        medico: 'Dra. Sintética',
         patient: {
           name: 'Ana Riroroko',
           run: '12.345.678-5',

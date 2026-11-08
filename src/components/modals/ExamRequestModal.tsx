@@ -11,6 +11,7 @@ import React, { useId, useMemo } from 'react';
 import { Printer, FlaskConical, UserRound } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { useExamRequestOrders, type ExamRequestCandidate } from '@/hooks/useExamRequestOrders';
+import { useCurrentUserSignatureImage } from '@/hooks/useUserSignatureImage';
 import type { PatientData } from '@/types/domain/patient';
 import { EXAM_REQUEST_PRINT_STYLES } from '@/components/modals/examRequestPrintStyles';
 import {
@@ -70,6 +71,7 @@ const ExamRequestDialog: React.FC<ExamRequestModalProps> = props => {
   const shellModel = buildExamRequestModalShellModel(requests.active?.patient ?? patient);
   const idPrefix = useId();
   const orderCount = requests.orders.length;
+  const signature = useCurrentUserSignatureImage();
 
   return (
     <BaseModal
@@ -154,6 +156,12 @@ const ExamRequestDialog: React.FC<ExamRequestModalProps> = props => {
         </div>
       </div>
 
+      {signature.status === 'error' && (
+        <p role="status" className="mb-3 text-[12px] text-amber-700 print:hidden">
+          No se pudo cargar su firma. La línea FIRMA se imprimirá en blanco.
+        </p>
+      )}
+
       {/* Only the active order shows; printing takes every order, one page each. */}
       <div className="flex flex-col gap-4">
         {requests.orders.map((order, index) => (
@@ -171,6 +179,7 @@ const ExamRequestDialog: React.FC<ExamRequestModalProps> = props => {
             onFreeTextChange={requests.setFreeText}
             className={order.key === requests.active?.key ? undefined : 'hidden print:block'}
             style={index < orderCount - 1 ? { breakAfter: 'page' } : undefined}
+            signatureUrl={signature.url}
             panel={
               severalPatients
                 ? {
