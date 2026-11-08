@@ -825,3 +825,11 @@ se serializa como `uspId`. Se verifica contra el paciente ya validado de la admi
 no contra el profesional conectado. Los controles de sesión siguen comparando el
 establecimiento y el profesional antes y después de cada lectura. La regresión usa
 identificadores distintos para paciente y profesional y rechaza enlaces que los confundan.
+
+### Solicitud de laboratorio: OTROS en dos líneas · 0.48.84
+
+La solicitud impresa muestra OTROS en dos líneas, como el formulario en papel y la versión de HHR;
+el texto escrito pasa a la segunda línea cuando no cabe en la primera. MÉDICO TRATANTE sigue en una
+línea y FIRMA queda en blanco para firmar a mano. Los campos «Otros exámenes» y «Médico tratante» no
+guardan lo escrito en el autocompletado del navegador, porque los computadores son compartidos.
+Nada de esto se guarda con el paciente. Actualizar/recargar la extensión para usarlo.

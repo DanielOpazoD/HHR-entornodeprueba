@@ -606,8 +606,8 @@
             `).join('')}
           </div>
           <div class="hhr-labreq-footer">
-            <input class="hhr-center-search hhr-labreq-otros" type="text" maxlength="160" placeholder="Otros exámenes" aria-label="Otros exámenes">
-            <input class="hhr-center-search hhr-labreq-medico" type="text" maxlength="120" placeholder="Médico tratante" aria-label="Médico tratante">
+            <input class="hhr-center-search hhr-labreq-otros" type="text" autocomplete="off" maxlength="160" placeholder="Otros exámenes" aria-label="Otros exámenes">
+            <input class="hhr-center-search hhr-labreq-medico" type="text" autocomplete="off" maxlength="120" placeholder="Médico tratante" aria-label="Médico tratante">
           </div>
           <div class="hhr-connection-feedback hhr-labreq-feedback" role="status" aria-live="polite"></div>
         </div>

@@ -1,7 +1,8 @@
 /**
- * Laboratory requests for one or more patients. Each order keeps its own marked exams, origin and
- * insurance; all of them print together, one page per patient. The state lives while the dialog
- * is mounted, so every opening starts from the patient it was opened for, with nothing marked.
+ * Laboratory requests for one or more patients. Each order keeps its own marked exams, origin,
+ * insurance and typed lines; all of them print together, one page per patient. The state lives
+ * while the dialog is mounted, so every opening starts from the patient it was opened for, with
+ * nothing marked or typed.
  */
 
 import { useCallback, useMemo, useState } from 'react';
@@ -10,6 +11,7 @@ import { runExamRequestPrint } from '@/hooks/controllers/examRequestPrintControl
 import {
   buildExamRequestOpenState,
   toggleExamRequestSelection,
+  type ExamRequestFreeTextField,
   type ExamRequestOpenState,
 } from '@/hooks/controllers/examRequestController';
 
@@ -49,6 +51,7 @@ export interface UseExamRequestOrdersResult {
   toggleExam: (examKey: string) => void;
   setProcedencia: (value: string) => void;
   setPrevision: (value: string) => void;
+  setFreeText: (field: ExamRequestFreeTextField, value: string) => void;
   print: () => void;
 }
 
@@ -134,6 +137,8 @@ export const useExamRequestOrders = ({
       })),
     setProcedencia: value => updateActive(order => ({ ...order, procedencia: value })),
     setPrevision: value => updateActive(order => ({ ...order, prevision: value })),
+    setFreeText: (field, value) =>
+      updateActive(order => ({ ...order, freeText: { ...order.freeText, [field]: value } })),
     print: () => runExamRequestPrint(),
   };
 };

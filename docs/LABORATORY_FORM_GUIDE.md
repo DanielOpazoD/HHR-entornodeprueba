@@ -24,7 +24,7 @@ El formulario se divide en una cuadrícula de 12 columnas:
 
 ### Pie de Página (Footer)
 - Incluye una columna específica para **Inmunología / Serología**.
-- **Secciones Manuscritas**: Espacios optimizados para "Otros", "Médico Tratante" y "Firma", con líneas de subrayado pronunciadas.
+- **Líneas del pie**: "Otros" (dos líneas) y "Médico Tratante" se pueden escribir antes de imprimir; el texto sale sobre la línea, sin bordes de campo. Vale solo para esa impresión: no se guarda con el paciente ni lo recuerda el navegador. "Firma" queda en blanco para firmar a mano.
 
 ## 🖨️ Optimización de Impresión (Print Logic)
 
