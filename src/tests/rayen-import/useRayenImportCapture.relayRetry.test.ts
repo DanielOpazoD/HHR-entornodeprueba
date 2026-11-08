@@ -3,9 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
 import type { PreparedRayenSyncContext } from '@/features/rayen-import/hooks/rayenSyncTemporalContext';
 import {
-  GESTION_CAMAS_CAPTURE_RETRY_DELAY_MS,
+  CAPTURE_RETRY_DELAY_MS,
   useRayenImportCapture,
 } from '@/features/rayen-import/hooks/useRayenImportCapture';
+import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { createActiveExecutionHarness } from './support/executionHarness';
 
 const bridge = vi.hoisted(() => ({
@@ -120,25 +122,6 @@ describe('capture when Ficha Médico does not answer in time', () => {
     );
   });
 
-  it('retries a dropped connection once, without telling anyone', () => {
-    const { onError, start, failRun } = setup();
-
-    act(() => onError('Failed to fetch', 'request-1'));
-
-    expect(start).toHaveBeenCalledOnce();
-    expect(failRun).not.toHaveBeenCalled();
-  });
-
-  it('reports a connection that stays down after the second attempt', () => {
-    const { onError, start, failRun } = setup();
-
-    act(() => onError('Failed to fetch', 'request-1'));
-    act(() => onError('Failed to fetch', 'request-2'));
-
-    expect(start).toHaveBeenCalledOnce();
-    expect(failRun).toHaveBeenCalledWith('snapshot_network_error', 'run-1', undefined, 'other');
-  });
-
   it('does not retry a failure that needs a person, such as an expired session', () => {
     const { onError, start, failRun } = setup();
 
@@ -146,6 +129,64 @@ describe('capture when Ficha Médico does not answer in time', () => {
 
     expect(start).not.toHaveBeenCalled();
     expect(failRun).toHaveBeenCalledWith('ficha_medico_unavailable', 'run-1', undefined, 'other');
+  });
+});
+
+describe('capture when the connection drops', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-a');
+    setSessionGeneration('synthetic-generation-a');
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    localStorage.removeItem(SESSION_OWNER_KEY);
+    setSessionGeneration(null);
+  });
+
+  it('waits a few seconds, then retries once without telling anyone', () => {
+    const { onError, start, failRun, recordRunPerformance, harness } = setup();
+
+    act(() => onError('Failed to fetch', 'request-1'));
+    act(() => vi.advanceTimersByTime(CAPTURE_RETRY_DELAY_MS - 1));
+
+    expect(start).not.toHaveBeenCalled();
+    expect(harness.executionRef.current.stage).toEqual({ type: 'capturing' });
+    act(() => vi.advanceTimersByTime(1));
+    expect(start).toHaveBeenCalledOnce();
+    expect(start.mock.calls[0].slice(0, 3)).toEqual(['2026-08-02', '2026-08-02', 'run-1']);
+    expect(harness.executionRef.current.context?.requestId).toBe('request-2');
+    expect(recordRunPerformance).toHaveBeenCalledWith({ counters: { retries: 1 } }, 'run-1');
+    expect(failRun).not.toHaveBeenCalled();
+  });
+
+  it('reports a connection that stays down after the second attempt', () => {
+    const { onError, start, failRun } = setup();
+
+    act(() => onError('Failed to fetch', 'request-1'));
+    act(() => vi.advanceTimersByTime(CAPTURE_RETRY_DELAY_MS));
+    act(() => onError('Failed to fetch', 'request-2'));
+    act(() => vi.advanceTimersByTime(CAPTURE_RETRY_DELAY_MS));
+
+    expect(start).toHaveBeenCalledOnce();
+    expect(failRun).toHaveBeenCalledOnce();
+    expect(failRun).toHaveBeenCalledWith('snapshot_network_error', 'run-1', undefined, 'other');
+  });
+
+  it.each([
+    ['another person signs in', () => localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-b')],
+    ['the session is renewed', () => setSessionGeneration('synthetic-generation-b')],
+  ])('ends the run without retrying or warning when %s during the wait', (_case, change) => {
+    const { onError, start, failRun, harness } = setup();
+
+    act(() => onError('Failed to fetch', 'request-1'));
+    change();
+    act(() => vi.advanceTimersByTime(CAPTURE_RETRY_DELAY_MS));
+
+    expect(start).not.toHaveBeenCalled();
+    expect(failRun).not.toHaveBeenCalled();
+    expect(harness.executionRef.current.stage).toEqual({ type: 'cancelled' });
   });
 });
 
@@ -169,7 +210,7 @@ describe('capture when Gestión de Camas is not ready', () => {
     expect(failRun).not.toHaveBeenCalled();
     expect(start).not.toHaveBeenCalled();
     expect(harness.executionRef.current.stage).toEqual({ type: 'capturing' });
-    act(() => vi.advanceTimersByTime(GESTION_CAMAS_CAPTURE_RETRY_DELAY_MS));
+    act(() => vi.advanceTimersByTime(CAPTURE_RETRY_DELAY_MS));
     expect(start).toHaveBeenCalledOnce();
     expect(start.mock.calls[0].slice(0, 3)).toEqual(['2026-08-02', '2026-08-02', 'run-1']);
     expect(harness.executionRef.current.context?.requestId).toBe('request-2');
@@ -182,7 +223,7 @@ describe('capture when Gestión de Camas is not ready', () => {
     act(() =>
       onError('La pestaña de Gestión de Camas no respondió a la comprobación.', 'request-1')
     );
-    act(() => vi.advanceTimersByTime(GESTION_CAMAS_CAPTURE_RETRY_DELAY_MS));
+    act(() => vi.advanceTimersByTime(CAPTURE_RETRY_DELAY_MS));
     act(() =>
       onError('La pestaña de Gestión de Camas no respondió a la comprobación.', 'request-2')
     );
@@ -220,7 +261,7 @@ describe('capture when Gestión de Camas is not ready', () => {
       onError('La pestaña de Gestión de Camas no respondió a la comprobación.', 'request-1')
     );
     act(() => harness.dispatchExecution({ type: 'cancel', runId: 'run-1' }));
-    act(() => vi.advanceTimersByTime(GESTION_CAMAS_CAPTURE_RETRY_DELAY_MS));
+    act(() => vi.advanceTimersByTime(CAPTURE_RETRY_DELAY_MS));
 
     expect(start).not.toHaveBeenCalled();
     expect(failRun).not.toHaveBeenCalled();
@@ -233,7 +274,7 @@ describe('capture when Gestión de Camas is not ready', () => {
       onError('La pestaña de Gestión de Camas no respondió a la comprobación.', 'request-1')
     );
     unmount();
-    act(() => vi.advanceTimersByTime(GESTION_CAMAS_CAPTURE_RETRY_DELAY_MS));
+    act(() => vi.advanceTimersByTime(CAPTURE_RETRY_DELAY_MS));
 
     expect(start).not.toHaveBeenCalled();
   });

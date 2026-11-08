@@ -7,6 +7,7 @@ import {
   type SetStateAction,
 } from 'react';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import type {
   CapturePreparationLock,
@@ -80,8 +81,11 @@ interface UseRayenImportCaptureInput {
   ) => void;
 }
 
-/** Longer than the extension's 3 s health cache, so the second attempt probes the tab afresh. */
-export const GESTION_CAMAS_CAPTURE_RETRY_DELAY_MS = 5000;
+/**
+ * Longer than the extension's 3 s health cache, so the second attempt probes the tab afresh, and
+ * than a sub-second network drop: both retries of a failed read used to land inside the same one.
+ */
+export const CAPTURE_RETRY_DELAY_MS = 5000;
 
 /** Gestión de Camas messages that ask a person to act; repeating the read would not help. */
 const GESTION_CAMAS_NEEDS_PERSON =
@@ -91,10 +95,10 @@ const GESTION_CAMAS_NEEDS_PERSON =
 const passingCaptureRetryDelayMs = (error: string, stage?: string): number | null => {
   if (stage === 'ficha_main_relay' || stage === 'ficha_tab_relay') return 0;
   const { reason } = classifyRayenSnapshotError(error, stage);
-  if (reason === 'snapshot_network_error') return 0;
+  if (reason === 'snapshot_network_error') return CAPTURE_RETRY_DELAY_MS;
   const normalized = error.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   return reason === 'gestion_camas_unavailable' && !GESTION_CAMAS_NEEDS_PERSON.test(normalized)
-    ? GESTION_CAMAS_CAPTURE_RETRY_DELAY_MS
+    ? CAPTURE_RETRY_DELAY_MS
     : null;
 };
 
@@ -200,7 +204,8 @@ export const useRayenImportCapture = ({
           // A dropped connection also passes on its own (twice in 6 days, the next click worked).
           // Gestión de Camas «no disponible» failed 4 of 102 runs in 13 days and the next click,
           // 1–2 minutes later, always worked. The capture only reads, so it gets one silent retry
-          // before anyone is told; Gestión de Camas first gets a few seconds to wake up.
+          // before anyone is told; a dropped connection and Gestión de Camas first get a few
+          // seconds to come back.
           const prepared = preparedSyncContextRef.current;
           const retryDelayMs = passingCaptureRetryDelayMs(error, timeoutStage);
           if (
@@ -211,6 +216,8 @@ export const useRayenImportCapture = ({
           ) {
             relayRetryRunRef.current = runId;
             recordRunPerformance({ counters: { retries: 1 } }, runId);
+            const owner = getStoredSessionOwnerKey();
+            const generation = getSessionGeneration();
             const retry = () => {
               // A cancel, a new run or leaving the page while waiting ends the retry; the request's
               // own timeout stays armed meanwhile, so the run never hangs in «capturing».
@@ -225,6 +232,11 @@ export const useRayenImportCapture = ({
                   selectedDate,
                 })
               ) {
+                return;
+              }
+              // A session change during the wait ends the run; it is never resumed.
+              if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration()) {
+                dispatchExecution({ type: 'cancel', runId });
                 return;
               }
               const retryRequestId = startCaptureRequest(prepared, runId);
