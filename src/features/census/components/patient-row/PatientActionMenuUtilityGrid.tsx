@@ -14,6 +14,7 @@ export const PatientActionMenuUtilityGrid: React.FC<PatientActionMenuUtilityGrid
   <div className="grid grid-cols-3 gap-1.5 px-3 py-2 border-b border-slate-100 bg-white">
     {utilityActions.map(({ action, icon: Icon, label, title, iconClassName }) => (
       <button
+        role="menuitem"
         key={action}
         type="button"
         onClick={() => onAction(action)}
