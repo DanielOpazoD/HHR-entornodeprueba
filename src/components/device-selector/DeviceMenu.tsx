@@ -53,6 +53,8 @@ export const DeviceMenu: React.FC<DeviceMenuProps> = ({
   return (
     <div
       ref={menuRef}
+      role="dialog"
+      aria-label="Editar dispositivos"
       className={clsx(
         'fixed isolate w-[360px] rounded-lg shadow-xl border border-slate-200 animate-scale-in text-left overflow-hidden',
         menuPosition.placement === 'top' ? 'origin-bottom' : 'origin-top'
@@ -74,6 +76,8 @@ export const DeviceMenu: React.FC<DeviceMenuProps> = ({
       <div className="relative z-10 p-2.5 bg-slate-50 border-b border-slate-100 flex justify-between items-center rounded-t-lg">
         <span className="text-[10px] font-bold text-slate-700 uppercase">Dispositivos</span>
         <button
+          type="button"
+          aria-label="Cerrar editor de dispositivos"
           onClick={e => {
             e.stopPropagation();
             onClose();
@@ -170,27 +174,31 @@ export const DeviceMenu: React.FC<DeviceMenuProps> = ({
                 <div key={dev} className="relative">
                   <div
                     className={clsx(
-                      'w-full flex items-center justify-between gap-1 px-1.5 py-1.5 rounded-md border text-[11px] text-left transition-all cursor-pointer select-none min-h-[36px]',
+                      'w-full flex items-center justify-between gap-1 px-1.5 py-1.5 rounded-md border text-[11px] text-left transition-all select-none min-h-[36px]',
                       isSelected
                         ? 'bg-slate-50 border-slate-300 text-slate-800 shadow-sm'
                         : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
                     )}
-                    onClick={e => {
-                      e.stopPropagation();
-                      onToggleDevice(dev);
-                    }}
                   >
-                    <div className="flex items-center gap-1.5 min-w-0 pr-0.5">
-                      <div
+                    <button
+                      type="button"
+                      aria-pressed={isSelected}
+                      className="flex flex-1 self-stretch items-center gap-1.5 min-w-0 pr-0.5 text-left cursor-pointer"
+                      onClick={e => {
+                        e.stopPropagation();
+                        onToggleDevice(dev);
+                      }}
+                    >
+                      <span
                         className={clsx(
                           'w-3 h-3 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors',
                           isSelected ? 'bg-slate-700 border-slate-700' : 'border-slate-300'
                         )}
                       >
                         {isSelected && <Check size={10} className="text-white" strokeWidth={3} />}
-                      </div>
+                      </span>
                       <span className="font-bold truncate leading-tight">{dev}</span>
-                    </div>
+                    </button>
 
                     {isSelected && (
                       <div className="flex items-center flex-shrink-0 gap-0.5">
@@ -240,6 +248,8 @@ export const DeviceMenu: React.FC<DeviceMenuProps> = ({
               />
               {customDevice.trim() && (
                 <button
+                  type="button"
+                  aria-label="Agregar dispositivo personalizado"
                   onClick={handleAddCustom}
                   className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-medical-600 hover:bg-medical-50 rounded"
                 >

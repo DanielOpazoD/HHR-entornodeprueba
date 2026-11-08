@@ -7,6 +7,8 @@ import { isNasogastricDevice } from '@/constants/clinicalDeviceConstants';
 import { MedicalBadge } from '@/components/ui/base/MedicalBadge';
 
 interface DeviceBadgeProps {
+  id?: string;
+  focusable?: boolean;
   device: string;
   deviceDetails?: DeviceDetails;
   currentDate?: string;
@@ -14,7 +16,7 @@ interface DeviceBadgeProps {
 }
 
 export const DeviceBadge: React.FC<DeviceBadgeProps> = React.memo(
-  ({ device, deviceDetails = {}, currentDate, onRemove: _onRemove }) => {
+  ({ id, focusable = true, device, deviceDetails = {}, currentDate, onRemove: _onRemove }) => {
     let badgeText = device;
     if (device.startsWith('VVP#')) {
       const num = device.split('#')[1];
@@ -36,10 +38,11 @@ export const DeviceBadge: React.FC<DeviceBadgeProps> = React.memo(
 
     return (
       <span
+        id={id}
         className="inline-flex max-w-full rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sky-600"
         title={tooltipText}
-        aria-label={tooltipText}
-        tabIndex={0}
+        aria-label={focusable ? tooltipText : undefined}
+        tabIndex={focusable ? 0 : undefined}
       >
         <MedicalBadge
           variant="blue"
