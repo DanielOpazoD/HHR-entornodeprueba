@@ -1,4 +1,4 @@
-import { isNeonatalPatient } from './clinicalCribMaternalAssociation';
+import { isNeonatalPatient, newbornOwnRut } from './clinicalCribMaternalAssociation';
 import type { FieldChange, MoveEntry } from '../contracts/censusImportDiff';
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import { normalizeRut } from '@/utils/rutUtils';
@@ -17,6 +17,8 @@ export const patientAfterBedMove = (
   return normalizePatientUpcForBed(
     {
       ...source,
+      // A newborn carries no number that cannot be its own document into its new bed.
+      rut: newbornOwnRut(source),
       ...(!source.clinicalEpisodeId && matchesCensusEpisodeIdentity(source, placement.patient)
         ? { clinicalEpisodeId: placement.patient.clinicalEpisodeId }
         : {}),
