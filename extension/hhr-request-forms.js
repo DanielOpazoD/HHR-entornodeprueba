@@ -353,7 +353,7 @@
   .bottom .right { display: grid; align-content: space-evenly; gap: 9px; padding: 12px 14px; }
   .bottom .line { display: flex; gap: 6px; align-items: baseline; font-size: 10px; }
   .bottom .line b { white-space: nowrap; font-size: 9.5px; }
-  .bottom .line span { flex: 1; border-bottom: 1px solid #111; min-height: 12px; padding: 0 3px; font-weight: 700; text-transform: uppercase; }
+  .bottom .line span { flex: 1; border-bottom: 1px solid #111; min-height: 12px; padding: 0 3px; font-weight: 700; text-transform: uppercase; } .bottom .line span.two-lines { border-bottom: 0; min-height: 30px; line-height: 15px; background: repeating-linear-gradient(transparent 0 14px, #111 14px 15px); } .bottom .line span.two-lines::before { content: '\\200b'; }
   @page { size: letter portrait; margin: 4mm; }
 </style></head><body>
   <div class="head">
@@ -382,7 +382,7 @@
       ${examList(['inmunologia'])}
     </div>
     <div class="right">
-      <div class="line"><b>OTROS:</b><span>${escapeHtml(state.otros || '')}</span></div>
+      <div class="line"><b>OTROS:</b><span class="two-lines">${escapeHtml(state.otros || '')}</span></div>
       <div class="line"><b>MEDICO TRATANTE:</b><span>${escapeHtml(state.medico || '')}</span></div>
       <div class="line"><b>FIRMA:</b><span></span></div>
     </div>
