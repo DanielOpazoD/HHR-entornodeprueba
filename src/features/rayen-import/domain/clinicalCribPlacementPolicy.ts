@@ -12,6 +12,7 @@ import {
   associateClinicalCribsWithMothers,
   isNeonatalPatient,
   isMaternalCandidatePatient,
+  isUnusableNewbornRun,
   type MappedClinicalEncounter,
 } from './clinicalCribMaternalAssociation';
 
@@ -75,15 +76,22 @@ export const prepareActiveClinicalPlacements = (
     const parentalRun =
       provenMaternalRun ||
       neonatalSourceRunIsMaternal(current, allEncounters, encounter.encounterId, encounter.run);
-    if (
-      (isNeonatalPatient(mapped.patient) || (reviewed && isNeonatalPatient(reviewed.patient))) &&
-      (!encounter.run || parentalRun)
-    ) {
+    const neonatal =
+      isNeonatalPatient(mapped.patient) || Boolean(reviewed && isNeonatalPatient(reviewed.patient));
+    const unusableRun =
+      neonatal &&
+      Boolean(encounter.run) &&
+      !parentalRun &&
+      reviewed?.patient.documentType !== 'Pasaporte' &&
+      isUnusableNewbornRun(encounter.run);
+    if (neonatal && (!encounter.run || parentalRun || unusableRun)) {
       const sameEpisode = reviewed?.patient.clinicalEpisodeId === encounter.encounterId;
+      // A local RUN that differs from the source number was entered in HHR and stays; the same
+      // number copied earlier from an unusable source value goes with it.
       const ownRun =
         sameEpisode &&
         reviewed.patient.rut &&
-        (key(reviewed.patient.rut) !== key(encounter.run) || !provenMaternalRun)
+        (key(reviewed.patient.rut) !== key(encounter.run) || (!provenMaternalRun && !unusableRun))
           ? reviewed.patient.rut
           : '';
       mapped.patient = {
