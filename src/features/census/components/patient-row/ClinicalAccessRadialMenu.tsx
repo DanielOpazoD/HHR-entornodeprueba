@@ -75,7 +75,7 @@ const TONES: Record<ClinicalAccessSector, { text: string; fill: string }> = {
 };
 
 const ICON_SIZE = 16;
-const CORE_ICON_SIZE = 26;
+const CORE_ICON_SIZE = 30;
 const VIEW_SIZE = RADIAL_VIEW_RADIUS * 2;
 
 const Sector: React.FC<{
