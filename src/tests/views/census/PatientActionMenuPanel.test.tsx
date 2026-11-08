@@ -199,19 +199,19 @@ describe('PatientActionMenuPanel', () => {
     it('offers the option for an Eloísa episode to whoever may clear the bed', () => {
       const onAction = renderPanel(true);
 
-      fireEvent.click(screen.getByRole('button', { name: 'Paciente no válido' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Paciente no válido' }));
 
       expect(onAction).toHaveBeenCalledWith('invalid');
     });
 
     it('hides it without an Eloísa episode or without permission to clear', () => {
       renderPanel(false);
-      expect(screen.queryByRole('button', { name: 'Paciente no válido' })).toBeNull();
+      expect(screen.queryByRole('menuitem', { name: 'Paciente no válido' })).toBeNull();
     });
 
     it('hides it when the person cannot clear the bed', () => {
       renderPanel(true, []);
-      expect(screen.queryByRole('button', { name: 'Paciente no válido' })).toBeNull();
+      expect(screen.queryByRole('menuitem', { name: 'Paciente no válido' })).toBeNull();
     });
   });
 });

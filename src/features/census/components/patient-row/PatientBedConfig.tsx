@@ -128,9 +128,11 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
               'p-0.5 rounded shadow-sm border transition-all duration-200',
               isMenuOpen
                 ? 'bg-slate-800 border-slate-900 text-white'
-                : 'opacity-0 group-hover/row:opacity-100 bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                : 'opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-100'
             )}
             title="Configuración de cama"
+            aria-expanded={isMenuOpen}
+            aria-haspopup="menu"
           >
             <Plus size={8} strokeWidth={4} />
           </button>
