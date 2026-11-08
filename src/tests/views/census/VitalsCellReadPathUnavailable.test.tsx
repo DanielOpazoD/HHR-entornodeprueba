@@ -55,7 +55,7 @@ describe('vitals window without its read path (D10)', () => {
         </tbody>
       </table>
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Signos vitales:/ }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Historial no disponible');
     expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();

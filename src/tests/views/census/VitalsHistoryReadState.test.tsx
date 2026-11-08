@@ -104,7 +104,7 @@ const CensusDay = ({
 };
 const open = async () => {
   await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Signos vitales:/ }));
     await vi.dynamicImportSettled();
   });
 };
