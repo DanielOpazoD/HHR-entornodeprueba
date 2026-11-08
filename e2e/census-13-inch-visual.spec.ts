@@ -46,19 +46,19 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
     // The clinical topics live in their own «Accesos» column: the name keeps the whole cell.
     await expect(identityCell.locator('.census-identity-actions')).toHaveCount(0);
     const accessCell = row.locator('.census-access-cell');
-    const manutara = accessCell.getByTestId('clinical-access-R1');
-    await expect(manutara).toBeVisible();
+    const accessButton = accessCell.getByTestId('clinical-access-R1');
+    await expect(accessButton).toBeVisible();
     const accessBounds = await accessCell.boundingBox();
     expect(accessBounds!.width).toBeGreaterThanOrEqual(56);
-    // One manutara, centred in its column.
-    const manutaraBounds = await manutara.boundingBox();
+    // One access button, centred in its column.
+    const buttonBounds = await accessButton.boundingBox();
     expect(
       Math.abs(
-        manutaraBounds!.x + manutaraBounds!.width / 2 - (accessBounds!.x + accessBounds!.width / 2)
+        buttonBounds!.x + buttonBounds!.width / 2 - (accessBounds!.x + accessBounds!.width / 2)
       )
     ).toBeLessThanOrEqual(1);
     // Its ring holds the four topics around the explorer and fits on screen at both zooms.
-    await manutara.click();
+    await accessButton.click();
     const ring = page.getByTestId('clinical-access-menu');
     await expect(ring).toBeVisible();
     for (const topic of ['ficha', 'laboratory', 'imaging', 'documents', 'explorer']) {
@@ -75,7 +75,7 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
     });
     await page.keyboard.press('Escape');
     await expect(ring).toHaveCount(0);
-    await expect(manutara).toBeFocused();
+    await expect(accessButton).toBeFocused();
     expect(accessBounds!.x).toBeGreaterThanOrEqual(identityBounds!.x + identityBounds!.width - 1);
     expect(await diagnosisText.evaluate(element => getComputedStyle(element).webkitLineClamp)).toBe(
       '2'

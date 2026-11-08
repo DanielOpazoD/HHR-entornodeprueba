@@ -1,5 +1,5 @@
 /**
- * The «Accesos» column: one manutara per patient, always in the same place. It opens a ring with
+ * The «Accesos» column: one rongorongo tablet per patient, always in the same place. It opens a ring with
  * the patient's four clinical topics around the clinical explorer. Each topic opens its window,
  * where the patient is read and, when the row can edit, requested. A topic the patient cannot
  * use stays in the ring, greyed out, so the ring never changes shape.
@@ -19,7 +19,7 @@ import {
   PatientClinicalTopicSurfaces,
   usePatientClinicalTopicSurface,
 } from './PatientClinicalTopicSurfaces';
-import { CLINICAL_ACCESS_MANUTARA_SRC } from './patientClinicalAccessIcons';
+import { CLINICAL_ACCESS_ICON_SRC } from './patientClinicalAccessIcons';
 import { openClinicalPanel } from './useActiveClinicalPanel';
 
 export const PatientClinicalAccess: React.FC<PatientClinicalAccessProps> = ({
@@ -101,7 +101,7 @@ export const PatientClinicalAccess: React.FC<PatientClinicalAccessProps> = ({
         className="group mx-auto flex size-10 items-center justify-center rounded-full transition-colors duration-200 hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700"
       >
         <img
-          src={CLINICAL_ACCESS_MANUTARA_SRC}
+          src={CLINICAL_ACCESS_ICON_SRC}
           alt=""
           draggable={false}
           className="size-[30px] object-contain opacity-40 transition duration-300 group-hover:-rotate-[8deg] group-hover:opacity-100 group-focus-visible:opacity-100 group-aria-expanded:opacity-100"

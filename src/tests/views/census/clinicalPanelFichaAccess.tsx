@@ -4,7 +4,7 @@ import { openClinicalPanel } from '@/features/census/components/patient-row/useA
 
 /**
  * Places a panel where the census does: in the «Accesos» cell, beside the
- * manutara button whose ring opens it and that gets the focus back when it closes.
+ * access button whose ring opens it and that gets the focus back when it closes.
  */
 export const FichaAccess: React.FC<{
   patientName: string;
