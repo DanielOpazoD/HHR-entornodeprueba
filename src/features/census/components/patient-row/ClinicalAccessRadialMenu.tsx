@@ -26,7 +26,7 @@ import {
   resolveRadialCenter,
   type ClinicalAccessSector,
 } from './clinicalAccessRadialGeometry';
-import { CLINICAL_ACCESS_MANUTARA_SRC } from './patientClinicalAccessIcons';
+import { CLINICAL_ACCESS_ICON_SRC } from './patientClinicalAccessIcons';
 import './clinicalAccessRadial.css';
 
 export interface ClinicalAccessRadialItem {
@@ -330,7 +330,7 @@ export const ClinicalAccessRadialMenu: React.FC<ClinicalAccessRadialMenuProps> =
                 className="fill-white stroke-slate-200 [stroke-width:1]"
               />
               <image
-                href={CLINICAL_ACCESS_MANUTARA_SRC}
+                href={CLINICAL_ACCESS_ICON_SRC}
                 x={-CORE_ICON_SIZE / 2}
                 y={-CORE_ICON_SIZE / 2}
                 width={CORE_ICON_SIZE}

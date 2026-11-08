@@ -261,7 +261,7 @@ const revealPatientRowQuickActions = async (
   page: Parameters<typeof ensureRecordExists>[0],
   patientRow: ReturnType<Parameters<typeof ensureRecordExists>[0]['locator']>
 ) => {
-  // Documentos lives in the ring of the row's «Accesos» manutara, visible without hover.
+  // Documentos lives in the ring of the row's «Accesos» button, visible without hover.
   await patientRow.getByTestId('clinical-access-R1').click();
   await expect(page.getByTestId('clinical-access-documents-R1')).toBeVisible();
 };
