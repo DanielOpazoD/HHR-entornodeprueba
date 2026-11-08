@@ -160,7 +160,9 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
     );
     await page.keyboard.press('Escape');
 
-    await deviceCell.locator('div.cursor-pointer').first().click();
+    await deviceCell
+      .getByRole('button', { name: /Editar dispositivos|Agregar dispositivo/ })
+      .click();
     const deviceMenu = page.getByText('Vías Venosas (VVP)');
     await expect(deviceMenu).toBeVisible();
     const menuBounds = await deviceMenu
