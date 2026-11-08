@@ -124,8 +124,23 @@ describe('PatientRow layout and actions', () => {
     expect(screen.getByTitle('Acciones').closest('td')).toHaveClass('z-[36]');
   });
 
-  it('does not render the orbital quick actions launcher for a row without name and rut', () => {
-    render(
+  it('shows the «Accesos» button only for a row with a patient', () => {
+    const { rerender } = render(
+      <table>
+        <tbody>
+          <PatientRow
+            data={mockPatient}
+            bed={mockBedDef}
+            currentDateString="2023-01-01"
+            onAction={mockOnAction}
+            bedType={BedType.UTI}
+          />
+        </tbody>
+      </table>
+    );
+    expect(screen.getByTestId('clinical-access-R1')).toBeInTheDocument();
+
+    rerender(
       <table>
         <tbody>
           <PatientRow
@@ -142,9 +157,7 @@ describe('PatientRow layout and actions', () => {
       </table>
     );
 
-    expect(
-      screen.queryByRole('button', { name: /acciones clínicas rápidas/i })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId('clinical-access-R1')).not.toBeInTheDocument();
   });
 
   it('opens the day UPC panel from the classification chip', async () => {

@@ -303,7 +303,7 @@ test.describe('Laboratory UI smoke', () => {
 
     await openAuthenticatedCensus(page);
 
-    // Each patient opens Laboratorio from the turtle in its bed column.
+    // Each patient opens Laboratorio from the ring of its «Accesos» button.
     await expect(page.locator('[data-testid="patient-row"][data-bed-id="R1"]')).toContainText(
       LAB_PATIENT_NAME,
       { timeout: 15000 }
