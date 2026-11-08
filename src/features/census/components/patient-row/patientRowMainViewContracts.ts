@@ -1,4 +1,4 @@
-import type { CSSProperties, DragEvent } from 'react';
+import type { CSSProperties } from 'react';
 import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 import type { BedDefinition, BedType } from '@/features/census/contracts/censusBedContracts';
 import type { PatientData } from '@/features/census/components/patient-row/patientRowDataContracts';
@@ -72,10 +72,6 @@ export interface PatientMainRowViewProps
   onOpenHistory: () => void;
   onToggleBedType: () => void;
   onChange: MainPatientInputChangeHandlers;
-  draggable?: boolean;
-  isDragging?: boolean;
-  onDragStart?: (e: DragEvent) => void;
-  onDragEnd?: () => void;
   clinicalDocumentCount?: number;
   isPendingClear?: boolean;
 }

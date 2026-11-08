@@ -84,27 +84,29 @@ describe('ClinicalPanelDrawer', () => {
     expect(signal.aborted).toBe(true);
   });
 
-  it('isolates reading from a draggable census row without cancelling native text selection', async () => {
-    const onDragStart = vi.fn();
+  it('renders outside the census row without cancelling native text selection', async () => {
     const { container } = render(
-      <div draggable onDragStart={onDragStart}>
-        <ClinicalPanelDrawer
-          bedId="R1"
-          patientName="Paciente de prueba"
-          clinicalEpisodeId="141121"
-          onOpenHospitalizationReports={vi.fn()}
-          onClose={vi.fn()}
-        />
-      </div>
+      <table>
+        <tbody>
+          <tr>
+            <td>
+              <ClinicalPanelDrawer
+                bedId="R1"
+                patientName="Paciente de prueba"
+                clinicalEpisodeId="141121"
+                onOpenHospitalizationReports={vi.fn()}
+                onClose={vi.fn()}
+              />
+            </td>
+          </tr>
+        </tbody>
+      </table>
     );
     const text = await screen.findByText('Evolución médica estable.');
     const drawer = screen.getByRole('dialog');
     expect(container.contains(drawer)).toBe(false);
-    expect(drawer.closest('[draggable="true"]')).toBeNull();
     expect(screen.getByTestId('clinical-panel-content')).toHaveClass('select-text', 'cursor-text');
     expect(fireEvent.mouseDown(text, { button: 0 })).toBe(true);
-    fireEvent.dragStart(text);
-    expect(onDragStart).not.toHaveBeenCalled();
   });
 
   it('keeps refresh disabled while loading in the redesigned patient toolbar', async () => {

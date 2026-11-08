@@ -365,7 +365,6 @@
         "src/tests/build/chunkingPolicy.test.ts",
         "src/tests/components/DischargeModal.test.tsx",
         "src/tests/features/census/components/patient-row/UpcEvaluationHistoryPanel.test.tsx",
-        "src/tests/features/census/drag-drop/EmptyBedDragRender.test.tsx",
         "src/tests/features/census/global-search/usePatientSelectionCancellation.test.ts",
         "src/tests/features/clinical-documents/ClinicalDocumentIndicationsTabSettings.test.tsx",
         "src/tests/features/clinical-library/ClinicalLibraryQuickAction.test.tsx",
