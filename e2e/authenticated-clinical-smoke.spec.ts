@@ -5,6 +5,7 @@ import {
   buildCanonicalE2ERecord,
   ensureAuthenticated,
 } from './fixtures/auth';
+import { openPatientClinicalTopic } from './fixtures/patientClinicalTopics';
 
 const E2E_DATE = process.env.E2E_FIXED_DATE ?? '2026-02-20';
 
@@ -57,9 +58,8 @@ const openClinicalDocumentsFromR1 = async (page: Page) => {
   const patientRow = page.locator('[data-testid="patient-row"][data-bed-id="R1"]').first();
   await expect(patientRow).toBeVisible({ timeout: 10000 });
 
-  const documentsAction = patientRow.getByTestId('clinical-access-documents-R1');
-  await expect(documentsAction).toBeVisible({ timeout: 10000 });
-  await documentsAction.click();
+  await expect(patientRow.getByTestId('clinical-access-R1')).toBeVisible({ timeout: 10000 });
+  await openPatientClinicalTopic(page, 'R1', 'Documentos');
   await expect(page.getByTestId('clinical-documents-workspace')).toBeVisible({ timeout: 15000 });
 };
 

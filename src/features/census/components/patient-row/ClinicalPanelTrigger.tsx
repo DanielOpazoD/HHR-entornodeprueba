@@ -43,11 +43,11 @@ interface ClinicalPanelTriggerProps {
   censusDate?: string;
 }
 
-/** The marker sits in the row's «Accesos» cell; focus goes back to its «Ficha clínica» button. */
+/** The marker sits in the row's «Accesos» cell; focus goes back to its «Accesos» button. */
 const focusOpener = (marker: HTMLElement | null): void => {
   marker
     ?.closest('td')
-    ?.querySelector<HTMLButtonElement>('button[data-clinical-access="ficha"]')
+    ?.querySelector<HTMLButtonElement>('button[data-clinical-access="menu"]')
     ?.focus();
 };
 

@@ -3,8 +3,8 @@ import React from 'react';
 import { openClinicalPanel } from '@/features/census/components/patient-row/useActiveClinicalPanel';
 
 /**
- * Places a panel where the census does: in the «Accesos» cell, beside the «Ficha clínica»
- * button that opens it and gets the focus back when it closes.
+ * Places a panel where the census does: in the «Accesos» cell, beside the
+ * manutara button whose ring opens it and that gets the focus back when it closes.
  */
 export const FichaAccess: React.FC<{
   patientName: string;
@@ -17,7 +17,7 @@ export const FichaAccess: React.FC<{
         <td>
           <button
             type="button"
-            data-clinical-access="ficha"
+            data-clinical-access="menu"
             onClick={() => openClinicalPanel(panelKey)}
           >
             Abrir panel clínico de {patientName}

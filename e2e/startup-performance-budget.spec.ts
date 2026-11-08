@@ -261,8 +261,9 @@ const revealPatientRowQuickActions = async (
   page: Parameters<typeof ensureRecordExists>[0],
   patientRow: ReturnType<Parameters<typeof ensureRecordExists>[0]['locator']>
 ) => {
-  // Documentos lives in the row's «Accesos» column, visible without hover.
-  await expect(patientRow.getByTestId('clinical-access-documents-R1')).toBeVisible();
+  // Documentos lives in the ring of the row's «Accesos» manutara, visible without hover.
+  await patientRow.getByTestId('clinical-access-R1').click();
+  await expect(page.getByTestId('clinical-access-documents-R1')).toBeVisible();
 };
 
 test.afterAll(async () => {
@@ -351,7 +352,7 @@ test.describe('Startup performance budget', () => {
     );
 
     const startClinicalDocuments = performance.now();
-    await patientRow.getByTestId('clinical-access-documents-R1').click();
+    await page.getByTestId('clinical-access-documents-R1').click();
     await waitForClinicalDocumentsReady(page);
     const clinicalDocumentsVisibleMs = performance.now() - startClinicalDocuments;
     clinicalDocumentsBreakdown.workspaceReadyMs = Number(clinicalDocumentsVisibleMs.toFixed(2));
