@@ -36,6 +36,14 @@
       allow delete: if isCurrentUser(userId);
     }
 
+    // Each person's signature for their own printed requests: only its owner, no other role.
+    match /user-signatures/{userId}/signature {
+      allow read, delete: if isCurrentUser(userId);
+      allow create, update: if isCurrentUser(userId)
+                   && request.resource.size <= 500 * 1024
+                   && request.resource.contentType.matches('image/(png|jpeg|webp)');
+    }
+
     match /clinical-attachments/{hospitalId}/{patientRutKey}/{episodeKey}/{attachmentId}/{fileName} {
       allow read: if canReadClinicalAttachments();
       allow create, update: if canWriteClinicalAttachments()

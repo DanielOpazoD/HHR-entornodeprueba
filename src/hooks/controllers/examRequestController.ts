@@ -1,7 +1,14 @@
+/** Lines of the form the person may type on before printing. */
+export type ExamRequestFreeTextField = 'otros' | 'medicoTratante';
+
+export type ExamRequestFreeText = Record<ExamRequestFreeTextField, string>;
+
 export interface ExamRequestOpenState {
   selectedExams: Set<string>;
   procedencia: string;
   prevision: string;
+  /** Text typed on those lines, per print only: never saved with the patient. */
+  freeText: ExamRequestFreeText;
 }
 
 const DEFAULT_PROCEDENCIA = 'Hospitalización';
@@ -16,6 +23,7 @@ export const buildExamRequestOpenState = (insurance?: string): ExamRequestOpenSt
   selectedExams: new Set(),
   procedencia: DEFAULT_PROCEDENCIA,
   prevision: resolveExamRequestPrevision(insurance),
+  freeText: { otros: '', medicoTratante: '' },
 });
 
 export const toggleExamRequestSelection = (

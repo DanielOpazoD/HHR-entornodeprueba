@@ -36,6 +36,7 @@ const OPTIONAL_TARGETS: Record<string, string> = {
   'src/components/layout/NursingPasswordDialog': 'Password dialog opens from the user menu.',
   'src/components/layout/UserAvatarModal': 'Avatar editor opens on request.',
   'src/components/layout/UserMenuPanel': 'User menu opens on request.',
+  'src/components/layout/UserSignatureDialog': 'Signature editor opens on request.',
   'src/components/layout/date-strip/MedicalIndicationsDialog':
     'Indications editor opens on request.',
   'src/components/layout/date-strip/actions/HandoffSaveDropdown':
