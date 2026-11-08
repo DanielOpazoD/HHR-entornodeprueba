@@ -39,6 +39,7 @@ export const PatientBedConfigMenuPanel: React.FC<PatientBedConfigMenuPanelProps>
 
       {showLegacyCompanionCleanup && (
         <button
+          role="menuitem"
           type="button"
           onClick={onClearLegacyCompanion}
           className={`${ITEM_CLASS} text-amber-800 hover:bg-amber-50`}
@@ -50,6 +51,7 @@ export const PatientBedConfigMenuPanel: React.FC<PatientBedConfigMenuPanelProps>
 
       {showClinicalCribToggle && (
         <button
+          role="menuitem"
           type="button"
           onClick={onToggleClinicalCrib}
           className={`${ITEM_CLASS} text-slate-700 hover:bg-slate-50`}
@@ -61,6 +63,7 @@ export const PatientBedConfigMenuPanel: React.FC<PatientBedConfigMenuPanelProps>
 
       {showClinicalCribActions && (
         <button
+          role="menuitem"
           type="button"
           onClick={onRemoveClinicalCrib}
           className={`${ITEM_CLASS} text-red-600 hover:bg-red-50`}
