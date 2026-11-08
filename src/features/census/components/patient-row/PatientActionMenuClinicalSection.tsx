@@ -17,6 +17,7 @@ export const PatientActionMenuClinicalSection: React.FC<PatientActionMenuClinica
     </span>
     {clinicalActions.map(({ action, icon: Icon, label, iconClassName }) => (
       <button
+        role="menuitem"
         key={action}
         type="button"
         onClick={() => onAction(action)}
