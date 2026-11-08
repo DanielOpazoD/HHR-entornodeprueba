@@ -149,6 +149,50 @@ describe('ExamRequestModal integration', () => {
       .forEach(input => expect(input).toHaveValue(''));
   });
 
+  it('starts a blank request when another patient takes the bed while it is open', () => {
+    const first = { ...mockPatient, clinicalEpisodeId: 'episode-a' };
+    const { rerender } = render(
+      <ExamRequestModal isOpen={true} onClose={vi.fn()} patient={first} />
+    );
+    fireEvent.click(screen.getByText('ELECTROLITOS PLASMATICOS'));
+    fireEvent.change(screen.getByRole('textbox', { name: 'OTROS, línea 1' }), {
+      target: { value: 'Ferritina' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'MEDICO TRATANTE' }), {
+      target: { value: 'Dra. Sintética' },
+    });
+
+    // A sync refresh of the same patient and episode keeps what was typed.
+    rerender(
+      <ExamRequestModal
+        isOpen={true}
+        onClose={vi.fn()}
+        patient={{ ...first, pathology: 'Neumonia grave' }}
+      />
+    );
+    expect(screen.getByDisplayValue('Ferritina')).toBeInTheDocument();
+    expect(screen.getByText('X')).toBeInTheDocument();
+
+    rerender(
+      <ExamRequestModal
+        isOpen={true}
+        onClose={vi.fn()}
+        patient={{
+          ...mockPatient,
+          patientName: 'Otro Sintetico',
+          rut: '22.222.222-2',
+          clinicalEpisodeId: 'episode-b',
+        }}
+      />
+    );
+    const form = screen.getByTestId('exam-request-form');
+    expect(within(form).getByText(/Otro Sintetico/i)).toBeInTheDocument();
+    expect(within(form).queryByText('X')).not.toBeInTheDocument();
+    within(form)
+      .getAllByRole('textbox')
+      .forEach(input => expect(input).toHaveValue(''));
+  });
+
   it('updates the selected exam count when a visible exam is toggled', async () => {
     render(<ExamRequestModal isOpen={true} onClose={vi.fn()} patient={mockPatient} />);
 

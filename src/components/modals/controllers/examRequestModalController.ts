@@ -1,6 +1,7 @@
 import { getExamCategoryById, type ExamCategory } from '@/constants/examCategories';
 import type { PatientData } from '@/types/domain/patient';
 import type { ExamRequestFreeTextField } from '@/hooks/controllers/examRequestController';
+import { normalizeRut } from '@/utils/rutUtils';
 
 interface ExamRequestSectionModel {
   title: string;
@@ -58,6 +59,21 @@ export const buildExamRequestModalShellModel = (
   patientPathology: patient.pathology,
   patientBedName: patient.bedName,
 });
+
+/**
+ * Who a single-patient request belongs to: the episode, or else the document and admission. The
+ * bed is only a place, so a new patient in the same bed starts a blank request.
+ */
+export const resolveExamRequestPatientIdentity = (patient: PatientData): string => {
+  if (patient.clinicalEpisodeId) return `episode:${patient.clinicalEpisodeId}`;
+  const documentType = patient.documentType ?? 'RUT';
+  // A passport is never read as a RUT.
+  const document =
+    documentType === 'RUT' ? normalizeRut(patient.rut) : (patient.rut ?? '').trim().toUpperCase();
+  return [documentType, document || patient.patientName.trim(), patient.admissionDate ?? ''].join(
+    ':'
+  );
+};
 
 export const buildExamRequestFormColumns = (): ExamRequestColumnModel[] => [
   {
