@@ -1,3 +1,5 @@
+import { resolveLegacyNameParts } from '@/utils/legacyNameParts';
+
 /** Display only: preserve the stored identity and the casing of the rest of the name. */
 export const formatCensusPatientName = (name: string): string => name.replace(/\brn\b/gi, 'RN');
 
@@ -38,21 +40,35 @@ export interface PatientNameFields {
   secondLastName?: string;
 }
 
+const sameName = (left: string, right: string): boolean =>
+  normalizeSpaces(left).toLocaleLowerCase('es') === normalizeSpaces(right).toLocaleLowerCase('es');
+
+/** A split identical to the read-time guess may be that guess, saved back with the record. */
+const couldBeGuessedSplit = (fullName: string, parts: PatientNameFields): boolean => {
+  const guessed = resolveLegacyNameParts(fullName);
+  return (
+    sameName(guessed.firstName, parts.firstName || '') &&
+    sameName(guessed.lastName, parts.lastName || '') &&
+    sameName(guessed.secondLastName, parts.secondLastName || '')
+  );
+};
+
 /**
  * Display only: the first three given names followed by both surnames. The limit applies only
- * when the stored given names and surnames agree with the full name; otherwise the stored full
- * name is shown whole, because guessing where the surnames start could cut one.
+ * when the stored split agrees with the full name and cannot be the read-time guess; otherwise
+ * the stored full name is shown whole, because a guessed split can cut part of a surname.
  */
 export const formatPatientDisplayName = (patient: PatientNameFields): string => {
   const fullName = normalizeSpaces(patient.patientName);
   const givenNames = normalizeSpaces(patient.firstName);
   const surnames = [patient.lastName, patient.secondLastName].map(normalizeSpaces).filter(Boolean);
   const nameFromParts = [givenNames, ...surnames].filter(Boolean).join(' ');
-  const partsMatchFullName =
-    !fullName || nameFromParts.toLocaleLowerCase('es') === fullName.toLocaleLowerCase('es');
 
-  if (!givenNames || !partsMatchFullName) {
+  if (!givenNames) {
     return fullName || nameFromParts;
+  }
+  if (fullName && (!sameName(nameFromParts, fullName) || couldBeGuessedSplit(fullName, patient))) {
+    return fullName;
   }
 
   return [limitGivenNames(givenNames), ...surnames].join(' ');

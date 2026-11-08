@@ -94,15 +94,15 @@ describe('nameInputController', () => {
 
   it('shows the first three given names but keeps the stored full name as the value', () => {
     const data = DataFactory.createMockPatient('R1', {
-      patientName: 'Ana María de los Ángeles Valentina Rosa Elena Hotu Pakarati',
+      patientName: 'Ana María de los Ángeles Valentina Rosa Elena de la Fuente Pakarati',
       firstName: 'Ana María de los Ángeles Valentina Rosa Elena',
-      lastName: 'Hotu',
+      lastName: 'de la Fuente',
       secondLastName: 'Pakarati',
     });
 
     expect(resolveNameInputState({ data })).toEqual({
-      fullName: 'Ana María de los Ángeles Valentina Rosa Elena Hotu Pakarati',
-      displayName: 'Ana María de los Ángeles Hotu Pakarati',
+      fullName: 'Ana María de los Ángeles Valentina Rosa Elena de la Fuente Pakarati',
+      displayName: 'Ana María de los Ángeles de la Fuente Pakarati',
       canEditInlineName: false,
     });
   });

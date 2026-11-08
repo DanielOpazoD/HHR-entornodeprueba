@@ -28,17 +28,17 @@ const renderCell = (data: ReturnType<typeof DataFactory.createMockPatient>) =>
 
 describe('PatientIdentityCell · displayed name', () => {
   it('shows the first three given names while the value hook keeps the stored name', () => {
-    const storedName = 'Ana María de los Ángeles Valentina Rosa Elena Hotu Pakarati';
+    const storedName = 'Ana María de los Ángeles Valentina Rosa Elena de la Fuente Pakarati';
     const data = DataFactory.createMockPatient('R1', {
       patientName: storedName,
       firstName: 'Ana María de los Ángeles Valentina Rosa Elena',
-      lastName: 'Hotu',
+      lastName: 'de la Fuente',
       secondLastName: 'Pakarati',
     });
 
     const { container } = renderCell(data);
 
-    expect(screen.getByText('Ana María de los Ángeles Hotu Pakarati')).toBeInTheDocument();
+    expect(screen.getByText('Ana María de los Ángeles de la Fuente Pakarati')).toBeInTheDocument();
     expect(screen.queryByText(storedName)).toBeNull();
     expect(container.querySelector('input[name="patientName"]')).toHaveValue(storedName);
   });

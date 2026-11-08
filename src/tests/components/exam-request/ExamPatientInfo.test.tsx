@@ -45,15 +45,17 @@ describe('ExamPatientInfo', () => {
         <ExamPatientInfo
           patient={{
             ...mockPatient,
-            patientName: 'Ana María de los Ángeles Valentina Rosa Elena Hotu Pakarati',
+            patientName: 'Ana María de los Ángeles Valentina Rosa Elena de la Fuente Pakarati',
             firstName: 'Ana María de los Ángeles Valentina Rosa Elena',
-            lastName: 'Hotu',
+            lastName: 'de la Fuente',
             secondLastName: 'Pakarati',
           }}
         />
       );
 
-      expect(screen.getByText('Ana María de los Ángeles Hotu Pakarati')).toBeInTheDocument();
+      expect(
+        screen.getByText('Ana María de los Ángeles de la Fuente Pakarati')
+      ).toBeInTheDocument();
     });
 
     it('should render patient RUT', () => {

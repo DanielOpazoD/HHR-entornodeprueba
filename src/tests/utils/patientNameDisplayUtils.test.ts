@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
+import { PatientDataSchema } from '@/schemas/zod/patient';
 import { formatPatientDisplayName, limitGivenNames } from '@/utils/patientNameDisplayUtils';
 
 describe('limitGivenNames', () => {
@@ -30,15 +31,34 @@ describe('limitGivenNames', () => {
 });
 
 describe('formatPatientDisplayName', () => {
-  it('limits only the given names when the stored split matches the full name', () => {
+  it('limits only the given names when the stored split cannot be the read-time guess', () => {
     expect(
       formatPatientDisplayName({
-        patientName: 'Ana María Josefa Valentina Rosa Elena Hotu Pakarati',
+        patientName: 'Ana María Josefa Valentina Rosa Elena de la Fuente Pakarati',
         firstName: 'Ana María Josefa Valentina Rosa Elena',
+        lastName: 'de la Fuente',
+        secondLastName: 'Pakarati',
+      })
+    ).toBe('Ana María Josefa de la Fuente Pakarati');
+  });
+
+  it('shows the whole name of a legacy record whose split was guessed at read time', () => {
+    const patientName = 'Ana María Josefa Valentina Del Sagrado Corazón de la Fuente';
+    const parsed = PatientDataSchema.parse({ patientName });
+
+    expect(formatPatientDisplayName(parsed)).toBe(patientName);
+  });
+
+  it('shows the whole name when the stored split matches the guess, since it may be one', () => {
+    const patientName = 'Ana María Josefa Valentina Hotu Pakarati';
+    expect(
+      formatPatientDisplayName({
+        patientName,
+        firstName: 'Ana María Josefa Valentina',
         lastName: 'Hotu',
         secondLastName: 'Pakarati',
       })
-    ).toBe('Ana María Josefa Hotu Pakarati');
+    ).toBe(patientName);
   });
 
   it('keeps short names whole, including a single surname', () => {
@@ -66,12 +86,12 @@ describe('formatPatientDisplayName', () => {
   it('shows the stored full name whole when the split disagrees with it', () => {
     expect(
       formatPatientDisplayName({
-        patientName: 'Ana María Josefa Valentina Hotu Pakarati',
+        patientName: 'Ana María Josefa Valentina de la Fuente Pakarati',
         firstName: 'Ana María',
-        lastName: 'Hotu',
+        lastName: 'de la Fuente',
         secondLastName: 'Pakarati',
       })
-    ).toBe('Ana María Josefa Valentina Hotu Pakarati');
+    ).toBe('Ana María Josefa Valentina de la Fuente Pakarati');
   });
 
   it('returns an empty string when there is no name', () => {

@@ -20,12 +20,12 @@ const standardFontDataUrl = path.resolve('node_modules/pdfjs-dist/standard_fonts
 const syntheticPatients = [
   {
     patient: DataFactory.createMockPatient('R1', {
-      patientName: 'Ana María de los Ángeles Valentina Rosa Elena Hotu Pakarati',
+      patientName: 'Ana María de los Ángeles Valentina Rosa Elena de la Fuente Pakarati',
       firstName: 'Ana María de los Ángeles Valentina Rosa Elena',
-      lastName: 'Hotu',
+      lastName: 'de la Fuente',
       secondLastName: 'Pakarati',
     }),
-    printed: 'ANA MARÍA DE LOS ÁNGELES HOTU PAKARATI',
+    printed: 'ANA MARÍA DE LOS ÁNGELES DE LA FUENTE PAKARATI',
   },
   {
     // Too long for any template at 10 pt: the line shrinks instead of running on.
@@ -51,7 +51,7 @@ const readTextItems = async (bytes: Uint8Array) => {
   );
 };
 
-describe('imaging request PDFs · patient name', () => {
+describe('imaging request PDFs · patient fields', () => {
   beforeEach(() => {
     vi.stubGlobal(
       'fetch',
@@ -84,4 +84,18 @@ describe('imaging request PDFs · patient name', () => {
       }
     }
   );
+
+  it('generates all three documents when the diagnosis spans several lines', async () => {
+    const patient = DataFactory.createMockPatient('R3', {
+      patientName: 'Tiare Rapu',
+      pathology: 'Neumonía\nControl radiológico',
+    });
+
+    for (const fill of [fillImagingRequestForm, fillImagingEncuestaForm, fillConsentimientoForm]) {
+      const items = await readTextItems(await fill(patient, 'Dra. Sintética Prueba'));
+      expect(items.map(item => item.text)).toEqual(
+        expect.arrayContaining(['NEUMONÍA', 'CONTROL RADIOLÓGICO'])
+      );
+    }
+  });
 });
