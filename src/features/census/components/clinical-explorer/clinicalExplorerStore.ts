@@ -33,7 +33,7 @@ const isReachable = (element: HTMLElement | null | undefined): element is HTMLEl
 
 /**
  * Focus returns to whoever opened the explorer, else to the row's first button (its actions
- * cell) or the «⋯» menu. The turtle menu and the panel that opened it are gone by then. Call it
+ * cell) or the «⋯» menu. The «Accesos» ring and the panel that opened it are gone by then. Call it
  * once the census is visible again, with the opener that close() handed back.
  */
 export const restoreClinicalExplorerFocus = (bedId: string, from: HTMLElement | null): void => {
