@@ -6,13 +6,13 @@ describe('operationalTelemetryOutcomeRecorder', () => {
     expect(
       __testing.buildOperationalOutcomeTelemetryEvent(
         'backup',
-        'upload_backup',
+        'backup_census_excel',
         { status: 'partial', issues: [{ message: 'Primero' }, { message: '' }, {}] },
         { date: '2026-04-27', context: { file: 'census.xlsx' } }
       )
     ).toEqual({
       category: 'backup',
-      operation: 'upload_backup',
+      operation: 'backup_census_excel',
       status: 'partial',
       date: '2026-04-27',
       context: { file: 'census.xlsx' },
@@ -23,7 +23,7 @@ describe('operationalTelemetryOutcomeRecorder', () => {
   it('builds error telemetry preserving runtime state and caller context precedence', () => {
     const result = __testing.buildOperationalErrorTelemetryEvent(
       'backup',
-      'upload_backup',
+      'backup_census_excel',
       new Error('socket down'),
       {
         code: 'backup_failed',
@@ -44,7 +44,7 @@ describe('operationalTelemetryOutcomeRecorder', () => {
     });
     expect(result.telemetryEvent).toEqual({
       category: 'backup',
-      operation: 'upload_backup',
+      operation: 'backup_census_excel',
       status: 'degraded',
       runtimeState: 'retryable',
       date: '2026-04-27',
@@ -61,7 +61,7 @@ describe('operationalTelemetryOutcomeRecorder', () => {
   it('derives blocked telemetry for critical errors without runtime state', () => {
     const result = __testing.buildOperationalErrorTelemetryEvent(
       'sync',
-      'sync_daily_record',
+      'firestore_write',
       'permission denied',
       {
         code: 'sync_blocked',
@@ -80,7 +80,7 @@ describe('operationalTelemetryOutcomeRecorder', () => {
 
   it('handles malformed issue payloads without throwing', () => {
     expect(
-      __testing.buildOperationalOutcomeTelemetryEvent('sync', 'sync_daily_record', {
+      __testing.buildOperationalOutcomeTelemetryEvent('sync', 'firestore_write', {
         status: 'failed',
         issues: [
           null as unknown as { message?: string },
@@ -91,7 +91,7 @@ describe('operationalTelemetryOutcomeRecorder', () => {
       })
     ).toEqual({
       category: 'sync',
-      operation: 'sync_daily_record',
+      operation: 'firestore_write',
       status: 'failed',
       issues: ['Sin detalle', 'Sin detalle', '', 'Sin detalle'],
       date: undefined,

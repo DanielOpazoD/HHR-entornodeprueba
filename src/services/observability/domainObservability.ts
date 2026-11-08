@@ -1,3 +1,4 @@
+import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
 import {
   recordOperationalErrorTelemetry,
   recordOperationalOutcome,
@@ -21,7 +22,7 @@ export const createDomainObservability = (
   return {
     logger: domainLogger,
     recordEvent: (
-      operation: string,
+      operation: OperationalTelemetryOperation,
       status: OperationalTelemetryStatus,
       input: Omit<OperationalTelemetryEvent, 'category' | 'operation' | 'status' | 'timestamp'>
     ): void => {
@@ -33,7 +34,7 @@ export const createDomainObservability = (
       });
     },
     recordOutcome: (
-      operation: string,
+      operation: OperationalTelemetryOperation,
       outcome: OperationalOutcomeLike,
       options: {
         date?: string;
@@ -44,7 +45,7 @@ export const createDomainObservability = (
       recordOperationalOutcome(category, operation, outcome, options);
     },
     recordError: (
-      operation: string,
+      operation: OperationalTelemetryOperation,
       error: unknown,
       fallback: OperationalErrorShape,
       options: {

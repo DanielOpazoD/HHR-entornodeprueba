@@ -1,3 +1,4 @@
+import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
 import type { OperationalOutcomeLike } from '@/services/observability/operationalTelemetryContracts';
 import type {
   OperationalTelemetryCategory,
@@ -51,7 +52,7 @@ const deriveRuntimeStateFromSeverity = (
 
 const buildOperationalOutcomeTelemetryEvent = (
   category: OperationalTelemetryCategory,
-  operation: string,
+  operation: OperationalTelemetryOperation,
   outcome: OperationalOutcomeLike,
   options: OperationalTelemetryRecordOptions = {}
 ): OperationalTelemetryEventInput => ({
@@ -65,7 +66,7 @@ const buildOperationalOutcomeTelemetryEvent = (
 
 const buildOperationalErrorTelemetryEvent = (
   category: OperationalTelemetryCategory,
-  operation: string,
+  operation: OperationalTelemetryOperation,
   error: unknown,
   fallback: OperationalErrorShape,
   options: OperationalTelemetryRecordOptions = {}
@@ -94,7 +95,7 @@ const buildOperationalErrorTelemetryEvent = (
 
 export const recordOperationalOutcome = (
   category: OperationalTelemetryCategory,
-  operation: string,
+  operation: OperationalTelemetryOperation,
   outcome: OperationalOutcomeLike,
   options: OperationalTelemetryOutcomeRecordOptions = {}
 ): void => {
@@ -106,7 +107,7 @@ export const recordOperationalOutcome = (
 
 export const recordOperationalErrorTelemetry = (
   category: OperationalTelemetryCategory,
-  operation: string,
+  operation: OperationalTelemetryOperation,
   error: unknown,
   fallback: OperationalErrorShape,
   options: OperationalTelemetryRecordOptions = {}

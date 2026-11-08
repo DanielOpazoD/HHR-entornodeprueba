@@ -4,11 +4,12 @@ import {
   dispatchOperationalTelemetryExternally,
   resolveOperationalTelemetryExternalConfig,
 } from '@/services/observability/operationalTelemetryExternalAdapter';
+import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
 
 const event = {
   category: 'sync' as const,
   status: 'failed' as const,
-  operation: 'refresh_daily_record',
+  operation: 'refresh_daily_record' as const,
   timestamp: '2026-03-07T10:00:00.000Z',
 };
 
@@ -79,7 +80,8 @@ describe('operationalTelemetryExternalAdapter', () => {
     await dispatchOperationalTelemetryExternally(
       {
         ...event,
-        operation: 'Juan Perez',
+        // The type forbids it; the sanitizer still guards untyped input such as old stored events.
+        operation: 'Juan Perez' as OperationalTelemetryOperation,
         issues: ['Juan Perez 12.345.678-9'],
         context: { runId: 'Juan Perez', patientCount: 3 },
       },
