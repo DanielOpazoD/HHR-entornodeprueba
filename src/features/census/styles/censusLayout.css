@@ -199,7 +199,15 @@
     width: 3% !important;
   }
   .census-table-scroll[data-access-profile='default'] > table > thead > tr > th.census-column-name {
-    width: 35% !important;
+    width: 28% !important;
+  }
+  .census-table-scroll[data-access-profile='default']
+    > table
+    > thead
+    > tr
+    > th.census-column-access {
+    /* Two 28 px buttons plus the cell padding. */
+    width: 7% !important;
   }
   .census-table-scroll[data-access-profile='default']
     > table
@@ -276,6 +284,25 @@
   .census-table-scroll > table > thead > tr > th {
     width: var(--census-column-share) !important;
     max-width: none !important;
+  }
+
+  /* «Accesos» holds only buttons: zero width on paper, but still a column for the colSpans. */
+  .census-table-scroll > table > thead > tr > th.census-column-access {
+    /* A percentage, like its neighbours, so the leftover width goes to them and not here. */
+    width: 0.1% !important;
+    padding: 0 !important;
+    border: 0 !important;
+    font-size: 0 !important;
+  }
+
+  .census-access-cell {
+    width: 0;
+    padding: 0 !important;
+    border: 0 !important;
+  }
+
+  .census-access-cell > * {
+    display: none !important;
   }
 
   .census-diagnosis-cell .line-clamp-2 {

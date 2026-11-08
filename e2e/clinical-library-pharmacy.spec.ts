@@ -145,9 +145,7 @@ test('pharmacy acts are reachable inside clinical documents without closing its 
   await seedPersistedSession(page, 'admin', buildCanonicalE2ERecord(PREVIEW_DATE, { beds }));
   await page.goto(`/?date=${PREVIEW_DATE}`);
   const row = page.locator('[data-testid="patient-row"][data-bed-id="R1"]').first();
-  await row.getByRole('button', { name: /Datos del Paciente/i }).focus();
-  await page.getByLabel('Acciones clínicas rápidas').click();
-  await page.getByTitle('Documentos clínicos', { exact: true }).click();
+  await row.getByTestId('clinical-access-documents-R1').click();
   const workspace = page.getByTestId('clinical-documents-workspace');
   await expect(workspace).toBeVisible();
   await capture(page, 'clinical-documents-pharmacy-entrypoints.png');

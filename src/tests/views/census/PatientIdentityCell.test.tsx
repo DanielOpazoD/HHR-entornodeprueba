@@ -73,7 +73,7 @@ describe('PatientIdentityCell', () => {
   });
 
   it.each(['provisional', 'official'] as const)(
-    'keeps newborn age beside its name and offers only the clinical panel (%s identity)',
+    'keeps newborn age beside its name and leaves its ficha to «Accesos» (%s identity)',
     identityStatus => {
       const { container } = renderCell({
         isSubRow: true,
@@ -86,7 +86,7 @@ describe('PatientIdentityCell', () => {
       });
       const name = container.querySelector('.census-identity-name');
       expect(name).toContainElement(screen.getByText('(1d)'));
-      expect(screen.getByTestId('clinical-panel-trigger-R1-clinical-crib')).toBeVisible();
+      expect(screen.queryByRole('button', { name: /abrir panel clínico/i })).toBeNull();
       expect(container.querySelector('.lucide-arrow-right')).toBeNull();
       expect(container.querySelector('[data-testid^="patient-laboratory-trigger"]')).toBeNull();
       expect(container.querySelector('[data-testid^="patient-radiology-trigger"]')).toBeNull();
@@ -290,7 +290,7 @@ describe('PatientIdentityCell', () => {
     expect(screen.queryByTitle(/Médico tratante:/)).not.toBeInTheDocument();
   });
 
-  it('shows Pediatría and the clinical panel action for an attached newborn without RUN', () => {
+  it('shows Pediatría for an attached newborn without RUN', () => {
     const data = DataFactory.createMockPatient('H5C1', {
       patientName: 'RN de Fernanda Valladares',
       rut: '',
@@ -309,9 +309,8 @@ describe('PatientIdentityCell', () => {
     expect(container.querySelector('svg.lucide-baby')).not.toBeInTheDocument();
 
     expect(screen.getByTitle('Especialidad: Pediatría')).toBeVisible();
-    expect(
-      screen.getByRole('button', { name: 'Abrir panel clínico de RN de Fernanda Valladares' })
-    ).toBeVisible();
+    // The crib's ficha opens from its «Accesos» cell.
+    expect(screen.queryByRole('button', { name: /abrir panel clínico/i })).toBeNull();
     expect(
       screen.queryByRole('button', {
         name: 'Abrir informes de hospitalización de RN de Fernanda Valladares',

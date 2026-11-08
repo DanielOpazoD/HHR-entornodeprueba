@@ -13,6 +13,7 @@ describe('censusTableColumnProfileController', () => {
     bed: 80,
     type: 60,
     name: 200,
+    access: 64,
     rut: 100,
     age: 50,
     diagnosis: 200,
@@ -89,7 +90,8 @@ describe('censusTableColumnProfileController', () => {
       expect(projected).toMatchObject({
         actions: 40,
         bed: 54,
-        name: 310,
+        name: 246,
+        access: 64,
         diagnosis: 280,
         status: profile === 'specialist' ? 0 : 32,
       });

@@ -48,47 +48,21 @@ clinicalShiftCalendarController
   -> presentation (dateLabel + timeLabel)
 ```
 
-### Launcher orbital de acciones clínicas
+### Columna «Accesos»
 
 ```text
-hover/focus fila ocupada
-  -> PatientRowOrbitalQuickActions
-  -> usePatientRowOrbitalLauncherRuntime
-  -> portal fuera de la tabla
-  -> temas del paciente: ficha clínica / laboratorio / imágenes / documentos / vista integrada
+fila con paciente
+  -> PatientInputCells (celda entre Paciente y Diagnóstico)
+  -> PatientClinicalAccess: ficha clínica / laboratorio / imágenes / documentos (2×2)
+  -> PatientClinicalTopicSurfaces: panel lateral, visor de laboratorio, visor MMRAD
 ```
 
-- El launcher orbital (la tortuga) vive visualmente fuera del borde izquierdo de la tabla, aunque se ancla a la fila del paciente.
-- Es la única puerta clínica de la fila: cada tema abre una ventana donde se lee y, si la fila puede editar, se solicita. Laboratorio e Imágenes abren su visor con «Solicitar exámenes» o «Solicitar imagen» (`PatientClinicalTopicSurfaces`).
-- Ficha clínica abre el panel lateral sin botón en la fila (`ClinicalPanelTrigger headless`); sus flechas ‹ › recorren las marcas `data-clinical-panel-key`. Solo una cuna conserva su botón de ficha junto al nombre.
-- Los temas de lectura aparecen también en un censo de solo lectura; las solicitudes, no.
-- El panel clásico conserva la gestión clínica histórica (`Dar de Alta`, `Trasladar`, `Egreso CMA`) y no debe duplicar estas aperturas rápidas.
-- En desktop aparece por `hover` de la fila o del área externa del launcher; en touch permanece visible.
-- Solo un launcher puede permanecer activo a la vez para no perder foco visual al recorrer otras filas.
-- La iconografía cultural del launcher se define en `components/patient-row/patientRowOrbitalQuickActionAssets.ts`.
-
-#### Arquitectura de pointer-events
-
-El launcher usa un esquema de capas CSS que evita interceptar clics destinados a la tabla subyacente:
-
-- El **wrapper** del portal se renderiza con `pointer-events-none` para que los clics lo atraviesen hacia la tabla.
-- El **contenedor de acciones** y el **trigger** activan `pointer-events-auto` para capturar solo los clics sobre los botones del launcher.
-- Capas de z-index: backdrop `z-[38]`, wrapper `z-[39]`, acciones internas `z-10`. El launcher queda sobre el encabezado y acciones de la tabla (`z-30`/`z-[36]`) y bajo las barras sticky de navegación/fecha (`z-40`/`z-60`).
-
-#### Fix de stale closures en grace timer
-
-El runtime del launcher usa refs para leer el estado actual dentro del grace timer, evitando closures obsoletos:
-
-- El grace timer que retrasa el cierre del launcher lee el estado desde refs (`useRef`) en lugar de capturar valores por closure.
-- Un listener de `visibilitychange` resetea el estado de hover cuando el tab pasa a background, evitando que el launcher quede abierto al volver.
-
-#### Constantes de timing
-
-| Constante              | Valor  | Propósito                                                        |
-| ---------------------- | ------ | ---------------------------------------------------------------- |
-| `REVEAL_DELAY_MS`      | 0 ms   | Apertura instantánea al hacer hover sobre la fila                |
-| `CLOSE_RESET_DELAY_MS` | 50 ms  | Delay mínimo antes de resetear el estado de cierre               |
-| `HOVER_EXIT_GRACE_MS`  | 120 ms | Gracia antes de cerrar al salir del hover (evita flicker casual) |
+- Es la única puerta clínica de la fila y siempre ocupa el mismo lugar: cada tema abre una ventana donde se lee y, si la fila puede editar, se solicita. Laboratorio e Imágenes abren su visor con «Solicitar exámenes» o «Solicitar imagen».
+- Los permisos salen de los mismos controladores que el menú de la fila (`buildPatientClinicalAccessBinding`): los temas de lectura aparecen también en un censo de solo lectura; las solicitudes, no.
+- Sin episodio o con pasaporte no hay resultados que leer: si la fila puede editar, Laboratorio e Imágenes abren directo la solicitud. Un tema que no aplica deja su casilla vacía para que la grilla siga alineada.
+- Ficha clínica abre el panel lateral (`ClinicalPanelTrigger`, sin botón propio); sus flechas ‹ › recorren las marcas `data-clinical-panel-key`, incluida la cuna. La vista integrada se abre desde el panel.
+- Una cuna muestra solo su ficha. La impresión deja fuera la columna.
+- La iconografía rapanui vive en `components/patient-row/patientClinicalAccessIcons.ts`.
 
 ### Acción de fuga por correo
 
@@ -116,30 +90,29 @@ El IEEH ya no se completa desde el censo: se llena en el panel IEEH de la epicri
 
 ## Archivos clave
 
-| Archivo                                                         | Motivo                                                          |
-| --------------------------------------------------------------- | --------------------------------------------------------------- |
-| `controllers/clinicalShiftCalendarController.ts`                | Fuente única de invariantes de fecha/turno                      |
-| `controllers/censusActionExecutionController.ts`                | Resolución de comandos tipados                                  |
-| `controllers/censusActionRuntimeController.ts`                  | Ejecución runtime desacoplada de provider                       |
-| `controllers/patientMovementCommandRuntimeController.ts`        | Bridge command -> action runtime                                |
-| `controllers/bedManagerModalController.ts`                      | Transiciones y validación del flujo de bloqueo de camas         |
-| `controllers/bedManagerGridItemsController.ts`                  | Mapeo puro de `DailyRecord` a props de grillas de camas         |
-| `components/censusMovementActionPresentation.tsx`               | Iconografía y estilo compartidos de acciones de movimientos     |
-| `components/patient-row/nameInputController.ts`                 | Contrato puro de display/edición del nombre del paciente        |
-| `src/hooks/useDischargeModalForm.ts`                            | Form flow de altas                                              |
-| `src/hooks/useTransferModalForm.ts`                             | Form flow de traslados                                          |
-| `src/hooks/useBedManagerModalModel.ts`                          | Orquestación UI vs dominio del modal de camas                   |
-| `hooks/useCensusMovementActionsCellModel.ts`                    | View-model para celda de acciones de movimientos                |
-| `hooks/useCensusViewScreenModel.ts`                             | Fachada de pantalla para ramas `empty/register`                 |
-| `hooks/useCensusTableRuntime.ts`                                | Runtime unificado de tabla (dependencias + resize + activación) |
-| `hooks/useDischargesSectionModel.ts`                            | Fachada de wiring para altas                                    |
-| `hooks/useTransfersSectionModel.ts`                             | Fachada de wiring para traslados                                |
-| `components/patient-row/PatientRowOrbitalQuickActions.tsx`      | Launcher portalizado de acciones clínicas rápidas               |
-| `components/patient-row/usePatientRowOrbitalLauncherRuntime.ts` | Runtime UI del launcher orbital                                 |
-| `components/patient-row/patientRowOrbitalQuickActionAssets.ts`  | Mapeo de assets culturales del launcher                         |
-| `components/FugaNotificationModal.tsx`                          | Modal de notificación de fuga por correo                        |
-| `hooks/useFugaNotificationModalModel.ts`                        | Orquestación UI del envío de fuga                               |
-| `controllers/fugaNotificationPolicyController.ts`               | Política compartida de destinatarios y validación de fuga       |
+| Archivo                                                  | Motivo                                                          |
+| -------------------------------------------------------- | --------------------------------------------------------------- |
+| `controllers/clinicalShiftCalendarController.ts`         | Fuente única de invariantes de fecha/turno                      |
+| `controllers/censusActionExecutionController.ts`         | Resolución de comandos tipados                                  |
+| `controllers/censusActionRuntimeController.ts`           | Ejecución runtime desacoplada de provider                       |
+| `controllers/patientMovementCommandRuntimeController.ts` | Bridge command -> action runtime                                |
+| `controllers/bedManagerModalController.ts`               | Transiciones y validación del flujo de bloqueo de camas         |
+| `controllers/bedManagerGridItemsController.ts`           | Mapeo puro de `DailyRecord` a props de grillas de camas         |
+| `components/censusMovementActionPresentation.tsx`        | Iconografía y estilo compartidos de acciones de movimientos     |
+| `components/patient-row/nameInputController.ts`          | Contrato puro de display/edición del nombre del paciente        |
+| `src/hooks/useDischargeModalForm.ts`                     | Form flow de altas                                              |
+| `src/hooks/useTransferModalForm.ts`                      | Form flow de traslados                                          |
+| `src/hooks/useBedManagerModalModel.ts`                   | Orquestación UI vs dominio del modal de camas                   |
+| `hooks/useCensusMovementActionsCellModel.ts`             | View-model para celda de acciones de movimientos                |
+| `hooks/useCensusViewScreenModel.ts`                      | Fachada de pantalla para ramas `empty/register`                 |
+| `hooks/useCensusTableRuntime.ts`                         | Runtime unificado de tabla (dependencias + resize + activación) |
+| `hooks/useDischargesSectionModel.ts`                     | Fachada de wiring para altas                                    |
+| `hooks/useTransfersSectionModel.ts`                      | Fachada de wiring para traslados                                |
+| `components/patient-row/PatientClinicalAccess.tsx`       | Columna «Accesos»: los cuatro temas clínicos del paciente       |
+| `components/patient-row/patientClinicalAccessIcons.ts`   | Iconografía rapanui de la columna «Accesos»                     |
+| `components/FugaNotificationModal.tsx`                   | Modal de notificación de fuga por correo                        |
+| `hooks/useFugaNotificationModalModel.ts`                 | Orquestación UI del envío de fuga                               |
+| `controllers/fugaNotificationPolicyController.ts`        | Política compartida de destinatarios y validación de fuga       |
 
 ## Calidad
 
@@ -214,7 +187,7 @@ El IEEH ya no se completa desde el censo: se llena en el panel IEEH de la epicri
 ## Test entrypoints recomendados
 
 - `npx vitest run src/tests/views/census`
-- `npx vitest run src/tests/views/census/PatientRowOrbitalQuickActions.test.tsx src/tests/views/census/patientRowOrbitalQuickActionsController.test.ts`
+- `npx vitest run src/tests/views/census/PatientClinicalAccess.test.tsx src/tests/views/census/patientClinicalTopicsController.test.ts`
 - `npm run test:ci:unit`
 
 ## Comandos de validación del módulo

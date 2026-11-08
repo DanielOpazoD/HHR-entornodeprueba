@@ -25,6 +25,8 @@ export interface TableColumnConfig {
   bed: number;
   type: number;
   name: number;
+  /** «Accesos»: ficha, laboratorio, imágenes y documentos del paciente, in a 2×2 grid. */
+  access: number;
   rut: number;
   age: number;
   diagnosis: number;
@@ -77,6 +79,7 @@ export const DEFAULT_COLUMN_WIDTHS: TableColumnConfig = {
   bed: 28,
   type: 30,
   name: 150,
+  access: 64,
   rut: 0,
   age: 0,
   diagnosis: 123,
@@ -101,6 +104,7 @@ const COMPACT_COLUMN_MAX_WIDTHS: Readonly<TableColumnConfig> = {
   bed: 28,
   type: 28,
   name: 150,
+  access: 64,
   rut: 0,
   age: 0,
   diagnosis: 123,
@@ -132,6 +136,7 @@ const compactColumns = (columns: Partial<TableColumnConfig>): TableColumnConfig 
       Math.min(merged.name, COMPACT_COLUMN_MAX_WIDTHS.name),
       MINIMUM_NAME_COLUMN_WIDTH
     ),
+    access: Math.min(merged.access, COMPACT_COLUMN_MAX_WIDTHS.access),
     rut: Math.min(merged.rut, COMPACT_COLUMN_MAX_WIDTHS.rut),
     age: Math.min(merged.age, COMPACT_COLUMN_MAX_WIDTHS.age),
     diagnosis: Math.min(merged.diagnosis, COMPACT_COLUMN_MAX_WIDTHS.diagnosis),

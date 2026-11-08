@@ -33,6 +33,13 @@ export const CENSUS_HEADER_COLUMNS: readonly CensusHeaderColumnDefinition[] = [
   // "Tipo" queda oculto (ver HIDDEN_CENSUS_COLUMNS); la entrada se mantiene por compatibilidad.
   { key: 'type', label: 'Tipo' },
   { key: 'name', label: 'Paciente' },
+  {
+    key: 'access',
+    label: 'Accesos',
+    title: 'Ficha clínica, laboratorio, imágenes y documentos del paciente',
+    // Buttons only: print collapses the column to zero width (censusLayout.css) instead of
+    // removing it, so the blocked and empty rows' colSpans still count it.
+  },
   { key: 'diagnosis', label: 'Diagnóstico' },
   { key: 'specialty', label: 'Esp' },
   // La columna `admission` se reutiliza para Signos Vitales (rediseño "centro de vigilancia" 2026);

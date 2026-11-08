@@ -24,7 +24,7 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
     const name = row.getByText(PATIENT);
     const vitals = row.locator('.census-vitals-grid');
     const vitalCell = vitals.locator('xpath=ancestor::td');
-    const deviceCell = row.locator('td').nth(6);
+    const deviceCell = row.locator('td').nth(7);
     const identityCell = row.locator('.census-identity-cell');
     const diagnosisCell = row.locator('.census-diagnosis-cell');
     const diagnosisText = diagnosisCell.getByText(/Diagnóstico clínico sintético/);
@@ -43,8 +43,15 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
     expect(vitalBounds).not.toBeNull();
     expect(deviceBounds).not.toBeNull();
     expect(nameBounds!.height).toBeLessThanOrEqual(33);
-    // Ficha, laboratorio e imágenes open from the turtle: the name keeps the whole cell.
+    // The clinical topics live in their own «Accesos» column: the name keeps the whole cell.
     await expect(identityCell.locator('.census-identity-actions')).toHaveCount(0);
+    const accessCell = row.locator('.census-access-cell');
+    for (const topic of ['ficha', 'laboratory', 'imaging']) {
+      await expect(accessCell.getByTestId(`clinical-access-${topic}-R1`)).toBeVisible();
+    }
+    const accessBounds = await accessCell.boundingBox();
+    expect(accessBounds!.width).toBeGreaterThanOrEqual(56);
+    expect(accessBounds!.x).toBeGreaterThanOrEqual(identityBounds!.x + identityBounds!.width - 1);
     expect(await diagnosisText.evaluate(element => getComputedStyle(element).webkitLineClamp)).toBe(
       '2'
     );
@@ -194,6 +201,19 @@ test('keeps the census and movement sections complete in the printable view', as
       .locator('[data-testid="patient-row"][data-bed-id="R1"] .census-diagnosis-cell .line-clamp-2')
       .evaluate(element => getComputedStyle(element).webkitLineClamp)
   ).not.toBe('2');
+  // «Accesos» collapses on paper but stays a column, so empty and blocked rows still line up.
+  const printedColumns = await printableTable.evaluate(element => {
+    const table = element.querySelector('table')!;
+    const header = table.querySelector('thead > tr:last-child')!;
+    const access = header.querySelector('th.census-column-access')!;
+    return {
+      access: access.getBoundingClientRect().width,
+      headerRight: header.lastElementChild!.getBoundingClientRect().right,
+      tableRight: table.getBoundingClientRect().right,
+    };
+  });
+  expect(printedColumns.access).toBeLessThanOrEqual(2);
+  expect(Math.abs(printedColumns.tableRight - printedColumns.headerRight)).toBeLessThanOrEqual(2);
 
   await page.screenshot({
     path: test.info().outputPath('census-print-layout.png'),
