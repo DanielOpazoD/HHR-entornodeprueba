@@ -194,6 +194,10 @@ export type RayenSyncFailureReason = (typeof RAYEN_SYNC_FAILURE_REASONS)[number]
 export const RAYEN_CAPTURE_FAILURE_CHECKS = [
   'capture_no_answer',
   'ficha_relay_timeout',
+  /** A Ficha Médico census read failed at network level. */
+  'ficha_network',
+  /** Ficha Médico declined to read: a network failure in the last two minutes blocks its reads. */
+  'ficha_read_blocked',
   'ficha_after_capture',
   'gc_after_capture',
   'gc_tab_unresponsive',
