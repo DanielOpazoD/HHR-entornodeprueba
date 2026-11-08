@@ -34,6 +34,7 @@ const SYNCABLE_FIELDS: Array<keyof PatientData> = [
   'firstName',
   'lastName',
   'secondLastName',
+  'namePartsSource',
   'rut',
   'documentType',
   'birthDate',

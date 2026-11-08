@@ -181,6 +181,8 @@ export const rayenToPatientData = (
     firstName: givenNames,
     lastName: firstFamily,
     secondLastName: secondFamily,
+    // Without a family name the extension fell back to the whole name as given names.
+    ...(firstFamily && !encounter.namePartsFromHhr ? { namePartsSource: 'eloisa' as const } : {}),
     birthDate: toIsoDate(encounter.birthDate),
     age: ageFromBirthDate(encounter.birthDate, reference),
     biologicalSex: mapBiologicalSex(encounter.administrativeSex, encounter.gender),

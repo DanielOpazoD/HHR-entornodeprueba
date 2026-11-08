@@ -217,6 +217,7 @@ export const PatientDataSchema: z.ZodType<PatientData, unknown> = z.lazy(() =>
       firstName: DefaultEmptyStringSchema,
       lastName: DefaultEmptyStringSchema,
       secondLastName: DefaultEmptyStringSchema,
+      namePartsSource: nullableOptional(z.literal('eloisa')).catch(undefined),
       identityStatus: nullableOptional(z.enum(['provisional', 'official'])),
       rut: DefaultEmptyStringSchema,
       documentType: nullableOptional(emptyStringToUndefined(z.enum(['RUT', 'Pasaporte']))),

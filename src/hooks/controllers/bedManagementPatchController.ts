@@ -27,6 +27,7 @@ import {
 import { buildClinicalCribDraft } from '@/hooks/controllers/clinicalCribController';
 import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
 import { isFeatureEnabled } from '@/services/utils/featureFlags';
+import { editsEloisaNameParts } from '@/utils/patientNamePartsSource';
 
 /**
  * Un gesto = un parche MÍNIMO: los guardados del censo reenvían el paciente
@@ -127,6 +128,9 @@ const buildPatientFieldPatches = ({
   });
 
   Object.assign(patches, manualDiagnosisPatches);
+  if (editsEloisaNameParts(currentPatient, updates)) {
+    patches[`beds.${bedId}.namePartsSource`] = undefined;
+  }
 
   if (
     currentPatient.clinicalEpisodeId &&
@@ -324,6 +328,9 @@ export const buildClinicalCribMultipleFieldPatches = (
     patches[`beds.${bedId}.clinicalCrib.${key}`] = value;
     markManualDiagnosis(manualDiagnosisPatches, `beds.${bedId}.clinicalCrib`, key);
   });
+  if (editsEloisaNameParts(currentCrib as Partial<PatientData> | undefined, fields)) {
+    patches[`beds.${bedId}.clinicalCrib.namePartsSource`] = undefined;
+  }
   return Object.assign(patches, manualDiagnosisPatches) as DailyRecordPatch;
 };
 
@@ -414,6 +421,7 @@ export const buildRemoveClinicalCribPatches = (bedId: string): DailyRecordPatch 
   }) as DailyRecordPatch;
 
 export const buildUpdateClinicalCribPatches = (
+  state: DailyRecord,
   bedId: string,
   field: keyof PatientData,
   value: PatientFieldValue
@@ -422,5 +430,12 @@ export const buildUpdateClinicalCribPatches = (
     [`beds.${bedId}.clinicalCrib.${field}`]: value,
   };
   markManualDiagnosis(patches, `beds.${bedId}.clinicalCrib`, field);
+  if (
+    editsEloisaNameParts(state.beds[bedId]?.clinicalCrib, {
+      [field]: value,
+    } as Partial<PatientData>)
+  ) {
+    patches[`beds.${bedId}.clinicalCrib.namePartsSource`] = undefined;
+  }
   return patches as DailyRecordPatch;
 };

@@ -22,6 +22,11 @@ export interface RayenEncounter {
   firstFamilyName: string;
   /** Second family name — Rayen `secondFamilyName`. */
   secondFamilyName?: string;
+  /**
+   * Set on encounters rebuilt from an HHR record whose split Eloísa never confirmed: their name
+   * parts are HHR's, so the mapped patient is not marked as carrying Eloísa's split.
+   */
+  namePartsFromHhr?: boolean;
   /** ISO birth date — Rayen `birthDate`. */
   birthDate?: string;
   /** Administrative sex text: "Mujer" | "Hombre" — Rayen `adseName`. */

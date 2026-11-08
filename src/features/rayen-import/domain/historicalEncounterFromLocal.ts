@@ -25,6 +25,7 @@ export const historicalEncounterFromLocal = (
     firstGivenName: patient.firstName?.trim() || patient.patientName,
     firstFamilyName: patient.lastName?.trim() || '',
     secondFamilyName: patient.secondLastName,
+    ...(patient.namePartsSource === 'eloisa' ? {} : { namePartsFromHhr: true }),
     birthDate: patient.birthDate,
     ...sex,
     admissionDatetime: patient.admissionDate
