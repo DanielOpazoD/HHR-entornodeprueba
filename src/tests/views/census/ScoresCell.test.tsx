@@ -113,6 +113,8 @@ describe('ScoresCell', () => {
       </table>
     );
     expect(screen.getByText('C2')).toBeVisible();
+    const name = 'Escalas de enfermería: CUDYR C2. Abrir detalle';
+    expect(screen.getByRole('button', { name })).toHaveAttribute('title', name);
     expect(screen.queryByTestId('cudyr-pending-status')).not.toBeInTheDocument();
   });
 
@@ -134,6 +136,15 @@ describe('ScoresCell', () => {
                     recordedDate: '2026-07-10',
                     recordedAt: '2026-07-10T08:00:00-06:00',
                   },
+                  downton: {
+                    code: 'DOWNTON',
+                    name: 'Downton',
+                    encounterEventId: 20260710080001,
+                    total: 2,
+                    severity: 'Riesgo bajo',
+                    recordedDate: '2026-07-10',
+                    recordedAt: '2026-07-10T08:00:00-06:00',
+                  },
                 },
               })}
               currentDateString="2026-07-11"
@@ -143,8 +154,13 @@ describe('ScoresCell', () => {
       </table>
     );
 
+    const name =
+      'Escalas de enfermería: Braden 14, Riesgo alto, Faltan 2 días para repetir la escala; ' +
+      'Downton 2, Riesgo bajo, Faltan 6 días para repetir la escala. Abrir detalle';
+    expect(screen.getByRole('button', { name })).toHaveAttribute('title', name);
+
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Ver detalle de escalas de enfermería' }));
+      fireEvent.click(screen.getByRole('button', { name: /^Escalas de enfermería:/ }));
       // Wait for the real lazy module, not a wall-clock-dependent query timeout.
       await import('@/features/census/components/patient-row/ScoresDetailModal');
     });

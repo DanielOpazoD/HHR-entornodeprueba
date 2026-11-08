@@ -79,6 +79,28 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
       ? resolveCudyrPendingStatus(currentDateString)
       : null;
   const hasCellContent = model.hasAny || cudyrPending != null;
+  const scalesDescription = [
+    ...(
+      [
+        ['Braden', model.braden],
+        ['Downton', model.downton],
+      ] as const
+    ).map(
+      ([label, scale]) =>
+        scale &&
+        [
+          `${label} ${scale.total}`,
+          scale.displayLevel && `Riesgo ${scale.displayLevel}`,
+          scale.countdownLabel,
+        ]
+          .filter(Boolean)
+          .join(', ')
+    ),
+    model.cudyr && `CUDYR ${model.cudyr.category}`,
+  ]
+    .filter(Boolean)
+    .join('; ');
+  const accessibleName = `Escalas de enfermería: ${scalesDescription || 'Historial disponible'}. Abrir detalle`;
 
   return (
     <td className="py-0.5 px-1 border-r border-slate-200 relative">
@@ -92,7 +114,8 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
                 setIsDetailOpen(true);
               }}
               className="flex w-full cursor-pointer flex-col items-stretch gap-0.5 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700"
-              aria-label="Ver detalle de escalas de enfermería"
+              aria-label={accessibleName}
+              title={accessibleName}
             >
               {model.braden && (
                 <ScaleChip

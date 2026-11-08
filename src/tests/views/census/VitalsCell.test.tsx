@@ -42,6 +42,17 @@ const renderCell = (vitalSigns?: PatientVitalSigns, bedId = 'R1', patient?: Part
   );
 
 describe('VitalsCell', () => {
+  it.each([
+    [130, 98, 'PA 130/82 mmHg; FC 84 lpm; SAT 98 %; T° 36.5 °C'],
+    [182, 91, 'PA 182/82 mmHg, alerta; FC 84 lpm; SAT 91 %, revisar; T° 36.5 °C'],
+  ])('names readings and their status for PA %s and SAT %s', (systolic, spo2, readings) => {
+    renderCell({ ...VITALS, systolic, spo2 }, 'R1', { age: '44', birthDate: undefined });
+    const name = `Signos vitales: ${readings}. Abrir detalle`;
+    const button = screen.getByRole('button', { name });
+    expect(button).toHaveAccessibleName(name);
+    expect(button).toHaveAttribute('title', name);
+  });
+
   it('does not expose carried measurement dates or provenance in the census cell', () => {
     renderCell(VITALS, 'R1', {
       clinicalEpisodeId: 'synthetic',
@@ -52,11 +63,11 @@ describe('VitalsCell', () => {
         devicesPending: true,
       },
     });
-    const button = screen.getByRole('button', { name: 'Ver signos vitales' });
+    const button = screen.getByRole('button', { name: /^Signos vitales:/ });
     expect(button).toHaveTextContent('130/82');
     expect(screen.queryByText(/11\/07\/2026|2026-07-11|Previa/)).not.toBeInTheDocument();
     expect(button.querySelector('time')).toBeNull();
-    expect(button).not.toHaveAttribute('title');
+    expect(button).toHaveAttribute('title', button.getAttribute('aria-label'));
     expect(button).not.toHaveAttribute('aria-description');
     expect(screen.queryByText(/Por verificar|pendiente de verificar/i)).not.toBeInTheDocument();
   });
@@ -72,9 +83,9 @@ describe('VitalsCell', () => {
       },
     });
     expect(screen.queryByText(/12\/07\/2026|2026-07-12/)).not.toBeInTheDocument();
-    const button = screen.getByRole('button', { name: 'Ver signos vitales' });
+    const button = screen.getByRole('button', { name: /^Signos vitales:/ });
     expect(button).not.toHaveAttribute('aria-description');
-    expect(button).not.toHaveAttribute('title');
+    expect(button).toHaveAttribute('title', button.getAttribute('aria-label'));
     expect(
       screen.queryByText(/Previa|Por verificar|pendiente de verificar/i)
     ).not.toBeInTheDocument();
@@ -89,15 +100,15 @@ describe('VitalsCell', () => {
     expect(screen.getByText('88')).not.toHaveClass('decoration-dotted');
     expect(screen.getByText('36.5')).toBeInTheDocument(); // T°
     expect(screen.queryByTitle('SAT: 88 % · Fuera de rango')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Ver signos vitales' })).not.toHaveAttribute(
+    expect(screen.getByRole('button', { name: /^Signos vitales:/ })).not.toHaveAttribute(
       'aria-description'
     );
     expect(screen.getByText('88').querySelector('svg')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Ver signos vitales' })).not.toHaveClass(
+    expect(screen.getByRole('button', { name: /^Signos vitales:/ })).not.toHaveClass(
       'border-l-red-500'
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Signos vitales:/ }));
     // The detail modal surfaces FR / EVA / observations that are not inline in the cell.
     expect(await screen.findByText('PAM 94')).toBeInTheDocument();
     expect(screen.queryByText('Cargando historial…')).not.toBeInTheDocument();
@@ -114,7 +125,7 @@ describe('VitalsCell', () => {
   it('shows rounded PAM only in the detail table, including a single measurement', async () => {
     renderCell({ ...VITALS, spo2: 98, meanArterialPressure: 87.7 }, 'R1', { age: '44' });
     expect(screen.queryByText('PAM')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Signos vitales:/ }));
     expect(await screen.findByRole('columnheader', { name: 'PAM' })).toBeInTheDocument();
     expect(screen.getByRole('cell', { name: '88' })).toBeInTheDocument();
   });
@@ -122,10 +133,10 @@ describe('VitalsCell', () => {
   it('keeps detail-only readings available without adding an inline warning', async () => {
     renderCell({ ...VITALS, spo2: 98, painEva: 8 }, 'R1', { age: '44' });
 
-    expect(screen.getByRole('button', { name: 'Ver signos vitales' })).not.toHaveAttribute(
+    expect(screen.getByRole('button', { name: /^Signos vitales:/ })).not.toHaveAttribute(
       'aria-description'
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Signos vitales:/ }));
     expect(await screen.findByText('8')).toBeInTheDocument();
     expect(screen.queryByText('Fuera de rango')).toBeNull();
   });
@@ -154,7 +165,7 @@ describe('VitalsCell', () => {
     );
 
     expect(screen.getByText('126')).toHaveClass('text-slate-600');
-    fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Signos vitales:/ }));
     expect(await screen.findByText('Última toma')).toBeInTheDocument();
     expect(screen.queryByText(/rangos RN/i)).not.toBeInTheDocument();
   });
@@ -171,7 +182,7 @@ describe('VitalsCell', () => {
     );
 
     expect(screen.getByText('145')).toHaveClass('text-amber-600');
-    fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Signos vitales:/ }));
     await screen.findByText('Última toma');
     expect(screen.queryByText(/pediátrico|años|perfil/i)).not.toBeInTheDocument();
   });
@@ -198,7 +209,7 @@ describe('VitalsCell', () => {
       ],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Signos vitales:/ }));
     const historySection = (await screen.findByText('Historial · 2 tomas')).closest('section');
     expect(historySection).not.toBeNull();
     const history = within(historySection as HTMLElement);
@@ -219,7 +230,7 @@ describe('VitalsCell', () => {
     });
     expect(screen.getByText('88')).toHaveClass('text-red-600');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Signos vitales:/ }));
     await screen.findByText('Última toma');
     const dialog = within(screen.getByRole('dialog'));
     const card = dialog.getAllByText('88')[0];
