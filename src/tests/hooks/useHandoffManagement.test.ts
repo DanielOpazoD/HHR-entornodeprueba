@@ -425,7 +425,9 @@ describe('useHandoffManagement', () => {
     );
 
     await act(async () => {
-      await result.current.sendMedicalHandoff('Template content', 'group-xyz');
+      await expect(
+        result.current.sendMedicalHandoff('Template content', 'group-xyz')
+      ).rejects.toThrow('Falla remota');
     });
 
     expect(mockPatchRecord).not.toHaveBeenCalledWith(

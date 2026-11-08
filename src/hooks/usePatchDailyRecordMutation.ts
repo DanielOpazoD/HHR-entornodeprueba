@@ -64,7 +64,7 @@ type PatchMutationInput = DailyRecordPatchMutationVariables;
 
 const resolveInput = (
   input: PatchMutationInput
-): { partial: DailyRecordPatch; options?: PartialUpdateDailyRecordOptions } => {
+): { date?: string; partial: DailyRecordPatch; options?: PartialUpdateDailyRecordOptions } => {
   if (
     'partial' in input &&
     input.partial !== null &&
@@ -72,6 +72,7 @@ const resolveInput = (
     !Array.isArray(input.partial)
   ) {
     return input as {
+      date?: string;
       partial: DailyRecordPatch;
       options?: PartialUpdateDailyRecordOptions;
     };
@@ -110,7 +111,7 @@ class AuthoritativeDailyRecordConflictError extends ConcurrencyError {
 }
 
 /** Granular daily-record writes, serialized per date and confirmed remotely when required. */
-export const usePatchDailyRecordMutation = (date: string) => {
+export const usePatchDailyRecordMutation = (currentDate: string) => {
   const queryClient = useQueryClient();
   const { dailyRecord } = useRepositories();
   const patchBaseRecordsRef = useRef<DailyRecordPatchBaseRecordRegistry | null>(null);
@@ -119,11 +120,11 @@ export const usePatchDailyRecordMutation = (date: string) => {
   }
   const patchBaseRecords = patchBaseRecordsRef.current;
   return useMutation({
-    mutationKey: getDailyRecordPatchMutationKey(date),
+    mutationKey: getDailyRecordPatchMutationKey(currentDate),
     // The repository owns retries; do not replay a rejected decision as a new command.
     retry: false,
     mutationFn: async (input: PatchMutationInput) => {
-      const { partial, options } = resolveInput(input);
+      const { partial, options, date = currentDate } = resolveInput(input);
       let writePatch = partial;
       const baseRecord = getDailyRecordPatchBaseRecord(patchBaseRecords, partial);
       const buildOptions = (record: DailyRecord | undefined) => ({
@@ -243,6 +244,7 @@ export const usePatchDailyRecordMutation = (date: string) => {
       return { partial, options, result };
     },
     onMutate: async input => {
+      const { date = currentDate } = resolveInput(input);
       const releaseMutationTurn = await acquireMutationTurn(date);
       try {
         const { partial, options } = resolveInput(input);
@@ -322,6 +324,7 @@ export const usePatchDailyRecordMutation = (date: string) => {
       }
     },
     onError: (error, input, context) => {
+      const { date = currentDate } = resolveInput(input);
       if (error instanceof AuthoritativeDailyRecordConflictError) {
         const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
           getDailyRecordQueryKey(date)
@@ -345,7 +348,8 @@ export const usePatchDailyRecordMutation = (date: string) => {
       }
       forgetDailyRecordPatchBaseRecord(patchBaseRecords, resolveInput(input).partial);
     },
-    onSuccess: async (payload, _input, context) => {
+    onSuccess: async (payload, input, context) => {
+      const { date = currentDate } = resolveInput(input);
       if (isDailyRecordWriteRejectedResult(payload.result)) {
         if (context?.optimisticApplied) {
           const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(

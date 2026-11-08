@@ -1,9 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { useEffect, useRef } from 'react';
 
 import { useHandoffCommunication } from '@/hooks/useHandoffCommunication';
-import { useHandoffManagementDelivery } from '@/hooks/useHandoffManagementDelivery';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { MessageTemplate } from '@/services/integrations/whatsapp/whatsappService';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -293,7 +291,7 @@ describe('useHandoffCommunication', () => {
     );
   });
 
-  it('keeps the sending indicator active until the deferred delivery finishes', async () => {
+  it.each([false, true])('confirms delayed delivery (change day: %s)', async changeDay => {
     vi.mocked(getWhatsAppConfig).mockResolvedValue({
       enabled: true,
       status: 'connected',
@@ -312,14 +310,10 @@ describe('useHandoffCommunication', () => {
       finish = resolve;
     });
     const send = vi.fn(() => delivery);
-    const { result } = renderHook(() =>
-      useHandoffCommunication(
-        createRecord(),
-        [],
-        send,
-        ensureMedicalHandoffSignatureLink,
-        onSuccess
-      )
+    const { result, rerender } = renderHook(
+      ({ record }) =>
+        useHandoffCommunication(record, [], send, ensureMedicalHandoffSignatureLink, onSuccess),
+      { initialProps: { record: createRecord() } }
     );
     let sending: Promise<void> | undefined;
     act(() => {
@@ -328,12 +322,14 @@ describe('useHandoffCommunication', () => {
     await waitFor(() => expect(send).toHaveBeenCalledOnce());
     expect(result.current.whatsappSending).toBe(true);
     expect(result.current.whatsappSent).toBe(false);
+    if (changeDay) rerender({ record: createRecord({ date: '2026-02-16' }) });
     await act(async () => {
       finish();
       await sending;
     });
     expect(result.current.whatsappSending).toBe(false);
-    expect(result.current.whatsappSent).toBe(true);
+    expect(result.current.whatsappSent).toBe(!changeDay);
+    expect(onSuccess).toHaveBeenCalledWith('Entrega enviada a WhatsApp correctamente');
   });
 
   it('opens manual WhatsApp URL through runtime adapter', async () => {
@@ -370,7 +366,7 @@ describe('useHandoffCommunication', () => {
   });
 
   it.each([false, true])(
-    'shares only the clicked day while templates load (change day: %s)',
+    'shares the clicked day while templates load (change day: %s)',
     async changeDay => {
       let finishTemplates = (_templates: MessageTemplate[]) => {};
       vi.mocked(getMessageTemplates).mockReturnValueOnce(
@@ -378,61 +374,37 @@ describe('useHandoffCommunication', () => {
           finishTemplates = resolve;
         })
       );
-      const patchRecord = vi.fn().mockResolvedValue(undefined);
-      const clickedRecord = createRecord({
-        medicalSignatureLinkTokenByScope: { upc: 'day-15-upc' },
-      });
       const { result, rerender } = renderHook(
-        ({ record }) => {
-          const recordRef = useRef<DailyRecord | null>(record);
-          useEffect(() => {
-            recordRef.current = record;
-          }, [record]);
-          const delivery = useHandoffManagementDelivery({
-            recordRef,
-            recordDate: record.date,
-            role: 'admin',
-            patchRecord,
-            success: onSuccess,
-            notifyError: vi.fn(),
-          });
-          return useHandoffCommunication(
+        ({ record }) =>
+          useHandoffCommunication(
             record,
             [],
-            delivery.sendMedicalHandoff,
-            delivery.ensureMedicalHandoffSignatureLink,
+            vi.fn(),
+            ensureMedicalHandoffSignatureLink,
             onSuccess
-          );
-        },
-        { initialProps: { record: clickedRecord } }
+          ),
+        { initialProps: { record: createRecord() } }
       );
-      let sharing: Promise<void> | undefined;
+      let sharing: Promise<void>;
       act(() => {
         sharing = result.current.handleSendWhatsAppManual();
       });
-      rerender({
-        record: changeDay
-          ? createRecord({
-              date: '2026-02-16',
-              medicalSignatureLinkTokenByScope: { upc: 'day-16-upc' },
-            })
-          : { ...clickedRecord },
-      });
+      rerender({ record: createRecord({ date: changeDay ? '2026-02-16' : '2026-02-15' }) });
       await act(async () => {
-        finishTemplates([{ name: 'handoff', type: 'handoff', content: 'synthetic-template' }]);
+        finishTemplates([
+          { name: 'Synthetic handoff', type: 'handoff', content: 'synthetic-template' },
+        ]);
         await sharing;
       });
       if (changeDay) {
-        expect(patchRecord).not.toHaveBeenCalled();
+        expect(ensureMedicalHandoffSignatureLink).not.toHaveBeenCalled();
         expect(mockOpen).not.toHaveBeenCalled();
         expect(onSuccess).not.toHaveBeenCalled();
       } else {
-        expect(patchRecord).toHaveBeenCalledOnce();
-        const tokens = patchRecord.mock.calls[0][0].medicalSignatureLinkTokenByScope;
-        expect(tokens).toEqual({ upc: 'day-15-upc', all: expect.any(String) });
+        expect(ensureMedicalHandoffSignatureLink).toHaveBeenCalledWith('all');
         const message = decodeURIComponent(String(mockOpen.mock.calls[0][0]));
         expect(message).toContain('Fecha: 15-02-2026');
-        expect(message).toContain(`date=2026-02-15&scope=all&token=${tokens.all}`);
+        expect(message).toContain('date=2026-02-15&scope=all&token=test-token');
       }
     }
   );

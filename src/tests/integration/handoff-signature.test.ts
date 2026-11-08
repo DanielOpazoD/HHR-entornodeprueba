@@ -253,7 +253,9 @@ describe('Handoff → Signature Integration', () => {
       );
 
       await act(async () => {
-        await result.current.sendMedicalHandoff('Contenido', 'group-fail');
+        await expect(result.current.sendMedicalHandoff('Contenido', 'group-fail')).rejects.toThrow(
+          'Servicio no disponible'
+        );
       });
 
       expect(mockPatchRecord).not.toHaveBeenCalledWith(

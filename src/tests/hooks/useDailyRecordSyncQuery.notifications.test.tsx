@@ -1,12 +1,24 @@
 import { act, renderHook, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
 import { defaultDailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { updateSpecialistMedicalHandoffViaCallable } from '@/services/storage/firestore/specialistMedicalHandoffClient';
 import { UIProvider } from '@/context/UIContext';
-import { createSaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import {
+  createSaveDailyRecordResult,
+  createUpdatePartialDailyRecordResult,
+} from '@/services/repositories/contracts/dailyRecordResults';
+
+import { useEffect, useRef } from 'react';
+import { useHandoffManagementDelivery } from '@/hooks/useHandoffManagementDelivery';
+import { sendWhatsAppMessage } from '@/services/integrations/whatsapp/whatsappService';
+
+vi.mock('@/services/integrations/whatsapp/whatsappService', () => ({
+  formatHandoffMessage: () => 'Entrega sintética',
+  sendWhatsAppMessage: vi.fn(),
+}));
 
 const { repository } = vi.hoisted(() => ({
   repository: {
@@ -142,6 +154,112 @@ describe('useDailyRecordSyncQuery notification ownership', () => {
       })
     );
   });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it.each(['import', 'previous day', 'signature token', 'WhatsApp', 'sent marker'])(
+    'keeps send writes and confirmation on the origin day when switching during %s',
+    async stage => {
+      const originDate = mockDate;
+      const nextDate = '2025-12-28';
+      const records = new Map(
+        [originDate, nextDate].map(date => [date, DataFactory.createMockDailyRecord(date)])
+      );
+      records.get(originDate)!.medicalSignatureLinkTokenByScope = { upc: 'synthetic-upc' };
+      const nextRecord = records.get(nextDate);
+      let release = () => {};
+      const gate = new Promise<void>(resolve => {
+        release = resolve;
+      });
+      const pause = vi.fn(async (step: string) => {
+        if (stage === step) {
+          await gate;
+        }
+      });
+      vi.spyOn(repository, 'getForDateWithMeta').mockImplementation(async date => ({
+        ...buildReadResult(),
+        record: records.get(date) ?? null,
+        date,
+      }));
+      vi.spyOn(repository, 'getPreviousDay').mockImplementation(async () => {
+        await pause('previous day');
+        return { medicalHandoffDoctor: 'Dra. Sintética' };
+      });
+      vi.spyOn(repository, 'updatePartialDetailed').mockImplementation(async (date, patch) => {
+        await pause(patch.medicalHandoffSentAt ? 'sent marker' : 'signature token');
+        const record = { ...records.get(date)!, ...patch };
+        records.set(date, record);
+        return createUpdatePartialDailyRecordResult({
+          date,
+          outcome: 'clean',
+          savedLocally: true,
+          updatedRemotely: true,
+          queuedForRetry: false,
+          autoMerged: false,
+          patchedFields: Object.keys(patch).length,
+          confirmedRecord: record,
+        });
+      });
+      vi.mocked(sendWhatsAppMessage).mockImplementation(async () => {
+        await pause('WhatsApp');
+        return { success: true };
+      });
+      const informed = vi.fn();
+      const { wrapper, queryClient } = createQueryClientTestWrapper({
+        wrapChildren: children => <UIProvider>{children}</UIProvider>,
+      });
+      const { result, rerender } = renderHook(
+        ({ date }) => {
+          const sync = useDailyRecordSyncQuery(date, false, 'local_only');
+          const recordRef = useRef(sync.record);
+          useEffect(() => {
+            recordRef.current = sync.record;
+          }, [sync.record]);
+          const delivery = useHandoffManagementDelivery({
+            recordRef,
+            recordDate: date,
+            role: 'admin',
+            patchRecord: sync.patchRecord,
+            success: informed,
+            notifyError: informed,
+          });
+          return { sync, delivery };
+        },
+        { initialProps: { date: originDate }, wrapper }
+      );
+      await waitFor(() => expect(result.current.sync.record?.date).toBe(originDate));
+      let sending: Promise<void>;
+      act(() => {
+        sending = result.current.delivery.sendMedicalHandoff(
+          'synthetic-template',
+          'synthetic-group'
+        );
+      });
+      if (stage !== 'import') await waitFor(() => expect(pause).toHaveBeenCalledWith(stage));
+      rerender({ date: nextDate });
+      await waitFor(() => expect(result.current.sync.record?.date).toBe(nextDate));
+      await act(async () => {
+        release();
+        await sending;
+      });
+      expect(repository.updatePartialDetailed.mock.calls.map(([date]) => date)).toEqual([
+        originDate,
+        originDate,
+      ]);
+      expect(records.get(originDate)).toMatchObject({
+        medicalHandoffDoctor: 'Dra. Sintética',
+        medicalHandoffSentAt: expect.any(String),
+        medicalSignatureLinkTokenByScope: {
+          upc: 'synthetic-upc',
+          all: expect.any(String),
+        },
+      });
+      expect(records.get(nextDate)).toEqual(nextRecord);
+      expect(result.current.sync.record).toEqual(nextRecord);
+      expect(informed).toHaveBeenCalledWith('WhatsApp Enviado', expect.any(String));
+      queryClient.clear();
+    }
+  );
 
   it('shows the specialist server episode rejection as an editing conflict, never as saved', async () => {
     const partial = { 'beds.R4.medicalHandoffNote': 'Nota sintética de A' };

@@ -124,15 +124,13 @@ export const useHandoffCommunication = (
       }
 
       await sendMedicalHandoff(handoffTemplate.content, config.handoffNotifications.targetGroupId);
-      if (recordDateRef.current !== record.date) return;
-      setWhatsappSent(true);
+      if (recordDateRef.current === record.date) setWhatsappSent(true);
       onSuccess(
         usedStandard
           ? 'Entrega enviada con la plantilla estándar: no se pudieron leer las plantillas configuradas.'
           : 'Entrega enviada a WhatsApp correctamente'
       );
     } catch (error: unknown) {
-      if (recordDateRef.current !== record.date) return;
       const err = error as Error;
       handoffCommunicationLogger.error('Failed to send WhatsApp handoff', err);
       onSuccess(err.message || 'Error al enviar a WhatsApp');

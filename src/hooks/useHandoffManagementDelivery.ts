@@ -151,7 +151,6 @@ export const useHandoffManagementDelivery = ({
         getPreviousDay: defaultDailyRecordReadPort.getPreviousDay,
         scope: 'all',
       });
-      if (!isCurrentRecord()) return;
       recordOperationalOutcome('handoff', 'send_medical_handoff', outcome, {
         date: currentRecord.date,
         context: { targetGroupId, scope: 'all' },
@@ -163,9 +162,9 @@ export const useHandoffManagementDelivery = ({
           fallbackTitle: 'Error al enviar',
         });
         notifyError(notice.title, notice.message);
-        return;
+        throw new Error(notice.message);
       }
-      recordRef.current = outcome.data.nextRecord;
+      if (isCurrentRecord()) recordRef.current = outcome.data.nextRecord;
       success('WhatsApp Enviado', 'Entrega médica enviada correctamente.');
     },
     [
