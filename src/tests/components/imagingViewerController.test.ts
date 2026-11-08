@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildImagingViewerDocumentModel } from '@/components/modals/controllers/imagingViewerController';
+import {
+  buildImagingViewerDocumentModel,
+  fitFontSizePx,
+} from '@/components/modals/controllers/imagingViewerController';
 import type { PatientData } from '@/types/domain/patient';
 
 const mockPatient = {
@@ -60,4 +63,37 @@ describe('imagingViewerController', () => {
       ]);
     }
   );
+
+  it.each(['solicitud', 'encuesta', 'consentimiento'] as const)(
+    'bounds the %s name to its field so it ends before the next field on its line',
+    selectedDoc => {
+      const legacyPatient = {
+        ...mockPatient,
+        patientName: 'Ana María Josefa Valentina Del Sagrado Corazón de la Fuente',
+      };
+      const { overlays } = buildImagingViewerDocumentModel(selectedDoc, legacyPatient, '');
+      const percent = (value: string) => Number.parseFloat(value);
+      const name = overlays.find(overlay => overlay.text === legacyPatient.patientName);
+
+      expect(name?.maxWidth).toBeDefined();
+      const nameEnd = percent(name!.left) + percent(name!.maxWidth!);
+      const nextOnLine = overlays.filter(
+        overlay =>
+          overlay !== name &&
+          overlay.top === name!.top &&
+          percent(overlay.left) > percent(name!.left)
+      );
+      for (const overlay of nextOnLine) {
+        expect(nameEnd).toBeLessThanOrEqual(percent(overlay.left));
+      }
+      expect(nameEnd).toBeLessThanOrEqual(100);
+    }
+  );
+
+  it('shrinks the font only when the text is wider than its field', () => {
+    expect(fitFontSizePx(14, 300, 200)).toBe(14);
+    expect(fitFontSizePx(14, 300, 300)).toBe(14);
+    expect(fitFontSizePx(14, 300, 600)).toBe(7);
+    expect(fitFontSizePx(14, 250, 300)).toBe(11.6);
+  });
 });
