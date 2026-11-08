@@ -7,12 +7,15 @@ import { setSessionGeneration } from '@/services/storage/sessionStorageTransitio
 const mmradMocks = vi.hoisted(() => ({
   search: vi.fn(),
   checkDigit: vi.fn(),
+  blob: vi.fn(),
 }));
 
 vi.mock('@/services/radiology/mmradService', async importOriginal => {
   const actual = await importOriginal<typeof import('@/services/radiology/mmradService')>();
   return {
     ...actual,
+    fetchMMRADPdfBlob: mmradMocks.blob,
+    fetchMMRADPdfBlobUrl: async (url: string) => URL.createObjectURL(await mmradMocks.blob(url)),
     searchMMRADExams: mmradMocks.search,
     searchMMRADCheckDigitExams: mmradMocks.checkDigit,
   };
@@ -202,6 +205,7 @@ describe('RadiologyViewerModal with the exam list remembered in this session', (
 
   beforeEach(async () => {
     // Also drops replies queued by a test that failed before using them.
+    mmradMocks.blob.mockReset();
     mmradMocks.search.mockReset();
     mmradMocks.checkDigit.mockReset();
     mmradMocks.checkDigit.mockImplementation(async ({ rut }: { rut: string }) => ({
@@ -215,6 +219,64 @@ describe('RadiologyViewerModal with the exam list remembered in this session', (
     setSessionGeneration(null);
     localStorage.removeItem(SESSION_OWNER_KEY);
   });
+
+  it.each(['download', 'before-print', 'same-session'])(
+    'opens one PDF and bounds delivery and printing to the session: %s',
+    async stage => {
+      let resolvePdf: (blob: Blob) => void = () => {};
+      mmradMocks.blob.mockReturnValueOnce(
+        new Promise<Blob>(resolve => {
+          resolvePdf = resolve;
+        })
+      );
+      const popup = {
+        location: { href: '' },
+        closed: false,
+        close: vi.fn(),
+        focus: vi.fn(),
+        print: vi.fn(),
+      };
+      const open = vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
+      const createUrl = vi.fn(() => 'blob:synthetic-report');
+      vi.stubGlobal(
+        'URL',
+        Object.assign(class extends URL {}, {
+          createObjectURL: createUrl,
+          revokeObjectURL: vi.fn(),
+        })
+      );
+      mmradMocks.search.mockResolvedValueOnce(
+        replyFor(patient.rut, [ct('TC PDF SINTETICO', { pdf_url: 'https://mmrad.example/pdf/1' })])
+      );
+      openFor();
+      const button = await screen.findByRole('button', { name: 'Ver PDF' });
+      vi.useFakeTimers();
+      try {
+        fireEvent.click(button);
+        fireEvent.click(button);
+        expect(mmradMocks.blob).toHaveBeenCalledTimes(1);
+        expect(open).toHaveBeenCalledTimes(1);
+        if (stage === 'download') {
+          act(() => setSessionGeneration('synthetic-pdf-replacement'));
+          expect(popup.close).toHaveBeenCalled();
+          expect(mmradMocks.blob.mock.calls[0]![1].aborted).toBe(true);
+        }
+        await act(async () => resolvePdf(new Blob(['synthetic PDF'], { type: 'application/pdf' })));
+        expect(popup.location.href).toBe(stage === 'download' ? '' : 'blob:synthetic-report');
+        expect(createUrl).toHaveBeenCalledTimes(stage === 'download' ? 0 : 1);
+        if (stage === 'before-print') {
+          act(() => setSessionGeneration('synthetic-pdf-replacement'));
+          expect(popup.close).toHaveBeenCalled();
+        }
+        await act(async () => vi.advanceTimersByTimeAsync(1500));
+        expect(popup.print).toHaveBeenCalledTimes(stage === 'same-session' ? 1 : 0);
+      } finally {
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+        vi.unstubAllGlobals();
+      }
+    }
+  );
 
   it('shows the remembered list at once on reopen and refreshes it silently', async () => {
     await rememberChestCt();

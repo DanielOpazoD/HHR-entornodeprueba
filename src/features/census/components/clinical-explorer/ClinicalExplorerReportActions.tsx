@@ -3,7 +3,8 @@ import { Check, Copy, Download, Loader2 } from 'lucide-react';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import { downloadBlob } from '@/services/exporters/exportDownload';
 import { buildMMRADReportClipboardText } from '@/services/radiology/mmradReportSupport';
-import { fetchMMRADPdfBlob, type MMRADExam } from '@/services/radiology/mmradService';
+import type { MMRADExam } from '@/services/radiology/mmradService';
+import { deliverMmradPdf } from '@/services/radiology/mmradPdfDelivery';
 import { getSessionEpoch, onSessionChange } from '@/services/storage/sessionStorageTransition';
 import { writePrivateClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 import { EXPLORER_ICON_BUTTON } from './clinicalExplorerUi';
@@ -58,9 +59,10 @@ export const ClinicalExplorerReportActions: React.FC<{ exam: MMRADExam }> = ({ e
     setState({ kind: 'pending', action });
     try {
       if (action === 'download' && exam.pdf_url) {
-        const blob = await fetchMMRADPdfBlob(exam.pdf_url, controller.signal);
+        await deliverMmradPdf(exam.pdf_url, controller, {
+          download: blob => downloadBlob(blob, 'Informe-TAC.pdf'),
+        });
         if (!isCurrent(controller)) return;
-        downloadBlob(blob, 'Informe-TAC.pdf');
         setState({ kind: 'idle' });
       } else if (clipboardText) {
         await writePrivateClipboardText(clipboardText);
