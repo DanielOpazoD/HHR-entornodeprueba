@@ -44,7 +44,7 @@ export const PatientMainRowBedTypeCell: React.FC<PatientMainRowBedTypeCellProps>
       {canToggleBedType && (
         <button
           onClick={onToggleBedType}
-          className="absolute top-0.5 right-0.5 z-10 p-0.5 rounded-full text-slate-300 hover:text-blue-500 hover:bg-blue-50 transition-all opacity-0 group-hover/tipo-cell:opacity-100"
+          className="absolute top-0.5 right-0.5 z-10 p-0.5 rounded-full text-slate-300 hover:text-blue-500 hover:bg-blue-50 transition-all opacity-0 group-hover/tipo-cell:opacity-100 focus-visible:opacity-100"
           title="Cambiar nivel de cuidado (UCI/UTI)"
         >
           <RefreshCcw size={10} className="animate-hover-spin" />
