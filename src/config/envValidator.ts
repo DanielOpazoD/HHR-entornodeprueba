@@ -92,6 +92,8 @@ export function validateClientEnv(): ClientEnvValidationResult {
     VITE_FIREBASE_STORAGE_BUCKET: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
     VITE_FIREBASE_MESSAGING_SENDER_ID: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
     VITE_FIREBASE_APP_ID: import.meta.env.VITE_FIREBASE_APP_ID,
+    // The provider name is not a secret and stays validated in every build.
+    VITE_LOCAL_AI_PROVIDER: import.meta.env.VITE_LOCAL_AI_PROVIDER,
     // Developer-machine secrets: a production build drops these reads, so a value present in the
     // build environment never reaches the published bundle.
     ...(import.meta.env.DEV
@@ -99,7 +101,6 @@ export function validateClientEnv(): ClientEnvValidationResult {
           VITE_LOCAL_GEMINI_API_KEY: import.meta.env.VITE_LOCAL_GEMINI_API_KEY,
           VITE_LOCAL_OPENAI_API_KEY: import.meta.env.VITE_LOCAL_OPENAI_API_KEY,
           VITE_LOCAL_ANTHROPIC_API_KEY: import.meta.env.VITE_LOCAL_ANTHROPIC_API_KEY,
-          VITE_LOCAL_AI_PROVIDER: import.meta.env.VITE_LOCAL_AI_PROVIDER,
           VITE_DOCUMENT_SCANNER_LOCAL_QUEUE_EMAIL: import.meta.env
             .VITE_DOCUMENT_SCANNER_LOCAL_QUEUE_EMAIL,
           VITE_DOCUMENT_SCANNER_LOCAL_QUEUE_PASSWORD: import.meta.env
