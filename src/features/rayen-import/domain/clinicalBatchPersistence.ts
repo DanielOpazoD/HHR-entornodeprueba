@@ -12,6 +12,7 @@ import {
 } from '../observability/rayenSyncDiagnostics';
 import {
   isClinicalBatchTransportFailure,
+  operationLogicalTargetKey,
   readPersistenceFailureEvidence,
 } from '../hooks/clinicalEnrichmentBatchExecutionSupport';
 
@@ -59,6 +60,15 @@ const retryCount = (error: unknown): number => {
   return Number.isFinite(retries) && retries > 0 ? Math.floor(retries) : 0;
 };
 
+const patchError = (operation: ClinicalFillPatchOperation, error: unknown): ClinicalFillError =>
+  buildClinicalFillError({
+    bedId: operation.target.bedId,
+    clinicalEpisodeId: operation.target.clinicalEpisodeId,
+    source: 'patch',
+    cause: classifyRayenWriteCause(error),
+    error,
+  });
+
 /** Completes optional batch persistence without coupling its outcome mapping to the fill runner. */
 export const persistClinicalBatch = async ({
   operations,
@@ -87,9 +97,22 @@ export const persistClinicalBatch = async ({
       }
       if (result.persistence) recordPersistenceEvidence(result.persistence);
       else recordRetries(result.retries ?? 0);
+      const excluded = new Map(
+        (result.excludedTargets ?? []).map(({ target, error }) => [
+          operationLogicalTargetKey({ target, patch: {} }),
+          error,
+        ])
+      );
+      const excludedError = (operation: ClinicalFillPatchOperation) =>
+        excluded.get(operationLogicalTargetKey(operation));
       return {
-        patched: operations.filter(operation => (operation.clinicalFieldCount ?? 1) > 0).length,
-        errors: [],
+        patched: operations.filter(
+          operation => !excludedError(operation) && (operation.clinicalFieldCount ?? 1) > 0
+        ).length,
+        errors: operations.flatMap(operation => {
+          const error = excludedError(operation);
+          return error ? [patchError(operation, error)] : [];
+        }),
         batch: result.batch,
       };
     } catch (error) {
@@ -99,15 +122,7 @@ export const persistClinicalBatch = async ({
       if (!persistenceEvidence) recordRetries(retries);
       return {
         patched: 0,
-        errors: operations.map(operation =>
-          buildClinicalFillError({
-            bedId: operation.target.bedId,
-            clinicalEpisodeId: operation.target.clinicalEpisodeId,
-            source: 'patch',
-            cause: classifyRayenWriteCause(error),
-            error,
-          })
-        ),
+        errors: operations.map(operation => patchError(operation, error)),
       };
     }
   }

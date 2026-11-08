@@ -1,3 +1,4 @@
+import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
 import { createCudyrArchiveQueue } from './publicCudyrArchiveQueue';
 import { ensureDbReady } from '@/services/storage/indexeddb/indexedDbCore';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
@@ -51,7 +52,7 @@ const toSyncIssueMessage = (error: unknown, fallback: string): string =>
   error instanceof Error && error.message.trim().length > 0 ? error.message : fallback;
 
 const recordSyncRuntimeReadFailure = (
-  operation: string,
+  operation: OperationalTelemetryOperation,
   error: unknown,
   context: Record<string, unknown> = {}
 ): void => {

@@ -37,14 +37,14 @@ describe('operationalTelemetryService', () => {
     recordOperationalTelemetry({
       category: 'export',
       status: 'success',
-      operation: 'export_pdf',
+      operation: 'export_handoff_pdf',
     });
 
     expect(getOperationalTelemetryEvents()).toHaveLength(0);
 
     recordOperationalOutcome(
       'export',
-      'export_pdf',
+      'export_handoff_pdf',
       { status: 'success', issues: [] },
       { allowSuccess: true }
     );
@@ -60,13 +60,13 @@ describe('operationalTelemetryService', () => {
       category: 'sync',
       status: 'failed',
       runtimeState: 'blocked',
-      operation: 'sync_daily_record',
+      operation: 'firestore_write',
     });
     recordOperationalTelemetry({
       category: 'indexeddb',
       status: 'degraded',
       runtimeState: 'degraded',
-      operation: 'repair_indexeddb',
+      operation: 'indexeddb_recovery',
     });
     recordOperationalTelemetry({
       category: 'backup',
@@ -84,7 +84,7 @@ describe('operationalTelemetryService', () => {
       category: 'create_day',
       status: 'failed',
       runtimeState: 'unauthorized',
-      operation: 'copy_previous_day',
+      operation: 'copy_day_locked_by_schedule',
     });
 
     const summary = buildOperationalTelemetrySummary(getOperationalTelemetryEvents());
@@ -136,7 +136,7 @@ describe('operationalTelemetryService', () => {
           category: 'sync',
           status: 'failed',
           runtimeState: 'blocked',
-          operation: 'sync_daily_record',
+          operation: 'firestore_write',
           timestamp: '2026-03-06T20:00:00.000Z',
           issues: [' Error ', '', 1],
           context: { attempt: 3, nested: { reason: 'timeout' }, ignored: undefined },
@@ -162,7 +162,7 @@ describe('operationalTelemetryService', () => {
       category: 'sync',
       status: 'failed',
       runtimeState: 'blocked',
-      operation: 'sync_daily_record',
+      operation: 'firestore_write',
       timestamp: '2026-03-06T20:00:00.000Z',
       issues: ['Error', '1'],
       context: { attempt: 3, nested: JSON.stringify({ reason: 'timeout' }) },
@@ -177,7 +177,7 @@ describe('operationalTelemetryService', () => {
       {
         category: 'export',
         status: 'success',
-        operation: 'export_pdf',
+        operation: 'export_handoff_pdf',
       },
       { allowSuccess: true }
     );

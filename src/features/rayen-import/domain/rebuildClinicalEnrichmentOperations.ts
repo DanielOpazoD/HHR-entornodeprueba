@@ -109,17 +109,24 @@ const coalesceOperationsByLogicalTarget = (
  * A desired value is retained only when its field still equals the run's original base. Values
  * already committed disappear from the rebuilt delta; a third concurrent value fails closed so a
  * stale clinical object can never be stamped onto a newer revision.
+ *
+ * With `onFieldConflict`, such a target is left out and reported instead, so the other patients
+ * of the batch are still written. When every target conflicts, the rebuild still throws.
  */
 export const rebuildClinicalEnrichmentOperations = ({
   baseRecord,
   currentRecord,
   operations,
+  onFieldConflict,
 }: {
   baseRecord: DailyRecord;
   currentRecord: DailyRecord;
   operations: ClinicalFillPatchOperation[];
-}): ClinicalFillPatchOperation[] =>
-  coalesceOperationsByLogicalTarget(operations).flatMap(operation => {
+  onFieldConflict?: (operation: ClinicalFillPatchOperation, error: Error) => void;
+}): ClinicalFillPatchOperation[] => {
+  const targets = coalesceOperationsByLogicalTarget(operations);
+  const conflicts: { operation: ClinicalFillPatchOperation; error: Error }[] = [];
+  const rebuilt = targets.flatMap((operation): ClinicalFillPatchOperation[] => {
     const isCrib = operation.target.clinicalCrib === true;
     const episodeId = operation.target.clinicalEpisodeId;
     const base = findClinicalPatient(baseRecord, episodeId, isCrib);
@@ -159,7 +166,10 @@ export const rebuildClinicalEnrichmentOperations = ({
       const currentValue = fieldValue(current.patient, field);
       if (clinicalFieldValuesEqual(field, currentValue, desiredValue)) continue;
       if (!sameStoredValue(field, currentValue, baseValue)) {
-        throw new Error('Un campo clínico cambió mientras se preparaba el lote.');
+        const error = new Error('Un campo clínico cambió mientras se preparaba el lote.');
+        if (!onFieldConflict) throw error;
+        conflicts.push({ operation, error });
+        return [];
       }
       patch[`${prefix}.${field}`] = desiredValue as never;
     }
@@ -182,3 +192,7 @@ export const rebuildClinicalEnrichmentOperations = ({
       },
     ];
   });
+  if (conflicts.length > 0 && conflicts.length === targets.length) throw conflicts[0]!.error;
+  conflicts.forEach(({ operation, error }) => onFieldConflict?.(operation, error));
+  return rebuilt;
+};

@@ -9,6 +9,7 @@ import type { ClinicalDocumentAnnexPrintMode } from '@/features/clinical-documen
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { recordCriticalClinicalAction } from '@/services/observability/criticalClinicalActionRecorder';
 import type { OperationalTelemetryStatus } from '@/services/observability/operationalTelemetryTypes';
+import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
 import { useAuditContext } from '@/context/AuditContext';
 import { resolveClinicalDocumentExceptionMessage } from './clinicalDocumentWorkspaceActionSupport';
 
@@ -50,7 +51,7 @@ const recordClinicalDocumentExportCriticalAction = ({
   context,
 }: {
   document: ClinicalDocumentRecord;
-  action: string;
+  action: OperationalTelemetryOperation;
   outcome: OperationalTelemetryStatus;
   exportType: string;
   issues?: string[];
