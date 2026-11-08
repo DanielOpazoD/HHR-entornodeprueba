@@ -291,7 +291,7 @@ describe('useHandoffCommunication', () => {
     );
   });
 
-  it('keeps the sending indicator active until the deferred delivery finishes', async () => {
+  it.each([false, true])('confirms delayed delivery (change day: %s)', async changeDay => {
     vi.mocked(getWhatsAppConfig).mockResolvedValue({
       enabled: true,
       status: 'connected',
@@ -310,14 +310,10 @@ describe('useHandoffCommunication', () => {
       finish = resolve;
     });
     const send = vi.fn(() => delivery);
-    const { result } = renderHook(() =>
-      useHandoffCommunication(
-        createRecord(),
-        [],
-        send,
-        ensureMedicalHandoffSignatureLink,
-        onSuccess
-      )
+    const { result, rerender } = renderHook(
+      ({ record }) =>
+        useHandoffCommunication(record, [], send, ensureMedicalHandoffSignatureLink, onSuccess),
+      { initialProps: { record: createRecord() } }
     );
     let sending: Promise<void> | undefined;
     act(() => {
@@ -326,12 +322,14 @@ describe('useHandoffCommunication', () => {
     await waitFor(() => expect(send).toHaveBeenCalledOnce());
     expect(result.current.whatsappSending).toBe(true);
     expect(result.current.whatsappSent).toBe(false);
+    if (changeDay) rerender({ record: createRecord({ date: '2026-02-16' }) });
     await act(async () => {
       finish();
       await sending;
     });
     expect(result.current.whatsappSending).toBe(false);
-    expect(result.current.whatsappSent).toBe(true);
+    expect(result.current.whatsappSent).toBe(!changeDay);
+    expect(onSuccess).toHaveBeenCalledWith('Entrega enviada a WhatsApp correctamente');
   });
 
   it('opens manual WhatsApp URL through runtime adapter', async () => {
@@ -366,4 +364,48 @@ describe('useHandoffCommunication', () => {
       'https://api.whatsapp.com/send?text='
     );
   });
+
+  it.each([false, true])(
+    'shares the clicked day while templates load (change day: %s)',
+    async changeDay => {
+      let finishTemplates = (_templates: MessageTemplate[]) => {};
+      vi.mocked(getMessageTemplates).mockReturnValueOnce(
+        new Promise(resolve => {
+          finishTemplates = resolve;
+        })
+      );
+      const { result, rerender } = renderHook(
+        ({ record }) =>
+          useHandoffCommunication(
+            record,
+            [],
+            vi.fn(),
+            ensureMedicalHandoffSignatureLink,
+            onSuccess
+          ),
+        { initialProps: { record: createRecord() } }
+      );
+      let sharing: Promise<void>;
+      act(() => {
+        sharing = result.current.handleSendWhatsAppManual();
+      });
+      rerender({ record: createRecord({ date: changeDay ? '2026-02-16' : '2026-02-15' }) });
+      await act(async () => {
+        finishTemplates([
+          { name: 'Synthetic handoff', type: 'handoff', content: 'synthetic-template' },
+        ]);
+        await sharing;
+      });
+      if (changeDay) {
+        expect(ensureMedicalHandoffSignatureLink).not.toHaveBeenCalled();
+        expect(mockOpen).not.toHaveBeenCalled();
+        expect(onSuccess).not.toHaveBeenCalled();
+      } else {
+        expect(ensureMedicalHandoffSignatureLink).toHaveBeenCalledWith('all');
+        const message = decodeURIComponent(String(mockOpen.mock.calls[0][0]));
+        expect(message).toContain('Fecha: 15-02-2026');
+        expect(message).toContain('date=2026-02-15&scope=all&token=test-token');
+      }
+    }
+  );
 });

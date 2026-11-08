@@ -59,6 +59,17 @@ describe('medical handoff transport loading', () => {
     expect(input.patchRecord).toHaveBeenCalled();
   });
 
+  it('reports delivery without suggesting a resend when recording the sent marker fails', async () => {
+    const input = createInput();
+    input.patchRecord.mockRejectedValueOnce(new Error('Synthetic write failure'));
+    const outcome = await executeSendMedicalHandoff(input);
+    expect(transport.send).toHaveBeenCalled();
+    expect(outcome.issues[0].message).toContain(
+      'Entrega enviada a WhatsApp, pero no se pudo registrar'
+    );
+    expect(outcome.issues[0].message).toContain('día de origen');
+  });
+
   it('reports a safe failure when preparing the delivery throws unexpectedly', async () => {
     const input = createInput();
     input.record.medicalHandoffDoctor = '';

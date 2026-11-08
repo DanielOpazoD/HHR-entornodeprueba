@@ -292,6 +292,26 @@ describe('useHandoffManagement', () => {
     );
   });
 
+  it('rejects delivery callbacks retained from another census day', async () => {
+    const { result, rerender } = renderHook(
+      ({ record }) => useHandoffManagement(record, mockSaveAndUpdate, mockPatchRecord),
+      { initialProps: { record: mockRecord } }
+    );
+    const clickedDay = result.current;
+    rerender({ record: { ...mockRecord, date: '2024-12-29' } });
+    await act(async () => {
+      await clickedDay.markMedicalHandoffAsSent('Dr. Test');
+      const link = await clickedDay.ensureMedicalHandoffSignatureLink();
+      expect(link.status).toBe('failed');
+      expect(link.data).toBeNull();
+      await clickedDay.sendMedicalHandoff('synthetic-template', 'synthetic-group');
+    });
+    expect(mockPatchRecord).not.toHaveBeenCalled();
+    expect(whatsappService.sendWhatsAppMessage).not.toHaveBeenCalled();
+    expect(mockNotifySuccess).not.toHaveBeenCalled();
+    expect(mockNotifyError).not.toHaveBeenCalled();
+  });
+
   it('resets medical handoff send/signature state with a patch instead of full-record save', async () => {
     mockRecord.medicalHandoffSentAt = '2026-02-11T12:00:00.000Z';
     mockRecord.medicalSignature = {
@@ -405,7 +425,9 @@ describe('useHandoffManagement', () => {
     );
 
     await act(async () => {
-      await result.current.sendMedicalHandoff('Template content', 'group-xyz');
+      await expect(
+        result.current.sendMedicalHandoff('Template content', 'group-xyz')
+      ).rejects.toThrow('Falla remota');
     });
 
     expect(mockPatchRecord).not.toHaveBeenCalledWith(

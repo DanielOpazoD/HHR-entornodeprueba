@@ -4,6 +4,7 @@ import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/co
 export type DailyRecordPatchMutationVariables =
   | DailyRecordPatch
   | {
+      date?: string;
       partial: DailyRecordPatch;
       options?: PartialUpdateDailyRecordOptions;
     };

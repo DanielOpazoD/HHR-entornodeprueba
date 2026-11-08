@@ -58,6 +58,7 @@ const resolveHandoffStats = (record: DailyRecord) => {
 export const executeSendMedicalHandoff = async (
   input: SendMedicalHandoffInput
 ): Promise<ApplicationOutcome<SendMedicalHandoffOutput | null>> => {
+  let messageSent = false;
   try {
     const { formatHandoffMessage, sendWhatsAppMessage } =
       await import('@/services/integrations/whatsapp/whatsappService');
@@ -139,6 +140,7 @@ export const executeSendMedicalHandoff = async (
       );
     }
 
+    messageSent = true;
     const sentOutcome = await executeMarkMedicalHandoffAsSent({
       record: linkOutcome.data?.nextRecord || input.record,
       doctorName,
@@ -166,7 +168,9 @@ export const executeSendMedicalHandoff = async (
     return createApplicationFailed(null, [
       {
         kind: 'unknown',
-        message: 'No se pudo enviar la entrega médica. Intente nuevamente con conexión.',
+        message: messageSent
+          ? 'Entrega enviada a WhatsApp, pero no se pudo registrar el envío en el día de origen. Revise ese día antes de volver a enviarla.'
+          : 'No se pudo enviar la entrega médica. Intente nuevamente con conexión.',
       },
     ]);
   }
