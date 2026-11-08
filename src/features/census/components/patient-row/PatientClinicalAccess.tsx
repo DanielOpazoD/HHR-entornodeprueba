@@ -22,8 +22,6 @@ import {
 import { CLINICAL_ACCESS_MANUTARA_SRC } from './patientClinicalAccessIcons';
 import { openClinicalPanel } from './useActiveClinicalPanel';
 
-const unavailable = (label: string): string => `${label}: no disponible para este paciente`;
-
 export const PatientClinicalAccess: React.FC<PatientClinicalAccessProps> = ({
   patient,
   censusDate,
@@ -56,7 +54,6 @@ export const PatientClinicalAccess: React.FC<PatientClinicalAccessProps> = ({
     {
       key: 'ficha',
       label: 'Ficha clínica',
-      hint: topics.clinicalPanel ? 'Ficha clínica del episodio' : unavailable('Ficha clínica'),
       onOpen:
         topics.clinicalPanel && episode
           ? () => openClinicalPanel(buildClinicalPanelKey(patient.bedId, episode))
@@ -65,32 +62,17 @@ export const PatientClinicalAccess: React.FC<PatientClinicalAccessProps> = ({
     {
       key: 'laboratory',
       label: 'Laboratorio',
-      hint: laboratory
-        ? requestExams
-          ? 'Ver y solicitar exámenes'
-          : 'Ver exámenes'
-        : requestExams
-          ? 'Solicitar exámenes'
-          : unavailable('Laboratorio'),
       // Without an episode there is nothing to read, but a request still fits.
       onOpen: laboratory ? () => topicSurface.open('laboratory') : requestExams,
     },
     {
       key: 'imaging',
       label: 'Imágenes',
-      hint: imaging
-        ? requestImaging
-          ? 'Ver y solicitar imágenes'
-          : 'Ver imágenes'
-        : requestImaging
-          ? 'Solicitar imagen'
-          : unavailable('Imágenes'),
       onOpen: imaging ? () => topicSurface.open('imaging') : requestImaging,
     },
     {
       key: 'documents',
       label: 'Documentos',
-      hint: viewDocuments ? 'Documentos clínicos' : unavailable('Documentos'),
       onOpen: viewDocuments,
       badge: clinicalDocumentCount,
     },
@@ -139,7 +121,6 @@ export const PatientClinicalAccess: React.FC<PatientClinicalAccessProps> = ({
           patientName={patientName}
           triggerKey={triggerKey}
           items={items}
-          explorerHint={explore ? 'Explorador clínico' : unavailable('Explorador clínico')}
           onExplore={explore}
           onClose={close}
         />

@@ -31,8 +31,6 @@ import './clinicalAccessRadial.css';
 export interface ClinicalAccessRadialItem {
   key: ClinicalAccessSector;
   label: string;
-  /** Shown under the ring while the sector is under the pointer or focused. */
-  hint: string;
   /** Absent when the patient cannot use the topic: the sector stays, greyed out. */
   onOpen?: () => void;
   badge?: number;
@@ -43,7 +41,6 @@ interface ClinicalAccessRadialMenuProps {
   patientName: string;
   triggerKey: string;
   items: ClinicalAccessRadialItem[];
-  explorerHint: string;
   onExplore?: () => void;
   /** Closes the ring and returns focus to its button. */
   onClose: () => void;
@@ -87,8 +84,7 @@ const Sector: React.FC<{
   testId: string;
   patientName: string;
   onActivate: () => void;
-  onHint: (hint: string | null) => void;
-}> = ({ item, index, pathId, testId, patientName, onActivate, onHint }) => {
+}> = ({ item, index, pathId, testId, patientName, onActivate }) => {
   const enabled = Boolean(item.onOpen);
   const Icon = ICONS[item.key];
   const icon = radialPoint(RADIAL_ICON_RADIUS, radialSectorMiddle(item.key));
@@ -108,9 +104,6 @@ const Sector: React.FC<{
         enabled ? 'cursor-pointer' : 'cursor-not-allowed'
       )}
       onClick={onActivate}
-      onPointerEnter={() => onHint(item.hint)}
-      onPointerLeave={() => onHint(null)}
-      onFocus={() => onHint(item.hint)}
     >
       <path
         d={radialSectorPath(item.key)}
@@ -176,7 +169,6 @@ export const ClinicalAccessRadialMenu: React.FC<ClinicalAccessRadialMenuProps> =
   patientName,
   triggerKey,
   items,
-  explorerHint,
   onExplore,
   onClose,
 }) => {
@@ -189,7 +181,6 @@ export const ClinicalAccessRadialMenu: React.FC<ClinicalAccessRadialMenuProps> =
       height: window.innerHeight,
     })
   );
-  const [hint, setHint] = useState<string | null>(null);
 
   // The ring is pinned to where the button was: anything that moves the census closes it.
   useEffect(() => {
@@ -294,7 +285,6 @@ export const ClinicalAccessRadialMenu: React.FC<ClinicalAccessRadialMenuProps> =
                 testId={`clinical-access-${item.key}-${triggerKey}`}
                 patientName={patientName}
                 onActivate={() => activate(item.key)}
-                onHint={setHint}
               />
             ))}
             <g
@@ -309,9 +299,6 @@ export const ClinicalAccessRadialMenu: React.FC<ClinicalAccessRadialMenuProps> =
                 onExplore ? 'cursor-pointer' : 'cursor-not-allowed'
               )}
               onClick={() => activate('explorer')}
-              onPointerEnter={() => setHint(explorerHint)}
-              onPointerLeave={() => setHint(null)}
-              onFocus={() => setHint(explorerHint)}
             >
               {onExplore && (
                 <circle
@@ -339,15 +326,6 @@ export const ClinicalAccessRadialMenu: React.FC<ClinicalAccessRadialMenuProps> =
             </g>
           </g>
         </svg>
-        <span
-          aria-hidden="true"
-          className={clsx(
-            'absolute left-1/2 top-full mt-1.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-medium leading-tight text-white transition-opacity duration-150',
-            hint ? 'opacity-100' : 'opacity-0'
-          )}
-        >
-          {hint}
-        </span>
       </div>
     </div>,
     document.body
