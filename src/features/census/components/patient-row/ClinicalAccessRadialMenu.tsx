@@ -1,7 +1,8 @@
 /**
  * The ring that opens from a row's «Accesos» button: the four clinical topics around the
- * explorer disc. It floats over the census and closes on Escape, an outside click, a scroll or a
- * resize, handing focus back to the button before any topic opens.
+ * explorer disc. It floats over the census, follows its button while the page scrolls and closes on
+ * Escape, an outside click or once the button leaves the screen, handing focus back to the button
+ * before any topic opens.
  */
 
 import React, { useEffect, useId, useRef, useState } from 'react';
@@ -164,6 +165,12 @@ const Sector: React.FC<{
   );
 };
 
+const measureCenter = (anchor: HTMLElement) =>
+  resolveRadialCenter(anchor.getBoundingClientRect(), {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
+
 export const ClinicalAccessRadialMenu: React.FC<ClinicalAccessRadialMenuProps> = ({
   anchor,
   patientName,
@@ -174,30 +181,41 @@ export const ClinicalAccessRadialMenu: React.FC<ClinicalAccessRadialMenuProps> =
 }) => {
   const idPrefix = useId();
   const menuRef = useRef<HTMLDivElement>(null);
-  // Measured once: the ring closes as soon as anything moves the button.
-  const [center] = useState(() =>
-    resolveRadialCenter(anchor.getBoundingClientRect(), {
-      width: window.innerWidth,
-      height: window.innerHeight,
-    })
-  );
+  const [center, setCenter] = useState(() => measureCenter(anchor));
 
-  // The ring is pinned to where the button was: anything that moves the census closes it.
+  // The ring follows its button, including the scroll that focusing the button may still be
+  // running when the ring opens, and closes once the button has left the screen.
   useEffect(() => {
-    const close = () => onClose();
-    window.addEventListener('resize', close);
-    window.addEventListener('scroll', close, { capture: true, passive: true });
-    return () => {
-      window.removeEventListener('resize', close);
-      window.removeEventListener('scroll', close, { capture: true });
+    let frame = 0;
+    const follow = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const box = anchor.getBoundingClientRect();
+        const offScreen =
+          box.bottom <= 0 ||
+          box.right <= 0 ||
+          box.top >= window.innerHeight ||
+          box.left >= window.innerWidth;
+        if (offScreen || !anchor.isConnected) onClose();
+        else setCenter(measureCenter(anchor));
+      });
     };
-  }, [onClose]);
+    window.addEventListener('resize', follow);
+    window.addEventListener('scroll', follow, { capture: true, passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', follow);
+      window.removeEventListener('scroll', follow, { capture: true });
+    };
+  }, [anchor, onClose]);
 
+  // With nothing to open, the menu itself holds the focus so Escape and Tab still close it.
   useEffect(() => {
     const menu = menuRef.current;
     const first =
       menu?.querySelector<SVGGElement>('[data-sector="explorer"]:not([aria-disabled])') ??
-      menu?.querySelector<SVGGElement>('[role="menuitem"]:not([aria-disabled])');
+      menu?.querySelector<SVGGElement>('[role="menuitem"]:not([aria-disabled])') ??
+      menu;
     first?.focus();
   }, []);
 
@@ -243,9 +261,10 @@ export const ClinicalAccessRadialMenu: React.FC<ClinicalAccessRadialMenuProps> =
       <div
         ref={menuRef}
         role="menu"
+        tabIndex={-1}
         aria-label={`Accesos de ${patientName}`}
         data-testid="clinical-access-menu"
-        className="clinical-access-radial pointer-events-none fixed z-[61]"
+        className="clinical-access-radial pointer-events-none fixed z-[61] outline-none"
         style={{
           left: center.x - RADIAL_VIEW_RADIUS,
           top: center.y - RADIAL_VIEW_RADIUS,

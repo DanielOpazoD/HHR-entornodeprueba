@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -224,19 +224,62 @@ describe('PatientClinicalAccess', () => {
     expect(await screen.findByRole('dialog', { name: 'Ficha clínica' })).toBeVisible();
   });
 
-  it('closes on an outside click or a scroll without opening anything', () => {
+  it('closes on an outside click without opening anything', () => {
     renderAccess();
 
     fireEvent.click(manutara());
     fireEvent.click(screen.getByTestId('clinical-access-menu').previousElementSibling!);
     expect(screen.queryByRole('menu')).toBeNull();
     expect(manutara()).toHaveFocus();
-
-    fireEvent.click(manutara());
-    fireEvent.scroll(window);
-    expect(screen.queryByRole('menu')).toBeNull();
     expect(openClinicalExplorer).not.toHaveBeenCalled();
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('follows its manutara while the page scrolls and closes once it leaves the screen', () => {
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame'] });
+    try {
+      renderAccess();
+      const button = manutara();
+      const place = (top: number) =>
+        vi
+          .spyOn(button, 'getBoundingClientRect')
+          .mockReturnValue(DOMRect.fromRect({ x: 400, y: top, width: 30, height: 30 }));
+      place(300);
+      fireEvent.click(button);
+      const menu = screen.getByTestId('clinical-access-menu');
+      expect(menu.style.top).toBe(`${315 - 92}px`);
+
+      // A scroll still running when the ring opens moves it along instead of closing it.
+      place(250);
+      fireEvent.scroll(window);
+      act(() => vi.advanceTimersToNextFrame());
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+      expect(menu.style.top).toBe(`${265 - 92}px`);
+
+      place(-40);
+      fireEvent.scroll(window);
+      act(() => vi.advanceTimersToNextFrame());
+      expect(screen.queryByRole('menu')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('still closes with Escape when nothing in the ring can be opened', () => {
+    renderAccess({
+      patient: DataFactory.createMockPatient('R2', {
+        patientName: 'RN de prueba',
+        rut: '',
+        clinicalEpisodeId: '',
+      }),
+      isSubRow: true,
+    });
+
+    fireEvent.click(manutara('RN de prueba'));
+    expect(screen.getByRole('menu')).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(manutara('RN de prueba')).toHaveFocus();
   });
 
   it('gives a crib only its own ficha', async () => {
