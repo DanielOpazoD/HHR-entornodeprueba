@@ -43,6 +43,13 @@ export const CensusTableBody: React.FC<
   dragDrop,
   clinicalDocumentInfoByBedId,
 }) => {
+  // Publish committed revisions before clicks without invalidating memoized rows.
+  const recordLastUpdatedRef = React.useRef(recordLastUpdated);
+  React.useLayoutEffect(() => {
+    recordLastUpdatedRef.current = recordLastUpdated;
+  }, [recordLastUpdated]);
+  const getRecordLastUpdated = React.useCallback(() => recordLastUpdatedRef.current, []);
+
   const pendingClearTargets = usePendingIntentionalClearTargets(currentDateString);
   // A confirmed crib creation projects its provisional row at click time, exactly
   // like pending clears hide theirs: the per-date queue keeps serializing only the
@@ -129,7 +136,7 @@ export const CensusTableBody: React.FC<
             bed={row.bed}
             data={row.data}
             currentDateString={currentDateString}
-            recordLastUpdated={recordLastUpdated}
+            getRecordLastUpdated={getRecordLastUpdated}
             onAction={onAction}
             readOnly={readOnly || Boolean(row.isPendingCreate)}
             clinicalEditingDisabled={clinicalEditingDisabled}
