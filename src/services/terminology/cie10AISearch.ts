@@ -8,6 +8,7 @@
 
 import { CIE10Entry } from './cie10SpanishDatabase';
 import { aiRequestManager } from '../ai/aiRequestManager';
+import { getLocalDevProviderConfig } from '../ai/aiProviderConfig';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
 import {
@@ -30,35 +31,6 @@ function rememberAvailability(available: boolean): boolean {
   availabilityVersion += 1;
   return available;
 }
-
-type LocalAIProvider = 'gemini' | 'openai' | 'anthropic';
-
-interface LocalAIProviderConfig {
-  provider: LocalAIProvider;
-  apiKey: string;
-}
-
-const getLocalDevProviderConfig = (): LocalAIProviderConfig | null => {
-  if (!import.meta.env.DEV) return null;
-
-  const explicitProvider = import.meta.env.VITE_LOCAL_AI_PROVIDER;
-  const geminiKey = import.meta.env.VITE_LOCAL_GEMINI_API_KEY?.trim();
-  const openaiKey = import.meta.env.VITE_LOCAL_OPENAI_API_KEY?.trim();
-  const anthropicKey = import.meta.env.VITE_LOCAL_ANTHROPIC_API_KEY?.trim();
-
-  const buildConfig = (provider: LocalAIProvider, apiKey?: string | null) =>
-    apiKey ? { provider, apiKey } : null;
-
-  if (explicitProvider === 'gemini') return buildConfig('gemini', geminiKey);
-  if (explicitProvider === 'openai') return buildConfig('openai', openaiKey);
-  if (explicitProvider === 'anthropic') return buildConfig('anthropic', anthropicKey);
-
-  return (
-    buildConfig('gemini', geminiKey) ||
-    buildConfig('openai', openaiKey) ||
-    buildConfig('anthropic', anthropicKey)
-  );
-};
 
 const parseAIResults = (rawText: string): CIE10Entry[] => {
   const text = rawText.trim();
