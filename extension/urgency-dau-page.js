@@ -1,4 +1,3 @@
-/** Read-only native Rayen page adapter; every helper stays inside the serialized function. */
 (function (root) {
   'use strict';
   // Self-contained: chrome.scripting serializes this function into the native page.
@@ -82,8 +81,9 @@
         for (const [key, value] of Object.entries(expected))
           if (!/^\d+$/.test(String(value)) || report.searchParams.getAll(key).length !== 1 ||
               report.searchParams.get(key) !== String(value)) fail('CONTRACT');
+        // Rayen's DAU filter passes PatientCare.IdPatient as uspId, not the active staff ID.
         if (report.searchParams.getAll('uspId').length !== 1 ||
-            !sameId(report.searchParams.get('uspId'), initialOwner.split(':')[1])) fail('CONTRACT');
+            !sameId(report.searchParams.get('uspId'), admission.Patient.Id)) fail('CONTRACT');
         return report.href;
       };
       const encodePdf = pdf => {

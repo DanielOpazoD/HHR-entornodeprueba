@@ -24,7 +24,7 @@ const runtime = (
 const selection = { patientRun: '111111111', attentionId: '8' };
 const pdfBytes = new TextEncoder().encode('%PDF-1.7 synthetic fixture');
 const reportUrl =
-  'https://api.saludenred.cl/api/reportes/DAU_C.pdf?timeDifference=300&nodId=9&iurgId=7&atenId=8&uspId=6';
+  'https://api.saludenred.cl/api/reportes/DAU_C.pdf?timeDifference=300&nodId=9&iurgId=7&atenId=8&uspId=42';
 const makeAdmission = () => ({
   Id: 7,
   IdFacility: 9,
@@ -236,11 +236,11 @@ describe('official DAU through the native authenticated Rayen client', () => {
     }
   );
   it.each(['different', 'duplicate'] as const)(
-    'rejects %s report staff identifiers',
+    'rejects %s report patient identifiers',
     async kind => {
       const h = nativeHarness();
       h.report.url =
-        kind === 'different' ? reportUrl.replace('uspId=6', 'uspId=99') : `${reportUrl}&uspId=99`;
+        kind === 'different' ? reportUrl.replace('uspId=42', 'uspId=6') : `${reportUrl}&uspId=99`;
       expect(await runtime.readPdfInPage(selection)).toEqual({ ok: false, code: 'CONTRACT' });
       expect(h.http.get).toHaveBeenCalledTimes(1);
     }

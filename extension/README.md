@@ -816,3 +816,12 @@ sesión. El adaptador de página vive en `urgency-dau-page.js`, cargado antes de
 El DAU pregunta dónde guardar el PDF (`saveAs=true`) para que el usuario elija un
 destino explícito. Los demás informes mantienen su descarga habitual por defecto.
 No cambian permisos, no se copia el token y no se persiste el contenido en HHR.
+
+### Identificador de paciente del DAU · 0.48.83
+
+El filtro nativo `DAUReport` llama a `PatientCareService.dauURL`, que entrega
+`IdPatient` como cuarto argumento de `REPORTS.ENCOUNTER.DAU.LETTER`; ese argumento
+se serializa como `uspId`. Se verifica contra el paciente ya validado de la admisión,
+no contra el profesional conectado. Los controles de sesión siguen comparando el
+establecimiento y el profesional antes y después de cada lectura. La regresión usa
+identificadores distintos para paciente y profesional y rechaza enlaces que los confundan.
