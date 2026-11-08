@@ -1,5 +1,5 @@
 import { classifyPatientMovementForRecord } from '@/application/patient-flow/clinicalEpisode';
-import { normalizeDateOnly, resolveClinicalDayForDateTime } from '@/utils/clinicalDayUtils';
+import { normalizeDateOnly } from '@/utils/clinicalDayUtils';
 
 interface ResolveIsNewAdmissionForRecordParams {
   recordDate: string;
@@ -24,30 +24,9 @@ export const resolveIsNewAdmissionForRecord = ({
     return true;
   }
 
+  // A madrugada admission belongs to the previous clinical day, where it already shows as new;
+  // nurses also expect it marked on the calendar day it happened.
   const normalizedRecordDate = normalizeDateOnly(recordDate);
   const normalizedAdmissionDate = normalizeDateOnly(admissionDate);
-  const normalizedFirstSeenDate = normalizeDateOnly(firstSeenDate);
-
-  if (
-    !normalizedRecordDate ||
-    !normalizedAdmissionDate ||
-    !admissionTime ||
-    !normalizedFirstSeenDate
-  ) {
-    return false;
-  }
-
-  if (normalizedFirstSeenDate >= normalizedAdmissionDate) {
-    return false;
-  }
-
-  const clinicalAdmissionDate = resolveClinicalDayForDateTime(
-    normalizedAdmissionDate,
-    admissionTime
-  );
-
-  return (
-    clinicalAdmissionDate === normalizedRecordDate &&
-    normalizedAdmissionDate === normalizedRecordDate
-  );
+  return Boolean(normalizedRecordDate) && normalizedAdmissionDate === normalizedRecordDate;
 };

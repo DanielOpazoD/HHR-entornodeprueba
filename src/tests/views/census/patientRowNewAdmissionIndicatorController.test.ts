@@ -89,22 +89,22 @@ describe('patientRowNewAdmissionIndicatorController', () => {
     ).toBe(true);
   });
 
-  it('does not move a madrugada admission into the next calendar day when firstSeenDate was recorded late', () => {
-    expect(
-      resolveIsNewAdmissionForRecord({
-        recordDate,
-        firstSeenDate: '2026-03-06',
-        admissionDate: '2026-03-06',
-        admissionTime: '02:00',
-      })
-    ).toBe(true);
+  it('marks a madrugada admission on its clinical day and on its calendar day, and no later', () => {
+    const admission = { admissionDate: '2026-03-06', admissionTime: '02:00' };
 
+    // Night shift of the 5th: the clinical day of the admission.
+    expect(resolveIsNewAdmissionForRecord({ recordDate, ...admission })).toBe(true);
+    // The calendar day it happened, whether it was first seen on the 5th or the 6th.
+    for (const firstSeenDate of ['2026-03-05', '2026-03-06', undefined]) {
+      expect(
+        resolveIsNewAdmissionForRecord({ recordDate: '2026-03-06', firstSeenDate, ...admission })
+      ).toBe(true);
+    }
     expect(
       resolveIsNewAdmissionForRecord({
-        recordDate: '2026-03-06',
-        firstSeenDate: '2026-03-06',
-        admissionDate: '2026-03-06',
-        admissionTime: '02:00',
+        recordDate: '2026-03-07',
+        firstSeenDate: '2026-03-05',
+        ...admission,
       })
     ).toBe(false);
   });
