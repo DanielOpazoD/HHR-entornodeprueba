@@ -8,7 +8,7 @@ import {
 } from '../../controllers/patientRowBindingsController';
 
 interface UsePatientRowBindingsModelParams extends PatientRowBindingsInput {
-  recordLastUpdated?: string;
+  getRecordLastUpdated?: () => string | undefined;
   onAction: (action: PatientRowAction, bedId: string, patient: PatientData) => void;
 }
 
@@ -16,7 +16,7 @@ export const usePatientRowBindingsModel = ({
   bed,
   data,
   currentDateString,
-  recordLastUpdated,
+  getRecordLastUpdated,
   onAction,
   readOnly,
   clinicalEditingDisabled,
@@ -34,7 +34,7 @@ export const usePatientRowBindingsModel = ({
     bed,
     data,
     currentDateString,
-    recordLastUpdated,
+    getRecordLastUpdated,
     isSubRow,
     onAction,
   });
