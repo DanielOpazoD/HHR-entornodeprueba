@@ -51,6 +51,30 @@ const fieldFromPatchPath = (path: string): CanonicalClinicalField | undefined =>
 
 const fieldValue = (patient: PatientData, field: CanonicalClinicalField) => patient[field];
 
+// The run's base can come from the local copy, which drops null leaves, while the write turn reads
+// the server copy, which keeps them. A leaf that is null on one side and absent on the other is the
+// same stored value, not a concurrent edit.
+const withoutNullLeaves = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(withoutNullLeaves);
+  if (value == null || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, item]) => item !== null)
+      .map(([key, item]) => [key, withoutNullLeaves(item)])
+  );
+};
+
+const sameStoredValue = (
+  field: CanonicalClinicalField,
+  left: PatientData[CanonicalClinicalField],
+  right: PatientData[CanonicalClinicalField]
+): boolean =>
+  clinicalFieldValuesEqual(
+    field,
+    withoutNullLeaves(left) as PatientData[CanonicalClinicalField],
+    withoutNullLeaves(right) as PatientData[CanonicalClinicalField]
+  );
+
 const operationLogicalTargetKey = (operation: ClinicalFillPatchOperation): string =>
   `${operation.target.clinicalEpisodeId}|${operation.target.clinicalCrib ? 'crib' : 'patient'}`;
 
@@ -134,7 +158,7 @@ export const rebuildClinicalEnrichmentOperations = ({
       const baseValue = fieldValue(base.patient, field);
       const currentValue = fieldValue(current.patient, field);
       if (clinicalFieldValuesEqual(field, currentValue, desiredValue)) continue;
-      if (!clinicalFieldValuesEqual(field, currentValue, baseValue)) {
+      if (!sameStoredValue(field, currentValue, baseValue)) {
         throw new Error('Un campo clínico cambió mientras se preparaba el lote.');
       }
       patch[`${prefix}.${field}`] = desiredValue as never;

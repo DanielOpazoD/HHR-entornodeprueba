@@ -66,6 +66,34 @@ describe('rebuildClinicalEnrichmentOperations', () => {
     ).toThrow('cambió mientras se preparaba');
   });
 
+  it('keeps the write when the base lacks a null score leaf that the server copy stores', () => {
+    const withHistory = (total: number | null | undefined): DailyRecord => {
+      const day = record('R1', 16);
+      const entry = {
+        code: 'DOWNTON',
+        encounterEventId: 1,
+        ...(total === undefined ? {} : { total }),
+      };
+      (day.beds.R1 as unknown as { evaluationScores: unknown }).evaluationScores = {
+        braden: { total: 16 },
+        history: [entry],
+      };
+      return day;
+    };
+
+    expect(
+      rebuildClinicalEnrichmentOperations({
+        baseRecord: withHistory(undefined),
+        currentRecord: withHistory(null),
+        operations: [operation],
+      })
+    ).toEqual([
+      expect.objectContaining({
+        patch: { 'beds.R1.evaluationScores': { braden: { total: 18 } } },
+      }),
+    ]);
+  });
+
   it('coalesces separate fields for the same episode during a conflict rebuild', () => {
     const vitalOperation: ClinicalFillPatchOperation = {
       target: operation.target,
