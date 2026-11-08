@@ -180,6 +180,17 @@ describe('extension request forms · laboratory print HTML', () => {
     expect(html).not.toContain('window.print()');
   });
 
+  it('prints the typed OTROS on two ruled lines and MEDICO TRATANTE on its line, FIRMA blank', () => {
+    const html = forms.buildLabRequestPrintHtml({ ...baseState, otros: 'Ferritina, vitamina B12' });
+    expect(html).toContain('<b>OTROS:</b><span class="two-lines">Ferritina, vitamina B12</span>');
+    // The OTROS box is two text lines tall, each with its own rule, like the paper form.
+    expect(html).toMatch(
+      /span\.two-lines \{[^}]*min-height: 30px; line-height: 15px;[^}]*repeating-linear-gradient/
+    );
+    expect(html).toContain('<b>MEDICO TRATANTE:</b><span>Dra. Atan</span>');
+    expect(html).toContain('<b>FIRMA:</b><span></span>');
+  });
+
   it('escapes patient-controlled text (no HTML injection into the print tab)', () => {
     const html = forms.buildLabRequestPrintHtml({
       ...baseState,
