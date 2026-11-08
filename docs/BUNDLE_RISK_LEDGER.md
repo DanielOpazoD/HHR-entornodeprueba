@@ -446,7 +446,7 @@ Each use is listed here; the cap stops at 5,054,464.
 
 - PR #1326, newborn folio is not a RUN: chunk `RayenImportButton` 263,072 → 264,096 bytes. The fix
   clears a newborn's unusable number in placements, moves, closures, crib egresos and movement
-  recovery; measured 263,145 bytes (+141 over main's ceiling). Granted under the owner's full
+  recovery; measured 263,145 bytes (73 over the previous ceiling). Granted under the owner's full
   authority for the 2026-11-08 overnight run. Online-only, loads after the census; precache unchanged.
 
 Keep all offline assets, exclusions, warning ratios and other limits unchanged.
