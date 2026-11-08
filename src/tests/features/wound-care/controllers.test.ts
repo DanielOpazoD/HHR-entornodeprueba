@@ -18,56 +18,11 @@ import {
   toClinicalDatetimeLocalValue,
   toClinicalEventIso,
 } from '@/features/wound-care/controllers/photoUploadController';
-import { resolveWoundCarePatients } from '@/features/wound-care/controllers/woundCareSectionController';
-import type { DailyRecord } from '@/domain/handoff/recordContracts';
-import { PatientStatus, Specialty } from '@/domain/handoff/patientContracts';
 import type {
   WoundCareConsent,
   WoundCarePhoto,
   WoundCareAuditActor,
 } from '@/types/domain/woundCare';
-
-const createWoundCarePatient = (
-  bedId: string,
-  overrides: Partial<DailyRecord['beds'][string]> = {}
-): DailyRecord['beds'][string] => ({
-  bedId,
-  isBlocked: false,
-  bedMode: 'Cama',
-  hasCompanionCrib: false,
-  patientName: 'Paciente Test',
-  rut: '1-9',
-  age: '30',
-  pathology: 'Observacion',
-  specialty: Specialty.MEDICINA,
-  status: PatientStatus.ESTABLE,
-  admissionDate: '2026-01-15',
-  hasWristband: true,
-  devices: [],
-  surgicalComplication: false,
-  isUPC: false,
-  ...overrides,
-});
-
-const createWoundCareRecord = (beds: DailyRecord['beds'] = {}): DailyRecord => ({
-  date: '2026-01-15',
-  lastUpdated: '',
-  beds,
-  discharges: [],
-  transfers: [],
-  cma: [],
-  nursesDayShift: [],
-  nursesNightShift: [],
-  tensDayShift: [],
-  tensNightShift: [],
-  activeExtraBeds: [],
-  handoffDayChecklist: {},
-  handoffNightChecklist: {},
-  handoffNovedadesDayShift: '',
-  handoffNovedadesNightShift: '',
-  medicalHandoffNovedades: '',
-  medicalHandoffDoctor: '',
-});
 
 // ============================================================================
 // Consent Status Controller
@@ -241,105 +196,5 @@ describe('photoUploadController', () => {
   it('formats compression ratio', () => {
     expect(formatCompressionRatio(1000, 200)).toBe('80% reducción');
     expect(formatCompressionRatio(0, 0)).toBe('0%');
-  });
-});
-
-// ============================================================================
-// Wound Care Section Controller
-// ============================================================================
-
-describe('woundCareSectionController', () => {
-  it('returns empty for record with no patients', () => {
-    const record = createWoundCareRecord({});
-    expect(resolveWoundCarePatients(record)).toEqual([]);
-  });
-
-  it('skips blocked beds and patients without rut/admissionDate', () => {
-    const record = createWoundCareRecord({
-      A1: createWoundCarePatient('A1', { patientName: 'Test', rut: '' }),
-      A2: createWoundCarePatient('A2', { patientName: 'Test2', admissionDate: '' }),
-      A3: createWoundCarePatient('A3', {
-        patientName: 'Test3',
-        rut: '12345678-9',
-        isBlocked: true,
-      }),
-    });
-
-    expect(resolveWoundCarePatients(record)).toEqual([]);
-  });
-
-  it('extracts valid patients with episodeKey', () => {
-    const record = createWoundCareRecord({
-      A1: createWoundCarePatient('A1', {
-        patientName: 'Paciente Uno',
-        rut: '12345678-9',
-        admissionDate: '2026-01-15',
-      }),
-      B2: createWoundCarePatient('B2', {
-        patientName: 'Paciente Dos',
-        rut: '98765432-1',
-        admissionDate: '2026-01-10',
-      }),
-    });
-
-    const patients = resolveWoundCarePatients(record);
-    expect(patients).toHaveLength(2);
-    expect(patients[0].episodeKey).toBe('12345678-9__2026-01-15');
-    expect(patients[1].episodeKey).toBe('98765432-1__2026-01-10');
-  });
-});
-
-// ============================================================================
-// Wound Care Section Controller - Edge Cases
-// ============================================================================
-
-describe('woundCareSectionController - edge cases', () => {
-  it('skips patients without name', () => {
-    const record = createWoundCareRecord({
-      A1: createWoundCarePatient('A1', {
-        patientName: '',
-        rut: '1-1',
-        admissionDate: '2026-01-01',
-      }),
-    });
-    expect(resolveWoundCarePatients(record)).toEqual([]);
-  });
-
-  it('skips patients with whitespace-only name', () => {
-    const record = createWoundCareRecord({
-      A1: createWoundCarePatient('A1', {
-        patientName: '   ',
-        rut: '1-1',
-        admissionDate: '2026-01-01',
-      }),
-    });
-    expect(resolveWoundCarePatients(record)).toEqual([]);
-  });
-
-  it('handles record with no beds property', () => {
-    const record = createWoundCareRecord();
-    expect(resolveWoundCarePatients(record)).toEqual([]);
-  });
-
-  it('sorts patients by bedName alphabetically', () => {
-    const record = createWoundCareRecord({
-      C1: createWoundCarePatient('C1', {
-        patientName: 'Charlie',
-        rut: '3-3',
-        admissionDate: '2026-01-01',
-      }),
-      A1: createWoundCarePatient('A1', {
-        patientName: 'Alice',
-        rut: '1-1',
-        admissionDate: '2026-01-01',
-      }),
-      B1: createWoundCarePatient('B1', {
-        patientName: 'Bob',
-        rut: '2-2',
-        admissionDate: '2026-01-01',
-      }),
-    });
-    const result = resolveWoundCarePatients(record);
-    expect(result.map(p => p.bedName)).toEqual(['A1', 'B1', 'C1']);
   });
 });

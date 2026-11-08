@@ -3,9 +3,9 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   formatCopyUnlockCountdown,
   resolveCreateDayCopyAvailability,
-} from '@/features/census/controllers/censusCreateDayAvailabilityController';
+} from '@/hooks/controllers/createDayCopyAvailabilityController';
 
-describe('censusCreateDayAvailabilityController', () => {
+describe('createDayCopyAvailabilityController', () => {
   it('locks copy-from-previous before 08:00 when the selected date is today', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-03T07:30:00-05:00'));
