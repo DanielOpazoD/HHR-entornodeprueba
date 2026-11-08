@@ -30,7 +30,9 @@ El formulario se divide en una cuadrícula de 12 columnas:
 - En el censo diario, **Mayús + clic** sobre el nombre elige pacientes (o los quita); el botón flotante **«Orden de exámenes»** abre una solicitud con una pestaña por paciente. Esc o un clic en otra parte limpia la elección. Un clic normal sobre el nombre no cambia.
 - Desde la solicitud de un paciente, **«+ Paciente»** agrega otros pacientes del censo del día como pestañas, y la **×** de cada pestaña lo quita.
 - Cada pestaña guarda sus exámenes, "Otros" y "Médico Tratante" por paciente y episodio. **Imprimir N órdenes** saca todas en un solo documento, una hoja por paciente.
-- Solo entran pacientes que un episodio o un documento identifica; uno identificado solo por el nombre (por ejemplo, un RN sin RUT) se imprime desde su propia fila. Nada se guarda: al cerrar, cambiar de usuario o de día, la elección y las pestañas se pierden.
+- Solo entran pacientes que identifica su episodio, o su documento con el día y la hora de ingreso (así dos estadías del mismo día no se confunden). Los demás, por ejemplo un RN sin RUT, se imprimen desde su propia fila.
+- Si un paciente deja el censo con la solicitud abierta, solo se va su pestaña; las demás conservan lo marcado y escrito.
+- Nada se guarda: al cerrar la ventana o cambiar de día, la elección y las pestañas se pierden. Al cambiar de sesión, la solicitud se cierra y su texto se borra.
 
 ## 🖨️ Optimización de Impresión (Print Logic)
 
