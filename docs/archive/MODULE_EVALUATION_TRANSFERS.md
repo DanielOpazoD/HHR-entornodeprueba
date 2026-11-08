@@ -53,7 +53,6 @@
   - [transferService.ts](../src/services/transfers/transferService.ts)
   - [transferQueriesService.ts](../src/services/transfers/transferQueriesService.ts)
   - [transferMutationsService.ts](../src/services/transfers/transferMutationsService.ts)
-  - [transferSubscriptionsService.ts](../src/services/transfers/transferSubscriptionsService.ts)
 - El frente documental ya tiene seams útiles y cobertura propia.
 
 ---
