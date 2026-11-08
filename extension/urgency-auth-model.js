@@ -4,7 +4,7 @@
   const { fail, positiveId, sameId } = root.HhrUrgencyApi;
   const validProfile = profile => {
     const staff = profile?.StaffMember;
-    return !profile?.IsDeleted && !staff?.IsDeleted && positiveId(staff?.Id) &&
+    return !profile?.IsDeleted && !staff?.IsDeleted && positiveId(staff?.IdStaffMember) &&
       positiveId(staff.IdHealthCareCenter) && positiveId(profile.Id) &&
       Array.isArray(profile.Permissions) && profile.Permissions.length > 0;
   };
@@ -15,7 +15,7 @@
       .filter(type => positiveId(type?.Id) && !type.IsDeleted)
       .map((type, typeIndex) => ({
         id: `${index}:${typeIndex}`, professionTypeId: type.Id,
-        staffId: staff.Id, facilityId: staff.IdHealthCareCenter, profileId: profile.Id,
+        staffId: staff.IdStaffMember, facilityId: staff.IdHealthCareCenter, profileId: profile.Id,
         label: `${String(user.HealthCareCenter || 'Establecimiento')} · ${String(type.Name || 'Profesional')}`,
       }));
   });
@@ -41,7 +41,7 @@
     if (typeof response?.EncodedToken !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(response.EncodedToken))
       fail('ACCESS');
     if (!validProfile(profile) || !sameId(profile.Id, choice.profileId) ||
-        !sameId(staff?.Id, choice.staffId) || !sameId(staff?.IdHealthCareCenter, choice.facilityId) ||
+        !sameId(staff?.IdStaffMember, choice.staffId) || !sameId(staff?.IdHealthCareCenter, choice.facilityId) ||
         !positiveId(choice.professionTypeId)) fail('ACCESS');
     return { token: response.EncodedToken, facilityId: String(choice.facilityId), staffId: String(choice.staffId) };
   };

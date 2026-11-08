@@ -6,7 +6,7 @@ Médico** y lo entrega al **censo local HHR** para importarlo con revisión. Ade
 vigente oficial de Eloísa. Como respaldo sin backend intermedio, cada paciente activo puede copiarse
 como un código versionado que HHR valida antes de una admisión manual y de la elección de cama.
 
-## DAU oficial sin abrir Urgencias (0.48.84)
+## DAU oficial sin abrir Urgencias (0.48.85)
 
 Si no hay una sesión nativa utilizable, «Descargar DAU oficial (PDF)» muestra el acceso
 a Rayen Urgencias dentro del panel: usuario, contraseña, dominio y, si corresponde,

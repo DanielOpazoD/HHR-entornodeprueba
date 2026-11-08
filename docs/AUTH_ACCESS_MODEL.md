@@ -52,12 +52,14 @@ compartida de Eloísa. Requiere la extensión 0.48.63; no cambia la versión mí
 
 ### DAU oficial con acceso nativo dentro del panel
 
-La extensión 0.48.84 ofrece el login de Rayen Urgencias junto al botón del DAU cuando
+La extensión 0.48.85 ofrece el login de Rayen Urgencias junto al botón del DAU cuando
 no hay una sesión nativa utilizable. El formulario pertenece al origen de la extensión;
 usuario, contraseña y código de verificación no atraviesan el puente de mensajes de HHR.
 La contraseña se envía únicamente a `/api/usuario/login` en `api.saludenred.cl` y no se guarda.
 Sólo el `ContextId` devuelto por ese login puede solicitar `/api/tokenAcceso/`; nunca se
 sustituye por `firstToken`, `HSP` o `VHCC-TICKET`. No se ha identificado un canje SSO compatible.
+El profesional se identifica con `Profile.StaffMember.IdStaffMember`; el `Id` genérico
+del subobjeto puede ser cero y no sustituye esa identidad.
 
 La verificación adicional y la selección de perfil respetan la respuesta nativa. Si Rayen
 exige configurar MFA, el flujo se detiene sin posponerla. El ticket queda en

@@ -87,7 +87,8 @@ const memoryChrome = () => {
 const profile = () => ({
   Id: 3,
   Permissions: ['read'],
-  StaffMember: { Id: 6, IdHealthCareCenter: 9 },
+  // Native profile shape: the generic Id is zero; IdStaffMember identifies the professional.
+  StaffMember: { Id: 0, IdStaffMember: 6, IdHealthCareCenter: 9 },
 });
 const user = () => ({
   Profile: profile(),
@@ -164,7 +165,7 @@ export const harness = () => {
       )
         throw new Error('Synthetic exchange received a non-native context');
       const ticketProfile = profile();
-      if (config.wrongTicketStaff) ticketProfile.StaffMember.Id = 99;
+      if (config.wrongTicketStaff) ticketProfile.StaffMember.IdStaffMember = 99;
       return json({ EncodedToken: 'fake', Profile: ticketProfile });
     }
     if (url.pathname === '/api/emergencyAdmissionsByPatient/')

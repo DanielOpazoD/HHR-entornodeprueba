@@ -54,7 +54,7 @@ importScripts(${files
     .map(file => JSON.stringify(file))
     .join(',')});
 globalThis.syntheticRequests = [];
-const profile = {Id:3,Permissions:['read'],StaffMember:{Id:6,IdHealthCareCenter:9}};
+const profile = {Id:3,Permissions:['read'],StaffMember:{Id:0,IdStaffMember:6,IdHealthCareCenter:9}};
 const users = [{Profile:profile,HealthCareCenter:'Hospital sintético',HealthPractitionerTypes:[{Id:2,Name:'Médico'}]}];
 const fetchImpl = async (input, options) => {
   const url = new URL(input), body = options?.body ? JSON.parse(options.body) : null;

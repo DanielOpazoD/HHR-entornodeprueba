@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { extensionId, harness, hhrSender } from './urgencyInlineAuth.fixture';
 
 describe('extension-owned inline urgency login', () => {
-  it('issues a native session using only the ContextId returned by password authentication', async () => {
+  it('uses the native ContextId and IdStaffMember even when the generic staff Id is zero', async () => {
     const h = harness(),
       step = await h.begin();
     expect(await step.login()).toMatchObject({ ok: true, state: 'authenticated' });
