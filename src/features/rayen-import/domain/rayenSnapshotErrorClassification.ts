@@ -123,6 +123,20 @@ const CHECK_RULES: readonly (readonly [RegExp, RayenCaptureFailureCheck])[] = [
 const classifyCheck = (detailNormalized: string): RayenCaptureFailureCheck =>
   CHECK_RULES.find(([test]) => test.test(detailNormalized))?.[1] ?? 'other';
 
+/** Health message of a Ficha Médico tab whose reads stay blocked after a network failure. */
+const FICHA_READ_BLOCKED = /no puede leer datos desde esta pestana/;
+
+/** A connection failure does not say which read failed; only Ficha Médico wraps its errors. */
+const networkCheck = (
+  check: RayenCaptureFailureCheck,
+  detailNormalized: string,
+  fromFichaReader: boolean
+): RayenCaptureFailureCheck => {
+  if (check !== 'other') return check;
+  if (FICHA_READ_BLOCKED.test(detailNormalized)) return 'ficha_read_blocked';
+  return fromFichaReader ? 'ficha_network' : 'other';
+};
+
 export const classifyRayenSnapshotError = (
   rawError: unknown,
   timeoutStage?: string
@@ -153,7 +167,10 @@ export const classifyRayenSnapshotError = (
     return {
       reason: rule.reason,
       message: rule.remedy ? withDetail(rule.remedy, detail) : capAtWordBoundary(detail),
-      check,
+      check:
+        rule.reason === 'snapshot_network_error'
+          ? networkCheck(check, detailNormalized, detail !== raw)
+          : check,
     };
   }
   return {
