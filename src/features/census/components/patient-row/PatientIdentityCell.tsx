@@ -240,7 +240,8 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
               className={clsx(
                 'census-identity-name relative flex w-full min-w-0 flex-1 items-start gap-1 rounded border p-0.5 text-[13px] font-semibold cursor-default',
                 examOrderSelected
-                  ? 'border-emerald-500 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-300'
+                  ? // Border and fill come from censusLayout.css, which also styles the unchosen names.
+                    'text-emerald-900'
                   : 'border-slate-200 bg-slate-50 text-slate-700',
                 hasNameValidationError && 'border-red-400 bg-red-50/50 text-red-700'
               )}

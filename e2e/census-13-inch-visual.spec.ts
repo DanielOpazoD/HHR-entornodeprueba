@@ -3,6 +3,7 @@ import {
   seedVisualCensus as seedCensus,
   VISUAL_DATE as DATE,
   VISUAL_PATIENT as PATIENT,
+  VISUAL_SECOND_PATIENT as SECOND_PATIENT,
 } from './fixtures/censusVisualSeed';
 import { openPatientClinicalTopic } from './fixtures/patientClinicalTopics';
 
@@ -360,4 +361,47 @@ test('keeps the stale-day banner readable above the sticky table header while sc
   expect(headerBox!.y).toBeGreaterThanOrEqual(bannerBox!.y + bannerBox!.height - 1);
   expect(headerBox!.y).toBeLessThanOrEqual(bannerBox!.y + bannerBox!.height + 2);
   await expect(banner.getByRole('button', { name: 'Ir a hoy' })).toBeVisible();
+});
+
+test('marks every patient chosen for a laboratory order alike, with or without the pointer', async ({
+  page,
+}) => {
+  await seedCensus(page);
+  await page.goto(`/?date=${DATE}`);
+  const nameBox = (bedId: string) =>
+    page.locator(`[data-testid="patient-row"][data-bed-id="${bedId}"] .census-identity-name`);
+  await expect(nameBox('R1')).toContainText(PATIENT, { timeout: 20_000 });
+  await expect(nameBox('R2')).toContainText(SECOND_PATIENT);
+
+  await nameBox('R1')
+    .getByText(PATIENT)
+    .click({ modifiers: ['Shift'] });
+  await nameBox('R2')
+    .getByText(SECOND_PATIENT)
+    .click({ modifiers: ['Shift'] });
+  await expect(page.getByRole('button', { name: 'Orden de exámenes' })).toBeVisible();
+
+  for (const [width, height] of [
+    [1280, 832],
+    [1024, 666],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    // Away from both rows, so neither keeps a hover style.
+    await page.mouse.move(width - 4, height - 4);
+    for (const bedId of ['R1', 'R2']) {
+      // Read once the colour has settled: the row may still be fading from a hover.
+      await expect
+        .poll(
+          () =>
+            nameBox(bedId).evaluate(element => {
+              const computed = getComputedStyle(element);
+              return [computed.borderTopColor, computed.backgroundColor, computed.boxShadow].join(
+                ' | '
+              );
+            }),
+          { message: `${bedId} at ${width} px` }
+        )
+        .toBe('rgb(16, 185, 129) | rgb(236, 253, 245) | rgb(110, 231, 183) 0px 0px 0px 2px');
+    }
+  }
 });
