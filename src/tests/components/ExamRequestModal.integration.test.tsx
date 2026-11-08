@@ -117,28 +117,36 @@ describe('ExamRequestModal integration', () => {
     expect(first).toHaveFocus();
   });
 
-  it('prints what is typed on the OTROS and MEDICO TRATANTE lines, only for this opening', () => {
+  it('prints all the typed OTROS and MEDICO TRATANTE, wrapping instead of cutting', () => {
     const { rerender } = render(
       <ExamRequestModal isOpen={true} onClose={vi.fn()} patient={mockPatient} />
     );
     const form = screen.getByTestId('exam-request-form');
+    const otros =
+      'Perfil lipídico, ferritina, vitamina B12, procalcitonina, hemoglobina glicosilada, cortisol, acido folico';
+    const medico = 'Dra. Sintética Pérez de la Fuente Riroroko, Medicina Interna, turno de noche';
 
-    fireEvent.change(within(form).getByRole('textbox', { name: 'OTROS, línea 1' }), {
-      target: { value: 'Perfil lipídico' },
-    });
-    fireEvent.change(within(form).getByRole('textbox', { name: 'OTROS, línea 2' }), {
-      target: { value: 'Ferritina' },
+    fireEvent.change(within(form).getByRole('textbox', { name: 'OTROS' }), {
+      target: { value: otros },
     });
     fireEvent.change(within(form).getByRole('textbox', { name: 'MEDICO TRATANTE' }), {
-      target: { value: 'Dra. Sintética' },
+      target: { value: medico },
     });
 
-    // The printed page is the form itself: the typed text sits on its lines.
-    expect(within(form).getByDisplayValue('Perfil lipídico')).toBeInTheDocument();
-    expect(within(form).getByDisplayValue('Ferritina')).toBeInTheDocument();
-    expect(within(form).getByDisplayValue('Dra. Sintética')).toBeInTheDocument();
+    // Paper gets a plain copy of every character, which wraps onto the next ruled line; the
+    // fields, whose box would cut what does not fit, stay off the page.
+    const printedOtros = within(form).getByTestId('exam-request-print-otros');
+    const printedMedico = within(form).getByTestId('exam-request-print-medicoTratante');
+    expect(printedOtros).toHaveTextContent(otros, { normalizeWhitespace: false });
+    expect(printedMedico).toHaveTextContent(medico, { normalizeWhitespace: false });
+    for (const printed of [printedOtros, printedMedico]) {
+      expect(printed).toHaveClass('hidden', 'print:block', 'whitespace-pre-wrap', 'break-words');
+    }
+    within(form)
+      .getAllByRole('textbox')
+      .forEach(input => expect(input).toHaveClass('print:hidden'));
     // FIRMA stays a blank line for handwriting.
-    expect(within(form).getAllByRole('textbox')).toHaveLength(3);
+    expect(within(form).getAllByRole('textbox')).toHaveLength(2);
 
     // Nothing is kept once the dialog closes: the next opening starts blank.
     rerender(<ExamRequestModal isOpen={false} onClose={vi.fn()} patient={mockPatient} />);
@@ -147,6 +155,7 @@ describe('ExamRequestModal integration', () => {
     within(reopened)
       .getAllByRole('textbox')
       .forEach(input => expect(input).toHaveValue(''));
+    expect(within(reopened).getByTestId('exam-request-print-otros')).toBeEmptyDOMElement();
   });
 
   it('starts a blank request when another patient takes the bed while it is open', () => {
@@ -155,7 +164,7 @@ describe('ExamRequestModal integration', () => {
       <ExamRequestModal isOpen={true} onClose={vi.fn()} patient={first} />
     );
     fireEvent.click(screen.getByText('ELECTROLITOS PLASMATICOS'));
-    fireEvent.change(screen.getByRole('textbox', { name: 'OTROS, línea 1' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'OTROS' }), {
       target: { value: 'Ferritina' },
     });
     fireEvent.change(screen.getByRole('textbox', { name: 'MEDICO TRATANTE' }), {

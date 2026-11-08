@@ -10,7 +10,6 @@ import type { PatientData } from '@/hooks/contracts/patientHookContracts';
 import { runExamRequestPrint } from '@/hooks/controllers/examRequestPrintController';
 import {
   buildExamRequestOpenState,
-  setExamRequestFreeTextLine,
   toggleExamRequestSelection,
   type ExamRequestFreeTextField,
   type ExamRequestOpenState,
@@ -52,7 +51,7 @@ export interface UseExamRequestOrdersResult {
   toggleExam: (examKey: string) => void;
   setProcedencia: (value: string) => void;
   setPrevision: (value: string) => void;
-  setFreeText: (field: ExamRequestFreeTextField, line: number, value: string) => void;
+  setFreeText: (field: ExamRequestFreeTextField, value: string) => void;
   print: () => void;
 }
 
@@ -138,11 +137,8 @@ export const useExamRequestOrders = ({
       })),
     setProcedencia: value => updateActive(order => ({ ...order, procedencia: value })),
     setPrevision: value => updateActive(order => ({ ...order, prevision: value })),
-    setFreeText: (field, line, value) =>
-      updateActive(order => ({
-        ...order,
-        freeText: setExamRequestFreeTextLine(order.freeText, field, line, value),
-      })),
+    setFreeText: (field, value) =>
+      updateActive(order => ({ ...order, freeText: { ...order.freeText, [field]: value } })),
     print: () => runExamRequestPrint(),
   };
 };

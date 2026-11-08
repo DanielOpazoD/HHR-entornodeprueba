@@ -1,13 +1,13 @@
 /** Lines of the form the person may type on before printing. */
 export type ExamRequestFreeTextField = 'otros' | 'medicoTratante';
 
-export type ExamRequestFreeText = Record<ExamRequestFreeTextField, readonly string[]>;
+export type ExamRequestFreeText = Record<ExamRequestFreeTextField, string>;
 
 export interface ExamRequestOpenState {
   selectedExams: Set<string>;
   procedencia: string;
   prevision: string;
-  /** Text typed on each line, per print only: never saved with the patient. */
+  /** Text typed on those lines, per print only: never saved with the patient. */
   freeText: ExamRequestFreeText;
 }
 
@@ -23,19 +23,8 @@ export const buildExamRequestOpenState = (insurance?: string): ExamRequestOpenSt
   selectedExams: new Set(),
   procedencia: DEFAULT_PROCEDENCIA,
   prevision: resolveExamRequestPrevision(insurance),
-  freeText: { otros: [], medicoTratante: [] },
+  freeText: { otros: '', medicoTratante: '' },
 });
-
-export const setExamRequestFreeTextLine = (
-  freeText: ExamRequestFreeText,
-  field: ExamRequestFreeTextField,
-  line: number,
-  value: string
-): ExamRequestFreeText => {
-  const lines = [...freeText[field]];
-  lines[line] = value;
-  return { ...freeText, [field]: Array.from(lines, text => text ?? '') };
-};
 
 export const toggleExamRequestSelection = (
   selectedExams: ReadonlySet<string>,
