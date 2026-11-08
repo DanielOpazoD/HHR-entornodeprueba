@@ -25,7 +25,7 @@ describe('PatientMainRowBedTypeCell', () => {
               patientRut="11.111.111-1"
               bedType={BedType.UTI}
               hasPatient={true}
-              canToggleBedType={false}
+              canToggleBedType={true}
               onToggleBedType={() => undefined}
             />
           </tr>
@@ -34,6 +34,9 @@ describe('PatientMainRowBedTypeCell', () => {
     );
 
     expect(screen.getByLabelText('Gestión de traslado activa')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cambiar nivel de cuidado (UCI/UTI)' })).toHaveClass(
+      'focus-visible:opacity-100'
+    );
   });
 
   it('shows a green plane when the transfer case is accepted', () => {
