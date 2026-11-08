@@ -317,7 +317,7 @@ test.describe('Production Preview Bootstrap', () => {
         const age = cell.querySelector(
           '[aria-label="Edad del paciente, abre datos demográficos"]'
         )!;
-        // Mother and crib open their ficha from the same «Accesos» manutara.
+        // Mother and crib open their ficha from the same «Accesos» button.
         const clinical = element.querySelector('[data-clinical-access="menu"]')!;
         const origin = element.getBoundingClientRect();
         const relative = (node: Element) => {

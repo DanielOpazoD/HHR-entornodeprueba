@@ -15,7 +15,7 @@ const ACCESS_KEY: Record<PatientClinicalTopic, string> = {
   'Explorador clínico': 'explorer',
 };
 
-/** Opens a patient's topic as a user does: the bed's manutara, then its sector of the ring. */
+/** Opens a patient's topic as a user does: the bed's access button, then its sector of the ring. */
 export const openPatientClinicalTopic = async (
   page: Page,
   bedId: string,
