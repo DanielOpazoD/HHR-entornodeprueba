@@ -607,3 +607,10 @@ La preparación anterior a la captura pertenece a la vista y a la sesión que la
 Si la vista se desmonta o cambia la sesión mientras se lee el censo, la respuesta tardía
 no puede iniciar otra solicitud de extensión ni guardar un fallo en nombre del intento
 anterior. Esta invalidación no cancela el trabajo clínico que ya superó el commit.
+
+## Accesos a Eloísa desde la barra del censo
+
+La marca de Eloísa en la barra del censo abre un anillo pequeño con Hospitalizados, Gestión de
+camas, Ambulatoria y Urgencias. Cada uno abre su página de Eloísa en una pestaña nueva. Las
+direcciones viven en `eloisaLinks.ts`; un destino sin dirección confirmada queda gris en el anillo.
+El anillo se carga solo al abrirlo, para no crecer el bloque de sincronización.
