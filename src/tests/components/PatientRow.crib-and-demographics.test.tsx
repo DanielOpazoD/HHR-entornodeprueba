@@ -245,7 +245,7 @@ describe('PatientRow crib and demographics', () => {
             data={clinicalCrib}
             bed={mockBedDef}
             currentDateString="2023-01-01"
-            recordLastUpdated="2023-01-01T10:00:00.000Z"
+            getRecordLastUpdated={() => '2023-01-01T10:00:00.000Z'}
             onAction={mockOnAction}
             isSubRow={true}
             bedType={BedType.UTI}
@@ -287,6 +287,7 @@ describe('PatientRow crib and demographics', () => {
   });
 
   it('offers only safe cuna actions and removes the clinical crib after confirmation', async () => {
+    let currentStamp = '2023-01-01T10:00:00.000Z';
     const clinicalCrib = DataFactory.createMockPatient('R1-C', {
       patientName: 'Sub Patient',
       bedMode: 'Cuna',
@@ -299,7 +300,7 @@ describe('PatientRow crib and demographics', () => {
             data={clinicalCrib}
             bed={mockBedDef}
             currentDateString="2023-01-01"
-            recordLastUpdated="2023-01-01T10:00:00.000Z"
+            getRecordLastUpdated={() => currentStamp}
             onAction={mockOnAction}
             isSubRow={true}
             bedType={BedType.UTI}
@@ -316,6 +317,7 @@ describe('PatientRow crib and demographics', () => {
     expect(screen.queryByText('Mover')).not.toBeInTheDocument();
     expect(screen.queryByText('Dar de Alta')).not.toBeInTheDocument();
 
+    currentStamp = '2023-01-01T10:00:01.000Z';
     fireEvent.click(screen.getByText('Limpiar'));
 
     expect(mockConfirm).toHaveBeenCalledWith(
@@ -329,7 +331,7 @@ describe('PatientRow crib and demographics', () => {
         'R1',
         'remove',
         undefined,
-        '2023-01-01T10:00:00.000Z',
+        '2023-01-01T10:00:01.000Z',
         expect.objectContaining({ patientName: 'Sub Patient' })
       );
     });
@@ -350,7 +352,7 @@ describe('PatientRow crib and demographics', () => {
             data={clinicalCrib}
             bed={mockBedDef}
             currentDateString="2023-01-01"
-            recordLastUpdated="2023-01-01T10:00:00.000Z"
+            getRecordLastUpdated={() => '2023-01-01T10:00:00.000Z'}
             onAction={mockOnAction}
             isSubRow={true}
             bedType={BedType.UTI}
