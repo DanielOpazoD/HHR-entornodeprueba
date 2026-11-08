@@ -5,6 +5,7 @@ import {
   buildCanonicalE2ERecord,
   ensureAuthenticated,
 } from './fixtures/auth';
+import { openPatientClinicalTopic } from './fixtures/patientClinicalTopics';
 
 /**
  * Regression guard for the advanced-formatting panel and indentation controls.
@@ -60,7 +61,7 @@ const openClinicalDocumentsFromR1 = async (page: Page) => {
   const patientRow = page.locator('[data-testid="patient-row"][data-bed-id="R1"]').first();
   await expect(patientRow).toBeVisible({ timeout: 10_000 });
 
-  await patientRow.getByTestId('clinical-access-documents-R1').click();
+  await openPatientClinicalTopic(page, 'R1', 'Documentos');
   await expect(page.getByTestId('clinical-documents-workspace')).toBeVisible({ timeout: 15_000 });
 };
 

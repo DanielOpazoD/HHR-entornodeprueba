@@ -1,58 +1,28 @@
 /**
- * The «Accesos» column: a patient's four clinical topics in a 2×2 grid, always in the same place.
- * Each opens its window, where the patient is read and, when the row can edit, requested. A topic
- * the patient cannot use leaves its slot empty, so the grid stays aligned down the census.
+ * The «Accesos» column: one manutara per patient, always in the same place. It opens a ring with
+ * the patient's four clinical topics around the clinical explorer. Each topic opens its window,
+ * where the patient is read and, when the row can edit, requested. A topic the patient cannot
+ * use stays in the ring, greyed out, so the ring never changes shape.
  */
 
-import React from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 
 import { buildClinicalPanelKey } from '@/features/census/controllers/clinicalPanelNavigationController';
 import { resolvePatientClinicalTopics } from '@/features/census/controllers/patientClinicalTopicsController';
 import type { PatientClinicalAccessProps } from './patientRowInputViewContracts';
-import { ClinicalActionButton } from './ClinicalActionButton';
+import { openClinicalExplorer } from '../clinical-explorer/clinicalExplorerStore';
+import {
+  ClinicalAccessRadialMenu,
+  type ClinicalAccessRadialItem,
+} from './ClinicalAccessRadialMenu';
 import {
   PatientClinicalTopicSurfaces,
   usePatientClinicalTopicSurface,
 } from './PatientClinicalTopicSurfaces';
-import { PATIENT_CLINICAL_ACCESS_ICON_SRC } from './patientClinicalAccessIcons';
+import { CLINICAL_ACCESS_MANUTARA_SRC } from './patientClinicalAccessIcons';
 import { openClinicalPanel } from './useActiveClinicalPanel';
 
-type AccessSlot = {
-  key: keyof typeof PATIENT_CLINICAL_ACCESS_ICON_SRC;
-  label: string;
-  hint: string;
-  tone: React.ComponentProps<typeof ClinicalActionButton>['tone'];
-  onOpen?: () => void;
-  badge?: number;
-};
-
-const AccessIcon: React.FC<{ slot: AccessSlot; patientName: string; bedId: string }> = ({
-  slot,
-  patientName,
-  bedId,
-}) =>
-  slot.onOpen ? (
-    <ClinicalActionButton
-      tone={slot.tone}
-      muted
-      data-clinical-access={slot.key}
-      data-testid={`clinical-access-${slot.key}-${bedId}`}
-      label={`${slot.label} de ${patientName}`}
-      title={slot.hint}
-      hint={slot.hint}
-      badge={slot.badge}
-      onClick={slot.onOpen}
-    >
-      <img
-        src={PATIENT_CLINICAL_ACCESS_ICON_SRC[slot.key]}
-        alt=""
-        draggable={false}
-        className="size-[18px] object-contain"
-      />
-    </ClinicalActionButton>
-  ) : (
-    <span aria-hidden="true" className="size-7" />
-  );
+const unavailable = (label: string): string => `${label}: no disponible para este paciente`;
 
 export const PatientClinicalAccess: React.FC<PatientClinicalAccessProps> = ({
   patient,
@@ -63,61 +33,117 @@ export const PatientClinicalAccess: React.FC<PatientClinicalAccessProps> = ({
   onViewClinicalDocuments,
   clinicalDocumentCount,
 }) => {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  // The ring is centred on the button it opened from.
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const close = useCallback(() => {
+    setAnchor(null);
+    triggerRef.current?.focus();
+  }, []);
   const topics = resolvePatientClinicalTopics(patient);
   const laboratory = !isSubRow && topics.laboratory;
   const imaging = !isSubRow && topics.imaging;
   const requestExams = isSubRow ? undefined : onRequestExams;
   const requestImaging = isSubRow ? undefined : onRequestImaging;
+  const viewDocuments = isSubRow ? undefined : onViewClinicalDocuments;
   const topicSurface = usePatientClinicalTopicSurface(patient);
   const episode = patient.clinicalEpisodeId?.trim();
   const patientName = patient.patientName.trim();
   const triggerKey = isSubRow ? `${patient.bedId}-clinical-crib` : patient.bedId;
+  const hasDocuments = Boolean(viewDocuments && clinicalDocumentCount);
 
-  const slots: AccessSlot[] = [
+  const items: ClinicalAccessRadialItem[] = [
     {
       key: 'ficha',
       label: 'Ficha clínica',
-      hint: 'Ficha clínica',
-      tone: 'clinical',
+      hint: topics.clinicalPanel ? 'Ficha clínica del episodio' : unavailable('Ficha clínica'),
       onOpen:
         topics.clinicalPanel && episode
-          ? () => {
-              openClinicalPanel(buildClinicalPanelKey(patient.bedId, episode));
-            }
+          ? () => openClinicalPanel(buildClinicalPanelKey(patient.bedId, episode))
           : undefined,
     },
     {
       key: 'laboratory',
       label: 'Laboratorio',
-      hint: laboratory ? 'Laboratorio: ver y solicitar' : 'Solicitar exámenes',
-      tone: 'laboratory',
+      hint: laboratory
+        ? requestExams
+          ? 'Ver y solicitar exámenes'
+          : 'Ver exámenes'
+        : requestExams
+          ? 'Solicitar exámenes'
+          : unavailable('Laboratorio'),
       // Without an episode there is nothing to read, but a request still fits.
       onOpen: laboratory ? () => topicSurface.open('laboratory') : requestExams,
     },
     {
       key: 'imaging',
       label: 'Imágenes',
-      hint: imaging ? 'Imágenes: ver y solicitar' : 'Solicitar imagen',
-      tone: 'radiology',
+      hint: imaging
+        ? requestImaging
+          ? 'Ver y solicitar imágenes'
+          : 'Ver imágenes'
+        : requestImaging
+          ? 'Solicitar imagen'
+          : unavailable('Imágenes'),
       onOpen: imaging ? () => topicSurface.open('imaging') : requestImaging,
     },
     {
       key: 'documents',
       label: 'Documentos',
-      hint: 'Documentos clínicos',
-      tone: 'documents',
-      onOpen: isSubRow ? undefined : onViewClinicalDocuments,
+      hint: viewDocuments ? 'Documentos clínicos' : unavailable('Documentos'),
+      onOpen: viewDocuments,
       badge: clinicalDocumentCount,
     },
   ];
+  // The explorer lists main rows only, like the ficha's own entry to it.
+  const explore =
+    !isSubRow && censusDate && topics.clinicalExplorer
+      ? () => openClinicalExplorer({ censusDate, bedId: patient.bedId })
+      : undefined;
 
   return (
     <>
-      <span className="mx-auto grid w-fit grid-cols-[repeat(2,1.75rem)]">
-        {slots.map(slot => (
-          <AccessIcon key={slot.key} slot={slot} patientName={patientName} bedId={triggerKey} />
-        ))}
-      </span>
+      <button
+        ref={triggerRef}
+        type="button"
+        data-clinical-access="menu"
+        data-testid={`clinical-access-${triggerKey}`}
+        aria-haspopup="menu"
+        aria-expanded={anchor !== null}
+        aria-label={`Accesos de ${patientName}`}
+        title="Ficha clínica, laboratorio, imágenes, documentos y explorador clínico"
+        onClick={event => {
+          event.stopPropagation();
+          const button = event.currentTarget;
+          setAnchor(open => (open ? null : button));
+        }}
+        className="group relative mx-auto flex size-[30px] items-center justify-center rounded-full transition-colors duration-200 hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700"
+      >
+        <img
+          src={CLINICAL_ACCESS_MANUTARA_SRC}
+          alt=""
+          draggable={false}
+          className="size-5 object-contain opacity-40 transition duration-300 group-hover:-rotate-[8deg] group-hover:opacity-100 group-focus-visible:opacity-100 group-aria-expanded:opacity-100"
+        />
+        {hasDocuments && (
+          <span
+            aria-hidden="true"
+            data-testid={`clinical-access-documents-dot-${triggerKey}`}
+            className="absolute right-[3px] top-[3px] size-[5px] rounded-full bg-teal-700 ring-[1.5px] ring-white"
+          />
+        )}
+      </button>
+      {anchor && (
+        <ClinicalAccessRadialMenu
+          anchor={anchor}
+          patientName={patientName}
+          triggerKey={triggerKey}
+          items={items}
+          explorerHint={explore ? 'Explorador clínico' : unavailable('Explorador clínico')}
+          onExplore={explore}
+          onClose={close}
+        />
+      )}
       <PatientClinicalTopicSurfaces
         patient={patient}
         triggerKey={isSubRow ? triggerKey : undefined}

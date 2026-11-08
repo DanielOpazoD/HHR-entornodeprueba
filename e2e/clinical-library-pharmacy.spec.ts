@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { PDFArray, PDFDict, PDFDocument, PDFName, PDFRawStream, decodePDFRawStream } from 'pdf-lib';
 import { buildCanonicalE2ERecord, MOCK_USERS } from './fixtures/auth';
 import { installPreviewFirebaseRuntime } from './fixtures/previewFirebase';
+import { openPatientClinicalTopic } from './fixtures/patientClinicalTopics';
 
 const PREVIEW_DATE = process.env.E2E_FIXED_DATE ?? '2026-10-22';
 const ACT_DATE = '2026-10-22';
@@ -144,8 +145,8 @@ test('pharmacy acts are reachable inside clinical documents without closing its 
   };
   await seedPersistedSession(page, 'admin', buildCanonicalE2ERecord(PREVIEW_DATE, { beds }));
   await page.goto(`/?date=${PREVIEW_DATE}`);
-  const row = page.locator('[data-testid="patient-row"][data-bed-id="R1"]').first();
-  await row.getByTestId('clinical-access-documents-R1').click();
+  await expect(page.locator('[data-testid="patient-row"][data-bed-id="R1"]').first()).toBeVisible();
+  await openPatientClinicalTopic(page, 'R1', 'Documentos');
   const workspace = page.getByTestId('clinical-documents-workspace');
   await expect(workspace).toBeVisible();
   await capture(page, 'clinical-documents-pharmacy-entrypoints.png');

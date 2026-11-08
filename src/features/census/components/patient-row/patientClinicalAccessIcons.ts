@@ -1,12 +1,7 @@
 import manutaraIcon from '../../../../../Manutara2.png';
-import mangaiIcon from '../../../../../Mangai.png';
-import ahutepitokuraIcon from '../../../../../Ahutepitokura.png';
-import rongorongoIcon from '../../../../../Rongorongo.png';
 
-/** Rapa Nui iconography of the «Accesos» column, one figure per clinical topic. */
-export const PATIENT_CLINICAL_ACCESS_ICON_SRC = {
-  ficha: manutaraIcon,
-  laboratory: mangaiIcon,
-  imaging: ahutepitokuraIcon,
-  documents: rongorongoIcon,
-} as const;
+/**
+ * The «Accesos» column's only Rapa Nui figure: the manutara is the row's button and the clinical
+ * explorer at the centre of its ring. The topics around it keep the census's usual icons.
+ */
+export const CLINICAL_ACCESS_MANUTARA_SRC = manutaraIcon;

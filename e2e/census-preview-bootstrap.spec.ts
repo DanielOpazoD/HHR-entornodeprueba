@@ -303,7 +303,7 @@ test.describe('Production Preview Bootstrap', () => {
     await page.evaluate(() => document.fonts.ready);
     const parent = page.locator('[data-bed-id="R1"][data-testid="patient-row"]');
     const crib = page.locator('tr[data-testid="patient-row"]').filter({ hasText: 'C-R1' });
-    await expect(crib.getByTestId('clinical-access-ficha-R1-clinical-crib')).toBeVisible();
+    await expect(crib.getByTestId('clinical-access-R1-clinical-crib')).toBeVisible();
     await expect(crib.locator('input[name="patientName"]')).toHaveValue(
       'RN DE PACIENTE VALIDACION'
     );
@@ -317,8 +317,8 @@ test.describe('Production Preview Bootstrap', () => {
         const age = cell.querySelector(
           '[aria-label="Edad del paciente, abre datos demográficos"]'
         )!;
-        // Mother and crib open their ficha from the same «Accesos» column.
-        const clinical = element.querySelector('[data-clinical-access="ficha"]')!;
+        // Mother and crib open their ficha from the same «Accesos» manutara.
+        const clinical = element.querySelector('[data-clinical-access="menu"]')!;
         const origin = element.getBoundingClientRect();
         const relative = (node: Element) => {
           const box = node.getBoundingClientRect();
@@ -360,7 +360,7 @@ test.describe('Production Preview Bootstrap', () => {
     await expectSeededPatientVisible(page);
     await expect(nav).toHaveCSS('background-color', 'rgb(32, 87, 119)');
     await expect(nav).toHaveCSS('background-image', /linear-gradient/);
-    await expect(crib.getByTestId('clinical-access-ficha-R1-clinical-crib')).toBeVisible();
+    await expect(crib.getByTestId('clinical-access-R1-clinical-crib')).toBeVisible();
     await test.info().attach('new-navbar-after-reload', {
       body: await page.screenshot(),
       contentType: 'image/png',

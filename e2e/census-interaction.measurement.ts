@@ -209,6 +209,8 @@ test('synthetic census interactions produce a privacy-safe timing baseline', asy
         )
       );
       await page.keyboard.press('Escape');
+      // The ficha sits in the ring of the row's manutara; only the ficha's own open is measured.
+      await page.getByTestId('clinical-access-R1').click();
       results.clinicalPanel.push(
         await measureOpen(
           page,
