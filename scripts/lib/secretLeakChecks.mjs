@@ -50,6 +50,22 @@ export const textChecks = [
     matches: content => hasPattern(content, /import\.meta\.env\.VITE_LOCAL_GEMINI_API_KEY/),
   },
   {
+    id: 'client-dev-only-env-outside-guarded-files',
+    description:
+      'Developer-only env values (VITE_LOCAL_*, *_LOCAL_QUEUE_*) are read only in files that drop the read when import.meta.env.DEV is false; a new reader must guard it the same way and be added here.',
+    appliesTo: file =>
+      file.startsWith('src/') &&
+      !file.includes('/tests/') &&
+      ![
+        'src/env.d.ts',
+        'src/config/envValidator.ts',
+        'src/services/ai/aiProviderConfig.ts',
+        'src/features/document-scanner/components/DocumentScannerLocalQueueView.tsx',
+      ].includes(file),
+    matches: content =>
+      hasPattern(content, /import\.meta\.env\s*\.\s*VITE_(?:LOCAL_|DOCUMENT_SCANNER_LOCAL_QUEUE_)/),
+  },
+  {
     id: 'tracked-gcp-service-account-json',
     description:
       'Tracked files must not contain a Google Cloud service account JSON with embedded private key material.',
