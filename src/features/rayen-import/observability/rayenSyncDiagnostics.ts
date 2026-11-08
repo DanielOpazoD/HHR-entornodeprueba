@@ -3,6 +3,7 @@ import type {
   RayenApplyFailureReason,
   RayenCaptureFailureCheck,
   RayenSyncFailureReason,
+  RayenSyncIssueCauseKey,
   RayenSyncIssueReason,
   RayenSyncIssueSource,
 } from '@/types/domain/rayenSync';
@@ -53,6 +54,8 @@ interface RayenSyncDiagnosticData {
   issueReason?: RayenSyncIssueReason;
   issueCount?: number;
   patientCount?: number;
+  /** Issue counts by `source:cause`; last in the context so a full context drops them first. */
+  issueCauses?: Partial<Record<RayenSyncIssueCauseKey, number>>;
   batchMode?: 'enforced';
   durationMs?: number;
   /** Stage names of a transition the execution graph refused. */
@@ -227,6 +230,7 @@ export const reportRayenSyncTerminal = (
         ...(data.errorKind ? { errorKind: data.errorKind } : {}),
         ...(typeof data.issueCount === 'number' ? { issueCount: data.issueCount } : {}),
         ...(typeof data.patientCount === 'number' ? { patientCount: data.patientCount } : {}),
+        ...data.issueCauses,
       },
     });
   }

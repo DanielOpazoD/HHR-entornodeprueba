@@ -20,6 +20,7 @@
 import {
   RAYEN_CAPTURE_FAILURE_CHECKS,
   RAYEN_SYNC_FAILURE_REASONS,
+  RAYEN_SYNC_ISSUE_CAUSE_KEYS,
   RAYEN_SYNC_ISSUE_REASONS,
 } from '@/types/domain/rayenSync';
 import { withErrorServiceCause } from './operationalTelemetryErrorCause';
@@ -151,7 +152,10 @@ const SIZE_KEYS = tokens(`
 const [MAX_COUNT, MAX_DURATION_MS, MAX_SIZE] = [1_000_000, 86_400_000, 1_073_741_824];
 
 const NUMERIC_BOUNDS = new Map<string, { min: number; max: number }>([
-  ...COUNT_KEYS.map(key => [key, { min: 0, max: MAX_COUNT }] as const),
+  // Eloísa sync issues per `source:cause` (e.g. `patch:batch_field_changed`): closed enums only.
+  ...[...COUNT_KEYS, ...RAYEN_SYNC_ISSUE_CAUSE_KEYS].map(
+    key => [key, { min: 0, max: MAX_COUNT }] as const
+  ),
   ...DURATION_KEYS.map(key => [key, { min: -MAX_DURATION_MS, max: MAX_DURATION_MS }] as const),
   ...SIZE_KEYS.map(key => [key, { min: 0, max: MAX_SIZE }] as const),
 ]);

@@ -239,6 +239,32 @@ describe('operational telemetry privacy: context', () => {
     ).toEqual({ context: {}, droppedCount: 2 });
   });
 
+  it('keeps Eloísa issue counts per source and cause, and refuses any other pair', () => {
+    expect(
+      sanitizeOperationalTelemetryContextValues({
+        'patch:batch_field_changed': 18,
+        'bed_history:source_unavailable': 1,
+        'patch:write_failed': 2,
+      })
+    ).toEqual({
+      context: {
+        'patch:batch_field_changed': 18,
+        'bed_history:source_unavailable': 1,
+        'patch:write_failed': 2,
+      },
+      droppedCount: 0,
+    });
+    const refused = sanitizeOperationalTelemetryContextValues({
+      [`patch:${RUT}`]: 1,
+      'patch:paciente_juan_perez': 1,
+      'hospital:source_unavailable': 1,
+      'patch:batch_field_changed': PATIENT,
+      'vitals:session_required': -4,
+    });
+    expect(refused).toEqual({ context: { 'vitals:session_required': 0 }, droppedCount: 4 });
+    expectNoLeak(refused);
+  });
+
   it('keeps known error classes and reports any other class only as other_error', () => {
     expect(
       sanitizeOperationalTelemetryContextValues({

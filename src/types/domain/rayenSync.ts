@@ -74,6 +74,26 @@ export const CLINICAL_READ_ERROR_CODES = [
 ] as const;
 export type ClinicalReadErrorCode = (typeof CLINICAL_READ_ERROR_CODES)[number];
 
+/**
+ * Telemetry key for how many issues of one source ended with one cause, e.g.
+ * `patch:batch_field_changed`. The cause is the read/write code when known, otherwise the issue
+ * reason. Both halves are closed enums, so the privacy layer can allowlist every possible key.
+ */
+export type RayenSyncIssueCauseKey =
+  `${RayenSyncIssueSource}:${ClinicalReadErrorCode | RayenSyncIssueReason}`;
+
+export const rayenSyncIssueCauseKey = (
+  source: RayenSyncIssueSource,
+  cause: ClinicalReadErrorCode | RayenSyncIssueReason
+): RayenSyncIssueCauseKey => `${source}:${cause}`;
+
+export const RAYEN_SYNC_ISSUE_CAUSE_KEYS: readonly RayenSyncIssueCauseKey[] =
+  RAYEN_SYNC_ISSUE_SOURCES.flatMap(source =>
+    [...new Set([...CLINICAL_READ_ERROR_CODES, ...RAYEN_SYNC_ISSUE_REASONS])].map(cause =>
+      rayenSyncIssueCauseKey(source, cause)
+    )
+  );
+
 export const CUDYR_RECOVERY_KINDS = [
   'read_failed',
   'attribution_unreliable',
