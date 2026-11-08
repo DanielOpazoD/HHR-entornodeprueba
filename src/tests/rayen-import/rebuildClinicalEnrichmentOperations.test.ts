@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { rebuildClinicalEnrichmentOperations } from '@/features/rayen-import/domain/rebuildClinicalEnrichmentOperations';
 import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
 import type { ClinicalFillPatchOperation } from '@/features/rayen-import';
@@ -64,6 +64,50 @@ describe('rebuildClinicalEnrichmentOperations', () => {
         operations: [operation],
       })
     ).toThrow('cambió mientras se preparaba');
+  });
+
+  it('leaves out only the changed target when conflicts are reported instead of thrown', () => {
+    const other: ClinicalFillPatchOperation = {
+      target: { censusDate: '2026-08-02', bedId: 'R2', clinicalEpisodeId: 'episode-2' },
+      patch: { 'beds.R2.vitalSigns': { heartRate: 82 } },
+      clinicalFieldCount: 1,
+    };
+    const withSecond = (total: number): DailyRecord => {
+      const day = record('R1', total);
+      day.beds.R2 = {
+        ...patient('R2', 16),
+        clinicalEpisodeId: 'episode-2',
+      } as unknown as DailyRecord['beds'][string];
+      return day;
+    };
+    const conflicts: string[] = [];
+
+    const rebuilt = rebuildClinicalEnrichmentOperations({
+      baseRecord: withSecond(16),
+      currentRecord: withSecond(17),
+      operations: [operation, other],
+      onFieldConflict: (conflicted, error) =>
+        conflicts.push(`${conflicted.target.clinicalEpisodeId}: ${error.message}`),
+    });
+
+    expect(rebuilt).toEqual([expect.objectContaining({ target: other.target })]);
+    expect(conflicts).toEqual([
+      'episode-1: Un campo clínico cambió mientras se preparaba el lote.',
+    ]);
+  });
+
+  it('still fails closed when every target conflicts, even when conflicts are reported', () => {
+    const onFieldConflict = vi.fn();
+
+    expect(() =>
+      rebuildClinicalEnrichmentOperations({
+        baseRecord: record('R1', 16),
+        currentRecord: record('R1', 17),
+        operations: [operation],
+        onFieldConflict,
+      })
+    ).toThrow('cambió mientras se preparaba');
+    expect(onFieldConflict).not.toHaveBeenCalled();
   });
 
   it('keeps the write when the base lacks a null score leaf that the server copy stores', () => {

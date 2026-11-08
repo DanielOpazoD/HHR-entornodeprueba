@@ -74,6 +74,26 @@ export const CLINICAL_READ_ERROR_CODES = [
 ] as const;
 export type ClinicalReadErrorCode = (typeof CLINICAL_READ_ERROR_CODES)[number];
 
+/**
+ * Telemetry key for how many issues of one source ended with one cause, e.g.
+ * `patch:batch_field_changed`. The cause is the read/write code when known, otherwise the issue
+ * reason. Both halves are closed enums, so the privacy layer can allowlist every possible key.
+ */
+export type RayenSyncIssueCauseKey =
+  `${RayenSyncIssueSource}:${ClinicalReadErrorCode | RayenSyncIssueReason}`;
+
+export const rayenSyncIssueCauseKey = (
+  source: RayenSyncIssueSource,
+  cause: ClinicalReadErrorCode | RayenSyncIssueReason
+): RayenSyncIssueCauseKey => `${source}:${cause}`;
+
+export const RAYEN_SYNC_ISSUE_CAUSE_KEYS: readonly RayenSyncIssueCauseKey[] =
+  RAYEN_SYNC_ISSUE_SOURCES.flatMap(source =>
+    [...new Set([...CLINICAL_READ_ERROR_CODES, ...RAYEN_SYNC_ISSUE_REASONS])].map(cause =>
+      rayenSyncIssueCauseKey(source, cause)
+    )
+  );
+
 export const CUDYR_RECOVERY_KINDS = [
   'read_failed',
   'attribution_unreliable',
@@ -174,6 +194,10 @@ export type RayenSyncFailureReason = (typeof RAYEN_SYNC_FAILURE_REASONS)[number]
 export const RAYEN_CAPTURE_FAILURE_CHECKS = [
   'capture_no_answer',
   'ficha_relay_timeout',
+  /** A Ficha Médico census read failed at network level. */
+  'ficha_network',
+  /** Ficha Médico declined to read: a network failure in the last two minutes blocks its reads. */
+  'ficha_read_blocked',
   'ficha_after_capture',
   'gc_after_capture',
   'gc_tab_unresponsive',

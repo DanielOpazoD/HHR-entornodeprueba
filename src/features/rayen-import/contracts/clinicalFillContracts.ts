@@ -129,6 +129,8 @@ export interface ClinicalFillBatchApplyResult {
   retries?: number;
   persistence?: ClinicalPersistenceEvidence;
   batch?: ClinicalFillBatchEvidence;
+  /** Targets left out of the write because a field changed concurrently; they stay pending. */
+  excludedTargets?: { target: ClinicalFillPatchTarget; error: Error }[];
 }
 
 /** Defers the run to one authoritative transaction. */
