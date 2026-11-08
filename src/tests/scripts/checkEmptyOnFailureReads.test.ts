@@ -45,6 +45,19 @@ afterEach(() => {
 });
 
 describe('check-empty-on-failure-reads', () => {
+  it('rejects a laboratory cache read that hides failure as an empty result', () => {
+    const root = createRepository(
+      { 'src/features/laboratory/services/labFirestoreService.ts': READ_WITH_EMPTY_FALLBACK },
+      []
+    );
+    expect(runGuard(root)).toEqual({
+      status: 1,
+      output: expect.stringContaining(
+        'new: src/features/laboratory/services/labFirestoreService.ts::getMonth'
+      ),
+    });
+  });
+
   it('fails a new data-layer read that turns a failure into an empty result', () => {
     const root = createRepository(
       { 'src/services/storage/firestore/reads.ts': READ_WITH_EMPTY_FALLBACK },

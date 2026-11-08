@@ -121,6 +121,7 @@ export const saveLabResults = async (
  *
  * @param rut - Patient RUT.
  * @returns The stored document, or `null` if not found.
+ * @throws If Firestore cannot be read or the stored document is invalid.
  */
 export const getLabResults = async (rut: string): Promise<LabResultsDocument | null> => {
   try {
@@ -133,11 +134,11 @@ export const getLabResults = async (rut: string): Promise<LabResultsDocument | n
     // Basic shape validation
     if (!raw || typeof raw.rut !== 'string' || typeof raw.exams !== 'object') {
       logger.warn(`Invalid lab results document for ${docId}`);
-      return null;
+      throw new Error('Invalid lab results document');
     }
     return raw as LabResultsDocument;
   } catch (error) {
     logger.error('Failed to load lab results from Firestore', error);
-    return null;
+    throw error;
   }
 };

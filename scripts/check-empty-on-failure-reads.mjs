@@ -21,6 +21,7 @@ import ts from 'typescript';
 const ROOT = process.cwd();
 const BASELINE_PATH = 'scripts/config/empty-on-failure-reads-baseline.json';
 const AREAS = [
+  'src/features/laboratory/services/labFirestoreService.ts',
   'src/services/repositories',
   'src/services/reminders',
   'src/services/storage/firestore',
@@ -41,6 +42,7 @@ const toPosix = value => value.split(path.sep).join('/');
 const walk = relativeDir => {
   const absoluteDir = path.join(ROOT, relativeDir);
   if (!fs.existsSync(absoluteDir)) return [];
+  if (fs.statSync(absoluteDir).isFile()) return [relativeDir];
   const files = [];
   for (const entry of fs.readdirSync(absoluteDir, { withFileTypes: true })) {
     const relativePath = toPosix(path.join(relativeDir, entry.name));
