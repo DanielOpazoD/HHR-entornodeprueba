@@ -5,6 +5,7 @@
 
 import React, { lazy, Suspense, useState } from 'react';
 const NursingPasswordDialog = lazy(() => import('./NursingPasswordDialog'));
+const UserSignatureDialog = lazy(() => import('./UserSignatureDialog'));
 import { GlobalErrorBoundary } from '@/components/shared/GlobalErrorBoundary';
 const UserMenuPanel = lazy(() => import('./UserMenuPanel'));
 import { UserRole } from '@/hooks/useAuthState';
@@ -23,6 +24,8 @@ interface UserMenuProps {
   remoteSyncStatus?: AuthContextType['remoteSyncStatus'];
   avatarUrl?: string | null;
   onOpenAvatarSettings?: () => void;
+  /** The signed-in person's uid; with it the menu offers their own signature. */
+  signatureUid?: string;
   onLogout: () => void | Promise<void>;
 }
 
@@ -36,9 +39,11 @@ export const UserMenu: React.FC<UserMenuProps> = ({
   remoteSyncStatus,
   avatarUrl,
   onOpenAvatarSettings,
+  signatureUid,
   onLogout,
 }) => {
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [signatureOpen, setSignatureOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const { isOpen, menuRef, toggle, close } = useDropdownMenu();
   const roleLabel = getRoleDisplayLabel(role);
@@ -80,6 +85,15 @@ export const UserMenu: React.FC<UserMenuProps> = ({
       {passwordOpen && (
         <Suspense fallback={null}>
           <NursingPasswordDialog onClose={() => setPasswordOpen(false)} />
+        </Suspense>
+      )}
+      {signatureOpen && signatureUid && (
+        <Suspense fallback={null}>
+          <UserSignatureDialog
+            key={signatureUid}
+            uid={signatureUid}
+            onClose={() => setSignatureOpen(false)}
+          />
         </Suspense>
       )}
       {!identityPending && (
@@ -133,6 +147,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({
               avatarUrl={avatarUrl}
               onChangePassword={() => setPasswordOpen(true)}
               onOpenAvatarSettings={onOpenAvatarSettings}
+              onOpenSignatureSettings={signatureUid ? () => setSignatureOpen(true) : undefined}
               onLogout={() => void requestLogout()}
               loggingOut={loggingOut}
               close={close}

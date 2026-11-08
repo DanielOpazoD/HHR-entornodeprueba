@@ -191,6 +191,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               remoteSyncStatus={remoteSyncStatus}
               avatarUrl={avatarUrl}
               onOpenAvatarSettings={currentUser?.uid ? () => setIsAvatarModalOpen(true) : undefined}
+              signatureUid={
+                currentUser?.uid && currentUser.uid !== BOOTSTRAP_PLACEHOLDER_UID
+                  ? currentUser.uid
+                  : undefined
+              }
               onLogout={onLogout}
             />
           )}

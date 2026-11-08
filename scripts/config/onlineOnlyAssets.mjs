@@ -131,6 +131,11 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
   { glob: '**/assets/NursingPasswordDialog-*.js', reason: 'Same policy as the entry above.' },
   { glob: '**/assets/NursingAccessForm-*.js', reason: 'Same policy as the entry above.' },
   {
+    glob: '**/assets/UserSignatureDialog-*.js',
+    reason:
+      'The personal signature lives only in Firebase Storage and is never kept offline on a shared computer.',
+  },
+  {
     glob: '**/assets/InvalidClinicalEpisodesPanel-*.js',
     reason:
       'The admin review of «paciente no válido» marks reads and removes them on the server only.',
