@@ -79,7 +79,7 @@ describe('PatientActionMenu', () => {
     expect(onViewDemographics).not.toHaveBeenCalled();
   });
 
-  it('does not render the quick actions trigger when the row has no patient identity yet', () => {
+  it('does not render the actions trigger when the row has no patient identity yet', () => {
     render(
       <PatientActionMenu
         isBlocked={false}
@@ -93,9 +93,6 @@ describe('PatientActionMenu', () => {
     );
 
     expect(screen.queryByTitle('Acciones')).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: /acciones clínicas rápidas/i })
-    ).not.toBeInTheDocument();
   });
   it('opens by keyboard and restores its trigger on Escape and outside close', async () => {
     const user = userEvent.setup();
