@@ -158,6 +158,36 @@ describe('ExamRequestModal integration', () => {
     expect(within(reopened).getByTestId('exam-request-print-otros')).toBeEmptyDOMElement();
   });
 
+  it('starts a blank request for a same-day readmission without an episode', () => {
+    const stay = { ...mockPatient, admissionTime: '07:00' };
+    const { rerender } = render(
+      <ExamRequestModal isOpen={true} onClose={vi.fn()} patient={stay} />
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'OTROS' }), {
+      target: { value: 'Ferritina' },
+    });
+
+    // The same stay refreshed by a sync keeps what was typed.
+    rerender(
+      <ExamRequestModal
+        isOpen={true}
+        onClose={vi.fn()}
+        patient={{ ...stay, pathology: 'Neumonia grave' }}
+      />
+    );
+    expect(screen.getByDisplayValue('Ferritina')).toBeInTheDocument();
+
+    // Discharged and admitted again the same day: same document and day, another stay.
+    rerender(
+      <ExamRequestModal
+        isOpen={true}
+        onClose={vi.fn()}
+        patient={{ ...stay, admissionTime: '19:40' }}
+      />
+    );
+    expect(screen.getByRole('textbox', { name: 'OTROS' })).toHaveValue('');
+  });
+
   it('starts a blank request when another patient takes the bed while it is open', () => {
     const first = { ...mockPatient, clinicalEpisodeId: 'episode-a' };
     const { rerender } = render(

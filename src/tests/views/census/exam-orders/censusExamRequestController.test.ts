@@ -45,6 +45,7 @@ describe('listCensusExamRequestCandidates', () => {
           rut: '11.111.111-1',
           clinicalEpisodeId: undefined,
           admissionDate: '2026-11-08',
+          admissionTime: '08:15',
         }),
         R2: DataFactory.createMockPatient('R2', {
           patientName: 'CON PASAPORTE',
@@ -52,6 +53,7 @@ describe('listCensusExamRequestCandidates', () => {
           documentType: 'Pasaporte',
           clinicalEpisodeId: undefined,
           admissionDate: '2026-11-08',
+          admissionTime: '08:15',
         }),
       },
     });
@@ -76,5 +78,23 @@ describe('listCensusExamRequestCandidates', () => {
     });
 
     expect(candidates).toEqual([]);
+  });
+
+  it('tells apart two stays of one person on the same day, and leaves out an unproven stay', () => {
+    const stay = (bedId: string, admissionTime?: string) =>
+      DataFactory.createMockPatient(bedId, {
+        patientName: 'MISMA PERSONA',
+        rut: '11.111.111-1',
+        clinicalEpisodeId: undefined,
+        admissionDate: '2026-11-08',
+        admissionTime,
+      });
+    const candidates = listCensusExamRequestCandidates({
+      visibleBeds: [bed('R1'), bed('R2'), bed('R3')],
+      beds: { R1: stay('R1', '07:00'), R2: stay('R2', '19:40'), R3: stay('R3') },
+    });
+
+    expect(candidates.map(candidate => candidate.label)).toEqual(['R1', 'R2']);
+    expect(new Set(candidates.map(candidate => candidate.key)).size).toBe(2);
   });
 });

@@ -49,6 +49,7 @@ const beds = {
     documentType: 'Pasaporte',
     clinicalEpisodeId: undefined,
     admissionDate: '2026-11-07',
+    admissionTime: '09:30',
   }),
 };
 
