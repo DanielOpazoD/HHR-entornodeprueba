@@ -1,3 +1,4 @@
+import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
 import { createDomainObservability } from '@/services/observability/domainObservability';
 
 const backupObservability = createDomainObservability('backup', 'BackupStorage');
@@ -19,7 +20,7 @@ const now = (): number => {
 };
 
 const logMetric = (
-  operation: string,
+  operation: OperationalTelemetryOperation,
   elapsedMs: number,
   level: MetricLevel,
   context?: string
@@ -35,7 +36,7 @@ const logMetric = (
 };
 
 export const measureStorageOperation = async <T>(
-  operation: string,
+  operation: OperationalTelemetryOperation,
   runner: () => Promise<T>,
   options: MeasureStorageOperationOptions = {}
 ): Promise<T> => {

@@ -23,6 +23,7 @@ import {
 } from '@/features/census/controllers/censusTransferSyncController';
 import { dispatchCanonicalTransfer } from '@/features/census/controllers/transferCanonicalAdoptionController';
 import { recordCriticalClinicalAction } from '@/services/observability/criticalClinicalActionRecorder';
+import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import { isFeatureEnabled } from '@/services/utils/featureFlags';
 import { resolveAuditActor } from '@/context/AuditContext';
@@ -61,7 +62,7 @@ export const useCensusTransferCommand = ({
       transferState.receivingCenterOther
     );
     const recordTransferCriticalAction = (
-      action: string,
+      action: OperationalTelemetryOperation,
       outcome: 'success' | 'failed',
       issues?: string[],
       context?: Record<string, unknown>

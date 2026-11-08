@@ -148,7 +148,7 @@ describe('systemHealthReporterController', () => {
           category: 'sync',
           status: 'failed',
           runtimeState: 'blocked',
-          operation: 'daily_record_remote_write',
+          operation: 'firestore_write',
           timestamp: '2026-05-21T14:03:00.000Z',
           issues: ['permission-denied'],
           context: {
@@ -161,12 +161,12 @@ describe('systemHealthReporterController', () => {
 
     expect(events).toHaveLength(2);
     expect(events[0]).toMatchObject({
-      id: 'operational:sync:daily_record_remote_write:2026-05-21T14:03:00.000Z',
+      id: 'operational:sync:firestore_write:2026-05-21T14:03:00.000Z',
       source: 'operational',
       category: 'sync',
       severity: 'critical',
       status: 'open',
-      operation: 'daily_record_remote_write',
+      operation: 'firestore_write',
       action: 'Reintentar sincronizacion',
       route: '/censo',
     });
@@ -288,7 +288,7 @@ describe('systemHealthReporterController', () => {
         category: 'sync' as const,
         status: 'failed' as const,
         runtimeState: 'blocked' as const,
-        operation: `daily_record_write_${index}`,
+        operation: 'firestore_write' as const,
         timestamp: new Date(Date.parse('2026-05-21T14:00:00.000Z') + index * 1000).toISOString(),
         issues: [`permission-denied-${index}`],
         context: {
@@ -301,7 +301,8 @@ describe('systemHealthReporterController', () => {
 
     expect(events).toHaveLength(12);
     expect(events[0]).toMatchObject({
-      operation: 'daily_record_write_11',
+      operation: 'firestore_write',
+      timestamp: '2026-05-21T14:00:11.000Z',
       module: 'Censo diario',
       action: 'Guardar dato',
       route: '/censo',

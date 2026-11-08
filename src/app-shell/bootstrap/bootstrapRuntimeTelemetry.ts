@@ -1,3 +1,4 @@
+import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
 import { isChunkLoadError } from '@/utils/chunkLoadError';
 import type { AppBootstrapRuntimeResult } from '@/app-shell/bootstrap/bootstrapAppRuntime.types';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
@@ -50,7 +51,7 @@ const rememberEventKey = (key: string): boolean => {
 };
 
 const recordBootstrapIssue = (
-  operation: string,
+  operation: OperationalTelemetryOperation,
   runtimeState: 'recoverable' | 'blocked',
   message: string,
   context: Record<string, unknown> = {}
