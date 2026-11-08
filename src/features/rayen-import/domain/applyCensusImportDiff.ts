@@ -26,6 +26,7 @@ import {
 } from './associatedClinicalCribDischarge';
 import { applyClinicalCribDischargeRepairs } from './clinicalCribDischargeRepairs';
 import { applyReviewedPatientChanges, patientAfterBedMove } from './patientSyncPolicy';
+import { newbornOwnRut } from './clinicalCribMaternalAssociation';
 const BED_NAME = new Map(BEDS.map(bed => [bed.id, bed.name]));
 const BED_TYPE = new Map<string, string>(BEDS.map(bed => [bed.id, bed.type]));
 export const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
@@ -314,7 +315,10 @@ export const applyCensusImportDiff = (
         : undefined;
     // Preserve the known newborn's admission and reversible snapshot instead of synthesizing
     // a second sparse report row with a source-formatted bed label.
-    const patient = currentCrib?.[1].clinicalCrib ?? reportEgresoPatient(egreso);
+    const knownCrib = currentCrib?.[1].clinicalCrib;
+    const patient = knownCrib
+      ? { ...knownCrib, rut: newbornOwnRut(knownCrib) }
+      : reportEgresoPatient(egreso);
     const entry = {
       ...reportEgresoEntry(egreso),
       ...(currentCrib ? { bedId: currentCrib[0] } : {}),

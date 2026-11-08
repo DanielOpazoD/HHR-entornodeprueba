@@ -458,6 +458,16 @@ Los fallos de movimientos se registran como `bed_history`, separados de la lectu
 guardado del CUDYR. El archivo de resultados continúa aunque la recuperación falle;
 los reintentos conservan la selección de lectura CUDYR sin repetir otros datos clínicos.
 
+### Número de identificación de un RN recién nacido
+
+Eloísa crea el episodio del RN al nacer, antes de que el Registro Civil le asigne RUN, y puede
+mostrar como identificación el folio del comprobante de parto o un error de digitación. En un RN,
+un número que no es RUN válido ni pasaporte nunca es su documento: el RN queda con identidad
+provisional, una copia guardada de ese número se borra y la recuperación de movimientos consulta
+por el RUN de la madre. El RUN materno sigue su propio camino, descrito abajo, y un RUN escrito en
+HHR se conserva. Un número con dígito verificador válido sigue aceptándose: distinguir un folio que
+lo cumple por azar requiere que la extensión envíe el tipo de documento de Eloísa.
+
 ### Asociación RN–madre y recuperación del archivo CUDYR
 
 Las cunas se concilian primero con el RUN materno cuando el episodio RN lo usa como

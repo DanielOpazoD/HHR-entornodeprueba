@@ -7,6 +7,7 @@ import { rayenToPatientData } from '../mapping/rayenToPatientData';
 import { stateFromBoolean } from './dischargeVerification';
 import { reconcileClinicalCribs } from './reconcileClinicalCribs';
 import { diffSyncablePatientFields } from './patientSyncPolicy';
+import { newbornOwnRut } from './clinicalCribMaternalAssociation';
 import {
   activePrincipalBedPlacementIntents,
   blockedPrincipalMoveConflict,
@@ -338,6 +339,19 @@ export const reconcileCensus = (
       // flow report confirms it; otherwise the local placement stays review-gated.
       if (!mapped.bedId || mapped.bedId === match.bedId) {
         confirmedPrincipalBedIds.add(match.bedId);
+      }
+      const ownRut = newbornOwnRut(match.patient);
+      if (!placement.move && ownRut !== match.patient.rut) {
+        // A closed newborn keeps its bed but not a number that cannot be its own document.
+        const patient = { ...match.patient, rut: ownRut };
+        diff.updates.push({
+          bedId: match.bedId,
+          rut: ownRut,
+          patientName: patient.patientName,
+          changes: diffSyncablePatientFields(match.patient, patient),
+          patient,
+          source: encounter,
+        });
       }
       trackClinicalClosure(placement.retainedBedId, match.patient, encounter);
       continue;
