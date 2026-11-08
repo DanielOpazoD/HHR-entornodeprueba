@@ -30,13 +30,24 @@ export const createUppercaseTextDrawer = ({
   font: PDFFont;
   fontSize: number;
 }) => {
-  return (text: string, coords: { x: number; y: number; maxWidth: number }) => {
+  return (
+    text: string,
+    coords: { x: number; y: number; maxWidth: number },
+    options: { shrinkToFit?: boolean } = {}
+  ) => {
     if (!text) return;
 
-    page.drawText(text.toUpperCase(), {
+    const upperText = text.toUpperCase();
+    const width = font.widthOfTextAtSize(upperText, fontSize);
+    const size =
+      options.shrinkToFit && width > coords.maxWidth
+        ? (fontSize * coords.maxWidth) / width
+        : fontSize;
+
+    page.drawText(upperText, {
       x: coords.x,
       y: coords.y,
-      size: fontSize,
+      size,
       font,
     });
   };

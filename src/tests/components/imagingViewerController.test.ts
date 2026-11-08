@@ -20,7 +20,7 @@ describe('imagingViewerController', () => {
 
     expect(model.imageSrc).toBe('/docs/solicitud_imagenologia.png');
     expect(model.aspectRatio).toBe('612 / 936');
-    expect(model.overlays.some(overlay => overlay.text === 'Juan')).toBe(true);
+    expect(model.overlays.some(overlay => overlay.text === 'Juan Perez Soto')).toBe(true);
     expect(model.overlays.some(overlay => overlay.text === 'Apendicitis')).toBe(true);
     expect(model.overlays.some(overlay => overlay.text === 'Dr. House')).toBe(true);
   });
@@ -38,4 +38,26 @@ describe('imagingViewerController', () => {
     expect(encuesta.imageSrc).toBe('/docs/encuesta_imagenologia.png');
     expect(encuesta.aspectRatio).toBe('612 / 792');
   });
+
+  it.each(['solicitud', 'encuesta', 'consentimiento'] as const)(
+    'shows the %s name on one line with the first three given names',
+    selectedDoc => {
+      const model = buildImagingViewerDocumentModel(
+        selectedDoc,
+        {
+          ...mockPatient,
+          patientName: 'Ana María de los Ángeles Valentina Rosa Elena Hotu Pakarati',
+          firstName: 'Ana María de los Ángeles Valentina Rosa Elena',
+          lastName: 'Hotu',
+          secondLastName: 'Pakarati',
+        },
+        ''
+      );
+      const nameOverlays = model.overlays.filter(overlay => /Ana|Hotu|Pakarati/.test(overlay.text));
+
+      expect(nameOverlays.map(overlay => overlay.text)).toEqual([
+        'Ana María de los Ángeles Hotu Pakarati',
+      ]);
+    }
+  );
 });
