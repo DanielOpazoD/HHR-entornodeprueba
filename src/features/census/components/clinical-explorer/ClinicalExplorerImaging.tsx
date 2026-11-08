@@ -8,13 +8,9 @@ import {
   type ClinicalExplorerPatient,
 } from '@/features/census/controllers/clinicalExplorerController';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
-import {
-  describeMMRADRegisteredPatient,
-  fetchMMRADPdfBlob,
-  type MMRADExam,
-} from '@/services/radiology/mmradService';
+import { describeMMRADRegisteredPatient, type MMRADExam } from '@/services/radiology/mmradService';
 import { getSessionEpoch, onSessionChange } from '@/services/storage/sessionStorageTransition';
-import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
+import { deliverMmradPdf } from '@/services/radiology/mmradPdfDelivery';
 import { formatStudyStamp, isCtStudy, studyKey } from './clinicalExplorerImagingModel';
 import {
   AreaCard,
@@ -89,7 +85,7 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
   const [pdfMessage, setPdfMessage] = useState<string | null>(null);
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
 
-  const pdfOperation = useRef<{ controller: AbortController; popup: Window } | null>(null);
+  const pdfOperation = useRef<AbortController | null>(null);
 
   useLayoutEffect(() => {
     setPdfBusy(null);
@@ -97,8 +93,7 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
     const cancel = (): void => {
       const pending = pdfOperation.current;
       pdfOperation.current = null;
-      pending?.controller.abort();
-      pending?.popup.close();
+      pending?.abort();
     };
     const unsubscribe = onSessionChange(() => {
       cancel();
@@ -116,31 +111,18 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
 
   const openPdf = async (exam: MMRADExam): Promise<void> => {
     if (!exam.pdf_url || pdfOperation.current || getSessionEpoch() !== sessionEpoch) return;
-    const popup = defaultBrowserWindowRuntime.open('', '_blank');
-    if (!popup) return;
-    const operation = { controller: new AbortController(), popup };
+    const operation = new AbortController();
     pdfOperation.current = operation;
     const isCurrent = (): boolean =>
       pdfOperation.current === operation &&
-      !operation.controller.signal.aborted &&
+      !operation.signal.aborted &&
       getSessionEpoch() === sessionEpoch;
     setPdfMessage(null);
     setPdfBusy(studyKey(exam));
     try {
-      const blob = await fetchMMRADPdfBlob(exam.pdf_url, operation.controller.signal);
-      if (!isCurrent() || popup.closed) return;
-      const url = URL.createObjectURL(blob);
-      try {
-        popup.location.href = url;
-        popup.focus();
-        window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      } catch (error) {
-        URL.revokeObjectURL(url);
-        throw error;
-      }
+      await deliverMmradPdf(exam.pdf_url, operation, { print: false });
     } catch (error) {
       if (isCurrent()) {
-        popup.close();
         setPdfMessage(error instanceof Error ? error.message : 'No se pudo abrir el informe.');
       }
     } finally {

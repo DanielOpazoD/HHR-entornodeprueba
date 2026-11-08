@@ -7,7 +7,6 @@ import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 import { normalizeDicomPatientId, type DicomCapture } from '@/services/radiology/dicomTypes';
 import { BaseModal } from '@/components/shared/BaseModal';
 import {
-  fetchMMRADPdfBlobUrl,
   fetchMMRADPortalReceiptHtml,
   type MMRADExam,
   type MMRADSearchResult,
@@ -23,7 +22,7 @@ import {
   RadiologyViewerResults,
 } from '@/components/modals/RadiologyViewerModalContent';
 import { RadiologyPortalReceiptPreview } from '@/components/modals/RadiologyPortalReceiptPreview';
-import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
+import { deliverMmradPdf } from '@/services/radiology/mmradPdfDelivery';
 import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 import {
   buildFilteredMMRADExams,
@@ -96,6 +95,8 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
   const [dicomExam, setDicomExam] = useState<MMRADExam | null>(null);
   const searchSequence = useRef(0);
   const context = JSON.stringify([isOpen, selectedRut, dateFrom, dateTo]);
+  const pdfOperation = useRef<AbortController | null>(null);
+  React.useEffect(() => () => pdfOperation.current?.abort(), [context]);
   const latestContext = useRef(context);
   latestContext.current = context;
   const openedForRutRef = useRef<string | null>(null);
@@ -261,31 +262,15 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
   }, []);
 
   const handleOpenPdf = useCallback(async (exam: MMRADExam) => {
-    if (!exam.pdf_url) {
-      return;
-    }
-
-    const popupWindow = defaultBrowserWindowRuntime.open('', '_blank');
-    if (!popupWindow) {
-      return;
-    }
-
+    if (!exam.pdf_url || pdfOperation.current) return;
+    const controller = new AbortController();
+    pdfOperation.current = controller;
     try {
-      const pdfUrl = await fetchMMRADPdfBlobUrl(exam.pdf_url);
-      popupWindow.location.href = pdfUrl;
-      popupWindow.focus();
-      window.setTimeout(() => {
-        try {
-          popupWindow.focus();
-          popupWindow.print();
-        } catch {
-          // Ignore popup cross-origin print limitations.
-        }
-      }, 1500);
-      window.setTimeout(() => URL.revokeObjectURL(pdfUrl), 60_000);
+      await deliverMmradPdf(exam.pdf_url, controller, { print: true });
     } catch (error) {
-      popupWindow.close();
       setError(error instanceof Error ? error.message : 'Error al abrir el PDF.');
+    } finally {
+      if (pdfOperation.current === controller) pdfOperation.current = null;
     }
   }, []);
 
