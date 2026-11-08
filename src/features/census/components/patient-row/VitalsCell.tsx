@@ -88,7 +88,6 @@ export const VitalsCell: React.FC<VitalsCellProps> = ({
           }}
           className="flex w-full cursor-pointer flex-col items-center gap-0.5 rounded-md py-1 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700"
           aria-label={accessibleName}
-          title={accessibleName}
         >
           <span className={GRID_CLASS}>
             {CELL_READINGS.map(({ key, label }) => {

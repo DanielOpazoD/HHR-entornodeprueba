@@ -50,7 +50,7 @@ describe('VitalsCell', () => {
     const name = `Signos vitales: ${readings}. Abrir detalle`;
     const button = screen.getByRole('button', { name });
     expect(button).toHaveAccessibleName(name);
-    expect(button).toHaveAttribute('title', name);
+    expect(button).not.toHaveAttribute('title');
   });
 
   it('does not expose carried measurement dates or provenance in the census cell', () => {
@@ -67,7 +67,7 @@ describe('VitalsCell', () => {
     expect(button).toHaveTextContent('130/82');
     expect(screen.queryByText(/11\/07\/2026|2026-07-11|Previa/)).not.toBeInTheDocument();
     expect(button.querySelector('time')).toBeNull();
-    expect(button).toHaveAttribute('title', button.getAttribute('aria-label'));
+    expect(button).not.toHaveAttribute('title');
     expect(button).not.toHaveAttribute('aria-description');
     expect(screen.queryByText(/Por verificar|pendiente de verificar/i)).not.toBeInTheDocument();
   });
@@ -85,7 +85,7 @@ describe('VitalsCell', () => {
     expect(screen.queryByText(/12\/07\/2026|2026-07-12/)).not.toBeInTheDocument();
     const button = screen.getByRole('button', { name: /^Signos vitales:/ });
     expect(button).not.toHaveAttribute('aria-description');
-    expect(button).toHaveAttribute('title', button.getAttribute('aria-label'));
+    expect(button).not.toHaveAttribute('title');
     expect(
       screen.queryByText(/Previa|Por verificar|pendiente de verificar/i)
     ).not.toBeInTheDocument();

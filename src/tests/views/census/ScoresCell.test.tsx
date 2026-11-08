@@ -114,7 +114,7 @@ describe('ScoresCell', () => {
     );
     expect(screen.getByText('C2')).toBeVisible();
     const name = 'Escalas de enfermería: CUDYR C2. Abrir detalle';
-    expect(screen.getByRole('button', { name })).toHaveAttribute('title', name);
+    expect(screen.getByRole('button', { name })).not.toHaveAttribute('title');
     expect(screen.queryByTestId('cudyr-pending-status')).not.toBeInTheDocument();
   });
 
@@ -157,7 +157,7 @@ describe('ScoresCell', () => {
     const name =
       'Escalas de enfermería: Braden 14, Riesgo alto, Faltan 2 días para repetir la escala; ' +
       'Downton 2, Riesgo bajo, Faltan 6 días para repetir la escala. Abrir detalle';
-    expect(screen.getByRole('button', { name })).toHaveAttribute('title', name);
+    expect(screen.getByRole('button', { name })).not.toHaveAttribute('title');
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /^Escalas de enfermería:/ }));
