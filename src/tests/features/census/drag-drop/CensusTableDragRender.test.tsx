@@ -1,12 +1,18 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { CensusTableBody } from '@/features/census/components/CensusTableBody';
 import { useCensusTableDragDrop } from '@/features/census/drag-drop/useCensusTableDragDrop';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { BedType } from '@/types/domain/beds';
+import type { PatientRowProps } from '@/features/census/components/patient-row/patientRowContracts';
 
-const { patientRowRender } = vi.hoisted(() => ({ patientRowRender: vi.fn() }));
+const { patientRowRender, updateClinicalCrib, confirm, alert } = vi.hoisted(() => ({
+  patientRowRender: vi.fn(),
+  updateClinicalCrib: vi.fn(),
+  confirm: vi.fn(async () => true),
+  alert: vi.fn(),
+}));
 const pendingClearTargets = { bedIds: new Set<string>(), clinicalCribBedIds: new Set<string>() };
 const pendingCribCreates = new Map();
 
@@ -17,10 +23,28 @@ vi.mock('@/features/census/hooks/usePendingBedClearIds', () => ({
 
 vi.mock('@/features/census/components/PatientRow', async () => {
   const { createElement, memo } = await import('react');
+  const { usePatientRowBedConfigActions } =
+    await import('@/features/census/components/patient-row/usePatientRowBedConfigActions');
   return {
-    PatientRow: memo(({ bed }: { bed: { id: string } }) => {
+    PatientRow: memo(({ bed, data, getRecordLastUpdated }: PatientRowProps) => {
+      const { removeClinicalCrib } = usePatientRowBedConfigActions({
+        bedId: bed.id,
+        isCunaMode: false,
+        hasCompanion: false,
+        hasClinicalCrib: Boolean(data.clinicalCrib),
+        clinicalCrib: data.clinicalCrib,
+        getRecordLastUpdated,
+        updatePatient: vi.fn(),
+        updateClinicalCrib,
+        confirm,
+        alert,
+      });
       patientRowRender(bed.id);
-      return createElement('tr', { 'data-testid': `patient-${bed.id}` });
+      return createElement(
+        'tr',
+        { 'data-testid': `patient-${bed.id}` },
+        createElement('td', {}, createElement('button', { onClick: removeClinicalCrib }, bed.id))
+      );
     }),
   };
 });
@@ -97,7 +121,7 @@ it('keeps an unchanged patient row memoized while an empty bed receives drag hov
   expect(patientRowRender).toHaveBeenCalledTimes(1);
 });
 
-it('rerenders only the bed whose document indicator changes in a populated census', () => {
+it('isolates edits and server confirmations while crib removal uses the latest revision', async () => {
   patientRowRender.mockClear();
   const fullRows = Array.from({ length: 20 }, (_, index) => {
     const bed = { ...occupiedBed, id: `BED${index}`, name: `BED${index}` };
@@ -109,6 +133,7 @@ it('rerenders only the bed whose document indicator changes in a populated censu
       isSubRow: false,
     };
   });
+  fullRows[1].data.clinicalCrib = DataFactory.createMockPatient('BED1-C');
   const props = {
     unifiedRows: fullRows,
     currentDateString: '2026-02-20',
@@ -121,7 +146,7 @@ it('rerenders only the bed whose document indicator changes in a populated censu
     onAction,
     onActivateEmptyBed,
   };
-  const table = (presence: Record<string, boolean>, recordLastUpdated?: string) => (
+  const table = (presence: Record<string, boolean>, recordLastUpdated = '2026-02-20T11:59:59Z') => (
     <table>
       <CensusTableBody
         {...props}
@@ -137,7 +162,25 @@ it('rerenders only the bed whose document indicator changes in a populated censu
   expect(patientRowRender).toHaveBeenLastCalledWith('BED0');
   rerender(table({ BED0: true }));
   expect(patientRowRender).toHaveBeenCalledTimes(21);
-  // A new authoritative revision must still reach every row's guarded commands.
+  fullRows[0] = { ...fullRows[0], data: { ...fullRows[0].data, patientName: 'Edited Patient' } };
+  props.unifiedRows = [...fullRows];
   rerender(table({ BED0: true }, '2026-02-20T12:00:00Z'));
-  expect(patientRowRender).toHaveBeenCalledTimes(41);
+  expect(patientRowRender).toHaveBeenCalledTimes(22);
+  expect(patientRowRender).toHaveBeenLastCalledWith('BED0');
+  rerender(table({ BED0: true }, '2026-02-20T12:00:01Z'));
+  expect(patientRowRender).toHaveBeenCalledTimes(22);
+  confirm.mockImplementationOnce(async () => {
+    rerender(table({ BED0: true }, '2026-02-20T12:00:02Z'));
+    return true;
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'BED1' }));
+  await waitFor(() =>
+    expect(updateClinicalCrib).toHaveBeenCalledWith(
+      'BED1',
+      'remove',
+      undefined,
+      '2026-02-20T12:00:01Z',
+      expect.objectContaining({ patientName: fullRows[1].data.clinicalCrib?.patientName })
+    )
+  );
 });
