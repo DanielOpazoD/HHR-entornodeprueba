@@ -21,5 +21,4 @@ export { getActiveTransfersQuery as getActiveTransfers } from '@/services/transf
 export { getTransferByIdQuery as getTransferById } from '@/services/transfers/transferQueriesService';
 export { getLatestOpenTransferRequestByBedIdQuery as getLatestOpenTransferRequestByBedId } from '@/services/transfers/transferQueriesService';
 export { getLatestOpenTransferRequestByPatientRutQuery as getLatestOpenTransferRequestByPatientRut } from '@/services/transfers/transferQueriesService';
-export { subscribeToTransfersRealtime as subscribeToTransfers } from '@/services/transfers/transferSubscriptionsService';
 export type { TransferMutationResult } from '@/services/transfers/transferMutationsService';
