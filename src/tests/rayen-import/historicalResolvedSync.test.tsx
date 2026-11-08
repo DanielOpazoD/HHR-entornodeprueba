@@ -209,7 +209,9 @@ describe('resolved historical synchronization', () => {
       ).toBe(false);
       const admission = motherAndNewbornDiff.admissions[0].patient;
       expect(resolveIsNewAdmissionForRecord({ ...admission, recordDate: '2026-07-25' })).toBe(true);
-      expect(resolveIsNewAdmissionForRecord({ ...admission, recordDate: '2026-07-26' })).toBe(
+      // A madrugada admission is also marked on the calendar day it happened.
+      expect(resolveIsNewAdmissionForRecord({ ...admission, recordDate: '2026-07-26' })).toBe(true);
+      expect(resolveIsNewAdmissionForRecord({ ...admission, recordDate: '2026-07-27' })).toBe(
         false
       );
     }
