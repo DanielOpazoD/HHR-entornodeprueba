@@ -117,6 +117,38 @@ describe('ExamRequestModal integration', () => {
     expect(first).toHaveFocus();
   });
 
+  it('prints what is typed on the OTROS and MEDICO TRATANTE lines, only for this opening', () => {
+    const { rerender } = render(
+      <ExamRequestModal isOpen={true} onClose={vi.fn()} patient={mockPatient} />
+    );
+    const form = screen.getByTestId('exam-request-form');
+
+    fireEvent.change(within(form).getByRole('textbox', { name: 'OTROS, línea 1' }), {
+      target: { value: 'Perfil lipídico' },
+    });
+    fireEvent.change(within(form).getByRole('textbox', { name: 'OTROS, línea 2' }), {
+      target: { value: 'Ferritina' },
+    });
+    fireEvent.change(within(form).getByRole('textbox', { name: 'MEDICO TRATANTE' }), {
+      target: { value: 'Dra. Sintética' },
+    });
+
+    // The printed page is the form itself: the typed text sits on its lines.
+    expect(within(form).getByDisplayValue('Perfil lipídico')).toBeInTheDocument();
+    expect(within(form).getByDisplayValue('Ferritina')).toBeInTheDocument();
+    expect(within(form).getByDisplayValue('Dra. Sintética')).toBeInTheDocument();
+    // FIRMA stays a blank line for handwriting.
+    expect(within(form).getAllByRole('textbox')).toHaveLength(3);
+
+    // Nothing is kept once the dialog closes: the next opening starts blank.
+    rerender(<ExamRequestModal isOpen={false} onClose={vi.fn()} patient={mockPatient} />);
+    rerender(<ExamRequestModal isOpen={true} onClose={vi.fn()} patient={mockPatient} />);
+    const reopened = screen.getByTestId('exam-request-form');
+    within(reopened)
+      .getAllByRole('textbox')
+      .forEach(input => expect(input).toHaveValue(''));
+  });
+
   it('updates the selected exam count when a visible exam is toggled', async () => {
     render(<ExamRequestModal isOpen={true} onClose={vi.fn()} patient={mockPatient} />);
 

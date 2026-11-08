@@ -157,9 +157,11 @@ const ExamRequestDialog: React.FC<ExamRequestModalProps> = ({
             selectedExams={order.selectedExams}
             procedencia={order.procedencia}
             prevision={order.prevision}
+            freeText={order.freeText}
             onToggleExam={requests.toggleExam}
             onProcedenciaChange={requests.setProcedencia}
             onPrevisionChange={requests.setPrevision}
+            onFreeTextChange={requests.setFreeText}
             className={order.key === requests.active?.key ? undefined : 'hidden print:block'}
             style={index < orderCount - 1 ? { breakAfter: 'page' } : undefined}
             panel={

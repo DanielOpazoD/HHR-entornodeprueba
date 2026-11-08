@@ -8,6 +8,10 @@
 import React from 'react';
 import clsx from 'clsx';
 import type { PatientData } from '@/types/domain/patient';
+import type {
+  ExamRequestFreeText,
+  ExamRequestFreeTextField,
+} from '@/hooks/controllers/examRequestController';
 import {
   buildExamRequestFooterFields,
   buildExamRequestFooterSection,
@@ -24,9 +28,11 @@ interface ExamRequestFormProps {
   selectedExams: ReadonlySet<string>;
   procedencia: string;
   prevision: string;
+  freeText: ExamRequestFreeText;
   onToggleExam: (examKey: string) => void;
   onProcedenciaChange: (value: string) => void;
   onPrevisionChange: (value: string) => void;
+  onFreeTextChange: (field: ExamRequestFreeTextField, line: number, value: string) => void;
   className?: string;
   style?: React.CSSProperties;
   /** With several patients, the form is the panel of its tab. */
@@ -43,9 +49,11 @@ export const ExamRequestForm: React.FC<ExamRequestFormProps> = ({
   selectedExams,
   procedencia,
   prevision,
+  freeText,
   onToggleExam,
   onProcedenciaChange,
   onPrevisionChange,
+  onFreeTextChange,
   className,
   style,
   panel,
@@ -104,6 +112,27 @@ export const ExamRequestForm: React.FC<ExamRequestFormProps> = ({
         )}
       </div>
     </React.Fragment>
+  );
+
+  const renderFreeTextLines = (
+    field: ExamRequestFreeTextField,
+    label: string,
+    lineCount: number
+  ) => (
+    <div className="flex-1 flex flex-col gap-1">
+      {Array.from({ length: lineCount }, (_, line) => (
+        <input
+          key={line}
+          type="text"
+          // Shared computers: the browser must not remember what one person typed.
+          autoComplete="off"
+          aria-label={lineCount > 1 ? `${label}, línea ${line + 1}` : label}
+          value={freeText[field][line] ?? ''}
+          onChange={event => onFreeTextChange(field, line, event.target.value)}
+          className="w-full h-4 border-0 border-b border-slate-900 rounded-none bg-transparent px-1 text-[10px] font-medium leading-none text-slate-900 outline-none not-print:focus:bg-emerald-50"
+        />
+      ))}
+    </div>
   );
 
   return (
@@ -176,7 +205,9 @@ export const ExamRequestForm: React.FC<ExamRequestFormProps> = ({
               <span className="text-[9px] font-black text-slate-900 uppercase whitespace-nowrap">
                 {field.label}:
               </span>
-              {field.lines === 2 ? (
+              {field.freeText ? (
+                renderFreeTextLines(field.freeText, field.label, field.lines ?? 1)
+              ) : field.lines === 2 ? (
                 <div className="flex-1 flex flex-col gap-3">
                   <div className="border-b border-slate-900 h-0.5 w-full"></div>
                   <div className="border-b border-slate-900 h-0.5 w-full"></div>
