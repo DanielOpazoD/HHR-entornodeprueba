@@ -36,7 +36,7 @@ describe('patientRowIndicatorsController', () => {
     ).toBe(EMPTY_PATIENT_ROW_INDICATORS);
   });
 
-  it('classifies main-row admissions through the unified clinical-day logic', () => {
+  it('marks a madrugada admission on its clinical day and on its calendar day', () => {
     expect(
       buildOccupiedPatientRowIndicators({
         isSubRow: false,
@@ -55,6 +55,20 @@ describe('patientRowIndicatorsController', () => {
       buildOccupiedPatientRowIndicators({
         isSubRow: false,
         currentDateString: '2026-03-11',
+        firstSeenDate: '2026-03-10',
+        admissionDate: '2026-03-11',
+        admissionTime: '02:00',
+        hasClinicalDocument: true,
+      })
+    ).toEqual({
+      hasClinicalDocument: true,
+      isNewAdmission: true,
+    });
+
+    expect(
+      buildOccupiedPatientRowIndicators({
+        isSubRow: false,
+        currentDateString: '2026-03-12',
         firstSeenDate: '2026-03-10',
         admissionDate: '2026-03-11',
         admissionTime: '02:00',
