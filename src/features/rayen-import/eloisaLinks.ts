@@ -1,7 +1,4 @@
-/**
- * Eloísa's own pages, opened from the mark in the census toolbar. A destination without a known
- * address stays in the ring, greyed out, until the hospital confirms which page it is.
- */
+/** Eloísa's own pages, opened from the mark in the census toolbar. */
 
 export type EloisaLinkKey = 'hospitalized' | 'beds' | 'outpatient' | 'emergency';
 
@@ -10,7 +7,7 @@ export interface EloisaLink {
   label: string;
   /** Written along the ring, where a long name does not fit. */
   ringLabel?: string;
-  href: string | null;
+  href: string;
 }
 
 export const ELOISA_LINKS: readonly EloisaLink[] = [
@@ -25,6 +22,6 @@ export const ELOISA_LINKS: readonly EloisaLink[] = [
     ringLabel: 'Camas',
     href: 'https://hospitalizado.rayensalud.cl/',
   },
-  { key: 'outpatient', label: 'Ambulatoria', href: null },
-  { key: 'emergency', label: 'Urgencias', href: null },
+  { key: 'outpatient', label: 'Ambulatoria', href: 'https://clinicohangaroa.eloisa.cl/' },
+  { key: 'emergency', label: 'Urgencias', href: 'https://urgencia.saludenred.cl/' },
 ];

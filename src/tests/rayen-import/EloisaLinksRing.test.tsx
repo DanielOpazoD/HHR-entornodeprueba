@@ -46,8 +46,8 @@ describe('Eloísa links ring', () => {
     ).toEqual([
       'Hospitalizados en Eloísa',
       'Gestión de camas en Eloísa',
-      'Ambulatoria en Eloísa: falta su dirección',
-      'Urgencias en Eloísa: falta su dirección',
+      'Ambulatoria en Eloísa',
+      'Urgencias en Eloísa',
     ]);
     const hospitalized = screen.getByTestId('eloisa-link-hospitalized');
     expect(hospitalized).toHaveAttribute(
@@ -60,10 +60,14 @@ describe('Eloísa links ring', () => {
       'href',
       'https://hospitalizado.rayensalud.cl/'
     );
-    // A page without a known address stays in the ring, greyed out and without a link.
-    const outpatient = screen.getByTestId('eloisa-link-outpatient');
-    expect(outpatient).toHaveAttribute('aria-disabled', 'true');
-    expect(outpatient).not.toHaveAttribute('href');
+    expect(screen.getByTestId('eloisa-link-outpatient')).toHaveAttribute(
+      'href',
+      'https://clinicohangaroa.eloisa.cl/'
+    );
+    expect(screen.getByTestId('eloisa-link-emergency')).toHaveAttribute(
+      'href',
+      'https://urgencia.saludenred.cl/'
+    );
     expect(hospitalized).toHaveFocus();
   });
 

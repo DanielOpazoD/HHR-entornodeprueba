@@ -109,10 +109,8 @@ export const EloisaLinksRing: React.FC<EloisaLinksRingProps> = ({ anchor, onClos
     };
   }, [anchor, onClose]);
 
-  // With no address known yet, the menu itself holds the focus so Escape and Tab still close it.
   useEffect(() => {
-    const menu = menuRef.current;
-    (menu?.querySelector<SVGAElement>('a[href]') ?? menu)?.focus();
+    menuRef.current?.querySelector<SVGAElement>('a[href]')?.focus();
   }, []);
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
@@ -163,11 +161,7 @@ export const EloisaLinksRing: React.FC<EloisaLinksRingProps> = ({ anchor, onClos
               <>
                 <path
                   d={sectorPath(from, to)}
-                  className={
-                    link.href
-                      ? 'fill-emerald-50 stroke-emerald-200 transition-colors duration-150 [stroke-width:1] group-hover:fill-emerald-100 group-hover:stroke-emerald-300 group-focus-visible:fill-emerald-100 group-focus-visible:stroke-emerald-300'
-                      : 'fill-slate-50 stroke-slate-200 [stroke-width:1]'
-                  }
+                  className="fill-emerald-50 stroke-emerald-200 transition-colors duration-150 [stroke-width:1] group-hover:fill-emerald-100 group-hover:stroke-emerald-300 group-focus-visible:fill-emerald-100 group-focus-visible:stroke-emerald-300"
                 />
                 <path id={pathId} d={labelPath(link.key, from, to)} fill="none" />
                 <g transform={`translate(${iconX} ${iconY})`}>
@@ -176,21 +170,17 @@ export const EloisaLinksRing: React.FC<EloisaLinksRingProps> = ({ anchor, onClos
                     height={ICON_SIZE}
                     strokeWidth={1.75}
                     aria-hidden="true"
-                    className={link.href ? 'text-emerald-700' : 'text-slate-300'}
+                    className="text-emerald-700"
                   />
                 </g>
-                <text
-                  className={`text-[5.8px] font-bold uppercase tracking-[0.08em] ${
-                    link.href ? 'fill-emerald-700' : 'fill-slate-300'
-                  }`}
-                >
+                <text className="fill-emerald-700 text-[5.8px] font-bold uppercase tracking-[0.08em]">
                   <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">
                     {link.ringLabel ?? link.label}
                   </textPath>
                 </text>
               </>
             );
-            return link.href ? (
+            return (
               <a
                 key={link.key}
                 href={link.href}
@@ -206,19 +196,6 @@ export const EloisaLinksRing: React.FC<EloisaLinksRingProps> = ({ anchor, onClos
               >
                 {body}
               </a>
-            ) : (
-              <g
-                key={link.key}
-                role="menuitem"
-                tabIndex={-1}
-                aria-disabled="true"
-                aria-label={`${link.label} en Eloísa: falta su dirección`}
-                data-eloisa-link={link.key}
-                data-testid={`eloisa-link-${link.key}`}
-                className="pointer-events-auto cursor-not-allowed outline-none"
-              >
-                {body}
-              </g>
             );
           })}
           <circle r={INNER_RADIUS - 3} className="fill-white stroke-emerald-200 [stroke-width:1]" />
