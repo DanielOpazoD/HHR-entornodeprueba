@@ -19,9 +19,16 @@ vi.mock('@/features/rayen-import/hooks/useRayenFillStatus', () => ({
   registerRayenFillAbort: vi.fn(),
 }));
 
+// A split day's view can re-read the day; by default these synthetic days have no documents.
+const derived = vi.hoisted(() => ({ view: vi.fn() }));
+const plainView = (day: unknown) => Promise.resolve({ record: day, day });
+vi.mock('@/features/rayen-import/hooks/clinicalFillDerivedView', () => ({
+  readClinicalFillDerivedView: derived.view,
+}));
+
 const RUN_ID = 'run-field-conflict';
 
-const census = (revision: number): DailyRecord =>
+const census = (revision: number, runId = RUN_ID): DailyRecord =>
   ({
     date: '2026-11-08',
     lastUpdated: `2026-11-08T10:00:0${revision}.000Z`,
@@ -39,10 +46,10 @@ const census = (revision: number): DailyRecord =>
     discharges: [],
     transfers: [],
     cma: [],
-    rayenSync: { runId: RUN_ID },
+    rayenSync: { runId },
     rayenSyncHistory: [
       {
-        id: RUN_ID,
+        id: runId,
         status: 'applied',
         startedAt: '2026-11-08T10:00:00Z',
         by: 'Operador sintético',
@@ -94,7 +101,10 @@ const render = () => {
 };
 
 describe('clinical fill retry after a concurrent field change', () => {
-  beforeEach(() => setSessionGeneration('synthetic-generation-a'));
+  beforeEach(() => {
+    setSessionGeneration('synthetic-generation-a');
+    derived.view.mockReset().mockImplementation(plainView);
+  });
   afterEach(() => {
     setSessionGeneration(null);
     vi.restoreAllMocks();
@@ -169,6 +179,46 @@ describe('clinical fill retry after a concurrent field change', () => {
     const summary = completeRun.mock.calls[0]![1] as ClinicalFillSummary;
     expect(summary).toMatchObject({ total: 3, patched: 3 });
     expect(summary.errors).toEqual([archiveFailure]);
+  });
+
+  it('keeps a patient pending when the retry recovers more than its field conflict', async () => {
+    // The first history read failed for this patient, so its nurses are missing from the
+    // census-wide staffing; the retry reads only this patient and cannot rebuild that inference.
+    const historyFailure = (source: 'scales' | 'staffing'): ClinicalFillError => ({
+      bedId: 'R2',
+      clinicalEpisodeId: 'episode-2',
+      source,
+      reason: 'source_unavailable',
+      message: 'synthetic history failure',
+    });
+    vi.spyOn(runner, 'runClinicalFill')
+      .mockResolvedValueOnce(
+        firstAttempt([historyFailure('scales'), historyFailure('staffing'), fieldConflict(2)])
+      )
+      .mockResolvedValueOnce({ total: 1, patched: 1, errors: [] });
+    const { run, completeRun } = render();
+
+    const outcome = await run();
+
+    const summary = completeRun.mock.calls[0]![1] as ClinicalFillSummary;
+    expect(summary.errors).toEqual([historyFailure('scales'), historyFailure('staffing')]);
+    expect(outcome.status).toBe('partial');
+  });
+
+  it('does not retry on a day that the derived view re-read from a newer run', async () => {
+    derived.view.mockImplementation((day: unknown) =>
+      derived.view.mock.calls.length === 2 ? plainView(census(3, 'newer-run')) : plainView(day)
+    );
+    const fill = vi
+      .spyOn(runner, 'runClinicalFill')
+      .mockResolvedValue(firstAttempt([fieldConflict(2)]));
+    const { run, recordRunPerformance } = render();
+
+    await run();
+
+    expect(derived.view).toHaveBeenCalledTimes(2);
+    expect(fill).toHaveBeenCalledTimes(1);
+    expect(recordRunPerformance).not.toHaveBeenCalled();
   });
 
   it('stops without retrying when the session changes before the retry', async () => {

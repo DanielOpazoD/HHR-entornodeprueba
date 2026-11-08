@@ -405,37 +405,35 @@ export const useRayenClinicalFill = ({
               try {
                 const day = await loadDailyRecord(record.date);
                 check();
-                if (!isSuperseded(day)) {
-                  const view = await readClinicalFillDerivedView(day, () =>
-                    loadDailyRecord(record.date)
-                  );
+                const view = isSuperseded(day)
+                  ? null
+                  : await readClinicalFillDerivedView(day, () => loadDailyRecord(record.date));
+                check();
+                // The view re-reads the day when a document is ahead: that day must be this run's too.
+                const candidates =
+                  view && (view.day === day || !isSuperseded(view.day))
+                    ? collectClinicalFillCandidates(view.record, conflictedEpisodeIds)
+                    : [];
+                // An episode missing from the fresh day keeps its pending issue.
+                const retriedEpisodeIds = candidates.map(
+                  ({ patient }) => patient.clinicalEpisodeId!
+                );
+                if (view && retriedEpisodeIds.length > 0) {
+                  recordRunPerformance?.({ coordination: { clinicalRetries: 1 } }, auditRunId);
+                  const retrySummary = await fillOnce({
+                    day: view.day,
+                    view: view.record,
+                    episodeIds: retriedEpisodeIds,
+                    candidates,
+                    historicalEpisodeIds: [],
+                    conflictRetry: true,
+                  });
                   check();
-                  const candidates = collectClinicalFillCandidates(
-                    view.record,
-                    conflictedEpisodeIds
+                  summary = mergeClinicalConflictRetrySummary(
+                    summary,
+                    retrySummary,
+                    new Set(retriedEpisodeIds)
                   );
-                  // An episode missing from the fresh day keeps its pending issue.
-                  const retriedEpisodeIds = candidates.map(
-                    ({ patient }) => patient.clinicalEpisodeId!
-                  );
-                  if (retriedEpisodeIds.length > 0) {
-                    recordRunPerformance?.({ coordination: { clinicalRetries: 1 } }, auditRunId);
-                    const retrySummary = await fillOnce({
-                      day: view.day,
-                      view: view.record,
-                      episodeIds: retriedEpisodeIds,
-                      candidates,
-                      historicalEpisodeIds: [],
-                      conflictRetry: true,
-                    });
-                    check();
-                    summary = mergeClinicalConflictRetrySummary(
-                      summary,
-                      retrySummary,
-                      new Set(candidates.map(candidate => candidate.bedId)),
-                      new Set(retriedEpisodeIds)
-                    );
-                  }
                 }
               } catch (error) {
                 // A failed retry leaves the attempt's pending issues as they were.
