@@ -1,5 +1,5 @@
 import { needsClinicalRead } from '../contracts/clinicalReadSelection';
-import type { ClinicalFillError, ClinicalFillSummary } from '../contracts/clinicalFillContracts';
+import type { ClinicalFillSummary } from '../contracts/clinicalFillContracts';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { ClinicalRetryToken, ClinicalStageResult } from '../contracts/clinicalStageResult';
 import type { ConfirmedRayenCensusHandoff } from '../hooks/rayenCensusPersistenceGuard';
@@ -66,7 +66,7 @@ export const buildClinicalRetryToken = (
   };
 };
 
-const addIncrementalMetrics = (
+export const addClinicalIncrementalMetrics = (
   previous: ClinicalFillSummary['incremental'],
   current: ClinicalFillSummary['incremental']
 ): ClinicalFillSummary['incremental'] => {
@@ -107,53 +107,8 @@ export const mergeClinicalRetrySummary = (
     patched: Math.min(previous.total, previous.patched + current.patched),
     errors: [...retainedErrors, ...current.errors],
     staffingProposal: current.staffingProposal ?? previous.staffingProposal,
-    incremental: addIncrementalMetrics(previous.incremental, current.incremental),
+    incremental: addClinicalIncrementalMetrics(previous.incremental, current.incremental),
     performance: mergeRayenSyncPerformance(previous.performance, current.performance),
-  };
-};
-
-const isFieldConflict = (error: ClinicalFillError): boolean =>
-  error.source === 'patch' && error.cause === 'batch_field_changed';
-
-/** Episodes the batch left out because a clinical field changed after the run read its base. */
-export const collectBatchFieldConflictEpisodeIds = (summary: ClinicalFillSummary): string[] => [
-  ...new Set(
-    summary.errors.flatMap(error =>
-      isFieldConflict(error) && error.clinicalEpisodeId ? [error.clinicalEpisodeId] : []
-    )
-  ),
-];
-
-const clinicalFillErrorKey = (error: ClinicalFillError): string =>
-  [error.bedId, error.clinicalEpisodeId, error.source, error.reason, error.cause].join('|');
-
-/**
- * Folds the in-run retry of conflicted episodes into the attempt that left them out. The retry
- * resolves only their field conflict: it replaces those errors with its own, and every other issue
- * of the attempt, and its staffing inference, stay as they were.
- */
-export const mergeClinicalConflictRetrySummary = (
-  attempt: ClinicalFillSummary,
-  retry: ClinicalFillSummary,
-  retriedEpisodeIds: ReadonlySet<string>
-): ClinicalFillSummary => {
-  const errors = new Map<string, ClinicalFillError>();
-  for (const error of [
-    ...attempt.errors.filter(
-      error => !(isFieldConflict(error) && retriedEpisodeIds.has(error.clinicalEpisodeId ?? ''))
-    ),
-    // Staffing comes from the attempt's whole census, so the retry's staffing issues do not apply.
-    ...retry.errors.filter(error => error.source !== 'staffing'),
-  ]) {
-    if (!errors.has(clinicalFillErrorKey(error))) errors.set(clinicalFillErrorKey(error), error);
-  }
-  return {
-    total: attempt.total,
-    patched: Math.min(attempt.total, attempt.patched + retry.patched),
-    errors: [...errors.values()],
-    staffingProposal: attempt.staffingProposal,
-    incremental: addIncrementalMetrics(attempt.incremental, retry.incremental),
-    performance: mergeRayenSyncPerformance(attempt.performance, retry.performance),
   };
 };
 
