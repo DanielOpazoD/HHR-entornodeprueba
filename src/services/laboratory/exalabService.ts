@@ -134,7 +134,7 @@ export const connectExalab = async (signal: AbortSignal): Promise<void> => {
       cleanup();
       reject(
         new ExalabRequestError(
-          'Para conectar Exalab, usa Chrome del Mac mini con la extensión Eloísa actualizada. Después podrás consultar desde este equipo.'
+          'Para conectar Exalab, usa Chrome en este PC con la extensión Eloísa actualizada y recarga HHR.'
         )
       );
     }, 3000);

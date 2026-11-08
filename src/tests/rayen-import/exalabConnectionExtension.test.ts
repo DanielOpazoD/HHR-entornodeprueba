@@ -56,11 +56,15 @@ describe('Exalab personal-session consent', () => {
       permissions: ['cookies'],
       origins: ['https://exalab.saludoriente.cl/*'],
     });
+    expect(harness.cookies).toHaveBeenCalledWith({
+      url: 'https://exalab.saludoriente.cl/web_ssmo/index.php',
+    });
     const [url, options] = harness.fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe(
       'https://hhr-hospitalizados.app/.netlify/functions/exalab-proxy?action=connect'
     );
     expect(options.body).toContain('synthetic-only');
+    expect(JSON.parse(String(options.body)).session.userAgent).toBe('synthetic-UA');
     expect(options.body).not.toContain('must-not-leave-browser');
     expect(harness.elements.status.textContent).toContain('Sesión conectada');
   });

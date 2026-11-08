@@ -15,17 +15,19 @@ estos informes al análisis numérico de Syslab ni a su bandeja del censo.
 deriva su propietario de proyecto, UID verificado y hospital. Nunca acepta un
 propietario elegido por el navegador. No modifica Firestore ni sus reglas.
 
-Para conectar, abrir HHR en Chrome del Mac mini con la extensión actualizada,
+El alcance inicial es PC con HHR y la extensión activada. Para conectar,
+abrir HHR en Chrome de ese PC con la extensión actualizada,
 elegir Exalab y pulsar Conectar. Una página de la extensión solicita el permiso
 opcional de cookies y acceso exclusivamente a Exalab; la persona confirma su cuenta
 personal antes de vincularla. Solo envía `PHPSESSID`, `cf_clearance` si existe y
 User-Agent al gateway por HTTPS, mediante una capacidad aleatoria de cinco minutos
 y un solo uso. Las cookies no pasan por mensajes de la página HHR, no se guardan en
 disco y nunca se lee la contraseña de ClaveÚnica. El puente verifica la sesión antes
-de aceptarla. Una sesión protegida por IP debe conectarse desde el mismo Mac mini.
+de aceptarla. Si Exalab rechaza reutilizar la sesión desde el Mac mini,
+la conexión queda pendiente y requiere verificar el acceso real del portal.
 
-La sesión queda asociada únicamente a esa cuenta HHR; permite consultas desde sus
-otros dispositivos. Caduca tras una hora sin uso o un máximo de ocho horas, al
+La sesión queda asociada únicamente a esa cuenta HHR; el PC consulta y recibe los
+PDF mediante el puente del Mac mini. Caduca tras una hora sin uso o un máximo de ocho horas, al
 desconectarla o al reiniciar el puente; Exalab puede vencerla antes. La desconexión
 invalida también los PDF emitidos y las conexiones pendientes. Cada referencia de
 PDF cifra paciente, folio, origen, propietario y sesión, y vence a los 30 minutos.

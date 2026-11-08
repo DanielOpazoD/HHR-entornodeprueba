@@ -31,7 +31,7 @@
       });
       const result = await response.json();
       if (!response.ok || result.success !== true || result.connected !== true) {
-        status.textContent = 'No se pudo vincular la sesión. Comprueba el ingreso a Exalab desde el Mac mini y abre una conexión nueva desde HHR.'; return;
+        status.textContent = 'No se pudo vincular la sesión. Renueva el ingreso a Exalab desde este PC y abre una conexión nueva desde HHR.'; return;
       }
       status.textContent = 'Sesión conectada. Vuelve a HHR y pulsa Comprobar sesión.';
       button.hidden = true;
