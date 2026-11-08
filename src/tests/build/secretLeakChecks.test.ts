@@ -91,6 +91,19 @@ describe('secretLeakChecks', () => {
     );
   });
 
+  it('flags a developer-only key read outside the files that guard it', () => {
+    const read = 'const key = import.meta.env.VITE_LOCAL_GEMINI_API_KEY;';
+    const ids = (file: string) =>
+      findSecretLeakFailuresForFile({ file, content: read }).map(failure => failure.check.id);
+
+    expect(ids('src/services/terminology/cie10AISearch.ts')).toContain(
+      'client-dev-only-env-outside-guarded-files'
+    );
+    expect(ids('src/services/ai/aiProviderConfig.ts')).not.toContain(
+      'client-dev-only-env-outside-guarded-files'
+    );
+  });
+
   it('does not flag env-based configuration guidance', () => {
     const failures = findSecretLeakFailuresForFile({
       file: 'docs/RUNBOOK_SECRET_ROTATION.md',
