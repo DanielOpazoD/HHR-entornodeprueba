@@ -21,6 +21,7 @@ import {
   buildAppliedRayenSyncEvent,
   buildFailedRayenSyncEvent,
   buildRayenSyncCoverage,
+  countRayenSyncIssueCauses,
   buildRayenStaffingObservation,
   completeRayenSyncEvent,
   rayenSyncMetaFromEvent,
@@ -288,6 +289,14 @@ export const useRayenSyncAudit = ({
       const at = now().toISOString();
       const coverage = buildRayenSyncCoverage(summary.total, summary.errors, at, recordAtApply);
       if (summary.incremental) coverage.incremental = summary.incremental;
+      // Without these a partial run reached production telemetry as `unclassified_issue` only.
+      const issueEvidence = summary.errors.length
+        ? {
+            issueCount: summary.errors.length,
+            patientCount: coverage.errors,
+            issueCauses: countRayenSyncIssueCauses(summary.errors),
+          }
+        : {};
       const liveRecord = currentRecordRef.current;
       const fallback = liveRecord?.rayenSyncHistory?.some(event => event.id === runId)
         ? liveRecord
@@ -322,7 +331,7 @@ export const useRayenSyncAudit = ({
             reportRayenSyncTerminal(
               claim.run ?? { id: completedEvent.id, startedAt: completedEvent.startedAt },
               completedEvent.status === 'partial' ? 'partial' : 'complete',
-              {},
+              issueEvidence,
               completedEvent.completedAt
             );
           }
@@ -361,7 +370,7 @@ export const useRayenSyncAudit = ({
             reportRayenSyncTerminal(
               claim?.run ?? { id: failedEvent.id, startedAt: failedEvent.startedAt },
               'failed',
-              { failureReason: classifyRayenApplyFailureReason(error) },
+              { failureReason: classifyRayenApplyFailureReason(error), ...issueEvidence },
               failedEvent.completedAt
             );
           } else {
