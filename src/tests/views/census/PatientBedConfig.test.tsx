@@ -1,3 +1,4 @@
+import userEvent from '@testing-library/user-event';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { BEDS } from '@/constants/beds';
@@ -22,6 +23,43 @@ vi.mock('@/context/UIContext', () => ({
 }));
 
 describe('PatientBedConfig', () => {
+  it('opens by keyboard and returns focus to its visible trigger on Escape', async () => {
+    const user = userEvent.setup();
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <PatientBedConfig
+              bed={BEDS[0]}
+              data={DataFactory.createMockPatient(BEDS[0].id)}
+              currentDateString="2026-07-25"
+              isBlocked={false}
+              hasCompanion={false}
+              hasClinicalCrib={false}
+              isCunaMode={false}
+              onToggleMode={vi.fn()}
+              onToggleCompanion={vi.fn()}
+              onToggleClinicalCrib={vi.fn()}
+              onTextChange={() => vi.fn()}
+              onUpdateClinicalCrib={vi.fn()}
+            />
+          </tr>
+        </tbody>
+      </table>
+    );
+    const trigger = screen.getByRole('button', { name: 'Configuración de cama' });
+    expect(trigger).toHaveClass('focus-visible:opacity-100');
+    expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    trigger.focus();
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('menuitem', { name: 'Agregar cuna' })).toHaveFocus();
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await user.keyboard('{Escape}');
+    expect(trigger).toHaveFocus();
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  });
+
   it('places the isolation badge in the bed column below hospitalization days', () => {
     const data = DataFactory.createMockPatient(BEDS[0].id, {
       patientName: 'Paciente Aislado',

@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { usePortalPopoverRuntime } from '@/hooks/usePortalPopoverRuntime';
 import type { RowMenuAlign } from './patientRowUiContracts';
@@ -18,6 +18,25 @@ export const PatientRowMenuPortal: React.FC<PatientRowMenuPortalProps> = ({
   children,
 }) => {
   const popoverRef = useRef<HTMLDivElement>(null);
+  const focusTrigger = () =>
+    anchorRef.current?.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')?.focus();
+
+  useLayoutEffect(() => {
+    const panel = popoverRef.current;
+    const trigger = anchorRef.current?.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]');
+    panel
+      ?.querySelector<HTMLButtonElement>('button:not(:disabled):not([aria-disabled="true"])')
+      ?.focus();
+    return () => {
+      if (document.activeElement === document.body || panel?.contains(document.activeElement)) {
+        trigger?.focus();
+        // An outside mousedown can blur the trigger after the menu unmounts.
+        queueMicrotask(() => {
+          if (document.activeElement === document.body && trigger?.isConnected) trigger.focus();
+        });
+      }
+    };
+  }, [anchorRef]);
   const resolvePosition = useCallback(() => {
     const anchor = anchorRef.current?.getBoundingClientRect();
     if (!anchor) return null;
@@ -41,11 +60,18 @@ export const PatientRowMenuPortal: React.FC<PatientRowMenuPortalProps> = ({
   return createPortal(
     <div
       ref={popoverRef}
+      role="menu"
       className="fixed z-[100] max-h-[calc(100vh-16px)] overflow-y-auto print:hidden"
       style={position}
       data-testid="patient-row-menu-portal"
       // Preserve the anchor's existing outside-click handling, including lazy loading.
       onMouseDown={event => event.stopPropagation()}
+      // Modals must remember the persistent trigger before an item's action runs.
+      onClickCapture={event => {
+        if (event.target instanceof Element && event.target.closest('button:not(:disabled)')) {
+          focusTrigger();
+        }
+      }}
     >
       {children}
     </div>,

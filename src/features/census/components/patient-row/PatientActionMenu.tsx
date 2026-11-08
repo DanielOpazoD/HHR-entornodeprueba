@@ -140,6 +140,8 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
           size="xs"
           className="!px-1 !py-0.5 rounded-md text-slate-500"
           title="Acciones"
+          aria-expanded={isOpen}
+          aria-haspopup="menu"
           icon={<MoreHorizontal size={12} />}
         />
       )}
