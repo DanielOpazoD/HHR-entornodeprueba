@@ -3,6 +3,7 @@ import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import { normalizeRut } from '@/utils/rutUtils';
 import { isCmaBedLabel, mapRayenBed } from './bedMapping';
 import {
+  hasBirthReceiptOnlyIdentity,
   maternalRunFromFlowReport,
   parsePatientFlowTimeline,
   patientIdentifierFromFlowReport,
@@ -41,7 +42,10 @@ export const cudyrPlacementsFromPatientFlow = (
   const expectedRun = usesMaternalHeader
     ? normalizeRut(maternalRut ?? '')
     : rut.replace(/[\s.-]/g, '').toUpperCase();
-  if (!/^\d+$/.test(episode) || !expectedRun || reportRun !== expectedRun)
+  // The report is read by exact episode. A newborn known only by its delivery-receipt folio has no
+  // RUN to compare, so the episode itself is the identity; any printed RUN still has to match.
+  const birthReceiptOnly = identityKind === 'maternal' && hasBirthReceiptOnlyIdentity(text);
+  if (!/^\d+$/.test(episode) || (!birthReceiptOnly && (!expectedRun || reportRun !== expectedRun)))
     throw new Error('El informe no corresponde al paciente del episodio solicitado.');
   const rows = parsePatientFlowTimeline(text);
   if (!rows.length) throw new Error('Historial de camas incompleto.');

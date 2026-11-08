@@ -454,7 +454,10 @@ La recuperación CUDYR acepta ese encabezado únicamente si el episodio correspo
 cuna en todos sus contextos locales y el identificador coincide. La autorización del PDF
 sigue ligada al episodio; el RUN materno no convierte al RN en el episodio de su madre.
 Si el informe imprime un RUN personal, ese identificador prevalece y debe coincidir.
-Los fallos de movimientos se registran como `bed_history`, separados de la lectura y el
+Un RN registrado al nacer puede aparecer en el PDF solo con «Número Folio Comprobante de Parto»,
+sin RUN propio ni RUN materno. Como el informe se pide por el episodio exacto y ese folio no
+identifica a nadie fuera de él, la recuperación lo acepta sin comparar un RUN; un RUN impreso
+junto al folio sigue debiendo coincidir. Los fallos de movimientos se registran como `bed_history`, separados de la lectura y el
 guardado del CUDYR. El archivo de resultados continúa aunque la recuperación falle;
 los reintentos conservan la selección de lectura CUDYR sin repetir otros datos clínicos.
 

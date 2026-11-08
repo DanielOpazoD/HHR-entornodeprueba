@@ -182,6 +182,16 @@ export const parsePatientFlowTimeline = (text: string): PatientFlowRow[] => {
   return parsed.rows;
 };
 
+/**
+ * A newborn admitted at birth has no RUN yet: Eloísa prints only its delivery-receipt folio. The
+ * folio identifies no one outside that episode, so it is never compared as a RUN.
+ */
+export const hasBirthReceiptOnlyIdentity = (text: string): boolean =>
+  // The folio value can wrap onto the next line of the PDF header: the label is the evidence.
+  /\bN[uú]mero Folio Comprobante de Parto\s*:/i.test(text) &&
+  !/\b(?:RUN|N[uú]mero de Identificaci[oó]n|Pasaporte)\s*:/i.test(text) &&
+  !/\bRUN\s+Materno\/progenitor\(a\)\s*:/i.test(text);
+
 /** Parental RUN is a separate identity, valid only for an explicitly known newborn episode. */
 export const maternalRunFromFlowReport = (text: string): string => {
   const runs = new Set(
