@@ -38,7 +38,7 @@ export interface PatientRowProps {
   bed: BedDefinition;
   data: PatientData;
   currentDateString: string;
-  recordLastUpdated?: string;
+  getRecordLastUpdated?: () => string | undefined;
   onAction: (action: PatientRowAction, bedId: string, patient: PatientData) => void;
   readOnly?: boolean;
   clinicalEditingDisabled?: boolean;

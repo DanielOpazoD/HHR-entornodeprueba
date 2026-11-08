@@ -38,7 +38,7 @@ export const buildPatientRowEditingRuntimeParams = ({
 interface BuildPatientRowInteractionRuntimeParamsInput {
   bed: Pick<BedDefinition, 'id'>;
   data: PatientData;
-  recordLastUpdated?: string;
+  getRecordLastUpdated?: () => string | undefined;
   isSubRow?: boolean;
   onAction: (action: PatientRowAction, bedId: string, patient: PatientData) => void;
   rowState: Pick<PatientRowDerivedState, 'isCunaMode' | 'hasCompanion' | 'hasClinicalCrib'>;
@@ -52,7 +52,7 @@ interface BuildPatientRowRuntimeHookParamsInput {
   bed: Pick<BedDefinition, 'id'>;
   data: PatientData;
   currentDateString: string;
-  recordLastUpdated?: string;
+  getRecordLastUpdated?: () => string | undefined;
   isSubRow?: boolean;
   onAction: (action: PatientRowAction, bedId: string, patient: PatientData) => void;
   rowState: Pick<PatientRowDerivedState, 'isCunaMode' | 'hasCompanion' | 'hasClinicalCrib'>;
@@ -72,7 +72,7 @@ interface BuildPatientRowRuntimeHookParamsInput {
 export const buildPatientRowInteractionRuntimeParams = ({
   bed,
   data,
-  recordLastUpdated,
+  getRecordLastUpdated,
   isSubRow = false,
   onAction,
   rowState,
@@ -80,7 +80,7 @@ export const buildPatientRowInteractionRuntimeParams = ({
 }: BuildPatientRowInteractionRuntimeParamsInput) => ({
   bedId: bed.id,
   data,
-  recordLastUpdated,
+  getRecordLastUpdated,
   isSubRow,
   onAction,
   rowState,
@@ -95,7 +95,7 @@ export const buildPatientRowRuntimeHookParams = ({
   bed,
   data,
   currentDateString,
-  recordLastUpdated,
+  getRecordLastUpdated,
   isSubRow,
   onAction,
   rowState,
@@ -110,7 +110,7 @@ export const buildPatientRowRuntimeHookParams = ({
   interactionRuntimeParams: buildPatientRowInteractionRuntimeParams({
     bed,
     data,
-    recordLastUpdated,
+    getRecordLastUpdated,
     isSubRow,
     onAction,
     rowState,
