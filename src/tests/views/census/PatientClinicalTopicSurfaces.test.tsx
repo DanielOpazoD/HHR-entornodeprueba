@@ -67,10 +67,10 @@ const Harness: React.FC<{
   return (
     <>
       <button type="button" onClick={() => open('laboratory')}>
-        Tortuga: laboratorio
+        Abrir laboratorio
       </button>
       <button type="button" onClick={() => open('imaging')}>
-        Tortuga: imágenes
+        Abrir imágenes
       </button>
       <PatientClinicalTopicSurfaces
         patient={patient}
@@ -93,7 +93,7 @@ const patient = DataFactory.createMockPatient('R2', {
 describe('PatientClinicalTopicSurfaces', () => {
   it('opens the laboratory viewer scoped to the row patient with one initial search', async () => {
     render(<Harness patient={patient} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Tortuga: laboratorio' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir laboratorio' }));
 
     expect(
       await screen.findByRole('dialog', { name: 'Visualizador de laboratorio' })
@@ -103,7 +103,7 @@ describe('PatientClinicalTopicSurfaces', () => {
   it('hands the laboratory request to the row and closes the viewer', async () => {
     const onRequestExams = vi.fn();
     render(<Harness patient={patient} onRequestExams={onRequestExams} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Tortuga: laboratorio' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir laboratorio' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Solicitar exámenes' }));
 
     expect(onRequestExams).toHaveBeenCalledTimes(1);
@@ -113,7 +113,7 @@ describe('PatientClinicalTopicSurfaces', () => {
   it('opens MMRAD scoped to the row patient and hands the imaging request to the row', async () => {
     const onRequestImaging = vi.fn();
     render(<Harness patient={patient} onRequestImaging={onRequestImaging} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Tortuga: imágenes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir imágenes' }));
 
     expect(await screen.findByRole('dialog', { name: 'Visualizador MMRAD' })).toHaveTextContent(
       'Paciente de prueba|17.752.753-1búsqueda automática'
@@ -126,11 +126,11 @@ describe('PatientClinicalTopicSurfaces', () => {
 
   it('offers no request when the row cannot take it', async () => {
     render(<Harness patient={patient} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Tortuga: laboratorio' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir laboratorio' }));
     await screen.findByRole('dialog', { name: 'Visualizador de laboratorio' });
     expect(screen.queryByRole('button', { name: 'Solicitar exámenes' })).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tortuga: imágenes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir imágenes' }));
     await screen.findByRole('dialog', { name: 'Visualizador MMRAD' });
     expect(screen.queryByRole('button', { name: 'Solicitar imagen' })).toBeNull();
   });
@@ -142,7 +142,7 @@ describe('PatientClinicalTopicSurfaces', () => {
       clinicalEpisodeId: '141337',
     });
     const { rerender } = render(<Harness patient={patient} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Tortuga: laboratorio' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir laboratorio' }));
     expect(
       await screen.findByRole('dialog', { name: 'Visualizador de laboratorio' })
     ).toBeVisible();

@@ -11,6 +11,7 @@ import {
   type DailyRecordAuthorityRouteController,
 } from './fixtures/dailyRecordAuthorityRoute';
 import { waitForPersistedBedFields } from './fixtures/censusPersistence';
+import { openPatientClinicalTopic } from './fixtures/patientClinicalTopics';
 
 const E2E_DATE = process.env.E2E_FIXED_DATE ?? '2026-02-20';
 const EXCEL_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -304,17 +305,7 @@ const openClinicalDocumentsFromR1 = async (page: Page) => {
   const patientRow = page.locator('[data-testid="patient-row"][data-bed-id="R1"]').first();
   await expect(patientRow).toBeVisible({ timeout: 10_000 });
 
-  await patientRow.getByRole('button', { name: /Datos del Paciente/i }).focus();
-  const quickActionsLauncher = page
-    .getByRole('button', {
-      name: 'Acciones clínicas rápidas',
-    })
-    .first();
-  await expect(quickActionsLauncher).toBeVisible({ timeout: 10_000 });
-  await quickActionsLauncher.click();
-
-  await expect(page.getByTitle('Documentos clínicos')).toBeVisible({ timeout: 10_000 });
-  await page.getByTitle('Documentos clínicos').click();
+  await openPatientClinicalTopic(page, 'R1', 'Documentos');
   await expect(page.getByTestId('clinical-documents-workspace')).toBeVisible({ timeout: 15_000 });
 };
 
