@@ -5,8 +5,6 @@ import {
 import { isDischargedEncounter } from './censusReconciliationPredicates';
 import { Specialty } from '@/types/domain/patientClassification';
 import { isValidRut } from '@/utils/rutUtils';
-import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
-import { getPreviousDay } from '@/utils/clinicalDayUtils';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { rayenToPatientData } from '../mapping/rayenToPatientData';
@@ -14,6 +12,7 @@ import {
   associateClinicalCribsWithMothers,
   isNeonatalPatient,
   isMaternalCandidatePatient,
+  isUnusableNewbornRun,
   type MappedClinicalEncounter,
 } from './clinicalCribMaternalAssociation';
 
@@ -28,18 +27,6 @@ type FindCurrentPatient = (encounter: RayenEncounter) => CurrentPatientRef | und
 
 const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
   !!patient && !!patient.patientName?.trim() && !patient.isBlocked;
-
-/**
- * Eloísa opens a newborn's episode at birth, days before Registro Civil issues a RUN, so the
- * number it shows then is something else: a delivery-receipt folio or a typo. A number that fails
- * the RUT check, or one shown on the day of birth or the next, is never the child's own RUN. The
- * mother's RUN is the only valid number there, and it is recognised before this check.
- */
-export const isUnusableNewbornRun = (run: string, birthDate: string, reference: Date): boolean => {
-  if (!isValidRut(run)) return true;
-  const today = calendarStampInClinicalTimeZone(reference).iso;
-  return Boolean(birthDate) && birthDate >= getPreviousDay(today);
-};
 
 export const hasRegisteredClinicalCribRut = (patient: PatientData): boolean =>
   isValidRut(patient.rut ?? '');
@@ -95,7 +82,8 @@ export const prepareActiveClinicalPlacements = (
       neonatal &&
       Boolean(encounter.run) &&
       !parentalRun &&
-      isUnusableNewbornRun(encounter.run, mapped.patient.birthDate ?? '', reference);
+      reviewed?.patient.documentType !== 'Pasaporte' &&
+      isUnusableNewbornRun(encounter.run);
     if (neonatal && (!encounter.run || parentalRun || unusableRun)) {
       const sameEpisode = reviewed?.patient.clinicalEpisodeId === encounter.encounterId;
       // A local RUN that differs from the source number was entered in HHR and stays; the same

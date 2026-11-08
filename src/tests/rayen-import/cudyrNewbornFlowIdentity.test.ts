@@ -79,6 +79,61 @@ describe('CUDYR bed recovery for a newborn identified by parental RUN', () => {
       ]);
     }
   );
+  it.each([
+    [
+      'nested crib',
+      {
+        rut: '11.111.111-1',
+        clinicalCrib: { clinicalEpisodeId: '1001', rut: '790.695-3', bedMode: 'Cuna' },
+      },
+    ],
+    [
+      'independent bed',
+      {
+        clinicalEpisodeId: '1001',
+        rut: '790.695-3',
+        age: '0d',
+        bedMode: 'Cama',
+        neonatalMaternalRut: '11.111.111-1',
+      },
+    ],
+  ])(
+    'searches by the mother when a %s newborn stored a delivery folio as its RUT',
+    async (_placement, bed) => {
+      const recover = vi.fn(async (episode, rut, at, identityKind, maternalRut) =>
+        cudyrPlacementsFromPatientFlow(flow, episode, rut, at, identityKind, maternalRut)
+      );
+      const { archive } = startCudyrSyncCapture({
+        record: { date: '2026-10-09', beds: { R3: bed } } as unknown as DailyRecord,
+        censusDate: '2026-10-09',
+        captureEpisodes: ['1001'],
+        needsRead: true,
+        deps: {
+          fetchCudyrCategories: async () => ({
+            items: [],
+            source: 'gestion_camas',
+            historyAvailable: true,
+            observedEpisodeIds: [],
+          }),
+          archiveCudyrCapture: vi.fn().mockResolvedValue('persisted'),
+          recoverCudyrPlacements: recover,
+          now: () => new Date(observedAt),
+          createId: () => 'capture',
+        } as unknown as ClinicalFillDeps,
+        trackRequest: operation => operation(),
+        recordTimeout: vi.fn(),
+      });
+
+      expect(await archive).toEqual([]);
+      expect(recover).toHaveBeenCalledWith(
+        '1001',
+        '111111111',
+        observedAt,
+        'maternal',
+        '111111111'
+      );
+    }
+  );
   it.each([false, true])(
     'keeps stored maternal identity after bed reuse, reviewed=%s',
     async reviewed => {

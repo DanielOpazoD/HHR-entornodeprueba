@@ -3,6 +3,7 @@ import type { ClinicalFillDeps } from '../contracts/clinicalFillContracts';
 import { captureClinicalCudyrSource } from './clinicalCudyrPreflight';
 import { persistCudyrSyncCapture } from './persistCudyrSyncCapture';
 import { collectCudyrDailyFacts } from '@/services/cudyr/cudyrReportFacts';
+import { newbornOwnRut } from './clinicalCribMaternalAssociation';
 
 /** One source fetch supplies both the daily projection and the independent permanent archive. */
 export const startCudyrSyncCapture = (input: {
@@ -65,7 +66,9 @@ export const startCudyrSyncCapture = (input: {
                     };
                     const key = (rut: string) => rut.replace(/[^0-9a-z]/gi, '').toUpperCase();
                     const identities = new Set(
-                      facts.map(f => key(f.patient.rut || maternalFor(f))).filter(Boolean)
+                      facts
+                        .map(f => key(newbornOwnRut(f.patient) || maternalFor(f)))
+                        .filter(Boolean)
                     );
                     if (identities.size !== 1)
                       return Promise.reject(new Error('Identidad de episodio ambigua.'));

@@ -69,7 +69,7 @@ const syncedCrib = (current: DailyRecord, encounters: RayenEncounter[]): Patient
     }
   ).record.beds.H5C1?.clinicalCrib;
 
-describe('newborn numbers that are not its own RUN', () => {
+describe('newborn numbers that cannot be its own RUN', () => {
   it('leaves a delivery-receipt folio out of a newborn admitted at birth', () => {
     const crib = syncedCrib(record({ H5C1: seed(mother()) }), [mother(), newborn('7906953')]);
 
@@ -93,13 +93,16 @@ describe('newborn numbers that are not its own RUN', () => {
     expect(crib?.identityStatus).toBe('provisional');
   });
 
-  it('leaves out even a number that passes the RUT check on the day of birth', () => {
-    const crib = syncedCrib(record({ H5C1: seed(mother()) }), [mother(), newborn('222222222')]);
-
-    expect(crib?.rut).toBe('');
+  it('keeps a passport and a RUN that passes the check', () => {
+    expect(
+      syncedCrib(record({ H5C1: seed(mother()) }), [mother(), newborn('AB1234567')])?.rut
+    ).toBe('AB1234567');
+    expect(
+      syncedCrib(record({ H5C1: seed(mother()) }), [mother(), newborn('222222222')])?.rut
+    ).toBe('22.222.222-2');
   });
 
-  it('keeps a RUN the nurse entered in HHR and adopts one Eloísa shows days later', () => {
+  it('keeps a RUN the nurse entered in HHR instead of the folio', () => {
     const local = {
       ...seed(newborn('7906953')),
       rut: '11.111.111-1',
@@ -111,12 +114,5 @@ describe('newborn numbers that are not its own RUN', () => {
         newborn('7906953'),
       ])?.rut
     ).toBe('11.111.111-1');
-
-    const registered = syncedCrib(record({ H5C1: seed(mother()) }), [
-      mother(),
-      newborn('222222222', '2026-11-03'),
-    ]);
-    expect(registered?.rut).toBe('22.222.222-2');
-    expect(registered?.identityStatus).toBe('official');
   });
 });

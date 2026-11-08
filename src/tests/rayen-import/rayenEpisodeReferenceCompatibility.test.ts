@@ -153,7 +153,7 @@ describe('current Rayen episode reference compatibility, pure client composition
       encounterId: 'EloisaNewborn',
       run: '222222222',
       firstGivenName: 'RN de Persona',
-      birthDate: '2026-07-05',
+      birthDate: '2026-07-08',
       room: 'Cunas',
       bed: 'CH5C1',
       clinicalCribParentBedId: 'H5C1',

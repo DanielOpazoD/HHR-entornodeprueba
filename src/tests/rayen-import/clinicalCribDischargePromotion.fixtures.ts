@@ -31,7 +31,7 @@ export const newborn = (): RayenEncounter =>
     encounterId: 'NEWBORN',
     run: '',
     firstGivenName: 'RN de Ana',
-    birthDate: '2026-07-05',
+    birthDate: '2026-07-08',
     room: 'Cunas',
     bed: 'CH5C1',
     clinicalCribParentBedId: 'H5C1',
