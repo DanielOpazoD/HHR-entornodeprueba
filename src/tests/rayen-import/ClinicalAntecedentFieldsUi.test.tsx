@@ -90,6 +90,31 @@ describe('antecedent clinical fields', () => {
     expect(screen.queryByRole('heading', { name: 'Prescripciones' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Descargar copia PDF/ })).not.toBeInTheDocument();
   });
+  it.each([
+    ['emergency', 'Urgencia (UEA)'],
+    ['hospitalization', 'Hospitalización'],
+  ])('carga el detalle secundario %s y presenta su resumen como texto', async (careType, label) => {
+    requestClinicalAction.mockResolvedValue({
+      ok: true,
+      detail: { ...detail, careType, summary: 'Resumen <b>de la fuente</b>' },
+    });
+    render(
+      <ClinicalAntecedentCard
+        entry={{ ...entry, source: 'Secundaria', id: 'DAU-example' }}
+        episode="12"
+      />
+    );
+    expect(await screen.findByText(label)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Resumen de la atención' })).toBeInTheDocument();
+    expect(screen.getByText('Resumen <b>de la fuente</b>')).toBeInTheDocument();
+    expect(document.querySelector('b')).toBeNull();
+    expect(requestClinicalAction).toHaveBeenCalledWith(
+      '12',
+      'detail',
+      'Secundaria:DAU-example',
+      expect.any(AbortSignal)
+    );
+  });
   it('cancela la preparación PDF al cambiar de paciente o cerrar la tarjeta', async () => {
     requestClinicalAction.mockResolvedValue({
       ok: true,

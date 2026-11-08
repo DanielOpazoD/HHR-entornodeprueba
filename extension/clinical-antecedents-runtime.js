@@ -6,10 +6,11 @@
   const run = value => String(value || '').replace(/[^0-9k]/gi, '').toUpperCase();
   const create = ({ getContext, readJson, fetchImpl, openTab, getAuthorizationKey, now = () => new Date() }) => {
     const authorize = root.HhrClinicalAntecedentsTransport.create({ fetchImpl });
+    const sourceSupport = root.HhrClinicalAntecedentsSources.create({ run, list, text });
     const detailSupport = root.HhrClinicalAntecedentsDetail.create({
       openTab,
       getAuthorizationKey,
-      run,
+      sources: sourceSupport,
       list,
       text,
     });
@@ -99,20 +100,7 @@
             run(result.Paciente.IdentificacionPaciente.Run) !== run(patientRun)
           )
             throw new Error('La respuesta corresponde a otro paciente.');
-          return list(result.ResumenHistorial?.TypeResumenHistorial).flatMap(row => {
-            const details = list(row.HistorialResumido?.ResumenHistorialAtenciones);
-            return (details.length ? details : [row])
-              .map(item => ({
-                id: String(item.IdAtencion ?? row.IdentificadorAtencion ?? ''),
-                source,
-                date: text(item.FechaHoraInicio || row.FechaHoraAtencion),
-                windowEnd: window.endDate,
-                diagnosis: text(row.DiagnosticoPrincipal),
-                facility: text(row.EstablecimientoAtencion),
-                type: text(row.TipoAtencion),
-              }))
-              .filter(row => /^\d+$/.test(row.id));
-          });
+          return sourceSupport.summaryRows(result, source, window.endDate);
         })
       );
       return {
@@ -151,7 +139,7 @@
         if (operation === 'list')
           return {
             ok: true,
-            entries: history.rows,
+            entries: history.rows.map(({ facilityCode: _facilityCode, attentionId: _attentionId, ...entry }) => entry),
             warnings: history.warnings,
             unavailableSources: history.unavailableSources,
             windowStart: history.startDate,
@@ -161,9 +149,6 @@
         const [source, id, attachmentId] = String(entryId || '').split(':');
         const selected = history.rows.find(row => row.source === source && row.id === id);
         if (!selected) throw new Error('La atención ya no está disponible para este paciente.');
-        // The supplied HAR only proves the primary-care detail contract.
-        if (selected.source !== 'Primaria')
-          throw new Error('El detalle de esta fuente no está disponible en el panel.');
         const detail = await detailSupport.detailFor(history, selected, sender);
         if (operation === 'attachment') {
           if (await getAuthorizationKey(sender) !== history.authorizationKey)

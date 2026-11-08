@@ -649,6 +649,13 @@ efímero verificado por paciente, episodio y autorización, dentro de
 `clinical-antecedents-transport.js`; no lo comparte como estado global ni lo envía a HHR.
 La actualización conserva los permisos existentes y requiere recargar la extensión.
 
+Desde v0.48.80, el lector incorpora también `ResumenHistorial.ResumenHistorial` de
+la fuente secundaria y sus identificadores alfanuméricos. Consulta sus detalles con
+`IdAtencion`, establecimiento y `Key`, y verifica `XMLDetalleHistoria`, episodio y
+RUT antes de mostrarlos. La caché distingue las fuentes aunque coincida el número
+de atención. El resumen de la fuente se presenta como texto; hospitalización conserva
+su etiqueta. No se necesitan permisos nuevos ni una sesión directa de Urgencias.
+
 HCC puede rotular ambas atenciones como APS. Tras verificar episodio, RUT y sesión, el
 lector clasifica como UEA únicamente un formulario `Examen Fisico Urgencia` o
 `Examen Físico Segmentario Urgencia` (normalizando acentos y espacios). El texto libre

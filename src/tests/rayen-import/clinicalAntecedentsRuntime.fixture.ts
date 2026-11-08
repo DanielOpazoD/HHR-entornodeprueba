@@ -5,6 +5,7 @@ import '../../../extension/clinical-antecedents-cache.js';
 import '../../../extension/clinical-antecedents-detail.js';
 import '../../../extension/clinical-antecedents-window.js';
 import '../../../extension/clinical-antecedents-transport.js';
+import '../../../extension/clinical-antecedents-sources.js';
 import '../../../extension/clinical-antecedents-runtime.js';
 
 type Result = {
@@ -26,7 +27,7 @@ type Dependencies = {
   openTab: (input: { url: string }) => Promise<unknown>;
   getAuthorizationKey: () => Promise<string>;
 };
-const runtime = (
+export const runtime = (
   globalThis as typeof globalThis & {
     HhrClinicalAntecedents: {
       create: (deps: Dependencies) => {

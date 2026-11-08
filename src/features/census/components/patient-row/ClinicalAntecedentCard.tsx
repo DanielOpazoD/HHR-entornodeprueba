@@ -21,8 +21,9 @@ export const ClinicalAntecedentCard = ({
   const [detailAttempt, setDetailAttempt] = useState(0);
   const [detailRequested, setDetailRequested] = useState(autoLoadDetail);
   const [attachmentError, setAttachmentError] = useState('');
+  const canLoadDetail = entry.source === 'Primaria' || entry.source === 'Secundaria';
   useEffect(() => {
-    if (entry.source !== 'Primaria' || !detailRequested) return;
+    if (!canLoadDetail || !detailRequested) return;
     const controller = new AbortController();
     const id = `${entry.source}:${entry.id}`;
     const historicalWindowEnd = autoLoadDetail ? undefined : entry.windowEnd;
@@ -41,6 +42,7 @@ export const ClinicalAntecedentCard = ({
     autoLoadDetail,
     detailAttempt,
     detailRequested,
+    canLoadDetail,
   ]);
 
   const openAttachment = async (attachmentId: string): Promise<void> => {
@@ -64,9 +66,11 @@ export const ClinicalAntecedentCard = ({
         >
           {result?.detail?.careType === 'emergency'
             ? 'Urgencia (UEA)'
-            : result?.detail?.careType === 'outpatient'
-              ? 'Atención ambulatoria (APS)'
-              : entry.type || entry.source}
+            : result?.detail?.careType === 'hospitalization'
+              ? 'Hospitalización'
+              : result?.detail?.careType === 'outpatient'
+                ? 'Atención ambulatoria (APS)'
+                : entry.type || entry.source}
         </span>
       </div>
       {entry.facility && <p className="mt-1 text-[10px] text-slate-500">{entry.facility}</p>}
@@ -75,7 +79,7 @@ export const ClinicalAntecedentCard = ({
           {entry.diagnosis || 'Atención sin diagnóstico informado'}
         </h4>
       )}
-      {entry.source === 'Primaria' && !detailRequested && (
+      {canLoadDetail && !detailRequested && (
         <button
           type="button"
           onClick={() => setDetailRequested(true)}
@@ -84,7 +88,7 @@ export const ClinicalAntecedentCard = ({
           Ver detalle de la atención
         </button>
       )}
-      {entry.source === 'Primaria' && detailRequested && (
+      {canLoadDetail && detailRequested && (
         <div className="mt-2 whitespace-pre-wrap border-t border-slate-100 pt-2 text-xs leading-relaxed text-slate-600">
           {!result ? (
             <p>Cargando atención…</p>

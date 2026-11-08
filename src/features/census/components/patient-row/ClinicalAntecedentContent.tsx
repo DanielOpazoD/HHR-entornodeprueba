@@ -106,6 +106,12 @@ export const ClinicalAntecedentContent = ({
         <p>{detail.history}</p>
       </section>
     )}
+    {detail.summary && (
+      <section>
+        <h5 className="mb-1 font-semibold text-teal-800">Resumen de la atención</h5>
+        <p>{detail.summary}</p>
+      </section>
+    )}
     {!!detail.diagnoses?.length && (
       <section>
         <h5 className="mb-1 font-semibold text-teal-800">Diagnósticos</h5>
