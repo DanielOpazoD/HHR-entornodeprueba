@@ -772,7 +772,11 @@
       "hotspots": {}
     },
     "urgency-dau-runtime.js": {
-      "maxLines": 120,
+      "maxLines": 44,
+      "hotspots": {}
+    },
+    "urgency-dau-page.js": {
+      "maxLines": 111,
       "hotspots": {}
     }
   }

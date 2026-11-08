@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import '../../../extension/urgency-dau-page.js';
 import '../../../extension/urgency-dau-runtime.js';
 
 type PdfResult = { ok: boolean; base64?: string; code?: string };
@@ -26,6 +27,7 @@ const reportUrl =
   'https://api.saludenred.cl/api/reportes/DAU_C.pdf?timeDifference=300&nodId=9&iurgId=7&atenId=8&uspId=6';
 const makeAdmission = () => ({
   Id: 7,
+  IdFacility: 9,
   Patient: { Id: 42, Rut: '11.111.111-1' },
   PatientCare: {
     Id: 8,
@@ -50,6 +52,9 @@ const nativeHarness = () => {
   };
   const byIdent = vi.fn(() => 'https://api.saludenred.cl/api/emergencyAdmissions?Rut=111111111');
   const reportFilter = vi.fn(() => report.url);
+  const loadFull = vi.fn(
+    async (_admission: ReturnType<typeof makeAdmission>, _historical: boolean): Promise<void> => {}
+  );
   const services: Record<string, unknown> = {
     loginService: {
       getCurrentFacility: () => ({ Id: 9 }),
@@ -58,6 +63,7 @@ const nativeHarness = () => {
     $http: http,
     API: { ADMISSIONS: { BY_IDENT: byIdent } },
     EmergencyAdmissionService: { newResource: (row: unknown) => row },
+    PatientCareService: { loadFull },
     $filter: vi.fn(() => reportFilter),
   };
   vi.stubGlobal('location', {
@@ -69,11 +75,88 @@ const nativeHarness = () => {
   vi.stubGlobal('window', {
     angular: { element: () => ({ injector: () => ({ get: (key: string) => services[key] }) }) },
   });
-  return { admission, rows, owner, http, byIdent, report, pdf, reportFilter };
+  return { admission, rows, owner, http, byIdent, report, pdf, reportFilter, loadFull };
 };
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe('official DAU through the native authenticated Rayen client', () => {
+  it('completa la atención histórica antes de verificar relaciones y generar el DAU', async () => {
+    const h = nativeHarness();
+    const completeCare = { ...h.admission.PatientCare };
+    h.admission.PatientCare.IdPatient = 0;
+    h.admission.PatientCare.IdEmergencyAdmission = 0;
+    h.admission.PatientCare.IdHealthCareCenter = 0;
+    h.admission.PatientCare.IsEmergency = false;
+    h.loadFull.mockImplementation(async admission => {
+      admission.PatientCare = completeCare;
+    });
+    expect(await runtime.readPdfInPage(selection)).toEqual({
+      ok: true,
+      base64: btoa(new TextDecoder().decode(pdfBytes)),
+    });
+    expect(h.loadFull).toHaveBeenCalledWith(h.admission, true);
+    expect(h.reportFilter).toHaveBeenCalledWith(completeCare);
+  });
+  it.each(['care', 'patient', 'admission', 'relationship'] as const)(
+    'rejects a %s substitution during hydration',
+    async kind => {
+      const h = nativeHarness();
+      h.loadFull.mockImplementation(async admission => {
+        if (kind === 'care') admission.PatientCare.Id = 99;
+        if (kind === 'patient') {
+          admission.Patient.Id = 99;
+          admission.PatientCare.IdPatient = 99;
+        }
+        if (kind === 'admission') {
+          admission.Id = 99;
+          admission.PatientCare.IdEmergencyAdmission = 99;
+        }
+        if (kind === 'relationship') admission.PatientCare.IdPatient = 99;
+      });
+      expect(await runtime.readPdfInPage(selection)).toEqual({ ok: false, code: 'IDENTITY' });
+      expect(h.reportFilter).not.toHaveBeenCalled();
+      expect(h.http.get).toHaveBeenCalledTimes(1);
+    }
+  );
+  it('does not hydrate a matching care under the wrong patient or facility', async () => {
+    const h = nativeHarness();
+    h.admission.Patient.Rut = '222222222';
+    expect(await runtime.readPdfInPage(selection)).toEqual({ ok: false, code: 'IDENTITY' });
+    expect(h.loadFull).not.toHaveBeenCalled();
+    h.admission.Patient.Rut = '111111111';
+    h.admission.IdFacility = 99;
+    expect(await runtime.readPdfInPage(selection)).toEqual({ ok: false, code: 'FACILITY' });
+    expect(h.loadFull).not.toHaveBeenCalled();
+  });
+  it('cancels when the native owner changes during hydration', async () => {
+    const h = nativeHarness();
+    h.loadFull.mockImplementation(async () => {
+      h.owner.staff = 99;
+    });
+    expect(await runtime.readPdfInPage(selection)).toEqual({ ok: false, code: 'SESSION' });
+    expect(h.reportFilter).not.toHaveBeenCalled();
+  });
+  it('times out hydration and never requests a late PDF', async () => {
+    vi.useFakeTimers();
+    const h = nativeHarness();
+    let finish: () => void = () => undefined;
+    h.loadFull.mockImplementation(
+      () =>
+        new Promise<void>(resolve => {
+          finish = resolve;
+        })
+    );
+    const result = runtime.readPdfInPage(selection);
+    await vi.advanceTimersByTimeAsync(60001);
+    expect(await result).toEqual({ ok: false, code: 'READ' });
+    finish();
+    await Promise.resolve();
+    expect(h.reportFilter).not.toHaveBeenCalled();
+    expect(h.http.get).toHaveBeenCalledTimes(1);
+  });
   it('verifies patient and exact care ID before reading the official PDF', async () => {
     const h = nativeHarness();
     const result = await runtime.readPdfInPage(selection);
@@ -194,6 +277,7 @@ describe('DAU delivery and source isolation', () => {
     expect(h.downloadPdfBuffer).toHaveBeenCalledWith({
       buffer: expect.any(ArrayBuffer),
       filename: 'DAU_8.pdf',
+      saveAs: true,
     });
     expect(h.assertAuthorization).toHaveBeenCalledTimes(3);
   });

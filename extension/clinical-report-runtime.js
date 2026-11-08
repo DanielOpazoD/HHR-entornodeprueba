@@ -146,12 +146,12 @@
       return result.buffer ? { buffer: result.buffer } : { error: result.error };
     };
 
-    const downloadPdfBuffer = async ({ buffer, filename }) => {
+    const downloadPdfBuffer = async ({ buffer, filename, saveAs = false }) => {
       try {
         const id = await chromeApi.downloads.download({
           url: 'data:application/pdf;base64,' + bufferToBase64(buffer),
           filename,
-          saveAs: false,
+          saveAs,
           conflictAction: 'uniquify',
         });
         return { ok: true, downloadId: id };

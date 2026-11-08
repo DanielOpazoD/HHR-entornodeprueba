@@ -802,3 +802,17 @@ elige una atención por cercanía de fecha. Owner: `urgency-dau-runtime.js`; rol
 retirar su import, acción `dau`, botón y permiso juntos.
 
 El panel reduce separaciones y rellenos, manteniendo todos los campos visibles.
+
+### Atención histórica completa antes del DAU · 0.48.82
+
+La búsqueda histórica puede devolver `PatientCare` con `IsEmergency=false` y
+relaciones en cero aunque la atención exista. Igual que el modal oficial de Rayen,
+el lector ejecuta `PatientCareService.loadFull(admission, true)` antes de comprobar
+los vínculos y generar el DAU. Conserva el RUN y la atención exactos del listado y
+los identificadores originales de paciente/admisión; un cambio durante la carga se
+rechaza. Toda la lectura comparte el límite de 60 segundos y verifica de nuevo la
+sesión. El adaptador de página vive en `urgency-dau-page.js`, cargado antes del runtime.
+
+El DAU pregunta dónde guardar el PDF (`saveAs=true`) para que el usuario elija un
+destino explícito. Los demás informes mantienen su descarga habitual por defecto.
+No cambian permisos, no se copia el token y no se persiste el contenido en HHR.

@@ -51,6 +51,11 @@ const loadFactory = () => {
 };
 
 type RuntimeApi = {
+  downloadPdfBuffer: (request: {
+    buffer: ArrayBuffer;
+    filename: string;
+    saveAs?: boolean;
+  }) => Promise<{ ok?: boolean; downloadId?: number; error?: string }>;
   fetchOfficialPdf: (request: {
     url: string;
     token: string;
@@ -112,6 +117,26 @@ const createDependencies = (overrides: RuntimeDependencies = {}) => ({
 });
 
 describe('clinical report runtime owner', () => {
+  it.each([true, undefined])(
+    'passes the explicit save destination choice while preserving the default (%s)',
+    async saveAs => {
+      const deps = createDependencies();
+      const runtime = loadFactory().create(deps);
+      expect(
+        await runtime.downloadPdfBuffer({
+          buffer: new ArrayBuffer(1),
+          filename: 'DAU_synthetic.pdf',
+          saveAs,
+        })
+      ).toEqual({ ok: true, downloadId: 71 });
+      expect(deps.chrome.downloads.download).toHaveBeenCalledWith({
+        url: 'data:application/pdf;base64,UERG',
+        filename: 'DAU_synthetic.pdf',
+        saveAs: saveAs === true,
+        conflictAction: 'uniquify',
+      });
+    }
+  );
   it('is registered before background orchestration and fails closed when absent', () => {
     const startup = backgroundSource.slice(0, backgroundSource.indexOf('const REPORT_FILE'));
 
