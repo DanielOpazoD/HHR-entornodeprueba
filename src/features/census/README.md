@@ -53,7 +53,7 @@ clinicalShiftCalendarController
 ```text
 fila con paciente
   -> PatientInputCells (celda entre Paciente y Diagnóstico)
-  -> PatientClinicalAccess: un manutara por paciente
+  -> PatientClinicalAccess: una tablilla rongorongo por paciente
   -> ClinicalAccessRadialMenu: anillo con ficha clínica / laboratorio / imágenes / documentos y, al centro, el explorador clínico
   -> PatientClinicalTopicSurfaces: panel lateral, visor de laboratorio, visor MMRAD
 ```
@@ -62,9 +62,9 @@ fila con paciente
 - Los permisos salen de los mismos controladores que el menú de la fila (`buildPatientClinicalAccessBinding`): los temas de lectura aparecen también en un censo de solo lectura; las solicitudes, no.
 - Sin episodio o con pasaporte no hay resultados que leer: si la fila puede editar, Laboratorio e Imágenes abren directo la solicitud. Un tema que no aplica queda gris en el anillo, que nunca cambia de forma.
 - Ficha clínica abre el panel lateral (`ClinicalPanelTrigger`, sin botón propio); sus flechas ‹ › recorren las marcas `data-clinical-panel-key`, incluida la cuna. El centro del anillo abre el explorador clínico en ese paciente; el panel también lo ofrece.
-- El anillo sigue al manutara si la página se desplaza y se cierra con Esc, con un clic fuera o cuando el manutara sale de la pantalla; devuelve el foco al manutara. Las flechas eligen el sector que señalan.
+- El anillo sigue a su botón si la página se desplaza y se cierra con Esc, con un clic fuera o cuando el botón sale de la pantalla; devuelve el foco al botón. Las flechas eligen el sector que señalan.
 - Una cuna ofrece solo su ficha. La impresión deja fuera la columna.
-- El manutara es el único ícono rapanui de la columna (`components/patient-row/patientClinicalAccessIcons.ts`); los temas usan los íconos habituales del censo.
+- La tablilla rongorongo es el único ícono rapanui de la columna (`components/patient-row/patientClinicalAccessIcons.ts`); los temas usan los íconos habituales del censo.
 
 ### Acción de fuga por correo
 
@@ -110,9 +110,9 @@ El IEEH ya no se completa desde el censo: se llena en el panel IEEH de la epicri
 | `hooks/useCensusTableRuntime.ts`                         | Runtime unificado de tabla (dependencias + resize + activación) |
 | `hooks/useDischargesSectionModel.ts`                     | Fachada de wiring para altas                                    |
 | `hooks/useTransfersSectionModel.ts`                      | Fachada de wiring para traslados                                |
-| `components/patient-row/PatientClinicalAccess.tsx`       | Columna «Accesos»: manutara y temas clínicos del paciente       |
+| `components/patient-row/PatientClinicalAccess.tsx`       | Columna «Accesos»: rongorongo y temas clínicos del paciente     |
 | `components/patient-row/ClinicalAccessRadialMenu.tsx`    | Anillo de temas alrededor del explorador clínico                |
-| `components/patient-row/patientClinicalAccessIcons.ts`   | El manutara de la columna «Accesos»                             |
+| `components/patient-row/patientClinicalAccessIcons.ts`   | El ícono rongorongo de la columna «Accesos»                     |
 | `components/FugaNotificationModal.tsx`                   | Modal de notificación de fuga por correo                        |
 | `hooks/useFugaNotificationModalModel.ts`                 | Orquestación UI del envío de fuga                               |
 | `controllers/fugaNotificationPolicyController.ts`        | Política compartida de destinatarios y validación de fuga       |

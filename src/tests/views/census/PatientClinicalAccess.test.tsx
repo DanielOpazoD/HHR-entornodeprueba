@@ -74,26 +74,26 @@ const renderAccess = (props: Partial<PatientClinicalAccessProps> = {}) =>
     </table>
   );
 
-const manutara = (name = 'Paciente de prueba') =>
+const accessButton = (name = 'Paciente de prueba') =>
   screen.getByRole('button', { name: `Accesos de ${name}` });
 
-/** Opens the ring from the row's manutara and returns one of its entries. */
+/** Opens the ring from the row's access button and returns one of its entries. */
 const access = (topic: string, name = 'Paciente de prueba') => {
-  if (!screen.queryByRole('menu')) fireEvent.click(manutara(name));
+  if (!screen.queryByRole('menu')) fireEvent.click(accessButton(name));
   return screen.getByRole('menuitem', { name: `${topic} de ${name}` });
 };
 
 describe('PatientClinicalAccess', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('shows one manutara per patient and opens the ring with its four topics around the explorer', () => {
+  it('shows one access button per patient and opens the ring with its four topics around the explorer', () => {
     renderAccess();
 
     expect(screen.getAllByRole('button')).toHaveLength(1);
-    expect(manutara()).toHaveAttribute('aria-expanded', 'false');
-    fireEvent.click(manutara());
+    expect(accessButton()).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(accessButton());
 
-    expect(manutara()).toHaveAttribute('aria-expanded', 'true');
+    expect(accessButton()).toHaveAttribute('aria-expanded', 'true');
     expect(
       within(screen.getByRole('menu', { name: 'Accesos de Paciente de prueba' }))
         .getAllByRole('menuitem')
@@ -129,7 +129,7 @@ describe('PatientClinicalAccess', () => {
     );
   });
 
-  it('opens the clinical explorer on this patient from the centre, with focus back on the manutara', () => {
+  it('opens the clinical explorer on this patient from the centre, with focus back on the access button', () => {
     let focusedWhenOpened: Element | null = null;
     openClinicalExplorer.mockImplementation(() => {
       focusedWhenOpened = document.activeElement;
@@ -139,8 +139,8 @@ describe('PatientClinicalAccess', () => {
     fireEvent.click(access('Explorador clínico'));
 
     expect(openClinicalExplorer).toHaveBeenCalledWith({ censusDate: '2026-09-03', bedId: 'R2' });
-    // The explorer returns focus to whoever opened it: the manutara, never the closed ring.
-    expect(focusedWhenOpened).toBe(manutara());
+    // The explorer returns focus to whoever opened it: the access button, never the closed ring.
+    expect(focusedWhenOpened).toBe(accessButton());
     expect(screen.queryByRole('menu')).toBeNull();
   });
 
@@ -214,7 +214,7 @@ describe('PatientClinicalAccess', () => {
 
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
     expect(screen.queryByRole('menu')).toBeNull();
-    expect(manutara()).toHaveFocus();
+    expect(accessButton()).toHaveFocus();
 
     access('Explorador clínico');
     fireEvent.keyDown(document.activeElement!, { key: 'ArrowUp' });
@@ -225,19 +225,19 @@ describe('PatientClinicalAccess', () => {
   it('closes on an outside click without opening anything', () => {
     renderAccess();
 
-    fireEvent.click(manutara());
+    fireEvent.click(accessButton());
     fireEvent.click(screen.getByTestId('clinical-access-menu').previousElementSibling!);
     expect(screen.queryByRole('menu')).toBeNull();
-    expect(manutara()).toHaveFocus();
+    expect(accessButton()).toHaveFocus();
     expect(openClinicalExplorer).not.toHaveBeenCalled();
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('follows its manutara while the page scrolls and closes once it leaves the screen', () => {
+  it('follows its access button while the page scrolls and closes once it leaves the screen', () => {
     vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame'] });
     try {
       renderAccess();
-      const button = manutara();
+      const button = accessButton();
       const place = (top: number) =>
         vi
           .spyOn(button, 'getBoundingClientRect')
@@ -273,11 +273,11 @@ describe('PatientClinicalAccess', () => {
       isSubRow: true,
     });
 
-    fireEvent.click(manutara('RN de prueba'));
+    fireEvent.click(accessButton('RN de prueba'));
     expect(screen.getByRole('menu')).toHaveFocus();
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
     expect(screen.queryByRole('menu')).toBeNull();
-    expect(manutara('RN de prueba')).toHaveFocus();
+    expect(accessButton('RN de prueba')).toHaveFocus();
   });
 
   it('gives a crib only its own ficha', async () => {
