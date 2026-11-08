@@ -34,6 +34,19 @@ describe('client environment validation', () => {
     });
   });
 
+  it('leaves developer-only keys out of a production validation', async () => {
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('VITE_LOCAL_GEMINI_API_KEY', 'developer-key');
+    vi.stubEnv('VITE_DOCUMENT_SCANNER_LOCAL_QUEUE_PASSWORD', 'developer-phrase');
+    const { validateClientEnv } = await import('@/config/envValidator');
+    const result = validateClientEnv();
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.env.VITE_LOCAL_GEMINI_API_KEY).toBeFalsy();
+      expect(result.env.VITE_DOCUMENT_SCANNER_LOCAL_QUEUE_PASSWORD).toBeFalsy();
+    }
+  });
+
   it('still reports missing Firebase configuration in development', async () => {
     vi.stubEnv('DEV', true);
     vi.stubEnv('VITE_FIREBASE_APP_ID', '');
