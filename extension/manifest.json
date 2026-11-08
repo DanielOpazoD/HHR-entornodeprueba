@@ -282,9 +282,16 @@
         "content-hhr-patient-documents.js",
         "content-hhr-statistical-discharge.js",
         "content-hhr-statistical-evidence.js",
-        "content-hhr-syslab.js"
+        "content-hhr-syslab.js",
+        "content-hhr-exalab.js"
       ],
       "run_at": "document_idle"
     }
+  ],
+  "optional_permissions": [
+    "cookies"
+  ],
+  "optional_host_permissions": [
+    "https://exalab.saludoriente.cl/*"
   ]
 }

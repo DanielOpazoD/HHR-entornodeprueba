@@ -2,6 +2,41 @@
 
 Visor de exámenes de laboratorio del sistema Syslab (Hospital Hanga Roa).
 
+## Informes originales Exalab SSMO
+
+El selector de fuente del visor incorpora Exalab. Consulta por RUT completo válido y
+fechas Desde/Hasta; muestra centro de origen, folio y PDF original dentro de HHR.
+Los filtros usan la fecha impresa por Exalab y la pantalla identifica sus horas como
+horas de origen: no se presume una zona horaria para todos los centros. No incorpora
+estos informes al análisis numérico de Syslab ni a su bandeja del censo.
+
+`exalab-proxy` reutiliza el puente y las variables privadas `SYSLAB_PROXY_URL` y
+`SYSLAB_API_TOKEN`. Cada lectura exige la autorización Firebase de laboratorio y
+deriva su propietario de proyecto, UID verificado y hospital. Nunca acepta un
+propietario elegido por el navegador. No modifica Firestore ni sus reglas.
+
+Para conectar, abrir HHR en Chrome del Mac mini con la extensión actualizada,
+elegir Exalab y pulsar Conectar. Una página de la extensión solicita el permiso
+opcional de cookies y acceso exclusivamente a Exalab; la persona confirma su cuenta
+personal antes de vincularla. Solo envía `PHPSESSID`, `cf_clearance` si existe y
+User-Agent al gateway por HTTPS, mediante una capacidad aleatoria de cinco minutos
+y un solo uso. Las cookies no pasan por mensajes de la página HHR, no se guardan en
+disco y nunca se lee la contraseña de ClaveÚnica. El puente verifica la sesión antes
+de aceptarla. Una sesión protegida por IP debe conectarse desde el mismo Mac mini.
+
+La sesión queda asociada únicamente a esa cuenta HHR; permite consultas desde sus
+otros dispositivos. Caduca tras una hora sin uso o un máximo de ocho horas, al
+desconectarla o al reiniciar el puente; Exalab puede vencerla antes. La desconexión
+invalida también los PDF emitidos y las conexiones pendientes. Cada referencia de
+PDF cifra paciente, folio, origen, propietario y sesión, y vence a los 30 minutos.
+
+El puente consulta exclusivamente HTTPS de Exalab; las direcciones internas de los
+laboratorios son parámetros que se devuelven al portal, nunca destinos de red.
+Verifica el RUT del listado y del texto del PDF antes de entregarlo. Una identidad
+ausente o distinta, HTML desconocido, sesión vencida o fallo de fuente se informa
+como error y conserva los resultados conocidos. Cambiar paciente, fuente, sesión o
+cerrar el visor impide publicar respuestas antiguas y libera los PDF en memoria.
+
 ## Arquitectura
 
 ```
