@@ -11,7 +11,7 @@ import type { PatientRowDependencies } from '@/features/census/components/patien
 interface UsePatientRowInteractionRuntimeParams {
   bedId: string;
   data: PatientData;
-  recordLastUpdated?: string;
+  getRecordLastUpdated?: () => string | undefined;
   isSubRow?: boolean;
   onAction: (action: PatientRowAction, bedId: string, patient: PatientData) => void;
   rowState: {
@@ -33,7 +33,7 @@ interface UsePatientRowInteractionRuntimeParams {
 export const usePatientRowInteractionRuntime = ({
   bedId,
   data,
-  recordLastUpdated,
+  getRecordLastUpdated,
   isSubRow = false,
   onAction,
   rowState,
@@ -51,7 +51,7 @@ export const usePatientRowInteractionRuntime = ({
     hasCompanion: rowState.hasCompanion,
     hasClinicalCrib: rowState.hasClinicalCrib,
     clinicalCrib: isSubRow ? data : data.clinicalCrib,
-    confirmedLastUpdated: recordLastUpdated,
+    getRecordLastUpdated,
     updatePatient,
     updateClinicalCrib,
     confirm,

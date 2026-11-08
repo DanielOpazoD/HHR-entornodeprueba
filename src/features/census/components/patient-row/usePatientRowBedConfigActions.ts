@@ -15,7 +15,7 @@ interface UsePatientRowBedConfigActionsParams {
   hasCompanion: boolean;
   hasClinicalCrib: boolean;
   clinicalCrib?: PatientData;
-  confirmedLastUpdated?: string;
+  getRecordLastUpdated?: () => string | undefined;
   updatePatient: (
     bedId: string,
     field: 'bedMode' | 'hasCompanionCrib',
@@ -45,7 +45,7 @@ export const usePatientRowBedConfigActions = ({
   hasCompanion,
   hasClinicalCrib,
   clinicalCrib,
-  confirmedLastUpdated,
+  getRecordLastUpdated,
   updatePatient,
   updateClinicalCrib,
   confirm,
@@ -80,6 +80,8 @@ export const usePatientRowBedConfigActions = ({
   }, [bedId, hasClinicalCrib, updateClinicalCrib]);
 
   const removeClinicalCrib = useCallback(async () => {
+    // Keep this revision through confirmation so intervening writes still conflict.
+    const confirmedLastUpdated = getRecordLastUpdated?.();
     if (!clinicalCrib || !confirmedLastUpdated) {
       await showAlert(
         'No fue posible confirmar la versión vigente de la cuna. Recarga el censo antes de volver a intentar.',
@@ -98,7 +100,7 @@ export const usePatientRowBedConfigActions = ({
     if (confirmed) {
       await updateClinicalCrib(bedId, 'remove', undefined, confirmedLastUpdated, confirmedOccupant);
     }
-  }, [bedId, clinicalCrib, confirm, confirmedLastUpdated, showAlert, updateClinicalCrib]);
+  }, [bedId, clinicalCrib, confirm, getRecordLastUpdated, showAlert, updateClinicalCrib]);
 
   return {
     toggleBedMode,
