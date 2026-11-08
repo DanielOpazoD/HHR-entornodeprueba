@@ -361,7 +361,7 @@ describe('ClinicalPanelAntecedents', () => {
       });
       render(<ClinicalPanelAntecedents clinicalEpisodeId="12" />);
       await act(async () => undefined);
-      expect(screen.getByText('Detalle conservado')).toBeInTheDocument();
+      expect(screen.getAllByText('Detalle conservado')).toHaveLength(2);
       await act(async () => vi.advanceTimersByTimeAsync(300000));
       expect(screen.queryByText('Primaria antigua')).not.toBeInTheDocument();
       expect(screen.getByText('Primaria actual')).toBeInTheDocument();

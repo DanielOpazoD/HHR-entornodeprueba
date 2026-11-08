@@ -10,7 +10,8 @@ export interface ClinicalAntecedentDetail {
   history: string;
   professional: string;
   attachments: Array<{ id: string; label: string }>;
-  careType?: 'emergency' | 'outpatient';
+  careType?: 'emergency' | 'outpatient' | 'hospitalization';
+  summary?: string;
   patientName?: string;
   diagnoses?: string[];
   indications?: string[];
@@ -48,7 +49,13 @@ export const decodeClinicalAntecedentDetail = (
 ): ClinicalAntecedentDetail | undefined => {
   if (!record(value) || !stringFields(value, ['reason', 'history', 'professional'])) return;
   if (!attachments(value.attachments)) return;
-  if (value.careType !== 'emergency' && value.careType !== 'outpatient') return;
+  if (
+    value.careType !== 'emergency' &&
+    value.careType !== 'outpatient' &&
+    value.careType !== 'hospitalization'
+  )
+    return;
+  if (value.summary !== undefined && typeof value.summary !== 'string') return;
   if (typeof value.patientName !== 'string') return;
   if (!strings(value.diagnoses)) return;
   if (!strings(value.indications)) return;
@@ -60,6 +67,7 @@ export const decodeClinicalAntecedentDetail = (
     professional: value.professional as string,
     attachments: value.attachments.map(({ id, label }) => ({ id, label })),
     careType: value.careType,
+    ...(typeof value.summary === 'string' ? { summary: value.summary } : {}),
     patientName: value.patientName,
     diagnoses: value.diagnoses,
     indications: value.indications,

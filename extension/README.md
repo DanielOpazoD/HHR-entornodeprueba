@@ -640,12 +640,21 @@ control: prueba de ZIP, release gate y descarga en dev/build. Rollback: revertir
 
 ### Antecedentes APS y UEA (v0.48.42)
 
-Desde v0.48.78, las consultas de resúmenes y detalles HCC envían en `Authorization`
-el `TokenSesion` obtenido por `/api/ObtenerToken`, como hace el visor original.
+Desde v0.48.79, las consultas de resúmenes y detalles HCC envían en `Authorization`
+`VHCC-TICKET <TokenSesion>`, con el token obtenido por `/api/ObtenerToken`, como hace
+el visor original. La versión 0.48.78 enviaba el token sin este esquema y seguía
+recibiendo HTTP 401.
 El lector HTTP autenticado conserva el token en un cierre propio del historial
 efímero verificado por paciente, episodio y autorización, dentro de
 `clinical-antecedents-transport.js`; no lo comparte como estado global ni lo envía a HHR.
 La actualización conserva los permisos existentes y requiere recargar la extensión.
+
+Desde v0.48.80, el lector incorpora también `ResumenHistorial.ResumenHistorial` de
+la fuente secundaria y sus identificadores alfanuméricos. Consulta sus detalles con
+`IdAtencion`, establecimiento y `Key`, y verifica `XMLDetalleHistoria`, episodio y
+RUT antes de mostrarlos. La caché distingue las fuentes aunque coincida el número
+de atención. El resumen de la fuente se presenta como texto; hospitalización conserva
+su etiqueta. No se necesitan permisos nuevos ni una sesión directa de Urgencias.
 
 HCC puede rotular ambas atenciones como APS. Tras verificar episodio, RUT y sesión, el
 lector clasifica como UEA únicamente un formulario `Examen Fisico Urgencia` o
@@ -772,3 +781,47 @@ RUN distinto y encabezado no verificable. Se conservan los controles de identida
 todos los encabezados de paciente deben coincidir; no basta la primera página.
 El parser elimina separadores de columna al separar unidad y referencia, sin alterar
 valores, escalas ni comparadores. No cambian hosts, permisos, sesión ni CUDYR.
+
+### DAU oficial y antecedentes compactos · 0.48.81
+
+«Descargar DAU oficial (PDF)» está disponible en las urgencias de la fuente primaria.
+HCC verifica el paciente y la atención antes de delegar la lectura en una pestaña HTTPS
+principal de `https://urgencia.saludenred.cl/Emergency/` con sesión iniciada. El permiso
+nuevo `https://urgencia.saludenred.cl/*` permite esa ejecución; no se inyectan scripts
+en pestañas PDF/blob ni se amplía el permiso al API de Urgencias.
+
+El lector usa `API.ADMISSIONS.BY_IDENT`, `EmergencyAdmissionService.newResource`,
+`DAUReport` y `$http` del cliente oficial. Sólo ejecuta GET. Exige un único registro
+con RUN y `PatientCare.Id` exactos, centro igual al de la sesión activa, relaciones paciente/admisión consistentes y un
+DAU_C.pdf del mismo establecimiento, admisión y atención. Comprueba dueño de sesión,
+contenido PDF y autorización hospitalaria antes de descargar. No copia credenciales,
+no persiste datos clínicos y no entrega el PDF ni enlaces de acceso a la página HHR.
+Si Urgencias no está abierto, el botón explica que debe iniciarse esa sesión.
+Los DAU con identificadores secundarios opacos quedan fuera de este contrato: no se
+elige una atención por cercanía de fecha. Owner: `urgency-dau-runtime.js`; rollback:
+retirar su import, acción `dau`, botón y permiso juntos.
+
+El panel reduce separaciones y rellenos, manteniendo todos los campos visibles.
+
+### Atención histórica completa antes del DAU · 0.48.82
+
+La búsqueda histórica puede devolver `PatientCare` con `IsEmergency=false` y
+relaciones en cero aunque la atención exista. Igual que el modal oficial de Rayen,
+el lector ejecuta `PatientCareService.loadFull(admission, true)` antes de comprobar
+los vínculos y generar el DAU. Conserva el RUN y la atención exactos del listado y
+los identificadores originales de paciente/admisión; un cambio durante la carga se
+rechaza. Toda la lectura comparte el límite de 60 segundos y verifica de nuevo la
+sesión. El adaptador de página vive en `urgency-dau-page.js`, cargado antes del runtime.
+
+El DAU pregunta dónde guardar el PDF (`saveAs=true`) para que el usuario elija un
+destino explícito. Los demás informes mantienen su descarga habitual por defecto.
+No cambian permisos, no se copia el token y no se persiste el contenido en HHR.
+
+### Identificador de paciente del DAU · 0.48.83
+
+El filtro nativo `DAUReport` llama a `PatientCareService.dauURL`, que entrega
+`IdPatient` como cuarto argumento de `REPORTS.ENCOUNTER.DAU.LETTER`; ese argumento
+se serializa como `uspId`. Se verifica contra el paciente ya validado de la admisión,
+no contra el profesional conectado. Los controles de sesión siguen comparando el
+establecimiento y el profesional antes y después de cada lectura. La regresión usa
+identificadores distintos para paciente y profesional y rechaza enlaces que los confundan.

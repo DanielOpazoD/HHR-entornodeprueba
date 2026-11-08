@@ -23,7 +23,7 @@ importScripts(
   'clinical-panel-fetch.js',
   'clinical-panel-history.js', 'clinical-panel-runtime.js',
   'clinical-antecedents-attachment.js', 'clinical-antecedents-fields.js', 'clinical-antecedents-cache.js', 'clinical-antecedents-detail.js', 'clinical-antecedents-window.js',
-  'clinical-antecedents-transport.js', 'clinical-antecedents-runtime.js',
+  'clinical-antecedents-transport.js', 'clinical-antecedents-sources.js', 'clinical-antecedents-runtime.js', 'urgency-dau-page.js', 'urgency-dau-runtime.js',
   'clinical-write-recovery-policy.js', 'clinical-write-runtime.js',
   'clinical-handoff-runtime.js',
   'clinical-score-runtime.js',
@@ -1162,10 +1162,10 @@ const handleIndicationsPrintRequest = async ({ encId }) => {
 const offscreenCoordinator = self.HhrOffscreenCoordinator.create({ chrome });
 const syslabRuntime = self.HhrSyslabPdfBundle.createRuntime({ chrome, downloadPdfBuffer, withTimeout, offscreenCoordinator });
 const clinicalAntecedentsRuntime = self.HhrClinicalAntecedents.create({
-  getContext: getClinicalReportContext,
-  readJson: options => fichaMedicoClinicalClient.readJson(options),
+  getContext: getClinicalReportContext, readJson: options => fichaMedicoClinicalClient.readJson(options),
   fetchImpl: fetch,
   openTab: options => chrome.tabs.create(options),
+  downloadDau: self.HhrUrgencyDau.create({ chrome, downloadPdfBuffer }).download,
   getAuthorizationKey: async sender => { const session = await resolveFichaClinicalSession({ sender }); if (session.error) throw new Error(session.error); return fichaSessionCacheKey(session.info, sender); },
 });
 const runtimeRoute = (handle, fallback) => Object.freeze({ handle, fallback });

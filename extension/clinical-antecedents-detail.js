@@ -1,6 +1,6 @@
 (function (root) {
   'use strict';
-  const create = ({ openTab, getAuthorizationKey, run, list, text }) => {
+  const create = ({ openTab, getAuthorizationKey, sources, list, text }) => {
     const attachmentSupport = root.HhrClinicalAntecedentsAttachment.create({ list, text, openTab });
     const { remember, readHistory } = root.HhrClinicalAntecedentsCache;
     const recentHistory = new Map(), recentDetails = new Map(), detailWaiters = [];
@@ -36,28 +36,14 @@
         if (await getAuthorizationKey(sender) !== history.authorizationKey)
           throw new Error('La sesión clínica cambió durante la consulta de antecedentes.');
       };
-      const key = `${history.authorizationKey}:${history.patientRun}:${selected.id}`;
+      const key = `${history.authorizationKey}:${history.patientRun}:${selected.source}:${selected.facilityCode || ''}:${selected.id}`;
       const cached = recentDetails.get(key);
       if (cached?.expiresAt > Date.now()) {
         const detail = await cached.value;
         await assertCurrentAuthorization();
         return detail;
       }
-      const pending = withDetailSlot(() => history.readHistoryJson(
-        '/api/ObtenerDetalleHistorialClinicoPrimaria', 'ParametroFUC',
-        { IdentificacionAtencion: selected.id, ParametroBase: history.base }
-      )).then(data => {
-        const result = data?.ObtenerDetalleHistorialClinicoResult;
-        const detail = result?.DetalleHistorial;
-        if (
-          Number(result?.RespuestaBase?.Estatus) !== 0 ||
-          String(detail?.IdAtencion) !== selected.id
-        )
-          throw new Error('El visor no pudo verificar el detalle de la atención.');
-        if (!detail.Paciente?.Rut || run(detail.Paciente.Rut) !== run(history.patientRun))
-          throw new Error('El detalle no permite verificar al paciente.');
-        return detail;
-      });
+      const pending = withDetailSlot(() => sources.detailFor(history, selected));
       remember(recentDetails, key, pending);
       try {
         const detail = await pending;
@@ -68,7 +54,7 @@
         throw error;
       }
     };
-    const slim = detail => ({
+    const slim = detail => detail.secondaryDetail || ({
       ...root.HhrClinicalAntecedentsFields.project(detail),
       reason: text(detail.Anamnesis?.MotivoConsultaAnamnesis),
       history: text(detail.Anamnesis?.HistoriaEnfermedadAnamnesis),

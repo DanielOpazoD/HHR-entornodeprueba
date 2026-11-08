@@ -7,6 +7,7 @@ import {
 } from '@/features/rayen-import/clinical-panel';
 import { formatClinicalAntecedentDate } from './clinicalAntecedentDate';
 import { ClinicalAntecedentContent } from './ClinicalAntecedentContent';
+import { ClinicalAntecedentDau } from './ClinicalAntecedentDau';
 
 export const ClinicalAntecedentCard = ({
   entry,
@@ -21,8 +22,9 @@ export const ClinicalAntecedentCard = ({
   const [detailAttempt, setDetailAttempt] = useState(0);
   const [detailRequested, setDetailRequested] = useState(autoLoadDetail);
   const [attachmentError, setAttachmentError] = useState('');
+  const canLoadDetail = entry.source === 'Primaria' || entry.source === 'Secundaria';
   useEffect(() => {
-    if (entry.source !== 'Primaria' || !detailRequested) return;
+    if (!canLoadDetail || !detailRequested) return;
     const controller = new AbortController();
     const id = `${entry.source}:${entry.id}`;
     const historicalWindowEnd = autoLoadDetail ? undefined : entry.windowEnd;
@@ -41,6 +43,7 @@ export const ClinicalAntecedentCard = ({
     autoLoadDetail,
     detailAttempt,
     detailRequested,
+    canLoadDetail,
   ]);
 
   const openAttachment = async (attachmentId: string): Promise<void> => {
@@ -54,7 +57,7 @@ export const ClinicalAntecedentCard = ({
   };
 
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+    <article className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
         <time className="font-semibold tabular-nums text-slate-700">
           {formatClinicalAntecedentDate(entry.date)}
@@ -64,9 +67,11 @@ export const ClinicalAntecedentCard = ({
         >
           {result?.detail?.careType === 'emergency'
             ? 'Urgencia (UEA)'
-            : result?.detail?.careType === 'outpatient'
-              ? 'Atención ambulatoria (APS)'
-              : entry.type || entry.source}
+            : result?.detail?.careType === 'hospitalization'
+              ? 'Hospitalización'
+              : result?.detail?.careType === 'outpatient'
+                ? 'Atención ambulatoria (APS)'
+                : entry.type || entry.source}
         </span>
       </div>
       {entry.facility && <p className="mt-1 text-[10px] text-slate-500">{entry.facility}</p>}
@@ -75,7 +80,7 @@ export const ClinicalAntecedentCard = ({
           {entry.diagnosis || 'Atención sin diagnóstico informado'}
         </h4>
       )}
-      {entry.source === 'Primaria' && !detailRequested && (
+      {canLoadDetail && !detailRequested && (
         <button
           type="button"
           onClick={() => setDetailRequested(true)}
@@ -84,8 +89,8 @@ export const ClinicalAntecedentCard = ({
           Ver detalle de la atención
         </button>
       )}
-      {entry.source === 'Primaria' && detailRequested && (
-        <div className="mt-2 whitespace-pre-wrap border-t border-slate-100 pt-2 text-xs leading-relaxed text-slate-600">
+      {canLoadDetail && detailRequested && (
+        <div className="mt-1.5 whitespace-pre-wrap border-t border-slate-100 pt-1.5 text-[11px] leading-[1.4] text-slate-600">
           {!result ? (
             <p>Cargando atención…</p>
           ) : result.error ? (
@@ -105,6 +110,13 @@ export const ClinicalAntecedentCard = ({
           ) : result.detail ? (
             <>
               <ClinicalAntecedentContent detail={result.detail} entry={entry} />
+              {entry.source === 'Primaria' && result.detail.careType === 'emergency' && (
+                <ClinicalAntecedentDau
+                  request={signal =>
+                    requestClinicalAction(episode, 'dau', `${entry.source}:${entry.id}`, signal)
+                  }
+                />
+              )}
               {!!result.detail.attachments.length && (
                 <div className="mt-2 border-t border-slate-100 pt-2">
                   <p className="font-semibold text-slate-700">Archivos adjuntos</p>

@@ -70,6 +70,10 @@
       "maxLines": 211,
       "hotspots": {}
     },
+    "clinical-antecedents-sources.js": {
+      "maxLines": 89,
+      "hotspots": {}
+    },
     "clinical-antecedents-transport.js": {
       "maxLines": 39,
       "hotspots": {}
@@ -765,6 +769,14 @@
     },
     "zip-store-writer.js": {
       "maxLines": 121,
+      "hotspots": {}
+    },
+    "urgency-dau-runtime.js": {
+      "maxLines": 44,
+      "hotspots": {}
+    },
+    "urgency-dau-page.js": {
+      "maxLines": 111,
       "hotspots": {}
     }
   }

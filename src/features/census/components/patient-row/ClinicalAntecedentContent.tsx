@@ -57,7 +57,7 @@ const PrescriptionCopy = ({
           .filter(Boolean)
           .join(' · ')}
       </p>
-      <ul className="mt-1 list-disc space-y-1 pl-4">
+      <ul className="mt-1 list-disc space-y-0.5 pl-4">
         {recipe.items.map((item, index) => (
           <li key={index}>{item}</li>
         ))}
@@ -90,26 +90,32 @@ export const ClinicalAntecedentContent = ({
   detail: ClinicalAntecedentDetail;
   entry: ClinicalAntecedentEntry;
 }) => (
-  <div className="space-y-3 break-words [&>section]:rounded-lg [&>section]:border [&>section]:border-slate-100 [&>section]:bg-slate-50/50 [&>section]:p-2.5">
+  <div className="space-y-1.5 break-words [&>section+section]:border-t [&>section+section]:border-slate-100 [&>section+section]:pt-1.5">
     {detail.professional && (
       <p className="text-[11px] font-medium text-slate-500">{detail.professional}</p>
     )}
     {detail.reason && (
       <section>
-        <h5 className="mb-1 font-semibold text-teal-800">Motivo de consulta</h5>
+        <h5 className="font-semibold text-teal-800">Motivo de consulta</h5>
         <p>{detail.reason}</p>
       </section>
     )}
     {detail.history && (
       <section>
-        <h5 className="mb-1 font-semibold text-teal-800">Enfermedad actual</h5>
+        <h5 className="font-semibold text-teal-800">Enfermedad actual</h5>
         <p>{detail.history}</p>
+      </section>
+    )}
+    {detail.summary && (
+      <section>
+        <h5 className="font-semibold text-teal-800">Resumen de la atención</h5>
+        <p>{detail.summary}</p>
       </section>
     )}
     {!!detail.diagnoses?.length && (
       <section>
-        <h5 className="mb-1 font-semibold text-teal-800">Diagnósticos</h5>
-        <ul className="list-disc space-y-1 pl-4">
+        <h5 className="font-semibold text-teal-800">Diagnósticos</h5>
+        <ul className="list-disc space-y-0.5 pl-4">
           {detail.diagnoses.map((diagnosis, index) => (
             <li key={index}>{diagnosis}</li>
           ))}
@@ -119,12 +125,12 @@ export const ClinicalAntecedentContent = ({
     {detail.careType === 'emergency' &&
       detail.physicalExams?.map((exam, index) => (
         <section key={index}>
-          <h5 className="mb-1 font-semibold text-teal-800">{exam.name}</h5>
-          <dl className="mt-1 divide-y divide-slate-100 rounded border border-slate-200">
+          <h5 className="font-semibold text-teal-800">{exam.name}</h5>
+          <dl className="mt-0.5 divide-y divide-slate-100">
             {exam.fields.map((field, fieldIndex) => (
               <div
                 key={fieldIndex}
-                className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] gap-3 px-2 py-1.5 odd:bg-slate-50"
+                className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] gap-2 px-1 py-0.5 odd:bg-slate-50"
               >
                 <dt className="text-slate-500">{field.label}</dt>
                 <dd className="font-medium text-slate-700">
@@ -139,8 +145,8 @@ export const ClinicalAntecedentContent = ({
       ))}
     {!!detail.indications?.length && (
       <section>
-        <h5 className="mb-1 font-semibold text-teal-800">Indicaciones</h5>
-        <ul className="list-disc space-y-1 pl-4">
+        <h5 className="font-semibold text-teal-800">Indicaciones</h5>
+        <ul className="list-disc space-y-0.5 pl-4">
           {detail.indications.map((indication, index) => (
             <li key={index}>{indication}</li>
           ))}
@@ -149,7 +155,7 @@ export const ClinicalAntecedentContent = ({
     )}
     {detail.careType === 'outpatient' && !!detail.prescriptions?.length && (
       <section>
-        <h5 className="mb-1 font-semibold text-teal-800">Prescripciones</h5>
+        <h5 className="font-semibold text-teal-800">Prescripciones</h5>
         {detail.prescriptions.map((recipe, index) => (
           <PrescriptionCopy
             key={`${entry.source}:${entry.id}:${detail.patientName}:${recipe.id}:${index}`}
