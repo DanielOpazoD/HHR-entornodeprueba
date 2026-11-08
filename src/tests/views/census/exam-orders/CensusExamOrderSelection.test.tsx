@@ -1,3 +1,4 @@
+import React from 'react';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { UIProvider } from '@/context/UIContext';
@@ -11,6 +12,7 @@ import {
 } from '@/features/census/components/exam-orders/examOrderContext';
 import { clearExamOrderSelection } from '@/features/census/components/exam-orders/examOrderSelectionStore';
 import { listCensusExamRequestCandidates } from '@/features/census/controllers/censusExamRequestController';
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 
 const printMock = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/controllers/examRequestPrintController', () => ({
@@ -53,26 +55,39 @@ const beds = {
   }),
 };
 
-const renderCensus = ({ canPrepareOrders = true } = {}) => {
-  const candidates = listCensusExamRequestCandidates({ visibleBeds, beds });
+type CensusBeds = Partial<typeof beds>;
+
+const CensusHarness: React.FC<{ shown?: CensusBeds; canPrepareOrders?: boolean }> = ({
+  shown = beds,
+  canPrepareOrders = true,
+}) => {
+  const candidates = listCensusExamRequestCandidates({
+    visibleBeds,
+    beds: shown as Record<string, (typeof beds)['R1']>,
+  });
   const date = canPrepareOrders ? CENSUS_DATE : null;
-  return render(
+  return (
     <UIProvider>
       <CensusExamRequestCandidatesContext.Provider value={candidates}>
         <CensusExamOrderDateContext.Provider value={date}>
           <table>
             <tbody>
-              {visibleBeds.map(bed => (
-                <tr key={bed.id} data-testid={`row-${bed.id}`}>
-                  <PatientIdentityCell
-                    data={beds[bed.id as keyof typeof beds]}
-                    currentDateString={CENSUS_DATE}
-                    hasRutError={false}
-                    onNameChange={() => vi.fn()}
-                    onOpenDemographics={vi.fn()}
-                  />
-                </tr>
-              ))}
+              {visibleBeds.flatMap(bed => {
+                const data = shown[bed.id as keyof typeof beds];
+                return data
+                  ? [
+                      <tr key={bed.id} data-testid={`row-${bed.id}`}>
+                        <PatientIdentityCell
+                          data={data}
+                          currentDateString={CENSUS_DATE}
+                          hasRutError={false}
+                          onNameChange={() => vi.fn()}
+                          onOpenDemographics={vi.fn()}
+                        />
+                      </tr>,
+                    ]
+                  : [];
+              })}
             </tbody>
           </table>
           <p>Fuera del censo</p>
@@ -82,6 +97,9 @@ const renderCensus = ({ canPrepareOrders = true } = {}) => {
     </UIProvider>
   );
 };
+
+const renderCensus = ({ canPrepareOrders = true } = {}) =>
+  render(<CensusHarness canPrepareOrders={canPrepareOrders} />);
 
 const BED_OF: Record<string, string> = {
   'ANA SINTETICA': 'R1',
@@ -235,5 +253,65 @@ describe('census laboratory orders for several patients', () => {
     });
     expect(within(pages[0]!).getByText('11.111.111-1')).toBeInTheDocument();
     expect(within(pages[2]!).getByText('P123456')).toBeInTheDocument();
+  });
+
+  const openAll = async () => {
+    shiftClick('ANA SINTETICA');
+    shiftClick('BRUNO SINTETICO');
+    shiftClick('CARLA SINTETICA');
+    fireEvent.click(orderButton()!);
+    return screen.findByRole('tablist', { name: 'Pacientes de la solicitud' });
+  };
+  const activeForm = () =>
+    screen.getAllByTestId('exam-request-form').find(form => !form.classList.contains('hidden'))!;
+  const prepare = (tablist: HTMLElement, name: string, exam: string, otros: string) => {
+    fireEvent.click(within(tablist).getByRole('tab', { name: new RegExp(name) }));
+    fireEvent.click(within(activeForm()).getByRole('checkbox', { name: exam }));
+    fireEvent.change(within(activeForm()).getByRole('textbox', { name: 'OTROS' }), {
+      target: { value: otros },
+    });
+  };
+
+  it('keeps the other orders when the first chosen patient leaves the census', async () => {
+    const view = renderCensus();
+    const tablist = await openAll();
+    prepare(tablist, 'ANA SINTETICA', 'HEMOGRAMA', 'Ferritina');
+    prepare(tablist, 'BRUNO SINTETICO', 'TROPONINA', 'Procalcitonina');
+    prepare(tablist, 'CARLA SINTETICA', 'UROCULTIVO', 'Cultivo control');
+
+    // Ana, the first chosen, is discharged while the request is open.
+    view.rerender(<CensusHarness shown={{ R2: beds.R2, R3: beds.R3 }} />);
+
+    const tabs = within(screen.getByRole('tablist', { name: 'Pacientes de la solicitud' }));
+    expect(tabs.getAllByRole('tab').map(tab => tab.textContent)).toEqual([
+      expect.stringContaining('BRUNO SINTETICO'),
+      expect.stringContaining('CARLA SINTETICA'),
+    ]);
+    fireEvent.click(tabs.getByRole('tab', { name: /BRUNO SINTETICO/ }));
+    expect(within(activeForm()).getByRole('checkbox', { name: 'TROPONINA' })).toBeChecked();
+    expect(within(activeForm()).getByRole('textbox', { name: 'OTROS' })).toHaveValue(
+      'Procalcitonina'
+    );
+    fireEvent.click(tabs.getByRole('tab', { name: /CARLA SINTETICA/ }));
+    expect(within(activeForm()).getByRole('textbox', { name: 'OTROS' })).toHaveValue(
+      'Cultivo control'
+    );
+    expect(screen.getByRole('button', { name: 'Imprimir 2 órdenes' })).toBeInTheDocument();
+
+    // Once nobody is left, the request says so instead of vanishing.
+    view.rerender(<CensusHarness shown={{}} />);
+    expect(screen.getByRole('status')).toHaveTextContent(/ya no están en el censo/);
+    expect(screen.queryByRole('button', { name: /Imprimir/ })).not.toBeInTheDocument();
+  });
+
+  it('closes the request and forgets what was typed when the session changes', async () => {
+    renderCensus();
+    const tablist = await openAll();
+    prepare(tablist, 'BRUNO SINTETICO', 'TROPONINA', 'Procalcitonina');
+
+    act(() => setSessionGeneration(`session-${Date.now()}`));
+
+    expect(screen.queryByTestId('exam-request-modal')).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Procalcitonina')).not.toBeInTheDocument();
   });
 });

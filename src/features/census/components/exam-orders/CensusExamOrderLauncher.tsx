@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { FlaskConical, X } from 'lucide-react';
 import type { ExamRequestCandidate } from '@/hooks/useExamRequestOrders';
+import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import {
   clearExamOrderSelection,
   EXAM_ORDER_NAME_ATTRIBUTE,
@@ -23,7 +24,8 @@ const BAR_ATTRIBUTE = 'data-exam-order-bar';
 /**
  * The census patients chosen with Shift + click on their names: a floating button opens one
  * laboratory request with a tab each. Floating, so the header and rows never move. Escape or a
- * click anywhere else clears the choice; opening the request also clears it.
+ * click anywhere else clears the choice; opening the request also clears it. The request stays
+ * open while patients leave the census, and closes with everything typed on a session change.
  */
 export const CensusExamOrderLauncher: React.FC<CensusExamOrderLauncherProps> = ({
   censusDate,
@@ -32,11 +34,17 @@ export const CensusExamOrderLauncher: React.FC<CensusExamOrderLauncherProps> = (
   const chosen = useExamOrderSelection(censusDate);
   // A patient who left the census is no longer chosen.
   const selected = chosen.filter(key => candidates.some(candidate => candidate.key === key));
-  const [openKeys, setOpenKeys] = useState<readonly string[] | null>(null);
-  const openOrders = openKeys?.filter(key => candidates.some(candidate => candidate.key === key));
-  const opener = candidates.find(candidate => candidate.key === openOrders?.[0]);
-  // Everyone in the request left the census: nothing is left to print.
-  if (openKeys && !opener) setOpenKeys(null);
+  const sessionEpoch = useSessionEpoch();
+  const [request, setRequest] = useState<{
+    keys: readonly string[];
+    opener: ExamRequestCandidate;
+    sessionEpoch: number;
+  } | null>(null);
+  // Several people share one computer: the next person never sees this request or its text.
+  if (request && request.sessionEpoch !== sessionEpoch) setRequest(null);
+  const currentOpener = request
+    ? (candidates.find(candidate => candidate.key === request.opener.key) ?? request.opener)
+    : null;
   const hasSelection = selected.length > 0;
 
   useEffect(() => {
@@ -62,7 +70,8 @@ export const CensusExamOrderLauncher: React.FC<CensusExamOrderLauncherProps> = (
   useEffect(() => () => clearExamOrderSelection(), []);
 
   const openRequest = () => {
-    setOpenKeys(selected);
+    const opener = candidates.find(candidate => candidate.key === selected[0]);
+    if (opener) setRequest({ keys: selected, opener, sessionEpoch });
     clearExamOrderSelection();
   };
 
@@ -97,16 +106,16 @@ export const CensusExamOrderLauncher: React.FC<CensusExamOrderLauncherProps> = (
           </button>
         </div>
       )}
-      {opener && openOrders && (
+      {request && currentOpener && request.sessionEpoch === sessionEpoch && (
         <Suspense fallback={null}>
           <LazyExamRequestModal
             isOpen
-            onClose={() => setOpenKeys(null)}
-            patient={opener.patient}
+            onClose={() => setRequest(null)}
+            patient={currentOpener.patient}
             recordDate={censusDate}
             candidates={candidates}
-            patientKey={opener.key}
-            alsoInclude={openOrders}
+            patientKey={currentOpener.key}
+            alsoInclude={request.keys}
           />
         </Suspense>
       )}

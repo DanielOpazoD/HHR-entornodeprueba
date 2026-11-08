@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 
 import { ExamRequestModal } from '@/components/modals/ExamRequestModal';
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import type { PatientData } from '@/types/domain/patient';
 
 const printMock = vi.hoisted(() => vi.fn());
@@ -156,6 +157,17 @@ describe('ExamRequestModal integration', () => {
       .getAllByRole('textbox')
       .forEach(input => expect(input).toHaveValue(''));
     expect(within(reopened).getByTestId('exam-request-print-otros')).toBeEmptyDOMElement();
+  });
+
+  it('forgets what was typed when the session changes, since computers are shared', () => {
+    render(<ExamRequestModal isOpen={true} onClose={vi.fn()} patient={mockPatient} />);
+    fireEvent.change(screen.getByRole('textbox', { name: 'OTROS' }), {
+      target: { value: 'Ferritina' },
+    });
+
+    act(() => setSessionGeneration(`session-${Date.now()}`));
+
+    expect(screen.getByRole('textbox', { name: 'OTROS' })).toHaveValue('');
   });
 
   it('starts a blank request for a same-day readmission without an episode', () => {
