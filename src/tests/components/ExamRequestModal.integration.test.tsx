@@ -82,7 +82,7 @@ describe('ExamRequestModal integration', () => {
     expect(within(tabs).getAllByRole('tab')).toHaveLength(1);
     expect(screen.getByRole('button', { name: /^Imprimir$/ })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Pacientes/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Paciente/ }));
     fireEvent.click(screen.getByRole('checkbox', { name: /R2/ }));
     const [first, added] = within(tabs).getAllByRole('tab');
     expect(added).toHaveAttribute('aria-selected', 'true');

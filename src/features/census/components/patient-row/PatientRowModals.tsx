@@ -1,7 +1,9 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useContext } from 'react';
 import { buildPatientRowModalRenderModel } from '@/features/census/controllers/patientRowModalRenderController';
 import type { PatientRowModalsProps } from '@/features/census/components/patient-row/patientRowContracts';
 import { hasMeaningfulDemographicSubset } from '@/components/modals/demographics/utils';
+import { resolveExamRequestPatientIdentity } from '@/components/modals/controllers/examRequestPatientIdentity';
+import { CensusExamRequestCandidatesContext } from '../exam-orders/examOrderContext';
 
 const LazyDemographicsModal = lazy(() =>
   import('@/components/modals/DemographicsModal').then(module => ({
@@ -32,6 +34,29 @@ const LazyClinicalDocumentsModal = lazy(() =>
     default: module.ClinicalDocumentsModal,
   }))
 );
+
+/**
+ * The request opens for this row's patient; inside the census the other patients of the day can
+ * join it as tabs. Read here, mounted only while open, so census updates leave closed rows alone.
+ */
+const RowExamRequestModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  patient: PatientRowModalsProps['data'];
+  recordDate: string;
+}> = ({ isOpen, onClose, patient, recordDate }) => {
+  const candidates = useContext(CensusExamRequestCandidatesContext);
+  return (
+    <LazyExamRequestModal
+      isOpen={isOpen}
+      onClose={onClose}
+      patient={patient}
+      recordDate={recordDate}
+      candidates={candidates ?? undefined}
+      patientKey={candidates ? resolveExamRequestPatientIdentity(patient) : undefined}
+    />
+  );
+};
 
 export const PatientRowModals: React.FC<PatientRowModalsProps> = ({
   bedId,
@@ -111,7 +136,7 @@ export const PatientRowModals: React.FC<PatientRowModalsProps> = ({
 
       {visibilityState.shouldRenderExamRequest && (
         <Suspense fallback={null}>
-          <LazyExamRequestModal
+          <RowExamRequestModal
             key={`exam-request-${bedId}-${showExamRequest}`}
             isOpen={showExamRequest}
             onClose={onCloseExamRequest}

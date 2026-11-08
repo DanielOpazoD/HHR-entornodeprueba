@@ -1,8 +1,9 @@
 /**
  * ExamRequestModal Component
  *
- * Laboratory request form with print. From a census row it serves one patient; the clinical
- * explorer passes the census patients, and each one added gets its own tab and printed page.
+ * Laboratory request form with print. With the census patients as candidates, each patient added
+ * gets its own tab and printed page; the census row, the census selection and the clinical
+ * explorer all open it that way. Without candidates it serves the one patient given.
  *
  * @see /docs/LABORATORY_FORM_GUIDE.md for design specifications
  */
@@ -14,10 +15,8 @@ import { useExamRequestOrders, type ExamRequestCandidate } from '@/hooks/useExam
 import { useCurrentUserSignatureImage } from '@/hooks/useUserSignatureImage';
 import type { PatientData } from '@/types/domain/patient';
 import { EXAM_REQUEST_PRINT_STYLES } from '@/components/modals/examRequestPrintStyles';
-import {
-  buildExamRequestModalShellModel,
-  resolveExamRequestPatientIdentity,
-} from '@/components/modals/controllers/examRequestModalController';
+import { buildExamRequestModalShellModel } from '@/components/modals/controllers/examRequestModalController';
+import { resolveExamRequestPatientIdentity } from '@/components/modals/controllers/examRequestPatientIdentity';
 import { ExamRequestForm } from '@/components/exam-request/ExamRequestForm';
 import {
   ExamRequestPatientTabs,
@@ -34,6 +33,8 @@ interface ExamRequestModalProps {
   candidates?: ExamRequestCandidate[];
   /** Key of `patient` among `candidates`. */
   patientKey?: string;
+  /** Other candidates that open with their own tab, such as a selection in the census. */
+  alsoInclude?: readonly string[];
 }
 
 const SINGLE_PATIENT_KEY = 'patient';
@@ -42,31 +43,41 @@ const hasSeveralPatients = ({ candidates, patientKey }: ExamRequestModalProps): 
   Boolean(patientKey && candidates?.some(candidate => candidate.key === patientKey));
 
 /**
- * Mounted only while open, so every opening starts with nothing marked. With one patient the
- * request also restarts when another patient or episode takes the bed; with several, each order
- * is already keyed by patient and episode.
+ * Mounted only while open, so every opening starts with nothing marked. The request also restarts
+ * when the patient it was opened for changes, as when another patient or episode takes the bed;
+ * the other orders are already keyed by patient and episode.
  */
 export const ExamRequestModal: React.FC<ExamRequestModalProps> = props =>
   props.isOpen ? (
     <ExamRequestDialog
-      key={hasSeveralPatients(props) ? 'several' : resolveExamRequestPatientIdentity(props.patient)}
+      key={
+        hasSeveralPatients(props)
+          ? `several:${props.patientKey}`
+          : resolveExamRequestPatientIdentity(props.patient)
+      }
       {...props}
     />
   ) : null;
 
 const ExamRequestDialog: React.FC<ExamRequestModalProps> = props => {
-  const { isOpen, onClose, patient, recordDate, candidates, patientKey } = props;
+  const { isOpen, onClose, patient, recordDate, candidates, patientKey, alsoInclude } = props;
   const severalPatients = hasSeveralPatients(props);
   const pool = useMemo<ExamRequestCandidate[]>(
     () =>
       severalPatients && candidates
-        ? candidates
+        ? // The opener's tab always shows the patient it was opened for.
+          candidates.map(candidate =>
+            candidate.key === patientKey ? { ...candidate, patient } : candidate
+          )
         : [{ key: SINGLE_PATIENT_KEY, label: '', patient }],
-    [severalPatients, candidates, patient]
+    [severalPatients, candidates, patient, patientKey]
   );
   const requests = useExamRequestOrders({
     candidates: pool,
     initialKey: severalPatients && patientKey ? patientKey : SINGLE_PATIENT_KEY,
+    alsoInclude: severalPatients
+      ? alsoInclude?.filter(key => candidates?.some(candidate => candidate.key === key))
+      : undefined,
   });
   const shellModel = buildExamRequestModalShellModel(requests.active?.patient ?? patient);
   const idPrefix = useId();
@@ -115,7 +126,7 @@ const ExamRequestDialog: React.FC<ExamRequestModalProps> = props => {
       {severalPatients && candidates && (
         <ExamRequestPatientTabs
           idPrefix={idPrefix}
-          candidates={candidates}
+          candidates={pool}
           orders={requests.orders}
           activeKey={requests.active?.key}
           isIncluded={requests.isIncluded}

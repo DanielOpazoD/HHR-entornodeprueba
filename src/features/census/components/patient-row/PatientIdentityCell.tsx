@@ -13,7 +13,7 @@ import { buildPatientRowSaveScopeKey } from '@/features/census/controllers/patie
  * repositorio para reactivación futura de las columnas separadas.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { X } from 'lucide-react';
 import { DebouncedInput } from '@/components/ui/DebouncedInput';
@@ -31,6 +31,16 @@ import {
   dismissTreatingPhysician,
   isDismissedTreatingPhysician,
 } from '@/shared/census/treatingPhysicianDismissal';
+import {
+  hasExamRequestRecordIdentity,
+  resolveExamRequestPatientIdentity,
+} from '@/components/modals/controllers/examRequestPatientIdentity';
+import { CensusExamOrderDateContext } from '../exam-orders/examOrderContext';
+import {
+  EXAM_ORDER_NAME_ATTRIBUTE,
+  handleExamOrderNameMouseDown,
+  useIsExamOrderPatientSelected,
+} from '../exam-orders/examOrderSelectionStore';
 import { resolveNameInputState } from './nameInputController';
 import { SpecialtyChip } from './SpecialtyChip';
 import type { BaseCellProps, DebouncedTextHandler, PatientRowSaveResult } from './inputCellTypes';
@@ -83,6 +93,18 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
     readOnly,
   });
   const handlePatientNameChange = canEditInlineName ? onNameChange('patientName') : () => undefined;
+  const examOrderDate = useContext(CensusExamOrderDateContext);
+  // Shift + click chooses registered patients for a laboratory order; editable names stay editable.
+  const examOrderKey =
+    examOrderDate &&
+    !isEmpty &&
+    !canEditInlineName &&
+    !data.isBlocked &&
+    fullName.trim() &&
+    hasExamRequestRecordIdentity(data)
+      ? resolveExamRequestPatientIdentity(data)
+      : null;
+  const examOrderSelected = useIsExamOrderPatientSelected(examOrderDate, examOrderKey);
 
   const hasNameValidationError =
     !PatientInputSchema.pick({ patientName: true }).safeParse({ patientName: fullName }).success &&
@@ -207,12 +229,25 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
             />
           ) : (
             <div
+              {...(examOrderKey && { [EXAM_ORDER_NAME_ATTRIBUTE]: '' })}
+              data-exam-order-selected={examOrderSelected || undefined}
+              title={examOrderKey ? 'Mayús + clic: elegir para la orden de exámenes' : undefined}
+              onMouseDown={
+                examOrderDate && examOrderKey
+                  ? event => handleExamOrderNameMouseDown(event, examOrderDate, examOrderKey)
+                  : undefined
+              }
               className={clsx(
-                'census-identity-name relative flex w-full min-w-0 flex-1 items-start gap-1 rounded border bg-slate-50 p-0.5 text-[13px] font-semibold text-slate-700 cursor-default',
-                'border-slate-200',
+                'census-identity-name relative flex w-full min-w-0 flex-1 items-start gap-1 rounded border p-0.5 text-[13px] font-semibold cursor-default',
+                examOrderSelected
+                  ? 'border-emerald-500 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-300'
+                  : 'border-slate-200 bg-slate-50 text-slate-700',
                 hasNameValidationError && 'border-red-400 bg-red-50/50 text-red-700'
               )}
             >
+              {examOrderSelected && (
+                <span className="sr-only">Elegido para la orden de exámenes.</span>
+              )}
               {/*
                 Preserve the read-only input as the census/e2e value hook. Its visible text is rendered
                 separately so names can wrap naturally instead of being truncated by a one-line input.
