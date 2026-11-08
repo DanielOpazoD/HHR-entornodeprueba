@@ -120,7 +120,7 @@
     const officialDauFor = async (history, selected, detail, sender) => {
       if (selected.source !== 'Primaria' || detailSupport.slim(detail).careType !== 'emergency' || !downloadDau)
         throw new Error('El DAU oficial no está disponible para esta atención.');
-      return await downloadDau({ patientRun: run(history.patientRun), attentionId: selected.id,
+      return await downloadDau({ patientRun: run(history.patientRun), attentionId: selected.id, sender,
         assertAuthorization: async () => {
           if (await getAuthorizationKey(sender) !== history.authorizationKey)
             throw new Error('La sesión clínica cambió durante la descarga del DAU.');

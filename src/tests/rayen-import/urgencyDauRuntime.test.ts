@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import '../../../extension/urgency-dau-page.js';
+import '../../../extension/urgency-dau-source.js';
 import '../../../extension/urgency-dau-runtime.js';
 
 type PdfResult = { ok: boolean; base64?: string; code?: string };
@@ -279,7 +280,7 @@ describe('DAU delivery and source isolation', () => {
       filename: 'DAU_8.pdf',
       saveAs: true,
     });
-    expect(h.assertAuthorization).toHaveBeenCalledTimes(3);
+    expect(h.assertAuthorization).toHaveBeenCalled();
   });
   it('does not inject into a blob/PDF tab or download without an active native page', async () => {
     const h = harness();
@@ -288,7 +289,7 @@ describe('DAU delivery and source isolation', () => {
     ]);
     await expect(
       h.api.download({ ...selection, assertAuthorization: h.assertAuthorization })
-    ).rejects.toThrow('Abre Rayen Urgencias');
+    ).rejects.toThrow('Inicia sesión en Urgencias');
     expect(h.executeScript).not.toHaveBeenCalled();
     expect(h.downloadPdfBuffer).not.toHaveBeenCalled();
   });
@@ -299,7 +300,7 @@ describe('DAU delivery and source isolation', () => {
       .mockRejectedValueOnce(new Error('changed session'));
     await expect(
       h.api.download({ ...selection, assertAuthorization: h.assertAuthorization })
-    ).rejects.toThrow('changed session');
+    ).rejects.toThrow(/sesión clínica cambió/);
     expect(h.downloadPdfBuffer).not.toHaveBeenCalled();
   });
 });

@@ -1,0 +1,17 @@
+:root { font: 12px/1.4 system-ui, sans-serif; color: #334155; color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 10px; background: #f8fafc; }
+h1 { margin: 0 0 4px; font-size: 13px; color: #115e59; }
+p { margin: 5px 0; }
+.hint { color: #64748b; font-size: 11px; }
+form { display: grid; grid-template-columns: 1fr; gap: 7px; margin: 8px 0; }
+form[hidden] { display: none; }
+label { display: grid; gap: 2px; }
+input, select { min-width: 0; width: 100%; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 5px; font: inherit; background: white; }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid #0d9488; outline-offset: 2px; }
+button { padding: 6px 9px; border: 0; border-radius: 5px; background: #0f766e; color: white; font: inherit; cursor: pointer; }
+button:disabled { opacity: .6; cursor: wait; }
+.cancel { background: transparent; color: #475569; padding-left: 0; margin-top: 4px; }
+output { display: block; color: #92400e; }
+.privacy { margin-top: 4px; }
+@media (min-width: 420px) { #login-form { grid-template-columns: 1fr 1fr; } #login-form button { align-self: end; } }
