@@ -48,6 +48,8 @@ export interface RayenSourceHealth {
 
 export interface RayenExtensionHealthReport {
   version: string;
+  /** Content fingerprint of the packaged runtime; absent on legacy/local source folders. */
+  buildId?: string;
   runtimeGeneration?: string;
   runtimeStartedAt?: number;
   protocolVersion: number;
@@ -104,6 +106,8 @@ export const isRayenExtensionHealthReport = (
   const candidate = value as Record<string, unknown>;
   return (
     typeof candidate.version === 'string' &&
+    (candidate.buildId === undefined ||
+      (typeof candidate.buildId === 'string' && /^[a-f0-9]{64}$/.test(candidate.buildId))) &&
     (candidate.runtimeGeneration === undefined ||
       typeof candidate.runtimeGeneration === 'string') &&
     (candidate.runtimeStartedAt === undefined || typeof candidate.runtimeStartedAt === 'number') &&

@@ -411,6 +411,7 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
       </div>
       <RayenExtensionDownload
         installedVersion={report?.version}
+        installedBuildId={report?.buildId}
         incompatible={connection === 'incompatible'}
         working={working}
       />

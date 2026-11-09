@@ -29,6 +29,30 @@ afterEach(() => {
 });
 
 describe('extension version popup', () => {
+  it('shows the packaged content identity separately from the version and rejects stale labels', () => {
+    const identitySource = readFileSync(path.resolve('extension/build-identity.js'), 'utf8');
+    const popupSource = readFileSync(path.resolve('extension/extension-status.js'), 'utf8');
+    for (const matching of [true, false]) {
+      const elements = {
+        'extension-version': { textContent: '', title: '' },
+        'extension-build': { textContent: '', title: '' },
+      };
+      const manifest = {
+        version: '0.48.86',
+        version_name: `${matching ? '0.48.86' : '0.48.85'}+hhr1.${'a'.repeat(64)}`,
+      };
+      const context = vm.createContext({
+        chrome: { runtime: { getManifest: () => manifest } },
+        document: { title: '', getElementById: (id: keyof typeof elements) => elements[id] },
+      });
+      vm.runInContext(identitySource, context);
+      vm.runInContext(popupSource, context);
+      expect(elements['extension-version'].textContent).toBe('v0.48.86');
+      expect(elements['extension-build'].textContent).toBe(
+        matching ? 'Paquete aaaaaaaaaaaa' : 'Paquete sin identificador verificable'
+      );
+    }
+  });
   it.each([undefined, '9.7.1'])(
     'renders the loaded manifest version, including a future release %s',
     version => {

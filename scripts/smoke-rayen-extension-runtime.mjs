@@ -1,10 +1,20 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 
 import { chromium } from 'playwright';
+import { unzipSync } from 'fflate';
+import { packageRayenExtension } from './config/extensionDownloadPlugin.ts';
 
-const extensionPath = path.resolve('extension');
+const packageDirectory = await mkdtemp(path.join(os.tmpdir(), 'hhr-extension-runtime-'));
+const extensionPath = path.join(packageDirectory, 'extension');
+const artifact = packageRayenExtension(process.cwd());
+for (const [name, bytes] of Object.entries(unzipSync(artifact.zip))) {
+  const file = path.join(extensionPath, name);
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file, bytes);
+}
 const manifest = JSON.parse(await readFile(path.join(extensionPath, 'manifest.json'), 'utf8'));
 const fixtureUrl = 'https://fichamedico.rayensalud.cl/dashboard/encounter-list-nurse/141121';
 const gestionCamasFixtureUrl = 'https://hospitalizado.rayensalud.cl/#/bed';
@@ -325,6 +335,16 @@ try {
     'The loaded extension version differs from manifest.json'
   );
   const runtimeContext = await requestRuntimeContext(statusPage);
+  const installedName = await statusPage.evaluate(() => chrome.runtime.getManifest().version_name);
+  assert.match(
+    installedName,
+    new RegExp(`^${manifest.version.replaceAll('.', '\\.')}\\+hhr1\\.[a-f0-9]{64}$`)
+  );
+  const installedBuildId = installedName.split('+hhr1.')[1];
+  assert.equal(
+    await statusPage.locator('#extension-build').textContent(),
+    `Paquete ${installedBuildId.slice(0, 12)}`
+  );
   assert.equal(
     runtimeContext?.version,
     manifest.version,
@@ -618,6 +638,7 @@ try {
     await hhrPage.waitForTimeout(250);
   }
   assert.equal(hhrHealthResult.error, undefined);
+  assert.equal(hhrHealthResult.report.buildId, artifact.buildId);
   assert.equal(hhrHealthResult.report.runtimeGeneration, runtimeContext.runtimeGeneration);
   assert.equal(hhrHealthResult.report.hhr.status, 'ready');
   assert.equal(
@@ -1184,4 +1205,5 @@ try {
   );
 } finally {
   await context.close();
+  await rm(packageDirectory, { recursive: true, force: true });
 }

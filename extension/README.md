@@ -1,5 +1,32 @@
 # Extensión · Puente Eloísa → HHR
 
+El código se desarrolla en [extensioneloisahhr](https://github.com/DanielOpazoD/extensioneloisahhr).
+Esta carpeta es una copia de compatibilidad para las pruebas de HHR. Actualiza el commit
+de `@hhr/eloisa-extension` en `package.json` y su lockfile; luego ejecuta
+`npm run extension:sync`. CI rechaza las diferencias directas. El ZIP se construye desde
+la dependencia fijada con el empaquetador del repositorio de la extensión.
+
+## Identidad de los paquetes y trabajo en paralelo
+
+El número de versión no demuestra que dos paquetes contengan las mismas funciones.
+Cada ZIP generado por HHR incorpora una huella SHA-256 de sus archivos de ejecución y
+recursos, independiente del equipo, la ruta local y la fecha. Se conserva el identificador
+completo en `manifest.version_name`; el nombre del ZIP y el popup muestran sus primeros
+12 caracteres. El sufijo identifica este contenido normalizado, no el checksum del ZIP.
+El manifiesto fuente no se modifica al empaquetar y cualquier etiqueta heredada se recalcula.
+
+El reporte de conexión comunica la identidad del paquete. HHR distingue identificadores
+iguales, diferentes y ausentes: un número igual o superior no basta para declararlo actual.
+Las extensiones anteriores y las carpetas fuente sin empaquetar siguen siendo compatibles
+con sus funciones existentes, pero se muestran sin identidad verificable. La huella es una
+etiqueta de compilación, no una firma ni una comprobación continua de archivos modificados
+a mano: tras editar una carpeta descomprimida, hay que volver a empaquetar y recargar Chrome.
+
+Los números de las ramas son provisionales. Antes de publicar, incorporar la última base y
+elegir un número superior al publicado. CI compara los commits exactos de base y candidato
+y rechaza cambios del paquete que reutilicen una versión. Esto se suma al requisito de rama
+al día y a las pruebas de compatibilidad; no permite inferir compatibilidad a partir de un ZIP.
+
 Extensión de Chrome (Manifest V3) que lee el censo de hospitalizados de **Rayen / Ficha
 Médico** y lo entrega al **censo local HHR** para importarlo con revisión. Además, en
 **Gestión de cuidados**, agrega accesos separados al reporte de indicaciones y a la receta médica

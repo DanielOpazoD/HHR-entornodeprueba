@@ -196,6 +196,12 @@ for (const [index, script] of (manifest.content_scripts || []).entries()) {
   validateFileReferences(`manifest.content_scripts[${index}].js`, script.js);
   validateFileReferences(`manifest.content_scripts[${index}].css`, script.css);
 }
+if (
+  !(manifest.content_scripts || []).some(
+    script => script.js?.includes('content-hhr.js') && script.js.includes('content-hhr-exalab.js')
+  )
+)
+  fail('El relé de HHR debe conservar la conexión personal Exalab.');
 for (const [index, resourceGroup] of (manifest.web_accessible_resources || []).entries()) {
   validateFileReferences(
     `manifest.web_accessible_resources[${index}].resources`,
@@ -205,12 +211,19 @@ for (const [index, resourceGroup] of (manifest.web_accessible_resources || []).e
 
 // These package entry points are not reachable from manifest, importScripts(), or another HTML.
 // All reachable children are validated from their actual edges instead of duplicated as file roots.
-const mandatoryPackageRoots = ['vendor-lock.json', 'print-pdf.html', 'syslab-offscreen.html'];
+const mandatoryPackageRoots = [
+  'vendor-lock.json',
+  'print-pdf.html',
+  'syslab-offscreen.html',
+  'exalab-connect.html',
+  'exalab-connect.css',
+];
 validateFileReferences('raíces obligatorias del paquete', mandatoryPackageRoots);
 
 // Preserve the pre-existing core-feature contract as required graph edges. File existence remains
 // derived by validateFileReferences(), while removing an edge and its target together still fails.
 const mandatoryStartupRuntimes = [
+  'exalab-background.js',
   'runtime-loader.js',
   'prescription-print.js',
   'prescription-pdf.js',
@@ -220,7 +233,10 @@ const mandatoryStartupRuntimes = [
   'pdf-lib.min.js',
   'xlsx.full.min.js',
 ];
-const mandatoryHtmlScripts = new Map([['print-pdf.html', ['print-pdf.js']]]);
+const mandatoryHtmlScripts = new Map([
+  ['print-pdf.html', ['print-pdf.js']],
+  ['exalab-connect.html', ['hhr-origin-policy.js', 'exalab-connect.js']],
+]);
 
 const vendorLockPath = path.join(extensionDir, 'vendor-lock.json');
 if (existsSync(vendorLockPath)) {
