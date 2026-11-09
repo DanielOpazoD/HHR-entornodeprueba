@@ -17,9 +17,9 @@
     try {
       const permission = chrome.permissions.request({ permissions: ['cookies'], origins: ['https://exalab.saludoriente.cl/*'] });
       if (!await permission) { status.textContent = 'No se autorizó la conexión. Puedes volver a intentarlo.'; return; }
-      const applicable = await chrome.cookies.getAll({ url: 'https://exalab.saludoriente.cl/web_ssmo/index.php' });
-      const cookies = applicable.filter(cookie => ['PHPSESSID', 'cf_clearance'].includes(cookie.name))
-        .map(({ name, value, domain }) => ({ name, value, domain }));
+      // Chrome's getAll({ url }) omits the signed-in session that get() finds, so read each cookie by name.
+      const cookies = (await Promise.all(['PHPSESSID', 'cf_clearance'].map(name => chrome.cookies.get({ url: 'https://exalab.saludoriente.cl/web_ssmo/index.php', name }))))
+        .filter(Boolean).map(({ name, value, domain }) => ({ name, value, domain }));
       if (!cookies.some(cookie => cookie.name === 'PHPSESSID')) {
         status.textContent = 'Primero ingresa a Exalab con tu cuenta personal. Luego vuelve a conectar.'; return;
       }
