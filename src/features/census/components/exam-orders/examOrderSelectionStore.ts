@@ -1,4 +1,5 @@
 import { useSyncExternalStore, type MouseEvent } from 'react';
+import type { ExamRequestCandidate } from '@/hooks/useExamRequestOrders';
 import { onSessionChange } from '@/services/storage/sessionStorageTransition';
 
 interface ExamOrderSelection {
@@ -18,7 +19,23 @@ const subscribe = (listener: () => void) => {
     listeners.delete(listener);
   };
 };
+/**
+ * The laboratory request open in the census, from the floating button or from a row. It lives
+ * here, not in a row, so it survives the patient it was opened for leaving the census.
+ */
+export interface ExamOrderRequest {
+  /** Each opening is a new request: a new dialog with nothing marked. */
+  id: number;
+  censusDate: string;
+  keys: readonly string[];
+  /** The first patient as it was on opening; the census may no longer list them. */
+  opener: ExamRequestCandidate;
+}
+
+let request: ExamOrderRequest | null = null;
+let requestCount = 0;
 const read = (): ExamOrderSelection | null => selection;
+const readRequest = (): ExamOrderRequest | null => request;
 const readServer = (): ExamOrderSelection | null => null;
 const NOTHING_CHOSEN: readonly string[] = [];
 
@@ -33,6 +50,27 @@ export const clearExamOrderSelection = (): void => {
   if (!selection) return;
   selection = null;
   emit();
+};
+
+export const openExamOrderRequest = (
+  censusDate: string,
+  keys: readonly string[],
+  opener: ExamRequestCandidate
+): void => {
+  requestCount += 1;
+  request = { id: requestCount, censusDate, keys, opener };
+  emit();
+};
+
+export const closeExamOrderRequest = (): void => {
+  if (!request) return;
+  request = null;
+  emit();
+};
+
+export const useExamOrderRequest = (censusDate: string): ExamOrderRequest | null => {
+  const current = useSyncExternalStore(subscribe, readRequest, () => null);
+  return current?.censusDate === censusDate ? current : null;
 };
 
 export const useExamOrderSelection = (censusDate: string): readonly string[] => {
@@ -66,7 +104,8 @@ export const handleExamOrderNameMouseDown = (
   toggleExamOrderPatient(censusDate, key);
 };
 
-// Every admission and logout: the next person starts with nothing chosen.
+// Every admission and logout: the next person starts with nothing chosen and no request open.
 onSessionChange(() => {
   clearExamOrderSelection();
+  closeExamOrderRequest();
 });

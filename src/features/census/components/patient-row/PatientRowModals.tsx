@@ -1,9 +1,13 @@
-import React, { lazy, Suspense, useContext } from 'react';
+import React, { lazy, Suspense, useContext, useEffect, useRef } from 'react';
 import { buildPatientRowModalRenderModel } from '@/features/census/controllers/patientRowModalRenderController';
 import type { PatientRowModalsProps } from '@/features/census/components/patient-row/patientRowContracts';
 import { hasMeaningfulDemographicSubset } from '@/components/modals/demographics/utils';
 import { resolveExamRequestPatientIdentity } from '@/components/modals/controllers/examRequestPatientIdentity';
-import { CensusExamRequestCandidatesContext } from '../exam-orders/examOrderContext';
+import {
+  CensusExamOrderDateContext,
+  CensusExamRequestCandidatesContext,
+} from '../exam-orders/examOrderContext';
+import { openExamOrderRequest } from '../exam-orders/examOrderSelectionStore';
 
 const LazyDemographicsModal = lazy(() =>
   import('@/components/modals/DemographicsModal').then(module => ({
@@ -36,8 +40,10 @@ const LazyClinicalDocumentsModal = lazy(() =>
 );
 
 /**
- * The request opens for this row's patient; inside the census the other patients of the day can
- * join it as tabs. Read here, mounted only while open, so census updates leave closed rows alone.
+ * The request opens for this row's patient. Inside the census it opens in the census host, where
+ * the other patients of the day can join as tabs and the request outlives this row: discharging
+ * the patient who opened it leaves the others' orders open. Elsewhere, or for a patient nothing
+ * identifies, it stays here for this patient alone.
  */
 const RowExamRequestModal: React.FC<{
   isOpen: boolean;
@@ -46,14 +52,23 @@ const RowExamRequestModal: React.FC<{
   recordDate: string;
 }> = ({ isOpen, onClose, patient, recordDate }) => {
   const candidates = useContext(CensusExamRequestCandidatesContext);
+  const censusDate = useContext(CensusExamOrderDateContext);
+  const key = resolveExamRequestPatientIdentity(patient);
+  const opener = censusDate ? candidates?.find(candidate => candidate.key === key) : undefined;
+  const handedOff = useRef(false);
+  useEffect(() => {
+    if (!isOpen || !opener || !censusDate || handedOff.current) return;
+    handedOff.current = true;
+    openExamOrderRequest(censusDate, [opener.key], { ...opener, patient });
+    onClose();
+  }, [isOpen, opener, censusDate, patient, onClose]);
+  if (opener) return null;
   return (
     <LazyExamRequestModal
       isOpen={isOpen}
       onClose={onClose}
       patient={patient}
       recordDate={recordDate}
-      candidates={candidates ?? undefined}
-      patientKey={candidates ? resolveExamRequestPatientIdentity(patient) : undefined}
     />
   );
 };
