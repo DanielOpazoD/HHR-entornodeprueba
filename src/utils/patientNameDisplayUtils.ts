@@ -1,4 +1,5 @@
 import { resolveLegacyNameParts } from '@/utils/legacyNameParts';
+import type { PatientNamePartsSource } from '@/types/domain/patientIdentity';
 
 /** Display only: preserve the stored identity and the casing of the rest of the name. */
 export const formatCensusPatientName = (name: string): string => name.replace(/\brn\b/gi, 'RN');
@@ -38,6 +39,7 @@ export interface PatientNameFields {
   firstName?: string;
   lastName?: string;
   secondLastName?: string;
+  namePartsSource?: PatientNamePartsSource;
 }
 
 const sameName = (left: string, right: string): boolean =>
@@ -55,8 +57,9 @@ const couldBeGuessedSplit = (fullName: string, parts: PatientNameFields): boolea
 
 /**
  * Display only: the first three given names followed by the surnames. The limit applies only
- * when a surname is stored, the split agrees with the full name and it cannot be the read-time
- * guess; otherwise the stored full name is shown whole, so no surname is ever cut.
+ * when a surname is stored, the split agrees with the full name and either came from Eloísa or
+ * cannot be the read-time guess; otherwise the stored full name is shown whole, so no surname is
+ * ever cut.
  */
 export const formatPatientDisplayName = (patient: PatientNameFields): string => {
   const fullName = normalizeSpaces(patient.patientName);
@@ -68,7 +71,11 @@ export const formatPatientDisplayName = (patient: PatientNameFields): string => 
   if (!givenNames || surnames.length === 0) {
     return fullName || nameFromParts;
   }
-  if (fullName && (!sameName(nameFromParts, fullName) || couldBeGuessedSplit(fullName, patient))) {
+  if (
+    fullName &&
+    (!sameName(nameFromParts, fullName) ||
+      (patient.namePartsSource !== 'eloisa' && couldBeGuessedSplit(fullName, patient)))
+  ) {
     return fullName;
   }
 

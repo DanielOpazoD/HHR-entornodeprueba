@@ -62,7 +62,7 @@ export const bedManagementReducer = (
     case 'REMOVE_CLINICAL_CRIB':
       return buildRemoveClinicalCribPatches(action.bedId);
     case 'UPDATE_CLINICAL_CRIB':
-      return buildUpdateClinicalCribPatches(action.bedId, action.field, action.value);
+      return buildUpdateClinicalCribPatches(state, action.bedId, action.field, action.value);
     case 'UPDATE_CLINICAL_CRIB_MULTIPLE':
       return buildClinicalCribMultipleFieldPatches(state, action.bedId, action.fields);
     case 'UPDATE_CLINICAL_CRIB_CUDYR':

@@ -18,6 +18,7 @@ const PATIENT_FIELD_OWNERSHIP = {
   firstName: 'remoteCanonical',
   lastName: 'remoteCanonical',
   secondLastName: 'remoteCanonical',
+  namePartsSource: 'remoteCanonical',
   identityStatus: 'remoteCanonical',
   patientName: 'remoteCanonical',
   rut: 'remoteCanonical',

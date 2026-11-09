@@ -8,6 +8,7 @@ const INTERNAL_SYNC_FIELDS = new Set<FieldChange['field']>([
   'clinicalCrib',
   'treatingPhysicianId',
   'treatingPhysicianName',
+  'namePartsSource',
 ]);
 
 const FIELD_LABELS: Partial<Record<FieldChange['field'], string>> = {
