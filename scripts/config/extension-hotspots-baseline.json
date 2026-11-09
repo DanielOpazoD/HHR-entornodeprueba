@@ -202,6 +202,10 @@
       "maxLines": 39,
       "hotspots": {}
     },
+    "content-hhr-exalab.js": {
+      "maxLines": 17,
+      "hotspots": {}
+    },
     "content-hhr-patient-documents.js": {
       "maxLines": 32,
       "hotspots": {}
@@ -272,6 +276,14 @@
       "hotspots": {
         "iife>variable:correctEpicrisisPrescriptionPages": 20
       }
+    },
+    "exalab-background.js": {
+      "maxLines": 21,
+      "hotspots": {}
+    },
+    "exalab-connect.js": {
+      "maxLines": 42,
+      "hotspots": {}
     },
     "exam-request-pdf.js": {
       "maxLines": 383,
@@ -767,16 +779,16 @@
       "maxLines": 88,
       "hotspots": {}
     },
-    "zip-store-writer.js": {
-      "maxLines": 121,
+    "urgency-dau-page.js": {
+      "maxLines": 111,
       "hotspots": {}
     },
     "urgency-dau-runtime.js": {
       "maxLines": 44,
       "hotspots": {}
     },
-    "urgency-dau-page.js": {
-      "maxLines": 111,
+    "zip-store-writer.js": {
+      "maxLines": 121,
       "hotspots": {}
     }
   }
