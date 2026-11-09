@@ -17,6 +17,7 @@ import {
 } from '@/features/census/components/patient-row/PatientInputCellSections';
 import type { PatientInputCellsProps } from '@/features/census/components/patient-row/patientRowContracts';
 import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import { PatientClinicalAccess } from '@/features/census/components/patient-row/PatientClinicalAccess';
 
 export const PatientInputCells: React.FC<PatientInputCellsProps> = ({
   data,
@@ -32,6 +33,7 @@ export const PatientInputCells: React.FC<PatientInputCellsProps> = ({
   clinicalFieldLocks,
   diagnosisMode = 'free',
   accessProfile = 'default',
+  clinicalAccess,
 }) => {
   const { isLocked, hasRutError, handleDebouncedText } = usePatientInputCellsModel({
     data,
@@ -61,6 +63,10 @@ export const PatientInputCells: React.FC<PatientInputCellsProps> = ({
       <PatientInputStatusSection {...sectionBindings.clinical} accessProfile={accessProfile} />
 
       <PatientInputIdentitySection {...sectionBindings.identity} parentBedId={parentBedId} />
+
+      <td className="census-access-cell border-r border-slate-200 px-0.5 py-1 align-middle">
+        {clinicalAccess && <PatientClinicalAccess {...clinicalAccess} />}
+      </td>
 
       <PatientInputClinicalSection {...sectionBindings.clinical} accessProfile={accessProfile} />
 

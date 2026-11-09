@@ -13,7 +13,7 @@ interface UsePatientRowRuntimeParams {
   bed: BedDefinition;
   data: PatientData;
   currentDateString: string;
-  recordLastUpdated?: string;
+  getRecordLastUpdated?: () => string | undefined;
   isSubRow?: boolean;
   onAction: (action: PatientRowAction, bedId: string, patient: PatientData) => void;
 }
@@ -22,7 +22,7 @@ export const usePatientRowRuntime = ({
   bed,
   data,
   currentDateString,
-  recordLastUpdated,
+  getRecordLastUpdated,
   isSubRow = false,
   onAction,
 }: UsePatientRowRuntimeParams): PatientRowRuntime => {
@@ -41,7 +41,7 @@ export const usePatientRowRuntime = ({
     bed,
     data,
     currentDateString,
-    recordLastUpdated,
+    getRecordLastUpdated,
     isSubRow,
     onAction,
     rowState,

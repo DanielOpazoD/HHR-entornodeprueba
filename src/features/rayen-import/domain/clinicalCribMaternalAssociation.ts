@@ -1,5 +1,5 @@
 import { mapRayenBed } from '../mapping/bedMapping';
-import { isValidRut, normalizeRut } from '@/utils/rutUtils';
+import { isPassportFormat, isValidRut, normalizeRut } from '@/utils/rutUtils';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import type { MappedPatient } from '../mapping/rayenToPatientData';
@@ -27,12 +27,39 @@ const maternalAlias = (candidate: MappedClinicalEncounter): string | undefined =
   return nameKey(first) && nameKey(family) ? `${first} ${family}` : undefined;
 };
 
+/** The fields that tell a newborn apart; census and CUDYR report rows both carry them. */
+interface NeonatalSignals {
+  bedMode?: string;
+  neonatalPlacementDecision?: unknown;
+  neonatalMaternalRut?: string;
+  patientName?: string;
+  age?: string;
+}
+
 /** Known RN labels/decisions and neonatal age prove the role, never the physical bed alone. */
-export const isNeonatalPatient = (patient: PatientData): boolean =>
+export const isNeonatalPatient = (patient: NeonatalSignals): boolean =>
   patient.bedMode === 'Cuna' ||
   Boolean(patient.neonatalPlacementDecision || patient.neonatalMaternalRut) ||
-  /^RN\s+de\b/i.test(patient.patientName) ||
-  /^\d+d$/.test(patient.age);
+  /^RN\s+de\b/i.test(patient.patientName ?? '') ||
+  /^\d+d$/.test(patient.age ?? '');
+/**
+ * Eloísa opens a newborn's episode at birth, before Registro Civil issues a RUN, and may show a
+ * delivery-receipt folio or a typo as its identification. For a newborn, a number that is neither
+ * a valid RUN nor a passport is never the child's own document.
+ */
+export const isUnusableNewbornRun = (run: string): boolean =>
+  Boolean(run.trim()) && !isPassportFormat(run) && !isValidRut(run);
+
+/** A newborn's own document, leaving out a stored number that cannot be one. */
+export const newbornOwnRut = (
+  patient: NeonatalSignals & { rut?: string; documentType?: string }
+): string =>
+  isNeonatalPatient(patient) &&
+  patient.documentType !== 'Pasaporte' &&
+  isUnusableNewbornRun(patient.rut ?? '')
+    ? ''
+    : (patient.rut ?? '');
+
 export const isMaternalCandidatePatient = (patient: PatientData): boolean =>
   !isNeonatalPatient(patient) && !patient.isBlocked && patient.biologicalSex !== 'Masculino';
 

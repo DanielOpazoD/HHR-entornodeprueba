@@ -499,13 +499,17 @@ const mockAuthContextValue = {
   signOut: vi.fn().mockResolvedValue(undefined),
 };
 
-vi.mock('@/context/AuthContext', () => ({
+vi.mock('@/context/AuthContext', async () => ({
+  // No provider by default: components that read the context directly see nobody signed in.
+  AuthContext: (await import('react')).createContext(undefined),
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
   useAuth: () => mockAuthContextValue,
   useCanEdit: () => true,
 }));
 
-vi.mock('../context/AuthContext', () => ({
+vi.mock('../context/AuthContext', async () => ({
+  // No provider by default: components that read the context directly see nobody signed in.
+  AuthContext: (await import('react')).createContext(undefined),
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
   useAuth: () => mockAuthContextValue,
   useCanEdit: () => true,

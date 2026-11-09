@@ -9,7 +9,7 @@ export interface ClinicalPanelNavigationState {
   next: string | null;
 }
 
-// A crib keeps a visible button; a main row keeps only a marker beside its turtle.
+// Mother and crib rows keep only a marker beside their «Accesos» button.
 const isClinicalPanelEntry = (element: Element): element is HTMLElement =>
   element instanceof HTMLElement &&
   !element.hidden &&

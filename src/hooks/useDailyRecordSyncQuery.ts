@@ -192,12 +192,13 @@ export const useDailyRecordSyncQuery = (
   const patchRecord = useCallback(
     async (partial: DailyRecordPatch, options?: ApplyDailyRecordPatchOptions) => {
       try {
-        const payload = await patchMutation.mutateAsync(
-          options?.consistency === 'remote_confirmed' ||
-            options?.intentionalBedClear ||
-            options?.specialtyIntent
+        const payload = await patchMutation.mutateAsync({
+          date: currentDateString,
+          partial,
+          ...(options?.consistency === 'remote_confirmed' ||
+          options?.intentionalBedClear ||
+          options?.specialtyIntent
             ? {
-                partial,
                 options: {
                   requireConfirmedRecord: true,
                   requireRemoteAuthorityFirst: true,
@@ -216,9 +217,9 @@ export const useDailyRecordSyncQuery = (
                 },
               }
             : options?.specialistHandoffTargets
-              ? { partial, options: { specialistHandoffTargets: options.specialistHandoffTargets } }
-              : partial
-        );
+              ? { options: { specialistHandoffTargets: options.specialistHandoffTargets } }
+              : {}),
+        });
         presentSyncOutcomeFeedback(resolvePatchOutcomeFeedback(payload.result), 'Actualización', {
           error: notifyError,
           success,
@@ -245,7 +246,7 @@ export const useDailyRecordSyncQuery = (
         throw err;
       }
     },
-    [patchMutation, notifyError, success, warning]
+    [currentDateString, patchMutation, notifyError, success, warning]
   );
 
   const setRecord = useCallback(

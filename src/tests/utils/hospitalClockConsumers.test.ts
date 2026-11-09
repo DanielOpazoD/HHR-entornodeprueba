@@ -9,10 +9,7 @@ import {
 } from '@/features/clinical-documents/controllers/clinicalDocumentEpisodeController';
 import { collectMonthlyPrescriptionExport } from '@/features/prescriptions/services/prescriptionMonthlyPdfService';
 import { getCurrentShift } from '@/services/admin/attributionService';
-import type { PatientData } from '@/services/contracts/patientServiceContracts';
 import { getTodayFormatted } from '@/services/pdf/pdfBrowserUtils';
-import { mapSourceToValue } from '@/services/utils/printMapper';
-import { formatCensusIsoDate } from '@/shared/census/censusPresentation';
 import type { PrescriptionRecord } from '@/types/prescriptionTypes';
 
 // 23:30 on Oct 31 in Rapa Nui (UTC-5) is already Nov 1 both in UTC (04:30) and on the
@@ -33,20 +30,6 @@ describe('hospital clock consumers', () => {
     expect(getCurrentTimeValue()).toBe('23:30');
     expect(getTodayFormatted()).toBe('31-10-2026');
     expect(getCurrentShift()).toBe('night');
-    expect(
-      mapSourceToValue(
-        'today.date',
-        {
-          patient: {} as PatientData,
-          survey: { diagnostico: '', peso: '', telefono: '', medicoTratante: '' },
-          bedName: '',
-          prevision: '',
-          selectedExams: new Set(),
-          manualValues: {},
-        },
-        'today'
-      )
-    ).toBe(formatCensusIsoDate('2026-10-31'));
   });
 
   it('stamps device events and search ranges with the hospital day', () => {

@@ -216,7 +216,12 @@ describe('useRayenImportCapture lifecycle guards', () => {
       )
     );
     expect(recordRunPerformance).toHaveBeenCalledWith({ counters: { retries: 1 } }, 'run-1');
-    expect(failRun).toHaveBeenCalledWith('snapshot_network_error', 'run-1', undefined, 'other');
+    expect(failRun).toHaveBeenCalledWith(
+      'snapshot_network_error',
+      'run-1',
+      undefined,
+      'ficha_network'
+    );
     const stateUpdater = setState.mock.calls[0]?.[0] as (
       state: typeof INITIAL_RAYEN_IMPORT_STATE
     ) => typeof INITIAL_RAYEN_IMPORT_STATE;

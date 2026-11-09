@@ -183,8 +183,7 @@
         "src/tests/hooks/laboratory/useLabViewer.test.ts",
         "src/tests/hooks/useDailyRecord.census-action-matrix.test.tsx",
         "src/tests/rayen-import/RayenImportButton.historyAndProgress.test.tsx",
-        "src/tests/views/census/CensusEmailConfigModal.test.tsx",
-        "src/tests/views/census/PatientRowOrbitalQuickActions.behavior.test.tsx"
+        "src/tests/views/census/CensusEmailConfigModal.test.tsx"
       ],
       "estimatedDurationMs": 1400
     },
@@ -255,7 +254,6 @@
         "src/tests/rayen-import/RayenImportPreviewModalCmaAdmission.test.tsx",
         "src/tests/views/census/ClinicalPanelImportRecovery.test.tsx",
         "src/tests/views/census/ClinicalReportsImportFallback.test.tsx",
-        "src/tests/views/census/PatientRowOrbitalQuickActions.visibility.test.tsx",
         "src/tests/views/census/SpecialtyRoundWindow.test.tsx",
         "src/tests/views/census/censusEloisaBootstrap.integration.test.tsx",
         "src/tests/views/cudyr/CudyrExplorerCache.test.tsx"
@@ -367,7 +365,6 @@
         "src/tests/build/chunkingPolicy.test.ts",
         "src/tests/components/DischargeModal.test.tsx",
         "src/tests/features/census/components/patient-row/UpcEvaluationHistoryPanel.test.tsx",
-        "src/tests/features/census/drag-drop/EmptyBedDragRender.test.tsx",
         "src/tests/features/census/global-search/usePatientSelectionCancellation.test.ts",
         "src/tests/features/clinical-documents/ClinicalDocumentIndicationsTabSettings.test.tsx",
         "src/tests/features/clinical-library/ClinicalLibraryQuickAction.test.tsx",

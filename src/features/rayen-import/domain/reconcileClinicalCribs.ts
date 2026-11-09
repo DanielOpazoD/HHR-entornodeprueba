@@ -127,8 +127,11 @@ export const reconcileClinicalCribs = (
       existingRef && (usesMaternalRun || !hasRegisteredClinicalCribRut(rawIncomingCrib))
         ? preserveExistingCribIdentity(existingRef.patient, rawIncomingCrib)
         : rawIncomingCrib;
+    // The source number is not the RN's own (the mother's RUN, or a newborn's unusable number):
+    // a stored copy of it is dropped too, while a RUN entered in HHR stays.
+    const sourceRunIsNotOwn = usesMaternalRun || (!rawIncomingCrib.rut && Boolean(encounter.run));
     const incomingCrib =
-      usesMaternalRun &&
+      sourceRunIsNotOwn &&
       (!existingRef || normalizeRut(existingRef.patient.rut) === normalizeRut(encounter.run))
         ? { ...preserved, rut: '', identityStatus: 'provisional' as const }
         : preserved;

@@ -52,7 +52,6 @@ export const OFFLINE_BOOT_CHUNKS = [
   'EmailDropdown',
   'PdfButtons',
   'MoaHelpButton',
-  'PatientRowOrbitalQuickActionsPortal',
   'FunctionsRecoveryNotice',
 ];
 

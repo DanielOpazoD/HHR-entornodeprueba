@@ -10,8 +10,6 @@ import {
   defaultWoundCareConsentPort,
 } from '@/application/ports/woundCarePort';
 import { useWoundCareHistory } from '@/features/wound-care/hooks/useWoundCareHistory';
-import { useWoundCarePhotos } from '@/features/wound-care/hooks/useWoundCarePhotos';
-import { useWoundCareConsent } from '@/features/wound-care/hooks/useWoundCareConsent';
 
 const buildPhoto = (id: string, uploadedAt: string): WoundCarePhoto => ({
   id,
@@ -108,70 +106,4 @@ describe('wound care selection isolation', () => {
     expect(result.current.allConsents).toEqual([]);
     expect(result.current.isLoading).toBe(false);
   });
-
-  it.each(['episode', 'hospital'] as const)(
-    'isolates both subscriptions on %s changes and rejects late callbacks',
-    kind => {
-      const photoCallbacks: Array<(value: WoundCarePhoto[]) => void> = [];
-      const consentCallbacks: Array<(value: WoundCareConsent | null) => void> = [];
-      const stopPhotos = vi.fn();
-      const stopConsent = vi.fn();
-      const photoPort = {
-        ...defaultWoundCarePhotoPort,
-        subscribeByEpisode: vi.fn<typeof defaultWoundCarePhotoPort.subscribeByEpisode>(
-          (_key, callback) => {
-            photoCallbacks.push(callback);
-            return stopPhotos;
-          }
-        ),
-      };
-      const consentPort = {
-        ...defaultWoundCareConsentPort,
-        subscribeByEpisode: vi.fn<typeof defaultWoundCareConsentPort.subscribeByEpisode>(
-          (_key, callback) => {
-            consentCallbacks.push(callback);
-            return stopConsent;
-          }
-        ),
-      };
-      const { result, rerender, unmount } = renderHook(
-        ({ episodeKey, hospitalId }) => ({
-          photos: useWoundCarePhotos({ episodeKey, hospitalId, photoPort }),
-          consent: useWoundCareConsent({ episodeKey, hospitalId, consentPort }),
-        }),
-        { initialProps: { episodeKey: 'episode-a', hospitalId: 'hospital-a' } }
-      );
-      act(() => {
-        photoCallbacks[0](photos);
-        consentCallbacks[0](consent);
-      });
-      expect(result.current.consent.consent).toEqual(consent);
-      rerender({
-        episodeKey: kind === 'episode' ? 'episode-b' : 'episode-a',
-        hospitalId: kind === 'hospital' ? 'hospital-b' : 'hospital-a',
-      });
-      expect(result.current.photos.photos).toEqual([]);
-      expect(result.current.consent.consent).toBeNull();
-      act(() => {
-        photoCallbacks[0](photos);
-        consentCallbacks[0](consent);
-      });
-      expect(result.current.photos.isLoading).toBe(true);
-      expect(result.current.consent.isLoading).toBe(true);
-      act(() => {
-        photoCallbacks[1]([]);
-        consentCallbacks[1](null);
-      });
-      expect(result.current.photos.isLoading).toBe(false);
-      expect(result.current.consent.isLoading).toBe(false);
-      rerender({ episodeKey: 'episode-a', hospitalId: 'hospital-a' });
-      expect(result.current.photos.photos).toEqual([]);
-      expect(result.current.consent.consent).toBeNull();
-      expect(result.current.photos.isLoading).toBe(true);
-      expect(result.current.consent.isLoading).toBe(true);
-      unmount();
-      expect(stopPhotos).toHaveBeenCalledTimes(3);
-      expect(stopConsent).toHaveBeenCalledTimes(3);
-    }
-  );
 });

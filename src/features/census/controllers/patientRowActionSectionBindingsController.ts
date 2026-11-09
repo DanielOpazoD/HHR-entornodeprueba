@@ -3,6 +3,8 @@ import type { PatientMainRowActionCellProps } from '@/features/census/components
 import { calculateHospitalizedDays } from '@/features/census/controllers/patientBedConfigViewController';
 import { hasMeaningfulPatientIdentity } from '@/features/census/controllers/patientIdentityController';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
+import type { PatientClinicalAccessProps } from '@/features/census/components/patient-row/patientRowInputViewContracts';
+import { resolvePatientActionMenuViewState } from '@/features/census/controllers/patientActionMenuViewController';
 
 export type PatientActionSectionBinding = PatientMainRowActionCellProps;
 
@@ -120,5 +122,36 @@ export const buildPatientActionSectionBinding = ({
     canMarkInvalid: Boolean(data.clinicalEpisodeId?.trim()),
     clinicalPatient: !isBlocked && hasPatientIdentity ? data : undefined,
     censusDate: currentDateString,
+  };
+};
+
+/**
+ * The «Accesos» cell offers the same requests and documents the row menu would: requests only
+ * when the row can edit, documents to the roles that read them.
+ */
+export const buildPatientClinicalAccessBinding = (
+  action: PatientActionSectionBinding
+): PatientClinicalAccessProps | undefined => {
+  if (!action.clinicalPatient) return undefined;
+  const view = resolvePatientActionMenuViewState({
+    isBlocked: action.isBlocked,
+    readOnly: action.readOnly,
+    clinicalEditingDisabled: action.clinicalEditingDisabled,
+    accessProfile: action.accessProfile,
+    hasPatientIdentity: action.hasPatientIdentity,
+    hasHistoryAction: Boolean(action.onViewHistory),
+    hasClinicalDocumentsAction: Boolean(action.onViewClinicalDocuments),
+    hasExamRequestAction: Boolean(action.onViewExamRequest),
+    hasImagingRequestAction: Boolean(action.onViewImagingRequest),
+  });
+  return {
+    patient: action.clinicalPatient,
+    censusDate: action.censusDate,
+    onRequestExams: view.showExamRequestAction ? action.onViewExamRequest : undefined,
+    onRequestImaging: view.showImagingRequestAction ? action.onViewImagingRequest : undefined,
+    onViewClinicalDocuments: view.showClinicalDocumentsAction
+      ? action.onViewClinicalDocuments
+      : undefined,
+    clinicalDocumentCount: action.clinicalDocumentCount,
   };
 };

@@ -27,6 +27,7 @@ import { resolveApplicationOutcomeMessage } from '@/shared/contracts/application
 
 interface HandoffManagementDeliveryInput {
   recordRef: RefObject<DailyRecord | null>;
+  recordDate: string | undefined;
   role?: string;
   patchRecord: ApplyDailyRecordPatch;
   success: (title: string, message: string) => void;
@@ -35,11 +36,16 @@ interface HandoffManagementDeliveryInput {
 
 export const useHandoffManagementDelivery = ({
   recordRef,
+  recordDate,
   role,
   patchRecord,
   success,
   notifyError,
 }: HandoffManagementDeliveryInput) => {
+  const isCurrentRecord = useCallback(
+    () => recordRef.current?.date === recordDate,
+    [recordDate, recordRef]
+  );
   const presentSpecialistHistoricalEditError = useCallback(() => {
     const notice = resolveSpecialistHistoricalEditNotice();
     notifyError(notice.title, notice.message);
@@ -57,6 +63,7 @@ export const useHandoffManagementDelivery = ({
 
   const markMedicalHandoffAsSent = useCallback(
     async (doctorName?: string, scope: MedicalHandoffScope = 'all') => {
+      if (!isCurrentRecord()) return;
       if (!canMutateCurrentMedicalRecord()) {
         presentSpecialistHistoricalEditError();
         return;
@@ -69,18 +76,26 @@ export const useHandoffManagementDelivery = ({
         record: currentRecord,
         scope,
       });
-      if (outcome.status === 'failed' || !outcome.data) {
+      if (!isCurrentRecord() || outcome.status === 'failed' || !outcome.data) {
         return;
       }
       recordRef.current = outcome.data.nextRecord;
     },
-    [canMutateCurrentMedicalRecord, patchRecord, presentSpecialistHistoricalEditError, recordRef]
+    [
+      canMutateCurrentMedicalRecord,
+      isCurrentRecord,
+      patchRecord,
+      presentSpecialistHistoricalEditError,
+      recordRef,
+    ]
   );
 
   const ensureMedicalHandoffSignatureLink = useCallback(
     async (
       scope: MedicalHandoffScope = 'all'
     ): Promise<ApplicationOutcome<{ handoffUrl: string } | null>> => {
+      if (!isCurrentRecord())
+        return createApplicationFailed(null, [], { reason: 'record_changed' });
       if (!canMutateCurrentMedicalRecord()) {
         return buildSpecialistHistoricalEditFailure(null);
       }
@@ -90,6 +105,8 @@ export const useHandoffManagementDelivery = ({
         record: recordRef.current,
         scope,
       });
+      if (!isCurrentRecord())
+        return createApplicationFailed(null, [], { reason: 'record_changed' });
       if (outcome.status === 'failed' || !outcome.data) {
         return createApplicationFailed(null, outcome.issues, {
           userSafeMessage: resolveApplicationOutcomeMessage(
@@ -102,11 +119,12 @@ export const useHandoffManagementDelivery = ({
       recordRef.current = outcome.data.nextRecord;
       return createApplicationSuccess({ handoffUrl: outcome.data.handoffUrl });
     },
-    [canMutateCurrentMedicalRecord, patchRecord, recordRef]
+    [canMutateCurrentMedicalRecord, isCurrentRecord, patchRecord, recordRef]
   );
 
   const sendMedicalHandoff = useCallback(
     async (templateContent: string, targetGroupId: string) => {
+      if (!isCurrentRecord()) return;
       if (!canMutateCurrentMedicalRecord()) {
         presentSpecialistHistoricalEditError();
         return;
@@ -144,13 +162,14 @@ export const useHandoffManagementDelivery = ({
           fallbackTitle: 'Error al enviar',
         });
         notifyError(notice.title, notice.message);
-        return;
+        throw new Error(notice.message);
       }
-      recordRef.current = outcome.data.nextRecord;
+      if (isCurrentRecord()) recordRef.current = outcome.data.nextRecord;
       success('WhatsApp Enviado', 'Entrega médica enviada correctamente.');
     },
     [
       canMutateCurrentMedicalRecord,
+      isCurrentRecord,
       notifyError,
       patchRecord,
       presentSpecialistHistoricalEditError,

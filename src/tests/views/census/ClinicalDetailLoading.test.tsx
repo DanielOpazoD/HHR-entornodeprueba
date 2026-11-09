@@ -78,7 +78,7 @@ describe('clinical detail chunks', () => {
     expect(imports.vitals).toBe(0);
     expect(imports.scores).toBe(0);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Signos vitales:/ }));
     expect(await screen.findByRole('status')).toHaveTextContent('Cargando detalle');
     expect(imports.vitals).toBe(1);
     expect(imports.scores).toBe(0);
@@ -90,12 +90,12 @@ describe('clinical detail chunks', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.getByText('120/80')).toBeVisible();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Signos vitales:/ }));
     expect(await screen.findByText('Detalle de signos listo')).toBeVisible();
 
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
-      fireEvent.click(screen.getByRole('button', { name: 'Ver detalle de escalas de enfermería' }));
+      fireEvent.click(screen.getByRole('button', { name: /^Escalas de enfermería:/ }));
       expect(await screen.findByRole('status')).toHaveTextContent('Cargando detalle');
       await act(async () => {
         imports.failScores();

@@ -2,12 +2,14 @@ import { rayenSyncCoverageIssueKey } from './rayenSyncCoverageIssueKey';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type {
+  ClinicalReadErrorCode,
   RayenSyncCoverage,
   RayenSyncEvent,
   RayenSyncFailureReason,
   RayenSyncMeta,
   RayenSyncSource,
   RayenSyncCoverageIssue,
+  RayenSyncIssueCauseKey,
   RayenSyncStaffingObservation,
   RayenStaffingSection,
   RayenSyncPerformance,
@@ -20,6 +22,7 @@ import { classifyClinicalReadCause } from '../contracts/clinicalReadError';
 import {
   MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE,
   MAX_RAYEN_SYNC_HISTORY,
+  rayenSyncIssueCauseKey,
 } from '@/types/domain/rayenSync';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
 import {
@@ -94,6 +97,39 @@ export const buildFailedRayenSyncEvent = (
   failureReason: reason,
 });
 
+/** Persisted cause of one fill error: read failures always carry one, write failures when known. */
+const rayenSyncErrorCause = (error: ClinicalFillError): ClinicalReadErrorCode | undefined => {
+  if (error.reason === 'source_unavailable' || error.reason === 'source_timeout') {
+    return error.cause ?? classifyClinicalReadCause(error.message);
+  }
+  return error.reason === 'write_failed' ? error.cause : undefined;
+};
+
+/**
+ * Bounded telemetry slots for issue causes. The recorder keeps 12 context keys and a terminal run
+ * already uses up to six (runId, outcome, durationMs, issueCount, patientCount, failureReason).
+ */
+export const MAX_RAYEN_SYNC_ISSUE_CAUSE_KEYS = 6;
+
+/**
+ * Counts every fill error by source and cause, most frequent first, so a partial run says why in
+ * telemetry. Counts all errors, not the 12 issues kept in history. Only codes, never identities.
+ */
+export const countRayenSyncIssueCauses = (
+  errors: readonly ClinicalFillError[]
+): Partial<Record<RayenSyncIssueCauseKey, number>> => {
+  const counts = new Map<RayenSyncIssueCauseKey, number>();
+  errors.forEach(error => {
+    const key = rayenSyncIssueCauseKey(error.source, rayenSyncErrorCause(error) ?? error.reason);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  });
+  return Object.fromEntries(
+    [...counts]
+      .sort(([keyA, a], [keyB, b]) => b - a || keyA.localeCompare(keyB))
+      .slice(0, MAX_RAYEN_SYNC_ISSUE_CAUSE_KEYS)
+  );
+};
+
 export const buildRayenSyncCoverage = (
   total: number,
   errors: ClinicalFillError[],
@@ -133,15 +169,12 @@ export const buildRayenSyncCoverage = (
     const moved = !candidates.length && movements.length === 1 ? movements[0] : undefined;
     const patient = candidates.length === 1 ? candidates[0] : moved;
     const movedBed = moved && 'bedId' in moved ? moved.bedId : undefined;
+    const cause = rayenSyncErrorCause(error);
     const issue: RayenSyncCoverageIssue = {
       bedId: error.bedId,
       source: error.source,
       reason: error.reason,
-      ...(error.reason === 'source_unavailable' || error.reason === 'source_timeout'
-        ? { cause: error.cause ?? classifyClinicalReadCause(error.message) }
-        : error.reason === 'write_failed' && error.cause
-          ? { cause: error.cause }
-          : {}),
+      ...(cause ? { cause } : {}),
       ...(error.source === 'cudyr' && error.cudyrRecovery
         ? { cudyrRecovery: error.cudyrRecovery }
         : {}),

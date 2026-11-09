@@ -19,6 +19,7 @@ const columns: CensusTableHeaderProps['columns'] = {
   bed: 54,
   type: 0,
   name: 310,
+  access: 64,
   rut: 0,
   age: 0,
   diagnosis: 280,

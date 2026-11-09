@@ -5,6 +5,7 @@ import '../../../extension/clinical-antecedents-cache.js';
 import '../../../extension/clinical-antecedents-detail.js';
 import '../../../extension/clinical-antecedents-window.js';
 import '../../../extension/clinical-antecedents-transport.js';
+import '../../../extension/clinical-antecedents-sources.js';
 import '../../../extension/clinical-antecedents-runtime.js';
 
 type Result = {
@@ -19,6 +20,11 @@ type Result = {
   nextBeforeDate?: string | null;
 };
 type Dependencies = {
+  downloadDau?: (input: {
+    patientRun: string;
+    attentionId: string;
+    assertAuthorization: () => Promise<void>;
+  }) => Promise<unknown>;
   now?: () => Date;
   getContext: (...args: unknown[]) => Promise<unknown>;
   readJson: (input: { path: string }) => Promise<unknown>;
@@ -26,7 +32,7 @@ type Dependencies = {
   openTab: (input: { url: string }) => Promise<unknown>;
   getAuthorizationKey: () => Promise<string>;
 };
-const runtime = (
+export const runtime = (
   globalThis as typeof globalThis & {
     HhrClinicalAntecedents: {
       create: (deps: Dependencies) => {

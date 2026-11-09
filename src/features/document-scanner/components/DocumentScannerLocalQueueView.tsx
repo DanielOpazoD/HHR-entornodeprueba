@@ -5,8 +5,13 @@ import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import { DocumentScannerQueueView } from './DocumentScannerQueueView';
 
 const getLocalQueueCredentials = (): { email: string; accessPhrase: string } => {
-  const email = import.meta.env.VITE_DOCUMENT_SCANNER_LOCAL_QUEUE_EMAIL?.trim();
-  const accessPhrase = import.meta.env.VITE_DOCUMENT_SCANNER_LOCAL_QUEUE_PASSWORD;
+  // Emulator-only credentials: a production build drops both reads.
+  const email = import.meta.env.DEV
+    ? import.meta.env.VITE_DOCUMENT_SCANNER_LOCAL_QUEUE_EMAIL?.trim()
+    : undefined;
+  const accessPhrase = import.meta.env.DEV
+    ? import.meta.env.VITE_DOCUMENT_SCANNER_LOCAL_QUEUE_PASSWORD
+    : undefined;
   if (!email || !accessPhrase) {
     throw new Error(
       'Configura las credenciales locales del escáner antes de abrir la bandeja emulada.'

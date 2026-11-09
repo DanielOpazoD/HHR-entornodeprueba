@@ -64,6 +64,7 @@ describe('CensusTableBody', () => {
     bed: 96,
     type: 64,
     name: 190,
+    access: 64,
     rut: 128,
     age: 56,
     diagnosis: 220,
@@ -317,20 +318,6 @@ describe('CensusTableBody', () => {
           clinicalDocumentPresenceByBedId={{}}
           onAction={vi.fn()}
           onActivateEmptyBed={vi.fn()}
-          dragDrop={{
-            state: { dragSourceBedId: null, dragOverBedId: null, pendingMove: null },
-            patientHandlers: {
-              onDragStart: vi.fn(() => vi.fn()),
-              onDragEnd: vi.fn(),
-            },
-            emptyBedHandlers: {
-              onDragOver: vi.fn(() => vi.fn()),
-              onDragEnter: vi.fn(() => vi.fn()),
-              onDragLeave: vi.fn(),
-              onDrop: vi.fn(() => vi.fn()),
-            },
-            confirmationHandlers: { onConfirm: vi.fn(), onCancel: vi.fn() },
-          }}
         />
       </table>
     );

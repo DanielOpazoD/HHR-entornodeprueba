@@ -26,6 +26,7 @@ describe('antecedent detail bridge validation', () => {
     { diagnoses: [null] },
     { indications: {} },
     { careType: 'unknown' },
+    { summary: {} },
     { patientName: 7 },
     { physicalExams: [{ name: 'Examen', fields: [{ label: 'PA', value: {} }] }] },
     { prescriptions: [{ id: '123', date: '', status: '', type: '', items: [{}] }] },
@@ -50,5 +51,14 @@ describe('antecedent detail bridge validation', () => {
       diagnoses: ['Uno', 'Dos'],
       physicalExams: [{ name: 'Examen', fields: [{ label: 'PA', value: '120/80' }] }],
     });
+  });
+  it('acepta el resumen secundario como texto y conserva hospitalización', () => {
+    expect(
+      decodeClinicalAntecedentDetail({
+        ...detail,
+        careType: 'hospitalization',
+        summary: '<texto de la fuente>',
+      })
+    ).toMatchObject({ careType: 'hospitalization', summary: '<texto de la fuente>' });
   });
 });

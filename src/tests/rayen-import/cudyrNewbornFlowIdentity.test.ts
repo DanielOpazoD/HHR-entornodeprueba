@@ -79,6 +79,61 @@ describe('CUDYR bed recovery for a newborn identified by parental RUN', () => {
       ]);
     }
   );
+  it.each([
+    [
+      'nested crib',
+      {
+        rut: '11.111.111-1',
+        clinicalCrib: { clinicalEpisodeId: '1001', rut: '790.695-3', bedMode: 'Cuna' },
+      },
+    ],
+    [
+      'independent bed',
+      {
+        clinicalEpisodeId: '1001',
+        rut: '790.695-3',
+        age: '0d',
+        bedMode: 'Cama',
+        neonatalMaternalRut: '11.111.111-1',
+      },
+    ],
+  ])(
+    'searches by the mother when a %s newborn stored a delivery folio as its RUT',
+    async (_placement, bed) => {
+      const recover = vi.fn(async (episode, rut, at, identityKind, maternalRut) =>
+        cudyrPlacementsFromPatientFlow(flow, episode, rut, at, identityKind, maternalRut)
+      );
+      const { archive } = startCudyrSyncCapture({
+        record: { date: '2026-10-09', beds: { R3: bed } } as unknown as DailyRecord,
+        censusDate: '2026-10-09',
+        captureEpisodes: ['1001'],
+        needsRead: true,
+        deps: {
+          fetchCudyrCategories: async () => ({
+            items: [],
+            source: 'gestion_camas',
+            historyAvailable: true,
+            observedEpisodeIds: [],
+          }),
+          archiveCudyrCapture: vi.fn().mockResolvedValue('persisted'),
+          recoverCudyrPlacements: recover,
+          now: () => new Date(observedAt),
+          createId: () => 'capture',
+        } as unknown as ClinicalFillDeps,
+        trackRequest: operation => operation(),
+        recordTimeout: vi.fn(),
+      });
+
+      expect(await archive).toEqual([]);
+      expect(recover).toHaveBeenCalledWith(
+        '1001',
+        '111111111',
+        observedAt,
+        'maternal',
+        '111111111'
+      );
+    }
+  );
   it.each([false, true])(
     'keeps stored maternal identity after bed reuse, reviewed=%s',
     async reviewed => {
@@ -143,6 +198,39 @@ describe('CUDYR bed recovery for a newborn identified by parental RUN', () => {
     }
   );
 
+  it('reads the bed history of a newborn Eloísa identifies only by its delivery-receipt folio', () => {
+    // Layout of the real report: the folio value wraps under its label.
+    const receiptFlow = `Paciente: RN de Número Folio Comprobante de Parto:
+Ejemplo Sintético 7906953
+Sexo: Mujer Edad: 0 año(s)
+09/10/2026 16:23:14 Área médica indiferenciada Área Médica Pediátrica Cuidados Básicos Cuna R3 Cunas RN Cuna R3 Básica`;
+
+    expect(
+      cudyrPlacementsFromPatientFlow(
+        receiptFlow,
+        '1001',
+        '111111111',
+        observedAt,
+        'maternal',
+        '111111111'
+      )
+    ).toMatchObject([{ clinicalEpisodeId: '1001', modality: 'cuna' }]);
+    // Only a known newborn: a patient read by its own document still needs its RUN printed.
+    expect(() =>
+      cudyrPlacementsFromPatientFlow(receiptFlow, '1001', '111111111', observedAt)
+    ).toThrow();
+    // A printed RUN beside the folio is still compared.
+    expect(() =>
+      cudyrPlacementsFromPatientFlow(
+        receiptFlow.replace('Edad:', 'RUN: 22.222.222-2 Edad:'),
+        '1001',
+        '111111111',
+        observedAt,
+        'maternal',
+        '111111111'
+      )
+    ).toThrow();
+  });
   it('rejects a maternal header without a separately proven maternal RUN', () => {
     expect(() =>
       cudyrPlacementsFromPatientFlow(flow, '1001', '111111111', observedAt, 'maternal')

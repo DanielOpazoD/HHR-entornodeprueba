@@ -79,8 +79,10 @@ describe('ClinicalDocumentLabInsertDialog patient context', () => {
       expect(screen.getByText(/cargando exámenes/i)).toBeInTheDocument();
 
       await act(async () => {
-        if (outcome === 'error') patientB.reject(new Error('B unavailable'));
-        else patientB.resolve({ exams: {} });
+        if (outcome === 'error') {
+          searchSyslabExams.mockResolvedValueOnce({ success: false, data: [] });
+          patientB.reject(new Error('B unavailable'));
+        } else patientB.resolve({ exams: {} });
       });
       expect(screen.queryByText('01/04/2026 08:00')).not.toBeInTheDocument();
       expect(
@@ -143,6 +145,7 @@ describe('ClinicalDocumentLabInsertDialog patient context', () => {
         onClose={vi.fn()}
       />
     );
+    await act(async () => {});
     fireEvent.click(await screen.findByRole('button', { name: /01\/04\/2026 09:00/ }));
 
     rerender(

@@ -28,6 +28,11 @@ import type {
 
 const RELATIVE_TICK_MS = 30_000;
 
+// Eloísa's own pages are a click away from the mark; the ring loads only when someone opens it.
+const LazyEloisaLinksRing = React.lazy(() =>
+  import('./EloisaLinksRing').then(module => ({ default: module.EloisaLinksRing }))
+);
+
 const relativeAgo = (iso: string | number | undefined | null, now: number): string | null => {
   if (iso === undefined || iso === null) return null;
   const stamp = typeof iso === 'number' ? iso : Date.parse(iso);
@@ -125,6 +130,12 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
   const [actionError, setActionError] = React.useState<string | null>(null);
   const [now, setNow] = React.useState(() => Date.now());
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const markRef = React.useRef<HTMLButtonElement>(null);
+  const [linksAnchor, setLinksAnchor] = React.useState<HTMLElement | null>(null);
+  const closeLinks = React.useCallback(() => {
+    setLinksAnchor(null);
+    markRef.current?.focus();
+  }, []);
   const autoRefreshEpochRef = React.useRef(0);
   const refreshExtension = extension.refresh;
   const adoptExtensionReport = extension.adoptReport;
@@ -259,8 +270,15 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
 
   return (
     <div ref={containerRef} className="relative flex min-w-[210px] items-center gap-2">
-      <span
-        className={`inline-flex size-8 shrink-0 items-center justify-center rounded-lg border ${
+      <button
+        ref={markRef}
+        type="button"
+        onClick={() => setLinksAnchor(current => (current ? null : markRef.current))}
+        aria-haspopup="menu"
+        aria-expanded={linksAnchor !== null}
+        aria-label="Accesos a Eloísa"
+        data-testid="eloisa-links-trigger"
+        className={`inline-flex size-8 shrink-0 items-center justify-center rounded-lg border hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 ${
           working || connection === 'checking'
             ? 'border-teal-200 bg-teal-100 text-teal-700'
             : connection === 'ready'
@@ -274,7 +292,12 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
           className="size-7 object-contain"
           aria-hidden="true"
         />
-      </span>
+      </button>
+      {linksAnchor && (
+        <React.Suspense fallback={null}>
+          <LazyEloisaLinksRing anchor={linksAnchor} onClose={closeLinks} />
+        </React.Suspense>
+      )}
       <div className="min-w-0 flex-1">
         <button
           type="button"

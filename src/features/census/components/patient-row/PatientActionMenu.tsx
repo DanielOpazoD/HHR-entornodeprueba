@@ -2,7 +2,6 @@ import React, { Suspense, lazy } from 'react';
 import { FileText, MoreHorizontal, User } from 'lucide-react';
 import { MedicalButton } from '@/components/ui/base/MedicalButton';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
-import { PatientRowOrbitalQuickActions } from '@/features/census/components/patient-row/PatientRowOrbitalQuickActions';
 import { PatientRowMenuPortal } from '@/features/census/components/patient-row/PatientRowMenuPortal';
 import type {
   PatientActionMenuActionFilter,
@@ -13,15 +12,6 @@ import type { RowMenuAlign } from './patientRowUiContracts';
 import { usePatientActionMenu } from './usePatientActionMenu';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
 import { resolvePatientActionMenuDemographicsInteraction } from '@/features/census/controllers/patientActionMenuController';
-import { resolvePatientClinicalTopics } from '@/features/census/controllers/patientClinicalTopicsController';
-import { buildClinicalPanelKey } from '@/features/census/controllers/clinicalPanelNavigationController';
-import { openClinicalExplorer } from '../clinical-explorer/clinicalExplorerStore';
-import { openClinicalPanel } from './useActiveClinicalPanel';
-import {
-  PatientClinicalTopicSurfaces,
-  usePatientClinicalTopicSurface,
-} from './PatientClinicalTopicSurfaces';
-import type { PatientData } from './patientRowContracts';
 
 const LazyPatientActionMenuPanel = lazy(() =>
   import('@/features/census/components/patient-row/PatientActionMenuPanel').then(module => ({
@@ -45,13 +35,8 @@ interface PatientActionMenuProps
   accessProfile?: CensusAccessProfile;
   hasPatientIdentity?: boolean;
   medicalIndicationsPatient?: MedicalIndicationsPatientOption;
-  /** Number of active clinical documents for this patient episode. */
-  clinicalDocumentCount?: number;
   /** Only an Eloísa episode can be marked «paciente no válido». */
   canMarkInvalid?: boolean;
-  /** A main row's patient: the turtle opens its ficha, laboratory, imaging and integrated view. */
-  clinicalPatient?: PatientData;
-  censusDate?: string;
 }
 
 const PatientActionPrimaryIcon: React.FC<{
@@ -94,11 +79,8 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
   accessProfile = 'default',
   hasPatientIdentity = true,
   medicalIndicationsPatient,
-  clinicalDocumentCount,
   allowedActions,
   canMarkInvalid = false,
-  clinicalPatient,
-  censusDate,
 }) => {
   const {
     isOpen,
@@ -111,9 +93,6 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
     closeMedicalIndicationsDialog,
     handleAction,
     handleViewHistory,
-    handleViewClinicalDocuments,
-    handleViewExamRequest,
-    handleViewImagingRequest,
   } = usePatientActionMenu({
     isBlocked,
     readOnly,
@@ -135,11 +114,6 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
     allowedActions,
   });
 
-  const topics = resolvePatientClinicalTopics(clinicalPatient);
-  const topicSurface = usePatientClinicalTopicSurface(clinicalPatient);
-  const canRequestExams = binding.availability.showExamRequestAction;
-  const canRequestImaging = binding.availability.showImagingRequestAction;
-
   const handleViewDemographics = resolvePatientActionMenuDemographicsInteraction({
     accessProfile,
     onViewDemographics,
@@ -147,54 +121,6 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
 
   return (
     <div className="flex flex-col items-center gap-0.5 relative py-0.5" ref={menuRef}>
-      {hasPatientIdentity ? (
-        <PatientRowOrbitalQuickActions
-          showClinicalPanelAction={topics.clinicalPanel}
-          // Without an episode or a Chilean RUT there is nothing to read, but a request still fits.
-          showLaboratoryAction={topics.laboratory || canRequestExams}
-          showImagingAction={topics.imaging || canRequestImaging}
-          showClinicalDocumentsAction={binding.availability.showClinicalDocumentsAction}
-          showClinicalExplorerAction={topics.clinicalExplorer && Boolean(censusDate)}
-          onViewClinicalPanel={() => {
-            if (clinicalPatient?.clinicalEpisodeId) {
-              openClinicalPanel(
-                buildClinicalPanelKey(clinicalPatient.bedId, clinicalPatient.clinicalEpisodeId)
-              );
-            }
-          }}
-          onViewLaboratory={
-            topics.laboratory ? () => topicSurface.open('laboratory') : handleViewExamRequest
-          }
-          onViewImaging={
-            topics.imaging ? () => topicSurface.open('imaging') : handleViewImagingRequest
-          }
-          onViewClinicalDocuments={handleViewClinicalDocuments}
-          onOpenClinicalExplorer={() => {
-            if (clinicalPatient && censusDate) {
-              openClinicalExplorer({ censusDate, bedId: clinicalPatient.bedId });
-            }
-          }}
-          badges={
-            clinicalDocumentCount && clinicalDocumentCount > 0
-              ? { clinicalDocumentCount }
-              : undefined
-          }
-          triggerTestId={
-            clinicalPatient ? `clinical-topics-trigger-${clinicalPatient.bedId}` : undefined
-          }
-        />
-      ) : null}
-      {clinicalPatient ? (
-        <PatientClinicalTopicSurfaces
-          patient={clinicalPatient}
-          censusDate={censusDate}
-          surface={topicSurface.surface}
-          onClose={topicSurface.close}
-          onRequestExams={canRequestExams ? handleViewExamRequest : undefined}
-          onRequestImaging={canRequestImaging ? handleViewImagingRequest : undefined}
-        />
-      ) : null}
-
       {binding.availability.showDemographicsAction && (
         <div className="flex items-center gap-0.5">
           <MedicalButton
@@ -214,6 +140,8 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
           size="xs"
           className="!px-1 !py-0.5 rounded-md text-slate-500"
           title="Acciones"
+          aria-expanded={isOpen}
+          aria-haspopup="menu"
           icon={<MoreHorizontal size={12} />}
         />
       )}

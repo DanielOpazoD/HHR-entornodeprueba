@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ClinicalPanelTrigger } from '@/features/census/components/patient-row/ClinicalPanelTrigger';
+import { FichaAccess } from '@/tests/views/census/clinicalPanelFichaAccess';
 
 const patient = {
   bedId: 'R2',
@@ -19,7 +20,9 @@ const renderCensus = () =>
     <>
       <input aria-label="Borrador local" defaultValue="Edición pendiente" />
       <button>Guardar censo</button>
-      <ClinicalPanelTrigger {...patient} />
+      <FichaAccess patientName="Paciente de prueba" panelKey="R2:episode-test">
+        <ClinicalPanelTrigger {...patient} />
+      </FichaAccess>
     </>
   );
 

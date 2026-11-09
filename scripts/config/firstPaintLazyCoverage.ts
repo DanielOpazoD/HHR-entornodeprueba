@@ -22,8 +22,6 @@ const GUARDED_TARGETS: Record<string, string> = {
   'src/features/census/components/CensusRegisterContent': 'census-view',
   'src/features/census/components/CensusRegisterSections': 'CensusRegisterSections',
   'src/features/census/components/EmptyDayPrompt': 'EmptyDayPrompt',
-  'src/features/census/components/patient-row/PatientRowOrbitalQuickActionsPortal':
-    'PatientRowOrbitalQuickActionsPortal',
   'src/features/clinical-library/quick-action': 'quick-action',
   'src/features/laboratory/quick-action': 'quick-action',
 };
@@ -38,6 +36,7 @@ const OPTIONAL_TARGETS: Record<string, string> = {
   'src/components/layout/NursingPasswordDialog': 'Password dialog opens from the user menu.',
   'src/components/layout/UserAvatarModal': 'Avatar editor opens on request.',
   'src/components/layout/UserMenuPanel': 'User menu opens on request.',
+  'src/components/layout/UserSignatureDialog': 'Signature editor opens on request.',
   'src/components/layout/date-strip/MedicalIndicationsDialog':
     'Indications editor opens on request.',
   'src/components/layout/date-strip/actions/HandoffSaveDropdown':

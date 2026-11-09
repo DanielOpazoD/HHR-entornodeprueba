@@ -3,6 +3,7 @@ import {
   seedVisualCensus as seedCensus,
   VISUAL_DATE as DATE,
   VISUAL_PATIENT as PATIENT,
+  VISUAL_SECOND_PATIENT as SECOND_PATIENT,
 } from './fixtures/censusVisualSeed';
 import { openPatientClinicalTopic } from './fixtures/patientClinicalTopics';
 
@@ -24,7 +25,7 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
     const name = row.getByText(PATIENT);
     const vitals = row.locator('.census-vitals-grid');
     const vitalCell = vitals.locator('xpath=ancestor::td');
-    const deviceCell = row.locator('td').nth(6);
+    const deviceCell = row.locator('td').nth(7);
     const identityCell = row.locator('.census-identity-cell');
     const diagnosisCell = row.locator('.census-diagnosis-cell');
     const diagnosisText = diagnosisCell.getByText(/Diagnóstico clínico sintético/);
@@ -43,8 +44,40 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
     expect(vitalBounds).not.toBeNull();
     expect(deviceBounds).not.toBeNull();
     expect(nameBounds!.height).toBeLessThanOrEqual(33);
-    // Ficha, laboratorio e imágenes open from the turtle: the name keeps the whole cell.
+    // The clinical topics live in their own «Accesos» column: the name keeps the whole cell.
     await expect(identityCell.locator('.census-identity-actions')).toHaveCount(0);
+    const accessCell = row.locator('.census-access-cell');
+    const accessButton = accessCell.getByTestId('clinical-access-R1');
+    await expect(accessButton).toBeVisible();
+    const accessBounds = await accessCell.boundingBox();
+    expect(accessBounds!.width).toBeGreaterThanOrEqual(56);
+    // One access button, centred in its column.
+    const buttonBounds = await accessButton.boundingBox();
+    expect(
+      Math.abs(
+        buttonBounds!.x + buttonBounds!.width / 2 - (accessBounds!.x + accessBounds!.width / 2)
+      )
+    ).toBeLessThanOrEqual(1);
+    // Its ring holds the four topics around the explorer and fits on screen at both zooms.
+    await accessButton.click();
+    const ring = page.getByTestId('clinical-access-menu');
+    await expect(ring).toBeVisible();
+    for (const topic of ['ficha', 'laboratory', 'imaging', 'documents', 'explorer']) {
+      await expect(page.getByTestId(`clinical-access-${topic}-R1`)).toBeVisible();
+    }
+    const ringBounds = await ring.boundingBox();
+    expect(ringBounds!.x).toBeGreaterThanOrEqual(0);
+    expect(ringBounds!.y).toBeGreaterThanOrEqual(0);
+    expect(ringBounds!.x + ringBounds!.width).toBeLessThanOrEqual(width);
+    expect(ringBounds!.y + ringBounds!.height).toBeLessThanOrEqual(height);
+    await test.info().attach(`accesos-ring-${zoom}`, {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    });
+    await page.keyboard.press('Escape');
+    await expect(ring).toHaveCount(0);
+    await expect(accessButton).toBeFocused();
+    expect(accessBounds!.x).toBeGreaterThanOrEqual(identityBounds!.x + identityBounds!.width - 1);
     expect(await diagnosisText.evaluate(element => getComputedStyle(element).webkitLineClamp)).toBe(
       '2'
     );
@@ -128,7 +161,9 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
     );
     await page.keyboard.press('Escape');
 
-    await deviceCell.locator('div.cursor-pointer').first().click();
+    await deviceCell
+      .getByRole('button', { name: /Editar dispositivos|Agregar dispositivo/ })
+      .click();
     const deviceMenu = page.getByText('Vías Venosas (VVP)');
     await expect(deviceMenu).toBeVisible();
     const menuBounds = await deviceMenu
@@ -194,6 +229,19 @@ test('keeps the census and movement sections complete in the printable view', as
       .locator('[data-testid="patient-row"][data-bed-id="R1"] .census-diagnosis-cell .line-clamp-2')
       .evaluate(element => getComputedStyle(element).webkitLineClamp)
   ).not.toBe('2');
+  // «Accesos» collapses on paper but stays a column, so empty and blocked rows still line up.
+  const printedColumns = await printableTable.evaluate(element => {
+    const table = element.querySelector('table')!;
+    const header = table.querySelector('thead > tr:last-child')!;
+    const access = header.querySelector('th.census-column-access')!;
+    return {
+      access: access.getBoundingClientRect().width,
+      headerRight: header.lastElementChild!.getBoundingClientRect().right,
+      tableRight: table.getBoundingClientRect().right,
+    };
+  });
+  expect(printedColumns.access).toBeLessThanOrEqual(2);
+  expect(Math.abs(printedColumns.tableRight - printedColumns.headerRight)).toBeLessThanOrEqual(2);
 
   await page.screenshot({
     path: test.info().outputPath('census-print-layout.png'),
@@ -313,4 +361,47 @@ test('keeps the stale-day banner readable above the sticky table header while sc
   expect(headerBox!.y).toBeGreaterThanOrEqual(bannerBox!.y + bannerBox!.height - 1);
   expect(headerBox!.y).toBeLessThanOrEqual(bannerBox!.y + bannerBox!.height + 2);
   await expect(banner.getByRole('button', { name: 'Ir a hoy' })).toBeVisible();
+});
+
+test('marks every patient chosen for a laboratory order alike, with or without the pointer', async ({
+  page,
+}) => {
+  await seedCensus(page);
+  await page.goto(`/?date=${DATE}`);
+  const nameBox = (bedId: string) =>
+    page.locator(`[data-testid="patient-row"][data-bed-id="${bedId}"] .census-identity-name`);
+  await expect(nameBox('R1')).toContainText(PATIENT, { timeout: 20_000 });
+  await expect(nameBox('R2')).toContainText(SECOND_PATIENT);
+
+  await nameBox('R1')
+    .getByText(PATIENT)
+    .click({ modifiers: ['Shift'] });
+  await nameBox('R2')
+    .getByText(SECOND_PATIENT)
+    .click({ modifiers: ['Shift'] });
+  await expect(page.getByRole('button', { name: 'Orden de exámenes' })).toBeVisible();
+
+  for (const [width, height] of [
+    [1280, 832],
+    [1024, 666],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    // Away from both rows, so neither keeps a hover style.
+    await page.mouse.move(width - 4, height - 4);
+    for (const bedId of ['R1', 'R2']) {
+      // Read once the colour has settled: the row may still be fading from a hover.
+      await expect
+        .poll(
+          () =>
+            nameBox(bedId).evaluate(element => {
+              const computed = getComputedStyle(element);
+              return [computed.borderTopColor, computed.backgroundColor, computed.boxShadow].join(
+                ' | '
+              );
+            }),
+          { message: `${bedId} at ${width} px` }
+        )
+        .toBe('rgb(16, 185, 129) | rgb(236, 253, 245) | rgb(110, 231, 183) 0px 0px 0px 2px');
+    }
+  }
 });

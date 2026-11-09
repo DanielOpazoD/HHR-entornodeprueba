@@ -37,6 +37,7 @@ export const useHandoffManagement = (
   });
   const delivery = useHandoffManagementDelivery({
     recordRef,
+    recordDate: record?.date,
     role,
     patchRecord,
     success,

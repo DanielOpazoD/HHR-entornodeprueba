@@ -62,7 +62,7 @@ test('keeps copied evidence dates internal without census footers after reload',
   const row = page.locator('[data-testid="patient-row"][data-bed-id="R1"]').first();
   for (const reload of [false, true]) {
     if (reload) await page.reload();
-    const vitals = row.getByRole('button', { name: 'Ver signos vitales' });
+    const vitals = row.getByRole('button', { name: /^Signos vitales:/ });
     await expect(vitals).toBeVisible({ timeout: 30_000 });
     await expect(vitals.locator('time')).toHaveCount(0);
     await expect(vitals).not.toHaveAttribute('title');

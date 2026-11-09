@@ -33,6 +33,12 @@ import {
   useClinicalExplorerSelection,
 } from './clinical-explorer/clinicalExplorerStore';
 import { ClinicalExplorerLaunchContext } from './clinical-explorer/clinicalExplorerLaunch';
+import { listCensusExamRequestCandidates } from '@/features/census/controllers/censusExamRequestController';
+import {
+  CensusExamOrderDateContext,
+  CensusExamRequestCandidatesContext,
+} from './exam-orders/examOrderContext';
+import { CensusExamOrderLauncher } from './exam-orders/CensusExamOrderLauncher';
 
 const LazyCensusRegisterSections = lazyWithRetry(() =>
   import('./CensusRegisterSections').then(module => ({
@@ -93,6 +99,12 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
     () => buildCensusLaboratoryCohort(visibleBeds, beds, currentDateString),
     [visibleBeds, beds, currentDateString]
   );
+  const examRequestCandidates = useMemo(
+    () => listCensusExamRequestCandidates({ visibleBeds, beds }),
+    [visibleBeds, beds]
+  );
+  // Same people as the row's laboratory request, which needs clinical editing.
+  const examOrderDate = editingReadOnly ? null : currentDateString;
   const firstExplorerBedId = explorerPatients[0]?.bedId;
   const launchExplorer = useMemo(
     () =>
@@ -117,56 +129,67 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
 
       {/* The census stays mounted behind the explorer so returning keeps its state and edits. */}
       <ClinicalExplorerLaunchContext.Provider value={launchExplorer}>
-        <div className="census-register space-y-4" style={marginStyle} hidden={explorer !== null}>
-          <CensusOperationalStateBanner state={operationalState} />
-          <CensusStaffHeader
-            selectedDate={currentDateString}
-            readOnly={readOnly}
-            stats={stats}
-            accessProfile={accessProfile}
-            visibleBeds={visibleBeds}
-            renderMedicalHandoffAction={renderMedicalHandoffAction}
-            rayenBootstrapRequestId={rayenBootstrapRequestId}
-            onRayenBootstrapHandled={onRayenBootstrapHandled}
-          />
-
-          <CensusRegisterMainContent
-            currentDateString={currentDateString}
-            readOnly={editingReadOnly}
-            visibleBeds={visibleBeds}
-            beds={beds}
-            accessProfile={accessProfile}
-            attentionFilter={attentionFilter}
-            onClearAttentionFilter={() => setAttentionFilter('all')}
-            scoresAction={
-              <CensusAttentionBar
-                compact
-                beds={beds}
-                censusIsoDay={currentDateString}
-                activeFilter={attentionFilter}
-                onFilterChange={setAttentionFilter}
-              />
-            }
-          />
-
-          {shouldRenderDeferredSections ? (
-            <Suspense
-              fallback={
-                <div
-                  className="h-20 animate-pulse rounded-xl bg-slate-100"
-                  data-testid="census-register-sections-loading"
-                />
-              }
+        <CensusExamRequestCandidatesContext.Provider value={examRequestCandidates}>
+          <CensusExamOrderDateContext.Provider value={examOrderDate}>
+            <div
+              className="census-register space-y-4"
+              style={marginStyle}
+              hidden={explorer !== null}
             >
-              <LazyCensusRegisterSections
+              <CensusOperationalStateBanner state={operationalState} />
+              <CensusStaffHeader
+                selectedDate={currentDateString}
                 readOnly={readOnly}
-                showBedManagerModal={showBedManagerModal}
-                onCloseBedManagerModal={onCloseBedManagerModal}
+                stats={stats}
                 accessProfile={accessProfile}
+                visibleBeds={visibleBeds}
+                renderMedicalHandoffAction={renderMedicalHandoffAction}
+                rayenBootstrapRequestId={rayenBootstrapRequestId}
+                onRayenBootstrapHandled={onRayenBootstrapHandled}
               />
-            </Suspense>
-          ) : null}
-        </div>
+
+              <CensusRegisterMainContent
+                currentDateString={currentDateString}
+                readOnly={editingReadOnly}
+                visibleBeds={visibleBeds}
+                beds={beds}
+                accessProfile={accessProfile}
+                attentionFilter={attentionFilter}
+                onClearAttentionFilter={() => setAttentionFilter('all')}
+                scoresAction={
+                  <CensusAttentionBar
+                    compact
+                    beds={beds}
+                    censusIsoDay={currentDateString}
+                    activeFilter={attentionFilter}
+                    onFilterChange={setAttentionFilter}
+                  />
+                }
+              />
+
+              {shouldRenderDeferredSections ? (
+                <Suspense
+                  fallback={
+                    <div
+                      className="h-20 animate-pulse rounded-xl bg-slate-100"
+                      data-testid="census-register-sections-loading"
+                    />
+                  }
+                >
+                  <LazyCensusRegisterSections
+                    readOnly={readOnly}
+                    showBedManagerModal={showBedManagerModal}
+                    onCloseBedManagerModal={onCloseBedManagerModal}
+                    accessProfile={accessProfile}
+                  />
+                </Suspense>
+              ) : null}
+            </div>
+          </CensusExamOrderDateContext.Provider>
+        </CensusExamRequestCandidatesContext.Provider>
+        {examOrderDate && explorer === null && (
+          <CensusExamOrderLauncher censusDate={examOrderDate} candidates={examRequestCandidates} />
+        )}
       </ClinicalExplorerLaunchContext.Provider>
       {explorer ? (
         <section

@@ -1,5 +1,5 @@
 /**
- * The windows a main row's turtle menu opens: the clinical panel (headless, opened through
+ * The windows a row's «Accesos» cell opens: the clinical panel (opened through
  * `openClinicalPanel`), the laboratory viewer and the MMRAD viewer. Each viewer reads the
  * patient's results; its request button appears only when the row can take that request.
  */
@@ -51,6 +51,8 @@ export const usePatientClinicalTopicSurface = (patient?: PatientData) => {
 
 interface PatientClinicalTopicSurfacesProps {
   patient: PatientData;
+  /** A crib shares its bed; its panel owner needs its own key. */
+  triggerKey?: string;
   censusDate?: string;
   surface: PatientClinicalTopicSurface | null;
   onClose: () => void;
@@ -60,6 +62,7 @@ interface PatientClinicalTopicSurfacesProps {
 
 export const PatientClinicalTopicSurfaces: React.FC<PatientClinicalTopicSurfacesProps> = ({
   patient,
+  triggerKey,
   censusDate,
   surface,
   onClose,
@@ -81,8 +84,8 @@ export const PatientClinicalTopicSurfaces: React.FC<PatientClinicalTopicSurfaces
   return (
     <>
       <ClinicalPanelTrigger
-        headless
         bedId={patient.bedId}
+        triggerKey={triggerKey}
         patientName={fullName}
         patientRun={patient.rut}
         clinicalEpisodeId={patient.clinicalEpisodeId}

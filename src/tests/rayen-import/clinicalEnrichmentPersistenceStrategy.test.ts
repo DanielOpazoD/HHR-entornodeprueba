@@ -57,6 +57,7 @@ describe('createClinicalEnrichmentPersistenceStrategy', () => {
       baseRecord: initial,
       currentRecord: refreshed,
       operations,
+      onFieldConflict: expect.any(Function),
     });
   });
 

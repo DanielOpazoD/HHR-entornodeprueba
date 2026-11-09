@@ -1,5 +1,6 @@
 import { getExamCategoryById, type ExamCategory } from '@/constants/examCategories';
 import type { PatientData } from '@/types/domain/patient';
+import type { ExamRequestFreeTextField } from '@/hooks/controllers/examRequestController';
 
 interface ExamRequestSectionModel {
   title: string;
@@ -18,6 +19,8 @@ interface ExamRequestColumnModel {
 interface ExamRequestFooterFieldModel {
   label: string;
   lines?: number;
+  /** Typed before printing; without it the line stays blank for handwriting. */
+  freeText?: ExamRequestFreeTextField;
 }
 
 export interface ExamRequestModalShellModel {
@@ -88,8 +91,8 @@ export const buildExamRequestFooterSection = (): ExamRequestSectionModel =>
   mapCategorySection(inmunologia);
 
 export const buildExamRequestFooterFields = (): ExamRequestFooterFieldModel[] => [
-  { label: 'OTROS', lines: 2 },
-  { label: 'MEDICO TRATANTE', lines: 1 },
+  { label: 'OTROS', lines: 2, freeText: 'otros' },
+  { label: 'MEDICO TRATANTE', lines: 1, freeText: 'medicoTratante' },
   { label: 'FIRMA', lines: 1 },
 ];
 

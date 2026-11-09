@@ -1,11 +1,12 @@
 /**
- * Patients of one laboratory request: a tab per patient with the count of marked exams, and the
- * census list to add or remove patients. Screen only; the forms print one page each.
+ * Patients of one laboratory request: a tab per patient with the count of marked exams and a
+ * button to remove it, and «+ Paciente» with the census list to add or remove patients. Screen
+ * only; the forms print one page each.
  */
 
 import React, { useRef, useState } from 'react';
 import clsx from 'clsx';
-import { ChevronDown, ChevronUp, Users } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
 import type { ExamRequestCandidate, ExamRequestOrder } from '@/hooks/useExamRequestOrders';
 
 /** Ids that tie each tab to the form it shows; the dialog gives the same ids to the forms. */
@@ -59,38 +60,54 @@ export const ExamRequestPatientTabs: React.FC<ExamRequestPatientTabsProps> = ({
         <div role="tablist" aria-label="Pacientes de la solicitud" className="flex flex-wrap gap-1">
           {orders.map((order, index) => {
             const selected = order.key === activeKey;
+            const name = order.patient.patientName.trim();
             return (
-              <button
+              <span
                 key={order.key}
-                ref={element => {
-                  tabRefs.current[index] = element;
-                }}
-                type="button"
-                role="tab"
-                id={examRequestTabId(idPrefix, index)}
-                aria-controls={examRequestPanelId(idPrefix, index)}
-                aria-selected={selected}
-                tabIndex={selected ? 0 : -1}
-                onClick={() => onSelect(order.key)}
-                onKeyDown={event => onTabKeyDown(event, index)}
+                role="presentation"
                 className={clsx(
-                  'inline-flex h-8 max-w-[240px] items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600',
+                  'inline-flex h-8 max-w-[264px] items-center rounded-lg border text-[12px] font-semibold transition-colors',
                   selected
                     ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
                     : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                 )}
               >
-                <span className="font-bold">{order.label}</span>
-                <span className="truncate font-medium uppercase">
-                  {order.patient.patientName.trim()}
-                </span>
-                <span
-                  className="rounded-full bg-white/80 px-1.5 text-[10px] tabular-nums ring-1 ring-slate-200"
-                  aria-label={`${order.selectedExams.size} exámenes marcados`}
+                <button
+                  ref={element => {
+                    tabRefs.current[index] = element;
+                  }}
+                  type="button"
+                  role="tab"
+                  id={examRequestTabId(idPrefix, index)}
+                  aria-controls={examRequestPanelId(idPrefix, index)}
+                  aria-selected={selected}
+                  tabIndex={selected ? 0 : -1}
+                  onClick={() => onSelect(order.key)}
+                  onKeyDown={event => onTabKeyDown(event, index)}
+                  className="inline-flex h-full min-w-0 items-center gap-1.5 rounded-lg px-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600"
                 >
-                  {order.selectedExams.size}
-                </span>
-              </button>
+                  <span className="font-bold">{order.label}</span>
+                  <span className="truncate font-medium uppercase">{name}</span>
+                  <span
+                    className="rounded-full bg-white/80 px-1.5 text-[10px] tabular-nums ring-1 ring-slate-200"
+                    aria-label={`${order.selectedExams.size} exámenes marcados`}
+                  >
+                    {order.selectedExams.size}
+                  </span>
+                </button>
+                {/* The request keeps at least one patient. */}
+                {orders.length > 1 && (
+                  <button
+                    type="button"
+                    aria-label={`Quitar a ${name} de la solicitud`}
+                    title="Quitar de la solicitud"
+                    onClick={() => onTogglePatient(order.key)}
+                    className="mr-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-slate-400 hover:bg-white hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600"
+                  >
+                    <X size={12} aria-hidden="true" />
+                  </button>
+                )}
+              </span>
             );
           })}
         </div>
@@ -100,8 +117,8 @@ export const ExamRequestPatientTabs: React.FC<ExamRequestPatientTabsProps> = ({
           onClick={() => setPickerOpen(open => !open)}
           className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-2.5 text-[12px] font-semibold text-slate-600 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600"
         >
-          <Users size={14} aria-hidden="true" />
-          Pacientes
+          <Plus size={14} aria-hidden="true" />
+          Paciente
           {pickerOpen ? (
             <ChevronUp size={13} aria-hidden="true" />
           ) : (

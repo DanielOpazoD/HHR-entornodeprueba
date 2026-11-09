@@ -454,9 +454,22 @@ La recuperación CUDYR acepta ese encabezado únicamente si el episodio correspo
 cuna en todos sus contextos locales y el identificador coincide. La autorización del PDF
 sigue ligada al episodio; el RUN materno no convierte al RN en el episodio de su madre.
 Si el informe imprime un RUN personal, ese identificador prevalece y debe coincidir.
-Los fallos de movimientos se registran como `bed_history`, separados de la lectura y el
+Un RN registrado al nacer puede aparecer en el PDF solo con «Número Folio Comprobante de Parto»,
+sin RUN propio ni RUN materno. Como el informe se pide por el episodio exacto y ese folio no
+identifica a nadie fuera de él, la recuperación lo acepta sin comparar un RUN; un RUN impreso
+junto al folio sigue debiendo coincidir. Los fallos de movimientos se registran como `bed_history`, separados de la lectura y el
 guardado del CUDYR. El archivo de resultados continúa aunque la recuperación falle;
 los reintentos conservan la selección de lectura CUDYR sin repetir otros datos clínicos.
+
+### Número de identificación de un RN recién nacido
+
+Eloísa crea el episodio del RN al nacer, antes de que el Registro Civil le asigne RUN, y puede
+mostrar como identificación el folio del comprobante de parto o un error de digitación. En un RN,
+un número que no es RUN válido ni pasaporte nunca es su documento: el RN queda con identidad
+provisional, una copia guardada de ese número se borra y la recuperación de movimientos consulta
+por el RUN de la madre. El RUN materno sigue su propio camino, descrito abajo, y un RUN escrito en
+HHR se conserva. Un número con dígito verificador válido sigue aceptándose: distinguir un folio que
+lo cumple por azar requiere que la extensión envíe el tipo de documento de Eloísa.
 
 ### Asociación RN–madre y recuperación del archivo CUDYR
 
@@ -607,3 +620,10 @@ La preparación anterior a la captura pertenece a la vista y a la sesión que la
 Si la vista se desmonta o cambia la sesión mientras se lee el censo, la respuesta tardía
 no puede iniciar otra solicitud de extensión ni guardar un fallo en nombre del intento
 anterior. Esta invalidación no cancela el trabajo clínico que ya superó el commit.
+
+## Accesos a Eloísa desde la barra del censo
+
+La marca de Eloísa en la barra del censo abre un anillo pequeño con Hospitalizados, Gestión de
+camas, Ambulatoria y Urgencias. Cada uno abre su página de Eloísa en una pestaña nueva. Las
+direcciones viven en `eloisaLinks.ts`.
+El anillo se carga solo al abrirlo, para no crecer el bloque de sincronización.

@@ -5,18 +5,22 @@ export type PatientClinicalTopic =
   | 'Laboratorio'
   | 'Imágenes'
   | 'Documentos'
-  | 'Vista integrada';
+  | 'Explorador clínico';
 
-/** Opens a patient's topic from the turtle in the bed column, as a mouse user does. */
+const ACCESS_KEY: Record<PatientClinicalTopic, string> = {
+  'Ficha clínica': 'ficha',
+  Laboratorio: 'laboratory',
+  Imágenes: 'imaging',
+  Documentos: 'documents',
+  'Explorador clínico': 'explorer',
+};
+
+/** Opens a patient's topic as a user does: the bed's access button, then its sector of the ring. */
 export const openPatientClinicalTopic = async (
   page: Page,
   bedId: string,
   topic: PatientClinicalTopic
 ): Promise<void> => {
-  // The turtle wakes while the pointer is over the left of the row, up to the name and RUT.
-  await page
-    .locator(`[data-testid="patient-row"][data-bed-id="${bedId}"] .census-identity-cell`)
-    .hover();
-  await page.getByTestId(`clinical-topics-trigger-${bedId}`).click();
-  await page.getByRole('button', { name: new RegExp(`^${topic}`) }).click();
+  await page.getByTestId(`clinical-access-${bedId}`).click();
+  await page.getByTestId(`clinical-access-${ACCESS_KEY[topic]}-${bedId}`).click();
 };

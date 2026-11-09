@@ -24,7 +24,15 @@ El formulario se divide en una cuadrícula de 12 columnas:
 
 ### Pie de Página (Footer)
 - Incluye una columna específica para **Inmunología / Serología**.
-- **Secciones Manuscritas**: Espacios optimizados para "Otros", "Médico Tratante" y "Firma", con líneas de subrayado pronunciadas.
+- **Líneas del pie**: "Otros" (dos líneas) y "Médico Tratante" se pueden escribir antes de imprimir; el texto sale sobre la línea, sin bordes de campo. Vale solo para esa impresión: no se guarda con el paciente ni lo recuerda el navegador. "Firma" queda en blanco para firmar a mano.
+
+### Varios pacientes
+- En el censo diario, **Mayús + clic** sobre el nombre elige pacientes (o los quita); el botón flotante **«Orden de exámenes»** abre una solicitud con una pestaña por paciente. Esc o un clic en otra parte limpia la elección. Un clic normal sobre el nombre no cambia.
+- Desde la solicitud de un paciente, **«+ Paciente»** agrega otros pacientes del censo del día como pestañas, y la **×** de cada pestaña lo quita.
+- Cada pestaña guarda sus exámenes, "Otros" y "Médico Tratante" por paciente y episodio. **Imprimir N órdenes** saca todas en un solo documento, una hoja por paciente.
+- Solo entran pacientes que identifica su episodio, o su documento con el día y la hora de ingreso (así dos estadías del mismo día no se confunden). Los demás, por ejemplo un RN sin RUT, se imprimen desde su propia fila.
+- Si un paciente deja el censo con la solicitud abierta, solo se va su pestaña; las demás conservan lo marcado y escrito.
+- Nada se guarda: al cerrar la ventana o cambiar de día, la elección y las pestañas se pierden. Al cambiar de sesión, la solicitud se cierra y su texto se borra.
 
 ## 🖨️ Optimización de Impresión (Print Logic)
 

@@ -6,24 +6,17 @@ import {
   injectPendingClinicalCribCreateRows,
 } from '@/features/census/controllers/censusTableBodyController';
 import type { CensusTableBodyProps } from '@/features/census/types/censusTableComponentContracts';
-import type { CensusTableDragDropBundle } from '@/features/census/drag-drop/dragDropContracts';
 import type { ClinicalDocumentPresenceInfo } from '@/features/census/controllers/clinicalDocumentPresenceController';
 import {
   usePendingClinicalCribCreates,
   usePendingIntentionalClearTargets,
 } from '@/features/census/hooks/usePendingBedClearIds';
 
-export interface CensusTableBodyDragDropProps {
-  dragDrop?: CensusTableDragDropBundle;
-}
-
 export interface CensusTableBodyBadgeProps {
   clinicalDocumentInfoByBedId?: Record<string, ClinicalDocumentPresenceInfo>;
 }
 
-export const CensusTableBody: React.FC<
-  CensusTableBodyProps & CensusTableBodyDragDropProps & CensusTableBodyBadgeProps
-> = ({
+export const CensusTableBody: React.FC<CensusTableBodyProps & CensusTableBodyBadgeProps> = ({
   unifiedRows,
   currentDateString,
   recordLastUpdated,
@@ -40,9 +33,15 @@ export const CensusTableBody: React.FC<
   dischargedRuts,
   onAction,
   onActivateEmptyBed,
-  dragDrop,
   clinicalDocumentInfoByBedId,
 }) => {
+  // Publish committed revisions before clicks without invalidating memoized rows.
+  const recordLastUpdatedRef = React.useRef(recordLastUpdated);
+  React.useLayoutEffect(() => {
+    recordLastUpdatedRef.current = recordLastUpdated;
+  }, [recordLastUpdated]);
+  const getRecordLastUpdated = React.useCallback(() => recordLastUpdatedRef.current, []);
+
   const pendingClearTargets = usePendingIntentionalClearTargets(currentDateString);
   // A confirmed crib creation projects its provisional row at click time, exactly
   // like pending clears hide theirs: the per-date queue keeps serializing only the
@@ -106,15 +105,6 @@ export const CensusTableBody: React.FC<
               readOnly={readOnly || isPendingBedClear}
               isPendingClear={isPendingBedClear}
               onClick={emptyBedActivationHandlers.get(row.bed.id)!}
-              isDragOver={!isPendingBedClear && dragDrop?.state.dragOverBedId === row.bed.id}
-              onDragOver={
-                isPendingBedClear ? undefined : dragDrop?.emptyBedHandlers.onDragOver(row.bed.id)
-              }
-              onDragEnter={
-                isPendingBedClear ? undefined : dragDrop?.emptyBedHandlers.onDragEnter(row.bed.id)
-              }
-              onDragLeave={dragDrop?.emptyBedHandlers.onDragLeave}
-              onDrop={isPendingBedClear ? undefined : dragDrop?.emptyBedHandlers.onDrop(row.bed.id)}
             />
           );
         }
@@ -129,7 +119,7 @@ export const CensusTableBody: React.FC<
             bed={row.bed}
             data={row.data}
             currentDateString={currentDateString}
-            recordLastUpdated={recordLastUpdated}
+            getRecordLastUpdated={getRecordLastUpdated}
             onAction={onAction}
             readOnly={readOnly || Boolean(row.isPendingCreate)}
             clinicalEditingDisabled={clinicalEditingDisabled}
@@ -141,10 +131,6 @@ export const CensusTableBody: React.FC<
             role={role}
             accessProfile={accessProfile}
             indicators={resolved.indicators}
-            draggable={!readOnly && !row.isSubRow && !!dragDrop}
-            isDragging={dragDrop?.state.dragSourceBedId === row.bed.id}
-            onDragStart={dragDrop?.patientHandlers.onDragStart(row.bed.id)}
-            onDragEnd={dragDrop?.patientHandlers.onDragEnd}
             clinicalDocumentCount={clinicalDocumentInfoByBedId?.[row.bed.id]?.totalCount}
           />
         );

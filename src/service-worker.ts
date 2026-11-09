@@ -8,6 +8,10 @@ import { registerRoute, setCatchHandler } from 'workbox-routing';
 import { CacheFirst, NetworkFirst, NetworkOnly } from 'workbox-strategies';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 import { createScopedLogger } from '@/services/utils/loggerScope';
+import {
+  isPrivateStorageObjectUrl,
+  purgePrivateStorageObjectsFromCaches,
+} from '@/services/pwa/privateStorageObjectCache';
 
 // Define proper types for Service Worker variables and events
 interface WBManifestEntry {
@@ -121,7 +125,8 @@ registerRoute(
       url.hostname.includes('apis.google.com') ||
       url.hostname.includes('accounts.google.com');
 
-    return isFirebaseDataOrigin && !isAuthOrigin;
+    // Owner-only objects (a personal signature) go straight to the network, never to a cache.
+    return isFirebaseDataOrigin && !isAuthOrigin && !isPrivateStorageObjectUrl(url);
   },
   new NetworkFirst({
     cacheName: `firebase-${CACHE_VERSION}`,
@@ -173,14 +178,20 @@ self.addEventListener('install', (event: Event) => {
 self.addEventListener('activate', (event: Event) => {
   const extendableEvent = event as ExtendableEvent;
   extendableEvent.waitUntil(
-    self.clients.claim().catch(error => {
-      // During aggressive worker replacement, claim can race before the worker becomes active.
-      if (isClientsClaimRaceError(error)) {
-        serviceWorkerLogger.info('clients.claim deferred until active worker takes control');
-        return;
-      }
-      serviceWorkerLogger.warn('clients.claim skipped', error);
-    })
+    Promise.all([
+      self.clients.claim().catch(error => {
+        // During aggressive worker replacement, claim can race before the worker becomes active.
+        if (isClientsClaimRaceError(error)) {
+          serviceWorkerLogger.info('clients.claim deferred until active worker takes control');
+          return;
+        }
+        serviceWorkerLogger.warn('clients.claim skipped', error);
+      }),
+      // Earlier workers cached owner-only objects; drop those copies.
+      purgePrivateStorageObjectsFromCaches(caches).catch(error => {
+        serviceWorkerLogger.warn('private storage cache purge skipped', error);
+      }),
+    ])
   );
 });
 

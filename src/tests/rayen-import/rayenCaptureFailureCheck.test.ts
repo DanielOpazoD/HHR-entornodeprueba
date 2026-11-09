@@ -15,7 +15,8 @@ const WRAP =
 
 /**
  * Messages the extension really produces (extension/*.js), with the check each one names. Ficha
- * Médico's own causes stay `other`: the failure reason already tells them apart.
+ * Médico's own causes stay `other` when the failure reason already tells them apart; a connection
+ * failure does not, so it names which read failed.
  */
 const EXTENSION_MESSAGES: [string, string][] = [
   [
@@ -53,10 +54,18 @@ const EXTENSION_MESSAGES: [string, string][] = [
   ['Ficha Médico y Gestión de Camas no corresponden al mismo establecimiento.', 'other'],
   ['Las fuentes fueron capturadas con demasiado desfase; vuelve a sincronizar.', 'other'],
   ['No hay una pestaña de Rayen disponible. Abre Ficha Médico e inicia sesión.', 'other'],
-  [`${WRAP}La pestaña de Ficha Médico ya no puede leer datos (fallo de red).`, 'other'],
+  [`${WRAP}La pestaña de Ficha Médico ya no puede leer datos (fallo de red).`, 'ficha_network'],
   [`${WRAP}La sesión clínica de Ficha Médico venció.`, 'other'],
   ['Ficha Médico entregó un censo parcial; no se inició la sincronización.', 'other'],
-  [`${WRAP}Failed to fetch`, 'other'],
+  [
+    `${WRAP}Failed to fetch al consultar https://eloisa.example/api/encounter/{id}`,
+    'ficha_network',
+  ],
+  [
+    'Ficha Médico no puede leer datos desde esta pestaña (fallo de red al consultar Eloísa). Recarga la pestaña (Cmd+R).',
+    'ficha_read_blocked',
+  ],
+  ['Failed to fetch', 'other'],
   ['Algo que la extensión nunca dijo antes.', 'other'],
 ];
 
@@ -86,6 +95,28 @@ describe('failed run telemetry', () => {
     expect(event.context).toMatchObject({
       failureReason: 'gestion_camas_unavailable',
       captureCheck: 'gc_after_capture',
+    });
+  });
+
+  it.each([
+    [`${WRAP}Failed to fetch`, 'ficha_network'],
+    [
+      'Ficha Médico no puede leer datos desde esta pestaña (fallo de red al consultar Eloísa). Recarga la pestaña (Cmd+R).',
+      'ficha_read_blocked',
+    ],
+  ])('says which read lost the connection, past the privacy filter: %s', (message, check) => {
+    const { reason, check: captureCheck } = classifyRayenSnapshotError(message);
+    reportRayenSyncTerminal(
+      { id: 'run-8', startedAt: '2026-11-08T03:33:00.000Z' },
+      'failed',
+      { failureReason: reason, captureCheck },
+      '2026-11-08T03:33:00.788Z'
+    );
+
+    const [event] = mocks.recordOperationalTelemetry.mock.calls[0];
+    expect(sanitizeOperationalTelemetryContextValues(event.context).context).toMatchObject({
+      failureReason: 'snapshot_network_error',
+      captureCheck: check,
     });
   });
 

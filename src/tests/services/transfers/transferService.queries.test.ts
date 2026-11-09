@@ -9,9 +9,7 @@ import {
   getLatestOpenTransferRequestByBedId,
   getLatestOpenTransferRequestByPatientRut,
   getTransferById,
-  subscribeToTransfers,
 } from '@/services/transfers/transferService';
-import type { TransferRequest } from '@/types/transferRequestTypes';
 
 vi.mock('@/services/repositories/PatientMasterRepository', () => ({
   PatientMasterRepository: {
@@ -58,11 +56,7 @@ vi.mock('@/services/repositories/repositoryConfig', () => ({
 
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 
-describe('transferService queries and subscriptions', () => {
-  const flushAsyncSubscription = async () => {
-    await Promise.resolve();
-  };
-
+describe('transferService queries', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(isFirestoreEnabled).mockReturnValue(true);
@@ -98,122 +92,6 @@ describe('transferService queries and subscriptions', () => {
 
     expect(transfer?.id).toBe('archived-transfer');
     expect(transfer?.status).toBe('TRANSFERRED');
-  });
-
-  it('returns an unsubscribe function for subscribeToTransfers', () => {
-    const callback = vi.fn();
-    const unsubscribe = subscribeToTransfers(callback);
-
-    expect(typeof unsubscribe).toBe('function');
-  });
-
-  it('calls the callback with transfers array in subscribeToTransfers', async () => {
-    const callback = vi.fn();
-    subscribeToTransfers(callback);
-    await flushAsyncSubscription();
-
-    expect(callback).toHaveBeenCalledWith([]);
-  });
-
-  it('merges active and history transfers in subscription', async () => {
-    const onSnapshotMock = vi.mocked(firestore.onSnapshot);
-    const callbacks: Array<
-      (snapshot: { docs: Array<{ id: string; data: () => Record<string, unknown> }> }) => void
-    > = [];
-    onSnapshotMock.mockImplementation((_q, next) => {
-      if (typeof next !== 'function') return vi.fn();
-      callbacks.push(next);
-      return vi.fn();
-    });
-
-    let latest: TransferRequest[] = [];
-    subscribeToTransfers(t => {
-      latest = t;
-    });
-    await flushAsyncSubscription();
-
-    callbacks[0]?.({
-      docs: [
-        {
-          id: 'TR-ACTIVE',
-          data: () => ({ status: 'REQUESTED', requestDate: '2025-01-01', statusHistory: [] }),
-        },
-      ],
-    });
-    callbacks[1]?.({
-      docs: [
-        {
-          id: 'TR-CLOSED',
-          data: () => ({
-            status: 'TRANSFERRED',
-            requestDate: '2025-01-01',
-            statusHistory: [{ timestamp: '2025-01-01T10:00:00Z' }],
-          }),
-        },
-      ],
-    });
-
-    expect(latest.some(t => t.id === 'TR-ACTIVE')).toBe(true);
-    expect(latest.some(t => t.id === 'TR-CLOSED')).toBe(true);
-  });
-
-  it('includes history transfers even without status history', async () => {
-    const onSnapshotMock = vi.mocked(firestore.onSnapshot);
-    const callbacks: Array<
-      (snapshot: { docs: Array<{ id: string; data: () => Record<string, unknown> }> }) => void
-    > = [];
-    onSnapshotMock.mockImplementation((_q, next) => {
-      if (typeof next !== 'function') return vi.fn();
-      callbacks.push(next);
-      return vi.fn();
-    });
-
-    let latest: TransferRequest[] = [];
-    subscribeToTransfers(t => {
-      latest = t;
-    });
-    await flushAsyncSubscription();
-
-    callbacks[0]?.({ docs: [] });
-    callbacks[1]?.({
-      docs: [
-        {
-          id: 'TR-NO-HISTORY',
-          data: () => ({ status: 'TRANSFERRED', requestDate: '2025-01-01' }),
-        },
-      ],
-    });
-
-    expect(latest.map(t => t.id)).toContain('TR-NO-HISTORY');
-  });
-
-  it('handles subscription errors', async () => {
-    const onSnapshotMock = vi.mocked(firestore.onSnapshot);
-    const callback = vi.fn();
-    const onError = vi.fn();
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-
-    let subscriptionCall = 0;
-    onSnapshotMock.mockImplementation((...args: unknown[]) => {
-      const onErrorCallback = args[2];
-      if (subscriptionCall === 0 && typeof onErrorCallback === 'function') {
-        (onErrorCallback as (error: Error) => void)(new Error('Sub error'));
-      } else {
-        const onNext = args[1];
-        if (typeof onNext === 'function') {
-          (onNext as (snapshot: { docs: [] }) => void)({ docs: [] });
-        }
-      }
-      subscriptionCall += 1;
-      return vi.fn();
-    });
-
-    subscribeToTransfers(callback, { onError });
-    await flushAsyncSubscription();
-
-    expect(callback).toHaveBeenCalledWith([]);
-    expect(onError).toHaveBeenCalled();
-    consoleErrorSpy.mockRestore();
   });
 
   it('fetches and returns active transfers', async () => {

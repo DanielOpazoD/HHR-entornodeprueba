@@ -66,7 +66,7 @@ export const buildClinicalRetryToken = (
   };
 };
 
-const addIncrementalMetrics = (
+export const addClinicalIncrementalMetrics = (
   previous: ClinicalFillSummary['incremental'],
   current: ClinicalFillSummary['incremental']
 ): ClinicalFillSummary['incremental'] => {
@@ -107,7 +107,7 @@ export const mergeClinicalRetrySummary = (
     patched: Math.min(previous.total, previous.patched + current.patched),
     errors: [...retainedErrors, ...current.errors],
     staffingProposal: current.staffingProposal ?? previous.staffingProposal,
-    incremental: addIncrementalMetrics(previous.incremental, current.incremental),
+    incremental: addClinicalIncrementalMetrics(previous.incremental, current.incremental),
     performance: mergeRayenSyncPerformance(previous.performance, current.performance),
   };
 };

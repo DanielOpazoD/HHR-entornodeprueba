@@ -1,4 +1,4 @@
-import type { CSSProperties, DragEvent } from 'react';
+import type { CSSProperties } from 'react';
 import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
 import type { BedDefinition, BedType } from '@/features/census/contracts/censusBedContracts';
@@ -38,7 +38,7 @@ export interface PatientRowProps {
   bed: BedDefinition;
   data: PatientData;
   currentDateString: string;
-  recordLastUpdated?: string;
+  getRecordLastUpdated?: () => string | undefined;
   onAction: (action: PatientRowAction, bedId: string, patient: PatientData) => void;
   readOnly?: boolean;
   clinicalEditingDisabled?: boolean;
@@ -51,10 +51,6 @@ export interface PatientRowProps {
   accessProfile?: CensusAccessProfile;
   indicators?: PatientActionMenuIndicators;
   style?: CSSProperties;
-  draggable?: boolean;
-  isDragging?: boolean;
   isPendingClear?: boolean;
-  onDragStart?: (e: DragEvent) => void;
-  onDragEnd?: () => void;
   clinicalDocumentCount?: number;
 }

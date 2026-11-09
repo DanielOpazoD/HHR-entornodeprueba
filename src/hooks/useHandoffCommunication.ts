@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 import {
   getDefaultTemplates,
@@ -48,6 +48,10 @@ export const useHandoffCommunication = (
 ) => {
   const [whatsappSending, setWhatsappSending] = useState(false);
   const [whatsappSent, setWhatsappSent] = useState(false);
+  const recordDateRef = useRef(record?.date);
+  useEffect(() => {
+    recordDateRef.current = record?.date;
+  }, [record?.date]);
 
   const buildE2EFallbackSignatureLink = useCallback(
     (scope: MedicalHandoffScope): string | null => {
@@ -74,6 +78,7 @@ export const useHandoffCommunication = (
       if (!record) return;
       try {
         const result = await ensureMedicalHandoffSignatureLink(scope);
+        if (recordDateRef.current !== record.date) return;
         const e2eFallbackUrl = buildE2EFallbackSignatureLink(scope);
         const sharePlan = resolveHandoffShareLinkPlan({
           scope,
@@ -83,12 +88,14 @@ export const useHandoffCommunication = (
 
         if (sharePlan.kind === 'copy') {
           await writeClipboardText(sharePlan.text);
+          if (recordDateRef.current !== record.date) return;
           onSuccess(sharePlan.successMessage, sharePlan.successDescription);
           return;
         }
 
         onSuccess(sharePlan.message);
       } catch (error: unknown) {
+        if (recordDateRef.current !== record.date) return;
         const err = error as Error;
         onSuccess(err.message || 'No se pudo copiar el enlace al portapapeles.');
       }
@@ -104,7 +111,9 @@ export const useHandoffCommunication = (
     setWhatsappSending(true);
     try {
       const config = await getWhatsAppConfig();
+      if (recordDateRef.current !== record.date) return;
       const { template: handoffTemplate, usedStandard } = await resolveHandoffTemplate();
+      if (recordDateRef.current !== record.date) return;
 
       if (!config.handoffNotifications?.targetGroupId) {
         throw new Error('WhatsApp no configurado. Configure el grupo destino en ajustes.');
@@ -115,7 +124,7 @@ export const useHandoffCommunication = (
       }
 
       await sendMedicalHandoff(handoffTemplate.content, config.handoffNotifications.targetGroupId);
-      setWhatsappSent(true);
+      if (recordDateRef.current === record.date) setWhatsappSent(true);
       onSuccess(
         usedStandard
           ? 'Entrega enviada con la plantilla estándar: no se pudieron leer las plantillas configuradas.'
@@ -137,12 +146,14 @@ export const useHandoffCommunication = (
     if (!record) return;
     try {
       const { template: handoffTemplate } = await resolveHandoffTemplate();
+      if (recordDateRef.current !== record.date) return;
       if (!handoffTemplate) {
         throw new Error('No se encontró template de entrega médica');
       }
 
       const handoffModel = buildManualMedicalHandoffMessageModel(record, visibleBeds);
       const handoffLinkResult = await ensureMedicalHandoffSignatureLink('all');
+      if (recordDateRef.current !== record.date) return;
       if (handoffLinkResult.status !== 'success' || !handoffLinkResult.data?.handoffUrl) {
         throw new Error(
           resolveApplicationOutcomeMessage(
@@ -174,6 +185,7 @@ export const useHandoffCommunication = (
         '_blank'
       );
     } catch (error: unknown) {
+      if (recordDateRef.current !== record.date) return;
       const err = error as Error;
       handoffCommunicationLogger.error('Failed to prepare manual WhatsApp handoff', err);
       onSuccess(err.message || 'Error al preparar WhatsApp');

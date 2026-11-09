@@ -13,7 +13,7 @@ import { buildPatientRowSaveScopeKey } from '@/features/census/controllers/patie
  * repositorio para reactivación futura de las columnas separadas.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { X } from 'lucide-react';
 import { DebouncedInput } from '@/components/ui/DebouncedInput';
@@ -31,8 +31,17 @@ import {
   dismissTreatingPhysician,
   isDismissedTreatingPhysician,
 } from '@/shared/census/treatingPhysicianDismissal';
+import {
+  hasExamRequestRecordIdentity,
+  resolveExamRequestPatientIdentity,
+} from '@/components/modals/controllers/examRequestPatientIdentity';
+import { CensusExamOrderDateContext } from '../exam-orders/examOrderContext';
+import {
+  EXAM_ORDER_NAME_ATTRIBUTE,
+  handleExamOrderNameMouseDown,
+  useIsExamOrderPatientSelected,
+} from '../exam-orders/examOrderSelectionStore';
 import { resolveNameInputState } from './nameInputController';
-import { ClinicalPanelTrigger } from './ClinicalPanelTrigger';
 import { SpecialtyChip } from './SpecialtyChip';
 import type { BaseCellProps, DebouncedTextHandler, PatientRowSaveResult } from './inputCellTypes';
 import type { PatientRowPatientPatch } from './patientRowContracts';
@@ -77,13 +86,25 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   const [copyFeedback, setCopyFeedback] = useState<'idle' | 'copied'>('idle');
   const { professionalsCatalog = [] } = useStaffContext();
 
-  const { fullName, canEditInlineName } = resolveNameInputState({
+  const { fullName, displayName, canEditInlineName } = resolveNameInputState({
     data,
     isSubRow,
     isEmpty,
     readOnly,
   });
   const handlePatientNameChange = canEditInlineName ? onNameChange('patientName') : () => undefined;
+  const examOrderDate = useContext(CensusExamOrderDateContext);
+  // Shift + click chooses registered patients for a laboratory order; editable names stay editable.
+  const examOrderKey =
+    examOrderDate &&
+    !isEmpty &&
+    !canEditInlineName &&
+    !data.isBlocked &&
+    fullName.trim() &&
+    hasExamRequestRecordIdentity(data)
+      ? resolveExamRequestPatientIdentity(data)
+      : null;
+  const examOrderSelected = useIsExamOrderPatientSelected(examOrderDate, examOrderKey);
 
   const hasNameValidationError =
     !PatientInputSchema.pick({ patientName: true }).safeParse({ patientName: fullName }).success &&
@@ -163,19 +184,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
 
   return (
     <td className="census-identity-cell py-1 px-1 border-r border-slate-200 align-middle">
-      <div
-        className={clsx(
-          'relative grid min-w-0 items-center gap-x-0.5',
-          // A main row's clinical topics open from the turtle; only a crib keeps its panel button.
-          // The name line keeps that button's height on every row, so mother and crib align.
-          isEmpty
-            ? 'grid-cols-1'
-            : clsx(
-                'grid-rows-[minmax(28px,auto)_auto]',
-                isSubRow ? 'grid-cols-[minmax(0,1fr)_28px]' : 'grid-cols-1'
-              )
-        )}
-      >
+      <div className="relative grid min-w-0 grid-cols-1 items-center gap-x-0.5">
         <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-1">
           {canEditInlineName ? (
             <div
@@ -220,12 +229,26 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
             />
           ) : (
             <div
+              {...(examOrderKey && { [EXAM_ORDER_NAME_ATTRIBUTE]: '' })}
+              data-exam-order-selected={examOrderSelected || undefined}
+              title={examOrderKey ? 'Mayús + clic: elegir para la orden de exámenes' : undefined}
+              onMouseDown={
+                examOrderDate && examOrderKey
+                  ? event => handleExamOrderNameMouseDown(event, examOrderDate, examOrderKey)
+                  : undefined
+              }
               className={clsx(
-                'census-identity-name relative flex w-full min-w-0 flex-1 items-start gap-1 rounded border bg-slate-50 p-0.5 text-[13px] font-semibold text-slate-700 cursor-default',
-                'border-slate-200',
+                'census-identity-name relative flex w-full min-w-0 flex-1 items-start gap-1 rounded border p-0.5 text-[13px] font-semibold cursor-default',
+                examOrderSelected
+                  ? // Border and fill come from censusLayout.css, which also styles the unchosen names.
+                    'text-emerald-900'
+                  : 'border-slate-200 bg-slate-50 text-slate-700',
                 hasNameValidationError && 'border-red-400 bg-red-50/50 text-red-700'
               )}
             >
+              {examOrderSelected && (
+                <span className="sr-only">Elegido para la orden de exámenes.</span>
+              )}
               {/*
                 Preserve the read-only input as the census/e2e value hook. Its visible text is rendered
                 separately so names can wrap naturally instead of being truncated by a one-line input.
@@ -242,7 +265,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
               <span
                 className={clsx('min-w-0 break-words leading-4', !fullName && 'text-slate-400')}
               >
-                {fullName || (isSubRow ? 'Nombre RN / Niño' : 'Nombre Paciente')}
+                {displayName || (isSubRow ? 'Nombre RN / Niño' : 'Nombre Paciente')}
               </span>
               {ageBadge}
             </div>
@@ -370,20 +393,6 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
               )}
             </span>
           </div>
-        )}
-        {!isEmpty && isSubRow && (
-          <span className="census-identity-actions col-start-2 row-start-1 inline-flex w-[28px] shrink-0 self-start items-center justify-start whitespace-nowrap">
-            <ClinicalPanelTrigger
-              bedId={data.bedId}
-              triggerKey={`${data.bedId}-clinical-crib`}
-              patientName={fullName}
-              patientRun={data.rut}
-              clinicalEpisodeId={data.clinicalEpisodeId}
-              encounterRouteHint={data.eloisaManualImportAudit?.encounterRoute}
-              admissionDate={data.admissionDate}
-              censusDate={currentDateString}
-            />
-          </span>
         )}
       </div>
     </td>

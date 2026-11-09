@@ -3,7 +3,7 @@
  * Main component for selecting and managing patient devices.
  */
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus } from 'lucide-react';
 import type { DeviceDetails, DeviceInfo } from '@/types/domain/devices';
@@ -12,6 +12,7 @@ import { usePortalPopoverRuntime } from '@/hooks/usePortalPopoverRuntime';
 import { DeviceDateConfigModal } from './device-selector/DeviceDateConfigModal';
 import { DeviceBadge } from './device-selector/DeviceBadge';
 import { DeviceMenu } from './device-selector/DeviceMenu';
+import { DeviceOverflowButton } from './device-selector/DeviceOverflowButton';
 import { DeviceRetireModal } from './device-selector/DeviceRetireModal';
 import {
   resolveDeviceMenuPosition,
@@ -27,6 +28,9 @@ import {
   buildRetireDeviceMutation,
   resolveRetiringDeviceLabel,
 } from '@/components/device-selector/deviceSelectorMutationController';
+
+// A census row never grows past three device lines; the rest wait behind «+N».
+const MAX_VISIBLE_DEVICES = 3;
 
 interface DeviceSelectorProps {
   devices: string[];
@@ -70,6 +74,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
     externalSnapshot,
   }));
   const anchorRef = useRef<HTMLDivElement>(null);
+  const labelId = useId();
   const menuRef = useRef<HTMLDivElement>(null);
   const onChangeRef = useLatestRef(onChange);
   const onDetailsChangeRef = useLatestRef(onDetailsChange);
@@ -257,7 +262,12 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
 
   const closeMenu = useCallback(() => {
     setShowMenu(false);
+    anchorRef.current?.querySelector('button')?.focus({ preventScroll: true });
   }, [setShowMenu]);
+
+  useEffect(() => {
+    if (showMenu) menuRef.current?.querySelector('button')?.focus({ preventScroll: true });
+  }, [showMenu]);
 
   const resolveMenuPosition = useCallback((): DeviceMenuPosition | null => {
     if (!anchorRef.current) return null;
@@ -281,48 +291,80 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
   // Render
   // ========================================================================
 
+  const hiddenCount = Math.max(0, normalizedDevices.length - MAX_VISIBLE_DEVICES);
+  // Past the third, a badge only prints: on screen «+N» stands in for it.
+  const renderBadges = (focusable = true) =>
+    normalizedDevices.map((dev, index) => {
+      const badge = (
+        <DeviceBadge
+          key={dev}
+          id={focusable ? undefined : `${labelId}-${index}`}
+          focusable={focusable}
+          device={dev}
+          deviceDetails={draftDetails}
+          currentDate={currentDate}
+        />
+      );
+      return index < MAX_VISIBLE_DEVICES ? (
+        badge
+      ) : (
+        <span key={dev} className="hidden print:contents">
+          {badge}
+        </span>
+      );
+    });
+  const overflow =
+    hiddenCount > 0 ? (
+      <DeviceOverflowButton
+        devices={normalizedDevices}
+        hiddenCount={hiddenCount}
+        deviceDetails={draftDetails}
+        currentDate={currentDate}
+      />
+    ) : null;
+
   if (disabled) {
     return (
-      <div className="flex min-h-[26px] flex-wrap items-center justify-start gap-0.5 rounded border border-transparent p-0.5">
+      <div
+        className={`relative flex min-h-[26px] flex-wrap items-center justify-start gap-0.5 rounded border border-transparent p-0.5 ${hiddenCount > 0 ? 'pr-5' : ''}`}
+      >
         {normalizedDevices.length === 0 && <span className="text-slate-300 text-xs">-</span>}
-        {normalizedDevices.map(dev => (
-          <DeviceBadge
-            key={dev}
-            device={dev}
-            deviceDetails={draftDetails}
-            currentDate={currentDate}
-          />
-        ))}
+        {renderBadges()}
+        {overflow}
       </div>
     );
   }
 
   return (
     <>
-      <div
-        ref={anchorRef}
-        className="relative flex min-h-[26px] cursor-pointer flex-wrap items-center justify-start gap-0.5 rounded border border-transparent p-0.5 transition-colors hover:border-slate-200 hover:bg-slate-50"
-        onClick={() => {
-          if (!showMenu) {
-            updateMenuPosition();
-          }
-          setShowMenu(previous => !previous);
-        }}
-      >
-        {normalizedDevices.length === 0 && (
-          <span className="text-slate-300 mx-auto flex items-center justify-center w-full opacity-50">
-            <Plus size={14} />
+      <div ref={anchorRef} className="relative">
+        <button
+          type="button"
+          aria-haspopup="dialog"
+          aria-expanded={showMenu}
+          aria-labelledby={[
+            labelId,
+            ...normalizedDevices.map((_, index) => `${labelId}-${index}`),
+          ].join(' ')}
+          className={`relative flex w-full min-h-[26px] cursor-pointer flex-wrap items-center justify-start gap-0.5 rounded border border-transparent p-0.5 transition-colors hover:border-slate-200 hover:bg-slate-50 ${hiddenCount > 0 ? 'pr-5' : ''}`}
+          onClick={() => {
+            if (!showMenu) {
+              updateMenuPosition();
+            }
+            setShowMenu(previous => !previous);
+          }}
+        >
+          <span id={labelId} className="sr-only">
+            {normalizedDevices.length ? 'Editar dispositivos:' : 'Agregar dispositivo'}
           </span>
-        )}
-        {normalizedDevices.map(dev => (
-          <DeviceBadge
-            key={dev}
-            device={dev}
-            deviceDetails={draftDetails}
-            currentDate={currentDate}
-            onRemove={removeDevice}
-          />
-        ))}
+          {normalizedDevices.length === 0 && (
+            <span className="text-slate-300 mx-auto flex items-center justify-center w-full opacity-50">
+              <Plus size={14} />
+            </span>
+          )}
+          {renderBadges(false)}
+        </button>
+        {overflow}
       </div>
 
       {showMenu && typeof document !== 'undefined'

@@ -12,17 +12,23 @@
  *  - identifiers (`runId`, `userId`, `documentId`, `bedId`, …) and every unknown key are dropped
  *    and only counted, never echoed back.
  *
- * The allowlists are the current hot set of real producers (grepped from the app), not an exhaustive
- * catalog. A new or rare operation degrades to the generic mapping instead of leaking.
+ * Operation names are the complete list in `operationalTelemetryOperations`, enforced by the
+ * recorders' types. The context allowlists are the current hot set of real producers, not an
+ * exhaustive catalog: an unknown key is dropped and counted instead of leaking.
  * Browser-safe by construction: no `Buffer`, no `crypto`, no Node built-ins, no dependencies.
  */
 
 import {
   RAYEN_CAPTURE_FAILURE_CHECKS,
   RAYEN_SYNC_FAILURE_REASONS,
+  RAYEN_SYNC_ISSUE_CAUSE_KEYS,
   RAYEN_SYNC_ISSUE_REASONS,
 } from '@/types/domain/rayenSync';
 import { withErrorServiceCause } from './operationalTelemetryErrorCause';
+import {
+  OPERATIONAL_TELEMETRY_OPERATIONS,
+  type OperationalTelemetryOperation,
+} from './operationalTelemetryOperations';
 
 /** Allowlists are written as whitespace separated literals to stay readable and compact. */
 const tokens = (raw: string): string[] => raw.split(/\s+/).filter(Boolean);
@@ -52,7 +58,8 @@ const RUNTIME_STATES = tokens('retryable recoverable degraded blocked unauthoriz
 const OTHER_ERROR_NAME = 'other_error';
 
 /** Deliberate end-to-end check of the alert channel. Never an incident. */
-export const OPERATIONAL_TELEMETRY_PROBE_OPERATION = 'telemetry_delivery_probe';
+export const OPERATIONAL_TELEMETRY_PROBE_OPERATION =
+  'telemetry_delivery_probe' satisfies OperationalTelemetryOperation;
 /** Every operation outside the allowlist reports under this name. */
 export const OPERATIONAL_TELEMETRY_FALLBACK_OPERATION = 'other_operation';
 export const OPERATIONAL_TELEMETRY_UNCLASSIFIED_ISSUE = 'unclassified_issue';
@@ -71,55 +78,9 @@ export const OPERATIONAL_TELEMETRY_ISSUE_CODES = [
 ] as const;
 export type OperationalTelemetryIssueCode = (typeof OPERATIONAL_TELEMETRY_ISSUE_CODES)[number];
 
-const ALLOWED_OPERATIONS = new Set([
-  ...tokens(`
-    save save_many delete list clear search summary outbox download
-    initialize_daily_record delete_daily_record safe_parse_daily_record refresh_daily_record
-    recover_today_empty_daily_record post_deploy_recent_record_refresh daily_record_bed_patch_failed
-    daily_record_clinical_authority daily_record_clinical_consistency
-    daily_record_clinical_patch_blocked_until_fresh
-    daily_record_size_observed clinical_derived_read
-    daily_record_resume_refresh_started daily_record_resume_refresh_completed
-    daily_record_resume_refresh_failed daily_record_resume_refresh_remote_newer
-    daily_record_clinical_inputs_block_started daily_record_clinical_inputs_block_completed
-    daily_record_clinical_inputs_block_failed daily_record_clinical_inputs_block_duration
-    confirmed_null_realtime_record unavailable_null_realtime_record
-    recovered_null_realtime_record reconcile_null_realtime_record server_contradicted_missing_record
-    firestore_read firestore_write sync_queue_ack_failure sync_queue_backpressure_rejected
-    sync_queue_budget_threshold sync_queue_clear_all_failure sync_queue_enqueue_failure
-    sync_queue_owner_clear_failure sync_queue_process_failure sync_queue_quarantine_retry
-    sync_queue_stale_claim_noop sync_queue_task_conflict sync_queue_task_failure
-    sync_queue_transactional_enqueue_failure sync_queue_truth_selected bootstrap_timeout
-    app_shell_ready chunk_load_recovery center_subscription_ready error_service_log
-    session_state_change session_owner_changed session_owner_changed_cleanup
-    session_owner_cleared_cleanup session_cleanup_failed session_permission_storm_logout
-    indexeddb_recovery indexeddb_fallback_mode indexeddb_unexpected_close indexeddb_database_closed
-    indexeddb_open_stalled indexeddb_blocked indexeddb_initial_open_failed indexeddb_save_record
-    indexeddb_recovery_stopped create_clinical_document delete_clinical_document
-    duplicate_clinical_document autosave_clinical_document autosave_clinical_document_rejected
-    export_clinical_document_pdf export_clinical_document_json import_clinical_document_json
-    import_clinical_document_ai open_clinical_document_print_preview clinical_document_import
-    list_clinical_document_templates seed_clinical_document_templates
-    clinical_document_repository_invalid_read_record clinical_document_template_repository_list_all
-    clinical_document_template_repository_list_active
-    clinical_document_template_repository_invalid_template clinical_episode_id_coverage
-    clinical_episode_key_fallback clinical_attachment_name_suggestion rayen_sync_run read_patient
-    read_encounter search_exams cie10_search cie10_database_sync_before_load portal_receipt_proxy
-    pdf_proxy redirect_resolution_failure redirect_empty_result_without_tab_hint
-    rut_sign_in_region_fallback send_census_email
-    send_medical_handoff send_fuga_notification delete_medical_handoff_entry
-    refresh_medical_entry_as_current specialty_note_update confirm_no_changes
-    copy_day_locked_by_schedule contador_local_acumulado census_empty_state_visible
-    import_json_backup image_upload image_delete pdf_exists_timeout census_exists_timeout
-    cudyr_report_read cudyr_report_reuse cudyr_monthly_recovery
-    cudyr_exists_timeout list_storage_files_timeout list_storage_file_unparsed create_reminder
-    update_reminder remove_reminder subscribe_reminders list_reminders list_reminder_receipts
-    mark_reminder_read check_reminder_read prescription
-    prescription_repository_invalid_read_record photo_repository_invalid_read_record
-    consent_repository_invalid_read_record
-  `),
-  // Controlled diagnostics, plus the generic bucket itself so sanitizing stays idempotent.
-  OPERATIONAL_TELEMETRY_PROBE_OPERATION,
+// The generic bucket itself is accepted so that sanitizing stays idempotent.
+const ALLOWED_OPERATIONS = new Set<string>([
+  ...OPERATIONAL_TELEMETRY_OPERATIONS,
   OPERATIONAL_TELEMETRY_FALLBACK_OPERATION,
 ]);
 /** Ordered: the first match wins, so a timeout inside a write is reported as a timeout. */
@@ -151,7 +112,10 @@ const SIZE_KEYS = tokens(`
 const [MAX_COUNT, MAX_DURATION_MS, MAX_SIZE] = [1_000_000, 86_400_000, 1_073_741_824];
 
 const NUMERIC_BOUNDS = new Map<string, { min: number; max: number }>([
-  ...COUNT_KEYS.map(key => [key, { min: 0, max: MAX_COUNT }] as const),
+  // Eloísa sync issues per `source:cause` (e.g. `patch:batch_field_changed`): closed enums only.
+  ...[...COUNT_KEYS, ...RAYEN_SYNC_ISSUE_CAUSE_KEYS].map(
+    key => [key, { min: 0, max: MAX_COUNT }] as const
+  ),
   ...DURATION_KEYS.map(key => [key, { min: -MAX_DURATION_MS, max: MAX_DURATION_MS }] as const),
   ...SIZE_KEYS.map(key => [key, { min: 0, max: MAX_SIZE }] as const),
 ]);
