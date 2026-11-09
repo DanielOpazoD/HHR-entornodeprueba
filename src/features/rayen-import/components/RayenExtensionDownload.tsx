@@ -1,5 +1,6 @@
 import React from 'react';
 import { Download } from 'lucide-react';
+import { ErrorBoundary } from 'react-error-boundary';
 import release from 'virtual:rayen-extension-release';
 
 const DownloadDetails = React.lazy(() => import('./RayenExtensionDownloadDetails'));
@@ -78,22 +79,40 @@ export const RayenExtensionDownload: React.FC<Props> = ({
         style={position}
         className="fixed m-0 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-600 shadow-lg"
       >
-        {detailsRequested ? (
-          <React.Suspense fallback={download}>
-            <DownloadDetails
-              download={download}
-              installedVersion={installedVersion}
-              verifiedId={verifiedId}
-              label={label}
-              samePackage={samePackage}
-              differentPackage={differentPackage}
-              unidentified={unidentified}
-              incompatible={incompatible}
-              working={working}
-            />
-          </React.Suspense>
-        ) : (
-          download
+        <p className="font-semibold text-slate-800">{label}</p>
+        {download}
+        <a
+          href={release.notesUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-2 block text-teal-700 underline"
+        >
+          Ver cambios de esta versión
+        </a>
+        {working && (
+          <p className="mt-2 font-medium text-amber-700">
+            Espera a que termine la sincronización antes de recargar la extensión o las páginas.
+          </p>
+        )}
+        {detailsRequested && (
+          <ErrorBoundary
+            fallback={
+              <p role="alert" className="mt-2 text-amber-700">
+                No se pudo cargar la ayuda. La descarga sigue disponible.
+              </p>
+            }
+          >
+            <React.Suspense fallback={null}>
+              <DownloadDetails
+                installedVersion={installedVersion}
+                verifiedId={verifiedId}
+                samePackage={samePackage}
+                differentPackage={differentPackage}
+                unidentified={unidentified}
+                incompatible={incompatible}
+              />
+            </React.Suspense>
+          </ErrorBoundary>
         )}
       </div>
     </div>
