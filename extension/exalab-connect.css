@@ -12,3 +12,5 @@ button:disabled { opacity: .55; cursor: default; }
 button:focus-visible, a:focus-visible { outline: 3px solid #34d399; outline-offset: 3px; }
 .secondary { background: white; color: #047857; }
 #status { min-height: 24px; overflow-wrap: anywhere; }
+.auto { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 18px; font-size: 15px; line-height: 1.5; }
+.auto input { width: 18px; height: 18px; margin-top: 3px; accent-color: #047857; }

@@ -13,6 +13,7 @@ vi.mock('@/components/shared/BaseModal', () => ({
 }));
 vi.mock('@/services/laboratory/exalabService', () => ({
   exalabStatus: vi.fn(),
+  autoConnectExalab: vi.fn(),
   connectExalab: vi.fn(),
   disconnectExalab: vi.fn(),
   searchExalab: vi.fn(),
@@ -28,6 +29,7 @@ vi.mock('@/services/laboratory/exalabService', () => ({
 }));
 import { ExalabResultsViewerModal } from '@/features/laboratory/components/ExalabResultsViewerModal';
 import {
+  autoConnectExalab,
   exalabStatus,
   searchExalab,
   fetchExalabPdf,
@@ -47,7 +49,8 @@ const revoke = vi.fn();
 const create = vi.fn(() => 'blob:synthetic-exalab');
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(exalabStatus).mockResolvedValue(true);
+  vi.mocked(exalabStatus).mockResolvedValue({ connected: true, expiresAt: null });
+  vi.mocked(autoConnectExalab).mockResolvedValue('unavailable');
   vi.mocked(searchExalab).mockResolvedValue([exam]);
   vi.mocked(fetchExalabPdf).mockResolvedValue(
     new Blob(['%PDF-1.4\n%%EOF'], { type: 'application/pdf' })
@@ -135,5 +138,67 @@ describe('Exalab original reports', () => {
     expect(signal.aborted).toBe(true);
     await act(async () => finish([exam]));
     expect(screen.queryByText('CENTRO SINTETICO')).not.toBeInTheDocument();
+  });
+});
+const sessionRequired = () =>
+  new ExalabRequestError('Renueva tu sesión Exalab.', 'SESSION_REQUIRED');
+describe('Exalab automatic connection', () => {
+  it('connects silently on open when this PC authorized it and shows until when it stays valid', async () => {
+    vi.mocked(exalabStatus)
+      .mockRejectedValueOnce(sessionRequired())
+      .mockResolvedValueOnce({ connected: true, expiresAt: Date.UTC(2026, 10, 9, 23, 30) });
+    vi.mocked(autoConnectExalab).mockResolvedValueOnce('connected');
+    mount();
+    expect(
+      await screen.findByText('Tu sesión Exalab está conectada · vigente hasta las 18:30.')
+    ).toBeInTheDocument();
+    expect(autoConnectExalab).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Buscar en Exalab' })).toBeEnabled();
+  });
+  it('asks to log in to Exalab and reconnects by itself when the extension announces a new session', async () => {
+    vi.mocked(exalabStatus).mockRejectedValueOnce(sessionRequired());
+    vi.mocked(autoConnectExalab).mockResolvedValueOnce('no_session');
+    mount();
+    expect(
+      await screen.findByText('Abre Exalab e ingresa con ClaveÚnica. HHR se conectará solo.')
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Abrir Exalab' })).toHaveAttribute(
+      'href',
+      'https://exalab.saludoriente.cl/web_ssmo/index.php'
+    );
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    vi.mocked(autoConnectExalab).mockResolvedValueOnce('connected');
+    vi.mocked(exalabStatus).mockResolvedValueOnce({ connected: true, expiresAt: null });
+    await act(async () => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          source: window,
+          origin: window.location.origin,
+          data: { type: 'HHR_EXALAB_SESSION_AVAILABLE' },
+        })
+      );
+    });
+    expect(await screen.findByText('Tu sesión Exalab está conectada.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Abrir Exalab' })).not.toBeInTheDocument();
+  });
+  it('reconnects once and repeats the search once when the bridge lost the session', async () => {
+    mount();
+    vi.mocked(searchExalab).mockRejectedValueOnce(sessionRequired());
+    vi.mocked(autoConnectExalab).mockResolvedValueOnce('connected');
+    await search();
+    expect(await screen.findByText('CENTRO SINTETICO')).toBeInTheDocument();
+    expect(searchExalab).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+  it('never loops: a second expiry after reconnecting is reported once', async () => {
+    mount();
+    vi.mocked(searchExalab)
+      .mockRejectedValueOnce(sessionRequired())
+      .mockRejectedValueOnce(sessionRequired());
+    vi.mocked(autoConnectExalab).mockResolvedValueOnce('connected');
+    await search();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Renueva tu sesión');
+    expect(searchExalab).toHaveBeenCalledTimes(2);
+    expect(autoConnectExalab).toHaveBeenCalledTimes(1);
   });
 });

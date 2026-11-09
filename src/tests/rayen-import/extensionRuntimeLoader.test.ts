@@ -229,6 +229,8 @@ describe('extension heavy runtime loading', () => {
           onMessage: { addListener: () => undefined },
         },
         storage: { local: localStorage, session: localStorage },
+        // A Chrome MV3 worker always exposes chrome.permissions; optional APIs such as cookies do not.
+        permissions: { contains: async () => false, onAdded: { addListener: () => undefined } },
         tabs: {
           onRemoved: { addListener: () => undefined },
           query: async () => [],

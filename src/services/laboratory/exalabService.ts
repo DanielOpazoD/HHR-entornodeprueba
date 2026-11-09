@@ -1,6 +1,13 @@
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
 import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
 import type { ExalabExam } from '@/types/domain/labExamTypes';
+import {
+  askExalabAutoConnect,
+  forgetExalabAutoConnect,
+  readExalabExtensionStatus,
+  type ExalabAutoConnectOutcome,
+} from './exalabExtensionBridge';
+export type { ExalabAutoConnectOutcome } from './exalabExtensionBridge';
 export type { ExalabExam } from '@/types/domain/labExamTypes';
 export class ExalabRequestError extends Error {
   constructor(
@@ -62,9 +69,19 @@ const request = async (
     );
   return data;
 };
-export const exalabStatus = async (signal: AbortSignal): Promise<boolean> => {
+export interface ExalabSessionStatus {
+  connected: boolean;
+  /** When the bridge will drop the session if unused, when it reports it. */
+  expiresAt: number | null;
+}
+export const exalabStatus = async (signal: AbortSignal): Promise<ExalabSessionStatus> => {
   const data = await request('status', signal);
-  return !(data instanceof Blob) && data.connected === true;
+  if (data instanceof Blob) return { connected: false, expiresAt: null };
+  return {
+    connected: data.connected === true,
+    expiresAt:
+      typeof data.expiresAt === 'number' && Number.isFinite(data.expiresAt) ? data.expiresAt : null,
+  };
 };
 export const searchExalab = async (
   rut: string,
@@ -95,8 +112,12 @@ export const fetchExalabPdf = async (link: string, signal: AbortSignal): Promise
   if (!(result instanceof Blob)) throw new ExalabRequestError('Exalab no devolvió el PDF.');
   return result;
 };
-export const disconnectExalab = (signal: AbortSignal) => request('disconnect', signal);
-export const connectExalab = async (signal: AbortSignal): Promise<void> => {
+export const disconnectExalab = async (signal: AbortSignal) => {
+  // Disconnecting also withdraws this PC's automatic reconnection.
+  forgetExalabAutoConnect();
+  return request('disconnect', signal);
+};
+const requestExalabPair = async (signal: AbortSignal): Promise<string> => {
   const result = await request('pair', signal);
   if (
     result instanceof Blob ||
@@ -104,8 +125,22 @@ export const connectExalab = async (signal: AbortSignal): Promise<void> => {
     !/^[A-Za-z0-9_-]{43}$/.test(result.pair)
   )
     throw new ExalabRequestError('No se pudo iniciar la conexión Exalab.');
-  const pair = result.pair;
   if (signal.aborted) throw new DOMException('Conexión cancelada.', 'AbortError');
+  return result.pair;
+};
+/**
+ * Links the Exalab session already open in this browser without the consent page, when this PC
+ * authorized it once. Asks the extension first, so no pairing is spent when it cannot succeed.
+ */
+export const autoConnectExalab = async (signal: AbortSignal): Promise<ExalabAutoConnectOutcome> => {
+  const status = await readExalabExtensionStatus(signal);
+  if (!status) return 'unavailable';
+  if (!status.permission || !status.autoConnect) return 'needs_consent';
+  if (!status.session) return 'no_session';
+  return askExalabAutoConnect(await requestExalabPair(signal), signal);
+};
+export const connectExalab = async (signal: AbortSignal): Promise<void> => {
+  const pair = await requestExalabPair(signal);
   await new Promise<void>((resolve, reject) => {
     const reqId = crypto.randomUUID();
     const cleanup = () => {

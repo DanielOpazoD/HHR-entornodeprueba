@@ -206,6 +206,10 @@
       "maxLines": 39,
       "hotspots": {}
     },
+    "content-hhr-exalab-auto.js": {
+      "maxLines": 23,
+      "hotspots": {}
+    },
     "content-hhr-exalab.js": {
       "maxLines": 17,
       "hotspots": {}
@@ -281,12 +285,20 @@
         "iife>variable:correctEpicrisisPrescriptionPages": 20
       }
     },
+    "exalab-auto-runtime.js": {
+      "maxLines": 75,
+      "hotspots": {}
+    },
     "exalab-background.js": {
       "maxLines": 21,
       "hotspots": {}
     },
     "exalab-connect.js": {
       "maxLines": 42,
+      "hotspots": {}
+    },
+    "exalab-session-transport.js": {
+      "maxLines": 28,
       "hotspots": {}
     },
     "exam-request-pdf.js": {

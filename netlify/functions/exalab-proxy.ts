@@ -114,7 +114,15 @@ export const createExalabProxyHandler =
         body = JSON.stringify(
           action === 'search'
             ? { rut: parsed.value.rut, from: parsed.value.from, to: parsed.value.to }
-            : { pair: parsed.value.pair, session: parsed.value.session }
+            : {
+                pair: parsed.value.pair,
+                session: parsed.value.session,
+                // A silent reconnection names the consenting account; the bridge refuses another one's pair.
+                ...(typeof parsed.value.expectedOwner === 'string' &&
+                /^[a-f0-9]{16}$/.test(parsed.value.expectedOwner)
+                  ? { expectedOwner: parsed.value.expectedOwner }
+                  : {}),
+              }
         );
       }
       const response = await fetch(url.href, {
