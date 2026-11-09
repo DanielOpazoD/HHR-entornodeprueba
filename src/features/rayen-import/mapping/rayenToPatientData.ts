@@ -147,6 +147,19 @@ export interface MappedPatient {
   bedId: string | null;
 }
 
+/** Keeps HHR's name parts with their provenance: the stored marker, or none. */
+export const withLocalNameParts = (incoming: PatientData, local: PatientData): PatientData => {
+  const { namePartsSource: _eloisa, ...patient } = incoming;
+  return {
+    ...patient,
+    patientName: local.patientName,
+    firstName: local.firstName,
+    lastName: local.lastName,
+    secondLastName: local.secondLastName,
+    ...(local.namePartsSource ? { namePartsSource: local.namePartsSource } : {}),
+  };
+};
+
 export const rayenToPatientData = (
   encounter: RayenEncounter,
   reference: Date = new Date()

@@ -231,4 +231,77 @@ describe('Eloísa name parts source', () => {
     ]);
     expect(patch['beds.R1.namePartsSource']).toBeUndefined();
   });
+
+  describe('newborn names kept from HHR', () => {
+    const mother = encounter({ encounterId: 'MOTHER', run: '144700554', room: 'H5', bed: 'C1' });
+    // No RUN yet: the sync keeps the name typed in HHR for the same episode.
+    const child = (placement: Partial<RayenEncounter>): RayenEncounter =>
+      encounter({
+        encounterId: 'NEWBORN',
+        run: '',
+        firstGivenName: 'RN de Ana',
+        nextGivenNames: '',
+        birthDate: '2026-11-08',
+        admissionDatetime: '2026-11-08T03:00:00-05:00',
+        ...placement,
+      });
+    const inCrib = child({ room: 'Cunas', bed: 'CH5C1', clinicalCribParentBedId: 'H5C1' });
+    const inOwnBed = child({ room: 'Neo 1', bed: 'NEO1' });
+    // A manual name that the read-time guess would split the same way.
+    const typedInHhr = (patient: PatientData): PatientData => {
+      const { namePartsSource: _source, ...local } = patient;
+      return {
+        ...local,
+        patientName: FULL_NAME,
+        firstName: 'Ana María Josefa Luisa Rosa Elena',
+        lastName: 'Pérez',
+        secondLastName: 'Soto',
+        identityStatus: 'provisional',
+      };
+    };
+    const sync = (current: DailyRecord, encounters: RayenEncounter[]): DailyRecord =>
+      applyCensusImportDiff(
+        current,
+        reconcileCensus(current, snapshotOf(encounters), { reference: REFERENCE }),
+        { idFactory: () => 'id', now: REFERENCE, syncRunId: 'newborn-run' }
+      ).record;
+
+    it('keeps an independent bed newborn name without crediting it to Eloísa', () => {
+      const mapped = rayenToPatientData(inOwnBed, REFERENCE);
+      const bedId = mapped.bedId ?? '';
+      const synced = sync(recordWith({ [bedId]: typedInHhr(mapped.patient) }), [inOwnBed]).beds[
+        bedId
+      ];
+
+      expect(synced.patientName).toBe(FULL_NAME);
+      expect(synced.namePartsSource).toBeUndefined();
+      expect(formatPatientDisplayName(synced)).toBe(FULL_NAME);
+
+      const marked = { ...typedInHhr(mapped.patient), namePartsSource: 'eloisa' as const };
+      expect(sync(recordWith({ [bedId]: marked }), [inOwnBed]).beds[bedId].namePartsSource).toBe(
+        'eloisa'
+      );
+    });
+
+    // Without a RUN the placement step keeps the local name; a passport reaches the crib step.
+    it.each([
+      ['without a RUN', inCrib],
+      ['with a passport', { ...inCrib, run: 'AB123456' }],
+    ])('keeps a crib newborn name typed in HHR %s without crediting it to Eloísa', (_, source) => {
+      const parent = rayenToPatientData(mother, REFERENCE).patient;
+      const crib = typedInHhr(rayenToPatientData(source, REFERENCE).patient);
+      const synced = sync(recordWith({ H5C1: { ...parent, clinicalCrib: crib } }), [mother, source])
+        .beds.H5C1.clinicalCrib!;
+
+      expect(synced.patientName).toBe(FULL_NAME);
+      expect(synced.namePartsSource).toBeUndefined();
+      expect(formatPatientDisplayName(synced)).toBe(FULL_NAME);
+
+      const marked = { ...crib, namePartsSource: 'eloisa' as const };
+      expect(
+        sync(recordWith({ H5C1: { ...parent, clinicalCrib: marked } }), [mother, source]).beds.H5C1
+          .clinicalCrib?.namePartsSource
+      ).toBe('eloisa');
+    });
+  });
 });

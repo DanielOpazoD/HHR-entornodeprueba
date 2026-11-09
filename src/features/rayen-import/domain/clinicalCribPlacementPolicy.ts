@@ -7,7 +7,7 @@ import { Specialty } from '@/types/domain/patientClassification';
 import { isValidRut } from '@/utils/rutUtils';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
-import { rayenToPatientData } from '../mapping/rayenToPatientData';
+import { rayenToPatientData, withLocalNameParts } from '../mapping/rayenToPatientData';
 import {
   associateClinicalCribsWithMothers,
   isNeonatalPatient,
@@ -95,16 +95,12 @@ export const prepareActiveClinicalPlacements = (
           ? reviewed.patient.rut
           : '';
       mapped.patient = {
-        ...mapped.patient,
         ...(sameEpisode
           ? {
-              patientName: reviewed.patient.patientName,
-              firstName: reviewed.patient.firstName,
-              lastName: reviewed.patient.lastName,
-              secondLastName: reviewed.patient.secondLastName,
+              ...withLocalNameParts(mapped.patient, reviewed.patient),
               documentType: reviewed.patient.documentType,
             }
-          : {}),
+          : mapped.patient),
         ...(maternalRut ? { neonatalMaternalRut: maternalRut } : {}),
         rut: ownRun,
         identityStatus: ownRun ? reviewed!.patient.identityStatus : 'provisional',
