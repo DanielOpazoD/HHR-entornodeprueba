@@ -6,8 +6,6 @@
  *    in the demographics modal to keep a single operational path.
  *  - **Tooltip** on hover shows the admission time (e.g. "Hora de ingreso: 14:30")
  *    or "Hora de ingreso: no registrada" if the time was never set.
- *  - Uses `cursor-default` to override the drag-and-drop grab cursor,
- *    ensuring the native tooltip is visible on hover.
  */
 
 import React from 'react';

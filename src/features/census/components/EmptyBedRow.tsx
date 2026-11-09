@@ -1,5 +1,4 @@
 import React from 'react';
-import type { DragEvent } from 'react';
 import { BedDefinition } from '@/features/census/contracts/censusBedContracts';
 import { LoaderCircle, Plus } from 'lucide-react';
 import type { TableColumnConfig } from '@/context/TableConfigContext';
@@ -11,11 +10,6 @@ interface EmptyBedRowProps {
   onClick: () => void;
   readOnly?: boolean;
   isPendingClear?: boolean;
-  isDragOver?: boolean;
-  onDragOver?: (e: DragEvent) => void;
-  onDragEnter?: (e: DragEvent) => void;
-  onDragLeave?: () => void;
-  onDrop?: (e: DragEvent) => void;
 }
 
 const EmptyBedRowComponent: React.FC<EmptyBedRowProps> = ({
@@ -25,11 +19,6 @@ const EmptyBedRowComponent: React.FC<EmptyBedRowProps> = ({
   onClick,
   readOnly = false,
   isPendingClear = false,
-  isDragOver = false,
-  onDragOver,
-  onDragEnter,
-  onDragLeave,
-  onDrop,
 }) => {
   const totalWidth = Object.values(columns).reduce((sum, width) => sum + width, 0);
   // "Tipo de cama" está oculto (rediseño 2026): la fila vacía ya no muestra la clasificación UTI/Media.
@@ -39,15 +28,11 @@ const EmptyBedRowComponent: React.FC<EmptyBedRowProps> = ({
   return (
     <tr
       className={`border-b border-slate-100/60 hover:bg-slate-50/50 transition-colors group h-7 ${
-        isDragOver ? 'bg-medical-50 ring-2 ring-inset ring-medical-300 ring-dashed' : ''
-      } ${isPendingClear ? 'bg-amber-50/60' : ''}`}
+        isPendingClear ? 'bg-amber-50/60' : ''
+      }`}
       aria-busy={isPendingClear}
       data-bed-id={bed.id}
       data-clear-pending={isPendingClear || undefined}
-      onDragOver={onDragOver}
-      onDragEnter={onDragEnter}
-      onDragLeave={onDragLeave}
-      onDrop={onDrop}
     >
       <td
         style={{ width: columns.actions }}

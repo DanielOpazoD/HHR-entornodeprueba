@@ -10,8 +10,6 @@ import {
   useCensusClinicalDerivedDay,
 } from '@/features/census/components/patient-row/clinicalDerivedDayContext';
 import { useCensusTableBindingsModel } from '@/features/census/hooks/useCensusTableBindingsModel';
-import { DragDropConfirmation } from '@/features/census/drag-drop/DragDropConfirmation';
-import { useCensusTableDragDrop } from '@/features/census/drag-drop/useCensusTableDragDrop';
 import { useDailyRecordBeds, useDailyRecordData } from '@/context/DailyRecordContext';
 import { useDailyRecordBedActions } from '@/context/useDailyRecordScopedActions';
 import { ViewLoader } from '@/components/ui/ViewLoader';
@@ -80,7 +78,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
     accessProfile,
   });
 
-  const { moveOrCopyPatient, updatePatientMultiple } = useDailyRecordBedActions();
+  const { updatePatientMultiple } = useDailyRecordBedActions();
   const { record } = useDailyRecordData();
   const clinicalDerivedDay = useCensusClinicalDerivedDay(record, currentDateString);
   const canObserveTable = isReady && Boolean(bindings) && record?.date === currentDateString;
@@ -97,15 +95,6 @@ export const CensusTable: React.FC<CensusTableProps> = ({
     [notifyInfo]
   );
   useCensusBedDeepLinkFocus(tableRootRef, currentDateString, canObserveTable, reportMissingBed);
-
-  const handleMoveToBed = useCallback(
-    (sourceBedId: string, targetBedId: string) => {
-      moveOrCopyPatient('move', sourceBedId, targetBedId);
-    },
-    [moveOrCopyPatient]
-  );
-
-  const dragDrop = useCensusTableDragDrop(handleMoveToBed, beds ?? {});
 
   useEffect(() => {
     const hasHardContextReset = Object.values(freshnessUi.clinicalFieldLocksByBedId).some(
@@ -308,7 +297,6 @@ export const CensusTable: React.FC<CensusTableProps> = ({
                   recordLastUpdated={record?.lastUpdated}
                   unifiedRows={filteredUnifiedRows}
                   onActivateEmptyBed={openEmptyBedDemographics}
-                  dragDrop={readOnly || clinicalEditingDisabled ? undefined : dragDrop}
                   clinicalDocumentInfoByBedId={clinicalDocumentInfoByBedId}
                 />
               </ClinicalDerivedDayProvider>
@@ -316,14 +304,6 @@ export const CensusTable: React.FC<CensusTableProps> = ({
           </table>
         </CensusTableViewport>
       </div>
-
-      {dragDrop.state.pendingMove && (
-        <DragDropConfirmation
-          move={dragDrop.state.pendingMove}
-          onConfirm={dragDrop.confirmationHandlers.onConfirm}
-          onCancel={dragDrop.confirmationHandlers.onCancel}
-        />
-      )}
 
       {activeEmptyBedId && emptyBedData ? (
         <Suspense fallback={null}>
