@@ -42,6 +42,10 @@
       "maxLines": 85,
       "hotspots": {}
     },
+    "build-identity.js": {
+      "maxLines": 12,
+      "hotspots": {}
+    },
     "capture-read-recovery.js": {
       "maxLines": 68,
       "hotspots": {}

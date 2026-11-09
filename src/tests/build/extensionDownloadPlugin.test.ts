@@ -12,6 +12,9 @@ describe('extension distribution artifact', () => {
     const entries = unzipSync(artifact.zip);
     const manifest = JSON.parse(strFromU8(entries['manifest.json']));
     expect(manifest.version).toBe(artifact.version);
+    expect(manifest.version_name).toBe(`${artifact.version}+hhr1.${artifact.buildId}`);
+    expect(artifact.buildId).toMatch(/^[a-f0-9]{64}$/);
+    expect(artifact.fileName).toContain(artifact.buildId.slice(0, 12));
     expect(artifact.fileName).toMatch(
       new RegExp(`^downloads/eloisa-extension-${artifact.version}-[a-f0-9]{12}\\.zip$`)
     );
@@ -31,12 +34,11 @@ describe('extension distribution artifact', () => {
         name !== 'README.md'
       ) {
         expect(entries[name], name).toBeDefined();
-        expect(
-          Buffer.from(entries[name]).equals(
-            fs.readFileSync(path.join(process.cwd(), 'extension', name))
-          ),
-          name
-        ).toBe(true);
+        const source = fs.readFileSync(path.join(process.cwd(), 'extension', name));
+        if (name === 'manifest.json') {
+          const { version_name: _generated, ...packagedManifest } = manifest;
+          expect(packagedManifest).toEqual(JSON.parse(source.toString()));
+        } else expect(Buffer.from(entries[name]).equals(source), name).toBe(true);
       }
     }
   });
@@ -60,6 +62,22 @@ describe('extension distribution artifact', () => {
       const repeated = packageRayenExtension(root);
       expect(Buffer.from(repeated.zip).equals(Buffer.from(artifact.zip))).toBe(true);
       expect(repeated.fileName).toBe(artifact.fileName);
+      const originalManifest = fs.readFileSync(path.join(extension, 'manifest.json'), 'utf8');
+      expect(JSON.parse(originalManifest).version_name).toBeUndefined();
+      fs.writeFileSync(path.join(extension, 'new-feature.js'), 'const feature = 1;');
+      const changed = packageRayenExtension(root);
+      expect(changed.version).toBe(artifact.version);
+      expect(changed.buildId).not.toBe(artifact.buildId);
+      expect(changed.fileName).not.toBe(artifact.fileName);
+      fs.unlinkSync(path.join(extension, 'new-feature.js'));
+      fs.writeFileSync(
+        path.join(extension, 'manifest.json'),
+        JSON.stringify({
+          ...JSON.parse(originalManifest),
+          version_name: 'stale-build-marker',
+        })
+      );
+      expect(packageRayenExtension(root).buildId).toBe(artifact.buildId);
       expect(Object.keys(unzipSync(artifact.zip))).toEqual(['manifest.json', 'vendor-lock.json']);
       writeManifest(['missing.js']);
       expect(() => packageRayenExtension(root)).toThrow();

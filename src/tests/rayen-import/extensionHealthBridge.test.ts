@@ -30,6 +30,8 @@ describe('extensionHealthBridge', () => {
 
   it('validates a complete capability report', () => {
     expect(isRayenExtensionHealthReport(report)).toBe(true);
+    expect(isRayenExtensionHealthReport({ ...report, buildId: 'a'.repeat(64) })).toBe(true);
+    expect(isRayenExtensionHealthReport({ ...report, buildId: 'reused-version' })).toBe(false);
     expect(isRayenExtensionHealthReport({ ...report, fichaMedico: { status: 'unknown' } })).toBe(
       false
     );

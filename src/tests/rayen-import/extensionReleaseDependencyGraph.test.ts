@@ -39,6 +39,24 @@ afterEach(() => {
 });
 
 describe('Rayen extension release dependency graph', () => {
+  it('rejects a parallel package that drops the published Exalab integration', () => {
+    const root = createPackageFixture();
+    const background = path.join(root, 'extension/background.js');
+    fs.writeFileSync(
+      background,
+      fs.readFileSync(background, 'utf8').replace("'exalab-background.js',", '')
+    );
+    const manifestPath = path.join(root, 'extension/manifest.json');
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    for (const script of manifest.content_scripts) {
+      script.js = script.js.filter((name: string) => name !== 'content-hhr-exalab.js');
+    }
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest));
+    const result = runChecker(root);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('exalab-background.js debe registrarse');
+    expect(result.stderr).toContain('conservar la conexión personal Exalab');
+  });
   it('accepts the complete packaged extension', () => {
     const result = runChecker(createPackageFixture());
 
