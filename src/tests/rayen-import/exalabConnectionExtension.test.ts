@@ -20,10 +20,15 @@ const page = (origin = 'https://hhr-hospitalizados.app', granted = true) => {
       },
     ])
   );
-  const cookies = vi.fn(async () => [
-    { name: 'PHPSESSID', value: 'synthetic-only', domain: 'exalab.saludoriente.cl' },
-    { name: 'unrelated_cookie', value: 'must-not-leave-browser', domain: 'exalab.saludoriente.cl' },
-  ]);
+  const jar: Record<string, { name: string; value: string; domain: string }> = {
+    PHPSESSID: { name: 'PHPSESSID', value: 'synthetic-only', domain: 'exalab.saludoriente.cl' },
+    unrelated_cookie: {
+      name: 'unrelated_cookie',
+      value: 'must-not-leave-browser',
+      domain: 'exalab.saludoriente.cl',
+    },
+  };
+  const cookies = vi.fn(async ({ name }: { url: string; name: string }) => jar[name] ?? null);
   const permission = vi.fn(async () => granted);
   const fetchMock = vi.fn(
     async () => new Response(JSON.stringify({ success: true, connected: true }))
@@ -39,7 +44,7 @@ const page = (origin = 'https://hhr-hospitalizados.app', granted = true) => {
     document: { getElementById: (id: string) => elements[id] },
     navigator: { userAgent: 'synthetic-UA' },
     window: { close: vi.fn() },
-    chrome: { permissions: { request: permission }, cookies: { getAll: cookies } },
+    chrome: { permissions: { request: permission }, cookies: { get: cookies } },
     fetch: fetchMock,
   });
   vm.runInContext(source('hhr-origin-policy.js'), context);
@@ -56,9 +61,10 @@ describe('Exalab personal-session consent', () => {
       permissions: ['cookies'],
       origins: ['https://exalab.saludoriente.cl/*'],
     });
-    expect(harness.cookies).toHaveBeenCalledWith({
-      url: 'https://exalab.saludoriente.cl/web_ssmo/index.php',
-    });
+    expect(harness.cookies.mock.calls.map(([query]) => query)).toEqual([
+      { url: 'https://exalab.saludoriente.cl/web_ssmo/index.php', name: 'PHPSESSID' },
+      { url: 'https://exalab.saludoriente.cl/web_ssmo/index.php', name: 'cf_clearance' },
+    ]);
     const [url, options] = harness.fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe(
       'https://hhr-hospitalizados.app/.netlify/functions/exalab-proxy?action=connect'

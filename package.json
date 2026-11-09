@@ -346,7 +346,7 @@
     "workbox-routing": "^7.4.0",
     "workbox-strategies": "^7.4.0",
     "yaml": "2.8.3",
-    "@hhr/eloisa-extension": "git+https://github.com/DanielOpazoD/extensioneloisahhr.git#633c90b90bb8bef6138501c5421bbe1acf32c08c"
+    "@hhr/eloisa-extension": "git+https://github.com/DanielOpazoD/extensioneloisahhr.git#ec4034054f7530065bfddf1e5eb951a8f7cdddd4"
   },
   "overrides": {
     "@xmldom/xmldom": "0.9.10",
