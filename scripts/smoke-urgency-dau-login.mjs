@@ -18,6 +18,10 @@ const files = [
   'urgency-auth-state.js',
   'urgency-auth-runtime.js',
   'urgency-dau-api.js',
+  'urgency-dau-page.js',
+  'urgency-dau-source.js',
+  'urgency-session-page.js',
+  'urgency-dau-runtime.js',
   'hospitalization-reports-runtime.js',
   'urgency-login.html',
   'urgency-login.js',
@@ -72,6 +76,7 @@ const fetchImpl = async (input, options) => {
   throw Error('Unexpected synthetic API route');
 };
 globalThis.syntheticAuth=HhrUrgencyAuth.register({chrome,fetchImpl,getAuthorizationKey:async()=> 'synthetic-owner',normalizeRun:HhrHospitalizationReportsRuntime.normalizeRun});
+globalThis.syntheticDau=HhrUrgencyDau.create({chrome,native:syntheticAuth,downloadPdfBuffer:async()=>{throw Error('Unexpected synthetic download before selection verification');}});
 `
 );
 const headers = await fs.readFile(path.join(root, 'netlify.toml'), 'utf8');
@@ -102,7 +107,12 @@ try {
   await page.goto('http://localhost:3001/census');
   const flow = await worker.evaluate(async () => {
     const [tab] = await chrome.tabs.query({ url: 'http://localhost:3001/*' });
-    return (await syntheticAuth.begin({ id: chrome.runtime.id, tab, url: tab.url })).auth;
+    const started = performance.now();
+    const result = await syntheticDau.prepareLogin({ id: chrome.runtime.id, tab, url: tab.url });
+    if (!result?.auth || syntheticRequests.length)
+      throw Error('Login preparation performed an unexpected API read');
+    globalThis.syntheticPreflightMs = performance.now() - started;
+    return result.auth;
   });
   await page.evaluate(auth => {
     window.syntheticLoginEvents = [];
@@ -151,6 +161,7 @@ try {
     return {
       pdfMagic: new TextDecoder().decode(pdf.subarray(0, 5)),
       requests: syntheticRequests,
+      preflightMs: syntheticPreflightMs,
       store: await chrome.storage.session.get(null),
     };
   });
@@ -168,6 +179,8 @@ try {
   console.log(
     JSON.stringify({
       inlineExtensionFrameLoadedUnderProductionCsp: true,
+      missingSessionPreflightMs: Math.round(result.preflightMs * 100) / 100,
+      clinicalReadsBeforeLoginPrompt: 0,
       otpCompleted: true,
       credentialsAbsentFromParentMessages: true,
       passwordAbsentFromSessionStorage: true,

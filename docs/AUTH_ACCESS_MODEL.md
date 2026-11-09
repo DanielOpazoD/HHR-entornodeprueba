@@ -52,7 +52,7 @@ compartida de Eloísa. Requiere la extensión 0.48.63; no cambia la versión mí
 
 ### DAU oficial con acceso nativo dentro del panel
 
-La extensión 0.48.85 ofrece el login de Rayen Urgencias junto al botón del DAU cuando
+La extensión 0.48.86 ofrece el login de Rayen Urgencias junto al botón del DAU cuando
 no hay una sesión nativa utilizable. El formulario pertenece al origen de la extensión;
 usuario, contraseña y código de verificación no atraviesan el puente de mensajes de HHR.
 La contraseña se envía únicamente a `/api/usuario/login` en `api.saludenred.cl` y no se guarda.

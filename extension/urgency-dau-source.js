@@ -1,7 +1,6 @@
 /** Chooses a native API session or an already-open Urgencias tab with the same delivery fences. */
 (function (root) {
   'use strict';
-  const readPdfInPage = root.HhrUrgencyDauPage.readPdfInPage;
   const messages = {
     LOGIN: 'Inicia sesión en Urgencias aquí para descargar el DAU oficial.',
     SESSION: 'La sesión clínica cambió. Reintenta la descarga.',
@@ -21,14 +20,15 @@
     return bytes;
   };
   const create = ({ chrome, native }) => {
+    const nativeTab = async () => (await chrome.tabs.query({ url: 'https://urgencia.saludenred.cl/Emergency/*' }))
+      .filter(t => t.id && /^https:\/\/urgencia\.saludenred\.cl\/Emergency\//.test(t.url || ''))
+      .sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0];
     const readTab = async ({ patientRun, attentionId, assertAuthorization }) => {
-      const tabs = await chrome.tabs.query({ url: 'https://urgencia.saludenred.cl/Emergency/*' });
-      const tab = tabs.filter(t => t.id && /^https:\/\/urgencia\.saludenred\.cl\/Emergency\//.test(t.url || ''))
-        .sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0];
+      const tab = await nativeTab();
       if (!tab) fail('LOGIN');
       await assertAuthorization();
       const results = await chrome.scripting.executeScript({ target: { tabId: tab.id },
-        world: 'MAIN', func: readPdfInPage, args: [{ patientRun, attentionId }] });
+        world: 'MAIN', func: root.HhrUrgencyDauPage.readPdfInPage, args: [{ patientRun, attentionId }] });
       await assertAuthorization();
       return pdfBytesFor(results?.[0]?.result);
     };
@@ -54,7 +54,7 @@
           auth: { ...result.auth, ...(code === 'LOGIN' ? {} : { reason: 'profile' }) } };
       }
     };
-    return { read };
+    return { read, nativeTab };
   };
   root.HhrUrgencyDauSource = { create, messages };
 })(typeof self !== 'undefined' ? self : globalThis);

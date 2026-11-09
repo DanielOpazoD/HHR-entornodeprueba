@@ -1,7 +1,9 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { harness as authHarness, hhrSender, type Sender } from './urgencyInlineAuth.fixture';
 import '../../../extension/urgency-dau-page.js';
 import '../../../extension/urgency-dau-source.js';
+import '../../../extension/urgency-session-page.js';
 import '../../../extension/urgency-dau-runtime.js';
 
 type PdfResult = { ok: boolean; base64?: string; code?: string };
@@ -14,7 +16,11 @@ const runtime = (
       create: (deps: {
         chrome: { tabs: { query: unknown }; scripting: { executeScript: unknown } };
         downloadPdfBuffer: unknown;
+        native?: ReturnType<typeof authHarness>['auth'] & {
+          readDau: () => Promise<Uint8Array>;
+        };
       }) => {
+        prepareLogin: (sender: Sender) => Promise<unknown>;
         download: (
           selection: Selection & { assertAuthorization: () => Promise<void> }
         ) => Promise<unknown>;
@@ -26,6 +32,87 @@ const selection = { patientRun: '111111111', attentionId: '8' };
 const pdfBytes = new TextEncoder().encode('%PDF-1.7 synthetic fixture');
 const reportUrl =
   'https://api.saludenred.cl/api/reportes/DAU_C.pdf?timeDifference=300&nodId=9&iurgId=7&atenId=8&uspId=42';
+
+describe('DAU login preparation without clinical network reads', () => {
+  const harness = () => {
+    const h = authHarness();
+    const query = vi.fn(async (): Promise<Array<{ id: number; url: string }>> => []);
+    const executeScript = vi.fn();
+    const downloadPdfBuffer = vi.fn();
+    const api = runtime.create({
+      chrome: { ...h.chrome, tabs: { query }, scripting: { executeScript } },
+      native: { ...h.auth, readDau: h.readPdf },
+      downloadPdfBuffer,
+    });
+    return { ...h, query, executeScript, downloadPdfBuffer, api };
+  };
+  it('prepares the isolated login without reading a patient, report or native API', async () => {
+    const h = harness();
+    expect(await h.api.prepareLogin(hhrSender)).toMatchObject({
+      ok: false,
+      auth: {
+        flowId: expect.any(String),
+        url: expect.stringContaining('/urgency-login.html?flow='),
+      },
+    });
+    expect(h.fetchImpl).not.toHaveBeenCalled();
+    expect(h.executeScript).not.toHaveBeenCalled();
+    expect(h.downloadPdfBuffer).not.toHaveBeenCalled();
+  });
+  it('reuses a valid native session without opening a login or querying Urgencias tabs', async () => {
+    const h = harness(),
+      step = await h.begin();
+    await step.login();
+    h.fetchImpl.mockClear();
+    expect(await h.api.prepareLogin(hhrSender)).toBeNull();
+    expect(h.query).not.toHaveBeenCalled();
+    expect(h.fetchImpl).not.toHaveBeenCalled();
+  });
+  it('recognizes an expired native session without a failing report request', async () => {
+    const h = harness(),
+      step = await h.begin();
+    await step.login();
+    h.clock.now += 3600001;
+    h.fetchImpl.mockClear();
+    expect(await h.api.prepareLogin(hhrSender)).toMatchObject({
+      auth: { flowId: expect.not.stringMatching(step.flow.flowId) },
+    });
+    expect(h.fetchImpl).not.toHaveBeenCalled();
+  });
+  it('preserves a validated native page without reading a report', async () => {
+    const h = harness();
+    h.query.mockResolvedValue([{ id: 4, url: 'https://urgencia.saludenred.cl/Emergency/' }]);
+    h.executeScript.mockResolvedValue([{ result: true }]);
+    expect(await h.api.prepareLogin(hhrSender)).toBeNull();
+    expect(h.executeScript).toHaveBeenCalledWith({
+      target: { tabId: 4 },
+      world: 'MAIN',
+      func: expect.any(Function),
+    });
+    expect(h.fetchImpl).not.toHaveBeenCalled();
+  });
+  it('shows login for an expired native page before reading HCC or a report', async () => {
+    const h = harness();
+    h.query.mockResolvedValue([{ id: 4, url: 'https://urgencia.saludenred.cl/Emergency/' }]);
+    h.executeScript.mockResolvedValue([{ result: false }]);
+    expect(await h.api.prepareLogin(hhrSender)).toMatchObject({ auth: expect.any(Object) });
+    expect(h.fetchImpl).not.toHaveBeenCalled();
+    expect(h.downloadPdfBuffer).not.toHaveBeenCalled();
+  });
+  it('does not treat a PDF/blob tab as an available native session', async () => {
+    const h = harness();
+    h.query.mockResolvedValue([{ id: 4, url: 'blob:https://urgencia.saludenred.cl/private' }]);
+    expect(await h.api.prepareLogin(hhrSender)).toMatchObject({ auth: expect.any(Object) });
+    expect(h.executeScript).not.toHaveBeenCalled();
+  });
+  it('refuses to prepare a login after losing the clinical authorization', async () => {
+    const h = harness();
+    h.config.authorizationUnavailable = true;
+    await expect(h.api.prepareLogin(hhrSender)).rejects.toThrow();
+    expect(h.fetchImpl).not.toHaveBeenCalled();
+    expect(h.values).toEqual({});
+  });
+});
 const makeAdmission = () => ({
   Id: 7,
   IdFacility: 9,

@@ -835,6 +835,25 @@ try {
   assert.ok(backendRequests.some(url => url.includes('/getPatientEncounterHistoryReportServer/')));
   assert.ok(backendRequests.some(url => url.includes('/encounterFormEntry/')));
 
+  const dauPreflight = await reloadedWorker.evaluate(async url => {
+    const [tab] = await chrome.tabs.query({ url });
+    const sender = { tab, url, origin: new URL(url).origin };
+    const before = globalThis.__hhrSyntheticClinicalRequests.length;
+    const result = await runtimeMessageRoutes[RUNTIME_MESSAGES.CLINICAL_ANTECEDENTS_REQUEST].handle(
+      { encId: '141121', operation: 'dau', entryId: 'Primaria:8' },
+      sender
+    );
+    const unchanged = globalThis.__hhrSyntheticClinicalRequests.length === before;
+    await urgencyAuth.revoke(sender);
+    return {
+      loginPrepared: Boolean(result?.auth?.flowId),
+      noClinicalReads: unchanged,
+      opened: result.opened === true,
+    };
+  }, hhrFixtureUrl);
+  assert.deepEqual(dauPreflight, { loginPrepared: true, noClinicalReads: true, opened: false });
+  console.log('[DAU] missing native session prompts for login before any HCC clinical read');
+
   const revocation = await reloadedWorker.evaluate(async url => {
     const [tab] = await chrome.tabs.query({ url });
     const sender = { tab, url, origin: new URL(url).origin };
