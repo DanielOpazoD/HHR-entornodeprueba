@@ -15,16 +15,17 @@ export const resolveLegacyNameParts = (
   }
 
   const segments = normalizedName.split(' ');
+  const [first = '', second = ''] = segments;
   if (segments.length === 1) {
-    return { firstName: segments[0], lastName: '', secondLastName: '' };
+    return { firstName: first, lastName: '', secondLastName: '' };
   }
   if (segments.length === 2) {
-    return { firstName: segments[0], lastName: segments[1], secondLastName: '' };
+    return { firstName: first, lastName: second, secondLastName: '' };
   }
 
   return {
     firstName: segments.slice(0, -2).join(' '),
-    lastName: segments[segments.length - 2],
-    secondLastName: segments[segments.length - 1],
+    lastName: segments.at(-2) ?? '',
+    secondLastName: segments.at(-1) ?? '',
   };
 };
