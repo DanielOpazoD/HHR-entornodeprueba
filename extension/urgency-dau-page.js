@@ -103,7 +103,7 @@
       assertOwner();
       return { ok: true, base64 };
     } catch (error) {
-      return { ok: false, code: error?.dauCode || 'READ' };
+      return { ok: false, code: error?.dauCode || ([401, 403].includes(error?.status) ? 'LOGIN' : 'READ') };
     }
   };
   root.HhrUrgencyDauPage = { readPdfInPage };

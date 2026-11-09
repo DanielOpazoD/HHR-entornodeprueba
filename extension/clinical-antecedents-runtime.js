@@ -4,7 +4,7 @@
   const list = value => Array.isArray(value) ? value : value && typeof value === 'object' ? [value] : [];
   const text = value => (typeof value === 'string' ? value : '');
   const run = value => String(value || '').replace(/[^0-9k]/gi, '').toUpperCase();
-  const create = ({ getContext, readJson, fetchImpl, openTab, getAuthorizationKey, downloadDau, now = () => new Date() }) => {
+  const create = ({ getContext, readJson, fetchImpl, openTab, getAuthorizationKey, downloadDau, prepareDauLogin, now = () => new Date() }) => {
     const authorize = root.HhrClinicalAntecedentsTransport.create({ fetchImpl });
     const sourceSupport = root.HhrClinicalAntecedentsSources.create({ run, list, text });
     const detailSupport = root.HhrClinicalAntecedentsDetail.create({
@@ -120,12 +120,19 @@
     const officialDauFor = async (history, selected, detail, sender) => {
       if (selected.source !== 'Primaria' || detailSupport.slim(detail).careType !== 'emergency' || !downloadDau)
         throw new Error('El DAU oficial no está disponible para esta atención.');
-      return await downloadDau({ patientRun: run(history.patientRun), attentionId: selected.id,
+      return await downloadDau({ patientRun: run(history.patientRun), attentionId: selected.id, sender,
         assertAuthorization: async () => {
           if (await getAuthorizationKey(sender) !== history.authorizationKey)
             throw new Error('La sesión clínica cambió durante la descarga del DAU.');
         },
       });
+    };
+    const prepareDauAccess = async ({ operation, entryId, sender }) => {
+      if (operation !== 'dau') return null;
+      if (!/^Primaria:\d+$/.test(String(entryId)))
+        throw new Error('El DAU oficial no está disponible para esta atención.');
+      // Credentials UI contains no clinical data; selection is still verified before download.
+      return await prepareDauLogin?.(sender);
     };
     const handleRequest = async ({ encId, operation, entryId, beforeDate, sender }) => {
       try {
@@ -145,6 +152,8 @@
         }
         if (!['list', 'detail', 'attachment', 'dau'].includes(operation))
           throw new Error('La consulta de antecedentes no es válida.');
+        const access = await prepareDauAccess({ operation, entryId, sender });
+        if (access) return access;
         const history = await detailSupport.cachedHistoryFor(historyFor, encId, sender, beforeDate, operation === 'list');
         if (operation === 'list')
           return {

@@ -112,6 +112,7 @@ export const ClinicalAntecedentCard = ({
               <ClinicalAntecedentContent detail={result.detail} entry={entry} />
               {entry.source === 'Primaria' && result.detail.careType === 'emergency' && (
                 <ClinicalAntecedentDau
+                  key={`${episode}:${entry.source}:${entry.id}`}
                   request={signal =>
                     requestClinicalAction(episode, 'dau', `${entry.source}:${entry.id}`, signal)
                   }

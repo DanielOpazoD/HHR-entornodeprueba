@@ -274,6 +274,8 @@ const allowedHosts = new Set([
   'https://fichamedico.rayensalud.cl/*',
   // User-requested official DAU: native authenticated GETs, without copying credentials.
   'https://urgencia.saludenred.cl/*',
+  // Inline native login/MFA and read-only DAU; restricted API paths live in urgency-api.js.
+  'https://api.saludenred.cl/*',
   'https://fichamedicoback.rayensalud.cl/*',
   // Read-only HCC antecedents API observed in Eloisa's official visor flow.
   'https://saludteintegrachileapi.rayensalud.cl/*',

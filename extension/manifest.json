@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "minimum_chrome_version": "118",
   "name": "Rayen → HHR · Puente de censo",
-  "version": "0.48.85",
+  "version": "0.48.87",
   "description": "Conecta Eloísa con HHR y ofrece herramientas de recetas y exámenes.",
   "permissions": [
     "tabs",
@@ -16,6 +16,7 @@
   "host_permissions": [
     "https://fichamedico.rayensalud.cl/*",
     "https://urgencia.saludenred.cl/*",
+    "https://api.saludenred.cl/*",
     "https://fichamedicoback.rayensalud.cl/*",
     "https://saludteintegrachileapi.rayensalud.cl/*",
     "https://formulariosclinicosback.rayensalud.cl/*",
@@ -103,6 +104,60 @@
       ],
       "matches": [
         "http://10.4.69.90/*"
+      ]
+    },
+    {
+      "resources": [
+        "urgency-login.html",
+        "urgency-login.css"
+      ],
+      "matches": [
+        "http://localhost:3000/*",
+        "http://localhost:3001/*",
+        "http://localhost:3002/*",
+        "http://localhost:3003/*",
+        "http://localhost:3004/*",
+        "http://localhost:3005/*",
+        "http://localhost:3006/*",
+        "http://localhost:3007/*",
+        "http://localhost:3008/*",
+        "http://localhost:3009/*",
+        "http://localhost:3010/*",
+        "http://localhost:3011/*",
+        "http://localhost:3012/*",
+        "http://localhost:3013/*",
+        "http://localhost:3014/*",
+        "http://localhost:3015/*",
+        "http://localhost:3016/*",
+        "http://localhost:3017/*",
+        "http://localhost:3018/*",
+        "http://localhost:3019/*",
+        "http://localhost:3020/*",
+        "http://127.0.0.1:3000/*",
+        "http://127.0.0.1:3001/*",
+        "http://127.0.0.1:3002/*",
+        "http://127.0.0.1:3003/*",
+        "http://127.0.0.1:3004/*",
+        "http://127.0.0.1:3005/*",
+        "http://127.0.0.1:3006/*",
+        "http://127.0.0.1:3007/*",
+        "http://127.0.0.1:3008/*",
+        "http://127.0.0.1:3009/*",
+        "http://127.0.0.1:3010/*",
+        "http://127.0.0.1:3011/*",
+        "http://127.0.0.1:3012/*",
+        "http://127.0.0.1:3013/*",
+        "http://127.0.0.1:3014/*",
+        "http://127.0.0.1:3015/*",
+        "http://127.0.0.1:3016/*",
+        "http://127.0.0.1:3017/*",
+        "http://127.0.0.1:3018/*",
+        "http://127.0.0.1:3019/*",
+        "http://127.0.0.1:3020/*",
+        "https://hhr-hospitalizados.app/*",
+        "https://testinghhr.netlify.app/*",
+        "https://hhr-entorno-prueba.netlify.app/*",
+        "https://*.netlify.app/*"
       ]
     }
   ],

@@ -230,6 +230,7 @@ describe('extension heavy runtime loading', () => {
         },
         storage: { local: localStorage, session: localStorage },
         tabs: {
+          onRemoved: { addListener: () => undefined },
           query: async () => [],
           sendMessage: async () => undefined,
           update: async () => undefined,

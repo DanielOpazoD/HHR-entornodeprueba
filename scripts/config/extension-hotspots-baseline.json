@@ -779,12 +779,44 @@
       "maxLines": 88,
       "hotspots": {}
     },
+    "urgency-api.js": {
+      "maxLines": 57,
+      "hotspots": {}
+    },
+    "urgency-auth-model.js": {
+      "maxLines": 50,
+      "hotspots": {}
+    },
+    "urgency-auth-runtime.js": {
+      "maxLines": 94,
+      "hotspots": {}
+    },
+    "urgency-auth-state.js": {
+      "maxLines": 75,
+      "hotspots": {}
+    },
+    "urgency-dau-api.js": {
+      "maxLines": 34,
+      "hotspots": {}
+    },
     "urgency-dau-page.js": {
       "maxLines": 111,
       "hotspots": {}
     },
     "urgency-dau-runtime.js": {
       "maxLines": 44,
+      "hotspots": {}
+    },
+    "urgency-dau-source.js": {
+      "maxLines": 61,
+      "hotspots": {}
+    },
+    "urgency-login.js": {
+      "maxLines": 69,
+      "hotspots": {}
+    },
+    "urgency-session-page.js": {
+      "maxLines": 26,
       "hotspots": {}
     },
     "zip-store-writer.js": {

@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import type { ClinicalActionResult } from '@/features/rayen-import';
 import '../../../extension/clinical-antecedents-attachment.js';
 import '../../../extension/clinical-antecedents-fields.js';
 import '../../../extension/clinical-antecedents-cache.js';
@@ -20,6 +21,7 @@ type Result = {
   nextBeforeDate?: string | null;
 };
 type Dependencies = {
+  prepareDauLogin?: (sender: unknown) => Promise<ClinicalActionResult | null>;
   downloadDau?: (input: {
     patientRun: string;
     attentionId: string;

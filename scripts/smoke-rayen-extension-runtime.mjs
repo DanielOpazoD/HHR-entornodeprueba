@@ -835,6 +835,59 @@ try {
   assert.ok(backendRequests.some(url => url.includes('/getPatientEncounterHistoryReportServer/')));
   assert.ok(backendRequests.some(url => url.includes('/encounterFormEntry/')));
 
+  const dauPreflight = await reloadedWorker.evaluate(async url => {
+    const [tab] = await chrome.tabs.query({ url });
+    const sender = { tab, url, origin: new URL(url).origin };
+    const before = globalThis.__hhrSyntheticClinicalRequests.length;
+    const result = await runtimeMessageRoutes[RUNTIME_MESSAGES.CLINICAL_ANTECEDENTS_REQUEST].handle(
+      { encId: '141121', operation: 'dau', entryId: 'Primaria:8' },
+      sender
+    );
+    const unchanged = globalThis.__hhrSyntheticClinicalRequests.length === before;
+    await urgencyAuth.revoke(sender);
+    return {
+      loginPrepared: Boolean(result?.auth?.flowId),
+      noClinicalReads: unchanged,
+      opened: result.opened === true,
+    };
+  }, hhrFixtureUrl);
+  assert.deepEqual(dauPreflight, { loginPrepared: true, noClinicalReads: true, opened: false });
+  console.log('[DAU] missing native session prompts for login before any HCC clinical read');
+
+  const revocation = await reloadedWorker.evaluate(async url => {
+    const [tab] = await chrome.tabs.query({ url });
+    const sender = { tab, url, origin: new URL(url).origin };
+    await patientFlowRuntime.authorizationReady;
+    patientFlowRuntime.authorizeVerifiedEncounter(sender, '141121');
+    const before = patientFlowRuntime.isAuthorized(sender, '141121');
+    const original = urgencyAuth.revoke;
+    let failed = false;
+    try {
+      urgencyAuth.revoke = async () => {
+        throw new Error('Synthetic native cleanup failure');
+      };
+      try {
+        await runtimeMessageRoutes[RUNTIME_MESSAGES.HHR_SESSION_CHANGED].handle({}, sender);
+      } catch {
+        failed = true;
+      }
+      return { before, after: patientFlowRuntime.isAuthorized(sender, '141121'), failed };
+    } finally {
+      urgencyAuth.revoke = original;
+      await patientFlowRuntime.authorizeSnapshotResponse(
+        sender,
+        Promise.resolve({
+          snapshot: { encounters: [{ encounterId: '141121' }] },
+        })
+      );
+    }
+  }, hhrFixtureUrl);
+  assert.deepEqual(
+    revocation,
+    { before: true, after: false, failed: true },
+    'Native cleanup failure must not prevent clinical authorization revocation'
+  );
+
   // A tab with a closed session must not displace another usable Ficha tab.
   const staleFichaPage = await context.newPage();
   await staleFichaPage.goto(`${fixtureUrl}?stale-session=1`);
