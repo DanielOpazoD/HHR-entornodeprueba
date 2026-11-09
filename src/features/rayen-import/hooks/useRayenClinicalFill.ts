@@ -2,7 +2,6 @@ import { useCallback } from 'react';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
-import { extractDeviceTextItems } from '../mapping/extractDeviceTextItems';
 import type { ClinicalFillSummary } from '../clinicalFillRunner';
 import type {
   HistoricalCudyrBatchItem,
@@ -129,11 +128,12 @@ export const useRayenClinicalFill = ({
         async ({ startedAfterQueue }) => {
           try {
             check();
-            // The watchdog only exists while a fill runs, so it ships with the on-demand runner
-            // chunk (outside the PWA precache) instead of the authenticated shell.
+            // The watchdog and the device text reader only exist while a fill runs, so they ship
+            // with the on-demand runner chunk (outside the PWA precache), not the import button.
             const {
               countClinicalFillEligiblePatients,
               createClinicalFillWatchdog,
+              extractDeviceTextItems,
               runClinicalFill,
               collectDailyCudyrRecoveryEpisodes,
               createDailyCudyrRecoveryReader,

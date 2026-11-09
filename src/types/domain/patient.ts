@@ -2,7 +2,7 @@ import type { ClinicalCarryover } from './clinicalCarryover';
 import type { PatientFluidBalance } from './fluidBalance';
 import type { PatientClinicalAlert } from './clinicalAlerts';
 import type { NeonatalPlacementDecision } from './neonatalPlacementDecision';
-import type { PatientIdentityStatus } from './patientIdentity';
+import type { PatientIdentityStatus, PatientNamePartsSource } from './patientIdentity';
 import type { Specialty, PatientStatus } from './patientClassification';
 import type { ClinicalEvent } from './clinicalEvents';
 import type { CudyrScore } from './cudyr';
@@ -74,6 +74,8 @@ export interface PatientData {
   firstName?: string;
   lastName?: string;
   secondLastName?: string;
+  /** Absent when the split was typed in HHR or guessed from `patientName`. */
+  namePartsSource?: PatientNamePartsSource;
   identityStatus?: PatientIdentityStatus;
   rut: string;
   documentType?: 'RUT' | 'Pasaporte'; // Switcher

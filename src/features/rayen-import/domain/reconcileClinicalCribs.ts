@@ -1,7 +1,7 @@
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
-import type { MappedPatient } from '../mapping/rayenToPatientData';
+import { withLocalNameParts, type MappedPatient } from '../mapping/rayenToPatientData';
 import { diffSyncablePatientFields, mergeSyncablePatient } from './patientSyncPolicy';
 import {
   hasRegisteredClinicalCribRut,
@@ -30,13 +30,9 @@ const preserveExistingCribIdentity = (
   current: PatientData,
   incoming: PatientData
 ): PatientData => ({
-  ...incoming,
+  ...withLocalNameParts(incoming, current),
   rut: current.rut,
   documentType: current.documentType,
-  patientName: current.patientName,
-  firstName: current.firstName,
-  lastName: current.lastName,
-  secondLastName: current.secondLastName,
   identityStatus: hasRegisteredClinicalCribRut(current) ? current.identityStatus : 'provisional',
 });
 

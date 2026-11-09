@@ -13,7 +13,7 @@ export function packageRayenExtension(root: string) {
   const files = new Set<string>([
     'manifest.json',
     'vendor-lock.json',
-    ...fs.readdirSync(directory).filter(name => /^(?!\.)[\w.-]+\.(?:js|mjs|html)$/.test(name)),
+    ...fs.readdirSync(directory).filter(name => /^(?!\.)[\w.-]+\.(?:js|mjs|html|css)$/.test(name)),
     ...manifest.web_accessible_resources.flatMap(
       (group: { resources: string[] }) => group.resources
     ),

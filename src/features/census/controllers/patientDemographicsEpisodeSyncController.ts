@@ -11,6 +11,7 @@ import type {
 } from '@/features/census/components/patient-row/patientRowContracts';
 import { createScopedLogger, type ScopedLogger } from '@/services/utils/loggerScope';
 import { parseCalendarDateUtcNoon } from '@/utils/clinicalDateUtils';
+import { editsEloisaNameParts } from '@/utils/patientNamePartsSource';
 
 const patientDemographicsEpisodeSyncLogger = createScopedLogger('PatientDemographicsEpisodeSync');
 
@@ -180,6 +181,9 @@ const buildDemographicsPatch = ({
     }
 
     patch[`${basePath}.${field}`] = nextValue;
+  }
+  if (editsEloisaNameParts(patient, updatedFields)) {
+    patch[`${basePath}.namePartsSource`] = undefined;
   }
 
   return patch;
