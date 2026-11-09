@@ -342,6 +342,14 @@
       "command": "npx playwright test e2e/medical-signature.spec.ts --project=chromium"
     },
     {
+      "file": "e2e/mmrad-history-recovery.spec.ts",
+      "lane": "ci",
+      "reason": "Built-preview MMRAD history recovery with the laboratory tunnel unavailable, desktop and mobile.",
+      "command": "npm run ci:preview-smoke:built",
+      "workflow": ".github/workflows/ci-cd.yml",
+      "entryJob": "preview-smoke-lanes"
+    },
+    {
       "file": "e2e/movement-role-sync-smoke.spec.ts",
       "lane": "manual",
       "reason": "Retained movement role sync smoke scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",

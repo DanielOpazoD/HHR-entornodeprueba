@@ -36,6 +36,26 @@ describe('mmradService', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it('can read MMRAD through Netlify while the laboratory tunnel is unavailable', async () => {
+    vi.stubEnv('VITE_SYSLAB_TRANSPORT', 'remote');
+    mockFetch.mockImplementation(async (url: string) => {
+      if (!url.startsWith('/.netlify/functions/mmrad-search?'))
+        throw new Error('Laboratory tunnel unavailable');
+      return {
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ rut: '11111111-1', examenes: [{ nombre_examen: 'TAC SINTÉTICO' }] }),
+      };
+    });
+    await expect(global.fetch('/.netlify/functions/syslab-proxy?action=health')).rejects.toThrow(
+      'tunnel unavailable'
+    );
+    const result = await searchMMRADExams({ rut: '11111111-1' });
+    expect(result.examenes).toEqual([{ nombre_examen: 'TAC SINTÉTICO' }]);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 
   it('builds the proxied PDF URL with the encoded MMRAD link', () => {

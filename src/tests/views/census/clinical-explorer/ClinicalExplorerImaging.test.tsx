@@ -1,4 +1,5 @@
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { useState, type ComponentProps } from 'react';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -97,8 +98,22 @@ const studies = [
   }),
 ];
 
+// The explorer owns the «before admission» choice; this stands in for it.
+const Imaging = (
+  props: Omit<ComponentProps<typeof ClinicalExplorerImaging>, 'historyFor' | 'onHistoryForChange'>
+) => {
+  const [historyFor, setHistoryFor] = useState<string | null>(null);
+  return (
+    <ClinicalExplorerImaging
+      {...props}
+      historyFor={historyFor}
+      onHistoryForChange={setHistoryFor}
+    />
+  );
+};
+
 const renderImaging = (tab: 'all' | 'img' = 'all') =>
-  render(<ClinicalExplorerImaging patient={patient!} tab={tab} onShowAll={vi.fn()} />);
+  render(<Imaging patient={patient!} tab={tab} onShowAll={vi.fn()} />);
 
 describe('ClinicalExplorerImaging', () => {
   afterEach(() => {
@@ -157,6 +172,75 @@ describe('ClinicalExplorerImaging', () => {
     return { popup, createUrl, revokeUrl };
   };
 
+  it.each(['', 'Sin fecha'])(
+    'shows the actual full period when admission is %s',
+    async admissionDate => {
+      mocks.search.mockResolvedValue({ rut: RUT, examenes: [] });
+      render(
+        <Imaging
+          patient={{ ...patient!, data: { ...patient!.data, admissionDate } }}
+          tab="all"
+          onShowAll={vi.fn()}
+        />
+      );
+      await screen.findByText('Sin estudios de imágenes en MMRAD para este paciente.');
+      expect(
+        screen.getByText(/Período: todo el historial disponible en MMRAD, hasta hoy/)
+      ).toBeVisible();
+      expect(
+        screen.queryByRole('checkbox', { name: 'Incluir exámenes anteriores al ingreso' })
+      ).toBeNull();
+    }
+  );
+
+  it.each(['patient', 'episode', 'session'])(
+    'reveals earlier studies and scopes the period to the current %s',
+    async change => {
+      mocks.search.mockImplementation(async ({ dateFrom }: { dateFrom?: string }) => ({
+        rut: RUT,
+        examenes: dateFrom ? [] : [studies[1]],
+      }));
+      const view = renderImaging();
+      await screen.findByText(
+        'Sin estudios de imágenes desde el ingreso. Puede haber exámenes anteriores.'
+      );
+      fireEvent.click(
+        screen.getByRole('checkbox', { name: 'Incluir exámenes anteriores al ingreso' })
+      );
+      await screen.findByText('TC tórax sin contraste');
+      expect(mocks.search).toHaveBeenLastCalledWith({
+        rut: RUT,
+        dateFrom: undefined,
+        dateTo: undefined,
+      });
+      expect(
+        screen.getByText(/Período: todo el historial disponible en MMRAD, hasta hoy/)
+      ).toBeVisible();
+      if (change === 'session') act(() => setSessionGeneration('another-synthetic-session'));
+      else
+        view.rerender(
+          <Imaging
+            patient={
+              change === 'episode'
+                ? { ...patient!, episodeId: 'another-synthetic-episode' }
+                : {
+                    ...patient!,
+                    data: { ...patient!.data, rut: '11.111.111-1', patientName: 'OTRO SINTÉTICO' },
+                  }
+            }
+            tab="all"
+            onShowAll={vi.fn()}
+          />
+        );
+      expect(
+        screen.getByRole('checkbox', { name: 'Incluir exámenes anteriores al ingreso' })
+      ).not.toBeChecked();
+      await screen.findByText(
+        'Sin estudios de imágenes desde el ingreso. Puede haber exámenes anteriores.'
+      );
+    }
+  );
+
   it.each(['patient', 'episode', 'session', 'unmount'])(
     'cancels a pending PDF and closes its empty window on %s change',
     async change => {
@@ -174,7 +258,7 @@ describe('ClinicalExplorerImaging', () => {
       else if (change === 'unmount') view.unmount();
       else
         view.rerender(
-          <ClinicalExplorerImaging
+          <Imaging
             patient={
               change === 'episode'
                 ? { ...patient!, episodeId: 'ep-next' }
@@ -301,9 +385,7 @@ describe('ClinicalExplorerImaging', () => {
                 patientName: 'OTRO PACIENTE SINTÉTICO',
               },
             };
-      view.rerender(
-        <ClinicalExplorerImaging patient={nextPatient} tab="img" onShowAll={vi.fn()} />
-      );
+      view.rerender(<Imaging patient={nextPatient} tab="img" onShowAll={vi.fn()} />);
       expect(mocks.blob.mock.calls[0]![1].aborted).toBe(true);
       await act(async () => resolvePdf(new Blob(['original'], { type: 'application/pdf' })));
       expect(mocks.download).not.toHaveBeenCalled();
@@ -360,7 +442,9 @@ describe('ClinicalExplorerImaging', () => {
     expect(screen.queryByText(/Sin estudios/)).toBeNull();
     failAlternate(new Error('timeout'));
     expect(
-      await screen.findByText('Sin estudios de imágenes en esta hospitalización.')
+      await screen.findByText(
+        'Sin estudios de imágenes desde el ingreso. Puede haber exámenes anteriores.'
+      )
     ).toBeVisible();
     expect(screen.getByText(/La búsqueda por dígito verificador no terminó/)).toBeVisible();
   });

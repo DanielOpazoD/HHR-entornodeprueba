@@ -50,6 +50,7 @@ describe('mmrad-search', () => {
     stdoutSpy.mockRestore();
     process.env = originalEnv;
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it('returns 200 with CORS headers on OPTIONS', async () => {
@@ -136,11 +137,12 @@ describe('mmrad-search', () => {
       rawQuery: 'rut=12345678-9',
     });
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(500);
+    expect(authorizeRoleRequestMock).toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalled();
   });
 
-  it('handles login failure gracefully (no search form found)', async () => {
+  it('reports a missing search form as failure instead of an empty patient history', async () => {
     const handler = await loadHandler();
     // Step 1: GET home page — no login form in HTML
     fetchMock.mockResolvedValueOnce({
@@ -156,9 +158,10 @@ describe('mmrad-search', () => {
       rawQuery: 'rut=12345678-9',
     });
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(500);
     const body = JSON.parse(response.body);
-    expect(body.examenes).toEqual([]);
+    expect(body.examenes).toBeUndefined();
+    expect(body.error).toContain('sesión');
     expect(body._debug).toBeUndefined();
   });
 

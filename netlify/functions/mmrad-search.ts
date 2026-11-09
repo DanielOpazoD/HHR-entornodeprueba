@@ -28,6 +28,7 @@ import {
   type NetlifyEventLike,
 } from './lib/http';
 import { parseMMRADReportSections } from '../../src/services/radiology/mmradReportSupport';
+import { getClinicalCalendarDateISO } from '../../src/utils/clinicalTimeZone';
 
 import {
   MMRAD_BASE_URL,
@@ -215,15 +216,14 @@ const searchExamRows = async (
   dateFrom?: string,
   dateTo?: string
 ): Promise<RisExamRow<MMRADExam>[]> => {
-  const params: Record<string, string> = { idpaciente: rut };
-
-  // Add date filters in DD/MM/YYYY format (RIS expects this, not ISO)
-  if (dateFrom && isValidIsoDate(dateFrom)) {
-    params.fechaexamendesde = isoToRisDate(dateFrom);
-  }
-  if (dateTo && isValidIsoDate(dateTo)) {
-    params.fechaexamenhasta = isoToRisDate(dateTo);
-  }
+  // Omitted bounds let RIS apply its own narrower window. Always send both calendar days.
+  const params = {
+    idpaciente: rut,
+    fechaexamendesde: isoToRisDate(dateFrom && isValidIsoDate(dateFrom) ? dateFrom : '1900-01-01'),
+    fechaexamenhasta: isoToRisDate(
+      dateTo && isValidIsoDate(dateTo) ? dateTo : getClinicalCalendarDateISO()
+    ),
+  };
 
   const response = await fetchWithHeaders(searchActionUrl, {
     method: 'POST',
@@ -300,7 +300,7 @@ const parseExamRowsFromHTML = (html: string): RisExamRow<MMRADExam>[] => {
 
   while ((rowMatch = rowRegex.exec(decoded)) !== null) {
     const rowHtml = rowMatch[1];
-    if (!rowHtml || !rowHtml.includes('Acciones')) continue;
+    if (!rowHtml) continue;
 
     const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
     const tds: string[] = [];
@@ -314,7 +314,8 @@ const parseExamRowsFromHTML = (html: string): RisExamRow<MMRADExam>[] => {
       );
     }
 
-    if (tds.length < 10) continue;
+    // Current RIS rows have an icon-only action cell; its visible label is not a row marker.
+    if (tds.length < 14 || !tds[8] || !tds[10]) continue;
 
     // PDF download link (direct download)
     const pdfMatch = rowHtml.match(/href="([^"]*informePDF[^"]*)"/i);
@@ -535,15 +536,7 @@ export const createMMRADSearchHandler = (
         fn: async () => {
           return withMMRADSession(async ({ cookies, searchActionUrl }) => {
             if (!searchActionUrl) {
-              if (checkDigitOnly) throw new Error('No se pudo iniciar sesión en MMRAD.');
-              return buildJsonResponse(
-                200,
-                {
-                  rut: cleanRut,
-                  examenes: [],
-                },
-                { requestOrigin }
-              );
+              throw new Error('No se pudo iniciar sesión en MMRAD.');
             }
 
             const from = queryParams.get('from') || undefined;

@@ -8,10 +8,17 @@ import {
   type ClinicalExplorerPatient,
 } from '@/features/census/controllers/clinicalExplorerController';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
+import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { describeMMRADRegisteredPatient, type MMRADExam } from '@/services/radiology/mmradService';
 import { getSessionEpoch, onSessionChange } from '@/services/storage/sessionStorageTransition';
 import { deliverMmradPdf } from '@/services/radiology/mmradPdfDelivery';
-import { formatStudyStamp, isCtStudy, studyKey } from './clinicalExplorerImagingModel';
+import {
+  asMmradDateBound,
+  formatStudyStamp,
+  isCtStudy,
+  studyKey,
+} from './clinicalExplorerImagingModel';
 import {
   AreaCard,
   EXPLORER_ACTION_BUTTON,
@@ -35,6 +42,12 @@ interface ClinicalExplorerImagingProps {
   patient: ClinicalExplorerPatient;
   tab: ClinicalExplorerTab;
   onShowAll: (tab: ClinicalExplorerTab) => void;
+  /**
+   * Session and patient scope that asked for studies before admission. The explorer owns it:
+   * «Ver los N estudios» remounts this card, and the choice must survive that.
+   */
+  historyFor: string | null;
+  onHistoryForChange: (scope: string | null) => void;
 }
 
 const COMPACT_STUDIES = 4;
@@ -67,16 +80,23 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
   patient,
   tab,
   onShowAll,
+  historyFor,
+  onHistoryForChange,
 }) => {
   const expanded = tab === 'img';
   const sessionEpoch = useSessionEpoch();
   const patientIdentity = clinicalExplorerPatientIdentity(patient);
+  const historyScope = `${sessionEpoch}:${patientIdentity}`;
+  const includeHistory = historyFor === historyScope;
+  const today = formatDateDDMMYYYY(getClinicalCalendarDateISO());
+  const hasAdmissionBound = Boolean(asMmradDateBound(patient.data.admissionDate));
+  const fullHistory = includeHistory || !hasAdmissionBound;
   const rut = patient.data.rut.trim();
   const patientName = patient.data.patientName.trim();
   const imaging = useClinicalExplorerImaging({
     rut,
     patientName,
-    admissionDate: patient.data.admissionDate,
+    admissionDate: includeHistory ? '' : patient.data.admissionDate,
     enabled: true,
   });
   const reviewCache = useDicomReviewCache(true, rut);
@@ -146,7 +166,11 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
     if (imaging.phase === 'empty') {
       return (
         <>
-          <EmptyNote>Sin estudios de imágenes en esta hospitalización.</EmptyNote>
+          <EmptyNote>
+            {fullHistory
+              ? 'Sin estudios de imágenes en MMRAD para este paciente.'
+              : 'Sin estudios de imágenes desde el ingreso. Puede haber exámenes anteriores.'}
+          </EmptyNote>
           {imaging.partial && (
             <p className="text-[11px] text-slate-500">
               La búsqueda por dígito verificador no terminó; puede faltar algún estudio.
@@ -270,6 +294,23 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
         ) : undefined
       }
     >
+      <div className="mb-2 space-y-1 border-b border-slate-100 pb-2 text-[11px] text-slate-600">
+        <p>
+          {fullHistory
+            ? `Período: todo el historial disponible en MMRAD, hasta hoy (${today}).`
+            : `Período: desde el ingreso (${formatDateDDMMYYYY(patient.data.admissionDate)}) hasta hoy (${today}).`}
+        </p>
+        {hasAdmissionBound && (
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={includeHistory}
+              onChange={event => onHistoryForChange(event.target.checked ? historyScope : null)}
+            />
+            Incluir exámenes anteriores al ingreso
+          </label>
+        )}
+      </div>
       {body()}
       {viewerExam?.dicom_url && (
         <Suspense

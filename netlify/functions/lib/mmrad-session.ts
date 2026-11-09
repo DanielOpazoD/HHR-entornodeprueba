@@ -146,21 +146,48 @@ export const loginToMMRAD = async (signal?: AbortSignal): Promise<LoginResult> =
   const { username, password } = getCredentials();
   let cookies = '';
 
+  const follow = async (
+    initialUrl: string,
+    initialOptions: RequestInit = {}
+  ): Promise<Response> => {
+    let url = initialUrl;
+    let options = initialOptions;
+    for (let redirects = 0; ; redirects += 1) {
+      const response = await fetchWithHeaders(url, {
+        ...options,
+        redirect: 'manual',
+        signal,
+        headers: { ...(options.headers as Record<string, string>), Cookie: cookies },
+      });
+      cookies = mergeCookies(cookies, collectSetCookies(response));
+      if (response.status >= 400) throw new Error('No se pudo iniciar sesión en MMRAD.');
+      if (![301, 302, 303, 307, 308].includes(response.status)) return response;
+      const location = response.headers.get('location');
+      if (!location || redirects >= 5) throw new Error('Redirección MMRAD no válida');
+      const nextUrl = normalizeMmradUrl(new URL(location, url).href);
+      if (!nextUrl) throw new Error('Destino MMRAD no permitido');
+      url = nextUrl;
+      const method = (options.method || 'GET').toUpperCase();
+      if (
+        (response.status === 303 && method !== 'HEAD') ||
+        ([301, 302].includes(response.status) && method === 'POST')
+      ) {
+        options = { method: 'GET' };
+      }
+    }
+  };
+
   // Step 1: GET home page → extract login form action + initial cookies
-  const step1 = await fetchWithHeaders(`${MMRAD_BASE_URL}/web/guest/home`, {
-    redirect: 'manual',
-    signal,
-  });
-  cookies = mergeCookies(cookies, collectSetCookies(step1));
+  const step1 = await follow(`${MMRAD_BASE_URL}/web/guest/home`);
   const step1Html = await step1.text();
   const loginActionUrl = extractLoginActionUrl(step1Html);
 
   if (!loginActionUrl) {
-    return { cookies, searchActionUrl: null };
+    return { cookies, searchActionUrl: extractSearchActionUrl(step1Html) };
   }
 
   // Step 2: POST login credentials
-  const step2 = await fetchWithHeaders(loginActionUrl, {
+  const step2 = await follow(loginActionUrl, {
     method: 'POST',
     signal,
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', Cookie: cookies },
@@ -170,34 +197,10 @@ export const loginToMMRAD = async (signal?: AbortSignal): Promise<LoginResult> =
       _58_redirect: '/web/guest/home',
       _58_rememberMe: 'false',
     }).toString(),
-    redirect: 'manual',
   });
-  cookies = mergeCookies(cookies, collectSetCookies(step2));
-  const redirect1 = step2.headers.get('location') || '';
-
-  // Step 3: Follow first redirect
-  if (redirect1) {
-    const url3 = redirect1.startsWith('http') ? redirect1 : `${MMRAD_BASE_URL}${redirect1}`;
-    const step3 = await fetchWithHeaders(url3, {
-      redirect: 'manual',
-      signal,
-      headers: { Cookie: cookies },
-    });
-    cookies = mergeCookies(cookies, collectSetCookies(step3));
-    const redirect2 = step3.headers.get('location') || '';
-
-    // Step 4: Follow second redirect (typically /group/hhangaroa)
-    if (redirect2) {
-      const url4 = redirect2.startsWith('http') ? redirect2 : `${MMRAD_BASE_URL}${redirect2}`;
-      const step4 = await fetchWithHeaders(url4, { signal, headers: { Cookie: cookies } });
-      cookies = mergeCookies(cookies, collectSetCookies(step4));
-      const dashboardHtml = await step4.text();
-      const searchActionUrl = extractSearchActionUrl(dashboardHtml);
-      return { cookies, searchActionUrl };
-    }
-  }
-
-  return { cookies, searchActionUrl: null };
+  const dashboardHtml = await step2.text();
+  if (dashboardHtml.includes('_58_login')) throw new Error('No se pudo iniciar sesión en MMRAD.');
+  return { cookies, searchActionUrl: extractSearchActionUrl(dashboardHtml) };
 };
 
 /** A RIS results page belongs to a live session only when it still carries the patient search. */
