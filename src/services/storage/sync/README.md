@@ -40,3 +40,21 @@ cada pendiente contra sus valores vigentes, sin ordenar por timestamps. Las tare
 históricas sin ese campo conservan su protección sin inferir una base.
 Cada tarea permanece hasta su propia confirmación. Una base obsoleta se rechaza sin cambiar el
 registro ni sus tareas, incluso si la copia local falta o quedó atrasada (SAVE-01, SAVE-02).
+
+## Reenvío de campos con base antigua
+
+Una edición por campos conserva sus valores originales en la tarea local existente.
+La compactación mantiene el primer valor de cada campo y el contexto original de
+identidad y notas del día. La conciliación automática se limita a `pathology` y
+`status` de camas o cunas con documento y episodio explícitos. Exige que todos los
+ocupantes (madre y RN por separado), episodios y notas sigan iguales a la base y a
+la tarea, además de los valores originales de los campos en el servidor. No nace
+esta evidencia mientras haya notas de especialista pendientes o retenidas.
+Una base vacía, desconocida, con reloj atrasado o revisión que retrocede, un cambio
+de identidad, notas o cualquier otra ruta conserva las guardas previas. Tampoco se
+renueva la base después de separar cambios de un ocupante que salió.
+El transporte usa la versión y revisión leídas para el mismo callable de autoridad;
+su transacción rechaza cualquier cambio posterior a esa lectura. Una colisión real
+o una tarea antigua sin esta evidencia conserva la revisión existente; no se purga
+ni se confirma como guardada.
+No requiere cambios en Functions ni reglas (SAVE-01 a SAVE-03).
