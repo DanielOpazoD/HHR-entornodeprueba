@@ -53,7 +53,8 @@ vi.mock('@/firebaseConfig', () => ({
 
 const date = getTodayISO();
 const dayPath = `hospitals/hanga_roa/dailyRecords/${date}`;
-const projectId = 'demo-hhr-dos-usuarios';
+// Own emulator project: the contracts rehearsal runs in parallel on the same day document.
+const projectId = 'demo-hhr-dos-usuarios-identidad';
 const baseRecord = () => ({
   ...DataFactory.createMockDailyRecord(date, {
     lastUpdated: '2026-01-01T00:00:00.000Z',
@@ -169,7 +170,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         rules: readFileSync('firestore.rules', 'utf8'),
       },
     });
-    app = initializeApp({ projectId }, 'two-users-rehearsal');
+    app = initializeApp({ projectId }, 'two-users-identity-rehearsal');
     admin = getFirestore(app);
     admin.settings({ ignoreUndefinedProperties: true });
     const dependencies = {
