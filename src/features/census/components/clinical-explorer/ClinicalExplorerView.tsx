@@ -66,6 +66,7 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
   if (indicationSelection.patientKey !== patientKey) {
     setIndicationSelection({ patientKey, date: null });
   }
+  const [imagingHistoryFor, setImagingHistoryFor] = useState<string | null>(null);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -163,7 +164,13 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
                         />
                       </div>
                       <div className="min-w-0 xl:col-span-2">
-                        <ClinicalExplorerImaging patient={patient} tab={tab} onShowAll={setTab} />
+                        <ClinicalExplorerImaging
+                          patient={patient}
+                          tab={tab}
+                          onShowAll={setTab}
+                          historyFor={imagingHistoryFor}
+                          onHistoryForChange={setImagingHistoryFor}
+                        />
                       </div>
                     </>
                   )}
@@ -185,7 +192,13 @@ export const ClinicalExplorerView: React.FC<ClinicalExplorerViewProps> = ({
                 />
               )}
               {tab === 'img' && (
-                <ClinicalExplorerImaging patient={patient} tab={tab} onShowAll={setTab} />
+                <ClinicalExplorerImaging
+                  patient={patient}
+                  tab={tab}
+                  onShowAll={setTab}
+                  historyFor={imagingHistoryFor}
+                  onHistoryForChange={setImagingHistoryFor}
+                />
               )}
             </div>
           </>

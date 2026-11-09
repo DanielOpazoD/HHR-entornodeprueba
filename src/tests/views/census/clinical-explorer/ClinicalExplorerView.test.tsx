@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ request: vi.fn(), print: vi.fn() }));
+const mocks = vi.hoisted(() => ({ request: vi.fn(), print: vi.fn(), mmradSearch: vi.fn() }));
 
 vi.mock('@/features/rayen-import/clinical-panel', async importOriginal => {
   const actual = await importOriginal<typeof import('@/features/rayen-import/clinical-panel')>();
@@ -41,12 +41,12 @@ vi.mock('@/components/modals/ImagingRequestDialog', () => ({
 vi.mock('@/features/clinical-documents', () => ({
   ClinicalDocumentsModal: () => <div role="dialog" aria-label="Documentos clínicos" />,
 }));
-// MMRAD answers with no studies here; the imaging card is covered by its own test.
+// MMRAD answers with no studies unless a test says otherwise; the card has its own test.
 vi.mock('@/services/radiology/mmradService', async importOriginal => {
   const actual = await importOriginal<typeof import('@/services/radiology/mmradService')>();
   return {
     ...actual,
-    searchMMRADExams: ({ rut }: { rut: string }) => Promise.resolve({ rut, examenes: [] }),
+    searchMMRADExams: (...args: unknown[]) => mocks.mmradSearch(...args),
     searchMMRADCheckDigitExams: ({ rut }: { rut: string }) =>
       Promise.resolve({ rut, examenes: [] }),
   };
@@ -180,6 +180,10 @@ describe('ClinicalExplorerView', () => {
     vi.setSystemTime(new Date('2026-07-14T04:30:00Z'));
     mocks.request.mockReset();
     mocks.request.mockResolvedValue(panelWithActiveIndication);
+    mocks.mmradSearch.mockReset();
+    mocks.mmradSearch.mockImplementation(({ rut }: { rut: string }) =>
+      Promise.resolve({ rut, examenes: [] })
+    );
   });
   afterEach(() => {
     act(() => {
@@ -391,6 +395,36 @@ describe('ClinicalExplorerView', () => {
     expect(await screen.findByLabelText('Fecha de indicaciones')).toHaveValue('2026-07-13');
     await screen.findByText('AMOXICILINA 500 mg');
     expect(mocks.request).toHaveBeenLastCalledWith('ep-r1-new', undefined, expect.anything());
+  });
+
+  it('keeps earlier imaging studies when opening every study from the combined view', async () => {
+    const study = (day: number) => ({
+      nombre_examen: `Rx sintética ${day}`,
+      fecha_examen: `${String(day).padStart(2, '0')}/10/2026 09:00`,
+      fecha_asignacion: `${String(day).padStart(2, '0')}/10/2026`,
+      mod: 'CR',
+      estado: 'Validado',
+      pdf_url: null,
+      dicom_url: null,
+      informe_html_url: null,
+      report: null,
+    });
+    mocks.mmradSearch.mockImplementation(({ rut, dateFrom }: { rut: string; dateFrom?: string }) =>
+      Promise.resolve({ rut, examenes: dateFrom ? [] : [1, 2, 3, 4, 5].map(study) })
+    );
+    open();
+    const history = { name: 'Incluir exámenes anteriores al ingreso' };
+    fireEvent.click(await screen.findByRole('checkbox', history));
+    fireEvent.click(await screen.findByRole('button', { name: /Ver los 5 estudios/ }));
+
+    expect(screen.getByRole('tab', { name: 'Imágenes' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('checkbox', history)).toBeChecked();
+    expect(screen.getByText(/Período: todo el historial disponible en MMRAD/)).toBeVisible();
+    expect(await screen.findByText('Rx sintética 1')).toBeVisible();
+    expect(screen.getByText('Rx sintética 5')).toBeVisible();
+    expect(mocks.mmradSearch).toHaveBeenLastCalledWith(
+      expect.objectContaining({ dateFrom: undefined })
+    );
   });
 
   it('filters evolutions by profession and opens all of them from the combined view', async () => {

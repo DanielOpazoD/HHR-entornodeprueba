@@ -1,4 +1,5 @@
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { useState, type ComponentProps } from 'react';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -97,8 +98,22 @@ const studies = [
   }),
 ];
 
+// The explorer owns the «before admission» choice; this stands in for it.
+const Imaging = (
+  props: Omit<ComponentProps<typeof ClinicalExplorerImaging>, 'historyFor' | 'onHistoryForChange'>
+) => {
+  const [historyFor, setHistoryFor] = useState<string | null>(null);
+  return (
+    <ClinicalExplorerImaging
+      {...props}
+      historyFor={historyFor}
+      onHistoryForChange={setHistoryFor}
+    />
+  );
+};
+
 const renderImaging = (tab: 'all' | 'img' = 'all') =>
-  render(<ClinicalExplorerImaging patient={patient!} tab={tab} onShowAll={vi.fn()} />);
+  render(<Imaging patient={patient!} tab={tab} onShowAll={vi.fn()} />);
 
 describe('ClinicalExplorerImaging', () => {
   afterEach(() => {
@@ -162,7 +177,7 @@ describe('ClinicalExplorerImaging', () => {
     async admissionDate => {
       mocks.search.mockResolvedValue({ rut: RUT, examenes: [] });
       render(
-        <ClinicalExplorerImaging
+        <Imaging
           patient={{ ...patient!, data: { ...patient!.data, admissionDate } }}
           tab="all"
           onShowAll={vi.fn()}
@@ -204,7 +219,7 @@ describe('ClinicalExplorerImaging', () => {
       if (change === 'session') act(() => setSessionGeneration('another-synthetic-session'));
       else
         view.rerender(
-          <ClinicalExplorerImaging
+          <Imaging
             patient={
               change === 'episode'
                 ? { ...patient!, episodeId: 'another-synthetic-episode' }
@@ -243,7 +258,7 @@ describe('ClinicalExplorerImaging', () => {
       else if (change === 'unmount') view.unmount();
       else
         view.rerender(
-          <ClinicalExplorerImaging
+          <Imaging
             patient={
               change === 'episode'
                 ? { ...patient!, episodeId: 'ep-next' }
@@ -370,9 +385,7 @@ describe('ClinicalExplorerImaging', () => {
                 patientName: 'OTRO PACIENTE SINTÉTICO',
               },
             };
-      view.rerender(
-        <ClinicalExplorerImaging patient={nextPatient} tab="img" onShowAll={vi.fn()} />
-      );
+      view.rerender(<Imaging patient={nextPatient} tab="img" onShowAll={vi.fn()} />);
       expect(mocks.blob.mock.calls[0]![1].aborted).toBe(true);
       await act(async () => resolvePdf(new Blob(['original'], { type: 'application/pdf' })));
       expect(mocks.download).not.toHaveBeenCalled();

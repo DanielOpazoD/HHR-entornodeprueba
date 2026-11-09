@@ -42,6 +42,12 @@ interface ClinicalExplorerImagingProps {
   patient: ClinicalExplorerPatient;
   tab: ClinicalExplorerTab;
   onShowAll: (tab: ClinicalExplorerTab) => void;
+  /**
+   * Session and patient scope that asked for studies before admission. The explorer owns it:
+   * «Ver los N estudios» remounts this card, and the choice must survive that.
+   */
+  historyFor: string | null;
+  onHistoryForChange: (scope: string | null) => void;
 }
 
 const COMPACT_STUDIES = 4;
@@ -74,12 +80,13 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
   patient,
   tab,
   onShowAll,
+  historyFor,
+  onHistoryForChange,
 }) => {
   const expanded = tab === 'img';
   const sessionEpoch = useSessionEpoch();
   const patientIdentity = clinicalExplorerPatientIdentity(patient);
   const historyScope = `${sessionEpoch}:${patientIdentity}`;
-  const [historyFor, setHistoryFor] = useState<string | null>(null);
   const includeHistory = historyFor === historyScope;
   const today = formatDateDDMMYYYY(getClinicalCalendarDateISO());
   const hasAdmissionBound = Boolean(asMmradDateBound(patient.data.admissionDate));
@@ -298,7 +305,7 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
             <input
               type="checkbox"
               checked={includeHistory}
-              onChange={event => setHistoryFor(event.target.checked ? historyScope : null)}
+              onChange={event => onHistoryForChange(event.target.checked ? historyScope : null)}
             />
             Incluir exámenes anteriores al ingreso
           </label>
