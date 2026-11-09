@@ -1,5 +1,6 @@
 import { firestoreDb } from '@/services/storage/firestore';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
+import { classifySyncError } from '@/services/storage/syncErrorCatalog';
 import {
   createApplicationFailed,
   createApplicationSuccess,
@@ -86,7 +87,9 @@ export const getGlobalEmailRecipientListsWithResult = async (): Promise<
     recordOperationalErrorTelemetry('integration', 'get_global_email_recipient_lists', error, {
       code: 'email_recipient_lists_fetch_failed',
       message: 'Failed to fetch global recipient lists.',
-      severity: 'error',
+      // A denied read means the session lost access; the session guard handles and explains
+      // that, and a mail cannot fix it. Logged as degraded, not mailed as a failure.
+      severity: classifySyncError(error).category === 'authorization' ? 'warning' : 'error',
       userSafeMessage: 'No se pudieron cargar las listas globales de destinatarios.',
     });
     return createApplicationFailed(
