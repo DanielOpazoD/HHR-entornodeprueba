@@ -40,6 +40,40 @@ describe('ExamPatientInfo', () => {
       expect(screen.getByText('Juan Pérez García')).toBeInTheDocument();
     });
 
+    it('shows only the first three given names before the surnames', () => {
+      render(
+        <ExamPatientInfo
+          patient={{
+            ...mockPatient,
+            patientName: 'Ana María de los Ángeles Valentina Rosa Elena de la Fuente Pakarati',
+            firstName: 'Ana María de los Ángeles Valentina Rosa Elena',
+            lastName: 'de la Fuente',
+            secondLastName: 'Pakarati',
+          }}
+        />
+      );
+
+      expect(
+        screen.getByText('Ana María de los Ángeles de la Fuente Pakarati')
+      ).toBeInTheDocument();
+    });
+
+    it('shows the whole name when no surname is stored', () => {
+      render(
+        <ExamPatientInfo
+          patient={{
+            ...mockPatient,
+            patientName: 'Ana María Josefa Soto Rojas',
+            firstName: 'Ana María Josefa Soto Rojas',
+            lastName: '',
+            secondLastName: '',
+          }}
+        />
+      );
+
+      expect(screen.getByText('Ana María Josefa Soto Rojas')).toBeInTheDocument();
+    });
+
     it('should render patient RUT', () => {
       render(<ExamPatientInfo patient={mockPatient} />);
 

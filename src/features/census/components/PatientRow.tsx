@@ -30,11 +30,7 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({
   accessProfile = 'default',
   indicators,
   style,
-  draggable,
-  isDragging,
   isPendingClear = false,
-  onDragStart,
-  onDragEnd,
   clinicalDocumentCount,
 }) => {
   const bindings = usePatientRowBindingsModel({
@@ -74,11 +70,7 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({
       ) : (
         <PatientMainRowView
           {...bindings.mainRowProps}
-          draggable={draggable}
-          isDragging={isDragging}
           isPendingClear={isPendingClear}
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
           clinicalDocumentCount={clinicalDocumentCount}
         />
       )}

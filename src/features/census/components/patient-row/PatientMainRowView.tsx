@@ -38,11 +38,7 @@ export const PatientMainRowView: React.FC<PatientMainRowViewProps> = ({
   onToggleBedType,
   onUpdateClinicalCrib,
   onChange,
-  draggable,
-  isDragging,
   isPendingClear = false,
-  onDragStart,
-  onDragEnd,
   clinicalDocumentCount,
 }) => {
   const sections = usePatientMainRowSectionsModel({
@@ -81,15 +77,12 @@ export const PatientMainRowView: React.FC<PatientMainRowViewProps> = ({
 
   return (
     <tr
-      className={`${mainRowViewState.rowClassName} group/patient-row ${isDragging ? 'opacity-40' : ''} ${isPendingClear ? 'bg-amber-50/70 opacity-75' : ''} ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
+      className={`${mainRowViewState.rowClassName} group/patient-row ${isPendingClear ? 'bg-amber-50/70 opacity-75' : ''}`}
       style={style}
       data-testid="patient-row"
       data-bed-id={bed.id}
       data-clear-pending={isPendingClear || undefined}
       aria-busy={isPendingClear}
-      draggable={draggable}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
     >
       <PatientMainRowActionCell {...sections.action} isPendingClear={isPendingClear} />
 

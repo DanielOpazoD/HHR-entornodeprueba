@@ -7,6 +7,7 @@ import React from 'react';
 import type { PatientData } from '@/types/domain/patient';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { getTodayISO } from '@/utils/dateCoreUtils';
+import { formatPatientDisplayName } from '@/utils/patientNameDisplayUtils';
 
 interface ExamPatientInfoProps {
   patient: PatientData;
@@ -25,8 +26,9 @@ export const ExamPatientInfo: React.FC<ExamPatientInfoProps> = ({ patient, recor
           <span className="text-[9px] font-black text-slate-900 uppercase whitespace-nowrap">
             NOMBRES Y APELLIDOS:
           </span>
-          <div className="text-[17px] font-black text-slate-900 border-b border-slate-900 flex-1 h-6 px-1 uppercase leading-none">
-            {patient.patientName}
+          {/* min-h lets a long name wrap inside its box instead of over the RUT row. */}
+          <div className="text-[17px] font-black text-slate-900 border-b border-slate-900 flex-1 min-h-6 px-1 uppercase leading-none break-words">
+            {formatPatientDisplayName(patient)}
           </div>
         </div>
         <div className="col-span-2 flex gap-1">

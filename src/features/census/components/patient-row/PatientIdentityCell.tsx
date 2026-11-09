@@ -86,7 +86,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   const [copyFeedback, setCopyFeedback] = useState<'idle' | 'copied'>('idle');
   const { professionalsCatalog = [] } = useStaffContext();
 
-  const { fullName, canEditInlineName } = resolveNameInputState({
+  const { fullName, displayName, canEditInlineName } = resolveNameInputState({
     data,
     isSubRow,
     isEmpty,
@@ -265,7 +265,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
               <span
                 className={clsx('min-w-0 break-words leading-4', !fullName && 'text-slate-400')}
               >
-                {fullName || (isSubRow ? 'Nombre RN / Niño' : 'Nombre Paciente')}
+                {displayName || (isSubRow ? 'Nombre RN / Niño' : 'Nombre Paciente')}
               </span>
               {ageBadge}
             </div>

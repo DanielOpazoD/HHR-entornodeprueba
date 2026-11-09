@@ -1,5 +1,5 @@
 import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
-import { formatCensusPatientName } from '@/utils/patientNameDisplayUtils';
+import { formatCensusPatientName, formatPatientDisplayName } from '@/utils/patientNameDisplayUtils';
 
 export interface ResolveNameInputStateParams {
   data: PatientData;
@@ -10,6 +10,8 @@ export interface ResolveNameInputStateParams {
 
 export interface NameInputState {
   fullName: string;
+  /** Visible label: an editable provisional name stays whole so typing never truncates it. */
+  displayName: string;
   canEditInlineName: boolean;
 }
 
@@ -64,8 +66,13 @@ export const resolveNameInputState = ({
   const isProvisionalClinicalCrib = isSubRow && !isOfficialIdentity(data);
   const canEditInlineName = !readOnly && !isEmpty && isProvisionalClinicalCrib;
 
+  const fullName = formatCensusPatientName(resolveFullName(data, isProvisionalClinicalCrib));
+
   return {
-    fullName: formatCensusPatientName(resolveFullName(data, isProvisionalClinicalCrib)),
+    fullName,
+    displayName: isProvisionalClinicalCrib
+      ? fullName
+      : formatCensusPatientName(formatPatientDisplayName(data)),
     canEditInlineName,
   };
 };

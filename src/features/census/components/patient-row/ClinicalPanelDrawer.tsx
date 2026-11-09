@@ -150,7 +150,6 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
     </button>
   );
 
-  // Keep native text selection outside the census row's draggable DOM subtree.
   return createPortal(
     <>
       <button
@@ -169,7 +168,6 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
         aria-label={`Panel clínico de ${patientName}`}
         tabIndex={-1}
         data-testid={`clinical-panel-drawer-${bedId}`}
-        onDragStart={event => event.stopPropagation()}
         style={{ zIndex: LAYER_Z_INDEX.drawer }}
         className={clsx(
           'clinical-panel-drawer fixed right-0 top-0 flex h-full max-w-full cursor-auto select-text flex-col border-l border-slate-200 bg-slate-50 shadow-xl focus:outline-none',

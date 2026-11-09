@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1331,
+  "total": 1324,
   "areas": {
     "src/application/backup-export": 4,
     "src/application/census-email": 2,
@@ -43,7 +43,6 @@
     "src/hooks/usePatientAnalysis": 1,
     "src/hooks/useRoleManagement": 1,
     "src/hooks/useSignatureMode": 3,
-    "src/schemas/zod": 5,
     "src/services/admin": 25,
     "src/services/backup": 13,
     "src/services/calculations": 1,
@@ -53,7 +52,7 @@
     "src/services/integrations": 7,
     "src/services/laboratory": 4,
     "src/services/patient": 17,
-    "src/services/pdf": 24,
+    "src/services/pdf": 22,
     "src/services/radiology": 157,
     "src/services/records": 2,
     "src/services/repositories": 40,

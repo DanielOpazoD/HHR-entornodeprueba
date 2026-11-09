@@ -4,10 +4,8 @@
  * Extracted via PDF field mapping tool.
  */
 export const SOLICITUD_FIELD_COORDS = {
-  // Patient name fields
-  nombres: { x: 117.57, y: 766.71, maxWidth: 78.58 },
-  primerApellido: { x: 201.1, y: 766.71, maxWidth: 69.16 },
-  segundoApellido: { x: 275.46, y: 766.71, maxWidth: 88.68 },
+  // Full name: one line from «Nombre Completo:» to the «Ficha» divider (x ≈ 462).
+  nombreCompleto: { x: 117.57, y: 766.71, maxWidth: 334 },
 
   // RUT
   rut: { x: 60.47, y: 750.58, maxWidth: 135.01 },
@@ -32,9 +30,8 @@ export const SOLICITUD_FIELD_COORDS = {
  * PDF coordinate mapping for "Encuesta Medio Contraste" form fields.
  */
 export const ENCUESTA_FIELD_COORDS = {
-  nombres: { x: 99.57, y: 646.73, maxWidth: 50.58 },
-  primerApellido: { x: 166.44, y: 646.73, maxWidth: 69.16 },
-  segundoApellido: { x: 255.46, y: 646.73, maxWidth: 66.01 },
+  // Full name: the «Nombre:» line ends before «Edad:» (x ≈ 330).
+  nombreCompleto: { x: 99.57, y: 646.73, maxWidth: 226 },
   edad: { x: 359.08, y: 646.73, maxWidth: 52.39 },
   rut: { x: 423.13, y: 646.73, maxWidth: 135.01 },
   fechaNacimiento: { x: 164.95, y: 586.44, maxWidth: 88.68 },
@@ -46,9 +43,8 @@ export const ENCUESTA_FIELD_COORDS = {
  * PDF coordinate mapping for "Consentimiento Informado General".
  */
 export const CONSENTIMIENTO_FIELD_COORDS = {
-  nombres: { x: 188.4, y: 649.0, maxWidth: 76.43 },
-  primerApellido: { x: 289.71, y: 649.0, maxWidth: 67.26 },
-  segundoApellido: { x: 373.35, y: 649.0, maxWidth: 86.25 },
+  // Full name: the «Nombre Paciente:» line ends at the right margin (x ≈ 522).
+  nombreCompleto: { x: 188.4, y: 649.0, maxWidth: 326 },
   rut: { x: 130.87, y: 624.51, maxWidth: 131.31 },
   edad: { x: 314.21, y: 624.51, maxWidth: 50.95 },
   diagnostico: { x: 142.75, y: 595.5, maxWidth: 200.6 },
