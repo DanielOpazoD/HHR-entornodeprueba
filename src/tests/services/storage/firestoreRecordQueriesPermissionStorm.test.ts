@@ -45,7 +45,9 @@ describe('firestoreRecordQueries → detector de tormenta de permisos', () => {
 
     await getRecordFromFirestoreDetailed('2026-09-01');
 
-    expect(reportBasicReadPermissionDenied).toHaveBeenCalledWith('records:getRecord');
+    expect(reportBasicReadPermissionDenied).toHaveBeenCalledWith('records:getRecord', {
+      error: expect.objectContaining({ code: 'permission-denied' }),
+    });
   });
 
   it('un token inválido (unauthenticated) también cuenta como pérdida de autorización', async () => {
@@ -53,7 +55,9 @@ describe('firestoreRecordQueries → detector de tormenta de permisos', () => {
 
     await getRecordFromFirestoreDetailed('2026-09-01');
 
-    expect(reportBasicReadPermissionDenied).toHaveBeenCalledWith('records:getRecord');
+    expect(reportBasicReadPermissionDenied).toHaveBeenCalledWith('records:getRecord', {
+      error: expect.objectContaining({ code: 'unauthenticated' }),
+    });
   });
 
   it('un error que no es de permisos no alimenta el detector', async () => {

@@ -232,6 +232,7 @@ describe('daily census after a terminal SDK listener failure', () => {
     reportBasicReadPermissionDenied('synthetic:independent');
     expect(storm).toHaveBeenCalledExactlyOnceWith({
       sources: ['records:subscribeToRecord', 'synthetic:independent'],
+      codes: ['permission-denied'],
       detectedAt: expect.any(Number),
     });
   });

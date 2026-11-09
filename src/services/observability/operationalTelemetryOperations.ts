@@ -215,6 +215,7 @@ export const OPERATIONAL_TELEMETRY_OPERATIONS = [
   'session_owner_cleared',
   'session_owner_cleared_cleanup',
   'session_permission_storm_logout',
+  'session_permission_storm_recovered',
   'session_state_change',
   'sign_in_google',
   'sign_in_google_popup_recovery',

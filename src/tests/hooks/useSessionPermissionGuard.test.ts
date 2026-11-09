@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   resetSessionPermissionGuardForTests,
   SESSION_PERMISSIONS_LOST_MESSAGE,
@@ -12,9 +12,29 @@ import {
 } from '@/services/auth/sessionPermissionStormDetector';
 import type { AuthSessionState } from '@/types/authSessionTypes';
 import type { AuthUser } from '@/types/authRoleTypes';
+import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
+
+const probe = vi.hoisted(() => ({
+  outcome: 'denied' as 'readable' | 'denied' | 'timeout' | 'failed',
+  recent: false,
+  mark: true,
+  calls: 0,
+}));
+const reload = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),
+}));
+vi.mock('@/services/auth/sessionPermissionProbe', () => ({
+  probeSessionReadPermission: async () => {
+    probe.calls += 1;
+    return probe.outcome;
+  },
+  hasRecentRecoveryReload: () => probe.recent,
+  markRecoveryReload: () => probe.mark,
+}));
+vi.mock('@/shared/runtime/browserWindowRuntimeCore', () => ({
+  defaultBrowserWindowRuntime: { reload },
 }));
 
 const user = { uid: 'u1', email: 'u1@hospital.test', role: 'nurse' } as unknown as AuthUser;
@@ -27,17 +47,107 @@ const applyLastUpdate = (setSessionState: ReturnType<typeof vi.fn>, current: Aut
   return typeof last === 'function' ? last(current) : last;
 };
 
-const storm = async () => {
+/** The verdict waits for a lazy module and the probe: let every pending promise settle. */
+const settle = async () => {
   await act(async () => {
-    reportBasicReadPermissionDenied('records:subscribeToRecord', 1_000);
-    reportBasicReadPermissionDenied('catalog:nurse catalog', 2_000);
+    for (let i = 0; i < 5; i += 1) await new Promise(resolve => setTimeout(resolve, 0));
   });
 };
 
+const storm = async () => {
+  await act(async () => {
+    reportBasicReadPermissionDenied('records:subscribeToRecord', {
+      now: 1_000,
+      error: { code: 'permission-denied' },
+    });
+    reportBasicReadPermissionDenied('catalog:nurse catalog', {
+      now: 2_000,
+      error: { code: 'unauthenticated' },
+    });
+  });
+  await settle();
+};
+
+const telemetryOperations = () =>
+  vi.mocked(recordOperationalTelemetry).mock.calls.map(([event]) => event.operation);
+
 describe('useSessionPermissionGuard', () => {
+  // The verdict is a lazy module: load it once so each storm settles within a few ticks.
+  beforeAll(async () => {
+    await import('@/services/auth/sessionPermissionStormVerdict');
+  });
+
   beforeEach(() => {
     resetSessionPermissionStormDetector();
     resetSessionPermissionGuardForTests();
+    Object.assign(probe, { outcome: 'denied', recent: false, mark: true, calls: 0 });
+    reload.mockReset();
+    vi.mocked(recordOperationalTelemetry).mockReset();
+  });
+
+  it('una denegación pasajera se recupera en silencio: sin logout, una recarga y telemetría de recuperación', async () => {
+    probe.outcome = 'readable';
+    const handleLogout = vi.fn().mockResolvedValue(undefined);
+    const setSessionState = vi.fn();
+    renderHook(() => useSessionPermissionGuard(user, handleLogout, setSessionState));
+
+    await storm();
+
+    expect(handleLogout).not.toHaveBeenCalled();
+    expect(setSessionState).not.toHaveBeenCalled();
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(telemetryOperations()).toEqual(['session_permission_storm_recovered']);
+    expect(vi.mocked(recordOperationalTelemetry).mock.calls[0]?.[0].context).toMatchObject({
+      count: 2,
+      catalogDenialCount: 1,
+      recordDenialCount: 1,
+      errorCode: 'unauthenticated',
+      mixedDenialCodes: true,
+      probeOutcome: 'readable',
+    });
+  });
+
+  it.each(['denied', 'timeout', 'failed'] as const)(
+    'si la lectura de prueba termina en %s cierra sesión como siempre y no recarga',
+    async outcome => {
+      probe.outcome = outcome;
+      const handleLogout = vi.fn().mockResolvedValue(undefined);
+      renderHook(() => useSessionPermissionGuard(user, handleLogout, vi.fn()));
+
+      await storm();
+
+      expect(handleLogout).toHaveBeenCalledWith('automatic');
+      expect(reload).not.toHaveBeenCalled();
+      expect(telemetryOperations()).toEqual(['session_permission_storm_logout']);
+      expect(vi.mocked(recordOperationalTelemetry).mock.calls[0]?.[0].context).toMatchObject({
+        probeOutcome: outcome,
+      });
+    }
+  );
+
+  it('otra tormenta poco después de una recarga de recuperación cierra sesión sin volver a probar', async () => {
+    probe.outcome = 'readable';
+    probe.recent = true;
+    const handleLogout = vi.fn().mockResolvedValue(undefined);
+    renderHook(() => useSessionPermissionGuard(user, handleLogout, vi.fn()));
+
+    await storm();
+
+    expect(probe.calls).toBe(0);
+    expect(reload).not.toHaveBeenCalled();
+    expect(handleLogout).toHaveBeenCalledWith('automatic');
+  });
+
+  it('si no se puede marcar la recarga (almacenamiento bloqueado) cierra sesión en vez de arriesgar un bucle', async () => {
+    probe.outcome = 'readable';
+    probe.mark = false;
+    const handleLogout = vi.fn().mockResolvedValue(undefined);
+    renderHook(() => useSessionPermissionGuard(user, handleLogout, vi.fn()));
+
+    await storm();
+
+    expect(reload).not.toHaveBeenCalled();
+    expect(handleLogout).toHaveBeenCalledWith('automatic');
   });
 
   it('ante una tormenta cierra sesión por la ruta automática y deja la razón marcada con su causa', async () => {
@@ -100,6 +210,7 @@ describe('useSessionPermissionGuard', () => {
 
     await storm();
 
+    expect(probe.calls).toBe(1);
     expect(handleLogoutA.mock.calls.length + handleLogoutB.mock.calls.length).toBe(1);
     expect(setA).toHaveBeenCalled();
     expect(setB).toHaveBeenCalled();
@@ -114,14 +225,15 @@ describe('useSessionPermissionGuard', () => {
     );
 
     await act(async () => {
-      reportBasicReadPermissionDenied('records:subscribeToRecord', 1_000);
+      reportBasicReadPermissionDenied('records:subscribeToRecord', { now: 1_000 });
     });
     // El bootstrap emite un segundo 'authorized' con otro objeto → handleLogout nuevo.
     const secondLogout = vi.fn().mockResolvedValue(undefined);
     rerender({ logout: secondLogout });
     await act(async () => {
-      reportBasicReadPermissionDenied('catalog:nurse catalog', 2_000);
+      reportBasicReadPermissionDenied('catalog:nurse catalog', { now: 2_000 });
     });
+    await settle();
 
     expect(secondLogout).toHaveBeenCalledWith('automatic');
   });
