@@ -20,30 +20,43 @@
 export const SESSION_PERMISSION_STORM_WINDOW_MS = 10_000;
 export const SESSION_PERMISSION_STORM_DISTINCT_SOURCES = 2;
 
+/** Firestore separates a token it no longer accepts from rules that refuse a valid one. */
+export type BasicReadDenialCode = 'permission-denied' | 'unauthenticated';
+
 export interface SessionPermissionStorm {
   sources: string[];
+  /** Distinct denial codes inside the window: which one decides what to fix next. */
+  codes: BasicReadDenialCode[];
   detectedAt: number;
 }
 
 type StormListener = (storm: SessionPermissionStorm) => void;
 
-const recentDenials = new Map<string, number>();
+const recentDenials = new Map<string, { at: number; code: BasicReadDenialCode }>();
 const listeners = new Set<StormListener>();
 let stormAnnouncedAt: number | null = null;
 let armedUid: string | null = null;
 
 const pruneOutsideWindow = (now: number): void => {
-  for (const [source, at] of recentDenials) {
-    if (now - at > SESSION_PERMISSION_STORM_WINDOW_MS) recentDenials.delete(source);
+  for (const [source, denial] of recentDenials) {
+    if (now - denial.at > SESSION_PERMISSION_STORM_WINDOW_MS) recentDenials.delete(source);
   }
 };
 
+const toDenialCode = (error: unknown): BasicReadDenialCode =>
+  String((error as { code?: unknown } | null)?.code ?? '').includes('unauthenticated')
+    ? 'unauthenticated'
+    : 'permission-denied';
+
 /** Registra una lectura básica denegada por permisos. Idempotente por fuente dentro de la ventana. */
-export const reportBasicReadPermissionDenied = (source: string, now: number = Date.now()): void => {
+export const reportBasicReadPermissionDenied = (
+  source: string,
+  { error, now = Date.now() }: { error?: unknown; now?: number } = {}
+): void => {
   const key = source.trim();
   if (!key) return;
   pruneOutsideWindow(now);
-  recentDenials.set(key, now);
+  recentDenials.set(key, { at: now, code: toDenialCode(error) });
   if (recentDenials.size < SESSION_PERMISSION_STORM_DISTINCT_SOURCES) return;
   // Una tormenta se anuncia UNA vez por ventana: el remedio (cerrar sesión con
   // razón visible) es terminal y no debe repetirse mientras se ejecuta.
@@ -53,6 +66,7 @@ export const reportBasicReadPermissionDenied = (source: string, now: number = Da
   stormAnnouncedAt = now;
   const storm: SessionPermissionStorm = {
     sources: [...recentDenials.keys()].sort(),
+    codes: [...new Set([...recentDenials.values()].map(denial => denial.code))].sort(),
     detectedAt: now,
   };
   listeners.forEach(listener => listener(storm));

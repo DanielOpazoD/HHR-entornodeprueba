@@ -18,9 +18,9 @@ describe('sessionPermissionStormDetector', () => {
     const listener = vi.fn();
     subscribeToSessionPermissionStorm(listener);
 
-    reportBasicReadPermissionDenied('records:getRecord', 1_000);
-    reportBasicReadPermissionDenied('records:getRecord', 2_000);
-    reportBasicReadPermissionDenied('records:getRecord', 3_000);
+    reportBasicReadPermissionDenied('records:getRecord', { now: 1_000 });
+    reportBasicReadPermissionDenied('records:getRecord', { now: 2_000 });
+    reportBasicReadPermissionDenied('records:getRecord', { now: 3_000 });
 
     expect(listener).not.toHaveBeenCalled();
   });
@@ -29,23 +29,42 @@ describe('sessionPermissionStormDetector', () => {
     const listener = vi.fn();
     subscribeToSessionPermissionStorm(listener);
 
-    reportBasicReadPermissionDenied('records:subscribeToRecord', 1_000);
-    reportBasicReadPermissionDenied('catalog:nurse', 4_000);
-    reportBasicReadPermissionDenied('catalog:professionals', 5_000);
+    reportBasicReadPermissionDenied('records:subscribeToRecord', { now: 1_000 });
+    reportBasicReadPermissionDenied('catalog:nurse', { now: 4_000 });
+    reportBasicReadPermissionDenied('catalog:professionals', { now: 5_000 });
 
     expect(listener).toHaveBeenCalledTimes(1);
     expect(listener).toHaveBeenCalledWith({
       sources: ['catalog:nurse', 'records:subscribeToRecord'],
+      codes: ['permission-denied'],
       detectedAt: 4_000,
     });
+  });
+
+  it('la tormenta dice qué código devolvió Firestore: credencial rechazada o reglas que niegan', () => {
+    const listener = vi.fn();
+    subscribeToSessionPermissionStorm(listener);
+
+    reportBasicReadPermissionDenied('records:subscribeToRecord', {
+      now: 1_000,
+      error: { code: 'unauthenticated' },
+    });
+    reportBasicReadPermissionDenied('catalog:nurse', {
+      now: 2_000,
+      error: { code: 'permission-denied' },
+    });
+
+    expect(listener.mock.calls[0]?.[0].codes).toEqual(['permission-denied', 'unauthenticated']);
   });
 
   it('las denegaciones fuera de la ventana no cuentan', () => {
     const listener = vi.fn();
     subscribeToSessionPermissionStorm(listener);
 
-    reportBasicReadPermissionDenied('records:getAvailableDates', 1_000);
-    reportBasicReadPermissionDenied('catalog:tens', 1_000 + SESSION_PERMISSION_STORM_WINDOW_MS + 1);
+    reportBasicReadPermissionDenied('records:getAvailableDates', { now: 1_000 });
+    reportBasicReadPermissionDenied('catalog:tens', {
+      now: 1_000 + SESSION_PERMISSION_STORM_WINDOW_MS + 1,
+    });
 
     expect(listener).not.toHaveBeenCalled();
   });
@@ -57,9 +76,9 @@ describe('sessionPermissionStormDetector', () => {
     subscribeToSessionPermissionStorm(listener);
 
     armSessionPermissionStormDetector('u1');
-    reportBasicReadPermissionDenied('records:subscribeToRecord', 1_000);
+    reportBasicReadPermissionDenied('records:subscribeToRecord', { now: 1_000 });
     armSessionPermissionStormDetector('u1'); // otra instancia del hook
-    reportBasicReadPermissionDenied('catalog:nurse catalog', 2_000);
+    reportBasicReadPermissionDenied('catalog:nurse catalog', { now: 2_000 });
 
     expect(listener).toHaveBeenCalledTimes(1);
   });
@@ -69,12 +88,12 @@ describe('sessionPermissionStormDetector', () => {
     subscribeToSessionPermissionStorm(listener);
 
     armSessionPermissionStormDetector('u1');
-    reportBasicReadPermissionDenied('records:getRecord', 1_000);
+    reportBasicReadPermissionDenied('records:getRecord', { now: 1_000 });
     armSessionPermissionStormDetector('u2');
-    reportBasicReadPermissionDenied('catalog:nurse catalog', 2_000);
+    reportBasicReadPermissionDenied('catalog:nurse catalog', { now: 2_000 });
     expect(listener).not.toHaveBeenCalled();
 
-    reportBasicReadPermissionDenied('records:getRecord', 3_000);
+    reportBasicReadPermissionDenied('records:getRecord', { now: 3_000 });
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
@@ -83,8 +102,8 @@ describe('sessionPermissionStormDetector', () => {
     const unsubscribe = subscribeToSessionPermissionStorm(listener);
     unsubscribe();
 
-    reportBasicReadPermissionDenied('records:getRecord', 1_000);
-    reportBasicReadPermissionDenied('catalog:nurse', 2_000);
+    reportBasicReadPermissionDenied('records:getRecord', { now: 1_000 });
+    reportBasicReadPermissionDenied('catalog:nurse', { now: 2_000 });
 
     expect(listener).not.toHaveBeenCalled();
   });

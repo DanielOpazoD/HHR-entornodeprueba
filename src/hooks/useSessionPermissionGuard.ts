@@ -8,7 +8,6 @@ import {
   type SessionPermissionStorm,
 } from '@/services/auth/sessionPermissionStormDetector';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
-import { authStateLogger } from '@/hooks/hookLoggers';
 import { SESSION_PERMISSION_STORM_CAUSE } from '@/hooks/controllers/authBootstrapController';
 
 /**
@@ -25,22 +24,46 @@ export const createSessionPermissionsLostState = (): AuthSessionState =>
     cause: SESSION_PERMISSION_STORM_CAUSE,
   });
 
-// Varias instancias de useAuthState se suscriben a la misma tormenta: el efecto
-// con consecuencias (logout, auditoría, aviso a otras pestañas) corre UNA vez.
-let lastHandledStormAt: number | null = null;
+// Varias instancias de useAuthState se suscriben a la misma tormenta: la
+// comprobación, la telemetría y el logout corren UNA vez por tormenta.
+let verdictForStorm: {
+  detectedAt: number;
+  verdict: Promise<'recovering' | 'logout'>;
+} | null = null;
 
 /** Solo para tests. */
 export const resetSessionPermissionGuardForTests = (): void => {
-  lastHandledStormAt = null;
+  verdictForStorm = null;
+};
+
+/** La segunda opinión vive en un módulo diferido: una tormenta es rara y el arranque no tiene espacio. */
+const decideStorm = (storm: SessionPermissionStorm): Promise<'recovering' | 'logout'> => {
+  if (verdictForStorm?.detectedAt === storm.detectedAt) return verdictForStorm.verdict;
+  const verdict = import('@/services/auth/sessionPermissionStormVerdict')
+    .then(module => module.decideSessionPermissionStorm(storm, SESSION_PERMISSIONS_LOST_MESSAGE))
+    .catch(() => {
+      // Sin el módulo (p. ej. una publicación nueva sin conexión) se cierra como siempre.
+      recordOperationalTelemetry({
+        category: 'auth',
+        operation: 'session_permission_storm_logout',
+        status: 'degraded',
+        runtimeState: 'unauthorized',
+        issues: [SESSION_PERMISSIONS_LOST_MESSAGE],
+        context: { sources: storm.sources, detectedAt: storm.detectedAt },
+      });
+      return 'logout' as const;
+    });
+  verdictForStorm = { detectedAt: storm.detectedAt, verdict };
+  return verdict;
 };
 
 /**
- * Guarda global de sesión: cuando el detector anuncia una tormenta de permisos
- * con un usuario autenticado, cierra la sesión por la MISMA ruta que el logout
- * por inactividad (limpieza local, aviso a otras pestañas, signOut) y deja la
- * razón visible en la pantalla de acceso. No intenta «sanar» la sesión: los
- * listeners de Firestore ya denegados quedan muertos aunque el token se
- * refresque, así que lo honesto es cortar y explicar.
+ * Guarda global de sesión: cuando el detector anuncia una tormenta de permisos con un usuario
+ * autenticado, primero comprueba si la sesión realmente perdió los permisos. Si la lectura de
+ * prueba funciona, recupera en silencio con una recarga. Si no, cierra la sesión por la MISMA
+ * ruta que el logout por inactividad (limpieza local, aviso a otras pestañas, signOut) y deja la
+ * razón visible en la pantalla de acceso. Los listeners ya denegados no reviven al refrescar el
+ * token: por eso la recuperación es una recarga y no un «seguir como si nada».
  */
 export const useSessionPermissionGuard = (
   user: AuthUser | null,
@@ -51,35 +74,30 @@ export const useSessionPermissionGuard = (
   useEffect(() => {
     if (!uid) return undefined;
     armSessionPermissionStormDetector(uid);
+    let active = true;
     const unsubscribe = subscribeToSessionPermissionStorm((storm: SessionPermissionStorm) => {
-      const isFirstHandler = lastHandledStormAt !== storm.detectedAt;
-      lastHandledStormAt = storm.detectedAt;
-      if (isFirstHandler) {
-        authStateLogger.warn('Logout due to a permission-denied storm on basic reads', storm);
-        recordOperationalTelemetry({
-          category: 'auth',
-          operation: 'session_permission_storm_logout',
-          status: 'degraded',
-          runtimeState: 'unauthorized',
-          issues: [SESSION_PERMISSIONS_LOST_MESSAGE],
-          context: { sources: storm.sources, detectedAt: storm.detectedAt },
-        });
+      const isFirstHandler = verdictForStorm?.detectedAt !== storm.detectedAt;
+      void decideStorm(storm).then(verdict => {
+        if (verdict !== 'logout' || !active) return;
         // handleLogout fija 'unauthenticated' de forma SÍNCRONA antes de su
         // primer await; no se espera su promesa: la auditoría del logout puede
         // quedar pendiente hasta un re-login y un setter tardío pisaría una
         // sesión nueva (revisión adversarial 01-09).
-        void handleLogout('automatic');
-      }
-      // Cada instancia deja la razón en SU estado, solo sobre la sesión que se
-      // está cerrando (la autorizada o el 'unauthenticated' que acaba de dejar
-      // el logout). La política de preservación evita que el listener de
-      // Firebase la pise después.
-      setSessionState(current =>
-        current.status === 'unauthenticated' || current.status === 'authorized'
-          ? createSessionPermissionsLostState()
-          : current
-      );
+        if (isFirstHandler) void handleLogout('automatic');
+        // Cada instancia deja la razón en SU estado, solo sobre la sesión que se
+        // está cerrando (la autorizada o el 'unauthenticated' que acaba de dejar
+        // el logout). La política de preservación evita que el listener de
+        // Firebase la pise después.
+        setSessionState(current =>
+          current.status === 'unauthenticated' || current.status === 'authorized'
+            ? createSessionPermissionsLostState()
+            : current
+        );
+      });
     });
-    return unsubscribe;
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, [uid, handleLogout, setSessionState]);
 };

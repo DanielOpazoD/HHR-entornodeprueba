@@ -84,7 +84,7 @@ const subscribeStringCatalog = (
     onError: error => {
       firestoreCatalogLogger.error(`Error preparing ${errorLabel} subscription`, error);
       if (classifySyncError(error).category === 'authorization')
-        reportBasicReadPermissionDenied(`catalog:${errorLabel}`);
+        reportBasicReadPermissionDenied(`catalog:${errorLabel}`, { error });
       callback([]);
     },
   });
@@ -152,7 +152,7 @@ const subscribeToProfessionalsCatalogWithRuntime = (
     onError: error => {
       firestoreCatalogLogger.error('Error preparing professionals catalog subscription', error);
       if (classifySyncError(error).category === 'authorization')
-        reportBasicReadPermissionDenied('catalog:professionals');
+        reportBasicReadPermissionDenied('catalog:professionals', { error });
       callback([]);
     },
   });

@@ -100,6 +100,7 @@ const COUNT_KEYS = tokens(`
   clinicalFieldCount pendingTasks maxPendingTasks retryCount attempt attempts maxAttempts batchSize
   pageCount rowCount totalCount failedCount blockedCount occupiedCount unchangedCount selectedCount
   eligibleCount correctionCount limitCount categorizedCount localErrorCount droppedCount
+  catalogDenialCount recordDenialCount
 `);
 const DURATION_KEYS = tokens(`
   durationMs elapsedMs timeoutMs remainingMs ttlMs ageMs pendingAgeMs oldestPendingAgeMs debounceMs blockedForMs
@@ -122,7 +123,9 @@ const NUMERIC_BOUNDS = new Map<string, { min: number; max: number }>([
 
 /** Booleans carry a single bit, but the key still has to be a known operational flag. */
 const BOOLEAN_KEYS = new Set(
-  tokens('isOnline offline allowed authBootstrapPending fallbackUsed truncated retried splitDay')
+  tokens(
+    'isOnline offline allowed authBootstrapPending fallbackUsed truncated retried splitDay mixedDenialCodes'
+  )
 );
 
 /**
@@ -148,6 +151,8 @@ const STRING_ENUMS = new Map<string, ReadonlySet<string>>(
       failed-precondition cancelled internal unknown invalid_document reader_unavailable
       not-found aborted already-exists invalid-argument`,
     readScope: 'day episode',
+    // Second opinion before a permission storm ends the session.
+    probeOutcome: 'readable denied timeout failed recent_recovery',
     // Where an error-service failure came from, and the class of the thrown error.
     errorSource: 'unhandled_rejection uncaught_error render_crash logged',
     errorName: `Error TypeError RangeError ReferenceError SyntaxError AggregateError
