@@ -31,7 +31,10 @@ export interface ExamRequestOrder extends ExamRequestOpenState {
 
 interface UseExamRequestOrdersParams {
   candidates: ExamRequestCandidate[];
+  /** The order on screen when the dialog opens. */
   initialKey: string;
+  /** Patients chosen together with it, such as a selection in the census; each gets its order. */
+  alsoInclude?: readonly string[];
 }
 
 interface OrdersState {
@@ -58,6 +61,7 @@ export interface UseExamRequestOrdersResult {
 export const useExamRequestOrders = ({
   candidates,
   initialKey,
+  alsoInclude = [],
 }: UseExamRequestOrdersParams): UseExamRequestOrdersResult => {
   // One order per key; should a key repeat, the first candidate stands for it everywhere.
   const byCandidateKey = useMemo(() => {
@@ -67,13 +71,19 @@ export const useExamRequestOrders = ({
     });
     return map;
   }, [candidates]);
-  const [state, setState] = useState<OrdersState>(() => ({
-    keys: [initialKey],
-    activeKey: initialKey,
-    byKey: {
-      [initialKey]: buildExamRequestOpenState(byCandidateKey.get(initialKey)?.patient.insurance),
-    },
-  }));
+  const [state, setState] = useState<OrdersState>(() => {
+    const keys = [...new Set([initialKey, ...alsoInclude])];
+    return {
+      keys,
+      activeKey: initialKey,
+      byKey: Object.fromEntries(
+        keys.map(key => [
+          key,
+          buildExamRequestOpenState(byCandidateKey.get(key)?.patient.insurance),
+        ])
+      ),
+    };
+  });
 
   const orders = state.keys.flatMap(key => {
     const candidate = byCandidateKey.get(key);

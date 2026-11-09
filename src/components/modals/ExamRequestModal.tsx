@@ -1,23 +1,23 @@
 /**
  * ExamRequestModal Component
  *
- * Laboratory request form with print. From a census row it serves one patient; the clinical
- * explorer passes the census patients, and each one added gets its own tab and printed page.
+ * Laboratory request form with print. With the census patients as candidates, each patient added
+ * gets its own tab and printed page; the census row, the census selection and the clinical
+ * explorer all open it that way. Without candidates it serves the one patient given.
  *
  * @see /docs/LABORATORY_FORM_GUIDE.md for design specifications
  */
 
-import React, { useId, useMemo } from 'react';
+import React, { useId, useMemo, useState } from 'react';
+import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import { Printer, FlaskConical, UserRound } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { useExamRequestOrders, type ExamRequestCandidate } from '@/hooks/useExamRequestOrders';
 import { useCurrentUserSignatureImage } from '@/hooks/useUserSignatureImage';
 import type { PatientData } from '@/types/domain/patient';
 import { EXAM_REQUEST_PRINT_STYLES } from '@/components/modals/examRequestPrintStyles';
-import {
-  buildExamRequestModalShellModel,
-  resolveExamRequestPatientIdentity,
-} from '@/components/modals/controllers/examRequestModalController';
+import { buildExamRequestModalShellModel } from '@/components/modals/controllers/examRequestModalController';
+import { resolveExamRequestPatientIdentity } from '@/components/modals/controllers/examRequestPatientIdentity';
 import { ExamRequestForm } from '@/components/exam-request/ExamRequestForm';
 import {
   ExamRequestPatientTabs,
@@ -34,6 +34,8 @@ interface ExamRequestModalProps {
   candidates?: ExamRequestCandidate[];
   /** Key of `patient` among `candidates`. */
   patientKey?: string;
+  /** Other candidates that open with their own tab, such as a selection in the census. */
+  alsoInclude?: readonly string[];
 }
 
 const SINGLE_PATIENT_KEY = 'patient';
@@ -42,31 +44,61 @@ const hasSeveralPatients = ({ candidates, patientKey }: ExamRequestModalProps): 
   Boolean(patientKey && candidates?.some(candidate => candidate.key === patientKey));
 
 /**
- * Mounted only while open, so every opening starts with nothing marked. With one patient the
- * request also restarts when another patient or episode takes the bed; with several, each order
- * is already keyed by patient and episode.
+ * Mounted only while open, so every opening starts with nothing marked, and a session change
+ * starts it over: several people share one computer. Whether it serves several patients is decided
+ * when it opens, so the batch stays whole until it closes, whoever leaves the census; only that
+ * patient's tab goes. With one patient the request restarts when another patient or episode takes
+ * the bed.
  */
-export const ExamRequestModal: React.FC<ExamRequestModalProps> = props =>
-  props.isOpen ? (
+export const ExamRequestModal: React.FC<ExamRequestModalProps> = props => {
+  const sessionEpoch = useSessionEpoch();
+  const [batch, setBatch] = useState<{ severalPatients: boolean } | null>(null);
+  if (!props.isOpen) {
+    if (batch) setBatch(null);
+    return null;
+  }
+  const severalPatients = batch ? batch.severalPatients : hasSeveralPatients(props);
+  if (!batch) setBatch({ severalPatients });
+  return (
     <ExamRequestDialog
-      key={hasSeveralPatients(props) ? 'several' : resolveExamRequestPatientIdentity(props.patient)}
+      key={
+        severalPatients
+          ? `${sessionEpoch}:several`
+          : `${sessionEpoch}:${resolveExamRequestPatientIdentity(props.patient)}`
+      }
       {...props}
+      severalPatients={severalPatients}
     />
-  ) : null;
+  );
+};
 
-const ExamRequestDialog: React.FC<ExamRequestModalProps> = props => {
-  const { isOpen, onClose, patient, recordDate, candidates, patientKey } = props;
-  const severalPatients = hasSeveralPatients(props);
+const ExamRequestDialog: React.FC<ExamRequestModalProps & { severalPatients: boolean }> = props => {
+  const {
+    isOpen,
+    onClose,
+    patient,
+    recordDate,
+    candidates,
+    patientKey,
+    alsoInclude,
+    severalPatients,
+  } = props;
   const pool = useMemo<ExamRequestCandidate[]>(
     () =>
       severalPatients && candidates
-        ? candidates
+        ? // The opener's tab always shows the patient it was opened for.
+          candidates.map(candidate =>
+            candidate.key === patientKey ? { ...candidate, patient } : candidate
+          )
         : [{ key: SINGLE_PATIENT_KEY, label: '', patient }],
-    [severalPatients, candidates, patient]
+    [severalPatients, candidates, patient, patientKey]
   );
   const requests = useExamRequestOrders({
     candidates: pool,
     initialKey: severalPatients && patientKey ? patientKey : SINGLE_PATIENT_KEY,
+    alsoInclude: severalPatients
+      ? alsoInclude?.filter(key => candidates?.some(candidate => candidate.key === key))
+      : undefined,
   });
   const shellModel = buildExamRequestModalShellModel(requests.active?.patient ?? patient);
   const idPrefix = useId();
@@ -98,24 +130,26 @@ const ExamRequestDialog: React.FC<ExamRequestModalProps> = props => {
       className="!rounded-2xl ring-1 ring-black/[0.03]"
       bodyClassName="max-h-[90vh] overflow-y-auto px-5 py-4"
       headerActions={
-        <button
-          onClick={requests.print}
-          title={
-            orderCount > 1
-              ? `Imprime las ${orderCount} órdenes en un solo documento, una página por paciente`
-              : undefined
-          }
-          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 px-4 py-2 text-[13px] font-semibold text-white shadow-md shadow-emerald-600/25 transition-all hover:from-emerald-600 hover:to-emerald-700 hover:shadow-lg hover:shadow-emerald-600/30 active:scale-[0.98] print:hidden"
-        >
-          <Printer size={14} />
-          {orderCount > 1 ? `Imprimir ${orderCount} órdenes` : 'Imprimir'}
-        </button>
+        orderCount > 0 && (
+          <button
+            onClick={requests.print}
+            title={
+              orderCount > 1
+                ? `Imprime las ${orderCount} órdenes en un solo documento, una página por paciente`
+                : undefined
+            }
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 px-4 py-2 text-[13px] font-semibold text-white shadow-md shadow-emerald-600/25 transition-all hover:from-emerald-600 hover:to-emerald-700 hover:shadow-lg hover:shadow-emerald-600/30 active:scale-[0.98] print:hidden"
+          >
+            <Printer size={14} />
+            {orderCount > 1 ? `Imprimir ${orderCount} órdenes` : 'Imprimir'}
+          </button>
+        )
       }
     >
       {severalPatients && candidates && (
         <ExamRequestPatientTabs
           idPrefix={idPrefix}
-          candidates={candidates}
+          candidates={pool}
           orders={requests.orders}
           activeKey={requests.active?.key}
           isIncluded={requests.isIncluded}
@@ -124,37 +158,46 @@ const ExamRequestDialog: React.FC<ExamRequestModalProps> = props => {
         />
       )}
 
+      {orderCount === 0 && (
+        <p role="status" className="mb-4 text-[12px] text-slate-600">
+          Los pacientes de esta solicitud ya no están en el censo del día. Agregue otro o cierre la
+          ventana.
+        </p>
+      )}
+
       {/* Patient info banner */}
-      <div className="mb-4 flex items-center gap-3 rounded-xl border border-emerald-100 bg-gradient-to-r from-emerald-50/80 via-emerald-50/40 to-transparent px-4 py-3 print:hidden">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-          <UserRound size={16} />
-        </div>
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1 text-[12px]">
-          <span className="font-semibold text-slate-700">{shellModel.patientName}</span>
-          {shellModel.patientRut && (
-            <>
-              <span className="text-slate-400">|</span>
-              <span className="text-slate-500">{shellModel.patientRut}</span>
-            </>
-          )}
-          {shellModel.patientPathology && (
-            <>
-              <span className="text-slate-400">|</span>
-              <span
-                className="max-w-[260px] truncate text-slate-500"
-                title={shellModel.patientPathology}
-              >
-                {shellModel.patientPathology}
+      {orderCount > 0 && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-emerald-100 bg-gradient-to-r from-emerald-50/80 via-emerald-50/40 to-transparent px-4 py-3 print:hidden">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+            <UserRound size={16} />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1 text-[12px]">
+            <span className="font-semibold text-slate-700">{shellModel.patientName}</span>
+            {shellModel.patientRut && (
+              <>
+                <span className="text-slate-400">|</span>
+                <span className="text-slate-500">{shellModel.patientRut}</span>
+              </>
+            )}
+            {shellModel.patientPathology && (
+              <>
+                <span className="text-slate-400">|</span>
+                <span
+                  className="max-w-[260px] truncate text-slate-500"
+                  title={shellModel.patientPathology}
+                >
+                  {shellModel.patientPathology}
+                </span>
+              </>
+            )}
+            {shellModel.patientBedName && (
+              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-100/80 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+                {shellModel.patientBedName}
               </span>
-            </>
-          )}
-          {shellModel.patientBedName && (
-            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-100/80 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
-              {shellModel.patientBedName}
-            </span>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {signature.status === 'error' && (
         <p role="status" className="mb-3 text-[12px] text-amber-700 print:hidden">

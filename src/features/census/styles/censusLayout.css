@@ -82,14 +82,23 @@
   }
 
   /* Explicit component classes survive changes in field height and wrapping. */
-  .census-identity-name:not(.border-red-400):not(:hover):not(:focus-within),
+  .census-identity-name:not(.border-red-400):not([data-exam-order-selected]):not(:hover):not(
+      :focus-within
+    ),
   .census-inline-field:not(.border-red-400):not(:hover):not(:focus-visible):not(:focus-within) {
     border-color: transparent;
     background-color: transparent;
   }
 
-  .census-identity-name:not(.border-red-400):hover {
+  .census-identity-name:not(.border-red-400):not([data-exam-order-selected]):hover {
     background-color: #f8fafc;
+  }
+
+  /* A patient chosen for a laboratory order looks the same with or without the pointer on it. */
+  .census-identity-name[data-exam-order-selected] {
+    border-color: #10b981;
+    background-color: #ecfdf5;
+    box-shadow: 0 0 0 2px #6ee7b7;
   }
 
   .census-identity-details .text-slate-400 {
