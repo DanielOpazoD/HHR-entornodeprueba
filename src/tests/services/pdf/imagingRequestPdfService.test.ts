@@ -34,13 +34,13 @@ describe('imagingRequestPdfService', () => {
   describe('Coordinate Constants', () => {
     it('should have mapped coordinates for Solicitud', () => {
       expect(SOLICITUD_FIELD_COORDS).toBeDefined();
-      expect(SOLICITUD_FIELD_COORDS.nombres.x).toBeGreaterThan(0);
+      expect(SOLICITUD_FIELD_COORDS.nombreCompleto.x).toBeGreaterThan(0);
       expect(SOLICITUD_FIELD_COORDS.rut.maxWidth).toBeGreaterThan(0);
     });
 
     it('should have mapped coordinates for Encuesta', () => {
       expect(ENCUESTA_FIELD_COORDS).toBeDefined();
-      expect(ENCUESTA_FIELD_COORDS.nombres.x).toBeGreaterThan(0);
+      expect(ENCUESTA_FIELD_COORDS.nombreCompleto.x).toBeGreaterThan(0);
       expect(ENCUESTA_FIELD_COORDS.rut.maxWidth).toBeGreaterThan(0);
     });
   });

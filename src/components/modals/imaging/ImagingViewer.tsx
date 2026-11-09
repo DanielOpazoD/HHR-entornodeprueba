@@ -3,6 +3,7 @@ import { DocumentOption, ActiveTextMark } from './types';
 import type { CustomMark } from '@/services/pdf/imagingRequestPdfService';
 import type { PatientData } from '@/types/domain/patient';
 import { buildImagingViewerDocumentModel } from '../controllers/imagingViewerController';
+import { FittedOverlayText } from './FittedOverlayText';
 import { useManagedTimeout } from '@/hooks/useManagedTimeout';
 
 interface ImagingViewerProps {
@@ -47,20 +48,28 @@ export const ImagingViewer: React.FC<ImagingViewerProps> = ({
               draggable={false}
             />
 
-            {viewerModel.overlays.map((overlay, index) => (
-              <div
-                key={`${selectedDoc}-overlay-${index}`}
-                className={[
-                  'absolute font-sans text-xs sm:text-sm text-black pointer-events-none',
-                  overlay.className || '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                style={{ left: overlay.left, top: overlay.top }}
-              >
-                {overlay.text}
-              </div>
-            ))}
+            {viewerModel.overlays.map((overlay, index) => {
+              const className = [
+                'absolute font-sans text-xs sm:text-sm text-black pointer-events-none',
+                overlay.className || '',
+              ]
+                .filter(Boolean)
+                .join(' ');
+              const style = { left: overlay.left, top: overlay.top };
+              return overlay.maxWidth ? (
+                <FittedOverlayText
+                  key={`${selectedDoc}-overlay-${index}`}
+                  text={overlay.text}
+                  className={className}
+                  style={style}
+                  width={overlay.maxWidth}
+                />
+              ) : (
+                <div key={`${selectedDoc}-overlay-${index}`} className={className} style={style}>
+                  {overlay.text}
+                </div>
+              );
+            })}
 
             {/* Active Text Input */}
             {activeText && (

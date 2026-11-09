@@ -9,11 +9,8 @@
  */
 
 import { PatientData } from '@/services/contracts/patientServiceContracts';
-import {
-  splitPatientName,
-  calculateAge,
-  formatDateToCL as formatDate,
-} from '@/utils/clinicalUtils';
+import { calculateAge, formatDateToCL as formatDate } from '@/utils/clinicalUtils';
+import { formatPatientDisplayName } from '@/utils/patientNameDisplayUtils';
 import { saveAndDownloadPdf } from './pdfBase';
 import {
   SOLICITUD_FIELD_COORDS,
@@ -46,22 +43,22 @@ const FONT_SIZE = 10;
 const getDiagnosisValue = (patient: PatientData): string =>
   patient.pathology || patient.cie10Description || '';
 
+type FieldCoords = { x: number; y: number; maxWidth: number };
+type DrawText = (text: string, coords: FieldCoords, options?: { shrinkToFit?: boolean }) => void;
+
 const fillImagingPatientIdentity = ({
   drawText,
   patient,
   coords,
   includeBirthDate,
 }: {
-  drawText: (text: string, coords: { x: number; y: number; maxWidth: number }) => void;
+  drawText: DrawText;
   patient: PatientData;
-  coords: Record<string, { x: number; y: number; maxWidth: number }>;
+  coords: Record<string, FieldCoords>;
   includeBirthDate?: boolean;
 }) => {
-  const [nombres, primerApellido, segundoApellido] = splitPatientName(patient.patientName);
-
-  drawText(nombres, coords.nombres);
-  drawText(primerApellido, coords.primerApellido);
-  drawText(segundoApellido, coords.segundoApellido);
+  // One measured line: separate name columns let long given names run into the surnames.
+  drawText(formatPatientDisplayName(patient), coords.nombreCompleto, { shrinkToFit: true });
   drawText(patient.rut || '', coords.rut);
   drawText(calculateAge(patient.birthDate), coords.edad);
 
@@ -77,10 +74,10 @@ const fillPhysicianAndDiagnosis = ({
   coords,
   includeDateField,
 }: {
-  drawText: (text: string, coords: { x: number; y: number; maxWidth: number }) => void;
+  drawText: DrawText;
   patient: PatientData;
   requestingPhysician: string;
-  coords: Record<string, { x: number; y: number; maxWidth: number }>;
+  coords: Record<string, FieldCoords>;
   includeDateField?: string;
 }) => {
   drawText(getDiagnosisValue(patient), coords.diagnostico);

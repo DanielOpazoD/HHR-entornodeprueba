@@ -27,6 +27,7 @@ describe('nameInputController', () => {
 
     expect(resolveNameInputState({ data })).toEqual({
       fullName: 'Juan Carlos Perez Soto',
+      displayName: 'Juan Carlos Perez Soto',
       canEditInlineName: false,
     });
   });
@@ -41,6 +42,7 @@ describe('nameInputController', () => {
 
     expect(resolveNameInputState({ data })).toEqual({
       fullName: 'Paciente Nuevo',
+      displayName: 'Paciente Nuevo',
       canEditInlineName: false,
     });
   });
@@ -54,6 +56,7 @@ describe('nameInputController', () => {
 
     expect(resolveNameInputState({ data, isSubRow: false })).toEqual({
       fullName: 'Paciente Principal',
+      displayName: 'Paciente Principal',
       canEditInlineName: false,
     });
   });
@@ -70,6 +73,7 @@ describe('nameInputController', () => {
 
     expect(resolveNameInputState({ data, isSubRow: true })).toEqual({
       fullName: 'Jose Tuki',
+      displayName: 'Jose Tuki',
       canEditInlineName: false,
     });
   });
@@ -83,7 +87,23 @@ describe('nameInputController', () => {
 
     expect(resolveNameInputState({ data, isSubRow: true })).toEqual({
       fullName: 'RN de Madre',
+      displayName: 'RN de Madre',
       canEditInlineName: true,
+    });
+  });
+
+  it('shows the first three given names but keeps the stored full name as the value', () => {
+    const data = DataFactory.createMockPatient('R1', {
+      patientName: 'Ana María de los Ángeles Valentina Rosa Elena de la Fuente Pakarati',
+      firstName: 'Ana María de los Ángeles Valentina Rosa Elena',
+      lastName: 'de la Fuente',
+      secondLastName: 'Pakarati',
+    });
+
+    expect(resolveNameInputState({ data })).toEqual({
+      fullName: 'Ana María de los Ángeles Valentina Rosa Elena de la Fuente Pakarati',
+      displayName: 'Ana María de los Ángeles de la Fuente Pakarati',
+      canEditInlineName: false,
     });
   });
 });

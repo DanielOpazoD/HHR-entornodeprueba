@@ -30,13 +30,23 @@ export const createUppercaseTextDrawer = ({
   font: PDFFont;
   fontSize: number;
 }) => {
-  return (text: string, coords: { x: number; y: number; maxWidth: number }) => {
+  return (
+    text: string,
+    coords: { x: number; y: number; maxWidth: number },
+    options: { shrinkToFit?: boolean } = {}
+  ) => {
     if (!text) return;
 
-    page.drawText(text.toUpperCase(), {
+    const upperText = text.toUpperCase();
+    // Only single-line fields are measured: WinAnsi metrics reject the line breaks a free-text
+    // field such as the diagnosis may carry, which drawText itself lays out as separate lines.
+    const width = options.shrinkToFit ? font.widthOfTextAtSize(upperText, fontSize) : 0;
+    const size = width > coords.maxWidth ? (fontSize * coords.maxWidth) / width : fontSize;
+
+    page.drawText(upperText, {
       x: coords.x,
       y: coords.y,
-      size: fontSize,
+      size,
       font,
     });
   };

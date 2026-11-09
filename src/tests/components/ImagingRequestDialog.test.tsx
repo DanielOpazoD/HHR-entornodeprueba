@@ -10,12 +10,11 @@ vi.mock('@/services/pdf/imagingRequestPdfService', () => ({
   printImagingEncuestaForm: vi.fn(),
   ENCUESTA_TEMPLATE_PATH: '/docs/encuesta-contraste.pdf',
   SOLICITUD_FIELD_COORDS: {
-    nombres: { x: 10, y: 10, maxWidth: 100 },
+    nombreCompleto: { x: 10, y: 10, maxWidth: 100 },
   },
   ENCUESTA_FIELD_COORDS: {
-    nombres: { x: 10, y: 10, maxWidth: 100 },
+    nombreCompleto: { x: 10, y: 10, maxWidth: 100 },
   },
-  splitPatientName: vi.fn(() => ['MARCELO', 'VALDES', 'AVILA']),
   formatDate: vi.fn(d => d),
   calculateAge: vi.fn(() => '30 AÑOS'),
 }));
@@ -44,7 +43,8 @@ describe('ImagingRequestDialog', () => {
     render(<ImagingRequestDialog isOpen={true} onClose={vi.fn()} patient={mockPatient} />);
 
     expect(screen.getByText(/Solicitud de Imágenes/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/MARCELO VALDES AVILA/i)).toHaveLength(2);
+    // Dialog header, patient summary and the form preview's single name line.
+    expect(screen.getAllByText(/MARCELO VALDES AVILA/i)).toHaveLength(3);
   });
 
   it('should switch between documents', () => {
