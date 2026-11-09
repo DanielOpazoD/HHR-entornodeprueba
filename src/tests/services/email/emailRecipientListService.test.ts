@@ -27,7 +27,12 @@ vi.mock('@/services/storage/firestore', () => ({
   },
 }));
 
+vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
+  recordOperationalTelemetry: vi.fn(),
+}));
+
 import { firestoreDb } from '@/services/storage/firestore';
+import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 
 describe('emailRecipientListService', () => {
   beforeEach(() => {
@@ -178,6 +183,27 @@ describe('emailRecipientListService', () => {
 
     expect(result.status).toBe('failed');
     expect(result.data).toEqual([]);
+  });
+
+  it('reports a failed list load as a failure, and a denied one as degraded (not mailed)', async () => {
+    vi.mocked(firestoreDb.getDocs).mockRejectedValueOnce(new Error('boom'));
+    await getGlobalEmailRecipientListsWithResult();
+    expect(vi.mocked(recordOperationalTelemetry).mock.calls.at(-1)?.[0]).toMatchObject({
+      operation: 'get_global_email_recipient_lists',
+      status: 'failed',
+    });
+
+    vi.mocked(firestoreDb.getDocs).mockRejectedValueOnce(
+      Object.assign(new Error('Missing or insufficient permissions.'), {
+        code: 'permission-denied',
+      })
+    );
+    const denied = await getGlobalEmailRecipientListsWithResult();
+    expect(denied.status).toBe('failed');
+    expect(vi.mocked(recordOperationalTelemetry).mock.calls.at(-1)?.[0]).toMatchObject({
+      operation: 'get_global_email_recipient_lists',
+      status: 'degraded',
+    });
   });
 
   it('returns a typed delete failure when deletion throws', async () => {
