@@ -117,6 +117,121 @@ describe('ExamRequestModal integration', () => {
     expect(first).toHaveFocus();
   });
 
+  it('prints all the typed OTROS and MEDICO TRATANTE, wrapping instead of cutting', () => {
+    const { rerender } = render(
+      <ExamRequestModal isOpen={true} onClose={vi.fn()} patient={mockPatient} />
+    );
+    const form = screen.getByTestId('exam-request-form');
+    const otros =
+      'Perfil lipídico, ferritina, vitamina B12, procalcitonina, hemoglobina glicosilada, cortisol, acido folico';
+    const medico = 'Dra. Sintética Pérez de la Fuente Riroroko, Medicina Interna, turno de noche';
+
+    fireEvent.change(within(form).getByRole('textbox', { name: 'OTROS' }), {
+      target: { value: otros },
+    });
+    fireEvent.change(within(form).getByRole('textbox', { name: 'MEDICO TRATANTE' }), {
+      target: { value: medico },
+    });
+
+    // Paper gets a plain copy of every character, which wraps onto the next ruled line; the
+    // fields, whose box would cut what does not fit, stay off the page.
+    const printedOtros = within(form).getByTestId('exam-request-print-otros');
+    const printedMedico = within(form).getByTestId('exam-request-print-medicoTratante');
+    expect(printedOtros).toHaveTextContent(otros, { normalizeWhitespace: false });
+    expect(printedMedico).toHaveTextContent(medico, { normalizeWhitespace: false });
+    for (const printed of [printedOtros, printedMedico]) {
+      expect(printed).toHaveClass('hidden', 'print:block', 'whitespace-pre-wrap', 'break-words');
+    }
+    within(form)
+      .getAllByRole('textbox')
+      .forEach(input => expect(input).toHaveClass('print:hidden'));
+    // FIRMA stays a blank line for handwriting.
+    expect(within(form).getAllByRole('textbox')).toHaveLength(2);
+
+    // Nothing is kept once the dialog closes: the next opening starts blank.
+    rerender(<ExamRequestModal isOpen={false} onClose={vi.fn()} patient={mockPatient} />);
+    rerender(<ExamRequestModal isOpen={true} onClose={vi.fn()} patient={mockPatient} />);
+    const reopened = screen.getByTestId('exam-request-form');
+    within(reopened)
+      .getAllByRole('textbox')
+      .forEach(input => expect(input).toHaveValue(''));
+    expect(within(reopened).getByTestId('exam-request-print-otros')).toBeEmptyDOMElement();
+  });
+
+  it('starts a blank request when another patient takes the bed while it is open', () => {
+    const first = { ...mockPatient, clinicalEpisodeId: 'episode-a' };
+    const { rerender } = render(
+      <ExamRequestModal isOpen={true} onClose={vi.fn()} patient={first} />
+    );
+    fireEvent.click(screen.getByText('ELECTROLITOS PLASMATICOS'));
+    fireEvent.change(screen.getByRole('textbox', { name: 'OTROS' }), {
+      target: { value: 'Ferritina' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'MEDICO TRATANTE' }), {
+      target: { value: 'Dra. Sintética' },
+    });
+
+    // A sync refresh of the same patient and episode keeps what was typed.
+    rerender(
+      <ExamRequestModal
+        isOpen={true}
+        onClose={vi.fn()}
+        patient={{ ...first, pathology: 'Neumonia grave' }}
+      />
+    );
+    expect(screen.getByDisplayValue('Ferritina')).toBeInTheDocument();
+    expect(screen.getByText('X')).toBeInTheDocument();
+
+    rerender(
+      <ExamRequestModal
+        isOpen={true}
+        onClose={vi.fn()}
+        patient={{
+          ...mockPatient,
+          patientName: 'Otro Sintetico',
+          rut: '22.222.222-2',
+          clinicalEpisodeId: 'episode-b',
+        }}
+      />
+    );
+    const form = screen.getByTestId('exam-request-form');
+    expect(within(form).getByText(/Otro Sintetico/i)).toBeInTheDocument();
+    expect(within(form).queryByText('X')).not.toBeInTheDocument();
+    within(form)
+      .getAllByRole('textbox')
+      .forEach(input => expect(input).toHaveValue(''));
+  });
+
+  it('never carries a request between patients that no episode or document identifies', () => {
+    // Two provisional newborns: same name and admission day, no RUT and no episode yet.
+    const newborn = { ...mockPatient, rut: '', patientName: 'RN de Madre Sintética' };
+    const first = { ...newborn, admissionTime: '08:10' };
+    const { rerender } = render(
+      <ExamRequestModal isOpen={true} onClose={vi.fn()} patient={first} />
+    );
+    fireEvent.click(screen.getByText('ELECTROLITOS PLASMATICOS'));
+    fireEvent.change(screen.getByRole('textbox', { name: 'OTROS' }), {
+      target: { value: 'Bilirrubina' },
+    });
+
+    // Re-rendering the same record keeps what was typed.
+    rerender(<ExamRequestModal isOpen={true} onClose={vi.fn()} patient={first} />);
+    expect(screen.getByDisplayValue('Bilirrubina')).toBeInTheDocument();
+
+    rerender(
+      <ExamRequestModal
+        isOpen={true}
+        onClose={vi.fn()}
+        patient={{ ...newborn, admissionTime: '21:40' }}
+      />
+    );
+    const form = screen.getByTestId('exam-request-form');
+    expect(within(form).queryByText('X')).not.toBeInTheDocument();
+    within(form)
+      .getAllByRole('textbox')
+      .forEach(input => expect(input).toHaveValue(''));
+  });
+
   it('updates the selected exam count when a visible exam is toggled', async () => {
     render(<ExamRequestModal isOpen={true} onClose={vi.fn()} patient={mockPatient} />);
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Camera, LogOut } from 'lucide-react';
+import { Camera, LogOut, PenLine } from 'lucide-react';
 
 interface UserMenuPanelProps {
   userLabel: string;
@@ -11,6 +11,7 @@ interface UserMenuPanelProps {
   avatarUrl?: string | null;
   onChangePassword: () => void;
   onOpenAvatarSettings?: () => void;
+  onOpenSignatureSettings?: () => void;
   onLogout: () => void;
   loggingOut?: boolean;
   close: () => void;
@@ -26,6 +27,7 @@ export default function UserMenuPanel({
   avatarUrl,
   onChangePassword,
   onOpenAvatarSettings,
+  onOpenSignatureSettings,
   onLogout,
   loggingOut = false,
   close,
@@ -95,6 +97,18 @@ export default function UserMenuPanel({
           >
             <Camera size={14} />
             Cambiar foto
+          </button>
+        )}
+        {onOpenSignatureSettings && (
+          <button
+            onClick={() => {
+              onOpenSignatureSettings();
+              close();
+            }}
+            className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+          >
+            <PenLine size={14} />
+            Mi firma
           </button>
         )}
         <button

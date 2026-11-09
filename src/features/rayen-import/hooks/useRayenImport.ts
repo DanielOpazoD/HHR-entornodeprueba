@@ -202,6 +202,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     completeRun: completeRunSerialized,
     onStaffingProposal: () => undefined,
     createId: () => crypto.randomUUID(),
+    recordRunPerformance,
   });
   const runClinicalStage = useCallback(
     async (request: ClinicalFillRequest): Promise<ClinicalStageResult> => {
