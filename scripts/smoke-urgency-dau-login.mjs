@@ -13,6 +13,7 @@ await fs.mkdir(extension);
 const files = [
   'message-contract.js',
   'hhr-origin-policy.js',
+  'exalab-background.js',
   'urgency-api.js',
   'urgency-auth-model.js',
   'urgency-auth-state.js',
@@ -179,6 +180,7 @@ try {
   console.log(
     JSON.stringify({
       inlineExtensionFrameLoadedUnderProductionCsp: true,
+      nativeLoginWithExalabListener: true,
       missingSessionPreflightMs: Math.round(result.preflightMs * 100) / 100,
       clinicalReadsBeforeLoginPrompt: 0,
       otpCompleted: true,

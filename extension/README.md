@@ -6,7 +6,7 @@ Médico** y lo entrega al **censo local HHR** para importarlo con revisión. Ade
 vigente oficial de Eloísa. Como respaldo sin backend intermedio, cada paciente activo puede copiarse
 como un código versionado que HHR valida antes de una admisión manual y de la elección de cama.
 
-## DAU oficial sin abrir Urgencias (0.48.86)
+## DAU oficial sin abrir Urgencias (0.48.87)
 
 Si no hay una sesión nativa utilizable, «Descargar DAU oficial (PDF)» muestra el acceso
 a Rayen Urgencias dentro del panel: usuario, contraseña, dominio y, si corresponde,
@@ -17,6 +17,7 @@ cambiar de sesión clínica o cerrar la pestaña revoca ese acceso.
 El botón comprueba primero si existe acceso nativo. Cuando falta, prepara el formulario
 sin esperar la recarga del historial HCC ni leer datos clínicos. Después del login se
 verifican igualmente el paciente y la atención seleccionada antes de descargar el PDF.
+El paquete 0.48.87 reúne este acceso con el conector de Exalab incorporado en `main`.
 
 El `ContextId` proviene del login nativo; no se reemplaza por tokens de Eloísa.
 La API confirma paciente, atención, admisión y establecimiento antes de solicitar el
