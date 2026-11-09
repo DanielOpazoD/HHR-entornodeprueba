@@ -43,7 +43,6 @@ import { recordSyncQueueTruthSelectionTelemetry } from '@/services/storage/sync/
 import {
   assertNoSamePathRemoteMutation,
   hasRemoteAppliedMutation,
-  hasUnchangedPatchBase,
 } from '@/services/storage/sync/firestoreSyncConflictPolicy';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import type { DetachedOccupantWork } from './dayTaskOccupantDetach';
@@ -165,7 +164,10 @@ interface ResolvedSyncRecordForTask {
 /** The day task's occupant and replay checks, loaded with the outbox, and the day's queued notes. */
 interface ReplayChecks extends Pick<
   typeof import('./dexieDailyRecordOutbox'),
-  'detachStaleOccupantPaths' | 'hasOtherOccupantInUntouchedBed' | 'keepStoredNoteFields'
+  | 'detachStaleOccupantPaths'
+  | 'hasOtherOccupantInUntouchedBed'
+  | 'hasUnchangedPatchBase'
+  | 'keepStoredNoteFields'
 > {
   noteValues: ReadonlyMap<string, readonly SpecialistNoteValue[]>;
 }
@@ -249,7 +251,8 @@ const resolveRecordForSyncTask = async (
   }
 
   const remoteRecord = docToRecord(remoteData, record.date);
-  const canRebasePatch = !detached && hasUnchangedPatchBase(queuedTask, remoteRecord, queuedRecord);
+  const canRebasePatch =
+    !detached && Boolean(checks?.hasUnchangedPatchBase(queuedTask, remoteRecord, queuedRecord));
   if (task.nursingHandoffRecovery) {
     record = resolveDailyRecordConflict(remoteRecord, record, {
       changedPaths: task.syncContract?.changedPaths,

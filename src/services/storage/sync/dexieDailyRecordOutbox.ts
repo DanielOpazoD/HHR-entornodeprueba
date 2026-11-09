@@ -35,6 +35,7 @@ import {
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { UNKNOWN_SERVER_VERSION } from '@/services/storage/sync/syncTaskContractPolicy';
 import { capturePatchBaseContext } from './dailyRecordPatchBase';
+export { hasUnchangedPatchBase } from './dailyRecordPatchBase';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { applyPatches } from '@/utils/patchUtils';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';

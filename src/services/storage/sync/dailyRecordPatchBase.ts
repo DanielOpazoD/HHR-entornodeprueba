@@ -1,6 +1,12 @@
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
-import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
+import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import {
+  getValueAtPath,
+  hasSameValuesAtPaths,
+  normalizeChangedPaths,
+} from '@/services/repositories/conflictResolutionUtils';
 import { NOTE_FIELDS, hasSameNoteValue } from './dayTaskReplayGuard';
+import { resolveRecordBaseRevision, UNKNOWN_SERVER_VERSION } from './syncTaskContractPolicy';
 
 const CONTEXT_FIELDS = [
   'patientName',
@@ -38,10 +44,10 @@ export const capturePatchBaseContext = (record: DailyRecord): Record<string, unk
   );
 
 /** Keep the narrow automatic lane out of identity changes, movements and handoff writes. */
-export const isOrdinaryClinicalPatchPath = (path: string): boolean =>
+const isOrdinaryClinicalPatchPath = (path: string): boolean =>
   /^beds\.[^.]+\.(?:clinicalCrib\.)?(?:pathology|status)$/.test(path);
 
-export const hasOriginalPatchContext = (
+const hasOriginalPatchContext = (
   context: Record<string, unknown> | undefined,
   local: DailyRecord,
   remote: DailyRecord
@@ -51,3 +57,36 @@ export const hasOriginalPatchContext = (
     hasSameNoteValue(context, capturePatchBaseContext(local)) &&
     hasSameNoteValue(context, capturePatchBaseContext(remote))
   );
+
+/** Original values alone cannot prove that a field still belongs to the same patient episode. */
+export const hasUnchangedPatchBase = (
+  task: SyncTask,
+  remote: DailyRecord,
+  local: DailyRecord
+): boolean => {
+  const paths = normalizeChangedPaths(task.syncContract?.changedPaths);
+  const base = task.patchBaseValues;
+  const expectedTime = Date.parse(task.syncContract?.expectedVersion ?? '');
+  const remoteTime = Date.parse(remote.lastUpdated ?? '');
+  return Boolean(
+    !task.nursingHandoffRecovery &&
+    task.syncContract?.expectedVersion !== UNKNOWN_SERVER_VERSION &&
+    Number.isFinite(expectedTime) &&
+    Number.isFinite(remoteTime) &&
+    remoteTime >= expectedTime &&
+    (task.syncContract?.baseRevision === undefined ||
+      (resolveRecordBaseRevision(remote) ?? -1) >= task.syncContract.baseRevision) &&
+    base &&
+    paths.length &&
+    paths.every(path => {
+      if (!isOrdinaryClinicalPatchPath(path) || !Object.hasOwn(base, path)) return false;
+      const slot = path.slice(0, path.lastIndexOf('.'));
+      return ['rut', 'clinicalEpisodeId'].every(field => {
+        const value = getValueAtPath(local, `${slot}.${field}`);
+        return typeof value === 'string' && value.trim().length > 0;
+      });
+    }) &&
+    hasOriginalPatchContext(task.patchBaseContext, local, remote) &&
+    hasSameValuesAtPaths(remote, Object.fromEntries(paths.map(path => [path, base?.[path]])))
+  );
+};
