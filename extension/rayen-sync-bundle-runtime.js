@@ -3,11 +3,13 @@
   'use strict';
   const MAX_SOURCE_SKEW_MS = 2 * 60 * 1000;
   const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
-  const bothSourcesReady = health =>
-    health?.fichaMedico?.status === 'ready' && health?.gestionCamas?.status === 'ready';
+  const bothSourcesReady = health => health?.fichaMedico?.status === 'ready' && health?.gestionCamas?.status === 'ready';
   const sourceFailureMessage = health => health?.fichaMedico?.status !== 'ready'
     ? health?.fichaMedico?.message || 'Ficha Médico no está conectada.'
     : health?.gestionCamas?.message || 'Gestión de Camas no está conectada.';
+  // A Ficha tab blocked by an earlier network failure keeps its session: its read clears the block or fails honestly.
+  const canStartReads = health => bothSourcesReady(health) || (health?.gestionCamas?.status === 'ready' &&
+    /no puede leer datos desde esta pestaña/.test(String(health?.fichaMedico?.message || '')));
   const createMeasuredRead = (timings, clock = () => root.performance.now()) => async (stage, read) => {
     const started = clock();
     try {
@@ -123,9 +125,7 @@
     try {
       const before = await measuredRead('captureHealthBefore', readHealth);
       if (isCancelled()) return cancelled();
-      if (!bothSourcesReady(before)) {
-        return { error: sourceFailureMessage(before) };
-      }
+      if (!canStartReads(before)) return { error: sourceFailureMessage(before) };
       const reads = await root.HhrCaptureReadRecovery.read({
         readFicha: () => measuredRead('captureFichaMedico', readSnapshot),
         readGestion: () => measuredRead('captureGestionCamas', () => readReport({ dateStart, dateEnd })),
