@@ -35,6 +35,10 @@ describe('extension package identity', () => {
     const link = screen.getByText('Descargar ZIP · v0.48.88');
     expect(link).toHaveAttribute('href', '/downloads/eloisa-extension-0.48.88-aaaaaaaaaaaa.zip');
     expect(link).toHaveAttribute('download');
+    expect(screen.getByText('Ver cambios de esta versión')).toHaveAttribute(
+      'href',
+      'https://github.com/DanielOpazoD/extensioneloisahhr/releases/tag/v0.48.88'
+    );
     link.addEventListener('click', event => event.preventDefault());
     fireEvent.click(link);
     expect(screen.getByRole('button', { name: 'Paquete diferente' })).toBeInTheDocument();
