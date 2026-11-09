@@ -817,6 +817,17 @@ El DAU pregunta dónde guardar el PDF (`saveAs=true`) para que el usuario elija 
 destino explícito. Los demás informes mantienen su descarga habitual por defecto.
 No cambian permisos, no se copia el token y no se persiste el contenido en HHR.
 
+### Sesión personal Exalab · 0.48.85
+
+HHR puede abrir `exalab-connect.html` desde su módulo Laboratorio. La página explica
+la vinculación personal y solicita `cookies` y el host Exalab como permisos
+opcionales, únicamente tras pulsar Conectar mi sesión. Solo lee las cookies
+`PHPSESSID` y `cf_clearance` aplicables a Exalab y las entrega por HTTPS al gateway
+HHR con un token de vinculación de cinco minutos y un solo uso. Nunca recibe una
+contraseña ni envía cookies mediante `window.postMessage`, storage o logs.
+El origen de destino se obtiene de la pestaña HHR autorizada; no admite destinos
+arbitrarios ni solicitudes de subframes. Ver el contrato en el README de laboratorio.
+
 ### Identificador de paciente del DAU · 0.48.83
 
 El filtro nativo `DAUReport` llama a `PatientCareService.dauURL`, que entrega

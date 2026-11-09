@@ -1,3 +1,15 @@
+/** Original Exalab report with its source centre and opaque, session-bound link. */
+export interface ExalabExam {
+  id: string;
+  rut: string;
+  date: string;
+  time: string;
+  patientName: string;
+  laboratory: string;
+  exams: string;
+  link: string;
+}
+
 /** Single exam entry returned by the Syslab search endpoint. */
 export interface SyslabExamItem {
   id: string;

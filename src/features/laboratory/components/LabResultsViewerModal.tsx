@@ -3,7 +3,7 @@
  * @description Modal for viewing laboratory exams from the Syslab system.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ClipboardPlus, FlaskConical } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { useLabViewer } from '../hooks/useLabViewer';
@@ -18,6 +18,14 @@ import { LabViewerEmptyState } from './LabViewerEmptyState';
 import { SyslabAccessPrompt } from './SyslabAccessPrompt';
 import { useSyslabAccess } from '../hooks/useSyslabAccess';
 import { useInitialLabViewerAutoSearch } from '../hooks/useInitialLabViewerAutoSearch';
+import { useSessionEpoch } from '@/hooks/useSessionEpoch';
+import { LaboratorySourceSelector } from './LaboratorySourceSelector';
+
+const ExalabResultsViewerModal = lazyWithRetry(() =>
+  import('./ExalabResultsViewerModal').then(module => ({
+    default: module.ExalabResultsViewerModal,
+  }))
+);
 
 const LabViewerPdf = lazyWithRetry(() =>
   import('./LabViewerPdf').then(module => ({ default: module.LabViewerPdf }))
@@ -35,13 +43,34 @@ interface LabResultsViewerModalProps {
   onRequestExams?: () => void;
 }
 
-export const LabResultsViewerModal: React.FC<LabResultsViewerModalProps> = ({
+export const LabResultsViewerModal: React.FC<LabResultsViewerModalProps> = props => {
+  const [source, setSource] = useState<'syslab' | 'exalab'>('syslab');
+  const epoch = useSessionEpoch();
+  const sourceSelector = <LaboratorySourceSelector source={source} onChange={setSource} />;
+  if (source === 'exalab' && !props.isOpen) return null;
+  if (source === 'exalab')
+    return (
+      <React.Suspense fallback={<p role="status">Cargando Exalab…</p>}>
+        <ExalabResultsViewerModal
+          key={`${epoch}:${props.initialPatientRut || ''}`}
+          {...props}
+          sourceSelector={sourceSelector}
+        />
+      </React.Suspense>
+    );
+  return <SyslabResultsViewerModal {...props} sourceSelector={sourceSelector} />;
+};
+
+const SyslabResultsViewerModal: React.FC<
+  LabResultsViewerModalProps & { sourceSelector: React.ReactNode }
+> = ({
   isOpen,
   onClose,
   patients,
   initialPatientRut,
   autoSearchInitialPatient = false,
   onRequestExams,
+  sourceSelector,
 }) => {
   const lab = useLabViewer(patients, initialPatientRut);
   const syslabAccess = useSyslabAccess(isOpen);
@@ -88,18 +117,21 @@ export const LabResultsViewerModal: React.FC<LabResultsViewerModalProps> = ({
       icon={<FlaskConical size={16} />}
       headerIconColor="text-emerald-600"
       headerActions={
-        onRequestExams ? (
-          <button
-            type="button"
-            onClick={onRequestExams}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-[12px] font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-500"
-          >
-            <ClipboardPlus size={14} aria-hidden="true" />
-            Solicitar exámenes
-          </button>
-        ) : undefined
+        <div className="flex flex-wrap items-center gap-2">
+          {onRequestExams ? (
+            <button
+              type="button"
+              onClick={onRequestExams}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-[12px] font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-500"
+            >
+              <ClipboardPlus size={14} aria-hidden="true" />
+              Solicitar exámenes
+            </button>
+          ) : null}
+        </div>
       }
     >
+      <div className="mb-3 flex flex-wrap">{sourceSelector}</div>
       {shellModel.shouldShowControls && (
         <>
           <LabViewerControls
