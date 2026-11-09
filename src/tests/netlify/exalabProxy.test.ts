@@ -93,6 +93,27 @@ describe('Exalab gateway', () => {
     expect(fetchMock.mock.calls[0][1].headers).not.toHaveProperty('X-HHR-Lab-Owner');
     expect(fetchMock.mock.calls[0][1].body).not.toContain('attacker');
   });
+  it('forwards only a well-formed consenting-account fingerprint on a silent reconnection', async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ success: true, connected: true })));
+    const origin = { origin: `chrome-extension://${'a'.repeat(32)}` };
+    const pair = 'a'.repeat(43);
+    await request(
+      'connect',
+      'POST',
+      { pair, session: { cookies: [] }, expectedOwner: '0123456789abcdef' },
+      origin
+    );
+    await request(
+      'connect',
+      'POST',
+      { pair, session: { cookies: [] }, expectedOwner: 'x'.repeat(200) },
+      origin
+    );
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({
+      expectedOwner: '0123456789abcdef',
+    });
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).not.toHaveProperty('expectedOwner');
+  });
   it('rejects unauthorized roles, arbitrary origins and invalid methods before reaching the bridge', async () => {
     authorize.mockRejectedValue(new Error('secret-auth-error'));
     expect((await request('search', 'POST', {})).statusCode).toBe(403);
