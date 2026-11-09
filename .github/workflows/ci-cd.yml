@@ -59,20 +59,6 @@ jobs:
         env:
           CI_GIT_ROOT: ${{ github.workspace }}/candidate
 
-      - name: Prevent reusing an extension release version
-        if: github.event_name == 'pull_request'
-        shell: bash
-        run: |
-          validator=trusted-ci/scripts/check-extension-version-advance.mjs
-          if [[ ! -f "$validator" ]]; then
-            validator=candidate/scripts/check-extension-version-advance.mjs
-          fi
-          node "$validator"
-        env:
-          CI_GIT_ROOT: ${{ github.workspace }}/candidate
-          CI_EXTENSION_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          CI_EXTENSION_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-
   docs-scope-gate:
     name: docs-scope-gate
     runs-on: ubuntu-latest

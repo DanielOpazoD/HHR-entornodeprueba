@@ -7,6 +7,7 @@ vi.mock('virtual:rayen-extension-release', () => ({
     version: '0.48.88',
     buildId: 'a'.repeat(64),
     path: 'downloads/eloisa-extension-0.48.88-aaaaaaaaaaaa.zip',
+    notesUrl: 'https://github.com/DanielOpazoD/extensioneloisahhr/releases/tag/v0.48.88',
   },
 }));
 describe('extension package identity', () => {

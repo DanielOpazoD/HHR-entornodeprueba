@@ -98,6 +98,14 @@ export const RayenExtensionDownload: React.FC<Props> = ({
         >
           <Download size={13} aria-hidden="true" /> Descargar ZIP · v{release.version}
         </a>
+        <a
+          href={release.notesUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-2 block text-teal-700 underline"
+        >
+          Ver cambios de esta versión
+        </a>
         <ol className="mt-3 list-decimal space-y-1 pl-4">
           <li>
             Descomprime el ZIP y reemplaza el contenido de la carpeta donde instalaste la extensión.

@@ -40,18 +40,6 @@ describe('CI change scope governance', () => {
     expect(classify.run).toContain('node scripts/classify-ci-change-scope.mjs');
     expect(classify.run).toContain('reason=trusted_classifier_unavailable');
 
-    const versionGuard = jobs['ci-scope'].steps.find(
-      step => step.name === 'Prevent reusing an extension release version'
-    );
-    expect(versionGuard?.if).toBe("github.event_name == 'pull_request'");
-    expect(versionGuard?.run).toContain('trusted-ci/scripts/check-extension-version-advance.mjs');
-    expect(versionGuard?.env).toMatchObject({
-      CI_GIT_ROOT: '${{ github.workspace }}/candidate',
-      CI_EXTENSION_BASE_SHA: '${{ github.event.pull_request.base.sha }}',
-      CI_EXTENSION_HEAD_SHA: '${{ github.event.pull_request.head.sha }}',
-    });
-    expect(versionGuard?.['continue-on-error']).not.toBe(true);
-
     const commandsOf = (jobName: string) =>
       jobs[jobName].steps.map(step => step.run ?? '').join('\n');
     expect(jobs['docs-scope-gate'].name).toBe('docs-scope-gate');

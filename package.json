@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build:rules-assets": "node scripts/build-rules-assets.mjs",
-    "check:rayen-extension-release": "node scripts/check-rayen-extension-release.mjs",
+    "check:rayen-extension-release": "node scripts/check-extension-source.mjs && node scripts/check-rayen-extension-release.mjs",
     "dev": "vite",
     "seed:document-scanner:emulator": "node scripts/seed-document-scanner-emulator.mjs",
     "build": "vite build",
@@ -240,7 +240,7 @@
     "test:e2e:shared-offscreen": "node scripts/smoke-shared-offscreen-runtime.mjs",
     "test:e2e:census-performance": "playwright test --config=playwright.census-performance.config.ts",
     "test:census-performance-report": "node --test scripts/tests/census-startup-performance-report.test.mjs",
-    "check:extension-version-advance": "node scripts/check-extension-version-advance.mjs"
+    "extension:sync": "node scripts/check-extension-source.mjs --write"
   },
   "dependencies": {
     "@cornerstonejs/core": "4.22.13",
@@ -345,7 +345,8 @@
     "workbox-precaching": "^7.4.0",
     "workbox-routing": "^7.4.0",
     "workbox-strategies": "^7.4.0",
-    "yaml": "2.8.3"
+    "yaml": "2.8.3",
+    "@hhr/eloisa-extension": "git+https://github.com/DanielOpazoD/extensioneloisahhr.git#e72a796167d95555da84a0aa5eefc2c353b68075"
   },
   "overrides": {
     "@xmldom/xmldom": "0.9.10",
