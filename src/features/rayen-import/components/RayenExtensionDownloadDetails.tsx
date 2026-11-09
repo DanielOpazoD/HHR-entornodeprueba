@@ -1,8 +1,8 @@
 import React from 'react';
-import { Download } from 'lucide-react';
 import release from 'virtual:rayen-extension-release';
 
 interface Props {
+  download: React.ReactNode;
   installedVersion?: string;
   verifiedId?: string;
   label: string;
@@ -14,6 +14,7 @@ interface Props {
 }
 
 const RayenExtensionDownloadDetails: React.FC<Props> = ({
+  download,
   installedVersion,
   verifiedId,
   label,
@@ -48,13 +49,7 @@ const RayenExtensionDownloadDetails: React.FC<Props> = ({
         conexión.
       </p>
     )}
-    <a
-      href={`${import.meta.env.BASE_URL}${release.path}`}
-      download
-      className="mt-3 inline-flex items-center gap-1 rounded-md bg-teal-700 px-3 py-2 font-semibold text-white hover:bg-teal-800"
-    >
-      <Download size={13} aria-hidden="true" /> Descargar ZIP · v{release.version}
-    </a>
+    {download}
     <a
       href={release.notesUrl}
       target="_blank"

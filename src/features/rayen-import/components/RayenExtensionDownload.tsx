@@ -35,6 +35,15 @@ export const RayenExtensionDownload: React.FC<Props> = ({
       : unidentified
         ? 'Identidad sin verificar'
         : 'Descargar extensión';
+  const download = (
+    <a
+      href={`${import.meta.env.BASE_URL}${release.path}`}
+      download
+      className="mt-3 inline-flex items-center gap-1 rounded-md bg-teal-700 px-3 py-2 font-semibold text-white hover:bg-teal-800"
+    >
+      <Download size={13} aria-hidden="true" /> Descargar ZIP · v{release.version}
+    </a>
+  );
   return (
     <div className="relative shrink-0">
       <button
@@ -69,9 +78,10 @@ export const RayenExtensionDownload: React.FC<Props> = ({
         style={position}
         className="fixed m-0 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-600 shadow-lg"
       >
-        {detailsRequested && (
-          <React.Suspense fallback={<p>Cargando información de la extensión…</p>}>
+        {detailsRequested ? (
+          <React.Suspense fallback={download}>
             <DownloadDetails
+              download={download}
               installedVersion={installedVersion}
               verifiedId={verifiedId}
               label={label}
@@ -82,6 +92,8 @@ export const RayenExtensionDownload: React.FC<Props> = ({
               working={working}
             />
           </React.Suspense>
+        ) : (
+          download
         )}
       </div>
     </div>
