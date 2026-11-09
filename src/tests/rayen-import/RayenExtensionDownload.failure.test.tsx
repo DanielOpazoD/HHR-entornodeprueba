@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { expect, it, vi } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { SectionErrorBoundary } from '@/components/shared/SectionErrorBoundary';
 import { RayenExtensionDownload } from '@/features/rayen-import/components/RayenExtensionDownload';
 
@@ -15,6 +15,8 @@ vi.mock('virtual:rayen-extension-release', () => ({
 vi.mock('@/features/rayen-import/components/RayenExtensionDownloadDetails', () => {
   throw new Error('Synthetic help module download failed');
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 it('contains a rejected help import, preserves the census draft and keeps ZIP and notes available', async () => {
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
