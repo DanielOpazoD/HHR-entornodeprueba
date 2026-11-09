@@ -13,16 +13,17 @@ vi.mock('virtual:rayen-extension-release', () => ({
 describe('extension package identity', () => {
   it.each(['0.48.88', '0.48.89', '0.48.86'])(
     'does not infer identity from version %s alone',
-    version => {
+    async version => {
       render(
         <RayenExtensionDownload installedVersion={version} incompatible={false} working={false} />
       );
       expect(screen.getByRole('button', { name: 'Identidad sin verificar' })).toBeInTheDocument();
-      expect(screen.getByText(/no informa una identidad verificable/)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Identidad sin verificar' }));
+      expect(await screen.findByText(/no informa una identidad verificable/)).toBeInTheDocument();
       expect(screen.queryByText(/El identificador coincide/)).not.toBeInTheDocument();
     }
   );
-  it('distinguishes two parallel builds with the same version until a matching report arrives', () => {
+  it('distinguishes two parallel builds with the same version until a matching report arrives', async () => {
     const { rerender } = render(
       <RayenExtensionDownload
         installedVersion="0.48.88"
@@ -32,7 +33,9 @@ describe('extension package identity', () => {
       />
     );
     expect(screen.getByRole('button', { name: 'Paquete diferente' })).toBeInTheDocument();
-    const link = screen.getByText('Descargar ZIP · v0.48.88');
+    expect(screen.queryByText('Descargar ZIP · v0.48.88')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Paquete diferente' }));
+    const link = await screen.findByText('Descargar ZIP · v0.48.88');
     expect(link).toHaveAttribute('href', '/downloads/eloisa-extension-0.48.88-aaaaaaaaaaaa.zip');
     expect(link).toHaveAttribute('download');
     expect(screen.getByText('Ver cambios de esta versión')).toHaveAttribute(
@@ -52,15 +55,17 @@ describe('extension package identity', () => {
     );
     expect(screen.getByText('El identificador coincide con el publicado.')).toBeInTheDocument();
   });
-  it('keeps compatibility separate and warns against interrupting a sync', () => {
+  it('keeps compatibility separate and warns against interrupting a sync', async () => {
     render(<RayenExtensionDownload installedVersion="0.48.86" incompatible working />);
     expect(screen.getByRole('button', { name: 'Actualización necesaria' })).toBeInTheDocument();
-    expect(screen.getByText(/Espera a que termine la sincronización/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Actualización necesaria' }));
+    expect(await screen.findByText(/Espera a que termine la sincronización/)).toBeInTheDocument();
     expect(screen.getByText('Descargar ZIP · v0.48.88')).toHaveAttribute('download');
   });
-  it('keeps an absent report distinct from a different installed package', () => {
+  it('keeps an absent report distinct from a different installed package', async () => {
     render(<RayenExtensionDownload incompatible={false} working={false} />);
     expect(screen.getByRole('button', { name: 'Descargar extensión' })).toBeInTheDocument();
-    expect(screen.getByText(/Detectada: sin reporte/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Descargar extensión' }));
+    expect(await screen.findByText(/Detectada: sin reporte/)).toBeInTheDocument();
   });
 });
