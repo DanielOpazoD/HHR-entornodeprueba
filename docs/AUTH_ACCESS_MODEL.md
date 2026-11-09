@@ -50,6 +50,32 @@ compartida de Eloísa. Requiere la extensión 0.48.63; no cambia la versión mí
 
 ## Objetivo
 
+### DAU oficial con acceso nativo dentro del panel
+
+La extensión 0.48.87 ofrece el login de Rayen Urgencias junto al botón del DAU cuando
+no hay una sesión nativa utilizable. El formulario pertenece al origen de la extensión;
+usuario, contraseña y código de verificación no atraviesan el puente de mensajes de HHR.
+La contraseña se envía únicamente a `/api/usuario/login` en `api.saludenred.cl` y no se guarda.
+Sólo el `ContextId` devuelto por ese login puede solicitar `/api/tokenAcceso/`; nunca se
+sustituye por `firstToken`, `HSP` o `VHCC-TICKET`. No se ha identificado un canje SSO compatible.
+El profesional se identifica con `Profile.StaffMember.IdStaffMember`; el `Id` genérico
+del subobjeto puede ser cero y no sustituye esa identidad.
+
+La verificación adicional y la selección de perfil respetan la respuesta nativa. Si Rayen
+exige configurar MFA, el flujo se detiene sin posponerla. El ticket queda en
+`chrome.storage.session`, con acceso reservado a contextos de la extensión y vencimiento
+de una hora. Se vincula a la pestaña y autorización clínica actuales y se invalida al
+cambiar de sesión, cerrar esa pestaña o perder la autorización clínica. El contexto pendiente
+vence a los cinco minutos y se descarta al terminar o cancelar el ingreso.
+
+Antes de descargar, las APIs nativas deben confirmar el RUN, la atención, la admisión y el
+establecimiento seleccionados. Se vuelve a comprobar la autorización antes de entregar el PDF.
+El login sólo habilita el reintento de esa solicitud visible: no programa descargas al cerrar
+el panel ni autoriza escrituras clínicas. Los antecedentes HCC mantienen su flujo de Eloísa.
+Si el perfil impide verificar la atención o su establecimiento, se descarta el ticket y se
+ofrece «Iniciar sesión con otro perfil». El error de identidad se conserva al cancelar;
+ningún PDF se entrega hasta que el nuevo acceso confirme todas las relaciones.
+
 ### Entrega de enfermería al relevar el equipo compartido
 
 Decisión del responsable del 01-11-2026 (SAVE-01/03): sólo la entrega de enfermería

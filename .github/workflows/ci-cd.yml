@@ -655,6 +655,9 @@ jobs:
       - name: Validate the packaged Rayen extension in Chromium
         run: npm run test:e2e:rayen-extension-runtime
 
+      - name: Validate inline DAU login with synthetic API and production CSP
+        run: npm run test:e2e:urgency-dau-login
+
       - name: Validate 0.48.56 to current extension upgrade with open tabs
         run: npm run test:e2e:rayen-extension-upgrade
 

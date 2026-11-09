@@ -6,6 +6,25 @@ Médico** y lo entrega al **censo local HHR** para importarlo con revisión. Ade
 vigente oficial de Eloísa. Como respaldo sin backend intermedio, cada paciente activo puede copiarse
 como un código versionado que HHR valida antes de una admisión manual y de la elección de cama.
 
+## DAU oficial sin abrir Urgencias (0.48.87)
+
+Si no hay una sesión nativa utilizable, «Descargar DAU oficial (PDF)» muestra el acceso
+a Rayen Urgencias dentro del panel: usuario, contraseña, dominio y, si corresponde,
+código de verificación y perfil. La contraseña se envía directamente a Rayen y no se
+guarda. El contexto y el ticket temporales quedan aislados de HHR en la extensión;
+cambiar de sesión clínica o cerrar la pestaña revoca ese acceso.
+
+El botón comprueba primero si existe acceso nativo. Cuando falta, prepara el formulario
+sin esperar la recarga del historial HCC ni leer datos clínicos. Después del login se
+verifican igualmente el paciente y la atención seleccionada antes de descargar el PDF.
+El paquete 0.48.87 reúne este acceso con el conector de Exalab incorporado en `main`.
+
+El `ContextId` proviene del login nativo; no se reemplaza por tokens de Eloísa.
+La API confirma paciente, atención, admisión y establecimiento antes de solicitar el
+PDF oficial. La actualización requiere aceptar el permiso para `api.saludenred.cl`
+y recargar HHR/Eloísa. La prueba sintética del iframe, MFA y PDF se ejecuta con
+`npm run test:e2e:urgency-dau-login`, sin credenciales ni conexiones clínicas reales.
+
 ## Puente 0.48.58: direcciones HHR y despliegues
 
 El puente admite `https://hhr-hospitalizados.app`, los sitios `testinghhr.netlify.app` y

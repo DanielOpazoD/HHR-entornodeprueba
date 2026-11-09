@@ -3,6 +3,7 @@ import {
   type ClinicalAntecedentDetail,
 } from './clinicalAntecedentDetail';
 export type { ClinicalAntecedentDetail } from './clinicalAntecedentDetail';
+import { decodeClinicalDauAuth, type ClinicalDauAuth } from './clinicalDauAuth';
 
 export interface ClinicalAntecedentEntry {
   id: string;
@@ -24,6 +25,7 @@ export interface ClinicalActionResult {
   windowEnd?: string;
   nextBeforeDate?: string | null;
   detail?: ClinicalAntecedentDetail;
+  auth?: ClinicalDauAuth;
 }
 
 export const requestClinicalAction = (
@@ -90,6 +92,7 @@ export const requestClinicalAction = (
               : undefined,
         entries: safeEntries,
         detail,
+        auth: operation === 'dau' ? decodeClinicalDauAuth(data.auth) : undefined,
         warnings: Array.isArray(data.warnings)
           ? data.warnings.filter((value: unknown) => typeof value === 'string')
           : undefined,
