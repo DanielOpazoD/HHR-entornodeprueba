@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 
 import { ExamRequestModal } from '@/components/modals/ExamRequestModal';
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import type { PatientData } from '@/types/domain/patient';
 
 const printMock = vi.hoisted(() => vi.fn());
@@ -82,7 +83,7 @@ describe('ExamRequestModal integration', () => {
     expect(within(tabs).getAllByRole('tab')).toHaveLength(1);
     expect(screen.getByRole('button', { name: /^Imprimir$/ })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Pacientes/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Paciente/ }));
     fireEvent.click(screen.getByRole('checkbox', { name: /R2/ }));
     const [first, added] = within(tabs).getAllByRole('tab');
     expect(added).toHaveAttribute('aria-selected', 'true');
@@ -156,6 +157,47 @@ describe('ExamRequestModal integration', () => {
       .getAllByRole('textbox')
       .forEach(input => expect(input).toHaveValue(''));
     expect(within(reopened).getByTestId('exam-request-print-otros')).toBeEmptyDOMElement();
+  });
+
+  it('forgets what was typed when the session changes, since computers are shared', () => {
+    render(<ExamRequestModal isOpen={true} onClose={vi.fn()} patient={mockPatient} />);
+    fireEvent.change(screen.getByRole('textbox', { name: 'OTROS' }), {
+      target: { value: 'Ferritina' },
+    });
+
+    act(() => setSessionGeneration(`session-${Date.now()}`));
+
+    expect(screen.getByRole('textbox', { name: 'OTROS' })).toHaveValue('');
+  });
+
+  it('starts a blank request for a same-day readmission without an episode', () => {
+    const stay = { ...mockPatient, admissionTime: '07:00' };
+    const { rerender } = render(
+      <ExamRequestModal isOpen={true} onClose={vi.fn()} patient={stay} />
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'OTROS' }), {
+      target: { value: 'Ferritina' },
+    });
+
+    // The same stay refreshed by a sync keeps what was typed.
+    rerender(
+      <ExamRequestModal
+        isOpen={true}
+        onClose={vi.fn()}
+        patient={{ ...stay, pathology: 'Neumonia grave' }}
+      />
+    );
+    expect(screen.getByDisplayValue('Ferritina')).toBeInTheDocument();
+
+    // Discharged and admitted again the same day: same document and day, another stay.
+    rerender(
+      <ExamRequestModal
+        isOpen={true}
+        onClose={vi.fn()}
+        patient={{ ...stay, admissionTime: '19:40' }}
+      />
+    );
+    expect(screen.getByRole('textbox', { name: 'OTROS' })).toHaveValue('');
   });
 
   it('starts a blank request when another patient takes the bed while it is open', () => {
