@@ -5,7 +5,12 @@ import { describe, expect, it, vi } from 'vitest';
 const source = (name: string) =>
   readFileSync(new URL(`../../../extension/${name}`, import.meta.url), 'utf8');
 const pair = 'a'.repeat(43);
-const page = (origin = 'https://hhr-hospitalizados.app', granted = true, remember = true) => {
+const page = (
+  origin = 'https://hhr-hospitalizados.app',
+  granted = true,
+  remember = true,
+  user?: string | null
+) => {
   const clickHandlers: Record<string, () => Promise<void>> = {};
   const elements = Object.fromEntries(
     ['connect', 'status', 'back', 'auto'].map(id => [
@@ -34,7 +39,14 @@ const page = (origin = 'https://hhr-hospitalizados.app', granted = true, remembe
   const store = vi.fn(async (_value: unknown) => undefined);
   const fetchMock = vi.fn(
     async () =>
-      new Response(JSON.stringify({ success: true, connected: true, owner: '0123456789abcdef' }))
+      new Response(
+        JSON.stringify({
+          success: true,
+          connected: true,
+          owner: '0123456789abcdef',
+          exalabUser: user === undefined ? 'fedcba9876543210' : user,
+        })
+      )
   );
   const context = vm.createContext({
     URLSearchParams,
@@ -87,6 +99,7 @@ describe('Exalab personal-session consent', () => {
       exalabAutoConnect: true,
       exalabAutoConnectOrigin: 'https://hhr-hospitalizados.app',
       exalabAutoConnectOwner: '0123456789abcdef',
+      exalabAutoConnectUser: 'fedcba9876543210',
     });
     expect(JSON.parse(String(options.body))).not.toHaveProperty('expectedOwner');
   });
@@ -104,9 +117,18 @@ describe('Exalab personal-session consent', () => {
         exalabAutoConnect: false,
         exalabAutoConnectOrigin: null,
         exalabAutoConnectOwner: null,
+        exalabAutoConnectUser: null,
       });
     }
   );
+  it('does not remember automatic reconnection when the bridge cannot name the Exalab user', async () => {
+    const harness = page(undefined, true, true, null);
+    await harness.clickHandlers.connect();
+    expect(harness.elements.status.textContent).toContain('Sesión conectada');
+    expect(harness.store).toHaveBeenCalledWith(
+      expect.objectContaining({ exalabAutoConnect: false })
+    );
+  });
   it('does not read cookies when permission is denied or the pairing origin is untrusted', async () => {
     const denied = page(undefined, false);
     await denied.clickHandlers.connect();
