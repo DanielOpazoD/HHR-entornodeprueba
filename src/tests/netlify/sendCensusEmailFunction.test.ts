@@ -1,3 +1,4 @@
+import { createProviderError, credentialMarkers } from './providerErrorFixture';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const buildCensusMasterBufferMock = vi.fn();
@@ -47,6 +48,29 @@ vi.mock('../../../netlify/functions/lib/firebase-server', () => ({
 import { handler } from '../../../netlify/functions/send-census-email';
 
 describe('send-census-email netlify function', () => {
+  it('redacts provider failures in the census response and logs', async () => {
+    const logs = vi.spyOn(console, 'error').mockImplementation(() => {});
+    sendCensusEmailMock.mockRejectedValueOnce(createProviderError());
+    try {
+      const result = await handler({
+        httpMethod: 'POST',
+        headers: { 'x-forwarded-for': '192.0.2.137' },
+        body: JSON.stringify({
+          date: '2026-03-24',
+          records: [{ date: '2026-03-24', beds: {} }],
+        }),
+      });
+      expect(result.statusCode).toBe(500);
+      expect(result.body).toContain('HTTP 503');
+      const outputs =
+        result.body +
+        logs.mock.calls.map(call => call.map(String).join(' ')).join(' ') +
+        JSON.stringify(logs.mock.calls);
+      for (const marker of credentialMarkers) expect(outputs).not.toContain(marker);
+    } finally {
+      logs.mockRestore();
+    }
+  });
   const originalEnv = { ...process.env };
 
   beforeEach(() => {
