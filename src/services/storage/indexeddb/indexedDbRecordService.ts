@@ -353,10 +353,6 @@ export const saveRecordsStrict = async (
   }
 };
 
-export const saveRecords = async (records: DailyRecord[]): Promise<void> => {
-  await saveRecordsStrict(records);
-};
-
 export const deleteRecordStrict = async (date: string): Promise<LocalRecordWriteResult> => {
   try {
     await ensureDbReady();
