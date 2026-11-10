@@ -57,17 +57,14 @@ const mergeClinicalCrib = (current: PatientData, incoming: PatientData): Patient
 
 const indexCurrentClinicalCribs = (current: DailyRecord) => {
   const byEpisode = new Map<string, CurrentClinicalCribRef>();
-  const byDocument = new Map<string, CurrentClinicalCribRef | undefined>();
+  const byDocument = new Map<string, CurrentClinicalCribRef>();
   for (const [parentBedId, parent] of Object.entries(current.beds)) {
     if (!isOccupied(parent?.clinicalCrib)) continue;
     const patient = parent.clinicalCrib;
     const ref = { parentBedId, patient };
     if (patient.clinicalEpisodeId) byEpisode.set(patient.clinicalEpisodeId, ref);
     const document = clinicalCribDocumentIdentity(patient);
-    if (document) {
-      // Retain ambiguity even after a third occupant claims the same document.
-      byDocument.set(document, byDocument.has(document) ? undefined : ref);
-    }
+    if (document) byDocument.set(document, ref);
   }
   return { byEpisode, byDocument };
 };

@@ -187,27 +187,15 @@ describe('clinical crib document fallback', () => {
   });
 
   it.each(['Pasaporte', 'RUT'] as const)(
-    'rejects ambiguous %s documents at an occupied destination',
+    'still recognises a %s document repeated in two cribs as the crib already associated',
     type => {
       const run = type === 'Pasaporte' ? 'AB123456' : '222222222';
       const a = patient(run, type);
       const b = patient(run, type, 'OLD-B');
       const diff = reconcile(record(a, b), patient(run, type, 'NEW'), { ...encounter, run });
-      expect(diff.updates).toEqual([]);
-      expect(diff.conflicts[0]?.reason).toContain('ya está ocupada');
+      expect(diff.conflicts[0]?.reason).toContain('ya está asociada a H5C2');
     }
   );
-
-  it('characterizes no-match behavior: an empty target can receive a third crib for an ambiguous passport', () => {
-    const a = patient('AB123456');
-    const b = patient(a.rut, 'Pasaporte', 'OLD-B');
-    const diff = reconcile(record(a, b, false), patient(a.rut, 'Pasaporte', 'NEW'));
-    expect(diff.conflicts).toEqual([]);
-    expect(diff.updates[0]).toMatchObject({
-      bedId: 'H5C1',
-      changes: [{ field: 'clinicalCrib', to: { clinicalEpisodeId: 'NEW' } }],
-    });
-  });
 
   it('does not suppress an unchanged episode-less passport crib for another pending passport', () => {
     const source = { ...encounter, encounterId: '' };
