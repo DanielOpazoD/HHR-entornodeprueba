@@ -7,7 +7,7 @@ import {
   normalizeEvacuationMethod,
   normalizeReceivingCenter,
 } from '@/constants/clinicalMovementConstants';
-import type { DischargeState, TransferState } from '@/features/census/types/censusActionTypes';
+import type { DischargeState, TransferState } from '@/domain/censusActionContracts';
 
 export const buildDischargeEditState = (discharge: DischargeData): DischargeState => ({
   bedId: null,

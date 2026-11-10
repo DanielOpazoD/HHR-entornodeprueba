@@ -26,6 +26,7 @@ export interface DischargeState {
   typeOther?: string;
   time?: string;
   movementDate?: string;
+  diagnosis?: string;
   hasClinicalCrib?: boolean;
   clinicalCribName?: string;
   clinicalCribStatus?: DischargeStatus;
@@ -43,6 +44,7 @@ export interface TransferState {
   transferEscort: string;
   time?: string;
   movementDate?: string;
+  diagnosis?: string;
   hasClinicalCrib?: boolean;
   clinicalCribName?: string;
 }

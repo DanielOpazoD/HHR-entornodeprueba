@@ -5,7 +5,7 @@ import {
   createInitialActionState,
   createInitialDischargeState,
   createInitialTransferState,
-} from '@/features/census/types/censusActionTypes';
+} from '@/domain/censusActionContracts';
 
 describe('useCensusModalsHandlers', () => {
   it('handles move/copy close and target updates', () => {

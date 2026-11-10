@@ -9,7 +9,7 @@ import {
   createInitialActionState,
   createInitialDischargeState,
   createInitialTransferState,
-} from '@/features/census/types/censusActionTypes';
+} from '@/domain/censusActionContracts';
 
 describe('censusModalBindingsController', () => {
   it('builds safe move/copy defaults from empty action state', () => {

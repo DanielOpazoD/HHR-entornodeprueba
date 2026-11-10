@@ -1,9 +1,5 @@
 import type { CMAData } from '@/features/census/contracts/censusMovementContracts';
-import type {
-  ActionState,
-  DischargeState,
-  TransferState,
-} from '@/features/census/types/censusActionTypes';
+import type { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
 import type { RowActionConfirmDescriptor } from '@/features/census/types/censusRowActionCommandTypes';
 import type { ConfirmedBedOccupantIdentity } from '@/types/domain/intentionalBedClear';
 

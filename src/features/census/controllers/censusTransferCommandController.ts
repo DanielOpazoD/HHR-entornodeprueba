@@ -1,5 +1,5 @@
 import { StabilityRules } from '@/hooks/useStabilityRules';
-import type { TransferState } from '@/features/census/types/censusActionTypes';
+import type { TransferState } from '@/domain/censusActionContracts';
 import {
   normalizeOptionalText,
   validateTransferExecutionInput,

@@ -10,7 +10,7 @@ import {
 import type { CensusActionRuntimeRefs } from '@/features/census/hooks/useCensusActionRuntimeRefs';
 import { useCensusModalCommand } from '@/features/census/hooks/useCensusModalCommand';
 import type { TransferExecutionInput } from '@/features/census/domain/movements/contracts';
-import type { TransferState } from '@/features/census/types/censusActionTypes';
+import type { TransferState } from '@/domain/censusActionContracts';
 import { useAuth } from '@/context/AuthContext';
 import {
   completeTransferWithResult,

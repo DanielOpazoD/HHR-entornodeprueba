@@ -4,7 +4,7 @@ import {
   createInitialActionState,
   createInitialDischargeState,
   createInitialTransferState,
-} from '@/features/census/types/censusActionTypes';
+} from '@/domain/censusActionContracts';
 import { buildCensusActionRuntimeRefsParams } from '@/features/census/controllers/censusActionRuntimeRefsController';
 
 describe('censusActionRuntimeRefsController', () => {

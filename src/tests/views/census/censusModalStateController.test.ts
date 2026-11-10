@@ -6,11 +6,7 @@ import {
   DEFAULT_RECEIVING_CENTER,
   DEFAULT_TRANSFER_ESCORT,
 } from '@/constants/clinicalMovementConstants';
-import type {
-  ActionState,
-  DischargeState,
-  TransferState,
-} from '@/features/census/types/censusActionTypes';
+import type { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
 import {
   applyDischargePatch,
   applyTransferPatch,

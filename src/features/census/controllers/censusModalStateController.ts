@@ -1,10 +1,6 @@
-import type {
-  ActionState,
-  DischargeState,
-  TransferState,
-} from '@/features/census/types/censusActionTypes';
+import type { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
 import type { DischargeTarget } from '@/types/movements';
-import { createInitialActionState } from '@/features/census/types/censusActionTypes';
+import { createInitialActionState } from '@/domain/censusActionContracts';
 import type { DischargeStatus } from '@/constants/clinicalMovementConstants';
 import {
   applyTransferStateUpdate,

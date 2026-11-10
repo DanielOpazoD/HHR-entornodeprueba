@@ -1,3 +1,4 @@
+import type { ActionState } from '@/domain/censusActionContracts';
 import type {
   CensusActionValidationError,
   CensusActionValidationErrorCode,
@@ -8,14 +9,6 @@ import type {
   MovementStatus,
   TransferMovementActions,
 } from '@/types/movements';
-
-export type MoveOrCopyActionType = 'move' | 'copy' | null;
-
-export interface MoveOrCopyActionState {
-  type: MoveOrCopyActionType;
-  sourceBedId: string | null;
-  targetBedId: string | null;
-}
 
 export interface DischargeExecutionInput {
   status: MovementStatus;
@@ -114,7 +107,7 @@ export type CensusActionCommandResult<TValue, TError> =
   | { ok: false; error: TError };
 
 export interface MoveOrCopyRuntimeSuccess {
-  nextActionState: MoveOrCopyActionState;
+  nextActionState: ActionState;
 }
 
 export interface ModalCloseSuccess {

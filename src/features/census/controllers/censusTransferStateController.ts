@@ -3,7 +3,7 @@ import {
   normalizeEvacuationMethod,
   normalizeReceivingCenter,
 } from '@/constants/clinicalMovementConstants';
-import type { TransferState } from '@/features/census/types/censusActionTypes';
+import type { TransferState } from '@/domain/censusActionContracts';
 
 export type TransferStateFieldUpdate =
   | 'evacuationMethod'

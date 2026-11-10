@@ -13,11 +13,7 @@ import {
 } from '@/features/census/controllers/censusActionNotificationController';
 import type { CensusActionRuntimeRefs } from '@/features/census/hooks/useCensusActionRuntimeRefs';
 import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
-import type {
-  ActionState,
-  DischargeState,
-  TransferState,
-} from '@/features/census/types/censusActionTypes';
+import type { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
 
 interface UseCensusRowActionCommandParams extends Pick<
   CensusActionRuntimeRefs,

@@ -1,7 +1,7 @@
 import { CensusManager } from '@/domain/CensusManager';
 import type { DailyRecord } from '@/features/census/contracts/censusRecordContracts';
 import { failWithCode, ok } from '@/features/census/controllers/controllerResult';
-import type { ActionState } from '@/features/census/types/censusActionTypes';
+import type { ActionState } from '@/domain/censusActionContracts';
 import type {
   CensusActionError,
   CensusActionCommandResult,

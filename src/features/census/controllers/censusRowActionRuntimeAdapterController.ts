@@ -3,11 +3,7 @@ import {
   applyDischargePatch,
   applyTransferPatch,
 } from '@/features/census/controllers/censusModalStateController';
-import type {
-  ActionState,
-  DischargeState,
-  TransferState,
-} from '@/features/census/types/censusActionTypes';
+import type { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
 import type { RowActionRuntimeActions } from '@/features/census/types/censusRowActionRuntimeTypes';
 
 interface BuildRowActionRuntimeActionsParams {

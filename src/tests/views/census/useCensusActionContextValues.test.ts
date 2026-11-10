@@ -4,7 +4,7 @@ import {
   createInitialActionState,
   createInitialDischargeState,
   createInitialTransferState,
-} from '@/features/census/types/censusActionTypes';
+} from '@/domain/censusActionContracts';
 import { useCensusActionContextValues } from '@/features/census/hooks/useCensusActionContextValues';
 
 describe('useCensusActionContextValues', () => {

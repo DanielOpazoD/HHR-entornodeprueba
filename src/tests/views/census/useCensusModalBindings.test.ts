@@ -4,7 +4,7 @@ import {
   createInitialActionState,
   createInitialDischargeState,
   createInitialTransferState,
-} from '@/features/census/types/censusActionTypes';
+} from '@/domain/censusActionContracts';
 import { useCensusModalBindings } from '@/features/census/hooks/useCensusModalBindings';
 
 describe('useCensusModalBindings', () => {

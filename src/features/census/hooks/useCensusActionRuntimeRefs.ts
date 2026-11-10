@@ -11,11 +11,7 @@ import type {
   RowActionRuntimeActions,
   RowActionRuntimeConfirm,
 } from '@/features/census/types/censusRowActionRuntimeTypes';
-import type {
-  ActionState,
-  DischargeState,
-  TransferState,
-} from '@/features/census/types/censusActionTypes';
+import type { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
 
 export interface UseCensusActionRuntimeRefsParams {
   actionState: ActionState;

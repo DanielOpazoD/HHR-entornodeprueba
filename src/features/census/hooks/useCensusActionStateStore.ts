@@ -10,7 +10,7 @@ import {
   createInitialTransferState,
   type DischargeState,
   type TransferState,
-} from '@/features/census/types/censusActionTypes';
+} from '@/domain/censusActionContracts';
 import {
   buildDischargeEditState,
   buildTransferEditState,

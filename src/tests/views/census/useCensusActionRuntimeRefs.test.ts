@@ -5,7 +5,7 @@ import {
   createInitialActionState,
   createInitialDischargeState,
   createInitialTransferState,
-} from '@/features/census/types/censusActionTypes';
+} from '@/domain/censusActionContracts';
 import { useCensusActionRuntimeRefs } from '@/features/census/hooks/useCensusActionRuntimeRefs';
 
 const stabilityRules: StabilityRules = {

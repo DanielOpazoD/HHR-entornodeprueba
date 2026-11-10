@@ -1,9 +1,5 @@
 import type { CMAData } from '@/features/census/contracts/censusMovementContracts';
-import type {
-  ActionState,
-  DischargeState,
-  TransferState,
-} from '@/features/census/types/censusActionTypes';
+import type { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
 import type { ControllerConfirmDescriptor } from '@/shared/contracts/controllers/confirmDescriptor';
 
 export type RowActionConfirmDescriptor = ControllerConfirmDescriptor;
