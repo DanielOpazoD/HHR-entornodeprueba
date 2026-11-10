@@ -167,6 +167,21 @@ describe('PatientMasterRepository', () => {
     expect(vi.mocked(firestore.getDocs)).toHaveBeenCalledTimes(2);
   });
 
+  it('searchPatients still finds a patient by RUT when the direct index read fails', async () => {
+    const targetPatient: MasterPatient = {
+      rut: '12.345.678-5',
+      fullName: 'Inés Riroroko Leiva',
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    vi.mocked(firestore.getDoc).mockRejectedValueOnce(new Error('synthetic unavailable'));
+    vi.mocked(firestore.getDocs)
+      .mockResolvedValueOnce({ docs: [] } as never)
+      .mockResolvedValueOnce({ docs: [buildPatientDoc(targetPatient)] } as never);
+
+    expect(await searchPatients('12.345.678-5')).toEqual([targetPatient]);
+  });
+
   it('supports injected Firestore runtime for isolated repository composition', async () => {
     vi.mocked(firestore.setDoc).mockResolvedValue(undefined as never);
 
