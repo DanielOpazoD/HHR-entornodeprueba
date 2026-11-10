@@ -19,6 +19,15 @@ const makeVersion = (
 ): ClinicalDocumentVersionMeta => ({ version, savedAt, savedBy: actor, reason });
 
 describe('ClinicalDocumentVersionHistory', () => {
+  it('exposes the close icon button by its Spanish name', () => {
+    const onClose = vi.fn();
+    render(<ClinicalDocumentVersionHistory versions={[]} currentVersion={1} onClose={onClose} />);
+    const button = screen.getByRole('button', { name: 'Cerrar' });
+    expect(button.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    fireEvent.click(button);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('renders an empty-state when no versions are provided', () => {
     render(<ClinicalDocumentVersionHistory versions={[]} currentVersion={1} onClose={vi.fn()} />);
 
