@@ -46,7 +46,7 @@ Capa de datos e integración: repositorios, persistencia, exportadores, integrac
     entrypoint recomendado para nuevos consumers del singleton concreto.
 - **Domain observability**:
   - `observability/domainObservability.ts` crea adapters pequenos por dominio
-  - `operationalTelemetryService.ts` queda como sink/base compartida
+  - `operationalTelemetryRecorder.ts` queda como sink/base compartida
   - los contextos nuevos deben preferir wrappers (`authOperationalTelemetry`, `reminderObservability`, etc.) antes que importar el servicio generico
 - **Auth por flujo y resolución**:
   - `authFlow.ts` como fachada pública del login

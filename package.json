@@ -97,7 +97,6 @@
     "check:core-type-facade-boundaries": "node scripts/check-core-type-facade-boundaries.mjs",
     "check:root-domain-barrels": "node scripts/check-root-domain-barrels.mjs",
     "check:persistence-hub-boundaries": "node scripts/check-persistence-hub-boundaries.mjs",
-    "check:legacy-localstorage-imports": "node scripts/check-localstorage-legacy-imports.mjs",
     "check:legacy-retirement-debt": "node scripts/check-legacy-retirement-debt.mjs",
     "check:compatibility-import-governance": "node scripts/check-compatibility-import-governance.mjs",
     "check:schema-governance": "node scripts/check-schema-governance.mjs",

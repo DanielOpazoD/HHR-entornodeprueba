@@ -108,8 +108,8 @@ describe('Firebase Sync Integration', () => {
     });
 
     it('should preserve all record fields through save cycle', async () => {
-      const { saveRecordLocal, getRecordForDate } =
-        await import('@/services/storage/unifiedLocalService');
+      const { saveRecord: saveRecordLocal, getRecordForDate } =
+        await import('@/services/storage/indexeddb/indexedDbRecordService');
 
       const record = createMockRecord('2025-12-13');
 
@@ -129,8 +129,8 @@ describe('Firebase Sync Integration', () => {
     });
 
     it('should handle empty nurse/TENS arrays', async () => {
-      const { saveRecordLocal, getRecordForDate } =
-        await import('@/services/storage/unifiedLocalService');
+      const { saveRecord: saveRecordLocal, getRecordForDate } =
+        await import('@/services/storage/indexeddb/indexedDbRecordService');
 
       const record: DailyRecord = {
         ...createMockRecord('2025-12-13'),
@@ -150,23 +150,23 @@ describe('Firebase Sync Integration', () => {
 
   describe('Catalog Sync', () => {
     it('should save and retrieve nurse catalog from localStorage', async () => {
-      const { saveStoredNurses, getStoredNurses } =
-        await import('@/services/storage/unifiedLocalService');
+      const { saveCatalog, getCatalog } =
+        await import('@/services/storage/indexeddb/indexedDbCatalogService');
 
       const nurses = ['María García', 'Juan Pérez', 'Ana López'];
 
-      await saveStoredNurses(nurses);
-      const retrieved = await getStoredNurses();
+      await saveCatalog('nurses', nurses);
+      const retrieved = await getCatalog('nurses');
 
       expect(retrieved).toEqual(nurses);
     });
 
     it('should handle empty catalogs', async () => {
-      const { saveStoredNurses, getStoredNurses } =
-        await import('@/services/storage/unifiedLocalService');
+      const { saveCatalog, getCatalog } =
+        await import('@/services/storage/indexeddb/indexedDbCatalogService');
 
-      await saveStoredNurses([]);
-      const retrieved = await getStoredNurses();
+      await saveCatalog('nurses', []);
+      const retrieved = await getCatalog('nurses');
 
       expect(retrieved).toEqual([]);
     });

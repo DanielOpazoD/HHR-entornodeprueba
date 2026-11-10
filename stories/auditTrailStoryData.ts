@@ -1,4 +1,4 @@
-import type { AuditLogEntry } from '@/types/audit';
+import type { AuditLogEntry } from '@/types/auditLogTypes';
 
 /** A synthetic hospital day (22-10-2026, Rapa Nui UTC-5): no real people or patients. */
 const at = (clock: string) => `2026-10-22T${clock}:00.000Z`;

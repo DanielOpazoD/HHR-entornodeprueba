@@ -70,9 +70,7 @@ const FEATURE_PUBLIC_BOUNDARIES = [
   },
 ];
 
-const trackedFiles = execSync('git ls-files -z', { encoding: 'utf8' })
-  .split('\0')
-  .filter(Boolean);
+const trackedFiles = execSync('git ls-files -z', { encoding: 'utf8' }).split('\0').filter(Boolean);
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
 const EDITABLE_MARKDOWN_EXTENSIONS = new Set(['.md', '.mdx']);
 const LOCAL_DOC_LINK_PATTERNS = [/\/Users\//, /file:\/\//];
@@ -112,14 +110,6 @@ const DEPRECATED_IMPORTS = [
       'Generic controller result contracts must import from "@/shared/contracts/controllerResult"; shared/controllerResult is a compatibility shim.',
     allowBypass: file => file === 'src/shared/controllerResult.ts' || file.startsWith('src/tests/'),
   },
-  {
-    importPath: '@/hooks/contracts/dailyRecordHookContracts',
-    ruleId: 'deprecated-daily-record-hook-contracts',
-    description:
-      'Hook/application code should import daily record contracts from "@/application/shared/dailyRecordContracts"; hooks/contracts/dailyRecordHookContracts is a compatibility shim.',
-    allowBypass: file =>
-      file === 'src/hooks/contracts/dailyRecordHookContracts.ts' || file.startsWith('src/tests/'),
-  },
 ];
 const DAILY_RECORD_ROOT_IMPORTS = [
   '@/types/domain/dailyRecord',
@@ -136,8 +126,7 @@ const isDailyRecordApplicationBoundaryBypass = file =>
   file === 'src/application/shared/dailyRecordStaffContracts.ts' ||
   file.startsWith('src/tests/');
 
-const isDailyRecordHookBoundaryBypass = file =>
-  file === 'src/hooks/contracts/dailyRecordHookContracts.ts' || file.startsWith('src/tests/');
+const isDailyRecordHookBoundaryBypass = file => file.startsWith('src/tests/');
 
 const isDailyRecordServiceBoundaryBypass = file =>
   file === 'src/services/contracts/dailyRecordServiceContracts.ts' ||
@@ -155,7 +144,9 @@ const getSourceBasenameSet = dirPath => {
   return new Set(
     fs
       .readdirSync(dirPath, { withFileTypes: true })
-      .filter(entry => entry.isFile() && ['.ts', '.tsx', '.js', '.jsx'].includes(path.extname(entry.name)))
+      .filter(
+        entry => entry.isFile() && ['.ts', '.tsx', '.js', '.jsx'].includes(path.extname(entry.name))
+      )
       .map(entry => entry.name)
   );
 };
@@ -239,7 +230,9 @@ for (const file of trackedFiles) {
     });
   }
 
-  const importsDailyRecordRoot = DAILY_RECORD_ROOT_IMPORTS.some(importPath => source.includes(importPath));
+  const importsDailyRecordRoot = DAILY_RECORD_ROOT_IMPORTS.some(importPath =>
+    source.includes(importPath)
+  );
   if (!importsDailyRecordRoot) {
     continue;
   }

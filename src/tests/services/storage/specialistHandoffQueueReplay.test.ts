@@ -38,7 +38,7 @@ import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreS
 import { buildSpecialistHandoffTargets } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
-import { hospitalDB } from '@/services/storage/indexedDBService';
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {
   readMedicalHandoffDrafts,
   resetMedicalHandoffDraftMemoryForTests,

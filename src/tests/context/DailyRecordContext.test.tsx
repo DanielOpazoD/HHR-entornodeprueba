@@ -17,7 +17,7 @@ import {
   useDailyRecordMovementActions,
   useDailyRecordStaffActions,
 } from '@/context/DailyRecordContext';
-import { DailyRecordContextType } from '@/hooks/useDailyRecordTypes';
+import { DailyRecordContextType } from '@/context/dailyRecordContextContracts';
 
 describe('DailyRecordContext', () => {
   const mockValue = {

@@ -7,7 +7,7 @@
 ## Regla principal
 
 - Los contextos de negocio deben preferir wrappers por dominio creados con `domainObservability.ts`.
-- `loggerService.ts` y `operationalTelemetryService.ts` quedan como infraestructura base y sinks compartidos.
+- `loggerService.ts` y `operationalTelemetryRecorder.ts` quedan como infraestructura base y sinks compartidos.
 
 ## Invariantes
 

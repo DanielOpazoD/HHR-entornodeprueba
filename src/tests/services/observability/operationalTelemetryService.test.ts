@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  buildOperationalTelemetrySummary,
-  clearOperationalTelemetryEvents,
-  getOperationalTelemetryEvents,
   recordOperationalErrorTelemetry,
   recordOperationalOutcome,
+} from '@/services/observability/operationalTelemetryOutcomeRecorder';
+import {
+  clearOperationalTelemetryEvents,
+  getOperationalTelemetryEvents,
   recordOperationalTelemetry,
-} from '@/services/observability/operationalTelemetryService';
+} from '@/services/observability/operationalTelemetryRecorder';
+import { buildOperationalTelemetrySummary } from '@/services/observability/operationalTelemetrySummary';
 
 describe('operationalTelemetryService', () => {
   beforeEach(() => {

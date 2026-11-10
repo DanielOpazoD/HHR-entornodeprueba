@@ -20,7 +20,7 @@ import {
 } from '@/services/repositories/CatalogRepository';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
-import { clearAllRecords } from '@/services/storage/indexedDBService';
+import { clearAllRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 
 const createDeferred = () => {

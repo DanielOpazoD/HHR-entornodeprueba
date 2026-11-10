@@ -20,9 +20,6 @@ La fachada `index.ts` se mantiene como compatibilidad mínima.
 
 | Path/Archivo                                  | Propósito                                             |
 | --------------------------------------------- | ----------------------------------------------------- |
-| `indexedDBService.ts`                         | API de alto nivel para IndexedDB                      |
-| `localStorageService.ts`                      | Gateway legacy mínimo para records/nurses/maintenance |
-| `unifiedLocalService.ts`                      | Facade de compatibilidad local no-demo                |
 | `syncQueueTypes.ts`                           | Tipos de cola de sincronización                       |
 | `sync/`                                       | Engine, runtime, transport y store del outbox         |
 | `core/`                                       | Entry point público de disponibilidad y mantenimiento |
@@ -79,12 +76,6 @@ Los adapters de storage que necesiten `DailyRecord` deben importarlo desde
 - La UI de fallback intenta primero una recuperación automática de sesión antes de mostrar avisos al usuario.
 - Los hooks de estado de fallback pausan el polling cuando la pestaña está oculta para evitar trabajo innecesario.
 
-## Compatibilidad
-
-- `indexedDBService.ts` es la fachada principal para persistencia local real.
-- `unifiedLocalService.ts` conserva compatibilidad útil para acceso local no-demo.
-- `localStorageService.ts` sigue existiendo solo como gateway legacy mínimo y deprecated.
-
 ## Recomendación
 
 Cambios en esta capa requieren:
@@ -119,8 +110,6 @@ Cambios en esta capa requieren:
   - `storage/sync`
   - tests de `syncQueueService` y `sync-resilience`
 - Los puertos de `sync/` deben permanecer agnósticos de React/UI.
-- `localStorageService.ts` es compatibilidad controlada; no debe
-  reingresar al camino caliente del registro diario.
 
 ## Operación
 

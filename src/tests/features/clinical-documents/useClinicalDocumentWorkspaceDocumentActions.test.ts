@@ -30,11 +30,6 @@ vi.mock('@/application/clinical-documents/clinicalDocumentUseCases', async () =>
   };
 });
 
-vi.mock('@/services/observability/operationalTelemetryService', () => ({
-  recordOperationalOutcome: vi.fn(),
-  recordOperationalTelemetry: vi.fn(),
-}));
-
 const buildRecord = () =>
   createClinicalDocumentDraft({
     templateId: 'epicrisis',
