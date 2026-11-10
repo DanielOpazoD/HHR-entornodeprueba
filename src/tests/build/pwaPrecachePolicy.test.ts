@@ -282,7 +282,6 @@ describe('PWA precache policy', () => {
     expect(viteConfig).toContain('**/assets/vendor-canvas-*.js');
     expect(viteConfig).toContain('**/assets/terminologyService-*.js');
     expect(viteConfig).toContain('**/assets/fonasaDatabase-*.js');
-    expect(viteConfig).toContain('**/assets/clinicalDocumentTemplateEditorController-*.js');
     expect(viteConfig).toContain('**/assets/vendor-heic2any-*.js');
     expect(viteConfig).toContain('**/assets/applyClinicalEnrichmentBatch-*.js');
     expect(viteConfig).toContain('**/assets/applyHistoricalCudyr-*.js');

@@ -13,7 +13,6 @@ export const PRECACHE_STATIC_IMPORT_EXCEPTIONS = [
   { name: 'vendor-dicom-vtk', reason: 'Optional imaging renderer and codecs.' },
   { name: 'dicomTypes', reason: 'Shared runtime contracts for the optional imaging viewer.' },
   { name: 'vendor-excel-zip', reason: 'Optional Excel archive generation runtime.' },
-  { name: 'clinicalDocumentTemplateEditorController', reason: 'Online document template editing.' },
   { name: 'healthService', reason: 'Optional operational diagnostics.' },
   { name: 'cudyrReportModel', reason: 'Optional historical CUDYR report.' },
   { name: 'CudyrReportExplorer', reason: 'Optional historical CUDYR explorer.' },

@@ -1,7 +1,5 @@
-import { act, renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { firestoreDb } from '@/services/storage/firestore';
-import { ClinicalDocumentTemplateRepository } from '@/services/repositories/ClinicalDocumentTemplateRepository';
+import { renderHook } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { useClinicalDocumentWorkspaceBootstrap } from '@/features/clinical-documents/hooks/useClinicalDocumentWorkspaceBootstrap';
 import {
   createClinicalDocumentDraft,
@@ -10,10 +8,6 @@ import {
 import { hydrateClinicalDocumentWorkspaceRecord } from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
 import { buildDocument, patient } from './useClinicalDocumentWorkspaceBootstrap.fixtures';
 
-vi.mock('@/services/storage/firestore', () => ({
-  firestoreDb: { getDocs: vi.fn(), runBatch: vi.fn(), setDoc: vi.fn() },
-}));
-vi.mock('@/services/repositories/repositoryConfig', () => ({ isFirestoreEnabled: () => true }));
 vi.mock('@/application/clinical-documents/clinicalDocumentUseCases', () => ({
   subscribeClinicalDocumentsByEpisodeKeys: () => () => undefined,
 }));
@@ -25,7 +19,6 @@ const loadedOptions = [
   ['informe_medico', 'Informe médico'],
   ['otro', 'Otro documento'],
 ];
-const localOptions = loadedOptions.filter(([id]) => id !== 'epicrisis_traslado');
 const renderBootstrap = () =>
   renderHook(() =>
     useClinicalDocumentWorkspaceBootstrap({
@@ -82,41 +75,9 @@ const createDraft = (templateId: string) => {
 };
 
 describe('current fixed clinical template behaviour on main', () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-    vi.mocked(firestoreDb.getDocs).mockReset().mockResolvedValue([]);
-  });
-
-  it('offers four options while the remote read is pending, then five for an empty collection', async () => {
-    let finish: () => void = () => undefined;
-    vi.mocked(firestoreDb.getDocs).mockImplementationOnce(
-      () =>
-        new Promise(resolve => {
-          finish = () => resolve([]);
-        })
-    );
+  it('offers the five fixed options on first render', () => {
     const { result } = renderBootstrap();
-    expect(options(result.current.templates)).toEqual(localOptions);
-    await act(async () => {
-      finish();
-    });
-    await waitFor(() => expect(options(result.current.templates)).toEqual(loadedOptions));
-    expect(firestoreDb.runBatch).not.toHaveBeenCalled();
-  });
-
-  it('offers five options when the repository handles a remote read failure', async () => {
-    vi.mocked(firestoreDb.getDocs).mockRejectedValueOnce(new Error('synthetic read failure'));
-    const { result } = renderBootstrap();
-    await waitFor(() => expect(options(result.current.templates)).toEqual(loadedOptions));
-  });
-
-  it('offers four options when the application reports a failed catalog load', async () => {
-    vi.spyOn(ClinicalDocumentTemplateRepository, 'listActive').mockRejectedValueOnce(
-      new Error('synthetic repository failure')
-    );
-    const { result } = renderBootstrap();
-    await act(async () => undefined);
-    expect(options(result.current.templates)).toEqual(localOptions);
+    expect(options(result.current.templates)).toEqual(loadedOptions);
   });
 
   for (const [id] of loadedOptions) {
