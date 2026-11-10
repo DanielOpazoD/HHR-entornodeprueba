@@ -2,7 +2,7 @@ import type {
   ClinicalDocumentPatientFieldTemplate,
   ClinicalDocumentSectionTemplate,
   ClinicalDocumentTemplate,
-} from '@/features/clinical-documents/domain/entities';
+} from '@/domain/clinical-documents/entities';
 
 const sanitizeText = (value: string, fallback: string): string => {
   const next = value.trim();

@@ -1,5 +1,5 @@
 import type { PatientData } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
-import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import {
   buildClinicalDocumentsReadOnlyMessage,
   canMutateClinicalDocumentsEpisode,

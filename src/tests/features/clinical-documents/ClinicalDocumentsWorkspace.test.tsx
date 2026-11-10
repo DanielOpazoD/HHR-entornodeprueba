@@ -7,7 +7,7 @@ import { ClinicalDocumentsWorkspace } from '@/features/clinical-documents/compon
 import type {
   ClinicalDocumentRecord,
   ClinicalDocumentTemplate,
-} from '@/features/clinical-documents/domain/entities';
+} from '@/domain/clinical-documents/entities';
 import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
 import * as clinicalDocumentUseCases from '@/application/clinical-documents/clinicalDocumentUseCases';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';

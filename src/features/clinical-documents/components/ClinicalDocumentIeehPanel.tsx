@@ -14,10 +14,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, ClipboardList } from 'lucide-react';
 import clsx from 'clsx';
 
-import type {
-  ClinicalDocumentIeehDraft,
-  ClinicalDocumentRecord,
-} from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentIeehDraft } from '@/application/shared/ieehContracts';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import {
   createEmptyIeehDraft,
   resolveClinicalDocumentIeehPanelState,

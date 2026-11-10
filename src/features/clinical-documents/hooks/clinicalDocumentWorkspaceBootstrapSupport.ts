@@ -1,7 +1,7 @@
 import type {
   ClinicalDocumentRecord,
   ClinicalDocumentTemplate,
-} from '@/features/clinical-documents/domain/entities';
+} from '@/domain/clinical-documents/entities';
 import { isLegacyClinicalEpisodeKey } from '@/application/patient-flow/clinicalEpisode';
 
 export const resolveSelectedClinicalTemplateId = (

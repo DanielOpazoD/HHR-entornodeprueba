@@ -1,9 +1,7 @@
-import type {
-  ClinicalDocumentEpisodeContext,
-  ClinicalDocumentRecord,
-} from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentEpisodeContext } from '@/features/clinical-documents/domain/clinicalDocumentEpisodeTypes';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import type { ConfirmOptions } from '@/context/uiContracts';
-import { getClinicalDocumentDefinition } from '@/features/clinical-documents/domain/definitions';
+import { getClinicalDocumentDefinition } from '@/domain/clinical-documents/definitions';
 import { hydrateClinicalDocumentRecord } from '@/application/ports/clinicalDocumentCompatibilityPort';
 import { formatClinicalDocumentDateTime as formatClinicalDocumentDateTimePresentation } from '@/shared/clinical-documents/clinicalDocumentPresentation';
 

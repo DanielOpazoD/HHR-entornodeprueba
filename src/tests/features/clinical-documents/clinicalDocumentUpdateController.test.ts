@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { createClinicalUpdateSection } from '@/features/clinical-documents/controllers/clinicalDocumentUpdateController';
-import type { ClinicalDocumentSection } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentSection } from '@/domain/clinical-documents/entities';
 
 const existingSections: ClinicalDocumentSection[] = [
   { id: 'antecedentes', title: 'Antecedentes', content: '', order: 1, visible: true },

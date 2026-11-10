@@ -20,7 +20,7 @@ import type {
   ClinicalDocumentFormattingCommand,
   ClinicalDocumentSheetEditorApi,
 } from '@/features/clinical-documents/components/clinicalDocumentSheetShared';
-import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 
 // ---------------------------------------------------------------------------
 // Constants

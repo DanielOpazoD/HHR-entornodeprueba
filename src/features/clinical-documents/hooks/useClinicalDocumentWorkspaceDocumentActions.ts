@@ -2,10 +2,8 @@ import { useCallback } from 'react';
 import type { PatientData } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
 import type { UserRole } from '@/types/authRoleTypes';
 import type { ConfirmOptions } from '@/context/uiContracts';
-import type {
-  ClinicalDocumentEpisodeContext,
-  ClinicalDocumentRecord,
-} from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentEpisodeContext } from '@/features/clinical-documents/domain/clinicalDocumentEpisodeTypes';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import {
   createClinicalDocumentDraft,
   duplicateClinicalDocumentDraft,

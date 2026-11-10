@@ -1,18 +1,18 @@
 import { createClinicalDocumentHash } from '@/domain/clinical-documents/hash';
 import type {
   ClinicalDocumentAuditActor,
-  ClinicalDocumentEpisodeContext,
   ClinicalDocumentPatientField,
   ClinicalDocumentRecord,
   ClinicalDocumentSection,
   ClinicalDocumentTemplate,
-} from '@/features/clinical-documents/domain/entities';
+} from '@/domain/clinical-documents/entities';
+import type { ClinicalDocumentEpisodeContext } from '@/features/clinical-documents/domain/clinicalDocumentEpisodeTypes';
 import { stripClinicalDocumentHtml } from '@/features/clinical-documents/controllers/clinicalDocumentRichTextController';
 import {
   CLINICAL_DOCUMENT_TEMPLATES,
   DEFAULT_CLINICAL_DOCUMENT_TEMPLATE_ID,
 } from '@/features/clinical-documents/domain/rules';
-import { CURRENT_CLINICAL_DOCUMENT_SCHEMA_VERSION } from '@/features/clinical-documents/domain/schema';
+import { CURRENT_CLINICAL_DOCUMENT_SCHEMA_VERSION } from '@/domain/clinical-documents/schema';
 import { buildClinicalDocumentVersionSectionSnapshots } from '@/domain/clinical-documents/versionHistory';
 
 const clonePatientFields = (

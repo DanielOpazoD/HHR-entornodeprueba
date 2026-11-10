@@ -2,7 +2,7 @@ import { act, fireEvent, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { ClinicalDocumentSheetEditorApi } from '@/features/clinical-documents/components/clinicalDocumentSheetShared';
-import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
 import { useClinicalDocumentSheetState } from '@/features/clinical-documents/hooks/useClinicalDocumentSheetState';
 

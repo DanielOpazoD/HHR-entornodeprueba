@@ -14,10 +14,8 @@ import {
   type ClinicalAttachmentFilePolicyAction,
 } from '@/features/clinical-documents/controllers/clinicalAttachmentFilePolicy';
 import { buildClinicalDocumentActor } from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
-import type {
-  ClinicalAttachmentRecord,
-  ClinicalDocumentRecord,
-} from '@/features/clinical-documents/domain/entities';
+import type { ClinicalAttachmentRecord } from '@/shared/clinical-documents/clinicalAttachmentContracts';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 
 type UpdateAttachments = (items: ClinicalAttachmentRecord[]) => ClinicalAttachmentRecord[];
 

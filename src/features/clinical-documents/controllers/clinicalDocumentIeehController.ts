@@ -10,7 +10,7 @@
  * when physically discharging the patient from the census.
  */
 
-import type { ClinicalDocumentIeehDraft } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentIeehDraft } from '@/application/shared/ieehContracts';
 
 // ---------------------------------------------------------------------------
 // Discharge condition options (MINSAL codes 1-7)

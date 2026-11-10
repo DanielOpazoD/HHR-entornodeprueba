@@ -1,20 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
-import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import {
   formatClinicalDocumentContractIssues,
   parseClinicalDocumentRecord,
   parseClinicalDocumentTemplate,
   safeParseClinicalDocumentRecord,
   safeParseClinicalDocumentTemplate,
-} from '@/features/clinical-documents/contracts/clinicalDocumentRuntimeContracts';
-import { CLINICAL_DOCUMENT_TEMPLATES } from '@/features/clinical-documents/domain/rules';
-import {
-  formatClinicalDocumentContractIssues as formatDomainClinicalDocumentContractIssues,
-  parseClinicalDocumentRecord as parseDomainClinicalDocumentRecord,
-  safeParseClinicalDocumentRecord as safeParseDomainClinicalDocumentRecord,
 } from '@/domain/clinical-documents/runtimeContracts';
+import { CLINICAL_DOCUMENT_TEMPLATES } from '@/features/clinical-documents/domain/rules';
 
 const buildRecord = () =>
   createClinicalDocumentDraft({
@@ -110,7 +105,7 @@ describe('clinicalDocumentRuntimeContracts', () => {
 
   it('keeps print and IEEH choices through the repository contract', () => {
     // ClinicalDocumentRepository parses with the domain contract on save and on read.
-    const record = parseDomainClinicalDocumentRecord({
+    const record = parseClinicalDocumentRecord({
       ...buildRecord(),
       includePatientSignature: false,
       annexIncludedInPrint: true,
@@ -146,12 +141,9 @@ describe('clinicalDocumentRuntimeContracts', () => {
     expect(invalidTemplate.success).toBe(false);
   });
 
-  it.each([
-    { name: 'domain', format: formatDomainClinicalDocumentContractIssues },
-    { name: 'feature', format: formatClinicalDocumentContractIssues },
-  ])('formats $name contract issues using root, nested and symbol paths', ({ format }) => {
+  it('formats contract issues using root, nested and symbol paths', () => {
     expect(
-      format([
+      formatClinicalDocumentContractIssues([
         { path: [], message: 'General error' },
         { path: ['sections', 0, 'title'], message: 'Required' },
         { path: [Symbol('field')], message: 'Invalid key' },
@@ -160,18 +152,7 @@ describe('clinicalDocumentRuntimeContracts', () => {
   });
 });
 
-describe.each([
-  {
-    name: 'domain',
-    parse: parseDomainClinicalDocumentRecord,
-    safeParse: safeParseDomainClinicalDocumentRecord,
-  },
-  {
-    name: 'feature',
-    parse: parseClinicalDocumentRecord,
-    safeParse: safeParseClinicalDocumentRecord,
-  },
-])('$name section persistence contract', ({ parse, safeParse }) => {
+describe('section persistence contract', () => {
   it.each(['structured', 'unified'])('preserves %s layout through record parsing', layout => {
     const sections = [
       {
@@ -198,19 +179,23 @@ describe.each([
       },
       { id: 'legacy-kind-section', title: 'Legacy title', content: '', layout, order: 2 },
     ];
-    const parsed = parse({ ...buildRecord(), sections });
+    const parsed = parseClinicalDocumentRecord({ ...buildRecord(), sections });
 
-    expect(parse(JSON.parse(JSON.stringify(parsed))).sections).toStrictEqual(sections);
+    expect(parseClinicalDocumentRecord(JSON.parse(JSON.stringify(parsed))).sections).toStrictEqual(
+      sections
+    );
   });
 
   it('accepts legacy sections without adding a layout default', () => {
     const sections = [{ id: 'legacy-section', title: 'Legacy title', content: '', order: 0 }];
 
-    expect(parse({ ...buildRecord(), sections }).sections).toStrictEqual(sections);
+    expect(parseClinicalDocumentRecord({ ...buildRecord(), sections }).sections).toStrictEqual(
+      sections
+    );
   });
 
   it('rejects an invalid layout at the section boundary', () => {
-    const result = safeParse({
+    const result = safeParseClinicalDocumentRecord({
       ...buildRecord(),
       sections: [{ id: 'section', title: 'Title', content: '', order: 0, layout: 'compact' }],
     });

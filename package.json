@@ -118,6 +118,7 @@
     "check:empty-on-failure-reads": "node scripts/check-empty-on-failure-reads.mjs",
     "check:unchecked-index": "node scripts/check-unchecked-index-ratchet.mjs",
     "check:import-cycles": "node scripts/check-import-cycles.mjs",
+    "check:unreachable-modules": "node scripts/check-unreachable-modules.mjs",
     "check:firestore-runtime-boundary": "node scripts/check-firestore-runtime-boundary.mjs",
     "check:firestore-emulator-governance": "node scripts/check-firestore-emulator-governance.mjs",
     "check:domain-hotspot-boundary": "node scripts/check-domain-hotspot-boundary.mjs",

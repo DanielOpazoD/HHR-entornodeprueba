@@ -14,7 +14,7 @@
 import React from 'react';
 import { Lock } from 'lucide-react';
 
-import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 interface ClinicalDocumentLockBannerProps {

@@ -5,7 +5,7 @@ import {
   executePersistClinicalDocumentEditorDraft,
   resolveClinicalDocumentAutosaveCommit,
 } from '@/application/clinical-documents/clinicalDocumentEditorUseCases';
-import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import { useAuditContext } from '@/context/AuditContext';
 import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';

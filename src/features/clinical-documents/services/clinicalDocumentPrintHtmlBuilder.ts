@@ -1,5 +1,5 @@
-import type { ClinicalDocumentType } from '@/features/clinical-documents/domain/entities';
-import { getClinicalDocumentDefinition } from '@/features/clinical-documents/domain/definitions';
+import type { ClinicalDocumentType } from '@/domain/clinical-documents/entities';
+import { getClinicalDocumentDefinition } from '@/domain/clinical-documents/definitions';
 import clinicalDocumentSheetStyles from '@/features/clinical-documents/styles/clinicalDocumentSheet.css?raw';
 import {
   applyClinicalDocumentAnnexPrintMode,

@@ -10,7 +10,7 @@ import {
 import type {
   ClinicalDocumentSection,
   ClinicalDocumentSectionLayout,
-} from '@/features/clinical-documents/domain/entities';
+} from '@/domain/clinical-documents/entities';
 
 export type ClinicalDocumentPlanSubsectionId = 'generales' | 'farmacologicas' | 'control_clinico';
 

@@ -3,13 +3,15 @@
 export type {
   ClinicalAttachmentRecord,
   ClinicalAttachmentFileKind,
+} from '@/shared/clinical-documents/clinicalAttachmentContracts';
+export type {
   ClinicalDocumentAuditActor,
   ClinicalDocumentPdfMeta,
   ClinicalDocumentRecord,
   ClinicalDocumentStatus,
   ClinicalDocumentTemplate,
   ClinicalDocumentType,
-} from './domain/entities';
+} from '@/domain/clinical-documents/entities';
 export type { PatientData } from './contracts/clinicalDocumentsPatientContract';
 export type { ClinicalDocumentDraftBaseState } from './hooks/clinicalDocumentDraftReducer';
 export {
@@ -34,7 +36,7 @@ export {
 } from './controllers/clinicalAttachmentImageCompressionController';
 export { duplicateClinicalDocumentDraft } from './domain/factories';
 export { parseClinicalAttachmentRecord } from './contracts/clinicalAttachmentRuntimeContracts';
-export { safeParseClinicalDocumentRecord } from './contracts/clinicalDocumentRuntimeContracts';
+export { safeParseClinicalDocumentRecord } from '@/domain/clinical-documents/runtimeContracts';
 export { generateClinicalDocumentPdfBlob } from './services/clinicalDocumentPdfService';
 export { openClinicalDocumentBrowserPrintPreview } from './services/clinicalDocumentPrintPdfService';
 export type { ClinicalDocumentAnnexPrintMode } from './services/clinicalDocumentPrintSupport';
