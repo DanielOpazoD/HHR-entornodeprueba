@@ -4,7 +4,7 @@ import {
 } from './neonatalMaternalLookupIdentity';
 import { isDischargedEncounter } from './censusReconciliationPredicates';
 import { Specialty } from '@/types/domain/patientClassification';
-import { isValidRut } from '@/utils/rutUtils';
+import { isPassportFormat, isValidRut, normalizeRut } from '@/utils/rutUtils';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { rayenToPatientData, withLocalNameParts } from '../mapping/rayenToPatientData';
@@ -261,7 +261,18 @@ export const shouldReconcileAsPrincipal = (
   );
 };
 
-const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+/** Typed fallback identity: passports retain their exact trimmed text (ID-01). */
+export const clinicalCribDocumentIdentity = (
+  patient: Pick<PatientData, 'rut' | 'documentType'>
+): string => {
+  const document = patient.rut?.trim();
+  if (!document) return '';
+  const passport =
+    patient.documentType === 'Pasaporte' || (!patient.documentType && isPassportFormat(document));
+  if (passport) return `passport:${document}`;
+  const rut = normalizeRut(document);
+  return rut ? `run:${rut}` : '';
+};
 
 export const pendingClinicalCribDischargeIdentities = (
   candidates: MappedClinicalEncounter[]
@@ -270,7 +281,7 @@ export const pendingClinicalCribDischargeIdentities = (
     candidates.map(({ encounter, mapped }) =>
       encounter.encounterId
         ? `episode:${encounter.encounterId}`
-        : `run:${normalizeRut(mapped.patient.rut)}`
+        : clinicalCribDocumentIdentity(mapped.patient)
     )
   );
 
