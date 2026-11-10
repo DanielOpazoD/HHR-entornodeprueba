@@ -1,11 +1,6 @@
+import { withFunctionHandler } from './lib/function-handler';
 import { safeErrorLog } from './lib/safe-error-message';
-import {
-  buildCorsHeaders,
-  buildJsonResponse,
-  getRequestOrigin,
-  isOriginAllowed,
-  type NetlifyEventLike,
-} from './lib/http';
+import { buildCorsHeaders, buildJsonResponse, isOriginAllowed } from './lib/http';
 
 interface TransformOptions {
   width: number;
@@ -111,100 +106,104 @@ const defaultTransformImage = async (
     .toBuffer();
 };
 
-export const createPrescriptionImageProxyHandler =
-  (
-    dependencies: PrescriptionImageProxyDependencies = {
-      fetch,
-      transformImage: defaultTransformImage,
-    }
-  ) =>
-  async (event: NetlifyEventLike) => {
-    const requestOrigin = getRequestOrigin(event);
-    const corsHeaders = buildCorsHeaders(requestOrigin, {
-      allowedMethods: 'GET,OPTIONS',
-      extraHeaders: { 'Cache-Control': 'no-store' },
-    });
-
-    if (!isOriginAllowed(requestOrigin)) {
-      return buildJsonResponse(403, { error: 'Origin not allowed' }, { requestOrigin });
-    }
-
-    if (event.httpMethod === 'OPTIONS') {
-      return {
-        statusCode: 200,
-        headers: corsHeaders,
-        body: '',
-      };
-    }
-
-    if (event.httpMethod !== 'GET') {
-      return buildJsonResponse(405, { error: 'Method not allowed' }, { requestOrigin });
-    }
-
-    const params = new URLSearchParams(event.rawQuery ?? '');
-    const sourceUrl = params.get('url') ?? '';
-    if (!isAllowedPrescriptionImageSource(sourceUrl)) {
-      return buildJsonResponse(
-        400,
-        { error: 'Invalid prescription image source.' },
-        { requestOrigin }
+export const createPrescriptionImageProxyHandler = (
+  dependencies: PrescriptionImageProxyDependencies = {
+    fetch,
+    transformImage: defaultTransformImage,
+  }
+) =>
+  withFunctionHandler({
+    context: context => ({
+      ...context,
+      corsHeaders: buildCorsHeaders(context.requestOrigin, {
+        allowedMethods: 'GET,OPTIONS',
+        extraHeaders: { 'Cache-Control': 'no-store' },
+      }),
+    }),
+    origin: {
+      isOriginAllowed,
+      denied: ({ requestOrigin }) =>
+        buildJsonResponse(403, { error: 'Origin not allowed' }, { requestOrigin }),
+    },
+    preflight: ({ corsHeaders }) => ({ statusCode: 200, headers: corsHeaders, body: '' }),
+    // Anonymous capability URL: no Bearer/role check is added by the HTTP boundary.
+    prepare: ({ event, requestOrigin, method }) => {
+      const gate = method(['GET'], () =>
+        buildJsonResponse(405, { error: 'Method not allowed' }, { requestOrigin })
       );
-    }
+      if (gate.kind === 'reply') return gate;
 
-    const width = parseBoundedNumber(params.get('w'), 760, MIN_WIDTH, MAX_WIDTH);
-    const quality = parseBoundedNumber(params.get('q'), 58, MIN_QUALITY, MAX_QUALITY);
-
-    try {
-      const upstream = await dependencies.fetch(sourceUrl);
-      if (!upstream.ok) {
-        return buildJsonResponse(
-          502,
-          { error: `Image source responded with ${upstream.status}.` },
-          { requestOrigin }
-        );
+      const params = new URLSearchParams(event.rawQuery ?? '');
+      const sourceUrl = params.get('url') ?? '';
+      if (!isAllowedPrescriptionImageSource(sourceUrl)) {
+        return {
+          kind: 'reply',
+          response: buildJsonResponse(
+            400,
+            { error: 'Invalid prescription image source.' },
+            { requestOrigin }
+          ),
+        };
       }
 
-      const bytes = new Uint8Array(await upstream.arrayBuffer());
-      const upstreamContentType = upstream.headers.get('content-type') || 'image/jpeg';
-      let transformed: Uint8Array | Buffer = bytes;
-      let contentType = upstreamContentType;
-      let optimizationStatus = 'fallback';
+      const width = parseBoundedNumber(params.get('w'), 760, MIN_WIDTH, MAX_WIDTH);
+      const quality = parseBoundedNumber(params.get('q'), 58, MIN_QUALITY, MAX_QUALITY);
 
+      return { kind: 'continue', value: { sourceUrl, width, quality } };
+    },
+    run: async ({ requestOrigin, corsHeaders }, { sourceUrl, width, quality }) => {
       try {
-        transformed = await dependencies.transformImage(bytes, { width, quality });
-        contentType = 'image/jpeg';
-        optimizationStatus = 'optimized';
-      } catch (transformError) {
-        console.warn('Prescription image optimization fallback', transformError);
-        if (!PASSTHROUGH_IMAGE_TYPES.has(mediaTypeOf(upstreamContentType))) {
+        const upstream = await dependencies.fetch(sourceUrl);
+        if (!upstream.ok) {
           return buildJsonResponse(
-            415,
-            { error: 'Unsupported prescription image type.' },
+            502,
+            { error: `Image source responded with ${upstream.status}.` },
             { requestOrigin }
           );
         }
-      }
 
-      return {
-        statusCode: 200,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': contentType,
-          'Content-Security-Policy': "default-src 'none'; sandbox",
-          'X-Content-Type-Options': 'nosniff',
-          'X-Prescription-Image-Optimization': optimizationStatus,
-        },
-        body: Buffer.from(transformed).toString('base64'),
-        isBase64Encoded: true,
-      };
-    } catch (error) {
-      console.warn('Prescription image proxy failed', safeErrorLog(error));
-      return buildJsonResponse(
-        502,
-        { error: 'No se pudo optimizar la imagen de receta.' },
-        { requestOrigin }
-      );
-    }
-  };
+        const bytes = new Uint8Array(await upstream.arrayBuffer());
+        const upstreamContentType = upstream.headers.get('content-type') || 'image/jpeg';
+        let transformed: Uint8Array | Buffer = bytes;
+        let contentType = upstreamContentType;
+        let optimizationStatus = 'fallback';
+
+        try {
+          transformed = await dependencies.transformImage(bytes, { width, quality });
+          contentType = 'image/jpeg';
+          optimizationStatus = 'optimized';
+        } catch (transformError) {
+          console.warn('Prescription image optimization fallback', transformError);
+          if (!PASSTHROUGH_IMAGE_TYPES.has(mediaTypeOf(upstreamContentType))) {
+            return buildJsonResponse(
+              415,
+              { error: 'Unsupported prescription image type.' },
+              { requestOrigin }
+            );
+          }
+        }
+
+        return {
+          statusCode: 200,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': contentType,
+            'Content-Security-Policy': "default-src 'none'; sandbox",
+            'X-Content-Type-Options': 'nosniff',
+            'X-Prescription-Image-Optimization': optimizationStatus,
+          },
+          body: Buffer.from(transformed).toString('base64'),
+          isBase64Encoded: true,
+        };
+      } catch (error) {
+        console.warn('Prescription image proxy failed', safeErrorLog(error));
+        return buildJsonResponse(
+          502,
+          { error: 'No se pudo optimizar la imagen de receta.' },
+          { requestOrigin }
+        );
+      }
+    },
+  });
 
 export const handler = createPrescriptionImageProxyHandler();
