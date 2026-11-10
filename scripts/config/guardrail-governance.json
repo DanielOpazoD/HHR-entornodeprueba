@@ -181,7 +181,6 @@
       { "id": "check:docs-drift", "group": "governance" },
       { "id": "check:operational-runbooks", "group": "governance" },
       { "id": "check:folder-dependencies", "group": "boundaries" },
-      { "id": "check:module-dependencies", "group": "boundaries" },
       { "id": "check:module-size", "group": "size" },
       { "id": "check:extension-hotspots", "group": "size" },
       { "id": "check:census-runtime-boundary", "group": "boundaries" },
