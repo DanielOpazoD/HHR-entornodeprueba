@@ -7,7 +7,11 @@ import * as path from 'node:path';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { clearAllRecords, getRecordForDate, saveRecord } from '@/services/storage/indexedDBService';
+import {
+  clearAllRecords,
+  getRecordForDate,
+  saveRecord,
+} from '@/services/storage/indexeddb/indexedDbRecordService';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { resolveFirestoreRulesEmulatorConfig } from '@/tests/security/firestoreRulesEmulatorConfig';
 import {

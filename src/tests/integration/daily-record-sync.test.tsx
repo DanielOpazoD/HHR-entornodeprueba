@@ -12,7 +12,7 @@ import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
 import { UIProvider } from '@/context/UIContext';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { DailyRecordPatch } from '@/hooks/useDailyRecordTypes';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
@@ -83,10 +83,6 @@ vi.mock('../../context/UIContext', () => ({
 vi.mock('../../services/utils/errorService', () => ({
   logFirebaseError: vi.fn(),
   getUserFriendlyErrorMessage: vi.fn(_err => 'Friendly Error'),
-}));
-
-vi.mock('../../services/storage/unifiedLocalService', () => ({
-  saveRecordLocal: vi.fn(),
 }));
 
 // ============================================================================

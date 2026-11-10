@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { hospitalDB } from '@/services/storage/indexedDBService';
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 
 vi.mock('firebase/firestore', async importOriginal => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();

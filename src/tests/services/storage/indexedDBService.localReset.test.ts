@@ -1,10 +1,12 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import * as idbService from '@/services/storage/indexedDBService';
 import {
   DATABASES_KEPT_BY_AUTOMATIC_REPAIR,
   STORAGE_KEYS_KEPT_BY_AUTOMATIC_REPAIR,
   STORAGE_PREFIXES_KEPT_BY_AUTOMATIC_REPAIR,
+  repairClientStorageKeepingPendingWork,
+  resetLocalAppStorage,
+  resetLocalDatabase,
 } from '@/services/storage/indexeddb/indexedDbMaintenanceService';
 import { PENDING_DAILY_RECORD_PATCH_STORAGE_KEY } from '@/hooks/controllers/dailyRecordPendingPatchController';
 import { AUDIT_CONNECTION_OUTBOX_PREFIX } from '@/services/admin/auditSession/auditConnectionOutbox';
@@ -41,7 +43,7 @@ describe('Local App Reset', () => {
     const originalDelete = window.indexedDB.deleteDatabase;
     window.indexedDB.deleteDatabase = vi.fn();
 
-    await idbService.resetLocalDatabase();
+    await resetLocalDatabase();
 
     expect(window.indexedDB.deleteDatabase).toHaveBeenCalledWith('HangaRoaDB');
     expect(window.location.reload).toHaveBeenCalled();
@@ -83,7 +85,7 @@ describe('Local App Reset', () => {
     sessionStorage.setItem(BOOTSTRAP_RECOVERY_KEY, '1');
     sessionStorage.setItem('hhr_logged_this_session', 'true');
 
-    await idbService.repairClientStorageKeepingPendingWork();
+    await repairClientStorageKeepingPendingWork();
 
     expect(unregister).toHaveBeenCalled();
     expect(window.indexedDB.deleteDatabase).toHaveBeenCalledWith('firebaseLocalStorageDb');
@@ -161,7 +163,7 @@ describe('Local App Reset', () => {
     sessionStorage.setItem('hhr_logged_this_session', 'true');
     sessionStorage.setItem('unrelated_session_key', 'remove-me');
 
-    await idbService.resetLocalAppStorage();
+    await resetLocalAppStorage();
 
     expect(getRegistrations).toHaveBeenCalled();
     expect(unregister).toHaveBeenCalled();
@@ -213,7 +215,7 @@ describe('Local App Reset', () => {
       return request as unknown as IDBOpenDBRequest;
     });
 
-    await idbService.resetLocalAppStorage();
+    await resetLocalAppStorage();
 
     expect(window.indexedDB.deleteDatabase).toHaveBeenCalledWith('HangaRoaDB');
     expect(window.indexedDB.deleteDatabase).toHaveBeenCalledWith('firebaseLocalStorageDb');
@@ -241,7 +243,7 @@ describe('Local App Reset', () => {
       return deleteRequest as unknown as IDBOpenDBRequest;
     });
 
-    const resetPromise = idbService.resetLocalAppStorage();
+    const resetPromise = resetLocalAppStorage();
     await vi.waitFor(() => {
       expect(window.indexedDB.deleteDatabase).toHaveBeenCalledWith('firebaseLocalStorageDb');
     });
@@ -274,7 +276,7 @@ describe('Local App Reset', () => {
     localStorage.setItem('unrelated_local_key', 'remove-me');
     sessionStorage.setItem('unrelated_session_key', 'remove-me');
 
-    const resetPromise = idbService.resetLocalAppStorage();
+    const resetPromise = resetLocalAppStorage();
     await vi.waitFor(() => {
       expect(window.indexedDB.deleteDatabase).toHaveBeenCalledWith('firebaseLocalStorageDb');
     });

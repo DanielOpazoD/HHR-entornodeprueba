@@ -17,7 +17,7 @@ import {
   saveWholeDay,
   writeDay,
 } from './specialistHandoffNoteDaySupport';
-import { hospitalDB } from '@/services/storage/indexedDBService';
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
 import { buildTaskClaim } from '@/services/storage/sync/syncQueueTaskFactory';

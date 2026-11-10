@@ -25,7 +25,7 @@ vi.mock('@/services/repositories/repositoryConfig', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/repositories/repositoryConfig')>()),
   isFirestoreEnabled: vi.fn(() => true),
 }));
-import { hospitalDB } from '@/services/storage/indexedDBService';
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { DataFactory } from '@/tests/factories/DataFactory';

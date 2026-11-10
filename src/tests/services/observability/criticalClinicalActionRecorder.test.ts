@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   clearOperationalTelemetryEvents,
   getOperationalTelemetryEvents,
-} from '@/services/observability/operationalTelemetryService';
+} from '@/services/observability/operationalTelemetryRecorder';
 import { recordCriticalClinicalAction } from '@/services/observability/criticalClinicalActionRecorder';
 
 describe('criticalClinicalActionRecorder', () => {

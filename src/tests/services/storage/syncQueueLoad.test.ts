@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { hospitalDB } from '@/services/storage/indexedDBService';
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { getSyncQueueTelemetry, processSyncQueue, queueSyncTask } from '@/services/storage/sync';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 

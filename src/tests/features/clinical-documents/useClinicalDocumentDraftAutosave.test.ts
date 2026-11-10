@@ -9,8 +9,6 @@ import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entitie
 
 const executePersistClinicalDocumentEditorDraft = vi.fn();
 const resolveClinicalDocumentAutosaveCommit = vi.fn();
-const recordOperationalOutcome = vi.fn();
-const recordOperationalTelemetry = vi.fn();
 const auditContextMocks = vi.hoisted(() => ({
   logClinicalDocumentEdited: vi.fn(),
   recordCriticalClinicalAction: vi.fn(),
@@ -21,11 +19,6 @@ vi.mock('@/application/clinical-documents/clinicalDocumentEditorUseCases', () =>
     executePersistClinicalDocumentEditorDraft(...args),
   resolveClinicalDocumentAutosaveCommit: (...args: unknown[]) =>
     resolveClinicalDocumentAutosaveCommit(...args),
-}));
-
-vi.mock('@/services/observability/operationalTelemetryService', () => ({
-  recordOperationalOutcome: (...args: unknown[]) => recordOperationalOutcome(...args),
-  recordOperationalTelemetry: (...args: unknown[]) => recordOperationalTelemetry(...args),
 }));
 
 vi.mock('@/context/AuditContext', () => ({

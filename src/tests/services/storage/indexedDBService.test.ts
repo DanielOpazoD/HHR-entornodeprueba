@@ -1,6 +1,40 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import * as idbService from '@/services/storage/indexedDBService';
+import {
+  clearAllRecords,
+  deleteRecord,
+  getAllDates,
+  getAllRecords,
+  getAllRecordsSorted,
+  getPreviousDayRecord,
+  getRecordForDate,
+  getRecordsForMonth,
+  saveRecord,
+  saveRecordStrict,
+  saveRecords,
+} from '@/services/storage/indexeddb/indexedDbRecordService';
+import {
+  clearErrorLogs,
+  getErrorLogs,
+  saveErrorLog,
+} from '@/services/storage/indexeddb/indexedDbErrorLogService';
+import {
+  clearAuditLogs,
+  getAuditLogs,
+  getAuditLogsForDate,
+  saveAuditLog,
+} from '@/services/storage/indexeddb/indexedDbAuditLogService';
+import {
+  clearCatalog,
+  getCatalog,
+  saveCatalog,
+} from '@/services/storage/indexeddb/indexedDbCatalogService';
+import { migrateFromLocalStorage } from '@/services/storage/indexeddb/indexedDbMigrationService';
+import {
+  clearAllSettings,
+  getSetting,
+  saveSetting,
+} from '@/services/storage/indexeddb/indexedDbSettingsService';
 import * as indexedDbCore from '@/services/storage/indexeddb/indexedDbCore';
 import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -23,10 +57,10 @@ describe('indexedDBService', () => {
 
   beforeEach(async () => {
     // Clear all stores before each test
-    await idbService.clearAllRecords();
-    await idbService.hospitalDB.syncQueue.clear();
-    await idbService.clearErrorLogs();
-    await idbService.clearAuditLogs();
+    await clearAllRecords();
+    await indexedDbCore.hospitalDB.syncQueue.clear();
+    await clearErrorLogs();
+    await clearAuditLogs();
     localStorage.clear();
     sessionStorage.clear();
     window.__HHR_E2E_OVERRIDE__ = undefined;
@@ -41,8 +75,8 @@ describe('indexedDBService', () => {
     it.each(['PENDING', 'PROCESSING', 'FAILED', 'CONFLICT'] as const)(
       'preserves the local projection and %s task during hydration',
       async status => {
-        await idbService.saveRecordStrict(mockRecord);
-        await idbService.hospitalDB.syncQueue.add({
+        await saveRecordStrict(mockRecord);
+        await indexedDbCore.hospitalDB.syncQueue.add({
           opId: 'hydration-test',
           type: 'UPDATE_DAILY_RECORD',
           key: `daily:${mockRecord.date}`,
@@ -52,31 +86,34 @@ describe('indexedDBService', () => {
           retryCount: 0,
         });
         const remote = { ...mockRecord, lastUpdated: '2026-01-15T10:31:00.000Z' };
-        expect(
-          await idbService.saveRecordStrict(remote, { preserveUnresolvedWrites: true })
-        ).toMatchObject({ ok: true, retainedRecord: mockRecord });
-        expect(await idbService.hospitalDB.dailyRecords.get(mockRecord.date)).toEqual(mockRecord);
-        expect((await idbService.hospitalDB.syncQueue.toArray())[0].status).toBe(status);
+        expect(await saveRecordStrict(remote, { preserveUnresolvedWrites: true })).toMatchObject({
+          ok: true,
+          retainedRecord: mockRecord,
+        });
+        expect(await indexedDbCore.hospitalDB.dailyRecords.get(mockRecord.date)).toEqual(
+          mockRecord
+        );
+        expect((await indexedDbCore.hospitalDB.syncQueue.toArray())[0].status).toBe(status);
       }
     );
 
     it('hydrates the fallback cache without querying unavailable IndexedDB', async () => {
       vi.spyOn(indexedDbCore, 'isDatabaseInFallbackMode').mockReturnValue(true);
       const queueRead = vi
-        .spyOn(idbService.hospitalDB.syncQueue, 'where')
+        .spyOn(indexedDbCore.hospitalDB.syncQueue, 'where')
         .mockImplementation(() => {
           throw new Error('IndexedDB unavailable');
         });
-      const result = await idbService.saveRecordStrict(mockRecord, {
+      const result = await saveRecordStrict(mockRecord, {
         preserveUnresolvedWrites: true,
       });
       expect(result).toMatchObject({ ok: true, store: 'fallback' });
       expect(queueRead).not.toHaveBeenCalled();
-      expect(await idbService.getRecordForDate(mockRecord.date)).toMatchObject(mockRecord);
+      expect(await getRecordForDate(mockRecord.date)).toMatchObject(mockRecord);
     });
 
     it('should report the backing store used by strict record saves', async () => {
-      const result = await idbService.saveRecordStrict(mockRecord);
+      const result = await saveRecordStrict(mockRecord);
 
       expect(result).toMatchObject({
         ok: true,
@@ -84,27 +121,27 @@ describe('indexedDBService', () => {
         store: 'indexeddb',
         dates: ['2025-01-01'],
       });
-      await expect(idbService.getRecordForDate('2025-01-01')).resolves.toMatchObject({
+      await expect(getRecordForDate('2025-01-01')).resolves.toMatchObject({
         date: '2025-01-01',
       });
     });
 
     it('does not mirror regular localhost writes into legacy localStorage', async () => {
-      const result = await idbService.saveRecordStrict(mockRecord);
+      const result = await saveRecordStrict(mockRecord);
 
       expect(result.ok).toBe(true);
       expect(localStorage.getItem('hanga_roa_hospital_data')).toBeNull();
-      await expect(idbService.getRecordForDate('2025-01-01')).resolves.toMatchObject({
+      await expect(getRecordForDate('2025-01-01')).resolves.toMatchObject({
         date: '2025-01-01',
       });
     });
 
     it('should report strict record save failures without dispatching a success result', async () => {
       const putSpy = vi
-        .spyOn(idbService.hospitalDB.dailyRecords, 'put')
+        .spyOn(indexedDbCore.hospitalDB.dailyRecords, 'put')
         .mockRejectedValueOnce(new Error('quota exceeded'));
 
-      const result = await idbService.saveRecordStrict(mockRecord);
+      const result = await saveRecordStrict(mockRecord);
 
       expect(result).toMatchObject({
         ok: false,
@@ -117,59 +154,59 @@ describe('indexedDBService', () => {
     });
 
     it('should save and retrieve a record', async () => {
-      await idbService.saveRecord(mockRecord);
-      const retrieved = await idbService.getRecordForDate('2025-01-01');
+      await saveRecord(mockRecord);
+      const retrieved = await getRecordForDate('2025-01-01');
       expect(retrieved).toMatchObject({ date: '2025-01-01' });
     });
 
     it('should return null for non-existent record', async () => {
-      const retrieved = await idbService.getRecordForDate('9999-12-31');
+      const retrieved = await getRecordForDate('9999-12-31');
       expect(retrieved).toBeNull();
     });
 
     it('should get all records', async () => {
-      await idbService.saveRecord(mockRecord);
-      await idbService.saveRecord({ ...mockRecord, date: '2025-01-02' });
+      await saveRecord(mockRecord);
+      await saveRecord({ ...mockRecord, date: '2025-01-02' });
 
-      const all = await idbService.getAllRecords();
+      const all = await getAllRecords();
       expect(Object.keys(all)).toHaveLength(2);
       expect(all['2025-01-01']).toBeDefined();
       expect(all['2025-01-02']).toBeDefined();
     });
 
     it('should get records for a specific month', async () => {
-      await idbService.saveRecord({ ...mockRecord, date: '2025-01-01' });
-      await idbService.saveRecord({ ...mockRecord, date: '2025-01-05' });
-      await idbService.saveRecord({ ...mockRecord, date: '2025-02-01' });
+      await saveRecord({ ...mockRecord, date: '2025-01-01' });
+      await saveRecord({ ...mockRecord, date: '2025-01-05' });
+      await saveRecord({ ...mockRecord, date: '2025-02-01' });
 
-      const janRecords = await idbService.getRecordsForMonth(2025, 1);
+      const janRecords = await getRecordsForMonth(2025, 1);
       expect(janRecords).toHaveLength(2);
       expect(janRecords.map(record => record.date)).toEqual(['2025-01-05', '2025-01-01']);
     });
 
     it('should get the previous day record', async () => {
-      await idbService.saveRecord({ ...mockRecord, date: '2025-01-01' });
-      await idbService.saveRecord({ ...mockRecord, date: '2025-01-05' });
+      await saveRecord({ ...mockRecord, date: '2025-01-01' });
+      await saveRecord({ ...mockRecord, date: '2025-01-05' });
 
-      const prev = await idbService.getPreviousDayRecord('2025-01-10');
+      const prev = await getPreviousDayRecord('2025-01-10');
       expect(prev?.date).toBe('2025-01-05');
     });
 
     it('should delete a record', async () => {
-      await idbService.saveRecord(mockRecord);
-      await idbService.deleteRecord('2025-01-01');
-      const retrieved = await idbService.getRecordForDate('2025-01-01');
+      await saveRecord(mockRecord);
+      await deleteRecord('2025-01-01');
+      const retrieved = await getRecordForDate('2025-01-01');
       expect(retrieved).toBeNull();
     });
 
     it('should bulk save and return all records sorted descending', async () => {
-      await idbService.saveRecords([
+      await saveRecords([
         { ...mockRecord, date: '2025-01-02' },
         { ...mockRecord, date: '2025-01-03' },
         { ...mockRecord, date: '2025-01-01' },
       ]);
 
-      const sorted = await idbService.getAllRecordsSorted();
+      const sorted = await getAllRecordsSorted();
       expect(sorted.map(record => record.date)).toEqual(['2025-01-03', '2025-01-02', '2025-01-01']);
     });
   });
@@ -182,29 +219,29 @@ describe('indexedDBService', () => {
         message: 'Test error',
         severity: 'high',
       } as ErrorLog;
-      await idbService.saveErrorLog(log);
-      const logs = await idbService.getErrorLogs();
+      await saveErrorLog(log);
+      const logs = await getErrorLogs();
       expect(logs).toHaveLength(1);
       expect(logs[0].message).toBe('Test error');
     });
 
     it('should clear error logs', async () => {
-      await idbService.saveErrorLog({
+      await saveErrorLog({
         id: '2',
         timestamp: FIXED_ISO_TIMESTAMP,
         message: 'err',
         severity: 'high',
       } as ErrorLog);
-      await idbService.clearErrorLogs();
-      const logs = await idbService.getErrorLogs();
+      await clearErrorLogs();
+      const logs = await getErrorLogs();
       expect(logs).toHaveLength(0);
     });
   });
 
   describe('Catalogs', () => {
     it('should save and retrieve catalogs', async () => {
-      await idbService.saveCatalog('nurses', ['Alice', 'Bob']);
-      const list = await idbService.getCatalog('nurses');
+      await saveCatalog('nurses', ['Alice', 'Bob']);
+      const list = await getCatalog('nurses');
       expect(list).toEqual(['Alice', 'Bob']);
     });
   });
@@ -239,7 +276,7 @@ describe('indexedDBService', () => {
         announced.push((event as CustomEvent).detail);
       };
       window.addEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, listener);
-      const migrated = await idbService.migrateFromLocalStorage();
+      const migrated = await migrateFromLocalStorage();
       window.removeEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, listener);
       bulkPutSpy.mockRestore();
       expect(migrated).toBe(true);
@@ -248,21 +285,21 @@ describe('indexedDBService', () => {
       expect(announced).toEqual([{ operation: 'save', dates: ['2025-01-01'] }]);
       expect(steps).toEqual(['written', 'announced']);
 
-      expect(await idbService.getRecordForDate('2025-01-01')).toBeDefined();
-      expect(await idbService.getCatalog('nurses')).toEqual(['Alice']);
-      expect(await idbService.getCatalog('tens')).toEqual(['Bob']);
-      const logs = await idbService.getAuditLogs();
+      expect(await getRecordForDate('2025-01-01')).toBeDefined();
+      expect(await getCatalog('nurses')).toEqual(['Alice']);
+      expect(await getCatalog('tens')).toEqual(['Bob']);
+      const logs = await getAuditLogs();
       expect(logs).toHaveLength(1);
     });
 
     it('should not migrate if flag is set', async () => {
       localStorage.setItem('indexeddb_migration_complete', 'true');
-      const migrated = await idbService.migrateFromLocalStorage();
+      const migrated = await migrateFromLocalStorage();
       expect(migrated).toBe(false);
     });
 
     it('should skip migration and mark complete when no legacy payload exists', async () => {
-      const migrated = await idbService.migrateFromLocalStorage();
+      const migrated = await migrateFromLocalStorage();
       expect(migrated).toBe(false);
       expect(localStorage.getItem('indexeddb_migration_complete')).toBe('true');
     });
@@ -280,17 +317,17 @@ describe('indexedDBService', () => {
         details: {},
         recordDate: '2025-01-01',
       } as AuditLogEntry;
-      await idbService.saveAuditLog(log);
-      await idbService.saveAuditLog({ ...log, id: 'a2', recordDate: '2025-01-02' });
+      await saveAuditLog(log);
+      await saveAuditLog({ ...log, id: 'a2', recordDate: '2025-01-02' });
 
-      const logs = await idbService.getAuditLogsForDate('2025-01-01');
+      const logs = await getAuditLogsForDate('2025-01-01');
       expect(logs).toHaveLength(1);
       expect(logs[0].id).toBe('a1');
     });
 
     it('should respect limit in getAuditLogs', async () => {
       for (let i = 0; i < 5; i++) {
-        await idbService.saveAuditLog({
+        await saveAuditLog({
           id: `l${i}`,
           timestamp: FIXED_ISO_TIMESTAMP,
           action: 'SYSTEM_ERROR',
@@ -300,13 +337,13 @@ describe('indexedDBService', () => {
           details: {},
         } as AuditLogEntry);
       }
-      const logs = await idbService.getAuditLogs(3);
+      const logs = await getAuditLogs(3);
       expect(logs).toHaveLength(3);
     });
 
     it('should return all audit logs when no limit is provided', async () => {
       for (let i = 0; i < 5; i++) {
-        await idbService.saveAuditLog({
+        await saveAuditLog({
           id: `full-${i}`,
           timestamp: FIXED_ISO_TIMESTAMP,
           action: 'SYSTEM_ERROR',
@@ -317,7 +354,7 @@ describe('indexedDBService', () => {
         } as AuditLogEntry);
       }
 
-      const logs = await idbService.getAuditLogs();
+      const logs = await getAuditLogs();
 
       expect(logs).toHaveLength(5);
     });
@@ -325,66 +362,66 @@ describe('indexedDBService', () => {
 
   describe('Settings', () => {
     it('should save and get settings', async () => {
-      await idbService.saveSetting('theme', 'dark');
-      const val = await idbService.getSetting('theme', 'light');
+      await saveSetting('theme', 'dark');
+      const val = await getSetting('theme', 'light');
       expect(val).toBe('dark');
     });
 
     it('should return default value if setting not found', async () => {
-      const val = await idbService.getSetting('non-existent', 'default');
+      const val = await getSetting('non-existent', 'default');
       expect(val).toBe('default');
     });
   });
 
   describe('Utilities and Edge Cases', () => {
     it('should return all dates sorted correctly', async () => {
-      await idbService.saveRecord({ ...mockRecord, date: '2025-01-01' });
-      await idbService.saveRecord({ ...mockRecord, date: '2025-01-03' });
-      await idbService.saveRecord({ ...mockRecord, date: '2025-01-02' });
+      await saveRecord({ ...mockRecord, date: '2025-01-01' });
+      await saveRecord({ ...mockRecord, date: '2025-01-03' });
+      await saveRecord({ ...mockRecord, date: '2025-01-02' });
 
-      const dates = await idbService.getAllDates();
+      const dates = await getAllDates();
       expect(dates).toEqual(['2025-01-03', '2025-01-02', '2025-01-01']);
     });
 
     it('should check if indexedDB is available', () => {
-      expect(idbService.isIndexedDBAvailable()).toBe(true);
+      expect(indexedDbCore.isIndexedDBAvailable()).toBe(true);
     });
 
     it('should report fallback mode correctly', () => {
       // In tests we are using real fake-indexeddb usually, so it should be false
-      expect(idbService.isDatabaseInFallbackMode()).toBe(false);
+      expect(indexedDbCore.isDatabaseInFallbackMode()).toBe(false);
     });
 
     it('should handle getErrorLogs with limit', async () => {
-      await idbService.saveErrorLog({
+      await saveErrorLog({
         id: 'e1',
         timestamp: '2025-01-01',
         message: 'e1',
         severity: 'medium',
       } as ErrorLog);
-      await idbService.saveErrorLog({
+      await saveErrorLog({
         id: 'e2',
         timestamp: '2025-01-02',
         message: 'e2',
         severity: 'medium',
       } as ErrorLog);
-      const logs = await idbService.getErrorLogs(1);
+      const logs = await getErrorLogs(1);
       expect(logs).toHaveLength(1);
     });
   });
 
   describe('Additional Clear Operations', () => {
     it('should clear catalog', async () => {
-      await idbService.saveCatalog('nurses', ['Alice']);
-      await idbService.clearCatalog('nurses');
-      const list = await idbService.getCatalog('nurses');
+      await saveCatalog('nurses', ['Alice']);
+      await clearCatalog('nurses');
+      const list = await getCatalog('nurses');
       expect(list).toEqual([]);
     });
 
     it('should clear all settings', async () => {
-      await idbService.saveSetting('s1', 'v1');
-      await idbService.clearAllSettings();
-      const val = await idbService.getSetting('s1', 'default');
+      await saveSetting('s1', 'v1');
+      await clearAllSettings();
+      const val = await getSetting('s1', 'default');
       expect(val).toBe('default');
     });
   });

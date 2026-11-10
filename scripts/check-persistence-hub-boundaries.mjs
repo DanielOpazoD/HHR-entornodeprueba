@@ -7,13 +7,9 @@ const ROOT = process.cwd();
 const SRC_ROOT = path.join(ROOT, 'src');
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
 
-const RESTRICTED_IMPORTS = new Set([
-  '@/services/repositories/DailyRecordRepository',
-  '@/services/storage/indexedDBService',
-]);
+const RESTRICTED_IMPORTS = new Set(['@/services/repositories/DailyRecordRepository']);
 
 const ALLOWED_IMPORTERS = new Set([
-  'src/services/storage/indexedDBService.ts',
   'src/services/storage/index.ts',
   'src/services/RepositoryContext.tsx',
   'src/services/admin/dataMaintenanceService.ts',

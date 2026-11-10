@@ -16,7 +16,7 @@ import {
   resetNoteDay,
   writeDay,
 } from '@/tests/services/storage/specialistHandoffNoteDaySupport';
-import { hospitalDB } from '@/services/storage/indexedDBService';
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { persistHydratedRecordToLocalCache } from '@/services/repositories/dailyRecordLocalCachePersistence';
 import { updateRecordPartial } from '@/services/storage/firestore/firestoreRecordWrites';

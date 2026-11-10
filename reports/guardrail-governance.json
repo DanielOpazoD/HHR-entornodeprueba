@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-01T00:48:09.879Z",
+  "generatedAt": "2026-11-10T01:23:07.438Z",
   "version": 1,
   "blockingTierCount": 5,
   "reportOnlyCount": 18,
@@ -261,10 +261,6 @@
         "group": "boundaries"
       },
       {
-        "id": "check:legacy-localstorage-imports",
-        "group": "boundaries"
-      },
-      {
         "id": "report:compatibility-governance",
         "group": "governance-inputs"
       },
@@ -412,6 +408,10 @@
       },
       {
         "id": "check:source-any",
+        "group": "type-safety"
+      },
+      {
+        "id": "check:unchecked-index",
         "group": "type-safety"
       },
       {

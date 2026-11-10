@@ -51,10 +51,6 @@ vi.mock('@/application/clinical-documents/clinicalDocumentUseCases', async () =>
   };
 });
 
-vi.mock('@/services/observability/operationalTelemetryService', () => ({
-  recordOperationalOutcome: vi.fn(),
-}));
-
 type BootstrapParams = Parameters<typeof useClinicalDocumentWorkspaceBootstrap>[0];
 type TemplatesOutcome = Awaited<
   ReturnType<typeof templateUseCases.executeListActiveClinicalDocumentTemplates>

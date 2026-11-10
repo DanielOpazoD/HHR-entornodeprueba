@@ -15,7 +15,7 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 import {
   clearOperationalTelemetryEvents,
   getOperationalTelemetryEvents,
-} from '@/services/observability/operationalTelemetryService';
+} from '@/services/observability/operationalTelemetryRecorder';
 
 const date = '2026-05-16';
 const record = DataFactory.createMockDailyRecord(date);

@@ -61,8 +61,7 @@ describe('DailyRecord root import governance', () => {
         relative === 'src/application/shared/dailyRecordMedicalContracts.ts' ||
         relative === 'src/application/shared/dailyRecordStaffContracts.ts' ||
         isTestFile;
-      const isHookBypass =
-        relative === 'src/hooks/contracts/dailyRecordHookContracts.ts' || isTestFile;
+      const isHookBypass = isTestFile;
       const isServiceBypass =
         relative === 'src/services/contracts/dailyRecordServiceContracts.ts' ||
         relative.startsWith('src/services/repositories/') ||

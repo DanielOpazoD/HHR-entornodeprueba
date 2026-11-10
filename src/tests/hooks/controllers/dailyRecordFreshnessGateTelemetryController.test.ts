@@ -12,7 +12,7 @@ import {
 import {
   clearOperationalTelemetryEvents,
   getOperationalTelemetryEvents,
-} from '@/services/observability/operationalTelemetryService';
+} from '@/services/observability/operationalTelemetryRecorder';
 import {
   parseOperationalTelemetryBody,
   shouldAlertOperationalTelemetry,

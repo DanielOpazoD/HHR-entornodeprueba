@@ -23,7 +23,7 @@ import {
   getPreviousDayWithMeta,
 } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { CatalogRepository } from '@/services/repositories/CatalogRepository';
-import * as idbService from '@/services/storage/indexedDBService';
+import * as idbRecordService from '@/services/storage/indexeddb/indexedDbRecordService';
 import * as firestoreService from '@/services/storage/firestore';
 import type { CudyrScore } from '@/types/domain/cudyr';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -47,7 +47,6 @@ const { indexedDbFacadeMock, firestoreMock, logErrorMock } = vi.hoisted(() => ({
     getCatalog: vi.fn().mockResolvedValue([]),
     getCatalogValues: vi.fn().mockResolvedValue([]),
     saveCatalogValues: vi.fn(),
-    isIndexedDBAvailable: vi.fn().mockReturnValue(true),
   },
   firestoreMock: {
     saveRecordToFirestore: vi.fn(),
@@ -77,7 +76,6 @@ vi.mock('@/services/utils/errorService', () => ({
 
 export { firestoreMock, indexedDbFacadeMock, logErrorMock };
 
-vi.mock('@/services/storage/indexedDBService', () => indexedDbFacadeMock);
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDate: indexedDbFacadeMock.getRecordForDate,
   captureLocalRecordBase: async (date: string) => ({
@@ -219,9 +217,9 @@ export const mockRecord: DailyRecord = {
 
 export const resetDailyRecordRepositoryLifecycleState = () => {
   vi.clearAllMocks();
-  vi.mocked(idbService.getRecordForDate).mockReset();
-  vi.mocked(idbService.getPreviousDayRecord).mockReset();
-  vi.mocked(idbService.saveRecord).mockReset();
+  vi.mocked(idbRecordService.getRecordForDate).mockReset();
+  vi.mocked(idbRecordService.getPreviousDayRecord).mockReset();
+  vi.mocked(idbRecordService.saveRecord).mockReset();
   vi.mocked(indexedDbFacadeMock.saveRecordStrict).mockReset();
   vi.mocked(indexedDbFacadeMock.deleteRecordStrict).mockReset();
   vi.mocked(firestoreService.getRecordFromFirestore).mockReset();
@@ -229,7 +227,7 @@ export const resetDailyRecordRepositoryLifecycleState = () => {
   vi.mocked(firestoreService.updateRecordPartial).mockReset();
 
   Repository.setFirestoreEnabled(true);
-  vi.mocked(idbService.getRecordForDate).mockResolvedValue(null);
+  vi.mocked(idbRecordService.getRecordForDate).mockResolvedValue(null);
   vi.mocked(indexedDbFacadeMock.saveRecordStrict).mockImplementation(async record => {
     await indexedDbFacadeMock.saveRecord(record);
     return {
