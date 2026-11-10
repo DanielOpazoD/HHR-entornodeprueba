@@ -5,38 +5,35 @@
   const PAIR = /^[A-Za-z0-9_-]{43}$/;
   const trusted = sender => self.HhrAppOrigins.matchesUrl(sender?.tab?.url) && sender.frameId === 0;
   const granted = () => chrome.permissions.contains(session.GRANT);
-  // Consent covers one published HHR site and one HHR account (the bridge's owner fingerprint).
-  const consentedOwner = async origin => {
-    const stored = await chrome.storage.local.get(['exalabAutoConnect', 'exalabAutoConnectOrigin', 'exalabAutoConnectOwner']);
+  const KEYS = ['exalabAutoConnect', 'exalabAutoConnectOrigin', 'exalabAutoConnectOwner', 'exalabAutoConnectUser'];
+  // Consent covers one published HHR site, one HHR account and one Exalab user (bridge fingerprints).
+  const consent = async origin => {
+    const stored = await chrome.storage.local.get(KEYS);
     return stored.exalabAutoConnect === true && stored.exalabAutoConnectOrigin === origin && session.autoOrigin(origin) &&
-      session.OWNER.test(stored.exalabAutoConnectOwner || '') ? stored.exalabAutoConnectOwner : null;
+      session.OWNER.test(stored.exalabAutoConnectOwner || '') && session.OWNER.test(stored.exalabAutoConnectUser || '')
+      ? { expectedOwner: stored.exalabAutoConnectOwner, expectedExalabUser: stored.exalabAutoConnectUser } : null;
   };
   const status = async origin => {
     const permission = await granted();
-    return {
-      permission,
-      autoConnect: Boolean(await consentedOwner(origin)),
-      session: permission && session.hasSession(await session.readCookies()),
-    };
+    return { permission, autoConnect: Boolean(await consent(origin)), session: permission && session.hasSession(await session.readCookies()) };
   };
   const autoConnect = async (origin, pair) => {
-    const owner = PAIR.test(pair || '') && await granted() ? await consentedOwner(origin) : null;
-    if (!owner) return { connected: false, reason: 'needs_consent' };
+    const expected = PAIR.test(pair || '') && await granted() ? await consent(origin) : null;
+    if (!expected) return { connected: false, reason: 'needs_consent' };
     const cookies = await session.readCookies();
     if (!session.hasSession(cookies)) return { connected: false, reason: 'no_session' };
     try {
-      // expectedOwner makes the bridge refuse a pair minted for another HHR account.
-      return (await session.connect(origin, pair, cookies, navigator.userAgent, owner)).connected
-        ? { connected: true, reason: 'connected' } : { connected: false, reason: 'rejected' };
+      // The bridge refuses a pair of another HHR account or another person's Exalab session.
+      const linked = await session.connect(origin, pair, cookies, navigator.userAgent, expected);
+      if (linked.connected) return { connected: true, reason: 'connected' };
+      // Another Exalab user here keeps this PC's consent but needs that person's own manual connection.
+      return { connected: false, reason: linked.code === 'EXALAB_USER_MISMATCH' ? 'needs_consent' : 'rejected' };
     } catch { return { connected: false, reason: 'network' }; }
   };
   const handlers = {
     HHR_EXALAB_SESSION_STATUS: (_message, origin) => status(origin),
     HHR_EXALAB_AUTO_CONNECT: (message, origin) => autoConnect(origin, message.pair),
-    HHR_EXALAB_FORGET: async () => {
-      await chrome.storage.local.remove(['exalabAutoConnect', 'exalabAutoConnectOrigin', 'exalabAutoConnectOwner']);
-      return { forgotten: true };
-    },
+    HHR_EXALAB_FORGET: async () => { await chrome.storage.local.remove(KEYS); return { forgotten: true }; },
   };
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const handler = handlers[message?.type];
