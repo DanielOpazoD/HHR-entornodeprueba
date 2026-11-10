@@ -89,6 +89,7 @@ it('reuses exact dependencies across compatible jobs with one pristine-cache wri
     'quality-static-groups',
     'rules-emulator',
     'test-execution-manifest',
+    'tooling-scope-gate',
     'unit-risk-shards',
   ]);
   const writers = reusable.filter(([, job]) =>
