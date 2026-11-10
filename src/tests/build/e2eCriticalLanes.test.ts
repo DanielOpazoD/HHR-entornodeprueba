@@ -92,3 +92,41 @@ it.each([
   if (kind === 'file-missing') first.report.suites.pop();
   expect(() => mergeCriticalLaneReports({ records: inputs, identity, ci, expected })).toThrow();
 });
+
+it('preserves execution and performance artifact names and extraction paths for all consumers', () => {
+  const { jobs } = parseWorkflow(fs.readFileSync('.github/workflows/ci-cd.yml', 'utf8'));
+  const aggregate = jobs['e2e-critical-emulator'];
+  const manifest = jobs['test-execution-manifest'];
+  expect(jobNeeds(manifest)).toContain('e2e-critical-emulator');
+  for (const suite of ['critical', 'flow', 'cudyr']) {
+    const name = `test-execution-evidence-${suite}`;
+    const upload = aggregate.steps.find(step => step.with?.name === name);
+    expect(upload?.uses).toContain('actions/upload-artifact@');
+    expect(upload?.with?.path).toBe(`reports/execution/${suite}.evidence.json`);
+    const download = manifest.steps.find(step => step.with?.name === name);
+    expect(download?.uses).toContain('actions/download-artifact@');
+    expect(download?.with?.path).toBe('reports/execution');
+  }
+  for (const lane of CRITICAL_LANES) {
+    const name = `e2e-critical-lane-\${{ github.run_attempt }}-${lane}`;
+    const upload = jobs['e2e-critical-lanes'].steps.find(step => step.with?.name === name);
+    expect(String(upload?.with?.path)).toContain('reports/e2e/**');
+    expect(String(upload?.with?.path)).toContain('reports/execution/**');
+    const download = aggregate.steps.find(step => step.with?.name === name);
+    expect(download?.with?.path).toBe(`reports/critical-lanes/${name}`);
+  }
+  const performance = aggregate.steps.find(step => step.with?.name === 'flow-performance-evidence');
+  expect(String(performance?.with?.path).trim().split('\n')).toEqual([
+    'reports/e2e/flow-performance-budget.json',
+    'reports/e2e/flow-performance-budget-summary.json',
+    'reports/e2e/flow-performance-budget.md',
+    'reports/e2e/flow-performance-playwright-report.json',
+  ]);
+  for (const consumer of ['final-confidence-and-readiness', 'postmerge-evidence']) {
+    expect(jobNeeds(jobs[consumer])).toContain('e2e-critical-emulator');
+    const download = jobs[consumer].steps.find(
+      step => step.with?.name === 'flow-performance-evidence'
+    );
+    expect(download?.with?.path).toBe('reports/e2e');
+  }
+});

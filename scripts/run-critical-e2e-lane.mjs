@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { criticalLaneSpecs } from './criticalE2ELanes.mjs';
 import { buildCriticalE2EEnvironment } from './config/criticalE2EEnvironment.mjs';
@@ -11,6 +13,21 @@ const run = (command, args, env = process.env) => {
 if (!process.env.FIRESTORE_EMULATOR_HOST) throw new Error('A private emulator is required');
 // Only the auxiliary lane needs a built preview for the unchanged flow budget.
 if (lane === '3') run('npm', ['run', 'build'], buildCriticalE2EEnvironment());
+const expectedReport = 'reports/e2e/critical-expected.json';
+fs.mkdirSync(path.dirname(expectedReport), { recursive: true });
+run(
+  'npx',
+  [
+    'playwright',
+    'test',
+    '-c',
+    'playwright.emulator-critical.config.ts',
+    ...specs,
+    '--list',
+    '--reporter=json',
+  ],
+  { ...process.env, PLAYWRIGHT_JSON_OUTPUT_FILE: path.resolve(expectedReport) }
+);
 run('npx', ['playwright', 'test', '-c', 'playwright.emulator-critical.config.ts', ...specs]);
 run('node', [
   'scripts/check-playwright-report-clean.mjs',
