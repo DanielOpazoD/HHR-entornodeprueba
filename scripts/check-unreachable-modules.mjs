@@ -20,8 +20,11 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import ts from 'typescript';
-import { listProductionSources, resolveSpecifier } from './lib/sourceModules.mjs';
+import {
+  listProductionSources,
+  readModuleReferences,
+  resolveSpecifier,
+} from './lib/sourceModules.mjs';
 
 const ROOT = process.cwd();
 const CONFIG_PATH = 'scripts/config/unreachable-modules.json';
@@ -45,7 +48,7 @@ const modules = new Set([...appModules, ...functionModules]);
 const importsOf = file => {
   const source = read(file);
   const specifiers = [
-    ...ts.preProcessFile(source, true, true).importedFiles.map(imported => imported.fileName),
+    ...readModuleReferences(source).map(imported => imported.fileName),
     ...[...source.matchAll(URL_REFERENCE)].map(match => match[1]),
   ];
   return specifiers.map(specifier => resolveSpecifier(file, specifier, modules)).filter(Boolean);

@@ -5,7 +5,6 @@
  */
 
 import { useCallback } from 'react';
-import { AUDIT_ACTION_LABELS } from '@/services/admin/auditConstants';
 import { AuditAction } from '@/types/auditActionTypes';
 import { AuditLogEntry } from '@/types/auditLogTypes';
 import { reportAuditOutcome } from '@/hooks/controllers/auditEventRejectionLogger';
@@ -174,8 +173,6 @@ interface UseAuditReturn {
   ) => void;
   // Fetching
   fetchLogs: (limit?: number) => Promise<AuditLogEntry[]>;
-  // Labels
-  getActionLabel: (action: AuditAction) => string;
 }
 
 export const useAudit = (userId: string): UseAuditReturn => {
@@ -301,10 +298,6 @@ export const useAudit = (userId: string): UseAuditReturn => {
     return result.data;
   }, []);
 
-  const getActionLabel = useCallback((action: AuditAction): string => {
-    return AUDIT_ACTION_LABELS[action] || action;
-  }, []);
-
   return {
     logPatientAdmission,
     logPatientDischarge,
@@ -324,6 +317,5 @@ export const useAudit = (userId: string): UseAuditReturn => {
     logEvent,
     logDebouncedEvent,
     fetchLogs,
-    getActionLabel,
   };
 };

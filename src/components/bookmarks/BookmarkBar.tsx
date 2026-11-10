@@ -78,6 +78,7 @@ export const BookmarkBar: React.FC = () => {
             {/* Inline controls on hover */}
             <div className="absolute top-0 right-0 opacity-0 group-hover/item:opacity-100 transition-opacity flex">
               <button
+                aria-label={`Editar marcador ${bookmark.name}`}
                 onClick={e => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -85,7 +86,7 @@ export const BookmarkBar: React.FC = () => {
                 }}
                 className="p-0.5 text-slate-300 hover:text-medical-600 bg-white border border-slate-100 rounded-full -mt-1 -mr-1 shadow-sm"
               >
-                <Edit2 size={8} />
+                <Edit2 size={8} aria-hidden="true" />
               </button>
             </div>
           </div>

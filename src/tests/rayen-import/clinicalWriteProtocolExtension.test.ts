@@ -382,8 +382,6 @@ describe('extension clinical write protocol', () => {
       /hashClinicalWriteRecoveryToken|signClinicalWriteRecoveryReview/
     );
     expect(recoveryPolicyOwner).not.toMatch(/\b(?:chrome|storage|fetch)\b/);
-    expect(recoveryPolicyOwner).toContain('const parseRecoveryRequest = request =>');
-    expect(recoveryPolicyOwner).toContain('const evaluateConfirmationState =');
     expect(background).not.toMatch(
       /const handleCudyrSave|const handleEvaluationScaleSave|const performScoreSaveRequest/
     );

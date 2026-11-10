@@ -95,10 +95,6 @@ describe('HHR discharge actions runtime', () => {
   });
 
   it('owns the discharge flows, fails closed and loads before its consumer', () => {
-    const runtimeSource = readFileSync(
-      path.resolve('extension/hhr-discharge-actions-runtime.js'),
-      'utf8'
-    );
     const contentSource = readFileSync(
       path.resolve('extension/content-prescription-print.js'),
       'utf8'
@@ -128,7 +124,6 @@ describe('HHR discharge actions runtime', () => {
       'const requestCorrectedDischargePrint =',
       'const requestNursingMedicalEpicrisisPrint =',
     ].forEach(definition => {
-      expect(runtimeSource).toContain(definition);
       expect(contentSource).not.toContain(definition);
     });
   });

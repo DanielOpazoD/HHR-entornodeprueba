@@ -136,6 +136,7 @@ export const createWhatsAppProxyHandler =
         operation: `${event.httpMethod} ${targetPath}`,
         timeoutMs: 8_000,
         maxAttempts: 1,
+        isFailureResult: ({ response }) => response.status >= 500 && response.status < 600,
         db,
         hospitalId: process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa',
         context: {

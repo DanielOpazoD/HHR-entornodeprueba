@@ -1,4 +1,4 @@
-import type { DocumentScanFilterMode } from './documentImageFilters';
+import type { DocumentScanFilterMode } from './documentFilterProfiles';
 import {
   getDocumentPage,
   moveDocumentPage as movePageInCollection,
@@ -15,8 +15,8 @@ import type {
   JscanifyDocumentSession,
 } from './documentScannerTypes';
 
-export { mapScannerLuminance } from './documentImageFilters';
-export type { DocumentScanFilterMode } from './documentImageFilters';
+export { mapScannerLuminance } from './documentFilterProfiles';
+export type { DocumentScanFilterMode } from './documentFilterProfiles';
 export { computeSha384Integrity, JSCANIFY_POC_METADATA } from './jscanifyWorkerRuntime';
 export type {
   DocumentCropEditorState,

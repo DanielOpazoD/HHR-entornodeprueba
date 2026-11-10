@@ -143,13 +143,14 @@ export const TerminologySuggestor: React.FC<TerminologySuggestorProps> = ({
             {/* Clear Button */}
             {query && (
               <button
+                aria-label="Limpiar búsqueda"
                 onClick={() => {
                   setQuery('');
                   debouncedOnChange('');
                 }}
                 className="absolute right-12 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 rounded-full text-slate-400 transition-colors mr-2"
               >
-                <X size={14} />
+                <X size={14} aria-hidden="true" />
               </button>
             )}
 

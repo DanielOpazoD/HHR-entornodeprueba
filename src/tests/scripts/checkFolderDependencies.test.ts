@@ -9,8 +9,9 @@ const roots: string[] = [];
 const zones = ['components', 'context', 'hooks', 'services'];
 // Both real guards on main 764252f were run against these 84 synthetic repositories.
 // 82 verdicts matched; two near-shims were rejected only by the folder guard.
-// No module rejection was accepted by the folder guard. Freeze these verdicts;
-// never derive expected results from the live matrix.
+// No module rejection was accepted by the folder guard. Preserve static verdicts;
+// dynamic and side-effect imports now follow the same matrix.
+// Never derive expected results from the live matrix.
 const rejectedPairs = new Set([
   'context->components',
   'hooks->components',
@@ -20,7 +21,12 @@ const rejectedPairs = new Set([
 ]);
 const matrix = readFileSync('scripts/folder-dependency-matrix.json', 'utf8');
 const allowlist = readFileSync('scripts/folder-dependency-allowlist.json', 'utf8');
-const fixtures: { name: string; files: Record<string, string>; status: number }[] = [];
+const fixtures: {
+  name: string;
+  files: Record<string, string>;
+  status: number;
+  diagnostic?: string;
+}[] = [];
 for (const from of zones) {
   for (const to of zones) {
     for (const form of ['alias', 'relative', 're-export']) {
@@ -60,10 +66,10 @@ for (const extension of ['.ts', '.tsx', '.js', '.jsx']) {
       status: 1,
     },
     {
-      name: 'dynamic import ignored',
+      name: 'dynamic import rejected',
       code: "import('@/hooks/target');",
       target: `src/hooks/target${extension}`,
-      status: 0,
+      status: 1,
     },
     {
       name: 'unresolved ignored',
@@ -78,10 +84,10 @@ for (const extension of ['.ts', '.tsx', '.js', '.jsx']) {
       status: 0,
     },
     {
-      name: 'side-effect ignored',
+      name: 'side-effect rejected',
       code: "import '@/hooks/target';",
       target: `src/hooks/target${extension}`,
-      status: 0,
+      status: 1,
     },
   ];
   for (const fixture of cases) {
@@ -132,6 +138,40 @@ for (const [name, source, folderStatus] of [
   });
 }
 
+for (const code of [
+  "import { x } from '@/services/target';",
+  "import('@/services/target');",
+  "import(/* webpackChunkName: 'target' */ '@/services/target');",
+  "export { x } from '@/services/target';",
+  "import type { x } from '@/services/target';",
+]) {
+  fixtures.push({
+    name: `rejects domain->services for ${code}`,
+    files: {
+      'src/domain/probe.ts': `// synthetic fixture\n${code}`,
+      'src/services/target.ts': 'export const x = 1;',
+    },
+    status: 1,
+    diagnostic: 'src/domain/probe.ts:2 domain -> services (@/services/target)',
+  });
+}
+
+for (const [name, code] of [
+  ['unresolved', "import('@/services/missing');"],
+  ['package', "import('package');"],
+  ['nonliteral', 'import(target);'],
+  ['comment', "// import('@/services/target');"],
+]) {
+  fixtures.push({
+    name: `ignores ${name}`,
+    files: {
+      'src/domain/probe.ts': code,
+      'src/services/target.ts': 'export const x = 1;',
+    },
+    status: 0,
+  });
+}
+
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
@@ -158,6 +198,11 @@ describe('check-folder-dependencies frozen verdicts', () => {
         encoding: 'utf8',
       }
     );
+    if (fixture.diagnostic) {
+      expect(result.stderr).toContain(fixture.diagnostic);
+      expect(result.stderr).toContain('scripts/folder-dependency-matrix.json');
+      expect(result.stderr).toContain('responsable');
+    }
     expect(result.error).toBeUndefined();
     expect(result.status, `${result.stdout}${result.stderr}`).toBe(fixture.status);
   });

@@ -9,7 +9,6 @@ const { useAuditMock, useAuthMock } = vi.hoisted(() => ({
     logEvent: vi.fn(),
     logDebouncedEvent: vi.fn(),
     fetchLogs: vi.fn(),
-    getActionLabel: vi.fn(),
   })),
   useAuthMock: vi.fn(),
 }));

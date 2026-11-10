@@ -5,7 +5,7 @@ import { resolveUpcReviewReason } from '@/shared/census/upcEvaluationPolicy';
 import { resolveEffectiveUpcState, isUpcEligibleBedId } from '@/shared/census/upcBedPolicy';
 import { resolveUpcClassificationLabel } from '@/domain/upc/upcClassification';
 import { resolveUpcBadgeColor } from './upcClassificationTone';
-import type { UpcChecklistRecord } from '@/features/census/contracts/censusUpcContracts';
+import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';
 import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
 import { useUpcClassificationWindowOpener } from './UpcClassificationWindowContext';

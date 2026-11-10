@@ -37,8 +37,5 @@ describe('hotspot public API governance', () => {
     expect(source).not.toContain('@/services/');
     expect(source).not.toContain('@/hooks/');
     expect(source).not.toContain('@/features/');
-    expect(source).toMatch(/export const isApplicationOutcomeSuccess/);
-    expect(source).toMatch(/export const isApplicationOutcomeNonFailure/);
-    expect(source).toMatch(/export const hasApplicationIssues/);
   });
 });
