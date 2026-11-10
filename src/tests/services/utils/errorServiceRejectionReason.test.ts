@@ -42,19 +42,27 @@ describe('the cause of an uncaught rejection', () => {
     });
   });
 
-  it('keeps any other reason as it came', async () => {
+  it('keeps diagnostic fields of an object reason', async () => {
     reject({ code: 'synthetic_code' });
 
     expect(await savedReason()).toEqual({ code: 'synthetic_code' });
   });
 
   it('does not send the cause outside this browser', async () => {
-    reject(new Error('Detalle sintético'));
+    reject(
+      Object.assign(new Error('Detalle sintético'), {
+        code: 'synthetic_code',
+        password: 'synthetic-secret',
+        callback: () => undefined,
+      })
+    );
 
     await vi.waitFor(() => expect(mocks.external).toHaveBeenCalled());
     // The adapter sends only what the privacy gate returns.
     const sent = sanitizeOperationalTelemetryEvent(mocks.external.mock.calls[0][0]);
     expect(sent.context).not.toHaveProperty('reason');
     expect(JSON.stringify(sent)).not.toContain('Detalle sintético');
+    expect(JSON.stringify(sent)).not.toContain('synthetic-secret');
+    expect(JSON.stringify(sent)).not.toContain('synthetic_code');
   });
 });
