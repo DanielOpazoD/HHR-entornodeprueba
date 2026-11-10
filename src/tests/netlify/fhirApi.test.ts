@@ -1,3 +1,4 @@
+import { createProviderError, credentialMarkers } from './providerErrorFixture';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getDocMock = vi.fn();
@@ -38,6 +39,24 @@ vi.mock('../../../netlify/functions/lib/firebase-auth', () => ({
 import { createFhirApiHandler } from '../../../netlify/functions/fhir-api';
 
 describe('fhir-api netlify function', () => {
+  it('redacts provider failures in the FHIR response and logs', async () => {
+    const logs = vi.spyOn(console, 'error').mockImplementation(() => {});
+    getFirebaseServerMock.mockImplementationOnce(() => {
+      throw createProviderError();
+    });
+    try {
+      const result = await handler({ httpMethod: 'GET', headers: {}, body: null });
+      expect(result.statusCode).toBe(500);
+      expect(JSON.parse(result.body).issue[0].diagnostics).toContain('HTTP 503');
+      const outputs =
+        result.body +
+        logs.mock.calls.map(call => call.map(String).join(' ')).join(' ') +
+        JSON.stringify(logs.mock.calls);
+      for (const marker of credentialMarkers) expect(outputs).not.toContain(marker);
+    } finally {
+      logs.mockRestore();
+    }
+  });
   const originalEnv = { ...process.env };
   const handler = createFhirApiHandler({
     getFirebaseServer: getFirebaseServerMock as typeof getFirebaseServerMock,
