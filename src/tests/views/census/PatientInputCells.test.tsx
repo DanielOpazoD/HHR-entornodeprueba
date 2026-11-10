@@ -1,12 +1,11 @@
 import type { ReactElement } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { PatientInputCells } from '@/features/census/components/patient-row/PatientInputCells';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { useDailyRecordStability } from '@/context/DailyRecordContext';
 import { UIProvider } from '@/context/UIContext';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
-import { clearDailyRecordClinicalFieldPausesForTests } from '@/hooks/controllers/dailyRecordClinicalFieldAcknowledgementController';
 import { UpcClassificationWindowProvider } from '@/features/census/components/patient-row/UpcClassificationWindowContext';
 
 vi.mock('@/context/DailyRecordContext', () => ({
@@ -28,10 +27,6 @@ const renderWithUI = (ui: ReactElement) =>
   );
 
 describe('PatientInputCells', () => {
-  beforeEach(() => {
-    clearDailyRecordClinicalFieldPausesForTests();
-  });
-
   it('renders flag cells hiding the C.QX checkbox (rediseño 2026)', () => {
     vi.mocked(useDailyRecordStability).mockReturnValue({
       canEditField: () => true,
@@ -145,7 +140,6 @@ describe('PatientInputCells', () => {
               onDemo={vi.fn()}
               readOnly={false}
               diagnosisMode="free"
-              clinicalFieldLocks={{ diagnosis: true }}
             />
           </tr>
         </tbody>

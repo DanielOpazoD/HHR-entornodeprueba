@@ -35,7 +35,6 @@ Superficie pública mínima recomendada para trabajo diario: [docs/DEVELOPER_COM
 | `npm run test:emulator:ui`                   | Suite de emulador UI                                                                                                      |
 | `npm run check:critical-smoke-pack`          | Verifica que el smoke pack crítico siga cubriendo todos los escenarios obligatorios                                       |
 | `npm run check:release-confidence-pack`      | Verifica perfiles, tiers, solapes permitidos y scripts válidos del release confidence pack                                |
-| `npm run check:release-confidence-matrix`    | Verifica que cada área crítica tenga trazabilidad explícita hacia coverage, smoke, budgets y pasos blocking de release    |
 | `npm run check:unit-shard-balance`           | Verifica que los 4 unit-risk shards cubran la suite completa sin duplicados y con spread dentro de tolerancia             |
 | `npm run profile:unit-shard-runtime`         | Ejecuta la suite unitaria con reporter JSON y regenera el perfil real por archivo/shard                                   |
 | `npm run report:unit-shard-runtime-profile`  | Regenera `reports/unit-shard-runtime-profile.*` desde el último perfil real o estimaciones deterministas                  |

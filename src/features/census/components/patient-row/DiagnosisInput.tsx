@@ -22,7 +22,6 @@ import type { PatientData } from '@/features/census/components/patient-row/patie
 import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 import { BaseCellProps, DebouncedTextHandler } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
-import { useClinicalFieldFreshnessPause } from './useClinicalFieldFreshnessPause';
 import { ClinicalInitialBlockEditor } from './ClinicalInitialBlockEditor';
 import { DiagnosisCodeBadge } from './DiagnosisCodeBadge';
 
@@ -56,7 +55,6 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
   isEmpty = false,
   readOnly = false,
   readOnlyReason,
-  clinicalPause,
   diagnosisMode,
   onChange,
   onMultipleUpdate,
@@ -68,7 +66,6 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
   const recoverCie10 = useCallback((cell: React.ComponentType<DiagnosisCie10CellProps>) => {
     setCie10Cell(() => cell);
   }, []);
-  const freshnessPause = useClinicalFieldFreshnessPause(clinicalPause);
   const isGinecobstetricia = isGinecobstetriciaSpecialty(data.specialty);
   const canShowDeliveryRoute =
     isGinecobstetricia && isObstetricGinecobstetricia(data.ginecobstetriciaType);
@@ -94,8 +91,6 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
     <td
       className="census-diagnosis-cell py-0.5 px-1 border-r border-slate-200 min-w-[160px]"
       title={readOnlyReason}
-      onMouseDownCapture={freshnessPause.acknowledge}
-      onFocusCapture={freshnessPause.acknowledge}
     >
       <div className="relative w-full">
         <DebouncedInput
@@ -106,8 +101,7 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
               ? 'border-red-400 focus:ring-red-200 focus:border-red-500'
               : 'border-slate-200 focus:ring-medical-500/20 focus:border-medical-500',
             isSubRow && 'text-xs h-6',
-            freeTextRightPadding,
-            freshnessPause.pauseClassName
+            freeTextRightPadding
           )}
           placeholder="Diagnóstico (texto libre)"
           value={data.pathology || ''}
@@ -148,7 +142,6 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
             />
           )}
         </div>
-        {freshnessPause.hint}
       </div>
     </td>
   );
@@ -172,7 +165,6 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
             onChange={onChange}
             onMultipleUpdate={onMultipleUpdate}
             canShowClinicalInitialBlockEditor={canShowClinicalInitialBlockEditor}
-            freshnessPause={freshnessPause}
           />
         </React.Suspense>
       </ErrorBoundary>

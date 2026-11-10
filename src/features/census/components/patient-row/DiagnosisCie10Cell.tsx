@@ -5,7 +5,6 @@ import { ClinicalInitialBlockEditor } from './ClinicalInitialBlockEditor';
 import { DiagnosisCodeBadge } from './DiagnosisCodeBadge';
 import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
 import type { BaseCellProps, DebouncedTextHandler } from './inputCellTypes';
-import type { useClinicalFieldFreshnessPause } from './useClinicalFieldFreshnessPause';
 
 export interface DiagnosisCie10CellProps {
   data: BaseCellProps['data'];
@@ -15,7 +14,6 @@ export interface DiagnosisCie10CellProps {
   onChange: DebouncedTextHandler;
   onMultipleUpdate?: (fields: Partial<PatientData>) => void;
   canShowClinicalInitialBlockEditor: boolean;
-  freshnessPause: ReturnType<typeof useClinicalFieldFreshnessPause>;
 }
 
 /**
@@ -31,21 +29,17 @@ const DiagnosisCie10Cell = ({
   onChange,
   onMultipleUpdate,
   canShowClinicalInitialBlockEditor,
-  freshnessPause,
 }: DiagnosisCie10CellProps) => (
   <td
     className="census-diagnosis-cell py-0.5 px-1 border-r border-slate-200 min-w-[160px]"
     title={readOnlyReason}
-    onMouseDownCapture={freshnessPause.acknowledge}
-    onFocusCapture={freshnessPause.acknowledge}
   >
     <div className="relative w-full flex flex-col gap-0.5">
       <TerminologySuggestor
         className={clsx(
           'census-inline-field w-full border rounded transition-all duration-200 focus:ring-2 focus:outline-none text-[13px] h-7',
           'border-slate-200 focus:ring-medical-500/20 focus:border-medical-500',
-          isSubRow && 'text-xs h-6',
-          freshnessPause.pauseClassName
+          isSubRow && 'text-xs h-6'
         )}
         placeholder="Buscar diagnóstico CIE-10…"
         value={
@@ -115,7 +109,6 @@ const DiagnosisCie10Cell = ({
           )}
         </span>
       )}
-      {freshnessPause.hint}
     </div>
   </td>
 );

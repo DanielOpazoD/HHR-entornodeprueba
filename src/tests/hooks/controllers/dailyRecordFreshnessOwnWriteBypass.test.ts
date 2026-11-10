@@ -7,6 +7,8 @@ import {
   resetDailyRecordFreshnessGateForTests,
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { assertHydratedRemotePatchCanProceed } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
+import type { DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 import { getSyncClientId } from '@/services/storage/sync/syncMutationIdentity';
 
 const DATE = '2026-08-30';
@@ -59,6 +61,39 @@ describe('assertHydratedRemotePatchCanProceed · bypass de confirmaciones propia
         remoteConfirmedAtBeforeMutation,
       });
   };
+
+  it.each(['independent field', 'newborn', 'first admission'] as const)(
+    'allows %s through the real hydration guard',
+    scenario => {
+      const previous = buildRecord();
+      const hydrated = buildRecord({
+        lastUpdated: '2026-08-30T10:00:05.000Z',
+        beds: structuredClone(previous.beds),
+      });
+      let patch: DailyRecordPatch;
+      if (scenario === 'first admission') {
+        previous.beds.R2 = createEmptyPatient('R2');
+        hydrated.beds.R2 = { ...createEmptyPatient('R2'), patientName: 'Paciente Nuevo' };
+        patch = { 'beds.R2.patientName': 'Paciente Nuevo', 'beds.R2.status': 'Estable' };
+      } else {
+        hydrated.beds.R2.pathology = 'Diagnóstico confirmado';
+        patch =
+          scenario === 'newborn'
+            ? { 'beds.R2.clinicalCrib.patientName': 'RN de Paciente Dos' }
+            : { 'beds.R2.status': 'Grave' };
+      }
+      markDailyRecordRemoteConfirmed(DATE, { source: 'write', confirmedAt: 2_000 });
+      expect(() =>
+        assertHydratedRemotePatchCanProceed({
+          date: DATE,
+          attemptedPatch: patch,
+          previousRecord: previous,
+          freshness: buildHydratedFreshness(hydrated),
+          remoteConfirmedAtBeforeMutation: 1_000,
+        })
+      ).not.toThrow();
+    }
+  );
 
   it('no descarta una edición cuando la confirmación nueva es de este mismo cliente', () => {
     // El eco de la edición anterior del propio usuario (misma cama, mismo grupo
