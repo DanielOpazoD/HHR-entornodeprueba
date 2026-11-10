@@ -315,10 +315,11 @@ export const CensusEmailRecipientsSection: React.FC<CensusEmailRecipientsSection
               className="w-full border border-slate-200 rounded-lg pl-3 pr-9 py-1.5 text-[11px] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             />
             <button
+              aria-label="Agregar correo"
               onClick={onAddRecipient}
               className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-all"
             >
-              <Plus size={12} />
+              <Plus size={12} aria-hidden="true" />
             </button>
           </div>
         </div>

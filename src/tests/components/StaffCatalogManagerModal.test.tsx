@@ -16,6 +16,28 @@ describe('StaffCatalogManagerModal', () => {
     cleanup();
   });
 
+  it.each(['nurse', 'tens'] as const)('adds staff through the named icon for %s', variant => {
+    const onSave = vi.fn();
+    render(
+      <StaffCatalogManagerModal
+        isOpen
+        onClose={vi.fn()}
+        staffList={[]}
+        onSave={onSave}
+        syncing={false}
+        hasSyncError={false}
+        variant={variant}
+      />
+    );
+    fireEvent.change(screen.getByPlaceholderText('Nombre completo…'), {
+      target: { value: 'Persona Sintética' },
+    });
+    const button = screen.getByRole('button', { name: 'Agregar personal' });
+    expect(button.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    fireEvent.click(button);
+    expect(onSave).toHaveBeenCalledWith(['Persona Sintética']);
+  });
+
   it('shows nurse empty state when no records are provided', () => {
     render(
       <StaffCatalogManagerModal

@@ -174,6 +174,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
                 onKeyDown={event => event.key === 'Enter' && handleAdd()}
               />
               <button
+                aria-label="Agregar personal"
                 onClick={handleAdd}
                 className={clsx(
                   'flex shrink-0 items-center justify-center rounded-xl p-2.5 text-white shadow-lg transition-all active:scale-95',
@@ -182,7 +183,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
                 )}
                 disabled={syncing}
               >
-                <Plus size={20} />
+                <Plus size={20} aria-hidden="true" />
               </button>
             </div>
             {validationError && !editingName && (

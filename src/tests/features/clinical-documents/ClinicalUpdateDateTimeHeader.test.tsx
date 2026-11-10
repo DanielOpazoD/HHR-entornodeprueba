@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ClinicalUpdateDateTimeHeader } from '@/features/clinical-documents/components/ClinicalUpdateDateTimeHeader';
@@ -81,5 +82,60 @@ describe('ClinicalUpdateDateTimeHeader', () => {
 
     expect(screen.queryByDisplayValue('2026-04-17')).not.toBeInTheDocument();
     expect(screen.getByText(/17\/04\/2026/)).toBeInTheDocument();
+  });
+  it.each(['{Enter}', ' '])('opens date/time editing with %s after tabbing', async key => {
+    const user = userEvent.setup();
+    render(
+      <ClinicalUpdateDateTimeHeader
+        sectionId="synthetic-section"
+        date="2026-04-17"
+        time="08:30"
+        canEdit
+      />
+    );
+    await user.tab();
+    expect(screen.getByRole('button', { name: /Editar fecha y hora/ })).toHaveFocus();
+    await user.keyboard(key);
+    expect(screen.getByLabelText('Fecha')).toHaveFocus();
+    await user.tab();
+    expect(screen.getByLabelText('Hora')).toHaveFocus();
+  });
+
+  it('labels both date and time fields and preserves their section when editing', async () => {
+    const user = userEvent.setup();
+    const onPatchDate = vi.fn();
+    const onPatchTime = vi.fn();
+    render(
+      <ClinicalUpdateDateTimeHeader
+        sectionId="synthetic-section"
+        date="2026-04-17"
+        time="08:30"
+        canEdit
+        onPatchDate={onPatchDate}
+        onPatchTime={onPatchTime}
+      />
+    );
+    await user.click(screen.getByText('17/04/2026, 08:30'));
+    fireEvent.change(screen.getByLabelText('Fecha'), { target: { value: '2026-04-18' } });
+    fireEvent.change(screen.getByLabelText('Hora'), { target: { value: '09:15' } });
+    expect(onPatchDate).toHaveBeenCalledExactlyOnceWith('synthetic-section', '2026-04-18');
+    expect(onPatchTime).toHaveBeenCalledExactlyOnceWith('synthetic-section', '09:15');
+  });
+
+  it('does not offer keyboard editing in read-only mode', async () => {
+    const user = userEvent.setup();
+    render(
+      <ClinicalUpdateDateTimeHeader
+        sectionId="synthetic-section"
+        date="2026-04-17"
+        time="08:30"
+        canEdit={false}
+      />
+    );
+    await user.tab();
+    await user.keyboard('{Enter} ');
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Fecha')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Hora')).not.toBeInTheDocument();
   });
 });

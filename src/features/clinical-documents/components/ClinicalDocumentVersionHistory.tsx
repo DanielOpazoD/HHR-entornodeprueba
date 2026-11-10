@@ -107,10 +107,11 @@ export const ClinicalDocumentVersionHistory: React.FC<ClinicalDocumentVersionHis
           </h3>
           <button
             type="button"
+            aria-label="Cerrar"
             onClick={onClose}
             className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
           >
-            <X size={14} />
+            <X size={14} aria-hidden="true" />
           </button>
         </div>
 

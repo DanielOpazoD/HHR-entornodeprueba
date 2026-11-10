@@ -155,7 +155,10 @@ const recordPostDeployRefreshTelemetry = (
     {
       category: 'daily_record',
       operation: 'post_deploy_recent_record_refresh',
-      status: status === 'completed' ? 'success' : status === 'failed' ? 'failed' : 'degraded',
+      // An attempt that did not finish keeps its marker and runs again by itself: nobody has to
+      // act on it, so it is never reported as a failure. A read overtaken by another reader of the
+      // day is one such case: it does not prove the day was refreshed, and the next attempt does.
+      status: status === 'completed' ? 'success' : 'degraded',
       issues: status === 'completed' ? [] : [status],
       context: {
         dates: result.dates,

@@ -41,6 +41,19 @@ const buildProps = () => ({
 });
 
 describe('CensusEmailConfigModal', () => {
+  it('adds a recipient through the named icon button', () => {
+    const props = buildProps();
+    render(<CensusEmailConfigModal {...props} />);
+    fireEvent.change(screen.getByPlaceholderText('Agregar correo…'), {
+      target: { value: 'b@example.test' },
+    });
+    const button = screen.getByRole('button', { name: 'Agregar correo' });
+    expect(button.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    expect(button.textContent).toBe('');
+    fireEvent.click(button);
+    expect(props.onRecipientsChange).toHaveBeenCalledWith(['a@mail.com', 'b@example.test']);
+  });
+
   it('adds recipient from single input and normalizes email', () => {
     const props = buildProps();
     render(<CensusEmailConfigModal {...props} />);
