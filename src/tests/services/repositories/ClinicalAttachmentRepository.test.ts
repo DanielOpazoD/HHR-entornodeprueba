@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createClinicalAttachmentRepository } from '@/services/repositories/ClinicalAttachmentRepository';
-import type { ClinicalAttachmentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalAttachmentRecord } from '@/shared/clinical-documents/clinicalAttachmentContracts';
 import type { ClinicalAttachmentStorageRuntime } from '@/services/firebase-runtime/clinicalAttachmentRuntime';
 
 const actor = {

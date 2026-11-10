@@ -5,9 +5,13 @@
 - `components/`: shell visual del workspace, hoja clínica y renderers especializados por sección.
 - `hooks/`: bootstrap remoto, draft/autosave, exportación y estado UI efímero de la hoja.
 - `controllers/`: reglas puras de compatibilidad, validación, secciones, rich text y permisos.
-- `domain/`: entidades, templates, definiciones por tipo documental y versión de esquema.
+- `domain/`: templates del editor, fábricas de borradores, contexto del episodio y membrete. Las
+  entidades, las definiciones por tipo documental y la versión de esquema viven en
+  `src/domain/clinical-documents`.
 - `services/`: impresión, exportación PDF y sincronización con infraestructura.
-- `contracts/`: validación runtime de documentos y templates.
+- `contracts/`: contratos propios del feature (adjuntos, importación con IA, paciente, sidebar). La
+  validación runtime de documentos y templates vive en
+  `src/domain/clinical-documents/runtimeContracts.ts`.
 
 ## Decision Guide
 
@@ -41,7 +45,7 @@
 
 ## Tipos documentales y secciones especiales
 
-- `domain/definitions.ts` define el comportamiento por `documentType`.
+- `src/domain/clinical-documents/definitions.ts` define el comportamiento por `documentType`.
 - Cada definición puede declarar:
   - `sectionRenderers`
   - `sectionNormalizers`

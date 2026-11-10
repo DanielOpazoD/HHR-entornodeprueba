@@ -6,7 +6,7 @@ import {
   getClinicalDocumentTemplate,
 } from '@/features/clinical-documents/domain/factories';
 import { buildClinicalDocumentEpisodeContext } from '@/features/clinical-documents/controllers/clinicalDocumentEpisodeController';
-import type { ClinicalAttachmentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalAttachmentRecord } from '@/shared/clinical-documents/clinicalAttachmentContracts';
 import { ClinicalDocumentRepository } from '@/services/repositories/ClinicalDocumentRepository';
 import { ClinicalDocumentTemplateRepository } from '@/services/repositories/ClinicalDocumentTemplateRepository';
 import * as attachments from '@/application/clinical-documents/clinicalAttachmentUseCases';

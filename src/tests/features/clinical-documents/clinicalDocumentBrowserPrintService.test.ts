@@ -20,7 +20,7 @@ vi.mock('@/features/clinical-documents/services/clinicalDocumentPrintSupport', a
   };
 });
 
-vi.mock('@/features/clinical-documents/domain/definitions', () => ({
+vi.mock('@/domain/clinical-documents/definitions', () => ({
   getClinicalDocumentDefinition: (...args: unknown[]) => getClinicalDocumentDefinitionMock(...args),
 }));
 

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 import { ClinicalDocumentIndicationsPanel } from '@/features/clinical-documents/components/ClinicalDocumentIndicationsPanel';
-import type { ClinicalDocumentIeehDraft } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentIeehDraft } from '@/application/shared/ieehContracts';
 
 const ClinicalDocumentIeehPanel = lazy(() =>
   import('@/features/clinical-documents/components/ClinicalDocumentIeehPanel').then(m => ({
@@ -32,7 +32,7 @@ import type {
   ClinicalDocumentSheetEditorApi,
   ClinicalDocumentSheetProps,
 } from '@/features/clinical-documents/components/clinicalDocumentSheetShared';
-import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import type { ClinicalDocumentPlanSubsectionId } from '@/features/clinical-documents/controllers/clinicalDocumentPlanSectionController';
 import type { ClinicalDocumentIndicationSpecialtyId } from '@/features/clinical-documents/controllers/clinicalDocumentIndicationsController';
 

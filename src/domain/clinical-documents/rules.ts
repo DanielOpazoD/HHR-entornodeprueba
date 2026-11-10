@@ -152,5 +152,3 @@ export const CLINICAL_DOCUMENT_TEMPLATES: Record<string, ClinicalDocumentTemplat
     status: 'active',
   },
 };
-
-export const DEFAULT_CLINICAL_DOCUMENT_TEMPLATE_ID = 'epicrisis';

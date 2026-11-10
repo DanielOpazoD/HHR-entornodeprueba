@@ -8,7 +8,7 @@ import {
 import type {
   ClinicalDocumentRecord,
   ClinicalDocumentVersionMeta,
-} from '@/features/clinical-documents/domain/entities';
+} from '@/domain/clinical-documents/entities';
 
 const actor = {
   uid: 'u1',

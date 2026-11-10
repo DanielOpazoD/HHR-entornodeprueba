@@ -2,7 +2,7 @@ import {
   buildRestoreClinicalDocumentTemplateConfirmOptions,
   canApplyClinicalDocumentTemplateSelection,
 } from '@/features/clinical-documents/hooks/clinicalDocumentsWorkspaceModelSupport';
-import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 
 interface HandleClinicalDocumentTemplateSelectionParams {
   templateId: string;

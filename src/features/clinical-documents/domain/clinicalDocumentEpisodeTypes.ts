@@ -1,10 +1,5 @@
 import { buildClinicalEpisodeKey } from '@/application/patient-flow/clinicalEpisode';
 
-export interface ClinicalDocumentValidationIssue {
-  path: string;
-  message: string;
-}
-
 export interface ClinicalDocumentEpisodeContext {
   patientRut: string;
   patientName: string;

@@ -5,7 +5,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { serializeClinicalDocument } from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
 import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
 import { useClinicalDocumentDraftAutosave } from '@/features/clinical-documents/hooks/useClinicalDocumentDraftAutosave';
-import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 
 const executePersistClinicalDocumentEditorDraft = vi.fn();
 const resolveClinicalDocumentAutosaveCommit = vi.fn();

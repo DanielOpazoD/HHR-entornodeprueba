@@ -4,7 +4,7 @@ import { Loader2, Printer, Search, Sparkles, UserRound, X } from 'lucide-react';
 import type {
   ClinicalDocumentIeehDraft,
   IeehDischargeConditionCode,
-} from '@/features/clinical-documents/domain/entities';
+} from '@/application/shared/ieehContracts';
 import { IEEH_DISCHARGE_CONDITIONS } from '@/features/clinical-documents/controllers/clinicalDocumentIeehController';
 import { FonasaSearchInput } from '@/features/clinical-documents/components/FonasaSearchInput';
 import type { TerminologyConcept } from '@/services/terminology/terminologyService';

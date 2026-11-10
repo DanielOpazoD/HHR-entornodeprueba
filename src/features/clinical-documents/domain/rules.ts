@@ -1,45 +1,17 @@
 import type {
-  ClinicalDocumentPatientFieldTemplate,
   ClinicalDocumentSectionTemplate,
   ClinicalDocumentTemplate,
-} from '@/features/clinical-documents/domain/entities';
+} from '@/domain/clinical-documents/entities';
+import {
+  CLINICAL_DOCUMENT_CUSTOM_SECTIONS,
+  CLINICAL_DOCUMENT_EPICRISIS_SECTIONS,
+  CLINICAL_DOCUMENT_MEDICAL_REPORT_SECTIONS,
+  CLINICAL_DOCUMENT_PATIENT_FIELDS,
+} from '@/domain/clinical-documents/rules';
 
-export const CLINICAL_DOCUMENT_PATIENT_FIELDS: ClinicalDocumentPatientFieldTemplate[] = [
-  { id: 'nombre', label: 'Nombre', type: 'text', placeholder: 'Nombre Apellido' },
-  { id: 'rut', label: 'Rut', type: 'text' },
-  { id: 'edad', label: 'Edad', type: 'text', readonly: true, placeholder: 'años' },
-  { id: 'fecnac', label: 'Fecha de nacimiento', type: 'date' },
-  { id: 'fing', label: 'Fecha de ingreso', type: 'date' },
-  { id: 'finf', label: 'Fecha del informe', type: 'date' },
-  { id: 'hinf', label: 'Hora del informe', type: 'time' },
-] as const;
-
-export const CLINICAL_DOCUMENT_EPICRISIS_SECTIONS: ClinicalDocumentSectionTemplate[] = [
-  { id: 'antecedentes', title: 'Antecedentes', order: 0, required: true, visible: true },
-  {
-    id: 'historia-evolucion',
-    title: 'Historia y evolución clínica',
-    order: 1,
-    required: true,
-    visible: true,
-  },
-  {
-    id: 'examenes-complementarios',
-    title: 'Exámenes complementarios',
-    order: 2,
-    required: false,
-    visible: false,
-  },
-  {
-    id: 'diagnosticos',
-    title: 'Diagnósticos de egreso',
-    order: 3,
-    required: false,
-    visible: true,
-  },
-  { id: 'plan', title: 'Indicaciones al alta', order: 4, required: true, visible: true },
-] as const;
-
+// The evolution sections and the templates below differ from the ones in
+// `@/domain/clinical-documents/rules` (an extra section in "evolucion", another
+// "epicrisis_traslado"). Both are kept on purpose until the owner decides which is right.
 export const CLINICAL_DOCUMENT_EVOLUTION_SECTIONS: ClinicalDocumentSectionTemplate[] = [
   { id: 'antecedentes', title: 'Antecedentes', order: 0, required: false, visible: true },
   {
@@ -57,30 +29,6 @@ export const CLINICAL_DOCUMENT_EVOLUTION_SECTIONS: ClinicalDocumentSectionTempla
     visible: true,
   },
   { id: 'plan', title: 'Plan', order: 3, required: true, visible: true },
-] as const;
-
-export const CLINICAL_DOCUMENT_MEDICAL_REPORT_SECTIONS: ClinicalDocumentSectionTemplate[] = [
-  { id: 'antecedentes', title: 'Antecedentes', order: 0, required: false, visible: true },
-  {
-    id: 'historia-evolucion',
-    title: 'Historia y evolución clínica',
-    order: 1,
-    required: true,
-    visible: true,
-  },
-  {
-    id: 'examenes-complementarios',
-    title: 'Exámenes complementarios',
-    order: 2,
-    required: false,
-    visible: true,
-  },
-  { id: 'diagnosticos', title: 'Diagnósticos', order: 3, required: false, visible: true },
-  { id: 'plan', title: 'Plan', order: 4, required: true, visible: true },
-] as const;
-
-export const CLINICAL_DOCUMENT_CUSTOM_SECTIONS: ClinicalDocumentSectionTemplate[] = [
-  { id: 'contenido', title: 'Contenido', order: 0, required: true, visible: true },
 ] as const;
 
 export const CLINICAL_DOCUMENT_TEMPLATES: Record<string, ClinicalDocumentTemplate> = {

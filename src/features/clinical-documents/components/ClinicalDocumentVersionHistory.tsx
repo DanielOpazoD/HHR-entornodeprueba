@@ -24,7 +24,7 @@ import { stripClinicalDocumentHtml } from '@/features/clinical-documents/control
 import type {
   ClinicalDocumentVersionMeta,
   ClinicalDocumentVersionSectionSnapshot,
-} from '@/features/clinical-documents/domain/entities';
+} from '@/domain/clinical-documents/entities';
 import { readClinicalTimestamp } from '@/utils/dateDisplayUtils';
 
 interface ClinicalDocumentVersionHistoryProps {

@@ -1,6 +1,6 @@
 import * as z from 'zod';
 
-import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import { buildClinicalDocumentPrintHtml } from '@/features/clinical-documents/services/clinicalDocumentPrintHtmlBuilder';
 import type { ClinicalDocumentAnnexPrintMode } from '@/features/clinical-documents/services/clinicalDocumentPrintSupport';
 import { decodeBase64PdfBlob } from '@/features/clinical-documents/services/clinicalDocumentPdfBinarySupport';

@@ -1,5 +1,5 @@
-import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
-import type { ClinicalAttachmentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
+import type { ClinicalAttachmentRecord } from '@/shared/clinical-documents/clinicalAttachmentContracts';
 import type { ClinicalDocumentSignatureProfile } from '@/features/clinical-documents/services/clinicalDocumentSignatureProfileService';
 import type { ClinicalDocumentIndicationSpecialtyId } from '@/features/clinical-documents/controllers/clinicalDocumentIndicationsController';
 import type { ClinicalDocumentPlanSubsectionId } from '@/features/clinical-documents/controllers/clinicalDocumentPlanSectionController';
@@ -86,7 +86,7 @@ export interface ClinicalDocumentSheetProps {
   patchSection: (sectionId: string, content: string) => void;
   setSectionLayout: (
     sectionId: string,
-    layout: import('@/features/clinical-documents/domain/entities').ClinicalDocumentSectionLayout
+    layout: import('@/domain/clinical-documents/entities').ClinicalDocumentSectionLayout
   ) => void;
   setSectionVisibility: (sectionId: string, visible: boolean) => void;
   moveSection: (sectionId: string, direction: 'up' | 'down') => void;
@@ -119,7 +119,7 @@ export interface ClinicalDocumentSheetProps {
   clearAnnexContent: () => void;
   onPrintAnnex: () => void;
   patchIeehDraft: (
-    draft: import('@/features/clinical-documents/domain/entities').ClinicalDocumentIeehDraft
+    draft: import('@/application/shared/ieehContracts').ClinicalDocumentIeehDraft
   ) => void;
   clearIeehDraft: () => void;
   /** Workspace patient data (provides birthDate for IEEH printing). */

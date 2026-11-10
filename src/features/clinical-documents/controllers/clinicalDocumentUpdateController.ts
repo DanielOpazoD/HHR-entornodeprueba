@@ -6,7 +6,7 @@
  * auto-populated date/time, and a unique incremental ID.
  */
 
-import type { ClinicalDocumentSection } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentSection } from '@/domain/clinical-documents/entities';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 
 /**

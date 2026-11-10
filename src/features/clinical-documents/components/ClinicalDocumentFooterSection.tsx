@@ -2,7 +2,7 @@ import React from 'react';
 import { EyeOff, FileSignature, Save, UserRoundCheck } from 'lucide-react';
 
 import { InlineEditableTitle } from '@/features/clinical-documents/components/InlineEditableTitle';
-import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import type { ClinicalDocumentSignatureProfile } from '@/features/clinical-documents/services/clinicalDocumentSignatureProfileService';
 
 interface ClinicalDocumentFooterSectionProps {
