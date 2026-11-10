@@ -116,6 +116,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   const rutValue = (data.rut || '').trim();
   const hasRutValue = rutValue !== '' && rutValue !== '-';
   const isRutMode = documentType === 'RUT';
+  const DocumentTag = isRutMode ? 'button' : 'span';
   const isRutValid = isRutMode && hasRutValue && isValidRut(rutValue);
   const isRutInvalid = isRutMode && hasRutValue && !isRutValid;
   const admissionShort = formatAdmissionShort(data.admissionDate);
@@ -275,9 +276,12 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
           <div className="census-identity-details col-start-1 row-start-2 mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 pl-0.5 text-[10px] leading-tight text-slate-500">
             {hasRutValue ? (
               <>
-                <span
+                <DocumentTag
+                  type={isRutMode ? 'button' : undefined}
+                  aria-label={isRutMode ? `Copiar RUN ${rutValue}` : undefined}
                   className={clsx(
                     'whitespace-nowrap tabular-nums',
+                    isRutMode && 'bg-transparent border-none p-0 text-left',
                     hasRutError && 'text-red-500',
                     isRutMode && 'cursor-pointer hover:text-slate-500'
                   )}
@@ -285,7 +289,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                   onClick={isRutMode ? handleCopyRut : undefined}
                 >
                   {rutValue}
-                </span>
+                </DocumentTag>
                 {!isRutMode && (
                   <span className="text-[9px] font-bold text-slate-400" title="Documento pasaporte">
                     PAS
