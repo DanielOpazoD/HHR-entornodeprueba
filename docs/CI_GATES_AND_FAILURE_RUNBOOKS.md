@@ -563,7 +563,7 @@ la primera ejecución agregada como aprobada ni repetir las etapas ya aprobadas
 sobre el mismo código y entorno.
 
 1. correr `npm run check:critical-coverage`
-2. revisar [reports/critical-coverage.md](./../reports/critical-coverage.md)
+2. revisar `reports/critical-coverage.md` del artefacto `critical-coverage` de esa corrida (o generarlo con `npm run report:critical-coverage`)
 3. ubicar la zona degradada en `scripts/config/critical-coverage-thresholds.json`
 4. decidir si la regresión es:
    - pérdida real de cobertura/invariante;

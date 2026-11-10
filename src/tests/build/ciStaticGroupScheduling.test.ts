@@ -29,7 +29,13 @@ const assertScheduling = (workflow: string) => {
       job.steps.some(step => step.run === 'npm run check:quality:group -- ${{ matrix.group }}')
     ).toBe(true);
   }
-  expect(dependent.steps.some(step => step.if === "matrix.group == 'governance'")).toBe(true);
+  const download = dependent.steps.findIndex(step => step.name === 'Download governance snapshots');
+  const check = dependent.steps.findIndex(
+    step => step.run === 'npm run check:quality:group -- ${{ matrix.group }}'
+  );
+  expect(download).toBeGreaterThanOrEqual(0);
+  expect(download).toBeLessThan(check);
+  expect(dependent.steps[download].if).toBeUndefined();
 };
 
 describe('CI static group scheduling', () => {

@@ -310,6 +310,9 @@ jobs:
           name: critical-coverage
           path: reports
 
+      - name: Generate architectural hotspots artifact
+        run: npm run report:architectural-hotspots
+
       - name: Generate governance and report snapshots
         run: npm run report:governance-snapshots
 
@@ -420,7 +423,6 @@ jobs:
         uses: ./.github/actions/setup-ci-dependencies
 
       - name: Download governance snapshots
-        if: matrix.group == 'governance'
         uses: actions/download-artifact@v7
         with:
           name: quality-static-governance-snapshots
