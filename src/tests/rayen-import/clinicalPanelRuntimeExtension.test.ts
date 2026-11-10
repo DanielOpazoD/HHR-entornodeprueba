@@ -363,6 +363,7 @@ describe('clinical panel read runtime', () => {
     expect(background).toContain('patientDocumentManagerRuntime.list({ encId, sender })');
     expect(background).toContain("'Tiempo de espera agotado consultando documentos.'");
     expect(background).not.toContain('FICHAMEDICO_MATCH');
+    expect(background).not.toContain('const CLINICAL_PANEL_RESUMES');
     expect(background).not.toContain('/api/carePlanAssignedCare/');
     expect(runtime).toContain('/api/carePlanAssignedCare/');
     expect(runtime).not.toMatch(/clinicalWrite|partialUpdate|POST|PUT|PATCH|DELETE/);

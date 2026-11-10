@@ -485,6 +485,9 @@ describe('Ficha Médico read-only clinical client', () => {
     expect(background.slice(0, background.indexOf('const REPORT_FILE'))).toContain(
       "'fichamedico-clinical-client.js'"
     );
+    expect(background).not.toContain('const fetchEvaluationForms = async');
+    expect(background).not.toContain('const fetchScaleHistoryEvents = async');
+    expect(background).not.toContain('const fetchActiveEncounterRows = async');
     expect(source).not.toMatch(/clinicalWrite|chrome\.storage|localStorage|sessionStorage/);
     expect(source).not.toMatch(/method:\s*['"](?:POST|PUT|PATCH|DELETE)['"]/);
     expect(background.split('\n').length).toBeLessThanOrEqual(1_700);

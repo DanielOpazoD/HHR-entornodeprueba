@@ -113,6 +113,11 @@ describe('hospitalized clinical-document batch runtime owner', () => {
     expect(startup).toContain("'clinical-batch-print-runtime.js'");
     expect(startup).toContain('No se pudo cargar el runtime batch de documentos hospitalizados.');
     expect(backgroundSource).toContain('self.HhrClinicalBatchPrintRuntime.create({');
+    expect(backgroundSource).not.toContain('const sweepPrescriptionBatches = async');
+    expect(backgroundSource).not.toContain('const fetchHospitalizedRegimenSummaries = async');
+    expect(backgroundSource).not.toContain(
+      'const handleHospitalizedPrescriptionPrintRequest = async'
+    );
   });
 
   it('rejects incomplete dependency injection', () => {

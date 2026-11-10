@@ -17,6 +17,9 @@ describe('clinical Scores read runtime owner', () => {
     expect(startup).toContain("'clinical-score-runtime.js'");
     expect(startup).toContain('No se pudo cargar el runtime de lectura de Scores.');
     expect(backgroundSource).toContain('self.HhrClinicalScoreRuntime.create({');
+    expect(backgroundSource).not.toContain('const normalizeScaleDefinition =');
+    expect(backgroundSource).not.toContain('const handleScoresOptionsRequest = async');
+    expect(backgroundSource).not.toContain('const handleCudyrCategoriesRequest = async');
     expect(runtimeSource).toContain('fetchCudyrCategories,');
     expect(backgroundSource).toContain('fetchCudyrCategories,');
   });

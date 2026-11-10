@@ -157,10 +157,15 @@ describe('Ficha Médico patient-context owner', () => {
       'No se pudo cargar el contexto clínico de pacientes de Ficha Médico.'
     );
     expect(background).toContain('self.HhrFichaMedicoPatientContext.create({');
+    expect(background).not.toContain('const normalizeHospitalizedEncounter =');
+    expect(background).not.toContain('const getClinicalReportContext = async');
+    expect(background).not.toContain('const fetchActiveHospitalizedPatients = async');
+    expect(background).not.toContain('const verifyEncounterStillHospitalized = async');
     expect(source).not.toMatch(/method:\s*['"](?:POST|PUT|PATCH|DELETE)['"]/);
     // El paquete clínico por paciente también vive extraído; en background sólo
     // queda su cableado (create + ruta), igual que el contexto de pacientes.
     expect(background).toContain('self.HhrPatientClinicalBundleRuntime.create({');
+    expect(background).not.toContain('const section = async read');
     // Presupuesto-trinquete: sube únicamente junto a lógica ya extraída.
     // 1460: +latido de salud y re-inyección de relés al instalar (instancias y
     // tres rutas GC envueltas con pushAfter); la lógica vive en

@@ -1,13 +1,31 @@
 // @vitest-environment node
 import fs from 'node:fs';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { resolveConfiguredPlaywrightProjects } from '../../../playwright.config';
 
 const readSource = (relativePath: string): string =>
   fs.readFileSync(path.resolve(process.cwd(), relativePath), 'utf8');
 
 describe('e2e browser policy', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it.each([
+    [undefined, ['chromium']],
+    ['chromium,firefox,webkit', ['chromium', 'firefox', 'webkit']],
+    ['firefox', ['firefox']],
+  ])('uses the selected browsers in the effective config for %s', async (browsers, names) => {
+    vi.stubEnv('E2E_BROWSERS', browsers);
+    vi.resetModules();
+    const { default: config } = await import('../../../playwright.config');
+
+    expect(config.projects?.map(project => project.name)).toEqual(names);
+    expect(config.projects?.map(project => project.use?.defaultBrowserType)).toEqual(names);
+  });
+
   it('keeps generic Playwright runs Chromium-first and makes cross-browser opt-in', () => {
     expect(resolveConfiguredPlaywrightProjects().map(project => project.name)).toEqual([
       'chromium',

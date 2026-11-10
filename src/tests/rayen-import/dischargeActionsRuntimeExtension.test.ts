@@ -118,6 +118,14 @@ describe('HHR discharge actions runtime', () => {
       'const dischargeActionsOwner = globalThis.HhrDischargeActionsRuntime'
     );
     expect(contentSource).toContain('dischargeActionsOwner.create({');
+    [
+      'const runFromPatientRow =',
+      'const waitForEpicrisisCapture =',
+      'const requestCorrectedDischargePrint =',
+      'const requestNursingMedicalEpicrisisPrint =',
+    ].forEach(definition => {
+      expect(contentSource).not.toContain(definition);
+    });
   });
 
   it('captures a corrected discharge once and forwards the exact patient-bound request', async () => {

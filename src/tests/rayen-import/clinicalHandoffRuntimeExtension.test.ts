@@ -158,6 +158,9 @@ describe('clinical handoff runtime owner', () => {
     expect(startup).toContain("'clinical-handoff-runtime.js'");
     expect(startup).toContain('No se pudo cargar el runtime clínico de entrega de turno.');
     expect(backgroundSource).toContain('self.HhrClinicalHandoffRuntime.create({');
+    expect(backgroundSource).not.toContain('const fetchShiftChangeEntries = async');
+    expect(backgroundSource).not.toContain('const readHandoffBatch = async');
+    expect(backgroundSource).not.toContain('const performHandoffSaveRequest = async');
     expect(backgroundSource).toContain(
       'return clinicalHandoffRuntime.readRecoveryReview({ encId, info });'
     );

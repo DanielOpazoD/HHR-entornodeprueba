@@ -15,6 +15,9 @@ describe('clinical report runtime owner', () => {
     expect(startup).toContain("'hospitalization-reports-runtime.js'");
     expect(startup).toContain('No se pudo cargar el runtime de informes clínicos.');
     expect(backgroundSource).toContain('self.HhrClinicalReportRuntime.create({');
+    expect(backgroundSource).not.toContain('const fetchOfficialPdf = async');
+    expect(backgroundSource).not.toContain('const createCompletePrescriptionPdf = async');
+    expect(backgroundSource).not.toMatch(/\nconst resolveDischargedEncounterIdByRun\s*=/);
     expect(runtimeSource).toContain("url.searchParams.set('filterType', '2')");
     expect(runtimeSource).toContain('contextRun !== normalizedPatientRun');
     expect(runtimeSource).toContain('{ expectedPatientRun: normalizedPatientRun }');

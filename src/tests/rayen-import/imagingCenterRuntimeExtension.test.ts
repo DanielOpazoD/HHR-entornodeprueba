@@ -105,6 +105,7 @@ describe('Centro HHR imaging runtime', () => {
     expect(contentSource).toContain('const imagingCenterRuntime = imagingCenterOwner');
     expect(contentSource).toContain('if (!imagingCenterRuntime) {');
     expect(contentSource).toContain('imagingCenterRuntime.renderImagingCenter(root, targetEncId)');
+    expect(contentSource).not.toContain('const renderImagingCenter =');
     expect(contentSource.split('\n').length).toBeLessThanOrEqual(2_250);
     expect(ownerSource.split('\n').length).toBeLessThanOrEqual(350);
   });

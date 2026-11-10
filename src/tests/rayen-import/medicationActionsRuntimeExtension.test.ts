@@ -149,6 +149,16 @@ describe('HHR medication actions runtime', () => {
     );
     expect(contentSource).toContain('!medicationActionsOwner ||');
     expect(contentSource).toContain('medicationActionsOwner.create({');
+    [
+      'const findPharmaHeading =',
+      'const downloadIndications =',
+      'const hasVisibleNursingRole =',
+      'const findToolbarAnchor =',
+      "const FAVORITES_STORAGE_KEY = 'hhrFavorites'",
+      'const createFavoritesDialog =',
+    ].forEach(definition => {
+      expect(contentSource).not.toContain(definition);
+    });
   });
 
   it('detects the nursing medication view and preserves indications route safety', async () => {

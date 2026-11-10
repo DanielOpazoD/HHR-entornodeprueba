@@ -21,6 +21,9 @@ describe('clinical Scores write runtime owner', () => {
     expect(backgroundSource).toContain(
       'return clinicalScoreWriteRuntime.readRecoveryReview({ encId, instrument, info });'
     );
+    expect(backgroundSource).not.toContain('const handleCudyrSave = async');
+    expect(backgroundSource).not.toContain('const handleEvaluationScaleSave = async');
+    expect(backgroundSource).not.toContain('const performScoreSaveRequest = async');
   });
 
   it('rejects incomplete dependency injection', () => {

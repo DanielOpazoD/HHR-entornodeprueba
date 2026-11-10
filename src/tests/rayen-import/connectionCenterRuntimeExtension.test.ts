@@ -49,6 +49,7 @@ describe('Centro HHR connection runtime', () => {
       'const connectionCenterOwner = globalThis.HhrConnectionCenterRuntime'
     );
     expect(content).toContain('renderConnectionCenter,');
+    expect(content).not.toContain('const renderConnectionCenter =');
     expect(runtime).toContain('120');
     expect(runtime).toContain('schedulePanelTimer(controller, poll, 700)');
     expect(runtime).toContain('schedulePanelTimer(controller, poll, 1000)');
