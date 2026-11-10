@@ -30,7 +30,7 @@
       "owner": "clinical-documents",
       "phase": "restrict",
       "status": "ok",
-      "signal": "consumers=3/3, unapproved=0",
+      "signal": "consumers=2/2, unapproved=0",
       "guardrails": [
         "test:clinical-documents",
         "check:clinical-documents-feature-boundary",
