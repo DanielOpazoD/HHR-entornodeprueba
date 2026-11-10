@@ -12,7 +12,6 @@ describe('sync invariants support', () => {
     expect(result.invariants.map(invariant => invariant.id)).toEqual([
       'atomic-sync-claim-api',
       'claimed-completion-telemetry',
-      'authority-release-gate',
       'strict-repository-local-persistence',
       'sync-runbook',
       'full-save-sync-contract',
