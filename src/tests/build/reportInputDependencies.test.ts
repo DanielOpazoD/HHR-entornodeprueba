@@ -54,18 +54,24 @@ it('declares every observed report input, even when the input is absent', () => 
       syncBuiltinESMExports();
     `
     );
+    const nodes = new Map(Object.entries(EVIDENCE_DEPENDENCY_GRAPH));
+    const getNode = (id: string) => {
+      const node = nodes.get(id);
+      if (!node) throw new Error(`Unknown evidence node ${id}`);
+      return node;
+    };
     const visited = new Set<string>();
     const order: string[] = [];
     const visit = (id: string) => {
       if (visited.has(id)) return;
       visited.add(id);
-      for (const dependency of EVIDENCE_DEPENDENCY_GRAPH[id].dependencies) visit(dependency);
+      for (const dependency of getNode(id).dependencies) visit(dependency);
       order.push(id);
     };
     for (const id of Object.keys(EVIDENCE_DEPENDENCY_GRAPH)) visit(id);
     const issues: string[] = [];
     for (const id of order) {
-      const node = EVIDENCE_DEPENDENCY_GRAPH[id];
+      const node = getNode(id);
       fs.writeFileSync(trace, '');
       // Exercise the report constructor, without rerunning coverage or nested refresh wrappers.
       const script = id === 'sync-convergence' ? 'sync-convergence-evidence' : id;
