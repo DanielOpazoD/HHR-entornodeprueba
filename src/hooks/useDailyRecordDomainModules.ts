@@ -27,18 +27,13 @@ export const useDailyRecordDomainModules = (
   const inventory = useInventory(record);
   const stabilityRules = useStabilityRules(record);
   const validation = useValidation();
-  const bedManagement = useBedManagement(
-    record,
-    saveAndUpdate,
-    patchRecord,
-    ensureStaleDayEditAllowed
-  );
+  const bedManagement = useBedManagement(record, patchRecord, ensureStaleDayEditAllowed);
   const dischargeManagement = usePatientDischarges(record, saveAndUpdate, undefined, patchRecord);
   const transferManagement = usePatientTransfers(record, saveAndUpdate, undefined, patchRecord);
   const nurseManagement = useNurseManagement(record, patchRecord);
   const tensManagement = useTensManagement(record, patchRecord);
   const staffingManagement = useDetailedStaffingManagement(record, patchRecord);
-  const cmaManagement = useCMA(record, saveAndUpdate, patchRecord);
+  const cmaManagement = useCMA(record, patchRecord);
   const handoffManagement = useHandoffManagement(record, saveAndUpdate, patchRecord);
 
   return {

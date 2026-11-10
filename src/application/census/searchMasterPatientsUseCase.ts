@@ -1,3 +1,4 @@
+import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
 import type { MasterPatient } from '@/types/domain/patientMaster';
 import {
   createApplicationFailed,
@@ -10,14 +11,9 @@ import {
   normalizeSearchMasterPatientsInput,
 } from './searchMasterPatientsContracts';
 
-let patientMasterRepositoryPromise: Promise<
-  Pick<typeof import('@/services/repositories/PatientMasterRepository'), 'searchPatients'>
-> | null = null;
-
-const loadPatientMasterRepository = () => {
-  patientMasterRepositoryPromise ??= import('@/services/repositories/PatientMasterRepository');
-  return patientMasterRepositoryPromise;
-};
+const loadPatientMasterRepository = createCachedRuntimeLoader(
+  () => import('@/services/repositories/PatientMasterRepository')
+);
 
 export const searchMasterPatients = async (
   searchTerm: string,

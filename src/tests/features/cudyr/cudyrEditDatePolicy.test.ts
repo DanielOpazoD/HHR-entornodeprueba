@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { canEditCudyrRecord } from '@/features/cudyr/controllers/cudyrEditAccessController';
+import { canEditCudyrForDate } from '@/shared/access/operationalAccessPolicy';
+import { resolveCurrentClinicalDay } from '@/utils/clinicalDayUtils';
 
-describe('canEditCudyrRecord', () => {
+describe('canEditCudyrForDate', () => {
   it('allows nurse hospital to edit the current day', () => {
     expect(
-      canEditCudyrRecord({
+      canEditCudyrForDate({
         role: 'nurse_hospital',
         readOnly: false,
         recordDate: '2026-04-12',
@@ -15,7 +16,7 @@ describe('canEditCudyrRecord', () => {
 
   it('allows nurse hospital to edit the previous day', () => {
     expect(
-      canEditCudyrRecord({
+      canEditCudyrForDate({
         role: 'nurse_hospital',
         readOnly: false,
         recordDate: '2026-04-11',
@@ -26,7 +27,7 @@ describe('canEditCudyrRecord', () => {
 
   it('blocks nurse hospital from editing records older than X - 1', () => {
     expect(
-      canEditCudyrRecord({
+      canEditCudyrForDate({
         role: 'nurse_hospital',
         readOnly: false,
         recordDate: '2026-04-10',
@@ -37,7 +38,7 @@ describe('canEditCudyrRecord', () => {
 
   it('blocks non-admin editors from editing records older than X - 1', () => {
     expect(
-      canEditCudyrRecord({
+      canEditCudyrForDate({
         role: 'editor',
         readOnly: false,
         recordDate: '2026-04-10',
@@ -48,7 +49,7 @@ describe('canEditCudyrRecord', () => {
 
   it('allows admin to edit historical CUDYR records', () => {
     expect(
-      canEditCudyrRecord({
+      canEditCudyrForDate({
         role: 'admin',
         readOnly: false,
         recordDate: '2026-04-01',
@@ -59,7 +60,7 @@ describe('canEditCudyrRecord', () => {
 
   it('respects explicit readOnly even for admin', () => {
     expect(
-      canEditCudyrRecord({
+      canEditCudyrForDate({
         role: 'admin',
         readOnly: true,
         recordDate: '2026-04-12',
@@ -73,10 +74,11 @@ describe('canEditCudyrRecord', () => {
     vi.setSystemTime(new Date('2026-04-22T12:59:00.000Z')); // 06:59 in Rapa Nui
 
     expect(
-      canEditCudyrRecord({
+      canEditCudyrForDate({
         role: 'nurse_hospital',
         readOnly: false,
         recordDate: '2026-04-20',
+        todayISO: resolveCurrentClinicalDay(),
       })
     ).toBe(true);
 
@@ -88,10 +90,11 @@ describe('canEditCudyrRecord', () => {
     vi.setSystemTime(new Date('2026-04-22T15:01:00.000Z')); // 09:01 in Rapa Nui
 
     expect(
-      canEditCudyrRecord({
+      canEditCudyrForDate({
         role: 'nurse_hospital',
         readOnly: false,
         recordDate: '2026-04-20',
+        todayISO: resolveCurrentClinicalDay(),
       })
     ).toBe(false);
 

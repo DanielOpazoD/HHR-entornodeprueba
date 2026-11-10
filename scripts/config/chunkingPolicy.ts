@@ -1,5 +1,73 @@
+// Surviving modules of the former shared clinical-document chunk, measured from
+// Rollup's generateBundle metadata before removing the template manager. Keep this
+// boundary explicit: the feature also exports contracts used by census startup.
+const clinicalDocumentsWorkspaceModules = new Set([
+  '/src/features/clinical-documents/components/ClinicalDocumentImageEditor.tsx',
+  '/src/features/clinical-documents/components/ClinicalDocumentIndicationsItems.tsx',
+  '/src/features/clinical-documents/components/ClinicalDocumentIndicationsPanel.tsx',
+  '/src/features/clinical-documents/components/ClinicalDocumentIndicationsPanelHeader.tsx',
+  '/src/features/clinical-documents/components/ClinicalDocumentIndicationsTabSettings.tsx',
+  '/src/features/clinical-documents/components/ClinicalDocumentPharmacyForms.tsx',
+  '/src/features/clinical-documents/components/ClinicalDocumentPlanSection.tsx',
+  '/src/features/clinical-documents/components/ClinicalDocumentRichTextEditor.tsx',
+  '/src/features/clinical-documents/components/ClinicalDocumentSectionList.tsx',
+  '/src/features/clinical-documents/components/ClinicalUpdateDateTimeHeader.tsx',
+  '/src/features/clinical-documents/components/InlineEditableTitle.tsx',
+  '/src/features/clinical-documents/components/clinicalDocumentSectionRendererRegistry.tsx',
+  '/src/features/clinical-documents/contracts/clinicalDocumentAiImportContract.ts',
+  '/src/features/clinical-documents/controllers/clinicalDocumentEditorInsertionController.ts',
+  '/src/features/clinical-documents/controllers/clinicalDocumentEmptySectionTemplateController.ts',
+  '/src/features/clinical-documents/controllers/clinicalDocumentFormattingContract.ts',
+  '/src/features/clinical-documents/controllers/clinicalDocumentHtmlSanitizer.ts',
+  '/src/features/clinical-documents/controllers/clinicalDocumentImageEditorController.ts',
+  '/src/features/clinical-documents/controllers/clinicalDocumentIndentationController.ts',
+  '/src/features/clinical-documents/controllers/clinicalDocumentIndicationsCatalogController.ts',
+  '/src/features/clinical-documents/controllers/clinicalDocumentIndicationsCatalogModel.ts',
+  '/src/features/clinical-documents/controllers/clinicalDocumentIndicationsController.ts',
+  '/src/features/clinical-documents/controllers/clinicalDocumentMandatoryListShapeController.ts',
+  '/src/features/clinical-documents/controllers/clinicalDocumentPasteController.ts',
+  '/src/features/clinical-documents/controllers/clinicalDocumentPlanSectionController.ts',
+  '/src/features/clinical-documents/controllers/clinicalDocumentPlanSectionDom.ts',
+  '/src/features/clinical-documents/controllers/clinicalDocumentRichTextController.ts',
+  '/src/features/clinical-documents/controllers/clinicalDocumentRichTextKeyboardController.ts',
+  '/src/features/clinical-documents/controllers/clinicalDocumentSlashCommandController.ts',
+  '/src/features/clinical-documents/domain/branding.ts',
+  '/src/features/clinical-documents/domain/rules.ts',
+  '/src/features/clinical-documents/hooks/useClinicalDocumentEditorHistory.ts',
+  '/src/features/clinical-documents/hooks/useClinicalDocumentIndicationsCatalog.ts',
+  '/src/features/clinical-documents/hooks/useClinicalDocumentRichTextEditorController.ts',
+  '/src/features/clinical-documents/services/clinicalDocumentIndicationsCatalogOperations.ts',
+  '/src/features/clinical-documents/services/clinicalDocumentIndicationsCatalogService.ts',
+  '/src/features/clinical-documents/services/clinicalDocumentLoggers.ts',
+  '/src/features/clinical-documents/services/clinicalDocumentPdfBinarySupport.ts',
+  '/src/features/clinical-documents/services/clinicalDocumentPdfRenderService.ts',
+  '/src/features/clinical-documents/services/clinicalDocumentPdfSnapshotSupport.ts',
+  '/src/features/clinical-documents/services/clinicalDocumentPrintHtmlBuilder.ts',
+  '/src/features/clinical-documents/services/clinicalDocumentPrintSupport.ts',
+  '/src/features/clinical-documents/styles/clinicalDocumentSheet.css',
+  '/src/features/clinical-documents/styles/clinicalDocumentSheet.css?raw',
+  '/src/services/firebase-runtime/clinicalAttachmentRuntime.ts',
+  '/src/services/repositories/ClinicalAttachmentRepository.ts',
+  '/src/shared/clinical-documents/clinicalAttachmentFilePolicy.ts',
+  '/src/shared/clinical-documents/clinicalAttachmentPathController.ts',
+  '/src/shared/clinical-documents/clinicalAttachmentRuntimeContracts.ts',
+]);
+
 export const chunkForModule = (moduleId: string): string | undefined => {
   const normalizedId = moduleId.replace(/\\/g, '/');
+  if (
+    clinicalDocumentsWorkspaceModules.has(normalizedId.slice(normalizedId.lastIndexOf('/src/')))
+  ) {
+    return 'clinical-documents-workspace';
+  }
+  // These dependencies belonged to precached chunks before this workspace split.
+  // Reserve their existing owners so Rollup cannot absorb them into an online-only chunk.
+  if (
+    normalizedId.endsWith('/src/domain/clinical-documents/schema.ts') ||
+    normalizedId.endsWith('/src/domain/clinical-documents/definitions.ts')
+  )
+    return 'census-view';
+  if (normalizedId.endsWith('/src/utils/htmlEscape.ts')) return 'htmlEscape';
   const inNodeModules = normalizedId.includes('/node_modules/');
   const has = (fragment: string): boolean => normalizedId.includes(fragment);
 
