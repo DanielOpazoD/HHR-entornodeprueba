@@ -122,19 +122,24 @@ describe('clinical crib document fallback', () => {
     }
   );
 
-  it('does not match the same literal number with a different document type', () => {
-    const diff = reconcile(record(patient('123456', 'Pasaporte')), patient('123456', 'RUT', 'NEW'));
-    expect(diff.updates).toEqual([]);
-    expect(diff.conflicts[0]?.reason).toContain('ya está ocupada');
+  it('still recognises a numeric passport when Eloísa, which sends no type, has it read as a RUN', () => {
+    const diff = reconcile(
+      record(patient('222222222', 'Pasaporte')),
+      patient('222222222', 'RUT', 'NEW'),
+      { ...encounter, run: '222222222' }
+    );
+    expect(diff.conflicts).toEqual([]);
+    expect(diff.updates[0]?.changes[0]?.to).toMatchObject({ clinicalEpisodeId: 'NEW' });
   });
 
-  it('preserves exact passport punctuation and case', () => {
-    for (const different of ['AB-123456', 'ab123456']) {
-      const diff = reconcile(record(patient(different)), patient('AB123456', 'Pasaporte', 'NEW'));
-      expect(diff.updates).toEqual([]);
-      expect(diff.conflicts[0]?.reason).toContain('ya está ocupada');
+  it.each(['ab123456', 'AB-123456', 'ab 123456'])(
+    'still recognises passport AB123456 stored by hand as %s',
+    stored => {
+      const diff = reconcile(record(patient(stored)), patient('AB123456', 'Pasaporte', 'NEW'));
+      expect(diff.conflicts).toEqual([]);
+      expect(diff.updates[0]?.changes[0]?.to).toMatchObject({ clinicalEpisodeId: 'NEW' });
     }
-  });
+  );
 
   it('matches a formatted RUN in a new episode', () => {
     const a = patient('22.222.222-2', 'RUT');

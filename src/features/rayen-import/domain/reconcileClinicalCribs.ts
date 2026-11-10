@@ -63,7 +63,7 @@ const indexCurrentClinicalCribs = (current: DailyRecord) => {
     const patient = parent.clinicalCrib;
     const ref = { parentBedId, patient };
     if (patient.clinicalEpisodeId) byEpisode.set(patient.clinicalEpisodeId, ref);
-    const document = clinicalCribDocumentIdentity(patient);
+    const document = clinicalCribDocumentIdentity(patient.rut);
     if (document) byDocument.set(document, ref);
   }
   return { byEpisode, byDocument };
@@ -116,7 +116,7 @@ export const reconcileClinicalCribs = (
       currentCribs.byEpisode.get(encounter.encounterId) ??
       (usesMaternalRun
         ? undefined
-        : currentCribs.byDocument.get(clinicalCribDocumentIdentity(rawIncomingCrib)));
+        : currentCribs.byDocument.get(clinicalCribDocumentIdentity(rawIncomingCrib.rut)));
     // While the RN has no RUN, HHR preserves the locally curated provisional name. Once Eloísa
     // provides a RUN, Registro Civil identity becomes authoritative and all syncable demographics
     // (including names and surnames) are refreshed from the official record.
@@ -130,8 +130,8 @@ export const reconcileClinicalCribs = (
     const incomingCrib =
       sourceRunIsNotOwn &&
       (!existingRef ||
-        clinicalCribDocumentIdentity(existingRef.patient) ===
-          clinicalCribDocumentIdentity({ rut: encounter.run }))
+        clinicalCribDocumentIdentity(existingRef.patient.rut) ===
+          clinicalCribDocumentIdentity(encounter.run))
         ? { ...preserved, rut: '', identityStatus: 'provisional' as const }
         : preserved;
     const retainedParentMove =
@@ -162,8 +162,8 @@ export const reconcileClinicalCribs = (
       .find(
         entry =>
           entry.bedId === parentBedId &&
-          clinicalCribDocumentIdentity({ rut: entry.rut ?? '' }) !==
-            clinicalCribDocumentIdentity(incomingCrib) &&
+          clinicalCribDocumentIdentity(entry.rut) !==
+            clinicalCribDocumentIdentity(incomingCrib.rut) &&
           entry.source
       );
     const principalRut =
@@ -267,7 +267,7 @@ export const reconcileClinicalCribs = (
       if (childChanges.length === 0 && !clearsLegacyFlag) {
         const identity = encounter.encounterId
           ? `episode:${encounter.encounterId}`
-          : clinicalCribDocumentIdentity(incomingCrib);
+          : `document:${clinicalCribDocumentIdentity(incomingCrib.rut)}`;
         if (!pendingDischargeIdentities.has(identity)) {
           diff.unchangedCount += 1;
         }

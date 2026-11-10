@@ -4,7 +4,7 @@ import {
 } from './neonatalMaternalLookupIdentity';
 import { isDischargedEncounter } from './censusReconciliationPredicates';
 import { Specialty } from '@/types/domain/patientClassification';
-import { isPassportFormat, isValidRut, normalizeRut } from '@/utils/rutUtils';
+import { isValidRut } from '@/utils/rutUtils';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { rayenToPatientData, withLocalNameParts } from '../mapping/rayenToPatientData';
@@ -261,18 +261,14 @@ export const shouldReconcileAsPrincipal = (
   );
 };
 
-/** Typed fallback identity: passports retain their exact trimmed text (ID-01). */
-export const clinicalCribDocumentIdentity = (
-  patient: Pick<PatientData, 'rut' | 'documentType'>
-): string => {
-  const document = patient.rut?.trim();
-  if (!document) return '';
-  const passport =
-    patient.documentType === 'Pasaporte' || (!patient.documentType && isPassportFormat(document));
-  if (passport) return `passport:${document}`;
-  const rut = normalizeRut(document);
-  return rut ? `run:${rut}` : '';
-};
+/**
+ * The text a crib's document is matched by when no episode matches. Letters stay, so two passports
+ * that share digits are two documents and a passport never equals a RUN (ID-01); only separators
+ * and letter case are ignored, as Eloísa and manual entry differ in both. The type is not part of
+ * it: Eloísa sends none and the one stored may be inferred.
+ */
+export const clinicalCribDocumentIdentity = (document?: string): string =>
+  (document ?? '').replace(/[^0-9a-z]/gi, '').toUpperCase();
 
 export const pendingClinicalCribDischargeIdentities = (
   candidates: MappedClinicalEncounter[]
@@ -281,7 +277,7 @@ export const pendingClinicalCribDischargeIdentities = (
     candidates.map(({ encounter, mapped }) =>
       encounter.encounterId
         ? `episode:${encounter.encounterId}`
-        : clinicalCribDocumentIdentity(mapped.patient)
+        : `document:${clinicalCribDocumentIdentity(mapped.patient.rut)}`
     )
   );
 
