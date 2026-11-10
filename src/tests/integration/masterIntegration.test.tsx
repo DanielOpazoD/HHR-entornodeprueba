@@ -47,10 +47,6 @@ vi.mock('@/application/ports/dailyRecordPort', () => ({
   defaultDailyRecordRepositoryPort: mockDailyRecordRepositoryPort,
 }));
 
-vi.mock('@/services/storage/unifiedLocalService', () => ({
-  saveRecordLocal: vi.fn(),
-  getRecordForDate: vi.fn(),
-}));
 vi.mock('@/context/UIContext', () => ({
   useNotification: () => ({ success: vi.fn(), warning: vi.fn(), error: vi.fn() }),
   useUI: () => ({

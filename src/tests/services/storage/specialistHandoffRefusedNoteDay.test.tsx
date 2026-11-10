@@ -24,7 +24,7 @@ import {
 } from './specialistHandoffNoteDaySupport';
 import { cleanup } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { hospitalDB } from '@/services/storage/indexedDBService';
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { syncWithFirestoreDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
 import { discardQuarantinedSyncTask } from '@/services/storage/sync';
 import type { DailyRecord } from '@/types/domain/dailyRecord';

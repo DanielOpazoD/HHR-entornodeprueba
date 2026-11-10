@@ -54,11 +54,11 @@ vi.mock('@/services/storage/firestore/dailyRecordAuthorityCallableClient', () =>
 }));
 
 import { setDoc } from 'firebase/firestore';
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {
-  hospitalDB,
   clearAllRecords,
   saveRecord as saveRecordLocal,
-} from '@/services/storage/indexedDBService';
+} from '@/services/storage/indexeddb/indexedDbRecordService';
 import { getSyncQueueTelemetry, processSyncQueue, queueSyncTask } from '@/services/storage/sync';
 import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';

@@ -51,10 +51,6 @@ vi.mock('@/application/clinical-documents/clinicalDocumentUseCases', async () =>
   };
 });
 
-vi.mock('@/services/observability/operationalTelemetryService', () => ({
-  recordOperationalOutcome: vi.fn(),
-}));
-
 describe('useClinicalDocumentWorkspaceBootstrap', () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -17,8 +17,6 @@ import { createScopedLogger } from '@/services/utils/loggerScope';
 
 const operationalTelemetryLogger = createScopedLogger('OperationalTelemetry');
 
-export { buildOperationalTelemetrySummary } from '@/services/observability/operationalTelemetrySummary';
-
 const readOperationalTelemetryEventsSafely = (): OperationalTelemetryEvent[] =>
   readOperationalTelemetryEvents({
     onReadError: error => operationalTelemetryLogger.warn('Failed to read persisted events', error),

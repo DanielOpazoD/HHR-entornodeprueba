@@ -7,8 +7,6 @@ import { useClinicalDocumentWorkspaceDraft } from '@/features/clinical-documents
 
 const executePersistClinicalDocumentEditorDraft = vi.fn();
 const resolveClinicalDocumentAutosaveCommit = vi.fn();
-const recordOperationalOutcome = vi.fn();
-const recordOperationalTelemetry = vi.fn();
 
 vi.mock('@/application/clinical-documents/clinicalDocumentEditorUseCases', async importOriginal => {
   const actual =
@@ -24,11 +22,6 @@ vi.mock('@/application/clinical-documents/clinicalDocumentEditorUseCases', async
       resolveClinicalDocumentAutosaveCommit(...args),
   };
 });
-
-vi.mock('@/services/observability/operationalTelemetryService', () => ({
-  recordOperationalOutcome: (...args: unknown[]) => recordOperationalOutcome(...args),
-  recordOperationalTelemetry: (...args: unknown[]) => recordOperationalTelemetry(...args),
-}));
 
 const buildDraft = (id: string, content: string): ClinicalDocumentRecord => {
   const draft = createClinicalDocumentDraft({

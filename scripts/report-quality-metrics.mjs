@@ -55,11 +55,6 @@ const DEPRECATED_IMPORTS = [
     importPath: '@/shared/controllerResult',
     allowBypass: file => file === 'src/shared/controllerResult.ts' || file.startsWith('src/tests/'),
   },
-  {
-    importPath: '@/hooks/contracts/dailyRecordHookContracts',
-    allowBypass: file =>
-      file === 'src/hooks/contracts/dailyRecordHookContracts.ts' || file.startsWith('src/tests/'),
-  },
 ];
 const DAILY_RECORD_ROOT_IMPORTS = [
   '@/types/domain/dailyRecord',
@@ -530,8 +525,7 @@ const getConvergenceSignals = () => {
       relative === 'src/application/shared/dailyRecordMedicalContracts.ts' ||
       relative === 'src/application/shared/dailyRecordStaffContracts.ts' ||
       isTestFile(relative);
-    const isHookBypass =
-      relative === 'src/hooks/contracts/dailyRecordHookContracts.ts' || isTestFile(relative);
+    const isHookBypass = isTestFile(relative);
     const isServiceBypass =
       relative === 'src/services/contracts/dailyRecordServiceContracts.ts' ||
       relative.startsWith('src/services/repositories/') ||

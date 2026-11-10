@@ -55,10 +55,6 @@ vi.mock('../../firebaseConfig', () => ({
   auth: { onAuthStateChanged: vi.fn(() => () => {}) },
 }));
 
-vi.mock('../../services/storage/unifiedLocalService', () => ({
-  saveRecordLocal: vi.fn(),
-}));
-
 const mockDate = '2024-12-28';
 
 const createWrapper = () => {

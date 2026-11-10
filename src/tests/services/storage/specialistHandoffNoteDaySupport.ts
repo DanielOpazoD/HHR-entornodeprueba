@@ -13,7 +13,7 @@ import {
   harnessState,
   writeNote,
 } from './specialistHandoffOutboxHarness';
-import { hospitalDB } from '@/services/storage/indexedDBService';
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {
   saveDetailed,
   updatePartialDetailed,

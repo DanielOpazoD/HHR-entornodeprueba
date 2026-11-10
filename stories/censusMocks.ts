@@ -7,7 +7,7 @@ import type { PatientData } from '@/types/domain/patient';
 import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
 import type { Statistics } from '@/types/domain/statistics';
 import type { CudyrScore } from '@/types/domain/cudyr';
-import { DailyRecordContextType } from '@/hooks/useDailyRecordTypes';
+import { DailyRecordContextType } from '@/context/dailyRecordContextContracts';
 import { BEDS } from '@/constants/beds';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 

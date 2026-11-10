@@ -26,11 +26,6 @@ vi.mock('@/application/clinical-documents/clinicalDocumentPrintOpenUseCase', asy
   };
 });
 
-vi.mock('@/services/observability/operationalTelemetryService', () => ({
-  recordOperationalOutcome: vi.fn(),
-  recordOperationalTelemetry: vi.fn(),
-}));
-
 vi.mock('@/services/observability/criticalClinicalActionRecorder', () => ({
   recordCriticalClinicalAction,
 }));

@@ -25,7 +25,7 @@ const OWNER = 'user:synthetic-specialist';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { hospitalDB } from '@/services/storage/indexedDBService';
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {
   listRecentSyncQueueOperations,
   queueDailyRecordSyncTaskWithLocalRecord,

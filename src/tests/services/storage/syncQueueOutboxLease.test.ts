@@ -28,7 +28,7 @@ vi.mock('@/shared/runtime/e2eRuntime', async importOriginal => ({
 }));
 
 import { getDoc, setDoc } from 'firebase/firestore';
-import { hospitalDB } from '@/services/storage/indexedDBService';
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
 import { localPersistence } from '@/services/storage/localpersistence/localPersistenceService';
