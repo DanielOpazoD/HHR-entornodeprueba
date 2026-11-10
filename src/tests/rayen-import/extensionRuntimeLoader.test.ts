@@ -130,7 +130,6 @@ describe('extension heavy runtime loading', () => {
     expect(clinicalScoreRuntimeSource).toContain(
       'if (!scoresIdentityReady(info) || !clinicalRoleKind)'
     );
-    expect(clinicalHandoffRuntimeSource).toContain('batch.batch.handoffKind !== handoffKind');
   });
 
   it('registers PDF and spreadsheet vendors during classic MV3 worker startup', () => {

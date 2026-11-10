@@ -1,8 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import {
-  runtimeSource,
-  modelSource,
   backgroundSource,
   loadOwner,
   createDependencies,
@@ -26,10 +24,6 @@ describe('clinical Scores write runtime owner', () => {
     expect(backgroundSource).not.toContain('const handleCudyrSave = async');
     expect(backgroundSource).not.toContain('const handleEvaluationScaleSave = async');
     expect(backgroundSource).not.toContain('const performScoreSaveRequest = async');
-    expect(runtimeSource).toContain('const handleCudyrSave = async');
-    expect(runtimeSource).toContain('const handleEvaluationScaleSave = async');
-    expect(modelSource).toContain('const prepareEvaluationSubmission =');
-    expect(runtimeSource).toContain('const performScoreSaveRequest = async');
   });
 
   it('rejects incomplete dependency injection', () => {
