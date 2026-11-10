@@ -144,9 +144,7 @@ describe('patient movement multi-role sync contract', () => {
       const sourceSnapshot = runtime.getSnapshot();
 
       if (movement === 'cma') {
-        const { result } = renderHook(() =>
-          useCMA(sourceSnapshot, runtime.saveAndUpdate, runtime.patchRecord)
-        );
+        const { result } = renderHook(() => useCMA(sourceSnapshot, runtime.patchRecord));
 
         await act(async () => {
           result.current.addCMA({

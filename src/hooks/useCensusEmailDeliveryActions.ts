@@ -2,12 +2,12 @@ import { useCallback, useLayoutEffect, useRef, type Dispatch, type SetStateActio
 import type { ConfirmOptions } from '@/context/uiContracts';
 import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 import { canRunCensusEmailAction } from '@/hooks/controllers/censusEmailActionController';
-import { resolveCensusEmailSendOutcomePresentation } from '@/hooks/controllers/censusEmailOutcomeController';
+import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
 import { resolveUpcEmailBlockReason } from '@/shared/census/upcEvaluationPolicy';
 
 export type CensusEmailSendStatus = 'idle' | 'loading' | 'success' | 'error';
 
-interface UseCensusEmailDeliveryActionsParams {
+export interface UseCensusEmailDeliveryActionsParams {
   record: DailyRecord | null;
   currentDateString: string;
   nurseSignature: string;
@@ -28,8 +28,9 @@ interface UseCensusEmailDeliveryActionsParams {
   alert: (message: string, title?: string) => Promise<void>;
 }
 
-const loadSendCensusEmailUseCases = () =>
-  import('@/application/census-email/sendCensusEmailUseCases');
+const loadCensusEmailDelivery = createCachedRuntimeLoader(
+  () => import('@/hooks/controllers/censusEmailDeliveryRuntime')
+);
 
 const resolveLazyEmailModuleError = (error: unknown): string =>
   error instanceof Error
@@ -69,46 +70,15 @@ export const useCensusEmailDeliveryActions = ({
       await alert(blockReason, 'Evaluación UPC pendiente');
       return;
     }
-    let useCases: Awaited<ReturnType<typeof loadSendCensusEmailUseCases>>;
+    let delivery: Awaited<ReturnType<typeof loadCensusEmailDelivery>>;
     try {
-      useCases = await loadSendCensusEmailUseCases();
+      delivery = await loadCensusEmailDelivery();
     } catch (loadError) {
       setError(resolveLazyEmailModuleError(loadError));
       setStatus('error');
       return;
     }
-    const { buildSendCensusConfirmationMessage, executeSendCensusEmail } = useCases;
-    const confirmed = await confirm({
-      title: 'Confirmar Envío de Censo',
-      message: buildSendCensusConfirmationMessage({
-        currentDateString,
-        recipients,
-        testModeEnabled,
-        testRecipient,
-        isAdminUser,
-      }),
-      confirmText: 'Aceptar',
-      cancelText: 'Cancelar',
-      variant: 'info',
-    });
-    if (!confirmed) return;
-    const latest = latestContext.current;
-    const finalBlockReason =
-      latest.currentDateString !== currentDateString
-        ? 'El censo cambió de fecha. Revisa el día antes de enviar.'
-        : resolveUpcEmailBlockReason(latest.record, currentDateString);
-    if (finalBlockReason) {
-      setError(finalBlockReason);
-      setStatus('error');
-      await alert(finalBlockReason, 'Envío bloqueado');
-      return;
-    }
-
-    setError(null);
-    setStatus('loading');
-
-    const result = await executeSendCensusEmail({
-      record: latest.record,
+    await delivery.deliverCensusEmail({
       currentDateString,
       nurseSignature,
       selectedYear,
@@ -121,21 +91,12 @@ export const useCensusEmailDeliveryActions = ({
       testModeEnabled,
       testRecipient,
       isAdminUser,
+      setStatus,
+      setError,
+      confirm,
+      alert,
+      latestContext,
     });
-
-    const presentation = resolveCensusEmailSendOutcomePresentation(result, {
-      fallbackErrorMessage: 'No se pudo enviar el correo.',
-      partialTitle: 'Envío completado con advertencias',
-      errorTitle: 'Error al enviar',
-      validationTitle: 'Modo prueba',
-      shouldUseValidationTitle: isAdminUser && testModeEnabled,
-    });
-
-    setError(presentation.error);
-    setStatus(presentation.nextStatus);
-    if (presentation.alertMessage) {
-      await alert(presentation.alertMessage, presentation.alertTitle);
-    }
   }, [
     alert,
     confirm,

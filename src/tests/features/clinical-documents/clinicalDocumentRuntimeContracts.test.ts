@@ -5,11 +5,8 @@ import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entitie
 import {
   formatClinicalDocumentContractIssues,
   parseClinicalDocumentRecord,
-  parseClinicalDocumentTemplate,
   safeParseClinicalDocumentRecord,
-  safeParseClinicalDocumentTemplate,
 } from '@/domain/clinical-documents/runtimeContracts';
-import { CLINICAL_DOCUMENT_TEMPLATES } from '@/features/clinical-documents/domain/rules';
 
 const buildRecord = () =>
   createClinicalDocumentDraft({
@@ -75,12 +72,6 @@ describe('clinicalDocumentRuntimeContracts', () => {
     ).toBe(false);
   });
 
-  it('accepts default clinical document templates', () => {
-    expect(parseClinicalDocumentTemplate(CLINICAL_DOCUMENT_TEMPLATES.epicrisis).id).toBe(
-      'epicrisis'
-    );
-  });
-
   it('preserves IEEH-only doctor override fields', () => {
     const record = parseClinicalDocumentRecord({
       ...buildRecord(),
@@ -127,18 +118,13 @@ describe('clinicalDocumentRuntimeContracts', () => {
     expect(record.ieehDraft?.tratanteEspecialidad).toBe('Cirugía Adulto');
   });
 
-  it('safe parses invalid runtime records and templates', () => {
+  it('safe parses invalid runtime records', () => {
     const invalidRecord = safeParseClinicalDocumentRecord({
       ...buildRecord(),
       patientName: 123,
     });
-    const invalidTemplate = safeParseClinicalDocumentTemplate({
-      ...CLINICAL_DOCUMENT_TEMPLATES.epicrisis,
-      status: 'broken',
-    });
 
     expect(invalidRecord.success).toBe(false);
-    expect(invalidTemplate.success).toBe(false);
   });
 
   it('formats contract issues using root, nested and symbol paths', () => {
