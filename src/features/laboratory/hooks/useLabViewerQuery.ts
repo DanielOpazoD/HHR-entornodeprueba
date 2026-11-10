@@ -108,7 +108,8 @@ export const useLabViewerQuery = ({
         fullName = master?.fullName;
         birthDate = master?.birthDate;
       } catch {
-        // External RUTs can still be enriched from the Syslab PDF below.
+        // An unreadable index does not prove absence. Metadata is optional here:
+        // deliberately continue with the Syslab PDF enrichment below.
       }
 
       if (cancelled) return;

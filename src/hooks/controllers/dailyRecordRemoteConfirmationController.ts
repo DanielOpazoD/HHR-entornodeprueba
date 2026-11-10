@@ -26,7 +26,7 @@ const toRecordTimestamp = (value: string | undefined): number => {
 export const applyDailyRecordRemoteConfirmation = (
   state: DailyRecordRemoteConfirmationState,
   params: DailyRecordRemoteConfirmationParams
-): { builtLocks: boolean } => {
+): void => {
   const previousRecord = state.lastConfirmedRecord ?? params.previousRecord;
   const didConfirmNewerRecord =
     previousRecord &&
@@ -47,5 +47,4 @@ export const applyDailyRecordRemoteConfirmation = (
   if (params.confirmedRecord) {
     state.lastConfirmedRecord = params.confirmedRecord;
   }
-  return { builtLocks: shouldBuildLocks };
 };
