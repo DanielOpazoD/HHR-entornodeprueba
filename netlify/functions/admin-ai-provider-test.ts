@@ -1,3 +1,4 @@
+import { safeErrorMessage } from './lib/safe-error-message';
 import { getFirebaseServer } from './lib/firebase-server';
 import { authorizeRoleRequest, extractBearerToken } from './lib/firebase-auth';
 import {
@@ -162,7 +163,7 @@ export const handler = async (event: NetlifyEventLike) => {
       statusCode,
       {
         ok: false,
-        message: statusCode === 502 ? 'AI provider test failed' : message,
+        message: statusCode === 502 ? 'AI provider test failed' : safeErrorMessage(message),
       },
       { requestOrigin }
     );

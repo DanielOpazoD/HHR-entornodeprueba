@@ -356,7 +356,7 @@ test('prints the laboratory orders of several patients as one document, one page
   await page.getByRole('button', { name: 'Exámenes', exact: true }).click();
   const dialog = page.getByTestId('exam-request-modal');
   await expect(dialog).toBeVisible({ timeout: 20_000 });
-  await dialog.getByRole('button', { name: /Pacientes/ }).click();
+  await dialog.getByRole('button', { name: 'Paciente', exact: true }).click();
   await dialog.getByRole('checkbox', { name: /R2/ }).check();
   const tabs = dialog.getByRole('tablist', { name: 'Pacientes de la solicitud' });
   await expect(tabs.getByRole('tab')).toHaveCount(2);

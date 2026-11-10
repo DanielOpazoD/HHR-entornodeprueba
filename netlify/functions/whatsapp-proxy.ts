@@ -1,3 +1,4 @@
+import { safeErrorLog, safeErrorMessage } from './lib/safe-error-message';
 import {
   buildCorsHeaders,
   buildJsonResponse,
@@ -93,10 +94,7 @@ export const createWhatsAppProxyHandler =
         return buildJsonResponse(
           401,
           {
-            error:
-              error instanceof Error
-                ? error.message
-                : 'Authentication required for WhatsApp proxy.',
+            error: safeErrorMessage(error, 'Authentication required for WhatsApp proxy.'),
           },
           { requestOrigin }
         );
@@ -110,7 +108,11 @@ export const createWhatsAppProxyHandler =
         const statusCode =
           message.includes('Access denied') || message.includes('no email claim') ? 403 : 401;
 
-        return buildJsonResponse(statusCode, { error: message }, { requestOrigin });
+        return buildJsonResponse(
+          statusCode,
+          { error: safeErrorMessage(message) },
+          { requestOrigin }
+        );
       }
 
       const headers: Record<string, string> = {};
@@ -132,20 +134,31 @@ export const createWhatsAppProxyHandler =
         init.body = event.isBase64Encoded ? Buffer.from(event.body, 'base64') : event.body;
       }
 
-      const response = await invokeWithTelemetry({
+      const controller = new AbortController();
+      const { response, text } = await invokeWithTelemetry({
         service: 'whatsapp',
         operation: `${event.httpMethod} ${targetPath}`,
         timeoutMs: 8_000,
         maxAttempts: 1,
+        isFailureResult: ({ response }) => response.status >= 500 && response.status < 600,
         db,
         hospitalId: process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa',
         context: {
           method: event.httpMethod,
           path: targetPath,
         },
-        fn: () => dependencies.fetch(targetUrl, init),
+        fn: async () => {
+          const response = await dependencies.fetch(targetUrl, {
+            ...init,
+            signal: controller.signal,
+          });
+          const text = await response.text();
+          return { response, text };
+        },
+      }).catch((error: unknown) => {
+        controller.abort();
+        throw error;
       });
-      const text = await response.text();
       const responseContentType = response.headers.get('content-type') || 'application/json';
 
       return {
@@ -157,12 +170,12 @@ export const createWhatsAppProxyHandler =
         body: text,
       };
     } catch (error: unknown) {
-      console.error('WhatsApp proxy error', error);
+      console.error('WhatsApp proxy error', safeErrorLog(error));
       return buildJsonResponse(
         502,
         {
           error: 'Failed to reach WhatsApp bot server',
-          details: error instanceof Error ? error.message : String(error),
+          details: safeErrorMessage(error),
         },
         { requestOrigin }
       );

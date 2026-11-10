@@ -94,6 +94,7 @@ export const BookmarkManagerModal: React.FC<BookmarkManagerModalProps> = ({
                   <td className="px-3 py-2">
                     <div className="flex flex-col gap-0.5">
                       <button
+                        aria-label={`Subir marcador ${bookmark.name}`}
                         disabled={index === 0}
                         onClick={e => {
                           e.stopPropagation();
@@ -101,9 +102,10 @@ export const BookmarkManagerModal: React.FC<BookmarkManagerModalProps> = ({
                         }}
                         className="p-0.5 hover:bg-slate-100 rounded disabled:opacity-20 text-slate-400"
                       >
-                        <ChevronUp size={12} />
+                        <ChevronUp size={12} aria-hidden="true" />
                       </button>
                       <button
+                        aria-label={`Bajar marcador ${bookmark.name}`}
                         disabled={index === localBookmarks.length - 1}
                         onClick={e => {
                           e.stopPropagation();
@@ -111,7 +113,7 @@ export const BookmarkManagerModal: React.FC<BookmarkManagerModalProps> = ({
                         }}
                         className="p-0.5 hover:bg-slate-100 rounded disabled:opacity-20 text-slate-400"
                       >
-                        <ChevronDown size={12} />
+                        <ChevronDown size={12} aria-hidden="true" />
                       </button>
                     </div>
                   </td>
