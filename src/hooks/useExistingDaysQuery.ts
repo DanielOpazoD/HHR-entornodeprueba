@@ -80,7 +80,16 @@ export const useExistingDaysQuery = (
     queryKey: queryKeys.existingDays.byMonth(selectedYear, selectedMonth),
     queryFn: async () => {
       // selectedMonth is 0-indexed in JS (0=Jan), but our records use 1-indexed strings (01=Jan)
-      return await fetchExistingDaysInMonth(selectedYear, selectedMonth + 1);
+      try {
+        return await fetchExistingDaysInMonth(selectedYear, selectedMonth + 1);
+      } catch (error) {
+        const knownDays = queryClient.getQueryData<number[]>(
+          queryKeys.existingDays.byMonth(selectedYear, selectedMonth)
+        );
+        // Deliberate: keep known calendar markers; visible error UI awaits a product decision.
+        if (knownDays !== undefined) return knownDays;
+        throw error;
+      }
     },
     enabled,
     staleTime: 1000 * 60 * 5,
