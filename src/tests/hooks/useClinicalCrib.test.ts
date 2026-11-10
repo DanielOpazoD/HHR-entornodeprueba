@@ -1,15 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useClinicalCrib } from '@/hooks/useClinicalCrib';
-import type {
-  DailyRecord,
-  PersistDailyRecord,
-} from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 import type { PatientData } from '@/types/domain/patient';
 import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
 
 describe('useClinicalCrib', () => {
-  const mockSaveAndUpdate = vi.fn().mockResolvedValue(undefined) as PersistDailyRecord;
   const mockPatchRecord = vi.fn().mockResolvedValue(undefined);
 
   const createMockPatient = (bedId: string, overrides: Partial<PatientData> = {}): PatientData => ({
@@ -51,9 +47,7 @@ describe('useClinicalCrib', () => {
       const patient = createMockPatient('R1');
       const record = createMockRecord({ R1: patient });
 
-      const { result } = renderHook(() =>
-        useClinicalCrib(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useClinicalCrib(record, mockPatchRecord));
 
       act(() => {
         result.current.createCrib('R1');
@@ -95,9 +89,7 @@ describe('useClinicalCrib', () => {
       });
       const record = createMockRecord({ R1: patient });
 
-      const { result } = renderHook(() =>
-        useClinicalCrib(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useClinicalCrib(record, mockPatchRecord));
 
       act(() => {
         result.current.removeCrib('R1');
@@ -119,9 +111,7 @@ describe('useClinicalCrib', () => {
       });
       const record = createMockRecord({ R1: patient });
 
-      const { result } = renderHook(() =>
-        useClinicalCrib(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useClinicalCrib(record, mockPatchRecord));
 
       act(() => {
         result.current.updateCribField('R1', 'patientName', 'Updated Baby Name');
@@ -142,9 +132,7 @@ describe('useClinicalCrib', () => {
       const record = createMockRecord({ R1: patient });
       const failingPatchRecord = vi.fn().mockRejectedValue(new Error('blocked'));
 
-      const { result } = renderHook(() =>
-        useClinicalCrib(record, mockSaveAndUpdate, failingPatchRecord)
-      );
+      const { result } = renderHook(() => useClinicalCrib(record, failingPatchRecord));
 
       await expect(
         result.current.updateCribField('R1', 'patientName', 'Updated Baby Name')
@@ -165,9 +153,7 @@ describe('useClinicalCrib', () => {
       });
       const record = createMockRecord({ R1: patient });
 
-      const { result } = renderHook(() =>
-        useClinicalCrib(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useClinicalCrib(record, mockPatchRecord));
 
       act(() => {
         result.current.updateCribMultiple('R1', {
