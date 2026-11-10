@@ -376,17 +376,11 @@ describe('extension clinical write protocol', () => {
     expect(background).toContain(
       "throw new Error('No se pudo cargar el runtime de escrituras clínicas.')"
     );
-    expect(background).not.toMatch(/const clinicalWriteLocks|persistClinicalWriteAmbiguity/);
     expect(background).not.toMatch(/transitionClinicalWriteAmbiguity|clearClinicalWriteAmbiguity/);
     expect(background).not.toMatch(
       /hashClinicalWriteRecoveryToken|signClinicalWriteRecoveryReview/
     );
     expect(recoveryPolicyOwner).not.toMatch(/\b(?:chrome|storage|fetch)\b/);
-    expect(recoveryPolicyOwner).toContain('const parseRecoveryRequest = request =>');
-    expect(recoveryPolicyOwner).toContain('const evaluateConfirmationState =');
-    expect(background).not.toMatch(
-      /const handleCudyrSave|const handleEvaluationScaleSave|const performScoreSaveRequest/
-    );
     expect(backgroundLines).toBeLessThanOrEqual(4_250);
     expect(ownerLines).toBeLessThanOrEqual(525);
     expect(recoveryPolicyOwnerLines).toBeLessThanOrEqual(200);

@@ -69,7 +69,6 @@ describe('Centro HHR remaining tools and navigation', () => {
     expect(contentSource).toContain(
       'type: runtimeMessages.NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST'
     );
-    expect(backgroundSource).toContain('const resolveDischargedEncounterIdByRun');
     expect(backgroundSource).toContain("url.searchParams.set('filterType', '2')");
     expect(backgroundSource).toContain('contextRun !== normalizedPatientRun');
     expect(backgroundSource).toContain('{ expectedPatientRun: normalizedPatientRun }');

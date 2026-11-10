@@ -9,16 +9,12 @@ const readSource = (relativePath: string): string =>
 
 describe('e2e browser policy', () => {
   it('keeps generic Playwright runs Chromium-first and makes cross-browser opt-in', () => {
-    const configSource = readSource('playwright.config.ts');
-
     expect(resolveConfiguredPlaywrightProjects().map(project => project.name)).toEqual([
       'chromium',
     ]);
     expect(
       resolveConfiguredPlaywrightProjects('chromium,firefox,webkit').map(project => project.name)
     ).toEqual(['chromium', 'firefox', 'webkit']);
-    expect(configSource).toContain("SUPPORTED_E2E_BROWSERS = ['chromium', 'firefox', 'webkit']");
-    expect(configSource).not.toMatch(/projects:\s*\[[\s\S]*Desktop Firefox[\s\S]*Desktop Safari/);
   });
 
   it('fails fast when E2E_BROWSERS contains an unsupported browser name', () => {

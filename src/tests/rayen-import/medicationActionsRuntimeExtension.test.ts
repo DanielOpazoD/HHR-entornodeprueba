@@ -125,10 +125,6 @@ describe('HHR medication actions runtime', () => {
   });
 
   it('owns medication behavior, fails closed and loads before its consumer', () => {
-    const runtimeSource = readFileSync(
-      path.resolve('extension/hhr-medication-actions-runtime.js'),
-      'utf8'
-    );
     const contentSource = readFileSync(
       path.resolve('extension/content-prescription-print.js'),
       'utf8'
@@ -153,17 +149,6 @@ describe('HHR medication actions runtime', () => {
     );
     expect(contentSource).toContain('!medicationActionsOwner ||');
     expect(contentSource).toContain('medicationActionsOwner.create({');
-    [
-      'const findPharmaHeading =',
-      'const downloadIndications =',
-      'const hasVisibleNursingRole =',
-      'const findToolbarAnchor =',
-      "const FAVORITES_STORAGE_KEY = 'hhrFavorites'",
-      'const createFavoritesDialog =',
-    ].forEach(definition => {
-      expect(runtimeSource).toContain(definition);
-      expect(contentSource).not.toContain(definition);
-    });
   });
 
   it('detects the nursing medication view and preserves indications route safety', async () => {

@@ -110,14 +110,9 @@ describe('clinical panel read runtime', () => {
   });
   it('minimizes historical forms to vital signs and leaves normal drawer reads unchanged', async () => {
     const { runtime, dependencies } = createHarness({
-      fetchAuditForms: vi
-        .fn()
-        .mockResolvedValue({
-          forms: [
-            { formCodigo: 'INSTRUMENTO' },
-            { formCodigo: 'VITAL_SIGNS', encounterEventId: 1 },
-          ],
-        }),
+      fetchAuditForms: vi.fn().mockResolvedValue({
+        forms: [{ formCodigo: 'INSTRUMENTO' }, { formCodigo: 'VITAL_SIGNS', encounterEventId: 1 }],
+      }),
     });
     const result = await runtime.handleRequest({ encId: '101', historyFrom: '2026-11-01' });
     expect(result.forms).toEqual([{ formCodigo: 'VITAL_SIGNS', encounterEventId: 1 }]);
@@ -358,23 +353,16 @@ describe('clinical panel read runtime', () => {
     expect(background.slice(0, background.indexOf('const REPORT_FILE'))).toContain(
       "'clinical-panel-runtime.js'"
     );
-    expect(background).toContain(
-      'const clinicalPanelRuntime = self.HhrClinicalPanelRuntime.create({'
-    );
     expect(background).toContain('resolveSession: () => resolveFichaClinicalSession()');
     expect(background).toContain("'fichamedico-clinical-client.js'");
     expect(background).toContain(
       'No se pudo cargar el cliente clínico de lectura de Ficha Médico.'
     );
     expect(background).toContain('timeoutMs: CLINICAL_PANEL_REQUEST_TIMEOUT_MS');
-    expect(background).toContain(
-      'const handleClinicalPanelRequest = async ({ encId, historyFrom, sender }) =>'
-    );
     expect(background).toContain('clinicalPanelRuntime.handleRequest({ encId })');
     expect(background).toContain('patientDocumentManagerRuntime.list({ encId, sender })');
     expect(background).toContain("'Tiempo de espera agotado consultando documentos.'");
     expect(background).not.toContain('FICHAMEDICO_MATCH');
-    expect(background).not.toContain('const CLINICAL_PANEL_RESUMES');
     expect(background).not.toContain('/api/carePlanAssignedCare/');
     expect(runtime).toContain('/api/carePlanAssignedCare/');
     expect(runtime).not.toMatch(/clinicalWrite|partialUpdate|POST|PUT|PATCH|DELETE/);

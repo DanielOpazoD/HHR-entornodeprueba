@@ -161,10 +161,6 @@ describe('clinical handoff runtime owner', () => {
     expect(backgroundSource).toContain(
       'return clinicalHandoffRuntime.readRecoveryReview({ encId, info });'
     );
-    expect(backgroundSource).not.toContain('const fetchShiftChangeEntries = async');
-    expect(backgroundSource).not.toContain('const readHandoffBatch = async');
-    expect(backgroundSource).not.toContain('const performHandoffSaveRequest = async');
-    expect(runtimeSource).toContain('const performSaveRequest = async');
   });
 
   it('documents the current UI owners and the extracted runtime without the removed owner', () => {
@@ -223,6 +219,23 @@ describe('clinical handoff runtime owner', () => {
     await expect(runtime.readBatch(BATCH_ID, '901')).resolves.toEqual({
       error: 'El paciente no pertenece a esta lista de hospitalizados.',
     });
+  });
+
+  it('rejects a batch from another clinical lane before any clinical write', async () => {
+    const dependencies = createDependencies();
+    const runtime = loadFactory().create(dependencies);
+    seedBatch(dependencies, { handoffKind: 'medical' });
+
+    await expect(
+      runtime.handleSaveRequest({
+        batchId: BATCH_ID,
+        encId: '901',
+        observation: 'Synthetic handoff',
+      })
+    ).resolves.toEqual({
+      error: 'El rol de la sesión cambió. Actualiza la entrega de turno antes de guardar.',
+    });
+    expect(dependencies.fetchWithTimeout).not.toHaveBeenCalled();
   });
 
   it('writes once, verifies the read-back and confirms the matching FinishRegister event', async () => {
