@@ -8,20 +8,20 @@ const {
   getRecordsRange,
   readServerHistory,
   getRecordsRangeFromFirestore,
-  saveRecords,
+  saveRecordsStrict,
   isFirestoreEnabled,
 } = vi.hoisted(() => ({
   getAllRecords: vi.fn(),
   getRecordsRange: vi.fn(),
   readServerHistory: vi.fn(),
   getRecordsRangeFromFirestore: vi.fn(),
-  saveRecords: vi.fn(),
+  saveRecordsStrict: vi.fn(),
   isFirestoreEnabled: vi.fn(),
 }));
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getAllRecords,
   getRecordsRange,
-  saveRecords,
+  saveRecordsStrict,
 }));
 vi.mock('@/services/storage/firestore', () => ({
   getRecordPagesFromFirestore: async function* () {
@@ -66,7 +66,7 @@ describe('patient movement history read status', () => {
       source: 'server',
     });
     expect(getAllRecords).not.toHaveBeenCalled();
-    expect(saveRecords).not.toHaveBeenCalled();
+    expect(saveRecordsStrict).not.toHaveBeenCalled();
   });
 
   it('returns useful local movements with explicit partial provenance after a remote failure', async () => {

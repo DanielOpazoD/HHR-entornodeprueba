@@ -1,5 +1,8 @@
 import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
-import { getRecordsRange, saveRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
+import {
+  getRecordsRange,
+  saveRecordsStrict,
+} from '@/services/storage/indexeddb/indexedDbRecordService';
 import * as firestoreService from '@/services/storage/firestore';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
@@ -57,7 +60,11 @@ export const hydrateRangeRecords = async (
   const mergedRecords = mergeRecordsByDate(localRecords, remoteRecords);
 
   if (mergedRecords.length > 0) {
-    await saveRecords(mergedRecords);
+    const result = await saveRecordsStrict(mergedRecords, { preserveUnresolvedWrites: true });
+    if (!result.ok) {
+      throw new Error(result.userSafeMessage ?? 'No fue posible guardar registros locales.');
+    }
+    return result.records ?? mergedRecords;
   }
 
   return mergedRecords;
