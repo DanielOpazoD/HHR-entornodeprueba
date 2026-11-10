@@ -1,3 +1,4 @@
+import { createSyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
 import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 import type { CopyPatientToDateResult } from '@/services/repositories/dailyRecordRepositoryInitializationService';
@@ -67,7 +68,9 @@ const withDeletionService = <T>(
 ): Promise<T> => loadDailyRecordDeletionService().then(operation);
 
 const createLazySubscription = (
-  start: (service: DailyRecordSyncService) => () => void
+  date: string,
+  callback: (result: SyncDailyRecordResult, hasPendingWrites: boolean) => void,
+  onFailure?: (result: SyncDailyRecordResult) => void
 ): (() => void) => {
   let active = true;
   let unsubscribe = () => {};
@@ -77,10 +80,26 @@ const createLazySubscription = (
       if (!active) {
         return;
       }
-      unsubscribe = start(service);
+      unsubscribe = service.subscribeDetailed(
+        date,
+        (result, pending) => {
+          if (active) callback(result, pending);
+        },
+        result => {
+          if (active) onFailure?.(result);
+        }
+      );
     })
     .catch(() => {
-      // Keep a stable no-op unsubscribe. Bootstrap/runtime telemetry captures the chunk error path.
+      if (active)
+        onFailure?.(
+          createSyncDailyRecordResult({
+            date,
+            outcome: 'blocked',
+            record: null,
+            retryability: 'manual_retry',
+          })
+        );
     });
 
   return () => {
@@ -242,7 +261,7 @@ export const defaultDailyRecordRepositoryPort: DailyRecordRepositoryPort = {
   saveDetailed: saveDailyRecord,
   updatePartialDetailed: updatePartialDailyRecord,
   subscribeDetailed: (date, callback, onFailure) =>
-    createLazySubscription(service => service.subscribeDetailed(date, callback, onFailure)),
+    createLazySubscription(date, callback, onFailure),
   deleteDay: deleteDailyRecord,
   copyPatientToDateDetailed: (sourceDate, sourceBedId, targetDate, targetBedId) =>
     withInitializationService(service =>
