@@ -5,7 +5,7 @@ import { useSystemHealthReporter } from '@/hooks/admin/useSystemHealthReporter';
 const mocks = vi.hoisted(() => ({
   operations: vi.fn(),
   errorLogs: vi.fn(async () => [] as unknown[]),
-  report: vi.fn(),
+  report: vi.fn(async () => true),
   auth: {
     currentUser: {
       uid: 'synthetic-health-user',

@@ -52,6 +52,7 @@ export const useSystemHealthReporter = (enabled = true) => {
       return;
     }
 
+    let active = true;
     const reportHealth = async () => {
       try {
         // The store records its own failed read. The rest of the report remains known.
@@ -63,6 +64,7 @@ export const useSystemHealthReporter = (enabled = true) => {
           // reportable even when this optional list of recent operations is unavailable.
           listRecentSyncQueueOperations(8).catch(() => []),
         ]);
+        if (!active) return;
         const pendingSyncTasks = syncTelemetry.pending;
         const failedSyncTasks = syncTelemetry.failed;
         const conflictSyncTasks = syncTelemetry.conflict;
@@ -139,7 +141,9 @@ export const useSystemHealthReporter = (enabled = true) => {
         }
 
         const { reportUserHealth } = await loadHealthService();
-        await reportUserHealth(status);
+        if (!active) return;
+        const published = await reportUserHealth(status);
+        if (!active || !published) return;
         lastReportTime.current = Date.now();
         markSystemHealthReported(currentUser.uid, lastReportTime.current);
         markSystemHealthSignature(currentUser.uid, signature);
@@ -161,6 +165,9 @@ export const useSystemHealthReporter = (enabled = true) => {
       }
     }, REPORT_INTERVAL_MS);
 
-    return () => clearInterval(interval);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
   }, [auth, currentUser, enabled, role, isOutdated, mutatingCount, updateReason]);
 };

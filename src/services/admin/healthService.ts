@@ -62,7 +62,7 @@ const toPublishedHealthEvent = (event: UserHealthRecentEvent): UserHealthRecentE
   };
 };
 
-export const reportUserHealth = async (status: UserHealthStatus): Promise<void> => {
+export const reportUserHealth = async (status: UserHealthStatus): Promise<boolean> => {
   try {
     const path = `${STATS_DOC}/${HEALTH_COLLECTION}/${USERS_SUBCOLLECTION}`;
     await firestoreDb.setDoc(path, status.uid, {
@@ -72,11 +72,13 @@ export const reportUserHealth = async (status: UserHealthStatus): Promise<void> 
         : {}),
       lastSeen: new Date().toISOString(),
     });
+    return true;
   } catch (error) {
     if (isHealthPermissionError(error)) {
-      return;
+      return false;
     }
     healthServiceLogger.error('Failed to report health', error);
+    return false;
   }
 };
 

@@ -90,7 +90,7 @@ describe('healthService', () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      await reportUserHealth(mockStatus);
+      expect(await reportUserHealth(mockStatus)).toBe(false);
 
       expect(warnSpy).not.toHaveBeenCalled();
       expect(errorSpy).not.toHaveBeenCalled();
@@ -99,7 +99,7 @@ describe('healthService', () => {
     });
 
     it('should call db.setDoc with correct arguments', async () => {
-      await reportUserHealth(mockStatus);
+      expect(await reportUserHealth(mockStatus)).toBe(true);
       expect(firestoreDb.setDoc).toHaveBeenCalledWith(
         expect.stringContaining('users'),
         'user123',
@@ -138,7 +138,7 @@ describe('healthService', () => {
       vi.mocked(firestoreDb.setDoc).mockRejectedValueOnce(new Error('Firebase Error'));
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      await reportUserHealth(mockStatus);
+      expect(await reportUserHealth(mockStatus)).toBe(false);
 
       expect(consoleSpy).toHaveBeenCalled();
       consoleSpy.mockRestore();
