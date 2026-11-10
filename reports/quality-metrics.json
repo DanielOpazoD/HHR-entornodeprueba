@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-11-10T15:35:14.457Z",
-  "gitSha": "6b9530fa8",
-  "gitDirty": true,
+  "generatedAt": "2026-10-21T01:50:54.102Z",
+  "gitSha": "be28603dd",
+  "gitDirty": false,
   "generatedFor": {
-    "gitSha": "6b9530fa8",
-    "gitDirty": true,
-    "treeHash": "ace477fdc80c116975c64e568e29f9199b8f1631",
+    "gitSha": "be28603dd",
+    "gitDirty": false,
+    "treeHash": "e268e00bc374ad83c52f5b77426a3d90020071d1",
     "reportId": "quality-metrics",
     "dependencyFingerprint": {
       "algorithm": "sha256:dependency-files-v1",
@@ -15,56 +15,56 @@
     }
   },
   "source": {
-    "fileCount": 2969,
-    "lineCount": 341169,
+    "fileCount": 2955,
+    "lineCount": 329810,
     "zones": [
       {
         "zone": "features",
-        "fileCount": 1373
+        "fileCount": 1358
       },
       {
         "zone": "services",
-        "fileCount": 750
+        "fileCount": 740
       },
       {
         "zone": "hooks",
-        "fileCount": 239
+        "fileCount": 248
       },
       {
         "zone": "components",
-        "fileCount": 217
+        "fileCount": 201
       },
       {
         "zone": "application",
-        "fileCount": 95
+        "fileCount": 110
       },
       {
         "zone": "types",
-        "fileCount": 69
+        "fileCount": 70
       },
       {
         "zone": "shared",
-        "fileCount": 56
+        "fileCount": 59
       },
       {
         "zone": "domain",
-        "fileCount": 48
+        "fileCount": 45
       },
       {
         "zone": "utils",
-        "fileCount": 40
+        "fileCount": 37
       },
       {
         "zone": "context",
-        "fileCount": 28
-      },
-      {
-        "zone": "schemas",
-        "fileCount": 18
+        "fileCount": 29
       },
       {
         "zone": "constants",
-        "fileCount": 16
+        "fileCount": 21
+      },
+      {
+        "zone": "schemas",
+        "fileCount": 17
       },
       {
         "zone": "app-shell",
@@ -105,7 +105,7 @@
     ]
   },
   "moduleSize": {
-    "globalMax": 600,
+    "globalMax": 400,
     "allowlistHotspots": 0,
     "oversizedCount": 0,
     "topOversized": []
@@ -115,54 +115,20 @@
     "topZonePairs": []
   },
   "tests": {
-    "testFileCount": 2723,
+    "testFileCount": 2351,
     "skippedMarkers": 0,
     "onlyMarkers": 0,
-    "flakeRiskFiles": 36,
-    "flakeRiskFilePaths": [
-      "src/tests/components/ExamRequestModal.integration.test.tsx",
-      "src/tests/components/ExamRequestSignature.test.tsx",
-      "src/tests/components/modals/mmradStudySearch.test.ts",
-      "src/tests/components/radiologyExamListMemory.test.ts",
-      "src/tests/emulator/sharedComputerAuthority.emulator.test.ts",
-      "src/tests/emulator-ui/dailyRecordServerConfirmation.emulator-ui.test.ts",
-      "src/tests/features/admin/AuditView.test.tsx",
-      "src/tests/features/census/StaffShiftDetailsModal.test.tsx",
-      "src/tests/functions/mmradDicomSantiagoFunction.test.ts",
-      "src/tests/hooks/staffingWriteRejections.test.tsx",
-      "src/tests/hooks/useDailyRecordFreshnessGate.test.tsx",
-      "src/tests/hooks/useDailyRecordQuery.test.tsx",
-      "src/tests/hooks/useMinsalStats.test.tsx",
-      "src/tests/hooks/useSessionPermissionGuard.test.ts",
-      "src/tests/netlify/mmradCheckDigitSearch.test.ts",
-      "src/tests/rayen-import/DailyRecordTaskRecovery.test.tsx",
-      "src/tests/rayen-import/RayenImportButton.bootstrap.test.tsx",
-      "src/tests/rayen-import/gestionCamasVerificationPersistenceExtension.test.ts",
-      "src/tests/rayen-import/rayenImportPolicyServerConfirmation.test.ts",
-      "src/tests/scripts/checkClinicalClock.test.ts",
-      "src/tests/services/auth/nursingAccountRole.test.ts",
-      "src/tests/services/auth/nursingAccountSession.test.ts",
-      "src/tests/services/repositories/dailyRecordStaleBasePendingProjection.test.ts",
-      "src/tests/services/storage/dailyRecordTaskRetirement.test.ts",
-      "src/tests/services/storage/sessionLogoutQueueFencing.test.ts",
-      "src/tests/services/storage/sessionLogoutRetainedDayWork.test.ts",
-      "src/tests/services/storage/sharedComputerRetainedState.test.ts",
-      "src/tests/services/storage/specialistHandoffComposedOutbox.test.tsx",
-      "src/tests/services/storage/syncQueueBaseReview.test.ts",
-      "src/tests/services/storage/syncQueueFailureContext.test.ts",
-      "src/tests/services/storage/syncQueueFunctionsRecovery.test.ts",
-      "src/tests/views/census/clinical-explorer/ClinicalExplorerImaging.test.tsx",
-      "src/tests/views/census/clinical-explorer/ClinicalExplorerLab.test.tsx",
-      "src/tests/views/census/clinical-explorer/clinicalExplorerStore.test.tsx",
-      "src/tests/views/census/exam-orders/CensusExamOrderSelection.test.tsx",
-      "src/tests/views/cudyr/CudyrExplorerLoading.test.tsx"
-    ],
-    "megatestFilesOver500": 0
+    "flakeRiskFiles": 0,
+    "flakeRiskFilePaths": [],
+    "megatestFilesOver500": 0,
+    "quarantinedFiles": 0,
+    "knownFailureEntries": 0,
+    "openKnownFailureEntries": 0
   },
   "typeSafety": {
-    "explicitAnyCount": 48,
+    "explicitAnyCount": 47,
     "explicitAnySourceCount": 0,
-    "explicitAnyTestCount": 48
+    "explicitAnyTestCount": 47
   },
   "convergence": {
     "accidentalCopies": 0,
@@ -182,7 +148,7 @@
     "totalSmokeScenarios": 6,
     "mappedFlowBudgets": 7,
     "totalFlowBudgets": 7,
-    "mappedBlockingSteps": 8,
-    "totalBlockingSteps": 8
+    "mappedBlockingSteps": 7,
+    "totalBlockingSteps": 7
   }
 }

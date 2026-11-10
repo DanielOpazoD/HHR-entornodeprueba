@@ -1,15 +1,15 @@
 {
-  "generatedAt": "2026-11-10T15:35:20.161Z",
-  "gitSha": "6b9530fa8",
-  "gitDirty": true,
+  "generatedAt": "2026-07-05T06:20:05.896Z",
+  "gitSha": "126d4b82",
+  "gitDirty": false,
   "generatedFor": {
-    "gitSha": "6b9530fa8",
-    "gitDirty": true,
-    "treeHash": "ace477fdc80c116975c64e568e29f9199b8f1631",
+    "gitSha": "126d4b82",
+    "gitDirty": false,
+    "treeHash": "3f2aefdb0f53e13237b97d0ef50fcbbe4a38e71c",
     "reportId": "maintenance-debt-scorecard",
     "dependencyFingerprint": {
       "algorithm": "sha256:dependency-files-v1",
-      "value": "30d1e0b80511b072bb85c892177ba4d4e041c0d821202bd01eaec6152a944625",
+      "value": "fe916488e566ba3cc055b58efe64d0d9e660f676d22953fbbfa9fbbaf05ce057",
       "files": [
         "reports/legacy-retirement-debt.json",
         "reports/legacy-retirement-debt.md",
@@ -23,38 +23,17 @@
   "watchlist": [
     {
       "file": "firestore.rules",
-      "lines": 925,
+      "lines": 891,
       "limit": 1050,
       "limitSource": "rules-governance",
-      "remainingLines": 125
+      "remainingLines": 159
     },
     {
       "file": "src/hooks/useCensusEmailRecipientLists.ts",
-      "lines": 133,
-      "limit": null,
-      "limitSource": null,
-      "remainingLines": null
-    },
-    {
-      "file": "src/features/handoff/components/HandoffMedicalObservationsCell.tsx",
-      "lines": 131,
-      "limit": null,
-      "limitSource": null,
-      "remainingLines": null
-    },
-    {
-      "file": "src/services/repositories/dailyRecordPatchPersistenceController.ts",
-      "lines": 92,
-      "limit": null,
-      "limitSource": null,
-      "remainingLines": null
-    },
-    {
-      "file": "src/hooks/useBedManagementReducer.ts",
-      "lines": 77,
-      "limit": null,
-      "limitSource": null,
-      "remainingLines": null
+      "lines": 132,
+      "limit": 180,
+      "limitSource": "hook-hotspot",
+      "remainingLines": 48
     },
     {
       "file": "src/features/laboratory/controllers/labAnalyticsController.ts",
@@ -62,10 +41,33 @@
       "limit": null,
       "limitSource": null,
       "remainingLines": null
+    },
+    {
+      "file": "src/hooks/useBedManagementReducer.ts",
+      "lines": 17,
+      "limit": null,
+      "limitSource": null,
+      "remainingLines": null
+    },
+    {
+      "file": "src/features/handoff/components/HandoffRowCells.tsx",
+      "lines": 5,
+      "limit": null,
+      "limitSource": null,
+      "remainingLines": null
+    },
+    {
+      "file": "src/services/repositories/dailyRecordWriteSupport.ts",
+      "lines": 2,
+      "limit": null,
+      "limitSource": null,
+      "remainingLines": null
     }
   ],
   "tests": {
-    "flakeRiskFiles": 36
+    "flakeRiskFiles": 0,
+    "knownFailureEntries": 0,
+    "openKnownFailureEntries": 0
   },
   "legacyRetirementDebt": {
     "status": "ok",
@@ -87,7 +89,7 @@
         "owner": "clinical-documents",
         "phase": "restrict",
         "status": "ok",
-        "signal": "consumers=2/2, unapproved=0",
+        "signal": "consumers=3/3, unapproved=0",
         "nextAction": "Keep all read/import/workspace hydration behind ClinicalDocumentCompatibilityPort, then retire schema v1 defaults after a clean current-schema release window."
       },
       {
@@ -102,33 +104,33 @@
     ]
   },
   "firestoreRules": {
-    "lines": 925,
+    "lines": 891,
     "maxLines": 1050,
-    "remainingLines": 125,
+    "remainingLines": 159,
     "ownerAreaId": "sync",
-    "ownedFragments": 12,
+    "ownedFragments": 11,
     "governanceIssues": []
   },
   "recentChurn": [
     {
+      "prefix": "src/services/repositories/",
+      "touches": 60
+    },
+    {
       "prefix": "src/features/census/",
-      "touches": 659
+      "touches": 54
     },
     {
       "prefix": "src/hooks/",
-      "touches": 186
-    },
-    {
-      "prefix": "src/services/repositories/",
-      "touches": 119
+      "touches": 52
     },
     {
       "prefix": "src/features/laboratory/",
-      "touches": 55
+      "touches": 6
     },
     {
       "prefix": "src/features/handoff/",
-      "touches": 49
+      "touches": 5
     }
   ]
 }

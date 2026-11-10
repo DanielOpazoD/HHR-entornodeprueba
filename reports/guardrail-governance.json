@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-10T15:35:20.944Z",
+  "generatedAt": "2026-11-10T01:23:07.438Z",
   "version": 1,
   "blockingTierCount": 5,
-  "reportOnlyCount": 17,
-  "qualityCheckCount": 53,
+  "reportOnlyCount": 18,
+  "qualityCheckCount": 62,
   "releaseConfidence": {
     "script": "test:release-confidence",
     "requiredScripts": [
@@ -78,6 +78,7 @@
       "level": "release-gate",
       "requiredScripts": [
         "ci:merge-gate",
+        "check:daily-record-authority-release-gate",
         "check:release-evidence",
         "test:firestore:release:ci"
       ],
@@ -119,6 +120,11 @@
       "id": "serverless_sensitive_coverage",
       "script": "report:serverless-sensitive-coverage",
       "artifact": "reports/serverless-sensitive-coverage.md"
+    },
+    {
+      "id": "compatibility_import_governance",
+      "script": "report:compatibility-import-governance",
+      "artifact": "reports/compatibility-import-governance.md"
     },
     {
       "id": "release_readiness",
@@ -231,6 +237,26 @@
         "group": "boundaries"
       },
       {
+        "id": "check:barrel-boundaries",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:handoff-context-boundaries",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:storage-context-boundaries",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:core-type-facade-boundaries",
+        "group": "boundaries"
+      },
+      {
+        "id": "check:root-domain-barrels",
+        "group": "boundaries"
+      },
+      {
         "id": "check:persistence-hub-boundaries",
         "group": "boundaries"
       },
@@ -240,6 +266,10 @@
       },
       {
         "id": "check:legacy-retirement-debt",
+        "group": "governance"
+      },
+      {
+        "id": "check:compatibility-import-governance",
         "group": "governance"
       },
       {
@@ -275,6 +305,10 @@
         "group": "boundaries"
       },
       {
+        "id": "check:module-dependencies",
+        "group": "boundaries"
+      },
+      {
         "id": "check:module-size",
         "group": "size"
       },
@@ -303,19 +337,11 @@
         "group": "hygiene"
       },
       {
-        "id": "check:extension-source",
-        "group": "hygiene"
-      },
-      {
         "id": "check:empty-on-failure-reads",
         "group": "boundaries"
       },
       {
         "id": "check:import-cycles",
-        "group": "boundaries"
-      },
-      {
-        "id": "check:unreachable-modules",
         "group": "boundaries"
       },
       {
@@ -343,7 +369,23 @@
         "group": "tests"
       },
       {
+        "id": "check:unit-shard-balance",
+        "group": "tests"
+      },
+      {
+        "id": "check:ci-runtime-telemetry",
+        "group": "tests"
+      },
+      {
         "id": "check:test-runtime-governance",
+        "group": "tests"
+      },
+      {
+        "id": "check:test-failure-catalog",
+        "group": "tests"
+      },
+      {
+        "id": "check:flaky-quarantine",
         "group": "tests"
       },
       {

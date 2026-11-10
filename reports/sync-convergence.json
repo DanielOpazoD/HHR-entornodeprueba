@@ -1,16 +1,16 @@
 {
   "reportId": "sync-convergence",
-  "generatedAt": "2026-11-10T15:35:17.521Z",
-  "gitSha": "6b9530fa8",
-  "gitDirty": true,
+  "generatedAt": "2026-08-02T04:58:07.936Z",
+  "gitSha": "515a0fa6",
+  "gitDirty": false,
   "generatedFor": {
-    "gitSha": "6b9530fa8",
-    "gitDirty": true,
-    "treeHash": "ace477fdc80c116975c64e568e29f9199b8f1631",
+    "gitSha": "515a0fa6",
+    "gitDirty": false,
+    "treeHash": "216ec37b6522aa528b1c66d74c33e9278dcf430c",
     "reportId": "sync-convergence",
     "dependencyFingerprint": {
       "algorithm": "sha256:dependency-files-v1",
-      "value": "36b2e820baae46a8400f689c1ef4b8b409f1d51513daafdc7238e6e579f08b3c",
+      "value": "6840f76a3406e81642426dea9fc93fe3f7be3f173b3809712d86b870f60cafc6",
       "files": [
         "docs/CLINICAL_SYNC_SIMULATOR_CONTRACT.md",
         "docs/clinical-sync-simulator.md",
@@ -42,7 +42,7 @@
       "missingFiles": []
     }
   },
-  "worktree": "dirty",
+  "worktree": "clean",
   "summary": {
     "ok": true,
     "sectionCount": 4,

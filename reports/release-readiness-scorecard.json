@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-11-10T15:35:21.145Z",
-  "overallStatus": "degraded",
+  "generatedAt": "2026-10-21T01:51:14.600Z",
+  "overallStatus": "ok",
   "indicators": [
     {
       "name": "worktree_state",
-      "status": "degraded",
-      "summary": "status=dirty"
+      "status": "ok",
+      "summary": "status=clean"
     },
     {
       "name": "structural_quality",
@@ -14,23 +14,23 @@
     },
     {
       "name": "system_confidence",
-      "status": "degraded",
-      "summary": "overall=degraded"
+      "status": "ok",
+      "summary": "overall=ok, openKnownFailures=0"
     },
     {
       "name": "operational_readiness",
-      "status": "degraded",
-      "summary": "flow=n/a, bundle=ok"
+      "status": "ok",
+      "summary": "flow=passing, bundle=ok"
     },
     {
       "name": "frontend_startup",
-      "status": "degraded",
-      "summary": "status=degraded, preview=unknown, issues=1"
+      "status": "ok",
+      "summary": "status=ok, preview=ok, issues=0"
     },
     {
       "name": "release_hotspots",
       "status": "ok",
-      "summary": "no build assets reported"
+      "summary": "vendor-heic2any-BjDsP1gW.js: 1320.4 KB / 1416.0 KB (near-limit) | vendor-dicom-vtk-CVp3UI09.js: 1053.5 KB / 1220.7 KB (near-limit) | app-authenticated-shell-BixI3TdI.js: 614.6 KB / 616.2 KB (near-limit) | vendor-pdfjs-BGyLORnz.js: 449.7 KB / 507.8 KB (near-limit) | vendor-firebase-firestore-Bjg3nDcb.js: 388.3 KB / 488.3 KB (ok)"
     },
     {
       "name": "bundle_risk_ledger",
@@ -40,7 +40,7 @@
     {
       "name": "release_confidence",
       "status": "ok",
-      "summary": "areas=11, blockingMapped=8/8"
+      "summary": "areas=11, blockingMapped=7/7"
     },
     {
       "name": "ownership_governance",
@@ -50,24 +50,80 @@
     {
       "name": "guardrail_governance",
       "status": "ok",
-      "summary": "blockingTiers=5, reportOnly=17"
+      "summary": "blockingTiers=5, reportOnly=18"
+    },
+    {
+      "name": "compatibility_governance",
+      "status": "ok",
+      "summary": "restrictedEntries=0, unauthorizedImports=0"
     },
     {
       "name": "legacy_retirement_debt",
       "status": "ok",
-      "summary": "openSurfaces=3/4, issues=0"
+      "summary": "openSurfaces=4/4, issues=0"
     }
   ],
   "missingReports": [],
   "releaseHotspots": {
     "status": "ok",
-    "summary": "no build assets reported",
-    "assets": []
+    "summary": "vendor-heic2any-BjDsP1gW.js: 1320.4 KB / 1416.0 KB (near-limit) | vendor-dicom-vtk-CVp3UI09.js: 1053.5 KB / 1220.7 KB (near-limit) | app-authenticated-shell-BixI3TdI.js: 614.6 KB / 616.2 KB (near-limit) | vendor-pdfjs-BGyLORnz.js: 449.7 KB / 507.8 KB (near-limit) | vendor-firebase-firestore-Bjg3nDcb.js: 388.3 KB / 488.3 KB (ok)",
+    "assets": [
+      {
+        "file": "dist/assets/vendor-heic2any-BjDsP1gW.js",
+        "sizeBytes": 1352091,
+        "maxBytes": 1450000,
+        "budgetLabel": "vendor-heic2any",
+        "budgetSource": "chunkPatternBudget",
+        "severity": "error",
+        "budgetUtilizationPct": 93.2,
+        "status": "near-limit"
+      },
+      {
+        "file": "dist/assets/vendor-dicom-vtk-CVp3UI09.js",
+        "sizeBytes": 1078816,
+        "maxBytes": 1250000,
+        "budgetLabel": "chunkMaxBytes",
+        "budgetSource": "chunkMaxBytes",
+        "severity": "error",
+        "budgetUtilizationPct": 86.3,
+        "status": "near-limit"
+      },
+      {
+        "file": "dist/assets/app-authenticated-shell-BixI3TdI.js",
+        "sizeBytes": 629387,
+        "maxBytes": 631000,
+        "budgetLabel": "app-authenticated-shell",
+        "budgetSource": "startupChunkBudget",
+        "severity": "error",
+        "budgetUtilizationPct": 99.7,
+        "status": "near-limit"
+      },
+      {
+        "file": "dist/assets/vendor-pdfjs-BGyLORnz.js",
+        "sizeBytes": 460525,
+        "maxBytes": 520000,
+        "budgetLabel": "vendor-pdfjs",
+        "budgetSource": "chunkPatternBudget",
+        "severity": "error",
+        "budgetUtilizationPct": 88.6,
+        "status": "near-limit"
+      },
+      {
+        "file": "dist/assets/vendor-firebase-firestore-Bjg3nDcb.js",
+        "sizeBytes": 397577,
+        "maxBytes": 500000,
+        "budgetLabel": "vendor-firebase-firestore",
+        "budgetSource": "chunkPatternBudget",
+        "severity": "error",
+        "budgetUtilizationPct": 79.5,
+        "status": "ok"
+      }
+    ]
   },
   "sources": {
     "qualityMetrics": {
       "file": "reports/quality-metrics.json",
-      "generatedAt": "2026-11-10T15:35:14.457Z"
+      "generatedAt": "2026-10-21T01:50:54.102Z"
     },
     "bundleRiskLedger": {
       "file": "reports/bundle-risk-ledger.json",
@@ -75,54 +131,58 @@
     },
     "systemConfidence": {
       "file": "reports/system-confidence.json",
-      "generatedAt": "2026-11-10T15:35:18.178Z"
+      "generatedAt": "2026-10-21T01:51:11.996Z"
     },
     "operationalHealth": {
       "file": "reports/operational-health.json",
-      "generatedAt": "2026-11-10T15:35:17.858Z"
+      "generatedAt": "2026-10-21T01:51:11.193Z"
     },
     "releaseConfidenceMatrix": {
       "file": "reports/release-confidence-matrix.json",
-      "generatedAt": "2026-11-10T15:35:19.142Z"
+      "generatedAt": "2026-10-21T01:51:13.533Z"
     },
     "technicalOwnershipMap": {
       "file": "reports/technical-ownership-map.json",
-      "generatedAt": "2026-11-10T15:35:20.752Z"
+      "generatedAt": "2026-10-21T01:51:14.047Z"
     },
     "guardrailGovernance": {
       "file": "reports/guardrail-governance.json",
-      "generatedAt": "2026-11-10T15:35:20.944Z"
+      "generatedAt": "2026-10-21T01:51:14.319Z"
+    },
+    "compatibilityImportGovernance": {
+      "file": "reports/compatibility-import-governance.json",
+      "generatedAt": "2026-10-21T01:51:10.738Z"
     },
     "legacyRetirementDebt": {
       "file": "reports/legacy-retirement-debt.json",
       "generatedAt": "stable:legacy-retirement-debt"
     }
   },
-  "issues": [
-    "worktree_state: status=dirty",
-    "system_confidence: overall=degraded",
-    "operational_readiness: flow=n/a, bundle=ok",
-    "frontend_startup: status=degraded, preview=unknown, issues=1"
-  ],
-  "gitSha": "6b9530fa8",
-  "gitDirty": true,
+  "issues": [],
+  "gitSha": "be28603dd",
+  "gitDirty": false,
   "generatedFor": {
-    "gitSha": "6b9530fa8",
-    "gitDirty": true,
-    "treeHash": "ace477fdc80c116975c64e568e29f9199b8f1631",
+    "gitSha": "be28603dd",
+    "gitDirty": false,
+    "treeHash": "e268e00bc374ad83c52f5b77426a3d90020071d1",
     "reportId": "release-readiness-scorecard",
     "dependencyFingerprint": {
       "algorithm": "sha256:dependency-files-v1",
-      "value": "24a93d1d07d86ddf0bc69862efdd4b724f493d5248201777b859ada574f27b16",
+      "value": "f5d1ec49c4f4a453958ce03a6bea8c84b69e03e6be0fc17225419ddd80245725",
       "files": [
         "reports/bundle-risk-ledger.json",
         "reports/bundle-risk-ledger.md",
         "reports/compatibility-governance.json",
         "reports/compatibility-governance.md",
+        "reports/compatibility-import-governance.json",
+        "reports/compatibility-import-governance.md",
         "reports/critical-coverage.json",
         "reports/critical-coverage.md",
+        "reports/e2e/preview-bootstrap/report.json",
         "reports/guardrail-governance.json",
         "reports/guardrail-governance.md",
+        "reports/legacy-bridge-governance.json",
+        "reports/legacy-bridge-governance.md",
         "reports/legacy-retirement-debt.json",
         "reports/legacy-retirement-debt.md",
         "reports/operational-health.json",
@@ -142,11 +202,10 @@
         "vitest.critical-coverage.config.ts"
       ],
       "missingFiles": [
-        "reports/e2e/preview-bootstrap/ci-provenance.json",
-        "reports/e2e/preview-bootstrap/report.json"
+        "reports/e2e/preview-bootstrap/ci-provenance.json"
       ]
     }
   },
   "degradedByWorktreeOnly": false,
-  "overallStatusReason": "one or more readiness indicators degraded"
+  "overallStatusReason": "all indicators ok"
 }
