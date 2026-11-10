@@ -31,7 +31,6 @@ Capa de presentación reusable: layout global, componentes compartidos, modales 
 | `layout/AppContent.tsx`         | Cambios de shell principal de UI                      |
 | `modals/actions/*`              | Cambios en modales clínicos principales               |
 | `shared/BaseModal.tsx`          | Ajustes de comportamiento/estilo de todos los modales |
-| `ui/DatabaseStatusBanner.tsx`   | Indicadores de degradación de persistencia            |
 | `layout/StorageStatusBadge.tsx` | Alertas de fallback de almacenamiento                 |
 
 ## Patrones clave

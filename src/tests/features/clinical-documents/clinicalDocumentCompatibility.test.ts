@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
-import { hydrateLegacyClinicalDocument } from '@/features/clinical-documents/controllers/clinicalDocumentCompatibilityController';
+import { hydrateClinicalDocumentRecord } from '@/application/ports/clinicalDocumentCompatibilityPort';
 
 const buildDocument = () =>
   createClinicalDocumentDraft({
@@ -35,14 +35,14 @@ const buildDocument = () =>
     especialidad: 'Cirugía',
   });
 
-describe('clinicalDocumentCompatibilityController', () => {
+describe('clinical document compatibility', () => {
   it('hydrates empty section titles with a safe fallback title', () => {
     const document = buildDocument();
     document.sections = document.sections.map((section, index) =>
       index === 0 ? { ...section, title: '   ' } : section
     );
 
-    const hydrated = hydrateLegacyClinicalDocument(document);
+    const hydrated = hydrateClinicalDocumentRecord(document);
 
     expect(hydrated.sections[0]?.title).toBe('Sección 1');
   });
@@ -80,7 +80,7 @@ describe('clinicalDocumentCompatibilityController', () => {
     });
     document.sections = document.sections.filter(section => section.id !== 'diagnosticos');
 
-    const hydrated = hydrateLegacyClinicalDocument(document);
+    const hydrated = hydrateClinicalDocumentRecord(document);
 
     expect(hydrated.sections.map(section => section.id)).toEqual([
       'antecedentes',
@@ -96,7 +96,7 @@ describe('clinicalDocumentCompatibilityController', () => {
     document.annexContent = '<p>Anexo</p>';
     delete document.annexIncludedInPrint;
 
-    const hydrated = hydrateLegacyClinicalDocument(document);
+    const hydrated = hydrateClinicalDocumentRecord(document);
 
     expect(hydrated.annexIncludedInPrint).toBe(true);
   });
@@ -105,7 +105,7 @@ describe('clinicalDocumentCompatibilityController', () => {
     const document = buildDocument();
     delete document.includePatientSignature;
 
-    const hydrated = hydrateLegacyClinicalDocument(document);
+    const hydrated = hydrateClinicalDocumentRecord(document);
 
     expect(hydrated.includePatientSignature).toBe(true);
   });
@@ -122,12 +122,12 @@ describe('clinicalDocumentCompatibilityController', () => {
       isLocked: true,
     };
 
-    expect(hydrateLegacyClinicalDocument(closedEpisodeDocument)).toMatchObject({
+    expect(hydrateClinicalDocumentRecord(closedEpisodeDocument)).toMatchObject({
       isLocked: true,
       lockedReason: 'episode_closed',
       lockedAt: '2026-03-06T12:00:00.000Z',
     });
-    expect(hydrateLegacyClinicalDocument(retiredSignatureLockDocument).isLocked).toBe(false);
+    expect(hydrateClinicalDocumentRecord(retiredSignatureLockDocument).isLocked).toBe(false);
   });
 
   it('hydrates incomplete legacy audit actors for workspace compatibility', () => {
@@ -160,7 +160,7 @@ describe('clinicalDocumentCompatibilityController', () => {
       ],
     } as unknown as ReturnType<typeof buildDocument>;
 
-    const hydrated = hydrateLegacyClinicalDocument(document);
+    const hydrated = hydrateClinicalDocumentRecord(document);
 
     expect(hydrated.audit.createdBy).toMatchObject({
       uid: 'legacy-user',

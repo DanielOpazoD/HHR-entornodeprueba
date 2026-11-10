@@ -10,7 +10,7 @@
 | Surface | Owner | Phase | Status | Signal | Next action |
 | --- | --- | --- | --- | --- | --- |
 | Role aliases | auth/security | observe | ok | governedEntries=4/4, missing=0 | Audit production role sources before deleting legacy viewer role compatibility from helpers, Firestore rules and Storage rules. |
-| Legacy clinical document hydration | clinical-documents | restrict | ok | consumers=3/3, unapproved=0 | Keep all read/import/workspace hydration behind ClinicalDocumentCompatibilityPort, then retire schema v1 defaults after a clean current-schema release window. |
+| Legacy clinical document hydration | clinical-documents | restrict | ok | consumers=2/2, unapproved=0 | Keep all read/import/workspace hydration behind ClinicalDocumentCompatibilityPort, then retire schema v1 defaults after a clean current-schema release window. |
 | Legacy episode hydration | census/clinical-documents | restrict | ok | consumers=1/1, unapproved=0 | Keep legacy episode-key parsing confined to patient-flow; migrate callers to lookup-key helpers and block UI-level ad hoc parsing. |
 
 ## Evidence

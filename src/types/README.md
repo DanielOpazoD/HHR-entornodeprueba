@@ -18,9 +18,7 @@ Contratos TypeScript de dominio, entidades, payloads y value objects.
 | `auth.ts`               | Tipos de autenticación/rol                                   |
 | `backup.ts`             | Tipos de backup y restauración                               |
 | `bookmarks.ts`          | Tipos de marcadores                                          |
-| `censusAccess.ts`       | Tipos de acceso compartido al censo                          |
 | `minsalTypes.ts`        | Tipos de analítica MINSAL/DEIS                               |
-| `printTemplates.ts`     | Tipos de templates de impresión                              |
 | `transferDocuments.ts`  | Tipos de documentos de traslado                              |
 | `transfers.ts`          | Tipos de flujo de traslados                                  |
 | `valueTypes.ts`         | Tipos de valores auxiliares                                  |

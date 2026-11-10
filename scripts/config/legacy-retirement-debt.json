@@ -24,11 +24,10 @@
       "label": "Legacy clinical document hydration",
       "owner": "clinical-documents",
       "phase": "restrict",
-      "maxAuthorizedConsumers": 3,
+      "maxAuthorizedConsumers": 2,
       "approvedConsumers": [
         "src/application/ports/clinicalDocumentCompatibilityPort.ts",
-        "src/domain/clinical-documents/compatibility.ts",
-        "src/features/clinical-documents/controllers/clinicalDocumentCompatibilityController.ts"
+        "src/domain/clinical-documents/compatibility.ts"
       ],
       "consumerDetection": {
         "sourceRoots": ["src"],
