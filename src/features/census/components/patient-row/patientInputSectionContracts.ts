@@ -4,7 +4,6 @@ import type {
   DebouncedTextHandler,
   PatientInputChangeHandlers,
 } from '@/features/census/components/patient-row/inputCellTypes';
-import type { HydratedRemoteClinicalFieldLocks } from '@/hooks/controllers/dailyRecordHydratedRemotePatchRiskController';
 
 export interface PatientInputSectionSharedProps {
   readonly data: PatientData;
@@ -14,7 +13,6 @@ export interface PatientInputSectionSharedProps {
   readonly isEmpty: boolean;
   readonly isLocked: boolean;
   readonly clinicalEditingDisabled?: boolean;
-  readonly clinicalFieldLocks?: HydratedRemoteClinicalFieldLocks;
 }
 
 export interface PatientInputSectionBindingsParams extends PatientInputSectionSharedProps {

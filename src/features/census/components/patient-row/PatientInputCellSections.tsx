@@ -18,32 +18,6 @@ import type {
 } from '@/features/census/components/patient-row/patientInputSectionContracts';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusAccessProfile';
-import {
-  acknowledgeDailyRecordClinicalFieldPause,
-  DAILY_RECORD_FIELD_PAUSE_MESSAGE,
-  getDailyRecordClinicalFieldPause,
-  type DailyRecordClinicalFieldGroup,
-} from '@/hooks/controllers/dailyRecordClinicalFieldAcknowledgementController';
-
-const isRemoteLocked = (locked?: boolean): boolean => Boolean(locked);
-
-const buildClinicalPause = (
-  date: string,
-  bedId: string,
-  fieldGroup: DailyRecordClinicalFieldGroup,
-  paused: boolean
-) => {
-  const pause = paused ? getDailyRecordClinicalFieldPause(date, bedId, fieldGroup) : null;
-  return {
-    isPaused: Boolean(pause && !pause.acknowledged),
-    message: DAILY_RECORD_FIELD_PAUSE_MESSAGE,
-    token: pause ? `${date}:${bedId}:${fieldGroup}:${pause.createdAt}` : undefined,
-    onAcknowledge: () => {
-      acknowledgeDailyRecordClinicalFieldPause(date, bedId, fieldGroup);
-    },
-  };
-};
-
 /**
  * Rediseño censo 2026: la identidad se renderiza en una sola celda "Paciente"
  * (nombre + edad + RUT). Los componentes NameInput / RutPassportInput / AgeInput
@@ -77,19 +51,12 @@ export const PatientInputStatusSection: React.FC<
 > = ({ shared, onChange, accessProfile = 'default' }) => {
   if (isSpecialistCensusAccessProfile(accessProfile)) return null;
   const baseClinicalReadOnly = shared.isLocked || shared.clinicalEditingDisabled;
-  const statusLocked = isRemoteLocked(shared.clinicalFieldLocks?.status);
   return (
     <StatusSelect
       data={shared.data}
       isSubRow={shared.isSubRow}
       isEmpty={shared.isEmpty}
       readOnly={baseClinicalReadOnly}
-      clinicalPause={buildClinicalPause(
-        shared.currentDateString,
-        shared.data.bedId,
-        'status',
-        !baseClinicalReadOnly && statusLocked
-      )}
       onChange={onChange.text}
     />
   );
@@ -98,8 +65,6 @@ export const PatientInputStatusSection: React.FC<
 export const PatientInputClinicalSection: React.FC<
   PatientInputClinicalSectionBindings & { accessProfile?: CensusAccessProfile }
 > = ({ shared, diagnosisMode, handleDebouncedText, onChange }) => {
-  const fieldLocks = shared.clinicalFieldLocks;
-  const diagnosisLocked = isRemoteLocked(fieldLocks?.diagnosis);
   const baseClinicalReadOnly = shared.isLocked || shared.clinicalEditingDisabled;
   const usesClinicalInitialBlockPanel =
     !shared.isSubRow && !shared.isEmpty && !!shared.data.patientName;
@@ -124,12 +89,6 @@ export const PatientInputClinicalSection: React.FC<
         isSubRow={shared.isSubRow}
         isEmpty={shared.isEmpty}
         readOnly={baseClinicalReadOnly}
-        clinicalPause={buildClinicalPause(
-          shared.currentDateString,
-          shared.data.bedId,
-          'diagnosis',
-          !baseClinicalReadOnly && diagnosisLocked
-        )}
         diagnosisMode={diagnosisMode}
         onChange={handleDebouncedText}
         onMultipleUpdate={onChange.multiple}
@@ -198,10 +157,6 @@ export const PatientInputFlagsSection: React.FC<PatientInputFlagsSectionBindings
   shared,
 }) => {
   const { alertsView } = useCensusViewPreferences();
-  const fieldLocks = shared.clinicalFieldLocks;
-  const upcLocked = isRemoteLocked(fieldLocks?.upc);
-  // Legacy "lock" flags are freshness hints, not exclusive locks. La confirmación del panel UPC
-  // revalida la evaluación contra el episodio y la fecha antes de escribir.
   const baseClinicalReadOnly = shared.isLocked || shared.clinicalEditingDisabled;
   // The «Alertas» view already spans the UPC column.
   if (alertsView) return null;
@@ -217,12 +172,6 @@ export const PatientInputFlagsSection: React.FC<PatientInputFlagsSectionBindings
           isSubRow={shared.isSubRow}
           isEmpty={shared.isEmpty}
           readOnly={baseClinicalReadOnly}
-          clinicalPause={buildClinicalPause(
-            shared.currentDateString,
-            shared.data.bedId,
-            'surgicalComplication',
-            !baseClinicalReadOnly && isRemoteLocked(fieldLocks?.surgicalComplication)
-          )}
           field="surgicalComplication"
           onChange={onChange.check}
           title="Comp. Qx"
@@ -239,12 +188,6 @@ export const PatientInputFlagsSection: React.FC<PatientInputFlagsSectionBindings
         isSubRow={shared.isSubRow}
         isEmpty={shared.isEmpty}
         readOnly={baseClinicalReadOnly}
-        clinicalPause={buildClinicalPause(
-          shared.currentDateString,
-          shared.data.bedId,
-          'upc',
-          !baseClinicalReadOnly && upcLocked
-        )}
         checklist={shared.data.upcChecklist}
       />
     </>

@@ -10,10 +10,6 @@ import {
   recordClinicalInputsBlockFailed,
   recordClinicalInputsBlockStarted,
 } from '@/hooks/controllers/dailyRecordFreshnessGateTelemetryController';
-import {
-  clearDailyRecordClinicalFieldPausesForTests,
-  registerDailyRecordClinicalFieldPauses,
-} from '@/hooks/controllers/dailyRecordClinicalFieldAcknowledgementController';
 import { DailyRecordFreshnessGateError } from '@/hooks/controllers/dailyRecordFreshnessGateError';
 import { applyDailyRecordRemoteConfirmation } from '@/hooks/controllers/dailyRecordRemoteConfirmationController';
 import { didDailyRecordFreshnessHydrateNewerRemote } from '@/hooks/controllers/dailyRecordFreshnessHydrationController';
@@ -185,10 +181,7 @@ export const markDailyRecordRemoteConfirmed = (
   );
   state.confirmedResumeEpoch = resumeEpoch;
   state.lastRemoteConfirmedAt = confirmedAt;
-  const { builtLocks } = applyDailyRecordRemoteConfirmation(state, params);
-  if (builtLocks) {
-    registerDailyRecordClinicalFieldPauses(date, state.clinicalFieldLocksByBedId, confirmedAt);
-  }
+  applyDailyRecordRemoteConfirmation(state, params);
   setFreshnessStatus(state, 'fresh_remote_confirmed');
   if (typeof blockedForMs === 'number') {
     dailyRecordObservability.recordEvent('daily_record_resume_refresh_completed', 'success', {
@@ -335,9 +328,6 @@ export const ensureDailyRecordRemoteFreshness = ({
             hydratedRecord: result.record,
           })
         : {};
-      if (state.remoteHydratedNewerRecord) {
-        registerDailyRecordClinicalFieldPauses(date, state.clinicalFieldLocksByBedId, completedAt);
-      }
       setFreshnessStatus(state, 'fresh_remote_confirmed');
 
       dailyRecordObservability.recordEvent('daily_record_resume_refresh_completed', 'success', {
@@ -412,5 +402,4 @@ export const resetDailyRecordFreshnessGateForTests = (): void => {
   lastStaleResumeAt = undefined;
   freshnessByDate.clear();
   freshnessListeners.clear();
-  clearDailyRecordClinicalFieldPausesForTests();
 };
