@@ -34,8 +34,7 @@ const CHURN_PREFIXES = [
   'src/hooks/',
 ];
 
-const readJson = file =>
-  fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
+const readJson = file => (fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null);
 
 const countLines = filePath => {
   const absolutePath = path.join(ROOT, filePath);
@@ -51,7 +50,9 @@ const buildPendingHotspotRows = () => {
   const moduleConfig = readJson(MODULE_ALLOWLIST_PATH) ?? {};
   const globalMax = typeof moduleConfig.globalMax === 'number' ? moduleConfig.globalMax : 600;
   const moduleAllowlist =
-    moduleConfig.allowlist && typeof moduleConfig.allowlist === 'object' ? moduleConfig.allowlist : {};
+    moduleConfig.allowlist && typeof moduleConfig.allowlist === 'object'
+      ? moduleConfig.allowlist
+      : {};
 
   const entries = [
     ...Object.entries(moduleAllowlist).map(([file, limit]) => ({
@@ -62,9 +63,7 @@ const buildPendingHotspotRows = () => {
     })),
   ];
 
-  return entries
-    .filter(entry => entry.lines > entry.limit)
-    .sort((a, b) => b.lines - a.lines);
+  return entries.filter(entry => entry.lines > entry.limit).sort((a, b) => b.lines - a.lines);
 };
 
 const buildRecentChurnRows = () => {
@@ -94,7 +93,8 @@ const rulesLimits =
   firestoreRulesGovernance.generatedRules.maxLines == null
     ? {}
     : {
-        [firestoreRulesGovernance.generatedRules.file]: firestoreRulesGovernance.generatedRules.maxLines,
+        [firestoreRulesGovernance.generatedRules.file]:
+          firestoreRulesGovernance.generatedRules.maxLines,
       };
 const pendingHotspots = buildPendingHotspotRows();
 const watchlist = buildMaintenanceDebtWatchlistRows({
@@ -121,8 +121,6 @@ const payload = {
   watchlist,
   tests: {
     flakeRiskFiles: qualityMetrics?.tests?.flakeRiskFiles ?? null,
-    knownFailureEntries: qualityMetrics?.tests?.knownFailureEntries ?? null,
-    openKnownFailureEntries: qualityMetrics?.tests?.openKnownFailureEntries ?? null,
   },
   legacyRetirementDebt,
   firestoreRules: {
@@ -170,8 +168,6 @@ ${watchlist
 ## Test Stability Signals
 
 - Flake-risk test files: ${payload.tests.flakeRiskFiles ?? 'n/a'}
-- Known failure entries: ${payload.tests.knownFailureEntries ?? 'n/a'}
-- Open known failure entries: ${payload.tests.openKnownFailureEntries ?? 'n/a'}
 
 ## Legacy Retirement Debt
 

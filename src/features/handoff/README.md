@@ -113,6 +113,5 @@ presentan como registro válido. Esto aplica CUD-02/CUD-07 sólo en el límite d
 
 - `npm exec -- vitest run src/tests/application/handoff src/tests/domain/handoff src/tests/hooks/controllers`
 - `npx vitest run src/tests/views/handoff`
-- `npm run check:handoff-context-boundaries`
 - `npm run check:quality`
 - `npm run typecheck`

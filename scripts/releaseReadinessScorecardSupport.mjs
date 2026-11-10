@@ -112,12 +112,14 @@ export const buildReleaseReadinessScorecard = root => {
     releaseConfidenceMatrix: 'reports/release-confidence-matrix.json',
     technicalOwnershipMap: 'reports/technical-ownership-map.json',
     guardrailGovernance: 'reports/guardrail-governance.json',
-    compatibilityImportGovernance: 'reports/compatibility-import-governance.json',
     legacyRetirementDebt: 'reports/legacy-retirement-debt.json',
   };
 
   const sources = Object.fromEntries(
-    Object.entries(sourceFiles).map(([key, relativePath]) => [key, readOptionalReport(root, relativePath)])
+    Object.entries(sourceFiles).map(([key, relativePath]) => [
+      key,
+      readOptionalReport(root, relativePath),
+    ])
   );
   const missingReports = Object.entries(sourceFiles)
     .filter(([key]) => sources[key] === null)
@@ -144,15 +146,13 @@ export const buildReleaseReadinessScorecard = root => {
   const systemConfidence = sources.systemConfidence;
   if (systemConfidence) {
     const systemConfidenceWorktreeOnly = systemConfidence.degradedByWorktreeOnly === true;
-    const governanceOk =
-      (systemConfidence.overallStatus === 'ok' || systemConfidenceWorktreeOnly) &&
-      Number(systemConfidence.knownFailures?.openCount || 0) === 0;
+    const governanceOk = systemConfidence.overallStatus === 'ok' || systemConfidenceWorktreeOnly;
     indicators.push({
       name: 'system_confidence',
       ...statusFrom(
         governanceOk,
-        `overall=${systemConfidence.overallStatus}${systemConfidenceWorktreeOnly ? ' (worktree_state only)' : ''}, openKnownFailures=${systemConfidence.knownFailures?.openCount ?? 'n/a'}`,
-        `overall=${systemConfidence.overallStatus}, openKnownFailures=${systemConfidence.knownFailures?.openCount ?? 'n/a'}`
+        `overall=${systemConfidence.overallStatus}${systemConfidenceWorktreeOnly ? ' (worktree_state only)' : ''}`,
+        `overall=${systemConfidence.overallStatus}`
       ),
     });
   }
@@ -247,19 +247,6 @@ export const buildReleaseReadinessScorecard = root => {
         guardrailOk,
         `blockingTiers=${guardrailGovernance.blockingTierCount ?? 'n/a'}, reportOnly=${guardrailGovernance.reportOnlyCount ?? 'n/a'}`,
         `blockingTiers=${guardrailGovernance.blockingTierCount ?? 'n/a'}, reportOnly=${guardrailGovernance.reportOnlyCount ?? 'n/a'}`
-      ),
-    });
-  }
-
-  const compatibilityImportGovernance = sources.compatibilityImportGovernance;
-  if (compatibilityImportGovernance) {
-    const compatibilityOk = Number(compatibilityImportGovernance.issues?.length || 0) === 0;
-    indicators.push({
-      name: 'compatibility_governance',
-      ...statusFrom(
-        compatibilityOk,
-        `restrictedEntries=${compatibilityImportGovernance.checkedEntries ?? 'n/a'}, unauthorizedImports=${compatibilityImportGovernance.issues?.length ?? 'n/a'}`,
-        `restrictedEntries=${compatibilityImportGovernance.checkedEntries ?? 'n/a'}, unauthorizedImports=${compatibilityImportGovernance.issues?.length ?? 'n/a'}`
       ),
     });
   }

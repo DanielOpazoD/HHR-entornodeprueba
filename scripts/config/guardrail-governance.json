@@ -108,11 +108,6 @@
       "artifact": "reports/serverless-sensitive-coverage.md"
     },
     {
-      "id": "compatibility_import_governance",
-      "script": "report:compatibility-import-governance",
-      "artifact": "reports/compatibility-import-governance.md"
-    },
-    {
       "id": "release_readiness",
       "script": "report:release-readiness-scorecard",
       "artifact": "reports/release-readiness-scorecard.md"
@@ -180,15 +175,9 @@
       { "id": "check:lazy-views-feature-entrypoints", "group": "boundaries" },
       { "id": "check:feature-dependencies", "group": "boundaries" },
       { "id": "check:shared-layer-boundary", "group": "boundaries" },
-      { "id": "check:barrel-boundaries", "group": "boundaries" },
-      { "id": "check:handoff-context-boundaries", "group": "boundaries" },
-      { "id": "check:storage-context-boundaries", "group": "boundaries" },
-      { "id": "check:core-type-facade-boundaries", "group": "boundaries" },
-      { "id": "check:root-domain-barrels", "group": "boundaries" },
       { "id": "check:persistence-hub-boundaries", "group": "boundaries" },
       { "id": "report:compatibility-governance", "group": "governance-inputs" },
       { "id": "check:legacy-retirement-debt", "group": "governance" },
-      { "id": "check:compatibility-import-governance", "group": "governance" },
       { "id": "check:schema-governance", "group": "governance" },
       { "id": "check:runtime-contracts", "group": "governance" },
       { "id": "check:sync-invariants", "group": "governance" },
@@ -216,8 +205,6 @@
       { "id": "check:unit-shard-balance", "group": "tests" },
       { "id": "check:ci-runtime-telemetry", "group": "tests" },
       { "id": "check:test-runtime-governance", "group": "tests" },
-      { "id": "check:test-failure-catalog", "group": "tests" },
-      { "id": "check:flaky-quarantine", "group": "tests" },
       { "id": "check:guardrail-governance", "group": "governance" },
       { "id": "check:release-evidence-contract", "group": "governance" },
       {

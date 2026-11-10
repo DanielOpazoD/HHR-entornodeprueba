@@ -198,9 +198,6 @@ const systemHealthBudgets = extractObjectNumbers(
 const syncDomainProfiles = extractSyncDomainProfiles(syncDomainPolicyContent);
 const conflictContexts = extractConflictRunbookActions(conflictDomainContent);
 const compatibilityGovernanceReport = readJsonReport('reports/compatibility-governance.json');
-const compatibilityImportGovernanceReport = readJsonReport(
-  'reports/compatibility-import-governance.json'
-);
 const prolongedOfflineUserAgeMs = extractConstNumber(
   systemHealthBudgetContent,
   'PROLONGED_OFFLINE_USER_AGE_MS'
@@ -303,12 +300,6 @@ const summary = {
         missingEntries: Array.isArray(compatibilityGovernanceReport.missingEntries)
           ? compatibilityGovernanceReport.missingEntries
           : [],
-        restrictedEntries: Array.isArray(compatibilityImportGovernanceReport?.entries)
-          ? compatibilityImportGovernanceReport.entries.length
-          : 0,
-        unauthorizedImportCount: Array.isArray(compatibilityImportGovernanceReport?.issues)
-          ? compatibilityImportGovernanceReport.issues.length
-          : 0,
       }
     : null,
   localPersistence,
@@ -435,8 +426,6 @@ ${Object.entries(summary.conflictContexts)
     ? summary.compatibilityGovernance.missingEntries.join(', ')
     : 'none'
 }
-- Restricted import surfaces: ${summary.compatibilityGovernance?.restrictedEntries ?? 'unknown'}
-- Unauthorized importers: ${summary.compatibilityGovernance?.unauthorizedImportCount ?? 'unknown'}
 
 ## Local Persistence Recovery Budgets
 
