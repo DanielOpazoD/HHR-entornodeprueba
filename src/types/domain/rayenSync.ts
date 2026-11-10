@@ -139,6 +139,8 @@ export interface RayenSyncDiagnosticContext {
   detail?: string;
   sourceTimestamp?: string;
   sourceClinicalDay?: string;
+  /** Hospital clock time (HH:mm) the source row was read at, next to its clinical day. */
+  sourceClinicalTime?: string;
   source?: string;
 }
 

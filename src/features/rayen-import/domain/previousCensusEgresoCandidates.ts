@@ -14,7 +14,7 @@ export interface PreviousCensusEgresoCandidate extends EgresoLookupTarget {
   personalRun?: string;
 }
 
-const normalizedName = (value: string | undefined): string =>
+export const normalizedName = (value: string | undefined): string =>
   (value ?? '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
