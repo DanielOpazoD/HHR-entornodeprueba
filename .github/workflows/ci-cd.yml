@@ -128,6 +128,45 @@ jobs:
           npm run check:serverless-runtime-governance
           npm --prefix functions run check:clinical-pdf-runtime
 
+  tooling-scope-gate:
+    name: tooling-scope-gate
+    runs-on: ubuntu-latest
+    needs: [ci-scope]
+    steps:
+      - name: Record non-tooling CI scope
+        if: needs.ci-scope.outputs.scope != 'tooling-only'
+        run: echo "Tooling-only validation is not active for this change."
+      - name: Checkout immutable candidate
+        if: needs.ci-scope.outputs.scope == 'tooling-only'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup CI dependencies
+        if: needs.ci-scope.outputs.scope == 'tooling-only'
+        uses: ./.github/actions/setup-ci-dependencies
+      - name: Validate changed file lint and formatting
+        if: needs.ci-scope.outputs.scope == 'tooling-only'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          mapfile -d '' files < <(git diff --name-only -z "$BASE_SHA...$HEAD_SHA")
+          test "${#files[@]}" -gt 0
+          npx eslint --max-warnings 0 --no-warn-ignored -- "${files[@]}"
+          npx prettier --check -- "${files[@]}"
+      - name: Validate static controls against the repository
+        if: needs.ci-scope.outputs.scope == 'tooling-only'
+        run: npm run check:quality
+      - name: Check TypeScript types
+        if: needs.ci-scope.outputs.scope == 'tooling-only'
+        run: npm run typecheck
+      - name: Run control and build regression tests
+        if: needs.ci-scope.outputs.scope == 'tooling-only'
+        run: npx vitest run src/tests/scripts src/tests/build
+
   critical-coverage-shards:
     name: critical-coverage-shard-${{ matrix.shard }}
     runs-on: ubuntu-latest
@@ -1325,6 +1364,7 @@ jobs:
         ci-scope,
         docs-scope-gate,
         functions-scope-gate,
+        tooling-scope-gate,
         quality-static,
         unit-risk,
         test-execution-manifest,
@@ -1342,6 +1382,7 @@ jobs:
       CI_SCOPE: ${{ needs['ci-scope'].outputs.scope }}
       DOCS_SCOPE_GATE_RESULT: ${{ needs['docs-scope-gate'].result }}
       FUNCTIONS_SCOPE_GATE_RESULT: ${{ needs['functions-scope-gate'].result }}
+      TOOLING_SCOPE_GATE_RESULT: ${{ needs['tooling-scope-gate'].result }}
       QUALITY_STATIC_RESULT: ${{ needs['quality-static'].result }}
       TEST_EXECUTION_RESULT: ${{ needs['test-execution-manifest'].result }}
       UNIT_RISK_RESULT: ${{ needs['unit-risk'].result }}
@@ -1359,13 +1400,18 @@ jobs:
         run: |
           failures=0
 
-          if [[ "$CI_SCOPE_RESULT" != "success" || "$DOCS_SCOPE_GATE_RESULT" != "success" || "$FUNCTIONS_SCOPE_GATE_RESULT" != "success" ]]; then
+          if [[ "$CI_SCOPE_RESULT" != "success" || "$DOCS_SCOPE_GATE_RESULT" != "success" || "$FUNCTIONS_SCOPE_GATE_RESULT" != "success" || "$TOOLING_SCOPE_GATE_RESULT" != "success" ]]; then
             echo "::error::CI scope classification or focused validation did not pass."
             exit 1
           fi
 
+          case "$CI_SCOPE" in
+            full|docs-only|functions-only|tooling-only) ;;
+            *) echo "::error::Unknown CI scope: $CI_SCOPE"; exit 1 ;;
+          esac
+
           expected_result="success"
-          if [[ "$CI_SCOPE" == "docs-only" || "$CI_SCOPE" == "functions-only" ]]; then
+          if [[ "$CI_SCOPE" == "docs-only" || "$CI_SCOPE" == "functions-only" || "$CI_SCOPE" == "tooling-only" ]]; then
             expected_result="skipped"
           fi
 
