@@ -48,7 +48,12 @@ interface ExecutePostDeployRecentRecordRefreshParams {
   readSyncQueueTelemetry?: () => Promise<SyncQueueTelemetry>;
   /** Resolves false when the day stays, because a pending write holds it. */
   deleteLocalRecord?: (date: string) => Promise<boolean>;
-  syncRemoteRecord: (date: string) => Promise<OperationalOutcomeLike & { reason?: string }>;
+  syncRemoteRecord: (date: string) => Promise<
+    OperationalOutcomeLike & {
+      reason?: string;
+      data?: { sync?: { publication?: string } | null } | null;
+    }
+  >;
 }
 
 const canUseBrowserStorage = (): boolean =>
@@ -155,7 +160,9 @@ const recordPostDeployRefreshTelemetry = (
     {
       category: 'daily_record',
       operation: 'post_deploy_recent_record_refresh',
-      status: status === 'completed' ? 'success' : status === 'failed' ? 'failed' : 'degraded',
+      // An attempt that did not finish keeps its marker and runs again by itself: nobody has to
+      // act on it, so it is never reported as a failure.
+      status: status === 'completed' ? 'success' : 'degraded',
       issues: status === 'completed' ? [] : [status],
       context: {
         dates: result.dates,
@@ -247,7 +254,11 @@ export const executePostDeployRecentRecordRefresh = async ({
       const outcome = await syncRemoteRecord(date);
       if (!isCurrentSession()) return interrupted();
       // A day with no census on the server was read correctly: that is an answer, not a failure.
-      const answered = outcome.status === 'success' || outcome.reason === 'missing_remote_record';
+      // So is a read overtaken by a newer copy of the day, which the open census brought first.
+      const answered =
+        outcome.status === 'success' ||
+        outcome.reason === 'missing_remote_record' ||
+        outcome.data?.sync?.publication === 'superseded';
       if (!answered) {
         const result = { status: 'failed' as const, dates, marker, queueTelemetry };
         recordPostDeployRefreshTelemetry(result.status, result);
