@@ -79,6 +79,8 @@ export interface UseGlobalPatientSearchReturn {
   isSearching: boolean;
   /** Whether at least one search has completed */
   hasSearched: boolean;
+  searchError: string | null;
+  retrySearch: () => void;
   /** Currently selected patient with loaded history */
   selectedPatient: SelectedPatientDetail | null;
   /** Select a patient to load episode detail */

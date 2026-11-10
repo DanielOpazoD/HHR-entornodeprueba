@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { Search, UploadCloud, AlertTriangle } from 'lucide-react';
 import { PatientMasterRepository } from '@/services/repositories/PatientMasterRepository';
@@ -21,6 +21,9 @@ export const PatientDatabaseManager: React.FC = () => {
   const [isLoadingIndex, setIsLoadingIndex] = useState(false);
   const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [hasMore, setHasMore] = useState(true);
+  const [indexFailed, setIndexFailed] = useState(false);
+  const retryIndex = useRef<() => void>(() => undefined);
+  const requestId = useRef(0);
 
   const {
     isAnalyzing,
@@ -35,6 +38,10 @@ export const PatientDatabaseManager: React.FC = () => {
 
   const fetchMasterIndex = useCallback(
     async (reset = false, docToStartAfter?: QueryDocumentSnapshot<DocumentData> | null) => {
+      const currentId = ++requestId.current;
+      retryIndex.current = () => {
+        void fetchMasterIndex(reset, docToStartAfter);
+      };
       setIsLoadingIndex(true);
       try {
         const { patients, lastDoc: nextDoc } = await PatientMasterRepository.getPatientsPaginated(
@@ -42,6 +49,8 @@ export const PatientDatabaseManager: React.FC = () => {
           docToStartAfter || undefined
         );
 
+        if (currentId !== requestId.current) return;
+        setIndexFailed(false);
         if (reset) {
           setMasterIndex(patients);
         } else {
@@ -56,8 +65,9 @@ export const PatientDatabaseManager: React.FC = () => {
         setHasMore(!!nextDoc);
       } catch (error) {
         patientDatabaseManagerLogger.error('Failed to fetch master index', error);
+        if (currentId === requestId.current) setIndexFailed(true);
       } finally {
-        setIsLoadingIndex(false);
+        if (currentId === requestId.current) setIsLoadingIndex(false);
       }
     },
     []
@@ -67,21 +77,41 @@ export const PatientDatabaseManager: React.FC = () => {
     async (term: string) => {
       setSearchTerm(term);
       if (term.length > 2) {
+        const currentId = ++requestId.current;
+        retryIndex.current = () => {
+          void handleSearch(term);
+        };
         setIsLoadingIndex(true);
-        const results = await PatientMasterRepository.searchPatients(term);
-        setMasterIndex(results);
-        setHasMore(false);
-        setIsLoadingIndex(false);
+        try {
+          const results = await PatientMasterRepository.searchPatients(term);
+          if (currentId !== requestId.current) return;
+          setMasterIndex(results);
+          setHasMore(false);
+          setIndexFailed(false);
+        } catch {
+          if (currentId === requestId.current) setIndexFailed(true);
+        } finally {
+          if (currentId === requestId.current) setIsLoadingIndex(false);
+        }
       } else if (term.length === 0) {
-        fetchMasterIndex(true, null);
+        void fetchMasterIndex(true, null);
+      } else {
+        requestId.current++;
+        setIsLoadingIndex(false);
+        setIndexFailed(false);
       }
     },
     [fetchMasterIndex]
   );
 
+  const invalidateIndex = useCallback(() => {
+    requestId.current++;
+  }, []);
+
   useEffect(() => {
-    fetchMasterIndex(true, null);
-  }, [fetchMasterIndex]);
+    void fetchMasterIndex(true, null);
+    return invalidateIndex;
+  }, [fetchMasterIndex, invalidateIndex]);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
@@ -136,6 +166,8 @@ export const PatientDatabaseManager: React.FC = () => {
         {activeTab === 'EXPLORER' && (
           <PatientExplorer
             patients={masterIndex}
+            queryFailed={indexFailed}
+            onRetry={() => retryIndex.current()}
             searchTerm={searchTerm}
             setSearchTerm={handleSearch}
             isLoading={isLoadingIndex}

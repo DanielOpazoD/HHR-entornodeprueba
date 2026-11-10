@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   classifyCiChangeScope,
+  loadCiChangeScopeConfig,
   collectChangedFilesFromGit,
   parseGitNameStatus,
 } from '../../../scripts/ciChangeScopeSupport.mjs';
@@ -68,7 +69,9 @@ describe('CI change scope classification', () => {
     const execFile = vi
       .fn()
       .mockReturnValue(
-        Buffer.from('M\0docs/guide.md\0D\0docs/old.md\0R100\0src/old.ts\0docs/renamed.ts\0')
+        Buffer.from(
+          ':100644 100644 abcdef0 abcdef1 M\0docs/guide.md\0:100644 000000 abcdef0 0000000 D\0docs/old.md\0:100644 100644 abcdef0 abcdef1 R100\0src/old.ts\0docs/renamed.ts\0'
+        )
       );
 
     expect(
@@ -93,5 +96,59 @@ describe('CI change scope classification', () => {
       { filename: 'docs\\guide.md', status: 'unsafe' },
       { filename: 'docs/guide.md', status: 'modified' },
     ]);
+  });
+});
+
+describe('tooling-only repository policy', () => {
+  const repositoryConfig = loadCiChangeScopeConfig(process.cwd());
+  const classify = (files: ReturnType<typeof changed>[]) =>
+    classifyCiChangeScope({ eventName: 'pull_request', files, config: repositoryConfig });
+
+  it('reduces a static control and its synthetic regression test', () => {
+    expect(
+      classify([
+        changed('scripts/check-module-size.mjs'),
+        changed('src/tests/build/moduleSizeGovernance.test.ts'),
+      ]).scope
+    ).toBe('tooling-only');
+  });
+
+  it.each([
+    [changed('scripts/check-bundle-budget.mjs')],
+    [changed('scripts/check-rayen-extension-release.mjs')],
+    [changed('scripts/check-quality-aggregate.mjs')],
+    [changed('scripts/check-module-size.mjs'), changed('src/App.tsx')],
+    [changed('scripts/check-module-size.mjs', 'removed')],
+    [changed('scripts/check-module-size.mjs', 'renamed')],
+    [changed('scripts/config/guardrail-governance.json')],
+    [changed('scripts/lib/firebase-emulator-ci.sh')],
+  ])('preserves full validation for unsafe or mixed changes: %j', (...files) => {
+    expect(classify(files).scope).toBe('full');
+  });
+});
+
+describe('non-regular Git entries', () => {
+  it('forces full validation for a new symlink in an allowed test directory', () => {
+    const files = collectChangedFilesFromGit({
+      root: '/tmp/candidate',
+      baseSha: 'a'.repeat(40),
+      headSha: 'b'.repeat(40),
+      execFile: vi
+        .fn()
+        .mockImplementation((_command: string, args: string[]) =>
+          Buffer.from(
+            args.includes('--raw')
+              ? ':000000 120000 0000000 abcdef0 A\0src/tests/build/link.ts\0'
+              : 'A\0src/tests/build/link.ts\0'
+          )
+        ),
+    });
+    expect(
+      classifyCiChangeScope({
+        eventName: 'pull_request',
+        files,
+        config: loadCiChangeScopeConfig(process.cwd()),
+      }).scope
+    ).toBe('full');
   });
 });

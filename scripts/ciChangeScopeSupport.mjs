@@ -16,7 +16,8 @@ const globToRegex = glob => {
   return new RegExp(`^${escaped}$`);
 };
 
-const matchesAny = (file, patterns = []) => patterns.some(pattern => globToRegex(pattern).test(file));
+const matchesAny = (file, patterns = []) =>
+  patterns.some(pattern => globToRegex(pattern).test(file));
 
 export const loadCiChangeScopeConfig = root =>
   JSON.parse(fs.readFileSync(path.join(root, CONFIG_PATH), 'utf8'));
@@ -55,10 +56,22 @@ export const classifyCiChangeScope = ({ eventName, files, config }) => {
   const functions = config.functionsOnly || {};
   const isFunctionsOnly = normalizedFiles.every(({ filename }) => {
     if (matchesAny(filename, functions.excluded)) return false;
-    return (functions.supportFiles || []).includes(filename) || matchesAny(filename, functions.directories);
+    return (
+      (functions.supportFiles || []).includes(filename) ||
+      matchesAny(filename, functions.directories)
+    );
   });
   if (isFunctionsOnly) {
     return { scope: 'functions-only', reason: 'functions_allowlist', usedFallback: false };
+  }
+
+  const tooling = config.toolingOnly || {};
+  const isToolingOnly = normalizedFiles.every(
+    ({ filename }) =>
+      (tooling.controls || []).includes(filename) || matchesAny(filename, tooling.paths)
+  );
+  if (isToolingOnly) {
+    return { scope: 'tooling-only', reason: 'tooling_allowlist', usedFallback: false };
   }
 
   return { scope: 'full', reason: 'unclassified_or_mixed_change', usedFallback: true };
@@ -104,8 +117,29 @@ export const collectChangedFilesFromGit = ({ root, baseSha, headSha, execFile = 
 
   const output = execFile(
     'git',
-    ['-C', root, 'diff', '--name-status', '-z', `${baseSha}...${headSha}`],
+    ['-C', root, 'diff', '--raw', '--no-abbrev', '-z', `${baseSha}...${headSha}`],
     { encoding: 'buffer' }
   );
-  return parseGitNameStatus(output);
+  const fields = splitNullDelimitedBuffers(output);
+  const files = [];
+  for (let index = 0; index < fields.length; ) {
+    const header = fields[index++].toString('ascii');
+    const match = /^:(\d{6}) (\d{6}) [0-9a-f]+ [0-9a-f]+ ([A-Z][0-9]*)$/.exec(header);
+    if (!match) throw new Error('Invalid Git raw diff metadata.');
+    const [, oldMode, newMode, status] = match;
+    if (/^[RC]/.test(status)) index += 1;
+    const pathname = fields[index++];
+    if (!pathname) throw new Error('Missing Git raw diff pathname.');
+    const regular = mode => mode === '100644' || mode === '100755';
+    files.push({
+      filename: normalizePath(pathname.toString('utf8')),
+      status:
+        ['A', 'M'].includes(status) &&
+        regular(newMode) &&
+        (oldMode === '000000' || regular(oldMode))
+          ? 'modified'
+          : 'unsafe',
+    });
+  }
+  return files;
 };

@@ -4,6 +4,7 @@ import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { withLocalNameParts, type MappedPatient } from '../mapping/rayenToPatientData';
 import { diffSyncablePatientFields, mergeSyncablePatient } from './patientSyncPolicy';
 import {
+  clinicalCribDocumentIdentity,
   hasRegisteredClinicalCribRut,
   withClinicalCribDefaults,
 } from './clinicalCribPlacementPolicy';
@@ -20,8 +21,6 @@ interface CurrentClinicalCribRef {
   parentBedId: string;
   patient: PatientData;
 }
-
-const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
 
 const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
   !!patient && !!patient.patientName?.trim() && !patient.isBlocked;
@@ -58,16 +57,16 @@ const mergeClinicalCrib = (current: PatientData, incoming: PatientData): Patient
 
 const indexCurrentClinicalCribs = (current: DailyRecord) => {
   const byEpisode = new Map<string, CurrentClinicalCribRef>();
-  const byRut = new Map<string, CurrentClinicalCribRef>();
+  const byDocument = new Map<string, CurrentClinicalCribRef>();
   for (const [parentBedId, parent] of Object.entries(current.beds)) {
     if (!isOccupied(parent?.clinicalCrib)) continue;
     const patient = parent.clinicalCrib;
     const ref = { parentBedId, patient };
     if (patient.clinicalEpisodeId) byEpisode.set(patient.clinicalEpisodeId, ref);
-    const rut = normalizeRut(patient.rut);
-    if (rut) byRut.set(rut, ref);
+    const document = clinicalCribDocumentIdentity(patient.rut);
+    if (document) byDocument.set(document, ref);
   }
-  return { byEpisode, byRut };
+  return { byEpisode, byDocument };
 };
 
 /**
@@ -115,7 +114,9 @@ export const reconcileClinicalCribs = (
     const rawIncomingCrib = withClinicalCribDefaults(mapped.patient);
     const existingRef =
       currentCribs.byEpisode.get(encounter.encounterId) ??
-      (usesMaternalRun ? undefined : currentCribs.byRut.get(normalizeRut(rawIncomingCrib.rut)));
+      (usesMaternalRun
+        ? undefined
+        : currentCribs.byDocument.get(clinicalCribDocumentIdentity(rawIncomingCrib.rut)));
     // While the RN has no RUN, HHR preserves the locally curated provisional name. Once Eloísa
     // provides a RUN, Registro Civil identity becomes authoritative and all syncable demographics
     // (including names and surnames) are refreshed from the official record.
@@ -128,7 +129,9 @@ export const reconcileClinicalCribs = (
     const sourceRunIsNotOwn = usesMaternalRun || (!rawIncomingCrib.rut && Boolean(encounter.run));
     const incomingCrib =
       sourceRunIsNotOwn &&
-      (!existingRef || normalizeRut(existingRef.patient.rut) === normalizeRut(encounter.run))
+      (!existingRef ||
+        clinicalCribDocumentIdentity(existingRef.patient.rut) ===
+          clinicalCribDocumentIdentity(encounter.run))
         ? { ...preserved, rut: '', identityStatus: 'provisional' as const }
         : preserved;
     const retainedParentMove =
@@ -159,7 +162,8 @@ export const reconcileClinicalCribs = (
       .find(
         entry =>
           entry.bedId === parentBedId &&
-          normalizeRut(entry.rut) !== normalizeRut(incomingCrib.rut) &&
+          clinicalCribDocumentIdentity(entry.rut) !==
+            clinicalCribDocumentIdentity(incomingCrib.rut) &&
           entry.source
       );
     const principalRut =
@@ -263,7 +267,7 @@ export const reconcileClinicalCribs = (
       if (childChanges.length === 0 && !clearsLegacyFlag) {
         const identity = encounter.encounterId
           ? `episode:${encounter.encounterId}`
-          : `run:${normalizeRut(incomingCrib.rut)}`;
+          : `document:${clinicalCribDocumentIdentity(incomingCrib.rut)}`;
         if (!pendingDischargeIdentities.has(identity)) {
           diff.unchangedCount += 1;
         }
