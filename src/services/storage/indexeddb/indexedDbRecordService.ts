@@ -6,6 +6,11 @@ import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
 import { listDailyRecordProjectionHolders } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 
+import {
+  listPendingSpecialistHandoffs,
+  projectPendingSpecialistHandoffs,
+} from '@/services/storage/sync/pendingSpecialistHandoffProjection';
+
 import { ensureDbReady, hospitalDB as db, isDatabaseInFallbackMode } from './indexedDbCore';
 import { dispatchDailyRecordStoreChanged } from './indexedDbRecordEvents';
 
@@ -228,6 +233,7 @@ export const saveRecordStrict = async (
   try {
     await ensureDbReady();
     const store = resolveActiveWriteStore();
+    let projectedRecord = record;
     const result = {
       ok: true,
       operation: 'save',
@@ -251,7 +257,13 @@ export const saveRecordStrict = async (
           options.expectedBase,
           record
         );
-        if (admission.status === 'admitted') await db.dailyRecords.put(record);
+        if (admission.status === 'admitted') {
+          projectedRecord = projectPendingSpecialistHandoffs(
+            record,
+            await listPendingSpecialistHandoffs(record.date)
+          );
+          await db.dailyRecords.put(projectedRecord);
+        }
         return admission;
       });
       if (admission.status === 'retained_pending')
@@ -261,9 +273,9 @@ export const saveRecordStrict = async (
     } else {
       await db.dailyRecords.put(record);
     }
-    syncE2ERuntimeRecordMirror(record);
+    syncE2ERuntimeRecordMirror(projectedRecord);
     dispatchDailyRecordStoreChanged({ operation: 'save', dates: [record.date] });
-    return result;
+    return projectedRecord === record ? result : { ...result, retainedRecord: projectedRecord };
   } catch (error) {
     recordOperationalErrorTelemetry('indexeddb', 'indexeddb_save_record', error, {
       code: 'indexeddb_save_record_failed',
@@ -325,7 +337,16 @@ export const saveRecordsStrict = async (
             if (admission.status === 'retained_pending')
               retained.set(record.date, admission.record);
           }
-          const writable = records.filter(record => !retained.has(record.date));
+          const writable: DailyRecord[] = [];
+          for (const record of records) {
+            if (retained.has(record.date)) continue;
+            const projected = projectPendingSpecialistHandoffs(
+              record,
+              await listPendingSpecialistHandoffs(record.date)
+            );
+            retained.set(record.date, projected);
+            writable.push(projected);
+          }
           if (writable.length) await db.dailyRecords.bulkPut(writable);
           return records.map(record => retained.get(record.date) ?? record);
         })

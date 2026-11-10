@@ -1,7 +1,17 @@
 import 'fake-indexeddb/auto';
 import { QueryClient } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { A, B, clone, day, harnessState, writeNote } from './specialistHandoffOutboxHarness';
+import {
+  A,
+  B,
+  C,
+  clone,
+  createServerHandler,
+  day,
+  harnessState,
+  reconnect,
+  writeNote,
+} from './specialistHandoffOutboxHarness';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
@@ -235,7 +245,7 @@ for (const path of paths) {
         (situation === 'especialista' &&
           ['suscripción', 'rango', 'mantenimiento'].includes(path)) ||
         (situation === 'optimista' && path === 'puntual');
-      const testCase = knownDefect ? it.fails : it;
+      const testCase = situation === 'optimista' && path === 'puntual' ? it.fails : it;
       if (knownDefect) {
         it(`${situation}: entrega base remota sin retirar cola ni parche (invariantes del defecto)`, async () => {
           const { remote, tasks } = await prepare(situation);
@@ -318,5 +328,100 @@ for (const path of paths) {
         }
       );
     }
+  });
+}
+
+for (const path of ['suscripción', 'rango', 'mantenimiento'] as const) {
+  describe(`nota pendiente al admitir ${path}`, () => {
+    it('permanece visible tras el ACK y coincide con el servidor', async () => {
+      const { remote, tasks } = await prepare('especialista');
+      expect(note(await read(path, remote))).toBe(NOTE);
+      expect(await hospitalDB.syncQueue.toArray()).toEqual(tasks);
+      h.handler = createServerHandler();
+      h.role = 'admin';
+      await reconnect();
+      expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
+      expect(note(h.remote)).toBe(NOTE);
+      expect(note(await hospitalDB.dailyRecords.get(DATE))).toBe(NOTE);
+      expect(note(await read(path, h.remote!))).toBe(NOTE);
+    });
+
+    it('no pisa la nota posterior de un colega y conserva la tarea', async () => {
+      const { remote, tasks } = await prepare('especialista');
+      const colleague = 'Nota posterior de colega sintético';
+      remote.beds.R4.medicalHandoffNote = colleague;
+      remote.beds.R4.medicalHandoffEntries![0].note = colleague;
+      expect(note(await read(path, remote))).toBe(colleague);
+      expect(note(await hospitalDB.dailyRecords.get(DATE))).toBe(colleague);
+      expect(await hospitalDB.syncQueue.toArray()).toEqual(tasks);
+    });
+
+    for (const state of [
+      'FAILED',
+      'CONFLICT',
+      'RETIRED',
+      'released',
+      'projectionReleased',
+    ] as const) {
+      it(`no reproyecta una tarea ${state}`, async () => {
+        const {
+          remote,
+          tasks: [task],
+        } = await prepare('especialista');
+        if (state === 'released') task.handoffProjection!.released = true;
+        else if (state === 'projectionReleased') task.projectionReleased = true;
+        else task.status = state;
+        await hospitalDB.syncQueue.put(task);
+        const tasks = await hospitalDB.syncQueue.toArray();
+        expect(note(await read(path, remote))).toBe('');
+        expect(note(await hospitalDB.dailyRecords.get(DATE))).toBe('');
+        expect(await hospitalDB.syncQueue.toArray()).toEqual(tasks);
+      });
+    }
+
+    it('conserva una tarea PROCESSING sin cambiar su lease ni su contenido', async () => {
+      const {
+        remote,
+        tasks: [task],
+      } = await prepare('especialista');
+      await hospitalDB.syncQueue.put({
+        ...task,
+        status: 'PROCESSING',
+        leaseOwner: 'synthetic-worker',
+        leaseUntil: 9999999999999,
+        attemptId: 'synthetic-attempt',
+      });
+      const tasks = await hospitalDB.syncQueue.toArray();
+      expect(note(await read(path, remote))).toBe(NOTE);
+      expect(note(await hospitalDB.dailyRecords.get(DATE))).toBe(NOTE);
+      expect(await hospitalDB.syncQueue.toArray()).toEqual(tasks);
+    });
+
+    it('proyecta dos notas en sus respectivos pacientes sin cambiar otros campos remotos', async () => {
+      const base = day(DATE, { R4: A(), H1C1: C() });
+      await hospitalDB.dailyRecords.put(base);
+      h.remote = clone(base);
+      await writeNote(base, 'R4', 'entry-A', NOTE);
+      const local = await hospitalDB.dailyRecords.get(DATE);
+      await writeNote(local!, 'H1C1', 'entry-C', 'Nota C sintética');
+      const tasks = await hospitalDB.syncQueue.toArray();
+      expect(tasks).toHaveLength(2);
+      const remote = {
+        ...clone(base),
+        nursesDayShift: ['Remota sintética'],
+        lastUpdated: '2026-10-24T11:00:00.000Z',
+      };
+      h.remote = remote;
+      setDailyRecordQueryData(client, DATE, (await hospitalDB.dailyRecords.get(DATE))!);
+      const returned = await read(path, remote);
+      const stored = await hospitalDB.dailyRecords.get(DATE);
+      for (const record of [returned, stored]) {
+        expect(note(record)).toBe(NOTE);
+        expect(record?.beds.H1C1.medicalHandoffEntries?.[0].note).toBe('Nota C sintética');
+        expect(record?.nursesDayShift).toEqual(remote.nursesDayShift);
+        expect(record?.lastUpdated).toBe(remote.lastUpdated);
+      }
+      expect(await hospitalDB.syncQueue.toArray()).toEqual(tasks);
+    });
   });
 }

@@ -1,4 +1,8 @@
 import {
+  listPendingSpecialistHandoffs,
+  projectPendingSpecialistHandoffs,
+} from './pendingSpecialistHandoffProjection';
+import {
   ensureDbReady,
   hospitalDB,
   isDatabaseInFallbackMode,
@@ -32,8 +36,15 @@ export const getPendingDailyRecordProjection = async (
   await ensureDbReady();
   if (isDatabaseInFallbackMode()) return null;
   return hospitalDB.transaction('rw', hospitalDB.dailyRecords, hospitalDB.syncQueue, async () => {
-    if (!(await listDailyRecordProjectionHolders(date)).length) return null;
+    const held = (await listDailyRecordProjectionHolders(date)).length;
     const record = await hospitalDB.dailyRecords.get(date);
+    if (!held) {
+      if (!record) return null;
+      return projectPendingSpecialistHandoffs(record, await listPendingSpecialistHandoffs(date)) ===
+        record
+        ? null
+        : record;
+    }
     if (!record) throw new Error('No existe la copia local de una escritura pendiente.');
     return record;
   });
