@@ -24,7 +24,7 @@ Referencias:
 Referencias:
 
 - `src/features/cudyr/controllers/cudyrEligibilityController.ts`
-- `src/features/cudyr/controllers/cudyrEditAccessController.ts`
+- `src/shared/access/operationalAccessPolicy.ts` (`canEditCudyrForDate`)
 - `src/services/cudyr/cudyrSummary.ts`
 - `src/services/pdf/handoffPdfCudyrSection.ts`
 

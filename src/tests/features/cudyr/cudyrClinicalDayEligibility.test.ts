@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { canEditCudyrRecord } from '@/features/cudyr/controllers/cudyrEditAccessController';
+import { canEditCudyrForDate } from '@/shared/access/operationalAccessPolicy';
+import { resolveCurrentClinicalDay } from '@/utils/clinicalDayUtils';
 import { resolveCudyrEligibility } from '@/features/cudyr/controllers/cudyrEligibilityController';
 
 describe('CUDYR clinical-day access + patient eligibility', () => {
@@ -9,10 +10,11 @@ describe('CUDYR clinical-day access + patient eligibility', () => {
     vi.setSystemTime(new Date(2026, 3, 22, 6, 59, 0));
 
     expect(
-      canEditCudyrRecord({
+      canEditCudyrForDate({
         role: 'nurse_hospital',
         readOnly: false,
         recordDate: '2026-04-21',
+        todayISO: resolveCurrentClinicalDay(),
       })
     ).toBe(true);
 
@@ -36,10 +38,11 @@ describe('CUDYR clinical-day access + patient eligibility', () => {
     vi.setSystemTime(new Date(2026, 3, 22, 6, 59, 0));
 
     expect(
-      canEditCudyrRecord({
+      canEditCudyrForDate({
         role: 'nurse_hospital',
         readOnly: false,
         recordDate: '2026-04-21',
+        todayISO: resolveCurrentClinicalDay(),
       })
     ).toBe(true);
 

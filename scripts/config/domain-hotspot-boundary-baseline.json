@@ -21,7 +21,6 @@
       "allowedFiles": [
         "src/features/census/contracts/censusObstetricContracts.ts",
         "src/features/census/contracts/censusPatientContracts.ts",
-        "src/features/cudyr/contracts/cudyrPatientContracts.ts",
         "src/features/rayen-import/contracts/rayenDomainContracts.ts",
         "src/shared/contracts/patientDomainContracts.ts"
       ]
