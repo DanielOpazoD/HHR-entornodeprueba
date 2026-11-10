@@ -1,19 +1,18 @@
 {
-  "generatedAt": "2026-10-21T01:51:11.996Z",
-  "gitSha": "be28603dd",
-  "gitDirty": false,
+  "generatedAt": "2026-11-10T15:35:18.178Z",
+  "gitSha": "6b9530fa8",
+  "gitDirty": true,
   "generatedFor": {
-    "gitSha": "be28603dd",
-    "gitDirty": false,
-    "treeHash": "e268e00bc374ad83c52f5b77426a3d90020071d1",
+    "gitSha": "6b9530fa8",
+    "gitDirty": true,
+    "treeHash": "ace477fdc80c116975c64e568e29f9199b8f1631",
     "reportId": "system-confidence",
     "dependencyFingerprint": {
       "algorithm": "sha256:dependency-files-v1",
-      "value": "2521fc416ffe28c9fa12c9854cafd8bb57a26e4835427fd2f32cd0cd588acec2",
+      "value": "659d5f94c3b29b5e69dcd52797f4b4d2530750617e5b0d0f76c06ba0719d5d31",
       "files": [
         "reports/critical-coverage.json",
         "reports/critical-coverage.md",
-        "reports/e2e/preview-bootstrap/report.json",
         "reports/operational-health.json",
         "reports/operational-health.md",
         "reports/quality-metrics.json",
@@ -25,18 +24,19 @@
         "vitest.critical-coverage.config.ts"
       ],
       "missingFiles": [
-        "reports/e2e/preview-bootstrap/ci-provenance.json"
+        "reports/e2e/preview-bootstrap/ci-provenance.json",
+        "reports/e2e/preview-bootstrap/report.json"
       ]
     }
   },
-  "overallStatus": "ok",
+  "overallStatus": "degraded",
   "degradedByWorktreeOnly": false,
-  "overallStatusReason": "all indicators ok",
+  "overallStatusReason": "one or more technical indicators degraded",
   "indicators": [
     {
       "name": "worktree_state",
-      "status": "ok",
-      "summary": "status=clean"
+      "status": "degraded",
+      "summary": "status=dirty"
     },
     {
       "name": "structural_quality",
@@ -45,13 +45,8 @@
     },
     {
       "name": "test_governance",
-      "status": "ok",
-      "summary": "flakeRisk=0, skip=0, only=0, quarantined=0"
-    },
-    {
-      "name": "known_failures",
-      "status": "ok",
-      "summary": "open=0, deterministic=0, bugReal=0, flaky=0, obsolete=0, infra=0"
+      "status": "degraded",
+      "summary": "flakeRisk=36, skip=0, only=0"
     },
     {
       "name": "critical_coverage",
@@ -60,19 +55,14 @@
     },
     {
       "name": "operational_budgets",
-      "status": "ok",
-      "summary": "flow=passing, coverage=passing"
+      "status": "degraded",
+      "summary": "flow=unknown, coverage=passing"
     },
     {
       "name": "frontend_startup",
-      "status": "ok",
-      "summary": "status=ok, preview=ok, issues=0"
+      "status": "degraded",
+      "summary": "status=degraded, preview=unknown, issues=1"
     }
   ],
-  "knownFailures": {
-    "openCount": 0,
-    "byClassification": {},
-    "owners": []
-  },
   "missingPrerequisites": []
 }

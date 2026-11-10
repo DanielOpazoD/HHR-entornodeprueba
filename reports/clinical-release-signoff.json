@@ -1,8 +1,24 @@
 {
-  "generatedAt": "2026-07-05T06:20:04.876Z",
-  "gitSha": "126d4b82",
-  "gitDirty": false,
+  "generatedAt": "2026-11-10T15:35:18.823Z",
+  "gitSha": "6b9530fa8",
+  "gitDirty": true,
+  "generatedFor": {
+    "gitSha": "6b9530fa8",
+    "gitDirty": true,
+    "treeHash": "ace477fdc80c116975c64e568e29f9199b8f1631",
+    "reportId": "clinical-release-signoff",
+    "dependencyFingerprint": {
+      "algorithm": "sha256:dependency-files-v1",
+      "value": "ce1734ee52e5398115c8cf5c0400792dee459cff666ffc68dbef30962c148907",
+      "files": [
+        "scripts/config/clinical-release-signoff.json"
+      ],
+      "missingFiles": []
+    }
+  },
   "releaseCandidate": "codex/release-readiness-blocks",
+  "approvalScope": "historical_record",
+  "currentCandidateApproved": false,
   "overall": "ok",
   "counts": {
     "scenarioCount": 6,

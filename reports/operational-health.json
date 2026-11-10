@@ -1,19 +1,18 @@
 {
-  "generatedAt": "2026-10-21T01:51:11.193Z",
-  "gitSha": "be28603dd",
-  "gitDirty": false,
+  "generatedAt": "2026-11-10T15:35:17.858Z",
+  "gitSha": "6b9530fa8",
+  "gitDirty": true,
   "generatedFor": {
-    "gitSha": "be28603dd",
-    "gitDirty": false,
-    "treeHash": "e268e00bc374ad83c52f5b77426a3d90020071d1",
+    "gitSha": "6b9530fa8",
+    "gitDirty": true,
+    "treeHash": "ace477fdc80c116975c64e568e29f9199b8f1631",
     "reportId": "operational-health",
     "dependencyFingerprint": {
       "algorithm": "sha256:dependency-files-v1",
-      "value": "775ae4a4d49a6e7fa33354314ae6d600c2f67b0eb828ad02334b89fae7a9a9ee",
+      "value": "e2eba1274fb295ee5ba68bffa132fda3ab0e5982d1ec6c995588430ff22d1ef8",
       "files": [
         "reports/critical-coverage.json",
         "reports/critical-coverage.md",
-        "reports/e2e/preview-bootstrap/report.json",
         "scripts/config/critical-coverage-thresholds.json",
         "scripts/criticalCoverageSupport.mjs",
         "scripts/report-critical-coverage.mjs",
@@ -21,7 +20,8 @@
         "vitest.critical-coverage.config.ts"
       ],
       "missingFiles": [
-        "reports/e2e/preview-bootstrap/ci-provenance.json"
+        "reports/e2e/preview-bootstrap/ci-provenance.json",
+        "reports/e2e/preview-bootstrap/report.json"
       ]
     }
   },
@@ -95,13 +95,11 @@
   "compatibilityGovernance": {
     "policyVersion": "2026-04-v1",
     "trackedEntries": 4,
-    "missingEntries": [],
-    "restrictedEntries": 0,
-    "unauthorizedImportCount": 0
+    "missingEntries": []
   },
   "localPersistence": {
     "openTimeoutMs": 12,
-    "deleteTimeoutMs": 5,
+    "deleteTimeoutMs": null,
     "maxBackgroundRecoveryAttempts": 6,
     "recoveryRetryDelaysMs": [
       500
@@ -147,63 +145,7 @@
       "unauthorized"
     ]
   },
-  "flowPerformance": {
-    "status": "passing",
-    "blockingCount": 0,
-    "targetMissCount": 0,
-    "nearLimitCount": 0,
-    "flows": [
-      {
-        "flow": "loginVisibleMs",
-        "actualMs": 374.9,
-        "targetMs": 4000,
-        "enforcedMaxMs": 4000,
-        "status": "ok"
-      },
-      {
-        "flow": "authFeedbackMs",
-        "actualMs": 234.7,
-        "targetMs": 2500,
-        "enforcedMaxMs": 2500,
-        "status": "ok"
-      },
-      {
-        "flow": "censoVisibleMs",
-        "actualMs": 879.4,
-        "targetMs": 1500,
-        "enforcedMaxMs": 2000,
-        "status": "ok"
-      },
-      {
-        "flow": "censoRecordReadyMs",
-        "actualMs": 55.3,
-        "targetMs": 2500,
-        "enforcedMaxMs": 5000,
-        "status": "ok"
-      },
-      {
-        "flow": "clinicalDocumentsVisibleMs",
-        "actualMs": 420.2,
-        "targetMs": 4500,
-        "enforcedMaxMs": 6000,
-        "status": "ok"
-      },
-      {
-        "flow": "backupFilesVisibleMs",
-        "actualMs": 630.8,
-        "targetMs": 4500,
-        "enforcedMaxMs": 4500,
-        "status": "ok"
-      },
-      {
-        "flow": "logoutToLoginVisibleMs",
-        "actualMs": 37.7,
-        "targetMs": 1500,
-        "enforcedMaxMs": 2500,
-        "status": "ok"
-      }
-    ]
-  },
+  "flowPerformance": null,
   "criticalCoverage": {
     "status": "passing",
     "mode": "dual-gated",
@@ -325,128 +267,25 @@
   "buildAssets": {
     "entryMaxBytes": 700000,
     "chunkMaxBytes": 1250000,
-    "entryAssets": [
-      {
-        "file": "dist/assets/index-2SU_gsUT.js",
-        "sizeBytes": 24392,
-        "maxBytes": 700000,
-        "status": "ok"
-      }
-    ],
-    "largestAssets": [
-      {
-        "file": "dist/assets/vendor-heic2any-BjDsP1gW.js",
-        "sizeBytes": 1352091,
-        "maxBytes": 1450000,
-        "budgetLabel": "vendor-heic2any",
-        "budgetSource": "chunkPatternBudget",
-        "severity": "error",
-        "budgetUtilizationPct": 93.2,
-        "status": "near-limit"
-      },
-      {
-        "file": "dist/assets/vendor-dicom-vtk-CVp3UI09.js",
-        "sizeBytes": 1078816,
-        "maxBytes": 1250000,
-        "budgetLabel": "chunkMaxBytes",
-        "budgetSource": "chunkMaxBytes",
-        "severity": "error",
-        "budgetUtilizationPct": 86.3,
-        "status": "near-limit"
-      },
-      {
-        "file": "dist/assets/app-authenticated-shell-BixI3TdI.js",
-        "sizeBytes": 629387,
-        "maxBytes": 631000,
-        "budgetLabel": "app-authenticated-shell",
-        "budgetSource": "startupChunkBudget",
-        "severity": "error",
-        "budgetUtilizationPct": 99.7,
-        "status": "near-limit"
-      },
-      {
-        "file": "dist/assets/vendor-pdfjs-BGyLORnz.js",
-        "sizeBytes": 460525,
-        "maxBytes": 520000,
-        "budgetLabel": "vendor-pdfjs",
-        "budgetSource": "chunkPatternBudget",
-        "severity": "error",
-        "budgetUtilizationPct": 88.6,
-        "status": "near-limit"
-      },
-      {
-        "file": "dist/assets/vendor-firebase-firestore-Bjg3nDcb.js",
-        "sizeBytes": 397577,
-        "maxBytes": 500000,
-        "budgetLabel": "vendor-firebase-firestore",
-        "budgetSource": "chunkPatternBudget",
-        "severity": "error",
-        "budgetUtilizationPct": 79.5,
-        "status": "ok"
-      },
-      {
-        "file": "dist/assets/vendor-pdf-lib-DewrExaK.js",
-        "sizeBytes": 390824,
-        "maxBytes": 430000,
-        "budgetLabel": "vendor-pdf",
-        "budgetSource": "chunkPatternBudget",
-        "severity": "error",
-        "budgetUtilizationPct": 90.9,
-        "status": "near-limit"
-      },
-      {
-        "file": "dist/assets/vendor-pdf-core-CZkusByf.js",
-        "sizeBytes": 364662,
-        "maxBytes": 430000,
-        "budgetLabel": "vendor-pdf",
-        "budgetSource": "chunkPatternBudget",
-        "severity": "error",
-        "budgetUtilizationPct": 84.8,
-        "status": "ok"
-      },
-      {
-        "file": "dist/assets/cudyrSupplement.worker-33MR3KSE.js",
-        "sizeBytes": 364090,
-        "maxBytes": 1250000,
-        "budgetLabel": "chunkMaxBytes",
-        "budgetSource": "chunkMaxBytes",
-        "severity": "error",
-        "budgetUtilizationPct": 29.1,
-        "status": "ok"
-      }
-    ]
+    "entryAssets": [],
+    "largestAssets": []
   },
   "frontendStartup": {
-    "status": "ok",
-    "issues": [],
+    "status": "degraded",
+    "issues": [
+      "No hay artefacto reciente del smoke de preview para validar el arranque real."
+    ],
     "previewGate": {
-      "status": "ok",
-      "total": 60,
-      "expected": 60,
+      "status": "unknown",
+      "total": 0,
+      "expected": 0,
       "unexpected": 0,
       "flaky": 0,
       "skipped": 0,
       "interrupted": 0,
-      "durationMs": 718224.507
+      "durationMs": 0
     },
-    "criticalAssets": [
-      {
-        "file": "dist/assets/index-2SU_gsUT.js",
-        "sizeBytes": 24392,
-        "maxBytes": 700000,
-        "status": "ok"
-      },
-      {
-        "file": "dist/assets/app-authenticated-shell-BixI3TdI.js",
-        "sizeBytes": 629387,
-        "maxBytes": 631000,
-        "budgetLabel": "app-authenticated-shell",
-        "budgetSource": "startupChunkBudget",
-        "severity": "error",
-        "budgetUtilizationPct": 99.7,
-        "status": "near-limit"
-      }
-    ],
+    "criticalAssets": [],
     "bootstrapTelemetrySignals": [
       "bootstrap_recovery_reload",
       "bootstrap_chunk_load_failed",

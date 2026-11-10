@@ -1,8 +1,8 @@
 # Sync Convergence Evidence
 
-- Generated: 2026-08-02T04:58:07.936Z
-- Git SHA: `515a0fa6`
-- Worktree: `clean`
+- Generated: 2026-11-10T15:35:17.521Z
+- Git SHA: `6b9530fa8`
+- Worktree: `dirty`
 - Status: `ready`
 - Checks: `19/19` passing
 

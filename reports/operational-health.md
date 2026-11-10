@@ -1,57 +1,11 @@
 # Operational Health Snapshot
 
-- Generated: 2026-10-21T01:51:11.193Z
-- Git SHA: be28603dd
+- Generated: 2026-11-10T15:35:17.858Z
+- Git SHA: 6b9530fa8
 - Schema current: v1
 - Schema legacy: v0
 
 ## Sync Queue
-
-Cuando la transacción de dotación rechaza una versión antigua del censo, el aviso
-dice que cambió el censo y que la dotación no se guardó; pide recargar y revisar.
-No atribuye el rechazo a un cambio de dotación sin evidencia. Se mantiene el bloqueo
-transaccional. La regresión usa escritor, reglas y emulador con datos sintéticos,
-normalización del aviso y componente de notificación; no acredita producción.
-
-El cliente usa `enforced` para guardar por autoridad, también si falla una primera
-lectura de política y una posterior acredita el modo o el cerco. Si se pierde la
-respuesta, conserva la recuperación por comprobante exacto de mutación. Se retiran
-las validaciones `shadow` del cliente; el servidor mantiene compatibilidad con
-pestañas anteriores. Las escrituras directas permitidas, las lecturas de política,
-el cerco y la conservación de pendientes siguen vigentes (SAVE-01, SAVE-02).
-La evidencia local usa datos sintéticos; no acredita un despliegue ni una
-medición posterior en producción.
-
-Una copia completa cuya base cambió o no es verificable conserva un motivo de
-revisión estable. El panel y la cola impiden reenviarla sin cambios; permiten
-revisar y descargar su respaldo o confirmar su retirada. Ni el bloqueo ni la
-retirada cuentan como confirmación remota. Los reintentos por red o permisos y los
-conflictos granulares conservan su política.
-
-El conteo, la antigüedad y los reintentos pendientes incluyen envíos `PROCESSING`
-hasta su confirmación. Salud operacional conserva ese trabajo activo y la renovación
-de copias locales tras una actualización espera a que termine.
-
-La selección de trabajo listo usa los rangos activos del índice de estado y fecha.
-Los respaldos y cuarentenas permanecen guardados sin formar parte de ese recorrido;
-no cambian el orden global, los propietarios, las esperas ni los leases.
-
-El sondeo de telemetría reúne los contadores propios y ajenos en una lectura del
-índice de estados vigentes. Los respaldos retirados permanecen descargables y no
-participan de esa lectura. Los fallos mantienen el estado de lectura no disponible.
-
-Las lecturas que atraviesan un cambio de propietario o de generación de sesión
-no publican resultados anteriores. La telemetría y el listado usan su estado de
-lectura no disponible; las APIs de compatibilidad conservan su fallback documentado.
-
-Las páginas recientes y los lotes de procesamiento detienen el cursor al completar
-su límite de tareas elegibles. Los respaldos retirados y las tareas de otros
-propietarios se conservan; no cambian los umbrales ni las reglas de reintento.
-
-La lectura de envíos recientes distingue fallo y lista vacía. Ante
-`sync_queue_recent_operations_unavailable`, Eloísa indica «por comprobar» y el
-reporte conserva los contadores disponibles y el evento de error. Este contrato
-no modifica los umbrales del snapshot generado a continuación.
 
 - Batch size: 25
 - Max retries: 5
@@ -97,13 +51,11 @@ no modifica los umbrales del snapshot generado a continuación.
 - Policy version: 2026-04-v1
 - Tracked entries: 4
 - Missing entries: none
-- Restricted import surfaces: 0
-- Unauthorized importers: 0
 
 ## Local Persistence Recovery Budgets
 
 - IndexedDB open timeout (ms): 12
-- IndexedDB delete timeout (ms): 5
+- IndexedDB delete timeout (ms): unknown
 - Max background recovery attempts: 6
 - Recovery retry delays (ms): 500
 
@@ -127,20 +79,19 @@ no modifica los umbrales del snapshot generado a continuación.
 
 ## Frontend Startup Health
 
-- Status: ok
-- Preview gate: ok
-- Preview tests: 60
+- Status: degraded
+- Preview gate: unknown
+- Preview tests: 0
 - Preview unexpected: 0
 - Preview flaky: 0
 - Preview skipped: 0
-- Preview duration (ms): 718224.507
+- Preview duration (ms): 0
 - Bootstrap signals: `bootstrap_recovery_reload`, `bootstrap_chunk_load_failed`, `bootstrap_runtime_failed`, `bootstrap_window_error`, `bootstrap_unhandled_rejection`
-- Startup issues: none
+- Startup issues: No hay artefacto reciente del smoke de preview para validar el arranque real.
 
 | Critical startup asset | Size (bytes) | Max (bytes) | Utilization | Budget | Status |
 | --- | ---: | ---: | ---: | --- | --- |
-| `dist/assets/index-2SU_gsUT.js` | 24392 | 700000 | - | - | ok |
-| `dist/assets/app-authenticated-shell-BixI3TdI.js` | 629387 | 631000 | 99.7% | app-authenticated-shell | near-limit |
+| `unavailable` | - | - | - | - | missing |
 
 ## Incident Signals To Watch
 
@@ -153,20 +104,14 @@ no modifica los umbrales del snapshot generado a continuación.
 
 ## Flow Performance Budgets
 
-- Status: passing
-- Blocking flows: 0
-- Target misses: 0
-- Near-limit flows: 0
+- Status: unknown
+- Blocking flows: unknown
+- Target misses: unknown
+- Near-limit flows: unknown
 
 | Flow | Actual (ms) | Target (ms) | Enforced (ms) | Status |
 | --- | ---: | ---: | ---: | --- |
-| `loginVisibleMs` | 374.9 | 4000 | 4000 | ok |
-| `authFeedbackMs` | 234.7 | 2500 | 2500 | ok |
-| `censoVisibleMs` | 879.4 | 1500 | 2000 | ok |
-| `censoRecordReadyMs` | 55.3 | 2500 | 5000 | ok |
-| `clinicalDocumentsVisibleMs` | 420.2 | 4500 | 6000 | ok |
-| `backupFilesVisibleMs` | 630.8 | 4500 | 4500 | ok |
-| `logoutToLoginVisibleMs` | 37.7 | 1500 | 2500 | ok |
+| `unavailable` | - | - | - | missing |
 
 ## Critical Coverage
 
@@ -198,14 +143,7 @@ no modifica los umbrales del snapshot generado a continuación.
 
 | Asset | Size (bytes) | Max (bytes) | Utilization | Budget | Status |
 | --- | ---: | ---: | ---: | --- | --- |
-| `dist/assets/vendor-heic2any-BjDsP1gW.js` | 1352091 | 1450000 | 93.2% | vendor-heic2any | near-limit |
-| `dist/assets/vendor-dicom-vtk-CVp3UI09.js` | 1078816 | 1250000 | 86.3% | chunkMaxBytes | near-limit |
-| `dist/assets/app-authenticated-shell-BixI3TdI.js` | 629387 | 631000 | 99.7% | app-authenticated-shell | near-limit |
-| `dist/assets/vendor-pdfjs-BGyLORnz.js` | 460525 | 520000 | 88.6% | vendor-pdfjs | near-limit |
-| `dist/assets/vendor-firebase-firestore-Bjg3nDcb.js` | 397577 | 500000 | 79.5% | vendor-firebase-firestore | ok |
-| `dist/assets/vendor-pdf-lib-DewrExaK.js` | 390824 | 430000 | 90.9% | vendor-pdf | near-limit |
-| `dist/assets/vendor-pdf-core-CZkusByf.js` | 364662 | 430000 | 84.8% | vendor-pdf | ok |
-| `dist/assets/cudyrSupplement.worker-33MR3KSE.js` | 364090 | 1250000 | 29.1% | chunkMaxBytes | ok |
+| `unavailable` | - | - | - | - | missing |
 
 ## Repository Performance Thresholds
 

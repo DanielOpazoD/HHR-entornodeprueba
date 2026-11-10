@@ -1,15 +1,15 @@
 {
-  "generatedAt": "2026-10-21T01:51:13.533Z",
-  "gitSha": "be28603dd",
-  "gitDirty": false,
+  "generatedAt": "2026-11-10T15:35:19.142Z",
+  "gitSha": "6b9530fa8",
+  "gitDirty": true,
   "generatedFor": {
-    "gitSha": "be28603dd",
-    "gitDirty": false,
-    "treeHash": "e268e00bc374ad83c52f5b77426a3d90020071d1",
+    "gitSha": "6b9530fa8",
+    "gitDirty": true,
+    "treeHash": "ace477fdc80c116975c64e568e29f9199b8f1631",
     "reportId": "release-confidence-matrix",
     "dependencyFingerprint": {
       "algorithm": "sha256:dependency-files-v1",
-      "value": "d3821ac51400f852d34235ef0de942217be0ffa4e387e0c3988e0c0cd7c16169",
+      "value": "18dbd1d72b9661048754501fb8771ae90b1f01f2f8489deb850bac1bfc282fab",
       "files": [
         "reports/critical-coverage.json",
         "reports/critical-coverage.md",
@@ -26,7 +26,7 @@
   "counts": {
     "areaCount": 11,
     "criticalCoverageZones": 16,
-    "blockingSteps": 7,
+    "blockingSteps": 8,
     "smokeScenarios": 6,
     "flowBudgets": 7,
     "ownershipAreas": 11
@@ -36,7 +36,7 @@
     "unmapped": []
   },
   "blockingSteps": {
-    "mapped": 7,
+    "mapped": 8,
     "unmapped": []
   },
   "smokeScenarios": {
@@ -118,6 +118,7 @@
       ],
       "blockingSteps": [
         "runtime_smoke",
+        "storage_rules_ci",
         "critical_coverage",
         "flow_performance",
         "e2e_critical_ci"
