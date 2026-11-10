@@ -379,17 +379,6 @@ Salida esperada:
 4. si agregaste un subsistema crítico nuevo o cambió el runbook operativo, actualizar el mapa en la misma change
 5. no aceptar deuda crítica sin owner operativo explícito
 
-### Falla `check:compatibility-import-governance`
-
-1. correr `npm run report:compatibility-import-governance`
-2. revisar `reports/compatibility-import-governance.md`
-3. confirmar si el importer detectado es:
-   - un consumidor legacy explícitamente tolerado;
-   - una dependencia nueva no autorizada hacia un bridge transicional
-4. si la dependencia nueva es legítima por migración activa, agregarla al inventario en `scripts/config/compatibility-governance.json` en la misma change
-5. si no es legítima, mover el import al entrypoint canónico dueño y no al facade/bridge legacy
-6. no aceptar nuevas dependencias productivas a compatibilidad transitoria sin excepción documentada
-
 ### Falla `check:serverless-sensitive-coverage`
 
 1. correr `npm run report:serverless-sensitive-coverage`
@@ -411,9 +400,7 @@ Salida esperada:
    - readiness operativa
    - release confidence
    - ownership
-   - compatibility governance
 4. si el scorecard se degrada por un reporte base, corregir ese reporte o su fuente; no maquillar el scorecard
-5. `compatibility_governance` puede tener `restrictedEntries=0` y seguir `ok` si `unauthorizedImports=0`; eso significa que no hay superficies restringidas activas que auditar en ese snapshot
 
 ### Falla `check:sustainable-change-policy`
 
@@ -586,13 +573,11 @@ sobre el mismo código y entorno.
 5. primero corregir tests o mapping de zona; solo después actualizar baseline si la nueva medición quedó validada a propósito
 6. si el baseline ya estaba incumplido antes del cambio, documentar la corrida que lo demuestra, ajustarlo al valor actual validado y conservar el job bloqueante para impedir nuevas caídas
 
-### Falla `check:test-failure-catalog`
+### Una prueba solo pasa al reintentar
 
-1. revisar `scripts/config/test-failure-catalog.json`
-2. confirmar que toda falla conocida tenga `owner`, `classification`, `status`, `sla` y `reason`
-3. si una entrada es `flaky`, debe existir también en `scripts/config/flaky-quarantine.json`
-4. si una falla fue corregida, marcarla `fixed` o removerla junto con su cuarentena asociada
-5. no aceptar fallos conocidos fuera del catálogo versionado
+`npm run report:ci-reruns -- --days 7` lista los intentos de `CI/CD Pipeline` que fallaron y
+pasaron al reintentar el mismo commit, agrupados por job y por prueba (o por el primer paso
+fallido cuando no hay prueba). Solo lee con `gh api`; `--json` da el detalle con los mensajes.
 
 ### Falla `test:firestore:release:ci`
 

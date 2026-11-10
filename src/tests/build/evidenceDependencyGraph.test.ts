@@ -121,7 +121,6 @@ describe('evidence dependency graph', () => {
         'release-confidence-matrix',
         'technical-ownership-map',
         'guardrail-governance',
-        'compatibility-import-governance',
       ])
     );
   });

@@ -1,0 +1,71 @@
+{
+  "entryPoints": [
+    {
+      "file": "src/service-worker.ts",
+      "declaredIn": "vite.config.ts (PWA plugin, srcDir and filename)"
+    },
+    {
+      "file": "src/services/cudyr/cudyrSourceServerEntry.ts",
+      "declaredIn": "scripts/build-cudyr-source-parser.mjs (esbuild entryPoints)"
+    }
+  ],
+  "retained": [
+    {
+      "reason": "Cargador de ExcelJS para Node: lo activa el alias de vitest.config.ts en lugar del cargador del navegador.",
+      "files": ["src/services/exporters/excelJsModuleLoader.node.ts"]
+    },
+    {
+      "reason": "Columnas del censo ocultas en julio de 2026 y conservadas en el código «para reactivación futura». Pendiente de que el responsable decida si se borran.",
+      "files": [
+        "src/features/census/components/patient-row/AdmissionInput.tsx",
+        "src/features/census/components/patient-row/AgeInput.tsx",
+        "src/features/census/components/patient-row/CheckboxCell.tsx",
+        "src/features/census/components/patient-row/NameInput.tsx",
+        "src/features/census/components/patient-row/PatientMainRowBedTypeCell.tsx",
+        "src/features/census/components/patient-row/RutPassportInput.tsx",
+        "src/features/census/components/patient-row/useBedActiveTransferQuery.ts",
+        "src/features/census/controllers/admissionInputController.ts"
+      ]
+    },
+    {
+      "reason": "Vista anterior de CUDYR y corrección manual del administrador (setAdminCudyrResult), sin pantalla desde #774. Pendiente de que el responsable decida si se retira o se vuelve a conectar.",
+      "files": [
+        "src/application/cudyr/public.ts",
+        "src/domain/cudyr/adminCudyrResult.ts",
+        "src/features/cudyr/components/AdminCudyrBulkRemovalToolbar.tsx",
+        "src/features/cudyr/components/AdminCudyrResultEditor.tsx",
+        "src/features/cudyr/components/CudyrHeader.tsx",
+        "src/features/cudyr/components/CudyrRow.tsx",
+        "src/features/cudyr/components/CudyrSummaryTable.tsx",
+        "src/features/cudyr/contracts/cudyrPatientContracts.ts",
+        "src/features/cudyr/controllers/cudyrEditAccessController.ts",
+        "src/features/cudyr/controllers/cudyrRowViewController.ts",
+        "src/features/cudyr/controllers/cudyrViewController.ts",
+        "src/features/cudyr/hooks/useAdminCudyrBulkRemoval.ts",
+        "src/features/cudyr/hooks/useAdminCudyrResult.ts",
+        "src/features/cudyr/hooks/useCudyrLogic.ts",
+        "src/services/cudyr/adminCudyrResultService.ts",
+        "src/services/cudyr/cudyrLoggers.ts"
+      ]
+    },
+    {
+      "reason": "Diagnósticos de convergencia que la app no carga, pero cuyo texto leen los scripts de evidencia de sincronización (check-sync-convergence-evidence, report-operational-health). Se retiran junto con esa evidencia.",
+      "files": [
+        "src/services/observability/syncConvergenceDiagnosticTypes.ts",
+        "src/services/observability/syncConvergenceDiagnostics.ts",
+        "src/services/observability/syncConvergenceHandoffDiagnostics.ts",
+        "src/services/observability/syncConvergenceSharedHelpers.ts",
+        "src/services/observability/syncRecoveryPlanner.ts",
+        "src/services/repositories/monthIntegrity.ts",
+        "src/services/repositories/monthIntegritySupport.ts"
+      ]
+    },
+    {
+      "reason": "Contratos de runtime que la app no carga, pero que check-runtime-contracts y check-docs-drift exigen documentados. Se retiran junto con esa exigencia.",
+      "files": [
+        "src/services/repositories/runtimeCompatibilityPolicy.ts",
+        "src/services/repositories/runtimeContractGovernance.ts"
+      ]
+    }
+  ]
+}

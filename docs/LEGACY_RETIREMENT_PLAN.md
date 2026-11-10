@@ -27,7 +27,7 @@ normalizaciones de documentos históricos del camino vigente.
 
 - No reescribir Firestore, IndexedDB ni el modelo clínico completo en una sola rama.
 - No eliminar compatibilidad si todavía protege datos reales no migrados.
-- No relajar `check:compatibility-import-governance` ni reglas de schema/runtime contracts.
+- No relajar las reglas de schema/runtime contracts.
 
 ## Phases
 
@@ -45,7 +45,6 @@ normalizaciones de documentos históricos del camino vigente.
 
 ## Closure signals
 
-- `report:compatibility-import-governance` reporta cero imports no autorizados.
 - Auditoría de role aliases reporta cero entradas legacy en config/roles y custom claims.
 - 0 legacy role aliases detected for 2 consecutive releases antes de retirar el write-back de canonización.
 - La hidratación de legacy clinical document y legacy episode queda confinada a controllers compatibles y tests dirigidos.
