@@ -11,7 +11,7 @@ import {
   getRecordsForMonth,
   saveRecord,
   saveRecordStrict,
-  saveRecords,
+  saveRecordsStrict,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import {
   clearErrorLogs,
@@ -200,7 +200,7 @@ describe('indexedDBService', () => {
     });
 
     it('should bulk save and return all records sorted descending', async () => {
-      await saveRecords([
+      await saveRecordsStrict([
         { ...mockRecord, date: '2025-01-02' },
         { ...mockRecord, date: '2025-01-03' },
         { ...mockRecord, date: '2025-01-01' },

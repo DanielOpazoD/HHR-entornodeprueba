@@ -9,6 +9,8 @@ interface PatientExplorerProps {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
   isLoading: boolean;
+  queryFailed?: boolean;
+  onRetry?: () => void;
   onSelectPatient: (patient: MasterPatient) => void;
   hasMore?: boolean;
   onLoadMore?: () => void;
@@ -19,6 +21,8 @@ export const PatientExplorer: React.FC<PatientExplorerProps> = ({
   searchTerm,
   setSearchTerm,
   isLoading,
+  queryFailed,
+  onRetry,
   onSelectPatient,
   hasMore,
   onLoadMore,
@@ -26,6 +30,7 @@ export const PatientExplorer: React.FC<PatientExplorerProps> = ({
   // Note: Filtering is handled server-side now, but we keep a local safety filter
   const filteredPatients = patients.filter(
     p =>
+      queryFailed ||
       !searchTerm ||
       p.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.rut.includes(searchTerm)
@@ -120,7 +125,20 @@ export const PatientExplorer: React.FC<PatientExplorerProps> = ({
             ))}
           </tbody>
         </table>
-        {patients.length === 0 && !isLoading && (
+        {queryFailed && (
+          <div role="alert" className="p-8 text-center bg-slate-50/50 text-slate-500">
+            <p className="text-sm font-medium">No se pudo consultar el índice de pacientes.</p>
+            <button
+              type="button"
+              onClick={onRetry}
+              disabled={isLoading}
+              className="mt-2 text-sm text-blue-600 disabled:opacity-50"
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
+        {patients.length === 0 && !isLoading && !queryFailed && (
           <div className="p-8 text-center bg-slate-50/50">
             <Users size={32} className="mx-auto text-slate-300 mb-2" />
             <p className="text-sm text-slate-500 font-medium">
@@ -133,7 +151,7 @@ export const PatientExplorer: React.FC<PatientExplorerProps> = ({
         )}
       </div>
 
-      {hasMore && (
+      {hasMore && !queryFailed && (
         <div className="flex justify-center mt-4">
           <button
             onClick={onLoadMore}

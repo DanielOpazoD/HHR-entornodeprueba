@@ -1,3 +1,4 @@
+import { safeErrorMessage } from './lib/safe-error-message';
 /**
  * mmrad-search Netlify Function
  *
@@ -235,6 +236,10 @@ const searchExamRows = async (
     body: new URLSearchParams(params).toString(),
   });
 
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error('Error al consultar exámenes desde MMRAD.');
+  }
+
   const html = await response.text();
   // A logged-out page lists no rows; reading it as «sin exámenes» would hide them (SAVE-01).
   if (!isLoggedInRisPage(html)) throw new Error('La sesión MMRAD no está activa.');
@@ -423,7 +428,7 @@ export const createMMRADSearchHandler = (
     } catch (error) {
       return buildJsonResponse(
         401,
-        { error: error instanceof Error ? error.message : 'Authentication required.' },
+        { error: safeErrorMessage(error, 'Authentication required.') },
         { requestOrigin }
       );
     }
@@ -438,7 +443,7 @@ export const createMMRADSearchHandler = (
         rawMessage.includes('Access denied') || rawMessage.includes('no email claim') ? 403 : 401;
       const message =
         statusCode === 403 ? resolveMmradAuthorizationErrorMessage(rawMessage) : rawMessage;
-      return buildJsonResponse(statusCode, { error: message }, { requestOrigin });
+      return buildJsonResponse(statusCode, { error: safeErrorMessage(message) }, { requestOrigin });
     }
 
     const queryParams = new URLSearchParams(event.rawQuery || '');
@@ -470,7 +475,7 @@ export const createMMRADSearchHandler = (
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Error desconocido';
-        return buildJsonResponse(500, { error: message }, { requestOrigin });
+        return buildJsonResponse(500, { error: safeErrorMessage(message) }, { requestOrigin });
       }
     }
 
@@ -500,7 +505,7 @@ export const createMMRADSearchHandler = (
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Error desconocido';
-        return buildJsonResponse(500, { error: message }, { requestOrigin });
+        return buildJsonResponse(500, { error: safeErrorMessage(message) }, { requestOrigin });
       }
     }
 
@@ -574,7 +579,7 @@ export const createMMRADSearchHandler = (
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error desconocido';
-      return buildJsonResponse(500, { error: message }, { requestOrigin });
+      return buildJsonResponse(500, { error: safeErrorMessage(message) }, { requestOrigin });
     }
   };
 };

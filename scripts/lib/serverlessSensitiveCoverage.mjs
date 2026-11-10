@@ -23,13 +23,36 @@ export const buildServerlessSensitiveCoverageReport = root => {
 
   const entries = Array.isArray(config.entries) ? config.entries : [];
   const issues = [];
+  if (entries.length === 0) {
+    issues.push(
+      `${CONFIG_PATH}: add at least one sensitive function to entries with id, functionFile, endpoint and testFiles.`
+    );
+  }
+  const exempt = Array.isArray(config.exempt) ? config.exempt : [];
+  const normalizedExempt = exempt.map(item => {
+    const functionFile = String(item?.functionFile || '').trim();
+    const reason = typeof item?.reason === 'string' ? item.reason.trim() : '';
+    if (!functionFile) issues.push(`${CONFIG_PATH}: exempt must include functionFile.`);
+    if (!reason)
+      issues.push(
+        `${CONFIG_PATH}: add a non-empty reason to exempt for ${functionFile || 'unknown'}.`
+      );
+    if (functionFile && !fs.existsSync(path.join(root, functionFile))) {
+      issues.push(
+        `${CONFIG_PATH}: exempt names missing function file ${functionFile}; remove or correct functionFile.`
+      );
+    }
+    return { functionFile, reason };
+  });
 
   const normalizedEntries = entries.map(entry => {
     const id = String(entry?.id || '').trim();
     const functionFile = String(entry?.functionFile || '').trim();
     const endpoint = String(entry?.endpoint || '').trim();
     const testFiles = Array.isArray(entry?.testFiles)
-      ? entry.testFiles.filter(value => typeof value === 'string' && value.trim()).map(value => value.trim())
+      ? entry.testFiles
+          .filter(value => typeof value === 'string' && value.trim())
+          .map(value => value.trim())
       : [];
 
     const missing = [];
@@ -54,12 +77,16 @@ export const buildServerlessSensitiveCoverageReport = root => {
     }
 
     const documentedInContracts =
-      Boolean(contractsDocContent) && endpoint ? contractsDocContent.includes(`\`${endpoint}\``) : false;
+      Boolean(contractsDocContent) && endpoint
+        ? contractsDocContent.includes(`\`${endpoint}\``)
+        : false;
     if (!documentedInContracts) {
       missing.push(`contracts doc missing endpoint ${endpoint}`);
     }
 
-    const entryIssues = missing.map(message => `${id || functionFile || 'unknown'}: ${message}`);
+    const entryIssues = missing.map(
+      message => `${CONFIG_PATH}: ${id || functionFile || 'unknown'}: ${message}`
+    );
     issues.push(...entryIssues);
 
     return {
@@ -74,12 +101,39 @@ export const buildServerlessSensitiveCoverageReport = root => {
     };
   });
 
+  const entryFiles = new Set(normalizedEntries.map(entry => path.normalize(entry.functionFile)));
+  const exemptFiles = new Set(normalizedExempt.map(item => path.normalize(item.functionFile)));
+  for (const file of exemptFiles) {
+    if (entryFiles.has(file)) {
+      issues.push(
+        `${CONFIG_PATH}: ${file} is in both entries and exempt; keep it in exactly one list.`
+      );
+    }
+  }
+  const functionsDir = path.join(root, 'netlify/functions');
+  const functionFiles = fs.existsSync(functionsDir)
+    ? fs
+        .readdirSync(functionsDir, { withFileTypes: true })
+        .filter(item => item.isFile() && /\.(ts|mts|js)$/.test(item.name))
+        .map(item => `netlify/functions/${item.name}`)
+        .sort()
+    : [];
+  for (const file of functionFiles) {
+    if (!entryFiles.has(file) && !exemptFiles.has(file)) {
+      issues.push(
+        `${file}: add to entries (id, functionFile, endpoint, testFiles) or exempt (functionFile, non-empty reason) in ${CONFIG_PATH}.`
+      );
+    }
+  }
+
   return {
     generatedAt: new Date().toISOString(),
     version: config.version ?? null,
     contractsDoc,
     checkedEntries: normalizedEntries.length,
     entries: normalizedEntries,
+    functionFiles,
+    exempt: normalizedExempt,
     issues,
   };
 };
@@ -101,10 +155,17 @@ export const formatServerlessSensitiveCoverageMarkdown = report => {
     lines.push(
       `| ${entry.id} | \`${entry.endpoint}\` | \`${entry.functionFile}\` | ${
         entry.testFiles.length > 0
-          ? entry.testFiles.map(test => `${test.exists ? 'ok' : 'missing'}:${test.file}`).join('<br/>')
+          ? entry.testFiles
+              .map(test => `${test.exists ? 'ok' : 'missing'}:${test.file}`)
+              .join('<br/>')
           : '-'
       } | ${entry.documentedInContracts ? 'ok' : 'missing'} | ${entry.status} |`
     );
+  }
+
+  lines.push('', '## Exempt', '', '| Function file | Reason |', '| --- | --- |');
+  for (const item of report.exempt) {
+    lines.push(`| \`${item.functionFile}\` | ${item.reason} |`);
   }
 
   lines.push('', '## Issues', '');

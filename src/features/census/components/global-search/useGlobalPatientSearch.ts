@@ -32,6 +32,8 @@ export function useGlobalPatientSearch(): UseGlobalPatientSearchReturn {
     results: search.results,
     isSearching: search.isSearching,
     hasSearched: search.hasSearched,
+    searchError: search.searchError,
+    retrySearch: search.retrySearch,
     selectedIndex: search.selectedIndex,
     setSelectedIndex: search.setSelectedIndex,
 
