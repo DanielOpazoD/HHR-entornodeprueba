@@ -4,7 +4,7 @@ import {
   getAllRecordsSorted,
   getRecordsForMonth,
   getRecordsRange,
-  saveRecords as saveManyToIndexedDB,
+  saveRecordsStrict,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 
 export const fetchRecordsForMonth = async (year: number, month: number): Promise<DailyRecord[]> => {
@@ -55,6 +55,12 @@ export const syncRecordsRange = async (start: string, end: string): Promise<Dail
   const remoteRecords = await getRecordsRangeFromFirestore(start, end);
   if (remoteRecords.length === 0) return [];
 
-  await saveManyToIndexedDB(remoteRecords);
-  return remoteRecords;
+  const result = await saveRecordsStrict(remoteRecords, { preserveUnresolvedWrites: true });
+  if (!result.ok) {
+    throw (
+      result.error ??
+      new Error(result.userSafeMessage ?? 'No fue posible guardar registros locales.')
+    );
+  }
+  return result.records ?? remoteRecords;
 };

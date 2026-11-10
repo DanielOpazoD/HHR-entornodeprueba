@@ -26,6 +26,7 @@ export interface LocalRecordWriteResult {
   error?: unknown;
   userSafeMessage?: string;
   retainedRecord?: DailyRecord;
+  records?: DailyRecord[];
   superseded?: { stored: DailyRecord | null };
 }
 
@@ -285,13 +286,14 @@ export const saveRecord = async (record: DailyRecord): Promise<void> => {
 };
 
 export const saveRecordsStrict = async (
-  records: DailyRecord[]
+  records: DailyRecord[],
+  options: { preserveUnresolvedWrites?: boolean } = {}
 ): Promise<LocalRecordWriteResult> => {
   const dates = records.map(record => record.date);
   try {
     await ensureDbReady();
     if (records.length === 0) {
-      return { ok: true, operation: 'save_many', store: resolveActiveWriteStore(), dates };
+      return { ok: true, operation: 'save_many', store: resolveActiveWriteStore(), dates, records };
     }
 
     const store = resolveActiveWriteStore();
@@ -304,16 +306,36 @@ export const saveRecordsStrict = async (
         operation: 'save',
         dates: records.map(record => record.date),
       });
-      return { ok: true, operation: 'save_many', store, dates };
+      return { ok: true, operation: 'save_many', store, dates, records };
     }
 
-    await db.dailyRecords.bulkPut(records);
-    records.forEach(syncE2ERuntimeRecordMirror);
+    const admittedRecords = options.preserveUnresolvedWrites
+      ? await db.transaction('rw', db.dailyRecords, db.syncQueue, async () => {
+          // One indexed queue lookup and one transaction for the entire downloaded range.
+          const queuedKeys = new Set(
+            await db.syncQueue
+              .where('key')
+              .anyOf(dates.map(date => `daily:${date}`))
+              .uniqueKeys()
+          );
+          const retained = new Map<string, DailyRecord>();
+          for (const record of records) {
+            if (!queuedKeys.has(`daily:${record.date}`)) continue;
+            const admission = await inspectIndexedDbAdmission(record.date);
+            if (admission.status === 'retained_pending')
+              retained.set(record.date, admission.record);
+          }
+          const writable = records.filter(record => !retained.has(record.date));
+          if (writable.length) await db.dailyRecords.bulkPut(writable);
+          return records.map(record => retained.get(record.date) ?? record);
+        })
+      : (await db.dailyRecords.bulkPut(records), records);
+    admittedRecords.forEach(syncE2ERuntimeRecordMirror);
     dispatchDailyRecordStoreChanged({
       operation: 'save',
       dates: records.map(record => record.date),
     });
-    return { ok: true, operation: 'save_many', store, dates };
+    return { ok: true, operation: 'save_many', store, dates, records: admittedRecords };
   } catch (error) {
     recordOperationalErrorTelemetry('indexeddb', 'indexeddb_save_records', error, {
       code: 'indexeddb_save_records_failed',
