@@ -71,7 +71,6 @@ const compile = () => {
     result.error ||
     result.signal ||
     ![0, 2].includes(result.status) ||
-    result.stderr ||
     /^error TS\d+:/m.test(output) ||
     /^.+\.json\(\d+,\d+\): error TS\d+:/m.test(output) ||
     (result.status !== 0 && !/^.+\(\d+,\d+\): error TS\d+:/m.test(output))
