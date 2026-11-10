@@ -61,6 +61,7 @@ export const createPatientMasterRepository = (
       }
     } catch (err) {
       patientMasterRepositoryLogger.error(`Error fetching patient ${normalizedRut}`, err);
+      throw err;
     }
     return null;
   };

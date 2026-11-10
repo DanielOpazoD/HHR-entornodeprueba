@@ -65,6 +65,31 @@ describe('PatientMasterRepository', () => {
     expect(vi.mocked(firestore.getDoc)).not.toHaveBeenCalled();
   });
 
+  it('rejects when the patient index read fails at the SDK boundary', async () => {
+    const failure = new Error('synthetic unavailable');
+    vi.mocked(firestore.getDoc).mockRejectedValueOnce(failure);
+    await expect(injectedRepository.getPatientByRut('11.111.111-1')).rejects.toBe(failure);
+  });
+
+  it('returns null for a confirmed missing patient', async () => {
+    vi.mocked(firestore.getDoc).mockResolvedValueOnce({ exists: () => false } as never);
+    await expect(injectedRepository.getPatientByRut('11.111.111-1')).resolves.toBeNull();
+  });
+
+  it('returns the patient from a successful index read', async () => {
+    const patient: MasterPatient = {
+      rut: '11.111.111-1',
+      fullName: 'Paciente sintético',
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    vi.mocked(firestore.getDoc).mockResolvedValueOnce({
+      exists: () => true,
+      data: () => patient,
+    } as never);
+    await expect(injectedRepository.getPatientByRut(patient.rut)).resolves.toEqual(patient);
+  });
+
   it('upsertPatient skips invalid RUT without writing', async () => {
     const consoleSpies = suppressConsole(['warn']);
 
