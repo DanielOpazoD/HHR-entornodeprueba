@@ -1,3 +1,4 @@
+import { readAuthorizationHeader } from './lib/authorization-header';
 import { safeErrorMessage } from './lib/safe-error-message';
 import { getFirebaseServer } from './lib/firebase-server';
 import { authorizeRoleRequest, extractBearerToken } from './lib/firebase-auth';
@@ -122,12 +123,7 @@ export const createClinicalDocumentAiImportHandler = (
       );
     }
 
-    const authorizationHeader =
-      typeof event.headers?.authorization === 'string'
-        ? event.headers.authorization
-        : typeof event.headers?.Authorization === 'string'
-          ? event.headers.Authorization
-          : undefined;
+    const authorizationHeader = readAuthorizationHeader(event);
 
     let bearerToken: string;
     try {

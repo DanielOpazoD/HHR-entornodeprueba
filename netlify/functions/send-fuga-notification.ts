@@ -1,3 +1,4 @@
+import { readAuthorizationHeader } from './lib/authorization-header';
 import { safeErrorMessage } from './lib/safe-error-message';
 import * as z from 'zod';
 import { sendCensusEmail } from '../../src/services/email/gmailClient';
@@ -76,12 +77,7 @@ export const handler = async (event: NetlifyEventLike) => {
 
   try {
     const { db } = getFirebaseServer();
-    const authorizationHeader =
-      typeof event.headers?.authorization === 'string'
-        ? event.headers.authorization
-        : typeof event.headers?.Authorization === 'string'
-          ? event.headers.Authorization
-          : undefined;
+    const authorizationHeader = readAuthorizationHeader(event);
 
     try {
       extractBearerToken(authorizationHeader);

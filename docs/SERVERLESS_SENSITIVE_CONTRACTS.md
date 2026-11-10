@@ -195,9 +195,6 @@ mismos su pertenencia a un episodio del censo.
 
 ### Exenciones registradas
 
-- `admin-ai-provider-status`: sensible, sin prueba de comportamiento todavía. `GET` y
-  `OPTIONS`, valida origen; `GET` exige Bearer Firebase y `admin`. Sin cuerpo de entrada,
-  devuelve proveedor, disponibilidad y modelo, sin claves. Solo se encontró cobertura estática.
 - `operational-telemetry-retry`: sensible, sin prueba de comportamiento todavía. Tarea
   programada cada cinco minutos mediante `config.schedule`, sin validación propia de Bearer,
   rol ni origen; el acceso privado depende del runtime Netlify. Usa contexto privado para

@@ -220,13 +220,15 @@
       "functionFile": "netlify/functions/admin-ai-provider-test.ts",
       "endpoint": "admin-ai-provider-test",
       "testFiles": ["src/tests/netlify/adminAiProviderTest.test.ts"]
+    },
+    {
+      "id": "admin_ai_provider_status",
+      "functionFile": "netlify/functions/admin-ai-provider-status.ts",
+      "endpoint": "admin-ai-provider-status",
+      "testFiles": ["src/tests/netlify/sharedAuthCharacterization.test.ts"]
     }
   ],
   "exempt": [
-    {
-      "functionFile": "netlify/functions/admin-ai-provider-status.ts",
-      "reason": "sensible, sin prueba de comportamiento todavía; consulta administrativa de disponibilidad y modelos de proveedores IA; solo se encontró cobertura estática."
-    },
     {
       "functionFile": "netlify/functions/operational-telemetry-retry.ts",
       "reason": "sensible, sin prueba de comportamiento todavía; tarea programada que reintenta envíos de alertas con credenciales de runtime; las pruebas existentes cubren la cola y el empaquetado, no esta invocación."

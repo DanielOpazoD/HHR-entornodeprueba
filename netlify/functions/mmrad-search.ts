@@ -1,3 +1,4 @@
+import { readAuthorizationHeader } from './lib/authorization-header';
 import { safeErrorMessage } from './lib/safe-error-message';
 /**
  * mmrad-search Netlify Function
@@ -416,12 +417,7 @@ export const createMMRADSearchHandler = (
       return buildJsonResponse(405, { error: 'Method not allowed' }, { requestOrigin });
     }
 
-    const authorizationHeader =
-      typeof event.headers?.authorization === 'string'
-        ? event.headers.authorization
-        : typeof event.headers?.Authorization === 'string'
-          ? event.headers.Authorization
-          : undefined;
+    const authorizationHeader = readAuthorizationHeader(event);
 
     try {
       dependencies.extractBearerToken(authorizationHeader);

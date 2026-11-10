@@ -1,3 +1,4 @@
+import { readAuthorizationHeader } from './lib/authorization-header';
 import { safeErrorLog, safeErrorMessage } from './lib/safe-error-message';
 import {
   buildCorsHeaders,
@@ -81,12 +82,7 @@ export const createWhatsAppProxyHandler =
     const targetUrl = `${botBaseUrl}${targetPath}${query}`;
 
     try {
-      const authorizationHeader =
-        typeof event.headers?.authorization === 'string'
-          ? event.headers.authorization
-          : typeof event.headers?.Authorization === 'string'
-            ? event.headers.Authorization
-            : undefined;
+      const authorizationHeader = readAuthorizationHeader(event);
 
       try {
         dependencies.extractBearerToken(authorizationHeader);
