@@ -62,6 +62,14 @@ describe('BookmarkBar', () => {
     });
   });
 
+  it('opens the editor through the named inline edit icon', () => {
+    render(<BookmarkBar />);
+    const button = screen.getByRole('button', { name: 'Editar marcador Intranet' });
+    expect(button.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    fireEvent.click(button);
+    expect(screen.getByTestId('bookmark-editor-modal')).toBeInTheDocument();
+  });
+
   it('opens actions menu from configuration button', () => {
     render(<BookmarkBar />);
 

@@ -4,6 +4,17 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { DeliveryRoutePopover } from '@/features/census/components/patient-row/DeliveryRoutePopover';
 
 describe('DeliveryRoutePopover', () => {
+  it('closes through the named icon button without saving', () => {
+    const onSave = vi.fn();
+    render(<DeliveryRoutePopover onSave={onSave} />);
+    fireEvent.click(screen.getByTitle('Vía del parto'));
+    const button = screen.getByRole('button', { name: 'Cerrar' });
+    expect(button.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    fireEvent.click(button);
+    expect(screen.queryByText('Vía del Parto')).not.toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
   it('opens popover and saves selected route/date', () => {
     const onSave = vi.fn();
 
