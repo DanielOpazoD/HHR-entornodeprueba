@@ -109,33 +109,92 @@ describe('telemetry alerts through Blobs SDK and HTTP provider', () => {
       expect(raw).not.toContain(secret);
   };
 
-  it('enforces real SDK ETags and atomic conditional writes, including auth and missing blobs', async () => {
-    const a = createBlobAlertLedgerStore(sdk());
-    const b = createBlobAlertLedgerStore(sdk());
-    expect(await a.read()).toBeNull();
-    const empty = { version: 1 as const, jobs: [], sendTimestamps: [] };
-    expect(
-      (await Promise.all([a.compareAndSet(empty, null), b.compareAndSet(empty, null)])).sort()
-    ).toEqual([false, true]);
-    const first = (await a.read())!;
-    expect(first.etag).toBe('"revision-1"');
-    const writes = await Promise.all([
-      a.compareAndSet({ ...empty, sendTimestamps: [time] }, first.etag),
-      b.compareAndSet({ ...empty, sendTimestamps: [time + 1] }, first.etag),
-    ]);
-    expect(writes.sort()).toEqual([false, true]);
-    expect((await b.read())!.etag).toBe('"revision-2"');
-    expect((await server.receipt())!.version).toBe(2);
-    expect(server.requests.filter(request => request.status === 412)).toHaveLength(2);
-    await expect(createBlobAlertLedgerStore(sdk('incorrect-local-token')).read()).rejects.toThrow();
-    expect((await server.receipt())!.version).toBe(2);
-  });
+  it.each(['normal', 'dropped', 'delayed'] as const)(
+    'enforces real SDK ETags and atomic conditional writes, including auth and missing blobs (%s)',
+    async mode => {
+      server.dropAcknowledgement = mode === 'dropped';
+      server.acknowledgementDelayMs = mode === 'delayed' ? 3_100 : 0;
+      const a = createBlobAlertLedgerStore(sdk());
+      const b = createBlobAlertLedgerStore(sdk());
+      expect(await a.read()).toBeNull();
+      const empty = { version: 1 as const, jobs: [], sendTimestamps: [] };
+      const candidates = [
+        { ...empty, sendTimestamps: [time - 2] },
+        { ...empty, sendTimestamps: [time - 1] },
+      ];
+      const initial = await Promise.all(
+        candidates.map((ledger, i) => [a, b][i].compareAndSet(ledger, null))
+      );
+      // An SDK false can mean lost acknowledgement. The durable winner, ETag and
+      // successful conditional HTTP writes establish atomicity independently of speed.
+      const persisted = (await a.read())!.ledger;
+      expect(
+        initial
+          .map((ack, i) => ack || JSON.stringify(persisted) === JSON.stringify(candidates[i]))
+          .sort()
+      ).toEqual([false, true]);
+      initial.forEach((ack, i) => {
+        if (ack) expect(persisted).toEqual(candidates[i]);
+      });
+      const first = (await a.read())!;
+      expect(first.etag).toBe('"revision-1"');
+      const writes = await Promise.all([
+        a.compareAndSet({ ...empty, sendTimestamps: [time] }, first.etag),
+        b.compareAndSet({ ...empty, sendTimestamps: [time + 1] }, first.etag),
+      ]);
+      const updated = (await b.read())!.ledger;
+      const updates = [
+        { ...empty, sendTimestamps: [time] },
+        { ...empty, sendTimestamps: [time + 1] },
+      ];
+      expect(
+        writes.map((ack, i) => ack || JSON.stringify(updated) === JSON.stringify(updates[i])).sort()
+      ).toEqual([false, true]);
+      writes.forEach((ack, i) => {
+        if (ack) expect(updated).toEqual(updates[i]);
+      });
+      expect((await b.read())!.etag).toBe('"revision-2"');
+      expect((await server.receipt())!.version).toBe(2);
+      expect(
+        server.requests.filter(request => request.method === 'PUT' && request.status === 200)
+      ).toHaveLength(2);
+      expect(
+        server.requests.filter(request => request.status === 412).length
+      ).toBeGreaterThanOrEqual(2);
+      await expect(
+        createBlobAlertLedgerStore(sdk('incorrect-local-token')).read()
+      ).rejects.toThrow();
+      expect((await server.receipt())!.version).toBe(2);
+    }
+  );
+
+  it.each(['enqueue', 'claim', 'receipt'] as const)(
+    'sends once after a lost %s acknowledgement',
+    async stage => {
+      if (stage === 'enqueue') server.dropAcknowledgement = true;
+      const { id } = await queue().enqueue(sanitizedEvent());
+      if (stage === 'claim') server.dropAcknowledgement = true;
+      const send = mailer();
+      const worker = queue(async (...args) => {
+        const result = await send(...args);
+        if (stage === 'receipt') server.dropAcknowledgement = true;
+        return result;
+      });
+      expect((await worker.deliver(id!)).alert).toBe('sent');
+      await queue().drain();
+      expect(server.gmailRequests).toHaveLength(1);
+      expect(await job()).toMatchObject({ state: 'sent', attempts: 1 });
+      await assertSafeReceipt();
+    }
+  );
 
   it.each([401, 404, 409, 500])(
     'rejects HTTP PUT %i without sending or mutating the pending receipt',
     async status => {
+      if (status === 401) server.acknowledgementDelayMs = 3_100;
       const { id } = await queue().enqueue(sanitizedEvent());
       const pending = await server.rawReceipt();
+      const pendingEtag = (await createBlobAlertLedgerStore(sdk()).read())!.etag;
       const before = server.requests.length;
       server.failPut = status;
       await expect(queue().deliver(id!)).rejects.toThrow('alert_blob_transport_rejected');
@@ -145,7 +204,7 @@ describe('telemetry alerts through Blobs SDK and HTTP provider', () => {
       const rejected = server.requests.slice(before).filter(request => request.method === 'PUT');
       expect(rejected.length).toBeGreaterThan(0);
       expect(
-        rejected.every(request => request.status === status && request.condition === '"revision-1"')
+        rejected.every(request => request.status === status && request.condition === pendingEtag)
       ).toBe(true);
       expect((await server.receipt())!.ledger.sendTimestamps).toHaveLength(0);
       await assertSafeReceipt();
