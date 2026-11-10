@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1324,
+  "total": 1322,
   "areas": {
     "src/application/backup-export": 4,
     "src/application/census-email": 2,
@@ -17,7 +17,7 @@
     "src/features/admin": 28,
     "src/features/analytics": 2,
     "src/features/backup": 5,
-    "src/features/census": 36,
+    "src/features/census": 35,
     "src/features/clinical-documents": 16,
     "src/features/clinical-library": 95,
     "src/features/cudyr": 15,
@@ -59,7 +59,6 @@
     "src/services/staff": 8,
     "src/services/storage": 41,
     "src/services/terminology": 2,
-    "src/shared/access": 1,
     "src/shared/date": 4,
     "src/types/auditLogTypes": 1,
     "src/utils/clinicalDateUtils": 4,

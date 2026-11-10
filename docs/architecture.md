@@ -29,10 +29,6 @@ Las escrituras clínicas tienen controles propios que sí deben conservarse:
 - Los efectos del navegador usan `shared/runtime/browserWindowRuntimeCore`; el
   portapapeles usa `browserClipboardRuntime`. No recrear la fachada agregadora
   `browserWindowRuntime` retirada. Los adaptadores y sus fallbacks permanecen.
-- Las reglas puras de rutas/usuario del acceso al censo compartido viven en
-  `shared/access/sharedCensusAccess`, sin importar la fachada clínica del censo
-  desde el arranque. Las reglas de listado/filtro/permisos de sus archivos viven
-  con su caso de uso en `application/backup-export/sharedCensusFilesController`.
 - Se retiraron los aliases huérfanos y los del acceso/archivos/runtime del censo
   compartido. Se conservan tres aliases de formularios/fechas/mover-copiar: su
   migración a la fachada general aumentaba el shell sobre su presupuesto. No

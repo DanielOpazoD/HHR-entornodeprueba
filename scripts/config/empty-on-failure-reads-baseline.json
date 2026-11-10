@@ -5,7 +5,6 @@
     "src/services/repositories/ClinicalDocumentRepository.ts::getBrowserStorage",
     "src/services/repositories/PatientMasterRepository.ts::getAllPatients",
     "src/services/repositories/PatientMasterRepository.ts::searchPatients",
-    "src/services/repositories/PrintTemplateRepository.ts::getTemplate",
     "src/services/repositories/dailyRecordRemotePersistenceController.ts::resolveRemoteAuthorityRecord",
     "src/services/repositories/dailyRecordRepositoryInitializationService.ts::loadRemoteInitializationSeed",
     "src/services/repositories/dailyRecordRepositoryReadService.ts::getE2ELocalStorageRecord",

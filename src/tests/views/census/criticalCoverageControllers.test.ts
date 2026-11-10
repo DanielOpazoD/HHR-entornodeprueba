@@ -2,10 +2,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  buildAuthorizedSharedAccessUser,
-  resolveSharedCensusPathInfo,
-} from '@/shared/access/sharedCensusAccess';
-import {
   buildDefaultFugaAutomaticMessage,
   buildFugaNotificationBody,
   normalizeRecipientList,
@@ -16,43 +12,6 @@ import {
 import { getUndoMovementErrorMessage } from '@/features/census/controllers/patientMovementUndoErrorPresentation';
 
 describe('criticalCoverageControllers', () => {
-  describe('sharedCensusModeController', () => {
-    it('normalizes empty and nested shared census paths', () => {
-      expect(resolveSharedCensusPathInfo('')).toEqual({
-        isSharedCensusMode: false,
-        invitationId: null,
-      });
-      expect(resolveSharedCensusPathInfo('/censo-compartido/')).toEqual({
-        isSharedCensusMode: true,
-        invitationId: null,
-      });
-      expect(resolveSharedCensusPathInfo('/censo-publico/invitacion-1/detalle')).toEqual({
-        isSharedCensusMode: true,
-        invitationId: 'invitacion-1',
-      });
-    });
-
-    it('builds shared access users with normalized email and fallback display name', () => {
-      const now = new Date('2026-03-01T12:00:00.000Z');
-
-      expect(
-        buildAuthorizedSharedAccessUser({
-          uid: 'viewer-1',
-          email: 'Viewer@Hospital.cl',
-          now,
-        })
-      ).toMatchObject({
-        id: 'viewer-1',
-        email: 'viewer@hospital.cl',
-        displayName: 'Viewer',
-        role: 'viewer',
-        createdAt: now,
-        createdBy: 'local-auth',
-        isActive: true,
-      });
-    });
-  });
-
   describe('fugaNotificationPolicyController', () => {
     it('normalizes recipient input from arrays and strings', () => {
       expect(normalizeRecipientList([' A@hospital.cl ', '', 'B@hospital.cl'])).toEqual([

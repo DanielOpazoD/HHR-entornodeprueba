@@ -90,8 +90,7 @@
         "src/components/layout/NavbarTabs.tsx",
         "src/components/layout/StorageStatusBadge.tsx",
         "src/components/layout/app-content/useAppContentEventBridge.ts",
-        "src/components/layout/app-content/useAppContentRuntime.ts",
-        "src/components/ui/DatabaseStatusBanner.tsx"
+        "src/components/layout/app-content/useAppContentRuntime.ts"
       ],
       "tests": "src/tests/components",
       "coverageBaseline": {
