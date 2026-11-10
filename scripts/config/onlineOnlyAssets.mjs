@@ -88,8 +88,9 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
   },
   { glob: '**/assets/fonasaDatabase-*.js', reason: 'Same policy as the entry above.' },
   {
-    glob: '**/assets/clinicalDocumentTemplateEditorController-*.js',
-    reason: 'Same policy as the entry above.',
+    glob: '**/assets/clinical-documents-workspace-*.js',
+    reason:
+      'The clinical documents workspace opens on demand and needs the network for its documents. Its stylesheet remains in the install-time precache.',
   },
   { glob: '**/assets/vendor-heic2any-*.js', reason: 'Same policy as the entry above.' },
   {

@@ -7,12 +7,7 @@ import type {
 import { listActiveClinicalDocumentTemplates } from '@/features/clinical-documents/controllers/clinicalDocumentTemplateController';
 import { buildClinicalDocumentEpisodeContext } from '@/features/clinical-documents/controllers/clinicalDocumentEpisodeController';
 import { hydrateClinicalDocumentWorkspaceRecord } from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
-import {
-  executeListActiveClinicalDocumentTemplates,
-  executeSeedClinicalDocumentTemplates,
-} from '@/application/clinical-documents/clinicalDocumentTemplateUseCases';
 import { subscribeClinicalDocumentsByEpisodeKeys } from '@/application/clinical-documents/clinicalDocumentUseCases';
-import { clinicalDocumentObservability } from '@/features/clinical-documents/services/clinicalDocumentOperationalTelemetry';
 import {
   resolveNextSelectedClinicalDocumentId,
   resolveSelectedClinicalTemplateId,
@@ -46,11 +41,8 @@ export const useClinicalDocumentWorkspaceBootstrap = ({
   isActive,
   canRead,
   hospitalId,
-  role,
 }: UseClinicalDocumentWorkspaceBootstrapParams): ClinicalDocumentWorkspaceBootstrapState => {
-  const [templates, setTemplates] = useState<ClinicalDocumentTemplate[]>(
-    listActiveClinicalDocumentTemplates()
-  );
+  const templates = useMemo(() => listActiveClinicalDocumentTemplates(), []);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('epicrisis');
   const [documentsState, setDocumentsState] = useState<{
     episodeKey: string;
@@ -90,59 +82,6 @@ export const useClinicalDocumentWorkspaceBootstrap = ({
     },
     [episode.episodeKey]
   );
-
-  useEffect(() => {
-    if (!isActive || !canRead) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadTemplates = async () => {
-      const remoteTemplatesOutcome = await executeListActiveClinicalDocumentTemplates(hospitalId);
-      clinicalDocumentObservability.recordOutcome(
-        'list_clinical_document_templates',
-        remoteTemplatesOutcome,
-        {
-          date: currentDateString,
-          context: { hospitalId },
-        }
-      );
-      if (cancelled) {
-        return;
-      }
-      if (remoteTemplatesOutcome.status !== 'success') {
-        setTemplates(listActiveClinicalDocumentTemplates());
-        return;
-      }
-      const remoteTemplates = remoteTemplatesOutcome.data;
-      setTemplates(remoteTemplates);
-      if (role !== 'admin' || remoteTemplates.length !== 0) {
-        return;
-      }
-
-      const outcome = await executeSeedClinicalDocumentTemplates(hospitalId);
-      clinicalDocumentObservability.recordOutcome('seed_clinical_document_templates', outcome, {
-        date: currentDateString,
-        context: { hospitalId },
-        allowSuccess: true,
-      });
-      if (cancelled) {
-        return;
-      }
-      if (outcome.status === 'failed') {
-        setTemplates(listActiveClinicalDocumentTemplates());
-        return;
-      }
-      setTemplates(outcome.data);
-    };
-
-    void loadTemplates();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [canRead, currentDateString, hospitalId, isActive, role]);
 
   useEffect(() => {
     if (!isActive || !canRead) {

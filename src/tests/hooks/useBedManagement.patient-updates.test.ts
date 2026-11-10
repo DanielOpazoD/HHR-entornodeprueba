@@ -3,10 +3,7 @@ import { renderHook, act } from '@testing-library/react';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { PATIENT_CLINICAL_AUDIT_DEBOUNCE_MS } from '@/hooks/useBedAudit';
 import { useBedManagement } from '@/hooks/useBedManagement';
-import type {
-  DailyRecord,
-  PersistDailyRecord,
-} from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 import type { PatientData } from '@/types/domain/patient';
 import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
 import { mockAuditContextValue } from '../setup';
@@ -40,7 +37,6 @@ vi.mock('@/services/admin/attributionService', () => ({
 }));
 
 describe('useBedManagement patient updates', () => {
-  const mockSaveAndUpdate = vi.fn().mockResolvedValue(undefined) as PersistDailyRecord;
   const mockPatchRecord = vi.fn().mockResolvedValue(undefined);
 
   const runBedAction = async (action: () => void) => {
@@ -90,9 +86,7 @@ describe('useBedManagement patient updates', () => {
       const patient = createMockPatient('R1');
       const record = createMockRecord({ R1: patient });
 
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       act(() => {
         result.current.updatePatient('R1', 'age', '50');
@@ -107,9 +101,7 @@ describe('useBedManagement patient updates', () => {
       const emptyPatient = createEmptyPatient('R1');
       const record = createMockRecord({ R1: emptyPatient });
 
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       await runBedAction(() => result.current.updatePatient('R1', 'patientName', 'New Name'));
 
@@ -120,9 +112,7 @@ describe('useBedManagement patient updates', () => {
       const patient = createMockPatient('R1', { patientName: 'Old Name' });
       const record = createMockRecord({ R1: patient });
 
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       await runBedAction(() => result.current.updatePatient('R1', 'patientName', 'New Name'));
 
@@ -142,9 +132,7 @@ describe('useBedManagement patient updates', () => {
       const patient = createMockPatient('R1');
       const record = createMockRecord({ R1: patient });
 
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       await runBedAction(() => result.current.updatePatient('R1', 'status', PatientStatus.GRAVE));
 
@@ -173,9 +161,7 @@ describe('useBedManagement patient updates', () => {
       });
       const record = createMockRecord({ R1: patient });
 
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       await runBedAction(() =>
         result.current.updatePatient('R1', 'deviceDetails', {
@@ -192,9 +178,7 @@ describe('useBedManagement patient updates', () => {
       const record = createMockRecord({ R1: patient });
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       act(() => {
         result.current.updatePatient('R1', 'admissionDate', '2099-01-01');
@@ -209,9 +193,7 @@ describe('useBedManagement patient updates', () => {
       const patient = createMockPatient('R1');
       const record = createMockRecord({ R1: patient });
 
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       await act(async () => {
         result.current.updatePatientMultiple('R1', {
@@ -239,9 +221,7 @@ describe('useBedManagement patient updates', () => {
       });
       const record = createMockRecord({ R1: patient });
 
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       act(() => {
         result.current.updatePatientMultiple('R1', {
@@ -272,9 +252,7 @@ describe('useBedManagement patient updates', () => {
   describe('clinical crib helpers', () => {
     it('handles updateClinicalCrib create', () => {
       const record = createMockRecord({ R1: createMockPatient('R1') });
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       act(() => {
         result.current.updateClinicalCrib('R1', 'create');
@@ -287,9 +265,7 @@ describe('useBedManagement patient updates', () => {
       });
       const record = createMockRecord({ R1: patient });
 
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       act(() => {
         result.current.updateClinicalCribMultiple('R1', {
@@ -309,9 +285,7 @@ describe('useBedManagement patient updates', () => {
         clinicalCrib: { patientName: 'Baby', rut: '1-1' } as PatientData,
       });
       const record = createMockRecord({ R1: patient });
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       await act(async () => {
         await result.current.updateClinicalCrib('R1', 'remove', undefined, record.lastUpdated, {

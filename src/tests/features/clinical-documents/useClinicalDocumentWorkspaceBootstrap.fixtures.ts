@@ -18,23 +18,6 @@ export const localTemplate: ClinicalDocumentTemplate = {
   defaultFooterEspecialidadLabel: 'Especialidad',
 };
 
-export const remoteTemplate: ClinicalDocumentTemplate = {
-  id: 'evolucion',
-  name: 'Evolucion remota',
-  title: 'Evolución',
-  version: 1,
-  patientFields: [],
-  sections: [],
-  allowCustomTitle: false,
-  allowAddSection: false,
-  allowClinicalUpdateSections: false,
-  status: 'active',
-  documentType: 'evolucion',
-  defaultPatientInfoTitle: 'Información del paciente',
-  defaultFooterMedicoLabel: 'Médico',
-  defaultFooterEspecialidadLabel: 'Especialidad',
-};
-
 export const patient: {
   patientName: string;
   rut: string;

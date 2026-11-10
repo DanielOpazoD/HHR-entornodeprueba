@@ -54,6 +54,23 @@ export const isRetryableError = (
   return retryableErrors.some(code => errorCode.includes(code));
 };
 
+// Only these diagnostic fields belong in a local cause; never spread the thrown object.
+const buildLocalCause = (cause: unknown): unknown => {
+  if (typeof cause === 'string') return cause.slice(0, 1000);
+  if (cause === null || typeof cause === 'boolean' || typeof cause === 'number') return cause;
+  if (typeof cause !== 'object') return typeof cause;
+  const summary: Record<string, string> = {};
+  for (const key of ['name', 'message', 'code'] as const) {
+    try {
+      const value: unknown = Reflect.get(cause, key);
+      if (typeof value === 'string') summary[key] = value.slice(0, key === 'message' ? 1000 : 128);
+    } catch {
+      // A throwing diagnostic getter must not prevent recording the failure.
+    }
+  }
+  return summary;
+};
+
 export const buildErrorLog = ({
   message,
   severity,
@@ -70,7 +87,10 @@ export const buildErrorLog = ({
   stack: stack || (error instanceof Error ? error.stack : undefined),
   userId,
   userEmail,
-  context,
+  context:
+    error !== undefined || (context && 'reason' in context)
+      ? { ...context, reason: buildLocalCause(error !== undefined ? error : context?.reason) }
+      : context,
   userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
   url: typeof window !== 'undefined' ? window.location.href : undefined,
 });
