@@ -209,10 +209,11 @@ describe('chunkingPolicy', () => {
       requiredDynamicImport: "import('@/services/user-profile/userAvatarProfileService')",
     },
     {
-      label: 'census email delivery use cases',
+      label: 'census email delivery runtime',
       sourcePath: 'src/hooks/useCensusEmailDeliveryActions.ts',
-      forbiddenStaticImport: /from ['"]@\/application\/census-email\/sendCensusEmailUseCases['"]/,
-      requiredDynamicImport: "import('@/application/census-email/sendCensusEmailUseCases')",
+      forbiddenStaticImport:
+        /from ['"]@\/(?:application\/census-email\/sendCensusEmailUseCases|hooks\/controllers\/censusEmailDeliveryRuntime)['"]/,
+      requiredDynamicImport: "import('@/hooks/controllers/censusEmailDeliveryRuntime')",
     },
     {
       label: 'DateStrip SaveDropdown',

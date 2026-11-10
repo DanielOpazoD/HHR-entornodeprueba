@@ -9,7 +9,6 @@ import type {
   ApplyDailyRecordPatch,
   DailyRecord,
   DailyRecordPatch,
-  PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
 import type { DailyRecordBedsState } from '@/application/shared/dailyRecordBedContracts';
 import { PatientData } from '@/hooks/contracts/patientHookContracts';
@@ -37,7 +36,6 @@ export interface ClinicalCribActions {
 
 export const useClinicalCrib = (
   record: (DailyRecordBedsState & Pick<DailyRecord, 'lastUpdated'>) | null,
-  _saveAndUpdate: PersistDailyRecord,
   patchRecord: ApplyDailyRecordPatch
 ): ClinicalCribActions => {
   /**

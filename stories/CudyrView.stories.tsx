@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { CudyrView } from '@/application/cudyr/public';
+import { CudyrView } from '@/features/cudyr/public';
 import { createMockDailyRecord } from './censusMocks';
 import { StoryContextWrapper } from './StoryContextWrapper';
 

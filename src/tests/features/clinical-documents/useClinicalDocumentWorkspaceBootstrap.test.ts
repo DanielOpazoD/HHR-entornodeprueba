@@ -2,14 +2,12 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useClinicalDocumentWorkspaceBootstrap } from '@/features/clinical-documents/hooks/useClinicalDocumentWorkspaceBootstrap';
-import * as templateUseCases from '@/application/clinical-documents/clinicalDocumentTemplateUseCases';
 import * as clinicalDocumentUseCases from '@/application/clinical-documents/clinicalDocumentUseCases';
 
 import {
   buildDocument,
   localTemplate,
   patient,
-  remoteTemplate,
 } from './useClinicalDocumentWorkspaceBootstrap.fixtures';
 
 const controllerMocks = vi.hoisted(() => ({
@@ -30,17 +28,6 @@ vi.mock('@/features/clinical-documents/controllers/clinicalDocumentWorkspaceCont
   hydrateClinicalDocumentWorkspaceRecord: controllerMocks.hydrateClinicalDocumentWorkspaceRecord,
 }));
 
-vi.mock('@/application/clinical-documents/clinicalDocumentTemplateUseCases', async () => {
-  const actual = await vi.importActual<
-    typeof import('@/application/clinical-documents/clinicalDocumentTemplateUseCases')
-  >('@/application/clinical-documents/clinicalDocumentTemplateUseCases');
-  return {
-    ...actual,
-    executeListActiveClinicalDocumentTemplates: vi.fn(),
-    executeSeedClinicalDocumentTemplates: vi.fn(),
-  };
-});
-
 vi.mock('@/application/clinical-documents/clinicalDocumentUseCases', async () => {
   const actual = await vi.importActual<
     typeof import('@/application/clinical-documents/clinicalDocumentUseCases')
@@ -54,8 +41,6 @@ vi.mock('@/application/clinical-documents/clinicalDocumentUseCases', async () =>
 describe('useClinicalDocumentWorkspaceBootstrap', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(templateUseCases.executeListActiveClinicalDocumentTemplates).mockReset();
-    vi.mocked(templateUseCases.executeSeedClinicalDocumentTemplates).mockReset();
     controllerMocks.listActiveClinicalDocumentTemplates.mockReturnValue([localTemplate]);
     controllerMocks.buildClinicalDocumentEpisodeContext.mockReturnValue({
       episodeKey: '11.111.111-1__2026-03-06',
@@ -64,16 +49,6 @@ describe('useClinicalDocumentWorkspaceBootstrap', () => {
       specialty: 'Medicina',
     });
     controllerMocks.hydrateClinicalDocumentWorkspaceRecord.mockImplementation(document => document);
-    vi.mocked(templateUseCases.executeListActiveClinicalDocumentTemplates).mockResolvedValue({
-      status: 'success',
-      data: [remoteTemplate],
-      issues: [],
-    });
-    vi.mocked(templateUseCases.executeSeedClinicalDocumentTemplates).mockResolvedValue({
-      status: 'success',
-      data: [localTemplate],
-      issues: [],
-    });
     vi.mocked(clinicalDocumentUseCases.subscribeClinicalDocumentsByEpisodeKeys).mockImplementation(
       (_episodeKeys, callback) => {
         callback([buildDocument()]);
@@ -99,11 +74,10 @@ describe('useClinicalDocumentWorkspaceBootstrap', () => {
 
     await Promise.resolve();
 
-    expect(templateUseCases.executeListActiveClinicalDocumentTemplates).not.toHaveBeenCalled();
     expect(clinicalDocumentUseCases.subscribeClinicalDocumentsByEpisodeKeys).not.toHaveBeenCalled();
   });
 
-  it('loads remote templates and hydrates subscription documents', async () => {
+  it('uses fixed templates and hydrates subscription documents', async () => {
     const { result } = renderHook(() =>
       useClinicalDocumentWorkspaceBootstrap({
         patient: patient as never,
@@ -117,7 +91,7 @@ describe('useClinicalDocumentWorkspaceBootstrap', () => {
     );
 
     await waitFor(() => {
-      expect(result.current.templates).toEqual([remoteTemplate]);
+      expect(result.current.templates).toEqual([localTemplate]);
       expect(result.current.documents).toHaveLength(1);
       expect(result.current.selectedDocumentId).toBe(result.current.documents[0]?.id);
     });

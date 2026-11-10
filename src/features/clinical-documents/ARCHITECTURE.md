@@ -5,7 +5,7 @@
 - `ClinicalDocumentSheet` no debe incorporar lógica especial nueva por `documentType` o `section.id`.
 - Toda sección especializada debe registrarse en `src/domain/clinical-documents/definitions.ts` y resolverse por renderer registrado.
 - Toda compatibilidad legacy o migración de shape debe pasar por `application/ports/clinicalDocumentCompatibilityPort.ts`.
-- Todo documento o template leído/persistido debe pasar por contratos runtime.
+- Todo documento leído/persistido debe pasar por contratos runtime.
 - Los tipos y el esquema de sección tienen un único dueño en
   `src/domain/clinical-documents`; el feature los reutiliza. La distribución
   explícita `structured`/`unified` se conserva al guardar y leer, incluso con
@@ -23,12 +23,10 @@
 
 ## Catálogo de plantillas
 
-- El bootstrap resuelve lectura y seed dentro de un único ciclo por contexto. Un error
-  de lectura conserva el respaldo local y no equivale a un catálogo remoto vacío.
-- Solo un listado exitoso y vacío habilita seed para un administrador con lectura y
-  workspace activo. No se mantienen contadores ni marcas de carga fuera de ese ciclo.
-- Cambiar hospital, rol, actividad o permiso de lectura invalida las respuestas pendientes.
-  Una escritura iniciada conserva su destino original, pero no publica una respuesta obsoleta.
+- La lista fija vive en `domain/rules.ts` del feature y se ofrece de forma síncrona.
+- `name` conserva el nombre del selector y `title` el título del borrador; pueden diferir.
+- No hay lectura, edición ni siembra remota de plantillas. Los documentos guardados
+  conservan sus contratos runtime y su compatibilidad.
 
 ## Editor de texto enriquecido (rich text)
 

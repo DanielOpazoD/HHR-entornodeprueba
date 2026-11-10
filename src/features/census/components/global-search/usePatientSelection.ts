@@ -1,3 +1,4 @@
+import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
 /**
  * usePatientSelection
  *
@@ -29,26 +30,13 @@ import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRunti
 // Lazy loaders
 // ---------------------------------------------------------------------------
 
-let patientHistoryPromise: Promise<
-  typeof import('@/services/patient/patientHistoryService')
-> | null = null;
-let clinicalDocRepoPromise: Promise<
-  typeof import('@/services/repositories/ClinicalDocumentRepository')
-> | null = null;
-let clinicalDocPdfPromise: Promise<typeof import('@/features/clinical-documents')> | null = null;
-
-const loadPatientHistory = () => {
-  patientHistoryPromise ??= import('@/services/patient/patientHistoryService');
-  return patientHistoryPromise;
-};
-const loadClinicalDocRepo = () => {
-  clinicalDocRepoPromise ??= import('@/services/repositories/ClinicalDocumentRepository');
-  return clinicalDocRepoPromise;
-};
-const loadClinicalDocPdf = () => {
-  clinicalDocPdfPromise ??= import('@/features/clinical-documents');
-  return clinicalDocPdfPromise;
-};
+const loadPatientHistory = createCachedRuntimeLoader(
+  () => import('@/services/patient/patientHistoryService')
+);
+const loadClinicalDocRepo = createCachedRuntimeLoader(
+  () => import('@/services/repositories/ClinicalDocumentRepository')
+);
+const loadClinicalDocPdf = createCachedRuntimeLoader(() => import('@/features/clinical-documents'));
 
 // ---------------------------------------------------------------------------
 // Helpers

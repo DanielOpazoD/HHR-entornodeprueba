@@ -13,7 +13,11 @@ export const PRECACHE_STATIC_IMPORT_EXCEPTIONS = [
   { name: 'vendor-dicom-vtk', reason: 'Optional imaging renderer and codecs.' },
   { name: 'dicomTypes', reason: 'Shared runtime contracts for the optional imaging viewer.' },
   { name: 'vendor-excel-zip', reason: 'Optional Excel archive generation runtime.' },
-  { name: 'clinicalDocumentTemplateEditorController', reason: 'Online document template editing.' },
+  {
+    name: 'clinical-documents-workspace',
+    reason:
+      'The clinical documents workspace opens on demand and needs the network for its documents; it is outside offline census startup.',
+  },
   { name: 'healthService', reason: 'Optional operational diagnostics.' },
   { name: 'cudyrReportModel', reason: 'Optional historical CUDYR report.' },
   { name: 'CudyrReportExplorer', reason: 'Optional historical CUDYR explorer.' },

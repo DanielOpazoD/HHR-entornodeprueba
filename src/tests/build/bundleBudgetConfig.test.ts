@@ -137,7 +137,6 @@ describe('bundle budget config', () => {
         '^assets/vendor-canvas-.*\\.js$',
         '^assets/terminologyService-.*\\.js$',
         '^assets/fonasaDatabase-.*\\.js$',
-        '^assets/clinicalDocumentTemplateEditorController-.*\\.js$',
         '^assets/vendor-heic2any-.*\\.js$',
         '^assets/applyClinicalEnrichmentBatch-.*\\.js$',
         '^assets/applyHistoricalCudyr-.*\\.js$',
