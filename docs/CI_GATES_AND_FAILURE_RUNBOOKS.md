@@ -291,7 +291,6 @@ Usar antes de release o para validar cambios con impacto en Firestore, emuladore
 Incluye:
 
 - `npm run ci:merge-gate`
-- `npm run check:daily-record-authority-release-gate`
 - `npm run release:evidence:refresh`
 - `npm run check:release-evidence`
 - `npm run test:firestore:release:ci`
@@ -317,7 +316,6 @@ Debe seguir cubriendo:
 - `test:e2e:critical:ci`
 
 El script extendido `test:release-confidence:full` agrega `test:unit:critical` cuando se quiere una corrida más profunda o diagnóstica.
-La trazabilidad obligatoria por área crítica vive en `scripts/config/release-confidence-matrix.json` y se valida con `npm run check:release-confidence-matrix`.
 El ownership técnico por subsistema crítico vive en `scripts/config/technical-ownership-map.json` y se valida con `npm run check:technical-ownership-map`.
 El scorecard ejecutivo consolidado vive en `reports/release-readiness-scorecard.md` y se regenera con `npm run report:release-readiness-scorecard`.
 La política formal de upgrades, excepciones y tipos de cambio vive en `scripts/config/sustainable-change-policy.json` y se valida con `npm run check:sustainable-change-policy`.
@@ -354,7 +352,7 @@ Salida esperada:
 - reglas, emulador sync y E2E críticos verdes en la misma corrida;
 - sin duplicar en la ruta por defecto checks que ya quedan cubiertos por smoke/E2E críticos.
 
-### Falla `check:release-confidence-matrix`
+### Falla la prueba de matriz de confianza
 
 1. correr `npm run report:release-confidence-matrix`
 2. revisar `reports/release-confidence-matrix.md`

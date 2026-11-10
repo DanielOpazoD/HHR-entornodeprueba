@@ -1,3 +1,4 @@
+import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -201,6 +202,7 @@ export const usePostDeployRecentRecordRefresh = ({
   refetch,
   runRemoteSync,
 }: UsePostDeployRecentRecordRefreshParams) => {
+  const sessionEpoch = useSessionEpoch();
   const attemptedMarkerSignatureRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -213,7 +215,7 @@ export const usePostDeployRecentRecordRefresh = ({
       return;
     }
 
-    const markerSignature = `${marker.fromVersion}->${marker.toVersion}:${marker.createdAt}`;
+    const markerSignature = `${sessionEpoch}:${marker.fromVersion}->${marker.toVersion}:${marker.createdAt}`;
     if (attemptedMarkerSignatureRef.current === markerSignature) {
       return;
     }
@@ -225,6 +227,12 @@ export const usePostDeployRecentRecordRefresh = ({
       readMarker: () => marker,
       syncRemoteRecord: runRemoteSync,
     }).then(result => {
+      if (
+        result.status !== 'completed' &&
+        attemptedMarkerSignatureRef.current === markerSignature
+      ) {
+        attemptedMarkerSignatureRef.current = null;
+      }
       if (cancelled || result.status !== 'completed') {
         return;
       }
@@ -235,5 +243,5 @@ export const usePostDeployRecentRecordRefresh = ({
     return () => {
       cancelled = true;
     };
-  }, [refetch, remoteSyncStatus, runRemoteSync]);
+  }, [refetch, remoteSyncStatus, runRemoteSync, sessionEpoch]);
 };

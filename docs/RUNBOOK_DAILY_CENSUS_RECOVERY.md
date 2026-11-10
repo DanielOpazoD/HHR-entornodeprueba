@@ -113,7 +113,6 @@ Para cierre de PR:
 ```bash
 npm run typecheck
 npm run lint:strict:core
-npm run check:daily-record-truth-contract
 npm run check:quality:group -- size
 npm run check:quality:group -- tests
 ```
