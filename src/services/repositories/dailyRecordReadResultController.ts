@@ -139,7 +139,7 @@ export const createGoldenPathReadResult = (
 
 export const createNotFoundDailyRecordReadResult = (
   date: string,
-  remoteAvailability: 'missing' | 'not_requested'
+  remoteAvailability: 'missing' | 'not_requested' | 'unavailable'
 ): DailyRecordReadResult =>
   createDailyRecordReadResult(date, null, 'not_found', {
     ...resolveDailyRecordReadConsistency({

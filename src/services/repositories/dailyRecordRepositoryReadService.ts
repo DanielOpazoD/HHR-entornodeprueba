@@ -248,6 +248,7 @@ export const getMonthRecords = async (
 
 export const getPreviousDay = async (date: string): Promise<DailyRecord | null> => {
   const result = await getPreviousDayWithMeta(date);
+  // Pending product decision: preserve nullable handoff fallback on unavailable lookup.
   return result.record;
 };
 
@@ -273,6 +274,7 @@ export const getPreviousDayWithMeta = async (date: string): Promise<DailyRecordR
       }
     } catch (err) {
       dailyRecordReadLogger.warn(`Remote previous-day lookup failed for ${query.date}`, err);
+      return createNotFoundDailyRecordReadResult(query.date, 'unavailable');
     }
   }
 
