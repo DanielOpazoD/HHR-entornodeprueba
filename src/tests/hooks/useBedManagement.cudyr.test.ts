@@ -1,10 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useBedManagement } from '@/hooks/useBedManagement';
-import type {
-  DailyRecord,
-  PersistDailyRecord,
-} from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 import type { PatientData } from '@/types/domain/patient';
 import type { CudyrScore } from '@/types/domain/cudyr';
 import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
@@ -39,7 +36,6 @@ vi.mock('@/services/admin/attributionService', () => ({
 }));
 
 describe('useBedManagement CUDYR updates', () => {
-  const mockSaveAndUpdate = vi.fn().mockResolvedValue(undefined) as PersistDailyRecord;
   const mockPatchRecord = vi.fn().mockResolvedValue(undefined);
 
   const runBedAction = async (action: () => void) => {
@@ -115,9 +111,7 @@ describe('useBedManagement CUDYR updates', () => {
     const patient = createMockPatient('R1');
     const record = createMockRecord({ R1: patient });
 
-    const { result } = renderHook(() =>
-      useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-    );
+    const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
     await runBedAction(() => result.current.updateCudyr('R1', 'changeClothes', 3));
 
@@ -148,9 +142,7 @@ describe('useBedManagement CUDYR updates', () => {
     });
     const record = createMockRecord({ R1: patient });
 
-    const { result } = renderHook(() =>
-      useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-    );
+    const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
     await runBedAction(() =>
       result.current.updateCudyrMultiple('R1', {
@@ -208,9 +200,7 @@ describe('useBedManagement CUDYR updates', () => {
     });
     const record = createMockRecord({ R1: patient, R2: secondPatient });
 
-    const { result } = renderHook(() =>
-      useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-    );
+    const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
     await act(async () => {
       await result.current.updateCudyrBatch({
@@ -247,9 +237,7 @@ describe('useBedManagement CUDYR updates', () => {
       }),
     });
 
-    const { result } = renderHook(() =>
-      useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-    );
+    const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
     await act(async () => {
       await result.current.updateCudyrBatch({
@@ -276,9 +264,7 @@ describe('useBedManagement CUDYR updates', () => {
         cudyr: { ...completeCudyr(), changeClothes: undefined as never },
       }),
     });
-    const { result } = renderHook(() =>
-      useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-    );
+    const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
     await act(async () => {
       await result.current.updateCudyrBatch({
@@ -308,9 +294,7 @@ describe('useBedManagement CUDYR updates', () => {
 
   it('rejects a CUDYR batch whose shift owner differs from the record receiving scores', async () => {
     const record = createMockRecord({ R1: createMockPatient('R1') });
-    const { result } = renderHook(() =>
-      useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-    );
+    const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
     await expect(
       result.current.updateCudyrBatch({
@@ -328,9 +312,7 @@ describe('useBedManagement CUDYR updates', () => {
 
   it('rejects unattributed batch completion attempts at the mutation boundary', async () => {
     const record = createMockRecord({ R1: createMockPatient('R1') });
-    const { result } = renderHook(() =>
-      useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-    );
+    const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
     await expect(
       result.current.updateCudyrBatch({ beds: { R1: { changeClothes: 2 } } } as never)
@@ -343,9 +325,7 @@ describe('useBedManagement CUDYR updates', () => {
       ...createMockRecord({ R1: createMockPatient('R1') }),
       cudyrLocked: true,
     };
-    const { result } = renderHook(() =>
-      useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-    );
+    const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
     await runBedAction(() => result.current.updateCudyr('R1', 'changeClothes', 2));
     expect(mockPatchRecord).not.toHaveBeenCalled();
@@ -356,9 +336,7 @@ describe('useBedManagement CUDYR updates', () => {
       ...createMockRecord({ R1: createMockPatient('R1') }),
       cudyrLocked: true,
     };
-    const { result } = renderHook(() =>
-      useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-    );
+    const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
     await expect(
       result.current.updateCudyrBatch({
@@ -379,9 +357,7 @@ describe('useBedManagement CUDYR updates', () => {
     vi.setSystemTime(new Date('2026-03-23T10:35:00.000Z'));
     const record = createMockRecord({ R1: createMockPatient('R1') });
 
-    const { result } = renderHook(() =>
-      useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-    );
+    const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
     await act(async () => {
       await result.current.updateCudyrBatch({
@@ -405,9 +381,7 @@ describe('useBedManagement CUDYR updates', () => {
   it('reports whether CUDYR batch persistence was confirmed', async () => {
     const record = createMockRecord({ R1: createMockPatient('R1') });
 
-    const { result } = renderHook(() =>
-      useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-    );
+    const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
     await expect(
       result.current.updateCudyrBatch({
@@ -438,9 +412,7 @@ describe('useBedManagement CUDYR updates', () => {
     });
     const record = createMockRecord({ R1: patient });
 
-    const { result } = renderHook(() =>
-      useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-    );
+    const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
     act(() => {
       result.current.updateCudyr('R1', 'changeClothes', 3);
@@ -458,9 +430,7 @@ describe('useBedManagement CUDYR updates', () => {
     });
     const record = createMockRecord({ R1: patient });
 
-    const { result } = renderHook(() =>
-      useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-    );
+    const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
     await runBedAction(() => result.current.updateClinicalCribCudyr('R1', 'feeding', 2));
 

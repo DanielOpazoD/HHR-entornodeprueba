@@ -2,7 +2,6 @@ import { useCallback, useRef, useEffect } from 'react';
 import type {
   ApplyDailyRecordPatch,
   DailyRecord,
-  PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
 import { PatientData } from '@/hooks/contracts/patientHookContracts';
 import type { CudyrBatchUpdate, CudyrScore, CudyrScorePatch } from '@/types/domain/cudyr';
@@ -116,7 +115,6 @@ export interface BedManagementActions {
  */
 export const useBedManagement = (
   record: DailyRecord | null,
-  _saveAndUpdate: PersistDailyRecord, // Kept for legacy compat
   patchRecord: ApplyDailyRecordPatch,
   // Injected from a layer that has the UI + audit providers (the authenticated
   // runtime). Optional so lower-level tests can render this hook without them.
