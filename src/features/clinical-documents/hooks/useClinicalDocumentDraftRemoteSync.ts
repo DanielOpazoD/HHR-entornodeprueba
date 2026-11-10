@@ -5,7 +5,7 @@ import {
   resolveClinicalDocumentDraftLoad,
   type ClinicalDocumentDraftLoadResolution,
 } from '@/application/clinical-documents/clinicalDocumentEditorUseCases';
-import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import {
   resolveClinicalDocumentDraftLoadAction,
   shouldApplyClinicalDocumentPendingRemoteUpdate,

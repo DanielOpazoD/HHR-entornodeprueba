@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   assertClinicalDocumentDefinitionRegistryIntegrity,
   getClinicalDocumentDefinitionRegistryIntegrity,
-} from '@/features/clinical-documents/domain/definitions';
+} from '@/domain/clinical-documents/definitions';
 
 describe('clinicalDocumentDefinitionRegistry', () => {
   it('has a valid definition for every supported document type', () => {

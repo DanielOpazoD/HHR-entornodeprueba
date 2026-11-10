@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 
-import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import { validateClinicalDocument } from '@/features/clinical-documents/controllers/clinicalDocumentValidationController';
 import {
   hydrateClinicalDocumentWorkspaceRecord,
@@ -47,7 +47,7 @@ export interface ClinicalDocumentWorkspaceDraftState {
   patchSectionTitle: (sectionId: string, title: string) => void;
   setSectionLayout: (
     sectionId: string,
-    layout: import('@/features/clinical-documents/domain/entities').ClinicalDocumentSectionLayout
+    layout: import('@/domain/clinical-documents/entities').ClinicalDocumentSectionLayout
   ) => void;
   setSectionVisibility: (sectionId: string, visible: boolean) => void;
   moveSection: (sectionId: string, direction: 'up' | 'down') => void;
@@ -68,7 +68,7 @@ export interface ClinicalDocumentWorkspaceDraftState {
   setAnnexIncludedInPrint: (included: boolean) => void;
   clearAnnexContent: () => void;
   patchIeehDraft: (
-    draft: import('@/features/clinical-documents/domain/entities').ClinicalDocumentIeehDraft
+    draft: import('@/application/shared/ieehContracts').ClinicalDocumentIeehDraft
   ) => void;
   clearIeehDraft: () => void;
   patchUpdateDate: (sectionId: string, date: string) => void;

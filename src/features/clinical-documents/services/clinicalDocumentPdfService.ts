@@ -1,4 +1,4 @@
-import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import { formatDateToCL } from '@/utils/clinicalUtils';
 import { generateClinicalDocumentPrintStyledPdfBlob } from '@/features/clinical-documents/services/clinicalDocumentPrintPdfService';
 import { stripClinicalDocumentHtml } from '@/features/clinical-documents/controllers/clinicalDocumentRichTextController';

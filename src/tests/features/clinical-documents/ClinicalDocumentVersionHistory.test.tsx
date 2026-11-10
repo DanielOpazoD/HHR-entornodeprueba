@@ -3,7 +3,7 @@ import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ClinicalDocumentVersionHistory } from '@/features/clinical-documents/components/ClinicalDocumentVersionHistory';
-import type { ClinicalDocumentVersionMeta } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentVersionMeta } from '@/domain/clinical-documents/entities';
 
 const actor = {
   uid: 'u1',

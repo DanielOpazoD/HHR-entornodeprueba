@@ -1,8 +1,6 @@
-import type {
-  ClinicalDocumentIeehDraft,
-  ClinicalDocumentType,
-} from '@/features/clinical-documents/domain/entities';
-import { getClinicalDocumentDefinition } from '@/features/clinical-documents/domain/definitions';
+import type { ClinicalDocumentIeehDraft } from '@/application/shared/ieehContracts';
+import type { ClinicalDocumentType } from '@/domain/clinical-documents/entities';
+import { getClinicalDocumentDefinition } from '@/domain/clinical-documents/definitions';
 import { escapeHtml } from '@/utils/htmlEscape';
 import {
   applyClinicalDocumentAnnexPrintMode,

@@ -1,7 +1,7 @@
 import type {
   ClinicalDocumentRecord,
   ClinicalDocumentVersionSectionSnapshot,
-} from '@/features/clinical-documents/domain/entities';
+} from '@/domain/clinical-documents/entities';
 
 export interface ClinicalDocumentsSidebarTemplateOption {
   id: string;

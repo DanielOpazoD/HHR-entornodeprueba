@@ -1,7 +1,7 @@
 import type {
   ClinicalDocumentRecord,
   ClinicalDocumentValidationIssue,
-} from '@/features/clinical-documents/domain/entities';
+} from '@/domain/clinical-documents/entities';
 
 /**
  * Validates a clinical document for completeness before signing or exporting.

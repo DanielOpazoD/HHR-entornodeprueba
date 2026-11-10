@@ -1,7 +1,7 @@
 import type {
   ClinicalDocumentTemplate,
   ClinicalDocumentType,
-} from '@/features/clinical-documents/domain/entities';
+} from '@/domain/clinical-documents/entities';
 import { CLINICAL_DOCUMENT_TEMPLATES } from '@/features/clinical-documents/domain/rules';
 
 /**

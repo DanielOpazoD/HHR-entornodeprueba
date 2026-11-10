@@ -1,4 +1,4 @@
-import type { ClinicalDocumentEpisodeContext } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentEpisodeContext } from '@/features/clinical-documents/domain/clinicalDocumentEpisodeTypes';
 import type { PatientData } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
 import {
   buildClinicalEpisodeKey as buildClinicalEpisodeKeyFromApplication,
