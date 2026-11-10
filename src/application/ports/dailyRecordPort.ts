@@ -1,3 +1,4 @@
+import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
 import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 import type { CopyPatientToDateResult } from '@/services/repositories/dailyRecordRepositoryInitializationService';
 import type {
@@ -25,27 +26,25 @@ type DailyRecordSyncService =
 type DailyRecordDeletionService =
   typeof import('@/services/repositories/dailyRecordDeletionService');
 
-let readServicePromise: Promise<DailyRecordReadService> | null = null;
-let initializationServicePromise: Promise<DailyRecordInitializationService> | null = null;
-let writeServicePromise: Promise<DailyRecordWriteService> | null = null;
-let syncServicePromise: Promise<DailyRecordSyncService> | null = null;
-let deletionServicePromise: Promise<DailyRecordDeletionService> | null = null;
+const loadDailyRecordReadService = createCachedRuntimeLoader(
+  () => import('@/services/repositories/dailyRecordRepositoryReadService')
+);
 
-const loadDailyRecordReadService = (): Promise<DailyRecordReadService> =>
-  (readServicePromise ??= import('@/services/repositories/dailyRecordRepositoryReadService'));
+const loadDailyRecordInitializationService = createCachedRuntimeLoader(
+  () => import('@/services/repositories/dailyRecordRepositoryInitializationService')
+);
 
-const loadDailyRecordInitializationService = (): Promise<DailyRecordInitializationService> =>
-  (initializationServicePromise ??=
-    import('@/services/repositories/dailyRecordRepositoryInitializationService'));
+const loadDailyRecordWriteService = createCachedRuntimeLoader(
+  () => import('@/services/repositories/dailyRecordRepositoryWriteService')
+);
 
-const loadDailyRecordWriteService = (): Promise<DailyRecordWriteService> =>
-  (writeServicePromise ??= import('@/services/repositories/dailyRecordRepositoryWriteService'));
+const loadDailyRecordSyncService = createCachedRuntimeLoader(
+  () => import('@/services/repositories/dailyRecordRepositorySyncService')
+);
 
-const loadDailyRecordSyncService = (): Promise<DailyRecordSyncService> =>
-  (syncServicePromise ??= import('@/services/repositories/dailyRecordRepositorySyncService'));
-
-const loadDailyRecordDeletionService = (): Promise<DailyRecordDeletionService> =>
-  (deletionServicePromise ??= import('@/services/repositories/dailyRecordDeletionService'));
+const loadDailyRecordDeletionService = createCachedRuntimeLoader(
+  () => import('@/services/repositories/dailyRecordDeletionService')
+);
 
 const withReadService = <T>(
   operation: (service: DailyRecordReadService) => Promise<T> | T
