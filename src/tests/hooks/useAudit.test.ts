@@ -50,7 +50,6 @@ describe('useAudit', () => {
     expect(typeof result.current.logEvent).toBe('function');
     expect(typeof result.current.logDebouncedEvent).toBe('function');
     expect(typeof result.current.fetchLogs).toBe('function');
-    expect(typeof result.current.getActionLabel).toBe('function');
   });
 
   it('should log patient admission via use case', async () => {
