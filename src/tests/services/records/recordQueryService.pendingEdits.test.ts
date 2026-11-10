@@ -49,15 +49,17 @@ describe('range download with real local storage', () => {
     }
   );
 
-  it('rejects when the local bulk write fails', async () => {
-    remote.mockResolvedValue([record('Remota')]);
+  it('still returns what the server answered when the local write fails', async () => {
+    const records = [record('Remota')];
+    remote.mockResolvedValue(records);
     vi.spyOn(hospitalDB.dailyRecords, 'bulkPut').mockRejectedValue(
       new Error('synthetic storage failure')
     );
-    await expect(syncRecordsRange(date, date)).rejects.toThrow('synthetic storage failure');
+    expect(await syncRecordsRange(date, date)).toEqual(records);
+    expect(await hospitalDB.dailyRecords.count()).toBe(0);
   });
 
-  it('fails closed if a pending task has lost its local copy', async () => {
+  it('writes nothing if a pending task has lost its local copy', async () => {
     await hospitalDB.syncQueue.add({
       opId: 'synthetic-missing-copy',
       key: `daily:${date}`,
@@ -67,8 +69,9 @@ describe('range download with real local storage', () => {
       timestamp: 1,
       retryCount: 0,
     });
-    remote.mockResolvedValue([record('Remota')]);
-    await expect(syncRecordsRange(date, date)).rejects.toThrow('No existe la copia local');
+    const records = [record('Remota')];
+    remote.mockResolvedValue(records);
+    expect(await syncRecordsRange(date, date)).toEqual(records);
     expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
     expect(await hospitalDB.syncQueue.count()).toBe(1);
   });
@@ -100,16 +103,11 @@ describe('range download with real local storage', () => {
     });
     remote.mockResolvedValue(records);
     const transaction = vi.spyOn(hospitalDB, 'transaction');
-    const start = performance.now();
     const result = await syncRecordsRange('2024-01-01', '2024-12-31');
-    const elapsed = performance.now() - start;
     expect(transaction).toHaveBeenCalledTimes(1);
     expect(result).toEqual(records.map(day => (day.date === local.date ? local : day)));
     expect(await hospitalDB.dailyRecords.count()).toBe(366);
     expect(await hospitalDB.dailyRecords.get(local.date)).toEqual(local);
-    process.stdout.write(
-      `P24 366 days: ${elapsed.toFixed(1)} ms, ${transaction.mock.calls.length} transaction\n`
-    );
   });
 
   it('returns an empty remote range without writing', async () => {

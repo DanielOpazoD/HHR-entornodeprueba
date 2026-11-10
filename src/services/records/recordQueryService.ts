@@ -55,12 +55,9 @@ export const syncRecordsRange = async (start: string, end: string): Promise<Dail
   const remoteRecords = await getRecordsRangeFromFirestore(start, end);
   if (remoteRecords.length === 0) return [];
 
+  // A day with an edit this device has not sent yet keeps its local copy, and that copy is what
+  // comes back. A failed local write is already reported by the store; the caller still gets what
+  // the server answered, because showing it does not depend on caching it.
   const result = await saveRecordsStrict(remoteRecords, { preserveUnresolvedWrites: true });
-  if (!result.ok) {
-    throw (
-      result.error ??
-      new Error(result.userSafeMessage ?? 'No fue posible guardar registros locales.')
-    );
-  }
   return result.records ?? remoteRecords;
 };
