@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { readResponseWithinLimit } from './bounded-response';
 
 export const MMRAD_VIEWER = 'https://hhangaroavisor.mmrad.cl:4446';
 const WADO_ROOT = 'http://172.16.20.110:1000/wado/HHANGAROA';
@@ -165,25 +166,7 @@ export const readBoundedResponse = async (
   limit: number
 ): Promise<Uint8Array> => {
   if (!response.ok || !response.body) throw new Error('MMRAD no pudo entregar el estudio.');
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let length = 0;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      length += value.length;
-      if (length > limit) throw new BoundedResponseTooLargeError();
-      chunks.push(value);
-    }
-  } finally {
-    await reader.cancel().catch(() => undefined);
-  }
-  const bytes = new Uint8Array(length);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.length;
-  }
+  const bytes = await readResponseWithinLimit(response, limit);
+  if (!bytes) throw new BoundedResponseTooLargeError();
   return bytes;
 };
