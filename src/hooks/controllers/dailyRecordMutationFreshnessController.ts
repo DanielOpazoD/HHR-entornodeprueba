@@ -9,7 +9,6 @@ import { createDailyRecordQueryOptions } from '@/hooks/controllers/dailyRecordQu
 import {
   DailyRecordFreshnessGateError,
   ensureDailyRecordRemoteFreshness,
-  getDailyRecordClinicalFieldLocksByBedId,
   getDailyRecordLastRemoteConfirmedAt,
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { didDailyRecordFreshnessHydrateNewerRemote } from '@/hooks/controllers/dailyRecordFreshnessHydrationController';
@@ -21,7 +20,6 @@ import {
   classifyHydratedRemotePatchRisk,
   isHydratedRemotePatchRiskBlocking,
 } from '@/hooks/controllers/dailyRecordHydratedRemotePatchRiskController';
-import { resolveDailyRecordClinicalPatchLockDecision } from '@/hooks/controllers/dailyRecordClinicalFieldAcknowledgementController';
 import { getSyncClientId } from '@/services/storage/sync/syncMutationIdentity';
 
 /**
@@ -122,20 +120,6 @@ export const assertHydratedRemotePatchCanProceed = ({
   freshness: DailyRecordQueryResult;
   remoteConfirmedAtBeforeMutation?: number;
 }): void => {
-  const lockDecision = resolveDailyRecordClinicalPatchLockDecision(
-    date,
-    attemptedPatch,
-    getDailyRecordClinicalFieldLocksByBedId(date),
-    Date.now(),
-    { previousRecord }
-  );
-  if (lockDecision.kind === 'soft_pause') {
-    throw new DailyRecordFreshnessGateError(lockDecision.message, { presentation: 'silent' });
-  }
-  if (lockDecision.kind === 'hard_lock') {
-    throw new DailyRecordFreshnessGateError(lockDecision.message);
-  }
-
   const didHydrateNewerRemote = didDailyRecordFreshnessHydrateNewerRemote(freshness);
   if (!didHydrateNewerRemote) {
     return;

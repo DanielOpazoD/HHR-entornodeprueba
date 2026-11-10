@@ -2,16 +2,88 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
 import { syncPatientsToMasterInBackground } from '@/services/repositories/dailyRecordBackgroundMasterSyncController';
+import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { PatientMasterRepository } from '@/services/repositories/PatientMasterRepository';
+
+const createRecord = (): DailyRecord => ({
+  date: '2026-04-14',
+  beds: {
+    R1: {
+      bedId: 'R1',
+      isBlocked: false,
+      bedMode: 'Cama',
+      hasCompanionCrib: false,
+      patientName: 'Paciente en cama',
+      rut: '1-9',
+      age: '46',
+      birthDate: '1980-01-01',
+      insurance: 'Fonasa',
+      biologicalSex: 'Femenino',
+      pathology: 'Dx ingreso',
+      specialty: Specialty.MEDICINA,
+      status: PatientStatus.ESTABLE,
+      admissionDate: '2026-04-10',
+      hasWristband: true,
+      devices: [],
+      surgicalComplication: false,
+      isUPC: false,
+    } as unknown as DailyRecord['beds'][string],
+  },
+  discharges: [
+    {
+      id: 'd1',
+      movementDate: '2026-04-14',
+      rut: '2-7',
+      patientName: 'Paciente alta',
+      insurance: 'Isapre',
+      diagnosis: 'Dx egreso',
+      bedName: 'R2',
+      bedId: 'R2',
+      bedType: 'basica',
+      time: '12:00',
+      status: 'Fallecido',
+      admissionDate: '2026-04-09',
+    } as DailyRecord['discharges'][number],
+  ],
+  transfers: [
+    {
+      id: 't1',
+      movementDate: '2026-04-14',
+      rut: '3-5',
+      patientName: 'Paciente traslado',
+      diagnosis: 'Dx traslado',
+      bedName: 'R3',
+      bedId: 'R3',
+      bedType: 'basica',
+      time: '13:00',
+      evacuationMethod: 'Ambulancia',
+      receivingCenter: 'Hospital Base',
+      admissionDate: '2026-04-08',
+    } as DailyRecord['transfers'][number],
+  ],
+  cma: [],
+  lastUpdated: '2026-04-14T12:00:00.000Z',
+  nurses: [],
+  nursesDayShift: [],
+  nursesNightShift: [],
+  tensDayShift: [],
+  tensNightShift: [],
+  activeExtraBeds: [],
+});
 
 describe('dailyRecordBackgroundMasterSyncController', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.restoreAllMocks();
+    localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-A');
+    setSessionGeneration('synthetic-A');
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    localStorage.clear();
+    setSessionGeneration(null);
   });
 
   it('syncs bed patients, discharges, transfers, and admission backfill in the background', async () => {
@@ -22,71 +94,7 @@ describe('dailyRecordBackgroundMasterSyncController', () => {
       .spyOn(PatientMasterRepository, 'appendHospitalizationEvent')
       .mockResolvedValue(undefined);
 
-    const record: DailyRecord = {
-      date: '2026-04-14',
-      beds: {
-        R1: {
-          bedId: 'R1',
-          isBlocked: false,
-          bedMode: 'Cama',
-          hasCompanionCrib: false,
-          patientName: 'Paciente en cama',
-          rut: '1-9',
-          age: '46',
-          birthDate: '1980-01-01',
-          insurance: 'Fonasa',
-          biologicalSex: 'Femenino',
-          pathology: 'Dx ingreso',
-          specialty: Specialty.MEDICINA,
-          status: PatientStatus.ESTABLE,
-          admissionDate: '2026-04-10',
-          hasWristband: true,
-          devices: [],
-          surgicalComplication: false,
-          isUPC: false,
-        } as unknown as DailyRecord['beds'][string],
-      },
-      discharges: [
-        {
-          id: 'd1',
-          movementDate: '2026-04-14',
-          rut: '2-7',
-          patientName: 'Paciente alta',
-          insurance: 'Isapre',
-          diagnosis: 'Dx egreso',
-          bedName: 'R2',
-          bedId: 'R2',
-          bedType: 'basica',
-          time: '12:00',
-          status: 'Fallecido',
-          admissionDate: '2026-04-09',
-        } as DailyRecord['discharges'][number],
-      ],
-      transfers: [
-        {
-          id: 't1',
-          movementDate: '2026-04-14',
-          rut: '3-5',
-          patientName: 'Paciente traslado',
-          diagnosis: 'Dx traslado',
-          bedName: 'R3',
-          bedId: 'R3',
-          bedType: 'basica',
-          time: '13:00',
-          evacuationMethod: 'Ambulancia',
-          receivingCenter: 'Hospital Base',
-          admissionDate: '2026-04-08',
-        } as DailyRecord['transfers'][number],
-      ],
-      cma: [],
-      lastUpdated: '2026-04-14T12:00:00.000Z',
-      nurses: [],
-      nursesDayShift: [],
-      nursesNightShift: [],
-      tensDayShift: [],
-      tensNightShift: [],
-      activeExtraBeds: [],
-    };
+    const record = createRecord();
 
     syncPatientsToMasterInBackground(record);
 
@@ -141,6 +149,66 @@ describe('dailyRecordBackgroundMasterSyncController', () => {
       { lastAdmission: '2026-04-08' }
     );
   });
+
+  it.each(['owner', 'epoch', 'logout-login'])(
+    'stops before the timer after %s changes',
+    async change => {
+      const upsert = vi
+        .spyOn(PatientMasterRepository, 'upsertPatient')
+        .mockResolvedValue(undefined);
+      const append = vi
+        .spyOn(PatientMasterRepository, 'appendHospitalizationEvent')
+        .mockResolvedValue(undefined);
+      syncPatientsToMasterInBackground(createRecord());
+      if (change === 'owner') localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-B');
+      if (change === 'epoch') setSessionGeneration('synthetic-B');
+      if (change === 'logout-login') {
+        setSessionGeneration(null);
+        setSessionGeneration('synthetic-A');
+      }
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(upsert).not.toHaveBeenCalled();
+      expect(append).not.toHaveBeenCalled();
+    }
+  );
+
+  it('keeps an upsert already sent and prevents later admissions and movements', async () => {
+    let finish!: () => void;
+    const upsert = vi.spyOn(PatientMasterRepository, 'upsertPatient').mockImplementation(
+      () =>
+        new Promise<void>(resolve => {
+          finish = resolve;
+        })
+    );
+    const append = vi
+      .spyOn(PatientMasterRepository, 'appendHospitalizationEvent')
+      .mockResolvedValue(undefined);
+    syncPatientsToMasterInBackground(createRecord());
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(upsert).toHaveBeenCalledTimes(1);
+    setSessionGeneration('synthetic-B');
+    finish();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it.each([1, 2, 3, 4])(
+    'stops every later append when session changes during append %s',
+    async count => {
+      const upsert = vi
+        .spyOn(PatientMasterRepository, 'upsertPatient')
+        .mockResolvedValue(undefined);
+      const append = vi
+        .spyOn(PatientMasterRepository, 'appendHospitalizationEvent')
+        .mockImplementation(async () => {
+          if (append.mock.calls.length === count) setSessionGeneration('synthetic-B');
+        });
+      syncPatientsToMasterInBackground(createRecord());
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(upsert).toHaveBeenCalledTimes(1);
+      expect(append).toHaveBeenCalledTimes(count);
+    }
+  );
 
   it('swallows non-critical background sync failures', async () => {
     vi.spyOn(PatientMasterRepository, 'upsertPatient').mockRejectedValue(new Error('boom'));

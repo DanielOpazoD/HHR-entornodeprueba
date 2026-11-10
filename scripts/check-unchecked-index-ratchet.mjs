@@ -11,8 +11,10 @@
  * go down. `--write-baseline` rewrites scripts/config/unchecked-index-baseline.json.
  */
 
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const BASELINE_PATH = 'scripts/config/unchecked-index-baseline.json';
 const ERROR_LINE = /^(src\/[^(]+)\(\d+,\d+\): error TS\d+:/;
@@ -49,30 +51,50 @@ export const compareWithBaseline = (current, baseline) => {
 };
 
 const compile = () => {
-  try {
-    execFileSync(
-      'npx',
-      [
-        'tsc',
-        '--noEmit',
-        '--skipLibCheck',
-        '-p',
-        'tsconfig.json',
-        '--noUncheckedIndexedAccess',
-        '--pretty',
-        'false',
-      ],
-      { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] }
+  const result = spawnSync(
+    'npx',
+    [
+      'tsc',
+      '--noEmit',
+      '--skipLibCheck',
+      '-p',
+      'tsconfig.json',
+      '--noUncheckedIndexedAccess',
+      '--pretty',
+      'false',
+      '--listFiles',
+    ],
+    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] }
+  );
+  const output = result.stdout ?? '';
+  if (
+    result.error ||
+    result.signal ||
+    ![0, 2].includes(result.status) ||
+    /^error TS\d+:/m.test(output) ||
+    /^.+\.json\(\d+,\d+\): error TS\d+:/m.test(output) ||
+    (result.status !== 0 && !/^.+\(\d+,\d+\): error TS\d+:/m.test(output))
+  ) {
+    throw new Error(
+      `Analysis failed: ${result.error?.message || result.stderr || output || `compiler exited ${result.status}`}`
     );
-    return '';
-  } catch (error) {
-    if (typeof error.stdout === 'string') return error.stdout;
-    throw error;
   }
+  const files = output.split('\n').filter(line => {
+    if (!path.isAbsolute(line.trim())) return false;
+    const relative = path.relative(process.cwd(), line.trim()).split(path.sep).join('/');
+    return (
+      relative.startsWith('src/') &&
+      !relative.startsWith('src/tests/') &&
+      /\.(tsx?|mts)$/.test(relative)
+    );
+  });
+  if (!files.length) throw new Error('No production files evaluated; check tsconfig.json inputs.');
+  return { output, fileCount: files.length };
 };
 
 const main = () => {
-  const current = countUncheckedIndexErrors(compile());
+  const { output, fileCount } = compile();
+  const current = countUncheckedIndexErrors(output);
   const total = Object.values(current).reduce((sum, count) => sum + count, 0);
   if (process.argv.includes('--write-baseline')) {
     fs.writeFileSync(
@@ -97,7 +119,16 @@ const main = () => {
     }
     process.exit(1);
   }
-  console.log(`[unchecked-index] OK (${total} production reads still unchecked; 0 new).`);
+  console.log(
+    `[unchecked-index] OK (${total} production reads still unchecked; 0 new; ${fileCount} production files evaluated).`
+  );
 };
 
-if (import.meta.url === `file://${process.argv[1]}`) main();
+if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {
+  try {
+    main();
+  } catch (error) {
+    console.error(`[unchecked-index] ${error.message}`);
+    process.exitCode = 1;
+  }
+}

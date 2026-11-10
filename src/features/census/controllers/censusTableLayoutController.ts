@@ -13,7 +13,6 @@ import type {
   CensusTableHeaderProps,
 } from '@/features/census/types/censusTableComponentContracts';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
-import type { HydratedRemoteClinicalFieldLocksByBedId } from '@/hooks/controllers/dailyRecordHydratedRemotePatchRiskController';
 import {
   resolveVisibleCensusColumnCount,
   resolveVisibleCensusColumns,
@@ -24,7 +23,6 @@ export interface CensusTableLayoutParams {
   currentDateString: string;
   readOnly: boolean;
   clinicalEditingDisabled?: boolean;
-  clinicalFieldLocksByBedId?: HydratedRemoteClinicalFieldLocksByBedId;
   columns: TableColumnConfig;
   isEditMode: boolean;
   canDeleteRecord: boolean;
@@ -96,7 +94,6 @@ export const buildCensusTableLayoutBindings = (
       currentDateString: params.currentDateString,
       readOnly: params.readOnly,
       clinicalEditingDisabled: params.clinicalEditingDisabled,
-      clinicalFieldLocksByBedId: params.clinicalFieldLocksByBedId,
       diagnosisMode: params.diagnosisMode,
       columns: projectedColumns,
       visibleColumnCount,

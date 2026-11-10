@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, RefreshCw, Trash2 } from 'lucide-react';
 import { clearErrorLogs, fetchErrorLogs } from '@/services/errorLogService';
 import type { ErrorLog, ErrorSeverity } from '@/services/logging/errorLogTypes';
@@ -71,17 +71,23 @@ export const LocalErrorLogsView: React.FC = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
 
+  const requestIdRef = useRef(0);
+
   const loadLogs = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     setLoadError(null);
     try {
-      setLogs(await fetchErrorLogs(100));
+      const fetchedLogs = await fetchErrorLogs(100);
+      if (requestId !== requestIdRef.current) return;
+      setLogs(fetchedLogs);
     } catch {
+      if (requestId !== requestIdRef.current) return;
       setLoadError(
         'No se pudo leer el historial de errores de este navegador. Eso no significa que no haya errores.'
       );
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
   }, []);
 
