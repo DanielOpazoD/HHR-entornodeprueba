@@ -22,6 +22,7 @@ import { safeErrorMessage } from './lib/safe-error-message';
  */
 
 import { createHash } from 'node:crypto';
+import { readResponseWithinLimit } from './lib/bounded-response';
 import { getFirebaseServer } from './lib/firebase-server';
 import { authorizeRoleRequest, extractBearerToken } from './lib/firebase-auth';
 import { invokeWithTelemetry } from './lib/observability';
@@ -183,9 +184,8 @@ const handlePdf = async (proxyUrl: string, params: URLSearchParams, requestOrigi
     });
   }
 
-  const buffer = await response.arrayBuffer();
-  const bytes = Buffer.from(buffer);
-  if (bytes.length > 4 * 1024 * 1024 || bytes.subarray(0, 4).toString() !== '%PDF') {
+  const bytes = await readResponseWithinLimit(response, 4 * 1024 * 1024);
+  if (!bytes || bytes.subarray(0, 4).toString() !== '%PDF') {
     return buildTextResponse(502, 'El servidor no entregó un PDF válido de laboratorio.', {
       requestOrigin,
     });
