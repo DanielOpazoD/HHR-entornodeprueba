@@ -380,6 +380,7 @@ export const createSyslabProxyHandler = (
         timeoutMs: telemetryOptions.timeoutMs,
         // search/pdf are idempotent GETs, details posts links but parsing is deterministic
         maxAttempts: telemetryOptions.maxAttempts,
+        isFailureResult: result => result.statusCode >= 500 && result.statusCode < 600,
         db,
         hospitalId: process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa',
         context: { action },

@@ -30,6 +30,8 @@ describe('whatsapp-proxy', () => {
   afterEach(() => {
     process.env = originalEnv;
     vi.unstubAllGlobals();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('allows configured origins on preflight requests', async () => {
@@ -144,11 +146,98 @@ describe('whatsapp-proxy', () => {
         Authorization: 'Bearer token',
       },
       body: '{"message":"hola"}',
+      signal: expect.any(AbortSignal),
     });
     expect(extractBearerTokenMock).toHaveBeenCalledWith('Bearer token');
     expect(authorizeRoleRequestMock).toHaveBeenCalledTimes(1);
     expect(response.statusCode).toBe(202);
     expect(headers['Access-Control-Allow-Origin']).toBe('https://app.example.com');
     expect(headers['Content-Type']).toBe('application/json');
+  });
+
+  describe('upstream response deadline', () => {
+    const event = {
+      httpMethod: 'POST',
+      headers: {
+        origin: 'https://app.example.com',
+        authorization: 'Bearer token',
+        'x-forwarded-for': '192.0.2.29',
+      },
+      body: '{"message":"synthetic"}',
+      path: '/.netlify/functions/whatsapp-proxy/messages',
+    };
+    const securedHandler = () =>
+      createWhatsAppProxyHandler({
+        getFirebaseServer: getFirebaseServerMock as never,
+        authorizeRoleRequest: authorizeRoleRequestMock as never,
+        extractBearerToken: extractBearerTokenMock,
+        fetch: fetchMock,
+      });
+
+    it.each([202, 503])('preserves the upstream status %s, body and content type', async status => {
+      fetchMock.mockResolvedValue(
+        new Response('synthetic response', { status, headers: { 'content-type': 'text/plain' } })
+      );
+      const response = await securedHandler()(event);
+      expect(response).toMatchObject({
+        statusCode: status,
+        body: 'synthetic response',
+        headers: { 'Content-Type': 'text/plain' },
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(['headers', 'body'])('returns the existing timeout when %s stall', async phase => {
+      vi.useFakeTimers();
+      const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const output = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
+      let upstreamSignal: AbortSignal | null | undefined;
+      let bodyStarted = false;
+      fetchMock.mockImplementation((_url: string, init: RequestInit) => {
+        upstreamSignal = init.signal;
+        if (phase === 'headers') {
+          return new Promise<Response>((_resolve, reject) => {
+            upstreamSignal?.addEventListener('abort', () => {
+              reject(new DOMException('Aborted', 'AbortError'));
+            });
+          });
+        }
+        const stream = new ReadableStream({
+          start(controller) {
+            upstreamSignal?.addEventListener('abort', () => {
+              controller.error(new DOMException('Aborted', 'AbortError'));
+            });
+          },
+        });
+        const response = new Response(stream);
+        const readText = response.text.bind(response);
+        vi.spyOn(response, 'text').mockImplementation(() => {
+          bodyStarted = true;
+          return readText();
+        });
+        return Promise.resolve(response);
+      });
+      let result: Awaited<ReturnType<ReturnType<typeof createWhatsAppProxyHandler>>> | undefined;
+      const pending = securedHandler()(event).then(response => {
+        result = response;
+      });
+      await vi.advanceTimersByTimeAsync(7_999);
+      expect(result).toBeUndefined();
+      expect(bodyStarted).toBe(phase === 'body');
+      await vi.advanceTimersByTimeAsync(1);
+      expect(result).toMatchObject({
+        statusCode: 502,
+        body: JSON.stringify({
+          error: 'Failed to reach WhatsApp bot server',
+          details: 'Operation timed out after 8000ms',
+        }),
+      });
+      expect(output).not.toHaveBeenCalled();
+      await pending;
+      expect(upstreamSignal?.aborted).toBe(true);
+      expect(vi.getTimerCount()).toBe(0);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(errors).toHaveBeenCalledWith(expect.stringContaining('"status":"timeout"'));
+    });
   });
 });

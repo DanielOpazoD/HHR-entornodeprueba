@@ -39,6 +39,8 @@ export function usePatientSearchQuery(): UsePatientSearchQueryReturn {
     setSelectedIndex(0);
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    // Every change of the query retires the search already on its way, also a change that starts none.
+    const currentId = ++searchIdRef.current;
 
     const trimmed = q.trim();
     if (trimmed.length < 2) {
@@ -49,7 +51,6 @@ export function usePatientSearchQuery(): UsePatientSearchQueryReturn {
     }
 
     setIsSearching(true);
-    const currentId = ++searchIdRef.current;
 
     debounceRef.current = setTimeout(async () => {
       try {
