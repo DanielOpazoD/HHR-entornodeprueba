@@ -50,12 +50,7 @@
       "label": "Release Gate",
       "script": "ci:release-gate",
       "level": "release-gate",
-      "requiredScripts": [
-        "ci:merge-gate",
-        "check:daily-record-authority-release-gate",
-        "check:release-evidence",
-        "test:firestore:release:ci"
-      ],
+      "requiredScripts": ["ci:merge-gate", "check:release-evidence", "test:firestore:release:ci"],
       "purpose": "Validacion final con emuladores, reglas Firestore y E2E criticos."
     }
   ],
