@@ -1,3 +1,5 @@
+import { useSessionEpoch } from '@/hooks/useSessionEpoch';
+import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryClient';
@@ -18,14 +20,9 @@ import {
 const REMOTE_HYDRATION_IDLE_TIMEOUT_MS = 1_200;
 const REMOTE_HYDRATION_FALLBACK_DELAY_MS = 150;
 
-let syncDailyRecordUseCasePromise: Promise<
-  typeof import('@/application/daily-record/syncDailyRecordUseCase')
-> | null = null;
-
-const loadSyncDailyRecordUseCase = async () => {
-  syncDailyRecordUseCasePromise ??= import('@/application/daily-record/syncDailyRecordUseCase');
-  return syncDailyRecordUseCasePromise;
-};
+const loadSyncDailyRecordUseCase = createCachedRuntimeLoader(
+  () => import('@/application/daily-record/syncDailyRecordUseCase')
+);
 
 type BrowserWindowWithIdleCallback = Window & {
   requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
@@ -205,6 +202,7 @@ export const usePostDeployRecentRecordRefresh = ({
   refetch,
   runRemoteSync,
 }: UsePostDeployRecentRecordRefreshParams) => {
+  const sessionEpoch = useSessionEpoch();
   const attemptedMarkerSignatureRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -217,7 +215,7 @@ export const usePostDeployRecentRecordRefresh = ({
       return;
     }
 
-    const markerSignature = `${marker.fromVersion}->${marker.toVersion}:${marker.createdAt}`;
+    const markerSignature = `${sessionEpoch}:${marker.fromVersion}->${marker.toVersion}:${marker.createdAt}`;
     if (attemptedMarkerSignatureRef.current === markerSignature) {
       return;
     }
@@ -229,6 +227,12 @@ export const usePostDeployRecentRecordRefresh = ({
       readMarker: () => marker,
       syncRemoteRecord: runRemoteSync,
     }).then(result => {
+      if (
+        result.status !== 'completed' &&
+        attemptedMarkerSignatureRef.current === markerSignature
+      ) {
+        attemptedMarkerSignatureRef.current = null;
+      }
       if (cancelled || result.status !== 'completed') {
         return;
       }
@@ -239,5 +243,5 @@ export const usePostDeployRecentRecordRefresh = ({
     return () => {
       cancelled = true;
     };
-  }, [refetch, remoteSyncStatus, runRemoteSync]);
+  }, [refetch, remoteSyncStatus, runRemoteSync, sessionEpoch]);
 };

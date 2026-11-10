@@ -114,6 +114,7 @@ export const useCensusEmailRecipientLists = ({
       activeRecipientListId: runtimeMetadata.activeRecipientListId,
       user,
       runRecipientRuntimeMutation,
+      onLoadError: setRecipientsSyncError,
     });
 
   return {

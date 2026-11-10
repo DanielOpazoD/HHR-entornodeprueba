@@ -1,7 +1,6 @@
-import React, { Suspense, lazy, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Bot,
-  FileText,
   Settings2,
   Shield,
   ShieldCheck,
@@ -26,24 +25,11 @@ import { TreatingPhysiciansSettings } from './TreatingPhysiciansSettings';
 import { VitalSignsVisualRangesSettings } from './VitalSignsVisualRangesSettings';
 import { CensusNursingScalesSetting } from './CensusNursingScalesSetting';
 
-const LazyClinicalDocumentTemplatesManager = lazy(() =>
-  import('./ClinicalDocumentTemplatesManager').then(module => ({
-    default: module.ClinicalDocumentTemplatesManager,
-  }))
-);
-
-type ConfigurationTab =
-  | 'VISUAL'
-  | 'TABLE'
-  | 'SECURITY'
-  | 'ROLES'
-  | 'PHYSICIANS'
-  | 'CLINICAL_TEMPLATES'
-  | 'AI_PROVIDERS';
+type ConfigurationTab = 'VISUAL' | 'TABLE' | 'SECURITY' | 'ROLES' | 'PHYSICIANS' | 'AI_PROVIDERS';
 
 // Configuration view — admin-only page grouping BOTH user preferences (formerly
 // "Preferencias" modal: visual, table, security) AND system administration
-// (roles, clinical templates) as tabs on a single page.
+// (roles) as tabs on a single page.
 export const ConfigurationView: React.FC = () => {
   const { role } = useAuth();
   const { confirm } = useConfirmDialog();
@@ -120,12 +106,6 @@ export const ConfigurationView: React.FC = () => {
       icon: Bot,
       color: 'text-cyan-400',
     },
-    {
-      id: 'CLINICAL_TEMPLATES',
-      label: 'Plantillas clínicas',
-      icon: FileText,
-      color: 'text-emerald-400',
-    },
   ];
 
   return (
@@ -187,17 +167,6 @@ export const ConfigurationView: React.FC = () => {
         {activeTab === 'ROLES' && <RoleManagementView />}
         {activeTab === 'PHYSICIANS' && <TreatingPhysiciansSettings />}
         {activeTab === 'AI_PROVIDERS' && <ClinicalAIProviderRoutingPanel />}
-        {activeTab === 'CLINICAL_TEMPLATES' && (
-          <Suspense
-            fallback={
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
-                Cargando plantillas clínicas...
-              </div>
-            }
-          >
-            <LazyClinicalDocumentTemplatesManager />
-          </Suspense>
-        )}
       </div>
     </div>
   );

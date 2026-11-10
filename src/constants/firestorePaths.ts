@@ -44,7 +44,6 @@ export const HOSPITAL_COLLECTIONS = {
   /** Clinical documents for hospitalized patients */
   CLINICAL_DOCUMENTS: 'clinicalDocuments',
   /** Clinical document templates */
-  CLINICAL_DOCUMENT_TEMPLATES: 'clinicalDocumentTemplates',
   /** Settings documents (nurses, tens, etc.) */
   SETTINGS: 'settings',
   /** Server-owned episode specialty policy catalog */

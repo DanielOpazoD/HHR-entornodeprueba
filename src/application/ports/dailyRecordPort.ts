@@ -1,3 +1,5 @@
+import { createSyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
 import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 import type { CopyPatientToDateResult } from '@/services/repositories/dailyRecordRepositoryInitializationService';
 import type {
@@ -25,27 +27,25 @@ type DailyRecordSyncService =
 type DailyRecordDeletionService =
   typeof import('@/services/repositories/dailyRecordDeletionService');
 
-let readServicePromise: Promise<DailyRecordReadService> | null = null;
-let initializationServicePromise: Promise<DailyRecordInitializationService> | null = null;
-let writeServicePromise: Promise<DailyRecordWriteService> | null = null;
-let syncServicePromise: Promise<DailyRecordSyncService> | null = null;
-let deletionServicePromise: Promise<DailyRecordDeletionService> | null = null;
+const loadDailyRecordReadService = createCachedRuntimeLoader(
+  () => import('@/services/repositories/dailyRecordRepositoryReadService')
+);
 
-const loadDailyRecordReadService = (): Promise<DailyRecordReadService> =>
-  (readServicePromise ??= import('@/services/repositories/dailyRecordRepositoryReadService'));
+const loadDailyRecordInitializationService = createCachedRuntimeLoader(
+  () => import('@/services/repositories/dailyRecordRepositoryInitializationService')
+);
 
-const loadDailyRecordInitializationService = (): Promise<DailyRecordInitializationService> =>
-  (initializationServicePromise ??=
-    import('@/services/repositories/dailyRecordRepositoryInitializationService'));
+const loadDailyRecordWriteService = createCachedRuntimeLoader(
+  () => import('@/services/repositories/dailyRecordRepositoryWriteService')
+);
 
-const loadDailyRecordWriteService = (): Promise<DailyRecordWriteService> =>
-  (writeServicePromise ??= import('@/services/repositories/dailyRecordRepositoryWriteService'));
+const loadDailyRecordSyncService = createCachedRuntimeLoader(
+  () => import('@/services/repositories/dailyRecordRepositorySyncService')
+);
 
-const loadDailyRecordSyncService = (): Promise<DailyRecordSyncService> =>
-  (syncServicePromise ??= import('@/services/repositories/dailyRecordRepositorySyncService'));
-
-const loadDailyRecordDeletionService = (): Promise<DailyRecordDeletionService> =>
-  (deletionServicePromise ??= import('@/services/repositories/dailyRecordDeletionService'));
+const loadDailyRecordDeletionService = createCachedRuntimeLoader(
+  () => import('@/services/repositories/dailyRecordDeletionService')
+);
 
 const withReadService = <T>(
   operation: (service: DailyRecordReadService) => Promise<T> | T
@@ -68,7 +68,9 @@ const withDeletionService = <T>(
 ): Promise<T> => loadDailyRecordDeletionService().then(operation);
 
 const createLazySubscription = (
-  start: (service: DailyRecordSyncService) => () => void
+  date: string,
+  callback: (result: SyncDailyRecordResult, hasPendingWrites: boolean) => void,
+  onFailure?: (result: SyncDailyRecordResult) => void
 ): (() => void) => {
   let active = true;
   let unsubscribe = () => {};
@@ -78,10 +80,26 @@ const createLazySubscription = (
       if (!active) {
         return;
       }
-      unsubscribe = start(service);
+      unsubscribe = service.subscribeDetailed(
+        date,
+        (result, pending) => {
+          if (active) callback(result, pending);
+        },
+        result => {
+          if (active) onFailure?.(result);
+        }
+      );
     })
     .catch(() => {
-      // Keep a stable no-op unsubscribe. Bootstrap/runtime telemetry captures the chunk error path.
+      if (active)
+        onFailure?.(
+          createSyncDailyRecordResult({
+            date,
+            outcome: 'blocked',
+            record: null,
+            retryability: 'manual_retry',
+          })
+        );
     });
 
   return () => {
@@ -243,7 +261,7 @@ export const defaultDailyRecordRepositoryPort: DailyRecordRepositoryPort = {
   saveDetailed: saveDailyRecord,
   updatePartialDetailed: updatePartialDailyRecord,
   subscribeDetailed: (date, callback, onFailure) =>
-    createLazySubscription(service => service.subscribeDetailed(date, callback, onFailure)),
+    createLazySubscription(date, callback, onFailure),
   deleteDay: deleteDailyRecord,
   copyPatientToDateDetailed: (sourceDate, sourceBedId, targetDate, targetBedId) =>
     withInitializationService(service =>

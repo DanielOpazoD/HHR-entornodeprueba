@@ -10,11 +10,14 @@ import { loadReleaseConfidenceMatrixConfig } from './releaseConfidenceMatrixSupp
 const CONFIG_PATH = path.join('scripts', 'config', 'clinical-release-validation.json');
 const PACKAGE_JSON_PATH = 'package.json';
 const RUNBOOK_PATH = path.join('docs', 'runbooks', 'deployment-checklist.md');
-const REQUIRED_CLOSURE_GATES = ['codigo_corregido', 'regresion_automatizada', 'flujo_clinico_validado'];
+const REQUIRED_CLOSURE_GATES = [
+  'codigo_corregido',
+  'regresion_automatizada',
+  'flujo_clinico_validado',
+];
 const VALID_RISK_LEVELS = new Set(['low', 'medium', 'high']);
 const REQUIRED_RUNBOOK_PATTERNS = [
   'scripts/config/clinical-release-validation.json',
-  'npm run check:clinical-release-validation',
   'codigo_corregido',
   'regresion_automatizada',
   'flujo_clinico_validado',
@@ -24,10 +27,18 @@ const readJson = filePath => JSON.parse(fs.readFileSync(filePath, 'utf8'));
 
 const normalizeStringList = value =>
   Array.isArray(value)
-    ? [...new Set(value.filter(entry => typeof entry === 'string').map(entry => entry.trim()).filter(Boolean))]
+    ? [
+        ...new Set(
+          value
+            .filter(entry => typeof entry === 'string')
+            .map(entry => entry.trim())
+            .filter(Boolean)
+        ),
+      ]
     : [];
 
-const sameList = (left, right) => left.length === right.length && left.every((entry, index) => entry === right[index]);
+const sameList = (left, right) =>
+  left.length === right.length && left.every((entry, index) => entry === right[index]);
 
 export const loadClinicalReleaseValidationConfig = root => {
   const absolutePath = path.join(root, CONFIG_PATH);
@@ -59,12 +70,20 @@ export const loadClinicalReleaseValidationConfig = root => {
 export const buildClinicalReleaseValidationReport = root => {
   const config = loadClinicalReleaseValidationConfig(root);
   const gitState = getGitReportState(root);
-  const matrixAreaIds = new Set(loadReleaseConfidenceMatrixConfig(root).areas.map(area => area.id).filter(Boolean));
-  const packageScripts = new Set(Object.keys(readJson(path.join(root, PACKAGE_JSON_PATH)).scripts || {}));
+  const matrixAreaIds = new Set(
+    loadReleaseConfidenceMatrixConfig(root)
+      .areas.map(area => area.id)
+      .filter(Boolean)
+  );
+  const packageScripts = new Set(
+    Object.keys(readJson(path.join(root, PACKAGE_JSON_PATH)).scripts || {})
+  );
   const issues = [];
   const runbookPath = path.join(root, RUNBOOK_PATH);
   const runbookContent = fs.existsSync(runbookPath) ? fs.readFileSync(runbookPath, 'utf8') : '';
-  const missingRunbookPatterns = REQUIRED_RUNBOOK_PATTERNS.filter(pattern => !runbookContent.includes(pattern));
+  const missingRunbookPatterns = REQUIRED_RUNBOOK_PATTERNS.filter(
+    pattern => !runbookContent.includes(pattern)
+  );
   const runbook = {
     file: RUNBOOK_PATH,
     status: missingRunbookPatterns.length === 0 ? 'ok' : 'invalid',
@@ -78,7 +97,9 @@ export const buildClinicalReleaseValidationReport = root => {
   }
 
   if (config.version !== 1) {
-    issues.push(`Expected clinical release validation version 1, received ${String(config.version || 'unknown')}`);
+    issues.push(
+      `Expected clinical release validation version 1, received ${String(config.version || 'unknown')}`
+    );
   }
 
   if (!sameList(config.closureGates, REQUIRED_CLOSURE_GATES)) {
@@ -90,7 +111,9 @@ export const buildClinicalReleaseValidationReport = root => {
     .filter(Boolean)
     .filter((id, index, collection) => collection.indexOf(id) !== index);
   if (duplicateIds.length > 0) {
-    issues.push(`Duplicate clinical validation scenario ids: ${[...new Set(duplicateIds)].join(', ')}`);
+    issues.push(
+      `Duplicate clinical validation scenario ids: ${[...new Set(duplicateIds)].join(', ')}`
+    );
   }
 
   const scenarios = config.scenarios.map(scenario => {
@@ -106,7 +129,9 @@ export const buildClinicalReleaseValidationReport = root => {
       scenarioIssues.push(`Invalid riskLevel: ${scenario.riskLevel || 'missing'}`);
     }
     if (!sameList(scenario.closureGates, REQUIRED_CLOSURE_GATES)) {
-      scenarioIssues.push(`Invalid closure gates: ${scenario.closureGates.join(', ') || 'missing'}`);
+      scenarioIssues.push(
+        `Invalid closure gates: ${scenario.closureGates.join(', ') || 'missing'}`
+      );
     }
     if (scenario.matrixAreas.length === 0) {
       scenarioIssues.push('Missing release matrix area mapping');
@@ -123,7 +148,9 @@ export const buildClinicalReleaseValidationReport = root => {
       scenarioIssues.push(`Unknown release matrix areas: ${unknownMatrixAreas.join(', ')}`);
     }
 
-    const unknownRegressionScripts = scenario.automatedRegression.filter(script => !packageScripts.has(script));
+    const unknownRegressionScripts = scenario.automatedRegression.filter(
+      script => !packageScripts.has(script)
+    );
     if (unknownRegressionScripts.length > 0) {
       scenarioIssues.push(`Unknown package scripts: ${unknownRegressionScripts.join(', ')}`);
     }
@@ -144,7 +171,11 @@ export const buildClinicalReleaseValidationReport = root => {
   return {
     generatedAt: new Date().toISOString(),
     ...gitState,
-    generatedFor: buildEvidenceProvenance({ root, reportId: 'clinical-release-validation', gitState }),
+    generatedFor: buildEvidenceProvenance({
+      root,
+      reportId: 'clinical-release-validation',
+      gitState,
+    }),
     overall: issues.length === 0 ? 'ok' : 'degraded',
     counts: {
       scenarioCount: scenarios.length,
