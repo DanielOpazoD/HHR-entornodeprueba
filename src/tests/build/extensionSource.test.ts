@@ -21,7 +21,9 @@ it('rejects local divergence, preserves pending work and synchronizes only the p
     git('config', 'user.email', 'synthetic@example.invalid');
     git('add', '.');
     git('commit', '-m', 'base');
-    expect(() => checkExtensionSource({ root, sourceRoot })).toThrow(/extension:sync/);
+    expect(() => checkExtensionSource({ root, sourceRoot })).toThrow(
+      /npm ci .* npm run extension:sync/
+    );
     fs.writeFileSync(path.join(root, 'extension/runtime.js'), 'pending change');
     expect(() => checkExtensionSource({ root, sourceRoot, write: true })).toThrow(/pendientes/);
     expect(fs.readFileSync(path.join(root, 'extension/runtime.js'), 'utf8')).toBe('pending change');
@@ -36,4 +38,14 @@ it('rejects local divergence, preserves pending work and synchronizes only the p
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(sourceRoot, { recursive: true, force: true });
   }
+});
+
+it('runs in the quality aggregate, where CI has installed the pinned package', () => {
+  const governance = JSON.parse(
+    fs.readFileSync(path.join(process.cwd(), 'scripts/config/guardrail-governance.json'), 'utf8')
+  ) as { qualityAggregate: { checks: Array<{ id: string; group: string }> } };
+  expect(governance.qualityAggregate.checks).toContainEqual({
+    id: 'check:extension-source',
+    group: 'hygiene',
+  });
 });

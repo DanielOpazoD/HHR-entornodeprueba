@@ -45,17 +45,24 @@ export const checkExtensionSource = ({ root, sourceRoot = extensionDirectory, wr
       }
     }
   } else if (changed.length) {
+    const listed = changed.slice(0, 10).join(', ');
+    const rest = changed.length > 10 ? ` y ${changed.length - 10} más` : '';
     throw new Error(
-      `extension/ difiere de la dependencia fijada (${changed.join(', ')}). Desarrolla en extensioneloisahhr y ejecuta npm run extension:sync tras actualizar su commit.`
+      `extension/ difiere del commit de @hhr/eloisa-extension fijado en package.json. Arreglo: ejecuta npm ci para instalar ese commit y después npm run extension:sync. La extensión se desarrolla en DanielOpazoD/extensioneloisahhr; extension/ no se edita a mano. Archivos distintos (${changed.length}): ${listed}${rest}.`
     );
   }
   return { files: expected.size, synchronized: changed.length };
 };
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  console.log(
-    JSON.stringify(
-      checkExtensionSource({ root: process.cwd(), write: process.argv.includes('--write') })
-    )
-  );
+  try {
+    console.log(
+      JSON.stringify(
+        checkExtensionSource({ root: process.cwd(), write: process.argv.includes('--write') })
+      )
+    );
+  } catch (error) {
+    console.error(`[extension-source] ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+  }
 }
