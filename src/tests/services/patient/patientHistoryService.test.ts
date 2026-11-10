@@ -9,21 +9,21 @@ const {
   getRecordsRange,
   readServerHistory,
   getRecordsRangeFromFirestore,
-  saveRecords,
+  saveRecordsStrict,
   isFirestoreEnabled,
 } = vi.hoisted(() => ({
   getAllRecords: vi.fn(),
   getRecordsRange: vi.fn(),
   readServerHistory: vi.fn(),
   getRecordsRangeFromFirestore: vi.fn(),
-  saveRecords: vi.fn(),
+  saveRecordsStrict: vi.fn(),
   isFirestoreEnabled: vi.fn(),
 }));
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getAllRecords,
   getRecordsRange,
-  saveRecords,
+  saveRecordsStrict,
 }));
 
 vi.mock('@/services/storage/firestore', () => ({
@@ -119,7 +119,7 @@ describe('patientHistoryService', () => {
     expect(getRecordsRangeFromFirestore).toHaveBeenCalledWith('2026-04-07', '2026-04-18', {
       requireServer: true,
     });
-    expect(saveRecords).not.toHaveBeenCalled();
+    expect(saveRecordsStrict).not.toHaveBeenCalled();
     expect(history).toEqual(
       expect.objectContaining({
         firstSeen: '2026-04-07',
@@ -203,7 +203,7 @@ describe('patientHistoryService', () => {
 
     expect(getRecordsRangeFromFirestore).not.toHaveBeenCalled();
     expect(readServerHistory).toHaveBeenCalledTimes(1);
-    expect(saveRecords).not.toHaveBeenCalled();
+    expect(saveRecordsStrict).not.toHaveBeenCalled();
     expect(history?.movements.map(movement => movement.type)).toEqual(['admission', 'discharge']);
     expect(history).toEqual(
       expect.objectContaining({
@@ -386,7 +386,7 @@ describe('patientHistoryService', () => {
     });
 
     expect(history?.movements).toEqual([expect.objectContaining({ type: 'admission' })]);
-    expect(saveRecords).not.toHaveBeenCalled();
+    expect(saveRecordsStrict).not.toHaveBeenCalled();
   });
 
   it('tracks crib admissions and crib moves as part of the current hospitalization', async () => {

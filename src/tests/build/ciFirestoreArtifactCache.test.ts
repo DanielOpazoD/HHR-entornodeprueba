@@ -128,7 +128,7 @@ it('verifies artifacts before saving and keeps the full emulator suites', () => 
   expect(verify['continue-on-error']).not.toBe(true);
   expect(steps.indexOf(save)).toBeGreaterThan(steps.indexOf(verify));
   const { jobs } = parseWorkflow(fs.readFileSync('.github/workflows/ci-cd.yml', 'utf8'));
-  for (const name of ['rules-emulator', 'e2e-critical-emulator']) {
+  for (const name of ['rules-emulator', 'e2e-critical-lanes']) {
     const jobSteps = jobs[name].steps;
     const cache = jobSteps.findIndex(
       step => step.uses === './.github/actions/setup-ci-firestore-emulator'

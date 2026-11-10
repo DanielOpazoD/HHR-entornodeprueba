@@ -261,7 +261,14 @@ export const shouldReconcileAsPrincipal = (
   );
 };
 
-const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+/**
+ * The text a crib's document is matched by when no episode matches. Letters stay, so two passports
+ * that share digits are two documents and a passport never equals a RUN (ID-01); only separators
+ * and letter case are ignored, as Eloísa and manual entry differ in both. The type is not part of
+ * it: Eloísa sends none and the one stored may be inferred.
+ */
+export const clinicalCribDocumentIdentity = (document?: string): string =>
+  (document ?? '').replace(/[^0-9a-z]/gi, '').toUpperCase();
 
 export const pendingClinicalCribDischargeIdentities = (
   candidates: MappedClinicalEncounter[]
@@ -270,7 +277,7 @@ export const pendingClinicalCribDischargeIdentities = (
     candidates.map(({ encounter, mapped }) =>
       encounter.encounterId
         ? `episode:${encounter.encounterId}`
-        : `run:${normalizeRut(mapped.patient.rut)}`
+        : `document:${clinicalCribDocumentIdentity(mapped.patient.rut)}`
     )
   );
 

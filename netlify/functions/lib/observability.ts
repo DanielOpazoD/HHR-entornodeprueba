@@ -1,3 +1,4 @@
+import { safeErrorMessage } from './safe-error-message';
 import type { Firestore } from 'firebase/firestore';
 
 export type TelemetryStatus = 'success' | 'failure' | 'timeout';
@@ -55,12 +56,6 @@ const errorCode = (error: unknown): string | undefined => {
   return undefined;
 };
 
-const errorMessage = (error: unknown): string => {
-  if (error instanceof Error) return error.message;
-  if (typeof error === 'string') return error;
-  return 'unknown error';
-};
-
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
 const withTimeout = async <T>(fn: () => Promise<T>, timeoutMs: number): Promise<T> => {
@@ -107,7 +102,7 @@ const writeTelemetrySink = async (
         kind: 'telemetry_sink_failed',
         service: entry.service,
         operation: entry.operation,
-        message: errorMessage(sinkError),
+        message: safeErrorMessage(sinkError),
       })
     );
   }
@@ -179,7 +174,7 @@ export const invokeWithTelemetry = async <T>(options: InvokeOptions<T>): Promise
         totalAttempts: maxAttempts,
         status: isTimeout ? 'timeout' : 'failure',
         errorCode: errorCode(error),
-        errorMessage: errorMessage(error),
+        errorMessage: safeErrorMessage(error),
         context,
       };
       console.error(

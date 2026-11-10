@@ -1,8 +1,27 @@
+import { createProviderError, credentialMarkers } from '../netlify/providerErrorFixture';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createWhatsAppProxyHandler, handler } from '../../../netlify/functions/whatsapp-proxy';
 
 describe('whatsapp-proxy', () => {
+  it('redacts provider failures in details and logs', async () => {
+    const logs = vi.spyOn(console, 'error').mockImplementation(() => {});
+    fetchMock.mockRejectedValueOnce(createProviderError());
+    const securedHandler = createWhatsAppProxyHandler({
+      getFirebaseServer: getFirebaseServerMock as never,
+      authorizeRoleRequest: authorizeRoleRequestMock as never,
+      extractBearerToken: extractBearerTokenMock,
+      fetch: fetchMock,
+    });
+    const result = await securedHandler({ httpMethod: 'GET', headers: {}, body: null });
+    expect(result.statusCode).toBe(502);
+    expect(JSON.parse(result.body).details).toContain('HTTP 503');
+    const outputs =
+      result.body +
+      logs.mock.calls.map(call => call.map(String).join(' ')).join(' ') +
+      JSON.stringify(logs.mock.calls);
+    for (const marker of credentialMarkers) expect(outputs).not.toContain(marker);
+  });
   const originalEnv = { ...process.env };
   const fetchMock = vi.fn();
   const getFirebaseServerMock = vi.fn(() => ({ db: {} }));
@@ -174,18 +193,32 @@ describe('whatsapp-proxy', () => {
         fetch: fetchMock,
       });
 
-    it.each([202, 503])('preserves the upstream status %s, body and content type', async status => {
-      fetchMock.mockResolvedValue(
-        new Response('synthetic response', { status, headers: { 'content-type': 'text/plain' } })
-      );
-      const response = await securedHandler()(event);
-      expect(response).toMatchObject({
-        statusCode: status,
-        body: 'synthetic response',
-        headers: { 'Content-Type': 'text/plain' },
-      });
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-    });
+    it.each([202, 400, 503])(
+      'preserves the upstream status %s, body and content type',
+      async status => {
+        const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        const output = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
+        fetchMock.mockResolvedValue(
+          new Response('synthetic response', { status, headers: { 'content-type': 'text/plain' } })
+        );
+        const response = await securedHandler()(event);
+        expect(response).toMatchObject({
+          statusCode: status,
+          body: 'synthetic response',
+          headers: { 'Content-Type': 'text/plain' },
+        });
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        const logs = [...errors.mock.calls, ...output.mock.calls].map(([entry]) => String(entry));
+        expect(logs).toHaveLength(1);
+        expect(JSON.parse(logs[0])).toMatchObject({
+          service: 'whatsapp',
+          status: status >= 500 ? 'failure' : 'success',
+          ...(status >= 500 ? { willRetry: false, errorCode: 'FAILURE_RESULT' } : {}),
+        });
+        expect(logs[0]).not.toContain('synthetic response');
+        expect(logs[0]).not.toContain('Bearer token');
+      }
+    );
 
     it.each(['headers', 'body'])('returns the existing timeout when %s stall', async phase => {
       vi.useFakeTimers();

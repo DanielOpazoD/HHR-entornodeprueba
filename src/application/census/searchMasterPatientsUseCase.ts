@@ -58,13 +58,13 @@ export const searchMasterPatients = async (
           kind: 'unknown',
           code: 'census/master-patient-search-failed',
           message: error instanceof Error ? error.message : 'Patient search failed',
-          userSafeMessage: 'No se pudo buscar pacientes en este momento. Intenta nuevamente.',
+          userSafeMessage: 'No se pudo consultar el índice de pacientes.',
           retryable: true,
         },
       ],
       {
         reason: 'census_master_patient_search_failed',
-        userSafeMessage: 'No se pudo buscar pacientes en este momento. Intenta nuevamente.',
+        userSafeMessage: 'No se pudo consultar el índice de pacientes.',
         retryable: true,
         severity: 'warning',
       }

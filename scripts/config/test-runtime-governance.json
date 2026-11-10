@@ -42,7 +42,7 @@
       "id": "e2e-critical",
       "label": "Critical browser flows",
       "workflow": ".github/workflows/ci-cd.yml",
-      "job": "e2e-critical-emulator",
+      "job": "e2e-critical-lanes",
       "script": "test:e2e:critical:ci",
       "maxMinutes": 8,
       "artifact": "e2e-critical-emulator-artifacts",
