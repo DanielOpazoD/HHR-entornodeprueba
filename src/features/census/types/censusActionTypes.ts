@@ -8,11 +8,10 @@ import {
   ReceivingCenter,
 } from '@/constants/clinicalMovementConstants';
 import type {
-  DischargeTarget,
   MoveOrCopyActionState,
   MoveOrCopyActionType,
 } from '@/features/census/domain/movements/contracts';
-export type { DischargeTarget } from '@/features/census/domain/movements/contracts';
+import type { DischargeTarget } from '@/types/movements';
 
 export type ActionType = MoveOrCopyActionType;
 export type ActionState = MoveOrCopyActionState;

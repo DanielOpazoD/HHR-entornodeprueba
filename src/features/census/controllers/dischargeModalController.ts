@@ -4,10 +4,7 @@ import {
 } from '@/constants/clinicalMovementConstants';
 import type { DischargeStatus, DischargeType } from '@/constants/clinicalMovementConstants';
 import { validateDischargeExecutionInput } from '@/features/census/validation/censusActionValidation';
-import type {
-  DischargeModalConfirmPayload,
-  DischargeTarget,
-} from '@/features/census/domain/movements/contracts';
+import type { DischargeModalConfirmPayload, DischargeTarget } from '@/types/movements';
 import { resolveMovementEditorInitialDate } from '@/features/census/controllers/clinicalShiftCalendarController';
 import { resolveValidHourMinuteOrFallback } from '@/features/census/controllers/timeInputController';
 import { hasModalFieldErrors } from '@/features/census/controllers/modalFormController';
