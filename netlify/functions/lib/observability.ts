@@ -1,3 +1,4 @@
+import { safeErrorMessage } from './safe-error-message';
 import type { Firestore } from 'firebase/firestore';
 
 export type TelemetryStatus = 'success' | 'failure' | 'timeout';
@@ -22,6 +23,8 @@ export interface InvokeOptions<T> {
   maxAttempts?: number;
   backoffBaseMs?: number;
   isTransientError?: (error: unknown) => boolean;
+  /** Classifies a returned result for telemetry only; never retries or changes it. */
+  isFailureResult?: (result: T) => boolean;
   hospitalId?: string;
   db?: Firestore;
   context?: Record<string, string | number | boolean>;
@@ -51,12 +54,6 @@ const errorCode = (error: unknown): string | undefined => {
   if (errObj.code !== undefined) return String(errObj.code);
   if (errObj.status !== undefined) return String(errObj.status);
   return undefined;
-};
-
-const errorMessage = (error: unknown): string => {
-  if (error instanceof Error) return error.message;
-  if (typeof error === 'string') return error;
-  return 'unknown error';
 };
 
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
@@ -105,7 +102,7 @@ const writeTelemetrySink = async (
         kind: 'telemetry_sink_failed',
         service: entry.service,
         operation: entry.operation,
-        message: errorMessage(sinkError),
+        message: safeErrorMessage(sinkError),
       })
     );
   }
@@ -119,6 +116,7 @@ export const invokeWithTelemetry = async <T>(options: InvokeOptions<T>): Promise
     maxAttempts = DEFAULT_MAX_ATTEMPTS,
     backoffBaseMs = DEFAULT_BACKOFF_BASE_MS,
     isTransientError = defaultIsTransient,
+    isFailureResult,
     hospitalId,
     db,
     context,
@@ -131,6 +129,7 @@ export const invokeWithTelemetry = async <T>(options: InvokeOptions<T>): Promise
     const startedAt = Date.now();
     try {
       const result = await withTimeout(fn, timeoutMs);
+      const failed = isFailureResult?.(result) ?? false;
       const entry: TelemetryInvocation = {
         service,
         operation,
@@ -138,12 +137,26 @@ export const invokeWithTelemetry = async <T>(options: InvokeOptions<T>): Promise
         durationMs: Date.now() - startedAt,
         attempt,
         totalAttempts: maxAttempts,
-        status: 'success',
+        status: failed ? 'failure' : 'success',
+        ...(failed
+          ? { errorCode: 'FAILURE_RESULT', errorMessage: 'Operation returned a failure result' }
+          : {}),
         context,
       };
-      process.stdout.write(
-        `${JSON.stringify({ level: 'info', kind: 'function_invocation', ...entry })}\n`
-      );
+      if (failed) {
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            kind: 'function_invocation',
+            willRetry: false,
+            ...entry,
+          })
+        );
+      } else {
+        process.stdout.write(
+          `${JSON.stringify({ level: 'info', kind: 'function_invocation', ...entry })}\n`
+        );
+      }
       if (db && hospitalId) void writeTelemetrySink(db, hospitalId, entry);
       return result;
     } catch (error) {
@@ -161,7 +174,7 @@ export const invokeWithTelemetry = async <T>(options: InvokeOptions<T>): Promise
         totalAttempts: maxAttempts,
         status: isTimeout ? 'timeout' : 'failure',
         errorCode: errorCode(error),
-        errorMessage: errorMessage(error),
+        errorMessage: safeErrorMessage(error),
         context,
       };
       console.error(
