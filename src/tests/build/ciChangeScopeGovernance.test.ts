@@ -17,7 +17,7 @@ describe('CI change scope governance', () => {
       'clinical-sync-release-gate',
       'unit-risk-shards',
       'rules-emulator',
-      'e2e-critical-emulator',
+      'e2e-critical-lanes',
       'census-startup-performance',
     ];
 
@@ -59,6 +59,10 @@ describe('CI change scope governance', () => {
     expect(scopeConfig.docsOnly.excluded).toContain('docs/api/**');
     expect(scopeConfig.functionsOnly.excluded).toContain('functions/package-lock.json');
 
+    expect(jobNeeds(jobs['e2e-critical-emulator'])).toEqual(['ci-scope', 'e2e-critical-lanes']);
+    expect(jobs['e2e-critical-emulator'].if).toBe(
+      "always() && needs.ci-scope.outputs.scope == 'full'"
+    );
     for (const jobName of gatedJobs) {
       expect(jobNeeds(jobs[jobName]), `${jobName} must depend on ci-scope`).toEqual(['ci-scope']);
       expect(jobs[jobName].if, `${jobName} must run only for full changes`).toBe(

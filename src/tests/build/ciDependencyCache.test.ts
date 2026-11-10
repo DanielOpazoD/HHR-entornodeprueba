@@ -78,6 +78,7 @@ it('reuses exact dependencies across compatible jobs with one pristine-cache wri
     'docs',
     'docs-scope-gate',
     'e2e-critical-emulator',
+    'e2e-critical-lanes',
     'final-confidence-and-readiness',
     'lighthouse-ci',
     'postmerge-evidence',
@@ -146,7 +147,7 @@ it('preserves docs-only conditions and parallel cold-miss fallbacks without a pr
     'clinical-sync-release-gate',
     'unit-risk-shards',
     'rules-emulator',
-    'e2e-critical-emulator',
+    'e2e-critical-lanes',
     'census-startup-performance',
   ];
   for (const name of independent) {
