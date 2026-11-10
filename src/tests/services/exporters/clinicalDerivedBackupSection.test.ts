@@ -24,7 +24,6 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getAllRecords: mocks.getAllRecords,
   saveRecordsStrict: mocks.saveRecordsStrict,
   getRecordsRange: mocks.getRecordsRange,
-  saveRecords: vi.fn(),
   // No local copy: the import guard (P4a) lets every day through.
   getRecordForDateStrict: vi.fn(async () => null),
 }));

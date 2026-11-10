@@ -56,7 +56,10 @@ describe('E2E critical script governance', () => {
 
   it('reads operational metrics explicitly from the preserved critical report', () => {
     const { steps } = readCriticalWorkflowJob();
-    const critical = steps.find(step => step.run?.includes('npm run test:e2e:critical:ci'));
+    const lanes = parseWorkflow(fs.readFileSync('.github/workflows/ci-cd.yml', 'utf8')).jobs[
+      'e2e-critical-lanes'
+    ];
+    const critical = lanes.steps.find(step => step.run?.includes('npm run test:e2e:critical:ci'));
     expect(critical?.env).toMatchObject({
       PLAYWRIGHT_JSON_OUTPUT: 'reports/e2e/critical-playwright-report.json',
       E2E_FLOW_PLAYWRIGHT_JSON_OUTPUT: 'reports/e2e/flow-performance-playwright-report.json',

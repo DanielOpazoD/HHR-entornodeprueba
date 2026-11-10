@@ -1,3 +1,4 @@
+import { CRITICAL_LANES, criticalLaneSpecs } from './criticalE2ELanes.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -347,23 +348,24 @@ export const buildRequiredCiSuites = root => {
       files: ['src/tests/security/storage-rules.test.ts'],
       allowSkipped: false,
     },
-    {
-      suiteId: 'critical',
-      job: 'e2e-critical-emulator',
+    ...CRITICAL_LANES.map(lane => ({
+      suiteId: `critical-${lane}`,
+      job: 'e2e-critical-lanes',
       kind: 'playwright',
       script: 'test:e2e:critical:ci',
-      files: selectLiteralE2eFiles(root, 'test:e2e:critical', scripts),
-    },
+      args: ['--', lane],
+      files: criticalLaneSpecs(lane, root),
+    })),
     {
       suiteId: 'cudyr',
-      job: 'e2e-critical-emulator',
+      job: 'e2e-critical-lanes',
       kind: 'playwright',
       script: 'test:e2e:cudyr-flow:ci',
       files: selectLiteralE2eFiles(root, 'test:e2e:cudyr-flow', scripts),
     },
     {
       suiteId: 'flow',
-      job: 'e2e-critical-emulator',
+      job: 'e2e-critical-lanes',
       kind: 'playwright',
       script: 'test:e2e:flow-performance:built',
       files: selectLiteralE2eFiles(root, 'test:e2e:flow-performance:built', scripts),

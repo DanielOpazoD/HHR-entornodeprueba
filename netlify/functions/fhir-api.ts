@@ -1,3 +1,4 @@
+import { safeErrorLog, safeErrorMessage } from './lib/safe-error-message';
 import { doc, getDoc, collection, query, where, getDocs, type Firestore } from 'firebase/firestore';
 import { getFirebaseServer } from './lib/firebase-server';
 import { mapMasterPatientToFhir, mapEncounterToFhir } from '../../src/services/utils/fhirMappers';
@@ -131,7 +132,7 @@ export const createFhirApiHandler =
         return buildOperationOutcomeResponse(
           401,
           'login',
-          error instanceof Error ? error.message : 'Authentication required.',
+          safeErrorMessage(error, 'Authentication required.'),
           requestOrigin
         );
       }
@@ -144,7 +145,12 @@ export const createFhirApiHandler =
           message.includes('Access denied') || message.includes('no email claim') ? 403 : 401;
         const code = statusCode === 403 ? 'forbidden' : 'login';
 
-        return buildOperationOutcomeResponse(statusCode, code, message, requestOrigin);
+        return buildOperationOutcomeResponse(
+          statusCode,
+          code,
+          safeErrorMessage(message),
+          requestOrigin
+        );
       }
 
       if (resourceType === 'Patient') {
@@ -184,11 +190,11 @@ export const createFhirApiHandler =
         requestOrigin
       );
     } catch (error: unknown) {
-      console.error('[FHIR API] Error:', error);
+      console.error('[FHIR API] Error:', safeErrorLog(error));
       return buildOperationOutcomeResponse(
         500,
         'exception',
-        error instanceof Error ? error.message : String(error),
+        safeErrorMessage(error),
         requestOrigin
       );
     }

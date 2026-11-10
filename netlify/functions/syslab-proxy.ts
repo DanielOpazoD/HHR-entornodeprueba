@@ -1,3 +1,4 @@
+import { safeErrorMessage } from './lib/safe-error-message';
 /**
  * syslab-proxy Netlify Function
  *
@@ -21,6 +22,7 @@
  */
 
 import { createHash } from 'node:crypto';
+import { readResponseWithinLimit } from './lib/bounded-response';
 import { getFirebaseServer } from './lib/firebase-server';
 import { authorizeRoleRequest, extractBearerToken } from './lib/firebase-auth';
 import { invokeWithTelemetry } from './lib/observability';
@@ -182,9 +184,8 @@ const handlePdf = async (proxyUrl: string, params: URLSearchParams, requestOrigi
     });
   }
 
-  const buffer = await response.arrayBuffer();
-  const bytes = Buffer.from(buffer);
-  if (bytes.length > 4 * 1024 * 1024 || bytes.subarray(0, 4).toString() !== '%PDF') {
+  const bytes = await readResponseWithinLimit(response, 4 * 1024 * 1024);
+  if (!bytes || bytes.subarray(0, 4).toString() !== '%PDF') {
     return buildTextResponse(502, 'El servidor no entregó un PDF válido de laboratorio.', {
       requestOrigin,
     });
@@ -300,7 +301,7 @@ export const createSyslabProxyHandler = (
     } catch (error) {
       return buildJsonResponse(
         401,
-        { error: error instanceof Error ? error.message : 'Authentication required.' },
+        { error: safeErrorMessage(error, 'Authentication required.') },
         { requestOrigin }
       );
     }
@@ -318,7 +319,7 @@ export const createSyslabProxyHandler = (
         error instanceof Error ? error.message : 'No autorizado para consultar laboratorio.';
       const statusCode =
         message.includes('Access denied') || message.includes('no email claim') ? 403 : 401;
-      return buildJsonResponse(statusCode, { error: message }, { requestOrigin });
+      return buildJsonResponse(statusCode, { error: safeErrorMessage(message) }, { requestOrigin });
     }
 
     const proxyUrl = getProxyUrl();
@@ -380,6 +381,7 @@ export const createSyslabProxyHandler = (
         timeoutMs: telemetryOptions.timeoutMs,
         // search/pdf are idempotent GETs, details posts links but parsing is deterministic
         maxAttempts: telemetryOptions.maxAttempts,
+        isFailureResult: result => result.statusCode >= 500 && result.statusCode < 600,
         db,
         hospitalId: process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa',
         context: { action },

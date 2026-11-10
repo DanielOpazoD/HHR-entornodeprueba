@@ -76,7 +76,7 @@ export const EVIDENCE_PIPELINES: Record<string, Matcher[]> = {
     upload('preview-bootstrap-artifacts'),
   ],
   'e2e-critical-emulator': [
-    run('npm run test:e2e:critical:ci'),
+    run('node scripts/merge-critical-e2e-lanes.mjs'),
     run('node scripts/report-e2e-operational-metrics.mjs'),
     upload('flow-performance-evidence'),
   ],

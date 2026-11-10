@@ -5,6 +5,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import ts from 'typescript';
 
 export const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs'];
 
@@ -42,3 +43,6 @@ export const resolveSpecifier = (fromFile, specifier, files) => {
   ];
   return candidates.find(candidate => files.has(candidate)) ?? null;
 };
+
+/** Literal module references, including type-only imports and commented dynamic imports. */
+export const readModuleReferences = source => ts.preProcessFile(source, true, true).importedFiles;
