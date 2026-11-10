@@ -48,7 +48,7 @@ interface ExecutePostDeployRecentRecordRefreshParams {
   readSyncQueueTelemetry?: () => Promise<SyncQueueTelemetry>;
   /** Resolves false when the day stays, because a pending write holds it. */
   deleteLocalRecord?: (date: string) => Promise<boolean>;
-  syncRemoteRecord: (date: string) => Promise<OperationalOutcomeLike>;
+  syncRemoteRecord: (date: string) => Promise<OperationalOutcomeLike & { reason?: string }>;
 }
 
 const canUseBrowserStorage = (): boolean =>
@@ -246,7 +246,9 @@ export const executePostDeployRecentRecordRefresh = async ({
       if (!deleted) return skipQueueNotEmpty();
       const outcome = await syncRemoteRecord(date);
       if (!isCurrentSession()) return interrupted();
-      if (outcome.status !== 'success') {
+      // A day with no census on the server was read correctly: that is an answer, not a failure.
+      const answered = outcome.status === 'success' || outcome.reason === 'missing_remote_record';
+      if (!answered) {
         const result = { status: 'failed' as const, dates, marker, queueTelemetry };
         recordPostDeployRefreshTelemetry(result.status, result);
         return result;

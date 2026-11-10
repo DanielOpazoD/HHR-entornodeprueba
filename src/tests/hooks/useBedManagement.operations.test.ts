@@ -1,10 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useBedManagement } from '@/hooks/useBedManagement';
-import type {
-  DailyRecord,
-  PersistDailyRecord,
-} from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 import type { PatientData } from '@/types/domain/patient';
 import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
 import { mockAuditContextValue } from '../setup';
@@ -38,7 +35,6 @@ vi.mock('@/services/admin/attributionService', () => ({
 }));
 
 describe('useBedManagement operations', () => {
-  const mockSaveAndUpdate = vi.fn().mockResolvedValue(undefined) as PersistDailyRecord;
   const mockPatchRecord = vi.fn().mockResolvedValue(undefined);
 
   const runBedAction = async (action: () => void) => {
@@ -88,9 +84,7 @@ describe('useBedManagement operations', () => {
       const patient = createMockPatient('R1');
       const targetEmpty = createMockPatient('R2', { patientName: '' });
       const record = createMockRecord({ R1: patient, R2: targetEmpty });
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       await runBedAction(() => result.current.moveOrCopyPatient('move', 'R1', 'R2'));
 
@@ -128,9 +122,7 @@ describe('useBedManagement operations', () => {
       const patient = createMockPatient('R1');
       const targetEmpty = createMockPatient('R2', { patientName: '' });
       const record = createMockRecord({ R1: patient, R2: targetEmpty });
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       await runBedAction(() => result.current.moveOrCopyPatient('copy', 'R1', 'R2'));
 
@@ -159,9 +151,7 @@ describe('useBedManagement operations', () => {
       const patient = createMockPatient('R1', { isUPC: true });
       const targetEmpty = createMockPatient('H1C1', { patientName: '', isUPC: false });
       const record = createMockRecord({ R1: patient, H1C1: targetEmpty });
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       act(() => {
         result.current.moveOrCopyPatient('move', 'R1', 'H1C1');
@@ -176,9 +166,7 @@ describe('useBedManagement operations', () => {
 
     it('handles clearAllBeds', () => {
       const record = createMockRecord({ R1: createMockPatient('R1'), R2: createMockPatient('R2') });
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       act(() => {
         result.current.clearAllBeds();
@@ -189,9 +177,7 @@ describe('useBedManagement operations', () => {
 
     it('toggles block bed and updates reason', () => {
       const record = createMockRecord({ R1: createMockPatient('R1') });
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       act(() => {
         result.current.toggleBlockBed('R1', 'Maintenance');
@@ -213,9 +199,7 @@ describe('useBedManagement operations', () => {
 
     it('toggles extra bed', () => {
       const record = createMockRecord({ R1: createMockPatient('R1') });
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       act(() => {
         result.current.toggleExtraBed('R10');
@@ -228,9 +212,7 @@ describe('useBedManagement operations', () => {
 
     it('toggles bed type', () => {
       const record = createMockRecord({ R1: createMockPatient('R1') });
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       act(() => {
         result.current.toggleBedType('R1');
@@ -242,9 +224,7 @@ describe('useBedManagement operations', () => {
 
   describe('error handling and edge cases', () => {
     it('ignores actions when record is null', () => {
-      const { result } = renderHook(() =>
-        useBedManagement(null, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(null, mockPatchRecord));
 
       act(() => {
         result.current.updatePatient('R1', 'age', '50');
@@ -255,9 +235,7 @@ describe('useBedManagement operations', () => {
 
     it('handles dispatch errors gracefully', async () => {
       const record = createMockRecord({ R1: createMockPatient('R1') });
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       vi.mocked(mockAuditContextValue.logDebouncedEvent).mockImplementationOnce(() => {
         throw new Error('Audit fail');
@@ -277,9 +255,7 @@ describe('useBedManagement operations', () => {
     it('handles clearPatient audit when name is present', async () => {
       const patient = createMockPatient('R1', { patientName: 'John' });
       const record = createMockRecord({ R1: patient });
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       await runBedAction(() => result.current.clearPatient('R1'));
 
@@ -298,9 +274,7 @@ describe('useBedManagement operations', () => {
         clinicalCrib: { patientName: 'Baby', rut: '1-1' } as PatientData,
       });
       const record = createMockRecord({ R1: patient });
-      const { result } = renderHook(() =>
-        useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
-      );
+      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
 
       act(() => {
         result.current.updateClinicalCribMultiple('R1', { patientName: 'New' });

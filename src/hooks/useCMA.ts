@@ -3,7 +3,6 @@ import type {
   ApplyDailyRecordPatch,
   DailyRecord,
   DailyRecordPatch,
-  PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
 import { CMAData } from '@/types/domain/movements';
 import { capitalizeWords } from '@/utils/stringUtils';
@@ -59,11 +58,7 @@ const normalizePatientData = (data: Partial<CMAData>): Partial<CMAData> => {
   return normalized;
 };
 
-export const useCMA = (
-  record: DailyRecord | null,
-  _saveAndUpdate: PersistDailyRecord,
-  patchRecord: ApplyDailyRecordPatch
-) => {
+export const useCMA = (record: DailyRecord | null, patchRecord: ApplyDailyRecordPatch) => {
   const recordRef = useRef(record);
   const { logDischargeDiagnosisChange, logDischargeReclassification, actor } =
     usePatientMovementAudit();

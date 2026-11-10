@@ -1,5 +1,6 @@
 import { executeSyncDailyRecord } from '@/application/daily-record/syncDailyRecordUseCase';
 import { defaultDailyRecordSyncPort } from '@/application/ports/dailyRecordPort';
+import { createSyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
@@ -192,6 +193,25 @@ describe('truthful session-bound recent recovery', () => {
       expect(args.clearMarker).not.toHaveBeenCalled();
     }
   );
+
+  it('completes when a day has no census on the server, because that read succeeded', async () => {
+    const args = refreshArgs();
+    const result = await executePostDeployRecentRecordRefresh({
+      ...args,
+      syncRemoteRecord: date =>
+        executeSyncDailyRecord({
+          date,
+          repository: {
+            ...defaultDailyRecordSyncPort,
+            syncWithFirestoreDetailed: async () =>
+              createSyncDailyRecordResult({ date, outcome: 'missing', record: null }),
+          },
+        }),
+    });
+    expect(result.status).toBe('completed');
+    expect(args.deleteLocalRecord).toHaveBeenCalledTimes(2);
+    expect(args.clearMarker).toHaveBeenCalledTimes(1);
+  });
 
   it('retains marker on a thrown read', async () => {
     const args = refreshArgs();
