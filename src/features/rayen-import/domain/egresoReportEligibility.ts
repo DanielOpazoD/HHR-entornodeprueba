@@ -3,6 +3,7 @@ import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import { normalizedName } from './previousCensusEgresoCandidates';
 import { isValidRut, normalizeRut } from '@/utils/rutUtils';
+import { calendarDateForMovement } from '@/utils/movementCalendarDate';
 import { eligibleExactEpisodes, findPlannedPatientByEpisode } from './egresoReportEvidence';
 import {
   correctedStamp,
@@ -251,7 +252,8 @@ export const selectEligibleEgresoRows = (
               movement.isNested &&
               movement.bedId === reportedBedId &&
               !movement.rut?.trim() &&
-              movement.movementDate === stamp.iso &&
+              // Stored under the calendar day of the event; a dawn discharge falls on the next one.
+              movement.movementDate === calendarDateForMovement(stamp.iso, stamp.hhmm) &&
               movement.time === stamp.hhmm &&
               normalizedName(movement.patientName) === normalizedName(row.patientName)
           )

@@ -131,6 +131,14 @@ describe('newborn folio discharge report row', () => {
     expect(record).toEqual(before);
   });
 
+  it('recognises a dawn discharge, which the census stores under the next calendar day', () => {
+    const dawnRow = { ...folioRow(), correctedTime: '03:00' };
+    const record = recorded([{ ...movement(), movementDate: '2026-07-09', time: '03:00' }]);
+    const result = applyEgresoReport(emptyDiff(), [dawnRow], record);
+    expect(result.conflicts).toEqual([]);
+    expect(result.discharges).toEqual([]);
+  });
+
   it.each([
     { patientName: 'RN de Otra Madre' },
     { run: 'AB123456', patientName: 'Adulto Pasaporte' },
