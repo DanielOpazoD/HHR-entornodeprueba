@@ -9,10 +9,6 @@ const SRC_ROOT = path.join(ROOT, 'src');
 const MATRIX_PATH = path.join(ROOT, 'scripts', 'folder-dependency-matrix.json');
 const ALLOWLIST_PATH = path.join(ROOT, 'scripts', 'folder-dependency-allowlist.json');
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
-const IMPORT_REGEX =
-  /(?:^|\n)\s*import(?:[\s\S]*?\sfrom\s*)?["']([^"']+)["']|(?:^|\n)\s*export\s+[^;\n]*\sfrom\s*["']([^"']+)["']/g;
-// Inventory only until the newly exposed boundary crossings have an owner decision.
-const REPORT_IMPORTS = process.argv.includes('--report-imports');
 const UPDATE_ALLOWLIST = process.argv.includes('--update-allowlist');
 
 const toPosix = value => value.split(path.sep).join('/');
@@ -126,12 +122,7 @@ for (const absolutePath of files) {
   if (!importerZone) continue;
 
   const source = fs.readFileSync(absolutePath, 'utf8');
-  const references = REPORT_IMPORTS
-    ? readModuleReferences(source, { includeSideEffects: false })
-    : [...source.matchAll(IMPORT_REGEX)].map(match => ({
-        fileName: match[1] || match[2],
-        pos: match.index,
-      }));
+  const references = readModuleReferences(source);
 
   for (const reference of references) {
     const importPath = reference.fileName;
@@ -166,7 +157,7 @@ for (const absolutePath of files) {
 
 const sortedCurrentViolationIds = [...new Set(currentViolationIds)].sort();
 
-if (UPDATE_ALLOWLIST && !REPORT_IMPORTS) {
+if (UPDATE_ALLOWLIST) {
   fs.writeFileSync(
     ALLOWLIST_PATH,
     `${JSON.stringify({ violations: sortedCurrentViolationIds }, null, 2)}\n`,
@@ -179,18 +170,6 @@ if (UPDATE_ALLOWLIST && !REPORT_IMPORTS) {
 }
 
 const newViolations = sortedCurrentViolationIds.filter(id => !knownViolations.has(id));
-if (REPORT_IMPORTS) {
-  console.log('Folder dependency import inventory (rejection is not enabled):');
-  for (const id of newViolations) {
-    const [, importerPath, importPath, , importerZone, importedZone] = id.split('|');
-    console.log(
-      `- ${importerPath}:${violationLines.get(id)} ${importerZone} -> ${importedZone} (${importPath})`
-    );
-  }
-  console.log(`Unallowlisted crossings: ${newViolations.length}`);
-  process.exit(0);
-}
-
 if (newViolations.length === 0) {
   console.log('Folder dependency matrix checks passed.');
   if (sortedCurrentViolationIds.length > 0) {
@@ -203,10 +182,12 @@ if (newViolations.length === 0) {
 
 console.error('\nFolder dependency boundary violations:');
 for (const violationId of newViolations) {
-  const [rule, importerPath, importPath, importedPath, importerZone, importedZone] =
-    violationId.split('|');
+  const [, importerPath, importPath, , importerZone, importedZone] = violationId.split('|');
   console.error(
-    `- [${rule}] ${importerPath} (${importerZone}) -> ${importPath} => ${importedPath} (${importedZone})`
+    `- ${importerPath}:${violationLines.get(violationId)} ${importerZone} -> ${importedZone} (${importPath})`
+  );
+  console.error(
+    '  Mover el import a una zona permitida por scripts/folder-dependency-matrix.json; la lista de deuda conocida no se amplía sin decisión del responsable.'
   );
 }
 

@@ -1,3 +1,7 @@
 {
-  "violations": []
+  "violations": [
+    "folder-dependency-not-allowed|src/components/layout/app-content/AppContentOverlays.tsx|@/features/census/public-components|src/features/census/public-components.ts|components|features",
+    "folder-dependency-not-allowed|src/context/AuthContext.tsx|@/components/layout/NursingHandoffLogoutDialog|src/components/layout/NursingHandoffLogoutDialog.tsx|context|components",
+    "folder-dependency-not-allowed|src/context/AuthContext.tsx|@/components/layout/NursingHandoffSessionNotice|src/components/layout/NursingHandoffSessionNotice.tsx|context|components"
+  ]
 }

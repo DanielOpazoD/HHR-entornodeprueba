@@ -9,8 +9,9 @@ const roots: string[] = [];
 const zones = ['components', 'context', 'hooks', 'services'];
 // Both real guards on main 764252f were run against these 84 synthetic repositories.
 // 82 verdicts matched; two near-shims were rejected only by the folder guard.
-// No module rejection was accepted by the folder guard. Freeze these verdicts;
-// never derive expected results from the live matrix.
+// No module rejection was accepted by the folder guard. Preserve static verdicts;
+// dynamic and side-effect imports now follow the same matrix.
+// Never derive expected results from the live matrix.
 const rejectedPairs = new Set([
   'context->components',
   'hooks->components',
@@ -24,7 +25,7 @@ const fixtures: {
   name: string;
   files: Record<string, string>;
   status: number;
-  reportedCrossings?: number;
+  diagnostic?: string;
 }[] = [];
 for (const from of zones) {
   for (const to of zones) {
@@ -65,10 +66,10 @@ for (const extension of ['.ts', '.tsx', '.js', '.jsx']) {
       status: 1,
     },
     {
-      name: 'dynamic import ignored',
+      name: 'dynamic import rejected',
       code: "import('@/hooks/target');",
       target: `src/hooks/target${extension}`,
-      status: 0,
+      status: 1,
     },
     {
       name: 'unresolved ignored',
@@ -83,10 +84,10 @@ for (const extension of ['.ts', '.tsx', '.js', '.jsx']) {
       status: 0,
     },
     {
-      name: 'side-effect ignored',
+      name: 'side-effect rejected',
       code: "import '@/hooks/target';",
       target: `src/hooks/target${extension}`,
-      status: 0,
+      status: 1,
     },
   ];
   for (const fixture of cases) {
@@ -145,31 +146,29 @@ for (const code of [
   "import type { x } from '@/services/target';",
 ]) {
   fixtures.push({
-    name: `inventory reports domain->services for ${code}`,
+    name: `rejects domain->services for ${code}`,
     files: {
-      'src/domain/probe.ts': code,
+      'src/domain/probe.ts': `// synthetic fixture\n${code}`,
       'src/services/target.ts': 'export const x = 1;',
     },
-    status: 0,
-    reportedCrossings: 1,
+    status: 1,
+    diagnostic: 'src/domain/probe.ts:2 domain -> services (@/services/target)',
   });
 }
 
 for (const [name, code] of [
-  ['side effect stays excluded', "import '@/services/target';"],
-  ['unresolved stays ignored', "import('@/services/missing');"],
-  ['package stays ignored', "import('package');"],
-  ['nonliteral stays ignored', 'import(target);'],
-  ['comment stays ignored', "// import('@/services/target');"],
+  ['unresolved', "import('@/services/missing');"],
+  ['package', "import('package');"],
+  ['nonliteral', 'import(target);'],
+  ['comment', "// import('@/services/target');"],
 ]) {
   fixtures.push({
-    name: `inventory ${name}`,
+    name: `ignores ${name}`,
     files: {
       'src/domain/probe.ts': code,
       'src/services/target.ts': 'export const x = 1;',
     },
     status: 0,
-    reportedCrossings: 0,
   });
 }
 
@@ -193,20 +192,16 @@ describe('check-folder-dependencies frozen verdicts', () => {
     }
     const result = spawnSync(
       process.execPath,
-      [
-        path.resolve('scripts/check-folder-dependencies.mjs'),
-        ...(fixture.reportedCrossings === undefined ? [] : ['--report-imports']),
-      ],
+      [path.resolve('scripts/check-folder-dependencies.mjs')],
       {
         cwd: root,
         encoding: 'utf8',
       }
     );
-    if (fixture.reportedCrossings !== undefined) {
-      expect(result.stdout).toContain(`Unallowlisted crossings: ${fixture.reportedCrossings}`);
-      if (fixture.reportedCrossings > 0) {
-        expect(result.stdout).toContain('src/domain/probe.ts:1 domain -> services');
-      }
+    if (fixture.diagnostic) {
+      expect(result.stderr).toContain(fixture.diagnostic);
+      expect(result.stderr).toContain('scripts/folder-dependency-matrix.json');
+      expect(result.stderr).toContain('responsable');
     }
     expect(result.error).toBeUndefined();
     expect(result.status, `${result.stdout}${result.stderr}`).toBe(fixture.status);

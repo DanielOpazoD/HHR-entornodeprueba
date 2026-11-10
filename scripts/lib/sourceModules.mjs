@@ -45,20 +45,4 @@ export const resolveSpecifier = (fromFile, specifier, files) => {
 };
 
 /** Literal module references, including type-only imports and commented dynamic imports. */
-export const readModuleReferences = (source, { includeSideEffects = true } = {}) => {
-  const references = ts.preProcessFile(source, true, true).importedFiles;
-  if (includeSideEffects) return references;
-  const file = ts.createSourceFile(
-    'source.tsx',
-    source,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TSX
-  );
-  const sideEffects = new Set(
-    file.statements
-      .filter(statement => ts.isImportDeclaration(statement) && !statement.importClause)
-      .map(statement => statement.moduleSpecifier.getStart(file))
-  );
-  return references.filter(reference => !sideEffects.has(reference.pos));
-};
+export const readModuleReferences = source => ts.preProcessFile(source, true, true).importedFiles;
