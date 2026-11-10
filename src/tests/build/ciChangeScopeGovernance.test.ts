@@ -2,11 +2,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { loadCiChangeScopeConfig } from '../../../scripts/ciChangeScopeSupport.mjs';
 import {
-  classifyCiChangeScope,
-  loadCiChangeScopeConfig,
-} from '../../../scripts/ciChangeScopeSupport.mjs';
-import { collectToolingExclusions } from './toolingScopeTestSupport';
+  assertToolingControls,
+  inventoryToolingControls,
+  repositoryInventory,
+} from './toolingScopeTestSupport';
 import { jobNeeds, parseWorkflow } from './workflowYamlTestSupport';
 
 const readText = (relativePath: string) =>
@@ -74,44 +75,105 @@ describe('CI change scope governance', () => {
 });
 
 describe('tooling scope safety', () => {
-  it('discovers new direct, matrix and nested npm control invocations without a manual list', () => {
-    const exclusions = collectToolingExclusions({
-      workflowText: `
-jobs:
-  future-browser-job:
-    strategy:
-      matrix:
-        check: [future-check]
-    steps:
-      - run: node scripts/check-future-direct.mjs
-      - run: npm run \${{ matrix.check }}
-`,
-      scripts: {
-        'future-check': 'npm run nested-check',
-        'nested-check': 'node scripts/check-future-nested.mjs',
-      },
-    });
-    expect(exclusions).toEqual(
-      expect.arrayContaining(['scripts/check-future-direct.mjs', 'scripts/check-future-nested.mjs'])
+  it('allows only aggregate controls without external consumers or classifier dependencies', () => {
+    const config = loadCiChangeScopeConfig(process.cwd());
+    expect(config.toolingOnly.paths).toEqual(['src/tests/scripts/**', 'src/tests/build/**']);
+    expect(config.toolingOnly).not.toHaveProperty('excluded');
+    expect(config.toolingOnly.controls.length).toBeGreaterThan(0);
+    expect(JSON.parse(readText('package.json')).scripts['check:quality']).toBe(
+      'node scripts/check-quality-aggregate.mjs'
+    );
+    assertToolingControls(config.toolingOnly.controls);
+    const inventory = inventoryToolingControls(repositoryInventory());
+    expect(
+      inventory.find(entry => entry.control === 'scripts/check-rayen-extension-release.mjs')
+        ?.reasons
+    ).toContain(
+      'external_reference:src/tests/rayen-import/extensionReleaseDependencyGraph.test.ts'
     );
   });
 
-  it('excludes every control used by omitted runtime/build/deployment jobs or runtime imports', () => {
-    const config = loadCiChangeScopeConfig(process.cwd());
-    const exclusions = collectToolingExclusions();
-    expect(exclusions).toContain('scripts/check-bundle-budget.mjs');
-    for (const filename of exclusions) {
-      // Functions support controls retain their existing functions-only scope.
-      if (config.functionsOnly.supportFiles.includes(filename)) continue;
-      expect(
-        classifyCiChangeScope({
-          eventName: 'pull_request',
-          files: [{ filename, status: 'modified' }],
-          config,
-        }).scope,
-        `${filename} must be excluded from tooling-only`
-      ).toBe('full');
-    }
+  it('rejects an allowlisted control referenced by an external synthetic test, naming both files', () => {
+    const control = 'scripts/check-synthetic.mjs';
+    const input = {
+      files: {
+        [control]: '',
+        'src/tests/rayen-import/external.test.ts': "readFileSync('scripts/check-synthetic.mjs')",
+      },
+      scripts: { 'check:synthetic': `node ${control}` },
+      aggregateIds: ['check:synthetic'],
+    };
+    expect(() => assertToolingControls([control], input)).toThrow(
+      'scripts/check-synthetic.mjs: external_reference:src/tests/rayen-import/external.test.ts'
+    );
+    expect(() =>
+      assertToolingControls([control], { ...input, files: { [control]: '' } })
+    ).not.toThrow();
+  });
+
+  it.each([
+    'src/features/example.ts',
+    'src/tests/other/external.test.ts',
+    'e2e/example.ts',
+    'netlify/functions/example.ts',
+    'functions/src/example.ts',
+    'extension/example.js',
+    'vite.config.ts',
+    'vitest.config.ts',
+    'playwright.config.ts',
+    '.github/workflows/rules-drift.yml',
+    '.github/workflows/security-audit.yml',
+    '.github/actions/example/action.yml',
+    '.husky/pre-commit',
+    'netlify.toml',
+    'scripts/run-example.mjs',
+  ])('rejects consumers in %s, including nested npm aliases', consumer => {
+    const control = 'scripts/check-example.mjs';
+    const input = {
+      files: { [control]: '', [consumer]: 'npm run outer' },
+      scripts: { 'check:example': `node ${control}`, outer: 'npm run check:example' },
+      aggregateIds: ['check:example'],
+    };
+    expect(() => assertToolingControls([control], input)).toThrow(control);
+    expect(() => assertToolingControls([control], input)).toThrow(consumer);
+  });
+
+  it('follows matrix aliases, lifecycle hooks and invocations from other package scripts', () => {
+    const control = 'scripts/check-example.mjs';
+    const scripts = {
+      'check:example': 'node harmless.mjs',
+      'precheck:example': `node ${control}`,
+      outer: 'npm run check:example',
+    };
+    const entry = inventoryToolingControls({
+      files: {
+        [control]: '',
+        '.github/workflows/future.yml': 'check: [outer]\nrun: npm run ${{ matrix.check }}',
+      },
+      scripts,
+      aggregateIds: ['precheck:example'],
+    }).find(item => item.control === control);
+    expect(entry?.reasons).toContain('external_reference:.github/workflows/future.yml');
+    expect(entry?.reasons).toContain('external_reference:package.json#outer');
+  });
+
+  it('rejects non-aggregate controls and transitive aggregate/classifier dependencies', () => {
+    const control = 'scripts/check-example.mjs';
+    const input = {
+      files: {
+        [control]: '',
+        'scripts/check-quality-aggregate.mjs': "import './support.mjs'",
+        'scripts/support.mjs': "import './check-example.mjs'",
+      },
+      scripts: { 'check:example': `node ${control}` },
+      aggregateIds: ['check:example'],
+    };
+    expect(
+      inventoryToolingControls(input).find(entry => entry.control === control)?.reasons
+    ).toContain('aggregate_or_classifier_dependency');
+    expect(() => assertToolingControls([control], { ...input, aggregateIds: [] })).toThrow(
+      'not_in_aggregate'
+    );
   });
 
   it('validates the reduced scope with cached dependencies, formatting, aggregate and tests', () => {
@@ -125,7 +187,10 @@ jobs:
     expect(commands).toContain('eslint');
     expect(commands).toContain('prettier');
     expect(commands).toContain('npm run check:quality');
-    expect(commands).toContain('vitest run src/tests/scripts src/tests/build --maxWorkers=1');
+    expect(commands).toContain('npm run typecheck');
+    expect(commands.indexOf('npm run typecheck')).toBeLessThan(commands.indexOf('vitest run'));
+    expect(commands).toContain('vitest run src/tests/scripts src/tests/build');
+    expect(commands).not.toContain('--maxWorkers=1');
     const aggregate = JSON.parse(readText('scripts/config/guardrail-governance.json'));
     expect(
       aggregate.qualityAggregate.checks.some(

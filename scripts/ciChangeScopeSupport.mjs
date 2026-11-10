@@ -67,7 +67,8 @@ export const classifyCiChangeScope = ({ eventName, files, config }) => {
 
   const tooling = config.toolingOnly || {};
   const isToolingOnly = normalizedFiles.every(
-    ({ filename }) => !matchesAny(filename, tooling.excluded) && matchesAny(filename, tooling.paths)
+    ({ filename }) =>
+      (tooling.controls || []).includes(filename) || matchesAny(filename, tooling.paths)
   );
   if (isToolingOnly) {
     return { scope: 'tooling-only', reason: 'tooling_allowlist', usedFallback: false };
@@ -116,8 +117,29 @@ export const collectChangedFilesFromGit = ({ root, baseSha, headSha, execFile = 
 
   const output = execFile(
     'git',
-    ['-C', root, 'diff', '--name-status', '-z', `${baseSha}...${headSha}`],
+    ['-C', root, 'diff', '--raw', '--no-abbrev', '-z', `${baseSha}...${headSha}`],
     { encoding: 'buffer' }
   );
-  return parseGitNameStatus(output);
+  const fields = splitNullDelimitedBuffers(output);
+  const files = [];
+  for (let index = 0; index < fields.length; ) {
+    const header = fields[index++].toString('ascii');
+    const match = /^:(\d{6}) (\d{6}) [0-9a-f]+ [0-9a-f]+ ([A-Z][0-9]*)$/.exec(header);
+    if (!match) throw new Error('Invalid Git raw diff metadata.');
+    const [, oldMode, newMode, status] = match;
+    if (/^[RC]/.test(status)) index += 1;
+    const pathname = fields[index++];
+    if (!pathname) throw new Error('Missing Git raw diff pathname.');
+    const regular = mode => mode === '100644' || mode === '100755';
+    files.push({
+      filename: normalizePath(pathname.toString('utf8')),
+      status:
+        ['A', 'M'].includes(status) &&
+        regular(newMode) &&
+        (oldMode === '000000' || regular(oldMode))
+          ? 'modified'
+          : 'unsafe',
+    });
+  }
+  return files;
 };

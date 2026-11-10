@@ -160,9 +160,12 @@ jobs:
       - name: Validate static controls against the repository
         if: needs.ci-scope.outputs.scope == 'tooling-only'
         run: npm run check:quality
+      - name: Check TypeScript types
+        if: needs.ci-scope.outputs.scope == 'tooling-only'
+        run: npm run typecheck
       - name: Run control and build regression tests
         if: needs.ci-scope.outputs.scope == 'tooling-only'
-        run: npx vitest run src/tests/scripts src/tests/build --maxWorkers=1
+        run: npx vitest run src/tests/scripts src/tests/build
 
   critical-coverage-shards:
     name: critical-coverage-shard-${{ matrix.shard }}

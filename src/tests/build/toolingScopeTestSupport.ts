@@ -1,109 +1,111 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import ts from 'typescript';
-import { parseWorkflow } from './workflowYamlTestSupport';
 
-const read = (file: string) => fs.readFileSync(file, 'utf8');
-const isControl = (file: string) => /^scripts\/check-[^/]+\.mjs$/.test(file);
+export type InventoryInput = {
+  files: Record<string, string>;
+  scripts: Record<string, string>;
+  aggregateIds: string[];
+};
 
-// These jobs run the aggregate that tooling-scope-gate repeats against the real repo.
-const repeatedJobs = new Set([
-  'ci-scope',
-  'docs-scope-gate',
-  'functions-scope-gate',
-  'tooling-scope-gate',
-  'ci-strict-summary',
-  'quality-static-base',
-  'quality-static-groups',
-  'quality-static-dependent-groups',
-]);
-
-const repositoryScripts: Record<string, string> = JSON.parse(read('package.json')).scripts;
-
-export const collectToolingExclusions = ({
-  workflowText = read('.github/workflows/ci-cd.yml'),
-  scripts = repositoryScripts,
-} = {}) => {
-  const excluded = new Set<string>();
-  const visited = new Set<string>();
-  const inspectFile = (file: string) => {
-    file = path.normalize(file);
-    if (isControl(file)) excluded.add(file);
-    if (visited.has(file) || !fs.existsSync(file) || !fs.statSync(file).isFile()) return;
-    visited.add(file);
-    const content = read(file);
-    for (const imported of ts.preProcessFile(content).importedFiles) {
-      const specifier = imported.fileName;
-      const target = specifier.startsWith('.')
-        ? path.join(path.dirname(file), specifier)
-        : specifier.startsWith('@/')
-          ? `src/${specifier.slice(2)}`
-          : specifier;
-      for (const candidate of [
-        target,
-        `${target}.ts`,
-        `${target}.tsx`,
-        `${target}.mjs`,
-        `${target}/index.ts`,
-      ]) {
-        if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
-          inspectFile(candidate);
-          break;
-        }
+export const repositoryInventory = (): InventoryInput => {
+  const names = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' }).split('\0');
+  const files: Record<string, string> = {};
+  for (const name of names) {
+    if (
+      /^(src|e2e|netlify|functions|extension|scripts|\.github|\.husky)\//.test(name) ||
+      /^(vite|vitest|playwright).*config\./.test(name) ||
+      ['package.json', 'netlify.toml'].includes(name)
+    ) {
+      if (fs.existsSync(name) && fs.lstatSync(name).isFile()) {
+        files[name] = fs.readFileSync(name, 'utf8');
       }
     }
-    // Follow shell/node entry points too, including commands assembled in support modules.
-    inspectCommand(content);
-  };
-  const visitedScripts = new Set<string>();
-  const inspectCommand = (command: string) => {
+  }
+  const scripts = JSON.parse(files['package.json']).scripts;
+  const aggregateIds = JSON.parse(
+    files['scripts/config/guardrail-governance.json']
+  ).qualityAggregate.checks.map((entry: { id: string }) => entry.id);
+  return { files, scripts, aggregateIds };
+};
+
+// Conservative textual inventory: even a comment or a basename reference excludes a control.
+// A package alias definition alone is harmless; any other package script invoking it counts
+// as an external consumer (even if that caller is currently unused). Follow nested npm aliases
+// and pre/post hooks. Whole-aggregate invocations are allowed: the reduced gate repeats them.
+// The scope configuration declares policy, rather than consuming the controls.
+// Matrix/dynamic commands count every literal alias present in the file. Unresolved dynamic
+// commands exclude every control: when unsure, retain full validation.
+export const inventoryToolingControls = ({ files, scripts, aggregateIds }: InventoryInput) => {
+  const controls = Object.keys(files).filter(file => /^scripts\/check-[^/]+\.mjs$/.test(file));
+  const expand = (command: string, seen = new Set<string>()): string => {
+    let result = command;
     for (const match of command.matchAll(/npm\s+(?:--prefix\s+[^\s]+\s+)?run\s+([\w:-]+)/g)) {
       const name = match[1];
-      if (visitedScripts.has(name)) continue;
-      visitedScripts.add(name);
-      if (scripts[name]) inspectCommand(scripts[name]);
-      if (scripts[`pre${name}`]) inspectCommand(scripts[`pre${name}`]);
-      if (scripts[`post${name}`]) inspectCommand(scripts[`post${name}`]);
+      if (['check:quality', 'check:quality:group'].includes(name) || seen.has(name)) continue;
+      seen.add(name);
+      for (const alias of [name, `pre${name}`, `post${name}`]) {
+        if (scripts[alias]) result += `\n${expand(scripts[alias], seen)}`;
+      }
     }
-    for (const match of command.matchAll(/\bscripts\/[\w./-]+\.(?:mjs|cjs|js|sh)\b/g)) {
-      inspectFile(match[0]);
-    }
+    return result;
   };
-  const inspectWorkflow = (file: string, primary = false) => {
-    const { jobs } = parseWorkflow(primary ? workflowText : read(file));
-    for (const [name, job] of Object.entries(jobs)) {
-      if (primary && repeatedJobs.has(name)) continue;
-      if (job.uses?.startsWith('./')) inspectWorkflow(job.uses.slice(2));
-      for (const step of job.steps) {
-        if (step.run) {
-          let commands = [step.run];
-          for (const [key, values] of Object.entries(job.strategy?.matrix ?? {})) {
-            commands = commands.flatMap(command =>
-              values.map(value => command.replaceAll('${{ matrix.' + key + ' }}', String(value)))
-            );
-          }
-          for (const command of commands) inspectCommand(command);
-        }
-        if (step.uses?.startsWith('./')) {
-          const actionFile = path.join(step.uses, 'action.yml');
-          if (fs.existsSync(actionFile)) inspectCommand(read(actionFile));
-        }
+  const aggregate = aggregateIds.map(id => expand(scripts[id] || '')).join('\n');
+  const protectedFiles = new Set<string>();
+  const protect = (file: string) => {
+    if (protectedFiles.has(file)) return;
+    protectedFiles.add(file);
+    for (const imported of ts.preProcessFile(files[file] || '').importedFiles) {
+      if (!imported.fileName.startsWith('.')) continue;
+      const target = path.posix.normalize(
+        path.posix.join(path.posix.dirname(file), imported.fileName)
+      );
+      for (const candidate of [target, `${target}.mjs`, `${target}.json`]) {
+        if (candidate in files) protect(candidate);
       }
     }
   };
-  inspectWorkflow('.github/workflows/ci-cd.yml', true);
-  const walk = (directory: string) => {
-    if (!fs.existsSync(directory)) return;
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      if (['node_modules', 'tests', '__tests__', 'dist', '.git'].includes(entry.name)) continue;
-      const file = path.join(directory, entry.name);
-      if (entry.isDirectory()) walk(file);
-      else if (/\.(?:[cm]?[jt]sx?|sh)$/.test(file)) inspectFile(file);
+  protect('scripts/check-quality-aggregate.mjs');
+  protect('scripts/classify-ci-change-scope.mjs');
+  const consumers = Object.entries(files).filter(
+    ([file]) =>
+      !['package.json', 'scripts/config/ci-change-scope.json'].includes(file) &&
+      !/^src\/tests\/(scripts|build)\//.test(file)
+  );
+  const expandedConsumers = consumers.map(([file, content]) => {
+    let command = content;
+    if (/npm\s+run\s+\$/.test(content)) {
+      const aliases = Object.keys(scripts).filter(alias => content.includes(alias));
+      command += aliases.length
+        ? aliases.map(alias => `\nnpm run ${alias}`).join('')
+        : controls.join('\n');
     }
-  };
-  for (const directory of ['src', 'e2e', 'netlify', 'functions']) walk(directory);
-  for (const file of fs.readdirSync('.')) {
-    if (/^(?:vite|playwright).*\.ts$/.test(file)) inspectFile(file);
+    return [file, expand(command)];
+  });
+  // Ignore definitions themselves; only npm invocations in another script are consumers.
+  for (const [name, command] of Object.entries(scripts)) {
+    expandedConsumers.push([`package.json#${name}`, expand(command).slice(command.length)]);
   }
-  return [...excluded].sort();
+  return controls.sort().map(control => {
+    const basename = path.posix.basename(control);
+    const reasons: string[] = [];
+    if (!aggregate.includes(control)) reasons.push('not_in_aggregate');
+    if (protectedFiles.has(control)) reasons.push('aggregate_or_classifier_dependency');
+    for (const [file, content] of expandedConsumers) {
+      if (file !== control && content.includes(basename))
+        reasons.push(`external_reference:${file}`);
+    }
+    return { control, reasons };
+  });
+};
+
+export const assertToolingControls = (controls: string[], input = repositoryInventory()) => {
+  const inventory = inventoryToolingControls(input);
+  for (const control of controls) {
+    const entry = inventory.find(item => item.control === control);
+    if (!entry || entry.reasons.length) {
+      throw new Error(`${control}: ${entry?.reasons.join(', ') || 'not_a_repository_control'}`);
+    }
+  }
 };
