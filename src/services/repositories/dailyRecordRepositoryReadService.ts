@@ -1,3 +1,4 @@
+import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   getRecordForDate as getRecordFromIndexedDB,
@@ -38,21 +39,12 @@ import type { DailyRecordQueuedWriteState } from '@/services/storage/syncQueueTy
 
 type FirestoreRecordQueriesModule =
   typeof import('@/services/storage/firestore/firestoreRecordQueries');
-type DailyRecordRemoteLoaderModule =
-  typeof import('@/services/repositories/dailyRecordRemoteLoader');
-
-let firestoreRecordQueriesPromise: Promise<FirestoreRecordQueriesModule> | null = null;
-let dailyRecordRemoteLoaderPromise: Promise<DailyRecordRemoteLoaderModule> | null = null;
-
-const loadFirestoreRecordQueries = async (): Promise<FirestoreRecordQueriesModule> => {
-  firestoreRecordQueriesPromise ??= import('@/services/storage/firestore/firestoreRecordQueries');
-  return firestoreRecordQueriesPromise;
-};
-
-const loadDailyRecordRemoteLoader = async (): Promise<DailyRecordRemoteLoaderModule> => {
-  dailyRecordRemoteLoaderPromise ??= import('@/services/repositories/dailyRecordRemoteLoader');
-  return dailyRecordRemoteLoaderPromise;
-};
+const loadFirestoreRecordQueries = createCachedRuntimeLoader(
+  () => import('@/services/storage/firestore/firestoreRecordQueries')
+);
+const loadDailyRecordRemoteLoader = createCachedRuntimeLoader(
+  () => import('@/services/repositories/dailyRecordRemoteLoader')
+);
 
 const getE2EOverrideRecord = (date: string): DailyRecord | null => {
   if (typeof window === 'undefined' || !window.__HHR_E2E_OVERRIDE__) {
