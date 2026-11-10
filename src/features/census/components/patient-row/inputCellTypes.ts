@@ -29,15 +29,6 @@ export interface BaseCellProps {
   readOnly?: boolean;
   /** User-facing reason shown when a field is temporarily locked */
   readOnlyReason?: string;
-  /** Soft pause shown after Firebase updated this field group. */
-  clinicalPause?: ClinicalFieldFreshnessPause;
-}
-
-export interface ClinicalFieldFreshnessPause {
-  isPaused: boolean;
-  message: string;
-  token?: string;
-  onAcknowledge: () => void;
 }
 
 /**

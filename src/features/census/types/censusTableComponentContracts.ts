@@ -10,7 +10,6 @@ import type { RowMenuAlign } from '@/features/census/components/patient-row/pati
 import type { PatientData } from '@/features/census/types/censusTablePatientContracts';
 import type { UserRole } from '@/types/authRoleTypes';
 import type { PatientActionMenuIndicators } from '@/features/census/components/patient-row/patientRowActionContracts';
-import type { HydratedRemoteClinicalFieldLocksByBedId } from '@/hooks/controllers/dailyRecordHydratedRemotePatchRiskController';
 
 export interface CensusTableHeaderProps {
   scoresAction?: import('react').ReactNode;
@@ -32,7 +31,6 @@ export interface CensusTableBodyProps {
   recordLastUpdated?: string;
   readOnly: boolean;
   clinicalEditingDisabled?: boolean;
-  clinicalFieldLocksByBedId?: HydratedRemoteClinicalFieldLocksByBedId;
   diagnosisMode: DiagnosisMode;
   columns: TableColumnConfig;
   visibleColumnCount: number;

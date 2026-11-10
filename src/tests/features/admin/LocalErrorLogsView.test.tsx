@@ -74,6 +74,28 @@ describe('LocalErrorLogsView', () => {
     expect(screen.getByText('bedLabel: Cama R1')).toBeInTheDocument();
   });
 
+  it('shows captured episode and action after more than six technical keys', async () => {
+    vi.mocked(fetchErrorLogs).mockResolvedValueOnce([
+      buildLog({
+        context: {
+          ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`technical${i}`, i])),
+          localSyncFailure: [
+            {
+              patientName: 'Paciente sintético A',
+              clinicalEpisodeId: 'synthetic-A',
+              bedLabel: 'R1',
+              action: 'UPDATE_DAILY_RECORD',
+            },
+          ],
+        },
+      }),
+    ]);
+    render(<LocalErrorLogsView />);
+    expect(await screen.findByText(/episodio: synthetic-A/)).toBeInTheDocument();
+    expect(screen.getByText(/action: UPDATE_DAILY_RECORD/)).toBeInTheDocument();
+    expect(screen.getByText(/paciente: Paciente sintético A/)).toBeInTheDocument();
+  });
+
   it('shows a clear empty state when there are no local logs', async () => {
     vi.mocked(fetchErrorLogs).mockResolvedValueOnce([]);
 

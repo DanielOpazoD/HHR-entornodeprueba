@@ -343,8 +343,9 @@ El reporte de release readiness ya regenera también `guardrail-governance`; no 
 CI regenera los snapshots report-only obligatorios con `npm run report:governance-snapshots` antes de ejecutar `check:quality`.
 `release-readiness-scorecard` sigue siendo ejecutivo y obligatorio para release, pero ya no duplica bloqueo dentro de `check:quality` si las fuentes primarias siguen verdes.
 `release-confidence-matrix` también pasa a report-only dentro del aggregate: sigue exigiéndose para trazabilidad y revisión técnica, pero no como bloqueo duplicado si el release pack y la cobertura primaria siguen verdes.
-`technical-ownership-map` también pasa a report-only dentro del aggregate: sigue siendo obligatorio para ownership y trazabilidad operativa, pero no bloquea `check:quality` porque no cubre un riesgo primario distinto de los gates y runbooks ya activos.
-`sustainable-change-policy` también pasa a report-only dentro del aggregate: sigue siendo obligatoria para upgrades, excepciones y definición de cambio seguro, pero no bloquea `check:quality` cuando los gates técnicos primarios ya cubren el riesgo efectivo.
+La fuente de verdad es `scripts/config/guardrail-governance.json`: `reportOnly` registra comandos que escriben snapshots y `qualityAggregate.checks` enumera lo que ejecuta el agregado, con su carácter bloqueante o advisory. Un productor registrado no implica que su checker se ejecute.
+`technical-ownership-map` y `sustainable-change-policy` tienen productores registrados, pero sus checkers no están en el agregado. Al preparar un release, ejecutar localmente `npm run check:technical-ownership-map` y `npm run check:sustainable-change-policy`; conservar las políticas de ownership, upgrades, excepciones y definición de cambio seguro.
+La validación de tiempos actuales corre en el job `ci-runtime-telemetry` de `.github/workflows/ci-cd.yml`, requerido por `ci-summary`: collect → report → check. El agregado no comprueba el snapshot histórico versionado. `npm run check:ci-runtime-telemetry` sigue disponible localmente y valida el archivo presente; comprobar su fecha y corrida de origen antes de usarlo como evidencia.
 
 Salida esperada:
 

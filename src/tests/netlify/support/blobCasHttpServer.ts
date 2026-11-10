@@ -22,6 +22,8 @@ export class BlobCasHttpServer {
   gmailReplies: Array<number | 'hang'> = [];
   blockTerminalWrites = false;
   failPut?: number;
+  acknowledgementDelayMs = 0;
+  dropAcknowledgement = false;
   blockedWrites = 0;
   url = '';
   private server?: Server;
@@ -169,6 +171,17 @@ export class BlobCasHttpServer {
       }
       const version = (receipt?.version ?? 0) + 1;
       await this.persist({ version, ledger });
+      if (this.dropAcknowledgement) {
+        this.dropAcknowledgement = false;
+        record.status = 200;
+        res.destroy();
+        return;
+      }
+      if (this.acknowledgementDelayMs) {
+        const delay = this.acknowledgementDelayMs;
+        this.acknowledgementDelayMs = 0;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
       reply(200, '', `"revision-${version}"`);
     });
   }
