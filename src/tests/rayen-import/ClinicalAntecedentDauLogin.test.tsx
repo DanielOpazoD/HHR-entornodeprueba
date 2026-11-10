@@ -25,7 +25,9 @@ describe('DAU login remains beside the selected care', () => {
   it('embeds only the extension page and never renders a password input in HHR', async () => {
     const request = vi.fn(async () => ({ auth }));
     render(<ClinicalAntecedentDau request={request} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Descargar DAU oficial (PDF)' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Descargar DAU oficial (PDF)' }));
+    });
     await screen.findByTitle('Acceso seguro a Rayen Urgencias');
     expect(getFrame()).toHaveAttribute('src', auth.url);
     expect(getFrame()).toHaveAttribute('referrerpolicy', 'no-referrer');
@@ -36,7 +38,9 @@ describe('DAU login remains beside the selected care', () => {
   it('retries the original selected download only after authenticated completion', async () => {
     const request = vi.fn().mockResolvedValueOnce({ auth }).mockResolvedValueOnce({ opened: true });
     render(<ClinicalAntecedentDau request={request} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Descargar DAU oficial (PDF)' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Descargar DAU oficial (PDF)' }));
+    });
     await screen.findByTitle('Acceso seguro a Rayen Urgencias');
     act(() => {
       complete(getFrame());
@@ -51,7 +55,9 @@ describe('DAU login remains beside the selected care', () => {
   it('ignores a completion from the host page, another origin or another flow', async () => {
     const request = vi.fn(async () => ({ auth }));
     render(<ClinicalAntecedentDau request={request} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Descargar DAU oficial (PDF)' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Descargar DAU oficial (PDF)' }));
+    });
     await screen.findByTitle('Acceso seguro a Rayen Urgencias');
     act(() => {
       complete(getFrame(), { source: window });
@@ -67,7 +73,9 @@ describe('DAU login remains beside the selected care', () => {
   it('does not resume a cancelled login or a login belonging to an unmounted episode', async () => {
     const request = vi.fn(async () => ({ auth }));
     const view = render(<ClinicalAntecedentDau key="episode-1" request={request} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Descargar DAU oficial (PDF)' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Descargar DAU oficial (PDF)' }));
+    });
     await screen.findByTitle('Acceso seguro a Rayen Urgencias');
     const previous = getFrame();
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar acceso' }));
@@ -85,7 +93,9 @@ describe('DAU login remains beside the selected care', () => {
       auth: { ...auth, reason: 'profile' as const },
     }));
     render(<ClinicalAntecedentDau request={request} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Descargar DAU oficial (PDF)' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Descargar DAU oficial (PDF)' }));
+    });
     await screen.findByRole('alert');
     expect(screen.queryByTitle('Acceso seguro a Rayen Urgencias')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión con otro perfil' }));
