@@ -535,7 +535,6 @@ const mockAuditContextValue = {
   logViewEvent: vi.fn(),
   logDebouncedEvent: vi.fn(),
   fetchLogs: vi.fn().mockResolvedValue([]),
-  getActionLabel: vi.fn().mockReturnValue(''),
   userId: 'test-user-123',
 };
 
