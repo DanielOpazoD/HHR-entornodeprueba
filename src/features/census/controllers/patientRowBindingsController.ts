@@ -12,7 +12,6 @@ import type {
   PatientRowRuntime,
 } from '@/features/census/components/patient-row/patientRowRuntimeContracts';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
-import type { HydratedRemoteClinicalFieldLocks } from '@/hooks/controllers/dailyRecordHydratedRemotePatchRiskController';
 import {
   buildPatientMainSectionBindings,
   buildPatientModalSectionBindings,
@@ -29,7 +28,6 @@ export interface BuildPatientRowBindingsParams {
   currentDateString: string;
   readOnly: boolean;
   clinicalEditingDisabled?: boolean;
-  clinicalFieldLocks?: HydratedRemoteClinicalFieldLocks;
   actionMenuAlign: RowMenuAlign;
   diagnosisMode: DiagnosisMode;
   isSubRow: boolean;
@@ -80,7 +78,6 @@ export const buildPatientMainRowBindings = ({
   currentDateString,
   readOnly,
   clinicalEditingDisabled = false,
-  clinicalFieldLocks,
   actionMenuAlign,
   diagnosisMode,
   role,
@@ -98,7 +95,6 @@ export const buildPatientMainRowBindings = ({
   | 'currentDateString'
   | 'readOnly'
   | 'clinicalEditingDisabled'
-  | 'clinicalFieldLocks'
   | 'actionMenuAlign'
   | 'diagnosisMode'
   | 'role'
@@ -126,7 +122,6 @@ export const buildPatientMainRowBindings = ({
     currentDateString,
     readOnly,
     clinicalEditingDisabled,
-    clinicalFieldLocks,
     actionMenuAlign,
     diagnosisMode,
     accessProfile,
@@ -141,7 +136,6 @@ export const buildPatientSubRowBindings = ({
   currentDateString,
   readOnly,
   clinicalEditingDisabled = false,
-  clinicalFieldLocks,
   diagnosisMode,
   accessProfile,
   style,
@@ -152,7 +146,6 @@ export const buildPatientSubRowBindings = ({
   | 'currentDateString'
   | 'readOnly'
   | 'clinicalEditingDisabled'
-  | 'clinicalFieldLocks'
   | 'diagnosisMode'
   | 'accessProfile'
   | 'style'
@@ -163,7 +156,6 @@ export const buildPatientSubRowBindings = ({
     currentDateString,
     readOnly,
     clinicalEditingDisabled,
-    clinicalFieldLocks,
     diagnosisMode,
     accessProfile,
     style,
@@ -209,7 +201,6 @@ export const buildPatientRowBindings = ({
   currentDateString,
   readOnly,
   clinicalEditingDisabled = false,
-  clinicalFieldLocks,
   actionMenuAlign,
   diagnosisMode,
   isSubRow,
@@ -235,7 +226,6 @@ export const buildPatientRowBindings = ({
       currentDateString,
       readOnly,
       clinicalEditingDisabled,
-      clinicalFieldLocks,
       actionMenuAlign,
       diagnosisMode,
       role,
@@ -251,7 +241,6 @@ export const buildPatientRowBindings = ({
       currentDateString,
       readOnly,
       clinicalEditingDisabled,
-      clinicalFieldLocks,
       diagnosisMode,
       accessProfile,
       style,

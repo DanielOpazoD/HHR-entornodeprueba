@@ -11,7 +11,6 @@ import clsx from 'clsx';
 import { STATUS_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
 import { BaseCellProps, EventTextHandler } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
-import { useClinicalFieldFreshnessPause } from './useClinicalFieldFreshnessPause';
 import { usePortalPopoverRuntime } from '@/hooks/usePortalPopoverRuntime';
 
 interface StatusSelectProps extends BaseCellProps {
@@ -47,10 +46,8 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
   isEmpty = false,
   readOnly = false,
   readOnlyReason,
-  clinicalPause,
   onChange,
 }) => {
-  const freshnessPause = useClinicalFieldFreshnessPause(clinicalPause);
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -106,11 +103,7 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
   };
 
   return (
-    <td
-      className="py-0.5 px-0.5 border-r border-slate-200 w-4 text-center"
-      onMouseDownCapture={freshnessPause.acknowledge}
-      onFocusCapture={freshnessPause.acknowledge}
-    >
+    <td className="py-0.5 px-0.5 border-r border-slate-200 w-4 text-center">
       <div className="relative inline-flex">
         <button
           ref={buttonRef}
@@ -127,8 +120,7 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
           className={clsx(
             'relative inline-flex h-3.5 w-3.5 items-center justify-center rounded-full ring-1 transition-transform',
             RING_CLASSES[level],
-            !readOnly && 'cursor-pointer hover:scale-110',
-            freshnessPause.pauseClassName
+            !readOnly && 'cursor-pointer hover:scale-110'
           )}
           title={readOnlyReason || (status ? `Estado: ${status}` : 'Sin estado clínico — asignar')}
           aria-label={status ? `Estado: ${status}` : 'Sin estado clínico'}
@@ -174,7 +166,6 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
             </div>,
             document.body
           )}
-        {freshnessPause.hint}
       </div>
     </td>
   );

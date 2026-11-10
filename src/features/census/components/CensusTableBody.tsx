@@ -22,7 +22,6 @@ export const CensusTableBody: React.FC<CensusTableBodyProps & CensusTableBodyBad
   recordLastUpdated,
   readOnly,
   clinicalEditingDisabled = false,
-  clinicalFieldLocksByBedId,
   diagnosisMode,
   columns,
   visibleColumnCount,
@@ -111,7 +110,6 @@ export const CensusTableBody: React.FC<CensusTableBodyProps & CensusTableBodyBad
 
         const resolved = resolvedOccupiedMap.get(row.id);
         if (!resolved) return null;
-        const clinicalFieldLocks = clinicalFieldLocksByBedId?.[row.bed.id];
 
         return (
           <PatientRow
@@ -123,7 +121,6 @@ export const CensusTableBody: React.FC<CensusTableBodyProps & CensusTableBodyBad
             onAction={onAction}
             readOnly={readOnly || Boolean(row.isPendingCreate)}
             clinicalEditingDisabled={clinicalEditingDisabled}
-            clinicalFieldLocks={clinicalFieldLocks}
             actionMenuAlign={resolved.actionMenuAlign}
             diagnosisMode={diagnosisMode}
             isSubRow={row.isSubRow}

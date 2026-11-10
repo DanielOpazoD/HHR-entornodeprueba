@@ -8,7 +8,6 @@ import { resolveUpcBadgeColor } from './upcClassificationTone';
 import type { UpcChecklistRecord } from '@/features/census/contracts/censusUpcContracts';
 import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
-import { useClinicalFieldFreshnessPause } from './useClinicalFieldFreshnessPause';
 import { useUpcClassificationWindowOpener } from './UpcClassificationWindowContext';
 
 interface UpcChecklistCellProps extends BaseCellProps {
@@ -27,10 +26,8 @@ export const UpcChecklistCell: React.FC<UpcChecklistCellProps> = ({
   isEmpty = false,
   readOnly = false,
   readOnlyReason,
-  clinicalPause,
   checklist,
 }) => {
-  const freshnessPause = useClinicalFieldFreshnessPause(clinicalPause);
   const { openUpcWindow } = useUpcClassificationWindowOpener();
   const eligible = isUpcEligibleBedId(data.bedId);
   const reviewReason = resolveUpcReviewReason(checklist, data.bedId, currentDateString);
@@ -63,8 +60,7 @@ export const UpcChecklistCell: React.FC<UpcChecklistCellProps> = ({
     <td className="p-0.5 text-center w-[26px] relative">
       <button
         type="button"
-        onClick={event => {
-          if (freshnessPause.acknowledge(event)) return;
+        onClick={() => {
           openUpcWindow(data.bedId, { crib: isSubRow });
         }}
         aria-label={
@@ -75,7 +71,6 @@ export const UpcChecklistCell: React.FC<UpcChecklistCellProps> = ({
           'inline-flex min-h-8 min-w-8 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-1 text-[10px] font-semibold leading-tight transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700',
           !reviewReason && 'min-w-[56px]',
           readOnly && 'cursor-default',
-          freshnessPause.pauseClassName,
           reviewReason
             ? 'bg-slate-50 text-slate-600 hover:bg-slate-100'
             : label
@@ -97,7 +92,6 @@ export const UpcChecklistCell: React.FC<UpcChecklistCellProps> = ({
           <span>Sin criterios</span>
         ) : null}
       </button>
-      {freshnessPause.hint}
     </td>
   );
 };
