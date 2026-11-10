@@ -132,7 +132,8 @@ export const createWhatsAppProxyHandler =
         init.body = event.isBase64Encoded ? Buffer.from(event.body, 'base64') : event.body;
       }
 
-      const response = await invokeWithTelemetry({
+      const controller = new AbortController();
+      const { response, text } = await invokeWithTelemetry({
         service: 'whatsapp',
         operation: `${event.httpMethod} ${targetPath}`,
         timeoutMs: 8_000,
@@ -143,9 +144,18 @@ export const createWhatsAppProxyHandler =
           method: event.httpMethod,
           path: targetPath,
         },
-        fn: () => dependencies.fetch(targetUrl, init),
+        fn: async () => {
+          const response = await dependencies.fetch(targetUrl, {
+            ...init,
+            signal: controller.signal,
+          });
+          const text = await response.text();
+          return { response, text };
+        },
+      }).catch((error: unknown) => {
+        controller.abort();
+        throw error;
       });
-      const text = await response.text();
       const responseContentType = response.headers.get('content-type') || 'application/json';
 
       return {
