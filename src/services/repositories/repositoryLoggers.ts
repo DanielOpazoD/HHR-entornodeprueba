@@ -2,7 +2,6 @@ import { createScopedLogger } from '@/services/utils/loggerScope';
 
 export const catalogRepositoryLogger = createScopedLogger('CatalogRepository');
 export const patientMasterRepositoryLogger = createScopedLogger('PatientMasterRepository');
-export const printTemplateRepositoryLogger = createScopedLogger('PrintTemplateRepository');
 export const dailyRecordInitializationLogger = createScopedLogger(
   'DailyRecordInitializationService'
 );

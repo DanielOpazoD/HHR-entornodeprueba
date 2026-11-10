@@ -19,7 +19,6 @@ it('keeps the real generated login and callable graph available from precache', 
     'src/features/auth/components/NursingAccessForm.tsx',
     'src/services/auth/authClaimSyncService.ts',
     'src/services/auth/authRoleLookup.ts',
-    'src/services/auth/sharedCensusAuth.ts',
     'src/services/storage/firestore/dailyRecordAuthorityTransport.ts',
     'src/services/storage/firestore/firestoreDailyRecordAuthorityRouting.ts',
   ];

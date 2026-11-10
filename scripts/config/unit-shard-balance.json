@@ -165,7 +165,6 @@
         "src/tests/build/extensionDownloadPlugin.test.ts",
         "src/tests/build/testRuntimeGovernanceSupport.test.ts",
         "src/tests/components/PatientRow.crib-and-demographics.test.tsx",
-        "src/tests/components/layout/date-strip/MedicalIndicationsQuickAction.test.tsx",
         "src/tests/features/census/components/patient-row/UpcClassificationWindow.test.tsx",
         "src/tests/features/clinical-documents/ClinicalDocumentFormattingToolbar.test.tsx",
         "src/tests/rayen-import/RayenImportButton.test.tsx",

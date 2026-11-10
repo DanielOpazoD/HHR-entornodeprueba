@@ -10,7 +10,6 @@ const TARGET_FILES = [
   'src/tests/hooks/useBackupFilesQuery.test.tsx',
   'src/tests/hooks/useCensusEmail.test.ts',
   'src/tests/hooks/useHandoffManagement.test.ts',
-  'src/tests/hooks/useSharedCensusFiles.test.ts',
   'src/tests/features/clinical-documents/ClinicalDocumentsWorkspace.test.tsx',
   'src/tests/hooks/useExportManager.test.ts',
 ];
@@ -18,7 +17,6 @@ const TARGET_FILES = [
 const FORBIDDEN_IMPORTS = [
   '@/services/auditService',
   '@/services/backup/backupService',
-  '@/services/census/censusAccessService',
   '@/services/repositories/DailyRecordRepository',
   '@/services/integrations/censusEmailService',
 ];

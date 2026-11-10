@@ -9,7 +9,6 @@ const SRC_ROOT = path.join(ROOT, 'src');
 const ALLOWED_LEGACY_HYDRATION_BOUNDARIES = new Set([
   'src/application/ports/clinicalDocumentCompatibilityPort.ts',
   'src/domain/clinical-documents/compatibility.ts',
-  'src/features/clinical-documents/controllers/clinicalDocumentCompatibilityController.ts',
 ]);
 
 const collectSourceFiles = (dir: string): string[] => {

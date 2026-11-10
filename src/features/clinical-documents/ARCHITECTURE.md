@@ -4,7 +4,7 @@
 
 - `ClinicalDocumentSheet` no debe incorporar lógica especial nueva por `documentType` o `section.id`.
 - Toda sección especializada debe registrarse en `domain/definitions.ts` y resolverse por renderer registrado.
-- Toda compatibilidad legacy o migración de shape debe pasar por `clinicalDocumentCompatibilityController.ts`.
+- Toda compatibilidad legacy o migración de shape debe pasar por `application/ports/clinicalDocumentCompatibilityPort.ts`.
 - Todo documento o template leído/persistido debe pasar por contratos runtime.
 - Los tipos y el esquema de sección tienen un único dueño en
   `src/domain/clinical-documents`; el feature los reutiliza. La distribución
