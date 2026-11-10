@@ -1,3 +1,4 @@
+import { createProviderError, credentialMarkers } from './providerErrorFixture';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSign, generateKeyPairSync } from 'node:crypto';
 import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
@@ -21,6 +22,35 @@ const base64UrlEncode = (value: string | Buffer) =>
   Buffer.from(value).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 
 describe('firebase-auth netlify helper', () => {
+  it('redacts canonical lookup errors before logging and propagating to HTTP callers', async () => {
+    const logs = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await expect(
+        resolveRoleForEmail({} as never, 'synthetic@example.test', {
+          bearerToken: 'synthetic',
+          throwOnLookupError: true,
+          fetchImpl: vi.fn().mockRejectedValue(createProviderError()),
+        })
+      ).rejects.toThrow('HTTP 503');
+      let message = '';
+      try {
+        await resolveRoleForEmail({} as never, 'synthetic@example.test', {
+          bearerToken: 'synthetic',
+          throwOnLookupError: true,
+          fetchImpl: vi.fn().mockRejectedValue(createProviderError()),
+        });
+      } catch (error) {
+        message = String(error);
+      }
+      const outputs =
+        message +
+        logs.mock.calls.map(call => call.map(String).join(' ')).join(' ') +
+        JSON.stringify(logs.mock.calls);
+      for (const marker of credentialMarkers) expect(outputs).not.toContain(marker);
+    } finally {
+      logs.mockRestore();
+    }
+  });
   const originalEnv = { ...process.env };
   const originalFetch = global.fetch;
   const fixedNow = new Date('2026-03-26T12:00:00.000Z');

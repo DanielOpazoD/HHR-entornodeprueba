@@ -166,6 +166,78 @@
         "src/tests/functions/dailyRecordRestoreFunctions.test.ts",
         "src/tests/functions/dailyRecordPitrReader.test.ts"
       ]
+    },
+    {
+      "id": "syslab_proxy",
+      "functionFile": "netlify/functions/syslab-proxy.ts",
+      "endpoint": "syslab-proxy",
+      "testFiles": ["src/tests/netlify/syslabProxy.test.ts"]
+    },
+    {
+      "id": "exalab_proxy",
+      "functionFile": "netlify/functions/exalab-proxy.ts",
+      "endpoint": "exalab-proxy",
+      "testFiles": ["src/tests/netlify/exalabProxy.test.ts"]
+    },
+    {
+      "id": "mmrad_search",
+      "functionFile": "netlify/functions/mmrad-search.ts",
+      "endpoint": "mmrad-search",
+      "testFiles": ["src/tests/netlify/mmradSearch.test.ts"]
+    },
+    {
+      "id": "prescription_image_proxy",
+      "functionFile": "netlify/functions/prescription-image-proxy.ts",
+      "endpoint": "prescription-image-proxy",
+      "testFiles": ["src/tests/netlify/prescriptionImageProxy.test.ts"]
+    },
+    {
+      "id": "send_fuga_notification",
+      "functionFile": "netlify/functions/send-fuga-notification.ts",
+      "endpoint": "send-fuga-notification",
+      "testFiles": ["src/tests/netlify/sendFugaNotificationFunction.test.ts"]
+    },
+    {
+      "id": "clinical_document_ai_import",
+      "functionFile": "netlify/functions/clinical-document-ai-import.ts",
+      "endpoint": "clinical-document-ai-import",
+      "testFiles": ["src/tests/netlify/clinicalDocumentAiImport.test.ts"]
+    },
+    {
+      "id": "clinical_attachment_name_suggestion",
+      "functionFile": "netlify/functions/clinical-attachment-name-suggestion.ts",
+      "endpoint": "clinical-attachment-name-suggestion",
+      "testFiles": ["src/tests/netlify/clinicalAttachmentNameSuggestion.test.ts"]
+    },
+    {
+      "id": "operational_telemetry",
+      "functionFile": "netlify/functions/operational-telemetry.ts",
+      "endpoint": "operational-telemetry",
+      "testFiles": ["src/tests/netlify/operationalTelemetry.test.ts"]
+    },
+    {
+      "id": "admin_ai_provider_test",
+      "functionFile": "netlify/functions/admin-ai-provider-test.ts",
+      "endpoint": "admin-ai-provider-test",
+      "testFiles": ["src/tests/netlify/adminAiProviderTest.test.ts"]
+    }
+  ],
+  "exempt": [
+    {
+      "functionFile": "netlify/functions/admin-ai-provider-status.ts",
+      "reason": "sensible, sin prueba de comportamiento todavía; consulta administrativa de disponibilidad y modelos de proveedores IA; solo se encontró cobertura estática."
+    },
+    {
+      "functionFile": "netlify/functions/operational-telemetry-retry.ts",
+      "reason": "sensible, sin prueba de comportamiento todavía; tarea programada que reintenta envíos de alertas con credenciales de runtime; las pruebas existentes cubren la cola y el empaquetado, no esta invocación."
+    },
+    {
+      "functionFile": "netlify/functions/firebase-config.js",
+      "reason": "Publica únicamente la configuración Firebase del cliente (incluida su API key pública); no lee pacientes ni devuelve credenciales de servidor."
+    },
+    {
+      "functionFile": "netlify/functions/runtime-contract.js",
+      "reason": "Devuelve constantes públicas de versiones de runtime y esquema; no lee pacientes, secretos ni realiza acciones administrativas."
     }
   ]
 }
