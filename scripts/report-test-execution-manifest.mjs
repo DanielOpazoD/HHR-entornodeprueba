@@ -99,10 +99,17 @@ try {
       if (args[index] !== '--input' || !options[index + 1])
         throw new Error('Usage: [--input EVIDENCE.json]...');
       const file = args[++index];
-      inputs.push({
-        file,
-        evidence: fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null,
-      });
+      const evidence = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
+      if (evidence?.kind === 'critical-lane-index') {
+        if (
+          evidence.schemaVersion !== 1 ||
+          !Array.isArray(evidence.lanes) ||
+          evidence.lanes.length !== 3
+        )
+          throw new Error('Invalid critical lane index');
+        for (const lane of evidence.lanes)
+          inputs.push({ file: `${file}:${lane.suiteId}`, evidence: lane });
+      } else inputs.push({ file, evidence });
     }
     const manifest = buildTestExecutionManifest(root, inputs);
     writeJson('reports/test-execution-manifest.json', manifest);

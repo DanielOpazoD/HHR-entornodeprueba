@@ -5,9 +5,9 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { jobNeeds, parseWorkflow } from './workflowYamlTestSupport';
 
-type Scope = 'full' | 'docs-only' | 'functions-only';
+type Scope = 'full' | 'docs-only' | 'functions-only' | 'tooling-only';
 type JobResult = 'success' | 'failure' | 'cancelled' | 'skipped' | '';
-type Prerequisite = 'ci-scope' | 'docs-scope-gate' | 'functions-scope-gate';
+type Prerequisite = 'ci-scope' | 'docs-scope-gate' | 'functions-scope-gate' | 'tooling-scope-gate';
 type Gate =
   | 'quality-static'
   | 'unit-risk'
@@ -26,6 +26,7 @@ const prerequisites: readonly Prerequisite[] = [
   'ci-scope',
   'docs-scope-gate',
   'functions-scope-gate',
+  'tooling-scope-gate',
 ];
 const gates: readonly Gate[] = [
   'quality-static',
@@ -45,6 +46,7 @@ const expectedEnvironment = {
   CI_SCOPE: "${{ needs['ci-scope'].outputs.scope }}",
   DOCS_SCOPE_GATE_RESULT: "${{ needs['docs-scope-gate'].result }}",
   FUNCTIONS_SCOPE_GATE_RESULT: "${{ needs['functions-scope-gate'].result }}",
+  TOOLING_SCOPE_GATE_RESULT: "${{ needs['tooling-scope-gate'].result }}",
   QUALITY_STATIC_RESULT: "${{ needs['quality-static'].result }}",
   TEST_EXECUTION_RESULT: "${{ needs['test-execution-manifest'].result }}",
   UNIT_RISK_RESULT: "${{ needs['unit-risk'].result }}",
@@ -76,7 +78,7 @@ const runSummary = ({
   gateResult,
   override,
 }: {
-  scope: Scope;
+  scope: Scope | 'unexpected';
   gateResult: 'success' | 'skipped';
   override?: InvalidOutcome;
 }) => {
@@ -112,6 +114,10 @@ const runSummary = ({
 };
 
 describe('CI summary governance', () => {
+  it('rejects an unknown scope even when all jobs succeed', () => {
+    expect(runSummary({ scope: 'unexpected', gateResult: 'success' }).status).toBe(1);
+  });
+
   it('always observes all prerequisites and gates through their actual needs results', () => {
     expect(summaryJob.if).toBe('${{ always() }}');
     expect([...jobNeeds(summaryJob)].sort()).toEqual([...prerequisites, ...gates].sort());
@@ -140,22 +146,25 @@ describe('CI summary governance', () => {
     }
   });
 
-  describe.each<Exclude<Scope, 'full'>>(['docs-only', 'functions-only'])('%s scope', scope => {
-    it('accepts successful prerequisites and all eleven gates skipped', () => {
-      const execution = runSummary({ scope, gateResult: 'skipped' });
-      expect(execution.status).toBe(0);
-      expect(execution.stdout.trim().split('\n').sort()).toEqual(
-        gates.map(job => `${job}: skipped`).sort()
-      );
-    });
+  describe.each<Exclude<Scope, 'full'>>(['docs-only', 'functions-only', 'tooling-only'])(
+    '%s scope',
+    scope => {
+      it('accepts successful prerequisites and all eleven gates skipped', () => {
+        const execution = runSummary({ scope, gateResult: 'skipped' });
+        expect(execution.status).toBe(0);
+        expect(execution.stdout.trim().split('\n').sort()).toEqual(
+          gates.map(job => `${job}: skipped`).sort()
+        );
+      });
 
-    it.each(focusedInvalidOutcomes)('rejects $job with result "$result"', override => {
-      const execution = runSummary({ scope, gateResult: 'skipped', override });
-      expect(execution.status).toBe(1);
-      expect(execution.stdout).toMatch(/::error::.+/);
-      if (gates.some(job => job === override.job)) {
-        expect(execution.stdout.split('\n')).toContain(`${override.job}: ${override.result}`);
-      }
-    });
-  });
+      it.each(focusedInvalidOutcomes)('rejects $job with result "$result"', override => {
+        const execution = runSummary({ scope, gateResult: 'skipped', override });
+        expect(execution.status).toBe(1);
+        expect(execution.stdout).toMatch(/::error::.+/);
+        if (gates.some(job => job === override.job)) {
+          expect(execution.stdout.split('\n')).toContain(`${override.job}: ${override.result}`);
+        }
+      });
+    }
+  );
 });

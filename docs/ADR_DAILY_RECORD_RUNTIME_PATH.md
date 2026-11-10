@@ -47,6 +47,13 @@ Initialization and explicit sync use the same admission. The fallback check is s
 within one tab and does not provide a cross-tab transaction.
 Failed local admission aborts initialization instead of treating an existing remote day as absent.
 
+Explicit range downloads use the same unresolved-write admission in one IndexedDB transaction
+for the entire range. An indexed queue lookup limits per-day inspection to dates with queued
+tasks. The returned range includes retained local projections, matching what remains stored;
+it does not acknowledge their pending edits. A local write failure stores nothing and rejects the
+range query through its existing error channel, because the server copies may be older than the
+days this device holds unsent. An empty remote range does not write local storage.
+
 Query callers use `createDailyRecordQueryOptions` so admission also runs at QueryClient's
 actual publication, after the query promise settles. A superseded point read keeps the
 intervening publication and its own evidence. It does not acknowledge edits or renew
