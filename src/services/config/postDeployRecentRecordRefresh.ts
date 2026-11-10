@@ -1,3 +1,5 @@
+import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import type { OperationalOutcomeLike } from '@/services/observability/operationalTelemetryContracts';
 import type { SyncQueueTelemetry } from '@/services/storage/sync';
@@ -21,6 +23,7 @@ export type PostDeployRecentRecordRefreshStatus =
   | 'no_marker'
   | 'skipped_queue_unavailable'
   | 'skipped_queue_not_empty'
+  | 'interrupted'
   | 'completed'
   | 'failed';
 
@@ -186,6 +189,10 @@ export const executePostDeployRecentRecordRefresh = async ({
   deleteLocalRecord = deleteUnheldRecord,
   syncRemoteRecord,
 }: ExecutePostDeployRecentRecordRefreshParams): Promise<PostDeployRecentRecordRefreshResult> => {
+  const owner = getStoredSessionOwnerKey();
+  const epoch = getSessionEpoch();
+  const isCurrentSession = () =>
+    epoch === getSessionEpoch() && owner === getStoredSessionOwnerKey();
   const marker = readMarker();
   const dates = resolvePostDeployRecentRecordRefreshDates(todayDateString);
 
@@ -197,8 +204,16 @@ export const executePostDeployRecentRecordRefresh = async ({
     };
   }
 
+  const interrupted = (): PostDeployRecentRecordRefreshResult => ({
+    status: 'interrupted',
+    dates,
+    marker,
+  });
+
   try {
+    if (!isCurrentSession()) return interrupted();
     const queueTelemetry = await readSyncQueueTelemetry();
+    if (!isCurrentSession()) return interrupted();
     if (queueTelemetry.readState !== 'ok') {
       const result = {
         status: 'skipped_queue_unavailable' as const,
@@ -225,10 +240,20 @@ export const executePostDeployRecentRecordRefresh = async ({
 
     for (const date of dates) {
       // The telemetry above is already old, and leaves out other owners' work.
-      if (!(await deleteLocalRecord(date))) return skipQueueNotEmpty();
-      await syncRemoteRecord(date);
+      if (!isCurrentSession()) return interrupted();
+      const deleted = await deleteLocalRecord(date);
+      if (!isCurrentSession()) return interrupted();
+      if (!deleted) return skipQueueNotEmpty();
+      const outcome = await syncRemoteRecord(date);
+      if (!isCurrentSession()) return interrupted();
+      if (outcome.status !== 'success') {
+        const result = { status: 'failed' as const, dates, marker, queueTelemetry };
+        recordPostDeployRefreshTelemetry(result.status, result);
+        return result;
+      }
     }
 
+    if (!isCurrentSession()) return interrupted();
     clearMarker();
     const result = {
       status: 'completed' as const,
@@ -239,6 +264,7 @@ export const executePostDeployRecentRecordRefresh = async ({
     recordPostDeployRefreshTelemetry(result.status, result);
     return result;
   } catch (error) {
+    if (!isCurrentSession()) return interrupted();
     const result = {
       status: 'failed' as const,
       dates,
