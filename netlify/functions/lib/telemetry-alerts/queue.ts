@@ -39,6 +39,10 @@ export const createAlertQueue = (options: AlertQueueOptions): AlertQueue => {
       maintainLedger(ledger, time);
       const result = change(ledger, time);
       if (await store.compareAndSet(ledger, stored?.etag ?? null)) return result;
+      // A conditional PUT can persist before its acknowledgement times out. Resolve
+      // that outcome even on the last attempt, without applying the change twice.
+      const confirmed = await store.read();
+      if (confirmed && JSON.stringify(confirmed.ledger) === JSON.stringify(ledger)) return result;
       if (attempt + 1 < policy.casAttempts) await delay(1 + Math.floor(Math.random() * 5));
     }
     throw new Error('alert_ledger_contention');
@@ -82,6 +86,11 @@ export const createAlertQueue = (options: AlertQueueOptions): AlertQueue => {
     const leaseToken = id();
     const claim = await mutate<{ job: AlertJob } | { result: DeliverResult }>((ledger, time) => {
       const job = ledger.jobs.find(candidate => candidate.id === jobId);
+      // Another operation can update the ledger before readback. Our durable token
+      // still proves ownership; never consume another attempt or budget slot.
+      if (job?.state === 'sending' && job.leaseToken === leaseToken) {
+        return { job: structuredClone(job) };
+      }
       if (!job || job.state !== 'pending') return { result: jobResult(job, jobId) };
       if (
         options.canClaim?.() === false ||

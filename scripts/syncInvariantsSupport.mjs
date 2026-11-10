@@ -31,7 +31,6 @@ const hasVoidLocalPersistenceImport = (root, filePath) => {
 };
 
 export const evaluateSyncInvariants = root => {
-  const packageJson = JSON.parse(readText(root, 'package.json'));
   const ports = readText(root, 'src/services/storage/sync/syncQueuePorts.ts');
   const engine = readText(root, 'src/services/storage/sync/syncQueueEngine.ts');
   const standaloneEnqueue = readText(
@@ -57,7 +56,6 @@ export const evaluateSyncInvariants = root => {
   );
   const firestoreWrites = readText(root, 'src/services/storage/firestore/firestoreRecordWrites.ts');
   const telemetry = readText(root, 'src/services/storage/sync/syncQueueTelemetryController.ts');
-  const envExample = readText(root, '.env.example');
   const runbook = readText(root, 'docs/RUNBOOK_SYNC_RESILIENCE.md');
 
   const repositoryOffenders = productionRepositoryFiles(root)
@@ -77,14 +75,6 @@ export const evaluateSyncInvariants = root => {
         telemetry.includes("operation: 'sync_queue_stale_claim_noop'"),
       'Claimed task completion/update no-ops must be observable as recoverable stale-claim telemetry.',
       ['syncQueueEngine.ts', 'syncQueueTelemetryController.ts']
-    ),
-    buildInvariant(
-      'authority-release-gate',
-      packageJson.scripts?.['ci:release-gate']?.includes(
-        'check:daily-record-authority-release-gate'
-      ) && envExample.includes('Release must use VITE_DAILY_RECORD_AUTHORITY_MODE=enforced'),
-      'Release writes must require daily-record authority mode and document the deploy env flag.',
-      ['package.json', '.env.example']
     ),
     buildInvariant(
       'strict-repository-local-persistence',

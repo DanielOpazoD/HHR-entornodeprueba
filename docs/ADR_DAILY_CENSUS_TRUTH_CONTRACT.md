@@ -74,8 +74,6 @@ El PR que toque esta zona debe mantener:
 - UI de conflictos con causa concreta de ausencia de snapshots;
 - runbook operacional actualizado.
 
-El gate `check:daily-record-truth-contract` verifica que estas piezas sigan presentes.
-
 ## Fuera de alcance
 
 - Reescribir el censo completo como event sourcing.
