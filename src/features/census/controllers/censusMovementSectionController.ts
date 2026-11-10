@@ -1,12 +1,8 @@
-export interface CensusMovementSectionState<TItem> {
-  isRenderable: boolean;
-  isEmpty: boolean;
-  items: TItem[];
-}
+import type { CensusMovementSectionModel } from '../types/censusMovementSectionModelTypes';
 
 export const resolveMovementSectionState = <TItem>(
   items: TItem[] | null | undefined
-): CensusMovementSectionState<TItem> => {
+): CensusMovementSectionModel<TItem> => {
   if (items === null) {
     return {
       isRenderable: false,

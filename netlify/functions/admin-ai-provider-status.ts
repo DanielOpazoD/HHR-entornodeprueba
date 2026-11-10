@@ -1,6 +1,6 @@
+import { readAuthorizationHeader } from './lib/authorization-header';
 import { safeErrorMessage } from './lib/safe-error-message';
-import { getFirebaseServer } from './lib/firebase-server';
-import { authorizeRoleRequest, extractBearerToken } from './lib/firebase-auth';
+import { authorizeAdminAIRequest } from './lib/admin-ai-auth';
 import { listClinicalAIProviderAvailability } from './lib/ai-provider';
 import {
   buildCorsHeaders,
@@ -35,17 +35,10 @@ export const handler = async (event: NetlifyEventLike) => {
     return buildJsonResponse(405, { error: 'Method not allowed' }, { requestOrigin });
   }
 
-  const authorizationHeader =
-    typeof event.headers?.authorization === 'string'
-      ? event.headers.authorization
-      : typeof event.headers?.Authorization === 'string'
-        ? event.headers.Authorization
-        : undefined;
+  const authorizationHeader = readAuthorizationHeader(event);
 
   try {
-    extractBearerToken(authorizationHeader);
-    const { db } = getFirebaseServer();
-    await authorizeRoleRequest(db, authorizationHeader, ADMIN_AI_PROVIDER_STATUS_ALLOWED_ROLES);
+    await authorizeAdminAIRequest(authorizationHeader, ADMIN_AI_PROVIDER_STATUS_ALLOWED_ROLES);
 
     return buildJsonResponse(
       200,

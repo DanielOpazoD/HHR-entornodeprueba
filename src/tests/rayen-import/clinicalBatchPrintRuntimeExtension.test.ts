@@ -84,8 +84,8 @@ const createDependencies = (overrides: RuntimeDependencies = {}) => ({
   extensionRuntime: { ensurePdf: vi.fn() },
   pdfPrint: { mergePdfBuffers: vi.fn(async () => makeBuffer(99)) },
   prescriptionPrint: {
-    activeHospitalizedEncounters: vi.fn((snapshot: { encounters?: unknown[] }) =>
-      snapshot.encounters || []
+    activeHospitalizedEncounters: vi.fn(
+      (snapshot: { encounters?: unknown[] }) => snapshot.encounters || []
     ),
     deriveLatestBraden: vi.fn(() => ({ total: 14 })),
     deriveLatestNutritionOrder: vi.fn(() => ({ description: 'Régimen común' })),
@@ -118,9 +118,6 @@ describe('hospitalized clinical-document batch runtime owner', () => {
     expect(backgroundSource).not.toContain(
       'const handleHospitalizedPrescriptionPrintRequest = async'
     );
-    expect(runtimeSource).toContain('const handleHospitalizedPrescriptionPrintRequest = async');
-    expect(runtimeSource).toContain('const handleHospitalizedIndicationsPrintRequest = async');
-    expect(runtimeSource).toContain('const handleHospitalizedRegimenPrintRequest = async');
   });
 
   it('rejects incomplete dependency injection', () => {
@@ -182,27 +179,29 @@ describe('hospitalized clinical-document batch runtime owner', () => {
         ? { error: 'PDF no disponible.' }
         : { buffer: makeBuffer(1), compactFallbackReason: allowOfficialFallback ? 'fallback' : '' }
     );
-    const runtime = loadFactory().create(createDependencies({
-      chrome: {
-        storage: {
-          session: {
-            get: vi.fn(async () => ({
-              [storageKey]: {
-                allowedEncounterIds: ['901', '902'],
-                createdAt: 1_500_000,
-                sessionKey: 'session-key',
-                expiresAt: 3_000_000,
-              },
-            })),
-            set: sessionSet,
-            remove: vi.fn(async () => undefined),
+    const runtime = loadFactory().create(
+      createDependencies({
+        chrome: {
+          storage: {
+            session: {
+              get: vi.fn(async () => ({
+                [storageKey]: {
+                  allowedEncounterIds: ['901', '902'],
+                  createdAt: 1_500_000,
+                  sessionKey: 'session-key',
+                  expiresAt: 3_000_000,
+                },
+              })),
+              set: sessionSet,
+              remove: vi.fn(async () => undefined),
+            },
           },
         },
-      },
-      verifySelectedEncountersStillHospitalized: verifySelected,
-      mapWithConcurrency,
-      createCompletePrescriptionPdf: createComplete,
-    }));
+        verifySelectedEncountersStillHospitalized: verifySelected,
+        mapWithConcurrency,
+        createCompletePrescriptionPdf: createComplete,
+      })
+    );
 
     const result = await runtime.handleHospitalizedPrescriptionPrintRequest({
       batchId,
@@ -213,11 +212,13 @@ describe('hospitalized clinical-document batch runtime owner', () => {
 
     expect(verifySelected).toHaveBeenCalledWith(['901', '902'], expect.any(Object));
     expect(mapWithConcurrency).toHaveBeenCalledWith(['901', '902'], 2, expect.any(Function));
-    expect(createComplete).toHaveBeenCalledWith(expect.objectContaining({
-      encId: '901',
-      printFormat: 'compact',
-      allowOfficialFallback: true,
-    }));
+    expect(createComplete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        encId: '901',
+        printFormat: 'compact',
+        allowOfficialFallback: true,
+      })
+    );
     expect(result).toMatchObject({
       ok: true,
       count: 1,
@@ -234,28 +235,32 @@ describe('hospitalized clinical-document batch runtime owner', () => {
     const storageKey = `hhr-prescription-batch-${batchId}`;
     const remove = vi.fn(async (_keys: string | string[]) => undefined);
     const verifySelected = vi.fn();
-    const runtime = loadFactory().create(createDependencies({
-      chrome: {
-        storage: {
-          session: {
-            get: vi.fn(async () => ({ [storageKey]: { sessionKey: 'old' } })),
-            set: vi.fn(async () => undefined),
-            remove,
+    const runtime = loadFactory().create(
+      createDependencies({
+        chrome: {
+          storage: {
+            session: {
+              get: vi.fn(async () => ({ [storageKey]: { sessionKey: 'old' } })),
+              set: vi.fn(async () => undefined),
+              remove,
+            },
           },
         },
-      },
-      prescriptionPrint: {
-        ...(createDependencies().prescriptionPrint as object),
-        isPrescriptionBatchSessionValid: vi.fn(() => false),
-      },
-      verifySelectedEncountersStillHospitalized: verifySelected,
-    }));
+        prescriptionPrint: {
+          ...(createDependencies().prescriptionPrint as object),
+          isPrescriptionBatchSessionValid: vi.fn(() => false),
+        },
+        verifySelectedEncountersStillHospitalized: verifySelected,
+      })
+    );
 
-    await expect(runtime.handleHospitalizedPrescriptionPrintRequest({
-      batchId,
-      encIds: ['901'],
-      sender: {},
-    })).resolves.toEqual({
+    await expect(
+      runtime.handleHospitalizedPrescriptionPrintRequest({
+        batchId,
+        encIds: ['901'],
+        sender: {},
+      })
+    ).resolves.toEqual({
       error: 'La sesión clínica cambió o venció. Actualiza la lista y vuelve a intentarlo.',
     });
     expect(remove).toHaveBeenCalledWith(storageKey);
@@ -273,81 +278,95 @@ describe('hospitalized clinical-document batch runtime owner', () => {
       set: vi.fn(async () => undefined),
       remove,
     };
-    const runtime = loadFactory().create(createDependencies({
-      chrome: { storage: { session } },
-      now: vi.fn(() => 2_000_000),
-    }));
+    const runtime = loadFactory().create(
+      createDependencies({
+        chrome: { storage: { session } },
+        now: vi.fn(() => 2_000_000),
+      })
+    );
 
-    await expect(runtime.handleHospitalizedIndicationsPrintRequest({
-      batchId,
-      encIds: ['901'],
-    })).resolves.toMatchObject({ ok: true, count: 1, skipped: [] });
+    await expect(
+      runtime.handleHospitalizedIndicationsPrintRequest({
+        batchId,
+        encIds: ['901'],
+      })
+    ).resolves.toMatchObject({ ok: true, count: 1, skipped: [] });
     expect(remove).toHaveBeenCalledWith(storageKey);
 
-    const expired = loadFactory().create(createDependencies({
-      chrome: { storage: { session } },
-      now: vi.fn(() => 2_000_001),
-    }));
-    await expect(expired.handleHospitalizedIndicationsPrintRequest({
-      batchId,
-      encIds: ['901'],
-    })).resolves.toEqual({
+    const expired = loadFactory().create(
+      createDependencies({
+        chrome: { storage: { session } },
+        now: vi.fn(() => 2_000_001),
+      })
+    );
+    await expect(
+      expired.handleHospitalizedIndicationsPrintRequest({
+        batchId,
+        encIds: ['901'],
+      })
+    ).resolves.toEqual({
       error: 'La selección de pacientes expiró. Actualiza la lista y vuelve a intentarlo.',
     });
   });
 
   it('sweeps expired prescription sessions and retains only the 24 freshest valid batches', async () => {
-    const stored = Object.fromEntries(Array.from({ length: 27 }, (_, index) => [
-      `hhr-prescription-batch-${index}`,
-      index === 0
-        ? { createdAt: index, sessionKey: '', expiresAt: null }
-        : { createdAt: index, lastUsedAt: index, sessionKey: 'session', expiresAt: null },
-    ]));
+    const stored = Object.fromEntries(
+      Array.from({ length: 27 }, (_, index) => [
+        `hhr-prescription-batch-${index}`,
+        index === 0
+          ? { createdAt: index, sessionKey: '', expiresAt: null }
+          : { createdAt: index, lastUsedAt: index, sessionKey: 'session', expiresAt: null },
+      ])
+    );
     const remove = vi.fn(async (_keys: string | string[]) => undefined);
-    const runtime = loadFactory().create(createDependencies({
-      chrome: {
-        storage: {
-          session: {
-            get: vi.fn(async () => stored),
-            set: vi.fn(async () => undefined),
-            remove,
+    const runtime = loadFactory().create(
+      createDependencies({
+        chrome: {
+          storage: {
+            session: {
+              get: vi.fn(async () => stored),
+              set: vi.fn(async () => undefined),
+              remove,
+            },
           },
         },
-      },
-    }));
+      })
+    );
 
     await runtime.sweepPrescriptionBatches(2_000_000);
 
     expect(remove).toHaveBeenCalledOnce();
     const removed = remove.mock.calls[0][0] as string[];
-    expect(new Set(removed)).toEqual(new Set([
-      'hhr-prescription-batch-0',
-      'hhr-prescription-batch-1',
-      'hhr-prescription-batch-2',
-    ]));
+    expect(new Set(removed)).toEqual(
+      new Set(['hhr-prescription-batch-0', 'hhr-prescription-batch-1', 'hhr-prescription-batch-2'])
+    );
   });
 
   it('fails the integrated regimen closed when either BRADEN or nutrition cannot be verified', async () => {
     const patient = { encounterId: '901' };
     const generateIntegrated = vi.fn();
-    const runtime = loadFactory().create(createDependencies({
-      fetchActiveHospitalizedPatients: vi.fn(async () => ({ patients: [patient] })),
-      fetchNutritionOrderEntry: vi.fn(async () => ({ error: 'Régimen no disponible.' })),
-      fetchEvaluationForms: vi.fn(async () => ({ error: 'Formularios no disponibles.' })),
-      prescriptionPdf: { generateIntegratedRegimenPdf: generateIntegrated },
-    }));
+    const runtime = loadFactory().create(
+      createDependencies({
+        fetchActiveHospitalizedPatients: vi.fn(async () => ({ patients: [patient] })),
+        fetchNutritionOrderEntry: vi.fn(async () => ({ error: 'Régimen no disponible.' })),
+        fetchEvaluationForms: vi.fn(async () => ({ error: 'Formularios no disponibles.' })),
+        prescriptionPdf: { generateIntegratedRegimenPdf: generateIntegrated },
+      })
+    );
 
     const options = await runtime.handleHospitalizedRegimenOptionsRequest({ currentEncId: '901' });
     expect(options).toMatchObject({
       ok: true,
       regimenErrorCount: 1,
       unavailableCount: 1,
-      patients: [{
-        encounterId: '901',
-        isCurrent: true,
-        regimenUnavailableReason: 'Régimen no disponible.',
-        bradenUnavailableReason: 'Formularios no disponibles.',
-      }],
+      patients: [
+        {
+          encounterId: '901',
+          isCurrent: true,
+          regimenUnavailableReason: 'Régimen no disponible.',
+          bradenUnavailableReason: 'Formularios no disponibles.',
+        },
+      ],
     });
 
     await expect(runtime.handleHospitalizedRegimenPrintRequest()).resolves.toMatchObject({

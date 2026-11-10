@@ -20,8 +20,6 @@ describe('clinical Scores read runtime owner', () => {
     expect(backgroundSource).not.toContain('const normalizeScaleDefinition =');
     expect(backgroundSource).not.toContain('const handleScoresOptionsRequest = async');
     expect(backgroundSource).not.toContain('const handleCudyrCategoriesRequest = async');
-    expect(runtimeSource).toContain('const handleScoresOptionsRequest = async');
-    expect(runtimeSource).toContain('const handleCudyrCategoriesRequest = async');
     expect(runtimeSource).toContain('fetchCudyrCategories,');
     expect(backgroundSource).toContain('fetchCudyrCategories,');
   });

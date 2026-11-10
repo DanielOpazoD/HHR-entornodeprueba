@@ -1,0 +1,1261 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`admin-status > preserves complete response for authorized 1`] = `
+{
+  "body": "{"providers":[]}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 200,
+}
+`;
+
+exports[`admin-status > preserves complete response for forbidden 1`] = `
+{
+  "body": "{"error":"Access denied for role 'unauthorized'."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 403,
+}
+`;
+
+exports[`admin-status > preserves complete response for invalid 1`] = `
+{
+  "body": "{"error":"Malformed Firebase ID token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 500,
+}
+`;
+
+exports[`admin-status > preserves complete response for lowercase-wins 1`] = `
+{
+  "body": "{"error":"Authorization header must use Bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`admin-status > preserves complete response for malformed 1`] = `
+{
+  "body": "{"error":"Authorization header must use Bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`admin-status > preserves complete response for missing 1`] = `
+{
+  "body": "{"error":"Missing Authorization bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`admin-status > preserves complete response for non-error-rejection 1`] = `
+{
+  "body": "{"error":"AI provider status failed"}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 500,
+}
+`;
+
+exports[`admin-status > preserves complete response for other-case-ignored 1`] = `
+{
+  "body": "{"error":"Missing Authorization bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`admin-status > preserves complete response for uppercase 1`] = `
+{
+  "body": "{"providers":[]}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 200,
+}
+`;
+
+exports[`admin-test > preserves complete response for authorized 1`] = `
+{
+  "body": "{"ok":false,"message":"Invalid AI provider test request"}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 400,
+}
+`;
+
+exports[`admin-test > preserves complete response for forbidden 1`] = `
+{
+  "body": "{"ok":false,"message":"Access denied for role 'unauthorized'."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 403,
+}
+`;
+
+exports[`admin-test > preserves complete response for invalid 1`] = `
+{
+  "body": "{"ok":false,"message":"AI provider test failed"}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 502,
+}
+`;
+
+exports[`admin-test > preserves complete response for lowercase-wins 1`] = `
+{
+  "body": "{"ok":false,"message":"Authorization header must use Bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`admin-test > preserves complete response for malformed 1`] = `
+{
+  "body": "{"ok":false,"message":"Authorization header must use Bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`admin-test > preserves complete response for missing 1`] = `
+{
+  "body": "{"ok":false,"message":"Missing Authorization bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`admin-test > preserves complete response for non-error-rejection 1`] = `
+{
+  "body": "{"ok":false,"message":"AI provider test failed"}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 502,
+}
+`;
+
+exports[`admin-test > preserves complete response for other-case-ignored 1`] = `
+{
+  "body": "{"ok":false,"message":"Missing Authorization bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`admin-test > preserves complete response for uppercase 1`] = `
+{
+  "body": "{"ok":false,"message":"Invalid AI provider test request"}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 400,
+}
+`;
+
+exports[`attachment > preserves complete response for authorized 1`] = `
+{
+  "body": "{"error":"Invalid attachment name request"}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 400,
+}
+`;
+
+exports[`attachment > preserves complete response for forbidden 1`] = `
+{
+  "body": "{"error":"Access denied for role 'unauthorized'."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 403,
+}
+`;
+
+exports[`attachment > preserves complete response for invalid 1`] = `
+{
+  "body": "{"error":"Malformed Firebase ID token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 500,
+}
+`;
+
+exports[`attachment > preserves complete response for lowercase-wins 1`] = `
+{
+  "body": "{"error":"Authorization header must use Bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`attachment > preserves complete response for malformed 1`] = `
+{
+  "body": "{"error":"Authorization header must use Bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`attachment > preserves complete response for missing 1`] = `
+{
+  "body": "{"error":"Missing Authorization bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`attachment > preserves complete response for non-error-rejection 1`] = `
+{
+  "body": "{"error":"Clinical attachment name suggestion failed"}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 500,
+}
+`;
+
+exports[`attachment > preserves complete response for other-case-ignored 1`] = `
+{
+  "body": "{"error":"Missing Authorization bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`attachment > preserves complete response for uppercase 1`] = `
+{
+  "body": "{"error":"Invalid attachment name request"}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 400,
+}
+`;
+
+exports[`census > preserves complete response for authorized 1`] = `
+{
+  "body": "Solicitud inválida: payload de envío de censo inválido.",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "text/plain; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 400,
+}
+`;
+
+exports[`census > preserves complete response for forbidden 1`] = `
+{
+  "body": "Access denied for role 'unauthorized'.",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "text/plain; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 403,
+}
+`;
+
+exports[`census > preserves complete response for invalid 1`] = `
+{
+  "body": "Malformed Firebase ID token.",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "text/plain; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`census > preserves complete response for lowercase-wins 1`] = `
+{
+  "body": "Authorization header must use Bearer token.",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "text/plain; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`census > preserves complete response for malformed 1`] = `
+{
+  "body": "Authorization header must use Bearer token.",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "text/plain; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`census > preserves complete response for missing 1`] = `
+{
+  "body": "Missing Authorization bearer token.",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "text/plain; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`census > preserves complete response for non-error-rejection 1`] = `
+{
+  "body": "No autorizado para enviar correos de censo.",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "text/plain; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`census > preserves complete response for other-case-ignored 1`] = `
+{
+  "body": "Missing Authorization bearer token.",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "text/plain; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`census > preserves complete response for uppercase 1`] = `
+{
+  "body": "Solicitud inválida: payload de envío de censo inválido.",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "text/plain; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 400,
+}
+`;
+
+exports[`cie10 > preserves complete response for authorized 1`] = `
+{
+  "body": "{"available":true,"results":[],"error":"Payload inválido para búsqueda CIE-10."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 400,
+}
+`;
+
+exports[`cie10 > preserves complete response for forbidden 1`] = `
+{
+  "body": "{"error":"Access denied for role 'unauthorized'."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 403,
+}
+`;
+
+exports[`cie10 > preserves complete response for invalid 1`] = `
+{
+  "body": "{"available":true,"results":[],"error":"AI search failed"}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 200,
+}
+`;
+
+exports[`cie10 > preserves complete response for lowercase-wins 1`] = `
+{
+  "body": "{"error":"Authorization header must use Bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`cie10 > preserves complete response for malformed 1`] = `
+{
+  "body": "{"error":"Authorization header must use Bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`cie10 > preserves complete response for missing 1`] = `
+{
+  "body": "{"error":"Missing Authorization bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`cie10 > preserves complete response for non-error-rejection 1`] = `
+{
+  "body": "{"available":true,"results":[],"error":"AI search failed"}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 200,
+}
+`;
+
+exports[`cie10 > preserves complete response for other-case-ignored 1`] = `
+{
+  "body": "{"error":"Missing Authorization bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`cie10 > preserves complete response for uppercase 1`] = `
+{
+  "body": "{"available":true,"results":[],"error":"Payload inválido para búsqueda CIE-10."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 400,
+}
+`;
+
+exports[`document > preserves complete response for authorized 1`] = `
+{
+  "body": "{"error":"Se requiere texto clinico extraido util para importar con IA."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 400,
+}
+`;
+
+exports[`document > preserves complete response for forbidden 1`] = `
+{
+  "body": "{"error":"Access denied for role 'unauthorized'."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 403,
+}
+`;
+
+exports[`document > preserves complete response for invalid 1`] = `
+{
+  "body": "{"error":"Malformed Firebase ID token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 500,
+}
+`;
+
+exports[`document > preserves complete response for lowercase-wins 1`] = `
+{
+  "body": "{"error":"Authorization header must use Bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`document > preserves complete response for malformed 1`] = `
+{
+  "body": "{"error":"Authorization header must use Bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`document > preserves complete response for missing 1`] = `
+{
+  "body": "{"error":"Missing Authorization bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`document > preserves complete response for non-error-rejection 1`] = `
+{
+  "body": "{"error":"Clinical document AI import failed"}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 500,
+}
+`;
+
+exports[`document > preserves complete response for other-case-ignored 1`] = `
+{
+  "body": "{"error":"Missing Authorization bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`document > preserves complete response for uppercase 1`] = `
+{
+  "body": "{"error":"Se requiere texto clinico extraido util para importar con IA."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 400,
+}
+`;
+
+exports[`fuga > preserves complete response for authorized 1`] = `
+{
+  "body": "Solicitud inválida para notificación de fuga.",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "text/plain; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 400,
+}
+`;
+
+exports[`fuga > preserves complete response for forbidden 1`] = `
+{
+  "body": "Access denied for role 'unauthorized'.",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "text/plain; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 403,
+}
+`;
+
+exports[`fuga > preserves complete response for invalid 1`] = `
+{
+  "body": "Malformed Firebase ID token.",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "text/plain; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`fuga > preserves complete response for lowercase-wins 1`] = `
+{
+  "body": "Authorization header must use Bearer token.",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "text/plain; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`fuga > preserves complete response for malformed 1`] = `
+{
+  "body": "Authorization header must use Bearer token.",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "text/plain; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`fuga > preserves complete response for missing 1`] = `
+{
+  "body": "Missing Authorization bearer token.",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "text/plain; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`fuga > preserves complete response for non-error-rejection 1`] = `
+{
+  "body": "No autorizado para enviar notificaciones de fuga.",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "text/plain; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`fuga > preserves complete response for other-case-ignored 1`] = `
+{
+  "body": "Missing Authorization bearer token.",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "text/plain; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`fuga > preserves complete response for uppercase 1`] = `
+{
+  "body": "Solicitud inválida para notificación de fuga.",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "text/plain; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 400,
+}
+`;
+
+exports[`mmrad > preserves complete response for authorized 1`] = `
+{
+  "body": "{"error":"RUT es requerido"}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 400,
+}
+`;
+
+exports[`mmrad > preserves complete response for forbidden 1`] = `
+{
+  "body": "{"error":"Acceso denegado para MMRAD. Tu correo no tiene un rol autorizado en config/roles o la sesión local no corresponde al entorno actual."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 403,
+}
+`;
+
+exports[`mmrad > preserves complete response for invalid 1`] = `
+{
+  "body": "{"error":"Malformed Firebase ID token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`mmrad > preserves complete response for lowercase-wins 1`] = `
+{
+  "body": "{"error":"Authorization header must use Bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`mmrad > preserves complete response for malformed 1`] = `
+{
+  "body": "{"error":"Authorization header must use Bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`mmrad > preserves complete response for missing 1`] = `
+{
+  "body": "{"error":"Missing Authorization bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`mmrad > preserves complete response for non-error-rejection 1`] = `
+{
+  "body": "{"error":"No autorizado para consultar radiología."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`mmrad > preserves complete response for other-case-ignored 1`] = `
+{
+  "body": "{"error":"Missing Authorization bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`mmrad > preserves complete response for uppercase 1`] = `
+{
+  "body": "{"error":"RUT es requerido"}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 400,
+}
+`;
+
+exports[`syslab > preserves complete response for authorized 1`] = `
+{
+  "body": "{"success":false,"connected":false,"error":"Falta configurar la conexión segura con el servidor de laboratorio."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 503,
+}
+`;
+
+exports[`syslab > preserves complete response for forbidden 1`] = `
+{
+  "body": "{"error":"Access denied for role 'unauthorized'."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 403,
+}
+`;
+
+exports[`syslab > preserves complete response for invalid 1`] = `
+{
+  "body": "{"error":"Malformed Firebase ID token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`syslab > preserves complete response for lowercase-wins 1`] = `
+{
+  "body": "{"error":"Authorization header must use Bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`syslab > preserves complete response for malformed 1`] = `
+{
+  "body": "{"error":"Authorization header must use Bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`syslab > preserves complete response for missing 1`] = `
+{
+  "body": "{"error":"Missing Authorization bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`syslab > preserves complete response for non-error-rejection 1`] = `
+{
+  "body": "{"error":"No autorizado para consultar laboratorio."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`syslab > preserves complete response for other-case-ignored 1`] = `
+{
+  "body": "{"error":"Missing Authorization bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`syslab > preserves complete response for uppercase 1`] = `
+{
+  "body": "{"success":false,"connected":false,"error":"Falta configurar la conexión segura con el servidor de laboratorio."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 503,
+}
+`;
+
+exports[`whatsapp > preserves complete response for authorized 1`] = `
+{
+  "body": "synthetic",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "text/plain",
+    "Vary": "Origin",
+  },
+  "statusCode": 200,
+}
+`;
+
+exports[`whatsapp > preserves complete response for forbidden 1`] = `
+{
+  "body": "{"error":"Access denied for role 'unauthorized'."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 403,
+}
+`;
+
+exports[`whatsapp > preserves complete response for invalid 1`] = `
+{
+  "body": "{"error":"Malformed Firebase ID token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`whatsapp > preserves complete response for lowercase-wins 1`] = `
+{
+  "body": "{"error":"Authorization header must use Bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`whatsapp > preserves complete response for malformed 1`] = `
+{
+  "body": "{"error":"Authorization header must use Bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`whatsapp > preserves complete response for missing 1`] = `
+{
+  "body": "{"error":"Missing Authorization bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`whatsapp > preserves complete response for non-error-rejection 1`] = `
+{
+  "body": "{"error":"WhatsApp authorization failed."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`whatsapp > preserves complete response for other-case-ignored 1`] = `
+{
+  "body": "{"error":"Missing Authorization bearer token."}",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-User-Role",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "application/json; charset=utf-8",
+    "Vary": "Origin",
+  },
+  "statusCode": 401,
+}
+`;
+
+exports[`whatsapp > preserves complete response for uppercase 1`] = `
+{
+  "body": "synthetic",
+  "headers": {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Origin": "https://app.example.com",
+    "Content-Type": "text/plain",
+    "Vary": "Origin",
+  },
+  "statusCode": 200,
+}
+`;

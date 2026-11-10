@@ -1,6 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import {
+  ALLOWED_OPERATIONAL_CONSOLE_NOISE_PATTERNS,
+  shouldFilterOperationalConsoleMessage,
+} from '../utils/operationalConsoleNoiseFilter';
 
 const EXPECTED_NOISY_CONSOLE_PATTERNS = [
   '[IndexedDB]',
@@ -65,31 +69,24 @@ const EXPECTED_NOISY_CONSOLE_PATTERNS = [
   '[PatientRowAsyncAction] Async patient row action failed silently',
 ] as const;
 
-const extractAllowedPatterns = (setup: string) => {
-  const match = setup.match(
-    /export const ALLOWED_OPERATIONAL_CONSOLE_NOISE_PATTERNS = \[(?<body>[\s\S]*?)\] as const;/
-  );
-  if (!match?.groups?.body) return [];
-
-  return [...match.groups.body.matchAll(/^\s*'(?<pattern>[^']+)',\s*$/gm)].map(
-    ({ groups }) => groups?.pattern ?? ''
-  );
-};
-
 const readProjectFile = (relativePath: string) =>
   fs.readFileSync(path.join(process.cwd(), relativePath), 'utf8');
 
 describe('test setup console noise filter', () => {
   it('keeps the expected operational-noise filters explicit and reviewed', () => {
-    const sharedFilter = readProjectFile('src/tests/utils/operationalConsoleNoiseFilter.ts');
-    const allowedPatterns = extractAllowedPatterns(sharedFilter);
+    const allowedPatterns = ALLOWED_OPERATIONAL_CONSOLE_NOISE_PATTERNS;
 
     expect(allowedPatterns).toEqual(EXPECTED_NOISY_CONSOLE_PATTERNS);
 
-    expect(sharedFilter).not.toContain("'Firestore query failed'");
-    expect(sharedFilter).not.toContain("'Firebase bootstrap failed'");
-    expect(sharedFilter).not.toContain("'Network error'");
-    expect(sharedFilter).not.toContain("'Error'");
+    expect(allowedPatterns).not.toContain('Firestore query failed');
+    expect(allowedPatterns).not.toContain('Firebase bootstrap failed');
+    expect(allowedPatterns).not.toContain('Network error');
+    expect(allowedPatterns).not.toContain('Error');
+  });
+
+  it('filters reviewed operational messages while preserving unexpected failures', () => {
+    expect(shouldFilterOperationalConsoleMessage(['[SyncQueue] synthetic retry'])).toBe(true);
+    expect(shouldFilterOperationalConsoleMessage(['unexpected synthetic failure'])).toBe(false);
   });
 
   it('shares the operational-noise filter with unit and emulator UI setup', () => {

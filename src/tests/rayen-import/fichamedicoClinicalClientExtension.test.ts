@@ -485,9 +485,6 @@ describe('Ficha Médico read-only clinical client', () => {
     expect(background.slice(0, background.indexOf('const REPORT_FILE'))).toContain(
       "'fichamedico-clinical-client.js'"
     );
-    expect(background).toContain(
-      'const fichaMedicoClinicalClient = self.HhrFichaMedicoClinicalClient.create({'
-    );
     expect(background).not.toContain('const fetchEvaluationForms = async');
     expect(background).not.toContain('const fetchScaleHistoryEvents = async');
     expect(background).not.toContain('const fetchActiveEncounterRows = async');

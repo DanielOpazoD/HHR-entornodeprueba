@@ -134,7 +134,6 @@ interface AuditContextType {
     waitMs?: number
   ) => void;
   fetchLogs: (limit?: number) => Promise<AuditLogEntry[]>;
-  getActionLabel: (action: AuditAction) => string;
   userId: string;
 }
 

@@ -1,3 +1,4 @@
+import { readAuthorizationHeader } from './lib/authorization-header';
 import { safeErrorMessage } from './lib/safe-error-message';
 /**
  * mmrad-search Netlify Function
@@ -416,12 +417,7 @@ export const createMMRADSearchHandler = (
       return buildJsonResponse(405, { error: 'Method not allowed' }, { requestOrigin });
     }
 
-    const authorizationHeader =
-      typeof event.headers?.authorization === 'string'
-        ? event.headers.authorization
-        : typeof event.headers?.Authorization === 'string'
-          ? event.headers.Authorization
-          : undefined;
+    const authorizationHeader = readAuthorizationHeader(event);
 
     try {
       dependencies.extractBearerToken(authorizationHeader);
@@ -465,6 +461,7 @@ export const createMMRADSearchHandler = (
           operation: 'pdf_proxy',
           timeoutMs: 20_000,
           maxAttempts: 2,
+          isFailureResult: result => result.statusCode >= 500 && result.statusCode < 600,
           db,
           hospitalId: process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa',
           context: { action: 'pdf' },
@@ -495,6 +492,7 @@ export const createMMRADSearchHandler = (
           operation: 'portal_receipt_proxy',
           timeoutMs: 20_000,
           maxAttempts: 2,
+          isFailureResult: result => result.statusCode >= 500 && result.statusCode < 600,
           db,
           hospitalId: process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa',
           context: { action: 'portalReceipt' },

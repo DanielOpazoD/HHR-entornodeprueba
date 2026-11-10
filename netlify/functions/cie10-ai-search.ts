@@ -1,3 +1,4 @@
+import { readAuthorizationHeader } from './lib/authorization-header';
 import { safeErrorLog, safeErrorMessage } from './lib/safe-error-message';
 import { getFirebaseServer } from './lib/firebase-server';
 import { authorizeRoleRequest, extractBearerToken } from './lib/firebase-auth';
@@ -84,12 +85,7 @@ const handler = async (event: NetlifyEventLike) => {
 
   try {
     const { db } = getFirebaseServer();
-    const authorizationHeader =
-      typeof event.headers?.authorization === 'string'
-        ? event.headers.authorization
-        : typeof event.headers?.Authorization === 'string'
-          ? event.headers.Authorization
-          : undefined;
+    const authorizationHeader = readAuthorizationHeader(event);
 
     const bearerToken = extractBearerToken(authorizationHeader);
     await authorizeRoleRequest(db, authorizationHeader, CIE10_ALLOWED_ROLES);

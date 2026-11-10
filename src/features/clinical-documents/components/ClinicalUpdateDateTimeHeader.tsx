@@ -34,6 +34,7 @@ export const ClinicalUpdateDateTimeHeader: React.FC<ClinicalUpdateDateTimeHeader
   onPatchTime,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
+  const DisplayTag = canEdit ? 'button' : 'span';
 
   if (isEditing && canEdit) {
     return (
@@ -47,6 +48,7 @@ export const ClinicalUpdateDateTimeHeader: React.FC<ClinicalUpdateDateTimeHeader
       >
         <input
           type="date"
+          aria-label="Fecha"
           value={date || ''}
           onChange={e => onPatchDate?.(sectionId, e.target.value)}
           className="text-[12px] text-slate-600 border border-slate-200 rounded px-1 py-0.5"
@@ -54,6 +56,7 @@ export const ClinicalUpdateDateTimeHeader: React.FC<ClinicalUpdateDateTimeHeader
         />
         <input
           type="time"
+          aria-label="Hora"
           value={time || ''}
           onChange={e => onPatchTime?.(sectionId, e.target.value)}
           className="text-[12px] text-slate-600 border border-slate-200 rounded px-1 py-0.5 w-[80px]"
@@ -63,14 +66,18 @@ export const ClinicalUpdateDateTimeHeader: React.FC<ClinicalUpdateDateTimeHeader
   }
 
   return (
-    <span
-      className={`ml-3 text-[13px] font-normal text-slate-500 whitespace-nowrap shrink-0 ${canEdit ? 'cursor-pointer hover:text-slate-700' : ''}`}
+    <DisplayTag
+      type={canEdit ? 'button' : undefined}
+      aria-label={
+        canEdit ? `Editar fecha y hora: ${formatDisplayDate(date)} ${time || ''}` : undefined
+      }
+      className={`ml-3 text-[13px] font-normal text-slate-500 whitespace-nowrap shrink-0 ${canEdit ? 'bg-transparent border-none p-0 text-left cursor-pointer hover:text-slate-700' : ''}`}
       onClick={canEdit ? () => setIsEditing(true) : undefined}
       title={canEdit ? 'Click para editar fecha y hora' : undefined}
     >
       {formatDisplayDate(date)}
       {date && time ? ', ' : ''}
       {time || ''}
-    </span>
+    </DisplayTag>
   );
 };
