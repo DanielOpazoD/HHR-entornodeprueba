@@ -1,3 +1,4 @@
+import { safeErrorMessage } from './safe-error-message';
 import { createVerify } from 'node:crypto';
 import { doc, getDoc } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
@@ -292,11 +293,14 @@ export const resolveRoleForEmail = async (
     try {
       return await resolveRoleViaCanonicalCallable(options.bearerToken, options.fetchImpl ?? fetch);
     } catch (error) {
-      console.warn(`[NetlifyAuth] canonical role lookup failed for ${cleanEmail}:`, error);
+      console.warn(
+        `[NetlifyAuth] canonical role lookup failed for ${cleanEmail}:`,
+        safeErrorMessage(error)
+      );
       if (options.throwOnLookupError) {
         throw new Error(
           error instanceof Error && error.message
-            ? error.message
+            ? safeErrorMessage(error)
             : 'Canonical role lookup unavailable.'
         );
       }
@@ -311,7 +315,10 @@ export const resolveRoleForEmail = async (
       return normalizeRoleAlias(rolesMap[cleanEmail]);
     }
   } catch (error) {
-    console.warn(`[NetlifyAuth] resolveRoleForEmail failed for ${cleanEmail}:`, error);
+    console.warn(
+      `[NetlifyAuth] resolveRoleForEmail failed for ${cleanEmail}:`,
+      safeErrorMessage(error)
+    );
   }
 
   return 'unauthorized';

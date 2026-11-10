@@ -1,3 +1,4 @@
+import { safeErrorMessage } from './lib/safe-error-message';
 import { reserveCensusEmailDiagnoses } from '../../src/services/exporters/censusEmailDiagnosisPrivacy';
 import { generateCensusPassword } from '../../src/services/security/passwordGenerator';
 import { sendCensusEmail } from '../../src/services/email/gmailClient';
@@ -71,11 +72,9 @@ export const handler = async (event: NetlifyEventLike) => {
     try {
       extractBearerToken(authorizationHeader);
     } catch (error) {
-      return buildTextResponse(
-        401,
-        error instanceof Error ? error.message : 'Authentication required.',
-        { requestOrigin }
-      );
+      return buildTextResponse(401, safeErrorMessage(error, 'Authentication required.'), {
+        requestOrigin,
+      });
     }
 
     try {
@@ -85,7 +84,7 @@ export const handler = async (event: NetlifyEventLike) => {
         error instanceof Error ? error.message : 'No autorizado para enviar correos de censo.';
       const statusCode =
         message.includes('Access denied') || message.includes('no email claim') ? 403 : 401;
-      return buildTextResponse(statusCode, message, { requestOrigin });
+      return buildTextResponse(statusCode, safeErrorMessage(message), { requestOrigin });
     }
 
     const parsedBody = parseJsonBody<unknown>(event.body);
@@ -246,9 +245,9 @@ export const handler = async (event: NetlifyEventLike) => {
       { requestOrigin }
     );
   } catch (error: unknown) {
-    console.error('Error enviando correo de censo', error);
+    console.error('Error enviando correo de censo', safeErrorMessage(error));
     const message =
       error instanceof Error ? error.message : 'Error desconocido enviando el correo.';
-    return buildTextResponse(500, message, { requestOrigin });
+    return buildTextResponse(500, safeErrorMessage(message), { requestOrigin });
   }
 };

@@ -1,8 +1,27 @@
+import { createProviderError, credentialMarkers } from '../netlify/providerErrorFixture';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createWhatsAppProxyHandler, handler } from '../../../netlify/functions/whatsapp-proxy';
 
 describe('whatsapp-proxy', () => {
+  it('redacts provider failures in details and logs', async () => {
+    const logs = vi.spyOn(console, 'error').mockImplementation(() => {});
+    fetchMock.mockRejectedValueOnce(createProviderError());
+    const securedHandler = createWhatsAppProxyHandler({
+      getFirebaseServer: getFirebaseServerMock as never,
+      authorizeRoleRequest: authorizeRoleRequestMock as never,
+      extractBearerToken: extractBearerTokenMock,
+      fetch: fetchMock,
+    });
+    const result = await securedHandler({ httpMethod: 'GET', headers: {}, body: null });
+    expect(result.statusCode).toBe(502);
+    expect(JSON.parse(result.body).details).toContain('HTTP 503');
+    const outputs =
+      result.body +
+      logs.mock.calls.map(call => call.map(String).join(' ')).join(' ') +
+      JSON.stringify(logs.mock.calls);
+    for (const marker of credentialMarkers) expect(outputs).not.toContain(marker);
+  });
   const originalEnv = { ...process.env };
   const fetchMock = vi.fn();
   const getFirebaseServerMock = vi.fn(() => ({ db: {} }));

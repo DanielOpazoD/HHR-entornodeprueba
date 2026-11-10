@@ -1,3 +1,4 @@
+import { safeErrorMessage } from './lib/safe-error-message';
 import {
   buildCorsHeaders,
   buildJsonResponse,
@@ -197,7 +198,7 @@ export const createPrescriptionImageProxyHandler =
         isBase64Encoded: true,
       };
     } catch (error) {
-      console.warn('Prescription image proxy failed', error);
+      console.warn('Prescription image proxy failed', safeErrorMessage(error));
       return buildJsonResponse(
         502,
         { error: 'No se pudo optimizar la imagen de receta.' },

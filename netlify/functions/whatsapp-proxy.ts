@@ -1,3 +1,4 @@
+import { safeErrorMessage } from './lib/safe-error-message';
 import {
   buildCorsHeaders,
   buildJsonResponse,
@@ -93,10 +94,7 @@ export const createWhatsAppProxyHandler =
         return buildJsonResponse(
           401,
           {
-            error:
-              error instanceof Error
-                ? error.message
-                : 'Authentication required for WhatsApp proxy.',
+            error: safeErrorMessage(error, 'Authentication required for WhatsApp proxy.'),
           },
           { requestOrigin }
         );
@@ -110,7 +108,11 @@ export const createWhatsAppProxyHandler =
         const statusCode =
           message.includes('Access denied') || message.includes('no email claim') ? 403 : 401;
 
-        return buildJsonResponse(statusCode, { error: message }, { requestOrigin });
+        return buildJsonResponse(
+          statusCode,
+          { error: safeErrorMessage(message) },
+          { requestOrigin }
+        );
       }
 
       const headers: Record<string, string> = {};
@@ -167,12 +169,12 @@ export const createWhatsAppProxyHandler =
         body: text,
       };
     } catch (error: unknown) {
-      console.error('WhatsApp proxy error', error);
+      console.error('WhatsApp proxy error', safeErrorMessage(error));
       return buildJsonResponse(
         502,
         {
           error: 'Failed to reach WhatsApp bot server',
-          details: error instanceof Error ? error.message : String(error),
+          details: safeErrorMessage(error),
         },
         { requestOrigin }
       );
