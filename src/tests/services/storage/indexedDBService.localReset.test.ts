@@ -28,6 +28,8 @@ describe('Local App Reset', () => {
     sessionStorage.clear();
     vi.clearAllMocks();
     vi.useRealTimers();
+    // The manual reset asks first; these cases cover what it does once the person accepts.
+    window.confirm = vi.fn(() => true);
   });
 
   it('should clear all and reload (mocked reload)', async () => {

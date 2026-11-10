@@ -101,9 +101,17 @@ const clearCacheStorage = async (): Promise<void> => {
   }
 };
 
+/**
+ * The manual reset recreates a local database that will not open. That database also holds the
+ * sync queue, and nothing local proves that every change in it reached the server, so the person
+ * always confirms the loss first (SAVE-03). Pending work kept outside the database is never removed.
+ */
 export const resetLocalDatabase = async (): Promise<void> => {
-  const { confirmManualDatabaseReset } = await import('./indexedDbManualResetGuard');
-  if (!(await confirmManualDatabaseReset())) return;
+  const confirmed = defaultBrowserWindowRuntime.confirm(
+    'Este computador puede tener cambios que todavía no llegaron al servidor. ' +
+      'Si reinicias el guardado local, esos cambios se pierden. ¿Reiniciar de todos modos?'
+  );
+  if (!confirmed) return;
   await clearIndexedDatabases();
   clearBrowserStorage({ preserveFirebaseAuth: true, keep: isKeptByAutomaticRepair });
   defaultBrowserWindowRuntime.reload();
