@@ -111,7 +111,7 @@ const resolveSubscriptionResult = async (
   } else if (goldenPath.shouldHydrateLocal && remoteRecord && isCurrent()) {
     await hydrateLocalCache(goldenPath.selectedRecord || remoteRecord, date, localRecord);
   }
-  const retainedRecord = await getPendingDailyRecordProjection(date);
+  const retainedRecord = await getPendingDailyRecordProjection(date, remoteRecord ?? undefined);
   if (superseded) {
     const result = createSupersededReadResult(date, superseded.stored, retainedRecord);
     return createSyncDailyRecordResult({

@@ -7,27 +7,36 @@ import {
 import { applyPatches } from '@/utils/patchUtils';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 
-/** Indexed by date; callers read these tasks in the same transaction as the day. */
-export const listPendingSpecialistHandoffs = (date: string): Promise<SyncTask[]> =>
-  hospitalDB.syncQueue
+import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
+
+/** One indexed read for daily holders and specialist notes, including sparse date batches. */
+export const listRecordAdmissionTasks = (dates: string[]): Promise<SyncTask[]> => {
+  const sorted = [...dates].sort();
+  return hospitalDB.syncQueue
     .where('key')
-    .startsWith(`handoff:${date}:`)
-    .filter(
-      task =>
-        task.type === 'UPDATE_SPECIALIST_HANDOFF' &&
-        (task.status === 'PENDING' || task.status === 'PROCESSING') &&
-        !task.projectionReleased &&
-        Boolean(task.handoffProjection && !task.handoffProjection.released)
-    )
+    .inAnyRange([
+      [`daily:${sorted[0]}`, `daily:${sorted.at(-1)}\0`],
+      [`handoff:${sorted[0]}:`, `handoff:${sorted.at(-1)}:\uffff`],
+    ])
     .toArray();
+};
 
 /** Only a proven patient/episode and unchanged note base may receive pending note fields. */
 export const projectPendingSpecialistHandoffs = (
   record: DailyRecord,
-  tasks: SyncTask[]
+  tasks: SyncTask[],
+  remoteRecord: DailyRecord = record
 ): DailyRecord => {
   let projected = record;
   for (const task of tasks) {
+    if (
+      task.type !== 'UPDATE_SPECIALIST_HANDOFF' ||
+      !['PENDING', 'PROCESSING'].includes(task.status) ||
+      task.projectionReleased ||
+      !task.handoffProjection ||
+      task.handoffProjection.released
+    )
+      continue;
     const payload = task.payload as SpecialistHandoffSyncPayload;
     if (payload.date !== record.date || !payload.expectedOccupants?.length) continue;
     const patch: DailyRecordPatch = {};
@@ -35,8 +44,9 @@ export const projectPendingSpecialistHandoffs = (
       if (/^beds\.[^.]+\.(clinicalCrib\.)?medicalHandoff(Note|Entries|Audit)$/.test(path))
         patch[path] = value;
     }
-    const targets = buildSpecialistHandoffTargets(projected, patch);
-    const next = applyPatches(projected, patch);
+    if (!Object.keys(patch).length) continue;
+    const targets = buildSpecialistHandoffTargets(remoteRecord, patch);
+    const next = applyPatches(remoteRecord, patch);
     const nextTargets = buildSpecialistHandoffTargets(next, patch);
     if (
       !targets.length ||
@@ -59,9 +69,16 @@ export const projectPendingSpecialistHandoffs = (
             ))
         );
       })
-    )
-      continue;
-    projected = next;
+    ) {
+      if (remoteRecord === record) continue;
+      projected = applyPatches(
+        projected,
+        Object.fromEntries(
+          // Paths were restricted above to the typed note fields of this DailyRecord.
+          Object.keys(patch).map(path => [path, getValueAtPath(remoteRecord, path)])
+        ) as DailyRecordPatch
+      );
+    } else projected = applyPatches(projected, patch);
   }
   return projected;
 };

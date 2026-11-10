@@ -1,5 +1,5 @@
 import {
-  listPendingSpecialistHandoffs,
+  listRecordAdmissionTasks,
   projectPendingSpecialistHandoffs,
 } from './pendingSpecialistHandoffProjection';
 import {
@@ -31,19 +31,21 @@ const listDayTasks = (date: string): Promise<SyncTask[]> =>
 
 /** Read the pending projection after remote work finishes, even if its timestamp did not change. */
 export const getPendingDailyRecordProjection = async (
-  date: string
+  date: string,
+  remoteRecord?: DailyRecord
 ): Promise<DailyRecord | null> => {
   await ensureDbReady();
   if (isDatabaseInFallbackMode()) return null;
   return hospitalDB.transaction('rw', hospitalDB.dailyRecords, hospitalDB.syncQueue, async () => {
-    const held = (await listDailyRecordProjectionHolders(date)).length;
+    const tasks = await listRecordAdmissionTasks([date]);
+    const held = (await listDailyRecordProjectionHolders(date, tasks)).length;
     const record = await hospitalDB.dailyRecords.get(date);
     if (!held) {
       if (!record) return null;
-      return projectPendingSpecialistHandoffs(record, await listPendingSpecialistHandoffs(date)) ===
-        record
-        ? null
-        : record;
+      const projected = projectPendingSpecialistHandoffs(record, tasks, remoteRecord);
+      if (projected === record) return null;
+      await hospitalDB.dailyRecords.put(projected);
+      return projected;
     }
     if (!record) throw new Error('No existe la copia local de una escritura pendiente.');
     return record;

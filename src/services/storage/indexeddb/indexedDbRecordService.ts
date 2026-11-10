@@ -1,3 +1,4 @@
+import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import { localPersistence } from '@/services/storage/localpersistence/localPersistenceService';
 import { buildMonthRecordPrefix } from '@/services/storage/storageDateSupport';
@@ -7,7 +8,7 @@ import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
 import { listDailyRecordProjectionHolders } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 
 import {
-  listPendingSpecialistHandoffs,
+  listRecordAdmissionTasks,
   projectPendingSpecialistHandoffs,
 } from '@/services/storage/sync/pendingSpecialistHandoffProjection';
 
@@ -193,9 +194,10 @@ const admitsPointRead = (
 const inspectIndexedDbAdmission = async (
   date: string,
   expectedBase?: LocalRecordBase,
-  candidate: DailyRecord | null = null
+  candidate: DailyRecord | null = null,
+  tasks?: SyncTask[]
 ): Promise<LocalRecordAdmission> => {
-  const holders = await listDailyRecordProjectionHolders(date);
+  const holders = await listDailyRecordProjectionHolders(date, tasks);
   const stored = (await db.dailyRecords.get(date)) ?? null;
   if (holders.length) {
     if (!stored) throw new Error('No existe la copia local de una escritura pendiente.');
@@ -252,16 +254,15 @@ export const saveRecordStrict = async (
       localPersistence.records.save(record);
     } else if (options.preserveUnresolvedWrites) {
       const admission = await db.transaction('rw', db.dailyRecords, db.syncQueue, async () => {
+        const tasks = await listRecordAdmissionTasks([record.date]);
         const admission = await inspectIndexedDbAdmission(
           record.date,
           options.expectedBase,
-          record
+          record,
+          tasks
         );
         if (admission.status === 'admitted') {
-          projectedRecord = projectPendingSpecialistHandoffs(
-            record,
-            await listPendingSpecialistHandoffs(record.date)
-          );
+          projectedRecord = projectPendingSpecialistHandoffs(record, tasks);
           await db.dailyRecords.put(projectedRecord);
         }
         return admission;
@@ -324,16 +325,24 @@ export const saveRecordsStrict = async (
     const admittedRecords = options.preserveUnresolvedWrites
       ? await db.transaction('rw', db.dailyRecords, db.syncQueue, async () => {
           // One indexed queue lookup and one transaction for the entire downloaded range.
-          const queuedKeys = new Set(
-            await db.syncQueue
-              .where('key')
-              .anyOf(dates.map(date => `daily:${date}`))
-              .uniqueKeys()
-          );
+          const tasks = await listRecordAdmissionTasks(dates);
+          const byDate = new Map<string, SyncTask[]>();
+          for (const task of tasks) {
+            const date = task.key?.split(':')[1];
+            if (!date) continue;
+            const group = byDate.get(date) ?? [];
+            group.push(task);
+            byDate.set(date, group);
+          }
           const retained = new Map<string, DailyRecord>();
           for (const record of records) {
-            if (!queuedKeys.has(`daily:${record.date}`)) continue;
-            const admission = await inspectIndexedDbAdmission(record.date);
+            if (!byDate.has(record.date)) continue;
+            const admission = await inspectIndexedDbAdmission(
+              record.date,
+              undefined,
+              null,
+              byDate.get(record.date)
+            );
             if (admission.status === 'retained_pending')
               retained.set(record.date, admission.record);
           }
@@ -342,7 +351,7 @@ export const saveRecordsStrict = async (
             if (retained.has(record.date)) continue;
             const projected = projectPendingSpecialistHandoffs(
               record,
-              await listPendingSpecialistHandoffs(record.date)
+              byDate.get(record.date) ?? []
             );
             retained.set(record.date, projected);
             writable.push(projected);

@@ -49,9 +49,12 @@ export const holdsDailyRecordProjection = (task: SyncTask, date: string): boolea
  * left to keep: it is released here with its payload untouched, so the server's day can be read
  * and the next edit gets its own task. Any other write without its copy still fails closed.
  */
-export const listDailyRecordProjectionHolders = async (date: string): Promise<SyncTask[]> => {
+export const listDailyRecordProjectionHolders = async (
+  date: string,
+  tasks?: SyncTask[]
+): Promise<SyncTask[]> => {
   const holders = (
-    await hospitalDB.syncQueue.where('key').equals(`daily:${date}`).toArray()
+    tasks ?? (await hospitalDB.syncQueue.where('key').equals(`daily:${date}`).toArray())
   ).filter(task => holdsDailyRecordProjection(task, date));
   if (
     !holders.length ||

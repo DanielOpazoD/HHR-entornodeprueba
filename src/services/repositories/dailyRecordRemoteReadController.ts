@@ -137,7 +137,10 @@ export const resolveRemoteGoldenPathReadResult = async ({
       );
     }
   }
-  const retainedRecord = await getPendingDailyRecordProjection(date);
+  const retainedRecord = await getPendingDailyRecordProjection(
+    date,
+    remoteReadResult.record ?? undefined
+  );
   if (retainedRecord)
     return createRetainedPendingProjectionReadResult(
       date,
