@@ -20,11 +20,6 @@ export const resolveRecipientRuntimeAfterCreate = (
   );
 };
 
-export const resolveRecipientListsAfterRenameRuntime = (
-  recipientLists: GlobalEmailRecipientList[],
-  nextList: GlobalEmailRecipientList
-): GlobalEmailRecipientList[] => resolveRecipientListsAfterRename(recipientLists, nextList);
-
 export const resolveRecipientRuntimeAfterRename = (
   recipientLists: GlobalEmailRecipientList[],
   nextList: GlobalEmailRecipientList
