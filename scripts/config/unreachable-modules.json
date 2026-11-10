@@ -15,7 +15,7 @@
       "files": ["src/services/exporters/excelJsModuleLoader.node.ts"]
     },
     {
-      "reason": "Columnas del censo ocultas en julio de 2026 y conservadas en el código «para reactivación futura». Pendiente de que el responsable decida si se borran.",
+      "reason": "Columnas del censo ocultas en julio de 2026. El responsable decidió conservarlas (2026-11-10) para poder reactivarlas.",
       "files": [
         "src/features/census/components/patient-row/AdmissionInput.tsx",
         "src/features/census/components/patient-row/AgeInput.tsx",
@@ -28,24 +28,14 @@
       ]
     },
     {
-      "reason": "Vista anterior de CUDYR y corrección manual del administrador (setAdminCudyrResult), sin pantalla desde #774. Pendiente de que el responsable decida si se retira o se vuelve a conectar.",
+      "reason": "Corrección manual de CUDYR del administrador (setAdminCudyrResult) y retiro en lote de resultados importados. El responsable decidió conservarlas (2026-11-10); hoy ninguna pantalla las muestra.",
       "files": [
-        "src/application/cudyr/public.ts",
         "src/domain/cudyr/adminCudyrResult.ts",
         "src/features/cudyr/components/AdminCudyrBulkRemovalToolbar.tsx",
         "src/features/cudyr/components/AdminCudyrResultEditor.tsx",
-        "src/features/cudyr/components/CudyrHeader.tsx",
-        "src/features/cudyr/components/CudyrRow.tsx",
-        "src/features/cudyr/components/CudyrSummaryTable.tsx",
-        "src/features/cudyr/contracts/cudyrPatientContracts.ts",
-        "src/features/cudyr/controllers/cudyrEditAccessController.ts",
-        "src/features/cudyr/controllers/cudyrRowViewController.ts",
-        "src/features/cudyr/controllers/cudyrViewController.ts",
         "src/features/cudyr/hooks/useAdminCudyrBulkRemoval.ts",
         "src/features/cudyr/hooks/useAdminCudyrResult.ts",
-        "src/features/cudyr/hooks/useCudyrLogic.ts",
-        "src/services/cudyr/adminCudyrResultService.ts",
-        "src/services/cudyr/cudyrLoggers.ts"
+        "src/services/cudyr/adminCudyrResultService.ts"
       ]
     },
     {

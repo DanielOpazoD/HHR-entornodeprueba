@@ -1,3 +1,4 @@
+import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
 import { useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useVersion } from '@/context/VersionContext';
@@ -28,13 +29,8 @@ import {
 import { systemHealthReporterLogger } from '@/hooks/hookLoggers';
 
 const REPORT_INTERVAL_MS = 2 * 60 * 1000; // Evaluate the local picture every 2 minutes
-let healthServiceModulePromise: Promise<typeof import('@/services/admin/healthService')> | null =
-  null;
 
-const loadHealthService = async () => {
-  healthServiceModulePromise ??= import('@/services/admin/healthService');
-  return healthServiceModulePromise;
-};
+const loadHealthService = createCachedRuntimeLoader(() => import('@/services/admin/healthService'));
 
 /**
  * Hook that periodically reports the system health status to Firestore.
