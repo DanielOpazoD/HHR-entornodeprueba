@@ -16,7 +16,8 @@ const globToRegex = glob => {
   return new RegExp(`^${escaped}$`);
 };
 
-const matchesAny = (file, patterns = []) => patterns.some(pattern => globToRegex(pattern).test(file));
+const matchesAny = (file, patterns = []) =>
+  patterns.some(pattern => globToRegex(pattern).test(file));
 
 export const loadCiChangeScopeConfig = root =>
   JSON.parse(fs.readFileSync(path.join(root, CONFIG_PATH), 'utf8'));
@@ -55,10 +56,21 @@ export const classifyCiChangeScope = ({ eventName, files, config }) => {
   const functions = config.functionsOnly || {};
   const isFunctionsOnly = normalizedFiles.every(({ filename }) => {
     if (matchesAny(filename, functions.excluded)) return false;
-    return (functions.supportFiles || []).includes(filename) || matchesAny(filename, functions.directories);
+    return (
+      (functions.supportFiles || []).includes(filename) ||
+      matchesAny(filename, functions.directories)
+    );
   });
   if (isFunctionsOnly) {
     return { scope: 'functions-only', reason: 'functions_allowlist', usedFallback: false };
+  }
+
+  const tooling = config.toolingOnly || {};
+  const isToolingOnly = normalizedFiles.every(
+    ({ filename }) => !matchesAny(filename, tooling.excluded) && matchesAny(filename, tooling.paths)
+  );
+  if (isToolingOnly) {
+    return { scope: 'tooling-only', reason: 'tooling_allowlist', usedFallback: false };
   }
 
   return { scope: 'full', reason: 'unclassified_or_mixed_change', usedFallback: true };

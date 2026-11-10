@@ -21,5 +21,34 @@
       "scripts/list-firebase-function-targets.mjs"
     ],
     "excluded": ["functions/package.json", "functions/package-lock.json"]
+  },
+  "toolingOnly": {
+    "paths": ["scripts/check-*.mjs", "src/tests/scripts/**", "src/tests/build/**"],
+    "excluded": [
+      "scripts/check-bundle-budget.mjs",
+      "scripts/check-chunk-graph.mjs",
+      "scripts/check-ci-artifact-contracts.mjs",
+      "scripts/check-ci-risk-pack-membership.mjs",
+      "scripts/check-ci-runtime-telemetry.mjs",
+      "scripts/check-critical-coverage.mjs",
+      "scripts/check-deployed-firebase-functions.mjs",
+      "scripts/check-firebase-function-delete-result.mjs",
+      "scripts/check-firebase-function-regions.mjs",
+      "scripts/check-flow-performance-budget.mjs",
+      "scripts/check-function-deployment-ci.mjs",
+      "scripts/check-netlify-functions-bundle.mjs",
+      "scripts/check-playwright-report-clean.mjs",
+      "scripts/check-playwright-report-path-isolation.mjs",
+      "scripts/check-postmerge-evidence.mjs",
+      "scripts/check-preview-bootstrap-evidence.mjs",
+      "scripts/check-preview-smoke-completeness.mjs",
+      "scripts/check-release-evidence-contract.mjs",
+      "scripts/check-report-freshness.mjs",
+      "scripts/check-runtime-adapter-boundary.mjs",
+      "scripts/check-runtime-asset-margin.mjs",
+      "scripts/check-sync-convergence-evidence.mjs",
+      "scripts/check-test-runtime-governance.mjs",
+      "scripts/check-unit-shard-balance.mjs"
+    ]
   }
 }

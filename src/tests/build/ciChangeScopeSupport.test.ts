@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   classifyCiChangeScope,
+  loadCiChangeScopeConfig,
   collectChangedFilesFromGit,
   parseGitNameStatus,
 } from '../../../scripts/ciChangeScopeSupport.mjs';
@@ -93,5 +94,31 @@ describe('CI change scope classification', () => {
       { filename: 'docs\\guide.md', status: 'unsafe' },
       { filename: 'docs/guide.md', status: 'modified' },
     ]);
+  });
+});
+
+describe('tooling-only repository policy', () => {
+  const repositoryConfig = loadCiChangeScopeConfig(process.cwd());
+  const classify = (files: ReturnType<typeof changed>[]) =>
+    classifyCiChangeScope({ eventName: 'pull_request', files, config: repositoryConfig });
+
+  it('reduces a static control and its synthetic regression test', () => {
+    expect(
+      classify([
+        changed('scripts/check-module-size.mjs'),
+        changed('src/tests/build/moduleSizeGovernance.test.ts'),
+      ]).scope
+    ).toBe('tooling-only');
+  });
+
+  it.each([
+    [changed('scripts/check-bundle-budget.mjs')],
+    [changed('scripts/check-module-size.mjs'), changed('src/App.tsx')],
+    [changed('scripts/check-module-size.mjs', 'removed')],
+    [changed('scripts/check-module-size.mjs', 'renamed')],
+    [changed('scripts/config/guardrail-governance.json')],
+    [changed('scripts/lib/firebase-emulator-ci.sh')],
+  ])('preserves full validation for unsafe or mixed changes: %j', (...files) => {
+    expect(classify(files).scope).toBe('full');
   });
 });

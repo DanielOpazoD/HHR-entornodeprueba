@@ -2,6 +2,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import {
+  classifyCiChangeScope,
+  loadCiChangeScopeConfig,
+} from '../../../scripts/ciChangeScopeSupport.mjs';
+import { collectToolingExclusions } from './toolingScopeTestSupport';
 import { jobNeeds, parseWorkflow } from './workflowYamlTestSupport';
 
 const readText = (relativePath: string) =>
@@ -65,5 +70,67 @@ describe('CI change scope governance', () => {
         "needs.ci-scope.outputs.scope == 'full'"
       );
     }
+  });
+});
+
+describe('tooling scope safety', () => {
+  it('discovers new direct, matrix and nested npm control invocations without a manual list', () => {
+    const exclusions = collectToolingExclusions({
+      workflowText: `
+jobs:
+  future-browser-job:
+    strategy:
+      matrix:
+        check: [future-check]
+    steps:
+      - run: node scripts/check-future-direct.mjs
+      - run: npm run \${{ matrix.check }}
+`,
+      scripts: {
+        'future-check': 'npm run nested-check',
+        'nested-check': 'node scripts/check-future-nested.mjs',
+      },
+    });
+    expect(exclusions).toEqual(
+      expect.arrayContaining(['scripts/check-future-direct.mjs', 'scripts/check-future-nested.mjs'])
+    );
+  });
+
+  it('excludes every control used by omitted runtime/build/deployment jobs or runtime imports', () => {
+    const config = loadCiChangeScopeConfig(process.cwd());
+    const exclusions = collectToolingExclusions();
+    expect(exclusions).toContain('scripts/check-bundle-budget.mjs');
+    for (const filename of exclusions) {
+      // Functions support controls retain their existing functions-only scope.
+      if (config.functionsOnly.supportFiles.includes(filename)) continue;
+      expect(
+        classifyCiChangeScope({
+          eventName: 'pull_request',
+          files: [{ filename, status: 'modified' }],
+          config,
+        }).scope,
+        `${filename} must be excluded from tooling-only`
+      ).toBe('full');
+    }
+  });
+
+  it('validates the reduced scope with cached dependencies, formatting, aggregate and tests', () => {
+    const { jobs } = parseWorkflow(readText('.github/workflows/ci-cd.yml'));
+    const job = jobs['tooling-scope-gate'];
+    expect(jobNeeds(job)).toEqual(['ci-scope']);
+    expect(job.steps.some(step => step.uses === './.github/actions/setup-ci-dependencies')).toBe(
+      true
+    );
+    const commands = job.steps.map(step => step.run ?? '').join('\n');
+    expect(commands).toContain('eslint');
+    expect(commands).toContain('prettier');
+    expect(commands).toContain('npm run check:quality');
+    expect(commands).toContain('vitest run src/tests/scripts src/tests/build --maxWorkers=1');
+    const aggregate = JSON.parse(readText('scripts/config/guardrail-governance.json'));
+    expect(
+      aggregate.qualityAggregate.checks.some(
+        (entry: { id: string }) => entry.id === 'check:unchecked-index'
+      )
+    ).toBe(true);
   });
 });
