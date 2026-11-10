@@ -24,7 +24,6 @@ import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 const today = '2026-10-29';
-const yesterday = '2026-10-28';
 const marker = {
   version: 1 as const,
   reason: 'version-change' as const,
@@ -58,9 +57,9 @@ beforeEach(async () => {
 });
 afterEach(() => localStorage.clear());
 
-it('completes when the live subscription brings a newer copy of today before the refresh read lands', async () => {
+it('keeps the marker and reports a retry, not a failure, when another reader overtakes the read', async () => {
   loadRemoteRecordWithFallback.mockImplementation(async (date: string) => {
-    // What the open census does on its own while this read is on its way.
+    // What the open census can do on its own while this read is on its way.
     if (date === today) {
       await hospitalDB.dailyRecords.put(serverDay(today, '2026-10-29T12:00:05.000Z'));
     }
@@ -69,10 +68,14 @@ it('completes when the live subscription brings a newer copy of today before the
 
   const { result, clearMarker } = await run();
 
-  expect(result.status).toBe('completed');
-  expect(clearMarker).toHaveBeenCalledOnce();
-  expect((await hospitalDB.dailyRecords.get(today))?.lastUpdated).toBe('2026-10-29T12:00:05.000Z');
-  expect(await hospitalDB.dailyRecords.get(yesterday)).toBeDefined();
+  // An overtaken read does not prove where the copy that stayed came from.
+  expect(result.status).toBe('failed');
+  expect(clearMarker).not.toHaveBeenCalled();
+  expect(recordOperationalTelemetry.mock.calls[0]?.[0]).toMatchObject({
+    operation: 'post_deploy_recent_record_refresh',
+    status: 'degraded',
+    issues: ['failed'],
+  });
 });
 
 it('keeps the marker and reports a retry, not a failure, when the server cannot be read', async () => {

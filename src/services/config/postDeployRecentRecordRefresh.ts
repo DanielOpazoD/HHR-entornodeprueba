@@ -48,12 +48,7 @@ interface ExecutePostDeployRecentRecordRefreshParams {
   readSyncQueueTelemetry?: () => Promise<SyncQueueTelemetry>;
   /** Resolves false when the day stays, because a pending write holds it. */
   deleteLocalRecord?: (date: string) => Promise<boolean>;
-  syncRemoteRecord: (date: string) => Promise<
-    OperationalOutcomeLike & {
-      reason?: string;
-      data?: { sync?: { publication?: string } | null } | null;
-    }
-  >;
+  syncRemoteRecord: (date: string) => Promise<OperationalOutcomeLike & { reason?: string }>;
 }
 
 const canUseBrowserStorage = (): boolean =>
@@ -161,7 +156,8 @@ const recordPostDeployRefreshTelemetry = (
       category: 'daily_record',
       operation: 'post_deploy_recent_record_refresh',
       // An attempt that did not finish keeps its marker and runs again by itself: nobody has to
-      // act on it, so it is never reported as a failure.
+      // act on it, so it is never reported as a failure. A read overtaken by another reader of the
+      // day is one such case: it does not prove the day was refreshed, and the next attempt does.
       status: status === 'completed' ? 'success' : 'degraded',
       issues: status === 'completed' ? [] : [status],
       context: {
@@ -254,11 +250,7 @@ export const executePostDeployRecentRecordRefresh = async ({
       const outcome = await syncRemoteRecord(date);
       if (!isCurrentSession()) return interrupted();
       // A day with no census on the server was read correctly: that is an answer, not a failure.
-      // So is a read overtaken by a newer copy of the day, which the open census brought first.
-      const answered =
-        outcome.status === 'success' ||
-        outcome.reason === 'missing_remote_record' ||
-        outcome.data?.sync?.publication === 'superseded';
+      const answered = outcome.status === 'success' || outcome.reason === 'missing_remote_record';
       if (!answered) {
         const result = { status: 'failed' as const, dates, marker, queueTelemetry };
         recordPostDeployRefreshTelemetry(result.status, result);
