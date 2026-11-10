@@ -139,7 +139,7 @@ const mapTelemetryStatus = (event: OperationalTelemetryEvent): UserHealthRecentE
 const isSyncTruthSelectionTelemetry = (event: OperationalTelemetryEvent): boolean =>
   event.category === 'sync' && event.operation === 'sync_queue_truth_selected';
 
-const buildContextSummary = (context: Record<string, unknown> | undefined): string[] => {
+export const buildContextSummary = (context: Record<string, unknown> | undefined): string[] => {
   if (!context) return [];
   return Object.entries(context)
     .filter(([key, value]) => {

@@ -40,6 +40,7 @@ import {
 import { replacePendingDailyRecordTask } from '@/services/storage/sync/syncQueuePendingDailyRecordReplacement';
 import type { PendingDailyRecordSyncTaskIdentity } from '@/services/storage/sync/pendingDailyRecordSyncTask';
 import { hasPendingNursingHandoff } from './nursingHandoffTasks';
+import { buildSyncQueueFailureContext } from './syncQueueFailureContext';
 
 export interface ProcessSyncQueueOptions {
   nursingHandoffOnly?: boolean;
@@ -115,6 +116,7 @@ export const createSyncQueueEngine = ({
 
     if (decision.shouldLogPermanentFailure) {
       logError('Sync task permanently failed', error instanceof Error ? error : undefined, {
+        ...buildSyncQueueFailureContext(task),
         taskId: task.id,
         type: task.type,
         key: task.key,
