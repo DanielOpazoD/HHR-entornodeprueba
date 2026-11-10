@@ -147,8 +147,8 @@ import { useDailyRecord } from '@/hooks/useDailyRecord';
 - [Runbook de rotación de secretos](docs/RUNBOOK_SECRET_ROTATION.md)
 - [Guardrails de calidad](docs/QUALITY_GUARDRAILS.md)
 - [Gates de CI y runbooks de falla](docs/CI_GATES_AND_FAILURE_RUNBOOKS.md)
-- [Scorecard de release readiness](reports/release-readiness-scorecard.md)
-- [Gobernanza de guardrails](reports/guardrail-governance.md)
+- Scorecard de release readiness: generar con `npm run report:release-readiness-scorecard`
+- Gobernanza de guardrails: generar con `npm run report:guardrail-governance`
 - [Política de cambio sostenible](scripts/config/sustainable-change-policy.json) (reporte: `npm run report:sustainable-change-policy`)
 - [Baseline de ejecución técnica](scripts/config/technical-execution-baseline.json) (reporte: `npm run report:technical-execution-baseline`)
 - [Checklist de cambio seguro](docs/SAFE_CHANGE_CHECKLIST.md)
@@ -233,10 +233,10 @@ Una ejecución pendiente o fallida no es una validación aprobada, y CI aprobado
 solo no confirma el despliegue ni una sincronización real con Eloísa. El procedimiento
 canónico está en el [runbook de evidencia](docs/RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md).
 
-Ejemplos de snapshots versionados (excepción al `.gitignore`; verificar vigencia antes de citarlos):
+Ejemplos de snapshots generados localmente o disponibles en el artefacto de CI `quality-static-governance-snapshots`:
 
-- [reports/architectural-hotspots.md](reports/architectural-hotspots.md)
-- [reports/runtime-contracts.md](reports/runtime-contracts.md)
+- `reports/architectural-hotspots.md`: generar con `npm run report:architectural-hotspots`
+- `reports/runtime-contracts.md`: generar con `npm run report:runtime-contracts`
 
 Para regenerar evidencia, seguir el
 [runbook de release](docs/RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md). Para una evaluación

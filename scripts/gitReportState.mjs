@@ -2,46 +2,18 @@ import { execSync } from 'node:child_process';
 
 const runGitCommand = (root, command) =>
   execSync(command, { cwd: root, encoding: 'utf8' }).trimEnd();
-// Tracked report files that `report:governance-snapshots` regenerates after
-// the scorecard captures its `gitDirty` field. Excluding them from the dirty
-// check prevents the scorecard from being flagged as stale just because a
-// later step in the same pipeline rewrote these tracked files. Keep this
-// list aligned with the tracked report artifacts that any CI flow rewrites
-// before `check:report-freshness` runs.
+// These tracked snapshots still need reader migration or a clinical-owner decision.
+// Other generated reports are ignored by Git and must not need status exceptions.
+// Keep this temporary set limited to the remaining tracked snapshots and the
+// clinical visual evidence retained by the same release pipeline.
 const GENERATED_REPORT_STATUS_SUFFIXES = new Set([
-  'reports/bundle-risk-ledger.json',
-  'reports/bundle-risk-ledger.md',
   'reports/clinical-release-validation.json',
   'reports/clinical-release-validation.md',
   'reports/clinical-release-signoff.json',
   'reports/clinical-release-signoff.md',
-  'reports/compatibility-governance.json',
-  'reports/compatibility-governance.md',
-  'reports/critical-coverage.json',
-  'reports/critical-coverage.md',
   'reports/e2e/clinical-visual-release-report.json',
-  'reports/guardrail-governance.json',
-  'reports/guardrail-governance.md',
-  'reports/maintenance-debt-scorecard.json',
-  'reports/maintenance-debt-scorecard.md',
-  'reports/operational-health.json',
-  'reports/operational-health.md',
   'reports/quality-metrics.json',
   'reports/quality-metrics.md',
-  'reports/release-confidence-matrix.json',
-  'reports/release-confidence-matrix.md',
-  'reports/release-readiness-scorecard.json',
-  'reports/release-readiness-scorecard.md',
-  'reports/runtime-contracts.json',
-  'reports/runtime-contracts.md',
-  'reports/sync-convergence.json',
-  'reports/sync-convergence.md',
-  'reports/system-confidence.json',
-  'reports/system-confidence.md',
-  'reports/test-runtime-governance.json',
-  'reports/test-runtime-governance.md',
-  'reports/technical-ownership-map.json',
-  'reports/technical-ownership-map.md',
   'reports/ci-runtime-observed-profile.json',
   'reports/ci-runtime-observed-profile.md',
   'reports/unit-shard-runtime-profile.json',
