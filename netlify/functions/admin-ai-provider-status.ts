@@ -1,3 +1,4 @@
+import { safeErrorMessage } from './lib/safe-error-message';
 import { getFirebaseServer } from './lib/firebase-server';
 import { authorizeRoleRequest, extractBearerToken } from './lib/firebase-auth';
 import { listClinicalAIProviderAvailability } from './lib/ai-provider';
@@ -66,6 +67,6 @@ export const handler = async (event: NetlifyEventLike) => {
           ? 401
           : 500;
 
-    return buildJsonResponse(statusCode, { error: message }, { requestOrigin });
+    return buildJsonResponse(statusCode, { error: safeErrorMessage(message) }, { requestOrigin });
   }
 };

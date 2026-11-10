@@ -1,3 +1,4 @@
+import { safeErrorMessage } from './lib/safe-error-message';
 /**
  * syslab-proxy Netlify Function
  *
@@ -300,7 +301,7 @@ export const createSyslabProxyHandler = (
     } catch (error) {
       return buildJsonResponse(
         401,
-        { error: error instanceof Error ? error.message : 'Authentication required.' },
+        { error: safeErrorMessage(error, 'Authentication required.') },
         { requestOrigin }
       );
     }
@@ -318,7 +319,7 @@ export const createSyslabProxyHandler = (
         error instanceof Error ? error.message : 'No autorizado para consultar laboratorio.';
       const statusCode =
         message.includes('Access denied') || message.includes('no email claim') ? 403 : 401;
-      return buildJsonResponse(statusCode, { error: message }, { requestOrigin });
+      return buildJsonResponse(statusCode, { error: safeErrorMessage(message) }, { requestOrigin });
     }
 
     const proxyUrl = getProxyUrl();

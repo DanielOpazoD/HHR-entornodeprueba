@@ -1,6 +1,37 @@
+import { createProviderError, credentialMarkers } from './providerErrorFixture';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 describe('invokeWithTelemetry', () => {
+  it('redacts provider errors in console, stdout and persisted telemetry', async () => {
+    const logs = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const stdout = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
+    const addDoc = vi.fn().mockResolvedValue(undefined);
+    vi.stubEnv('VITEST', 'false');
+    vi.doMock('firebase/firestore', () => ({ collection: vi.fn(), addDoc }));
+    try {
+      const { invokeWithTelemetry } = await import('../../../netlify/functions/lib/observability');
+      const original = createProviderError();
+      await expect(
+        invokeWithTelemetry({
+          service: 'synthetic',
+          operation: 'read',
+          timeoutMs: 1000,
+          maxAttempts: 1,
+          db: {} as never,
+          hospitalId: 'synthetic',
+          fn: async () => {
+            throw original;
+          },
+        })
+      ).rejects.toBe(original);
+      await vi.waitFor(() => expect(addDoc).toHaveBeenCalledTimes(1));
+      expect(addDoc.mock.calls[0]?.[1].errorMessage).toContain('HTTP 503');
+      const outputs = JSON.stringify([logs.mock.calls, stdout.mock.calls, addDoc.mock.calls]);
+      for (const marker of credentialMarkers) expect(outputs).not.toContain(marker);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
