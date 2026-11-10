@@ -78,6 +78,15 @@ Su presentación debe comunicar la incertidumbre sin impedir abrir la galería.
 
 ## Operación diaria
 
+`check:extension-source` compara los archivos de `extension/` con el paquete
+`@hhr/eloisa-extension` fijado en el lockfile, salvo el README propio de HHR.
+Es un control bloqueante del grupo `security` por su categoría `hygiene`, después
+de instalar las dependencias en CI. El responsable de integrar la extensión debe
+ejecutar `npm ci` para descartar una instalación local antigua. Si la diferencia
+persiste, debe actualizar el commit de la fuente cuando corresponda y ejecutar
+`npm run extension:sync`, revisar y publicar la copia sincronizada. El control no
+modifica archivos ni sincroniza automáticamente durante CI.
+
 - El mapa corto de ejecución y fallback vive en [docs/CI_GATES_AND_FAILURE_RUNBOOKS.md](./CI_GATES_AND_FAILURE_RUNBOOKS.md).
 - La superficie pública mínima de comandos vive en [docs/DEVELOPER_COMMANDS.md](./DEVELOPER_COMMANDS.md).
 - La cadencia mensual de convergencia vive en [docs/FOUNDATION_MAINTENANCE_CADENCE.md](./FOUNDATION_MAINTENANCE_CADENCE.md).

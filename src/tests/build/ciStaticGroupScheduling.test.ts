@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { stringify } from 'yaml';
+import { selectQualitySteps } from '../../../scripts/qualityAggregateSupport.mjs';
 import { jobNeeds, parseWorkflow } from './workflowYamlTestSupport';
 
 const source = fs.readFileSync(path.join(process.cwd(), '.github/workflows/ci-cd.yml'), 'utf8');
@@ -56,6 +57,28 @@ describe('CI static group scheduling', () => {
       id: 'check:unchecked-index',
       group: 'type-safety',
     });
+  });
+  it('checks the installed extension source as a blocking step after dependency setup', () => {
+    const readJson = (file: string) =>
+      JSON.parse(fs.readFileSync(path.join(process.cwd(), file), 'utf8'));
+    const checks = readJson('scripts/config/guardrail-governance.json').qualityAggregate.checks;
+    const selected = selectQualitySteps(checks, { group: 'security' });
+    expect(selected.filter(step => step.id === 'check:extension-source')).toEqual([
+      { id: 'check:extension-source', group: 'hygiene' },
+    ]);
+    expect(readJson('package.json').scripts['check:extension-source']).toBe(
+      'node scripts/check-extension-source.mjs'
+    );
+    const job = parseWorkflow(source).jobs['quality-static-groups'];
+    expect(job.strategy?.matrix.group).toContain('security');
+    const setup = job.steps.findIndex(
+      step => step.uses === './.github/actions/setup-ci-dependencies'
+    );
+    const run = job.steps.findIndex(
+      step => step.run === 'npm run check:quality:group -- ${{ matrix.group }}'
+    );
+    expect(setup).toBeGreaterThanOrEqual(0);
+    expect(run).toBeGreaterThan(setup);
   });
   it('generates API docs alongside the full test gates', () => {
     const docs = parseWorkflow(source).jobs.docs;
