@@ -5,10 +5,10 @@ import {
 } from '@/features/clinical-documents/domain/factories';
 import type {
   ClinicalDocumentAuditActor,
-  ClinicalDocumentEpisodeContext,
   ClinicalDocumentRecord,
   ClinicalDocumentSection,
-} from '@/features/clinical-documents/domain/entities';
+} from '@/domain/clinical-documents/entities';
+import type { ClinicalDocumentEpisodeContext } from '@/features/clinical-documents/domain/clinicalDocumentEpisodeTypes';
 import { createClinicalDocumentHash } from '@/domain/clinical-documents/hash';
 import {
   normalizeClinicalDocumentAiImportText,

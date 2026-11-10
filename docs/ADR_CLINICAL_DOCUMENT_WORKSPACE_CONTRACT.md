@@ -23,7 +23,7 @@ No new document-type behavior should be reintroduced through ad hoc `if` branche
 - Architecture map: `../src/features/clinical-documents/ARCHITECTURE.md`
 - Editor runtime notes: `./CLINICAL_DOCUMENT_EDITOR_RUNTIME.md`
 - Workspace bootstrap/draft/actions hooks inside `src/features/clinical-documents/hooks`
-- Definitions and registries inside `src/features/clinical-documents/domain`
+- Entities, definitions and registries inside `src/domain/clinical-documents`
 - Repository/runtime contracts in feature services and repositories
 
 ## Pharmacy forms access

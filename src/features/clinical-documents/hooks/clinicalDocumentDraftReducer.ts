@@ -1,4 +1,4 @@
-import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import { normalizeClinicalDocumentContentForStorage } from '@/features/clinical-documents/controllers/clinicalDocumentRichTextController';
 import { normalizeClinicalDocumentSectionTitle } from '@/features/clinical-documents/controllers/clinicalDocumentSectionTitleController';
 import { restoreClinicalDocumentDraftTemplate } from '@/features/clinical-documents/domain/factories';
@@ -40,7 +40,7 @@ export type ClinicalDocumentDraftAction =
   | {
       type: 'PATCH_SECTION_LAYOUT';
       sectionId: string;
-      layout: import('@/features/clinical-documents/domain/entities').ClinicalDocumentSectionLayout;
+      layout: import('@/domain/clinical-documents/entities').ClinicalDocumentSectionLayout;
     }
   | { type: 'SET_SECTION_VISIBILITY'; sectionId: string; visible: boolean }
   | { type: 'MOVE_SECTION'; sectionId: string; direction: 'up' | 'down' }
@@ -61,7 +61,7 @@ export type ClinicalDocumentDraftAction =
   | { type: 'CLEAR_ANNEX_CONTENT' }
   | {
       type: 'PATCH_IEEH_DRAFT';
-      draft: import('@/features/clinical-documents/domain/entities').ClinicalDocumentIeehDraft;
+      draft: import('@/application/shared/ieehContracts').ClinicalDocumentIeehDraft;
     }
   | { type: 'CLEAR_IEEH_DRAFT' }
   | { type: 'PATCH_UPDATE_DATE'; sectionId: string; date: string }

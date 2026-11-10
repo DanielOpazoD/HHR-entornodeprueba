@@ -10,7 +10,7 @@
  * when physically discharging the patient from the census.
  */
 
-import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import type { DischargeFormData } from '@/services/pdf/ieehPdfContracts';
 import { normalizeCalendarDate } from '@/utils/clinicalDateUtils';
 

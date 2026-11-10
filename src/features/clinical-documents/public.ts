@@ -5,6 +5,8 @@ export { ClinicalDocumentsWorkspace } from './components/ClinicalDocumentsWorksp
 export type {
   ClinicalAttachmentFileKind,
   ClinicalAttachmentRecord,
+} from '@/shared/clinical-documents/clinicalAttachmentContracts';
+export type {
   ClinicalDocumentAuditActor,
   ClinicalDocumentPdfMeta,
   ClinicalDocumentRecord,
@@ -15,7 +17,7 @@ export type {
   ClinicalDocumentSection,
   ClinicalDocumentStatus,
   ClinicalDocumentType,
-} from './domain/entities';
+} from '@/domain/clinical-documents/entities';
 export type { PatientData } from './contracts/clinicalDocumentsPatientContract';
 export type { ClinicalDocumentDraftBaseState } from './hooks/clinicalDocumentDraftReducer';
 export {

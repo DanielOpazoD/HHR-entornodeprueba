@@ -10,7 +10,7 @@ import {
 import {
   getClinicalDocumentDefinition,
   type ClinicalDocumentSectionRendererId,
-} from '@/features/clinical-documents/domain/definitions';
+} from '@/domain/clinical-documents/definitions';
 
 const specialSectionRenderers: Record<
   Exclude<ClinicalDocumentSectionRendererId, 'standard'>,

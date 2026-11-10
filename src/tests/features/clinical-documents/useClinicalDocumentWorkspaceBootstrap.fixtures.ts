@@ -1,5 +1,5 @@
 import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
-import type { ClinicalDocumentTemplate } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentTemplate } from '@/domain/clinical-documents/entities';
 
 export const localTemplate: ClinicalDocumentTemplate = {
   id: 'epicrisis',

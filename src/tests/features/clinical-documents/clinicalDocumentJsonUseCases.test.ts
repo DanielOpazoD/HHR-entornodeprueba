@@ -7,7 +7,7 @@ import {
   prepareClinicalDocumentJsonImportDraft,
 } from '@/application/clinical-documents/clinicalDocumentJsonUseCases';
 import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
-import type { ClinicalDocumentAuditActor } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentAuditActor } from '@/domain/clinical-documents/entities';
 
 const actor: ClinicalDocumentAuditActor = {
   uid: 'u1',

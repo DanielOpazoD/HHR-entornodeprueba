@@ -5,7 +5,7 @@ import { ClinicalDocumentVersionHistory } from '@/features/clinical-documents/co
 import type {
   ClinicalDocumentVersionMeta,
   ClinicalDocumentVersionSectionSnapshot,
-} from '@/features/clinical-documents/domain/entities';
+} from '@/domain/clinical-documents/entities';
 
 interface ClinicalDocumentVersionBadgeProps {
   currentVersion: number;

@@ -6,7 +6,7 @@ import {
   getClinicalDocumentPatientFieldGridClass,
   getClinicalDocumentPatientFieldLabel,
 } from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
-import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 
 interface ClinicalDocumentPatientInfoSectionProps {
   document: ClinicalDocumentRecord;

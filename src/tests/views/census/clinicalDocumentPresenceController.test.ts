@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { BEDS } from '@/constants/beds';
-import type { ClinicalDocumentRecord } from '@/features/clinical-documents/domain/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import {
   buildActiveClinicalDocumentEpisodeKeys,
   buildBedEpisodeBindings,
