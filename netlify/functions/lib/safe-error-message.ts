@@ -25,8 +25,18 @@ export const safeErrorMessage = (error: unknown, fallback = 'unknown error'): st
           return value;
         }
       })
-      // Require the whole contiguous value, including base64 padding, to disappear.
-      .replace(/[a-z0-9_+/-]{32,}={0,2}/gi, '[redacted]')
+      // A long unbroken value is redacted only when it looks generated: hexadecimal, or letters
+      // of both cases with digits. Document paths, error codes and episode ids stay readable.
+      .replace(/[a-z0-9_+-]{32,}={0,2}/gi, value =>
+        /^[a-f0-9]+$/i.test(value) ||
+        (/[a-z]/.test(value) && /[A-Z]/.test(value) && /\d/.test(value))
+          ? '[redacted]'
+          : value
+      )
       .slice(0, MAX_ERROR_MESSAGE_LENGTH)
   );
 };
+
+/** For server logs: the stack locates the failure, and goes through the same redaction. */
+export const safeErrorLog = (error: unknown): string =>
+  safeErrorMessage(error instanceof Error ? (error.stack ?? error.message) : error);

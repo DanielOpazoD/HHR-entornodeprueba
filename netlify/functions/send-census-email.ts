@@ -1,4 +1,4 @@
-import { safeErrorMessage } from './lib/safe-error-message';
+import { safeErrorLog, safeErrorMessage } from './lib/safe-error-message';
 import { reserveCensusEmailDiagnoses } from '../../src/services/exporters/censusEmailDiagnosisPrivacy';
 import { generateCensusPassword } from '../../src/services/security/passwordGenerator';
 import { sendCensusEmail } from '../../src/services/email/gmailClient';
@@ -245,7 +245,7 @@ export const handler = async (event: NetlifyEventLike) => {
       { requestOrigin }
     );
   } catch (error: unknown) {
-    console.error('Error enviando correo de censo', safeErrorMessage(error));
+    console.error('Error enviando correo de censo', safeErrorLog(error));
     const message =
       error instanceof Error ? error.message : 'Error desconocido enviando el correo.';
     return buildTextResponse(500, safeErrorMessage(message), { requestOrigin });

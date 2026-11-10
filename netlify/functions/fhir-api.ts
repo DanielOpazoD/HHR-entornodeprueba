@@ -1,4 +1,4 @@
-import { safeErrorMessage } from './lib/safe-error-message';
+import { safeErrorLog, safeErrorMessage } from './lib/safe-error-message';
 import { doc, getDoc, collection, query, where, getDocs, type Firestore } from 'firebase/firestore';
 import { getFirebaseServer } from './lib/firebase-server';
 import { mapMasterPatientToFhir, mapEncounterToFhir } from '../../src/services/utils/fhirMappers';
@@ -190,7 +190,7 @@ export const createFhirApiHandler =
         requestOrigin
       );
     } catch (error: unknown) {
-      console.error('[FHIR API] Error:', safeErrorMessage(error));
+      console.error('[FHIR API] Error:', safeErrorLog(error));
       return buildOperationOutcomeResponse(
         500,
         'exception',

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { safeErrorMessage } from '../../../netlify/functions/lib/safe-error-message';
+import { safeErrorLog, safeErrorMessage } from '../../../netlify/functions/lib/safe-error-message';
 
 describe('safeErrorMessage', () => {
   it.each([
@@ -9,6 +9,9 @@ describe('safeErrorMessage', () => {
     'HTTP 503 from api.example.com',
     'Authorization header must use Bearer token.',
     "Access denied for role 'viewer'.",
+    'No document to update: hospitals/hanga_roa/dailyRecords/2026-11-10',
+    'indexeddb_get_records_for_month_failed_after_retry',
+    'episode 3f2a9c1e-7b4d-4e8a-9c2f-1a2b3c4d5e6f not found',
   ])('preserves diagnostic text without credentials: %s', message => {
     expect(safeErrorMessage(new Error(message))).toBe(message);
   });
@@ -25,7 +28,7 @@ describe('safeErrorMessage', () => {
     'token=SYNTHETIC_HEADER password="SYNTHETIC_HEADER with spaces"',
     'secret=SYNTHETIC_HEADER session=SECOND_COOKIE',
     'a'.repeat(32),
-    'AbCd0123+/'.repeat(4) + '==',
+    'AbCd0123-_'.repeat(4) + '==',
   ])('redacts credential formats: %s', credential => {
     const result = safeErrorMessage(new Error(`HTTP 503; ${credential}`));
     expect(result).toContain('HTTP 503');
@@ -36,7 +39,7 @@ describe('safeErrorMessage', () => {
       'abc.def.ghi',
       'signature',
       'a'.repeat(32),
-      'AbCd0123+/',
+      'AbCd0123-_',
     ]) {
       expect(result).not.toContain(secret);
     }
@@ -52,5 +55,13 @@ describe('safeErrorMessage', () => {
     expect(safeErrorMessage({ message: 'secret', cause: 'secret' }, 'unavailable')).toBe(
       'unavailable'
     );
+  });
+
+  it('keeps the stack for server logs, redacted like the message', () => {
+    const error = new Error('HTTP 503; token=SYNTHETIC_HEADER');
+    const logged = safeErrorLog(error);
+    expect(logged).toContain('HTTP 503');
+    expect(logged).toContain('safeErrorMessage.test.ts');
+    expect(logged).not.toContain('SYNTHETIC_HEADER');
   });
 });

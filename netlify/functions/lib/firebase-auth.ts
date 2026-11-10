@@ -1,4 +1,4 @@
-import { safeErrorMessage } from './safe-error-message';
+import { safeErrorLog, safeErrorMessage } from './safe-error-message';
 import { createVerify } from 'node:crypto';
 import { doc, getDoc } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
@@ -295,7 +295,7 @@ export const resolveRoleForEmail = async (
     } catch (error) {
       console.warn(
         `[NetlifyAuth] canonical role lookup failed for ${cleanEmail}:`,
-        safeErrorMessage(error)
+        safeErrorLog(error)
       );
       if (options.throwOnLookupError) {
         throw new Error(
@@ -317,7 +317,7 @@ export const resolveRoleForEmail = async (
   } catch (error) {
     console.warn(
       `[NetlifyAuth] resolveRoleForEmail failed for ${cleanEmail}:`,
-      safeErrorMessage(error)
+      safeErrorLog(error)
     );
   }
 

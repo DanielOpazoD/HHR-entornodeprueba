@@ -1,4 +1,4 @@
-import { safeErrorMessage } from './lib/safe-error-message';
+import { safeErrorLog, safeErrorMessage } from './lib/safe-error-message';
 import {
   buildCorsHeaders,
   buildJsonResponse,
@@ -169,7 +169,7 @@ export const createWhatsAppProxyHandler =
         body: text,
       };
     } catch (error: unknown) {
-      console.error('WhatsApp proxy error', safeErrorMessage(error));
+      console.error('WhatsApp proxy error', safeErrorLog(error));
       return buildJsonResponse(
         502,
         {

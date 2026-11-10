@@ -1,4 +1,4 @@
-import { safeErrorMessage } from './lib/safe-error-message';
+import { safeErrorLog, safeErrorMessage } from './lib/safe-error-message';
 import { getFirebaseServer } from './lib/firebase-server';
 import { authorizeRoleRequest, extractBearerToken } from './lib/firebase-auth';
 import { generateClinicalAIText, resolveClinicalAIProviderConfig } from './lib/ai-provider';
@@ -228,7 +228,7 @@ IMPORTANTE: Responde SOLO con el JSON, sin explicaciones ni markdown.
       return buildJsonResponse(statusCode, { error: safeErrorMessage(message) }, { requestOrigin });
     }
 
-    console.error('Error in AI CIE-10 search:', safeErrorMessage(error));
+    console.error('Error in AI CIE-10 search:', safeErrorLog(error));
     return buildJsonResponse(
       200,
       Cie10SearchResponseSchema.parse({

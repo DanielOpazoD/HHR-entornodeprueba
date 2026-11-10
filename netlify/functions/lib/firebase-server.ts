@@ -1,4 +1,4 @@
-import { safeErrorMessage } from './safe-error-message';
+import { safeErrorLog } from './safe-error-message';
 import { initializeApp, getApp, getApps, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore } from 'firebase/firestore';
 
@@ -14,7 +14,7 @@ const decodeBase64 = (value: string) => {
 
     return Buffer.from(normalized, 'base64').toString('utf-8');
   } catch (error) {
-    console.warn('Unable to decode base64 Firebase key', safeErrorMessage(error));
+    console.warn('Unable to decode base64 Firebase key', safeErrorLog(error));
     return '';
   }
 };
