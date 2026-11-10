@@ -1,7 +1,8 @@
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { ReportEgreso } from '../contracts/egresoReport';
-import { normalizeRut } from '@/utils/rutUtils';
+import { normalizedName } from './previousCensusEgresoCandidates';
+import { isValidRut, normalizeRut } from '@/utils/rutUtils';
 
 type ConflictEntry = CensusImportDiff['conflicts'][number];
 type DischargeEntry = CensusImportDiff['discharges'][number];
@@ -46,6 +47,30 @@ export const dropRedundantUnverifiedReportConflicts = (
 ): ConflictEntry[] =>
   conflicts.filter(conflict => {
     if (!conflict.code || !REDUNDANT_ROW_CODES.has(conflict.code) || !conflict.bedId) return true;
+    // A folio is explained by the attached crib, never by treating it as that crib's RUN.
+    if (!isValidRut(conflict.rut ?? '')) {
+      const name = normalizedName(conflict.patientName);
+      const rowConflicts = conflicts.filter(
+        entry =>
+          entry.bedId === conflict.bedId &&
+          Boolean(entry.code && REDUNDANT_ROW_CODES.has(entry.code)) &&
+          !isValidRut(entry.rut ?? '')
+      );
+      if (
+        name &&
+        rowConflicts.length === 1 &&
+        discharges.some(entry => {
+          const crib = entry.associatedClinicalCrib;
+          return (
+            entry.bedId === conflict.bedId &&
+            crib &&
+            !crib.rut?.trim() &&
+            normalizedName(crib.patientName) === name
+          );
+        })
+      )
+        return false;
+    }
     const run = normalizeRut(conflict.rut);
     if (!run) return true;
     const discharge = discharges.find(
