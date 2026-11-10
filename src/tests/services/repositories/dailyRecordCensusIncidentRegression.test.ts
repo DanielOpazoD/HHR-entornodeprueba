@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildMoveOrCopyPatch } from '@/hooks/useBedOperationsController';
 import { buildDischargeEntries } from '@/features/census/controllers/patientMovementDischargeMutationController';
-import { resolveConflictSnapshotRecoveryState } from '@/features/census/controllers/conflictVersionsPresentationController';
+import { resolveConflictSnapshotRecoveryState } from '@/application/clinical-conflicts/conflictSnapshotRecoveryPresentation';
 import { buildConflictAuditSummary } from '@/services/repositories/conflictResolutionAuditSummary';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import type { DailyRecord } from '@/types/domain/dailyRecord';

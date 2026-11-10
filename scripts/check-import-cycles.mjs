@@ -16,31 +16,11 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { listProductionSources, resolveSpecifier } from './lib/sourceModules.mjs';
 
 const ROOT = process.cwd();
-const EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs'];
 const STATEMENT =
   /^[ \t]*(?:import|export)[ \t]+([^;]*?)[ \t]*\bfrom[ \t]*['"]([^'"]+)['"]|^[ \t]*import[ \t]*['"]([^'"]+)['"]/gm;
-
-const toPosix = value => value.split(path.sep).join('/');
-
-const isProductionFile = relativePath =>
-  !relativePath.startsWith('src/tests/') &&
-  !/\.(?:test|spec|stories)\./.test(relativePath) &&
-  !relativePath.endsWith('.d.ts');
-
-const walk = relativeDir => {
-  const absoluteDir = path.join(ROOT, relativeDir);
-  if (!fs.existsSync(absoluteDir)) return [];
-  const files = [];
-  for (const entry of fs.readdirSync(absoluteDir, { withFileTypes: true })) {
-    const relativePath = toPosix(path.join(relativeDir, entry.name));
-    if (entry.isDirectory()) files.push(...walk(relativePath));
-    else if (EXTENSIONS.includes(path.extname(entry.name)) && isProductionFile(relativePath))
-      files.push(relativePath);
-  }
-  return files;
-};
 
 /** True when the import or export clause only names types, so nothing remains at runtime. */
 const isTypeOnly = clause => {
@@ -52,19 +32,6 @@ const isTypeOnly = clause => {
     .map(specifier => specifier.trim())
     .filter(Boolean);
   return specifiers.length > 0 && specifiers.every(specifier => /^type\b/.test(specifier));
-};
-
-const resolveSpecifier = (fromFile, specifier, files) => {
-  let base;
-  if (specifier.startsWith('@/')) base = `src/${specifier.slice(2)}`;
-  else if (specifier.startsWith('.')) base = toPosix(path.join(path.dirname(fromFile), specifier));
-  else return null;
-  const candidates = [
-    base,
-    ...EXTENSIONS.map(extension => `${base}${extension}`),
-    ...EXTENSIONS.map(extension => `${base}/index${extension}`),
-  ];
-  return candidates.find(candidate => files.has(candidate)) ?? null;
 };
 
 /** Runtime import graph: file → files it imports by value at module evaluation. */
@@ -124,7 +91,7 @@ const findCycles = graph => {
   return cycles;
 };
 
-const files = walk('src');
+const files = listProductionSources(ROOT, 'src');
 const graph = buildRuntimeImportGraph(files);
 const cycles = findCycles(graph);
 

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { buildAtomicPatientMovementPatch } from '@/features/census/controllers/atomicPatientMovementPatchController';
+import { buildAtomicPatientMovementPatch } from '@/application/census/atomicPatientMovementPatchController';
 
 describe('atomicPatientMovementPatchController', () => {
   it('builds one patch with CMA list and source bed update', () => {
