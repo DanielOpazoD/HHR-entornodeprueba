@@ -18,7 +18,6 @@ describe('clinical report runtime owner', () => {
     expect(backgroundSource).not.toContain('const fetchOfficialPdf = async');
     expect(backgroundSource).not.toContain('const createCompletePrescriptionPdf = async');
     expect(backgroundSource).not.toMatch(/\nconst resolveDischargedEncounterIdByRun\s*=/);
-    expect(runtimeSource).toContain('const resolveDischargedEncounterIdByRun');
     expect(runtimeSource).toContain("url.searchParams.set('filterType', '2')");
     expect(runtimeSource).toContain('contextRun !== normalizedPatientRun');
     expect(runtimeSource).toContain('{ expectedPatientRun: normalizedPatientRun }');

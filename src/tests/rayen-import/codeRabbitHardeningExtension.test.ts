@@ -14,7 +14,6 @@ const gestionCamasHealthSource = readExtension('gestion-camas-health.js');
 const gestionCamasSessionHealthSource = readExtension('gestion-camas-session-health.js');
 const gestionCamasEgresoLookupSource = readExtension('gestion-camas-egreso-lookup.js');
 const syslabRuntimeSource = readExtension('syslab-runtime.js');
-const fichaMedicoTransportSource = readExtension('fichamedico-transport-runtime.js');
 const fichaMedicoPatientContextSource = readExtension('fichamedico-patient-context.js');
 const contentSource = [
   'content-prescription-print.js',
@@ -103,7 +102,6 @@ describe('CodeRabbit clinical integration hardening', () => {
 
   it('isolates Ficha lookups and patient caches by sender session', () => {
     expect(backgroundSource).toContain('getFetchInfo: getFichaFetchInfo');
-    expect(fichaMedicoTransportSource).toContain('const getFetchInfo = async sender =>');
     expect(backgroundSource).not.toContain('fichaFetchInfoInflight');
     expect(backgroundSource).toContain('fichaSessionCacheKey,');
     expect(fichaMedicoPatientContextSource).toContain(

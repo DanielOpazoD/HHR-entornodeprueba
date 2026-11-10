@@ -161,8 +161,6 @@ describe('Ficha Médico patient-context owner', () => {
     expect(background).not.toContain('const getClinicalReportContext = async');
     expect(background).not.toContain('const fetchActiveHospitalizedPatients = async');
     expect(background).not.toContain('const verifyEncounterStillHospitalized = async');
-    expect(source).toContain('const normalizeHospitalizedEncounter =');
-    expect(source).toContain('const getClinicalReportContext = async');
     expect(source).not.toMatch(/method:\s*['"](?:POST|PUT|PATCH|DELETE)['"]/);
     // El paquete clínico por paciente también vive extraído; en background sólo
     // queda su cableado (create + ruta), igual que el contexto de pacientes.

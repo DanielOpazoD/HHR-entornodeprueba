@@ -9,11 +9,11 @@ import type {
 } from '@/features/census/contracts/censusObstetricContracts';
 import type {
   PatientData,
+  PatientDeviceCallbacks,
   PatientRowPatientField,
   PatientRowPatientPatch,
 } from '@/features/census/components/patient-row/patientRowContracts';
 import type { DeviceDetails, DeviceInstance } from '@/types/domain/devices';
-import type { PatientDeviceCallbacks } from './patientRowDeviceContracts';
 
 /**
  * Common props shared by all input cell components

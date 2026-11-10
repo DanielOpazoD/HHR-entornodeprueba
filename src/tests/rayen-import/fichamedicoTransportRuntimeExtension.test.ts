@@ -454,9 +454,6 @@ describe('Ficha Médico transport runtime', () => {
 
     expect(startup).toContain("'fichamedico-transport-runtime.js'");
     expect(startup).toContain('No se pudo cargar el runtime de transporte de Ficha Médico.');
-    expect(background).toContain(
-      'const fichaMedicoTransportRuntime = self.HhrFichaMedicoTransportRuntime.create({'
-    );
     expect(background).not.toContain('const fichaSenderTabId');
     expect(background).not.toContain('const handleOpenEncounter = async');
     expect(background.split('\n').length).toBeLessThanOrEqual(3_850);

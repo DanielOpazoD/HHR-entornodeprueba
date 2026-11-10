@@ -52,10 +52,11 @@ export const DeliveryRoutePopoverPanel: React.FC<DeliveryRoutePopoverPanelProps>
       </span>
       <button
         type="button"
+        aria-label="Cerrar"
         onClick={onClose}
         className="p-0.5 text-slate-400 hover:text-slate-600 rounded transition-colors"
       >
-        <X size={12} />
+        <X size={12} aria-hidden="true" />
       </button>
     </div>
 

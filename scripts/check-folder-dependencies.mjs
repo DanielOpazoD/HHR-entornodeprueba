@@ -2,14 +2,13 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { readModuleReferences } from './lib/sourceModules.mjs';
 
 const ROOT = process.cwd();
 const SRC_ROOT = path.join(ROOT, 'src');
 const MATRIX_PATH = path.join(ROOT, 'scripts', 'folder-dependency-matrix.json');
 const ALLOWLIST_PATH = path.join(ROOT, 'scripts', 'folder-dependency-allowlist.json');
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
-const IMPORT_REGEX =
-  /(?:^|\n)\s*import(?:[\s\S]*?\sfrom\s*)?["']([^"']+)["']|(?:^|\n)\s*export\s+[^;\n]*\sfrom\s*["']([^"']+)["']/g;
 const UPDATE_ALLOWLIST = process.argv.includes('--update-allowlist');
 
 const toPosix = value => value.split(path.sep).join('/');
@@ -106,25 +105,27 @@ if (knownZones.size === 0) {
 for (const [zone, config] of Object.entries(matrix.zones || {})) {
   const allowed = config?.allowedDependencies;
   if (!Array.isArray(allowed)) {
-    console.error(`Invalid matrix config for zone "${zone}": allowedDependencies must be an array.`);
+    console.error(
+      `Invalid matrix config for zone "${zone}": allowedDependencies must be an array.`
+    );
     process.exit(1);
   }
 }
 
 const files = walkFiles(SRC_ROOT);
 const currentViolationIds = [];
+const violationLines = new Map();
 
 for (const absolutePath of files) {
   const importerPath = toPosix(path.relative(ROOT, absolutePath));
   const importerZone = getZoneFromPath(importerPath, knownZones);
   if (!importerZone) continue;
 
-    const source = fs.readFileSync(absolutePath, 'utf8');
-    IMPORT_REGEX.lastIndex = 0;
-    let match;
+  const source = fs.readFileSync(absolutePath, 'utf8');
+  const references = readModuleReferences(source);
 
-  while ((match = IMPORT_REGEX.exec(source)) !== null) {
-    const importPath = match[1] || match[2];
+  for (const reference of references) {
+    const importPath = reference.fileName;
     if (!importPath) continue;
 
     const resolvedPath = resolveImport(absolutePath, importPath);
@@ -147,9 +148,9 @@ for (const absolutePath of files) {
 
     const allowedDependencies = matrix.zones[importerZone]?.allowedDependencies || [];
     if (!allowedDependencies.includes(importedZone)) {
-      currentViolationIds.push(
-        `folder-dependency-not-allowed|${importerPath}|${importPath}|${importedPath}|${importerZone}|${importedZone}`
-      );
+      const id = `folder-dependency-not-allowed|${importerPath}|${importPath}|${importedPath}|${importerZone}|${importedZone}`;
+      currentViolationIds.push(id);
+      violationLines.set(id, source.slice(0, reference.pos).split('\n').length);
     }
   }
 }
@@ -162,7 +163,9 @@ if (UPDATE_ALLOWLIST) {
     `${JSON.stringify({ violations: sortedCurrentViolationIds }, null, 2)}\n`,
     'utf8'
   );
-  console.log(`Folder dependency allowlist updated with ${sortedCurrentViolationIds.length} violations.`);
+  console.log(
+    `Folder dependency allowlist updated with ${sortedCurrentViolationIds.length} violations.`
+  );
   process.exit(0);
 }
 
@@ -179,10 +182,12 @@ if (newViolations.length === 0) {
 
 console.error('\nFolder dependency boundary violations:');
 for (const violationId of newViolations) {
-  const [rule, importerPath, importPath, importedPath, importerZone, importedZone] =
-    violationId.split('|');
+  const [, importerPath, importPath, , importerZone, importedZone] = violationId.split('|');
   console.error(
-    `- [${rule}] ${importerPath} (${importerZone}) -> ${importPath} => ${importedPath} (${importedZone})`
+    `- ${importerPath}:${violationLines.get(violationId)} ${importerZone} -> ${importedZone} (${importPath})`
+  );
+  console.error(
+    '  Mover el import a una zona permitida por scripts/folder-dependency-matrix.json; la lista de deuda conocida no se amplía sin decisión del responsable.'
   );
 }
 
