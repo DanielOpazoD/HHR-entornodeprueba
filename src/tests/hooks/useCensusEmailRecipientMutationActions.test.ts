@@ -44,6 +44,7 @@ describe('useCensusEmailRecipientMutationActions', () => {
         activeRecipientListId: 'census-default',
         user: { uid: 'user-1', email: 'admin@test.com' },
         runRecipientRuntimeMutation,
+        onLoadError: vi.fn(),
       })
     );
 
