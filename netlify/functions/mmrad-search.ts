@@ -235,6 +235,10 @@ const searchExamRows = async (
     body: new URLSearchParams(params).toString(),
   });
 
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error('Error al consultar exámenes desde MMRAD.');
+  }
+
   const html = await response.text();
   // A logged-out page lists no rows; reading it as «sin exámenes» would hide them (SAVE-01).
   if (!isLoggedInRisPage(html)) throw new Error('La sesión MMRAD no está activa.');

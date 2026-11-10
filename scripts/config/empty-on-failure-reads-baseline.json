@@ -3,8 +3,6 @@
   "entries": [
     "src/services/repositories/ClinicalAttachmentRepository.ts::filterActiveClinicalAttachments",
     "src/services/repositories/ClinicalDocumentRepository.ts::getBrowserStorage",
-    "src/services/repositories/PatientMasterRepository.ts::getAllPatients",
-    "src/services/repositories/PatientMasterRepository.ts::searchPatients",
     "src/services/repositories/dailyRecordRemotePersistenceController.ts::resolveRemoteAuthorityRecord",
     "src/services/repositories/dailyRecordRepositoryInitializationService.ts::loadRemoteInitializationSeed",
     "src/services/repositories/dailyRecordRepositoryReadService.ts::getE2ELocalStorageRecord",
@@ -25,7 +23,6 @@
     "src/services/storage/indexeddb/indexedDbRecordService.ts::getAllRecordsSorted",
     "src/services/storage/indexeddb/indexedDbRecordService.ts::getPreviousDayRecord",
     "src/services/storage/indexeddb/indexedDbRecordService.ts::getRecordForDate",
-    "src/services/storage/indexeddb/indexedDbRecordService.ts::getRecordsForMonth",
     "src/services/storage/indexeddb/indexedDbRecordService.ts::getRecordsRange",
     "src/services/storage/sync/publicDailyRecordSyncQueueActions.ts::getPendingDailyRecordSyncTaskSnapshot",
     "src/services/storage/sync/syncBroadcastChannel.ts::getChannel",

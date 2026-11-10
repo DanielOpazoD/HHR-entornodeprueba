@@ -128,6 +128,45 @@ jobs:
           npm run check:serverless-runtime-governance
           npm --prefix functions run check:clinical-pdf-runtime
 
+  tooling-scope-gate:
+    name: tooling-scope-gate
+    runs-on: ubuntu-latest
+    needs: [ci-scope]
+    steps:
+      - name: Record non-tooling CI scope
+        if: needs.ci-scope.outputs.scope != 'tooling-only'
+        run: echo "Tooling-only validation is not active for this change."
+      - name: Checkout immutable candidate
+        if: needs.ci-scope.outputs.scope == 'tooling-only'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup CI dependencies
+        if: needs.ci-scope.outputs.scope == 'tooling-only'
+        uses: ./.github/actions/setup-ci-dependencies
+      - name: Validate changed file lint and formatting
+        if: needs.ci-scope.outputs.scope == 'tooling-only'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          mapfile -d '' files < <(git diff --name-only -z "$BASE_SHA...$HEAD_SHA")
+          test "${#files[@]}" -gt 0
+          npx eslint --max-warnings 0 --no-warn-ignored -- "${files[@]}"
+          npx prettier --check -- "${files[@]}"
+      - name: Validate static controls against the repository
+        if: needs.ci-scope.outputs.scope == 'tooling-only'
+        run: npm run check:quality
+      - name: Check TypeScript types
+        if: needs.ci-scope.outputs.scope == 'tooling-only'
+        run: npm run typecheck
+      - name: Run control and build regression tests
+        if: needs.ci-scope.outputs.scope == 'tooling-only'
+        run: npx vitest run src/tests/scripts src/tests/build
+
   critical-coverage-shards:
     name: critical-coverage-shard-${{ matrix.shard }}
     runs-on: ubuntu-latest
@@ -623,8 +662,12 @@ jobs:
       - name: Validate individual accounts with Auth, Firestore and Storage emulators
         run: npm run test:accounts:emulator:ci
 
-  e2e-critical-emulator:
-    name: e2e-critical
+  e2e-critical-lanes:
+    name: e2e-critical lane ${{ matrix.lane }}
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: ['1', '2', '3']
     runs-on: ubuntu-24.04
     needs: [ci-scope]
     if: needs.ci-scope.outputs.scope == 'full'
@@ -650,27 +693,32 @@ jobs:
         timeout-minutes: 15
 
       - name: Fetch pinned previous extension release
+        if: matrix.lane == '3'
         run: git fetch --depth=1 origin d0af164e076619f593433c53ad398581b92a6979
 
       - name: Validate the packaged Rayen extension in Chromium
+        if: matrix.lane == '3'
         run: npm run test:e2e:rayen-extension-runtime
 
       - name: Validate inline DAU login with synthetic API and production CSP
+        if: matrix.lane == '3'
         run: npm run test:e2e:urgency-dau-login
 
       - name: Validate 0.48.56 to current extension upgrade with open tabs
+        if: matrix.lane == '3'
         run: npm run test:e2e:rayen-extension-upgrade
 
       - name: Validate shared offscreen lifecycle in Chromium
+        if: matrix.lane == '3'
         run: npm run test:e2e:shared-offscreen
 
       - name: Run critical E2E suite with Firestore emulator
         run: >-
           node scripts/report-test-execution-manifest.mjs
-          --capture playwright --suite critical
+          --capture playwright --suite critical-${{ matrix.lane }}
           --report reports/e2e/critical-playwright-report.json
-          --output reports/execution/critical.evidence.json
-          -- npm run test:e2e:critical:ci
+          --output reports/execution/critical-${{ matrix.lane }}.evidence.json
+          -- npm run test:e2e:critical:ci -- ${{ matrix.lane }}
         env:
           CI: true
           E2E_CRITICAL_BROWSERS: chromium
@@ -681,6 +729,7 @@ jobs:
           E2E_BUDGET_CENSO_VISIBLE_MS: 8000
 
       - name: Run integrated CUDYR flow with a fresh Firestore emulator
+        if: matrix.lane == '3'
         run: >-
           node scripts/report-test-execution-manifest.mjs
           --capture playwright --suite cudyr
@@ -691,6 +740,85 @@ jobs:
           CI: true
           E2E_CRITICAL_BROWSERS: chromium
 
+      - name: Verify authenticated census read against local emulators
+        if: matrix.lane == '3'
+        run: npm run test:e2e:census-remote-performance
+        env:
+          CI: true
+
+      - name: Upload isolated lane 1 evidence and diagnostics
+        if: always() && matrix.lane == '1'
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-critical-lane-${{ github.run_attempt }}-1
+          path: |
+            reports/e2e/**
+            reports/execution/**
+            playwright-report/**
+            test-results/**
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload isolated lane 2 evidence and diagnostics
+        if: always() && matrix.lane == '2'
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-critical-lane-${{ github.run_attempt }}-2
+          path: |
+            reports/e2e/**
+            reports/execution/**
+            playwright-report/**
+            test-results/**
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload isolated lane 3 evidence and diagnostics
+        if: always() && matrix.lane == '3'
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-critical-lane-${{ github.run_attempt }}-3
+          path: |
+            reports/e2e/**
+            reports/execution/**
+            playwright-report/**
+            test-results/**
+          if-no-files-found: error
+          retention-days: 14
+
+  e2e-critical-emulator:
+    name: e2e-critical
+    runs-on: ubuntu-24.04
+    needs: [ci-scope, e2e-critical-lanes]
+    if: always() && needs.ci-scope.outputs.scope == 'full'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
+      - name: Download current-attempt lane 1
+        uses: actions/download-artifact@v7
+        with:
+          name: e2e-critical-lane-${{ github.run_attempt }}-1
+          path: reports/critical-lanes/e2e-critical-lane-${{ github.run_attempt }}-1
+      - name: Download current-attempt lane 2
+        uses: actions/download-artifact@v7
+        with:
+          name: e2e-critical-lane-${{ github.run_attempt }}-2
+          path: reports/critical-lanes/e2e-critical-lane-${{ github.run_attempt }}-2
+      - name: Download current-attempt lane 3
+        uses: actions/download-artifact@v7
+        with:
+          name: e2e-critical-lane-${{ github.run_attempt }}-3
+          path: reports/critical-lanes/e2e-critical-lane-${{ github.run_attempt }}-3
+      - name: Require all lanes and merge original execution evidence
+        env:
+          LANES_RESULT: ${{ needs.e2e-critical-lanes.result }}
+        run: |
+          test "$LANES_RESULT" = success
+          node scripts/merge-critical-e2e-lanes.mjs
+      - name: Generate and enforce E2E operational metrics
+        if: always()
+        run: node scripts/report-e2e-operational-metrics.mjs reports/e2e/critical-playwright-report.json --enforce
       - name: Upload CUDYR browser execution evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -721,15 +849,6 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Verify authenticated census read against local emulators
-        run: npm run test:e2e:census-remote-performance
-        env:
-          CI: true
-
-      - name: Generate and enforce E2E operational metrics
-        if: always()
-        run: node scripts/report-e2e-operational-metrics.mjs reports/e2e/critical-playwright-report.json --enforce
-
       - name: Upload flow performance evidence
         uses: actions/upload-artifact@v7
         with:
@@ -752,6 +871,7 @@ jobs:
             reports/e2e/**
             playwright-report/**
             test-results/**
+            reports/critical-lanes/**
           retention-days: 14
 
   test-execution-manifest:
@@ -1244,6 +1364,7 @@ jobs:
         ci-scope,
         docs-scope-gate,
         functions-scope-gate,
+        tooling-scope-gate,
         quality-static,
         unit-risk,
         test-execution-manifest,
@@ -1261,6 +1382,7 @@ jobs:
       CI_SCOPE: ${{ needs['ci-scope'].outputs.scope }}
       DOCS_SCOPE_GATE_RESULT: ${{ needs['docs-scope-gate'].result }}
       FUNCTIONS_SCOPE_GATE_RESULT: ${{ needs['functions-scope-gate'].result }}
+      TOOLING_SCOPE_GATE_RESULT: ${{ needs['tooling-scope-gate'].result }}
       QUALITY_STATIC_RESULT: ${{ needs['quality-static'].result }}
       TEST_EXECUTION_RESULT: ${{ needs['test-execution-manifest'].result }}
       UNIT_RISK_RESULT: ${{ needs['unit-risk'].result }}
@@ -1278,13 +1400,18 @@ jobs:
         run: |
           failures=0
 
-          if [[ "$CI_SCOPE_RESULT" != "success" || "$DOCS_SCOPE_GATE_RESULT" != "success" || "$FUNCTIONS_SCOPE_GATE_RESULT" != "success" ]]; then
+          if [[ "$CI_SCOPE_RESULT" != "success" || "$DOCS_SCOPE_GATE_RESULT" != "success" || "$FUNCTIONS_SCOPE_GATE_RESULT" != "success" || "$TOOLING_SCOPE_GATE_RESULT" != "success" ]]; then
             echo "::error::CI scope classification or focused validation did not pass."
             exit 1
           fi
 
+          case "$CI_SCOPE" in
+            full|docs-only|functions-only|tooling-only) ;;
+            *) echo "::error::Unknown CI scope: $CI_SCOPE"; exit 1 ;;
+          esac
+
           expected_result="success"
-          if [[ "$CI_SCOPE" == "docs-only" || "$CI_SCOPE" == "functions-only" ]]; then
+          if [[ "$CI_SCOPE" == "docs-only" || "$CI_SCOPE" == "functions-only" || "$CI_SCOPE" == "tooling-only" ]]; then
             expected_result="skipped"
           fi
 

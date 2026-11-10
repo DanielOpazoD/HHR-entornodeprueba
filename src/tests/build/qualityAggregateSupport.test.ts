@@ -1,3 +1,7 @@
+// @vitest-environment node
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 import { describe, expect, it } from 'vitest';
@@ -53,6 +57,47 @@ describe('quality aggregate support', () => {
         stdio: ['ignore', 'pipe', 'pipe'],
       })
     ).toThrow(/--group flag requires a value/);
+  });
+
+  it('runs only the selected valid CLI group and exits successfully', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hhr-quality-cli-'));
+    try {
+      fs.mkdirSync(path.join(root, 'scripts/config'), { recursive: true });
+      fs.writeFileSync(
+        path.join(root, 'scripts/config/guardrail-governance.json'),
+        JSON.stringify({
+          qualityAggregate: {
+            checks: [
+              { id: 'selected', group: 'size' },
+              { id: 'unselected', group: 'tests' },
+            ],
+          },
+        })
+      );
+      fs.writeFileSync(
+        path.join(root, 'package.json'),
+        JSON.stringify({
+          scripts: {
+            selected: 'node -e "console.log(123456)"',
+            unselected: 'node -e "process.exit(17)"',
+          },
+        })
+      );
+      const output = execFileSync(
+        process.execPath,
+        [path.resolve('scripts/check-quality-aggregate.mjs'), '--group', 'size'],
+        { cwd: root, encoding: 'utf8', timeout: 20000 }
+      );
+      expect(output).toContain('Running group "size" (1 checks)');
+      expect(output).toContain('123456');
+      const profile = JSON.parse(
+        fs.readFileSync(path.join(root, 'reports/ci-quality-static-profile-size.json'), 'utf8')
+      );
+      expect(profile.scope).toBe('size');
+      expect(profile.results.map((entry: { id: string }) => entry.id)).toEqual(['selected']);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('builds a duration profile with blocking and advisory failures separated', () => {

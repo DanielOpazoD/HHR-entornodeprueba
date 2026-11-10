@@ -141,7 +141,7 @@ export const createPatientMasterRepository = (
       return collected;
     } catch (err) {
       patientMasterRepositoryLogger.error('Error fetching all patients', err);
-      return [];
+      throw err;
     }
   };
 
@@ -168,7 +168,7 @@ export const createPatientMasterRepository = (
       };
     } catch (err) {
       patientMasterRepositoryLogger.error('Error fetching paginated patients', err);
-      return { patients: [], lastDoc: null };
+      throw err;
     }
   };
 
@@ -217,7 +217,7 @@ export const createPatientMasterRepository = (
         .slice(0, safeLimit);
     } catch (err) {
       patientMasterRepositoryLogger.error(`Error searching patients for "${normalizedTerm}"`, err);
-      return [];
+      throw err;
     }
   };
 

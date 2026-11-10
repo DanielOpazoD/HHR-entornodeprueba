@@ -8,7 +8,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { searchMasterPatients } from '@/application/census/searchMasterPatientsUseCase';
 import type { MasterPatient } from '@/types/domain/patientMaster';
-import { globalPatientSearchLogger } from '@/hooks/hookLoggers';
 
 const DEBOUNCE_MS = 300;
 const SEARCH_LIMIT = 20;
@@ -19,6 +18,8 @@ export interface UsePatientSearchQueryReturn {
   results: MasterPatient[];
   isSearching: boolean;
   hasSearched: boolean;
+  searchError: string | null;
+  retrySearch: () => void;
   selectedIndex: number;
   setSelectedIndex: (index: number) => void;
   resetSearch: () => void;
@@ -26,6 +27,7 @@ export interface UsePatientSearchQueryReturn {
 
 export function usePatientSearchQuery(): UsePatientSearchQueryReturn {
   const [query, setQueryRaw] = useState('');
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [results, setResults] = useState<MasterPatient[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -36,6 +38,7 @@ export function usePatientSearchQuery(): UsePatientSearchQueryReturn {
 
   const setQuery = useCallback((q: string) => {
     setQueryRaw(q);
+    setSearchError(null);
     setSelectedIndex(0);
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -61,11 +64,11 @@ export function usePatientSearchQuery(): UsePatientSearchQueryReturn {
           return;
         }
 
-        globalPatientSearchLogger.warn('Patient search failed', outcome);
-        setResults([]);
-      } catch (err) {
-        globalPatientSearchLogger.warn('Patient search failed', err);
-        if (currentId === searchIdRef.current) setResults([]);
+        setSearchError(outcome.userSafeMessage || 'No se pudo consultar el índice de pacientes.');
+      } catch {
+        if (currentId === searchIdRef.current) {
+          setSearchError('No se pudo consultar el índice de pacientes.');
+        }
       } finally {
         if (currentId === searchIdRef.current) {
           setIsSearching(false);
@@ -77,6 +80,8 @@ export function usePatientSearchQuery(): UsePatientSearchQueryReturn {
 
   const resetSearch = useCallback(() => {
     setQueryRaw('');
+    setSearchError(null);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     setResults([]);
     setIsSearching(false);
     setHasSearched(false);
@@ -84,11 +89,16 @@ export function usePatientSearchQuery(): UsePatientSearchQueryReturn {
     searchIdRef.current++;
   }, []);
 
+  const invalidateSearch = useCallback(() => {
+    searchIdRef.current++;
+  }, []);
+
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      invalidateSearch();
     };
-  }, []);
+  }, [invalidateSearch]);
 
   return {
     query,
@@ -96,6 +106,8 @@ export function usePatientSearchQuery(): UsePatientSearchQueryReturn {
     results,
     isSearching,
     hasSearched,
+    searchError,
+    retrySearch: () => setQuery(query),
     selectedIndex,
     setSelectedIndex,
     resetSearch,
