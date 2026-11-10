@@ -107,7 +107,7 @@ export const getRecordsForMonth = async (year: number, month: number): Promise<D
       userSafeMessage: 'No fue posible recuperar registros del mes solicitado.',
       context: { year, month },
     });
-    return [];
+    throw error;
   }
 };
 

@@ -25,7 +25,6 @@
     "src/services/storage/indexeddb/indexedDbRecordService.ts::getAllRecordsSorted",
     "src/services/storage/indexeddb/indexedDbRecordService.ts::getPreviousDayRecord",
     "src/services/storage/indexeddb/indexedDbRecordService.ts::getRecordForDate",
-    "src/services/storage/indexeddb/indexedDbRecordService.ts::getRecordsForMonth",
     "src/services/storage/indexeddb/indexedDbRecordService.ts::getRecordsRange",
     "src/services/storage/sync/publicDailyRecordSyncQueueActions.ts::getPendingDailyRecordSyncTaskSnapshot",
     "src/services/storage/sync/syncBroadcastChannel.ts::getChannel",
