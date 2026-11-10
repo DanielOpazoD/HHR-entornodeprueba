@@ -85,7 +85,7 @@ Guía:
 Señales HHR:
 
 - `reports/quality-metrics.md` con `folderDebt=0`
-- `check:architecture`, `check:feature-dependencies`, `check:module-dependencies`
+- `check:architecture`, `check:feature-dependencies`
 
 ### Organización
 
