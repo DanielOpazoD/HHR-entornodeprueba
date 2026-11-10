@@ -240,15 +240,18 @@ export const GlobalPatientSearchModal: React.FC<GlobalPatientSearchModalProps> =
               {search.isSearching && <SearchResultsSkeleton />}
 
               {/* No results */}
-              {search.hasSearched && !search.isSearching && search.results.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                  <Search size={28} className="mb-2 text-slate-300" />
-                  <p className="text-sm">
-                    No se encontraron pacientes para &ldquo;{search.query}&rdquo;
-                  </p>
-                  <p className="text-[10px] mt-1 text-slate-300">Intenta con otro nombre o RUT</p>
-                </div>
-              )}
+              {search.hasSearched &&
+                !search.isSearching &&
+                !search.searchError &&
+                search.results.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                    <Search size={28} className="mb-2 text-slate-300" />
+                    <p className="text-sm">
+                      No se encontraron pacientes para &ldquo;{search.query}&rdquo;
+                    </p>
+                    <p className="text-[10px] mt-1 text-slate-300">Intenta con otro nombre o RUT</p>
+                  </div>
+                )}
 
               {/* Results */}
               {search.results.length > 0 && (
@@ -267,6 +270,18 @@ export const GlobalPatientSearchModal: React.FC<GlobalPatientSearchModalProps> =
                       searchQuery={search.query}
                     />
                   ))}
+                </div>
+              )}
+              {search.searchError && !search.isSearching && (
+                <div role="alert" className="py-12 text-center text-slate-500">
+                  <p className="text-sm">{search.searchError}</p>
+                  <button
+                    type="button"
+                    onClick={search.retrySearch}
+                    className="mt-2 text-sm text-blue-600"
+                  >
+                    Reintentar
+                  </button>
                 </div>
               )}
             </>
