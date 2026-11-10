@@ -1,3 +1,4 @@
+import { safeErrorMessage } from './lib/safe-error-message';
 import * as z from 'zod';
 import { sendCensusEmail } from '../../src/services/email/gmailClient';
 import { getFirebaseServer } from './lib/firebase-server';
@@ -85,11 +86,9 @@ export const handler = async (event: NetlifyEventLike) => {
     try {
       extractBearerToken(authorizationHeader);
     } catch (error) {
-      return buildTextResponse(
-        401,
-        error instanceof Error ? error.message : 'Authentication required.',
-        { requestOrigin }
-      );
+      return buildTextResponse(401, safeErrorMessage(error, 'Authentication required.'), {
+        requestOrigin,
+      });
     }
 
     let authContext: Awaited<ReturnType<typeof authorizeRoleRequest>>;
@@ -102,7 +101,7 @@ export const handler = async (event: NetlifyEventLike) => {
           : 'No autorizado para enviar notificaciones de fuga.';
       const statusCode =
         message.includes('Access denied') || message.includes('no email claim') ? 403 : 401;
-      return buildTextResponse(statusCode, message, { requestOrigin });
+      return buildTextResponse(statusCode, safeErrorMessage(message), { requestOrigin });
     }
 
     const parsedBody = parseJsonBody<unknown>(event.body);
@@ -181,6 +180,6 @@ export const handler = async (event: NetlifyEventLike) => {
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error enviando notificación de fuga.';
-    return buildTextResponse(500, message, { requestOrigin });
+    return buildTextResponse(500, safeErrorMessage(message), { requestOrigin });
   }
 };

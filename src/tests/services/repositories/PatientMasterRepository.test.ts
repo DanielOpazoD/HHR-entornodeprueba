@@ -182,6 +182,14 @@ describe('PatientMasterRepository', () => {
     expect(await searchPatients('12.345.678-5')).toEqual([targetPatient]);
   });
 
+  it('rejects an incomplete full scan instead of returning absence', async () => {
+    const failure = new Error('synthetic unavailable');
+    vi.mocked(firestore.getDocs)
+      .mockResolvedValueOnce({ docs: buildPatientPage(1, 250) } as never)
+      .mockRejectedValueOnce(failure);
+    await expect(injectedRepository.searchPatients('alfa beta')).rejects.toBe(failure);
+  });
+
   it('supports injected Firestore runtime for isolated repository composition', async () => {
     vi.mocked(firestore.setDoc).mockResolvedValue(undefined as never);
 

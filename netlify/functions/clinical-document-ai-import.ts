@@ -1,3 +1,4 @@
+import { safeErrorMessage } from './lib/safe-error-message';
 import { getFirebaseServer } from './lib/firebase-server';
 import { authorizeRoleRequest, extractBearerToken } from './lib/firebase-auth';
 import { generateClinicalAIText, resolveClinicalAIProviderConfig } from './lib/ai-provider';
@@ -134,7 +135,7 @@ export const createClinicalDocumentAiImportHandler = (
     } catch (error) {
       return buildJsonResponse(
         401,
-        { error: error instanceof Error ? error.message : 'Authentication required.' },
+        { error: safeErrorMessage(error, 'Authentication required.') },
         { requestOrigin }
       );
     }
@@ -231,7 +232,7 @@ export const createClinicalDocumentAiImportHandler = (
             ? 401
             : 500;
 
-      return buildJsonResponse(statusCode, { error: message }, { requestOrigin });
+      return buildJsonResponse(statusCode, { error: safeErrorMessage(message) }, { requestOrigin });
     }
   };
 };
