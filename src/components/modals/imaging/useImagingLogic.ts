@@ -1,3 +1,4 @@
+import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
 import { useState, useEffect } from 'react';
 import type { PatientData } from '@/types/domain/patient';
 import type { CustomMark } from '@/services/pdf/imagingRequestPdfService';
@@ -15,14 +16,10 @@ interface UseImagingLogicProps {
 }
 
 const imagingDialogLogger = createScopedLogger('ImagingDialog');
-let imagingPdfServicePromise: Promise<
-  typeof import('@/services/pdf/imagingRequestPdfService')
-> | null = null;
 
-const loadImagingPdfService = () => {
-  imagingPdfServicePromise ??= import('@/services/pdf/imagingRequestPdfService');
-  return imagingPdfServicePromise;
-};
+const loadImagingPdfService = createCachedRuntimeLoader(
+  () => import('@/services/pdf/imagingRequestPdfService')
+);
 
 export const useImagingLogic = ({ isOpen, patient }: UseImagingLogicProps) => {
   const [selectedDoc, setSelectedDoc] = useState<DocumentOption>('solicitud');

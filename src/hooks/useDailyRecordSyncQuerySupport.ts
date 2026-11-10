@@ -1,3 +1,4 @@
+import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryClient';
@@ -18,14 +19,9 @@ import {
 const REMOTE_HYDRATION_IDLE_TIMEOUT_MS = 1_200;
 const REMOTE_HYDRATION_FALLBACK_DELAY_MS = 150;
 
-let syncDailyRecordUseCasePromise: Promise<
-  typeof import('@/application/daily-record/syncDailyRecordUseCase')
-> | null = null;
-
-const loadSyncDailyRecordUseCase = async () => {
-  syncDailyRecordUseCasePromise ??= import('@/application/daily-record/syncDailyRecordUseCase');
-  return syncDailyRecordUseCasePromise;
-};
+const loadSyncDailyRecordUseCase = createCachedRuntimeLoader(
+  () => import('@/application/daily-record/syncDailyRecordUseCase')
+);
 
 type BrowserWindowWithIdleCallback = Window & {
   requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
