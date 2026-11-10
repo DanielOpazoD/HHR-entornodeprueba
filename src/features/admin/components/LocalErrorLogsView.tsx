@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, RefreshCw, Trash2 } from 'lucide-react';
 import { clearErrorLogs, fetchErrorLogs } from '@/services/errorLogService';
 import type { ErrorLog, ErrorSeverity } from '@/services/logging/errorLogTypes';
+import { buildContextSummary } from '@/hooks/controllers/systemHealthReporterController';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 const PRIVATE_CONTEXT_KEYS = new Set(['patient', 'patientname', 'rut', 'diagnosis', 'diagnostico']);
@@ -55,11 +56,20 @@ const stringifyContextValue = (value: unknown): string => {
 
 const buildContextRows = (context?: Record<string, unknown>) => {
   if (!context) return [];
-  return Object.entries(context)
-    .filter(([key]) => !PRIVATE_CONTEXT_KEYS.has(key.toLowerCase()))
-    .map(([key, value]) => `${key}: ${stringifyContextValue(value)}`)
-    .filter(row => row.trim().length > 0)
-    .slice(0, 6);
+  const localFailure = Array.isArray(context.localSyncFailure)
+    ? context.localSyncFailure.flatMap(entry =>
+        entry && typeof entry === 'object' ? [buildContextSummary(entry).join(' · ')] : []
+      )
+    : [];
+  return [
+    ...localFailure,
+    ...Object.entries(context)
+      .filter(([key]) => key !== 'localSyncFailure')
+      .filter(([key]) => !PRIVATE_CONTEXT_KEYS.has(key.toLowerCase()))
+      .map(([key, value]) => `${key}: ${stringifyContextValue(value)}`)
+      .filter(row => row.trim().length > 0)
+      .slice(0, 6),
+  ];
 };
 
 const pluralizeLogCount = (count: number): string =>
@@ -220,9 +230,9 @@ export const LocalErrorLogsView: React.FC = () => {
 
               {buildContextRows(log.context).length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {buildContextRows(log.context).map(row => (
+                  {buildContextRows(log.context).map((row, index) => (
                     <span
-                      key={row}
+                      key={`${index}:${row}`}
                       className="rounded-md bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200"
                     >
                       {row}
