@@ -1,8 +1,5 @@
 import * as z from 'zod';
-import type {
-  ClinicalDocumentRecord,
-  ClinicalDocumentTemplate,
-} from '@/domain/clinical-documents/entities';
+import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 
 const clinicalDocumentTypeSchema = z.enum([
   'epicrisis',
@@ -138,49 +135,10 @@ export const clinicalDocumentRecordSchema = z.object({
     .optional(),
 });
 
-export const clinicalDocumentTemplateSchema = z.object({
-  id: z.string(),
-  documentType: clinicalDocumentTypeSchema,
-  name: z.string(),
-  title: z.string(),
-  defaultPatientInfoTitle: z.string(),
-  defaultFooterMedicoLabel: z.string(),
-  defaultFooterEspecialidadLabel: z.string(),
-  version: z.number(),
-  patientFields: z.array(
-    z.object({
-      id: z.string(),
-      label: z.string(),
-      type: z.enum(['text', 'date', 'number', 'time']),
-      placeholder: z.string().optional(),
-      readonly: z.boolean().optional(),
-      visible: z.boolean().optional(),
-    })
-  ),
-  sections: z.array(
-    z.object({
-      id: z.string(),
-      title: z.string(),
-      order: z.number(),
-      kind: z.enum(['standard', 'clinical-update']).optional(),
-      required: z.boolean().optional(),
-      visible: z.boolean().optional(),
-    })
-  ),
-  allowCustomTitle: z.boolean(),
-  allowAddSection: z.boolean(),
-  allowClinicalUpdateSections: z.boolean(),
-  status: z.enum(['active', 'archived']),
-});
-
 export const parseClinicalDocumentRecord = (record: unknown): ClinicalDocumentRecord =>
   clinicalDocumentRecordSchema.parse(record) as ClinicalDocumentRecord;
 export const safeParseClinicalDocumentRecord = (record: unknown) =>
   clinicalDocumentRecordSchema.safeParse(record);
-export const parseClinicalDocumentTemplate = (template: unknown): ClinicalDocumentTemplate =>
-  clinicalDocumentTemplateSchema.parse(template) as ClinicalDocumentTemplate;
-export const safeParseClinicalDocumentTemplate = (template: unknown) =>
-  clinicalDocumentTemplateSchema.safeParse(template);
 export const formatClinicalDocumentContractIssues = (
   issues: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string }>
 ): string[] =>

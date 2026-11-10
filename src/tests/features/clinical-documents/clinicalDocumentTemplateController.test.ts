@@ -11,7 +11,7 @@ describe('clinicalDocumentTemplateController', () => {
     expect(templates.map(template => template.id)).toEqual(
       expect.arrayContaining(['epicrisis', 'evolucion', 'informe_medico', 'otro'])
     );
-    expect(templates.map(template => template.id)).not.toContain('epicrisis_traslado');
+    expect(templates.map(template => template.id)).toContain('epicrisis_traslado');
   });
 
   it('maps document types to compact labels', () => {
