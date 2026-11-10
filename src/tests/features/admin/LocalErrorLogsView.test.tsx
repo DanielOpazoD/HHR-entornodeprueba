@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocalErrorLogsView } from '@/features/admin/components/LocalErrorLogsView';
@@ -25,6 +25,34 @@ const buildLog = (overrides: Partial<ErrorLog> = {}): ErrorLog => ({
   userAgent: 'Vitest',
   ...overrides,
 });
+
+const deferred = <T,>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: Error) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+};
+
+const startRefreshAndClear = async () => {
+  const user = userEvent.setup();
+  const olderRead = deferred<ErrorLog[]>();
+  const clear = deferred<void>();
+  const newerRead = deferred<ErrorLog[]>();
+  vi.mocked(fetchErrorLogs)
+    .mockResolvedValueOnce([buildLog()])
+    .mockReturnValueOnce(olderRead.promise)
+    .mockReturnValueOnce(newerRead.promise);
+  vi.mocked(clearErrorLogs).mockReturnValueOnce(clear.promise);
+  render(<LocalErrorLogsView />);
+  await screen.findByText('Fallo al guardar respaldo local');
+  await user.click(screen.getByRole('button', { name: 'Refrescar' }));
+  await user.click(screen.getByRole('button', { name: 'Limpiar' }));
+  await act(async () => clear.resolve(undefined));
+  return { olderRead, newerRead };
+};
 
 describe('LocalErrorLogsView', () => {
   beforeEach(() => {
@@ -95,5 +123,57 @@ describe('LocalErrorLogsView', () => {
       await screen.findByText('No se pudo limpiar el historial de errores de este navegador.')
     ).toBeInTheDocument();
     expect(screen.getByText('Fallo al guardar respaldo local')).toBeInTheDocument();
+  });
+  it('does not restore cleared records when an older refresh finishes last', async () => {
+    const { olderRead, newerRead } = await startRefreshAndClear();
+    await act(async () => newerRead.resolve([]));
+    expect(screen.getByText('No hay errores locales registrados.')).toBeInTheDocument();
+
+    await act(async () => olderRead.resolve([buildLog()]));
+
+    expect(screen.queryByText('Fallo al guardar respaldo local')).not.toBeInTheDocument();
+    expect(screen.getByText('0 registros')).toBeInTheDocument();
+    expect(screen.getByText('No hay errores locales registrados.')).toBeInTheDocument();
+  });
+
+  it.each(['success', 'failure'])(
+    'keeps loading the latest read after an older %s',
+    async outcome => {
+      const { olderRead, newerRead } = await startRefreshAndClear();
+      await act(async () => {
+        if (outcome === 'success') olderRead.resolve([buildLog()]);
+        else olderRead.reject(new Error('Synthetic stale read failure'));
+      });
+
+      expect(screen.getByText('Cargando errores locales...')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Refrescar' })).toBeDisabled();
+      expect(screen.queryByText(/No se pudo leer el historial/)).not.toBeInTheDocument();
+      await act(async () => newerRead.resolve([]));
+      expect(screen.getByText('No hay errores locales registrados.')).toBeInTheDocument();
+    }
+  );
+
+  it('does not display an obsolete read failure after the latest read succeeds', async () => {
+    const { olderRead, newerRead } = await startRefreshAndClear();
+    await act(async () => newerRead.resolve([]));
+    await act(async () => olderRead.reject(new Error('Synthetic stale read failure')));
+
+    expect(screen.queryByText(/No se pudo leer el historial/)).not.toBeInTheDocument();
+    expect(screen.getByText('No hay errores locales registrados.')).toBeInTheDocument();
+  });
+
+  it('keeps the latest read failure and known records after an older success', async () => {
+    const { olderRead, newerRead } = await startRefreshAndClear();
+    await act(async () => newerRead.reject(new Error('Synthetic latest read failure')));
+    await act(async () => olderRead.resolve([buildLog({ message: 'Registro obsoleto' })]));
+
+    expect(
+      screen.getByText(
+        'No se pudo leer el historial de errores de este navegador. Eso no significa que no haya errores.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText('Fallo al guardar respaldo local')).toBeInTheDocument();
+    expect(screen.queryByText('Registro obsoleto')).not.toBeInTheDocument();
+    expect(screen.queryByText('No hay errores locales registrados.')).not.toBeInTheDocument();
   });
 });

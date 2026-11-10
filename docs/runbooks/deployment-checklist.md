@@ -8,7 +8,6 @@
 npm run test:ci:unit          # Tests unitarios
 npm run test:rules:ci         # Firestore rules
 npm run test:release-confidence  # Pack de confianza
-npm run check:clinical-release-validation # Contrato de validacion clinica manual minima
 npm run check:clinical-release-signoff # Debe pasar antes de release productivo
 ```
 
@@ -63,7 +62,6 @@ npm run build       # Vite build
 Antes de marcar un release como listo, cada escenario crítico debe cerrar tres evidencias: código corregido, regresión automatizada y flujo clínico validado visualmente/manual. El contrato versionado vive en `scripts/config/clinical-release-validation.json` y se valida con:
 
 ```bash
-npm run check:clinical-release-validation
 npm run report:clinical-release-signoff
 npm run check:clinical-release-signoff
 ```

@@ -1,3 +1,13 @@
+vi.mock(
+  '@/features/clinical-documents/controllers/clinicalDocumentTemplateController',
+  async importOriginal => ({
+    ...(await importOriginal<
+      typeof import('@/features/clinical-documents/controllers/clinicalDocumentTemplateController')
+    >()),
+    listActiveClinicalDocumentTemplates: vi.fn(),
+  })
+);
+import { listActiveClinicalDocumentTemplates } from '@/features/clinical-documents/controllers/clinicalDocumentTemplateController';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClinicalDocumentsWorkspace } from '@/features/clinical-documents/components/ClinicalDocumentsWorkspace';
@@ -8,7 +18,6 @@ import {
 import { buildClinicalDocumentEpisodeContext } from '@/features/clinical-documents/controllers/clinicalDocumentEpisodeController';
 import type { ClinicalAttachmentRecord } from '@/shared/clinical-documents/clinicalAttachmentContracts';
 import { ClinicalDocumentRepository } from '@/services/repositories/ClinicalDocumentRepository';
-import { ClinicalDocumentTemplateRepository } from '@/services/repositories/ClinicalDocumentTemplateRepository';
 import * as attachments from '@/application/clinical-documents/clinicalAttachmentUseCases';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
@@ -23,9 +32,6 @@ vi.mock('@/context/UIContext', () => ({
 }));
 vi.mock('@/services/repositories/ClinicalDocumentRepository', () => ({
   ClinicalDocumentRepository: { subscribeByEpisodeKeys: vi.fn() },
-}));
-vi.mock('@/services/repositories/ClinicalDocumentTemplateRepository', () => ({
-  ClinicalDocumentTemplateRepository: { listActive: vi.fn() },
 }));
 vi.mock('@/features/clinical-documents/services/clinicalDocumentSignatureProfileService', () => ({
   clinicalDocumentSignatureProfileService: { getProfile: vi.fn(async () => null) },
@@ -105,7 +111,7 @@ const workspace = (index: number) => (
 describe('ClinicalDocumentsWorkspace attachment selection integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(ClinicalDocumentTemplateRepository.listActive).mockResolvedValue([
+    vi.mocked(listActiveClinicalDocumentTemplates).mockReturnValue([
       getClinicalDocumentTemplate('epicrisis'),
     ]);
     vi.mocked(ClinicalDocumentRepository.subscribeByEpisodeKeys).mockImplementation(

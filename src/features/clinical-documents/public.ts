@@ -21,11 +21,6 @@ export type {
 export type { PatientData } from './contracts/clinicalDocumentsPatientContract';
 export type { ClinicalDocumentDraftBaseState } from './hooks/clinicalDocumentDraftReducer';
 export {
-  createTemplatePatientField,
-  createTemplateSection,
-  normalizeTemplateForSave,
-} from './controllers/clinicalDocumentTemplateEditorController';
-export {
   buildClinicalDocumentActor,
   hydrateClinicalDocumentWorkspaceRecord,
   serializeClinicalDocument,

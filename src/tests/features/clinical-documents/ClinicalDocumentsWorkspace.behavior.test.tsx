@@ -1,3 +1,13 @@
+vi.mock(
+  '@/features/clinical-documents/controllers/clinicalDocumentTemplateController',
+  async importOriginal => ({
+    ...(await importOriginal<
+      typeof import('@/features/clinical-documents/controllers/clinicalDocumentTemplateController')
+    >()),
+    listActiveClinicalDocumentTemplates: vi.fn(),
+  })
+);
+import { listActiveClinicalDocumentTemplates } from '@/features/clinical-documents/controllers/clinicalDocumentTemplateController';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
@@ -10,7 +20,6 @@ import { createClinicalDocumentDraft } from '@/features/clinical-documents/domai
 import * as clinicalDocumentUseCases from '@/application/clinical-documents/clinicalDocumentUseCases';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 import { ClinicalDocumentRepository } from '@/services/repositories/ClinicalDocumentRepository';
-import { ClinicalDocumentTemplateRepository } from '@/services/repositories/ClinicalDocumentTemplateRepository';
 import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 
@@ -147,13 +156,6 @@ vi.mock('@/services/repositories/ClinicalDocumentRepository', () => ({
   },
 }));
 
-vi.mock('@/services/repositories/ClinicalDocumentTemplateRepository', () => ({
-  ClinicalDocumentTemplateRepository: {
-    listActive: vi.fn(),
-    seedDefaults: vi.fn(),
-  },
-}));
-
 vi.mock('@/application/clinical-documents/clinicalDocumentUseCases', async () => {
   const actual = await vi.importActual<
     typeof import('@/application/clinical-documents/clinicalDocumentUseCases')
@@ -178,7 +180,7 @@ describe('ClinicalDocumentsWorkspace behavior', () => {
     authState.user = { uid: 'u1', email: 'doctor@test.com', displayName: 'Doctor Test' };
     authState.role = 'doctor_urgency';
 
-    vi.mocked(ClinicalDocumentTemplateRepository.listActive).mockResolvedValue([
+    vi.mocked(listActiveClinicalDocumentTemplates).mockReturnValue([
       activeTemplate,
       secondaryTemplate,
     ]);
