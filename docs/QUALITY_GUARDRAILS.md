@@ -50,7 +50,8 @@ Su presentación debe comunicar la incertidumbre sin impedir abrir la galería.
 
 - La fuente de verdad de tiers blocking, release confidence y report-only guards vive en `scripts/config/guardrail-governance.json`.
 - Se valida con `npm run check:guardrail-governance` y se reporta con `npm run report:guardrail-governance`.
-- La composición exacta de `check:quality` también sale de ese mismo archivo; `check-quality-aggregate.mjs` ya no mantiene una lista paralela.
+- En ese archivo, `reportOnly` registra comandos que escriben snapshots; `qualityAggregate.checks` define los controles que ejecuta `check:quality`, incluido su carácter bloqueante o advisory. Registrar un productor no incorpora su checker al agregado.
+- La telemetría de tiempos se valida en el job `ci-runtime-telemetry` de `.github/workflows/ci-cd.yml`: recoge la corrida actual, genera el reporte y ejecuta `check:ci-runtime-telemetry`; `ci-summary` exige su resultado. El agregado no valida el archivo histórico versionado. El CLI local sigue disponible, pero comprueba el reporte que exista en el checkout; revisar su procedencia y fecha.
 - CI regenera los artefactos obligatorios antes de correr `check:quality` usando `npm run report:governance-snapshots`.
 - `check:quality` no debe bloquear por scorecards ejecutivos derivados si las fuentes primarias del riesgo ya están protegidas; `release-readiness-scorecard` queda como artefacto report-only.
 - `release-confidence-matrix` también queda como guardrail report-only: sigue siendo obligatorio para trazabilidad, pero no duplica bloqueo si el pack de release, la cobertura crítica y los budgets ya siguen verdes.
@@ -101,9 +102,9 @@ modifica archivos ni sincroniza automáticamente durante CI.
 - Los budgets por flujo se leen desde `reports/e2e/flow-performance-budget.json` y su resumen en `reports/e2e/flow-performance-budget-summary.json` / `.md`.
 - El estado operativo por flujo distingue `ok`, `near-limit`, `target-miss` y `blocking`.
 - El ownership técnico crítico vive en `scripts/config/technical-ownership-map.json` y se valida con `npm run check:technical-ownership-map`.
-- `technical-ownership-map` se mantiene como gobernanza report-only dentro del aggregate: sigue siendo obligatorio para trazabilidad y release readiness, pero ya no bloquea `check:quality` porque los riesgos primarios ya quedan cubiertos por gates, runbooks y release confidence.
+- `technical-ownership-map` tiene un productor de snapshots registrado; su checker no forma parte de `qualityAggregate.checks`. Ejecutar el comando local anterior al preparar un release; generar el reporte no acredita esa validación.
 - La política de cambio sostenible vive en `scripts/config/sustainable-change-policy.json` y se valida con `npm run check:sustainable-change-policy`.
-- `sustainable-change-policy` también queda como gobernanza report-only dentro del aggregate: sigue siendo obligatoria para upgrades, excepciones y DoD, pero no bloquea `check:quality` si los gates primarios y las fuentes técnicas siguen verdes.
+- `sustainable-change-policy` también tiene un productor registrado y su checker queda fuera del agregado. Ejecutar su comando local al preparar un release; la política de upgrades, excepciones y DoD sigue vigente.
 - La política para decidir si una mejora técnica vale la pena antes de ejecutarla vive en [docs/ENGINEERING_CHANGE_DECISION_POLICY.md](./ENGINEERING_CHANGE_DECISION_POLICY.md).
 - La definición de terminado vive en [docs/ENGINEERING_DEFINITION_OF_DONE.md](./ENGINEERING_DEFINITION_OF_DONE.md).
 - La deuda priorizada vive en [docs/TECHNICAL_DEBT_REGISTER.md](./TECHNICAL_DEBT_REGISTER.md).
