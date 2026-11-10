@@ -1,3 +1,4 @@
+import { readAuthorizationHeader } from './lib/authorization-header';
 import { safeErrorMessage } from './lib/safe-error-message';
 /**
  * syslab-proxy Netlify Function
@@ -289,12 +290,7 @@ export const createSyslabProxyHandler = (
       return buildTooManyRequestsResponse(requestOrigin);
     }
 
-    const authorizationHeader =
-      typeof event.headers?.authorization === 'string'
-        ? event.headers.authorization
-        : typeof event.headers?.Authorization === 'string'
-          ? event.headers.Authorization
-          : undefined;
+    const authorizationHeader = readAuthorizationHeader(event);
 
     try {
       dependencies.extractBearerToken(authorizationHeader);
