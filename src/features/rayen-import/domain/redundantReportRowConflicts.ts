@@ -47,25 +47,39 @@ export const dropRedundantUnverifiedReportConflicts = (
 ): ConflictEntry[] =>
   conflicts.filter(conflict => {
     if (!conflict.code || !REDUNDANT_ROW_CODES.has(conflict.code) || !conflict.bedId) return true;
-    // A folio is explained by the attached crib, never by treating it as that crib's RUN.
+    // A folio is explained by the attached crib, never by treating it as that crib's RUN: same
+    // bed, same name, same clinical day and minute, and no other non-RUN event at that bed.
     if (!isValidRut(conflict.rut ?? '')) {
       const name = normalizedName(conflict.patientName);
-      const rowConflicts = conflicts.filter(
-        entry =>
-          entry.bedId === conflict.bedId &&
-          Boolean(entry.code && REDUNDANT_ROW_CODES.has(entry.code)) &&
-          !isValidRut(entry.rut ?? '')
+      const day = conflict.diagnostic?.sourceClinicalDay;
+      const time = conflict.diagnostic?.sourceClinicalTime;
+      // Jasper repeats one administrative event per principal diagnosis: count events, not rows.
+      const eventOf = (entry: ConflictEntry): string =>
+        `${entry.rut ?? ''}|${normalizedName(entry.patientName)}|${entry.diagnostic?.sourceTimestamp ?? ''}`;
+      const events = new Set(
+        conflicts
+          .filter(
+            entry =>
+              entry.bedId === conflict.bedId &&
+              Boolean(entry.code && REDUNDANT_ROW_CODES.has(entry.code)) &&
+              !isValidRut(entry.rut ?? '')
+          )
+          .map(eventOf)
       );
       if (
         name &&
-        rowConflicts.length === 1 &&
+        day &&
+        time &&
+        events.size === 1 &&
         discharges.some(entry => {
           const crib = entry.associatedClinicalCrib;
           return (
             entry.bedId === conflict.bedId &&
             crib &&
             !crib.rut?.trim() &&
-            normalizedName(crib.patientName) === name
+            normalizedName(crib.patientName) === name &&
+            (entry.correctedDay ?? record.date) === day &&
+            entry.correctedTime === time
           );
         })
       )

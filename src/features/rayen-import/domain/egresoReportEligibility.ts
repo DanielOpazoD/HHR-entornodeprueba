@@ -142,7 +142,9 @@ export const selectEligibleEgresoRows = (
   const occupiedCribs = occupiedClinicalCribsByRun(record);
   const rows: EgresoReportRow[] = [];
   let nextDiff = diff;
-  const explainedCribMovements = new Set<number>();
+  // Recorded crib discharge -> the administrative event it explains. Jasper repeats one event per
+  // principal diagnosis, so its repeated rows share the movement; another event never does.
+  const explainedCribMovements = new Map<number, string>();
   // Filas del RUN que este mismo bucle NO descarta (estampa válida y dentro del
   // día): una fila D+1 real o inválida no debe retener la etiqueta de redundancia.
   const stampedRowsByRun = new Map<string, number>();
@@ -243,11 +245,12 @@ export const selectEligibleEgresoRows = (
     // un movimiento de ESE episodio (un movimiento legacy por RUN no debe
     // suprimir el egreso de un reingreso posterior).
     // A non-RUN row can only consume one matching, document-less nested discharge.
+    const administrativeEvent = `${row.run}|${row.fechaEgreso}|${row.bedLabel ?? ''}`;
     const recordedCribIndex =
       !reportedEpisode && !isValidRut(row.run) && normalizedName(row.patientName)
         ? (record.discharges ?? []).findIndex(
             (movement, index) =>
-              !explainedCribMovements.has(index) &&
+              (explainedCribMovements.get(index) ?? administrativeEvent) === administrativeEvent &&
               !movement.deletedAt &&
               movement.isNested &&
               movement.bedId === reportedBedId &&
@@ -263,7 +266,8 @@ export const selectEligibleEgresoRows = (
       : (Boolean(run) && hasRecordedMovement(record, run)) || recordedCribIndex >= 0;
 
     if (!current && !currentCrib && !activeCrib && !provisional && alreadyRecorded) {
-      if (recordedCribIndex >= 0) explainedCribMovements.add(recordedCribIndex);
+      if (recordedCribIndex >= 0)
+        explainedCribMovements.set(recordedCribIndex, administrativeEvent);
       continue;
     }
     // Same-day readmission: this row is a discharge already applied to an earlier episode, so it
@@ -319,6 +323,7 @@ export const selectEligibleEgresoRows = (
           source: 'gestion-camas/egresos',
           sourceTimestamp: row.fechaEgreso.slice(0, 100),
           sourceClinicalDay: stamp.iso,
+          sourceClinicalTime: stamp.hhmm,
           bedId: (row.bedLabel ?? '').slice(0, 80),
         },
         rut: row.run,

@@ -205,6 +205,20 @@ describe('newborn folio discharge report row', () => {
     ).toEqual(conflicts);
   });
 
+  it('keeps review in the first run when the folio row reports another minute than the crib discharge', () => {
+    expect(firstRun([{ ...folioRow(), correctedTime: '13:00' }]).enriched.conflicts).toHaveLength(
+      1
+    );
+  });
+
+  it('explains the rows the report repeats for each diagnosis once the discharge is recorded', () => {
+    const repeated = [folioRow(), { ...folioRow(), diagnostico: 'Otro diagnóstico sintético' }];
+    expect(selectEligibleEgresoRows(emptyDiff(), repeated, recorded()).diff.conflicts).toEqual([]);
+    // In the run that applies the discharge the repeated rows still ask once, as on main: the bed
+    // count that labels a row as redundant counts rows, not events. The next run clears it.
+    expect(firstRun(repeated).enriched.conflicts).toHaveLength(1);
+  });
+
   it('keeps a different name or an adult passport in the first run', () => {
     for (const row of [
       { ...folioRow(), patientName: 'Otro RN' },
