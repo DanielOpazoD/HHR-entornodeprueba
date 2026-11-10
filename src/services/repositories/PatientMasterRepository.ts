@@ -61,6 +61,7 @@ export const createPatientMasterRepository = (
       }
     } catch (err) {
       patientMasterRepositoryLogger.error(`Error fetching patient ${normalizedRut}`, err);
+      throw err;
     }
     return null;
   };
@@ -182,7 +183,8 @@ export const createPatientMasterRepository = (
 
     const path = getCollectionPath();
     try {
-      const patient = await getPatientByRut(normalizedTerm);
+      // The read by RUT is a shortcut. If it fails, the search below can still find the patient.
+      const patient = await getPatientByRut(normalizedTerm).catch(() => null);
       if (patient) {
         return [patient];
       }
