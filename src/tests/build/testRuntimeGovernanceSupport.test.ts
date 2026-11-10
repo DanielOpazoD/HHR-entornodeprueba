@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { afterEach, describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
 
@@ -58,6 +59,69 @@ const copyGovernedFiles = (root: string): void => {
 };
 
 describe('test runtime governance support', () => {
+  it('checks shard balance once in the tests aggregate and still rejects an invalid configuration', () => {
+    const root = makeReportRoot();
+    copyGovernedFiles(root);
+    for (const relative of ['src/tests/support', 'src/tests/utils', 'src/tests/integration']) {
+      fs.mkdirSync(path.join(root, relative), { recursive: true });
+    }
+    fs.writeFileSync(path.join(root, 'src/tests/integration/setup.tsx'), '');
+    for (let index = 1; index <= 4; index += 1) {
+      fs.writeFileSync(path.join(root, `src/tests/synthetic${index}.test.ts`), 'export {};');
+    }
+    const balancePath = path.join(root, 'scripts/config/unit-shard-balance.json');
+    const balance = JSON.parse(fs.readFileSync(balancePath, 'utf8'));
+    Object.assign(balance, {
+      shardCount: 4,
+      durationHints: [],
+      affinityGroups: [],
+      lockedAssignments: {},
+      criticalTestGlobs: [],
+    });
+    fs.writeFileSync(balancePath, JSON.stringify(balance));
+    const governance = JSON.parse(
+      fs.readFileSync('scripts/config/guardrail-governance.json', 'utf8')
+    );
+    const balanceCommands = ['check:unit-shard-balance', 'check:test-runtime-governance'];
+    governance.qualityAggregate.checks = governance.qualityAggregate.checks.filter(
+      (step: { id: string }) => balanceCommands.includes(step.id)
+    );
+    fs.writeFileSync(
+      path.join(root, 'scripts/config/guardrail-governance.json'),
+      JSON.stringify(governance)
+    );
+    const packagePath = path.join(root, 'package.json');
+    const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+    for (const command of balanceCommands) {
+      const script = command.replace('check:', 'check-');
+      packageJson.scripts[command] = `node "${path.resolve(`scripts/${script}.mjs`)}"`;
+    }
+    fs.writeFileSync(packagePath, JSON.stringify(packageJson));
+    const run = (script: string, args: string[] = []) =>
+      spawnSync(process.execPath, [path.resolve(`scripts/${script}.mjs`), ...args], {
+        cwd: root,
+        encoding: 'utf8',
+      });
+    expect(run('check-quality-aggregate', ['--group', 'tests']).status).toBe(0);
+    expect(run('check-unit-shard-balance').status).toBe(0);
+    balance.shardCount = 3;
+    fs.writeFileSync(balancePath, JSON.stringify(balance));
+    const aggregate = run('check-quality-aggregate', ['--group', 'tests']);
+    expect(aggregate.status).toBe(1);
+    expect(aggregate.stdout).toContain('check:test-runtime-governance');
+    const retained = run('check-test-runtime-governance');
+    expect(retained.status).toBe(1);
+    expect(retained.stderr).toContain('Unit shard balance must define exactly 4 shards; found 3.');
+    const manual = run('check-unit-shard-balance');
+    expect(manual.status).toBe(1);
+    expect(manual.stderr).toContain('Unit shard balance must define exactly 4 shards; found 3.');
+    const profile = JSON.parse(
+      fs.readFileSync(path.join(root, 'reports/ci-quality-static-profile-tests.json'), 'utf8')
+    );
+    expect(profile.results).toEqual([
+      expect.objectContaining({ id: 'check:test-runtime-governance', status: 'failed' }),
+    ]);
+  });
   it('keeps PR-critical and nightly test surfaces explicit', () => {
     const report = buildTestRuntimeGovernanceReport(process.cwd());
 
