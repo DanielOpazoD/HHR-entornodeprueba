@@ -10,8 +10,7 @@ const REPORTS_DIR = path.join(ROOT, 'reports');
 const JSON_OUTPUT = path.join(REPORTS_DIR, 'system-confidence.json');
 const MD_OUTPUT = path.join(REPORTS_DIR, 'system-confidence.md');
 
-const readJson = relativePath =>
-  JSON.parse(fs.readFileSync(path.join(ROOT, relativePath), 'utf8'));
+const readJson = relativePath => JSON.parse(fs.readFileSync(path.join(ROOT, relativePath), 'utf8'));
 
 const readOptionalJson = relativePath => {
   const fullPath = path.join(ROOT, relativePath);
@@ -25,17 +24,9 @@ const readOptionalJson = relativePath => {
 const qualityMetrics = readJson('reports/quality-metrics.json');
 const operationalHealthReport = readOptionalJson('reports/operational-health.json');
 const criticalCoverageReport = readOptionalJson('reports/critical-coverage.json');
-const failureCatalog = readJson('scripts/config/test-failure-catalog.json');
-const flakyQuarantine = readJson('scripts/config/flaky-quarantine.json');
 const operationalHealth = operationalHealthReport.data;
 const criticalCoverage = criticalCoverageReport.data;
 const gitState = getGitReportState(ROOT);
-
-const openFailureEntries = failureCatalog.entries.filter(entry => entry.status !== 'fixed');
-const failureCounts = openFailureEntries.reduce((accumulator, entry) => {
-  accumulator[entry.classification] = (accumulator[entry.classification] || 0) + 1;
-  return accumulator;
-}, {});
 
 const indicators = [
   {
@@ -61,12 +52,7 @@ const indicators = [
       qualityMetrics.tests.skippedMarkers === 0
         ? 'ok'
         : 'degraded',
-    summary: `flakeRisk=${qualityMetrics.tests.flakeRiskFiles}, skip=${qualityMetrics.tests.skippedMarkers}, only=${qualityMetrics.tests.onlyMarkers}, quarantined=${Array.isArray(flakyQuarantine.quarantined) ? flakyQuarantine.quarantined.length : 0}`,
-  },
-  {
-    name: 'known_failures',
-    status: openFailureEntries.length === 0 ? 'ok' : 'degraded',
-    summary: `open=${openFailureEntries.length}, deterministic=${failureCounts.deterministic || 0}, bugReal=${failureCounts.bug_real || 0}, flaky=${failureCounts.flaky || 0}, obsolete=${failureCounts.test_obsolete || 0}, infra=${failureCounts.infra || 0}`,
+    summary: `flakeRisk=${qualityMetrics.tests.flakeRiskFiles}, skip=${qualityMetrics.tests.skippedMarkers}, only=${qualityMetrics.tests.onlyMarkers}`,
   },
   {
     name: 'critical_coverage',
@@ -118,11 +104,6 @@ const report = {
       ? 'all indicators ok'
       : 'one or more technical indicators degraded',
   indicators,
-  knownFailures: {
-    openCount: openFailureEntries.length,
-    byClassification: failureCounts,
-    owners: [...new Set(openFailureEntries.map(entry => entry.owner))].sort(),
-  },
   missingPrerequisites: [
     ...(operationalHealthReport.missing ? ['reports/operational-health.json'] : []),
     ...(criticalCoverageReport.missing ? ['reports/critical-coverage.json'] : []),
@@ -140,7 +121,9 @@ const markdown = [
   `- Worktree: ${formatWorktreeState(report.gitDirty)}`,
   `- Overall status: ${report.overallStatus}`,
   ...(report.degradedByWorktreeOnly
-    ? ['- Advisory: degraded only because the snapshot was generated with a dirty worktree; technical indicators are ok.']
+    ? [
+        '- Advisory: degraded only because the snapshot was generated with a dirty worktree; technical indicators are ok.',
+      ]
     : []),
   '',
   '## Indicators',
@@ -151,11 +134,8 @@ const markdown = [
     indicator => `| \`${indicator.name}\` | ${indicator.status} | ${indicator.summary} |`
   ),
   '',
-  '## Known Failures',
+  '## Prerequisites',
   '',
-  `- Open entries: ${report.knownFailures.openCount}`,
-  `- Owners: ${report.knownFailures.owners.join(', ') || 'none'}`,
-  `- By classification: ${JSON.stringify(report.knownFailures.byClassification)}`,
   `- Missing prerequisites: ${report.missingPrerequisites.join(', ') || 'none'}`,
   '',
 ];

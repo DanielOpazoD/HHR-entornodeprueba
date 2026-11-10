@@ -15,8 +15,6 @@ const JSON_OUTPUT = path.join(REPORTS_DIR, 'quality-metrics.json');
 const MD_OUTPUT = path.join(REPORTS_DIR, 'quality-metrics.md');
 const MODULE_ALLOWLIST_PATH = path.join(ROOT, 'scripts', 'module-size-allowlist.json');
 const FOLDER_MATRIX_PATH = path.join(ROOT, 'scripts', 'folder-dependency-matrix.json');
-const FLAKY_QUARANTINE_PATH = path.join(ROOT, 'scripts', 'config', 'flaky-quarantine.json');
-const TEST_FAILURE_CATALOG_PATH = path.join(ROOT, 'scripts', 'config', 'test-failure-catalog.json');
 const HOOK_CONTROLLERS_DIR = path.join(SRC_ROOT, 'hooks', 'controllers');
 const FEATURE_CENSUS_CONTROLLERS_DIR = path.join(SRC_ROOT, 'features', 'census', 'controllers');
 const LOGGER_CONSOLE_SINK_PATH = 'src/services/utils/loggerConsoleSink.ts';
@@ -319,15 +317,6 @@ const getFolderDependencyDebtMetrics = () => {
 
 const getTestMetrics = () => {
   const testFiles = walkFiles(TEST_ROOT).filter(filePath => TEST_FILE_PATTERN.test(filePath));
-  const flakyQuarantine = safeReadJson(FLAKY_QUARANTINE_PATH);
-  const failureCatalog = safeReadJson(TEST_FAILURE_CATALOG_PATH);
-  const quarantinedFiles = new Set(
-    Array.isArray(flakyQuarantine?.quarantined)
-      ? flakyQuarantine.quarantined
-          .map(entry => (typeof entry?.file === 'string' ? toPosix(entry.file.trim()) : ''))
-          .filter(Boolean)
-      : []
-  );
 
   let skipCount = 0;
   let onlyCount = 0;
@@ -361,14 +350,8 @@ const getTestMetrics = () => {
     const hasFakeTimerControls =
       /vi\.useFakeTimers\s*\(/.test(content) || /jest\.useFakeTimers\s*\(/.test(content);
     const explicitlyMarkedFlakeSafe = /@flake-safe/.test(content);
-    const isQuarantined = quarantinedFiles.has(relative);
 
-    if (
-      hasNonDeterministicSignals &&
-      !hasFakeTimerControls &&
-      !explicitlyMarkedFlakeSafe &&
-      !isQuarantined
-    ) {
+    if (hasNonDeterministicSignals && !hasFakeTimerControls && !explicitlyMarkedFlakeSafe) {
       flakeRiskFiles += 1;
       flakeRiskFilePaths.push(relative);
     }
@@ -381,11 +364,6 @@ const getTestMetrics = () => {
     flakeRiskFiles,
     flakeRiskFilePaths,
     megatestFilesOver500,
-    quarantinedFiles: quarantinedFiles.size,
-    knownFailureEntries: Array.isArray(failureCatalog?.entries) ? failureCatalog.entries.length : 0,
-    openKnownFailureEntries: Array.isArray(failureCatalog?.entries)
-      ? failureCatalog.entries.filter(entry => entry?.status !== 'fixed').length
-      : 0,
   };
 };
 
@@ -665,9 +643,6 @@ const mdLines = [
     ? metrics.tests.flakeRiskFilePaths.map(filePath => `  - ${filePath}`)
     : []),
   `- Megatests >500 lines: ${metrics.tests.megatestFilesOver500}`,
-  `- Quarantined test files: ${metrics.tests.quarantinedFiles}`,
-  `- Known failure entries: ${metrics.tests.knownFailureEntries}`,
-  `- Open known failure entries: ${metrics.tests.openKnownFailureEntries}`,
   '',
   '## Type Safety Signals',
   '',

@@ -64,7 +64,6 @@ Su presentación debe comunicar la incertidumbre sin impedir abrir la galería.
 - `npm run check:release-evidence`
 - `npm run check:release-evidence-contract:strict`
 - `npm run check:release-evidence-contract:built`
-- `npm run check:test-failure-catalog`
 - `npm run report:quality-metrics`
 - `npm run report:maintenance-debt-scorecard`
 - `npm run report:operational-health`
@@ -102,8 +101,6 @@ Su presentación debe comunicar la incertidumbre sin impedir abrir la galería.
 - El registro interno recurrente de iteraciones de mantenimiento vive en [docs/MAINTENANCE_ITERATION_LOG.md](./MAINTENANCE_ITERATION_LOG.md).
 - `ci:release-gate` valida `check:release-evidence`: primero exige `check:report-freshness:strict` y luego bloquea si los reportes ejecutivos fueron generados desde un checkout con cambios locales significativos, si `quality-metrics` conserva tests con riesgo flaky (`flakeRiskFiles > 0`) o si falta la evidencia dedicada del smoke visual clínico (`reports/e2e/clinical-visual-release-report.json`). El comando diario `check:report-freshness` es advisory para evitar que cada merge requiera una rama de reportes nueva.
 - El inventario canónico de evidencia de release vive en `scripts/releaseEvidenceContract.mjs`. `release:evidence:refresh` lo regenera en orden determinista; CI impone freshness estricta, transporta el manifiesto al build y verifica post-merge que SHA, fecha y vigencia correspondan al código integrado.
-- Los fallos conocidos no resueltos deben vivir en `scripts/config/test-failure-catalog.json` con owner, clasificación y SLA.
-- Los riesgos flaky aceptados temporalmente deben vivir en `scripts/config/flaky-quarantine.json` y reflejarse también en el catálogo de fallos.
 
 ## Señales de convergencia
 

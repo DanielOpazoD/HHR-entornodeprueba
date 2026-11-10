@@ -35,7 +35,6 @@ const createScorecardRoot = () => {
   writeJson(root, 'reports/system-confidence.json', {
     generatedAt: '2026-04-10T00:00:00.000Z',
     overallStatus: 'ok',
-    knownFailures: { openCount: 0 },
   });
   writeJson(root, 'reports/operational-health.json', {
     generatedAt: '2026-04-10T00:00:00.000Z',
@@ -102,26 +101,13 @@ afterEach(() => {
 });
 
 describe('buildReleaseReadinessScorecard', () => {
-  it('treats an empty compatibility import inventory as healthy when there are no issues', () => {
+  it('reports a healthy scorecard when every supporting report is healthy', () => {
     const root = createScorecardRoot();
-    writeJson(root, 'reports/compatibility-import-governance.json', {
-      generatedAt: '2026-04-10T00:00:00.000Z',
-      checkedEntries: 0,
-      issues: [],
-    });
 
     const report = buildReleaseReadinessScorecard(root);
-    const compatibilityIndicator = report.indicators.find(
-      indicator => indicator.name === 'compatibility_governance'
-    );
 
     expect(report.overallStatus).toBe('ok');
     expect(report.issues).toEqual([]);
-    expect(compatibilityIndicator).toMatchObject({
-      status: 'ok',
-      summary: 'restrictedEntries=0, unauthorizedImports=0',
-    });
-
     expect(
       report.indicators.find(indicator => indicator.name === 'legacy_retirement_debt')
     ).toMatchObject({
@@ -138,11 +124,6 @@ describe('buildReleaseReadinessScorecard', () => {
 
   it('degrades release readiness when legacy retirement debt evidence is degraded', () => {
     const root = createScorecardRoot();
-    writeJson(root, 'reports/compatibility-import-governance.json', {
-      generatedAt: '2026-04-10T00:00:00.000Z',
-      checkedEntries: 0,
-      issues: [],
-    });
     writeJson(root, 'reports/legacy-retirement-debt.json', {
       generatedAt: 'stable:legacy-retirement-debt',
       status: 'degraded',
@@ -165,11 +146,6 @@ describe('buildReleaseReadinessScorecard', () => {
 
   it('degrades release readiness when bundle risk ledger evidence is degraded', () => {
     const root = createScorecardRoot();
-    writeJson(root, 'reports/compatibility-import-governance.json', {
-      generatedAt: '2026-04-10T00:00:00.000Z',
-      checkedEntries: 0,
-      issues: [],
-    });
     writeJson(root, 'reports/bundle-risk-ledger.json', {
       generatedAt: 'stable:bundle-risk-ledger',
       status: 'degraded',
@@ -189,34 +165,12 @@ describe('buildReleaseReadinessScorecard', () => {
     expect(report.issues).toContain('bundle_risk_ledger: surfaces=1, issues=1');
   });
 
-  it('degrades compatibility governance when unauthorized imports are reported', () => {
-    const root = createScorecardRoot();
-    writeJson(root, 'reports/compatibility-import-governance.json', {
-      generatedAt: '2026-04-10T00:00:00.000Z',
-      checkedEntries: 1,
-      issues: [{ path: 'src/example.ts' }],
-    });
-
-    const report = buildReleaseReadinessScorecard(root);
-
-    expect(report.overallStatus).toBe('degraded');
-    expect(report.issues).toContain(
-      'compatibility_governance: restrictedEntries=1, unauthorizedImports=1'
-    );
-  });
-
   it('treats system confidence as healthy when degradation is only worktree_state', () => {
     const root = createScorecardRoot();
     writeJson(root, 'reports/system-confidence.json', {
       generatedAt: '2026-04-10T00:00:00.000Z',
       overallStatus: 'degraded',
       degradedByWorktreeOnly: true,
-      knownFailures: { openCount: 0 },
-    });
-    writeJson(root, 'reports/compatibility-import-governance.json', {
-      generatedAt: '2026-04-10T00:00:00.000Z',
-      checkedEntries: 0,
-      issues: [],
     });
 
     const report = buildReleaseReadinessScorecard(root);
@@ -233,11 +187,6 @@ describe('buildReleaseReadinessScorecard', () => {
 
   it('surfaces release build hotspots in the scorecard output', () => {
     const root = createScorecardRoot();
-    writeJson(root, 'reports/compatibility-import-governance.json', {
-      generatedAt: '2026-04-10T00:00:00.000Z',
-      checkedEntries: 0,
-      issues: [],
-    });
     writeText(root, 'dist/assets/index-real.js', 'x'.repeat(1000));
     writeText(root, 'dist/assets/vendor-excel-core-real.js', 'x'.repeat(2000));
 
@@ -259,11 +208,6 @@ describe('buildReleaseReadinessScorecard', () => {
 
   it('keeps startup budget target misses degraded when dist assets are available', () => {
     const root = createScorecardRoot();
-    writeJson(root, 'reports/compatibility-import-governance.json', {
-      generatedAt: '2026-04-10T00:00:00.000Z',
-      checkedEntries: 0,
-      issues: [],
-    });
     writeJson(root, 'scripts/config/bundle-budget.json', {
       chunkMaxBytes: 1_250_000,
       startupChunkBudgets: [
@@ -295,11 +239,6 @@ describe('buildReleaseReadinessScorecard', () => {
 
   it('treats near-limit runtime assets as advisory when hard budgets and ledgers remain healthy', () => {
     const root = createScorecardRoot();
-    writeJson(root, 'reports/compatibility-import-governance.json', {
-      generatedAt: '2026-04-10T00:00:00.000Z',
-      checkedEntries: 0,
-      issues: [],
-    });
     writeJson(root, 'scripts/config/bundle-budget.json', {
       chunkMaxBytes: 1_250_000,
       startupChunkBudgets: [
@@ -341,11 +280,6 @@ describe('buildReleaseReadinessScorecard', () => {
 
   it('degrades unknown future asset statuses by default', () => {
     const root = createScorecardRoot();
-    writeJson(root, 'reports/compatibility-import-governance.json', {
-      generatedAt: '2026-04-10T00:00:00.000Z',
-      checkedEntries: 0,
-      issues: [],
-    });
     writeJson(root, 'reports/operational-health.json', {
       generatedAt: '2026-04-10T00:00:00.000Z',
       flowPerformance: { status: 'passing' },
@@ -385,11 +319,6 @@ describe('buildReleaseReadinessScorecard', () => {
 
   it('falls back to operational health assets when dist assets are absent', () => {
     const root = createScorecardRoot();
-    writeJson(root, 'reports/compatibility-import-governance.json', {
-      generatedAt: '2026-04-10T00:00:00.000Z',
-      checkedEntries: 0,
-      issues: [],
-    });
 
     const report = buildReleaseReadinessScorecard(root);
 
@@ -399,11 +328,6 @@ describe('buildReleaseReadinessScorecard', () => {
 
   it('surfaces frontend startup health as its own readiness indicator', () => {
     const root = createScorecardRoot();
-    writeJson(root, 'reports/compatibility-import-governance.json', {
-      generatedAt: '2026-04-10T00:00:00.000Z',
-      checkedEntries: 0,
-      issues: [],
-    });
     writeJson(root, 'reports/operational-health.json', {
       generatedAt: '2026-04-10T00:00:00.000Z',
       flowPerformance: { status: 'passing' },
@@ -437,7 +361,7 @@ describe('buildReleaseReadinessScorecard', () => {
       degradedByWorktreeOnly: true,
       indicators: [
         { name: 'worktree_state', status: 'degraded', summary: 'status=dirty' },
-        { name: 'system_confidence', status: 'ok', summary: 'overall=ok, openKnownFailures=0' },
+        { name: 'system_confidence', status: 'ok', summary: 'overall=ok' },
       ],
       sources: {},
       issues: ['worktree_state: status=dirty'],

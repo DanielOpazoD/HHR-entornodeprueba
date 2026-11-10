@@ -17,8 +17,6 @@ const GENERATED_REPORT_STATUS_SUFFIXES = new Set([
   'reports/clinical-release-signoff.md',
   'reports/compatibility-governance.json',
   'reports/compatibility-governance.md',
-  'reports/compatibility-import-governance.json',
-  'reports/compatibility-import-governance.md',
   'reports/critical-coverage.json',
   'reports/critical-coverage.md',
   'reports/e2e/clinical-visual-release-report.json',

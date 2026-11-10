@@ -104,12 +104,6 @@ export const RELEASE_EVIDENCE_INVENTORY = [
     consumers: ['deuda de mantenimiento', 'scorecard de release'],
   }),
   supportingReport({
-    id: 'compatibility-import-governance',
-    label: 'Compatibilidad de importaciones',
-    owner: 'Architecture',
-    consumers: ['scorecard de release'],
-  }),
-  supportingReport({
     id: 'technical-ownership-map',
     label: 'Mapa de ownership',
     owner: 'Architecture',

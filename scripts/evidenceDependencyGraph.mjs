@@ -23,13 +23,6 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
     artifacts: ['reports/legacy-retirement-debt.json', 'reports/legacy-retirement-debt.md'],
     dependencies: ['quality-metrics'],
   }),
-  'compatibility-import-governance': reportNode({
-    command: 'report:compatibility-import-governance',
-    artifacts: [
-      'reports/compatibility-import-governance.json',
-      'reports/compatibility-import-governance.md',
-    ],
-  }),
   'critical-coverage': reportNode({
     command: 'report:critical-coverage',
     artifacts: ['reports/critical-coverage.json', 'reports/critical-coverage.md'],
@@ -199,7 +192,6 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
       'bundle-risk-ledger',
       'compatibility-governance',
       'legacy-retirement-debt',
-      'compatibility-import-governance',
       'critical-coverage',
       'operational-health',
       'system-confidence',

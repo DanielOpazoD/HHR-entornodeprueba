@@ -100,7 +100,6 @@ actualizar el `Estado` y apuntar al ADR reemplazante.
 - [RUNBOOK_RAYEN_CLINICAL_ENRICHMENT_BATCH](RUNBOOK_RAYEN_CLINICAL_ENRICHMENT_BATCH.md) — enriquecimiento clínico Rayen
 - [RUNBOOK_RELEASE_EVIDENCE_CONTRACT](RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md) — evidencia vigente de release
 - [CI_GATES_AND_FAILURE_RUNBOOKS](CI_GATES_AND_FAILURE_RUNBOOKS.md) — gates de CI y recuperación
-- [TEST_FLAKY_QUARANTINE_POLICY](TEST_FLAKY_QUARANTINE_POLICY.md) — cuarentena de tests flaky
 - [RUNBOOK_LOCAL_E2E_EMULATOR](RUNBOOK_LOCAL_E2E_EMULATOR.md) — correr E2E con emulador Firestore en local
 
 ### Operativa
