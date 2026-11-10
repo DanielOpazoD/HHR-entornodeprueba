@@ -1,5 +1,5 @@
 import { StabilityRules } from '@/hooks/useStabilityRules';
-import type { DischargeState } from '@/features/census/types/censusActionTypes';
+import type { DischargeState } from '@/domain/censusActionContracts';
 import {
   normalizeOptionalText,
   validateDischargeExecutionInput,

@@ -2,7 +2,7 @@ import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { CensusModalBindingsModel } from '@/features/census/hooks/useCensusModalBindings';
 import { useCensusActionModalProps } from '@/features/census/hooks/useCensusActionModalProps';
-import { createInitialTransferState } from '@/features/census/types/censusActionTypes';
+import { createInitialTransferState } from '@/domain/censusActionContracts';
 
 describe('useCensusActionModalProps', () => {
   it('maps bindings + handlers + commands into modal props', () => {

@@ -7,11 +7,7 @@ import {
   resolveMoveOrCopyCommand,
   resolveTransferCommand,
 } from '@/features/census/controllers/censusActionExecutionController';
-import {
-  ActionState,
-  DischargeState,
-  TransferState,
-} from '@/features/census/types/censusActionTypes';
+import { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
 import {
   EVACUATION_METHOD_OTHER,
   RECEIVING_CENTER_OTHER,

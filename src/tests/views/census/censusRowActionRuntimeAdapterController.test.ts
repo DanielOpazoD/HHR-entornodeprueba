@@ -6,7 +6,7 @@ import {
   DEFAULT_RECEIVING_CENTER,
   DEFAULT_TRANSFER_ESCORT,
 } from '@/constants/clinicalMovementConstants';
-import type { DischargeState, TransferState } from '@/features/census/types/censusActionTypes';
+import type { DischargeState, TransferState } from '@/domain/censusActionContracts';
 import { buildRowActionRuntimeActions } from '@/features/census/controllers/censusRowActionRuntimeAdapterController';
 
 describe('censusRowActionRuntimeAdapterController', () => {

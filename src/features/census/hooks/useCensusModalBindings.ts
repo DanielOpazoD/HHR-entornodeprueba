@@ -7,11 +7,7 @@ import {
   type MoveCopyModalBinding,
   type TransferModalBinding,
 } from '@/features/census/controllers/censusModalBindingsController';
-import type {
-  ActionState,
-  DischargeState,
-  TransferState,
-} from '@/features/census/types/censusActionTypes';
+import type { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
 
 export interface CensusModalBindingsModel {
   moveCopy: MoveCopyModalBinding;

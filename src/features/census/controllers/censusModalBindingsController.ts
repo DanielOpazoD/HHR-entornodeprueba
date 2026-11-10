@@ -1,8 +1,4 @@
-import type {
-  ActionState,
-  DischargeState,
-  TransferState,
-} from '@/features/census/types/censusActionTypes';
+import type { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
 
 export interface MoveCopyModalBinding {
   isOpen: boolean;

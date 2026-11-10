@@ -16,7 +16,7 @@ import type { CensusActionRuntimeRefs } from '@/features/census/hooks/useCensusA
 import { useCensusModalCommand } from '@/features/census/hooks/useCensusModalCommand';
 import { useConfirmedMovementAction } from '@/features/census/hooks/useConfirmedMovementAction';
 import type { DischargeExecutionInput } from '@/features/census/domain/movements/contracts';
-import type { DischargeState } from '@/features/census/types/censusActionTypes';
+import type { DischargeState } from '@/domain/censusActionContracts';
 import { getLatestOpenTransferRequestByBedId } from '@/services/transfers/transferService';
 import { recordCriticalClinicalAction } from '@/services/observability/criticalClinicalActionRecorder';
 import { createScopedLogger } from '@/services/utils/loggerScope';

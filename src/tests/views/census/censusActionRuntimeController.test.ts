@@ -7,11 +7,7 @@ import {
   executeMoveOrCopyController,
   executeTransferController,
 } from '@/features/census/controllers/censusActionRuntimeController';
-import type {
-  ActionState,
-  DischargeState,
-  TransferState,
-} from '@/features/census/types/censusActionTypes';
+import type { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
 import {
   DEFAULT_DISCHARGE_STATUS,
   DEFAULT_EVACUATION_METHOD,

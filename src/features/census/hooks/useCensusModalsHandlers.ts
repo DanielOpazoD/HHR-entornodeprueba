@@ -10,11 +10,7 @@ import {
   patchMoveCopyTargetBed,
   patchTransferField,
 } from '@/features/census/controllers/censusModalStateController';
-import type {
-  ActionState,
-  DischargeState,
-  TransferState,
-} from '@/features/census/types/censusActionTypes';
+import type { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
 import type { TransferStateFieldUpdate } from '@/features/census/controllers/censusTransferStateController';
 import type { DischargeStatus } from '@/constants/clinicalMovementConstants';
 

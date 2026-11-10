@@ -9,11 +9,7 @@ import type {
   DischargeExecutionInput,
   TransferExecutionInput,
 } from '@/features/census/domain/movements/contracts';
-import type {
-  ActionState,
-  DischargeState,
-  TransferState,
-} from '@/features/census/types/censusActionTypes';
+import type { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
 
 export interface CensusActionStateContextType {
   actionState: ActionState;

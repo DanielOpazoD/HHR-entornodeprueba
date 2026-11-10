@@ -7,11 +7,7 @@ import type {
   DischargeExecutionInput,
   TransferExecutionInput,
 } from '@/features/census/domain/movements/contracts';
-import type {
-  ActionState,
-  DischargeState,
-  TransferState,
-} from '@/features/census/types/censusActionTypes';
+import type { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
 import type { CensusActionRuntimeRefs } from '@/features/census/hooks/useCensusActionRuntimeRefs';
 import { useCensusDischargeCommand } from '@/features/census/hooks/useCensusDischargeCommand';
 import { useCensusMoveOrCopyCommand } from '@/features/census/hooks/useCensusMoveOrCopyCommand';

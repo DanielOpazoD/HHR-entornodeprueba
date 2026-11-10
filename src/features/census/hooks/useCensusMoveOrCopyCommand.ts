@@ -10,7 +10,7 @@ import {
 } from '@/features/census/controllers/censusActionNotificationController';
 import type { CensusActionRuntimeRefs } from '@/features/census/hooks/useCensusActionRuntimeRefs';
 import { useSingleFlightAsyncCommand } from '@/features/census/hooks/useSingleFlightAsyncCommand';
-import type { ActionState } from '@/features/census/types/censusActionTypes';
+import type { ActionState } from '@/domain/censusActionContracts';
 
 interface UseCensusMoveOrCopyCommandParams extends Pick<
   CensusActionRuntimeRefs,

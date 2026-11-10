@@ -7,7 +7,7 @@ import {
   EVACUATION_METHOD_AEROCARDAL,
 } from '@/constants/clinicalMovementConstants';
 import { applyTransferStateUpdate } from '@/features/census/controllers/censusTransferStateController';
-import type { TransferState } from '@/features/census/types/censusActionTypes';
+import type { TransferState } from '@/domain/censusActionContracts';
 
 const baseState: TransferState = {
   bedId: 'R1',
