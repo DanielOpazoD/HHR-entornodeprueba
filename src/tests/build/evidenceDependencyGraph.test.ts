@@ -185,8 +185,12 @@ describe('evidence dependency graph', () => {
   });
 
   it('keeps report dependencies separate from explicit file dependencies', () => {
-    expect(getEvidenceReportDependencies('operational-health')).toEqual(['critical-coverage']);
+    expect(getEvidenceReportDependencies('operational-health')).toEqual([
+      'critical-coverage',
+      'compatibility-governance',
+    ]);
     expect(getEvidenceReportFileDependencies('operational-health')).toEqual([
+      'reports/e2e/flow-performance-budget-summary.json',
       'reports/e2e/preview-bootstrap/report.json',
       'reports/e2e/preview-bootstrap/ci-provenance.json',
     ]);

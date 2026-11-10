@@ -21,7 +21,7 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
   'legacy-retirement-debt': reportNode({
     command: 'report:legacy-retirement-debt',
     artifacts: ['reports/legacy-retirement-debt.json', 'reports/legacy-retirement-debt.md'],
-    dependencies: ['quality-metrics'],
+    dependencies: ['quality-metrics', 'compatibility-governance'],
   }),
   'critical-coverage': reportNode({
     command: 'report:critical-coverage',
@@ -37,8 +37,9 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
   'operational-health': reportNode({
     command: 'report:operational-health',
     artifacts: ['reports/operational-health.json', 'reports/operational-health.md'],
-    dependencies: ['critical-coverage'],
+    dependencies: ['critical-coverage', 'compatibility-governance'],
     fileDependencies: [
+      'reports/e2e/flow-performance-budget-summary.json',
       'reports/e2e/preview-bootstrap/report.json',
       'reports/e2e/preview-bootstrap/ci-provenance.json',
     ],
@@ -111,8 +112,11 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
   }),
   'test-runtime-governance': reportNode({
     command: 'report:test-runtime-governance',
+    dependencies: ['unit-shard-runtime-profile', 'ci-runtime-observed-profile'],
     artifacts: ['reports/test-runtime-governance.json', 'reports/test-runtime-governance.md'],
     fileDependencies: [
+      'reports/e2e/critical-operational-metrics.json',
+      'reports/ci-quality-static-profile.json',
       '.github/workflows/ci-cd.yml',
       '.github/workflows/nightly-test-runtime.yml',
       'scripts/check-test-runtime-governance.mjs',
@@ -133,6 +137,7 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
     command: 'report:unit-shard-runtime-profile',
     artifacts: ['reports/unit-shard-runtime-profile.json', 'reports/unit-shard-runtime-profile.md'],
     fileDependencies: [
+      'reports/unit-shard-vitest-profile.json',
       'scripts/check-unit-shard-balance.mjs',
       'scripts/config/unit-shard-balance.json',
       'scripts/profile-unit-shard-runtime.mjs',
@@ -150,6 +155,7 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
     ],
     dependencies: ['unit-shard-runtime-profile'],
     fileDependencies: [
+      'reports/ci-runtime-observed-input.json',
       'scripts/collect-github-actions-runtime.mjs',
       'scripts/check-ci-runtime-telemetry.mjs',
       'scripts/ciRuntimeTelemetrySupport.mjs',
