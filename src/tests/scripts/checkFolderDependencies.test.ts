@@ -20,7 +20,12 @@ const rejectedPairs = new Set([
 ]);
 const matrix = readFileSync('scripts/folder-dependency-matrix.json', 'utf8');
 const allowlist = readFileSync('scripts/folder-dependency-allowlist.json', 'utf8');
-const fixtures: { name: string; files: Record<string, string>; status: number }[] = [];
+const fixtures: {
+  name: string;
+  files: Record<string, string>;
+  status: number;
+  reportedCrossings?: number;
+}[] = [];
 for (const from of zones) {
   for (const to of zones) {
     for (const form of ['alias', 'relative', 're-export']) {
@@ -132,6 +137,42 @@ for (const [name, source, folderStatus] of [
   });
 }
 
+for (const code of [
+  "import { x } from '@/services/target';",
+  "import('@/services/target');",
+  "import(/* webpackChunkName: 'target' */ '@/services/target');",
+  "export { x } from '@/services/target';",
+  "import type { x } from '@/services/target';",
+]) {
+  fixtures.push({
+    name: `inventory reports domain->services for ${code}`,
+    files: {
+      'src/domain/probe.ts': code,
+      'src/services/target.ts': 'export const x = 1;',
+    },
+    status: 0,
+    reportedCrossings: 1,
+  });
+}
+
+for (const [name, code] of [
+  ['side effect stays excluded', "import '@/services/target';"],
+  ['unresolved stays ignored', "import('@/services/missing');"],
+  ['package stays ignored', "import('package');"],
+  ['nonliteral stays ignored', 'import(target);'],
+  ['comment stays ignored', "// import('@/services/target');"],
+]) {
+  fixtures.push({
+    name: `inventory ${name}`,
+    files: {
+      'src/domain/probe.ts': code,
+      'src/services/target.ts': 'export const x = 1;',
+    },
+    status: 0,
+    reportedCrossings: 0,
+  });
+}
+
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
@@ -152,12 +193,21 @@ describe('check-folder-dependencies frozen verdicts', () => {
     }
     const result = spawnSync(
       process.execPath,
-      [path.resolve('scripts/check-folder-dependencies.mjs')],
+      [
+        path.resolve('scripts/check-folder-dependencies.mjs'),
+        ...(fixture.reportedCrossings === undefined ? [] : ['--report-imports']),
+      ],
       {
         cwd: root,
         encoding: 'utf8',
       }
     );
+    if (fixture.reportedCrossings !== undefined) {
+      expect(result.stdout).toContain(`Unallowlisted crossings: ${fixture.reportedCrossings}`);
+      if (fixture.reportedCrossings > 0) {
+        expect(result.stdout).toContain('src/domain/probe.ts:1 domain -> services');
+      }
+    }
     expect(result.error).toBeUndefined();
     expect(result.status, `${result.stdout}${result.stderr}`).toBe(fixture.status);
   });
