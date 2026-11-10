@@ -1,7 +1,9 @@
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { EgresoReportRow } from '../contracts/egresoReport';
-import { normalizeRut } from '@/utils/rutUtils';
+import { normalizedName } from './previousCensusEgresoCandidates';
+import { isValidRut, normalizeRut } from '@/utils/rutUtils';
+import { calendarDateForMovement } from '@/utils/movementCalendarDate';
 import { eligibleExactEpisodes, findPlannedPatientByEpisode } from './egresoReportEvidence';
 import {
   correctedStamp,
@@ -140,6 +142,9 @@ export const selectEligibleEgresoRows = (
   const occupiedCribs = occupiedClinicalCribsByRun(record);
   const rows: EgresoReportRow[] = [];
   let nextDiff = diff;
+  // Recorded crib discharge -> the administrative event it explains. Jasper repeats one event per
+  // principal diagnosis, so its repeated rows share the movement; another event never does.
+  const explainedCribMovements = new Map<number, string>();
   // Filas del RUN que este mismo bucle NO descarta (estampa válida y dentro del
   // día): una fila D+1 real o inválida no debe retener la etiqueta de redundancia.
   const stampedRowsByRun = new Map<string, number>();
@@ -239,10 +244,32 @@ export const selectEligibleEgresoRows = (
     // vuelo conserva la exigencia de revisión. Con episodio exacto solo cuenta
     // un movimiento de ESE episodio (un movimiento legacy por RUN no debe
     // suprimir el egreso de un reingreso posterior).
+    // A non-RUN row can only consume one matching, document-less nested discharge.
+    const administrativeEvent = `${row.run}|${row.fechaEgreso}|${row.bedLabel ?? ''}`;
+    const recordedCribIndex =
+      !reportedEpisode && !isValidRut(row.run) && normalizedName(row.patientName)
+        ? (record.discharges ?? []).findIndex(
+            (movement, index) =>
+              (explainedCribMovements.get(index) ?? administrativeEvent) === administrativeEvent &&
+              !movement.deletedAt &&
+              movement.isNested &&
+              movement.bedId === reportedBedId &&
+              !movement.rut?.trim() &&
+              // Stored under the calendar day of the event; a dawn discharge falls on the next one.
+              movement.movementDate === calendarDateForMovement(stamp.iso, stamp.hhmm) &&
+              movement.time === stamp.hhmm &&
+              normalizedName(movement.patientName) === normalizedName(row.patientName)
+          )
+        : -1;
     const alreadyRecorded = reportedEpisode
       ? hasRecordedMovement(record, '', reportedEpisode)
-      : Boolean(run) && hasRecordedMovement(record, run);
-    if (!current && !currentCrib && !activeCrib && !provisional && alreadyRecorded) continue;
+      : (Boolean(run) && hasRecordedMovement(record, run)) || recordedCribIndex >= 0;
+
+    if (!current && !currentCrib && !activeCrib && !provisional && alreadyRecorded) {
+      if (recordedCribIndex >= 0)
+        explainedCribMovements.set(recordedCribIndex, administrativeEvent);
+      continue;
+    }
     // Same-day readmission: this row is a discharge already applied to an earlier episode, so it
     // no longer describes the active one. Unapplied rows still ask for review.
     if (!reportedEpisode && isAppliedDischargeOfEarlierEpisode(record, row, run, stamp, current))
@@ -296,6 +323,7 @@ export const selectEligibleEgresoRows = (
           source: 'gestion-camas/egresos',
           sourceTimestamp: row.fechaEgreso.slice(0, 100),
           sourceClinicalDay: stamp.iso,
+          sourceClinicalTime: stamp.hhmm,
           bedId: (row.bedLabel ?? '').slice(0, 80),
         },
         rut: row.run,
