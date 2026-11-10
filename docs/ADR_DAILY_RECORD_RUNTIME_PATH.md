@@ -50,9 +50,9 @@ Failed local admission aborts initialization instead of treating an existing rem
 Explicit range downloads use the same unresolved-write admission in one IndexedDB transaction
 for the entire range. An indexed queue lookup limits per-day inspection to dates with queued
 tasks. The returned range includes retained local projections, matching what remains stored;
-it does not acknowledge their pending edits. A local write failure is reported by the store and
-writes nothing; the caller still receives the server's answer. An empty remote range does not
-write local storage.
+it does not acknowledge their pending edits. A local write failure stores nothing and rejects the
+range query through its existing error channel, because the server copies may be older than the
+days this device holds unsent. An empty remote range does not write local storage.
 
 Query callers use `createDailyRecordQueryOptions` so admission also runs at QueryClient's
 actual publication, after the query promise settles. A superseded point read keeps the

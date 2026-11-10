@@ -49,14 +49,24 @@ describe('range download with real local storage', () => {
     }
   );
 
-  it('still returns what the server answered when the local write fails', async () => {
-    const records = [record('Remota')];
-    remote.mockResolvedValue(records);
+  it('rejects, storing nothing, when the local write fails', async () => {
+    const local = record('Nota local nueva');
+    await hospitalDB.dailyRecords.put(local);
+    await hospitalDB.syncQueue.add({
+      opId: 'synthetic-pending',
+      key: `daily:${date}`,
+      type: 'UPDATE_DAILY_RECORD',
+      status: 'PENDING',
+      payload: local,
+      timestamp: 1,
+      retryCount: 0,
+    });
+    remote.mockResolvedValue([record('Remota'), { ...record('Remota'), date: '2026-04-03' }]);
     vi.spyOn(hospitalDB.dailyRecords, 'bulkPut').mockRejectedValue(
       new Error('synthetic storage failure')
     );
-    expect(await syncRecordsRange(date, date)).toEqual(records);
-    expect(await hospitalDB.dailyRecords.count()).toBe(0);
+    await expect(syncRecordsRange(date, '2026-04-03')).rejects.toThrow('synthetic storage failure');
+    expect(await hospitalDB.dailyRecords.toArray()).toEqual([local]);
   });
 
   it('writes nothing if a pending task has lost its local copy', async () => {
@@ -69,9 +79,8 @@ describe('range download with real local storage', () => {
       timestamp: 1,
       retryCount: 0,
     });
-    const records = [record('Remota')];
-    remote.mockResolvedValue(records);
-    expect(await syncRecordsRange(date, date)).toEqual(records);
+    remote.mockResolvedValue([record('Remota')]);
+    await expect(syncRecordsRange(date, date)).rejects.toThrow('No existe la copia local');
     expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
     expect(await hospitalDB.syncQueue.count()).toBe(1);
   });
