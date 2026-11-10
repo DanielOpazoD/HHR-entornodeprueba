@@ -41,7 +41,6 @@ const { indexedDbFacadeMock, firestoreMock } = vi.hoisted(() => ({
     getAllDates: vi.fn().mockResolvedValue([]),
     getRecordsRange: vi.fn().mockResolvedValue([]),
     getRecordsForMonth: vi.fn().mockResolvedValue([]),
-    saveRecords: vi.fn(),
     saveCatalog: vi.fn(),
     getCatalog: vi.fn().mockResolvedValue([]),
     getCatalogValues: vi.fn().mockResolvedValue([]),
@@ -83,7 +82,6 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getAllDates: indexedDbFacadeMock.getAllDates,
   getRecordsRange: indexedDbFacadeMock.getRecordsRange,
   getRecordsForMonth: indexedDbFacadeMock.getRecordsForMonth,
-  saveRecords: indexedDbFacadeMock.saveRecords,
 }));
 vi.mock('@/services/storage/indexeddb/indexedDbCatalogService', () => ({
   saveCatalog: indexedDbFacadeMock.saveCatalog,

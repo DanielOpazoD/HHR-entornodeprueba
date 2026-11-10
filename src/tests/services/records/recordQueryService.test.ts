@@ -13,7 +13,7 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordsForMonth: mocks.month,
   getRecordsRange: mocks.localRange,
   getAllRecordsSorted: mocks.all,
-  saveRecords: mocks.save,
+  saveRecordsStrict: mocks.save,
 }));
 vi.mock('@/services/storage/firestore', () => {
   mocks.remoteLoaded();
@@ -30,7 +30,7 @@ describe('record query local/remote boundary', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.resetAllMocks();
-    mocks.save.mockResolvedValue(undefined);
+    mocks.save.mockResolvedValue({ ok: true });
   });
   afterEach(() => vi.restoreAllMocks());
 
@@ -61,7 +61,7 @@ describe('record query local/remote boundary', () => {
     expect(await service.syncRecordsRange('2026-04-01', '2026-04-30')).toBe(records);
     expect(mocks.remoteLoaded).toHaveBeenCalledTimes(1);
     expect(mocks.range).toHaveBeenCalledWith('2026-04-01', '2026-04-30');
-    expect(mocks.save).toHaveBeenCalledExactlyOnceWith(records);
+    expect(mocks.save).toHaveBeenCalledExactlyOnceWith(records, { preserveUnresolvedWrites: true });
   });
 
   it('does not persist an empty or failed remote response', async () => {
