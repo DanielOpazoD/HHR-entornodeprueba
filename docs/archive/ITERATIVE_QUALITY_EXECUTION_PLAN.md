@@ -98,7 +98,7 @@ Eliminar fallas de configuración, catálogo y artefactos faltantes que hoy impi
 
 ### Checks de salida
 
-- `npm run check:feature-dependencies`
+- `npm run lint`
 - `npm run check:test-failure-catalog`
 - `npm run check:guardrail-governance`
 - `npm run check:operational-runbooks`
@@ -263,7 +263,7 @@ Dejar entrypoints públicos mínimos y explícitos para `census`, `clinical-docu
 
 ### Checks de salida
 
-- `npm run check:feature-dependencies`
+- `npm run lint`
 - `npm run check:shared-layer-boundary`
 - `npm run check:folder-dependencies`
 
