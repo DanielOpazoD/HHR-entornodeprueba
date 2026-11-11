@@ -37,9 +37,18 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDate: mocks.getLocal,
   captureLocalRecordBase: async () => ({ kind: 'stored', record: await mocks.getLocal() }),
-  inspectLocalRecordAdmission: async () => ({ status: 'admitted' }),
+  inspectLocalRecordAdmission: async (_date: string, base: { record: unknown }) => ({
+    status: 'admitted',
+    record: base.record,
+  }),
   saveRecord: vi.fn(),
   saveRecordStrict: mocks.save,
+  admitLocalRecords: async (
+    candidates: Array<{ record: import('@/types/domain/dailyRecord').DailyRecord }>
+  ) => {
+    for (const _candidate of candidates) await mocks.save();
+    return candidates.map(({ record }) => ({ date: record.date, status: 'admitted', record }));
+  },
 }));
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/storage/firestore/firestoreRecordQueries')>()),

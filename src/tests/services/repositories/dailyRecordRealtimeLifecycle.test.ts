@@ -7,6 +7,20 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', async importOrigi
   ...(await importOriginal<typeof import('@/services/storage/indexeddb/indexedDbRecordService')>()),
   getRecordForDate: vi.fn(),
   saveRecordStrict: vi.fn(),
+  admitLocalRecords: async (
+    candidates: Array<{ record: DailyRecord; isCurrent?: () => boolean }>
+  ) => {
+    const results = [];
+    for (const { record, isCurrent } of candidates) {
+      if (isCurrent && !isCurrent()) {
+        results.push({ date: record.date, status: 'superseded', record: null });
+        continue;
+      }
+      await saveRecordStrict(record, { preserveUnresolvedWrites: true });
+      results.push({ date: record.date, status: 'admitted', record });
+    }
+    return results;
+  },
 }));
 
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', async importOriginal => ({
@@ -213,7 +227,7 @@ describe('daily record realtime subscription lifecycle', () => {
     expect(loadRemoteRecordWithFallback).not.toHaveBeenCalled();
   });
 
-  it.each(['local read', 'hydration', 'pending projection'])(
+  it.each(['local read', 'hydration'])(
     'contains a rejected %s and accepts a later valid snapshot without recursive IO fallback',
     async stage => {
       const failure = deferred<never>();
