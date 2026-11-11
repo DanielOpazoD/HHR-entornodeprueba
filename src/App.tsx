@@ -25,7 +25,7 @@ import {
   PrescriptionUploadView,
   PrescriptionVisorView,
   WoundCareMobileUploadView,
-} from '@/app-shell/LazyViews';
+} from '@/views/LazyViews';
 import { resolveRuntimeLoadingScreenMode } from '@/app-shell/bootstrap/appShellLoadingPolicy';
 import { AuditProvider } from '@/context/AuditContext';
 import { AuthProvider } from '@/context/AuthContext';

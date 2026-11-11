@@ -35,7 +35,7 @@ vi.mock('@/components/ui/ViewLoader', () => ({
   ViewLoader: () => <div data-testid="view-loader">Loading</div>,
 }));
 
-vi.mock('@/app-shell/LazyViews', () => ({
+vi.mock('@/views/LazyViews', () => ({
   AnalyticsView: ({ onOpenCensusDate }: { onOpenCensusDate?: (date: string) => void }) => (
     <div data-testid="analytics-view" data-has-open-date={Boolean(onOpenCensusDate)} />
   ),

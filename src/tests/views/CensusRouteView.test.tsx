@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { CensusRouteView } from '@/app-shell/CensusRouteView';
+import { CensusRouteView } from '@/views/CensusRouteView';
 
 const routeState = vi.hoisted(() => ({
   censusProps: null as Record<string, unknown> | null,

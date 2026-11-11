@@ -190,6 +190,7 @@ import { useDailyRecord } from '@/hooks/useDailyRecord';
 - [src/tests/README.md](src/tests/README.md)
 - [src/types/README.md](src/types/README.md)
 - [src/utils/README.md](src/utils/README.md)
+- [src/views/README.md](src/views/README.md)
 
 ### READMEs de profundización (módulos críticos)
 

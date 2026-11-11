@@ -59,7 +59,7 @@ vi.mock('@/hooks/useReminders', () => ({
   useReminderCenter: vi.fn(),
 }));
 
-vi.mock('@/app-shell/LazyViews', () => ({
+vi.mock('@/views/LazyViews', () => ({
   CensusEmailConfigModal: () => <div data-testid="email-modal">EmailModal</div>,
 }));
 

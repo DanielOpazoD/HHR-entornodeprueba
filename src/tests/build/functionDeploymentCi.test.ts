@@ -112,7 +112,7 @@ describe('validated Functions deployment', () => {
       'scripts/check-function-deployment-ci.mjs',
     ])
       expect(affectsFunctionDeployment(file), file).toBe(true);
-    for (const file of ['src/app-shell/CensusView.tsx', 'README.md', 'docs/API.md'])
+    for (const file of ['src/views/CensusView.tsx', 'README.md', 'docs/API.md'])
       expect(affectsFunctionDeployment(file), file).toBe(false);
   });
 

@@ -3,7 +3,7 @@ import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { SyncWatcher } from '@/components/shared/SyncWatcher';
 import StorageStatusBadge from '@/components/layout/StorageStatusBadge';
 import { PinLockScreen } from '@/components/security/PinLockScreen';
-import { CensusEmailConfigModal } from '@/app-shell/LazyViews';
+import { CensusEmailConfigModal } from '@/views/LazyViews';
 import type { UseUIStateReturn } from '@/hooks/useUIState';
 import type { AppContentRuntime } from '@/components/layout/app-content/useAppContentRuntime';
 import { buildAppContentOverlayState } from '@/components/layout/app-content/appContentOverlaysController';

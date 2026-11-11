@@ -13,8 +13,7 @@
 @source "./index.tsx";
 @source "./components/**/*.{js,ts,jsx,tsx}";
 @source "./features/**/*.{js,ts,jsx,tsx}";
-@source "./app-shell/LazyViews.ts";
-@source "./app-shell/CensusRouteView.tsx";
+@source "./views/**/*.{js,ts,jsx,tsx}";
 /* Button conserva la exclusión del escaneo que tenía en core/ui. */
 @source not "./components/ui/base/Button.tsx";
 @source "./context/**/*.{js,ts,jsx,tsx}";

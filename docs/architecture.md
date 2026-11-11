@@ -57,8 +57,9 @@ requiere conexión; su libro HTML descargado es autónomo. El contrato `historyF
 de extensión 0.48.77 exige cobertura desde el ingreso y conserva el comportamiento
 de los consumidores clínicos existentes.
 
-Las vistas lazy y la composición de rutas viven en `src/app-shell/`, junto al
-armado de la aplicación. Los contratos HTTP compartidos con Netlify viven en
+Las vistas lazy y la composición de rutas viven en `src/views/`: es la única
+carpeta fuera de los features que puede importarlos, y queda fuera del control
+de montajes diferidos del primer pintado. Los contratos HTTP compartidos con Netlify viven en
 `src/shared/contracts/serverless.ts`; la configuración transversal permanece en
 `src/config/` con su límite de dependencias de ESLint.
 

@@ -40,7 +40,8 @@ src/
 ├── styles/
 ├── tests/
 ├── types/
-└── utils/
+├── utils/
+└── views/
 ```
 
 ## Archivo raíz -> propósito
@@ -58,7 +59,7 @@ src/
 
 | Directorio        | Qué contiene                                     | README                                           |
 | ----------------- | ------------------------------------------------ | ------------------------------------------------ |
-| `src/app-shell`   | Vistas lazy, rutas y armado de la aplicación     | [Arquitectura](../docs/architecture.md)          |
+| `src/app-shell`   | Armado de la aplicación autenticada              | [Arquitectura](../docs/architecture.md)          |
 | `src/application` | Casos de uso y coordinación                      | [Codebase Canon](../docs/CODEBASE_CANON.md)      |
 | `src/assets`      | Recursos estáticos internos                      | [src/assets/README.md](assets/README.md)         |
 | `src/components`  | UI compartida, layout, modales, componentes base | [src/components/README.md](components/README.md) |
@@ -76,6 +77,7 @@ src/
 | `src/tests`       | Pruebas unitarias/integración por capas/features | [src/tests/README.md](tests/README.md)           |
 | `src/types`       | Tipos TypeScript globales de dominio/DTO         | [src/types/README.md](types/README.md)           |
 | `src/utils`       | Utilidades puras compartidas                     | [src/utils/README.md](utils/README.md)           |
+| `src/views`       | Vistas lazy y composición de módulos             | [src/views/README.md](views/README.md)           |
 
 ### Profundización recomendada (alta complejidad)
 
@@ -122,4 +124,4 @@ find src/features -maxdepth 3 -type d | sort
 - Si cambias ownership de capas, actualiza `docs/CODEBASE_CANON.md`.
 - Si cambias contratos (`types`, `schemas`, `domain/contracts`), documenta el impacto en el README del módulo.
 - Los contratos de controller reutilizados entre features deben vivir en `src/shared/contracts/`, no dentro de una feature.
-- Las imports desde `src/App.tsx`, `src/app-shell/*` y cualquier consumidor externo a una feature deben pasar por el `index.ts` o `public.ts` del módulo correspondiente.
+- Las imports desde `src/App.tsx`, `src/views/*` y cualquier consumidor externo a una feature deben pasar por el `index.ts` o `public.ts` del módulo correspondiente.

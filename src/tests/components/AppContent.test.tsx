@@ -110,7 +110,7 @@ vi.mock('@/hooks/useReminders', () => ({
   }),
 }));
 
-vi.mock('@/app-shell/LazyViews', () => ({
+vi.mock('@/views/LazyViews', () => ({
   CensusEmailConfigModal: () => <div data-testid="email-modal">EmailModal</div>,
 }));
 
