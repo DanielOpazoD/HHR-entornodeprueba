@@ -18,6 +18,7 @@ import {
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 import {
+  CatalogRemoteSyncError,
   normalizeProfessionalCatalog,
   normalizeStringCatalog,
   assertCatalogSubscriptionCallback,
@@ -79,7 +80,11 @@ export const saveNurses = async (nurses: string[]): Promise<void> => {
   const normalized = normalizeStringCatalog(nurses);
   await saveCatalog('nurses', normalized);
   if (isFirestoreEnabled()) {
-    await saveNurseCatalogToFirestore(normalized);
+    try {
+      await saveNurseCatalogToFirestore(normalized);
+    } catch (cause) {
+      throw new CatalogRemoteSyncError(cause);
+    }
   }
 };
 
@@ -179,7 +184,11 @@ export const saveTens = async (tens: string[]): Promise<void> => {
   const normalized = normalizeStringCatalog(tens);
   await saveCatalog('tens', normalized);
   if (isFirestoreEnabled()) {
-    await saveTensCatalogToFirestore(normalized);
+    try {
+      await saveTensCatalogToFirestore(normalized);
+    } catch (cause) {
+      throw new CatalogRemoteSyncError(cause);
+    }
   }
 };
 
@@ -241,7 +250,11 @@ export const saveProfessionals = async (
   const normalized = normalizeProfessionalCatalog(professionals);
   await saveCatalogValues<ProfessionalCatalogItem>('professionals', normalized);
   if (isFirestoreEnabled()) {
-    await saveProfessionalsCatalogToFirestore(normalized);
+    try {
+      await saveProfessionalsCatalogToFirestore(normalized);
+    } catch (cause) {
+      throw new CatalogRemoteSyncError(cause);
+    }
   }
 };
 

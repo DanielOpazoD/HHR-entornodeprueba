@@ -12,6 +12,14 @@ const useCatalogRealtimeReady = (): boolean => {
   return remoteSyncStatus === 'ready';
 };
 
+export class CatalogReadUnavailableError extends Error {
+  constructor() {
+    super(
+      'No se pudo leer la lista. Lo escrito no se guardó. Pulse Reintentar para leerla y luego vuelva a guardar.'
+    );
+  }
+}
+
 const STAFF_CATALOG_STALE_TIME_MS = 30_000;
 const DEFAULT_NURSES = ['Enfermero/a 1', 'Enfermero/a 2'];
 const DEFAULT_TENS = ['TENS 1', 'TENS 2', 'TENS 3'];
@@ -169,7 +177,7 @@ export const useSaveNursesMutation = () => {
     onMutate: async newNurses => {
       // Display fallbacks are not a loaded base for replacing the complete catalog.
       if (queryClient.getQueryData([...queryKeys.staff.all, 'nurses']) === undefined) {
-        throw new Error('No se pudo leer el catálogo. Reintente antes de guardar.');
+        throw new CatalogReadUnavailableError();
       }
       await queryClient.cancelQueries({ queryKey: [...queryKeys.staff.all, 'nurses'] });
       const previousNurses = queryClient.getQueryData<string[]>([...queryKeys.staff.all, 'nurses']);
@@ -198,7 +206,7 @@ export const useSaveTensMutation = () => {
     onMutate: async newTens => {
       // Display fallbacks are not a loaded base for replacing the complete catalog.
       if (queryClient.getQueryData([...queryKeys.staff.all, 'tens']) === undefined) {
-        throw new Error('No se pudo leer el catálogo. Reintente antes de guardar.');
+        throw new CatalogReadUnavailableError();
       }
       await queryClient.cancelQueries({ queryKey: [...queryKeys.staff.all, 'tens'] });
       const previousTens = queryClient.getQueryData<string[]>([...queryKeys.staff.all, 'tens']);
@@ -228,7 +236,7 @@ export const useSaveProfessionalsMutation = () => {
     onMutate: async newProfessionals => {
       // Display fallbacks are not a loaded base for replacing the complete catalog.
       if (queryClient.getQueryData([...queryKeys.staff.all, 'professionals']) === undefined) {
-        throw new Error('No se pudo leer el catálogo. Reintente antes de guardar.');
+        throw new CatalogReadUnavailableError();
       }
       await queryClient.cancelQueries({ queryKey: [...queryKeys.staff.all, 'professionals'] });
       const previousProfessionals = queryClient.getQueryData<ProfessionalCatalogItem[]>([
