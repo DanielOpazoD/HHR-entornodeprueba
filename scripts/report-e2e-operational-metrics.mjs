@@ -48,7 +48,10 @@ const thresholds = {
 };
 
 const nowIso = new Date().toISOString();
-const evidenceIssues = collectPlaywrightReportIssues(inputPath, { label: 'critical E2E' });
+const evidenceIssues = collectPlaywrightReportIssues(inputPath, {
+  label: 'critical E2E',
+  allowSkipped: false,
+});
 
 const emptyMetrics = {
   generatedAt: nowIso,
