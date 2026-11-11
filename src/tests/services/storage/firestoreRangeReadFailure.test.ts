@@ -83,9 +83,12 @@ describe('a remote range read that fails is not an empty range', () => {
     expect(getDocsFromServer).not.toHaveBeenCalled();
   });
 
-  it.each([syncRecordsRange, hydrateRangeRecords])(
+  it.each([
+    ['syncRecordsRange', syncRecordsRange],
+    ['hydrateRangeRecords', hydrateRangeRecords],
+  ])(
     'propagates a failed SDK read through %s without storing or returning a partial range',
-    async readRange => {
+    async (_name, readRange) => {
       const failure = new Error('synthetic remote failure');
       vi.mocked(getDocs).mockRejectedValueOnce(failure);
       await expect(readRange('2026-04-01', '2026-04-30')).rejects.toBe(failure);
