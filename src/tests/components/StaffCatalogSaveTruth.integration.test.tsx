@@ -273,6 +273,12 @@ describe('confirmed catalog saves', () => {
       expect(screen.queryByText(/El cambio no se guardó/)).not.toBeInTheDocument()
     );
     expect(screen.queryByRole('button', { name: 'Reintentar guardado' })).not.toBeInTheDocument();
+    // A later change accepted from another computer must show; the settled draft never returns.
+    await act(async () => {
+      await callback([{ ...base[0], specialty: 'Medicina Interna' }]);
+    });
+    await waitFor(() => expect(select).toHaveValue('Medicina Interna'));
+    expect(select).toBeEnabled();
   });
   it('physicians: rejected specialty stays in editor across snapshot and retries', async () => {
     const base = [{ name: 'Synthetic Physician', phone: '', specialty: 'Pediatría' }];

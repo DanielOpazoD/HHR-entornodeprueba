@@ -16,16 +16,18 @@ export const TreatingPhysiciansSettings: React.FC = () => {
   const { data: professionals = [], isLoading } = query;
   const saveProfessionals = useSaveProfessionalsMutation();
   const [pendingDraft, setDraft] = useState<{ catalogKey: string; specialty: string } | null>(null);
-  const draft =
-    pendingDraft &&
-    (saveProfessionals.isPending ||
-      !professionals.some(
-        item =>
-          professionalCatalogKey(item) === pendingDraft.catalogKey &&
-          (item.specialty ?? '') === pendingDraft.specialty
-      ))
-      ? pendingDraft
-      : null;
+  // Once the shared list shows the choice it is no longer a draft: drop it for good, so a later
+  // change from another computer is never hidden behind it.
+  const draftAccepted =
+    pendingDraft !== null &&
+    !saveProfessionals.isPending &&
+    professionals.some(
+      item =>
+        professionalCatalogKey(item) === pendingDraft.catalogKey &&
+        (item.specialty ?? '') === pendingDraft.specialty
+    );
+  if (draftAccepted) setDraft(null);
+  const draft = draftAccepted ? null : pendingDraft;
   const orderedProfessionals = useMemo(
     () =>
       professionals.toSorted((left, right) =>
