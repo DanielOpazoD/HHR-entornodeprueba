@@ -199,7 +199,7 @@ describe('test evidence reconciliation', () => {
         expected,
         { requireAll: false }
       )
-    ).toContain('storage: Required Storage rules cases were skipped or unfinished');
+    ).toContain('storage: Required cases were skipped or unfinished');
   });
 
   it('allows legitimate unit todo cases while preventing zero-execution unit evidence', () => {
