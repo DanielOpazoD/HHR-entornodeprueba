@@ -34,11 +34,15 @@ export interface StaffContextType {
   nursesList: string[];
   setNursesList: (nurses: string[]) => void;
   nursesLoading: boolean;
+  nursesCatalogUnavailable?: boolean;
+  retryNursesCatalog?: () => void;
 
   // TENS catalog (available names)
   tensList: string[];
   setTensList: (tens: string[]) => void;
   tensLoading: boolean;
+  tensCatalogUnavailable?: boolean;
+  retryTensCatalog?: () => void;
 
   // Professionals catalog
   professionalsCatalog: ProfessionalCatalogItem[];
@@ -67,10 +71,17 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
   const {
     data: nurses = NO_STAFF_NAMES,
     isLoading: nursesLoading,
+    isError: nursesReadError,
+    refetch: refetchNurses,
     identities: staffIdentities = NO_STAFF_IDENTITIES,
   } = useNursesQuery();
   const staffUsage = useStaffUsage(staffIdentities);
-  const { data: tens = NO_STAFF_NAMES, isLoading: tensLoading } = useTensQuery();
+  const {
+    data: tens = NO_STAFF_NAMES,
+    isLoading: tensLoading,
+    isError: tensReadError,
+    refetch: refetchTens,
+  } = useTensQuery();
   const { data: professionals = NO_PROFESSIONALS, isLoading: professionalsLoading } =
     useProfessionalsQuery();
   const reconciledNurses = useMemo(() => reconcileNurseCatalogNames(nurses), [nurses]);
@@ -113,9 +124,17 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
       nursesList: reconciledNurses,
       setNursesList,
       nursesLoading,
+      nursesCatalogUnavailable: nursesReadError && reconciledNurses.length === 0,
+      retryNursesCatalog: () => {
+        void refetchNurses();
+      },
       tensList: tens,
       setTensList,
       tensLoading,
+      tensCatalogUnavailable: tensReadError && tens.length === 0,
+      retryTensCatalog: () => {
+        void refetchTens();
+      },
       professionalsCatalog: professionals,
       setProfessionalsCatalog,
       professionalsLoading,
@@ -130,9 +149,13 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
       reconciledNurses,
       setNursesList,
       nursesLoading,
+      nursesReadError,
+      refetchNurses,
       tens,
       setTensList,
       tensLoading,
+      tensReadError,
+      refetchTens,
       professionals,
       setProfessionalsCatalog,
       professionalsLoading,
