@@ -77,6 +77,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleAdd = async () => {
+    if (syncing) return;
     const trimmed = newStaffName.trim();
     const result = StaffNameSchema.safeParse(trimmed);
 
@@ -101,7 +102,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
   };
 
   const handleUpdate = async () => {
-    if (!editingName) return;
+    if (!editingName || syncing) return;
 
     const trimmed = editValue.trim();
     const result = StaffNameSchema.safeParse(trimmed);
@@ -170,7 +171,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
           {hasSyncError && (
             <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs text-amber-700">
               <AlertCircle size={14} />
-              Error al sincronizar con la nube. Se guardó localmente.
+              El cambio no se guardó. Lo escrito se conserva; vuelva a guardar cuando haya conexión.
             </div>
           )}
 
@@ -186,6 +187,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
                 )}
                 placeholder="Nombre completo…"
                 value={newStaffName}
+                disabled={syncing}
                 onChange={event => {
                   setNewStaffName(event.target.value);
                   setValidationError(null);
@@ -315,7 +317,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
         <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-[9px] font-bold uppercase tracking-widest text-slate-400">
           <div className="flex items-center gap-1.5">
             <Cloud size={12} className={config.cloudIconColor} />
-            Sincronizado con Firebase
+            Catálogo compartido de HHR
           </div>
           <div className="text-slate-300">{staffList.length} Registros</div>
         </div>

@@ -1,8 +1,6 @@
 import {
-  saveCatalog,
   getCatalog,
   getCatalogValues,
-  saveCatalogValues,
   cacheCatalogValues,
 } from '@/services/storage/indexeddb/indexedDbCatalogService';
 import {
@@ -44,6 +42,31 @@ export interface ICatalogRepository {
   ): () => void;
 }
 
+// A disabled runtime has no durable resend path for catalogs.
+const assertCatalogRemoteAvailable = (): void => {
+  if (!isFirestoreEnabled() || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+    throw new CatalogRemoteSyncError(new Error('Catalog remote unavailable'));
+  }
+};
+
+// Bounds the complete retry chain; the SDK may still acknowledge the write later.
+const confirmCatalogSave = async (save: Promise<void>): Promise<void> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      save,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () => reject(new CatalogRemoteSyncError('confirmation_timeout')),
+          15_000
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 // ============================================================================
 // Nurses Catalog
 // ============================================================================
@@ -62,7 +85,7 @@ export const getNurses = async (): Promise<string[]> => {
     try {
       const remoteList = await getNurseCatalogFromFirestore();
       if (remoteList.length > 0) {
-        await cacheCatalogValues('nurses', remoteList);
+        await cacheCatalogValues('nurses', remoteList, true);
         return remoteList;
       }
     } catch (err) {
@@ -75,18 +98,17 @@ export const getNurses = async (): Promise<string[]> => {
 };
 
 /**
- * Saves the nurses list to local storage and syncs to Firestore if enabled.
+ * Confirms the nurses list remotely before refreshing its local cache.
  */
 export const saveNurses = async (nurses: string[]): Promise<void> => {
   const normalized = normalizeStringCatalog(nurses);
-  await saveCatalog('nurses', normalized);
-  if (isFirestoreEnabled()) {
-    try {
-      await saveNurseCatalogToFirestore(normalized);
-    } catch (cause) {
-      throw new CatalogRemoteSyncError(cause);
-    }
+  assertCatalogRemoteAvailable();
+  try {
+    await confirmCatalogSave(saveNurseCatalogToFirestore(normalized));
+  } catch (cause) {
+    throw new CatalogRemoteSyncError(cause);
   }
+  await cacheCatalogValues('nurses', normalized, true);
 };
 
 const subscribeToLocalStringCatalog = (
@@ -144,7 +166,7 @@ export const subscribeNurses = (
 
   return subscribeToNurseCatalog(async nurses => {
     const normalized = normalizeStringCatalog(nurses);
-    await cacheCatalogValues('nurses', normalized);
+    await cacheCatalogValues('nurses', normalized, true);
     callback(normalized);
   }, onError);
 };
@@ -166,7 +188,7 @@ export const getTens = async (): Promise<string[]> => {
     try {
       const remoteList = await getTensCatalogFromFirestore();
       if (remoteList.length > 0) {
-        await cacheCatalogValues('tens', remoteList);
+        await cacheCatalogValues('tens', remoteList, true);
         return remoteList;
       }
     } catch (err) {
@@ -179,18 +201,17 @@ export const getTens = async (): Promise<string[]> => {
 };
 
 /**
- * Saves the TENS list to local storage and syncs to Firestore if enabled.
+ * Confirms the TENS list remotely before refreshing its local cache.
  */
 export const saveTens = async (tens: string[]): Promise<void> => {
   const normalized = normalizeStringCatalog(tens);
-  await saveCatalog('tens', normalized);
-  if (isFirestoreEnabled()) {
-    try {
-      await saveTensCatalogToFirestore(normalized);
-    } catch (cause) {
-      throw new CatalogRemoteSyncError(cause);
-    }
+  assertCatalogRemoteAvailable();
+  try {
+    await confirmCatalogSave(saveTensCatalogToFirestore(normalized));
+  } catch (cause) {
+    throw new CatalogRemoteSyncError(cause);
   }
+  await cacheCatalogValues('tens', normalized, true);
 };
 
 /**
@@ -207,7 +228,7 @@ export const subscribeTens = (
 
   return subscribeToTensCatalog(async tens => {
     const normalized = normalizeStringCatalog(tens);
-    await cacheCatalogValues('tens', normalized);
+    await cacheCatalogValues('tens', normalized, true);
     callback(normalized);
   }, onError);
 };
@@ -230,7 +251,7 @@ export const getProfessionals = async (): Promise<ProfessionalCatalogItem[]> => 
     try {
       const remoteList = await getProfessionalsCatalogFromFirestore();
       if (remoteList.length > 0) {
-        await cacheCatalogValues<ProfessionalCatalogItem>('professionals', remoteList);
+        await cacheCatalogValues<ProfessionalCatalogItem>('professionals', remoteList, true);
         return remoteList;
       }
     } catch (err) {
@@ -243,20 +264,19 @@ export const getProfessionals = async (): Promise<ProfessionalCatalogItem[]> => 
 };
 
 /**
- * Saves the professionals list to local storage and syncs to Firestore if enabled.
+ * Confirms the professionals list remotely before refreshing its local cache.
  */
 export const saveProfessionals = async (
   professionals: ProfessionalCatalogItem[]
 ): Promise<void> => {
   const normalized = normalizeProfessionalCatalog(professionals);
-  await saveCatalogValues<ProfessionalCatalogItem>('professionals', normalized);
-  if (isFirestoreEnabled()) {
-    try {
-      await saveProfessionalsCatalogToFirestore(normalized);
-    } catch (cause) {
-      throw new CatalogRemoteSyncError(cause);
-    }
+  assertCatalogRemoteAvailable();
+  try {
+    await confirmCatalogSave(saveProfessionalsCatalogToFirestore(normalized));
+  } catch (cause) {
+    throw new CatalogRemoteSyncError(cause);
   }
+  await cacheCatalogValues('professionals', normalized, true);
 };
 
 /**
@@ -273,7 +293,7 @@ export const subscribeProfessionals = (
 
   return subscribeToProfessionalsCatalog(async professionals => {
     const normalized = normalizeProfessionalCatalog(professionals);
-    await cacheCatalogValues<ProfessionalCatalogItem>('professionals', normalized);
+    await cacheCatalogValues<ProfessionalCatalogItem>('professionals', normalized, true);
     callback(normalized);
   }, onError);
 };

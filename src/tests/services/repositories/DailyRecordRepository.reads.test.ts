@@ -45,6 +45,7 @@ const { indexedDbFacadeMock, firestoreMock } = vi.hoisted(() => ({
     getCatalog: vi.fn().mockResolvedValue([]),
     getCatalogValues: vi.fn().mockResolvedValue([]),
     saveCatalogValues: vi.fn(),
+    cacheCatalogValues: vi.fn(),
   },
   firestoreMock: {
     saveRecordToFirestore: vi.fn(),
@@ -88,6 +89,7 @@ vi.mock('@/services/storage/indexeddb/indexedDbCatalogService', () => ({
   getCatalog: indexedDbFacadeMock.getCatalog,
   getCatalogValues: indexedDbFacadeMock.getCatalogValues,
   saveCatalogValues: indexedDbFacadeMock.saveCatalogValues,
+  cacheCatalogValues: indexedDbFacadeMock.cacheCatalogValues,
 }));
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
   getRecordFromFirestore: firestoreMock.getRecordFromFirestore,
@@ -314,13 +316,13 @@ describe('DailyRecordRepository reads', () => {
 
   it('saves nurses to local and remote', async () => {
     await CatalogRepository.saveNurses(['N1']);
-    expect(idbCatalogService.saveCatalog).toHaveBeenCalledWith('nurses', ['N1']);
+    expect(idbCatalogService.cacheCatalogValues).toHaveBeenCalledWith('nurses', ['N1'], true);
     expect(firestoreService.saveNurseCatalogToFirestore).toHaveBeenCalledWith(['N1']);
   });
 
   it('saves TENS to local and remote', async () => {
     await CatalogRepository.saveTens(['T1']);
-    expect(idbCatalogService.saveCatalog).toHaveBeenCalledWith('tens', ['T1']);
+    expect(idbCatalogService.cacheCatalogValues).toHaveBeenCalledWith('tens', ['T1'], true);
     expect(firestoreService.saveTensCatalogToFirestore).toHaveBeenCalledWith(['T1']);
   });
 

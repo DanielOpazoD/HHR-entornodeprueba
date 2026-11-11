@@ -51,8 +51,8 @@ beforeEach(async () => {
   vi.mocked(onSnapshot).mockImplementation((...args: unknown[]) => {
     const ref = args[0] as { id: string };
     listeners.set(ref.id, {
-      next: args[1] as (snapshot: unknown) => void,
-      error: args[2] as (error: unknown) => void,
+      next: args[2] as (snapshot: unknown) => void,
+      error: args[3] as (error: unknown) => void,
     });
     return vi.fn();
   });
@@ -86,6 +86,7 @@ const emit = async (empty = false) => {
   act(() => {
     catalogs.forEach(catalog =>
       listeners.get(catalog.docId)!.next({
+        metadata: { hasPendingWrites: false },
         exists: () => true,
         data: () => ({ list: empty ? [] : catalog.list }),
       })

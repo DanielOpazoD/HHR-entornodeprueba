@@ -24,8 +24,8 @@ export const NurseManagerModal: React.FC<NurseManagerModalProps> = ({
     try {
       await mutation.mutateAsync(names);
       return true;
-    } catch (error) {
-      return error instanceof CatalogRemoteSyncError;
+    } catch {
+      return false;
     }
   };
   const retry = async () => {

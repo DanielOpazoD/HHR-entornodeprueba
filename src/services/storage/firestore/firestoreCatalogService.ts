@@ -66,6 +66,7 @@ const subscribeStringCatalog = (
 ): (() => void) => {
   return subscribeToFirestoreDocument({
     runtime,
+    confirmedChangesOnly: true,
     resolveRef: activeRuntime => getSettingsDocRef(docId, activeRuntime),
     onData: catalog => {
       if (!catalog) {
@@ -147,6 +148,7 @@ const subscribeToProfessionalsCatalogWithRuntime = (
 ): (() => void) => {
   return subscribeToFirestoreDocument({
     runtime,
+    confirmedChangesOnly: true,
     resolveRef: getProfessionalsCatalogDocRef,
     onData: catalog => {
       callback(catalog ? normalizeProfessionalCatalog((catalog as { list?: unknown }).list) : []);
