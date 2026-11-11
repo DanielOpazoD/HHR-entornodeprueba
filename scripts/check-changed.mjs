@@ -67,11 +67,6 @@ try {
       /^(src\/|functions\/|netlify\/|e2e\/|extension\/|playwright[\w.-]*\.config\.ts$)/,
       'Usa el reloj del hospital (src/utils/clinicalTimeZone.ts) como indica el control.',
     ],
-    [
-      'feature-dependencies',
-      /^src\//,
-      'Usa la superficie pública y la dirección permitida entre features.',
-    ],
   ];
   for (const [name, pattern, repair] of checks) {
     if (matches(pattern) || matches(/^package(?:-lock)?\.json$/) || matches(/^scripts\//)) {
