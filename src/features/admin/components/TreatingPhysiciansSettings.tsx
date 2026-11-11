@@ -1,14 +1,19 @@
 import React, { useMemo } from 'react';
 import { AlertCircle, CheckCircle2, Cloud, Stethoscope } from 'lucide-react';
 import { SPECIALTY_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
-import { useProfessionalsQuery, useSaveProfessionalsMutation } from '@/hooks/useStaffQuery';
+import {
+  CatalogReadUnavailableError,
+  useProfessionalsQuery,
+  useSaveProfessionalsMutation,
+} from '@/hooks/useStaffQuery';
 import {
   assignProfessionalSpecialty,
   professionalCatalogKey,
 } from '@/services/staff/treatingPhysicianCatalog';
 
 export const TreatingPhysiciansSettings: React.FC = () => {
-  const { data: professionals = [], isLoading } = useProfessionalsQuery();
+  const query = useProfessionalsQuery();
+  const { data: professionals = [], isLoading } = query;
   const saveProfessionals = useSaveProfessionalsMutation();
   const orderedProfessionals = useMemo(
     () =>
@@ -53,19 +58,35 @@ export const TreatingPhysiciansSettings: React.FC = () => {
         </div>
       </header>
 
-      {saveProfessionals.isError && (
-        <div
-          role="alert"
-          className="mx-5 mt-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800"
-        >
-          <AlertCircle size={15} />
-          No se pudo sincronizar el cambio. Se conservó la configuración anterior.
+      {(query.isError || saveProfessionals.error instanceof CatalogReadUnavailableError) && (
+        <div role="alert" className="mx-5 mt-4 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
+          No se pudo leer la lista de médicos. Reintente la lectura antes de guardar cambios.
+          <button
+            type="button"
+            disabled={query.isFetching}
+            onClick={async () => {
+              const result = await query.refetch();
+              if (result.isSuccess) saveProfessionals.reset();
+            }}
+          >
+            Reintentar
+          </button>
         </div>
       )}
+      {saveProfessionals.isError &&
+        !(saveProfessionals.error instanceof CatalogReadUnavailableError) && (
+          <div
+            role="alert"
+            className="mx-5 mt-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800"
+          >
+            <AlertCircle size={15} />
+            No se pudo confirmar el guardado compartido del cambio. Reintente guardar.
+          </div>
+        )}
 
       {isLoading ? (
         <div className="p-10 text-center text-sm text-slate-500">Cargando médicos…</div>
-      ) : orderedProfessionals.length === 0 ? (
+      ) : query.isError && professionals.length === 0 ? null : orderedProfessionals.length === 0 ? (
         <div className="p-10 text-center">
           <Stethoscope size={28} className="mx-auto mb-3 text-slate-300" />
           <p className="text-sm font-semibold text-slate-600">Aún no hay médicos identificados</p>
@@ -128,11 +149,13 @@ export const TreatingPhysiciansSettings: React.FC = () => {
 
       <footer className="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/70 px-5 py-3 text-[11px] text-slate-500">
         <span className="flex items-center gap-1.5">
-          <Cloud size={13} /> Guardado en el catálogo compartido de HHR
+          <Cloud size={13} /> Catálogo compartido de HHR
         </span>
         {saveProfessionals.isPending ? (
           <span className="animate-pulse font-semibold text-sky-600">Guardando…</span>
-        ) : (
+        ) : query.isError || saveProfessionals.isError ? (
+          <span>Confirmación pendiente</span>
+        ) : isLoading ? null : (
           <span className="flex items-center gap-1 font-semibold text-emerald-600">
             <CheckCircle2 size={13} /> Actualizado
           </span>

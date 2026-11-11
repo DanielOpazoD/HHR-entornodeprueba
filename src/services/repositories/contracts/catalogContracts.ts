@@ -107,3 +107,10 @@ export const assertCatalogSubscriptionCallback = (callback: unknown, catalogName
     throw new Error(`[RepositoryContract] ${catalogName} subscription callback must be a function`);
   }
 };
+
+/** Only raised after the durable local write completed. */
+export class CatalogRemoteSyncError extends Error {
+  constructor(cause: unknown) {
+    super('No se pudo sincronizar el catálogo guardado localmente.', { cause });
+  }
+}
