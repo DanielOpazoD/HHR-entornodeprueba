@@ -2,6 +2,9 @@
 
 Última actualización: 2026-04-10
 
+Este registro conserva las particiones históricas. El límite de 500 líneas y su backlog
+de excepciones se retiraron; las nuevas particiones requieren fricción de mantenimiento observada.
+
 ## Objetivo
 
 Identificar tests grandes con mayor costo de mantenimiento para partirlos sin perder cobertura útil.
@@ -64,7 +67,7 @@ Identificar tests grandes con mayor costo de mantenimiento para partirlos sin pe
 | Prioridad | Archivo | Líneas | Riesgo dominante | Estrategia de partición |
 | --------- | ------- | -----: | ---------------- | ----------------------- |
 
-No quedan suites `>500` líneas en el backlog prioritario tras la ola actual.
+No hay particiones prioritarias pendientes en este registro histórico.
 
 ## Segunda ola sugerida
 
@@ -83,6 +86,6 @@ No quedan suites `>500` líneas en el backlog prioritario tras la ola actual.
 
 ## Siguiente acción recomendada
 
-1. Medir si la baja de `megatests >500` a `0` reduce realmente tiempo de diagnóstico y costo de cambio.
+1. Medir el tiempo de diagnóstico y costo de cambio antes de proponer otra partición.
 2. Mantener futuras particiones orientadas a seams concretos y no a tamaño por sí solo.
 3. Revisar la segunda ola solo cuando reaparezca fricción real de edición o lectura.
