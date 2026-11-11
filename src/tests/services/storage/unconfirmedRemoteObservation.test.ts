@@ -68,9 +68,8 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 for (const path of ['S', 'E', 'P', 'R', 'M'] as const)
-  for (const pending of [false, true])
+  for (const pending of path === 'R' || path === 'M' ? [false, true] : [false])
     it(`${path} cached/pending=${pending} keeps durable and returns local`, async () => {
-      if (pending && ['S', 'E', 'P'].includes(path)) return;
       const metadata = { fromCache: !pending, hasPendingWrites: pending };
       vi.mocked(sdk.getDoc).mockResolvedValue({
         exists: () => true,
