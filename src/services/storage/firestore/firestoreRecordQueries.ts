@@ -238,9 +238,7 @@ export const getRecordsRangeFromFirestore = async (
     return mapFirestoreRecords(querySnapshot.docs, docToRecord);
   } catch (error) {
     logFirestoreQueryError('getRecordsRange', error, { startDate, endDate });
-    // A history reader must distinguish a real empty result from unavailable remote data.
-    if (options.requireServer) throw error;
-    return [];
+    throw error;
   }
 };
 
