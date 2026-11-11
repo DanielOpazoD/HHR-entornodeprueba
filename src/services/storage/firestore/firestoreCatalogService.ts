@@ -105,7 +105,7 @@ const getStringCatalog = async (
     return readStringCatalogFromSnapshot(toSnapshotLike(catalog), legacyField);
   } catch (error) {
     firestoreCatalogLogger.error(`Error fetching ${errorLabel} from Firestore`, error);
-    return [];
+    throw error;
   }
 };
 
@@ -123,7 +123,7 @@ const getProfessionalsCatalog = async (
     return [];
   } catch (error) {
     firestoreCatalogLogger.error('Error fetching professionals catalog from Firestore', error);
-    return [];
+    throw error;
   }
 };
 

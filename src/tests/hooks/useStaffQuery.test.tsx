@@ -29,6 +29,11 @@ vi.mock('@/context/AuthContext', async importOriginal => {
 });
 
 const createWrapper = () => createQueryClientTestWrapper().wrapper;
+const createLoadedWrapper = (catalog: string) => {
+  const { queryClient, wrapper } = createQueryClientTestWrapper();
+  queryClient.setQueryData(['staff', catalog], []);
+  return wrapper;
+};
 
 describe('useStaffQuery Hooks', () => {
   type AuthContextValue = ReturnType<typeof useAuth>;
@@ -206,7 +211,9 @@ describe('useStaffQuery Hooks', () => {
   describe('Mutations', () => {
     it('useSaveNursesMutation should call repository and invalidate queries', async () => {
       const saveMock = vi.mocked(CatalogRepository.saveNurses).mockResolvedValue(undefined);
-      const { result } = renderHook(() => useSaveNursesMutation(), { wrapper: createWrapper() });
+      const { result } = renderHook(() => useSaveNursesMutation(), {
+        wrapper: createLoadedWrapper('nurses'),
+      });
 
       await result.current.mutateAsync(['New Nurse']);
 
@@ -215,7 +222,9 @@ describe('useStaffQuery Hooks', () => {
 
     it('useSaveTensMutation should call repository', async () => {
       const saveMock = vi.mocked(CatalogRepository.saveTens).mockResolvedValue(undefined);
-      const { result } = renderHook(() => useSaveTensMutation(), { wrapper: createWrapper() });
+      const { result } = renderHook(() => useSaveTensMutation(), {
+        wrapper: createLoadedWrapper('tens'),
+      });
 
       await result.current.mutateAsync(['New TENS']);
 
@@ -226,7 +235,7 @@ describe('useStaffQuery Hooks', () => {
       const mockProfs = [{ name: 'New Prof', phone: '456', specialty: 'Cirugía' }];
       const saveMock = vi.mocked(CatalogRepository.saveProfessionals).mockResolvedValue(undefined);
       const { result } = renderHook(() => useSaveProfessionalsMutation(), {
-        wrapper: createWrapper(),
+        wrapper: createLoadedWrapper('professionals'),
       });
 
       await result.current.mutateAsync(mockProfs as unknown as SaveProfessionalsInput);

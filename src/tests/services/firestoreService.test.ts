@@ -319,20 +319,18 @@ describe('firestoreService', () => {
     expect(list).toEqual(['TENS 1']);
   });
 
-  it('should handle catalog fetch errors gracefully', async () => {
+  it('rejects catalog fetch errors so callers can distinguish failure from empty', async () => {
     const getDocMock = vi.mocked(firestore.getDoc);
     getDocMock.mockRejectedValue(new Error('Firestore error'));
 
-    const list = await getNurseCatalogFromFirestore();
-    expect(list).toEqual([]);
+    await expect(getNurseCatalogFromFirestore()).rejects.toThrow('Firestore error');
   });
 
   it('should return empty array if catalog does not exist', async () => {
     const getDocMock = vi.mocked(firestore.getDoc);
     getDocMock.mockResolvedValueOnce({ exists: () => false } as unknown as DocumentSnapshot);
 
-    const list = await getNurseCatalogFromFirestore();
-    expect(list).toEqual([]);
+    await expect(getNurseCatalogFromFirestore()).resolves.toEqual([]);
   });
 
   it('should delete a record from firestore', async () => {
