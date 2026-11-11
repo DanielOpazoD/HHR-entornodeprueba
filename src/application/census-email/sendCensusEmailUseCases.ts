@@ -123,7 +123,9 @@ export const executeSendCensusEmail = async (
       missingAny = true;
       const previousDate = index > 0 ? integrityDates[index - 1] : undefined;
       try {
-        await dailyRecordReadPort.initializeDay(date, previousDate);
+        await dailyRecordReadPort.initializeDay(date, previousDate, {
+          requireConfirmedAbsence: true,
+        });
       } catch (errorOnInitialize) {
         issues.push({
           kind: 'unknown',
@@ -134,6 +136,8 @@ export const executeSendCensusEmail = async (
         });
       }
     }
+
+    if (issues.length > 0) return createApplicationFailed(null, issues);
 
     const finalMessage = resolveFinalCensusEmailMessage({
       message: input.message,
