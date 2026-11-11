@@ -1,3 +1,4 @@
+import { setModuleReloadRequired } from '@/services/runtime/moduleReloadRecovery';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import {
@@ -21,6 +22,7 @@ beforeEach(() => {
 });
 afterEach(async () => {
   cleanup();
+  setModuleReloadRequired('save-write', false);
   vi.restoreAllMocks();
   await loadFunctionsModule(() => import('firebase/functions'));
   vi.unstubAllGlobals();
@@ -76,4 +78,15 @@ it('clears recovery when the browser can import the same module after connectivi
   fireEvent.online(window);
   await waitFor(() => expect(isFunctionsReloadRequired()).toBe(false));
   expect(screen.getByRole('status')).toBeEmptyDOMElement();
+});
+
+it('shows one truthful notice for rejected edits even when Functions recovers', async () => {
+  getFunctions.mockImplementation(() => loadFunctionsModule());
+  setModuleReloadRequired('save-write', true);
+  render(<FunctionsRecoveryNotice />);
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('no quedó guardado'));
+  expect(screen.getAllByRole('button', { name: 'Recargar aplicación' })).toHaveLength(1);
+  expect(screen.getByRole('status')).not.toHaveTextContent('los cambios pendientes se conservan');
+  setModuleReloadRequired('save-write', false);
+  await waitFor(() => expect(screen.getByRole('status')).toBeEmptyDOMElement());
 });
