@@ -32,7 +32,13 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
   onOpenDetailedStaffing,
   className,
 }) => {
-  const { setShowTensManager, staffIdentities = [], staffUsage } = useStaffContext();
+  const {
+    tensCatalogUnavailable,
+    retryTensCatalog,
+    setShowTensManager,
+    staffIdentities = [],
+    staffUsage,
+  } = useStaffContext();
   const [showAllNames, setShowAllNames] = React.useState<Record<string, boolean>>({});
   const selectClassName =
     'block py-0 pl-1.5 pr-4 border border-slate-200 text-[10px] focus:ring-1 focus:outline-none text-slate-700 h-[20px] w-[60px] appearance-none transition-all';
@@ -73,6 +79,17 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
         >
           <Users size={11} /> TENS
         </button>
+        {tensCatalogUnavailable && (
+          <button
+            type="button"
+            onClick={retryTensCatalog}
+            className="text-[10px] text-slate-500"
+            title="No se pudo leer la lista."
+            aria-label="No se pudo leer la lista. Reintentar"
+          >
+            Reintentar
+          </button>
+        )}
         <button
           type="button"
           onClick={onOpenDetailedStaffing}

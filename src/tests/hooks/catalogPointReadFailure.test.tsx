@@ -114,7 +114,7 @@ describe('catalog point reads through repository and queries', () => {
       await waitFor(() => expect(result.current.query.isFetching).toBe(false));
       expect(result.current.query.error).toBe(failure);
       expect(result.current.query.isSuccess).toBe(false);
-      expect(result.current.query.data).toEqual(entry.defaults);
+      expect(result.current.query.data).toEqual([]);
       await act(async () => {
         await expect(result.current.save.mutateAsync(entry.replacement)).rejects.toThrow();
       });
