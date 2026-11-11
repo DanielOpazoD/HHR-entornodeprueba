@@ -86,7 +86,6 @@
     "check:clinical-documents-feature-boundary": "node scripts/check-clinical-documents-feature-boundary.mjs",
     "check:feature-public-api-boundary": "node scripts/check-feature-public-api-boundary.mjs",
     "check:lazy-views-feature-entrypoints": "node scripts/check-lazy-views-feature-entrypoints.mjs",
-    "check:feature-dependencies": "node scripts/check-feature-dependencies.mjs",
     "check:shared-layer-boundary": "node scripts/check-shared-layer-boundary.mjs",
     "check:persistence-hub-boundaries": "node scripts/check-persistence-hub-boundaries.mjs",
     "check:legacy-retirement-debt": "npm run report:compatibility-governance && node scripts/check-legacy-retirement-debt.mjs",

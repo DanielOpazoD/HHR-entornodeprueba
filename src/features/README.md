@@ -70,7 +70,7 @@ feature/
 - `controllers/hooks/domain/types` de una feature no deben importar capas restringidas de otra feature (controlado por script de arquitectura).
 - Priorizar contratos locales (`types`, `domain/contracts`) antes de usar tipos ad-hoc en componentes.
 - Todo consumo externo a la feature debe entrar por `index.ts` o `public.ts`. Evitar imports profundos desde `src/App.tsx`, `src/views/*` o desde otras features.
-- Entre features, ESLint impone la matriz (`scripts/feature-dependency-matrix.json`) y las entradas públicas (`publicModulesByFeature` en `scripts/feature-public-api-allowlist.json`) con `no-restricted-imports`: el editor marca el import prohibido y `npm run lint` falla. `npm run check:feature-dependencies` queda de respaldo con la misma regla.
+- Entre features, ESLint impone la matriz (`scripts/feature-dependency-matrix.json`) y las entradas públicas (`publicModulesByFeature` en `scripts/feature-public-api-allowlist.json`) con `hhr/feature-boundaries`: el editor marca el import prohibido y `npm run lint` falla. La regla cubre imports estáticos, de tipos, reexportaciones, dinámicos y `require`, tanto por alias como por rutas relativas; las pruebas de configuración verifican la paridad entre carpetas y matriz.
 - Dentro de la feature, preferir imports relativos para distinguir claramente implementación interna
   de API pública. Los aliases `@/features/<feature>/...` quedan reservados para consumo externo y
   deben apuntar solo al entrypoint público.
