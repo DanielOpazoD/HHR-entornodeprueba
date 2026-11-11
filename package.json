@@ -71,7 +71,7 @@
     "test:send-email": "node --loader ts-node/esm scripts/testSendCensusEmail.ts",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "prepare": "husky",
+    "prepare": "if git rev-parse --git-dir >/dev/null 2>&1; then git config core.hooksPath .husky; fi",
     "docs:generate": "typedoc",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "lint:extension": "eslint \"extension/*.js\" --report-unused-disable-directives --max-warnings 0",
@@ -227,7 +227,8 @@
     "test:e2e:census-performance": "playwright test --config=playwright.census-performance.config.ts",
     "test:census-performance-report": "node --test scripts/tests/census-startup-performance-report.test.mjs",
     "check:extension-source": "node scripts/check-extension-source.mjs",
-    "extension:sync": "node scripts/check-extension-source.mjs --write"
+    "extension:sync": "node scripts/check-extension-source.mjs --write",
+    "check:changed": "node scripts/check-changed.mjs"
   },
   "dependencies": {
     "@cornerstonejs/core": "4.22.13",
@@ -308,7 +309,6 @@
     "firebase-tools": "15.34.1",
     "globals": "^17.0.0",
     "google-auth-library": "^10.5.0",
-    "husky": "^9.1.7",
     "istanbul-lib-coverage": "^3.2.2",
     "jsdom": "^27.3.0",
     "lint-staged": "^16.2.7",
