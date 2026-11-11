@@ -12,6 +12,7 @@ import {
 import {
   createApplicationFailed,
   createApplicationSuccess,
+  createApplicationPartial,
 } from '@/shared/contracts/applicationOutcomeFactories';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 import {
@@ -202,15 +203,26 @@ export const executeUploadClinicalAttachment = async (
   }
 };
 
+const attachmentListOutcome = <T>(data: T, omittedCount: number): ApplicationOutcome<T> =>
+  omittedCount > 0
+    ? createApplicationPartial(data, [
+        {
+          kind: 'validation',
+          code: 'clinical-attachment-invalid-metadata',
+          message: 'Se omitieron metadatos de adjuntos que no se pudieron interpretar.',
+          technicalContext: { omittedCount },
+        },
+      ])
+    : createApplicationSuccess(data);
+
 export const executeListClinicalAttachmentsByEpisode = async (
   input: ListClinicalAttachmentsByEpisodeInput,
   dependencies: ClinicalAttachmentUseCaseDependencies = {}
 ): Promise<ApplicationOutcome<ClinicalAttachmentRecord[]>> => {
   const repository = dependencies.repository || ClinicalAttachmentRepository;
   try {
-    return createApplicationSuccess(
-      await repository.listByEpisode(input.episodeKey, input.hospitalId)
-    );
+    const result = await repository.listByEpisode(input.episodeKey, input.hospitalId);
+    return attachmentListOutcome(result.records, result.omittedCount);
   } catch (error) {
     return createApplicationFailed(
       [],
@@ -231,9 +243,8 @@ export const executeListClinicalAttachmentsByPatient = async (
 ): Promise<ApplicationOutcome<ClinicalAttachmentRecord[]>> => {
   const repository = dependencies.repository || ClinicalAttachmentRepository;
   try {
-    return createApplicationSuccess(
-      await repository.listByPatient(input.patientRut, input.hospitalId)
-    );
+    const result = await repository.listByPatient(input.patientRut, input.hospitalId);
+    return attachmentListOutcome(result.records, result.omittedCount);
   } catch (error) {
     return createApplicationFailed(
       [],
@@ -254,21 +265,25 @@ export const executeAuditClinicalAttachmentPatientStorage = async (
 ): Promise<ApplicationOutcome<ClinicalAttachmentStorageIntegrityReport | null>> => {
   const repository = dependencies.repository || ClinicalAttachmentRepository;
   try {
-    const [metadataRecords, storagePaths] = await Promise.all([
+    const [metadataResult, storagePaths] = await Promise.all([
       repository.listByPatient(input.patientRut, input.hospitalId),
       repository.listStoragePathsByPatient(input.patientRut, input.hospitalId),
     ]);
+    const metadataRecords = metadataResult.records;
     const metadataPathSet = new Set(metadataRecords.map(record => record.storagePath));
     const storagePathSet = new Set(storagePaths);
 
-    return createApplicationSuccess({
-      activeMetadataCount: metadataRecords.length,
-      storageObjectCount: storagePaths.length,
-      orphanStoragePaths: storagePaths.filter(storagePath => !metadataPathSet.has(storagePath)),
-      missingStorageRecords: metadataRecords
-        .filter(record => !storagePathSet.has(record.storagePath))
-        .map(record => ({ id: record.id, storagePath: record.storagePath })),
-    });
+    return attachmentListOutcome(
+      {
+        activeMetadataCount: metadataRecords.length,
+        storageObjectCount: storagePaths.length,
+        orphanStoragePaths: storagePaths.filter(storagePath => !metadataPathSet.has(storagePath)),
+        missingStorageRecords: metadataRecords
+          .filter(record => !storagePathSet.has(record.storagePath))
+          .map(record => ({ id: record.id, storagePath: record.storagePath })),
+      },
+      metadataResult.omittedCount
+    );
   } catch (error) {
     return createApplicationFailed(
       null,
