@@ -176,9 +176,12 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
   },
   async saveDailyRecordWithTask(record, task, patchWrite, wholeRecordBase) {
     const { mode, persistedRecord } = await (
-      await import('./dexieDailyRecordOutbox')
+      await Dexie.waitFor(import('./dexieDailyRecordOutbox'))
     ).saveDailyRecordInOutbox(record, task, patchWrite, wholeRecordBase);
-    mirrorTransactionalDailyRecordWrite(persistedRecord);
+    const transaction = Dexie.currentTransaction;
+    if (transaction)
+      transaction.on('complete', () => mirrorTransactionalDailyRecordWrite(persistedRecord));
+    else mirrorTransactionalDailyRecordWrite(persistedRecord);
     return mode;
   },
   async replacePendingDailyRecordWithTask(record, task, expectedTask) {

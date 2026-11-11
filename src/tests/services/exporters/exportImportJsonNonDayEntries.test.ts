@@ -3,7 +3,15 @@ import { beforeEach, expect, it, vi } from 'vitest';
 const storage = vi.hoisted(() => ({ read: vi.fn(), save: vi.fn() }));
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDateStrict: storage.read,
-  saveRecordsStrict: storage.save,
+}));
+
+vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
+  saveBackupImport: async (records: unknown[]) => {
+    if (!records.length) return [];
+    const result = await storage.save(records);
+    if (!result.ok) throw new Error('synthetic backup command failure');
+    return [];
+  },
 }));
 
 import { importDataJSONDetailed } from '@/services/exporters/exportImportJson';
