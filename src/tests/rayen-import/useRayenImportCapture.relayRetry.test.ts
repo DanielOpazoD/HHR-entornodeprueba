@@ -13,7 +13,7 @@ const bridge = vi.hoisted(() => ({
   subscribeErrors: vi.fn(() => vi.fn()),
 }));
 
-vi.mock('@/features/rayen-import/bridge/rayenImportBridge', () => ({
+vi.mock('@/features/rayen-import/bridge/rayenSnapshotBridge', () => ({
   subscribeToRayenSnapshots: bridge.subscribeSnapshots,
   subscribeToRayenImportErrors: bridge.subscribeErrors,
 }));

@@ -19,7 +19,7 @@ const bridge = vi.hoisted(() => ({
   request: vi.fn(() => 'synthetic-sync-request'),
   cancel: vi.fn(),
 }));
-vi.mock('@/features/rayen-import/bridge/rayenImportBridge', () => ({
+vi.mock('@/features/rayen-import/bridge/rayenSnapshotBridge', () => ({
   requestRayenSyncBundle: bridge.request,
   cancelRayenSyncBundleRequest: bridge.cancel,
 }));

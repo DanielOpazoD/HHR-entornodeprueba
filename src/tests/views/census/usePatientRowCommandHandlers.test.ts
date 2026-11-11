@@ -5,17 +5,13 @@ import type { DeviceInstance } from '@/types/domain/devices';
 import { usePatientRowCommandHandlers } from '@/features/census/components/patient-row/usePatientRowCommandHandlers';
 
 describe('usePatientRowCommandHandlers', () => {
-  it('maps UI events to patient row command handlers', () => {
-    const commands = {
-      setTextField: vi.fn(),
-      setCheckboxField: vi.fn(),
-      setDevices: vi.fn(),
-      setDeviceDetails: vi.fn(),
-      setDeviceHistory: vi.fn(),
-      saveDemographics: vi.fn(),
-    };
+  it('turns each row event into the field update the row saves', () => {
+    const updateField = vi.fn();
+    const updateMultiple = vi.fn();
 
-    const { result } = renderHook(() => usePatientRowCommandHandlers(commands));
+    const { result } = renderHook(() =>
+      usePatientRowCommandHandlers({ updateField, updateMultiple })
+    );
 
     act(() => {
       result.current.handleTextChange('patientName')({
@@ -42,15 +38,17 @@ describe('usePatientRowCommandHandlers', () => {
       result.current.handleDemographicsSave({ age: '40' });
     });
 
-    expect(commands.setTextField).toHaveBeenCalledWith('patientName', 'Paciente X');
-    expect(commands.setCheckboxField).toHaveBeenCalledWith('isUPC', true);
-    expect(commands.setDevices).toHaveBeenCalledWith(['VMI']);
-    expect(commands.setDeviceDetails).toHaveBeenCalledWith({
+    expect(updateField).toHaveBeenCalledWith('patientName', 'Paciente X');
+    expect(updateField).toHaveBeenCalledWith('isUPC', true);
+    expect(updateField).toHaveBeenCalledWith('devices', ['VMI']);
+    expect(updateField).toHaveBeenCalledWith('deviceDetails', {
       VMI: { installationDate: '2026-02-16', note: 'Detalle' },
     });
-    expect(commands.setDeviceHistory).toHaveBeenCalledWith(
+    expect(updateField).toHaveBeenCalledWith(
+      'deviceInstanceHistory',
       expect.arrayContaining([expect.objectContaining({ id: 'h1' })])
     );
-    expect(commands.saveDemographics).toHaveBeenCalledWith({ age: '40' });
+    expect(updateField).toHaveBeenCalledTimes(5);
+    expect(updateMultiple).toHaveBeenCalledWith({ age: '40' });
   });
 });
