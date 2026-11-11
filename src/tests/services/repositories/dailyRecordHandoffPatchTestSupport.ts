@@ -44,7 +44,6 @@ vi.mock('@/services/storage/sync', () => ({
     pendingTasks: 1,
     maxPendingTasks: 1000,
   }),
-  getPendingDailyRecordSyncTaskSnapshot: vi.fn().mockResolvedValue(null),
   replacePendingDailyRecordSyncTaskWithLocalRecord: vi.fn().mockResolvedValue(false),
   adoptAuthoritativeDailyRecordAtomically: vi.fn().mockImplementation(async record => ({
     status: 'adopted',

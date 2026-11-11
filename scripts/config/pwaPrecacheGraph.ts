@@ -57,6 +57,9 @@ export const OFFLINE_BOOT_CHUNKS = [
   'PdfButtons',
   'MoaHelpButton',
   'FunctionsRecoveryNotice',
+  // Closing a session with a pending nursing handoff must work offline.
+  'NursingHandoffLogoutDialog',
+  'NursingHandoffSessionNotice',
 ];
 
 type Chunk = Pick<Rollup.OutputChunk, 'fileName' | 'imports' | 'isEntry'>;
