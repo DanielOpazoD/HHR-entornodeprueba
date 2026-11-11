@@ -1,3 +1,4 @@
+import { loadDailyRecordSavePersistence } from '@/hooks/useWarmDailyRecordSavePath';
 import { mutationOptions, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../config/queryClient';
 import { useRepositories } from '@/services/RepositoryContext';
@@ -188,8 +189,7 @@ export const useSaveDailyRecordMutation = () => {
   const [remoteSelected, setRemoteSelected] = useState(false);
   const options = mutationOptions({
     mutationFn: async (input: SaveDailyRecordMutationInput) => {
-      const { persistDailyRecordSaveMutation } =
-        await import('@/hooks/controllers/dailyRecordSavePersistenceController');
+      const { persistDailyRecordSaveMutation } = await loadDailyRecordSavePersistence();
       return persistDailyRecordSaveMutation(dailyRecord, input);
     },
     onMutate: async (input: SaveDailyRecordMutationInput) => {

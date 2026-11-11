@@ -648,3 +648,61 @@ test.describe('Offline local persistence and controlled remote-authority reload'
     }
   });
 });
+
+for (const mode of ['full', 'patch'] as const) {
+  test(`first ${mode} save offline attempts no module requests`, async ({ page, context }) => {
+    const loadingModules = new Set<string>();
+    let lastModuleActivity = Date.now();
+    page.on('request', request => {
+      if (request.resourceType() === 'script') {
+        loadingModules.add(request.url());
+        lastModuleActivity = Date.now();
+      }
+    });
+    const moduleFinished = (request: import('@playwright/test').Request) => {
+      if (request.resourceType() === 'script') {
+        loadingModules.delete(request.url());
+        lastModuleActivity = Date.now();
+      }
+    };
+    page.on('requestfinished', moduleFinished);
+    page.on('requestfailed', moduleFinished);
+    await openSeededCensus(page);
+    // A fresh JS realm preserves the synthetic session/DB, without incidental feature warming.
+    await page.goto('/e2e/fixtures/offlineSavePath.html');
+    await page.evaluate(async date => {
+      const harnessPath = '/e2e/fixtures/dailyRecordSavePathHarness.tsx';
+      const { mountSavePathProbe } = await import(/* @vite-ignore */ harnessPath);
+      await mountSavePathProbe(date);
+    }, MULTIUSER_DATE);
+    await expect(page.getByTestId(`probe-${mode}`)).toBeVisible();
+    // Firestore's streaming reads stay open; wait for module network inactivity only.
+    await expect
+      .poll(() => loadingModules.size === 0 && Date.now() - lastModuleActivity > 2000, {
+        timeout: 30_000,
+      })
+      .toBe(true);
+    const attemptedModules: string[] = [];
+    await page.route('**/*', route => {
+      if (route.request().resourceType() === 'script') attemptedModules.push(route.request().url());
+      return route.abort();
+    });
+    await context.setOffline(true);
+    await page.getByTestId(`probe-${mode}`).click();
+    await expect
+      .poll(async () => {
+        expect(attemptedModules).toEqual([]);
+        return readIndexedDbDailyRecord(page, MULTIUSER_DATE);
+      })
+      .toMatchObject(
+        mode === 'full'
+          ? { nursesDayShift: ['OFFLINE SYNTHETIC'] }
+          : { beds: { R1: { pathology: 'OFFLINE SYNTHETIC' } } }
+      );
+    const ownerKey = await page.evaluate(key => localStorage.getItem(key), SESSION_OWNER_KEY);
+    expect(ownerKey).toBeTruthy();
+    expect(await readSyncTask(page)).toMatchObject([{ status: 'PENDING', ownerKey }]);
+    expect(await readSyncTask(page)).toHaveLength(1);
+    expect(attemptedModules).toEqual([]);
+  });
+}

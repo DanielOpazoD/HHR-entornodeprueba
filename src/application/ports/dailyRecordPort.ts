@@ -36,7 +36,7 @@ const loadDailyRecordInitializationService = createCachedRuntimeLoader(
   () => import('@/services/repositories/dailyRecordRepositoryInitializationService')
 );
 
-const loadDailyRecordWriteService = createCachedRuntimeLoader(
+export const loadDailyRecordWriteService = createCachedRuntimeLoader(
   () => import('@/services/repositories/dailyRecordRepositoryWriteService')
 );
 
