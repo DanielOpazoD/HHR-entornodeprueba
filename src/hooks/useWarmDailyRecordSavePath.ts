@@ -1,10 +1,11 @@
+import { createSavePathRuntimeLoader } from '@/services/runtime/createSavePathRuntimeLoader';
 import { useEffect } from 'react';
 import { loadDailyRecordWriteService } from '@/application/ports/dailyRecordPort';
-import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
 import { loadDailyRecordOutbox } from '@/services/storage/sync/dexieSyncQueueStore';
 import { dailyRecordWriteLogger } from '@/services/repositories/repositoryLoggers';
 
-export const loadDailyRecordSavePersistence = createCachedRuntimeLoader(
+export const loadDailyRecordSavePersistence = createSavePathRuntimeLoader(
+  'save-controller',
   () => import('@/hooks/controllers/dailyRecordSavePersistenceController')
 );
 
@@ -15,6 +16,7 @@ export const warmDailyRecordSavePath = async (): Promise<boolean> => {
       loadDailyRecordSavePersistence(),
       loadDailyRecordWriteService(),
       loadDailyRecordOutbox(),
+      import('@/application/audit/writeAuditEventUseCase'),
     ]);
     return true;
   } catch {

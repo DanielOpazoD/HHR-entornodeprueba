@@ -1,3 +1,4 @@
+import { createSavePathRuntimeLoader } from '@/services/runtime/createSavePathRuntimeLoader';
 import Dexie from 'dexie';
 import { isFunctionsReloadRequired } from '@/services/firebase-runtime/functionsModuleLoader';
 import type {
@@ -21,9 +22,8 @@ import {
   requeueQuarantinedTask,
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 
-import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
-
-export const loadDailyRecordOutbox = createCachedRuntimeLoader(
+export const loadDailyRecordOutbox = createSavePathRuntimeLoader(
+  'save-outbox',
   () => import('./dexieDailyRecordOutbox')
 );
 

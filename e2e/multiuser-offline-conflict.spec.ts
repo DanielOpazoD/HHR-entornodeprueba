@@ -704,5 +704,90 @@ for (const mode of ['full', 'patch'] as const) {
     expect(await readSyncTask(page)).toMatchObject([{ status: 'PENDING', ownerKey }]);
     expect(await readSyncTask(page)).toHaveLength(1);
     expect(attemptedModules).toEqual([]);
+    if (mode === 'patch') {
+      await expect
+        .poll(() =>
+          page.evaluate(async () => {
+            const request = indexedDB.open('HangaRoaDB');
+            const db = await new Promise<IDBDatabase>(resolve => {
+              request.onsuccess = () => resolve(request.result);
+            });
+            try {
+              const read = db.transaction('auditLogs').objectStore('auditLogs').getAll();
+              return await new Promise<unknown[]>(resolve => {
+                read.onsuccess = () => resolve(read.result);
+              });
+            } finally {
+              db.close();
+            }
+          })
+        )
+        .toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ action: 'PATIENT_MODIFIED', entityId: 'R1' }),
+          ])
+        );
+      expect(attemptedModules).toEqual([]);
+    }
+  });
+}
+
+for (const retry of ['online', 'save'] as const) {
+  test(`failed save path download offers reload after ${retry}`, async ({ page }) => {
+    await openSeededCensus(page);
+    await page.goto('/e2e/fixtures/offlineSavePath.html');
+    const blocked: string[] = [];
+    await page.route('**/*', route => {
+      if (
+        /dailyRecordSavePersistenceController|dailyRecordRepositoryWriteService|dexieDailyRecordOutbox/.test(
+          route.request().url()
+        )
+      ) {
+        blocked.push(route.request().url());
+        return route.abort();
+      }
+      return route.continue();
+    });
+    const mount = () =>
+      page.evaluate(async date => {
+        const path = '/e2e/fixtures/dailyRecordSavePathHarness.tsx';
+        await (await import(/* @vite-ignore */ path)).mountSavePathProbe(date);
+      }, MULTIUSER_DATE);
+    await page.evaluate(() =>
+      Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false })
+    );
+    await mount();
+    await expect.poll(() => blocked.length).toBeGreaterThanOrEqual(3);
+    await page.getByTestId('probe-full').click();
+    await expect(page.getByTestId('mutation-state')).toHaveText('error');
+    await expect(page.getByRole('status')).toBeEmpty();
+    await page.evaluate(() =>
+      Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => true })
+    );
+    await page.unroute('**/*');
+    if (retry === 'online') await page.evaluate(() => window.dispatchEvent(new Event('online')));
+    await page.getByTestId('probe-full').click();
+    await expect(page.getByTestId('mutation-state')).toHaveText('error');
+    expect(await readIndexedDbDailyRecord(page, MULTIUSER_DATE)).not.toMatchObject({
+      nursesDayShift: ['OFFLINE SYNTHETIC'],
+    });
+    expect(await readSyncTask(page)).toEqual([]);
+    await expect(page.getByRole('status')).toContainText('no quedó guardado');
+    await expect(page.getByRole('button', { name: 'Recargar aplicación' })).toBeVisible();
+    page.once('dialog', dialog => dialog.accept());
+    await Promise.all([
+      page.waitForEvent('load'),
+      page.getByRole('button', { name: 'Recargar aplicación' }).click(),
+    ]);
+    await mount();
+    await page.getByTestId('probe-full').click();
+    await expect
+      .poll(() => readIndexedDbDailyRecord(page, MULTIUSER_DATE))
+      .toMatchObject({ nursesDayShift: ['OFFLINE SYNTHETIC'] });
+    const ownerKey = await page.evaluate(key => localStorage.getItem(key), SESSION_OWNER_KEY);
+    expect(ownerKey).toBeTruthy();
+    expect(await readSyncTask(page)).toMatchObject([{ status: 'PENDING', ownerKey }]);
+    expect(await readSyncTask(page)).toHaveLength(1);
+    await expect(page.getByRole('status')).toBeEmpty();
   });
 }

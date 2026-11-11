@@ -1,3 +1,4 @@
+import { createSavePathRuntimeLoader } from '@/services/runtime/createSavePathRuntimeLoader';
 import { createSyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -36,7 +37,8 @@ const loadDailyRecordInitializationService = createCachedRuntimeLoader(
   () => import('@/services/repositories/dailyRecordRepositoryInitializationService')
 );
 
-export const loadDailyRecordWriteService = createCachedRuntimeLoader(
+export const loadDailyRecordWriteService = createSavePathRuntimeLoader(
+  'save-write',
   () => import('@/services/repositories/dailyRecordRepositoryWriteService')
 );
 
