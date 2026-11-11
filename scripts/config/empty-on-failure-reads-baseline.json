@@ -2,10 +2,10 @@
   "version": 1,
   "entries": [
     "src/services/repositories/ClinicalDocumentRepository.ts::getBrowserStorage",
+    "src/services/repositories/dailyRecordPartialUpdateBase.ts::resolvePartialUpdateBaseRecord",
     "src/services/repositories/dailyRecordRemotePersistenceController.ts::resolveRemoteAuthorityRecord",
     "src/services/repositories/dailyRecordRepositoryInitializationService.ts::loadRemoteInitializationSeed",
     "src/services/repositories/dailyRecordRepositoryReadService.ts::getE2ELocalStorageRecord",
-    "src/services/repositories/dailyRecordRepositoryWriteService.ts::resolvePartialUpdateBaseRecord",
     "src/services/storage/firestore/dailyRecordAuthorityTransport.ts::readConfirmedAuthorityMutation",
     "src/services/storage/firestore/firestoreBedTreePermissionFallback.ts::retryBedTreeViaCallable",
     "src/services/storage/firestore/firestoreCatalogService.ts::getProfessionalsCatalog",
