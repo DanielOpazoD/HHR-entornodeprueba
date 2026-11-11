@@ -1,13 +1,15 @@
-// One notice and connectivity poll serve both rejected edits and queued Functions work.
+// One notice and connectivity poll serve rejected edits, missing audit modules and queued Functions work.
 const reasons = new Set<string>();
 const listeners = new Set<() => void>();
 export const isModuleReloadRequired = (reason: string) => reasons.has(reason);
 export const getModuleReloadReason = () =>
-  [...reasons].some(reason => reason !== 'functions')
+  [...reasons].some(reason => reason !== 'functions' && reason !== 'audit')
     ? 'save'
-    : reasons.has('functions')
-      ? 'functions'
-      : null;
+    : reasons.has('audit')
+      ? 'audit'
+      : reasons.has('functions')
+        ? 'functions'
+        : null;
 export const subscribeModuleRecovery = (listener: () => void) => {
   listeners.add(listener);
   return () => {
