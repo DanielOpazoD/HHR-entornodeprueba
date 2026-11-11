@@ -1,8 +1,5 @@
 import { DailyRecord } from '@/types/domain/dailyRecord';
-import {
-  DailyRecordRemoteCompatibilityTier,
-  DailyRecordRemoteLoadResult,
-} from '@/services/repositories/dailyRecordRemoteLoader';
+import { DailyRecordRemoteCompatibilityTier } from '@/services/repositories/dailyRecordRemoteLoader';
 import { MigrationCompatibilityIntensity } from '@/services/repositories/dataMigrationContracts';
 
 export type DailyRecordInitializationSeedSource =
@@ -18,15 +15,6 @@ export interface DailyRecordInitializationSeed {
   compatibilityTier: DailyRecordRemoteCompatibilityTier | 'local_runtime';
   compatibilityIntensity: MigrationCompatibilityIntensity;
 }
-
-export const createRemoteInitializationSeed = (
-  remoteResult: DailyRecordRemoteLoadResult
-): DailyRecordInitializationSeed => ({
-  record: remoteResult.record,
-  source: 'remote_firestore',
-  compatibilityTier: remoteResult.compatibilityTier,
-  compatibilityIntensity: remoteResult.compatibilityIntensity,
-});
 
 export const createCopySourceInitializationSeed = (
   record: DailyRecord

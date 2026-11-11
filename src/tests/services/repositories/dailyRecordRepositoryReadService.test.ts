@@ -16,7 +16,22 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
     kind: 'stored',
     record: await getRecordFromIndexedDB(date),
   }),
-  inspectLocalRecordAdmission: async () => ({ status: 'admitted' }),
+  inspectLocalRecordAdmission: async (date: string) => ({
+    status: 'admitted',
+    record: await getRecordFromIndexedDB(date),
+  }),
+  admitLocalRecords: vi.fn(async candidates =>
+    Promise.all(
+      candidates.map(async candidate => ({
+        date: candidate.record.date,
+        status: 'admitted',
+        record:
+          candidate.serverConfirmed === false && candidate.expectedBase?.record
+            ? candidate.expectedBase.record
+            : candidate.record,
+      }))
+    )
+  ),
   getPreviousDayRecord: vi.fn(),
   getAllDates: vi.fn(),
   saveRecord: vi.fn(),
@@ -52,6 +67,7 @@ vi.mock('@/services/storage/sync/dailyRecordSyncQueueReadService', () => ({
 import {
   getRecordForDate as getRecordFromIndexedDB,
   saveRecordStrict as saveToIndexedDB,
+  admitLocalRecords,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { loadRemoteRecordWithFallback } from '@/services/repositories/dailyRecordRemoteLoader';
 import { getMonthRecordsFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
@@ -148,16 +164,9 @@ describe('dailyRecordRepositoryReadService', () => {
     expect(result.sourceOfTruth).toBe('local');
     expect(result.consistencyState).not.toBe('remote_authoritative');
     expect(result.record?.beds.R1.pathology).toBe('LOCAL DX');
-    expect(result.record?.beds.R2.patientName).toBe('REMOTE NEW PATIENT');
-    expect(saveToIndexedDB).toHaveBeenCalledWith(
-      expect.objectContaining({
-        beds: expect.objectContaining({
-          R1: expect.objectContaining({ pathology: 'LOCAL DX' }),
-          R2: expect.objectContaining({ patientName: 'REMOTE NEW PATIENT' }),
-        }),
-      }),
-      { preserveUnresolvedWrites: true, expectedBase: { kind: 'stored', record: local } }
-    );
+    expect(result.record?.beds.R2).toBeUndefined();
+    expect(admitLocalRecords).toHaveBeenCalled();
+    expect(saveToIndexedDB).not.toHaveBeenCalled();
   });
 
   it('returns the exact remote census for structural planning without merging local bed state', async () => {
@@ -302,21 +311,11 @@ describe('dailyRecordRepositoryReadService', () => {
 
     expect(result.record?.beds.R1.status).toBe(PatientStatus.GRAVE);
     expect(result.record?.beds.R1.specialty).toBe(Specialty.MEDICINA);
-    expect(result.record?.beds.R1.clinicalEpisodeId).toBe('ep_r1_generated');
+    expect(result.record?.beds.R1.clinicalEpisodeId).toBeUndefined();
     expect(result.sourceOfTruth).toBe('local');
     expect(result.consistencyState).toMatch(/local/);
-    expect(saveToIndexedDB).toHaveBeenCalledWith(
-      expect.objectContaining({
-        beds: expect.objectContaining({
-          R1: expect.objectContaining({
-            clinicalEpisodeId: 'ep_r1_generated',
-            status: PatientStatus.GRAVE,
-            specialty: Specialty.MEDICINA,
-          }),
-        }),
-      }),
-      { preserveUnresolvedWrites: true, expectedBase: { kind: 'stored', record: local } }
-    );
+    expect(admitLocalRecords).toHaveBeenCalled();
+    expect(saveToIndexedDB).not.toHaveBeenCalled();
   });
 
   it('keeps fast sequential diagnosis and specialty edits when Firebase only confirms status first', async () => {
@@ -365,20 +364,9 @@ describe('dailyRecordRepositoryReadService', () => {
     expect(result.record?.beds.R1.pathology).toBe('Neumonia adquirida en la comunidad');
     expect(result.record?.beds.R1.specialty).toBe(Specialty.MEDICINA);
     expect(result.record?.beds.R1.status).toBe(PatientStatus.DE_CUIDADO);
-    expect(result.record?.beds.R1.clinicalEpisodeId).toBe('ep_r1_generated');
-    expect(saveToIndexedDB).toHaveBeenCalledWith(
-      expect.objectContaining({
-        beds: expect.objectContaining({
-          R1: expect.objectContaining({
-            clinicalEpisodeId: 'ep_r1_generated',
-            pathology: 'Neumonia adquirida en la comunidad',
-            specialty: Specialty.MEDICINA,
-            status: PatientStatus.DE_CUIDADO,
-          }),
-        }),
-      }),
-      { preserveUnresolvedWrites: true, expectedBase: { kind: 'stored', record: local } }
-    );
+    expect(result.record?.beds.R1.clinicalEpisodeId).toBeUndefined();
+    expect(admitLocalRecords).toHaveBeenCalled();
+    expect(saveToIndexedDB).not.toHaveBeenCalled();
   });
 
   it('hydrates local cache when remote record is newer than local', async () => {
@@ -387,7 +375,7 @@ describe('dailyRecordRepositoryReadService', () => {
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
     vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
-      serverConfirmed: false,
+      serverConfirmed: true,
       record: remote,
       source: 'firestore',
       compatibilityTier: 'current_firestore',
@@ -401,13 +389,8 @@ describe('dailyRecordRepositoryReadService', () => {
     expect(result.source).toBe('firestore');
     expect(result.record?.lastUpdated).toBe(remote.lastUpdated);
     expect(result.consistencyState).toBe('remote_authoritative');
-    expect(saveToIndexedDB).toHaveBeenCalledWith(
-      expect.objectContaining({
-        date: remote.date,
-        lastUpdated: remote.lastUpdated,
-      }),
-      { preserveUnresolvedWrites: true, expectedBase: { kind: 'stored', record: local } }
-    );
+    expect(admitLocalRecords).toHaveBeenCalled();
+    expect(saveToIndexedDB).not.toHaveBeenCalled();
   });
 
   it('uses the E2E localStorage seed as the local candidate when a runtime override supplies remote', async () => {
@@ -449,7 +432,7 @@ describe('dailyRecordRepositoryReadService', () => {
 
     expect(result.record?.beds.R1.patientName).toBe('REMOTE CANONICAL');
     expect(result.record?.beds.R1.pathology).toBe('REMOTE DX');
-    expect(result.record?.beds.R1.handoffNote).toBe('LOCAL NOTE');
+    expect(result.record?.beds.R1.handoffNote).toBe('');
   });
 
   it('falls back to local with recoverable metadata when remote fetch fails', async () => {

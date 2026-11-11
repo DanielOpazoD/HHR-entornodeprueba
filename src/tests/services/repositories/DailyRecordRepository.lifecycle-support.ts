@@ -81,7 +81,22 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
     kind: 'stored',
     record: await indexedDbFacadeMock.getRecordForDate(date),
   }),
-  inspectLocalRecordAdmission: async () => ({ status: 'admitted' }),
+  inspectLocalRecordAdmission: async (date: string) => ({
+    status: 'admitted',
+    record: await indexedDbFacadeMock.getRecordForDate(date),
+  }),
+  admitLocalRecords: vi.fn(async candidates =>
+    Promise.all(
+      candidates.map(async candidate => ({
+        date: candidate.record.date,
+        status: 'admitted',
+        record:
+          candidate.serverConfirmed === false && candidate.expectedBase?.record
+            ? candidate.expectedBase.record
+            : candidate.record,
+      }))
+    )
+  ),
   getPreviousDayRecord: indexedDbFacadeMock.getPreviousDayRecord,
   saveRecord: indexedDbFacadeMock.saveRecord,
   saveRecordStrict: indexedDbFacadeMock.saveRecordStrict,

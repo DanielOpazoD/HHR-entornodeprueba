@@ -1,3 +1,4 @@
+import { applyPendingExplicitCensusPatch } from './dailyRecordPendingPatchController';
 import { replaceEqualDeep } from '@tanstack/react-query';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
@@ -40,10 +41,28 @@ class PointReadPublication implements DailyRecordQueryResult {
       return current;
     }
     const accepted = replaceEqualDeep(current, { record: this.record, runtime: this.runtime });
-    this.record = accepted.record;
-    this.runtime = accepted.runtime;
     if (this.#mayConfirm) this.#confirm(accepted);
-    return accepted;
+    const record = accepted.record
+      ? applyPendingExplicitCensusPatch(
+          accepted.runtime.date,
+          accepted.record,
+          current?.record ?? undefined
+        )
+      : accepted.record;
+    const published =
+      record === accepted.record
+        ? accepted
+        : {
+            record,
+            runtime: {
+              ...accepted.runtime,
+              baseSource: accepted.runtime.baseSource ?? accepted.runtime.sourceOfTruth,
+              sourceOfTruth: 'local' as const,
+            },
+          };
+    this.record = published.record;
+    this.runtime = published.runtime;
+    return published;
   }
 }
 

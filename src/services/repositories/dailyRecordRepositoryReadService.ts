@@ -15,7 +15,6 @@ import {
   createGetDailyRecordQuery,
   createGetPreviousDayQuery,
 } from '@/services/repositories/contracts/dailyRecordQueries';
-import { mergeAvailableDates } from '@/services/repositories/dailyRecordSyncCompatibility';
 import { measureRepositoryOperation } from '@/services/repositories/repositoryPerformance';
 import { dailyRecordReadLogger } from '@/services/repositories/repositoryLoggers';
 import {
@@ -155,7 +154,7 @@ export const getForDateWithMeta = async (
         ? getE2ELocalStorageRecord(query.date) || indexedDbLocalRecord
         : indexedDbLocalRecord;
       const localCandidate = localRecord
-        ? createLocalRuntimeReadCandidate(query.date, localRecord)
+        ? { ...createLocalRuntimeReadCandidate(query.date, localRecord), record: localRecord }
         : null;
       if (e2eOverride) {
         dailyRecordReadLogger.warn(`Using E2E override record for ${query.date}`);
@@ -210,7 +209,11 @@ const readDates = async (readRemote: RemoteDateReader): Promise<string[]> => {
 
   if (isFirestoreEnabled()) {
     try {
-      return mergeAvailableDates(localDates, await readRemote(await loadFirestoreRecordQueries()));
+      return [
+        ...new Set([...localDates, ...(await readRemote(await loadFirestoreRecordQueries()))]),
+      ]
+        .sort()
+        .reverse();
     } catch (err) {
       dailyRecordReadLogger.warn('Failed to fetch remote dates', err);
     }

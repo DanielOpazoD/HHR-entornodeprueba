@@ -126,7 +126,7 @@ describe('client day creation from a split source day (D10)', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(NOW);
     mocks.isFirestoreEnabled.mockReturnValue(true);
-    mocks.loadRemote.mockResolvedValue({ record: null });
+    mocks.loadRemote.mockResolvedValue({ record: null, serverConfirmed: true });
     mocks.save.mockResolvedValue(undefined);
   });
   afterEach(() => vi.useRealTimers());

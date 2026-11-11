@@ -1,3 +1,4 @@
+import { getForDate } from './dailyRecordRepositoryReadService';
 import { ensureDbReady, hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {
   runExclusiveDailyRecordWrite,
@@ -15,10 +16,7 @@ import {
 import { isSpecialistScopedDailyRecordPatch } from './dailyRecordClinicalDomainService';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import {
-  getRecordForDate as getRecordFromIndexedDB,
-  saveRecordStrict as saveToIndexedDB,
-} from '@/services/storage/indexeddb/indexedDbRecordService';
+import { getRecordForDate as getRecordFromIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
 import {
   saveRecordToFirestore,
   updateRecordPartial as updateRecordPartialToFirestore,
@@ -201,40 +199,7 @@ const resolvePartialUpdateBaseRecord = async (
     return options.baseRecord;
   }
 
-  const localRecord = await getRecordFromIndexedDB(date);
-  if (localRecord) {
-    return localRecord;
-  }
-
-  if (!isFirestoreEnabled()) {
-    return null;
-  }
-
-  try {
-    const remoteRecord = await getRecordFromFirestore(date);
-    if (!remoteRecord) {
-      return null;
-    }
-
-    // Admitted like a read, against the copy found absent: one that a pending write holds, or
-    // that another tab stored during the fetch, stays and becomes the base instead.
-    const localResult = await saveToIndexedDB(remoteRecord, {
-      preserveUnresolvedWrites: true,
-      expectedBase: { kind: 'stored', record: null },
-    });
-    if (!localResult.ok) {
-      throw localResult.error instanceof Error
-        ? localResult.error
-        : new Error(localResult.userSafeMessage || 'No fue posible guardar la base remota local.');
-    }
-    return localResult.superseded?.stored ?? localResult.retainedRecord ?? remoteRecord;
-  } catch (error) {
-    dailyRecordWriteLogger.warn(
-      `Remote base fetch failed for ${date}; partial update aborted`,
-      error
-    );
-    return null;
-  }
+  return getForDate(date);
 };
 
 const saveDetailedWithinLock = async (

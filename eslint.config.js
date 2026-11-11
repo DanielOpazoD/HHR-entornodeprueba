@@ -354,5 +354,31 @@ export default tseslint.config(
     files: ['src/services/{storage,repositories,admin}/**/*.{ts,tsx}'],
     ignores: ['**/*.d.ts', '**/tests/**', '**/*.test.*'],
     rules: { '@typescript-eslint/no-explicit-any': 'error' },
+  },
+  {
+    files: [
+      'src/services/repositories/dailyRecord*Read*.ts',
+      'src/services/repositories/dailyRecord*Initialization*.ts',
+      'src/services/repositories/dailyRecordLocalCachePersistence.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/indexedDbRecordService'],
+              importNames: ['saveRecordStrict', 'saveRecord', 'saveRecordsStrict'],
+              message:
+                'Las lecturas remotas deben entrar por admitRemoteDailyRecords y usar su fila devuelta.',
+            },
+            {
+              group: ['**/indexedDbCore'],
+              message: 'Las lecturas remotas deben entrar por admitRemoteDailyRecords.',
+            },
+          ],
+        },
+      ],
+    },
   }
 );
