@@ -1,5 +1,5 @@
 import React from 'react';
-import { BedDefinition } from '@/features/census/contracts/censusBedContracts';
+import { BedDefinition } from '@/types/domain/beds';
 import { LoaderCircle, Plus } from 'lucide-react';
 import type { TableColumnConfig } from '@/context/TableConfigContext';
 

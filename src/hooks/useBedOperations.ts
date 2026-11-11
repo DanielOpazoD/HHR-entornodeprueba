@@ -14,11 +14,9 @@
  */
 
 import { useCallback } from 'react';
-import type {
-  ApplyDailyRecordPatch,
-  DailyRecord,
-  DailyRecordPatch,
-} from '@/application/shared/dailyRecordCoreContracts';
+import type { ApplyDailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { useAuditContext } from '@/context/AuditContext';
 import { bedOperationsLogger } from '@/hooks/hookLoggers';
 import {

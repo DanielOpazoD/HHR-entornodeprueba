@@ -9,11 +9,9 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../config/queryClient';
 import { UseDailyRecordSyncResult } from '@/context/dailyRecordContextContracts';
-import type {
-  ApplyDailyRecordPatchOptions,
-  DailyRecord,
-  DailyRecordPatch,
-} from '@/application/shared/dailyRecordCoreContracts';
+import type { ApplyDailyRecordPatchOptions } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { useRepositories } from '@/services/RepositoryContext';
 import { useNotification } from '@/context/UIContext';
 import { useVersion } from '@/context/VersionContext';

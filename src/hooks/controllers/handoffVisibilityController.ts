@@ -1,5 +1,5 @@
-import type { DailyRecordBedLayoutState } from '@/application/shared/dailyRecordBedContracts';
-import type { DailyRecordDateRef as DailyRecordVisibilityDateRef } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecordBedLayoutState } from '@/types/domain/dailyRecordSlices';
+import type { DailyRecordDateRef as DailyRecordVisibilityDateRef } from '@/types/domain/dailyRecordSlices';
 
 interface BedDescriptor {
   id: string;

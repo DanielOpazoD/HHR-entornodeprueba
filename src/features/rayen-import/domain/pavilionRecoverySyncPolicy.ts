@@ -1,4 +1,4 @@
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenCensusSnapshot, RayenEncounter } from '../contracts/rayenSnapshot';
 import { isDischargedEncounter } from './censusReconciliationPredicates';
 import { buildActiveBedEvidence } from './gestionCamasActiveBedPolicy';

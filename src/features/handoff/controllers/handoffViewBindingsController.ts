@@ -7,7 +7,7 @@ import type { MedicalHandoffCapabilities } from '@/features/handoff/controllers/
 import type { Specialty } from '@/domain/handoff/patientContracts';
 import type { ClinicalEvent } from '@/types/domain/clinicalEvents';
 import type { BedDefinition } from '@/types/domain/beds';
-import type { DailyRecord } from '@/domain/handoff/recordContracts';
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import type { MedicalHandoffScope } from '@/types/medicalHandoff';
 
 interface BuildHandoffMedicalActionsParams {
@@ -41,7 +41,7 @@ interface BuildHandoffActionBundlesParams extends BuildHandoffMedicalActionsPara
 
 interface ResolveHandoffMedicalBindingsParams {
   visibleBeds: BedDefinition[];
-  record: DailyRecord | null;
+  record: HandoffDailyRecordContract | null;
   isMedical: boolean;
   medicalScope: MedicalHandoffScope;
   selectedMedicalSpecialty: Specialty | 'all';

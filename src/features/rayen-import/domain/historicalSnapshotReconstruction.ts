@@ -1,6 +1,6 @@
 import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
 import type { ConflictEntry } from '../contracts/censusImportDiff';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { RayenCensusSnapshot, RayenEncounter } from '../contracts/rayenSnapshot';

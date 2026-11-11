@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { collectNursingStaffingProposal } from '@/features/rayen-import/domain/collectNursingStaffingProposal';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const record = {

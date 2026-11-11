@@ -1,5 +1,5 @@
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
 const MERGEABLE_MOVEMENT_ARRAY_ROOTS = new Set(['discharges', 'transfers', 'cma']);

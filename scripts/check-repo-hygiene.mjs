@@ -112,29 +112,6 @@ const DEPRECATED_IMPORTS = [
     allowBypass: file => file === 'src/shared/controllerResult.ts' || file.startsWith('src/tests/'),
   },
 ];
-const DAILY_RECORD_ROOT_IMPORTS = [
-  '@/types/domain/dailyRecord',
-  '@/types/domain/dailyRecordPatch',
-  '@/types/domain/dailyRecordSlices',
-  '@/types/domain/dailyRecordMedicalHandoff',
-];
-
-const isDailyRecordApplicationBoundaryBypass = file =>
-  file === 'src/application/shared/dailyRecordContracts.ts' ||
-  file === 'src/application/shared/dailyRecordBedContracts.ts' ||
-  file === 'src/application/shared/dailyRecordCoreContracts.ts' ||
-  file === 'src/application/shared/dailyRecordMedicalContracts.ts' ||
-  file === 'src/application/shared/dailyRecordStaffContracts.ts' ||
-  file.startsWith('src/tests/');
-
-const isDailyRecordHookBoundaryBypass = file => file.startsWith('src/tests/');
-
-const isDailyRecordServiceBoundaryBypass = file =>
-  file === 'src/services/contracts/dailyRecordServiceContracts.ts' ||
-  file.startsWith('src/services/repositories/') ||
-  file.startsWith('src/services/storage/') ||
-  file.startsWith('src/tests/');
-
 const failures = [];
 
 const getSourceBasenameSet = dirPath => {
@@ -198,7 +175,7 @@ for (const file of trackedFiles) {
       rule: {
         id: 'domain-types-one-home',
         description:
-          'Import patient types directly from @/types/domain/patient; remove pure aliases and reexports, and give narrower shapes their own names.',
+          'Import domain types directly from their home in @/types/domain/*; remove pure aliases and reexports, and give narrower shapes their own names.',
       },
     });
   }
@@ -239,46 +216,6 @@ for (const file of trackedFiles) {
       rule: {
         id: deprecatedImport.ruleId,
         description: deprecatedImport.description,
-      },
-    });
-  }
-
-  const importsDailyRecordRoot = DAILY_RECORD_ROOT_IMPORTS.some(importPath =>
-    source.includes(importPath)
-  );
-  if (!importsDailyRecordRoot) {
-    continue;
-  }
-
-  if (file.startsWith('src/application/') && !isDailyRecordApplicationBoundaryBypass(file)) {
-    failures.push({
-      file,
-      rule: {
-        id: 'daily-record-application-contract-boundary',
-        description:
-          'Application code must import daily record contracts from "@/application/shared/dailyRecordContracts" instead of the root persistence types.',
-      },
-    });
-  }
-
-  if (file.startsWith('src/hooks/') && !isDailyRecordHookBoundaryBypass(file)) {
-    failures.push({
-      file,
-      rule: {
-        id: 'daily-record-hook-contract-boundary',
-        description:
-          'Hooks must import daily record contracts from "@/application/shared/dailyRecordContracts" instead of the root persistence types.',
-      },
-    });
-  }
-
-  if (file.startsWith('src/services/') && !isDailyRecordServiceBoundaryBypass(file)) {
-    failures.push({
-      file,
-      rule: {
-        id: 'daily-record-service-contract-boundary',
-        description:
-          'Non-repository services must import daily record contracts from "@/services/contracts/dailyRecordServiceContracts" instead of the root persistence types.',
       },
     });
   }

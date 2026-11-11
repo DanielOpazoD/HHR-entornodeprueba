@@ -3,7 +3,7 @@
  * in Rapa Nui through historicalCensusSync, independently of the device clock.
  */
 
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   isSupportedCensusSyncDay,
   resolveCensusSyncTarget,

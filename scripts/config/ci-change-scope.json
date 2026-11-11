@@ -37,7 +37,6 @@
       "scripts/check-core-trivial-tests.mjs",
       "scripts/check-critical-any.mjs",
       "scripts/check-declared-dependencies.mjs",
-      "scripts/check-domain-hotspot-boundary.mjs",
       "scripts/check-empty-on-failure-reads.mjs",
       "scripts/check-firestore-emulator-governance.mjs",
       "scripts/check-folder-dependencies.mjs",

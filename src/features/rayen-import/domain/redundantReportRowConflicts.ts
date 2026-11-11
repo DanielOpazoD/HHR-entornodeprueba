@@ -1,4 +1,4 @@
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { ReportEgreso } from '../contracts/egresoReport';
 import { normalizedName } from './previousCensusEgresoCandidates';

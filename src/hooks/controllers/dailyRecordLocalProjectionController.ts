@@ -1,4 +1,5 @@
-import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { flattenObject } from '@/services/storage/firestore/firestoreShared';
 import { RAYEN_OWNED_CLINICAL_FIELDS } from '@/types/domain/rayenClinicalFields';
 import { applyPatches } from '@/utils/patchUtils';

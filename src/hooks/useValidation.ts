@@ -3,7 +3,7 @@ import type { PatientData } from '@/types/domain/patient';
 import { useCallback } from 'react';
 import { DailyRecordSchema } from '@/schemas/zodSchemas';
 
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   validateMovePatient,
   validatePatientDischarge,

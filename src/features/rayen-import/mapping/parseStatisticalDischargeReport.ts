@@ -5,10 +5,6 @@ import type {
   StatisticalDischargeEvidence,
   StatisticalUnitTransfer,
 } from '@/types/domain/statisticalDischarge';
-export type {
-  StatisticalDischargeEvidence,
-  StatisticalUnitTransfer,
-} from '@/types/domain/statisticalDischarge';
 
 const compactBoxedDigits = (value: string): string =>
   value.replace(/\b\d(?:\s+\d)+\b/g, digits => digits.replace(/\s+/g, ''));

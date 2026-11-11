@@ -1,6 +1,6 @@
 import React from 'react';
 import type { BedDefinition } from '@/types/domain/beds';
-import type { DailyRecord } from '@/domain/handoff/recordContracts';
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import { HandoffPatientTable } from './HandoffPatientTable';
 import { MovementsSummary } from './MovementsSummary';
 import { HandoffNovedades } from './HandoffNovedades';
@@ -9,7 +9,7 @@ import { buildHandoffNovedadesBindings } from '@/features/handoff/controllers/ha
 
 interface HandoffNursingContentProps {
   visibleBeds: BedDefinition[];
-  record: DailyRecord;
+  record: HandoffDailyRecordContract;
   noteField: 'handoffNoteDayShift' | 'handoffNoteNightShift' | 'medicalHandoffNote';
   onNoteChange: (bedId: string, value: string, isNested: boolean) => void;
   medicalActions: HandoffMedicalActions;

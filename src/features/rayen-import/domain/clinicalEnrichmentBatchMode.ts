@@ -1,4 +1,4 @@
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 export type ClinicalEnrichmentBatchMode = 'enforced';
 export type ClinicalEnrichmentBatchModeResolution = ClinicalEnrichmentBatchMode | 'unavailable';

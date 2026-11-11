@@ -5,7 +5,7 @@
  * This allows administrators to have local backups and restore data by month.
  */
 
-import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { saveDetailed as saveDailyRecordDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { logAuditEvent } from './auditService';
 import { getCurrentUserEmail } from './utils/auditUtils';

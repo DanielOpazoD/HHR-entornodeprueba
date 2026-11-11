@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
 
 const mocks = vi.hoisted(() => ({

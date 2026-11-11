@@ -7,7 +7,7 @@ import {
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRayenImportCapture } from '@/features/rayen-import/hooks/useRayenImportCapture';
 import { INITIAL_RAYEN_IMPORT_STATE } from '@/features/rayen-import/hooks/rayenImportState';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PreparedRayenSyncContext } from '@/features/rayen-import/hooks/rayenSyncTemporalContext';
 import {
   INITIAL_RAYEN_SYNC_EXECUTION_STATE,

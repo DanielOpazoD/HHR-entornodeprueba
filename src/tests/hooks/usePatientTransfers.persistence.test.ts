@@ -2,10 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { usePatientTransfers } from '@/hooks/usePatientTransfers';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import type {
-  DailyRecord,
-  PersistDailyRecord,
-} from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { PersistDailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 
 vi.mock('@/context/AuditContext', () => ({
   useAuditContext: () => ({ logEvent: vi.fn(), logPatientTransfer: vi.fn() }),

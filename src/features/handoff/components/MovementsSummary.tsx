@@ -12,7 +12,7 @@
 
 import React, { useMemo } from 'react';
 import { UserMinus, ArrowRightLeft, Sun } from 'lucide-react';
-import type { DailyRecord } from '@/domain/handoff/recordContracts';
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import {
   buildMovementsSummaryViewModel,
   resolveTransferDestinationLabel,
@@ -20,7 +20,7 @@ import {
 } from '@/features/handoff/controllers/movementsSummaryController';
 
 interface MovementsSummaryProps {
-  record: DailyRecord;
+  record: HandoffDailyRecordContract;
   selectedShift?: 'day' | 'night';
 }
 

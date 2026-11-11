@@ -1,10 +1,11 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
 
-/** Domain types whose only home is their module under src/types/domain. */
-const DOMAIN_TYPE_HOMES = new Set(['src/types/domain/patient']);
+/** Domain types have one home: their module under src/types/domain. */
+const DOMAIN_TYPE_HOMES = 'src/types/domain/';
 /** Names no other module may declare or export: a narrower shape gets its own name. */
-const DOMAIN_ROOT_NAMES = new Set(['PatientData']);
+const DOMAIN_ROOT_NAMES = new Set(['PatientData', 'DailyRecord']);
 
 const resolveModule = (file, specifier) => {
   const resolved = specifier.startsWith('@/')
@@ -15,24 +16,70 @@ const resolveModule = (file, specifier) => {
   return resolved.replace(/\.tsx?$/, '');
 };
 
+const isExported = node => node.modifiers?.some(m => m.kind === ts.SyntaxKind.ExportKeyword);
+const runtimeExports = new Map();
+/** Names a home module exports as runtime values (enums, constants, functions, classes). */
+const runtimeExportsOf = (root, home) => {
+  const key = path.join(root, home);
+  if (runtimeExports.has(key)) return runtimeExports.get(key);
+  const names = new Set();
+  const file = [`${key}.ts`, path.join(key, 'index.ts')].find(candidate =>
+    fs.existsSync(candidate)
+  );
+  if (file) {
+    const ast = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest);
+    for (const statement of ast.statements) {
+      if (!isExported(statement)) continue;
+      if (ts.isVariableStatement(statement)) {
+        for (const declaration of statement.declarationList.declarations) {
+          if (ts.isIdentifier(declaration.name)) names.add(declaration.name.text);
+        }
+      } else if (
+        (ts.isEnumDeclaration(statement) ||
+          ts.isFunctionDeclaration(statement) ||
+          ts.isClassDeclaration(statement)) &&
+        statement.name
+      ) {
+        names.add(statement.name.text);
+      }
+    }
+  }
+  runtimeExports.set(key, names);
+  return names;
+};
+
 /**
  * True when a module outside src/types rebuilds a facade over a domain type: it declares or
- * exports a root name, re-exports from the home, or aliases an imported domain type as is.
- * Derived shapes (Partial<X>, Pick<X, …>, X['field']) are not facades.
+ * exports a root name, re-exports a type from its home, or aliases an imported domain type as
+ * is. It does not depend on the `type` keyword: an unmarked import or re-export of a type is
+ * the same facade. Derived shapes (Partial<X>, Pick<X, …>, X['field']) are not facades, and a
+ * runtime value re-exported from its home is left to the module graph controls.
  */
-export const isDomainTypeFacade = (file, source) => {
+export const isDomainTypeFacade = (file, source, root = process.cwd()) => {
   if (!file.startsWith('src/') || file.startsWith('src/types/')) return false;
   const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
-  const isHome = specifier =>
-    specifier !== undefined && DOMAIN_TYPE_HOMES.has(resolveModule(file, specifier.text));
-  const imported = new Set();
+  const homeOf = specifier => {
+    const resolved = specifier && resolveModule(file, specifier.text);
+    return resolved?.startsWith(DOMAIN_TYPE_HOMES) ? resolved : undefined;
+  };
+  /** Local name → whether it is only a type in its home. */
+  const imported = new Map();
   for (const statement of ast.statements) {
-    if (!ts.isImportDeclaration(statement) || !isHome(statement.moduleSpecifier)) continue;
+    const home = ts.isImportDeclaration(statement) && homeOf(statement.moduleSpecifier);
+    if (!home) continue;
     const bindings = statement.importClause?.namedBindings;
     if (bindings && ts.isNamedImports(bindings)) {
-      for (const element of bindings.elements) imported.add(element.name.text);
+      for (const element of bindings.elements) {
+        const original = (element.propertyName ?? element.name).text;
+        imported.set(
+          element.name.text,
+          statement.importClause.isTypeOnly ||
+            element.isTypeOnly ||
+            !runtimeExportsOf(root, home).has(original)
+        );
+      }
     } else if (bindings) {
-      imported.add(bindings.name.text);
+      imported.set(bindings.name.text, true);
     }
   }
   const isImportedTypeAsIs = type =>
@@ -45,16 +92,18 @@ export const isDomainTypeFacade = (file, source) => {
     }
     if (ts.isInterfaceDeclaration(statement)) return DOMAIN_ROOT_NAMES.has(statement.name.text);
     if (!ts.isExportDeclaration(statement)) return false;
-    if (isHome(statement.moduleSpecifier)) return true;
+    const home = homeOf(statement.moduleSpecifier);
     const clause = statement.exportClause;
-    if (!clause || !ts.isNamedExports(clause)) return false;
+    if (!clause || !ts.isNamedExports(clause)) return Boolean(home);
     return clause.elements.some(element => {
       const original = (element.propertyName ?? element.name).text;
-      return (
-        DOMAIN_ROOT_NAMES.has(element.name.text) ||
-        DOMAIN_ROOT_NAMES.has(original) ||
-        (!statement.moduleSpecifier && imported.has(original))
-      );
+      if (DOMAIN_ROOT_NAMES.has(element.name.text) || DOMAIN_ROOT_NAMES.has(original)) return true;
+      if (home) {
+        return (
+          statement.isTypeOnly || element.isTypeOnly || !runtimeExportsOf(root, home).has(original)
+        );
+      }
+      return !statement.moduleSpecifier && imported.get(original) === true;
     });
   });
 };

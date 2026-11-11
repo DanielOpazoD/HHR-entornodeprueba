@@ -1,6 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 
 export const normalizePatientRut = (rut?: string): string =>

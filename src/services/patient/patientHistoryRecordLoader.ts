@@ -1,4 +1,4 @@
-import type { DailyRecordPatientHistoryState } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecordPatientHistoryState } from '@/types/domain/dailyRecordSlices';
 import type { PatientData } from '@/types/domain/patient';
 import type { DischargeData, TransferData } from '@/types/domain/movements';
 import type { HospitalizationEvent } from '@/types/domain/patientMaster';

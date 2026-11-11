@@ -1,4 +1,5 @@
-import type { ClinicalReadErrorCode } from './clinicalReadError';
+import type { ClinicalReadErrorCode } from '@/types/domain/rayenSync';
+
 import type { ClinicalReadSelection } from './clinicalReadSelection';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
@@ -34,7 +35,7 @@ export interface ClinicalFillDeps {
   historicalCudyrEpisodeIds?: readonly string[];
   /** Positive documentary evidence only; never changes live-query completeness or absence. */
   recoverMissingCudyr?: (
-    record: import('./rayenDomainContracts').DailyRecord,
+    record: import('@/types/domain/dailyRecord').DailyRecord,
     clinicalEpisodeIds: readonly string[],
     source: import('../domain/clinicalCudyrPreflight').ClinicalCudyrSource
   ) => Promise<DailyCudyrRecoveryResult>;

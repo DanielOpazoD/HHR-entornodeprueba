@@ -1,6 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import { mergePatientData } from '@/services/repositories/conflictResolutionMergeUtils';

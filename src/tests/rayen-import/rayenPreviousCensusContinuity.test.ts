@@ -7,7 +7,7 @@ import type {
   CensusImportDiff,
   ConflictEntry,
 } from '@/features/rayen-import/contracts/censusImportDiff';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenEncounter } from '@/features/rayen-import/contracts/rayenSnapshot';
 import { applyCensusImportDiff } from '@/features/rayen-import/domain/applyCensusImportDiff';
 import { replanRayenStructure } from '@/features/rayen-import/hooks/replanRayenStructure';

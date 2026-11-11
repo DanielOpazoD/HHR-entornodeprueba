@@ -2,13 +2,13 @@ import type { PatientData } from '@/types/domain/patient';
 
 import type {
   ApplyDailyRecordPatch,
-  DailyRecord,
   PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type {
   MedicalHandoffActor,
   MedicalSpecialty,
-} from '@/application/shared/dailyRecordMedicalContracts';
+} from '@/types/domain/dailyRecordMedicalHandoff';
 
 import type { CudyrBatchUpdate, CudyrScore, CudyrScorePatch } from '@/types/domain/cudyr';
 import type { CMAData } from '@/types/domain/movements';
@@ -20,8 +20,6 @@ import type { DailyRecordBootstrapPhase } from '@/hooks/controllers/dailyRecordB
 import type { StabilityRules } from '@/hooks/useStabilityRules';
 import type { DailyRecordStaffingDetailsV1 } from '@/types/domain/dailyRecordStaffingDetails';
 import type { ConfirmedBedOccupantIdentity } from '@/types/domain/intentionalBedClear';
-
-export type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 
 export type SyncStatus = 'idle' | 'saving' | 'saved' | 'error';
 

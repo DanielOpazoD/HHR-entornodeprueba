@@ -1,6 +1,6 @@
 import React from 'react';
 import clsx from 'clsx';
-import type { DailyRecord } from '@/application/shared/dailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   CUDYR_DEPENDENCY_COLUMNS,
   CUDYR_RISK_COLUMNS,

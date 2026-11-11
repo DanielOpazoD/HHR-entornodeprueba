@@ -1,5 +1,5 @@
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import { saveDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordSavePersistenceController';
 import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';

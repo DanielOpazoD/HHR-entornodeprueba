@@ -1,4 +1,4 @@
-import type { CMAData } from '@/features/census/contracts/censusMovementContracts';
+import type { CMAData } from '@/types/domain/movements';
 import { resolveMovementSectionState } from '@/features/census/controllers/censusMovementSectionController';
 
 export interface CmaSectionState {

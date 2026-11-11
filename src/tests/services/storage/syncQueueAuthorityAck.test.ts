@@ -5,7 +5,7 @@ import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const { callable, getDocMock } = vi.hoisted(() => ({
   callable: vi.fn(),

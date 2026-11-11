@@ -1,4 +1,4 @@
-import type { DailyRecord } from '@/features/census/contracts/censusRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { StabilityRules } from '@/hooks/useStabilityRules';
 import type { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
 import { createInitialActionState } from '@/domain/censusActionContracts';

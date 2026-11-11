@@ -4,7 +4,7 @@ import { applyClinicalEnrichmentBatch } from '@/features/rayen-import/hooks/appl
 import { persistClinicalBatch } from '@/features/rayen-import/domain/clinicalBatchPersistence';
 import { buildRayenSyncCoverage } from '@/features/rayen-import/domain/rayenSyncHistory';
 import type { RayenClinicalEnrichmentBatchPayload } from '@/features/rayen-import/bridge/rayenClinicalEnrichmentBatchClient';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ClinicalFillPatchOperation } from '@/features/rayen-import/contracts/clinicalFillContracts';
 import { createDependencies } from './applyClinicalEnrichmentBatch.fixtures';
 

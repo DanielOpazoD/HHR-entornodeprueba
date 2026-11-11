@@ -2,7 +2,7 @@ import type { UserRole } from '@/types/authRoleTypes';
 import { useCallback } from 'react';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { HistoricalCudyrBatchItem } from '../contracts/clinicalFillContracts';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 export const useHistoricalCudyrPersistence = ({
   dailyRecord,

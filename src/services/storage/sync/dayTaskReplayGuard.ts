@@ -3,7 +3,8 @@
  * outside its own changes. Loaded with the outbox, on demand, off the authenticated shell.
  */
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { PatientData } from '@/types/domain/patient';
 import type { SpecialistHandoffTarget } from '@/types/domain/specialistHandoffTarget';
 import {

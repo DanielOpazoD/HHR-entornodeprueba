@@ -15,7 +15,7 @@ import {
   type QueryDocumentSnapshot,
   type QueryConstraint,
 } from 'firebase/firestore';
-import { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import { DailyRecord } from '@/types/domain/dailyRecord';
 import { COLLECTIONS, getActiveHospitalId } from '@/constants/firestorePaths';
 import {
   docToRecord,

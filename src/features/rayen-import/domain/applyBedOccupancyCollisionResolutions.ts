@@ -10,7 +10,7 @@ import type {
   DischargeEntry,
 } from '../contracts/censusImportDiff';
 import { reservedRayenStructuralTargetBedIds } from './bedOccupancyCollisionPolicy';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { diffSyncablePatientFields } from './patientSyncPolicy';
 import { matchesDischargeSubject } from './dischargeSubjectIdentity';
 

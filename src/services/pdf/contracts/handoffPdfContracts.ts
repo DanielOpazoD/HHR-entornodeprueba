@@ -1,6 +1,4 @@
-import type { DailyRecordHandoffPdfState } from '@/services/contracts/dailyRecordServiceContracts';
-
-export type HandoffPdfRecord = DailyRecordHandoffPdfState;
+import type { DailyRecordHandoffPdfState as HandoffPdfRecord } from '@/types/domain/dailyRecordSlices';
 
 export type HandoffPdfStaffingRecord = Pick<
   HandoffPdfRecord,

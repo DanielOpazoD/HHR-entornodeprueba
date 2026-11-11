@@ -5,7 +5,8 @@ import {
   type DocumentData,
   type UpdateData,
 } from 'firebase/firestore';
-import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { withRetry } from '@/utils/networkUtils';
 import { loadFunctionsModule } from '@/services/firebase-runtime/functionsModuleLoader';
 import { DataRegressionError } from '@/utils/integrityGuard';

@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { useNotification } from '@/context/UIContext';
 import {
   buildExportCsvNotification,

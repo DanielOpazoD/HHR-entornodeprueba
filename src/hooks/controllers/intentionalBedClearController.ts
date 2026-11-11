@@ -1,4 +1,5 @@
-import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { toRecordTimestamp } from '@/services/repositories/dailyRecordConsistencyPolicy';
 import { hasSameValuesAtPaths } from '@/services/repositories/conflictResolutionUtils';
 import type {

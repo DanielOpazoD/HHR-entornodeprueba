@@ -1,6 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 import type { BedAction } from '@/hooks/contracts/bedManagementActionContracts';
 import type { OperationalTelemetryEvent } from '@/services/observability/operationalTelemetryTypes';

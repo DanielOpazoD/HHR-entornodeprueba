@@ -21,7 +21,7 @@ import { sanitizeOperationalTelemetryEvent } from '@/services/observability/oper
 import { clearOperationalTelemetryEvents } from '@/services/observability/operationalTelemetryRecorder';
 import type { ClinicalFillError } from '@/features/rayen-import/contracts/clinicalFillContracts';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const PATIENT = 'Paciente Sintético Uno';
 const RUT = '11.111.111-1';

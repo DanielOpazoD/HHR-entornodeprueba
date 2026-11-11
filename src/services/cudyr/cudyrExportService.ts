@@ -1,4 +1,4 @@
-import type { DailyRecordCudyrExportState } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecordCudyrExportState } from '@/types/domain/dailyRecordSlices';
 
 export type CudyrExcelExportOutcome =
   | { outcome: 'success'; fileName: string; byteLength: number }

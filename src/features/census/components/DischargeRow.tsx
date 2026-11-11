@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-import type { DischargeData } from '@/features/census/contracts/censusMovementContracts';
+import type { DischargeData } from '@/types/domain/movements';
 import { resolveDischargeRowViewModel } from '@/features/census/controllers/dischargeRowViewController';
 import { DischargeRowView } from '@/features/census/components/DischargeRowView';
 import { buildDischargeClinicalDocumentsPatientSnapshot } from '@/features/census/controllers/movementClinicalDocumentsController';

@@ -33,7 +33,7 @@ import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSup
 import { rebasePendingDailyRecordWrite } from '@/services/repositories/dailyRecordPendingWriteRebase';
 import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyRecordPersistencePreparation';
 import { buildPendingDailyRecordReplacementTask } from '@/services/storage/sync/syncQueuePendingDailyRecordReplacement';
-import type { DailyRecord as StoredDailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord as StoredDailyRecord } from '@/types/domain/dailyRecord';
 import { getPendingDailyRecordProjection } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 
 /**

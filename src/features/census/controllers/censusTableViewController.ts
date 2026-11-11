@@ -1,6 +1,7 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import { BedDefinition, BedType } from '@/features/census/contracts/censusBedContracts';
+import { BedDefinition } from '@/types/domain/beds';
+import { BedType } from '@/features/census/contracts/censusBedContracts';
 import { hasMeaningfulPatientIdentity } from '@/features/census/controllers/patientIdentityController';
 
 import {

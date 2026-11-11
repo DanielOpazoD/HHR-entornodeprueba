@@ -2,7 +2,7 @@ import type { PatientData } from '@/types/domain/patient';
 
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 import {
   historicalMonthRange,

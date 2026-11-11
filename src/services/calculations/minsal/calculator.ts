@@ -12,7 +12,7 @@ import { countOccupiedBeds, countBlockedBeds, calculateDailySnapshot } from './s
 import { getPatientsBySpecialty } from './specialty';
 import { calculateDischargeStayDays } from '@/utils/clinicalDayUtils';
 import { createEpisodeAdmissionTracker } from './episodeTracker';
-import type { MinsalDailyRecord } from './minsalRecordContracts';
+import type { DailyRecordMovementState as MinsalDailyRecord } from '@/types/domain/dailyRecordSlices';
 import { normalizeMovementReportingSnapshot } from './movementCompatibility';
 import {
   getStatisticalDischarges,

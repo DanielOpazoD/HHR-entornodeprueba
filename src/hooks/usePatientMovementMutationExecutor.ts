@@ -1,9 +1,9 @@
 import { useCallback, MutableRefObject } from 'react';
 import type {
   ApplyDailyRecordPatch,
-  DailyRecord,
   PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   buildAtomicPatientMovementPatch,
   type AtomicPatientMovementListKey,

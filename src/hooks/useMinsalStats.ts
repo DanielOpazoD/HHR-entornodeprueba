@@ -35,7 +35,7 @@ import {
   MinsalStatistics,
   SpecialtyReclassification,
 } from '@/types/minsalTypes';
-import type { MinsalDailyRecord as DailyRecord } from '@/services/calculations/minsal/minsalRecordContracts';
+import type { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import {
   DAILY_RECORD_STORE_CHANGED_EVENT,

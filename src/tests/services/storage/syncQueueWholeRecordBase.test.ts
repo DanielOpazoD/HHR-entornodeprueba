@@ -5,7 +5,7 @@ import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreS
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { UNKNOWN_SERVER_VERSION } from '@/services/storage/sync/syncTaskContractPolicy';
 import type { SyncTask, SyncTaskContract } from '@/services/storage/syncQueueTypes';
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const mocks = vi.hoisted(() => ({
   read: vi.fn(),

@@ -1,8 +1,8 @@
 import type {
   ApplyDailyRecordPatch,
-  DailyRecord,
   PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { useBedManagement } from '@/hooks/useBedManagement';
 import type { StaleDayEditGuard } from '@/hooks/useStaleDayEditGuard';
 import { usePatientDischarges } from '@/hooks/usePatientDischarges';

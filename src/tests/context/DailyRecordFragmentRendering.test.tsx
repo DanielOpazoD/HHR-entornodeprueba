@@ -8,7 +8,8 @@ import {
   useDailyRecordMovements,
   useDailyRecordStaff,
 } from '@/context/DailyRecordContext';
-import type { DailyRecord, DailyRecordContextType } from '@/context/dailyRecordContextContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordContextType } from '@/context/dailyRecordContextContracts';
 import { useCensusMovementData } from '@/features/census/hooks/useCensusMovementData';
 import { DataFactory } from '@/tests/factories/DataFactory';
 

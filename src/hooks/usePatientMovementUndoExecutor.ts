@@ -3,9 +3,9 @@ import type { PatientData } from '@/types/domain/patient';
 import { useCallback } from 'react';
 import type {
   ApplyDailyRecordPatch,
-  DailyRecord,
   PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 import {
   buildAtomicPatientMovementPatch,

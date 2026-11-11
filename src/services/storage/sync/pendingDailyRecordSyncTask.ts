@@ -1,4 +1,4 @@
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 export interface PendingDailyRecordSyncTaskSnapshot {
   taskId: number;

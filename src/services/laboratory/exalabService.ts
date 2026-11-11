@@ -8,7 +8,7 @@ import {
   type ExalabAutoConnectOutcome,
 } from './exalabExtensionBridge';
 export type { ExalabAutoConnectOutcome } from './exalabExtensionBridge';
-export type { ExalabExam } from '@/types/domain/labExamTypes';
+
 export class ExalabRequestError extends Error {
   constructor(
     message: string,

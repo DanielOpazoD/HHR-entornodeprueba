@@ -1,4 +1,4 @@
-import type { DailyRecord } from '@/domain/handoff/recordContracts';
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import type { Specialty } from '@/domain/handoff/patientContracts';
 import type { BedDefinition } from '@/types/domain/beds';
 import type { ShiftType } from '@/types/domain/shift';
@@ -68,7 +68,7 @@ interface ResolveHandoffNovedadesValueParams {
   isMedical: boolean;
   selectedShift: ShiftType;
   record: Pick<
-    DailyRecord,
+    HandoffDailyRecordContract,
     | 'date'
     | 'medicalHandoffNovedades'
     | 'medicalHandoffBySpecialty'
@@ -275,7 +275,7 @@ export const buildHandoffNovedadesBindings = ({
   isMedical: boolean;
   selectedShift: ShiftType;
   record: Pick<
-    DailyRecord,
+    HandoffDailyRecordContract,
     | 'date'
     | 'medicalHandoffNovedades'
     | 'medicalHandoffBySpecialty'
@@ -330,7 +330,7 @@ export const buildHandoffHeaderBindings = ({
 });
 
 export interface MedicalHandoffContentBindings {
-  record: DailyRecord;
+  record: HandoffDailyRecordContract;
   effectiveVisibleBeds: BedDefinition[];
   specialtyFilteredBeds: BedDefinition[];
   readOnly: boolean;
@@ -367,7 +367,7 @@ export const buildMedicalHandoffContentBindings = (
 
 export interface NursingHandoffContentBindings {
   visibleBeds: BedDefinition[];
-  record: DailyRecord;
+  record: HandoffDailyRecordContract;
   noteField: 'handoffNoteDayShift' | 'handoffNoteNightShift' | 'medicalHandoffNote';
   onNoteChange: (bedId: string, value: string, isNested: boolean) => void;
   medicalActions: HandoffMedicalActions;

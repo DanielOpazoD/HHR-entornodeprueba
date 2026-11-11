@@ -1,6 +1,6 @@
 import { isWorkingDay } from './calendarService';
 import { INSTITUTIONAL_ACCOUNTS, isInstitutionalAccount } from '@/constants/identities';
-import type { DailyRecordStaffingState } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecordStaffingState } from '@/types/domain/dailyRecordSlices';
 import {
   resolveDayShiftNurses,
   resolveNightShiftNurses,

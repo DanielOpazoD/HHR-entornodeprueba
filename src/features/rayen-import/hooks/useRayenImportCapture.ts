@@ -6,7 +6,7 @@ import {
   type RefObject,
   type SetStateAction,
 } from 'react';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import type {
   CapturePreparationLock,

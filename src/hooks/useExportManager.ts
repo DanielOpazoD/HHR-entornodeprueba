@@ -1,5 +1,5 @@
 import { useState, useCallback, useLayoutEffect, useRef } from 'react';
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { useBackupArchiveStatus } from '@/hooks/useBackupArchiveStatus';

@@ -1,4 +1,4 @@
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const stableStringify = (value: unknown): string => {
   if (value === undefined) return 'null';

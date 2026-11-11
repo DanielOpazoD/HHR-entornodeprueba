@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect, useRef, type Dispatch, type SetStateAction } from 'react';
 import type { ConfirmOptions } from '@/context/uiContracts';
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { canRunCensusEmailAction } from '@/hooks/controllers/censusEmailActionController';
 import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
 import { resolveUpcEmailBlockReason } from '@/shared/census/upcEvaluationPolicy';

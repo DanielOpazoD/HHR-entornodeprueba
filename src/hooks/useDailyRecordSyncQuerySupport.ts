@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryClient';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordSyncPort } from '@/application/ports/dailyRecordPort';
 import type { RemoteSyncRuntimeStatus } from '@/services/repositories/repositoryConfig';
 import type { DailyRecordBootstrapPhase } from '@/hooks/controllers/dailyRecordBootstrapController';

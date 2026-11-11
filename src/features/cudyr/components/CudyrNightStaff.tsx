@@ -1,4 +1,4 @@
-import type { DailyRecordStaffingState } from '@/application/shared/dailyRecordStaffContracts';
+import type { DailyRecordStaffingState } from '@/types/domain/dailyRecordSlices';
 import {
   getDetailedShiftRoleAssignments,
   resolveDetailedStaffingState,

@@ -1,4 +1,4 @@
-import type { DailyRecordDateRef } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecordDateRef } from '@/types/domain/dailyRecordSlices';
 import { resolveCurrentClinicalDay } from '@/utils/clinicalDayUtils';
 
 export interface StabilityRules {

@@ -4,7 +4,7 @@ import type { PatientData } from '@/types/domain/patient';
 import { describe, expect, it } from 'vitest';
 import { injectPendingClinicalCribCreateRows } from '@/features/census/controllers/censusTableBodyController';
 import { BedType } from '@/features/census/contracts/censusBedContracts';
-import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
+import type { BedDefinition } from '@/types/domain/beds';
 
 import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
 

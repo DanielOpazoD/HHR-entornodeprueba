@@ -1,5 +1,5 @@
 import type { Table } from 'dexie';
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { AuditLogEntry } from '@/types/auditLogTypes';
 import type { ErrorLog } from '@/services/logging/errorLogTypes';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';

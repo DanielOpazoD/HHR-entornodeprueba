@@ -1,7 +1,7 @@
 import type { PatientData } from '@/types/domain/patient';
 
 import type { CudyrScore } from '@/types/domain/cudyr';
-import type { DailyRecordBedAuditState } from '@/application/shared/dailyRecordBedContracts';
+import type { DailyRecordBedAuditState } from '@/types/domain/dailyRecordSlices';
 
 import type { PatientFieldValue } from '@/types/valueTypes';
 import type { AuditDeviceChange, AuditDeviceChangesMap } from '@/types/auditDetailTypes';

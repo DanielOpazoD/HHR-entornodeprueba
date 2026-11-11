@@ -1,6 +1,6 @@
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
 import {
   hasNursingShiftReview,

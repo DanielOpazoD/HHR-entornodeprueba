@@ -1,11 +1,9 @@
 import type { PatientData } from '@/types/domain/patient';
 
 import { buildSpecialistHandoffTargets } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
-import type {
-  ApplyDailyRecordPatch,
-  DailyRecord,
-  DailyRecordPatch,
-} from '@/application/shared/dailyRecordCoreContracts';
+import type { ApplyDailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 
 import type { CudyrScore } from '@/types/domain/cudyr';
 import type { PatientFieldValue } from '@/types/valueTypes';

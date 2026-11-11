@@ -1,5 +1,5 @@
 import { isValidRut, normalizeRut } from '@/utils/rutUtils';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { ageFromBirthDate } from '../mapping/rayenToPatientData';
 import { isMaternalCandidatePatient } from './clinicalCribMaternalAssociation';

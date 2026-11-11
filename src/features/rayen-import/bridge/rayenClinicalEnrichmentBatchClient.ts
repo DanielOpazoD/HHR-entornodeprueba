@@ -1,11 +1,9 @@
+import type { RayenOwnedClinicalField as RayenClinicalEnrichmentField } from '@/types/domain/rayenClinicalFields';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { withClientRuntimeContractVersion } from '@/services/storage/clinicalAuthorityClientVersion';
-import {
-  RAYEN_OWNED_CLINICAL_FIELDS,
-  type RayenOwnedClinicalField,
-} from '@/types/domain/rayenClinicalFields';
+import { RAYEN_OWNED_CLINICAL_FIELDS } from '@/types/domain/rayenClinicalFields';
 
 export const RAYEN_CLINICAL_ENRICHMENT_FIELDS = RAYEN_OWNED_CLINICAL_FIELDS;
 
@@ -15,8 +13,6 @@ export const RAYEN_CLINICAL_ENRICHMENT_TIMEOUT_MS = 20_000;
 export const RAYEN_CLINICAL_ENRICHMENT_FIELD_CONTRACT_VERSION = 2 as const;
 
 export const RAYEN_DOCUMENTARY_CUDYR_FIELD_CONTRACT_VERSION = 3 as const;
-
-export type RayenClinicalEnrichmentField = RayenOwnedClinicalField;
 
 export interface RayenClinicalEnrichmentTarget {
   bedId: string;

@@ -1,4 +1,4 @@
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { SaveDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
 import type { SaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';

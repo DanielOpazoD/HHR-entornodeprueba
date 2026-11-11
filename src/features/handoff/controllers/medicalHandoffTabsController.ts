@@ -1,11 +1,14 @@
 import type { BedDefinition } from '@/types/domain/beds';
-import type { DailyRecord } from '@/domain/handoff/recordContracts';
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import { resolveEffectiveUpcState } from '@/shared/census/upcBedPolicy';
 
 export type MedicalPrintMode = 'all' | 'upc' | 'no-upc';
 export type MedicalTabMode = 'all' | 'upc' | 'no-upc';
 
-export const splitMedicalBedsByScope = (visibleBeds: BedDefinition[], record: DailyRecord) => {
+export const splitMedicalBedsByScope = (
+  visibleBeds: BedDefinition[],
+  record: HandoffDailyRecordContract
+) => {
   const upcBeds = visibleBeds.filter(
     bed =>
       resolveEffectiveUpcState({
@@ -25,8 +28,10 @@ export const splitMedicalBedsByScope = (visibleBeds: BedDefinition[], record: Da
   return { upcBeds, nonUpcBeds };
 };
 
-export const countScopedPatients = (beds: BedDefinition[], record: DailyRecord): number =>
-  beds.filter(bed => record.beds[bed.id]?.patientName).length;
+export const countScopedPatients = (
+  beds: BedDefinition[],
+  record: HandoffDailyRecordContract
+): number => beds.filter(bed => record.beds[bed.id]?.patientName).length;
 
 export const resolveMedicalDisplayBeds = ({
   visibleBeds,
@@ -61,13 +66,15 @@ export const resolveMedicalPrintBeds = ({
   return { upc: upcBeds, nonUpc: nonUpcBeds };
 };
 
-export const hasNamedPatientsInBeds = (beds: BedDefinition[], record: DailyRecord): boolean =>
-  beds.some(bed => Boolean(record.beds[bed.id]?.patientName));
+export const hasNamedPatientsInBeds = (
+  beds: BedDefinition[],
+  record: HandoffDailyRecordContract
+): boolean => beds.some(bed => Boolean(record.beds[bed.id]?.patientName));
 
 export const buildMedicalPrintSectionModel = (
   label: 'upc' | 'no-upc',
   beds: BedDefinition[],
-  record: DailyRecord
+  record: HandoffDailyRecordContract
 ): {
   title: string;
   beds: BedDefinition[];

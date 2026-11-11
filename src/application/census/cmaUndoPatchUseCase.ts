@@ -1,4 +1,5 @@
-import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { CMAData } from '@/types/domain/movements';
 import { tombstoneMovementsWhere } from '@/application/census/movementTombstonePolicy';
 import { matchesRestoredPatientDestination } from '@/application/census/movementUndoIdentityPolicy';
