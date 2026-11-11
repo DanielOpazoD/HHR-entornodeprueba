@@ -114,19 +114,28 @@ describe('staff catalog blocked save visible integration', () => {
       expect(entry.save).not.toHaveBeenCalled();
       expect(await catalogs.get(entry.key)).toBeUndefined();
     });
-    it(`${entry.key}: local write failure never claims a local save`, async () => {
-      vi.mocked(entry.read).mockResolvedValue([]);
-      vi.spyOn(local, 'saveCatalog').mockRejectedValue(failure);
-      const { wrapper } = createQueryClientTestWrapper();
-      render(<Manager entry={entry} />, { wrapper });
-      await screen.findByText(entry.name);
-      const input = screen.getByPlaceholderText('Nombre completo…');
-      fireEvent.change(input, { target: { value: 'Synthetic Added' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Agregar personal' }));
-      expect(await screen.findByText(/No se pudo guardar la lista/)).toBeInTheDocument();
-      expect(input).toHaveValue('Synthetic Added');
-      expect(screen.queryByText(/Se guardó localmente/)).not.toBeInTheDocument();
-      expect(entry.save).not.toHaveBeenCalled();
+    it(`${entry.key}: a failed IndexedDB write never claims a local save`, async () => {
+      await catalogs.put({ id: entry.key, list: ['Synthetic Local'], lastUpdated: 'synthetic' });
+      const failWrite = () => {
+        throw failure;
+      };
+      catalogs.hook('updating', failWrite);
+      vi.mocked(entry.save).mockRejectedValue(failure);
+      try {
+        const { wrapper } = createQueryClientTestWrapper();
+        render(<Manager entry={entry} />, { wrapper });
+        await screen.findByText('Synthetic Local');
+        const input = screen.getByPlaceholderText('Nombre completo…');
+        fireEvent.change(input, { target: { value: 'Synthetic Added' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Agregar personal' }));
+        expect(await screen.findByText(/No se pudo guardar la lista/)).toBeInTheDocument();
+        expect(input).toHaveValue('Synthetic Added');
+        expect(screen.queryByText(/Se guardó localmente/)).not.toBeInTheDocument();
+        expect(entry.save).not.toHaveBeenCalled();
+        expect((await catalogs.get(entry.key))?.list).toEqual(['Synthetic Local']);
+      } finally {
+        catalogs.hook('updating').unsubscribe(failWrite);
+      }
     });
     it(`${entry.key}: local save with remote failure still shows local confirmation`, async () => {
       vi.mocked(entry.read).mockResolvedValue([]);
@@ -143,6 +152,22 @@ describe('staff catalog blocked save visible integration', () => {
       expect((await catalogs.get(entry.key))?.list).toContain('Synthetic Added');
     });
   }
+  it('a failed IndexedDB write rejects a save and is tolerated only for a best-effort copy', async () => {
+    await catalogs.put({ id: 'nurses', list: ['Synthetic Local'], lastUpdated: 'synthetic' });
+    const failWrite = () => {
+      throw failure;
+    };
+    catalogs.hook('updating', failWrite);
+    try {
+      await expect(local.saveCatalog('nurses', ['Synthetic Added'])).rejects.toThrow();
+      await expect(
+        local.cacheCatalogValues('nurses', ['Synthetic Added'])
+      ).resolves.toBeUndefined();
+      expect((await catalogs.get('nurses'))?.list).toEqual(['Synthetic Local']);
+    } finally {
+      catalogs.hook('updating').unsubscribe(failWrite);
+    }
+  });
   it('physicians: failed initial read offers retry and never claims an updated catalog', async () => {
     vi.mocked(remote.getProfessionalsCatalogFromFirestore).mockRejectedValue(failure);
     const { wrapper } = createQueryClientTestWrapper();

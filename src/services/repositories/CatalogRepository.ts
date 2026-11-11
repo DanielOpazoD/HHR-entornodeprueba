@@ -3,6 +3,7 @@ import {
   getCatalog,
   getCatalogValues,
   saveCatalogValues,
+  cacheCatalogValues,
 } from '@/services/storage/indexeddb/indexedDbCatalogService';
 import {
   saveNurseCatalogToFirestore,
@@ -61,7 +62,7 @@ export const getNurses = async (): Promise<string[]> => {
     try {
       const remoteList = await getNurseCatalogFromFirestore();
       if (remoteList.length > 0) {
-        await saveCatalog('nurses', remoteList);
+        await cacheCatalogValues('nurses', remoteList);
         return remoteList;
       }
     } catch (err) {
@@ -143,7 +144,7 @@ export const subscribeNurses = (
 
   return subscribeToNurseCatalog(async nurses => {
     const normalized = normalizeStringCatalog(nurses);
-    await saveCatalog('nurses', normalized);
+    await cacheCatalogValues('nurses', normalized);
     callback(normalized);
   }, onError);
 };
@@ -165,7 +166,7 @@ export const getTens = async (): Promise<string[]> => {
     try {
       const remoteList = await getTensCatalogFromFirestore();
       if (remoteList.length > 0) {
-        await saveCatalog('tens', remoteList);
+        await cacheCatalogValues('tens', remoteList);
         return remoteList;
       }
     } catch (err) {
@@ -206,7 +207,7 @@ export const subscribeTens = (
 
   return subscribeToTensCatalog(async tens => {
     const normalized = normalizeStringCatalog(tens);
-    await saveCatalog('tens', normalized);
+    await cacheCatalogValues('tens', normalized);
     callback(normalized);
   }, onError);
 };
@@ -229,7 +230,7 @@ export const getProfessionals = async (): Promise<ProfessionalCatalogItem[]> => 
     try {
       const remoteList = await getProfessionalsCatalogFromFirestore();
       if (remoteList.length > 0) {
-        await saveCatalogValues<ProfessionalCatalogItem>('professionals', remoteList);
+        await cacheCatalogValues<ProfessionalCatalogItem>('professionals', remoteList);
         return remoteList;
       }
     } catch (err) {
@@ -272,7 +273,7 @@ export const subscribeProfessionals = (
 
   return subscribeToProfessionalsCatalog(async professionals => {
     const normalized = normalizeProfessionalCatalog(professionals);
-    await saveCatalogValues<ProfessionalCatalogItem>('professionals', normalized);
+    await cacheCatalogValues<ProfessionalCatalogItem>('professionals', normalized);
     callback(normalized);
   }, onError);
 };

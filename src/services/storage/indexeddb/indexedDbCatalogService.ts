@@ -39,8 +39,13 @@ export const saveCatalogValues = async <T = string>(
       userSafeMessage: 'No fue posible guardar un catalogo local.',
       context: { catalogId, itemCount: list.length },
     });
+    throw error;
   }
 };
+
+/** Best-effort local copy of a list the caller already holds from another source; losing it is not a failure. */
+export const cacheCatalogValues = async <T = string>(catalogId: string, list: T[]): Promise<void> =>
+  saveCatalogValues<T>(catalogId, list).catch(() => undefined);
 
 export const clearCatalog = async (catalogId: string): Promise<void> => {
   try {
