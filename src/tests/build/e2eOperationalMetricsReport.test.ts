@@ -324,13 +324,13 @@ describe('E2E operational metrics report', () => {
     const input = path.join(root, 'report.json');
     writeReport(input, [['passed'], ['skipped']]);
     const earlier = runMetrics(root, input);
-    expect(earlier.metrics.status).toBe('pass');
+    expect(earlier.metrics.status).toBe('fail');
     const report = JSON.parse(fs.readFileSync(input, 'utf8'));
     report.suites[0].specs[0].tests[0].results[0].status = 'skipped';
     report.suites[0].specs[1].tests[0].results[0].status = 'passed';
     fs.writeFileSync(input, JSON.stringify(report));
     const { result, metrics } = runMetrics(root, input);
-    expect(result.status).toBe(0);
+    expect(result.status).toBe(1);
     expect(metrics.totalTests).toBe(earlier.metrics.totalTests);
     expect(metrics.skipped).toBe(earlier.metrics.skipped);
     expect(metrics.suiteFingerprint).not.toBe(earlier.metrics.suiteFingerprint);
@@ -372,4 +372,15 @@ describe('E2E operational metrics report', () => {
     expect(history).toHaveLength(2);
     expect(stepSummary.match(/# E2E Operational Metrics/g)).toHaveLength(1);
   });
+});
+
+it('rejects partial critical skips during enforced operational evidence', () => {
+  const root = makeRoot();
+  const report = path.join(root, 'critical-playwright-report.json');
+  writeReport(report, [['passed'], ['skipped']]);
+  const { result, metrics, summary } = runMetrics(root, report);
+  expect(result.status).toBe(1);
+  expect(metrics.status).toBe('fail');
+  expect(summary).toContain('critical E2E');
+  expect(summary).toContain('test-2');
 });

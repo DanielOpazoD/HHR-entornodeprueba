@@ -101,10 +101,10 @@ modifica archivos ni sincroniza automáticamente durante CI.
 - `test:release-confidence` es el pack blocking compacto; no debe crecer sin justificar el riesgo nuevo en `guardrail-governance.json`.
 - Los budgets por flujo se leen desde `reports/e2e/flow-performance-budget.json` y su resumen en `reports/e2e/flow-performance-budget-summary.json` / `.md`.
 - El estado operativo por flujo distingue `ok`, `near-limit`, `target-miss` y `blocking`.
-- El ownership técnico crítico vive en `scripts/config/technical-ownership-map.json` y se valida con `npm run check:technical-ownership-map`.
-- `technical-ownership-map` tiene un productor de snapshots registrado; su checker no forma parte de `qualityAggregate.checks`. Ejecutar el comando local anterior al preparar un release; generar el reporte no acredita esa validación.
-- La política de cambio sostenible vive en `scripts/config/sustainable-change-policy.json` y se valida con `npm run check:sustainable-change-policy`.
-- `sustainable-change-policy` también tiene un productor registrado y su checker queda fuera del agregado. Ejecutar su comando local al preparar un release; la política de upgrades, excepciones y DoD sigue vigente.
+- El ownership técnico crítico vive en `scripts/config/technical-ownership-map.json`.
+- `report:technical-ownership-map` conserva el snapshot de responsables, métricas, gates y runbooks para revisión técnica; no hay un validador de campos separado.
+- La política de cambio sostenible vive en `scripts/config/sustainable-change-policy.json`.
+- `report:sustainable-change-policy` conserva el snapshot de la política para revisión técnica; siguen vigentes upgrades, excepciones y DoD, sin un validador de campos separado.
 - La política para decidir si una mejora técnica vale la pena antes de ejecutarla vive en [docs/ENGINEERING_CHANGE_DECISION_POLICY.md](./ENGINEERING_CHANGE_DECISION_POLICY.md).
 - La definición de terminado vive en [docs/ENGINEERING_DEFINITION_OF_DONE.md](./ENGINEERING_DEFINITION_OF_DONE.md).
 - La deuda priorizada vive en [docs/TECHNICAL_DEBT_REGISTER.md](./TECHNICAL_DEBT_REGISTER.md).
@@ -119,7 +119,6 @@ Además de tamaño, lint y coverage, la base debe vigilar:
 - imports profundos fuera de la API pública de `census`, `handoff`, `transfers` y `clinical-documents`;
 - imports nuevos hacia shims de compatibilidad;
 - drift entre owners documentados y owners reales en controllers compartidos;
-- megatests de más de `500` líneas;
 - fallos de `typecheck` causados por contratos o shapes ya retirados.
 
 La referencia reportable de estas señales vive en `reports/quality-metrics.md` y el backlog operativo en `docs/FOUNDATION_TRACKER.md`.
