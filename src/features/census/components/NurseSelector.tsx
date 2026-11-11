@@ -36,7 +36,13 @@ export const NurseSelector: React.FC<NurseSelectorProps> = ({
   onOpenDetailedStaffing,
   className,
 }) => {
-  const { setShowNurseManager, staffIdentities = [], staffUsage } = useStaffContext();
+  const {
+    nursesCatalogUnavailable,
+    retryNursesCatalog,
+    setShowNurseManager,
+    staffIdentities = [],
+    staffUsage,
+  } = useStaffContext();
   const [showAllNames, setShowAllNames] = React.useState<Record<string, boolean>>({});
   const selectClassName =
     'block py-0 pl-1.5 pr-4 border border-slate-200 text-[10px] focus:ring-1 focus:outline-none text-slate-700 h-[20px] w-[75px] appearance-none transition-all';
@@ -89,6 +95,17 @@ export const NurseSelector: React.FC<NurseSelectorProps> = ({
         >
           <Users size={11} /> Enfermería
         </button>
+        {nursesCatalogUnavailable && (
+          <button
+            type="button"
+            onClick={retryNursesCatalog}
+            className="text-[10px] text-slate-500"
+            title="No se pudo leer la lista."
+            aria-label="No se pudo leer la lista. Reintentar"
+          >
+            Reintentar
+          </button>
+        )}
         <button
           type="button"
           onClick={onOpenDetailedStaffing}

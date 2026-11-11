@@ -317,6 +317,7 @@ export const createAuditCoreService = (
         return await database.getDocs<AuditLogEntry>(COLLECTION_NAME(), queryOptions);
       } catch (error) {
         auditCoreLogger.error('Failed to fetch audit logs from Firestore', error);
+        // Deliberately retain local-only fallback without a partial-result channel, pending a product decision.
         return await localStore.getAuditLogs(limitCount);
       }
     },
@@ -355,6 +356,7 @@ export const createAuditCoreService = (
         return sortAuditLogsByNewestTimestamp(logs);
       } catch (error) {
         auditCoreLogger.error('Failed to fetch audit logs for date', error);
+        // Deliberately retain local-only fallback without a partial-result channel, pending a product decision.
         return await localStore.getAuditLogsForDate(date);
       }
     },

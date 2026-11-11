@@ -140,6 +140,7 @@ export const useClinicalAttachments = ({
         );
         return;
       }
+      // Deliberately display valid partial results; a visual partial state awaits a product decision.
       setResult({
         scope,
         attachments: read.updates.reduce((items, update) => update(items), outcome.data),

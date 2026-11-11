@@ -98,7 +98,12 @@ export const useConflictVersionRecovery = ({
       ]);
 
       const nextSnapshotRecovery =
-        recoveryResult.status === 'fulfilled' ? recoveryResult.value : null;
+        recoveryResult.status === 'fulfilled'
+          ? recoveryResult.value
+          : {
+              status: 'failed' as const,
+              unavailableReason: resolveSnapshotListUnavailableReason(recoveryResult.reason),
+            };
 
       if (snapshotsResult.status === 'fulfilled') {
         setSnapshots(snapshotsResult.value);

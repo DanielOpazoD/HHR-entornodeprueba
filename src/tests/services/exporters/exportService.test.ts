@@ -10,6 +10,7 @@ import {
   importDataCSV,
   importDataCSVWithResult,
 } from '@/services/exporters/exportService';
+import * as backupStorage from '@/services/repositories/dailyRecordRepositoryWriteService';
 import * as recordStorage from '@/services/storage/indexeddb/indexedDbRecordService';
 import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -24,16 +25,12 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', async importOrigi
     ...actual,
     getAllRecords: vi.fn(),
     saveRecord: vi.fn(),
-    saveRecordsStrict: vi.fn(() =>
-      Promise.resolve({
-        ok: true,
-        operation: 'save_many',
-        store: 'indexeddb',
-        dates: ['2025-01-01'],
-      })
-    ),
   };
 });
+
+vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
+  saveBackupImport: vi.fn(async () => []),
+}));
 
 describe('exportService', () => {
   const mockRecord: DailyRecord = {
@@ -149,12 +146,7 @@ describe('exportService', () => {
   describe('importDataJSON', () => {
     it('imports valid JSON data', async () => {
       const validData = { '2025-01-01': mockRecord };
-      vi.mocked(recordStorage.saveRecordsStrict).mockResolvedValue({
-        ok: true,
-        operation: 'save_many',
-        store: 'indexeddb',
-        dates: ['2025-01-01'],
-      });
+      vi.mocked(backupStorage.saveBackupImport).mockResolvedValue([]);
 
       const file = new File([JSON.stringify(validData)], 'backup.json', {
         type: 'application/json',
@@ -162,19 +154,15 @@ describe('exportService', () => {
       const result = await importDataJSON(file);
 
       expect(result).toBe(true);
-      expect(recordStorage.saveRecordsStrict).toHaveBeenCalledWith([
-        expect.objectContaining({ date: '2025-01-01' }),
-      ]);
+      expect(backupStorage.saveBackupImport).toHaveBeenCalledWith(
+        [expect.objectContaining({ date: '2025-01-01' })],
+        ['2025-01-01']
+      );
     });
 
     it('returns a typed success for valid JSON imports', async () => {
       const validData = { '2025-01-01': mockRecord };
-      vi.mocked(recordStorage.saveRecordsStrict).mockResolvedValue({
-        ok: true,
-        operation: 'save_many',
-        store: 'indexeddb',
-        dates: ['2025-01-01'],
-      });
+      vi.mocked(backupStorage.saveBackupImport).mockResolvedValue([]);
 
       const file = new File([JSON.stringify(validData)], 'backup.json', {
         type: 'application/json',
@@ -188,14 +176,9 @@ describe('exportService', () => {
     it('blocks JSON import when strict local persistence rejects the batch', async () => {
       const consoleSpies = suppressConsole(['error']);
       const validData = { '2025-01-01': mockRecord };
-      vi.mocked(recordStorage.saveRecordsStrict).mockResolvedValue({
-        ok: false,
-        operation: 'save_many',
-        store: 'none',
-        dates: ['2025-01-01'],
-        error: new Error('indexeddb unavailable'),
-        userSafeMessage: 'No fue posible guardar registros locales.',
-      });
+      vi.mocked(backupStorage.saveBackupImport).mockRejectedValueOnce(
+        new Error('indexeddb unavailable')
+      );
 
       try {
         const file = new File([JSON.stringify(validData)], 'backup.json', {
@@ -206,9 +189,10 @@ describe('exportService', () => {
         expect(result.success).toBe(false);
         expect(result.outcome).toBe('blocked');
         expect(result.importedCount).toBe(0);
-        expect(recordStorage.saveRecordsStrict).toHaveBeenCalledWith([
-          expect.objectContaining({ date: '2025-01-01' }),
-        ]);
+        expect(backupStorage.saveBackupImport).toHaveBeenCalledWith(
+          [expect.objectContaining({ date: '2025-01-01' })],
+          ['2025-01-01']
+        );
       } finally {
         restoreConsole(consoleSpies);
       }
@@ -228,12 +212,7 @@ describe('exportService', () => {
     });
 
     it('reports repaired imports without failing', async () => {
-      vi.mocked(recordStorage.saveRecordsStrict).mockResolvedValue({
-        ok: true,
-        operation: 'save_many',
-        store: 'indexeddb',
-        dates: ['2025-01-01'],
-      });
+      vi.mocked(backupStorage.saveBackupImport).mockResolvedValue([]);
       const repairedData = {
         '2025-01-01': {
           ...mockRecord,

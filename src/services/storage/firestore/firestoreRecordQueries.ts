@@ -52,6 +52,7 @@ export interface FirestoreSingleRecordReadResult {
   serverConfirmed: boolean;
   record: DailyRecord | null;
   error?: unknown;
+  hasPendingWrites?: boolean;
 }
 
 export interface FirestoreRecordSnapshotMetadata {
@@ -86,6 +87,7 @@ export const getRecordFromFirestoreDetailed = async (
       return {
         status: 'resolved',
         serverConfirmed,
+        hasPendingWrites: metadata?.hasPendingWrites === true,
         record: docToRecord(docSnap.data(), date),
       };
     }
@@ -221,6 +223,9 @@ export async function* getRecordPagesFromFirestore(
   }
 }
 
+/** A cache/pending batch is available only as a local fallback, never remote evidence. */
+export class UnconfirmedDailyRecordRangeError extends Error {}
+
 export const getRecordsRangeFromFirestore = async (
   startDate: string,
   endDate: string,
@@ -235,9 +240,15 @@ export const getRecordsRangeFromFirestore = async (
     );
 
     const querySnapshot = await (options.requireServer ? getDocsFromServer(q) : getDocs(q));
+    if (!isServerConfirmedSnapshot(querySnapshot.metadata)) {
+      throw new UnconfirmedDailyRecordRangeError(
+        'No se pudo confirmar el período con el servidor. Reintente con conexión.'
+      );
+    }
     return mapFirestoreRecords(querySnapshot.docs, docToRecord);
   } catch (error) {
-    logFirestoreQueryError('getRecordsRange', error, { startDate, endDate });
+    if (!(error instanceof UnconfirmedDailyRecordRangeError))
+      logFirestoreQueryError('getRecordsRange', error, { startDate, endDate });
     throw error;
   }
 };
