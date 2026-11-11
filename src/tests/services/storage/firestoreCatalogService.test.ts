@@ -145,14 +145,16 @@ describe('firestoreCatalogService', () => {
     });
 
     const tensCallback = vi.fn();
+    const tensError = vi.fn();
     vi.mocked(onSnapshot).mockImplementationOnce((...args: unknown[]) => {
       const onError = args[2] as (error: unknown) => void;
       onError(new Error('boom'));
       return vi.fn();
     });
-    subscribeToTensCatalog(tensCallback);
+    subscribeToTensCatalog(tensCallback, tensError);
     await waitFor(() => {
-      expect(tensCallback).toHaveBeenCalledWith([]);
+      expect(tensError).toHaveBeenCalledWith(expect.objectContaining({ message: 'boom' }));
+      expect(tensCallback).not.toHaveBeenCalled();
     });
 
     const professionalsCallback = vi.fn();
