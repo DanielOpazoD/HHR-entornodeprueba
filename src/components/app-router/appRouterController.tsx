@@ -22,7 +22,7 @@ import {
   RoleManagementView,
   SystemDiagnosticsView,
   WhatsAppIntegrationView,
-} from '@/views/LazyViews';
+} from '@/app-shell/LazyViews';
 import {
   canAccessAppModuleRoute,
   canForceCreateDayCopyOverride,

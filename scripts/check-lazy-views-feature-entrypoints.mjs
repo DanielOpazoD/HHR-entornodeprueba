@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const ROOT = process.cwd();
-const LAZY_VIEWS_PATH = path.join(ROOT, 'src', 'views', 'LazyViews.ts');
+const LAZY_VIEWS_PATH = path.join(ROOT, 'src', 'app-shell', 'LazyViews.ts');
 const source = fs.readFileSync(LAZY_VIEWS_PATH, 'utf8');
 
 // Subpaths explicitly sanctioned as lazy entrypoints. Keep this list tight:
@@ -17,9 +17,7 @@ const ALLOWED_LAZY_SUBPATHS = new Set([
   '@/features/census/public-components',
 ]);
 
-const violations = [
-  ...source.matchAll(/@\/features\/([^/'"]+)\/([^'"]+)/g),
-]
+const violations = [...source.matchAll(/@\/features\/([^/'"]+)\/([^'"]+)/g)]
   .map(match => ({
     feature: match[1],
     importPath: `@/features/${match[1]}/${match[2]}`,

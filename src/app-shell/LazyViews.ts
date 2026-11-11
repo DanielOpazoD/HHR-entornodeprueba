@@ -169,5 +169,7 @@ export const WhatsAppIntegrationView = lazyWithRetry(() =>
 );
 
 export const AdmissionAuditView = lazyWithRetry(() =>
-  import('@/features/admin/admission-audit').then(module => ({ default: module.AdmissionAuditView }))
+  import('@/features/admin/admission-audit').then(module => ({
+    default: module.AdmissionAuditView,
+  }))
 );

@@ -28,12 +28,12 @@ const FEATURE_PUBLIC_BOUNDARIES = [
     allowedSubpathImports: [
       {
         importPath: '@/features/census/census-view',
-        callers: new Set(['src/views/LazyViews.ts', 'src/views/CensusRouteView.tsx']),
+        callers: new Set(['src/app-shell/LazyViews.ts', 'src/app-shell/CensusRouteView.tsx']),
       },
       {
         importPath: '@/features/census/public-components',
         callers: new Set([
-          'src/views/LazyViews.ts',
+          'src/app-shell/LazyViews.ts',
           'src/components/layout/app-content/AppContentOverlays.tsx',
         ]),
       },
@@ -51,7 +51,7 @@ const FEATURE_PUBLIC_BOUNDARIES = [
     allowedSubpathImports: [
       {
         importPath: '@/features/handoff/medical-handoff-spreadsheet',
-        callers: new Set(['src/views/CensusRouteView.tsx']),
+        callers: new Set(['src/app-shell/CensusRouteView.tsx']),
       },
     ],
   },

@@ -27,7 +27,7 @@ vi.mock('@/components/ui/FunctionsRecovery', () => ({
   FunctionsRecovery: () => <div data-testid="functions-recovery" />,
 }));
 
-vi.mock('@/views/LazyViews', () => ({
+vi.mock('@/app-shell/LazyViews', () => ({
   DocumentScannerDemoView: () => <div>Scanner</div>,
   DocumentScannerQueueView: () => <div>Queue</div>,
   DocumentScannerLocalQueueView: () => <div>Local queue</div>,

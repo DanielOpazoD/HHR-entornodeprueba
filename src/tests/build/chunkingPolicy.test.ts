@@ -390,8 +390,8 @@ describe('chunkingPolicy', () => {
   });
 
   it('loads the initial census route from a dedicated view entrypoint instead of the modal-heavy public-components barrel', () => {
-    const lazyViewsSource = readSource('src/views/LazyViews.ts');
-    const censusRouteSource = readSource('src/views/CensusRouteView.tsx');
+    const lazyViewsSource = readSource('src/app-shell/LazyViews.ts');
+    const censusRouteSource = readSource('src/app-shell/CensusRouteView.tsx');
     const censusPublicSource = readSource('src/features/census/public.ts');
     const censusViewBlock = lazyViewsSource.slice(
       lazyViewsSource.indexOf('export const CensusView'),

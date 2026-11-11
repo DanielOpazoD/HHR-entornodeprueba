@@ -74,7 +74,7 @@ describe('feature boundaries in ESLint (from scripts/feature-dependency-matrix.j
   it('leaves files outside src/features to the scripts', async () => {
     expect(
       await boundaryMessages(
-        'src/views/Probe.tsx',
+        'src/app-shell/Probe.tsx',
         "import { a } from '@/features/laboratory/hooks/useSyslabAccess';\nexport const c = a;\n"
       )
     ).toEqual([]);

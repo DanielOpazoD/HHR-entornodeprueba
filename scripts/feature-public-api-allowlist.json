@@ -16,7 +16,9 @@
     "laboratory": [
       "src/app-shell/runtime/AuthenticatedAppShell.tsx -> @/features/laboratory/quick-action"
     ],
-    "handoff": ["src/views/CensusRouteView.tsx -> @/features/handoff/medical-handoff-spreadsheet"],
+    "handoff": [
+      "src/app-shell/CensusRouteView.tsx -> @/features/handoff/medical-handoff-spreadsheet"
+    ],
     "clinical-library": [
       "src/app-shell/runtime/AuthenticatedAppShell.tsx -> @/features/clinical-library/quick-action"
     ],
