@@ -23,21 +23,24 @@ const getClinicalAttachmentsCollectionPath = (hospitalId: string = getActiveHosp
 const sortClinicalAttachments = (records: ClinicalAttachmentRecord[]): ClinicalAttachmentRecord[] =>
   [...records].sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 
-const filterActiveClinicalAttachments = (records: unknown[]): ClinicalAttachmentRecord[] =>
-  sortClinicalAttachments(
-    records
-      .map(record => {
-        try {
-          return parseClinicalAttachmentRecord(record);
-        } catch {
-          return null;
-        }
-      })
-      .filter(
-        (record): record is ClinicalAttachmentRecord =>
-          record !== null && record.status === 'active'
-      )
-  );
+interface ClinicalAttachmentListResult {
+  records: ClinicalAttachmentRecord[];
+  omittedCount: number;
+}
+
+const filterActiveClinicalAttachments = (records: unknown[]): ClinicalAttachmentListResult => {
+  const activeRecords: ClinicalAttachmentRecord[] = [];
+  let omittedCount = 0;
+  for (const record of records) {
+    try {
+      const parsed = parseClinicalAttachmentRecord(record);
+      if (parsed.status === 'active') activeRecords.push(parsed);
+    } catch {
+      omittedCount += 1;
+    }
+  }
+  return { records: sortClinicalAttachments(activeRecords), omittedCount };
+};
 
 const collectStorageObjectPaths = async (
   storageRuntime: ClinicalAttachmentStorageRuntime,
@@ -177,32 +180,26 @@ export const createClinicalAttachmentRepository = ({
   async listByEpisode(
     episodeKey: string,
     hospitalId: string = getActiveHospitalId()
-  ): Promise<ClinicalAttachmentRecord[]> {
-    const records = await db.getDocs<ClinicalAttachmentRecord>(
-      getClinicalAttachmentsCollectionPath(hospitalId),
-      {
-        where: [{ field: 'episodeKey', operator: '==', value: episodeKey }],
-      }
-    );
+  ): Promise<ClinicalAttachmentListResult> {
+    const records = await db.getDocs<unknown>(getClinicalAttachmentsCollectionPath(hospitalId), {
+      where: [{ field: 'episodeKey', operator: '==', value: episodeKey }],
+    });
     return filterActiveClinicalAttachments(records);
   },
 
   async listByPatient(
     patientRut: string,
     hospitalId: string = getActiveHospitalId()
-  ): Promise<ClinicalAttachmentRecord[]> {
-    const records = await db.getDocs<ClinicalAttachmentRecord>(
-      getClinicalAttachmentsCollectionPath(hospitalId),
-      {
-        where: [
-          {
-            field: 'patientRutKey',
-            operator: '==',
-            value: normalizeClinicalAttachmentRutKey(patientRut),
-          },
-        ],
-      }
-    );
+  ): Promise<ClinicalAttachmentListResult> {
+    const records = await db.getDocs<unknown>(getClinicalAttachmentsCollectionPath(hospitalId), {
+      where: [
+        {
+          field: 'patientRutKey',
+          operator: '==',
+          value: normalizeClinicalAttachmentRutKey(patientRut),
+        },
+      ],
+    });
     return filterActiveClinicalAttachments(records);
   },
 

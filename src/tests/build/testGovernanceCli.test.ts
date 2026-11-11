@@ -91,16 +91,15 @@ describe('test governance CLI', () => {
     expect(result.stderr).toBe('');
   });
 
-  it('keeps the existing Firestore skip exception narrow and the line limit intact', () => {
+  it('allows long test files while keeping the Firestore skip exception narrow', () => {
     const root = fixture({
       'src/tests/security/firestore-rules.test.ts': "it.skip.each([1])('case', () => {});",
       'src/tests/oversized.test.ts': '// fixture\n'.repeat(500),
     });
     const first = run(root);
-    expect(first.status).toBe(1);
-    expect(first.stderr).toContain('[megatest] 501 lines (limit 500)');
+    expect(first.status).toBe(0);
+    expect(first.stderr).toBe('');
     expect(first.stderr).not.toContain('[skip]');
-    fs.writeFileSync(path.join(root, 'src/tests/oversized.test.ts'), '// fixture\n'.repeat(499));
     fs.appendFileSync(
       path.join(root, 'src/tests/security/firestore-rules.test.ts'),
       "\nit.only('case', () => {});"

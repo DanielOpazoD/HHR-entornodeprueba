@@ -50,23 +50,27 @@ const fixture = () => {
     const report = {
       suites: suite.files.map((file: string) => ({
         file,
-        specs: [
-          {
-            id: file,
-            file,
-            title: 'synthetic',
-            tests: [
-              {
-                projectName: 'chromium',
-                status: 'expected',
-                results: [{ status: 'passed', duration: 10 }],
-              },
-            ],
-          },
-        ],
+        specs: ['first', 'second'].map(caseName => ({
+          id: `${file}-${caseName}`,
+          file,
+          title: `synthetic ${caseName}`,
+          tests: [
+            {
+              projectName: 'chromium',
+              status: 'expected',
+              results: [{ status: 'passed', duration: 10 }],
+            },
+          ],
+        })),
       })),
       errors: [],
-      stats: { expected: suite.files.length, unexpected: 0, flaky: 0, skipped: 0, duration: 10 },
+      stats: {
+        expected: suite.files.length * 2,
+        unexpected: 0,
+        flaky: 0,
+        skipped: 0,
+        duration: 10,
+      },
     };
     write(dir, `${base}/reports/execution/${suite.suiteId}.evidence.json`, {
       schemaVersion: 1,
@@ -80,8 +84,17 @@ const fixture = () => {
       exitCode: 0,
       report,
     });
-    if (suite.suiteId.startsWith('critical-'))
-      write(dir, `${base}/reports/e2e/critical-expected.json`, report);
+    if (suite.suiteId.startsWith('critical-')) {
+      const listing = structuredClone(report);
+      listing.stats.skipped = listing.stats.expected;
+      listing.stats.expected = 0;
+      for (const file of listing.suites)
+        for (const spec of file.specs) {
+          spec.tests[0].status = 'skipped';
+          spec.tests[0].results = [{ status: 'skipped', duration: 0 }];
+        }
+      write(dir, `${base}/reports/e2e/critical-expected.json`, listing);
+    }
   }
   for (const file of [
     'flow-performance-budget.json',
@@ -117,7 +130,7 @@ it('merges all three lanes without Playwright on PATH and produces every downstr
   const report = JSON.parse(
     fs.readFileSync(path.join(dir, 'reports/e2e/critical-playwright-report.json'), 'utf8')
   );
-  expect(report.stats.expected).toBe(20);
+  expect(report.stats.expected).toBe(40);
   for (const file of [
     'flow-performance-budget.json',
     'flow-performance-budget-summary.json',
@@ -166,4 +179,32 @@ it.each([
       ? /ENOENT/
       : /canonical suite|outside the canonical pack|did not run|more than once/
   );
+});
+
+it.each(
+  ['critical-1', 'critical-2', 'critical-3', 'cudyr', 'flow'].flatMap(suite =>
+    ['partial', 'all'].map(omission => ({ suite, omission }))
+  )
+)('rejects $omission skipped execution in $suite and names the case', ({ suite, omission }) => {
+  const dir = fixture();
+  const lane = suite.startsWith('critical-') ? suite.slice(-1) : '3';
+  const file = path.join(
+    dir,
+    `reports/critical-lanes/e2e-critical-lane-1-${lane}/reports/execution/${suite}.evidence.json`
+  );
+  const evidence = JSON.parse(fs.readFileSync(file, 'utf8'));
+  for (const group of evidence.report.suites) {
+    for (const spec of group.specs) {
+      if (omission === 'partial' && spec !== evidence.report.suites[0].specs[0]) continue;
+      spec.tests[0].status = 'skipped';
+      spec.tests[0].results = [{ status: 'skipped', duration: 0 }];
+      evidence.report.stats.expected--;
+      evidence.report.stats.skipped++;
+    }
+  }
+  fs.writeFileSync(file, JSON.stringify(evidence));
+  const result = run(dir);
+  expect(result.status).not.toBe(0);
+  expect(result.stderr).toContain(suite);
+  expect(result.stderr).toContain('synthetic first');
 });
