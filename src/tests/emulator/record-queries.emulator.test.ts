@@ -1,7 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { HospitalConfigService } from '@/services/config/HospitalConfigService';
 import { resolveFirestoreRulesEmulatorConfig } from '@/tests/security/firestoreRulesEmulatorConfig';
 
 let activeDb: unknown;
@@ -44,13 +43,18 @@ describeEmulator('record queries against the real server', () => {
     const config = resolveFirestoreRulesEmulatorConfig(process.env.FIRESTORE_EMULATOR_HOST);
     if (!['127.0.0.1', 'localhost'].includes(config.host))
       throw new Error('Local emulator required');
+    // The required CLI launcher loads firestore.rules; do not upload the same rules again.
+    // The denied-range test below also verifies that the emulator enforces them.
     environment = await initializeTestEnvironment({
       projectId: 'demo-hhr-n5d-record-queries',
-      firestore: { ...config, rules: readFileSync(resolve('firestore.rules'), 'utf8') },
+      firestore: config,
     });
   });
   beforeEach(async () => {
+    HospitalConfigService.setHospitalId('hanga_roa');
     await environment.clearFirestore();
+  });
+  beforeAll(() => {
     activeDb = environment
       .authenticatedContext('synthetic-n5d-nurse', {
         email: 'hospitalizados@hospitalhangaroa.cl',
@@ -119,7 +123,7 @@ describeEmulator('record queries against the real server', () => {
         requireServer,
       });
       expect(rows.map(row => row.date)).toEqual(['2026-02-01', '2026-02-14', '2026-02-28']);
-      expect(rows[0].beds).toEqual({});
+      expect(rows[0].beds.R1.patientName).toBe('');
     }
     expect((await getMonthRecordsFromFirestore(2026, 1)).map(row => row.date)).toEqual([
       '2026-02-01',
@@ -131,12 +135,19 @@ describeEmulator('record queries against the real server', () => {
     ).toEqual([]);
   });
 
-  it('paginates tied dates without losing documents and pins the hospital for traversal', async () => {
+  it('paginates tied dates without losing documents and excludes missing date fields', async () => {
     const ids = Array.from({ length: 21 }, (_, i) => `2026-03-${String(i + 1).padStart(2, '0')}`);
     await seed(ids.map(id => [id, { ...record('2026-03-01'), lastUpdated: `${id}T12:00:00Z` }]));
     await seed([['2026-03-22', { beds: {} }]]);
     const pages = [];
-    for await (const page of getRecordPagesFromFirestore()) pages.push(page);
+    try {
+      for await (const page of getRecordPagesFromFirestore()) {
+        pages.push(page);
+        HospitalConfigService.setHospitalId('synthetic-other-hospital');
+      }
+    } finally {
+      HospitalConfigService.setHospitalId('hanga_roa');
+    }
     expect(pages.map(page => page.length)).toEqual([20, 1]);
     expect(pages.flat().map(row => row.lastUpdated)).toEqual(
       [...ids].reverse().map(id => `${id}T12:00:00Z`)
@@ -155,6 +166,22 @@ describeEmulator('record queries against the real server', () => {
     expect((await iterator.next()).value).toHaveLength(20);
     controller.abort();
     await expect(iterator.next()).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('rejects a denied range instead of reporting no records', async () => {
+    activeDb = environment.unauthenticatedContext().firestore();
+    try {
+      await expect(
+        getRecordsRangeFromFirestore('2026-03-01', '2026-03-31', { requireServer: true })
+      ).rejects.toMatchObject({ code: 'permission-denied' });
+    } finally {
+      activeDb = environment
+        .authenticatedContext('synthetic-n5d-nurse', {
+          email: 'hospitalizados@hospitalhangaroa.cl',
+          role: 'nurse_hospital',
+        })
+        .firestore();
+    }
   });
 
   it('delivers server-confirmed subscription data and then a confirmed deletion', async () => {
