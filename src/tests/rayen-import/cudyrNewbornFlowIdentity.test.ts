@@ -264,6 +264,86 @@ Sexo: Mujer Edad: 0 año(s)
       )
     ).toThrow();
   });
+  describe('after the crib newborn left with its mother and the bed is empty', () => {
+    // Layout of the real report for a newborn Eloísa identifies only by its delivery folio.
+    const receiptFlow = `Paciente: RN de Número Folio Comprobante de Parto:
+Ejemplo Sintético 7906953
+Sexo: Mujer Edad: 0 año(s)
+09/10/2026 16:23:14 Área médica indiferenciada Área Médica Pediátrica Cuidados Básicos Cuna R3 Cunas RN Cuna R3 Básica`;
+    const run = (movement: Record<string, unknown>, text: string) => {
+      const recover = vi.fn(async (episode, rut, at, identityKind, maternalRut) =>
+        cudyrPlacementsFromPatientFlow(text, episode, rut, at, identityKind, maternalRut)
+      );
+      const write = vi.fn().mockResolvedValue('persisted');
+      const { archive } = startCudyrSyncCapture({
+        record: {
+          date: '2026-10-09',
+          // Mother and newborn left together: nothing in the bed names the mother any more.
+          beds: { R3: { patientName: '', rut: '', bedMode: 'Cama' } },
+          discharges: [
+            {
+              id: 'mother',
+              bedId: 'R3',
+              clinicalEpisodeId: '900',
+              patientName: 'Madre Sintética',
+              rut: '11.111.111-1',
+              time: '14:10',
+              isNested: false,
+            },
+            { id: 'child', bedId: 'R3', clinicalEpisodeId: '1001', time: '14:10', ...movement },
+          ],
+        } as unknown as DailyRecord,
+        censusDate: '2026-10-09',
+        captureEpisodes: ['1001'],
+        needsRead: true,
+        deps: {
+          fetchCudyrCategories: async () => ({
+            items: [],
+            source: 'gestion_camas',
+            historyAvailable: true,
+            observedEpisodeIds: [],
+          }),
+          archiveCudyrCapture: write,
+          recoverCudyrPlacements: recover,
+          now: () => new Date(observedAt),
+          createId: () => 'capture',
+        } as unknown as ClinicalFillDeps,
+        trackRequest: operation => operation(),
+        recordTimeout: vi.fn(),
+      });
+      return { archive, recover, write };
+    };
+    const folioNewborn = {
+      patientName: 'RN de Ejemplo Sintético',
+      rut: '',
+      isNested: true,
+      originalData: { clinicalEpisodeId: '1001', bedMode: 'Cuna', documentType: 'RUT' },
+    };
+
+    it('reads the bed history by exact episode when the report prints only the delivery folio', async () => {
+      const { archive, recover, write } = run(folioNewborn, receiptFlow);
+
+      expect(await archive).toEqual([]);
+      expect(recover).toHaveBeenCalledWith('1001', '', observedAt, 'maternal', undefined);
+      expect(write.mock.calls[0][0].capture.sourcePlacements).toMatchObject([
+        { clinicalEpisodeId: '1001', modality: 'cuna' },
+      ]);
+    });
+    it('still leaves it pending when the report names a mother nobody can vouch for', async () => {
+      const { archive } = run(folioNewborn, flow);
+
+      expect(await archive).toMatchObject([{ source: 'bed_history', clinicalEpisodeId: '1001' }]);
+    });
+    it('never asks for the report of a patient without a document who is not a newborn', async () => {
+      const { archive, recover } = run(
+        { patientName: 'Adulto Sintético', rut: '', isNested: false },
+        receiptFlow
+      );
+
+      expect(await archive).toMatchObject([{ source: 'bed_history', clinicalEpisodeId: '1001' }]);
+      expect(recover).not.toHaveBeenCalled();
+    });
+  });
   it('reports unavailable bed movements separately while keeping the CUDYR archive', async () => {
     const write = vi.fn().mockResolvedValue('persisted');
     const errors = await persistCudyrSyncCapture({
