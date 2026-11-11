@@ -66,6 +66,7 @@ const getBrowserStorage = (): Storage | null => {
   try {
     return typeof globalThis.localStorage === 'undefined' ? null : globalThis.localStorage;
   } catch {
+    // empty-on-failure-allow optional-capability: Storage access unavailable; retain the memory snapshot and pending edits.
     return null;
   }
 };

@@ -136,6 +136,8 @@ it.each([
   'PdfButtons',
   'MoaHelpButton',
   'FunctionsRecoveryNotice',
+  'NursingHandoffLogoutDialog',
+  'NursingHandoffSessionNotice',
 ])('protects %s and its static dependencies across dynamic boot boundaries', name => {
   for (const dependency of ['terminologyService', 'replanRayenStructure']) {
     const root = `assets/${name}-fixture.js`;
@@ -186,6 +188,8 @@ const bootRoots = [
   'PdfButtons',
   'MoaHelpButton',
   'FunctionsRecoveryNotice',
+  'NursingHandoffLogoutDialog',
+  'NursingHandoffSessionNotice',
 ];
 const bootFixture = (): Parameters<typeof assertPrecacheStaticImports>[0][number][] =>
   bootRoots.map(name => ({
