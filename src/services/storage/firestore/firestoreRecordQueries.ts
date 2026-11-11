@@ -241,7 +241,9 @@ export const getRecordsRangeFromFirestore = async (
 
     const querySnapshot = await (options.requireServer ? getDocsFromServer(q) : getDocs(q));
     if (!isServerConfirmedSnapshot(querySnapshot.metadata)) {
-      throw new UnconfirmedDailyRecordRangeError('Daily record range has no server confirmation');
+      throw new UnconfirmedDailyRecordRangeError(
+        'No se pudo confirmar el período con el servidor. Reintente con conexión.'
+      );
     }
     return mapFirestoreRecords(querySnapshot.docs, docToRecord);
   } catch (error) {

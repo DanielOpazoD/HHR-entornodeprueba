@@ -348,7 +348,7 @@ describe('firestoreRecordQueries', () => {
     vi.mocked(getDocsFromServer).mockResolvedValueOnce({ docs: [], metadata } as never);
     await expect(
       getRecordsRangeFromFirestore('2026-03-01', '2026-03-31', { requireServer: true })
-    ).rejects.toThrow('no server confirmation');
+    ).rejects.toThrow('No se pudo confirmar el período con el servidor');
   });
 
   it('maps date ranges from snapshots', async () => {

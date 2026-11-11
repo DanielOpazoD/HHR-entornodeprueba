@@ -195,7 +195,9 @@ it.each([syncRecordsRange, hydrateRangeRecords])(
       docs: [],
       metadata: { fromCache: true, hasPendingWrites: false },
     } as never);
-    await expect(read(DATE, DATE)).rejects.toThrow('no server confirmation');
+    await expect(read(DATE, DATE)).rejects.toThrow(
+      'No se pudo confirmar el período con el servidor'
+    );
     expect(event).not.toHaveBeenCalled();
   }
 );
