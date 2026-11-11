@@ -10,7 +10,15 @@ export interface ImportNotification {
 
 export const buildJsonImportNotifications = (result: JsonImportResult): ImportNotification[] => {
   if (!result.success) {
-    return [{ channel: 'error', title: 'Error al importar datos', message: 'Import Error' }];
+    return [
+      {
+        channel: 'error',
+        title: 'Error al importar datos',
+        message: result.pendingDates?.length
+          ? `Hay cambios sin enviar en: ${result.pendingDates.join(', ')}. Reintente cuando sus envíos terminen.`
+          : 'Import Error',
+      },
+    ];
   }
 
   const notifications: ImportNotification[] = [];

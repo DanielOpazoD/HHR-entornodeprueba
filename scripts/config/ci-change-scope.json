@@ -33,7 +33,6 @@
       "scripts/check-clinical-mutation-audit-policy.mjs",
       "scripts/check-core-console-usage.mjs",
       "scripts/check-core-test-boundary.mjs",
-      "scripts/check-critical-any.mjs",
       "scripts/check-declared-dependencies.mjs",
       "scripts/check-empty-on-failure-reads.mjs",
       "scripts/check-firestore-emulator-governance.mjs",
@@ -51,7 +50,6 @@
       "scripts/check-runtime-contracts.mjs",
       "scripts/check-schema-governance.mjs",
       "scripts/check-shared-layer-boundary.mjs",
-      "scripts/check-source-any.mjs",
       "scripts/check-sync-invariants.mjs",
       "scripts/check-test-governance.mjs",
       "scripts/check-unreachable-modules.mjs"

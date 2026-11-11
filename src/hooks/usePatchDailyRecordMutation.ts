@@ -1,6 +1,6 @@
 import { isSpecialistScopedDailyRecordPatch } from '@/services/repositories/dailyRecordClinicalDomainService';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRef } from 'react';
+import { mutationOptions, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { queryKeys } from '@/config/queryClient';
@@ -37,7 +37,6 @@ import {
   forgetDailyRecordPatchBaseRecord,
   getDailyRecordPatchBaseRecord,
   rememberDailyRecordPatchBaseRecord,
-  type DailyRecordPatchBaseRecordRegistry,
 } from '@/hooks/controllers/dailyRecordPatchBaseRecordController';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import {
@@ -115,12 +114,9 @@ class AuthoritativeDailyRecordConflictError extends ConcurrencyError {
 export const usePatchDailyRecordMutation = (currentDate: string) => {
   const queryClient = useQueryClient();
   const { dailyRecord } = useRepositories();
-  const patchBaseRecordsRef = useRef<DailyRecordPatchBaseRecordRegistry | null>(null);
-  if (patchBaseRecordsRef.current == null) {
-    patchBaseRecordsRef.current = createDailyRecordPatchBaseRecordRegistry();
-  }
-  const patchBaseRecords = patchBaseRecordsRef.current;
-  return useMutation({
+  const [patchBaseRecords] = useState(createDailyRecordPatchBaseRecordRegistry);
+  const [remoteSelected, setRemoteSelected] = useState(false);
+  const options = mutationOptions({
     mutationKey: getDailyRecordPatchMutationKey(currentDate),
     // The repository owns retries; do not replay a rejected decision as a new command.
     retry: false,
@@ -413,4 +409,29 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
       releasePendingPatchAfterFallbackTtl(context.unregisterPendingPatch);
     },
   });
+  // Keep server decisions paused offline; only local-first writes may enter the outbox now.
+  const local = useMutation({ ...options, networkMode: 'always' });
+  const remote = useMutation({ ...options, networkMode: 'online' });
+  const selectMutation = (input: PatchMutationInput) => {
+    const { partial, options } = resolveInput(input);
+    const requiresRemote = Boolean(
+      options?.requireRemoteAuthorityFirst ||
+      options?.intentionalBedClear ||
+      options?.clinicalCribCreate ||
+      options?.specialtyIntent ||
+      isSpecialistScopedDailyRecordPatch(partial)
+    );
+    setRemoteSelected(requiresRemote);
+    return requiresRemote ? remote : local;
+  };
+  return {
+    ...(remoteSelected ? remote : local),
+    mutate: (...args: Parameters<typeof local.mutate>) => selectMutation(args[0]).mutate(...args),
+    mutateAsync: (...args: Parameters<typeof local.mutateAsync>) =>
+      selectMutation(args[0]).mutateAsync(...args),
+    reset: () => {
+      local.reset();
+      remote.reset();
+    },
+  };
 };

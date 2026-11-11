@@ -76,7 +76,7 @@ describe('firestoreCatalogService', () => {
     vi.clearAllMocks();
   });
 
-  it('gets nurse and tens catalogs, returning [] on errors', async () => {
+  it('gets nurse and tens catalogs, propagating read errors', async () => {
     vi.mocked(getDoc).mockResolvedValueOnce({
       exists: () => true,
       data: () => ({ list: ['Nurse A'] }),
@@ -90,7 +90,7 @@ describe('firestoreCatalogService', () => {
     await expect(getTensCatalogFromFirestore()).resolves.toEqual(['TENS A']);
 
     vi.mocked(getDoc).mockRejectedValueOnce(new Error('offline'));
-    await expect(getNurseCatalogFromFirestore()).resolves.toEqual([]);
+    await expect(getNurseCatalogFromFirestore()).rejects.toThrow('offline');
 
     expect(mockGetDb).toHaveBeenCalled();
   });
@@ -170,4 +170,15 @@ describe('firestoreCatalogService', () => {
 
     expect(mockGetDb).toHaveBeenCalled();
   });
+});
+
+it.each([
+  getNurseCatalogFromFirestore,
+  getTensCatalogFromFirestore,
+  getProfessionalsCatalogFromFirestore,
+])('propagates point read failures and preserves genuine absence', async read => {
+  vi.mocked(getDoc).mockRejectedValueOnce(new Error('synthetic read failure'));
+  await expect(read()).rejects.toThrow('synthetic read failure');
+  vi.mocked(getDoc).mockResolvedValueOnce({ exists: () => false, data: () => undefined } as never);
+  await expect(read()).resolves.toEqual([]);
 });

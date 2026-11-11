@@ -5,6 +5,7 @@ import { TreatingPhysiciansSettings } from '@/features/admin/components/Treating
 import { useProfessionalsQuery, useSaveProfessionalsMutation } from '@/hooks/useStaffQuery';
 
 vi.mock('@/hooks/useStaffQuery', () => ({
+  CatalogReadUnavailableError: class extends Error {},
   useProfessionalsQuery: vi.fn(),
   useSaveProfessionalsMutation: vi.fn(),
 }));

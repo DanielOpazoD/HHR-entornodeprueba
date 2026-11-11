@@ -1,3 +1,4 @@
+import { useWarmDailyRecordSavePath } from '@/hooks/useWarmDailyRecordSavePath';
 import React from 'react';
 import { FlaskConical } from 'lucide-react';
 import { AppContent } from '@/components/layout/AppContent';
@@ -45,6 +46,7 @@ interface AuthenticatedAppShellProps {
 }
 
 export const AuthenticatedAppShell = ({ auth, dateNav }: AuthenticatedAppShellProps) => {
+  useWarmDailyRecordSavePath();
   const { censusContextValue, ui } = useAuthenticatedAppRuntime({ auth, dateNav });
   React.useEffect(() => {
     markPerf('auth-shell:mounted');

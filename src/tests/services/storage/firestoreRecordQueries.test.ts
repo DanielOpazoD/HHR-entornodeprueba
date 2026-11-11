@@ -245,7 +245,10 @@ describe('firestoreRecordQueries', () => {
   });
 
   it('distinguishes server history failures from genuinely empty ranges', async () => {
-    vi.mocked(getDocsFromServer).mockResolvedValueOnce({ docs: [] } as never);
+    vi.mocked(getDocsFromServer).mockResolvedValueOnce({
+      docs: [],
+      metadata: { fromCache: false, hasPendingWrites: false },
+    } as never);
     await expect(
       getRecordsRangeFromFirestore('2026-09-01', '2026-09-04', { requireServer: true })
     ).resolves.toEqual([]);
@@ -337,9 +340,21 @@ describe('firestoreRecordQueries', () => {
     expect(getDoc).not.toHaveBeenCalled();
   });
 
+  it.each([
+    undefined,
+    { fromCache: true, hasPendingWrites: false },
+    { fromCache: false, hasPendingWrites: true },
+  ])('rejects a server-requested batch without confirmation (%s)', async metadata => {
+    vi.mocked(getDocsFromServer).mockResolvedValueOnce({ docs: [], metadata } as never);
+    await expect(
+      getRecordsRangeFromFirestore('2026-03-01', '2026-03-31', { requireServer: true })
+    ).rejects.toThrow('No se pudo confirmar el período con el servidor');
+  });
+
   it('maps date ranges from snapshots', async () => {
     vi.mocked(getDocs).mockResolvedValueOnce({
       docs: [{ id: '2026-03-01', data: () => ({ beds: {}, marker: 'from-range' }) }],
+      metadata: { fromCache: false, hasPendingWrites: false },
     } as never);
 
     await expect(getRecordsRangeFromFirestore('2026-03-01', '2026-03-31')).resolves.toEqual([
@@ -350,6 +365,7 @@ describe('firestoreRecordQueries', () => {
   it('reads month queries from the server over the computed range', async () => {
     vi.mocked(getDocsFromServer).mockResolvedValueOnce({
       docs: [{ id: '2026-02-01', data: () => ({ beds: {} }) }],
+      metadata: { fromCache: false, hasPendingWrites: false },
     } as never);
 
     await expect(getMonthRecordsFromFirestore(2026, 1)).resolves.toHaveLength(1);

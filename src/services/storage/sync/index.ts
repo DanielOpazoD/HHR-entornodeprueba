@@ -11,7 +11,6 @@ export {
   discardQuarantinedSyncTask,
   retryQuarantinedSyncTask,
   ensureSyncQueueOnlineListener,
-  getPendingDailyRecordSyncTaskSnapshot,
   getSyncQueueDomainMetrics,
   getSyncQueueStats,
   getSyncQueueTelemetry,
