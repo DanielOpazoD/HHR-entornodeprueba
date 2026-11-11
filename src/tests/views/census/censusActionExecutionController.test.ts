@@ -2,11 +2,9 @@
 import { describe, expect, it } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { StabilityRules } from '@/hooks/useStabilityRules';
-import {
-  resolveDischargeCommand,
-  resolveMoveOrCopyCommand,
-  resolveTransferCommand,
-} from '@/features/census/controllers/censusActionExecutionController';
+import { resolveDischargeCommand } from '@/features/census/controllers/censusDischargeCommandController';
+import { resolveMoveOrCopyCommand } from '@/features/census/controllers/censusMoveOrCopyCommandController';
+import { resolveTransferCommand } from '@/features/census/controllers/censusTransferCommandController';
 import { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
 import {
   EVACUATION_METHOD_OTHER,
