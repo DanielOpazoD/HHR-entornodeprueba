@@ -9,7 +9,7 @@ import { buildCensusEmailRequestBody } from '@/services/integrations/censusEmail
 import { saveCensusEmailExportPassword } from '@/services/integrations/censusEmailAudit';
 import { resolveCensusEmailRecipients } from '@/services/integrations/censusEmailRecipients';
 import { assertCensusEmailSendingAllowed } from '@/services/integrations/censusEmailSendPolicy';
-import { CensusEmailResponseSchema, type CensusEmailResponse } from '@/contracts/serverless';
+import { CensusEmailResponseSchema, type CensusEmailResponse } from '@/shared/contracts/serverless';
 
 interface TriggerEmailParams {
   date: string;

@@ -28,7 +28,7 @@ import { invokeWithTelemetry } from './lib/observability';
 import {
   CensusEmailRequestPayloadSchema,
   CensusEmailResponseSchema,
-} from '../../src/contracts/serverless';
+} from '../../src/shared/contracts/serverless';
 
 const ALLOWED_ROLES = new Set(['nurse_hospital', 'admin']);
 

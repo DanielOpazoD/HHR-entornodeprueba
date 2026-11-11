@@ -2,7 +2,7 @@ import {
   ClinicalAttachmentNameSuggestionRequestSchema,
   ClinicalAttachmentNameSuggestionResponseSchema,
   getServerlessErrorMessage,
-} from '@/contracts/serverless';
+} from '@/shared/contracts/serverless';
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
 import {
   createApplicationFailed,

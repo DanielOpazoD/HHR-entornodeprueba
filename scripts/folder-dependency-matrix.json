@@ -13,10 +13,7 @@
         "utils",
         "shared",
         "schemas",
-        "config",
-        "core",
-        "adapters",
-        "infrastructure"
+        "config"
       ]
     },
     "components": {
@@ -29,8 +26,7 @@
         "constants",
         "utils",
         "shared",
-        "schemas",
-        "core"
+        "schemas"
       ]
     },
     "hooks": {
@@ -66,10 +62,6 @@
     "domain": {
       "responsibility": "Pure domain rules and value logic.",
       "allowedDependencies": ["types", "constants", "utils"]
-    },
-    "core": {
-      "responsibility": "Cross-cutting primitives used across app layers.",
-      "allowedDependencies": ["types", "constants", "utils", "shared", "services"]
     }
   }
 }

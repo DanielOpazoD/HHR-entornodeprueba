@@ -15,7 +15,7 @@ import {
   Cie10SearchRequestSchema,
   Cie10SearchResponseSchema,
   type Cie10SearchRequest,
-} from '@/contracts/serverless';
+} from '@/shared/contracts/serverless';
 
 let aiIsAvailable = false;
 let availabilityExpiresAt = 0;
