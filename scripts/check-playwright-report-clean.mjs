@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+import { summarizeTestReporter } from './testExecutionManifestSupport.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -15,7 +16,7 @@ const readJson = reportPath => {
 
 export const collectPlaywrightReportIssues = (
   reportPath,
-  { label = 'playwright report', requireAnyRecordedTest = true } = {}
+  { label = 'playwright report', requireAnyRecordedTest = true, allowSkipped = true } = {}
 ) => {
   const issues = [];
 
@@ -57,6 +58,16 @@ export const collectPlaywrightReportIssues = (
   if (issues.length > 0) return issues;
   const { expected, unexpected, flaky, interrupted = 0 } = stats;
 
+  if (!allowSkipped && stats.skipped > 0) {
+    issues.push(`${label} has ${stats.skipped} skipped test(s); release evidence is incomplete.`);
+    if (Array.isArray(report.suites)) {
+      const summary = summarizeTestReporter({ kind: 'playwright', mode: 'execution', report });
+      for (const test of summary.cases)
+        if (test.status === 'skipped')
+          issues.push(`${label} skipped: ${test.file} > ${test.title}`);
+    }
+  }
+
   if (unexpected > 0) {
     issues.push(`${label} has ${unexpected} unexpected failure(s).`);
   }
@@ -91,7 +102,7 @@ const isMainModule = () =>
 
 if (isMainModule()) {
   const { reportPath, label } = parseArgs(process.argv.slice(2));
-  const issues = collectPlaywrightReportIssues(reportPath, { label });
+  const issues = collectPlaywrightReportIssues(reportPath, { label, allowSkipped: false });
 
   if (issues.length > 0) {
     console.error(`Playwright report gate failed for ${label}:`);
@@ -102,6 +113,6 @@ if (isMainModule()) {
   }
 
   console.log(
-    `${label} report is clean: no global errors, unexpected, flaky, or interrupted outcomes.`
+    `${label} report is clean: no global errors, unexpected, flaky, interrupted, or skipped outcomes.`
   );
 }
