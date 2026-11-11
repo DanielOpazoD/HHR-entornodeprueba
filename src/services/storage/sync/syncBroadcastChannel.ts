@@ -47,6 +47,7 @@ const getChannel = (): BroadcastChannel | null => {
     try {
       channel = new BroadcastChannel(CHANNEL_NAME);
     } catch {
+      // empty-on-failure-allow optional-capability: BroadcastChannel unavailable; skip cross-tab notifications and retain local events.
       return null;
     }
   }

@@ -11,7 +11,9 @@
  *
  * The check fails when a new one appears (throw, or return a result the caller must handle), and
  * when a listed one disappears without being removed from the baseline, so the list only shrinks.
- * `--write-baseline` rewrites it from the current code.
+ * Optional browser capability probes with a complete fallback may mark each empty return with
+ * `// empty-on-failure-allow optional-capability: <reason>` on the immediately preceding line.
+ * This local exception is never for data reads. `--write-baseline` rewrites the remaining backlog.
  */
 
 import fs from 'node:fs';
@@ -136,7 +138,24 @@ const findEntries = () => {
         else if (source[end] === '}') depth -= 1;
       }
       const body = source.slice(match.index + match[0].length, end - 1);
-      if (!EMPTY_RETURN.test(body) || /\bthrow\b/.test(body)) continue;
+      const code = body.replace(/^[ \t]*\/\/ empty-on-failure-allow[^\r\n]*/gm, comment =>
+        ' '.repeat(comment.length)
+      );
+      if (/\bthrow\b/.test(code)) continue;
+      const unreasonedReturns = [...code.matchAll(new RegExp(EMPTY_RETURN.source, 'g'))].some(
+        emptyReturn => {
+          const precedingLines = body.slice(0, emptyReturn.index).split('\n');
+          const returnLinePrefix = precedingLines.pop();
+          const previousLine = precedingLines.pop() ?? '';
+          return (
+            !/^\s*$/.test(returnLinePrefix) ||
+            !/^\s*\/\/ empty-on-failure-allow optional-capability: [^\S\r\n]*\S.*$/.test(
+              previousLine
+            )
+          );
+        }
+      );
+      if (!unreasonedReturns) continue;
       const lineIndex = source.slice(0, match.index).split('\n').length - 1;
       entries.push(`${file}::${enclosingName(lines, lineIndex)}`);
     }
@@ -173,7 +192,7 @@ if (added.length === 0 && fixed.length === 0) {
 
 for (const [key] of added) {
   console.error(
-    `- new: ${key} returns empty on failure. Throw, or return a result the caller must handle.`
+    `- new: ${key} returns empty on failure. Throw, or return a result the caller must handle. Only optional browser capabilities (Storage, BroadcastChannel, etc.), never data reads, may use an immediately preceding "// empty-on-failure-allow optional-capability: <reason>".`
   );
 }
 for (const [key] of fixed) {

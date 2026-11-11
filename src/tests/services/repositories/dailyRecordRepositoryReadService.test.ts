@@ -94,6 +94,32 @@ describe('dailyRecordRepositoryReadService', () => {
     window.__HHR_E2E_OVERRIDE__ = undefined;
   });
 
+  it('rejects invalid e2e seed JSON with its storage key instead of reading it as absent', async () => {
+    window.__HHR_E2E_OVERRIDE__ = {};
+    localStorage.setItem('hanga_roa_hospital_data', '{invalid');
+    await expect(getLocalForDate('2026-03-19')).rejects.toThrow('hanga_roa_hospital_data');
+    expect(getRecordFromIndexedDB).not.toHaveBeenCalled();
+  });
+
+  it('rejects an empty e2e seed value while preserving absence of the key', async () => {
+    window.__HHR_E2E_OVERRIDE__ = {};
+    localStorage.setItem('hanga_roa_hospital_data', '');
+    await expect(getLocalForDate('2026-03-19')).rejects.toThrow('hanga_roa_hospital_data');
+  });
+
+  it('keeps an absent e2e seed as no record', async () => {
+    window.__HHR_E2E_OVERRIDE__ = {};
+    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(null);
+    await expect(getLocalForDate('2026-03-19')).resolves.toBeNull();
+  });
+
+  it('ignores invalid e2e storage without the override', async () => {
+    localStorage.setItem('hanga_roa_hospital_data', '{invalid');
+    const local = buildRecord('2026-03-19', '2026-03-19T12:00:00.000Z');
+    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
+    await expect(getLocalForDate('2026-03-19')).resolves.toBe(local);
+  });
+
   it('keeps local authority and persists the selected merge when local is newer than remote', async () => {
     const local = buildRecord('2026-03-19', '2026-03-19T12:00:00.000Z');
     local.beds = {
