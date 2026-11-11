@@ -45,6 +45,48 @@ afterEach(() => {
 });
 
 describe('check-empty-on-failure-reads', () => {
+  it.each([
+    ['', 1],
+    ['// empty-on-failure-allow optional-capability: Storage unavailable; use memory.', 0],
+    ['// empty-on-failure-allow optional-capability:   ', 1],
+    ['// empty-on-failure-allow optional-capability: Use memory.\n', 1],
+    ['// empty-on-failure-allow data-read: Ignore failure.', 1],
+    ['// empty-on-failure-allow optional-capability: Storage may throw; use memory.\n', 1],
+    ['// empty-on-failure-allow optional-capability: Use memory.\n    log(error);', 1],
+  ])('requires an adjacent optional-capability reason (%s)', (comment, status) => {
+    const source = READ_WITH_EMPTY_FALLBACK.replace('    return [];', `${comment}\n    return [];`);
+    const root = createRepository({ 'src/services/repositories/capability.ts': source }, []);
+    expect(runGuard(root).status).toBe(status);
+  });
+
+  it('does not reuse a reason from another catch or for another empty return', () => {
+    const source = `export const probe = () => {
+  try { read(); } catch {
+    // empty-on-failure-allow optional-capability: Storage unavailable; use memory.
+    return null;
+  }
+  try { read(); } catch {
+    return null;
+  }
+};`;
+    const root = createRepository({ 'src/services/repositories/capability.ts': source }, []);
+    expect(runGuard(root).status).toBe(1);
+  });
+
+  it('requires a separate reason for every empty return in the same catch', () => {
+    const source = `export const probe = () => {
+  try { read(); } catch {
+    if (restricted) {
+      // empty-on-failure-allow optional-capability: Storage unavailable; use memory.
+      return null;
+    }
+    return [];
+  }
+};`;
+    const root = createRepository({ 'src/services/repositories/capability.ts': source }, []);
+    expect(runGuard(root).status).toBe(1);
+  });
+
   it('rejects a laboratory cache read that hides failure as an empty result', () => {
     const root = createRepository(
       { 'src/features/laboratory/services/labFirestoreService.ts': READ_WITH_EMPTY_FALLBACK },
