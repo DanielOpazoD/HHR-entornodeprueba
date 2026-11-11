@@ -285,9 +285,93 @@ export const saveRecord = async (record: DailyRecord): Promise<void> => {
   await saveRecordStrict(record);
 };
 
+export type LocalRecordAdmissionCandidate = {
+  record: DailyRecord;
+  expectedBase?: LocalRecordBase;
+};
+
+export type LocalRecordAdmissionResult = {
+  date: string;
+} & (
+  | { status: 'admitted' | 'retained_pending'; record: DailyRecord }
+  | { status: 'superseded'; record: DailyRecord | null }
+);
+
+/** One durable decision per date; callers supply their existing selection policy. */
+export const admitLocalRecords = async (
+  candidates: readonly LocalRecordAdmissionCandidate[]
+): Promise<LocalRecordAdmissionResult[]> => {
+  const unique = [
+    ...new Map(candidates.map(candidate => [candidate.record.date, candidate])).values(),
+  ];
+  if (!unique.length) return [];
+  const dates = unique.map(candidate => candidate.record.date);
+  try {
+    await ensureDbReady();
+    let results: LocalRecordAdmissionResult[];
+    if (isDatabaseInFallbackMode()) {
+      results = unique.map(({ record, expectedBase }) => {
+        const stored = localPersistence.records.getForDate(record.date);
+        if (expectedBase && !admitsPointRead(expectedBase, stored, record))
+          return { date: record.date, status: 'superseded', record: stored };
+        localPersistence.records.save(record);
+        return { date: record.date, status: 'admitted', record };
+      });
+    } else {
+      results = await db.transaction('rw', db.dailyRecords, db.syncQueue, async () => {
+        const queuedKeys = new Set(
+          await db.syncQueue
+            .where('key')
+            .anyOf(dates.map(date => `daily:${date}`))
+            .uniqueKeys()
+        );
+        const decisions: LocalRecordAdmissionResult[] = [];
+        const writable: DailyRecord[] = [];
+        for (const { record, expectedBase } of unique) {
+          const admission: LocalRecordAdmission =
+            queuedKeys.has(`daily:${record.date}`) || expectedBase
+              ? await inspectIndexedDbAdmission(record.date, expectedBase, record)
+              : { status: 'admitted' };
+          if (admission.status === 'admitted') {
+            writable.push(record);
+            decisions.push({ date: record.date, status: 'admitted', record });
+          } else if (admission.status === 'retained_pending') {
+            decisions.push({
+              date: record.date,
+              status: admission.status,
+              record: admission.record,
+            });
+          } else {
+            decisions.push({
+              date: record.date,
+              status: admission.status,
+              record: admission.stored,
+            });
+          }
+        }
+        if (writable.length) await db.dailyRecords.bulkPut(writable);
+        return decisions;
+      });
+    }
+    for (const result of results) {
+      if (result.record) syncE2ERuntimeRecordMirror(result.record);
+    }
+    dispatchDailyRecordStoreChanged({ operation: 'save', dates });
+    return results;
+  } catch (error) {
+    recordOperationalErrorTelemetry('indexeddb', 'indexeddb_save_records', error, {
+      code: 'indexeddb_save_records_failed',
+      message: 'No fue posible guardar registros locales en bloque.',
+      severity: 'error',
+      userSafeMessage: 'No fue posible guardar registros locales.',
+      context: { count: unique.length },
+    });
+    throw error;
+  }
+};
+
 export const saveRecordsStrict = async (
-  records: DailyRecord[],
-  options: { preserveUnresolvedWrites?: boolean } = {}
+  records: DailyRecord[]
 ): Promise<LocalRecordWriteResult> => {
   const dates = records.map(record => record.date);
   try {
@@ -309,27 +393,8 @@ export const saveRecordsStrict = async (
       return { ok: true, operation: 'save_many', store, dates, records };
     }
 
-    const admittedRecords = options.preserveUnresolvedWrites
-      ? await db.transaction('rw', db.dailyRecords, db.syncQueue, async () => {
-          // One indexed queue lookup and one transaction for the entire downloaded range.
-          const queuedKeys = new Set(
-            await db.syncQueue
-              .where('key')
-              .anyOf(dates.map(date => `daily:${date}`))
-              .uniqueKeys()
-          );
-          const retained = new Map<string, DailyRecord>();
-          for (const record of records) {
-            if (!queuedKeys.has(`daily:${record.date}`)) continue;
-            const admission = await inspectIndexedDbAdmission(record.date);
-            if (admission.status === 'retained_pending')
-              retained.set(record.date, admission.record);
-          }
-          const writable = records.filter(record => !retained.has(record.date));
-          if (writable.length) await db.dailyRecords.bulkPut(writable);
-          return records.map(record => retained.get(record.date) ?? record);
-        })
-      : (await db.dailyRecords.bulkPut(records), records);
+    await db.dailyRecords.bulkPut(records);
+    const admittedRecords = records;
     admittedRecords.forEach(syncE2ERuntimeRecordMirror);
     dispatchDailyRecordStoreChanged({
       operation: 'save',

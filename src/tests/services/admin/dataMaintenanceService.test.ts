@@ -4,7 +4,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 const {
   mockGetRecordsRange,
   mockGetRecordForDate,
-  mockSaveRecordsStrict,
+  mockAdmitRemoteDailyRecords,
   mockGetRemoteRecordsRange,
   mockLogAuditEvent,
   mockSaveAs,
@@ -12,7 +12,7 @@ const {
 } = vi.hoisted(() => ({
   mockGetRecordsRange: vi.fn(),
   mockGetRecordForDate: vi.fn(),
-  mockSaveRecordsStrict: vi.fn(),
+  mockAdmitRemoteDailyRecords: vi.fn(),
   mockGetRemoteRecordsRange: vi.fn(),
   mockLogAuditEvent: vi.fn(),
   mockSaveAs: vi.fn(),
@@ -32,9 +32,11 @@ import {
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordsRange: mockGetRecordsRange,
   getRecordForDateStrict: mockGetRecordForDate,
-  saveRecordsStrict: mockSaveRecordsStrict,
 }));
 
+vi.mock('@/services/repositories/dailyRecordLocalCachePersistence', () => ({
+  admitRemoteDailyRecords: mockAdmitRemoteDailyRecords,
+}));
 vi.mock('@/services/storage/firestore', () => ({
   getRecordsRangeFromFirestore: mockGetRemoteRecordsRange,
 }));
@@ -63,7 +65,9 @@ describe('dataMaintenanceService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
-    mockSaveRecordsStrict.mockImplementation(async records => ({ ok: true, records }));
+    mockAdmitRemoteDailyRecords.mockImplementation(async candidates =>
+      candidates.map(({ record }: { record: DailyRecord }) => ({ record, status: 'admitted' }))
+    );
     mockRepositorySave.mockResolvedValue(undefined);
     mockGetRecordForDate.mockResolvedValue(null);
   });
@@ -112,7 +116,7 @@ describe('dataMaintenanceService', () => {
 
     expect(mockGetRecordsRange).toHaveBeenCalledWith('2026-01-01', '2026-03-03');
     expect(mockGetRemoteRecordsRange).toHaveBeenCalledWith('2026-01-01', '2026-03-03');
-    expect(mockSaveRecordsStrict).toHaveBeenCalledTimes(1);
+    expect(mockAdmitRemoteDailyRecords).toHaveBeenCalledTimes(1);
     expect(mockSaveAs).toHaveBeenCalledTimes(1);
     expect(mockSaveAs.mock.calls[0]?.[1]).toContain('Respaldo HHR 2026 hasta Marzo_03.json');
     expect(mockLogAuditEvent).toHaveBeenCalledWith(
@@ -188,7 +192,7 @@ describe('dataMaintenanceService', () => {
 
     expect(mockGetRecordsRange).toHaveBeenCalledWith('2026-03-01', '2026-03-31');
     expect(mockGetRemoteRecordsRange).toHaveBeenCalledWith('2026-03-01', '2026-03-31');
-    expect(mockSaveRecordsStrict).toHaveBeenCalledTimes(1);
+    expect(mockAdmitRemoteDailyRecords).toHaveBeenCalledTimes(1);
     expect(mockSaveAs.mock.calls.at(-1)?.[1]).toContain('Respaldo HHR Marzo 2026.json');
   });
 
