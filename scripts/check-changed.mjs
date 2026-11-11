@@ -67,6 +67,11 @@ try {
     ],
     ['import-cycles', /^src\//, 'Rompe el ciclo de imports indicado por el control.'],
     [
+      'clinical-clock',
+      /^(src\/|functions\/|netlify\/|e2e\/|extension\/|playwright[\w.-]*\.config\.ts$)/,
+      'Usa el reloj del hospital (src/utils/clinicalTimeZone.ts) como indica el control.',
+    ],
+    [
       'feature-dependencies',
       /^src\//,
       'Usa la superficie pública y la dirección permitida entre features.',
