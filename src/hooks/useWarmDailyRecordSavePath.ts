@@ -1,10 +1,10 @@
-import { createSavePathRuntimeLoader } from '@/services/runtime/createSavePathRuntimeLoader';
+import { createRecoverableRuntimeLoader } from '@/services/runtime/createRecoverableRuntimeLoader';
 import { useEffect } from 'react';
 import { loadDailyRecordWriteService } from '@/application/ports/dailyRecordPort';
 import { loadDailyRecordOutbox } from '@/services/storage/sync/dexieSyncQueueStore';
 import { dailyRecordWriteLogger } from '@/services/repositories/repositoryLoggers';
 
-export const loadDailyRecordSavePersistence = createSavePathRuntimeLoader(
+export const loadDailyRecordSavePersistence = createRecoverableRuntimeLoader(
   'save-controller',
   () => import('@/hooks/controllers/dailyRecordSavePersistenceController')
 );

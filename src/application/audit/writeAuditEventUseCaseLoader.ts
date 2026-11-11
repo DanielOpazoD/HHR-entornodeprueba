@@ -1,3 +1,4 @@
+import { createRecoverableRuntimeLoader } from '@/services/runtime/createRecoverableRuntimeLoader';
 import { createApplicationFailed } from '@/shared/contracts/applicationOutcomeFactories';
 
 export type WriteAuditEvent =
@@ -8,8 +9,10 @@ type WriteAuditEventUseCaseModule = Pick<
 >;
 type LoadWriteAuditEventUseCase = () => Promise<WriteAuditEventUseCaseModule>;
 
-export const loadWriteAuditEventUseCase = () =>
-  import('@/application/audit/writeAuditEventUseCase');
+export const loadWriteAuditEventUseCase = createRecoverableRuntimeLoader(
+  'audit',
+  () => import('@/application/audit/writeAuditEventUseCase')
+);
 
 const buildAuditWriterLoadFailure = (error: unknown): WriteAuditEvent => {
   const message =
