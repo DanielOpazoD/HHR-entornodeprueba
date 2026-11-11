@@ -145,7 +145,8 @@ export const reconstructHistoricalSnapshotAtClose = async (
   conflicts.push(
     ...invalidReportBackedConflicts(
       relevantHistoricalReportRows(reportRows, censusDay, record, liveSnapshot.encounters),
-      reportByEpisode
+      reportByEpisode,
+      record
     )
   );
   const liveEncounterIds = new Set(liveSnapshot.encounters.map(item => item.encounterId));
