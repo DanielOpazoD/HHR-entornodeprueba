@@ -15,14 +15,16 @@ export const publishAdmissionEffects = ({
   detached: SpecialistHandoffSyncPayload[];
   occurrences: number;
 }): void => {
-  for (let occurrence = 0; occurrence < occurrences; occurrence += 1)
+  // One event per admission with the number of days: a range of hundreds must not flood the
+  // receiver, whose rate limit would drop most of them and undercount.
+  if (occurrences > 0)
     recordOperationalTelemetry({
       category: 'indexeddb',
       operation: 'indexeddb_save_records',
       status: 'degraded',
       context: {
         reason: 'unheld_newer_local_replaced',
-        count: 1,
+        count: occurrences,
       },
     });
   if (owner === getStoredSessionOwnerKey() && epoch === getSessionEpoch())

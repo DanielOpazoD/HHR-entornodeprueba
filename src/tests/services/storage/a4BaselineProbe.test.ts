@@ -204,6 +204,28 @@ it('D1 replacement rolls back atomically if the daily write fails', async () => 
   expect(await hospitalDB.dailyRecords.get(DATE)).toEqual(local);
 });
 
+it('D1 reports a batch of replaced days as one event with their count', async () => {
+  const telemetry = vi
+    .spyOn(
+      await import('@/services/observability/operationalTelemetryRecorder'),
+      'recordOperationalTelemetry'
+    )
+    .mockImplementation(() => {});
+  const { admitRemoteDailyRecords } =
+    await import('@/services/repositories/dailyRecordLocalCachePersistence');
+  const remotes = ['2026-10-21', '2026-10-22', '2026-10-23'].map(date => day(date, { R4: A() }));
+  await hospitalDB.dailyRecords.bulkPut(
+    remotes.map(remote => ({ ...clone(remote), lastUpdated: '2026-10-24T23:00:00.000Z' }))
+  );
+  await admitRemoteDailyRecords(remotes.map(remote => ({ record: remote, remoteRecord: remote })));
+  expect(telemetry).toHaveBeenCalledExactlyOnceWith({
+    category: 'indexeddb',
+    operation: 'indexeddb_save_records',
+    status: 'degraded',
+    context: { reason: 'unheld_newer_local_replaced', count: 3 },
+  });
+});
+
 it('D1 emits one content-free occurrence only for a newer unheld local row after commit', async () => {
   const telemetry = vi.spyOn(
     await import('@/services/observability/operationalTelemetryRecorder'),
