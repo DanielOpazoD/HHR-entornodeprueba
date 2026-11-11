@@ -163,7 +163,7 @@ for (const path of ['S', 'E'] as const) {
     expect(await hospitalDB.syncQueue.toArray()).toEqual(tasks);
   });
 
-  it(`${path} preserves an unheld newer row before D1 and repeats without writes or events`, async () => {
+  it(`${path} records an unheld newer row replacement without copying it and repeats without writes or events`, async () => {
     const remote = day(DATE, { R4: A() });
     const local = clone(remote);
     local.lastUpdated = '2026-10-24T23:00:00.000Z';
@@ -178,22 +178,24 @@ for (const path of ['S', 'E'] as const) {
       .where('id')
       .startsWith('remote-admission-recovery:')
       .toArray();
-    expect(copies.map(copy => copy.value)).toEqual([local]);
+    expect(copies).toEqual([]);
     const put = vi.spyOn(hospitalDB.dailyRecords, 'bulkPut');
     const second = await read(path, remote);
     expect(second.record).toEqual(result.record);
     expect(put).not.toHaveBeenCalled();
     expect(
       await hospitalDB.settings.where('id').startsWith('remote-admission-recovery:').count()
-    ).toBe(1);
+    ).toBe(0);
   });
 }
 
-it('D1 backup failure aborts replacement and preserves the local row', async () => {
+it('D1 replacement rolls back atomically if the daily write fails', async () => {
   const remote = day(DATE, { R4: A() });
   const local = { ...clone(remote), lastUpdated: '2026-10-24T23:00:00.000Z' };
   await hospitalDB.dailyRecords.put(local);
-  vi.spyOn(hospitalDB.settings, 'put').mockRejectedValueOnce(new Error('Synthetic backup failure'));
+  vi.spyOn(hospitalDB.dailyRecords, 'bulkPut').mockRejectedValueOnce(
+    new Error('Synthetic write failure')
+  );
   const { admitRemoteDailyRecords } =
     await import('@/services/repositories/dailyRecordLocalCachePersistence');
   await expect(
@@ -202,26 +204,49 @@ it('D1 backup failure aborts replacement and preserves the local row', async () 
   expect(await hospitalDB.dailyRecords.get(DATE)).toEqual(local);
 });
 
-it('D1 retains at most 50 distinct recoverable rows and deduplicates content', async () => {
+it('D1 emits one content-free occurrence only for a newer unheld local row after commit', async () => {
+  const telemetry = vi.spyOn(
+    await import('@/services/observability/operationalTelemetryRecorder'),
+    'recordOperationalTelemetry'
+  );
   const { admitRemoteDailyRecords } =
     await import('@/services/repositories/dailyRecordLocalCachePersistence');
-  await hospitalDB.settings.clear();
   const remote = day(DATE, { R4: A() });
-  for (let i = 0; i < 52; i++) {
-    const local = { ...clone(remote), nursesDayShift: [`Synthetic recovery ${i}`] };
-    await hospitalDB.dailyRecords.put(local);
-    await admitRemoteDailyRecords([{ record: remote, remoteRecord: remote }]);
-  }
-  const copies = await hospitalDB.settings
-    .where('id')
-    .startsWith('remote-admission-recovery:')
-    .toArray();
-  expect(copies).toHaveLength(50);
-  const copy = copies[0].value as DailyRecord;
-  await hospitalDB.dailyRecords.put(copy);
+  const local = { ...clone(remote), lastUpdated: '2026-10-24T23:00:00.000Z' };
+  await hospitalDB.settings.clear();
+  await hospitalDB.dailyRecords.put(local);
+  telemetry.mockImplementation(event => {
+    if (event.context?.reason === 'unheld_newer_local_replaced') {
+      expect(hospitalDB.isOpen()).toBe(true);
+    }
+  });
   await admitRemoteDailyRecords([{ record: remote, remoteRecord: remote }]);
-  expect(
-    await hospitalDB.settings.where('id').startsWith('remote-admission-recovery:').count()
-  ).toBe(50);
-  expect(await hospitalDB.syncQueue.count()).toBe(0);
+  expect(telemetry).toHaveBeenCalledExactlyOnceWith({
+    category: 'indexeddb',
+    operation: 'indexeddb_save_records',
+    status: 'degraded',
+    context: { policy: 'queue_evidence_v1', reason: 'unheld_newer_local_replaced', count: 1 },
+  });
+  expect(await hospitalDB.dailyRecords.get(DATE)).toEqual(remote);
+  expect(await hospitalDB.settings.toArray()).toEqual([]);
+  telemetry.mockClear();
+  for (let i = 0; i < 30; i++) {
+    remote.lastUpdated = new Date(Date.parse(remote.lastUpdated) + 60000).toISOString();
+    remote.beds.R4.pathology = `Server synthetic ${i}`;
+    await admitRemoteDailyRecords([{ record: clone(remote), remoteRecord: clone(remote) }]);
+  }
+  for (let i = 0; i < 30; i++) {
+    remote.lastUpdated = new Date(Date.parse(remote.lastUpdated) + 60000).toISOString();
+    await admitRemoteDailyRecords([{ record: clone(remote), remoteRecord: clone(remote) }]);
+  }
+  await admitRemoteDailyRecords([{ record: remote, remoteRecord: remote }]);
+  expect(telemetry).not.toHaveBeenCalled();
+  expect(await hospitalDB.settings.toArray()).toEqual([]);
+  const { clearSessionDailyRecords } =
+    await import('@/services/storage/sessionSyncQueuePreservation');
+  await clearSessionDailyRecords('user:synthetic-admission');
+  hospitalDB.close();
+  await hospitalDB.open();
+  expect(await hospitalDB.dailyRecords.count()).toBe(0);
+  expect(await hospitalDB.settings.toArray()).toEqual([]);
 });

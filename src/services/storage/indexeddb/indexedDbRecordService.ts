@@ -11,7 +11,7 @@ import { projectRemoteAdmissionNotes } from './remoteAdmissionNoteProjection';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
 import type { SpecialistHandoffSyncPayload } from '@/services/storage/syncQueueTypes';
-import { preserveAdmissionRecovery, publishAdmissionEffects } from './remoteAdmissionRecovery';
+import { publishAdmissionEffects } from './remoteAdmissionEffects';
 
 export type LocalRecordWriteStore = 'indexeddb' | 'fallback' | 'e2e' | 'none';
 
@@ -314,7 +314,7 @@ export const admitLocalRecords = async (
   const epoch = getSessionEpoch();
   const detached: SpecialistHandoffSyncPayload[] = [];
   const changed: string[] = [];
-  let recoveries = 0;
+  let occurrences = 0;
   try {
     await ensureDbReady();
     let results: LocalRecordAdmissionResult[];
@@ -326,85 +326,84 @@ export const admitLocalRecords = async (
         throw new Error('La admisión remota requiere IndexedDB y evidencia de cola.');
       });
     } else {
-      results = await db.transaction(
-        'rw',
-        [db.dailyRecords, db.syncQueue, db.settings],
-        async () => {
-          const queuedKeys = new Set(
-            await db.syncQueue
-              .where('key')
-              .anyOf(unique.map(({ record }) => `daily:${record.date}`))
-              .uniqueKeys()
-          );
-          const decisions: LocalRecordAdmissionResult[] = [];
-          const writable: DailyRecord[] = [];
-          for (const { record, expectedBase, remoteRecord, isCurrent } of unique) {
-            const stored = (await db.dailyRecords.get(record.date)) ?? null;
-            if (
-              owner !== getStoredSessionOwnerKey() ||
-              epoch !== getSessionEpoch() ||
-              (isCurrent && !isCurrent())
-            ) {
-              decisions.push({ date: record.date, status: 'superseded', record: stored });
-              continue;
-            }
-            const admission: LocalRecordAdmission =
-              queuedKeys.has(`daily:${record.date}`) || expectedBase
-                ? await inspectIndexedDbAdmission(record.date, expectedBase, record)
-                : { status: 'admitted', record: stored };
-            if (admission.status === 'admitted') {
-              const tasks = await db.syncQueue
-                .where('key')
-                .startsWith(`handoff:${record.date}:`)
-                .toArray();
-              const owned = tasks.filter(task => task.ownerKey === owner);
-              const projected = projectRemoteAdmissionNotes(
-                remoteRecord ? record : (stored ?? record),
-                remoteRecord ?? null,
-                owned,
-                detached
-              );
-              const selected = projected.record;
-              if (!arePatchValuesDeepEqual(stored, selected)) {
-                if (stored && remoteRecord) {
-                  await preserveAdmissionRecovery(stored);
-                  recoveries += 1;
-                }
-                writable.push(selected);
-                changed.push(record.date);
-              }
-              decisions.push({ date: record.date, status: 'admitted', record: selected });
-            } else if (admission.status === 'retained_pending') {
-              decisions.push({
-                date: record.date,
-                status: admission.status,
-                record: admission.record,
-              });
-            } else {
-              decisions.push({
-                date: record.date,
-                status: admission.status,
-                record: admission.stored,
-              });
-            }
-          }
+      results = await db.transaction('rw', [db.dailyRecords, db.syncQueue], async () => {
+        const queuedKeys = new Set(
+          await db.syncQueue
+            .where('key')
+            .anyOf(unique.map(({ record }) => `daily:${record.date}`))
+            .uniqueKeys()
+        );
+        const decisions: LocalRecordAdmissionResult[] = [];
+        const writable: DailyRecord[] = [];
+        for (const { record, expectedBase, remoteRecord, isCurrent } of unique) {
+          const stored = (await db.dailyRecords.get(record.date)) ?? null;
           if (
             owner !== getStoredSessionOwnerKey() ||
             epoch !== getSessionEpoch() ||
-            unique.some(item => item.isCurrent && !item.isCurrent())
+            (isCurrent && !isCurrent())
           ) {
-            throw new Error('La sesión o la observación cambió durante la admisión.');
+            decisions.push({ date: record.date, status: 'superseded', record: stored });
+            continue;
           }
-          if (writable.length) await db.dailyRecords.bulkPut(writable);
-          return decisions;
+          const admission: LocalRecordAdmission =
+            queuedKeys.has(`daily:${record.date}`) || expectedBase
+              ? await inspectIndexedDbAdmission(record.date, expectedBase, record)
+              : { status: 'admitted', record: stored };
+          if (admission.status === 'admitted') {
+            const tasks = await db.syncQueue
+              .where('key')
+              .startsWith(`handoff:${record.date}:`)
+              .toArray();
+            const owned = tasks.filter(task => task.ownerKey === owner);
+            const projected = projectRemoteAdmissionNotes(
+              remoteRecord ? record : (stored ?? record),
+              remoteRecord ?? null,
+              owned,
+              detached
+            );
+            const selected = projected.record;
+            if (!arePatchValuesDeepEqual(stored, selected)) {
+              if (
+                stored &&
+                remoteRecord &&
+                Date.parse(stored.lastUpdated) > Date.parse(remoteRecord.lastUpdated)
+              ) {
+                occurrences += 1;
+              }
+              writable.push(selected);
+              changed.push(record.date);
+            }
+            decisions.push({ date: record.date, status: 'admitted', record: selected });
+          } else if (admission.status === 'retained_pending') {
+            decisions.push({
+              date: record.date,
+              status: admission.status,
+              record: admission.record,
+            });
+          } else {
+            decisions.push({
+              date: record.date,
+              status: admission.status,
+              record: admission.stored,
+            });
+          }
         }
-      );
+        if (
+          owner !== getStoredSessionOwnerKey() ||
+          epoch !== getSessionEpoch() ||
+          unique.some(item => item.isCurrent && !item.isCurrent())
+        ) {
+          throw new Error('La sesión o la observación cambió durante la admisión.');
+        }
+        if (writable.length) await db.dailyRecords.bulkPut(writable);
+        return decisions;
+      });
     }
     for (const result of results) {
       if (result.record) syncE2ERuntimeRecordMirror(result.record);
     }
     if (changed.length) dispatchDailyRecordStoreChanged({ operation: 'save', dates: changed });
-    publishAdmissionEffects({ owner, epoch, detached, recoveries });
+    publishAdmissionEffects({ owner, epoch, detached, occurrences });
     return results;
   } catch (error) {
     recordOperationalErrorTelemetry('indexeddb', 'indexeddb_save_records', error, {
