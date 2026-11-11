@@ -1,4 +1,5 @@
-import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
+import type { PatientData } from '@/types/domain/patient';
+
 import { formatCensusPatientName, formatPatientDisplayName } from '@/utils/patientNameDisplayUtils';
 
 export interface ResolveNameInputStateParams {

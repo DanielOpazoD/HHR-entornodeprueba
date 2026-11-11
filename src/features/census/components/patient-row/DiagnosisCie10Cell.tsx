@@ -1,9 +1,11 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import clsx from 'clsx';
 import { TerminologySuggestor } from '@/components/shared/TerminologySuggestor';
 import { getCIE10Description } from '@/services/terminology/terminologyService';
 import { ClinicalInitialBlockEditor } from './ClinicalInitialBlockEditor';
 import { DiagnosisCodeBadge } from './DiagnosisCodeBadge';
-import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
+
 import type { BaseCellProps, DebouncedTextHandler } from './inputCellTypes';
 
 export interface DiagnosisCie10CellProps {

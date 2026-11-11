@@ -1,14 +1,12 @@
+import type { CesareanLabor, DeliveryRoute, PatientData } from '@/types/domain/patient';
+
 /**
  * Shared types for patient input cell components
  */
 
 import type { ChangeEvent } from 'react';
+
 import type {
-  CesareanLabor,
-  DeliveryRoute,
-} from '@/features/census/contracts/censusObstetricContracts';
-import type {
-  PatientData,
   PatientDeviceCallbacks,
   PatientRowPatientField,
   PatientRowPatientPatch,

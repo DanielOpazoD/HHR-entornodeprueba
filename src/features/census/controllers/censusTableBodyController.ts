@@ -1,7 +1,9 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type { RowMenuAlign } from '@/features/census/components/patient-row/patientRowUiContracts';
 import { buildOccupiedPatientRowIndicators } from '@/features/census/controllers/patientRowIndicatorsController';
 import type { CensusTableResolvedOccupiedRow } from '@/features/census/types/censusTableComponentContracts';
-import type { PatientData } from '@/features/census/types/censusTablePatientContracts';
+
 import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
 
 const MENU_ALIGN_BOTTOM_THRESHOLD = 4;

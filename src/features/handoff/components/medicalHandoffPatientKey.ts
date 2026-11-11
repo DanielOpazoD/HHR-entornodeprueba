@@ -1,4 +1,5 @@
-import type { PatientData } from '@/domain/handoff/patientContracts';
+import type { PatientData } from '@/types/domain/patient';
+
 import {
   buildSpecialistHandoffIdentity,
   specialistHandoffIdentityKey,

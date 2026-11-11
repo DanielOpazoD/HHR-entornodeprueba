@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import {
   neonatalMaternalLookupRut,
   neonatalSourceRunIsMaternal,
@@ -5,7 +7,7 @@ import {
 import { isDischargedEncounter } from './censusReconciliationPredicates';
 import { Specialty } from '@/types/domain/patientClassification';
 import { isValidRut } from '@/utils/rutUtils';
-import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { rayenToPatientData, withLocalNameParts } from '../mapping/rayenToPatientData';
 import {

@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { BEDS, HOSPITAL_CAPACITY, REGULAR_BEDS } from '@/constants/beds';
@@ -16,10 +18,7 @@ import type {
   RayenCensusSnapshot,
   RayenEncounter,
 } from '@/features/rayen-import/contracts/rayenSnapshot';
-import type {
-  DailyRecord,
-  PatientData,
-} from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
 
 const NOW = new Date('2026-07-24T12:30:00-06:00');
 const encounter = (overrides: Partial<RayenEncounter> = {}): RayenEncounter => ({

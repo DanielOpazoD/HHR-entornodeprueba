@@ -1,8 +1,7 @@
+import type { CesareanLabor, DeliveryRoute } from '@/types/domain/patient';
+
 import { useCallback, useMemo, useState } from 'react';
-import type {
-  CesareanLabor,
-  DeliveryRoute,
-} from '@/features/census/contracts/censusObstetricContracts';
+
 import {
   buildDeliveryRouteDraft,
   canSaveDeliveryRouteDraft,

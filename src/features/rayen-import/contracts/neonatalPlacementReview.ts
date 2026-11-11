@@ -1,4 +1,5 @@
-import type { PatientData } from './rayenDomainContracts';
+import type { PatientData } from '@/types/domain/patient';
+
 import type { RayenEncounter } from './rayenSnapshot';
 
 export interface NeonatalPlacementReview {

@@ -1,8 +1,9 @@
-import type { UserRole } from '@/types/authRoleTypes';
 import type {
+  ClinicalDocumentsWorkspacePatientContract,
   ClinicalDocumentsEpisodeClosureKind,
-  PatientData,
 } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
+
+import type { UserRole } from '@/types/authRoleTypes';
 
 interface ClinicalDocumentEpisodeClosureState {
   isClosed: boolean;
@@ -11,7 +12,7 @@ interface ClinicalDocumentEpisodeClosureState {
 }
 
 const resolveClinicalDocumentsEpisodeClosureKind = (
-  patient: PatientData
+  patient: ClinicalDocumentsWorkspacePatientContract
 ): ClinicalDocumentsEpisodeClosureKind | undefined => {
   if (patient.episodeClosureKind) {
     return patient.episodeClosureKind;
@@ -34,7 +35,7 @@ const resolveClinicalDocumentsEpisodeClosureKind = (
  * @returns Closure state with kind and date when applicable
  */
 export const resolveClinicalDocumentsEpisodeClosure = (
-  patient: PatientData
+  patient: ClinicalDocumentsWorkspacePatientContract
 ): ClinicalDocumentEpisodeClosureState => {
   const closureKind = resolveClinicalDocumentsEpisodeClosureKind(patient);
   const closureDate = patient.episodeClosureDate || patient.transferDate || patient.dischargeDate;
@@ -53,7 +54,7 @@ export const resolveClinicalDocumentsEpisodeClosure = (
  * @param role - Current user's role
  */
 export const canMutateClinicalDocumentsEpisode = (
-  patient: PatientData,
+  patient: ClinicalDocumentsWorkspacePatientContract,
   role: UserRole | undefined
 ): boolean => {
   const closure = resolveClinicalDocumentsEpisodeClosure(patient);
@@ -72,7 +73,7 @@ export const canMutateClinicalDocumentsEpisode = (
  * @returns Spanish-language message string, or null when no restriction applies
  */
 export const buildClinicalDocumentsReadOnlyMessage = (
-  patient: PatientData,
+  patient: ClinicalDocumentsWorkspacePatientContract,
   role: UserRole | undefined,
   canEditByRole: boolean
 ): string | null => {
@@ -96,7 +97,7 @@ export const buildClinicalDocumentsReadOnlyMessage = (
  * @param role - Current user's role
  */
 export const resolveClinicalDocumentPersistReason = (
-  patient: PatientData,
+  patient: ClinicalDocumentsWorkspacePatientContract,
   role: UserRole | undefined
 ): 'autosave' | 'admin_fix' => {
   if (role === 'admin' && resolveClinicalDocumentsEpisodeClosure(patient).isClosed) {

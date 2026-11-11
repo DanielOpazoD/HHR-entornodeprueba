@@ -3,6 +3,7 @@
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import ts from 'typescript';
 
 const root = process.cwd();
 const HOOK_CONTROLLERS_DIR = path.join(root, 'src', 'hooks', 'controllers');
@@ -190,6 +191,65 @@ for (const file of trackedFiles) {
   }
 
   const source = fs.readFileSync(absolutePath, 'utf8');
+
+  if (file.startsWith('src/') && !file.startsWith('src/types/')) {
+    const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
+    const patientImports = new Set();
+    for (const statement of ast.statements) {
+      if (
+        ts.isImportDeclaration(statement) &&
+        statement.moduleSpecifier.text === '@/types/domain/patient' &&
+        statement.importClause?.namedBindings &&
+        ts.isNamedImports(statement.importClause.namedBindings)
+      ) {
+        for (const element of statement.importClause.namedBindings.elements) {
+          patientImports.add(element.name.text);
+        }
+      }
+    }
+    const violatesPatientHome = ast.statements.some(statement => {
+      if (ts.isTypeAliasDeclaration(statement)) {
+        return (
+          statement.name.text === 'PatientData' ||
+          (ts.isTypeReferenceNode(statement.type) &&
+            patientImports.has(statement.type.typeName.getText(ast)) &&
+            !statement.type.typeArguments?.length)
+        );
+      }
+      if (ts.isInterfaceDeclaration(statement) && statement.name.text === 'PatientData')
+        return true;
+      if (
+        ts.isExportDeclaration(statement) &&
+        statement.moduleSpecifier?.text === '@/types/domain/patient'
+      )
+        return true;
+      if (
+        !ts.isExportDeclaration(statement) ||
+        !statement.exportClause ||
+        !ts.isNamedExports(statement.exportClause)
+      )
+        return false;
+      return statement.exportClause.elements.some(
+        element =>
+          element.name.text === 'PatientData' ||
+          (element.propertyName ?? element.name).text === 'PatientData' ||
+          statement.moduleSpecifier?.text === '@/types/domain/patient' ||
+          (!statement.moduleSpecifier &&
+            patientImports.has((element.propertyName ?? element.name).text))
+      );
+    });
+    if (violatesPatientHome) {
+      failures.push({
+        file,
+        rule: {
+          id: 'patient-types-one-home',
+          description:
+            'Import patient types directly from @/types/domain/patient; remove pure aliases and reexports, and give narrower shapes their own names.',
+        },
+      });
+    }
+  }
+
   for (const boundary of FEATURE_PUBLIC_BOUNDARIES) {
     if (boundary.allowBypass(file) || !source.includes(boundary.importPrefix)) {
       continue;

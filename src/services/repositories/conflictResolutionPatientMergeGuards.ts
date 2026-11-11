@@ -1,4 +1,5 @@
-import type { PatientData } from '@/services/contracts/patientServiceContracts';
+import type { PatientData } from '@/types/domain/patient';
+
 import {
   EXPLICIT_LOCAL_CENSUS_PATCH_FIELDS,
   isSameEpisodeForExplicitCensusPatch,

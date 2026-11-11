@@ -1,5 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { describe, expect, it } from 'vitest';
-import type { PatientData } from '@/domain/handoff/patientContracts';
+
 import { PatientStatus, Specialty } from '@/domain/handoff/patientContracts';
 import {
   buildPendingMedicalEntryDraft,

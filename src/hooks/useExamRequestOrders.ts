@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * Laboratory requests for one or more patients. Each order keeps its own marked exams, origin,
  * insurance and typed lines; all of them print together, one page per patient. The state lives
@@ -6,7 +8,7 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
-import type { PatientData } from '@/hooks/contracts/patientHookContracts';
+
 import { runExamRequestPrint } from '@/hooks/controllers/examRequestPrintController';
 import {
   buildExamRequestOpenState,

@@ -1,9 +1,10 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { describe, expect, it } from 'vitest';
 import {
   resolveEmptyBedSaveAction,
   resolvePureAdmissionInput,
 } from '@/features/census/controllers/admitPatientGate';
-import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
 
 describe('resolvePureAdmissionInput', () => {
   it('returns the typed input when only the four admission fields are present', () => {

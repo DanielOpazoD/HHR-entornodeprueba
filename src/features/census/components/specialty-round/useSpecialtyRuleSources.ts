@@ -1,5 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { useEffect, useRef, useState } from 'react';
-import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
+
 import type { DiagnosisAssociation } from './specialtyRulesHistoryModel';
 import {
   historicalMonthRange,

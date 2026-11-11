@@ -1,6 +1,8 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { normalizeRut } from '@/utils/rutUtils';
 import { neonatalMaternalLookupRut } from './neonatalMaternalLookupIdentity';
-import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { mapRayenBed } from '../mapping/bedMapping';

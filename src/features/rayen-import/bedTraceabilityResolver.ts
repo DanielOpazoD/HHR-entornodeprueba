@@ -1,6 +1,8 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
 import type { CensusImportDiff } from './contracts/censusImportDiff';
-import type { DailyRecord, PatientData } from './contracts/rayenDomainContracts';
+import type { DailyRecord } from './contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot, RayenEncounter } from './contracts/rayenSnapshot';
 import type { EgresoLookupResult } from './contracts/egresoLookup';
 import { censusNightCloseTimestamp, toIsoCensusDay } from './domain/censusDayPolicy';

@@ -14,16 +14,6 @@
         "src/features/census/contracts/censusRecordContracts.ts",
         "src/features/rayen-import/contracts/rayenDomainContracts.ts"
       ]
-    },
-    {
-      "id": "patient",
-      "module": "@/types/domain/patient",
-      "allowedFiles": [
-        "src/features/census/contracts/censusObstetricContracts.ts",
-        "src/features/census/contracts/censusPatientContracts.ts",
-        "src/features/rayen-import/contracts/rayenDomainContracts.ts",
-        "src/shared/contracts/patientDomainContracts.ts"
-      ]
     }
   ]
 }

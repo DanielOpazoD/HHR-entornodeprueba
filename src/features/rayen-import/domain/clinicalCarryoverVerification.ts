@@ -1,4 +1,5 @@
-import type { PatientData } from '../contracts/rayenDomainContracts';
+import type { PatientData } from '@/types/domain/patient';
+
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
 import type { MappedDevice } from '../mapping/mapDeviceToInstance';
 import { canonicalizeRayenDeviceType } from '../mapping/mapDeviceToInstance';

@@ -14,7 +14,7 @@ import { PatientSearchResultItem } from '@/features/census/components/global-sea
 import { PatientEpisodeTimeline } from '@/features/census/components/global-search/PatientEpisodeTimeline';
 import { SearchResultsSkeleton } from '@/features/census/components/global-search/SearchResultsSkeleton';
 import type { ClinicalDocSummary } from '@/features/census/components/global-search/globalSearchContracts';
-import type { PatientData } from '@/features/clinical-documents';
+import type { ClinicalDocumentsWorkspacePatientContract } from '@/features/clinical-documents';
 import { resolveAdmissionDateFromClinicalEpisodeKey } from '@/application/patient-flow/clinicalEpisode';
 
 const LazyClinicalDocumentsModal = lazy(() =>
@@ -34,7 +34,7 @@ interface GlobalPatientSearchModalProps {
 }
 
 interface ActiveClinicalDocumentsViewer {
-  patient: PatientData;
+  patient: ClinicalDocumentsWorkspacePatientContract;
   currentDateString: string;
   bedId: string;
 }

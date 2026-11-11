@@ -1,6 +1,8 @@
+import type { ClinicalDocumentsWorkspacePatientContract } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
+
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { ConfirmOptions } from '@/context/uiContracts';
-import type { PatientData } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
+
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import { executeDeleteClinicalDocument } from '@/application/clinical-documents/clinicalDocumentUseCases';
 import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';
@@ -26,7 +28,7 @@ interface DeleteClinicalDocumentFromWorkspaceParams {
   /** Verified actor email; threaded into the fail-closed delete use-case (no synthesized identity). */
   deletedBy: string;
   notify: NotificationPort;
-  patient: PatientData;
+  patient: ClinicalDocumentsWorkspacePatientContract;
   selectedDocumentId: string | null;
   setSelectedDocumentId: (documentId: string | null) => void;
   setDraft: Dispatch<SetStateAction<ClinicalDocumentRecord | null>>;

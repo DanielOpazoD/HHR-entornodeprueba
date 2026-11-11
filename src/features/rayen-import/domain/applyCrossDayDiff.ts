@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * Cross-day writer for discharge-day corrections (Capability A of "conciliar contra el egreso
  * oficial"). When the official "Alta Administrativa" report puts a discharge on an EARLIER island day
@@ -11,7 +13,7 @@
  * (the corrected island time from the report) so the record shapes never drift.
  */
 
-import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { DischargeData, TransferData, CMAData } from '@/types/domain/movements';
 import type { DischargeEntry } from '../contracts/censusImportDiff';
 import {

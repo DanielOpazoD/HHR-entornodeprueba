@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { useCallback } from 'react';
 import {
   executeToggleBedModeController,
@@ -5,7 +7,7 @@ import {
   executeToggleCompanionCribController,
 } from '@/features/census/controllers/patientRowBedConfigRuntimeController';
 import type { ControllerConfirmDescriptor } from '@/shared/contracts/controllers/confirmDescriptor';
-import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
+
 import type { ConfirmedBedOccupantIdentity } from '@/types/domain/intentionalBedClear';
 import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
 

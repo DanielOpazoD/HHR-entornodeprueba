@@ -1,9 +1,10 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { DataFactory } from '@/tests/factories/DataFactory';
-import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
 
 vi.mock('@/features/laboratory', () => ({
   LabResultsViewerModal: ({

@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { EMPTY_PATIENT } from '@/constants/patient';
@@ -14,7 +16,7 @@ import type { ConfirmedRayenCensusApplyResult } from './useRayenCensusDiffApplic
 import { assertRayenCensusPersistenceConfirmed } from './rayenCensusPersistenceGuard';
 import { matchesDischargeSubject } from '../domain/dischargeSubjectIdentity';
 import { recordedOutcomeMatchesDischarge } from '../domain/censusDischargeHistory';
-import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { DischargeEntry } from '../contracts/censusImportDiff';
 
 // Imported/copy-day records may contain an empty crib form. Only an identified

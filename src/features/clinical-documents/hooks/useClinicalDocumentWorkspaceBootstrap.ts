@@ -1,5 +1,7 @@
+import type { ClinicalDocumentsWorkspacePatientContract } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { PatientData } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
+
 import type {
   ClinicalDocumentRecord,
   ClinicalDocumentTemplate,
@@ -15,7 +17,7 @@ import {
 } from './clinicalDocumentWorkspaceBootstrapSupport';
 
 interface UseClinicalDocumentWorkspaceBootstrapParams {
-  patient: PatientData;
+  patient: ClinicalDocumentsWorkspacePatientContract;
   currentDateString: string;
   bedId: string;
   isActive: boolean;

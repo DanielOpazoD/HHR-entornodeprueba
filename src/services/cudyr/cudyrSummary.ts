@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * CUDYR Summary Calculation Service
  * Provides functions for aggregating CUDYR categorization statistics.
@@ -5,7 +7,6 @@
  * @module services/calculations/cudyrSummary
  */
 
-import { PatientData } from '@/services/contracts/patientServiceContracts';
 import { BedType } from '@/types/domain/beds';
 import type { DailyRecordCudyrState } from '@/services/contracts/dailyRecordServiceContracts';
 import { BEDS } from '@/constants/beds';

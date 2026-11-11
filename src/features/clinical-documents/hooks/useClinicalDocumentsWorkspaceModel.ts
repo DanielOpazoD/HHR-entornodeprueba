@@ -1,8 +1,10 @@
+import type { ClinicalDocumentsWorkspacePatientContract } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
+
 import { useCallback, useMemo, useState } from 'react';
 
 import { useAuth } from '@/context/AuthContext';
 import { getActiveHospitalId } from '@/constants/firestorePaths';
-import type { PatientData } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
+
 import type { ClinicalDocumentsSidebarProps } from '@/features/clinical-documents/contracts/clinicalDocumentsSidebarContracts';
 import {
   buildClinicalDocumentsWorkspaceSheetProps,
@@ -26,7 +28,7 @@ import {
 } from './clinicalDocumentsWorkspaceModelSupport';
 
 interface UseClinicalDocumentsWorkspaceModelParams {
-  patient: PatientData;
+  patient: ClinicalDocumentsWorkspacePatientContract;
   currentDateString: string;
   bedId: string;
   isActive: boolean;

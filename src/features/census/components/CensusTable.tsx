@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { observeCensusTable } from '@/shared/runtime/observeCensusTable';
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTableConfig } from '@/context/TableConfigContext';
@@ -20,7 +22,7 @@ import { useAdmitPatient } from '@/hooks/useAdmitPatient';
 import { useNotification } from '@/context/UIContext';
 import { isFeatureEnabled } from '@/services/utils/featureFlags';
 import { createScopedLogger } from '@/services/utils/loggerScope';
-import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
+
 import { useDailyRecordFreshnessUi } from '@/hooks/useDailyRecordFreshnessUi';
 import { Eye } from 'lucide-react';
 import {
