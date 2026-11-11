@@ -11,7 +11,9 @@ interface StaffCatalogManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
   staffList: string[];
-  onSave: (updatedStaffList: string[]) => void;
+  onSave: (updatedStaffList: string[]) => boolean | void | Promise<boolean | void>;
+  saveError?: string;
+  onRetry?: () => Promise<void>;
   syncing: boolean;
   hasSyncError: boolean;
   variant: StaffCatalogVariant;
@@ -65,6 +67,8 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
   syncing,
   hasSyncError,
   variant,
+  saveError,
+  onRetry,
 }) => {
   const config = STAFF_CATALOG_VARIANT_CONFIG[variant];
   const [newStaffName, setNewStaffName] = useState('');
@@ -72,7 +76,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
   const [editValue, setEditValue] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const trimmed = newStaffName.trim();
     const result = StaffNameSchema.safeParse(trimmed);
 
@@ -82,7 +86,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
     }
 
     setValidationError(null);
-    onSave([...staffList, trimmed]);
+    if ((await onSave([...staffList, trimmed])) === false) return;
     setNewStaffName('');
   };
 
@@ -96,7 +100,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
     setValidationError(null);
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!editingName) return;
 
     const trimmed = editValue.trim();
@@ -107,7 +111,12 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
     }
 
     setValidationError(null);
-    onSave(staffList.map(staffName => (staffName === editingName ? trimmed : staffName)));
+    if (
+      (await onSave(
+        staffList.map(staffName => (staffName === editingName ? trimmed : staffName))
+      )) === false
+    )
+      return;
     setEditingName(null);
     setEditValue('');
   };
@@ -148,6 +157,16 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
             )}
           </div>
 
+          {saveError && (
+            <div role="alert" className="mb-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-700">
+              <p>{saveError}</p>
+              {onRetry && (
+                <button type="button" onClick={() => void onRetry()} disabled={syncing}>
+                  Reintentar
+                </button>
+              )}
+            </div>
+          )}
           {hasSyncError && (
             <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs text-amber-700">
               <AlertCircle size={14} />

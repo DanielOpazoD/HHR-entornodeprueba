@@ -43,3 +43,23 @@ describe('fileImportFeedbackController', () => {
     });
   });
 });
+
+it('names every pending date through the existing import error notification', () => {
+  expect(
+    buildJsonImportNotifications({
+      success: false,
+      outcome: 'blocked',
+      importedCount: 0,
+      repairedCount: 0,
+      skippedEntries: [],
+      pendingDates: ['2026-10-24', '2026-10-25'],
+    })
+  ).toEqual([
+    {
+      channel: 'error',
+      title: 'Error al importar datos',
+      message:
+        'Hay cambios sin enviar en: 2026-10-24, 2026-10-25. Reintente cuando sus envíos terminen.',
+    },
+  ]);
+});

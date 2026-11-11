@@ -24,6 +24,7 @@ export interface DailyRecordRemoteLoadResult {
   compatibilityIntensity: MigrationCompatibilityIntensity;
   migrationRulesApplied: LegacyMigrationRule[];
   cachedLocally: boolean;
+  hasPendingWrites?: boolean;
 }
 
 const remoteLoadInFlight = new Map<string, Promise<DailyRecordRemoteLoadResult>>();
@@ -69,6 +70,7 @@ export const loadRemoteRecordWithFallback = async (
         compatibilityIntensity: migrated?.compatibilityIntensity ?? 'none',
         migrationRulesApplied: migrated?.appliedRules ?? [],
         cachedLocally: false,
+        hasPendingWrites: remoteRead.hasPendingWrites,
         serverConfirmed: remoteRead.serverConfirmed,
       } satisfies DailyRecordRemoteLoadResult;
     },
