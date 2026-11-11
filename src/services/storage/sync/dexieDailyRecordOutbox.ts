@@ -17,7 +17,7 @@ import {
   sameSpecialistHandoffTarget,
   specialistHandoffTextState,
 } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
-// The replay-time occupant checks ship with the enqueue-time one, in this lazy chunk.
+// The replay-time occupant checks ship with the enqueue-time one, with the durable writer.
 export { detachStaleOccupantPaths } from '@/services/storage/sync/dayTaskOccupantDetach';
 export {
   hasOtherOccupantInUntouchedBed,
@@ -60,7 +60,7 @@ export const publishDetachedNotes = async (notes: SpecialistHandoffSyncPayload) 
  * A day's pending truth is its local projection plus the unresolved write that holds it. A write
  * computed from another base must land on top of that projection: its changed paths take its
  * values and every other pending path keeps the value another accepted write gave it.
- * The outbox store loads this module on demand, so it stays off the authenticated startup shell.
+ * The outbox store loads the durable writer before editing is available, including offline.
  */
 
 type PendingProjectionRebase = (projection: DailyRecord, pendingPaths: string[]) => DailyRecord;

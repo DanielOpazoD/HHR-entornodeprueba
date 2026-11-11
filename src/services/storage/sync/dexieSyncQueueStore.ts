@@ -21,6 +21,9 @@ import {
   requeueQuarantinedTask,
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 
+// Offline edits must not fetch a module before their durable transaction.
+import { saveDailyRecordInOutbox } from './dexieDailyRecordOutbox';
+
 const loadAuthorityAck = () => import('./dexieSyncQueueAuthorityAck');
 
 const LIVE_STATUSES = Object.keys({
@@ -175,9 +178,12 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
     await hospitalDB.syncQueue.add(task);
   },
   async saveDailyRecordWithTask(record, task, patchWrite, wholeRecordBase) {
-    const { mode, persistedRecord } = await (
-      await import('./dexieDailyRecordOutbox')
-    ).saveDailyRecordInOutbox(record, task, patchWrite, wholeRecordBase);
+    const { mode, persistedRecord } = await saveDailyRecordInOutbox(
+      record,
+      task,
+      patchWrite,
+      wholeRecordBase
+    );
     mirrorTransactionalDailyRecordWrite(persistedRecord);
     return mode;
   },
