@@ -112,7 +112,7 @@ git commit -m "Refresh cleanup baseline reports"
 - Inspect: `src/hooks/**`
 - Inspect: `src/services/**`
 - Inspect: `src/tests/**`
-- Create: `docs/superpowers/plans/cleanup-inventory-2026-04-19.md`
+- Create: `docs/archive/superpowers/plans/cleanup-inventory-2026-04-19.md`
 
 - [ ] **Step 1: Inventory apparently unused modules**
 

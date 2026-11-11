@@ -6,7 +6,7 @@ const bridge = vi.hoisted(() => ({
   cancel: vi.fn(),
 }));
 
-vi.mock('@/features/rayen-import/bridge/rayenImportBridge', () => ({
+vi.mock('@/features/rayen-import/bridge/rayenSnapshotBridge', () => ({
   requestRayenSyncBundle: bridge.request,
   cancelRayenSyncBundleRequest: bridge.cancel,
 }));

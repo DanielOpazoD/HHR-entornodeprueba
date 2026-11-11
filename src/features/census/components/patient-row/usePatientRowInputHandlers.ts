@@ -20,7 +20,6 @@ import {
   buildPatientFieldUpdater,
   buildPatientMultipleUpdater,
 } from '@/features/census/controllers/patientRowInputUpdateController';
-import { buildPatientRowInputCommands } from '@/features/census/controllers/patientRowInputHandlersController';
 import {
   hasPatientRowPatchFields,
   isClinicalInitialBlockField,
@@ -221,11 +220,7 @@ export const usePatientRowMainInputHandlers = ({
     scopeKey: buildPatientRowSaveScopeKey(currentDateString, data, bedId),
   });
 
-  const commands = useMemo(
-    () => buildPatientRowInputCommands({ updateField, updateMultiple }),
-    [updateField, updateMultiple]
-  );
-  const commandHandlers = usePatientRowCommandHandlers(commands);
+  const commandHandlers = usePatientRowCommandHandlers({ updateField, updateMultiple });
 
   const toggleDocumentType = useCallback(() => {
     const nextDocumentType = resolveNextDocumentType(documentType);
@@ -278,11 +273,7 @@ export const usePatientRowCribInputHandlers = ({
     scopeKey: buildPatientRowSaveScopeKey(currentDateString, data, bedId, true),
   });
 
-  const commands = useMemo(
-    () => buildPatientRowInputCommands({ updateField, updateMultiple }),
-    [updateField, updateMultiple]
-  );
-  const commandHandlers = usePatientRowCommandHandlers(commands);
+  const commandHandlers = usePatientRowCommandHandlers({ updateField, updateMultiple });
 
   const handleCribDemographicsSave = useCallback(
     (updatedFields: PatientRowPatientPatch) => {
