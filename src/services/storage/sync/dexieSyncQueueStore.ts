@@ -180,14 +180,18 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
     await hospitalDB.syncQueue.add(task);
   },
   async saveDailyRecordWithTask(record, task, patchWrite, wholeRecordBase) {
-    const { saveDailyRecordInOutbox } = await loadDailyRecordOutbox();
+    // Dexie.waitFor keeps an enclosing transaction (a backup import) alive across the module load.
+    const { saveDailyRecordInOutbox } = await Dexie.waitFor(loadDailyRecordOutbox());
     const { mode, persistedRecord } = await saveDailyRecordInOutbox(
       record,
       task,
       patchWrite,
       wholeRecordBase
     );
-    mirrorTransactionalDailyRecordWrite(persistedRecord);
+    const transaction = Dexie.currentTransaction;
+    if (transaction)
+      transaction.on('complete', () => mirrorTransactionalDailyRecordWrite(persistedRecord));
+    else mirrorTransactionalDailyRecordWrite(persistedRecord);
     return mode;
   },
   async replacePendingDailyRecordWithTask(record, task, expectedTask) {

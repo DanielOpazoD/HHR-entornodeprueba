@@ -17,8 +17,8 @@ const fail = message => {
 };
 
 const toKb = value => `${(value / 1024).toFixed(1)} KB`;
-const exactExcess = (value, max) =>
-  ` [actual ${value} B, limit ${max} B, excess +${value - max} B; scripts/config/bundle-budget.json. Do not raise limits without the responsible owner's decision.]`;
+const exactExcess = (value, max, configKey) =>
+  ` [actual ${value} B, limit ${max} B, excess +${value - max} B; scripts/config/bundle-budget.json.${configKey}. Do not raise limits without the responsible owner's decision.]`;
 const toPct = (value, max) => `${((value / max) * 100).toFixed(1)}%`;
 const nearLimitThresholdRatio = 0.9;
 
@@ -140,12 +140,13 @@ const forbiddenAssetRegexes = forbiddenAssetPatterns
 const forbiddenAssets = distAssets.filter(asset =>
   forbiddenAssetRegexes.some(regex => regex.test(asset.name))
 );
-if (forbiddenAssets.length > 0) {
+for (const asset of forbiddenAssets) {
+  const patternIndex = forbiddenAssetPatterns.findIndex(
+    pattern =>
+      typeof pattern === 'string' && pattern.length > 0 && new RegExp(pattern).test(asset.name)
+  );
   violations.push(
-    `Forbidden dist assets found: ${forbiddenAssets
-      .map(asset => asset.name)
-      .slice(0, 5)
-      .join(', ')}${forbiddenAssets.length > 5 ? ', ...' : ''}`
+    `Forbidden dist asset: "${asset.name}"${exactExcess(asset.size, 0, `forbiddenAssetPatterns[${patternIndex}]`)} (presence forbidden, including empty files)`
   );
 }
 
@@ -154,12 +155,13 @@ const ignoredPrecacheRegexes = precacheIgnoredAssetPatterns
   .map(pattern => buildRegex(pattern, 'precache ignore'));
 
 const chunkPatternBudgetEntries = chunkPatternBudgets
-  .map(patternBudget => {
+  .map((patternBudget, index) => {
     const pattern = typeof patternBudget?.pattern === 'string' ? patternBudget.pattern : '';
     const maxBytes = Number(patternBudget?.maxBytes || 0);
     if (!pattern || !maxBytes) return null;
     return {
       pattern,
+      configKey: `chunkPatternBudgets[${index}].maxBytes`,
       maxBytes,
       regex: buildRegex(pattern, 'chunk budget'),
     };
@@ -215,7 +217,7 @@ if (ignoredPrecacheAssets.length > 0) {
 const precacheTotalBytes = precacheAssets.reduce((total, asset) => total + asset.size, 0);
 if (precacheTotalBytes > precacheMaxBytes) {
   violations.push(
-    `Precache payload is ${toKb(precacheTotalBytes)} (limit ${toKb(precacheMaxBytes)})${exactExcess(precacheTotalBytes, precacheMaxBytes)}`
+    `Precache payload in "service-worker.js" is ${toKb(precacheTotalBytes)} (limit ${toKb(precacheMaxBytes)})${exactExcess(precacheTotalBytes, precacheMaxBytes, 'precacheMaxBytes')}`
   );
 } else if (precacheTotalBytes / precacheMaxBytes >= nearLimitThresholdRatio) {
   nearLimitWarnings.push(
@@ -226,7 +228,7 @@ if (precacheTotalBytes > precacheMaxBytes) {
 for (const entryFile of entryFiles) {
   if (entryFile.size > entryMaxBytes) {
     violations.push(
-      `Entry "${entryFile.name}" is ${toKb(entryFile.size)} (limit ${toKb(entryMaxBytes)})${exactExcess(entryFile.size, entryMaxBytes)}`
+      `Entry "${entryFile.name}" is ${toKb(entryFile.size)} (limit ${toKb(entryMaxBytes)})${exactExcess(entryFile.size, entryMaxBytes, 'entryMaxBytes')}`
     );
   } else if (entryFile.size / entryMaxBytes >= nearLimitThresholdRatio) {
     nearLimitWarnings.push(
@@ -242,7 +244,7 @@ for (const asset of jsAssets) {
 
   if (asset.size > chunkMaxBytes) {
     violations.push(
-      `Chunk "${asset.name}" is ${toKb(asset.size)} (global chunk limit ${toKb(chunkMaxBytes)})${exactExcess(asset.size, chunkMaxBytes)}`
+      `Chunk "${asset.name}" is ${toKb(asset.size)} (global chunk limit ${toKb(chunkMaxBytes)})${exactExcess(asset.size, chunkMaxBytes, 'chunkMaxBytes')}`
     );
   } else if (asset.size / chunkMaxBytes >= nearLimitThresholdRatio) {
     nearLimitWarnings.push(
@@ -255,7 +257,7 @@ for (const patternBudget of chunkPatternBudgetEntries) {
   for (const asset of jsAssets.filter(candidate => patternBudget.regex.test(candidate.name))) {
     if (asset.size > patternBudget.maxBytes) {
       violations.push(
-        `Chunk "${asset.name}" is ${toKb(asset.size)} (pattern ${patternBudget.pattern} limit ${toKb(patternBudget.maxBytes)})${exactExcess(asset.size, patternBudget.maxBytes)}`
+        `Chunk "${asset.name}" is ${toKb(asset.size)} (pattern ${patternBudget.pattern} limit ${toKb(patternBudget.maxBytes)})${exactExcess(asset.size, patternBudget.maxBytes, patternBudget.configKey)}`
       );
     } else if (asset.size / patternBudget.maxBytes >= nearLimitThresholdRatio) {
       nearLimitWarnings.push(
@@ -265,7 +267,7 @@ for (const patternBudget of chunkPatternBudgetEntries) {
   }
 }
 
-for (const patternBudget of assetPatternBudgets) {
+for (const [index, patternBudget] of assetPatternBudgets.entries()) {
   const pattern = typeof patternBudget?.pattern === 'string' ? patternBudget.pattern : '';
   const maxBytes = Number(patternBudget?.maxBytes || 0);
   if (!pattern || !maxBytes) continue;
@@ -280,7 +282,7 @@ for (const patternBudget of assetPatternBudgets) {
   for (const asset of matchingAssets) {
     if (asset.size > maxBytes) {
       violations.push(
-        `Asset "${asset.name}" is ${toKb(asset.size)} (pattern ${pattern} limit ${toKb(maxBytes)})${exactExcess(asset.size, maxBytes)}`
+        `Asset "${asset.name}" is ${toKb(asset.size)} (pattern ${pattern} limit ${toKb(maxBytes)})${exactExcess(asset.size, maxBytes, `assetPatternBudgets[${index}].maxBytes`)}`
       );
     } else if (asset.size / maxBytes >= nearLimitThresholdRatio) {
       nearLimitWarnings.push(
@@ -290,7 +292,7 @@ for (const patternBudget of assetPatternBudgets) {
   }
 }
 
-for (const startupBudget of startupChunkBudgets) {
+for (const [index, startupBudget] of startupChunkBudgets.entries()) {
   const label = typeof startupBudget?.label === 'string' ? startupBudget.label : 'startup-chunk';
   const source = startupBudget?.source === 'entry' ? 'entry' : 'pattern';
   const pattern = typeof startupBudget?.pattern === 'string' ? startupBudget.pattern : '';
@@ -312,7 +314,7 @@ for (const startupBudget of startupChunkBudgets) {
 
   for (const asset of candidateAssets) {
     if (asset.size > maxBytes) {
-      const message = `Startup chunk budget (${label}): "${asset.name}" is ${toKb(asset.size)} (limit ${toKb(maxBytes)})${exactExcess(asset.size, maxBytes)}`;
+      const message = `Startup chunk budget (${label}): "${asset.name}" is ${toKb(asset.size)} (limit ${toKb(maxBytes)})${exactExcess(asset.size, maxBytes, `startupChunkBudgets[${index}].maxBytes`)}`;
       if (severity === 'error') {
         violations.push(message);
       } else {
