@@ -16,7 +16,6 @@ export const warmDailyRecordSavePath = async (): Promise<boolean> => {
       loadDailyRecordSavePersistence(),
       loadDailyRecordWriteService(),
       loadDailyRecordOutbox(),
-      import('@/application/audit/writeAuditEventUseCase'),
     ]);
     return true;
   } catch {

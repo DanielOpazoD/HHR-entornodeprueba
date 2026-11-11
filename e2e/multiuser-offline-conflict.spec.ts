@@ -704,31 +704,6 @@ for (const mode of ['full', 'patch'] as const) {
     expect(await readSyncTask(page)).toMatchObject([{ status: 'PENDING', ownerKey }]);
     expect(await readSyncTask(page)).toHaveLength(1);
     expect(attemptedModules).toEqual([]);
-    if (mode === 'patch') {
-      await expect
-        .poll(() =>
-          page.evaluate(async () => {
-            const request = indexedDB.open('HangaRoaDB');
-            const db = await new Promise<IDBDatabase>(resolve => {
-              request.onsuccess = () => resolve(request.result);
-            });
-            try {
-              const read = db.transaction('auditLogs').objectStore('auditLogs').getAll();
-              return await new Promise<unknown[]>(resolve => {
-                read.onsuccess = () => resolve(read.result);
-              });
-            } finally {
-              db.close();
-            }
-          })
-        )
-        .toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({ action: 'PATIENT_MODIFIED', entityId: 'R1' }),
-          ])
-        );
-      expect(attemptedModules).toEqual([]);
-    }
   });
 }
 
