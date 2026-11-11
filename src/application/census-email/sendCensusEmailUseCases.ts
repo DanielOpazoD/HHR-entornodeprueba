@@ -135,6 +135,10 @@ export const executeSendCensusEmail = async (
       }
     }
 
+    if (issues.length > 0) {
+      return createApplicationFailed(null, issues);
+    }
+
     const finalMessage = resolveFinalCensusEmailMessage({
       message: input.message,
       currentDateString: input.currentDateString,

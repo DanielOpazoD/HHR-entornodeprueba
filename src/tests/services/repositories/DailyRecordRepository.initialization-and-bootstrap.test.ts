@@ -14,10 +14,14 @@ import {
 describe('DailyRecordRepository initialization and bootstrap flows', () => {
   beforeEach(() => {
     resetDailyRecordRepositoryLifecycleState();
+    firestoreMock.getRecordFromFirestoreDetailed.mockImplementation(async (date: string) => {
+      const record = await firestoreMock.getRecordFromFirestore(date);
+      return { serverConfirmed: true, status: record ? 'resolved' : 'missing', record };
+    });
   });
 
   it('returns existing record if initializeDay finds one', async () => {
-    indexedDbFacadeMock.getRecordForDate.mockResolvedValueOnce(mockRecord);
+    indexedDbFacadeMock.getRecordForDate.mockResolvedValue(mockRecord);
     const result = await Repository.initializeDay(mockDate);
     expect(result).toMatchObject({
       ...mockRecord,
@@ -78,7 +82,7 @@ describe('DailyRecordRepository initialization and bootstrap flows', () => {
 
   it('falls back to firestore during initialization if not found locally', async () => {
     indexedDbFacadeMock.getRecordForDate.mockResolvedValueOnce(null);
-    firestoreMock.getRecordFromFirestore.mockResolvedValueOnce(mockRecord);
+    firestoreMock.getRecordFromFirestore.mockResolvedValue(mockRecord);
 
     const result = await Repository.initializeDay(mockDate);
     expect(result).toMatchObject({

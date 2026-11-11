@@ -131,6 +131,9 @@ const loadRemoteInitializationSeed = async (
     );
     return null;
   }
+  if (remoteResult.record && !remoteResult.serverConfirmed) {
+    throw new Error('No se pudo confirmar el día con el servidor. Reintente con conexión.');
+  }
   const enrichedRecord = remoteResult.record
     ? enrichInitializationRecordFromCopySource(remoteResult.record, copySourceRecord)
     : null;
