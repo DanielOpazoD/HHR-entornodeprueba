@@ -522,18 +522,15 @@ no cambia sus assets. Su uso con los nuevos topes es 94,74 % y 96,96 %.
 
 Topes: shell 635.136 → **665.600** bytes (650 KiB), +30.464; margen de
 35.026 bytes sobre los 630.574 de referencia (5,26 % del nuevo tope).
-Precache 5.056.512 → **5.086.976**, exactamente los mismos +30.464 bytes:
-el incremento de holgura del shell cabe íntegro offline y conserva el margen
-previo del resto del precaché. Se usa la misma reserva marginal en bytes; no
-se aplica un 5 % al precaché completo, que concedería más de 250 KB y excedería
-la autorización de ~30 KB. El crecimiento de precaché medido es menor aún.
+El precaché **no cambia** (5.056.512): el build normal mide 4.932.147 bytes y
+los ~30 KB de holgura del shell caben en su margen actual (124.365 bytes).
 Ninguna exclusión, severidad, presupuesto de tiempo ni otro tope cambia.
 
 Revisión: conservar `check:runtime-asset-margin` y su señal NEAR-LIMIT con
-sus bandas actuales. Al superar ~97 % de cualquiera de estos dos topes,
+sus bandas actuales. Al superar ~97 % del tope del shell,
 repetir la misma medición contra main y la propuesta, revisar dispersión y
 obtener decisión del responsable antes de otro ajuste. Una regresión clara y
 repetible bloquea el ajuste. Rollback: revertir este cambio de configuración,
-ledger y expectativas de pruebas; se restauran 635.136/5.056.512 sin cambiar
+ledger y expectativas de pruebas; se restauran los 635.136 bytes sin cambiar
 código clínico, datos ni recursos offline. La historia anterior permanece en las entradas previas
 y en Git.

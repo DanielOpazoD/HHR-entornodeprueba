@@ -65,8 +65,13 @@ describe('census measurement release gate', () => {
     expect(flow.flows.censoVisibleMs.enforcedMaxMs).toBe(2000);
     expect(flow.flows.censoRecordReadyMs.enforcedMaxMs).toBe(5000);
     const bundle = JSON.parse(read('scripts/config/bundle-budget.json'));
-    // Owner-approved measured headroom; absolute time budgets above stay unchanged.
-    expect(bundle.precacheMaxBytes).toBe(5086976);
+    // The measured 40 KiB Zod security allowance and the owner-approved 2026-10-25 raise
+    // of 38 KiB, plus the bounded shared crash-cart allowance and the census program's measured uses
+    // (BUNDLE_RISK_LEDGER.md).
+    expect(bundle.precacheMaxBytes).toBe(
+      4952064 + 40960 + 38912 + 8192 + 4096 + 2048 + 512 + 1536 + 3072 + 5120
+    );
+    // Owner-approved measured startup headroom (2026-11-11; BUNDLE_RISK_LEDGER.md).
     expect(
       bundle.startupChunkBudgets.find(
         (b: { label: string }) => b.label === 'app-authenticated-shell'

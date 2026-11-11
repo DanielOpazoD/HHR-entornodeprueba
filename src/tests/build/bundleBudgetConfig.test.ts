@@ -94,8 +94,26 @@ describe('bundle budget config', () => {
   it('keeps the install-time precache budget focused on critical runtime files', () => {
     const config = readBundleBudgetConfig();
 
-    // The same +30464-byte shell allowance also fits offline; exclusions stay intact.
-    expect(config.precacheMaxBytes).toBe(5086976);
+    // Preserve offline clinical validation with the measured security-upgrade allowance,
+    // plus note replay, the bounded 2 KiB shared crash-cart checklist allowance and the census
+    // program's measured uses.
+    expect(config.precacheMaxBytes).toBe(
+      4840192 +
+        2048 +
+        67840 +
+        31744 +
+        2048 +
+        8192 +
+        40960 +
+        38912 +
+        8192 +
+        4096 +
+        2048 +
+        512 +
+        1536 +
+        3072 +
+        5120
+    );
     expect(findBudget(config, '^vendor-zod-.*\\.js$')).toMatchObject({ maxBytes: 96000 });
     expect(
       ONLINE_ONLY_PRECACHE_PATTERNS.some(pattern => /sessionActivity|auth/i.test(pattern))
