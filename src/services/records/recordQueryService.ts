@@ -50,9 +50,18 @@ export const fetchRecordsRangeSorted = async (
 
 export const syncRecordsRange = async (start: string, end: string): Promise<DailyRecord[]> => {
   // Local month/history reads must not initialize remote storage or write services.
-  const { getRecordsRangeFromFirestore } =
+  const { getRecordsRangeFromFirestore, UnconfirmedDailyRecordRangeError } =
     await import('@/services/storage/firestore/firestoreRecordQueries');
-  const remoteRecords = await getRecordsRangeFromFirestore(start, end);
+  let remoteRecords: DailyRecord[];
+  try {
+    remoteRecords = await getRecordsRangeFromFirestore(start, end);
+  } catch (error) {
+    if (error instanceof UnconfirmedDailyRecordRangeError) {
+      const localRecords = await getRecordsRange(start, end);
+      if (localRecords.length > 0) return localRecords;
+    }
+    throw error;
+  }
   if (remoteRecords.length === 0) return [];
 
   // A day with an edit this device has not sent yet keeps its local copy, and that copy is what

@@ -2,6 +2,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { getRecordsRange } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { admitRemoteDailyRecords } from '@/services/repositories/dailyRecordLocalCachePersistence';
 import * as firestoreService from '@/services/storage/firestore';
+import { UnconfirmedDailyRecordRangeError } from '@/services/storage/firestore/firestoreRecordQueries';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { resolvePreferredDailyRecord } from '@/services/repositories/dailyRecordSyncCompatibility';
@@ -54,7 +55,16 @@ export const hydrateRangeRecords = async (
     return sortRecordsAscending(localRecords);
   }
 
-  const remoteRecords = await firestoreService.getRecordsRangeFromFirestore(startDate, endDate);
+  let remoteRecords: DailyRecord[];
+  try {
+    remoteRecords = await firestoreService.getRecordsRangeFromFirestore(startDate, endDate);
+  } catch (error) {
+    if (error instanceof UnconfirmedDailyRecordRangeError) {
+      const retained = await getRecordsRange(startDate, endDate);
+      if (retained.length > 0) return sortRecordsAscending(retained);
+    }
+    throw error;
+  }
   const mergedRecords = mergeRecordsByDate(localRecords, remoteRecords);
 
   if (mergedRecords.length > 0) {

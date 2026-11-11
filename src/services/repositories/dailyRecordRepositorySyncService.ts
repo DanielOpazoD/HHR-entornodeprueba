@@ -65,9 +65,25 @@ const resolveSubscriptionResult = async (
   serverConfirmed: boolean,
   localRecord?: DailyRecord | null,
   isCurrent: () => boolean = () => true,
-  pointReadBase?: LocalRecordBase
+  pointReadBase?: LocalRecordBase,
+  hasPendingWrites = false
 ): Promise<SyncDailyRecordResult> => {
   localRecord = localRecord === undefined ? await getRecordFromIndexedDB(date) : localRecord;
+  if (!serverConfirmed && remoteRecord && !hasPendingWrites) {
+    const stored = await getRecordFromIndexedDB(date);
+    if (stored) {
+      return createSyncDailyRecordResult({
+        date,
+        record: stored,
+        serverConfirmed: false,
+        outcome: 'blocked',
+        sourceOfTruth: 'local',
+        consistencyState: 'blocked',
+        retryability: 'automatic_retry',
+        recoveryAction: 'defer_remote_sync',
+      });
+    }
+  }
   const remoteAvailability = remoteRecord
     ? 'resolved'
     : serverConfirmed
@@ -242,7 +258,8 @@ export const syncWithFirestoreDetailed = async (date: string) => {
           remoteResult.serverConfirmed,
           localRecord,
           undefined,
-          remoteResult.issuedAgainst ?? base
+          remoteResult.issuedAgainst ?? base,
+          remoteResult.hasPendingWrites
         );
       } catch (err) {
         dailyRecordSyncLogger.warn(`Sync failed for ${date}`, err);
