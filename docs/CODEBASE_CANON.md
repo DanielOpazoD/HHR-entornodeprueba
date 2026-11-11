@@ -45,7 +45,7 @@ Su retiro solo se habilita después de auditar producción y confirmar que no qu
 
 ## Estado de `src/infrastructure`
 
-`src/infrastructure/` queda retirado como capa activa. Se conserva solo como marcador histórico para evitar reintroducir una migración incompleta.
+`src/infrastructure/` queda retirado como capa activa. La carpeta y su marcador histórico se eliminaron; la infraestructura concreta vive en `src/services/`.
 
 - No agregar código nuevo allí.
 - La infraestructura concreta vive en `src/services/`.

@@ -4,7 +4,7 @@ import type { CensusWorkbookSheetDescriptor } from '@/services/exporters/censusM
 import {
   CensusEmailRequestPayloadSchema,
   type CensusEmailRequestPayload,
-} from '@/contracts/serverless';
+} from '@/shared/contracts/serverless';
 
 export interface CensusEmailRequestPayloadInput extends Omit<
   CensusEmailRequestPayload,

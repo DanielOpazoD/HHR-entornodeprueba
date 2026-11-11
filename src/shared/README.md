@@ -18,6 +18,9 @@ El portapapeles y la identificación del navegador pertenecen a
 `runtime/browserClipboardRuntime.ts`. Importar cada adaptador desde su propietario;
 la fachada histórica `browserWindowRuntime.ts` fue retirada.
 
+`contracts/serverless.ts` conserva los schemas y tipos compartidos por el cliente
+y las funciones Netlify; no cambia su validación ni sus contratos HTTP.
+
 ## Patrón
 
 - Runtime Adapter Pattern para reducir acoplamiento directo a APIs globales del navegador.

@@ -1,0 +1,7 @@
+#!/bin/sh
+set -e
+if [ ! -d node_modules ]; then
+  echo "Falta node_modules: enlázalo con ln -s /ruta/al/node_modules node_modules o instala las dependencias con npm ci." >&2
+  exit 1
+fi
+npm run check:changed

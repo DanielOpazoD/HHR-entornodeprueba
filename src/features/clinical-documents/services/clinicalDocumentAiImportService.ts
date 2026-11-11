@@ -3,7 +3,7 @@ import {
   ClinicalDocumentAiImportResponseSchema,
   getServerlessErrorMessage,
   type ClinicalDocumentAiImportPayload,
-} from '@/contracts/serverless';
+} from '@/shared/contracts/serverless';
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
 import {
   createApplicationFailed,
