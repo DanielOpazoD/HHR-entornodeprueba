@@ -148,8 +148,11 @@ describe('clinicalAttachmentUseCases', () => {
 
   it('wraps list and delete repository operations in outcomes', async () => {
     const repository = buildRepository();
-    repository.listByEpisode.mockResolvedValue([{ id: 'att_1' }]);
-    repository.listByPatient.mockResolvedValue([{ id: 'att_1' }, { id: 'att_2' }]);
+    repository.listByEpisode.mockResolvedValue({ records: [{ id: 'att_1' }], omittedCount: 0 });
+    repository.listByPatient.mockResolvedValue({
+      records: [{ id: 'att_1' }, { id: 'att_2' }],
+      omittedCount: 0,
+    });
     repository.delete.mockResolvedValue(undefined);
 
     await expect(
@@ -258,18 +261,21 @@ describe('clinicalAttachmentUseCases', () => {
     });
   });
 
-  it('audits mismatches between active metadata and Storage objects for a patient', async () => {
+  it.each([0, 1])('audits patient Storage with %i omitted metadata records', async omittedCount => {
     const repository = buildRepository();
-    repository.listByPatient.mockResolvedValue([
-      {
-        id: 'att_active',
-        storagePath: 'clinical-attachments/hhr/rut/episode/att_active/a.pdf',
-      },
-      {
-        id: 'att_missing',
-        storagePath: 'clinical-attachments/hhr/rut/episode/att_missing/missing.pdf',
-      },
-    ]);
+    repository.listByPatient.mockResolvedValue({
+      records: [
+        {
+          id: 'att_active',
+          storagePath: 'clinical-attachments/hhr/rut/episode/att_active/a.pdf',
+        },
+        {
+          id: 'att_missing',
+          storagePath: 'clinical-attachments/hhr/rut/episode/att_missing/missing.pdf',
+        },
+      ],
+      omittedCount,
+    });
     repository.listStoragePathsByPatient.mockResolvedValue([
       'clinical-attachments/hhr/rut/episode/att_active/a.pdf',
       'clinical-attachments/hhr/rut/episode/orphan/orphan.pdf',
@@ -281,7 +287,7 @@ describe('clinicalAttachmentUseCases', () => {
     );
 
     expect(outcome).toMatchObject({
-      status: 'success',
+      status: omittedCount ? 'partial' : 'success',
       data: {
         activeMetadataCount: 2,
         storageObjectCount: 2,

@@ -1,7 +1,6 @@
 {
   "version": 1,
   "entries": [
-    "src/services/repositories/ClinicalAttachmentRepository.ts::filterActiveClinicalAttachments",
     "src/services/repositories/ClinicalDocumentRepository.ts::getBrowserStorage",
     "src/services/repositories/dailyRecordRemotePersistenceController.ts::resolveRemoteAuthorityRecord",
     "src/services/repositories/dailyRecordRepositoryInitializationService.ts::loadRemoteInitializationSeed",
