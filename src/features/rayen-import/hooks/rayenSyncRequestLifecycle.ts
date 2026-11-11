@@ -1,4 +1,7 @@
-import { cancelRayenSyncBundleRequest, requestRayenSyncBundle } from '../bridge/rayenImportBridge';
+import {
+  cancelRayenSyncBundleRequest,
+  requestRayenSyncBundle,
+} from '../bridge/rayenSnapshotBridge';
 
 const SYNC_TIMEOUT_MS = 75_000;
 

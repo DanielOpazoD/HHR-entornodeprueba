@@ -3,7 +3,7 @@ import {
   requestRayenSyncBundle,
   RAYEN_IMPORT_ERROR_MESSAGE_TYPE,
   subscribeToRayenImportErrors,
-} from '@/features/rayen-import/bridge/rayenImportBridge';
+} from '@/features/rayen-import/bridge/rayenSnapshotBridge';
 
 describe('Rayen import error bridge', () => {
   it('delivers only the error correlated to the active sync request', () => {

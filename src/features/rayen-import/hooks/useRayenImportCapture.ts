@@ -17,7 +17,7 @@ import type { NursingStaffingProposal } from '../contracts/nursingShiftInference
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import { classifyRayenSnapshotError } from '../domain/rayenSnapshotErrorClassification';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
-import * as rayenImportBridge from '../bridge/rayenImportBridge';
+import * as rayenImportBridge from '../bridge/rayenSnapshotBridge';
 import type { RayenExtensionHealthState } from './useRayenExtensionHealth';
 import { resetRayenFillProgress } from './useRayenFillStatus';
 import { getRayenImportErrorMessage, type RayenImportState } from './rayenImportState';

@@ -10,7 +10,7 @@ import {
   type RayenSyncExecutionState,
 } from '@/features/rayen-import/hooks/rayenSyncExecutionState';
 
-vi.mock('@/features/rayen-import/bridge/rayenImportBridge', () => ({
+vi.mock('@/features/rayen-import/bridge/rayenSnapshotBridge', () => ({
   subscribeToRayenSnapshots: vi.fn(() => vi.fn()),
   subscribeToRayenImportErrors: vi.fn(() => vi.fn()),
 }));
