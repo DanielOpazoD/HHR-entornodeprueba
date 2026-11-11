@@ -6,6 +6,8 @@ const mockUseSaveNursesMutation = vi.fn();
 const mockStaffCatalogManagerModal = vi.fn();
 
 vi.mock('@/hooks/useStaffQuery', () => ({
+  CatalogReadUnavailableError: class extends Error {},
+  useNursesQuery: () => ({ refetch: vi.fn() }),
   useSaveNursesMutation: () => mockUseSaveNursesMutation(),
 }));
 
@@ -22,7 +24,8 @@ describe('NurseManagerModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseSaveNursesMutation.mockReturnValue({
-      mutate: vi.fn(),
+      mutateAsync: vi.fn(),
+      error: null,
       isPending: true,
       isError: false,
     });

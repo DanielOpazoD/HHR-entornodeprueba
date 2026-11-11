@@ -49,10 +49,12 @@ export interface AuthContextType {
   remoteSyncStatus: NormalizedAuthOperationalState['remoteSyncStatus'];
   remoteSyncState: NormalizedAuthOperationalState['remoteSyncState'];
   signOut: NormalizedAuthOperationalState['handleLogout'];
+  logoutPrompt?: UseAuthStateReturn['logoutPrompt'];
 }
 
 export const buildAuthContextValue = (
-  normalizedAuthState: NormalizedAuthOperationalState
+  normalizedAuthState: NormalizedAuthOperationalState,
+  logoutPrompt: UseAuthStateReturn['logoutPrompt'] = null
 ): AuthContextType => ({
   sessionState: normalizedAuthState.sessionState,
   authRuntime: normalizedAuthState.authRuntime,
@@ -71,4 +73,5 @@ export const buildAuthContextValue = (
   remoteSyncStatus: normalizedAuthState.remoteSyncStatus,
   remoteSyncState: normalizedAuthState.remoteSyncState,
   signOut: normalizedAuthState.handleLogout,
+  logoutPrompt,
 });

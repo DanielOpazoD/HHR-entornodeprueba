@@ -12,6 +12,8 @@ import {
 } from './fixtures/clinicalBlockEditor';
 import { waitForPersistedBedFields } from './fixtures/censusPersistence';
 import { installDailyRecordAuthorityRoute } from './fixtures/dailyRecordAuthorityRoute';
+import { installSyncQueueTransportHarness } from './fixtures/syncQueueTransportHarness';
+import { SESSION_OWNER_KEY } from '../src/services/storage/sessionOwnerKey';
 import { getTodayISO } from '../src/utils/dateCoreUtils';
 import type { SyncTask } from '../src/services/storage/syncQueueTypes';
 
@@ -40,7 +42,7 @@ const insertSyncTask = (page: Page, task: SyncTask) =>
     }
   }, task);
 
-const readSyncTask = (page: Page, id: number) =>
+const readSyncTask = (page: Page, id?: number) =>
   page.evaluate(async taskId => {
     const request = indexedDB.open('HangaRoaDB');
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -48,7 +50,8 @@ const readSyncTask = (page: Page, id: number) =>
       request.onerror = () => reject(request.error);
     });
     try {
-      const read = db.transaction('syncQueue', 'readonly').objectStore('syncQueue').get(taskId);
+      const store = db.transaction('syncQueue', 'readonly').objectStore('syncQueue');
+      const read = taskId === undefined ? store.getAll() : store.get(taskId);
       return await new Promise<unknown>((resolve, reject) => {
         read.onsuccess = () => resolve(read.result);
         read.onerror = () => reject(read.error);
@@ -419,7 +422,7 @@ const closeAll = async (contexts: BrowserContext[]) => {
 };
 
 test.describe('Offline local persistence and controlled remote-authority reload', () => {
-  test('resumes a paused offline edit before loading another client accepted diagnosis', async ({
+  test('persists an offline edit before loading another client accepted diagnosis', async ({
     browser,
   }) => {
     test.setTimeout(90_000);
@@ -451,14 +454,41 @@ test.describe('Offline local persistence and controlled remote-authority reload'
       await expect.poll(() => userAPage.evaluate(() => navigator.onLine)).toBe(false);
 
       await submitClinicalDiagnosis(userAPage, userARow, 'R1', 'USER A OFFLINE DX');
-      await expect(userAPage.getByTestId('clinical-block-editor-R1')).toBeVisible();
-      await expect(userAPage.getByTestId('clinical-block-save-R1')).toBeDisabled();
-      await expectClinicalDiagnosis(getRow(userAPage, 'R1'), 'USER A OFFLINE DX');
-      expect(await readIndexedDbDailyRecord(userAPage, MULTIUSER_DATE)).toMatchObject({
-        beds: { R1: { pathology: 'BASE DX' } },
+      await waitForPersistedBedFields({
+        page: userAPage,
+        date: MULTIUSER_DATE,
+        bedId: 'R1',
+        expected: { pathology: 'USER A OFFLINE DX' },
       });
+      await expectClinicalEditorClosed(userAPage, 'R1');
+      await expectClinicalDiagnosis(getRow(userAPage, 'R1'), 'USER A OFFLINE DX');
+      await expect(userAPage.getByText('Cambio sólo local', { exact: true })).toBeVisible();
+      const ownerKey = await userAPage.evaluate(
+        key => localStorage.getItem(key),
+        SESSION_OWNER_KEY
+      );
+      expect(ownerKey).toBeTruthy();
+      await expect
+        .poll(() => readSyncTask(userAPage))
+        .toMatchObject([
+          {
+            status: 'PENDING',
+            ownerKey,
+            payload: { beds: { R1: { pathology: 'USER A OFFLINE DX' } } },
+          },
+        ]);
+      const syncTransport = await installSyncQueueTransportHarness(userAPage);
       await userAContext.setOffline(false);
       await expect.poll(() => userAPage.evaluate(() => navigator.onLine)).toBe(true);
+      const sent = await syncTransport.nextCall();
+      expect(sent.task).toMatchObject({
+        ownerKey,
+        payload: { beds: { R1: { pathology: 'USER A OFFLINE DX' } } },
+      });
+      sent.succeed();
+      await expect.poll(() => readSyncTask(userAPage), { timeout: 15_000 }).toEqual([]);
+      await syncTransport.disable();
+
       await waitForPersistedBedFields({
         page: userAPage,
         date: MULTIUSER_DATE,
@@ -528,14 +558,41 @@ test.describe('Offline local persistence and controlled remote-authority reload'
       await expect.poll(() => userAPage.evaluate(() => navigator.onLine)).toBe(false);
 
       await submitClinicalDiagnosis(userAPage, userAR1, 'R1', 'USER A LOCAL DX');
-      await expect(userAPage.getByTestId('clinical-block-editor-R1')).toBeVisible();
-      await expect(userAPage.getByTestId('clinical-block-save-R1')).toBeDisabled();
-      await expectClinicalDiagnosis(userAR1, 'USER A LOCAL DX');
-      expect(await readIndexedDbDailyRecord(userAPage, MULTIUSER_DATE)).toMatchObject({
-        beds: { R1: { pathology: 'BASE DX' } },
+      await waitForPersistedBedFields({
+        page: userAPage,
+        date: MULTIUSER_DATE,
+        bedId: 'R1',
+        expected: { pathology: 'USER A LOCAL DX' },
       });
+      await expectClinicalEditorClosed(userAPage, 'R1');
+      await expectClinicalDiagnosis(userAR1, 'USER A LOCAL DX');
+      await expect(userAPage.getByText('Cambio sólo local', { exact: true })).toBeVisible();
+      const ownerKey = await userAPage.evaluate(
+        key => localStorage.getItem(key),
+        SESSION_OWNER_KEY
+      );
+      expect(ownerKey).toBeTruthy();
+      await expect
+        .poll(() => readSyncTask(userAPage))
+        .toMatchObject([
+          {
+            status: 'PENDING',
+            ownerKey,
+            payload: { beds: { R1: { pathology: 'USER A LOCAL DX' } } },
+          },
+        ]);
+      const syncTransport = await installSyncQueueTransportHarness(userAPage);
       await userAContext.setOffline(false);
       await expect.poll(() => userAPage.evaluate(() => navigator.onLine)).toBe(true);
+      const sent = await syncTransport.nextCall();
+      expect(sent.task).toMatchObject({
+        ownerKey,
+        payload: { beds: { R1: { pathology: 'USER A LOCAL DX' } } },
+      });
+      sent.succeed();
+      await expect.poll(() => readSyncTask(userAPage), { timeout: 15_000 }).toEqual([]);
+      await syncTransport.disable();
+
       await waitForPersistedBedFields({
         page: userAPage,
         date: MULTIUSER_DATE,
@@ -591,3 +648,121 @@ test.describe('Offline local persistence and controlled remote-authority reload'
     }
   });
 });
+
+for (const mode of ['full', 'patch'] as const) {
+  test(`first ${mode} save offline attempts no module requests`, async ({ page, context }) => {
+    const loadingModules = new Set<string>();
+    let lastModuleActivity = Date.now();
+    page.on('request', request => {
+      if (request.resourceType() === 'script') {
+        loadingModules.add(request.url());
+        lastModuleActivity = Date.now();
+      }
+    });
+    const moduleFinished = (request: import('@playwright/test').Request) => {
+      if (request.resourceType() === 'script') {
+        loadingModules.delete(request.url());
+        lastModuleActivity = Date.now();
+      }
+    };
+    page.on('requestfinished', moduleFinished);
+    page.on('requestfailed', moduleFinished);
+    await openSeededCensus(page);
+    // A fresh JS realm preserves the synthetic session/DB, without incidental feature warming.
+    await page.goto('/e2e/fixtures/offlineSavePath.html');
+    await page.evaluate(async date => {
+      const harnessPath = '/e2e/fixtures/dailyRecordSavePathHarness.tsx';
+      const { mountSavePathProbe } = await import(/* @vite-ignore */ harnessPath);
+      await mountSavePathProbe(date);
+    }, MULTIUSER_DATE);
+    await expect(page.getByTestId(`probe-${mode}`)).toBeVisible();
+    // Firestore's streaming reads stay open; wait for module network inactivity only.
+    await expect
+      .poll(() => loadingModules.size === 0 && Date.now() - lastModuleActivity > 2000, {
+        timeout: 30_000,
+      })
+      .toBe(true);
+    const attemptedModules: string[] = [];
+    await page.route('**/*', route => {
+      if (route.request().resourceType() === 'script') attemptedModules.push(route.request().url());
+      return route.abort();
+    });
+    await context.setOffline(true);
+    await page.getByTestId(`probe-${mode}`).click();
+    await expect
+      .poll(async () => {
+        expect(attemptedModules).toEqual([]);
+        return readIndexedDbDailyRecord(page, MULTIUSER_DATE);
+      })
+      .toMatchObject(
+        mode === 'full'
+          ? { nursesDayShift: ['OFFLINE SYNTHETIC'] }
+          : { beds: { R1: { pathology: 'OFFLINE SYNTHETIC' } } }
+      );
+    const ownerKey = await page.evaluate(key => localStorage.getItem(key), SESSION_OWNER_KEY);
+    expect(ownerKey).toBeTruthy();
+    expect(await readSyncTask(page)).toMatchObject([{ status: 'PENDING', ownerKey }]);
+    expect(await readSyncTask(page)).toHaveLength(1);
+    expect(attemptedModules).toEqual([]);
+  });
+}
+
+for (const retry of ['online', 'save'] as const) {
+  test(`failed save path download offers reload after ${retry}`, async ({ page }) => {
+    await openSeededCensus(page);
+    await page.goto('/e2e/fixtures/offlineSavePath.html');
+    const blocked: string[] = [];
+    await page.route('**/*', route => {
+      if (
+        /dailyRecordSavePersistenceController|dailyRecordRepositoryWriteService|dexieDailyRecordOutbox/.test(
+          route.request().url()
+        )
+      ) {
+        blocked.push(route.request().url());
+        return route.abort();
+      }
+      return route.continue();
+    });
+    const mount = () =>
+      page.evaluate(async date => {
+        const path = '/e2e/fixtures/dailyRecordSavePathHarness.tsx';
+        await (await import(/* @vite-ignore */ path)).mountSavePathProbe(date);
+      }, MULTIUSER_DATE);
+    await page.evaluate(() =>
+      Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false })
+    );
+    await mount();
+    await expect.poll(() => blocked.length).toBeGreaterThanOrEqual(3);
+    await page.getByTestId('probe-full').click();
+    await expect(page.getByTestId('mutation-state')).toHaveText('error');
+    await expect(page.getByRole('status')).toBeEmpty();
+    await page.evaluate(() =>
+      Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => true })
+    );
+    await page.unroute('**/*');
+    if (retry === 'online') await page.evaluate(() => window.dispatchEvent(new Event('online')));
+    await page.getByTestId('probe-full').click();
+    await expect(page.getByTestId('mutation-state')).toHaveText('error');
+    expect(await readIndexedDbDailyRecord(page, MULTIUSER_DATE)).not.toMatchObject({
+      nursesDayShift: ['OFFLINE SYNTHETIC'],
+    });
+    expect(await readSyncTask(page)).toEqual([]);
+    await expect(page.getByRole('status')).toContainText('no quedó guardado');
+    await expect(page.getByRole('button', { name: 'Recargar aplicación' })).toBeVisible();
+    page.once('dialog', dialog => dialog.accept());
+    await Promise.all([
+      page.waitForEvent('load'),
+      page.getByRole('button', { name: 'Recargar aplicación' }).click(),
+    ]);
+    await mount();
+    await page.getByTestId('probe-full').click();
+    await expect
+      .poll(() => readIndexedDbDailyRecord(page, MULTIUSER_DATE))
+      .toMatchObject({ nursesDayShift: ['OFFLINE SYNTHETIC'] });
+    const ownerKey = await page.evaluate(key => localStorage.getItem(key), SESSION_OWNER_KEY);
+    expect(ownerKey).toBeTruthy();
+    expect(await readSyncTask(page)).toMatchObject([{ status: 'PENDING', ownerKey }]);
+    expect(await readSyncTask(page)).toHaveLength(1);
+    await expect(page.getByRole('status')).toBeEmpty();
+  });
+}

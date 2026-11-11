@@ -1,3 +1,4 @@
+import { createSavePathRuntimeLoader } from '@/services/runtime/createSavePathRuntimeLoader';
 import Dexie from 'dexie';
 import { isFunctionsReloadRequired } from '@/services/firebase-runtime/functionsModuleLoader';
 import type {
@@ -20,6 +21,11 @@ import {
   matchesOwner,
   requeueQuarantinedTask,
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
+
+export const loadDailyRecordOutbox = createSavePathRuntimeLoader(
+  'save-outbox',
+  () => import('./dexieDailyRecordOutbox')
+);
 
 const loadAuthorityAck = () => import('./dexieSyncQueueAuthorityAck');
 
@@ -98,8 +104,7 @@ const mirrorTransactionalDailyRecordWrite = (record: DailyRecord): void => {
 };
 
 const reconcileSpecialistHandoffProjections = async (): Promise<void> => {
-  const { reconcileSpecialistHandoffProjections: release } =
-    await import('./dexieDailyRecordOutbox');
+  const { reconcileSpecialistHandoffProjections: release } = await loadDailyRecordOutbox();
   const dates = await release();
   if (dates.length) dispatchDailyRecordStoreChanged({ operation: 'save', dates });
 };
@@ -175,10 +180,18 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
     await hospitalDB.syncQueue.add(task);
   },
   async saveDailyRecordWithTask(record, task, patchWrite, wholeRecordBase) {
-    const { mode, persistedRecord } = await (
-      await import('./dexieDailyRecordOutbox')
-    ).saveDailyRecordInOutbox(record, task, patchWrite, wholeRecordBase);
-    mirrorTransactionalDailyRecordWrite(persistedRecord);
+    // Dexie.waitFor keeps an enclosing transaction (a backup import) alive across the module load.
+    const { saveDailyRecordInOutbox } = await Dexie.waitFor(loadDailyRecordOutbox());
+    const { mode, persistedRecord } = await saveDailyRecordInOutbox(
+      record,
+      task,
+      patchWrite,
+      wholeRecordBase
+    );
+    const transaction = Dexie.currentTransaction;
+    if (transaction)
+      transaction.on('complete', () => mirrorTransactionalDailyRecordWrite(persistedRecord));
+    else mirrorTransactionalDailyRecordWrite(persistedRecord);
     return mode;
   },
   async replacePendingDailyRecordWithTask(record, task, expectedTask) {
@@ -267,8 +280,7 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
     ),
   requeueQuarantinedTask,
   async discardQuarantinedTask(taskId, ownerKey) {
-    const { releaseSpecialistHandoffProjection: release } =
-      await import('./dexieDailyRecordOutbox');
+    const { releaseSpecialistHandoffProjection: release } = await loadDailyRecordOutbox();
     let changedDate: string | undefined;
     // Deletion and restoration commit together: a failure keeps the note and its provenance.
     const discarded = await hospitalDB.transaction(
@@ -301,7 +313,7 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
   async updateClaimed(taskId, patch, claim) {
     const release =
       patch.status === 'FAILED' || patch.status === 'CONFLICT'
-        ? (await import('./dexieDailyRecordOutbox')).releaseSpecialistHandoffProjection
+        ? (await loadDailyRecordOutbox()).releaseSpecialistHandoffProjection
         : undefined;
     let changedDate: string | undefined;
     // A refused note is quarantined only if its projection is restored in the same transaction.
@@ -326,7 +338,7 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
   },
   async deleteClaimed(taskId, claim, authoritativeRecord, detachedConflicts) {
     const { completeClaimedSyncTask } = await loadAuthorityAck();
-    const { confirmSpecialistHandoffProjection } = await import('./dexieDailyRecordOutbox');
+    const { confirmSpecialistHandoffProjection } = await loadDailyRecordOutbox();
     const result = await completeClaimedSyncTask(
       {
         db: hospitalDB,

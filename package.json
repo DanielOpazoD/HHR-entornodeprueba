@@ -129,8 +129,6 @@
     "check:report-freshness": "node scripts/check-report-freshness.mjs",
     "check:report-freshness:strict": "node scripts/check-report-freshness.mjs --strict",
     "check:critical-coverage": "npm run report:critical-coverage && node scripts/check-critical-coverage.mjs",
-    "check:critical-any": "node scripts/check-critical-any.mjs",
-    "check:source-any": "node scripts/check-source-any.mjs",
     "check:repo-hygiene": "node scripts/check-repo-hygiene.mjs",
     "check:clinical-mutation-audit-policy": "node scripts/check-clinical-mutation-audit-policy.mjs",
     "check:secret-leaks": "node scripts/check-secret-leaks.mjs",

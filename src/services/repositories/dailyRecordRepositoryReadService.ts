@@ -61,11 +61,11 @@ const getE2ELocalStorageRecord = (date: string): DailyRecord | null => {
 
   try {
     const records = JSON.parse(
-      window.localStorage.getItem('hanga_roa_hospital_data') || '{}'
+      window.localStorage.getItem('hanga_roa_hospital_data') ?? '{}'
     ) as Record<string, DailyRecord> | null;
     return records?.[date] || null;
   } catch {
-    return null;
+    throw new Error('No se pudo leer el dato e2e de hanga_roa_hospital_data');
   }
 };
 

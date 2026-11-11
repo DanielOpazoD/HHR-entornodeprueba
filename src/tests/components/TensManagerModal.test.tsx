@@ -1,11 +1,14 @@
 import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { CatalogRemoteSyncError } from '@/services/repositories/contracts/catalogContracts';
 import { render } from '@testing-library/react';
 
 const mockUseSaveTensMutation = vi.fn();
 const mockStaffCatalogManagerModal = vi.fn();
 
 vi.mock('@/hooks/useStaffQuery', () => ({
+  CatalogReadUnavailableError: class extends Error {},
+  useTensQuery: () => ({ refetch: vi.fn() }),
   useSaveTensMutation: () => mockUseSaveTensMutation(),
 }));
 
@@ -22,7 +25,8 @@ describe('TensManagerModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseSaveTensMutation.mockReturnValue({
-      mutate: vi.fn(),
+      mutateAsync: vi.fn(),
+      error: new CatalogRemoteSyncError(new Error('synthetic')),
       isPending: false,
       isError: true,
     });

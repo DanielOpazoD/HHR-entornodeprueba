@@ -12,6 +12,14 @@ const useCatalogRealtimeReady = (): boolean => {
   return remoteSyncStatus === 'ready';
 };
 
+export class CatalogReadUnavailableError extends Error {
+  constructor() {
+    super(
+      'No se pudo leer la lista. Lo escrito no se guardó. Pulse Reintentar para leerla y luego vuelva a guardar.'
+    );
+  }
+}
+
 const STAFF_CATALOG_STALE_TIME_MS = 30_000;
 
 /**
@@ -164,6 +172,10 @@ export const useSaveNursesMutation = () => {
   return useMutation({
     mutationFn: (nurses: string[]) => CatalogRepository.saveNurses(nurses),
     onMutate: async newNurses => {
+      // Display fallbacks are not a loaded base for replacing the complete catalog.
+      if (queryClient.getQueryData([...queryKeys.staff.all, 'nurses']) === undefined) {
+        throw new CatalogReadUnavailableError();
+      }
       await queryClient.cancelQueries({ queryKey: [...queryKeys.staff.all, 'nurses'] });
       const previousNurses = queryClient.getQueryData<string[]>([...queryKeys.staff.all, 'nurses']);
       queryClient.setQueryData([...queryKeys.staff.all, 'nurses'], newNurses);
@@ -189,6 +201,10 @@ export const useSaveTensMutation = () => {
   return useMutation({
     mutationFn: (tens: string[]) => CatalogRepository.saveTens(tens),
     onMutate: async newTens => {
+      // Display fallbacks are not a loaded base for replacing the complete catalog.
+      if (queryClient.getQueryData([...queryKeys.staff.all, 'tens']) === undefined) {
+        throw new CatalogReadUnavailableError();
+      }
       await queryClient.cancelQueries({ queryKey: [...queryKeys.staff.all, 'tens'] });
       const previousTens = queryClient.getQueryData<string[]>([...queryKeys.staff.all, 'tens']);
       queryClient.setQueryData([...queryKeys.staff.all, 'tens'], newTens);
@@ -215,6 +231,10 @@ export const useSaveProfessionalsMutation = () => {
     mutationFn: (professionals: ProfessionalCatalogItem[]) =>
       CatalogRepository.saveProfessionals(professionals),
     onMutate: async newProfessionals => {
+      // Display fallbacks are not a loaded base for replacing the complete catalog.
+      if (queryClient.getQueryData([...queryKeys.staff.all, 'professionals']) === undefined) {
+        throw new CatalogReadUnavailableError();
+      }
       await queryClient.cancelQueries({ queryKey: [...queryKeys.staff.all, 'professionals'] });
       const previousProfessionals = queryClient.getQueryData<ProfessionalCatalogItem[]>([
         ...queryKeys.staff.all,

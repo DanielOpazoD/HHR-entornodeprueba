@@ -14,11 +14,8 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDateStrict: mocks.getLocal,
-  saveRecordsStrict: mocks.saveMany,
 }));
-vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
-  saveDetailed: mocks.saveRemote,
-}));
+
 // No day here is confirmed against the server: a read would never run.
 vi.mock('@/services/repositories/dailyRecordClinicalDerivedReadService', () => ({
   readClinicalDerivedDaySnapshot: vi.fn(),
@@ -29,6 +26,16 @@ vi.mock('@/services/admin/utils/auditUtils', () => ({
 }));
 
 import { importRecordsFromBackup } from '@/services/admin/dataMaintenanceService';
+vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
+  saveDetailed: mocks.saveRemote,
+  saveBackupImport: async (records: unknown[]) => {
+    if (!records.length) return [];
+    const result = await mocks.saveMany(records);
+    if (!result.ok) throw new Error('synthetic backup command failure');
+    return [];
+  },
+}));
+
 import { importDataJSONDetailed } from '@/services/exporters/exportImportJson';
 import { restoreClinicalDerivedBackupDay } from '@/services/exporters/clinicalDerivedBackupRestore';
 import {

@@ -99,6 +99,31 @@ describe('ClinicalDocumentRepository local recovery', () => {
     });
   });
 
+  it('retains memory and pending edits when accessing the Storage capability throws', async () => {
+    const document = buildDoc('no-storage', 'capability__2026-03-01', '2026-03-05T10:00:00.000Z');
+    await ClinicalDocumentRepository.createDraft(document, 'hhr');
+    const storage = vi.spyOn(globalThis, 'localStorage', 'get').mockImplementation(() => {
+      throw new DOMException('Access denied', 'SecurityError');
+    });
+    try {
+      await expect(ClinicalDocumentRepository.get(document.id, 'hhr')).resolves.toMatchObject({
+        id: document.id,
+      });
+      await ClinicalDocumentRepository.saveDraft(
+        { ...document, title: 'Pending in memory' },
+        'hhr'
+      );
+      await expect(ClinicalDocumentRepository.get(document.id, 'hhr')).resolves.toMatchObject({
+        title: 'Pending in memory',
+      });
+    } finally {
+      storage.mockRestore();
+    }
+    await expect(ClinicalDocumentRepository.get(document.id, 'hhr')).resolves.toMatchObject({
+      title: 'Pending in memory',
+    });
+  });
+
   it('retries a pending deletion when storage recovers without an unrelated write', async () => {
     const document = buildDoc('retry-delete', 'delete__2026-03-01', '2026-03-05T10:00:00.000Z');
     await ClinicalDocumentRepository.createDraft(document, 'hhr');

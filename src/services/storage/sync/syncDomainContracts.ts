@@ -7,6 +7,7 @@ export type SyncDomainContext =
   | 'unknown';
 
 export type SyncTaskOrigin =
+  | 'backup_restore'
   | 'direct_queue'
   | 'full_save_retry'
   | 'partial_update_retry'

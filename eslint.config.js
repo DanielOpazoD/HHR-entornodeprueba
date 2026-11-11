@@ -342,5 +342,17 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-unused-vars': 'off',
     },
+  },
+  {
+    // Production source: the former source scanner's scope, with syntax-aware errors.
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['**/*.d.ts', '**/tests/**', '**/*.test.*', '**/*.spec.*'],
+    rules: { '@typescript-eslint/no-explicit-any': 'error' },
+  },
+  {
+    // Critical services also cover spec and story files, as the critical scanner did.
+    files: ['src/services/{storage,repositories,admin}/**/*.{ts,tsx}'],
+    ignores: ['**/*.d.ts', '**/tests/**', '**/*.test.*'],
+    rules: { '@typescript-eslint/no-explicit-any': 'error' },
   }
 );

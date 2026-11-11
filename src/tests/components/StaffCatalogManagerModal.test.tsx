@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { StaffCatalogManagerModal } from '@/components/modals/StaffCatalogManagerModal';
 
@@ -97,7 +97,7 @@ describe('StaffCatalogManagerModal', () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
-  it('supports edit and delete actions', () => {
+  it('supports edit and delete actions', async () => {
     const onSave = vi.fn();
     render(
       <StaffCatalogManagerModal
@@ -117,6 +117,7 @@ describe('StaffCatalogManagerModal', () => {
     fireEvent.keyDown(editInput, { key: 'Enter' });
     expect(onSave).toHaveBeenCalledWith(['Ana María']);
 
+    await waitFor(() => expect(screen.queryByTitle('Guardar')).not.toBeInTheDocument());
     fireEvent.click(screen.getByTitle('Eliminar'));
     expect(onSave).toHaveBeenCalledWith([]);
   });
