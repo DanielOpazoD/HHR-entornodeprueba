@@ -9,8 +9,35 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { BedDouble, Hospital, Siren, Stethoscope, type LucideIcon } from 'lucide-react';
 
-import { ELOISA_LINKS, type EloisaLinkKey } from '../eloisaLinks';
 import './eloisaLinksRing.css';
+
+/** Eloísa's own pages, opened from the mark in the census toolbar. */
+
+type EloisaLinkKey = 'hospitalized' | 'beds' | 'outpatient' | 'emergency';
+
+interface EloisaLink {
+  key: EloisaLinkKey;
+  label: string;
+  /** Written along the ring, where a long name does not fit. */
+  ringLabel?: string;
+  href: string;
+}
+
+const ELOISA_LINKS: readonly EloisaLink[] = [
+  {
+    key: 'hospitalized',
+    label: 'Hospitalizados',
+    href: 'https://fichamedico.rayensalud.cl/dashboard/encounter-list-nurse',
+  },
+  {
+    key: 'beds',
+    label: 'Gestión de camas',
+    ringLabel: 'Camas',
+    href: 'https://hospitalizado.rayensalud.cl/',
+  },
+  { key: 'outpatient', label: 'Ambulatoria', href: 'https://clinicohangaroa.eloisa.cl/' },
+  { key: 'emergency', label: 'Urgencias', href: 'https://urgencia.saludenred.cl/' },
+];
 
 const VIEW_RADIUS = 66;
 const OUTER_RADIUS = 60;

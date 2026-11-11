@@ -1,11 +1,16 @@
-import { useCallback } from 'react';
+import { useCallback, type Dispatch } from 'react';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
 import { getRayenImportErrorMessage } from './rayenImportState';
 import { defaultMonotonicNow, elapsedMilliseconds } from '../domain/rayenSyncPerformance';
 import { useTreatingPhysicianCatalogSync } from './useTreatingPhysicianCatalogSync';
 import { buildRayenCapturePerformance } from '../domain/rayenSyncSourceQuality';
-import { isRayenSyncExecutionCurrent, rayenSyncExecutionKey } from './rayenSyncExecutionState';
-import { createRayenSnapshotExecutionReporter } from './rayenSnapshotExecutionReporter';
+import {
+  isRayenSyncExecutionCurrent,
+  rayenSyncExecutionKey,
+  type RayenSyncExecutionAction,
+  type RayenSyncExecutionOutcome,
+  type RayenSyncStage,
+} from './rayenSyncExecutionState';
 import {
   hasNoApplicableRayenStructuralChanges,
   resolveRayenSnapshotPlanningStage,
@@ -26,6 +31,24 @@ import {
   returnRayenReplanToReview,
 } from './rayenSnapshotPreviewPreparation';
 import { raceWithTimeout } from '../domain/raceWithTimeout';
+
+interface RayenSnapshotExecutionIdentity {
+  runId: string;
+  requestId: string;
+  selectedDate?: string;
+}
+
+const createRayenSnapshotExecutionReporter = (
+  dispatch: Dispatch<RayenSyncExecutionAction>,
+  identity: RayenSnapshotExecutionIdentity
+) => ({
+  transition(stage: RayenSyncStage) {
+    dispatch({ type: 'transition', ...identity, stage });
+  },
+  recordOutcome(outcome: Partial<RayenSyncExecutionOutcome>) {
+    dispatch({ type: 'record_outcome', ...identity, ...outcome });
+  },
+});
 
 const INVALID_EPISODE_LOAD_TIMEOUT_MS = 30_000;
 const INVALID_EPISODE_LOAD_ERROR =
