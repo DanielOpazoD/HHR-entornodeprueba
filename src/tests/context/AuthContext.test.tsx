@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.unmock('@/context/AuthContext');
@@ -64,4 +65,10 @@ describe('AuthContext', () => {
     expect(authContext.isViewer).toBe(false);
     expect(authContext.signOut).toBe(handleLogout);
   });
+});
+
+// The session provider must be usable without importing application presentation.
+it('keeps handoff presentation out of the session provider', () => {
+  const source = readFileSync('src/context/AuthContext.tsx', 'utf8');
+  expect(source).not.toMatch(/@\/components\//);
 });
