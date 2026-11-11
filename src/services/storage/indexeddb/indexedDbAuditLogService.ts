@@ -1,7 +1,7 @@
 import { AuditLogEntry } from '@/types/auditLogTypes';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 
-import { ensureDbReady, hospitalDB as db } from './indexedDbCore';
+import { ensureDbReady, hospitalDB as db, isDatabaseInFallbackMode } from './indexedDbCore';
 
 export const saveAuditLog = async (log: AuditLogEntry): Promise<void> => {
   try {
@@ -35,7 +35,7 @@ export const getAuditLogs = async (limitCount?: number | null): Promise<AuditLog
       userSafeMessage: 'No fue posible recuperar logs de auditoria locales.',
       context: { limitCount },
     });
-    return [];
+    throw error;
   }
 };
 
@@ -50,6 +50,8 @@ export const getAuditLogsInRange = async ({
 }): Promise<AuditLogEntry[]> => {
   try {
     await ensureDbReady();
+    // Deliberately retain unsupported memory-range behavior pending a product decision.
+    if (isDatabaseInFallbackMode()) return [];
     return await db.auditLogs
       .where('timestamp')
       .between(fromIso, toIso, true, false)
@@ -64,7 +66,7 @@ export const getAuditLogsInRange = async ({
       userSafeMessage: 'No fue posible recuperar logs de auditoria locales.',
       context: { fromIso, toIso, limit },
     });
-    return [];
+    throw error;
   }
 };
 
@@ -94,6 +96,6 @@ export const getAuditLogsForDate = async (date: string): Promise<AuditLogEntry[]
       userSafeMessage: 'No fue posible recuperar logs de auditoria del dia solicitado.',
       context: { date },
     });
-    return [];
+    throw error;
   }
 };
