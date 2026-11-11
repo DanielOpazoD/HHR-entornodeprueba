@@ -1,3 +1,12 @@
+import { ensureDbReady, hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import {
+  runExclusiveDailyRecordWrite,
+  type DailyRecordWriteLease,
+} from './dailyRecordWriteCoordinator';
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedImportGuard';
+import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+
 import { shouldRouteSpecialistPatchViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import {
   buildSpecialistHandoffTargets,
@@ -76,6 +85,72 @@ import {
 import { adoptAuthoritativeRecord } from '@/services/repositories/dailyRecordRepositorySyncService';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { isValidRemoteAuthorityRecord } from '@/services/repositories/dailyRecordRemotePersistenceState';
+/** D3 checks every date the file names (even if D10 skips it) and every date it will write. */
+export const saveBackupImport = async (records: DailyRecord[], sourceDates: string[]) => {
+  await ensureDbReady();
+  const generation = getSessionGeneration();
+  const owner = getStoredSessionOwnerKey();
+  const dates = [...new Set([...sourceDates, ...records.map(record => record.date)])].sort();
+  const leases = new Map<string, DailyRecordWriteLease>();
+  const lock = async (index: number): Promise<string[]> => {
+    const date = dates.at(index);
+    if (date)
+      return runExclusiveDailyRecordWrite(date, async lease => {
+        leases.set(date, lease);
+        return lock(index + 1);
+      });
+    return hospitalDB.transaction(
+      'rw',
+      hospitalDB.dailyRecords,
+      hospitalDB.syncQueue,
+      hospitalDB.settings,
+      async () => {
+        const tasks = await hospitalDB.syncQueue.toArray();
+        const pendingDates = dates.filter(date =>
+          tasks.some(
+            task =>
+              task.status !== 'RETIRED' &&
+              ((task.type === 'UPDATE_DAILY_RECORD' &&
+                (task.key === `daily:${date}` ||
+                  (typeof task.payload === 'object' &&
+                    task.payload !== null &&
+                    'date' in task.payload &&
+                    task.payload.date === date))) ||
+                (task.type === 'UPDATE_SPECIALIST_HANDOFF' &&
+                  typeof task.payload === 'object' &&
+                  task.payload !== null &&
+                  'date' in task.payload &&
+                  task.payload.date === date))
+          )
+        );
+        if (pendingDates.length) return pendingDates;
+        for (const record of records) {
+          if (generation !== getSessionGeneration() || owner !== getStoredSessionOwnerKey())
+            throw new Error('La sesión cambió durante la importación.');
+          if (
+            isClinicalDerivedLayoutRegression(
+              (await hospitalDB.dailyRecords.get(record.date)) ?? null,
+              record
+            )
+          )
+            throw new Error('El día local dividido cambió durante la importación.');
+          const saved = await saveDetailed(record, record.lastUpdated, {
+            writeOrigin: 'backup_restore',
+            deferRemoteSync: true,
+            dailyRecordWriteLease: leases.get(record.date),
+          });
+          assertDailyRecordSaveAccepted(saved);
+          if (!saved.savedLocally) throw new Error('No fue posible guardar el respaldo local.');
+        }
+        if (generation !== getSessionGeneration() || owner !== getStoredSessionOwnerKey())
+          throw new Error('La sesión cambió durante la importación.');
+        return [];
+      }
+    );
+  };
+  return lock(0);
+};
+
 const tryAutoMergeBlockedFullSaveRegression = async (
   date: string,
   record: DailyRecord,
@@ -199,10 +274,11 @@ const saveDetailedWithinLock = async (
         await import('@/services/storage/sync/dexieDailyRecordOutbox');
       await assertWholeRecordNoteBase(validatedRecord, options.baseRecord);
     }
-    await runRemoteSaveIntegrityCheck(command.date, validatedRecord);
+    if (!options.deferRemoteSync) await runRemoteSaveIntegrityCheck(command.date, validatedRecord);
   } catch (err) {
     if (
       err instanceof DataRegressionError &&
+      !options.deferRemoteSync &&
       !options.rayenStructuralWriteGuard &&
       validatedRecord &&
       (await tryAutoMergeBlockedFullSaveRegression(command.date, validatedRecord, err, remoteState))
@@ -225,6 +301,24 @@ const saveDetailedWithinLock = async (
     expectedVersion: command.expectedLastUpdated,
     changedPaths: ['*'],
   });
+  if (options.deferRemoteSync) {
+    if (options.writeOrigin !== 'backup_restore')
+      throw new Error('Deferred save requires backup origin');
+    const queued = await queueDailyRecordSyncTaskWithLocalRecord(
+      validatedRecord,
+      {
+        contexts: command.contexts,
+        origin: 'backup_restore',
+        syncContract,
+      },
+      { deferProcessing: true, wholeRecordBase: options.baseRecord }
+    );
+    if (!queued.accepted) throw new Error('No fue posible guardar el respaldo junto a su envío.');
+    remoteState.savedLocally = true;
+    remoteState.queuedForRetry = true;
+    remoteState.consistencyState = 'queued_for_retry';
+    return buildSaveResult(command.date, remoteState);
+  }
   const nextAction = await persistLocalAndAttemptRemoteSync({
     date: command.date,
     record: validatedRecord,
@@ -247,7 +341,7 @@ const saveDetailedWithinLock = async (
         validatedRecord,
         {
           contexts: ['clinical', 'staffing', 'movements', 'handoff', 'metadata'],
-          origin: 'direct_queue',
+          origin: options.writeOrigin === 'backup_restore' ? 'backup_restore' : 'direct_queue',
           syncContract,
         },
         { ...buildPreOutboxRemoteAckOptions(syncContract), wholeRecordBase: options.baseRecord }
