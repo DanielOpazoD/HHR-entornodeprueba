@@ -114,8 +114,13 @@
     },
     {
       "pattern": "^RayenImportButton-.*\\.js$",
-      "_comment": "Online-only Rayen import workflow, deferred out of the census startup. Measured 202 KB; the ceiling keeps drift visible without relaxing the global chunk budget.",
-      "maxBytes": 264096
+      "_comment": "Online-only Eloisa workflow. Measured 238142 bytes on 2026-11-11 after deferring review; 12288 bytes of headroom.",
+      "maxBytes": 250430
+    },
+    {
+      "pattern": "^RayenImportPreviewModal-.*\\.js$",
+      "_comment": "Online-only review opened after capture. Measured 27599 bytes on 2026-11-11; ceiling includes less than 10% headroom.",
+      "maxBytes": 30358
     },
     {
       "pattern": "^cudyrEssentialWorkbook-.*\\.js$",
