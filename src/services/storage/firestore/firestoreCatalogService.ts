@@ -61,7 +61,8 @@ const subscribeStringCatalog = (
   legacyField: 'nurses' | 'tens',
   callback: (values: string[]) => void,
   errorLabel: string,
-  runtime: FirestoreServiceRuntimePort
+  runtime: FirestoreServiceRuntimePort,
+  onError?: (error: unknown) => void
 ): (() => void) => {
   return subscribeToFirestoreDocument({
     runtime,
@@ -85,7 +86,7 @@ const subscribeStringCatalog = (
       firestoreCatalogLogger.error(`Error preparing ${errorLabel} subscription`, error);
       if (classifySyncError(error).category === 'authorization')
         reportBasicReadPermissionDenied(`catalog:${errorLabel}`, { error });
-      callback([]);
+      onError?.(error);
     },
   });
 };
@@ -141,7 +142,8 @@ const saveProfessionalsCatalog = async (
 
 const subscribeToProfessionalsCatalogWithRuntime = (
   callback: (professionals: ProfessionalCatalogItem[]) => void,
-  runtime: FirestoreServiceRuntimePort
+  runtime: FirestoreServiceRuntimePort,
+  onError?: (error: unknown) => void
 ): (() => void) => {
   return subscribeToFirestoreDocument({
     runtime,
@@ -153,7 +155,7 @@ const subscribeToProfessionalsCatalogWithRuntime = (
       firestoreCatalogLogger.error('Error preparing professionals catalog subscription', error);
       if (classifySyncError(error).category === 'authorization')
         reportBasicReadPermissionDenied('catalog:professionals', { error });
-      callback([]);
+      onError?.(error);
     },
   });
 };
@@ -170,13 +172,17 @@ export const saveNurseCatalogToFirestore = async (nurses: string[]): Promise<voi
   }
 };
 
-export const subscribeToNurseCatalog = (callback: (nurses: string[]) => void): (() => void) =>
+export const subscribeToNurseCatalog = (
+  callback: (nurses: string[]) => void,
+  onError?: (error: unknown) => void
+): (() => void) =>
   subscribeStringCatalog(
     SETTINGS_DOCS.NURSES,
     'nurses',
     callback,
     'nurse catalog',
-    defaultFirestoreServiceRuntime
+    defaultFirestoreServiceRuntime,
+    onError
   );
 
 export const getTensCatalogFromFirestore = async (): Promise<string[]> =>
@@ -191,13 +197,17 @@ export const saveTensCatalogToFirestore = async (tens: string[]): Promise<void> 
   }
 };
 
-export const subscribeToTensCatalog = (callback: (tens: string[]) => void): (() => void) =>
+export const subscribeToTensCatalog = (
+  callback: (tens: string[]) => void,
+  onError?: (error: unknown) => void
+): (() => void) =>
   subscribeStringCatalog(
     SETTINGS_DOCS.TENS,
     'tens',
     callback,
     'TENS catalog',
-    defaultFirestoreServiceRuntime
+    defaultFirestoreServiceRuntime,
+    onError
   );
 
 export const getProfessionalsCatalogFromFirestore = async (): Promise<ProfessionalCatalogItem[]> =>
@@ -215,6 +225,7 @@ export const saveProfessionalsCatalogToFirestore = async (
 };
 
 export const subscribeToProfessionalsCatalog = (
-  callback: (professionals: ProfessionalCatalogItem[]) => void
+  callback: (professionals: ProfessionalCatalogItem[]) => void,
+  onError?: (error: unknown) => void
 ): (() => void) =>
-  subscribeToProfessionalsCatalogWithRuntime(callback, defaultFirestoreServiceRuntime);
+  subscribeToProfessionalsCatalogWithRuntime(callback, defaultFirestoreServiceRuntime, onError);

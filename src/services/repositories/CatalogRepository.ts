@@ -27,13 +27,19 @@ import { catalogRepositoryLogger } from '@/services/repositories/repositoryLogge
 export interface ICatalogRepository {
   getNurses(): Promise<string[]>;
   saveNurses(nurses: string[]): Promise<void>;
-  subscribeNurses(callback: (nurses: string[]) => void): () => void;
+  subscribeNurses(
+    callback: (nurses: string[]) => void,
+    onError?: (error: unknown) => void
+  ): () => void;
   getTens(): Promise<string[]>;
   saveTens(tens: string[]): Promise<void>;
-  subscribeTens(callback: (tens: string[]) => void): () => void;
+  subscribeTens(callback: (tens: string[]) => void, onError?: (error: unknown) => void): () => void;
   getProfessionals(): Promise<ProfessionalCatalogItem[]>;
   saveProfessionals(professionals: ProfessionalCatalogItem[]): Promise<void>;
-  subscribeProfessionals(callback: (professionals: ProfessionalCatalogItem[]) => void): () => void;
+  subscribeProfessionals(
+    callback: (professionals: ProfessionalCatalogItem[]) => void,
+    onError?: (error: unknown) => void
+  ): () => void;
 }
 
 // ============================================================================
@@ -110,7 +116,10 @@ const subscribeToLocalProfessionalsCatalog = (
 /**
  * Subscribes to real-time updates for the nurses catalog from Firestore.
  */
-export const subscribeNurses = (callback: (nurses: string[]) => void): (() => void) => {
+export const subscribeNurses = (
+  callback: (nurses: string[]) => void,
+  onError?: (error: unknown) => void
+): (() => void) => {
   assertCatalogSubscriptionCallback(callback, 'nurses');
   if (!isFirestoreEnabled()) {
     return subscribeToLocalStringCatalog('nurses', callback);
@@ -120,7 +129,7 @@ export const subscribeNurses = (callback: (nurses: string[]) => void): (() => vo
     const normalized = normalizeStringCatalog(nurses);
     await saveCatalog('nurses', normalized);
     callback(normalized);
-  });
+  }, onError);
 };
 
 // ============================================================================
@@ -165,7 +174,10 @@ export const saveTens = async (tens: string[]): Promise<void> => {
 /**
  * Subscribes to real-time updates for the TENS catalog from Firestore.
  */
-export const subscribeTens = (callback: (tens: string[]) => void): (() => void) => {
+export const subscribeTens = (
+  callback: (tens: string[]) => void,
+  onError?: (error: unknown) => void
+): (() => void) => {
   assertCatalogSubscriptionCallback(callback, 'tens');
   if (!isFirestoreEnabled()) {
     return subscribeToLocalStringCatalog('tens', callback);
@@ -175,7 +187,7 @@ export const subscribeTens = (callback: (tens: string[]) => void): (() => void) 
     const normalized = normalizeStringCatalog(tens);
     await saveCatalog('tens', normalized);
     callback(normalized);
-  });
+  }, onError);
 };
 
 // ============================================================================
@@ -224,7 +236,8 @@ export const saveProfessionals = async (
  * Subscribes to real-time updates for the professionals catalog from Firestore.
  */
 export const subscribeProfessionals = (
-  callback: (professionals: ProfessionalCatalogItem[]) => void
+  callback: (professionals: ProfessionalCatalogItem[]) => void,
+  onError?: (error: unknown) => void
 ): (() => void) => {
   assertCatalogSubscriptionCallback(callback, 'professionals');
   if (!isFirestoreEnabled()) {
@@ -235,7 +248,7 @@ export const subscribeProfessionals = (
     const normalized = normalizeProfessionalCatalog(professionals);
     await saveCatalogValues<ProfessionalCatalogItem>('professionals', normalized);
     callback(normalized);
-  });
+  }, onError);
 };
 
 // ============================================================================
