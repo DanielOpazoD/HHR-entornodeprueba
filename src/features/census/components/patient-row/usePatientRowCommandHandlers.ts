@@ -1,5 +1,5 @@
 import type { PatientRowSaveResult } from './inputCellTypes';
-import { ChangeEvent, useCallback, useMemo } from 'react';
+import { ChangeEvent, useCallback } from 'react';
 import type { DeviceDetails, DeviceInstance } from '@/types/domain/devices';
 import type {
   PatientRowPatientField,
@@ -29,47 +29,46 @@ export const usePatientRowCommandHandlers = ({
   updateField,
   updateMultiple,
 }: PatientRowUpdates): UsePatientRowCommandHandlersResult => {
-  const updates = useMemo(() => ({ updateField, updateMultiple }), [updateField, updateMultiple]);
   const handleTextChange = useCallback(
     (field: PatientRowPatientField) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-      updates.updateField(field, e.target.value);
+      updateField(field, e.target.value);
     },
-    [updates]
+    [updateField]
   );
 
   const handleCheckboxChange = useCallback(
     (field: PatientRowPatientField) => (e: ChangeEvent<HTMLInputElement>) => {
-      updates.updateField(field, e.target.checked);
+      updateField(field, e.target.checked);
     },
-    [updates]
+    [updateField]
   );
 
   const handleDevicesChange = useCallback(
     (newDevices: string[]) => {
-      updates.updateField('devices', newDevices);
+      updateField('devices', newDevices);
     },
-    [updates]
+    [updateField]
   );
 
   const handleDeviceDetailsChange = useCallback(
     (details: DeviceDetails) => {
-      updates.updateField('deviceDetails', details);
+      updateField('deviceDetails', details);
     },
-    [updates]
+    [updateField]
   );
 
   const handleDeviceHistoryChange = useCallback(
     (history: DeviceInstance[]) => {
-      updates.updateField('deviceInstanceHistory', history);
+      updateField('deviceInstanceHistory', history);
     },
-    [updates]
+    [updateField]
   );
 
   const handleDemographicsSave = useCallback(
     (updatedFields: PatientRowPatientPatch) => {
-      return updates.updateMultiple(updatedFields);
+      return updateMultiple(updatedFields);
     },
-    [updates]
+    [updateMultiple]
   );
 
   return {
