@@ -23,6 +23,7 @@ beforeEach(() => {
 afterEach(async () => {
   cleanup();
   setModuleReloadRequired('save-write', false);
+  setModuleReloadRequired('audit', false);
   vi.restoreAllMocks();
   await loadFunctionsModule(() => import('firebase/functions'));
   vi.unstubAllGlobals();
@@ -89,4 +90,20 @@ it('shows one truthful notice for rejected edits even when Functions recovers', 
   expect(screen.getByRole('status')).not.toHaveTextContent('los cambios pendientes se conservan');
   setModuleReloadRequired('save-write', false);
   await waitFor(() => expect(screen.getByRole('status')).toBeEmptyDOMElement());
+});
+
+it('prioritizes saving over audit recovery over Functions in one notice', async () => {
+  setModuleReloadRequired('audit', true);
+  render(<FunctionsRecoveryNotice />);
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('sí quedó guardado'));
+  expect(screen.getByRole('status')).toHaveTextContent('para que todo vuelva a quedar registrado');
+  expect(screen.getAllByRole('button', { name: 'Recargar aplicación' })).toHaveLength(1);
+  setModuleReloadRequired('save-write', true);
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('no quedó guardado'));
+  setModuleReloadRequired('save-write', false);
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('sí quedó guardado'));
+  setModuleReloadRequired('audit', false);
+  await waitFor(() =>
+    expect(screen.getByRole('status')).toHaveTextContent('los cambios pendientes se conservan')
+  );
 });
