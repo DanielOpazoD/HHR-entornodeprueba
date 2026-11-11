@@ -43,6 +43,10 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   // Historical report identity: use the preserved exact episode and parental identifier only
   // as lookup targets. The individual source report must independently verify the outcome.
   'src/features/rayen-import/domain/previousCensusEgresoCandidates.ts',
+  // Historical resync guard: a recorded crib discharge whose preserved snapshot holds a document
+  // is never treated as the undocumented newborn of an unverifiable report row. The read only
+  // refuses a match; it never supplies identity to apply or suppress anything else.
+  'src/features/rayen-import/domain/historicalAdministrativeEvidence.ts',
   // Legacy movement classification: the preserved Cuna/Cama mode disambiguates old bed labels.
   // It never supplies current occupancy; explicit Cama and normal statistical rules prevail.
   'src/application/census/movementTombstonePolicy.ts',

@@ -74,25 +74,46 @@ export const CLINICAL_READ_ERROR_CODES = [
 ] as const;
 export type ClinicalReadErrorCode = (typeof CLINICAL_READ_ERROR_CODES)[number];
 
+export const RAYEN_SYNC_STRUCTURAL_ISSUE_REASONS = [
+  'unconfirmed-principal-bed',
+  'principal-bed-collision',
+  'cma-physical-bed-collision',
+  'occupied-local-bed',
+  'historical-reconstruction',
+  'previous-census-continuity',
+  'historical-admission-evidence',
+  'unverified-report-row',
+  'episode-less-report-row',
+  'report-predates-admission',
+  'crib-conflict-blocks-discharge',
+  'admission-date-policy',
+  'structural-write-rejected',
+  'unclassified',
+] as const;
+export type RayenSyncStructuralIssueReason = (typeof RAYEN_SYNC_STRUCTURAL_ISSUE_REASONS)[number];
+
 /**
  * Telemetry key for how many issues of one source ended with one cause, e.g.
  * `patch:batch_field_changed`. The cause is the read/write code when known, otherwise the issue
  * reason. Both halves are closed enums, so the privacy layer can allowlist every possible key.
  */
 export type RayenSyncIssueCauseKey =
-  `${RayenSyncIssueSource}:${ClinicalReadErrorCode | RayenSyncIssueReason}`;
+  | `${RayenSyncIssueSource}:${ClinicalReadErrorCode | RayenSyncIssueReason}`
+  | `structural:${RayenSyncStructuralIssueReason}`;
 
 export const rayenSyncIssueCauseKey = (
   source: RayenSyncIssueSource,
   cause: ClinicalReadErrorCode | RayenSyncIssueReason
 ): RayenSyncIssueCauseKey => `${source}:${cause}`;
 
-export const RAYEN_SYNC_ISSUE_CAUSE_KEYS: readonly RayenSyncIssueCauseKey[] =
-  RAYEN_SYNC_ISSUE_SOURCES.flatMap(source =>
+export const RAYEN_SYNC_ISSUE_CAUSE_KEYS: readonly RayenSyncIssueCauseKey[] = [
+  ...RAYEN_SYNC_STRUCTURAL_ISSUE_REASONS.map(reason => `structural:${reason}` as const),
+  ...RAYEN_SYNC_ISSUE_SOURCES.flatMap(source =>
     [...new Set([...CLINICAL_READ_ERROR_CODES, ...RAYEN_SYNC_ISSUE_REASONS])].map(cause =>
       rayenSyncIssueCauseKey(source, cause)
     )
-  );
+  ),
+];
 
 export const CUDYR_RECOVERY_KINDS = [
   'read_failed',
@@ -104,22 +125,6 @@ export type CudyrRecoveryDetail = {
   kind: (typeof CUDYR_RECOVERY_KINDS)[number];
   targetDate: string | null;
 };
-
-export type RayenSyncStructuralIssueReason =
-  | 'unconfirmed-principal-bed'
-  | 'principal-bed-collision'
-  | 'cma-physical-bed-collision'
-  | 'occupied-local-bed'
-  | 'historical-reconstruction'
-  | 'previous-census-continuity'
-  | 'historical-admission-evidence'
-  | 'unverified-report-row'
-  | 'episode-less-report-row'
-  | 'report-predates-admission'
-  | 'crib-conflict-blocks-discharge'
-  | 'admission-date-policy'
-  | 'structural-write-rejected'
-  | 'unclassified';
 
 /** Clinical case displayed only in the protected census history and explicitly copied clinical diagnostics. */
 export interface RayenSyncCaseContext {

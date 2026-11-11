@@ -1,6 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import { normalizeRut } from '@/utils/rutUtils';
+import { isValidRut, normalizeRut } from '@/utils/rutUtils';
 import type { ConflictEntry } from '../contracts/censusImportDiff';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -12,6 +12,9 @@ import {
 import { historicalReconstructionConflict as unresolvedConflict } from './historicalReconstructionConflicts';
 import { historicalEncounterFromLocal } from './historicalEncounterFromLocal';
 import { isPavilionRecoveryLocation } from './pavilionRecoverySyncPolicy';
+
+import { normalizedName } from './previousCensusEgresoCandidates';
+import { resolveReportCribParentBedId } from '../mapping/resolveReportBed';
 
 export interface HistoricalCandidate {
   encounter: RayenEncounter;
@@ -96,13 +99,71 @@ export const relevantHistoricalReportRows = (
   });
 };
 
+/** Only explains a recorded event; never supplies identity evidence to apply a discharge. */
+const hasRecordedNewbornDischarge = (
+  row: EgresoReportRow,
+  rows: EgresoReportRow[],
+  record: DailyRecord
+): boolean => {
+  const bedId = resolveReportCribParentBedId(row.bedLabel);
+  const stamp = reportClinicalStamp(row);
+  const name = normalizedName(row.patientName);
+  if (
+    !bedId ||
+    !stamp ||
+    stamp.iso !== record.date ||
+    !name ||
+    row.encounterId?.trim() ||
+    isValidRut(row.run)
+  )
+    return false;
+  // A current occupant may be a readmission. Keep its exact-episode review intact.
+  if (
+    Object.values(record.beds).some(bed =>
+      [bed, bed.clinicalCrib].some(
+        patient => patient?.patientName?.trim() && normalizedName(patient.patientName) === name
+      )
+    )
+  )
+    return false;
+  const documents = new Set(
+    rows
+      .filter(other => {
+        const otherStamp = reportClinicalStamp(other);
+        return (
+          resolveReportCribParentBedId(other.bedLabel) === bedId &&
+          otherStamp?.calendarIso === stamp.calendarIso &&
+          otherStamp.hhmm === stamp.hhmm &&
+          normalizedName(other.patientName) === name
+        );
+      })
+      .map(other => other.run.trim())
+  );
+  if (documents.size !== 1) return false;
+  return (
+    (record.discharges ?? []).filter(
+      movement =>
+        !movement.deletedAt &&
+        movement.isNested === true &&
+        movement.bedId === bedId &&
+        !movement.rut?.trim() &&
+        !movement.originalData?.rut?.trim() &&
+        movement.movementDate === stamp.calendarIso &&
+        movement.time === stamp.hhmm &&
+        normalizedName(movement.patientName) === name
+    ).length === 1
+  );
+};
+
 export const invalidReportBackedConflicts = (
   reportRows: EgresoReportRow[],
-  validRows: ReadonlyMap<string, EgresoReportRow>
+  validRows: ReadonlyMap<string, EgresoReportRow>,
+  record: DailyRecord
 ): ConflictEntry[] => {
   const surfacedEpisodes = new Set<string>();
   const conflicts: ConflictEntry[] = [];
   for (const row of reportRows) {
+    if (hasRecordedNewbornDischarge(row, reportRows, record)) continue;
     const encounterId = String(row.encounterId ?? '').trim();
     const validEncounterId = /^\d+$/.test(encounterId);
     const conflictKey = validEncounterId

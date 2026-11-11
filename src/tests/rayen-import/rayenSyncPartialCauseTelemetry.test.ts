@@ -16,6 +16,7 @@ vi.mock('@/services/observability/operationalTelemetryExternalAdapter', () => ({
   dispatchOperationalTelemetryExternally: mocks.dispatch,
 }));
 
+import { parseOperationalTelemetryBody } from '@/services/observability/operationalTelemetryIngestPolicy';
 import { useRayenSyncAudit } from '@/features/rayen-import/hooks/useRayenSyncAudit';
 import { sanitizeOperationalTelemetryEvent } from '@/services/observability/operationalTelemetryPrivacy';
 import { clearOperationalTelemetryEvents } from '@/services/observability/operationalTelemetryRecorder';
@@ -86,6 +87,57 @@ describe('partial Eloísa run · telemetry causes', () => {
   afterEach(() => {
     mocks.dispatch.mockClear();
     clearOperationalTelemetryEvents();
+  });
+
+  it('sends structural-only historical causes through the server privacy gate', async () => {
+    const currentRecordRef = { current: record() };
+    const { result } = renderHook(() =>
+      useRayenSyncAudit({
+        currentRecordRef,
+        patchDailyRecord: vi.fn().mockResolvedValue(undefined),
+        actor: 'SYNTHETIC',
+        createId: () => 'structural-run',
+      })
+    );
+    act(() => result.current.startRun());
+    const applied = result.current.applyRunToRecord(currentRecordRef.current, diff()).record;
+    currentRecordRef.current = applied;
+    await act(async () =>
+      result.current.completeRun(
+        applied,
+        { total: 0, patched: 0, errors: [] },
+        undefined,
+        undefined,
+        {
+          structuralReview: {
+            structureConfirmed: true,
+            historicalCorrectionsPending: false,
+            historicalCorrectionsRequireFreshCapture: false,
+            snapshotComplete: false,
+            isolatedConflicts: 1,
+            issues: [{ bedId: 'H5C1', reason: 'historical-reconstruction' }],
+          },
+        }
+      )
+    );
+    expect(mocks.dispatch).toHaveBeenCalledOnce();
+    const parsed = parseOperationalTelemetryBody(
+      JSON.stringify({
+        source: 'hhr_operational_telemetry',
+        event: mocks.dispatch.mock.calls[0]![0],
+      })
+    );
+    expect(parsed).toMatchObject({
+      ok: true,
+      event: {
+        operation: 'rayen_sync_run',
+        status: 'partial',
+        context: { 'structural:historical-reconstruction': 1 },
+      },
+    });
+    const serialized = JSON.stringify(parsed);
+    for (const identity of [PATIENT, RUT, EPISODE, 'H5C1'])
+      expect(serialized).not.toContain(identity);
   });
 
   it('sends counts by source and cause, without identities, through the privacy gate', async () => {

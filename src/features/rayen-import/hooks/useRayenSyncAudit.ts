@@ -331,7 +331,13 @@ export const useRayenSyncAudit = ({
             reportRayenSyncTerminal(
               claim.run ?? { id: completedEvent.id, startedAt: completedEvent.startedAt },
               completedEvent.status === 'partial' ? 'partial' : 'complete',
-              issueEvidence,
+              {
+                ...issueEvidence,
+                issueCauses: countRayenSyncIssueCauses(
+                  summary.errors,
+                  completedEvent.structuralReview?.issues
+                ),
+              },
               completedEvent.completedAt
             );
           }

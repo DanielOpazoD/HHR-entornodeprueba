@@ -116,11 +116,16 @@ export const MAX_RAYEN_SYNC_ISSUE_CAUSE_KEYS = 6;
  * telemetry. Counts all errors, not the 12 issues kept in history. Only codes, never identities.
  */
 export const countRayenSyncIssueCauses = (
-  errors: readonly ClinicalFillError[]
+  errors: readonly ClinicalFillError[],
+  structuralIssues: RayenSyncStructuralReviewEvidence['issues'] = []
 ): Partial<Record<RayenSyncIssueCauseKey, number>> => {
   const counts = new Map<RayenSyncIssueCauseKey, number>();
   errors.forEach(error => {
     const key = rayenSyncIssueCauseKey(error.source, rayenSyncErrorCause(error) ?? error.reason);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  });
+  structuralIssues?.forEach(issue => {
+    const key = `structural:${issue.reason}` as const;
     counts.set(key, (counts.get(key) ?? 0) + 1);
   });
   return Object.fromEntries(
