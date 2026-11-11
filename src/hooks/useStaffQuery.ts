@@ -21,8 +21,6 @@ export class CatalogReadUnavailableError extends Error {
 }
 
 const STAFF_CATALOG_STALE_TIME_MS = 30_000;
-const DEFAULT_NURSES = ['Enfermero/a 1', 'Enfermero/a 2'];
-const DEFAULT_TENS = ['TENS 1', 'TENS 2', 'TENS 3'];
 
 /**
  * Hook to manage the list of nurses.
@@ -64,9 +62,8 @@ export const useNursesQuery = () => {
   }, [isCatalogRealtimeReady, queryClient]);
 
   const data = useMemo(
-    () =>
-      mergeStaffCatalog(query.data ?? (query.isError ? DEFAULT_NURSES : []), discovered, 'nurse'),
-    [query.data, query.isError, discovered]
+    () => mergeStaffCatalog(query.data ?? [], discovered, 'nurse'),
+    [query.data, discovered]
   );
   return {
     ...query,
@@ -116,8 +113,8 @@ export const useTensQuery = () => {
   }, [isCatalogRealtimeReady, queryClient]);
 
   const data = useMemo(
-    () => mergeStaffCatalog(query.data ?? (query.isError ? DEFAULT_TENS : []), discovered, 'tens'),
-    [query.data, query.isError, discovered]
+    () => mergeStaffCatalog(query.data ?? [], discovered, 'tens'),
+    [query.data, discovered]
   );
   return {
     ...query,

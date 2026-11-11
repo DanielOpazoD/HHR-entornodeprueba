@@ -25,7 +25,10 @@ vi.mock('@/services/storage/firestore', () => ({
   subscribeToProfessionalsCatalog: vi.fn(() => () => {}),
 }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ remoteSyncStatus: 'disabled' }) }));
-vi.mock('@/hooks/useEloisaStaff', () => ({ useEloisaStaff: () => [] }));
+const eloisa = vi.hoisted(() => ({
+  staff: [] as { key: string; role: string; name: string; aliases: string[] }[],
+}));
+vi.mock('@/hooks/useEloisaStaff', () => ({ useEloisaStaff: () => eloisa.staff }));
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import * as local from '@/services/storage/indexeddb/indexedDbCatalogService';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
@@ -41,6 +44,7 @@ const failure = new Error('synthetic unavailable');
 const cases = [
   {
     key: 'nurses',
+    role: 'nurse',
     query: useNursesQuery,
     read: remote.getNurseCatalogFromFirestore,
     save: remote.saveNurseCatalogToFirestore,
@@ -48,6 +52,7 @@ const cases = [
   },
   {
     key: 'tens',
+    role: 'tens',
     query: useTensQuery,
     read: remote.getTensCatalogFromFirestore,
     save: remote.saveTensCatalogToFirestore,
@@ -65,6 +70,7 @@ function Manager({ entry }: { entry: (typeof cases)[number] }) {
 describe('staff catalog blocked save visible integration', () => {
   beforeEach(async () => {
     vi.resetAllMocks();
+    eloisa.staff = [];
     vi.mocked(isFirestoreEnabled).mockReturnValue(true);
     await hospitalDB.open();
     await catalogs.clear();
@@ -79,7 +85,8 @@ describe('staff catalog blocked save visible integration', () => {
       const localSave = vi.spyOn(local, 'saveCatalog');
       const { wrapper } = createQueryClientTestWrapper();
       render(<Manager entry={entry} />, { wrapper });
-      await screen.findByText(entry.name);
+      await waitFor(() => expect(entry.read).toHaveBeenCalled());
+      expect(screen.queryByText(entry.name)).not.toBeInTheDocument();
       const input = screen.getByPlaceholderText('Nombre completo…');
       fireEvent.change(input, { target: { value: 'Synthetic Added' } });
       fireEvent.click(screen.getByRole('button', { name: 'Agregar personal' }));
@@ -101,11 +108,13 @@ describe('staff catalog blocked save visible integration', () => {
     });
     it(`${entry.key}: preserves the rename editor when the catalog read failed`, async () => {
       vi.mocked(entry.read).mockRejectedValue(failure);
+      eloisa.staff = [{ key: 'synthetic', role: entry.role, name: 'Synthetic Known', aliases: [] }];
       const { wrapper } = createQueryClientTestWrapper();
       render(<Manager entry={entry} />, { wrapper });
-      await screen.findByText(entry.name);
+      await screen.findByText('Synthetic Known');
+      expect(screen.queryByText(entry.name)).not.toBeInTheDocument();
       fireEvent.click(screen.getAllByTitle('Editar')[0]);
-      const editor = screen.getByDisplayValue(entry.name);
+      const editor = screen.getByDisplayValue('Synthetic Known');
       fireEvent.change(editor, { target: { value: 'Synthetic Renamed' } });
       fireEvent.click(screen.getByTitle('Guardar'));
       expect(await screen.findByText(/No se pudo leer la lista.*no se guardó/)).toBeInTheDocument();
