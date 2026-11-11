@@ -233,10 +233,7 @@ for (const path of paths) {
   describe(`admisión ${path}: copia local / llamador / cola intacta`, () => {
     for (const situation of situations) {
       // Design step 2 fixes specialist projection in S/R/M; step 3 fixes point Q publication.
-      const knownDefect =
-        (situation === 'especialista' &&
-          ['suscripción', 'rango', 'mantenimiento'].includes(path)) ||
-        (situation === 'optimista' && path === 'puntual');
+      const knownDefect = situation === 'optimista' && path === 'puntual';
       const testCase = knownDefect ? it.fails : it;
       if (knownDefect) {
         it(`${situation}: entrega base remota sin retirar cola ni parche (invariantes del defecto)`, async () => {
@@ -313,7 +310,11 @@ for (const path of paths) {
           }
           if (situation === 'local nueva') {
             // Design steps 1/3 / D1: preserve the present per-path choice, pending product decision.
-            const expected = path === 'rango' ? remote : local;
+            const expected = ['suscripción', 'rango', 'mantenimiento', 'ACK readback'].includes(
+              path
+            )
+              ? remote
+              : local;
             expect(observed(stored)).toEqual(observed(expected));
             expect(observed(returned)).toEqual(observed(expected));
             return;

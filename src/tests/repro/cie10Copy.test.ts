@@ -40,6 +40,7 @@ describe('CIE-10 Copy Bug Reproduction', () => {
     }));
     vi.mocked(IndexedDBService.inspectLocalRecordAdmission).mockResolvedValue({
       status: 'admitted',
+      record: null,
     });
   });
 
