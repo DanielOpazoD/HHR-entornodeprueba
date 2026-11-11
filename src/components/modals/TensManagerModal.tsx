@@ -24,8 +24,8 @@ export const TensManagerModal: React.FC<TensManagerModalProps> = ({
     try {
       await mutation.mutateAsync(names);
       return true;
-    } catch (error) {
-      return error instanceof CatalogRemoteSyncError;
+    } catch {
+      return false;
     }
   };
   const retry = async () => {

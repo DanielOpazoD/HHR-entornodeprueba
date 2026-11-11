@@ -766,3 +766,85 @@ for (const retry of ['online', 'save'] as const) {
     await expect(page.getByRole('status')).toBeEmpty();
   });
 }
+
+const readProbeAuditEvents = (page: Page) =>
+  page.evaluate(async () => {
+    const path = '/src/services/storage/indexeddb/indexedDbCore.ts';
+    const { hospitalDB } = await import(/* @vite-ignore */ path);
+    return (await hospitalDB.auditLogs.toArray()).filter(
+      (row: { action: string; entityId: string; details?: { changes?: string } }) =>
+        row.action === 'PATIENT_MODIFIED' &&
+        row.entityId === 'R1' &&
+        row.details?.changes === 'OFFLINE SYNTHETIC'
+    );
+  });
+
+const mountAuditProbe = (page: Page) =>
+  page.evaluate(async date => {
+    const path = '/e2e/fixtures/dailyRecordSavePathHarness.tsx';
+    await (await import(/* @vite-ignore */ path)).mountSavePathProbe(date, true);
+    const warmPath = '/src/hooks/useWarmDailyRecordSavePath.ts';
+    if (!(await (await import(/* @vite-ignore */ warmPath)).warmDailyRecordSavePath()))
+      throw new Error('Save path did not warm');
+  }, MULTIUSER_DATE);
+
+test('audit chunk failure shows recovery after a saved cold edit and reload restores auditing', async ({
+  page,
+  context,
+}) => {
+  await openSeededCensus(page);
+  await page.goto('/e2e/fixtures/offlineSavePath.html');
+  await mountAuditProbe(page);
+  const blocked: string[] = [];
+  await page.route('**/writeAuditEventUseCase.ts*', route => {
+    blocked.push(route.request().url());
+    return route.abort();
+  });
+  await context.setOffline(true);
+  await page.getByTestId('probe-patch').click();
+  await expect
+    .poll(() => readIndexedDbDailyRecord(page, MULTIUSER_DATE))
+    .toMatchObject({
+      beds: { R1: { pathology: 'OFFLINE SYNTHETIC' } },
+    });
+  await expect.poll(() => blocked.length).toBeGreaterThan(0);
+  expect(await readProbeAuditEvents(page)).toHaveLength(0);
+  await expect(page.getByRole('status')).toBeEmpty();
+  await context.setOffline(false);
+  await page.unroute('**/writeAuditEventUseCase.ts*');
+  await page.getByTestId('probe-patch').click();
+  await expect(page.getByRole('status')).toContainText('sí quedó guardado');
+  expect(await readProbeAuditEvents(page)).toHaveLength(0);
+  page.once('dialog', dialog => dialog.accept());
+  await Promise.all([
+    page.waitForEvent('load'),
+    page.getByRole('button', { name: 'Recargar aplicación' }).click(),
+  ]);
+  await mountAuditProbe(page);
+  await page.getByTestId('probe-patch').click();
+  await expect.poll(() => readProbeAuditEvents(page)).toHaveLength(1);
+  expect(await readProbeAuditEvents(page)).toMatchObject([
+    {
+      userId: 'synthetic-audit@example.test',
+      userUid: 'synthetic-audit-uid',
+    },
+  ]);
+  await expect(page.getByRole('status')).toBeEmpty();
+});
+
+test('audit writes exactly once per online edit and stays local with a warmed writer offline', async ({
+  page,
+  context,
+}) => {
+  await openSeededCensus(page);
+  await page.goto('/e2e/fixtures/offlineSavePath.html');
+  await mountAuditProbe(page);
+  await page.getByTestId('probe-patch').click();
+  await expect.poll(() => readProbeAuditEvents(page)).toHaveLength(1);
+  await page.getByTestId('probe-patch').click();
+  await expect.poll(() => readProbeAuditEvents(page)).toHaveLength(2);
+  await context.setOffline(true);
+  await page.getByTestId('probe-patch').click();
+  await expect.poll(() => readProbeAuditEvents(page)).toHaveLength(3);
+  await expect(page.getByRole('status')).toBeEmpty();
+});
