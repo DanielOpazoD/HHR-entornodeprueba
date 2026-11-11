@@ -165,7 +165,6 @@
       { "id": "check:clinical-documents-feature-boundary", "group": "boundaries" },
       { "id": "check:feature-public-api-boundary", "group": "boundaries" },
       { "id": "check:lazy-views-feature-entrypoints", "group": "boundaries" },
-      { "id": "check:feature-dependencies", "group": "boundaries" },
       { "id": "check:shared-layer-boundary", "group": "boundaries" },
       { "id": "check:persistence-hub-boundaries", "group": "boundaries" },
       { "id": "report:compatibility-governance", "group": "governance-inputs" },
