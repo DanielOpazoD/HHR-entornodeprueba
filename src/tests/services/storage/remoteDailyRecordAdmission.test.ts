@@ -25,11 +25,12 @@ afterEach(async () => {
 });
 
 describe.each([syncRecordsRange, hydrateRangeRecords])('batch reader %s', read => {
-  it('keeps the last duplicate date durable', async () => {
+  it('keeps the last duplicate date durable and returns one row for that date', async () => {
     const first = day('2026-04-01');
     const last = { ...first, medicalHandoffNovedades: 'Última copia sintética' };
     remote.mockResolvedValue([first, last]);
-    await read(first.date, first.date);
+    // One decision per date: the reader answers with the row it stored, not with both copies.
+    expect(await read(first.date, first.date)).toEqual([last]);
     expect(await hospitalDB.dailyRecords.toArray()).toEqual([last]);
   });
 
