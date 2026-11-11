@@ -26,6 +26,11 @@ describe('a domain type has one home', () => {
     "export * from '../../types/domain/patient';",
     "import type { DeliveryRoute } from '@/types/domain/patient';\nexport type { DeliveryRoute };",
     "import type { Narrow } from './narrow';\nexport type { Narrow as PatientData };",
+    "import { DailyRecord } from '@/types/domain/dailyRecord';\nexport type Rec = DailyRecord;",
+    "import * as Records from '@/types/domain/dailyRecord';\nexport type Rec = Records.DailyRecord;",
+    "export { DailyRecord } from '@/types/domain/dailyRecord';",
+    "export { DailyRecordPatch } from '../../types/domain/dailyRecordPatch';",
+    "import { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';\nexport { DailyRecordPatch };",
   ])('rejects a facade: %s', source => {
     expect(facade(source)).toBe(true);
   });
