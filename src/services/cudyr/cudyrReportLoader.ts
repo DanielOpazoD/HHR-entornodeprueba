@@ -28,7 +28,7 @@ import { readPendingCudyrEpisodes } from '@/services/storage/sync/cudyrPendingRe
 import { buildCudyrReport, type CudyrReportInput } from './cudyrReportModel';
 import { collectCudyrDailyFacts } from './cudyrReportFacts';
 import type { CudyrHistoryCursor } from '@/types/domain/cudyrHistory';
-import type { DailyRecordCudyrExportState } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecordCudyrExportState } from '@/types/domain/dailyRecordSlices';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 

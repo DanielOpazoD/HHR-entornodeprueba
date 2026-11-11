@@ -1,6 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import type { DailyRecord } from '@/features/census/contracts/censusRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 import { tombstoneMovementsWhere } from '@/application/census/movementTombstonePolicy';
 import { matchesRestoredPatientDestination } from '@/application/census/movementUndoIdentityPolicy';

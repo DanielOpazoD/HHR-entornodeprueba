@@ -6,7 +6,7 @@ import {
   type CudyrUpcAnalysis,
 } from '@/features/analytics/controllers/cudyrUpcAnalysisController';
 import { formatAnalyticsPercent as formatPercent } from '@/features/analytics/controllers/analyticsPercentageController';
-import type { DailyRecord } from '@/features/analytics/contracts/analyticsDailyRecordContracts';
+import type { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { CudyrCareLevelCharts } from './CudyrCareLevelCharts';
 

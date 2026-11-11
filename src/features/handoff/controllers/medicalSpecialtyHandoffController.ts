@@ -1,12 +1,12 @@
 import { readClinicalTimestamp } from '@/utils/dateDisplayUtils';
 import type { AuthUser } from '@/types/authRoleTypes';
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import type {
-  DailyRecord,
   MedicalHandoffActor,
   MedicalHandoffDailyContinuityEntry,
   MedicalSpecialty,
   MedicalSpecialtyHandoffNote,
-} from '@/domain/handoff/recordContracts';
+} from '@/types/domain/dailyRecordMedicalHandoff';
 import {
   canEditMedicalHandoffForDate,
   canManageAllMedicalSpecialties,
@@ -51,7 +51,7 @@ export const getMedicalSpecialtyLabel = (specialty: MedicalSpecialty): string =>
   MEDICAL_SPECIALTY_LABELS[specialty];
 
 export const getMedicalSpecialtyNote = (
-  record: Pick<DailyRecord, 'medicalHandoffBySpecialty'>,
+  record: Pick<HandoffDailyRecordContract, 'medicalHandoffBySpecialty'>,
   specialty: MedicalSpecialty
 ): MedicalSpecialtyHandoffNote | undefined => record.medicalHandoffBySpecialty?.[specialty];
 
@@ -146,7 +146,7 @@ export const buildMedicalSpecialtyTabState = ({
   activeSpecialty,
 }: {
   specialty: MedicalSpecialty;
-  record: Pick<DailyRecord, 'medicalHandoffBySpecialty'>;
+  record: Pick<HandoffDailyRecordContract, 'medicalHandoffBySpecialty'>;
   dateKey: string;
   editableSpecialties: MedicalSpecialty[];
   readOnly: boolean;
@@ -166,7 +166,7 @@ export const buildMedicalSpecialtyTabsState = ({
   readOnly,
   activeSpecialty,
 }: {
-  record: Pick<DailyRecord, 'medicalHandoffBySpecialty'>;
+  record: Pick<HandoffDailyRecordContract, 'medicalHandoffBySpecialty'>;
   dateKey: string;
   editableSpecialties: MedicalSpecialty[];
   readOnly: boolean;
@@ -212,7 +212,7 @@ export const resolveMedicalSpecialtyContinuityEditorState = ({
 };
 
 export const hasMedicalSpecialtyStructuredData = (
-  record: Pick<DailyRecord, 'medicalHandoffBySpecialty'>
+  record: Pick<HandoffDailyRecordContract, 'medicalHandoffBySpecialty'>
 ): boolean =>
   MEDICAL_SPECIALTY_ORDER.some(specialty => Boolean(getMedicalSpecialtyNote(record, specialty)));
 
@@ -237,7 +237,7 @@ export interface MedicalSpecialtySectionViewModel {
 }
 
 export const buildPrintableMedicalSpecialtyBlocks = (
-  record: Pick<DailyRecord, 'date' | 'medicalHandoffBySpecialty'>
+  record: Pick<HandoffDailyRecordContract, 'date' | 'medicalHandoffBySpecialty'>
 ): PrintableMedicalSpecialtyBlock[] =>
   MEDICAL_SPECIALTY_ORDER.flatMap(specialty => {
     const note = getMedicalSpecialtyNote(record, specialty);
@@ -271,7 +271,7 @@ export const buildMedicalSpecialtySectionViewModel = ({
   editableSpecialties,
   continuityDrafts,
 }: {
-  record: Pick<DailyRecord, 'date' | 'medicalHandoffBySpecialty'>;
+  record: Pick<HandoffDailyRecordContract, 'date' | 'medicalHandoffBySpecialty'>;
   role?: string;
   readOnly: boolean;
   activeSpecialty: MedicalSpecialty;
@@ -336,7 +336,10 @@ const buildSpecialtySummaryBlock = (
 };
 
 export const buildMedicalHandoffSummary = (
-  record: Pick<DailyRecord, 'date' | 'medicalHandoffNovedades' | 'medicalHandoffBySpecialty'>
+  record: Pick<
+    HandoffDailyRecordContract,
+    'date' | 'medicalHandoffNovedades' | 'medicalHandoffBySpecialty'
+  >
 ): string => {
   const specialtyBlocks = MEDICAL_SPECIALTY_ORDER.map(specialty => {
     const note = record.medicalHandoffBySpecialty?.[specialty];

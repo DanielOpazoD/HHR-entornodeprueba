@@ -1,6 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import type { DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import {
   defaultDailyRecordReadPort,
   defaultDailyRecordWritePort,

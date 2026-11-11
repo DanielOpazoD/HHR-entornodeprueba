@@ -1,6 +1,5 @@
 import type { jsPDF } from 'jspdf';
-import type { ShiftType } from '@/types/domain/shift';
-import type { HandoffPdfRecord } from '@/services/pdf/contracts/handoffPdfContracts';
+
 export { addCudyrTable } from './handoffPdfCudyrSection';
 export {
   addHandoffHeader,
@@ -20,6 +19,5 @@ import type { AutoTableFunction } from './handoffPdfTypes';
 
 // Keep the public facade signatures discoverable here.
 export type HandoffPdfSectionAutoTable = AutoTableFunction;
-export type HandoffPdfSectionRecord = HandoffPdfRecord;
-export type HandoffPdfSectionShift = ShiftType;
+
 export type HandoffPdfSectionDoc = jsPDF;

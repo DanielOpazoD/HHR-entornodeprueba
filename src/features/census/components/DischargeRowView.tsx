@@ -6,7 +6,7 @@ import {
 } from '@/features/census/components/CensusMovementPrimaryCells';
 import { CensusMovementDateActionsCells } from '@/features/census/components/CensusMovementDateActionsCells';
 import type { DischargeRowViewModel } from '@/features/census/types/censusMovementRowViewModelTypes';
-import type { DischargeData } from '@/features/census/contracts/censusMovementContracts';
+import type { DischargeData } from '@/types/domain/movements';
 import { MailWarning } from 'lucide-react';
 import { CensusMovementEpicrisisButton } from './CensusMovementEpicrisisButton';
 

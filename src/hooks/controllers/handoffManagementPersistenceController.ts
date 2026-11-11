@@ -1,8 +1,8 @@
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type {
   MedicalHandoffActor,
   MedicalSpecialty,
-} from '@/application/shared/dailyRecordMedicalContracts';
+} from '@/types/domain/dailyRecordMedicalHandoff';
 import type { MedicalHandoffScope } from '@/types/medicalHandoff';
 import { getAttributedAuthors } from '@/services/admin/attributionService';
 import { normalizeMedicalHandoffActor } from '@/domain/handoff/management';

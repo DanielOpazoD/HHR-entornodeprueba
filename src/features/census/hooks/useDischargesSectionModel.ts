@@ -7,7 +7,7 @@ import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { useCensusActionCommands } from '../context/censusActionContexts';
 import { useCensusMovementData } from './useCensusMovementData';
 import { useMovementSectionModel } from './useMovementSectionModel';
-import type { DischargeData } from '@/features/census/contracts/censusMovementContracts';
+import type { DischargeData } from '@/types/domain/movements';
 import { PREVIOUS_DAY_UNCHECKED_MESSAGE } from '@/features/census/controllers/censusActionNotificationController';
 import {
   buildMovementTypeConversionConfirmDialog,

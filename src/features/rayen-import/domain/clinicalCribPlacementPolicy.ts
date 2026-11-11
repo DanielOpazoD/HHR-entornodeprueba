@@ -7,7 +7,7 @@ import {
 import { isDischargedEncounter } from './censusReconciliationPredicates';
 import { Specialty } from '@/types/domain/patientClassification';
 import { isValidRut } from '@/utils/rutUtils';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { rayenToPatientData, withLocalNameParts } from '../mapping/rayenToPatientData';
 import {

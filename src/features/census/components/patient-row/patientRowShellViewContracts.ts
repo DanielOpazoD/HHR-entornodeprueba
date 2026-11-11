@@ -3,7 +3,8 @@ import type { PatientData } from '@/types/domain/patient';
 import type { CSSProperties } from 'react';
 import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
-import type { BedDefinition, BedType } from '@/features/census/contracts/censusBedContracts';
+import type { BedDefinition } from '@/types/domain/beds';
+import type { BedType } from '@/features/census/contracts/censusBedContracts';
 
 import type { UserRole } from '@/types/authRoleTypes';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';

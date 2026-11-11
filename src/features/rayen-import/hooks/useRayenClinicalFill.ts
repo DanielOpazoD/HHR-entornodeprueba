@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ClinicalFillSummary } from '../clinicalFillRunner';
 import type {
   HistoricalCudyrBatchItem,

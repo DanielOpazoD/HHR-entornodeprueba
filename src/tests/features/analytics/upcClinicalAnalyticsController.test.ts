@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildUpcClinicalAnalytics } from '@/features/analytics/controllers/upcClinicalAnalyticsController';
-import type { DailyRecord } from '@/features/analytics/contracts/analyticsDailyRecordContracts';
+import type { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
 import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 

@@ -4,7 +4,7 @@ import { isValidRut } from '@/utils/rutUtils';
 import { normalizePatientRut as normalizeRut } from './censusPatientIdentityIndex';
 import type { EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { EgresoReportRow } from '../contracts/egresoReport';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { correctedStamp } from './egresoReportPolicy';
 import { previousCensusDate } from './previousCensusContinuity';
 import { neonatalMaternalLookupRut } from './neonatalMaternalLookupIdentity';

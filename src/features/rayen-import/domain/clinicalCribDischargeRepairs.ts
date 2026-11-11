@@ -1,5 +1,5 @@
 import { tombstoneMovement } from '@/application/census/movementTombstonePolicy';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DischargeData } from '@/types/domain/movements';
 import type { ClinicalCribDischargeRepair } from '../contracts/censusImportDiff';
 import { planClinicalCribDischargeRepairs } from './censusDischargeHistory';

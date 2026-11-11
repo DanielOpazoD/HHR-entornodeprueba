@@ -7,7 +7,7 @@ import {
   SpecialtyTraceabilityType,
   PatientTraceability,
 } from '@/types/minsalTypes';
-import type { MinsalDailyRecord } from '@/services/calculations/minsal/minsalRecordContracts';
+import type { DailyRecordMovementState as MinsalDailyRecord } from '@/types/domain/dailyRecordSlices';
 
 // Re-exports
 export { getDateRangeFromPreset } from './minsal/dateUtils';

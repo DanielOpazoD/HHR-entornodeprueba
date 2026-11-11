@@ -3,9 +3,9 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { usePatientDischarges } from '@/hooks/usePatientDischarges';
 import type {
   ApplyDailyRecordPatch,
-  DailyRecord,
   PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { useAuditContext } from '@/context/AuditContext';
 import {

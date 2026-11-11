@@ -11,7 +11,7 @@ import {
 } from '@/utils/movementCalendarDate';
 import type { DischargeData } from '@/types/domain/movements';
 import { resolveReportBedId } from '../mapping/resolveReportBed';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type {
   CensusImportDiff,
   DischargeEntry,

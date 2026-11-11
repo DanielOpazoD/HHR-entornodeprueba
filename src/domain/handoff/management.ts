@@ -1,9 +1,9 @@
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type {
-  DailyRecord,
-  DailyRecordPatch,
   MedicalHandoffActor,
   MedicalSpecialty,
-} from '@/domain/handoff/recordContracts';
+} from '@/types/domain/dailyRecordMedicalHandoff';
 import { buildMedicalHandoffSummary, DEFAULT_NO_CHANGES_COMMENT } from '@/domain/handoff/specialty';
 import type { MedicalHandoffScope } from '@/types/medicalHandoff';
 
@@ -19,11 +19,11 @@ export const normalizeMedicalHandoffActor = (
 });
 
 export const buildChecklistUpdateRecord = (
-  record: DailyRecord,
+  record: HandoffDailyRecordContract,
   shift: 'day' | 'night' | 'shared',
   field: string,
   value: boolean | string
-): DailyRecord => {
+): HandoffDailyRecordContract => {
   const updatedRecord = { ...record };
   if (shift === 'shared') {
     updatedRecord.handoffSharedChecklist = {
@@ -34,22 +34,22 @@ export const buildChecklistUpdateRecord = (
     updatedRecord.handoffDayChecklist = {
       ...updatedRecord.handoffDayChecklist,
       [field]: value as boolean,
-    } as DailyRecord['handoffDayChecklist'];
+    } as HandoffDailyRecordContract['handoffDayChecklist'];
   } else {
     updatedRecord.handoffNightChecklist = {
       ...updatedRecord.handoffNightChecklist,
       [field]: value,
-    } as DailyRecord['handoffNightChecklist'];
+    } as HandoffDailyRecordContract['handoffNightChecklist'];
   }
   updatedRecord.lastUpdated = new Date().toISOString();
   return updatedRecord;
 };
 
 export const buildNovedadesUpdateRecord = (
-  record: DailyRecord,
+  record: HandoffDailyRecordContract,
   shift: 'day' | 'night' | 'medical',
   value: string
-): DailyRecord => {
+): HandoffDailyRecordContract => {
   const updatedRecord = { ...record };
   if (shift === 'day') updatedRecord.handoffNovedadesDayShift = value;
   if (shift === 'night') updatedRecord.handoffNovedadesNightShift = value;
@@ -59,11 +59,11 @@ export const buildNovedadesUpdateRecord = (
 };
 
 export const buildUpdatedHandoffStaffRecord = (
-  currentRecord: DailyRecord,
+  currentRecord: HandoffDailyRecordContract,
   shift: 'day' | 'night',
   type: 'delivers' | 'receives' | 'tens',
   staffList: string[]
-): DailyRecord => {
+): HandoffDailyRecordContract => {
   const updatedRecord = { ...currentRecord };
 
   if (shift === 'day') {
@@ -87,15 +87,15 @@ export const buildUpdatedHandoffStaffRecord = (
 };
 
 export const buildMedicalSpecialtyNoteRecord = (
-  record: DailyRecord,
+  record: HandoffDailyRecordContract,
   specialty: MedicalSpecialty,
   value: string,
   actor: Partial<MedicalHandoffActor>
-): DailyRecord => {
+): HandoffDailyRecordContract => {
   const now = new Date().toISOString();
   const normalizedActor = normalizeMedicalHandoffActor(actor, specialty);
   const currentNote = record.medicalHandoffBySpecialty?.[specialty];
-  const updatedRecord: DailyRecord = {
+  const updatedRecord: HandoffDailyRecordContract = {
     ...record,
     medicalHandoffBySpecialty: {
       ...(record.medicalHandoffBySpecialty || {}),
@@ -119,19 +119,19 @@ export const buildMedicalSpecialtyNoteRecord = (
 };
 
 export const buildMedicalNoChangesRecord = (
-  record: DailyRecord,
+  record: HandoffDailyRecordContract,
   specialty: MedicalSpecialty,
   actor: Partial<MedicalHandoffActor>,
   comment?: string,
   dateKey?: string
-): DailyRecord => {
+): HandoffDailyRecordContract => {
   const currentNote = record.medicalHandoffBySpecialty?.[specialty];
   if (!currentNote) return record;
   const effectiveDateKey = dateKey || record.date;
   const now = new Date().toISOString();
   const normalizedActor = normalizeMedicalHandoffActor(actor, specialty);
   const nextComment = comment?.trim() || DEFAULT_NO_CHANGES_COMMENT;
-  const updatedRecord: DailyRecord = {
+  const updatedRecord: HandoffDailyRecordContract = {
     ...record,
     medicalHandoffBySpecialty: {
       ...(record.medicalHandoffBySpecialty || {}),
@@ -155,10 +155,10 @@ export const buildMedicalNoChangesRecord = (
 };
 
 export const buildMedicalSignatureRecord = (
-  record: DailyRecord,
+  record: HandoffDailyRecordContract,
   doctorName: string,
   scope: MedicalHandoffScope
-): DailyRecord => {
+): HandoffDailyRecordContract => {
   const signedAt = new Date().toISOString();
   const signature = { doctorName, signedAt };
   const updatedRecord = { ...record };
@@ -172,12 +172,12 @@ export const buildMedicalSignatureRecord = (
 };
 
 export const buildMedicalSentPatch = (
-  record: DailyRecord,
+  record: HandoffDailyRecordContract,
   doctorName?: string,
   scope: MedicalHandoffScope = 'all'
 ): DailyRecordPatch => {
   const sentAt = new Date().toISOString();
-  const updates: Partial<DailyRecord> = {
+  const updates: Partial<HandoffDailyRecordContract> = {
     medicalHandoffSentAtByScope: {
       ...(record.medicalHandoffSentAtByScope || {}),
       [scope]: sentAt,
@@ -188,7 +188,9 @@ export const buildMedicalSentPatch = (
   return updates;
 };
 
-export const buildResetMedicalHandoffRecord = (record: DailyRecord): DailyRecord => {
+export const buildResetMedicalHandoffRecord = (
+  record: HandoffDailyRecordContract
+): HandoffDailyRecordContract => {
   const updatedRecord = { ...record };
   updatedRecord.medicalHandoffSentAt = undefined;
   updatedRecord.medicalSignature = undefined;
@@ -243,7 +245,7 @@ export const buildHandoffStaffPatch = (
 };
 
 export const buildMedicalSpecialtyNotePatch = (
-  record: DailyRecord,
+  record: HandoffDailyRecordContract,
   specialty: MedicalSpecialty,
   value: string,
   actor: Partial<MedicalHandoffActor>
@@ -264,7 +266,7 @@ export const buildMedicalSpecialtyNotePatch = (
     },
   };
   // Compute summary from a projected record to keep it consistent
-  const projectedRecord: DailyRecord = {
+  const projectedRecord: HandoffDailyRecordContract = {
     ...record,
     medicalHandoffBySpecialty: {
       ...(record.medicalHandoffBySpecialty || {}),
@@ -278,7 +280,7 @@ export const buildMedicalSpecialtyNotePatch = (
 };
 
 export const buildMedicalNoChangesPatch = (
-  record: DailyRecord,
+  record: HandoffDailyRecordContract,
   specialty: MedicalSpecialty,
   actor: Partial<MedicalHandoffActor>,
   comment?: string,
@@ -302,7 +304,7 @@ export const buildMedicalNoChangesPatch = (
       },
     },
   };
-  const projectedRecord: DailyRecord = {
+  const projectedRecord: HandoffDailyRecordContract = {
     ...record,
     medicalHandoffBySpecialty: {
       ...(record.medicalHandoffBySpecialty || {}),
@@ -316,7 +318,7 @@ export const buildMedicalNoChangesPatch = (
 };
 
 export const buildMedicalSignaturePatch = (
-  record: DailyRecord,
+  record: HandoffDailyRecordContract,
   doctorName: string,
   scope: MedicalHandoffScope
 ): DailyRecordPatch => {

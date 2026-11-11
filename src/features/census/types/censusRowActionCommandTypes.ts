@@ -1,4 +1,4 @@
-import type { CMAData } from '@/features/census/contracts/censusMovementContracts';
+import type { CMAData } from '@/types/domain/movements';
 import type { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
 import type { ControllerConfirmDescriptor } from '@/shared/contracts/controllers/confirmDescriptor';
 

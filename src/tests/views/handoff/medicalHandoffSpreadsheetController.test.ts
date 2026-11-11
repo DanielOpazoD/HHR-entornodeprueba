@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildMedicalHandoffSpreadsheetRows } from '@/features/handoff/controllers/medicalHandoffSpreadsheetController';
-import type { DailyRecord } from '@/domain/handoff/recordContracts';
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import type { HandoffPatientContract } from '@/domain/handoff/patientContracts';
 import { BedType, type BedDefinition } from '@/types/domain/beds';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
@@ -48,7 +48,9 @@ const createPatient = (
   ...overrides,
 });
 
-const createRecord = (recordBeds: Record<string, HandoffPatientContract>): DailyRecord => ({
+const createRecord = (
+  recordBeds: Record<string, HandoffPatientContract>
+): HandoffDailyRecordContract => ({
   date: '2026-08-07',
   beds: recordBeds,
   discharges: [],

@@ -1,10 +1,10 @@
-import type { DailyRecord } from '@/domain/handoff/recordContracts';
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import type { MedicalHandoffScope } from '@/types/medicalHandoff';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { FunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 
 interface PublicMedicalHandoffPayload {
-  record: DailyRecord;
+  record: HandoffDailyRecordContract;
   scope: MedicalHandoffScope;
   alreadySigned: boolean;
 }

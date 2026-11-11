@@ -3,7 +3,7 @@ import type { ApplyResult } from '../domain/applyCensusImportDiff';
 import { fileCrossDayCorrections } from '../domain/previousDayCorrections';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import type { CensusImportDiff, CmaAdmissionResolution } from '../contracts/censusImportDiff';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { applyCmaAdmissionResolutions } from '../domain/cmaAdmissionReview';
 import { getRayenImportErrorMessage } from './rayenImportState';
 import { toIsoReportDate } from './reportDateHelpers';

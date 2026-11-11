@@ -1,5 +1,5 @@
-import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
-import type { DailyRecord } from '@/features/census/contracts/censusRecordContracts';
+import type { BedDefinition } from '@/types/domain/beds';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { formatCensusShortDayMonth } from '@/shared/census/censusPresentation';
 
 export interface MoveCopyDateOption {

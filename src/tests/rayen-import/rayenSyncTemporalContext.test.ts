@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   createRayenSyncExecutionContext,
   prepareRayenSyncTemporalContext,

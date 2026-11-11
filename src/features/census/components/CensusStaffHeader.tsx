@@ -28,7 +28,7 @@ const RayenImportButton = lazyWithRetry(() =>
 );
 import { RayenOperationsLoadingCard } from './RayenOperationsLoadingCard';
 import { CensusMedicalHandoffPortal } from './CensusMedicalHandoffPortal';
-import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
+import type { BedDefinition } from '@/types/domain/beds';
 import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
 
 interface CensusStaffHeaderProps {

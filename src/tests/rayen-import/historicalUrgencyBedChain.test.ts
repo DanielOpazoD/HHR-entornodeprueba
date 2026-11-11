@@ -7,7 +7,7 @@ import { reconstructHistoricalSnapshotAtClose } from '@/features/rayen-import/do
 import { reconcileCensus } from '@/features/rayen-import/domain/reconcileCensus';
 import { applyCensusImportDiff } from '@/features/rayen-import/domain/applyCensusImportDiff';
 import { resolveOccupiedBedTraceabilityChain } from '@/features/rayen-import/bedTraceabilityResolver';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type {
   RayenCensusSnapshot,
   RayenEncounter,

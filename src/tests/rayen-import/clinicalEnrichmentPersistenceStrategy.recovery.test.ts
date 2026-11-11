@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createClinicalEnrichmentPersistenceStrategy } from '@/features/rayen-import/hooks/clinicalEnrichmentPersistenceStrategy';
 import { applyClinicalEnrichmentBatch } from '@/features/rayen-import/hooks/applyClinicalEnrichmentBatch';
 import { persistClinicalBatch } from '@/features/rayen-import/domain/clinicalBatchPersistence';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ClinicalFillPatchOperation } from '@/features/rayen-import/contracts/clinicalFillContracts';
 import { createDependencies } from './applyClinicalEnrichmentBatch.fixtures';
 

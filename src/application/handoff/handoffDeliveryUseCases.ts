@@ -8,27 +8,28 @@ import { createApplicationSuccess } from '@/shared/contracts/applicationOutcomeF
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
-import type { DailyRecord, DailyRecordPatch } from '@/domain/handoff/recordContracts';
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { MedicalHandoffScope } from '@/types/medicalHandoff';
 import { buildPatchedRecord, createMissingRecordOutcome } from './handoffUseCaseSupport';
 
 export interface EnsureMedicalHandoffSignatureLinkOutput {
   handoffUrl: string;
-  nextRecord: DailyRecord;
+  nextRecord: HandoffDailyRecordContract;
   scope: MedicalHandoffScope;
   tokenStatus: 'existing' | 'created';
 }
 
 export interface MarkMedicalHandoffAsSentOutput {
   doctorName: string | null;
-  nextRecord: DailyRecord;
+  nextRecord: HandoffDailyRecordContract;
   patch: DailyRecordPatch;
   scope: MedicalHandoffScope;
   sentAt: string | null;
 }
 
 interface PatchRecordInput {
-  record: DailyRecord | null;
+  record: HandoffDailyRecordContract | null;
   patchRecord: ApplyDailyRecordPatch;
 }
 

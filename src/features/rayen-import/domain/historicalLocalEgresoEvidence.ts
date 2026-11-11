@@ -1,6 +1,6 @@
 import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
 import { normalizeRut } from '@/utils/rutUtils';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';

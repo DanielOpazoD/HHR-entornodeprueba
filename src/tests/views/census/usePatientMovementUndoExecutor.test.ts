@@ -5,7 +5,7 @@ import { renderHook } from '@testing-library/react';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { usePatientMovementUndoExecutor } from '@/hooks/usePatientMovementUndoExecutor';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 describe('usePatientMovementUndoExecutor', () => {
   it('applies undo and persists updated record on success', async () => {

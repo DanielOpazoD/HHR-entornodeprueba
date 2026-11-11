@@ -1,10 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useBedManagement } from '@/hooks/useBedManagement';
-import type {
-  ApplyDailyRecordPatch,
-  DailyRecord,
-} from '@/application/shared/dailyRecordCoreContracts';
+import type { ApplyDailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
 import { DataFactory } from '@/tests/factories/DataFactory';
 

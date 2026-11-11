@@ -1,6 +1,6 @@
 import type { jsPDF } from 'jspdf';
 import type { ShiftType } from '@/types/domain/shift';
-import type { HandoffPdfRecord } from '@/services/pdf/contracts/handoffPdfContracts';
+import type { DailyRecordHandoffPdfState as HandoffPdfRecord } from '@/types/domain/dailyRecordSlices';
 import { Schedule } from './handoffPdfUtils';
 import { openPdfPrintDialog } from './pdfBase';
 import { resolveNursingHandoffNovedadesText } from '@/shared/handoff/handoffNovedades';

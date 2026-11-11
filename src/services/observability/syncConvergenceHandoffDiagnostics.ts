@@ -1,4 +1,4 @@
-import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncQueueOperationSnapshot } from '@/services/storage/sync';
 import type { SyncConvergenceFinding } from '@/services/observability/syncConvergenceDiagnosticTypes';
 import {

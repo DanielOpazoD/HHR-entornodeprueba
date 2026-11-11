@@ -8,7 +8,7 @@ import type { PatientData } from '@/types/domain/patient';
  * @module services/validation/criticalFieldsValidator
  */
 
-import type { DailyRecordCriticalValidationState } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecordCriticalValidationState } from '@/types/domain/dailyRecordSlices';
 import { PatientStatus } from '@/types/domain/patientClassification';
 import { BEDS } from '@/constants/beds';
 

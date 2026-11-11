@@ -1,4 +1,4 @@
-import type { DailyRecord } from '@/features/admin/contracts/publicMedicalSignatureContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordContextType } from '@/context/dailyRecordContextContracts';
 import type { MedicalHandoffScope } from '@/types/medicalHandoff';
 

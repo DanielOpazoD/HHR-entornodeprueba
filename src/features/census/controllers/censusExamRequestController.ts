@@ -1,6 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
+import type { BedDefinition } from '@/types/domain/beds';
 
 import type { ExamRequestCandidate } from '@/hooks/useExamRequestOrders';
 import {

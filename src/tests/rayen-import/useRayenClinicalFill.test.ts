@@ -5,7 +5,7 @@ import {
   mergeClinicalRetrySummary,
   resolveClinicalStageResult,
 } from '@/features/rayen-import/domain/clinicalStageResolution';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { resetRayenClinicalFillQueueForTests } from '@/features/rayen-import/domain/rayenClinicalFillQueue';
 
 const mocks = vi.hoisted(() => ({

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { reconstructHistoricalSnapshotAtClose } from '@/features/rayen-import/domain/historicalSnapshotReconstruction';
 import type { RayenCensusSnapshot } from '@/features/rayen-import/contracts/rayenSnapshot';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { EgresoReportRow } from '@/features/rayen-import/contracts/egresoReport';
 
 const emptyRecord = { date: '2026-07-24', beds: {} } as DailyRecord;

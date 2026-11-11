@@ -1,4 +1,4 @@
-import type { DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
 
 export type DailyRecordPatchMutationVariables =

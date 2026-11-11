@@ -1,4 +1,4 @@
-import type { DailyRecordStaffingState } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecordStaffingState } from '@/types/domain/dailyRecordSlices';
 import { resolveDetailedStaffingState } from '@/services/staff/dailyRecordDetailedStaffing';
 import { normalizeStaffSelectionValue } from '@/services/staff/staffSelectionPresentation';
 

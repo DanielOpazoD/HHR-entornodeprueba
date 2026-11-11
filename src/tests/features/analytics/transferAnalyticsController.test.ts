@@ -4,7 +4,7 @@ import {
   buildTransferAnalytics,
   resolveTransferAnalyticsCategory,
 } from '@/features/analytics/controllers/transferAnalyticsController';
-import type { DailyRecord } from '@/features/analytics/contracts/analyticsDailyRecordContracts';
+import type { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
 import type { TransferData } from '@/types/domain/movements';
 
 const createTransfer = (

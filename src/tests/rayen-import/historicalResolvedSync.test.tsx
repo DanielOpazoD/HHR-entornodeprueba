@@ -13,7 +13,7 @@ import { resolveIsNewAdmissionForRecord } from '@/features/census/controllers/pa
 import type { ApplyResult } from '@/features/rayen-import/domain/applyCensusImportDiff';
 import type { RayenSyncRun } from '@/features/rayen-import/domain/rayenSyncHistory';
 import { RayenImportPreviewModal } from '@/features/rayen-import/components/RayenImportPreviewModal';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { EgresoReportRow } from '@/features/rayen-import/contracts/egresoReport';
 import {
   motherAndNewbornDiff,

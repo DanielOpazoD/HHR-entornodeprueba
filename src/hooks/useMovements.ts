@@ -1,8 +1,6 @@
 import { useMemo } from 'react';
-import type {
-  DailyRecord,
-  PersistDailyRecord,
-} from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { PersistDailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 import { usePatientDischarges } from '@/hooks/usePatientDischarges';
 import { usePatientTransfers } from '@/hooks/usePatientTransfers';
 import type { DischargeTarget, PatientMovementActions } from '@/types/movements';

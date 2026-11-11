@@ -1,6 +1,6 @@
 import type { jsPDF } from 'jspdf';
 import { BEDS } from '@/constants/beds';
-import type { HandoffPdfRecord } from '@/services/pdf/contracts/handoffPdfContracts';
+import type { DailyRecordHandoffPdfState as HandoffPdfRecord } from '@/types/domain/dailyRecordSlices';
 import { resolvePresentedNightShiftNurses } from '@/services/staff/dailyRecordStaffing';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { AutoTableFunction, CellHookData, JsPDFWithAutoTable } from './handoffPdfTypes';

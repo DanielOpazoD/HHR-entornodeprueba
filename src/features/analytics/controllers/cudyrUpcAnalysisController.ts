@@ -1,7 +1,7 @@
 import { resolveCudyrEligibility } from '@/domain/cudyr/cudyrEligibility';
 import { resolveUpcClassification, type UpcClassification } from '@/domain/upc/upcClassification';
 import { getCategorization } from '@/services/cudyr/CudyrScoreUtils';
-import type { DailyRecord } from '@/features/analytics/contracts/analyticsDailyRecordContracts';
+import type { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
 import {
   addCareLevel,
   createCareLevelBedGroupDistributions,

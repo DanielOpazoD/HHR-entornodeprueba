@@ -6,7 +6,7 @@ import type {
   HistoricalCudyrBatchExecutionResult,
   HistoricalCudyrBatchItem,
 } from '../contracts/clinicalFillContracts';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { resolveHistoricalCudyrBatchOperation } from '../domain/historicalCudyrPatch';
 import { readClinicalFillDerivedView } from './clinicalFillDerivedView';
 

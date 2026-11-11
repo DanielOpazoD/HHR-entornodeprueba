@@ -2,11 +2,11 @@ import { describe, expectTypeOf, it } from 'vitest';
 import type {
   ApplyDailyRecordPatch,
   ApplyDailyRecordPatchOptions,
-  DailyRecord,
-  DailyRecordDateRef,
-  DailyRecordPatch,
   PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordDateRef } from '@/types/domain/dailyRecordSlices';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { DailyRecord as RootDailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch as RootDailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { DailyRecordDateRef as RootDailyRecordDateRef } from '@/types/domain/dailyRecordSlices';

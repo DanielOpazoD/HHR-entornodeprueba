@@ -1,4 +1,4 @@
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncStatus } from '@/context/dailyRecordContextContracts';
 
 type ExportBlockReason = 'saving' | 'save_failed' | 'date_changed' | 'no_record';

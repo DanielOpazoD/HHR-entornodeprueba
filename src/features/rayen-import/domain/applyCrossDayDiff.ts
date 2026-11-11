@@ -13,7 +13,7 @@ import type { PatientData } from '@/types/domain/patient';
  * (the corrected island time from the report) so the record shapes never drift.
  */
 
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DischargeData, TransferData, CMAData } from '@/types/domain/movements';
 import type { DischargeEntry } from '../contracts/censusImportDiff';
 import {

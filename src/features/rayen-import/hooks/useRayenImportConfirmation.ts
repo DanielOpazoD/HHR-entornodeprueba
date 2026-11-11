@@ -5,7 +5,7 @@ import { useCallback, type RefObject } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { finalizeRayenHistoricalDischarges } from './finalizeRayenHistoricalDischarges';
 import type { useRepositories } from '@/services/RepositoryContext';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { applyConfirmedRayenImport, isRayenStructuralPlanChangedError } from './confirmRayenImport';
 import { getRayenImportErrorMessage, type RayenImportState } from './rayenImportState';
 import {

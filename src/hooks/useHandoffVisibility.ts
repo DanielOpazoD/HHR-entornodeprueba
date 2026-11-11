@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { BEDS } from '@/constants/beds';
 import { isAdmittedDuringShift } from '@/utils/clinicalDayUtils';
 import {

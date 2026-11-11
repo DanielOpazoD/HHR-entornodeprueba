@@ -2,7 +2,7 @@ import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordP
 import type { CensusImportDiff, ConflictEntry } from '../contracts/censusImportDiff';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { EgresoReportRow } from '../contracts/egresoReport';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
 import {
   recoverMissingSnapshotPlacements,

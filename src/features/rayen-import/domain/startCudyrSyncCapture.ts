@@ -1,4 +1,4 @@
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ClinicalFillDeps } from '../contracts/clinicalFillContracts';
 import { captureClinicalCudyrSource } from './clinicalCudyrPreflight';
 import { persistCudyrSyncCapture } from './persistCudyrSyncCapture';

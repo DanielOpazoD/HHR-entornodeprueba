@@ -11,7 +11,7 @@ import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useAuth } from '@/context/AuthContext';
 import * as dailyRecordQuery from '@/hooks/useDailyRecordQuery';
 import { useRepositories } from '@/services/RepositoryContext';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { resolveRayenPolicyBlockMessage, useRayenImportMode } from './useRayenImportMode';
 import { INITIAL_RAYEN_IMPORT_STATE, type RayenImportState } from './rayenImportState';
 import { useRayenSyncAudit } from './useRayenSyncAudit';

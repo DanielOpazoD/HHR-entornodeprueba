@@ -1,6 +1,6 @@
 import { needsClinicalRead } from '../contracts/clinicalReadSelection';
 import type { ClinicalFillSummary } from '../contracts/clinicalFillContracts';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ClinicalRetryToken, ClinicalStageResult } from '../contracts/clinicalStageResult';
 import type { ConfirmedRayenCensusHandoff } from '../hooks/rayenCensusPersistenceGuard';
 import {

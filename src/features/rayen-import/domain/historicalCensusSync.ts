@@ -1,5 +1,5 @@
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { resolveCurrentClinicalDay } from '@/utils/clinicalDayAdmissionUtils';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import type { EgresoReportRow } from '../contracts/egresoReport';

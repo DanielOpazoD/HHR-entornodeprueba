@@ -195,7 +195,6 @@
       { "id": "check:firestore-runtime-boundary", "group": "boundaries" },
       { "id": "check:firestore-emulator-governance", "group": "governance" },
       { "id": "check:ci-artifact-contracts", "group": "governance" },
-      { "id": "check:domain-hotspot-boundary", "group": "boundaries" },
       { "id": "check:legacy-permissions-boundary", "group": "boundaries" },
       { "id": "check:test-governance", "group": "tests" },
       { "id": "check:test-runtime-governance", "group": "tests" },

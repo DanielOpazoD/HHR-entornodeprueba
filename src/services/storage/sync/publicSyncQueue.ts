@@ -3,7 +3,7 @@ import { createCudyrArchiveQueue } from './publicCudyrArchiveQueue';
 import { ensureDbReady } from '@/services/storage/indexeddb/indexedDbCore';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { createBrowserSyncRuntime } from '@/services/storage/sync/browserSyncRuntime';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';

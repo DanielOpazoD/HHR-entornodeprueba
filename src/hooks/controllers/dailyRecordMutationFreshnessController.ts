@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type {
   PartialUpdateDailyRecordOptions,

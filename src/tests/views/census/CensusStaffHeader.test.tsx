@@ -4,7 +4,7 @@ import React from 'react';
 import { CensusToolbarMenuTargetContext } from '@/shared/ui/CensusToolbarMenuTargetContext';
 import { CensusStaffHeader } from '@/features/census/components/CensusStaffHeader';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
+import type { BedDefinition } from '@/types/domain/beds';
 
 const staffModule = vi.hoisted(() => ({ loaded: false, pending: null as Promise<void> | null }));
 

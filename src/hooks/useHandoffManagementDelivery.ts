@@ -1,9 +1,7 @@
 import { useCallback } from 'react';
 import type { RefObject } from 'react';
-import type {
-  ApplyDailyRecordPatch,
-  DailyRecord,
-} from '@/application/shared/dailyRecordCoreContracts';
+import type { ApplyDailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { MedicalHandoffScope } from '@/types/medicalHandoff';
 import {
   buildSpecialistHistoricalEditFailure,

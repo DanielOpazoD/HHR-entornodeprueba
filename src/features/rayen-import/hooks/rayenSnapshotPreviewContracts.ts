@@ -1,7 +1,7 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import type { RayenApplyFailureReason, RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import type { ConfirmedRayenCensusApplyResult } from './useRayenCensusDiffApplication';

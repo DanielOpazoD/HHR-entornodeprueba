@@ -1,6 +1,7 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import type { BedDefinition, BedType } from '@/features/census/contracts/censusBedContracts';
+import type { BedDefinition } from '@/types/domain/beds';
+import type { BedType } from '@/features/census/contracts/censusBedContracts';
 
 export type DiagnosisMode = 'free' | 'cie10';
 

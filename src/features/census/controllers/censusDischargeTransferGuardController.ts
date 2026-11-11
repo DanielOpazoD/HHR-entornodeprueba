@@ -1,7 +1,7 @@
 import type { PatientData } from '@/types/domain/patient';
 
 import { buildDischargeWithActiveTransferConfirmDialog } from '@/features/census/controllers/censusMovementActionConfirmController';
-import type { DailyRecord } from '@/features/census/contracts/censusRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 import type { DischargeState } from '@/domain/censusActionContracts';
 import type { getLatestOpenTransferRequestByBedId } from '@/services/transfers/transferService';

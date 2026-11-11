@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { BedType, type BedDefinition } from '@/features/census/contracts/censusBedContracts';
+import { BedType } from '@/features/census/contracts/censusBedContracts';
+import { type BedDefinition } from '@/types/domain/beds';
 import { PatientRowModals } from '@/features/census/components/patient-row/PatientRowModals';
 import { CensusExamOrderLauncher } from '@/features/census/components/exam-orders/CensusExamOrderLauncher';
 import {

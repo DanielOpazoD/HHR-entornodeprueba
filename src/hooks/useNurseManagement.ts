@@ -1,10 +1,8 @@
 import { useMemo, useCallback } from 'react';
-import type {
-  ApplyDailyRecordPatch,
-  DailyRecord,
-} from '@/application/shared/dailyRecordCoreContracts';
+import type { ApplyDailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { useLatestRef } from '@/hooks/useLatestRef';
-import type { DailyRecordStaffingDetailsV1 } from '@/application/shared/dailyRecordStaffContracts';
+import type { DailyRecordStaffingDetailsV1 } from '@/types/domain/dailyRecordStaffingDetails';
 import {
   buildDetailedStaffingPatch,
   resolveDetailedStaffingState,

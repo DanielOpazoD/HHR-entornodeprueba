@@ -26,6 +26,17 @@ const checks = [
 ];
 
 describe('quality aggregate support', () => {
+  it('keeps the domain home check while retiring the hotspot import restriction', () => {
+    const governance = JSON.parse(
+      fs.readFileSync('scripts/config/guardrail-governance.json', 'utf8')
+    );
+    const ids = governance.qualityAggregate.checks.map((entry: { id: string }) => entry.id);
+    expect(ids).toContain('check:repo-hygiene');
+    expect(ids).not.toContain('check:domain-hotspot-boundary');
+    const scripts = JSON.parse(fs.readFileSync('package.json', 'utf8')).scripts;
+    expect(scripts['check:repo-hygiene']).toBeDefined();
+    expect(scripts['check:domain-hotspot-boundary']).toBeUndefined();
+  });
   it('keeps the governed CI group plan explicit and non-overlapping', () => {
     expect(getQualityGroupPlan()).toEqual({
       boundaries: ['boundaries'],

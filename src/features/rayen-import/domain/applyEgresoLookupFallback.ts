@@ -1,4 +1,4 @@
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { EgresoReportRow, ReportEgreso } from '../contracts/egresoReport';
 import type { EgresoLookupResult, EgresoRecord } from '../contracts/egresoLookup';

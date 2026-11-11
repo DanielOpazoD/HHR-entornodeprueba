@@ -1,7 +1,7 @@
 import * as fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { BEDS } from '@/constants/beds';
 import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';
 import { clinicalValuesEqual } from '@/features/rayen-import/domain/clinicalIncrementalSync';

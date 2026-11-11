@@ -7,12 +7,10 @@ import type { PatientData } from '@/types/domain/patient';
  */
 
 import { useCallback } from 'react';
-import type {
-  ApplyDailyRecordPatch,
-  DailyRecord,
-  DailyRecordPatch,
-} from '@/application/shared/dailyRecordCoreContracts';
-import type { DailyRecordBedsState } from '@/application/shared/dailyRecordBedContracts';
+import type { ApplyDailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+import type { DailyRecordBedsState } from '@/types/domain/dailyRecordSlices';
 
 import { PatientFieldValue } from '@/types/valueTypes';
 import { clinicalCribLogger } from '@/hooks/hookLoggers';

@@ -1,9 +1,9 @@
 import React from 'react';
-import type { DailyRecord } from '@/domain/handoff/recordContracts';
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import { DebouncedInput } from '@/components/ui/DebouncedInput';
 
 interface HandoffSharedChecklistProps {
-  data: DailyRecord['handoffSharedChecklist'];
+  data: HandoffDailyRecordContract['handoffSharedChecklist'];
   onUpdate: (field: 'crashCartReviewDate' | 'crashCartCode', value: string) => void;
   readOnly: boolean;
 }

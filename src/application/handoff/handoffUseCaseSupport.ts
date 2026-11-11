@@ -3,7 +3,8 @@ import {
   createApplicationFailed,
   createApplicationSuccess,
 } from '@/shared/contracts/applicationOutcomeFactories';
-import type { DailyRecord, DailyRecordPatch } from '@/domain/handoff/recordContracts';
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 
 export const createMissingRecordOutcome = <T>(
   data: T,
@@ -106,7 +107,10 @@ export const createUnknownOutcome = <T>(
   );
 };
 
-export const buildPatchedRecord = (record: DailyRecord, patch: DailyRecordPatch): DailyRecord => ({
+export const buildPatchedRecord = (
+  record: HandoffDailyRecordContract,
+  patch: DailyRecordPatch
+): HandoffDailyRecordContract => ({
   ...record,
   ...patch,
 });

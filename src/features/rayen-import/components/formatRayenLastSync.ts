@@ -1,4 +1,4 @@
-import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
+import type { RayenSyncMeta } from '@/types/domain/dailyRecord';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 /** Last-sync instant formatted in island time (Pacific/Easter), e.g. "12-07-2026 · 14:32 h". */

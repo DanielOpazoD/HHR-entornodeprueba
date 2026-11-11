@@ -2,7 +2,7 @@ import { CLINICAL_READ_ERROR_CODES, type ClinicalReadErrorCode } from '@/types/d
 
 /** Additive wire contract: messages are presentation; codes select recovery. */
 export { CLINICAL_READ_ERROR_CODES };
-export type { ClinicalReadErrorCode };
+
 export interface ClinicalReadFailure {
   error?: string;
   errorCode?: ClinicalReadErrorCode;

@@ -3,8 +3,8 @@ import type { ShiftType } from '@/types/domain/shift';
 import type {
   HandoffPdfChecklistRecord,
   HandoffPdfNovedadesRecord,
-  HandoffPdfRecord,
 } from '@/services/pdf/contracts/handoffPdfContracts';
+import type { DailyRecordHandoffPdfState as HandoffPdfRecord } from '@/types/domain/dailyRecordSlices';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { getBase64ImageFromURL, getHandoffStaffInfo, Schedule } from './handoffPdfUtils';

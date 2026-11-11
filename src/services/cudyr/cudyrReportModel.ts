@@ -7,7 +7,7 @@ import { buildCudyrBedHistory } from '@/domain/cudyr/cudyrBedHistory';
 import { resolveCudyrHospitalAdmission } from '@/domain/cudyr/cudyrHospitalAdmission';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { CUDYR_EXCLUSION_LABELS } from '@/types/domain/cudyrExclusion';
-import type { DailyRecordCudyrExportState } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecordCudyrExportState } from '@/types/domain/dailyRecordSlices';
 import type {
   CudyrReportDataset,
   CudyrReportRow,

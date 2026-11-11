@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   INITIAL_RAYEN_IMPORT_STATE,
   type RayenImportState,

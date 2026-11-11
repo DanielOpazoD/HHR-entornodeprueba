@@ -1,7 +1,7 @@
 import type { PatientData } from '@/types/domain/patient';
 
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import { correctedStamp } from './egresoReportPolicy';
 

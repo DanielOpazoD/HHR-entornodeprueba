@@ -16,7 +16,7 @@ import type { ConfirmedRayenCensusApplyResult } from './useRayenCensusDiffApplic
 import { assertRayenCensusPersistenceConfirmed } from './rayenCensusPersistenceGuard';
 import { matchesDischargeSubject } from '../domain/dischargeSubjectIdentity';
 import { recordedOutcomeMatchesDischarge } from '../domain/censusDischargeHistory';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DischargeEntry } from '../contracts/censusImportDiff';
 
 // Imported/copy-day records may contain an empty crib form. Only an identified
