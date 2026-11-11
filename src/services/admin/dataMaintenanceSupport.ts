@@ -5,7 +5,6 @@ import * as firestoreService from '@/services/storage/firestore';
 import { UnconfirmedDailyRecordRangeError } from '@/services/storage/firestore/firestoreRecordQueries';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
-import { resolvePreferredDailyRecord } from '@/services/repositories/dailyRecordSyncCompatibility';
 
 export const DATA_MAINTENANCE_MONTH_NAMES = [
   'Enero',
@@ -38,9 +37,7 @@ const mergeRecordsByDate = (
 
   return sortRecordsAscending(
     Array.from(dates)
-      .map(date =>
-        resolvePreferredDailyRecord(localMap.get(date) ?? null, remoteMap.get(date) ?? null)
-      )
+      .map(date => remoteMap.get(date) ?? localMap.get(date) ?? null)
       .filter((record): record is DailyRecord => record !== null)
   );
 };

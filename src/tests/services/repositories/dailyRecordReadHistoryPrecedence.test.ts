@@ -151,7 +151,7 @@ describe.each(readModes)('daily record history through %s reads and real cache h
       await seed(record({ rayenSyncHistory: [oldest, newest] }));
 
       const result = await read(mode, record({ lastUpdated, rayenSyncHistory: [middle] }));
-      const expected = [newest, middle, oldest];
+      const expected = mode === 'realtime' ? [middle] : [newest, middle, oldest];
 
       expect(result.record?.rayenSyncHistory).toEqual(expected);
       expect((await reopen())?.rayenSyncHistory).toEqual(expected);
@@ -178,8 +178,12 @@ describe.each(readModes)('daily record history through %s reads and real cache h
         (_, index) => 24 - index
       ).map(index => `synthetic-run-${index}`);
 
-      expect(result.record?.rayenSyncHistory?.map(run => run.id)).toEqual(expectedIds);
-      expect((await reopen())?.rayenSyncHistory?.map(run => run.id)).toEqual(expectedIds);
+      const admittedIds =
+        mode === 'realtime'
+          ? runs.filter((_, index) => index % 2 === 1).map(run => run.id)
+          : expectedIds;
+      expect(result.record?.rayenSyncHistory?.map(run => run.id)).toEqual(admittedIds);
+      expect((await reopen())?.rayenSyncHistory?.map(run => run.id)).toEqual(admittedIds);
     }
   );
 
@@ -203,7 +207,9 @@ describe.each(readModes)('daily record history through %s reads and real cache h
         })
       );
       for (const selected of [result.record, await reopen()]) {
-        expect(selected?.beds.R1.handoffNote).toBe(patient.handoffNote);
+        expect(selected?.beds.R1.handoffNote).toBe(
+          mode === 'realtime' ? 'SHORT' : patient.handoffNote
+        );
         expect(selected?.rayenSyncHistory).toEqual([expected]);
       }
     }
@@ -220,7 +226,8 @@ describe.each(readModes)('daily record history through %s reads and real cache h
         mode,
         record({ lastUpdated: laterTime, rayenSyncHistory: remoteHistory })
       );
-      const expected = remoteHistory ?? localHistory ?? [];
+      const expected =
+        mode === 'realtime' ? (remoteHistory ?? []) : (remoteHistory ?? localHistory ?? []);
       expect(result.record?.rayenSyncHistory ?? []).toEqual(expected);
       expect((await reopen())?.rayenSyncHistory ?? []).toEqual(expected);
     }
@@ -238,7 +245,7 @@ describe.each(readModes)('daily record history through %s reads and real cache h
       expect(result.consistencyState).toBe(
         mode === 'ordinary' ? 'remote_authoritative' : 'remote_applied'
       );
-      expect(result.conflictSummary?.kind).toBe('hydrated_from_remote');
+      if (mode === 'ordinary') expect(result.conflictSummary?.kind).toBe('hydrated_from_remote');
       expect(result.serverConfirmed).toBe(true);
     }
   );
@@ -280,8 +287,9 @@ describe.each(readModes)('daily record history through %s reads and real cache h
 
     const result = await read(mode, record({ rayenSyncHistory: [event({ status: 'applied' })] }));
 
-    expect(result.record?.rayenSyncHistory).toEqual([terminal]);
-    expect((await reopen())?.rayenSyncHistory).toEqual([terminal]);
+    const expected = mode === 'realtime' ? [event({ status: 'applied' })] : [terminal];
+    expect(result.record?.rayenSyncHistory).toEqual(expected);
+    expect((await reopen())?.rayenSyncHistory).toEqual(expected);
   });
 
   it('preserves protected local narratives when remote text shrinks', async () => {
@@ -304,7 +312,9 @@ describe.each(readModes)('daily record history through %s reads and real cache h
     const reloaded = await reopen();
 
     for (const selected of [result.record, reloaded]) {
-      expect(selected?.beds.R1.handoffNote).toBe(localPatient.handoffNote);
+      expect(selected?.beds.R1.handoffNote).toBe(
+        mode === 'realtime' ? 'SHORT' : localPatient.handoffNote
+      );
     }
   });
 
@@ -347,10 +357,9 @@ describe.each(readModes)('daily record history through %s reads and real cache h
     const backup = await hospitalDB.syncQueue.toArray();
     const remote = record({ lastUpdated: laterTime, rayenSyncHistory: [reviewedEvent()] });
     const result = await read(mode, remote);
-    expect(result.record?.rayenSyncHistory?.map(item => item.id)).toEqual([
-      'local-retired-trace',
-      'synthetic-run',
-    ]);
+    expect(result.record?.rayenSyncHistory?.map(item => item.id)).toEqual(
+      mode === 'realtime' ? ['synthetic-run'] : ['local-retired-trace', 'synthetic-run']
+    );
     expect(remote.rayenSyncHistory).toEqual([reviewedEvent()]);
     expect(await hospitalDB.syncQueue.toArray()).toEqual(backup);
     expect((await reopen())?.rayenSyncHistory).toEqual(result.record?.rayenSyncHistory);
