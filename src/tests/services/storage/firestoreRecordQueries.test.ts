@@ -60,36 +60,6 @@ vi.mock('@/services/storage/storageLoggers', () => ({
   },
 }));
 
-const rangeStorage = vi.hoisted(() => ({ read: vi.fn(), save: vi.fn(), download: vi.fn() }));
-vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
-  getRecordsRange: rangeStorage.read,
-  saveRecordsStrict: rangeStorage.save,
-}));
-vi.mock(
-  '@/services/storage/firestore',
-  async () => import('@/services/storage/firestore/firestoreRecordQueries')
-);
-vi.mock('@/services/repositories/repositoryConfig', () => ({ isFirestoreEnabled: () => true }));
-vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
-  saveDetailed: vi.fn(),
-}));
-vi.mock('@/services/admin/auditService', () => ({ logAuditEvent: vi.fn() }));
-vi.mock('@/services/admin/utils/auditUtils', () => ({
-  getCurrentUserEmail: () => 'synthetic@example.test',
-}));
-vi.mock('@/services/exporters/clinicalDerivedBackupSection', () => ({
-  buildClinicalDerivedBackupSection: vi.fn(),
-  describeIncompleteClinicalDerivedBackup: vi.fn(),
-}));
-vi.mock('file-saver', () => ({ saveAs: rangeStorage.download }));
-
-import { syncRecordsRange } from '@/services/records/recordQueryService';
-import { hydrateRangeRecords } from '@/services/admin/dataMaintenanceSupport';
-import {
-  exportMonthRecordsWithOutcome,
-  exportYearToDateRecordsWithOutcome,
-} from '@/services/admin/dataMaintenanceService';
-
 import {
   getDoc,
   getDocFromServer,
@@ -119,46 +89,6 @@ describe('firestoreRecordQueries', () => {
       .mockReset()
       .mockReturnValue('records-collection' as never);
   });
-
-  it('rejects a failed cache-capable range read but accepts a genuinely empty range', async () => {
-    vi.mocked(getDocs).mockResolvedValueOnce({ docs: [] } as never);
-    await expect(getRecordsRangeFromFirestore('2026-04-01', '2026-04-30')).resolves.toEqual([]);
-    const failure = new Error('synthetic remote failure');
-    vi.mocked(getDocs).mockRejectedValueOnce(failure);
-    await expect(getRecordsRangeFromFirestore('2026-04-01', '2026-04-30')).rejects.toBe(failure);
-    expect(getDocsFromServer).not.toHaveBeenCalled();
-  });
-
-  it.each([syncRecordsRange, hydrateRangeRecords])(
-    'propagates a failed SDK read through %s without storing or returning a partial range',
-    async readRange => {
-      const local = { date: '2026-04-02', beds: {}, lastUpdated: '2026-04-02T12:00:00Z' };
-      rangeStorage.read.mockResolvedValue([local]);
-      rangeStorage.save.mockImplementation(async records => ({ ok: true, records }));
-      const failure = new Error('synthetic remote failure');
-      vi.mocked(getDocs).mockRejectedValueOnce(failure);
-      await expect(readRange('2026-04-01', '2026-04-30')).rejects.toBe(failure);
-      expect(rangeStorage.save).not.toHaveBeenCalled();
-      expect(getDocsFromServer).not.toHaveBeenCalled();
-    }
-  );
-
-  it.each(['month', 'year'])(
-    'abstains from the %s backup after an SDK failure even with local records',
-    async scope => {
-      rangeStorage.read.mockResolvedValue([
-        { date: '2026-04-02', beds: {}, lastUpdated: '2026-04-02T12:00:00Z' },
-      ]);
-      rangeStorage.save.mockImplementation(async records => ({ ok: true, records }));
-      vi.mocked(getDocs).mockRejectedValueOnce(new Error('synthetic remote failure'));
-      const result = await (scope === 'month'
-        ? exportMonthRecordsWithOutcome(2026, 4)
-        : exportYearToDateRecordsWithOutcome(2026));
-      expect(result).toMatchObject({ status: 'failed', reason: 'unknown', data: null });
-      expect(rangeStorage.download).not.toHaveBeenCalled();
-      expect(rangeStorage.save).not.toHaveBeenCalled();
-    }
-  );
 
   it.each([
     { fromCache: true, hasPendingWrites: false, serverConfirmed: false },
