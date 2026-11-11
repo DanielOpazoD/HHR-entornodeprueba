@@ -1,6 +1,7 @@
+import type { ClinicalDocumentsWorkspacePatientContract } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
+
 import { describe, expect, it } from 'vitest';
 
-import type { PatientData } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
 import {
   buildClinicalDocumentsReadOnlyMessage,
   canMutateClinicalDocumentsEpisode,
@@ -8,7 +9,9 @@ import {
   resolveClinicalDocumentsEpisodeClosure,
 } from '@/features/clinical-documents/controllers/clinicalDocumentEpisodeStatusController';
 
-const buildPatient = (patch: Partial<PatientData> = {}): PatientData => ({
+const buildPatient = (
+  patch: Partial<ClinicalDocumentsWorkspacePatientContract> = {}
+): ClinicalDocumentsWorkspacePatientContract => ({
   patientName: 'Paciente Test',
   rut: '11.111.111-1',
   admissionDate: '2026-03-06',

@@ -1,5 +1,6 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type { DailyRecordBedsState } from '@/application/shared/dailyRecordBedContracts';
-import type { PatientData } from '@/hooks/contracts/patientHookContracts';
 
 export interface MovePatientValidationResult {
   canMove: boolean;

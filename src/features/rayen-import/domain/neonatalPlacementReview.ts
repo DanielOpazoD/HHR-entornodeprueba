@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { EMPTY_PATIENT } from '@/constants/patient';
 import { isMaternalCandidatePatient } from './clinicalCribMaternalAssociation';
 import { occupied, plannedCribOccupied } from './neonatalPlacementAvailability';
@@ -5,7 +7,7 @@ import { neonatalSourcePlacementKey } from './reviewedNeonatalSourcePlacement';
 import { includeAutomaticMaternalChoices } from './neonatalPlacementReviewPlan';
 import { isValidRut, normalizeRut } from '@/utils/rutUtils';
 import type { NeonatalPlacementDecision } from '@/types/domain/neonatalPlacementDecision';
-import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 
 import type { NeonatalPlacementResolution } from '../contracts/neonatalPlacementReview';

@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * useClinicalCrib Hook
  * Manages clinical crib (nested patient) operations.
@@ -11,7 +13,7 @@ import type {
   DailyRecordPatch,
 } from '@/application/shared/dailyRecordCoreContracts';
 import type { DailyRecordBedsState } from '@/application/shared/dailyRecordBedContracts';
-import { PatientData } from '@/hooks/contracts/patientHookContracts';
+
 import { PatientFieldValue } from '@/types/valueTypes';
 import { clinicalCribLogger } from '@/hooks/hookLoggers';
 import {

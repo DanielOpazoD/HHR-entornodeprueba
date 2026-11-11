@@ -1,6 +1,8 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import React from 'react';
 import type { ClinicalEvent } from '@/types/domain/clinicalEvents';
-import type { PatientData } from '@/domain/handoff/patientContracts';
+
 import { ChevronDown } from 'lucide-react';
 import clsx from 'clsx';
 import { ClinicalEventsPanel } from './ClinicalEventsPanel';

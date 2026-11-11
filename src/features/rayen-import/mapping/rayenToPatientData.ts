@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * Maps a normalized Rayen encounter to an HHR `PatientData`, reusing the
  * canonical `EMPTY_PATIENT` defaults so every required field is populated.
@@ -8,7 +10,7 @@
 import { EMPTY_PATIENT } from '@/constants/patient';
 import { BEDS } from '@/constants/beds';
 import { PatientStatus } from '@/types/domain/patientClassification';
-import type { PatientData } from '../contracts/rayenDomainContracts';
+
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { mapRayenBed } from './bedMapping';
 import { encounterWallClockInRapaNui } from './encounterWallClock';

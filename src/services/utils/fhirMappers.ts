@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * FHIR Mappers for HL7 FHIR Core-CL Compliance
  *
@@ -5,7 +7,6 @@
  * FHIR resources (R4).
  */
 
-import { PatientData } from '@/services/contracts/patientServiceContracts';
 import type { FhirResource } from '@/types/domain/fhir';
 
 /**

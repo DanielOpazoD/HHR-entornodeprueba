@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * The windows a row's «Accesos» cell opens: the clinical panel (opened through
  * `openClinicalPanel`), the laboratory viewer and the MMRAD viewer. Each viewer reads the
@@ -6,7 +8,6 @@
 
 import React from 'react';
 
-import type { PatientData } from './patientRowContracts';
 import { ClinicalPanelTrigger } from './ClinicalPanelTrigger';
 import { resolveNameInputState } from './nameInputController';
 

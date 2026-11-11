@@ -3,6 +3,7 @@
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { isDomainTypeFacade } from './lib/domainTypeHome.mjs';
 
 const root = process.cwd();
 const HOOK_CONTROLLERS_DIR = path.join(root, 'src', 'hooks', 'controllers');
@@ -190,6 +191,18 @@ for (const file of trackedFiles) {
   }
 
   const source = fs.readFileSync(absolutePath, 'utf8');
+
+  if (isDomainTypeFacade(file, source)) {
+    failures.push({
+      file,
+      rule: {
+        id: 'domain-types-one-home',
+        description:
+          'Import patient types directly from @/types/domain/patient; remove pure aliases and reexports, and give narrower shapes their own names.',
+      },
+    });
+  }
+
   for (const boundary of FEATURE_PUBLIC_BOUNDARIES) {
     if (boundary.allowBypass(file) || !source.includes(boundary.importPrefix)) {
       continue;

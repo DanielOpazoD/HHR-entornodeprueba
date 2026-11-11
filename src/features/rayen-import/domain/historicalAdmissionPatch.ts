@@ -1,4 +1,6 @@
-import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
+import type { PatientData } from '@/types/domain/patient';
+
+import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 import { RAYEN_OWNED_CLINICAL_FIELDS } from '@/types/domain/rayenClinicalFields';
 import {

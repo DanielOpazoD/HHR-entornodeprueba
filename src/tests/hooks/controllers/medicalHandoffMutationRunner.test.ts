@@ -1,8 +1,9 @@
+import type { PatientData } from '@/types/domain/patient';
+
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { runMedicalHandoffMutation } from '@/hooks/controllers/medicalHandoffMutationRunner';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
-import type { PatientData } from '@/hooks/contracts/patientHookContracts';
 
 const buildPatient = (): PatientData =>
   ({

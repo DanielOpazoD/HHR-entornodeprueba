@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * Generic runner for medical-handoff mutations. Encapsulates the
  * boilerplate that every handler in `useMedicalHandoffHandlers`
@@ -21,7 +23,7 @@
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 import type { AuditAction } from '@/types/auditActionTypes';
 import type { AuditLogEntry } from '@/types/auditLogTypes';
-import type { PatientData } from '@/hooks/contracts/patientHookContracts';
+
 import {
   isSuccessfulMedicalHandoffOutcome,
   type MedicalHandoffMutationContext,

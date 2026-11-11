@@ -1,11 +1,9 @@
+import type { CesareanLabor, DeliveryRoute, PatientData } from '@/types/domain/patient';
+
 import type { PatientRowSaveResult } from './inputCellTypes';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+
 import type {
-  CesareanLabor,
-  DeliveryRoute,
-} from '@/features/census/contracts/censusObstetricContracts';
-import type {
-  PatientData,
   PatientRowPatientDocumentType,
   PatientRowPatientField,
   PatientRowPatientPatch,

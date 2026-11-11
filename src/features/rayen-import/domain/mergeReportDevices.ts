@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * Merges the invasive devices parsed from a patient's Ficha Médico PDF into their HHR device
  * model (`devices` / `deviceDetails` / `deviceInstanceHistory`). Self-contained on purpose: the
@@ -6,7 +8,6 @@
  * only a current JSON read may undo a retirement inferred from absence.
  */
 
-import type { PatientData } from '../contracts/rayenDomainContracts';
 import type { DeviceDetails, DeviceInstance } from '@/types/domain/devices';
 import type { MappedDevice } from '../mapping/mapDeviceToInstance';
 import { canonicalizeRayenDeviceType } from '../mapping/mapDeviceToInstance';

@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * DailyRecordContext
  *
@@ -10,7 +12,7 @@ import React from 'react';
 import { DailyRecordContextType } from '@/context/dailyRecordContextContracts';
 import { DailyRecordProviderTree } from '@/context/dailyRecordProviderTree';
 import { buildDailyRecordStatusModel } from '@/context/dailyRecordStatusController';
-import { PatientData } from '@/hooks/contracts/patientHookContracts';
+
 import { useDailyRecordFragmentedValues } from '@/context/useDailyRecordFragmentedValues';
 import { useRequiredDailyRecordActionsContext } from './dailyRecordActionsContext';
 import { useRequiredContextValue } from './contextHookSupport';

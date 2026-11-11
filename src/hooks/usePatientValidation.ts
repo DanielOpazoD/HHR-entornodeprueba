@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * usePatientValidation Hook
  * Handles validation and formatting of patient data fields.
@@ -5,7 +7,7 @@
  */
 
 import { useCallback } from 'react';
-import { PatientData } from '@/hooks/contracts/patientHookContracts';
+
 import { PatientFieldValue } from '@/types/valueTypes';
 import { capitalizeWords } from '@/utils/stringUtils';
 import { formatRut, isValidRut, isPassportFormat } from '@/utils/rutUtils';

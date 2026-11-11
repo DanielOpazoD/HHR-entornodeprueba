@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * Plans and files reviewed corrections on their official historical day.
  * Reads authoritative records, preserves existing outcomes and nurse/admin editing limits,
@@ -14,7 +16,7 @@ import { reportEgresoEntry, reportEgresoPatient } from '../mapping/reportEgresoM
 import { recordedOutcomeEpisodeId } from './censusDischargeHistory';
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
-import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type {
   CensusImportDiff,
   PreviousDayEdit,

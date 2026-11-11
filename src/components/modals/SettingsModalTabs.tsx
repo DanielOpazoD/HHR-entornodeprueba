@@ -13,7 +13,7 @@ import {
   Type,
   Upload,
 } from 'lucide-react';
-import { Button } from '@/core/ui/Button';
+import { Button } from '@/components/ui/base/Button';
 import { ModalSection } from '@/components/shared/baseModalSection';
 import { SecuritySettings } from './SecuritySettings';
 

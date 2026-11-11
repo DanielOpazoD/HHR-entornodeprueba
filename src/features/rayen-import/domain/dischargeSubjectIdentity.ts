@@ -1,5 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type { DischargeEntry } from '../contracts/censusImportDiff';
-import type { PatientData } from '../contracts/rayenDomainContracts';
+
 import { normalizeRut } from '@/utils/rutUtils';
 
 /**

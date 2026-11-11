@@ -1,5 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import React from 'react';
-import type { PatientData } from '@/domain/handoff/patientContracts';
+
 import {
   buildSpecialistHandoffIdentity,
   createMedicalHandoffDraftWriter,

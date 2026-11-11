@@ -1,10 +1,12 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { useCallback } from 'react';
 import type {
   ApplyDailyRecordPatch,
   DailyRecord,
   PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
-import { PatientData } from '@/hooks/contracts/patientHookContracts';
+
 import {
   buildAtomicPatientMovementPatch,
   type AtomicPatientMovementListKey,

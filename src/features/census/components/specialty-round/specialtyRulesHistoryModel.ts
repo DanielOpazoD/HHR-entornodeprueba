@@ -1,5 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
-import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
+
 import { SPECIALTY_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
 
 export interface DiagnosisAssociation {
@@ -26,9 +28,11 @@ const allowedSpecialty = (value: string | undefined): value is string =>
   Boolean(value && value !== 'Otro' && SPECIALTY_OPTIONS.includes(value as never));
 
 const occupied = (beds: Record<string, PatientData> | null | undefined): PatientData[] =>
-  Object.values(beds ?? {}).flatMap(bed => [bed, bed.clinicalCrib].filter(
-    (patient): patient is PatientData => Boolean(patient?.patientName?.trim() && !patient.isBlocked)
-  ));
+  Object.values(beds ?? {}).flatMap(bed =>
+    [bed, bed.clinicalCrib].filter((patient): patient is PatientData =>
+      Boolean(patient?.patientName?.trim() && !patient.isBlocked)
+    )
+  );
 
 /** Historical specialties are observed pairings, never proof that a diagnosis caused them. */
 export const summarizeHistoricalAssociations = (records: DailyRecord[]): DiagnosisAssociation[] => {
@@ -46,9 +50,12 @@ export const summarizeHistoricalAssociations = (records: DailyRecord[]): Diagnos
       } else entries.set(key, { code, specialty, observations: 1, lastDate: record.date });
     }
   }
-  return [...entries.values()].sort((a, b) =>
-    b.lastDate.localeCompare(a.lastDate) || a.code.localeCompare(b.code) ||
-    a.specialty.localeCompare(b.specialty));
+  return [...entries.values()].sort(
+    (a, b) =>
+      b.lastDate.localeCompare(a.lastDate) ||
+      a.code.localeCompare(b.code) ||
+      a.specialty.localeCompare(b.specialty)
+  );
 };
 
 export const summarizeCurrentDiagnoses = (
@@ -63,24 +70,38 @@ export const summarizeCurrentDiagnoses = (
     if (previous) {
       previous.patients += 1;
       if (allowedSpecialty(specialty)) previous.specialties.add(specialty);
-    } else entries.set(code, { code, description: patient.cie10Description?.trim() ?? '',
-      patients: 1, suggestedSpecialty: '',
-      specialties: new Set(allowedSpecialty(specialty) ? [specialty] : []) });
+    } else
+      entries.set(code, {
+        code,
+        description: patient.cie10Description?.trim() ?? '',
+        patients: 1,
+        suggestedSpecialty: '',
+        specialties: new Set(allowedSpecialty(specialty) ? [specialty] : []),
+      });
   }
-  return [...entries.values()].map(({ specialties, ...entry }) => ({ ...entry,
-    suggestedSpecialty: specialties.size === 1 ? [...specialties][0] : '' }))
+  return [...entries.values()]
+    .map(({ specialties, ...entry }) => ({
+      ...entry,
+      suggestedSpecialty: specialties.size === 1 ? [...specialties][0] : '',
+    }))
     .sort((a, b) => a.code.localeCompare(b.code));
 };
 
-export const historicalMonthRange = (month: string, today: string): {
-  start: string; end: string;
+export const historicalMonthRange = (
+  month: string,
+  today: string
+): {
+  start: string;
+  end: string;
 } | null => {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || month > today.slice(0, 7)) return null;
   const start = `${month}-01`;
   const monthEnd = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0))
-    .toISOString().slice(0, 10);
+    .toISOString()
+    .slice(0, 10);
   const yesterday = new Date(Date.parse(`${today}T00:00:00Z`) - 86_400_000)
-    .toISOString().slice(0, 10);
+    .toISOString()
+    .slice(0, 10);
   const end = monthEnd < yesterday ? monthEnd : yesterday;
   return start <= end ? { start, end } : null;
 };

@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * Persists the clinical closures Eloísa already verified — medical and nursing discharge — on the
  * beds that stay occupied, so the census can remind the pending administrative egreso in Gestión de
@@ -6,7 +8,7 @@
  */
 
 import { normalizeRut } from '@/utils/rutUtils';
-import type { PatientData } from '../contracts/rayenDomainContracts';
+
 import type { PendingAdministrativeDischargeEntry } from '../contracts/censusImportDiff';
 import { isOccupiedCensusPatient } from './censusReconciliationPredicates';
 

@@ -1,3 +1,10 @@
+import type { MedicalPatientHandoffContract } from '@/application/handoff/medicalPatientContracts';
+import type {
+  MedicalHandoffAuditActor,
+  MedicalHandoffEntry,
+  PatientData,
+} from '@/types/domain/patient';
+
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 import { createApplicationSuccess } from '@/shared/contracts/applicationOutcomeFactories';
 import {
@@ -14,11 +21,7 @@ import {
   buildMedicalHandoffFieldsFromEntries,
   getPatientMedicalHandoffEntries,
 } from '@/domain/handoff/patientEntries';
-import type {
-  MedicalHandoffAuditActor,
-  MedicalHandoffEntry,
-  PatientData,
-} from '@/application/handoff/medicalPatientContracts';
+
 import {
   createNoEffectOutcome,
   createUnknownOutcome,
@@ -26,7 +29,7 @@ import {
 } from './handoffUseCaseSupport';
 
 export type MedicalPatientFields = Pick<
-  PatientData,
+  MedicalPatientHandoffContract,
   'medicalHandoffEntries' | 'medicalHandoffNote' | 'medicalHandoffAudit'
 >;
 

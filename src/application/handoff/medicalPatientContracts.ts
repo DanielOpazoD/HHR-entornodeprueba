@@ -1,19 +1,11 @@
-import type {
-  MedicalHandoffAuditActor as RootMedicalHandoffAuditActor,
-  MedicalHandoffAudit as RootMedicalHandoffAudit,
-  MedicalHandoffEntry as RootMedicalHandoffEntry,
-  PatientData as RootPatientData,
-} from '@/domain/handoff/patientContracts';
-import type { Specialty } from '@/types/domain/patientClassification';
+import type { MedicalHandoffAudit, MedicalHandoffEntry, PatientData } from '@/types/domain/patient';
 
-export type MedicalHandoffAuditActor = RootMedicalHandoffAuditActor;
-export type MedicalHandoffEntry = RootMedicalHandoffEntry;
-export type MedicalHandoffAudit = RootMedicalHandoffAudit;
+import type { Specialty } from '@/types/domain/patientClassification';
 
 export interface MedicalPatientHandoffContract {
   bedId: string;
   isBlocked: boolean;
-  bedMode: RootPatientData['bedMode'];
+  bedMode: PatientData['bedMode'];
   hasCompanionCrib: boolean;
   specialty?: Specialty | string;
   secondarySpecialty?: Specialty | string;
@@ -26,5 +18,3 @@ export type MedicalPatientMutationFields = Pick<
   MedicalPatientHandoffContract,
   'medicalHandoffEntries' | 'medicalHandoffNote' | 'medicalHandoffAudit'
 >;
-
-export type PatientData = RootPatientData;

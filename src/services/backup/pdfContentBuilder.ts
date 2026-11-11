@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * PDF Content Builder for Handoff Backups
  * Builds the PDF content for nursing handoffs (identically to "PDF LITE")
@@ -7,7 +9,7 @@
  */
 
 import type jsPDF from 'jspdf';
-import { PatientData } from '@/services/contracts/patientServiceContracts';
+
 import type { ShiftType } from '@/types/domain/shift';
 import type { DeviceDetails } from '@/types/domain/devices';
 import { BEDS } from '@/constants/beds';

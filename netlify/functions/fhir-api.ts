@@ -7,7 +7,7 @@ import type { MasterPatient } from '../../src/types/domain/patientMaster';
 import {
   FhirCapabilityStatementSchema,
   FhirOperationOutcomeSchema,
-} from '../../src/contracts/serverless';
+} from '../../src/shared/contracts/serverless';
 import {
   buildCorsHeaders,
   buildJsonResponse,

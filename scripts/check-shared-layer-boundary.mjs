@@ -5,7 +5,7 @@ import path from 'node:path';
 
 const ROOT = process.cwd();
 const SRC_ROOT = path.join(ROOT, 'src');
-const SHARED_LAYERS = ['components', 'hooks', 'services', 'context', 'core', 'domain'];
+const SHARED_LAYERS = ['components', 'hooks', 'services', 'context', 'domain'];
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
 const IMPORT_EXPORT_REGEX =
   /(?:^|\n)\s*import(?:[\s\S]*?\sfrom\s*)?["']([^"']+)["']|(?:^|\n)\s*export\s+[^;\n]*\sfrom\s*["']([^"']+)["']/g;
@@ -33,7 +33,11 @@ const isSourceFile = filePath => {
   if (!SOURCE_EXTENSIONS.has(extension) || filePath.endsWith('.d.ts')) return false;
 
   const relative = toPosix(path.relative(ROOT, filePath));
-  if (relative.includes('.test.') || relative.includes('.spec.') || relative.includes('.stories.')) {
+  if (
+    relative.includes('.test.') ||
+    relative.includes('.spec.') ||
+    relative.includes('.stories.')
+  ) {
     return false;
   }
   return true;
@@ -98,7 +102,9 @@ if (violations.length === 0) {
   process.exit(0);
 }
 
-console.error('\nShared layer boundary violations (no direct imports from shared layers to features):');
+console.error(
+  '\nShared layer boundary violations (no direct imports from shared layers to features):'
+);
 for (const violation of violations) {
   console.error(`- ${violation}`);
 }

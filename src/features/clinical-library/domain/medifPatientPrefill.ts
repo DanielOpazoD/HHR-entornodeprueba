@@ -1,6 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { BEDS } from '@/constants/beds';
 import type { DailyRecordRawExportState } from '@/services/contracts/dailyRecordServiceContracts';
-import type { PatientData } from '@/shared/contracts/patientDomainContracts';
 
 /** Read-only census projection. No remote lookups or patient writes belong here. */
 export type MedifSourceRecord = Pick<DailyRecordRawExportState, 'date' | 'beds'> &

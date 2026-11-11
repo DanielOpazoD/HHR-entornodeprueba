@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * View-model for the census "Scores" column (nursing risk scales). Pure and testable: given the
  * patient and the census day it derives what the cell and detail modal display. Eloísa owns the
@@ -24,7 +26,7 @@ import {
   parseSourceRiskLevel,
   sourceRiskLabel,
 } from '@/domain/evaluationScales/sourceRiskSeverity';
-import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
+
 import { evaluationScaleStampInRapaNui } from '@/domain/evaluationScales/evaluationScaleClock';
 
 export interface BradenCellModel {

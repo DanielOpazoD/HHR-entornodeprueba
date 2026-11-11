@@ -1,9 +1,7 @@
+import type { MedicalHandoffAudit, MedicalHandoffEntry, PatientData } from '@/types/domain/patient';
+
 import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
-import type {
-  MedicalHandoffAudit,
-  MedicalHandoffEntry,
-  PatientData,
-} from '@/services/contracts/patientServiceContracts';
+
 import { resolveNursingHandoffNovedadesText } from '@/shared/handoff/handoffNovedades';
 
 export const inheritPatientHandoffNotes = (

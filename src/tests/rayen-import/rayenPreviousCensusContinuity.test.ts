@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { describe, expect, it, vi } from 'vitest';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { EMPTY_PATIENT } from '@/constants/patient';
@@ -5,10 +7,7 @@ import type {
   CensusImportDiff,
   ConflictEntry,
 } from '@/features/rayen-import/contracts/censusImportDiff';
-import type {
-  DailyRecord,
-  PatientData,
-} from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
 import type { RayenEncounter } from '@/features/rayen-import/contracts/rayenSnapshot';
 import { applyCensusImportDiff } from '@/features/rayen-import/domain/applyCensusImportDiff';
 import { replanRayenStructure } from '@/features/rayen-import/hooks/replanRayenStructure';

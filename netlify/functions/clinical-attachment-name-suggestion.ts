@@ -8,7 +8,7 @@ import { invokeWithTelemetry } from './lib/observability';
 import {
   ClinicalAttachmentNameSuggestionRequestSchema,
   ClinicalAttachmentNameSuggestionResponseSchema,
-} from '../../src/contracts/serverless';
+} from '../../src/shared/contracts/serverless';
 import {
   buildJsonResponse,
   buildTooManyRequestsResponse,

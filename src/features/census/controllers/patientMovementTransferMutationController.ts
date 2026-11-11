@@ -1,5 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { BedDefinition } from '@/features/census/contracts/censusBedContracts';
-import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
+
 import { TransferData } from '@/features/census/contracts/censusMovementContracts';
 import type { TransferCommandPayload } from '@/features/census/domain/movements/contracts';
 import {

@@ -1,7 +1,9 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { z } from 'zod';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import type { DeviceInstance } from '@/types/domain/devices';
-import type { PatientData } from '../contracts/rayenDomainContracts';
+
 import type { ClinicalFillDeps } from '../contracts/clinicalFillContracts';
 import type { DeviceRead } from './clinicalPatientReaders';
 import { parseInvasiveDevices } from '../mapping/parseInvasiveDevices';

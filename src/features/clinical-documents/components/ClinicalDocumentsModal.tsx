@@ -1,15 +1,17 @@
+import type { ClinicalDocumentsWorkspacePatientContract } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
+
 import React from 'react';
 import { FileText } from 'lucide-react';
 
 import { BaseModal } from '@/components/shared/BaseModal';
 import { queryClient, queryKeys } from '@/config/queryClient';
-import type { PatientData } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
+
 import { ClinicalDocumentsWorkspace } from '@/features/clinical-documents/components/ClinicalDocumentsWorkspace';
 
 interface ClinicalDocumentsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  patient: PatientData;
+  patient: ClinicalDocumentsWorkspacePatientContract;
   currentDateString: string;
   bedId: string;
 }

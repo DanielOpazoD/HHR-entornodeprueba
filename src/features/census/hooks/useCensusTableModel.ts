@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { useCallback, useMemo } from 'react';
 import { BEDS } from '@/constants/beds';
 import { TableColumnConfig } from '@/context/TableConfigContext';
@@ -13,7 +15,6 @@ import {
   resolveResetDayPermission,
 } from '@/features/census/controllers/censusResetDayController';
 import type { BedTypesById, UnifiedBedRow } from '@/features/census/types/censusTableTypes';
-import type { PatientData } from '@/features/census/types/censusTablePatientContracts';
 
 interface UseCensusTableModelParams {
   currentDateString: string;

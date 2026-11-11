@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type {
   ApplyDailyRecordPatch,
   DailyRecord,
@@ -7,7 +9,7 @@ import type {
   MedicalHandoffActor,
   MedicalSpecialty,
 } from '@/application/shared/dailyRecordMedicalContracts';
-import type { PatientData } from '@/hooks/contracts/patientHookContracts';
+
 import type { CudyrBatchUpdate, CudyrScore, CudyrScorePatch } from '@/types/domain/cudyr';
 import type { CMAData } from '@/types/domain/movements';
 import type { PatientFieldValue } from '@/types/valueTypes';

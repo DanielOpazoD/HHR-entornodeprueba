@@ -1,10 +1,8 @@
+import type { MedicalHandoffEntry, PatientData } from '@/types/domain/patient';
+
 import { resolveMedicalObservationEntries } from '@/domain/handoff/patientView';
 import { createMedicalHandoffEntry } from '@/domain/handoff/patientEntries';
-import {
-  PatientStatus,
-  type MedicalHandoffEntry,
-  type PatientData,
-} from '@/domain/handoff/patientContracts';
+import { PatientStatus } from '@/domain/handoff/patientContracts';
 import type { MedicalBadgeVariant } from '@/shared/ui/medicalBadgeContracts';
 
 export interface PendingMedicalEntryDraft {

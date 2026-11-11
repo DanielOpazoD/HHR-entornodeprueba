@@ -1,5 +1,6 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type { ClinicalEvent } from '@/types/domain/clinicalEvents';
-import type { PatientData } from '@/hooks/contracts/patientHookContracts';
 
 export const buildAddedClinicalEvent = (
   event: Omit<ClinicalEvent, 'id' | 'createdAt'>,

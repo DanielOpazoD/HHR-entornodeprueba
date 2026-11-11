@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /** Compact shortcut for the only actionable surveillance task: scales due for reapplication. */
 
 import React, { useMemo } from 'react';
@@ -7,7 +9,6 @@ import {
   type CensusAttentionFilter,
   type CensusAttentionSummary,
 } from '@/features/census/controllers/rowAcuityController';
-import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
 
 interface CensusAttentionBarProps {
   compact?: boolean;

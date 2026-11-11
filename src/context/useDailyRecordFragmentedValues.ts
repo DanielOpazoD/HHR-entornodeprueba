@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { useMemo } from 'react';
 import type {
   DailyRecordActionsContextType,
@@ -12,7 +14,7 @@ import {
   getActiveDischarges,
   getActiveTransfers,
 } from '@/application/census/movementTombstonePolicy';
-import type { PatientData } from '@/hooks/contracts/patientHookContracts';
+
 import type { StabilityRules } from '@/hooks/useStabilityRules';
 import type { DailyRecordBootstrapPhase } from '@/hooks/controllers/dailyRecordBootstrapController';
 

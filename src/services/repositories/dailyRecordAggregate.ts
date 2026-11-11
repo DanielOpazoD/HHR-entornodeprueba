@@ -1,5 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { PatientData } from '@/services/contracts/patientServiceContracts';
+
 import { buildMedicalHandoffSummary } from '@/domain/handoff/specialty';
 import { resolveNursingHandoffNovedadesText } from '@/shared/handoff/handoffNovedades';
 import {

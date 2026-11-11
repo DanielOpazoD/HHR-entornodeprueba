@@ -1,9 +1,11 @@
+import type { MedicalHandoffEntry, PatientData } from '@/types/domain/patient';
+
 import {
   resolveMedicalObservationEmptyState,
   shouldShowMedicalPrimaryNoteFallback,
 } from '@/features/handoff/controllers/handoffRowCellsController';
 import React from 'react';
-import type { MedicalHandoffEntry, PatientData } from '@/domain/handoff/patientContracts';
+
 import { MedicalHandoffDraftTextarea } from './MedicalHandoffDraftTextarea';
 import { medicalHandoffPatientKey } from './medicalHandoffPatientKey';
 import { MedicalHandoffObservationEntry } from './MedicalHandoffObservationEntry';

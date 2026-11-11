@@ -1,7 +1,9 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { mapRayenBed } from '../mapping/bedMapping';
 import { isPassportFormat, isValidRut, normalizeRut } from '@/utils/rutUtils';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
-import type { PatientData } from '../contracts/rayenDomainContracts';
+
 import type { MappedPatient } from '../mapping/rayenToPatientData';
 
 export interface MappedClinicalEncounter {

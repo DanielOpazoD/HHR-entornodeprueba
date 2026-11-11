@@ -1,4 +1,5 @@
-import type { PatientData } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
+import type { ClinicalDocumentsWorkspacePatientContract } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
+
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import {
   buildClinicalDocumentsReadOnlyMessage,
@@ -23,7 +24,7 @@ export interface ClinicalDocumentsWorkspaceAccessState {
 }
 
 export const resolveClinicalDocumentsWorkspaceAccessState = (
-  patient: PatientData,
+  patient: ClinicalDocumentsWorkspacePatientContract,
   role: UserRole | undefined
 ): ClinicalDocumentsWorkspaceAccessState => {
   const canRead = canReadClinicalDocuments(role);
