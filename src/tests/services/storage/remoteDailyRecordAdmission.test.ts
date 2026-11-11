@@ -9,7 +9,6 @@ import * as persistence from '@/services/repositories/dailyRecordLocalCachePersi
 const remote = vi.hoisted(() => vi.fn());
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
   getRecordsRangeFromFirestore: remote,
-  UnconfirmedDailyRecordRangeError: class extends Error {},
 }));
 vi.mock('@/services/storage/firestore', () => ({ getRecordsRangeFromFirestore: remote }));
 vi.mock('@/services/repositories/repositoryConfig', () => ({ isFirestoreEnabled: () => true }));

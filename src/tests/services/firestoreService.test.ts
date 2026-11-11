@@ -345,7 +345,6 @@ describe('firestoreService', () => {
     const getDocsMock = vi.mocked(firestore.getDocsFromServer);
     getDocsMock.mockResolvedValueOnce({
       docs: [{ id: '2024-12-01', data: () => ({ date: '2024-12-01' }) }],
-      metadata: { fromCache: false, hasPendingWrites: false },
     } as unknown as QuerySnapshot);
 
     const records = await getMonthRecordsFromFirestore(2024, 11); // December (0-indexed)

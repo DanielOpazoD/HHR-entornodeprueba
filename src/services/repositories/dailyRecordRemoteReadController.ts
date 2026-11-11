@@ -17,10 +17,7 @@ import {
 } from '@/services/repositories/dailyRecordReadResultController';
 import { dailyRecordReadLogger } from '@/services/repositories/repositoryLoggers';
 import type { DailyRecordRemoteLoadResult } from '@/services/repositories/dailyRecordRemoteLoader';
-import {
-  createDailyRecordReadResult,
-  type DailyRecordReadResult,
-} from '@/services/repositories/contracts/dailyRecordQueries';
+import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { getPendingDailyRecordProjection } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 
@@ -60,27 +57,23 @@ export const resolveRemoteGoldenPathReadResult = async ({
   base = remoteReadResult.issuedAgainst,
   persistHydratedRecord = persistHydratedRecordToLocalCache,
 }: ResolveRemoteGoldenPathReadResultInput): Promise<DailyRecordReadResult> => {
-  if (!remoteReadResult.serverConfirmed) {
+  if (
+    !remoteReadResult.serverConfirmed &&
+    remoteReadResult.record &&
+    !remoteReadResult.hasPendingWrites
+  ) {
     const record = await getRecordForDate(date);
-    if (!record && remoteReadResult.record && !remoteReadResult.hasPendingWrites) {
-      return createDailyRecordReadResult(date, remoteReadResult.record, remoteReadResult.source, {
-        serverConfirmed: false,
-        sourceOfTruth: 'none',
-        consistencyState: 'unavailable',
-        retryability: 'automatic_retry',
-        recoveryAction: 'defer_remote_sync',
-      });
+    if (record) {
+      return createGoldenPathReadResult(
+        date,
+        resolveDailyRecordPersistenceGoldenPath({
+          localRecord: record,
+          remoteRecord: null,
+          remoteAvailability: 'unavailable',
+        }),
+        createLocalRuntimeReadCandidate(date, record)
+      );
     }
-    const candidate = record ? createLocalRuntimeReadCandidate(date, record) : null;
-    return createGoldenPathReadResult(
-      date,
-      resolveDailyRecordPersistenceGoldenPath({
-        localRecord: record,
-        remoteRecord: null,
-        remoteAvailability: 'unavailable',
-      }),
-      candidate
-    );
   }
   const shouldProtectLocalClinicalText = hasRemoteClinicalTextShrinkage(
     localCandidate?.record || null,

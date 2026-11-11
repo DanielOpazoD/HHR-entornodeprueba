@@ -75,10 +75,7 @@ describe('a remote range read that fails is not an empty range', () => {
   });
 
   it('rejects a failed cache-capable range read but accepts a genuinely empty range', async () => {
-    vi.mocked(getDocs).mockResolvedValueOnce({
-      docs: [],
-      metadata: { fromCache: false, hasPendingWrites: false },
-    } as never);
+    vi.mocked(getDocs).mockResolvedValueOnce({ docs: [] } as never);
     await expect(getRecordsRangeFromFirestore('2026-04-01', '2026-04-30')).resolves.toEqual([]);
     const failure = new Error('synthetic remote failure');
     vi.mocked(getDocs).mockRejectedValueOnce(failure);

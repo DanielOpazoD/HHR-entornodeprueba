@@ -92,7 +92,6 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
     hydratedBase.beds = {
       R2: buildPatient('R2', 'Paciente Hidratado'),
     };
-    vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(hydratedBase);
     const result = await updatePartialDetailed(
       '2026-02-18',
       {
@@ -101,8 +100,8 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       { baseRecord: hydratedBase }
     );
     expect(result.outcome).toBe('clean');
-    expect(getRecordFromIndexedDB).toHaveBeenCalledWith('2026-02-18');
-    expect(getRecordFromFirestore).toHaveBeenCalledWith('2026-02-18', { source: 'server' });
+    expect(getRecordFromIndexedDB).not.toHaveBeenCalled();
+    expect(getRecordFromFirestore).not.toHaveBeenCalled();
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       '2026-02-18',
       expect.objectContaining({
@@ -121,7 +120,6 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
         devices: ['VVP#1', 'Sonda Foley'],
       },
     };
-    vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(hydratedBase);
     const result = await updatePartialDetailed(
       '2026-02-18',
       {
@@ -133,8 +131,8 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       { baseRecord: hydratedBase }
     );
     expect(result.outcome).toBe('clean');
-    expect(getRecordFromIndexedDB).toHaveBeenCalledWith('2026-02-18');
-    expect(getRecordFromFirestore).toHaveBeenCalledWith('2026-02-18', { source: 'server' });
+    expect(getRecordFromIndexedDB).not.toHaveBeenCalled();
+    expect(getRecordFromFirestore).not.toHaveBeenCalled();
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       '2026-02-18',
       expect.objectContaining({
@@ -159,7 +157,6 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       H5C2: buildPatient('H5C2', 'Paciente con via'),
     };
 
-    vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(hydratedBase);
     const result = await updatePartialDetailed(
       '2026-02-18',
       {
@@ -211,7 +208,6 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       movementKey: 'discharges',
       sourceBedIds: ['NEO2'],
     });
-    vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(hydratedBase);
     const result = await updatePartialDetailed('2026-02-18', patch, {
       baseRecord: hydratedBase,
     });
@@ -273,7 +269,6 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       sourceBedIds: ['NEO2'],
     });
 
-    vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(hydratedBase);
     const result = await updatePartialDetailed('2026-02-18', patch, {
       baseRecord: hydratedBase,
     });
@@ -333,7 +328,6 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       movementKey: 'cma',
       sourceBedIds: ['NEO1'],
     });
-    vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(hydratedBase);
     const result = await updatePartialDetailed('2026-02-18', patch, {
       baseRecord: hydratedBase,
     });

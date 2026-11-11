@@ -58,7 +58,6 @@ describe('dailyRecordRepositorySyncService', () => {
 
   it('returns clean outcome when remote record is resolved', async () => {
     vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
-      serverConfirmed: true,
       record: { date: '2026-03-03', beds: {} } as DailyRecord,
     } as Awaited<ReturnType<typeof loadRemoteRecordWithFallback>>);
 
@@ -91,7 +90,6 @@ describe('dailyRecordRepositorySyncService', () => {
       lastUpdated: '2026-03-03T12:00:00.000Z',
     } as DailyRecord);
     vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
-      serverConfirmed: true,
       record: {
         date: '2026-03-03',
         beds: {},
@@ -124,7 +122,6 @@ describe('dailyRecordRepositorySyncService', () => {
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(localRecord);
     vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
-      serverConfirmed: true,
       record: remoteRecord,
     } as Awaited<ReturnType<typeof loadRemoteRecordWithFallback>>);
 

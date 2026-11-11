@@ -170,7 +170,6 @@ describe('DailyRecordRepository (Expanded)', () => {
         const record = await firestoreMock.getRecordFromFirestore(date);
         return {
           status: record ? 'resolved' : 'missing',
-          serverConfirmed: true,
           record,
         };
       } catch (error) {

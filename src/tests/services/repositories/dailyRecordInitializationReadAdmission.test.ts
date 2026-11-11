@@ -9,18 +9,10 @@ import { getForDate } from '@/services/repositories/dailyRecordRepositoryReadSer
 import { loadRemoteRecordWithFallback } from '@/services/repositories/dailyRecordRemoteLoader';
 import { save } from '@/services/repositories/dailyRecordRepositoryWriteService';
 
-vi.mock('@/services/repositories/dailyRecordRepositoryReadService', () => {
-  const getForDate = vi.fn();
-  return {
-    getForDate,
-    // The day the read service returns is the confirmed or durable one these cases describe.
-    getForDateWithMeta: vi.fn(async (date: string) => ({
-      record: (await getForDate(date)) ?? null,
-      serverConfirmed: true,
-      sourceOfTruth: 'local',
-    })),
-  };
-});
+vi.mock('@/services/repositories/dailyRecordRepositoryReadService', () => ({
+  getForDate: vi.fn(),
+  getForDateWithMeta: vi.fn(),
+}));
 vi.mock('@/services/repositories/dailyRecordRemoteLoader', () => ({
   loadRemoteRecordWithFallback: vi.fn(),
 }));

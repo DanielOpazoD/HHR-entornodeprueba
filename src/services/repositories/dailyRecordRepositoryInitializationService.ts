@@ -1,7 +1,10 @@
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
-import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
+import {
+  getForDate,
+  getForDateWithMeta,
+} from '@/services/repositories/dailyRecordRepositoryReadService';
 import { save, updatePartial } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { loadRemoteRecordWithFallback } from '@/services/repositories/dailyRecordRemoteLoader';
 import {
@@ -64,7 +67,7 @@ export interface CopyPatientToDateResult {
 
 const loadCopySourceRecord = async (copyFromDate?: string): Promise<DailyRecord | null> => {
   if (!copyFromDate) return null;
-  return loadExistingDailyRecord(copyFromDate);
+  return getForDate(copyFromDate);
 };
 
 const buildCopySourceMeta = (
@@ -128,9 +131,6 @@ const loadRemoteInitializationSeed = async (
     );
     return null;
   }
-  if (remoteResult.record && !remoteResult.serverConfirmed) {
-    throw new Error('No se pudo confirmar el día con el servidor. Reintente con conexión.');
-  }
   const enrichedRecord = remoteResult.record
     ? enrichInitializationRecordFromCopySource(remoteResult.record, copySourceRecord)
     : null;
@@ -173,16 +173,11 @@ const resolveInitializationSeed = async (
   return createFreshInitializationSeed();
 };
 
-const loadExistingDailyRecord = async (date: string): Promise<DailyRecord | null> => {
-  const result = await getForDateWithMeta(date);
-  if (result.record && !result.serverConfirmed && result.sourceOfTruth === 'none') {
-    throw new Error('No se pudo confirmar el día con el servidor. Reintente con conexión.');
-  }
-  return result.record;
-};
+const loadExistingDailyRecord = async (date: string): Promise<DailyRecord | null> =>
+  getForDate(date);
 
 const resolveTargetRecordForCopy = async (targetDate: string): Promise<DailyRecord> => {
-  const targetRecord = await loadExistingDailyRecord(targetDate);
+  const targetRecord = await getForDate(targetDate);
   return targetRecord ?? initializeMissingDay(targetDate);
 };
 

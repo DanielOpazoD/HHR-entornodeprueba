@@ -5,13 +5,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 const { firestoreEnabled, loadRemote, subscriptionCallbacks } = vi.hoisted(() => ({
   firestoreEnabled: { value: false },
   loadRemote: vi.fn(),
-  subscriptionCallbacks: [] as Array<
-    (
-      record: DailyRecord | null,
-      pending: boolean,
-      metadata: { fromCache: boolean; hasPendingWrites: boolean }
-    ) => void
-  >,
+  subscriptionCallbacks: [] as Array<(record: DailyRecord | null, pending: boolean) => void>,
 }));
 vi.mock('@/services/repositories/repositoryConfig', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/repositories/repositoryConfig')>()),
@@ -24,11 +18,7 @@ vi.mock('@/services/storage/firestore/firestoreRecordQueries', async importOrigi
   ...(await importOriginal<typeof import('@/services/storage/firestore/firestoreRecordQueries')>()),
   subscribeToRecord: (
     _date: string,
-    callback: (
-      record: DailyRecord | null,
-      pending: boolean,
-      metadata: { fromCache: boolean; hasPendingWrites: boolean }
-    ) => void
+    callback: (record: DailyRecord | null, pending: boolean) => void
   ) => {
     subscriptionCallbacks.push(callback);
     return () => {};
@@ -116,7 +106,7 @@ describe('a read that meets a pending local edit publishes the retained projecti
       subscribeDetailed(date, result => resolve(result));
     });
 
-    subscriptionCallbacks[0](newerRemote(), false, { fromCache: false, hasPendingWrites: false });
+    subscriptionCallbacks[0](newerRemote(), false);
     const result = await published;
 
     expect(result.record?.tensDayShift).toEqual(['SINTETICO PENDIENTE']);
