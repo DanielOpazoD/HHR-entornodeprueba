@@ -1,3 +1,6 @@
+import { CURRENT_SCHEMA_VERSION } from '@/constants/version';
+import { BACKEND_RUNTIME_CONTRACT_VERSION } from '@/constants/runtimeContracts';
+import { resolveDailyRecordAuthorityMode } from '@/services/storage/firestore/dailyRecordAuthorityMode';
 import type { UserHealthStatus } from '@/services/admin/healthService';
 import type { SyncQueueTelemetry } from '@/services/storage/sync';
 import type { RepositoryPerformanceSummary } from '@/services/repositories/repositoryPerformance';
@@ -11,8 +14,10 @@ import type {
   RemoteSyncRuntimeStatus,
 } from '@/services/repositories/repositoryConfig';
 import type { UserHealthRecentEvent, VersionUpdateReason } from '@/services/admin/healthService';
-import { buildSystemHealthAppVersion } from '@/hooks/controllers/systemHealthAppVersion';
 import { buildSyncOperationHealthEvents } from '@/hooks/controllers/systemHealthSyncOperationEvents';
+
+const buildSystemHealthAppVersion = (syncBatchSize: number): string =>
+  `v${CURRENT_SCHEMA_VERSION} (sync-batch:${syncBatchSize}, backend-contract:${BACKEND_RUNTIME_CONTRACT_VERSION}, authority:${resolveDailyRecordAuthorityMode()})`;
 
 export interface BuildUserHealthStatusOptions {
   uid: string;
