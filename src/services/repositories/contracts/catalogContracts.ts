@@ -108,9 +108,12 @@ export const assertCatalogSubscriptionCallback = (callback: unknown, catalogName
   }
 };
 
-/** Only raised after the durable local write completed. */
+/** The catalog change has not been confirmed by the server. */
 export class CatalogRemoteSyncError extends Error {
   constructor(cause: unknown) {
-    super('No se pudo sincronizar el catálogo guardado localmente.', { cause });
+    super(
+      'El cambio no se guardó. Lo escrito se conserva; vuelva a guardar cuando haya conexión.',
+      { cause }
+    );
   }
 }

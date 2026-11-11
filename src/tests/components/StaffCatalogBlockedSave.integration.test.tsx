@@ -137,16 +137,16 @@ describe('staff catalog blocked save visible integration', () => {
         const input = screen.getByPlaceholderText('Nombre completo…');
         fireEvent.change(input, { target: { value: 'Synthetic Added' } });
         fireEvent.click(screen.getByRole('button', { name: 'Agregar personal' }));
-        expect(await screen.findByText(/No se pudo guardar la lista/)).toBeInTheDocument();
+        expect(await screen.findByText(/El cambio no se guardó/)).toBeInTheDocument();
         expect(input).toHaveValue('Synthetic Added');
         expect(screen.queryByText(/Se guardó localmente/)).not.toBeInTheDocument();
-        expect(entry.save).not.toHaveBeenCalled();
+        expect(entry.save).toHaveBeenCalled();
         expect((await catalogs.get(entry.key))?.list).toEqual(['Synthetic Local']);
       } finally {
         catalogs.hook('updating').unsubscribe(failWrite);
       }
     });
-    it(`${entry.key}: local save with remote failure still shows local confirmation`, async () => {
+    it(`${entry.key}: remote failure preserves input without claiming a local save`, async () => {
       vi.mocked(entry.read).mockResolvedValue([]);
       vi.mocked(entry.save).mockRejectedValue(failure);
       const { wrapper } = createQueryClientTestWrapper();
@@ -156,9 +156,10 @@ describe('staff catalog blocked save visible integration', () => {
         target: { value: 'Synthetic Added' },
       });
       fireEvent.click(screen.getByRole('button', { name: 'Agregar personal' }));
-      expect(await screen.findByText(/Se guardó localmente/)).toBeInTheDocument();
-      expect(await screen.findByText('Synthetic Added')).toBeInTheDocument();
-      expect((await catalogs.get(entry.key))?.list).toContain('Synthetic Added');
+      expect(await screen.findByText(/El cambio no se guardó/)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Nombre completo…')).toHaveValue('Synthetic Added');
+      expect(screen.queryByText('Synthetic Added')).not.toBeInTheDocument();
+      expect((await catalogs.get(entry.key))?.list ?? []).not.toContain('Synthetic Added');
     });
   }
   it('a failed IndexedDB write rejects a save and is tolerated only for a best-effort copy', async () => {

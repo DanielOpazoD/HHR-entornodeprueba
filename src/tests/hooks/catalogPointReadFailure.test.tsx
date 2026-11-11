@@ -121,7 +121,7 @@ describe('catalog point reads through repository and queries', () => {
       expect(entry.save).not.toHaveBeenCalled();
       expect(await catalogs.get(entry.key)).toBeUndefined();
     });
-    it(`${entry.key}: first load without Firestore still offers defaults and permits configuration`, async () => {
+    it(`${entry.key}: first load without Firestore offers defaults but cannot confirm a shared save`, async () => {
       vi.mocked(isFirestoreEnabled).mockReturnValue(false);
       const { wrapper } = createQueryClientTestWrapper();
       const { result } = renderHook(() => ({ query: entry.query(), save: entry.mutation() }), {
@@ -130,9 +130,11 @@ describe('catalog point reads through repository and queries', () => {
       await waitFor(() => expect(result.current.query.isSuccess).toBe(true));
       expect(result.current.query.data).toEqual(entry.defaults);
       await act(async () => {
-        await result.current.save.mutateAsync(entry.replacement);
+        await expect(result.current.save.mutateAsync(entry.replacement)).rejects.toThrow(
+          /no se guardó/
+        );
       });
-      expect((await catalogs.get(entry.key))?.list).toEqual(entry.replacement);
+      expect(await catalogs.get(entry.key)).toBeUndefined();
     });
   }
 
@@ -211,7 +213,8 @@ describe('catalog point reads through repository and queries', () => {
   });
 
   it('a genuinely empty professionals catalog permits initial discovery', async () => {
-    vi.mocked(isFirestoreEnabled).mockReturnValue(false);
+    vi.mocked(isFirestoreEnabled).mockReturnValue(true);
+    vi.mocked(remote.getProfessionalsCatalogFromFirestore).mockReset().mockResolvedValue([]);
     const { wrapper } = createQueryClientTestWrapper();
     const { result } = renderHook(
       () => ({ query: useProfessionalsQuery(), sync: useTreatingPhysicianCatalogSync() }),

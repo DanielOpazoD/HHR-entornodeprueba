@@ -135,8 +135,12 @@ describe('firestoreCatalogService', () => {
 
     const nurseCallback = vi.fn();
     vi.mocked(onSnapshot).mockImplementationOnce((...args: unknown[]) => {
-      const onNext = args[1] as (snapshot: unknown) => void;
-      onNext({ exists: () => true, data: () => ({ list: ['Nurse A'] }) });
+      const onNext = args[2] as (snapshot: unknown) => void;
+      onNext({
+        metadata: { hasPendingWrites: false },
+        exists: () => true,
+        data: () => ({ list: ['Nurse A'] }),
+      });
       return vi.fn();
     });
     subscribeToNurseCatalog(nurseCallback);
@@ -147,7 +151,7 @@ describe('firestoreCatalogService', () => {
     const tensCallback = vi.fn();
     const tensError = vi.fn();
     vi.mocked(onSnapshot).mockImplementationOnce((...args: unknown[]) => {
-      const onError = args[2] as (error: unknown) => void;
+      const onError = args[3] as (error: unknown) => void;
       onError(new Error('boom'));
       return vi.fn();
     });
@@ -159,8 +163,12 @@ describe('firestoreCatalogService', () => {
 
     const professionalsCallback = vi.fn();
     vi.mocked(onSnapshot).mockImplementationOnce((...args: unknown[]) => {
-      const onNext = args[1] as (snapshot: unknown) => void;
-      onNext({ exists: () => true, data: () => ({ list: [{ name: 'Dr. B' }] }) });
+      const onNext = args[2] as (snapshot: unknown) => void;
+      onNext({
+        metadata: { hasPendingWrites: false },
+        exists: () => true,
+        data: () => ({ list: [{ name: 'Dr. B' }] }),
+      });
       return vi.fn();
     });
     subscribeToProfessionalsCatalog(professionalsCallback);
