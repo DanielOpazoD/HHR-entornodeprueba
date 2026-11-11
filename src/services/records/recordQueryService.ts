@@ -1,12 +1,10 @@
 import type { PatientData } from '@/types/domain/patient';
-
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-
+import { admitRemoteDailyRecords } from '@/services/repositories/dailyRecordLocalCachePersistence';
 import {
   getAllRecordsSorted,
   getRecordsForMonth,
   getRecordsRange,
-  saveRecordsStrict,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 
 export const fetchRecordsForMonth = async (year: number, month: number): Promise<DailyRecord[]> => {
@@ -60,12 +58,8 @@ export const syncRecordsRange = async (start: string, end: string): Promise<Dail
   // A day with an edit this device has not sent yet keeps its local copy, and that copy is what
   // comes back. If the write fails nothing is stored and it is unknown which days were kept, so
   // the range is not answered with server copies that may be older than what the census shows.
-  const result = await saveRecordsStrict(remoteRecords, { preserveUnresolvedWrites: true });
-  if (!result.ok) {
-    throw (
-      result.error ??
-      new Error(result.userSafeMessage ?? 'No fue posible guardar registros locales.')
-    );
-  }
-  return result.records ?? remoteRecords;
+  const results = await admitRemoteDailyRecords(
+    remoteRecords.map(record => ({ record, remoteRecord: record }))
+  );
+  return results.flatMap(result => (result.record ? [result.record] : []));
 };

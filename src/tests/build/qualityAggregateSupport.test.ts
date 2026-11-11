@@ -17,7 +17,7 @@ const checks = [
   { id: 'check:architecture', group: 'boundaries' },
   { id: 'report:compatibility-governance', group: 'governance-inputs' },
   { id: 'check:schema-governance', group: 'governance' },
-  { id: 'check:critical-any', group: 'type-safety' },
+  { id: 'check:synthetic-type-safety', group: 'type-safety' },
   { id: 'check:repo-hygiene', group: 'hygiene' },
   { id: 'check:security', group: 'security' },
   { id: 'check:module-size', group: 'size' },
@@ -50,7 +50,7 @@ describe('quality aggregate support', () => {
 
   it('selects only the requested public quality group without losing advisory metadata', () => {
     expect(selectQualitySteps(checks, { group: 'security' })).toEqual([
-      { id: 'check:critical-any', group: 'type-safety' },
+      { id: 'check:synthetic-type-safety', group: 'type-safety' },
       { id: 'check:repo-hygiene', group: 'hygiene' },
       { id: 'check:security', group: 'security' },
     ]);
@@ -119,7 +119,7 @@ describe('quality aggregate support', () => {
       completedAt: '2026-07-01T10:00:03.000Z',
       results: [
         {
-          id: 'check:critical-any',
+          id: 'check:synthetic-type-safety',
           group: 'type-safety',
           status: 'passed',
           durationMs: 1000,
