@@ -7,7 +7,18 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
     kind: 'stored',
     record: await getRecordFromIndexedDB(date),
   }),
-  inspectLocalRecordAdmission: async () => ({ status: 'admitted' }),
+  inspectLocalRecordAdmission: async (_date: string, base: { record: DailyRecord | null }) => ({
+    status: 'admitted',
+    record: base.record,
+  }),
+  admitLocalRecords: async (candidates: Array<{ record: DailyRecord; expectedBase?: unknown }>) => {
+    for (const candidate of candidates)
+      await saveToIndexedDB(candidate.record, {
+        preserveUnresolvedWrites: true,
+        ...(candidate.expectedBase ? { expectedBase: candidate.expectedBase } : {}),
+      } as Parameters<typeof saveToIndexedDB>[1]);
+    return candidates.map(({ record }) => ({ date: record.date, status: 'admitted', record }));
+  },
   saveRecord: vi.fn(),
   saveRecordStrict: vi.fn(record =>
     Promise.resolve({
@@ -58,6 +69,7 @@ describe('dailyRecordRepositorySyncService', () => {
 
   it('returns clean outcome when remote record is resolved', async () => {
     vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
+      serverConfirmed: true,
       record: { date: '2026-03-03', beds: {} } as DailyRecord,
     } as Awaited<ReturnType<typeof loadRemoteRecordWithFallback>>);
 
@@ -83,13 +95,14 @@ describe('dailyRecordRepositorySyncService', () => {
     });
   });
 
-  it('keeps the local record when it is newer than the remote copy', async () => {
+  it('adopts confirmed remote even when the unheld local clock is newer', async () => {
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce({
       date: '2026-03-03',
       beds: {},
       lastUpdated: '2026-03-03T12:00:00.000Z',
     } as DailyRecord);
     vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
+      serverConfirmed: true,
       record: {
         date: '2026-03-03',
         beds: {},
@@ -102,10 +115,10 @@ describe('dailyRecordRepositorySyncService', () => {
     expect(result).toMatchObject({
       date: '2026-03-03',
       outcome: 'clean',
-      consistencyState: 'local_kept',
-      sourceOfTruth: 'local',
+      consistencyState: 'remote_applied',
+      sourceOfTruth: 'remote',
     });
-    expect(saveToIndexedDB).not.toHaveBeenCalled();
+    expect(saveToIndexedDB).toHaveBeenCalled();
   });
 
   it('applies the remote record and hydrates IndexedDB when the remote copy is newer', async () => {
@@ -122,6 +135,7 @@ describe('dailyRecordRepositorySyncService', () => {
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(localRecord);
     vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
+      serverConfirmed: true,
       record: remoteRecord,
     } as Awaited<ReturnType<typeof loadRemoteRecordWithFallback>>);
 

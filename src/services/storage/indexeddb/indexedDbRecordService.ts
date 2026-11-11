@@ -5,16 +5,20 @@ import { recordOperationalErrorTelemetry } from '@/services/observability/operat
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
 import { listDailyRecordProjectionHolders } from '@/services/storage/sync/dexieSyncQueueQuarantine';
-
 import { ensureDbReady, hospitalDB as db, isDatabaseInFallbackMode } from './indexedDbCore';
 import { dispatchDailyRecordStoreChanged } from './indexedDbRecordEvents';
+import { projectRemoteAdmissionNotes } from './remoteAdmissionNoteProjection';
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
+import type { SpecialistHandoffSyncPayload } from '@/services/storage/syncQueueTypes';
+import { preserveAdmissionRecovery, publishAdmissionEffects } from './remoteAdmissionRecovery';
 
 export type LocalRecordWriteStore = 'indexeddb' | 'fallback' | 'e2e' | 'none';
 
 export type LocalRecordBase = { kind: 'stored'; record: DailyRecord | null } | { kind: 'unknown' };
 
 export type LocalRecordAdmission =
-  | { status: 'admitted' }
+  | { status: 'admitted'; record: DailyRecord | null }
   | { status: 'retained_pending'; record: DailyRecord }
   | { status: 'superseded'; stored: DailyRecord | null };
 
@@ -198,7 +202,7 @@ const inspectIndexedDbAdmission = async (
   }
   return expectedBase && !admitsPointRead(expectedBase, stored, candidate)
     ? { status: 'superseded', stored }
-    : { status: 'admitted' };
+    : { status: 'admitted', record: stored };
 };
 
 export const inspectLocalRecordAdmission = async (
@@ -210,7 +214,7 @@ export const inspectLocalRecordAdmission = async (
   if (isDatabaseInFallbackMode()) {
     const stored = localPersistence.records.getForDate(date);
     return admitsPointRead(expectedBase, stored, candidate)
-      ? { status: 'admitted' }
+      ? { status: 'admitted', record: stored }
       : { status: 'superseded', stored };
   }
   // Read-write: a holder whose copy is already gone is released in this same transaction.
@@ -288,6 +292,8 @@ export const saveRecord = async (record: DailyRecord): Promise<void> => {
 export type LocalRecordAdmissionCandidate = {
   record: DailyRecord;
   expectedBase?: LocalRecordBase;
+  remoteRecord?: DailyRecord | null;
+  isCurrent?: () => boolean;
 };
 
 export type LocalRecordAdmissionResult = {
@@ -297,7 +303,6 @@ export type LocalRecordAdmissionResult = {
   | { status: 'superseded'; record: DailyRecord | null }
 );
 
-/** One durable decision per date; callers supply their existing selection policy. */
 export const admitLocalRecords = async (
   candidates: readonly LocalRecordAdmissionCandidate[]
 ): Promise<LocalRecordAdmissionResult[]> => {
@@ -305,7 +310,11 @@ export const admitLocalRecords = async (
     ...new Map(candidates.map(candidate => [candidate.record.date, candidate])).values(),
   ];
   if (!unique.length) return [];
-  const dates = unique.map(candidate => candidate.record.date);
+  const owner = getStoredSessionOwnerKey();
+  const epoch = getSessionEpoch();
+  const detached: SpecialistHandoffSyncPayload[] = [];
+  const changed: string[] = [];
+  let recoveries = 0;
   try {
     await ensureDbReady();
     let results: LocalRecordAdmissionResult[];
@@ -314,49 +323,88 @@ export const admitLocalRecords = async (
         const stored = localPersistence.records.getForDate(record.date);
         if (expectedBase && !admitsPointRead(expectedBase, stored, record))
           return { date: record.date, status: 'superseded', record: stored };
-        localPersistence.records.save(record);
-        return { date: record.date, status: 'admitted', record };
+        throw new Error('La admisión remota requiere IndexedDB y evidencia de cola.');
       });
     } else {
-      results = await db.transaction('rw', db.dailyRecords, db.syncQueue, async () => {
-        const queuedKeys = new Set(
-          await db.syncQueue
-            .where('key')
-            .anyOf(dates.map(date => `daily:${date}`))
-            .uniqueKeys()
-        );
-        const decisions: LocalRecordAdmissionResult[] = [];
-        const writable: DailyRecord[] = [];
-        for (const { record, expectedBase } of unique) {
-          const admission: LocalRecordAdmission =
-            queuedKeys.has(`daily:${record.date}`) || expectedBase
-              ? await inspectIndexedDbAdmission(record.date, expectedBase, record)
-              : { status: 'admitted' };
-          if (admission.status === 'admitted') {
-            writable.push(record);
-            decisions.push({ date: record.date, status: 'admitted', record });
-          } else if (admission.status === 'retained_pending') {
-            decisions.push({
-              date: record.date,
-              status: admission.status,
-              record: admission.record,
-            });
-          } else {
-            decisions.push({
-              date: record.date,
-              status: admission.status,
-              record: admission.stored,
-            });
+      results = await db.transaction(
+        'rw',
+        [db.dailyRecords, db.syncQueue, db.settings],
+        async () => {
+          const queuedKeys = new Set(
+            await db.syncQueue
+              .where('key')
+              .anyOf(unique.map(({ record }) => `daily:${record.date}`))
+              .uniqueKeys()
+          );
+          const decisions: LocalRecordAdmissionResult[] = [];
+          const writable: DailyRecord[] = [];
+          for (const { record, expectedBase, remoteRecord, isCurrent } of unique) {
+            const stored = (await db.dailyRecords.get(record.date)) ?? null;
+            if (
+              owner !== getStoredSessionOwnerKey() ||
+              epoch !== getSessionEpoch() ||
+              (isCurrent && !isCurrent())
+            ) {
+              decisions.push({ date: record.date, status: 'superseded', record: stored });
+              continue;
+            }
+            const admission: LocalRecordAdmission =
+              queuedKeys.has(`daily:${record.date}`) || expectedBase
+                ? await inspectIndexedDbAdmission(record.date, expectedBase, record)
+                : { status: 'admitted', record: stored };
+            if (admission.status === 'admitted') {
+              const tasks = await db.syncQueue
+                .where('key')
+                .startsWith(`handoff:${record.date}:`)
+                .toArray();
+              const owned = tasks.filter(task => task.ownerKey === owner);
+              const projected = projectRemoteAdmissionNotes(
+                remoteRecord ? record : (stored ?? record),
+                remoteRecord ?? null,
+                owned,
+                detached
+              );
+              const selected = projected.record;
+              if (!arePatchValuesDeepEqual(stored, selected)) {
+                if (stored && remoteRecord) {
+                  await preserveAdmissionRecovery(stored);
+                  recoveries += 1;
+                }
+                writable.push(selected);
+                changed.push(record.date);
+              }
+              decisions.push({ date: record.date, status: 'admitted', record: selected });
+            } else if (admission.status === 'retained_pending') {
+              decisions.push({
+                date: record.date,
+                status: admission.status,
+                record: admission.record,
+              });
+            } else {
+              decisions.push({
+                date: record.date,
+                status: admission.status,
+                record: admission.stored,
+              });
+            }
           }
+          if (
+            owner !== getStoredSessionOwnerKey() ||
+            epoch !== getSessionEpoch() ||
+            unique.some(item => item.isCurrent && !item.isCurrent())
+          ) {
+            throw new Error('La sesión o la observación cambió durante la admisión.');
+          }
+          if (writable.length) await db.dailyRecords.bulkPut(writable);
+          return decisions;
         }
-        if (writable.length) await db.dailyRecords.bulkPut(writable);
-        return decisions;
-      });
+      );
     }
     for (const result of results) {
       if (result.record) syncE2ERuntimeRecordMirror(result.record);
     }
-    dispatchDailyRecordStoreChanged({ operation: 'save', dates });
+    if (changed.length) dispatchDailyRecordStoreChanged({ operation: 'save', dates: changed });
+    publishAdmissionEffects({ owner, epoch, detached, recoveries });
     return results;
   } catch (error) {
     recordOperationalErrorTelemetry('indexeddb', 'indexeddb_save_records', error, {
