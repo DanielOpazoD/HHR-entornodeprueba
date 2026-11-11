@@ -65,6 +65,7 @@ export const getNurses = async (): Promise<string[]> => {
       }
     } catch (err) {
       catalogRepositoryLogger.warn('Failed to fetch nurses from remote', err);
+      throw err;
     }
   }
 
@@ -84,14 +85,19 @@ export const saveNurses = async (nurses: string[]): Promise<void> => {
 
 const subscribeToLocalStringCatalog = (
   key: 'nurses' | 'tens',
-  callback: (items: string[]) => void
+  callback: (items: string[]) => void,
+  onError?: (error: unknown) => void
 ): (() => void) => {
   let isActive = true;
-  void getCatalog(key).then(items => {
-    if (isActive) {
-      callback(normalizeStringCatalog(items));
-    }
-  });
+  void getCatalog(key)
+    .then(items => {
+      if (isActive) {
+        callback(normalizeStringCatalog(items));
+      }
+    })
+    .catch(error => {
+      if (isActive) onError?.(error);
+    });
 
   return () => {
     isActive = false;
@@ -99,14 +105,19 @@ const subscribeToLocalStringCatalog = (
 };
 
 const subscribeToLocalProfessionalsCatalog = (
-  callback: (professionals: ProfessionalCatalogItem[]) => void
+  callback: (professionals: ProfessionalCatalogItem[]) => void,
+  onError?: (error: unknown) => void
 ): (() => void) => {
   let isActive = true;
-  void getCatalogValues<ProfessionalCatalogItem>('professionals').then(items => {
-    if (isActive) {
-      callback(normalizeProfessionalCatalog(items));
-    }
-  });
+  void getCatalogValues<ProfessionalCatalogItem>('professionals')
+    .then(items => {
+      if (isActive) {
+        callback(normalizeProfessionalCatalog(items));
+      }
+    })
+    .catch(error => {
+      if (isActive) onError?.(error);
+    });
 
   return () => {
     isActive = false;
@@ -122,7 +133,7 @@ export const subscribeNurses = (
 ): (() => void) => {
   assertCatalogSubscriptionCallback(callback, 'nurses');
   if (!isFirestoreEnabled()) {
-    return subscribeToLocalStringCatalog('nurses', callback);
+    return subscribeToLocalStringCatalog('nurses', callback, onError);
   }
 
   return subscribeToNurseCatalog(async nurses => {
@@ -154,6 +165,7 @@ export const getTens = async (): Promise<string[]> => {
       }
     } catch (err) {
       catalogRepositoryLogger.warn('Failed to fetch TENS from remote', err);
+      throw err;
     }
   }
 
@@ -180,7 +192,7 @@ export const subscribeTens = (
 ): (() => void) => {
   assertCatalogSubscriptionCallback(callback, 'tens');
   if (!isFirestoreEnabled()) {
-    return subscribeToLocalStringCatalog('tens', callback);
+    return subscribeToLocalStringCatalog('tens', callback, onError);
   }
 
   return subscribeToTensCatalog(async tens => {
@@ -213,6 +225,7 @@ export const getProfessionals = async (): Promise<ProfessionalCatalogItem[]> => 
       }
     } catch (err) {
       catalogRepositoryLogger.warn('Failed to fetch professionals from remote', err);
+      throw err;
     }
   }
 
@@ -241,7 +254,7 @@ export const subscribeProfessionals = (
 ): (() => void) => {
   assertCatalogSubscriptionCallback(callback, 'professionals');
   if (!isFirestoreEnabled()) {
-    return subscribeToLocalProfessionalsCatalog(callback);
+    return subscribeToLocalProfessionalsCatalog(callback, onError);
   }
 
   return subscribeToProfessionalsCatalog(async professionals => {

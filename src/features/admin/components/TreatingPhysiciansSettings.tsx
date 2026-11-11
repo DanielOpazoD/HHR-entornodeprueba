@@ -8,6 +8,7 @@ import {
 } from '@/services/staff/treatingPhysicianCatalog';
 
 export const TreatingPhysiciansSettings: React.FC = () => {
+  // Deliberado: la presentación inicial vacía ante fallo queda pendiente de decisión de producto.
   const { data: professionals = [], isLoading } = useProfessionalsQuery();
   const saveProfessionals = useSaveProfessionalsMutation();
   const orderedProfessionals = useMemo(

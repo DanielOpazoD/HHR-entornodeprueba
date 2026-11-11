@@ -13,6 +13,8 @@ const useCatalogRealtimeReady = (): boolean => {
 };
 
 const STAFF_CATALOG_STALE_TIME_MS = 30_000;
+const DEFAULT_NURSES = ['Enfermero/a 1', 'Enfermero/a 2'];
+const DEFAULT_TENS = ['TENS 1', 'TENS 2', 'TENS 3'];
 
 /**
  * Hook to manage the list of nurses.
@@ -54,8 +56,9 @@ export const useNursesQuery = () => {
   }, [isCatalogRealtimeReady, queryClient]);
 
   const data = useMemo(
-    () => mergeStaffCatalog(query.data ?? [], discovered, 'nurse'),
-    [query.data, discovered]
+    () =>
+      mergeStaffCatalog(query.data ?? (query.isError ? DEFAULT_NURSES : []), discovered, 'nurse'),
+    [query.data, query.isError, discovered]
   );
   return {
     ...query,
@@ -105,8 +108,8 @@ export const useTensQuery = () => {
   }, [isCatalogRealtimeReady, queryClient]);
 
   const data = useMemo(
-    () => mergeStaffCatalog(query.data ?? [], discovered, 'tens'),
-    [query.data, discovered]
+    () => mergeStaffCatalog(query.data ?? (query.isError ? DEFAULT_TENS : []), discovered, 'tens'),
+    [query.data, query.isError, discovered]
   );
   return {
     ...query,
@@ -164,6 +167,10 @@ export const useSaveNursesMutation = () => {
   return useMutation({
     mutationFn: (nurses: string[]) => CatalogRepository.saveNurses(nurses),
     onMutate: async newNurses => {
+      // Display fallbacks are not a loaded base for replacing the complete catalog.
+      if (queryClient.getQueryData([...queryKeys.staff.all, 'nurses']) === undefined) {
+        throw new Error('No se pudo leer el catálogo. Reintente antes de guardar.');
+      }
       await queryClient.cancelQueries({ queryKey: [...queryKeys.staff.all, 'nurses'] });
       const previousNurses = queryClient.getQueryData<string[]>([...queryKeys.staff.all, 'nurses']);
       queryClient.setQueryData([...queryKeys.staff.all, 'nurses'], newNurses);
@@ -189,6 +196,10 @@ export const useSaveTensMutation = () => {
   return useMutation({
     mutationFn: (tens: string[]) => CatalogRepository.saveTens(tens),
     onMutate: async newTens => {
+      // Display fallbacks are not a loaded base for replacing the complete catalog.
+      if (queryClient.getQueryData([...queryKeys.staff.all, 'tens']) === undefined) {
+        throw new Error('No se pudo leer el catálogo. Reintente antes de guardar.');
+      }
       await queryClient.cancelQueries({ queryKey: [...queryKeys.staff.all, 'tens'] });
       const previousTens = queryClient.getQueryData<string[]>([...queryKeys.staff.all, 'tens']);
       queryClient.setQueryData([...queryKeys.staff.all, 'tens'], newTens);
@@ -215,6 +226,10 @@ export const useSaveProfessionalsMutation = () => {
     mutationFn: (professionals: ProfessionalCatalogItem[]) =>
       CatalogRepository.saveProfessionals(professionals),
     onMutate: async newProfessionals => {
+      // Display fallbacks are not a loaded base for replacing the complete catalog.
+      if (queryClient.getQueryData([...queryKeys.staff.all, 'professionals']) === undefined) {
+        throw new Error('No se pudo leer el catálogo. Reintente antes de guardar.');
+      }
       await queryClient.cancelQueries({ queryKey: [...queryKeys.staff.all, 'professionals'] });
       const previousProfessionals = queryClient.getQueryData<ProfessionalCatalogItem[]>([
         ...queryKeys.staff.all,

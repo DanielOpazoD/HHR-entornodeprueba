@@ -15,7 +15,7 @@ export const getCatalogValues = async <T = string>(catalogId: string): Promise<T
       userSafeMessage: 'No fue posible recuperar un catalogo local.',
       context: { catalogId },
     });
-    return [];
+    throw error;
   }
 };
 
