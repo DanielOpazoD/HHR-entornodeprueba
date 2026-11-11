@@ -4,7 +4,9 @@ Antes de crear una capa, módulo o dependencia, comprobar si el problema se resu
 eliminando, unificando o simplificando una implementación existente. El objetivo es
 preservar el comportamiento con menos caminos y responsabilidades explícitas.
 
-Leer el [contrato operativo](docs/DOMAIN_RULES.md) y el [glosario](docs/GLOSSARY.md).
+[AGENTS.md](AGENTS.md) dice qué leer según lo que se toca: un cambio pequeño no exige
+recorrer esta guía ni los documentos que enlaza. El [contrato operativo](docs/DOMAIN_RULES.md)
+manda en lo clínico; el [glosario](docs/GLOSSARY.md) se consulta por término.
 En cambios de flujo, indicar las reglas afectadas y los ejemplos de comportamiento
 que deben conservarse. Si una regla necesita cambiar, registrar primero la decisión
 explícita del responsable del producto; no deducirla de un refactor o de un error existente.
@@ -40,8 +42,9 @@ Functions tiene su propio manifest y lockfile en `functions/`; tratarlo por sepa
 
 ## Elegir dónde cambiar
 
-Consultar [arquitectura](docs/architecture.md) y
-[Codebase Canon](docs/CODEBASE_CANON.md), luego el README del módulo afectado.
+Al crear un módulo o mover una responsabilidad, consultar el README de la carpeta
+afectada; [arquitectura](docs/architecture.md) y [Codebase Canon](docs/CODEBASE_CANON.md)
+solo si el cambio cruza capas.
 
 - Preferir el dueño y camino existentes. Un wrapper sin validación, coordinación o
   contrato propio no justifica otro módulo.
@@ -79,10 +82,12 @@ mockeado no acredita recuperación de módulos en un navegador real.
 
 ## Cerrar y publicar
 
-La política y los comandos de cierre viven en
-[Safe Change Checklist](docs/SAFE_CHANGE_CHECKLIST.md),
-[Definition of Done](docs/ENGINEERING_DEFINITION_OF_DONE.md) y
-[CI y recuperación](docs/CI_GATES_AND_FAILURE_RUNBOOKS.md).
+Antes de subir, `npm run check:changed` corre los controles formales sobre lo cambiado
+(también lo hace el gancho `pre-push`). Documentos de consulta, no de lectura previa:
+[Safe Change Checklist](docs/SAFE_CHANGE_CHECKLIST.md) para un cambio crítico (guardado,
+reglas, despliegue), [Definition of Done](docs/ENGINEERING_DEFINITION_OF_DONE.md) ante una
+duda de cierre y [CI y recuperación](docs/CI_GATES_AND_FAILURE_RUNBOOKS.md) cuando un
+control falla.
 Clasificar el cambio y acreditar los controles correspondientes con CI del SHA final;
 no se exige repetirlos localmente. Comprobar el alcance ejecutado y conservar el enlace
 al run y sus artefactos. Ejecutar localmente las regresiones durante la edición y sólo
