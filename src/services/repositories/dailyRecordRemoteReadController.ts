@@ -13,6 +13,7 @@ import {
   createSupersededReadResult,
   createRetainedPendingProjectionReadResult,
   type LocalRuntimeReadCandidate,
+  createLocalRuntimeReadCandidate,
 } from '@/services/repositories/dailyRecordReadResultController';
 import { dailyRecordReadLogger } from '@/services/repositories/repositoryLoggers';
 import type { DailyRecordRemoteLoadResult } from '@/services/repositories/dailyRecordRemoteLoader';
@@ -22,6 +23,7 @@ import { getPendingDailyRecordProjection } from '@/services/storage/sync/dailyRe
 
 import {
   inspectLocalRecordAdmission,
+  getRecordForDate,
   type LocalRecordBase,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 
@@ -55,6 +57,19 @@ export const resolveRemoteGoldenPathReadResult = async ({
   base = remoteReadResult.issuedAgainst,
   persistHydratedRecord = persistHydratedRecordToLocalCache,
 }: ResolveRemoteGoldenPathReadResultInput): Promise<DailyRecordReadResult> => {
+  if (!remoteReadResult.serverConfirmed) {
+    const record = await getRecordForDate(date);
+    const candidate = record ? createLocalRuntimeReadCandidate(date, record) : null;
+    return createGoldenPathReadResult(
+      date,
+      resolveDailyRecordPersistenceGoldenPath({
+        localRecord: record,
+        remoteRecord: null,
+        remoteAvailability: 'unavailable',
+      }),
+      candidate
+    );
+  }
   const shouldProtectLocalClinicalText = hasRemoteClinicalTextShrinkage(
     localCandidate?.record || null,
     remoteReadResult.record

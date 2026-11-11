@@ -19,11 +19,17 @@ vi.mock('@/services/repositories/dailyRecordLocalCachePersistence', () => ({
 }));
 vi.mock('@/services/storage/firestore', () => {
   mocks.remoteLoaded();
-  return { getRecordsRangeFromFirestore: mocks.range };
+  return {
+    getRecordsRangeFromFirestore: mocks.range,
+    UnconfirmedDailyRecordRangeError: class extends Error {},
+  };
 });
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => {
   mocks.remoteLoaded();
-  return { getRecordsRangeFromFirestore: mocks.range };
+  return {
+    getRecordsRangeFromFirestore: mocks.range,
+    UnconfirmedDailyRecordRangeError: class extends Error {},
+  };
 });
 
 const day = (date: string, name = '') => ({ date, beds: { R1: { patientName: name } } });

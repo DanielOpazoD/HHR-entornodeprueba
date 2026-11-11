@@ -221,6 +221,9 @@ export async function* getRecordPagesFromFirestore(
   }
 }
 
+/** A cache/pending batch is available only as a local fallback, never remote evidence. */
+export class UnconfirmedDailyRecordRangeError extends Error {}
+
 export const getRecordsRangeFromFirestore = async (
   startDate: string,
   endDate: string,
@@ -235,9 +238,13 @@ export const getRecordsRangeFromFirestore = async (
     );
 
     const querySnapshot = await (options.requireServer ? getDocsFromServer(q) : getDocs(q));
+    if (!isServerConfirmedSnapshot(querySnapshot.metadata)) {
+      throw new UnconfirmedDailyRecordRangeError('Daily record range has no server confirmation');
+    }
     return mapFirestoreRecords(querySnapshot.docs, docToRecord);
   } catch (error) {
-    logFirestoreQueryError('getRecordsRange', error, { startDate, endDate });
+    if (!(error instanceof UnconfirmedDailyRecordRangeError))
+      logFirestoreQueryError('getRecordsRange', error, { startDate, endDate });
     throw error;
   }
 };

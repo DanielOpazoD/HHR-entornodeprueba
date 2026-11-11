@@ -84,7 +84,7 @@ describe('dailyRecordRemoteReadController', () => {
       date: '2026-03-19',
       localCandidate: createLocalRuntimeReadCandidate('2026-03-19', local),
       remoteReadResult: {
-        serverConfirmed: false,
+        serverConfirmed: true,
         record: remote,
         source: 'firestore',
         compatibilityTier: 'current_firestore',
@@ -142,7 +142,7 @@ describe('dailyRecordRemoteReadController', () => {
       date: '2026-03-19',
       localCandidate: createLocalRuntimeReadCandidate('2026-03-19', local),
       remoteReadResult: {
-        serverConfirmed: false,
+        serverConfirmed: true,
         record: remote,
         source: 'firestore',
         compatibilityTier: 'current_firestore',
@@ -193,7 +193,7 @@ describe('dailyRecordRemoteReadController', () => {
       date: '2026-03-19',
       localCandidate: createLocalRuntimeReadCandidate('2026-03-19', local),
       remoteReadResult: {
-        serverConfirmed: false,
+        serverConfirmed: true,
         record: remote,
         source: 'firestore',
         compatibilityTier: 'current_firestore',
@@ -240,7 +240,7 @@ describe('dailyRecordRemoteReadController', () => {
       date: '2026-03-19',
       localCandidate: createLocalRuntimeReadCandidate('2026-03-19', local),
       remoteReadResult: {
-        serverConfirmed: false,
+        serverConfirmed: true,
         record: remote,
         source: 'firestore',
         compatibilityTier: 'current_firestore',

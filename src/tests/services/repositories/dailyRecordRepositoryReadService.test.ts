@@ -106,7 +106,7 @@ describe('dailyRecordRepositoryReadService', () => {
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
     vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
-      serverConfirmed: false,
+      serverConfirmed: true,
       record: remote,
       source: 'firestore',
       compatibilityTier: 'current_firestore',
@@ -153,7 +153,7 @@ describe('dailyRecordRepositoryReadService', () => {
     } as unknown as DailyRecord['beds'];
 
     vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
-      serverConfirmed: false,
+      serverConfirmed: true,
       record: remote,
       source: 'firestore',
       compatibilityTier: 'current_firestore',
@@ -263,7 +263,7 @@ describe('dailyRecordRepositoryReadService', () => {
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
     vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
-      serverConfirmed: false,
+      serverConfirmed: true,
       record: remote,
       source: 'firestore',
       compatibilityTier: 'current_firestore',
@@ -325,7 +325,7 @@ describe('dailyRecordRepositoryReadService', () => {
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
     vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
-      serverConfirmed: false,
+      serverConfirmed: true,
       record: remote,
       source: 'firestore',
       compatibilityTier: 'current_firestore',
@@ -361,7 +361,7 @@ describe('dailyRecordRepositoryReadService', () => {
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
     vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
-      serverConfirmed: false,
+      serverConfirmed: true,
       record: remote,
       source: 'firestore',
       compatibilityTier: 'current_firestore',

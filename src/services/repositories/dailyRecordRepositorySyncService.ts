@@ -67,6 +67,20 @@ const resolveSubscriptionResult = async (
   isCurrent: () => boolean = () => true,
   pointReadBase?: LocalRecordBase
 ): Promise<SyncDailyRecordResult> => {
+  // SDK cache and pending echoes cannot establish a new durable census or freshness.
+  if (!serverConfirmed) {
+    const record = await getRecordFromIndexedDB(date);
+    return createSyncDailyRecordResult({
+      date,
+      record,
+      serverConfirmed: false,
+      outcome: 'blocked',
+      sourceOfTruth: record ? 'local' : 'none',
+      consistencyState: 'blocked',
+      retryability: 'automatic_retry',
+      recoveryAction: 'defer_remote_sync',
+    });
+  }
   localRecord = localRecord === undefined ? await getRecordFromIndexedDB(date) : localRecord;
   const remoteAvailability = remoteRecord
     ? 'resolved'
@@ -189,19 +203,13 @@ export const subscribeDetailed = (
         if (!migrated && !hasPendingWrites && serverConfirmed) {
           await confirmDailyRecordMissingOnServer(date);
         }
-        return hasPendingWrites
-          ? createSyncDailyRecordResult({
-              date,
-              outcome: migrated ? 'clean' : 'blocked',
-              record: migrated,
-              sourceOfTruth: migrated ? 'local' : 'none',
-              retryability: 'not_applicable',
-              recoveryAction: 'none',
-              observabilityTags: ['daily_record', 'sync', 'subscription_pending_write'],
-            })
-          : resolveSubscriptionResult(date, migrated, serverConfirmed, undefined, () =>
-              isCurrent(revision)
-            );
+        return resolveSubscriptionResult(
+          date,
+          migrated,
+          serverConfirmed && !hasPendingWrites,
+          undefined,
+          () => isCurrent(revision)
+        );
       })().then(
         result => {
           if (isCurrent(revision)) deliver(() => callback(result, hasPendingWrites));
