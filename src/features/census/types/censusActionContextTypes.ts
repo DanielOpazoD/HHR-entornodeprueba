@@ -1,9 +1,11 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import type {
   DischargeData,
   TransferData,
 } from '@/features/census/contracts/censusMovementContracts';
-import type { PatientData } from '@/features/census/controllers/censusActionPatientContracts';
+
 import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
 import type {
   DischargeExecutionInput,

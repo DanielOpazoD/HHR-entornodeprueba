@@ -1,5 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import React from 'react';
-import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
+
 import { resolveUpcClassification } from '@/domain/upc/upcClassification';
 import { UpcChecklistPanel } from './UpcChecklistPanel';
 import { UpcEvaluationHistoryPanel } from './UpcEvaluationHistoryPanel';

@@ -1,10 +1,12 @@
+import type { PatientData, GinecobstetriciaType } from '@/types/domain/patient';
+
 import { buildPatientRowSaveScopeKey } from '@/features/census/controllers/patientRowInputController';
 import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { DiagnosisCodeBadge } from './DiagnosisCodeBadge';
 import { Settings2, X } from 'lucide-react';
-import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
+
 import type {
   DebouncedTextHandler,
   PatientInputChangeHandlers,
@@ -19,7 +21,7 @@ import {
 } from '@/shared/census/ginecobstetriciaClassification';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import { usePortalPopoverRuntime } from '@/hooks/usePortalPopoverRuntime';
-import type { GinecobstetriciaType } from '@/features/census/contracts/censusObstetricContracts';
+
 import { ClinicalInitialBlockEditor } from './ClinicalInitialBlockEditor';
 import { usePatientRowSaveState } from './usePatientRowSaveState';
 import { DeliveryRoutePopover } from './DeliveryRoutePopover';

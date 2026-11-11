@@ -1,4 +1,5 @@
-import type { PatientData } from '../contracts/rayenDomainContracts';
+import type { PatientData } from '@/types/domain/patient';
+
 import type { CensusImportDiff, FieldChange, UpdateEntry } from '../contracts/censusImportDiff';
 
 const INTERNAL_SYNC_FIELDS = new Set<FieldChange['field']>([

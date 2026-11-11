@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * Merges the vital signs parsed from Ficha Médico into a patient's HHR record: `vitalSigns` (the
  * glance shown in the census cell) and `vitalSignsHistory` (the most-recent measurements, so the
@@ -8,7 +10,6 @@
  * must not leak future readings into that historical clinical snapshot.
  */
 
-import type { PatientData } from '../contracts/rayenDomainContracts';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
 import { clinicalFieldValuesEqual } from './clinicalFieldCanonicalization';
 

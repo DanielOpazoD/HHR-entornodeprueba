@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * AdmissionInput — Admission date/time input cell for the census table.
  *
@@ -10,7 +12,7 @@
 
 import React from 'react';
 import clsx from 'clsx';
-import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
+
 import { BaseCellProps, DebouncedTextHandler } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
 import {

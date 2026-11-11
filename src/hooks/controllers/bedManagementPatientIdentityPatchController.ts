@@ -1,4 +1,5 @@
-import type { PatientData } from '@/hooks/contracts/patientHookContracts';
+import type { PatientData } from '@/types/domain/patient';
+
 import { normalizeRut } from '@/utils/rutUtils';
 
 const hasMeaningfulIdentityValue = (value?: string): boolean => Boolean(value?.trim());

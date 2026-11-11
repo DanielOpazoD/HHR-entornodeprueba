@@ -12,7 +12,7 @@ export type {
   ClinicalDocumentTemplate,
   ClinicalDocumentType,
 } from '@/domain/clinical-documents/entities';
-export type { PatientData } from './contracts/clinicalDocumentsPatientContract';
+export type { ClinicalDocumentsWorkspacePatientContract } from './contracts/clinicalDocumentsPatientContract';
 export type { ClinicalDocumentDraftBaseState } from './hooks/clinicalDocumentDraftReducer';
 export {
   buildClinicalDocumentActor,

@@ -1,7 +1,9 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { useCallback } from 'react';
 import type { AuditAction } from '@/types/auditActionTypes';
 import type { AuditLogEntry } from '@/types/auditLogTypes';
-import type { PatientData } from '@/hooks/contracts/patientHookContracts';
+
 import type { PatientFieldValue } from '@/types/valueTypes';
 import type { NursingShift } from './useHandoffVisibility';
 import { buildNursingNoteChangePlan } from '@/hooks/controllers/handoffNursingNoteController';

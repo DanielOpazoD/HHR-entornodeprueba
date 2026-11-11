@@ -1,9 +1,6 @@
-import {
-  MedicalHandoffAudit,
-  MedicalHandoffEntry,
-  PatientData,
-  Specialty,
-} from '@/domain/handoff/patientContracts';
+import type { MedicalHandoffAudit, MedicalHandoffEntry, PatientData } from '@/types/domain/patient';
+
+import { Specialty } from '@/domain/handoff/patientContracts';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 const MEDICAL_SPECIALTY_OPTIONS = Object.values(Specialty).filter(Boolean) as string[];

@@ -1,9 +1,11 @@
+import type { ClinicalDocumentsWorkspacePatientContract } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
+
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
 import '@/features/clinical-documents/styles/clinicalDocumentSheet.css';
-import type { PatientData } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
+
 import { ClinicalDocumentFormattingToolbar } from '@/features/clinical-documents/components/ClinicalDocumentFormattingToolbar';
 import { ClinicalDocumentStatusBar } from '@/features/clinical-documents/components/ClinicalDocumentStatusBar';
 import { ClinicalDocumentsSidebar } from '@/features/clinical-documents/components/ClinicalDocumentsSidebar';
@@ -35,7 +37,7 @@ const escapeClinicalDocumentInlineHtml = (value: string): string =>
     .replaceAll("'", '&#39;');
 
 interface ClinicalDocumentsWorkspaceProps {
-  patient: PatientData;
+  patient: ClinicalDocumentsWorkspacePatientContract;
   currentDateString: string;
   bedId: string;
   isActive?: boolean;

@@ -1,9 +1,8 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { SPECIALTY_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
-import type {
-  PatientData,
-  PatientRowPatientPatch,
-} from '@/features/census/components/patient-row/patientRowContracts';
+import type { PatientRowPatientPatch } from '@/features/census/components/patient-row/patientRowContracts';
 import {
   findProfessionalByCatalogKey,
   findProfessionalByRayenIdentity,

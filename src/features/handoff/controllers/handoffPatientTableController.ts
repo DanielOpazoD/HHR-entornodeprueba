@@ -1,5 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type { BedDefinition } from '@/types/domain/beds';
-import { PatientStatus, Specialty, type PatientData } from '@/domain/handoff/patientContracts';
+import { PatientStatus, Specialty } from '@/domain/handoff/patientContracts';
 
 export interface HandoffPatientTableRowPlan {
   basePatient: PatientData;

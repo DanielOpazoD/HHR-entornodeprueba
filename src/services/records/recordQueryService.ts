@@ -1,5 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
-import { PatientData } from '@/services/contracts/patientServiceContracts';
+
 import {
   getAllRecordsSorted,
   getRecordsForMonth,

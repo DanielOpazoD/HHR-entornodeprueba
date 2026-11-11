@@ -1,6 +1,8 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { useCallback, useMemo } from 'react';
 import type { CudyrBatchUpdate, CudyrScore, CudyrScorePatch } from '@/types/domain/cudyr';
-import type { PatientData } from '@/hooks/contracts/patientHookContracts';
+
 import type { PatientFieldValue } from '@/types/valueTypes';
 import type { BedAction } from '@/hooks/contracts/bedManagementActionContracts';
 import type { ConfirmedBedOccupantIdentity } from '@/types/domain/intentionalBedClear';

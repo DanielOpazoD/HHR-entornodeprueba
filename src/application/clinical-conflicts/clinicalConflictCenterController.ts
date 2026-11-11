@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type {
   ConflictSnapshotRecoveryEvidence,
   ConflictVersionSnapshot,
@@ -11,7 +13,7 @@ import {
   type ClinicalConflictModuleDescriptor,
   type ClinicalConflictModuleKey,
 } from '@/application/clinical-conflicts/clinicalConflictPathClassifier';
-import type { PatientData } from '@/shared/contracts/patientDomainContracts';
+
 import type { DischargeData, TransferData, CMAData } from '@/types/domain/movements';
 
 export {

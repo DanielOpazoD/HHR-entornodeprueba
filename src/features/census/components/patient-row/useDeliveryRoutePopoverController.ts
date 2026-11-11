@@ -1,3 +1,5 @@
+import type { CesareanLabor, DeliveryRoute } from '@/types/domain/patient';
+
 import { MouseEvent, useCallback, useRef, useState } from 'react';
 import { resolveDeliveryRoutePopoverPosition } from '@/features/census/controllers/deliveryRoutePopoverController';
 import { usePortalPopoverRuntime } from '@/hooks/usePortalPopoverRuntime';
@@ -11,10 +13,6 @@ import {
   resolveHasPersistedDeliveryRoute,
 } from '@/features/census/controllers/deliveryRoutePopoverRuntimeController';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
-import type {
-  CesareanLabor,
-  DeliveryRoute,
-} from '@/features/census/contracts/censusObstetricContracts';
 
 interface UseDeliveryRoutePopoverControllerParams {
   deliveryRoute?: DeliveryRoute;

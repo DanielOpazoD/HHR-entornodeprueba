@@ -1,8 +1,10 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { MONTH_NAMES } from '@/constants/export';
 import { calculateStats } from '@/services/calculations/statsCalculator';
 import { formatDateDDMMYYYY } from '@/services/exporters/excel/formatters';
 import type { CensusExportRecord } from '@/services/contracts/censusExportServiceContracts';
-import type { PatientData } from '@/services/contracts/patientServiceContracts';
+
 import {
   getActiveCma,
   getStatisticalDischarges,

@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * IEEH PDF Service — Llenado Automático del Informe Estadístico de Egreso Hospitalario
  *
@@ -29,7 +31,7 @@
  */
 
 import type { PDFFont } from 'pdf-lib';
-import { PatientData } from '@/services/contracts/patientServiceContracts';
+
 import { openPdfPrintDialog, saveAndDownloadPdf } from './pdfBase';
 import { FIELD_COORDS, mapInsurance, mapSex, mapProcedencia } from './ieehPdfCoordinates';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';

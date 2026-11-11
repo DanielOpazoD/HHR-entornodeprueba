@@ -1,3 +1,5 @@
+import type { CesareanLabor, DeliveryRoute } from '@/types/domain/patient';
+
 /**
  * DeliveryRoutePopover - Registro de Vía del Parto
  * Shows a subtle icon next to diagnosis for Ginecobstetricia patients
@@ -15,10 +17,6 @@ import {
 } from '@/features/census/controllers/deliveryRoutePopoverController';
 import { useDeliveryRoutePopoverController } from '@/features/census/components/patient-row/useDeliveryRoutePopoverController';
 import { DeliveryRoutePopoverPanel } from '@/features/census/components/patient-row/DeliveryRoutePopoverPanel';
-import type {
-  CesareanLabor,
-  DeliveryRoute,
-} from '@/features/census/contracts/censusObstetricContracts';
 
 interface DeliveryRoutePopoverProps {
   deliveryRoute?: DeliveryRoute;

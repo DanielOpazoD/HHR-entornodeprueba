@@ -1,5 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { normalizeDiagnosisCode } from './specialtyRulesHistoryModel';
-import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
+
 import type { SpecialtyTarget } from '@/services/specialty/specialtyJevClient';
 import type { SpecialtyCatalogRule } from '@/services/specialty/specialtyJevClient';
 

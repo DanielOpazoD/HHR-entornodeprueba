@@ -1,5 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
-import type { PatientData } from '../contracts/rayenDomainContracts';
+
 import { canonicalizeClinicalValue, clinicalValuesEqual } from './clinicalIncrementalSync';
 
 export type CanonicalClinicalField =

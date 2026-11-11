@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { buildPatientRowSaveScopeKey } from '@/features/census/controllers/patientRowInputController';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -7,10 +9,7 @@ import { SPECIALTY_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
 import { useStaffContext } from '@/context/StaffContext';
 import { professionalSpecialtyToPatientSpecialty } from '@/services/staff/treatingPhysicianCatalog';
 import { TreatingPhysicianSelect } from './TreatingPhysicianSelect';
-import type {
-  PatientData,
-  PatientRowPatientPatch,
-} from '@/features/census/components/patient-row/patientRowContracts';
+import type { PatientRowPatientPatch } from '@/features/census/components/patient-row/patientRowContracts';
 import { usePatientRowSaveState } from './usePatientRowSaveState';
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import type {

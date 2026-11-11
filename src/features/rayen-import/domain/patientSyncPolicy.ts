@@ -1,6 +1,8 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { isNeonatalPatient, newbornOwnRut } from './clinicalCribMaternalAssociation';
 import type { FieldChange, MoveEntry } from '../contracts/censusImportDiff';
-import type { PatientData } from '../contracts/rayenDomainContracts';
+
 import { normalizeRut } from '@/utils/rutUtils';
 import { isDismissedTreatingPhysician } from '@/shared/census/treatingPhysicianDismissal';
 import { normalizePatientUpcForBed } from '@/shared/census/upcBedPolicy';

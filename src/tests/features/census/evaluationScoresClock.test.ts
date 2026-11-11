@@ -1,7 +1,9 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { describe, expect, it } from 'vitest';
 
 import { buildScoresCellModel } from '@/features/census/controllers/evaluationScoresCellController';
-import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
+
 import type { EvaluationScoreEntry } from '@/types/domain/evaluationScores';
 
 // Braden and Downton keep the clock Eloísa printed, mainland Chile (TIME-02). The census shows

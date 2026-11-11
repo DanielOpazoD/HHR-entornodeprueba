@@ -1,4 +1,5 @@
-import type { PatientData } from '@/features/census/types/censusTablePatientContracts';
+import type { PatientData } from '@/types/domain/patient';
+
 import { isValidRut } from '@/utils/rutUtils';
 import { canExploreClinicalPatient } from '@/features/census/controllers/clinicalExplorerController';
 

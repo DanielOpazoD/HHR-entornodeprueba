@@ -1,9 +1,6 @@
+import type { CesareanLabor, DeliveryRoute, PatientData } from '@/types/domain/patient';
+
 import type {
-  CesareanLabor,
-  DeliveryRoute,
-} from '@/features/census/contracts/censusObstetricContracts';
-import type {
-  PatientData,
   PatientRowDeliveryPatch,
   PatientRowPatientDocumentType,
 } from '@/features/census/components/patient-row/patientRowContracts';

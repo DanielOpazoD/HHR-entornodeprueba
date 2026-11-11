@@ -1,30 +1,19 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * Owner contract for the patient-row subfeature.
  *
- * Keep patient-row consumers importing from this module so the row layer can
- * evolve independently from the broader census patient contract.
+ * Derived row shapes use the patient domain type from its canonical home.
  */
 
-import type {
-  CesareanLabor as RootCesareanLabor,
-  DeliveryRoute as RootDeliveryRoute,
-  GinecobstetriciaType as RootGinecobstetriciaType,
-} from '@/features/census/contracts/censusObstetricContracts';
-import type { PatientData as RootPatientData } from '@/features/census/contracts/censusPatientContracts';
-
-export type PatientRowPatientContract = RootPatientData;
-export type PatientData = PatientRowPatientContract;
-export type DeliveryRoute = RootDeliveryRoute;
-export type CesareanLabor = RootCesareanLabor;
-export type GinecobstetriciaType = RootGinecobstetriciaType;
-export type PatientRowPatientPatch = Partial<PatientRowPatientContract>;
-export type PatientRowPatientField = keyof PatientRowPatientContract;
-export type PatientRowPatientDocumentType = PatientRowPatientContract['documentType'];
+export type PatientRowPatientPatch = Partial<PatientData>;
+export type PatientRowPatientField = keyof PatientData;
+export type PatientRowPatientDocumentType = PatientData['documentType'];
 export type PatientRowDeliveryPatch = Pick<
-  PatientRowPatientContract,
+  PatientData,
   'deliveryRoute' | 'deliveryDate' | 'deliveryCesareanLabor'
 >;
 export type PatientRowStateContract = Pick<
-  PatientRowPatientContract,
+  PatientData,
   'bedMode' | 'hasCompanionCrib' | 'clinicalCrib' | 'isBlocked' | 'patientName'
 >;

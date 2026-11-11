@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * Imaging Request PDF Service — Solicitud de Imágenes
  *
@@ -8,7 +10,6 @@
  * Template: public/docs/solicitud-imagen.pdf
  */
 
-import { PatientData } from '@/services/contracts/patientServiceContracts';
 import { calculateAge, formatDateToCL as formatDate } from '@/utils/clinicalUtils';
 import { formatPatientDisplayName } from '@/utils/patientNameDisplayUtils';
 import { saveAndDownloadPdf } from './pdfBase';

@@ -1,5 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import React from 'react';
-import type { PatientData } from '@/domain/handoff/patientContracts';
+
 import { calculateDeviceDays } from '@/components/device-selector/DeviceDateConfigModal';
 import { MedicalBadge } from '@/components/ui/base/MedicalBadge';
 

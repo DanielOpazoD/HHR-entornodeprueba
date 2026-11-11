@@ -1,5 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { useCallback, useMemo } from 'react';
-import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
+
 import { useDailyRecordStability } from '@/context/DailyRecordContext';
 import type {
   DebouncedTextHandler,

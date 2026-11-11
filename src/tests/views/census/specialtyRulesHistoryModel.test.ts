@@ -1,7 +1,9 @@
+import type { PatientData } from '@/types/domain/patient';
+
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
-import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
+
 import {
   historicalMonthRange,
   summarizeCurrentDiagnoses,

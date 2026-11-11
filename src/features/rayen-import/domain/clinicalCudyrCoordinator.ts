@@ -1,9 +1,11 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import {
   buildImportedCudyr,
   isAdministrativeCudyrAdjustment,
   previousCensusIsoDay,
 } from '@/domain/evaluationScales/importedCudyr';
-import type { PatientData } from '../contracts/rayenDomainContracts';
+
 import type {
   ClinicalPersistenceEvidence,
   ClinicalFillError,

@@ -2,13 +2,6 @@ import type { DeviceDetails, DeviceInstance } from '@/types/domain/devices';
 import type { PatientRowPatientPatch } from '@/features/census/components/patient-row/patientRowDataContracts';
 
 export type {
-  CesareanLabor,
-  DeliveryRoute,
-  GinecobstetriciaType,
-} from '@/features/census/contracts/censusObstetricContracts';
-export type { PatientData } from '@/features/census/components/patient-row/patientRowDataContracts';
-export type {
-  PatientRowPatientContract,
   PatientRowDeliveryPatch,
   PatientRowPatientDocumentType,
   PatientRowPatientField,

@@ -1,10 +1,12 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import React, { createContext } from 'react';
 import type {
   DailyRecordDataContextType,
   InventoryStats,
   SyncStatus,
 } from '@/context/dailyRecordContextContracts';
-import type { PatientData } from '@/hooks/contracts/patientHookContracts';
+
 import type { DailyRecordBootstrapPhase } from '@/hooks/controllers/dailyRecordBootstrapController';
 import type { StabilityRules } from '@/hooks/useStabilityRules';
 import type { DailyRecordStaffingDetailsV1 } from '@/types/domain/dailyRecordStaffingDetails';

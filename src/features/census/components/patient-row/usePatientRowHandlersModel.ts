@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type { PatientRowSaveResult } from './inputCellTypes';
 import { usePatientRowChangeHandlers } from '@/features/census/components/patient-row/usePatientRowChangeHandlers';
 import {
@@ -5,7 +7,6 @@ import {
   usePatientRowMainInputHandlers,
 } from '@/features/census/components/patient-row/usePatientRowInputHandlers';
 import type {
-  PatientData,
   PatientRowPatientDocumentType,
   PatientRowPatientField,
   PatientRowPatientPatch,

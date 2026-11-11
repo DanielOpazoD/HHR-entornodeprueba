@@ -1,5 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { DischargeData, TransferData } from '@/types/domain/movements';
-import { PatientData } from '@/services/contracts/patientServiceContracts';
+
 import type { DailyRecordCsvExportState } from '@/services/contracts/dailyRecordServiceContracts';
 import { BEDS } from '@/constants/beds';
 import { CSV_HEADERS } from '@/constants/export';

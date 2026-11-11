@@ -1,5 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { normalizeRut } from '@/utils/rutUtils';
-import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff, ConflictEntry } from '../contracts/censusImportDiff';
 
 export const previousCensusDate = (day: string): string => {

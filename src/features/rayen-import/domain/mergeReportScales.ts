@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * Merges the evaluation scales parsed from Ficha Médico into a patient's HHR `evaluationScores`.
  * Self-contained (like `mergeReportDevices`) to avoid a circular feature dependency.
@@ -11,7 +13,6 @@
  * whole `evaluationScores` object rather than merging field-by-field.
  */
 
-import type { PatientData } from '../contracts/rayenDomainContracts';
 import type {
   EvaluationScaleApplicationEvidence,
   EvaluationScoreEntry,

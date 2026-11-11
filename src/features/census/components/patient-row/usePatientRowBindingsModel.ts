@@ -1,5 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { useMemo } from 'react';
-import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
+
 import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
 import { usePatientRowRuntime } from './usePatientRowRuntime';
 import {

@@ -1,10 +1,12 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /** Applies a reviewed census diff without overwriting occupied beds; pure and deterministic. */
 import { buildMovementUndoSnapshot } from '@/utils/movementUndoSnapshot';
 import { buildImportedMovementStamp } from './buildImportedMovementStamp';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import { CensusManager } from '@/domain/CensusManager';
 import { BEDS, OCCUPANCY_ONLY_EXTRA_BED_IDS } from '@/constants/beds';
-import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { DischargeData, TransferData, CMAData } from '@/types/domain/movements';
 import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImportDiff';
 import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
