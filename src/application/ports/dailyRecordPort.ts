@@ -158,7 +158,7 @@ export interface DailyRecordReadPort {
   getLocalForDate: (date: string) => Promise<DailyRecord | null>;
   /** Exact local candidate plus proof that its version remains in the active outbox. */
   getLocalForDateWithMeta: (date: string) => Promise<LocalDailyRecordReadResult>;
-  initializeDay: (date: string, copyFromDate?: string) => Promise<DailyRecord>;
+  initializeDay: DailyRecordInitializationService['initializeDay'];
   getPreviousDayWithMeta: (date: string) => Promise<DailyRecordReadResult>;
 }
 
@@ -235,8 +235,12 @@ export const defaultDailyRecordReadPort: DailyRecordReadPort = {
   getLocalForDate: date => withReadService(service => service.getLocalForDate(date)),
   getLocalForDateWithMeta: date =>
     withReadService(service => service.getLocalForDateWithMeta(date)),
-  initializeDay: (date, copyFromDate) =>
-    withInitializationService(service => service.initializeDay(date, copyFromDate)),
+  initializeDay: (date, copyFromDate, options) =>
+    withInitializationService(service =>
+      options
+        ? service.initializeDay(date, copyFromDate, options)
+        : service.initializeDay(date, copyFromDate)
+    ),
   getPreviousDayWithMeta: date => withReadService(service => service.getPreviousDayWithMeta(date)),
 };
 

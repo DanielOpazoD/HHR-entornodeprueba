@@ -39,6 +39,11 @@ import {
 import { AdmissionDatePolicyViolationError } from '@/application/patient-flow/admissionDatePolicy';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
+export interface DailyRecordInitializationOptions {
+  /** Automated preparation must never infer absence from a failed or cached read. */
+  requireConfirmedAbsence?: boolean;
+}
+
 export interface DailyRecordInitializationResult {
   record: DailyRecord;
   outcome: 'clean' | 'repaired';
@@ -119,7 +124,8 @@ const admitInitializationRecord = async (
 
 const loadRemoteInitializationSeed = async (
   date: string,
-  copySourceRecord: DailyRecord | null
+  copySourceRecord: DailyRecord | null,
+  options: DailyRecordInitializationOptions
 ): Promise<DailyRecordInitializationSeed | null> => {
   let remoteResult: Awaited<ReturnType<typeof loadRemoteRecordWithFallback>>;
   try {
@@ -129,7 +135,13 @@ const loadRemoteInitializationSeed = async (
       `Failed to check remote sources for ${date} during init`,
       err
     );
+    if (options.requireConfirmedAbsence) throw err;
     return null;
+  }
+  if (options.requireConfirmedAbsence && !remoteResult.record && !remoteResult.serverConfirmed) {
+    throw new Error(
+      'No se pudo confirmar la ausencia del día con el servidor. Reintente con conexión.'
+    );
   }
   const enrichedRecord = remoteResult.record
     ? enrichInitializationRecordFromCopySource(remoteResult.record, copySourceRecord)
@@ -157,13 +169,18 @@ const loadRemoteInitializationSeed = async (
 
 const resolveInitializationSeed = async (
   date: string,
-  copySourceRecord: DailyRecord | null
+  copySourceRecord: DailyRecord | null,
+  options: DailyRecordInitializationOptions
 ): Promise<DailyRecordInitializationSeed> => {
   if (isFirestoreEnabled()) {
-    const remoteSeed = await loadRemoteInitializationSeed(date, copySourceRecord);
+    const remoteSeed = await loadRemoteInitializationSeed(date, copySourceRecord, options);
     if (remoteSeed?.record) {
       return remoteSeed;
     }
+  } else if (options.requireConfirmedAbsence) {
+    throw new Error(
+      'No se pudo confirmar la ausencia del día con el servidor. Reintente con conexión.'
+    );
   }
 
   if (copySourceRecord) {
@@ -184,13 +201,14 @@ const resolveTargetRecordForCopy = async (targetDate: string): Promise<DailyReco
 const initializeMissingDay = async (
   date: string,
   copyFromDate?: string,
-  copySourceRecordOverride?: DailyRecord | null
+  copySourceRecordOverride?: DailyRecord | null,
+  options: DailyRecordInitializationOptions = {}
 ): Promise<DailyRecord> => {
   const copySourceRecord =
     copySourceRecordOverride === undefined
       ? await loadCopySourceRecord(copyFromDate)
       : copySourceRecordOverride;
-  const initializationSeed = await resolveInitializationSeed(date, copySourceRecord);
+  const initializationSeed = await resolveInitializationSeed(date, copySourceRecord, options);
 
   if (shouldReturnSeedRecord(initializationSeed)) {
     return initializationSeed.record;
@@ -211,12 +229,16 @@ const initializeMissingDay = async (
   return newRecord;
 };
 
-export const initializeDay = async (date: string, copyFromDate?: string): Promise<DailyRecord> =>
-  (await initializeDayDetailed(date, copyFromDate)).record;
+export const initializeDay = async (
+  date: string,
+  copyFromDate?: string,
+  options: DailyRecordInitializationOptions = {}
+): Promise<DailyRecord> => (await initializeDayDetailed(date, copyFromDate, options)).record;
 
 export const initializeDayDetailed = async (
   date: string,
-  copyFromDate?: string
+  copyFromDate?: string,
+  options: DailyRecordInitializationOptions = {}
 ): Promise<DailyRecordInitializationResult> =>
   measureRepositoryOperation(
     'dailyRecord.initializeDay',
@@ -233,7 +255,7 @@ export const initializeDayDetailed = async (
 
       const copySourceRecord = copyFromDate ? await loadCopySourceRecord(copyFromDate) : null;
       const copyMeta = buildCopySourceMeta(copySourceRecord, copyFromDate);
-      const record = await initializeMissingDay(date, copyFromDate, copySourceRecord);
+      const record = await initializeMissingDay(date, copyFromDate, copySourceRecord, options);
       return {
         record,
         ...createInitializeDayResult({
