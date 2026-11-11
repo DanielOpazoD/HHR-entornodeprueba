@@ -86,6 +86,9 @@ import {
 import { beforeAll, afterAll } from 'vitest';
 
 import { getActiveHospitalId } from '@/constants/firestorePaths';
+
+// A resumed SDK listener or write against a real emulator can exceed RTL's 1 s default wait.
+const RESUMED_TRANSPORT = { timeout: 10_000 };
 let env: Awaited<ReturnType<typeof initializeTestEnvironment>>;
 beforeAll(async () => {
   const [host, port] = process.env.FIRESTORE_EMULATOR_HOST!.split(':');
@@ -147,13 +150,15 @@ for (const entry of cases) {
         expect(cacheWrites).not.toHaveBeenCalled();
       } finally {
         await enableNetwork(sdkDb);
-        await waitFor(() =>
-          expect(queryClient.getMutationCache().getAll()[0].state.status).toBe('success')
+        await waitFor(
+          () => expect(queryClient.getMutationCache().getAll()[0].state.status).toBe('success'),
+          RESUMED_TRANSPORT
         );
       }
-      await screen.findByText('Synthetic X');
-      await waitFor(() =>
-        expect(queryClient.getMutationCache().getAll()[0].state.status).toBe('success')
+      await screen.findByText('Synthetic X', {}, RESUMED_TRANSPORT);
+      await waitFor(
+        () => expect(queryClient.getMutationCache().getAll()[0].state.status).toBe('success'),
+        RESUMED_TRANSPORT
       );
       expect((await getDocFromServer(ref)).data()?.list).toEqual(['Synthetic Base', 'Synthetic X']);
       await new Promise(r => setTimeout(r, 100));
@@ -194,7 +199,7 @@ for (const entry of serviceCases) {
       const received = vi.fn();
       const unsubscribe = entry.subscribe(received);
       try {
-        await waitFor(() => expect(received).toHaveBeenCalledWith(entry.value));
+        await waitFor(() => expect(received).toHaveBeenCalledWith(entry.value), RESUMED_TRANSPORT);
         await enableNetwork(sdkDb);
         await new Promise(r => setTimeout(r, 300));
         expect(received).toHaveBeenCalledTimes(1);
@@ -214,7 +219,7 @@ it('professionals: pending writes do not publish or cache; ACK publishes once', 
   const { CatalogRepository } = await import('@/services/repositories/CatalogRepository');
   const received = vi.fn();
   const unsubscribe = CatalogRepository.subscribeProfessionals(received);
-  await waitFor(() => expect(received).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(received).toHaveBeenCalledTimes(1), RESUMED_TRANSPORT);
   cacheWrites.mockClear();
   await disableNetwork(sdkDb);
   const saving = CatalogRepository.saveProfessionals(updated);
@@ -229,7 +234,7 @@ it('professionals: pending writes do not publish or cache; ACK publishes once', 
     await enableNetwork(sdkDb);
     await saving;
   }
-  await waitFor(() => expect(received).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(received).toHaveBeenCalledTimes(2), RESUMED_TRANSPORT);
   expect(received.mock.calls[1][0]).toEqual([expect.objectContaining({ specialty: 'Cirugía' })]);
   await new Promise(r => setTimeout(r, 200));
   expect(received).toHaveBeenCalledTimes(2);
@@ -255,6 +260,9 @@ it('late SDK acceptance removes the timeout warning and updates the visible list
   expect(screen.getByRole('button', { name: 'Agregar personal' })).toBeEnabled();
   expect(screen.queryByText('Synthetic Late')).not.toBeInTheDocument();
   await enableNetwork(sdkDb);
-  await screen.findByText('Synthetic Late');
-  await waitFor(() => expect(screen.queryByText(/no se guardó/i)).not.toBeInTheDocument());
+  await screen.findByText('Synthetic Late', {}, RESUMED_TRANSPORT);
+  await waitFor(
+    () => expect(screen.queryByText(/no se guardó/i)).not.toBeInTheDocument(),
+    RESUMED_TRANSPORT
+  );
 });
