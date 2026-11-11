@@ -2,7 +2,7 @@
 
 Estado: activo
 Owner: architecture
-Última actualización: 2026-10-11
+Última actualización: 2026-11-11
 
 ## Scope
 
@@ -10,13 +10,13 @@ Este ledger gobierna los chunks que hoy explican el warning de tamaño de Vite o
 
 ## Current surfaces
 
-| Surface                   | Owner                             | Threshold                           | Current signal                                           | Release posture                                                          | Guardrail                                                                      |
-| ------------------------- | --------------------------------- | ----------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| `vendor-heic2any`         | prescriptions/runtime             | 1,450,000 bytes chunk budget        | ~1,320 KB, async only for HEIC/HEIF prescription photos  | Not a release blocker while it stays out of precache and below threshold | `chunkingPolicy.test`, `pwaPrecachePolicy.test`, `check:bundle-budget`         |
-| `vendor-pdfjs`            | clinical-documents/PDF runtime    | 520,000 bytes chunk budget          | ~455 KB, async PDF.js text/import runtime                | Not a release blocker while excluded from PWA install-time precache      | `chunkingPolicy.test`, `pwaPrecachePolicy.test`, `check:bundle-budget`         |
-| `pdfjs-worker`            | clinical-documents/PDF runtime    | 2,500,000 bytes async worker budget | ~2,303 KB, async PDF.js worker                           | Not a release blocker while excluded from PWA install-time precache      | `pwaPrecachePolicy.test`, `check:runtime-asset-margin`                         |
-| `vendor-pdf-lib`          | clinical-documents/PDF generation | 430,000 bytes chunk budget          | ~382 KB, near warning band but still below ceiling       | Not a release blocker while PDF generation remains on-demand             | `bundleBudgetConfig.test`, `check:bundle-budget`, `check:runtime-asset-margin` |
-| `app-authenticated-shell` | app-shell/census runtime          | 627,000 bytes startup chunk budget  | 626,136 bytes with PR #481 specialty pilot; near ceiling | Not a release blocker while startup imports remain guarded               | `chunkingPolicy.test`, `check:bundle-budget`, `check:runtime-asset-margin`     |
+| Surface                   | Owner                             | Threshold                           | Current signal                                          | Release posture                                                          | Guardrail                                                                      |
+| ------------------------- | --------------------------------- | ----------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| `vendor-heic2any`         | prescriptions/runtime             | 1,450,000 bytes chunk budget        | ~1,320 KB, async only for HEIC/HEIF prescription photos | Not a release blocker while it stays out of precache and below threshold | `chunkingPolicy.test`, `pwaPrecachePolicy.test`, `check:bundle-budget`         |
+| `vendor-pdfjs`            | clinical-documents/PDF runtime    | 520,000 bytes chunk budget          | ~455 KB, async PDF.js text/import runtime               | Not a release blocker while excluded from PWA install-time precache      | `chunkingPolicy.test`, `pwaPrecachePolicy.test`, `check:bundle-budget`         |
+| `pdfjs-worker`            | clinical-documents/PDF runtime    | 2,500,000 bytes async worker budget | ~2,303 KB, async PDF.js worker                          | Not a release blocker while excluded from PWA install-time precache      | `pwaPrecachePolicy.test`, `check:runtime-asset-margin`                         |
+| `vendor-pdf-lib`          | clinical-documents/PDF generation | 430,000 bytes chunk budget          | ~382 KB, near warning band but still below ceiling      | Not a release blocker while PDF generation remains on-demand             | `bundleBudgetConfig.test`, `check:bundle-budget`, `check:runtime-asset-margin` |
+| `app-authenticated-shell` | app-shell/census runtime          | 665,600 bytes startup chunk budget  | Holgura medida 2026-11-11; repetir al superar ~97 %     | Not a release blocker while startup imports remain guarded               | `chunkingPolicy.test`, `check:bundle-budget`, `check:runtime-asset-margin`     |
 
 ## Trigger policy
 
@@ -481,3 +481,59 @@ online-only `vendor-pdf-core`. The precache graph no longer needs the `vendor-pd
 static-import exception. No budget changes.
 
 Rollback: revert the two chunk names and restore the exception together.
+
+## Holgura de arranque medida (2026-11-11)
+
+Owner: app-shell/census runtime; responsable del producto autoriza el 2026-11-11
+solo estos dos topes. El shell usaba 630.574 de 635.136 bytes (99,28 %): los
+4.562 bytes libres obligaban a justificar cada cambio por tamaño, sin medir su
+impacto en el censo. Se sustituye esa regla por holgura ligada a tiempo medido.
+
+Medición secuencial en Apple M4, macOS 26.6.1, Node 22.22.2, Chromium
+143.0.7499.4 (darwin-arm64), mismo lockfile y dependencias enlazadas. Comando:
+`CENSUS_PERF_SAMPLES=30 CENSUS_PERF_RUNNER=a1-local-mac CENSUS_PERF_OUTPUT=<salida-nueva.json> npm run test:e2e:census-performance`.
+Builds productivos E2E aislados, sin dotenv, fixture sintético sin auth real,
+red externa bloqueada, service worker bloqueado y caché HTTP deshabilitada.
+30 navegaciones por escenario y build, más calentamiento excluido; un build y
+un navegador a la vez. Base `5517d86b3d701951e9fe824cbf36a2f212ff7f89`
+frente a `5d5ec6d2c4ff92316e0e76ac3f3b9e3bc6e77fd2`
+(`origin/refactor/remote-admission-step-2`).
+
+| Escenario      | Main mediana; Q1–Q3; mínimo–máximo (ms) | Step 2 mediana; Q1–Q3; mínimo–máximo (ms) |
+| -------------- | --------------------------------------- | ----------------------------------------- |
+| Recarga        | 636,9; 404,9–919,8; 318,5–1.337,1       | 496,8; 414,4–631,3; 319,7–928,0           |
+| Contexto nuevo | 656,3; 580,2–824,8; 451,2–1.211,4       | 636,3; 543,3–709,6; 441,9–1.024,7         |
+
+Mediana convencional (promedio central), cuartiles de `statistics.quantiles`;
+el resumen del ensayo usa p50 de rango más próximo. Ambas corridas pasaron
+los presupuestos absolutos existentes. Miden navegación hasta oportunidad de
+pintado double-rAF del censo poblado, no pintura física, login, confirmación
+remota ni instalación offline. El equipo tenía otros procesos activos: los
+intervalos se solapan ampliamente. **No hay degradación medible; esta medición
+no distingue el efecto de 12 KB del ruido ni demuestra una mejora.** No se
+aplicó ni alteró una tolerancia de tiempo o línea base de rendimiento.
+
+En los builds sintéticos, el shell crece 629.916 → 642.192 bytes (+12.276),
+mientras el precaché real del service worker crece 4.931.381 → 4.934.563
+bytes (+3.182; 273 → 272 entradas, por cambios de partición de la rama).
+Estas cifras corresponden al perfil E2E. El build normal de esta PR mide
+630.574 bytes de shell y 4.932.147 de precaché (273 entradas); la configuración
+no cambia sus assets. Su uso con los nuevos topes es 94,74 % y 96,96 %.
+
+Topes: shell 635.136 → **665.600** bytes (650 KiB), +30.464; margen de
+35.026 bytes sobre los 630.574 de referencia (5,26 % del nuevo tope).
+Precache 5.056.512 → **5.086.976**, exactamente los mismos +30.464 bytes:
+el incremento de holgura del shell cabe íntegro offline y conserva el margen
+previo del resto del precaché. Se usa la misma reserva marginal en bytes; no
+se aplica un 5 % al precaché completo, que concedería más de 250 KB y excedería
+la autorización de ~30 KB. El crecimiento de precaché medido es menor aún.
+Ninguna exclusión, severidad, presupuesto de tiempo ni otro tope cambia.
+
+Revisión: conservar `check:runtime-asset-margin` y su señal NEAR-LIMIT con
+sus bandas actuales. Al superar ~97 % de cualquiera de estos dos topes,
+repetir la misma medición contra main y la propuesta, revisar dispersión y
+obtener decisión del responsable antes de otro ajuste. Una regresión clara y
+repetible bloquea el ajuste. Rollback: revertir este cambio de configuración,
+ledger y expectativas de pruebas; se restauran 635.136/5.056.512 sin cambiar
+código clínico, datos ni recursos offline. La historia anterior permanece en las entradas previas
+y en Git.

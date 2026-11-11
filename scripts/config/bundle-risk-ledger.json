@@ -82,15 +82,15 @@
       "owner": "app-shell/census runtime",
       "workflow": "Authenticated census shell",
       "loadReason": "Post-login shell required to render the census runtime; secondary concerns must stay behind lazy boundaries.",
-      "thresholdLabel": "632,000 bytes startup chunk budget",
+      "thresholdLabel": "665,600 bytes startup chunk budget",
       "startupBudgetLabel": "app-authenticated-shell",
-      "releasePosture": "Startup chunk remains below hard ceiling; secondary authenticated concerns should keep moving behind lazy boundaries.",
+      "releasePosture": "Measured startup headroom approved 2026-11-11; keep the hard ceiling and existing lazy boundaries.",
       "guardrails": [
         "check:bundle-budget",
         "check:chunk-graph",
         "src/tests/build/chunkingPolicy.test.ts"
       ],
-      "nextAction": "Move the next secondary authenticated concern behind a lazy boundary if this chunk exceeds the warning band again."
+      "nextAction": "Keep NEAR-LIMIT visible; above ~97% usage repeat CENSUS_PERF_SAMPLES=30 npm run test:e2e:census-performance before an owner decision. Evidence and rollback: docs/BUNDLE_RISK_LEDGER.md."
     },
     {
       "id": "patient-document-manager",

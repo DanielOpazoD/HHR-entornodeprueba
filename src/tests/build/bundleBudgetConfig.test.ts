@@ -85,10 +85,8 @@ describe('bundle budget config', () => {
     expect(
       config.startupChunkBudgets.find(budget => budget.label === 'app-authenticated-shell')
     ).toMatchObject({
-      // Preserve confirmed-cache ordering, episode metadata and split-day write hygiene within
-      // measured allowances, including shared crash-cart review and the audit documents module
-      // (docs/BUNDLE_RISK_LEDGER.md).
-      maxBytes: 635136,
+      // Owner-approved measured startup headroom (2026-11-11; BUNDLE_RISK_LEDGER.md).
+      maxBytes: 665600,
       severity: 'error',
     });
   });
@@ -96,26 +94,8 @@ describe('bundle budget config', () => {
   it('keeps the install-time precache budget focused on critical runtime files', () => {
     const config = readBundleBudgetConfig();
 
-    // Preserve offline clinical validation with the measured security-upgrade allowance,
-    // plus note replay, the bounded 2 KiB shared crash-cart checklist allowance and the census
-    // program's measured uses.
-    expect(config.precacheMaxBytes).toBe(
-      4840192 +
-        2048 +
-        67840 +
-        31744 +
-        2048 +
-        8192 +
-        40960 +
-        38912 +
-        8192 +
-        4096 +
-        2048 +
-        512 +
-        1536 +
-        3072 +
-        5120
-    );
+    // The same +30464-byte shell allowance also fits offline; exclusions stay intact.
+    expect(config.precacheMaxBytes).toBe(5086976);
     expect(findBudget(config, '^vendor-zod-.*\\.js$')).toMatchObject({ maxBytes: 96000 });
     expect(
       ONLINE_ONLY_PRECACHE_PATTERNS.some(pattern => /sessionActivity|auth/i.test(pattern))

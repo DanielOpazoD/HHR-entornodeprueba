@@ -42,6 +42,10 @@ No comparar tiempos de sesiones distintas como si fueran una prueba controlada.
   [SAFE_CHANGE_CHECKLIST.md](./SAFE_CHANGE_CHECKLIST.md), sin repetir sus etapas.
 
 No aumentar presupuestos, reintentos o timeouts para ocultar una regresión.
+El shell y su incremento equivalente de precaché mantienen holgura medida
+(autorización 2026-11-11): repetir la comparación del censo al superar ~97 %
+de uso, conservando NEAR-LIMIT. Evidencia y reversión en
+[BUNDLE_RISK_LEDGER.md](./BUNDLE_RISK_LEDGER.md).
 No trasladar código de snapshots antiguos sin revisar el contrato vigente.
 
 ## Referencia histórica
