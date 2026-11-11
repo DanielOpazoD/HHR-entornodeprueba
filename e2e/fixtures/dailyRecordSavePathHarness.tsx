@@ -1,3 +1,5 @@
+import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
+import { useAudit } from '@/hooks/useAudit';
 import FunctionsRecoveryNotice from '@/components/ui/FunctionsRecoveryNotice';
 import { useWarmDailyRecordSavePath } from '@/hooks/useWarmDailyRecordSavePath';
 import { createRoot } from 'react-dom/client';
@@ -10,7 +12,13 @@ import {
 import { setDailyRecordQueryData } from '@/hooks/controllers/dailyRecordQueryController';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 
-export async function mountSavePathProbe(date: string) {
+export async function mountSavePathProbe(date: string, audit = false) {
+  if (audit) {
+    Object.defineProperty(defaultAuthRuntime, 'getCurrentUser', {
+      value: () => ({ uid: 'synthetic-audit-uid', email: 'synthetic-audit@example.test' }),
+      configurable: true,
+    });
+  }
   const base = await hospitalDB.dailyRecords.get(date);
   if (!base) throw new Error('Missing synthetic base');
   const record = base;
@@ -20,6 +28,7 @@ export async function mountSavePathProbe(date: string) {
   document.body.append(node);
   function Probe() {
     useWarmDailyRecordSavePath();
+    const { logEvent } = useAudit('synthetic-audit@example.test');
     const save = useSaveDailyRecordMutation();
     const patch = usePatchDailyRecordMutation(date);
     return (
@@ -42,7 +51,21 @@ export async function mountSavePathProbe(date: string) {
         <button
           data-testid="probe-patch"
           onClick={() => {
-            void patch.mutateAsync({ 'beds.R1.pathology': 'OFFLINE SYNTHETIC' }).catch(() => {});
+            void patch
+              .mutateAsync({ 'beds.R1.pathology': 'OFFLINE SYNTHETIC' })
+              .then(() =>
+                audit
+                  ? logEvent(
+                      'PATIENT_MODIFIED',
+                      'patient',
+                      'R1',
+                      { changes: 'OFFLINE SYNTHETIC' },
+                      undefined,
+                      date
+                    )
+                  : undefined
+              )
+              .catch(() => {});
           }}
         >
           Patch
