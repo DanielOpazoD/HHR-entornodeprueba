@@ -12,11 +12,19 @@ vi.mock('@/services/repositories/dailyRecordClinicalDerivedReadService', () => (
 }));
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDateStrict: mocks.getLocal,
-  saveRecordsStrict: mocks.saveMany,
 }));
 vi.mock('@/services/exporters/clinicalDerivedBackupRestore', () => {
   throw new Error('synthetic chunk load failure');
 });
+
+vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
+  saveBackupImport: async (records: unknown[]) => {
+    if (!records.length) return [];
+    const result = await mocks.saveMany(records);
+    if (!result.ok) throw new Error('synthetic backup command failure');
+    return [];
+  },
+}));
 
 import { importDataJSONDetailed } from '@/services/exporters/exportImportJson';
 import {

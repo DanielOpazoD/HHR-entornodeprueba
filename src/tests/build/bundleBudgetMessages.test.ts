@@ -20,7 +20,7 @@ const runBudget = (size: number, category: string, severity = 'error') => {
     entryMaxBytes: category === 'entry' ? limit : 2000000,
     chunkMaxBytes: category === 'chunk' ? limit : 2000000,
     precacheMaxBytes: category === 'precache' ? limit : 2000000,
-    forbiddenAssetPatterns: ['never-match'],
+    forbiddenAssetPatterns: [category === 'forbidden' ? '^assets/entry' : 'never-match'],
     startupChunkBudgets:
       category === 'startup'
         ? [{ label: 'shell', source: 'entry', maxBytes: limit, severity }]
@@ -40,16 +40,27 @@ const runBudget = (size: number, category: string, severity = 'error') => {
   });
 };
 
-const categories = ['entry', 'chunk', 'precache', 'startup', 'chunkPattern', 'assetPattern'];
+const categories = [
+  ['entry', 'entryMaxBytes'],
+  ['chunk', 'chunkMaxBytes'],
+  ['precache', 'precacheMaxBytes'],
+  ['startup', 'startupChunkBudgets[0].maxBytes'],
+  ['chunkPattern', 'chunkPatternBudgets[0].maxBytes'],
+  ['assetPattern', 'assetPatternBudgets[0].maxBytes'],
+];
 describe('bundle budget messages', () => {
-  it.each(categories)('reports exact small and large excess for %s', category => {
+  it.each(categories)('reports exact small and large excess for %s', (category, key) => {
     for (const excess of [1, 100000]) {
       const result = runBudget(635136 + excess, category);
       expect(result.status).toBe(1);
       expect(result.stderr).toContain(`${635136 + excess} B`);
       expect(result.stderr).toContain('635136 B');
       expect(result.stderr).toContain(`+${excess} B`);
-      expect(result.stderr).toContain('scripts/config/bundle-budget.json');
+      const line = result.stderr.split('\n').find(line => line.includes(`+${excess} B`));
+      expect(line).toContain(category === 'precache' ? 'service-worker.js' : 'entry.js');
+      expect(line).toContain(`${635136 + excess} B`);
+      expect(line).toContain('635136 B');
+      expect(line).toContain(`scripts/config/bundle-budget.json.${key}`);
       expect(result.stderr).toContain('Do not raise limits without the responsible owner');
     }
   });
@@ -72,6 +83,23 @@ describe('bundle budget messages', () => {
     expect(result.status).toBe(0);
     expect(result.stderr).toContain('near');
     expect(result.stderr).not.toContain('+0 B');
+  });
+
+  it.each(categories)('accepts one byte below the limit for %s', category => {
+    expect(runBudget(635135, category).status).toBe(0);
+  });
+
+  it('reports a one-byte forbidden asset against its implicit zero-byte allowance', () => {
+    const result = runBudget(1, 'forbidden');
+    expect(result.status).toBe(1);
+    const line = result.stderr.split('\n').find(line => line.includes('Forbidden'));
+    expect(line).toContain('assets/entry.js');
+    expect(line).toContain('actual 1 B, limit 0 B, excess +1 B');
+    expect(line).toContain('scripts/config/bundle-budget.json.forbiddenAssetPatterns[0]');
+  });
+
+  it('still rejects an empty forbidden asset because the policy forbids its presence', () => {
+    expect(runBudget(0, 'forbidden').status).toBe(1);
   });
 
   it('keeps startup warn severity successful while explaining the excess', () => {
