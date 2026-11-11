@@ -85,7 +85,7 @@ Guía:
 Señales HHR:
 
 - `reports/quality-metrics.md` con `folderDebt=0`
-- `check:architecture`, `check:feature-dependencies`
+- `check:architecture`, ESLint (`hhr/feature-boundaries`)
 
 ### Organización
 
