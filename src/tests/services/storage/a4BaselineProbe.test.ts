@@ -215,9 +215,23 @@ it('D1 emits one content-free occurrence only for a newer unheld local row after
   const local = { ...clone(remote), lastUpdated: '2026-10-24T23:00:00.000Z' };
   await hospitalDB.settings.clear();
   await hospitalDB.dailyRecords.put(local);
+  const Dexie = (await import('dexie')).default;
+  const { parseOperationalTelemetryBody } =
+    await import('@/services/observability/operationalTelemetryIngestPolicy');
   telemetry.mockImplementation(event => {
     if (event.context?.reason === 'unheld_newer_local_replaced') {
-      expect(hospitalDB.isOpen()).toBe(true);
+      expect(Dexie.currentTransaction).toBeFalsy();
+      const parsed = parseOperationalTelemetryBody(
+        JSON.stringify({
+          source: 'hhr_operational_telemetry',
+          event: { ...event, timestamp: '2026-10-24T16:00:00.000Z' },
+        })
+      );
+      expect(parsed.ok).toBe(true);
+      if (parsed.ok) {
+        expect(parsed.event.operation).toBe('indexeddb_save_records');
+        expect(parsed.event.context).toEqual({ reason: 'unheld_newer_local_replaced', count: 1 });
+      }
     }
   });
   await admitRemoteDailyRecords([{ record: remote, remoteRecord: remote }]);
@@ -225,7 +239,7 @@ it('D1 emits one content-free occurrence only for a newer unheld local row after
     category: 'indexeddb',
     operation: 'indexeddb_save_records',
     status: 'degraded',
-    context: { policy: 'queue_evidence_v1', reason: 'unheld_newer_local_replaced', count: 1 },
+    context: { reason: 'unheld_newer_local_replaced', count: 1 },
   });
   expect(await hospitalDB.dailyRecords.get(DATE)).toEqual(remote);
   expect(await hospitalDB.settings.toArray()).toEqual([]);

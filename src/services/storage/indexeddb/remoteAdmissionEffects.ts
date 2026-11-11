@@ -15,15 +15,14 @@ export const publishAdmissionEffects = ({
   detached: SpecialistHandoffSyncPayload[];
   occurrences: number;
 }): void => {
-  if (occurrences)
+  for (let occurrence = 0; occurrence < occurrences; occurrence += 1)
     recordOperationalTelemetry({
       category: 'indexeddb',
       operation: 'indexeddb_save_records',
       status: 'degraded',
       context: {
-        policy: 'queue_evidence_v1',
         reason: 'unheld_newer_local_replaced',
-        count: occurrences,
+        count: 1,
       },
     });
   if (owner === getStoredSessionOwnerKey() && epoch === getSessionEpoch())
