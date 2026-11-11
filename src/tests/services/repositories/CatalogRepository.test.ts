@@ -14,6 +14,7 @@ vi.mock('@/services/storage/indexeddb/indexedDbCatalogService', () => ({
   saveCatalog: vi.fn(),
   getCatalogValues: vi.fn(),
   saveCatalogValues: vi.fn(),
+  cacheCatalogValues: vi.fn(),
 }));
 vi.mock('@/services/storage/firestore', () => ({
   saveNurseCatalogToFirestore: vi.fn(),
@@ -55,7 +56,7 @@ describe('CatalogRepository', () => {
 
     it('saveNurses should save to both', async () => {
       await CatalogRepository.saveNurses([' Nurse A ', 'Nurse A', '']);
-      expect(catalogService.saveCatalog).toHaveBeenCalledWith('nurses', ['Nurse A']);
+      expect(catalogService.cacheCatalogValues).toHaveBeenCalledWith('nurses', ['Nurse A']);
       expect(firestoreService.saveNurseCatalogToFirestore).toHaveBeenCalledWith(['Nurse A']);
     });
 
@@ -97,7 +98,7 @@ describe('CatalogRepository', () => {
 
     it('saveTens should save to both', async () => {
       await CatalogRepository.saveTens([' TENS A ', 'TENS A', '']);
-      expect(catalogService.saveCatalog).toHaveBeenCalledWith('tens', ['TENS A']);
+      expect(catalogService.cacheCatalogValues).toHaveBeenCalledWith('tens', ['TENS A']);
       expect(firestoreService.saveTensCatalogToFirestore).toHaveBeenCalledWith(['TENS A']);
     });
 
@@ -135,7 +136,7 @@ describe('CatalogRepository', () => {
         { name: 'Dr. X', phone: '123', specialty: 'Cirugía' },
       ];
       await CatalogRepository.saveProfessionals(profs);
-      expect(catalogService.saveCatalogValues).toHaveBeenCalledWith('professionals', profs);
+      expect(catalogService.cacheCatalogValues).toHaveBeenCalledWith('professionals', profs);
     });
 
     it('subscribeProfessionals should call firestore service', () => {

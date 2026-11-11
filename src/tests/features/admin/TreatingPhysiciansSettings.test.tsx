@@ -43,12 +43,15 @@ describe('TreatingPhysiciansSettings', () => {
       target: { value: 'Psiquiatría' },
     });
 
-    expect(mutate).toHaveBeenCalledWith([
-      expect.objectContaining({
-        name: 'Angelica Vargas',
-        rayenPractitionerId: '7947',
-        specialty: 'Psiquiatría',
-      }),
-    ]);
+    expect(mutate).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          name: 'Angelica Vargas',
+          rayenPractitionerId: '7947',
+          specialty: 'Psiquiatría',
+        }),
+      ],
+      { onSuccess: expect.any(Function) }
+    );
   });
 });

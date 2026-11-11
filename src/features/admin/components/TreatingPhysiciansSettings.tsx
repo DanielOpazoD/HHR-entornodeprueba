@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, Cloud, Stethoscope } from 'lucide-react';
 import { SPECIALTY_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
 import {
@@ -15,6 +15,7 @@ export const TreatingPhysiciansSettings: React.FC = () => {
   const query = useProfessionalsQuery();
   const { data: professionals = [], isLoading } = query;
   const saveProfessionals = useSaveProfessionalsMutation();
+  const [draft, setDraft] = useState<{ catalogKey: string; specialty: string } | null>(null);
   const orderedProfessionals = useMemo(
     () =>
       professionals.toSorted((left, right) =>
@@ -25,8 +26,10 @@ export const TreatingPhysiciansSettings: React.FC = () => {
   const pendingCount = professionals.filter(item => !item.specialty?.trim()).length;
 
   const handleSpecialtyChange = (catalogKey: string, specialty: string) => {
+    setDraft({ catalogKey, specialty });
     saveProfessionals.mutate(
-      assignProfessionalSpecialty(professionals, catalogKey, specialty || undefined)
+      assignProfessionalSpecialty(professionals, catalogKey, specialty || undefined),
+      { onSuccess: () => setDraft(null) }
     );
   };
 
@@ -80,7 +83,16 @@ export const TreatingPhysiciansSettings: React.FC = () => {
             className="mx-5 mt-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800"
           >
             <AlertCircle size={15} />
-            No se pudo confirmar el guardado compartido del cambio. Reintente guardar.
+            El cambio no se guardó. La especialidad elegida se conserva; reintente cuando haya
+            conexión.
+            {draft && (
+              <button
+                type="button"
+                onClick={() => handleSpecialtyChange(draft.catalogKey, draft.specialty)}
+              >
+                Reintentar guardado
+              </button>
+            )}
           </div>
         )}
 
@@ -125,9 +137,16 @@ export const TreatingPhysiciansSettings: React.FC = () => {
                   Especialidad
                   <select
                     aria-label={`Especialidad de ${professional.name}`}
-                    value={professional.specialty ?? ''}
+                    value={
+                      draft?.catalogKey === catalogKey
+                        ? draft.specialty
+                        : (professional.specialty ?? '')
+                    }
                     onChange={event => handleSpecialtyChange(catalogKey, event.target.value)}
-                    disabled={saveProfessionals.isPending}
+                    disabled={
+                      saveProfessionals.isPending ||
+                      (draft !== null && draft.catalogKey !== catalogKey)
+                    }
                     className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium normal-case tracking-normal text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:cursor-wait disabled:opacity-60"
                   >
                     <option value="">Sin especialidad</option>

@@ -66,6 +66,7 @@ function Manager({ entry }: { entry: (typeof cases)[number] }) {
   );
 }
 
+import { TreatingPhysiciansSettings } from '@/features/admin/components/TreatingPhysiciansSettings';
 import { onlineManager } from '@tanstack/react-query';
 
 describe('confirmed catalog saves', () => {
@@ -143,6 +144,7 @@ describe('confirmed catalog saves', () => {
           await callback(server);
         });
         expect((await catalogs.get(entry.key))?.list).toEqual(server);
+        for (const name of server) await screen.findByText(name);
         expect(screen.getByPlaceholderText('Nombre completo…')).toHaveValue('Synthetic X');
         expect(screen.queryByText('Synthetic X')).not.toBeInTheDocument();
         vi.mocked(entry.save).mockResolvedValue(undefined);
@@ -167,4 +169,63 @@ describe('confirmed catalog saves', () => {
       expect((await catalogs.get(entry.key))?.list).toEqual(['Synthetic Base']);
     });
   }
+  it('physicians: rejected specialty stays in editor across snapshot and retries', async () => {
+    const base = [{ name: 'Synthetic Physician', phone: '', specialty: 'Pediatría' }];
+    await catalogs.put({ id: 'professionals', list: base, lastUpdated: 'synthetic' });
+    vi.mocked(remote.saveProfessionalsCatalogToFirestore).mockRejectedValue(failure);
+    const { wrapper } = createQueryClientTestWrapper();
+    render(<TreatingPhysiciansSettings />, { wrapper });
+    const select = await screen.findByRole('combobox');
+    fireEvent.change(select, { target: { value: 'Cirugía' } });
+    await screen.findByText(/El cambio no se guardó/);
+    expect(select).toHaveValue('Cirugía');
+    expect((await catalogs.get('professionals'))?.list).toEqual(base);
+    const callback = vi.mocked(remote.subscribeToProfessionalsCatalog).mock.calls.at(-1)![0];
+    await act(async () => {
+      await callback(base);
+    });
+    expect(select).toHaveValue('Cirugía');
+    vi.mocked(remote.saveProfessionalsCatalogToFirestore).mockResolvedValue(undefined);
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar guardado' }));
+    await waitFor(() => expect(screen.getByRole('combobox')).toHaveValue('Cirugía'));
+    await waitFor(async () =>
+      expect((await catalogs.get('professionals'))?.list).toEqual([
+        expect.objectContaining({ specialty: 'Cirugía' }),
+      ])
+    );
+  });
+  it('disabled remote runtime cannot claim a shared save', async () => {
+    vi.mocked(isFirestoreEnabled).mockReturnValue(false);
+    await catalogs.put({ id: 'nurses', list: ['Synthetic Base'], lastUpdated: 'synthetic' });
+    const { wrapper } = createQueryClientTestWrapper();
+    render(<Manager entry={cases[0]} />, { wrapper });
+    await screen.findByText('Synthetic Base');
+    add();
+    await screen.findByText(/El cambio no se guardó/);
+    expect(screen.getByPlaceholderText('Nombre completo…')).toHaveValue('Synthetic X');
+    expect((await catalogs.get('nurses'))?.list).toEqual(['Synthetic Base']);
+  });
+
+  it('accepted remote save remains successful if the local cache fails', async () => {
+    await catalogs.put({ id: 'nurses', list: ['Synthetic Base'], lastUpdated: 'synthetic' });
+    const failWrite = () => {
+      throw failure;
+    };
+    catalogs.hook('updating', failWrite);
+    try {
+      const { wrapper } = createQueryClientTestWrapper();
+      render(<Manager entry={cases[0]} />, { wrapper });
+      await screen.findByText('Synthetic Base');
+      add();
+      await screen.findByText('Synthetic X');
+      await waitFor(() => expect(screen.getByPlaceholderText('Nombre completo…')).toHaveValue(''));
+      expect(remote.saveNurseCatalogToFirestore).toHaveBeenCalledWith([
+        'Synthetic Base',
+        'Synthetic X',
+      ]);
+      expect(screen.queryByText(/no se guardó/i)).not.toBeInTheDocument();
+    } finally {
+      catalogs.hook('updating').unsubscribe(failWrite);
+    }
+  });
 });
