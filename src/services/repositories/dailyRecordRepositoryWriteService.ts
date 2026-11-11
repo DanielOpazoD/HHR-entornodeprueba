@@ -85,12 +85,12 @@ import {
 import { adoptAuthoritativeRecord } from '@/services/repositories/dailyRecordRepositorySyncService';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { isValidRemoteAuthorityRecord } from '@/services/repositories/dailyRecordRemotePersistenceState';
-/** D3 checks all dates in the file, including dates later skipped by D10. */
+/** D3 checks every date the file names (even if D10 skips it) and every date it will write. */
 export const saveBackupImport = async (records: DailyRecord[], sourceDates: string[]) => {
   await ensureDbReady();
   const generation = getSessionGeneration();
   const owner = getStoredSessionOwnerKey();
-  const dates = [...new Set(sourceDates)].sort();
+  const dates = [...new Set([...sourceDates, ...records.map(record => record.date)])].sort();
   const leases = new Map<string, DailyRecordWriteLease>();
   const lock = async (index: number): Promise<string[]> => {
     const date = dates.at(index);

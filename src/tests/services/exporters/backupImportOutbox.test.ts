@@ -101,3 +101,29 @@ it('exposes D3 dates through the application outcome', async () => {
   expect(outcome.issues[0]?.message).toContain(dates[1]);
   expect(outcome.data).toMatchObject({ importedCount: 0, pendingDates: [dates[1]] });
 });
+
+it.each(['user:synthetic', 'user:other'])(
+  'rejects a file whose entry is keyed by one date but holds a day with unsent work of %s',
+  async ownerKey => {
+    const [keyDate, writtenDate] = dates;
+    await saveDetailed({
+      ...day(writtenDate, { R4: A() }),
+      nursesDayShift: ['Edición sin enviar'],
+    });
+    const [task] = await hospitalDB.syncQueue.toArray();
+    await hospitalDB.syncQueue.update(task!.id!, { ownerKey });
+    const before = await hospitalDB.dailyRecords.toArray();
+    const queue = await hospitalDB.syncQueue.toArray();
+    const mismatched = new File(
+      [JSON.stringify({ [keyDate]: day(writtenDate, { R4: A() }) })],
+      'synthetic.json'
+    );
+    expect(await importDataJSONDetailed(mismatched)).toMatchObject({
+      success: false,
+      importedCount: 0,
+      pendingDates: [writtenDate],
+    });
+    expect(await hospitalDB.dailyRecords.toArray()).toEqual(before);
+    expect(await hospitalDB.syncQueue.toArray()).toEqual(queue);
+  }
+);
