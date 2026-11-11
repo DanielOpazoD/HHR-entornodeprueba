@@ -2,7 +2,7 @@ import { createCachedRuntimeLoader } from './createCachedRuntimeLoader';
 import { setModuleReloadRequired } from './moduleReloadRecovery';
 import { isChunkLoadError } from '@/utils/chunkLoadError';
 
-export const createSavePathRuntimeLoader = <T>(key: string, importModule: () => Promise<T>) =>
+export const createRecoverableRuntimeLoader = <T>(key: string, importModule: () => Promise<T>) =>
   createCachedRuntimeLoader(async () => {
     try {
       const module = await importModule();

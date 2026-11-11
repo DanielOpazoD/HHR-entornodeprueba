@@ -79,7 +79,9 @@ function FunctionsRecoveryBanner() {
     <div className="border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900">
       {reason === 'save'
         ? 'La aplicación no terminó de cargar lo necesario para guardar. Lo editado desde entonces no quedó guardado. Recarga la aplicación.'
-        : 'Se restableció la conexión. Recarga para reanudar el acceso y la sincronización; los cambios pendientes se conservan.'}{' '}
+        : reason === 'audit'
+          ? 'Una parte de la aplicación no se cargó. Lo editado sí quedó guardado. Recarga la aplicación para que todo vuelva a quedar registrado.'
+          : 'Se restableció la conexión. Recarga para reanudar el acceso y la sincronización; los cambios pendientes se conservan.'}{' '}
       <button
         type="button"
         className="underline"
