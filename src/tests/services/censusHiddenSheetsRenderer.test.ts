@@ -2,11 +2,11 @@ import ExcelJS from 'exceljs';
 import PizZip from 'pizzip';
 import { describe, expect, it } from 'vitest';
 
+import { renderSummarySheet } from '@/services/exporters/excel/censusHiddenSummarySheet';
 import {
-  renderSummarySheet,
   renderUpcDailyMatrixSheet,
   renderUpcPatientsSheet,
-} from '@/services/exporters/excel/censusHiddenSheetsRenderer';
+} from '@/services/exporters/excel/censusHiddenUpcSheets';
 import type {
   SummaryDayRow,
   UpcPatientPresentation,

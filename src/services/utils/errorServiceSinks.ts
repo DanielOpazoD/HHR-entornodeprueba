@@ -1,7 +1,9 @@
 import { dispatchOperationalTelemetryExternally } from '@/services/observability/operationalTelemetryExternalAdapter';
 import { saveErrorLog } from '@/services/storage/indexeddb/indexedDbErrorLogService';
 import type { ErrorLog } from '@/services/logging/errorLogTypes';
-import { errorServiceSinksLogger } from '@/services/utils/errorLoggers';
+import { createScopedLogger } from '@/services/utils/loggerScope';
+
+const errorServiceSinksLogger = createScopedLogger('ErrorServiceSinks');
 
 export type ErrorServiceSink = (errorLog: ErrorLog) => Promise<void> | void;
 

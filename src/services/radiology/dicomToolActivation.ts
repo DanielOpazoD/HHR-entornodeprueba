@@ -1,7 +1,9 @@
-import { dicomMeasureTools, dicomToolNames as toolNames } from './dicomToolNames';
 import { dicomTools as tools } from './dicomInitialization';
 import {
   ToolGroupManager,
+  WindowLevelTool,
+  PanTool,
+  TrackballRotateTool,
   ZoomTool,
   StackScrollTool,
   Enums as ToolEnums,
@@ -16,6 +18,28 @@ import type { createMprTools, ReferenceStyle } from './dicomMprTools';
 import type { createMprReconstruction } from './dicomMprReconstruction';
 import type { DicomMode, DicomTool } from './dicomRuntimeTypes';
 import { dicomStackToolName, dicomStackTools, type DicomStackToolSession } from './dicomStackTools';
+
+/** MPR and navigation tools. Original and Comparar measure with `dicomStackToolName`. */
+const dicomToolNames: Partial<Record<DicomTool, string>> = {
+  window: WindowLevelTool.toolName,
+  pan: PanTool.toolName,
+  zoom: ZoomTool.toolName,
+  rotate: TrackballRotateTool.toolName,
+  reference: DicomReferencePointTool.toolName,
+  length: LengthTool.toolName,
+  angle: AngleTool.toolName,
+  probe: ProbeTool.toolName,
+  roi: EllipticalROITool.toolName,
+};
+const dicomMeasureTools: DicomTool[] = [
+  'length',
+  'angle',
+  'cobb',
+  'probe',
+  'roi',
+  'rectangle',
+  'circle',
+];
 
 /** MPR keeps its four tools; Cobb and the rectangular and circular ROIs are Original only. */
 const availableIn = (tool: DicomTool, mode: DicomMode) => {
@@ -69,7 +93,7 @@ export const activateDicomTool = (
       ? dicomStackToolName(tool)!
       : tool === 'reference' && reconstruction?.state().rotate
         ? CrosshairsTool.toolName
-        : toolNames[tool]!,
+        : dicomToolNames[tool]!,
     {
       bindings: [
         { mouseButton: ToolEnums.MouseBindings.Primary },
