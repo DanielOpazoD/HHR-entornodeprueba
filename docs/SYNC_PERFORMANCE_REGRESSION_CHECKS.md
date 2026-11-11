@@ -62,11 +62,11 @@ clínicos. Confirmar también el historial tras recargar y la persistencia de lo
 
 La primera línea base leída del historial real, con cinco ejecuciones comparables de
 0.48.31 y una observación aislada de 0.48.32, está en
-[SYNC_REAL_PERFORMANCE_BASELINE_2026-09-23.md](SYNC_REAL_PERFORMANCE_BASELINE_2026-09-23.md).
+[SYNC_REAL_PERFORMANCE_BASELINE_2026-09-23.md](archive/SYNC_REAL_PERFORMANCE_BASELINE_2026-09-23.md).
 La repetición de 0.48.32 y el readback posterior aún están pendientes; esta evidencia
 no autoriza a fijar un presupuesto temporal bloqueante ni a declarar una regresión.
 
-La [medición del 29-09-2026](SYNC_REAL_PERFORMANCE_BASELINE_2026-09-29.md) añade tres
+La [medición del 29-09-2026](archive/SYNC_REAL_PERFORMANCE_BASELINE_2026-09-29.md) añade tres
 repeticiones verificadas en `hhr-pruebas` con extensión 0.48.36 y readback del historial
 tras recarga. Sus totales fueron 17, 41 y 15 s; la demora aislada se concentra en la
 captura dual. No se atribuye a una fuente concreta ni justifica otra caché.
@@ -95,7 +95,7 @@ mejora de velocidad ni persiste duraciones de capturas fallidas. Repetir el esce
 de tres sincronizaciones sin cambios cuando las sesiones estén disponibles y decidir
 la próxima optimización por la fuente que concentre la demora.
 
-La [serie real con extensión 0.48.37](SYNC_REAL_PERFORMANCE_BASELINE_2026-09-29_V37.md)
+La [serie real con extensión 0.48.37](archive/SYNC_REAL_PERFORMANCE_BASELINE_2026-09-29_V37.md)
 incluye nueve ejecuciones completas y una fallida en tres condiciones de recarga.
 Localiza demoras variables en Ficha Médico, lecturas y persistencia clínica, pero
 no prueba una operación local redundante ni una mejora causada por la recarga.
@@ -140,7 +140,7 @@ produce estas cuatro fases.
 
 ### Convergencia tras la hidratación de campos sin medición
 
-La [serie real de 0.48.39](SYNC_REAL_PERFORMANCE_BASELINE_2026-09-29_V39.md)
+La [serie real de 0.48.39](archive/SYNC_REAL_PERFORMANCE_BASELINE_2026-09-29_V39.md)
 detectó dos lotes redundantes: los nulls eliminados al hidratar signos vitales y
 el orden de claves de CUDYR se interpretaban como cambios. Las regresiones de
 `clinicalFieldCanonicalization.test.ts` usan `docToRecord` y comprueban también
