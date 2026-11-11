@@ -71,12 +71,12 @@ describe('census measurement release gate', () => {
     expect(bundle.precacheMaxBytes).toBe(
       4952064 + 40960 + 38912 + 8192 + 4096 + 2048 + 512 + 1536 + 3072 + 5120
     );
-    // +576 bytes for the audit documents module's menu item and route (BUNDLE_RISK_LEDGER.md).
+    // Owner-approved measured startup headroom (2026-11-11; BUNDLE_RISK_LEDGER.md).
     expect(
       bundle.startupChunkBudgets.find(
         (b: { label: string }) => b.label === 'app-authenticated-shell'
       ).maxBytes
-    ).toBe(634560 + 576);
+    ).toBe(665600);
     expect(ONLINE_ONLY_PRECACHE_PATTERNS).not.toContain('^assets/censusStartupPerf-.*\\.js$');
   });
 });
