@@ -7,6 +7,7 @@ import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 import { useEloisaStaff } from './useEloisaStaff';
 import { mergeStaffCatalog } from '@/services/staff/eloisaStaffIdentity';
 import {
+  CatalogRemoteSyncError,
   normalizeStringCatalog,
   normalizeProfessionalCatalog,
 } from '@/services/repositories/contracts/catalogContracts';
@@ -167,13 +168,33 @@ export const useProfessionalsQuery = () => {
   return query;
 };
 
+const useAcceptedCatalogChange = <T>(
+  key: string,
+  mutation: { error: unknown; variables?: T; reset: () => void },
+  normalize: (value: T) => unknown
+) => {
+  const client = useQueryClient();
+  const { error, variables, reset } = mutation;
+  useEffect(() => {
+    if (!(error instanceof CatalogRemoteSyncError) || variables === undefined) return;
+    const reconcile = () => {
+      const accepted = client.getQueryData([...queryKeys.staff.all, key]);
+      if (JSON.stringify(accepted) === JSON.stringify(normalize(variables))) reset();
+    };
+    const unsubscribe = client.getQueryCache().subscribe(reconcile);
+    reconcile();
+    return unsubscribe;
+  }, [client, key, error, variables, reset, normalize]);
+  return mutation;
+};
+
 /**
  * Mutation to save the nurses catalog.
  */
 export const useSaveNursesMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: (nurses: string[]) => CatalogRepository.saveNurses(nurses),
     networkMode: 'always',
     retry: false,
@@ -188,6 +209,8 @@ export const useSaveNursesMutation = () => {
       queryClient.setQueryData([...queryKeys.staff.all, 'nurses'], normalizeStringCatalog(names));
     },
   });
+  useAcceptedCatalogChange('nurses', mutation, normalizeStringCatalog);
+  return mutation;
 };
 
 /**
@@ -196,7 +219,7 @@ export const useSaveNursesMutation = () => {
 export const useSaveTensMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: (tens: string[]) => CatalogRepository.saveTens(tens),
     networkMode: 'always',
     retry: false,
@@ -211,6 +234,8 @@ export const useSaveTensMutation = () => {
       queryClient.setQueryData([...queryKeys.staff.all, 'tens'], normalizeStringCatalog(names));
     },
   });
+  useAcceptedCatalogChange('tens', mutation, normalizeStringCatalog);
+  return mutation;
 };
 
 /**
@@ -219,7 +244,7 @@ export const useSaveTensMutation = () => {
 export const useSaveProfessionalsMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: (professionals: ProfessionalCatalogItem[]) =>
       CatalogRepository.saveProfessionals(professionals),
     networkMode: 'always',
@@ -238,4 +263,6 @@ export const useSaveProfessionalsMutation = () => {
       );
     },
   });
+  useAcceptedCatalogChange('professionals', mutation, normalizeProfessionalCatalog);
+  return mutation;
 };

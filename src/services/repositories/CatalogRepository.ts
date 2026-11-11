@@ -49,6 +49,24 @@ const assertCatalogRemoteAvailable = (): void => {
   }
 };
 
+// Bounds the complete retry chain; the SDK may still acknowledge the write later.
+const confirmCatalogSave = async (save: Promise<void>): Promise<void> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      save,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () => reject(new CatalogRemoteSyncError('confirmation_timeout')),
+          15_000
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 // ============================================================================
 // Nurses Catalog
 // ============================================================================
@@ -86,7 +104,7 @@ export const saveNurses = async (nurses: string[]): Promise<void> => {
   const normalized = normalizeStringCatalog(nurses);
   assertCatalogRemoteAvailable();
   try {
-    await saveNurseCatalogToFirestore(normalized);
+    await confirmCatalogSave(saveNurseCatalogToFirestore(normalized));
   } catch (cause) {
     throw new CatalogRemoteSyncError(cause);
   }
@@ -189,7 +207,7 @@ export const saveTens = async (tens: string[]): Promise<void> => {
   const normalized = normalizeStringCatalog(tens);
   assertCatalogRemoteAvailable();
   try {
-    await saveTensCatalogToFirestore(normalized);
+    await confirmCatalogSave(saveTensCatalogToFirestore(normalized));
   } catch (cause) {
     throw new CatalogRemoteSyncError(cause);
   }
@@ -254,7 +272,7 @@ export const saveProfessionals = async (
   const normalized = normalizeProfessionalCatalog(professionals);
   assertCatalogRemoteAvailable();
   try {
-    await saveProfessionalsCatalogToFirestore(normalized);
+    await confirmCatalogSave(saveProfessionalsCatalogToFirestore(normalized));
   } catch (cause) {
     throw new CatalogRemoteSyncError(cause);
   }
