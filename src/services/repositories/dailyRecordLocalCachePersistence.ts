@@ -62,7 +62,7 @@ export type RemoteDailyRecordAdmission = LocalRecordAdmissionResult & {
   remoteRecord: DailyRecord | null;
 };
 
-/** Batch-only entry point for now; remote evidence never acknowledges retained work. */
+/** All confirmed observations share one admission; remote evidence never acknowledges retained work. */
 export const admitRemoteDailyRecords = async (
   candidates: readonly RemoteDailyRecordCandidate[]
 ): Promise<RemoteDailyRecordAdmission[]> => {

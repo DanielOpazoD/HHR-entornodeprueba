@@ -198,10 +198,28 @@ describe('a read never publishes another copy over a pending local edit', () => 
 
     const result = await syncWithFirestoreDetailed(date);
 
+    expect(result?.record).toEqual(await hospitalDB.dailyRecords.get(date));
     expect(result?.record?.tensDayShift).toEqual(['SINTETICO PENDIENTE']);
     expect(result?.sourceOfTruth).toBe('local');
     expect(result?.outcome).toBe('missing');
     expect(result?.consistencyState).toBe('missing_remote');
     expect(result?.conflictSummary?.kind).toBe('remote_missing');
   });
+});
+
+it('a missing read cannot confirm a row replaced during the request without a holder', async () => {
+  firestoreEnabled.value = true;
+  await hospitalDB.syncQueue.clear();
+  await hospitalDB.dailyRecords.put(base());
+  loadRemote.mockImplementation(async () => {
+    await hospitalDB.dailyRecords.put(pendingEdit());
+    return { ...remoteLoad(base()), record: null };
+  });
+  const result = await syncWithFirestoreDetailed(date);
+  expect(result).toMatchObject({
+    serverConfirmed: false,
+    publication: 'superseded',
+    outcome: 'blocked',
+  });
+  expect(result?.record).toEqual(await hospitalDB.dailyRecords.get(date));
 });
