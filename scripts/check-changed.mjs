@@ -40,11 +40,7 @@ try {
       source,
       'Protege las lecturas nuevas; si bajaron, usa npm run check:unchecked-index -- --write-baseline.',
     ],
-    [
-      'test-governance',
-      /^src\/tests\//,
-      'Divide las pruebas de más de 500 líneas y retira only/skip prohibidos.',
-    ],
+    ['test-governance', /^src\/tests\//, 'Retira only/skip prohibidos de las pruebas.'],
     [
       'module-size',
       /^src\//,
