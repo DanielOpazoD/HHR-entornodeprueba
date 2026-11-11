@@ -1,0 +1,31 @@
+import { afterEach, expect, it, vi } from 'vitest';
+import { createPointReadPublication, publishDailyRecordQueryData } from '@/hooks/controllers/dailyRecordPointReadPublication';
+import { createDailyRecordQueryResult, type DailyRecordQueryRuntime } from '@/services/repositories/contracts/dailyRecordQueries';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { registerPendingDailyRecordPatch, clearPendingDailyRecordPatchesForTests } from '@/hooks/controllers/dailyRecordPendingPatchController';
+const date = '2026-10-24';
+const runtime: DailyRecordQueryRuntime = {date,serverConfirmed:true,availabilityState:'resolved',consistencyState:'remote_authoritative',sourceOfTruth:'remote',retryability:'not_applicable',recoveryAction:'none',conflictSummary:null,observabilityTags:[],repairApplied:false};
+afterEach(() => { clearPendingDailyRecordPatchesForTests(); localStorage.clear(); });
+it.each(['owner', 'epoch'])('cancels publication after a changed session %s', kind => {
+  localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-first');
+  setSessionGeneration('synthetic-first');
+  const result = createDailyRecordQueryResult(DataFactory.createMockDailyRecord(date), runtime);
+  const confirm = vi.fn();
+  const incoming = createPointReadPublication(result, undefined, () => undefined, confirm, true);
+  if (kind === 'owner') localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-next');
+  else setSessionGeneration('synthetic-next');
+  expect(() => publishDailyRecordQueryData(undefined, incoming)).toThrow();
+  expect(confirm).not.toHaveBeenCalled();
+});
+it('reapplies a patch only to publication and confirms the pure observation', () => {
+  const record = DataFactory.createMockDailyRecord(date);
+  const result = createDailyRecordQueryResult(record, runtime);
+  const original = structuredClone(record);
+  registerPendingDailyRecordPatch(date, {'beds.R1.pathology': 'Synthetic pending edit'});
+  const confirm = vi.fn();
+  const incoming = createPointReadPublication(result, result, () => result, confirm, true);
+  publishDailyRecordQueryData(result, incoming);
+  expect(record).toEqual(original);
+  expect(confirm).toHaveBeenCalledWith(result);
+});

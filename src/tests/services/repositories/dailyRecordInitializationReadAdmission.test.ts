@@ -45,6 +45,42 @@ describe('initialization return value after a superseded remote read', () => {
     await hospitalDB.dailyRecords.clear();
   });
 
+  it('hydrates only the admitted remote row without creating a day or queue task', async () => {
+    const remote = DataFactory.createMockDailyRecord(date, { beds: {} });
+    vi.mocked(getForDate).mockResolvedValue(null);
+    vi.mocked(loadRemoteRecordWithFallback).mockResolvedValue({
+      record: remote, serverConfirmed: true, source: 'firestore',
+      compatibilityTier: 'current_firestore', compatibilityIntensity: 'none',
+      migrationRulesApplied: [], cachedLocally: false,
+    });
+    const settings = await hospitalDB.settings.toArray();
+    const result = await initializeDayDetailed(date);
+    expect(await hospitalDB.dailyRecords.toArray()).toEqual([result.record]);
+    expect(result.record.beds).toEqual(remote.beds);
+    expect(await hospitalDB.syncQueue.count()).toBe(0);
+    expect(await hospitalDB.settings.toArray()).toEqual(settings);
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('copies offline with enabled runtime even when the SDK returns cached absence', async () => {
+    const source = DataFactory.createMockDailyRecord(copyDate, { beds: {} });
+    vi.mocked(getForDate).mockImplementation(async requested => requested === copyDate ? source : null);
+    vi.mocked(loadRemoteRecordWithFallback).mockResolvedValue({
+      record: null, serverConfirmed: false, source: 'not_found',
+      compatibilityTier: 'none', compatibilityIntensity: 'none',
+      migrationRulesApplied: [], cachedLocally: false,
+    });
+    const online = navigator.onLine;
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    try {
+      expect((await initializeDayDetailed(date, copyDate)).record.date).toBe(date);
+      expect(save).toHaveBeenCalledOnce();
+      await expect(initializeDayDetailed(date, copyDate, {requireConfirmedAbsence: true})).rejects.toThrow();
+    } finally {
+      Object.defineProperty(navigator, 'onLine', { value: online, configurable: true });
+    }
+  });
+
   it.each([
     { copy: false, missing: false },
     { copy: true, missing: false },
