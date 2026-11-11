@@ -13,7 +13,9 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordsForMonth: mocks.month,
   getRecordsRange: mocks.localRange,
   getAllRecordsSorted: mocks.all,
-  saveRecordsStrict: mocks.save,
+}));
+vi.mock('@/services/repositories/dailyRecordLocalCachePersistence', () => ({
+  admitRemoteDailyRecords: mocks.save,
 }));
 vi.mock('@/services/storage/firestore', () => {
   mocks.remoteLoaded();
@@ -30,7 +32,13 @@ describe('record query local/remote boundary', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.resetAllMocks();
-    mocks.save.mockResolvedValue({ ok: true });
+    mocks.save.mockImplementation(async candidates =>
+      candidates.map(({ record, remoteRecord }: { record: unknown; remoteRecord: unknown }) => ({
+        record,
+        remoteRecord,
+        status: 'admitted',
+      }))
+    );
   });
   afterEach(() => vi.restoreAllMocks());
 
@@ -58,10 +66,12 @@ describe('record query local/remote boundary', () => {
     const records = [day('2026-04-02', 'Synthetic')];
     mocks.range.mockResolvedValue(records);
     expect(mocks.remoteLoaded).not.toHaveBeenCalled();
-    expect(await service.syncRecordsRange('2026-04-01', '2026-04-30')).toBe(records);
+    expect(await service.syncRecordsRange('2026-04-01', '2026-04-30')).toEqual(records);
     expect(mocks.remoteLoaded).toHaveBeenCalledTimes(1);
     expect(mocks.range).toHaveBeenCalledWith('2026-04-01', '2026-04-30');
-    expect(mocks.save).toHaveBeenCalledExactlyOnceWith(records, { preserveUnresolvedWrites: true });
+    expect(mocks.save).toHaveBeenCalledExactlyOnceWith(
+      records.map(record => ({ record, remoteRecord: record }))
+    );
   });
 
   it('does not persist an empty or failed remote response', async () => {
