@@ -1,7 +1,7 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { PendingDailyRecordSyncTaskSnapshot } from '@/services/storage/sync/pendingDailyRecordSyncTask';
-import { preparePatchedRecordForPersistence } from '@/services/repositories/dailyRecordPatchPreparation';
+import { preparePatchedRecordPersistence } from '@/services/repositories/dailyRecordPatchPersistenceController';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import { RAYEN_OWNED_CLINICAL_FIELDS } from '@/types/domain/rayenClinicalFields';
 import { hasSamePatientEpisodeIdentity } from '@/application/patient-flow/patientEpisodeIdentityPolicy';
@@ -163,7 +163,7 @@ export const rebasePendingDailyRecordWrite = ({
     authoritativeRecord,
     pendingPatch
   );
-  const { record, mergedPatches } = preparePatchedRecordForPersistence(
+  const { record, mergedPatches } = preparePatchedRecordPersistence(
     authoritativeRecord,
     authoritativeRecord.date,
     { ...pendingPatch, ...alreadyAppliedPatch, ...authoritativeClinicalProtection }

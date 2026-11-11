@@ -15,7 +15,18 @@ describe('usePatientRowCommandHandlers', () => {
       saveDemographics: vi.fn(),
     };
 
-    const { result } = renderHook(() => usePatientRowCommandHandlers(commands));
+    const { result } = renderHook(() =>
+      usePatientRowCommandHandlers({
+        updateField: (field, value) => {
+          if (field === 'devices') commands.setDevices(value);
+          else if (field === 'deviceDetails') commands.setDeviceDetails(value);
+          else if (field === 'deviceInstanceHistory') commands.setDeviceHistory(value);
+          else if (typeof value === 'boolean') commands.setCheckboxField(field, value);
+          else commands.setTextField(field, value);
+        },
+        updateMultiple: commands.saveDemographics,
+      })
+    );
 
     act(() => {
       result.current.handleTextChange('patientName')({

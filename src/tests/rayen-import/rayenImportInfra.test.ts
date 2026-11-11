@@ -12,8 +12,8 @@ import {
   requestEgresoReport,
   requestEgresoLookup,
   requestHistoryScales,
-  subscribeToRayenSnapshots,
 } from '@/features/rayen-import/bridge/rayenImportBridge';
+import { subscribeToRayenSnapshots } from '@/features/rayen-import/bridge/rayenSnapshotBridge';
 import {
   RAYEN_PATIENT_FLOW_REQUEST_TYPE,
   RAYEN_PATIENT_FLOW_RESULT_TYPE,

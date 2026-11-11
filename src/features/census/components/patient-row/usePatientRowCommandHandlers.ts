@@ -1,11 +1,16 @@
 import type { PatientRowSaveResult } from './inputCellTypes';
-import { ChangeEvent, useCallback } from 'react';
+import { ChangeEvent, useCallback, useMemo } from 'react';
 import type { DeviceDetails, DeviceInstance } from '@/types/domain/devices';
 import type {
   PatientRowPatientField,
   PatientRowPatientPatch,
 } from '@/features/census/components/patient-row/patientRowContracts';
-import type { PatientRowInputCommands } from '@/features/census/controllers/patientRowInputHandlersController';
+import type { PatientFieldValue } from '@/types/valueTypes';
+
+interface PatientRowUpdates {
+  updateField: (field: PatientRowPatientField, value: PatientFieldValue) => void;
+  updateMultiple: (fields: PatientRowPatientPatch) => PatientRowSaveResult;
+}
 
 interface UsePatientRowCommandHandlersResult {
   handleTextChange: (
@@ -20,49 +25,51 @@ interface UsePatientRowCommandHandlersResult {
   handleDemographicsSave: (updatedFields: PatientRowPatientPatch) => PatientRowSaveResult;
 }
 
-export const usePatientRowCommandHandlers = (
-  commands: PatientRowInputCommands
-): UsePatientRowCommandHandlersResult => {
+export const usePatientRowCommandHandlers = ({
+  updateField,
+  updateMultiple,
+}: PatientRowUpdates): UsePatientRowCommandHandlersResult => {
+  const updates = useMemo(() => ({ updateField, updateMultiple }), [updateField, updateMultiple]);
   const handleTextChange = useCallback(
     (field: PatientRowPatientField) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-      commands.setTextField(field, e.target.value);
+      updates.updateField(field, e.target.value);
     },
-    [commands]
+    [updates]
   );
 
   const handleCheckboxChange = useCallback(
     (field: PatientRowPatientField) => (e: ChangeEvent<HTMLInputElement>) => {
-      commands.setCheckboxField(field, e.target.checked);
+      updates.updateField(field, e.target.checked);
     },
-    [commands]
+    [updates]
   );
 
   const handleDevicesChange = useCallback(
     (newDevices: string[]) => {
-      commands.setDevices(newDevices);
+      updates.updateField('devices', newDevices);
     },
-    [commands]
+    [updates]
   );
 
   const handleDeviceDetailsChange = useCallback(
     (details: DeviceDetails) => {
-      commands.setDeviceDetails(details);
+      updates.updateField('deviceDetails', details);
     },
-    [commands]
+    [updates]
   );
 
   const handleDeviceHistoryChange = useCallback(
     (history: DeviceInstance[]) => {
-      commands.setDeviceHistory(history);
+      updates.updateField('deviceInstanceHistory', history);
     },
-    [commands]
+    [updates]
   );
 
   const handleDemographicsSave = useCallback(
     (updatedFields: PatientRowPatientPatch) => {
-      return commands.saveDemographics(updatedFields);
+      return updates.updateMultiple(updatedFields);
     },
-    [commands]
+    [updates]
   );
 
   return {

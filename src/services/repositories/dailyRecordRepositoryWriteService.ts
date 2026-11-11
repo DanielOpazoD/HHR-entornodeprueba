@@ -32,7 +32,7 @@ import {
   completeDirectDailyRecordSyncTask,
 } from '@/services/storage/sync';
 import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyRecordPersistencePreparation';
-import { preparePatchedRecordForPersistence } from '@/services/repositories/dailyRecordPatchPreparation';
+import { preparePatchedRecordPersistence } from '@/services/repositories/dailyRecordPatchPersistenceController';
 import {
   assertNoPatientErasures,
   runRemoteSaveIntegrityCheck,
@@ -319,7 +319,7 @@ const updatePartialDetailedWithinLock = async (
   let validatedRecord: DailyRecord;
   let mergedPatches: DailyRecordPatch;
   try {
-    ({ record: validatedRecord, mergedPatches } = preparePatchedRecordForPersistence(
+    ({ record: validatedRecord, mergedPatches } = preparePatchedRecordPersistence(
       current,
       command.date,
       command.patch
@@ -384,7 +384,7 @@ const updatePartialDetailedWithinLock = async (
     baseRecord: current,
     patch: command.patch,
     prepare: (record: DailyRecord, patch: DailyRecordPatch) =>
-      preparePatchedRecordForPersistence(record, command.date, patch).record,
+      preparePatchedRecordPersistence(record, command.date, patch).record,
   };
   const suspiciousShrinkages = await resolveBlockingFieldShrinkages(
     command.date,

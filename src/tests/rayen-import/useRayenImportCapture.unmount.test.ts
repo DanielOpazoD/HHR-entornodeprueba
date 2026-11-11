@@ -5,7 +5,7 @@ import { useRayenImportCapture } from '@/features/rayen-import/hooks/useRayenImp
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
 
-vi.mock('@/features/rayen-import/bridge/rayenImportBridge', () => ({
+vi.mock('@/features/rayen-import/bridge/rayenSnapshotBridge', () => ({
   subscribeToRayenSnapshots: () => () => undefined,
   subscribeToRayenImportErrors: () => () => undefined,
 }));
