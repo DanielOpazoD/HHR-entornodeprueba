@@ -1,6 +1,9 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   saveRecordStrict as saveToIndexedDB,
+  admitLocalRecords,
+  type LocalRecordAdmissionCandidate,
+  type LocalRecordAdmissionResult,
   type LocalRecordWriteResult,
   type LocalRecordBase,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
@@ -49,4 +52,24 @@ export const persistPointReadToLocalCache = async (
   return result.retainedRecord
     ? { status: 'retained_pending', record: result.retainedRecord }
     : { status: 'written', record: validatedRecord };
+};
+
+export type RemoteDailyRecordCandidate = LocalRecordAdmissionCandidate & {
+  remoteRecord: DailyRecord | null;
+};
+
+export type RemoteDailyRecordAdmission = LocalRecordAdmissionResult & {
+  remoteRecord: DailyRecord | null;
+};
+
+/** Batch-only entry point for now; remote evidence never acknowledges retained work. */
+export const admitRemoteDailyRecords = async (
+  candidates: readonly RemoteDailyRecordCandidate[]
+): Promise<RemoteDailyRecordAdmission[]> => {
+  const byDate = new Map(candidates.map(candidate => [candidate.record.date, candidate]));
+  const results = await admitLocalRecords([...byDate.values()]);
+  return results.map(result => ({
+    ...result,
+    remoteRecord: byDate.get(result.date)?.remoteRecord ?? null,
+  }));
 };

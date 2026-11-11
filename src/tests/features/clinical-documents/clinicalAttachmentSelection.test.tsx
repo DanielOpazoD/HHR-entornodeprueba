@@ -74,6 +74,82 @@ describe('useClinicalAttachments selection isolation', () => {
     updatedBy: { ...user, role: 'doctor_urgency' },
   };
 
+  it.each(['episode', 'patient'] as const)(
+    'preserves files confirmed during a failed %s read',
+    async scope => {
+      const notify = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+      let finish!: (
+        value: Awaited<ReturnType<typeof executeListClinicalAttachmentsByEpisode>>
+      ) => void;
+      const pending = new Promise<
+        Awaited<ReturnType<typeof executeListClinicalAttachmentsByEpisode>>
+      >(resolve => {
+        finish = resolve;
+      });
+      const failedRead =
+        scope === 'episode'
+          ? executeListClinicalAttachmentsByEpisode
+          : executeListClinicalAttachmentsByPatient;
+      vi.mocked(failedRead).mockReturnValueOnce(pending);
+      vi.mocked(executeUploadClinicalAttachment).mockResolvedValueOnce({
+        status: 'success',
+        data: attachment,
+        issues: [],
+      });
+      const { result } = renderHook(() =>
+        useClinicalAttachments({
+          selectedDocument: document,
+          hospitalId: 'hhr',
+          canEdit: true,
+          user,
+          role: 'doctor_urgency',
+          notify,
+        })
+      );
+      await act(async () => {
+        await result.current.uploadAttachment(
+          new File(['test'], 'file.pdf', { type: 'application/pdf' })
+        );
+      });
+      expect(result.current.attachments).toEqual([attachment]);
+      await act(async () =>
+        finish({ status: 'failed', data: [], issues: [], userSafeMessage: 'Lectura fallida' })
+      );
+      expect(result.current.attachments).toEqual([attachment]);
+      expect(result.current.patientAttachments).toEqual([attachment]);
+      expect(result.current.isLoadingAttachments).toBe(false);
+      expect(notify.error).toHaveBeenCalledWith(
+        expect.stringContaining('No se pudieron cargar archivos'),
+        'Lectura fallida'
+      );
+    }
+  );
+
+  it('displays valid partial results without adding a notification', async () => {
+    const notify = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+    const partial = {
+      status: 'partial' as const,
+      data: [attachment],
+      issues: [{ kind: 'validation' as const, message: 'Metadato omitido' }],
+    };
+    vi.mocked(executeListClinicalAttachmentsByEpisode).mockResolvedValueOnce(partial);
+    vi.mocked(executeListClinicalAttachmentsByPatient).mockResolvedValueOnce(partial);
+    const { result } = renderHook(() =>
+      useClinicalAttachments({
+        selectedDocument: document,
+        hospitalId: 'hhr',
+        canEdit: true,
+        user,
+        role: 'doctor_urgency',
+        notify,
+      })
+    );
+    await waitFor(() => expect(result.current.isLoadingAttachments).toBe(false));
+    expect(result.current.attachments).toEqual([attachment]);
+    expect(result.current.patientAttachments).toEqual([attachment]);
+    expect(notify.error).not.toHaveBeenCalled();
+  });
+
   it.each(['episode', 'patient', 'hospital'] as const)(
     'hides old attachments while a new %s loads',
     async change => {

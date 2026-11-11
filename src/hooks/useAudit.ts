@@ -295,6 +295,8 @@ export const useAudit = (userId: string): UseAuditReturn => {
   const fetchLogs = useCallback(async (limit: number = 100): Promise<AuditLogEntry[]> => {
     const { executeFetchAuditLogs } = await loadFetchAuditLogsUseCase();
     const result = await executeFetchAuditLogs({ limit });
+    // Deliberately retain the legacy empty result without a UI error channel, pending a product decision.
+    if (result.status === 'failed') return [];
     return result.data;
   }, []);
 
