@@ -126,9 +126,11 @@ export const AuditView: React.FC = () => {
             <AuditTrailSessionTimeline sessions={trail.sessions} day={period.endDate} />
           )}
           {trail.groups.length === 0 ? (
-            <div className="rounded-xl border border-slate-200 bg-white py-12 text-center text-sm text-slate-500">
-              Sin actividad para este período y filtros.
-            </div>
+            trail.status === 'ready' && (
+              <div className="rounded-xl border border-slate-200 bg-white py-12 text-center text-sm text-slate-500">
+                Sin actividad para este período y filtros.
+              </div>
+            )
           ) : (
             <AuditTrailGroupList
               groups={trail.groups}

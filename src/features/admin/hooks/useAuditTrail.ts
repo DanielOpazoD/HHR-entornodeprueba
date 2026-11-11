@@ -44,7 +44,7 @@ type AuditTrailLoad =
   | { status: 'loading' }
   /** `boundaryLogs`: starts and ends of connections the period cuts off (not listed as events). */
   | { status: 'ready'; logs: AuditLogEntry[]; boundaryLogs: AuditLogEntry[] }
-  | { status: 'error'; message: string };
+  | { status: 'error'; message: string; logs: AuditLogEntry[]; boundaryLogs: AuditLogEntry[] };
 
 const LOADING: AuditTrailLoad = { status: 'loading' };
 
@@ -124,6 +124,8 @@ export const useAuditTrail = (): UseAuditTrailResult => {
         return {
           status: 'error',
           message: result.issues[0]?.message || 'No se pudo cargar la auditoría.',
+          logs: [],
+          boundaryLogs: [],
         };
       }
       // Without the cut-off starts and ends, those connections fall back to the period's events.
@@ -139,7 +141,19 @@ export const useAuditTrail = (): UseAuditTrailResult => {
       };
     };
     void loadPeriod().then(nextLoad => {
-      if (!cancelled) setAnswer({ key: requestKey, load: nextLoad });
+      if (!cancelled)
+        setAnswer(current => {
+          const samePeriod =
+            current?.key.split('|').slice(0, 2).join('|') === [startDate, endDate].join('|');
+          const previous = samePeriod && current?.load.status !== 'loading' ? current?.load : null;
+          return {
+            key: requestKey,
+            load:
+              nextLoad.status === 'error' && previous
+                ? { ...nextLoad, logs: previous.logs, boundaryLogs: previous.boundaryLogs }
+                : nextLoad,
+          };
+        });
     });
     return () => {
       cancelled = true;
@@ -147,13 +161,15 @@ export const useAuditTrail = (): UseAuditTrailResult => {
   }, [requestKey]);
 
   const events = useMemo(
-    () => (load.status === 'ready' ? normalizeAuditTrailEvents(load.logs) : []),
+    () => (load.status !== 'loading' ? normalizeAuditTrailEvents(load.logs) : []),
     [load]
   );
   const sessions = useMemo(
     () =>
       buildAuditTrailSessions(
-        load.status === 'ready' ? [...events, ...normalizeAuditTrailEvents(load.boundaryLogs)] : []
+        load.status !== 'loading'
+          ? [...events, ...normalizeAuditTrailEvents(load.boundaryLogs)]
+          : []
       ),
     [events, load]
   );
