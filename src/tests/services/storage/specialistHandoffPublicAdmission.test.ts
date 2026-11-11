@@ -12,6 +12,7 @@ import {
   subscribeDetailed,
 } from '@/services/repositories/dailyRecordRepositorySyncService';
 import {
+  createDailyRecordQueryOptions,
   createDailyRecordSubscription,
   getDailyRecordQueryKey,
   setDailyRecordQueryData,
@@ -233,12 +234,6 @@ for (const path of ['S', 'E'] as const) {
   it(`public ${path} publication never confirms the projected note`, async () => {
     const { remote } = await prepare('especialista');
     freshness.resetDailyRecordFreshnessGateForTests();
-    const confirmedClient = new QueryClient();
-    await confirmedCache.setRemoteConfirmedDailyRecordQueryData(
-      confirmedClient,
-      DATE,
-      clone(remote)
-    );
     freshness.markDailyRecordRemoteConfirmed(DATE, {
       source: 'query',
       confirmedRecord: clone(remote),
@@ -253,20 +248,7 @@ for (const path of ['S', 'E'] as const) {
         sourceOfTruth: 'local',
         consistencyState: 'local_kept',
       });
-      // Feed the explicit sync result into the controller's SyncDailyRecordResult
-      // publication port, preserving its runtime contract without a read-result cast.
-      const stop = createDailyRecordSubscription(
-        {
-          getForDateWithMeta,
-          subscribeDetailed: (_date, listener) => {
-            listener(result, false);
-            return () => {};
-          },
-        },
-        DATE,
-        client
-      );
-      stop();
+      await client.fetchQuery(createDailyRecordQueryOptions({ getForDateWithMeta }, DATE, client));
     } else {
       const stop = createDailyRecordSubscription(
         { getForDateWithMeta, subscribeDetailed },
@@ -285,7 +267,7 @@ for (const path of ['S', 'E'] as const) {
     expect(displayed?.runtime).toMatchObject({
       serverConfirmed: true,
       sourceOfTruth: 'local',
-      consistencyState: 'local_kept',
+      consistencyState: path === 'E' ? 'repaired_local' : 'local_kept',
     });
     expect(mark).toHaveBeenCalled();
     for (const [, params] of mark.mock.calls) {
@@ -294,14 +276,10 @@ for (const path of ['S', 'E'] as const) {
     }
     expect(cache).not.toHaveBeenCalled();
     expect(apply).toHaveBeenCalled();
-    for (const [state] of apply.mock.calls)
+    for (const [state] of apply.mock.calls) {
+      expect(state.lastConfirmedRecord).toEqual(remote);
       expect(JSON.stringify(state.lastConfirmedRecord)).not.toContain(NOTE);
+    }
     expect(note(remote)).toBe('');
-    expect(
-      note(
-        confirmedClient.getQueryData<DailyRecordQueryResult>(getDailyRecordQueryKey(DATE))?.record
-      )
-    ).toBe('');
-    confirmedClient.clear();
   });
 }

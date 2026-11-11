@@ -1,4 +1,3 @@
-import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import {
@@ -66,16 +65,17 @@ const resolveSubscriptionResult = async (
         remoteRecord,
         expectedBase: pointReadBase,
         selectRecord: stored => {
+          const selection = resolveDailyRecordPersistenceGoldenPath({
+            localRecord: stored,
+            remoteRecord,
+            remoteAvailability,
+            clinicalConsistencyPhase: 'sync_publish',
+          });
           selectedBase =
-            resolveDailyRecordPersistenceGoldenPath({
-              localRecord: stored,
-              remoteRecord,
-              remoteAvailability,
-              clinicalConsistencyPhase: 'sync_publish',
-            }).selectedRecord ?? remoteRecord;
-          // Equal-clock reads use the conflict normalizer on the next observation. Persist
-          // that same structural form now, before projecting pending note fields.
-          return resolveDailyRecordConflict(selectedBase, selectedBase);
+            selection.shouldHydrateLocal || !stored
+              ? (selection.selectedRecord ?? remoteRecord)
+              : stored;
+          return selectedBase;
         },
       },
     ]);
