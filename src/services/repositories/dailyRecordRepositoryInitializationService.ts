@@ -94,7 +94,7 @@ const loadRemoteInitializationSeed = async (
   allowOfflineCopy: boolean
 ): Promise<DailyRecordInitializationSeed | null> => {
   const base = await captureLocalRecordBase(date);
-  let remoteResult;
+  let remoteResult: Awaited<ReturnType<typeof loadRemoteRecordWithFallback>>;
   try {
     remoteResult = await loadRemoteRecordWithFallback(date, { base });
   } catch (error) {

@@ -38,10 +38,9 @@ describe('CIE-10 Copy Bug Reproduction', () => {
       kind: 'stored',
       record: await IndexedDBService.getRecordForDate(date),
     }));
-    vi.mocked(IndexedDBService.inspectLocalRecordAdmission).mockResolvedValue({
-      status: 'admitted',
-      record: null,
-    });
+    vi.mocked(IndexedDBService.inspectLocalRecordAdmission).mockImplementation(async date => ({
+      status: 'admitted', record: await IndexedDBService.getRecordForDate(date),
+    }));
   });
 
   it('should copy CIE-10 fields from previous day', async () => {
@@ -90,7 +89,7 @@ describe('CIE-10 Copy Bug Reproduction', () => {
     });
     vi.mocked(FirestoreRecordQueries.getRecordFromFirestore).mockResolvedValue(null);
     vi.mocked(FirestoreRecordQueries.getRecordFromFirestoreDetailed).mockResolvedValue({
-      serverConfirmed: false,
+      serverConfirmed: true,
       status: 'missing',
       record: null,
     });
@@ -182,7 +181,7 @@ describe('CIE-10 Copy Bug Reproduction', () => {
     });
     vi.mocked(FirestoreRecordQueries.getRecordFromFirestore).mockResolvedValue(null);
     vi.mocked(FirestoreRecordQueries.getRecordFromFirestoreDetailed).mockResolvedValue({
-      serverConfirmed: false,
+      serverConfirmed: true,
       status: 'missing',
       record: null,
     });

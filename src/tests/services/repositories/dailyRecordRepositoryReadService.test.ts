@@ -1,3 +1,4 @@
+import type { LocalRecordAdmissionCandidate } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -20,13 +21,13 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
     status: 'admitted',
     record: await getRecordFromIndexedDB(date),
   }),
-  admitLocalRecords: vi.fn(async candidates =>
+  admitLocalRecords: vi.fn(async (candidates: readonly LocalRecordAdmissionCandidate[]) =>
     Promise.all(
       candidates.map(async candidate => ({
         date: candidate.record.date,
         status: 'admitted',
         record:
-          candidate.serverConfirmed === false && candidate.expectedBase?.record
+          candidate.serverConfirmed === false && candidate.expectedBase?.kind === 'stored' && candidate.expectedBase.record
             ? candidate.expectedBase.record
             : candidate.record,
       }))

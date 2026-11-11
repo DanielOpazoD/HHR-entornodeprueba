@@ -1,3 +1,4 @@
+import type { LocalRecordAdmissionCandidate, LocalRecordBase } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
@@ -7,6 +8,9 @@ import {
 } from '@/tests/services/repositories/dailyRecordRepositoryWriteServiceFixtures';
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
+  captureLocalRecordBase: async (date: string) => ({ kind: 'stored', record: await getRecordFromIndexedDB(date) }),
+  inspectLocalRecordAdmission: async (_date: string, base: LocalRecordBase) => ({ status: 'admitted', record: base.kind === 'stored' ? base.record : null }),
+  admitLocalRecords: vi.fn(async (candidates: readonly LocalRecordAdmissionCandidate[]) => candidates.map(candidate => ({ date: candidate.record.date, status: 'admitted', record: candidate.record }))),
   getRecordForDate: vi.fn(),
   saveRecord: vi.fn(),
   saveRecordStrict: vi.fn(async record => ({
@@ -18,6 +22,7 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
 }));
 
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
+  getRecordFromFirestoreDetailed: vi.fn().mockResolvedValue({ status: 'missing', serverConfirmed: false, record: null }),
   getRecordFromFirestore: vi.fn(),
 }));
 
@@ -70,8 +75,9 @@ import {
 import {
   getRecordForDate as getRecordFromIndexedDB,
   saveRecordStrict as saveToIndexedDB,
+  admitLocalRecords,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
-import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
+import { getRecordFromFirestore, getRecordFromFirestoreDetailed } from '@/services/storage/firestore/firestoreRecordQueries';
 import {
   saveRecordToFirestore,
   updateRecordPartial as updateRecordPartialToFirestore,
@@ -250,7 +256,7 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
     };
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(null);
-    vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(remote);
+    vi.mocked(getRecordFromFirestoreDetailed).mockResolvedValueOnce({ status: 'resolved', serverConfirmed: true, record: remote });
 
     const result = await updatePartialDetailed('2026-02-18', {
       'beds.R2.patientName': 'Paciente Nuevo',
@@ -259,7 +265,7 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
     expect(result.outcome).toBe('clean');
     expect(result.savedLocally).toBe(true);
     expect(result.updatedRemotely).toBe(true);
-    expect(saveToIndexedDB).toHaveBeenCalledWith(remote, expect.anything());
+    expect(admitLocalRecords).toHaveBeenCalledWith([expect.objectContaining({ record: expect.objectContaining({ date: remote.date, lastUpdated: remote.lastUpdated }), remoteRecord: expect.objectContaining({ date: remote.date }), expectedBase: { kind: 'stored', record: null } })]);
     expect(queueSyncTask).toHaveBeenCalledWith(
       expect.objectContaining({
         date: '2026-02-18',

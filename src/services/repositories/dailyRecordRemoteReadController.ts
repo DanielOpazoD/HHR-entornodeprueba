@@ -92,6 +92,9 @@ export const resolveRemoteGoldenPathReadResult = async ({
       consistencyState: 'remote_authoritative',
       sourceOfTruth: 'remote',
     });
+  if (!remote.serverConfirmed) return createDailyRecordReadResult(date, null, 'not_found', {
+    consistencyState: 'unavailable', sourceOfTruth: 'none', retryability: 'automatic_retry', recoveryAction: 'defer_remote_sync',
+  });
   return {
     ...createNotFoundDailyRecordReadResult(
       date,

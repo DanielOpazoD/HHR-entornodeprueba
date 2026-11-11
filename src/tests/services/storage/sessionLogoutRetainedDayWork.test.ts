@@ -104,7 +104,9 @@ beforeEach(async () => {
   setFirestoreEnabled(true);
   remote.day = serverDay;
   remote.duringFetch = async () => {};
-  vi.mocked(loadRemoteRecordWithFallback).mockImplementation(async (_date, options) => ({
+  vi.mocked(loadRemoteRecordWithFallback).mockImplementation(async (_date, options) => {
+    await remote.duringFetch();
+    return ({
     record: serverDay,
     issuedAgainst: options?.base ?? { kind: 'stored', record: null },
     serverConfirmed: true,
@@ -113,7 +115,7 @@ beforeEach(async () => {
     compatibilityIntensity: 'none',
     migrationRulesApplied: [],
     cachedLocally: false,
-  }));
+  }); });
 });
 afterEach(async () => {
   await hospitalDB.syncQueue.clear();

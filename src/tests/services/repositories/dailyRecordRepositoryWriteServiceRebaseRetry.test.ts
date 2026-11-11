@@ -1,3 +1,4 @@
+import type { LocalRecordAdmissionCandidate, LocalRecordBase } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { PatientStatus } from '@/types/domain/patientClassification';
@@ -7,6 +8,9 @@ import {
 } from '@/tests/services/repositories/dailyRecordRepositoryWriteServiceFixtures';
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
+  captureLocalRecordBase: async (date: string) => ({ kind: 'stored', record: await getRecordFromIndexedDB(date) }),
+  inspectLocalRecordAdmission: async (_date: string, base: LocalRecordBase) => ({ status: 'admitted', record: base.kind === 'stored' ? base.record : null }),
+  admitLocalRecords: vi.fn(async (candidates: readonly LocalRecordAdmissionCandidate[]) => candidates.map(candidate => ({ date: candidate.record.date, status: 'admitted', record: candidate.record }))),
   getRecordForDate: vi.fn(),
   saveRecord: vi.fn(),
   saveRecordStrict: vi.fn(record =>
@@ -20,6 +24,7 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
 }));
 
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
+  getRecordFromFirestoreDetailed: vi.fn().mockResolvedValue({ status: 'missing', serverConfirmed: false, record: null }),
   getRecordFromFirestore: vi.fn(),
 }));
 
