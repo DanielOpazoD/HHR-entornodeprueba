@@ -8,12 +8,19 @@ reales de pacientes.
 
 ## Antes de cambiar algo
 
-1. Leer el [contrato operativo](docs/DOMAIN_RULES.md). Sus reglas tienen identificadores
-   estables, como ID-01, TIME-02 o SAVE-01, y mandan sobre el código y sobre este archivo.
-2. Leer [CONTRIBUTING.md](CONTRIBUTING.md). Si el área tiene un diseño propio en `docs/`,
-   leerlo también. Por ejemplo, la fase 1a está en
-   [DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md](docs/DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md).
-3. Un merge a `main` llega a producción. Netlify publica solo y CI despliega Functions.
+Este archivo basta para empezar: la tabla de abajo resume las reglas. Lee además **solo** lo
+que corresponde a lo que vas a tocar; el resto de `docs/` es de consulta, no lectura previa.
+
+| Si el cambio…                                                             | Lee                                                                                                                                                                  |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| es un texto, un estilo o una constante                                    | Nada más. Si la constante figura en una regla de este archivo, actualiza su fila.                                                                                    |
+| toca datos clínicos, identidad, hora, guardado, sincronización o permisos | La regla, por su identificador (ID-01, TIME-02, SAVE-01…), en el [contrato operativo](docs/DOMAIN_RULES.md). El contrato manda sobre el código y sobre este archivo. |
+| crea un módulo, mueve una responsabilidad o cruza features                | «Elegir dónde cambiar» en [CONTRIBUTING.md](CONTRIBUTING.md) y el README de la carpeta.                                                                              |
+| pertenece a un área con diseño propio                                     | Ese diseño en `docs/`. Por ejemplo, la fase 1a: [DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md](docs/DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md).               |
+| falla en CI                                                               | El control que falló en [CI y recuperación](docs/CI_GATES_AND_FAILURE_RUNBOOKS.md), no el documento entero.                                                          |
+| usa un término del hospital que no entiendes                              | Ese término en el [glosario](docs/GLOSSARY.md).                                                                                                                      |
+
+Un merge a `main` llega a producción. Netlify publica solo y CI despliega Functions.
 
 ## Reglas y qué las hace cumplir
 
