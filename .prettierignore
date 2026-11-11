@@ -4,3 +4,6 @@ extension/
 scripts/config/extension-hotspots-baseline.json
 # Generated, serialized blank ExcelJS model; preserve its original compact representation.
 apps/horas-extras/public/assets/planilla-hospitalizados.json
+
+# Historical documents retain their original contents when moved.
+docs/archive/

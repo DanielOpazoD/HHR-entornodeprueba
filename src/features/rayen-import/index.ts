@@ -199,6 +199,8 @@ export {
   subscribeToRayenSnapshots,
   requestRayenSyncBundle,
   cancelRayenSyncBundleRequest,
+} from './bridge/rayenSnapshotBridge';
+export {
   requestEgresoReport,
   requestEgresoLookup,
   requestDeviceReport,

@@ -703,7 +703,7 @@ Si no hay coincidencia exacta o falla la restauración, se ejecuta `npm ci` con 
 caché habitual de descargas de npm. Un fallo de instalación sigue bloqueando CI;
 solo guardar/restaurar la caché es opcional. No se guardan datos clínicos,
 credenciales ni el resultado de tests/builds. El único lifecycle del proyecto
-es `prepare: husky`; las comprobaciones no dependen de hooks Git instalados.
+es `prepare`, que solo fija `core.hooksPath`; las comprobaciones no dependen de hooks Git instalados.
 
 Motivo medido: en los runs `36484350746` y `36489067347`, la instalación en las
 etapas consecutivas consumía aproximadamente 55–66 segundos por etapa. Comparar
