@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildRecord, buildPatient } from './dailyRecordHandoffPatchTestSupport';
+import { getRecordForDate } from '@/services/storage/indexeddb/indexedDbRecordService';
 import {
   isFirestoreEnabled,
   getFirestoreSyncState,
@@ -26,6 +27,7 @@ describe('specialist handoff offline durability', () => {
         R1: { ...edited.beds.R1, clinicalEpisodeId: 'ep-B', patientName: 'Paciente B Sintético' },
       },
     };
+    vi.mocked(getRecordForDate).mockResolvedValueOnce(current);
     await expect(
       updatePartialDetailed(current.date, patch, {
         baseRecord: current,
@@ -41,6 +43,7 @@ describe('specialist handoff offline durability', () => {
     const current = buildRecord('2026-10-24');
     current.beds.R1 = buildPatient('R1', 'Paciente Heredado Sintético');
     vi.mocked(updateRecordPartialToFirestore).mockResolvedValueOnce(undefined);
+    vi.mocked(getRecordForDate).mockResolvedValueOnce(current);
     await updatePartialDetailed(
       current.date,
       { 'beds.R1.medicalHandoffNote': 'Nota heredada' },
@@ -64,6 +67,7 @@ describe('specialist handoff offline durability', () => {
     vi.mocked(getFirestoreSyncState).mockReturnValue({ mode: 'local_only', reason: 'offline' });
     const current = buildRecord('2026-10-24');
     current.beds.R1 = { ...buildPatient('R1', 'Paciente A Sintético'), clinicalEpisodeId: 'ep-A' };
+    vi.mocked(getRecordForDate).mockResolvedValueOnce(current);
     const result = await updatePartialDetailed(
       current.date,
       { 'beds.R1.medicalHandoffNote': 'Nota offline de A' },
@@ -99,6 +103,7 @@ describe('specialist handoff offline durability', () => {
     vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce({
       code: 'functions/unavailable',
     });
+    vi.mocked(getRecordForDate).mockResolvedValueOnce(current);
     const result = await updatePartialDetailed(
       current.date,
       { 'beds.R1.medicalHandoffNote': 'Nota offline para A' },

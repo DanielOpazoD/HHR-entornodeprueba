@@ -65,14 +65,15 @@ const resolveSubscriptionResult = async (
   serverConfirmed: boolean,
   localRecord?: DailyRecord | null,
   isCurrent: () => boolean = () => true,
-  pointReadBase?: LocalRecordBase
+  pointReadBase?: LocalRecordBase,
+  hasPendingWrites = false
 ): Promise<SyncDailyRecordResult> => {
   // SDK cache and pending echoes cannot establish a new durable census or freshness.
   if (!serverConfirmed) {
     const record = await getRecordFromIndexedDB(date);
     return createSyncDailyRecordResult({
       date,
-      record,
+      record: record ?? (hasPendingWrites ? null : remoteRecord),
       serverConfirmed: false,
       outcome: 'blocked',
       sourceOfTruth: record ? 'local' : 'none',
@@ -208,7 +209,9 @@ export const subscribeDetailed = (
           migrated,
           serverConfirmed && !hasPendingWrites,
           undefined,
-          () => isCurrent(revision)
+          () => isCurrent(revision),
+          undefined,
+          hasPendingWrites || metadata?.hasPendingWrites === true
         );
       })().then(
         result => {
@@ -250,7 +253,8 @@ export const syncWithFirestoreDetailed = async (date: string) => {
           remoteResult.serverConfirmed,
           localRecord,
           undefined,
-          remoteResult.issuedAgainst ?? base
+          remoteResult.issuedAgainst ?? base,
+          remoteResult.hasPendingWrites
         );
       } catch (err) {
         dailyRecordSyncLogger.warn(`Sync failed for ${date}`, err);

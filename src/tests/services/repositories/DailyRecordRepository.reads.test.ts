@@ -189,7 +189,7 @@ describe('DailyRecordRepository reads', () => {
         try {
           const record = await vi.mocked(firestoreService.getRecordFromFirestore)(date);
           return {
-            serverConfirmed: false,
+            serverConfirmed: true,
             status: record ? 'resolved' : 'missing',
             record,
           };

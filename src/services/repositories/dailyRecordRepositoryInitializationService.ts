@@ -1,10 +1,7 @@
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
-import {
-  getForDate,
-  getForDateWithMeta,
-} from '@/services/repositories/dailyRecordRepositoryReadService';
+import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { save, updatePartial } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { loadRemoteRecordWithFallback } from '@/services/repositories/dailyRecordRemoteLoader';
 import {
@@ -67,7 +64,7 @@ export interface CopyPatientToDateResult {
 
 const loadCopySourceRecord = async (copyFromDate?: string): Promise<DailyRecord | null> => {
   if (!copyFromDate) return null;
-  return getForDate(copyFromDate);
+  return loadExistingDailyRecord(copyFromDate);
 };
 
 const buildCopySourceMeta = (
@@ -176,11 +173,16 @@ const resolveInitializationSeed = async (
   return createFreshInitializationSeed();
 };
 
-const loadExistingDailyRecord = async (date: string): Promise<DailyRecord | null> =>
-  getForDate(date);
+const loadExistingDailyRecord = async (date: string): Promise<DailyRecord | null> => {
+  const result = await getForDateWithMeta(date);
+  if (result.record && !result.serverConfirmed && result.sourceOfTruth === 'none') {
+    throw new Error('No se pudo confirmar el día con el servidor. Reintente con conexión.');
+  }
+  return result.record;
+};
 
 const resolveTargetRecordForCopy = async (targetDate: string): Promise<DailyRecord> => {
-  const targetRecord = await getForDate(targetDate);
+  const targetRecord = await loadExistingDailyRecord(targetDate);
   return targetRecord ?? initializeMissingDay(targetDate);
 };
 

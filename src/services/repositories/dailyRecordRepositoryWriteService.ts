@@ -109,11 +109,21 @@ const resolvePartialUpdateBaseRecord = async (
   date: string,
   options: PartialUpdateDailyRecordOptions = {}
 ): Promise<DailyRecord | null> => {
-  if (options.baseRecord?.date === date) {
+  // Remote-first commands verify their proposed base in the authority transaction before saving.
+  if (options.requireRemoteAuthorityFirst && options.baseRecord?.date === date) {
+    return options.baseRecord;
+  }
+  const localRecord =
+    options.baseRecord?.date === date && options.specialtyIntent?.kind === 'manual'
+      ? await getRecordFromIndexedDB(date).catch(() => null)
+      : await getRecordFromIndexedDB(date);
+  if (
+    (localRecord || options.specialtyIntent?.kind === 'manual') &&
+    options.baseRecord?.date === date
+  ) {
     if (options.specialtyIntent?.kind === 'manual') {
       // A preceding write in this date's turn may already have adopted a newer day locally.
       // This is only a proposed CAS base: the server still confirms the episode and decision.
-      const localRecord = await getRecordFromIndexedDB(date).catch(() => null);
       if (
         isValidRemoteAuthorityRecord(localRecord, date) &&
         (resolveRecordBaseRevision(localRecord) ?? -1) >
@@ -126,7 +136,6 @@ const resolvePartialUpdateBaseRecord = async (
     return options.baseRecord;
   }
 
-  const localRecord = await getRecordFromIndexedDB(date);
   if (localRecord) {
     return localRecord;
   }
@@ -136,9 +145,17 @@ const resolvePartialUpdateBaseRecord = async (
   }
 
   try {
-    const remoteRecord = await getRecordFromFirestore(date);
+    const remoteRecord = await getRecordFromFirestore(date, { source: 'server' });
     if (!remoteRecord) {
       return null;
+    }
+
+    if (
+      options.baseRecord?.date === date &&
+      (options.baseRecord.lastUpdated !== remoteRecord.lastUpdated ||
+        resolveRecordBaseRevision(options.baseRecord) !== resolveRecordBaseRevision(remoteRecord))
+    ) {
+      throw new ConcurrencyError('El censo cambió. Recargue antes de volver a editar.');
     }
 
     // Admitted like a read, against the copy found absent: one that a pending write holds, or

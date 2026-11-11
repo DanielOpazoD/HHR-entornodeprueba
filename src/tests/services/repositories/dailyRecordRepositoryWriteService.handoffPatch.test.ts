@@ -34,6 +34,7 @@ describe('dailyRecordRepositoryWriteService specialist handoff patches', () => {
       'semantic_conflict'
     );
     vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce(conflict);
+    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
     await expect(
       updatePartialDetailed(
         current.date,
@@ -303,6 +304,7 @@ describe('dailyRecordRepositoryWriteService intentional clear authority payloads
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
     vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce(rejection);
     vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(replacementRecord);
+    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
     await expect(
       updatePartialDetailed(
         current.date,
@@ -398,6 +400,7 @@ describe('dailyRecordRepositoryWriteService intentional clear authority payloads
     vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce(rejection);
     vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(replacementRecord);
 
+    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
     await expect(
       updatePartialDetailed(
         current.date,
@@ -445,6 +448,7 @@ describe('dailyRecordRepositoryWriteService intentional clear authority payloads
     vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce(rejection);
     vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(residualRecord);
 
+    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
     await expect(
       updatePartialDetailed(
         current.date,

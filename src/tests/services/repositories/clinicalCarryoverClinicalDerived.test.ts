@@ -21,7 +21,12 @@ vi.mock('@/services/storage/firestore/clinicalDerivedEpisodeReader', () => ({
 }));
 vi.mock('@/services/repositories/dailyRecordRepositoryReadService', () => ({
   getForDate: mocks.getForDate,
-  getForDateWithMeta: vi.fn(),
+  // The day the read service returns is the confirmed or durable one these cases describe.
+  getForDateWithMeta: vi.fn(async (date: string) => ({
+    record: (await mocks.getForDate(date)) ?? null,
+    serverConfirmed: true,
+    sourceOfTruth: 'local',
+  })),
 }));
 vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
   save: mocks.save,

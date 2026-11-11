@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, afterEach, it, expect, vi } from 'vitest';
 import { A, day, clone, harnessState } from './specialistHandoffOutboxHarness';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
 import {
   subscribeDetailed,
@@ -11,6 +12,7 @@ import { syncRecordsRange } from '@/services/records/recordQueryService';
 import { hydrateRangeRecords } from '@/services/admin/dataMaintenanceSupport';
 import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
 import * as sdk from 'firebase/firestore';
+import * as remoteWrites from '@/services/storage/firestore/firestoreRecordWrites';
 import * as shared from '@/services/storage/firestore/firestoreShared';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 const wire = vi.hoisted(() => ({
@@ -137,9 +139,6 @@ for (const path of ['S', 'E', 'P'] as const)
     expect(event).not.toHaveBeenCalled();
   });
 
-vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
-  saveDetailed: vi.fn(),
-}));
 vi.mock('@/services/admin/auditService', () => ({ logAuditEvent: vi.fn() }));
 vi.mock('@/services/admin/utils/auditUtils', () => ({
   getCurrentUserEmail: () => 'synthetic@example.invalid',
@@ -201,3 +200,157 @@ it.each([syncRecordsRange, hydrateRangeRecords])(
     expect(event).not.toHaveBeenCalled();
   }
 );
+
+for (const path of ['S', 'E', 'P'] as const)
+  for (const pending of [false, true])
+    it(`${path} without local shows cache only when no writes are pending`, async () => {
+      await hospitalDB.dailyRecords.clear();
+      const metadata = { fromCache: true, hasPendingWrites: pending };
+      vi.mocked(sdk.getDoc).mockResolvedValue({
+        exists: () => true,
+        data: () => clone(remote),
+        metadata,
+      } as never);
+      const put = vi.spyOn(hospitalDB.dailyRecords, 'put');
+      const bulk = vi.spyOn(hospitalDB.dailyRecords, 'bulkPut');
+      const r =
+        path === 'S'
+          ? await new Promise<Awaited<ReturnType<typeof syncWithFirestoreDetailed>>>(resolve => {
+              const stop = subscribeDetailed(DATE, r => {
+                stop();
+                resolve(r);
+              });
+              wire.emit!(clone(remote), pending, metadata);
+            })
+          : await (path === 'E' ? syncWithFirestoreDetailed(DATE) : getForDateWithMeta(DATE));
+      if (pending) expect(r?.record).toBeNull();
+      else expect(r?.record).toMatchObject({ date: DATE, nursesDayShift: remote.nursesDayShift });
+      expect(r).toMatchObject({
+        serverConfirmed: false,
+        sourceOfTruth: 'none',
+        consistencyState: path === 'P' ? 'unavailable' : 'blocked',
+      });
+      expect(await hospitalDB.dailyRecords.get(DATE)).toBeUndefined();
+      expect(put).not.toHaveBeenCalled();
+      expect(bulk).not.toHaveBeenCalled();
+      expect(event).not.toHaveBeenCalled();
+    });
+
+it('stores once only when the cached day is subsequently server confirmed', async () => {
+  await hospitalDB.dailyRecords.clear();
+  const put = vi.spyOn(hospitalDB.dailyRecords, 'put');
+  let delivered = () => {};
+  const stop = subscribeDetailed(DATE, () => delivered());
+  const emit = (confirmed: boolean) =>
+    new Promise<void>(resolve => {
+      delivered = resolve;
+      wire.emit!(clone(remote), false, { fromCache: !confirmed, hasPendingWrites: false });
+    });
+  try {
+    await emit(false);
+    expect(put).not.toHaveBeenCalled();
+    await emit(true);
+    expect(put).toHaveBeenCalledOnce();
+    expect(await hospitalDB.dailyRecords.get(DATE)).toMatchObject({
+      date: DATE,
+      nursesDayShift: remote.nursesDayShift,
+    });
+    expect(event).toHaveBeenCalledOnce();
+  } finally {
+    stop();
+  }
+});
+
+it.each([false, true])(
+  'rejects offline editing of cache without a local row: explicit base %s',
+  async explicit => {
+    await hospitalDB.dailyRecords.clear();
+    vi.mocked(sdk.getDoc).mockResolvedValue({
+      exists: () => true,
+      data: () => clone(remote),
+      metadata: { fromCache: true, hasPendingWrites: false },
+    } as never);
+    const shown = await getForDateWithMeta(DATE);
+    expect(shown.record).toMatchObject({ date: DATE, nursesDayShift: remote.nursesDayShift });
+    vi.spyOn(sdk, 'getDocFromServer').mockRejectedValue(new Error('synthetic offline'));
+    const result = await updatePartialDetailed(
+      DATE,
+      { nursesDayShift: ['Edited'] },
+      explicit ? { baseRecord: remote } : undefined
+    );
+    expect(result.savedLocally).toBe(false);
+    expect(result.updatedRemotely).toBe(false);
+    expect(result.outcome).toBe('blocked');
+    expect(await hospitalDB.dailyRecords.count()).toBe(0);
+    expect(await hospitalDB.syncQueue.count()).toBe(0);
+    expect(event).not.toHaveBeenCalled();
+  }
+);
+
+it.each([false, true])(
+  'edits a cached day against the server base when connected: explicit base %s',
+  async explicit => {
+    await hospitalDB.dailyRecords.clear();
+    vi.mocked(sdk.getDoc).mockResolvedValue({
+      exists: () => true,
+      data: () => clone(remote),
+      metadata: { fromCache: true, hasPendingWrites: false },
+    } as never);
+    expect((await getForDateWithMeta(DATE)).record).toMatchObject({
+      date: DATE,
+      nursesDayShift: remote.nursesDayShift,
+    });
+    harnessState().remote = clone(remote);
+    vi.spyOn(remoteWrites, 'updateRecordPartial').mockImplementation(async () => {
+      harnessState().remote = { ...clone(remote), nursesDayShift: ['Edited'] };
+    });
+    vi.mocked(sdk.getDoc).mockImplementation(
+      async () =>
+        ({
+          exists: () => true,
+          data: () => clone(harnessState().remote),
+          metadata: { fromCache: false, hasPendingWrites: false },
+        }) as never
+    );
+    const read = vi.spyOn(sdk, 'getDocFromServer').mockImplementation(
+      async () =>
+        ({
+          exists: () => true,
+          data: () => clone(harnessState().remote),
+          metadata: { fromCache: false, hasPendingWrites: false },
+        }) as never
+    );
+    const result = await updatePartialDetailed(
+      DATE,
+      { nursesDayShift: ['Edited'] },
+      explicit ? { baseRecord: remote } : undefined
+    );
+    expect(read).toHaveBeenCalled();
+    expect(result.savedLocally).toBe(true);
+    expect(result).toMatchObject({ updatedRemotely: true });
+    expect((await hospitalDB.dailyRecords.get(DATE))?.nursesDayShift).toEqual(['Edited']);
+  }
+);
+
+it('rejects a cache-based patch if the server has moved to a different version', async () => {
+  await hospitalDB.dailyRecords.clear();
+  vi.spyOn(sdk, 'getDocFromServer').mockResolvedValue({
+    exists: () => true,
+    data: () => ({
+      ...clone(remote),
+      lastUpdated: '2026-10-24T19:00:00.000Z',
+      beds: { R4: A('R4', { clinicalEpisodeId: 'new-episode' }) },
+    }),
+    metadata: { fromCache: false, hasPendingWrites: false },
+  } as never);
+  const result = await updatePartialDetailed(
+    DATE,
+    { 'beds.R4.pathology': 'Intended for previous patient' },
+    { baseRecord: remote }
+  );
+  expect(result.savedLocally).toBe(false);
+  expect(result.updatedRemotely).toBe(false);
+  expect(await hospitalDB.dailyRecords.count()).toBe(0);
+  expect(await hospitalDB.syncQueue.count()).toBe(0);
+  expect(event).not.toHaveBeenCalled();
+});

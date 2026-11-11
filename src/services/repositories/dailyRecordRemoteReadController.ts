@@ -17,7 +17,10 @@ import {
 } from '@/services/repositories/dailyRecordReadResultController';
 import { dailyRecordReadLogger } from '@/services/repositories/repositoryLoggers';
 import type { DailyRecordRemoteLoadResult } from '@/services/repositories/dailyRecordRemoteLoader';
-import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
+import {
+  createDailyRecordReadResult,
+  type DailyRecordReadResult,
+} from '@/services/repositories/contracts/dailyRecordQueries';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { getPendingDailyRecordProjection } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 
@@ -59,6 +62,15 @@ export const resolveRemoteGoldenPathReadResult = async ({
 }: ResolveRemoteGoldenPathReadResultInput): Promise<DailyRecordReadResult> => {
   if (!remoteReadResult.serverConfirmed) {
     const record = await getRecordForDate(date);
+    if (!record && remoteReadResult.record && !remoteReadResult.hasPendingWrites) {
+      return createDailyRecordReadResult(date, remoteReadResult.record, remoteReadResult.source, {
+        serverConfirmed: false,
+        sourceOfTruth: 'none',
+        consistencyState: 'unavailable',
+        retryability: 'automatic_retry',
+        recoveryAction: 'defer_remote_sync',
+      });
+    }
     const candidate = record ? createLocalRuntimeReadCandidate(date, record) : null;
     return createGoldenPathReadResult(
       date,

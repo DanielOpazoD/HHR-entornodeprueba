@@ -52,6 +52,7 @@ export interface FirestoreSingleRecordReadResult {
   serverConfirmed: boolean;
   record: DailyRecord | null;
   error?: unknown;
+  hasPendingWrites?: boolean;
 }
 
 export interface FirestoreRecordSnapshotMetadata {
@@ -86,6 +87,7 @@ export const getRecordFromFirestoreDetailed = async (
       return {
         status: 'resolved',
         serverConfirmed,
+        hasPendingWrites: metadata?.hasPendingWrites === true,
         record: docToRecord(docSnap.data(), date),
       };
     }

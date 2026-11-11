@@ -135,6 +135,21 @@ describe('CensusView', () => {
     vi.useRealTimers();
   });
 
+  it('shows a cache-only day without offering creation while remote freshness is unconfirmed', async () => {
+    mockUseDailyRecordData.mockReturnValue({
+      bootstrapPhase: 'record_ready',
+      serverConfirmed: false,
+    });
+    mockUseDailyRecordStatus.mockReturnValue({
+      bootstrapPhase: 'record_ready',
+      syncStatus: 'idle',
+    });
+    vi.mocked(useCensusViewModel).mockReturnValue(buildViewModel({ beds: {} }));
+    render(<CensusView {...defaultProps} />);
+    expect(await screen.findByTestId('census-table')).toBeInTheDocument();
+    expect(screen.queryByTestId('empty-day-prompt')).not.toBeInTheDocument();
+  });
+
   it.each(['2025-01-01', '2025-01-02'])(
     'shows a confirmed empty date %s without an artificial grace delay',
     async currentDateString => {
