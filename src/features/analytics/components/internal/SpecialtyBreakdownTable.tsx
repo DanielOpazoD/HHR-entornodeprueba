@@ -1,6 +1,6 @@
 import React from 'react';
 import { MinsalStatistics, PatientTraceability, SpecialtyStats } from '@/types/minsalTypes';
-import { DailyRecord } from '@/features/analytics/contracts/analyticsDailyRecordContracts';
+import { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
 import {
   buildSpecialtyTraceability,
   SpecialtyTraceabilityType,

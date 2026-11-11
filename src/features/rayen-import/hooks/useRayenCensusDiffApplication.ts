@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import type { ApplyResult } from '../domain/applyCensusImportDiff';
 import { applyCensusImportDiff } from '../domain/applyCensusImportDiff';
 import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImportDiff';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import type { LocalDailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';

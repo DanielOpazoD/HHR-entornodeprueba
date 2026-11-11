@@ -2,7 +2,7 @@ import type { PatientData } from '@/types/domain/patient';
 
 import type { PatientFlowReportResult } from '../bedTraceabilityResolver';
 import type { AdmissionEntry, CensusImportDiff } from '../contracts/censusImportDiff';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenCensusSnapshot, RayenEncounter } from '../contracts/rayenSnapshot';
 import { historicalEncounterFromLocal } from './historicalEncounterFromLocal';
 import { isOccupied } from './applyCensusImportDiff';

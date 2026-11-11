@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import type { ClinicalDerivedEpisodeDoc } from '@/types/domain/clinicalDerived';
 import type { SaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';

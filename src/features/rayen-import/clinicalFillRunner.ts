@@ -2,7 +2,7 @@ import type { PatientData } from '@/types/domain/patient';
 
 import { collectClinicalFillStaffing } from './domain/clinicalFillStaffing';
 import { needsClinicalRead } from './contracts/clinicalReadSelection';
-import type { DailyRecord } from './contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { mergeClinicalDeviceRead } from './domain/mergeClinicalDeviceRead';
 import { mergeReportScales } from './domain/mergeReportScales';
 import { parseHistoryScales } from './mapping/parseHistoryScales';

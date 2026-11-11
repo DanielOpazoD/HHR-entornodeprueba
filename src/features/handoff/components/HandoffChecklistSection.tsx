@@ -1,5 +1,5 @@
 import React from 'react';
-import type { DailyRecord } from '@/domain/handoff/recordContracts';
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import { HandoffStaffSelector } from './HandoffStaffSelector';
 import { HandoffStaffDisplay } from './HandoffStaffDisplay';
 import { HandoffSharedChecklist } from './HandoffSharedChecklist';
@@ -12,7 +12,7 @@ interface HandoffChecklistSectionProps {
   isMedical: boolean;
   selectedShift: 'day' | 'night';
   setSelectedShift?: (shift: 'day' | 'night') => void;
-  record: DailyRecord;
+  record: HandoffDailyRecordContract;
   deliversList: string[];
   receivesList: string[];
   nursesList: string[];

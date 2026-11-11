@@ -40,7 +40,7 @@ import { requeueQuarantinedTask } from '@/services/storage/sync/dexieSyncQueueQu
 import { reconcileSpecialistHandoffProjections } from '@/services/storage/sync/dexieDailyRecordOutbox';
 import { getDailyRecordWriteStateForVersion } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
 const date = '2026-10-29';

@@ -1,4 +1,4 @@
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 export interface ClinicalFillDerivedView {
   /** Combined view (docs/DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md, D10): rebuild input only. */

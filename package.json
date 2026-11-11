@@ -118,7 +118,6 @@
     "check:unreachable-modules": "node scripts/check-unreachable-modules.mjs",
     "check:firestore-runtime-boundary": "node scripts/check-firestore-runtime-boundary.mjs",
     "check:firestore-emulator-governance": "node scripts/check-firestore-emulator-governance.mjs",
-    "check:domain-hotspot-boundary": "node scripts/check-domain-hotspot-boundary.mjs",
     "check:legacy-permissions-boundary": "node scripts/check-legacy-permissions-boundary.mjs",
     "check:test-governance": "node scripts/check-test-governance.mjs",
     "check:test-runtime-governance": "node scripts/check-test-runtime-governance.mjs",

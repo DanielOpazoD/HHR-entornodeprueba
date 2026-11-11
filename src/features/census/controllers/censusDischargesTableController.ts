@@ -1,4 +1,4 @@
-import type { DischargeData } from '@/features/census/contracts/censusMovementContracts';
+import type { DischargeData } from '@/types/domain/movements';
 import { buildCensusMovementTableHeaders } from './censusMovementTableHeaders';
 import { buildMovementRowActions } from '@/features/census/controllers/censusMovementRowActionsController';
 import { canReclassifyHomeDischarge } from '@/application/census/movementTypeConversionPolicy';

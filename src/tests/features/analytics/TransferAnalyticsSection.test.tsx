@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { TransferAnalyticsSection } from '@/features/analytics/components/internal/TransferAnalyticsSection';
-import type { DailyRecord } from '@/features/analytics/contracts/analyticsDailyRecordContracts';
+import type { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
 import type { TransferData } from '@/types/domain/movements';
 
 const transfer = (id: string, evacuationMethod: string, evacuationMethodOther?: string) =>

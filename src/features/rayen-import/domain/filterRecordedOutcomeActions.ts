@@ -1,5 +1,5 @@
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { extractTime } from '../mapping/rayenToPatientData';
 import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
 import { createRecordedOutcomeMatcher } from './censusDischargeHistory';

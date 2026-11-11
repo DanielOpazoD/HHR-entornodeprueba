@@ -3,7 +3,7 @@ import type { PatientData } from '@/types/domain/patient';
 import { normalizeRut } from '@/utils/rutUtils';
 import type { ConflictEntry } from '../contracts/censusImportDiff';
 import type { EgresoReportRow } from '../contracts/egresoReport';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenActiveBedAssignment, RayenEncounter } from '../contracts/rayenSnapshot';
 import {
   parseStatisticalEgresoInstant,

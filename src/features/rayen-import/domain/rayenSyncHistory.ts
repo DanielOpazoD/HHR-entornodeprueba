@@ -1,5 +1,5 @@
 import { rayenSyncCoverageIssueKey } from './rayenSyncCoverageIssueKey';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type {
   ClinicalReadErrorCode,

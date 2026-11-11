@@ -24,17 +24,17 @@ import type {
 import { createApplicationSuccess } from '@/shared/contracts/applicationOutcomeFactories';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type {
-  DailyRecord,
-  DailyRecordPatch,
   MedicalHandoffActor,
   MedicalSpecialty,
-} from '@/domain/handoff/recordContracts';
+} from '@/types/domain/dailyRecordMedicalHandoff';
 import type { MedicalHandoffScope } from '@/types/medicalHandoff';
 import { createMissingRecordOutcome, createValidationOutcome } from './handoffUseCaseSupport';
 
 export interface PersistedHandoffRecordOutput {
-  updatedRecord: DailyRecord;
+  updatedRecord: HandoffDailyRecordContract;
 }
 
 export interface ConfirmMedicalSpecialtyNoChangesOutput extends PersistedHandoffRecordOutput {
@@ -43,7 +43,7 @@ export interface ConfirmMedicalSpecialtyNoChangesOutput extends PersistedHandoff
 }
 
 interface PersistRecordInput {
-  record: DailyRecord | null;
+  record: HandoffDailyRecordContract | null;
   saveRecord: PersistDailyRecord;
   patchRecord?: ApplyDailyRecordPatch;
 }
@@ -95,7 +95,7 @@ interface UpdateMedicalHandoffDoctorInput extends PersistRecordInput {
 const persistWithPatchPreference = async (
   input: PersistRecordInput,
   patch: DailyRecordPatch | null,
-  updatedRecord: DailyRecord
+  updatedRecord: HandoffDailyRecordContract
 ): Promise<void> => {
   if (input.patchRecord && patch) {
     await input.patchRecord(patch);
@@ -282,7 +282,7 @@ export const executeUpdateMedicalHandoffDoctor = async (
     );
   }
 
-  const updatedRecord: DailyRecord = {
+  const updatedRecord: HandoffDailyRecordContract = {
     ...input.record,
     medicalHandoffDoctor: input.doctorName,
     lastUpdated: new Date().toISOString(),

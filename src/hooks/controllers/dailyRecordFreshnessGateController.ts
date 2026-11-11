@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryClient';
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
 import { buildHydratedRemoteClinicalFieldLocks } from '@/hooks/controllers/dailyRecordHydratedRemotePatchRiskController';

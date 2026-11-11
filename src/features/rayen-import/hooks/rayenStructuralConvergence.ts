@@ -1,5 +1,5 @@
 import type { CensusImportDiff, ConflictEntry } from '../contracts/censusImportDiff';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenSyncExecutionIdentity } from './rayenSyncExecutionState';
 import { defaultMonotonicNow, elapsedMilliseconds } from '../domain/rayenSyncPerformance';
 

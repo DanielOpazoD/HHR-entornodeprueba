@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { rebuildClinicalEnrichmentOperations } from '@/features/rayen-import/domain/rebuildClinicalEnrichmentOperations';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ClinicalFillPatchOperation } from '@/features/rayen-import';
 
 const patient = (bedId: string, total: number, heartRate = 70) => ({

@@ -7,7 +7,7 @@ import {
 } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   buildNursingShiftProposalPatch,
   reconcileNursingShiftProposal,

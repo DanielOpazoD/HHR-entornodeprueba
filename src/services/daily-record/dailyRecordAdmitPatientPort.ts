@@ -13,7 +13,7 @@ import type {
   AdmittedPatientSnapshot,
 } from '@/application/daily-record/commands/admitPatientCommand';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import type { DailyRecordPatch } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { resolveClinicalEpisodeIdForAdmission } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
 import type { UpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { isDailyRecordWriteBlockedResult } from '@/services/repositories/contracts/dailyRecordResults';

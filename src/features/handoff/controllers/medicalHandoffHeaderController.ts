@@ -1,5 +1,5 @@
 import type { BedDefinition } from '@/types/domain/beds';
-import type { DailyRecord } from '@/domain/handoff/recordContracts';
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import type { ControllerConfirmDescriptor } from '@/shared/contracts/controllers/confirmDescriptor';
 
 export interface MedicalHandoffBedStats {
@@ -10,7 +10,7 @@ export interface MedicalHandoffBedStats {
 }
 
 export const buildMedicalHandoffBedStats = (
-  record: Pick<DailyRecord, 'beds'>,
+  record: Pick<HandoffDailyRecordContract, 'beds'>,
   visibleBeds: BedDefinition[]
 ): MedicalHandoffBedStats => ({
   totalBeds: visibleBeds.length,
@@ -22,7 +22,7 @@ export const buildMedicalHandoffBedStats = (
 });
 
 export const resolveMedicalHandoffDoctorName = (
-  record: Pick<DailyRecord, 'medicalHandoffDoctor'>
+  record: Pick<HandoffDailyRecordContract, 'medicalHandoffDoctor'>
 ): string => record.medicalHandoffDoctor?.trim() || '';
 
 export const buildMedicalHandoffSignConfirm = (
@@ -45,9 +45,9 @@ export const buildMedicalHandoffRestoreConfirm = (): ControllerConfirmDescriptor
 });
 
 export const canPromptMedicalHandoffSign = (
-  record: Pick<DailyRecord, 'medicalHandoffSentAt' | 'medicalSignature'>
+  record: Pick<HandoffDailyRecordContract, 'medicalHandoffSentAt' | 'medicalSignature'>
 ): boolean => !record.medicalHandoffSentAt && !record.medicalSignature;
 
 export const canRestoreMedicalHandoffSignatures = (
-  record: Pick<DailyRecord, 'medicalHandoffSentAt' | 'medicalSignature'>
+  record: Pick<HandoffDailyRecordContract, 'medicalHandoffSentAt' | 'medicalSignature'>
 ): boolean => Boolean(record.medicalHandoffSentAt || record.medicalSignature);

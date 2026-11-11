@@ -1,7 +1,7 @@
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { useCallback, useRef, type MutableRefObject } from 'react';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type {
   RayenSyncEvent,

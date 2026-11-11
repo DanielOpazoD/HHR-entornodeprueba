@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { createExecutionHarness } from './support/executionHarness';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRayenImportCapture } from '@/features/rayen-import/hooks/useRayenImportCapture';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PreparedRayenSyncContext } from '@/features/rayen-import/hooks/rayenSyncTemporalContext';
 import type { RayenExtensionHealthState } from '@/features/rayen-import/hooks/useRayenExtensionHealth';
 

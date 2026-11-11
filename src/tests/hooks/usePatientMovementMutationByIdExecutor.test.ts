@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { usePatientMovementMutationByIdExecutor } from '@/hooks/usePatientMovementMutationByIdExecutor';
 
 describe('usePatientMovementMutationByIdExecutor', () => {

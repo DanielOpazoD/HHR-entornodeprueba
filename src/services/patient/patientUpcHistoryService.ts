@@ -1,5 +1,5 @@
 import type { PatientData } from '@/types/domain/patient';
-import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { getRecordsRange } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { getRecordsRangeFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';

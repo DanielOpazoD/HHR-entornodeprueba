@@ -1,5 +1,5 @@
-import type { SpecialistHandoffTarget } from './specialistMedicalHandoffIdentity';
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { SpecialistHandoffTarget } from '@/types/domain/specialistHandoffTarget';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   evaluateDailyRecordClinicalAuthority,
   recordClinicalAuthorityTelemetry,

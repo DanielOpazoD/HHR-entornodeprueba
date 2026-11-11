@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { BedDefinition } from '@/types/domain/beds';
 import type { Specialty } from '@/domain/handoff/patientContracts';
-import type { DailyRecord } from '@/domain/handoff/recordContracts';
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import type { MedicalHandoffScope } from '@/types/medicalHandoff';
 import type { HandoffClinicalEventActions, HandoffMedicalActions } from './handoffRowContracts';
 import { buildMedicalSpecialtyFilterChips } from '@/features/handoff/controllers/handoffMedicalContentController';
@@ -22,7 +22,7 @@ import { buildMedicalHandoffSpreadsheetRows } from '@/features/handoff/controlle
 import { useStaffContext } from '@/context/StaffContext';
 
 interface HandoffMedicalContentProps {
-  record: DailyRecord;
+  record: HandoffDailyRecordContract;
   effectiveVisibleBeds: BedDefinition[];
   specialtyFilteredBeds: BedDefinition[];
   readOnly: boolean;

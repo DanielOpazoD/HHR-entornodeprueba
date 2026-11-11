@@ -5,7 +5,8 @@ import { useCMA } from '@/hooks/useCMA';
 import { usePatientDischarges } from '@/hooks/usePatientDischarges';
 import { usePatientTransfers } from '@/hooks/usePatientTransfers';
 import { applyOptimisticDailyRecordPatch } from '@/hooks/controllers/dailyRecordQueryController';
-import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 

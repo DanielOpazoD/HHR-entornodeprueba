@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import {
   DailyRecordFreshnessGateError,
@@ -8,7 +8,7 @@ import {
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { assertHydratedRemotePatchCanProceed } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
-import type { DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { getSyncClientId } from '@/services/storage/sync/syncMutationIdentity';
 
 const DATE = '2026-08-30';

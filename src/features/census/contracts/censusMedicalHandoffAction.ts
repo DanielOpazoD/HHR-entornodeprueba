@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import type { DailyRecord } from './censusRecordContracts';
-import type { BedDefinition } from './censusBedContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { BedDefinition } from '@/types/domain/beds';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 
 export interface CensusMedicalHandoffActionContext {

@@ -3,7 +3,6 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 
 import type { SpecialistHandoffTarget } from '@/types/domain/specialistHandoffTarget';
-export type { SpecialistHandoffTarget } from '@/types/domain/specialistHandoffTarget';
 
 export type SpecialistHandoffIdentity = Omit<SpecialistHandoffTarget, 'bedId' | 'target'>;
 

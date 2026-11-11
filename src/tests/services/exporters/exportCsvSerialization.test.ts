@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildDailyRecordCsv } from '@/services/exporters/exportCsvSerialization';
 import { CSV_HEADERS } from '@/constants/export';
 import { BEDS } from '@/constants/beds';
-import type { DailyRecordCsvExportState } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecordCsvExportState } from '@/types/domain/dailyRecordSlices';
 
 describe('exportCsvSerialization', () => {
   it('exports UPC as SI when the checklist is current even if legacy isUPC is stale', () => {

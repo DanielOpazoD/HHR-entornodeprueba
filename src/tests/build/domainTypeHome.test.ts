@@ -9,6 +9,13 @@ describe('a domain type has one home', () => {
   it.each([
     "import type { Other } from './other';\nexport type PatientData = Other;",
     'export interface PatientData { name: string }',
+    'export interface DailyRecord { date: string }',
+    "import type { DailyRecord as R } from '@/types/domain/dailyRecord'; export type DailyRecord = R;",
+    "import type { DailyRecordPatch as P } from '@/types/domain/dailyRecordPatch'; export type Patch = P;",
+    "export type { DailyRecordDateRef } from '@/types/domain/dailyRecordSlices';",
+    "export * from '@/types/domain/dailyRecordMedicalHandoff';",
+    "import type { DetailedStaffAssignment as D } from '@/types/domain/dailyRecordStaffingDetails'; export type Detail = D;",
+    "export type { DischargeData } from '@/types/domain/movements';",
     "import type { PatientData } from '@/types/domain/patient';\nexport type RowPatient = PatientData;",
     "import type { PatientData as P } from '@/types/domain/patient';\nexport type Q = P;",
     "import type { PatientData as P } from '../../types/domain/patient';\nexport type Q = P;",
@@ -24,6 +31,11 @@ describe('a domain type has one home', () => {
   });
 
   it.each([
+    "export { BedType } from '@/types/domain/beds';",
+    "import { PatientStatus } from '@/types/domain/patientClassification'; export { PatientStatus };",
+    "import type { DailyRecord } from '@/types/domain/dailyRecord'; export type Patch = Partial<DailyRecord>;",
+    "import type { DailyRecord } from '@/types/domain/dailyRecord'; export type Beds = DailyRecord['beds'];",
+    "import type { DailyRecord } from '@/types/domain/dailyRecord'; export interface HandoffDailyRecordContract { date: DailyRecord['date'] }",
     "import type { PatientData } from '@/types/domain/patient';\nexport type Patch = Partial<PatientData>;",
     "import type { PatientData } from '@/types/domain/patient';\nexport type State = Pick<PatientData, 'bedMode'>;",
     "import type { PatientData } from '@/types/domain/patient';\nexport type Mode = PatientData['bedMode'];",

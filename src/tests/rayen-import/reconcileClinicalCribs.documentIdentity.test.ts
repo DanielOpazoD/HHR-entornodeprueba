@@ -9,7 +9,7 @@ import {
 import { createEmptyCensusImportDiff } from '@/features/rayen-import/domain/censusImportDiffFactory';
 import { rayenToPatientData } from '@/features/rayen-import/mapping/rayenToPatientData';
 import type { RayenEncounter } from '@/features/rayen-import/contracts/rayenSnapshot';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const reference = new Date('2026-07-08T20:00:00-06:00');
 const encounter: RayenEncounter = {

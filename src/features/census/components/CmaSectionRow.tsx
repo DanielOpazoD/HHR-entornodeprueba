@@ -3,7 +3,7 @@ import { Scissors } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { createPortal } from 'react-dom';
 
-import type { CMAData } from '@/features/census/contracts/censusMovementContracts';
+import type { CMAData } from '@/types/domain/movements';
 import { CensusMovementActionsMenu } from '@/features/census/components/CensusMovementActionsMenu';
 import { CMA_INTERVENTION_TYPES } from '@/features/census/controllers/censusCmaController';
 import { buildCmaClinicalDocumentsPatientSnapshot } from '@/features/census/controllers/movementClinicalDocumentsController';

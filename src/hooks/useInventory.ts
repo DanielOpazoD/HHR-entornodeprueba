@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { DailyRecordBedsState } from '@/application/shared/dailyRecordBedContracts';
+import type { DailyRecordBedsState } from '@/types/domain/dailyRecordSlices';
 import { BEDS, HOSPITAL_CAPACITY } from '@/constants/beds';
 
 /**

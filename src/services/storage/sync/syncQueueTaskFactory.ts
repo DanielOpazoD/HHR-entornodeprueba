@@ -1,5 +1,5 @@
 import type { SyncQueueLeaseClaim } from '@/services/storage/sync/syncQueuePorts';
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
 
 export const matchesTaskClaim = (

@@ -33,8 +33,8 @@ Este documento define la taxonomía canónica del repo. Su objetivo es bajar amb
 - `src/shared/` y `src/types/` requieren justificación transversal real.
 - Nuevas compatibilidades legacy deben entrar por boundaries explícitos, no por convenience imports.
 - Outcomes y helpers de mensaje reutilizados por varias capas pertenecen a `src/shared/contracts/`, no a `application/shared/`.
-- Los tipos del paciente tienen un solo hogar en `src/types/domain/patient.ts` y se importan desde ahí con su nombre.
-- Las formas más estrechas llevan nombre propio; nunca reutilizan `PatientData`.
+- Los tipos del dominio tienen un solo hogar en `src/types/domain/*` y se importan desde ahí con su nombre.
+- Las formas más estrechas llevan nombre propio; nunca reutilizan `PatientData` ni `DailyRecord`.
 - No se crean alias puros ni reexportaciones de esos tipos desde contratos por capa.
 
 ## Compatibilidad legacy

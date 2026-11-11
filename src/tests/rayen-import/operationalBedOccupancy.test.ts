@@ -18,7 +18,7 @@ import type {
   RayenCensusSnapshot,
   RayenEncounter,
 } from '@/features/rayen-import/contracts/rayenSnapshot';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const NOW = new Date('2026-07-24T12:30:00-06:00');
 const encounter = (overrides: Partial<RayenEncounter> = {}): RayenEncounter => ({

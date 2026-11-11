@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type {
   DailyRecordQueryResult,
   DailyRecordQueryRuntime,

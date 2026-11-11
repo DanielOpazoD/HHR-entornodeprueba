@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { CudyrUpcAnalysisSection } from '@/features/analytics/components/internal/CudyrUpcAnalysisSection';
-import type { DailyRecord } from '@/features/analytics/contracts/analyticsDailyRecordContracts';
+import type { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
 import type { PatientData } from '@/types/domain/patient';
 
 const buildPatient = (bedId: string, isUPC: boolean): PatientData =>

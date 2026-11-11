@@ -1,6 +1,6 @@
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import type { DailyRecordAuthorityMode } from '@/services/storage/firestore/dailyRecordAuthorityMode';
 import type { IntentionalBedClearRequest } from '@/types/domain/intentionalBedClear';

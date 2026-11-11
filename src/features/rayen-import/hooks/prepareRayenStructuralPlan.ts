@@ -1,5 +1,5 @@
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
 import { createRayenSnapshotEvidenceClient } from './rayenSnapshotEvidenceClient';
 import type { CapturedRayenStructuralEvidence } from './replanRayenStructure';

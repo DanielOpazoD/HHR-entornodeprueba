@@ -1,7 +1,7 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import { BedDefinition } from '@/features/census/contracts/censusBedContracts';
-import type { DailyRecord } from '@/features/census/contracts/censusRecordContracts';
+import { BedDefinition } from '@/types/domain/beds';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 import { ControllerResult, failWithCode, ok } from '@/features/census/controllers/controllerResult';
 import { deepClone } from '@/utils/deepClone';

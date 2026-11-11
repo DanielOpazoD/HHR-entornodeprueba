@@ -16,7 +16,7 @@ import { reportEgresoEntry, reportEgresoPatient } from '../mapping/reportEgresoM
 import { recordedOutcomeEpisodeId } from './censusDischargeHistory';
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type {
   CensusImportDiff,
   PreviousDayEdit,

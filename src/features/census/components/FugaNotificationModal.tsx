@@ -1,7 +1,7 @@
 import React from 'react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { MailWarning } from 'lucide-react';
-import type { DischargeData } from '@/features/census/contracts/censusMovementContracts';
+import type { DischargeData } from '@/types/domain/movements';
 import { useFugaNotificationModalModel } from '@/features/census/hooks/useFugaNotificationModalModel';
 
 interface FugaNotificationModalProps {

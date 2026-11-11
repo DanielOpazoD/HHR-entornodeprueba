@@ -1,7 +1,7 @@
 import type { PatientData } from '@/types/domain/patient';
 
 import type { CensusLabPatient } from '@/shared/contracts/censusLaboratory';
-import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
+import type { BedDefinition } from '@/types/domain/beds';
 
 import { buildCensusBedRows } from './censusTableViewController';
 import { isValidRut, normalizeRut } from '@/utils/rutUtils';

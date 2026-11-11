@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { rayenToPatientData } from '@/features/rayen-import/mapping/rayenToPatientData';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type {
   RayenCensusSnapshot,
   RayenEncounter,

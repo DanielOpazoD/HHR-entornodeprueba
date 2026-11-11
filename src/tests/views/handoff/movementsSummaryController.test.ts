@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { DailyRecord } from '@/domain/handoff/recordContracts';
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import { buildMovementsSummaryViewModel } from '@/features/handoff/controllers/movementsSummaryController';
 
-const buildRecord = (): DailyRecord =>
+const buildRecord = (): HandoffDailyRecordContract =>
   ({
     date: '2026-03-29',
     beds: {},
@@ -51,7 +51,7 @@ const buildRecord = (): DailyRecord =>
         interventionType: 'Control',
       },
     ],
-  }) as unknown as DailyRecord;
+  }) as unknown as HandoffDailyRecordContract;
 
 describe('movementsSummaryController', () => {
   it('builds a day-shift view model with filtered items and empty messages', () => {

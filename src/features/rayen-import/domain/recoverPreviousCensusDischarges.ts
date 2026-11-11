@@ -1,7 +1,7 @@
 import { isValidRut } from '@/utils/rutUtils';
 import { normalizePatientRut as normalizeRut } from './censusPatientIdentityIndex';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';

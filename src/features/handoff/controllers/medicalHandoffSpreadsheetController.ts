@@ -1,6 +1,6 @@
 import hashJs from 'hash.js';
 import type { BedDefinition } from '@/types/domain/beds';
-import type { DailyRecord } from '@/domain/handoff/recordContracts';
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import type { HandoffPatientContract } from '@/domain/handoff/patientContracts';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 import { resolveVisibleTreatingPhysicianName } from '@/services/staff/treatingPhysicianCatalog';
@@ -84,7 +84,7 @@ const buildRow = ({
 });
 
 export const buildMedicalHandoffSpreadsheetRows = (
-  record: DailyRecord,
+  record: HandoffDailyRecordContract,
   visibleBeds: readonly BedDefinition[],
   professionalsCatalog: ProfessionalCatalogItem[]
 ): MedicalHandoffSpreadsheetRow[] => {

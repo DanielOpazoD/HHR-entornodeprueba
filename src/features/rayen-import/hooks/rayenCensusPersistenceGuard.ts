@@ -4,7 +4,7 @@ import type {
 } from '@/services/repositories/contracts/dailyRecordResults';
 import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   collectSafeClinicalEpisodeIds,
   describeStructuralConflicts,

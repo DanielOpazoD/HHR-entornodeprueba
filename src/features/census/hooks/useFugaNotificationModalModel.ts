@@ -11,7 +11,7 @@ import {
   validateFugaNotificationRequest,
 } from '@/features/census/controllers/fugaNotificationPolicyController';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
-import type { DischargeData } from '@/features/census/contracts/censusMovementContracts';
+import type { DischargeData } from '@/types/domain/movements';
 
 interface UseFugaNotificationModalModelParams {
   isOpen: boolean;

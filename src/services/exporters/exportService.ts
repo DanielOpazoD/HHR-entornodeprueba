@@ -14,7 +14,7 @@ import {
 import type {
   DailyRecordCsvExportState,
   DailyRecordDateRef,
-} from '@/services/contracts/dailyRecordServiceContracts';
+} from '@/types/domain/dailyRecordSlices';
 import {
   createApplicationFailed,
   createApplicationPartial,

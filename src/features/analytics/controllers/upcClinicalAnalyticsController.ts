@@ -1,5 +1,5 @@
 import { UPC_UCI_CRITERIA, UPC_UTI_CRITERIA } from '@/domain/upc/upcCriteria';
-import type { DailyRecord } from '@/features/analytics/contracts/analyticsDailyRecordContracts';
+import type { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
 import {
   isLegacyUpcAssumedUti,
   isUpcEligibleAnalyticsBed,

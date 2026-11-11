@@ -1,4 +1,4 @@
-import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DischargeData, TransferData } from '@/types/domain/movements';
 import type { PatientData } from '@/types/domain/patient';
 import { deepClone } from '@/utils/deepClone';

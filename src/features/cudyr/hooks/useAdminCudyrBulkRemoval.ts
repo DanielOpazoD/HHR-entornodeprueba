@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { BedDefinition } from '@/types/domain/beds';
 import { importedCudyrBelongsToCensus } from '@/domain/evaluationScales/importedCudyr';
 import {

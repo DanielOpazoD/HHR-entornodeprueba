@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { resolveConfirmedRayenCensusHandoff } from '@/features/rayen-import/hooks/rayenCensusPersistenceGuard';
 import { classifyRayenApplyFailureReason } from '@/features/rayen-import/observability/rayenSyncDiagnostics';
 import type { SaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 /**
  * Sello de la corrida tras un guardado ACEPTADO (visto en vivo el 02-09 con dos

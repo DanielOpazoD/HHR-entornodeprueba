@@ -1,5 +1,5 @@
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   formatDayLabel,
   todayIso,

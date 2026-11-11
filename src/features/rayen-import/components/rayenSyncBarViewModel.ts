@@ -1,5 +1,5 @@
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
-import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
+import type { RayenSyncMeta } from '@/types/domain/dailyRecord';
 import type { RayenSyncStage } from '../hooks/rayenSyncExecutionState';
 import type { RayenFillProgress } from '../hooks/useRayenFillStatus';
 

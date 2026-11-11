@@ -1,7 +1,7 @@
 import type { PatientData } from '@/types/domain/patient';
 
 import type { AdmissionEntry, ConflictEntry, MoveEntry } from '../contracts/censusImportDiff';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import type { ActivePrincipalPlacement } from './bedOccupancyCollisionPolicy';
 import {

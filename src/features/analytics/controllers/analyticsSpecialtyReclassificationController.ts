@@ -4,7 +4,7 @@ import {
   getActiveTransfers,
 } from '@/application/census/movementTombstonePolicy';
 import { MinsalMovementKind, SpecialtyReclassification } from '@/types/minsalTypes';
-import type { DailyRecord } from '@/features/analytics/contracts/analyticsDailyRecordContracts';
+import type { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
 import { resolveReportingSpecialty } from '@/services/calculations/minsal/specialtyReporting';
 import {
   normalizeMovementReportingSnapshot,

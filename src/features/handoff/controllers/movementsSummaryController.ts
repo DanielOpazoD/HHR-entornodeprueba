@@ -1,7 +1,7 @@
 import type { CMAData, DischargeData, TransferData } from '@/types/domain/movements';
 import type { ShiftType } from '@/types/domain/shift';
 import { isWithinDayShift } from '@/utils/shiftTimeUtils';
-import type { DailyRecord } from '@/domain/handoff/recordContracts';
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import {
   getActiveCma,
   getActiveDischarges,
@@ -93,7 +93,7 @@ export const buildMovementsSummaryViewModel = ({
   record,
   selectedShift,
 }: {
-  record: Pick<DailyRecord, 'discharges' | 'transfers' | 'cma'>;
+  record: Pick<HandoffDailyRecordContract, 'discharges' | 'transfers' | 'cma'>;
   selectedShift: ShiftType;
 }): MovementsSummaryViewModel => ({
   discharges: {

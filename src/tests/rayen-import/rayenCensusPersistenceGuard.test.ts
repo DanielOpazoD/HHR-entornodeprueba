@@ -11,7 +11,7 @@ import {
   resolveStructuralStageResult,
 } from '@/features/rayen-import/hooks/rayenCensusPersistenceGuard';
 import type { SaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 
 const buildResult = (overrides: Partial<SaveDailyRecordResult> = {}): SaveDailyRecordResult => ({

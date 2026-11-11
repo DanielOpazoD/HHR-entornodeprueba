@@ -1,6 +1,7 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 
 import { BedType } from '@/types/domain/beds';
 import { PatientFieldValue } from '@/types/valueTypes';

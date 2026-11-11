@@ -2,7 +2,7 @@ import type { PatientData } from '@/types/domain/patient';
 
 import { planReviewedNeonatalSourceChanges } from './reviewedNeonatalSourcePlacement';
 import { prepareNeonatalPlacementReviews } from './neonatalPlacementReviewPlan';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenCensusSnapshot, RayenEncounter } from '../contracts/rayenSnapshot';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import { rayenToPatientData } from '../mapping/rayenToPatientData';

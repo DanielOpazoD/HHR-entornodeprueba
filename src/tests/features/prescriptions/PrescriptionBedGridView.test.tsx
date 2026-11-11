@@ -23,7 +23,7 @@ import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRe
 import { PrescriptionBedGridView } from '@/features/prescriptions/components/PrescriptionBedGridView';
 import { resolvePrescriptionImageDownloadUrl } from '@/features/prescriptions/services/prescriptionStorageImageService';
 import type { PrescriptionRecord } from '@/types/prescriptionTypes';
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const buildRecord = (
   id: string,

@@ -3,7 +3,7 @@ import { EVACUATION_METHOD_AEROCARDAL } from '@/constants/clinicalMovementConsta
 import { PatientTraceability, SpecialtyTraceabilityType } from '@/types/minsalTypes';
 import { normalizeSpecialty, isFachEvacuationMethod } from './normalization';
 import { createEpisodeAdmissionTracker } from './episodeTracker';
-import type { MinsalDailyRecord } from './minsalRecordContracts';
+import type { DailyRecordMovementState as MinsalDailyRecord } from '@/types/domain/dailyRecordSlices';
 import { normalizeMovementReportingSnapshot } from './movementCompatibility';
 import {
   getStatisticalDischarges,

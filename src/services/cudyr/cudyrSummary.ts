@@ -8,7 +8,7 @@ import type { PatientData } from '@/types/domain/patient';
  */
 
 import { BedType } from '@/types/domain/beds';
-import type { DailyRecordCudyrState } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecordCudyrState } from '@/types/domain/dailyRecordSlices';
 import { BEDS } from '@/constants/beds';
 import { getCategorization } from './CudyrScoreUtils';
 import { isCudyrPatientEligible } from '@/domain/cudyr/cudyrEligibility';

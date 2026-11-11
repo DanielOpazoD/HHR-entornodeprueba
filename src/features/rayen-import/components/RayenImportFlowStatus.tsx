@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { formatRayenSyncIslandTime, formatRayenSyncTargetDate } from './rayenSyncPresentation';
 import { Check, Circle, LoaderCircle, TriangleAlert } from 'lucide-react';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
-import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
+import type { RayenSyncMeta } from '@/types/domain/dailyRecord';
 import type { RayenSyncStage } from '../hooks/rayenSyncExecutionState';
 import type { RayenFillProgress } from '../hooks/useRayenFillStatus';
 import { buildRayenSyncBarViewModel, type RayenSyncBarTone } from './rayenSyncBarViewModel';
