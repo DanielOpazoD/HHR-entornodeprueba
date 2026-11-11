@@ -118,3 +118,5 @@ no está aprobada. Tras el merge, comprobar `main` y su evidencia posterior.
 Actualizar el documento dueño de la decisión y sus enlaces. No duplicar una nueva
 versión del mismo contrato en varias guías. Git conserva el código y documentación
 retirados; no crear otro archivo histórico sólo para conservarlos.
+
+El historial (planes ejecutados, auditorías fechadas) está en `docs/archive/`; no es norma vigente y las búsquedas lo omiten. `rg --no-ignore` para incluirlo.

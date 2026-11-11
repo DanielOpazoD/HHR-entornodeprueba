@@ -34,7 +34,7 @@
 
 | Id    | Estado     | Nota                                                                                                                                                                                                                         |
 | ----- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Q00` | completado | plan iterativo abierto en `docs/ITERATIVE_QUALITY_EXECUTION_PLAN.md` y deuda registrada                                                                                                                                      |
+| `Q00` | completado | plan iterativo abierto en `docs/archive/ITERATIVE_QUALITY_EXECUTION_PLAN.md` y deuda registrada                                                                                                                              |
 | `Q01` | completado | `feature-dependency-matrix`, `test-failure-catalog` y artefactos `reports/*` quedaron alineados; checks de salida en verde                                                                                                   |
 | `Q02` | completado | los shims de compatibilidad de `census` quedaron gobernados explícitamente y `sharedCensusBrowserRuntimeController` ya usa el adapter del feature                                                                            |
 | `Q03` | completado | los casos de uso de `clinical-documents` ya consumen contratos internos en lugar de reingresar por `index/public`, `patient-flow` consolidó `Conflict` en el engine y `check:architecture` más `typecheck` quedaron en verde |
