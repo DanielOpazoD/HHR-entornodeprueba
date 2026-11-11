@@ -101,10 +101,12 @@ const loadRemoteInitializationSeed = async (
     if (allowOfflineCopy && typeof navigator !== 'undefined' && !navigator.onLine) return null;
     throw error;
   }
-  if (!remoteResult.record && !remoteResult.serverConfirmed)
+  if (!remoteResult.record && !remoteResult.serverConfirmed) {
+    if (allowOfflineCopy && typeof navigator !== 'undefined' && !navigator.onLine) return null;
     throw new Error(
       'No se pudo confirmar la ausencia del día con el servidor. Reintente con conexión.'
     );
+  }
   const result = await resolveRemoteGoldenPathReadResult({
     date,
     localCandidate: null,

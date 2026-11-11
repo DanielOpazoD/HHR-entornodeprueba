@@ -1,3 +1,6 @@
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
+import { CancelledError } from '@tanstack/react-query';
 import { applyPendingExplicitCensusPatch } from './dailyRecordPendingPatchController';
 import { replaceEqualDeep } from '@tanstack/react-query';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
@@ -7,6 +10,8 @@ class PointReadPublication implements DailyRecordQueryResult {
   record: DailyRecordQueryResult['record'];
   runtime: DailyRecordQueryResult['runtime'];
   #retained: boolean;
+  readonly #owner = getStoredSessionOwnerKey();
+  readonly #epoch = getSessionEpoch();
   readonly #expected: DailyRecordQueryResult | undefined;
   readonly #current: () => DailyRecordQueryResult | undefined;
   readonly #confirm: (result: DailyRecordQueryResult) => void;
@@ -33,6 +38,9 @@ class PointReadPublication implements DailyRecordQueryResult {
   }
 
   publish(): DailyRecordQueryResult {
+    if (this.#owner !== getStoredSessionOwnerKey() || this.#epoch !== getSessionEpoch()) {
+      throw new CancelledError({ silent: true });
+    }
     const current = this.#current();
     if (current && !arePatchValuesDeepEqual(current.record, this.#expected?.record)) {
       this.record = current.record;
