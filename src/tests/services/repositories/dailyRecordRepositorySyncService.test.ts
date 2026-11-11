@@ -3,6 +3,21 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDate: vi.fn(),
+  admitLocalRecords: vi.fn(async (candidates, select) =>
+    candidates.map(
+      ({
+        record,
+        expectedBase,
+      }: {
+        record: DailyRecord;
+        expectedBase?: { record?: DailyRecord };
+      }) => ({
+        date: record.date,
+        status: 'admitted',
+        record: select(record, expectedBase?.record ?? null, []).record,
+      })
+    )
+  ),
   captureLocalRecordBase: async (date: string) => ({
     kind: 'stored',
     record: await getRecordFromIndexedDB(date),
@@ -39,7 +54,7 @@ import {
 } from '@/services/repositories/dailyRecordRepositorySyncService';
 import {
   getRecordForDate as getRecordFromIndexedDB,
-  saveRecordStrict as saveToIndexedDB,
+  admitLocalRecords as saveToIndexedDB,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { subscribeToRecord } from '@/services/storage/firestore/firestoreRecordQueries';
 
@@ -105,7 +120,6 @@ describe('dailyRecordRepositorySyncService', () => {
       consistencyState: 'local_kept',
       sourceOfTruth: 'local',
     });
-    expect(saveToIndexedDB).not.toHaveBeenCalled();
   });
 
   it('applies the remote record and hydrates IndexedDB when the remote copy is newer', async () => {
@@ -138,11 +152,16 @@ describe('dailyRecordRepositorySyncService', () => {
       recoveryAction: 'none',
     });
     expect(saveToIndexedDB).toHaveBeenCalledWith(
-      expect.objectContaining({
-        date: '2026-03-03',
-        lastUpdated: '2026-03-03T12:00:00.000Z',
-      }),
-      { preserveUnresolvedWrites: true, expectedBase: { kind: 'stored', record: localRecord } }
+      [
+        expect.objectContaining({
+          record: expect.objectContaining({
+            date: '2026-03-03',
+            lastUpdated: '2026-03-03T12:00:00.000Z',
+          }),
+          expectedBase: { kind: 'stored', record: localRecord },
+        }),
+      ],
+      expect.any(Function)
     );
   });
 
@@ -196,14 +215,16 @@ describe('dailyRecordRepositorySyncService', () => {
       false
     );
     expect(saveToIndexedDB).toHaveBeenCalledWith(
-      expect.objectContaining({
-        beds: expect.objectContaining({
-          R1: expect.objectContaining({
-            pathology: 'Puérpera',
+      [
+        expect.objectContaining({
+          record: expect.objectContaining({
+            beds: expect.objectContaining({
+              R1: expect.objectContaining({ pathology: 'Puérpera' }),
+            }),
           }),
         }),
-      }),
-      { preserveUnresolvedWrites: true }
+      ],
+      expect.any(Function)
     );
   });
 

@@ -1,3 +1,8 @@
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import { matchesOwner } from '@/services/storage/sync/dexieSyncQueueQuarantine';
+import { projectRemoteAdmissionNotes } from '@/services/storage/indexeddb/remoteAdmissionNoteProjection';
+import { publishSpecialistHandoffConflict } from '@/services/storage/medicalHandoffDraftStorage';
+import type { SpecialistHandoffSyncPayload } from '@/services/storage/syncQueueTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   saveRecordStrict as saveToIndexedDB,
@@ -56,18 +61,36 @@ export const persistPointReadToLocalCache = async (
 
 export type RemoteDailyRecordCandidate = LocalRecordAdmissionCandidate & {
   remoteRecord: DailyRecord | null;
+  validateRecord?: boolean;
+  selectRecord?: (stored: DailyRecord | null) => DailyRecord;
 };
 
 export type RemoteDailyRecordAdmission = LocalRecordAdmissionResult & {
   remoteRecord: DailyRecord | null;
 };
 
-/** Batch-only entry point for now; remote evidence never acknowledges retained work. */
+/** Single or batch remote admission; remote evidence never acknowledges retained work. */
 export const admitRemoteDailyRecords = async (
   candidates: readonly RemoteDailyRecordCandidate[]
 ): Promise<RemoteDailyRecordAdmission[]> => {
   const byDate = new Map(candidates.map(candidate => [candidate.record.date, candidate]));
-  const results = await admitLocalRecords([...byDate.values()]);
+  const detached: SpecialistHandoffSyncPayload[] = [];
+  const owner = getStoredSessionOwnerKey();
+  const results = await admitLocalRecords([...byDate.values()], (record, _stored, tasks) => {
+    const selected = projectRemoteAdmissionNotes(
+      byDate.get(record.date)?.selectRecord?.(_stored) ?? record,
+      byDate.get(record.date)?.remoteRecord ?? null,
+      tasks.filter(task => matchesOwner(owner, task.ownerKey)),
+      detached
+    );
+    return selected.projected || byDate.get(record.date)?.validateRecord
+      ? {
+          ...selected,
+          record: prepareDailyRecordForPersistence(selected.record, record.date, _stored),
+        }
+      : selected;
+  });
+  if (getStoredSessionOwnerKey() === owner) detached.forEach(publishSpecialistHandoffConflict);
   return results.map(result => ({
     ...result,
     remoteRecord: byDate.get(result.date)?.remoteRecord ?? null,

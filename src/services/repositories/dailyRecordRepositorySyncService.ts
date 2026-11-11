@@ -19,11 +19,7 @@ import { createSyncDailyRecordResult } from '@/services/repositories/contracts/d
 import { dailyRecordSyncLogger } from '@/services/repositories/repositoryLoggers';
 import { resolveDailyRecordSyncConsistency } from '@/services/repositories/dailyRecordConsistencyPolicy';
 import { resolveDailyRecordPersistenceGoldenPath } from '@/services/repositories/dailyRecordPersistenceGoldenPath';
-import {
-  persistHydratedRecordToLocalCache,
-  persistPointReadToLocalCache,
-} from '@/services/repositories/dailyRecordLocalCachePersistence';
-import { AdmissionDatePolicyViolationError } from '@/application/patient-flow/admissionDatePolicy';
+import { admitRemoteDailyRecords } from '@/services/repositories/dailyRecordLocalCachePersistence';
 import { createSupersededReadResult } from '@/services/repositories/dailyRecordReadResultController';
 import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { buildDailyRecordSyncContract } from '@/services/storage/sync/syncTaskContractPolicy';
@@ -34,30 +30,6 @@ import { rebasePendingDailyRecordWrite } from '@/services/repositories/dailyReco
 import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyRecordPersistencePreparation';
 import { buildPendingDailyRecordReplacementTask } from '@/services/storage/sync/syncQueuePendingDailyRecordReplacement';
 import type { DailyRecord as StoredDailyRecord } from '@/types/domain/dailyRecord';
-import { getPendingDailyRecordProjection } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
-
-/**
- * Cache hydration preserves unresolved writes atomically. Callers then read the pending
- * projection afresh, including when golden-path selection did not need hydration.
- */
-const hydrateLocalCache = async (
-  record: DailyRecord,
-  date: string,
-  localRecord: DailyRecord | null
-): Promise<void> => {
-  try {
-    await persistHydratedRecordToLocalCache(record, date, localRecord);
-  } catch (error) {
-    if (error instanceof AdmissionDatePolicyViolationError) {
-      dailyRecordSyncLogger.warn(
-        `Skipped local hydration for ${date} due to admissionDate validation`,
-        error
-      );
-      return;
-    }
-    throw error;
-  }
-};
 
 const resolveSubscriptionResult = async (
   date: string,
@@ -73,45 +45,51 @@ const resolveSubscriptionResult = async (
     : serverConfirmed
       ? 'missing'
       : 'unavailable';
-  const goldenPath = resolveDailyRecordPersistenceGoldenPath({
-    localRecord,
-    remoteRecord,
-    remoteAvailability,
-    clinicalConsistencyPhase: 'sync_publish',
-  });
+  const goldenPath = remoteRecord
+    ? null
+    : resolveDailyRecordPersistenceGoldenPath({
+        localRecord,
+        remoteRecord,
+        remoteAvailability,
+        clinicalConsistencyPhase: 'sync_publish',
+      });
+  let selectedBase: DailyRecord | null = null;
   let superseded: { stored: DailyRecord | null } | undefined;
-  if (pointReadBase) {
-    let admitted = false;
-    if (goldenPath.shouldHydrateLocal && remoteRecord) {
-      try {
-        const hydration = await persistPointReadToLocalCache(
-          goldenPath.selectedRecord || remoteRecord,
-          date,
-          pointReadBase,
-          localRecord
-        );
-        if (hydration.status === 'superseded') superseded = hydration;
-        admitted = true;
-      } catch (error) {
-        if (!(error instanceof AdmissionDatePolicyViolationError)) throw error;
-        dailyRecordSyncLogger.warn(
-          `Skipped local hydration for ${date} due to admissionDate validation`,
-          error
-        );
-      }
-    }
-    if (!admitted) {
-      const admission = await inspectLocalRecordAdmission(
-        date,
-        pointReadBase,
-        goldenPath.selectedRecord
-      );
-      if (admission.status === 'superseded') superseded = admission;
-    }
-  } else if (goldenPath.shouldHydrateLocal && remoteRecord && isCurrent()) {
-    await hydrateLocalCache(goldenPath.selectedRecord || remoteRecord, date, localRecord);
+  let retainedRecord: DailyRecord | null = null;
+  let selectedRecord = remoteRecord ?? goldenPath?.selectedRecord ?? null;
+  if (remoteRecord && selectedRecord && isCurrent()) {
+    const [admission] = await admitRemoteDailyRecords([
+      {
+        record: selectedRecord,
+        validateRecord: true,
+        remoteRecord,
+        expectedBase: pointReadBase,
+        selectRecord: stored => {
+          selectedBase =
+            resolveDailyRecordPersistenceGoldenPath({
+              localRecord: stored,
+              remoteRecord,
+              remoteAvailability,
+              clinicalConsistencyPhase: 'sync_publish',
+            }).selectedRecord ?? remoteRecord;
+          return selectedBase;
+        },
+      },
+    ]);
+    if (!admission) throw new Error('La admisión remota no devolvió el día solicitado.');
+    if (admission.status === 'superseded') superseded = { stored: admission.record };
+    selectedRecord = admission.record;
+    if (admission.status === 'retained_pending' || admission.status === 'projected_note')
+      retainedRecord = admission.record;
+  } else if (pointReadBase || !remoteRecord) {
+    const admission = await inspectLocalRecordAdmission(
+      date,
+      pointReadBase ?? { kind: 'stored', record: localRecord },
+      selectedRecord
+    );
+    if (admission.status === 'superseded') superseded = admission;
+    if (admission.status === 'retained_pending') retainedRecord = admission.record;
   }
-  const retainedRecord = await getPendingDailyRecordProjection(date);
   if (superseded) {
     const result = createSupersededReadResult(date, superseded.stored, retainedRecord);
     return createSyncDailyRecordResult({
@@ -126,11 +104,11 @@ const resolveSubscriptionResult = async (
       observabilityTags: ['daily_record', 'sync', 'point_read_superseded'],
     });
   }
-  const record = retainedRecord ?? goldenPath.selectedRecord;
+  const record = retainedRecord ?? selectedRecord;
   const consistency = resolveDailyRecordSyncConsistency({
     localRecord: retainedRecord ?? localRecord,
     remoteRecord,
-    selectedRecord: record,
+    selectedRecord: retainedRecord ?? selectedBase ?? record,
     remoteAvailability,
     pendingLocalWritesRetained: Boolean(retainedRecord),
   });
@@ -273,7 +251,11 @@ export const adoptAuthoritativeRecord = async (
   alreadyAppliedPatch?: DailyRecordPatch
 ): Promise<DailyRecord> => {
   if (!alreadyAppliedPatch) {
-    return persistHydratedRecordToLocalCache(record, record.date);
+    const [admission] = await admitRemoteDailyRecords([
+      { record, remoteRecord: record, validateRecord: true },
+    ]);
+    if (!admission) throw new Error('La admisión remota no devolvió el día solicitado.');
+    return admission.record ?? record;
   }
   const authoritativeRecord = prepareDailyRecordForPersistence(record, record.date);
   const adoption = await adoptAuthoritativeDailyRecordAtomically(

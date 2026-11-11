@@ -6,7 +6,11 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
-import { subscribeDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
+import {
+  subscribeDetailed,
+  syncWithFirestoreDetailed,
+  adoptAuthoritativeRecord,
+} from '@/services/repositories/dailyRecordRepositorySyncService';
 import { syncRecordsRange } from '@/services/records/recordQueryService';
 import { hydrateRangeRecords } from '@/services/admin/dataMaintenanceSupport';
 import { importDataJSONDetailed } from '@/services/exporters/exportImportJson';
@@ -49,7 +53,16 @@ vi.mock('@/services/storage/firestore/firestoreRecordQueries', async importOrigi
 const DATE = '2026-10-24';
 const NOTE = 'Nota especialista sintética pendiente';
 const Q = 'Diagnóstico optimista sintético';
-const paths = ['puntual', 'suscripción', 'rango', 'mantenimiento', 'JSON', 'heredada'] as const;
+const paths = [
+  'puntual',
+  'suscripción',
+  'rango',
+  'mantenimiento',
+  'JSON',
+  'heredada',
+  'explícita',
+  'ACK readback',
+] as const;
 type Path = (typeof paths)[number];
 const situations = [
   'diaria',
@@ -190,6 +203,8 @@ async function read(path: Path, remote: DailyRecord): Promise<DailyRecord | null
       stop();
     }
   }
+  if (path === 'explícita') return (await syncWithFirestoreDetailed(DATE))?.record;
+  if (path === 'ACK readback') return adoptAuthoritativeRecord(remote);
   if (path === 'rango') return (await syncRecordsRange(DATE, DATE))[0];
   if (path === 'mantenimiento') return (await hydrateRangeRecords(DATE, DATE))[0];
   if (path === 'JSON') {
@@ -231,10 +246,7 @@ for (const path of paths) {
   describe(`admisión ${path}: copia local / llamador / cola intacta`, () => {
     for (const situation of situations) {
       // Design step 2 fixes specialist projection in S/R/M; step 3 fixes point Q publication.
-      const knownDefect =
-        (situation === 'especialista' &&
-          ['suscripción', 'rango', 'mantenimiento'].includes(path)) ||
-        (situation === 'optimista' && path === 'puntual');
+      const knownDefect = situation === 'optimista' && path === 'puntual';
       const testCase = knownDefect ? it.fails : it;
       if (knownDefect) {
         it(`${situation}: entrega base remota sin retirar cola ni parche (invariantes del defecto)`, async () => {
@@ -295,7 +307,7 @@ for (const path of paths) {
           }
           if (situation === 'local nueva') {
             // Design steps 1/3 / D1: preserve the present per-path choice, pending product decision.
-            const expected = path === 'rango' ? remote : local;
+            const expected = path === 'rango' || path === 'ACK readback' ? remote : local;
             expect(observed(stored)).toEqual(observed(expected));
             expect(observed(returned)).toEqual(observed(expected));
             return;
