@@ -1,7 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { mutationOptions, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../config/queryClient';
 import { useRepositories } from '@/services/RepositoryContext';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   createDailyRecordQueryOptions,
   createDailyRecordSubscription,
@@ -185,7 +185,8 @@ export const useSaveDailyRecordMutation = () => {
   const queryClient = useQueryClient();
   const { dailyRecord } = useRepositories();
 
-  return useMutation({
+  const [remoteSelected, setRemoteSelected] = useState(false);
+  const options = mutationOptions({
     mutationFn: async (input: SaveDailyRecordMutationInput) => {
       const { persistDailyRecordSaveMutation } =
         await import('@/hooks/controllers/dailyRecordSavePersistenceController');
@@ -243,4 +244,22 @@ export const useSaveDailyRecordMutation = () => {
       }
     },
   });
+  // Structural Rayen saves still require the server; ordinary saves must reach IndexedDB offline.
+  const local = useMutation({ ...options, networkMode: 'always' });
+  const remote = useMutation({ ...options, networkMode: 'online' });
+  const selectMutation = (input: SaveDailyRecordMutationInput) => {
+    const requiresRemote = Boolean(input.rayenStructuralWriteGuard);
+    setRemoteSelected(requiresRemote);
+    return requiresRemote ? remote : local;
+  };
+  return {
+    ...(remoteSelected ? remote : local),
+    mutate: (...args: Parameters<typeof local.mutate>) => selectMutation(args[0]).mutate(...args),
+    mutateAsync: (...args: Parameters<typeof local.mutateAsync>) =>
+      selectMutation(args[0]).mutateAsync(...args),
+    reset: () => {
+      local.reset();
+      remote.reset();
+    },
+  };
 };
