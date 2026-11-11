@@ -151,7 +151,10 @@ describe('a census day with an edit left unsent by a closed session', () => {
     const retained = recoverable(await hospitalDB.syncQueue.get(id));
     await reconcileAuthorizedSessionOwner(owner);
 
+    // Offline, so the new task is observed before any send attempt claims it.
+    const offline = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     await updatePartialDetailed(date, { nursesNightShift: ['SYNTHETIC NEW EDIT'] });
+    offline.mockRestore();
 
     expect(recoverable(await hospitalDB.syncQueue.get(id))).toEqual(retained);
     const others = (await hospitalDB.syncQueue.toArray()).filter(task => task.id !== id);
