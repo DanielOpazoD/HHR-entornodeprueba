@@ -625,5 +625,5 @@ anterior. Esta invalidación no cancela el trabajo clínico que ya superó el co
 
 La marca de Eloísa en la barra del censo abre un anillo pequeño con Hospitalizados, Gestión de
 camas, Ambulatoria y Urgencias. Cada uno abre su página de Eloísa en una pestaña nueva. Las
-direcciones viven en `eloisaLinks.ts`.
+direcciones viven en `components/EloisaLinksRing.tsx`.
 El anillo se carga solo al abrirlo, para no crecer el bloque de sincronización.
