@@ -14,7 +14,7 @@ Este módulo construye el Excel maestro del censo diario y agrega tres hojas de 
    - snapshots lógicos por fecha,
    - filas de resumen,
    - pacientes UPC con historial de cama, conteo UCI/UTI y detalle diario por subtipo.
-4. `censusHiddenSheetsRenderer.ts` solo escribe celdas ExcelJS a partir de esos view models.
+4. `censusHiddenSummarySheet.ts` y `censusHiddenUpcSheets.ts` solo escriben celdas ExcelJS a partir de esos view models.
 5. `censusHiddenSheetsProtection.ts` aplica protección por hoja. `RESUMEN` queda oculto por estructura y las dos hojas UPC quedan visibles pero vacías hasta desprotegerlas.
 6. `censusWorkbookSerializer.ts` postprocesa `xl/workbook.xml` para aplicar `workbookProtection lockStructure`.
 
