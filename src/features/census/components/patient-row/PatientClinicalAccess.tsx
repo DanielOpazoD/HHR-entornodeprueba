@@ -21,8 +21,11 @@ import {
   usePatientClinicalTopicSurface,
 } from './PatientClinicalTopicSurfaces';
 import { CLINICAL_ACCESS_ICON_SRC } from './patientClinicalAccessIcons';
-import { buildEloisaNurseEncounterUrl } from './eloisaPatientLink';
 import { openClinicalPanel } from './useActiveClinicalPanel';
+
+/** The page nurses open for a patient in Eloísa: the episode in Ficha Médico's nurse list. */
+const buildEloisaNurseEncounterUrl = (episode: string): string =>
+  `https://fichamedico.rayensalud.cl/dashboard/encounter-list-nurse/${encodeURIComponent(episode)}`;
 
 export const PatientClinicalAccess: React.FC<PatientClinicalAccessProps> = ({
   patient,

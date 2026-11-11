@@ -12,12 +12,9 @@ import {
   UPC_DAILY_DETAIL_SHEET_NAME,
 } from './censusHiddenSheetsConfig';
 import type { CensusWorkbookSnapshotSheet } from './censusHiddenSheetsContracts';
-import {
-  applyHiddenSheetProtection,
-  renderSummarySheet,
-  renderUpcDailyMatrixSheet,
-  renderUpcPatientsSheet,
-} from './censusHiddenSheetsRenderer';
+import { applyHiddenSheetProtection } from './censusHiddenSheetsProtection';
+import { renderSummarySheet } from './censusHiddenSummarySheet';
+import { renderUpcDailyMatrixSheet, renderUpcPatientsSheet } from './censusHiddenUpcSheets';
 
 export type { CensusWorkbookSnapshotSheet } from './censusHiddenSheetsContracts';
 
