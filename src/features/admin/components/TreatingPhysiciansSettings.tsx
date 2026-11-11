@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, Cloud, Stethoscope } from 'lucide-react';
 import { SPECIALTY_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
 import {
@@ -16,6 +16,18 @@ export const TreatingPhysiciansSettings: React.FC = () => {
   const { data: professionals = [], isLoading } = query;
   const saveProfessionals = useSaveProfessionalsMutation();
   const [draft, setDraft] = useState<{ catalogKey: string; specialty: string } | null>(null);
+  useEffect(() => {
+    if (
+      draft &&
+      !saveProfessionals.isPending &&
+      professionals.some(
+        item =>
+          professionalCatalogKey(item) === draft.catalogKey &&
+          (item.specialty ?? '') === draft.specialty
+      )
+    )
+      setDraft(null);
+  }, [draft, professionals, saveProfessionals.isPending]);
   const orderedProfessionals = useMemo(
     () =>
       professionals.toSorted((left, right) =>

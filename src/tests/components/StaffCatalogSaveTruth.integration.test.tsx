@@ -1,3 +1,4 @@
+import { queryKeys } from '@/config/queryClient';
 import 'fake-indexeddb/auto';
 import Dexie, { type Table } from 'dexie';
 import { act, cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -79,6 +80,7 @@ describe('confirmed catalog saves', () => {
     await catalogs.clear();
   });
   afterEach(() => {
+    vi.useRealTimers();
     cleanup();
     onlineManager.setOnline(true);
     vi.restoreAllMocks();
@@ -90,6 +92,70 @@ describe('confirmed catalog saves', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Agregar personal' }));
   };
   for (const entry of cases) {
+    it(
+      entry.key +
+        ': slow transport never publishes optimistic rows or caches them, even with rollback',
+      async () => {
+        await catalogs.put({ id: entry.key, list: ['Synthetic Base'], lastUpdated: 'synthetic' });
+        let reject!: (error: Error) => void;
+        vi.mocked(entry.save).mockReturnValue(
+          new Promise((_resolve, fail) => {
+            reject = fail;
+          })
+        );
+        const { wrapper } = createQueryClientTestWrapper();
+        render(<Manager entry={entry} />, { wrapper });
+        await screen.findByText('Synthetic Base');
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        add();
+        try {
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(10_000);
+          });
+          expect(screen.queryByText('Synthetic X')).not.toBeInTheDocument();
+          expect((await catalogs.get(entry.key))?.list).toEqual(['Synthetic Base']);
+          await act(async () => {
+            reject(failure);
+            await vi.advanceTimersByTimeAsync(1);
+          });
+        } finally {
+          vi.useRealTimers();
+        }
+        await screen.findByText(/no se guardó/i);
+      }
+    );
+    it(
+      entry.key + ': no response releases the editor after 15 seconds and keeps the draft',
+      async () => {
+        await catalogs.put({ id: entry.key, list: ['Synthetic Base'], lastUpdated: 'synthetic' });
+        let resolve!: () => void;
+        vi.mocked(entry.save).mockReturnValue(
+          new Promise<void>(done => {
+            resolve = done;
+          })
+        );
+        const { wrapper } = createQueryClientTestWrapper();
+        render(<Manager entry={entry} />, { wrapper });
+        await screen.findByText('Synthetic Base');
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        try {
+          add();
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(15_100);
+          });
+        } finally {
+          vi.useRealTimers();
+        }
+        await screen.findByText(/no se guardó/i);
+        expect(screen.getByPlaceholderText('Nombre completo…')).toHaveValue('Synthetic X');
+        expect(screen.getByRole('button', { name: 'Agregar personal' })).toBeEnabled();
+        expect(screen.queryByText('Synthetic X')).not.toBeInTheDocument();
+        expect((await catalogs.get(entry.key))?.list).toEqual(['Synthetic Base']);
+        await act(async () => {
+          resolve();
+        });
+      }
+    );
     it(entry.key + ': healthy save updates remote, IndexedDB and visible list', async () => {
       await catalogs.put({ id: entry.key, list: ['Synthetic Base'], lastUpdated: 'synthetic' });
       const { wrapper } = createQueryClientTestWrapper();
@@ -169,6 +235,45 @@ describe('confirmed catalog saves', () => {
       expect((await catalogs.get(entry.key))?.list).toEqual(['Synthetic Base']);
     });
   }
+  it('physicians: slow save keeps shared query and Dexie unchanged; timeout unlocks and accepted snapshot clears warning', async () => {
+    const base = [{ name: 'Synthetic Physician', phone: '', specialty: 'Pediatría' }];
+    await catalogs.put({ id: 'professionals', list: base, lastUpdated: 'synthetic' });
+    let resolve!: () => void;
+    vi.mocked(remote.saveProfessionalsCatalogToFirestore).mockReturnValue(
+      new Promise<void>(done => {
+        resolve = done;
+      })
+    );
+    const { wrapper, queryClient } = createQueryClientTestWrapper();
+    render(<TreatingPhysiciansSettings />, { wrapper });
+    const select = await screen.findByRole('combobox');
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      fireEvent.change(select, { target: { value: 'Cirugía' } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      expect(queryClient.getQueryData([...queryKeys.staff.all, 'professionals'])).toEqual(base);
+      expect((await catalogs.get('professionals'))?.list).toEqual(base);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5_100);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    await screen.findByText(/El cambio no se guardó/);
+    expect(select).toBeEnabled();
+    expect(select).toHaveValue('Cirugía');
+    const callback = vi.mocked(remote.subscribeToProfessionalsCatalog).mock.calls.at(-1)![0];
+    await act(async () => {
+      resolve();
+      await callback([{ ...base[0], specialty: 'Cirugía' }]);
+    });
+    await waitFor(() =>
+      expect(screen.queryByText(/El cambio no se guardó/)).not.toBeInTheDocument()
+    );
+    expect(screen.queryByRole('button', { name: 'Reintentar guardado' })).not.toBeInTheDocument();
+  });
   it('physicians: rejected specialty stays in editor across snapshot and retries', async () => {
     const base = [{ name: 'Synthetic Physician', phone: '', specialty: 'Pediatría' }];
     await catalogs.put({ id: 'professionals', list: base, lastUpdated: 'synthetic' });

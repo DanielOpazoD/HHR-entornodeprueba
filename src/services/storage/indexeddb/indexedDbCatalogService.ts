@@ -21,7 +21,8 @@ export const getCatalogValues = async <T = string>(catalogId: string): Promise<T
 
 export const saveCatalogValues = async <T = string>(
   catalogId: string,
-  list: T[]
+  list: T[],
+  onlyIfChanged = false
 ): Promise<void> => {
   try {
     await ensureDbReady();
@@ -30,7 +31,14 @@ export const saveCatalogValues = async <T = string>(
       list,
       lastUpdated: new Date().toISOString(),
     };
-    await db.catalogs.put(payload);
+    if (onlyIfChanged) {
+      await db.transaction('rw', db.catalogs, async () => {
+        const previous = await db.catalogs.get(catalogId);
+        if (JSON.stringify(previous?.list) !== JSON.stringify(list)) await db.catalogs.put(payload);
+      });
+    } else {
+      await db.catalogs.put(payload);
+    }
   } catch (error) {
     recordOperationalErrorTelemetry('indexeddb', 'indexeddb_save_catalog', error, {
       code: 'indexeddb_save_catalog_failed',
@@ -44,8 +52,11 @@ export const saveCatalogValues = async <T = string>(
 };
 
 /** Best-effort local copy of a list the caller already holds from another source; losing it is not a failure. */
-export const cacheCatalogValues = async <T = string>(catalogId: string, list: T[]): Promise<void> =>
-  saveCatalogValues<T>(catalogId, list).catch(() => undefined);
+export const cacheCatalogValues = async <T = string>(
+  catalogId: string,
+  list: T[],
+  onlyIfChanged = false
+): Promise<void> => saveCatalogValues<T>(catalogId, list, onlyIfChanged).catch(() => undefined);
 
 export const clearCatalog = async (catalogId: string): Promise<void> => {
   try {

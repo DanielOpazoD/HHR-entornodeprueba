@@ -85,7 +85,7 @@ export const getNurses = async (): Promise<string[]> => {
     try {
       const remoteList = await getNurseCatalogFromFirestore();
       if (remoteList.length > 0) {
-        await cacheCatalogValues('nurses', remoteList);
+        await cacheCatalogValues('nurses', remoteList, true);
         return remoteList;
       }
     } catch (err) {
@@ -108,7 +108,7 @@ export const saveNurses = async (nurses: string[]): Promise<void> => {
   } catch (cause) {
     throw new CatalogRemoteSyncError(cause);
   }
-  await cacheCatalogValues('nurses', normalized);
+  await cacheCatalogValues('nurses', normalized, true);
 };
 
 const subscribeToLocalStringCatalog = (
@@ -166,7 +166,7 @@ export const subscribeNurses = (
 
   return subscribeToNurseCatalog(async nurses => {
     const normalized = normalizeStringCatalog(nurses);
-    await cacheCatalogValues('nurses', normalized);
+    await cacheCatalogValues('nurses', normalized, true);
     callback(normalized);
   }, onError);
 };
@@ -188,7 +188,7 @@ export const getTens = async (): Promise<string[]> => {
     try {
       const remoteList = await getTensCatalogFromFirestore();
       if (remoteList.length > 0) {
-        await cacheCatalogValues('tens', remoteList);
+        await cacheCatalogValues('tens', remoteList, true);
         return remoteList;
       }
     } catch (err) {
@@ -211,7 +211,7 @@ export const saveTens = async (tens: string[]): Promise<void> => {
   } catch (cause) {
     throw new CatalogRemoteSyncError(cause);
   }
-  await cacheCatalogValues('tens', normalized);
+  await cacheCatalogValues('tens', normalized, true);
 };
 
 /**
@@ -228,7 +228,7 @@ export const subscribeTens = (
 
   return subscribeToTensCatalog(async tens => {
     const normalized = normalizeStringCatalog(tens);
-    await cacheCatalogValues('tens', normalized);
+    await cacheCatalogValues('tens', normalized, true);
     callback(normalized);
   }, onError);
 };
@@ -251,7 +251,7 @@ export const getProfessionals = async (): Promise<ProfessionalCatalogItem[]> => 
     try {
       const remoteList = await getProfessionalsCatalogFromFirestore();
       if (remoteList.length > 0) {
-        await cacheCatalogValues<ProfessionalCatalogItem>('professionals', remoteList);
+        await cacheCatalogValues<ProfessionalCatalogItem>('professionals', remoteList, true);
         return remoteList;
       }
     } catch (err) {
@@ -276,7 +276,7 @@ export const saveProfessionals = async (
   } catch (cause) {
     throw new CatalogRemoteSyncError(cause);
   }
-  await cacheCatalogValues('professionals', normalized);
+  await cacheCatalogValues('professionals', normalized, true);
 };
 
 /**
@@ -293,7 +293,7 @@ export const subscribeProfessionals = (
 
   return subscribeToProfessionalsCatalog(async professionals => {
     const normalized = normalizeProfessionalCatalog(professionals);
-    await cacheCatalogValues<ProfessionalCatalogItem>('professionals', normalized);
+    await cacheCatalogValues<ProfessionalCatalogItem>('professionals', normalized, true);
     callback(normalized);
   }, onError);
 };
