@@ -24,6 +24,10 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getAllRecords: mocks.getAllRecords,
   saveRecordsStrict: mocks.saveRecordsStrict,
   getRecordsRange: mocks.getRecordsRange,
+  // The range readers admit every day: this suite is about the backup section, not admission.
+  admitLocalRecords: vi.fn(async (candidates: { record: DailyRecord }[]) =>
+    candidates.map(({ record }) => ({ date: record.date, status: 'admitted', record }))
+  ),
   // No local copy: the import guard (P4a) lets every day through.
   getRecordForDateStrict: vi.fn(async () => null),
 }));
