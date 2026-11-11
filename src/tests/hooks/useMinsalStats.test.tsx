@@ -112,6 +112,30 @@ describe('useMinsalStats', () => {
     ]);
   });
 
+  it('keeps known records and retries a failed remote range instead of accepting a partial success', async () => {
+    const local = [{ date: '2026-03-31' } as DailyRecord];
+    mockFetchRecordsRangeSorted.mockResolvedValue(local);
+    mockSyncRecordsRange
+      .mockResolvedValueOnce([])
+      .mockRejectedValue(new Error('synthetic remote failure'));
+    mockCalculateMinsalStats.mockReturnValue(buildStats());
+    mockCallable.mockResolvedValue({ data: buildStats() });
+    const { result } = renderHook(() => useMinsalStats('lastMonth'), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.allRecords).toEqual(local));
+    await act(async () => {
+      await result.current.refresh();
+    });
+    await waitFor(() => expect(result.current.error).toBe('synthetic remote failure'));
+    expect(result.current.allRecords).toEqual(local);
+    const attempts = mockSyncRecordsRange.mock.calls.length;
+    focusManager.setFocused(false);
+    act(() => {
+      focusManager.setFocused(true);
+    });
+    await waitFor(() => expect(mockSyncRecordsRange.mock.calls.length).toBeGreaterThan(attempts));
+    expect(result.current.allRecords).toEqual(local);
+  });
+
   it('prefers local synchronized stats over mismatched remote stats', async () => {
     const localRecords = [{ date: '2026-03-31' } as DailyRecord];
     const localStats = buildStats({ tasaOcupacion: 69.9 });
