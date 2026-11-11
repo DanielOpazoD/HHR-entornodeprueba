@@ -128,15 +128,19 @@ const loadRemoteInitializationSeed = async (
   options: DailyRecordInitializationOptions
 ): Promise<DailyRecordInitializationSeed | null> => {
   let remoteResult: Awaited<ReturnType<typeof loadRemoteRecordWithFallback>>;
-  try {
-    remoteResult = await loadRemoteRecordWithFallback(date);
-  } catch (err) {
-    dailyRecordInitializationLogger.warn(
-      `Failed to check remote sources for ${date} during init`,
-      err
-    );
-    if (options.requireConfirmedAbsence) throw err;
-    return null;
+  const remoteRead = loadRemoteRecordWithFallback(date);
+  if (options.requireConfirmedAbsence) {
+    remoteResult = await remoteRead;
+  } else {
+    try {
+      remoteResult = await remoteRead;
+    } catch (err) {
+      dailyRecordInitializationLogger.warn(
+        `Failed to check remote sources for ${date} during init`,
+        err
+      );
+      return null;
+    }
   }
   if (options.requireConfirmedAbsence && !remoteResult.record && !remoteResult.serverConfirmed) {
     throw new Error(
