@@ -263,12 +263,14 @@ describe('firestoreService', () => {
     const callback = vi.fn();
 
     onSnapshotMock.mockImplementationOnce((...args: unknown[]) => {
-      const onNext = args[1];
+      // Catalogs listen with options, so the snapshot handler is the first function argument.
+      const onNext = args.find(arg => typeof arg === 'function');
       if (typeof onNext === 'function') {
         (onNext as (snapshot: unknown) => void)({
           exists: () => true,
           id: 'mock-id',
           data: () => ({ list: ['Staff 1'] }),
+          metadata: { hasPendingWrites: false, fromCache: false },
         } as unknown as DocumentSnapshot<DocumentData>);
       }
       return vi.fn();
@@ -286,12 +288,14 @@ describe('firestoreService', () => {
     const callback = vi.fn();
 
     onSnapshotMock.mockImplementationOnce((...args: unknown[]) => {
-      const onNext = args[1];
+      // Catalogs listen with options, so the snapshot handler is the first function argument.
+      const onNext = args.find(arg => typeof arg === 'function');
       if (typeof onNext === 'function') {
         (onNext as (snapshot: unknown) => void)({
           exists: () => true,
           id: 'mock-id',
           data: () => ({ nurses: ['Legacy Nurse'] }),
+          metadata: { hasPendingWrites: false, fromCache: false },
         } as unknown as DocumentSnapshot<DocumentData>);
       }
       return vi.fn();
@@ -381,12 +385,14 @@ describe('firestoreService', () => {
     const callback = vi.fn();
 
     onSnapshotMock.mockImplementationOnce((...args: unknown[]) => {
-      const onNext = args[1];
+      // Catalogs listen with options, so the snapshot handler is the first function argument.
+      const onNext = args.find(arg => typeof arg === 'function');
       if (typeof onNext === 'function') {
         (onNext as (snapshot: unknown) => void)({
           exists: () => true,
           id: 'mock-id',
           data: () => ({ list: ['TENS A'] }),
+          metadata: { hasPendingWrites: false, fromCache: false },
         } as unknown as DocumentSnapshot<DocumentData>);
       }
       return vi.fn();
