@@ -1,3 +1,4 @@
+import { initializeDay } from '@/services/repositories/dailyRecordRepositoryInitializationService';
 import { readDailyRecordQuery } from '@/tests/utils/readDailyRecordQuery';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { waitFor } from '@testing-library/react';
@@ -149,6 +150,33 @@ describeEmulator('server confirmation with real Firestore cache metadata', () =>
     } finally {
       await db.enableNetwork();
     }
+  });
+
+  it('does not create a day from a real cached absence and permits retry online', async () => {
+    const db = openReader();
+    expect(await getRecordFromFirestoreDetailed(date, { source: 'server' })).toMatchObject({
+      record: null,
+      serverConfirmed: true,
+    });
+    await db.disableNetwork();
+    try {
+      await seedRecord();
+      expect(await getRecordFromFirestoreDetailed(date)).toMatchObject({
+        record: null,
+        serverConfirmed: false,
+      });
+      await expect(
+        initializeDay(date, undefined, { requireConfirmedAbsence: true })
+      ).rejects.toThrow();
+      expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
+      expect(await hospitalDB.syncQueue.count()).toBe(0);
+    } finally {
+      await db.enableNetwork();
+    }
+    expect((await initializeDay(date, undefined, { requireConfirmedAbsence: true })).date).toBe(
+      date
+    );
+    expect(await hospitalDB.syncQueue.count()).toBe(0);
   });
 
   describe('returning to a tab after a long absence', () => {
