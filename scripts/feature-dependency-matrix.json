@@ -17,7 +17,7 @@
     ],
     "clinical-documents": ["clinical-library", "laboratory"],
     "clinical-library": [],
-    "cudyr": [],
+    "cudyr": ["rayen-import"],
     "document-scanner": [],
     "handoff": ["cudyr", "wound-care"],
     "laboratory": [],

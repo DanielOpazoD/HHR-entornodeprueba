@@ -1,7 +1,6 @@
 {
   "version": 1,
   "entries": [
-    "src/services/storage/indexeddb/indexedDbRecordService.ts::getRecordForDate",
-    "src/services/storage/indexeddb/indexedDbRecordService.ts::getRecordsRange"
+    "src/services/storage/indexeddb/indexedDbRecordService.ts::getRecordForDate"
   ]
 }
