@@ -83,7 +83,6 @@
     "check:core-test-boundary": "node scripts/check-core-test-boundary.mjs",
     "check:core-console-usage": "node scripts/check-core-console-usage.mjs",
     "check:lazy-views-feature-entrypoints": "node scripts/check-lazy-views-feature-entrypoints.mjs",
-    "check:persistence-hub-boundaries": "node scripts/check-persistence-hub-boundaries.mjs",
     "check:legacy-retirement-debt": "npm run report:compatibility-governance && node scripts/check-legacy-retirement-debt.mjs",
     "check:schema-governance": "node scripts/check-schema-governance.mjs",
     "check:docs-drift": "node scripts/check-docs-drift.mjs",
