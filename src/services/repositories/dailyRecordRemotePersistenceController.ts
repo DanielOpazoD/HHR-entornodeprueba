@@ -311,7 +311,6 @@ export const persistLocalAndAttemptRemoteSync = async ({
             code: 'unavailable',
           });
         }
-        assertAuthor();
         remoteResult = await remoteWrite();
       } catch (writeError) {
         const rebased = await attemptStaleVersionRebaseRetry<RemoteAuthorityWriteResult>({
