@@ -395,6 +395,30 @@ describe('DailyRecord Sync Integration', () => {
     });
   });
 
+  it('distinguishes a returned save failure from an exception for recovered-copy exports', async () => {
+    const record = createMockRecord('2024-12-28');
+    mockGetForDate.mockResolvedValue(record);
+    mockSave.mockResolvedValue(
+      createSaveDailyRecordResult({
+        date: record.date,
+        outcome: 'unrecoverable',
+        savedLocally: false,
+        savedRemotely: false,
+        queuedForRetry: false,
+        autoMerged: false,
+      })
+    );
+    const { result } = renderHook(() => useDailyRecordSyncQuery(record.date, false, 'ready'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.record).toEqual(record));
+    await act(async () => {
+      await expect(result.current.saveAndUpdate(record)).rejects.toThrow();
+    });
+    await waitFor(() => expect(result.current.syncStatus).toBe('error'));
+    expect(result.current.hasSaveException).toBe(false);
+  });
+
   it('should handle save errors and update syncStatus', async () => {
     mockSave.mockRejectedValue(new Error('Firebase error'));
     const { result } = renderHook(() => useDailyRecordSyncQuery('2024-12-28', false, 'ready'), {
@@ -409,6 +433,7 @@ describe('DailyRecord Sync Integration', () => {
 
     await waitFor(() => {
       expect(result.current.syncStatus).toBe('error');
+      expect(result.current.hasSaveException).toBe(true);
     });
   });
 

@@ -1,4 +1,8 @@
-import { waitForExportReadiness } from '@/hooks/controllers/exportReadinessController';
+vi.unmock('@/application/ports/dailyRecordPort');
+import {
+  prepareRecordExport,
+  waitForExportReadiness,
+} from '@/hooks/controllers/exportReadinessController';
 import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import { renderHook, act, waitFor, cleanup } from '@testing-library/react';
 import { beforeEach, afterEach, afterAll, expect, it, vi } from 'vitest';
@@ -216,20 +220,31 @@ it('b: actual transaction abort rolls back row/task; hook drops patch and error 
     warning: vi.fn(),
     success: vi.fn(),
   });
-  expect(error).toHaveBeenCalled();
+  expect(error).toHaveBeenCalledWith('Cambio no guardado', expect.any(String));
   expect(resolveDailyRecordSyncStatus([h.result.current])).toBe('error');
-  expect(
-    await waitForExportReadiness({
-      expectedDate: date,
-      readState: () => ({
-        selectedDate: date,
-        recordDate: date,
-        syncStatus: resolveDailyRecordSyncStatus([h.result.current]),
+  let time = 0;
+  const prepared = await prepareRecordExport({
+    expectedDate: date,
+    readRecord: () =>
+      h.client.getQueryData<{ record: typeof base }>(getDailyRecordQueryKey(date))!.record,
+    warning: vi.fn(),
+    flushBeforeExport: () =>
+      waitForExportReadiness({
+        expectedDate: date,
+        readState: () => ({
+          selectedDate: date,
+          recordDate: date,
+          syncStatus: resolveDailyRecordSyncStatus([h.result.current]),
+          hasSaveException: h.result.current.isError,
+        }),
+        now: () => time,
+        wait: async ms => {
+          time += ms;
+        },
       }),
-      now: Date.now,
-      wait: async () => {},
-    })
-  ).toEqual({ status: 'blocked', reason: 'save_failed' });
+  });
+  expect(prepared?.record?.beds.R1.pathology).toBe('BASE');
+  expect(prepared?.canPrint()).toBe(true);
   log('b', {
     result: payload!.result,
     feedback,

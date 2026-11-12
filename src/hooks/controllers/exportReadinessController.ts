@@ -10,6 +10,7 @@ interface ExportState {
   selectedDate: string;
   recordDate?: string;
   syncStatus: SyncStatus;
+  hasSaveException?: boolean;
 }
 
 const getBlockReason = (expectedDate: string, state: ExportState): ExportBlockReason | null => {
@@ -19,7 +20,8 @@ const getBlockReason = (expectedDate: string, state: ExportState): ExportBlockRe
   ) {
     return 'date_changed';
   }
-  if (state.syncStatus === 'error') return 'save_failed';
+  // A returned failure has already restored the readable copy; an exception remains blocked.
+  if (state.syncStatus === 'error' && state.hasSaveException !== false) return 'save_failed';
   return state.syncStatus === 'saving' ? 'saving' : null;
 };
 

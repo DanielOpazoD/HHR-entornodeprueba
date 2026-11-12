@@ -40,6 +40,7 @@ export interface UseDailyRecordSyncResult {
     record: DailyRecord | null | ((prev: DailyRecord | null) => DailyRecord | null)
   ) => void;
   syncStatus: SyncStatus;
+  hasSaveException?: boolean;
   lastSyncTime: Date | null;
   bootstrapPhase: DailyRecordBootstrapPhase;
   saveAndUpdate: PersistDailyRecord;
@@ -51,6 +52,7 @@ export interface UseDailyRecordSyncResult {
 export interface DailyRecordDataContextType {
   record: DailyRecord | null;
   syncStatus: SyncStatus;
+  hasSaveException?: boolean;
   lastSyncTime: Date | null;
   bootstrapPhase: DailyRecordBootstrapPhase;
   inventory: InventoryStats;
