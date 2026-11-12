@@ -57,7 +57,7 @@ Esto significa que la Fase 1 ya comenzó, pero todavía no está cerrada a nivel
 - No asumir que “sin imports” significa “sin uso”; revisar Netlify, `new Worker(...)`, imports dinámicos y barrels.
 - No mezclar una poda de repo con features nuevas.
 - No modificar tests para acomodar un cambio malo.
-- No consolidar seams entre layers si rompe `shared-layer-boundary`, `folder-dependencies` o `repo-hygiene`.
+- No consolidar seams entre layers si rompe `hhr/public-import-boundaries`, `folder-dependencies` o `repo-hygiene`.
 
 ## Fase 1: Poda de Activos No-Productivos
 

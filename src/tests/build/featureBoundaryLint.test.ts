@@ -195,7 +195,7 @@ describe('feature boundaries in ESLint (from scripts/feature-dependency-matrix.j
     expect(messages[0]).toContain('controllers/use-cases/ports');
   });
 
-  it('leaves files outside src/features to the scripts', async () => {
+  it('keeps the feature-matrix rule limited to src/features', async () => {
     expect(
       await boundaryMessages(
         'src/views/Probe.tsx',

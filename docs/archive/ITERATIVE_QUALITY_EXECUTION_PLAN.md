@@ -157,8 +157,8 @@ El owner canónico debe seguir siendo `src/features/census/controllers`. Los wra
 
 ### Checks de salida
 
-- `npm run check:census-feature-boundary`
-- `npm run check:shared-layer-boundary`
+- `npx eslint .`
+- `npx eslint .`
 - `npm run check:folder-dependencies`
 - `npm run check:census-runtime-boundary`
 
@@ -264,7 +264,7 @@ Dejar entrypoints públicos mínimos y explícitos para `census`, `clinical-docu
 ### Checks de salida
 
 - `npm run lint`
-- `npm run check:shared-layer-boundary`
+- `npx eslint .`
 - `npm run check:folder-dependencies`
 
 ## Fase `Q06` - PIN local como barrera UX

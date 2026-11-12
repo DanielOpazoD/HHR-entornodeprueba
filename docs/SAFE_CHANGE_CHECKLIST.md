@@ -14,7 +14,7 @@ Esto es feedback focalizado, **no reemplaza el gate previo al merge**.
 Para cambios en límites de imports:
 
 ```sh
-npx vitest run src/tests/build/featureBoundaryRunner.test.ts src/tests/security/laboratoryImportGovernanceStatic.test.ts
+npx vitest run src/tests/build/publicImportBoundaryLint.test.ts src/tests/security/laboratoryImportGovernanceStatic.test.ts
 npm run check:quality:group -- boundaries
 ```
 
