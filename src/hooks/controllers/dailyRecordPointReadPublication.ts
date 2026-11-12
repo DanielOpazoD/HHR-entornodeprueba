@@ -16,13 +16,15 @@ class PointReadPublication implements DailyRecordQueryResult {
   readonly #current: () => DailyRecordQueryResult | undefined;
   readonly #confirm: (result: DailyRecordQueryResult) => void;
   readonly #mayConfirm: boolean;
+  readonly #patchBase: DailyRecordQueryResult['record'];
 
   constructor(
     result: DailyRecordQueryResult,
     expected: DailyRecordQueryResult | undefined,
     current: () => DailyRecordQueryResult | undefined,
     confirm: (result: DailyRecordQueryResult) => void,
-    mayConfirm: boolean
+    mayConfirm: boolean,
+    patchBase: DailyRecordQueryResult['record']
   ) {
     this.record = result.record;
     this.runtime = result.runtime;
@@ -30,6 +32,7 @@ class PointReadPublication implements DailyRecordQueryResult {
     this.#current = current;
     this.#confirm = confirm;
     this.#mayConfirm = mayConfirm;
+    this.#patchBase = patchBase;
     this.#retained = !mayConfirm;
   }
 
@@ -54,7 +57,7 @@ class PointReadPublication implements DailyRecordQueryResult {
       ? applyPendingExplicitCensusPatch(
           accepted.runtime.date,
           accepted.record,
-          current?.record ?? undefined
+          this.#patchBase ?? undefined
         )
       : accepted.record;
     const published =
@@ -79,9 +82,10 @@ export const createPointReadPublication = (
   expected: DailyRecordQueryResult | undefined,
   current: () => DailyRecordQueryResult | undefined,
   confirm: (result: DailyRecordQueryResult) => void,
-  mayConfirm: boolean
+  mayConfirm: boolean,
+  patchBase: DailyRecordQueryResult['record'] = expected?.record ?? null
 ): DailyRecordQueryResult =>
-  new PointReadPublication(result, expected, current, confirm, mayConfirm);
+  new PointReadPublication(result, expected, current, confirm, mayConfirm, patchBase);
 
 /** Fetch results settle before QueryClient commits them; admission belongs in setData. */
 export const publishDailyRecordQueryData = (previous: unknown, incoming: unknown): unknown =>

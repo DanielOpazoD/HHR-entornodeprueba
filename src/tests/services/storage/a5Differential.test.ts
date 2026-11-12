@@ -16,7 +16,11 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
-import { syncWithFirestoreDetailed, adoptAuthoritativeRecord, subscribeDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
+import {
+  syncWithFirestoreDetailed,
+  adoptAuthoritativeRecord,
+  subscribeDetailed,
+} from '@/services/repositories/dailyRecordRepositorySyncService';
 import { syncRecordsRange } from '@/services/records/recordQueryService';
 import { hydrateRangeRecords } from '@/services/admin/dataMaintenanceSupport';
 import { importDataJSONDetailed } from '@/services/exporters/exportImportJson';
@@ -47,7 +51,8 @@ const wire = vi.hoisted(() => ({
 // Only remote delivery is substituted; selectors, publication, outbox and Dexie are real.
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/storage/firestore/firestoreRecordQueries')>()),
-  getRecordsRangeFromFirestore: async () => harnessState().remote ? [clone(harnessState().remote)] : [],
+  getRecordsRangeFromFirestore: async () =>
+    harnessState().remote ? [clone(harnessState().remote)] : [],
   subscribeToRecord: (_date: string, callback: typeof wire.emit) => {
     wire.emit = callback;
     return () => {
@@ -59,7 +64,16 @@ vi.mock('@/services/storage/firestore/firestoreRecordQueries', async importOrigi
 const DATE = '2026-10-24';
 const NOTE = 'Nota especialista sintética pendiente';
 const Q = 'Diagnóstico optimista sintético';
-const paths = ['puntual', 'suscripción', 'rango', 'mantenimiento', 'JSON', 'heredada', 'E', 'A'] as const;
+const paths = [
+  'puntual',
+  'suscripción',
+  'rango',
+  'mantenimiento',
+  'JSON',
+  'heredada',
+  'E',
+  'A',
+] as const;
 type Path = (typeof paths)[number];
 const situations = [
   'diaria',
@@ -167,20 +181,42 @@ async function prepare(situation: Situation) {
 
 let lastMeta: unknown;
 async function read(path: Path, remote: DailyRecord | null) {
-  if (path === 'A') { lastMeta = null; return remote ? adoptAuthoritativeRecord(remote) : (await hospitalDB.dailyRecords.get(DATE)) ?? null; }
+  if (path === 'A') {
+    lastMeta = null;
+    return remote
+      ? adoptAuthoritativeRecord(remote)
+      : ((await hospitalDB.dailyRecords.get(DATE)) ?? null);
+  }
   if (path === 'E') {
     const result = await syncWithFirestoreDetailed(DATE);
     lastMeta = result && [result.serverConfirmed, result.sourceOfTruth, result.consistencyState];
     return result?.record;
   }
-  if (path === 'puntual') { const r = await getForDateWithMeta(DATE); lastMeta=[r.serverConfirmed,r.sourceOfTruth,r.consistencyState]; return r.record; }
-  if (path === 'rango' || path === 'mantenimiento') { lastMeta=null; return (await (path === 'rango' ? syncRecordsRange : hydrateRangeRecords)(DATE,DATE))[0] ?? null; }
+  if (path === 'puntual') {
+    const r = await getForDateWithMeta(DATE);
+    lastMeta = [r.serverConfirmed, r.sourceOfTruth, r.consistencyState];
+    return r.record;
+  }
+  if (path === 'rango' || path === 'mantenimiento') {
+    lastMeta = null;
+    return (
+      (await (path === 'rango' ? syncRecordsRange : hydrateRangeRecords)(DATE, DATE))[0] ?? null
+    );
+  }
   return new Promise<DailyRecord | null>((resolve, reject) => {
-    const stop = subscribeDetailed(DATE, result => {
-      lastMeta = [result.serverConfirmed, result.sourceOfTruth, result.consistencyState];
-      stop(); resolve(result.record);
-    }, () => reject(new Error('Subscription failed')));
-    wire.emit!(clone(remote) as DailyRecord, false, {fromCache: h.offline, hasPendingWrites: false});
+    const stop = subscribeDetailed(
+      DATE,
+      result => {
+        lastMeta = [result.serverConfirmed, result.sourceOfTruth, result.consistencyState];
+        stop();
+        resolve(result.record);
+      },
+      () => reject(new Error('Subscription failed'))
+    );
+    wire.emit!(clone(remote) as DailyRecord, false, {
+      fromCache: h.offline,
+      hasPendingWrites: false,
+    });
   });
 }
 import { appendFileSync } from 'node:fs';
@@ -188,62 +224,172 @@ import { buildMedicalEntryNoteFields } from '@/domain/handoff/patientEntryMutati
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
 import * as firebase from 'firebase/firestore';
-const obs=(x:object)=>appendFileSync(process.env.DIFF_OUTPUT!,JSON.stringify(x)+'\n');
-for(const path of ['suscripción','E','puntual','rango','mantenimiento','A'] as const) {
- for(const scenario of ['same','other','empty','episode','move','passport','inverse','short','long','cleared','RN','mother','otherRN','daily','FAILED','CONFLICT','released','quarantined','noTasks','missing','unavailable','ACKshort','ACKlong'] as const) {
-  it(`${path} ${scenario}`,async()=>{
-   let {remote}=await prepare('especialista');
-   if(scenario==='other') remote.beds.R4=B();
-   if(scenario==='empty') remote.beds.R4=A('R4',{patientName:'',rut:'',clinicalEpisodeId:''});
-   if(scenario==='episode') remote.beds.R4.clinicalEpisodeId='reentry';
-   if(scenario==='move') {remote.beds.H1C1={...clone(remote.beds.R4),bedId:'H1C1'};remote.beds.R4=B();}
-   if(scenario==='passport') remote.beds.R4.documentType='Pasaporte';
-   if(scenario==='inverse') {
-     remote.beds.R4.medicalHandoffNote='SERVIDOR A';remote.beds.R4.medicalHandoffEntries![0].note='SERVIDOR A';
-     const local=clone(remote);local.beds.R4=B();local.lastUpdated='2026-10-24T15:00:00.000Z';await hospitalDB.dailyRecords.put(local);
-   }
-   if(['short','long'].includes(scenario)) {const text=scenario==='short'?'Mejor':'Nota posterior mucho más larga de un colega sintético';remote.beds.R4.medicalHandoffNote=text;remote.beds.R4.medicalHandoffEntries![0].note=text;}
-   if(scenario==='cleared') {
-     await hospitalDB.syncQueue.clear();await hospitalDB.dailyRecords.clear();
-     remote.beds.R4.medicalHandoffNote='Base anterior';remote.beds.R4.medicalHandoffEntries![0].note='Base anterior';
-     await hospitalDB.dailyRecords.put(remote);await writeNote(remote,'R4','entry-A',NOTE);
-     remote.beds.R4.medicalHandoffNote='';remote.beds.R4.medicalHandoffEntries![0].note='';
-   }
-   if(['RN','mother','otherRN'].includes(scenario)) {
-     await hospitalDB.syncQueue.clear();remote.beds.R4.clinicalCrib=A('R4',{patientName:'RN sintético',clinicalEpisodeId:'rn1'});await hospitalDB.dailyRecords.put(remote);
-     if(scenario==='mother') await writeNote(remote,'R4','entry-A',NOTE);
-     else {
-       const {fields}=buildMedicalEntryNoteFields(remote.beds.R4.clinicalCrib!,'entry-A',NOTE,null,DATE,'2026-10-24T10:00:00.000Z');h.offline=true;
-       await updatePartialDetailed(DATE,Object.fromEntries(Object.entries(fields).map(([k,v])=>['beds.R4.clinicalCrib.'+k,v])),{baseRecord:remote});h.offline=false;
-       if(scenario==='otherRN')remote.beds.R4.clinicalCrib!.clinicalEpisodeId='rn2';
-     }
-   }
-   if(scenario==='daily')await hospitalDB.syncQueue.add({key:'daily:'+DATE,type:'UPDATE_DAILY_RECORD',status:'PENDING',opId:'daily',payload:await hospitalDB.dailyRecords.get(DATE),timestamp:1,retryCount:0});
+const obs = (x: object) => {
+  if (process.env.DIFF_OUTPUT) appendFileSync(process.env.DIFF_OUTPUT, JSON.stringify(x) + '\n');
+};
+for (const path of ['suscripción', 'E', 'puntual', 'rango', 'mantenimiento', 'A'] as const) {
+  for (const scenario of [
+    'same',
+    'other',
+    'empty',
+    'episode',
+    'move',
+    'passport',
+    'inverse',
+    'short',
+    'long',
+    'cleared',
+    'RN',
+    'mother',
+    'otherRN',
+    'daily',
+    'FAILED',
+    'CONFLICT',
+    'released',
+    'quarantined',
+    'noTasks',
+    'missing',
+    'unavailable',
+    'ACKshort',
+    'ACKlong',
+  ] as const) {
+    it(`${path} ${scenario}`, async () => {
+      let { remote } = await prepare('especialista');
+      if (scenario === 'other') remote.beds.R4 = B();
+      if (scenario === 'empty')
+        remote.beds.R4 = A('R4', { patientName: '', rut: '', clinicalEpisodeId: '' });
+      if (scenario === 'episode') remote.beds.R4.clinicalEpisodeId = 'reentry';
+      if (scenario === 'move') {
+        remote.beds.H1C1 = { ...clone(remote.beds.R4), bedId: 'H1C1' };
+        remote.beds.R4 = B();
+      }
+      if (scenario === 'passport') remote.beds.R4.documentType = 'Pasaporte';
+      if (scenario === 'inverse') {
+        remote.beds.R4.medicalHandoffNote = 'SERVIDOR A';
+        remote.beds.R4.medicalHandoffEntries![0].note = 'SERVIDOR A';
+        const local = clone(remote);
+        local.beds.R4 = B();
+        local.lastUpdated = '2026-10-24T15:00:00.000Z';
+        await hospitalDB.dailyRecords.put(local);
+      }
+      if (['short', 'long'].includes(scenario)) {
+        const text =
+          scenario === 'short' ? 'Mejor' : 'Nota posterior mucho más larga de un colega sintético';
+        remote.beds.R4.medicalHandoffNote = text;
+        remote.beds.R4.medicalHandoffEntries![0].note = text;
+      }
+      if (scenario === 'cleared') {
+        await hospitalDB.syncQueue.clear();
+        await hospitalDB.dailyRecords.clear();
+        remote.beds.R4.medicalHandoffNote = 'Base anterior';
+        remote.beds.R4.medicalHandoffEntries![0].note = 'Base anterior';
+        await hospitalDB.dailyRecords.put(remote);
+        await writeNote(remote, 'R4', 'entry-A', NOTE);
+        remote.beds.R4.medicalHandoffNote = '';
+        remote.beds.R4.medicalHandoffEntries![0].note = '';
+      }
+      if (['RN', 'mother', 'otherRN'].includes(scenario)) {
+        await hospitalDB.syncQueue.clear();
+        remote.beds.R4.clinicalCrib = A('R4', {
+          patientName: 'RN sintético',
+          clinicalEpisodeId: 'rn1',
+        });
+        await hospitalDB.dailyRecords.put(remote);
+        if (scenario === 'mother') await writeNote(remote, 'R4', 'entry-A', NOTE);
+        else {
+          const { fields } = buildMedicalEntryNoteFields(
+            remote.beds.R4.clinicalCrib!,
+            'entry-A',
+            NOTE,
+            null,
+            DATE,
+            '2026-10-24T10:00:00.000Z'
+          );
+          h.offline = true;
+          await updatePartialDetailed(
+            DATE,
+            Object.fromEntries(
+              Object.entries(fields).map(([k, v]) => ['beds.R4.clinicalCrib.' + k, v])
+            ),
+            { baseRecord: remote }
+          );
+          h.offline = false;
+          if (scenario === 'otherRN') remote.beds.R4.clinicalCrib!.clinicalEpisodeId = 'rn2';
+        }
+      }
+      if (scenario === 'daily')
+        await hospitalDB.syncQueue.add({
+          key: 'daily:' + DATE,
+          type: 'UPDATE_DAILY_RECORD',
+          status: 'PENDING',
+          opId: 'daily',
+          payload: await hospitalDB.dailyRecords.get(DATE),
+          timestamp: 1,
+          retryCount: 0,
+        });
 
-
-   h.remote=remote;
-   if (['FAILED','CONFLICT','released','quarantined'].includes(scenario)) {
-     const [task] = await hospitalDB.syncQueue.toArray();
-     await hospitalDB.syncQueue.update(task.id!, scenario === 'released' ? {projectionReleased:true} : {status:scenario === 'quarantined' ? 'FAILED' : scenario as 'FAILED' | 'CONFLICT'});
-   }
-   if (scenario === 'noTasks') {await hospitalDB.syncQueue.clear(); await hospitalDB.dailyRecords.clear();}
-   if (scenario === 'ACKshort' || scenario === 'ACKlong') {
-     await read(path,remote); h.handler=createServerHandler(); await reconnect();
-     remote=clone(h.remote!);
-     const text=scenario==='ACKshort'?'Texto confirmado posterior':'Texto confirmado posterior de otro especialista que es bastante más largo que la nota anterior';
-     remote.beds.R4.medicalHandoffNote=text;remote.beds.R4.medicalHandoffEntries![0].note=text;remote.lastUpdated='2026-10-24T16:00:00.000Z';h.remote=remote;
-   }
-   if (scenario === 'missing' || scenario === 'unavailable') h.remote=null;
-   const put=vi.spyOn(hospitalDB.dailyRecords,'put'),bulk=vi.spyOn(hospitalDB.dailyRecords,'bulkPut');
-   const event=vi.fn();window.addEventListener(DAILY_RECORD_STORE_CHANGED_EVENT,event);
-   const reads=[];
-   try {for(let i=0;i<5;i++) {
-     put.mockClear();bulk.mockClear();event.mockClear();
-     if(scenario==='unavailable' && (path==='E'||path==='suscripción'||path==='puntual')) { if(path==='E') vi.mocked(firebase.getDoc).mockRejectedValueOnce(new Error('Synthetic unavailable'));else h.offline=true; }
-     const out=await read(path,h.remote);
-     reads.push({out,stored:await hospitalDB.dailyRecords.get(DATE),writes:put.mock.calls.length+bulk.mock.calls.length,events:event.mock.calls.length,meta:lastMeta});
-   }} finally {window.removeEventListener(DAILY_RECORD_STORE_CHANGED_EVENT,event);}
-   obs({path,scenario,reads});
-  });
- }
+      h.remote = remote;
+      if (['FAILED', 'CONFLICT', 'released', 'quarantined'].includes(scenario)) {
+        const [task] = await hospitalDB.syncQueue.toArray();
+        await hospitalDB.syncQueue.update(
+          task.id!,
+          scenario === 'released'
+            ? { projectionReleased: true }
+            : {
+                status: scenario === 'quarantined' ? 'FAILED' : (scenario as 'FAILED' | 'CONFLICT'),
+              }
+        );
+      }
+      if (scenario === 'noTasks') {
+        await hospitalDB.syncQueue.clear();
+        await hospitalDB.dailyRecords.clear();
+      }
+      if (scenario === 'ACKshort' || scenario === 'ACKlong') {
+        await read(path, remote);
+        h.handler = createServerHandler();
+        await reconnect();
+        remote = clone(h.remote!);
+        const text =
+          scenario === 'ACKshort'
+            ? 'Texto confirmado posterior'
+            : 'Texto confirmado posterior de otro especialista que es bastante más largo que la nota anterior';
+        remote.beds.R4.medicalHandoffNote = text;
+        remote.beds.R4.medicalHandoffEntries![0].note = text;
+        remote.lastUpdated = '2026-10-24T16:00:00.000Z';
+        h.remote = remote;
+      }
+      if (scenario === 'missing' || scenario === 'unavailable') h.remote = null;
+      const put = vi.spyOn(hospitalDB.dailyRecords, 'put'),
+        bulk = vi.spyOn(hospitalDB.dailyRecords, 'bulkPut');
+      const event = vi.fn();
+      window.addEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, event);
+      const reads = [];
+      try {
+        for (let i = 0; i < 5; i++) {
+          put.mockClear();
+          bulk.mockClear();
+          event.mockClear();
+          if (
+            scenario === 'unavailable' &&
+            (path === 'E' || path === 'suscripción' || path === 'puntual')
+          ) {
+            if (path === 'E')
+              vi.mocked(firebase.getDoc).mockRejectedValueOnce(new Error('Synthetic unavailable'));
+            else h.offline = true;
+          }
+          const out = await read(path, h.remote);
+          reads.push({
+            out,
+            stored: await hospitalDB.dailyRecords.get(DATE),
+            writes: put.mock.calls.length + bulk.mock.calls.length,
+            events: event.mock.calls.length,
+            meta: lastMeta,
+          });
+        }
+      } finally {
+        window.removeEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, event);
+      }
+      obs({ path, scenario, reads });
+    });
+  }
 }

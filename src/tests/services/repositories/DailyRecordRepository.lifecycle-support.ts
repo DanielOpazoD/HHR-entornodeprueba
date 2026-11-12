@@ -92,7 +92,9 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
         date: candidate.record.date,
         status: 'admitted',
         record:
-          candidate.serverConfirmed === false && candidate.expectedBase?.kind === 'stored' && candidate.expectedBase.record
+          candidate.serverConfirmed === false &&
+          candidate.expectedBase?.kind === 'stored' &&
+          candidate.expectedBase.record
             ? candidate.expectedBase.record
             : candidate.record,
       }))
@@ -266,7 +268,7 @@ export const resetDailyRecordRepositoryLifecycleState = () => {
       try {
         const record = await vi.mocked(firestoreService.getRecordFromFirestore)(date);
         return {
-          serverConfirmed: false,
+          serverConfirmed: true,
           status: record ? 'resolved' : 'missing',
           record,
         };
