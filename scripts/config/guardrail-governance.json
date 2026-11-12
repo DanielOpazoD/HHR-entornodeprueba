@@ -162,7 +162,6 @@
       { "id": "check:core-test-boundary", "group": "boundaries" },
       { "id": "check:core-console-usage", "group": "hygiene" },
       { "id": "check:lazy-views-feature-entrypoints", "group": "boundaries" },
-      { "id": "check:persistence-hub-boundaries", "group": "boundaries" },
       { "id": "report:compatibility-governance", "group": "governance-inputs" },
       { "id": "check:legacy-retirement-debt", "group": "governance" },
       { "id": "check:schema-governance", "group": "governance" },

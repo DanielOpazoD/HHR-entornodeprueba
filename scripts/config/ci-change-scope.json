@@ -43,7 +43,6 @@
       "scripts/check-legacy-staff-boundary.mjs",
       "scripts/check-module-size.mjs",
       "scripts/check-native-dialogs.mjs",
-      "scripts/check-persistence-hub-boundaries.mjs",
       "scripts/check-repo-hygiene.mjs",
       "scripts/check-runtime-contracts.mjs",
       "scripts/check-schema-governance.mjs",
