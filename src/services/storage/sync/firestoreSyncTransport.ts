@@ -42,6 +42,7 @@ import { saveDailyRecordWithClinicalAuthorityCallable } from '@/services/storage
 import { recordSyncQueueTruthSelectionTelemetry } from '@/services/storage/sync/syncQueueTelemetryController';
 import {
   assertNoSamePathRemoteMutation,
+  assertUnchangedReplayPatchBase,
   hasRemoteAppliedMutation,
 } from '@/services/storage/sync/firestoreSyncConflictPolicy';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
@@ -251,6 +252,7 @@ const resolveRecordForSyncTask = async (
   }
 
   const remoteRecord = docToRecord(remoteData, record.date);
+  assertUnchangedReplayPatchBase(task, remoteRecord, record);
   const canRebasePatch =
     !detached && Boolean(checks?.hasUnchangedPatchBase(queuedTask, remoteRecord, queuedRecord));
   if (task.nursingHandoffRecovery) {

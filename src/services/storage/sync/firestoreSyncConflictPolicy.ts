@@ -2,6 +2,8 @@ import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
+import { hasSameValuesAtPaths } from '@/services/repositories/conflictResolutionUtils';
+
 const MERGEABLE_MOVEMENT_ARRAY_ROOTS = new Set(['discharges', 'transfers', 'cma']);
 const MEDICAL_HANDOFF_SUMMARY_PATH = 'medicalHandoffNovedades';
 const MEDICAL_HANDOFF_SPECIALTY_PREFIX = 'medicalHandoffBySpecialty.';
@@ -165,6 +167,25 @@ export const assertNoSamePathRemoteMutation = (
   ) {
     throw new ConcurrencyError(
       `Sync queue: remote mutation changed the same changed path for ${String(task.key || 'daily record')}.`
+    );
+  }
+};
+
+/** Compare the captured edit base even when a direct writer left no changed-path metadata. */
+export const assertUnchangedReplayPatchBase = (
+  task: SyncTask,
+  remoteRecord: DailyRecord,
+  localRecord: DailyRecord
+): void => {
+  const base = task.patchBaseValues;
+  if (!base) return;
+  const paths = normalizeChangedPaths(task.syncContract?.changedPaths);
+  const remotePaths = paths.filter(
+    path => Object.hasOwn(base, path) && !hasSameValuesAtPaths(remoteRecord, { [path]: base[path] })
+  );
+  if (hasBlockingOverlappingChangedPath(remotePaths, paths, remoteRecord, localRecord)) {
+    throw new ConcurrencyError(
+      'El campo cambió en otro equipo. La edición pendiente se conserva para revisión.'
     );
   }
 };

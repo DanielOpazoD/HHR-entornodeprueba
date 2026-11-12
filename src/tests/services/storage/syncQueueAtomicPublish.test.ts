@@ -103,3 +103,40 @@ it.each(['enforced', 'fenced'])('retains the authoritative callable route for %s
   expect(mocks.transaction).not.toHaveBeenCalled();
   expect(mocks.directSet).not.toHaveBeenCalled();
 });
+
+it.each(['unchanged', 'changed', 'same-clock', 'lost-ack'] as const)(
+  'compares the queued field base inside the transaction: %s',
+  async scenario => {
+    const base = {
+      ...local(),
+      beds: { R1: DataFactory.createMockPatient('R1', { pathology: 'BASE' }) },
+    };
+    const edited = { ...base, beds: { R1: { ...base.beds.R1, pathology: 'A OFFLINE' } } };
+    const remote = {
+      ...base,
+      lastUpdated: scenario === 'same-clock' ? base.lastUpdated : date + 'T10:01:00Z',
+      beds: { R1: { ...base.beds.R1, pathology: scenario === 'unchanged' ? 'BASE' : 'B ONLINE' } },
+      ...(scenario === 'lost-ack' ? { meta: { lastMutationId: 'queued-edit' } } : {}),
+    };
+    mocks.read.mockResolvedValue(snapshot(base));
+    mocks.transactionRead.mockResolvedValue(snapshot(remote));
+    const input = {
+      ...task(),
+      payload: edited,
+      patchBaseValues: { 'beds.R1.pathology': 'BASE' },
+      syncContract: {
+        mutationId: 'queued-edit',
+        expectedVersion: base.lastUpdated,
+        changedPaths: ['beds.R1.pathology'],
+      },
+    };
+    if (scenario === 'changed' || scenario === 'same-clock') {
+      await expect(run(input)).rejects.toMatchObject({ name: 'ConcurrencyError' });
+      expect(mocks.set).not.toHaveBeenCalled();
+    } else {
+      await run(input);
+      if (scenario === 'lost-ack') expect(mocks.set).not.toHaveBeenCalled();
+      else expect(mocks.set).toHaveBeenCalledOnce();
+    }
+  }
+);
