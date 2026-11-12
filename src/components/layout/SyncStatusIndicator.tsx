@@ -15,7 +15,7 @@ const SYNC_STATUS_SLOT_CLASS =
 export const SyncStatusIndicator: React.FC = () => {
   const { syncStatus, lastSyncTime } = useDailyRecordStatus();
 
-  if (syncStatus === 'idle' || syncStatus === 'saved') {
+  if (syncStatus === 'idle' || syncStatus === 'saved' || syncStatus === 'local') {
     return (
       <div
         className={clsx(SYNC_STATUS_SLOT_CLASS, 'invisible border-transparent')}

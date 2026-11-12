@@ -44,6 +44,7 @@ describe('useAppContentRuntime', () => {
   type ExportManagerValue = ReturnType<typeof useExportManager>;
   let syncStatusValue: 'saved' | 'saving' | 'error';
 
+  let hasSaveException: boolean | undefined;
   let selectedDate = '2026-03-27';
   let recordAvailable = true;
   const ui = {
@@ -51,8 +52,27 @@ describe('useAppContentRuntime', () => {
     setCurrentModule: vi.fn(),
     censusViewMode: 'REGISTER',
     setCensusViewMode: vi.fn(),
-    bedManagerModal: { isOpen: false, open: vi.fn(), close: vi.fn() },
-    settingsModal: { isOpen: false, open: vi.fn(), close: vi.fn() },
+    bedManagerModal: {
+      isOpen: false,
+      data: undefined,
+      toggle: vi.fn(),
+      open: vi.fn(),
+      close: vi.fn(),
+    },
+    settingsModal: {
+      isOpen: false,
+      data: undefined,
+      toggle: vi.fn(),
+      open: vi.fn(),
+      close: vi.fn(),
+    },
+    patientSearchModal: {
+      isOpen: false,
+      data: undefined,
+      toggle: vi.fn(),
+      open: vi.fn(),
+      close: vi.fn(),
+    },
     showPrintButton: true,
     showBookmarksBar: true,
     setShowBookmarksBar: vi.fn(),
@@ -62,9 +82,25 @@ describe('useAppContentRuntime', () => {
     setSelectedShift: vi.fn(),
   } as const;
 
+  it.each([false, true])(
+    'exports the recovered copy only without an exception: %s',
+    async exception => {
+      syncStatusValue = 'error';
+      hasSaveException = exception;
+      const { result } = renderHook(() => useAppContentRuntime({ ui }));
+      await act(async () => {
+        await result.current.handleExportExcel();
+      });
+      expect(mockGenerateCensusMasterExcel).toHaveBeenCalledTimes(exception ? 0 : 1);
+      const params = vi.mocked(useExportManager).mock.calls.at(-1)![0];
+      expect((await params.flushBeforeExport!()).status).toBe(exception ? 'blocked' : 'ready');
+    }
+  );
+
   beforeEach(() => {
     vi.clearAllMocks();
     syncStatusValue = 'saved';
+    hasSaveException = undefined;
     selectedDate = '2026-03-27';
     recordAvailable = true;
     // Default to a successful outcome so existing specs do not need to set
@@ -83,6 +119,7 @@ describe('useAppContentRuntime', () => {
           dailyRecord: {
             record: recordAvailable ? { date: selectedDate } : null,
             syncStatus: syncStatusValue,
+            hasSaveException,
             lastSyncTime: 'now',
           },
           dateNav: {
@@ -253,6 +290,7 @@ describe('useAppContentRuntime', () => {
     });
 
     syncStatusValue = 'saved';
+    hasSaveException = undefined;
     rerender();
 
     await act(async () => {
@@ -304,6 +342,7 @@ describe('useAppContentRuntime', () => {
     const pending = result.current.handleExportExcel();
     selectedDate = '2026-03-28';
     syncStatusValue = 'saved';
+    hasSaveException = undefined;
     rerender();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(100);
