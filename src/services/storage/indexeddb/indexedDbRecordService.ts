@@ -19,7 +19,6 @@ export type LocalRecordAdmission =
   | { status: 'admitted'; record: DailyRecord | null }
   | { status: 'retained_pending'; record: DailyRecord }
   | { status: 'superseded'; stored: DailyRecord | null };
-
 export interface LocalRecordWriteResult {
   ok: boolean;
   operation: 'save' | 'save_many' | 'delete';

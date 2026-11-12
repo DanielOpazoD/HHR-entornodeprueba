@@ -39,7 +39,8 @@ describe('CIE-10 Copy Bug Reproduction', () => {
       record: await IndexedDBService.getRecordForDate(date),
     }));
     vi.mocked(IndexedDBService.inspectLocalRecordAdmission).mockImplementation(async date => ({
-      status: 'admitted', record: await IndexedDBService.getRecordForDate(date),
+      status: 'admitted',
+      record: await IndexedDBService.getRecordForDate(date),
     }));
   });
 

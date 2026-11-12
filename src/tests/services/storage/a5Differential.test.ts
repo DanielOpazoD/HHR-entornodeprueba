@@ -1,10 +1,9 @@
 import 'fake-indexeddb/auto';
 import { QueryClient } from '@tanstack/react-query';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import {
   A,
   B,
-  C,
   clone,
   createServerHandler,
   day,
@@ -23,20 +22,11 @@ import {
 } from '@/services/repositories/dailyRecordRepositorySyncService';
 import { syncRecordsRange } from '@/services/records/recordQueryService';
 import { hydrateRangeRecords } from '@/services/admin/dataMaintenanceSupport';
-import { importDataJSONDetailed } from '@/services/exporters/exportImportJson';
-import { migrateFromLocalStorage } from '@/services/storage/indexeddb/indexedDbMigrationService';
-import {
-  createDailyRecordQueryOptions,
-  createDailyRecordSubscription,
-  getDailyRecordQueryKey,
-  setDailyRecordQueryData,
-} from '@/hooks/controllers/dailyRecordQueryController';
+import { setDailyRecordQueryData } from '@/hooks/controllers/dailyRecordQueryController';
 import {
   clearPendingDailyRecordPatchesForTests,
-  PENDING_DAILY_RECORD_PATCH_STORAGE_KEY,
   registerPendingDailyRecordPatch,
 } from '@/hooks/controllers/dailyRecordPendingPatchController';
-import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { resetMedicalHandoffDraftMemoryForTests } from '@/services/storage/medicalHandoffDraftStorage';
 
 const wire = vi.hoisted(() => ({
@@ -64,32 +54,19 @@ vi.mock('@/services/storage/firestore/firestoreRecordQueries', async importOrigi
 const DATE = '2026-10-24';
 const NOTE = 'Nota especialista sintética pendiente';
 const Q = 'Diagnóstico optimista sintético';
-const paths = [
-  'puntual',
-  'suscripción',
-  'rango',
-  'mantenimiento',
-  'JSON',
-  'heredada',
-  'E',
-  'A',
-] as const;
-type Path = (typeof paths)[number];
-const situations = [
-  'diaria',
-  'especialista',
-  'optimista',
-  'local nueva',
-  'otro paciente',
-  'otro episodio',
-  'limpia',
-] as const;
-type Situation = (typeof situations)[number];
+type Path = 'puntual' | 'suscripción' | 'rango' | 'mantenimiento' | 'JSON' | 'heredada' | 'E' | 'A';
+type Situation =
+  | 'diaria'
+  | 'especialista'
+  | 'optimista'
+  | 'local nueva'
+  | 'otro paciente'
+  | 'otro episodio'
+  | 'limpia';
 const h = harnessState();
 let client: QueryClient;
 const note = (record: DailyRecord | null | undefined) =>
   record?.beds.R4.medicalHandoffEntries?.[0]?.note;
-const isExternalCopy = (path: Path) => path === 'JSON' || path === 'heredada';
 
 beforeEach(async () => {
   vi.spyOn(Date, 'now').mockReturnValue(1792843200000);
