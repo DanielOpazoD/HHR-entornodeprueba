@@ -12,6 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 import { useEloisaStaff } from './useEloisaStaff';
 import { mergeStaffCatalog } from '@/services/staff/eloisaStaffIdentity';
+import { nurseIdentityKey } from '@/services/staff/nurseIdentity';
 import {
   CatalogRemoteSyncError,
   normalizeStringCatalog,
@@ -249,7 +250,7 @@ export const useSaveNursesMutation = () => {
     },
   });
   useAcceptedCatalogChange('nurses', mutation, (edit: CatalogEdit<string>, current: unknown) =>
-    catalogEditAccepted(edit, current, normalizeStringCatalog, value => value)
+    catalogEditAccepted(edit, current, normalizeStringCatalog, nurseIdentityKey)
   );
   return mutation;
 };
@@ -293,7 +294,7 @@ export const useSaveTensMutation = () => {
     },
   });
   useAcceptedCatalogChange('tens', mutation, (edit: CatalogEdit<string>, current: unknown) =>
-    catalogEditAccepted(edit, current, normalizeStringCatalog, value => value)
+    catalogEditAccepted(edit, current, normalizeStringCatalog, nurseIdentityKey)
   );
   return mutation;
 };

@@ -5,6 +5,12 @@ const normalizeString = (value: unknown): string => {
   return value.trim();
 };
 
+/** Shown while nobody configured a catalog; never elements the server confirmed. */
+export const STAFF_CATALOG_EXAMPLES = {
+  nurses: ['Enfermero/a 1', 'Enfermero/a 2'],
+  tens: ['TENS 1', 'TENS 2', 'TENS 3'],
+} as const;
+
 export const normalizeStringCatalog = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
 

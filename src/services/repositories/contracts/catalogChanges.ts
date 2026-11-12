@@ -6,11 +6,15 @@ export class CatalogConflictError extends Error {
   }
 }
 
+/** An edit whose key changes is a rename: it keeps the row's position. */
 type CatalogChange<T> =
   | { kind: 'remove'; before: T }
   | { kind: 'edit'; before: T; after: T }
   | { kind: 'add'; after: T };
 const equal = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
+// A staff name is the person its identity key names; a professional must match field by field.
+const same = <T>(left: T, right: T, key: (item: T) => string) =>
+  key(left) === key(right) && (typeof left === 'string' || equal(left, right));
 
 /** Only changed elements participate in conflict detection; unrelated remote edits survive. */
 export const diffCatalog = <T extends string | ProfessionalCatalogItem>(
@@ -29,7 +33,11 @@ export const diffCatalog = <T extends string | ProfessionalCatalogItem>(
   for (const [id, after] of following) {
     if (!previous.has(id)) changes.push({ kind: 'add', after });
   }
-  return changes;
+  const removed = changes.filter(change => change.kind === 'remove');
+  const added = changes.filter(change => change.kind === 'add');
+  if (removed.length !== 1 || added.length !== 1) return changes;
+  const rename = { kind: 'edit' as const, before: removed[0].before, after: added[0].after };
+  return [...changes.filter(change => change.kind === 'edit'), rename];
 };
 
 export const applyCatalogChanges = <T extends string | ProfessionalCatalogItem>(
@@ -37,23 +45,36 @@ export const applyCatalogChanges = <T extends string | ProfessionalCatalogItem>(
   changes: CatalogChange<T>[],
   key: (item: T) => string
 ): T[] => {
-  const result = new Map(current.map(item => [key(item), item]));
+  let result = [...current];
   for (const change of changes) {
-    if (change.kind !== 'add') {
-      const id = key(change.before);
-      if (!equal(result.get(id), change.before)) throw new CatalogConflictError(current);
-      if (change.kind === 'remove') result.delete(id);
-      else result.set(id, change.after);
-    } else {
-      const id = key(change.after);
-      const existing = result.get(id);
-      if (existing !== undefined && !equal(existing, change.after))
-        throw new CatalogConflictError(current);
-      result.set(id, change.after);
+    if (change.kind === 'add') {
+      const existing = result.find(item => key(item) === key(change.after));
+      if (existing === undefined) result.push(change.after);
+      else if (!same(existing, change.after, key)) throw new CatalogConflictError(current);
+      continue;
     }
+    const index = result.findIndex(item => key(item) === key(change.before));
+    if (index < 0 || !same(result[index], change.before, key))
+      throw new CatalogConflictError(current);
+    const after = change.kind === 'edit' ? change.after : undefined;
+    const taken = after && result.find(item => key(item) === key(after));
+    if (taken && key(after) !== key(change.before) && !same(taken, after, key))
+      throw new CatalogConflictError(current);
+    // Every server variant of the old and new identity collapses into the edited row.
+    const replaced = new Set([key(change.before), ...(after ? [key(after)] : [])]);
+    result = result.flatMap((item, position) =>
+      position === index && after ? [after] : replaced.has(key(item)) ? [] : [item]
+    );
   }
-  return [...result.values()];
+  return result;
 };
+
+/** Display examples shown for an empty catalog were never confirmed by the server. */
+export const confirmedCatalogBase = (
+  base: string[],
+  current: string[],
+  examples: readonly string[]
+): string[] => (current.length > 0 ? base : base.filter(name => !examples.includes(name)));
 
 export const professionalCatalogIdentity = (item: ProfessionalCatalogItem): string =>
   item.rayenPractitionerId
@@ -61,15 +82,18 @@ export const professionalCatalogIdentity = (item: ProfessionalCatalogItem): stri
     : `${item.name.toLowerCase()}:${item.phone}`;
 
 /** A late confirmation may include unrelated changes from other computers. */
-export const catalogChangesAccepted = <T>(
+export const catalogChangesAccepted = <T extends string | ProfessionalCatalogItem>(
   current: T[],
   changes: CatalogChange<T>[],
   key: (item: T) => string
 ): boolean => {
-  const accepted = new Map(current.map(item => [key(item), item]));
+  const present = (item: T) => current.some(entry => key(entry) === key(item));
   return changes.every(change =>
     change.kind === 'remove'
-      ? !accepted.has(key(change.before))
-      : equal(accepted.get(key(change.after)), change.after)
+      ? !present(change.before)
+      : current.some(entry => same(entry, change.after, key)) &&
+        (change.kind === 'add' ||
+          key(change.before) === key(change.after) ||
+          !present(change.before))
   );
 };

@@ -22,6 +22,7 @@ import {
   normalizeProfessionalCatalog,
   normalizeStringCatalog,
   assertCatalogSubscriptionCallback,
+  STAFF_CATALOG_EXAMPLES,
 } from '@/services/repositories/contracts/catalogContracts';
 import { catalogRepositoryLogger } from '@/services/repositories/repositoryLoggers';
 
@@ -98,7 +99,7 @@ export const getNurses = async (): Promise<string[]> => {
     }
   }
 
-  return ['Enfermero/a 1', 'Enfermero/a 2'];
+  return [...STAFF_CATALOG_EXAMPLES.nurses];
 };
 
 /**
@@ -207,7 +208,7 @@ export const getTens = async (): Promise<string[]> => {
     }
   }
 
-  return ['TENS 1', 'TENS 2', 'TENS 3'];
+  return [...STAFF_CATALOG_EXAMPLES.tens];
 };
 
 /**

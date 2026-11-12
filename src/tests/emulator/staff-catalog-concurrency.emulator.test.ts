@@ -136,3 +136,44 @@ it('professional edits preserve unrelated ids and reject conflicting specialty c
     ).toEqual(['Cirugía', 'Psiquiatría']);
   });
 });
+
+const seedNurses = async (data: object) =>
+  env.withSecurityRulesDisabled(async c => {
+    await setDoc(doc(c.firestore(), path), data);
+  });
+const examples = ['Enfermero/a 1', 'Enfermero/a 2'];
+it('configures the list from display examples on an empty or missing catalog', async () => {
+  await seedNurses({ list: [] });
+  await save(['Sintético Real', 'Enfermero/a 2'], examples);
+  expect(await read()).toEqual(['Sintético Real', 'Enfermero/a 2']);
+
+  await env.clearFirestore();
+  await save(['Enfermero/a 2'], examples);
+  expect(await read()).toEqual(['Enfermero/a 2']);
+
+  await env.clearFirestore();
+  await save([...examples, 'Sintético Nuevo'], examples);
+  expect(await read()).toEqual([...examples, 'Sintético Nuevo']);
+});
+it('still rejects an example rename once another computer configured the list', async () => {
+  await seedNurses({ list: ['Sintético Otro'] });
+  await expect(save(['Sintético Real', 'Enfermero/a 2'], examples)).rejects.toThrow(
+    'La lista cambió en otro equipo'
+  );
+  expect(await read()).toEqual(['Sintético Otro']);
+});
+it('renaming a row replaces its hidden case variants and keeps other changes', async () => {
+  await seedNurses({ list: ['Sintético Uno', 'sintético uno', 'Sintético Otro'] });
+  await save(['Sintético Nuevo'], ['sintético uno']);
+  expect(await read()).toEqual(['Sintético Nuevo', 'Sintético Otro']);
+});
+it('renaming in the middle keeps the order and removing the only row leaves a real empty list', async () => {
+  await seedNurses({ list: ['Sintético Uno', 'Sintético Dos', 'Sintético Tres'] });
+  const base = ['Sintético Uno', 'Sintético Dos', 'Sintético Tres'];
+  await save(['Sintético Uno', 'Sintético Nuevo', 'Sintético Tres'], base);
+  expect(await read()).toEqual(['Sintético Uno', 'Sintético Nuevo', 'Sintético Tres']);
+
+  await seedNurses({ list: ['Sintético Uno'] });
+  await save([], ['Sintético Uno']);
+  expect(await read()).toEqual([]);
+});

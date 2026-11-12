@@ -57,7 +57,8 @@ vi.mock('@/services/storage/firestore/firestoreShared', () => ({
   ),
 }));
 
-vi.mock('@/services/repositories/contracts/catalogContracts', () => ({
+vi.mock('@/services/repositories/contracts/catalogContracts', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/repositories/contracts/catalogContracts')>()),
   normalizeProfessionalCatalog: vi.fn((items: unknown) => items ?? []),
   normalizeStringCatalog: vi.fn((values: string[]) =>
     values.map(value => value.trim()).filter(Boolean)
