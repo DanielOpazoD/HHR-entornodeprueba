@@ -234,11 +234,20 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     vi.spyOn(defaultAuthRuntime, 'getCurrentUser').mockImplementation(() => {
       throw new Error('synthetic advisory authentication unavailable');
     });
+    // The base version matches, so the direct write reaches the rules instead of the client CAS.
     await expect(
-      actor('A', () => writes.saveRecordToFirestore({
-        ...baseRecord(),
-        beds: { ...baseRecord().beds, R1: { ...baseRecord().beds.R1, pathology: 'UNCONFIRMED' } },
-      }))
+      actor('A', () =>
+        writes.saveRecordToFirestore(
+          {
+            ...baseRecord(),
+            beds: {
+              ...baseRecord().beds,
+              R1: { ...baseRecord().beds.R1, pathology: 'UNCONFIRMED' },
+            },
+          },
+          before.lastUpdated
+        )
+      )
     ).rejects.toMatchObject({ code: 'permission-denied' });
     expect((await read()).beds).toEqual(before.beds);
   });
