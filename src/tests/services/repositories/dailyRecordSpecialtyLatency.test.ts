@@ -66,17 +66,33 @@ describe('manual specialty save reads', () => {
     }
   );
 
+  it.each(['bed', 'clinicalCrib'] as const)(
+    'blocks %s specialty save when the local base cannot be read',
+    async target => {
+      const base = makeBase(target);
+      const original = structuredClone(base);
+      const failure = new Error('local unavailable');
+      storage.localRead.mockRejectedValue(failure);
+
+      await expect(save(base, makeIntent(target))).rejects.toBe(failure);
+
+      expect(base).toEqual(original);
+      expect(storage.read).not.toHaveBeenCalled();
+      expect(storage.write).not.toHaveBeenCalled();
+      expect(storage.adopt).not.toHaveBeenCalled();
+      expect(storage.queue).not.toHaveBeenCalled();
+    }
+  );
+
   it.each(
     (['bed', 'clinicalCrib'] as const).flatMap(target =>
-      ['legacy', 'split', 'local_unavailable'].map(mode => ({ target, mode }))
+      ['legacy', 'split'].map(mode => ({ target, mode }))
     )
   )(
     'confirms $target ($mode) from the observed version without a redundant server read',
     async ({ target, mode }) => {
       const base = makeBase(target);
       if (mode === 'split') base.clinicalDerivedLayout = { version: 1, generation: 'synthetic' };
-      if (mode === 'local_unavailable')
-        storage.localRead.mockRejectedValue(new Error('local unavailable'));
       const intent = makeIntent(target);
       const committed = commit(base, intent, 'synthetic-confirmed-decision');
       let confirm!: () => void;
