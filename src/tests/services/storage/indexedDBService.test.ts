@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
+  admitLocalRecords,
   clearAllRecords,
   deleteRecord,
   getAllDates,
@@ -69,6 +70,36 @@ describe('indexedDBService', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('uses durable admission and queue evidence even with a synthetic census override', async () => {
+    window.__HHR_E2E_OVERRIDE__ = { [mockRecord.date]: mockRecord };
+    try {
+      const [admitted] = await admitLocalRecords([{ record: mockRecord, serverConfirmed: true }]);
+      expect(admitted.record).toEqual(mockRecord);
+      expect(await indexedDbCore.hospitalDB.dailyRecords.get(mockRecord.date)).toEqual(mockRecord);
+      const pending = {
+        opId: 'synthetic-runtime-pending',
+        type: 'UPDATE_DAILY_RECORD' as const,
+        key: `daily:${mockRecord.date}`,
+        payload: mockRecord,
+        status: 'PENDING' as const,
+        timestamp: 1,
+        retryCount: 0,
+      };
+      const id = await indexedDbCore.hospitalDB.syncQueue.add(pending);
+      const [retained] = await admitLocalRecords([
+        {
+          record: { ...mockRecord, nursesDayShift: ['REMOTE'] },
+          serverConfirmed: true,
+        },
+      ]);
+      expect(retained.status).toBe('retained_pending');
+      expect(retained.record).toEqual(mockRecord);
+      expect(await indexedDbCore.hospitalDB.syncQueue.toArray()).toEqual([{ ...pending, id }]);
+    } finally {
+      window.__HHR_E2E_OVERRIDE__ = undefined;
+    }
   });
 
   describe('Daily Records', () => {

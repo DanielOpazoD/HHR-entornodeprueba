@@ -26,6 +26,8 @@ import {
 } from '@/services/repositories/contracts/dailyRecordResults';
 import { resolveRemoteGoldenPathReadResult } from './dailyRecordRemoteReadController';
 import { captureLocalRecordBase } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
 export interface DailyRecordInitializationOptions {
@@ -89,18 +91,31 @@ const buildCopySourceMeta = (
   };
 };
 
+const captureInitializationSession = () => {
+  const owner = getStoredSessionOwnerKey();
+  const epoch = getSessionEpoch();
+  const isCurrent = () => owner === getStoredSessionOwnerKey() && epoch === getSessionEpoch();
+  const assertCurrentSession = () => {
+    if (!isCurrent()) throw new ConcurrencyError('La sesión cambió durante la apertura del censo.');
+  };
+  return { isCurrent, assertCurrentSession };
+};
+
 const loadRemoteInitializationSeed = async (
   date: string,
   allowOfflineCopy: boolean
 ): Promise<DailyRecordInitializationSeed | null> => {
+  const { isCurrent, assertCurrentSession } = captureInitializationSession();
   const base = await captureLocalRecordBase(date);
   let remoteResult: Awaited<ReturnType<typeof loadRemoteRecordWithFallback>>;
   try {
     remoteResult = await loadRemoteRecordWithFallback(date, { base });
   } catch (error) {
+    assertCurrentSession();
     if (allowOfflineCopy && typeof navigator !== 'undefined' && !navigator.onLine) return null;
     throw error;
   }
+  assertCurrentSession();
   if (!remoteResult.record && !remoteResult.serverConfirmed) {
     if (allowOfflineCopy && typeof navigator !== 'undefined' && !navigator.onLine) return null;
     throw new Error(
@@ -112,7 +127,9 @@ const loadRemoteInitializationSeed = async (
     localCandidate: null,
     remoteReadResult: remoteResult,
     base: remoteResult.issuedAgainst ?? base,
+    isCurrent,
   });
+  assertCurrentSession();
   if (result.publication === 'superseded' && !result.record)
     throw new ConcurrencyError('El censo cambió durante su apertura. Vuelva a abrir el día.');
   return result.record
@@ -170,10 +187,12 @@ const initializeMissingDay = async (
   options: DailyRecordInitializationOptions = {},
   allowOfflineCopy = false
 ): Promise<DailyRecord> => {
+  const { assertCurrentSession } = captureInitializationSession();
   const copySourceRecord =
     copySourceRecordOverride === undefined
       ? await loadCopySourceRecord(copyFromDate)
       : copySourceRecordOverride;
+  assertCurrentSession();
   const initializationSeed = await resolveInitializationSeed(
     date,
     copySourceRecord,
@@ -181,6 +200,7 @@ const initializeMissingDay = async (
     allowOfflineCopy
   );
 
+  assertCurrentSession();
   if (shouldReturnSeedRecord(initializationSeed)) {
     return initializationSeed.record;
   }
@@ -196,6 +216,7 @@ const initializeMissingDay = async (
     );
   }
 
+  assertCurrentSession();
   await save(newRecord, '');
   return newRecord;
 };
@@ -214,6 +235,7 @@ export const initializeDayDetailed = async (
   measureRepositoryOperation(
     'dailyRecord.initializeDay',
     async () => {
+      const { assertCurrentSession } = captureInitializationSession();
       const offlineCopy =
         Boolean(copyFromDate) &&
         !options.requireConfirmedAbsence &&
@@ -223,6 +245,7 @@ export const initializeDayDetailed = async (
         if (offlineCopy) return null;
         throw error;
       });
+      assertCurrentSession();
       if (existing) {
         return {
           record: existing,
@@ -233,6 +256,7 @@ export const initializeDayDetailed = async (
       }
 
       const copySourceRecord = copyFromDate ? await loadCopySourceRecord(copyFromDate) : null;
+      assertCurrentSession();
       const copyMeta = buildCopySourceMeta(copySourceRecord, copyFromDate);
       const record = await initializeMissingDay(
         date,
@@ -241,6 +265,7 @@ export const initializeDayDetailed = async (
         options,
         offlineCopy
       );
+      assertCurrentSession();
       return {
         record,
         ...createInitializeDayResult({

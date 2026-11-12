@@ -26,7 +26,10 @@ import {
   createLocalRuntimeReadResult,
   createNotFoundDailyRecordReadResult,
 } from '@/services/repositories/dailyRecordReadResultController';
-import { attemptRemoteGoldenPathRead } from '@/services/repositories/dailyRecordRemoteReadController';
+import {
+  attemptRemoteGoldenPathRead,
+  resolveRemoteGoldenPathReadResult,
+} from '@/services/repositories/dailyRecordRemoteReadController';
 import {
   getDailyRecordWriteStateForVersion,
   hasUnresolvedDailyRecordWriteForDate,
@@ -155,12 +158,19 @@ export const getForDateWithMeta = async (
         : null;
       if (e2eOverride) {
         dailyRecordReadLogger.warn(`Using E2E override record for ${query.date}`);
-        // E2E overrides force the local mock store; they are not server observations.
-        return createLocalRuntimeReadResult(
-          query.date,
-          localCandidate ?? createLocalRuntimeReadCandidate(query.date, e2eOverride),
-          'e2e'
-        );
+        return resolveRemoteGoldenPathReadResult({
+          date: query.date,
+          localCandidate,
+          remoteReadResult: {
+            record: e2eOverride,
+            serverConfirmed: true,
+            source: 'firestore',
+            compatibilityTier: 'current_firestore',
+            compatibilityIntensity: 'none',
+            migrationRulesApplied: [],
+            cachedLocally: false,
+          },
+        });
       }
 
       if (query.syncFromRemote && isFirestoreEnabled()) {
