@@ -119,8 +119,8 @@
     },
     {
       "pattern": "^RayenImportPreviewModal-.*\\.js$",
-      "_comment": "Online-only review opened after capture. Measured 27599 bytes on 2026-11-11; ceiling includes less than 10% headroom.",
-      "maxBytes": 30358
+      "_comment": "Online-only review opened after capture. Measured 27545 bytes on 2026-11-12 at c5bde4c5b; ceiling includes less than 10% headroom.",
+      "maxBytes": 30299
     },
     {
       "pattern": "^cudyrEssentialWorkbook-.*\\.js$",
