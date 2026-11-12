@@ -8,7 +8,8 @@
  *  - `operation` must be a known literal; anything else collapses to `other_operation`. The event
  *    is never rejected for an unknown name, so a failed signal is preserved rather than lost.
  *  - `issues` become stable codes. Raw `Error.message` is discarded, never clipped and forwarded.
- *  - `context` keeps a finite list of bounded numeric keys plus a few closed string/boolean enums.
+ *  - `context` keeps a finite list of bounded numeric keys plus a few closed string/boolean enums
+ *    and the extension version/build, bounded by their exact shape.
  *  - identifiers (`runId`, `userId`, `documentId`, `bedId`, …) and every unknown key are dropped
  *    and only counted, never echoed back.
  *
@@ -170,6 +171,15 @@ const STRING_ENUMS = new Map<string, ReadonlySet<string>>(
   }).map(([key, values]) => [key, new Set(tokens(values))])
 );
 
+/**
+ * Which Eloísa extension the computer ran: its version and the first 12 hex characters of its
+ * package fingerprint. The shape alone bounds them; any other value is dropped.
+ */
+const STRING_PATTERNS = new Map<string, RegExp>([
+  ['extensionVersion', /^\d{1,3}\.\d{1,3}\.\d{1,3}$/],
+  ['extensionBuild', /^[a-f0-9]{12}$/],
+]);
+
 /** An error class outside the list still says that an error was thrown, without its name. */
 const STRING_ENUM_FALLBACKS = new Map<string, string>([['errorName', OTHER_ERROR_NAME]]);
 
@@ -218,6 +228,10 @@ export const sanitizeOperationalTelemetryContextValues = (
     }
     const allowedValues = STRING_ENUMS.get(key);
     if (allowedValues && typeof raw === 'string' && allowedValues.has(raw)) {
+      out[key] = raw;
+      continue;
+    }
+    if (typeof raw === 'string' && STRING_PATTERNS.get(key)?.test(raw)) {
       out[key] = raw;
       continue;
     }

@@ -139,24 +139,16 @@ npm run report:quality-metrics
 npm run report:compatibility-governance
 npm run report:legacy-retirement-debt
 npm run report:maintenance-debt-scorecard
-npm run report:dependency-debt
 ```
 
 El scorecard de mantenimiento consume `quality-metrics.json` y
-`legacy-retirement-debt.json`; el reporte de carpetas es una medición independiente
-y no es un input del scorecard.
+`legacy-retirement-debt.json`. Comprobar fecha, SHA y estado del checkout antes de
+comparar resultados.
 
-Comprobar fecha, SHA y estado del checkout antes de comparar resultados. El reporte
-de dependencias de carpetas sólo conserva fecha; registrar también el SHA de origen
-en la evaluación. Sus señales se contrastan con la gobernanza de compatibilidad:
-un reexport legacy hacia el dueño canónico requiere revisar consumidores y criterio
-de retiro, no mover la implementación ni flexibilizar la matriz para obtener cero.
-
-El snapshot de dependencias de este ciclo, medido sobre `4c381d76` el 6 de octubre
-de 2026, reemplaza el de febrero: identifica nueve reexports de controllers de
-`hooks` a sus dueños en `features/census`. Son señales de compatibilidad pendientes
-de evaluación, no fallos clínicos demostrados. Regenerar al cerrar otro ciclo si el
-código de origen cambia; evitar una ronda de CI por cada snapshot derivado.
+La frontera de carpetas no tiene lista de excepciones ni reporte de deuda:
+`npm run check:folder-dependencies` falla ante cualquier import fuera de
+`scripts/folder-dependency-matrix.json`. Un import así se corrige moviéndolo a una
+capa que pueda conocer el feature, no flexibilizando la matriz.
 
 ## Cuándo abrir una excepción
 

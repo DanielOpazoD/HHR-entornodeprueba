@@ -42,6 +42,8 @@ export interface RayenSyncRun {
   /** Tightens `policy` for this attempt only; it can never authorize an unattended apply. */
   reviewRequirement?: RayenSyncReviewRequirement;
   performance?: RayenSyncPerformance;
+  /** Package fingerprint the extension reported at start. Telemetry only, never persisted. */
+  extensionBuildId?: string;
 }
 
 export const upsertRayenSyncEvent = (
@@ -107,7 +109,9 @@ const rayenSyncErrorCause = (error: ClinicalFillError): ClinicalReadErrorCode | 
 
 /**
  * Bounded telemetry slots for issue causes. The recorder keeps 12 context keys and a terminal run
- * already uses up to six (runId, outcome, durationMs, issueCount, patientCount, failureReason).
+ * already uses up to six (runId, outcome, durationMs, issueCount, patientCount, failureReason),
+ * plus the extension version and build when the extension reported them. Causes go last, so a
+ * full context drops the least frequent ones first.
  */
 export const MAX_RAYEN_SYNC_ISSUE_CAUSE_KEYS = 6;
 

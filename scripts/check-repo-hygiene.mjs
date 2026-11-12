@@ -33,10 +33,7 @@ const FEATURE_PUBLIC_BOUNDARIES = [
       },
       {
         importPath: '@/features/census/public-components',
-        callers: new Set([
-          'src/views/LazyViews.ts',
-          'src/components/layout/app-content/AppContentOverlays.tsx',
-        ]),
+        callers: new Set(['src/views/LazyViews.ts']),
       },
     ],
   },
