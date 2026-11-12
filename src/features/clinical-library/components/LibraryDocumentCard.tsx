@@ -34,12 +34,12 @@ export const LibraryDocumentCard: React.FC<LibraryDocumentCardProps> = ({
     </span>
     <div className="min-w-0 flex-1">
       <p
-        className="break-words text-[12px] font-medium leading-snug text-slate-800"
+        className="break-words text-[13px] font-medium leading-snug text-slate-800"
         title={entry.title}
       >
         {entry.title}
       </p>
-      <p className="mt-0.5 text-[11px] text-slate-500">
+      <p className="mt-0.5 text-xs text-slate-500">
         {documentFormatLabel(entry.format, entry.pages)}
       </p>
     </div>

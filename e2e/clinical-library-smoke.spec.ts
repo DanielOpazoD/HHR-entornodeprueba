@@ -155,6 +155,10 @@ test.describe('Clinical library (preview build)', () => {
 
     await drawer.getByTestId('library-tool-infusion').click();
     await expect(drawer.getByTestId('library-tool-infusion')).toBeVisible();
+    await expect(drawer.locator('label').filter({ hasText: /^Peso$/ })).toHaveCSS(
+      'font-size',
+      '12px'
+    );
     await drawer.getByLabel('Peso').fill('70');
     await drawer.getByLabel('Dosis indicada').fill('0,1');
     await expect(drawer.getByTestId('infusion-result')).toContainText('26,3');

@@ -69,7 +69,7 @@ export const ToolFrame: React.FC<ToolFrameProps> = ({
       </div>
       <div className="mt-3 flex-1">{children}</div>
       {reference && (
-        <footer className="mt-4 border-t border-slate-200 pt-2 text-[10px] leading-relaxed text-slate-500">
+        <footer className="mt-4 border-t border-slate-200 pt-2 text-xs leading-relaxed text-slate-600">
           {reference.citation}
           {reference.url && (
             <>
