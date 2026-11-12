@@ -2,6 +2,7 @@ import type { SpecialistHandoffTarget } from '@/types/domain/specialistHandoffTa
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { DailyRecordWriteLease } from '@/services/repositories/dailyRecordWriteCoordinator';
+import type { AuthoringSession } from '@/services/storage/authoringSession';
 import type { SpecialtyManualIntent } from '@/types/domain/specialtyDecision';
 import type {
   ClinicalCribCreateRequest,
@@ -99,6 +100,8 @@ export interface PartialUpdateDailyRecordOptions {
   specialtyIntent?: SpecialtyManualIntent;
   /** Internal lease for a patch executed inside an existing daily-record write critical section. */
   dailyRecordWriteLease?: DailyRecordWriteLease;
+  /** The session the edit began in; captured on entry when absent. */
+  authoringSession?: AuthoringSession;
 }
 
 const assertDate = (date: string, operation: string): void => {
