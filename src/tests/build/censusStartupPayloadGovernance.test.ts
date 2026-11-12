@@ -1,4 +1,7 @@
-import { ONLINE_ONLY_ASSET_GLOBS, ONLINE_ONLY_PRECACHE_PATTERNS } from '../../../scripts/config/onlineOnlyAssets.mjs';
+import {
+  ONLINE_ONLY_ASSET_GLOBS,
+  ONLINE_ONLY_PRECACHE_PATTERNS,
+} from '../../../scripts/config/onlineOnlyAssets.mjs';
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
@@ -109,10 +112,13 @@ describe('census startup payload', () => {
     for (const file of consumers) {
       expect(read(file)).toContain('@/features/rayen-import/clinical-panel');
       expect(read(file)).not.toMatch(/from '@\/features\/rayen-import'/);
-      expect(publicApi.exceptionsByFeature['rayen-import']).toContain(
+      expect(publicApi.publicModulesByFeature['rayen-import']).toContain(
+        '@/features/rayen-import/clinical-panel'
+      );
+      expect(publicApi.exceptionsByFeature['rayen-import']).not.toContain(
         `${file} -> @/features/rayen-import/clinical-panel`
       );
-      expect(dependencies.violations).toContain(
+      expect(dependencies.violations).not.toContain(
         `feature-must-use-public-api|${file}|@/features/rayen-import/clinical-panel|rayen-import`
       );
     }

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { ESLint } from 'eslint';
 import ts from 'typescript';
 import { GOVERNED_APPLICATION_PUBLIC_IMPORTS } from '../../../scripts/lib/publicImportBoundaryRule.mjs';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 const ROOT = path.resolve(__dirname, '../../../');
 let eslint: ESLint;
@@ -113,6 +113,25 @@ describe('public imports in ESLint', () => {
       )
     ).toEqual([]);
   });
+  it('distinguishes synthetic features sharing a prefix while allowing own internals', async () => {
+    const target = '@/features/n5-probe/internal';
+    const resolved = path.join(ROOT, 'src/features/n5-probe/internal.ts');
+    const exists = fs.existsSync.bind(fs);
+    const stat = fs.statSync.bind(fs);
+    const fileStat = stat(path.join(ROOT, 'eslint.config.js'));
+    vi.spyOn(fs, 'existsSync').mockImplementation(file => file === resolved || exists(file));
+    vi.spyOn(fs, 'statSync').mockImplementation(file =>
+      file === resolved ? fileStat : stat(file)
+    );
+    try {
+      for (const code of forms) {
+        expect(await errors('src/features/n5-probe/Probe.ts', code(target))).toEqual([]);
+        expect(await errors('src/features/n5-probe-extra/Probe.ts', code(target))).toHaveLength(1);
+      }
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
   it('accepts every governed additional public module', async () => {
     const { publicModulesByFeature }: { publicModulesByFeature: Record<string, string[]> } =
       JSON.parse(
@@ -148,8 +167,7 @@ describe('public imports in ESLint', () => {
     const file = 'src/application/census/public.ts';
     const targets = realImports(file);
     const stale = [...GOVERNED_APPLICATION_PUBLIC_IMPORTS].filter(target => !targets.has(target));
-    // Existing policy debt: preserve the exception, but detect any change in stale entries.
-    expect(stale).toEqual(['@/features/census/components/global-search/useGlobalPatientSearch']);
+    expect(stale).toEqual([]);
     for (const target of GOVERNED_APPLICATION_PUBLIC_IMPORTS) {
       expect(await errors(file, forms[0](target))).toEqual([]);
       expect(await errors('src/views/Probe.ts', forms[0](target))).toHaveLength(1);
