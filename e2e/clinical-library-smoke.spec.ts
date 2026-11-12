@@ -89,7 +89,9 @@ const shotsDir = (): string => {
 };
 
 const capture = async (page: Page, name: string) => {
-  await page.screenshot({ path: path.join(shotsDir(), `${name}.png`), fullPage: false });
+  const screenshotPath = path.join(shotsDir(), `${name}.png`);
+  await page.screenshot({ path: screenshotPath, fullPage: false });
+  await test.info().attach(name, { path: screenshotPath, contentType: 'image/png' });
 };
 
 test.describe('Clinical library (preview build)', () => {
