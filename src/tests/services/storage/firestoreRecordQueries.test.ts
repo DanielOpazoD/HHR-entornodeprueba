@@ -161,9 +161,9 @@ describe('record query deterministic transport faults', () => {
     });
   });
 
-  it('characterizes the existing empty-on-error date scan pending its separate fix', async () => {
+  it('rejects a failed date scan instead of listing no census days', async () => {
     state.replies.set(JSON.stringify(['records']), new Error('synthetic offline'));
-    expect(await getAvailableDatesFromFirestore()).toEqual([]);
+    await expect(getAvailableDatesFromFirestore()).rejects.toThrow('synthetic offline');
     expect(state.logger).toHaveBeenCalledWith(
       'Firestore query failed: getAvailableDates',
       expect.objectContaining({ error: expect.any(Error) })
