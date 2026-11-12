@@ -155,7 +155,7 @@ describe('public imports in ESLint', () => {
       expect(await errors('src/views/Probe.ts', forms[0](target))).toHaveLength(1);
     }
   });
-  it('retains the exact census shim and overlay exceptions', async () => {
+  it('retains the exact census shim exception', async () => {
     const target = '@/features/census/controllers/bedManagerModalController';
     const file = 'src/hooks/controllers/bedManagerModalController.ts';
     expect(await errors(file, `export * from '${target}';`)).toEqual([]);
@@ -163,13 +163,14 @@ describe('public imports in ESLint', () => {
       1
     );
     expect(await errors(file, `import('${target}');`)).toHaveLength(1);
+    // The former overlay exception is gone: every import form is rejected.
     for (const code of forms)
       expect(
         await errors(
           'src/components/layout/app-content/AppContentOverlays.tsx',
           code('@/features/census/public-components')
         )
-      ).toEqual([]);
+      ).toHaveLength(1);
   });
   it.each([
     'src/views/Probe.test.ts',
@@ -187,8 +188,6 @@ describe('public imports in ESLint', () => {
     expect(await errors('src/hooks/Probe.ts', forms[0]('../features/census/public'))).toHaveLength(
       1
     );
-    const file = 'src/components/layout/app-content/AppContentOverlays.tsx';
-    expect(realImports(file).has('@/features/census/public-components')).toBe(true);
   });
   it('does not add require/mock restrictions', async () => {
     for (const code of [

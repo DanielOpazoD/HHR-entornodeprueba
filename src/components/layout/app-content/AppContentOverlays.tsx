@@ -3,7 +3,7 @@ import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { SyncWatcher } from '@/components/shared/SyncWatcher';
 import StorageStatusBadge from '@/components/layout/StorageStatusBadge';
 import { PinLockScreen } from '@/components/security/PinLockScreen';
-import { CensusEmailConfigModal } from '@/views/LazyViews';
+import { CensusEmailConfigModal, GlobalPatientSearchModal } from '@/views/LazyViews';
 import type { UseUIStateReturn } from '@/hooks/useUIState';
 import type { AppContentRuntime } from '@/components/layout/app-content/useAppContentRuntime';
 import { buildAppContentOverlayState } from '@/components/layout/app-content/appContentOverlaysController';
@@ -15,11 +15,6 @@ const TestAgent = lazyWithRetry(() =>
 );
 const ReminderModal = lazyWithRetry(() =>
   import('@/components/reminders/ReminderModal').then(m => ({ default: m.ReminderModal }))
-);
-const GlobalPatientSearchModal = lazyWithRetry(() =>
-  import('@/features/census/public-components').then(m => ({
-    default: m.GlobalPatientSearchModal,
-  }))
 );
 
 export interface AppContentOverlaysProps {
