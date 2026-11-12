@@ -110,7 +110,7 @@ describe('feature boundaries in ESLint (from scripts/feature-dependency-matrix.j
     const { violations } = JSON.parse(
       fs.readFileSync(path.join(ROOT, 'scripts/feature-dependency-allowlist.json'), 'utf8')
     ) satisfies { violations: string[] };
-    expect(new Set(violations).size).toBe(17);
+    expect(new Set(violations).size).toBe(3);
     for (const entry of violations) {
       const [, importer, target] = entry.split('|');
       const source = fs.readFileSync(path.join(ROOT, importer), 'utf8');
@@ -193,10 +193,10 @@ describe('feature boundaries in ESLint (from scripts/feature-dependency-matrix.j
   it('tolerates only the allowlisted deep import of an allowlisted importer', async () => {
     const messages = await boundaryMessages(
       'src/features/census/components/CensusStaffHeader.tsx',
-      "import { RayenImportButton } from '@/features/rayen-import/RayenImportButton';\nimport { y } from '@/features/rayen-import/clinical-panel';\nexport const z = [RayenImportButton, y];\n"
+      "import { RayenImportButton } from '@/features/rayen-import/RayenImportButton';\nimport { y } from '@/features/rayen-import/bridge/encounterNavigationBridge';\nexport const z = [RayenImportButton, y];\n"
     );
     expect(messages).toHaveLength(1);
-    expect(messages[0]).toContain('@/features/rayen-import/clinical-panel');
+    expect(messages[0]).toContain('@/features/rayen-import/bridge/encounterNavigationBridge');
   });
 
   it('keeps the data-access rule of cudyr and handoff next to their feature boundaries', async () => {

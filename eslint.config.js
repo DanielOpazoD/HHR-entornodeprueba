@@ -180,12 +180,6 @@ const FEATURE_BOUNDARY_CONFIGS = [
     plugins: { hhr: HHR_PLUGIN },
     rules: { 'hhr/feature-boundaries': 'error' },
   },
-  {
-    // This existing clinical navigation dependency was outside both former checks.
-    // Keep its dynamic-import scope until the cudyr -> rayen-import design is resolved.
-    files: ['src/features/cudyr/components/CudyrRecoveryPanel.tsx'],
-    rules: { 'hhr/feature-boundaries': ['error', { checkDynamicImports: false }] },
-  },
   ...[...FEATURES_WITHOUT_DIRECT_DATA_ACCESS].map(feature => ({
     files: [`src/features/${feature}/**/*.{ts,tsx}`],
     ignores: ['**/*.test.{ts,tsx}', '**/*.stories.{ts,tsx}'],
