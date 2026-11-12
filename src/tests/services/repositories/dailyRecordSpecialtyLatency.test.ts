@@ -67,19 +67,21 @@ describe('manual specialty save reads', () => {
   );
 
   it.each(['bed', 'clinicalCrib'] as const)(
-    'blocks %s specialty save when the local base cannot be read',
+    'retries %s local read before confirming against the explicit CAS base',
     async target => {
       const base = makeBase(target);
       const original = structuredClone(base);
       const failure = new Error('local unavailable');
       storage.localRead.mockRejectedValue(failure);
+      storage.write.mockResolvedValue(receipt(commit(base, makeIntent(target), 'confirmed')));
 
-      await expect(save(base, makeIntent(target))).rejects.toBe(failure);
+      expect((await save(base, makeIntent(target))).updatedRemotely).toBe(true);
+      expect(storage.localRead).toHaveBeenCalledTimes(2);
 
       expect(base).toEqual(original);
       expect(storage.read).not.toHaveBeenCalled();
-      expect(storage.write).not.toHaveBeenCalled();
-      expect(storage.adopt).not.toHaveBeenCalled();
+      expect(storage.write).toHaveBeenCalledTimes(1);
+      expect(storage.adopt).toHaveBeenCalledTimes(1);
       expect(storage.queue).not.toHaveBeenCalled();
     }
   );

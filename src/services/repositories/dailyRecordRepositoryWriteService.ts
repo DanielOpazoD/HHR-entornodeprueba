@@ -186,7 +186,19 @@ const resolvePartialUpdateBaseRecord = async (
     if (options.specialtyIntent?.kind === 'manual') {
       // A preceding write in this date's turn may already have adopted a newer day locally.
       // This is only a proposed CAS base: the server still confirms the episode and decision.
-      const localRecord = await getRecordForDateStrict(date);
+      let localRecord: DailyRecord | null;
+      try {
+        localRecord = await getRecordForDateStrict(date);
+      } catch {
+        try {
+          localRecord = await getRecordForDateStrict(date);
+        } catch {
+          // The explicit caller base is a CAS proposal, never evidence of local absence.
+          // Manual specialty policy requires atomic remote authority and its committed receipt;
+          // stale revisions and changed episodes/decisions cannot overwrite the server.
+          return options.baseRecord;
+        }
+      }
       if (
         isValidRemoteAuthorityRecord(localRecord, date) &&
         (resolveRecordBaseRevision(localRecord) ?? -1) >

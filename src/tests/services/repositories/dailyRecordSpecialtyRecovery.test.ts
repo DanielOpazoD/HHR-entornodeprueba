@@ -23,13 +23,13 @@ import { normalizeDailyRecordAuthorityError } from '@/services/storage/firestore
 beforeEach(resetSpecialtyStorage);
 
 describe('manual specialty authority and recovery', () => {
-  it('does not propose its own base when the local day cannot be read', async () => {
-    const failure = new Error('Synthetic IndexedDB read failure');
-    storage.localRead.mockRejectedValue(failure);
-    await expect(save(makeBase())).rejects.toBe(failure);
-    expect(storage.write).not.toHaveBeenCalled();
+  it('retries the local base before proposing a manual decision', async () => {
+    const base = makeBase();
+    storage.localRead.mockRejectedValueOnce(new Error('Synthetic IndexedDB read failure'));
+    storage.write.mockResolvedValue(receipt(commit(base, makeIntent(), 'confirmed')));
+    expect((await save(base)).updatedRemotely).toBe(true);
+    expect(storage.localRead).toHaveBeenCalledTimes(2);
     expect(storage.queue).not.toHaveBeenCalled();
-    expect(storage.localSave).not.toHaveBeenCalled();
   });
 
   it('reuses the locally adopted baseline after its date turn and preserves ten rapid bed edits', async () => {

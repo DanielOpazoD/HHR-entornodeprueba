@@ -191,9 +191,15 @@ describe('a local day that could not be read is unknown, never absent', () => {
 
     it('does not plan the discharge again when the pending local day cannot be read', async () => {
       await storePendingDay(pendingDischarge);
-      failNextDayReads(1);
+      failNextDayReads(2);
 
       await expect(computePreviousDayEdits(port, diff, censusDay, true)).rejects.toBe(readFailure);
+    });
+
+    it('recovers a single failed local read without planning a duplicate discharge', async () => {
+      await storePendingDay(pendingDischarge);
+      failNextDayReads(1);
+      expect((await computePreviousDayEdits(port, diff, censusDay, true)).edits).toEqual([]);
     });
 
     it('recognises the pending discharge when the day reads normally', async () => {

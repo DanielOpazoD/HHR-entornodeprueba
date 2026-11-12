@@ -103,7 +103,7 @@ export const computePreviousDayEdits = async (
     days.map(async day => {
       const [authoritative, local] = await Promise.all([
         port.getAuthoritativeForDate(day),
-        port.getLocalForDateWithMeta(day),
+        port.getLocalForDateWithMeta(day).catch(() => port.getLocalForDateWithMeta(day)),
       ]);
       if (local.writeState === 'failed' || local.writeState === 'conflict') {
         throw new Error(
