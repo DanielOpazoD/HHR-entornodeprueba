@@ -58,7 +58,7 @@ const readRetainedOperationalTelemetryEvents = (
                   'localOwnerKey' in value &&
                   typeof value.localOwnerKey === 'string'
                     ? value.localOwnerKey
-                    : null,
+                    : undefined,
               }
             : null;
         })
