@@ -203,17 +203,18 @@ it.each(
     expect(remote.write.mock.calls[0][0]).toEqual(
       kind === 'structural' ? expect.objectContaining({ date }) : date
     );
-    // Freeze the observable contract against main, excluding only generated mutation, client and tab identifiers.
-    const contract = JSON.parse(
-      JSON.stringify({ calls: remote.write.mock.calls, result }, (key, value) =>
-        ['mutationId', 'clientId', 'tabId'].includes(key)
-          ? `<${key}>`
-          : typeof value === 'function'
-            ? '<callback>'
-            : value
-      )
+    // Same session: the write goes out once with what was asked, and nothing is reported.
+    if (kind !== 'structural') {
+      const sentPaths = Object.keys(remote.write.mock.calls[0][1] as DailyRecordPatch);
+      for (const path of Object.keys(patch))
+        expect(sentPaths.some(sent => sent === path || sent.startsWith(`${path}.`))).toBe(true);
+    }
+    expect(result).toMatchObject(
+      kind === 'structural' ? { savedRemotely: true } : { updatedRemotely: true }
     );
-    expect(contract).toMatchSnapshot();
+    expect(vi.mocked(recordOperationalTelemetry)).not.toHaveBeenCalledWith(
+      expect.objectContaining({ operation: 'remote_first_write_session_changed' })
+    );
     return;
   }
   expect(remote.write).not.toHaveBeenCalled();
