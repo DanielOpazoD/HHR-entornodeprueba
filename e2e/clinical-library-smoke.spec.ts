@@ -114,6 +114,30 @@ test.describe('Clinical library (preview build)', () => {
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
     await capture(page, '01-census-with-documents-button');
 
+    // Shared controls must not wrap the four census cards at the supported laptop width.
+    await page.setViewportSize({ width: 1024, height: 768 });
+    const toolbarCards = page
+      .getByTestId('census-staff-and-sync')
+      .locator(
+        '.census-toolbar-staff > .census-toolbar-card, [data-testid="rayen-operations-bar"], [data-testid="census-summary-switcher"]'
+      );
+    await expect(toolbarCards).toHaveCount(4);
+    const bounds = await toolbarCards.evaluateAll(elements =>
+      elements.map(element => {
+        const box = element.getBoundingClientRect();
+        return { top: box.top, left: box.left, right: box.right };
+      })
+    );
+    const firstCard = bounds[0];
+    expect(firstCard).toBeDefined();
+    for (const box of bounds) {
+      expect(Math.abs(box.top - firstCard!.top)).toBeLessThanOrEqual(1);
+      expect(box.left).toBeGreaterThanOrEqual(0);
+      expect(box.right).toBeLessThanOrEqual(1024);
+    }
+    await capture(page, '01b-census-four-cards-1024');
+    await page.setViewportSize({ width: 1440, height: 900 });
+
     await trigger.click();
     const drawer = page.getByTestId('clinical-library-drawer');
     await expect(drawer).toBeVisible({ timeout: 15_000 });
