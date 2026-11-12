@@ -6,6 +6,7 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
 import { FolderOpen, Search, X } from 'lucide-react';
 import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 import { CLINICAL_LIBRARY_ENTRIES, LIBRARY_CATEGORIES } from '../domain/libraryCatalog';
@@ -220,7 +221,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
                 onClick={onClose}
                 aria-label="Cerrar documentos"
                 title="Cerrar (Esc)"
-                className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600"
+                className={buttonClassName('ghost', 'icon', 'shrink-0')}
               >
                 <X size={16} aria-hidden="true" />
               </button>
@@ -239,7 +240,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
                 placeholder="Buscar"
                 aria-label="Buscar en documentos y herramientas"
                 autoComplete="off"
-                className="h-8 w-full appearance-none rounded-md border border-slate-200 bg-slate-50/50 pl-8 pr-8 text-[12px] text-slate-800 placeholder:text-slate-400 focus:border-medical-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-medical-200 [&::-webkit-search-cancel-button]:hidden"
+                className="hhr-field appearance-none pl-8 pr-12 [&::-webkit-search-cancel-button]:hidden"
               />
               {query && (
                 <button
@@ -249,7 +250,11 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
                     searchRef.current?.focus();
                   }}
                   aria-label="Limpiar búsqueda"
-                  className="absolute right-0 top-1/2 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-medical-500"
+                  className={buttonClassName(
+                    'ghost',
+                    'icon',
+                    'absolute right-0 top-1/2 -translate-y-1/2'
+                  )}
                 >
                   <X size={13} aria-hidden="true" />
                 </button>
@@ -267,7 +272,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
                   aria-pressed={category === chip.id}
                   onClick={() => setCategory(chip.id)}
                   className={clsx(
-                    'inline-flex h-8 shrink-0 items-center rounded-md border px-2.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-medical-500',
+                    buttonClassName('ghost', 'sm', 'shrink-0'),
                     category === chip.id
                       ? 'border-medical-200 bg-medical-50 text-medical-800'
                       : 'border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-800'

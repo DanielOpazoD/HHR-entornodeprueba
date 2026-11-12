@@ -125,6 +125,14 @@ test.describe('Clinical library (preview build)', () => {
     await drawer.getByRole('button', { name: 'Protocolos' }).click();
     await expect(drawer.getByText('Aún no hay protocolos publicados')).toBeVisible();
     await drawer.getByRole('button', { name: 'Todo' }).click();
+    const searchField = page.getByRole('searchbox');
+    await expect(searchField).toHaveClass(/hhr-field/);
+    await searchField.focus();
+    await expect(searchField).toHaveCSS('outline-style', 'solid');
+    await expect(searchField).toHaveCSS('outline-width', '2px');
+    await expect(
+      drawer.getByRole('button', { name: 'Cerrar documentos', exact: true })
+    ).toHaveClass(/hhr-button--icon/);
     await capture(page, '02-documents-panel');
 
     await page.getByRole('searchbox').fill('imagenologia');
