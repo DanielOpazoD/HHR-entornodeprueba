@@ -18,7 +18,7 @@ import {
 } from '@/tests/services/storage/specialistHandoffNoteDaySupport';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { persistHydratedRecordToLocalCache } from '@/services/repositories/dailyRecordLocalCachePersistence';
+import { admitRemoteDailyRecords } from '@/services/repositories/dailyRecordLocalCachePersistence';
 import { updateRecordPartial } from '@/services/storage/firestore/firestoreRecordWrites';
 import { extractClinicalAuthorityPatch } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import { normalizeDailyRecordAuthorityError } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
@@ -98,7 +98,10 @@ it.each([false, true])(
     await expect(retryQuarantinedSyncTask(refused.id)).resolves.toBe(false);
     expect(await queue()).toEqual([refused]);
     expect(await queue()).toHaveLength(1);
-    const hydrated = await persistHydratedRecordToLocalCache(remote(), base.date);
+    const [admission] = await admitRemoteDailyRecords([
+      { record: remote(), remoteRecord: remote() },
+    ]);
+    const hydrated = admission.record!;
     expect(hydrated.beds.R6.pathology).toBe('PENDIENTE SINTETICO');
     expect(await queue()).toEqual([refused]);
     await expect(retryQuarantinedSyncTask(refused.id)).resolves.toBe(false);

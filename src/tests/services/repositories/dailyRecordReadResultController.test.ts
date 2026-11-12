@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createGoldenPathReadResult,
   createLocalRuntimeReadCandidate,
   createLocalRuntimeReadResult,
   createNotFoundDailyRecordReadResult,
 } from '@/services/repositories/dailyRecordReadResultController';
-import { resolveDailyRecordPersistenceGoldenPath } from '@/services/repositories/dailyRecordPersistenceGoldenPath';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const buildRecord = (date: string, lastUpdated: string): DailyRecord =>
@@ -43,85 +41,6 @@ describe('dailyRecordReadResultController', () => {
     expect(result.compatibilityTier).toBe('local_runtime');
   });
 
-  it('returns the remote authoritative result when golden path selects remote', () => {
-    const local = buildRecord('2026-04-15', '2026-04-15T08:00:00.000Z');
-    const remote = buildRecord('2026-04-15', '2026-04-15T12:00:00.000Z');
-    const goldenPath = resolveDailyRecordPersistenceGoldenPath({
-      localRecord: local,
-      remoteRecord: remote,
-      remoteAvailability: 'resolved',
-      localRepairApplied: false,
-      remoteRepairApplied: false,
-    });
-
-    const result = createGoldenPathReadResult(
-      remote.date,
-      goldenPath,
-      createLocalRuntimeReadCandidate(local.date, local),
-      {
-        serverConfirmed: false,
-        record: remote,
-        source: 'firestore',
-        compatibilityTier: 'current_firestore',
-        compatibilityIntensity: 'none',
-        migrationRulesApplied: [],
-        cachedLocally: false,
-      }
-    );
-
-    expect(result.source).toBe('firestore');
-    expect(result.sourceOfTruth).toBe('remote');
-    expect(result.record?.lastUpdated).toBe(remote.lastUpdated);
-  });
-
-  it('returns the merged selected record when golden path keeps local authority', () => {
-    const local = buildRecord('2026-04-15', '2026-04-15T12:00:00.000Z');
-    local.beds = {
-      R1: {
-        bedId: 'R1',
-        patientName: 'LOCAL PATIENT',
-        pathology: 'LOCAL DX',
-        handoffNote: 'LOCAL NOTE',
-      },
-    } as unknown as DailyRecord['beds'];
-    const remote = buildRecord('2026-04-15', '2026-04-15T08:00:00.000Z');
-    remote.beds = {
-      R1: {
-        bedId: 'R1',
-        patientName: 'REMOTE PATIENT',
-        pathology: 'REMOTE DX',
-        handoffNote: 'REMOTE NOTE',
-      },
-      R2: { bedId: 'R2', patientName: 'REMOTE NEW PATIENT', pathology: 'REMOTE NEW DX' },
-    } as unknown as DailyRecord['beds'];
-    const goldenPath = resolveDailyRecordPersistenceGoldenPath({
-      localRecord: local,
-      remoteRecord: remote,
-      remoteAvailability: 'resolved',
-    });
-
-    const result = createGoldenPathReadResult(
-      local.date,
-      goldenPath,
-      createLocalRuntimeReadCandidate(local.date, local),
-      {
-        serverConfirmed: false,
-        record: remote,
-        source: 'firestore',
-        compatibilityTier: 'current_firestore',
-        compatibilityIntensity: 'none',
-        migrationRulesApplied: [],
-        cachedLocally: false,
-      }
-    );
-
-    expect(result.source).toBe('indexeddb');
-    expect(result.sourceOfTruth).toBe('local');
-    expect(result.record?.beds.R1.pathology).toBe('REMOTE DX');
-    expect(result.record?.beds.R1.handoffNote).toBe('LOCAL NOTE');
-    expect(result.record?.beds.R2.patientName).toBe('REMOTE NEW PATIENT');
-  });
-
   it('creates explicit not-found results for missing previous-day lookups', () => {
     const result = createNotFoundDailyRecordReadResult('2026-04-15', 'missing');
 
@@ -129,28 +48,4 @@ describe('dailyRecordReadResultController', () => {
     expect(result.record).toBeNull();
     expect(result.consistencyState).toBe('missing');
   });
-
-  it.each(['missing', 'unavailable'] as const)(
-    'preserves %s when the golden path has no record',
-    remoteAvailability => {
-      const date = '2026-04-15';
-      const goldenPath = resolveDailyRecordPersistenceGoldenPath({
-        localRecord: null,
-        remoteRecord: null,
-        remoteAvailability,
-      });
-      const result = createGoldenPathReadResult(date, goldenPath, null);
-
-      expect(result.record).toBeNull();
-      expect(result.source).toBe('not_found');
-      expect(result.consistencyState).toBe(remoteAvailability);
-      expect(result.sourceOfTruth).toBe('none');
-      expect(result.retryability).toBe(goldenPath.retryability);
-      expect(result.recoveryAction).toBe(goldenPath.recoveryAction);
-      expect(result.userSafeMessage).toBe(goldenPath.userSafeMessage);
-      expect(result.conflictSummary).toEqual(goldenPath.conflictSummary);
-      expect(result).not.toHaveProperty('selectedStore');
-      expect(result).not.toHaveProperty('shouldHydrateLocal');
-    }
-  );
 });

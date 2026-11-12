@@ -221,7 +221,7 @@ describeEmulator('Firestore discharge-bed consistency flow', () => {
     expect(hydratedLocal?.beds.R1.status).toBe(PatientStatus.ESTABLE);
   });
 
-  it('keeps a newer local narrative note while hydrating Firebase canonical census fields', async () => {
+  it('adopts confirmed Firebase narrative without a pending queue holder despite a newer local clock', async () => {
     const date = CURRENT_RECORD_DATE;
     const localRecordWithPendingNarrative = buildRecord(date, isoAt(date, '10:05:00'));
     localRecordWithPendingNarrative.beds = {
@@ -256,12 +256,12 @@ describeEmulator('Firestore discharge-bed consistency flow', () => {
     expect(result.record?.beds.R1.rut).toBe('44.444.444-4');
     expect(result.record?.beds.R1.pathology).toBe('Diagnostico Firebase vigente');
     expect(result.record?.beds.R1.specialty).toBe(Specialty.MEDICINA);
-    expect(result.record?.beds.R1.handoffNote).toBe('Nota local pendiente de sincronizar');
+    expect(result.record?.beds.R1.handoffNote).toBe('Nota remota previa');
 
     const hydratedLocal = await getRecordForDate(date);
     expect(hydratedLocal?.beds.R1.patientName).toBe('Paciente Firebase');
     expect(hydratedLocal?.beds.R1.pathology).toBe('Diagnostico Firebase vigente');
-    expect(hydratedLocal?.beds.R1.handoffNote).toBe('Nota local pendiente de sincronizar');
+    expect(hydratedLocal?.beds.R1.handoffNote).toBe('Nota remota previa');
   });
 
   it('does not hydrate an old local handoff note into a different Firebase patient episode', async () => {

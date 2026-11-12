@@ -1,3 +1,4 @@
+import type { LocalRecordAdmissionCandidate } from '@/services/storage/indexeddb/indexedDbRecordService';
 vi.unmock('@/services/repositories/dailyRecordRepositoryReadService');
 vi.unmock('@/services/repositories/dailyRecordRepositoryWriteService');
 vi.unmock('@/services/repositories/dailyRecordRepositoryInitializationService');
@@ -74,7 +75,24 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
     kind: 'stored',
     record: await indexedDbFacadeMock.getRecordForDate(date),
   }),
-  inspectLocalRecordAdmission: async () => ({ status: 'admitted' }),
+  inspectLocalRecordAdmission: async (date: string) => ({
+    status: 'admitted',
+    record: await indexedDbFacadeMock.getRecordForDate(date),
+  }),
+  admitLocalRecords: vi.fn(async (candidates: readonly LocalRecordAdmissionCandidate[]) =>
+    Promise.all(
+      candidates.map(async candidate => ({
+        date: candidate.record.date,
+        status: 'admitted',
+        record:
+          candidate.serverConfirmed === false &&
+          candidate.expectedBase?.kind === 'stored' &&
+          candidate.expectedBase.record
+            ? candidate.expectedBase.record
+            : candidate.record,
+      }))
+    )
+  ),
   getPreviousDayRecord: indexedDbFacadeMock.getPreviousDayRecord,
   saveRecord: indexedDbFacadeMock.saveRecord,
   saveRecordStrict: indexedDbFacadeMock.saveRecordStrict,
@@ -191,7 +209,7 @@ describe('DailyRecordRepository reads', () => {
         try {
           const record = await vi.mocked(firestoreService.getRecordFromFirestore)(date);
           return {
-            serverConfirmed: false,
+            serverConfirmed: true,
             status: record ? 'resolved' : 'missing',
             record,
           };
@@ -226,7 +244,7 @@ describe('DailyRecordRepository reads', () => {
       ...mockRecord,
       beds: expect.any(Object),
     });
-    expect(idbRecordService.saveRecord).toHaveBeenCalled();
+    expect(idbRecordService.admitLocalRecords).toHaveBeenCalled();
   });
 
   it('returns source metadata via getForDateWithMeta', async () => {
@@ -279,7 +297,7 @@ describe('DailyRecordRepository reads', () => {
       ...mockRecord,
       beds: expect.any(Object),
     });
-    expect(idbRecordService.saveRecord).toHaveBeenCalled();
+    expect(idbRecordService.admitLocalRecords).toHaveBeenCalled();
   });
 
   it('returns null when remote Firestore record is missing', async () => {
@@ -290,7 +308,7 @@ describe('DailyRecordRepository reads', () => {
     expect(result).toBeNull();
   });
 
-  it('keeps the newer local record when remote sync returns older data', async () => {
+  it('adopts the confirmed server record without a holder even when its clock is older', async () => {
     const newerLocalRecord = {
       ...mockRecord,
       lastUpdated: `${mockDate}T12:00:00.000Z`,
@@ -305,7 +323,7 @@ describe('DailyRecordRepository reads', () => {
 
     const result = await Repository.syncWithFirestore(mockDate);
 
-    expect(result?.lastUpdated).toBe(`${mockDate}T12:00:00.000Z`);
+    expect(result?.lastUpdated).toBe(`${mockDate}T08:00:00.000Z`);
   });
 
   it('returns combined dates from local and remote', async () => {

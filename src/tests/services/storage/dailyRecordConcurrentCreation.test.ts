@@ -23,7 +23,7 @@ vi.mock('@/services/repositories/dailyRecordRepositoryReadService', async import
 }));
 vi.mock('@/services/repositories/dailyRecordRemoteLoader', async importOriginal => ({
   ...(await importOriginal<object>()),
-  loadRemoteRecordWithFallback: vi.fn(async () => ({ record: null })),
+  loadRemoteRecordWithFallback: vi.fn(async () => ({ record: null, serverConfirmed: true })),
 }));
 const h = harnessState();
 const stamp = DATE + 'T10:00:00.000Z';

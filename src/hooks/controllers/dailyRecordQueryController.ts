@@ -166,7 +166,8 @@ export const createDailyRecordQueryOptions = (
         current,
         () => queryClient.getQueryData<DailyRecordQueryResult>(key),
         accepted => confirmAcceptedDailyRecordRead(date, accepted, current?.record, 'query'),
-        confirms
+        confirms,
+        result.record === read.record ? (current?.record ?? null) : null
       );
     },
   };

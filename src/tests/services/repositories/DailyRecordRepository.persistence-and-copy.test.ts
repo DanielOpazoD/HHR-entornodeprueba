@@ -64,7 +64,9 @@ describe('DailyRecordRepository persistence and copy flows', () => {
       'beds.R1.patientName': 'New Name',
       'beds.R1.rut': '12.345.678-9',
     };
-    indexedDbFacadeMock.getRecordForDate.mockResolvedValueOnce(mockRecord);
+    indexedDbFacadeMock.getRecordForDate.mockImplementation(async date =>
+      date === mockDate ? mockRecord : null
+    );
 
     await Repository.updatePartial(mockDate, patch);
 

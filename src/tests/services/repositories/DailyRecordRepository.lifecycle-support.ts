@@ -1,3 +1,4 @@
+import type { LocalRecordAdmissionCandidate } from '@/services/storage/indexeddb/indexedDbRecordService';
 vi.unmock('@/services/repositories/dailyRecordRepositoryReadService');
 vi.unmock('@/services/repositories/dailyRecordRepositoryWriteService');
 vi.unmock('@/services/repositories/dailyRecordRepositoryInitializationService');
@@ -81,7 +82,24 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
     kind: 'stored',
     record: await indexedDbFacadeMock.getRecordForDate(date),
   }),
-  inspectLocalRecordAdmission: async () => ({ status: 'admitted' }),
+  inspectLocalRecordAdmission: async (date: string) => ({
+    status: 'admitted',
+    record: await indexedDbFacadeMock.getRecordForDate(date),
+  }),
+  admitLocalRecords: vi.fn(async (candidates: readonly LocalRecordAdmissionCandidate[]) =>
+    Promise.all(
+      candidates.map(async candidate => ({
+        date: candidate.record.date,
+        status: 'admitted',
+        record:
+          candidate.serverConfirmed === false &&
+          candidate.expectedBase?.kind === 'stored' &&
+          candidate.expectedBase.record
+            ? candidate.expectedBase.record
+            : candidate.record,
+      }))
+    )
+  ),
   getPreviousDayRecord: indexedDbFacadeMock.getPreviousDayRecord,
   saveRecord: indexedDbFacadeMock.saveRecord,
   saveRecordStrict: indexedDbFacadeMock.saveRecordStrict,
@@ -250,7 +268,7 @@ export const resetDailyRecordRepositoryLifecycleState = () => {
       try {
         const record = await vi.mocked(firestoreService.getRecordFromFirestore)(date);
         return {
-          serverConfirmed: false,
+          serverConfirmed: true,
           status: record ? 'resolved' : 'missing',
           record,
         };
