@@ -44,13 +44,16 @@ describe('TreatingPhysiciansSettings', () => {
     });
 
     expect(mutate).toHaveBeenCalledWith(
-      [
-        expect.objectContaining({
-          name: 'Angelica Vargas',
-          rayenPractitionerId: '7947',
-          specialty: 'Psiquiatría',
-        }),
-      ],
+      {
+        next: [
+          expect.objectContaining({
+            name: 'Angelica Vargas',
+            rayenPractitionerId: '7947',
+            specialty: 'Psiquiatría',
+          }),
+        ],
+        base: expect.any(Array),
+      },
       { onSuccess: expect.any(Function) }
     );
   });

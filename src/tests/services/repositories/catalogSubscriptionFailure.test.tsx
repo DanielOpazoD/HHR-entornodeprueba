@@ -19,7 +19,7 @@ vi.mock('@/services/auth/sessionPermissionStormDetector', () => ({
   reportBasicReadPermissionDenied: vi.fn(),
 }));
 
-import { onSnapshot, doc, setDoc } from 'firebase/firestore';
+import { onSnapshot, doc, setDoc, runTransaction } from 'firebase/firestore';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { CatalogRepository } from '@/services/repositories/CatalogRepository';
 import { useNursesQuery, useTensQuery, useProfessionalsQuery } from '@/hooks/useStaffQuery';
@@ -46,6 +46,12 @@ const stops: (() => void)[] = [];
 
 beforeEach(async () => {
   listeners.clear();
+  vi.mocked(runTransaction).mockImplementation(async (_db, update) =>
+    update({
+      get: async () => ({ exists: () => true, data: () => ({ list: professionals }) }),
+      set: setDoc,
+    } as never)
+  );
   await hospitalDB.catalogs.clear();
   vi.mocked(doc).mockImplementation((_db, ...segments) => ({ id: segments.at(-1) }) as never);
   vi.mocked(onSnapshot).mockImplementation((...args: unknown[]) => {
@@ -126,10 +132,13 @@ describe('catalog subscriptions through IndexedDB and staff queries', () => {
       expect(hook.result.current.nurses.data).toEqual(catalogs[0].list);
       expect(hook.result.current.tens.data).toEqual(catalogs[1].list);
       expect(hook.result.current.professionals.data).toEqual(professionals);
-      await CatalogRepository.saveProfessionals([
-        ...hook.result.current.professionals.data!,
-        { name: 'Nuevo sintético', phone: '', specialty: 'Cirugía' },
-      ]);
+      await CatalogRepository.saveProfessionals(
+        [
+          ...hook.result.current.professionals.data!,
+          { name: 'Nuevo sintético', phone: '', specialty: 'Cirugía' },
+        ],
+        professionals
+      );
       expect(vi.mocked(setDoc)).toHaveBeenLastCalledWith(
         expect.anything(),
         expect.objectContaining({
@@ -160,6 +169,12 @@ describe('catalog subscriptions through IndexedDB and staff queries', () => {
       expect(onData).not.toHaveBeenCalled();
       unsubscribe.forEach(stop => stop());
       listeners.clear();
+      vi.mocked(runTransaction).mockImplementation(async (_db, update) =>
+        update({
+          get: async () => ({ exists: () => true, data: () => ({ list: professionals }) }),
+          set: setDoc,
+        } as never)
+      );
       const hook = await mount();
       await emit();
       await waitFor(() => expect(hook.result.current.professionals.data).toEqual(professionals));
