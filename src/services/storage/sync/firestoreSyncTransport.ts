@@ -5,6 +5,7 @@ import type {
   SyncTransportResult,
 } from '@/services/storage/sync/syncQueuePorts';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { measureRepositoryOperation } from '@/services/repositories/repositoryPerformance';
 import {
   docToRecord,
@@ -58,6 +59,7 @@ import {
   adoptStoredClinicalDerivedState,
   withClearedStoredMovedFields,
 } from '@/services/storage/clinicalDerivedWriteHygiene';
+import { applyPatches } from '@/utils/patchUtils';
 
 const STRICT_REMOTE_DRIFT_TOLERANCE_MS = 0;
 
@@ -252,7 +254,23 @@ const resolveRecordForSyncTask = async (
   }
 
   const remoteRecord = docToRecord(remoteData, record.date);
-  assertUnchangedReplayPatchBase(task, remoteData, remoteRecord, record);
+  const appliedPaths = assertUnchangedReplayPatchBase(task, remoteData, remoteRecord, record);
+  if (appliedPaths.length) {
+    // The server already holds these fields as the edit wants them, a lost ACK included: the
+    // task ends as sent when nothing else is left, and those fields keep the server's own text.
+    if (
+      normalizeChangedPaths(task.syncContract?.changedPaths).every(path =>
+        appliedPaths.includes(path)
+      )
+    )
+      return alreadyApplied(detached);
+    record = applyPatches(
+      record,
+      Object.fromEntries(
+        appliedPaths.map(path => [path, getValueAtPath(remoteRecord, path)])
+      ) as DailyRecordPatch
+    );
+  }
   const canRebasePatch =
     !detached && Boolean(checks?.hasUnchangedPatchBase(queuedTask, remoteRecord, queuedRecord));
   if (task.nursingHandoffRecovery) {

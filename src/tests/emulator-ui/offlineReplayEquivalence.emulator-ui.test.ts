@@ -216,93 +216,176 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     if (app) await deleteApp(app);
   });
 
-  it.each(['untouched', 'other-field', 'other-bed', 'same-value', 'pending-whitespace', 'mixed', 'whitespace', 'legacy', 'metadata', 'twice', 'null-object', 'object-order'])(
-    'replay equivalence %s', async scenario => {
-      const base = baseRecord();
-      const objectCase = ['null-object', 'object-order'].includes(scenario);
-      const field = objectCase ? 'beds.R1.cudyr' : 'beds.R1.pathology';
-      if (objectCase) base.beds.R1.cudyr = { feeding: 1, mobility: 2, ...(scenario === 'null-object' ? { reviewNull: null } : {}) } as never;
-      await admin.doc(dayPath).set(base);
-      await hospitalDB.dailyRecords.put(base);
-      setFirestoreSyncState({mode: 'local_only', reason: 'offline'});
-      await actor('A', () => updatePartialDetailed(date, {[field]: objectCase ? {feeding: 2, mobility: 2} : 'A OFFLINE', ...(scenario === 'mixed' ? {'beds.R1.age': '51'} : {})}, {baseRecord: base}));
-      const [pending] = await hospitalDB.syncQueue.toArray();
-      if (scenario === 'legacy') await hospitalDB.syncQueue.update(pending.id!, {patchBaseValues: undefined});
-      if (scenario === 'twice') await actor('A', async () => updatePartialDetailed(date, {[field]: 'A SECOND'}, {baseRecord: (await hospitalDB.dailyRecords.get(date))!}));
-      if (scenario === 'other-field') await patch('B', {'beds.R1.age': '51'});
-      if (scenario === 'other-bed') await patch('B', {'beds.R2.pathology': 'B'});
-      if (scenario === 'same-value') await patch('B', {[field]: 'A OFFLINE'});
-      if (scenario === 'pending-whitespace' || scenario === 'mixed') await patch('B', {[field]: ' A OFFLINE '});
-      if (scenario === 'whitespace') await patch('B', {[field]: ' BASE '});
-      if (objectCase) await admin.doc(dayPath).update({[field]: {mobility: 2, feeding: 1}, lastUpdated: new Date().toISOString()});
-      if (scenario === 'metadata') await admin.doc(dayPath).update({'meta.serverNote': 'derived', lastUpdated: new Date().toISOString()});
-      const beforePublish = (await admin.doc(dayPath).get()).data();
-      setFirestoreEnabled(true);
-      await publish();
-      if (['same-value', 'pending-whitespace'].includes(scenario)) expect((await admin.doc(dayPath).get()).data()).toEqual(beforePublish);
-      const tasks = await hospitalDB.syncQueue.toArray();
-      expect(tasks).toHaveLength(0);
-      if (!objectCase) expect((await read()).beds.R1.pathology).toBe(scenario === 'twice' ? 'A SECOND' : ['pending-whitespace', 'mixed'].includes(scenario) ? ' A OFFLINE ' : 'A OFFLINE');
-      if (scenario === 'other-field' || scenario === 'mixed') expect((await read()).beds.R1.age).toBe('51');
-      if (scenario === 'other-bed') expect((await read()).beds.R2.pathology).toBe('B');
-    }
-  );
+  it.each([
+    'untouched',
+    'other-field',
+    'other-bed',
+    'same-value',
+    'pending-whitespace',
+    'mixed',
+    'whitespace',
+    'legacy',
+    'metadata',
+    'twice',
+    'null-object',
+    'object-order',
+  ])('replay equivalence %s', async scenario => {
+    const base = baseRecord();
+    const objectCase = ['null-object', 'object-order'].includes(scenario);
+    const field = objectCase ? 'beds.R1.cudyr' : 'beds.R1.pathology';
+    if (objectCase)
+      base.beds.R1.cudyr = {
+        feeding: 1,
+        mobility: 2,
+        ...(scenario === 'null-object' ? { reviewNull: null } : {}),
+      } as never;
+    await admin.doc(dayPath).set(base);
+    await hospitalDB.dailyRecords.put(base);
+    setFirestoreSyncState({ mode: 'local_only', reason: 'offline' });
+    await actor('A', () =>
+      updatePartialDetailed(
+        date,
+        {
+          [field]: objectCase ? { feeding: 2, mobility: 2 } : 'A OFFLINE',
+          // A census field the server takes from this edit; age would follow the remote-canonical merge.
+          ...(scenario === 'mixed' ? { 'beds.R1.status': 'Grave' } : {}),
+        },
+        { baseRecord: base }
+      )
+    );
+    const [pending] = await hospitalDB.syncQueue.toArray();
+    if (scenario === 'legacy')
+      await hospitalDB.syncQueue.update(pending.id!, { patchBaseValues: undefined });
+    if (scenario === 'twice')
+      await actor('A', async () =>
+        updatePartialDetailed(
+          date,
+          { 'beds.R1.pathology': 'A SECOND' },
+          { baseRecord: (await hospitalDB.dailyRecords.get(date))! }
+        )
+      );
+    if (scenario === 'other-field') await patch('B', { 'beds.R1.age': '51' });
+    if (scenario === 'other-bed') await patch('B', { 'beds.R2.pathology': 'B' });
+    if (scenario === 'same-value') await patch('B', { 'beds.R1.pathology': 'A OFFLINE' });
+    if (scenario === 'pending-whitespace' || scenario === 'mixed')
+      await patch('B', { 'beds.R1.pathology': ' A OFFLINE ' });
+    if (scenario === 'whitespace') await patch('B', { 'beds.R1.pathology': ' BASE ' });
+    if (objectCase)
+      await admin
+        .doc(dayPath)
+        .update({ [field]: { mobility: 2, feeding: 1 }, lastUpdated: new Date().toISOString() });
+    if (scenario === 'metadata')
+      await admin
+        .doc(dayPath)
+        .update({ 'meta.serverNote': 'derived', lastUpdated: new Date().toISOString() });
+    const beforePublish = (await admin.doc(dayPath).get()).data();
+    setFirestoreEnabled(true);
+    await publish();
+    if (['same-value', 'pending-whitespace'].includes(scenario))
+      expect((await admin.doc(dayPath).get()).data()).toEqual(beforePublish);
+    const tasks = await hospitalDB.syncQueue.toArray();
+    expect(tasks).toHaveLength(0);
+    if (!objectCase)
+      expect((await read()).beds.R1.pathology).toBe(
+        scenario === 'twice'
+          ? 'A SECOND'
+          : ['pending-whitespace', 'mixed'].includes(scenario)
+            ? ' A OFFLINE '
+            : 'A OFFLINE'
+      );
+    if (scenario === 'other-field') expect((await read()).beds.R1.age).toBe('51');
+    if (scenario === 'mixed') expect((await read()).beds.R1.status).toBe('Grave');
+    if (scenario === 'other-bed') expect((await read()).beds.R2.pathology).toBe('B');
+  });
 
-  it.each(['lost-ack', 'accepted-then-newer', 'two-tasks', 'conflict-intact', 'conflict-whitespace'])( 'replay durability %s', async scenario => {
+  it.each([
+    'lost-ack',
+    'accepted-then-newer',
+    'two-tasks',
+    'conflict-intact',
+    'conflict-whitespace',
+  ])('replay durability %s', async scenario => {
     const base = baseRecord();
     await hospitalDB.dailyRecords.put(base);
-    setFirestoreSyncState({mode:'local_only', reason:'offline'});
-    await actor('A', () => updatePartialDetailed(date, {'beds.R1.pathology':'FIRST'}, {baseRecord:base}));
+    setFirestoreSyncState({ mode: 'local_only', reason: 'offline' });
+    await actor('A', () =>
+      updatePartialDetailed(date, { 'beds.R1.pathology': 'FIRST' }, { baseRecord: base })
+    );
     const [pending] = await hospitalDB.syncQueue.toArray();
     if (scenario === 'two-tasks') {
       const payload = structuredClone(pending.payload) as DailyRecord;
       payload.beds.R1.pathology = 'SECOND';
-      await hospitalDB.syncQueue.add({...pending, id: undefined, opId: 'second-independent-task', timestamp: pending.timestamp + 1, payload,
-        patchBaseValues: {'beds.R1.pathology':'FIRST'},
-        syncContract: {...pending.syncContract, mutationId:'second-independent-mutation'}});
+      await hospitalDB.syncQueue.add({
+        ...pending,
+        id: undefined,
+        opId: 'second-independent-task',
+        timestamp: pending.timestamp + 1,
+        payload,
+        patchBaseValues: { 'beds.R1.pathology': 'FIRST' },
+        syncContract: { ...pending.syncContract, mutationId: 'second-independent-mutation' },
+      });
       await hospitalDB.dailyRecords.put(payload);
       expect(await hospitalDB.syncQueue.count()).toBe(2);
     }
-    if (scenario.startsWith('conflict-')) await patch('B', {'beds.R1.pathology':scenario === 'conflict-whitespace' ? 'B ' : 'B ONLINE'});
+    if (scenario.startsWith('conflict-'))
+      await patch('B', {
+        'beds.R1.pathology': scenario === 'conflict-whitespace' ? 'B ' : 'B ONLINE',
+      });
     setFirestoreEnabled(true);
     await publish();
     if (scenario === 'lost-ack') {
       expect(await hospitalDB.syncQueue.count()).toBe(0);
-      await hospitalDB.syncQueue.add({...pending, id:undefined});
+      await hospitalDB.syncQueue.add({ ...pending, id: undefined });
       await publish();
     }
     if (scenario === 'accepted-then-newer') {
       expect(await hospitalDB.syncQueue.count()).toBe(0);
-      await patch('B', {'beds.R1.pathology':'NEWER'}, await read());
+      await patch('B', { 'beds.R1.pathology': 'NEWER' }, await read());
       await publish();
     }
     const tasks = await hospitalDB.syncQueue.toArray();
     if (scenario.startsWith('conflict-')) {
-      expect((await read()).beds.R1.pathology).toBe(scenario === 'conflict-whitespace' ? 'B ' : 'B ONLINE');
+      expect((await read()).beds.R1.pathology).toBe(
+        scenario === 'conflict-whitespace' ? 'B ' : 'B ONLINE'
+      );
       expect(tasks).toHaveLength(1);
-      expect(tasks[0]).toMatchObject({status:'CONFLICT', payload:pending.payload, patchBaseValues:pending.patchBaseValues, syncContract:pending.syncContract});
+      expect(tasks[0]).toMatchObject({
+        status: 'CONFLICT',
+        payload: pending.payload,
+        patchBaseValues: pending.patchBaseValues,
+        syncContract: pending.syncContract,
+      });
     } else {
       expect(tasks).toHaveLength(0);
-      expect((await read()).beds.R1.pathology).toBe(scenario === 'two-tasks' ? 'SECOND' : scenario === 'accepted-then-newer' ? 'NEWER' : 'FIRST');
+      expect((await read()).beds.R1.pathology).toBe(
+        scenario === 'two-tasks' ? 'SECOND' : scenario === 'accepted-then-newer' ? 'NEWER' : 'FIRST'
+      );
     }
   });
 
   it('replay durability captured device null leaf', async () => {
     const base = baseRecord();
-    base.beds.R1.deviceDetails = {CVC:{installationDate:date}};
+    base.beds.R1.deviceDetails = { CVC: { installationDate: date } };
     await admin.doc(dayPath).set(base);
     await hospitalDB.dailyRecords.put(base);
-    setFirestoreSyncState({mode:'local_only',reason:'offline'});
-    await actor('A', () => updatePartialDetailed(date, {'beds.R1.deviceDetails': {CVC:{installationDate:date,note:'A'}}}, {baseRecord:base}));
+    setFirestoreSyncState({ mode: 'local_only', reason: 'offline' });
+    await actor('A', () =>
+      updatePartialDetailed(
+        date,
+        { 'beds.R1.deviceDetails': { CVC: { installationDate: date, note: 'A' } } },
+        { baseRecord: base }
+      )
+    );
     const [pending] = await hospitalDB.syncQueue.toArray();
     // Persisted historic base with an empty optional leaf; current Firestore omits it.
-    await hospitalDB.syncQueue.update(pending.id!, {patchBaseValues:{'beds.R1.deviceDetails':{CVC:{installationDate:date,note:null}}}});
-    await patch('B', {'beds.R2.pathology':'B'});
+    await hospitalDB.syncQueue.update(pending.id!, {
+      patchBaseValues: { 'beds.R1.deviceDetails': { CVC: { installationDate: date, note: null } } },
+    });
+    await patch('B', { 'beds.R2.pathology': 'B' });
     setFirestoreEnabled(true);
     await publish();
     expect(await hospitalDB.syncQueue.toArray()).toHaveLength(0);
     expect((await read()).beds.R1.deviceDetails?.CVC.note).toBe('A');
     expect((await read()).beds.R2.pathology).toBe('B');
   });
-
 });

@@ -2,7 +2,8 @@ import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
-import { hasSameValuesAtPaths } from '@/services/repositories/conflictResolutionUtils';
+import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
+import { hasSameNoteValue } from './dayTaskReplayGuard';
 
 const MERGEABLE_MOVEMENT_ARRAY_ROOTS = new Set(['discharges', 'transfers', 'cma']);
 const MEDICAL_HANDOFF_SUMMARY_PATH = 'medicalHandoffNovedades';
@@ -171,26 +172,57 @@ export const assertNoSamePathRemoteMutation = (
   }
 };
 
-/** Compare the captured edit base even when a direct writer left no changed-path metadata. */
+const withTrimmedText = (value: unknown): unknown => {
+  if (typeof value === 'string') return value.trim();
+  if (Array.isArray(value)) return value.map(withTrimmedText);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [key, withTrimmedText(entry)])
+  );
+};
+
+/**
+ * Two stored values say the same: key order and a null or absent leaf do not count (the existing
+ * base-vs-current tolerance), and neither do spaces around a text.
+ */
+const hasEquivalentReplayValue = (left: unknown, right: unknown): boolean =>
+  hasSameNoteValue({ value: withTrimmedText(left) }, { value: withTrimmedText(right) });
+
+/** Hydration pads staffing arrays: the stored or the hydrated value may carry the match. */
+const remoteHolds = (
+  remoteData: Record<string, unknown>,
+  remoteRecord: DailyRecord,
+  path: string,
+  expected: unknown
+): boolean =>
+  hasEquivalentReplayValue(getValueAtPath(remoteData, path), expected) ||
+  hasEquivalentReplayValue(getValueAtPath(remoteRecord, path), expected);
+
+/**
+ * Compare each captured field with its edit base even when a direct writer left no changed-path
+ * metadata. A field conflicts only when the server holds neither the base nor the pending value.
+ * Returns the captured fields the server already holds as the pending value.
+ */
 export const assertUnchangedReplayPatchBase = (
   task: SyncTask,
   remoteData: Record<string, unknown>,
   remoteRecord: DailyRecord,
   localRecord: DailyRecord
-): void => {
+): string[] => {
   const base = task.patchBaseValues;
-  if (!base) return;
+  if (!base) return [];
   const paths = normalizeChangedPaths(task.syncContract?.changedPaths);
-  const remotePaths = paths.filter(
-    path =>
-      Object.hasOwn(base, path) &&
-      // Hydration pads staffing arrays; either stored or hydrated equality proves no field edit.
-      !hasSameValuesAtPaths(remoteData, { [path]: base[path] }) &&
-      !hasSameValuesAtPaths(remoteRecord, { [path]: base[path] })
+  const captured = paths.filter(path => Object.hasOwn(base, path));
+  const applied = captured.filter(path =>
+    remoteHolds(remoteData, remoteRecord, path, getValueAtPath(localRecord, path))
+  );
+  const remotePaths = captured.filter(
+    path => !applied.includes(path) && !remoteHolds(remoteData, remoteRecord, path, base[path])
   );
   if (hasBlockingOverlappingChangedPath(remotePaths, paths, remoteRecord, localRecord)) {
     throw new ConcurrencyError(
       'El campo cambió en otro equipo. La edición pendiente se conserva para revisión.'
     );
   }
+  return applied;
 };
