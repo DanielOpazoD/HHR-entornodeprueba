@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Users, Plus, Trash2, Cloud, AlertCircle, Pencil, Check, X } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { StaffNameSchema } from '@/schemas/inputSchemas';
@@ -11,7 +11,7 @@ interface StaffCatalogManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
   staffList: string[];
-  onSave: (updatedStaffList: string[]) => boolean | void | Promise<boolean | void>;
+  onSave: (updatedStaffList: string[], base?: string[]) => boolean | void | Promise<boolean | void>;
   saveError?: string;
   onRetry?: () => Promise<void>;
   syncing: boolean;
@@ -70,6 +70,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
   saveError,
   onRetry,
 }) => {
+  const editBase = useRef<string[]>(staffList);
   const config = STAFF_CATALOG_VARIANT_CONFIG[variant];
   const [newStaffName, setNewStaffName] = useState('');
   const [editingName, setEditingName] = useState<string | null>(null);
@@ -87,15 +88,19 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
     }
 
     setValidationError(null);
-    if ((await onSave([...staffList, trimmed])) === false) return;
+    if ((await onSave([...staffList, trimmed], staffList)) === false) return;
     setNewStaffName('');
   };
 
   const handleRemove = (name: string) => {
-    onSave(staffList.filter(staffName => staffName !== name));
+    onSave(
+      staffList.filter(staffName => staffName !== name),
+      staffList
+    );
   };
 
   const handleStartEdit = (name: string) => {
+    editBase.current = staffList;
     setEditingName(name);
     setEditValue(name);
     setValidationError(null);
@@ -114,7 +119,8 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
     setValidationError(null);
     if (
       (await onSave(
-        staffList.map(staffName => (staffName === editingName ? trimmed : staffName))
+        editBase.current.map(staffName => (staffName === editingName ? trimmed : staffName)),
+        editBase.current
       )) === false
     )
       return;
@@ -220,6 +226,16 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
             Catálogo Actual
           </label>
           <div className="max-h-[45vh] space-y-2 overflow-y-auto pr-1">
+            {editingName && !staffList.includes(editingName) && (
+              <div>
+                <input
+                  aria-label="Edición pendiente"
+                  value={editValue}
+                  onChange={event => setEditValue(event.target.value)}
+                />
+                <button onClick={handleCancelEdit}>Cerrar edición pendiente</button>
+              </div>
+            )}
             {staffList.map(staffName => (
               <div
                 key={staffName}

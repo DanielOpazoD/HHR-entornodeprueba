@@ -98,23 +98,23 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
   // Compatibility setters (now trigger mutations)
   const setNursesList = useCallback(
     (updatedNurses: string[]) => {
-      saveNurses(reconcileNurseCatalogNames(updatedNurses));
+      saveNurses({ next: reconcileNurseCatalogNames(updatedNurses), base: nurses });
     },
-    [saveNurses]
+    [saveNurses, nurses]
   );
 
   const setTensList = useCallback(
     (updatedTens: string[]) => {
-      saveTens(updatedTens);
+      saveTens({ next: updatedTens, base: tens });
     },
-    [saveTens]
+    [saveTens, tens]
   );
 
   const setProfessionalsCatalog = useCallback(
     (updatedProfessionals: ProfessionalCatalogItem[]) => {
-      saveProfessionals(updatedProfessionals);
+      saveProfessionals({ next: updatedProfessionals, base: professionals });
     },
-    [saveProfessionals]
+    [saveProfessionals, professionals]
   );
 
   const value = useMemo<StaffContextType>(

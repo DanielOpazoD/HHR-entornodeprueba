@@ -1,3 +1,4 @@
+import { CatalogConflictError } from './contracts/catalogChanges';
 import {
   getCatalog,
   getCatalogValues,
@@ -26,16 +27,19 @@ import { catalogRepositoryLogger } from '@/services/repositories/repositoryLogge
 
 export interface ICatalogRepository {
   getNurses(): Promise<string[]>;
-  saveNurses(nurses: string[]): Promise<void>;
+  saveNurses(nurses: string[], base: string[]): Promise<string[] | void>;
   subscribeNurses(
     callback: (nurses: string[]) => void,
     onError?: (error: unknown) => void
   ): () => void;
   getTens(): Promise<string[]>;
-  saveTens(tens: string[]): Promise<void>;
+  saveTens(tens: string[], base: string[]): Promise<string[] | void>;
   subscribeTens(callback: (tens: string[]) => void, onError?: (error: unknown) => void): () => void;
   getProfessionals(): Promise<ProfessionalCatalogItem[]>;
-  saveProfessionals(professionals: ProfessionalCatalogItem[]): Promise<void>;
+  saveProfessionals(
+    professionals: ProfessionalCatalogItem[],
+    base: ProfessionalCatalogItem[]
+  ): Promise<ProfessionalCatalogItem[] | void>;
   subscribeProfessionals(
     callback: (professionals: ProfessionalCatalogItem[]) => void,
     onError?: (error: unknown) => void
@@ -50,10 +54,10 @@ const assertCatalogRemoteAvailable = (): void => {
 };
 
 // Bounds the complete retry chain; the SDK may still acknowledge the write later.
-const confirmCatalogSave = async (save: Promise<void>): Promise<void> => {
+const confirmCatalogSave = async <T>(save: Promise<T>): Promise<T> => {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    await Promise.race([
+    return await Promise.race([
       save,
       new Promise<never>((_resolve, reject) => {
         timer = setTimeout(
@@ -100,15 +104,21 @@ export const getNurses = async (): Promise<string[]> => {
 /**
  * Confirms the nurses list remotely before refreshing its local cache.
  */
-export const saveNurses = async (nurses: string[]): Promise<void> => {
+export const saveNurses = async (nurses: string[], base: string[]): Promise<string[] | void> => {
   const normalized = normalizeStringCatalog(nurses);
   assertCatalogRemoteAvailable();
+  let accepted: string[];
   try {
-    await confirmCatalogSave(saveNurseCatalogToFirestore(normalized));
+    accepted = await confirmCatalogSave(saveNurseCatalogToFirestore(normalized, base));
   } catch (cause) {
+    if (cause instanceof CatalogConflictError) {
+      await cacheCatalogValues('nurses', normalizeStringCatalog(cause.current), true);
+      throw cause;
+    }
     throw new CatalogRemoteSyncError(cause);
   }
-  await cacheCatalogValues('nurses', normalized, true);
+  await cacheCatalogValues('nurses', accepted ?? normalized, true);
+  return accepted;
 };
 
 const subscribeToLocalStringCatalog = (
@@ -203,15 +213,21 @@ export const getTens = async (): Promise<string[]> => {
 /**
  * Confirms the TENS list remotely before refreshing its local cache.
  */
-export const saveTens = async (tens: string[]): Promise<void> => {
+export const saveTens = async (tens: string[], base: string[]): Promise<string[] | void> => {
   const normalized = normalizeStringCatalog(tens);
   assertCatalogRemoteAvailable();
+  let accepted: string[];
   try {
-    await confirmCatalogSave(saveTensCatalogToFirestore(normalized));
+    accepted = await confirmCatalogSave(saveTensCatalogToFirestore(normalized, base));
   } catch (cause) {
+    if (cause instanceof CatalogConflictError) {
+      await cacheCatalogValues('tens', normalizeStringCatalog(cause.current), true);
+      throw cause;
+    }
     throw new CatalogRemoteSyncError(cause);
   }
-  await cacheCatalogValues('tens', normalized, true);
+  await cacheCatalogValues('tens', accepted ?? normalized, true);
+  return accepted;
 };
 
 /**
@@ -267,16 +283,23 @@ export const getProfessionals = async (): Promise<ProfessionalCatalogItem[]> => 
  * Confirms the professionals list remotely before refreshing its local cache.
  */
 export const saveProfessionals = async (
-  professionals: ProfessionalCatalogItem[]
-): Promise<void> => {
+  professionals: ProfessionalCatalogItem[],
+  base: ProfessionalCatalogItem[]
+): Promise<ProfessionalCatalogItem[] | void> => {
   const normalized = normalizeProfessionalCatalog(professionals);
   assertCatalogRemoteAvailable();
+  let accepted: ProfessionalCatalogItem[];
   try {
-    await confirmCatalogSave(saveProfessionalsCatalogToFirestore(normalized));
+    accepted = await confirmCatalogSave(saveProfessionalsCatalogToFirestore(normalized, base));
   } catch (cause) {
+    if (cause instanceof CatalogConflictError) {
+      await cacheCatalogValues('professionals', normalizeProfessionalCatalog(cause.current), true);
+      throw cause;
+    }
     throw new CatalogRemoteSyncError(cause);
   }
-  await cacheCatalogValues('professionals', normalized, true);
+  await cacheCatalogValues('professionals', accepted ?? normalized, true);
+  return accepted;
 };
 
 /**

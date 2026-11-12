@@ -1,3 +1,4 @@
+import { CatalogConflictError } from '@/services/repositories/contracts/catalogChanges';
 import React, { useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, Cloud, Stethoscope } from 'lucide-react';
 import { SPECIALTY_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
@@ -40,7 +41,10 @@ export const TreatingPhysiciansSettings: React.FC = () => {
   const handleSpecialtyChange = (catalogKey: string, specialty: string) => {
     setDraft({ catalogKey, specialty });
     saveProfessionals.mutate(
-      assignProfessionalSpecialty(professionals, catalogKey, specialty || undefined),
+      {
+        next: assignProfessionalSpecialty(professionals, catalogKey, specialty || undefined),
+        base: professionals,
+      },
       { onSuccess: () => setDraft(null) }
     );
   };
@@ -95,16 +99,33 @@ export const TreatingPhysiciansSettings: React.FC = () => {
             className="mx-5 mt-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800"
           >
             <AlertCircle size={15} />
-            El cambio no se guardó. La especialidad elegida se conserva; reintente cuando haya
-            conexión.
-            {draft && (
-              <button
-                type="button"
-                onClick={() => handleSpecialtyChange(draft.catalogKey, draft.specialty)}
-              >
-                Reintentar guardado
-              </button>
-            )}
+            {saveProfessionals.error instanceof CatalogConflictError
+              ? saveProfessionals.error.message
+              : 'El cambio no se guardó. La especialidad elegida se conserva; reintente cuando haya conexión.'}
+            {draft &&
+              !professionals.some(item => professionalCatalogKey(item) === draft.catalogKey) && (
+                <div>
+                  <input aria-label="Especialidad pendiente" readOnly value={draft.specialty} />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDraft(null);
+                      saveProfessionals.reset();
+                    }}
+                  >
+                    Cerrar edición pendiente
+                  </button>
+                </div>
+              )}
+            {draft &&
+              professionals.some(item => professionalCatalogKey(item) === draft.catalogKey) && (
+                <button
+                  type="button"
+                  onClick={() => handleSpecialtyChange(draft.catalogKey, draft.specialty)}
+                >
+                  Reintentar guardado
+                </button>
+              )}
           </div>
         )}
 

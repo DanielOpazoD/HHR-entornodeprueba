@@ -224,9 +224,18 @@ describe('StaffProvider publication', () => {
       view.current().setProfessionalsCatalog(professionals);
     });
     expect(old).not.toHaveBeenCalled();
-    expect(state.saveNurses).toHaveBeenCalledExactlyOnceWith(['Synthetic Nurse']);
-    expect(state.saveTens).toHaveBeenCalledExactlyOnceWith(['Synthetic TENS']);
-    expect(state.saveProfessionals).toHaveBeenCalledExactlyOnceWith(professionals);
+    expect(state.saveNurses).toHaveBeenCalledExactlyOnceWith({
+      next: ['Synthetic Nurse'],
+      base: state.nurses,
+    });
+    expect(state.saveTens).toHaveBeenCalledExactlyOnceWith({
+      next: ['Synthetic TENS'],
+      base: state.tens,
+    });
+    expect(state.saveProfessionals).toHaveBeenCalledExactlyOnceWith({
+      next: professionals,
+      base: state.professionals,
+    });
     view.unmount();
   });
 });

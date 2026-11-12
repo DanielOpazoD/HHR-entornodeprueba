@@ -132,34 +132,25 @@ for (const entry of cases) {
       await catalogs.clear();
       const ref = doc(sdkDb, `hospitals/${getActiveHospitalId()}/settings/${entry.key}`);
       await setDoc(ref, { list: ['Synthetic Base'] });
-      const { wrapper, queryClient } = createQueryClientTestWrapper();
+      const { wrapper } = createQueryClientTestWrapper();
       render(<Manager entry={entry} />, { wrapper });
       await screen.findByText('Synthetic Base');
       await new Promise(r => setTimeout(r, 200));
       cacheWrites.mockClear();
       await disableNetwork(sdkDb);
-      fireEvent.change(screen.getByPlaceholderText('Nombre completo…'), {
-        target: { value: 'Synthetic X' },
-      });
-      fireEvent.click(screen.getByRole('button', { name: 'Agregar personal' }));
+      // A raw pending SDK write exercises the listener's metadata guard. Transactions use
+      // independent HTTP requests and may reach this emulator while listeners are paused.
+      const saving = setDoc(ref, { list: ['Synthetic Base', 'Synthetic X'] });
       try {
         await new Promise(r => setTimeout(r, 300));
-        expect(queryClient.getMutationCache().getAll()[0].state.status).toBe('pending');
         expect(screen.queryByText('Synthetic X')).not.toBeInTheDocument();
         expect((await catalogs.get(entry.key))?.list).toEqual(['Synthetic Base']);
         expect(cacheWrites).not.toHaveBeenCalled();
       } finally {
         await enableNetwork(sdkDb);
-        await waitFor(
-          () => expect(queryClient.getMutationCache().getAll()[0].state.status).toBe('success'),
-          RESUMED_TRANSPORT
-        );
+        await saving;
       }
       await screen.findByText('Synthetic X', {}, RESUMED_TRANSPORT);
-      await waitFor(
-        () => expect(queryClient.getMutationCache().getAll()[0].state.status).toBe('success'),
-        RESUMED_TRANSPORT
-      );
       expect((await getDocFromServer(ref)).data()?.list).toEqual(['Synthetic Base', 'Synthetic X']);
       await new Promise(r => setTimeout(r, 100));
       expect(cacheWrites).toHaveBeenCalledTimes(1);
@@ -222,7 +213,7 @@ it('professionals: pending writes do not publish or cache; ACK publishes once', 
   await waitFor(() => expect(received).toHaveBeenCalledTimes(1), RESUMED_TRANSPORT);
   cacheWrites.mockClear();
   await disableNetwork(sdkDb);
-  const saving = CatalogRepository.saveProfessionals(updated);
+  const saving = setDoc(ref, { list: updated });
   try {
     await new Promise(r => setTimeout(r, 300));
     expect(received).toHaveBeenCalledTimes(1);
@@ -241,7 +232,7 @@ it('professionals: pending writes do not publish or cache; ACK publishes once', 
   expect(cacheWrites).toHaveBeenCalledTimes(1);
   unsubscribe();
 });
-it('late SDK acceptance removes the timeout warning and updates the visible list', async () => {
+it('offline guard preserves the draft and saves only after explicit retry', async () => {
   await hospitalDB.open();
   await catalogs.clear();
   const ref = doc(sdkDb, `hospitals/${getActiveHospitalId()}/settings/nurses`);
@@ -251,6 +242,7 @@ it('late SDK acceptance removes the timeout warning and updates the visible list
   await screen.findByText('Synthetic Base');
   await new Promise(r => setTimeout(r, 200));
   await disableNetwork(sdkDb);
+  const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
   fireEvent.change(screen.getByPlaceholderText('Nombre completo…'), {
     target: { value: 'Synthetic Late' },
   });
@@ -259,10 +251,39 @@ it('late SDK acceptance removes the timeout warning and updates the visible list
   expect(screen.getByPlaceholderText('Nombre completo…')).toHaveValue('Synthetic Late');
   expect(screen.getByRole('button', { name: 'Agregar personal' })).toBeEnabled();
   expect(screen.queryByText('Synthetic Late')).not.toBeInTheDocument();
+  online.mockReturnValue(true);
   await enableNetwork(sdkDb);
+  expect(screen.queryByText('Synthetic Late')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Agregar personal' }));
   await screen.findByText('Synthetic Late', {}, RESUMED_TRANSPORT);
   await waitFor(
     () => expect(screen.queryByText(/no se guardó/i)).not.toBeInTheDocument(),
     RESUMED_TRANSPORT
   );
+});
+
+it('conflict refreshes the visible catalog and retains the typed rename', async () => {
+  await hospitalDB.open();
+  await catalogs.clear();
+  const ref = doc(sdkDb, `hospitals/${getActiveHospitalId()}/settings/nurses`);
+  await setDoc(ref, { list: ['Synthetic Base'] });
+  // Model an open editor whose listener has not yet delivered the other computer's change.
+  vi.spyOn(remote, 'subscribeToNurseCatalog').mockImplementation(() => () => {});
+  const { wrapper } = createQueryClientTestWrapper();
+  render(<Manager entry={cases[0]} />, { wrapper });
+  await screen.findByText('Synthetic Base');
+  fireEvent.click(screen.getByTitle('Editar'));
+  fireEvent.change(screen.getByDisplayValue('Synthetic Base'), {
+    target: { value: 'Synthetic Draft' },
+  });
+  await setDoc(ref, { list: ['Synthetic Remote Rename'] });
+  fireEvent.click(screen.getByTitle('Guardar'));
+  await screen.findByText(
+    'La lista cambió en otro equipo. Revise la lista actualizada y repita el cambio.',
+    {},
+    RESUMED_TRANSPORT
+  );
+  expect(screen.getByText('Synthetic Remote Rename')).toBeInTheDocument();
+  expect(screen.getByLabelText('Edición pendiente')).toHaveValue('Synthetic Draft');
+  expect((await getDocFromServer(ref)).data()?.list).toEqual(['Synthetic Remote Rename']);
 });
