@@ -89,7 +89,9 @@ const shotsDir = (): string => {
 };
 
 const capture = async (page: Page, name: string) => {
-  await page.screenshot({ path: path.join(shotsDir(), `${name}.png`), fullPage: false });
+  const screenshotPath = path.join(shotsDir(), `${name}.png`);
+  await page.screenshot({ path: screenshotPath, fullPage: false });
+  await test.info().attach(name, { path: screenshotPath, contentType: 'image/png' });
 };
 
 test.describe('Clinical library (preview build)', () => {
@@ -111,6 +113,30 @@ test.describe('Clinical library (preview build)', () => {
     await expect(trigger).toBeVisible({ timeout: 15_000 });
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
     await capture(page, '01-census-with-documents-button');
+
+    // Shared controls must not wrap the four census cards at the supported laptop width.
+    await page.setViewportSize({ width: 1024, height: 768 });
+    const toolbarCards = page
+      .getByTestId('census-staff-and-sync')
+      .locator(
+        '.census-toolbar-staff > .census-toolbar-card, [data-testid="rayen-operations-bar"], [data-testid="census-summary-switcher"]'
+      );
+    await expect(toolbarCards).toHaveCount(4);
+    const bounds = await toolbarCards.evaluateAll(elements =>
+      elements.map(element => {
+        const box = element.getBoundingClientRect();
+        return { top: box.top, left: box.left, right: box.right };
+      })
+    );
+    const firstCard = bounds[0];
+    expect(firstCard).toBeDefined();
+    for (const box of bounds) {
+      expect(Math.abs(box.top - firstCard!.top)).toBeLessThanOrEqual(1);
+      expect(box.left).toBeGreaterThanOrEqual(0);
+      expect(box.right).toBeLessThanOrEqual(1024);
+    }
+    await capture(page, '01b-census-four-cards-1024');
+    await page.setViewportSize({ width: 1440, height: 900 });
 
     await trigger.click();
     const drawer = page.getByTestId('clinical-library-drawer');

@@ -20,3 +20,9 @@ La prueba `Button.test.tsx` verifica contrato nativo, carga, foco, variantes y c
 Biblioteca usa títulos de documento de 13 px y etiquetas, unidades y ayudas de 12 px, con interlineado relajado. Las cifras mantienen `tabular-nums`; las secciones dejan de depender de mayúsculas espaciadas. MEDIF y formularios ya no reducen ayudas ni etiquetas a 10/11 px.
 
 El cambio se limita a la interfaz de Biblioteca: no altera el censo compacto de 1024 px, el tamaño de la plantilla oficial, ni la tipografía de documentos generados. No añade fuentes remotas ni dependencias.
+
+## 3. Paneles y formularios
+
+Cabecera compartida para herramientas de Biblioteca y modales: insignia de icono, título completo con ajuste de línea, acciones flexibles y cierre con geometría y foco comunes. No cambia el control de foco, Escape, confirmación de salida ni borradores.
+
+Secciones con separación de 12 px y campos con ritmo de 8/12 px; no se reordenan campos clínicos ni se alteran agrupaciones semánticas. Las acciones y el título pueden envolver para evitar truncamiento. No se añade un pie fijo que tape campos o foco de teclado.
