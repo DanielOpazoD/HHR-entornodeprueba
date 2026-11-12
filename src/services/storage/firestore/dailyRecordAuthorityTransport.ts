@@ -30,35 +30,30 @@ const readConfirmedAuthorityMutation = async (
 ): Promise<DailyRecordAuthorityCallableResponse | null> => {
   const mutationId = payload.syncContract?.mutationId;
   if (!mutationId || payload.dryRun) return null;
-  try {
-    const snapshot = await getDocFromServer(getRecordDocRef(payload.date));
-    if (!snapshot?.exists() || snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites)
-      return null;
-    const data = snapshot.data();
-    const meta = data.meta;
-    if (
-      data.date !== payload.date ||
-      meta?.lastMutationId !== mutationId ||
-      !Number.isSafeInteger(meta.revision) ||
-      meta.revision <= 0 ||
-      !hasCommitStamp(data.lastUpdated)
-    )
-      return null;
-    const record = docToRecord(data, payload.date);
-    return {
-      success: true,
-      date: payload.date,
-      mode: 'enforced',
-      authorityStatus: 'ok',
-      revision: meta.revision,
-      mutationId,
-      recordState: { lastUpdated: record.lastUpdated, meta, record },
-      violations: [],
-    };
-  } catch {
-    // Unavailable evidence must preserve the original write error and its recovery policy.
+  const snapshot = await getDocFromServer(getRecordDocRef(payload.date));
+  if (!snapshot?.exists() || snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites)
     return null;
-  }
+  const data = snapshot.data();
+  const meta = data.meta;
+  if (
+    data.date !== payload.date ||
+    meta?.lastMutationId !== mutationId ||
+    !Number.isSafeInteger(meta.revision) ||
+    meta.revision <= 0 ||
+    !hasCommitStamp(data.lastUpdated)
+  )
+    return null;
+  const record = docToRecord(data, payload.date);
+  return {
+    success: true,
+    date: payload.date,
+    mode: 'enforced',
+    authorityStatus: 'ok',
+    revision: meta.revision,
+    mutationId,
+    recordState: { lastUpdated: record.lastUpdated, meta, record },
+    violations: [],
+  };
 };
 
 const recoverLostAuthorityResponse = async (
