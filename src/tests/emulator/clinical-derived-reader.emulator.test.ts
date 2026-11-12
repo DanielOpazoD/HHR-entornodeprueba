@@ -3,6 +3,10 @@ import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/
 import { HospitalConfigService } from '@/services/config/HospitalConfigService';
 import { resolveFirestoreRulesEmulatorConfig } from '@/tests/security/firestoreRulesEmulatorConfig';
 
+const { recordOperationalTelemetry } = vi.hoisted(() => ({ recordOperationalTelemetry: vi.fn() }));
+vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
+  recordOperationalTelemetry,
+}));
 let activeDb: unknown;
 vi.mock('@/firebaseConfig', () => ({
   get db() {
@@ -53,6 +57,7 @@ describeEmulator('clinical derived reader against real Firestore', () => {
       .firestore();
   });
   beforeEach(async () => {
+    vi.clearAllMocks();
     HospitalConfigService.setHospitalId('hanga_roa');
     await environment.clearFirestore();
   });
@@ -87,6 +92,7 @@ describeEmulator('clinical derived reader against real Firestore', () => {
         fromCache: false,
       });
     }
+    expect(recordOperationalTelemetry).not.toHaveBeenCalled();
   });
   it.each([
     ['schema', 'ep_a', episode('ep_a', { schemaVersion: 2 })],
@@ -154,6 +160,11 @@ describeEmulator('clinical derived reader against real Firestore', () => {
       await seed([['/clinicalDerived/ep_a', episode('ep_a')]]);
       await readClinicalDerivedEpisodeDocs(DATE, GENERATION, { source: 'server' });
       await db.disableNetwork();
+      expect(await readClinicalDerivedEpisodeDocs('2026-11-03', GENERATION)).toEqual({
+        status: 'resolved',
+        docs: [],
+        fromCache: true,
+      });
       expect(await readClinicalDerivedEpisodeDocs(DATE, GENERATION)).toEqual({
         status: 'resolved',
         docs: [episode('ep_a')],

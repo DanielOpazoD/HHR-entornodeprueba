@@ -220,6 +220,9 @@ describe('day read transport failures', () => {
   it.each([true, false])('rejects pending writes, marked=%s', async marked => {
     state = day(4, marked ? GENERATION : null);
     pending = true;
+    afterQuery = () => {
+      pending = false;
+    };
     expect(await readClinicalDerivedDaySnapshot(DATE)).toEqual({
       status: 'failed',
       code: 'day_changed',
