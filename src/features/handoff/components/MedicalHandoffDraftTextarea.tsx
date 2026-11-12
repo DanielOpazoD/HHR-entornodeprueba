@@ -3,6 +3,7 @@ import type { PatientData } from '@/types/domain/patient';
 import React from 'react';
 
 import {
+  readMedicalHandoffDrafts,
   buildSpecialistHandoffIdentity,
   createMedicalHandoffDraftWriter,
   discardMedicalHandoffDraft,
@@ -93,7 +94,13 @@ const DraftEditor: React.FC<Props> = ({
   };
   const settle = () => {
     const current = sessions.get(key);
-    if (current && !editing() && storedRef.current === current.text) sessions.delete(key);
+    if (
+      current &&
+      !editing() &&
+      storedRef.current === current.text &&
+      !readMedicalHandoffDrafts().some(item => item.slot.includes(`:${current.writer}:`))
+    )
+      sessions.delete(key);
     report();
     render();
   };
@@ -144,7 +151,7 @@ const DraftEditor: React.FC<Props> = ({
   React.useEffect(() => registerMedicalHandoffEditor(key), [key]);
   React.useEffect(() => {
     if (sessions.has(key)) settle();
-  }, [stored]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [stored, drafts]); // eslint-disable-line react-hooks/exhaustive-deps
   // Unmounting never sends: a remount for another patient must not carry this text along.
   React.useEffect(
     () => () => {
@@ -199,7 +206,7 @@ const DraftEditor: React.FC<Props> = ({
         rows={1}
         className="w-full overflow-hidden resize-none rounded border border-slate-200 bg-white px-2 py-1.5 text-[13px] leading-snug focus:ring-2 focus:ring-medical-500 focus:outline-none"
       />
-      {session && (conflict || !own?.durable || (!editingNow && stored !== session.text)) && (
+      {session && (conflict || own?.durable || (!editingNow && stored !== session.text)) && (
         <div role="status" className="text-xs text-amber-800 print:hidden">
           {conflict ? (
             <>
