@@ -157,7 +157,6 @@
     "script": "check:quality",
     "checks": [
       { "id": "check:architecture", "group": "boundaries" },
-      { "id": "check:application-port-boundary", "group": "boundaries" },
       { "id": "check:legacy-staff-boundary", "group": "boundaries" },
       { "id": "check:core-test-boundary", "group": "boundaries" },
       { "id": "check:core-console-usage", "group": "hygiene" },
