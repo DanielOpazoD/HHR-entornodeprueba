@@ -2,7 +2,6 @@ import type { PatientData } from '@/types/domain/patient';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { admitRemoteDailyRecords } from '@/services/repositories/dailyRecordLocalCachePersistence';
 import {
-  getAllRecordsSorted,
   getRecordsForMonth,
   getRecordsRange,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
@@ -34,10 +33,6 @@ export const doStoredDaysHavePatientData = async (dates: string[]): Promise<bool
   const records = await getRecordsRange(ordered[0], ordered[ordered.length - 1]);
   const byDate = new Map(records.map(record => [record.date, record]));
   return dates.every(date => hasPatientData(byDate.get(date)));
-};
-
-export const fetchAllRecordsSorted = async (): Promise<DailyRecord[]> => {
-  return getAllRecordsSorted();
 };
 
 export const fetchRecordsRangeSorted = async (
