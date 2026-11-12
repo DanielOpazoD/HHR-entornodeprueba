@@ -33,11 +33,13 @@ export const diffCatalog = <T extends string | ProfessionalCatalogItem>(
   for (const [id, after] of following) {
     if (!previous.has(id)) changes.push({ kind: 'add', after });
   }
-  const removed = changes.filter(change => change.kind === 'remove');
-  const added = changes.filter(change => change.kind === 'add');
-  if (removed.length !== 1 || added.length !== 1) return changes;
-  const rename = { kind: 'edit' as const, before: removed[0].before, after: added[0].after };
-  return [...changes.filter(change => change.kind === 'edit'), rename];
+  const removed = changes.flatMap(change => (change.kind === 'remove' ? [change.before] : []));
+  const added = changes.flatMap(change => (change.kind === 'add' ? [change.after] : []));
+  const [before] = removed;
+  const [after] = added;
+  if (removed.length !== 1 || added.length !== 1 || before === undefined || after === undefined)
+    return changes;
+  return [...changes.filter(change => change.kind === 'edit'), { kind: 'edit', before, after }];
 };
 
 export const applyCatalogChanges = <T extends string | ProfessionalCatalogItem>(
@@ -53,9 +55,10 @@ export const applyCatalogChanges = <T extends string | ProfessionalCatalogItem>(
       else if (!same(existing, change.after, key)) throw new CatalogConflictError(current);
       continue;
     }
-    const index = result.findIndex(item => key(item) === key(change.before));
-    if (index < 0 || !same(result[index], change.before, key))
+    const row = result.find(item => key(item) === key(change.before));
+    if (row === undefined || !same(row, change.before, key))
       throw new CatalogConflictError(current);
+    const index = result.indexOf(row);
     const after = change.kind === 'edit' ? change.after : undefined;
     const taken = after && result.find(item => key(item) === key(after));
     if (taken && key(after) !== key(change.before) && !same(taken, after, key))
