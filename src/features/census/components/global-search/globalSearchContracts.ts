@@ -30,6 +30,8 @@ export interface EpisodeDocuments {
   episodeKey: string;
   docs: ClinicalDocSummary[];
   isLoading: boolean;
+  /** The read failed: `docs` is unknown, not empty. */
+  loadFailed?: boolean;
 }
 
 // ---------------------------------------------------------------------------
