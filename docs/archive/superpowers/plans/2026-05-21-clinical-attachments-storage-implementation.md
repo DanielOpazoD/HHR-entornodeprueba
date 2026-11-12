@@ -175,7 +175,7 @@
   npm run typecheck
   npm run lint -- --max-warnings 0
   npm run build
-  npm run check:clinical-documents-feature-boundary
+  npx eslint .
   npm run check:application-port-boundary
   git diff --check
   ```

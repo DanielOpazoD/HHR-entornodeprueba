@@ -94,7 +94,7 @@
 - `npm run typecheck`
 - `npm run check:quality`
 - `npm run test:clinical-documents`
-- `npm run check:clinical-documents-feature-boundary`
+- `npx eslint .`
 
 Resultado actual:
 

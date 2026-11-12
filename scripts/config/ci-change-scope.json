@@ -26,10 +26,8 @@
     "controls": [
       "scripts/check-architecture.mjs",
       "scripts/check-bundle-risk-ledger.mjs",
-      "scripts/check-census-feature-boundary.mjs",
       "scripts/check-census-runtime-boundary.mjs",
       "scripts/check-clinical-clock.mjs",
-      "scripts/check-clinical-documents-feature-boundary.mjs",
       "scripts/check-clinical-mutation-audit-policy.mjs",
       "scripts/check-core-console-usage.mjs",
       "scripts/check-core-test-boundary.mjs",
@@ -49,7 +47,6 @@
       "scripts/check-repo-hygiene.mjs",
       "scripts/check-runtime-contracts.mjs",
       "scripts/check-schema-governance.mjs",
-      "scripts/check-shared-layer-boundary.mjs",
       "scripts/check-sync-invariants.mjs",
       "scripts/check-test-governance.mjs",
       "scripts/check-unreachable-modules.mjs"

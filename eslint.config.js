@@ -1,4 +1,5 @@
 import js from '@eslint/js';
+import { publicImportBoundaryRule } from './scripts/lib/publicImportBoundaryRule.mjs';
 import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
 import react from 'eslint-plugin-react';
@@ -78,6 +79,13 @@ const FEATURE_BOUNDARY_RULE = {
         }
       },
     };
+  },
+};
+
+const HHR_PLUGIN = {
+  rules: {
+    'feature-boundaries': FEATURE_BOUNDARY_RULE,
+    'public-import-boundaries': publicImportBoundaryRule,
   },
 };
 
@@ -169,7 +177,7 @@ const FEATURE_BOUNDARY_CONFIGS = [
     files: ['src/features/**/*.{ts,tsx,js,jsx}'],
     ignores: ['**/*.test.*', '**/*.stories.*'],
     languageOptions: { parser: tseslint.parser },
-    plugins: { hhr: { rules: { 'feature-boundaries': FEATURE_BOUNDARY_RULE } } },
+    plugins: { hhr: HHR_PLUGIN },
     rules: { 'hhr/feature-boundaries': 'error' },
   },
   {
@@ -380,6 +388,13 @@ export default tseslint.config(
     },
   },
   ...FEATURE_BOUNDARY_CONFIGS,
+  {
+    files: ['src/**/*.{ts,tsx,js,jsx}'],
+    ignores: ['**/*.d.ts', '**/*.test.*', '**/*.spec.*', '**/*.stories.*'],
+    languageOptions: { parser: tseslint.parser },
+    plugins: { hhr: HHR_PLUGIN },
+    rules: { 'hhr/public-import-boundaries': 'error' },
+  },
   {
     extends: [js.configs.recommended],
     files: ['functions/**/*.js', 'netlify/functions/**/*.js'],
