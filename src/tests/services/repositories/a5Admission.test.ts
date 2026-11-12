@@ -65,6 +65,7 @@ for (const path of ['P', 'B', 'I'] as const) {
       await hospitalDB.dailyRecords.put(local);
       if (holder)
         await hospitalDB.syncQueue.add({
+          opId: 'synthetic-a5-holder',
           type: 'UPDATE_DAILY_RECORD',
           key: `daily:${date}`,
           payload: local,

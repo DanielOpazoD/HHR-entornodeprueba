@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-10-21T01:50:54.102Z",
-  "gitSha": "be28603dd",
+  "generatedAt": "2026-11-12T00:18:26.143Z",
+  "gitSha": "494afd92b",
   "gitDirty": false,
   "generatedFor": {
-    "gitSha": "be28603dd",
+    "gitSha": "494afd92b",
     "gitDirty": false,
-    "treeHash": "e268e00bc374ad83c52f5b77426a3d90020071d1",
+    "treeHash": "6bdea72377215e01abb55f66e2ba964b1fe0b3db",
     "reportId": "quality-metrics",
     "dependencyFingerprint": {
       "algorithm": "sha256:dependency-files-v1",
@@ -15,56 +15,56 @@
     }
   },
   "source": {
-    "fileCount": 2955,
-    "lineCount": 329810,
+    "fileCount": 2939,
+    "lineCount": 341819,
     "zones": [
       {
         "zone": "features",
-        "fileCount": 1358
+        "fileCount": 1355
       },
       {
         "zone": "services",
-        "fileCount": 740
+        "fileCount": 743
       },
       {
         "zone": "hooks",
-        "fileCount": 248
+        "fileCount": 238
       },
       {
         "zone": "components",
-        "fileCount": 201
+        "fileCount": 219
       },
       {
         "zone": "application",
-        "fileCount": 110
+        "fileCount": 91
       },
       {
         "zone": "types",
-        "fileCount": 70
+        "fileCount": 69
       },
       {
         "zone": "shared",
-        "fileCount": 59
+        "fileCount": 56
       },
       {
         "zone": "domain",
-        "fileCount": 45
+        "fileCount": 48
       },
       {
         "zone": "utils",
-        "fileCount": 37
+        "fileCount": 40
       },
       {
         "zone": "context",
-        "fileCount": 29
-      },
-      {
-        "zone": "constants",
-        "fileCount": 21
+        "fileCount": 28
       },
       {
         "zone": "schemas",
-        "fileCount": 17
+        "fileCount": 18
+      },
+      {
+        "zone": "constants",
+        "fileCount": 16
       },
       {
         "zone": "app-shell",
@@ -83,14 +83,6 @@
         "fileCount": 1
       },
       {
-        "zone": "contracts",
-        "fileCount": 1
-      },
-      {
-        "zone": "core",
-        "fileCount": 1
-      },
-      {
         "zone": "firebaseConfig.ts",
         "fileCount": 1
       },
@@ -105,36 +97,79 @@
     ]
   },
   "moduleSize": {
-    "globalMax": 400,
+    "globalMax": 600,
     "allowlistHotspots": 0,
-    "oversizedCount": 0,
-    "topOversized": []
+    "oversizedCount": 1,
+    "topOversized": [
+      {
+        "file": "src/services/storage/indexeddb/indexedDbRecordService.ts",
+        "lines": 601,
+        "limit": 600
+      }
+    ]
   },
   "folderDependencyDebt": {
     "violations": 0,
     "topZonePairs": []
   },
   "tests": {
-    "testFileCount": 2351,
+    "testFileCount": 2768,
     "skippedMarkers": 0,
     "onlyMarkers": 0,
-    "flakeRiskFiles": 0,
-    "flakeRiskFilePaths": [],
-    "megatestFilesOver500": 0,
-    "quarantinedFiles": 0,
-    "knownFailureEntries": 0,
-    "openKnownFailureEntries": 0
+    "flakeRiskFiles": 40,
+    "flakeRiskFilePaths": [
+      "src/tests/components/ExamRequestModal.integration.test.tsx",
+      "src/tests/components/ExamRequestSignature.test.tsx",
+      "src/tests/components/modals/mmradStudySearch.test.ts",
+      "src/tests/components/radiologyExamListMemory.test.ts",
+      "src/tests/emulator/sharedComputerAuthority.emulator.test.ts",
+      "src/tests/emulator-ui/dailyRecordServerConfirmation.emulator-ui.test.ts",
+      "src/tests/emulator-ui/staffCatalogPendingSnapshot.test.tsx",
+      "src/tests/features/admin/AuditView.test.tsx",
+      "src/tests/features/census/StaffShiftDetailsModal.test.tsx",
+      "src/tests/functions/mmradDicomSantiagoFunction.test.ts",
+      "src/tests/hooks/catalogPointReadFailure.test.tsx",
+      "src/tests/hooks/dailyRecordOfflineDurability.test.tsx",
+      "src/tests/hooks/staffingWriteRejections.test.tsx",
+      "src/tests/hooks/useDailyRecordFreshnessGate.test.tsx",
+      "src/tests/hooks/useDailyRecordQuery.test.tsx",
+      "src/tests/hooks/useMinsalStats.test.tsx",
+      "src/tests/hooks/useSessionPermissionGuard.test.ts",
+      "src/tests/netlify/mmradCheckDigitSearch.test.ts",
+      "src/tests/rayen-import/DailyRecordTaskRecovery.test.tsx",
+      "src/tests/rayen-import/RayenImportButton.bootstrap.test.tsx",
+      "src/tests/rayen-import/gestionCamasVerificationPersistenceExtension.test.ts",
+      "src/tests/rayen-import/rayenImportPolicyServerConfirmation.test.ts",
+      "src/tests/scripts/checkClinicalClock.test.ts",
+      "src/tests/services/auth/nursingAccountRole.test.ts",
+      "src/tests/services/auth/nursingAccountSession.test.ts",
+      "src/tests/services/repositories/dailyRecordStaleBasePendingProjection.test.ts",
+      "src/tests/services/storage/dailyRecordTaskRetirement.test.ts",
+      "src/tests/services/storage/indexedDbAuditReadFailure.test.tsx",
+      "src/tests/services/storage/sessionLogoutQueueFencing.test.ts",
+      "src/tests/services/storage/sessionLogoutRetainedDayWork.test.ts",
+      "src/tests/services/storage/sharedComputerRetainedState.test.ts",
+      "src/tests/services/storage/specialistHandoffComposedOutbox.test.tsx",
+      "src/tests/services/storage/syncQueueBaseReview.test.ts",
+      "src/tests/services/storage/syncQueueFailureContext.test.ts",
+      "src/tests/services/storage/syncQueueFunctionsRecovery.test.ts",
+      "src/tests/views/census/clinical-explorer/ClinicalExplorerImaging.test.tsx",
+      "src/tests/views/census/clinical-explorer/ClinicalExplorerLab.test.tsx",
+      "src/tests/views/census/clinical-explorer/clinicalExplorerStore.test.tsx",
+      "src/tests/views/census/exam-orders/CensusExamOrderSelection.test.tsx",
+      "src/tests/views/cudyr/CudyrExplorerLoading.test.tsx"
+    ],
+    "megatestFilesOver500": 3
   },
   "typeSafety": {
-    "explicitAnyCount": 47,
+    "explicitAnyCount": 48,
     "explicitAnySourceCount": 0,
-    "explicitAnyTestCount": 47
+    "explicitAnyTestCount": 48
   },
   "convergence": {
     "accidentalCopies": 0,
     "featureBoundaryViolations": 0,
     "deprecatedShimImports": 0,
-    "dailyRecordBoundaryViolations": 0,
     "governedCompatibilityShims": 3,
     "controllerOwnershipDrift": 0,
     "rawConsoleOutsideStructuredSink": 1
@@ -148,7 +183,7 @@
     "totalSmokeScenarios": 6,
     "mappedFlowBudgets": 7,
     "totalFlowBudgets": 7,
-    "mappedBlockingSteps": 7,
-    "totalBlockingSteps": 7
+    "mappedBlockingSteps": 8,
+    "totalBlockingSteps": 8
   }
 }

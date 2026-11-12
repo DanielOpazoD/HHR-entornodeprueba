@@ -160,7 +160,7 @@ async function prepare(situation: Situation) {
   if (situation === 'local nueva') {
     await hospitalDB.dailyRecords.put({ ...base, lastUpdated: '2026-10-24T14:00:00.000Z' });
   }
-  const remote = {
+  const remote: DailyRecord = {
     ...clone(base),
     nursesDayShift: ['Remota sintética'],
     lastUpdated: '2026-10-24T11:00:00.000Z',
@@ -308,9 +308,11 @@ for (const path of ['suscripción', 'E', 'puntual', 'rango', 'mantenimiento', 'A
           h.offline = true;
           await updatePartialDetailed(
             DATE,
-            Object.fromEntries(
-              Object.entries(fields).map(([k, v]) => ['beds.R4.clinicalCrib.' + k, v])
-            ),
+            {
+              'beds.R4.clinicalCrib.medicalHandoffEntries': fields.medicalHandoffEntries,
+              'beds.R4.clinicalCrib.medicalHandoffNote': fields.medicalHandoffNote,
+              'beds.R4.clinicalCrib.medicalHandoffAudit': fields.medicalHandoffAudit,
+            },
             { baseRecord: remote }
           );
           h.offline = false;
