@@ -465,6 +465,8 @@ it('S3 offline: two beds, then online', async () => {
   await settle(1);
   await type('R3', 'entry-z', 'T5 cama cinco');
   await settle(2);
+  expect(await hospitalDB.syncQueue.count()).toBe(2);
+  expect(h.calls).toHaveLength(0);
   await online();
   await publish();
   await act(async () => {
@@ -473,6 +475,9 @@ it('S3 offline: two beds, then online', async () => {
   expect(notesOf(await readServer(), 'R4')).toContain('entry-x=T4 cama cuatro');
   expect(notesOf(await readServer(), 'R3')).toContain('entry-z=T5 cama cinco');
   expect(await hospitalDB.syncQueue.count()).toBe(0);
+  expect(h.calls).toHaveLength(2);
+  await publish();
+  expect(h.calls).toHaveLength(2);
   expect(drafts()).toEqual([]);
 }, 60_000);
 

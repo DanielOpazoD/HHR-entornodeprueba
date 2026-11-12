@@ -97,7 +97,7 @@ const DraftEditor: React.FC<Props> = ({
     if (
       current &&
       !editing() &&
-      storedRef.current === current.text &&
+      current.sent.includes(current.text) &&
       !readMedicalHandoffDrafts().some(item => item.slot.includes(`:${current.writer}:`))
     )
       sessions.delete(key);
@@ -206,38 +206,42 @@ const DraftEditor: React.FC<Props> = ({
         rows={1}
         className="w-full overflow-hidden resize-none rounded border border-slate-200 bg-white px-2 py-1.5 text-[13px] leading-snug focus:ring-2 focus:ring-medical-500 focus:outline-none"
       />
-      {session && (conflict || own?.durable || (!editingNow && stored !== session.text)) && (
-        <div role="status" className="text-xs text-amber-800 print:hidden">
-          {conflict ? (
-            <>
-              <p>El texto guardado cambió mientras escribías. Elige cuál conservar:</p>
-              <pre className="whitespace-pre-wrap font-sans">{stored}</pre>
-              <button
-                type="button"
-                onClick={() => {
-                  const current = sessions.get(key);
-                  if (current) current.base = stored;
-                  flush(true);
-                }}
-              >
-                Guardar mi texto
-              </button>{' '}
-              <ConfirmDiscardButton
-                label="Usar el texto guardado"
-                onConfirm={() => {
-                  if (own) discardMedicalHandoffDraft(own);
-                  sessions.delete(key);
-                  settle();
-                }}
-              />
-            </>
-          ) : !own?.durable ? (
-            'Borrador solo en memoria. Copia el texto antes de cerrar o cambiar de sesión.'
-          ) : (
-            'Pendiente de confirmar en el servidor.'
-          )}
-        </div>
-      )}
+      {session &&
+        (conflict ||
+          !own?.durable ||
+          (!editingNow && stored !== session.text) ||
+          (own?.durable && stored === session.text)) && (
+          <div role="status" className="text-xs text-amber-800 print:hidden">
+            {conflict ? (
+              <>
+                <p>El texto guardado cambió mientras escribías. Elige cuál conservar:</p>
+                <pre className="whitespace-pre-wrap font-sans">{stored}</pre>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const current = sessions.get(key);
+                    if (current) current.base = stored;
+                    flush(true);
+                  }}
+                >
+                  Guardar mi texto
+                </button>{' '}
+                <ConfirmDiscardButton
+                  label="Usar el texto guardado"
+                  onConfirm={() => {
+                    if (own) discardMedicalHandoffDraft(own);
+                    sessions.delete(key);
+                    settle();
+                  }}
+                />
+              </>
+            ) : !own?.durable ? (
+              'Borrador solo en memoria. Copia el texto antes de cerrar o cambiar de sesión.'
+            ) : (
+              'Pendiente de confirmar en el servidor.'
+            )}
+          </div>
+        )}
       {!session && drafts.some(item => item.key === key && item.value === stored) && (
         <p role="status" className="text-xs text-amber-800 print:hidden">
           Guardado en este equipo; pendiente de confirmar en el servidor.
