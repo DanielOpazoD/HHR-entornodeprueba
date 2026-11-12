@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
-  getRecordForDate: vi.fn(),
+  getRecordForDateStrict: vi.fn(),
   captureLocalRecordBase: async (date: string) => ({
     kind: 'stored',
     record: await getRecordFromIndexedDB(date),
@@ -49,7 +49,7 @@ import {
   syncWithFirestoreDetailed,
 } from '@/services/repositories/dailyRecordRepositorySyncService';
 import {
-  getRecordForDate as getRecordFromIndexedDB,
+  getRecordForDateStrict as getRecordFromIndexedDB,
   saveRecordStrict as saveToIndexedDB,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { subscribeToRecord } from '@/services/storage/firestore/firestoreRecordQueries';

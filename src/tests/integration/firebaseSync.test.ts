@@ -108,7 +108,7 @@ describe('Firebase Sync Integration', () => {
     });
 
     it('should preserve all record fields through save cycle', async () => {
-      const { saveRecord: saveRecordLocal, getRecordForDate } =
+      const { saveRecord: saveRecordLocal, getRecordForDateStrict } =
         await import('@/services/storage/indexeddb/indexedDbRecordService');
 
       const record = createMockRecord('2025-12-13');
@@ -117,7 +117,7 @@ describe('Firebase Sync Integration', () => {
       await saveRecordLocal(record);
 
       // Retrieve from unified local persistence
-      const retrieved = await getRecordForDate('2025-12-13');
+      const retrieved = await getRecordForDateStrict('2025-12-13');
 
       // Verify all fields are preserved
       expect(retrieved).not.toBeNull();
@@ -129,7 +129,7 @@ describe('Firebase Sync Integration', () => {
     });
 
     it('should handle empty nurse/TENS arrays', async () => {
-      const { saveRecord: saveRecordLocal, getRecordForDate } =
+      const { saveRecord: saveRecordLocal, getRecordForDateStrict } =
         await import('@/services/storage/indexeddb/indexedDbRecordService');
 
       const record: DailyRecord = {
@@ -141,7 +141,7 @@ describe('Firebase Sync Integration', () => {
       };
 
       await saveRecordLocal(record);
-      const retrieved = await getRecordForDate('2025-12-13');
+      const retrieved = await getRecordForDateStrict('2025-12-13');
 
       expect(retrieved?.nursesDayShift).toEqual([]);
       expect(retrieved?.nursesNightShift).toBeUndefined();

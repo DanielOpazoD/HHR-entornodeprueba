@@ -16,7 +16,7 @@ const storage = vi.hoisted(() => ({
 }));
 export { storage };
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
-  getRecordForDate: storage.localRead,
+  getRecordForDateStrict: storage.localRead,
   saveRecord: storage.localSave,
   saveRecordStrict: storage.localSave,
 }));

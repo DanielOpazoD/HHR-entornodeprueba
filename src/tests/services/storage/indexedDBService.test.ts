@@ -7,7 +7,7 @@ import {
   getAllDates,
   getAllRecords,
   getPreviousDayRecord,
-  getRecordForDate,
+  getRecordForDateStrict,
   getRecordsForMonth,
   saveRecord,
   saveRecordStrict,
@@ -139,7 +139,7 @@ describe('indexedDBService', () => {
       });
       expect(result).toMatchObject({ ok: true, store: 'fallback' });
       expect(queueRead).not.toHaveBeenCalled();
-      expect(await getRecordForDate(mockRecord.date)).toMatchObject(mockRecord);
+      expect(await getRecordForDateStrict(mockRecord.date)).toMatchObject(mockRecord);
     });
 
     it('should report the backing store used by strict record saves', async () => {
@@ -151,7 +151,7 @@ describe('indexedDBService', () => {
         store: 'indexeddb',
         dates: ['2025-01-01'],
       });
-      await expect(getRecordForDate('2025-01-01')).resolves.toMatchObject({
+      await expect(getRecordForDateStrict('2025-01-01')).resolves.toMatchObject({
         date: '2025-01-01',
       });
     });
@@ -161,7 +161,7 @@ describe('indexedDBService', () => {
 
       expect(result.ok).toBe(true);
       expect(localStorage.getItem('hanga_roa_hospital_data')).toBeNull();
-      await expect(getRecordForDate('2025-01-01')).resolves.toMatchObject({
+      await expect(getRecordForDateStrict('2025-01-01')).resolves.toMatchObject({
         date: '2025-01-01',
       });
     });
@@ -185,12 +185,12 @@ describe('indexedDBService', () => {
 
     it('should save and retrieve a record', async () => {
       await saveRecord(mockRecord);
-      const retrieved = await getRecordForDate('2025-01-01');
+      const retrieved = await getRecordForDateStrict('2025-01-01');
       expect(retrieved).toMatchObject({ date: '2025-01-01' });
     });
 
     it('should return null for non-existent record', async () => {
-      const retrieved = await getRecordForDate('9999-12-31');
+      const retrieved = await getRecordForDateStrict('9999-12-31');
       expect(retrieved).toBeNull();
     });
 
@@ -225,7 +225,7 @@ describe('indexedDBService', () => {
     it('should delete a record', async () => {
       await saveRecord(mockRecord);
       await deleteRecord('2025-01-01');
-      const retrieved = await getRecordForDate('2025-01-01');
+      const retrieved = await getRecordForDateStrict('2025-01-01');
       expect(retrieved).toBeNull();
     });
 
@@ -315,7 +315,7 @@ describe('indexedDBService', () => {
       expect(announced).toEqual([{ operation: 'save', dates: ['2025-01-01'] }]);
       expect(steps).toEqual(['written', 'announced']);
 
-      expect(await getRecordForDate('2025-01-01')).toBeDefined();
+      expect(await getRecordForDateStrict('2025-01-01')).toBeDefined();
       expect(await getCatalog('nurses')).toEqual(['Alice']);
       expect(await getCatalog('tens')).toEqual(['Bob']);
       const logs = await getAuditLogs();

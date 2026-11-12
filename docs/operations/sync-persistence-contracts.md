@@ -17,7 +17,7 @@ sintéticos; estas pruebas no confirman el estado de un censo real.
 Para nuevos incidentes, construir el fixture con el constructor/esquema canónico y
 atravesar la normalización que intervenga en el fallo. En el recorrido RN se usa
 `prepareDailyRecordForPersistence`, `saveRecordStrict`, cierre/apertura de Dexie y
-`getRecordForDate`; una referencia en memoria no reemplaza esa lectura.
+`getRecordForDateStrict`; una referencia en memoria no reemplaza esa lectura.
 
 No duplicar pruebas históricas ya existentes: extender el recorrido que falte y
 conservar casos de cama reutilizada, cuna agregada después de revisar y falta de

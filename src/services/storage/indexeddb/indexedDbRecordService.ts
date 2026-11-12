@@ -138,41 +138,27 @@ export const getRecordsRange = async (
 
 /** The local day, or null when there is none; a failed read throws instead of looking empty. */
 export const getRecordForDateStrict = async (date: string): Promise<DailyRecord | null> => {
-  await ensureDbReady();
-
-  if (isDatabaseInFallbackMode()) {
-    return localPersistence.records.getForDate(date);
+  try {
+    await ensureDbReady();
+    if (isDatabaseInFallbackMode()) return localPersistence.records.getForDate(date);
+    return (await db.dailyRecords.get(date)) || null;
+  } catch (error) {
+    recordOperationalErrorTelemetry('indexeddb', 'indexeddb_get_record_for_date', error, {
+      code: 'indexeddb_get_record_for_date_failed',
+      message: `No fue posible obtener el registro del dia ${date}.`,
+      severity: 'warning',
+      userSafeMessage: 'No fue posible recuperar el registro solicitado.',
+      context: { date },
+    });
+    throw error;
   }
-
-  const record = await db.dailyRecords.get(date);
-  return record || null;
-};
-
-const reportRecordReadFailure = (date: string, error: unknown): void => {
-  recordOperationalErrorTelemetry('indexeddb', 'indexeddb_get_record_for_date', error, {
-    code: 'indexeddb_get_record_for_date_failed',
-    message: `No fue posible obtener el registro del dia ${date}.`,
-    severity: 'warning',
-    userSafeMessage: 'No fue posible recuperar el registro solicitado.',
-    context: { date },
-  });
 };
 
 export const captureLocalRecordBase = async (date: string): Promise<LocalRecordBase> => {
   try {
     return { kind: 'stored', record: await getRecordForDateStrict(date) };
-  } catch (error) {
-    reportRecordReadFailure(date, error);
+  } catch {
     return { kind: 'unknown' };
-  }
-};
-
-export const getRecordForDate = async (date: string): Promise<DailyRecord | null> => {
-  try {
-    return await getRecordForDateStrict(date);
-  } catch (error) {
-    reportRecordReadFailure(date, error);
-    return null;
   }
 };
 
@@ -534,7 +520,7 @@ export const getAllDates = async (): Promise<string[]> => {
       severity: 'warning',
       userSafeMessage: 'No fue posible recuperar las fechas locales disponibles.',
     });
-    return [];
+    throw error;
   }
 };
 
@@ -554,7 +540,7 @@ export const getPreviousDayRecord = async (currentDate: string): Promise<DailyRe
       userSafeMessage: 'No fue posible recuperar el registro del dia previo.',
       context: { currentDate },
     });
-    return null;
+    throw error;
   }
 };
 

@@ -28,7 +28,7 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('available dates reading', () => {
-  it('collapses concurrent startup callers into a single remote read', async () => {
+  it('collapses concurrent callers into a single remote read', async () => {
     const getAvailableDates = await load();
     const [a, b] = await Promise.all([getAvailableDates(), getAvailableDates()]);
     expect(mocks.remoteDates).toHaveBeenCalledTimes(1);
@@ -46,7 +46,10 @@ describe('available dates reading', () => {
   it('lets a later call retry after a failed shared read', async () => {
     mocks.remoteDates.mockRejectedValueOnce(new Error('sin red'));
     const getAvailableDates = await load();
-    await expect(getAvailableDates()).resolves.toEqual(['2026-09-10']);
+    await expect(getAvailableDates()).rejects.toMatchObject({
+      status: 'partial',
+      failed: 'remote',
+    });
     await expect(getAvailableDates()).resolves.toEqual(
       expect.arrayContaining(['2026-09-11', '2026-09-10'])
     );

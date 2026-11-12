@@ -64,13 +64,13 @@ describe('DailyRecordRepository persistence and copy flows', () => {
       'beds.R1.patientName': 'New Name',
       'beds.R1.rut': '12.345.678-9',
     };
-    indexedDbFacadeMock.getRecordForDate.mockImplementation(async date =>
+    indexedDbFacadeMock.getRecordForDateStrict.mockImplementation(async date =>
       date === mockDate ? mockRecord : null
     );
 
     await Repository.updatePartial(mockDate, patch);
 
-    expect(indexedDbFacadeMock.getRecordForDate).toHaveBeenCalledWith(mockDate);
+    expect(indexedDbFacadeMock.getRecordForDateStrict).toHaveBeenCalledWith(mockDate);
     expect(firestoreMock.updateRecordPartial).toHaveBeenCalledWith(
       mockDate,
       expect.anything(),
@@ -108,7 +108,7 @@ describe('DailyRecordRepository persistence and copy flows', () => {
     };
     recordsByDate.set(sourceDate, sourceRecord);
 
-    indexedDbFacadeMock.getRecordForDate.mockImplementation(async date => {
+    indexedDbFacadeMock.getRecordForDateStrict.mockImplementation(async date => {
       return recordsByDate.get(date) ?? null;
     });
     indexedDbFacadeMock.saveRecord.mockImplementation(async record => {
@@ -163,7 +163,7 @@ describe('DailyRecordRepository persistence and copy flows', () => {
       },
     };
 
-    indexedDbFacadeMock.getRecordForDate.mockImplementation(async date => {
+    indexedDbFacadeMock.getRecordForDateStrict.mockImplementation(async date => {
       if (date === sourceDate) return sourceRecord;
       if (date === targetDate) return targetRecord;
       return null;
@@ -207,7 +207,7 @@ describe('DailyRecordRepository persistence and copy flows', () => {
     };
     recordsByDate.set(sourceDate, sourceRecord);
 
-    indexedDbFacadeMock.getRecordForDate.mockImplementation(async date => {
+    indexedDbFacadeMock.getRecordForDateStrict.mockImplementation(async date => {
       return recordsByDate.get(date) ?? null;
     });
     indexedDbFacadeMock.saveRecord.mockImplementation(async record => {

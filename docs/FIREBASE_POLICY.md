@@ -2,21 +2,28 @@
 
 ## ⚠️ DECLARACIÓN DE PRINCIPIOS
 
-Este proyecto (**HHR-entornoprueba**) es un **entorno beta/staging** que opera bajo las siguientes reglas estrictas:
+Este repositorio (**HHR-entornodeprueba**) publica la aplicación clínica del Hospital Hanga Roa.
+Su proyecto de Firebase, `hhr-pruebas`, conserva ese nombre por historia, pero **guarda datos
+reales de pacientes**: un merge a `main` publica la app (Netlify) y despliega Functions contra él.
+Opera bajo las siguientes reglas estrictas:
 
 ---
 
-## 🧪 ENTORNO BETA: `hhr-pruebas`
+## 🏥 PROYECTO EN USO CLÍNICO: `hhr-pruebas`
 
-| Atributo        | Valor         |
-| --------------- | ------------- |
-| **Project ID**  | `hhr-pruebas` |
-| **Lectura**     | ✅ Permitido  |
-| **Escritura**   | ✅ Permitido  |
-| **Eliminación** | ✅ Permitido  |
+| Atributo        | Valor                                                                |
+| --------------- | -------------------------------------------------------------------- |
+| **Project ID**  | `hhr-pruebas`                                                        |
+| **Lectura**     | Solo a través de la aplicación y de sus reglas                       |
+| **Escritura**   | Solo a través de la aplicación y de sus reglas                       |
+| **Eliminación** | ⛔ Nunca a mano; ninguna prueba ni script borra o modifica sus datos |
 
-Este es el entorno donde se guardan todos los cambios realizados desde este proyecto.
-Es seguro experimentar, probar nuevas funcionalidades y modificar datos.
+Es el destino de la aplicación publicada y de las Functions que despliega CI
+(`netlify.toml`, `.github/workflows/deploy-functions.yml`). **No es un entorno para experimentar.**
+
+Para probar o experimentar se usan datos sintéticos y el emulador local, que se levanta con
+`scripts/lib/firebase-emulator-ci.sh`. Las pruebas nunca leen ni sincronizan con este proyecto
+(ver «Pruebas y datos reales» en [AGENTS.md](../AGENTS.md)).
 
 ---
 
@@ -42,14 +49,14 @@ La política de [control de almacenamiento](FIRESTORE_STORAGE_COST_CONTROL.md)
 conserva datos y auditoría, excluye de índices los contenidos que no se consultan
 por campo y activa el TTL de las copias de conflicto que ya vencen a las 48 horas.
 Los cambios del proyecto publicado se aplican como operación explícita de
-metadatos; el despliegue beta no cambia su destino ni sus permisos.
+metadatos; el despliegue de la aplicación no cambia su destino ni sus permisos.
 
 ```
 ┌─────────────────────────────────────┐
-│      hhr-pruebas (BETA)             │
+│   hhr-pruebas (USO CLÍNICO)         │
 │   ─────────────────────────────     │
-│   Entorno de desarrollo/pruebas     │
-│   ✅ Lectura y escritura            │
+│   Datos reales de pacientes         │
+│   Lectura y escritura vía la app    │
 └──────────────┬──────────────────────┘
                │
                │ SINCRONIZACIÓN
@@ -72,13 +79,13 @@ camino de persistencia vigente y mantiene la normalización de documentos antigu
 
 ## 📁 Archivos de Configuración
 
-| Archivo                  | Entorno              | Uso                                                                                   |
-| ------------------------ | -------------------- | ------------------------------------------------------------------------------------- |
-| `.env`                   | Beta (`hhr-pruebas`) | Desarrollo local                                                                      |
-| `.env.staging`           | Beta (`hhr-pruebas`) | Referencia                                                                            |
-| `.env.production`        | ⚠️ Producción        | **NO USAR en este proyecto**                                                          |
-| `.env.local`             | Tu máquina           | Config local con secretos. Cargado por el dev server **y** por vitest. **gitignored** |
-| `.env.development.local` | Solo dev local       | Overrides cargados por `vite` (modo `development`), **NO** por vitest. **gitignored** |
+| Archivo                  | Entorno                     | Uso                                                                                   |
+| ------------------------ | --------------------------- | ------------------------------------------------------------------------------------- |
+| `.env`                   | `hhr-pruebas` (uso clínico) | Desarrollo local                                                                      |
+| `.env.staging`           | Beta (`hhr-pruebas`)        | Referencia                                                                            |
+| `.env.production`        | ⚠️ Producción               | **NO USAR en este proyecto**                                                          |
+| `.env.local`             | Tu máquina                  | Config local con secretos. Cargado por el dev server **y** por vitest. **gitignored** |
+| `.env.development.local` | Solo dev local              | Overrides cargados por `vite` (modo `development`), **NO** por vitest. **gitignored** |
 
 ---
 

@@ -16,7 +16,7 @@ import {
 import { isSpecialistScopedDailyRecordPatch } from './dailyRecordClinicalDomainService';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import { getRecordForDate as getRecordFromIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { getRecordForDateStrict } from '@/services/storage/indexeddb/indexedDbRecordService';
 import {
   saveRecordToFirestore,
   updateRecordPartial as updateRecordPartialToFirestore,
@@ -186,7 +186,19 @@ const resolvePartialUpdateBaseRecord = async (
     if (options.specialtyIntent?.kind === 'manual') {
       // A preceding write in this date's turn may already have adopted a newer day locally.
       // This is only a proposed CAS base: the server still confirms the episode and decision.
-      const localRecord = await getRecordFromIndexedDB(date).catch(() => null);
+      let localRecord: DailyRecord | null;
+      try {
+        localRecord = await getRecordForDateStrict(date);
+      } catch {
+        try {
+          localRecord = await getRecordForDateStrict(date);
+        } catch {
+          // The explicit caller base is a CAS proposal, never evidence of local absence.
+          // Manual specialty policy requires atomic remote authority and its committed receipt;
+          // stale revisions and changed episodes/decisions cannot overwrite the server.
+          return options.baseRecord;
+        }
+      }
       if (
         isValidRemoteAuthorityRecord(localRecord, date) &&
         (resolveRecordBaseRevision(localRecord) ?? -1) >
@@ -211,7 +223,7 @@ const saveDetailedWithinLock = async (
   const remoteState = createRemoteWriteState();
   let validatedRecord: DailyRecord = command.record;
   try {
-    const currentLocalRecord = await getRecordFromIndexedDB(command.date);
+    const currentLocalRecord = await getRecordForDateStrict(command.date);
     validatedRecord = prepareDailyRecordForPersistence(
       command.record,
       command.date,

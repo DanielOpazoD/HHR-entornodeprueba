@@ -26,7 +26,7 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
       record: candidate.record,
     }))
   ),
-  getRecordForDate: vi.fn(),
+  getRecordForDateStrict: vi.fn(),
   saveRecord: vi.fn(),
   saveRecordStrict: vi.fn(async record => ({
     ok: true,
@@ -90,7 +90,7 @@ import {
   updatePartialDetailed,
 } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import {
-  getRecordForDate as getRecordFromIndexedDB,
+  getRecordForDateStrict as getRecordFromIndexedDB,
   saveRecordStrict as saveToIndexedDB,
   admitLocalRecords,
 } from '@/services/storage/indexeddb/indexedDbRecordService';

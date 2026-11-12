@@ -1,19 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * Ratchet: no new data-layer read may turn a failure into "no data".
- *
- * A `catch` that returns `[]`, `null`, `{}` or an empty Map/Set without rethrowing hands its
- * caller something it cannot tell apart from a real empty result. A census email, an export or
- * a backup then goes out incomplete, and a missing record can look like a discharge or a free
- * bed. The data layer (repositories, Firestore, IndexedDB and sync) still has such reads; they
- * are listed in scripts/config/empty-on-failure-reads-baseline.json, one entry per catch.
- *
- * The check fails when a new one appears (throw, or return a result the caller must handle), and
- * when a listed one disappears without being removed from the baseline, so the list only shrinks.
+ * Data-layer reads must never turn failure into an empty result.
  * Optional browser capability probes with a complete fallback may mark each empty return with
  * `// empty-on-failure-allow optional-capability: <reason>` on the immediately preceding line.
- * This local exception is never for data reads. `--write-baseline` rewrites the remaining backlog.
+ * This local exception is never for data reads. No inherited exceptions are accepted.
  */
 
 import fs from 'node:fs';
@@ -21,7 +12,6 @@ import path from 'node:path';
 import ts from 'typescript';
 
 const ROOT = process.cwd();
-const BASELINE_PATH = 'scripts/config/empty-on-failure-reads-baseline.json';
 const AREAS = [
   'src/features/laboratory/services/labFirestoreService.ts',
   'src/services/repositories',
@@ -163,41 +153,14 @@ const findEntries = () => {
   return entries.sort();
 };
 
-const count = list =>
-  list.reduce((map, item) => map.set(item, (map.get(item) ?? 0) + 1), new Map());
-
 const current = findEntries();
-
-if (process.argv.includes('--write-baseline')) {
-  fs.writeFileSync(
-    path.join(ROOT, BASELINE_PATH),
-    `${JSON.stringify({ version: 1, entries: current }, null, 2)}\n`
-  );
-  console.log(`[empty-on-failure-reads] Baseline written: ${current.length} entries.`);
+if (current.length === 0) {
+  console.log('[empty-on-failure-reads] OK (no reads return empty on failure).');
   process.exit(0);
 }
-
-const baseline = JSON.parse(fs.readFileSync(path.join(ROOT, BASELINE_PATH), 'utf8')).entries;
-const currentCounts = count(current);
-const baselineCounts = count(baseline);
-const added = [...currentCounts].filter(([key, n]) => n > (baselineCounts.get(key) ?? 0));
-const fixed = [...baselineCounts].filter(([key, n]) => n > (currentCounts.get(key) ?? 0));
-
-if (added.length === 0 && fixed.length === 0) {
-  console.log(
-    `[empty-on-failure-reads] OK (${current.length} known reads still return empty on failure; 0 new).`
-  );
-  process.exit(0);
-}
-
-for (const [key] of added) {
+for (const key of new Set(current)) {
   console.error(
     `- new: ${key} returns empty on failure. Throw, or return a result the caller must handle. Only optional browser capabilities (Storage, BroadcastChannel, etc.), never data reads, may use an immediately preceding "// empty-on-failure-allow optional-capability: <reason>".`
-  );
-}
-for (const [key] of fixed) {
-  console.error(
-    `- fixed: ${key} no longer returns empty on failure. Remove it from ${BASELINE_PATH}.`
   );
 }
 process.exit(1);

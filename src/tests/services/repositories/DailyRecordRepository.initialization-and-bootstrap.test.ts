@@ -17,7 +17,7 @@ describe('DailyRecordRepository initialization and bootstrap flows', () => {
   });
 
   it('returns existing record if initializeDay finds one', async () => {
-    indexedDbFacadeMock.getRecordForDate.mockResolvedValue(mockRecord);
+    indexedDbFacadeMock.getRecordForDateStrict.mockResolvedValue(mockRecord);
     const result = await Repository.initializeDay(mockDate);
     expect(result).toMatchObject({
       ...mockRecord,
@@ -38,7 +38,7 @@ describe('DailyRecordRepository initialization and bootstrap flows', () => {
       beds: { R1: buildPatient({ patientName: 'Patient X', admissionDate: '2024-12-30' }) },
     };
 
-    indexedDbFacadeMock.getRecordForDate.mockImplementation(async date =>
+    indexedDbFacadeMock.getRecordForDateStrict.mockImplementation(async date =>
       date === '2024-12-31' ? prevRecord : null
     );
     firestoreMock.getRecordFromFirestore.mockResolvedValueOnce(null);
@@ -64,7 +64,7 @@ describe('DailyRecordRepository initialization and bootstrap flows', () => {
       },
     };
 
-    indexedDbFacadeMock.getRecordForDate.mockImplementation(async date => {
+    indexedDbFacadeMock.getRecordForDateStrict.mockImplementation(async date => {
       if (date === mockDate) return null;
       if (date === '2024-12-31') return prevRecord;
       return null;
@@ -77,7 +77,7 @@ describe('DailyRecordRepository initialization and bootstrap flows', () => {
   });
 
   it('falls back to firestore during initialization if not found locally', async () => {
-    indexedDbFacadeMock.getRecordForDate.mockResolvedValueOnce(null);
+    indexedDbFacadeMock.getRecordForDateStrict.mockResolvedValueOnce(null);
     firestoreMock.getRecordFromFirestore.mockResolvedValueOnce(mockRecord);
 
     const result = await Repository.initializeDay(mockDate);
@@ -114,7 +114,7 @@ describe('DailyRecordRepository initialization and bootstrap flows', () => {
       },
     };
 
-    indexedDbFacadeMock.getRecordForDate.mockImplementation(async date =>
+    indexedDbFacadeMock.getRecordForDateStrict.mockImplementation(async date =>
       date === '2024-12-31' ? copySourceRecord : null
     );
     let mockDateFetchCount = 0;
@@ -135,7 +135,7 @@ describe('DailyRecordRepository initialization and bootstrap flows', () => {
   });
 
   it('creates a fresh record when Firestore has no record', async () => {
-    indexedDbFacadeMock.getRecordForDate.mockResolvedValueOnce(null);
+    indexedDbFacadeMock.getRecordForDateStrict.mockResolvedValueOnce(null);
     firestoreMock.getRecordFromFirestore.mockResolvedValueOnce(null);
 
     const result = await Repository.initializeDay(mockDate);
@@ -145,7 +145,7 @@ describe('DailyRecordRepository initialization and bootstrap flows', () => {
   });
 
   it('creates a fresh record if no previous day exists', async () => {
-    indexedDbFacadeMock.getRecordForDate.mockResolvedValue(null);
+    indexedDbFacadeMock.getRecordForDateStrict.mockResolvedValue(null);
     firestoreMock.getRecordFromFirestore.mockResolvedValue(null);
     indexedDbFacadeMock.getPreviousDayRecord.mockResolvedValue(null);
 
@@ -156,7 +156,7 @@ describe('DailyRecordRepository initialization and bootstrap flows', () => {
 
   it('handles firestore errors during initializeDay gracefully', async () => {
     const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    indexedDbFacadeMock.getRecordForDate.mockResolvedValue(null);
+    indexedDbFacadeMock.getRecordForDateStrict.mockResolvedValue(null);
     firestoreMock.getRecordFromFirestore.mockRejectedValue(new Error('FS Error'));
 
     await expect(Repository.initializeDay(mockDate)).rejects.toThrow('FS Error');
@@ -177,7 +177,7 @@ describe('DailyRecordRepository initialization and bootstrap flows', () => {
       },
     };
 
-    indexedDbFacadeMock.getRecordForDate.mockImplementation(async date =>
+    indexedDbFacadeMock.getRecordForDateStrict.mockImplementation(async date =>
       date === '2024-12-31' ? prevRecord : null
     );
     firestoreMock.getRecordFromFirestore.mockResolvedValueOnce(null);
