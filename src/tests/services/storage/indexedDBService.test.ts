@@ -6,7 +6,6 @@ import {
   deleteRecord,
   getAllDates,
   getAllRecords,
-  getAllRecordsSorted,
   getPreviousDayRecord,
   getRecordForDate,
   getRecordsForMonth,
@@ -230,15 +229,15 @@ describe('indexedDBService', () => {
       expect(retrieved).toBeNull();
     });
 
-    it('should bulk save and return all records sorted descending', async () => {
+    it('should bulk save all records', async () => {
       await saveRecordsStrict([
         { ...mockRecord, date: '2025-01-02' },
         { ...mockRecord, date: '2025-01-03' },
         { ...mockRecord, date: '2025-01-01' },
       ]);
 
-      const sorted = await getAllRecordsSorted();
-      expect(sorted.map(record => record.date)).toEqual(['2025-01-03', '2025-01-02', '2025-01-01']);
+      const stored = await getAllRecords();
+      expect(Object.keys(stored).sort()).toEqual(['2025-01-01', '2025-01-02', '2025-01-03']);
     });
   });
 

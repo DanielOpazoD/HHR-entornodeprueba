@@ -18,6 +18,12 @@ export const CensusEmailConfigModal = lazyWithRetry(() =>
   }))
 );
 
+export const GlobalPatientSearchModal = lazyWithRetry(() =>
+  import('@/features/census/public-components').then(module => ({
+    default: module.GlobalPatientSearchModal,
+  }))
+);
+
 export const AnalyticsView = lazyWithRetry(() =>
   import('@/application/analytics/public').then(module => ({
     default: module.AnalyticsView,
@@ -169,5 +175,7 @@ export const WhatsAppIntegrationView = lazyWithRetry(() =>
 );
 
 export const AdmissionAuditView = lazyWithRetry(() =>
-  import('@/features/admin/admission-audit').then(module => ({ default: module.AdmissionAuditView }))
+  import('@/features/admin/admission-audit').then(module => ({
+    default: module.AdmissionAuditView,
+  }))
 );

@@ -6,13 +6,11 @@ const mocks = vi.hoisted(() => ({
   range: vi.fn(),
   month: vi.fn(),
   localRange: vi.fn(),
-  all: vi.fn(),
   save: vi.fn(),
 }));
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordsForMonth: mocks.month,
   getRecordsRange: mocks.localRange,
-  getAllRecordsSorted: mocks.all,
 }));
 vi.mock('@/services/repositories/dailyRecordLocalCachePersistence', () => ({
   admitRemoteDailyRecords: mocks.save,
@@ -52,11 +50,9 @@ describe('record query local/remote boundary', () => {
     const service = await import('@/services/records/recordQueryService');
     const records = [day('2026-04-02', 'Synthetic'), day('2026-04-03', '   ')];
     mocks.month.mockResolvedValue(records);
-    mocks.all.mockResolvedValue(records);
     mocks.localRange.mockResolvedValue([...records]);
     expect(await service.fetchRecordsForMonth(2026, 4)).toBe(records);
     expect(await service.fetchExistingDaysInMonth(2026, 4)).toEqual([2]);
-    expect(await service.fetchAllRecordsSorted()).toBe(records);
     expect(await service.fetchRecordsRangeSorted('2026-04-01', '2026-04-30')).toEqual([
       records[1],
       records[0],

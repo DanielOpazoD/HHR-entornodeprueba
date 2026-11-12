@@ -88,7 +88,7 @@ export const getAllRecords = async (): Promise<Record<string, DailyRecord>> => {
       severity: 'warning',
       userSafeMessage: 'No fue posible recuperar todos los registros locales.',
     });
-    return {};
+    throw error;
   }
 };
 
@@ -535,25 +535,6 @@ export const getAllDates = async (): Promise<string[]> => {
       userSafeMessage: 'No fue posible recuperar las fechas locales disponibles.',
     });
     throw error;
-  }
-};
-
-export const getAllRecordsSorted = async (): Promise<DailyRecord[]> => {
-  try {
-    await ensureDbReady();
-    if (isDatabaseInFallbackMode()) {
-      return sortRecordsDescending(Object.values(await localPersistence.records.getAll()));
-    }
-
-    return await db.dailyRecords.orderBy('date').reverse().toArray();
-  } catch (error) {
-    recordOperationalErrorTelemetry('indexeddb', 'indexeddb_get_sorted_records', error, {
-      code: 'indexeddb_get_sorted_records_failed',
-      message: 'No fue posible obtener registros locales ordenados.',
-      severity: 'warning',
-      userSafeMessage: 'No fue posible recuperar registros locales ordenados.',
-    });
-    return [];
   }
 };
 
