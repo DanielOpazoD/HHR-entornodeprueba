@@ -256,10 +256,9 @@ describeEmulator('server confirmation with real Firestore cache metadata', () =>
       await waitFor(() => expect(read()?.runtime.serverConfirmed).toBe(false));
       expect(read()?.record).toBeNull();
       expect(read()?.runtime.availabilityState).not.toBe('confirmed_missing');
-      const result = await readDailyRecordQuery({ getForDateWithMeta }, date);
-      expect(result.record).toBeNull();
-      expect(result.runtime.availabilityState).not.toBe('confirmed_missing');
-      expect(result.runtime.serverConfirmed).toBe(false);
+      await expect(readDailyRecordQuery({ getForDateWithMeta }, date)).rejects.toThrow(
+        'client is offline'
+      );
       expect(await getRecordFromFirestoreDetailed(date, { source: 'server' })).toMatchObject({
         status: 'failed',
         record: null,
