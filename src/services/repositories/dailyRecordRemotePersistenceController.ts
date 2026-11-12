@@ -359,6 +359,9 @@ export const persistLocalAndAttemptRemoteSync = async ({
         toRejectedOutboxPersistenceResult(outboxResult),
         remoteState
       );
+      if (outboxResult.mode === 'retained_for_owner') {
+        remoteState.observabilityTags.push('sync_queue_write_retained_for_owner');
+      }
       return 'return';
     }
     markLocalWriteSucceeded(remoteState);

@@ -181,7 +181,7 @@ const buildPatchRebase =
  * The outbox task one write leaves for the day. When an unresolved write still holds the stored
  * projection as its payload, the write lands on that projection and keeps that write's remote base.
  */
-const foldWriteIntoOutbox = ({
+export const foldWriteIntoOutbox = ({
   task,
   existing,
   stored,

@@ -204,7 +204,8 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
   },
   async saveDailyRecordWithTask(record, task, patchWrite, wholeRecordBase, authoringSession) {
     // Dexie.waitFor keeps an enclosing transaction (a backup import) alive across the module load.
-    const { saveDailyRecordInOutbox } = await Dexie.waitFor(loadDailyRecordOutbox());
+    const { saveDailyRecordInOutbox, foldWriteIntoOutbox } =
+      await Dexie.waitFor(loadDailyRecordOutbox());
     const save = () => saveDailyRecordInOutbox(record, task, patchWrite, wholeRecordBase);
     type Written = Awaited<ReturnType<typeof save>> | 'retained_for_owner';
     // Checked in the transaction that writes: logout clears the days in one of its own.
@@ -216,7 +217,20 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
           (): Promise<Written> =>
             isAuthoringSessionCurrent(authoringSession)
               ? save()
-              : retainForAuthor(task, authoringSession)
+              : retainForAuthor(
+                  task.type === 'UPDATE_DAILY_RECORD'
+                    ? foldWriteIntoOutbox({
+                        task,
+                        existing: null,
+                        stored: undefined,
+                        unresolved: [],
+                        rebase: undefined,
+                        wholeRecordBase,
+                        patchWrite,
+                      })
+                    : task,
+                  authoringSession
+                )
         )
       : await save();
     if (written === 'retained_for_owner') return written;
