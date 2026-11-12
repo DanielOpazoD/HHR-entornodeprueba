@@ -44,6 +44,31 @@ describe('EpisodeBlockCard', () => {
     expect(screen.getByRole('button', { name: /Documentos clinicos/i })).toBeInTheDocument();
   });
 
+  it('says the documents could not be loaded and lets the person retry', () => {
+    const onLoadDocuments = vi.fn();
+    const episodeKey = '18.781.542-8__2026-04-12';
+    render(
+      <EpisodeBlockCard
+        episode={closedEpisode}
+        rut="18.781.542-8"
+        episodeDocuments={{
+          [episodeKey]: { episodeKey, docs: [], isLoading: false, loadFailed: true },
+        }}
+        onLoadDocuments={onLoadDocuments}
+        onDownloadPdf={vi.fn()}
+        onNavigateToDate={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Documentos clinicos/i }));
+    expect(screen.getByText(/No se pudieron cargar los documentos/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Sin documentos clinicos/i)).not.toBeInTheDocument();
+
+    onLoadDocuments.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+    expect(onLoadDocuments).toHaveBeenCalledWith(episodeKey);
+  });
+
   it('opens the clinical document viewer from a listed document row', () => {
     const onOpenClinicalDocument = vi.fn();
     const doc = {

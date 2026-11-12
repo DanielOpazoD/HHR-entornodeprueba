@@ -103,7 +103,7 @@ export const EpisodeBlockCard: React.FC<EpisodeBlockCardProps> = ({
 
   const handleToggleDocs = useCallback(() => {
     if (!episodeKey) return;
-    if (!docsState) {
+    if (!docsState || docsState.loadFailed) {
       onLoadDocuments(episodeKey);
     }
     setIsDocsExpanded(prev => !prev);
@@ -208,9 +208,24 @@ export const EpisodeBlockCard: React.FC<EpisodeBlockCardProps> = ({
                   Cargando documentos...
                 </div>
               )}
-              {docsState && !docsState.isLoading && docsState.docs.length === 0 && (
-                <p className="text-xs text-slate-400 py-2">Sin documentos clinicos</p>
+              {docsState?.loadFailed && !docsState.isLoading && (
+                <p className="flex items-center gap-2 py-2 text-xs text-amber-700">
+                  No se pudieron cargar los documentos.
+                  <button
+                    type="button"
+                    onClick={() => onLoadDocuments(episodeKey)}
+                    className="font-medium underline hover:text-amber-900"
+                  >
+                    Reintentar
+                  </button>
+                </p>
               )}
+              {docsState &&
+                !docsState.isLoading &&
+                !docsState.loadFailed &&
+                docsState.docs.length === 0 && (
+                  <p className="text-xs text-slate-400 py-2">Sin documentos clinicos</p>
+                )}
               {docsState?.docs.map(doc => (
                 <DocRow
                   key={doc.id}
