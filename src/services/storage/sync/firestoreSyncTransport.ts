@@ -298,7 +298,8 @@ const resolveRecordForSyncTask = async (
     };
   }
 
-  if (!canRebasePatch) assertNoSamePathRemoteMutation(task, remoteData, remoteRecord, record);
+  if (!canRebasePatch)
+    assertNoSamePathRemoteMutation(task, remoteData, remoteRecord, record, appliedPaths);
   const mergedRecord = resolveDailyRecordConflict(remoteRecord, record, {
     changedPaths: task.syncContract?.changedPaths,
   });

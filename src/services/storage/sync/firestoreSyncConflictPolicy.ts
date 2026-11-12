@@ -147,7 +147,8 @@ export const assertNoSamePathRemoteMutation = (
   task: SyncTask,
   remoteData: Record<string, unknown>,
   remoteRecord: DailyRecord,
-  localRecord: DailyRecord
+  localRecord: DailyRecord,
+  appliedPaths: string[] = []
 ): void => {
   const remoteMeta = remoteData.meta as Record<string, unknown> | undefined;
   if (hasRemoteAppliedMutation(task, remoteMeta)) {
@@ -155,7 +156,9 @@ export const assertNoSamePathRemoteMutation = (
   }
 
   const remoteChangedPaths = normalizeChangedPaths(remoteMeta?.lastChangedPaths);
-  const localChangedPaths = normalizeChangedPaths(task.syncContract?.changedPaths);
+  const localChangedPaths = normalizeChangedPaths(task.syncContract?.changedPaths).filter(
+    path => !appliedPaths.includes(path)
+  );
   if (
     remoteChangedPaths.length > 0 &&
     localChangedPaths.length > 0 &&
@@ -213,11 +216,14 @@ export const assertUnchangedReplayPatchBase = (
   if (!base) return [];
   const paths = normalizeChangedPaths(task.syncContract?.changedPaths);
   const captured = paths.filter(path => Object.hasOwn(base, path));
+  // Defaults from hydration permit replay but do not prove the pending write was stored.
   const applied = captured.filter(path =>
-    remoteHolds(remoteData, remoteRecord, path, getValueAtPath(localRecord, path))
+    hasEquivalentReplayValue(getValueAtPath(remoteData, path), getValueAtPath(localRecord, path))
   );
   const remotePaths = captured.filter(
-    path => !applied.includes(path) && !remoteHolds(remoteData, remoteRecord, path, base[path])
+    path =>
+      !remoteHolds(remoteData, remoteRecord, path, getValueAtPath(localRecord, path)) &&
+      !remoteHolds(remoteData, remoteRecord, path, base[path])
   );
   if (hasBlockingOverlappingChangedPath(remotePaths, paths, remoteRecord, localRecord)) {
     throw new ConcurrencyError(
