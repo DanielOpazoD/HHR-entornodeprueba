@@ -218,4 +218,16 @@ it('the editor commits offline, then retains its note and task across reopen and
     />
   );
   expect(screen.getByText('Revisar borrador')).toBeTruthy();
+  cleanup();
+  hospitalDB.close();
+  vi.resetModules();
+  const { hospitalDB: reloadedDB } = await import('@/services/storage/indexeddb/indexedDbCore');
+  const reloadedDrafts = await import('@/services/storage/medicalHandoffDraftStorage');
+  expect(await reloadedDB.syncQueue.toArray()).toMatchObject([
+    { ownerKey: owner, payload: tasks[0].payload },
+  ]);
+  expect(reloadedDrafts.readMedicalHandoffDrafts()).toEqual([
+    expect.objectContaining({ value: text, durable: true }),
+  ]);
+  reloadedDB.close();
 });
