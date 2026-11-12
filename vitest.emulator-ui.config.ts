@@ -1,3 +1,4 @@
+import { minsalSharedInteropPlugin } from './scripts/config/minsalSharedInteropPlugin';
 import { extensionDownloadPlugin } from './scripts/config/extensionDownloadPlugin';
 /// <reference types="vitest" />
 import { defineConfig } from 'vitest/config';
@@ -11,7 +12,7 @@ pinTestTimeZone();
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  plugins: [extensionDownloadPlugin(dirname)],
+  plugins: [extensionDownloadPlugin(dirname), minsalSharedInteropPlugin(dirname)],
   resolve: {
     alias: {
       '@': path.resolve(dirname, 'src'),

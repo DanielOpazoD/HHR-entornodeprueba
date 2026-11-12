@@ -130,8 +130,8 @@ describe('confirmed catalog saves', () => {
         await catalogs.put({ id: entry.key, list: ['Synthetic Base'], lastUpdated: 'synthetic' });
         let resolve!: () => void;
         vi.mocked(entry.save).mockReturnValue(
-          new Promise<void>(done => {
-            resolve = done;
+          new Promise<string[]>(done => {
+            resolve = () => done(['Synthetic Base', 'Synthetic X']);
           })
         );
         const { wrapper } = createQueryClientTestWrapper();
@@ -163,7 +163,7 @@ describe('confirmed catalog saves', () => {
       await screen.findByText('Synthetic Base');
       add();
       await screen.findByText('Synthetic X');
-      expect(entry.save).toHaveBeenCalledWith(['Synthetic Base', 'Synthetic X']);
+      expect(entry.save).toHaveBeenCalledWith(['Synthetic Base', 'Synthetic X'], expect.any(Array));
       expect((await catalogs.get(entry.key))?.list).toEqual(['Synthetic Base', 'Synthetic X']);
       await waitFor(() => expect(screen.getByPlaceholderText('Nombre completo…')).toHaveValue(''));
     });
@@ -213,10 +213,10 @@ describe('confirmed catalog saves', () => {
         for (const name of server) await screen.findByText(name);
         expect(screen.getByPlaceholderText('Nombre completo…')).toHaveValue('Synthetic X');
         expect(screen.queryByText('Synthetic X')).not.toBeInTheDocument();
-        vi.mocked(entry.save).mockResolvedValue(undefined);
+        vi.mocked(entry.save).mockImplementation(async names => names);
         fireEvent.click(screen.getByRole('button', { name: 'Agregar personal' }));
         await screen.findByText('Synthetic X');
-        expect(entry.save).toHaveBeenLastCalledWith([...server, 'Synthetic X']);
+        expect(entry.save).toHaveBeenLastCalledWith([...server, 'Synthetic X'], server);
       }
     );
     it(entry.key + ': rejection keeps rename editor through snapshot', async () => {
@@ -240,8 +240,8 @@ describe('confirmed catalog saves', () => {
     await catalogs.put({ id: 'professionals', list: base, lastUpdated: 'synthetic' });
     let resolve!: () => void;
     vi.mocked(remote.saveProfessionalsCatalogToFirestore).mockReturnValue(
-      new Promise<void>(done => {
-        resolve = done;
+      new Promise<typeof base>(done => {
+        resolve = () => done([{ ...base[0], specialty: 'Cirugía' }]);
       })
     );
     const { wrapper, queryClient } = createQueryClientTestWrapper();
@@ -296,7 +296,7 @@ describe('confirmed catalog saves', () => {
       await callback(base);
     });
     expect(select).toHaveValue('Cirugía');
-    vi.mocked(remote.saveProfessionalsCatalogToFirestore).mockResolvedValue(undefined);
+    vi.mocked(remote.saveProfessionalsCatalogToFirestore).mockImplementation(async items => items);
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar guardado' }));
     await waitFor(() => expect(screen.getByRole('combobox')).toHaveValue('Cirugía'));
     await waitFor(async () =>
@@ -330,10 +330,10 @@ describe('confirmed catalog saves', () => {
       add();
       await screen.findByText('Synthetic X');
       await waitFor(() => expect(screen.getByPlaceholderText('Nombre completo…')).toHaveValue(''));
-      expect(remote.saveNurseCatalogToFirestore).toHaveBeenCalledWith([
-        'Synthetic Base',
-        'Synthetic X',
-      ]);
+      expect(remote.saveNurseCatalogToFirestore).toHaveBeenCalledWith(
+        ['Synthetic Base', 'Synthetic X'],
+        expect.any(Array)
+      );
       expect(screen.queryByText(/no se guardó/i)).not.toBeInTheDocument();
     } finally {
       catalogs.hook('updating').unsubscribe(failWrite);

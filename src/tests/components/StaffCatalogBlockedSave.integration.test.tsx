@@ -102,7 +102,10 @@ describe('staff catalog blocked save visible integration', () => {
       );
       fireEvent.click(screen.getByRole('button', { name: 'Agregar personal' }));
       await waitFor(() =>
-        expect(entry.save).toHaveBeenCalledWith(expect.arrayContaining(['Synthetic Added']))
+        expect(entry.save).toHaveBeenCalledWith(
+          expect.arrayContaining(['Synthetic Added']),
+          expect.any(Array)
+        )
       );
       expect((await catalogs.get(entry.key))?.list).toContain('Synthetic Added');
     });
@@ -192,9 +195,10 @@ describe('staff catalog blocked save visible integration', () => {
     const specialty = await screen.findByRole('combobox');
     fireEvent.change(specialty, { target: { value: 'Cirugía' } });
     await waitFor(() =>
-      expect(remote.saveProfessionalsCatalogToFirestore).toHaveBeenCalledWith([
-        expect.objectContaining({ specialty: 'Cirugía' }),
-      ])
+      expect(remote.saveProfessionalsCatalogToFirestore).toHaveBeenCalledWith(
+        [expect.objectContaining({ specialty: 'Cirugía' })],
+        expect.any(Array)
+      )
     );
   });
 });

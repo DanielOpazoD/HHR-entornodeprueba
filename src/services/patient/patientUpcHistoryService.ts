@@ -93,8 +93,15 @@ export const loadPatientUpcHistory = async (patient: Patient, throughDate: strin
       warning: null,
     };
   }
+  if (local.status === 'rejected') {
+    return {
+      entries: checklistUpcHistory(patient.upcChecklist),
+      warning:
+        'No se pudo consultar el historial local ni el servidor. Se muestra solo el registro actual; vuelve a intentar.',
+    };
+  }
   return {
-    entries: collectPatientUpcHistory(local.status === 'fulfilled' ? local.value : [], patient),
+    entries: collectPatientUpcHistory(local.value, patient),
     warning:
       'Historial parcial: no se pudo consultar el servidor. Se muestran las evaluaciones disponibles localmente.',
   };

@@ -88,7 +88,10 @@ describe('StaffProvider publication', () => {
       identities: state.identities,
       isLoading: state.nursesLoading,
     }));
-    hooks.tens.mockImplementation(() => ({ data: state.tens, isLoading: state.tensLoading }));
+    hooks.tens.mockImplementation(() => ({
+      data: state.tens,
+      isLoading: state.tensLoading,
+    }));
     hooks.professionals.mockImplementation(() => ({
       data: state.professionals,
       isLoading: state.professionalsLoading,
@@ -224,9 +227,52 @@ describe('StaffProvider publication', () => {
       view.current().setProfessionalsCatalog(professionals);
     });
     expect(old).not.toHaveBeenCalled();
-    expect(state.saveNurses).toHaveBeenCalledExactlyOnceWith(['Synthetic Nurse']);
-    expect(state.saveTens).toHaveBeenCalledExactlyOnceWith(['Synthetic TENS']);
-    expect(state.saveProfessionals).toHaveBeenCalledExactlyOnceWith(professionals);
+    expect(state.saveNurses).toHaveBeenCalledExactlyOnceWith({
+      next: ['Synthetic Nurse'],
+      base: state.nurses,
+    });
+    expect(state.saveTens).toHaveBeenCalledExactlyOnceWith({
+      next: ['Synthetic TENS'],
+      base: state.tens,
+    });
+    expect(state.saveProfessionals).toHaveBeenCalledExactlyOnceWith({
+      next: professionals,
+      base: state.professionals,
+    });
+    view.unmount();
+  });
+
+  it('setters change exactly the saved texts behind each shown row', () => {
+    state.nurses = ['Synthetic Canonical', 'Synthetic Eloisa'];
+    state.tens = ['Synthetic TENS', 'Synthetic TENS Eloisa'];
+    const savedTexts: Record<string, string[]> = {
+      'Synthetic Canonical': ['Synthetic Alias'],
+      'Synthetic TENS': ['Synthetic TENS'],
+    };
+    const textsOf = (name: string) => savedTexts[name] ?? [];
+    const nursesSaved = { list: ['Synthetic Alias'], textsOf };
+    const tensSaved = { list: ['Synthetic TENS'], textsOf };
+    hooks.nurses.mockImplementation(() => ({
+      data: state.nurses,
+      saved: nursesSaved,
+      identities: state.identities,
+      isLoading: false,
+    }));
+    hooks.tens.mockImplementation(() => ({ data: state.tens, saved: tensSaved, isLoading: false }));
+    const view = harness();
+    expect(view.current()).toMatchObject({ nursesSaved, tensSaved });
+    act(() => {
+      view.current().setNursesList(['Synthetic Eloisa']);
+      view.current().setTensList(['Synthetic TENS', 'Synthetic TENS Renamed']);
+    });
+    expect(state.saveNurses).toHaveBeenCalledExactlyOnceWith({
+      next: [],
+      base: ['Synthetic Alias'],
+    });
+    expect(state.saveTens).toHaveBeenCalledExactlyOnceWith({
+      next: ['Synthetic TENS', 'Synthetic TENS Renamed'],
+      base: ['Synthetic TENS'],
+    });
     view.unmount();
   });
 });
