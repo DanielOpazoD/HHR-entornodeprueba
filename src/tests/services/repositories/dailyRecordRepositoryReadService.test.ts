@@ -396,7 +396,7 @@ describe('dailyRecordRepositoryReadService', () => {
     expect(saveToIndexedDB).not.toHaveBeenCalled();
   });
 
-  it('uses the E2E localStorage seed as the local candidate when a runtime override supplies remote', async () => {
+  it('reads the synthetic E2E seed locally without remote admission or confirmation', async () => {
     const staleIndexedDb = buildRecord('2026-03-19', '2026-03-19T08:00:00.000Z');
     staleIndexedDb.beds = {
       R1: { bedId: 'R1', patientName: 'INDEXEDDB STALE', handoffNote: '' },
@@ -433,9 +433,14 @@ describe('dailyRecordRepositoryReadService', () => {
 
     const result = await getForDateWithMeta('2026-03-19');
 
-    expect(result.record?.beds.R1.patientName).toBe('REMOTE CANONICAL');
-    expect(result.record?.beds.R1.pathology).toBe('REMOTE DX');
-    expect(result.record?.beds.R1.handoffNote).toBe('');
+    expect(result.record?.beds.R1.patientName).toBe('LOCAL SEEDED');
+    expect(result.record?.beds.R1.pathology).toBe('LOCAL DX');
+    expect(result.record?.beds.R1.handoffNote).toBe('LOCAL NOTE');
+    expect(result.source).toBe('e2e');
+    expect(result.serverConfirmed).toBe(false);
+    expect(admitLocalRecords).not.toHaveBeenCalled();
+    expect(saveToIndexedDB).not.toHaveBeenCalled();
+    expect(loadRemoteRecordWithFallback).not.toHaveBeenCalled();
   });
 
   it('falls back to local with recoverable metadata when remote fetch fails', async () => {
