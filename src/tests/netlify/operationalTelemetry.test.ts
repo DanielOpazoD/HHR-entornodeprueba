@@ -18,6 +18,7 @@ import { createAlertTestStore } from './support/alertTestStore';
 const OPERATIONAL_TELEMETRY_ALERT_THROTTLE_MS = ALERT_QUEUE_POLICY.cooldownMs;
 
 const ORIGIN = 'https://testinghhr.netlify.app';
+const BUILD_64 = '0123456789abcdef'.repeat(4);
 
 const envelope = (event: Record<string, unknown>) =>
   JSON.stringify({ source: 'hhr_operational_telemetry', event });
@@ -150,6 +151,41 @@ describe('operational-telemetry netlify function', () => {
       expect(line.event).toMatchObject({ status: 'failed', operation: 'rayen_sync_run' });
     }
     expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('logs which extension a sync run had, like any other field of the event', async () => {
+    const extension = { extensionVersion: '0.48.91', extensionBuild: '0123456789ab' };
+    const issues = ['snapshot_network_error'];
+    const accepted = await handler(
+      request(envelope(failedRun({ issues, context: { durationMs: 900, ...extension } })))
+    );
+    expect(accepted.statusCode).toBe(202);
+    const line = JSON.parse(log.mock.calls[0][0]);
+    expect(line.event.context).toEqual({ durationMs: 900, ...extension });
+    expect(line.event.droppedContextKeys).toEqual([]);
+
+    // Anything outside the format is dropped and counted; the event is still accepted.
+    for (const outOfFormat of [
+      { extensionVersion: '0.48.91 Juan Pérez', extensionBuild: '0123456789AB' },
+      { extensionVersion: '0.48', extensionBuild: BUILD_64 },
+      { extensionVersion: 48, extensionBuild: 'paciente-rut' },
+    ]) {
+      log.mockClear();
+      const response = await handler(
+        request(envelope(failedRun({ issues, context: { durationMs: 900, ...outOfFormat } })))
+      );
+      expect(response.statusCode).toBe(202);
+      const kept = JSON.parse(log.mock.calls[0][0]).event;
+      expect(kept.context).toEqual({ durationMs: 900 });
+      expect(kept.droppedContextKeys).toEqual(['dropped', 'dropped']);
+    }
+
+    // An event from an app version that predates the fields is logged exactly as before.
+    log.mockClear();
+    await handler(request(envelope(failedRun({ issues, context: { durationMs: 900 } }))));
+    const legacy = JSON.parse(log.mock.calls[0][0]).event;
+    expect(legacy.context).toEqual({ durationMs: 900 });
+    expect(legacy.droppedContextKeys).toEqual([]);
   });
 
   it('only logs successes and throttles repeated alerts per operation', async () => {
