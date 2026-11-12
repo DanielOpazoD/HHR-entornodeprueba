@@ -223,12 +223,14 @@ describe('operational telemetry scheduled retry', () => {
 
   // Known boundary: Netlify enforces private scheduling before calling this function.
   // Direct calls have no HTTP auth/method guard. These are NOT proof of public exposure.
-  it.fails.each(['POST', 'GET'])(
-    'rejects a direct unauthenticated %s invocation (platform boundary not available locally)',
+  // The handler has no authentication of its own: Netlify never routes HTTP to a scheduled
+  // function, so the `config.schedule` declaration asserted above is its only boundary.
+  it.each(['POST', 'GET'])(
+    'treats any %s request that reaches it as the scheduled sweep',
     async method => {
       await seed();
       await retry(request(method), context);
-      expect(sendCensusEmail).not.toHaveBeenCalled();
+      expect(sendCensusEmail).toHaveBeenCalledTimes(1);
     }
   );
 });
