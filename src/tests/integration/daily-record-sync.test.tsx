@@ -1,3 +1,7 @@
+import {
+  createSaveDailyRecordResult,
+  createUpdatePartialDailyRecordResult,
+} from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { createUnconfirmedDailyRecordSubscriptionResult } from '@/tests/factories/dailyRecordSubscriptionResult';
 /**
@@ -131,8 +135,21 @@ describe('DailyRecord Sync Integration', () => {
     vi.clearAllMocks();
     mockGetForDate.mockReturnValue(null);
     mockSyncWithFirestore.mockResolvedValue(null);
-    mockSave.mockResolvedValue(undefined);
-    mockUpdatePartial.mockResolvedValue(undefined);
+    const persisted = {
+      date: '2024-12-28',
+      outcome: 'clean' as const,
+      savedLocally: true,
+      queuedForRetry: false,
+      autoMerged: false,
+    };
+    mockSave.mockResolvedValue(createSaveDailyRecordResult({ ...persisted, savedRemotely: true }));
+    mockUpdatePartial.mockResolvedValue(
+      createUpdatePartialDailyRecordResult({
+        ...persisted,
+        updatedRemotely: true,
+        patchedFields: 1,
+      })
+    );
     mockDailyRecordRepositoryPort.getForDate.mockImplementation((date: string) =>
       mockGetForDate(date)
     );
