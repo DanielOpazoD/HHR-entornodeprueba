@@ -99,8 +99,13 @@
     },
     {
       "pattern": "^RayenSyncHistoryModal-.*\\.js$",
-      "_comment": "Online-only Eloisa sync history panel, loaded when the operator opens it.",
-      "maxBytes": 30000
+      "_comment": "Online-only history. Measured 26148 B on 2026-11-12 after deferring technical metrics; 2,000 B headroom.",
+      "maxBytes": 28148
+    },
+    {
+      "pattern": "^RayenSyncTechnicalMetricsPanel-.*\\.js$",
+      "_comment": "Loaded on technical report expansion only. Measured 4307 B on 2026-11-12; at most 10% headroom.",
+      "maxBytes": 4737
     },
     {
       "pattern": "^ClinicalLibraryDrawer-.*\\.js$",

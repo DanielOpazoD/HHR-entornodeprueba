@@ -35,6 +35,14 @@ describe('bundle budget config', () => {
     expect(budget?.maxBytes).toBeLessThanOrEqual(264096 - 20 * 1024 + 12288);
   });
 
+  it('preserves recovered history headroom and bounds optional metrics', () => {
+    const config = readBundleBudgetConfig();
+    expect(findBudget(config, '^RayenSyncHistoryModal-.*\\.js$')?.maxBytes).toBeLessThanOrEqual(
+      29990 - 3000 + 2000
+    );
+    expect(findBudget(config, '^RayenSyncTechnicalMetricsPanel-.*\\.js$')?.maxBytes).toBe(4737);
+  });
+
   it('bounds the core monthly export and optional Eloisa source separately', () => {
     const config = readBundleBudgetConfig();
     expect(findBudget(config, '^cudyrEssentialWorkbook-.*\\.js$')).toMatchObject({
@@ -75,7 +83,7 @@ describe('bundle budget config', () => {
       maxBytes: 50000,
     });
     expect(findBudget(config, '^RayenSyncHistoryModal-.*\\.js$')).toMatchObject({
-      maxBytes: 30000,
+      maxBytes: 28148,
     });
     expect(findBudget(config, '^perfAuditReport-.*\\.js$')).toMatchObject({ maxBytes: 4000 });
     expect(findBudget(config, '^RayenImportButton-.*\\.js$')).toMatchObject({ maxBytes: 250430 });
