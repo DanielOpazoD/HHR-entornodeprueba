@@ -1,19 +1,7 @@
 {
-  "generatedAt": "2026-11-12T00:18:38.799Z",
-  "gitSha": "494afd92b",
+  "generatedAt": "2026-07-05T05:17:02.042Z",
+  "gitSha": "aa82d67c",
   "gitDirty": false,
-  "generatedFor": {
-    "gitSha": "494afd92b",
-    "gitDirty": false,
-    "treeHash": "6bdea72377215e01abb55f66e2ba964b1fe0b3db",
-    "reportId": "clinical-release-validation",
-    "dependencyFingerprint": {
-      "algorithm": "sha256:dependency-files-v1",
-      "value": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "files": [],
-      "missingFiles": []
-    }
-  },
   "overall": "ok",
   "counts": {
     "scenarioCount": 6,

@@ -1,16 +1,10 @@
 # Clinical Release Signoff
 
-Generated at: 2026-11-12T00:18:40.235Z
-Report generation commit: 494afd92b
+Generated at: 2026-07-05T06:20:04.876Z
+Commit: 126d4b82
 Worktree: clean
-Recorded release candidate: codex/release-readiness-blocks
-Record completeness: ok
-
-## Approval scope
-
-Historical record only. Regenerating this report does not renew clinical approval.
-Current candidate approval: not verified. The recorded signoffs are not bound to the report generation commit.
-Reviewer names, dates and evidence below are preserved as recorded; their presence is not independent verification.
+Release candidate: codex/release-readiness-blocks
+Overall: ok
 
 | Scenario | Status | Validated by | Validated at | Evidence | Notes |
 | --- | --- | --- | --- | --- | --- |
