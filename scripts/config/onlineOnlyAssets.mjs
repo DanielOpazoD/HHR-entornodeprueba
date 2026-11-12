@@ -235,6 +235,10 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
   },
   { glob: '**/assets/useClinicalPanelSnapshot-*.js', reason: 'Same policy as the entry above.' },
   {
+    glob: '**/assets/RayenSyncTechnicalMetricsPanel-*.js',
+    reason: 'Optional sync metrics loaded only when the history technical report is expanded.',
+  },
+  {
     glob: '**/assets/RayenSyncHistoryModal-*.js',
     reason: 'Sync history panel: reviewed on demand while Eloísa is connected.',
   },
