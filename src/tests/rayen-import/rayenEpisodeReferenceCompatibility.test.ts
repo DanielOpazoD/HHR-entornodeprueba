@@ -1,3 +1,4 @@
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 import { planRayenCensusImport } from '@/features/rayen-import/importRayenCensusUseCase';
@@ -93,7 +94,7 @@ describe('current Rayen episode reference compatibility, pure client composition
     );
     expect(diff.conflicts).toHaveLength(0);
     expect(applied.applied.moves).toBe(1);
-    expect(candidate.beds.H5C1).toBeUndefined();
+    expect(candidate.beds.H5C1).toEqual(createEmptyPatient('H5C1'));
     expect(candidate.beds.H1C2).toMatchObject({
       clinicalEpisodeId: 'EloisaEncounter',
       medicalHandoffNote: 'Nota sintética',

@@ -4,6 +4,7 @@ import type { PatientData } from '@/types/domain/patient';
 import { buildMovementUndoSnapshot } from '@/utils/movementUndoSnapshot';
 import { buildImportedMovementStamp } from './buildImportedMovementStamp';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { CensusManager } from '@/domain/CensusManager';
 import { BEDS, OCCUPANCY_ONLY_EXTRA_BED_IDS } from '@/constants/beds';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -378,6 +379,14 @@ export const applyCensusImportDiff = (
   }
 
   applyRayenDischargeVerification(nextBeds, effectiveDiff.pendingAdministrativeDischarges);
+
+  // Vacating a catalog bed keeps its empty slot, as persistence requires. Visibility
+  // still follows occupancy and activeExtraBeds; never retain the departed patient state.
+  for (const bed of BEDS) {
+    if (current.beds[bed.id] && !nextBeds[bed.id]) {
+      nextBeds[bed.id] = createEmptyPatient(bed.id);
+    }
+  }
 
   const activeExtraBeds = [
     ...(current.activeExtraBeds ?? []).filter(bedId => !OCCUPANCY_ONLY_EXTRA_BED_IDS.has(bedId)),

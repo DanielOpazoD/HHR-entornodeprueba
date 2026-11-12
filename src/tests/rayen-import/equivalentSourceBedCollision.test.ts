@@ -1,3 +1,4 @@
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { describe, expect, it } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import {
@@ -77,7 +78,7 @@ describe('CMA and hospital assignments with the same bed label', () => {
           clinicalEpisodeId: hospital.encounterId,
           handoffNote: `nota-${hospital.encounterId}`,
         });
-        expect(result.record.beds.H2C1).toBeUndefined();
+        expect(result.record.beds.H2C1).toEqual(createEmptyPatient('H2C1'));
         expect(result.record.discharges).toEqual([]);
         expect(result.record.transfers).toEqual([]);
         const repeated = reconcileCensus(result.record, snapshot);

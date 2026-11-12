@@ -1,3 +1,4 @@
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { describe, expect, it, vi } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
@@ -180,7 +181,7 @@ describe('replanRayenStructure — madre y RN cerrados en Ficha, lookup confirma
       now: new Date('2026-09-02T15:00:00'),
       syncRunId: 'test',
     });
-    expect(applied.record.beds.H5C1).toBeUndefined();
+    expect(applied.record.beds.H5C1).toEqual(createEmptyPatient('H5C1'));
     const motherRecords = applied.record.discharges.filter(
       d => d.clinicalEpisodeId === '1001' && !d.isNested
     );
@@ -216,7 +217,7 @@ describe('replanRayenStructure — madre y RN cerrados en Ficha, lookup confirma
       syncRunId: 'test',
     });
     expect(applied.skipped).toEqual([]);
-    expect(applied.record.beds.H5C1).toBeUndefined();
+    expect(applied.record.beds.H5C1).toEqual(createEmptyPatient('H5C1'));
   });
 
   it('si el lookup confirma solo a la madre, el RN cerrado conserva la revisión (no se pierde en silencio)', async () => {

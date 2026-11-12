@@ -1,3 +1,4 @@
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { describe, expect, it } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import { applyCensusImportDiff } from '@/features/rayen-import';
@@ -220,7 +221,7 @@ describe('reviewed collision and discharge precedence', () => {
       syncRunId: 'run-rejected-collision-discharge',
     });
 
-    expect(result.record.beds.R1).toBeUndefined();
+    expect(result.record.beds.R1).toEqual(createEmptyPatient('R1'));
     expect(result.record.beds.H2C1.clinicalEpisodeId).toBe('MQ-R1');
     expect(result.record.beds.H3C1.clinicalEpisodeId).toBe('BLOCKING');
     expect(result.record.discharges).toHaveLength(1);
@@ -316,8 +317,8 @@ describe('reviewed collision and discharge precedence', () => {
     });
 
     expect(result.record.beds.R1.clinicalEpisodeId).toBe('CMA-R1');
-    expect(result.record.beds.R4).toBeUndefined();
-    expect(result.record.beds.H2C1).toBeUndefined();
+    expect(result.record.beds.R4).toEqual(createEmptyPatient('R4'));
+    expect(result.record.beds.H2C1).toEqual(createEmptyPatient('H2C1'));
     expect(result.record.discharges).toEqual([
       expect.objectContaining({ clinicalEpisodeId: 'BLOCKING' }),
     ]);
