@@ -205,6 +205,7 @@ it('b: actual transaction abort rolls back row/task; hook drops patch and error 
     success: vi.fn(),
   });
   expect(error).toHaveBeenCalled();
+  expect(resolveDailyRecordSyncStatus([h.result.current])).toBe('error');
   log('b', {
     result: payload!.result,
     feedback,
