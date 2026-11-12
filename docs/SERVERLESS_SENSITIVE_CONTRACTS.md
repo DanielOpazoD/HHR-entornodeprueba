@@ -203,10 +203,10 @@ conservado para reintento, entrega incierta sin reenvío automático y errores d
 almacén saneados sin perder pendientes. No hay cuerpo HTTP de respuesta.
 
 La función se programa cada cinco minutos con `config.schedule`. No valida Bearer,
-rol, origen ni método por sí misma: el acceso privado depende de Netlify. Dos casos
-`it.fails` documentan que una llamada directa sin autorización (POST o GET) no es
-rechazada por el handler. No acreditan exposición pública ni rechazo HTTP en el
-runtime desplegado. Esta unidad no cambia la función ni los permisos.
+rol, origen ni método por sí misma: el acceso privado depende de Netlify, que no
+enruta HTTP a una función programada. Una prueba fija esa declaración y otra
+caracteriza que cualquier solicitud que llegue al handler se trata como el barrido
+programado. No acreditan exposición pública ni rechazo HTTP en el runtime desplegado.
 
 ### Exenciones registradas
 
