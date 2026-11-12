@@ -23,6 +23,7 @@ import {
 } from '@/hooks/controllers/dailyRecordSyncNotificationController';
 import {
   getDailyRecordQueryKey,
+  setAuthoritativeDailyRecordRead,
   setDailyRecordQueryData,
 } from '@/hooks/controllers/dailyRecordQueryController';
 import { resetDailyRecordFreshnessGateForTests } from '@/hooks/controllers/dailyRecordFreshnessGateController';
@@ -69,6 +70,9 @@ let base = DataFactory.createMockDailyRecord(date);
 let clients: QueryClient[] = [];
 let persistCalls = 0;
 let abortWrite = false;
+let writeGate: Promise<void> | undefined;
+let releaseWrite: (() => void) | undefined;
+let inFlight: Promise<unknown> | undefined;
 // Use native Storage from a fresh window, rather than the setup's mocked globals.
 const storageFrame = document.createElement('iframe');
 document.body.append(storageFrame);
@@ -83,8 +87,9 @@ const setupHook = () => {
   setDailyRecordQueryData(client, date, base);
   const repository = buildMockDailyRecordRepository();
   // El port delega sin simular al repositorio real; cuenta entradas a mutationFn.
-  repository.updatePartialDetailed = (...args) => {
+  repository.updatePartialDetailed = async (...args) => {
     persistCalls++;
+    await writeGate;
     return actualWrite(...args);
   };
   repository.saveDetailed = actualSave;
@@ -114,6 +119,7 @@ beforeEach(async () => {
   onlineManager.setOnline(true);
   persistCalls = 0;
   abortWrite = false;
+  writeGate = undefined;
   resetDailyRecordFreshnessGateForTests();
   pending.clearPendingDailyRecordPatchesForTests();
   setSessionGeneration('C1-generation');
@@ -133,6 +139,11 @@ beforeEach(async () => {
   await hospitalDB.dailyRecords.put(base);
 });
 afterEach(async () => {
+  // A failed assertion must not leave a held write owning the date's mutation turn.
+  releaseWrite?.();
+  await inFlight;
+  releaseWrite = undefined;
+  inFlight = undefined;
   Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
   vi.unstubAllEnvs();
   cleanup();
@@ -237,7 +248,15 @@ it('d: six-minute mirror expiration keeps the durable edit', async () => {
     pathology: (await hospitalDB.dailyRecords.get(date))?.beds.R1.pathology,
   });
 });
-it('e: durable logout preserves original owner and fences next owner; live memory can resurrect mirror', async () => {
+/** What the next person in the same tab sees once the server publishes the census day. */
+const nextPersonSees = () => {
+  const client = new QueryClient();
+  clients.push(client);
+  setDailyRecordQueryData(client, date, base);
+  setAuthoritativeDailyRecordRead(client, date, base);
+  return value(client);
+};
+it('e: logout keeps the durable edit with its owner; the next person never sees its overlay', async () => {
   const h = setupHook();
   await act(async () => {
     await h.result.current.mutateAsync(patch);
@@ -251,22 +270,55 @@ it('e: durable logout preserves original owner and fences next owner; live memor
     ownerKey: 'user:C1-A',
     status: 'FAILED',
     projectionReleased: true,
+    payload: { beds: { R1: { pathology: patch['beds.R1.pathology'] } } },
   });
   expect(await hospitalDB.dailyRecords.count()).toBe(0);
   expect(await createDexieSyncQueueStore().listAll('user:C1-B')).toEqual([]);
-  const sameEpisodeOverlay = pending.applyPendingExplicitCensusPatch(date, base, base);
-  expect(sameEpisodeOverlay.beds.R1.pathology).toBe(patch['beds.R1.pathology']);
-  log('e', {
-    tasks: tasks.map(({ ownerKey, status, projectionReleased, lastErrorCode }) => ({
+  expect(nextPersonSees()).toBe('BASE');
+  expect(pending.applyPendingExplicitCensusPatch(date, base, base).beds.R1.pathology).toBe('BASE');
+  expect(local.getItem(key)).toBeNull();
+});
+it('e: the same person signing in again keeps the unsent task, not the previous overlay', async () => {
+  onlineManager.setOnline(false);
+  const h = setupHook();
+  act(() => h.result.current.mutate(patch));
+  await waitFor(() => expect(h.result.current.isSuccess).toBe(true));
+  await clearSessionScopedClientState('manual');
+  await reconcileAuthorizedSessionOwner('user:C1-A');
+  expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
+    {
+      ownerKey: 'user:C1-A',
+      payload: { beds: { R1: { pathology: patch['beds.R1.pathology'] } } },
+    },
+  ]);
+  expect(nextPersonSees()).toBe('BASE');
+});
+it('e: an edit still on its way to the outbox at logout keeps its fate; only its overlay is forgotten', async () => {
+  writeGate = new Promise<void>(resolve => {
+    releaseWrite = resolve;
+  });
+  const h = setupHook();
+  act(() => {
+    inFlight = h.result.current.mutateAsync(patch).catch(error => error);
+  });
+  await waitFor(() => expect(local.getItem(key)).toContain('DIAGNOSTICO'));
+  await clearSessionScopedClientState('manual');
+  await reconcileAuthorizedSessionOwner('user:C1-B');
+  expect(nextPersonSees()).toBe('BASE');
+  releaseWrite?.();
+  await inFlight;
+  // Forgetting the overlay does not touch the write: the edit still reaches the outbox.
+  expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
+    { payload: { beds: { R1: { pathology: patch['beds.R1.pathology'] } } } },
+  ]);
+  log('e-in-flight-dexie', {
+    tasks: (await hospitalDB.syncQueue.toArray()).map(({ ownerKey, status }) => ({
       ownerKey,
       status,
-      projectionReleased,
-      lastErrorCode,
     })),
-    otherOwnerTasks: 0,
-    liveMemoryRecreatedMirror: local.getItem(key) !== null,
-    overlay: sameEpisodeOverlay.beds.R1.pathology,
+    row: (await hospitalDB.dailyRecords.get(date))?.beds.R1?.pathology ?? null,
   });
+  expect(nextPersonSees()).toBe('BASE');
 });
 it('f: independent module reads the mirror; Dexie admission preserves the durable edit', async () => {
   onlineManager.setOnline(false);

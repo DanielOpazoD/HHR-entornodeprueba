@@ -2,13 +2,13 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRayenStaffingProposalReview } from '@/features/rayen-import/hooks/useRayenStaffingProposalReview';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const mocks = vi.hoisted(() => ({
   history: vi.fn(),
   register: vi.fn(async items => items),
   outcome: vi.fn(),
-  generation: 'session-a',
 }));
 vi.mock('@/features/rayen-import/bridge/rayenImportBridge', () => ({
   requestHistoryScales: mocks.history,
@@ -16,9 +16,6 @@ vi.mock('@/features/rayen-import/bridge/rayenImportBridge', () => ({
 vi.mock('@/services/staff/eloisaStaffRegistry', () => ({ registerEloisaStaff: mocks.register }));
 vi.mock('@/features/rayen-import/hooks/useRayenFillStatus', () => ({
   reportRayenStaffingOutcome: mocks.outcome,
-}));
-vi.mock('@/services/storage/sessionStorageTransition', () => ({
-  getSessionGeneration: () => mocks.generation,
 }));
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
@@ -57,7 +54,7 @@ const setup = (
 };
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.generation = 'session-a';
+  setSessionGeneration('session-a');
   mocks.history.mockResolvedValue({ events: [], nursingActivity: [] });
 });
 
@@ -91,7 +88,7 @@ describe('staffing review ownership', () => {
     act(() => {
       review = result.current.refreshStaffingProposal();
     });
-    mocks.generation = 'session-b';
+    setSessionGeneration('session-b');
     await act(async () => {
       pending.resolve(first);
       await review;
