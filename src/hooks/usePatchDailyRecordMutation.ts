@@ -413,13 +413,12 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
   const local = useMutation({ ...options, networkMode: 'always' });
   const remote = useMutation({ ...options, networkMode: 'online' });
   const selectMutation = (input: PatchMutationInput) => {
-    const { partial, options } = resolveInput(input);
+    const { options } = resolveInput(input);
     const requiresRemote = Boolean(
       options?.requireRemoteAuthorityFirst ||
       options?.intentionalBedClear ||
       options?.clinicalCribCreate ||
-      options?.specialtyIntent ||
-      isSpecialistScopedDailyRecordPatch(partial)
+      options?.specialtyIntent
     );
     setRemoteSelected(requiresRemote);
     return requiresRemote ? remote : local;
