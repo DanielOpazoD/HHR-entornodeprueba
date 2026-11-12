@@ -3,9 +3,11 @@ import {
   bootstrapSeededRecord,
   buildCanonicalE2ERecord,
   ensureAuthenticated,
+  readIndexedDbDailyRecord,
 } from './fixtures/auth';
 import { expectClinicalDiagnosis, expectClinicalStatus } from './fixtures/clinicalBlockEditor';
 import { waitForPersistedBedFields } from './fixtures/censusPersistence';
+import { installDailyRecordAuthorityRoute } from './fixtures/dailyRecordAuthorityRoute';
 import { getTodayISO } from '../src/utils/dateCoreUtils';
 
 const CONFLICT_DATE = process.env.E2E_FIXED_DATE ?? getTodayISO();
@@ -86,11 +88,15 @@ test.describe('Sync conflict resolution', () => {
       admissionDate: CONFLICT_DATE,
     };
 
+    const authority = await installDailyRecordAuthorityRoute(page, { ...baseRecord, beds });
     await bootstrapSeededRecord(page, {
       role: 'editor',
       date: CONFLICT_DATE,
       record: { ...baseRecord, beds },
       useRuntimeOverride: true,
+      forceLocalOnlySync: false,
+      seedRemoteAuthority: true,
+      forceAuthorityCallable: true,
     });
 
     await page.goto(`/censo?date=${CONFLICT_DATE}`);
@@ -107,6 +113,8 @@ test.describe('Sync conflict resolution', () => {
     await demographicsDialog.getByPlaceholder('Nombre').fill('Local');
     await demographicsDialog.getByPlaceholder('Apellido paterno').fill('Draft');
     await demographicsDialog.getByRole('button', { name: /Guardar Cambios/i }).click();
+    const accepted = await authority.nextCall();
+    await accepted.succeed();
     await expect(demographicsDialog).toBeHidden();
 
     await expect(patientNameInput).toHaveValue('Local Draft');
@@ -161,7 +169,7 @@ test.describe('Sync conflict resolution', () => {
     await expectClinicalStatus(row, 'Grave');
   });
 
-  test('accepts remote canonical census fields after a stale local narrative seed', async ({
+  test('accepts remote canonical census fields after a stale local narrative seed without pending writes', async ({
     page,
   }) => {
     const baseRecord = buildCanonicalE2ERecord(CONFLICT_DATE);
@@ -170,6 +178,7 @@ test.describe('Sync conflict resolution', () => {
     beds.R1 = {
       ...beds.R1,
       patientName: 'OFFLINE BASELINE',
+      clinicalEpisodeId: 'synthetic-stale-r1',
       pathology: 'BASE DX',
       status: 'Estable',
       admissionDate: CONFLICT_DATE,
@@ -192,26 +201,18 @@ test.describe('Sync conflict resolution', () => {
     await expect(page.getByTestId('census-table')).toBeVisible({ timeout: 20_000 });
 
     const row = getRow(page, 'R1');
-    const demographicsButton = row.getByRole('button', { name: /Datos del Paciente/i });
     const patientNameInput = row.locator('input[name="patientName"]').first();
     await expect(patientNameInput).toHaveValue('OFFLINE BASELINE');
 
-    await demographicsButton.click();
-    const demographicsDialog = page.getByRole('dialog', { name: 'Datos Demográficos' });
-    await expect(demographicsDialog).toBeVisible();
-    await demographicsDialog.getByPlaceholder('Nombre').fill('Local Offline');
-    await demographicsDialog.getByPlaceholder('Apellido paterno').fill('Winner');
-    await demographicsDialog.getByRole('button', { name: /Guardar Cambios/i }).click();
-    await expect(demographicsDialog).toBeHidden();
-    await expect(patientNameInput).toHaveValue('Local Offline Winner');
-
+    const durable = (await readIndexedDbDailyRecord(page, CONFLICT_DATE)) as typeof baseRecord;
+    const durableBeds = durable.beds as typeof beds;
     const localPendingRecord = {
-      ...baseRecord,
+      ...durable,
       lastUpdated: `${CONFLICT_DATE}T12:00:00.000Z`,
       beds: {
-        ...beds,
+        ...durableBeds,
         R1: {
-          ...beds.R1,
+          ...durableBeds.R1,
           patientName: 'Local Offline Winner',
           firstName: 'Local',
           lastName: 'Offline',
@@ -222,18 +223,31 @@ test.describe('Sync conflict resolution', () => {
       },
     };
 
-    await page.addInitScript(
-      ({ date, record }) => {
-        const storageKey = 'hanga_roa_hospital_data';
-        const records = JSON.parse(localStorage.getItem(storageKey) || '{}') as Record<
-          string,
-          unknown
-        >;
-        records[date] = record;
-        localStorage.setItem(storageKey, JSON.stringify(records));
-      },
-      { date: CONFLICT_DATE, record: localPendingRecord }
-    );
+    await page.evaluate(async record => {
+      const request = indexedDB.open('HangaRoaDB');
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const tx = db.transaction(['dailyRecords', 'syncQueue'], 'readwrite');
+          const count = tx.objectStore('syncQueue').count();
+          count.onsuccess = () => {
+            if (count.result) {
+              tx.abort();
+              return;
+            }
+            tx.objectStore('dailyRecords').put(record);
+          };
+          tx.oncomplete = () => resolve();
+          tx.onabort = () => reject(new Error('Stale seed must not discard pending writes'));
+          tx.onerror = () => reject(tx.error);
+        });
+      } finally {
+        db.close();
+      }
+    }, localPendingRecord);
     await page.context().setOffline(true);
 
     const remoteRecord = {
@@ -244,6 +258,9 @@ test.describe('Sync conflict resolution', () => {
         R1: {
           ...localPendingRecord.beds.R1,
           patientName: 'REMOTE STALE USER',
+          firstName: 'REMOTE',
+          lastName: 'STALE',
+          secondLastName: 'USER',
           pathology: 'REMOTE STALE DX',
           handoffNoteDayShift: 'REMOTE STALE NOTE',
           status: 'Grave',

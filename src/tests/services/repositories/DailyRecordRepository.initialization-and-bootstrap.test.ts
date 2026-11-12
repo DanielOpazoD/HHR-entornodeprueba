@@ -17,7 +17,7 @@ describe('DailyRecordRepository initialization and bootstrap flows', () => {
   });
 
   it('returns existing record if initializeDay finds one', async () => {
-    indexedDbFacadeMock.getRecordForDate.mockResolvedValueOnce(mockRecord);
+    indexedDbFacadeMock.getRecordForDate.mockResolvedValue(mockRecord);
     const result = await Repository.initializeDay(mockDate);
     expect(result).toMatchObject({
       ...mockRecord,
@@ -85,10 +85,10 @@ describe('DailyRecordRepository initialization and bootstrap flows', () => {
       ...mockRecord,
       beds: expect.any(Object),
     });
-    expect(indexedDbFacadeMock.saveRecord).toHaveBeenCalled();
+    expect(indexedDbFacadeMock.saveRecord).not.toHaveBeenCalled();
   });
 
-  it('preserves CIE-10 from copy source when remote initialization record already exists', async () => {
+  it('does not enrich an existing remote day from the copy source', async () => {
     const copySourceRecord = {
       ...mockRecord,
       date: '2024-12-31',
@@ -129,18 +129,9 @@ describe('DailyRecordRepository initialization and bootstrap flows', () => {
 
     const result = await Repository.initializeDay(mockDate, '2024-12-31');
 
-    expect(result.beds.R1.cie10Code).toBe('I48.0');
-    expect(result.beds.R1.cie10Description).toBe('Fibrilacion auricular');
-    expect(indexedDbFacadeMock.saveRecord).toHaveBeenCalledWith(
-      expect.objectContaining({
-        beds: expect.objectContaining({
-          R1: expect.objectContaining({
-            cie10Code: 'I48.0',
-            cie10Description: 'Fibrilacion auricular',
-          }),
-        }),
-      })
-    );
+    expect(result.beds.R1.cie10Code).toBeUndefined();
+    expect(result.beds.R1.cie10Description).toBeUndefined();
+    expect(indexedDbFacadeMock.saveRecord).not.toHaveBeenCalled();
   });
 
   it('creates a fresh record when Firestore has no record', async () => {
@@ -168,12 +159,8 @@ describe('DailyRecordRepository initialization and bootstrap flows', () => {
     indexedDbFacadeMock.getRecordForDate.mockResolvedValue(null);
     firestoreMock.getRecordFromFirestore.mockRejectedValue(new Error('FS Error'));
 
-    const result = await Repository.initializeDay(mockDate);
-    expect(result.date).toBe(mockDate);
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Failed to check remote sources'),
-      expect.any(Error)
-    );
+    await expect(Repository.initializeDay(mockDate)).rejects.toThrow('FS Error');
+    expect(indexedDbFacadeMock.saveRecord).not.toHaveBeenCalled();
     consoleSpy.mockRestore();
   });
 

@@ -14,14 +14,11 @@ import type { SpecialistHandoffSyncPayload } from '@/services/storage/syncQueueT
 import { publishAdmissionEffects } from './remoteAdmissionEffects';
 
 export type LocalRecordWriteStore = 'indexeddb' | 'fallback' | 'e2e' | 'none';
-
 export type LocalRecordBase = { kind: 'stored'; record: DailyRecord | null } | { kind: 'unknown' };
-
 export type LocalRecordAdmission =
   | { status: 'admitted'; record: DailyRecord | null }
   | { status: 'retained_pending'; record: DailyRecord }
   | { status: 'superseded'; stored: DailyRecord | null };
-
 export interface LocalRecordWriteResult {
   ok: boolean;
   operation: 'save' | 'save_many' | 'delete';
@@ -293,6 +290,7 @@ export type LocalRecordAdmissionCandidate = {
   record: DailyRecord;
   expectedBase?: LocalRecordBase;
   remoteRecord?: DailyRecord | null;
+  serverConfirmed?: boolean;
   isCurrent?: () => boolean;
 };
 
@@ -302,7 +300,6 @@ export type LocalRecordAdmissionResult = {
   | { status: 'admitted' | 'retained_pending'; record: DailyRecord }
   | { status: 'superseded'; record: DailyRecord | null }
 );
-
 export const admitLocalRecords = async (
   candidates: readonly LocalRecordAdmissionCandidate[]
 ): Promise<LocalRecordAdmissionResult[]> => {
@@ -335,7 +332,7 @@ export const admitLocalRecords = async (
         );
         const decisions: LocalRecordAdmissionResult[] = [];
         const writable: DailyRecord[] = [];
-        for (const { record, expectedBase, remoteRecord, isCurrent } of unique) {
+        for (const { record, expectedBase, remoteRecord, isCurrent, serverConfirmed } of unique) {
           const stored = (await db.dailyRecords.get(record.date)) ?? null;
           if (
             owner !== getStoredSessionOwnerKey() ||
@@ -350,6 +347,10 @@ export const admitLocalRecords = async (
               ? await inspectIndexedDbAdmission(record.date, expectedBase, record)
               : { status: 'admitted', record: stored };
           if (admission.status === 'admitted') {
+            if (serverConfirmed === false && stored) {
+              decisions.push({ date: record.date, status: 'admitted', record: stored });
+              continue;
+            }
             const tasks = await db.syncQueue
               .where('key')
               .startsWith(`handoff:${record.date}:`)
