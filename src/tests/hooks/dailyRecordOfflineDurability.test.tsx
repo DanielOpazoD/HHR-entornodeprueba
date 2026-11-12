@@ -37,6 +37,7 @@ import {
 } from '@/services/storage/sessionStorageTransition';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import * as pending from '@/hooks/controllers/dailyRecordPendingPatchController';
+import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 
 vi.mock('@/services/firebase-runtime/authRuntime', () => ({
   defaultAuthRuntime: { getCurrentUser: () => ({ uid: 'C1-A' }) },
@@ -293,7 +294,8 @@ it('e: the same person signing in again keeps the unsent task, not the previous 
   ]);
   expect(nextPersonSees()).toBe('BASE');
 });
-it('e: an edit still on its way to the outbox at logout keeps its fate; only its overlay is forgotten', async () => {
+/** Starts the edit, holds it before the repository, and returns once the next session is in. */
+const holdEditAcrossSessionChange = async (nextOwner: string) => {
   writeGate = new Promise<void>(resolve => {
     releaseWrite = resolve;
   });
@@ -303,22 +305,64 @@ it('e: an edit still on its way to the outbox at logout keeps its fate; only its
   });
   await waitFor(() => expect(local.getItem(key)).toContain('DIAGNOSTICO'));
   await clearSessionScopedClientState('manual');
-  await reconcileAuthorizedSessionOwner('user:C1-B');
+  await reconcileAuthorizedSessionOwner(nextOwner);
+  return h;
+};
+const retainedForA = {
+  ownerKey: 'user:C1-A',
+  status: 'FAILED',
+  projectionReleased: true,
+  lastErrorCode: 'session_owner_logged_out',
+  payload: { beds: { R1: { pathology: patch['beds.R1.pathology'] } } },
+};
+it('e: an edit still on its way to the outbox at logout stays with its author, off the next person’s day', async () => {
+  await holdEditAcrossSessionChange('user:C1-B');
   expect(nextPersonSees()).toBe('BASE');
+  // B's census reads the day before A's held write lands.
+  await hospitalDB.dailyRecords.put(base);
   releaseWrite?.();
   await inFlight;
-  // Forgetting the overlay does not touch the write: the edit still reaches the outbox.
-  expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
-    { payload: { beds: { R1: { pathology: patch['beds.R1.pathology'] } } } },
-  ]);
+  const tasks = await hospitalDB.syncQueue.toArray();
   log('e-in-flight-dexie', {
-    tasks: (await hospitalDB.syncQueue.toArray()).map(({ ownerKey, status }) => ({
-      ownerKey,
-      status,
-    })),
+    tasks: tasks.map(({ ownerKey, status }) => ({ ownerKey, status })),
     row: (await hospitalDB.dailyRecords.get(date))?.beds.R1?.pathology ?? null,
   });
+  expect(await createDexieSyncQueueStore().listAll('user:C1-B')).toEqual([]);
+  expect(tasks).toMatchObject([retainedForA]);
+  expect((await hospitalDB.dailyRecords.get(date))?.beds.R1.pathology).toBe('BASE');
+  expect(setDoc).not.toHaveBeenCalled();
+  expect(recordOperationalTelemetry).toHaveBeenCalledWith(
+    expect.objectContaining({
+      operation: 'sync_queue_write_retained_for_owner',
+      context: expect.objectContaining({ date, ownerKey: 'user:C1-A' }),
+    })
+  );
   expect(nextPersonSees()).toBe('BASE');
+});
+it('e: an edit in flight while its author signs out and back in waits for review like their other work', async () => {
+  await holdEditAcrossSessionChange('user:C1-A');
+  releaseWrite?.();
+  await inFlight;
+  expect(await hospitalDB.syncQueue.toArray()).toMatchObject([retainedForA]);
+  expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
+});
+it('e-control: an edit held without a session change still writes the day and its pending task', async () => {
+  writeGate = new Promise<void>(resolve => {
+    releaseWrite = resolve;
+  });
+  const h = setupHook();
+  act(() => {
+    inFlight = h.result.current.mutateAsync(patch).catch(error => error);
+  });
+  await waitFor(() => expect(persistCalls).toBe(1));
+  releaseWrite?.();
+  await inFlight;
+  expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
+    { ownerKey: 'user:C1-A', status: 'PENDING' },
+  ]);
+  expect((await hospitalDB.dailyRecords.get(date))?.beds.R1.pathology).toBe(
+    patch['beds.R1.pathology']
+  );
 });
 it('f: independent module reads the mirror; Dexie admission preserves the durable edit', async () => {
   onlineManager.setOnline(false);
