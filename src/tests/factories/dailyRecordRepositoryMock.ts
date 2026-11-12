@@ -14,7 +14,6 @@ export const buildMockDailyRecordRepository = (): DailyRecordRepositoryPort => (
   getPreviousDay: vi.fn(),
   getPreviousDayWithMeta: vi.fn(),
   getAvailableDates: vi.fn(),
-  getRecentAvailableDates: vi.fn(),
   getMonthRecords: vi.fn(),
   initializeDay: vi.fn(),
   save: vi.fn(),

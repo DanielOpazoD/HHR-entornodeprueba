@@ -520,7 +520,7 @@ export const getAllDates = async (): Promise<string[]> => {
       severity: 'warning',
       userSafeMessage: 'No fue posible recuperar las fechas locales disponibles.',
     });
-    return [];
+    throw error;
   }
 };
 
@@ -540,7 +540,7 @@ export const getPreviousDayRecord = async (currentDate: string): Promise<DailyRe
       userSafeMessage: 'No fue posible recuperar el registro del dia previo.',
       context: { currentDate },
     });
-    return null;
+    throw error;
   }
 };
 

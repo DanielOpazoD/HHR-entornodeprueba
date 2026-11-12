@@ -36,8 +36,6 @@ import {
 } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 import type { DailyRecordQueuedWriteState } from '@/services/storage/syncQueueTypes';
 
-type FirestoreRecordQueriesModule =
-  typeof import('@/services/storage/firestore/firestoreRecordQueries');
 const loadFirestoreRecordQueries = createCachedRuntimeLoader(
   () => import('@/services/storage/firestore/firestoreRecordQueries')
 );
@@ -197,45 +195,85 @@ export const getForDateWithMeta = async (
   );
 };
 
-// Startup asks for the available dates twice, in parallel, through two different
-// paths. Sharing the in-flight read collapses them into a single remote query
-// without caching a stale answer for later calls.
-let availableDatesInFlight: Promise<string[]> | undefined;
+type DateIndexFailure = 'local' | 'remote' | 'both';
 
-type RemoteDateReader = (module: FirestoreRecordQueriesModule) => Promise<string[]>;
+/** How much of the census date index could be read. Only a complete index is a history. */
+type DateIndexRead =
+  | { status: 'complete'; dates: string[] }
+  | { status: 'partial' | 'unavailable'; failed: DateIndexFailure; cause: unknown };
 
-const readDates = async (readRemote: RemoteDateReader): Promise<string[]> => {
-  const localDates = await getAllDatesFromIndexedDB();
-
-  if (isFirestoreEnabled()) {
-    try {
-      return [
-        ...new Set([...localDates, ...(await readRemote(await loadFirestoreRecordQueries()))]),
-      ]
-        .sort()
-        .reverse();
-    } catch (err) {
-      dailyRecordReadLogger.warn('Failed to fetch remote dates', err);
-    }
-  }
-
-  return localDates.sort().reverse();
+const DATE_INDEX_FAILURE_MESSAGE: Record<DateIndexFailure, string> = {
+  local: 'No se pudo leer la lista de días guardados en este equipo. Intente nuevamente.',
+  remote:
+    'No se pudo leer la lista de días del censo desde el servidor. Intente nuevamente con conexión.',
+  both: 'No se pudo leer la lista de días del censo. Intente nuevamente.',
 };
 
-/** Whole history. Reserved for migrations and backfills that need every date. */
+/** The date index was not read completely: a partial list would be planned as the whole history. */
+class DailyRecordDateIndexIncompleteError extends Error {
+  readonly status: 'partial' | 'unavailable';
+  readonly failed: DateIndexFailure;
+
+  constructor(read: Extract<DateIndexRead, { failed: DateIndexFailure }>) {
+    super(DATE_INDEX_FAILURE_MESSAGE[read.failed], { cause: read.cause });
+    this.name = 'DailyRecordDateIndexIncompleteError';
+    this.status = read.status;
+    this.failed = read.failed;
+  }
+}
+
+const sortNewestFirst = (dates: Iterable<string>): string[] => [...new Set(dates)].sort().reverse();
+
+const readDateIndex = async (): Promise<DateIndexRead> => {
+  const local = await getAllDatesFromIndexedDB().then(
+    dates => ({ ok: true as const, dates }),
+    (cause: unknown) => ({ ok: false as const, cause })
+  );
+  if (!isFirestoreEnabled()) {
+    return local.ok
+      ? { status: 'complete', dates: sortNewestFirst(local.dates) }
+      : { status: 'unavailable', failed: 'local', cause: local.cause };
+  }
+
+  const remote = await loadFirestoreRecordQueries()
+    .then(module => module.getAvailableDatesFromFirestore())
+    .then(
+      dates => ({ ok: true as const, dates }),
+      (cause: unknown) => ({ ok: false as const, cause })
+    );
+  if (local.ok) {
+    return remote.ok
+      ? { status: 'complete', dates: sortNewestFirst([...local.dates, ...remote.dates]) }
+      : { status: 'partial', failed: 'remote', cause: remote.cause };
+  }
+  return remote.ok
+    ? { status: 'partial', failed: 'local', cause: local.cause }
+    : { status: 'unavailable', failed: 'both', cause: local.cause };
+};
+
+// Concurrent callers share one in-flight read without caching a stale answer for later calls.
+let availableDatesInFlight: Promise<string[]> | undefined;
+
+const readCompleteDates = async (): Promise<string[]> => {
+  const read = await readDateIndex();
+  if (read.status !== 'complete') {
+    dailyRecordReadLogger.warn(`Census date index ${read.status}`, read.cause);
+    throw new DailyRecordDateIndexIncompleteError(read);
+  }
+  return read.dates;
+};
+
+/**
+ * Whole history. Reserved for migrations and backfills that need every date. It rejects
+ * unless both the local and (when enabled) the server index were read: a partial list
+ * would be planned, analyzed or harmonized as if it were the whole history.
+ */
 export const getAvailableDates = async (): Promise<string[]> => {
-  availableDatesInFlight ??= readDates(m => m.getAvailableDatesFromFirestore()).finally(() => {
+  availableDatesInFlight ??= readCompleteDates().finally(() => {
     availableDatesInFlight = undefined;
   });
   return availableDatesInFlight;
 };
-
-/**
- * Startup only needs the closest dates, so the remote read is bounded and its cost
- * no longer grows with hospital history. Locally known dates are still merged in.
- */
-export const getRecentAvailableDates = (referenceDate: string): Promise<string[]> =>
-  readDates(m => m.getRecentAvailableDatesFromFirestore(referenceDate));
 
 export const getMonthRecords = async (
   year: number,
@@ -254,6 +292,10 @@ export const getPreviousDay = async (date: string): Promise<DailyRecord | null> 
   return result.record;
 };
 
+/**
+ * The closest earlier census day, or not found when none exists locally or on the server.
+ * A failed local or remote lookup rejects: it does not prove that there is no earlier day.
+ */
 export const getPreviousDayWithMeta = async (date: string): Promise<DailyRecordReadResult> => {
   const query = createGetPreviousDayQuery(date);
 
@@ -267,15 +309,10 @@ export const getPreviousDayWithMeta = async (date: string): Promise<DailyRecordR
   }
 
   if (isFirestoreEnabled()) {
-    try {
-      const { getPreviousRecordDateFromFirestore } = await loadFirestoreRecordQueries();
-      const prevDate = await getPreviousRecordDateFromFirestore(query.date);
-
-      if (prevDate) {
-        return await getForDateWithMeta(prevDate);
-      }
-    } catch (err) {
-      dailyRecordReadLogger.warn(`Remote previous-day lookup failed for ${query.date}`, err);
+    const { getPreviousRecordDateFromFirestore } = await loadFirestoreRecordQueries();
+    const prevDate = await getPreviousRecordDateFromFirestore(query.date);
+    if (prevDate) {
+      return getForDateWithMeta(prevDate);
     }
   }
 

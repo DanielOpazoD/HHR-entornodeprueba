@@ -113,6 +113,7 @@ vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
   getRecordFromFirestore: firestoreMock.getRecordFromFirestore,
   getRecordFromFirestoreDetailed: firestoreMock.getRecordFromFirestoreDetailed,
   getAvailableDatesFromFirestore: firestoreMock.getAvailableDatesFromFirestore,
+  getPreviousRecordDateFromFirestore: vi.fn(async () => null),
   subscribeToRecord: firestoreMock.subscribeToRecord,
 }));
 vi.mock('@/services/storage/firestore/firestoreRecordWrites', () => ({
