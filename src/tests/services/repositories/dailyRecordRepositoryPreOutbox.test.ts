@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
-  getRecordForDate: vi.fn(),
+  getRecordForDateStrict: vi.fn(),
   saveRecordStrict: vi.fn(record =>
     Promise.resolve({
       ok: true,

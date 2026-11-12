@@ -12,7 +12,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
-  getRecordForDate: vi.fn(),
+  getRecordForDateStrict: vi.fn(),
   captureLocalRecordBase: async (date: string) => ({
     kind: 'stored',
     record: await getRecordFromIndexedDB(date),
@@ -68,7 +68,7 @@ vi.mock('@/services/storage/sync/dailyRecordSyncQueueReadService', () => ({
 }));
 
 import {
-  getRecordForDate as getRecordFromIndexedDB,
+  getRecordForDateStrict as getRecordFromIndexedDB,
   saveRecordStrict as saveToIndexedDB,
   admitLocalRecords,
 } from '@/services/storage/indexeddb/indexedDbRecordService';

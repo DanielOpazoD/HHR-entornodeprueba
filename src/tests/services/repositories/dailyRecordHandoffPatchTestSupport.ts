@@ -1,4 +1,4 @@
-import { getRecordForDate as getRecordFromIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { getRecordForDateStrict as getRecordFromIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
 import type {
   LocalRecordAdmissionCandidate,
   LocalRecordBase,
@@ -32,7 +32,7 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
       record: candidate.record,
     }))
   ),
-  getRecordForDate: vi.fn(),
+  getRecordForDateStrict: vi.fn(),
   saveRecord: vi.fn(),
   saveRecordStrict: vi.fn(record =>
     Promise.resolve({

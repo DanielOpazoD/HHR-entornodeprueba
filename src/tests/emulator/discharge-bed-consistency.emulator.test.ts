@@ -30,7 +30,7 @@ import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositor
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import {
   clearAllRecords,
-  getRecordForDate,
+  getRecordForDateStrict,
   saveRecord,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 
@@ -165,7 +165,7 @@ describeEmulator('Firestore discharge-bed consistency flow', () => {
     expect(result.record?.beds.R1.patientName).toBe('');
     expect(result.record?.beds.R1.rut).toBe('');
 
-    const hydratedLocal = await getRecordForDate(date);
+    const hydratedLocal = await getRecordForDateStrict(date);
     expect(hydratedLocal?.beds.R1.patientName).toBe('');
     expect(hydratedLocal?.beds.R1.rut).toBe('');
   });
@@ -213,7 +213,7 @@ describeEmulator('Firestore discharge-bed consistency flow', () => {
     expect(result.record?.beds.R1.secondarySpecialty).toBe(Specialty.CIRUGIA);
     expect(result.record?.beds.R1.status).toBe(PatientStatus.ESTABLE);
 
-    const hydratedLocal = await getRecordForDate(date);
+    const hydratedLocal = await getRecordForDateStrict(date);
     expect(hydratedLocal?.beds.R1.pathology).toBe('Neumonia adquirida en la comunidad');
     expect(hydratedLocal?.beds.R1.patientName).toBe('Paciente Censo');
     expect(hydratedLocal?.beds.R1.rut).toBe('44.444.444-4');
@@ -258,7 +258,7 @@ describeEmulator('Firestore discharge-bed consistency flow', () => {
     expect(result.record?.beds.R1.specialty).toBe(Specialty.MEDICINA);
     expect(result.record?.beds.R1.handoffNote).toBe('Nota remota previa');
 
-    const hydratedLocal = await getRecordForDate(date);
+    const hydratedLocal = await getRecordForDateStrict(date);
     expect(hydratedLocal?.beds.R1.patientName).toBe('Paciente Firebase');
     expect(hydratedLocal?.beds.R1.pathology).toBe('Diagnostico Firebase vigente');
     expect(hydratedLocal?.beds.R1.handoffNote).toBe('Nota remota previa');
@@ -298,7 +298,7 @@ describeEmulator('Firestore discharge-bed consistency flow', () => {
     expect(result.record?.beds.R1.rut).toBe('44.444.444-4');
     expect(result.record?.beds.R1.handoffNote).toBe('');
 
-    const hydratedLocal = await getRecordForDate(date);
+    const hydratedLocal = await getRecordForDateStrict(date);
     expect(hydratedLocal?.beds.R1.patientName).toBe('Paciente Nuevo Firebase');
     expect(hydratedLocal?.beds.R1.handoffNote).toBe('');
   });

@@ -32,7 +32,7 @@ describe('remote reads use the admission boundary', () => {
   it('keeps reads, admission, types and explicit user commands available', async () => {
     expect(
       await violations(`
-      import { getRecordForDate, captureLocalRecordBase, inspectLocalRecordAdmission, admitLocalRecords, type LocalRecordBase } from '@/services/storage/indexeddb/indexedDbRecordService';
+      import { getRecordForDateStrict, captureLocalRecordBase, inspectLocalRecordAdmission, admitLocalRecords, type LocalRecordBase } from '@/services/storage/indexeddb/indexedDbRecordService';
       import { save } from './dailyRecordRepositoryWriteService';
     `)
     ).toEqual([]);

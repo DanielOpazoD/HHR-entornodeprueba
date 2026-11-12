@@ -1,7 +1,7 @@
 import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import {
-  getRecordForDate as getRecordFromIndexedDB,
+  getRecordForDateStrict,
   captureLocalRecordBase,
   getPreviousDayRecord as getPreviousDayFromIndexedDB,
   getAllDates as getAllDatesFromIndexedDB,
@@ -116,7 +116,7 @@ export const getAuthoritativeForDate = async (date: string): Promise<DailyRecord
  * remains authoritative for the episode-to-bed placement and CAS revision.
  */
 export const getLocalForDate = async (date: string): Promise<DailyRecord | null> => {
-  return getE2ELocalStorageRecord(date) || getRecordFromIndexedDB(date);
+  return getE2ELocalStorageRecord(date) || getRecordForDateStrict(date);
 };
 
 export const getLocalForDateWithMeta = async (
