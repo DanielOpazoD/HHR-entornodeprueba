@@ -174,6 +174,7 @@ export const assertNoSamePathRemoteMutation = (
 /** Compare the captured edit base even when a direct writer left no changed-path metadata. */
 export const assertUnchangedReplayPatchBase = (
   task: SyncTask,
+  remoteData: Record<string, unknown>,
   remoteRecord: DailyRecord,
   localRecord: DailyRecord
 ): void => {
@@ -181,7 +182,11 @@ export const assertUnchangedReplayPatchBase = (
   if (!base) return;
   const paths = normalizeChangedPaths(task.syncContract?.changedPaths);
   const remotePaths = paths.filter(
-    path => Object.hasOwn(base, path) && !hasSameValuesAtPaths(remoteRecord, { [path]: base[path] })
+    path =>
+      Object.hasOwn(base, path) &&
+      // Hydration pads staffing arrays; either stored or hydrated equality proves no field edit.
+      !hasSameValuesAtPaths(remoteData, { [path]: base[path] }) &&
+      !hasSameValuesAtPaths(remoteRecord, { [path]: base[path] })
   );
   if (hasBlockingOverlappingChangedPath(remotePaths, paths, remoteRecord, localRecord)) {
     throw new ConcurrencyError(

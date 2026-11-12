@@ -252,7 +252,7 @@ const resolveRecordForSyncTask = async (
   }
 
   const remoteRecord = docToRecord(remoteData, record.date);
-  assertUnchangedReplayPatchBase(task, remoteRecord, record);
+  assertUnchangedReplayPatchBase(task, remoteData, remoteRecord, record);
   const canRebasePatch =
     !detached && Boolean(checks?.hasUnchangedPatchBase(queuedTask, remoteRecord, queuedRecord));
   if (task.nursingHandoffRecovery) {

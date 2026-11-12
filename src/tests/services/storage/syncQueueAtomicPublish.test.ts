@@ -140,3 +140,29 @@ it.each(['unchanged', 'changed', 'same-clock', 'lost-ack'] as const)(
     }
   }
 );
+
+it.each([{ names: ['NURSE'] }, { names: ['NURSE', '', ''] }])(
+  'preserves staffing replay when the captured base is %j',
+  async ({ names }) => {
+    const base = { ...local(), tensDayShift: names };
+    const edited = { ...base, tensDayShift: ['EDITED'] };
+    mocks.read.mockResolvedValue(snapshot(base));
+    mocks.transactionRead.mockResolvedValue(
+      snapshot({ ...base, tensDayShift: ['NURSE'], lastUpdated: date + 'T10:01:00Z' })
+    );
+    const outcome = await run({
+      ...task(),
+      payload: edited,
+      patchBaseValues: { tensDayShift: names },
+      syncContract: {
+        mutationId: 'staffing-edit',
+        expectedVersion: base.lastUpdated,
+        changedPaths: ['tensDayShift'],
+      },
+    });
+    expect(outcome).toMatchObject({
+      authoritativeRecord: { tensDayShift: expect.arrayContaining(['EDITED']) },
+    });
+    expect(mocks.set).toHaveBeenCalledOnce();
+  }
+);
