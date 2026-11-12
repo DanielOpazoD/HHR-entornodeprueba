@@ -83,7 +83,7 @@ describe('bundle budget config', () => {
       maxBytes: 50000,
     });
     expect(findBudget(config, '^RayenSyncHistoryModal-.*\\.js$')).toMatchObject({
-      maxBytes: 28162,
+      maxBytes: 28148,
     });
     expect(findBudget(config, '^perfAuditReport-.*\\.js$')).toMatchObject({ maxBytes: 4000 });
     expect(findBudget(config, '^RayenImportButton-.*\\.js$')).toMatchObject({ maxBytes: 250430 });

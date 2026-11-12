@@ -99,8 +99,8 @@
     },
     {
       "pattern": "^RayenSyncHistoryModal-.*\\.js$",
-      "_comment": "Online-only history. Measured 26162 B on 2026-11-12 after deferring technical metrics; 2,000 B headroom.",
-      "maxBytes": 28162
+      "_comment": "Online-only history. Measured 26148 B on 2026-11-12 after deferring technical metrics; 2,000 B headroom.",
+      "maxBytes": 28148
     },
     {
       "pattern": "^RayenSyncTechnicalMetricsPanel-.*\\.js$",
