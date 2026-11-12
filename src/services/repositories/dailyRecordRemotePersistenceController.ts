@@ -106,6 +106,15 @@ const isSameVersion = (left: string, right: string | undefined): boolean =>
 const wait = (ms: number) => new Promise<void>(resolve => globalThis.setTimeout(resolve, ms));
 
 /**
+ * `missing`: the server has no confirmed version of this write yet. `unavailable`: the readback
+ * itself failed, so nothing is known about the server copy. Both keep the edit blocked.
+ */
+type RemoteAuthorityReadback =
+  | { kind: 'confirmed'; record: DailyRecord }
+  | { kind: 'missing' }
+  | { kind: 'unavailable'; error: unknown };
+
+/**
  * Prefer the record the write itself returned. Older authority callables, the direct updateDoc
  * path and an atomic patch whose commit could not be projected return none, so read the committed
  * document instead. That server read can be answered by an attached listener that has not seen
@@ -123,10 +132,10 @@ const resolveRemoteAuthorityRecord = async (
   result: RemoteAuthorityWriteResult | void,
   readRemoteConfirmedRecord?: () => Promise<DailyRecord | null>,
   expectedVersion?: string
-): Promise<DailyRecord | null> => {
+): Promise<RemoteAuthorityReadback> => {
   const responseRecord = applyRemoteAuthorityState(record, result);
-  if (responseRecord) return responseRecord;
-  if (!readRemoteConfirmedRecord) return null;
+  if (responseRecord) return { kind: 'confirmed', record: responseRecord };
+  if (!readRemoteConfirmedRecord) return { kind: 'missing' };
 
   for (let attempt = 0; ; attempt += 1) {
     let remoteRecord: DailyRecord | null;
@@ -134,28 +143,41 @@ const resolveRemoteAuthorityRecord = async (
       remoteRecord = await readRemoteConfirmedRecord();
     } catch (error) {
       logger.warn('Could not read back the server-confirmed daily record', error);
-      return null;
+      return { kind: 'unavailable', error };
     }
-    if (!isValidRemoteAuthorityRecord(remoteRecord, record.date)) return null;
-    if (!isSameVersion(remoteRecord.lastUpdated, expectedVersion)) return remoteRecord;
+    if (!isValidRemoteAuthorityRecord(remoteRecord, record.date)) return { kind: 'missing' };
+    if (!isSameVersion(remoteRecord.lastUpdated, expectedVersion))
+      return { kind: 'confirmed', record: remoteRecord };
 
     const delayMs = PRE_COMMIT_READBACK_RETRY_DELAYS_MS[attempt];
     if (delayMs === undefined) {
       logger.warn('The server readback still shows the pre-write daily record', {
         date: record.date,
       });
-      return null;
+      return { kind: 'missing' };
     }
     await wait(delayMs);
   }
 };
 
-const missingRemoteAuthorityStateResult = (date: string): LocalRecordWriteResult => ({
+/**
+ * The read failure travels as `cause` of a code-less error, so the save keeps the same blocked,
+ * non-retryable classification it had when this failure was reported as a missing version.
+ */
+const unconfirmedRemoteAuthorityStateResult = (
+  date: string,
+  readback: Exclude<RemoteAuthorityReadback, { kind: 'confirmed' }>
+): LocalRecordWriteResult => ({
   ok: false,
   operation: 'save',
   store: 'none',
   dates: [date],
-  error: new Error('La autoridad remota no devolvió la versión confirmada del registro.'),
+  error:
+    readback.kind === 'unavailable'
+      ? new Error('No se pudo leer en el servidor la versión confirmada del registro.', {
+          cause: readback.error,
+        })
+      : new Error('La autoridad remota no devolvió la versión confirmada del registro.'),
   userSafeMessage: 'La copia local no pudo confirmar la versión guardada en el servidor.',
 });
 
@@ -294,22 +316,23 @@ export const persistLocalAndAttemptRemoteSync = async ({
     }
     markRemoteWriteSucceeded(remoteState);
 
-    const authoritativeRecord = await resolveRemoteAuthorityRecord(
+    const authority = await resolveRemoteAuthorityRecord(
       record,
       remoteResult,
       readRemoteConfirmedRecord,
       expectedVersion
     );
-    if (!authoritativeRecord) {
+    if (authority.kind !== 'confirmed') {
       applyLocalPersistenceFailure(
         date,
         changedPaths,
-        missingRemoteAuthorityStateResult(date),
+        unconfirmedRemoteAuthorityStateResult(date, authority),
         remoteState,
         { remoteCommitted: true }
       );
       return 'return';
     }
+    const authoritativeRecord = authority.record;
     remoteState.confirmedRecord = authoritativeRecord;
 
     const persistedLocally = await persistConfirmedRemoteRecordLocally({
@@ -374,7 +397,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
     // readback before handing control to the clinical stage.
     if (remoteResult !== undefined || requireConfirmedRecord) {
       // A pre-write readback is retried, so keep the pending outbox task held meanwhile.
-      const authoritativeRecord = await runWithOptionalPreOutboxRenewal(
+      const authority = await runWithOptionalPreOutboxRenewal(
         () =>
           resolveRemoteAuthorityRecord(
             record,
@@ -385,17 +408,18 @@ export const persistLocalAndAttemptRemoteSync = async ({
         renewLocalPreOutboxHold,
         renewLocalPreOutboxHoldEveryMs
       );
-      if (!authoritativeRecord) {
+      if (authority.kind !== 'confirmed') {
         await releaseLocalPreOutboxHold?.();
         applyLocalPersistenceFailure(
           date,
           changedPaths,
-          missingRemoteAuthorityStateResult(date),
+          unconfirmedRemoteAuthorityStateResult(date, authority),
           remoteState,
           { remoteCommitted: true }
         );
         return 'return';
       }
+      const authoritativeRecord = authority.record;
       remoteState.confirmedRecord = authoritativeRecord;
       const persistedLocally = await persistConfirmedRemoteRecordLocally({
         date,

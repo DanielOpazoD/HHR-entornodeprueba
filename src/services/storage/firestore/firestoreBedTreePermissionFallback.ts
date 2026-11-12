@@ -65,7 +65,7 @@ export const runPartialUpdatePersistWithPermissionFallbacks = async <TResult>({
         date,
         fallbackError,
       });
-      return null;
+      throw error;
     }
   };
 
