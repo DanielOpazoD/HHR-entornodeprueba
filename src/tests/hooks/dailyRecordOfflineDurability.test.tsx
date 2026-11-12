@@ -306,7 +306,11 @@ it('e: an edit still on its way to the outbox at logout keeps its fate; only its
   await reconcileAuthorizedSessionOwner('user:C1-B');
   expect(nextPersonSees()).toBe('BASE');
   releaseWrite?.();
-  log('e-in-flight', { result: await inFlight });
+  await inFlight;
+  // Forgetting the overlay does not touch the write: the edit still reaches the outbox.
+  expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
+    { payload: { beds: { R1: { pathology: patch['beds.R1.pathology'] } } } },
+  ]);
   log('e-in-flight-dexie', {
     tasks: (await hospitalDB.syncQueue.toArray()).map(({ ownerKey, status }) => ({
       ownerKey,

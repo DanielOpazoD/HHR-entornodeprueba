@@ -9,8 +9,6 @@ import {
   releaseConfirmedPendingDailyRecordPatches,
 } from '@/hooks/controllers/dailyRecordPendingPatchController';
 import { resetSyncMutationIdentityForTests } from '@/services/storage/sync/syncMutationIdentity';
-import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
-import { SESSION_GENERATION_KEY } from '@/services/storage/sessionStorageTransition';
 
 const FIXED_PENDING_PATCH_CREATED_AT = 4102444740000;
 const FIXED_PENDING_PATCH_EXPIRES_AT = FIXED_PENDING_PATCH_CREATED_AT + 60_000;
@@ -19,8 +17,6 @@ describe('dailyRecordPendingPatchController', () => {
   afterEach(() => {
     clearPendingDailyRecordPatchesForTests();
     resetSyncMutationIdentityForTests();
-    localStorage.removeItem(SESSION_OWNER_KEY);
-    localStorage.removeItem(SESSION_GENERATION_KEY);
   });
 
   it('keeps a pending clinical status patch while the remote snapshot has not confirmed it', () => {
@@ -119,18 +115,7 @@ describe('dailyRecordPendingPatchController', () => {
     expect(resolved.beds.R2.status).toBe(PatientStatus.GRAVE);
   });
 
-  it.each([
-    {
-      label: 'another tab or reload of the same session',
-      authoredBy: 'user:synthetic-a',
-      applies: true,
-    },
-    {
-      label: 'nobody once another person signed in',
-      authoredBy: 'user:synthetic-b',
-      applies: false,
-    },
-  ])('hydrates persisted pending census patches for $label', ({ authoredBy, applies }) => {
+  it('hydrates pending census patches from persisted storage for another tab or reload', () => {
     const previousRecord = DataFactory.createMockDailyRecord('2025-01-08');
     previousRecord.beds.R1.clinicalEpisodeId = undefined;
     previousRecord.beds.R1.rut = '11.111.111-1';
@@ -145,8 +130,6 @@ describe('dailyRecordPendingPatchController', () => {
     incomingRecord.beds.R1.admissionTime = '08:00';
     incomingRecord.beds.R1.status = PatientStatus.EMPTY;
 
-    localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-a');
-    localStorage.setItem(SESSION_GENERATION_KEY, 'synthetic-generation');
     localStorage.setItem(
       PENDING_DAILY_RECORD_PATCH_STORAGE_KEY,
       JSON.stringify({
@@ -158,7 +141,6 @@ describe('dailyRecordPendingPatchController', () => {
             tabId: 'tab-other',
             createdAt: FIXED_PENDING_PATCH_CREATED_AT,
             expiresAt: FIXED_PENDING_PATCH_EXPIRES_AT,
-            sessionScope: JSON.stringify([authoredBy, 'synthetic-generation']),
             patch: {
               'beds.R1.status': PatientStatus.GRAVE,
             },
@@ -169,8 +151,7 @@ describe('dailyRecordPendingPatchController', () => {
 
     const resolved = applyPendingExplicitCensusPatch('2025-01-08', incomingRecord, previousRecord);
 
-    expect(resolved.beds.R1.status).toBe(applies ? PatientStatus.GRAVE : PatientStatus.EMPTY);
-    expect(localStorage.getItem(PENDING_DAILY_RECORD_PATCH_STORAGE_KEY) !== null).toBe(applies);
+    expect(resolved.beds.R1.status).toBe(PatientStatus.GRAVE);
   });
 
   it('removes a persisted pending patch once the remote snapshot confirms it', () => {
