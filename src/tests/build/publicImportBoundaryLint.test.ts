@@ -2,6 +2,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { ESLint } from 'eslint';
+import ts from 'typescript';
 import { GOVERNED_APPLICATION_PUBLIC_IMPORTS } from '../../../scripts/lib/publicImportBoundaryRule.mjs';
 import { beforeAll, describe, expect, it } from 'vitest';
 
@@ -16,6 +17,31 @@ const errors = async (file: string, code: string) => {
     message => message.ruleId === 'hhr/public-import-boundaries' && message.severity === 2
   );
 };
+// Parse declarations instead of matching text: comments and strings are not consumers.
+const importTargets = (file: string, source: string): Set<string> => {
+  const targets = new Set<string>();
+  const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
+  const visit = (node: ts.Node) => {
+    const target =
+      ts.isImportDeclaration(node) || ts.isExportDeclaration(node)
+        ? node.moduleSpecifier
+        : ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword
+          ? node.arguments[0]
+          : undefined;
+    if (target && ts.isStringLiteral(target)) targets.add(target.text);
+    ts.forEachChild(node, visit);
+  };
+  visit(tree);
+  return targets;
+};
+const realImports = (file: string) =>
+  importTargets(file, fs.readFileSync(path.join(ROOT, file), 'utf8'));
+const productionFiles = (directory: string): string[] =>
+  fs.readdirSync(path.join(ROOT, directory), { withFileTypes: true }).flatMap(entry => {
+    const file = `${directory}/${entry.name}`;
+    if (entry.isDirectory()) return entry.name === 'tests' ? [] : productionFiles(file);
+    return /\.[jt]sx?$/.test(file) && !/\.(test|spec|stories|d)\./.test(file) ? [file] : [];
+  });
 const forms = [
   (target: string) => `import { x } from '${target}';`,
   (target: string) => `import '${target}';`,
@@ -24,6 +50,23 @@ const forms = [
   (target: string) => `import('${target}');`,
 ];
 describe('public imports in ESLint', () => {
+  it('counts actual static, type-only, re-export and dynamic imports, not comments or strings', () => {
+    expect([
+      ...importTargets(
+        'probe.ts',
+        `
+      // import 'comment';
+      /* export * from 'block-comment'; */
+      const example = "import('string')";
+      import type { T } from 'type';
+      import 'side-effect';
+      export { x } from 'named';
+      export * from 'star';
+      const lazy = () => import('dynamic');
+    `
+      ),
+    ]).toEqual(['type', 'side-effect', 'named', 'star', 'dynamic']);
+  });
   for (const extension of ['ts', 'tsx', 'js', 'jsx']) {
     for (const [index, code] of forms.entries()) {
       it(`rejects resolved deep alias/relative imports (${extension}, form ${index})`, async () => {
@@ -75,8 +118,16 @@ describe('public imports in ESLint', () => {
       JSON.parse(
         fs.readFileSync(path.join(ROOT, 'scripts/feature-public-api-allowlist.json'), 'utf8')
       );
-    for (const targets of Object.values(publicModulesByFeature))
+    const consumers = productionFiles('src').map(file => ({ file, targets: realImports(file) }));
+    for (const [feature, targets] of Object.entries(publicModulesByFeature))
       for (const target of targets) {
+        expect(
+          consumers.some(
+            consumer =>
+              !consumer.file.startsWith(`src/features/${feature}/`) && consumer.targets.has(target)
+          ),
+          `Remove unused public module authorization: ${target}`
+        ).toBe(true);
         for (const code of forms)
           expect(await errors('src/views/Probe.ts', code(target))).toEqual([]);
       }
@@ -88,18 +139,15 @@ describe('public imports in ESLint', () => {
     for (const entries of Object.values(exceptionsByFeature))
       for (const entry of entries) {
         const [file, target] = entry.split(' -> ');
-        const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
-        expect(source.includes(`'${target}'`) || source.includes(`"${target}"`), entry).toBe(true);
+        expect(realImports(file).has(target), `Remove unused exception: ${entry}`).toBe(true);
         expect(await errors(file, forms[0](target))).toEqual([]);
         expect(await errors('src/views/Probe.ts', forms[0](target))).toHaveLength(1);
       }
   });
   it('keeps all governed census facade imports live and scoped to that facade', async () => {
     const file = 'src/application/census/public.ts';
-    const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
-    const stale = [...GOVERNED_APPLICATION_PUBLIC_IMPORTS].filter(
-      target => !source.includes(`'${target}'`)
-    );
+    const targets = realImports(file);
+    const stale = [...GOVERNED_APPLICATION_PUBLIC_IMPORTS].filter(target => !targets.has(target));
     // Existing policy debt: preserve the exception, but detect any change in stale entries.
     expect(stale).toEqual(['@/features/census/components/global-search/useGlobalPatientSearch']);
     for (const target of GOVERNED_APPLICATION_PUBLIC_IMPORTS) {
@@ -140,9 +188,7 @@ describe('public imports in ESLint', () => {
       1
     );
     const file = 'src/components/layout/app-content/AppContentOverlays.tsx';
-    expect(fs.readFileSync(path.join(ROOT, file), 'utf8')).toContain(
-      '@/features/census/public-components'
-    );
+    expect(realImports(file).has('@/features/census/public-components')).toBe(true);
   });
   it('does not add require/mock restrictions', async () => {
     for (const code of [
