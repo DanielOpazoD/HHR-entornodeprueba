@@ -79,7 +79,7 @@ export const publicImportBoundaryRule = {
       if (!resolved) return;
       const relative = path.relative(SRC, resolved).split(path.sep).join('/');
       const feature = relative.match(/^features\/([^/]+)\//)?.[1];
-      if (!feature || importer.startsWith(`src/features/${feature}`)) return;
+      if (!feature || importer.startsWith(`src/features/${feature}/`)) return;
       const publicPaths = [
         `@/features/${feature}`,
         `@/features/${feature}/index`,
