@@ -6,6 +6,11 @@ import {
   isSameEpisodeForExplicitCensusPatch,
 } from '@/services/repositories/explicitLocalCensusPatchPolicy';
 import { buildSyncMutationIdentity } from '@/services/storage/sync/syncMutationIdentity';
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import {
+  onSessionChange,
+  SESSION_GENERATION_KEY,
+} from '@/services/storage/sessionStorageTransition';
 
 export const PENDING_DAILY_RECORD_PATCH_STORAGE_KEY = 'hhr_pending_daily_record_patches_v1';
 export const PENDING_DAILY_RECORD_PATCH_TTL_MS = 5 * 60 * 1000;
@@ -18,6 +23,8 @@ interface PendingPatchEntry {
   mutationId: string;
   clientId: string;
   tabId: string;
+  /** Owner and session generation that authored the edit; no other session sees its overlay. */
+  sessionScope: string;
 }
 
 type PendingPatchStore = Record<string, PendingPatchEntry[]>;
@@ -29,6 +36,18 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
 
 const getNow = (): number => Date.now();
+
+// Read from shared storage, not this document's admission: a reload keeps the same session and
+// must keep protecting its own pending edits before it admits the owner again.
+const readSessionScope = (): string => {
+  try {
+    const generation =
+      typeof localStorage === 'undefined' ? null : localStorage.getItem(SESSION_GENERATION_KEY);
+    return JSON.stringify([getStoredSessionOwnerKey(), generation]);
+  } catch {
+    return JSON.stringify([null, null]);
+  }
+};
 
 const isTrackableExplicitCensusPath = (path: string): boolean => {
   const [root, bedId, field] = path.split('.');
@@ -45,8 +64,12 @@ const filterTrackableExplicitCensusPatch = (patch: DailyRecordPatch): DailyRecor
   return filteredPatch as DailyRecordPatch;
 };
 
-const normalizePersistedEntry = (value: unknown, now: number): PendingPatchEntry | undefined => {
-  if (!isPlainObject(value)) {
+const normalizePersistedEntry = (
+  value: unknown,
+  now: number,
+  sessionScope: string
+): PendingPatchEntry | undefined => {
+  if (!isPlainObject(value) || value.sessionScope !== sessionScope) {
     return undefined;
   }
 
@@ -77,6 +100,7 @@ const normalizePersistedEntry = (value: unknown, now: number): PendingPatchEntry
     mutationId,
     clientId,
     tabId,
+    sessionScope,
   };
 };
 
@@ -116,12 +140,13 @@ const readPersistedStore = (): PendingPatchStore => {
     }
 
     const now = getNow();
+    const sessionScope = readSessionScope();
     const store = Object.entries(parsed).reduce<PendingPatchStore>((acc, [date, entries]) => {
       if (!Array.isArray(entries)) {
         return acc;
       }
       const normalizedEntries = entries
-        .map(entry => normalizePersistedEntry(entry, now))
+        .map(entry => normalizePersistedEntry(entry, now, sessionScope))
         .filter((entry): entry is PendingPatchEntry => Boolean(entry));
       if (normalizedEntries.length > 0) {
         acc[date] = normalizedEntries;
@@ -163,8 +188,9 @@ const writePersistedEntriesForDate = (date: string, entries: PendingPatchEntry[]
 
 const getPendingEntriesForDate = (date: string): PendingPatchEntry[] => {
   const now = getNow();
+  const sessionScope = readSessionScope();
   const memoryEntries = getMemoryEntriesForDate(date)
-    .map(entry => normalizePersistedEntry(entry, now))
+    .map(entry => normalizePersistedEntry(entry, now, sessionScope))
     .filter((entry): entry is PendingPatchEntry => Boolean(entry));
   const persistedEntries = readPersistedStore()[date] ?? [];
   const entriesById = new Map<string, PendingPatchEntry>();
@@ -228,6 +254,7 @@ export const registerPendingDailyRecordPatch = (
     createdAt: now,
     expiresAt: now + PENDING_DAILY_RECORD_PATCH_TTL_MS,
     ...mutationIdentity,
+    sessionScope: readSessionScope(),
   };
   const entries = [...getPendingEntriesForDate(date), entry];
   writeMemoryEntriesForDate(date, entries);
@@ -235,6 +262,13 @@ export const registerPendingDailyRecordPatch = (
 
   return () => removePendingEntry(date, entry.id);
 };
+
+// Every admission and logout. Only the visual overlay is forgotten: what the edit wrote to its row
+// and outbox task is left to the session cleanup (SAVE-03). The shared copy in localStorage is the
+// cleanup's too, and a reload of the same session still needs it.
+onSessionChange(() => {
+  pendingPatchRegistry.clear();
+});
 
 export const clearPendingDailyRecordPatchesForTests = (): void => {
   pendingPatchRegistry.clear();
