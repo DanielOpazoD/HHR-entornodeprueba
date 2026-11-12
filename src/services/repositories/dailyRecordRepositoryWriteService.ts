@@ -464,7 +464,6 @@ const updatePartialDetailedWithinLock = async (
     ? options.specialistHandoffTargets || buildSpecialistHandoffTargets(current, command.patch)
     : undefined;
   remoteWriteOptions.specialistHandoffTargets = handoffTargets;
-
   // The outbox applies this patch again on the day's stored projection (#1024).
   const patchWrite = {
     baseRecord: current,
