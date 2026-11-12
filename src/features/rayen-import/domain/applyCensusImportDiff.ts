@@ -380,8 +380,8 @@ export const applyCensusImportDiff = (
 
   applyRayenDischargeVerification(nextBeds, effectiveDiff.pendingAdministrativeDischarges);
 
-  // Vacating a standard bed keeps its empty slot, as persistence requires. Extra beds
-  // retain their existing removal policy; never carry patient state into the empty slot.
+  // Vacating a catalog bed keeps its empty slot, as persistence requires. Visibility
+  // still follows occupancy and activeExtraBeds; never retain the departed patient state.
   for (const bed of BEDS) {
     if (current.beds[bed.id] && !nextBeds[bed.id]) {
       nextBeds[bed.id] = createEmptyPatient(bed.id);

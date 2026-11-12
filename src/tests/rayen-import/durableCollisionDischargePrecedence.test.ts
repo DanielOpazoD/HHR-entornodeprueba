@@ -1,3 +1,4 @@
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { describe, expect, it } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import {
@@ -108,7 +109,7 @@ describe('existing collision receipts during migration to separate CMA assignmen
     addDischarge(later, 'CMA_R3');
     const result = applyCensusImportDiff(first.record, later, context());
     expect(later.retainedBedCollisionResolutions).toEqual([]);
-    expect(result.record.beds.CMA_R3).toBeUndefined();
+    expect(result.record.beds.CMA_R3).toEqual(createEmptyPatient('CMA_R3'));
     expect(result.record.beds.R3.clinicalEpisodeId).toBe('MQ-R3');
     expect(result.record.discharges).toHaveLength(1);
   });

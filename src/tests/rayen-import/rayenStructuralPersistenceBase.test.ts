@@ -1,3 +1,4 @@
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { describe, expect, it } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
@@ -160,7 +161,7 @@ describe('buildRayenStructuralPersistenceBase', () => {
 
     expect(applied.applied.moves).toBe(1);
     expect(applied.skipped).toEqual([]);
-    expect(applied.record.beds.R4).toBeUndefined();
+    expect(applied.record.beds.R4).toEqual(createEmptyPatient('R4'));
     expect(applied.record.beds.R1?.clinicalEpisodeId).toBe('episode-move-r4-r1');
     expect(applied.record.beds.R1?.medicalHandoffNote).toBe('Nota local que no debe perderse');
   });

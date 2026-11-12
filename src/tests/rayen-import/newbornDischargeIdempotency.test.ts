@@ -168,7 +168,7 @@ describe('newborn discharge idempotency', () => {
         result.record.discharges.find(row => row.clinicalEpisodeId === mother.clinicalEpisodeId)
           ?.originalData?.clinicalCrib
       ).toBeUndefined();
-      expect(result.record.beds.H6C1).toBeUndefined();
+      expect(result.record.beds.H6C1).toEqual(createEmptyPatient('H6C1'));
       expect(current).toEqual(original);
       const motherRow = result.record.discharges.find(
         row => row.clinicalEpisodeId === mother.clinicalEpisodeId

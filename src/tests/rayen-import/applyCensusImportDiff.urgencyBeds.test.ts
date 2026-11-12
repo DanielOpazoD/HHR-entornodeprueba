@@ -1,3 +1,4 @@
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { describe, expect, it } from 'vitest';
 import {
   applyCensusImportDiff,
@@ -100,7 +101,7 @@ describe('applyCensusImportDiff Urgencias occupancy-only beds', () => {
       makeCtx()
     );
 
-    expect(discharged.record.beds.BOX3).toBeUndefined();
+    expect(discharged.record.beds.BOX3).toEqual(createEmptyPatient('BOX3'));
     expect(discharged.record.activeExtraBeds).not.toContain('BOX3');
   });
 
