@@ -67,6 +67,12 @@ describe('EpisodeBlockCard', () => {
     onLoadDocuments.mockClear();
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
     expect(onLoadDocuments).toHaveBeenCalledWith(episodeKey);
+
+    onLoadDocuments.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: /Documentos clinicos/i }));
+    expect(onLoadDocuments).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /Documentos clinicos/i }));
+    expect(onLoadDocuments).toHaveBeenCalledWith(episodeKey);
   });
 
   it('opens the clinical document viewer from a listed document row', () => {

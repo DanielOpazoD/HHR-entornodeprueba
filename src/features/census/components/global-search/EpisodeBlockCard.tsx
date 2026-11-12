@@ -103,11 +103,12 @@ export const EpisodeBlockCard: React.FC<EpisodeBlockCardProps> = ({
 
   const handleToggleDocs = useCallback(() => {
     if (!episodeKey) return;
-    if (!docsState || docsState.loadFailed) {
+    // Reopening after a failed read retries; closing the section asks for nothing.
+    if (!docsState || (docsState.loadFailed && !isDocsExpanded)) {
       onLoadDocuments(episodeKey);
     }
     setIsDocsExpanded(prev => !prev);
-  }, [episodeKey, docsState, onLoadDocuments]);
+  }, [episodeKey, docsState, isDocsExpanded, onLoadDocuments]);
 
   return (
     <div className="relative pl-5 pb-2">
