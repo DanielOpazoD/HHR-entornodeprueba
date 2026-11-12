@@ -6,6 +6,7 @@ import type {
 import { dispatchOperationalTelemetryExternally } from '@/services/observability/operationalTelemetryExternalAdapter';
 import { buildOperationalTelemetrySummary } from '@/services/observability/operationalTelemetrySummary';
 import {
+  appendOperationalTelemetryEvent,
   persistOperationalTelemetryEvents,
   readOperationalTelemetryEvents,
 } from '@/services/observability/operationalTelemetryStore';
@@ -46,9 +47,10 @@ export const recordOperationalTelemetry = (
   }
 
   const event = createRecordedOperationalTelemetryEvent(input);
-  const nextEvents = [...readOperationalTelemetryEventsSafely(), event];
-
-  persistOperationalTelemetryEventsSafely(nextEvents);
+  appendOperationalTelemetryEvent(event, {
+    onReadError: error => operationalTelemetryLogger.warn('Failed to read persisted events', error),
+    onPersistError: error => operationalTelemetryLogger.warn('Failed to persist events', error),
+  });
   void dispatchOperationalTelemetryExternally(event);
 };
 
