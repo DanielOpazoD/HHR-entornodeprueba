@@ -2,6 +2,7 @@ import { ClinicalDocumentRepository } from '@/services/repositories/ClinicalDocu
 import type { ClinicalDocumentRecord } from '@/features/clinical-documents/internal';
 
 export interface ClinicalDocumentPort {
+  get: (documentId: string, hospitalId?: string) => Promise<ClinicalDocumentRecord | null>;
   listByEpisode: (episodeKey: string, hospitalId?: string) => Promise<ClinicalDocumentRecord[]>;
   listByEpisodeKeys: (
     episodeKeys: string[],
@@ -34,6 +35,7 @@ export interface ClinicalDocumentPort {
 }
 
 export const defaultClinicalDocumentPort: ClinicalDocumentPort = {
+  get: (documentId, hospitalId) => ClinicalDocumentRepository.get(documentId, hospitalId),
   listByEpisode: async (episodeKey, hospitalId) =>
     ClinicalDocumentRepository.listByEpisode(episodeKey, hospitalId),
   listByEpisodeKeys: async (episodeKeys, hospitalId) =>
