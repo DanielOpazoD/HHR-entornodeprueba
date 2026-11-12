@@ -12,6 +12,7 @@ import {
   writeNote,
 } from './specialistHandoffOutboxHarness';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
@@ -289,7 +290,7 @@ for (const path of ['suscripción', 'E', 'puntual', 'rango', 'mantenimiento', 'A
               'beds.R4.clinicalCrib.medicalHandoffEntries': fields.medicalHandoffEntries,
               'beds.R4.clinicalCrib.medicalHandoffNote': fields.medicalHandoffNote,
               'beds.R4.clinicalCrib.medicalHandoffAudit': fields.medicalHandoffAudit,
-            },
+            } as DailyRecordPatch,
             { baseRecord: remote }
           );
           h.offline = false;
