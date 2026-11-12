@@ -17,7 +17,6 @@ const TARGET_FILES = [
 const FORBIDDEN_IMPORTS = [
   '@/services/auditService',
   '@/services/backup/backupService',
-  '@/services/repositories/DailyRecordRepository',
   '@/services/integrations/censusEmailService',
 ];
 

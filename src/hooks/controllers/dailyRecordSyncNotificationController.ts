@@ -243,4 +243,7 @@ export const resolveSaveOutcomeFeedback = (result: SaveDailyRecordResult | null 
 
 export const resolvePatchOutcomeFeedback = (
   result: UpdatePartialDailyRecordResult | null | undefined
-) => resolveWriteOutcomeFeedback(result, true);
+) =>
+  result?.observabilityTags?.includes('sync_queue_write_retained_for_owner')
+    ? null
+    : resolveWriteOutcomeFeedback(result, true);

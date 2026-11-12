@@ -1,3 +1,4 @@
+import { isAuthoringSessionCurrent } from '@/services/storage/authoringSession';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ErrorSeverity } from '@/services/logging/errorLogTypes';
 import { logError } from '@/services/utils/errorService';
@@ -164,7 +165,7 @@ export const createSyncQueueEngine = ({
     const type: SyncTask['type'] = handoff ? 'UPDATE_SPECIALIST_HANDOFF' : 'UPDATE_DAILY_RECORD';
     const payload = handoff ?? record;
     const key = getSyncTaskKey(type, payload);
-    const ownerKey = runtime.getOwnerKey();
+    const ownerKey = options.authoringSession?.ownerKey ?? runtime.getOwnerKey();
     const taskOwnerKey = ownerKey ?? undefined;
     const now = Date.now();
     const contextMeta = buildSyncQueueTaskContextMeta({
@@ -178,7 +179,11 @@ export const createSyncQueueEngine = ({
     const pendingTasks = await countActiveTasks(ownerKey);
     // Only a write folding into an active task leaves the count unchanged: a blocked one revives,
     // and one without its copy is released in the store's transaction and a new task is created.
-    if (existing?.status !== 'PENDING' && pendingTasks >= maxPendingTasks) {
+    if (
+      (!options.authoringSession || isAuthoringSessionCurrent(options.authoringSession)) &&
+      existing?.status !== 'PENDING' &&
+      pendingTasks >= maxPendingTasks
+    ) {
       return {
         accepted: false,
         mode: 'rejected_backpressure',
@@ -206,8 +211,12 @@ export const createSyncQueueEngine = ({
         ...resolvePreOutboxHoldState(now, options),
       },
       options.patchWrite,
-      options.wholeRecordBase
+      options.wholeRecordBase,
+      options.authoringSession
     );
+    // Kept for its author, off this session's day: nothing for this session to accept or send.
+    if (mode === 'retained_for_owner')
+      return { accepted: false, mode, pendingTasks, maxPendingTasks };
 
     if (!options.deferProcessing) {
       triggerProcessing();
