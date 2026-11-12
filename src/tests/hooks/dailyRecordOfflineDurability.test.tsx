@@ -346,6 +346,38 @@ it('e: an edit in flight while its author signs out and back in waits for review
   expect(await hospitalDB.syncQueue.toArray()).toMatchObject([retainedForA]);
   expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
 });
+it('e: an edit still waiting for its turn when its author signs out stays theirs too', async () => {
+  writeGate = new Promise<void>(resolve => {
+    releaseWrite = resolve;
+  });
+  const h = setupHook();
+  const second = { 'beds.R1.pathology': 'DIAGNOSTICO SINTETICO C1 BIS' };
+  let waiting: Promise<unknown> | undefined;
+  act(() => {
+    inFlight = h.result.current.mutateAsync(patch).catch(error => error);
+  });
+  await waitFor(() => expect(persistCalls).toBe(1));
+  act(() => {
+    waiting = h.result.current.mutateAsync(second).catch(error => error);
+  });
+  // The second edit has begun; it waits behind the first for the date's turn.
+  await act(async () => {
+    await new Promise(resolve => setTimeout(resolve, 0));
+  });
+  await clearSessionScopedClientState('manual');
+  await reconcileAuthorizedSessionOwner('user:C1-B');
+  await hospitalDB.dailyRecords.put(base);
+  releaseWrite?.();
+  await inFlight;
+  await waiting;
+  expect(await createDexieSyncQueueStore().listAll('user:C1-B')).toEqual([]);
+  const tasks = await hospitalDB.syncQueue.toArray();
+  expect(tasks.map(({ ownerKey, status }) => ({ ownerKey, status }))).toEqual([
+    { ownerKey: 'user:C1-A', status: 'FAILED' },
+    { ownerKey: 'user:C1-A', status: 'FAILED' },
+  ]);
+  expect((await hospitalDB.dailyRecords.get(date))?.beds.R1.pathology).toBe('BASE');
+});
 it('e-control: an edit held without a session change still writes the day and its pending task', async () => {
   writeGate = new Promise<void>(resolve => {
     releaseWrite = resolve;
