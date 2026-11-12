@@ -21,7 +21,7 @@ import type { StabilityRules } from '@/hooks/useStabilityRules';
 import type { DailyRecordStaffingDetailsV1 } from '@/types/domain/dailyRecordStaffingDetails';
 import type { ConfirmedBedOccupantIdentity } from '@/types/domain/intentionalBedClear';
 
-export type SyncStatus = 'idle' | 'saving' | 'saved' | 'error';
+export type SyncStatus = 'idle' | 'saving' | 'saved' | 'local' | 'error';
 
 export interface InventoryStats {
   occupiedCount: number;
@@ -40,6 +40,7 @@ export interface UseDailyRecordSyncResult {
     record: DailyRecord | null | ((prev: DailyRecord | null) => DailyRecord | null)
   ) => void;
   syncStatus: SyncStatus;
+  hasSaveException?: boolean;
   lastSyncTime: Date | null;
   bootstrapPhase: DailyRecordBootstrapPhase;
   saveAndUpdate: PersistDailyRecord;
@@ -51,6 +52,7 @@ export interface UseDailyRecordSyncResult {
 export interface DailyRecordDataContextType {
   record: DailyRecord | null;
   syncStatus: SyncStatus;
+  hasSaveException?: boolean;
   lastSyncTime: Date | null;
   bootstrapPhase: DailyRecordBootstrapPhase;
   inventory: InventoryStats;

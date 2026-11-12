@@ -10,7 +10,7 @@ vi.mock('@/context/DailyRecordContext', () => ({
 }));
 
 describe('layout SyncStatusIndicator', () => {
-  it.each(['idle', 'saved'] as const)(
+  it.each(['idle', 'saved', 'local'] as const)(
     'keeps a reserved right-bar slot when sync status is %s',
     syncStatus => {
       mockUseDailyRecordStatus.mockReturnValue({ syncStatus, lastSyncTime: null });
