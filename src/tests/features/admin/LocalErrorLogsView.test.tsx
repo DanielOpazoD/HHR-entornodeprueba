@@ -1,3 +1,4 @@
+vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ role: 'viewer' }) }));
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

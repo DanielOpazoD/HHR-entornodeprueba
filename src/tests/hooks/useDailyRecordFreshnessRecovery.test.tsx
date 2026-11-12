@@ -1,3 +1,4 @@
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { renderHook } from '@testing-library/react';
 import { QueryClient } from '@tanstack/react-query';
@@ -51,6 +52,7 @@ describe('freshness check that could not confirm', () => {
 
   beforeEach(() => {
     localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-diagnostics');
+    setSessionGeneration('synthetic-diagnostics', 'user:synthetic-diagnostics');
     vi.useFakeTimers();
     visibility = 'visible';
     vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility);

@@ -1,4 +1,4 @@
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import { getSessionOwner } from '@/services/storage/sessionStorageTransition';
 import type { OperationalTelemetryEvent } from '@/services/observability/operationalTelemetryTypes';
 import {
   canUseOperationalTelemetryLocalStorage,
@@ -82,7 +82,7 @@ export const appendOperationalTelemetryEvent = (
   persistOperationalTelemetryEvents(
     [
       ...readRetainedOperationalTelemetryEvents(options),
-      { ...event, localOwnerKey: getStoredSessionOwnerKey() },
+      { ...event, localOwnerKey: getSessionOwner() },
     ],
     options
   );
@@ -91,7 +91,7 @@ export const appendOperationalTelemetryEvent = (
 export const readOperationalTelemetryEvents = (
   options: { onReadError?: (error: unknown) => void } = {}
 ): OperationalTelemetryEvent[] => {
-  const owner = getStoredSessionOwnerKey();
+  const owner = getSessionOwner();
   // Unattributed legacy events remain retained, but cannot establish a right to read clinical context.
   return owner
     ? readRetainedOperationalTelemetryEvents(options)

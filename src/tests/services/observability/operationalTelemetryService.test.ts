@@ -1,3 +1,4 @@
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { dispatchOperationalTelemetryExternally } from '@/services/observability/operationalTelemetryExternalAdapter';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -19,6 +20,7 @@ vi.mock('@/services/observability/operationalTelemetryExternalAdapter', () => ({
 describe('operationalTelemetryService', () => {
   beforeEach(() => {
     localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-diagnostics');
+    setSessionGeneration('user:synthetic-diagnostics', 'user:synthetic-diagnostics');
     clearOperationalTelemetryEvents();
     vi.useRealTimers();
   });
@@ -38,6 +40,7 @@ describe('operationalTelemetryService', () => {
     const event = vi.mocked(dispatchOperationalTelemetryExternally).mock.calls.at(-1)?.[0];
     const snapshot = structuredClone(event);
     localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-B');
+    setSessionGeneration('user:synthetic-B', 'user:synthetic-B');
     expect(getOperationalTelemetryEvents()).toEqual([]);
     recordOperationalTelemetry({
       category: 'sync',
@@ -49,6 +52,7 @@ describe('operationalTelemetryService', () => {
     finish(true);
     expect(await pending).toBe(true);
     localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-diagnostics');
+    setSessionGeneration('user:synthetic-diagnostics', 'user:synthetic-diagnostics');
     expect(getOperationalTelemetryEvents()).toEqual([snapshot]);
   });
 

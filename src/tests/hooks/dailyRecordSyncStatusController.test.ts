@@ -1,41 +1,41 @@
 import { describe, expect, it } from 'vitest';
+import {
+  resolveDailyRecordSyncStatus,
+  type DailyRecordMutationFlags,
+} from '@/hooks/controllers/dailyRecordSyncStatusController';
+import { createSaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 
-import { resolveDailyRecordSyncStatus } from '@/hooks/controllers/dailyRecordSyncStatusController';
+const settled = (local: boolean, remote: boolean): DailyRecordMutationFlags => ({
+  isPending: false,
+  isError: false,
+  isSuccess: true,
+  data: {
+    result: createSaveDailyRecordResult({
+      date: '2026-11-11',
+      outcome: 'clean',
+      savedLocally: local,
+      savedRemotely: remote,
+      queuedForRetry: false,
+      autoMerged: false,
+    }),
+  },
+});
+const idle = { isPending: false, isError: false, isSuccess: false };
+const failed = { ...idle, isError: true };
+const pending = { ...idle, isPending: true };
 
 describe('resolveDailyRecordSyncStatus', () => {
-  it('returns saving when any mutation is pending', () => {
-    const status = resolveDailyRecordSyncStatus([
-      { isPending: false, isError: false, isSuccess: false },
-      { isPending: true, isError: false, isSuccess: false },
-    ]);
-
-    expect(status).toBe('saving');
-  });
-
-  it('returns error when none pending and at least one errored', () => {
-    const status = resolveDailyRecordSyncStatus([
-      { isPending: false, isError: true, isSuccess: false },
-      { isPending: false, isError: false, isSuccess: true },
-    ]);
-
-    expect(status).toBe('error');
-  });
-
-  it('returns saved when none pending/errored and at least one succeeded', () => {
-    const status = resolveDailyRecordSyncStatus([
-      { isPending: false, isError: false, isSuccess: true },
-      { isPending: false, isError: false, isSuccess: false },
-    ]);
-
-    expect(status).toBe('saved');
-  });
-
-  it('returns idle when no mutation has activity', () => {
-    const status = resolveDailyRecordSyncStatus([
-      { isPending: false, isError: false, isSuccess: false },
-      { isPending: false, isError: false, isSuccess: false },
-    ]);
-
-    expect(status).toBe('idle');
+  it.each([
+    ['pending precedes failure', [failed, pending], 'saving'],
+    ['failure precedes confirmation', [failed, settled(true, true)], 'error'],
+    ['confirmed', [idle, settled(true, true)], 'saved'],
+    ['inactive', [idle, idle], 'idle'],
+    ['returned failure', [settled(false, false)], 'error'],
+    ['local only', [settled(true, false)], 'local'],
+    ['remote only', [settled(false, true)], 'saved'],
+    ['legacy without evidence', [{ ...idle, isSuccess: true }], 'idle'],
+    ['local remains unconfirmed', [settled(true, true), settled(true, false)], 'local'],
+  ] as const)('%s', (_name, mutations, expected) => {
+    expect(resolveDailyRecordSyncStatus(mutations)).toBe(expected);
   });
 });

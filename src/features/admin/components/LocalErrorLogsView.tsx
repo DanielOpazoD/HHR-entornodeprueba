@@ -1,3 +1,5 @@
+import { useAuth } from '@/context/AuthContext';
+import type { UserRole } from '@/types/authRoleTypes';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, RefreshCw, Trash2 } from 'lucide-react';
@@ -78,10 +80,11 @@ const pluralizeLogCount = (count: number): string =>
 
 export const LocalErrorLogsView: React.FC = () => {
   const epoch = useSessionEpoch();
-  return <SessionErrorLogsView key={epoch} />;
+  const { role } = useAuth();
+  return <SessionErrorLogsView key={`${epoch}:${role}`} role={role} />;
 };
 
-const SessionErrorLogsView: React.FC = () => {
+const SessionErrorLogsView: React.FC<{ role: UserRole }> = ({ role }) => {
   const [logs, setLogs] = useState<ErrorLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -94,7 +97,7 @@ const SessionErrorLogsView: React.FC = () => {
     setLoading(true);
     setLoadError(null);
     try {
-      const fetchedLogs = await fetchErrorLogs(100);
+      const fetchedLogs = await fetchErrorLogs(100, role);
       if (requestId !== requestIdRef.current) return;
       setLogs(fetchedLogs);
     } catch {
@@ -105,7 +108,7 @@ const SessionErrorLogsView: React.FC = () => {
     } finally {
       if (requestId === requestIdRef.current) setLoading(false);
     }
-  }, []);
+  }, [role]);
 
   useEffect(() => {
     void loadLogs();
@@ -146,7 +149,9 @@ const SessionErrorLogsView: React.FC = () => {
           <div>
             <h1 className="text-xl font-bold text-slate-800">Errores locales</h1>
             <p className="text-xs text-slate-500">
-              Registros de tu sesión guardados en este navegador para soporte y depuración.
+              {role === 'admin'
+                ? 'Registros del equipo guardados en este navegador para soporte y depuración.'
+                : 'Registros de tu sesión guardados en este navegador para soporte y depuración.'}
             </p>
           </div>
         </div>
@@ -201,7 +206,9 @@ const SessionErrorLogsView: React.FC = () => {
       ) : logs.length === 0 && loadError ? null : logs.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-12 text-center">
           <p className="font-semibold text-slate-700">
-            No hay errores locales registrados para tu usuario.
+            {role === 'admin'
+              ? 'No hay errores locales registrados en este navegador.'
+              : 'No hay errores locales registrados para tu usuario.'}
           </p>
           <p className="mt-1 text-sm text-slate-500">
             Si ocurre un error técnico en este navegador, aparecerá aquí al refrescar.

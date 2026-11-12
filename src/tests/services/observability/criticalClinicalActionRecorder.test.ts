@@ -1,3 +1,4 @@
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -10,6 +11,7 @@ import { recordCriticalClinicalAction } from '@/services/observability/criticalC
 describe('criticalClinicalActionRecorder', () => {
   beforeEach(() => {
     localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-diagnostics');
+    setSessionGeneration('user:synthetic-diagnostics', 'user:synthetic-diagnostics');
     clearOperationalTelemetryEvents();
     vi.useRealTimers();
   });

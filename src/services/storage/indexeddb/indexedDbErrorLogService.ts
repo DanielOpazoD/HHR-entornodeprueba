@@ -1,12 +1,12 @@
-import { getStoredSessionOwnerKey } from '../sessionOwnerKey';
-import { getSessionEpoch } from '../sessionStorageTransition';
+import type { UserRole } from '@/types/authRoleTypes';
+import { getSessionEpoch, getSessionOwner } from '../sessionStorageTransition';
 import { ErrorLog } from '@/services/logging/errorLogTypes';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 
 import { ensureDbReady, hospitalDB as db } from './indexedDbCore';
 
 export const saveErrorLog = async (log: ErrorLog): Promise<void> => {
-  const storedLog = { ...log, localOwnerKey: getStoredSessionOwnerKey() };
+  const storedLog = { ...log, localOwnerKey: getSessionOwner() };
   try {
     await ensureDbReady();
     await db.errorLogs.add(storedLog);
@@ -21,8 +21,8 @@ export const saveErrorLog = async (log: ErrorLog): Promise<void> => {
   }
 };
 
-export const getErrorLogs = async (limit = 50): Promise<ErrorLog[]> => {
-  const owner = getStoredSessionOwnerKey();
+export const getErrorLogs = async (limit = 50, role?: UserRole): Promise<ErrorLog[]> => {
+  const owner = getSessionOwner();
   const epoch = getSessionEpoch();
   try {
     await ensureDbReady();
@@ -30,10 +30,10 @@ export const getErrorLogs = async (limit = 50): Promise<ErrorLog[]> => {
     const logs = await db.errorLogs
       .orderBy('timestamp')
       .reverse()
-      .filter(log => 'localOwnerKey' in log && log.localOwnerKey === owner)
+      .filter(log => role === 'admin' || ('localOwnerKey' in log && log.localOwnerKey === owner))
       .limit(limit)
       .toArray();
-    if (epoch !== getSessionEpoch() || owner !== getStoredSessionOwnerKey()) {
+    if (epoch !== getSessionEpoch() || owner !== getSessionOwner()) {
       throw new Error('La sesión cambió durante la lectura de errores locales.');
     }
     return logs;

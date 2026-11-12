@@ -142,7 +142,7 @@ export const reconcileAuthorizedSessionOwner = (ownerKey: string): Promise<void>
     setStoredSessionOwnerKey(ownerKey);
     const generation = localStorage.getItem(SESSION_GENERATION_KEY) || crypto.randomUUID();
     localStorage.setItem(SESSION_GENERATION_KEY, generation);
-    setSessionGeneration(generation);
+    setSessionGeneration(generation, ownerKey);
     failedCleanupGeneration = undefined;
     setSessionCleanupFailed(false);
     if (!previousOwnerKey || previousOwnerKey === ownerKey) return;

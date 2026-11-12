@@ -310,6 +310,7 @@ export const useDailyRecordSyncQuery = (
     record: record ?? null,
     setRecord,
     syncStatus,
+    hasSaveException: saveMutation.isError || patchMutation.isError,
     lastSyncTime,
     bootstrapPhase,
     saveAndUpdate,

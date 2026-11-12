@@ -100,8 +100,8 @@ export const useAppContentRuntime = ({ ui }: UseAppContentRuntimeParams): AppCon
   } = useCensusContext();
   const auth = useAuth();
   const { error: notifyError, info: notifyInfo, warning } = useNotification();
-  const { record, syncStatus, lastSyncTime } = dailyRecordHook;
-  const syncStatusRef = React.useRef(syncStatus);
+  const { record, syncStatus, hasSaveException, lastSyncTime } = dailyRecordHook;
+  const syncStatusRef = React.useRef({ syncStatus, hasSaveException });
   const recordRef = React.useRef(record);
   const selectedDateRef = React.useRef(dateNav.currentDateString);
   React.useEffect(() => {
@@ -109,8 +109,8 @@ export const useAppContentRuntime = ({ ui }: UseAppContentRuntimeParams): AppCon
   }, [dateNav.currentDateString]);
 
   React.useEffect(() => {
-    syncStatusRef.current = syncStatus;
-  }, [syncStatus]);
+    syncStatusRef.current = { syncStatus, hasSaveException };
+  }, [syncStatus, hasSaveException]);
 
   React.useEffect(() => {
     recordRef.current = record;
@@ -136,7 +136,7 @@ export const useAppContentRuntime = ({ ui }: UseAppContentRuntimeParams): AppCon
       readState: () => ({
         selectedDate: selectedDateRef.current,
         recordDate: recordRef.current?.date,
-        syncStatus: syncStatusRef.current,
+        ...syncStatusRef.current,
       }),
       now: Date.now,
       wait,

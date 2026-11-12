@@ -18,8 +18,12 @@
 ## Diagnóstico local por propietario
 
 Los lectores locales devuelven solo eventos de la sesión que los registró. El
-propietario se guarda como metadato local; no se añade al evento enviado al
+propietario admitido por esta pestaña se conserva en memoria junto a la generación
+de sesión y se guarda como metadato local; no se añade al evento enviado al
 servidor. Al registrar otro evento se conserva el historial de otros propietarios.
 Los eventos heredados sin propietario verificable siguen almacenados pero no se
-muestran, tampoco por inferencia desde actor o contexto clínico. No existe una
-excepción local por rol administrador.
+muestran en la telemetría operacional, tampoco por inferencia desde actor o
+contexto clínico. Observabilidad → Errores locales conserva para el administrador
+el historial de errores del equipo, incluidos errores antiguos sin propietario;
+los lectores ordinarios solo devuelven los propios. Sin admisión no se atribuyen
+eventos. La atribución no consulta localStorage ni puede impedir el envío.
