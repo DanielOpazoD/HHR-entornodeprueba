@@ -1,4 +1,8 @@
-import { writeMedicalHandoffDraft, readMedicalHandoffDrafts, resetMedicalHandoffDraftMemoryForTests } from '@/services/storage/medicalHandoffDraftStorage';
+import {
+  writeMedicalHandoffDraft,
+  readMedicalHandoffDrafts,
+  resetMedicalHandoffDraftMemoryForTests,
+} from '@/services/storage/medicalHandoffDraftStorage';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { afterAll, beforeEach, afterEach, expect, it, vi } from 'vitest';
@@ -65,6 +69,8 @@ beforeEach(async () => {
   Object.defineProperty(globalThis, 'localStorage', { value: local, configurable: true });
   Object.defineProperty(globalThis, 'sessionStorage', { value: session, configurable: true });
   Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-11-12T12:00:00Z'));
   resetMedicalHandoffDraftMemoryForTests();
   vi.mocked(recordOperationalTelemetry).mockClear();
   local.clear();
@@ -93,6 +99,7 @@ beforeEach(async () => {
   }));
 });
 afterEach(() => {
+  vi.useRealTimers();
   Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
 });
 it.each(
@@ -134,13 +141,46 @@ it.each(
       },
     };
   }
-  if(kind==='crib') {
-    patch={'beds.R1.clinicalCrib': {...base.beds.R1,bedId:'R1-C',patientName:'SYNTHETIC NEWBORN',clinicalEpisodeId:'synthetic-newborn'}};
-    options.clinicalCribCreate={bedId:'R1',confirmedLastUpdated:base.lastUpdated,confirmedParent:{clinicalEpisodeId:'synthetic-episode',patientName:base.beds.R1.patientName}};
+  if (kind === 'crib') {
+    patch = {
+      'beds.R1.clinicalCrib': {
+        ...base.beds.R1,
+        bedId: 'R1-C',
+        patientName: 'SYNTHETIC NEWBORN',
+        clinicalEpisodeId: 'synthetic-newborn',
+      },
+    };
+    options.clinicalCribCreate = {
+      bedId: 'R1',
+      confirmedLastUpdated: base.lastUpdated,
+      confirmedParent: {
+        clinicalEpisodeId: 'synthetic-episode',
+        patientName: base.beds.R1.patientName,
+      },
+    };
   }
-  if(kind==='specialist') writeMedicalHandoffDraft('synthetic-writer',{date,documentType:'RUT',rut:base.beds.R1.rut,patientName:base.beds.R1.patientName,clinicalEpisodeId:'synthetic-episode',entryId:'primary-note',value:'SYNTHETIC A NOTE'});
-  const nextRow={...base,notes:'SYNTHETIC B ROW'};
-  const nextTask={id:800,opId:'synthetic-b-pending',type:'UPDATE_DAILY_RECORD' as const,payload:nextRow,timestamp:1,retryCount:0,status:'PENDING' as const,ownerKey:'user:synthetic-B',key:`daily:${date}`};
+  if (kind === 'specialist')
+    writeMedicalHandoffDraft('synthetic-writer', {
+      date,
+      documentType: 'RUT',
+      rut: base.beds.R1.rut,
+      patientName: base.beds.R1.patientName,
+      clinicalEpisodeId: 'synthetic-episode',
+      entryId: 'primary-note',
+      value: 'SYNTHETIC A NOTE',
+    });
+  const nextRow = { ...base, notes: 'SYNTHETIC B ROW' };
+  const nextTask = {
+    id: 800,
+    opId: 'synthetic-b-pending',
+    type: 'UPDATE_DAILY_RECORD' as const,
+    payload: nextRow,
+    timestamp: 1,
+    retryCount: 0,
+    status: 'PENDING' as const,
+    ownerKey: 'user:synthetic-B',
+    key: `daily:${date}`,
+  };
   const write =
     kind === 'structural'
       ? saveDetailed(base, base.lastUpdated, { baseRecord: base, rayenStructuralWriteGuard: true })
@@ -163,16 +203,36 @@ it.each(
     expect(remote.write.mock.calls[0][0]).toEqual(
       kind === 'structural' ? expect.objectContaining({ date }) : date
     );
+    // Freeze the observable contract against main, excluding only generated mutation, client and tab identifiers.
+    const contract = JSON.parse(
+      JSON.stringify({ calls: remote.write.mock.calls, result }, (key, value) =>
+        ['mutationId', 'clientId', 'tabId'].includes(key)
+          ? `<${key}>`
+          : typeof value === 'function'
+            ? '<callback>'
+            : value
+      )
+    );
+    expect(contract).toMatchSnapshot();
     return;
   }
   expect(remote.write).not.toHaveBeenCalled();
   expect(await hospitalDB.dailyRecords.get(date)).toEqual(nextRow);
   expect(await hospitalDB.syncQueue.get(800)).toEqual(nextTask);
-  expect(result).toMatchObject({outcome:'unrecoverable',savedLocally:false});
-  expect(vi.mocked(recordOperationalTelemetry)).toHaveBeenCalledWith(expect.objectContaining({operation:'remote_first_write_session_changed'}));
+  expect(result).toMatchObject({ outcome: 'unrecoverable', savedLocally: false });
+  expect(vi.mocked(recordOperationalTelemetry)).toHaveBeenCalledWith({
+    category: 'sync',
+    operation: 'remote_first_write_session_changed',
+    status: 'degraded',
+    runtimeState: 'recoverable',
+    issues: ['La sesión de autoría terminó antes del despacho remoto.'],
+    context: { retained: kind === 'specialist' },
+  });
   if ('updatedRemotely' in result) expect(resolvePatchOutcomeFeedback(result)).toBeNull();
   if ('savedRemotely' in result) expect(resolveSaveOutcomeFeedback(result)).toBeNull();
-  const tasks = (await hospitalDB.syncQueue.toArray()).filter(task=>task.ownerKey==='user:synthetic-A');
+  const tasks = (await hospitalDB.syncQueue.toArray()).filter(
+    task => task.ownerKey === 'user:synthetic-A'
+  );
   if (kind === 'specialist') {
     expect(tasks).toHaveLength(1);
     expect(tasks[0]).toMatchObject({
@@ -182,27 +242,52 @@ it.each(
     expect(JSON.stringify(tasks[0])).toContain('SYNTHETIC A NOTE');
     expect(JSON.stringify(tasks[0])).toContain('synthetic-episode');
     expect(readMedicalHandoffDrafts()).toEqual([]);
-    local.setItem(SESSION_OWNER_KEY,'user:synthetic-A');
-    expect(readMedicalHandoffDrafts().some(draft=>draft.value==='SYNTHETIC A NOTE')).toBe(true);
+    local.setItem(SESSION_OWNER_KEY, 'user:synthetic-A');
+    expect(readMedicalHandoffDrafts().some(draft => draft.value === 'SYNTHETIC A NOTE')).toBe(true);
   } else expect(tasks).toHaveLength(0);
 });
 
-it('preserves the same-session rejection and its existing feedback', async()=>{
-  remote.specialist=false;
-  const error=new ConcurrencyError('SYNTHETIC SERVER REJECTION','semantic_conflict');
+it('preserves the same-session rejection and its existing feedback', async () => {
+  remote.specialist = false;
+  const error = new ConcurrencyError('SYNTHETIC SERVER REJECTION', 'semantic_conflict');
   remote.write.mockRejectedValue(error);
-  await expect(updatePartialDetailed(date,{'beds.R1.specialty':'Cirugía'},{baseRecord:base,requireAtomicCas:true,requireRemoteAuthorityFirst:true})).rejects.toBe(error);
-  expect(resolvePatchErrorFeedback(error)).toMatchObject({title:'Conflicto de Edición',message:error.message});
+  await expect(
+    updatePartialDetailed(
+      date,
+      { 'beds.R1.specialty': 'Cirugía' },
+      { baseRecord: base, requireAtomicCas: true, requireRemoteAuthorityFirst: true }
+    )
+  ).rejects.toBe(error);
+  expect(resolvePatchErrorFeedback(error)).toMatchObject({
+    title: 'Conflicto de Edición',
+    message: error.message,
+  });
   expect(await hospitalDB.dailyRecords.get(date)).toEqual(base);
 });
-it('does not retry a CAS rejection after the author leaves',async()=>{
- remote.specialist=false;
- remote.write.mockImplementationOnce(async()=>{
-  await clearSessionScopedClientState('manual');await reconcileAuthorizedSessionOwner('user:synthetic-B');await hospitalDB.dailyRecords.put(base);
-  throw new ConcurrencyError('SYNTHETIC VERSION CONFLICT','version_mismatch');
- });
- const result=await updatePartialDetailed(date,{'beds.R1.specialty':'Cirugía'},{baseRecord:base,specialtyIntent:{kind:'manual',bedId:'R1',target:'bed',episodeId:'synthetic-episode',value:'Cirugía',expectedDecisionId:null}});
- expect(remote.write).toHaveBeenCalledTimes(1);
- expect(resolvePatchOutcomeFeedback(result)).toBeNull();
- expect(await hospitalDB.dailyRecords.get(date)).toEqual(base);
+it('does not retry a CAS rejection after the author leaves', async () => {
+  remote.specialist = false;
+  remote.write.mockImplementationOnce(async () => {
+    await clearSessionScopedClientState('manual');
+    await reconcileAuthorizedSessionOwner('user:synthetic-B');
+    await hospitalDB.dailyRecords.put(base);
+    throw new ConcurrencyError('SYNTHETIC VERSION CONFLICT', 'version_mismatch');
+  });
+  const result = await updatePartialDetailed(
+    date,
+    { 'beds.R1.specialty': 'Cirugía' },
+    {
+      baseRecord: base,
+      specialtyIntent: {
+        kind: 'manual',
+        bedId: 'R1',
+        target: 'bed',
+        episodeId: 'synthetic-episode',
+        value: 'Cirugía',
+        expectedDecisionId: null,
+      },
+    }
+  );
+  expect(remote.write).toHaveBeenCalledTimes(1);
+  expect(resolvePatchOutcomeFeedback(result)).toBeNull();
+  expect(await hospitalDB.dailyRecords.get(date)).toEqual(base);
 });
