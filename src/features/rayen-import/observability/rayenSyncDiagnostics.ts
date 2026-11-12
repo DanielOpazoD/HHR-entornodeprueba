@@ -10,6 +10,7 @@ import type {
 import type { ClinicalFillError } from '../contracts/clinicalFillContracts';
 import { logger } from '@/services/utils/loggerService';
 
+import { sanitizeOperationalTelemetryContextValues } from '@/services/observability/operationalTelemetryPrivacy';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 
 const rayenSyncLogger = logger.child('RayenSync');
@@ -197,8 +198,26 @@ export const reportRayenSyncWarning = (
   rayenSyncLogger.warn(code, data);
 };
 
+interface RayenSyncTerminalRun {
+  id: string;
+  startedAt: string;
+  source?: { extensionVersion?: string };
+  extensionBuildId?: string;
+}
+
+/**
+ * Which extension the computer ran, so a failed run says whether a fix did not work or the
+ * extension was outdated. The server's privacy gate bounds both values; a local or legacy folder
+ * that reports no well-formed value sends nothing.
+ */
+const extensionIdentity = ({ source, extensionBuildId }: RayenSyncTerminalRun) =>
+  sanitizeOperationalTelemetryContextValues({
+    extensionVersion: source?.extensionVersion,
+    extensionBuild: extensionBuildId?.slice(0, 12),
+  }).context;
+
 export const reportRayenSyncTerminal = (
-  run: { id: string; startedAt: string },
+  run: RayenSyncTerminalRun,
   outcome: RayenSyncTerminalOutcome,
   data: Omit<RayenSyncDiagnosticData, 'runId' | 'outcome' | 'durationMs'> = {},
   completedAt = new Date().toISOString()
@@ -230,6 +249,7 @@ export const reportRayenSyncTerminal = (
         ...(data.errorKind ? { errorKind: data.errorKind } : {}),
         ...(typeof data.issueCount === 'number' ? { issueCount: data.issueCount } : {}),
         ...(typeof data.patientCount === 'number' ? { patientCount: data.patientCount } : {}),
+        ...extensionIdentity(run),
         ...data.issueCauses,
       },
     });

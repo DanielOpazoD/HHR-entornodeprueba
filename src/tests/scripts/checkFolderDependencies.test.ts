@@ -20,7 +20,6 @@ const rejectedPairs = new Set([
   'services->hooks',
 ]);
 const matrix = readFileSync('scripts/folder-dependency-matrix.json', 'utf8');
-const allowlist = readFileSync('scripts/folder-dependency-allowlist.json', 'utf8');
 const fixtures: {
   name: string;
   files: Record<string, string>;
@@ -156,6 +155,21 @@ for (const code of [
   });
 }
 
+fixtures.push({
+  name: 'ignores a former exception list',
+  files: {
+    'scripts/folder-dependency-allowlist.json': JSON.stringify({
+      violations: [
+        'folder-dependency-not-allowed|src/components/probe.ts|@/features/census/target|src/features/census/target.ts|components|features',
+      ],
+    }),
+    'src/components/probe.ts': "import('@/features/census/target');",
+    'src/features/census/target.ts': 'export const x = 1;',
+  },
+  status: 1,
+  diagnostic: 'src/components/probe.ts:1 components -> features (@/features/census/target)',
+});
+
 for (const [name, code] of [
   ['unresolved', "import('@/services/missing');"],
   ['package', "import('package');"],
@@ -182,7 +196,6 @@ describe('check-folder-dependencies frozen verdicts', () => {
     roots.push(root);
     const files = {
       'scripts/folder-dependency-matrix.json': matrix,
-      'scripts/folder-dependency-allowlist.json': allowlist,
       ...fixture.files,
     };
     for (const [relativePath, content] of Object.entries(files)) {
