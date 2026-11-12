@@ -21,6 +21,9 @@ describe('catalog changes', () => {
     expect(merge(['Uno'], ['Renombrado'], ['Uno', 'Dos'])).toEqual(['Renombrado', 'Dos']);
     expect(merge(['Uno'], [], ['Uno', 'Dos'])).toEqual(['Dos']);
   });
+  it('rejects removing a person another computer already removed', () => {
+    expect(() => merge(['Uno', 'Dos'], ['Dos'], ['Dos'])).toThrow('La lista cambió');
+  });
   it('rejects a rename after delete or another rename', () => {
     expect(() => merge(['Uno'], ['Nuevo'], [])).toThrow('La lista cambió');
     expect(() => merge(['Uno'], ['Nuevo'], ['Otro'])).toThrow('La lista cambió');
