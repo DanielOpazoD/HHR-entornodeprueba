@@ -12,7 +12,14 @@ import { recordOperationalErrorTelemetry } from '@/services/observability/operat
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { SyncQueueTelemetryRow } from '@/services/storage/sync/syncQueueTelemetryContracts';
-import { matchesTaskClaim } from '@/services/storage/sync/syncQueueTaskFactory';
+import {
+  matchesTaskClaim,
+  sessionClosedTaskState,
+} from '@/services/storage/sync/syncQueueTaskFactory';
+import {
+  isAuthoringSessionCurrent,
+  type AuthoringSession,
+} from '@/services/storage/authoringSession';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import {
   discardQuarantinedTask,
@@ -28,6 +35,22 @@ export const loadDailyRecordOutbox = createRecoverableRuntimeLoader(
 );
 
 const loadAuthorityAck = () => import('./dexieSyncQueueAuthorityAck');
+
+/**
+ * The session changed before this write landed. Its author keeps it as logout keeps their other
+ * unsent work, for review when they return; the next person's day and queue never take it.
+ */
+const retainForAuthor = async (task: SyncTask, { ownerKey }: AuthoringSession) => {
+  await hospitalDB.syncQueue.add({
+    ...task,
+    ...sessionClosedTaskState(),
+    ownerKey: ownerKey ?? `unattributed:${task.opId}`,
+    ...(task.type === 'UPDATE_SPECIALIST_HANDOFF'
+      ? { handoffProjection: { replaced: {}, projected: {}, released: true } }
+      : { projectionReleased: true as const }),
+  });
+  return 'retained_for_owner' as const;
+};
 
 const LIVE_STATUSES = Object.keys({
   PENDING: true,
@@ -179,15 +202,25 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
   async add(task) {
     await hospitalDB.syncQueue.add(task);
   },
-  async saveDailyRecordWithTask(record, task, patchWrite, wholeRecordBase) {
+  async saveDailyRecordWithTask(record, task, patchWrite, wholeRecordBase, authoringSession) {
     // Dexie.waitFor keeps an enclosing transaction (a backup import) alive across the module load.
     const { saveDailyRecordInOutbox } = await Dexie.waitFor(loadDailyRecordOutbox());
-    const { mode, persistedRecord } = await saveDailyRecordInOutbox(
-      record,
-      task,
-      patchWrite,
-      wholeRecordBase
-    );
+    const save = () => saveDailyRecordInOutbox(record, task, patchWrite, wholeRecordBase);
+    type Written = Awaited<ReturnType<typeof save>> | 'retained_for_owner';
+    // Checked in the transaction that writes: logout clears the days in one of its own.
+    const written: Written = authoringSession
+      ? await hospitalDB.transaction(
+          'rw',
+          hospitalDB.dailyRecords,
+          hospitalDB.syncQueue,
+          (): Promise<Written> =>
+            isAuthoringSessionCurrent(authoringSession)
+              ? save()
+              : retainForAuthor(task, authoringSession)
+        )
+      : await save();
+    if (written === 'retained_for_owner') return written;
+    const { mode, persistedRecord } = written;
     const transaction = Dexie.currentTransaction;
     if (transaction)
       transaction.on('complete', () => mirrorTransactionalDailyRecordWrite(persistedRecord));

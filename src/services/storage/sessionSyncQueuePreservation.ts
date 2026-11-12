@@ -6,7 +6,7 @@ import {
 import { dispatchDailyRecordStoreChanged } from '@/services/storage/indexeddb/indexedDbRecordEvents';
 import { localPersistence } from '@/services/storage/localpersistence/localPersistenceService';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
-import { clearSyncTaskRuntimeState } from '@/services/storage/sync/syncQueueTaskFactory';
+import { sessionClosedTaskState } from '@/services/storage/sync/syncQueueTaskFactory';
 import { holdsDailyRecordProjection } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
@@ -34,15 +34,7 @@ const preserveSessionSyncQueue = async (ownerKey: string | null): Promise<void> 
       ...(owned ? { ownerKey: task.ownerKey || `unattributed:${task.opId}` } : {}),
       // Already blocked sends and retired backups keep their original status and diagnosis.
       ...(task.status === 'PENDING' || task.status === 'PROCESSING'
-        ? {
-            ...clearSyncTaskRuntimeState(),
-            status: 'FAILED' as const,
-            error: 'Sesión cerrada. Revisa los cambios pendientes con su usuario original.',
-            lastErrorCode: 'session_owner_logged_out',
-            lastErrorCategory: 'authorization' as const,
-            lastErrorSeverity: 'medium' as const,
-            lastErrorAction: 'review_owned_pending_changes',
-          }
+        ? sessionClosedTaskState()
         : {}),
     });
   }

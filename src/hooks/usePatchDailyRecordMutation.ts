@@ -40,6 +40,10 @@ import {
 } from '@/hooks/controllers/dailyRecordPatchBaseRecordController';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import {
+  captureAuthoringSession,
+  type AuthoringSession,
+} from '@/services/storage/authoringSession';
+import {
   canApplyClinicalCribCreate,
   rebaseClinicalCribCreate,
   rebaseClinicalCribCreatePatch,
@@ -81,6 +85,8 @@ const resolveInput = (
 };
 
 const mutationTails = new Map<string, Promise<void>>();
+/** Who began each edit, taken before it waits for its turn or a freshness read. */
+const authoringSessions = new WeakMap<PatchMutationInput, AuthoringSession>();
 
 const acquireMutationTurn = async (date: string): Promise<() => void> => {
   const previousTurn = mutationTails.get(date) ?? Promise.resolve();
@@ -124,8 +130,10 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
       const { partial, options, date = currentDate } = resolveInput(input);
       let writePatch = partial;
       const baseRecord = getDailyRecordPatchBaseRecord(patchBaseRecords, partial);
+      const authoringSession = authoringSessions.get(input) ?? captureAuthoringSession();
       const buildOptions = (record: DailyRecord | undefined) => ({
         ...options,
+        authoringSession,
         ...(record ? { baseRecord: record } : {}),
         ...(options?.intentionalBedClear && record
           ? {
@@ -137,12 +145,7 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
           : {}),
       });
       const write = (record: DailyRecord | undefined) =>
-        patchDailyRecordWithCompatibility(
-          dailyRecord,
-          date,
-          writePatch,
-          record || options ? buildOptions(record) : undefined
-        );
+        patchDailyRecordWithCompatibility(dailyRecord, date, writePatch, buildOptions(record));
       const adoptAlreadyAppliedClear = async (record: DailyRecord) => {
         const intent = options?.intentionalBedClear;
         const appliedPatch = buildAppliedBedClearPatch(intent, record, partial);
@@ -241,6 +244,7 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
       return { partial, options, result };
     },
     onMutate: async input => {
+      authoringSessions.set(input, captureAuthoringSession());
       const { date = currentDate } = resolveInput(input);
       const releaseMutationTurn = await acquireMutationTurn(date);
       try {

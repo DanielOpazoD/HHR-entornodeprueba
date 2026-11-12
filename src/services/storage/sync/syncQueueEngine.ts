@@ -206,8 +206,12 @@ export const createSyncQueueEngine = ({
         ...resolvePreOutboxHoldState(now, options),
       },
       options.patchWrite,
-      options.wholeRecordBase
+      options.wholeRecordBase,
+      options.authoringSession
     );
+    // Kept for its author, off this session's day: nothing for this session to accept or send.
+    if (mode === 'retained_for_owner')
+      return { accepted: false, mode, pendingTasks, maxPendingTasks };
 
     if (!options.deferProcessing) {
       triggerProcessing();
