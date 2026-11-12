@@ -17,7 +17,9 @@ export const CensusModals: React.FC<CensusModalsProps> = ({
   const {
     staffContext: {
       nursesList,
+      nursesSaved,
       tensList,
+      tensSaved,
       showNurseManager,
       setShowNurseManager,
       showTensManager,
@@ -32,12 +34,14 @@ export const CensusModals: React.FC<CensusModalsProps> = ({
         isOpen={showNurseManager}
         onClose={() => setShowNurseManager(false)}
         nursesList={nursesList}
+        saved={nursesSaved}
       />
 
       <TensManagerModal
         isOpen={showTensManager}
         onClose={() => setShowTensManager(false)}
         tensList={tensList}
+        saved={tensSaved}
       />
 
       <BedManagerModal isOpen={showBedManagerModal} onClose={onCloseBedManagerModal} />
