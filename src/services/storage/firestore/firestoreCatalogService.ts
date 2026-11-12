@@ -27,7 +27,8 @@ import {
 import {
   normalizeProfessionalCatalog,
   normalizeStringCatalog,
-  STAFF_CATALOG_EXAMPLES,
+  NURSE_CATALOG_EXAMPLES,
+  TENS_CATALOG_EXAMPLES,
 } from '@/services/repositories/contracts/catalogContracts';
 
 const getSettingsDocRef = (docId: string, runtime: Pick<FirestoreServiceRuntimePort, 'getDb'>) =>
@@ -62,7 +63,7 @@ const saveStringCatalog = async (
     const confirmed = confirmedCatalogBase(
       normalizeStringCatalog(base),
       current,
-      STAFF_CATALOG_EXAMPLES[key]
+      key === 'tens' ? TENS_CATALOG_EXAMPLES : NURSE_CATALOG_EXAMPLES
     );
     const changes = diffCatalog(confirmed, normalizeStringCatalog(values), nurseIdentityKey);
     const merged = applyCatalogChanges(current, changes, nurseIdentityKey);

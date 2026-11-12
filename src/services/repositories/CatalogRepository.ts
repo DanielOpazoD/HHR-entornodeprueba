@@ -22,7 +22,8 @@ import {
   normalizeProfessionalCatalog,
   normalizeStringCatalog,
   assertCatalogSubscriptionCallback,
-  STAFF_CATALOG_EXAMPLES,
+  NURSE_CATALOG_EXAMPLES,
+  TENS_CATALOG_EXAMPLES,
 } from '@/services/repositories/contracts/catalogContracts';
 import { catalogRepositoryLogger } from '@/services/repositories/repositoryLoggers';
 
@@ -99,7 +100,7 @@ export const getNurses = async (): Promise<string[]> => {
     }
   }
 
-  return [...STAFF_CATALOG_EXAMPLES.nurses];
+  return [...NURSE_CATALOG_EXAMPLES];
 };
 
 /**
@@ -208,7 +209,7 @@ export const getTens = async (): Promise<string[]> => {
     }
   }
 
-  return [...STAFF_CATALOG_EXAMPLES.tens];
+  return [...TENS_CATALOG_EXAMPLES];
 };
 
 /**
