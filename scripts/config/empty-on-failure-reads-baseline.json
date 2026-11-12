@@ -4,7 +4,6 @@
     "src/services/storage/firestore/firestoreRecordQueries.ts::getAvailableDatesFromFirestore",
     "src/services/storage/firestore/firestoreRecordQueries.ts::getRecentAvailableDatesFromFirestore",
     "src/services/storage/indexeddb/indexedDbRecordService.ts::getAllDates",
-    "src/services/storage/indexeddb/indexedDbRecordService.ts::getPreviousDayRecord",
-    "src/services/storage/indexeddb/indexedDbRecordService.ts::getRecordsRange"
+    "src/services/storage/indexeddb/indexedDbRecordService.ts::getPreviousDayRecord"
   ]
 }

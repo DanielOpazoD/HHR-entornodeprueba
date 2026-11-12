@@ -132,7 +132,7 @@ export const getRecordsRange = async (
       userSafeMessage: 'No fue posible recuperar registros del rango solicitado.',
       context: { startDate, endDate },
     });
-    return [];
+    throw error;
   }
 };
 
