@@ -9,9 +9,6 @@ const { publicModulesByFeature = {}, exceptionsByFeature = {} } = JSON.parse(
 );
 const extensions = ['.ts', '.tsx', '.js', '.jsx'];
 const sharedLayers = new Set(['components', 'hooks', 'services', 'context', 'domain']);
-const sharedExceptions = new Set([
-  'src/components/layout/app-content/AppContentOverlays.tsx|@/features/census/public-components',
-]);
 export const GOVERNED_APPLICATION_PUBLIC_IMPORTS = new Set([
   '@/features/census/components/global-search/globalSearchContracts',
   '@/features/census/components/global-search/useGlobalPatientSearch',
@@ -73,12 +70,7 @@ export const publicImportBoundaryRule = {
       if (typeof node?.value !== 'string') return;
       const target = node.value;
       const shim = isShim(importer, target, source);
-      if (
-        sharedScope &&
-        target.startsWith('@/features/') &&
-        !sharedExceptions.has(`${importer}|${target}`) &&
-        (dynamic || !shim)
-      ) {
+      if (sharedScope && target.startsWith('@/features/') && (dynamic || !shim)) {
         context.report({ node, messageId: 'shared', data: { target } });
         return;
       }

@@ -7,9 +7,7 @@ import { readModuleReferences } from './lib/sourceModules.mjs';
 const ROOT = process.cwd();
 const SRC_ROOT = path.join(ROOT, 'src');
 const MATRIX_PATH = path.join(ROOT, 'scripts', 'folder-dependency-matrix.json');
-const ALLOWLIST_PATH = path.join(ROOT, 'scripts', 'folder-dependency-allowlist.json');
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
-const UPDATE_ALLOWLIST = process.argv.includes('--update-allowlist');
 
 const toPosix = value => value.split(path.sep).join('/');
 
@@ -93,8 +91,6 @@ const getZoneFromPath = (relativePath, knownZones) => {
 };
 
 const matrix = loadJson(MATRIX_PATH, { zones: {} });
-const allowlist = loadJson(ALLOWLIST_PATH, { violations: [] });
-const knownViolations = new Set(allowlist.violations || []);
 const knownZones = new Set(Object.keys(matrix.zones || {}));
 
 if (knownZones.size === 0) {
@@ -155,39 +151,21 @@ for (const absolutePath of files) {
   }
 }
 
-const sortedCurrentViolationIds = [...new Set(currentViolationIds)].sort();
-
-if (UPDATE_ALLOWLIST) {
-  fs.writeFileSync(
-    ALLOWLIST_PATH,
-    `${JSON.stringify({ violations: sortedCurrentViolationIds }, null, 2)}\n`,
-    'utf8'
-  );
-  console.log(
-    `Folder dependency allowlist updated with ${sortedCurrentViolationIds.length} violations.`
-  );
-  process.exit(0);
-}
-
-const newViolations = sortedCurrentViolationIds.filter(id => !knownViolations.has(id));
-if (newViolations.length === 0) {
+// There is no exception list: every import outside the matrix fails.
+const violations = [...new Set(currentViolationIds)].sort();
+if (violations.length === 0) {
   console.log('Folder dependency matrix checks passed.');
-  if (sortedCurrentViolationIds.length > 0) {
-    console.log(
-      `Baseline debt tracked: ${sortedCurrentViolationIds.length} folder boundary issues.`
-    );
-  }
   process.exit(0);
 }
 
 console.error('\nFolder dependency boundary violations:');
-for (const violationId of newViolations) {
+for (const violationId of violations) {
   const [, importerPath, importPath, , importerZone, importedZone] = violationId.split('|');
   console.error(
     `- ${importerPath}:${violationLines.get(violationId)} ${importerZone} -> ${importedZone} (${importPath})`
   );
   console.error(
-    '  Mover el import a una zona permitida por scripts/folder-dependency-matrix.json; la lista de deuda conocida no se amplía sin decisión del responsable.'
+    '  Mover el import a una zona permitida por scripts/folder-dependency-matrix.json; no hay lista de excepciones y cambiar la matriz es decisión del responsable.'
   );
 }
 

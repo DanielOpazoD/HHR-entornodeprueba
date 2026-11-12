@@ -1,5 +1,0 @@
-{
-  "violations": [
-    "folder-dependency-not-allowed|src/components/layout/app-content/AppContentOverlays.tsx|@/features/census/public-components|src/features/census/public-components.ts|components|features"
-  ]
-}
