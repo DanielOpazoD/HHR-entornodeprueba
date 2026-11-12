@@ -362,7 +362,30 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
         }
         return;
       }
-      if (!payload.result?.updatedRemotely) return;
+      if (!payload.result?.updatedRemotely) {
+        // A durable specialist note is the base for this tab's next edit, but is not an ACK.
+        // Publish only after local CAS accepted it, and never replace a newer visible record.
+        const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
+          getDailyRecordQueryKey(date)
+        )?.record;
+        if (
+          payload.result?.savedLocally &&
+          payload.result.queuedForRetry &&
+          isSpecialistScopedDailyRecordPatch(payload.partial) &&
+          context &&
+          cachedRecord &&
+          cachedRecord === context.previousRecord
+        ) {
+          context.unregisterPendingPatch();
+          context.unregisterPendingPatch = registerPendingDailyRecordPatch(date, payload.partial);
+          setDailyRecordQueryData(
+            queryClient,
+            date,
+            applyOptimisticDailyRecordPatch(cachedRecord, payload.partial)
+          );
+        }
+        return;
+      }
       const confirmedRecord = payload.result.confirmedRecord;
       const displayRecord = payload.result.localProjectionRecord ?? confirmedRecord;
       const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
@@ -417,13 +440,12 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
   const local = useMutation({ ...options, networkMode: 'always' });
   const remote = useMutation({ ...options, networkMode: 'online' });
   const selectMutation = (input: PatchMutationInput) => {
-    const { partial, options } = resolveInput(input);
+    const { options } = resolveInput(input);
     const requiresRemote = Boolean(
       options?.requireRemoteAuthorityFirst ||
       options?.intentionalBedClear ||
       options?.clinicalCribCreate ||
-      options?.specialtyIntent ||
-      isSpecialistScopedDailyRecordPatch(partial)
+      options?.specialtyIntent
     );
     setRemoteSelected(requiresRemote);
     return requiresRemote ? remote : local;

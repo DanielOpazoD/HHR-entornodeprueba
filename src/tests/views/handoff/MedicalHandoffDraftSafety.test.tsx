@@ -84,6 +84,22 @@ describe('medical handoff draft recovery', () => {
     expect(save).toHaveBeenLastCalledWith('entry-A', 'Nota del colega.');
   });
 
+  it('keeps one final draft across successive local projections until server acknowledgement', async () => {
+    const save = vi.fn();
+    const view = render(cell(patient, save));
+    for (const note of ['Primera versión', 'Versión final']) {
+      type(note);
+      await act(async () => {});
+      view.rerender(cell(withNote(note), save));
+      expect(readMedicalHandoffDrafts().map(draft => draft.value)).toEqual([note]);
+      expect(screen.getByText('Pendiente de confirmar en el servidor.')).toBeVisible();
+    }
+    act(() => serverConfirms('Versión final'));
+    expect(readMedicalHandoffDrafts()).toHaveLength(0);
+    view.rerender(cell(withNote('Nota posterior del colega'), save));
+    expect(screen.getByRole('textbox')).toHaveValue('Nota posterior del colega');
+  });
+
   it('does not take a matching local copy as a confirmation', () => {
     const view = render(cell());
     type('Nota local');
