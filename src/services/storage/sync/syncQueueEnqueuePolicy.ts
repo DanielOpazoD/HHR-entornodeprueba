@@ -1,6 +1,7 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { DailyRecordPatchWrite } from '@/services/storage/sync/syncQueuePorts';
+import type { AuthoringSession } from '@/services/storage/authoringSession';
 
 export interface SyncQueueEnqueueOptions {
   deferProcessing?: boolean;
@@ -10,6 +11,8 @@ export interface SyncQueueEnqueueOptions {
   /** A daily-record patch write, applied again on the day's stored record. */
   patchWrite?: DailyRecordPatchWrite;
   wholeRecordBase?: DailyRecord;
+  /** The session that began this write; the store keeps it with that owner if the session changed. */
+  authoringSession?: AuthoringSession;
 }
 
 export const countActiveSyncTasks = (tasks: SyncTask[]): number =>

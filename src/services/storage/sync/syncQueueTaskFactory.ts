@@ -39,6 +39,17 @@ export const clearSyncTaskRuntimeState = () => ({
   preOutboxHoldHeartbeatAt: undefined,
 });
 
+/** What logout leaves on an unsent task: blocked, kept for review by its original owner. */
+export const sessionClosedTaskState = () => ({
+  ...clearSyncTaskRuntimeState(),
+  status: 'FAILED' as const,
+  error: 'Sesión cerrada. Revisa los cambios pendientes con su usuario original.',
+  lastErrorCode: 'session_owner_logged_out',
+  lastErrorCategory: 'authorization' as const,
+  lastErrorSeverity: 'medium' as const,
+  lastErrorAction: 'review_owned_pending_changes',
+});
+
 export const getSyncTaskKey = (type: SyncTask['type'], payload: unknown): string | undefined => {
   if (type === 'ARCHIVE_CUDYR') {
     const id = (payload as { id?: string })?.id;

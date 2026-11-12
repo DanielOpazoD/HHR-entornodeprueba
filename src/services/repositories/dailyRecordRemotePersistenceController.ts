@@ -43,12 +43,16 @@ const toRejectedOutboxPersistenceResult = (
   error: new Error(
     result.mode === 'rejected_backpressure'
       ? 'La cola de sincronización alcanzó su límite operativo antes de confirmar la persistencia local.'
-      : 'La cola de sincronización no pudo confirmar la persistencia local.'
+      : result.mode === 'retained_for_owner'
+        ? 'La sesión cambió antes de guardar; el cambio quedó para su usuario original.'
+        : 'La cola de sincronización no pudo confirmar la persistencia local.'
   ),
   userSafeMessage:
     result.mode === 'rejected_backpressure'
       ? 'La cola de sincronización alcanzó su límite operativo. Revisa conectividad o libera tareas pendientes antes de reintentar.'
-      : 'No fue posible guardar el registro local junto a su tarea de sincronización.',
+      : result.mode === 'retained_for_owner'
+        ? 'La sesión cambió antes de guardar. El cambio quedó pendiente para la persona que lo hizo.'
+        : 'No fue posible guardar el registro local junto a su tarea de sincronización.',
 });
 
 const runWithOptionalPreOutboxRenewal = async <T>(
@@ -355,6 +359,9 @@ export const persistLocalAndAttemptRemoteSync = async ({
         toRejectedOutboxPersistenceResult(outboxResult),
         remoteState
       );
+      if (outboxResult.mode === 'retained_for_owner') {
+        remoteState.observabilityTags.push('sync_queue_write_retained_for_owner');
+      }
       return 'return';
     }
     markLocalWriteSucceeded(remoteState);

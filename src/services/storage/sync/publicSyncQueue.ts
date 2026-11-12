@@ -302,6 +302,22 @@ export const queueDailyRecordSyncTaskWithLocalRecord = async (
       options,
       handoff
     );
+    if (result.mode === 'retained_for_owner') {
+      recordOperationalTelemetry({
+        category: 'sync',
+        operation: 'sync_queue_write_retained_for_owner',
+        status: 'degraded',
+        runtimeState: 'recoverable',
+        issues: ['La sesión cambió antes de guardar; el cambio quedó para su usuario original.'],
+        context: {
+          type,
+          date: record.date,
+          ownerKey: options?.authoringSession?.ownerKey ?? null,
+          contexts: meta?.contexts,
+          origin: meta?.origin,
+        },
+      });
+    }
     if (!result.accepted && result.mode === 'rejected_backpressure') {
       recordOperationalTelemetry({
         category: 'sync',
