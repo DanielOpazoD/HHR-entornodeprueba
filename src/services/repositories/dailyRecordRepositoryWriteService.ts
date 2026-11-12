@@ -7,6 +7,7 @@ import {
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedImportGuard';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 
 import { shouldRouteSpecialistPatchViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import {
@@ -496,7 +497,7 @@ const updatePartialDetailedWithinLock = async (
                 mutationId: syncContract.mutationId,
               },
             },
-            { patchWrite },
+            { patchWrite, authoringSession: options.authoringSession },
             {
               date: command.date,
               patch: sanitizeForFirestore(guardedCommandPolicy.remoteAuthorityPatch) as Record<
@@ -514,7 +515,11 @@ const updatePartialDetailedWithinLock = async (
               origin: 'direct_queue',
               syncContract,
             },
-            { ...buildPreOutboxRemoteAckOptions(syncContract), patchWrite }
+            {
+              ...buildPreOutboxRemoteAckOptions(syncContract),
+              patchWrite,
+              authoringSession: options.authoringSession,
+            }
           ),
     ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
     readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),
@@ -565,10 +570,16 @@ export const updatePartialDetailed = (
   date: string,
   partialData: DailyRecordPatch,
   options: PartialUpdateDailyRecordOptions = {}
-) =>
-  runWithDailyRecordWriteLock(date, options.dailyRecordWriteLease, () =>
-    updatePartialDetailedWithinLock(date, partialData, options)
+) => {
+  // Before waiting for the date's turn: the edit belongs to whoever is signed in now.
+  const authored = {
+    ...options,
+    authoringSession: options.authoringSession ?? captureAuthoringSession(),
+  };
+  return runWithDailyRecordWriteLock(date, options.dailyRecordWriteLease, () =>
+    updatePartialDetailedWithinLock(date, partialData, authored)
   );
+};
 
 export const updatePartial = async (date: string, partialData: DailyRecordPatch): Promise<void> => {
   assertDailyRecordPartialUpdateAccepted(await updatePartialDetailed(date, partialData));

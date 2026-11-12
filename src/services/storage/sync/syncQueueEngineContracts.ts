@@ -17,7 +17,7 @@ export interface CreateSyncQueueEngineOptions {
 
 export interface SyncQueueEnqueueResult {
   accepted: boolean;
-  mode: 'created' | 'reused' | 'rejected_backpressure' | 'enqueue_failed';
+  mode: 'created' | 'reused' | 'retained_for_owner' | 'rejected_backpressure' | 'enqueue_failed';
   pendingTasks: number;
   maxPendingTasks: number;
 }
