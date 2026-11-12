@@ -456,18 +456,24 @@ describe('DailyRecordRepository (Expanded)', () => {
   describe('Catalog Operations', () => {
     it('manages nurse catalog locally and syncs to firestore', async () => {
       const nurses = ['Enf A', 'Enf B'];
-      await saveNurses(nurses);
+      await saveNurses(nurses, []);
 
       expect(await getNurses()).toEqual(nurses);
-      expect(firestoreMock.saveNurseCatalogToFirestore).toHaveBeenCalledWith(nurses);
+      expect(firestoreMock.saveNurseCatalogToFirestore).toHaveBeenCalledWith(
+        nurses,
+        expect.any(Array)
+      );
     });
 
     it('manages TENS catalog locally and syncs to firestore', async () => {
       const tens = ['Tens 1', 'Tens 2'];
-      await saveTens(tens);
+      await saveTens(tens, []);
 
       expect(await getTens()).toEqual(tens);
-      expect(firestoreMock.saveTensCatalogToFirestore).toHaveBeenCalledWith(tens);
+      expect(firestoreMock.saveTensCatalogToFirestore).toHaveBeenCalledWith(
+        tens,
+        expect.any(Array)
+      );
     });
   });
 });

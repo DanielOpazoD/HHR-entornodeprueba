@@ -43,15 +43,16 @@ describe('useTreatingPhysicianCatalogSync', () => {
 
     result.current(snapshot);
 
-    expect(staffQuery.save).toHaveBeenCalledWith(
-      expect.arrayContaining([
+    expect(staffQuery.save).toHaveBeenCalledWith({
+      next: expect.arrayContaining([
         expect.objectContaining({
           name: 'Angelica Vargas',
           rayenPractitionerId: '7947',
           source: 'rayen',
         }),
         expect.objectContaining({ name: 'Médico local', phone: '123' }),
-      ])
-    );
+      ]),
+      base: staffQuery.catalog,
+    });
   });
 });
