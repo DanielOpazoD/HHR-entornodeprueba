@@ -130,7 +130,7 @@ const SessionErrorLogsView: React.FC<{ role: UserRole }> = ({ role }) => {
     setClearing(true);
     setLoadError(null);
     try {
-      await clearErrorLogs();
+      await clearErrorLogs(role);
       await loadLogs();
     } catch {
       setLoadError('No se pudo limpiar el historial de errores de este navegador.');

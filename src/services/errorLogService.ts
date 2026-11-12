@@ -6,4 +6,4 @@ import {
 
 export const fetchErrorLogs = async (limit = 50, role?: UserRole) => getErrorLogs(limit, role);
 
-export const clearErrorLogs = async () => clearIndexedDbErrorLogs();
+export const clearErrorLogs = async (role?: UserRole) => clearIndexedDbErrorLogs(role);

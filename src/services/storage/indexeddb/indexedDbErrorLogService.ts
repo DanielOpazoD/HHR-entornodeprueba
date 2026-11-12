@@ -49,10 +49,16 @@ export const getErrorLogs = async (limit = 50, role?: UserRole): Promise<ErrorLo
   }
 };
 
-export const clearErrorLogs = async (): Promise<void> => {
+/** Clears exactly what `getErrorLogs` shows this person: the team's for an admin, otherwise their own. */
+export const clearErrorLogs = async (role?: UserRole): Promise<void> => {
+  const owner = getSessionOwner();
   try {
     await ensureDbReady();
-    await db.errorLogs.clear();
+    if (role === 'admin') await db.errorLogs.clear();
+    else if (owner)
+      await db.errorLogs
+        .filter(log => 'localOwnerKey' in log && log.localOwnerKey === owner)
+        .delete();
   } catch (error) {
     recordOperationalErrorTelemetry('indexeddb', 'indexeddb_clear_error_logs', error, {
       code: 'indexeddb_clear_error_logs_failed',

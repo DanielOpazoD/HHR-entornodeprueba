@@ -2,7 +2,11 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as indexedDbCore from '@/services/storage/indexeddb/indexedDbCore';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
-import { getErrorLogs, saveErrorLog } from '@/services/storage/indexeddb/indexedDbErrorLogService';
+import {
+  clearErrorLogs,
+  getErrorLogs,
+  saveErrorLog,
+} from '@/services/storage/indexeddb/indexedDbErrorLogService';
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
@@ -72,6 +76,26 @@ describe('shared Chrome profile: retained drafts and isolated diagnostics', () =
     expect(await hospitalDB.errorLogs.get('synthetic-error-a')).toMatchObject({ userId: ownerA });
     const visible = { telemetry: readOperationalTelemetryEvents(), errors: await getErrorLogs() };
     expect(visible).toEqual({ telemetry: [], errors: [] });
+  });
+
+  it("clears only what the person can see: their own history, or the team's for an admin", async () => {
+    const log = (id: string) => ({
+      id,
+      timestamp: new Date().toISOString(),
+      severity: 'medium' as const,
+      message: id,
+    });
+    await saveErrorLog(log('owned-a'));
+    await clearSessionScopedClientState('manual');
+    await reconcileAuthorizedSessionOwner(ownerB);
+    await saveErrorLog(log('owned-b'));
+
+    await clearErrorLogs();
+    expect((await hospitalDB.errorLogs.toArray()).map(entry => entry.id)).toEqual(['owned-a']);
+
+    await saveErrorLog(log('owned-b-again'));
+    await clearErrorLogs('admin');
+    expect(await hospitalDB.errorLogs.count()).toBe(0);
   });
 
   it('returns only own events across A/B/A, retaining legacy entries and foreign history on append', async () => {
