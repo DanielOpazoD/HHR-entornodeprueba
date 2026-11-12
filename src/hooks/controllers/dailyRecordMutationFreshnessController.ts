@@ -45,6 +45,7 @@ interface FreshnessDependencies {
 }
 
 export interface SaveDailyRecordMutationInput {
+  authoringSession?: SaveDailyRecordOptions['authoringSession'];
   record: DailyRecord;
   baseRecord?: DailyRecord;
   expectedLastUpdated?: string;

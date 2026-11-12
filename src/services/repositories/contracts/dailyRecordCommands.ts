@@ -24,6 +24,8 @@ export interface SaveDailyRecordCommand {
 }
 
 export interface SaveDailyRecordOptions {
+  /** The session the save began in; captured on entry when absent. */
+  authoringSession?: AuthoringSession;
   /** The day used to construct the full save, before edits or later cache refreshes. */
   baseRecord?: DailyRecord;
   /** Backup batch: enqueue locally; publish only after the enclosing transaction commits. */

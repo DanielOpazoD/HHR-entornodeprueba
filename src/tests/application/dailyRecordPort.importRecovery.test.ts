@@ -39,7 +39,9 @@ describe('daily record port import recovery', () => {
 
     await expect(port.save(record)).resolves.toEqual({ outcome: 'saved' });
     expect(loads).toBe(2);
-    expect(saveDetailed).toHaveBeenCalledExactlyOnceWith(record, undefined);
+    expect(saveDetailed).toHaveBeenCalledExactlyOnceWith(record, undefined, {
+      authoringSession: expect.objectContaining({ ownerKey: null }),
+    });
   });
 
   it('keeps a successful load shared for concurrent and later saves', async () => {
