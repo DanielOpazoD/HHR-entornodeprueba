@@ -189,6 +189,10 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
   },
   { glob: '**/assets/replanRayenStructure-*.js', reason: 'Same policy as the entry above.' },
   {
+    glob: '**/assets/RayenImportPreviewModal-*.js',
+    reason: 'Eloisa review opens after an online capture and requires explicit confirmation.',
+  },
+  {
     glob: '**/assets/RayenImportButton-*.js',
     reason:
       'The Rayen import workflow requires a live Eloisa session, so it is an online-only surface rather than PWA install payload.',
