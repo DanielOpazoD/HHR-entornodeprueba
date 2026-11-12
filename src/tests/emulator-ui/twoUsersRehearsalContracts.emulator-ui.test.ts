@@ -370,10 +370,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   // Authority replay belongs to the active offline-edit-other-bed branch; do not duplicate it.
   for (const selected of ['client_only'] as const) {
     for (const path of ['beds.R2.pathology', 'beds.R1.pathology'] as const) {
-      // Pending accepted by the owner until after 2026-11-08: direct replay overwrites a peer.
-      const knownFailure = path === 'beds.R1.pathology';
-      const testCase = knownFailure ? it.fails : it;
-      testCase(`5 offline replay after B edits ${path} (${selected})`, async () => {
+      it(`5 offline replay after B edits ${path} (${selected})`, async () => {
         await mode(selected);
         await hospitalDB.dailyRecords.put(baseRecord());
         setFirestoreSyncState({ mode: 'local_only', reason: 'offline' });

@@ -484,7 +484,10 @@ it('full save reaches the existing durable outbox offline', async () => {
 });
 it.each([
   { partial: patch, options: { requireRemoteAuthorityFirst: true } },
-  { partial: { 'beds.R1.medicalHandoffEntries': [] } },
+  {
+    partial: { 'beds.R1.medicalHandoffEntries': [] },
+    options: { requireRemoteAuthorityFirst: true },
+  },
 ])('remote-authority patch remains paused without a local task: %j', async input => {
   onlineManager.setOnline(false);
   const h = setupHook();
