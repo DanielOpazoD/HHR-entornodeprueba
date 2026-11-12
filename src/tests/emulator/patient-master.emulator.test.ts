@@ -82,12 +82,12 @@ describeEmulator('patient master with real Firestore', () => {
     await repository.upsertPatient({ rut: 'invalid', fullName: 'Paciente sintético' });
     expect(await stored()).toEqual([]);
   });
-  // ID-01: current validation accepts letters stripped before checking the digit.
-  it.fails('rejects passport identifiers on single upsert', async () => {
+  // ID-01: these digits form a valid RUT once the letter is dropped; a passport is never one.
+  it('rejects passport identifiers on single upsert', async () => {
     await repository.upsertPatient({ rut: 'P123456785', fullName: 'Pasaporte Sintético' });
     expect(await stored()).toEqual([]);
   });
-  it.fails('rejects passport identifiers on bulk upsert', async () => {
+  it('rejects passport identifiers on bulk upsert', async () => {
     expect(await repository.bulkUpsertPatients([{ ...target, rut: 'P123456785' }])).toEqual({
       successes: 0,
       errors: 1,
