@@ -11,7 +11,6 @@ const extensions = ['.ts', '.tsx', '.js', '.jsx'];
 const sharedLayers = new Set(['components', 'hooks', 'services', 'context', 'domain']);
 export const GOVERNED_APPLICATION_PUBLIC_IMPORTS = new Set([
   '@/features/census/components/global-search/globalSearchContracts',
-  '@/features/census/components/global-search/useGlobalPatientSearch',
   '@/features/census/controllers/bedManagerGridItemsController',
   '@/features/census/controllers/bedManagerModalController',
   '@/features/census/controllers/censusEmailRecipientsController',
