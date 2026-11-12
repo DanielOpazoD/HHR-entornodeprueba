@@ -1,3 +1,7 @@
+import {
+  captureAuthoringSession,
+  isAuthoringSessionCurrent,
+} from '@/services/storage/authoringSession';
 import { loadDailyRecordSavePersistence } from '@/hooks/useWarmDailyRecordSavePath';
 import { mutationOptions, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../config/queryClient';
@@ -193,6 +197,7 @@ export const useSaveDailyRecordMutation = () => {
       return persistDailyRecordSaveMutation(dailyRecord, input);
     },
     onMutate: async (input: SaveDailyRecordMutationInput) => {
+      input.authoringSession ??= captureAuthoringSession();
       const newRecord = input.record;
       await ensureFreshDailyRecordSaveMutation(input, { dailyRecord, queryClient });
 
@@ -204,16 +209,19 @@ export const useSaveDailyRecordMutation = () => {
         getDailyRecordQueryKey(newRecord.date)
       )?.record;
 
-      setDailyRecordQueryData(queryClient, newRecord.date, newRecord);
+      if (isAuthoringSessionCurrent(input.authoringSession))
+        setDailyRecordQueryData(queryClient, newRecord.date, newRecord);
 
       return { previousRecord };
     },
-    onError: (err, { record: newRecord }, context) => {
+    onError: (err, { record: newRecord, authoringSession }, context) => {
+      if (authoringSession && !isAuthoringSessionCurrent(authoringSession)) return;
       if (context?.previousRecord) {
         setDailyRecordQueryData(queryClient, newRecord.date, context.previousRecord);
       }
     },
     onSuccess: async (payload, input, context) => {
+      if (input.authoringSession && !isAuthoringSessionCurrent(input.authoringSession)) return;
       if (isDailyRecordWriteRejectedResult(payload.result)) {
         setDailyRecordQueryData(queryClient, payload.record.date, context?.previousRecord ?? null);
         return;
@@ -238,7 +246,8 @@ export const useSaveDailyRecordMutation = () => {
         confirmedRecord: payload.record,
       });
     },
-    onSettled: payload => {
+    onSettled: (payload, _error, input) => {
+      if (input.authoringSession && !isAuthoringSessionCurrent(input.authoringSession)) return;
       if (payload?.record) {
         invalidateDailyRecordQuery(queryClient, payload.record.date);
       }

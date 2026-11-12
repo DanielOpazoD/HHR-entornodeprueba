@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { createRecoverableRuntimeLoader } from '@/services/runtime/createRecoverableRuntimeLoader';
 import { createSyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
@@ -126,12 +127,15 @@ const saveDailyRecord = (
   record: DailyRecord,
   expectedLastUpdated?: string,
   options?: SaveDailyRecordOptions
-): Promise<SaveDailyRecordResult> =>
-  withWriteService(service =>
-    options
-      ? service.saveDetailed(record, expectedLastUpdated, options)
-      : service.saveDetailed(record, expectedLastUpdated)
+): Promise<SaveDailyRecordResult> => {
+  const authoredOptions = {
+    ...options,
+    authoringSession: options?.authoringSession ?? captureAuthoringSession(),
+  };
+  return withWriteService(service =>
+    service.saveDetailed(record, expectedLastUpdated, authoredOptions)
   );
+};
 
 const deleteDailyRecord = (date: string): Promise<void> =>
   withDeletionService(service => service.deleteDailyRecordAcrossStores(date));

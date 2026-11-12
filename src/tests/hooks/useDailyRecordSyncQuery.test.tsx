@@ -261,7 +261,8 @@ describe('useDailyRecordSyncQuery', () => {
 
     expect(defaultDailyRecordRepositoryPort.saveDetailed).toHaveBeenCalledWith(
       updatedRecord,
-      updatedRecord.lastUpdated
+      updatedRecord.lastUpdated,
+      expect.objectContaining({ authoringSession: expect.objectContaining({ ownerKey: null }) })
     );
   });
 
