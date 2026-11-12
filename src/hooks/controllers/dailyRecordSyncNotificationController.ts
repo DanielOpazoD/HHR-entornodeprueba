@@ -6,7 +6,10 @@ import type {
   SaveDailyRecordResult,
   UpdatePartialDailyRecordResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
-import { isDailyRecordWriteBlockedResult } from '@/services/repositories/contracts/dailyRecordResults';
+import {
+  isDailyRecordWriteBlockedResult,
+  resolveDailyRecordSavedState,
+} from '@/services/repositories/contracts/dailyRecordResults';
 import {
   createBlockedNotice,
   createDegradedNotice,
@@ -153,165 +156,91 @@ const resolveSyncConsistencyMessage = (
   return candidate;
 };
 
-export const resolveSaveOutcomeFeedback = (
-  result: SaveDailyRecordResult | null | undefined
+const resolveWriteOutcomeFeedback = (
+  result: SaveDailyRecordResult | UpdatePartialDailyRecordResult | null | undefined,
+  patch: boolean
 ): SyncOutcomeFeedback | null => {
-  if (!result) {
-    return null;
-  }
-
+  if (!result) return null;
+  const savedState = resolveDailyRecordSavedState(result);
+  const remoteConfirmed = savedState === 'saved';
   const consistencyMessage = (fallbackMessage: string) =>
-    resolveSyncConsistencyMessage(
-      {
-        userSafeMessage: result.userSafeMessage,
-        savedLocally: result.savedLocally,
-        remoteConfirmed: result.savedRemotely,
-      },
-      fallbackMessage
-    );
-
+    resolveSyncConsistencyMessage({ ...result, remoteConfirmed }, fallbackMessage);
   if (isDailyRecordWriteBlockedResult(result) || result.outcome === 'blocked') {
     return createSyncBlocked(
       result.consistencyState === 'blocked_regression'
         ? 'Protección de Datos'
         : result.consistencyState === 'blocked_version_mismatch'
           ? 'Versión de Datos Antigua'
-          : 'Guardado bloqueado',
-      consistencyMessage('La operación fue rechazada y no quedó confirmada.')
-    );
-  }
-
-  if (result.outcome === 'queued' && result.savedLocally && result.queuedForRetry) {
-    return createSyncRetrying(
-      'Guardado local pendiente',
-      'Los cambios se guardaron localmente y quedarán pendientes de sincronización.'
-    );
-  }
-
-  if (result.outcome === 'auto_merged' && result.autoMerged) {
-    return createSyncDegraded(
-      'Censo actualizado',
-      'El sistema integró los cambios recientes automáticamente.'
-    );
-  }
-
-  if (result.outcome === 'unrecoverable' || result.consistencyState === 'unrecoverable') {
-    if (result.savedRemotely) {
-      return createSyncDegraded(
-        'Guardado en servidor; copia local pendiente',
-        consistencyMessage(
-          'Los cambios quedaron confirmados en el servidor, pero la copia local requiere revisión.'
-        )
-      );
-    }
-    if (!result.savedLocally) {
-      return createSyncBlocked(
-        'Guardado no confirmado',
-        'No fue posible confirmar una copia local ni remota de los cambios.'
-      );
-    }
-    return createSyncDegraded(
-      'Guardado local sin sincronización',
+          : patch
+            ? 'Actualización bloqueada'
+            : 'Guardado bloqueado',
       consistencyMessage(
-        'Los cambios quedaron guardados localmente, pero requieren revisión antes de quedar confirmados.'
+        patch
+          ? 'La actualización fue rechazada y no quedó confirmada.'
+          : 'La operación fue rechazada y no quedó confirmada.'
       )
     );
   }
-
-  if (result.savedRemotely) {
-    return createSyncSuccess('Censo guardado', 'Los cambios quedaron confirmados en el servidor.');
-  }
-
-  if (result.savedLocally) {
-    return createSyncDegraded(
-      'Guardado sólo local',
-      'Los cambios quedaron guardados en este dispositivo, sin confirmación del servidor.'
+  if (result.outcome === 'queued' && result.savedLocally && result.queuedForRetry) {
+    return createSyncRetrying(
+      patch ? 'Cambio pendiente de sincronización' : 'Guardado local pendiente',
+      patch
+        ? 'La actualización quedó guardada localmente y se reintentará la sincronización.'
+        : 'Los cambios se guardaron localmente y quedarán pendientes de sincronización.'
     );
   }
-
-  return createSyncBlocked(
-    'Guardado no confirmado',
-    'No fue posible confirmar una copia local ni remota de los cambios.'
-  );
+  if (result.outcome === 'auto_merged' && result.autoMerged) {
+    return createSyncDegraded(
+      patch ? 'Cambio actualizado' : 'Censo actualizado',
+      'El sistema integró los cambios recientes automáticamente.'
+    );
+  }
+  if (savedState === 'error') {
+    return createSyncBlocked(
+      patch ? 'Cambio no guardado' : 'Guardado no confirmado',
+      patch
+        ? 'No fue posible confirmar una copia local ni remota del cambio.'
+        : 'No fue posible confirmar una copia local ni remota de los cambios.'
+    );
+  }
+  if (result.outcome === 'unrecoverable' || result.consistencyState === 'unrecoverable') {
+    return createSyncDegraded(
+      remoteConfirmed
+        ? patch
+          ? 'Cambio guardado; copia local pendiente'
+          : 'Guardado en servidor; copia local pendiente'
+        : patch
+          ? 'Cambio local sin sincronización'
+          : 'Guardado local sin sincronización',
+      consistencyMessage(
+        remoteConfirmed
+          ? patch
+            ? 'El cambio quedó confirmado en el servidor, pero la copia local requiere revisión.'
+            : 'Los cambios quedaron confirmados en el servidor, pero la copia local requiere revisión.'
+          : patch
+            ? 'El cambio quedó guardado localmente, pero requiere revisión antes de quedar confirmado.'
+            : 'Los cambios quedaron guardados localmente, pero requieren revisión antes de quedar confirmados.'
+      )
+    );
+  }
+  return remoteConfirmed
+    ? createSyncSuccess(
+        patch ? 'Cambio guardado' : 'Censo guardado',
+        patch
+          ? 'La actualización quedó confirmada en el servidor.'
+          : 'Los cambios quedaron confirmados en el servidor.'
+      )
+    : createSyncDegraded(
+        patch ? 'Cambio sólo local' : 'Guardado sólo local',
+        patch
+          ? 'La actualización quedó guardada en este dispositivo, sin confirmación del servidor.'
+          : 'Los cambios quedaron guardados en este dispositivo, sin confirmación del servidor.'
+      );
 };
+
+export const resolveSaveOutcomeFeedback = (result: SaveDailyRecordResult | null | undefined) =>
+  resolveWriteOutcomeFeedback(result, false);
 
 export const resolvePatchOutcomeFeedback = (
   result: UpdatePartialDailyRecordResult | null | undefined
-): SyncOutcomeFeedback | null => {
-  if (!result) {
-    return null;
-  }
-
-  const consistencyMessage = (fallbackMessage: string) =>
-    resolveSyncConsistencyMessage(
-      {
-        userSafeMessage: result.userSafeMessage,
-        savedLocally: result.savedLocally,
-        remoteConfirmed: result.updatedRemotely,
-      },
-      fallbackMessage
-    );
-
-  if (isDailyRecordWriteBlockedResult(result) || result.outcome === 'blocked') {
-    return createSyncBlocked(
-      result.consistencyState === 'blocked_regression'
-        ? 'Protección de Datos'
-        : result.consistencyState === 'blocked_version_mismatch'
-          ? 'Versión de Datos Antigua'
-          : 'Actualización bloqueada',
-      consistencyMessage('La actualización fue rechazada y no quedó confirmada.')
-    );
-  }
-
-  if (result.outcome === 'queued' && result.savedLocally && result.queuedForRetry) {
-    return createSyncRetrying(
-      'Cambio pendiente de sincronización',
-      'La actualización quedó guardada localmente y se reintentará la sincronización.'
-    );
-  }
-
-  if (result.outcome === 'auto_merged' && result.autoMerged) {
-    return createSyncDegraded(
-      'Cambio actualizado',
-      'El sistema integró los cambios recientes automáticamente.'
-    );
-  }
-
-  if (result.outcome === 'unrecoverable' || result.consistencyState === 'unrecoverable') {
-    if (!result.savedLocally && !result.updatedRemotely) {
-      return createSyncBlocked(
-        'Cambio no guardado',
-        'No fue posible confirmar una copia local ni remota del cambio.'
-      );
-    }
-    return createSyncDegraded(
-      result.updatedRemotely
-        ? 'Cambio guardado; copia local pendiente'
-        : 'Cambio local sin sincronización',
-      consistencyMessage(
-        result.updatedRemotely
-          ? 'El cambio quedó confirmado en el servidor, pero la copia local requiere revisión.'
-          : 'El cambio quedó guardado localmente, pero requiere revisión antes de quedar confirmado.'
-      )
-    );
-  }
-
-  if (result.updatedRemotely) {
-    return createSyncSuccess(
-      'Cambio guardado',
-      'La actualización quedó confirmada en el servidor.'
-    );
-  }
-
-  if (result.savedLocally) {
-    return createSyncDegraded(
-      'Cambio sólo local',
-      'La actualización quedó guardada en este dispositivo, sin confirmación del servidor.'
-    );
-  }
-
-  return createSyncBlocked(
-    'Cambio no guardado',
-    'No fue posible confirmar una copia local ni remota del cambio.'
-  );
-};
+) => resolveWriteOutcomeFeedback(result, true);
