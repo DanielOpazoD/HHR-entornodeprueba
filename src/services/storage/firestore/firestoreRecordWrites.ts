@@ -294,6 +294,9 @@ export const updateRecordPartial = async (
         const clinicalAuthorityMode = hasClinicalAuthorityPatch
           ? await resolveAuthenticatedDailyRecordAuthorityMode()
           : null;
+        const structuralAuthorityMode = hasStructuralBedPatch
+          ? await resolveAuthenticatedDailyRecordAuthorityMode()
+          : null;
         const bedTreeAuthorityFenced =
           shouldUseAuthorityCallable && (await shouldRouteStructuralBedPatchViaCallable());
         const structuralAuthorityFenced = hasStructuralBedPatch && bedTreeAuthorityFenced;
@@ -332,12 +335,12 @@ export const updateRecordPartial = async (
           ? clinicalAuthorityMode === 'enforced'
             ? 'enforced'
             : clinicalAuthorityFenced
-              ? 'enforced'
+              ? clinicalAuthorityMode || 'enforced'
               : null
           : isE2EForcedMovementPatch
             ? 'enforced'
             : structuralAuthorityFenced
-              ? 'enforced'
+              ? structuralAuthorityMode || 'enforced'
               : null;
         if (
           shouldUseAuthorityCallable &&
