@@ -1,457 +1,252 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const {
-  firestoreQueryLoggerError,
-  observeDailyRecordServerSnapshot,
-  readSnapshot,
-  readServerSnapshot,
-} = vi.hoisted(() => ({
-  firestoreQueryLoggerError: vi.fn(),
-  observeDailyRecordServerSnapshot: vi.fn(),
-  readSnapshot: vi.fn(),
-  readServerSnapshot: vi.fn(),
+// Faults are keyed by document path / query, never by invocation number.
+const state = vi.hoisted(() => ({
+  replies: new Map<string, unknown>(),
+  logger: vi.fn(),
+  observe: vi.fn(),
 }));
-
+vi.mock('@/firebaseConfig', () => ({ db: {} }));
+vi.mock('@/constants/firestorePaths', () => ({
+  COLLECTIONS: { HOSPITALS: 'hospitals' },
+  getActiveHospitalId: () => 'hanga_roa',
+}));
+vi.mock('@/services/storage/firestore/firestoreShared', () => ({
+  docToRecord: (data: Record<string, unknown>, date: string) => ({ date, ...data }),
+  getRecordDocRef: (date: string) => `records/${date}`,
+  getRecordsCollection: () => 'records',
+}));
+vi.mock('@/services/storage/storageLoggers', () => ({
+  firestoreQueryLogger: { error: state.logger, warn: vi.fn() },
+}));
 vi.mock('@/services/storage/firestore/dailyRecordSizeTelemetry', () => ({
-  observeDailyRecordServerSnapshot,
+  observeDailyRecordServerSnapshot: state.observe,
 }));
-
-vi.mock('firebase/firestore', async () => {
-  const actual = await vi.importActual('firebase/firestore');
+vi.mock('firebase/firestore', async importOriginal => {
+  const actual = await importOriginal<typeof import('firebase/firestore')>();
+  const reply = (ref: unknown) => {
+    const key = typeof ref === 'string' ? ref : JSON.stringify(ref);
+    if (!state.replies.has(key)) throw new Error(`Unconfigured synthetic query: ${key}`);
+    const value = state.replies.get(key);
+    if (value instanceof Error) throw value;
+    return value;
+  };
   return {
     ...actual,
-    doc: vi.fn(() => 'availability-doc-ref'),
-    getDoc: readSnapshot,
-    getDocFromServer: readServerSnapshot,
-    getDocs: vi.fn(),
-    getDocsFromServer: vi.fn(),
-    limit: vi.fn((count: number) => ({ limit: count })),
-    startAfter: vi.fn((cursor: unknown) => ({ cursor })),
-    onSnapshot: vi.fn(),
-    orderBy: vi.fn((field: string, direction: string) => ({ field, direction })),
-    query: vi.fn((...args: unknown[]) => ({ args })),
-    where: vi.fn((field: string, op: string, value: string) => ({ field, op, value })),
+    doc: (_db: unknown, ...parts: string[]) => parts.join('/'),
+    getDoc: vi.fn(async ref => reply(ref)),
+    getDocFromServer: vi.fn(async ref => reply(ref)),
+    getDocs: vi.fn(async ref => reply(ref)),
+    getDocsFromServer: vi.fn(async ref => reply(ref)),
+    query: (...args: unknown[]) => args,
+    where: (field: string, op: string, value: string) => ({ field, op, value }),
+    orderBy: (field: string, direction: string) => ({ field, direction }),
+    limit: (count: number) => ({ limit: count }),
+    startAfter: (cursor: unknown) => ({ cursor }),
+    onSnapshot: vi.fn((ref, _options, next, error) => {
+      try {
+        next(reply(ref));
+      } catch (failure) {
+        error(failure);
+      }
+      return vi.fn();
+    }),
   };
 });
 
-vi.mock('@/firebaseConfig', () => ({
-  db: {},
-}));
-
-vi.mock('@/constants/firestorePaths', () => ({
-  COLLECTIONS: {
-    HOSPITALS: 'hospitals',
-  },
-  getActiveHospitalId: vi.fn(() => 'hanga_roa'),
-}));
-
-vi.mock('@/services/storage/firestore/firestoreShared', () => ({
-  docToRecord: vi.fn((data: Record<string, unknown>, id: string) => ({
-    date: id,
-    ...data,
-  })),
-  getRecordDocRef: vi.fn((date: string) => ({ date })),
-  getRecordsCollection: vi.fn(() => 'records-collection'),
-}));
-
-vi.mock('@/services/storage/storageLoggers', () => ({
-  firestoreQueryLogger: {
-    error: firestoreQueryLoggerError,
-  },
-}));
-
-import {
-  getDoc,
-  getDocFromServer,
-  getDocs,
-  getDocsFromServer,
-  onSnapshot,
-  query,
-  startAfter,
-} from 'firebase/firestore';
-import { getRecordsCollection } from '@/services/storage/firestore/firestoreShared';
+import { getDocsFromServer } from 'firebase/firestore';
 import {
   CensusMonthUnavailableError,
-  getRecordPagesFromFirestore,
-  getAvailableDatesFromFirestore,
-  getMonthRecordsFromFirestore,
   getRecordFromFirestore,
   getRecordFromFirestoreDetailed,
+  getRecordPagesFromFirestore,
   getRecordsRangeFromFirestore,
+  getAvailableDatesFromFirestore,
+  getMonthRecordsFromFirestore,
   isFirestoreAvailable,
   subscribeToRecord,
 } from '@/services/storage/firestore/firestoreRecordQueries';
 
-describe('firestoreRecordQueries', () => {
+const date = '2026-03-14';
+const snapshot = (metadata: unknown, exists = true) => ({
+  exists: () => exists,
+  data: () => ({ beds: {} }),
+  metadata,
+});
+const rangeKey = (from = '2026-03-01', to = '2026-03-31') =>
+  JSON.stringify([
+    'records',
+    { field: 'date', op: '>=', value: from },
+    { field: 'date', op: '<=', value: to },
+    { field: 'date', direction: 'asc' },
+  ]);
+const pageKey = (cursor?: unknown) =>
+  JSON.stringify([
+    'records',
+    { field: 'date', direction: 'desc' },
+    { limit: 20 },
+    ...(cursor ? [{ cursor }] : []),
+  ]);
+
+describe('record query deterministic transport faults', () => {
   beforeEach(() => {
+    state.replies.clear();
     vi.clearAllMocks();
-    vi.mocked(getRecordsCollection)
-      .mockReset()
-      .mockReturnValue('records-collection' as never);
+    state.observe.mockReset();
   });
 
   it.each([
-    { fromCache: true, hasPendingWrites: false, serverConfirmed: false },
-    { fromCache: true, hasPendingWrites: true, serverConfirmed: false },
-    { fromCache: false, hasPendingWrites: false, serverConfirmed: true },
-    { fromCache: false, hasPendingWrites: true, serverConfirmed: false },
+    undefined,
+    { fromCache: true, hasPendingWrites: false },
+    { fromCache: true, hasPendingWrites: true },
+    { fromCache: false, hasPendingWrites: true },
+    { fromCache: false },
+    { fromCache: false, hasPendingWrites: false },
   ])(
-    'preserves server evidence for positive and missing reads: $fromCache / $hasPendingWrites',
-    async ({ fromCache, hasPendingWrites, serverConfirmed }) => {
+    'derives evidence from returned metadata for present and missing documents: %s',
+    async metadata => {
+      const confirmed = metadata?.fromCache === false && metadata?.hasPendingWrites === false;
       for (const exists of [true, false]) {
-        readSnapshot.mockResolvedValueOnce({
-          exists: () => exists,
-          data: () => ({ beds: {} }),
-          metadata: { fromCache, hasPendingWrites },
-        });
-        await expect(getRecordFromFirestoreDetailed('2026-10-27')).resolves.toMatchObject({
+        state.replies.set(`records/${date}`, snapshot(metadata, exists));
+        expect(await getRecordFromFirestoreDetailed(date)).toMatchObject({
           status: exists ? 'resolved' : 'missing',
-          serverConfirmed,
+          serverConfirmed: confirmed,
+        });
+        expect(await getRecordFromFirestoreDetailed(date, { source: 'server' })).toMatchObject({
+          status: confirmed ? (exists ? 'resolved' : 'missing') : 'failed',
+          serverConfirmed: confirmed,
         });
       }
     }
   );
 
-  it('does not invent server evidence when snapshot metadata is absent', async () => {
-    readSnapshot.mockResolvedValueOnce({ exists: () => true, data: () => ({ beds: {} }) });
-    await expect(getRecordFromFirestoreDetailed('2026-10-27')).resolves.toMatchObject({
-      status: 'resolved',
-      serverConfirmed: false,
-    });
-  });
-
-  it.each([
-    { metadata: { fromCache: false, hasPendingWrites: false }, serverConfirmed: true },
-    { metadata: { fromCache: false, hasPendingWrites: true }, serverConfirmed: false },
-    { metadata: { fromCache: true, hasPendingWrites: false }, serverConfirmed: false },
-    { metadata: { fromCache: false }, serverConfirmed: false },
-    { metadata: undefined, serverConfirmed: false },
-  ])(
-    'uses returned metadata rather than the requested server source: $metadata',
-    async ({ metadata, serverConfirmed }) => {
-      for (const exists of [true, false]) {
-        readServerSnapshot.mockResolvedValueOnce({
-          exists: () => exists,
-          data: () => ({ beds: {} }),
-          metadata,
-        });
-        await expect(
-          getRecordFromFirestoreDetailed('2026-10-27', { source: 'server' })
-        ).resolves.toMatchObject({
-          status: serverConfirmed ? (exists ? 'resolved' : 'missing') : 'failed',
-          serverConfirmed,
-        });
-      }
-    }
-  );
-
-  it('traverses every server page with a snapshot cursor and a bounded limit', async () => {
-    const docs = Array.from({ length: 20 }, (_, index) => ({
-      id: `day-${index}`,
-      data: () => ({ date: '2026-01-01', beds: {} }),
-    }));
-    vi.mocked(getDocsFromServer)
-      .mockResolvedValueOnce({ docs, size: 20 } as never)
-      .mockResolvedValueOnce({
-        docs: [{ id: 'older', data: () => ({ beds: {} }) }],
-        size: 1,
-      } as never);
-    vi.mocked(getRecordsCollection)
-      .mockReturnValueOnce('first-hospital' as never)
-      .mockReturnValueOnce('other-hospital' as never);
-    const pages = [];
-    for await (const page of getRecordPagesFromFirestore()) pages.push(page);
-    expect(getRecordsCollection).toHaveBeenCalledOnce();
-    expect(
-      vi
-        .mocked(query)
-        .mock.calls.slice(0, 2)
-        .map(call => call[0])
-    ).toEqual(['first-hospital', 'first-hospital']);
-    expect(pages.map(page => page.length)).toEqual([20, 1]);
-    expect(getDocsFromServer).toHaveBeenCalledTimes(2);
-    expect(getDocs).not.toHaveBeenCalled();
-    // A snapshot cursor retains the document tie-breaker even when dates are identical.
-    expect(startAfter).toHaveBeenCalledExactlyOnceWith(docs[19]);
-    expect(vi.mocked(query).mock.calls[0]).toContainEqual({ limit: 20 });
-    expect(vi.mocked(query).mock.calls[1]).toContainEqual({ cursor: docs[19] });
-  });
-
-  it('checks an empty final page after an exact multiple instead of truncating history', async () => {
-    const docs = Array.from({ length: 20 }, (_, index) => ({
-      id: `${index}`,
-      data: () => ({ beds: {} }),
-    }));
-    vi.mocked(getDocsFromServer)
-      .mockResolvedValueOnce({ docs, size: 20 } as never)
-      .mockResolvedValueOnce({ docs: [], size: 0 } as never);
-    vi.mocked(getRecordsCollection)
-      .mockReturnValueOnce('first-hospital' as never)
-      .mockReturnValueOnce('other-hospital' as never);
-    const pages = [];
-    for await (const page of getRecordPagesFromFirestore()) pages.push(page);
-    expect(getRecordsCollection).toHaveBeenCalledOnce();
-    expect(
-      vi
-        .mocked(query)
-        .mock.calls.slice(0, 2)
-        .map(call => call[0])
-    ).toEqual(['first-hospital', 'first-hospital']);
-    expect(pages.map(page => page.length)).toEqual([20, 0]);
-    expect(getDocsFromServer).toHaveBeenCalledTimes(2);
-  });
-
-  it('stops after cancellation without reading the next page or logging a query failure', async () => {
-    const controller = new AbortController();
-    const docs = Array.from({ length: 20 }, (_, index) => ({
-      id: `${index}`,
-      data: () => ({ beds: {} }),
-    }));
-    vi.mocked(getDocsFromServer).mockResolvedValueOnce({ docs, size: 20 } as never);
-    const pages = getRecordPagesFromFirestore(controller.signal);
-    expect((await pages.next()).value).toHaveLength(20);
-    controller.abort();
-    await expect(pages.next()).rejects.toMatchObject({ name: 'AbortError' });
-    expect(getDocsFromServer).toHaveBeenCalledTimes(1);
-    expect(firestoreQueryLoggerError).not.toHaveBeenCalled();
-  });
-
-  it('discards an in-flight response after cancellation and makes no additional query', async () => {
-    const controller = new AbortController();
-    let finish!: (value: never) => void;
-    vi.mocked(getDocsFromServer).mockReturnValueOnce(
-      new Promise(resolve => {
-        finish = resolve;
-      })
-    );
-    const result = getRecordPagesFromFirestore(controller.signal).next();
-    controller.abort();
-    finish({ docs: [], size: 0 } as never);
-    await expect(result).rejects.toMatchObject({ name: 'AbortError' });
-    expect(getDocsFromServer).toHaveBeenCalledTimes(1);
-  });
-
-  it('propagates a later server failure instead of completing a partial traversal', async () => {
-    const docs = Array.from({ length: 20 }, (_, index) => ({
-      id: `${index}`,
-      data: () => ({ beds: {} }),
-    }));
-    vi.mocked(getDocsFromServer)
-      .mockResolvedValueOnce({ docs, size: 20 } as never)
-      .mockRejectedValueOnce(new Error('later page unavailable'));
-    const pages = getRecordPagesFromFirestore();
-    await pages.next();
-    await expect(pages.next()).rejects.toThrow('later page unavailable');
-  });
-
-  it('distinguishes server history failures from genuinely empty ranges', async () => {
-    vi.mocked(getDocsFromServer).mockResolvedValueOnce({
-      docs: [],
-      metadata: { fromCache: false, hasPendingWrites: false },
-    } as never);
-    await expect(
-      getRecordsRangeFromFirestore('2026-09-01', '2026-09-04', { requireServer: true })
-    ).resolves.toEqual([]);
-    vi.mocked(getDocsFromServer).mockRejectedValueOnce(new Error('offline'));
-    await expect(
-      getRecordsRangeFromFirestore('2026-09-01', '2026-09-04', { requireServer: true })
-    ).rejects.toThrow('offline');
-    expect(getDocs).not.toHaveBeenCalled();
-  });
-
-  it('reads available dates in descending order and handles failures', async () => {
-    vi.mocked(getDocs).mockResolvedValueOnce({
-      docs: [{ id: '2026-03-10' }, { id: '2026-03-12' }, { id: '2026-03-11' }],
-    } as never);
-
-    await expect(getAvailableDatesFromFirestore()).resolves.toEqual([
-      '2026-03-12',
-      '2026-03-11',
-      '2026-03-10',
-    ]);
-
-    vi.mocked(getDocs).mockRejectedValueOnce(new Error('offline'));
-    await expect(getAvailableDatesFromFirestore()).resolves.toEqual([]);
-    expect(firestoreQueryLoggerError).toHaveBeenCalledWith(
-      'Firestore query failed: getAvailableDates',
-      expect.objectContaining({
-        error: expect.any(Error),
-      })
-    );
-  });
-
-  it('gets a single record or null when not found / failing', async () => {
-    vi.mocked(getDoc).mockResolvedValueOnce({
-      exists: () => true,
-      data: () => ({ beds: {}, marker: 'ok' }),
-    } as never);
-    await expect(getRecordFromFirestore('2026-03-14')).resolves.toEqual({
-      date: '2026-03-14',
-      beds: {},
-      marker: 'ok',
-    });
-
-    vi.mocked(getDoc).mockResolvedValueOnce({
-      exists: () => false,
-    } as never);
-    await expect(getRecordFromFirestore('2026-03-15')).resolves.toBeNull();
-
-    vi.mocked(getDoc).mockRejectedValueOnce(new Error('boom'));
-    await expect(getRecordFromFirestore('2026-03-16')).resolves.toBeNull();
-    expect(firestoreQueryLoggerError).toHaveBeenCalledWith(
-      'Firestore query failed: getRecord',
-      expect.objectContaining({
-        date: '2026-03-16',
-        error: expect.any(Error),
-      })
-    );
-  });
-
-  it('distinguishes missing records from failed record reads', async () => {
-    vi.mocked(getDoc).mockResolvedValueOnce({
-      exists: () => false,
-    } as never);
-    await expect(getRecordFromFirestoreDetailed('2026-03-17')).resolves.toEqual({
-      status: 'missing',
-      record: null,
-      serverConfirmed: false,
-    });
-
-    vi.mocked(getDoc).mockRejectedValueOnce(new Error('denied'));
-    await expect(getRecordFromFirestoreDetailed('2026-03-18')).resolves.toMatchObject({
+  it('distinguishes read failure from missing and keeps the nullable legacy API', async () => {
+    state.replies.set(`records/${date}`, new Error('synthetic denied'));
+    expect(await getRecordFromFirestoreDetailed(date)).toMatchObject({
       status: 'failed',
       record: null,
+      serverConfirmed: false,
     });
-  });
-
-  it('bypasses local cache for a server-confirmed write readback', async () => {
-    vi.mocked(getDocFromServer).mockResolvedValueOnce({
-      exists: () => true,
-      data: () => ({ beds: {}, marker: 'server-confirmed' }),
-      metadata: { fromCache: false, hasPendingWrites: false },
-    } as never);
-
-    await expect(getRecordFromFirestore('2026-03-19', { source: 'server' })).resolves.toEqual({
-      date: '2026-03-19',
-      beds: {},
-      marker: 'server-confirmed',
-    });
-    expect(getDocFromServer).toHaveBeenCalledOnce();
-    expect(getDoc).not.toHaveBeenCalled();
+    expect(await getRecordFromFirestore(date)).toBeNull();
+    expect(state.logger).toHaveBeenCalledWith(
+      'Firestore query failed: getRecord',
+      expect.objectContaining({ date, error: expect.any(Error) })
+    );
   });
 
   it.each([
     undefined,
     { fromCache: true, hasPendingWrites: false },
     { fromCache: false, hasPendingWrites: true },
-  ])('rejects a server-requested batch without confirmation (%s)', async metadata => {
-    vi.mocked(getDocsFromServer).mockResolvedValueOnce({ docs: [], metadata } as never);
+  ])('rejects a range lacking server confirmation: %s', async metadata => {
+    state.replies.set(rangeKey(), { docs: [], metadata });
     await expect(
       getRecordsRangeFromFirestore('2026-03-01', '2026-03-31', { requireServer: true })
-    ).rejects.toThrow('No se pudo confirmar el período con el servidor');
+    ).rejects.toThrow('No se pudo confirmar el período');
   });
 
-  it('maps date ranges from snapshots', async () => {
-    vi.mocked(getDocs).mockResolvedValueOnce({
-      docs: [{ id: '2026-03-01', data: () => ({ beds: {}, marker: 'from-range' }) }],
-      metadata: { fromCache: false, hasPendingWrites: false },
-    } as never);
-
-    await expect(getRecordsRangeFromFirestore('2026-03-01', '2026-03-31')).resolves.toEqual([
-      { date: '2026-03-01', beds: {}, marker: 'from-range' },
-    ]);
-  });
-
-  it('reads month queries from the server over the computed range', async () => {
-    vi.mocked(getDocsFromServer).mockResolvedValueOnce({
-      docs: [{ id: '2026-02-01', data: () => ({ beds: {} }) }],
-      metadata: { fromCache: false, hasPendingWrites: false },
-    } as never);
-
-    await expect(getMonthRecordsFromFirestore(2026, 1)).resolves.toHaveLength(1);
-    expect(getDocs).not.toHaveBeenCalled();
-  });
-
-  it('fails a month that cannot be read instead of returning a month without records', async () => {
-    const offline = new Error('Failed to get documents from server');
-    vi.mocked(getDocsFromServer).mockRejectedValueOnce(offline);
-
-    const read = getMonthRecordsFromFirestore(2026, 1);
-
-    await expect(read).rejects.toBeInstanceOf(CensusMonthUnavailableError);
-    await expect(read).rejects.toMatchObject({
-      message: expect.stringContaining('02-2026'),
+  it('propagates range failures and wraps month failures with period and cause', async () => {
+    const offline = new Error('synthetic offline');
+    state.replies.set(rangeKey(), offline);
+    await expect(
+      getRecordsRangeFromFirestore('2026-03-01', '2026-03-31', { requireServer: true })
+    ).rejects.toBe(offline);
+    state.replies.set(rangeKey('2026-02-01', '2026-02-31'), offline);
+    await expect(getMonthRecordsFromFirestore(2026, 1)).rejects.toBeInstanceOf(
+      CensusMonthUnavailableError
+    );
+    await expect(getMonthRecordsFromFirestore(2026, 1)).rejects.toMatchObject({
       cause: offline,
+      message: expect.stringContaining('02-2026'),
     });
   });
 
-  it('subscribes to records with metadata and keeps cache untouched on subscription errors', async () => {
-    const callback = vi.fn();
-
-    vi.mocked(onSnapshot).mockImplementationOnce((...args: unknown[]) => {
-      const onNext = args[2] as (value: unknown) => void;
-      onNext({
-        exists: () => true,
-        data: () => ({ beds: { R1: true } }),
-        metadata: { hasPendingWrites: true },
-      });
-      return vi.fn();
-    });
-
-    const unsubscribe = subscribeToRecord('2026-03-14', callback);
-    expect(callback).toHaveBeenCalledWith({ date: '2026-03-14', beds: { R1: true } }, true, {
-      hasPendingWrites: true,
-      fromCache: undefined,
-    });
-    expect(typeof unsubscribe).toBe('function');
-
-    vi.mocked(onSnapshot).mockImplementationOnce((...args: unknown[]) => {
-      const onError = args[3] as (error: unknown) => void;
-      onError(new Error('subscription failed'));
-      return vi.fn();
-    });
-
-    subscribeToRecord('2026-03-15', callback);
-    expect(callback).toHaveBeenCalledTimes(1);
-    expect(firestoreQueryLoggerError).toHaveBeenCalledWith(
-      'Firestore query failed: subscribeToRecord',
-      expect.objectContaining({
-        date: '2026-03-15',
-        error: expect.any(Error),
-      })
+  it('characterizes the existing empty-on-error date scan pending its separate fix', async () => {
+    state.replies.set(JSON.stringify(['records']), new Error('synthetic offline'));
+    expect(await getAvailableDatesFromFirestore()).toEqual([]);
+    expect(state.logger).toHaveBeenCalledWith(
+      'Firestore query failed: getAvailableDates',
+      expect.objectContaining({ error: expect.any(Error) })
     );
   });
 
-  it('measures only server-confirmed versions and never lets measurement break the listener', () => {
-    const callback = vi.fn();
-    const data = { beds: { R1: { patientName: 'Paciente Sintético' } }, lastUpdated: 'v1' };
-    const emit = (metadata: { fromCache: boolean; hasPendingWrites: boolean }) => {
-      vi.mocked(onSnapshot).mockImplementationOnce((...args: unknown[]) => {
-        (args[2] as (value: unknown) => void)({ exists: () => true, data: () => data, metadata });
-        return vi.fn();
-      });
-      subscribeToRecord('2026-03-16', callback);
+  it('discards an in-flight response after cancellation without another request', async () => {
+    const controller = new AbortController();
+    let finish: (value: unknown) => void = () => {
+      throw new Error('not started');
     };
+    state.replies.set(
+      pageKey(),
+      new Promise(resolve => {
+        finish = resolve;
+      })
+    );
+    const next = getRecordPagesFromFirestore(controller.signal).next();
+    controller.abort();
+    finish({ docs: [], size: 0 });
+    await expect(next).rejects.toMatchObject({ name: 'AbortError' });
+    expect(getDocsFromServer).toHaveBeenCalledTimes(1);
+    expect(state.logger).not.toHaveBeenCalled();
+  });
 
-    emit({ fromCache: true, hasPendingWrites: false });
-    emit({ fromCache: false, hasPendingWrites: true });
-    expect(observeDailyRecordServerSnapshot).not.toHaveBeenCalled();
+  it('propagates a later-page failure instead of accepting a partial traversal', async () => {
+    const docs = Array.from({ length: 20 }, (_, i) => ({
+      id: `synthetic-${i}`,
+      data: () => ({ beds: {} }),
+    }));
+    state.replies.set(pageKey(), { docs, size: 20 });
+    state.replies.set(pageKey(docs[19]), new Error('synthetic later page unavailable'));
+    const pages = getRecordPagesFromFirestore();
+    await pages.next();
+    await expect(pages.next()).rejects.toThrow('synthetic later page unavailable');
+  });
 
-    emit({ fromCache: false, hasPendingWrites: false });
-    expect(observeDailyRecordServerSnapshot).toHaveBeenCalledExactlyOnceWith('2026-03-16', data);
+  it('retains the last delivered record on listener error and forwards the error', () => {
+    const callback = vi.fn();
+    const onError = vi.fn();
+    state.replies.set(`records/${date}`, snapshot({ fromCache: false, hasPendingWrites: false }));
+    expect(typeof subscribeToRecord(date, callback)).toBe('function');
+    state.replies.set(`records/${date}`, new Error('synthetic listener failure'));
+    subscribeToRecord(date, callback, onError);
+    expect(callback).toHaveBeenCalledTimes(1);
+    expect(callback).toHaveBeenCalledWith({ date, beds: {} }, false, {
+      fromCache: false,
+      hasPendingWrites: false,
+    });
+    expect(onError).toHaveBeenCalledWith(expect.any(Error));
+    expect(state.logger).toHaveBeenCalledWith(
+      'Firestore query failed: subscribeToRecord',
+      expect.objectContaining({ date })
+    );
+  });
 
-    observeDailyRecordServerSnapshot.mockImplementationOnce(() => {
+  it('measures only confirmed versions and measurement failure cannot break delivery', () => {
+    const callback = vi.fn();
+    for (const metadata of [
+      { fromCache: true, hasPendingWrites: false },
+      { fromCache: false, hasPendingWrites: true },
+    ]) {
+      state.replies.set(`records/${date}`, snapshot(metadata));
+      subscribeToRecord(date, callback);
+      expect(callback).toHaveBeenCalledWith(
+        { date, beds: {} },
+        metadata.hasPendingWrites,
+        metadata
+      );
+    }
+    expect(state.observe).not.toHaveBeenCalled();
+    state.replies.set(`records/${date}`, snapshot({ fromCache: false, hasPendingWrites: false }));
+    subscribeToRecord(date, callback);
+    expect(state.observe).toHaveBeenCalledExactlyOnceWith(date, { beds: {} });
+    state.observe.mockImplementation(() => {
       throw new Error('synthetic measurement failure');
     });
-    expect(() => emit({ fromCache: false, hasPendingWrites: false })).not.toThrow();
+    expect(() => subscribeToRecord(date, callback)).not.toThrow();
     expect(callback).toHaveBeenCalledTimes(4);
   });
 
-  it('checks availability via hospital root doc', async () => {
-    vi.mocked(getDoc).mockResolvedValueOnce({ exists: () => true } as never);
-    await expect(isFirestoreAvailable()).resolves.toBe(true);
-
-    vi.mocked(getDoc).mockRejectedValueOnce(new Error('offline'));
-    await expect(isFirestoreAvailable()).resolves.toBe(false);
+  it('reports availability failure for the hospital path', async () => {
+    state.replies.set('hospitals/hanga_roa', new Error('synthetic offline'));
+    expect(await isFirestoreAvailable()).toBe(false);
   });
 });

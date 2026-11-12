@@ -30,6 +30,11 @@ const findBudget = (config: BundleBudgetConfig, pattern: string) =>
   config.chunkPatternBudgets.find(budget => budget.pattern === pattern);
 
 describe('bundle budget config', () => {
+  it('reserves the recovered Eloisa review headroom without raising the old ceiling', () => {
+    const budget = findBudget(readBundleBudgetConfig(), '^RayenImportButton-.*\\.js$');
+    expect(budget?.maxBytes).toBeLessThanOrEqual(264096 - 20 * 1024 + 12288);
+  });
+
   it('bounds the core monthly export and optional Eloisa source separately', () => {
     const config = readBundleBudgetConfig();
     expect(findBudget(config, '^cudyrEssentialWorkbook-.*\\.js$')).toMatchObject({
@@ -73,7 +78,7 @@ describe('bundle budget config', () => {
       maxBytes: 30000,
     });
     expect(findBudget(config, '^perfAuditReport-.*\\.js$')).toMatchObject({ maxBytes: 4000 });
-    expect(findBudget(config, '^RayenImportButton-.*\\.js$')).toMatchObject({ maxBytes: 264096 });
+    expect(findBudget(config, '^RayenImportButton-.*\\.js$')).toMatchObject({ maxBytes: 250430 });
     expect(findBudget(config, '^ClinicalLibraryDrawer-.*\\.js$')).toMatchObject({
       maxBytes: 120000,
     });
