@@ -1,7 +1,7 @@
 vi.unmock('@/application/ports/dailyRecordPort');
 import 'fake-indexeddb/auto';
 import { it, expect, vi, afterEach } from 'vitest';
-import { act, cleanup, renderHook } from '@testing-library/react';
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import type { DailyRecordPartialWriteOptions } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
@@ -125,7 +125,8 @@ it.each(['present', 'absent', 'once', 'always', 'competing'] as const)(
     )?.record;
     if (mode === 'competing') {
       expect(failure).toBeInstanceOf(ConcurrencyError);
-      expect(view.result.current.error).toBe(failure);
+      // The hook publishes the rejection on a later render than the rejected promise.
+      await waitFor(() => expect(view.result.current.error).toBe(failure));
       expect(visible?.beds.R1.specialty).toBe(Specialty.MEDICINA);
     } else {
       expect(failure).toBeUndefined();
