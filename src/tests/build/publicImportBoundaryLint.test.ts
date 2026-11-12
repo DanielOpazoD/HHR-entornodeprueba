@@ -55,17 +55,17 @@ describe('public imports in ESLint', () => {
       ...importTargets(
         'probe.ts',
         `
-      // import 'comment';
-      /* export * from 'block-comment'; */
-      const example = "import('string')";
-      import type { T } from 'type';
-      import 'side-effect';
-      export { x } from 'named';
-      export * from 'star';
-      const lazy = () => import('dynamic');
+      // import './comment';
+      /* export * from './block-comment'; */
+      const example = "import('./string')";
+      import type { T } from './type';
+      import './side-effect';
+      export { x } from './named';
+      export * from './star';
+      const lazy = () => import('./dynamic');
     `
       ),
-    ]).toEqual(['type', 'side-effect', 'named', 'star', 'dynamic']);
+    ]).toEqual(['./type', './side-effect', './named', './star', './dynamic']);
   });
   for (const extension of ['ts', 'tsx', 'js', 'jsx']) {
     for (const [index, code] of forms.entries()) {
