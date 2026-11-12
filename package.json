@@ -78,7 +78,6 @@
     "lint:strict:core": "eslint src/application src/hooks/controllers src/hooks/admin/useSystemHealthReporter.ts src/hooks/useAudit*.ts src/hooks/useBackup*.ts src/hooks/useBedManagement*.ts src/hooks/useCensusEmail*.ts src/hooks/useDailyRecord*.ts src/hooks/useExportManager.ts src/hooks/useFileOperations.ts src/hooks/useHandoffManagement*.ts src/hooks/usePatientAnalysis.ts src/hooks/usePatientMovementAudit.ts src/features/census src/features/analytics src/features/clinical-documents src/features/admin/components/SystemHealthDashboard.tsx src/services/observability src/services/staff src/services/repositories src/services/exporters src/services/pdf src/services/admin --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "check:architecture": "node scripts/check-architecture.mjs",
-    "check:application-port-boundary": "node scripts/check-application-port-boundary.mjs",
     "check:legacy-staff-boundary": "node scripts/check-legacy-staff-boundary.mjs",
     "check:core-test-boundary": "node scripts/check-core-test-boundary.mjs",
     "check:core-console-usage": "node scripts/check-core-console-usage.mjs",

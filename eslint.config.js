@@ -30,11 +30,12 @@ const FEATURE_BOUNDARY_RULE = {
     schema: [
       {
         type: 'object',
-        properties: { checkDynamicImports: { type: 'boolean' } },
+        properties: { checkDynamicImports: { type: 'boolean' }, checkPorts: { type: 'boolean' } },
         additionalProperties: false,
       },
     ],
     messages: {
+      port: 'Accede a «{{target}}» por su puerto de aplicación.',
       dependency:
         '«{{from}}» no depende de «{{to}}» en scripts/feature-dependency-matrix.json. Agrega la dependencia allí o resuelve la necesidad en otra capa.',
       public: '{{target}}: Importa «{{to}}» por su superficie pública: {{paths}}.',
@@ -44,14 +45,27 @@ const FEATURE_BOUNDARY_RULE = {
     const importer = path.relative(FEATURE_ROOT, context.filename).split(path.sep).join('/');
     const from = featureOf(importer);
     const check = source => {
-      if (!source || typeof source.value !== 'string' || !from) return;
+      if (!source || typeof source.value !== 'string') return;
       const raw = source.value;
       const target = raw.startsWith('.')
         ? path.posix
             .normalize(path.posix.join(path.posix.dirname(importer), raw))
             .replace(/^src\/features\//, '@/features/')
         : raw;
-      if (!target.startsWith('@/features/')) return;
+      const service = (
+        raw.startsWith('.')
+          ? path.posix.normalize(path.posix.join(path.posix.dirname(importer), raw))
+          : raw.replace(/^@\//, 'src/')
+      ).replace(/\.[cm]?[jt]sx?$/, '');
+      if (
+        context.options[0]?.checkPorts &&
+        [
+          'src/services/repositories/ClinicalDocumentRepository',
+          'src/services/integrations/censusEmailService',
+        ].includes(service)
+      )
+        context.report({ node: source, messageId: 'port', data: { target: raw } });
+      if (!from || !target.startsWith('@/features/')) return;
       const to = target.slice('@/features/'.length).split('/')[0];
       if (to === from) return;
       const allowed = FEATURE_MATRIX.features[from]?.includes(to);
@@ -382,6 +396,21 @@ export default tseslint.config(
     },
   },
   ...FEATURE_BOUNDARY_CONFIGS,
+  {
+    files: ['src/{hooks,components,features,application}/**/*.{ts,tsx,js,jsx}'],
+    ignores: [
+      'src/hooks/controllers/**',
+      'src/features/backup/**',
+      'src/application/ports/**',
+      '**/*.d.ts',
+      '**/*.test.*',
+      '**/*.spec.*',
+      '**/*.stories.*',
+    ],
+    languageOptions: { parser: tseslint.parser },
+    plugins: { hhr: HHR_PLUGIN },
+    rules: { 'hhr/feature-boundaries': ['error', { checkPorts: true }] },
+  },
   {
     files: ['src/**/*.{ts,tsx,js,jsx}'],
     ignores: ['**/*.d.ts', '**/*.test.*', '**/*.spec.*', '**/*.stories.*'],
