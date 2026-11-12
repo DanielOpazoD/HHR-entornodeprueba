@@ -13,6 +13,7 @@ import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import * as writes from '@/services/storage/firestore/firestoreRecordWrites';
 import * as guards from '@/services/storage/firestore/firestoreWriteSupport';
 import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
+import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { resolveRecordBaseRevision } from '@/services/storage/sync/syncTaskContractPolicy';
@@ -225,6 +226,30 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     await env?.cleanup();
     await admin?.terminate();
     if (app) await deleteApp(app);
+  });
+
+  it('keeps the server fence when advisory authentication is unavailable', async () => {
+    await mode('enforced');
+    const before = await read();
+    vi.spyOn(defaultAuthRuntime, 'getCurrentUser').mockImplementation(() => {
+      throw new Error('synthetic advisory authentication unavailable');
+    });
+    // The base version matches, so the direct write reaches the rules instead of the client CAS.
+    await expect(
+      actor('A', () =>
+        writes.saveRecordToFirestore(
+          {
+            ...baseRecord(),
+            beds: {
+              ...baseRecord().beds,
+              R1: { ...baseRecord().beds.R1, pathology: 'UNCONFIRMED' },
+            },
+          },
+          before.lastUpdated
+        )
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect((await read()).beds).toEqual(before.beds);
   });
 
   it('7 a bed-only change must not claim that another device changed staffing', async () => {
