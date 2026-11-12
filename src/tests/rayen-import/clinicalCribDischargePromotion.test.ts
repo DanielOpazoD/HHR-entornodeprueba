@@ -1,3 +1,4 @@
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { describe, expect, it } from 'vitest';
 import { applyCensusImportDiff, applyEgresoReport, reconcileCensus } from '@/features/rayen-import';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -137,7 +138,7 @@ describe('clinical crib discharge promotion', () => {
       }),
     ]);
     expect(applied.applied.discharges).toBe(1);
-    expect(applied.record.beds.H5C1).toBeUndefined();
+    expect(applied.record.beds.H5C1).toEqual(createEmptyPatient('H5C1'));
     expect(applied.record.discharges).toEqual([
       expect.objectContaining({ clinicalEpisodeId: 'MOTHER', isNested: false }),
       expect.objectContaining({
@@ -354,7 +355,7 @@ describe('clinical crib discharge promotion', () => {
 
     expect(enriched.admissions).toHaveLength(0);
     expect(enriched.summary.unchanged).toBe(0);
-    expect(applied.record.beds.H5C1).toBeUndefined();
+    expect(applied.record.beds.H5C1).toEqual(createEmptyPatient('H5C1'));
   });
 
   it('does not promote a crib associated with a different incoming principal patient', () => {
@@ -444,6 +445,6 @@ describe('clinical crib discharge promotion', () => {
     expect(applied.record.beds.H4C1.clinicalCrib).toMatchObject({
       clinicalEpisodeId: 'NEWBORN',
     });
-    expect(applied.record.beds.H5C1).toBeUndefined();
+    expect(applied.record.beds.H5C1).toEqual(createEmptyPatient('H5C1'));
   });
 });

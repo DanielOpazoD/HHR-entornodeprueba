@@ -1,3 +1,4 @@
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { describe, expect, it } from 'vitest';
 import {
   applyCensusImportDiff,
@@ -241,7 +242,7 @@ describe('clinical crib snapshot omission', () => {
         }),
       }),
     ]);
-    expect(applied.record.beds.H4C1).toBeUndefined();
+    expect(applied.record.beds.H4C1).toEqual(createEmptyPatient('H4C1'));
     expect(applied.record.beds.H5C1).toMatchObject({ clinicalEpisodeId: 'NEWBORN' });
   });
 });
