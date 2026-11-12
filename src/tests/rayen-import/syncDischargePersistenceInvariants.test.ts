@@ -115,12 +115,25 @@ beforeEach(() => vi.clearAllMocks());
 
 describe('sync discharge persistence', () => {
   for (const scenario of ['simple', 'mother and newborn', 'same-day bed move', 'passport']) {
-    it(`${scenario}: preserves the complete saved main document`, () => {
+    it(`${scenario}: saves the same document the repair used to produce`, () => {
       const { current, diff, context } = fixture(scenario);
       const applied = applyCensusImportDiff(current, diff, context);
       expect(applied.applied.discharges).toBe(1);
       const saved = prepareDailyRecordForPersistence(applied.record, current.date, current);
-      expect(saved).toMatchSnapshot();
+      // Before this fix the plan dropped every vacated catalog bed and the save repaired it.
+      // Dropping all canonical empty beds and repairing reproduces that document exactly.
+      const legacy = structuredClone(applied.record);
+      for (const bed of BEDS) {
+        if (JSON.stringify(legacy.beds[bed.id]) === JSON.stringify(createEmptyPatient(bed.id)))
+          delete legacy.beds[bed.id];
+      }
+      expect(Object.keys(legacy.beds).length).toBeLessThan(BEDS.length);
+      expect(prepareDailyRecordForPersistence(legacy, current.date, current)).toEqual(saved);
+      expect(logError).toHaveBeenCalledWith(
+        'Invariant repair applied on save',
+        undefined,
+        expect.anything()
+      );
     });
     it(`${scenario}: needs no repair when saving the applied plan`, () => {
       const { current, diff, context } = fixture(scenario);
