@@ -1,3 +1,4 @@
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { describe, expect, it } from 'vitest';
 import {
   applyCensusImportDiff,
@@ -141,7 +142,7 @@ describe('applyCensusImportDiff', () => {
     );
     expect(result.applied.moves).toBe(1);
     expect(result.record.beds.H1C2?.patientName).toBe('Ana Perez');
-    expect(result.record.beds.H2C1).toBeUndefined();
+    expect(result.record.beds.H2C1).toEqual(createEmptyPatient('H2C1'));
   });
 
   it('applies a chained move (A→B while B→C) without losing either patient', () => {
@@ -177,7 +178,7 @@ describe('applyCensusImportDiff', () => {
     expect(result.applied.moves).toBe(2);
     expect(result.record.beds.H1C2?.patientName).toBe('Carina');
     expect(result.record.beds.H1C1?.patientName).toBe('Teresa');
-    expect(result.record.beds.H6C2).toBeUndefined();
+    expect(result.record.beds.H6C2).toEqual(createEmptyPatient('H6C2'));
   });
 
   it('keeps a medically-discharged patient in bed until administrative discharge', () => {
@@ -209,7 +210,7 @@ describe('applyCensusImportDiff', () => {
       ],
     });
     const result = applyCensusImportDiff(makeRecord({ [bedId]: patient }), diff, makeCtx());
-    expect(result.record.beds[bedId]).toBeUndefined();
+    expect(result.record.beds[bedId]).toEqual(createEmptyPatient(bedId));
     expect(result.record.discharges).toHaveLength(1);
     expect(result.record.discharges[0]).toMatchObject({
       id: 'id-1',
@@ -292,7 +293,7 @@ describe('applyCensusImportDiff', () => {
       ],
     });
     const result = applyCensusImportDiff(makeRecord({ [bedId]: patient }), diff, makeCtx());
-    expect(result.record.beds[bedId]).toBeUndefined();
+    expect(result.record.beds[bedId]).toEqual(createEmptyPatient(bedId));
     expect(result.record.discharges).toHaveLength(0);
     expect(result.record.cma).toHaveLength(1);
     expect(result.record.cma[0]).toMatchObject({
@@ -421,7 +422,7 @@ describe('applyCensusImportDiff', () => {
       ],
     });
     const result = applyCensusImportDiff(makeRecord({ NEO1: occupant }), diff, makeCtx());
-    expect(result.record.beds.NEO1).toBeUndefined(); // bed freed on today
+    expect(result.record.beds.NEO1).toEqual(createEmptyPatient('NEO1')); // bed freed on today
     expect(result.record.discharges).toHaveLength(0); // NOT filed on today (belongs to 07-07)
     expect(result.applied.discharges).toBe(1);
   });

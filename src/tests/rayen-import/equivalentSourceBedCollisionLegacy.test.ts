@@ -1,3 +1,4 @@
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { describe, expect, it } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import {
@@ -72,7 +73,7 @@ describe('legacy occupants before CMA assignments were separated', () => {
       clinicalEpisodeId: 'MQ-R2',
       handoffNote: 'nota-1',
     });
-    expect(result.record.beds.H2C1).toBeUndefined();
+    expect(result.record.beds.H2C1).toEqual(createEmptyPatient('H2C1'));
     expect(result.record.discharges).toEqual([]);
   });
 

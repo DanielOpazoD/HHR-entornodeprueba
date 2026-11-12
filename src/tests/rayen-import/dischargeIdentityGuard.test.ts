@@ -1,3 +1,4 @@
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { describe, expect, it } from 'vitest';
 import {
   applyCensusImportDiff,
@@ -75,7 +76,7 @@ describe('discharge occupant identity guard', () => {
 
     expect(result.skipped).toHaveLength(0);
     expect(result.applied.discharges).toBe(1);
-    expect(result.record.beds.NEO1).toBeUndefined();
+    expect(result.record.beds.NEO1).toEqual(createEmptyPatient('NEO1'));
   });
 
   it('rejects a same-RUN legacy readmission with a different admission stamp', () => {

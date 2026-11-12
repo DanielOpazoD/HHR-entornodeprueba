@@ -1,3 +1,4 @@
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { describe, expect, it } from 'vitest';
 import {
   applyCensusImportDiff,
@@ -67,7 +68,7 @@ describe('clinical sync simulator · Rayen acceptance contract', () => {
       clinicalEpisodeId: scenario.episodes.moved,
       handoffNote: 'Nota local preservada',
     });
-    expect(firstApply.record.beds.H2C1).toBeUndefined();
+    expect(firstApply.record.beds.H2C1).toEqual(createEmptyPatient('H2C1'));
     expect(firstApply.record.beds.H4C1).toMatchObject({
       clinicalEpisodeId: scenario.episodes.mother,
       clinicalCrib: {
