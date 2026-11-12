@@ -1,3 +1,4 @@
+import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, RefreshCw, Trash2 } from 'lucide-react';
 import { clearErrorLogs, fetchErrorLogs } from '@/services/errorLogService';
@@ -76,6 +77,11 @@ const pluralizeLogCount = (count: number): string =>
   `${count} ${count === 1 ? 'registro' : 'registros'}`;
 
 export const LocalErrorLogsView: React.FC = () => {
+  const epoch = useSessionEpoch();
+  return <SessionErrorLogsView key={epoch} />;
+};
+
+const SessionErrorLogsView: React.FC = () => {
   const [logs, setLogs] = useState<ErrorLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -140,7 +146,7 @@ export const LocalErrorLogsView: React.FC = () => {
           <div>
             <h1 className="text-xl font-bold text-slate-800">Errores locales</h1>
             <p className="text-xs text-slate-500">
-              Logs técnicos guardados en este navegador para soporte y depuración.
+              Registros de tu sesión guardados en este navegador para soporte y depuración.
             </p>
           </div>
         </div>
@@ -194,7 +200,9 @@ export const LocalErrorLogsView: React.FC = () => {
         </div>
       ) : logs.length === 0 && loadError ? null : logs.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-12 text-center">
-          <p className="font-semibold text-slate-700">No hay errores locales registrados.</p>
+          <p className="font-semibold text-slate-700">
+            No hay errores locales registrados para tu usuario.
+          </p>
           <p className="mt-1 text-sm text-slate-500">
             Si ocurre un error técnico en este navegador, aparecerá aquí al refrescar.
           </p>

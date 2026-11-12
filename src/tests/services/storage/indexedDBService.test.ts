@@ -1,3 +1,4 @@
+import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
@@ -62,6 +63,7 @@ describe('indexedDBService', () => {
     await clearErrorLogs();
     await clearAuditLogs();
     localStorage.clear();
+    localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-diagnostics');
     sessionStorage.clear();
     window.__HHR_E2E_OVERRIDE__ = undefined;
     vi.clearAllMocks();

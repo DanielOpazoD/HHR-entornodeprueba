@@ -1,3 +1,4 @@
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -61,6 +62,23 @@ describe('LocalErrorLogsView', () => {
     vi.mocked(clearErrorLogs).mockResolvedValue(undefined);
   });
 
+  it('drops A rendered history and delayed reads when B enters', async () => {
+    act(() => setSessionGeneration('synthetic-A'));
+    const delayed = deferred<ErrorLog[]>();
+    vi.mocked(fetchErrorLogs)
+      .mockResolvedValueOnce([buildLog()])
+      .mockReturnValueOnce(delayed.promise)
+      .mockResolvedValueOnce([]);
+    render(<LocalErrorLogsView />);
+    await screen.findByText('Fallo al guardar respaldo local');
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Refrescar' }));
+    act(() => setSessionGeneration('synthetic-B'));
+    expect(screen.queryByText('Fallo al guardar respaldo local')).not.toBeInTheDocument();
+    await screen.findByText('No hay errores locales registrados para tu usuario.');
+    await act(async () => delayed.resolve([buildLog()]));
+    expect(screen.queryByText('Fallo al guardar respaldo local')).not.toBeInTheDocument();
+  });
+
   it('renders local technical error logs from IndexedDB', async () => {
     render(<LocalErrorLogsView />);
 
@@ -101,7 +119,9 @@ describe('LocalErrorLogsView', () => {
 
     render(<LocalErrorLogsView />);
 
-    expect(await screen.findByText('No hay errores locales registrados.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('No hay errores locales registrados para tu usuario.')
+    ).toBeInTheDocument();
   });
 
   it('refreshes and clears the local log store', async () => {
@@ -116,7 +136,9 @@ describe('LocalErrorLogsView', () => {
 
     await waitFor(() => expect(clearErrorLogs).toHaveBeenCalledTimes(1));
     expect(fetchErrorLogs).toHaveBeenCalledTimes(2);
-    expect(await screen.findByText('No hay errores locales registrados.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('No hay errores locales registrados para tu usuario.')
+    ).toBeInTheDocument();
   });
 
   it('does not pass a failed read off as an empty history', async () => {
@@ -129,7 +151,9 @@ describe('LocalErrorLogsView', () => {
         'No se pudo leer el historial de errores de este navegador. Eso no significa que no haya errores.'
       )
     ).toBeInTheDocument();
-    expect(screen.queryByText('No hay errores locales registrados.')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('No hay errores locales registrados para tu usuario.')
+    ).not.toBeInTheDocument();
   });
 
   it('says so when the history could not be cleared, and keeps showing it', async () => {
@@ -149,13 +173,17 @@ describe('LocalErrorLogsView', () => {
   it('does not restore cleared records when an older refresh finishes last', async () => {
     const { olderRead, newerRead } = await startRefreshAndClear();
     await act(async () => newerRead.resolve([]));
-    expect(screen.getByText('No hay errores locales registrados.')).toBeInTheDocument();
+    expect(
+      screen.getByText('No hay errores locales registrados para tu usuario.')
+    ).toBeInTheDocument();
 
     await act(async () => olderRead.resolve([buildLog()]));
 
     expect(screen.queryByText('Fallo al guardar respaldo local')).not.toBeInTheDocument();
     expect(screen.getByText('0 registros')).toBeInTheDocument();
-    expect(screen.getByText('No hay errores locales registrados.')).toBeInTheDocument();
+    expect(
+      screen.getByText('No hay errores locales registrados para tu usuario.')
+    ).toBeInTheDocument();
   });
 
   it.each(['success', 'failure'])(
@@ -171,7 +199,9 @@ describe('LocalErrorLogsView', () => {
       expect(screen.getByRole('button', { name: 'Refrescar' })).toBeDisabled();
       expect(screen.queryByText(/No se pudo leer el historial/)).not.toBeInTheDocument();
       await act(async () => newerRead.resolve([]));
-      expect(screen.getByText('No hay errores locales registrados.')).toBeInTheDocument();
+      expect(
+        screen.getByText('No hay errores locales registrados para tu usuario.')
+      ).toBeInTheDocument();
     }
   );
 
@@ -181,7 +211,9 @@ describe('LocalErrorLogsView', () => {
     await act(async () => olderRead.reject(new Error('Synthetic stale read failure')));
 
     expect(screen.queryByText(/No se pudo leer el historial/)).not.toBeInTheDocument();
-    expect(screen.getByText('No hay errores locales registrados.')).toBeInTheDocument();
+    expect(
+      screen.getByText('No hay errores locales registrados para tu usuario.')
+    ).toBeInTheDocument();
   });
 
   it('keeps the latest read failure and known records after an older success', async () => {
@@ -196,6 +228,8 @@ describe('LocalErrorLogsView', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Fallo al guardar respaldo local')).toBeInTheDocument();
     expect(screen.queryByText('Registro obsoleto')).not.toBeInTheDocument();
-    expect(screen.queryByText('No hay errores locales registrados.')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('No hay errores locales registrados para tu usuario.')
+    ).not.toBeInTheDocument();
   });
 });

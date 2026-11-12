@@ -1,3 +1,5 @@
+import { dispatchOperationalTelemetryExternally } from '@/services/observability/operationalTelemetryExternalAdapter';
+import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   recordOperationalErrorTelemetry,
@@ -10,10 +12,44 @@ import {
 } from '@/services/observability/operationalTelemetryRecorder';
 import { buildOperationalTelemetrySummary } from '@/services/observability/operationalTelemetrySummary';
 
+vi.mock('@/services/observability/operationalTelemetryExternalAdapter', () => ({
+  dispatchOperationalTelemetryExternally: vi.fn().mockResolvedValue(false),
+}));
+
 describe('operationalTelemetryService', () => {
   beforeEach(() => {
+    localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-diagnostics');
     clearOperationalTelemetryEvents();
     vi.useRealTimers();
+  });
+
+  it('keeps an in-flight external event unchanged while local readers change owner', async () => {
+    let finish!: (sent: boolean) => void;
+    const pending = new Promise<boolean>(resolve => {
+      finish = resolve;
+    });
+    vi.mocked(dispatchOperationalTelemetryExternally).mockReturnValueOnce(pending);
+    recordOperationalTelemetry({
+      category: 'sync',
+      status: 'failed',
+      operation: 'firestore_write',
+      context: { actor: 'SYNTHETIC A' },
+    });
+    const event = vi.mocked(dispatchOperationalTelemetryExternally).mock.calls.at(-1)?.[0];
+    const snapshot = structuredClone(event);
+    localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-B');
+    expect(getOperationalTelemetryEvents()).toEqual([]);
+    recordOperationalTelemetry({
+      category: 'sync',
+      status: 'failed',
+      operation: 'firestore_write',
+    });
+    expect(event).toEqual(snapshot);
+    expect(event).not.toHaveProperty('localOwnerKey');
+    finish(true);
+    expect(await pending).toBe(true);
+    localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-diagnostics');
+    expect(getOperationalTelemetryEvents()).toEqual([snapshot]);
   });
 
   it('records failed and degraded operations with sanitized issues and context', () => {
@@ -135,6 +171,7 @@ describe('operationalTelemetryService', () => {
       'operationalTelemetryEvents',
       JSON.stringify([
         {
+          localOwnerKey: 'user:synthetic-diagnostics',
           category: 'sync',
           status: 'failed',
           runtimeState: 'blocked',

@@ -1,3 +1,4 @@
+import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { QueryClient } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -23,6 +24,7 @@ describe('dailyRecordFreshnessGate clinical input block telemetry', () => {
   const date = '2026-05-17';
 
   beforeEach(() => {
+    localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-diagnostics');
     vi.useFakeTimers();
     vi.setSystemTime(1_000);
     resetDailyRecordFreshnessGateForTests();
