@@ -10,8 +10,8 @@ vi.mock('@/services/patient/patientHistoryService', () => ({
   getPatientMovementHistoryDetailed: (...args: unknown[]) => mockGetPatientMovementHistory(...args),
 }));
 
-vi.mock('@/services/repositories/ClinicalDocumentRepository', () => ({
-  ClinicalDocumentRepository: {
+vi.mock('@/application/ports/clinicalDocumentPort', () => ({
+  defaultClinicalDocumentPort: {
     listByEpisode: (...args: unknown[]) => mockListClinicalDocumentsByEpisode(...args),
     get: vi.fn(),
   },

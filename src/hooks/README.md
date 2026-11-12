@@ -88,7 +88,7 @@ dailyRecord.updatePatient('R1', 'patientName', 'Paciente Demo');
 
 ## Guardrails activos
 
-- `npm run check:application-port-boundary`
+- ESLint `hhr/feature-boundaries` con `checkPorts` (frontera de puertos, en `eslint.config.js`)
 - `npm run check:runtime-adapter-boundary`
 
 La persistencia de entrega usa los casos de uso de `application/handoff`; el
