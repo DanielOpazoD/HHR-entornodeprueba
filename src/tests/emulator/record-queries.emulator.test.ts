@@ -13,7 +13,6 @@ vi.mock('@/firebaseConfig', () => ({
 
 import {
   getAvailableDatesFromFirestore,
-  getRecentAvailableDatesFromFirestore,
   getPreviousRecordDateFromFirestore,
   getRecordPagesFromFirestore,
   getRecordFromFirestore,
@@ -84,13 +83,8 @@ describeEmulator('record queries against the real server', () => {
     ]);
   });
 
-  it('bounds recent and previous dates and falls back across a long gap', async () => {
+  it('bounds previous dates and falls back across a long gap', async () => {
     await seedDates(['2026-01-01', '2026-03-01', '2026-03-02', '2026-03-30', '2026-04-01']);
-    expect(await getRecentAvailableDatesFromFirestore('2026-04-01')).toEqual([
-      '2026-04-01',
-      '2026-03-30',
-      '2026-03-02',
-    ]);
     expect(await getPreviousRecordDateFromFirestore('2026-04-01')).toBe('2026-03-30');
     expect(await getPreviousRecordDateFromFirestore('2026-03-01')).toBe('2026-01-01');
     expect(await getPreviousRecordDateFromFirestore('2025-12-31')).toBeNull();
@@ -168,12 +162,19 @@ describeEmulator('record queries against the real server', () => {
     await expect(iterator.next()).rejects.toMatchObject({ name: 'AbortError' });
   });
 
-  it('rejects a denied range instead of reporting no records', async () => {
+  it('rejects a denied range, date list or previous day instead of reporting none', async () => {
+    await seedDates(['2026-03-10']);
     activeDb = environment.unauthenticatedContext().firestore();
     try {
       await expect(
         getRecordsRangeFromFirestore('2026-03-01', '2026-03-31', { requireServer: true })
       ).rejects.toMatchObject({ code: 'permission-denied' });
+      await expect(getAvailableDatesFromFirestore()).rejects.toMatchObject({
+        code: 'permission-denied',
+      });
+      await expect(getPreviousRecordDateFromFirestore('2026-03-11')).rejects.toMatchObject({
+        code: 'permission-denied',
+      });
     } finally {
       activeDb = environment
         .authenticatedContext('synthetic-n5d-nurse', {
