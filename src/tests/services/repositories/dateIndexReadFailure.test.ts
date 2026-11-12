@@ -71,7 +71,7 @@ describe('census date index that could not be read', () => {
 
     await expect(getAvailableDates()).rejects.toMatchObject({
       status: 'partial',
-      unavailableSources: ['remote'],
+      failed: 'remote',
     });
   });
 
@@ -82,7 +82,7 @@ describe('census date index that could not be read', () => {
 
     await expect(getAvailableDates()).rejects.toMatchObject({
       status: 'partial',
-      unavailableSources: ['local'],
+      failed: 'local',
     });
   });
 
@@ -93,7 +93,7 @@ describe('census date index that could not be read', () => {
 
     await expect(getAvailableDates()).rejects.toMatchObject({
       status: 'unavailable',
-      unavailableSources: ['local', 'remote'],
+      failed: 'both',
     });
   });
 });

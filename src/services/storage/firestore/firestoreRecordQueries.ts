@@ -111,7 +111,8 @@ export const getRecordFromFirestoreDetailed = async (
 /**
  * Reads every census document in history to keep only the document ids. The Web SDK
  * has no field projection, so this is expensive and grows by one document per day.
- * Reserved for migrations and backfills that genuinely need the whole range.
+ * Reserved for migrations and backfills that genuinely need the whole range. A failed
+ * read throws: an empty list would look like a hospital without census days.
  */
 export const getAvailableDatesFromFirestore = async (): Promise<string[]> => {
   try {
@@ -123,7 +124,7 @@ export const getAvailableDatesFromFirestore = async (): Promise<string[]> => {
       .reverse();
   } catch (error) {
     logFirestoreQueryError('getAvailableDates', error);
-    return [];
+    throw error;
   }
 };
 
@@ -158,22 +159,10 @@ const readCensusDateWindow = async (fromDate: string, beforeDate?: string): Prom
   return querySnapshot.docs.map(docItem => docItem.id).sort();
 };
 
-/** Recent census dates only. Cost stays constant as the hospital accumulates days. */
-export const getRecentAvailableDatesFromFirestore = async (
-  referenceDate: string
-): Promise<string[]> => {
-  try {
-    const from = shiftIsoDate(referenceDate, -RECENT_CENSUS_WINDOW_DAYS);
-    return (await readCensusDateWindow(from)).reverse();
-  } catch (error) {
-    logFirestoreQueryError('getRecentAvailableDates', error);
-    return [];
-  }
-};
-
 /**
  * Closest earlier census date. Reads a bounded window; only a gap longer than the
- * window falls back to the expensive full scan, so correctness is preserved.
+ * window, or a failed window read, falls back to the expensive full scan, so correctness
+ * is preserved. If the full scan fails too it throws: «no earlier day» must be read.
  */
 export const getPreviousRecordDateFromFirestore = async (date: string): Promise<string | null> => {
   try {

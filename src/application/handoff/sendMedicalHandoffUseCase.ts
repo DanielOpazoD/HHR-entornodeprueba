@@ -30,6 +30,7 @@ export interface SendMedicalHandoffOutput {
   nextRecord: HandoffDailyRecordContract;
 }
 
+/** «Sin especificar» only when no earlier day exists; a failed read rejects and the send fails. */
 const resolveDoctorName = async (
   record: HandoffDailyRecordContract,
   getPreviousDay: (date: string) => Promise<HandoffDailyRecordContract | null>

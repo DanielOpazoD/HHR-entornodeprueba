@@ -5,12 +5,8 @@
     "src/services/storage/firestore/dailyRecordAuthorityTransport.ts::readConfirmedAuthorityMutation",
     "src/services/storage/firestore/firestoreBedTreePermissionFallback.ts::retryBedTreeViaCallable",
     "src/services/storage/firestore/firestoreDailyRecordAuthorityRouting.ts::resolveAuthenticatedDailyRecordAuthorityMode",
-    "src/services/storage/firestore/firestoreRecordQueries.ts::getAvailableDatesFromFirestore",
-    "src/services/storage/firestore/firestoreRecordQueries.ts::getRecentAvailableDatesFromFirestore",
-    "src/services/storage/indexeddb/indexedDbRecordService.ts::getAllDates",
     "src/services/storage/indexeddb/indexedDbRecordService.ts::getAllRecords",
     "src/services/storage/indexeddb/indexedDbRecordService.ts::getAllRecordsSorted",
-    "src/services/storage/indexeddb/indexedDbRecordService.ts::getPreviousDayRecord",
     "src/services/storage/indexeddb/indexedDbRecordService.ts::getRecordForDate",
     "src/services/storage/indexeddb/indexedDbRecordService.ts::getRecordsRange"
   ]

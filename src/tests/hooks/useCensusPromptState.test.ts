@@ -14,7 +14,7 @@ vi.mock('@/application/ports/dailyRecordPort', () => ({
     getLocalForDate: local,
     getForDate: remote,
     getPreviousDay: previous,
-    getRecentAvailableDates: dates,
+    getAvailableDates: dates,
   },
 }));
 
@@ -39,7 +39,7 @@ describe('census prompt reads only yesterday, on demand', () => {
     remote.mockResolvedValue(null);
   });
 
-  it('never lists the recent census window nor scans for an earlier day', async () => {
+  it('never lists census dates nor scans for an earlier day', async () => {
     const view = renderHook(() => useCensusPromptState('2026-02-15'));
     await waitFor(() => expect(view.result.current.previousRecordAvailable).toBe(true));
     expect(dates).not.toHaveBeenCalled();
