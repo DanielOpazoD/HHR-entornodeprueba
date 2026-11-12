@@ -519,7 +519,6 @@ export const deleteRecord = async (date: string): Promise<void> => {
   await deleteRecordStrict(date);
 };
 
-/** Every locally stored census date, newest first; a failed read throws instead of listing none. */
 export const getAllDates = async (): Promise<string[]> => {
   try {
     await ensureDbReady();
@@ -558,7 +557,6 @@ export const getAllRecordsSorted = async (): Promise<DailyRecord[]> => {
   }
 };
 
-/** The closest earlier local day, or null when there is none; a failed read throws. */
 export const getPreviousDayRecord = async (currentDate: string): Promise<DailyRecord | null> => {
   try {
     await ensureDbReady();
