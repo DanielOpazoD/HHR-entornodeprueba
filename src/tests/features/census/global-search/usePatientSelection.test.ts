@@ -180,6 +180,29 @@ describe('usePatientSelection', () => {
       createdBy: 'Daniel',
     });
   });
+  it('reports a failed document read as a failure, never as an episode without documents', async () => {
+    mockListClinicalDocumentsByEpisode.mockRejectedValueOnce(new Error('synthetic read failure'));
+    const { result } = renderHook(() => usePatientSelection());
+    const key = '13.545.665-9__2026-04-15';
+
+    act(() => {
+      result.current.loadEpisodeDocuments(key);
+    });
+    await waitFor(() => expect(result.current.episodeDocuments[key]?.isLoading).toBe(false));
+    expect(result.current.episodeDocuments[key]).toMatchObject({ docs: [], loadFailed: true });
+
+    mockListClinicalDocumentsByEpisode.mockResolvedValue([]);
+    act(() => {
+      result.current.loadEpisodeDocuments(key);
+    });
+    await waitFor(() =>
+      expect(result.current.episodeDocuments[key]).toEqual({
+        episodeKey: key,
+        docs: [],
+        isLoading: false,
+      })
+    );
+  });
   it('retries partial history instead of caching it as a complete lookup', async () => {
     mockGetPatientMovementHistory
       .mockResolvedValueOnce({ history: null, source: 'local' })
