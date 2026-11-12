@@ -6,6 +6,10 @@
 
 import React, { createContext, useContext, useCallback, useMemo, useState, ReactNode } from 'react';
 import {
+  savedCatalogEdit,
+  type SavedStaffCatalog,
+} from '@/services/repositories/contracts/catalogChanges';
+import {
   useNursesQuery,
   useTensQuery,
   useSaveNursesMutation,
@@ -32,6 +36,8 @@ export interface StaffContextType {
   staffUsage?: StaffUsage;
   // Nurse catalog (available names)
   nursesList: string[];
+  /** The saved list behind `nursesList`, from the same source as the shown names. */
+  nursesSaved?: SavedStaffCatalog;
   setNursesList: (nurses: string[]) => void;
   nursesLoading: boolean;
   nursesCatalogUnavailable?: boolean;
@@ -39,6 +45,8 @@ export interface StaffContextType {
 
   // TENS catalog (available names)
   tensList: string[];
+  /** The saved list behind `tensList`, from the same source as the shown names. */
+  tensSaved?: SavedStaffCatalog;
   setTensList: (tens: string[]) => void;
   tensLoading: boolean;
   tensCatalogUnavailable?: boolean;
@@ -74,6 +82,7 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
     isError: nursesReadError,
     refetch: refetchNurses,
     identities: staffIdentities = NO_STAFF_IDENTITIES,
+    saved: nursesSaved,
   } = useNursesQuery();
   const staffUsage = useStaffUsage(staffIdentities);
   const {
@@ -81,6 +90,7 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
     isLoading: tensLoading,
     isError: tensReadError,
     refetch: refetchTens,
+    saved: tensSaved,
   } = useTensQuery();
   const { data: professionals = NO_PROFESSIONALS, isLoading: professionalsLoading } =
     useProfessionalsQuery();
@@ -98,23 +108,25 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
   // Compatibility setters (now trigger mutations)
   const setNursesList = useCallback(
     (updatedNurses: string[]) => {
-      saveNurses(reconcileNurseCatalogNames(updatedNurses));
+      saveNurses(
+        savedCatalogEdit(nursesSaved, reconciledNurses, reconcileNurseCatalogNames(updatedNurses))
+      );
     },
-    [saveNurses]
+    [saveNurses, nursesSaved, reconciledNurses]
   );
 
   const setTensList = useCallback(
     (updatedTens: string[]) => {
-      saveTens(updatedTens);
+      saveTens(savedCatalogEdit(tensSaved, tens, updatedTens));
     },
-    [saveTens]
+    [saveTens, tensSaved, tens]
   );
 
   const setProfessionalsCatalog = useCallback(
     (updatedProfessionals: ProfessionalCatalogItem[]) => {
-      saveProfessionals(updatedProfessionals);
+      saveProfessionals({ next: updatedProfessionals, base: professionals });
     },
-    [saveProfessionals]
+    [saveProfessionals, professionals]
   );
 
   const value = useMemo<StaffContextType>(
@@ -122,6 +134,7 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
       staffIdentities,
       staffUsage,
       nursesList: reconciledNurses,
+      nursesSaved,
       setNursesList,
       nursesLoading,
       nursesCatalogUnavailable: nursesReadError && reconciledNurses.length === 0,
@@ -129,6 +142,7 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
         void refetchNurses();
       },
       tensList: tens,
+      tensSaved,
       setTensList,
       tensLoading,
       tensCatalogUnavailable: tensReadError && tens.length === 0,
@@ -147,11 +161,13 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
       staffIdentities,
       staffUsage,
       reconciledNurses,
+      nursesSaved,
       setNursesList,
       nursesLoading,
       nursesReadError,
       refetchNurses,
       tens,
+      tensSaved,
       setTensList,
       tensLoading,
       tensReadError,

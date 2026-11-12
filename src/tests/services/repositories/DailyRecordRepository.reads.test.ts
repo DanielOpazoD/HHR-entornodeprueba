@@ -333,15 +333,21 @@ describe('DailyRecordRepository reads', () => {
   });
 
   it('saves nurses to local and remote', async () => {
-    await CatalogRepository.saveNurses(['N1']);
+    await CatalogRepository.saveNurses(['N1'], []);
     expect(idbCatalogService.cacheCatalogValues).toHaveBeenCalledWith('nurses', ['N1'], true);
-    expect(firestoreService.saveNurseCatalogToFirestore).toHaveBeenCalledWith(['N1']);
+    expect(firestoreService.saveNurseCatalogToFirestore).toHaveBeenCalledWith(
+      ['N1'],
+      expect.any(Array)
+    );
   });
 
   it('saves TENS to local and remote', async () => {
-    await CatalogRepository.saveTens(['T1']);
+    await CatalogRepository.saveTens(['T1'], []);
     expect(idbCatalogService.cacheCatalogValues).toHaveBeenCalledWith('tens', ['T1'], true);
-    expect(firestoreService.saveTensCatalogToFirestore).toHaveBeenCalledWith(['T1']);
+    expect(firestoreService.saveTensCatalogToFirestore).toHaveBeenCalledWith(
+      ['T1'],
+      expect.any(Array)
+    );
   });
 
   it('provides subscribe methods', () => {

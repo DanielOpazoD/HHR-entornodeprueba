@@ -1,3 +1,7 @@
+import {
+  CatalogConflictError,
+  type SavedStaffCatalog,
+} from '@/services/repositories/contracts/catalogChanges';
 import React from 'react';
 import { CatalogRemoteSyncError } from '@/services/repositories/contracts/catalogContracts';
 import {
@@ -11,18 +15,21 @@ interface NurseManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
   nursesList: string[];
+  /** The saved list behind `nursesList`, from the same source. */
+  saved?: SavedStaffCatalog;
 }
 
 export const NurseManagerModal: React.FC<NurseManagerModalProps> = ({
   isOpen,
   onClose,
   nursesList,
+  saved,
 }) => {
   const mutation = useSaveNursesMutation();
   const query = useNursesQuery();
-  const save = async (names: string[]) => {
+  const save = async (names: string[], base?: string[]) => {
     try {
-      await mutation.mutateAsync(names);
+      await mutation.mutateAsync(base ? { next: names, base } : names);
       return true;
     } catch {
       return false;
@@ -33,7 +40,8 @@ export const NurseManagerModal: React.FC<NurseManagerModalProps> = ({
     if (result.isSuccess) mutation.reset();
   };
   const saveError =
-    mutation.error instanceof CatalogReadUnavailableError
+    mutation.error instanceof CatalogReadUnavailableError ||
+    mutation.error instanceof CatalogConflictError
       ? mutation.error.message
       : mutation.isError && !(mutation.error instanceof CatalogRemoteSyncError)
         ? 'No se pudo guardar la lista. Lo escrito se conserva; vuelva a intentar guardar.'
@@ -44,6 +52,7 @@ export const NurseManagerModal: React.FC<NurseManagerModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       staffList={nursesList}
+      saved={saved}
       onSave={save}
       syncing={mutation.isPending}
       hasSyncError={mutation.error instanceof CatalogRemoteSyncError}
