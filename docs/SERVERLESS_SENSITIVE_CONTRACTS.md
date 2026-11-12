@@ -174,7 +174,7 @@ de primer nivel de `netlify/functions/`, sin recorrer `lib/`. Cada archivo debe 
 `entries` o en `exempt` de `scripts/config/serverless-sensitive-coverage.json`.
 `entries` no puede estar vacío: exige archivo, pruebas existentes y endpoint documentado.
 Cada exención exige archivo existente y motivo no vacío; ningún archivo puede estar en
-ambas listas. Las exenciones sensibles siguientes son deuda visible, no garantías de cobertura.
+ambas listas. No quedan funciones sensibles exentas de prueba de comportamiento.
 
 La tabla describe el comportamiento actual de los handlers. Las reglas de contrato anteriores
 son requisitos; esta clasificación no añade verificaciones al runtime. En particular, los
@@ -193,13 +193,23 @@ mismos su pertenencia a un episodio del censo.
 | `operational-telemetry`               | `POST`, `OPTIONS`                                                                                          | Sin Bearer ni comprobación de rol; valida origen y limita por IP                                                                                                                                                          | Evento de telemetría validado/saneado, cuerpo de hasta 8 KiB; contexto privado Netlify para Blobs y correo                                                              | `202` con aceptación y estado de alerta; registra evento saneado, cuenta resultados y puede encolar/enviar alertas. Devuelve `503` si no puede obtener recibo durable o la cola está llena.                                               |
 | `admin-ai-provider-test`              | `POST`, `OPTIONS`                                                                                          | Bearer Firebase y `admin`; `OPTIONS` sin autenticación                                                                                                                                                                    | Acción y proveedor de listas cerradas, modelo opcional; credenciales IA solo en servidor                                                                                | Prueba al proveedor con prompt fijo sin datos clínicos; devuelve `ok`, proveedor/modelo y mensaje. La ausencia de configuración es `200` con `ok:false`; fallos del proveedor son `502`.                                                  |
 
+### Reintento programado de alertas
+
+`operational-telemetry-retry` está registrado con prueba de comportamiento en
+`src/tests/netlify/operationalTelemetryRetry.test.ts`: ejecuta el handler, runtime,
+cola y clasificador de correo reales con almacén y proveedor sintéticos, sin red.
+Comprueba un envío por invocación, recibos sin reenvío, almacén vacío, rechazo 429
+conservado para reintento, entrega incierta sin reenvío automático y errores del
+almacén saneados sin perder pendientes. No hay cuerpo HTTP de respuesta.
+
+La función se programa cada cinco minutos con `config.schedule`. No valida Bearer,
+rol, origen ni método por sí misma: el acceso privado depende de Netlify. Dos casos
+`it.fails` documentan que una llamada directa sin autorización (POST o GET) no es
+rechazada por el handler. No acreditan exposición pública ni rechazo HTTP en el
+runtime desplegado. Esta unidad no cambia la función ni los permisos.
+
 ### Exenciones registradas
 
-- `operational-telemetry-retry`: sensible, sin prueba de comportamiento todavía. Tarea
-  programada cada cinco minutos mediante `config.schedule`, sin validación propia de Bearer,
-  rol ni origen; el acceso privado depende del runtime Netlify. Usa contexto privado para
-  drenar una alerta, registra el resultado y lanza un error genérico si falla. Las pruebas
-  de cola y empaquetado no ejercitan esta invocación.
 - `firebase-config`: configuración pública del cliente Firebase, incluida su API key
   pública. No lee pacientes ni expone credenciales de servidor.
 - `runtime-contract`: constantes públicas de versiones de runtime y esquema, sin lecturas

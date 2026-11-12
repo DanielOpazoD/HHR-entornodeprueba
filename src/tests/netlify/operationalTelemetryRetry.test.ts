@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { inspect } from 'node:util';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import retry, { config } from '../../../netlify/functions/operational-telemetry-retry';
 import { createRuntimeAlertQueue } from '../../../netlify/functions/lib/telemetry-alerts/runtime';
@@ -90,7 +91,10 @@ beforeEach(() => {
   );
 });
 afterEach(() => {
-  const output = JSON.stringify(logs.map(log => log.mock.calls));
+  const output = inspect(
+    logs.map(log => log.mock.calls),
+    { depth: null }
+  );
   for (const secret of [...secrets, rawError]) expect(output).not.toContain(secret);
   expect(fetch).not.toHaveBeenCalled();
   vi.restoreAllMocks();
