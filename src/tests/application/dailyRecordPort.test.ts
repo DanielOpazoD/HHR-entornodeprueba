@@ -89,10 +89,13 @@ describe('dailyRecordPort lazy facade', () => {
     expect(writeService.updatePartialDetailed).toHaveBeenCalledWith('2026-04-10', {
       patientName: 'Ana',
     });
-    expect(writeService.saveDetailed).toHaveBeenCalledWith({ date: '2026-04-10' }, undefined);
+    expect(writeService.saveDetailed).toHaveBeenCalledWith({ date: '2026-04-10' }, undefined, {
+      authoringSession: expect.objectContaining({ ownerKey: null }),
+    });
     expect(writeService.saveDetailed).toHaveBeenCalledWith({ date: '2026-04-11' }, 'revision-1', {
       requireConfirmedRecord: true,
       rayenStructuralWriteGuard: true,
+      authoringSession: expect.objectContaining({ ownerKey: null }),
     });
     expect(writeService.updatePartialDetailed).toHaveBeenCalledWith('2026-04-11', {
       patientName: 'Beto',

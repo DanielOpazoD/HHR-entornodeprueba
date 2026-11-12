@@ -1,3 +1,7 @@
+import {
+  captureAuthoringSession,
+  isAuthoringSessionCurrent,
+} from '@/services/storage/authoringSession';
 import { useCensusBootstrapPerf, useCensusRecordPerf } from '@/hooks/useCensusRecordPerf';
 
 import { useCallback, useMemo, useEffect, useRef } from 'react';
@@ -143,19 +147,24 @@ export const useDailyRecordSyncQuery = (
   // 4. Compatibility handlers
   const saveAndUpdate = useCallback(
     async (updatedRecord: DailyRecord, baseRecord?: DailyRecord) => {
+      const authoringSession = captureAuthoringSession();
       try {
         const payload = await saveMutation.mutateAsync({
           record: updatedRecord,
+          authoringSession,
           baseRecord,
           expectedLastUpdated: baseRecord?.lastUpdated,
         });
-        presentSyncOutcomeFeedback(resolveSaveOutcomeFeedback(payload.result), 'Guardado', {
-          error: notifyError,
-          success,
-          warning,
-        });
+        if (isAuthoringSessionCurrent(authoringSession)) {
+          presentSyncOutcomeFeedback(resolveSaveOutcomeFeedback(payload.result), 'Guardado', {
+            error: notifyError,
+            success,
+            warning,
+          });
+        }
         assertDailyRecordWriteAccepted(payload.result);
       } catch (err) {
+        if (!isAuthoringSessionCurrent(authoringSession)) throw err;
         if (err instanceof DailyRecordFreshnessGateError) {
           if (err.presentation !== 'silent') {
             warning('Censo en actualización', err.message);

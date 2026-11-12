@@ -353,7 +353,8 @@ describe('DailyRecord Sync Integration', () => {
 
     expect(mockDailyRecordRepositoryPort.saveDetailed).toHaveBeenCalledWith(
       newRecord,
-      '2024-12-28T12:00:00.000Z'
+      '2024-12-28T12:00:00.000Z',
+      expect.objectContaining({ authoringSession: expect.objectContaining({ ownerKey: null }) })
     );
   });
 
