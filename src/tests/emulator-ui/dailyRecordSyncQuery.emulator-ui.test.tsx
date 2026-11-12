@@ -9,7 +9,7 @@ import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   clearAllRecords,
-  getRecordForDate,
+  getRecordForDateStrict,
   saveRecord,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
@@ -286,7 +286,7 @@ describeUiEmulator('UI sync flow with Firestore emulator', () => {
     const remoteData = remoteSnap?.data() as { beds?: Record<string, { pathology?: string }> };
     expect(remoteData?.beds?.R1?.pathology).toBe('Diag UI Patch');
 
-    const local = await getRecordForDate(date);
+    const local = await getRecordForDateStrict(date);
     expect(local?.beds?.R1?.pathology).toBe('Diag UI Patch');
   });
 
@@ -370,7 +370,7 @@ describeUiEmulator('UI sync flow with Firestore emulator', () => {
     expect(remoteData?.beds?.R1?.pathology).toBe('Diag Firebase actualizado por A');
     expect(remoteData?.beds?.R1?.status).toBe('Grave');
 
-    const local = await getRecordForDate(date);
+    const local = await getRecordForDateStrict(date);
     expect(local?.beds?.R1?.pathology).toBe('Diag Firebase actualizado por A');
     expect(local?.beds?.R1?.status).toBe('Grave');
   });

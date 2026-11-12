@@ -33,7 +33,7 @@ import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 
 const { indexedDbFacadeMock, firestoreMock } = vi.hoisted(() => ({
   indexedDbFacadeMock: {
-    getRecordForDate: vi.fn().mockResolvedValue(null),
+    getRecordForDateStrict: vi.fn().mockResolvedValue(null),
     getPreviousDayRecord: vi.fn().mockResolvedValue(null),
     saveRecord: vi.fn(),
     saveRecordStrict: vi.fn(),
@@ -70,14 +70,14 @@ const { indexedDbFacadeMock, firestoreMock } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
-  getRecordForDate: indexedDbFacadeMock.getRecordForDate,
+  getRecordForDateStrict: indexedDbFacadeMock.getRecordForDateStrict,
   captureLocalRecordBase: async (date: string) => ({
     kind: 'stored',
-    record: await indexedDbFacadeMock.getRecordForDate(date),
+    record: await indexedDbFacadeMock.getRecordForDateStrict(date),
   }),
   inspectLocalRecordAdmission: async (date: string) => ({
     status: 'admitted',
-    record: await indexedDbFacadeMock.getRecordForDate(date),
+    record: await indexedDbFacadeMock.getRecordForDateStrict(date),
   }),
   admitLocalRecords: vi.fn(async (candidates: readonly LocalRecordAdmissionCandidate[]) =>
     Promise.all(
@@ -186,14 +186,14 @@ describe('DailyRecordRepository reads', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(idbRecordService.getRecordForDate).mockReset();
+    vi.mocked(idbRecordService.getRecordForDateStrict).mockReset();
     vi.mocked(idbRecordService.getPreviousDayRecord).mockReset();
     vi.mocked(idbRecordService.saveRecord).mockReset();
     vi.mocked(indexedDbFacadeMock.saveRecordStrict).mockReset();
     vi.mocked(firestoreService.getRecordFromFirestore).mockReset();
 
     Repository.setFirestoreEnabled(true);
-    vi.mocked(idbRecordService.getRecordForDate).mockResolvedValue(null);
+    vi.mocked(idbRecordService.getRecordForDateStrict).mockResolvedValue(null);
     vi.mocked(indexedDbFacadeMock.saveRecordStrict).mockImplementation(async record => {
       await indexedDbFacadeMock.saveRecord(record);
       return {
@@ -226,17 +226,17 @@ describe('DailyRecordRepository reads', () => {
   });
 
   it('returns from IndexedDB if available', async () => {
-    vi.mocked(idbRecordService.getRecordForDate).mockResolvedValue(mockRecord);
+    vi.mocked(idbRecordService.getRecordForDateStrict).mockResolvedValue(mockRecord);
     const result = await Repository.getForDate(mockDate);
     expect(result).toMatchObject({
       ...mockRecord,
       beds: expect.any(Object),
     });
-    expect(idbRecordService.getRecordForDate).toHaveBeenCalledWith(mockDate);
+    expect(idbRecordService.getRecordForDateStrict).toHaveBeenCalledWith(mockDate);
   });
 
   it('falls back to Firestore if not in IndexedDB', async () => {
-    vi.mocked(idbRecordService.getRecordForDate).mockResolvedValue(null);
+    vi.mocked(idbRecordService.getRecordForDateStrict).mockResolvedValue(null);
     vi.mocked(firestoreService.getRecordFromFirestore).mockResolvedValue(mockRecord);
 
     const result = await Repository.getForDate(mockDate);
@@ -248,7 +248,7 @@ describe('DailyRecordRepository reads', () => {
   });
 
   it('returns source metadata via getForDateWithMeta', async () => {
-    vi.mocked(idbRecordService.getRecordForDate).mockResolvedValue(mockRecord);
+    vi.mocked(idbRecordService.getRecordForDateStrict).mockResolvedValue(mockRecord);
 
     const result = await Repository.getForDateWithMeta(mockDate);
 
@@ -318,7 +318,9 @@ describe('DailyRecordRepository reads', () => {
       lastUpdated: `${mockDate}T08:00:00.000Z`,
     };
 
-    vi.mocked(idbRecordService.getRecordForDate).mockImplementation(async () => newerLocalRecord);
+    vi.mocked(idbRecordService.getRecordForDateStrict).mockImplementation(
+      async () => newerLocalRecord
+    );
     vi.mocked(firestoreService.getRecordFromFirestore).mockResolvedValueOnce(olderRemoteRecord);
 
     const result = await Repository.syncWithFirestore(mockDate);

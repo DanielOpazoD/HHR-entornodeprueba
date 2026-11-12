@@ -12,7 +12,7 @@ import {
 import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyRecordPersistencePreparation';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {
-  getRecordForDate,
+  getRecordForDateStrict,
   saveRecordStrict,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { repairRecord } from '@/tests/rayen-import/clinicalCribDischargeRepairs.fixtures';
@@ -28,7 +28,7 @@ const persistAndReload = async (record: DailyRecord): Promise<DailyRecord> => {
   expect(await saveRecordStrict(prepared)).toMatchObject({ ok: true, store: 'indexeddb' });
   hospitalDB.close();
   await hospitalDB.open();
-  const reloaded = await getRecordForDate(record.date);
+  const reloaded = await getRecordForDateStrict(record.date);
   expect(reloaded).not.toBeNull();
   expect(reloaded).not.toBe(prepared);
   return reloaded!;

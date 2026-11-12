@@ -14,12 +14,13 @@ import {
 
 // The empty-day prompt only offers to copy yesterday, so it reads that one day, from the device
 // first. Listing the recent window used to download up to 35 whole census days for one answer.
-const readYesterday = async (currentDateString: string) => {
+// A device copy that cannot be read is not «no day»: the server read answers instead.
+const readYesterday = (currentDateString: string) => {
   const yesterday = getPreviousDay(currentDateString);
-  return (
-    (await defaultDailyRecordReadPort.getLocalForDate(yesterday)) ??
-    (await defaultDailyRecordReadPort.getForDate(yesterday))
-  );
+  const readServer = () => defaultDailyRecordReadPort.getForDate(yesterday);
+  return defaultDailyRecordReadPort
+    .getLocalForDate(yesterday)
+    .then(record => record ?? readServer(), readServer);
 };
 
 const NO_LISTED_DATES = async (): Promise<string[]> => [];

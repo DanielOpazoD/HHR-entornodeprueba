@@ -29,7 +29,7 @@ import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import {
   clearAllRecords,
-  getRecordForDate,
+  getRecordForDateStrict,
   saveRecord,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
@@ -56,7 +56,7 @@ const baseRecord = (): DailyRecord => ({
   dateTimestamp: Date.parse(`${DATE}T00:00:00.000Z`),
 });
 const localRecord = async (): Promise<DailyRecord> => {
-  const record = await getRecordForDate(DATE);
+  const record = await getRecordForDateStrict(DATE);
   if (!record) throw new Error('missing synthetic local record');
   return record;
 };

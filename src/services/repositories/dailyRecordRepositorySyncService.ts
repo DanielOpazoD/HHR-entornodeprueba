@@ -7,7 +7,7 @@ import {
   captureLocalRecordBase,
   inspectLocalRecordAdmission,
   type LocalRecordBase,
-  getRecordForDate as getRecordFromIndexedDB,
+  getRecordForDateStrict,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import {
   subscribeToRecord,
@@ -41,9 +41,9 @@ const resolveSubscriptionResult = async (
   pointReadBase?: LocalRecordBase,
   hasPendingWrites = false
 ): Promise<SyncDailyRecordResult> => {
-  localRecord = localRecord === undefined ? await getRecordFromIndexedDB(date) : localRecord;
+  localRecord = localRecord === undefined ? await getRecordForDateStrict(date) : localRecord;
   if (!serverConfirmed && remoteRecord && !hasPendingWrites) {
-    const stored = await getRecordFromIndexedDB(date);
+    const stored = await getRecordForDateStrict(date);
     if (stored) {
       return createSyncDailyRecordResult({
         date,

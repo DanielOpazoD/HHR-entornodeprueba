@@ -235,12 +235,13 @@ describe('a local day that could not be read is unknown, never absent', () => {
     it('does not present the cached remote copy as applied when the local day cannot be read', async () => {
       await storePendingDay(local());
       const { delivered, failed, stop } = listen();
-      failNextDayReads(2);
+      const reads = failNextDayReads(2);
 
       remoteSnapshot.emit?.(remote(), false, { fromCache: true });
 
       await vi.waitFor(() => expect(delivered.length + failed.length).toBe(1));
       stop();
+      reads.mockRestore();
       expect(delivered).toEqual([]);
       expect(failed).toMatchObject([{ outcome: 'blocked', record: null }]);
       expect(await hospitalDB.dailyRecords.get(date)).toEqual(local());

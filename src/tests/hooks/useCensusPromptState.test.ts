@@ -62,6 +62,14 @@ describe('census prompt reads only yesterday, on demand', () => {
     expect(remote).toHaveBeenCalledExactlyOnceWith('2026-02-14');
   });
 
+  it('asks the server when the device cannot read yesterday', async () => {
+    local.mockRejectedValue(new Error('synthetic device read failure'));
+    remote.mockResolvedValue({ date: '2026-02-14' });
+    const view = renderHook(() => useCensusPromptState('2026-02-15'));
+    await waitFor(() => expect(view.result.current.previousRecordAvailable).toBe(true));
+    expect(remote).toHaveBeenCalledExactlyOnceWith('2026-02-14');
+  });
+
   it.each([
     ['yesterday does not exist anywhere', () => remote.mockResolvedValue(null)],
     ['the server read fails', () => remote.mockRejectedValue(new Error('synthetic offline'))],

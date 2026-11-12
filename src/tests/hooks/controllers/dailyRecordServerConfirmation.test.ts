@@ -35,7 +35,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
-  getRecordForDate: mocks.getLocal,
+  getRecordForDateStrict: mocks.getLocal,
   captureLocalRecordBase: async () => ({ kind: 'stored', record: await mocks.getLocal() }),
   inspectLocalRecordAdmission: async (_date: string, base: { record: unknown }) => ({
     status: 'admitted',
