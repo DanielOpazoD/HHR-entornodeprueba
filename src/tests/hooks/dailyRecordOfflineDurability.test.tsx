@@ -1,3 +1,4 @@
+import { waitForExportReadiness } from '@/hooks/controllers/exportReadinessController';
 import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import { renderHook, act, waitFor, cleanup } from '@testing-library/react';
 import { beforeEach, afterEach, afterAll, expect, it, vi } from 'vitest';
@@ -206,6 +207,18 @@ it('b: actual transaction abort rolls back row/task; hook drops patch and error 
   });
   expect(error).toHaveBeenCalled();
   expect(resolveDailyRecordSyncStatus([h.result.current])).toBe('error');
+  expect(
+    await waitForExportReadiness({
+      expectedDate: date,
+      readState: () => ({
+        selectedDate: date,
+        recordDate: date,
+        syncStatus: resolveDailyRecordSyncStatus([h.result.current]),
+      }),
+      now: Date.now,
+      wait: async () => {},
+    })
+  ).toEqual({ status: 'blocked', reason: 'save_failed' });
   log('b', {
     result: payload!.result,
     feedback,
@@ -307,6 +320,7 @@ it('g-control: complete repository path commits offline without a remote acknowl
   expect((await hospitalDB.dailyRecords.get(date))?.beds.R1.pathology).toBe(
     patch['beds.R1.pathology']
   );
+  expect(resolveDailyRecordSyncStatus([h.result.current])).toBe('local');
   log('g-real-repository', {
     tasks: await hospitalDB.syncQueue.count(),
     state: h.result.current.data?.result,

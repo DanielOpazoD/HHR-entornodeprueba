@@ -128,6 +128,18 @@ export interface CopyPatientResult {
   outcome: 'clean' | 'repaired';
 }
 
+/** Persistence evidence for the attempted write, independent of promise resolution. */
+export const resolveDailyRecordSavedState = (result: {
+  savedLocally: boolean;
+  savedRemotely?: boolean;
+  updatedRemotely?: boolean;
+}): 'saved' | 'local' | 'error' =>
+  result.savedRemotely || result.updatedRemotely
+    ? 'saved'
+    : result.savedLocally
+      ? 'local'
+      : 'error';
+
 export const createSaveDailyRecordResult = (
   input: SaveDailyRecordResultInput
 ): SaveDailyRecordResult => {
@@ -139,7 +151,9 @@ export const createSaveDailyRecordResult = (
     repairApplied: input.repairApplied || false,
     sourceOfTruth:
       input.sourceOfTruth ||
-      (input.savedRemotely ? 'remote' : input.savedLocally ? 'local' : 'none'),
+      ({ saved: 'remote', local: 'local', error: 'none' } as const)[
+        resolveDailyRecordSavedState(input)
+      ],
     consistencyState:
       input.consistencyState ||
       (input.outcome === 'queued'
@@ -194,7 +208,9 @@ export const createUpdatePartialDailyRecordResult = (
     repairApplied: input.repairApplied || false,
     sourceOfTruth:
       input.sourceOfTruth ||
-      (input.updatedRemotely ? 'remote' : input.savedLocally ? 'local' : 'none'),
+      ({ saved: 'remote', local: 'local', error: 'none' } as const)[
+        resolveDailyRecordSavedState(input)
+      ],
     consistencyState:
       input.consistencyState ||
       (input.outcome === 'queued'

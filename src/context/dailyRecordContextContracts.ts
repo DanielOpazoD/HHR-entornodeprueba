@@ -21,7 +21,7 @@ import type { StabilityRules } from '@/hooks/useStabilityRules';
 import type { DailyRecordStaffingDetailsV1 } from '@/types/domain/dailyRecordStaffingDetails';
 import type { ConfirmedBedOccupantIdentity } from '@/types/domain/intentionalBedClear';
 
-export type SyncStatus = 'idle' | 'saving' | 'saved' | 'error';
+export type SyncStatus = 'idle' | 'saving' | 'saved' | 'local' | 'error';
 
 export interface InventoryStats {
   occupiedCount: number;

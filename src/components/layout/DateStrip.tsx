@@ -110,7 +110,7 @@ export interface EmailConfigProps {
 }
 
 export interface SyncConfigProps {
-  syncStatus?: 'idle' | 'saving' | 'saved' | 'error';
+  syncStatus?: import('@/context/dailyRecordContextContracts').SyncStatus;
   lastSyncTime?: Date | null;
 }
 
