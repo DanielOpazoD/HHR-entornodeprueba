@@ -175,6 +175,11 @@ export const shouldRouteDailyRecordSaveViaCallable = async (): Promise<boolean> 
   }
 };
 
+/**
+ * `null`: no enforced mode or no signed-in user. `unavailable`: the session could not be checked.
+ * Routing is advisory either way; only `'enforced'` selects the callable, and the server rules
+ * still reject a fenced direct write.
+ */
 export const resolveAuthenticatedDailyRecordAuthorityMode = async (): Promise<
   'enforced' | null | { kind: 'unavailable'; error: unknown }
 > => {

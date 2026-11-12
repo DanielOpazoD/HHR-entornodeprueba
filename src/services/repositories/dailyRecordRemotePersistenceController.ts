@@ -106,6 +106,15 @@ const isSameVersion = (left: string, right: string | undefined): boolean =>
 const wait = (ms: number) => new Promise<void>(resolve => globalThis.setTimeout(resolve, ms));
 
 /**
+ * `missing`: the server has no confirmed version of this write yet. `unavailable`: the readback
+ * itself failed, so nothing is known about the server copy. Both keep the edit blocked.
+ */
+type RemoteAuthorityReadback =
+  | { kind: 'confirmed'; record: DailyRecord }
+  | { kind: 'missing' }
+  | { kind: 'unavailable'; error: unknown };
+
+/**
  * Prefer the record the write itself returned. Older authority callables, the direct updateDoc
  * path and an atomic patch whose commit could not be projected return none, so read the committed
  * document instead. That server read can be answered by an attached listener that has not seen
@@ -123,11 +132,7 @@ const resolveRemoteAuthorityRecord = async (
   result: RemoteAuthorityWriteResult | void,
   readRemoteConfirmedRecord?: () => Promise<DailyRecord | null>,
   expectedVersion?: string
-): Promise<
-  | { kind: 'confirmed'; record: DailyRecord }
-  | { kind: 'missing' }
-  | { kind: 'unavailable'; error: unknown }
-> => {
+): Promise<RemoteAuthorityReadback> => {
   const responseRecord = applyRemoteAuthorityState(record, result);
   if (responseRecord) return { kind: 'confirmed', record: responseRecord };
   if (!readRemoteConfirmedRecord) return { kind: 'missing' };
@@ -155,15 +160,24 @@ const resolveRemoteAuthorityRecord = async (
   }
 };
 
-const missingRemoteAuthorityStateResult = (
+/**
+ * The read failure travels as `cause` of a code-less error, so the save keeps the same blocked,
+ * non-retryable classification it had when this failure was reported as a missing version.
+ */
+const unconfirmedRemoteAuthorityStateResult = (
   date: string,
-  error: unknown = new Error('La autoridad remota no devolvió la versión confirmada del registro.')
+  readback: Exclude<RemoteAuthorityReadback, { kind: 'confirmed' }>
 ): LocalRecordWriteResult => ({
   ok: false,
   operation: 'save',
   store: 'none',
   dates: [date],
-  error,
+  error:
+    readback.kind === 'unavailable'
+      ? new Error('No se pudo leer en el servidor la versión confirmada del registro.', {
+          cause: readback.error,
+        })
+      : new Error('La autoridad remota no devolvió la versión confirmada del registro.'),
   userSafeMessage: 'La copia local no pudo confirmar la versión guardada en el servidor.',
 });
 
@@ -312,10 +326,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
       applyLocalPersistenceFailure(
         date,
         changedPaths,
-        missingRemoteAuthorityStateResult(
-          date,
-          authority.kind === 'unavailable' ? authority.error : undefined
-        ),
+        unconfirmedRemoteAuthorityStateResult(date, authority),
         remoteState,
         { remoteCommitted: true }
       );
@@ -402,10 +413,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
         applyLocalPersistenceFailure(
           date,
           changedPaths,
-          missingRemoteAuthorityStateResult(
-            date,
-            authority.kind === 'unavailable' ? authority.error : undefined
-          ),
+          unconfirmedRemoteAuthorityStateResult(date, authority),
           remoteState,
           { remoteCommitted: true }
         );
