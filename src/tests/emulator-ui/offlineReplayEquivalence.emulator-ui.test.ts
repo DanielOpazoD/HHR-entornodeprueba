@@ -388,4 +388,146 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     expect((await read()).beds.R1.deviceDetails?.CVC.note).toBe('A');
     expect((await read()).beds.R2.pathology).toBe('B');
   });
+  it.each(['conflict', 'missing', 'stamped', 'compacted', 'occupant', 'three-fields', 'unrelated'])(
+    'RECHECK mixed %s',
+    async scenario => {
+      const base = baseRecord();
+      await hospitalDB.dailyRecords.put(base);
+      setFirestoreSyncState({ mode: 'local_only', reason: 'offline' });
+      await actor('A', () =>
+        updatePartialDetailed(
+          date,
+          {
+            'beds.R1.pathology': 'A OFFLINE',
+            'beds.R2.pathology': 'SECOND',
+            ...(scenario === 'three-fields' ? { 'beds.R1.age': '60' } : {}),
+          },
+          { baseRecord: base }
+        )
+      );
+      if (scenario === 'compacted')
+        await actor('A', async () =>
+          updatePartialDetailed(
+            date,
+            { 'beds.R2.pathology': 'LAST' },
+            { baseRecord: (await hospitalDB.dailyRecords.get(date))! }
+          )
+        );
+      const [pending] = await hospitalDB.syncQueue.toArray();
+      await admin.doc(dayPath).update({
+        'beds.R1.pathology': ' A OFFLINE ',
+        ...(['conflict', 'three-fields'].includes(scenario)
+          ? { 'beds.R2.pathology': 'REMOTE' }
+          : {}),
+        ...(['stamped', 'compacted', 'three-fields', 'unrelated'].includes(scenario)
+          ? {
+              'meta.lastChangedPaths': [
+                'beds.R1.pathology',
+                ...(scenario === 'unrelated' ? ['beds.R2.age'] : []),
+              ],
+              'meta.lastMutationId': 'peer-applied',
+            }
+          : {}),
+        ...(scenario === 'occupant'
+          ? {
+              'beds.R1.clinicalEpisodeId': 'NEW-EPISODE',
+              'beds.R1.rut': '99999999-9',
+              'beds.R1.patientName': 'NUEVO SINTETICO',
+              'beds.R1.pathology': 'NEW PATIENT',
+            }
+          : {}),
+        lastUpdated: new Date().toISOString(),
+      });
+      const before = (await admin.doc(dayPath).get()).data();
+      setFirestoreEnabled(true);
+      await publish();
+      const after = (await admin.doc(dayPath).get()).data();
+      const tasks = await hospitalDB.syncQueue.toArray();
+      if (['conflict', 'three-fields'].includes(scenario)) {
+        expect(after).toEqual(before);
+        expect(tasks).toMatchObject([
+          {
+            status: 'CONFLICT',
+            payload: pending.payload,
+            patchBaseValues: pending.patchBaseValues,
+            syncContract: pending.syncContract,
+          },
+        ]);
+      } else if (scenario === 'occupant') {
+        expect(after?.beds.R1.pathology).toBe('NEW PATIENT');
+        expect(after?.beds.R2.pathology).toBe('SECOND');
+        expect(tasks).toMatchObject([
+          {
+            status: 'CONFLICT',
+            payload: {
+              beds: { R1: { pathology: 'A OFFLINE', clinicalEpisodeId: 'synthetic-episode-R1' } },
+            },
+          },
+        ]);
+      } else {
+        expect(tasks).toHaveLength(0);
+        expect(after?.beds.R1.pathology).toBe(' A OFFLINE ');
+        expect(after?.beds.R2.pathology).toBe(scenario === 'compacted' ? 'LAST' : 'SECOND');
+      }
+    }
+  );
+
+  it.each([
+    ['text', 'beds.R1.pathology', 'BASE', 'A', 'A B'],
+    ['empty-absent', 'beds.R1.pathology', 'BASE', '', undefined],
+    ['empty-conflict', 'beds.R1.pathology', 'BASE', '', 'B'],
+    ['missing-conflict', 'beds.R1.pathology', 'BASE', 'X', undefined],
+    ['number', 'beds.R1.cudyr.feeding', 1, 2, 3],
+    ['boolean', 'beds.R1.isIsolated', undefined, true, false],
+    ['array', 'beds.R1.devices', ['CVC'], ['CVC', 'SNG'], ['CVC', 'CUP']],
+    [
+      'nested-device',
+      'beds.R1.deviceDetails',
+      { CVC: { note: 'BASE' } },
+      { CVC: { note: 'A' } },
+      { CVC: { note: 'A B' } },
+    ],
+    [
+      'nested-cudyr',
+      'beds.R1.cudyr',
+      { feeding: 1, mobilization: 1 },
+      { feeding: 2, mobilization: 1 },
+      { feeding: 2, mobilization: 2 },
+    ],
+  ])('RECHECK semantic %s', async (_label, field, baseValue, pendingValue, remoteValue) => {
+    const { applyPatches } = await import('@/utils/patchUtils');
+    const { FieldValue } = await import('firebase-admin/firestore');
+    const base = applyPatches(baseRecord(), { [field as string]: baseValue } as DailyRecordPatch);
+    await admin.doc(dayPath).set(base);
+    await hospitalDB.dailyRecords.put(base);
+    setFirestoreSyncState({ mode: 'local_only', reason: 'offline' });
+    await actor('A', () =>
+      updatePartialDetailed(date, { [field as string]: pendingValue } as DailyRecordPatch, {
+        baseRecord: base,
+      })
+    );
+    const [pending] = await hospitalDB.syncQueue.toArray();
+    expect(pending).toBeDefined();
+    await admin.doc(dayPath).update({
+      [field as string]: remoteValue === undefined ? FieldValue.delete() : remoteValue,
+      lastUpdated: new Date().toISOString(),
+    });
+    const before = (await admin.doc(dayPath).get()).data();
+    setFirestoreEnabled(true);
+    await publish();
+    if (_label === 'empty-absent') {
+      expect((await admin.doc(dayPath).get()).data()?.beds.R1.pathology).toBe('');
+      expect(await hospitalDB.syncQueue.toArray()).toHaveLength(0);
+      return;
+    }
+    expect((await admin.doc(dayPath).get()).data()).toEqual(before);
+    expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
+      {
+        status: 'CONFLICT',
+        payload: pending.payload,
+        patchBaseValues: pending.patchBaseValues,
+        syncContract: pending.syncContract,
+      },
+    ]);
+  });
 });
