@@ -4,6 +4,7 @@ import {
   diffCatalog,
   catalogChangesAccepted,
   confirmedCatalogBase,
+  savedStaffCatalogEdit,
 } from '@/services/repositories/contracts/catalogChanges';
 import { nurseIdentityKey } from '@/services/staff/nurseIdentity';
 import { normalizeStringCatalog } from '@/services/repositories/contracts/catalogContracts';
@@ -92,5 +93,33 @@ describe('display examples', () => {
       'Sintético',
     ]);
     expect(confirmedCatalogBase(examples, ['Sintético'], examples)).toEqual(examples);
+  });
+});
+
+describe('names shown from other sources', () => {
+  const key = nurseIdentityKey;
+  const save = (shown: string[], next: string[], saved: string[], server: string[]) => {
+    const edit = savedStaffCatalogEdit(shown, next, saved);
+    return applyCatalogChanges(server, diffCatalog(edit.base, edit.next, key), key);
+  };
+  const shown = ['Sintético Guardado', 'Sintético Eloísa'];
+  const saved = ['Sintético Guardado'];
+
+  it('removing a shown-only name changes nothing on the server', () => {
+    expect(save(shown, ['Sintético Guardado'], saved, saved)).toEqual(saved);
+  });
+  it('renaming a shown-only name adds the new name', () => {
+    expect(save(shown, ['Sintético Guardado', 'Sintético Nuevo'], saved, saved)).toEqual([
+      'Sintético Guardado',
+      'Sintético Nuevo',
+    ]);
+  });
+  it('still rejects removing a saved name another computer renamed', () => {
+    expect(() => save(shown, ['Sintético Eloísa'], saved, ['Sintético Otro'])).toThrow(
+      'La lista cambió'
+    );
+  });
+  it('without a confirmed saved list leaves the edit untouched', () => {
+    expect(savedStaffCatalogEdit(shown, saved, undefined)).toEqual({ base: shown, next: saved });
   });
 });

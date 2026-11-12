@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Users, Plus, Trash2, Cloud, AlertCircle, Pencil, Check, X } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { StaffNameSchema } from '@/schemas/inputSchemas';
+import { savedStaffCatalogEdit } from '@/services/repositories/contracts/catalogChanges';
 import clsx from 'clsx';
 import { RecoverCensusStaffButton } from './RecoverCensusStaffButton';
 
@@ -11,6 +12,8 @@ interface StaffCatalogManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
   staffList: string[];
+  /** The last confirmed saved list; names shown from other sources are not part of it. */
+  savedList?: string[];
   onSave: (updatedStaffList: string[], base?: string[]) => boolean | void | Promise<boolean | void>;
   saveError?: string;
   onRetry?: () => Promise<void>;
@@ -63,6 +66,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
   isOpen,
   onClose,
   staffList,
+  savedList,
   onSave,
   syncing,
   hasSyncError,
@@ -70,7 +74,11 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
   saveError,
   onRetry,
 }) => {
-  const editBase = useRef<string[]>(staffList);
+  const editBase = useRef({ shown: staffList, saved: savedList });
+  const saveChange = (next: string[], base = { shown: staffList, saved: savedList }) => {
+    const edit = savedStaffCatalogEdit(base.shown, next, base.saved);
+    return onSave(edit.next, edit.base);
+  };
   const config = STAFF_CATALOG_VARIANT_CONFIG[variant];
   const [newStaffName, setNewStaffName] = useState('');
   const [editingName, setEditingName] = useState<string | null>(null);
@@ -88,19 +96,16 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
     }
 
     setValidationError(null);
-    if ((await onSave([...staffList, trimmed], staffList)) === false) return;
+    if ((await saveChange([...staffList, trimmed])) === false) return;
     setNewStaffName('');
   };
 
   const handleRemove = (name: string) => {
-    onSave(
-      staffList.filter(staffName => staffName !== name),
-      staffList
-    );
+    saveChange(staffList.filter(staffName => staffName !== name));
   };
 
   const handleStartEdit = (name: string) => {
-    editBase.current = staffList;
+    editBase.current = { shown: staffList, saved: savedList };
     setEditingName(name);
     setEditValue(name);
     setValidationError(null);
@@ -118,8 +123,8 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
 
     setValidationError(null);
     if (
-      (await onSave(
-        editBase.current.map(staffName => (staffName === editingName ? trimmed : staffName)),
+      (await saveChange(
+        editBase.current.shown.map(staffName => (staffName === editingName ? trimmed : staffName)),
         editBase.current
       )) === false
     )

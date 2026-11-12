@@ -5,6 +5,7 @@
  */
 
 import React, { createContext, useContext, useCallback, useMemo, useState, ReactNode } from 'react';
+import { savedStaffCatalogEdit } from '@/services/repositories/contracts/catalogChanges';
 import {
   useNursesQuery,
   useTensQuery,
@@ -74,6 +75,7 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
     isError: nursesReadError,
     refetch: refetchNurses,
     identities: staffIdentities = NO_STAFF_IDENTITIES,
+    manualData: savedNurses,
   } = useNursesQuery();
   const staffUsage = useStaffUsage(staffIdentities);
   const {
@@ -81,6 +83,7 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
     isLoading: tensLoading,
     isError: tensReadError,
     refetch: refetchTens,
+    manualData: savedTens,
   } = useTensQuery();
   const { data: professionals = NO_PROFESSIONALS, isLoading: professionalsLoading } =
     useProfessionalsQuery();
@@ -98,16 +101,18 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
   // Compatibility setters (now trigger mutations)
   const setNursesList = useCallback(
     (updatedNurses: string[]) => {
-      saveNurses({ next: reconcileNurseCatalogNames(updatedNurses), base: nurses });
+      saveNurses(
+        savedStaffCatalogEdit(nurses, reconcileNurseCatalogNames(updatedNurses), savedNurses)
+      );
     },
-    [saveNurses, nurses]
+    [saveNurses, nurses, savedNurses]
   );
 
   const setTensList = useCallback(
     (updatedTens: string[]) => {
-      saveTens({ next: updatedTens, base: tens });
+      saveTens(savedStaffCatalogEdit(tens, updatedTens, savedTens));
     },
-    [saveTens, tens]
+    [saveTens, tens, savedTens]
   );
 
   const setProfessionalsCatalog = useCallback(

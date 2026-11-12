@@ -46,6 +46,7 @@ export const TensManagerModal: React.FC<TensManagerModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       staffList={tensList}
+      savedList={query.manualData}
       onSave={save}
       syncing={mutation.isPending}
       hasSyncError={mutation.error instanceof CatalogRemoteSyncError}

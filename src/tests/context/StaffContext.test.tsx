@@ -238,4 +238,34 @@ describe('StaffProvider publication', () => {
     });
     view.unmount();
   });
+
+  it('setters use the confirmed saved list, never names shown only from Eloísa', () => {
+    state.nurses = ['Synthetic Saved', 'Synthetic Eloisa'];
+    state.tens = ['Synthetic TENS', 'Synthetic TENS Eloisa'];
+    hooks.nurses.mockImplementation(() => ({
+      data: state.nurses,
+      manualData: ['Synthetic Saved'],
+      identities: state.identities,
+      isLoading: false,
+    }));
+    hooks.tens.mockImplementation(() => ({
+      data: state.tens,
+      manualData: ['Synthetic TENS'],
+      isLoading: false,
+    }));
+    const view = harness();
+    act(() => {
+      view.current().setNursesList(['Synthetic Saved']);
+      view.current().setTensList(['Synthetic TENS', 'Synthetic TENS Renamed']);
+    });
+    expect(state.saveNurses).toHaveBeenCalledExactlyOnceWith({
+      next: ['Synthetic Saved'],
+      base: ['Synthetic Saved'],
+    });
+    expect(state.saveTens).toHaveBeenCalledExactlyOnceWith({
+      next: ['Synthetic TENS', 'Synthetic TENS Renamed'],
+      base: ['Synthetic TENS'],
+    });
+    view.unmount();
+  });
 });

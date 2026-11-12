@@ -1,4 +1,5 @@
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
+import { nurseIdentityKey } from '@/services/staff/nurseIdentity';
 
 export class CatalogConflictError extends Error {
   constructor(readonly current: readonly (string | ProfessionalCatalogItem)[]) {
@@ -70,6 +71,26 @@ export const applyCatalogChanges = <T extends string | ProfessionalCatalogItem>(
     );
   }
   return result;
+};
+
+/**
+ * The screen composes the saved list with names from other sources (Eloísa). Only the last
+ * confirmed saved list is a base: a shown-only name is not a saved element, so removing it
+ * changes nothing and renaming it adds the new name. Without a confirmed list, nothing changes
+ * here and the save stays blocked upstream.
+ */
+export const savedStaffCatalogEdit = (
+  base: string[],
+  next: string[],
+  saved: readonly string[] | undefined
+): { base: string[]; next: string[] } => {
+  if (saved === undefined) return { base, next };
+  const savedIdentities = new Set(saved.map(nurseIdentityKey));
+  const shownOnly = new Set(
+    base.map(nurseIdentityKey).filter(identity => !savedIdentities.has(identity))
+  );
+  const isSaved = (name: string) => !shownOnly.has(nurseIdentityKey(name));
+  return { base: base.filter(isSaved), next: next.filter(isSaved) };
 };
 
 /** Display examples shown for an empty catalog were never confirmed by the server. */

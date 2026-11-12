@@ -46,6 +46,7 @@ export const NurseManagerModal: React.FC<NurseManagerModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       staffList={nursesList}
+      savedList={query.manualData}
       onSave={save}
       syncing={mutation.isPending}
       hasSyncError={mutation.error instanceof CatalogRemoteSyncError}
