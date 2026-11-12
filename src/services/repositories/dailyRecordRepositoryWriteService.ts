@@ -272,7 +272,11 @@ const saveDetailedWithinLock = async (
         origin: 'backup_restore',
         syncContract,
       },
-      { deferProcessing: true, wholeRecordBase: options.baseRecord }
+      {
+        deferProcessing: true,
+        wholeRecordBase: options.baseRecord,
+        authoringSession: options.authoringSession,
+      }
     );
     if (!queued.accepted) throw new Error('No fue posible guardar el respaldo junto a su envío.');
     remoteState.savedLocally = true;
@@ -305,7 +309,11 @@ const saveDetailedWithinLock = async (
           origin: options.writeOrigin === 'backup_restore' ? 'backup_restore' : 'direct_queue',
           syncContract,
         },
-        { ...buildPreOutboxRemoteAckOptions(syncContract), wholeRecordBase: options.baseRecord }
+        {
+          ...buildPreOutboxRemoteAckOptions(syncContract),
+          wholeRecordBase: options.baseRecord,
+          authoringSession: options.authoringSession,
+        }
       ),
     ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
     completeConfirmedLocalWrite: confirmedRecord =>
@@ -339,10 +347,15 @@ export const saveDetailed = (
   record: DailyRecord,
   expectedLastUpdated?: string,
   options: SaveDailyRecordOptions = {}
-) =>
-  runWithDailyRecordWriteLock(record.date, options.dailyRecordWriteLease, () =>
-    saveDetailedWithinLock(record, expectedLastUpdated, options)
+) => {
+  const authoredOptions = {
+    ...options,
+    authoringSession: options.authoringSession ?? captureAuthoringSession(),
+  };
+  return runWithDailyRecordWriteLock(record.date, options.dailyRecordWriteLease, () =>
+    saveDetailedWithinLock(record, expectedLastUpdated, authoredOptions)
   );
+};
 
 export const save = async (record: DailyRecord, expectedLastUpdated?: string): Promise<void> => {
   assertDailyRecordSaveAccepted(await saveDetailed(record, expectedLastUpdated));
