@@ -7,6 +7,7 @@ import { getRecordForDateStrict } from '@/services/storage/indexeddb/indexedDbRe
 import { initializeDayDetailed } from '@/services/repositories/dailyRecordRepositoryInitializationService';
 import { getForDate } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { loadRemoteRecordWithFallback } from '@/services/repositories/dailyRecordRemoteLoader';
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { save } from '@/services/repositories/dailyRecordRepositoryWriteService';
 
 vi.mock('@/services/repositories/dailyRecordRepositoryReadService', () => ({
@@ -43,6 +44,124 @@ describe('initialization return value after a superseded remote read', () => {
   afterEach(async () => {
     await hospitalDB.syncQueue.clear();
     await hospitalDB.dailyRecords.clear();
+  });
+
+  it.each([
+    { change: 'owner', pending: false },
+    { change: 'owner', pending: true },
+    { change: 'generation', pending: false },
+    { change: 'generation', pending: true },
+  ])(
+    'rejects initialization after $change changes; pending=$pending',
+    async ({ change, pending }) => {
+      localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-initial');
+      setSessionGeneration('synthetic-initial');
+      const local = DataFactory.createMockDailyRecord(date, { nursesDayShift: ['LOCAL'] });
+      if (pending) {
+        await hospitalDB.dailyRecords.put(local);
+        await hospitalDB.syncQueue.add({
+          opId: 'synthetic-session-pending',
+          type: 'UPDATE_DAILY_RECORD',
+          key: `daily:${date}`,
+          payload: local,
+          status: 'PENDING',
+          retryCount: 0,
+          timestamp: 1,
+        });
+      }
+      const beforeRows = await hospitalDB.dailyRecords.toArray();
+      const beforeTasks = await hospitalDB.syncQueue.toArray();
+      vi.mocked(getForDate).mockResolvedValue(null);
+      const started = deferred<void>();
+      const response = deferred<DailyRecord>();
+      vi.mocked(loadRemoteRecordWithFallback).mockImplementation(async () => {
+        started.resolve();
+        return {
+          record: await response.promise,
+          serverConfirmed: true,
+          source: 'firestore',
+          compatibilityTier: 'current_firestore',
+          compatibilityIntensity: 'none',
+          migrationRulesApplied: [],
+          cachedLocally: false,
+        };
+      });
+      const opening = initializeDayDetailed(date);
+      await started.promise;
+      if (change === 'owner') localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-next');
+      else setSessionGeneration('synthetic-next');
+      const rejection = expect(opening).rejects.toThrow('La sesión cambió');
+      response.resolve(DataFactory.createMockDailyRecord(date, { nursesDayShift: ['SERVER'] }));
+      await rejection;
+      expect(await hospitalDB.dailyRecords.toArray()).toEqual(beforeRows);
+      expect(await hospitalDB.syncQueue.toArray()).toEqual(beforeTasks);
+      expect(save).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['owner', 'generation'])(
+    'does not restart initialization when %s changes in its first read',
+    async change => {
+      localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-initial');
+      setSessionGeneration('synthetic-initial');
+      vi.mocked(getForDate).mockImplementationOnce(async () => {
+        if (change === 'owner') localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-next');
+        else setSessionGeneration('synthetic-next');
+        return null;
+      });
+      await expect(initializeDayDetailed(date)).rejects.toThrow('La sesión cambió');
+      expect(loadRemoteRecordWithFallback).not.toHaveBeenCalled();
+      expect(save).not.toHaveBeenCalled();
+      expect(await hospitalDB.dailyRecords.count()).toBe(0);
+    }
+  );
+
+  it('hydrates only the admitted remote row without creating a day or queue task', async () => {
+    const remote = DataFactory.createMockDailyRecord(date);
+    vi.mocked(getForDate).mockResolvedValue(null);
+    vi.mocked(loadRemoteRecordWithFallback).mockResolvedValue({
+      record: remote,
+      serverConfirmed: true,
+      source: 'firestore',
+      compatibilityTier: 'current_firestore',
+      compatibilityIntensity: 'none',
+      migrationRulesApplied: [],
+      cachedLocally: false,
+    });
+    const settings = await hospitalDB.settings.toArray();
+    const result = await initializeDayDetailed(date);
+    expect(await hospitalDB.dailyRecords.toArray()).toEqual([result.record]);
+    expect(result.record.beds).toEqual(remote.beds);
+    expect(await hospitalDB.syncQueue.count()).toBe(0);
+    expect(await hospitalDB.settings.toArray()).toEqual(settings);
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('copies offline with enabled runtime even when the SDK returns cached absence', async () => {
+    const source = DataFactory.createMockDailyRecord(copyDate, { beds: {} });
+    vi.mocked(getForDate).mockImplementation(async requested =>
+      requested === copyDate ? source : null
+    );
+    vi.mocked(loadRemoteRecordWithFallback).mockResolvedValue({
+      record: null,
+      serverConfirmed: false,
+      source: 'not_found',
+      compatibilityTier: 'none',
+      compatibilityIntensity: 'none',
+      migrationRulesApplied: [],
+      cachedLocally: false,
+    });
+    const online = navigator.onLine;
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    try {
+      expect((await initializeDayDetailed(date, copyDate)).record.date).toBe(date);
+      expect(save).toHaveBeenCalledOnce();
+      await expect(
+        initializeDayDetailed(date, copyDate, { requireConfirmedAbsence: true })
+      ).rejects.toThrow();
+    } finally {
+      Object.defineProperty(navigator, 'onLine', { value: online, configurable: true });
+    }
   });
 
   it.each([

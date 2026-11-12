@@ -44,7 +44,7 @@ Cambios ya ejecutados que cuentan como avance válido dentro de este V3:
 - Subtraer antes que refactorizar.
 - Evidencia del repo antes que intuición.
 - Un dominio o un lote por PR.
-- Boundaries sagrados: `check:shared-layer-boundary`, `check:folder-dependencies`, `check:barrel-boundaries`.
+- Boundaries sagrados: `lint (hhr/public-import-boundaries)`, `check:folder-dependencies`, `check:barrel-boundaries`.
 - Sin imports no implica sin uso: revisar Workers, imports dinámicos, Netlify, barrels, rutas por string.
 - No tocar reglas clínicas ni flows críticos sin revisor humano adecuado.
 - Tests son contrato; no se editan para acomodar limpiezas.
@@ -301,7 +301,7 @@ Run:
 ```bash
 npm run typecheck
 npm run check:quality
-npm run check:shared-layer-boundary
+npx eslint .
 npm run check:folder-dependencies
 npm run check:hook-hotspots
 npx vitest run src/tests/features/<feature> src/tests/hooks/use<Feature>*

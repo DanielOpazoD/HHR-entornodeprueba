@@ -4,8 +4,6 @@ import {
   type DailyRecordReadResult,
 } from '@/services/repositories/contracts/dailyRecordQueries';
 import { resolveDailyRecordReadConsistency } from '@/services/repositories/dailyRecordConsistencyPolicy';
-import { resolveDailyRecordPersistenceGoldenPath } from '@/services/repositories/dailyRecordPersistenceGoldenPath';
-import type { DailyRecordRemoteLoadResult } from '@/services/repositories/dailyRecordRemoteLoader';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 export interface LocalRuntimeReadCandidate {
@@ -70,73 +68,6 @@ export const createLocalRuntimeReadResult = (
   });
 };
 
-/** The stored projection that unsynced local writes hold; it is ahead of the remote copy. */
-export const createRetainedPendingProjectionReadResult = (
-  date: string,
-  retainedRecord: DailyRecord,
-  serverConfirmed: boolean = false
-): DailyRecordReadResult =>
-  createLocalRuntimeReadResult(
-    date,
-    createLocalRuntimeReadCandidate(date, retainedRecord),
-    'indexeddb',
-    {
-      serverConfirmed,
-      consistencyState: 'local_authoritative',
-      retryability: 'automatic_retry',
-      recoveryAction: 'defer_remote_sync',
-      observabilityTags: ['daily_record', 'read', 'pending_local_writes_retained'],
-    }
-  );
-
-export const createGoldenPathReadResult = (
-  date: string,
-  goldenPath: ReturnType<typeof resolveDailyRecordPersistenceGoldenPath>,
-  localCandidate: LocalRuntimeReadCandidate | null,
-  remoteReadResult?: DailyRecordRemoteLoadResult
-): DailyRecordReadResult => {
-  const metadata = {
-    serverConfirmed: remoteReadResult?.serverConfirmed ?? false,
-    consistencyState: goldenPath.consistencyState,
-    sourceOfTruth: goldenPath.sourceOfTruth,
-    retryability: goldenPath.retryability,
-    recoveryAction: goldenPath.recoveryAction,
-    conflictSummary: goldenPath.conflictSummary,
-    observabilityTags: goldenPath.observabilityTags,
-    userSafeMessage: goldenPath.userSafeMessage,
-    repairApplied: goldenPath.repairApplied,
-  };
-  if (goldenPath.selectedStore === 'remote' && remoteReadResult?.record) {
-    return createDailyRecordReadResult(
-      date,
-      goldenPath.selectedRecord || remoteReadResult.record,
-      remoteReadResult.source,
-      {
-        compatibilityTier: remoteReadResult.compatibilityTier,
-        compatibilityIntensity: remoteReadResult.compatibilityIntensity,
-        migrationRulesApplied: remoteReadResult.migrationRulesApplied,
-        ...metadata,
-      }
-    );
-  }
-
-  if (goldenPath.selectedStore === 'local' && localCandidate) {
-    return createDailyRecordReadResult(
-      date,
-      goldenPath.selectedRecord || localCandidate.record,
-      'indexeddb',
-      {
-        compatibilityTier: 'local_runtime',
-        compatibilityIntensity: localCandidate.compatibilityIntensity,
-        migrationRulesApplied: localCandidate.migrationRulesApplied,
-        ...metadata,
-      }
-    );
-  }
-
-  return createDailyRecordReadResult(date, null, 'not_found', metadata);
-};
-
 export const createNotFoundDailyRecordReadResult = (
   date: string,
   remoteAvailability: 'missing' | 'not_requested'
@@ -157,7 +88,11 @@ export const createSupersededReadResult = (
 ): DailyRecordReadResult => {
   const record = pending ?? stored;
   const result = record
-    ? createLocalRuntimeReadResult(date, createLocalRuntimeReadCandidate(date, record), 'indexeddb')
+    ? createLocalRuntimeReadResult(
+        date,
+        { ...createLocalRuntimeReadCandidate(date, record), record },
+        'indexeddb'
+      )
     : createNotFoundDailyRecordReadResult(date, 'not_requested');
   return { ...result, serverConfirmed: false, publication: 'superseded' };
 };

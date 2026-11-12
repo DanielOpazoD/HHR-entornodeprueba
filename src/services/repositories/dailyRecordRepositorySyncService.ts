@@ -21,10 +21,7 @@ import { measureRepositoryOperation } from '@/services/repositories/repositoryPe
 import { createSyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { dailyRecordSyncLogger } from '@/services/repositories/repositoryLoggers';
 import { resolveDailyRecordSyncConsistency } from '@/services/repositories/dailyRecordConsistencyPolicy';
-import {
-  persistPointReadToLocalCache,
-  admitRemoteDailyRecords,
-} from '@/services/repositories/dailyRecordLocalCachePersistence';
+import { admitRemoteDailyRecords } from '@/services/repositories/dailyRecordLocalCachePersistence';
 import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { buildDailyRecordSyncContract } from '@/services/storage/sync/syncTaskContractPolicy';
 import { adoptAuthoritativeDailyRecordAtomically } from '@/services/storage/sync';
@@ -98,23 +95,26 @@ const resolveSubscriptionResult = async (
   }
   // Missing evidence never selects between competing clinical documents.
   if (remoteRecord && !localRecord && !hasPendingWrites) {
-    const result = await persistPointReadToLocalCache(
-      remoteRecord,
-      date,
-      pointReadBase ?? { kind: 'stored', record: null },
-      null
-    );
-    if (result.status !== 'superseded') {
+    const [result] = await admitRemoteDailyRecords([
+      {
+        record: remoteRecord,
+        remoteRecord: null,
+        serverConfirmed: false,
+        expectedBase: pointReadBase ?? { kind: 'stored', record: null },
+        isCurrent,
+      },
+    ]);
+    if (!result) throw new Error('No existe una decisión de admisión para el día.');
+    if (result.status !== 'superseded')
       return createSyncDailyRecordResult({
         date,
         record: result.record,
         serverConfirmed: false,
         outcome: 'clean',
-        sourceOfTruth: result.status === 'retained_pending' ? 'local' : 'remote',
-        consistencyState: result.status === 'retained_pending' ? 'local_kept' : 'remote_applied',
+        sourceOfTruth: 'remote',
+        consistencyState: 'remote_applied',
       });
-    }
-    localRecord = result.stored;
+    localRecord = result.record;
   }
   const admission = await inspectLocalRecordAdmission(
     date,
@@ -238,6 +238,9 @@ export const syncWithFirestoreDetailed = async (date: string) => {
   return measureRepositoryOperation(
     'dailyRecord.syncWithFirestore',
     async () => {
+      const owner = getStoredSessionOwnerKey();
+      const epoch = getSessionEpoch();
+      const isCurrent = () => owner === getStoredSessionOwnerKey() && epoch === getSessionEpoch();
       const base = await captureLocalRecordBase(date);
       const localRecord = base.kind === 'stored' ? base.record : null;
       try {
@@ -247,7 +250,7 @@ export const syncWithFirestoreDetailed = async (date: string) => {
           remoteResult.record,
           remoteResult.serverConfirmed,
           localRecord,
-          undefined,
+          isCurrent,
           remoteResult.issuedAgainst ?? base,
           remoteResult.hasPendingWrites
         );

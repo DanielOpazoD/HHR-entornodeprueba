@@ -455,9 +455,11 @@ export async function bootstrapSeededRecord(
         runtimeWindow.__HHR_E2E_OVERRIDE__ = { [parsed.date]: parsed.record };
         return;
       }
-      // Keep the E2E runtime flag enabled for auth/bootstrap while forcing record
-      // reads through the persisted storage stack after the seeded reload.
-      runtimeWindow.__HHR_E2E_OVERRIDE__ = {};
+      // Supply the synthetic observation until the real IndexedDB admission has
+      // persisted it; bootstrap must not race the legacy localStorage migration.
+      runtimeWindow.__HHR_E2E_OVERRIDE__ = JSON.parse(
+        localStorage.getItem('hanga_roa_hospital_data') || '{}'
+      );
     },
     {
       user: mockUser,

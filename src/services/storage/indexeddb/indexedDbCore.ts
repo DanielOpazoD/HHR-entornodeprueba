@@ -6,7 +6,6 @@ import { resolveIndexedDbOpenHealth } from './indexedDbOpenHealthController';
 import { getIndexedDbRecoveryBudgetSnapshot } from './indexedDbRecoveryBudgets';
 import {
   buildLocalPersistenceRuntimeSnapshot,
-  hasE2ERuntimeOverride,
   shouldAttemptMockRecovery,
   shouldSkipReadyCheckForMock,
   type LocalPersistenceRuntimeSnapshot,
@@ -64,11 +63,6 @@ export type { LocalPersistenceRuntimeSnapshot };
 
 export const ensureDbReady = async (options: EnsureDbReadyOptions = {}): Promise<void> => {
   const { allowRecoveryWhenMock = false } = options;
-
-  if (hasE2ERuntimeOverride()) {
-    isUsingMock = true;
-    return;
-  }
 
   if (shouldSkipReadyCheckForMock({ isUsingMock, allowRecoveryWhenMock })) return;
   if (shouldAttemptMockRecovery({ isUsingMock, allowRecoveryWhenMock, stickyFallbackMode })) {

@@ -121,18 +121,6 @@ export const preserveCIE10FromPreviousDay = (
   }
 };
 
-export const enrichInitializationRecordFromCopySource = (
-  remoteRecord: DailyRecord,
-  copySourceRecord: DailyRecord | null
-): DailyRecord => {
-  if (!copySourceRecord) {
-    return remoteRecord;
-  }
-
-  preserveCIE10FromPreviousDay(remoteRecord.beds, copySourceRecord.beds);
-  return remoteRecord;
-};
-
 export const buildEmptyClinicalBeds = (): Record<string, PatientData> => {
   const initialBeds: Record<string, PatientData> = {};
   BEDS.forEach(bed => {
