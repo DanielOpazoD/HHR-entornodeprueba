@@ -226,13 +226,15 @@
       "functionFile": "netlify/functions/admin-ai-provider-status.ts",
       "endpoint": "admin-ai-provider-status",
       "testFiles": ["src/tests/netlify/sharedAuthCharacterization.test.ts"]
+    },
+    {
+      "id": "operational_telemetry_retry",
+      "functionFile": "netlify/functions/operational-telemetry-retry.ts",
+      "endpoint": "operational-telemetry-retry",
+      "testFiles": ["src/tests/netlify/operationalTelemetryRetry.test.ts"]
     }
   ],
   "exempt": [
-    {
-      "functionFile": "netlify/functions/operational-telemetry-retry.ts",
-      "reason": "sensible, sin prueba de comportamiento todavía; tarea programada que reintenta envíos de alertas con credenciales de runtime; las pruebas existentes cubren la cola y el empaquetado, no esta invocación."
-    },
     {
       "functionFile": "netlify/functions/firebase-config.js",
       "reason": "Publica únicamente la configuración Firebase del cliente (incluida su API key pública); no lee pacientes ni devuelve credenciales de servidor."
