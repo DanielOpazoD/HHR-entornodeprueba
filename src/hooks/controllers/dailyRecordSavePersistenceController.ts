@@ -32,10 +32,21 @@ export const persistDailyRecordSaveMutation = async (
     requireConfirmedRecord,
     rayenStructuralWriteGuard,
     dailyRecordWriteLease,
+    authoringSession,
   } = input;
   const options =
-    baseRecord || requireConfirmedRecord || rayenStructuralWriteGuard || dailyRecordWriteLease
-      ? { baseRecord, requireConfirmedRecord, rayenStructuralWriteGuard, dailyRecordWriteLease }
+    baseRecord ||
+    requireConfirmedRecord ||
+    rayenStructuralWriteGuard ||
+    dailyRecordWriteLease ||
+    authoringSession
+      ? {
+          baseRecord,
+          requireConfirmedRecord,
+          rayenStructuralWriteGuard,
+          dailyRecordWriteLease,
+          authoringSession,
+        }
       : undefined;
   const result = await saveDailyRecordWithCompatibility(
     dailyRecord,
