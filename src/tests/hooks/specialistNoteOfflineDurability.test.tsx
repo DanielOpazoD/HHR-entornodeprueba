@@ -179,3 +179,51 @@ it('rejects a stale tab after another tab accepted a different note', async () =
     { payload: { patch: { 'beds.R4.medicalHandoffNote': 'OTRA PESTAÑA' } } },
   ]);
 });
+it('leaves a newer visible record alone when the local save returns after it', async () => {
+  const { defaultDailyRecordRepositoryPort: port } =
+    await import('@/application/ports/dailyRecordPort');
+  setDailyRecordQueryData(client, date, base);
+  const hook = renderHook(() => usePatchDailyRecordMutation(date), { wrapper });
+  const next = buildMedicalEntryNoteFields(
+    base.beds.R4,
+    'entry-n4d',
+    'MI NOTA',
+    null,
+    date,
+    base.lastUpdated
+  ).fields;
+  const save = port.updatePartialDetailed.bind(port);
+  // Another team's note reaches the screen while this tab's accepted local save is returning.
+  const spy = vi.spyOn(port, 'updatePartialDetailed').mockImplementation(async (...args) => {
+    const result = await save(...args);
+    setDailyRecordQueryData(client, date, {
+      ...base,
+      beds: {
+        ...base.beds,
+        R4: {
+          ...base.beds.R4,
+          medicalHandoffNote: 'OTRO EQUIPO',
+          medicalHandoffEntries: [
+            { id: 'entry-n4d', specialty: 'Medicina Interna', note: 'OTRO EQUIPO' },
+          ],
+        },
+      },
+    });
+    return result;
+  });
+  try {
+    await act(async () => {
+      await hook.result.current.mutateAsync(
+        Object.fromEntries(
+          Object.entries(next).map(([k, v]) => [`beds.R4.${k}`, v])
+        ) as DailyRecordPatch
+      );
+    });
+  } finally {
+    spy.mockRestore();
+  }
+  expect(
+    client.getQueryData<DailyRecordQueryResult>(getDailyRecordQueryKey(date))!.record!.beds.R4
+      .medicalHandoffNote
+  ).toBe('OTRO EQUIPO');
+});
