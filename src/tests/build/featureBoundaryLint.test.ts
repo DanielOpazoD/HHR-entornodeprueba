@@ -65,20 +65,33 @@ describe('feature boundaries in ESLint (from scripts/feature-dependency-matrix.j
     }
   });
 
-  it('preserves the existing recovery-panel dynamic scope while enforcing static imports', async () => {
-    const file = 'src/features/cudyr/components/CudyrRecoveryPanel.tsx';
-    expect(
-      await boundaryMessages(file, "import('@/features/rayen-import/clinical-panel');")
-    ).toEqual([]);
-    expect(
-      await boundaryMessages(file, "import { x } from '@/features/rayen-import/clinical-panel';")
-    ).toHaveLength(1);
+  it('rejects undeclared dynamic dependencies in the recovery panel', async () => {
     expect(
       await boundaryMessages(
-        'src/features/cudyr/components/Probe.tsx',
-        "import('@/features/rayen-import/clinical-panel');"
+        'src/features/cudyr/components/CudyrRecoveryPanel.tsx',
+        "import('@/features/laboratory/public');"
       )
     ).toHaveLength(1);
+  });
+
+  it('checks dynamic imports in the recovery panel and allows declared clinical navigation', async () => {
+    for (const file of [
+      'src/features/cudyr/components/CudyrRecoveryPanel.tsx',
+      'src/features/cudyr/components/Probe.tsx',
+    ]) {
+      for (const [, code] of forms) {
+        expect(
+          await boundaryMessages(file, code('@/features/rayen-import/clinical-panel'))
+        ).toEqual([]);
+        expect(await boundaryMessages(file, code('@/features/laboratory/public'))).toHaveLength(1);
+        expect(
+          await boundaryMessages(
+            file,
+            code('@/features/rayen-import/bridge/encounterNavigationBridge')
+          )
+        ).toHaveLength(1);
+      }
+    }
   });
 
   it('keeps the matrix in parity with the feature directories', () => {
