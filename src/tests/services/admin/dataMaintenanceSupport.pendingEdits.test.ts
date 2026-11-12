@@ -45,6 +45,44 @@ describe('maintenance range with real local storage', () => {
     await hospitalDB.syncQueue.clear();
   });
 
+  it.each(['month', 'year'])(
+    'rejects %s backup when the local range cannot be read',
+    async scope => {
+      mocks.remote.mockResolvedValue([record('Remote only')]);
+      vi.spyOn(hospitalDB.Collection.prototype, 'toArray').mockRejectedValueOnce(
+        new Error('synthetic range failure')
+      );
+      const result = await (scope === 'month'
+        ? exportMonthRecordsWithOutcome(2026, 4)
+        : exportYearToDateRecordsWithOutcome(2026));
+      expect(result).toMatchObject({ status: 'failed', data: null });
+      expect(result.userSafeMessage).toContain('synthetic range failure');
+      expect(mocks.download).not.toHaveBeenCalled();
+      expect(mocks.remote).not.toHaveBeenCalled();
+    }
+  );
+
+  it('retains an edit queued while the remote maintenance read is in flight', async () => {
+    await hospitalDB.dailyRecords.put(record('Original'));
+    const local = record('Pending during read');
+    mocks.remote.mockImplementation(async () => {
+      await hospitalDB.dailyRecords.put(local);
+      await hospitalDB.syncQueue.add({
+        opId: 'synthetic-race',
+        key: `daily:${date}`,
+        type: 'UPDATE_DAILY_RECORD',
+        status: 'PENDING',
+        payload: local,
+        timestamp: 1,
+        retryCount: 0,
+      });
+      return [record('Remote', '2026-04-02T14:00:00.000Z')];
+    });
+    expect(await hydrateRangeRecords(date, date)).toEqual([local]);
+    expect(await hospitalDB.dailyRecords.get(date)).toEqual(local);
+    expect(await hospitalDB.syncQueue.count()).toBe(1);
+  });
+
   it('keeps and returns the pending local note even when the remote timestamp wins the merge', async () => {
     const local = record('Nota local nueva');
     await hospitalDB.dailyRecords.put(local);
