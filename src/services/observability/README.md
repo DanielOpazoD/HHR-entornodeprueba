@@ -14,3 +14,16 @@
 - No emitir eventos operativos relevantes desde UI con strings ad hoc.
 - Si un contexto necesita telemetria propia, debe crear un adapter de dominio pequeno antes de importar el servicio generico.
 - Los nombres de `category` y `operation` deben ser estables para no romper reportes ni runbooks.
+
+## Diagnóstico local por propietario
+
+Los lectores locales devuelven solo eventos de la sesión que los registró. El
+propietario admitido por esta pestaña se conserva en memoria junto a la generación
+de sesión y se guarda como metadato local; no se añade al evento enviado al
+servidor. Al registrar otro evento se conserva el historial de otros propietarios.
+Los eventos heredados sin propietario verificable siguen almacenados pero no se
+muestran en la telemetría operacional, tampoco por inferencia desde actor o
+contexto clínico. Observabilidad → Errores locales conserva para el administrador
+el historial de errores del equipo, incluidos errores antiguos sin propietario;
+los lectores ordinarios solo devuelven los propios. Sin admisión no se atribuyen
+eventos. La atribución no consulta localStorage ni puede impedir el envío.

@@ -1,7 +1,12 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as indexedDbCore from '@/services/storage/indexeddb/indexedDbCore';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
-import { getErrorLogs, saveErrorLog } from '@/services/storage/indexeddb/indexedDbErrorLogService';
+import {
+  clearErrorLogs,
+  getErrorLogs,
+  saveErrorLog,
+} from '@/services/storage/indexeddb/indexedDbErrorLogService';
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
@@ -14,6 +19,7 @@ import {
   writeMedicalHandoffDraft,
 } from '@/services/storage/medicalHandoffDraftStorage';
 import {
+  appendOperationalTelemetryEvent,
   persistOperationalTelemetryEvents,
   readOperationalTelemetryEvents,
 } from '@/services/observability/operationalTelemetryStore';
@@ -42,9 +48,8 @@ afterEach(async () => {
   persistOperationalTelemetryEvents([]);
 });
 
-describe('shared Chrome profile: retained drafts and accepted diagnostic residues', () => {
-  // Pending accepted by the owner until after 2026-11-08: technical residues in a shared Chrome profile.
-  it.fails('isolates A telemetry and error history from B local diagnostic readers', async () => {
+describe('shared Chrome profile: retained drafts and isolated diagnostics', () => {
+  it('isolates A telemetry and error history from B local diagnostic readers', async () => {
     const event = {
       category: 'sync' as const,
       status: 'failed' as const,
@@ -71,6 +76,92 @@ describe('shared Chrome profile: retained drafts and accepted diagnostic residue
     expect(await hospitalDB.errorLogs.get('synthetic-error-a')).toMatchObject({ userId: ownerA });
     const visible = { telemetry: readOperationalTelemetryEvents(), errors: await getErrorLogs() };
     expect(visible).toEqual({ telemetry: [], errors: [] });
+  });
+
+  it("clears only what the person can see: their own history, or the team's for an admin", async () => {
+    const log = (id: string) => ({
+      id,
+      timestamp: new Date().toISOString(),
+      severity: 'medium' as const,
+      message: id,
+    });
+    await saveErrorLog(log('owned-a'));
+    await clearSessionScopedClientState('manual');
+    await reconcileAuthorizedSessionOwner(ownerB);
+    await saveErrorLog(log('owned-b'));
+
+    await clearErrorLogs();
+    expect((await hospitalDB.errorLogs.toArray()).map(entry => entry.id)).toEqual(['owned-a']);
+
+    await saveErrorLog(log('owned-b-again'));
+    await clearErrorLogs('admin');
+    expect(await hospitalDB.errorLogs.count()).toBe(0);
+  });
+
+  it('returns only own events across A/B/A, retaining legacy entries and foreign history on append', async () => {
+    const event = {
+      category: 'sync' as const,
+      status: 'failed' as const,
+      operation: 'firestore_write' as const,
+      timestamp: new Date().toISOString(),
+      context: { patientName: 'SYNTHETIC PATIENT A' },
+    };
+    persistOperationalTelemetryEvents([event]); // Legacy: cannot prove ownership.
+    appendOperationalTelemetryEvent(event);
+    await saveErrorLog({
+      id: 'owned-a',
+      timestamp: event.timestamp,
+      severity: 'medium',
+      message: 'A',
+    });
+    await hospitalDB.errorLogs.add({
+      id: 'legacy',
+      timestamp: event.timestamp,
+      severity: 'medium',
+      message: 'legacy',
+    });
+    expect(readOperationalTelemetryEvents()).toEqual([event]);
+    expect((await getErrorLogs()).map(log => log.id)).toEqual(['owned-a']);
+    const retainedA = JSON.parse(localStorage.getItem('operationalTelemetryEvents') ?? '[]');
+    // Rehydrate the persisted copy after discarding the in-memory cache.
+    persistOperationalTelemetryEvents([]);
+    localStorage.setItem('operationalTelemetryEvents', JSON.stringify(retainedA));
+    expect(readOperationalTelemetryEvents()).toEqual([event]);
+    await clearSessionScopedClientState('manual');
+    await reconcileAuthorizedSessionOwner(ownerB);
+    expect(readOperationalTelemetryEvents()).toEqual([]);
+    expect(await getErrorLogs()).toEqual([]);
+    appendOperationalTelemetryEvent({ ...event, context: { actor: ownerB } });
+    await saveErrorLog({
+      id: 'owned-b',
+      timestamp: event.timestamp,
+      severity: 'medium',
+      message: 'B',
+    });
+    expect(readOperationalTelemetryEvents()).toHaveLength(1);
+    expect((await getErrorLogs(1)).map(log => log.id)).toEqual(['owned-b']);
+    expect(
+      JSON.parse(localStorage.getItem('operationalTelemetryEvents') ?? '[]').slice(0, 2)
+    ).toEqual(retainedA);
+    await clearSessionScopedClientState('manual');
+    await reconcileAuthorizedSessionOwner(ownerA);
+    expect(readOperationalTelemetryEvents()).toEqual([event]);
+    expect((await getErrorLogs(1)).map(log => log.id)).toEqual(['owned-a']);
+    expect(await hospitalDB.errorLogs.count()).toBe(3);
+  });
+
+  it('rejects an error history read overtaken by a session change', async () => {
+    let release!: () => void;
+    const waiting = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const ready = vi.spyOn(indexedDbCore, 'ensureDbReady').mockReturnValueOnce(waiting);
+    const read = getErrorLogs();
+    const rejected = expect(read).rejects.toThrow('La sesión cambió');
+    setSessionGeneration('synthetic-replacement');
+    release();
+    await rejected;
+    ready.mockRestore();
   });
 
   it('preserves a durable handoff draft across logout and a reload, returning its text only to A', async () => {
