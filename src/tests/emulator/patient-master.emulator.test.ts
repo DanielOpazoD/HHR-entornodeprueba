@@ -35,6 +35,11 @@ describeEmulator('patient master with real Firestore', () => {
       projectId: 'demo-hhr-n5d-patient-master',
       firestore: config,
     });
+  });
+  beforeEach(async () => {
+    HospitalConfigService.setHospitalId('hanga_roa');
+    await environment.clearFirestore();
+    // A fresh SDK cache must accompany the server reset between cases.
     const db = environment
       .authenticatedContext('synthetic-n5d-admin', {
         role: 'admin',
@@ -42,10 +47,6 @@ describeEmulator('patient master with real Firestore', () => {
       })
       .firestore();
     repository = createPatientMasterRepository({ getDb: () => db as unknown as Firestore });
-  });
-  beforeEach(async () => {
-    HospitalConfigService.setHospitalId('hanga_roa');
-    await environment.clearFirestore();
   });
   afterAll(async () => {
     HospitalConfigService.setHospitalId('hanga_roa');
