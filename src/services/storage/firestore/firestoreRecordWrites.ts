@@ -89,6 +89,7 @@ export const saveRecordToFirestore = async (
 
     const callableAuthorityMode = await resolveAuthenticatedDailyRecordAuthorityMode();
     const writeFenceActive = await shouldRouteDailyRecordSaveViaCallable();
+    // Unavailable advisory auth keeps the existing fence/direct-write recovery policy.
     if (callableAuthorityMode === 'enforced' || writeFenceActive) {
       return withRetry(
         () =>
@@ -301,6 +302,7 @@ export const updateRecordPartial = async (
           shouldUseAuthorityCallable && (await shouldRouteStructuralBedPatchViaCallable());
         const structuralAuthorityFenced = hasStructuralBedPatch && bedTreeAuthorityFenced;
         const clinicalAuthorityFenced = hasClinicalAuthorityPatch && bedTreeAuthorityFenced;
+        // Only confirmed enforced mode selects this route; unavailable auth remains advisory.
         const requiresAuthoritySeparation =
           clinicalAuthorityMode === 'enforced' || bedTreeAuthorityFenced;
         if (requiresAuthoritySeparation && hasStructuralBedPatch && hasClinicalAuthorityPatch) {

@@ -176,7 +176,7 @@ export const shouldRouteDailyRecordSaveViaCallable = async (): Promise<boolean> 
 };
 
 export const resolveAuthenticatedDailyRecordAuthorityMode = async (): Promise<
-  'enforced' | null
+  'enforced' | null | { kind: 'unavailable'; error: unknown }
 > => {
   if (isE2EDailyRecordAuthorityCallableForced()) return 'enforced';
   const mode = await resolveEffectiveDailyRecordAuthorityMode();
@@ -187,7 +187,7 @@ export const resolveAuthenticatedDailyRecordAuthorityMode = async (): Promise<
     return firebaseUser && !firebaseUser.isAnonymous ? mode : null;
   } catch (error) {
     firestoreWriteLogger.warn('Daily record authority callable routing check failed', { error });
-    return null;
+    return { kind: 'unavailable', error };
   }
 };
 
