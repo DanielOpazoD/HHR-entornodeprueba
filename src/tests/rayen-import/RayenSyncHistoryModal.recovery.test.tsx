@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { RayenSyncHistoryModal } from '@/features/rayen-import/components/RayenSyncHistoryModal';
 
-it('shows actionable missing information before expandable technical metrics', () => {
+it('shows actionable missing information before expandable technical metrics', async () => {
   render(
     <RayenSyncHistoryModal
       isOpen
@@ -47,9 +47,10 @@ it('shows actionable missing information before expandable technical metrics', (
   expect(issue.compareDocumentPosition(technical) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(screen.getByRole('region', { name: 'Datos clínicos' })).toContainElement(issue);
   expect(screen.queryByRole('region', { name: 'Enfermería y TENS' })).not.toBeInTheDocument();
+  expect(screen.queryByTestId('rayen-sync-technical-metrics')).not.toBeInTheDocument();
   fireEvent.click(screen.getByText('Reporte técnico'));
   expect(technical).toHaveAttribute('open');
   expect(screen.getByText(/Conexiones al iniciar: Ficha ✓ · Camas ✓/)).toBeVisible();
-  expect(screen.getByText(/3 solicitudes Eloísa/)).toBeVisible();
+  expect(await screen.findByText(/3 solicitudes Eloísa/)).toBeVisible();
   expect(screen.getByText('Lecturas clínicas')).toBeVisible();
 });
