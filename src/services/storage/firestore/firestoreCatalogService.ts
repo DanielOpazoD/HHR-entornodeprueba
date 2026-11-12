@@ -5,11 +5,10 @@ import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 import { ensureFirestoreRuntimeReady } from './firestoreRuntimeSupport';
 import {
   applyCatalogChanges,
-  confirmedCatalogBase,
   diffCatalog,
+  exactStaffName,
   professionalCatalogIdentity,
 } from '@/services/repositories/contracts/catalogChanges';
-import { nurseIdentityKey } from '@/services/staff/nurseIdentity';
 import {
   COLLECTIONS,
   getActiveHospitalId,
@@ -27,8 +26,6 @@ import {
 import {
   normalizeProfessionalCatalog,
   normalizeStringCatalog,
-  NURSE_CATALOG_EXAMPLES,
-  TENS_CATALOG_EXAMPLES,
 } from '@/services/repositories/contracts/catalogContracts';
 
 const getSettingsDocRef = (docId: string, runtime: Pick<FirestoreServiceRuntimePort, 'getDb'>) =>
@@ -60,13 +57,12 @@ const saveStringCatalog = async (
   return runTransaction(runtime.getDb(), async transaction => {
     const snapshot = await transaction.get(ref);
     const current = normalizeStringCatalog(readStringCatalogFromSnapshot(snapshot, key));
-    const confirmed = confirmedCatalogBase(
+    const changes = diffCatalog(
       normalizeStringCatalog(base),
-      current,
-      key === 'tens' ? TENS_CATALOG_EXAMPLES : NURSE_CATALOG_EXAMPLES
+      normalizeStringCatalog(values),
+      exactStaffName
     );
-    const changes = diffCatalog(confirmed, normalizeStringCatalog(values), nurseIdentityKey);
-    const merged = applyCatalogChanges(current, changes, nurseIdentityKey);
+    const merged = applyCatalogChanges(current, changes, exactStaffName);
     transaction.set(ref, { list: merged, [key]: merged, lastUpdated: new Date().toISOString() });
     return merged;
   });

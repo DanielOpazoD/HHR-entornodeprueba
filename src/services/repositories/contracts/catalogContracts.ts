@@ -9,6 +9,16 @@ const normalizeString = (value: unknown): string => {
 export const NURSE_CATALOG_EXAMPLES = ['Enfermero/a 1', 'Enfermero/a 2'] as const;
 export const TENS_CATALOG_EXAMPLES = ['TENS 1', 'TENS 2', 'TENS 3'] as const;
 
+const exampleLists = new WeakSet<object>();
+/** A read that found no saved list returns the examples marked as such, never as saved names. */
+export const catalogExamples = (examples: readonly string[]): string[] => {
+  const list = [...examples];
+  exampleLists.add(list);
+  return list;
+};
+export const isCatalogExampleList = (value: unknown): boolean =>
+  typeof value === 'object' && value !== null && exampleLists.has(value);
+
 export const normalizeStringCatalog = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
 

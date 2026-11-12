@@ -2,7 +2,10 @@ import React, { useRef, useState } from 'react';
 import { Users, Plus, Trash2, Cloud, AlertCircle, Pencil, Check, X } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { StaffNameSchema } from '@/schemas/inputSchemas';
-import { savedStaffCatalogEdit } from '@/services/repositories/contracts/catalogChanges';
+import {
+  savedCatalogEdit,
+  type SavedStaffCatalog,
+} from '@/services/repositories/contracts/catalogChanges';
 import clsx from 'clsx';
 import { RecoverCensusStaffButton } from './RecoverCensusStaffButton';
 
@@ -12,8 +15,8 @@ interface StaffCatalogManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
   staffList: string[];
-  /** The last confirmed saved list; names shown from other sources are not part of it. */
-  savedList?: string[];
+  /** The confirmed saved list behind `staffList`, from the same source as the shown rows. */
+  saved?: SavedStaffCatalog;
   onSave: (updatedStaffList: string[], base?: string[]) => boolean | void | Promise<boolean | void>;
   saveError?: string;
   onRetry?: () => Promise<void>;
@@ -66,7 +69,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
   isOpen,
   onClose,
   staffList,
-  savedList,
+  saved,
   onSave,
   syncing,
   hasSyncError,
@@ -74,9 +77,10 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
   saveError,
   onRetry,
 }) => {
-  const editBase = useRef({ shown: staffList, saved: savedList });
-  const saveChange = (next: string[], base = { shown: staffList, saved: savedList }) => {
-    const edit = savedStaffCatalogEdit(base.shown, next, base.saved);
+  const editBase = useRef({ shown: staffList, saved });
+  // Removing or renaming a row changes exactly the saved texts that row stands for.
+  const saveChange = (next: string[], base = { shown: staffList, saved }) => {
+    const edit = savedCatalogEdit(base.saved, base.shown, next);
     return onSave(edit.next, edit.base);
   };
   const config = STAFF_CATALOG_VARIANT_CONFIG[variant];
@@ -105,7 +109,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
   };
 
   const handleStartEdit = (name: string) => {
-    editBase.current = { shown: staffList, saved: savedList };
+    editBase.current = { shown: staffList, saved };
     setEditingName(name);
     setEditValue(name);
     setValidationError(null);

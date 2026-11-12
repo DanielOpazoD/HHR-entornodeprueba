@@ -24,6 +24,7 @@ import {
   assertCatalogSubscriptionCallback,
   NURSE_CATALOG_EXAMPLES,
   TENS_CATALOG_EXAMPLES,
+  catalogExamples,
 } from '@/services/repositories/contracts/catalogContracts';
 import { catalogRepositoryLogger } from '@/services/repositories/repositoryLoggers';
 
@@ -100,7 +101,7 @@ export const getNurses = async (): Promise<string[]> => {
     }
   }
 
-  return [...NURSE_CATALOG_EXAMPLES];
+  return catalogExamples(NURSE_CATALOG_EXAMPLES);
 };
 
 /**
@@ -209,7 +210,7 @@ export const getTens = async (): Promise<string[]> => {
     }
   }
 
-  return [...TENS_CATALOG_EXAMPLES];
+  return catalogExamples(TENS_CATALOG_EXAMPLES);
 };
 
 /**

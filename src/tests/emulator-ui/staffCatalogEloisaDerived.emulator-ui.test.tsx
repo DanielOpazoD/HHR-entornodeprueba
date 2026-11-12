@@ -48,11 +48,16 @@ const REMOTE = { timeout: 10_000 };
 const CONFLICT = 'La lista cambió en otro equipo. Revise la lista actualizada y repita el cambio.';
 const catalogs: Table<CatalogRecord> = hospitalDB.table('catalogs');
 
+// The shown list and the saved list behind it come from one source, as in the census.
 function Nurses() {
-  return <NurseManagerModal isOpen onClose={() => {}} nursesList={useNursesQuery().data} />;
+  const query = useNursesQuery();
+  return (
+    <NurseManagerModal isOpen onClose={() => {}} nursesList={query.data} saved={query.saved} />
+  );
 }
 function Tens() {
-  return <TensManagerModal isOpen onClose={() => {}} tensList={useTensQuery().data} />;
+  const query = useTensQuery();
+  return <TensManagerModal isOpen onClose={() => {}} tensList={query.data} saved={query.saved} />;
 }
 const settingsRef = (id: string) => doc(sdkDb, `hospitals/${getActiveHospitalId()}/settings/${id}`);
 const serverList = async (id = 'nurses') => (await getDocFromServer(settingsRef(id))).data()?.list;
@@ -167,4 +172,25 @@ it('removing a saved person that another computer renamed is still a conflict', 
   fireEvent.click(row('Sintético Guardado').querySelector('[title="Eliminar"]')!);
   await screen.findByText(CONFLICT, {}, REMOTE);
   expect(await serverList()).toEqual(['Sintético Otro Equipo']);
+});
+
+it('removing a row shown with its Eloísa name removes the saved alias, as on main', async () => {
+  await setDoc(settingsRef('nurses'), { list: ['Sintético Alias', 'Sintético Otro'] });
+  await setDoc(settingsRef(SHARED_STAFF_DOC), {
+    list: [
+      { key: 'synthetic', role: 'nurse', name: 'Sintético Canónico', aliases: ['Sintético Alias'] },
+    ],
+  });
+  const rows = () =>
+    screen.getAllByTitle('Editar').map(button => button.closest('.group')?.textContent);
+  renderManager(<Nurses />);
+  await screen.findByText('Sintético Canónico', {}, REMOTE);
+  expect(rows()).toEqual(['Sintético Canónico', 'Sintético Otro']);
+  fireEvent.click(row('Sintético Canónico').querySelector('[title="Eliminar"]')!);
+  await waitFor(async () => expect(await serverList()).toEqual(['Sintético Otro']), REMOTE);
+  await waitFor(() => expect(rows()).toEqual(['Sintético Otro', 'Sintético Canónico']), REMOTE);
+  cleanup();
+  renderManager(<Nurses />);
+  await waitFor(() => expect(rows()).toEqual(['Sintético Otro', 'Sintético Canónico']), REMOTE);
+  expect(screen.queryByText(CONFLICT)).not.toBeInTheDocument();
 });

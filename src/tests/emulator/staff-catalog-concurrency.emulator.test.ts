@@ -141,30 +141,19 @@ const seedNurses = async (data: object) =>
   env.withSecurityRulesDisabled(async c => {
     await setDoc(doc(c.firestore(), path), data);
   });
-const examples = ['Enfermero/a 1', 'Enfermero/a 2'];
-it('configures the list from display examples on an empty or missing catalog', async () => {
+it('a first save on an empty or missing catalog stores what was written', async () => {
+  // The editor never sends display examples as saved names: its saved base is empty.
   await seedNurses({ list: [] });
-  await save(['Sintético Real', 'Enfermero/a 2'], examples);
-  expect(await read()).toEqual(['Sintético Real', 'Enfermero/a 2']);
+  await save(['Sintético Real'], []);
+  expect(await read()).toEqual(['Sintético Real']);
 
   await env.clearFirestore();
-  await save(['Enfermero/a 2'], examples);
-  expect(await read()).toEqual(['Enfermero/a 2']);
-
-  await env.clearFirestore();
-  await save([...examples, 'Sintético Nuevo'], examples);
-  expect(await read()).toEqual([...examples, 'Sintético Nuevo']);
+  await save(['Sintético Nuevo'], []);
+  expect(await read()).toEqual(['Sintético Nuevo']);
 });
-it('still rejects an example rename once another computer configured the list', async () => {
-  await seedNurses({ list: ['Sintético Otro'] });
-  await expect(save(['Sintético Real', 'Enfermero/a 2'], examples)).rejects.toThrow(
-    'La lista cambió en otro equipo'
-  );
-  expect(await read()).toEqual(['Sintético Otro']);
-});
-it('renaming a row replaces its hidden case variants and keeps other changes', async () => {
+it('renaming a row replaces every saved text it stands for and keeps other changes', async () => {
   await seedNurses({ list: ['Sintético Uno', 'sintético uno', 'Sintético Otro'] });
-  await save(['Sintético Nuevo'], ['sintético uno']);
+  await save(['Sintético Nuevo'], ['Sintético Uno', 'sintético uno']);
   expect(await read()).toEqual(['Sintético Nuevo', 'Sintético Otro']);
 });
 it('renaming in the middle keeps the order and removing the only row leaves a real empty list', async () => {
@@ -176,4 +165,31 @@ it('renaming in the middle keeps the order and removing the only row leaves a re
   await seedNurses({ list: ['Sintético Uno'] });
   await save([], ['Sintético Uno']);
   expect(await read()).toEqual([]);
+});
+
+// «Ana Pena» and «Ana Peña» are different saved texts: different people for the save.
+const asClient = (id: string) => {
+  activeDb = env
+    .authenticatedContext(id, {
+      email: 'hospitalizados@hospitalhangaroa.cl',
+      role: 'nurse_hospital',
+    })
+    .firestore({ ignoreUndefinedProperties: true });
+};
+it('adding «Ana Peña» next to a saved «Ana Pena» keeps both', async () => {
+  await seedNurses({ list: ['Ana Pena'] });
+  asClient('synthetic-b');
+  await save(['Ana Pena', 'Ana Peña'], ['Ana Pena']);
+  expect(await read()).toEqual(['Ana Pena', 'Ana Peña']);
+});
+it.each([
+  ['removing', [] as string[]],
+  ['renaming', ['Ana Nueva']],
+])('%s «Ana Pena» from an old base never removes «Ana Peña»', async (_action, next) => {
+  await seedNurses({ list: ['Ana Pena'] });
+  asClient('synthetic-b');
+  await save(['Ana Pena', 'Ana Peña'], ['Ana Pena']);
+  asClient('synthetic-a');
+  await save(next, ['Ana Pena']);
+  expect(await read()).toEqual([...next, 'Ana Peña']);
 });

@@ -3,16 +3,17 @@ import {
   applyCatalogChanges,
   diffCatalog,
   catalogChangesAccepted,
-  confirmedCatalogBase,
-  savedStaffCatalogEdit,
+  exactStaffName,
+  professionalCatalogIdentity,
+  savedCatalogEdit,
 } from '@/services/repositories/contracts/catalogChanges';
-import { nurseIdentityKey } from '@/services/staff/nurseIdentity';
+import { savedTextsOfRow, staffCatalogRows } from '@/services/staff/eloisaStaffIdentity';
 import { normalizeStringCatalog } from '@/services/repositories/contracts/catalogContracts';
 const merge = (base: string[], next: string[], current: string[]) =>
   applyCatalogChanges(
     current,
-    diffCatalog(normalizeStringCatalog(base), normalizeStringCatalog(next), x => x),
-    x => x
+    diffCatalog(normalizeStringCatalog(base), normalizeStringCatalog(next), exactStaffName),
+    exactStaffName
   );
 describe('catalog changes', () => {
   it('adds to a real empty base and deduplicates normalized names', () => {
@@ -49,77 +50,109 @@ it('recognizes a late confirmation including unrelated changes', () => {
   expect(catalogChangesAccepted(['Base', 'Otro'], changes, key)).toBe(false);
 });
 
-describe('staff name identity', () => {
-  const key = nurseIdentityKey;
-  const mergeNames = (base: string[], next: string[], current: string[]) =>
-    applyCatalogChanges(current, diffCatalog(base, next, key), key);
-
-  it('renaming a visible row replaces every server variant of that identity in place', () => {
-    expect(
-      mergeNames(
-        ['sintético uno', 'Otro'],
-        ['Sintético Nuevo', 'Otro'],
-        ['Sintético Uno', 'sintético uno', 'Otro']
-      )
-    ).toEqual(['Sintético Nuevo', 'Otro']);
-  });
-  it('treats a case or spacing difference as the same person, not a conflict', () => {
-    expect(mergeNames(['Sintético Uno'], ['Sintético Nuevo'], ['sintético  uno'])).toEqual([
-      'Sintético Nuevo',
+describe('saved texts are compared exactly', () => {
+  it('keeps «Ana Pena» and «Ana Peña» as two people', () => {
+    expect(merge(['Ana Pena'], ['Ana Pena', 'Ana Peña'], ['Ana Pena'])).toEqual([
+      'Ana Pena',
+      'Ana Peña',
     ]);
-    expect(mergeNames(['Uno'], ['Nuevo'], ['Uno', 'nuevo'])).toEqual(['Nuevo']);
-  });
-  it('leaves other identities exactly as the server has them', () => {
-    expect(mergeNames(['Ana', 'Uno'], ['Ana'], ['Ana', 'ana', 'Uno'])).toEqual(['Ana', 'ana']);
-  });
-  it('renaming keeps the row position and still rejects a rename of a removed row', () => {
-    expect(
-      mergeNames(['Uno', 'Dos', 'Tres'], ['Uno', 'Nuevo', 'Tres'], ['Uno', 'Dos', 'Tres'])
-    ).toEqual(['Uno', 'Nuevo', 'Tres']);
-    expect(() => mergeNames(['Uno', 'Dos'], ['Uno', 'Nuevo'], ['Uno'])).toThrow('La lista cambió');
-  });
-  it('recognizes an accepted rename by identity', () => {
-    const changes = diffCatalog(['Uno'], ['Nuevo'], key);
-    expect(catalogChangesAccepted(['nuevo', 'Otro'], changes, key)).toBe(true);
-    expect(catalogChangesAccepted(['Uno', 'Nuevo'], changes, key)).toBe(false);
-  });
-});
-
-describe('display examples', () => {
-  it('are not confirmed elements while the server catalog is empty', () => {
-    const examples = ['Enfermero/a 1', 'Enfermero/a 2'];
-    expect(confirmedCatalogBase(examples, [], examples)).toEqual([]);
-    expect(confirmedCatalogBase(['Enfermero/a 1', 'Sintético'], [], examples)).toEqual([
-      'Sintético',
-    ]);
-    expect(confirmedCatalogBase(examples, ['Sintético'], examples)).toEqual(examples);
-  });
-});
-
-describe('names shown from other sources', () => {
-  const key = nurseIdentityKey;
-  const save = (shown: string[], next: string[], saved: string[], server: string[]) => {
-    const edit = savedStaffCatalogEdit(shown, next, saved);
-    return applyCatalogChanges(server, diffCatalog(edit.base, edit.next, key), key);
-  };
-  const shown = ['Sintético Guardado', 'Sintético Eloísa'];
-  const saved = ['Sintético Guardado'];
-
-  it('removing a shown-only name changes nothing on the server', () => {
-    expect(save(shown, ['Sintético Guardado'], saved, saved)).toEqual(saved);
-  });
-  it('renaming a shown-only name adds the new name', () => {
-    expect(save(shown, ['Sintético Guardado', 'Sintético Nuevo'], saved, saved)).toEqual([
-      'Sintético Guardado',
-      'Sintético Nuevo',
+    expect(merge(['Ana Pena'], [], ['Ana Pena', 'Ana Peña'])).toEqual(['Ana Peña']);
+    expect(merge(['Ana Pena'], ['Ana Nueva'], ['Ana Pena', 'Ana Peña'])).toEqual([
+      'Ana Nueva',
+      'Ana Peña',
     ]);
   });
-  it('still rejects removing a saved name another computer renamed', () => {
-    expect(() => save(shown, ['Sintético Eloísa'], saved, ['Sintético Otro'])).toThrow(
+  it('treats a text another computer changed, even only in case, as a conflict', () => {
+    expect(() => merge(['Sintético Uno'], ['Sintético Nuevo'], ['sintético uno'])).toThrow(
       'La lista cambió'
     );
   });
-  it('without a confirmed saved list leaves the edit untouched', () => {
-    expect(savedStaffCatalogEdit(shown, saved, undefined)).toEqual({ base: shown, next: saved });
+  it('renames in place of the first replaced text and drops the others', () => {
+    expect(
+      merge(
+        ['Otro', 'Sintético Uno', 'sintético uno'],
+        ['Otro', 'Sintético Nuevo'],
+        ['Otro', 'Sintético Uno', 'sintético uno']
+      )
+    ).toEqual(['Otro', 'Sintético Nuevo']);
+    expect(merge(['Uno', 'Dos', 'Tres'], ['Uno', 'Nuevo', 'Tres'], ['Uno', 'Dos', 'Tres'])).toEqual(
+      ['Uno', 'Nuevo', 'Tres']
+    );
+  });
+  it('collapses a new name another computer already added into one element', () => {
+    expect(merge(['Uno'], ['Nuevo'], ['Uno', 'Nuevo'])).toEqual(['Nuevo']);
+  });
+});
+
+describe('shown rows know their saved texts', () => {
+  const eloisa = [
+    {
+      key: 'synthetic',
+      role: 'nurse' as const,
+      name: 'Sintético Canónico',
+      aliases: ['Sintético Alias'],
+    },
+    { key: 'synthetic-2', role: 'nurse' as const, name: 'Sintético Eloísa', aliases: [] },
+  ];
+  const saved = ['Sintético Alias', 'Sintético Otro', 'Ana Pena', 'Ana Peña'];
+  const rows = staffCatalogRows(saved, eloisa, 'nurse');
+  const textsOf = savedTextsOfRow(rows);
+  const shown = rows.map(row => row.name);
+  const edit = (next: string[]) => savedCatalogEdit({ list: saved, textsOf }, shown, next).next;
+  const without = (name: string) => shown.filter(row => row !== name);
+  const renamed = (name: string, to: string) => shown.map(row => (row === name ? to : row));
+
+  it('groups rows exactly as the screen shows them', () => {
+    expect(rows).toEqual([
+      { name: 'Sintético Canónico', saved: ['Sintético Alias'] },
+      { name: 'Sintético Otro', saved: ['Sintético Otro'] },
+      { name: 'Ana Peña', saved: ['Ana Pena', 'Ana Peña'] },
+      { name: 'Sintético Eloísa', saved: [] },
+    ]);
+  });
+  it('removing a row removes exactly its saved texts', () => {
+    expect(edit(without('Sintético Canónico'))).toEqual(['Sintético Otro', 'Ana Pena', 'Ana Peña']);
+    expect(edit(without('Ana Peña'))).toEqual(['Sintético Alias', 'Sintético Otro']);
+  });
+  it('a row without saved texts changes nothing when removed and is added when renamed', () => {
+    expect(edit(without('Sintético Eloísa'))).toEqual(saved);
+    expect(edit(renamed('Sintético Eloísa', 'Sintético Nuevo'))).toEqual([
+      ...saved,
+      'Sintético Nuevo',
+    ]);
+  });
+  it('renaming a row takes the place of its first saved text', () => {
+    expect(edit(renamed('Ana Peña', 'Ana Nueva'))).toEqual([
+      'Sintético Alias',
+      'Sintético Otro',
+      'Ana Nueva',
+    ]);
+  });
+  it('without a confirmed saved list, each shown name stands for itself', () => {
+    expect(savedCatalogEdit(undefined, ['Uno', 'Dos'], ['Nuevo', 'Dos'])).toEqual({
+      base: ['Uno', 'Dos'],
+      next: ['Nuevo', 'Dos'],
+    });
+  });
+  it('adding appends the new name', () => {
+    expect(edit([...shown, 'Sintético Nuevo'])).toEqual([...saved, 'Sintético Nuevo']);
+  });
+});
+
+describe('treating physicians', () => {
+  it('never confuse two different people', () => {
+    const pena = { name: 'Ana Pena', phone: '111' };
+    const pegna = { name: 'Ana Peña', phone: '111' };
+    expect(professionalCatalogIdentity(pena)).not.toBe(professionalCatalogIdentity(pegna));
+    const first = { name: 'Sintético', phone: '', rayenPractitionerId: 'synthetic-1' };
+    const second = { name: 'Sintético', phone: '', rayenPractitionerId: 'synthetic-2' };
+    expect(professionalCatalogIdentity(first)).not.toBe(professionalCatalogIdentity(second));
+    expect(
+      applyCatalogChanges(
+        [pena, pegna],
+        diffCatalog([pena], [], professionalCatalogIdentity),
+        professionalCatalogIdentity
+      )
+    ).toEqual([pegna]);
   });
 });

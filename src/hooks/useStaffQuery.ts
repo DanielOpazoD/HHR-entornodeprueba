@@ -2,19 +2,27 @@ import {
   CatalogConflictError,
   diffCatalog,
   catalogChangesAccepted,
+  exactStaffName,
   professionalCatalogIdentity,
+  type SavedStaffCatalog,
 } from '@/services/repositories/contracts/catalogChanges';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { replaceEqualDeep, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef } from 'react';
 import { queryKeys } from '../config/queryClient';
 import { CatalogRepository } from '@/services/repositories/CatalogRepository';
 import { useAuth } from '@/context/AuthContext';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 import { useEloisaStaff } from './useEloisaStaff';
-import { mergeStaffCatalog } from '@/services/staff/eloisaStaffIdentity';
-import { nurseIdentityKey } from '@/services/staff/nurseIdentity';
+import {
+  mergeStaffCatalog,
+  savedTextsOfRow,
+  staffCatalogRows,
+  type EloisaStaffIdentity,
+  type NursingRole,
+} from '@/services/staff/eloisaStaffIdentity';
 import {
   CatalogRemoteSyncError,
+  isCatalogExampleList,
   normalizeStringCatalog,
   normalizeProfessionalCatalog,
 } from '@/services/repositories/contracts/catalogContracts';
@@ -37,6 +45,31 @@ export class CatalogReadUnavailableError extends Error {
 
 const STAFF_CATALOG_STALE_TIME_MS = 30_000;
 
+// Sharing structure with a list of examples would make it look like a saved list, or the reverse.
+const keepExampleProvenance = (previous: unknown, next: unknown): unknown =>
+  isCatalogExampleList(previous) || isCatalogExampleList(next)
+    ? next
+    : replaceEqualDeep(previous, next);
+
+/** The last confirmed saved list: examples are not saved names and a failed read is unknown. */
+const savedStaffNames = (data: string[] | undefined): string[] | undefined =>
+  data === undefined ? undefined : isCatalogExampleList(data) ? [] : data;
+
+/** What the screen shows and, for each shown row, the saved texts it stands for. */
+const useStaffCatalogView = (
+  data: string[] | undefined,
+  discovered: EloisaStaffIdentity[],
+  role: NursingRole
+) =>
+  useMemo(() => {
+    const list = savedStaffNames(data);
+    const saved: SavedStaffCatalog | undefined = list && {
+      list,
+      textsOf: savedTextsOfRow(staffCatalogRows(list, discovered, role)),
+    };
+    return { data: mergeStaffCatalog(data ?? [], discovered, role), saved };
+  }, [data, discovered, role]);
+
 /**
  * Hook to manage the list of nurses.
  * Integrates with CatalogRepository and provides real-time updates.
@@ -53,6 +86,7 @@ export const useNursesQuery = () => {
       return await CatalogRepository.getNurses();
     },
     staleTime: STAFF_CATALOG_STALE_TIME_MS,
+    structuralSharing: keepExampleProvenance,
   });
 
   useEffect(() => {
@@ -76,15 +110,12 @@ export const useNursesQuery = () => {
     return () => unsubscribe();
   }, [isCatalogRealtimeReady, queryClient]);
 
-  const data = useMemo(
-    () => mergeStaffCatalog(query.data ?? [], discovered, 'nurse'),
-    [query.data, discovered]
-  );
+  const view = useStaffCatalogView(query.data, discovered, 'nurse');
   return {
     ...query,
     manualData: query.data,
     identities: discovered,
-    data,
+    ...view,
   };
 };
 
@@ -104,6 +135,7 @@ export const useTensQuery = () => {
       return await CatalogRepository.getTens();
     },
     staleTime: STAFF_CATALOG_STALE_TIME_MS,
+    structuralSharing: keepExampleProvenance,
   });
 
   useEffect(() => {
@@ -127,14 +159,11 @@ export const useTensQuery = () => {
     return () => unsubscribe();
   }, [isCatalogRealtimeReady, queryClient]);
 
-  const data = useMemo(
-    () => mergeStaffCatalog(query.data ?? [], discovered, 'tens'),
-    [query.data, discovered]
-  );
+  const view = useStaffCatalogView(query.data, discovered, 'tens');
   return {
     ...query,
     manualData: query.data,
-    data,
+    ...view,
   };
 };
 
@@ -220,7 +249,7 @@ export const useSaveNursesMutation = () => {
   const mutation = useMutation({
     mutationFn: (edit: CatalogEdit<string>) => {
       const base = Array.isArray(edit)
-        ? queryClient.getQueryData<string[]>([...queryKeys.staff.all, 'nurses'])
+        ? savedStaffNames(queryClient.getQueryData<string[]>([...queryKeys.staff.all, 'nurses']))
         : edit.base;
       if (base === undefined) throw new CatalogReadUnavailableError();
       return CatalogRepository.saveNurses(catalogNext(edit), base);
@@ -250,7 +279,7 @@ export const useSaveNursesMutation = () => {
     },
   });
   useAcceptedCatalogChange('nurses', mutation, (edit: CatalogEdit<string>, current: unknown) =>
-    catalogEditAccepted(edit, current, normalizeStringCatalog, nurseIdentityKey)
+    catalogEditAccepted(edit, current, normalizeStringCatalog, exactStaffName)
   );
   return mutation;
 };
@@ -264,7 +293,7 @@ export const useSaveTensMutation = () => {
   const mutation = useMutation({
     mutationFn: (edit: CatalogEdit<string>) => {
       const base = Array.isArray(edit)
-        ? queryClient.getQueryData<string[]>([...queryKeys.staff.all, 'tens'])
+        ? savedStaffNames(queryClient.getQueryData<string[]>([...queryKeys.staff.all, 'tens']))
         : edit.base;
       if (base === undefined) throw new CatalogReadUnavailableError();
       return CatalogRepository.saveTens(catalogNext(edit), base);
@@ -294,7 +323,7 @@ export const useSaveTensMutation = () => {
     },
   });
   useAcceptedCatalogChange('tens', mutation, (edit: CatalogEdit<string>, current: unknown) =>
-    catalogEditAccepted(edit, current, normalizeStringCatalog, nurseIdentityKey)
+    catalogEditAccepted(edit, current, normalizeStringCatalog, exactStaffName)
   );
   return mutation;
 };

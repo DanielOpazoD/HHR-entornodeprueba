@@ -1,4 +1,7 @@
-import { CatalogConflictError } from '@/services/repositories/contracts/catalogChanges';
+import {
+  CatalogConflictError,
+  type SavedStaffCatalog,
+} from '@/services/repositories/contracts/catalogChanges';
 import React from 'react';
 import { CatalogRemoteSyncError } from '@/services/repositories/contracts/catalogContracts';
 import {
@@ -12,12 +15,15 @@ interface TensManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
   tensList: string[];
+  /** The saved list behind `tensList`, from the same source. */
+  saved?: SavedStaffCatalog;
 }
 
 export const TensManagerModal: React.FC<TensManagerModalProps> = ({
   isOpen,
   onClose,
   tensList,
+  saved,
 }) => {
   const mutation = useSaveTensMutation();
   const query = useTensQuery();
@@ -46,7 +52,7 @@ export const TensManagerModal: React.FC<TensManagerModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       staffList={tensList}
-      savedList={query.manualData}
+      saved={saved}
       onSave={save}
       syncing={mutation.isPending}
       hasSyncError={mutation.error instanceof CatalogRemoteSyncError}

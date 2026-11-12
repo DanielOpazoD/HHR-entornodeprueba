@@ -88,7 +88,10 @@ describe('StaffProvider publication', () => {
       identities: state.identities,
       isLoading: state.nursesLoading,
     }));
-    hooks.tens.mockImplementation(() => ({ data: state.tens, isLoading: state.tensLoading }));
+    hooks.tens.mockImplementation(() => ({
+      data: state.tens,
+      isLoading: state.tensLoading,
+    }));
     hooks.professionals.mockImplementation(() => ({
       data: state.professionals,
       isLoading: state.professionalsLoading,
@@ -239,28 +242,32 @@ describe('StaffProvider publication', () => {
     view.unmount();
   });
 
-  it('setters use the confirmed saved list, never names shown only from Eloísa', () => {
-    state.nurses = ['Synthetic Saved', 'Synthetic Eloisa'];
+  it('setters change exactly the saved texts behind each shown row', () => {
+    state.nurses = ['Synthetic Canonical', 'Synthetic Eloisa'];
     state.tens = ['Synthetic TENS', 'Synthetic TENS Eloisa'];
+    const savedTexts: Record<string, string[]> = {
+      'Synthetic Canonical': ['Synthetic Alias'],
+      'Synthetic TENS': ['Synthetic TENS'],
+    };
+    const textsOf = (name: string) => savedTexts[name] ?? [];
+    const nursesSaved = { list: ['Synthetic Alias'], textsOf };
+    const tensSaved = { list: ['Synthetic TENS'], textsOf };
     hooks.nurses.mockImplementation(() => ({
       data: state.nurses,
-      manualData: ['Synthetic Saved'],
+      saved: nursesSaved,
       identities: state.identities,
       isLoading: false,
     }));
-    hooks.tens.mockImplementation(() => ({
-      data: state.tens,
-      manualData: ['Synthetic TENS'],
-      isLoading: false,
-    }));
+    hooks.tens.mockImplementation(() => ({ data: state.tens, saved: tensSaved, isLoading: false }));
     const view = harness();
+    expect(view.current()).toMatchObject({ nursesSaved, tensSaved });
     act(() => {
-      view.current().setNursesList(['Synthetic Saved']);
+      view.current().setNursesList(['Synthetic Eloisa']);
       view.current().setTensList(['Synthetic TENS', 'Synthetic TENS Renamed']);
     });
     expect(state.saveNurses).toHaveBeenCalledExactlyOnceWith({
-      next: ['Synthetic Saved'],
-      base: ['Synthetic Saved'],
+      next: [],
+      base: ['Synthetic Alias'],
     });
     expect(state.saveTens).toHaveBeenCalledExactlyOnceWith({
       next: ['Synthetic TENS', 'Synthetic TENS Renamed'],

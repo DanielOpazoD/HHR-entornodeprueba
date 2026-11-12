@@ -1,4 +1,7 @@
-import { CatalogConflictError } from '@/services/repositories/contracts/catalogChanges';
+import {
+  CatalogConflictError,
+  type SavedStaffCatalog,
+} from '@/services/repositories/contracts/catalogChanges';
 import React from 'react';
 import { CatalogRemoteSyncError } from '@/services/repositories/contracts/catalogContracts';
 import {
@@ -12,12 +15,15 @@ interface NurseManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
   nursesList: string[];
+  /** The saved list behind `nursesList`, from the same source. */
+  saved?: SavedStaffCatalog;
 }
 
 export const NurseManagerModal: React.FC<NurseManagerModalProps> = ({
   isOpen,
   onClose,
   nursesList,
+  saved,
 }) => {
   const mutation = useSaveNursesMutation();
   const query = useNursesQuery();
@@ -46,7 +52,7 @@ export const NurseManagerModal: React.FC<NurseManagerModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       staffList={nursesList}
-      savedList={query.manualData}
+      saved={saved}
       onSave={save}
       syncing={mutation.isPending}
       hasSyncError={mutation.error instanceof CatalogRemoteSyncError}

@@ -48,11 +48,16 @@ const REMOTE = { timeout: 10_000 };
 const CONFLICT = 'La lista cambió en otro equipo. Revise la lista actualizada y repita el cambio.';
 const catalogs: Table<CatalogRecord> = hospitalDB.table('catalogs');
 
+// The shown list and the saved list behind it come from one source, as in the census.
 function Nurses() {
-  return <NurseManagerModal isOpen onClose={() => {}} nursesList={useNursesQuery().data} />;
+  const query = useNursesQuery();
+  return (
+    <NurseManagerModal isOpen onClose={() => {}} nursesList={query.data} saved={query.saved} />
+  );
 }
 function Tens() {
-  return <TensManagerModal isOpen onClose={() => {}} tensList={useTensQuery().data} />;
+  const query = useTensQuery();
+  return <TensManagerModal isOpen onClose={() => {}} tensList={query.data} saved={query.saved} />;
 }
 const settingsRef = (id: string) => doc(sdkDb, `hospitals/${getActiveHospitalId()}/settings/${id}`);
 const serverList = async (id = 'nurses') => (await getDocFromServer(settingsRef(id))).data()?.list;
@@ -111,37 +116,32 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-it('renaming a display example on an empty catalog saves the visible list', async () => {
+// Examples are rows with no saved text: editing beside them saves only what the person wrote.
+it('renaming a display example on an empty catalog saves the new name, without a conflict', async () => {
   await setDoc(settingsRef('nurses'), { list: [] });
   holdListener();
   renderManager(<Nurses />);
   await screen.findByText('Enfermero/a 1');
   rename('Enfermero/a 1', 'Sintético Real');
-  await waitFor(
-    async () => expect(await serverList()).toEqual(['Sintético Real', 'Enfermero/a 2']),
-    REMOTE
-  );
+  await waitFor(async () => expect(await serverList()).toEqual(['Sintético Real']), REMOTE);
   await screen.findByText('Sintético Real', {}, REMOTE);
   expect(screen.queryByText(CONFLICT)).not.toBeInTheDocument();
   expect(screen.queryByLabelText('Edición pendiente')).not.toBeInTheDocument();
 });
 
-it('removing or adding beside the examples of a missing catalog saves the visible list', async () => {
+it('removing an example or adding beside them on a missing catalog saves no example', async () => {
   holdListener();
   renderManager(<Tens />);
   await screen.findByText('TENS 2');
   fireEvent.click(
     screen.getByText('TENS 2').closest('.group')!.querySelector('[title="Eliminar"]')!
   );
-  await waitFor(async () => expect(await serverList('tens')).toEqual(['TENS 1', 'TENS 3']), REMOTE);
+  await waitFor(async () => expect(await serverList('tens')).toEqual([]), REMOTE);
   fireEvent.change(screen.getByPlaceholderText('Nombre completo…'), {
     target: { value: 'Sintético Nuevo' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Agregar personal' }));
-  await waitFor(
-    async () => expect(await serverList('tens')).toEqual(['TENS 1', 'TENS 3', 'Sintético Nuevo']),
-    REMOTE
-  );
+  await waitFor(async () => expect(await serverList('tens')).toEqual(['Sintético Nuevo']), REMOTE);
   expect(screen.queryByText(CONFLICT)).not.toBeInTheDocument();
 });
 
