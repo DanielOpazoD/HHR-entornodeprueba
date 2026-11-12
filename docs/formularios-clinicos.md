@@ -118,3 +118,29 @@ supresión, alternativas excluyentes, centrado de las X, caracteres y desbordami
 PDF contrastan hashes, páginas y conservación de operadores gráficos contra cada archivo real.
 La revisión visual con datos sintéticos cubre todas las páginas impresas y el editor en escritorio
 y móvil. La impresión física depende del diálogo y la configuración de la impresora del navegador.
+
+## Solicitud de interconsulta HHR (SIC)
+
+Disponible en Biblioteca clínica. Conserva el Word original y su PDF de una página,
+los tres logos y los casilleros. La unidad de traslados y el número SIC permanecen
+sin completar. El usuario puede descargar el original o editar y exportar PDF/Word.
+
+- Elige un paciente del censo (incluida cuna clínica) o ingreso manual. El vínculo
+  usa identidad y episodio, no sólo cama; cambiar de paciente requiere revisión.
+- Fecha SIC parte del día clínico de Rapa Nui y puede corregirse. Prioridad **Alta**
+  y dirección **Simón PAOA S/N** son constantes no ocultables ni reemplazables por JSON.
+- Sexo y tipo de consulta son selecciones únicas; los motivos admiten varias cruces.
+  No se inventa una marca para sexo indeterminado: la plantilla sólo tiene F/M.
+- Completar destino, hipótesis, fundamento, nombre/RUT del profesional y al menos
+  un motivo antes de exportar. Datos faltantes y texto que no cabe bloquean la salida.
+- Se reutiliza la imagen de firma del usuario autenticado. Puede desmarcarse para
+  firmar a mano o adjuntar PNG/JPG/WEBP de hasta 500 KB, sólo durante esta sesión.
+  Adjuntar aquí no reemplaza la firma guardada. Debe corresponder al profesional emisor.
+- Cambiar sesión invalida borrador, firma y exportaciones pendientes. Las imágenes
+  y datos clínicos no se guardan en preferencias ni se suben a un servicio externo.
+- PDF mantiene los operadores originales; Word modifica únicamente los casilleros
+  de entrada, manteniendo tablas, medidas, estilos y logos. Los hashes de las dos
+  plantillas detectan cambios no revisados. No se genera firma electrónica avanzada.
+
+Pruebas específicas: `sicForm.test.ts`, `SicSignatureField.test.tsx` y regresiones del
+editor compartido. Los ejemplos de prueba son sintéticos.

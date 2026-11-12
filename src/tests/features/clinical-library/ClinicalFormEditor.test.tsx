@@ -139,22 +139,54 @@ describe('clinical forms editor', () => {
     }
   );
 
-  it('shares canonical variables across all nine templates and does not preselect clinical answers', () => {
+  it('shares canonical variables across all templates and does not preselect clinical answers', () => {
     mount();
     fireEvent.change(screen.getByLabelText('Origen de los datos'), { target: { value: 'ALFA' } });
     for (const form of CLINICAL_FORMS) {
       fireEvent.change(screen.getByLabelText('Formulario clínico'), { target: { value: form.id } });
       expect(screen.getByRole('heading', { name: form.title })).toBeInTheDocument();
       if (form.fields.some(field => field.id === 'paciente_nombre_completo')) {
-        expect(screen.getByLabelText('Nombre y apellidos')).toHaveValue('ALFA');
+        expect(
+          screen.getByLabelText(
+            form.fields.find(field => field.id === 'paciente_nombre_completo')!.label
+          )
+        ).toHaveValue('ALFA');
       }
       expect(screen.getByLabelText('Origen de los datos')).toHaveValue('ALFA');
       expect(screen.queryAllByRole('checkbox', { checked: true })).toHaveLength(0);
       expect(screen.queryByLabelText('Nº de ficha')).not.toBeInTheDocument();
       expect(Boolean(screen.queryByRole('button', { name: 'Word (.docx)' }))).toBe(
-        form.id === 'informe-traslado-hospital-salvador'
+        form.id === 'informe-traslado-hospital-salvador' ||
+          form.id === 'solicitud-interconsulta-hhr'
       );
     }
+  });
+
+  it('offers SIC manual/census editing, fixed constants, exclusive consultation and independent reasons', async () => {
+    mount('solicitud-interconsulta-hhr');
+    expect(screen.getByLabelText('Prioridad')).toHaveValue('Alta');
+    expect(screen.getByLabelText('Prioridad')).toHaveAttribute('readonly');
+    expect(screen.getByLabelText('Dirección')).toHaveValue('Simón PAOA S/N');
+    fireEvent.change(screen.getByLabelText('Origen de los datos'), { target: { value: 'ALFA' } });
+    fireEvent.change(screen.getByLabelText('Tipo de consulta'), {
+      target: { value: 'Ambulatoria' },
+    });
+    fireEvent.change(screen.getByLabelText('Tipo de consulta'), {
+      target: { value: 'Hospitalización' },
+    });
+    for (const label of ['Confirmación diagnóstica', 'Tratamiento', 'Exámenes'])
+      fireEvent.click(screen.getByLabelText(label));
+    expect(screen.getByLabelText('Tipo de consulta')).toHaveValue('Hospitalización');
+    expect(screen.getAllByRole('checkbox', { checked: true })).toHaveLength(3);
+    fireEvent.click(screen.getByRole('button', { name: 'Word (.docx)' }));
+    await waitFor(() => expect(generateDocx).toHaveBeenCalledOnce());
+    expect(generateDocx.mock.calls[0][1]).toMatchObject({
+      paciente_nombre_completo: 'ALFA',
+      sic_tipo_consulta: 'Hospitalización',
+      sic_confirmacion: true,
+      sic_tratamiento: true,
+      sic_examenes: true,
+    });
   });
 
   it('does not allow clinical-record numbers to be re-enabled in preferences', () => {

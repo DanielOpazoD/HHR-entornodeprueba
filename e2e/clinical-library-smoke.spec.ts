@@ -453,3 +453,53 @@ test('fills shared forms from the census and manually, retaining original print 
   await capture(page, '12-shared-forms-mobile');
   expect(errors).toEqual([]);
 });
+
+test('exports the original SIC from census data and manual clinical answers', async ({ page }) => {
+  test.setTimeout(90_000);
+  await seedPersistedSession(page);
+  await page.goto(`/?date=${PREVIEW_DATE}`);
+  await expect(
+    page.locator('[data-testid="patient-row"][data-bed-id="R1"] input[name="patientName"]')
+  ).toHaveValue(SEEDED_PATIENT_NAME, { timeout: 20_000 });
+  await page.getByTestId('clinical-library-quick-action').click();
+  const drawer = page.getByTestId('clinical-library-drawer');
+  await drawer
+    .getByTestId('library-document-solicitud-interconsulta-hhr')
+    .getByRole('button', { name: /^Completar/ })
+    .click();
+  const editor = drawer.getByTestId('library-tool-clinical-form');
+  const source = editor.getByLabel('Origen de los datos');
+  const key = await source
+    .locator('option')
+    .filter({ hasText: SEEDED_PATIENT_NAME })
+    .getAttribute('value');
+  expect(key).toBeTruthy();
+  await source.selectOption(key!);
+  await expect(editor.getByLabel('Prioridad')).toHaveValue('Alta');
+  await expect(editor.getByLabel('Dirección')).toHaveValue('Simón PAOA S/N');
+  await editor.getByLabel('Fecha de nacimiento').fill('1982-04-03');
+  await editor.getByLabel('Especialidad').fill('MEDICINA INTERNA');
+  await editor.getByLabel('Establecimiento').fill('HOSPITAL DEL SALVADOR');
+  await editor.getByLabel('Tipo de consulta').selectOption('Hospitalización');
+  await editor.getByLabel('Confirmación diagnóstica').check();
+  await editor.getByLabel('Tratamiento', { exact: true }).check();
+  await editor
+    .getByLabel('Fundamentos del diagnóstico')
+    .fill('Fundamento sintético para validar el formulario.');
+  await editor.getByLabel('Nombre del profesional').fill('PROFESIONAL DE PRUEBA');
+  await editor.getByLabel('RUT del profesional').fill('11.111.111-1');
+  await editor.getByLabel('Adjuntar firma al documento').uncheck();
+  const pdfDownload = page.waitForEvent('download');
+  await editor.getByRole('button', { name: 'PDF imprimible', exact: true }).click();
+  const pdfPath = test.info().outputPath('sic.pdf');
+  await (await pdfDownload).saveAs(pdfPath);
+  expect((await PDFDocument.load(new Uint8Array(fs.readFileSync(pdfPath)))).getPageCount()).toBe(1);
+  const docxDownload = page.waitForEvent('download');
+  await editor.getByRole('button', { name: 'Word (.docx)', exact: true }).click();
+  const docx = await docxDownload;
+  expect(docx.suggestedFilename()).toBe('solicitud-interconsulta-hhr.docx');
+  await docx.saveAs(test.info().outputPath('sic.docx'));
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expect(editor.getByLabel('Tipo de consulta')).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath('sic-mobile.png'), fullPage: true });
+});

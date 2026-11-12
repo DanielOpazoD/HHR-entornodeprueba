@@ -16,6 +16,13 @@ export const ClinicalFormInput: React.FC<ClinicalFormInputProps> = ({
 }) => {
   const id = `clinical-form-${field.id}`;
   const label = field.row ? `Registro ${field.row} · ${field.label}` : field.label;
+  if (field.fixedValue !== undefined)
+    return (
+      <label className="clinical-form-field" htmlFor={id}>
+        <span>{field.label}</span>
+        <input id={id} className="clinical-form-input" value={field.fixedValue} readOnly />
+      </label>
+    );
   if (field.kind === 'check')
     return (
       <label className="clinical-form-check" htmlFor={id}>

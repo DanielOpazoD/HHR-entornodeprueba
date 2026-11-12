@@ -33,7 +33,9 @@ const sample = (form: ClinicalFormDefinition): ClinicalFormValues =>
   Object.fromEntries(
     form.fields.map(field => [
       field.id,
-      field.id === 'paciente_rut' || field.id === 'medico_tratante_rut'
+      field.id === 'paciente_rut' ||
+      field.id === 'medico_tratante_rut' ||
+      field.id === 'sic_profesional_rut'
         ? '11.111.111-1'
         : field.kind === 'check' || field.kind === 'boolean'
           ? true
@@ -50,10 +52,10 @@ const sample = (form: ClinicalFormDefinition): ClinicalFormValues =>
 describe('original clinical form print contracts', () => {
   it('covers every requested template and uses common variables consistently', () => {
     expect(CLINICAL_FORMS.map(form => form.id).sort()).toEqual([...CLINICAL_FORM_IDS].sort());
-    expect(CLINICAL_FORMS.flatMap(form => form.fields).length).toBe(328);
+    expect(CLINICAL_FORMS.flatMap(form => form.fields).length).toBe(354);
     const common = new Set(CLINICAL_VARIABLE_CATALOG.variables.map(variable => variable.id));
     const prefixes =
-      /^(imagen|contraste|consentimiento|laboratorio|vdrl|serologia|tbc|traslado|vmi)_/;
+      /^(imagen|contraste|consentimiento|laboratorio|vdrl|serologia|tbc|traslado|vmi|sic)_/;
     for (const form of CLINICAL_FORMS) {
       expect(new Set(form.fields.map(field => field.id)).size).toBe(form.fields.length);
       expect(form.catalogVersion).toBe(CLINICAL_VARIABLE_CATALOG.version);

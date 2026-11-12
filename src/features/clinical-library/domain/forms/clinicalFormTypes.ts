@@ -1,4 +1,5 @@
 export const CLINICAL_FORM_IDS = [
+  'solicitud-interconsulta-hhr',
   'solicitud-laboratorio-policlinico',
   'solicitud-imagenologia',
   'encuesta-contraste',
@@ -34,6 +35,8 @@ export interface ClinicalFormField {
   section: string;
   kind: 'text' | 'date' | 'time' | 'boolean' | 'choice' | 'check';
   multiline?: boolean;
+  /** Institutional constants cannot be edited or suppressed by a draft/preference. */
+  fixedValue?: string;
   options?: Array<{ value: string; label: string }>;
   targets: ClinicalFormTarget[];
   /** Matrix coordinates for the VMI observation grid. No calculated clinical values. */

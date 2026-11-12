@@ -86,7 +86,7 @@ export const ClinicalFormFields: React.FC<Props> = ({ form, values, hidden, quer
   const fields = form.fields.filter(
     field =>
       !isSuppressedClinicalFormField(field) &&
-      !hidden.includes(field.id) &&
+      (field.fixedValue !== undefined || !hidden.includes(field.id)) &&
       matchesClinicalFormField(field, query)
   );
   const priority: Record<string, number> = {

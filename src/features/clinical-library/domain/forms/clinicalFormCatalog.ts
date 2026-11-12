@@ -1,3 +1,4 @@
+import interconsultation from './solicitud-interconsulta-hhr.json';
 import imaging from './solicitud-imagenologia.json';
 import contrast from './encuesta-contraste.json';
 import consent from './consentimiento-informado.json';
@@ -12,6 +13,7 @@ import type { ClinicalFormDefinition, ClinicalFormId } from './clinicalFormTypes
 
 /** Loaded only when a form editor opens. Blank source assets stay outside the startup bundle. */
 export const CLINICAL_FORMS: ReadonlyArray<ClinicalFormDefinition> = [
+  interconsultation,
   laboratory,
   imaging,
   contrast,
