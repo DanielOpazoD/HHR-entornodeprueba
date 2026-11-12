@@ -14,6 +14,12 @@ vi.mock('firebase/firestore', async () => {
     getDoc: vi.fn(),
     onSnapshot: vi.fn(),
     setDoc: vi.fn(),
+    runTransaction: vi.fn(async (_db: unknown, update: (tx: unknown) => Promise<unknown>) =>
+      update({
+        get: (ref: never) => getDoc(ref),
+        set: (ref: never, data: never) => setDoc(ref, data),
+      })
+    ),
   };
 });
 
@@ -51,7 +57,8 @@ vi.mock('@/services/storage/firestore/firestoreShared', () => ({
   ),
 }));
 
-vi.mock('@/services/repositories/contracts/catalogContracts', () => ({
+vi.mock('@/services/repositories/contracts/catalogContracts', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/repositories/contracts/catalogContracts')>()),
   normalizeProfessionalCatalog: vi.fn((items: unknown) => items ?? []),
   normalizeStringCatalog: vi.fn((values: string[]) =>
     values.map(value => value.trim()).filter(Boolean)
@@ -74,6 +81,7 @@ import {
 describe('firestoreCatalogService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getDoc).mockResolvedValue({ exists: () => false, data: () => undefined } as never);
   });
 
   it('gets nurse and tens catalogs, propagating read errors', async () => {
@@ -96,7 +104,7 @@ describe('firestoreCatalogService', () => {
   });
 
   it('saves normalized nurse, tens and professional catalogs', async () => {
-    await saveNurseCatalogToFirestore([' Nurse A ', '']);
+    await saveNurseCatalogToFirestore([' Nurse A ', ''], []);
     expect(vi.mocked(setDoc).mock.calls[0]?.[1]).toEqual(
       expect.objectContaining({
         list: ['Nurse A'],
@@ -104,7 +112,7 @@ describe('firestoreCatalogService', () => {
       })
     );
 
-    await saveTensCatalogToFirestore([' TENS A ']);
+    await saveTensCatalogToFirestore([' TENS A '], []);
     expect(vi.mocked(setDoc).mock.calls[1]?.[1]).toEqual(
       expect.objectContaining({
         list: ['TENS A'],
@@ -112,7 +120,10 @@ describe('firestoreCatalogService', () => {
       })
     );
 
-    await saveProfessionalsCatalogToFirestore([{ name: 'Dr. A', specialty: 'Medicina' }] as never);
+    await saveProfessionalsCatalogToFirestore(
+      [{ name: 'Dr. A', specialty: 'Medicina' }] as never,
+      []
+    );
     expect(vi.mocked(setDoc).mock.calls[2]?.[1]).toEqual(
       expect.objectContaining({
         list: [{ name: 'Dr. A', specialty: 'Medicina' }],
