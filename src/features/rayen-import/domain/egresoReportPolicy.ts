@@ -150,7 +150,7 @@ export const selectReportRowsByEpisode = (
     [...byIdentity.values()]
       .filter(row => {
         const run = normalizeRut(row.run);
-        return Boolean(run && row.encounterId && row.encounterId === activeEpisodeForRun(run));
+        return Boolean(run && row.encounterId && row.encounterId === activeEpisodeForRun(row.run));
       })
       .map(row => normalizeRut(row.run))
   );

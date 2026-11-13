@@ -214,3 +214,19 @@ it('does not resolve a different document through the bed and crib lookup APIs',
     'H5C1'
   );
 });
+
+it('keeps the exact passport episode ahead of an episode-less duplicate', () => {
+  const rec = record('P123456785');
+  rec.beds.H5C1.clinicalEpisodeId = '1001';
+  const result = applyEgresoReport(
+    createEmptyCensusImportDiff(true),
+    [
+      row('p-123456785', '08-07-2026 12:00'),
+      { ...row('P123456785', '08-07-2026 12:00'), encounterId: '1001' },
+    ],
+    rec
+  );
+  expect(result.discharges).toHaveLength(1);
+  expect(result.discharges[0].encounterId).toBe('1001');
+  expect(result.conflicts).toEqual([]);
+});

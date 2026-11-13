@@ -57,7 +57,7 @@ export const applyEgresoReport = (
       ? key.slice(8)
       : resolveActiveEpisode(
           checkedDiff,
-          key,
+          normalizeRut(key),
           findOccupiedBed(occupied, key)?.clinicalEpisodeId ??
             findOccupiedClinicalCrib(occupiedCribs, key)?.patient.clinicalEpisodeId
         )
