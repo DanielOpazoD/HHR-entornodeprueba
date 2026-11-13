@@ -205,7 +205,7 @@ run_firestore_emulator_exec() (
   local temp_root="${TMPDIR:-/tmp}"
   temp_root="${temp_root%/}"
   firebase_config="$(mktemp "$temp_root/hhr-firebase-emulator.XXXXXX")"
-  trap 'node -e "require(\"node:fs\").unlinkSync(process.argv[1])" "$firebase_config"' EXIT
+  trap 'rm -f "$firebase_config"' EXIT
   write_firestore_emulator_config "$firebase_config" "$FIRESTORE_EMULATOR_HOST" "${2:-}"
   if [[ "${2:-}" == "isolated" ]]; then
     FIRESTORE_EMULATOR_HOST="$(node -e 'const c=JSON.parse(require("node:fs").readFileSync(process.argv[1])); console.log(`${c.emulators.firestore.host}:${c.emulators.firestore.port}`)' "$firebase_config")"
