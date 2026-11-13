@@ -45,8 +45,19 @@ El script levanta Firestore emulator con el helper compartido, elige un puerto l
 `src/tests/emulator/cma-specialty-readback.emulator.test.ts`.
 
 ```bash
-npm run test:firestore:cma:ci
+npm run test:emulator:file -- src/tests/emulator/cma-specialty-readback.emulator.test.ts -- --maxWorkers=2
 ```
+
+También acepta varios archivos de `src/tests/emulator/` y `src/tests/emulator-ui/`: agrupa cada carpeta
+con su configuración dentro de una sola sesión, usando puertos libres y sin interfaz. Genera las reglas
+antes de arrancar y espera su preparación antes de iniciar los límites de tiempo de Vitest. Los argumentos
+tras el segundo `--` se pasan a Vitest en ambos grupos. Por ejemplo:
+
+```bash
+npm run test:emulator:file -- src/tests/emulator-ui/missingRemoteDay.emulator-ui.test.ts -- --maxWorkers=2
+```
+
+`npm run test:emulator:sync:ci` conserva las dos suites completas.
 
 Este comando es preferible a correr `npx vitest ... cma-specialty-readback` directamente, porque el test requiere un
 emulador activo y fallará con `ECONNREFUSED 127.0.0.1:8080` si no se lanza dentro de `firebase emulators:exec`.

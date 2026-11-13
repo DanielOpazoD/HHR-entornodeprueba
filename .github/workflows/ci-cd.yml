@@ -292,6 +292,11 @@ jobs:
       - name: Run release-blocking static check
         run: npm run ${{ matrix.check }} ${{ matrix.check == 'lint' && '-- --max-warnings 0 --concurrency 2' || '' }}
 
+      # scripts/tests/*.test.mjs cover the local tooling (check:changed, test:changed, reports).
+      - name: Run the tooling scripts' own tests
+        if: matrix.check == 'lint'
+        run: npm run test:scripts
+
   quality-static-governance-snapshots:
     name: quality-static-governance-snapshots
     runs-on: ubuntu-latest
