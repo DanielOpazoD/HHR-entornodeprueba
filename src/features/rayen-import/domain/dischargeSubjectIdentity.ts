@@ -2,7 +2,7 @@ import type { PatientData } from '@/types/domain/patient';
 
 import type { DischargeEntry } from '../contracts/censusImportDiff';
 
-import { normalizeRut } from '@/utils/rutUtils';
+import { isSameDocument, normalizeRut } from '@/utils/rutUtils';
 
 /**
  * Ocupante manual (sin episodio) cuya identidad SÍ podrá verificarse al aplicar:
@@ -35,7 +35,7 @@ export const matchesDischargeSubject = (patient: PatientData, entry: DischargeEn
       expected.admissionTime &&
       patientRun &&
       expectedRun &&
-      patientRun === expectedRun &&
+      isSameDocument(patient.rut, expected.rut) &&
       patient.admissionDate === expected.admissionDate &&
       patient.admissionTime === expected.admissionTime
     );
