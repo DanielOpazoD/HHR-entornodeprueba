@@ -1,5 +1,7 @@
+import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import {
   captureAuthoringSession,
+  type AuthoringSession,
   isAuthoringSessionCurrent,
 } from '@/services/storage/authoringSession';
 import { useCensusBootstrapPerf, useCensusRecordPerf } from '@/hooks/useCensusRecordPerf';
@@ -48,11 +50,16 @@ import {
   useTodayEmptyDailyRecordRecovery,
 } from '@/hooks/useDailyRecordSyncQuerySupport';
 
+// Unstarted mutations have no author; started writes belong to their captured session.
+const isCurrentWrite = (session?: AuthoringSession): boolean =>
+  !session || isAuthoringSessionCurrent(session);
+
 export const useDailyRecordSyncQuery = (
   currentDateString: string,
   _isOfflineMode: boolean = false, // Handled implicitly by TanStack Query & Repository
   remoteSyncStatus: RemoteSyncRuntimeStatus = 'local_only'
 ): UseDailyRecordSyncResult => {
+  useSessionEpoch();
   const queryClient = useQueryClient();
   const { dailyRecord } = useRepositories();
   const { checkVersion } = useVersion();
@@ -135,7 +142,14 @@ export const useDailyRecordSyncQuery = (
   });
 
   // 3. Status Mapping
-  const syncStatus = resolveDailyRecordSyncStatus([saveMutation, patchMutation]);
+  const patchAuthor = (
+    patchMutation.variables as { options?: { authoringSession?: AuthoringSession } } | undefined
+  )?.options?.authoringSession;
+  const currentMutations = [
+    ...(isCurrentWrite(saveMutation.variables?.authoringSession) ? [saveMutation] : []),
+    ...(isCurrentWrite(patchAuthor) ? [patchMutation] : []),
+  ];
+  const syncStatus = resolveDailyRecordSyncStatus(currentMutations);
 
   const lastSyncTime = useMemo(
     () => (dataUpdatedAt ? new Date(dataUpdatedAt) : null),
@@ -155,7 +169,7 @@ export const useDailyRecordSyncQuery = (
           baseRecord,
           expectedLastUpdated: baseRecord?.lastUpdated,
         });
-        if (isAuthoringSessionCurrent(authoringSession)) {
+        if (isCurrentWrite(authoringSession)) {
           presentSyncOutcomeFeedback(resolveSaveOutcomeFeedback(payload.result), 'Guardado', {
             error: notifyError,
             success,
@@ -164,7 +178,7 @@ export const useDailyRecordSyncQuery = (
         }
         assertDailyRecordWriteAccepted(payload.result);
       } catch (err) {
-        if (!isAuthoringSessionCurrent(authoringSession)) throw err;
+        if (!isCurrentWrite(authoringSession)) throw err;
         if (err instanceof DailyRecordFreshnessGateError) {
           if (err.presentation !== 'silent') {
             warning('Censo en actualización', err.message);
@@ -198,8 +212,9 @@ export const useDailyRecordSyncQuery = (
 
   const patchRecord = useCallback(
     async (partial: DailyRecordPatch, options?: ApplyDailyRecordPatchOptions) => {
+      const authoringSession = captureAuthoringSession();
       try {
-        const payload = await patchMutation.mutateAsync({
+        const input = {
           date: currentDateString,
           partial,
           ...(options?.consistency === 'remote_confirmed' ||
@@ -226,14 +241,21 @@ export const useDailyRecordSyncQuery = (
             : options?.specialistHandoffTargets
               ? { options: { specialistHandoffTargets: options.specialistHandoffTargets } }
               : {}),
+        };
+        const payload = await patchMutation.mutateAsync({
+          ...input,
+          options: { ...('options' in input ? input.options : {}), authoringSession },
         });
-        presentSyncOutcomeFeedback(resolvePatchOutcomeFeedback(payload.result), 'Actualización', {
-          error: notifyError,
-          success,
-          warning,
-        });
+        if (isCurrentWrite(authoringSession)) {
+          presentSyncOutcomeFeedback(resolvePatchOutcomeFeedback(payload.result), 'Actualización', {
+            error: notifyError,
+            success,
+            warning,
+          });
+        }
         assertDailyRecordWriteAccepted(payload.result);
       } catch (err) {
+        if (!isCurrentWrite(authoringSession)) throw err;
         if (err instanceof DailyRecordFreshnessGateError) {
           if (err.presentation !== 'silent') {
             warning('Censo en actualización', err.message);
@@ -319,7 +341,7 @@ export const useDailyRecordSyncQuery = (
     record: record ?? null,
     setRecord,
     syncStatus,
-    hasSaveException: saveMutation.isError || patchMutation.isError,
+    hasSaveException: currentMutations.some(mutation => mutation.isError),
     lastSyncTime,
     bootstrapPhase,
     saveAndUpdate,
