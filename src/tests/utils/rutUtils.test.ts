@@ -7,6 +7,9 @@ import {
   calculateRutVerifier,
   isValidRut,
   isPassportFormat,
+  isSameRut,
+  isSameDocument,
+  normalizeRut,
 } from '@/utils/rutUtils';
 
 describe('rutUtils', () => {
@@ -96,6 +99,52 @@ describe('rutUtils', () => {
         expect(isValidRut(value)).toBe(false);
       }
     );
+  });
+
+  describe('isSameRut', () => {
+    const plain = [
+      '',
+      '12.345.678-5',
+      '123456785',
+      ' 12345678-5 ',
+      '12345678-9',
+      '10.000.013-K',
+      '10000013k',
+      '7',
+      '11.111.111-1',
+    ];
+
+    it('equals the normalized comparison for every pair of values without letters', () => {
+      for (const left of plain)
+        for (const right of plain)
+          expect([left, right, isSameRut(left, right)]).toEqual([
+            left,
+            right,
+            normalizeRut(left) === normalizeRut(right),
+          ]);
+      expect(isSameRut(undefined, '')).toBe(true);
+    });
+
+    it.each([
+      ['P123456785', '12.345.678-5'],
+      ['12.345.678-5', 'P123456785'],
+      ['P123456785', 'P123456785'],
+      ['1234567A', '123.456-7'],
+    ])('never equals a value with letters: %s and %s', (left, right) => {
+      expect(isSameRut(left, right)).toBe(false);
+    });
+  });
+
+  describe('isSameDocument', () => {
+    it('matches the same RUT and the same passport text, separators and case aside', () => {
+      expect(isSameDocument('12.345.678-5', '123456785')).toBe(true);
+      expect(isSameDocument('P123456785', ' p-123456785 ')).toBe(true);
+    });
+
+    it('never matches a passport with a RUT, or two passports that only share digits', () => {
+      expect(isSameDocument('P123456785', '12.345.678-5')).toBe(false);
+      expect(isSameDocument('P123456785', 'X123456785')).toBe(false);
+    });
   });
 
   describe('isPassportFormat', () => {

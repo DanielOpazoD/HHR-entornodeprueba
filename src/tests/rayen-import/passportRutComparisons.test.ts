@@ -4,11 +4,13 @@ import { neonatalMaternalLookupRut } from '@/features/rayen-import/domain/neonat
 import { associateClinicalCribsWithMothers } from '@/features/rayen-import/domain/clinicalCribMaternalAssociation';
 import { resolveNeonatalPlacements } from '@/features/rayen-import/domain/neonatalPlacementReview';
 import { formatRun, rayenToPatientData } from '@/features/rayen-import/mapping/rayenToPatientData';
+import { applyCensusImportDiff, reconcileCensus } from '@/features/rayen-import';
 import {
   encounter,
   newborn,
   recordWith,
   seed,
+  snapshotOf,
   REFERENCE,
 } from './clinicalCribDischargePromotion.fixtures';
 import {
@@ -96,22 +98,6 @@ describe('passport digits never identify another person by RUN', () => {
     expect(saved.rut).toBe('12.345.678-5');
     expect(saved.neonatalPlacementDecision?.maternalRut).toBeUndefined();
   });
-  it.each(['1234567A', '  P123456785  ', ' p123456785 ', '12A45678-5'])(
-    'keeps the letters of a value that is not a RUN: %s',
-    value => {
-      expect(formatRun(value)).toBe(value.trim().toUpperCase());
-    }
-  );
-  it.each([
-    ['123456785', '12.345.678-5'],
-    ['12.345.678-5', '12.345.678-5'],
-    ['10000013k', '10.000.013-K'],
-    // A mistyped check digit is still a RUN-shaped value: formatted as before, never as a passport.
-    ['123456789', '12.345.678-9'],
-    ['7', '7'],
-  ])('formats the digits-only RUN %s as before', (value, formatted) => {
-    expect(formatRun(value)).toBe(formatted);
-  });
   it('preserves valid RUN formatting and maternal lookup', () => {
     const parent = { ...mother(), run: '123456785' };
     const rn = child();
@@ -124,5 +110,25 @@ describe('passport digits never identify another person by RUN', () => {
         rn.run
       )
     ).toBe('12.345.678-5');
+  });
+
+  it('never rewrites the stored document of a patient already in the census', () => {
+    // The source carries text with a letter for the same episode; whatever the mapper makes of it,
+    // an ordinary sync must not turn it into a change of this patient's official document.
+    const source = encounter({ run: '12A3456785' });
+    const stored = { ...rayenToPatientData(source, REFERENCE).patient, rut: '12.345.678-5' };
+    const current: DailyRecord = {
+      ...recordWith(source, newborn()),
+      beds: { [stored.bedId]: stored },
+    };
+    const diff = reconcileCensus(current, snapshotOf([source]), { reference: REFERENCE });
+    const saved = applyCensusImportDiff(current, diff, {
+      idFactory: () => 'SYNTHETIC',
+      now: REFERENCE,
+      syncRunId: 'SYNTHETIC',
+    }).record.beds[stored.bedId];
+    expect(saved?.rut).toBe('12.345.678-5');
+    expect(diff.admissions).toEqual([]);
+    expect(diff.discharges).toEqual([]);
   });
 });

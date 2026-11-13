@@ -85,18 +85,21 @@ export const isValidRut = (rut: string): boolean => {
 };
 
 /**
- * Two documents name the same RUT. Normalizing alone would erase a passport's letters and match it
- * with the RUT its digits happen to form, so a value with letters never equals anything here.
+ * Two documents name the same RUT: the comparison of their normalized digits, except that a value
+ * with letters (a passport) equals nothing. Normalizing alone would erase those letters and match
+ * the passport with the RUT its digits happen to form.
  */
-export const isSameRut = (left?: string, right?: string): boolean => {
-  const digits = normalizeRut(left);
-  return (
-    Boolean(digits) &&
-    digits === normalizeRut(right) &&
-    !hasNonRutLetter(left ?? '') &&
-    !hasNonRutLetter(right ?? '')
-  );
-};
+export const isSameRut = (left?: string, right?: string): boolean =>
+  normalizeRut(left) === normalizeRut(right) &&
+  !hasNonRutLetter(left ?? '') &&
+  !hasNonRutLetter(right ?? '');
+
+/** The same document: the same RUT, or the same passport text (separators and case aside). */
+export const isSameDocument = (left?: string, right?: string): boolean =>
+  isSameRut(left, right) ||
+  (hasNonRutLetter(left ?? '') &&
+    hasNonRutLetter(right ?? '') &&
+    cleanRut((left ?? '').trim()) === cleanRut((right ?? '').trim()));
 
 /**
  * Check if value looks like a passport (not a RUT)

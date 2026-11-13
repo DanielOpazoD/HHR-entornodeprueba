@@ -49,3 +49,30 @@ it('does not block a passport admission as a duplicate of a RUN with the same di
     )
   ).toBeNull();
 });
+
+it('still blocks the same passport already in the census, whatever its separators or case', () => {
+  expect(
+    findManualPatientDuplicate(
+      { beds: { R1: { patientName: 'SINTETICO', rut: 'P123456785', clinicalEpisodeId: 'one' } } },
+      { rut: ' p-123456785 ', encounterId: 'two' }
+    )
+  ).toEqual({ kind: 'rut', bedId: 'R1' });
+});
+
+it('does not take two different passports with the same digits for one person', () => {
+  expect(
+    findManualPatientDuplicate(
+      { beds: { R1: { patientName: 'SINTETICO', rut: 'P123456785', clinicalEpisodeId: 'one' } } },
+      { rut: 'X123456785', encounterId: 'two' }
+    )
+  ).toBeNull();
+});
+
+it('does not match two patients that both lack a document', () => {
+  expect(
+    findManualPatientDuplicate(
+      { beds: { R1: { patientName: 'SINTETICO', rut: '', clinicalEpisodeId: 'one' } } },
+      { rut: '', encounterId: 'two' }
+    )
+  ).toBeNull();
+});

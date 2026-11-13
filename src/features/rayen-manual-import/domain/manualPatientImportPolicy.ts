@@ -1,4 +1,4 @@
-import { isSameRut } from '@/utils/rutUtils';
+import { isSameDocument } from '@/utils/rutUtils';
 import type { EloisaManualPatientPayload } from './eloisaPatientCode';
 
 interface CensusPatientIdentity {
@@ -22,7 +22,8 @@ export const findManualPatientDuplicate = (
   const candidateEpisode = String(payload.encounterId || '').trim();
   for (const [bedId, patient] of Object.entries(record?.beds ?? {})) {
     if (!patient?.patientName?.trim()) continue;
-    if (isSameRut(patient.rut, payload.rut)) return { kind: 'rut', bedId };
+    if (payload.rut?.trim() && isSameDocument(patient.rut, payload.rut))
+      return { kind: 'rut', bedId };
     if (candidateEpisode && String(patient.clinicalEpisodeId || '').trim() === candidateEpisode) {
       return { kind: 'episode', bedId };
     }
