@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@/services/repositories/repositoryConfig', async importOriginal => ({
@@ -85,12 +86,12 @@ describe('a stale-base patch applies on top of the pending local projection', ()
     const tabA = await updatePartialDetailed(
       date,
       { nursesDayShift: ['SINTETICA EDICION A'] },
-      { baseRecord: base }
+      { authoringSession: captureAuthoringSession(), baseRecord: base }
     );
     const tabB = await updatePartialDetailed(
       date,
       { tensDayShift: ['SINTETICO EDICION B'] },
-      { baseRecord: base }
+      { authoringSession: captureAuthoringSession(), baseRecord: base }
     );
 
     expect(tabA.savedLocally).toBe(true);
@@ -131,7 +132,10 @@ describe('a stale-base patch applies on top of the pending local projection', ()
     // The UI keeps patching its optimistic cache, whose version never equals the projection's.
     let optimistic = base;
     for (const patch of patches) {
-      const result = await updatePartialDetailed(date, patch, { baseRecord: optimistic });
+      const result = await updatePartialDetailed(date, patch, {
+        authoringSession: captureAuthoringSession(),
+        baseRecord: optimistic,
+      });
       expect(result.savedLocally).toBe(true);
       optimistic = applyOptimisticDailyRecordPatch(optimistic, patch);
     }
@@ -151,10 +155,14 @@ describe('a stale-base patch applies on top of the pending local projection', ()
     await updatePartialDetailed(
       date,
       { nursesDayShift: ['SINTETICA EDICION A'] },
-      { baseRecord: base }
+      { authoringSession: captureAuthoringSession(), baseRecord: base }
     );
     await expect(
-      updatePartialDetailed(date, { nursesDayShift: ['SINTETICA EDICION B'] }, { baseRecord: base })
+      updatePartialDetailed(
+        date,
+        { nursesDayShift: ['SINTETICA EDICION B'] },
+        { authoringSession: captureAuthoringSession(), baseRecord: base }
+      )
     ).rejects.toBeInstanceOf(ConcurrencyError);
 
     expect((await projection())?.nursesDayShift).toEqual(['SINTETICA EDICION A']);
@@ -172,12 +180,16 @@ describe('a stale-base patch applies on top of the pending local projection', ()
       pathology: 'DIAGNOSTICO BASE',
     });
 
-    await updatePartialDetailed(date, { 'beds.R1': replacement }, { baseRecord: base });
+    await updatePartialDetailed(
+      date,
+      { 'beds.R1': replacement },
+      { authoringSession: captureAuthoringSession(), baseRecord: base }
+    );
     await expect(
       updatePartialDetailed(
         date,
         { 'beds.R1.pathology': 'DIAGNOSTICO DEL PACIENTE UNO' },
-        { baseRecord: base }
+        { authoringSession: captureAuthoringSession(), baseRecord: base }
       )
     ).rejects.toBeInstanceOf(ConcurrencyError);
 
@@ -200,11 +212,15 @@ describe('a stale-base patch applies on top of the pending local projection', ()
       bedId: 'R2',
     });
 
-    await updatePartialDetailed(date, { discharges: [dischargeA] }, { baseRecord: base });
+    await updatePartialDetailed(
+      date,
+      { discharges: [dischargeA] },
+      { authoringSession: captureAuthoringSession(), baseRecord: base }
+    );
     const tabB = await updatePartialDetailed(
       date,
       { discharges: [dischargeB] },
-      { baseRecord: base }
+      { authoringSession: captureAuthoringSession(), baseRecord: base }
     );
 
     expect(tabB.savedLocally).toBe(true);
@@ -219,7 +235,7 @@ describe('a stale-base patch applies on top of the pending local projection', ()
     await updatePartialDetailed(
       date,
       { nursesDayShift: ['SINTETICA EDICION A'] },
-      { baseRecord: base }
+      { authoringSession: captureAuthoringSession(), baseRecord: base }
     );
     const staleRecord: DailyRecord = {
       ...base,
@@ -232,6 +248,7 @@ describe('a stale-base patch applies on top of the pending local projection', ()
       staleRecord,
       ['tensDayShift'],
       Object.assign(new Error('synthetic network failure'), { code: 'unavailable' }),
+      captureAuthoringSession(),
       base.lastUpdated
     );
 

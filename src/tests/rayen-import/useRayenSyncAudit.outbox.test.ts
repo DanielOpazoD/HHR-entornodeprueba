@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -51,7 +52,12 @@ it('persists a failed Rayen run after a concurrency retry refreshes the base fro
   const patchDailyRecord = vi
     .fn<Parameters<typeof useRayenSyncAudit>[0]['patchDailyRecord']>()
     .mockRejectedValueOnce(new ConcurrencyError('Conflicto sintetico de otra corrida'))
-    .mockImplementation(({ partial, options }) => updatePartialDetailed(date, partial, options));
+    .mockImplementation(({ partial, options }) =>
+      updatePartialDetailed(date, partial, {
+        ...options,
+        authoringSession: captureAuthoringSession(),
+      })
+    );
   const { result } = renderHook(() =>
     useRayenSyncAudit({
       currentRecordRef: { current: oldBase },

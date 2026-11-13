@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import {
   writeMedicalHandoffDraft,
   readMedicalHandoffDrafts,
@@ -112,6 +113,7 @@ it.each(
   const gate = new Promise<void>(r => (unlock = r));
   const lock = runExclusiveDailyRecordWrite(date, () => gate);
   const options: PartialUpdateDailyRecordOptions = {
+    authoringSession: captureAuthoringSession(),
     baseRecord: base,
     requireRemoteAuthorityFirst: true,
     requireConfirmedRecord: true,
@@ -183,7 +185,11 @@ it.each(
   };
   const write =
     kind === 'structural'
-      ? saveDetailed(base, base.lastUpdated, { baseRecord: base, rayenStructuralWriteGuard: true })
+      ? saveDetailed(base, base.lastUpdated, {
+          authoringSession: captureAuthoringSession(),
+          baseRecord: base,
+          rayenStructuralWriteGuard: true,
+        })
       : updatePartialDetailed(date, patch, options);
   const settled = write.catch(error => ({ error }));
   try {
@@ -256,7 +262,12 @@ it('preserves the same-session rejection and its existing feedback', async () =>
     updatePartialDetailed(
       date,
       { 'beds.R1.specialty': 'Cirugía' },
-      { baseRecord: base, requireAtomicCas: true, requireRemoteAuthorityFirst: true }
+      {
+        authoringSession: captureAuthoringSession(),
+        baseRecord: base,
+        requireAtomicCas: true,
+        requireRemoteAuthorityFirst: true,
+      }
     )
   ).rejects.toBe(error);
   expect(resolvePatchErrorFeedback(error)).toMatchObject({
@@ -277,6 +288,7 @@ it('does not retry a CAS rejection after the author leaves', async () => {
     date,
     { 'beds.R1.specialty': 'Cirugía' },
     {
+      authoringSession: captureAuthoringSession(),
       baseRecord: base,
       specialtyIntent: {
         kind: 'manual',

@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { saveDetailed as saveDailyRecordDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { logAuditEvent } from '@/services/admin/auditService';
 import { getCurrentUserEmail } from '@/services/admin/utils/auditUtils';
@@ -65,6 +66,7 @@ export const auditAdmissionDateBackfill = async (): Promise<AdmissionDateBackfil
 export const applyAdmissionDateBackfill = async (
   onProgress?: (current: number, total: number) => void
 ): Promise<AdmissionDateBackfillResult> => {
+  const authoringSession = captureAuthoringSession();
   try {
     const plan = await buildAdmissionDateBackfillPlan();
     let appliedRecords = 0;
@@ -74,7 +76,10 @@ export const applyAdmissionDateBackfill = async (
       const item = plan.records[index];
       try {
         // A bulk rewrite of past days keeps each day's previous state in history.
-        await saveDailyRecordDetailed(item.record, undefined, { historyPolicy: 'snapshot' });
+        await saveDailyRecordDetailed(item.record, undefined, {
+          historyPolicy: 'snapshot',
+          authoringSession,
+        });
         appliedRecords += 1;
       } catch (error) {
         failedRecords += 1;

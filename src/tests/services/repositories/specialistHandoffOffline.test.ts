@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildRecord, buildPatient } from './dailyRecordHandoffPatchTestSupport';
 import {
@@ -28,6 +29,7 @@ describe('specialist handoff offline durability', () => {
     };
     await expect(
       updatePartialDetailed(current.date, patch, {
+        authoringSession: captureAuthoringSession(),
         baseRecord: current,
         specialistHandoffTargets: buildSpecialistHandoffTargets(edited, patch),
       })
@@ -44,7 +46,7 @@ describe('specialist handoff offline durability', () => {
     await updatePartialDetailed(
       current.date,
       { 'beds.R1.medicalHandoffNote': 'Nota heredada' },
-      { baseRecord: current }
+      { authoringSession: captureAuthoringSession(), baseRecord: current }
     );
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       current.date,
@@ -67,7 +69,7 @@ describe('specialist handoff offline durability', () => {
     const result = await updatePartialDetailed(
       current.date,
       { 'beds.R1.medicalHandoffNote': 'Nota offline de A' },
-      { baseRecord: current }
+      { authoringSession: captureAuthoringSession(), baseRecord: current }
     );
     expect(result).toMatchObject({
       savedLocally: true,
@@ -102,7 +104,7 @@ describe('specialist handoff offline durability', () => {
     const result = await updatePartialDetailed(
       current.date,
       { 'beds.R1.medicalHandoffNote': 'Nota offline para A' },
-      { baseRecord: current }
+      { authoringSession: captureAuthoringSession(), baseRecord: current }
     );
     expect(result).toMatchObject({
       savedLocally: true,

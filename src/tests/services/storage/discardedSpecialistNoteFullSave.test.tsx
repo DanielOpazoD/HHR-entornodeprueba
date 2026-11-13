@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -286,6 +287,7 @@ describe.each(MODES)('whole-save note writer base (%s)', (_mode, enforced) => {
       };
       await expect(
         saveDetailed(incoming, incoming.lastUpdated, {
+          authoringSession: captureAuthoringSession(),
           baseRecord: stale,
           rayenStructuralWriteGuard: authorityFirst,
         })

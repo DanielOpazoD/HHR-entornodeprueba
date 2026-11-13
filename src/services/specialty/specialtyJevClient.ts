@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
@@ -258,6 +259,7 @@ const writeSpecialtyIntent = async (
       ? `beds.${scope.bedId}.clinicalCrib.specialty`
       : `beds.${scope.bedId}.specialty`;
   const result = await updatePartialDetailed(scope.date, { [path]: value } as DailyRecordPatch, {
+    authoringSession: captureAuthoringSession(),
     specialtyIntent: intent,
     requireAtomicCas: true,
     requireRemoteAuthorityFirst: true,

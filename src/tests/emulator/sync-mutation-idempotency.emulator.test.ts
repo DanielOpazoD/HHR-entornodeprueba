@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /* @flake-safe: Date usage aligns emulator write-window assertions with current execution time. */
 import 'fake-indexeddb/auto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -176,15 +177,19 @@ describeEmulator('Firestore emulator mutation idempotency', () => {
         });
     });
 
-    await queueDailyRecordSyncTaskWithLocalRecord(localRecord, {
-      contexts: ['clinical'],
-      origin: 'direct_queue',
-      syncContract: {
-        expectedVersion: isoAt(date, '09:55:00'),
-        changedPaths: ['beds.R1.pathology'],
-        mutationId,
+    await queueDailyRecordSyncTaskWithLocalRecord(
+      localRecord,
+      {
+        contexts: ['clinical'],
+        origin: 'direct_queue',
+        syncContract: {
+          expectedVersion: isoAt(date, '09:55:00'),
+          changedPaths: ['beds.R1.pathology'],
+          mutationId,
+        },
       },
-    });
+      { authoringSession: captureAuthoringSession() }
+    );
 
     await processSyncQueue();
 
@@ -388,7 +393,7 @@ describeEmulator('Firestore emulator mutation idempotency', () => {
           tabId: 'tab-before-restart',
         },
       },
-      { deferProcessing: true }
+      { authoringSession: captureAuthoringSession(), deferProcessing: true }
     );
 
     await expect(getSyncQueueStats()).resolves.toMatchObject({

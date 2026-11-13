@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -196,9 +197,24 @@ describe('queued handoff preserves the original patient and episode', () => {
         R4: { ...record.beds.R4, patientName: 'Paciente B Sintético', clinicalEpisodeId: 'ep-B' },
       },
     };
-    await queueDailyRecordSyncTaskWithLocalRecord(record, {}, {}, makeHandoffPayload(record));
-    await queueDailyRecordSyncTaskWithLocalRecord(other, {}, {}, makeHandoffPayload(other));
-    await queueDailyRecordSyncTaskWithLocalRecord(record, {}, {}, makeHandoffPayload(record));
+    await queueDailyRecordSyncTaskWithLocalRecord(
+      record,
+      {},
+      { authoringSession: captureAuthoringSession() },
+      makeHandoffPayload(record)
+    );
+    await queueDailyRecordSyncTaskWithLocalRecord(
+      other,
+      {},
+      { authoringSession: captureAuthoringSession() },
+      makeHandoffPayload(other)
+    );
+    await queueDailyRecordSyncTaskWithLocalRecord(
+      record,
+      {},
+      { authoringSession: captureAuthoringSession() },
+      makeHandoffPayload(record)
+    );
     const tasks = await hospitalDB.syncQueue.toArray();
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
     expect(
