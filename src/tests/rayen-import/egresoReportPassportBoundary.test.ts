@@ -230,3 +230,45 @@ it('keeps the exact passport episode ahead of an episode-less duplicate', () => 
   expect(result.discharges[0].encounterId).toBe('1001');
   expect(result.conflicts).toEqual([]);
 });
+
+it.each(['discharges', 'transfers', 'cma'] as const)(
+  'does not hide a passport row behind another document in %s',
+  collection => {
+    const rec = record('99.999.999-9');
+    const movement = {
+      id: 'synthetic-movement',
+      bedId: 'H5C2',
+      bedName: 'H5C2',
+      bedType: 'Adulto',
+      patientName: 'HISTORIA SINTETICA',
+      rut: '12.345.678-5',
+      diagnosis: '',
+      time: '12:00',
+      status: 'Vivo' as const,
+    };
+    const withHistory = { ...rec, [collection]: [movement] } as DailyRecord;
+    const result = applyEgresoReport(
+      createEmptyCensusImportDiff(true),
+      [row('P123456785', '08-07-2026 12:00')],
+      withHistory
+    );
+    expect(result.discharges).toEqual([]);
+    expect(result.reportEgresos ?? []).toEqual([]);
+    expect(result.conflicts).toHaveLength(1);
+    expect(result.conflicts[0].bedId).toBe('H5C1');
+  }
+);
+it('still discharges the same passport in an attached crib', () => {
+  const rec = record('99.999.999-9');
+  rec.beds.H5C1.clinicalCrib = occupant('P123456785');
+  const result = applyEgresoReport(
+    createEmptyCensusImportDiff(true),
+    [row('p-123 456785', '08-07-2026 12:00')],
+    rec
+  );
+  expect(result.discharges).toEqual([]);
+  expect(result.reportEgresos).toHaveLength(1);
+  expect(result.reportEgresos?.[0].fromClinicalCrib).toBe(true);
+  expect(result.updates[0].changes).toMatchObject([{ field: 'clinicalCrib', to: undefined }]);
+  expect(result.conflicts).toEqual([]);
+});
