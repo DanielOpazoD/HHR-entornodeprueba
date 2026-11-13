@@ -4,7 +4,7 @@ import type {
   DischargeEntry,
   MoveEntry,
 } from '../contracts/censusImportDiff';
-import { normalizeRut } from '@/utils/rutUtils';
+import { isSameDocument, normalizeRut } from '@/utils/rutUtils';
 import { isVerifiableLegacyOccupant } from './dischargeSubjectIdentity';
 
 interface ReleasedBedPlacementResult {
@@ -84,7 +84,7 @@ const isPlacementPatientDischarged = (
     ).trim();
     if (episode && dischargeEpisode) return episode === dischargeEpisode;
     if (episode || dischargeEpisode) return false;
-    return Boolean(run && normalizeRut(discharge.rut) === run);
+    return Boolean(run && isSameDocument(discharge.rut, identity.run));
   });
 };
 

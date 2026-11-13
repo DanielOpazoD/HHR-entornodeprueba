@@ -2,7 +2,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import { normalizedName } from './previousCensusEgresoCandidates';
-import { isValidRut, normalizeRut } from '@/utils/rutUtils';
+import { isValidRut, isSameDocument, normalizeRut } from '@/utils/rutUtils';
 import { calendarDateForMovement } from '@/utils/movementCalendarDate';
 import { eligibleExactEpisodes, findPlannedPatientByEpisode } from './egresoReportEvidence';
 import {
@@ -179,7 +179,7 @@ export const selectEligibleEgresoRows = (
     const reviewOccupant =
       unverifiedWithoutEpisode && reportedBedId
         ? [...occupied.values()].find(
-            patient => patient.bedId === reportedBedId && normalizeRut(patient.rut) === run
+            patient => patient.bedId === reportedBedId && isSameDocument(patient.rut, row.run)
           )
         : undefined;
     const current = unverifiedWithoutEpisode
@@ -190,7 +190,7 @@ export const selectEligibleEgresoRows = (
           crib =>
             crib.parentBedId === reportedBedId &&
             Boolean(run) &&
-            normalizeRut(crib.patient.rut) === run
+            isSameDocument(crib.patient.rut, row.run)
         )
       : findOccupiedClinicalCrib(occupiedCribs, row.run, reportedEpisode);
     const normalized = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);

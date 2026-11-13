@@ -1,89 +1,27 @@
-import type { LocalRecordAdmissionCandidate } from '@/services/storage/indexeddb/indexedDbRecordService';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   getAuthoritativeForDate,
   getForDateWithMeta,
   getLocalForDate,
   getLocalForDateWithMeta,
-  getMonthRecords,
 } from '@/services/repositories/dailyRecordRepositoryReadService';
+import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync/publicSyncQueue';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 
-vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
-  getRecordForDateStrict: vi.fn(),
-  captureLocalRecordBase: async (date: string) => ({
-    kind: 'stored',
-    record: await getRecordFromIndexedDB(date),
-  }),
-  inspectLocalRecordAdmission: async (date: string) => ({
-    status: 'admitted',
-    record: await getRecordFromIndexedDB(date),
-  }),
-  admitLocalRecords: vi.fn(async (candidates: readonly LocalRecordAdmissionCandidate[]) =>
-    Promise.all(
-      candidates.map(async candidate => ({
-        date: candidate.record.date,
-        status: 'admitted',
-        record:
-          candidate.serverConfirmed === false &&
-          candidate.expectedBase?.kind === 'stored' &&
-          candidate.expectedBase.record
-            ? candidate.expectedBase.record
-            : candidate.record,
-      }))
-    )
-  ),
-  getPreviousDayRecord: vi.fn(),
-  getAllDates: vi.fn(),
-  saveRecord: vi.fn(),
-  saveRecordStrict: vi.fn(record =>
-    Promise.resolve({
-      ok: true,
-      operation: 'save',
-      store: 'indexeddb',
-      dates: [record.date],
-    })
-  ),
-}));
+// Local-only reads against the real Dexie store (fake-indexeddb). Reads that involve Firestore
+// run against the real emulator in
+// src/tests/emulator-ui/dailyRecordRepositoryReadService.emulator-ui.test.ts.
 
-vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
-  getAvailableDatesFromFirestore: vi.fn(),
-  getMonthRecordsFromFirestore: vi.fn(),
-}));
+const date = '2026-03-19';
 
-vi.mock('@/services/repositories/repositoryConfig', () => ({
-  isFirestoreEnabled: vi.fn(() => true),
-}));
-
-vi.mock('@/services/repositories/dailyRecordRemoteLoader', () => ({
-  loadRemoteRecordWithFallback: vi.fn(),
-}));
-
-vi.mock('@/services/storage/sync/dailyRecordSyncQueueReadService', () => ({
-  getPendingDailyRecordProjection: vi.fn().mockResolvedValue(null),
-  getDailyRecordWriteStateForVersion: vi.fn(),
-  hasUnresolvedDailyRecordWriteForDate: vi.fn(),
-}));
-
-import {
-  getRecordForDateStrict as getRecordFromIndexedDB,
-  saveRecordStrict as saveToIndexedDB,
-  admitLocalRecords,
-} from '@/services/storage/indexeddb/indexedDbRecordService';
-import { loadRemoteRecordWithFallback } from '@/services/repositories/dailyRecordRemoteLoader';
-import { getMonthRecordsFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
-import {
-  getDailyRecordWriteStateForVersion,
-  hasUnresolvedDailyRecordWriteForDate,
-} from '@/services/storage/sync/dailyRecordSyncQueueReadService';
-import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
-
-const buildRecord = (date: string, lastUpdated: string): DailyRecord =>
+const buildRecord = (lastUpdated: string, beds: Record<string, unknown> = {}): DailyRecord =>
   ({
     date,
-    beds: {},
+    beds,
     discharges: [],
     transfers: [],
     cma: [],
@@ -101,384 +39,137 @@ const buildRecord = (date: string, lastUpdated: string): DailyRecord =>
     handoffNovedadesNightShift: '',
     medicalHandoffNovedades: '',
     schemaVersion: 1,
-  }) as DailyRecord;
+  }) as unknown as DailyRecord;
 
-describe('dailyRecordRepositoryReadService', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(isFirestoreEnabled).mockReturnValue(true);
-    vi.mocked(getDailyRecordWriteStateForVersion).mockResolvedValue('none');
-    vi.mocked(hasUnresolvedDailyRecordWriteForDate).mockResolvedValue(false);
+/** An unsynced edit as the app stores it: the local copy and its outbox task, never processed. */
+const queueLocalEdit = async (record: DailyRecord) => {
+  const result = await queueDailyRecordSyncTaskWithLocalRecord(record, undefined, {
+    authoringSession: captureAuthoringSession(),
+    deferProcessing: true,
+  });
+  expect(result.accepted).toBe(true);
+};
+
+describe('dailyRecordRepositoryReadService on the real local store', () => {
+  beforeEach(async () => {
+    await hospitalDB.dailyRecords.clear();
+    await hospitalDB.syncQueue.clear();
+    setFirestoreEnabled(true);
     window.localStorage.clear();
     window.__HHR_E2E_OVERRIDE__ = undefined;
   });
 
   it('rejects invalid e2e seed JSON with its storage key instead of reading it as absent', async () => {
+    await hospitalDB.dailyRecords.put(buildRecord('2026-03-19T12:00:00.000Z'));
     window.__HHR_E2E_OVERRIDE__ = {};
     localStorage.setItem('hanga_roa_hospital_data', '{invalid');
-    await expect(getLocalForDate('2026-03-19')).rejects.toThrow('hanga_roa_hospital_data');
-    expect(getRecordFromIndexedDB).not.toHaveBeenCalled();
+
+    await expect(getLocalForDate(date)).rejects.toThrow('hanga_roa_hospital_data');
   });
 
   it('rejects an empty e2e seed value while preserving absence of the key', async () => {
     window.__HHR_E2E_OVERRIDE__ = {};
     localStorage.setItem('hanga_roa_hospital_data', '');
-    await expect(getLocalForDate('2026-03-19')).rejects.toThrow('hanga_roa_hospital_data');
+
+    await expect(getLocalForDate(date)).rejects.toThrow('hanga_roa_hospital_data');
   });
 
   it('keeps an absent e2e seed as no record', async () => {
     window.__HHR_E2E_OVERRIDE__ = {};
-    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(null);
-    await expect(getLocalForDate('2026-03-19')).resolves.toBeNull();
+
+    await expect(getLocalForDate(date)).resolves.toBeNull();
   });
 
   it('ignores invalid e2e storage without the override', async () => {
+    const local = buildRecord('2026-03-19T12:00:00.000Z');
+    await hospitalDB.dailyRecords.put(local);
     localStorage.setItem('hanga_roa_hospital_data', '{invalid');
-    const local = buildRecord('2026-03-19', '2026-03-19T12:00:00.000Z');
-    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
-    await expect(getLocalForDate('2026-03-19')).resolves.toBe(local);
-  });
 
-  it('keeps local authority and persists the selected merge when local is newer than remote', async () => {
-    const local = buildRecord('2026-03-19', '2026-03-19T12:00:00.000Z');
-    local.beds = {
-      R1: { bedId: 'R1', patientName: 'LOCAL PATIENT', pathology: 'LOCAL DX' },
-    } as unknown as DailyRecord['beds'];
-    const remote = buildRecord('2026-03-19', '2026-03-19T08:00:00.000Z');
-    remote.beds = {
-      R2: { bedId: 'R2', patientName: 'REMOTE NEW PATIENT', pathology: 'REMOTE NEW DX' },
-    } as unknown as DailyRecord['beds'];
-
-    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
-    vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
-      serverConfirmed: false,
-      record: remote,
-      source: 'firestore',
-      compatibilityTier: 'current_firestore',
-      compatibilityIntensity: 'none',
-      migrationRulesApplied: [],
-      cachedLocally: false,
-    });
-
-    const result = await getForDateWithMeta('2026-03-19');
-
-    expect(result.source).toBe('indexeddb');
-    expect(result.record?.lastUpdated).toBe(local.lastUpdated);
-    expect(result.sourceOfTruth).toBe('local');
-    expect(result.consistencyState).not.toBe('remote_authoritative');
-    expect(result.record?.beds.R1.pathology).toBe('LOCAL DX');
-    expect(result.record?.beds.R2).toBeUndefined();
-    expect(admitLocalRecords).toHaveBeenCalled();
-    expect(saveToIndexedDB).not.toHaveBeenCalled();
-  });
-
-  it('returns the exact remote census for structural planning without merging local bed state', async () => {
-    const local = buildRecord('2026-03-19', '2026-03-19T12:00:05.000Z');
-    local.beds = {
-      R1: {
-        bedId: 'R1',
-        patientName: 'PATIENT',
-        clinicalEpisodeId: 'episode-move',
-      },
-    } as unknown as DailyRecord['beds'];
-    const remote = buildRecord('2026-03-19', '2026-03-19T12:00:00.000Z');
-    remote.beds = {
-      R4: {
-        bedId: 'R4',
-        patientName: 'PATIENT',
-        clinicalEpisodeId: 'episode-move',
-      },
-    } as unknown as DailyRecord['beds'];
-
-    vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
-      serverConfirmed: false,
-      record: remote,
-      source: 'firestore',
-      compatibilityTier: 'current_firestore',
-      compatibilityIntensity: 'none',
-      migrationRulesApplied: [],
-      cachedLocally: false,
-    });
-
-    const result = await getAuthoritativeForDate('2026-03-19');
-
-    expect(result).toBe(remote);
-    expect(result?.beds.R1).toBeUndefined();
-    expect(result?.beds.R4.clinicalEpisodeId).toBe('episode-move');
-    expect(loadRemoteRecordWithFallback).toHaveBeenCalledWith('2026-03-19', {
-      source: 'server',
-    });
-    expect(getRecordFromIndexedDB).not.toHaveBeenCalled();
-    expect(saveToIndexedDB).not.toHaveBeenCalled();
+    await expect(getLocalForDate(date)).resolves.toEqual(local);
   });
 
   it('fails closed when structural planning has no remote authority', async () => {
-    vi.mocked(isFirestoreEnabled).mockReturnValue(false);
+    await hospitalDB.dailyRecords.put(buildRecord('2026-03-19T12:00:00.000Z'));
+    setFirestoreEnabled(false);
 
-    await expect(getAuthoritativeForDate('2026-03-19')).rejects.toThrow(
+    await expect(getAuthoritativeForDate(date)).rejects.toThrow(
       'requiere una versión autoritativa remota'
     );
-    expect(getRecordFromIndexedDB).not.toHaveBeenCalled();
   });
 
-  it('returns the exact local candidate without merging the remote census', async () => {
-    const local = buildRecord('2026-03-19', '2026-03-19T12:00:05.000Z');
-    local.beds = {
-      R1: {
-        bedId: 'R1',
-        patientName: 'LOCAL PATIENT',
-        clinicalEpisodeId: 'episode-move',
-      },
-    } as unknown as DailyRecord['beds'];
-    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
+  it('reports active outbox proof for the exact local record version', async () => {
+    const local = buildRecord('2026-03-19T12:00:05.000Z');
+    await queueLocalEdit(local);
 
-    const result = await getLocalForDate('2026-03-19');
-
-    expect(result).toBe(local);
-    expect(loadRemoteRecordWithFallback).not.toHaveBeenCalled();
-  });
-
-  it('reports active outbox proof only for the exact local record version', async () => {
-    const local = buildRecord('2026-03-19', '2026-03-19T12:00:05.000Z');
-    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
-    vi.mocked(getDailyRecordWriteStateForVersion).mockResolvedValueOnce('active');
-
-    const result = await getLocalForDateWithMeta('2026-03-19');
-
-    expect(result).toEqual({
+    await expect(getLocalForDateWithMeta(date)).resolves.toEqual({
       record: local,
       hasPendingWrites: true,
-      hasPendingWritesForDate: false,
+      hasPendingWritesForDate: true,
       writeState: 'active',
     });
-    expect(getDailyRecordWriteStateForVersion).toHaveBeenCalledWith(
-      '2026-03-19',
-      local.lastUpdated
-    );
   });
 
   it('reports a pending write for the date even when the local revision does not match it', async () => {
-    const local = buildRecord('2026-03-19', '2026-03-19T12:00:05.000Z');
-    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
-    vi.mocked(getDailyRecordWriteStateForVersion).mockResolvedValueOnce('none');
-    vi.mocked(hasUnresolvedDailyRecordWriteForDate).mockResolvedValueOnce(true);
+    await queueLocalEdit(buildRecord('2026-03-19T12:00:05.000Z'));
+    const newer = buildRecord('2026-03-19T12:00:09.000Z');
+    await hospitalDB.dailyRecords.put(newer);
 
-    await expect(getLocalForDateWithMeta('2026-03-19')).resolves.toEqual({
-      record: local,
+    await expect(getLocalForDateWithMeta(date)).resolves.toEqual({
+      record: newer,
       hasPendingWrites: false,
       hasPendingWritesForDate: true,
       writeState: 'none',
     });
   });
 
-  it('keeps first status and specialty selections for a newly admitted patient when Firebase still has empty fields', async () => {
-    const local = buildRecord('2026-03-19', '2026-03-19T12:00:05.000Z');
-    local.beds = {
-      R1: {
-        bedId: 'R1',
-        clinicalEpisodeId: undefined,
-        patientName: 'PACIENTE NUEVO',
-        rut: '11.111.111-1',
-        admissionDate: '2026-03-19',
-        admissionTime: '08:00',
-        status: PatientStatus.GRAVE,
-        specialty: Specialty.MEDICINA,
-      },
-    } as unknown as DailyRecord['beds'];
-    const remote = buildRecord('2026-03-19', '2026-03-19T12:00:00.000Z');
-    remote.beds = {
-      R1: {
-        bedId: 'R1',
-        clinicalEpisodeId: 'ep_r1_generated',
-        patientName: 'PACIENTE NUEVO',
-        rut: '11.111.111-1',
-        admissionDate: '2026-03-19',
-        admissionTime: '08:00',
-        status: PatientStatus.EMPTY,
-        specialty: Specialty.EMPTY,
-      },
-    } as unknown as DailyRecord['beds'];
+  it('keeps a failed write for the exact version visible without calling it in flight', async () => {
+    const local = buildRecord('2026-03-19T12:00:05.000Z');
+    await queueLocalEdit(local);
+    const [task] = await hospitalDB.syncQueue.toArray();
+    await hospitalDB.syncQueue.update(task.id!, { status: 'FAILED' });
 
-    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
-    vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
-      serverConfirmed: false,
-      record: remote,
-      source: 'firestore',
-      compatibilityTier: 'current_firestore',
-      compatibilityIntensity: 'none',
-      migrationRulesApplied: [],
-      cachedLocally: false,
+    await expect(getLocalForDateWithMeta(date)).resolves.toEqual({
+      record: local,
+      hasPendingWrites: false,
+      hasPendingWritesForDate: true,
+      writeState: 'failed',
     });
-
-    const result = await getForDateWithMeta('2026-03-19');
-
-    expect(result.record?.beds.R1.status).toBe(PatientStatus.GRAVE);
-    expect(result.record?.beds.R1.specialty).toBe(Specialty.MEDICINA);
-    expect(result.record?.beds.R1.clinicalEpisodeId).toBeUndefined();
-    expect(result.sourceOfTruth).toBe('local');
-    expect(result.consistencyState).toMatch(/local/);
-    expect(admitLocalRecords).toHaveBeenCalled();
-    expect(saveToIndexedDB).not.toHaveBeenCalled();
+    expect(await hospitalDB.syncQueue.count()).toBe(1);
   });
 
-  it('keeps fast sequential diagnosis and specialty edits when Firebase only confirms status first', async () => {
-    const local = buildRecord('2026-03-19', '2026-03-19T12:00:05.000Z');
-    local.beds = {
-      R1: {
-        bedId: 'R1',
-        clinicalEpisodeId: undefined,
-        patientName: 'PACIENTE NUEVO',
-        rut: '11.111.111-1',
-        admissionDate: '2026-03-19',
-        admissionTime: '08:00',
-        pathology: 'Neumonia adquirida en la comunidad',
-        specialty: Specialty.MEDICINA,
-        status: PatientStatus.DE_CUIDADO,
-      },
-    } as unknown as DailyRecord['beds'];
-    const remote = buildRecord('2026-03-19', '2026-03-19T12:00:08.000Z');
-    remote.beds = {
-      R1: {
-        bedId: 'R1',
-        clinicalEpisodeId: 'ep_r1_generated',
-        patientName: 'PACIENTE NUEVO',
-        rut: '11.111.111-1',
-        admissionDate: '2026-03-19',
-        admissionTime: '08:00',
-        pathology: '',
-        specialty: Specialty.EMPTY,
-        status: PatientStatus.DE_CUIDADO,
-      },
-    } as unknown as DailyRecord['beds'];
-
-    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
-    vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
-      serverConfirmed: false,
-      record: remote,
-      source: 'firestore',
-      compatibilityTier: 'current_firestore',
-      compatibilityIntensity: 'none',
-      migrationRulesApplied: [],
-      cachedLocally: false,
-    });
-
-    const result = await getForDateWithMeta('2026-03-19');
-
-    expect(result.record?.beds.R1.pathology).toBe('Neumonia adquirida en la comunidad');
-    expect(result.record?.beds.R1.specialty).toBe(Specialty.MEDICINA);
-    expect(result.record?.beds.R1.status).toBe(PatientStatus.DE_CUIDADO);
-    expect(result.record?.beds.R1.clinicalEpisodeId).toBeUndefined();
-    expect(admitLocalRecords).toHaveBeenCalled();
-    expect(saveToIndexedDB).not.toHaveBeenCalled();
-  });
-
-  it('hydrates local cache when remote record is newer than local', async () => {
-    const local = buildRecord('2026-03-19', '2026-03-19T08:00:00.000Z');
-    const remote = buildRecord('2026-03-19', '2026-03-19T12:00:00.000Z');
-
-    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
-    vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
-      serverConfirmed: true,
-      record: remote,
-      source: 'firestore',
-      compatibilityTier: 'current_firestore',
-      compatibilityIntensity: 'none',
-      migrationRulesApplied: [],
-      cachedLocally: false,
-    });
-
-    const result = await getForDateWithMeta('2026-03-19');
-
-    expect(result.source).toBe('firestore');
-    expect(result.record?.lastUpdated).toBe(remote.lastUpdated);
-    expect(result.consistencyState).toBe('remote_authoritative');
-    expect(admitLocalRecords).toHaveBeenCalled();
-    expect(saveToIndexedDB).not.toHaveBeenCalled();
-  });
-
-  it('uses the E2E localStorage seed as the local candidate when a runtime override supplies remote', async () => {
-    const staleIndexedDb = buildRecord('2026-03-19', '2026-03-19T08:00:00.000Z');
-    staleIndexedDb.beds = {
-      R1: { bedId: 'R1', patientName: 'INDEXEDDB STALE', handoffNote: '' },
-    } as unknown as DailyRecord['beds'];
-    const localSeed = buildRecord('2026-03-19', '2026-03-19T12:00:00.000Z');
-    localSeed.beds = {
+  it('uses the E2E runtime override as the remote record over a stale local copy', async () => {
+    await hospitalDB.dailyRecords.put(
+      buildRecord('2026-03-19T08:00:00.000Z', {
+        R1: { bedId: 'R1', patientName: 'INDEXEDDB STALE', handoffNote: '' },
+      })
+    );
+    const localSeed = buildRecord('2026-03-19T12:00:00.000Z', {
       R1: {
         bedId: 'R1',
         patientName: 'LOCAL SEEDED',
         rut: '11.111.111-1',
-        admissionDate: '2026-03-19',
+        admissionDate: date,
         pathology: 'LOCAL DX',
         handoffNote: 'LOCAL NOTE',
       },
-    } as unknown as DailyRecord['beds'];
-    const remoteOverride = buildRecord('2026-03-19', '2026-03-19T09:00:00.000Z');
-    remoteOverride.beds = {
+    });
+    const remoteOverride = buildRecord('2026-03-19T09:00:00.000Z', {
       R1: {
         bedId: 'R1',
         patientName: 'REMOTE CANONICAL',
         rut: '11.111.111-1',
-        admissionDate: '2026-03-19',
+        admissionDate: date,
         pathology: 'REMOTE DX',
         handoffNote: '',
       },
-    } as unknown as DailyRecord['beds'];
+    });
+    window.localStorage.setItem('hanga_roa_hospital_data', JSON.stringify({ [date]: localSeed }));
+    window.__HHR_E2E_OVERRIDE__ = { [date]: remoteOverride };
 
-    window.localStorage.setItem(
-      'hanga_roa_hospital_data',
-      JSON.stringify({ '2026-03-19': localSeed })
-    );
-    window.__HHR_E2E_OVERRIDE__ = { '2026-03-19': remoteOverride };
-    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(staleIndexedDb);
-
-    const result = await getForDateWithMeta('2026-03-19');
+    const result = await getForDateWithMeta(date);
 
     expect(result.record?.beds.R1.patientName).toBe('REMOTE CANONICAL');
     expect(result.record?.beds.R1.pathology).toBe('REMOTE DX');
     expect(result.record?.beds.R1.handoffNote).toBe('');
-  });
-
-  it('falls back to local with recoverable metadata when remote fetch fails', async () => {
-    const local = buildRecord('2026-03-19', '2026-03-19T08:00:00.000Z');
-
-    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
-    vi.mocked(loadRemoteRecordWithFallback).mockRejectedValueOnce(new Error('remote down'));
-
-    const result = await getForDateWithMeta('2026-03-19');
-
-    expect(result.source).toBe('indexeddb');
-    expect(result.record?.lastUpdated).toBe(local.lastUpdated);
-    expect(result.sourceOfTruth).toBe('local');
-    expect(result.retryability).toBe('automatic_retry');
-  });
-
-  it('returns an explicit missing result when neither local nor remote has the record', async () => {
-    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(null);
-    vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
-      serverConfirmed: true,
-      record: null,
-      source: 'not_found',
-      compatibilityTier: 'none',
-      compatibilityIntensity: 'none',
-      migrationRulesApplied: [],
-      cachedLocally: false,
-    });
-
-    const result = await getForDateWithMeta('2026-03-19');
-
-    expect(result.source).toBe('not_found');
-    expect(result.consistencyState).toBe('missing');
-    expect(result.userSafeMessage).toBe('No hay registro disponible para este día.');
-  });
-
-  it('delegates month record loading to firestore queries when remote sync is enabled', async () => {
-    vi.mocked(getMonthRecordsFromFirestore).mockResolvedValueOnce([
-      { date: '2026-03-19' },
-    ] as DailyRecord[]);
-
-    const result = await getMonthRecords(2026, 2);
-
-    expect(getMonthRecordsFromFirestore).toHaveBeenCalledWith(2026, 2);
-    expect(result).toEqual([{ date: '2026-03-19' }]);
   });
 });
