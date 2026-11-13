@@ -1,5 +1,5 @@
 import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
-import { isPassportFormat, normalizeRut } from '@/utils/rutUtils';
+import { hasNonRutLetter, isPassportFormat, normalizeRut } from '@/utils/rutUtils';
 import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { EgresoReportRow } from '../contracts/egresoReport';
@@ -81,7 +81,12 @@ const enrichFromGestionCamas = async (
   dependencies: ReportOnlyDischargeDependencies
 ): Promise<EgresoReportRow[]> => {
   const rowKey = (row: EgresoReportRow): string => {
-    if (row.encounterId || isPavilionRecoveryLocation(row.bedLabel) || isPassportFormat(row.run))
+    if (
+      row.encounterId ||
+      isPavilionRecoveryLocation(row.bedLabel) ||
+      isPassportFormat(row.run) ||
+      hasNonRutLetter(row.run)
+    )
       return '';
     const run = normalizeRut(row.run);
     const { correctedDay } = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
@@ -106,7 +111,7 @@ const enrichFromGestionCamas = async (
   );
   const exactCandidateByRow = new Map<EgresoReportRow, PreviousCensusEgresoCandidate>();
   for (const row of rows) {
-    if (isPassportFormat(row.run)) continue;
+    if (isPassportFormat(row.run) || hasNonRutLetter(row.run)) continue;
     const identity = previousCensusEgresoRowIdentity(row);
     const candidate = exactCandidatesByIdentity.get(identity);
     if (candidate && !row.encounterId && !dependencies.alreadyApplied?.(row, candidate)) {
