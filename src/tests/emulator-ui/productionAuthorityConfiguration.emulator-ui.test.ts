@@ -388,43 +388,37 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       // Measured gap (E8, 2026-11-12): a plain day field is checked by a read and then written
       // with updateDoc. Two writers inside that window both pass the check and both are told
       // «guardado»; the later write replaces the earlier text. Not closed by policy or variable.
-      it.fails(
-        `${label}: two simultaneous writers must not both be told saved (${config})`,
-        async () => {
-          await configure(config);
-          const results = await race(a, b);
-          expect(results.filter(item => item.status === 'rejected')).toHaveLength(1);
-        }
-      );
+      it(`${label}: two simultaneous writers must not both be told saved (${config})`, async () => {
+        await configure(config);
+        const results = await race(a, b);
+        expect(results.filter(item => item.status === 'rejected')).toHaveLength(1);
+      });
     }
   }
 
   // The same gap through the app: device B's census save reports a confirmed remote write while
   // device A's simultaneous write of the same novedades is also accepted.
-  it.fails(
-    'handoff novedades: the app must not tell both simultaneous nurses «guardado»',
-    async () => {
-      await configure('production');
-      await hospitalDB.dailyRecords.put(baseRecord());
-      holdDirectWritesTogether();
-      const [other, observed] = await Promise.allSettled([
-        patch('A', { handoffNovedadesDayShift: 'NOVEDAD A' }),
-        actor('B', () =>
-          updatePartialDetailed(
-            date,
-            { handoffNovedadesDayShift: 'NOVEDAD B' },
-            { baseRecord: baseRecord() }
-          )
-        ),
-      ]);
-      expect(calls.direct).toBe(2);
-      const bothSaved =
-        other.status === 'fulfilled' &&
-        observed.status === 'fulfilled' &&
-        observed.value.updatedRemotely;
-      expect(bothSaved).toBe(false);
-    }
-  );
+  it('handoff novedades: the app must not tell both simultaneous nurses «guardado»', async () => {
+    await configure('production');
+    await hospitalDB.dailyRecords.put(baseRecord());
+    holdDirectWritesTogether();
+    const [other, observed] = await Promise.allSettled([
+      patch('A', { handoffNovedadesDayShift: 'NOVEDAD A' }),
+      actor('B', () =>
+        updatePartialDetailed(
+          date,
+          { handoffNovedadesDayShift: 'NOVEDAD B' },
+          { baseRecord: baseRecord() }
+        )
+      ),
+    ]);
+    expect(calls.direct).toBe(2);
+    const bothSaved =
+      other.status === 'fulfilled' &&
+      observed.status === 'fulfilled' &&
+      observed.value.updatedRemotely;
+    expect(bothSaved).toBe(false);
+  });
 
   it('clearing a bed and editing its patient at once: the authority refuses one', async () => {
     await configure('production');
