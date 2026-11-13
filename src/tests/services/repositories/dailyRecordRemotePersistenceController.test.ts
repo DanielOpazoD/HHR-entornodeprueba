@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { createRemoteWriteState } from '@/services/repositories/dailyRecordWriteState';
@@ -79,6 +80,7 @@ describe('dailyRecordRemotePersistenceController', () => {
     const remoteWrite = vi.fn();
 
     const result = await persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
       date: '2026-05-23',
       record: buildRecord('2026-05-23'),
       changedPaths: ['*'],
@@ -102,6 +104,7 @@ describe('dailyRecordRemotePersistenceController', () => {
     const remoteWrite = vi.fn().mockResolvedValue(undefined);
 
     const result = await persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
       date: '2026-05-23',
       record: buildRecord('2026-05-23'),
       changedPaths: ['*'],
@@ -133,6 +136,7 @@ describe('dailyRecordRemotePersistenceController', () => {
     const ackLocalAfterRemote = vi.fn().mockResolvedValue(undefined);
 
     const result = await persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
       date: '2026-05-23',
       record: buildRecord('2026-05-23'),
       changedPaths: ['*'],
@@ -172,6 +176,7 @@ describe('dailyRecordRemotePersistenceController', () => {
     });
 
     const result = await persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
       date: '2026-05-23',
       record: buildRecord('2026-05-23'),
       changedPaths: ['beds.R1.vitalSigns'],
@@ -219,6 +224,7 @@ describe('dailyRecordRemotePersistenceController', () => {
     const ackLocalAfterRemote = vi.fn().mockResolvedValue(undefined);
 
     const result = await persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
       date: '2026-05-23',
       record: buildRecord('2026-05-23'),
       changedPaths: ['beds.R1.vitalSigns'],
@@ -247,6 +253,7 @@ describe('dailyRecordRemotePersistenceController', () => {
     const state = createRemoteWriteState();
 
     const result = await persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
       date: '2026-05-23',
       record: buildRecord('2026-05-23'),
       changedPaths: ['beds.R1.vitalSigns'],
@@ -271,6 +278,7 @@ describe('dailyRecordRemotePersistenceController', () => {
 
     await expect(
       persistLocalAndAttemptRemoteSync({
+        authoringSession: captureAuthoringSession(),
         date: '2026-05-23',
         record: buildRecord('2026-05-23'),
         changedPaths: ['beds.R1.vitalSigns'],
@@ -308,6 +316,7 @@ describe('dailyRecordRemotePersistenceController', () => {
     );
 
     const pending = persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
       date: '2026-05-23',
       record: buildRecord('2026-05-23'),
       changedPaths: ['*'],
@@ -344,6 +353,7 @@ describe('dailyRecordRemotePersistenceController', () => {
     });
 
     const result = await persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
       date: '2026-05-23',
       record: buildRecord('2026-05-23'),
       changedPaths: ['beds.R1.patientName'],
@@ -387,6 +397,7 @@ describe('dailyRecordRemotePersistenceController', () => {
     });
 
     const result = await persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
       date: '2026-05-23',
       record: buildRecord('2026-05-23'),
       changedPaths: ['beds.R1.patientName'],
@@ -403,6 +414,7 @@ describe('dailyRecordRemotePersistenceController', () => {
       expect.objectContaining({ date: '2026-05-23' }),
       ['beds.R1.patientName'],
       remoteError,
+      captureAuthoringSession(),
       '2026-05-23T10:00:00.000Z',
       true,
       false
@@ -426,6 +438,7 @@ describe('dailyRecordRemotePersistenceController', () => {
     const remoteError = new Error('concurrent reclassification');
 
     await persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
       date: '2026-05-23',
       record: buildRecord('2026-05-23'),
       changedPaths: ['discharges', 'cma'],
@@ -441,6 +454,7 @@ describe('dailyRecordRemotePersistenceController', () => {
       expect.objectContaining({ date: '2026-05-23' }),
       ['discharges', 'cma'],
       remoteError,
+      captureAuthoringSession(),
       '2026-05-23T10:00:00.000Z',
       false,
       false
@@ -461,6 +475,7 @@ describe('dailyRecordRemotePersistenceController', () => {
     const remoteWrite = vi.fn().mockResolvedValue(undefined);
 
     const result = await persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
       date: '2026-05-23',
       record: buildRecord('2026-05-23'),
       changedPaths: ['*'],

@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@/services/repositories/repositoryConfig', async importOriginal => ({
@@ -51,13 +52,13 @@ describe('the outbox publishes pending work against the remote version it was bu
     await updatePartialDetailed(
       date,
       { nursesDayShift: ['SINTETICA A'] },
-      { baseRecord: baseRecord() }
+      { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
     );
     vi.setSystemTime(new Date('2026-10-24T13:00:00.000Z'));
     await updatePartialDetailed(
       date,
       { tensDayShift: ['SINTETICO B'] },
-      { baseRecord: await localRecord() }
+      { authoringSession: captureAuthoringSession(), baseRecord: await localRecord() }
     );
 
     const task = await onlyTask();
@@ -76,12 +77,12 @@ describe('the outbox publishes pending work against the remote version it was bu
     await updatePartialDetailed(
       date,
       { nursesDayShift: ['SINTETICA A'] },
-      { baseRecord: baseRecord() }
+      { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
     );
     await updatePartialDetailed(
       date,
       { nursesDayShift: ['SINTETICA B'] },
-      { baseRecord: await localRecord() }
+      { authoringSession: captureAuthoringSession(), baseRecord: await localRecord() }
     );
     const task = await onlyTask();
     expect(task.patchBaseValues?.nursesDayShift).toEqual(['SINTETICA BASE']);
@@ -92,11 +93,13 @@ describe('the outbox publishes pending work against the remote version it was bu
     await updatePartialDetailed(
       date,
       { nursesDayShift: ['SINTETICA A'] },
-      { baseRecord: baseRecord() }
+      { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
     );
     vi.setSystemTime(new Date('2026-10-24T13:00:00.000Z'));
     const local = await localRecord();
-    await saveDetailed({ ...local, tensDayShift: ['SINTETICO B'] }, local.lastUpdated);
+    await saveDetailed({ ...local, tensDayShift: ['SINTETICO B'] }, local.lastUpdated, {
+      authoringSession: captureAuthoringSession(),
+    });
 
     const task = await onlyTask();
     expect(task.payload).toMatchObject({
@@ -110,7 +113,7 @@ describe('the outbox publishes pending work against the remote version it was bu
     await updatePartialDetailed(
       date,
       { nursesDayShift: ['SINTETICA A'] },
-      { baseRecord: baseRecord() }
+      { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
     );
     const conflicted = await onlyTask();
     await hospitalDB.syncQueue.update(conflicted.id!, { status: 'CONFLICT' });
@@ -118,7 +121,7 @@ describe('the outbox publishes pending work against the remote version it was bu
     await updatePartialDetailed(
       date,
       { tensDayShift: ['SINTETICO B'] },
-      { baseRecord: await localRecord() }
+      { authoringSession: captureAuthoringSession(), baseRecord: await localRecord() }
     );
 
     const task = await onlyTask();

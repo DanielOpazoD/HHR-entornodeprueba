@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /**
  * Data Maintenance Service
  *
@@ -298,6 +299,7 @@ export const importRecordsFromBackup = async (
   backup: MonthBackup,
   onProgress?: (current: number, total: number) => void
 ): Promise<BackupImportResult> => {
+  const authoringSession = captureAuthoringSession();
   let success = 0;
   let failed = 0;
   let repaired = 0;
@@ -338,7 +340,7 @@ export const importRecordsFromBackup = async (
       const saved = await saveDailyRecordDetailed(
         restore.kind === 'absent' ? parsed.record : restore.record,
         undefined,
-        { writeOrigin: 'backup_restore' }
+        { writeOrigin: 'backup_restore', authoringSession }
       );
       success++;
       if (hadRepairs) {

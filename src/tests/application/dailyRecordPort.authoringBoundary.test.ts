@@ -70,38 +70,64 @@ afterEach(async () => {
   await hospitalDB.syncQueue.clear();
 });
 
-// Characterizes the current lazy boundary, including its late attribution. Moving capture
-// earlier is a behavior fix: it must not be presented as a behavior-preserving type refactor.
+// A lazy repository load must keep the original author, including callers without a hook.
+// Explicit early capture and an unchanged session retain their existing behavior.
 it.each([
   { captureAtEntry: false, change: false },
   { captureAtEntry: true, change: false },
   { captureAtEntry: false, change: true },
   { captureAtEntry: true, change: true },
 ])(
-  'characterizes lazy patch ownership (capture at entry: $captureAtEntry, session change: $change)',
+  'preserves lazy patch ownership (capture at entry: $captureAtEntry, session change: $change)',
   async ({ captureAtEntry, change }) => {
     const { defaultDailyRecordWritePort: port } =
       await import('@/application/ports/dailyRecordPort');
     const { captureAuthoringSession } = await import('@/services/storage/authoringSession');
     const { setSessionGeneration } = await import('@/services/storage/sessionStorageTransition');
     const options = captureAtEntry ? { authoringSession: captureAuthoringSession() } : undefined;
+    const nextRecord = {
+      ...base,
+      nursesDayShift: ['SYNTHETIC B'],
+      beds: { ...base.beds, R1: { ...base.beds.R1, pathology: 'SYNTHETIC B BASE' } },
+    };
+    const nextTask = {
+      id: 800,
+      opId: 'synthetic-B-existing',
+      type: 'UPDATE_DAILY_RECORD' as const,
+      payload: nextRecord,
+      timestamp: 1,
+      retryCount: 0,
+      status: 'PENDING' as const,
+      ownerKey: 'user:synthetic-B',
+      key: `daily:${date}`,
+    };
     const writing = port.updatePartial(date, patch, options);
     await entered;
     if (change) {
       local.setItem(SESSION_OWNER_KEY, 'user:synthetic-B');
       setSessionGeneration('synthetic-B');
+      await hospitalDB.dailyRecords.put(nextRecord);
+      await hospitalDB.syncQueue.put(nextTask);
     }
     release();
     const result = await writing;
     const tasks = await hospitalDB.syncQueue.toArray();
     const stored = await hospitalDB.dailyRecords.get(date);
     const retained = change;
-    expect(tasks).toHaveLength(1);
-    expect(tasks[0].ownerKey).toBe('user:synthetic-A');
-    expect(stored?.beds.R1.pathology).toBe(retained ? 'BASE' : patch['beds.R1.pathology']);
+    expect(tasks).toHaveLength(change ? 2 : 1);
+    if (change) expect(tasks.find(task => task.id === 800)).toEqual(nextTask);
+    const authoredTask = tasks.find(task => task.ownerKey === 'user:synthetic-A');
+    expect(authoredTask?.ownerKey).toBe('user:synthetic-A');
+    expect(stored?.beds.R1.pathology).toBe(
+      retained ? 'SYNTHETIC B BASE' : patch['beds.R1.pathology']
+    );
+    if (change) {
+      expect(stored).toEqual(nextRecord);
+      expect(authoredTask?.projectionReleased).toBe(true);
+    }
     expect(result.outcome).toBe(retained ? 'unrecoverable' : 'clean');
     process.stdout.write(
-      `N2a ${JSON.stringify({ captureAtEntry, change, owner: tasks[0].ownerKey, outcome: result.outcome, pathology: stored?.beds.R1.pathology })}\n`
+      `N2a ${JSON.stringify({ captureAtEntry, change, owner: authoredTask?.ownerKey, outcome: result.outcome, pathology: stored?.beds.R1.pathology })}\n`
     );
   }
 );

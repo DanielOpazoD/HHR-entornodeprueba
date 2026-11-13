@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import {
@@ -75,7 +76,7 @@ it.each([false, true])(
     const result = await updatePartialDetailed(
       base.date,
       { 'beds.R6.pathology': 'PENDIENTE SINTETICO' },
-      { baseRecord: base }
+      { authoringSession: captureAuthoringSession(), baseRecord: base }
     );
     expect(result.updatedRemotely).toBe(false);
     expect(remote().beds.R6.pathology).toBe('Dx E');
@@ -117,7 +118,7 @@ it('publishes a patch whose writer keeps the actual stored version', async () =>
   const result = await updatePartialDetailed(
     base.date,
     { 'beds.R6.pathology': 'ACEPTADO SINTETICO' },
-    { baseRecord: base }
+    { authoringSession: captureAuthoringSession(), baseRecord: base }
   );
   expect(result.updatedRemotely).toBe(true);
   expect(remote().beds.R6.pathology).toBe('ACEPTADO SINTETICO');

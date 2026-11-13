@@ -24,8 +24,8 @@ export interface SaveDailyRecordCommand {
 }
 
 export interface SaveDailyRecordOptions {
-  /** The session the save began in; captured on entry when absent. */
-  authoringSession?: AuthoringSession;
+  /** The session the save began in; captured at the public write boundary. */
+  authoringSession: AuthoringSession;
   /** The day used to construct the full save, before edits or later cache refreshes. */
   baseRecord?: DailyRecord;
   /** Backup batch: enqueue locally; publish only after the enclosing transaction commits. */
@@ -102,8 +102,8 @@ export interface PartialUpdateDailyRecordOptions {
   specialtyIntent?: SpecialtyManualIntent;
   /** Internal lease for a patch executed inside an existing daily-record write critical section. */
   dailyRecordWriteLease?: DailyRecordWriteLease;
-  /** The session the edit began in; captured on entry when absent. */
-  authoringSession?: AuthoringSession;
+  /** The session the edit began in; captured at the public write boundary. */
+  authoringSession: AuthoringSession;
 }
 
 const assertDate = (date: string, operation: string): void => {

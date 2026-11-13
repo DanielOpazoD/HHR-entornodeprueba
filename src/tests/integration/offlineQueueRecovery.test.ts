@@ -1,3 +1,5 @@
+import * as sessionOwner from '@/services/storage/sessionOwnerKey';
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
@@ -38,6 +40,7 @@ const reopenDatabase = async () => {
 
 describe('Offline queue recovery through persisted IndexedDB state', () => {
   beforeEach(async () => {
+    vi.spyOn(sessionOwner, 'getStoredSessionOwnerKey').mockReturnValue('synthetic-owner-a');
     await hospitalDB.open();
     await hospitalDB.dailyRecords.clear();
     await hospitalDB.syncQueue.clear();
@@ -53,7 +56,11 @@ describe('Offline queue recovery through persisted IndexedDB state', () => {
   it('reopens an offline record and its task, then removes the task only after acknowledgement', async () => {
     const record = makeRecord();
     const offlineTransport = vi.fn(async (_task: SyncTask) => undefined);
-    const queued = await createEngine(offlineTransport).queueDailyRecordTaskWithLocalRecord(record);
+    const queued = await createEngine(offlineTransport).queueDailyRecordTaskWithLocalRecord(
+      record,
+      undefined,
+      { authoringSession: captureAuthoringSession() }
+    );
     expect(queued).toMatchObject({ accepted: true, mode: 'created' });
     expect(offlineTransport).not.toHaveBeenCalled();
     const [original] = await hospitalDB.syncQueue.toArray();
@@ -105,7 +112,9 @@ describe('Offline queue recovery through persisted IndexedDB state', () => {
     transport.mockRejectedValueOnce(
       Object.assign(new Error('Unavailable'), { code: 'unavailable' })
     );
-    await createEngine(transport).queueDailyRecordTaskWithLocalRecord(record);
+    await createEngine(transport).queueDailyRecordTaskWithLocalRecord(record, undefined, {
+      authoringSession: captureAuthoringSession(),
+    });
     const [original] = await hospitalDB.syncQueue.toArray();
     await createEngine(transport, { online: true }).processQueue();
 
@@ -130,7 +139,9 @@ describe('Offline queue recovery through persisted IndexedDB state', () => {
   it('does not dispatch another owner’s persisted task after recreating the engine', async () => {
     const record = makeRecord();
     const transport = vi.fn(async (_task: SyncTask) => undefined);
-    await createEngine(transport).queueDailyRecordTaskWithLocalRecord(record);
+    await createEngine(transport).queueDailyRecordTaskWithLocalRecord(record, undefined, {
+      authoringSession: captureAuthoringSession(),
+    });
     const [original] = await hospitalDB.syncQueue.toArray();
     await reopenDatabase();
 
@@ -158,7 +169,13 @@ describe('Offline queue recovery through persisted IndexedDB state', () => {
       key: `daily:${DATE}`,
     };
     await expect(
-      createDexieSyncQueueStore().saveDailyRecordWithTask(edited, task)
+      createDexieSyncQueueStore().saveDailyRecordWithTask(
+        edited,
+        task,
+        undefined,
+        undefined,
+        captureAuthoringSession()
+      )
     ).rejects.toMatchObject({ name: 'DataCloneError' });
 
     await reopenDatabase();

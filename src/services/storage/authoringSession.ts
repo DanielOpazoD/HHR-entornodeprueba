@@ -21,3 +21,16 @@ export const isAuthoringSessionCurrent = (session: AuthoringSession): boolean =>
   !isSessionCleanupPending() &&
   session.ownerKey === getStoredSessionOwnerKey() &&
   session.generation === getSessionGeneration();
+
+/** Only the public write boundary accepts an uncaptured request. */
+export type PublicWriteOptions<T extends { authoringSession: AuthoringSession }> = Omit<
+  T,
+  'authoringSession'
+> &
+  Partial<Pick<T, 'authoringSession'>>;
+export const authoredOptions = <T extends { authoringSession: AuthoringSession }>(
+  options: PublicWriteOptions<T>
+) => ({
+  ...options,
+  authoringSession: options.authoringSession ?? captureAuthoringSession(),
+});

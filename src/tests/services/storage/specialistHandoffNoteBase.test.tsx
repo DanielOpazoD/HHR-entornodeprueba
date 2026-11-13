@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /**
  * Synthetic-only: a queued specialist note never replaces a note saved after its edit began.
  * Real write service, queue, transport and callable handler; only Firestore and the SDKs are fake.
@@ -97,7 +98,7 @@ describe('a queued specialist note keeps a later note', () => {
       Object.fromEntries(
         Object.entries(fields).map(([field, value]) => [`beds.R4.${field}`, value])
       ) as DailyRecordPatch,
-      { baseRecord: base }
+      { authoringSession: captureAuthoringSession(), baseRecord: base }
     );
 
     expect(result).toMatchObject({ queuedForRetry: true, updatedRemotely: false });
