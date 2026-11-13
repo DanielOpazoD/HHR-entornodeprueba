@@ -1,3 +1,4 @@
+import { documentIdentityKey } from '@/utils/rutUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   PRESCRIPTION_TYPES,
@@ -36,9 +37,6 @@ const createEmptyPrescriptionBuckets = (): Record<PrescriptionType, Prescription
 const normalizeIdentityToken = (value: string | undefined): string =>
   value?.trim().toLowerCase().replace(/\s+/g, ' ') ?? '';
 
-const normalizeRutToken = (value: string | undefined): string =>
-  normalizeIdentityToken(value).replace(/[^0-9k]/g, '');
-
 export const buildBedRows = (
   daily: DailyRecord | null,
   records: PrescriptionRecord[]
@@ -58,7 +56,7 @@ export const buildBedRows = (
       byType: createEmptyPrescriptionBuckets(),
     };
     byBed.set(bedId, row);
-    const rutKey = normalizeRutToken(row.patientRut);
+    const rutKey = documentIdentityKey(row.patientRut);
     if (rutKey) activeRowsByRut.set(rutKey, row);
     const nameKey = normalizeIdentityToken(row.patientName);
     if (nameKey) {
@@ -70,7 +68,7 @@ export const buildBedRows = (
     if (resolvePrescriptionAssignmentScope(record) !== 'patient') continue;
     if (!record.bedId) continue;
 
-    const rutKey = normalizeRutToken(record.patientRut);
+    const rutKey = documentIdentityKey(record.patientRut);
     const nameKey = normalizeIdentityToken(record.patientName);
     let row = rutKey ? activeRowsByRut.get(rutKey) : undefined;
 
@@ -80,7 +78,7 @@ export const buildBedRows = (
 
     if (!row) {
       const bedRow = byBed.get(record.bedId);
-      const bedRowRutKey = normalizeRutToken(bedRow?.patientRut);
+      const bedRowRutKey = documentIdentityKey(bedRow?.patientRut);
       const bedRowNameKey = normalizeIdentityToken(bedRow?.patientName);
       const hasRutConflict = Boolean(rutKey && bedRowRutKey && rutKey !== bedRowRutKey);
       const hasNameConflict = Boolean(
