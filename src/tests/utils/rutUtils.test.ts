@@ -67,6 +67,37 @@ describe('rutUtils', () => {
     });
   });
 
+  describe('isValidRut with passports', () => {
+    // 12345678-5 is a valid RUT, so these digits pass the check-digit rule once letters are dropped.
+    it.each(['P123456785', 'P12.345.678-5', 'AB12345678-5', '12345678-5X', '1234A5678-5'])(
+      'never reads the passport %s as a RUT',
+      passport => {
+        expect(isValidRut(passport)).toBe(false);
+      }
+    );
+
+    it.each(['12345678-5', '12.345.678-5', ' 12.345.678-5 ', '123456785', '11.111.111-1'])(
+      'still accepts the RUT %s',
+      rut => {
+        expect(isValidRut(rut)).toBe(true);
+      }
+    );
+
+    it.each(['10.000.013-K', '10000013k', ' 10.000.013-k ', '10.000.013-K.', '(10.000.013-K)'])(
+      'still accepts the K check digit in %s',
+      rut => {
+        expect(isValidRut(rut)).toBe(true);
+      }
+    );
+
+    it.each(['1234K5678-5', '10.000.013-KK', 'K10.000.013'])(
+      'does not take a K elsewhere in %s for the check digit',
+      value => {
+        expect(isValidRut(value)).toBe(false);
+      }
+    );
+  });
+
   describe('isPassportFormat', () => {
     it('should return true for passport formats', () => {
       expect(isPassportFormat('A1234567')).toBe(true);

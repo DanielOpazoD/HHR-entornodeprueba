@@ -57,6 +57,10 @@ export const calculateRutVerifier = (rutBody: string): string => {
 export const isValidRut = (rut: string): boolean => {
   if (!rut) return false;
 
+  // A passport is never read as a RUT: any letter disqualifies it, except the K check digit
+  // (the last letter or digit of the value; spaces or punctuation may follow it).
+  if (/\p{L}/u.test(rut.replace(/[kK](?=[^\p{L}\p{N}]*$)/u, ''))) return false;
+
   // 1. Clean RUT (remove dots and dashes) and match user's logic
   const cleaned = rut.replace(/[^0-9kK]/g, '').toUpperCase();
 
