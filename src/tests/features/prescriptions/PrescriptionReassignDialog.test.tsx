@@ -138,7 +138,11 @@ describe('PrescriptionReassignDialog', () => {
     );
 
     const select = (await screen.findByRole('combobox')) as HTMLSelectElement;
-    fireEvent.change(select, { target: { value: 'H1C2' } });
+    fireEvent.change(select, {
+      target: {
+        value: (screen.getByRole('option', { name: /H1C2 · Carina/ }) as HTMLOptionElement).value,
+      },
+    });
 
     const saveButton = screen.getByRole('button', { name: /guardar/i });
     fireEvent.click(saveButton);
@@ -171,5 +175,150 @@ describe('PrescriptionReassignDialog', () => {
       screen.getByRole('option', { name: /H2C3.*Paciente Alta.*Alta \(egreso\)/i })
     ).toBeTruthy();
     expect(screen.getByRole('option', { name: /H3C4.*Paciente Traslado.*Traslado/i })).toBeTruthy();
+  });
+});
+
+const active = { bedId: 'R1', patientName: 'Paciente Activa Sintética', rut: '11.111.111-1' };
+const discharged = { bedId: 'R1', patientName: 'Paciente Alta Sintética', rut: '22.222.222-2' };
+const sameBedDay = (): DailyRecord =>
+  ({
+    ...buildEmptyDay(),
+    beds: { R1: active },
+    discharges: [discharged],
+  }) as unknown as DailyRecord;
+
+const openDialog = async (day: DailyRecord, record: PrescriptionRecord = baseRecord) => {
+  vi.mocked(getRecordFromFirestore).mockResolvedValue(day);
+  const onSubmit = vi.fn(async () => undefined);
+  render(
+    <PrescriptionReassignDialog
+      record={record}
+      onSubmit={onSubmit}
+      onClose={vi.fn()}
+      selectedDate="2026-05-05"
+    />
+  );
+  const select = await screen.findByRole('combobox');
+  return { select, onSubmit };
+};
+const save = async (onSubmit: ReturnType<typeof vi.fn>) => {
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+  await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+};
+
+describe('reassignment chooses a person', () => {
+  it.each([active, discharged])(
+    'submits the chosen $patientName when two people share R1',
+    async person => {
+      const { select, onSubmit } = await openDialog(sameBedDay());
+      const option = screen.getByRole('option', {
+        name: new RegExp(person.patientName),
+      }) as HTMLOptionElement;
+      fireEvent.change(select, { target: { value: option.value } });
+      await save(onSubmit);
+      expect(onSubmit).toHaveBeenCalledWith({
+        bedId: 'R1',
+        patientName: person.patientName,
+        patientRut: person.rut,
+        clear: false,
+      });
+      expect(option.selected).toBe(true);
+    }
+  );
+
+  it.each([
+    ['active', 'Activo', '11.111.111-1'],
+    ['discharge', 'Alta (egreso)', '11.111.111-1'],
+    ['transfer', 'Traslado', '11.111.111-1'],
+    ['active', 'Activo', ''],
+  ])('preserves the single-bed payload for %s (%s, %s)', async (status, label, rut) => {
+    const person = { ...active, rut };
+    const day = {
+      ...buildEmptyDay(),
+      beds: status === 'active' ? { R1: person } : {},
+      discharges: status === 'discharge' ? [person] : [],
+      transfers: status === 'transfer' ? [person] : [],
+    } as unknown as DailyRecord;
+    const { onSubmit } = await openDialog(day, { ...baseRecord, bedId: 'R1' });
+    const option = screen.getByRole('option', {
+      name: `R1 · ${person.patientName}${rut ? ` (${rut})` : ''} · ${label}`,
+    }) as HTMLOptionElement;
+    expect(option.selected).toBe(true);
+    await save(onSubmit);
+    expect(onSubmit).toHaveBeenCalledWith({
+      bedId: 'R1',
+      patientName: person.patientName,
+      patientRut: rut || undefined,
+      clear: false,
+    });
+  });
+
+  it.each([
+    [active.patientName, active.rut, active],
+    [discharged.patientName, discharged.rut, discharged],
+    ['Nombre anterior', '222222222', discharged],
+    [discharged.patientName, undefined, discharged],
+    ['Sin coincidencia', '33.333.333-3', active],
+  ])('preselects the matching person for %s / %s', async (patientName, patientRut, expected) => {
+    const { onSubmit } = await openDialog(sameBedDay(), {
+      ...baseRecord,
+      bedId: 'R1',
+      patientName,
+      patientRut,
+    });
+    expect(
+      (screen.getByRole('option', { name: new RegExp(expected.patientName) }) as HTMLOptionElement)
+        .selected
+    ).toBe(true);
+    await save(onSubmit);
+    expect(onSubmit).toHaveBeenCalledWith({
+      bedId: 'R1',
+      patientName: expected.patientName,
+      patientRut: expected.rut,
+      clear: false,
+    });
+  });
+
+  it('renders unique values and no duplicate React keys', async () => {
+    const errors = vi.spyOn(console, 'error');
+    try {
+      await openDialog(sameBedDay());
+      const values = screen
+        .getAllByRole('option')
+        .map(option => (option as HTMLOptionElement).value);
+      expect(new Set(values).size).toBe(values.length);
+      expect(errors.mock.calls.flat().join(' ')).not.toMatch(/same key/);
+    } finally {
+      errors.mockRestore();
+    }
+  });
+
+  it('preserves manual assignment', async () => {
+    const { onSubmit } = await openDialog(sameBedDay());
+    fireEvent.click(screen.getByRole('button', { name: /Ingresar manualmente/ }));
+    fireEvent.change(screen.getByLabelText('Cama'), { target: { value: ' R9 ' } });
+    fireEvent.change(screen.getByLabelText('Nombre paciente (opcional)'), {
+      target: { value: ' Paciente Manual ' },
+    });
+    fireEvent.change(screen.getByLabelText('RUT (opcional)'), { target: { value: ' P123456 ' } });
+    await save(onSubmit);
+    expect(onSubmit).toHaveBeenCalledWith({
+      bedId: 'R9',
+      patientName: 'Paciente Manual',
+      patientRut: 'P123456',
+      clear: false,
+    });
+  });
+
+  it('preserves clearing an assignment', async () => {
+    const { onSubmit } = await openDialog(sameBedDay());
+    fireEvent.click(screen.getByRole('checkbox'));
+    await save(onSubmit);
+    expect(onSubmit).toHaveBeenCalledWith({
+      bedId: undefined,
+      patientName: undefined,
+      patientRut: undefined,
+      clear: true,
+    });
   });
 });
