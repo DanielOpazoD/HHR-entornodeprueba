@@ -40,3 +40,60 @@ describe('manual Eloísa patient duplicate policy', () => {
     ).toBeNull();
   });
 });
+
+it('does not block a passport admission as a duplicate of a RUN with the same digits', () => {
+  expect(
+    findManualPatientDuplicate(
+      { beds: { R1: { patientName: 'SINTETICO', rut: '12.345.678-5', clinicalEpisodeId: 'one' } } },
+      { rut: 'P123456785', encounterId: 'two' }
+    )
+  ).toBeNull();
+});
+
+it('still blocks the same passport already in the census, whatever its separators or case', () => {
+  expect(
+    findManualPatientDuplicate(
+      { beds: { R1: { patientName: 'SINTETICO', rut: 'P123456785', clinicalEpisodeId: 'one' } } },
+      { rut: ' p-123456785 ', encounterId: 'two' }
+    )
+  ).toEqual({ kind: 'rut', bedId: 'R1' });
+});
+
+it('does not take two different passports with the same digits for one person', () => {
+  expect(
+    findManualPatientDuplicate(
+      { beds: { R1: { patientName: 'SINTETICO', rut: 'P123456785', clinicalEpisodeId: 'one' } } },
+      { rut: 'X123456785', encounterId: 'two' }
+    )
+  ).toBeNull();
+});
+
+it('does not match two patients that both lack a document', () => {
+  expect(
+    findManualPatientDuplicate(
+      { beds: { R1: { patientName: 'SINTETICO', rut: '', clinicalEpisodeId: 'one' } } },
+      { rut: '', encounterId: 'two' }
+    )
+  ).toBeNull();
+});
+
+it.each(['SIN RUT', 'S/R', 'NN', '--'])(
+  'lets a second patient without a document in: the marker %s names nobody',
+  marker => {
+    expect(
+      findManualPatientDuplicate(
+        { beds: { R1: { patientName: 'SINTETICO', rut: marker, clinicalEpisodeId: 'one' } } },
+        { rut: marker, encounterId: 'two' }
+      )
+    ).toBeNull();
+  }
+);
+
+it('still blocks the same passport written with a space inside', () => {
+  expect(
+    findManualPatientDuplicate(
+      { beds: { R1: { patientName: 'SINTETICO', rut: 'P123456785', clinicalEpisodeId: 'one' } } },
+      { rut: 'P 123456785', encounterId: 'two' }
+    )
+  ).toEqual({ kind: 'rut', bedId: 'R1' });
+});

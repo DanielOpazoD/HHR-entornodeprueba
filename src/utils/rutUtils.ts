@@ -52,14 +52,20 @@ export const calculateRutVerifier = (rutBody: string): string => {
 };
 
 /**
+ * A letter other than the K check digit (the last letter or digit of the value; spaces or
+ * punctuation may follow it). Such a value is a passport or free text, never a RUT.
+ */
+export const hasNonRutLetter = (value: string): boolean =>
+  /\p{L}/u.test(value.replace(/[kK](?=[^\p{L}\p{N}]*$)/u, ''));
+
+/**
  * Validate Chilean RUT
  */
 export const isValidRut = (rut: string): boolean => {
   if (!rut) return false;
 
-  // A passport is never read as a RUT: any letter disqualifies it, except the K check digit
-  // (the last letter or digit of the value; spaces or punctuation may follow it).
-  if (/\p{L}/u.test(rut.replace(/[kK](?=[^\p{L}\p{N}]*$)/u, ''))) return false;
+  // A passport is never read as a RUT.
+  if (hasNonRutLetter(rut)) return false;
 
   // 1. Clean RUT (remove dots and dashes) and match user's logic
   const cleaned = rut.replace(/[^0-9kK]/g, '').toUpperCase();
@@ -77,6 +83,26 @@ export const isValidRut = (rut: string): boolean => {
   const expectedVerifier = calculateRutVerifier(body);
   return verifier === expectedVerifier;
 };
+
+/**
+ * Two documents name the same RUT: the comparison of their normalized digits, except that a value
+ * with letters (a passport) equals nothing. Normalizing alone would erase those letters and match
+ * the passport with the RUT its digits happen to form.
+ */
+export const isSameRut = (left?: string, right?: string): boolean =>
+  normalizeRut(left) === normalizeRut(right) &&
+  !hasNonRutLetter(left ?? '') &&
+  !hasNonRutLetter(right ?? '');
+
+/** A passport's text without spaces, dots, dashes or case. */
+const passportText = (value?: string): string => (value ?? '').toUpperCase().replace(/[\s.-]/g, '');
+
+/** The same document: the same RUT, or the same passport text (separators and case aside). */
+export const isSameDocument = (left?: string, right?: string): boolean =>
+  isSameRut(left, right) ||
+  (hasNonRutLetter(left ?? '') &&
+    hasNonRutLetter(right ?? '') &&
+    passportText(left) === passportText(right));
 
 /**
  * Check if value looks like a passport (not a RUT)
