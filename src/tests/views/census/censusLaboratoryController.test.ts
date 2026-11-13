@@ -55,3 +55,18 @@ describe('census laboratory cohort', () => {
     expect(cohort.patients[1].bedLabel).toContain('Cuna');
   });
 });
+
+it('includes the child own RUN when only the mother passport shares its digits', () => {
+  const cohort = buildCensusLaboratoryCohort(
+    BEDS,
+    {
+      R1: patient('R1', {
+        rut: 'P123456785',
+        documentType: 'Pasaporte',
+        clinicalCrib: patient('R1', { clinicalEpisodeId: 'child' }),
+      }),
+    },
+    '2026-11-07'
+  );
+  expect(cohort.patients.map(p => p.episodeId)).toEqual(['child']);
+});
