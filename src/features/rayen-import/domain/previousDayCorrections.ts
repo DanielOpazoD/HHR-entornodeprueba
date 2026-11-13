@@ -35,6 +35,7 @@ import {
   planPreviousDayAdmissionEdits,
   previousDayAdmissionDays,
 } from './previousDayAdmissionCorrections';
+import { normalizeRut } from '@/utils/rutUtils';
 
 export { verifyPreviousDayAdmissionPlacements } from './previousDayAdmissionEvidence';
 
@@ -48,8 +49,6 @@ export interface CrossDayCorrectionResult {
   /** Ingresos históricos omitidos por condición de dominio (ver planificación). */
   omitted: Array<{ day: string; patientName: string; reason: string }>;
 }
-
-const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
 
 /** Exact episodes never deduplicate by a shared maternal RUN; legacy rows still use RUN. */
 const findRecordedEgreso = (

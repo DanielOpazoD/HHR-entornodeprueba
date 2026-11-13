@@ -18,6 +18,7 @@ import {
   buildPatientPresenceSnapshot,
 } from '@/application/patient-flow/clinicalEpisode';
 import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
+import { normalizeRut } from '@/utils/rutUtils';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -85,21 +86,16 @@ export const buildBedEpisodeBindings = (unifiedRows: UnifiedBedRow[]): BedEpisod
       ];
     });
 
-const normalizePatientRut = (rut?: string): string =>
-  String(rut || '')
-    .replace(/[^0-9kK]/g, '')
-    .toUpperCase();
-
 const recordMatchesPatientRut = (
   record: ClinicalDocumentPresenceRecord,
   binding: BedEpisodeBinding
 ): boolean => {
-  const currentPatientRut = normalizePatientRut(binding.currentPatientRut);
+  const currentPatientRut = normalizeRut(binding.currentPatientRut);
   if (!currentPatientRut) {
     return true;
   }
 
-  const documentRut = normalizePatientRut(record.patientRut);
+  const documentRut = normalizeRut(record.patientRut);
   return !documentRut || documentRut === currentPatientRut;
 };
 
