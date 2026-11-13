@@ -80,13 +80,8 @@ const enrichFromGestionCamas = async (
   reportDate: string,
   dependencies: ReportOnlyDischargeDependencies
 ): Promise<EgresoReportRow[]> => {
-  const rowKey = (row: EgresoReportRow): string => {
-    if (
-      row.encounterId ||
-      isPavilionRecoveryLocation(row.bedLabel) ||
-      isPassportFormat(row.run) ||
-      hasNonRutLetter(row.run)
-    )
+  const digitRowKey = (row: EgresoReportRow): string => {
+    if (row.encounterId || isPavilionRecoveryLocation(row.bedLabel) || isPassportFormat(row.run))
       return '';
     const run = normalizeRut(row.run);
     const { correctedDay } = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
@@ -99,6 +94,9 @@ const enrichFromGestionCamas = async (
     const day = local && censusDay(local) === reportDate ? reportDate : correctedDay;
     return run && day && (dependencies.allReportDays || day === reportDate) ? `${run}|${day}` : '';
   };
+  // A letter other than the final K makes the document a passport: its digits never query a RUN.
+  const rowKey = (row: EgresoReportRow): string =>
+    hasNonRutLetter(row.run) ? '' : digitRowKey(row);
   const exactCandidatesByIdentity = new Map(
     (dependencies.previousCensusCandidates ?? []).map(candidate => [
       previousCensusEgresoIdentity(
@@ -136,15 +134,11 @@ const enrichFromGestionCamas = async (
   }
   const enrichedByKey = new Map<string, EgresoReportRow>();
   const enrichedByRow = new Map<EgresoReportRow, EgresoReportRow>();
-  // A letter in the middle or at the end (other than the final K) makes the document a passport,
-  // so its digits never query a RUN. Unless the census's own episode confirms the discharge, it
-  // waits for review: only a document that starts as a passport follows the
-  // discharge-by-document policy.
+  // Such a row used to be looked up by its digits. It no longer is, and unless the census's own
+  // episode confirms the discharge it waits for review, exactly where that lookup applied (a row
+  // of this report's day): rows it never covered keep their previous handling.
   const needsReviewAsForeignLetterDocument = (row: EgresoReportRow): boolean =>
-    !row.encounterId &&
-    !isPavilionRecoveryLocation(row.bedLabel) &&
-    !isPassportFormat(row.run) &&
-    hasNonRutLetter(row.run);
+    hasNonRutLetter(row.run) && Boolean(digitRowKey(row));
   const unverified = (row: EgresoReportRow): EgresoReportRow => ({
     ...row,
     exactEpisodeVerification: 'unverified',
