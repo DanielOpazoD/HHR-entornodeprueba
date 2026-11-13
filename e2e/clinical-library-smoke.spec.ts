@@ -515,14 +515,20 @@ test.describe('SIC export and saved signature isolation', () => {
           editor.getByRole('img', { name: 'Firma seleccionada para esta SIC' })
         ).toHaveCount(0);
       }
-      const pdfDownload = page.waitForEvent('download');
+      const pdfDownload = page.waitForEvent(
+        'download',
+        download => download.suggestedFilename() === 'solicitud-interconsulta-hhr-imprimible.pdf'
+      );
       await editor.getByRole('button', { name: 'PDF imprimible', exact: true }).click();
       const pdfPath = test.info().outputPath('sic.pdf');
       await (await pdfDownload).saveAs(pdfPath);
       expect(
         (await PDFDocument.load(new Uint8Array(fs.readFileSync(pdfPath)))).getPageCount()
       ).toBe(1);
-      const docxDownload = page.waitForEvent('download');
+      const docxDownload = page.waitForEvent(
+        'download',
+        download => download.suggestedFilename() === 'solicitud-interconsulta-hhr.docx'
+      );
       await editor.getByRole('button', { name: 'Word (.docx)', exact: true }).click();
       const docx = await docxDownload;
       expect(docx.suggestedFilename()).toBe('solicitud-interconsulta-hhr.docx');

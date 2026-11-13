@@ -1,3 +1,8 @@
+import {
+  isAuthoringSessionCurrent,
+  type AuthoringSession,
+} from '@/services/storage/authoringSession';
+import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { classifySyncError } from '@/services/storage/syncErrorCatalog';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
@@ -206,6 +211,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
   canRebaseStaleVersionConflict,
   requireConfirmedRecord = false,
   allowConflictAutoMerge = true,
+  authoringSession,
   remoteAuthorityFirst = false,
   allowOfflineQueue = false,
 }: {
@@ -250,10 +256,47 @@ export const persistLocalAndAttemptRemoteSync = async ({
    * Fail-closed path for guarded writes: commit the atomic remote authority check before touching
    * IndexedDB, and never enqueue a rejected stale writer for later replay.
    */
+  authoringSession?: AuthoringSession;
   remoteAuthorityFirst?: boolean;
   allowOfflineQueue?: boolean;
 }): Promise<'continue' | 'return'> => {
   if (remoteAuthorityFirst) {
+    const sessionChanged = new Error('La sesión cambió antes de enviar la escritura.');
+    const assertAuthor = () => {
+      if (authoringSession && !isAuthoringSessionCurrent(authoringSession)) throw sessionChanged;
+    };
+    const rejectForeignWrite = async (): Promise<'return'> => {
+      const retained =
+        allowOfflineQueue && queueLocalBeforeRemote ? await queueLocalBeforeRemote() : undefined;
+      applyLocalPersistenceFailure(
+        date,
+        changedPaths,
+        retained
+          ? toRejectedOutboxPersistenceResult(retained)
+          : {
+              ok: false,
+              operation: 'save',
+              store: 'none',
+              dates: [],
+              error: sessionChanged,
+              userSafeMessage: 'La sesión cambió. La operación no fue enviada ni guardada.',
+            },
+        remoteState
+      );
+      // The existing outcome tag silences work belonging to a departed session.
+      remoteState.observabilityTags.push('sync_queue_write_retained_for_owner');
+      recordOperationalTelemetry({
+        category: 'sync',
+        operation: 'remote_first_write_session_changed',
+        status: 'degraded',
+        runtimeState: 'recoverable',
+        issues: ['La sesión de autoría terminó antes del despacho remoto.'],
+        context: { retained: retained?.mode === 'retained_for_owner' },
+      });
+      return 'return';
+    };
+    if (authoringSession && !isAuthoringSessionCurrent(authoringSession))
+      return rejectForeignWrite();
     if (
       !isFirestoreEnabled() &&
       (!allowOfflineQueue || getFirestoreSyncState().reason !== 'offline')
@@ -273,13 +316,22 @@ export const persistLocalAndAttemptRemoteSync = async ({
         const rebased = await attemptStaleVersionRebaseRetry<RemoteAuthorityWriteResult>({
           writeError,
           date,
-          hooks: { retryRemoteWriteOnStaleVersion, canRebaseStaleVersionConflict },
+          hooks: {
+            retryRemoteWriteOnStaleVersion: retryRemoteWriteOnStaleVersion
+              ? fresh => {
+                  assertAuthor();
+                  return retryRemoteWriteOnStaleVersion(fresh);
+                }
+              : undefined,
+            canRebaseStaleVersionConflict,
+          },
           readRemoteConfirmedRecord,
         });
         if (!rebased) throw writeError;
         remoteResult = rebased.result;
       }
     } catch (error) {
+      if (error === sessionChanged) return rejectForeignWrite();
       const alreadyAppliedRecovery = await recoverAlreadyAppliedRemoteWrite({
         error,
         date,
