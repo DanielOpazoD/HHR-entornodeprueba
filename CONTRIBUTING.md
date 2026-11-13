@@ -60,15 +60,32 @@ solo si el cambio cruza capas.
 ## Iterar y probar comportamiento
 
 ```sh
-git switch -c codex/descripcion-del-cambio
+git fetch origin main
+git switch -c codex/descripcion-del-cambio --no-track origin/main
 npx vitest run src/tests/ruta/suite.test.ts
+npm run test:changed
+npm run test:emulator:file -- src/tests/emulator-ui/suite.emulator-ui.test.ts
 npm run check:quality:group -- boundaries
 ```
 
-Elegir el grupo de calidad correspondiente: `boundaries`, `governance`, `security`,
-`size`, `tests` o `reports`. `npx vitest run <ruta>` ejecuta una suite;
-`npm test` ejecuta unitarios, reglas y sincronización con emulador. Sus argumentos
-no son intercambiables.
+La rama parte de `origin/main` recién traído: un worktree puede estar varios commits atrás.
+`npx vitest run <ruta>` ejecuta una suite. `npm run test:changed` ejecuta las pruebas
+unitarias que alcanzan lo cambiado por imports, también a través de un `index.ts`; una
+prueba que solo nombra el módulo en `vi.mock` puede quedar fuera.
+`npm run test:emulator:file -- <ruta>` levanta el emulador con puertos libres para uno o
+varios archivos de `src/tests/emulator/` o `src/tests/emulator-ui/`, de modo que dos
+worktrees pueden correr a la vez. `npm test` ejecuta unitarios, reglas y sincronización con
+emulador. Sus argumentos no son intercambiables. Elegir el grupo de calidad
+correspondiente: `boundaries`, `governance`, `security`, `size`, `tests` o `reports`.
+
+Un arreglo de defecto empieza por una prueba que falla en `main` por ese motivo; si el
+defecto no se reproduce, no hay arreglo que hacer. Quitar el arreglo debe volver a ponerla
+en rojo.
+
+`src/tests/setup.ts` simula `@/application/ports/dailyRecordPort` para todas las pruebas.
+Una prueba que necesita el puerto y el repositorio reales lo declara con
+`vi.unmock('@/application/ports/dailyRecordPort')`; sin eso la prueba falla sin nombrar
+la causa.
 
 Antes de añadir tests, revisar los existentes. Conservar casos que distingan
 resultados clínicos, autoridad, concurrencia, fallos y compatibilidad. Fusionar
