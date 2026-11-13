@@ -1,4 +1,4 @@
-import { isPassportFormat, normalizeRut } from '@/utils/rutUtils';
+import { hasNonRutLetter, isPassportFormat, normalizeRut } from '@/utils/rutUtils';
 import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
 import type { RayenHospitalizationReportResult } from '../bridge/hospitalizationReportsBridge';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
@@ -44,7 +44,7 @@ export const recoverHistoricalReportEpisodes = async (
     return pending;
   };
   const recover = async (row: EgresoReportRow): Promise<EgresoReportRow | null> => {
-    if (row.encounterId || isPassportFormat(row.run)) return row;
+    if (row.encounterId || isPassportFormat(row.run) || hasNonRutLetter(row.run)) return row;
     const cribLabel = row.bedLabel.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
     // Guard only: a source crib label never identifies its mother or supplies a parent bed.
     const isClinicalCrib =
