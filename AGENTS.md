@@ -58,11 +58,11 @@ lea este archivo.
 
 ### Pruebas y datos reales
 
-| Regla                                                                                                                                                                        | Qué la impone                                     |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| Las pruebas usan solo datos sintéticos. Nunca sincronizar con el Firebase de producción ni leer sus datos. El emulador se levanta con `scripts/lib/firebase-emulator-ci.sh`. | El lanzador del emulador; **[docs]**              |
-| La telemetría puede llevar datos del paciente para diagnosticar, pero nunca excepciones crudas ni credenciales.                                                              | `npm run check:secret-leaks` en parte; **[docs]** |
-| Cada prueba verifica lo que observa quien usa el código. Al borrar código o pruebas, ningún comportamiento vigente pierde su última prueba.                                  | **[docs]**                                        |
+| Regla                                                                                                                                                                                                                                         | Qué la impone                                     |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Las pruebas usan solo datos sintéticos. Nunca sincronizar con el Firebase de producción ni leer sus datos. El emulador se levanta con `scripts/lib/firebase-emulator-ci.sh`; para archivos concretos: `npm run test:emulator:file -- <ruta>`. | El lanzador del emulador; **[docs]**              |
+| La telemetría puede llevar datos del paciente para diagnosticar, pero nunca excepciones crudas ni credenciales.                                                                                                                               | `npm run check:secret-leaks` en parte; **[docs]** |
+| Cada prueba verifica lo que observa quien usa el código. Al borrar código o pruebas, ningún comportamiento vigente pierde su última prueba.                                                                                                   | **[docs]**                                        |
 
 ### Código y dependencias
 
