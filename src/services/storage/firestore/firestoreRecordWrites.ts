@@ -1,10 +1,4 @@
-import {
-  setDoc,
-  Timestamp,
-  updateDoc,
-  type DocumentData,
-  type UpdateData,
-} from 'firebase/firestore';
+import { Timestamp, updateDoc, type DocumentData, type UpdateData } from 'firebase/firestore';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { withRetry } from '@/utils/networkUtils';
@@ -36,7 +30,6 @@ import {
   logFirestoreWriteRetry,
   tryRefreshCurrentUserRoleClaim,
 } from '@/services/storage/firestore/firestoreRecordWriteUtilities';
-import { firestoreWriteLogger } from '@/services/storage/storageLoggers';
 import {
   patchDailyRecordWithClinicalAuthorityCallable,
   saveDailyRecordWithClinicalAuthorityCallable,
@@ -260,179 +253,169 @@ export const updateRecordPartial = async (
       ...sanitizedPatch,
       lastUpdated: Timestamp.now(),
     }) as Record<string, unknown>;
-    try {
-      const persist = async () => {
-        if (specialistScopedPatch && (await shouldRouteSpecialistPatchViaCallable())) {
-          await assertDirectWriteConcurrency();
-          return (await loadSpecialistMedicalHandoffClient()).saveSpecialistMedicalHandoff({
-            date,
-            patch: sanitizedPatch,
-            expectedOccupants: options.specialistHandoffTargets ?? [],
-            mutationId: options.syncContract?.mutationId,
-          });
-        }
-
-        const isClinicalPatchForAuthority = shouldRouteClinicalAuthorityPatch(sanitizedPatch);
-        const authorityPatch = extractClinicalAuthorityPatch(sanitizedPatch);
-        const authorityPaths = new Set(Object.keys(authorityPatch));
-        const hasClinicalAuthorityPatch = authorityPaths.size > 0;
-        // Derived compatibility fields are omitted only when every meaningful path belongs to the
-        // clinical envelope. A genuinely mixed clinical/structural patch makes this predicate false,
-        // so its structural fields remain visible to the fail-closed separation checks below.
-        const structuralBedPatch = Object.fromEntries(
-          Object.entries(extractDailyRecordBedTreePatch(sanitizedPatch)).filter(
-            ([path]) => !authorityPaths.has(path) && !isClinicalPatchForAuthority
-          )
-        );
-        const hasStructuralBedPatch = Object.keys(structuralBedPatch).length > 0;
-        const isE2EForcedMovementPatch = isE2EForcedMovementAuthorityPatch(sanitizedPatch);
-        const shouldUseAuthorityCallable =
-          hasClinicalAuthorityPatch || hasStructuralBedPatch || isE2EForcedMovementPatch;
-        const structuralCompanionPaths = Object.keys(sanitizedPatch).filter(
-          path => !isDailyRecordBedTreePath(path) && path !== 'dateTimestamp'
-        );
-        const clinicalAuthorityMode = hasClinicalAuthorityPatch
-          ? await resolveAuthenticatedDailyRecordAuthorityMode()
-          : null;
-        const structuralAuthorityMode = hasStructuralBedPatch
-          ? await resolveAuthenticatedDailyRecordAuthorityMode()
-          : null;
-        const bedTreeAuthorityFenced =
-          shouldUseAuthorityCallable && (await shouldRouteStructuralBedPatchViaCallable());
-        const structuralAuthorityFenced = hasStructuralBedPatch && bedTreeAuthorityFenced;
-        const clinicalAuthorityFenced = hasClinicalAuthorityPatch && bedTreeAuthorityFenced;
-        const requiresAuthoritySeparation =
-          clinicalAuthorityMode === 'enforced' || bedTreeAuthorityFenced;
-        if (requiresAuthoritySeparation && hasStructuralBedPatch && hasClinicalAuthorityPatch) {
-          throw new ConcurrencyError(
-            'La edición mezcla campos clínicos y estructurales de cama y debe guardarse por separado.'
-          );
-        }
-        if (
-          requiresAuthoritySeparation &&
-          hasClinicalAuthorityPatch &&
-          !isClinicalPatchForAuthority
-        ) {
-          throw new ConcurrencyError(
-            'La edición mezcla cambios clínicos con otros campos y debe guardarse por separado.'
-          );
-        }
-        if (
-          requiresAuthoritySeparation &&
-          hasStructuralBedPatch &&
-          structuralCompanionPaths.length > 0
-        ) {
-          throw new ConcurrencyError(
-            'La edición mezcla cambios de cama con otros campos y debe guardarse por separado.'
-          );
-        }
-        const callablePatch = isE2EForcedMovementPatch
-          ? extractE2EForcedMovementAuthorityPatch(sanitizedPatch)
-          : isClinicalPatchForAuthority
-            ? authorityPatch
-            : structuralBedPatch;
-        const callableAuthorityMode = isClinicalPatchForAuthority
-          ? clinicalAuthorityMode === 'enforced'
-            ? 'enforced'
-            : clinicalAuthorityFenced
-              ? clinicalAuthorityMode || 'enforced'
-              : null
-          : isE2EForcedMovementPatch
-            ? 'enforced'
-            : structuralAuthorityFenced
-              ? structuralAuthorityMode || 'enforced'
-              : null;
-        if (
-          shouldUseAuthorityCallable &&
-          (callableAuthorityMode === 'enforced' ||
-            bedTreeAuthorityFenced ||
-            Boolean(intentionalBedClear) ||
-            Boolean(options.specialtyIntent))
-        ) {
-          return withRetry(
-            () =>
-              patchDailyRecordWithClinicalAuthorityCallable({
-                date,
-                patch: callablePatch,
-                expectedLastUpdated,
-                mode: 'enforced',
-                origin: 'direct_partial_update',
-                intentionalBedClear,
-                specialtyIntent: options.specialtyIntent,
-                syncContract: buildAuthorityPatchSyncContract(options.syncContract, callablePatch),
-              }),
-            {
-              onRetry: (err: unknown, attempt: number) =>
-                logFirestoreWriteRetry('partialUpdate', date, attempt, err),
-              shouldRetry: shouldRetryDailyRecordAuthorityError,
-            }
-          );
-        }
-
-        const isStaffingPatch = Object.keys(sanitizedPatch).some(path =>
-          /^(nurses|nurseName|nursesDayShift|nursesNightShift|tensDayShift|tensNightShift|staffingDetailsV1)(\.|$)/.test(
-            path
-          )
-        );
-        if (options.requireAtomicCas || isStaffingPatch) {
-          const committedBase = await withRetry(
-            () =>
-              updateRecordPartiallyAtomically(
-                docRef,
-                asFirestoreUpdatePayload(sanitizedData),
-                expectedLastUpdated,
-                isStaffingPatch
-                  ? 'El censo cambió. Este cambio de dotación no se guardó. Recarga el censo y revisa la dotación antes de volver a guardar.'
-                  : 'El egreso fue modificado por otro usuario. Recarga el censo antes de reclasificarlo.',
-                isStaffingPatch ? 'staffing update' : 'movement reclassification',
-                { historyPolicy: options.historyPolicy }
-              ),
-            {
-              onRetry: (err: unknown, attempt: number) =>
-                logFirestoreWriteRetry('partialUpdate', date, attempt, err),
-              shouldRetry: (err: unknown) => !(err instanceof ConcurrencyError),
-            }
-          );
-          // Plain local-first writes stay receipt-less, because a returned
-          // result sends the controller into its confirm-and-adopt path.
-          return options.returnCommittedRecord
-            ? buildAtomicPartialCommitReceipt(date, committedBase, sanitizedData)
-            : undefined;
-        }
-
+    const persist = async () => {
+      if (specialistScopedPatch && (await shouldRouteSpecialistPatchViaCallable())) {
         await assertDirectWriteConcurrency();
-        if (options.historyPolicy !== 'skip')
-          await saveHistorySnapshot(date, { force: options.historyPolicy === 'snapshot' });
+        return (await loadSpecialistMedicalHandoffClient()).saveSpecialistMedicalHandoff({
+          date,
+          patch: sanitizedPatch,
+          expectedOccupants: options.specialistHandoffTargets ?? [],
+          mutationId: options.syncContract?.mutationId,
+        });
+      }
 
+      const isClinicalPatchForAuthority = shouldRouteClinicalAuthorityPatch(sanitizedPatch);
+      const authorityPatch = extractClinicalAuthorityPatch(sanitizedPatch);
+      const authorityPaths = new Set(Object.keys(authorityPatch));
+      const hasClinicalAuthorityPatch = authorityPaths.size > 0;
+      // Derived compatibility fields are omitted only when every meaningful path belongs to the
+      // clinical envelope. A genuinely mixed clinical/structural patch makes this predicate false,
+      // so its structural fields remain visible to the fail-closed separation checks below.
+      const structuralBedPatch = Object.fromEntries(
+        Object.entries(extractDailyRecordBedTreePatch(sanitizedPatch)).filter(
+          ([path]) => !authorityPaths.has(path) && !isClinicalPatchForAuthority
+        )
+      );
+      const hasStructuralBedPatch = Object.keys(structuralBedPatch).length > 0;
+      const isE2EForcedMovementPatch = isE2EForcedMovementAuthorityPatch(sanitizedPatch);
+      const shouldUseAuthorityCallable =
+        hasClinicalAuthorityPatch || hasStructuralBedPatch || isE2EForcedMovementPatch;
+      const structuralCompanionPaths = Object.keys(sanitizedPatch).filter(
+        path => !isDailyRecordBedTreePath(path) && path !== 'dateTimestamp'
+      );
+      const clinicalAuthorityMode = hasClinicalAuthorityPatch
+        ? await resolveAuthenticatedDailyRecordAuthorityMode()
+        : null;
+      const structuralAuthorityMode = hasStructuralBedPatch
+        ? await resolveAuthenticatedDailyRecordAuthorityMode()
+        : null;
+      const bedTreeAuthorityFenced =
+        shouldUseAuthorityCallable && (await shouldRouteStructuralBedPatchViaCallable());
+      const structuralAuthorityFenced = hasStructuralBedPatch && bedTreeAuthorityFenced;
+      const clinicalAuthorityFenced = hasClinicalAuthorityPatch && bedTreeAuthorityFenced;
+      const requiresAuthoritySeparation =
+        clinicalAuthorityMode === 'enforced' || bedTreeAuthorityFenced;
+      if (requiresAuthoritySeparation && hasStructuralBedPatch && hasClinicalAuthorityPatch) {
+        throw new ConcurrencyError(
+          'La edición mezcla campos clínicos y estructurales de cama y debe guardarse por separado.'
+        );
+      }
+      if (
+        requiresAuthoritySeparation &&
+        hasClinicalAuthorityPatch &&
+        !isClinicalPatchForAuthority
+      ) {
+        throw new ConcurrencyError(
+          'La edición mezcla cambios clínicos con otros campos y debe guardarse por separado.'
+        );
+      }
+      if (
+        requiresAuthoritySeparation &&
+        hasStructuralBedPatch &&
+        structuralCompanionPaths.length > 0
+      ) {
+        throw new ConcurrencyError(
+          'La edición mezcla cambios de cama con otros campos y debe guardarse por separado.'
+        );
+      }
+      const callablePatch = isE2EForcedMovementPatch
+        ? extractE2EForcedMovementAuthorityPatch(sanitizedPatch)
+        : isClinicalPatchForAuthority
+          ? authorityPatch
+          : structuralBedPatch;
+      const callableAuthorityMode = isClinicalPatchForAuthority
+        ? clinicalAuthorityMode === 'enforced'
+          ? 'enforced'
+          : clinicalAuthorityFenced
+            ? clinicalAuthorityMode || 'enforced'
+            : null
+        : isE2EForcedMovementPatch
+          ? 'enforced'
+          : structuralAuthorityFenced
+            ? structuralAuthorityMode || 'enforced'
+            : null;
+      if (
+        shouldUseAuthorityCallable &&
+        (callableAuthorityMode === 'enforced' ||
+          bedTreeAuthorityFenced ||
+          Boolean(intentionalBedClear) ||
+          Boolean(options.specialtyIntent))
+      ) {
         return withRetry(
           () =>
-            updateDoc(docRef, asFirestoreUpdatePayload(sanitizedData) as UpdateData<DocumentData>),
+            patchDailyRecordWithClinicalAuthorityCallable({
+              date,
+              patch: callablePatch,
+              expectedLastUpdated,
+              mode: 'enforced',
+              origin: 'direct_partial_update',
+              intentionalBedClear,
+              specialtyIntent: options.specialtyIntent,
+              syncContract: buildAuthorityPatchSyncContract(options.syncContract, callablePatch),
+            }),
           {
             onRetry: (err: unknown, attempt: number) =>
               logFirestoreWriteRetry('partialUpdate', date, attempt, err),
+            shouldRetry: shouldRetryDailyRecordAuthorityError,
           }
         );
-      };
-      // A protected specialty decision already uses the authority callable. Its
-      // rejection must never be retried as a legacy patch without that intent.
-      if (options.specialtyIntent) return await persist();
-      return await runPartialUpdatePersistWithPermissionFallbacks({
-        persist,
-        date,
-        sanitizedPatch,
-        expectedLastUpdated,
-        syncContract: options.syncContract,
-        tryRefreshCurrentUserRoleClaim,
-      });
-    } catch (error: unknown) {
-      const storageError = error as { code?: string };
-      if (storageError?.code === 'not-found' && !options.specialtyIntent) {
-        firestoreWriteLogger.warn('Firestore write fallback: partialUpdateNotFound', { date });
-        await withRetry(() => setDoc(docRef, sanitizedData, { merge: true }));
-      } else {
-        throw error;
       }
-    }
+
+      const isStaffingPatch = Object.keys(sanitizedPatch).some(path =>
+        /^(nurses|nurseName|nursesDayShift|nursesNightShift|tensDayShift|tensNightShift|staffingDetailsV1)(\.|$)/.test(
+          path
+        )
+      );
+      if (options.requireAtomicCas || isStaffingPatch) {
+        const committedBase = await withRetry(
+          () =>
+            updateRecordPartiallyAtomically(
+              docRef,
+              asFirestoreUpdatePayload(sanitizedData),
+              expectedLastUpdated,
+              isStaffingPatch
+                ? 'El censo cambió. Este cambio de dotación no se guardó. Recarga el censo y revisa la dotación antes de volver a guardar.'
+                : 'El egreso fue modificado por otro usuario. Recarga el censo antes de reclasificarlo.',
+              isStaffingPatch ? 'staffing update' : 'movement reclassification',
+              { historyPolicy: options.historyPolicy }
+            ),
+          {
+            onRetry: (err: unknown, attempt: number) =>
+              logFirestoreWriteRetry('partialUpdate', date, attempt, err),
+            shouldRetry: (err: unknown) => !(err instanceof ConcurrencyError),
+          }
+        );
+        // Plain local-first writes stay receipt-less, because a returned
+        // result sends the controller into its confirm-and-adopt path.
+        return options.returnCommittedRecord
+          ? buildAtomicPartialCommitReceipt(date, committedBase, sanitizedData)
+          : undefined;
+      }
+
+      await assertDirectWriteConcurrency();
+      if (options.historyPolicy !== 'skip')
+        await saveHistorySnapshot(date, { force: options.historyPolicy === 'snapshot' });
+
+      return withRetry(
+        () =>
+          updateDoc(docRef, asFirestoreUpdatePayload(sanitizedData) as UpdateData<DocumentData>),
+        {
+          onRetry: (err: unknown, attempt: number) =>
+            logFirestoreWriteRetry('partialUpdate', date, attempt, err),
+        }
+      );
+    };
+    // A protected specialty decision already uses the authority callable. Its
+    // rejection must never be retried as a legacy patch without that intent.
+    if (options.specialtyIntent) return await persist();
+    return await runPartialUpdatePersistWithPermissionFallbacks({
+      persist,
+      date,
+      sanitizedPatch,
+      expectedLastUpdated,
+      syncContract: options.syncContract,
+      tryRefreshCurrentUserRoleClaim,
+    });
   } catch (error) {
     logFirestoreWriteError('partialUpdate', date, error);
     throw error;
