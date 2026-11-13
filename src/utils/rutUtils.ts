@@ -104,9 +104,15 @@ export const isSameDocument = (left?: string, right?: string): boolean =>
     hasNonRutLetter(right ?? '') &&
     passportText(left) === passportText(right));
 
-/** Map/Set key with the same equality as isSameDocument; empty RUT keys stay empty. */
-export const documentIdentityKey = (value?: string): string =>
-  hasNonRutLetter(value ?? '') ? `passport:${passportText(value)}` : normalizeRut(value);
+/**
+ * Map/Set key for a document: two keys are equal exactly when isSameDocument holds. A value
+ * without any digit ("SIN RUT", "S/N", "RN") is a marker, not a document, and has no key, so
+ * two people without a document are never grouped by it.
+ */
+export const documentIdentityKey = (value?: string): string => {
+  if (!/\d/.test(value ?? '')) return '';
+  return hasNonRutLetter(value ?? '') ? `passport:${passportText(value)}` : normalizeRut(value);
+};
 
 /**
  * Check if value looks like a passport (not a RUT)

@@ -23,6 +23,13 @@ describe('buildBedOptions document identity', () => {
   it('offers the same RUT only once despite formatting differences', () => {
     expect(buildBedOptions(daily('123456785')).map(option => option.bedId)).toEqual(['R1']);
   });
+  it('offers both patients when each only carries a no-document marker', () => {
+    const record = daily('SIN RUT');
+    record.beds.R1.rut = 'S/N';
+    expect(buildBedOptions(record).map(option => option.bedId)).toEqual(['R1', 'R2']);
+    record.beds.R1.rut = 'SIN RUT';
+    expect(buildBedOptions(record).map(option => option.bedId)).toEqual(['R1', 'R2']);
+  });
   it('keeps separate bed fallbacks for missing documents', () => {
     const record = daily('');
     record.beds.R1.rut = '';

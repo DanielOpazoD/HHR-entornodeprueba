@@ -162,12 +162,8 @@ describe('rutUtils', () => {
 });
 
 describe('documentIdentityKey', () => {
-  it('has exactly isSameDocument equality across RUT, passport and empty values', () => {
+  it('has exactly isSameDocument equality across RUT and passport values', () => {
     const corpus = [
-      undefined,
-      '',
-      ' ',
-      '.-',
       '12.345.678-5',
       '123456785',
       ' 12.345.678-5 ',
@@ -185,8 +181,6 @@ describe('documentIdentityKey', () => {
       'P12345',
       'Ñ12345',
       'ñ12-345',
-      'K',
-      'k',
       '11.111.111-1',
     ];
     for (const left of corpus)
@@ -197,7 +191,10 @@ describe('documentIdentityKey', () => {
           equal: documentIdentityKey(left) === documentIdentityKey(right),
         }).toEqual({ left, right, equal: isSameDocument(left, right) });
       }
-    expect(documentIdentityKey(undefined)).toBe('');
-    expect(documentIdentityKey(' .- ')).toBe('');
+  });
+
+  it('gives no key to a value without digits, so markers never group two people', () => {
+    for (const marker of [undefined, '', ' ', ' .- ', 'SIN RUT', 'S/R', 's/n', 'RN', 'K', 'k'])
+      expect({ marker, key: documentIdentityKey(marker) }).toEqual({ marker, key: '' });
   });
 });

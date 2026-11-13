@@ -89,6 +89,58 @@ describe('prescriptionBedGridSupport', () => {
     expect(idsInCell(rows, 'R2')).toEqual(['passport-rx']);
   });
 
+  it('follows a passport patient to the new bed, past the RUT patient with the same digits', () => {
+    const rows = buildBedRows(
+      buildDailyRecord({
+        R1: patient('R1', 'Sol Sintetico', '12.345.678-5'),
+        R5: patient('R5', 'Luna Sintetica', 'P123456785'),
+      }),
+      [
+        buildPrescription('passport-rx', {
+          bedId: 'R2',
+          patientName: 'Luna Sintetica',
+          patientRut: 'P123456785',
+        }),
+      ]
+    );
+    expect(idsInCell(rows, 'R1')).toEqual([]);
+    expect(idsInCell(rows, 'R5')).toEqual(['passport-rx']);
+  });
+
+  it('never shows a RUT prescription on the passport patient now in that bed', () => {
+    const rows = buildBedRows(
+      buildDailyRecord({ R2: patient('R2', 'Luna Sintetica', 'P123456785') }),
+      [
+        buildPrescription('rut-rx', {
+          bedId: 'R2',
+          patientName: 'Sol Sintetico',
+          patientRut: '12.345.678-5',
+        }),
+      ]
+    );
+    const holder = rows.find(row => row.byType.comun.some(record => record.id === 'rut-rx'));
+    expect(holder?.patientName).toBe('Sol Sintetico');
+    expect(holder?.isDischargeSnapshot).toBe(true);
+  });
+
+  it('places prescriptions by name when two patients only carry a no-document marker', () => {
+    const rows = buildBedRows(
+      buildDailyRecord({
+        R1: patient('R1', 'Ana Inventada', 'SIN RUT'),
+        R3: patient('R3', 'Bea Inventada', 'SIN RUT'),
+      }),
+      [
+        buildPrescription('ana-rx', {
+          bedId: 'R1',
+          patientName: 'Ana Inventada',
+          patientRut: 'SIN RUT',
+        }),
+      ]
+    );
+    expect(idsInCell(rows, 'R1')).toEqual(['ana-rx']);
+    expect(idsInCell(rows, 'R3')).toEqual([]);
+  });
+
   it('matches the same RUT in another format after a bed move', () => {
     const rows = buildBedRows(
       buildDailyRecord({ R1: patient('R1', 'Sol Sintetico', '12.345.678-5') }),
