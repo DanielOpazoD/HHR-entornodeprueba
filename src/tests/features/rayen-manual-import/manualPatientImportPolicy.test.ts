@@ -40,3 +40,12 @@ describe('manual Eloísa patient duplicate policy', () => {
     ).toBeNull();
   });
 });
+
+it('does not block a passport admission as a duplicate of a RUN with the same digits', () => {
+  expect(
+    findManualPatientDuplicate(
+      { beds: { R1: { patientName: 'SINTETICO', rut: '12.345.678-5', clinicalEpisodeId: 'one' } } },
+      { rut: 'P123456785', encounterId: 'two' }
+    )
+  ).toBeNull();
+});
