@@ -95,10 +95,11 @@ write_firestore_emulator_config() {
   local target_path="$1"
   local emulator_host="$2"
 
-  node - "$target_path" "$emulator_host" <<'NODE'
-const fs = require('node:fs');
-const path = require('node:path');
-const [targetPath, emulatorHost] = process.argv.slice(2);
+  node --input-type=module - "$target_path" "$emulator_host" "${3:-}" <<'NODE'
+import fs from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+const [targetPath, emulatorHost, mode] = process.argv.slice(2);
 const [host, portValue] = emulatorHost.split(':');
 const port = Number.parseInt(portValue, 10);
 
@@ -131,6 +132,14 @@ source.emulators = {
     port,
   },
 };
+if (mode === 'isolated') {
+  const { pickEmulatorPorts } = await import(pathToFileURL(path.resolve('scripts/lib/emulatorPorts.mjs')).href);
+  const ports = await pickEmulatorPorts(['firestore', 'hub', 'logging']);
+  source.emulators = { ui: { enabled: false } };
+  for (const [name, freePort] of Object.entries(ports)) {
+    source.emulators[name] = { host: '127.0.0.1', port: freePort };
+  }
+}
 fs.writeFileSync(targetPath, `${JSON.stringify(source, null, 2)}\n`);
 NODE
 }
@@ -178,7 +187,7 @@ fs.writeFileSync(targetPath, `${JSON.stringify(source, null, 2)}\n`);
 NODE
 }
 
-run_firestore_emulator_exec() {
+run_firestore_emulator_exec() (
   local command="$1"
   local firebase_bin
   firebase_bin="$(resolve_local_firebasetools)" || return 1
@@ -186,18 +195,28 @@ run_firestore_emulator_exec() {
   export NO_UPDATE_NOTIFIER="${NO_UPDATE_NOTIFIER:-1}"
   export CI="${CI:-1}"
   export FIRESTORE_EMULATOR_HOST
-  FIRESTORE_EMULATOR_HOST="$(resolve_firestore_emulator_host)" || return 1
+  if [[ "${2:-}" == "isolated" ]]; then
+    FIRESTORE_EMULATOR_HOST="127.0.0.1:8080"
+  else
+    FIRESTORE_EMULATOR_HOST="$(resolve_firestore_emulator_host)" || return 1
+  fi
 
-  local firebase_config
+  # The EXIT trap runs after function locals expire; this variable stays in the subshell.
   local temp_root="${TMPDIR:-/tmp}"
   temp_root="${temp_root%/}"
   firebase_config="$(mktemp "$temp_root/hhr-firebase-emulator.XXXXXX")"
-  write_firestore_emulator_config "$firebase_config" "$FIRESTORE_EMULATOR_HOST"
+  trap 'node -e "require(\"node:fs\").unlinkSync(process.argv[1])" "$firebase_config"' EXIT
+  write_firestore_emulator_config "$firebase_config" "$FIRESTORE_EMULATOR_HOST" "${2:-}"
+  if [[ "${2:-}" == "isolated" ]]; then
+    FIRESTORE_EMULATOR_HOST="$(node -e 'const c=JSON.parse(require("node:fs").readFileSync(process.argv[1])); console.log(`${c.emulators.firestore.host}:${c.emulators.firestore.port}`)' "$firebase_config")"
+  fi
 
-  trap 'rm -f "$firebase_config"' RETURN
-
-  "$firebase_bin" emulators:exec --config "$firebase_config" --only firestore "$command"
-}
+  if [[ "${2:-}" == "isolated" ]]; then
+    "$firebase_bin" emulators:exec --config "$firebase_config" --project demo-hhr-emulator-file --only firestore "$command"
+  else
+    "$firebase_bin" emulators:exec --config "$firebase_config" --only firestore "$command"
+  fi
+)
 
 run_storage_emulator_exec() {
   local command="$1"
