@@ -4,6 +4,7 @@ import {
   buildBedRows,
   isStockRecord,
   isUnassignedRecord,
+  prescriptionBedRowKey,
 } from '@/features/prescriptions/components/prescriptionBedGridSupport';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PrescriptionRecord } from '@/types/prescriptionTypes';
@@ -301,5 +302,155 @@ describe('prescriptionBedGridSupport', () => {
         records.filter(isUnassignedRecord).length +
         records.filter(isStockRecord).length
     ).toBe(8);
+  });
+});
+
+describe('prescription grid patient retention', () => {
+  it.each([false, true])('keeps current and discharged prescriptions, reversed=%s', reverse => {
+    const current = buildPrescription('current', { bedId: 'R2' });
+    const previous = buildPrescription('previous', {
+      bedId: 'R2',
+      patientName: 'Anterior Sintetico',
+      patientRut: '10.000.013-K',
+    });
+    const records = reverse ? [previous, current] : [current, previous];
+    const rows = buildBedRows(
+      buildDailyRecord({ R2: patient('R2', 'Paciente', '11.111.111-1') }),
+      records
+    );
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({ patientName: 'Paciente', patientRut: '11.111.111-1' });
+    expect(rows[0].byType.comun.map(record => record.id)).toEqual(['current']);
+    expect(rows[1].isDischargeSnapshot).toBe(true);
+    expect(rows[1].byType.comun.map(record => record.id)).toEqual(['previous']);
+  });
+
+  it.each(['11.111.111-2', 'P111111111'])(
+    'retains both prescriptions after document correction to %s',
+    corrected => {
+      const rows = buildBedRows(buildDailyRecord({ R2: patient('R2', 'Paciente', corrected) }), [
+        buildPrescription('before', { bedId: 'R2' }),
+        buildPrescription('after', { bedId: 'R2', patientRut: corrected }),
+      ]);
+      expect(countAssignedRecords(rows)).toBe(2);
+      expect(rows).toHaveLength(2);
+      expect(rows[0].byType.comun.map(record => record.id)).toEqual(['after']);
+      expect(rows[1].byType.comun.map(record => record.id)).toEqual(['before']);
+    }
+  );
+
+  it.each([true, false])('groups each previous person separately, documents=%s', withDocuments => {
+    const records = ['A', 'B', 'A'].map((name, index) =>
+      buildPrescription(String(index), {
+        bedId: 'R2',
+        patientName: name,
+        patientRut: withDocuments ? `P${name}123456` : 'SIN RUT',
+      })
+    );
+    const rows = buildBedRows(
+      buildDailyRecord({ R2: patient('R2', 'Actual Sintetico', '11.111.111-1') }),
+      records
+    );
+    expect(rows).toHaveLength(3);
+    expect(rows.slice(1).map(row => row.byType.comun.map(record => record.id))).toEqual([
+      ['0', '2'],
+      ['1'],
+    ]);
+    expect(countAssignedRecords(rows)).toBe(3);
+  });
+});
+
+it('preserves every patient prescription and every occupied bed in 3200 generated scenarios', () => {
+  let seed = 64123;
+  const next = (max: number) => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed % max;
+  };
+  for (let scenario = 0; scenario < 3200; scenario++) {
+    const beds: DailyRecord['beds'] = {};
+    const records: PrescriptionRecord[] = [];
+    const count = 1 + next(8);
+    for (let personIndex = 0; personIndex < count; personIndex++) {
+      const name = `Sintetico ${personIndex}`;
+      const document = ['', 'SIN RUT', `P${personIndex}123456`, `${personIndex + 10}.000.013-K`][
+        next(4)
+      ];
+      const currentBed = `R${personIndex + 1}`;
+      if (next(3) !== 0) beds[currentBed] = patient(currentBed, name, document);
+      for (let copy = 0; copy < 1 + next(4); copy++) {
+        records.push(
+          buildPrescription(`${personIndex}-${copy}`, {
+            bedId: `R${1 + next(count + 2)}`,
+            patientName: name,
+            patientRut: copy === 0 && next(3) === 0 ? `CORRECTED${personIndex}` : document,
+            prescriptionType: (['comun', 'psicotropicos', 'benzodiazepinas'] as const)[next(3)],
+          })
+        );
+      }
+    }
+    for (let index = records.length - 1; index > 0; index--) {
+      const other = next(index + 1);
+      [records[index], records[other]] = [records[other], records[index]];
+    }
+    const rows = buildBedRows(buildDailyRecord(beds), records);
+    const actualIds = rows
+      .flatMap(row =>
+        Object.values(row.byType)
+          .flat()
+          .map(record => record.id)
+      )
+      .sort();
+    expect(actualIds, `scenario ${scenario}`).toEqual(records.map(record => record.id).sort());
+    for (const [bedId, occupant] of Object.entries(beds)) {
+      expect(rows.filter(row => row.bedId === bedId && !row.isDischargeSnapshot)).toMatchObject([
+        { patientName: occupant.patientName, patientRut: occupant.rut },
+      ]);
+    }
+  }
+});
+
+describe('a person who left an empty bed', () => {
+  const withRut = (id: string) =>
+    buildPrescription(id, {
+      bedId: 'R4',
+      patientName: 'Mar Inventado',
+      patientRut: '10.000.013-K',
+    });
+  const withoutDocument = (id: string, patientRut?: string) =>
+    buildPrescription(id, { bedId: 'R4', patientName: 'mar  inventado', patientRut });
+  const orders = <T>(items: T[]): T[][] =>
+    items.length <= 1
+      ? [items]
+      : items.flatMap((item, index) =>
+          orders([...items.slice(0, index), ...items.slice(index + 1)]).map(rest => [item, ...rest])
+        );
+
+  it('stays in one row whether or not each prescription carries the document, in any order', () => {
+    for (const records of orders([withRut('a'), withoutDocument('b', 'SIN RUT'), withRut('c')])) {
+      const rows = buildBedRows(buildDailyRecord({}), records);
+      expect(rows.map(row => [row.patientRut, row.byType.comun.length])).toEqual([
+        ['10.000.013-K', 3],
+      ]);
+      expect(rows[0]?.byType.comun.map(record => record.id)).toEqual(
+        records.map(record => record.id)
+      );
+    }
+  });
+
+  it('keeps a corrected document apart and does not guess for an undocumented namesake', () => {
+    const corrected = buildPrescription('corrected', {
+      bedId: 'R4',
+      patientName: 'Mar Inventado',
+      patientRut: '11.111.111-1',
+    });
+    for (const records of orders([withRut('a'), corrected, withoutDocument('b')])) {
+      const rows = buildBedRows(buildDailyRecord({}), records);
+      expect(rows.map(row => row.byType.comun.map(record => record.id)).sort()).toEqual([
+        ['a'],
+        ['b'],
+        ['corrected'],
+      ]);
+      expect(new Set(rows.map(prescriptionBedRowKey)).size).toBe(3);
+    }
   });
 });
