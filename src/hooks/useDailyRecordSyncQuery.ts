@@ -1,4 +1,3 @@
-import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import {
   captureAuthoringSession,
   type AuthoringSession,
@@ -59,7 +58,6 @@ export const useDailyRecordSyncQuery = (
   _isOfflineMode: boolean = false, // Handled implicitly by TanStack Query & Repository
   remoteSyncStatus: RemoteSyncRuntimeStatus = 'local_only'
 ): UseDailyRecordSyncResult => {
-  useSessionEpoch();
   const queryClient = useQueryClient();
   const { dailyRecord } = useRepositories();
   const { checkVersion } = useVersion();

@@ -152,6 +152,12 @@ it.each(['success', 'conflict', 'permission', 'network'] as const)(
 it.each(['success', 'conflict'] as const)('foreign whole save %s stays silent', async outcome => {
   await runCase(outcome, true, true);
 });
+it.each(['success', 'conflict'] as const)(
+  'same session whole save %s preserves feedback',
+  async outcome => {
+    await runCase(outcome, false, true);
+  }
+);
 async function runCase(outcome: string, change: boolean, whole: boolean) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false, gcTime: 0 } },
@@ -218,18 +224,6 @@ async function runCase(outcome: string, change: boolean, whole: boolean) {
     const cached = client.getQueryData<{ record: DailyRecord }>(
       getDailyRecordQueryKey(date)
     )?.record;
-    console.log(
-      JSON.stringify({
-        outcome,
-        change,
-        whole,
-        notices: Object.fromEntries(Object.entries(notices).map(([k, v]) => [k, v.mock.calls])),
-        status: hook.result.current.syncStatus,
-        exception: hook.result.current.hasSaveException,
-        cachedNotes: cached?.nursesDayShift,
-        cachedNote: cached?.beds.R1.medicalHandoffNote,
-      })
-    );
     if (change) {
       expect(await hospitalDB.dailyRecords.get(date)).toEqual(nextRow());
       expect(cached?.nursesDayShift).toEqual(nextRow().nursesDayShift);
@@ -243,6 +237,14 @@ async function runCase(outcome: string, change: boolean, whole: boolean) {
       Object.values(notices).forEach(n => expect(n).not.toHaveBeenCalled());
       await waitFor(() => expect(hook.result.current.syncStatus).toBe('idle'));
       expect(hook.result.current.hasSaveException).toBe(false);
+    } else if (whole) {
+      if (outcome === 'success')
+        expect(notices.success).toHaveBeenCalledWith('Censo guardado', expect.any(String));
+      else
+        expect(notices.warning).toHaveBeenCalledWith(
+          'Guardado local sin sincronización',
+          expect.any(String)
+        );
     } else {
       if (outcome === 'success')
         expect(notices.success).toHaveBeenCalledWith('Cambio guardado', expect.any(String));
