@@ -15,6 +15,7 @@
     "preview": "vite preview",
     "test": "npm run test:ci:unit && npm run test:rules:ci && npm run test:storage-rules:ci && npm run test:emulator:sync:ci",
     "test:smoke:compat": "npm run test:resilience && npm run test:rules:ci && npm run test:emulator:sync:ci",
+    "test:changed": "node scripts/test-changed.mjs",
     "test:ci:unit": "vitest run --exclude \"src/tests/security/firestore-rules.test.ts\" --exclude \"src/tests/security/storage-rules.test.ts\" --exclude \"src/tests/services/storage/syncQueueLoad.test.ts\" --exclude \"src/tests/emulator/**\" --exclude \"src/tests/emulator-ui/**\"",
     "test:ci:unit:shard": "node scripts/run-unit-shard.mjs",
     "test:resilience": "vitest run src/tests/integration/sync-resilience.test.ts src/tests/integration/sync-ui-resilience.test.tsx src/tests/integration/offline-persistence.test.ts",
