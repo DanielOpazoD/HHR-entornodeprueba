@@ -191,7 +191,7 @@ describe('firestoreRecordWrites', () => {
     expect(setDoc).not.toHaveBeenCalled();
   });
 
-  it('updates partial records and falls back to setDoc when update target is missing', async () => {
+  it('updates existing records but never creates a day from a missing-target patch', async () => {
     await updateRecordPartial('2026-03-14', { status: 'ok' } as never, '2026-03-14T10:00:00.000Z');
     expect(assertFirestoreConcurrency).toHaveBeenCalledWith(
       { date: '2026-03-14' },
@@ -203,16 +203,10 @@ describe('firestoreRecordWrites', () => {
     expect(updateDoc).toHaveBeenCalledTimes(1);
 
     vi.mocked(updateDoc).mockRejectedValueOnce({ code: 'not-found' });
-    await updateRecordPartial('2026-03-15', { status: 'created' } as never);
-    expect(setDoc).toHaveBeenCalledWith(
-      { date: '2026-03-15' },
-      expect.objectContaining({ status: 'created' }),
-      { merge: true }
-    );
-    expect(firestoreWriteLoggerWarn).toHaveBeenCalledWith(
-      'Firestore write fallback: partialUpdateNotFound',
-      expect.objectContaining({ date: '2026-03-15' })
-    );
+    await expect(
+      updateRecordPartial('2026-03-15', { 'beds.R1.pathology': 'EDITED' } as never)
+    ).rejects.toMatchObject({ code: 'not-found' });
+    expect(setDoc).not.toHaveBeenCalled();
   });
 
   it.each([
