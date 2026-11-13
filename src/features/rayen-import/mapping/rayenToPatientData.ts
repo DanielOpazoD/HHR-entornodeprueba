@@ -14,7 +14,7 @@ import { PatientStatus } from '@/types/domain/patientClassification';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { mapRayenBed } from './bedMapping';
 import { encounterWallClockInRapaNui } from './encounterWallClock';
-import { hasNonRutLetter, isPassportFormat } from '@/utils/rutUtils';
+import { hasNonRutLetter, isPassportFormat, normalizeRut } from '@/utils/rutUtils';
 
 /** Any letter other than a final K check digit makes the source document a passport. */
 const isSourcePassport = (raw?: string): boolean =>
@@ -23,7 +23,7 @@ const isSourcePassport = (raw?: string): boolean =>
 /** Format a RUN as "14.470.055-4" from raw ("144700554") or already-formatted input. */
 export const formatRun = (raw?: string): string => {
   if (isSourcePassport(raw)) return (raw ?? '').trim().toUpperCase();
-  const cleaned = (raw ?? '').replace(/[^0-9kK]/g, '');
+  const cleaned = normalizeRut(raw);
   if (cleaned.length < 2) return (raw ?? '').trim();
   const dv = cleaned.slice(-1).toUpperCase();
   const body = cleaned.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, '.');

@@ -1,5 +1,6 @@
 import { mapRayenBed } from './bedMapping';
 import { buildSortableLocalTimestamp } from './localTimestamp';
+import { normalizeRut } from '@/utils/rutUtils';
 
 export interface PatientBedMovement {
   changedAt: string;
@@ -157,7 +158,7 @@ export const firstPatientFlowTimestamp = (text: string): string | null => {
 export const patientRunFromFlowReport = (text: string): string => {
   const runs = new Set(
     [...String(text || '').matchAll(/\bRUN\s*:\s*([0-9.kK-]+)/gi)]
-      .map(match => match[1].replace(/[^0-9kK]/g, '').toUpperCase())
+      .map(match => normalizeRut(match[1]))
       .filter(Boolean)
   );
   return runs.size === 1 ? [...runs][0] : '';
@@ -196,7 +197,7 @@ export const hasBirthReceiptOnlyIdentity = (text: string): boolean =>
 export const maternalRunFromFlowReport = (text: string): string => {
   const runs = new Set(
     [...String(text || '').matchAll(/\bRUN\s+Materno\/progenitor\(a\)\s*:\s*([0-9.kK-]+)/gi)]
-      .map(match => match[1].replace(/[^0-9kK]/g, '').toUpperCase())
+      .map(match => normalizeRut(match[1]))
       .filter(Boolean)
   );
   return runs.size === 1 ? [...runs][0] : '';
