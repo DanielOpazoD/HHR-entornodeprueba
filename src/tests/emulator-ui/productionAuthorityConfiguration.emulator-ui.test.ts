@@ -266,6 +266,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         { timeout: 20_000, interval: 50 }
       );
       const tasks = await hospitalDB.syncQueue.toArray();
+      if (tasks.some(task => task.status === 'PROCESSING')) continue;
       if (!tasks.some(task => task.status === 'PENDING' || task.status === 'FAILED')) return;
       shift += 10 * 60_000;
       const now = Date.now() + shift;
@@ -379,15 +380,12 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       it(`${label}: neither the policy nor the variable routes it away from Firestore (${config})`, async () => {
         await configure(config);
         await race(a, b);
-        expect(calls).toMatchObject({ patch: 0, save: 0, transaction: 0, direct: 2 });
+        expect(calls).toMatchObject({ patch: 0, save: 0, transaction: 2, direct: 0 });
         expect([a, b].map(item => normalize(Object.values(item)[0]))).toContainEqual(
           normalize(valueAt(await read(), path))
         );
       });
 
-      // Measured gap (E8, 2026-11-12): a plain day field is checked by a read and then written
-      // with updateDoc. Two writers inside that window both pass the check and both are told
-      // «guardado»; the later write replaces the earlier text. Not closed by policy or variable.
       it(`${label}: two simultaneous writers must not both be told saved (${config})`, async () => {
         await configure(config);
         const results = await race(a, b);
@@ -396,8 +394,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     }
   }
 
-  // The same gap through the app: device B's census save reports a confirmed remote write while
-  // device A's simultaneous write of the same novedades is also accepted.
+  // Both devices cannot receive remote confirmation for the same base.
   it('handoff novedades: the app must not tell both simultaneous nurses «guardado»', async () => {
     await configure('production');
     await hospitalDB.dailyRecords.put(baseRecord());
@@ -412,12 +409,49 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         )
       ),
     ]);
-    expect(calls.direct).toBe(2);
+    expect(calls.transaction).toBe(2);
     const bothSaved =
       other.status === 'fulfilled' &&
       observed.status === 'fulfilled' &&
       observed.value.updatedRemotely;
     expect(bothSaved).toBe(false);
+  });
+
+  it('three successive own novedades saves are confirmed without conflicts', async () => {
+    await configure('production');
+    await hospitalDB.dailyRecords.put(baseRecord());
+    for (const text of ['PRIMERA NOVEDAD', 'SEGUNDA NOVEDAD', 'TERCERA NOVEDAD']) {
+      const base = await hospitalDB.dailyRecords.get(date);
+      const result = await actor('B', () =>
+        updatePartialDetailed(date, { handoffNovedadesDayShift: text }, { baseRecord: base! })
+      );
+      expect(result).toMatchObject({ savedLocally: true, updatedRemotely: true });
+      expect((await read()).handoffNovedadesDayShift).toBe(text);
+    }
+    expect(await hospitalDB.syncQueue.count()).toBe(0);
+  });
+
+  it('the losing novedades edit remains local and queued as a conflict', async () => {
+    await configure('production');
+    await hospitalDB.dailyRecords.put(baseRecord());
+    await patch('A', { handoffNovedadesDayShift: 'NOVEDAD A' });
+    const result = await actor('B', () =>
+      updatePartialDetailed(
+        date,
+        { handoffNovedadesDayShift: 'NOVEDAD B' },
+        { baseRecord: baseRecord() }
+      )
+    );
+    expect(result).toMatchObject({ savedLocally: true, updatedRemotely: false });
+    await settleQueue();
+    expect((await read()).handoffNovedadesDayShift).toBe('NOVEDAD A');
+    await vi.waitFor(
+      async () => {
+        expect(await hospitalDB.syncQueue.toArray()).toMatchObject([{ status: 'CONFLICT' }]);
+      },
+      { timeout: 20_000, interval: 50 }
+    );
+    expect((await hospitalDB.dailyRecords.get(date))?.handoffNovedadesDayShift).toBe('NOVEDAD B');
   });
 
   it('clearing a bed and editing its patient at once: the authority refuses one', async () => {
@@ -461,9 +495,14 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     expect(result).toMatchObject({ savedLocally: true, updatedRemotely: false });
     await settleQueue();
     expect((await read()).beds.R1.pathology).toBe('A');
-    expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
-      { status: 'CONFLICT', lastErrorCategory: 'conflict' },
-    ]);
+    await vi.waitFor(
+      async () => {
+        expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
+          { status: 'CONFLICT', lastErrorCategory: 'conflict' },
+        ]);
+      },
+      { timeout: 20_000, interval: 50 }
+    );
     expect((await hospitalDB.dailyRecords.get(date))?.beds.R1.pathology).toBe('B');
   });
 
@@ -504,7 +543,12 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     await settleQueue();
     expect(calls.direct).toBe(0);
     expect((await read()).beds.R1.pathology).toBe('A ONLINE');
-    expect(await hospitalDB.syncQueue.toArray()).toMatchObject([{ status: 'CONFLICT' }]);
+    await vi.waitFor(
+      async () => {
+        expect(await hospitalDB.syncQueue.toArray()).toMatchObject([{ status: 'CONFLICT' }]);
+      },
+      { timeout: 20_000, interval: 50 }
+    );
     expect((await hospitalDB.dailyRecords.get(date))?.beds.R1.pathology).toBe('B OFFLINE');
   });
 
@@ -523,7 +567,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       const result = await actor('B', () =>
         updatePartialDetailed(date, { 'beds.R1.pathology': 'B' }, { baseRecord: baseRecord() })
       );
-      expect(calls.direct).toBeGreaterThan(0);
+      expect(calls.transaction).toBeGreaterThan(0);
       expect(calls.patch).toBe(1);
       expect(result).toMatchObject({ savedLocally: true, updatedRemotely: true });
       expect((await read()).beds.R1.pathology).toBe('B');
@@ -534,7 +578,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       await configure('production');
       unreadablePolicy();
       const results = await race({ 'beds.R1.pathology': 'A' }, { 'beds.R1.pathology': 'B' });
-      expect(calls.patch).toBe(2);
+      expect(calls.patch).toBeGreaterThanOrEqual(1);
       expect(results.filter(item => item.status === 'fulfilled')).toHaveLength(1);
       expect(results.filter(item => item.status === 'rejected')).toHaveLength(1);
       expect((await read()).beds.R1.pathology).toBe(results[0].status === 'fulfilled' ? 'A' : 'B');

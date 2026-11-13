@@ -193,16 +193,17 @@ describe('firestoreRecordWrites', () => {
 
   it('updates partial records and falls back to setDoc when update target is missing', async () => {
     await updateRecordPartial('2026-03-14', { status: 'ok' } as never, '2026-03-14T10:00:00.000Z');
-    expect(assertFirestoreConcurrency).toHaveBeenCalledWith(
+    expect(updateRecordPartiallyAtomically).toHaveBeenCalledWith(
       { date: '2026-03-14' },
+      expect.objectContaining({ status: 'ok' }),
       '2026-03-14T10:00:00.000Z',
       'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
       'partial update',
-      { toleranceMs: 0, failClosed: true }
+      { historyPolicy: undefined }
     );
-    expect(updateDoc).toHaveBeenCalledTimes(1);
+    expect(updateRecordPartiallyAtomically).toHaveBeenCalledTimes(1);
 
-    vi.mocked(updateDoc).mockRejectedValueOnce({ code: 'not-found' });
+    vi.mocked(updateRecordPartiallyAtomically).mockRejectedValueOnce({ code: 'not-found' });
     await updateRecordPartial('2026-03-15', { status: 'created' } as never);
     expect(setDoc).toHaveBeenCalledWith(
       { date: '2026-03-15' },
@@ -263,7 +264,7 @@ describe('firestoreRecordWrites', () => {
     };
     mockGetCurrentUser.mockReturnValue(currentUser);
     mockResolveFirebaseUserRole.mockResolvedValue('doctor_specialist');
-    vi.mocked(updateDoc)
+    vi.mocked(updateRecordPartiallyAtomically)
       .mockRejectedValueOnce({
         code: 'permission-denied',
         message: 'Missing or insufficient permissions.',
@@ -274,7 +275,7 @@ describe('firestoreRecordWrites', () => {
 
     expect(mockResolveFirebaseUserRole).toHaveBeenCalledWith(currentUser);
     expect(mockEnsureUserRoleClaim).toHaveBeenCalledWith(currentUser, 'doctor_specialist');
-    expect(updateDoc).toHaveBeenCalledTimes(2);
+    expect(updateRecordPartiallyAtomically).toHaveBeenCalledTimes(2);
     expect(firestoreWriteLoggerWarn).toHaveBeenCalledWith(
       'Firestore write auth refresh succeeded',
       expect.objectContaining({
@@ -340,11 +341,11 @@ describe('firestoreRecordWrites', () => {
 
     expect(mockGetFunctions).not.toHaveBeenCalled();
     expect(mockSpecialistCallable).not.toHaveBeenCalled();
-    expect(updateDoc).toHaveBeenCalledTimes(1);
+    expect(updateRecordPartiallyAtomically).toHaveBeenCalledTimes(1);
   });
 
   it('rethrows write failures that are not recoverable', async () => {
-    vi.mocked(updateDoc).mockRejectedValueOnce(new Error('boom'));
+    vi.mocked(updateRecordPartiallyAtomically).mockRejectedValueOnce(new Error('boom'));
     await expect(updateRecordPartial('2026-03-16', { status: 'broken' } as never)).rejects.toThrow(
       'boom'
     );
@@ -428,7 +429,7 @@ describe('firestoreRecordWrites', () => {
     await deleteRecordFromFirestore('2026-03-19');
 
     expect(saveRecordAtomically).toHaveBeenCalled();
-    expect(updateDoc).toHaveBeenCalled();
+    expect(updateRecordPartiallyAtomically).toHaveBeenCalled();
     expect(deleteDoc).toHaveBeenCalled();
     expect(firestoreWriteLoggerWarn).toHaveBeenCalledWith(
       'Firestore write retry: save',

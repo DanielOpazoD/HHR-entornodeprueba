@@ -67,6 +67,7 @@ vi.mock('@/services/storage/firestore/firestoreWriteSupport', () => ({
   assertFirestoreConcurrency: mockAssertFirestoreConcurrency,
   createDeletedRecordRef: vi.fn((date: string) => ({ trashRef: date })),
   saveHistorySnapshot: vi.fn(),
+  updateRecordPartiallyAtomically: vi.fn(),
 }));
 
 vi.mock('@/services/storage/storageLoggers', () => ({
@@ -100,7 +101,10 @@ vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
 
 import { updateDoc } from 'firebase/firestore';
 import { updateRecordPartial } from '@/services/storage/firestore/firestoreRecordWrites';
-import { saveHistorySnapshot } from '@/services/storage/firestore/firestoreWriteSupport';
+import {
+  saveHistorySnapshot,
+  updateRecordPartiallyAtomically,
+} from '@/services/storage/firestore/firestoreWriteSupport';
 
 describe('firestoreRecordWrites authority fallback routing', () => {
   beforeEach(() => {
@@ -195,8 +199,15 @@ describe('firestoreRecordWrites authority fallback routing', () => {
       'patchDailyRecordWithClinicalAuthority'
     );
     expect(mockAuthorityCallable).not.toHaveBeenCalled();
-    expect(saveHistorySnapshot).toHaveBeenCalledWith('2026-03-14', { force: false });
-    expect(updateDoc).toHaveBeenCalledTimes(1);
+    expect(updateRecordPartiallyAtomically).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      '2026-03-14T10:00:00.000Z',
+      expect.any(String),
+      'partial update',
+      { historyPolicy: undefined }
+    );
+    expect(updateRecordPartiallyAtomically).toHaveBeenCalledTimes(1);
   });
 
   it('forces the copy an automated run explicitly asks for before its first write', async () => {
@@ -207,8 +218,15 @@ describe('firestoreRecordWrites authority fallback routing', () => {
       { historyPolicy: 'snapshot' }
     );
 
-    expect(saveHistorySnapshot).toHaveBeenCalledExactlyOnceWith('2026-03-14', { force: true });
-    expect(updateDoc).toHaveBeenCalledTimes(1);
+    expect(updateRecordPartiallyAtomically).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      '2026-03-14T10:00:00.000Z',
+      expect.any(String),
+      'partial update',
+      { historyPolicy: 'snapshot' }
+    );
+    expect(updateRecordPartiallyAtomically).toHaveBeenCalledTimes(1);
   });
 
   it('can skip a repeated history snapshot for a serialized automated clinical patch', async () => {
@@ -220,6 +238,6 @@ describe('firestoreRecordWrites authority fallback routing', () => {
     );
 
     expect(saveHistorySnapshot).not.toHaveBeenCalled();
-    expect(updateDoc).toHaveBeenCalledTimes(1);
+    expect(updateRecordPartiallyAtomically).toHaveBeenCalledTimes(1);
   });
 });

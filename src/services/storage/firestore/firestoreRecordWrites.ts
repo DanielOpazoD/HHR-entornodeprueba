@@ -1,10 +1,4 @@
-import {
-  setDoc,
-  Timestamp,
-  updateDoc,
-  type DocumentData,
-  type UpdateData,
-} from 'firebase/firestore';
+import { setDoc, Timestamp, type DocumentData } from 'firebase/firestore';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { withRetry } from '@/utils/networkUtils';
@@ -20,7 +14,6 @@ import {
   asFirestoreUpdatePayload,
   assertFirestoreConcurrency,
   ConcurrencyError,
-  saveHistorySnapshot,
   saveRecordAtomically,
   updateRecordPartiallyAtomically,
 } from '@/services/storage/firestore/firestoreWriteSupport';
@@ -228,13 +221,8 @@ export const updateRecordPartial = async (
 ): Promise<DailyRecordAuthorityCallableResponse | DirectFirestoreWriteReceipt | void> => {
   try {
     const docRef = getRecordDocRef(date);
-    // La verificación de concurrencia por lectura directa sólo protege las rutas
-    // SIN CAS de versión del lado servidor (updateDoc directo y el callable specialist,
-    // cuya transacción protege además la identidad del paciente y episodio).
-    // Las rutas del callable de autoridad y la transacción atómica ya validan
-    // versión/revisión al commitear: duplicar la lectura aquí costaba un viaje
-    // remoto extra por edición y rechazaba ráfagas legítimas cuando el eco de la
-    // edición anterior aún no se adoptaba localmente.
+    // Only the specialist callable needs this preliminary version check; every other
+    // direct patch checks its base inside the committing transaction.
     const assertDirectWriteConcurrency = () =>
       assertFirestoreConcurrency(
         docRef,
@@ -374,44 +362,35 @@ export const updateRecordPartial = async (
             path
           )
         );
-        if (options.requireAtomicCas || isStaffingPatch) {
-          const committedBase = await withRetry(
-            () =>
-              updateRecordPartiallyAtomically(
-                docRef,
-                asFirestoreUpdatePayload(sanitizedData),
-                expectedLastUpdated,
-                isStaffingPatch
-                  ? 'El censo cambió. Este cambio de dotación no se guardó. Recarga el censo y revisa la dotación antes de volver a guardar.'
-                  : 'El egreso fue modificado por otro usuario. Recarga el censo antes de reclasificarlo.',
-                isStaffingPatch ? 'staffing update' : 'movement reclassification',
-                { historyPolicy: options.historyPolicy }
-              ),
-            {
-              onRetry: (err: unknown, attempt: number) =>
-                logFirestoreWriteRetry('partialUpdate', date, attempt, err),
-              shouldRetry: (err: unknown) => !(err instanceof ConcurrencyError),
-            }
-          );
-          // Plain local-first writes stay receipt-less, because a returned
-          // result sends the controller into its confirm-and-adopt path.
-          return options.returnCommittedRecord
-            ? buildAtomicPartialCommitReceipt(date, committedBase, sanitizedData)
-            : undefined;
-        }
-
-        await assertDirectWriteConcurrency();
-        if (options.historyPolicy !== 'skip')
-          await saveHistorySnapshot(date, { force: options.historyPolicy === 'snapshot' });
-
-        return withRetry(
+        const committedBase = await withRetry(
           () =>
-            updateDoc(docRef, asFirestoreUpdatePayload(sanitizedData) as UpdateData<DocumentData>),
+            updateRecordPartiallyAtomically(
+              docRef,
+              asFirestoreUpdatePayload(sanitizedData),
+              expectedLastUpdated,
+              isStaffingPatch
+                ? 'El censo cambió. Este cambio de dotación no se guardó. Recarga el censo y revisa la dotación antes de volver a guardar.'
+                : options.requireAtomicCas
+                  ? 'El egreso fue modificado por otro usuario. Recarga el censo antes de reclasificarlo.'
+                  : 'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
+              isStaffingPatch
+                ? 'staffing update'
+                : options.requireAtomicCas
+                  ? 'movement reclassification'
+                  : 'partial update',
+              { historyPolicy: options.historyPolicy }
+            ),
           {
             onRetry: (err: unknown, attempt: number) =>
               logFirestoreWriteRetry('partialUpdate', date, attempt, err),
+            shouldRetry: (err: unknown) => !(err instanceof ConcurrencyError),
           }
         );
+        // Plain local-first writes stay receipt-less, because a returned
+        // result sends the controller into its confirm-and-adopt path.
+        return options.returnCommittedRecord
+          ? buildAtomicPartialCommitReceipt(date, committedBase, sanitizedData)
+          : undefined;
       };
       // A protected specialty decision already uses the authority callable. Its
       // rejection must never be retried as a legacy patch without that intent.
