@@ -14,6 +14,7 @@ import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { resolveFirestoreRulesEmulatorConfig } from '@/tests/security/firestoreRulesEmulatorConfig';
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 
 let activeDb: unknown;
 vi.mock('@/firebaseConfig', () => ({
@@ -237,6 +238,7 @@ describeEmulator('daily record read service against the real server and local st
       R1: { bedId: 'R1', patientName: 'PATIENT', clinicalEpisodeId: 'episode-move' },
     });
     const accepted = await queueDailyRecordSyncTaskWithLocalRecord(local, undefined, {
+      authoringSession: captureAuthoringSession(),
       deferProcessing: true,
     });
     expect(accepted.accepted).toBe(true);

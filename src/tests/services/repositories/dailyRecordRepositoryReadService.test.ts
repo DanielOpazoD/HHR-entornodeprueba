@@ -10,6 +10,7 @@ import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync/publicSyncQueue';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 
 // Local-only reads against the real Dexie store (fake-indexeddb). Reads that involve Firestore
 // run against the real emulator in
@@ -43,6 +44,7 @@ const buildRecord = (lastUpdated: string, beds: Record<string, unknown> = {}): D
 /** An unsynced edit as the app stores it: the local copy and its outbox task, never processed. */
 const queueLocalEdit = async (record: DailyRecord) => {
   const result = await queueDailyRecordSyncTaskWithLocalRecord(record, undefined, {
+    authoringSession: captureAuthoringSession(),
     deferProcessing: true,
   });
   expect(result.accepted).toBe(true);
