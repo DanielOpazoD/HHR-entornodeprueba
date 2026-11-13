@@ -6,7 +6,7 @@ import {
 } from './neonatalMaternalLookupIdentity';
 import { isDischargedEncounter } from './censusReconciliationPredicates';
 import { Specialty } from '@/types/domain/patientClassification';
-import { isValidRut } from '@/utils/rutUtils';
+import { isValidRut, normalizeRut } from '@/utils/rutUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { rayenToPatientData, withLocalNameParts } from '../mapping/rayenToPatientData';
@@ -65,15 +65,14 @@ export const prepareActiveClinicalPlacements = (
       matches.find(p => p?.patient.clinicalEpisodeId === encounter.encounterId) ??
       matches.find(Boolean);
     const decision = reviewed?.patient.neonatalPlacementDecision;
-    const key = (run: string) => run.replace(/[^0-9kK]/g, '').toUpperCase();
     const maternalRut =
       neonatalMaternalLookupRut(current, allEncounters, encounter.encounterId, encounter.run) ||
       decision?.maternalRut ||
       reviewed?.patient.neonatalMaternalRut;
     const provenMaternalRun = Boolean(
-      (maternalRut && key(maternalRut) === key(encounter.run)) ||
+      (maternalRut && normalizeRut(maternalRut) === normalizeRut(encounter.run)) ||
       (decision?.sourceRunIsMaternal === true &&
-        key(decision.sourceRun ?? '') === key(encounter.run))
+        normalizeRut(decision.sourceRun ?? '') === normalizeRut(encounter.run))
     );
     const parentalRun =
       provenMaternalRun ||
@@ -93,7 +92,8 @@ export const prepareActiveClinicalPlacements = (
       const ownRun =
         sameEpisode &&
         reviewed.patient.rut &&
-        (key(reviewed.patient.rut) !== key(encounter.run) || (!provenMaternalRun && !unusableRun))
+        (normalizeRut(reviewed.patient.rut) !== normalizeRut(encounter.run) ||
+          (!provenMaternalRun && !unusableRun))
           ? reviewed.patient.rut
           : '';
       mapped.patient = {
@@ -188,12 +188,11 @@ export const prepareActiveClinicalPlacements = (
           decision?.clinicalEpisodeId === candidate.encounter.encounterId
             ? decision.maternalRut || known?.patient.neonatalMaternalRut
             : known?.patient.neonatalMaternalRut;
-        const rutKey = (value: string) => value.replace(/[^0-9kK]/g, '').toUpperCase();
         if (
           known?.patient.clinicalEpisodeId === candidate.encounter.encounterId &&
           parent &&
           (!isMaternalCandidatePatient(parent) ||
-            (maternalRut && rutKey(maternalRut) !== rutKey(parent.rut ?? '')))
+            (maternalRut && normalizeRut(maternalRut) !== normalizeRut(parent.rut ?? '')))
         )
           return {
             episodeId: parent.clinicalEpisodeId ?? '',

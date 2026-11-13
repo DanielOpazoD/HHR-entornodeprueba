@@ -20,6 +20,7 @@ import {
 } from '@/hooks/controllers/dailyRecordQueryController';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import { waitForFirestoreSdkSource } from '@/tests/utils/firestoreSdkSource';
 import { resolveCurrentClinicalDay } from '@/utils/clinicalDayAdmissionUtils';
 import { MedicalHandoffDraftTextarea } from '@/features/handoff/components/MedicalHandoffDraftTextarea';
 import { buildMedicalEntryNoteFields } from '@/domain/handoff/patientEntryMutations';
@@ -156,16 +157,36 @@ const drafts = () =>
     conflict: (d as { conflict?: unknown }).conflict ?? null,
   }));
 
+// Waits end as soon as their state is observed; each cap is the fixed sleep it replaced.
+const REVIEW_WAIT_MS = Number(process.env.REVIEW_WAIT_MS ?? 3000);
+/** Polls an observable state until it holds or the cap passes; the assertions after it report
+ * whatever was really there. */
+const until = async (condition: () => boolean | Promise<boolean>, capMs: number) => {
+  const deadline = Date.now() + capMs;
+  while (!(await condition()) && Date.now() < deadline) {
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    });
+  }
+};
+/** Nothing in the outbox is still waiting to be sent or being sent. */
+const outboxIdle = async () =>
+  (await hospitalDB.syncQueue.toArray()).every(
+    task => task.status !== 'PENDING' && task.status !== 'PROCESSING'
+  );
+/** The outbox finished and the confirmed note released its draft. */
+const outboxDelivered = async () => (await outboxIdle()) && drafts().length === 0;
+
 const offline = async () => {
   await disableNetwork(h.activeDb as never);
-  await new Promise(resolve => setTimeout(resolve, 10000));
+  await waitForFirestoreSdkSource(h.activeDb, dayPath, 'cache');
   Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
   onlineManager.setOnline(false);
   setFirestoreSyncState({ mode: 'local_only', reason: 'offline' });
 };
 const online = async () => {
   await enableNetwork(h.activeDb as never);
-  await new Promise(resolve => setTimeout(resolve, 10000));
+  await waitForFirestoreSdkSource(h.activeDb, dayPath, 'server');
   Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
   setFirestoreSyncState({ mode: 'enabled', reason: 'ready' });
   await act(async () => {
@@ -383,9 +404,7 @@ it('S1 offline: same entry saved twice, then online', async () => {
   expect(drafts().length).toBeGreaterThan(0);
   await online();
   await publish();
-  await act(async () => {
-    await new Promise(resolve => setTimeout(resolve, Number(process.env.REVIEW_WAIT_MS ?? 3000)));
-  });
+  await until(outboxDelivered, REVIEW_WAIT_MS);
   expect(notesOf(await readServer(), 'R4')).toContain('entry-x=T2 segunda');
   expect(h.calls).toHaveLength(1);
   await publish();
@@ -409,9 +428,7 @@ it('S2 offline: two specialties of the same patient, then online', async () => {
   expect(drafts().length).toBeGreaterThan(0);
   await online();
   await publish();
-  await act(async () => {
-    await new Promise(resolve => setTimeout(resolve, Number(process.env.REVIEW_WAIT_MS ?? 3000)));
-  });
+  await until(outboxDelivered, REVIEW_WAIT_MS);
   expect(notesOf(await readServer(), 'R4')).toEqual(['entry-x=TX medicina', 'entry-y=TY cirugia']);
   expect(h.calls).toHaveLength(1);
   await publish();
@@ -429,26 +446,19 @@ it('S10 offline: keeps typing in one note with a pause (debounced saves, no blur
     fireEvent.focus(box);
     fireEvent.change(box, { target: { value: 'Paciente estable' } });
   });
-  await act(async () => {
-    await new Promise(resolve => setTimeout(resolve, 2500));
-  });
-  await settle(1);
+  // The pause lets the debounced autosave fire: wait for that save, not a fixed 2.5 s.
+  await settle(1, 2500 + 6000);
   await act(async () => {
     fireEvent.change(box, { target: { value: 'Paciente estable, control mañana' } });
   });
-  await act(async () => {
-    await new Promise(resolve => setTimeout(resolve, 2500));
-  });
-  await settle(2);
+  await settle(2, 2500 + 6000);
   expect(status('R4', 'entry-x')).toContain('Pendiente de confirmar');
   expect(await hospitalDB.syncQueue.count()).toBe(1);
   expect(h.calls).toHaveLength(0);
   expect(drafts().length).toBeGreaterThan(0);
   await online();
   await publish();
-  await act(async () => {
-    await new Promise(resolve => setTimeout(resolve, Number(process.env.REVIEW_WAIT_MS ?? 3000)));
-  });
+  await until(outboxDelivered, REVIEW_WAIT_MS);
   await settle(2, 20000);
   expect(notesOf(await readServer(), 'R4')).toContain('entry-x=Paciente estable, control mañana');
   expect(h.calls).toHaveLength(1);
@@ -471,9 +481,7 @@ it('S3 offline: two beds, then online', async () => {
   expect(h.calls).toHaveLength(0);
   await online();
   await publish();
-  await act(async () => {
-    await new Promise(resolve => setTimeout(resolve, Number(process.env.REVIEW_WAIT_MS ?? 3000)));
-  });
+  await until(outboxDelivered, REVIEW_WAIT_MS);
   expect(notesOf(await readServer(), 'R4')).toContain('entry-x=T4 cama cuatro');
   expect(notesOf(await readServer(), 'R3')).toContain('entry-z=T5 cama cinco');
   expect(await hospitalDB.syncQueue.count()).toBe(0);
@@ -517,9 +525,7 @@ it.each(['turnover', 'episode', 'moved'] as const)(
     await settle(2);
     await online();
     await publish();
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, Number(process.env.REVIEW_WAIT_MS ?? 3000)));
-    });
+    await until(outboxIdle, REVIEW_WAIT_MS);
     expect(await hospitalDB.syncQueue.toArray()).toMatchObject([{ status: 'CONFLICT' }]);
     expect(JSON.stringify(await readServer())).not.toContain('NOTA PARA A');
     expect(drafts()).toEqual([expect.objectContaining({ value: 'NOTA PARA A FINAL' })]);
@@ -544,9 +550,7 @@ it('S5 another team wrote the same entry meanwhile', async () => {
   await settle(2);
   await online();
   await publish();
-  await act(async () => {
-    await new Promise(resolve => setTimeout(resolve, Number(process.env.REVIEW_WAIT_MS ?? 3000)));
-  });
+  await until(outboxIdle, REVIEW_WAIT_MS);
   expect(notesOf(await readServer(), 'R4')).toContain('entry-x=OTRO EQUIPO');
   expect(await hospitalDB.syncQueue.count()).toBe(1);
   expect(drafts()).toEqual([expect.objectContaining({ value: 'MIA final' })]);
