@@ -102,6 +102,8 @@ describe('server prescription document identity', () => {
       'K123456785',
       'k12.345.678-5',
       'P123456785',
+      // A letter outside A-Z is still a letter: never a RUT with the same digits.
+      'Ñ123456785',
       'p12.345.678-5',
       'Q123456785',
       'Ñ123',
