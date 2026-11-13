@@ -94,12 +94,15 @@ export const isSameRut = (left?: string, right?: string): boolean =>
   !hasNonRutLetter(left ?? '') &&
   !hasNonRutLetter(right ?? '');
 
+/** A passport's text without spaces, dots, dashes or case. */
+const passportText = (value?: string): string => (value ?? '').toUpperCase().replace(/[\s.-]/g, '');
+
 /** The same document: the same RUT, or the same passport text (separators and case aside). */
 export const isSameDocument = (left?: string, right?: string): boolean =>
   isSameRut(left, right) ||
   (hasNonRutLetter(left ?? '') &&
     hasNonRutLetter(right ?? '') &&
-    cleanRut((left ?? '').trim()) === cleanRut((right ?? '').trim()));
+    passportText(left) === passportText(right));
 
 /**
  * Check if value looks like a passport (not a RUT)

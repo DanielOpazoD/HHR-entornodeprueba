@@ -76,3 +76,24 @@ it('does not match two patients that both lack a document', () => {
     )
   ).toBeNull();
 });
+
+it.each(['SIN RUT', 'S/R', 'NN', '--'])(
+  'lets a second patient without a document in: the marker %s names nobody',
+  marker => {
+    expect(
+      findManualPatientDuplicate(
+        { beds: { R1: { patientName: 'SINTETICO', rut: marker, clinicalEpisodeId: 'one' } } },
+        { rut: marker, encounterId: 'two' }
+      )
+    ).toBeNull();
+  }
+);
+
+it('still blocks the same passport written with a space inside', () => {
+  expect(
+    findManualPatientDuplicate(
+      { beds: { R1: { patientName: 'SINTETICO', rut: 'P123456785', clinicalEpisodeId: 'one' } } },
+      { rut: 'P 123456785', encounterId: 'two' }
+    )
+  ).toEqual({ kind: 'rut', bedId: 'R1' });
+});
