@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
@@ -116,7 +117,9 @@ const createDay = async (date: string, source: DailyRecord, initialize = initial
   );
   const record = await initialize(date, source.date);
   expect(mocks.save).toHaveBeenCalledTimes(1);
-  expect(mocks.save).toHaveBeenCalledWith(record, '');
+  expect(mocks.save).toHaveBeenCalledWith(record, '', {
+    authoringSession: captureAuthoringSession(),
+  });
   return record;
 };
 

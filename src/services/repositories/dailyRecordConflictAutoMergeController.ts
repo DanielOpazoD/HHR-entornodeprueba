@@ -1,3 +1,4 @@
+import type { AuthoringSession } from '@/services/storage/authoringSession';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ConflictAutoMergeRecoveryResult } from '@/services/repositories/contracts/dailyRecordWriteRecoveryResult';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
@@ -22,21 +23,27 @@ import {
 const queueMergedRecoveryTask = async (
   record: DailyRecord,
   changedPaths: string[],
+  authoringSession: AuthoringSession,
   expectedVersion?: string
 ): Promise<{ accepted: boolean; syncContract: SyncTaskContract }> => {
   const meta = buildRecoveryTaskMeta(changedPaths, 'conflict_auto_merge', expectedVersion);
   const syncContract = buildDailyRecordSyncContract(record, meta.syncContract);
-  const result = await queueDailyRecordSyncTaskWithLocalRecord(record, {
-    ...meta,
-    syncContract,
-  });
+  const result = await queueDailyRecordSyncTaskWithLocalRecord(
+    record,
+    {
+      ...meta,
+      syncContract,
+    },
+    { authoringSession }
+  );
   return { accepted: result.accepted, syncContract };
 };
 
 export const attemptConflictAutoMergeRecovery = async (
   date: string,
   localRecord: DailyRecord,
-  changedPaths: string[]
+  changedPaths: string[],
+  authoringSession: AuthoringSession
 ): Promise<ConflictAutoMergeRecoveryResult> => {
   const effectiveChangedPaths = resolveEffectiveChangedPaths(changedPaths);
 
@@ -100,6 +107,7 @@ export const attemptConflictAutoMergeRecovery = async (
     const { accepted: queued, syncContract } = await queueMergedRecoveryTask(
       postMergeInvariants.record,
       effectiveChangedPaths,
+      authoringSession,
       remoteRecord.lastUpdated
     );
     if (!queued) {

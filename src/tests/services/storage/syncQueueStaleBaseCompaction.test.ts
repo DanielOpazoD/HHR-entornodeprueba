@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
@@ -43,11 +44,13 @@ describe('queue compaction keeps every accepted pending edit', () => {
     const queue = engine();
     await queue.queueDailyRecordTaskWithLocalRecord(
       { ...base, lastUpdated: '2026-10-24T10:01:00.000Z', nursesDayShift: ['SINTETICA A'] },
-      { syncContract: { expectedVersion: base.lastUpdated, changedPaths: ['nursesDayShift'] } }
+      { syncContract: { expectedVersion: base.lastUpdated, changedPaths: ['nursesDayShift'] } },
+      { authoringSession: captureAuthoringSession() }
     );
     const second = await queue.queueDailyRecordTaskWithLocalRecord(
       { ...base, lastUpdated: '2026-10-24T10:02:00.000Z', tensDayShift: ['SINTETICO B'] },
-      { syncContract: { expectedVersion: base.lastUpdated, changedPaths: ['tensDayShift'] } }
+      { syncContract: { expectedVersion: base.lastUpdated, changedPaths: ['tensDayShift'] } },
+      { authoringSession: captureAuthoringSession() }
     );
 
     expect(second).toMatchObject({ accepted: true, mode: 'reused' });
@@ -78,7 +81,7 @@ describe('queue compaction keeps every accepted pending edit', () => {
           changedPaths: opaque ? ['*'] : ['nursesDayShift'],
         },
       },
-      { wholeRecordBase: base }
+      { authoringSession: captureAuthoringSession(), wholeRecordBase: base }
     );
     return { queue, base, accepted };
   };
@@ -93,7 +96,7 @@ describe('queue compaction keeps every accepted pending edit', () => {
         queue.queueDailyRecordTaskWithLocalRecord(
           { ...base, lastUpdated: '2026-10-24T10:02:00.000Z', tensDayShift: ['SINTETICO B'] },
           { syncContract: { expectedVersion: base.lastUpdated, changedPaths: ['*'] } },
-          { wholeRecordBase: base }
+          { authoringSession: captureAuthoringSession(), wholeRecordBase: base }
         )
       ).rejects.toMatchObject({ name: 'ConcurrencyError' });
       expect(await hospitalDB.syncQueue.toArray()).toEqual(before);
@@ -107,7 +110,7 @@ describe('queue compaction keeps every accepted pending edit', () => {
       queue.queueDailyRecordTaskWithLocalRecord(
         base,
         { syncContract: { expectedVersion: base.lastUpdated, changedPaths: ['*'] } },
-        { wholeRecordBase: base }
+        { authoringSession: captureAuthoringSession(), wholeRecordBase: base }
       )
     ).rejects.toMatchObject({ name: 'ConcurrencyError' });
     expect(await hospitalDB.dailyRecords.get(date)).toEqual(accepted);
@@ -116,7 +119,11 @@ describe('queue compaction keeps every accepted pending edit', () => {
   it('requires a base before replacing a different accepted value in a legacy full write', async () => {
     const { queue, base, accepted } = await seedAccepted();
     await expect(
-      queue.queueDailyRecordTaskWithLocalRecord(base, { syncContract: { changedPaths: ['*'] } })
+      queue.queueDailyRecordTaskWithLocalRecord(
+        base,
+        { syncContract: { changedPaths: ['*'] } },
+        { authoringSession: captureAuthoringSession() }
+      )
     ).rejects.toMatchObject({ name: 'ConcurrencyError' });
     expect(await hospitalDB.dailyRecords.get(date)).toEqual(accepted);
   });
@@ -131,7 +138,7 @@ describe('queue compaction keeps every accepted pending edit', () => {
     await queue.queueDailyRecordTaskWithLocalRecord(
       next,
       { syncContract: { changedPaths: ['*'] } },
-      { wholeRecordBase: base }
+      { authoringSession: captureAuthoringSession(), wholeRecordBase: base }
     );
     expect(await hospitalDB.dailyRecords.get(date)).toEqual(next);
     expect((await hospitalDB.syncQueue.toArray())[0].payload).toEqual(next);
@@ -143,7 +150,7 @@ describe('queue compaction keeps every accepted pending edit', () => {
     await queue.queueDailyRecordTaskWithLocalRecord(
       next,
       { syncContract: { changedPaths: ['*'] } },
-      { wholeRecordBase: accepted }
+      { authoringSession: captureAuthoringSession(), wholeRecordBase: accepted }
     );
     expect(await hospitalDB.dailyRecords.get(date)).toEqual(next);
   });
@@ -160,7 +167,7 @@ describe('queue compaction keeps every accepted pending edit', () => {
     await queue.queueDailyRecordTaskWithLocalRecord(
       next,
       { syncContract: { changedPaths: ['*'] } },
-      { wholeRecordBase: base }
+      { authoringSession: captureAuthoringSession(), wholeRecordBase: base }
     );
     expect(await hospitalDB.dailyRecords.get(date)).toEqual(next);
   });
@@ -173,7 +180,7 @@ describe('queue compaction keeps every accepted pending edit', () => {
       queue.queueDailyRecordTaskWithLocalRecord(
         base,
         { syncContract: { changedPaths: ['*'] } },
-        { wholeRecordBase: base }
+        { authoringSession: captureAuthoringSession(), wholeRecordBase: base }
       )
     ).rejects.toMatchObject({ name: 'ConcurrencyError' });
     expect(await hospitalDB.syncQueue.toArray()).toEqual(before);
@@ -183,9 +190,13 @@ describe('queue compaction keeps every accepted pending edit', () => {
   it('can restore the exact accepted payload without inventing a new base', async () => {
     const { queue, accepted } = await seedAccepted();
     await hospitalDB.dailyRecords.delete(date);
-    await queue.queueDailyRecordTaskWithLocalRecord(accepted, {
-      syncContract: { changedPaths: ['*'] },
-    });
+    await queue.queueDailyRecordTaskWithLocalRecord(
+      accepted,
+      {
+        syncContract: { changedPaths: ['*'] },
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
     expect(await hospitalDB.dailyRecords.get(date)).toEqual(accepted);
   });
 
@@ -197,7 +208,7 @@ describe('queue compaction keeps every accepted pending edit', () => {
       queue.queueDailyRecordTaskWithLocalRecord(
         base,
         { syncContract: { changedPaths: ['*'] } },
-        { wholeRecordBase: base }
+        { authoringSession: captureAuthoringSession(), wholeRecordBase: base }
       )
     ).rejects.toMatchObject({ name: 'ConcurrencyError' });
     expect(await hospitalDB.syncQueue.toArray()).toEqual(before);
@@ -209,7 +220,7 @@ describe('queue compaction keeps every accepted pending edit', () => {
       queue.queueDailyRecordTaskWithLocalRecord(
         base,
         { syncContract: { changedPaths: ['*'] } },
-        { wholeRecordBase: base }
+        { authoringSession: captureAuthoringSession(), wholeRecordBase: base }
       )
     ).rejects.toMatchObject({ name: 'ConcurrencyError' });
     expect(await hospitalDB.dailyRecords.get(date)).toEqual(accepted);
@@ -221,9 +232,13 @@ describe('queue compaction keeps every accepted pending edit', () => {
       const { queue, accepted } = await seedAccepted();
       await hospitalDB.syncQueue.toCollection().modify({ status: 'PROCESSING' });
       const newer = { ...accepted, tensDayShift: ['SINTETICO B'] };
-      await queue.queueDailyRecordTaskWithLocalRecord(newer, {
-        syncContract: { changedPaths: ['tensDayShift'] },
-      });
+      await queue.queueDailyRecordTaskWithLocalRecord(
+        newer,
+        {
+          syncContract: { changedPaths: ['tensDayShift'] },
+        },
+        { authoringSession: captureAuthoringSession() }
+      );
       const [olderTask, newerTask] = await hospitalDB.syncQueue.toArray();
       await hospitalDB.syncQueue.update(olderTask.id!, { status: 'PENDING' });
       await hospitalDB.syncQueue.update(newerTask.id!, { status: 'PROCESSING' });
@@ -235,7 +250,7 @@ describe('queue compaction keeps every accepted pending edit', () => {
         queue.queueDailyRecordTaskWithLocalRecord(
           accepted,
           { syncContract: { changedPaths: ['*'] } },
-          { wholeRecordBase: accepted }
+          { authoringSession: captureAuthoringSession(), wholeRecordBase: accepted }
         )
       ).rejects.toMatchObject({ name: 'ConcurrencyError' });
       expect(await hospitalDB.syncQueue.toArray()).toEqual(before);
@@ -246,7 +261,7 @@ describe('queue compaction keeps every accepted pending edit', () => {
       await queue.queueDailyRecordTaskWithLocalRecord(
         newer,
         { syncContract: { changedPaths: ['*'] } },
-        { wholeRecordBase: newer }
+        { authoringSession: captureAuthoringSession(), wholeRecordBase: newer }
       );
       expect(await hospitalDB.dailyRecords.get(date)).toEqual(newer);
     }
@@ -263,14 +278,17 @@ describe('queue compaction keeps every accepted pending edit', () => {
       await queue.queueDailyRecordTaskWithLocalRecord(
         accepted,
         { syncContract: { changedPaths: ['*'] } },
-        { wholeRecordBase: base }
+        { authoringSession: captureAuthoringSession(), wholeRecordBase: base }
       );
       const before = await hospitalDB.syncQueue.toArray();
       await expect(
         queue.queueDailyRecordTaskWithLocalRecord(
           base,
           { syncContract: { changedPaths: ['*'] } },
-          hasBase ? { wholeRecordBase: base } : undefined
+          {
+            authoringSession: captureAuthoringSession(),
+            ...(hasBase ? { wholeRecordBase: base } : {}),
+          }
         )
       ).rejects.toMatchObject({ name: 'ConcurrencyError' });
       expect(await hospitalDB.syncQueue.toArray()).toEqual(before);
@@ -279,7 +297,7 @@ describe('queue compaction keeps every accepted pending edit', () => {
       await queue.queueDailyRecordTaskWithLocalRecord(
         base,
         { syncContract: { changedPaths: ['*'] } },
-        { wholeRecordBase: accepted }
+        { authoringSession: captureAuthoringSession(), wholeRecordBase: accepted }
       );
       expect((await hospitalDB.dailyRecords.get(date))?.handoffNovedadesDayShift).toBe(
         'SINTETICO RETIRADO'
@@ -293,9 +311,13 @@ describe('queue compaction keeps every accepted pending edit', () => {
       const { queue, accepted } = await seedAccepted(false, opaque);
       await hospitalDB.syncQueue.toCollection().modify({ status: 'PROCESSING' });
       const newer = { ...accepted, nursesDayShift: ['SINTETICA B'] };
-      await queue.queueDailyRecordTaskWithLocalRecord(newer, {
-        syncContract: { changedPaths: ['nursesDayShift'] },
-      });
+      await queue.queueDailyRecordTaskWithLocalRecord(
+        newer,
+        {
+          syncContract: { changedPaths: ['nursesDayShift'] },
+        },
+        { authoringSession: captureAuthoringSession() }
+      );
       const tasks = await hospitalDB.syncQueue.toArray();
       expect(tasks).toHaveLength(2);
       await hospitalDB.dailyRecords.put(accepted);
@@ -303,7 +325,7 @@ describe('queue compaction keeps every accepted pending edit', () => {
         queue.queueDailyRecordTaskWithLocalRecord(
           accepted,
           { syncContract: { changedPaths: ['*'] } },
-          { wholeRecordBase: accepted }
+          { authoringSession: captureAuthoringSession(), wholeRecordBase: accepted }
         )
       ).rejects.toMatchObject({ name: 'ConcurrencyError' });
       expect(await hospitalDB.syncQueue.toArray()).toEqual(tasks);
@@ -312,7 +334,7 @@ describe('queue compaction keeps every accepted pending edit', () => {
       await queue.queueDailyRecordTaskWithLocalRecord(
         next,
         { syncContract: { changedPaths: ['*'] } },
-        { wholeRecordBase: newer }
+        { authoringSession: captureAuthoringSession(), wholeRecordBase: newer }
       );
       expect(await hospitalDB.dailyRecords.get(date)).toEqual(next);
       expect((await hospitalDB.syncQueue.toArray())[0]).toEqual(tasks[0]);
@@ -324,9 +346,13 @@ describe('queue compaction keeps every accepted pending edit', () => {
     const { queue, base, accepted } = await seedAccepted();
     await hospitalDB.syncQueue.toCollection().modify({ status: 'PROCESSING' });
     const newer = { ...accepted, tensDayShift: ['SINTETICO B'] };
-    await queue.queueDailyRecordTaskWithLocalRecord(newer, {
-      syncContract: { changedPaths: ['tensDayShift'] },
-    });
+    await queue.queueDailyRecordTaskWithLocalRecord(
+      newer,
+      {
+        syncContract: { changedPaths: ['tensDayShift'] },
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
     const before = await hospitalDB.syncQueue.toArray();
     expect(before[1].syncContract?.changedPaths).toEqual(['tensDayShift']);
     const stale = { ...base, tensDayShift: newer.tensDayShift };
@@ -334,7 +360,7 @@ describe('queue compaction keeps every accepted pending edit', () => {
       queue.queueDailyRecordTaskWithLocalRecord(
         stale,
         { syncContract: { changedPaths: ['*'] } },
-        { wholeRecordBase: stale }
+        { authoringSession: captureAuthoringSession(), wholeRecordBase: stale }
       )
     ).rejects.toMatchObject({ name: 'ConcurrencyError' });
     expect(await hospitalDB.syncQueue.toArray()).toEqual(before);
@@ -345,9 +371,13 @@ describe('queue compaction keeps every accepted pending edit', () => {
     const { queue, accepted } = await seedAccepted();
     await hospitalDB.syncQueue.toCollection().modify({ status: 'PROCESSING' });
     const newer = { ...accepted, nursesDayShift: ['SINTETICA B'] };
-    await queue.queueDailyRecordTaskWithLocalRecord(newer, {
-      syncContract: { changedPaths: ['nursesDayShift'] },
-    });
+    await queue.queueDailyRecordTaskWithLocalRecord(
+      newer,
+      {
+        syncContract: { changedPaths: ['nursesDayShift'] },
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
     const tasks = await hospitalDB.syncQueue.toArray();
     await hospitalDB.syncQueue.toCollection().modify(task => {
       delete task.localProjectionBaseIds;
@@ -365,7 +395,7 @@ describe('queue compaction keeps every accepted pending edit', () => {
       queue.queueDailyRecordTaskWithLocalRecord(
         newer,
         { syncContract: { changedPaths: ['*'] } },
-        { wholeRecordBase: newer }
+        { authoringSession: captureAuthoringSession(), wholeRecordBase: newer }
       )
     ).rejects.toMatchObject({ name: 'ConcurrencyError' });
     expect(await hospitalDB.syncQueue.toArray()).toEqual(before);
@@ -378,16 +408,20 @@ describe('queue compaction keeps every accepted pending edit', () => {
     for (const nurse of ['SINTETICA B', 'SINTETICA C']) {
       await hospitalDB.syncQueue.toCollection().modify({ status: 'PROCESSING' });
       current = { ...current, nursesDayShift: [nurse] };
-      await queue.queueDailyRecordTaskWithLocalRecord(current, {
-        syncContract: { changedPaths: ['nursesDayShift'] },
-      });
+      await queue.queueDailyRecordTaskWithLocalRecord(
+        current,
+        {
+          syncContract: { changedPaths: ['nursesDayShift'] },
+        },
+        { authoringSession: captureAuthoringSession() }
+      );
     }
     const before = await hospitalDB.syncQueue.toArray();
     const next = { ...current, tensDayShift: ['SINTETICO D'] };
     await queue.queueDailyRecordTaskWithLocalRecord(
       next,
       { syncContract: { changedPaths: ['*'] } },
-      { wholeRecordBase: current }
+      { authoringSession: captureAuthoringSession(), wholeRecordBase: current }
     );
     expect(await hospitalDB.dailyRecords.get(date)).toEqual(next);
     expect((await hospitalDB.syncQueue.toArray()).slice(0, 2)).toEqual(before.slice(0, 2));
@@ -401,9 +435,13 @@ describe('queue compaction keeps every accepted pending edit', () => {
     const base = record('2026-10-24T10:00:00.000Z', { beds: { R1: patient } });
     const accepted = { ...base, beds: { R1: { ...patient, pathology: 'ACCEPTED A' } } };
     const queue = engine();
-    await queue.queueDailyRecordTaskWithLocalRecord(accepted, {
-      syncContract: { changedPaths: ['beds.R1.pathology'] },
-    });
+    await queue.queueDailyRecordTaskWithLocalRecord(
+      accepted,
+      {
+        syncContract: { changedPaths: ['beds.R1.pathology'] },
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
     const replacement = {
       ...accepted,
       beds: {
@@ -414,7 +452,7 @@ describe('queue compaction keeps every accepted pending edit', () => {
       queue.queueDailyRecordTaskWithLocalRecord(
         replacement,
         { syncContract: { changedPaths: ['*'] } },
-        { wholeRecordBase: base }
+        { authoringSession: captureAuthoringSession(), wholeRecordBase: base }
       )
     ).rejects.toMatchObject({ name: 'ConcurrencyError' });
     expect((await hospitalDB.dailyRecords.get(date))?.beds.R1.clinicalEpisodeId).toBe(

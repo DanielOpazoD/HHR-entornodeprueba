@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { beforeEach, afterEach, it, expect, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
@@ -51,7 +52,11 @@ async function patchBase(): Promise<DailyRecord | null> {
     throw new Error('Synthetic stop before mutation');
   });
   await expect(
-    updatePartialDetailed(date, { handoffNovedadesDayShift: 'Synthetic patch' })
+    updatePartialDetailed(
+      date,
+      { handoffNovedadesDayShift: 'Synthetic patch' },
+      { authoringSession: captureAuthoringSession() }
+    )
   ).rejects.toThrow('Synthetic stop before mutation');
   return base;
 }
@@ -109,7 +114,11 @@ it('B uses the durable local base after a failed remote read', async () => {
 it('B preserves the real read error when no local base exists', async () => {
   wire.fail = true;
   await expect(
-    updatePartialDetailed(date, { handoffNovedadesDayShift: 'Synthetic patch' })
+    updatePartialDetailed(
+      date,
+      { handoffNovedadesDayShift: 'Synthetic patch' },
+      { authoringSession: captureAuthoringSession() }
+    )
   ).rejects.toThrow('Synthetic network failure');
   expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
 });
