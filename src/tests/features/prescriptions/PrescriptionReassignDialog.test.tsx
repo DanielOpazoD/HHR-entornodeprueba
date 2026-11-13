@@ -258,6 +258,8 @@ describe('reassignment chooses a person', () => {
     [discharged.patientName, discharged.rut, discharged],
     ['Nombre anterior', '222222222', discharged],
     [discharged.patientName, undefined, discharged],
+    ['  PACIENTE   ALTA SINTÉTICA  ', undefined, discharged],
+    [discharged.patientName, active.rut, active],
     ['Sin coincidencia', '33.333.333-3', active],
   ])('preselects the matching person for %s / %s', async (patientName, patientRut, expected) => {
     const { onSubmit } = await openDialog(sameBedDay(), {

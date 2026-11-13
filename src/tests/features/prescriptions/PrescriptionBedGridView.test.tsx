@@ -241,7 +241,11 @@ describe('PrescriptionBedGridView', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /cambiar cama de receta/i }));
     const select = (await screen.findByRole('combobox')) as HTMLSelectElement;
-    fireEvent.change(select, { target: { value: 'H1C2' } });
+    fireEvent.change(select, {
+      target: {
+        value: (screen.getByRole('option', { name: /H1C2 · Carina/ }) as HTMLOptionElement).value,
+      },
+    });
     fireEvent.click(screen.getByRole('button', { name: /guardar/i }));
 
     await waitFor(() => expect(onReassign).toHaveBeenCalledTimes(1));
@@ -271,7 +275,11 @@ describe('PrescriptionBedGridView', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /cambiar cama de receta/i }));
     const select = (await screen.findByRole('combobox')) as HTMLSelectElement;
-    fireEvent.change(select, { target: { value: 'H1C2' } });
+    fireEvent.change(select, {
+      target: {
+        value: (screen.getByRole('option', { name: /H1C2 · Carina/ }) as HTMLOptionElement).value,
+      },
+    });
     fireEvent.click(screen.getByRole('button', { name: /guardar/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
