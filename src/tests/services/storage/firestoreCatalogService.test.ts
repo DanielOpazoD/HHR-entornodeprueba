@@ -201,3 +201,19 @@ it.each([
   vi.mocked(getDoc).mockResolvedValueOnce({ exists: () => false, data: () => undefined } as never);
   await expect(read()).resolves.toEqual([]);
 });
+
+it.each([
+  ['Ana Pena', 'Ana Peña'],
+  ['Ana Peña', 'ANA PENA'],
+  ['Ana Peña', ' ANA   PEÑA '],
+])('stores one preferred spelling for %s + %s', async (saved, incoming) => {
+  vi.mocked(getDoc).mockResolvedValueOnce({
+    exists: () => true,
+    data: () => ({ list: [saved] }),
+  } as never);
+  expect(await saveNurseCatalogToFirestore([saved, incoming], [saved])).toEqual(['Ana Peña']);
+  expect(setDoc).toHaveBeenLastCalledWith(
+    expect.anything(),
+    expect.objectContaining({ list: ['Ana Peña'] })
+  );
+});

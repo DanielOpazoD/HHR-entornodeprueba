@@ -167,7 +167,7 @@ it('renaming in the middle keeps the order and removing the only row leaves a re
   expect(await read()).toEqual([]);
 });
 
-// «Ana Pena» and «Ana Peña» are different saved texts: different people for the save.
+// A richer spelling replaces the saved text; stale exact bases still conflict.
 const asClient = (id: string) => {
   activeDb = env
     .authenticatedContext(id, {
@@ -176,11 +176,11 @@ const asClient = (id: string) => {
     })
     .firestore({ ignoreUndefinedProperties: true });
 };
-it('adding «Ana Peña» next to a saved «Ana Pena» keeps both', async () => {
+it('adding «Ana Peña» upgrades a saved «Ana Pena»', async () => {
   await seedNurses({ list: ['Ana Pena'] });
   asClient('synthetic-b');
   await save(['Ana Pena', 'Ana Peña'], ['Ana Pena']);
-  expect(await read()).toEqual(['Ana Pena', 'Ana Peña']);
+  expect(await read()).toEqual(['Ana Peña']);
 });
 it.each([
   ['removing', [] as string[]],
@@ -190,6 +190,6 @@ it.each([
   asClient('synthetic-b');
   await save(['Ana Pena', 'Ana Peña'], ['Ana Pena']);
   asClient('synthetic-a');
-  await save(next, ['Ana Pena']);
-  expect(await read()).toEqual([...next, 'Ana Peña']);
+  await expect(save(next, ['Ana Pena'])).rejects.toThrow('La lista cambió');
+  expect(await read()).toEqual(['Ana Peña']);
 });
