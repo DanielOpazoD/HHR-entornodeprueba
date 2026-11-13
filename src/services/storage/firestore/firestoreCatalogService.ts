@@ -73,7 +73,14 @@ const saveStringCatalog = async (
       const previous = current.find(
         name => nurseIdentityKey(name) === nurseIdentityKey(change.after)
       );
-      const preferred = variants.reduce(preferredStaffName, previous ?? change.after);
+      // Someone respelling a row by hand means exactly that text: the preference only settles
+      // variants that arrive as another row, never a deliberate correction of the same one.
+      const respelled =
+        change.kind === 'edit' &&
+        nurseIdentityKey(change.before) === nurseIdentityKey(change.after);
+      const preferred = respelled
+        ? change.after
+        : variants.reduce(preferredStaffName, previous ?? change.after);
       const first = variants[0];
       const texts = new Set(variants);
       merged = merged.flatMap(name =>
