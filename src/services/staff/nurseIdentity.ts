@@ -31,6 +31,23 @@ const tokens = (value: string): string[] => normalizeIdentityText(value).split('
 
 export const nurseIdentityKey = (value: string): string => normalizeIdentityText(value);
 
+/** Existing catalog spelling wins ties; only an equivalent, richer spelling replaces it. */
+export const preferredStaffName = (catalogName: string, incoming: string): string => {
+  if (nurseIdentityKey(catalogName) !== nurseIdentityKey(incoming)) return catalogName;
+  const marks = (name: string) => (name.normalize('NFD').match(/[\u0300-\u036f]/g) ?? []).length;
+  return marks(incoming) > marks(catalogName) ? incoming : catalogName;
+};
+
+export const uniqueStaffNames = (names: string[]): string[] => {
+  const preferred = new Map<string, string>();
+  for (const name of names) {
+    const key = nurseIdentityKey(name);
+    const previous = preferred.get(key);
+    preferred.set(key, previous === undefined ? name : preferredStaffName(previous, name));
+  }
+  return [...preferred.values()];
+};
+
 export const toShortNurseName = (value: string): string => {
   const normalized = normalizeDisplayName(value);
   const parts = normalized.split(' ').filter(Boolean);
@@ -48,14 +65,7 @@ export const buildNurseCatalogIdentities = (nurseCatalog: string[]): NurseCatalo
 };
 
 export const reconcileNurseCatalogNames = (nurseCatalog: string[]): string[] => {
-  return [
-    ...new Map(
-      nurseCatalog
-        .map(normalizeDisplayName)
-        .filter(Boolean)
-        .map(name => [normalizeIdentityText(name), name])
-    ).values(),
-  ];
+  return uniqueStaffNames(nurseCatalog.map(normalizeDisplayName).filter(Boolean));
 };
 
 /** Reconciles Eloísa's full name with HHR's curated "name + surname" catalog. */
@@ -71,7 +81,11 @@ export const resolveNurseIdentity = (
   if (/^\d{1,4}[-/]/.test(remoteTokens[0])) return null;
   const remoteKey = normalizeIdentityText(author);
   const exactMatch = catalog.find(candidate => candidate.key === remoteKey);
-  if (exactMatch) return exactMatch;
+  if (exactMatch)
+    return {
+      ...exactMatch,
+      displayName: preferredStaffName(exactMatch.displayName, normalizeDisplayName(author)),
+    };
   if (authorIdentity) {
     const firstGivenName = normalizeIdentityText(authorIdentity.firstGivenName);
     const firstSurname = normalizeIdentityText(authorIdentity.firstSurname);
@@ -97,6 +111,6 @@ export const reconcileSelectedNurseName = (value: string, nurseCatalog: string[]
   if (!normalized) return '';
   const catalog = buildNurseCatalogIdentities(nurseCatalog);
   const exactMatch = catalog.find(candidate => candidate.key === normalizeIdentityText(normalized));
-  if (exactMatch) return exactMatch.displayName;
+  if (exactMatch) return preferredStaffName(exactMatch.displayName, normalized);
   return normalized;
 };
