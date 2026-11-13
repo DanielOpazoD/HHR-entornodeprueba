@@ -119,22 +119,6 @@
   font-weight: 600;
   color: #475569;
 }
-.medif-input {
-  width: 100%;
-  min-width: 0;
-  height: 28px;
-  padding: 4px 7px;
-  border: 1px solid #cbd5e1;
-  border-radius: 5px;
-  background: white;
-  color: #1e293b;
-  font: inherit;
-  font-size: 12px;
-}
-.medif-input:focus {
-  outline: 2px solid #bae6fd;
-  border-color: #0ea5e9;
-}
 .medif-textarea {
   height: auto;
   min-height: 42px;
@@ -249,7 +233,7 @@
   }
   .medif-input {
     font-size: 16px;
-    min-height: 34px;
+    min-height: 44px;
   }
 }
 @media (pointer: coarse) {

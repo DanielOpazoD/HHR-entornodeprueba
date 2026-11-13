@@ -1,8 +1,7 @@
 import React from 'react';
 import clsx from 'clsx';
 
-export const TOOL_INPUT_CLASS =
-  'h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 text-[13px] text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-medical-500 focus:outline-none focus:ring-2 focus:ring-medical-200 disabled:bg-slate-50 disabled:text-slate-400';
+export const TOOL_INPUT_CLASS = 'hhr-field';
 
 const LABEL_CLASS = 'mb-1 block text-[11px] font-semibold text-slate-600';
 

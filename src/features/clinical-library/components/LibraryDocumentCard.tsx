@@ -1,4 +1,5 @@
 import React from 'react';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
 import { Download, FilePenLine, FileText, Image, Printer } from 'lucide-react';
 import type { LibraryDocumentEntry, LibraryDocumentFormat } from '../domain/libraryCatalogTypes';
 import { toLibraryDocumentHref } from '../services/libraryDocumentActions';
@@ -10,8 +11,7 @@ const FORMAT_ICONS: Readonly<Record<LibraryDocumentFormat, React.ReactNode>> = {
   image: <Image size={16} aria-hidden="true" />,
 };
 
-const ACTION_CLASS =
-  'inline-flex h-8 min-w-8 shrink-0 items-center justify-center gap-1.5 rounded-md px-2 text-[11px] font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-medical-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-medical-500';
+const ACTION_CLASS = buttonClassName('ghost', 'sm', 'shrink-0');
 
 interface LibraryDocumentCardProps {
   entry: LibraryDocumentEntry;
@@ -46,7 +46,7 @@ export const LibraryDocumentCard: React.FC<LibraryDocumentCardProps> = ({
     {entry.editorId && onFill && (
       <button
         type="button"
-        className={ACTION_CLASS}
+        className={buttonClassName('outline', 'sm', 'shrink-0')}
         onClick={() => onFill(entry)}
         aria-label={`Completar ${entry.title}`}
         title="Completar formulario"

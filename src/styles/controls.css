@@ -1,0 +1,206 @@
+/* Shared geometry and states. Clinical templates and printed documents are not styled here. */
+:root {
+  --hhr-control-radius: 0.5rem;
+  --hhr-control-border: #cbd5e1;
+  --hhr-control-focus: #0369a1;
+}
+
+@layer components {
+  .hhr-button,
+  .clinical-form-button,
+  .clinical-form-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.25rem;
+    border: 1px solid var(--hhr-control-border);
+    border-radius: var(--hhr-control-radius);
+    padding: 0.4375rem 0.75rem;
+    background: #fff;
+    color: #334155;
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.4;
+    text-align: center;
+    text-transform: none;
+    letter-spacing: normal;
+    transition:
+      background-color 150ms,
+      border-color 150ms,
+      color 150ms;
+  }
+  .hhr-button:not(:disabled):hover,
+  .clinical-form-button:not(:disabled):hover,
+  .clinical-form-icon:not(:disabled):hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+  }
+  .hhr-button:focus-visible,
+  .clinical-form-button:focus-visible,
+  .clinical-form-icon:focus-visible,
+  .hhr-field:focus-visible,
+  .clinical-form-input:focus-visible,
+  .medif-input:focus-visible {
+    outline: 2px solid var(--hhr-control-focus);
+    outline-offset: 2px;
+  }
+  .hhr-button:disabled,
+  .clinical-form-button:disabled,
+  .clinical-form-icon:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .hhr-button > svg,
+  .hhr-button-icon {
+    flex-shrink: 0;
+  }
+  .hhr-button-icon {
+    display: inline-flex;
+  }
+  .hhr-button--primary,
+  .clinical-form-primary {
+    background: var(--accent-700, #0369a1);
+    border-color: transparent;
+    color: white;
+  }
+  .hhr-button--primary:not(:disabled):hover,
+  .clinical-form-primary:not(:disabled):hover {
+    background: var(--accent-800, #075985);
+    border-color: transparent;
+  }
+  .hhr-button--secondary {
+    background: #f1f5f9;
+    border-color: transparent;
+  }
+  .hhr-button--ghost {
+    background: transparent;
+    border-color: transparent;
+    color: #475569;
+  }
+  .hhr-button--ghost:not(:disabled):hover {
+    border-color: transparent;
+  }
+  .hhr-button--outline {
+    color: var(--accent-800, #075985);
+  }
+  .hhr-button--danger {
+    background: #b91c1c;
+    border-color: transparent;
+    color: #fff;
+  }
+  .hhr-button--danger:not(:disabled):hover {
+    background: #991b1b;
+    border-color: transparent;
+  }
+  .hhr-button--success {
+    background: #15803d;
+    border-color: transparent;
+    color: #fff;
+  }
+  .hhr-button--success:not(:disabled):hover {
+    background: #166534;
+    border-color: transparent;
+  }
+  .hhr-button--xs {
+    min-height: 1.75rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+  }
+  .hhr-button--sm {
+    min-height: 2rem;
+    padding: 0.3125rem 0.625rem;
+    font-size: 0.75rem;
+  }
+  .hhr-button--lg {
+    min-height: 2.75rem;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+  }
+  .hhr-button--icon,
+  .clinical-form-icon {
+    min-width: 2.25rem;
+    width: 2.25rem;
+    padding: 0;
+  }
+
+  .hhr-field,
+  .clinical-form-input,
+  .medif-input {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    min-height: 2.125rem;
+    border: 1px solid var(--hhr-control-border);
+    border-radius: var(--hhr-control-radius);
+    background: #fff;
+    padding: 0.375rem 0.5rem;
+    color: #1e293b;
+    font: inherit;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+  .hhr-field::placeholder,
+  .clinical-form-input::placeholder,
+  .medif-input::placeholder {
+    color: #64748b;
+  }
+  .hhr-field:disabled,
+  .clinical-form-input:disabled,
+  .medif-input:disabled {
+    background: #f1f5f9;
+    color: #64748b;
+    cursor: not-allowed;
+  }
+  .hhr-field[readonly],
+  .clinical-form-input[readonly],
+  .medif-input[readonly] {
+    background: #f8fafc;
+    border-style: dashed;
+  }
+  .hhr-field[aria-invalid='true'],
+  .clinical-form-input[aria-invalid='true'],
+  .medif-input[aria-invalid='true'] {
+    border-color: #b91c1c;
+  }
+
+  @media (pointer: coarse) {
+    .hhr-button,
+    .clinical-form-button,
+    .clinical-form-icon {
+      min-height: 2.75rem;
+    }
+    .hhr-button--icon,
+    .clinical-form-icon {
+      min-width: 2.75rem;
+      width: 2.75rem;
+    }
+    .hhr-field,
+    .clinical-form-input,
+    .medif-input {
+      min-height: 2.75rem;
+      font-size: 1rem;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hhr-button,
+    .clinical-form-button,
+    .clinical-form-icon {
+      transition: none;
+    }
+  }
+  @media (forced-colors: active) {
+    .hhr-button,
+    .clinical-form-button,
+    .clinical-form-icon {
+      border-color: ButtonText;
+    }
+    .hhr-button:disabled,
+    .clinical-form-button:disabled,
+    .clinical-form-icon:disabled {
+      color: GrayText;
+      opacity: 1;
+    }
+  }
+}
