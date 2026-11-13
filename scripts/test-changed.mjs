@@ -11,7 +11,7 @@ try {
   );
   if (source.some(file => /^src\/tests\/emulator(?:-ui)?\//.test(file))) {
     console.log(
-      '[changed] Pruebas de emulador excluidas; ejecútalas con npm run test:emulator:sync:ci.'
+      '[changed] Pruebas de emulador excluidas; ejecútalas con npm run test:emulator:file -- <ruta>.'
     );
   }
   if (!source.length) {

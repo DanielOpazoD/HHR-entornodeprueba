@@ -10,18 +10,22 @@ Este documento separa los comandos oficiales del repo de los scripts internos o 
 
 Estos son los entrypoints recomendados para trabajo normal.
 
-| Comando                   | Cuándo usarlo                                          |
-| ------------------------- | ------------------------------------------------------ |
-| `npm run dev`             | desarrollo local de la app                             |
-| `npm run typecheck`       | validar tipos antes de subir cambios                   |
-| `npm run lint`            | validar lint global                                    |
-| `npm run test:ci:unit`    | suite unitaria/integración base sin emuladores         |
-| `npm run check:quality`   | guardrails estructurales y de gobernanza               |
-| `npm run ci:inner-loop`   | verificación local rápida antes de seguir iterando     |
-| `npm run ci:pre-merge`    | gate compacto antes de merge                           |
-| `npm run ci:preview-gate` | gate del bundle real en preview local                  |
-| `npm run ci:merge-gate`   | gate blocking ampliado para cambios sensibles          |
-| `npm run ci:release-gate` | validación final con Firestore/emuladores/E2E críticos |
+| Comando                                | Cuándo usarlo                                              |
+| -------------------------------------- | ---------------------------------------------------------- |
+| `npm run dev`                          | desarrollo local de la app                                 |
+| `npm run typecheck`                    | validar tipos antes de subir cambios                       |
+| `npm run lint`                         | validar lint global                                        |
+| `npm run test:ci:unit`                 | suite unitaria/integración base sin emuladores             |
+| `npm run test:changed`                 | pruebas unitarias que alcanzan lo cambiado                 |
+| `npm run test:emulator:file -- <ruta>` | archivos de pruebas del emulador, con puertos libres       |
+| `npm run test:scripts`                 | pruebas de los scripts de `scripts/tests/`                 |
+| `npm run check:changed`                | controles formales sobre lo cambiado (lo corre `pre-push`) |
+| `npm run check:quality`                | guardrails estructurales y de gobernanza                   |
+| `npm run ci:inner-loop`                | verificación local rápida antes de seguir iterando         |
+| `npm run ci:pre-merge`                 | gate compacto antes de merge                               |
+| `npm run ci:preview-gate`              | gate del bundle real en preview local                      |
+| `npm run ci:merge-gate`                | gate blocking ampliado para cambios sensibles              |
+| `npm run ci:release-gate`              | validación final con Firestore/emuladores/E2E críticos     |
 
 ## Comandos oficiales por escenario
 
