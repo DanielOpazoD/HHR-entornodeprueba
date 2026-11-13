@@ -304,7 +304,9 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
             expect(await hospitalDB.syncQueue.toArray()).toMatchObject([{ status: 'FAILED' }]);
           } else {
             expect(after?.date).toBe(date);
-            expect(Object.keys(after?.beds ?? {})).toEqual(Object.keys(baseRecord().beds));
+            expect(Object.keys(after?.beds ?? {}).sort()).toEqual(
+              Object.keys(baseRecord().beds).sort()
+            );
             expect(Object.keys(after ?? {}).some(key => key.includes('.'))).toBe(false);
             expect(await hospitalDB.syncQueue.count()).toBe(0);
           }
@@ -324,6 +326,16 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     }
   }
   it('never creates a partial day when the transport reports not-found', async () => {
+    clients.B = {
+      uid: 'synthetic-B',
+      role: 'nurse_hospital',
+      db: env
+        .authenticatedContext('synthetic-B', {
+          email: 'synthetic@example.invalid',
+          role: 'nurse_hospital',
+        })
+        .firestore(),
+    };
     transport.missing = true;
     const result = await patch('B', { handoffNovedadesDayShift: 'EDITADO' }).then(
       () => 'accepted',
