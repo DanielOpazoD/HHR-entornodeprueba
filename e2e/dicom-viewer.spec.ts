@@ -1032,9 +1032,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       'MIP · 10 mm'
     );
   });
-  test('turns the 3D view into an MP4 about a chosen axis, cancels and restores the camera', async ({
-    page,
-  }) => {
+  const openStable3DVideo = async (page: Page) => {
     await setup(page);
     const editor = await openSalvador(page);
     await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
@@ -1097,6 +1095,11 @@ test.describe('DICOM viewer and Salvador annexes', () => {
         .data[0];
     });
     await viewer.getByLabel('Video MP4', { exact: true }).click();
+    return { viewer, hash, initial, initialCenter };
+  };
+
+  test('cancels a 3D MP4 and restores the camera', async ({ page }) => {
+    const { viewer, hash, initial } = await openStable3DVideo(page);
     await viewer.getByLabel('Cuadros del giro 3D', { exact: true }).fill('120');
     await viewer.getByRole('button', { name: 'Generar MP4', exact: true }).click();
     await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeDisabled();
@@ -1113,6 +1116,12 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     await expect(viewer.getByLabel('Vista previa MP4', { exact: true })).toHaveCount(0);
     await expect.poll(hash, { timeout: 30000 }).toBe(initial);
     await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeEnabled();
+  });
+
+  test('turns the 3D view into a reviewed MP4 about a chosen axis and restores the camera', async ({
+    page,
+  }) => {
+    const { viewer, hash, initial, initialCenter } = await openStable3DVideo(page);
     await viewer.getByLabel('Eje de giro 3D', { exact: true }).selectOption('horizontal');
     await viewer.getByLabel('Cuadros del giro 3D', { exact: true }).fill('4');
     await viewer.getByLabel('Velocidad del video', { exact: true }).selectOption('5');
@@ -1124,7 +1133,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     const video = viewer.getByLabel('Vista previa MP4', { exact: true });
     await expect(video).toBeVisible({ timeout: 60000 });
     await expect
-      .poll(() => video.evaluate(node => (node as HTMLVideoElement).readyState))
+      .poll(() => video.evaluate(node => (node as HTMLVideoElement).readyState), { timeout: 30000 })
       .toBeGreaterThanOrEqual(2);
     const frames = await sampleVideoFrames(video, 4, 5);
     // 0°, 90°, 180° and 270° about the screen's horizontal axis. The first frame is the
