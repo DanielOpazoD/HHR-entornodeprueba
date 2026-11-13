@@ -4,6 +4,7 @@ import {
   subscribeMedicalHandoffDrafts,
 } from '@/services/storage/medicalHandoffDraftStorage';
 export {
+  readMedicalHandoffDrafts,
   createMedicalHandoffDraftWriter,
   discardMedicalHandoffDraft,
   getMedicalHandoffDraftOwner,
