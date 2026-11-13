@@ -18,6 +18,7 @@ import {
   resolveActiveEpisode,
   resolveReportDischarge,
   selectReportRowsByEpisode,
+  selectDocumentSafeReportRows,
   unchangedClinicalCribEpisodes,
 } from './egresoReportPolicy';
 import { mergeSyncablePatient } from './patientSyncPolicy';
@@ -38,8 +39,11 @@ export const applyEgresoReport = (
   reportRows: EgresoReportRow[],
   record: DailyRecord
 ): CensusImportDiff => {
-  const checkedDiff = markReportChecked(diff);
-  const eligibleLocationRows = reportRows.filter(row => !isPavilionRecoveryLocation(row.bedLabel));
+  const { diff: checkedDiff, rows: eligibleLocationRows } = selectDocumentSafeReportRows(
+    markReportChecked(diff),
+    reportRows.filter(row => !isPavilionRecoveryLocation(row.bedLabel)),
+    record
+  );
   if (eligibleLocationRows.length === 0) return checkedDiff;
   const occupied = occupiedBedsByRun(record);
   const occupiedCribs = occupiedClinicalCribsByRun(record);

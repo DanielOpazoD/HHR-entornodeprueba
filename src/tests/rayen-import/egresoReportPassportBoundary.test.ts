@@ -82,3 +82,135 @@ describe('passport report document boundary', () => {
     expect(result.conflicts).toEqual([]);
   });
 });
+
+it.each([
+  'principal',
+  'crib',
+  'admission',
+  'admitted-crib',
+  'move',
+  'update',
+  'pending',
+  'active-crib',
+  'conflict',
+  'blocked-admission',
+  'discharge',
+] as const)('retains plans and exposes collision in %s', location => {
+  const rec = record('99.999.999-9');
+  const diff = createEmptyCensusImportDiff(true);
+  const patient = occupant('12.345.678-5');
+  const source = {
+    encounterId: 'SYNTHETIC',
+    run: patient.rut,
+    firstGivenName: 'SINTETICO',
+    firstFamilyName: 'PRUEBA',
+    service: '',
+    room: 'H5',
+    bed: 'C1',
+  };
+  if (location === 'principal') rec.beds.H5C1 = patient;
+  if (location === 'crib') rec.beds.H5C1.clinicalCrib = patient;
+  if (location === 'admission') diff.admissions.push({ bedId: 'H5C2', patient, isCma: false });
+  if (location === 'admitted-crib')
+    diff.admissions.push({
+      bedId: 'H5C2',
+      patient: { ...occupant('99.999.999-9'), clinicalCrib: patient },
+      isCma: false,
+    });
+  if (location === 'move')
+    diff.moves.push({
+      fromBedId: 'H5C1',
+      toBedId: 'H5C2',
+      rut: patient.rut,
+      patientName: patient.patientName,
+      source,
+    });
+  if (location === 'update')
+    diff.updates.push({
+      bedId: 'H5C1',
+      rut: patient.rut,
+      patientName: patient.patientName,
+      patient,
+      changes: [{ field: 'clinicalCrib', from: patient, to: undefined }],
+    });
+  if (location === 'pending')
+    diff.pendingAdministrativeDischarges.push({
+      bedId: 'H5C1',
+      rut: patient.rut,
+      patientName: patient.patientName,
+      signal: 'clinical-closure',
+      verification: {
+        medicalEpicrisis: 'confirmed',
+        nursingEpicrisis: 'unknown',
+        hospitalDischarge: 'not-detected',
+      },
+    });
+  if (location === 'active-crib')
+    diff.activeClinicalCribs = [{ parentBedId: 'H5C1', patient, source }];
+  if (location === 'conflict')
+    diff.conflicts.push({ bedId: 'H5C1', rut: patient.rut, reason: 'SYNTHETIC' });
+  if (location === 'blocked-admission')
+    diff.conflicts.push({
+      bedId: 'H5C1',
+      reason: 'SYNTHETIC',
+      blockedAdmission: { bedId: 'H5C1', patient, isCma: false },
+    });
+  if (location === 'discharge')
+    diff.discharges.push({
+      bedId: 'H5C2',
+      rut: patient.rut,
+      patientName: patient.patientName,
+      kind: 'alta',
+      status: 'Vivo',
+      reason: 'administrative-discharge',
+    });
+  const result = applyEgresoReport(diff, [row('P123456785', '08-07-2026 12:00')], rec);
+  expect(result.discharges).toEqual(diff.discharges);
+  expect(result.reportEgresos ?? []).toEqual([]);
+  expect(result.admissions).toEqual(diff.admissions);
+  expect(result.moves).toEqual(diff.moves);
+  expect(result.updates).toEqual(diff.updates);
+  expect(result.pendingAdministrativeDischarges).toEqual(diff.pendingAdministrativeDischarges);
+  expect(result.conflicts).toHaveLength(diff.conflicts.length + 1);
+  expect(result.conflicts.at(-1)?.bedId).toBe('H5C1');
+});
+it.each(['08-07-2026 12:00', '07-07-2026 12:00'])(
+  'keeps legacy truncated documents visible (%s)',
+  stamp => {
+    const result = applyEgresoReport(
+      createEmptyCensusImportDiff(true),
+      [row('1234567A', stamp)],
+      record('123.456-7')
+    );
+    expect(result.discharges).toEqual([]);
+    expect(result.reportEgresos ?? []).toEqual([]);
+    expect(result.conflicts).toHaveLength(1);
+  }
+);
+it('does not let one report row hide a different document with the same digits', () => {
+  const result = applyEgresoReport(
+    createEmptyCensusImportDiff(true),
+    [row('P123456785', '08-07-2026 12:00'), row('12.345.678-5', '08-07-2026 12:00')],
+    record('99.999.999-9')
+  );
+  expect(result.discharges).toEqual([]);
+  expect(result.reportEgresos ?? []).toEqual([]);
+  expect(result.conflicts).toHaveLength(2);
+});
+
+it('does not resolve a different document through the bed and crib lookup APIs', async () => {
+  const {
+    findOccupiedBed,
+    findOccupiedClinicalCrib,
+    occupiedBedsByRun,
+    occupiedClinicalCribsByRun,
+  } = await import('@/features/rayen-import/domain/egresoReportPolicy');
+  const rec = record('12.345.678-5');
+  rec.beds.H5C1.clinicalCrib = occupant('12.345.678-5');
+  expect(findOccupiedBed(occupiedBedsByRun(rec), 'P123456785')).toBeUndefined();
+  expect(findOccupiedClinicalCrib(occupiedClinicalCribsByRun(rec), 'P123456785')).toBeUndefined();
+  expect(findOccupiedBed(occupiedBedsByRun(rec), '123456785')?.bedId).toBe('H5C1');
+  expect(findOccupiedClinicalCrib(occupiedClinicalCribsByRun(rec), '123456785')?.parentBedId).toBe(
+    'H5C1'
+  );
+});

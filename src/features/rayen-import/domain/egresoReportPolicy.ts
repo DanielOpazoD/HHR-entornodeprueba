@@ -6,9 +6,63 @@ import { mapDestinoDeAlta } from '../mapping/mapDestinoDeAlta';
 import { toTitleCaseName } from '../mapping/rayenToPatientData';
 import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
 import { resolveReportBedId } from '../mapping/resolveReportBed';
-import { normalizeRut } from '@/utils/rutUtils';
+import { isSameDocument, normalizeRut } from '@/utils/rutUtils';
 import { calendarDateForMovement } from '@/utils/movementCalendarDate';
+import { appendReportConflict } from './egresoReportConflicts';
 import { recordedOutcomeEpisodeId } from './censusDischargeHistory';
+/**
+ * Keep the legacy digit indexes only after proving that no document in their bucket differs.
+ * Reject the entire ambiguous bucket before eligibility can rewrite a row's document and before
+ * matching can cancel a planned admission/move. This can only remove report authority.
+ */
+export const selectDocumentSafeReportRows = (
+  diff: CensusImportDiff,
+  rows: EgresoReportRow[],
+  record: DailyRecord
+): { diff: CensusImportDiff; rows: EgresoReportRow[] } => {
+  const documents = [
+    ...Object.values(record.beds).flatMap(patient => [patient?.rut, patient?.clinicalCrib?.rut]),
+    ...diff.admissions.flatMap(entry => [entry.patient.rut, entry.patient.clinicalCrib?.rut]),
+    ...diff.moves.map(entry => entry.rut),
+    ...diff.updates.flatMap(entry => [
+      entry.rut,
+      entry.patient.rut,
+      entry.patient.clinicalCrib?.rut,
+    ]),
+    ...diff.pendingAdministrativeDischarges.map(entry => entry.rut),
+    ...diff.discharges.map(entry => entry.rut),
+    ...(diff.activeClinicalCribs?.flatMap(entry => [entry.patient.rut, entry.principalRut]) ?? []),
+    ...diff.conflicts.flatMap(entry => [
+      entry.rut,
+      entry.blockedAdmission?.patient.rut,
+      entry.blockedAdmission?.patient.clinicalCrib?.rut,
+      entry.blockedMove?.rut,
+    ]),
+    ...[...(record.discharges ?? []), ...(record.transfers ?? []), ...(record.cma ?? [])].map(
+      entry => entry.rut
+    ),
+    ...rows.map(row => row.run),
+  ];
+  let nextDiff = diff;
+  const safeRows = rows.filter(row => {
+    const run = normalizeRut(row.run);
+    const collision =
+      Boolean(run) &&
+      documents.some(
+        document => normalizeRut(document) === run && !isSameDocument(document, row.run)
+      );
+    if (!collision) return true;
+    nextDiff = appendReportConflict(nextDiff, {
+      bedId: resolveReportBedId(row.bedLabel) || null,
+      rut: row.run,
+      patientName: row.patientName,
+      reason: `El documento ${row.run} del informe de egresos coincide solo en sus dígitos con otro documento; se requiere revisión antes de aplicar el egreso.`,
+    });
+    return false;
+  });
+  return { diff: nextDiff, rows: safeRows };
+};
+
 export interface OccupiedBedEvidence {
   bedId: string;
   patientName: string;
@@ -357,7 +411,7 @@ export const findOccupiedBed = (
   (episodeId ? index.get(`episode:${episodeId}`) : undefined) ??
   [...index.values()].find(entry => episodeId && entry.clinicalEpisodeId === episodeId) ??
   (normalizeRut(run)
-    ? [...index.values()].find(entry => normalizeRut(entry.rut) === normalizeRut(run))
+    ? [...index.values()].find(entry => isSameDocument(entry.rut, run))
     : undefined);
 
 export const occupiedClinicalCribsByRun = (
@@ -385,7 +439,7 @@ export const findOccupiedClinicalCrib = (
   (episodeId ? index.get(`episode:${episodeId}`) : undefined) ??
   [...index.values()].find(entry => episodeId && entry.patient.clinicalEpisodeId === episodeId) ??
   (normalizeRut(run)
-    ? [...index.values()].find(entry => normalizeRut(entry.patient.rut) === normalizeRut(run))
+    ? [...index.values()].find(entry => isSameDocument(entry.patient.rut, run))
     : undefined) ??
   (parentBedId ? index.get(`parent:${parentBedId}`) : undefined) ??
   [...index.values()].find(entry => parentBedId && entry.parentBedId === parentBedId);
