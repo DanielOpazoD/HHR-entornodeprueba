@@ -3,7 +3,7 @@ import type { PatientData } from '@/types/domain/patient';
 import { isNeonatalPatient, newbornOwnRut } from './clinicalCribMaternalAssociation';
 import type { FieldChange, MoveEntry } from '../contracts/censusImportDiff';
 
-import { hasNonRutLetter, isPassportFormat, normalizeRut } from '@/utils/rutUtils';
+import { hasNonRutLetter, isPassportFormat, isSameDocument, normalizeRut } from '@/utils/rutUtils';
 import { isDismissedTreatingPhysician } from '@/shared/census/treatingPhysicianDismissal';
 import { normalizePatientUpcForBed } from '@/shared/census/upcBedPolicy';
 import { rayenToPatientData } from '../mapping/rayenToPatientData';
@@ -175,7 +175,7 @@ const preserveClinicalCribSpecialty = (
       ? current.clinicalEpisodeId === incoming.clinicalEpisodeId
       : Boolean(
           normalizeRut(current.rut) &&
-          normalizeRut(current.rut) === normalizeRut(incoming.rut) &&
+          isSameDocument(current.rut, incoming.rut) &&
           current.admissionDate &&
           current.admissionDate === incoming.admissionDate &&
           (current.admissionTime ?? '') === (incoming.admissionTime ?? '')
