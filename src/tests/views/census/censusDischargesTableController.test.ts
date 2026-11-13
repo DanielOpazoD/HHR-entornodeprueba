@@ -127,3 +127,50 @@ describe('censusDischargesTableController', () => {
     expect(actions.map(action => action.kind)).not.toContain('hospitalizationReports');
   });
 });
+
+describe('hospitalization report action identity', () => {
+  it.each([
+    ['123456785', true],
+    ['12.345.678-5', true],
+    ['12345678-5', true],
+    [' 12.345.678-5 ', true],
+    ['12 345 678 5', true],
+    ['1234567k', true],
+    ['1.234.567-k', true],
+    ['1.234.567-K', true],
+    ['1234560', true],
+    ['12.345.678-0', true],
+    ['1234567890', false],
+    ['123456', false],
+    ['1-9', false],
+    ['', false],
+    ['---', false],
+    ['K', false],
+    ['P123456785', false],
+    ['12A3456785', false],
+    ['K123456785', false],
+    ['12345678KK', false],
+    ['Ñ123456785', false],
+  ])('offers reports only for a RUN-shaped document: %s', (rut, offered) => {
+    for (const clinicalEpisodeId of [undefined, '900001']) {
+      const discharge = DataFactory.createMockDischarge({ rut: String(rut), clinicalEpisodeId });
+      let opened;
+      const actions = buildDischargeRowActions(discharge, {
+        undoDischarge: () => undefined,
+        editDischarge: () => undefined,
+        viewClinicalDocuments: () => undefined,
+        deleteDischarge: () => undefined,
+        convertDischargeToCma: () => undefined,
+        openHospitalizationReports: entry => {
+          opened = entry;
+        },
+      });
+      const action = actions.find(entry => entry.kind === 'hospitalizationReports');
+      expect(Boolean(action)).toBe(offered);
+      if (offered) {
+        action?.onClick();
+        expect(opened).toBe(discharge);
+      }
+    }
+  });
+});

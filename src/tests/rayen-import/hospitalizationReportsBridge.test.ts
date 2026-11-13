@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   RAYEN_HOSPITALIZATION_REPORT_REQUEST_TYPE,
@@ -203,4 +203,108 @@ describe('hospitalization reports bridge', () => {
     );
     await expect(pending).resolves.toEqual({ ok: true, error: undefined });
   });
+});
+
+describe('hospitalization document identity', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  const runCases = [
+    ['123456785', '123456785', true],
+    ['12.345.678-5', '123456785', true],
+    ['12345678-5', '123456785', true],
+    [' 12.345.678-5 ', '123456785', true],
+    ['12 345 678 5', '123456785', true],
+    ['1234567k', '1234567K', true],
+    ['1.234.567-k', '1234567K', true],
+    ['1.234.567-K', '1234567K', true],
+    ['1234560', '1234560', true],
+    ['12.345.678-0', '123456780', true],
+    ['1234567890', '1234567890', false],
+    ['123456', '123456', false],
+    ['1-9', '19', false],
+    ['', '', false],
+    ['---', '', false],
+    ['K', 'K', false],
+  ] as const;
+
+  it.each(runCases)(
+    'preserves the exact RUN message for %j',
+    async (patientRun, normalized, valid) => {
+      for (const clinicalEpisodeId of [undefined, '900001']) {
+        for (const operation of ['list', 'download'] as const) {
+          vi.mocked(window.postMessage).mockClear();
+          const request = {
+            patientRun,
+            clinicalEpisodeId,
+            admissionDate: '2026-11-01',
+            censusDate: '2026-11-02',
+          };
+          const pending =
+            operation === 'list'
+              ? requestRayenHospitalizationEpisodes(request, 1)
+              : requestRayenHospitalizationDocument({ ...request, documentType: 'history' }, 1);
+          if (valid || clinicalEpisodeId) {
+            const expected = {
+              type: RAYEN_HOSPITALIZATION_REPORT_REQUEST_TYPE,
+              reqId: 'hospitalization-report-1000-500000000',
+              operation,
+              documentType: operation === 'download' ? 'history' : undefined,
+              encId: clinicalEpisodeId,
+              patientRun: normalized,
+              admissionDate: request.admissionDate,
+              censusDate: request.censusDate,
+            };
+            expect(JSON.stringify(vi.mocked(window.postMessage).mock.calls[0]?.[0])).toBe(
+              JSON.stringify(expected)
+            );
+            expect(window.postMessage).toHaveBeenCalledWith(expected, window.location.origin);
+          } else {
+            expect(window.postMessage).not.toHaveBeenCalled();
+          }
+          await vi.runAllTimersAsync();
+          await pending;
+          vi.setSystemTime(1000);
+        }
+      }
+    }
+  );
+
+  it.each(['P123456785', '12A3456785', 'K123456785', '12345678KK', 'Ñ123456785'])(
+    'never searches passport %s as a RUN',
+    async patientRun => {
+      for (const clinicalEpisodeId of [undefined, 'invalid', ' 900001 ']) {
+        for (const operation of ['list', 'download'] as const) {
+          vi.mocked(window.postMessage).mockClear();
+          const request = { patientRun, clinicalEpisodeId };
+          const pending =
+            operation === 'list'
+              ? requestRayenHospitalizationEpisodes(request, 1)
+              : requestRayenHospitalizationDocument({ ...request, documentType: 'epicrisis' }, 1);
+          await vi.runAllTimersAsync();
+          const result = await pending;
+          if (clinicalEpisodeId === ' 900001 ') {
+            expect(window.postMessage).toHaveBeenCalledWith(
+              expect.objectContaining({ patientRun: '', encId: '900001', operation }),
+              window.location.origin
+            );
+          } else {
+            expect(window.postMessage).not.toHaveBeenCalled();
+            expect(result).toEqual({
+              ok: false,
+              error: 'El paciente no tiene un RUN ni un episodio válido para buscar informes.',
+            });
+          }
+        }
+      }
+    }
+  );
 });

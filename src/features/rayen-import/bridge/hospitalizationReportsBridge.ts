@@ -1,5 +1,7 @@
 /** Privacy-preserving bridge for official Eloisa hospitalization reports. */
 
+import { hasNonRutLetter, normalizeRut } from '@/utils/rutUtils';
+
 export const RAYEN_HOSPITALIZATION_REPORT_REQUEST_TYPE = 'HHR_RAYEN_EPICRISIS_DOWNLOAD_REQUEST';
 export const RAYEN_HOSPITALIZATION_REPORT_RESULT_TYPE = 'HHR_RAYEN_EPICRISIS_DOWNLOAD_RESULT';
 export const RAYEN_STATISTICAL_DISCHARGE_REPORT_REQUEST_TYPE =
@@ -37,8 +39,6 @@ interface RayenHospitalizationReportRequest {
   documentType?: RayenHospitalizationDocumentType;
 }
 
-const normalizeRun = (value: string): string => value.toUpperCase().replace(/[^0-9K]/g, '');
-
 const parseEpisode = (value: unknown): RayenHospitalizationEpisode | null => {
   if (!value || typeof value !== 'object') return null;
   const row = value as Record<string, unknown>;
@@ -65,7 +65,7 @@ const requestHospitalizationReport = (
   timeoutMs: number
 ): Promise<RayenHospitalizationReportResult> =>
   new Promise(resolve => {
-    const patientRun = normalizeRun(request.patientRun);
+    const patientRun = hasNonRutLetter(request.patientRun) ? '' : normalizeRut(request.patientRun);
     const clinicalEpisodeId = request.clinicalEpisodeId?.trim() || '';
     const hasValidRun = /^[0-9]{6,8}[0-9K]$/.test(patientRun);
     const hasValidEpisode = /^\d+$/.test(clinicalEpisodeId);
