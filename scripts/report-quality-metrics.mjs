@@ -2,6 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { countExplicitAny } from './explicitAnySupport.mjs';
 import { findTestModifiers } from './testGovernanceSupport.mjs';
 import { buildReleaseConfidenceMatrixReport } from './releaseConfidenceMatrixSupport.mjs';
 import { buildEvidenceProvenance } from './evidenceProvenanceSupport.mjs';
@@ -372,9 +373,7 @@ const getTypeSafetySignals = () => {
   let explicitAnyTestCount = 0;
 
   for (const filePath of files) {
-    const content = fs.readFileSync(filePath, 'utf8');
-    const count =
-      (content.match(/:\s*any\b/g)?.length || 0) + (content.match(/\bas\s+any\b/g)?.length || 0);
+    const count = countExplicitAny(fs.readFileSync(filePath, 'utf8'), filePath);
     explicitAnyCount += count;
 
     const relative = toPosix(path.relative(ROOT, filePath));
