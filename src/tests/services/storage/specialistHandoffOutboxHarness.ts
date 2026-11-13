@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /**
  * Synthetic end-to-end harness: the real write service, queue engine, transport and server
  * handler. Only Firestore, Functions, the role and the network state are faked.
@@ -243,7 +244,10 @@ export const writeNote = async (
   const wasOnline = navigator.onLine;
   Object.defineProperty(navigator, 'onLine', { value: !offline, configurable: true });
   try {
-    const result = await updatePartialDetailed(record.date, patch, { baseRecord: record });
+    const result = await updatePartialDetailed(record.date, patch, {
+      authoringSession: captureAuthoringSession(),
+      baseRecord: record,
+    });
     return {
       result,
       record: { ...record, beds: { ...record.beds, [bedId]: { ...occupant, ...fields } } },

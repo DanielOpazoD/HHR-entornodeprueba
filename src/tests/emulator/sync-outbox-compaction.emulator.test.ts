@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /* @flake-safe: The emulator write window requires today's synthetic census date and real write times. */
 import 'fake-indexeddb/auto';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -126,7 +127,7 @@ describeEmulator('the outbox publishes compacted offline work through Firestore'
     await updatePartialDetailed(
       DATE,
       { nursesDayShift: ['SINTETICA A'] },
-      { baseRecord: baseRecord() }
+      { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
     );
     const afterFirstEdit = await localRecord();
     await seedRemote({
@@ -138,7 +139,7 @@ describeEmulator('the outbox publishes compacted offline work through Firestore'
     await updatePartialDetailed(
       DATE,
       { tensDayShift: ['SINTETICO B'] },
-      { baseRecord: afterFirstEdit }
+      { authoringSession: captureAuthoringSession(), baseRecord: afterFirstEdit }
     );
 
     setFirestoreEnabled(true);
@@ -157,13 +158,13 @@ describeEmulator('the outbox publishes compacted offline work through Firestore'
     await updatePartialDetailed(
       DATE,
       { nursesDayShift: ['SINTETICA SIN RED'] },
-      { baseRecord: baseRecord() }
+      { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
     );
     setFirestoreEnabled(true);
     await updatePartialDetailed(
       DATE,
       { tensDayShift: ['SINTETICO DIRECTO'] },
-      { baseRecord: await localRecord() }
+      { authoringSession: captureAuthoringSession(), baseRecord: await localRecord() }
     );
 
     await publishQueue();
@@ -180,7 +181,7 @@ describeEmulator('the outbox publishes compacted offline work through Firestore'
     await saveDetailed(
       { ...baseRecord(), nursesDayShift: ['SINTETICA SIN RED'] },
       baseRecord().lastUpdated,
-      { baseRecord: baseRecord() }
+      { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
     );
     expect(await hospitalDB.syncQueue.count()).toBe(1);
 
@@ -216,6 +217,7 @@ describeEmulator('the outbox publishes compacted offline work through Firestore'
         { ...baseRecord(), nursesDayShift: ['SINTETICA A'] },
         baseRecord().lastUpdated,
         {
+          authoringSession: captureAuthoringSession(),
           baseRecord: baseRecord(),
           requireConfirmedRecord: true,
         }
@@ -242,7 +244,7 @@ describeEmulator('the outbox publishes compacted offline work through Firestore'
               expectedVersion: sent.lastUpdated,
             },
           },
-          { wholeRecordBase: sent }
+          { authoringSession: captureAuthoringSession(), wholeRecordBase: sent }
         );
         expect(await readRemote()).toMatchObject({
           nursesDayShift: ['SINTETICA A'],

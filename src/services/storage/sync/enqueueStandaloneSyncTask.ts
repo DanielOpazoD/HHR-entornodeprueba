@@ -25,7 +25,7 @@ const enqueueWithinTransaction = async (
   type: SyncTask['type'],
   payload: unknown,
   meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,
-  options: SyncQueueEnqueueOptions = {}
+  options: Omit<SyncQueueEnqueueOptions, 'authoringSession'> = {}
 ): Promise<SyncQueueEnqueueResult> => {
   const countActiveTasks = async (ownerKey: string | null) =>
     countActiveSyncTasks(await store.listAll(ownerKey));

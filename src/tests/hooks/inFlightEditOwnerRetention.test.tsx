@@ -1,3 +1,4 @@
+import { authoredOptions } from '@/services/storage/authoringSession';
 import { applyPatches } from '@/utils/patchUtils';
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { sessionClosedTaskState } from '@/services/storage/sync/syncQueueTaskFactory';
@@ -92,11 +93,14 @@ const setupHook = () => {
   const repository = buildMockDailyRecordRepository();
   // El port delega sin simular al repositorio real; cuenta entradas a mutationFn.
   repository.updatePartialDetailed = async (...args) => {
+    const [date, patch, options] = args;
+    const authored = authoredOptions(options ?? {});
     persistCalls++;
     await writeGate;
-    return actualWrite(...args);
+    return actualWrite(date, patch, authored);
   };
-  repository.saveDetailed = actualSave;
+  repository.saveDetailed = (first, second, options) =>
+    actualSave(first, second, authoredOptions(options ?? {}));
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>
       <RepositoryProvider value={createRepositoryContainer({ dailyRecord: repository })}>
@@ -232,7 +236,10 @@ it('direct repository patch retains its author while waiting for the lock', asyn
   let unlock!: () => void;
   const gate = new Promise<void>(r => (unlock = r));
   const lock = runExclusiveDailyRecordWrite(date, () => gate);
-  const write = actualWrite(date, patch, { baseRecord: base });
+  const write = actualWrite(date, patch, {
+    authoringSession: captureAuthoringSession(),
+    baseRecord: base,
+  });
   await clearSessionScopedClientState('manual');
   await reconcileAuthorizedSessionOwner('user:C1-B');
   await hospitalDB.dailyRecords.put(base);

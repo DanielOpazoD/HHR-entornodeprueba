@@ -143,7 +143,7 @@ Guía:
 
 Señales HHR:
 
-- `reports/quality-metrics.md` y `reports/maintenance-debt-scorecard.md`
+- `reports/quality-metrics.md` y el informe que genera `npm run report:maintenance-debt-scorecard` (no está versionado: se genera en `reports/`)
 
 ### Estabilidad
 

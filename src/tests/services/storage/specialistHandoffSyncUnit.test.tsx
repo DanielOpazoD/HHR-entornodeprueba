@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /**
  * Synthetic-only: a specialist note queued offline is its own sync unit. Real write service,
  * queue engine, transport and server handler; only Firestore, Functions and the role are faked.
@@ -64,11 +65,19 @@ describe('a specialist note is its own sync unit', () => {
       ...second.record,
       beds: { ...second.record.beds, R6: E({ pathology: 'Dx E corregido' }) },
     };
-    await queueDailyRecordSyncTaskWithLocalRecord(fixed, {
-      contexts: ['clinical'],
-      origin: 'direct_queue',
-      syncContract: { changedPaths: ['beds.R6.pathology'], expectedVersion: T0, mutationId: 'm-E' },
-    });
+    await queueDailyRecordSyncTaskWithLocalRecord(
+      fixed,
+      {
+        contexts: ['clinical'],
+        origin: 'direct_queue',
+        syncContract: {
+          changedPaths: ['beds.R6.pathology'],
+          expectedVersion: T0,
+          mutationId: 'm-E',
+        },
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     // Another device discharged A and admitted B, then a third one edited R7.
     h.remote = day(

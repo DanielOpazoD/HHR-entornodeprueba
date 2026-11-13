@@ -237,7 +237,7 @@ export const queueSyncTask = async (
   type: SyncTask['type'],
   payload: unknown,
   meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,
-  options?: SyncQueueEnqueueOptions
+  options?: Omit<SyncQueueEnqueueOptions, 'authoringSession'>
 ): Promise<SyncQueueEnqueueResult> => {
   try {
     await ensureDbReady();
@@ -289,8 +289,8 @@ export const queueSyncTask = async (
 export const queueCudyrArchiveTask = createCudyrArchiveQueue(syncQueueEngine.queueTask);
 export const queueDailyRecordSyncTaskWithLocalRecord = async (
   record: DailyRecord,
-  meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,
-  options?: SyncQueueEnqueueOptions,
+  meta: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'> | undefined,
+  options: SyncQueueEnqueueOptions,
   handoff?: SpecialistHandoffSyncPayload
 ): Promise<SyncQueueEnqueueResult> => {
   const type = handoff ? 'UPDATE_SPECIALIST_HANDOFF' : 'UPDATE_DAILY_RECORD';
@@ -312,7 +312,7 @@ export const queueDailyRecordSyncTaskWithLocalRecord = async (
         context: {
           type,
           date: record.date,
-          ownerKey: options?.authoringSession?.ownerKey ?? null,
+          ownerKey: options.authoringSession.ownerKey,
           contexts: meta?.contexts,
           origin: meta?.origin,
         },

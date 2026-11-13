@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@/services/repositories/repositoryConfig', async importOriginal => ({
@@ -84,13 +85,17 @@ describe('a write proves its base by content, never by version time alone', () =
     await updatePartialDetailed(
       date,
       { 'beds.R1': patient('ep-sintetico-b') },
-      { baseRecord: base }
+      { authoringSession: captureAuthoringSession(), baseRecord: base }
     );
     await publishQueue();
     expect(await tasks()).toHaveLength(0);
 
     await expect(
-      updatePartialDetailed(date, { 'beds.R1.pathology': 'DATO VIEJO' }, { baseRecord: base })
+      updatePartialDetailed(
+        date,
+        { 'beds.R1.pathology': 'DATO VIEJO' },
+        { authoringSession: captureAuthoringSession(), baseRecord: base }
+      )
     ).rejects.toBeInstanceOf(ConcurrencyError);
 
     expect((await localRecord()).beds.R1).toMatchObject({
@@ -107,12 +112,16 @@ describe('a write proves its base by content, never by version time alone', () =
     await updatePartialDetailed(
       date,
       { 'beds.R1': patient('ep-sintetico-b') },
-      { baseRecord: base }
+      { authoringSession: captureAuthoringSession(), baseRecord: base }
     );
     expect((await localRecord()).lastUpdated).toBe(baseVersion);
 
     await expect(
-      updatePartialDetailed(date, { 'beds.R1.pathology': 'DATO VIEJO' }, { baseRecord: base })
+      updatePartialDetailed(
+        date,
+        { 'beds.R1.pathology': 'DATO VIEJO' },
+        { authoringSession: captureAuthoringSession(), baseRecord: base }
+      )
     ).rejects.toBeInstanceOf(ConcurrencyError);
 
     expect((await localRecord()).beds.R1.clinicalEpisodeId).toBe('ep-sintetico-b');
@@ -122,10 +131,18 @@ describe('a write proves its base by content, never by version time alone', () =
   it('lands an independent stale edit on the published record instead of reverting it', async () => {
     const base = baseRecord();
     await hospitalDB.dailyRecords.put(base);
-    await updatePartialDetailed(date, { nursesDayShift: ['SINTETICA A'] }, { baseRecord: base });
+    await updatePartialDetailed(
+      date,
+      { nursesDayShift: ['SINTETICA A'] },
+      { authoringSession: captureAuthoringSession(), baseRecord: base }
+    );
     await publishQueue();
 
-    await updatePartialDetailed(date, { tensDayShift: ['SINTETICO B'] }, { baseRecord: base });
+    await updatePartialDetailed(
+      date,
+      { tensDayShift: ['SINTETICO B'] },
+      { authoringSession: captureAuthoringSession(), baseRecord: base }
+    );
 
     for (const record of [await localRecord(), await pendingPayload()]) {
       expect(record?.nursesDayShift).toEqual(['SINTETICA A']);
@@ -147,11 +164,16 @@ describe('a write proves its base by content, never by version time alone', () =
       patientName: 'PACIENTE SINTETICO B',
       bedId: 'R2',
     });
-    await updatePartialDetailed(date, { discharges: [dischargeA] }, { baseRecord: base });
+    await updatePartialDetailed(
+      date,
+      { discharges: [dischargeA] },
+      { authoringSession: captureAuthoringSession(), baseRecord: base }
+    );
 
     await queueDailyRecordSyncTaskWithLocalRecord(
       { ...base, lastUpdated: '2026-10-24T11:05:00.000Z', discharges: [dischargeB] },
-      { syncContract: { expectedVersion: baseVersion, changedPaths: ['discharges'] } }
+      { syncContract: { expectedVersion: baseVersion, changedPaths: ['discharges'] } },
+      { authoringSession: captureAuthoringSession() }
     );
 
     const ids = (record?: DailyRecord) => record?.discharges.map(discharge => discharge.id);
@@ -165,7 +187,7 @@ describe('a write proves its base by content, never by version time alone', () =
     await updatePartialDetailed(
       date,
       { 'beds.R1': patient('ep-sintetico-b') },
-      { baseRecord: base }
+      { authoringSession: captureAuthoringSession(), baseRecord: base }
     );
 
     await expect(
@@ -175,7 +197,8 @@ describe('a write proves its base by content, never by version time alone', () =
           lastUpdated: '2026-10-24T11:05:00.000Z',
           beds: { R1: { ...patient('ep-sintetico-a'), pathology: 'DATO VIEJO' } },
         },
-        { syncContract: { expectedVersion: baseVersion, changedPaths: ['beds.R1.pathology'] } }
+        { syncContract: { expectedVersion: baseVersion, changedPaths: ['beds.R1.pathology'] } },
+        { authoringSession: captureAuthoringSession() }
       )
     ).rejects.toBeInstanceOf(ConcurrencyError);
 

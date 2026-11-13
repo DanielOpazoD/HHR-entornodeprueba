@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
@@ -35,9 +36,13 @@ const setup = async (status: SyncTask['status'], changedPaths = ['nursesDayShift
     }),
     DATE
   );
-  await queueDailyRecordSyncTaskWithLocalRecord(local, {
-    syncContract: { changedPaths, expectedVersion: `${DATE}T11:59:59.000Z` },
-  });
+  await queueDailyRecordSyncTaskWithLocalRecord(
+    local,
+    {
+      syncContract: { changedPaths, expectedVersion: `${DATE}T11:59:59.000Z` },
+    },
+    { authoringSession: captureAuthoringSession() }
+  );
   const [queued] = await hospitalDB.syncQueue.toArray();
   await hospitalDB.syncQueue.update(queued.id!, {
     status,

@@ -247,6 +247,7 @@ export const OPERATIONAL_TELEMETRY_OPERATIONS = [
   'sync_queue_transactional_enqueue_failure',
   'sync_queue_truth_selected',
   'sync_queue_write_retained_for_owner',
+  'remote_first_write_session_changed',
   'telemetry_delivery_probe',
   'timeout_current_session_resolution',
   'unavailable_null_realtime_record',

@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
@@ -98,7 +99,7 @@ const captureInitializationSession = () => {
   const assertCurrentSession = () => {
     if (!isCurrent()) throw new ConcurrencyError('La sesión cambió durante la apertura del censo.');
   };
-  return { isCurrent, assertCurrentSession };
+  return { isCurrent, assertCurrentSession, authoringSession: captureAuthoringSession() };
 };
 
 const loadRemoteInitializationSeed = async (
@@ -187,7 +188,7 @@ const initializeMissingDay = async (
   options: DailyRecordInitializationOptions = {},
   allowOfflineCopy = false
 ): Promise<DailyRecord> => {
-  const { assertCurrentSession } = captureInitializationSession();
+  const { assertCurrentSession, authoringSession } = captureInitializationSession();
   const copySourceRecord =
     copySourceRecordOverride === undefined
       ? await loadCopySourceRecord(copyFromDate)
@@ -217,7 +218,7 @@ const initializeMissingDay = async (
   }
 
   assertCurrentSession();
-  await save(newRecord, '');
+  await save(newRecord, '', { authoringSession });
   return newRecord;
 };
 
@@ -294,6 +295,7 @@ export const copyPatientToDateDetailed = async (
   targetDate: string,
   targetBedId: string
 ): Promise<CopyPatientToDateResult> => {
+  const authoringSession = captureAuthoringSession();
   const command = createCopyPatientToDateCommand(sourceDate, sourceBedId, targetDate, targetBedId);
   const sourceResult = await getForDateWithMeta(command.sourceDate);
   const sourceRecord = sourceResult.record;
@@ -308,7 +310,7 @@ export const copyPatientToDateDetailed = async (
   const targetBedPatch = {
     [`beds.${command.targetBedId}`]: preparePatientForCarryover(sourcePatient, command.targetBedId),
   } as DailyRecordPatch;
-  await updatePartial(command.targetDate, targetBedPatch);
+  await updatePartial(command.targetDate, targetBedPatch, { authoringSession });
 
   return {
     ...createCopyPatientResult({

@@ -7,7 +7,6 @@ import {
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedImportGuard';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
 
 import { shouldRouteSpecialistPatchViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import {
@@ -134,6 +133,7 @@ export const saveBackupImport = async (records: DailyRecord[], sourceDates: stri
           )
             throw new Error('El día local dividido cambió durante la importación.');
           const saved = await saveDetailed(record, record.lastUpdated, {
+            authoringSession: { ownerKey: owner, generation },
             writeOrigin: 'backup_restore',
             deferRemoteSync: true,
             dailyRecordWriteLease: leases.get(record.date),
@@ -154,9 +154,10 @@ const tryAutoMergeBlockedFullSaveRegression = async (
   date: string,
   record: DailyRecord,
   error: DataRegressionError,
-  state: RemoteWriteState
+  state: RemoteWriteState,
+  authoringSession: SaveDailyRecordOptions['authoringSession']
 ): Promise<boolean> => {
-  const mergeResult = await attemptConflictAutoMergeRecovery(date, record, ['*']);
+  const mergeResult = await attemptConflictAutoMergeRecovery(date, record, ['*'], authoringSession);
   if (mergeResult?.status !== 'auto_merged') {
     return false;
   }
@@ -181,7 +182,7 @@ const tryAutoMergeBlockedFullSaveRegression = async (
 };
 const resolvePartialUpdateBaseRecord = async (
   date: string,
-  options: PartialUpdateDailyRecordOptions = {}
+  options: PartialUpdateDailyRecordOptions
 ): Promise<DailyRecord | null> => {
   if (options.baseRecord?.date === date) {
     if (options.specialtyIntent?.kind === 'manual') {
@@ -217,8 +218,8 @@ const resolvePartialUpdateBaseRecord = async (
 
 const saveDetailedWithinLock = async (
   record: DailyRecord,
-  expectedLastUpdated?: string,
-  options: SaveDailyRecordOptions = {}
+  expectedLastUpdated: string | undefined,
+  options: SaveDailyRecordOptions
 ) => {
   const command = createSaveDailyRecordCommand(record, expectedLastUpdated ?? record.lastUpdated);
   const remoteState = createRemoteWriteState();
@@ -242,7 +243,13 @@ const saveDetailedWithinLock = async (
       !options.deferRemoteSync &&
       !options.rayenStructuralWriteGuard &&
       validatedRecord &&
-      (await tryAutoMergeBlockedFullSaveRegression(command.date, validatedRecord, err, remoteState))
+      (await tryAutoMergeBlockedFullSaveRegression(
+        command.date,
+        validatedRecord,
+        err,
+        remoteState,
+        options.authoringSession
+      ))
     ) {
       return buildSaveResult(command.date, remoteState);
     }
@@ -272,7 +279,11 @@ const saveDetailedWithinLock = async (
         origin: 'backup_restore',
         syncContract,
       },
-      { deferProcessing: true, wholeRecordBase: options.baseRecord }
+      {
+        deferProcessing: true,
+        wholeRecordBase: options.baseRecord,
+        authoringSession: options.authoringSession,
+      }
     );
     if (!queued.accepted) throw new Error('No fue posible guardar el respaldo junto a su envío.');
     remoteState.savedLocally = true;
@@ -285,6 +296,7 @@ const saveDetailedWithinLock = async (
     record: validatedRecord,
     changedPaths: ['*'],
     remoteState,
+    authoringSession: options.authoringSession,
     remoteWrite: () =>
       saveRecordToFirestore(validatedRecord, command.expectedLastUpdated, {
         syncContract,
@@ -305,7 +317,11 @@ const saveDetailedWithinLock = async (
           origin: options.writeOrigin === 'backup_restore' ? 'backup_restore' : 'direct_queue',
           syncContract,
         },
-        { ...buildPreOutboxRemoteAckOptions(syncContract), wholeRecordBase: options.baseRecord }
+        {
+          ...buildPreOutboxRemoteAckOptions(syncContract),
+          wholeRecordBase: options.baseRecord,
+          authoringSession: options.authoringSession,
+        }
       ),
     ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
     completeConfirmedLocalWrite: confirmedRecord =>
@@ -337,21 +353,20 @@ const saveDetailedWithinLock = async (
 
 export const saveDetailed = (
   record: DailyRecord,
-  expectedLastUpdated?: string,
-  options: SaveDailyRecordOptions = {}
+  expectedLastUpdated: string | undefined,
+  options: SaveDailyRecordOptions
 ) =>
   runWithDailyRecordWriteLock(record.date, options.dailyRecordWriteLease, () =>
     saveDetailedWithinLock(record, expectedLastUpdated, options)
   );
 
-export const save = async (record: DailyRecord, expectedLastUpdated?: string): Promise<void> => {
-  assertDailyRecordSaveAccepted(await saveDetailed(record, expectedLastUpdated));
-};
+export const save = async (...args: Parameters<typeof saveDetailed>): Promise<void> =>
+  assertDailyRecordSaveAccepted(await saveDetailed(...args));
 
 const updatePartialDetailedWithinLock = async (
   date: string,
   partialData: DailyRecordPatch,
-  options: PartialUpdateDailyRecordOptions = {}
+  options: PartialUpdateDailyRecordOptions
 ) => {
   const command = createPartialUpdateDailyRecordCommand(date, partialData);
   const remoteState = createRemoteWriteState();
@@ -450,7 +465,6 @@ const updatePartialDetailedWithinLock = async (
     ? options.specialistHandoffTargets || buildSpecialistHandoffTargets(current, command.patch)
     : undefined;
   remoteWriteOptions.specialistHandoffTargets = handoffTargets;
-
   // The outbox applies this patch again on the day's stored projection (#1024).
   const patchWrite = {
     baseRecord: current,
@@ -477,6 +491,7 @@ const updatePartialDetailedWithinLock = async (
     record: validatedRecord,
     changedPaths: semanticChangedPaths,
     remoteState,
+    authoringSession: options.authoringSession,
     remoteWrite: () =>
       updateRecordPartialToFirestore(
         command.date,
@@ -569,18 +584,11 @@ const updatePartialDetailedWithinLock = async (
 export const updatePartialDetailed = (
   date: string,
   partialData: DailyRecordPatch,
-  options: PartialUpdateDailyRecordOptions = {}
-) => {
-  // Before waiting for the date's turn: the edit belongs to whoever is signed in now.
-  const authored = {
-    ...options,
-    authoringSession: options.authoringSession ?? captureAuthoringSession(),
-  };
-  return runWithDailyRecordWriteLock(date, options.dailyRecordWriteLease, () =>
-    updatePartialDetailedWithinLock(date, partialData, authored)
+  options: PartialUpdateDailyRecordOptions
+) =>
+  runWithDailyRecordWriteLock(date, options.dailyRecordWriteLease, () =>
+    updatePartialDetailedWithinLock(date, partialData, options)
   );
-};
-
-export const updatePartial = async (date: string, partialData: DailyRecordPatch): Promise<void> => {
-  assertDailyRecordPartialUpdateAccepted(await updatePartialDetailed(date, partialData));
-};
+export const updatePartial = async (
+  ...args: Parameters<typeof updatePartialDetailed>
+): Promise<void> => assertDailyRecordPartialUpdateAccepted(await updatePartialDetailed(...args));

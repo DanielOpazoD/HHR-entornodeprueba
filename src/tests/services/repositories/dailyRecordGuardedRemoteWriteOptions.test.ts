@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildGuardedDailyRecordPatchPolicy,
@@ -43,7 +44,12 @@ describe('guarded remote write options: committed record receipt', () => {
   it('asks the atomic write for its committed record when the command needs confirmation', () => {
     const rayenCheckpoint = buildOptions(
       { rayenSync: { at: 'now', by: 'rayen' } },
-      { requireAtomicCas: true, requireConfirmedRecord: true, requireRemoteAuthorityFirst: true }
+      {
+        authoringSession: captureAuthoringSession(),
+        requireAtomicCas: true,
+        requireConfirmedRecord: true,
+        requireRemoteAuthorityFirst: true,
+      }
     );
     const cribCreation = buildOptions(
       {
@@ -54,6 +60,7 @@ describe('guarded remote write options: committed record receipt', () => {
         }),
       },
       {
+        authoringSession: captureAuthoringSession(),
         clinicalCribCreate: {
           bedId: 'R1',
           confirmedLastUpdated: `${DATE}T10:00:00.000Z`,
@@ -69,10 +76,13 @@ describe('guarded remote write options: committed record receipt', () => {
   it('keeps plain local-first writes, including reclassification, receipt-less', () => {
     const reclassification = buildOptions(
       { discharges: [], cma: [] } as DailyRecordPatch,
-      {},
+      { authoringSession: captureAuthoringSession() },
       true
     );
-    const plainEdit = buildOptions({ 'beds.R1.pathology': 'Dx sintético' }, {});
+    const plainEdit = buildOptions(
+      { 'beds.R1.pathology': 'Dx sintético' },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     expect(reclassification.requireAtomicCas).toBe(true);
     expect(reclassification).not.toHaveProperty('returnCommittedRecord');

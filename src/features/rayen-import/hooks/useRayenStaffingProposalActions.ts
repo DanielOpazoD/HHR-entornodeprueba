@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
@@ -106,7 +107,7 @@ export const useRayenStaffingProposalActions = ({
         dailyRecord,
         proposal.censusDate,
         patch,
-        { baseRecord: fresh.record }
+        { baseRecord: fresh.record, authoringSession: captureAuthoringSession() }
       );
       if (result?.blockingError) throw result.blockingError;
       if (isDailyRecordWriteRejectedResult(result)) {

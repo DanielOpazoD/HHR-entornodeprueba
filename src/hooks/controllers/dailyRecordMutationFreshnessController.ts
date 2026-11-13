@@ -45,6 +45,7 @@ interface FreshnessDependencies {
 }
 
 export interface SaveDailyRecordMutationInput {
+  authoringSession: SaveDailyRecordOptions['authoringSession'];
   record: DailyRecord;
   baseRecord?: DailyRecord;
   expectedLastUpdated?: string;
@@ -57,19 +58,12 @@ export const patchDailyRecordWithCompatibility = async (
   dailyRecord: DailyRecordRepositoryPort,
   date: string,
   partial: DailyRecordPatch,
-  options?: PartialUpdateDailyRecordOptions
+  options: PartialUpdateDailyRecordOptions
 ): Promise<UpdatePartialDailyRecordResult | null> => {
   if (typeof dailyRecord.updatePartialDetailed === 'function') {
-    return options
-      ? dailyRecord.updatePartialDetailed(date, partial, options)
-      : dailyRecord.updatePartialDetailed(date, partial);
+    return dailyRecord.updatePartialDetailed(date, partial, options);
   }
-
-  if (options) {
-    await dailyRecord.updatePartial(date, partial, options);
-  } else {
-    await dailyRecord.updatePartial(date, partial);
-  }
+  await dailyRecord.updatePartial(date, partial, options);
   return null;
 };
 

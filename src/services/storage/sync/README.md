@@ -58,3 +58,10 @@ su transacción rechaza cualquier cambio posterior a esa lectura. Una colisión 
 o una tarea antigua sin esta evidencia conserva la revisión existente; no se purga
 ni se confirma como guardada.
 No requiere cambios en Functions ni reglas (SAVE-01 a SAVE-03).
+
+La publicación vuelve a comparar cada campo con su valor base capturado, antes de
+aceptar el registro y dentro de cada intento de la transacción existente. No depende
+de que el otro equipo haya escrito `lastChangedPaths` ni de que avance su reloj.
+Un cambio incompatible conserva la intención en `CONFLICT`; las combinaciones de
+movimientos y notas ya admitidas mantienen su política. Una mutación ya confirmada
+conserva su reconocimiento para recuperar una respuesta perdida.

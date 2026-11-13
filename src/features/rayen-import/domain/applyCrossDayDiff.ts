@@ -23,8 +23,8 @@ import {
   type ApplyContext,
   type ResolvedApplyContext,
 } from './applyCensusImportDiff';
+import { normalizeRut } from '@/utils/rutUtils';
 
-const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
 const normalizeEpisode = (episode?: string): string => String(episode ?? '').trim();
 
 /**
