@@ -289,6 +289,7 @@ const saveDetailedWithinLock = async (
     record: validatedRecord,
     changedPaths: ['*'],
     remoteState,
+    authoringSession: options.authoringSession,
     remoteWrite: () =>
       saveRecordToFirestore(validatedRecord, command.expectedLastUpdated, {
         syncContract,
@@ -463,7 +464,6 @@ const updatePartialDetailedWithinLock = async (
     ? options.specialistHandoffTargets || buildSpecialistHandoffTargets(current, command.patch)
     : undefined;
   remoteWriteOptions.specialistHandoffTargets = handoffTargets;
-
   // The outbox applies this patch again on the day's stored projection (#1024).
   const patchWrite = {
     baseRecord: current,
@@ -490,6 +490,7 @@ const updatePartialDetailedWithinLock = async (
     record: validatedRecord,
     changedPaths: semanticChangedPaths,
     remoteState,
+    authoringSession: options.authoringSession,
     remoteWrite: () =>
       updateRecordPartialToFirestore(
         command.date,
@@ -593,7 +594,6 @@ export const updatePartialDetailed = (
     updatePartialDetailedWithinLock(date, partialData, authored)
   );
 };
-
 export const updatePartial = async (date: string, partialData: DailyRecordPatch): Promise<void> => {
   assertDailyRecordPartialUpdateAccepted(await updatePartialDetailed(date, partialData));
 };
