@@ -200,8 +200,12 @@ it('does not resolve a different document through the bed and crib lookup APIs',
 it('keeps the exact passport episode ahead of an episode-less duplicate', () => {
   const rec = record('P123456785');
   rec.beds.H5C1.clinicalEpisodeId = '1001';
+  rec.beds.H5C2 = { ...occupant('99.999.999-9'), bedId: 'H5C2' };
+  const diff = createEmptyCensusImportDiff(true);
+  diff.unchangedCount = 2;
+  diff.summary.unchanged = 2;
   const result = applyEgresoReport(
-    createEmptyCensusImportDiff(true),
+    diff,
     [
       row('p-123456785', '08-07-2026 12:00'),
       { ...row('P123456785', '08-07-2026 12:00'), encounterId: '1001' },
@@ -211,6 +215,8 @@ it('keeps the exact passport episode ahead of an episode-less duplicate', () => 
   expect(result.discharges).toHaveLength(1);
   expect(result.discharges[0].encounterId).toBe('1001');
   expect(result.conflicts).toEqual([]);
+  expect(result.unchangedCount).toBe(1);
+  expect(result.summary.unchanged).toBe(1);
 });
 
 it.each(['discharges', 'transfers', 'cma'] as const)(
