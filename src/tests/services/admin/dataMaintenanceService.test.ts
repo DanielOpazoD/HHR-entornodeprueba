@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
@@ -258,7 +259,7 @@ describe('dataMaintenanceService', () => {
         }),
       }),
       undefined,
-      { writeOrigin: 'backup_restore' }
+      { authoringSession: captureAuthoringSession(), writeOrigin: 'backup_restore' }
     );
     expect(mockLogAuditEvent).toHaveBeenCalledWith(
       'admin@hanga.roa',
@@ -305,7 +306,7 @@ describe('dataMaintenanceService', () => {
     expect(mockRepositorySave).toHaveBeenCalledWith(
       expect.objectContaining({ date: '2026-03-04' }),
       undefined,
-      { writeOrigin: 'backup_restore' }
+      { authoringSession: captureAuthoringSession(), writeOrigin: 'backup_restore' }
     );
 
     // A local day that cannot be read might be split: it fails closed, never as "no local day".

@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /* @flake-safe: Synthetic current-day record; no production Firebase configuration. */
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import React, { type ReactNode } from 'react';
@@ -20,6 +21,7 @@ import { usePatchDailyRecordMutation } from '@/hooks/usePatchDailyRecordMutation
 import { setDailyRecordQueryData } from '@/hooks/controllers/dailyRecordQueryController';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import { waitForFirestoreSdkSource } from '@/tests/utils/firestoreSdkSource';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { MedicalHandoffDraftTextarea } from '@/features/handoff/components/MedicalHandoffDraftTextarea';
 import { buildMedicalEntryNoteFields } from '@/domain/handoff/patientEntryMutations';
@@ -106,7 +108,7 @@ beforeAll(async () => {
       .set(JSON.parse(JSON.stringify(base)));
   });
   await disableNetwork(db);
-  await new Promise(resolve => setTimeout(resolve, 10000));
+  await waitForFirestoreSdkSource(db, `hospitals/hanga_roa/dailyRecords/${date}`, 'cache');
   Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
   onlineManager.setOnline(false);
   setFirestoreSyncState({ mode: 'local_only', reason: 'offline' });
@@ -124,6 +126,7 @@ afterAll(async () => {
 it('control: the real repository already commits the specialist row and authored queue offline', async () => {
   await hospitalDB.dailyRecords.put(base);
   const result = await defaultDailyRecordRepositoryPort.updatePartialDetailed(date, patch, {
+    authoringSession: captureAuthoringSession(),
     baseRecord: base,
   });
   expect(result).toMatchObject({

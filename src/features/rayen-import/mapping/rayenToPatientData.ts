@@ -14,11 +14,15 @@ import { PatientStatus } from '@/types/domain/patientClassification';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { mapRayenBed } from './bedMapping';
 import { encounterWallClockInRapaNui } from './encounterWallClock';
-import { isPassportFormat } from '@/utils/rutUtils';
+import { hasNonRutLetter, isPassportFormat } from '@/utils/rutUtils';
+
+/** Any letter other than a final K check digit makes the source document a passport. */
+const isSourcePassport = (raw?: string): boolean =>
+  isPassportFormat(raw ?? '') || hasNonRutLetter(raw ?? '');
 
 /** Format a RUN as "14.470.055-4" from raw ("144700554") or already-formatted input. */
 export const formatRun = (raw?: string): string => {
-  if (isPassportFormat(raw ?? '')) return (raw ?? '').trim().toUpperCase();
+  if (isSourcePassport(raw)) return (raw ?? '').trim().toUpperCase();
   const cleaned = (raw ?? '').replace(/[^0-9kK]/g, '');
   if (cleaned.length < 2) return (raw ?? '').trim();
   const dv = cleaned.slice(-1).toUpperCase();
@@ -191,7 +195,7 @@ export const rayenToPatientData = (
     bedId: bedId ?? '',
     clinicalEpisodeId: encounter.encounterId,
     rut: formatRun(encounter.run),
-    documentType: isPassportFormat(encounter.run) ? 'Pasaporte' : 'RUT',
+    documentType: isSourcePassport(encounter.run) ? 'Pasaporte' : 'RUT',
     patientName: fullName,
     firstName: givenNames,
     lastName: firstFamily,

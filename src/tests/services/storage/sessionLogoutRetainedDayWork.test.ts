@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /* Synthetic only: a census day whose unsent edit outlives the session that wrote it. */
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -156,7 +157,11 @@ describe('a census day with an edit left unsent by a closed session', () => {
 
     // Offline, so the new task is observed before any send attempt claims it.
     const offline = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
-    await updatePartialDetailed(date, { nursesNightShift: ['SYNTHETIC NEW EDIT'] });
+    await updatePartialDetailed(
+      date,
+      { nursesNightShift: ['SYNTHETIC NEW EDIT'] },
+      { authoringSession: captureAuthoringSession() }
+    );
     offline.mockRestore();
 
     expect(recoverable(await hospitalDB.syncQueue.get(id))).toEqual(retained);
@@ -283,7 +288,10 @@ describe('a census day with an edit left unsent by a closed session', () => {
           expectedVersion: serverDay.lastUpdated,
           mutationId: 'synthetic-new-edit',
         },
-      })
+      }),
+      undefined,
+      undefined,
+      captureAuthoringSession()
     );
     const [sent] = (await hospitalDB.syncQueue.toArray()).filter(task => task.id !== id);
     const confirmed = { ...edited, lastUpdated: '2026-10-29T11:00:00.000Z' };
@@ -310,7 +318,11 @@ describe('a census day with an edit left unsent by a closed session', () => {
       );
     };
 
-    await updatePartialDetailed(date, { nursesNightShift: ['SYNTHETIC NEW EDIT'] });
+    await updatePartialDetailed(
+      date,
+      { nursesNightShift: ['SYNTHETIC NEW EDIT'] },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     const shown = (await hospitalDB.dailyRecords.get(date)) as DailyRecord;
     expect(shown.nursesDayShift).toEqual(['SYNTHETIC OTHER TAB']);

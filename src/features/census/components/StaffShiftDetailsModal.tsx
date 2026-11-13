@@ -17,7 +17,7 @@ import {
 } from '@/services/staff/dailyRecordDetailedStaffing';
 import {
   buildResolvedStaffSelectionOptions,
-  normalizeStaffSelectionValue,
+  resolveStaffSelectionValue,
 } from '@/services/staff/staffSelectionPresentation';
 
 const staffShiftDetailsLogger = createScopedLogger('StaffShiftDetailsModal');
@@ -103,7 +103,7 @@ const StaffRoleSection: React.FC<{
                 {resolveAssignmentLabel(assignment, currentExtraIndex)}
               </div>
               <select
-                value={normalizeStaffSelectionValue(assignment.name)}
+                value={resolveStaffSelectionValue(assignment.name, [], role, options)}
                 onChange={event =>
                   onChange(
                     updateDetailedStaffingAssignment(draft, shift, role, assignment.id, {

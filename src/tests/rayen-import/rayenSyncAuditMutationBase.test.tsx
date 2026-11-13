@@ -1,3 +1,6 @@
+import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
+import { authoredOptions } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import type { ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -74,7 +77,9 @@ const queryResult = (value: DailyRecord | null) =>
 const mountTab = (cache: DailyRecord, visible: DailyRecord, runId = 'R2') => {
   const dailyRecord = {
     ...buildMockDailyRecordRepository(),
-    updatePartialDetailed: vi.fn(updatePartialDetailed),
+    updatePartialDetailed: vi.fn<DailyRecordRepositoryPort['updatePartialDetailed']>(
+      (date, patch, options) => updatePartialDetailed(date, patch, authoredOptions(options ?? {}))
+    ),
     getForDateWithMeta: vi.fn(async () =>
       createDailyRecordReadResult(
         date,
@@ -171,7 +176,7 @@ describe('Rayen audit through the query mutation and durable outbox', () => {
     await updatePartialDetailed(
       date,
       { rayenSyncHistory: [event('R2', 'partial'), event('R1', 'failed')] },
-      { baseRecord: stale }
+      { authoringSession: captureAuthoringSession(), baseRecord: stale }
     );
     const { hook, dailyRecord } = mountTab(stale, stale);
 
@@ -224,7 +229,7 @@ describe('Rayen audit through the query mutation and durable outbox', () => {
     await updatePartialDetailed(
       date,
       { rayenSyncHistory: [event('R2', 'partial')] },
-      { baseRecord: stale }
+      { authoringSession: captureAuthoringSession(), baseRecord: stale }
     );
     const before = await hospitalDB.syncQueue.toArray();
     const { hook, dailyRecord } = mountTab(stale, stale);
@@ -275,9 +280,11 @@ describe('Rayen audit through the query mutation and durable outbox', () => {
     const entered = deferred();
     const release = deferred();
     dailyRecord.updatePartialDetailed.mockImplementationOnce(async (...args) => {
+      const [date, patch, options] = args;
+      const authored = authoredOptions(options ?? {});
       entered.resolve();
       await release.promise;
-      return updatePartialDetailed(...args);
+      return updatePartialDetailed(date, patch, authored);
     });
     let edit: Promise<unknown> = Promise.resolve();
     let failure: Promise<void> = Promise.resolve();
@@ -292,7 +299,7 @@ describe('Rayen audit through the query mutation and durable outbox', () => {
       await updatePartialDetailed(
         date,
         { rayenSyncHistory: [event('R1', 'complete')] },
-        { baseRecord: stale }
+        { authoringSession: captureAuthoringSession(), baseRecord: stale }
       );
       queryClient.setQueryData(
         getDailyRecordQueryKey(date),

@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { createRemoteWriteState } from '@/services/repositories/dailyRecordWriteState';
@@ -60,6 +61,7 @@ describe('daily record confirmed state handoff', () => {
     } as unknown as DailyRecord;
 
     const result = await persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
       date: '2026-08-07',
       record: buildRecord(),
       changedPaths: ['*'],
@@ -92,6 +94,7 @@ describe('daily record confirmed state handoff', () => {
     const readRemoteConfirmedRecord = vi.fn().mockResolvedValue(confirmedRecord);
 
     const result = await persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
       date: '2026-08-07',
       record: buildRecord(),
       changedPaths: ['*'],
@@ -118,6 +121,7 @@ describe('daily record confirmed state handoff', () => {
     const readRemoteConfirmedRecord = vi.fn().mockResolvedValue(confirmedRecord);
 
     const result = await persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
       date: '2026-08-07',
       record: submittedRecord,
       changedPaths: ['*'],
@@ -157,6 +161,7 @@ describe('daily record confirmed state handoff', () => {
     const ackLocalAfterRemote = vi.fn().mockResolvedValue(true);
 
     const result = await persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
       date: submittedRecord.date,
       record: submittedRecord,
       changedPaths: ['beds.R1'],
@@ -193,6 +198,7 @@ describe('daily record confirmed state handoff', () => {
     const state = createRemoteWriteState();
 
     const result = await persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
       date: '2026-08-07',
       record: buildRecord(),
       changedPaths: ['*'],
@@ -227,6 +233,7 @@ describe('daily record confirmed readback guard', () => {
     baseVersion = expectedVersion
   ) =>
     persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
       date: '2026-08-07',
       record: buildRecord(),
       changedPaths: ['rayenSync'],

@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import type {
   LocalRecordAdmissionCandidate,
   LocalRecordBase,
@@ -149,9 +150,13 @@ describe('dailyRecordRepositoryWriteService field shrinkage telemetry', () => {
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
     vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(current);
 
-    const result = await updatePartialDetailed('2026-02-11', {
-      'beds.R1.pathology': longText(20),
-    });
+    const result = await updatePartialDetailed(
+      '2026-02-11',
+      {
+        'beds.R1.pathology': longText(20),
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     expect(result.outcome).toBe('clean');
     expect(queueSyncTask).toHaveBeenCalledWith(
@@ -172,9 +177,13 @@ describe('dailyRecordRepositoryWriteService field shrinkage telemetry', () => {
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
     vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(remote);
 
-    const result = await updatePartialDetailed('2026-02-11', {
-      'beds.R1.pathology': longText(20),
-    });
+    const result = await updatePartialDetailed(
+      '2026-02-11',
+      {
+        'beds.R1.pathology': longText(20),
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     expect(result.outcome).toBe('blocked');
     expect(result.consistencyState).toBe('blocked_regression');
@@ -210,9 +219,13 @@ describe('dailyRecordRepositoryWriteService field shrinkage telemetry', () => {
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
     vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(remote);
 
-    const result = await updatePartialDetailed('2026-02-11', {
-      'beds.R1.handoffNoteDayShift': longText(25),
-    });
+    const result = await updatePartialDetailed(
+      '2026-02-11',
+      {
+        'beds.R1.handoffNoteDayShift': longText(25),
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     expect(result.outcome).toBe('blocked');
     expect(result.consistencyState).toBe('blocked_regression');
@@ -247,9 +260,13 @@ describe('dailyRecordRepositoryWriteService field shrinkage telemetry', () => {
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
     vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(remote);
 
-    const result = await updatePartialDetailed('2026-02-11', {
-      'beds.R1.medicalHandoffNote': longText(30),
-    });
+    const result = await updatePartialDetailed(
+      '2026-02-11',
+      {
+        'beds.R1.medicalHandoffNote': longText(30),
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     expect(result.outcome).toBe('blocked');
     expect(result.consistencyState).toBe('blocked_regression');
@@ -298,16 +315,20 @@ describe('dailyRecordRepositoryWriteService field shrinkage telemetry', () => {
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
     vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(remote);
 
-    const result = await updatePartialDetailed('2026-02-11', {
-      'beds.R1.medicalHandoffEntries': [
-        {
-          id: 'entry-1',
-          specialty: 'medicina',
-          note: longText(35),
-          updatedAt: '2026-02-11T08:05:00.000Z',
-        },
-      ] as never,
-    });
+    const result = await updatePartialDetailed(
+      '2026-02-11',
+      {
+        'beds.R1.medicalHandoffEntries': [
+          {
+            id: 'entry-1',
+            specialty: 'medicina',
+            note: longText(35),
+            updatedAt: '2026-02-11T08:05:00.000Z',
+          },
+        ] as never,
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     expect(result.outcome).toBe('blocked');
     expect(result.consistencyState).toBe('blocked_regression');
@@ -331,9 +352,13 @@ describe('dailyRecordRepositoryWriteService field shrinkage telemetry', () => {
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
     vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(current);
 
-    await updatePartialDetailed('2026-02-11', {
-      'beds.R1.pathology': longText(60),
-    });
+    await updatePartialDetailed(
+      '2026-02-11',
+      {
+        'beds.R1.pathology': longText(60),
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     const shrinkageCall = warnSpy.mock.calls.find(
       ([msg]) => typeof msg === 'string' && msg.includes('Field shrinkage')
@@ -346,9 +371,13 @@ describe('dailyRecordRepositoryWriteService field shrinkage telemetry', () => {
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
     vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(current);
 
-    await updatePartialDetailed('2026-02-11', {
-      'beds.R1.pathology': 'a',
-    });
+    await updatePartialDetailed(
+      '2026-02-11',
+      {
+        'beds.R1.pathology': 'a',
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     const shrinkageCall = warnSpy.mock.calls.find(
       ([msg]) => typeof msg === 'string' && msg.includes('Field shrinkage')
@@ -361,9 +390,13 @@ describe('dailyRecordRepositoryWriteService field shrinkage telemetry', () => {
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
     vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(current);
 
-    await updatePartialDetailed('2026-02-11', {
-      'beds.R1.pathology': '',
-    });
+    await updatePartialDetailed(
+      '2026-02-11',
+      {
+        'beds.R1.pathology': '',
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     const shrinkageCall = warnSpy.mock.calls.find(
       ([msg]) => typeof msg === 'string' && msg.includes('Field shrinkage')

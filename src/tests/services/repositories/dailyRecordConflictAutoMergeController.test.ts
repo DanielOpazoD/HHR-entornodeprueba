@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { attemptConflictAutoMergeRecovery } from '@/services/repositories/dailyRecordConflictAutoMergeController';
@@ -93,7 +94,12 @@ describe('dailyRecordConflictAutoMergeController', () => {
     getRecordFromFirestoreMock.mockResolvedValue(null);
 
     await expect(
-      attemptConflictAutoMergeRecovery('2026-04-15', record, ['beds.R1.patientName'])
+      attemptConflictAutoMergeRecovery(
+        '2026-04-15',
+        record,
+        ['beds.R1.patientName'],
+        captureAuthoringSession()
+      )
     ).resolves.toEqual({ status: 'not_possible' });
   });
 
@@ -116,7 +122,12 @@ describe('dailyRecordConflictAutoMergeController', () => {
     queueSyncTaskMock.mockResolvedValue({ accepted: true });
 
     await expect(
-      attemptConflictAutoMergeRecovery('2026-04-15', record, ['beds.R1.patientName'])
+      attemptConflictAutoMergeRecovery(
+        '2026-04-15',
+        record,
+        ['beds.R1.patientName'],
+        captureAuthoringSession()
+      )
     ).resolves.toEqual({ status: 'auto_merged' });
 
     expect(queueSyncTaskMock).toHaveBeenCalledWith(
@@ -130,7 +141,8 @@ describe('dailyRecordConflictAutoMergeController', () => {
           clientId: expect.any(String),
           tabId: expect.any(String),
         }),
-      })
+      }),
+      { authoringSession: captureAuthoringSession() }
     );
     const queuedContract = queueSyncTaskMock.mock.calls[0]?.[1]?.syncContract;
     expect(buildConflictAutoMergeAuditDetailsMock).toHaveBeenCalledWith(
@@ -171,7 +183,12 @@ describe('dailyRecordConflictAutoMergeController', () => {
     });
 
     await expect(
-      attemptConflictAutoMergeRecovery('2026-04-15', record, ['discharges'])
+      attemptConflictAutoMergeRecovery(
+        '2026-04-15',
+        record,
+        ['discharges'],
+        captureAuthoringSession()
+      )
     ).resolves.toEqual({ status: 'not_possible' });
 
     expect(queueSyncTaskMock).not.toHaveBeenCalled();
@@ -205,7 +222,12 @@ describe('dailyRecordConflictAutoMergeController', () => {
     logRepositoryConflictAutoMergedMock.mockRejectedValueOnce(new Error('audit down'));
 
     await expect(
-      attemptConflictAutoMergeRecovery('2026-04-15', record, ['beds.R1.patientName'])
+      attemptConflictAutoMergeRecovery(
+        '2026-04-15',
+        record,
+        ['beds.R1.patientName'],
+        captureAuthoringSession()
+      )
     ).resolves.toEqual({ status: 'auto_merged' });
 
     // The merge proceeds (system recovery), but the audit failure is no longer silent.
@@ -236,7 +258,12 @@ describe('dailyRecordConflictAutoMergeController', () => {
     queueSyncTaskMock.mockResolvedValue({ accepted: false });
 
     await expect(
-      attemptConflictAutoMergeRecovery('2026-04-15', record, ['beds.R1.patientName'])
+      attemptConflictAutoMergeRecovery(
+        '2026-04-15',
+        record,
+        ['beds.R1.patientName'],
+        captureAuthoringSession()
+      )
     ).resolves.toEqual({ status: 'not_possible' });
   });
 });

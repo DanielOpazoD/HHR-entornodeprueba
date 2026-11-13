@@ -1,3 +1,4 @@
+import { authoredOptions } from '@/services/storage/authoringSession';
 import { getDailyRecordQueryKey } from '@/hooks/controllers/dailyRecordQueryController';
 import { defaultDailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
@@ -80,7 +81,8 @@ const setupHook = () => {
   clients.push(client);
   setDailyRecordQueryData(client, date, base);
   const repository = buildMockDailyRecordRepository();
-  repository.saveDetailed = actualSave;
+  repository.saveDetailed = (first, second, options) =>
+    actualSave(first, second, authoredOptions(options ?? {}));
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>
       <RepositoryProvider value={createRepositoryContainer({ dailyRecord: repository })}>
@@ -208,6 +210,7 @@ it('unchanged session queues the complete save offline', async () => {
   const save = renderHook(() => useSaveDailyRecordMutation(), { wrapper: h.wrapper });
   await act(async () => {
     await save.result.current.mutateAsync({
+      authoringSession: captureAuthoringSession(),
       record: { ...base, nursesDayShift: ['SYNTHETIC A'] },
       baseRecord: base,
     });
@@ -228,6 +231,7 @@ it('direct full save captures before waiting for the repository lock', async () 
   );
   await waitFor(() => expect(releaseWrite).toBeDefined());
   inFlight = actualSave({ ...base, nursesDayShift: ['SYNTHETIC A'] }, undefined, {
+    authoringSession: captureAuthoringSession(),
     baseRecord: base,
   });
   await clearSessionScopedClientState('manual');
@@ -242,7 +246,10 @@ it('direct full save captures before waiting for the repository lock', async () 
   expect(await hospitalDB.dailyRecords.get(date)).toEqual(base);
 });
 it('retention preserves the complete task and its base, and reentry never sends it', async () => {
-  await actualSave({ ...base, nursesDayShift: ['SYNTHETIC A'] }, undefined, { baseRecord: base });
+  await actualSave({ ...base, nursesDayShift: ['SYNTHETIC A'] }, undefined, {
+    authoringSession: captureAuthoringSession(),
+    baseRecord: base,
+  });
   const before = (await hospitalDB.syncQueue.toArray())[0];
   const author = captureAuthoringSession();
   const { id: _id, ...raw } = before;
@@ -292,7 +299,7 @@ it('the lazy production port keeps the author before loading the repository', as
   const write = defaultDailyRecordRepositoryPort.saveDetailed(
     { ...base, nursesDayShift: ['SYNTHETIC A'] },
     undefined,
-    { baseRecord: base }
+    { authoringSession: captureAuthoringSession(), baseRecord: base }
   );
   local.setItem(SESSION_OWNER_KEY, 'user:C1-B');
   setSessionGeneration('synthetic-B');

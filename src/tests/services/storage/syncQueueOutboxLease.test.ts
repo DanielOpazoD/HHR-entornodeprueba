@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -80,12 +81,16 @@ describe('sync queue transactional outbox and leases', () => {
       lastUpdated: '2025-01-29T10:00:00.000Z',
     });
     const remote = { ...local, lastUpdated: '2025-01-29T10:00:01.000Z' };
-    await queueDailyRecordSyncTaskWithLocalRecord(local, {
-      syncContract: {
-        changedPaths: ['nursesDayShift'],
-        expectedVersion: '2025-01-29T09:00:00.000Z',
+    await queueDailyRecordSyncTaskWithLocalRecord(
+      local,
+      {
+        syncContract: {
+          changedPaths: ['nursesDayShift'],
+          expectedVersion: '2025-01-29T09:00:00.000Z',
+        },
       },
-    });
+      { authoringSession: captureAuthoringSession() }
+    );
     await admitRemoteDailyRecords([{ record: remote, remoteRecord: remote }]);
     expect((await hospitalDB.dailyRecords.get(date))?.lastUpdated).toBe(local.lastUpdated);
     await expect(
@@ -101,14 +106,18 @@ describe('sync queue transactional outbox and leases', () => {
   it('persists a local daily record and its outbox task in one operation', async () => {
     const record = makeRecord('2025-01-16', '2025-01-16T10:00:00.000Z');
 
-    const result = await queueDailyRecordSyncTaskWithLocalRecord(record, {
-      contexts: ['clinical'],
-      origin: 'partial_update_retry',
-      syncContract: {
-        expectedVersion: '2025-01-16T09:00:00.000Z',
-        changedPaths: ['beds.R1.pathology'],
+    const result = await queueDailyRecordSyncTaskWithLocalRecord(
+      record,
+      {
+        contexts: ['clinical'],
+        origin: 'partial_update_retry',
+        syncContract: {
+          expectedVersion: '2025-01-16T09:00:00.000Z',
+          changedPaths: ['beds.R1.pathology'],
+        },
       },
-    });
+      { authoringSession: captureAuthoringSession() }
+    );
 
     expect(result).toMatchObject({
       accepted: true,
@@ -133,13 +142,17 @@ describe('sync queue transactional outbox and leases', () => {
 
     window.addEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, onStoreChange);
     try {
-      const result = await queueDailyRecordSyncTaskWithLocalRecord(record, {
-        contexts: ['clinical'],
-        origin: 'partial_update_retry',
-        syncContract: {
-          changedPaths: ['beds.R1.pathology'],
+      const result = await queueDailyRecordSyncTaskWithLocalRecord(
+        record,
+        {
+          contexts: ['clinical'],
+          origin: 'partial_update_retry',
+          syncContract: {
+            changedPaths: ['beds.R1.pathology'],
+          },
         },
-      });
+        { authoringSession: captureAuthoringSession() }
+      );
 
       expect(result).toMatchObject({ accepted: true, mode: 'created' });
       await expect(hospitalDB.dailyRecords.get(record.date)).resolves.toMatchObject({
@@ -163,15 +176,21 @@ describe('sync queue transactional outbox and leases', () => {
       .mockRejectedValueOnce(new Error('record write failed'));
 
     await expect(
-      store.saveDailyRecordWithTask(record, {
-        opId: 'test-op',
-        type: 'UPDATE_DAILY_RECORD',
-        payload: record,
-        timestamp: TEST_TASK_TIMESTAMP_MS,
-        retryCount: 0,
-        status: 'PENDING',
-        key: 'daily:2025-01-17',
-      })
+      store.saveDailyRecordWithTask(
+        record,
+        {
+          opId: 'test-op',
+          type: 'UPDATE_DAILY_RECORD',
+          payload: record,
+          timestamp: TEST_TASK_TIMESTAMP_MS,
+          retryCount: 0,
+          status: 'PENDING',
+          key: 'daily:2025-01-17',
+        },
+        undefined,
+        undefined,
+        captureAuthoringSession()
+      )
     ).rejects.toThrow('record write failed');
 
     await expect(hospitalDB.dailyRecords.get('2025-01-17')).resolves.toBeUndefined();
@@ -187,15 +206,21 @@ describe('sync queue transactional outbox and leases', () => {
       .mockRejectedValueOnce(new Error('queue write failed'));
 
     await expect(
-      store.saveDailyRecordWithTask(record, {
-        opId: 'test-op',
-        type: 'UPDATE_DAILY_RECORD',
-        payload: record,
-        timestamp: TEST_TASK_TIMESTAMP_MS,
-        retryCount: 0,
-        status: 'PENDING',
-        key: 'daily:2025-01-18',
-      })
+      store.saveDailyRecordWithTask(
+        record,
+        {
+          opId: 'test-op',
+          type: 'UPDATE_DAILY_RECORD',
+          payload: record,
+          timestamp: TEST_TASK_TIMESTAMP_MS,
+          retryCount: 0,
+          status: 'PENDING',
+          key: 'daily:2025-01-18',
+        },
+        undefined,
+        undefined,
+        captureAuthoringSession()
+      )
     ).rejects.toThrow('queue write failed');
 
     await expect(hospitalDB.dailyRecords.get('2025-01-18')).resolves.toBeUndefined();
@@ -235,14 +260,18 @@ describe('sync queue transactional outbox and leases', () => {
         },
       },
     });
-    await queueDailyRecordSyncTaskWithLocalRecord(localRecord, {
-      contexts: ['clinical'],
-      origin: 'partial_update_retry',
-      syncContract: {
-        expectedVersion: '2025-01-27T09:59:59.000Z',
-        changedPaths: ['beds.R1.pathology', 'beds.R1.clinicalCrib'],
+    await queueDailyRecordSyncTaskWithLocalRecord(
+      localRecord,
+      {
+        contexts: ['clinical'],
+        origin: 'partial_update_retry',
+        syncContract: {
+          expectedVersion: '2025-01-27T09:59:59.000Z',
+          changedPaths: ['beds.R1.pathology', 'beds.R1.clinicalCrib'],
+        },
       },
-    });
+      { authoringSession: captureAuthoringSession() }
+    );
     const storedBeforeClear = await hospitalDB.dailyRecords.get(date);
     const [taskBeforeClear] = await hospitalDB.syncQueue.toArray();
     expect((taskBeforeClear.payload as DailyRecord).lastUpdated).toBe(
@@ -301,7 +330,9 @@ describe('sync queue transactional outbox and leases', () => {
         R1: { ...localRecord.beds.R1, clinicalCrib: undefined },
       },
     });
-    await queueDailyRecordSyncTaskWithLocalRecord(localRecord);
+    await queueDailyRecordSyncTaskWithLocalRecord(localRecord, undefined, {
+      authoringSession: captureAuthoringSession(),
+    });
     await hospitalDB.syncQueue
       .where('status')
       .equals('PENDING')
@@ -380,10 +411,14 @@ describe('sync queue transactional outbox and leases', () => {
       attemptId: 'attempt-a',
     });
 
-    const result = await queueDailyRecordSyncTaskWithLocalRecord(makeRecord('2025-01-22', 'v2'), {
-      contexts: ['clinical'],
-      origin: 'partial_update_retry',
-    });
+    const result = await queueDailyRecordSyncTaskWithLocalRecord(
+      makeRecord('2025-01-22', 'v2'),
+      {
+        contexts: ['clinical'],
+        origin: 'partial_update_retry',
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     const tasks = await hospitalDB.syncQueue.orderBy('timestamp').toArray();
     expect(result.mode).toBe('created');
@@ -396,10 +431,14 @@ describe('sync queue transactional outbox and leases', () => {
     await queueSyncTask('UPDATE_DAILY_RECORD', makeRecord('2025-01-23', 'v1'));
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
     vi.mocked(setDoc).mockImplementationOnce(async () => {
-      await queueDailyRecordSyncTaskWithLocalRecord(makeRecord('2025-01-23', 'v2'), {
-        contexts: ['clinical'],
-        origin: 'partial_update_retry',
-      });
+      await queueDailyRecordSyncTaskWithLocalRecord(
+        makeRecord('2025-01-23', 'v2'),
+        {
+          contexts: ['clinical'],
+          origin: 'partial_update_retry',
+        },
+        { authoringSession: captureAuthoringSession() }
+      );
     });
 
     await processSyncQueue();

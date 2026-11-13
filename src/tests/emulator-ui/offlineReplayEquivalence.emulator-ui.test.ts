@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /* @flake-safe: Today's synthetic census satisfies the real rules' hospital write window. */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -250,7 +251,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
           // A census field the server takes from this edit; age would follow the remote-canonical merge.
           ...(scenario === 'mixed' ? { 'beds.R1.status': 'Grave' } : {}),
         },
-        { baseRecord: base }
+        { authoringSession: captureAuthoringSession(), baseRecord: base }
       )
     );
     const [pending] = await hospitalDB.syncQueue.toArray();
@@ -261,7 +262,10 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         updatePartialDetailed(
           date,
           { 'beds.R1.pathology': 'A SECOND' },
-          { baseRecord: (await hospitalDB.dailyRecords.get(date))! }
+          {
+            authoringSession: captureAuthoringSession(),
+            baseRecord: (await hospitalDB.dailyRecords.get(date))!,
+          }
         )
       );
     if (scenario === 'other-field') await patch('B', { 'beds.R1.age': '51' });
@@ -309,7 +313,11 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     await hospitalDB.dailyRecords.put(base);
     setFirestoreSyncState({ mode: 'local_only', reason: 'offline' });
     await actor('A', () =>
-      updatePartialDetailed(date, { 'beds.R1.pathology': 'FIRST' }, { baseRecord: base })
+      updatePartialDetailed(
+        date,
+        { 'beds.R1.pathology': 'FIRST' },
+        { authoringSession: captureAuthoringSession(), baseRecord: base }
+      )
     );
     const [pending] = await hospitalDB.syncQueue.toArray();
     if (scenario === 'two-tasks') {
@@ -373,7 +381,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       updatePartialDetailed(
         date,
         { 'beds.R1.deviceDetails': { CVC: { installationDate: date, note: 'A' } } },
-        { baseRecord: base }
+        { authoringSession: captureAuthoringSession(), baseRecord: base }
       )
     );
     const [pending] = await hospitalDB.syncQueue.toArray();
@@ -402,7 +410,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
             'beds.R2.pathology': 'SECOND',
             ...(scenario === 'three-fields' ? { 'beds.R1.age': '60' } : {}),
           },
-          { baseRecord: base }
+          { authoringSession: captureAuthoringSession(), baseRecord: base }
         )
       );
       if (scenario === 'compacted')
@@ -410,7 +418,10 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
           updatePartialDetailed(
             date,
             { 'beds.R2.pathology': 'LAST' },
-            { baseRecord: (await hospitalDB.dailyRecords.get(date))! }
+            {
+              authoringSession: captureAuthoringSession(),
+              baseRecord: (await hospitalDB.dailyRecords.get(date))!,
+            }
           )
         );
       const [pending] = await hospitalDB.syncQueue.toArray();
@@ -503,6 +514,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     setFirestoreSyncState({ mode: 'local_only', reason: 'offline' });
     await actor('A', () =>
       updatePartialDetailed(date, { [field as string]: pendingValue } as DailyRecordPatch, {
+        authoringSession: captureAuthoringSession(),
         baseRecord: base,
       })
     );
