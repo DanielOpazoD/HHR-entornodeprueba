@@ -63,27 +63,34 @@ const run = (record: DailyRecord, rows: EgresoReportRow[]) =>
       lookupEgresos: vi.fn().mockResolvedValue([]),
     }
   );
-it('probe-c', { timeout: 120000 }, async () => {
-  const cases: Record<string, [DailyRecord, EgresoReportRow[]]> = {
-    crossNoEp: [rec({ H4C1: occ('H4C1', '12.345.678-5', 'Rut') }), [row('P123456785')]],
-    crossEp: [rec({ H4C1: occ('H4C1', '12.345.678-5', 'Rut', '777') }), [row('P123456785')]],
-    legacyEp: [rec({ H4C1: occ('H4C1', '123.456-7', 'Legado', '777') }), [row('1234567A', '777')]],
-    passportEpWithOtherRut: [
-      rec({
-        H4C1: occ('H4C1', 'P123456785', 'Pasaporte', '777'),
-        H4C2: occ('H4C2', '12.345.678-5', 'Rut', '888'),
-      }),
-      [row('P123456785', '777')],
-    ],
-  };
-  for (const [name, [record, rows]] of Object.entries(cases)) {
-    const result = await run(record, rows);
-    if (name.startsWith('cross')) {
-      expect(result.discharges, name).toEqual([]);
-      expect(result.conflicts, name).toHaveLength(1);
-    } else {
-      expect(result.discharges, name).toMatchObject([{ bedId: 'H4C1', encounterId: '777' }]);
-      expect(result.conflicts, name).toEqual([]);
+it(
+  'discharges the exact episode despite a legacy document or another digit collision',
+  { timeout: 120000 },
+  async () => {
+    const cases: Record<string, [DailyRecord, EgresoReportRow[]]> = {
+      crossNoEp: [rec({ H4C1: occ('H4C1', '12.345.678-5', 'Rut') }), [row('P123456785')]],
+      crossEp: [rec({ H4C1: occ('H4C1', '12.345.678-5', 'Rut', '777') }), [row('P123456785')]],
+      legacyEp: [
+        rec({ H4C1: occ('H4C1', '123.456-7', 'Legado', '777') }),
+        [row('1234567A', '777')],
+      ],
+      passportEpWithOtherRut: [
+        rec({
+          H4C1: occ('H4C1', 'P123456785', 'Pasaporte', '777'),
+          H4C2: occ('H4C2', '12.345.678-5', 'Rut', '888'),
+        }),
+        [row('P123456785', '777')],
+      ],
+    };
+    for (const [name, [record, rows]] of Object.entries(cases)) {
+      const result = await run(record, rows);
+      if (name.startsWith('cross')) {
+        expect(result.discharges, name).toEqual([]);
+        expect(result.conflicts, name).toHaveLength(1);
+      } else {
+        expect(result.discharges, name).toMatchObject([{ bedId: 'H4C1', encounterId: '777' }]);
+        expect(result.conflicts, name).toEqual([]);
+      }
     }
   }
-});
+);

@@ -25,6 +25,7 @@ import { resolveReportBedId, resolveReportCribParentBedId } from '../mapping/res
 type EligibilityResult = {
   diff: CensusImportDiff;
   rows: EgresoReportRow[];
+  sourceDocuments: ReadonlyMap<EgresoReportRow, string>;
 };
 
 export type PromotionCandidate = {
@@ -141,6 +142,7 @@ export const selectEligibleEgresoRows = (
   const occupied = occupiedBedsByRun(record);
   const occupiedCribs = occupiedClinicalCribsByRun(record);
   const rows: EgresoReportRow[] = [];
+  const sourceDocuments = new Map<EgresoReportRow, string>();
   let nextDiff = diff;
   // Recorded crib discharge -> the administrative event it explains. Jasper repeats one event per
   // principal diagnosis, so its repeated rows share the movement; another event never does.
@@ -382,8 +384,10 @@ export const selectEligibleEgresoRows = (
           ? record.beds[current.bedId]?.rut
           : currentCrib?.patient.rut
         : undefined);
-    rows.push(verifiedRun ? { ...row, run: verifiedRun } : row);
+    const eligibleRow = verifiedRun ? { ...row, run: verifiedRun } : row;
+    sourceDocuments.set(eligibleRow, row.run);
+    rows.push(eligibleRow);
   }
 
-  return { diff: nextDiff, rows };
+  return { diff: nextDiff, rows, sourceDocuments };
 };

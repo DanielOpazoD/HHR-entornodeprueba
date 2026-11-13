@@ -6,82 +6,9 @@ import { mapDestinoDeAlta } from '../mapping/mapDestinoDeAlta';
 import { toTitleCaseName } from '../mapping/rayenToPatientData';
 import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
 import { resolveReportBedId } from '../mapping/resolveReportBed';
-import { isSameDocument, normalizeRut } from '@/utils/rutUtils';
+import { normalizeRut } from '@/utils/rutUtils';
 import { calendarDateForMovement } from '@/utils/movementCalendarDate';
-import { appendReportConflict } from './egresoReportConflicts';
 import { recordedOutcomeEpisodeId } from './censusDischargeHistory';
-/** Guard digit indexes only where a report can alter the current plan. */
-export const selectDocumentSafeReportRows = (
-  diff: CensusImportDiff,
-  rows: EgresoReportRow[],
-  record: DailyRecord
-): { diff: CensusImportDiff; rows: EgresoReportRow[] } => {
-  const occupants = [
-    ...occupiedBedsByRun(record).values(),
-    ...[...occupiedClinicalCribsByRun(record).values()].map(entry => entry.patient),
-  ];
-  const candidate = (rut?: string, episode?: string) => ({ rut, clinicalEpisodeId: episode });
-  // These entries feed episode resolution, cancellation, promotion or row selection below.
-  // Recorded history only suppresses already applied outcomes; it cannot cancel a plan.
-  const candidates = [
-    ...occupants,
-    ...diff.admissions.flatMap(entry => [
-      candidate(entry.patient.rut, entry.source?.encounterId ?? entry.patient.clinicalEpisodeId),
-      candidate(entry.patient.clinicalCrib?.rut, entry.patient.clinicalCrib?.clinicalEpisodeId),
-    ]),
-    ...diff.moves.map(entry => candidate(entry.rut, entry.source.encounterId)),
-    ...diff.updates.map(entry => candidate(entry.rut, entry.source?.encounterId)),
-    ...diff.pendingAdministrativeDischarges.map(entry =>
-      candidate(entry.rut, entry.encounterId ?? entry.source?.encounterId)
-    ),
-    ...diff.discharges.map(entry =>
-      candidate(entry.rut, entry.encounterId ?? entry.source?.encounterId)
-    ),
-    ...(diff.activeClinicalCribs?.flatMap(entry => [
-      candidate(entry.patient.rut, entry.source.encounterId),
-      candidate(entry.principalRut),
-    ]) ?? []),
-    ...diff.conflicts.map(entry => candidate(entry.rut, entry.source?.encounterId)),
-  ];
-  let nextDiff = diff;
-  const safeRows = rows.filter(row => {
-    const run = normalizeRut(row.run);
-    const episode = String(row.encounterId ?? '').trim();
-    // Exact episode evidence takes precedence over all digit buckets, including other beds.
-    if (episode && candidates.some(entry => entry.clinicalEpisodeId === episode)) return true;
-    const collision =
-      Boolean(run) &&
-      candidates.some(
-        entry => normalizeRut(entry.rut) === run && !isSameDocument(entry.rut, row.run)
-      );
-    if (!collision) return true;
-    const stamp = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
-    if (!stamp.correctedDay || !stamp.correctedTime) return true;
-    if (!record.date || stamp.correctedDay > record.date) return false;
-    // Preserve the legacy eligibility discard before the document guard removes its occupant.
-    const legacyOccupant = occupants.find(entry => run && normalizeRut(entry.rut) === run);
-    if (
-      !episode &&
-      row.exactEpisodeVerification !== 'unverified' &&
-      legacyOccupant &&
-      resolveActiveEpisode(diff, run, legacyOccupant.clinicalEpisodeId) &&
-      reportPredatesAdmission(
-        { iso: stamp.correctedDay, hhmm: stamp.correctedTime },
-        legacyOccupant
-      )
-    )
-      return false;
-    nextDiff = appendReportConflict(nextDiff, {
-      bedId: resolveReportBedId(row.bedLabel) || null,
-      rut: row.run,
-      patientName: row.patientName,
-      reason: `El documento ${row.run} del informe de egresos coincide solo en sus dígitos con otro documento; se requiere revisión antes de aplicar el egreso.`,
-    });
-    return false;
-  });
-  return { diff: nextDiff, rows: safeRows };
-};
-
 export interface OccupiedBedEvidence {
   bedId: string;
   patientName: string;
@@ -169,7 +96,7 @@ export const selectReportRowsByEpisode = (
     [...byIdentity.values()]
       .filter(row => {
         const run = normalizeRut(row.run);
-        return Boolean(run && row.encounterId && row.encounterId === activeEpisodeForRun(row.run));
+        return Boolean(run && row.encounterId && row.encounterId === activeEpisodeForRun(run));
       })
       .map(row => normalizeRut(row.run))
   );
@@ -430,7 +357,7 @@ export const findOccupiedBed = (
   (episodeId ? index.get(`episode:${episodeId}`) : undefined) ??
   [...index.values()].find(entry => episodeId && entry.clinicalEpisodeId === episodeId) ??
   (normalizeRut(run)
-    ? [...index.values()].find(entry => isSameDocument(entry.rut, run))
+    ? [...index.values()].find(entry => normalizeRut(entry.rut) === normalizeRut(run))
     : undefined);
 
 export const occupiedClinicalCribsByRun = (
@@ -458,7 +385,7 @@ export const findOccupiedClinicalCrib = (
   (episodeId ? index.get(`episode:${episodeId}`) : undefined) ??
   [...index.values()].find(entry => episodeId && entry.patient.clinicalEpisodeId === episodeId) ??
   (normalizeRut(run)
-    ? [...index.values()].find(entry => isSameDocument(entry.patient.rut, run))
+    ? [...index.values()].find(entry => normalizeRut(entry.patient.rut) === normalizeRut(run))
     : undefined) ??
   (parentBedId ? index.get(`parent:${parentBedId}`) : undefined) ??
   [...index.values()].find(entry => parentBedId && entry.parentBedId === parentBedId);

@@ -159,15 +159,78 @@ it.each([
   'deletedHistory',
   'oldRowCollides20d',
   'exactEpisodeBlocked',
+  'rnFreeText',
 ])('preserves actionable outcomes: %s', name => {
   const [rows, record] = cases[name];
   for (let sync = 0; sync < 2; sync++) {
     const result = applyEgresoReport(createEmptyCensusImportDiff(true), rows, record);
     expect(result.conflicts).toEqual([]);
     expect(result.discharges).toHaveLength(
-      ['deletedHistory', 'exactEpisodeBlocked'].includes(name) ? 1 : 0
+      ['deletedHistory', 'exactEpisodeBlocked', 'rnFreeText'].includes(name) ? 1 : 0
     );
     if (name.startsWith('legacyAfter'))
       expect(collectSafeClinicalEpisodeIds(record, result.conflicts)).toEqual(['3003']);
   }
+});
+
+// Two captures must preserve the silent result and the unaffected clinical stage.
+it.each([
+  ['P123456785', '12.345.678-5', '07-07-2026 23:30'],
+  ['12.345.678-5', 'P123456785', '07-07-2026 12:00'],
+  ['12.345.678-5', 'P123456785', '18-06-2026 12:00'],
+  ['123.456-7', '1234567A', '07-07-2026 12:00'],
+  ['12.345.678-5', 'P123456785', '09-07-2026 12:00'],
+])('silently excludes ineligible %s / %s at %s', (stored, incoming, date) => {
+  const record = rec({ H5C1: person(stored, 'OCUPANTE', '1001') });
+  const report = {
+    ...row(incoming, undefined, 'H5C1', date),
+    ...(date.startsWith('09') ? {} : { exactEpisodeVerification: 'unverified' as const }),
+  };
+  let diff = createEmptyCensusImportDiff(true);
+  for (let sync = 0; sync < 2; sync++) {
+    diff = applyEgresoReport(diff, [report], record);
+    expect(diff.conflicts).toEqual([]);
+    expect(diff.discharges).toEqual([]);
+    expect(diff.reportEgresos ?? []).toEqual([]);
+    expect(collectSafeClinicalEpisodeIds(record, diff.conflicts)).toEqual(['1001']);
+  }
+});
+it('preserves only the existing conflict when the passport discharge is already recorded', () => {
+  const record = rec({}, { discharges: [mv('P123456785', 'H5C1')] } as Partial<DailyRecord>);
+  let diff = createEmptyCensusImportDiff(true);
+  diff.conflicts.push({ bedId: 'H5C2', rut: '12.345.678-5', reason: 'Existing review' });
+  const existing = [...diff.conflicts];
+  for (let sync = 0; sync < 2; sync++) {
+    diff = applyEgresoReport(diff, [row('P123456785')], record);
+    expect(diff.conflicts).toEqual(existing);
+    expect(diff.discharges).toEqual([]);
+    expect(diff.reportEgresos ?? []).toEqual([]);
+  }
+});
+it('records the reported episode statistically without discharging a different occupant', () => {
+  const record = rec({ H5C1: person('12.345.678-5', 'OCUPANTE', '1001') });
+  const result = applyEgresoReport(
+    createEmptyCensusImportDiff(true),
+    [row('P123456785', '777')],
+    record
+  );
+  expect(result.discharges).toEqual([]);
+  expect(result.reportEgresos).toMatchObject([{ run: 'P123456785', encounterId: '777' }]);
+  expect(result.conflicts).toEqual([]);
+});
+
+it('does not review a digit-colliding duplicate discarded in favor of the exact episode', () => {
+  const record = rec({
+    H5C1: {
+      ...person('123.456-7', 'MADRE', '1001'),
+      clinicalCrib: person('123.456-7', 'RN', 'RN1'),
+    },
+  });
+  const result = applyEgresoReport(
+    createEmptyCensusImportDiff(true),
+    [row('1234567A', '1001'), row('1234567A')],
+    record
+  );
+  expect(result.discharges).toMatchObject([{ encounterId: '1001' }]);
+  expect(result.conflicts).toEqual([]);
 });

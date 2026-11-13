@@ -159,13 +159,14 @@ it.each([
     });
   const result = applyEgresoReport(diff, [row('P123456785', '08-07-2026 12:00')], rec);
   expect(result.discharges).toEqual(diff.discharges);
-  expect(result.reportEgresos ?? []).toEqual([]);
+  const onlyContext = location === 'active-crib' || location === 'conflict';
+  expect(result.reportEgresos ?? []).toHaveLength(onlyContext ? 1 : 0);
   expect(result.admissions).toEqual(diff.admissions);
   expect(result.moves).toEqual(diff.moves);
   expect(result.updates).toEqual(diff.updates);
   expect(result.pendingAdministrativeDischarges).toEqual(diff.pendingAdministrativeDischarges);
-  expect(result.conflicts).toHaveLength(diff.conflicts.length + 1);
-  expect(result.conflicts.at(-1)?.bedId).toBe('H5C1');
+  expect(result.conflicts).toHaveLength(onlyContext ? 0 : diff.conflicts.length + 1);
+  if (!onlyContext) expect(result.conflicts.at(-1)?.bedId).toBe('H5C1');
 });
 it.each(['08-07-2026 12:00', '07-07-2026 12:00'])(
   'keeps legacy truncated documents visible (%s)',
@@ -180,22 +181,6 @@ it.each(['08-07-2026 12:00', '07-07-2026 12:00'])(
     expect(result.conflicts).toHaveLength(1);
   }
 );
-it('does not resolve a different document through the bed and crib lookup APIs', async () => {
-  const {
-    findOccupiedBed,
-    findOccupiedClinicalCrib,
-    occupiedBedsByRun,
-    occupiedClinicalCribsByRun,
-  } = await import('@/features/rayen-import/domain/egresoReportPolicy');
-  const rec = record('12.345.678-5');
-  rec.beds.H5C1.clinicalCrib = occupant('12.345.678-5');
-  expect(findOccupiedBed(occupiedBedsByRun(rec), 'P123456785')).toBeUndefined();
-  expect(findOccupiedClinicalCrib(occupiedClinicalCribsByRun(rec), 'P123456785')).toBeUndefined();
-  expect(findOccupiedBed(occupiedBedsByRun(rec), '123456785')?.bedId).toBe('H5C1');
-  expect(findOccupiedClinicalCrib(occupiedClinicalCribsByRun(rec), '123456785')?.parentBedId).toBe(
-    'H5C1'
-  );
-});
 
 it('keeps the exact passport episode ahead of an episode-less duplicate', () => {
   const rec = record('P123456785');
