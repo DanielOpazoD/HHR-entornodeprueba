@@ -1,6 +1,9 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { createEmptyPatient } from '@/services/factories/patientFactory';
-import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
-import type { PatientData } from '@/hooks/contracts/patientHookContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+
 import type { ClinicalCribCreateRequest } from '@/types/domain/intentionalBedClear';
 import { resolveClinicalEpisodeIdForAdmission } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
 import {

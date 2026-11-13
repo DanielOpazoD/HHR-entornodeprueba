@@ -1,6 +1,6 @@
 import { BEDS } from '@/constants/beds';
 import type { ApplyDailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
-import type { DailyRecord } from '@/domain/handoff/recordContracts';
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import type { MedicalHandoffScope } from '@/types/medicalHandoff';
 import {
   createApplicationFailed,
@@ -15,11 +15,11 @@ import {
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 export interface SendMedicalHandoffInput {
-  record: DailyRecord;
+  record: HandoffDailyRecordContract;
   templateContent: string;
   targetGroupId: string;
   patchRecord: ApplyDailyRecordPatch;
-  getPreviousDay: (date: string) => Promise<DailyRecord | null>;
+  getPreviousDay: (date: string) => Promise<HandoffDailyRecordContract | null>;
   scope?: MedicalHandoffScope;
 }
 
@@ -27,12 +27,13 @@ export interface SendMedicalHandoffOutput {
   sentAt: string;
   doctorName: string;
   handoffUrl: string;
-  nextRecord: DailyRecord;
+  nextRecord: HandoffDailyRecordContract;
 }
 
+/** «Sin especificar» only when no earlier day exists; a failed read rejects and the send fails. */
 const resolveDoctorName = async (
-  record: DailyRecord,
-  getPreviousDay: (date: string) => Promise<DailyRecord | null>
+  record: HandoffDailyRecordContract,
+  getPreviousDay: (date: string) => Promise<HandoffDailyRecordContract | null>
 ): Promise<string> => {
   if (record.medicalHandoffDoctor) {
     return record.medicalHandoffDoctor;
@@ -42,7 +43,7 @@ const resolveDoctorName = async (
   return previousRecord?.medicalHandoffDoctor || 'Sin especificar';
 };
 
-const resolveHandoffStats = (record: DailyRecord) => {
+const resolveHandoffStats = (record: HandoffDailyRecordContract) => {
   const activeExtras = record.activeExtraBeds || [];
   const visibleBeds = BEDS.filter(bed => !bed.isExtra || activeExtras.includes(bed.id));
 

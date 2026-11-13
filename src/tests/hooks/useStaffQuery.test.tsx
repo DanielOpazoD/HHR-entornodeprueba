@@ -1,3 +1,4 @@
+import { CatalogRemoteSyncError } from '@/services/repositories/contracts/catalogContracts';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import {
@@ -29,6 +30,11 @@ vi.mock('@/context/AuthContext', async importOriginal => {
 });
 
 const createWrapper = () => createQueryClientTestWrapper().wrapper;
+const createLoadedWrapper = (catalog: string) => {
+  const { queryClient, wrapper } = createQueryClientTestWrapper();
+  queryClient.setQueryData(['staff', catalog], []);
+  return wrapper;
+};
 
 describe('useStaffQuery Hooks', () => {
   type AuthContextValue = ReturnType<typeof useAuth>;
@@ -206,32 +212,36 @@ describe('useStaffQuery Hooks', () => {
   describe('Mutations', () => {
     it('useSaveNursesMutation should call repository and invalidate queries', async () => {
       const saveMock = vi.mocked(CatalogRepository.saveNurses).mockResolvedValue(undefined);
-      const { result } = renderHook(() => useSaveNursesMutation(), { wrapper: createWrapper() });
+      const { result } = renderHook(() => useSaveNursesMutation(), {
+        wrapper: createLoadedWrapper('nurses'),
+      });
 
       await result.current.mutateAsync(['New Nurse']);
 
-      expect(saveMock).toHaveBeenCalledWith(['New Nurse']);
+      expect(saveMock).toHaveBeenCalledWith(['New Nurse'], []);
     });
 
     it('useSaveTensMutation should call repository', async () => {
       const saveMock = vi.mocked(CatalogRepository.saveTens).mockResolvedValue(undefined);
-      const { result } = renderHook(() => useSaveTensMutation(), { wrapper: createWrapper() });
+      const { result } = renderHook(() => useSaveTensMutation(), {
+        wrapper: createLoadedWrapper('tens'),
+      });
 
       await result.current.mutateAsync(['New TENS']);
 
-      expect(saveMock).toHaveBeenCalledWith(['New TENS']);
+      expect(saveMock).toHaveBeenCalledWith(['New TENS'], []);
     });
 
     it('useSaveProfessionalsMutation should call repository', async () => {
       const mockProfs = [{ name: 'New Prof', phone: '456', specialty: 'Cirugía' }];
       const saveMock = vi.mocked(CatalogRepository.saveProfessionals).mockResolvedValue(undefined);
       const { result } = renderHook(() => useSaveProfessionalsMutation(), {
-        wrapper: createWrapper(),
+        wrapper: createLoadedWrapper('professionals'),
       });
 
       await result.current.mutateAsync(mockProfs as unknown as SaveProfessionalsInput);
 
-      expect(saveMock).toHaveBeenCalledWith(mockProfs);
+      expect(saveMock).toHaveBeenCalledWith(mockProfs, []);
     });
 
     it('useSaveNursesMutation should perform optimistic update and rollback on error', async () => {
@@ -255,5 +265,25 @@ describe('useStaffQuery Hooks', () => {
       // Should be back to initial after error
       expect(queryClient.getQueryData([...['staff'], 'nurses'])).toEqual(initialNurses);
     });
+  });
+  it('clears a late confirmation warning when the merged server list includes unrelated additions', async () => {
+    const { wrapper, queryClient } = createQueryClientTestWrapper();
+    queryClient.setQueryData(['staff', 'nurses'], ['Synthetic Base']);
+    vi.mocked(CatalogRepository.saveNurses).mockRejectedValue(
+      new CatalogRemoteSyncError('confirmation_timeout')
+    );
+    const { result } = renderHook(() => useSaveNursesMutation(), { wrapper });
+    await expect(
+      result.current.mutateAsync({
+        base: ['Synthetic Base'],
+        next: ['Synthetic Base', 'Synthetic Two'],
+      })
+    ).rejects.toThrow('no se guardó');
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    queryClient.setQueryData(
+      ['staff', 'nurses'],
+      ['Synthetic Base', 'Synthetic One', 'Synthetic Two']
+    );
+    await waitFor(() => expect(result.current.error).toBeNull());
   });
 });

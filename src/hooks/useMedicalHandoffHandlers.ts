@@ -1,3 +1,5 @@
+import type { MedicalHandoffAuditActor, PatientData } from '@/types/domain/patient';
+
 import { useCallback, useMemo } from 'react';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 import {
@@ -11,7 +13,7 @@ import {
 } from '@/application/handoff';
 import type { AuditAction } from '@/types/auditActionTypes';
 import type { AuditLogEntry } from '@/types/auditLogTypes';
-import type { MedicalHandoffAuditActor, PatientData } from '@/hooks/contracts/patientHookContracts';
+
 import { canEditMedicalHandoffForDate } from '@/shared/access/operationalAccessPolicy';
 import {
   buildEntryDeleteAuditPayload,

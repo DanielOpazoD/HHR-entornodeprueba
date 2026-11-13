@@ -33,8 +33,8 @@ import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRunti
 const loadPatientHistory = createCachedRuntimeLoader(
   () => import('@/services/patient/patientHistoryService')
 );
-const loadClinicalDocRepo = createCachedRuntimeLoader(
-  () => import('@/services/repositories/ClinicalDocumentRepository')
+const loadClinicalDocPort = createCachedRuntimeLoader(
+  () => import('@/application/ports/clinicalDocumentPort')
 );
 const loadClinicalDocPdf = createCachedRuntimeLoader(() => import('@/features/clinical-documents'));
 
@@ -204,12 +204,12 @@ export function usePatientSelection(): UsePatientSelectionReturn {
     });
 
     try {
-      const docMod = await loadClinicalDocRepo();
+      const docMod = await loadClinicalDocPort();
       const candidateKeys = buildPatientSelectionDocumentLookupKeys(parsed);
 
       let foundDocs: ClinicalDocSummary[] = [];
       for (const candidateKey of candidateKeys) {
-        const docs = await docMod.ClinicalDocumentRepository.listByEpisode(candidateKey);
+        const docs = await docMod.defaultClinicalDocumentPort.listByEpisode(candidateKey);
         if (docs.length > 0) {
           foundDocs = summarizeClinicalDocuments(docs, candidateKey);
           break;
@@ -224,7 +224,7 @@ export function usePatientSelection(): UsePatientSelectionReturn {
       globalPatientSearchLogger.warn(`Failed to load documents for ${compositeKey}`, err);
       setEpisodeDocuments(prev => ({
         ...prev,
-        [compositeKey]: { episodeKey: compositeKey, docs: [], isLoading: false },
+        [compositeKey]: { episodeKey: compositeKey, docs: [], isLoading: false, loadFailed: true },
       }));
     }
   }, []);
@@ -232,9 +232,9 @@ export function usePatientSelection(): UsePatientSelectionReturn {
   /** Generate a clinical document PDF and open it in a new browser tab for preview. */
   const downloadDocumentPdf = useCallback(async (docId: string, _docType: string) => {
     try {
-      const [docMod, pdfMod] = await Promise.all([loadClinicalDocRepo(), loadClinicalDocPdf()]);
+      const [docMod, pdfMod] = await Promise.all([loadClinicalDocPort(), loadClinicalDocPdf()]);
 
-      const record = await docMod.ClinicalDocumentRepository.get(docId);
+      const record = await docMod.defaultClinicalDocumentPort.get(docId);
       if (!record) {
         globalPatientSearchLogger.warn(`Document not found for PDF preview: ${docId}`);
         return;

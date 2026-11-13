@@ -1,4 +1,4 @@
-import type { DailyRecord } from '@/features/analytics/contracts/analyticsDailyRecordContracts';
+import type { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
 
 type AnalyticsPatient = DailyRecord['beds'][string];
 

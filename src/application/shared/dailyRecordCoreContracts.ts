@@ -1,22 +1,14 @@
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SpecialistHandoffTarget } from '@/types/domain/specialistHandoffTarget';
-import type { DailyRecord as RootDailyRecord } from '@/types/domain/dailyRecord';
-import type { DailyRecordPatch as RootDailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import type { DailyRecordDateRef as RootDailyRecordDateRef } from '@/types/domain/dailyRecordSlices';
+
 import type {
   ClinicalCribCreateRequest,
   IntentionalBedClearRequest,
 } from '@/types/domain/intentionalBedClear';
 import type { SpecialtyManualIntent } from '@/types/domain/specialtyDecision';
 
-/**
- * Core application-facing daily record contracts.
- *
- * This is the default entrypoint for general record read/update flows that do
- * not need bed-, staffing- or medical-specific slices.
- */
-export type DailyRecord = RootDailyRecord;
-export type DailyRecordPatch = RootDailyRecordPatch;
-export type DailyRecordDateRef = RootDailyRecordDateRef;
+/** Options for this layer's daily-record writes. */
 
 export type ApplyDailyRecordPatchOptions = {
   specialistHandoffTargets?: SpecialistHandoffTarget[];

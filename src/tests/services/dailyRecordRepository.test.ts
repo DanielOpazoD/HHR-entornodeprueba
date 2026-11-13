@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /**
  * DailyRecordRepository Tests (Expanded)
  * Updated to support Async/IndexedDB architecture.
@@ -170,6 +171,7 @@ describe('DailyRecordRepository (Expanded)', () => {
         const record = await firestoreMock.getRecordFromFirestore(date);
         return {
           status: record ? 'resolved' : 'missing',
+          serverConfirmed: true,
           record,
         };
       } catch (error) {
@@ -186,9 +188,13 @@ describe('DailyRecordRepository (Expanded)', () => {
     it('updates local and remote data using dot notation', async () => {
       const initial = createMockRecord('2024-12-28');
       initial.beds = { R1: createValidPatient('R1', { patientName: 'Old' }) };
-      await save(initial);
+      await save(initial, undefined, { authoringSession: captureAuthoringSession() });
 
-      await updatePartial('2024-12-28', { 'beds.R1.patientName': 'New' });
+      await updatePartial(
+        '2024-12-28',
+        { 'beds.R1.patientName': 'New' },
+        { authoringSession: captureAuthoringSession() }
+      );
 
       const updated = await getForDate('2024-12-28');
       expect(updated?.beds.R1.patientName).toBe('New');
@@ -208,9 +214,13 @@ describe('DailyRecordRepository (Expanded)', () => {
     it('silently catches firestore errors to protect local data', async () => {
       firestoreMock.updateRecordPartial.mockRejectedValueOnce(new Error('Network Fail'));
       const initial = createMockRecord('2024-12-28');
-      await save(initial);
+      await save(initial, undefined, { authoringSession: captureAuthoringSession() });
 
-      await updatePartial('2024-12-28', { nurses: ['A', 'B'] });
+      await updatePartial(
+        '2024-12-28',
+        { nurses: ['A', 'B'] },
+        { authoringSession: captureAuthoringSession() }
+      );
 
       const updated = await getForDate('2024-12-28');
       expect(updated?.nurses).toEqual(['A', 'B']);
@@ -232,7 +242,7 @@ describe('DailyRecordRepository (Expanded)', () => {
         }),
       };
 
-      await save(prev);
+      await save(prev, undefined, { authoringSession: captureAuthoringSession() });
       firestoreMock.getRecordFromFirestore.mockResolvedValueOnce(null);
 
       const initialized = await initializeDay('2024-12-28', '2024-12-27');
@@ -257,7 +267,7 @@ describe('DailyRecordRepository (Expanded)', () => {
           clinicalCrib: clinicalCrib,
         }),
       };
-      await save(prev);
+      await save(prev, undefined, { authoringSession: captureAuthoringSession() });
 
       const initialized = await initializeDay('2024-12-28', '2024-12-27');
       expect(initialized.beds['R1'].clinicalCrib?.handoffNoteDayShift).toBe('Baby report');
@@ -294,7 +304,7 @@ describe('DailyRecordRepository (Expanded)', () => {
   describe('getForDate', () => {
     it('returns record from storage when it exists', async () => {
       const record = createMockRecord('2024-12-28');
-      await save(record);
+      await save(record, undefined, { authoringSession: captureAuthoringSession() });
 
       const result = await getForDate('2024-12-28');
       expect(result?.date).toBe('2024-12-28');
@@ -315,7 +325,7 @@ describe('DailyRecordRepository (Expanded)', () => {
       // Use empty strings (default state) to test robust fallback
       prev.nursesNightShift = ['', ''];
       prev.nursesDayShift = ['', ''];
-      await save(prev);
+      await save(prev, undefined, { authoringSession: captureAuthoringSession() });
 
       const initialized = await initializeDay('2024-12-28', '2024-12-27');
       expect(initialized.nursesDayShift).toEqual(['', '']);
@@ -326,7 +336,7 @@ describe('DailyRecordRepository (Expanded)', () => {
       prev.beds = {
         R1: createValidPatient('R1', { cie10Code: 'A09' }),
       };
-      await save(prev);
+      await save(prev, undefined, { authoringSession: captureAuthoringSession() });
 
       const initialized = await initializeDay('2024-12-28', '2024-12-27');
       expect(initialized.beds['R1'].cie10Code).toBe('A09');
@@ -337,7 +347,7 @@ describe('DailyRecordRepository (Expanded)', () => {
       prev.beds = {
         'Extra-1': createValidPatient('Extra-1', { location: 'Hallway' }),
       };
-      await save(prev);
+      await save(prev, undefined, { authoringSession: captureAuthoringSession() });
 
       const initialized = await initializeDay('2024-12-28', '2024-12-27');
       if (initialized.beds['Extra-1']) {
@@ -354,7 +364,7 @@ describe('DailyRecordRepository (Expanded)', () => {
           hasCompanionCrib: true,
         }),
       };
-      await save(prev);
+      await save(prev, undefined, { authoringSession: captureAuthoringSession() });
 
       const initialized = await initializeDay('2024-12-28', '2024-12-27');
       expect(initialized.beds['R1'].isBlocked).toBe(true);
@@ -364,7 +374,7 @@ describe('DailyRecordRepository (Expanded)', () => {
     it('handles handoff novedades inheritance', async () => {
       const prev = createMockRecord('2024-12-27');
       prev.handoffNovedadesNightShift = 'Night news';
-      await save(prev);
+      await save(prev, undefined, { authoringSession: captureAuthoringSession() });
 
       const initialized = await initializeDay('2024-12-28', '2024-12-27');
       expect(initialized.handoffNovedadesDayShift).toBe('Night news');
@@ -386,7 +396,7 @@ describe('DailyRecordRepository (Expanded)', () => {
           ],
         } as unknown as PatientData,
       };
-      await save(prev);
+      await save(prev, undefined, { authoringSession: captureAuthoringSession() });
 
       const initialized = await initializeDay('2026-03-04', '2026-03-03');
 
@@ -399,7 +409,7 @@ describe('DailyRecordRepository (Expanded)', () => {
   describe('Maintenance Operations', () => {
     it('deletes records locally and from firestore', async () => {
       const record = createMockRecord('2024-12-28');
-      await save(record);
+      await save(record, undefined, { authoringSession: captureAuthoringSession() });
       firestoreMock.getRecordFromFirestore.mockResolvedValue(record);
 
       await deleteDay('2024-12-28');
@@ -419,7 +429,9 @@ describe('DailyRecordRepository (Expanded)', () => {
 
     it('keeps same-day deletion behind an active structural write window', async () => {
       const date = '2024-12-28';
-      await save(createMockRecord(date));
+      await save(createMockRecord(date), undefined, {
+        authoringSession: captureAuthoringSession(),
+      });
       const structuralStarted = createDeferred();
       const releaseStructural = createDeferred();
       const structural = runExclusiveDailyRecordWrite(date, async () => {
@@ -455,18 +467,24 @@ describe('DailyRecordRepository (Expanded)', () => {
   describe('Catalog Operations', () => {
     it('manages nurse catalog locally and syncs to firestore', async () => {
       const nurses = ['Enf A', 'Enf B'];
-      await saveNurses(nurses);
+      await saveNurses(nurses, []);
 
       expect(await getNurses()).toEqual(nurses);
-      expect(firestoreMock.saveNurseCatalogToFirestore).toHaveBeenCalledWith(nurses);
+      expect(firestoreMock.saveNurseCatalogToFirestore).toHaveBeenCalledWith(
+        nurses,
+        expect.any(Array)
+      );
     });
 
     it('manages TENS catalog locally and syncs to firestore', async () => {
       const tens = ['Tens 1', 'Tens 2'];
-      await saveTens(tens);
+      await saveTens(tens, []);
 
       expect(await getTens()).toEqual(tens);
-      expect(firestoreMock.saveTensCatalogToFirestore).toHaveBeenCalledWith(tens);
+      expect(firestoreMock.saveTensCatalogToFirestore).toHaveBeenCalledWith(
+        tens,
+        expect.any(Array)
+      );
     });
   });
 });

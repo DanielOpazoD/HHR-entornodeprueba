@@ -1,10 +1,12 @@
-import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { applyPatches } from '@/utils/patchUtils';
 import {
   PENDING_LOCAL_CENSUS_PATCH_FIELDS,
   isSameEpisodeForExplicitCensusPatch,
 } from '@/services/repositories/explicitLocalCensusPatchPolicy';
 import { buildSyncMutationIdentity } from '@/services/storage/sync/syncMutationIdentity';
+import { onSessionChange } from '@/services/storage/sessionStorageTransition';
 
 export const PENDING_DAILY_RECORD_PATCH_STORAGE_KEY = 'hhr_pending_daily_record_patches_v1';
 export const PENDING_DAILY_RECORD_PATCH_TTL_MS = 5 * 60 * 1000;
@@ -234,6 +236,14 @@ export const registerPendingDailyRecordPatch = (
 
   return () => removePendingEntry(date, entry.id);
 };
+
+// Every admission and logout: the next person must never see this person's unconfirmed overlay.
+// Only the overlay is forgotten. What the edit wrote to its row and outbox task is left to the
+// session cleanup (SAVE-03), as is the shared copy in localStorage, which a reload of the same
+// session still needs.
+onSessionChange(() => {
+  pendingPatchRegistry.clear();
+});
 
 export const clearPendingDailyRecordPatchesForTests = (): void => {
   pendingPatchRegistry.clear();

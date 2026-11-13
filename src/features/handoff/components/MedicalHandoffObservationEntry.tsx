@@ -1,6 +1,8 @@
+import type { MedicalHandoffEntry, PatientData } from '@/types/domain/patient';
+
 import React from 'react';
 import clsx from 'clsx';
-import type { MedicalHandoffEntry, PatientData } from '@/domain/handoff/patientContracts';
+
 import { CheckCircle, Plus, Trash2 } from 'lucide-react';
 import { MedicalHandoffDraftTextarea } from './MedicalHandoffDraftTextarea';
 import {

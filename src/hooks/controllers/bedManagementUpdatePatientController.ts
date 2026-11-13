@@ -1,5 +1,8 @@
-import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
-import type { PatientData } from '@/hooks/contracts/patientHookContracts';
+import type { PatientData } from '@/types/domain/patient';
+
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+
 import type { PatientFieldValue } from '@/types/valueTypes';
 import {
   buildUpdatePatientPatches,

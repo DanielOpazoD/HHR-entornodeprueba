@@ -1,4 +1,5 @@
-import type { PatientData } from '../contracts/rayenDomainContracts';
+import type { PatientData } from '@/types/domain/patient';
+
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 export const occupied = (patient: PatientData | undefined) =>
   Boolean(patient?.patientName?.trim() || patient?.clinicalEpisodeId || patient?.isBlocked);

@@ -8,6 +8,10 @@ export const PRECACHE_STATIC_IMPORT_EXCEPTIONS = [
     reason:
       'Both generated chunks hold online-only Eloisa/Rayen domain logic: historical reconstruction, and the import, enrichment and clinical-panel rules. Shared PDF, image and CUDYR loaders live in the precached shared-runtime-loaders chunk instead. Neither belongs to offline census startup.',
   },
+  {
+    name: 'RayenImportPreviewModal',
+    reason: 'Review of an online Eloisa capture, opened on request.',
+  },
   { name: 'RayenImportButton', reason: 'Eloisa import requires the online source and extension.' },
   { name: 'LineChart', reason: 'Optional laboratory trend viewer, opened from a report.' },
   { name: 'vendor-dicom-vtk', reason: 'Optional imaging renderer and codecs.' },
@@ -57,6 +61,9 @@ export const OFFLINE_BOOT_CHUNKS = [
   'PdfButtons',
   'MoaHelpButton',
   'FunctionsRecoveryNotice',
+  // Closing a session with a pending nursing handoff must work offline.
+  'NursingHandoffLogoutDialog',
+  'NursingHandoffSessionNotice',
 ];
 
 type Chunk = Pick<Rollup.OutputChunk, 'fileName' | 'imports' | 'isEntry'>;

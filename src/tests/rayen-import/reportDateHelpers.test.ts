@@ -5,7 +5,7 @@ import {
   syncReportRange,
   toIsoReportDate,
 } from '@/features/rayen-import/hooks/reportDateHelpers';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 describe('Rayen sync report range', () => {
   it.each(['2026-07-17T00:00:00Z', '2026-07-17T06:00:00Z'])(

@@ -4,7 +4,7 @@ import type {
   CensusImportDiff,
   ConflictEntry,
 } from '../contracts/censusImportDiff';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenBedCollisionResolutionReceipt } from '@/types/domain/rayenBedCollision';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import type { MappedPatient } from '../mapping/rayenToPatientData';

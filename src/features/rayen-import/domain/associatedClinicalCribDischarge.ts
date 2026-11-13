@@ -1,6 +1,6 @@
 import { clinicalCribConflictBeds } from './clinicalCribConflictBeds';
 
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImportDiff';
 import { hasRecordedMovement } from './egresoReportPolicy';
 import type { OccupiedClinicalCrib } from './egresoReportPolicy';

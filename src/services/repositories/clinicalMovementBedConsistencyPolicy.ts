@@ -18,9 +18,7 @@ type MovementRecord = Pick<
   'bedId' | 'patientName' | 'rut' | 'admissionDate' | 'clinicalEpisodeId' | 'isNested'
 >;
 
-type CmaMovementRecord = CMAData;
-
-type ConfirmedMovementRecord = MovementRecord | CmaMovementRecord;
+type ConfirmedMovementRecord = MovementRecord | CMAData;
 
 const normalizeIdentity = (value: unknown): string =>
   String(value || '')
@@ -50,7 +48,7 @@ const hasResidualClinicalState = (patient: PatientData | undefined): boolean =>
   ) ||
   Object.keys(patient?.deviceDetails || {}).length > 0;
 
-const isCmaMovement = (movement: ConfirmedMovementRecord): movement is CmaMovementRecord =>
+const isCmaMovement = (movement: ConfirmedMovementRecord): movement is CMAData =>
   !('bedId' in movement);
 
 const resolveMovementAdmissionDate = (movement: ConfirmedMovementRecord): string => {

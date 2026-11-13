@@ -189,6 +189,10 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
   },
   { glob: '**/assets/replanRayenStructure-*.js', reason: 'Same policy as the entry above.' },
   {
+    glob: '**/assets/RayenImportPreviewModal-*.js',
+    reason: 'Eloisa review opens after an online capture and requires explicit confirmation.',
+  },
+  {
     glob: '**/assets/RayenImportButton-*.js',
     reason:
       'The Rayen import workflow requires a live Eloisa session, so it is an online-only surface rather than PWA install payload.',
@@ -230,6 +234,10 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
       'The explorer download joins what Eloísa, Syslab and MMRAD deliver while online; it loads only when a person presses «Descargar».',
   },
   { glob: '**/assets/useClinicalPanelSnapshot-*.js', reason: 'Same policy as the entry above.' },
+  {
+    glob: '**/assets/RayenSyncTechnicalMetricsPanel-*.js',
+    reason: 'Optional sync metrics loaded only when the history technical report is expanded.',
+  },
   {
     glob: '**/assets/RayenSyncHistoryModal-*.js',
     reason: 'Sync history panel: reviewed on demand while Eloísa is connected.',

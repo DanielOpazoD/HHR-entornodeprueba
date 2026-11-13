@@ -4,7 +4,7 @@ import {
   isPavilionRecoveryEncounter,
   isPavilionRecoveryLocation,
 } from '@/features/rayen-import/domain/pavilionRecoverySyncPolicy';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type {
   RayenCensusSnapshot,
   RayenEncounter,

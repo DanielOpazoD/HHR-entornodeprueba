@@ -1,6 +1,6 @@
 import React from 'react';
-import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
-import type { DailyRecord } from '@/features/census/contracts/censusRecordContracts';
+import type { BedDefinition } from '@/types/domain/beds';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { SectionErrorBoundary } from '@/components/shared/SectionErrorBoundary';
 import { CensusTable } from './CensusTable';
 import { UpcClassificationWindowProvider } from './patient-row/UpcClassificationWindowContext';

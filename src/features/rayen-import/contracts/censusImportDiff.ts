@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * Output contract for the Rayen → HHR census import.
  *
@@ -8,7 +10,7 @@
 
 import type { NeonatalPlacementReview } from './neonatalPlacementReview';
 import type { RayenSyncCaseContext, RayenSyncDiagnosticContext } from '@/types/domain/rayenSync';
-import type { PatientData } from './rayenDomainContracts';
+
 import type { DischargeData } from '@/types/domain/movements';
 import type { RayenEncounter } from './rayenSnapshot';
 import type { DischargeKind } from '../mapping/dischargeMapping';

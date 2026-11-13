@@ -1,7 +1,9 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { BEDS } from '@/constants/beds';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import type { PatientData } from '@/services/contracts/patientServiceContracts';
+
 import { clonePatient, createEmptyPatient } from '@/services/factories/patientFactory';
 import { parsePatientDataWithDefaults } from '@/schemas/zodSchemas';
 import { mapPatientToFhir } from '@/services/utils/fhirMappers';
@@ -117,18 +119,6 @@ export const preserveCIE10FromPreviousDay = (
       }
     }
   }
-};
-
-export const enrichInitializationRecordFromCopySource = (
-  remoteRecord: DailyRecord,
-  copySourceRecord: DailyRecord | null
-): DailyRecord => {
-  if (!copySourceRecord) {
-    return remoteRecord;
-  }
-
-  preserveCIE10FromPreviousDay(remoteRecord.beds, copySourceRecord.beds);
-  return remoteRecord;
 };
 
 export const buildEmptyClinicalBeds = (): Record<string, PatientData> => {

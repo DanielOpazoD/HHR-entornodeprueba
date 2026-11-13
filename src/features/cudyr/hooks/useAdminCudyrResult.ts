@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type {
   AdminCudyrResultAdjustment,
   CudyrResultOption,

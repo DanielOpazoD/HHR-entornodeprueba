@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1316,
+  "total": 1313,
   "areas": {
     "src/application/backup-export": 4,
     "src/application/census-email": 2,
@@ -25,7 +25,7 @@
     "src/features/handoff": 1,
     "src/features/laboratory": 48,
     "src/features/prescriptions": 9,
-    "src/features/rayen-import": 153,
+    "src/features/rayen-import": 150,
     "src/features/rayen-manual-import": 6,
     "src/features/reminders": 1,
     "src/features/wound-care": 7,

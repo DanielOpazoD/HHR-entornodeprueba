@@ -1,8 +1,6 @@
-import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
-import {
-  getRecordForDateStrict,
-  saveRecordsStrict,
-} from '@/services/storage/indexeddb/indexedDbRecordService';
+import { saveBackupImport } from '@/services/repositories/dailyRecordRepositoryWriteService';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { getRecordForDateStrict } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { hasStructuralRepairs, parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
 import { CLINICAL_DERIVED_BACKUP_SECTION } from '@/services/storage/clinicalDerivedConstants';
 import { jsonImportLogger } from '@/services/exporters/exporterLoggers';
@@ -11,6 +9,7 @@ import { loadClinicalDerivedDayRestore } from '@/services/exporters/clinicalDeri
 
 export interface JsonImportResult {
   success: boolean;
+  pendingDates?: string[];
   outcome: 'clean' | 'repaired' | 'partial' | 'blocked';
   importedCount: number;
   repairedCount: number;
@@ -29,16 +28,6 @@ const readFileAsText = (file: File): Promise<string> =>
     reader.onerror = () => reject(new Error('No se pudo leer el archivo.'));
     reader.readAsText(file);
   });
-
-const persistImportedRecords = async (records: DailyRecord[]): Promise<boolean> => {
-  const result = await saveRecordsStrict(records);
-  if (!result.ok) {
-    jsonImportLogger.error('JSON import local persistence failed', result.error);
-    return false;
-  }
-
-  return true;
-};
 
 const parseImportPayload = (text: string): Record<string, unknown> => {
   const parsed = JSON.parse(text);
@@ -94,6 +83,10 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
     }
 
     if (acceptedRecords.length === 0) {
+      const pendingDates = await saveBackupImport(
+        [],
+        Object.keys(payload).filter(key => /^\d{4}-\d{2}-\d{2}$/.test(key))
+      );
       // No raw alert here: the caller (executeImportJsonBackup +
       // UI consumer) already presents the failure via useNotification
       // based on the outcome contract below.
@@ -103,6 +96,7 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
         importedCount: 0,
         repairedCount: 0,
         skippedEntries,
+        ...(pendingDates.length ? { pendingDates } : {}),
       };
     }
 
@@ -117,14 +111,18 @@ export const importDataJSONDetailed = async (file: File): Promise<JsonImportResu
       return restore.record;
     });
 
-    const persisted = await persistImportedRecords(restoredRecords);
-    if (!persisted) {
+    const pendingDates = await saveBackupImport(
+      restoredRecords,
+      Object.keys(payload).filter(key => /^\d{4}-\d{2}-\d{2}$/.test(key))
+    );
+    if (pendingDates.length) {
       return {
         success: false,
         outcome: 'blocked',
         importedCount: 0,
         repairedCount: 0,
         skippedEntries,
+        pendingDates,
       };
     }
 

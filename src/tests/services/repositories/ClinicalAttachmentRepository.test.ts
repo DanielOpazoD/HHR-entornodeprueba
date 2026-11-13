@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createClinicalAttachmentRepository } from '@/services/repositories/ClinicalAttachmentRepository';
+import {
+  executeListClinicalAttachmentsByEpisode,
+  executeListClinicalAttachmentsByPatient,
+} from '@/application/clinical-documents/clinicalAttachmentUseCases';
 import type { ClinicalAttachmentRecord } from '@/shared/clinical-documents/clinicalAttachmentContracts';
 import type { ClinicalAttachmentStorageRuntime } from '@/services/firebase-runtime/clinicalAttachmentRuntime';
 
@@ -125,20 +129,99 @@ describe('ClinicalAttachmentRepository', () => {
     db.getDocs.mockResolvedValue([deletedRecord, activeRecord]);
     const repository = createClinicalAttachmentRepository({ db, storageRuntime: buildRuntime() });
 
-    await expect(repository.listByEpisode('13.545.665-9__2026-04-15', 'hhr')).resolves.toEqual([
-      expect.objectContaining({ id: 'att_1' }),
-    ]);
+    await expect(repository.listByEpisode('13.545.665-9__2026-04-15', 'hhr')).resolves.toEqual({
+      records: [expect.objectContaining({ id: 'att_1' })],
+      omittedCount: 0,
+    });
     expect(db.getDocs).toHaveBeenCalledWith('hospitals/hhr/clinicalAttachments', {
       where: [{ field: 'episodeKey', operator: '==', value: '13.545.665-9__2026-04-15' }],
     });
 
     db.getDocs.mockClear();
     db.getDocs.mockResolvedValue([activeRecord]);
-    await expect(repository.listByPatient('13.545.665-9', 'hhr')).resolves.toEqual([
-      expect.objectContaining({ id: 'att_1' }),
-    ]);
+    await expect(repository.listByPatient('13.545.665-9', 'hhr')).resolves.toEqual({
+      records: [expect.objectContaining({ id: 'att_1' })],
+      omittedCount: 0,
+    });
     expect(db.getDocs).toHaveBeenCalledWith('hospitals/hhr/clinicalAttachments', {
       where: [{ field: 'patientRutKey', operator: '==', value: '13545665-9' }],
+    });
+  });
+
+  it.each(['episode', 'patient'] as const)(
+    'marks %s reads with invalid metadata as partial without losing valid files',
+    async scope => {
+      const db = buildDb();
+      const repository = createClinicalAttachmentRepository({ db, storageRuntime: buildRuntime() });
+      const valid = await repository.upload(buildUploadInput());
+      db.getDocs.mockResolvedValue([valid, { secret: 'synthetic-private-metadata' }]);
+      const outcome =
+        scope === 'episode'
+          ? await executeListClinicalAttachmentsByEpisode(
+              { episodeKey: valid.episodeKey, hospitalId: 'hhr' },
+              { repository }
+            )
+          : await executeListClinicalAttachmentsByPatient(
+              { patientRut: valid.patientRut, hospitalId: 'hhr' },
+              { repository }
+            );
+      expect(outcome.data).toEqual([valid]);
+      expect(outcome.status).toBe('partial');
+      expect(outcome.issues).toEqual([
+        expect.objectContaining({ kind: 'validation', technicalContext: { omittedCount: 1 } }),
+      ]);
+      expect(JSON.stringify(outcome.issues)).not.toContain('synthetic-private-metadata');
+    }
+  );
+
+  it.each(['episode', 'patient'] as const)(
+    'keeps %s transport failures in the failed outcome channel',
+    async scope => {
+      const db = buildDb();
+      const repository = createClinicalAttachmentRepository({ db, storageRuntime: buildRuntime() });
+      const error = new Error('permission-denied');
+      db.getDocs.mockRejectedValue(error);
+      const read = scope === 'episode' ? repository.listByEpisode : repository.listByPatient;
+      await expect(read('synthetic-key', 'hhr')).rejects.toBe(error);
+      const outcome =
+        scope === 'episode'
+          ? await executeListClinicalAttachmentsByEpisode(
+              { episodeKey: 'episode-1', hospitalId: 'hhr' },
+              { repository }
+            )
+          : await executeListClinicalAttachmentsByPatient(
+              { patientRut: '13.545.665-9', hospitalId: 'hhr' },
+              { repository }
+            );
+      expect(outcome.status).toBe('failed');
+    }
+  );
+
+  it('keeps a genuinely empty patient read successful and empty', async () => {
+    const db = buildDb();
+    db.getDocs.mockResolvedValue([]);
+    const repository = createClinicalAttachmentRepository({ db, storageRuntime: buildRuntime() });
+    await expect(
+      executeListClinicalAttachmentsByPatient(
+        { patientRut: '13.545.665-9', hospitalId: 'hhr' },
+        { repository }
+      )
+    ).resolves.toMatchObject({ status: 'success', data: [], issues: [] });
+  });
+
+  it('does not report success when every metadata record is invalid', async () => {
+    const db = buildDb();
+    db.getDocs.mockResolvedValue([{}]);
+    const repository = createClinicalAttachmentRepository({ db, storageRuntime: buildRuntime() });
+    await expect(
+      executeListClinicalAttachmentsByPatient(
+        { patientRut: '13.545.665-9', hospitalId: 'hhr' },
+        { repository }
+      )
+    ).resolves.toMatchObject({
+      status: 'partial',
+      data: [],
+      issues: [expect.objectContaining({ technicalContext: { omittedCount: 1 } })],
     });
   });
 

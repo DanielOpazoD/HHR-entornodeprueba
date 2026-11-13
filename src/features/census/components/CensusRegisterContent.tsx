@@ -1,8 +1,8 @@
 import React, { Suspense, type CSSProperties, useMemo, useState } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
-import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
+import type { BedDefinition } from '@/types/domain/beds';
 import type { Statistics } from '@/types/domain/statistics';
-import type { DailyRecord } from '@/features/census/contracts/censusRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { CensusActionsProvider } from './CensusActionsContext';
 import { CensusPrintHeader } from './CensusPrintHeader';
 import { CensusAttentionBar } from './CensusAttentionBar';

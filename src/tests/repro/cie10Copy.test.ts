@@ -36,11 +36,12 @@ describe('CIE-10 Copy Bug Reproduction', () => {
   beforeEach(() => {
     vi.mocked(IndexedDBService.captureLocalRecordBase).mockImplementation(async date => ({
       kind: 'stored',
-      record: await IndexedDBService.getRecordForDate(date),
+      record: await IndexedDBService.getRecordForDateStrict(date),
     }));
-    vi.mocked(IndexedDBService.inspectLocalRecordAdmission).mockResolvedValue({
+    vi.mocked(IndexedDBService.inspectLocalRecordAdmission).mockImplementation(async date => ({
       status: 'admitted',
-    });
+      record: await IndexedDBService.getRecordForDateStrict(date),
+    }));
   });
 
   it('should copy CIE-10 fields from previous day', async () => {
@@ -82,14 +83,14 @@ describe('CIE-10 Copy Bug Reproduction', () => {
     };
 
     // Configuration for mocks
-    vi.mocked(IndexedDBService.getRecordForDate).mockImplementation(async (date: string) => {
+    vi.mocked(IndexedDBService.getRecordForDateStrict).mockImplementation(async (date: string) => {
       if (date === prevDate) return mockPrevRecord;
       if (date === nextDate) return null;
       return null;
     });
     vi.mocked(FirestoreRecordQueries.getRecordFromFirestore).mockResolvedValue(null);
     vi.mocked(FirestoreRecordQueries.getRecordFromFirestoreDetailed).mockResolvedValue({
-      serverConfirmed: false,
+      serverConfirmed: true,
       status: 'missing',
       record: null,
     });
@@ -175,13 +176,13 @@ describe('CIE-10 Copy Bug Reproduction', () => {
     };
 
     // Configuration for mocks
-    vi.mocked(IndexedDBService.getRecordForDate).mockImplementation(async (date: string) => {
+    vi.mocked(IndexedDBService.getRecordForDateStrict).mockImplementation(async (date: string) => {
       if (date === prevDate) return mockPrevRecord;
       return null;
     });
     vi.mocked(FirestoreRecordQueries.getRecordFromFirestore).mockResolvedValue(null);
     vi.mocked(FirestoreRecordQueries.getRecordFromFirestoreDetailed).mockResolvedValue({
-      serverConfirmed: false,
+      serverConfirmed: true,
       status: 'missing',
       record: null,
     });

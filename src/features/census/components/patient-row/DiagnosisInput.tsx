@@ -1,3 +1,5 @@
+import type { CesareanLabor, DeliveryRoute, PatientData } from '@/types/domain/patient';
+
 /**
  * DiagnosisInput - Diagnosis input with CIE-10 and free text modes
  */
@@ -14,11 +16,7 @@ import {
   isObstetricGinecobstetricia,
 } from '@/shared/census/ginecobstetriciaClassification';
 import { PatientInputSchema } from '@/schemas/inputSchemas';
-import type {
-  CesareanLabor,
-  DeliveryRoute,
-} from '@/features/census/contracts/censusObstetricContracts';
-import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
+
 import type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 import { BaseCellProps, DebouncedTextHandler } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';

@@ -21,11 +21,14 @@ import { presentPatientUpdates, updateEntryKey } from './rayenImportUpdatePresen
 import type { RayenSyncStage } from '../hooks/rayenSyncExecutionState';
 import { EquivalentBedCollisionReview } from './EquivalentBedCollisionReview';
 import { RayenImportSummaryChips } from './RayenImportSummaryChips';
-import { reservedRayenTargetBedIds } from './rayenImportPreviewState';
+import { reservedRayenStructuralTargetBedIds } from '../domain/bedOccupancyCollisionPolicy';
 import { RayenAdmissionReview } from './RayenAdmissionReview';
 import { areCmaAdmissionsResolved } from '../domain/cmaAdmissionReview';
 import { ClinicalCribDischargeRepairReview } from './ClinicalCribDischargeRepairReview';
 import { RayenReportEgresoStamp } from './RayenReportEgresoStamp';
+const reservedRayenTargetBedIds = (diff: CensusImportDiff | null): string[] =>
+  diff ? reservedRayenStructuralTargetBedIds(diff) : [];
+
 export interface RayenImportPreviewModalProps {
   isOpen: boolean;
   diff: CensusImportDiff | null;

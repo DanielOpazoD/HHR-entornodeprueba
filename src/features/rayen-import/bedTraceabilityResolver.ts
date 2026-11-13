@@ -1,6 +1,8 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
 import type { CensusImportDiff } from './contracts/censusImportDiff';
-import type { DailyRecord, PatientData } from './contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenCensusSnapshot, RayenEncounter } from './contracts/rayenSnapshot';
 import type { EgresoLookupResult } from './contracts/egresoLookup';
 import { censusNightCloseTimestamp, toIsoCensusDay } from './domain/censusDayPolicy';
@@ -12,7 +14,7 @@ import {
 } from './mapping/encounterWallClock';
 import { normalizeRut } from '@/utils/rutUtils';
 import { historicalEncounterFromLocal } from './domain/historicalEncounterFromLocal';
-import type { ClinicalReadErrorCode } from './contracts/clinicalReadError';
+import type { ClinicalReadErrorCode } from '@/types/domain/rayenSync';
 
 export interface PatientFlowReportResult {
   base64: string;

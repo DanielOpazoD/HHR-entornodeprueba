@@ -1,12 +1,10 @@
-import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
-import {
-  getRecordsRange,
-  saveRecordsStrict,
-} from '@/services/storage/indexeddb/indexedDbRecordService';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { getRecordsRange } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { admitRemoteDailyRecords } from '@/services/repositories/dailyRecordLocalCachePersistence';
 import * as firestoreService from '@/services/storage/firestore';
+import { UnconfirmedDailyRecordRangeError } from '@/services/storage/firestore/firestoreRecordQueries';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
-import { resolvePreferredDailyRecord } from '@/services/repositories/dailyRecordSyncCompatibility';
 
 export const DATA_MAINTENANCE_MONTH_NAMES = [
   'Enero',
@@ -39,9 +37,7 @@ const mergeRecordsByDate = (
 
   return sortRecordsAscending(
     Array.from(dates)
-      .map(date =>
-        resolvePreferredDailyRecord(localMap.get(date) ?? null, remoteMap.get(date) ?? null)
-      )
+      .map(date => remoteMap.get(date) ?? localMap.get(date) ?? null)
       .filter((record): record is DailyRecord => record !== null)
   );
 };
@@ -56,15 +52,31 @@ export const hydrateRangeRecords = async (
     return sortRecordsAscending(localRecords);
   }
 
-  const remoteRecords = await firestoreService.getRecordsRangeFromFirestore(startDate, endDate);
+  let remoteRecords: DailyRecord[];
+  try {
+    remoteRecords = await firestoreService.getRecordsRangeFromFirestore(startDate, endDate);
+  } catch (error) {
+    if (error instanceof UnconfirmedDailyRecordRangeError) {
+      const retained = await getRecordsRange(startDate, endDate);
+      if (retained.length > 0) return sortRecordsAscending(retained);
+    }
+    throw error;
+  }
   const mergedRecords = mergeRecordsByDate(localRecords, remoteRecords);
 
   if (mergedRecords.length > 0) {
-    const result = await saveRecordsStrict(mergedRecords, { preserveUnresolvedWrites: true });
-    if (!result.ok) {
-      throw new Error(result.userSafeMessage ?? 'No fue posible guardar registros locales.');
+    const remoteByDate = new Map(remoteRecords.map(record => [record.date, record]));
+    try {
+      const results = await admitRemoteDailyRecords(
+        mergedRecords.map(record => ({
+          record,
+          remoteRecord: remoteByDate.get(record.date) ?? null,
+        }))
+      );
+      return results.flatMap(result => (result.record ? [result.record] : []));
+    } catch {
+      throw new Error('No fue posible guardar registros locales.');
     }
-    return result.records ?? mergedRecords;
   }
 
   return mergedRecords;

@@ -199,7 +199,12 @@ export const validateTestEvidence = (evidence, identity, expectedCi) => {
       throw new Error('Reporter CI run or attempt differs from current run');
     if (evidence.identity.worktreeDirty) throw new Error('CI reporter source must be clean');
     const failures = executionIssues({ ...evidence, ...summary });
-    if (failures.length) throw new Error(failures.join('; '));
+    if (failures.length) {
+      const skipped = summary.cases
+        .filter(test => test.status === 'skipped')
+        .map(test => `skipped: ${test.file} > ${test.title}`);
+      throw new Error(`${evidence.suiteId || 'evidence'}: ${[...failures, ...skipped].join('; ')}`);
+    }
   }
   return summary;
 };
@@ -350,6 +355,7 @@ export const buildRequiredCiSuites = root => {
     },
     ...CRITICAL_LANES.map(lane => ({
       suiteId: `critical-${lane}`,
+      allowSkipped: false,
       job: 'e2e-critical-lanes',
       kind: 'playwright',
       script: 'test:e2e:critical:ci',
@@ -358,6 +364,7 @@ export const buildRequiredCiSuites = root => {
     })),
     {
       suiteId: 'cudyr',
+      allowSkipped: false,
       job: 'e2e-critical-lanes',
       kind: 'playwright',
       script: 'test:e2e:cudyr-flow:ci',
@@ -365,6 +372,7 @@ export const buildRequiredCiSuites = root => {
     },
     {
       suiteId: 'flow',
+      allowSkipped: false,
       job: 'e2e-critical-lanes',
       kind: 'playwright',
       script: 'test:e2e:flow-performance:built',
@@ -419,8 +427,12 @@ export const collectRequiredCiEvidenceIssues = (
     if (
       suite.allowSkipped === false &&
       (item.counts.skipped || item.counts.todo || item.counts.collected)
-    )
-      issue('Required Storage rules cases were skipped or unfinished');
+    ) {
+      issue('Required cases were skipped or unfinished');
+      for (const test of item.cases || [])
+        if (['skipped', 'todo', 'collected'].includes(test.status))
+          issue(`${test.status}: ${test.file} > ${test.title}`);
+    }
     for (const file of item.duplicateFiles || []) issue(`Duplicate observed file: ${file}`);
     const observed = new Set(item.files || []),
       expected = new Set(suite.files);

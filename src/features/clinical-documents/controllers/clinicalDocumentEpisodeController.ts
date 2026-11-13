@@ -1,5 +1,7 @@
+import type { ClinicalDocumentsWorkspacePatientContract } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
+
 import type { ClinicalDocumentEpisodeContext } from '@/features/clinical-documents/domain/clinicalDocumentEpisodeTypes';
-import type { PatientData } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
+
 import {
   buildClinicalEpisodeKey as buildClinicalEpisodeKeyFromApplication,
   buildClinicalEpisodeLookupKeys,
@@ -30,14 +32,16 @@ export const getCurrentDateValue = (): string => calendarStampInClinicalTimeZone
 /** Returns the hospital's current wall-clock time as an HH:MM string. */
 export const getCurrentTimeValue = (): string => calendarStampInClinicalTimeZone().hhmm;
 
-const resolveClinicalDocumentDischargeDateValue = (patient: PatientData): string =>
+const resolveClinicalDocumentDischargeDateValue = (
+  patient: ClinicalDocumentsWorkspacePatientContract
+): string =>
   normalizeCalendarDate(patient.episodeClosureDate) ||
   normalizeCalendarDate(patient.dischargeDate) ||
   normalizeCalendarDate(patient.transferDate) ||
   getCurrentDateValue();
 
 export const buildClinicalDocumentEpisodeLookupKeys = (
-  patient: PatientData,
+  patient: ClinicalDocumentsWorkspacePatientContract,
   primaryEpisodeKey?: string
 ): string[] => buildClinicalEpisodeLookupKeys(patient, primaryEpisodeKey);
 
@@ -67,7 +71,7 @@ const recordClinicalDocumentEpisodeFallback = (
  * @returns Episode context used to scope the document
  */
 export const buildClinicalDocumentEpisodeContext = (
-  patient: PatientData,
+  patient: ClinicalDocumentsWorkspacePatientContract,
   sourceDailyRecordDate: string,
   sourceBedId: string
 ): ClinicalDocumentEpisodeContext => {
@@ -98,7 +102,7 @@ export const buildClinicalDocumentEpisodeContext = (
  * @returns Map of field names to display values (nombre, rut, edad, etc.)
  */
 export const buildClinicalDocumentPatientFieldValues = (
-  patient: PatientData
+  patient: ClinicalDocumentsWorkspacePatientContract
 ): Record<string, string> => ({
   nombre: patient.patientName || '',
   rut: patient.rut || '',

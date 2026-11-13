@@ -6,7 +6,8 @@ import {
   localProjectionIds,
   staleDailyRecordError,
 } from '@/services/storage/sync/fullSaveNoteBaseGuard';
-import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import type { DailyRecordPatchWrite } from '@/services/storage/sync/syncQueuePorts';
 import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
@@ -16,7 +17,7 @@ import {
   sameSpecialistHandoffTarget,
   specialistHandoffTextState,
 } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
-// The replay-time occupant checks ship with the enqueue-time one, in this lazy chunk.
+// The replay-time occupant checks ship with the enqueue-time one, with the durable writer.
 export { detachStaleOccupantPaths } from '@/services/storage/sync/dayTaskOccupantDetach';
 export {
   hasOtherOccupantInUntouchedBed,
@@ -59,7 +60,7 @@ export const publishDetachedNotes = async (notes: SpecialistHandoffSyncPayload) 
  * A day's pending truth is its local projection plus the unresolved write that holds it. A write
  * computed from another base must land on top of that projection: its changed paths take its
  * values and every other pending path keeps the value another accepted write gave it.
- * The outbox store loads this module on demand, so it stays off the authenticated startup shell.
+ * The outbox store loads the durable writer before editing is available, including offline.
  */
 
 type PendingProjectionRebase = (projection: DailyRecord, pendingPaths: string[]) => DailyRecord;
@@ -180,7 +181,7 @@ const buildPatchRebase =
  * The outbox task one write leaves for the day. When an unresolved write still holds the stored
  * projection as its payload, the write lands on that projection and keeps that write's remote base.
  */
-const foldWriteIntoOutbox = ({
+export const foldWriteIntoOutbox = ({
   task,
   existing,
   stored,

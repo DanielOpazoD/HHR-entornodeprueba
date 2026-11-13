@@ -1,7 +1,10 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { BEDS } from '@/constants/beds';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
-import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
-import type { PatientData } from '@/hooks/contracts/patientHookContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+
 import { BedType } from '@/types/domain/beds';
 import { getBedTypeForRecord } from '@/utils/bedTypeUtils';
 import { deepClone } from '@/utils/deepClone';

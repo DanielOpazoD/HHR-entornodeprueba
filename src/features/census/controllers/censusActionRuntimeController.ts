@@ -1,12 +1,10 @@
-import type { DailyRecord } from '@/features/census/contracts/censusRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { StabilityRules } from '@/hooks/useStabilityRules';
 import type { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
 import { createInitialActionState } from '@/domain/censusActionContracts';
-import {
-  resolveDischargeCommand,
-  resolveMoveOrCopyCommand,
-  resolveTransferCommand,
-} from '@/features/census/controllers/censusActionExecutionController';
+import { resolveDischargeCommand } from '@/features/census/controllers/censusDischargeCommandController';
+import { resolveMoveOrCopyCommand } from '@/features/census/controllers/censusMoveOrCopyCommandController';
+import { resolveTransferCommand } from '@/features/census/controllers/censusTransferCommandController';
 import { failWithCode, ok } from '@/features/census/controllers/controllerResult';
 import {
   executeDischargeRuntimeCommand,

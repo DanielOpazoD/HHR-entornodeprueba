@@ -1,3 +1,4 @@
+import type { AuthoringSession } from '@/services/storage/authoringSession';
 import { CURRENT_SCHEMA_VERSION } from '@/constants/version';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
@@ -34,9 +35,10 @@ const isConcurrencyError = (error: unknown): boolean =>
 
 const queueRecoveryTask = async (
   record: DailyRecord,
-  meta: NonNullable<Parameters<typeof queueDailyRecordSyncTaskWithLocalRecord>[1]>
+  meta: NonNullable<Parameters<typeof queueDailyRecordSyncTaskWithLocalRecord>[1]>,
+  authoringSession: AuthoringSession
 ): Promise<boolean> => {
-  const result = await queueDailyRecordSyncTaskWithLocalRecord(record, meta);
+  const result = await queueDailyRecordSyncTaskWithLocalRecord(record, meta, { authoringSession });
   return result.accepted;
 };
 
@@ -99,24 +101,12 @@ export const runRemoteSaveIntegrityCheck = async (
   }
 };
 
-export const queueRetryForRecord = async (record: DailyRecord): Promise<boolean> => {
-  return queueRecoveryTask(record, {
-    contexts: ['clinical', 'staffing', 'movements', 'handoff', 'metadata'],
-    origin: 'full_save_retry',
-    syncContract: {
-      expectedVersion: record.lastUpdated,
-      changedPaths: ['*'],
-    },
-  });
-};
-
-export const shouldQueueRetryableError = (error: unknown): boolean => isRetryableSyncError(error);
-
 export const resolveRemoteWriteRecovery = async (
   date: string,
   record: DailyRecord,
   changedPaths: string[],
   error: unknown,
+  authoringSession: AuthoringSession,
   expectedVersion?: string,
   allowConflictAutoMerge: boolean = true,
   localWriteAlreadyQueued: boolean = false
@@ -137,16 +127,18 @@ export const resolveRemoteWriteRecovery = async (
       changedPaths,
       error,
       conflictSummary,
+      authoringSession,
       allowConflictAutoMerge
     );
   }
 
-  if (shouldQueueRetryableError(error)) {
+  if (isRetryableSyncError(error)) {
     const queued =
       localWriteAlreadyQueued ||
       (await queueRecoveryTask(
         record,
-        buildRecoveryTaskMeta(changedPaths, resolveRetryOrigin(changedPaths), expectedVersion)
+        buildRecoveryTaskMeta(changedPaths, resolveRetryOrigin(changedPaths), expectedVersion),
+        authoringSession
       ));
     return resolveQueuedRetryRecoveryResult(
       queued,

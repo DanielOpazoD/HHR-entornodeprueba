@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { type PrescriptionRecord, type PrescriptionType } from '@/types/prescriptionTypes';
 import { PrescriptionPatientLightbox } from '@/features/prescriptions/components/PrescriptionPatientLightbox';
 import { PrescriptionReassignDialog } from '@/features/prescriptions/components/PrescriptionReassignDialog';

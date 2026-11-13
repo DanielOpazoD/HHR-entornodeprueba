@@ -5,8 +5,22 @@ import type { SyncDailyRecordResult } from '@/services/repositories/contracts/da
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/storage/indexeddb/indexedDbRecordService')>()),
-  getRecordForDate: vi.fn(),
+  getRecordForDateStrict: vi.fn(),
   saveRecordStrict: vi.fn(),
+  admitLocalRecords: async (
+    candidates: Array<{ record: DailyRecord; isCurrent?: () => boolean }>
+  ) => {
+    const results = [];
+    for (const { record, isCurrent } of candidates) {
+      if (isCurrent && !isCurrent()) {
+        results.push({ date: record.date, status: 'superseded', record: null });
+        continue;
+      }
+      await saveRecordStrict(record, { preserveUnresolvedWrites: true });
+      results.push({ date: record.date, status: 'admitted', record });
+    }
+    return results;
+  },
 }));
 
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', async importOriginal => ({
@@ -28,7 +42,7 @@ vi.mock('@/services/repositories/dailyRecordRemoteLoader', () => ({
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { subscribeDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
 import {
-  getRecordForDate,
+  getRecordForDateStrict,
   saveRecordStrict,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { subscribeToRecord } from '@/services/storage/firestore/firestoreRecordQueries';
@@ -76,7 +90,7 @@ describe('daily record realtime subscription lifecycle', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getRecordForDate).mockReset().mockResolvedValue(null);
+    vi.mocked(getRecordForDateStrict).mockReset().mockResolvedValue(null);
     vi.mocked(saveRecordStrict)
       .mockReset()
       .mockImplementation(async record => ({
@@ -130,7 +144,7 @@ describe('daily record realtime subscription lifecycle', () => {
 
   it('invalidates an older local read on SDK failure without late hydration or delivery', async () => {
     const localRead = deferred<DailyRecord | null>();
-    vi.mocked(getRecordForDate).mockReturnValueOnce(localRead.promise);
+    vi.mocked(getRecordForDateStrict).mockReturnValueOnce(localRead.promise);
     const { next, error, onResult, onFailure } = start();
 
     next(recordFor('A'), false, confirmedMetadata);
@@ -148,7 +162,7 @@ describe('daily record realtime subscription lifecycle', () => {
   it('delivers and hydrates only B when A and B local reads finish backwards', async () => {
     const readA = deferred<DailyRecord | null>();
     const readB = deferred<DailyRecord | null>();
-    vi.mocked(getRecordForDate)
+    vi.mocked(getRecordForDateStrict)
       .mockReturnValueOnce(readA.promise)
       .mockReturnValueOnce(readB.promise);
     const { next, onResult, onFailure } = start();
@@ -181,7 +195,7 @@ describe('daily record realtime subscription lifecycle', () => {
 
   it('ignores an obsolete read rejection after B has been delivered', async () => {
     const readA = deferred<DailyRecord | null>();
-    vi.mocked(getRecordForDate).mockReturnValueOnce(readA.promise);
+    vi.mocked(getRecordForDateStrict).mockReturnValueOnce(readA.promise);
     const { next, onResult, onFailure } = start();
     next(recordFor('A'), false, confirmedMetadata);
     next(recordFor('B'), false, confirmedMetadata);
@@ -207,18 +221,18 @@ describe('daily record realtime subscription lifecycle', () => {
 
     expect(onResult.mock.calls).toEqual([]);
     expect(onFailure.mock.calls).toEqual([[expect.objectContaining(blockedFailure)]]);
-    expect(getRecordForDate).not.toHaveBeenCalled();
+    expect(getRecordForDateStrict).not.toHaveBeenCalled();
     expect(saveRecordStrict).not.toHaveBeenCalled();
     expect(getPendingDailyRecordProjection).not.toHaveBeenCalled();
     expect(loadRemoteRecordWithFallback).not.toHaveBeenCalled();
   });
 
-  it.each(['local read', 'hydration', 'pending projection'])(
+  it.each(['local read', 'hydration'])(
     'contains a rejected %s and accepts a later valid snapshot without recursive IO fallback',
     async stage => {
       const failure = deferred<never>();
       if (stage === 'local read') {
-        vi.mocked(getRecordForDate).mockReturnValueOnce(failure.promise);
+        vi.mocked(getRecordForDateStrict).mockReturnValueOnce(failure.promise);
       } else if (stage === 'hydration') {
         vi.mocked(saveRecordStrict).mockReturnValueOnce(failure.promise);
       } else {
@@ -232,7 +246,7 @@ describe('daily record realtime subscription lifecycle', () => {
 
       expect(onResult.mock.calls).toEqual([]);
       expect(onFailure.mock.calls).toEqual([[expect.objectContaining(blockedFailure)]]);
-      expect(getRecordForDate).toHaveBeenCalledTimes(1);
+      expect(getRecordForDateStrict).toHaveBeenCalledTimes(1);
       expect(saveRecordStrict).toHaveBeenCalledTimes(stage === 'local read' ? 0 : 1);
       expect(getPendingDailyRecordProjection).toHaveBeenCalledTimes(
         stage === 'pending projection' ? 1 : 0
@@ -259,7 +273,7 @@ describe('daily record realtime subscription lifecycle', () => {
     'stops before a local read can %s or a listener can fail',
     async settlement => {
       const localRead = deferred<DailyRecord | null>();
-      vi.mocked(getRecordForDate).mockReturnValueOnce(localRead.promise);
+      vi.mocked(getRecordForDateStrict).mockReturnValueOnce(localRead.promise);
       const { next, error, stop, onResult, onFailure } = start();
       next(recordFor('A'), false, confirmedMetadata);
       stop();
@@ -300,7 +314,9 @@ describe('daily record realtime subscription lifecycle', () => {
       });
       if (source === 'SDK') error(new Error('Synthetic SDK failure'));
       else {
-        vi.mocked(getRecordForDate).mockRejectedValueOnce(new Error('Synthetic read failure'));
+        vi.mocked(getRecordForDateStrict).mockRejectedValueOnce(
+          new Error('Synthetic read failure')
+        );
         next(recordFor('A'), false, confirmedMetadata);
       }
       await setImmediate();

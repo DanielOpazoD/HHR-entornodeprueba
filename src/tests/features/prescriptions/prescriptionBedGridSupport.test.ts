@@ -5,7 +5,7 @@ import {
   isStockRecord,
   isUnassignedRecord,
 } from '@/features/prescriptions/components/prescriptionBedGridSupport';
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PrescriptionRecord } from '@/types/prescriptionTypes';
 
 const buildPrescription = (

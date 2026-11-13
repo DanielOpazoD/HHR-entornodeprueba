@@ -17,9 +17,9 @@ import {
   fetchExalabPdf,
   searchExalab,
   ExalabRequestError,
-  type ExalabExam,
   type ExalabSessionStatus,
 } from '@/services/laboratory/exalabService';
+import { type ExalabExam } from '@/types/domain/labExamTypes';
 
 const inputClass =
   'min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500';

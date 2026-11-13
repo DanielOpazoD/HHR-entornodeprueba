@@ -1,3 +1,5 @@
+import type { MedicalHandoffAuditActor, PatientData } from '@/types/domain/patient';
+
 /**
  * useHandoffLogic Hook
  * Extracted from HandoffView.tsx for better separation of concerns.
@@ -25,7 +27,7 @@
  */
 
 import { useCallback, useMemo } from 'react';
-import { MedicalHandoffAuditActor, PatientData } from '@/hooks/contracts/patientHookContracts';
+
 import { getShiftSchedule } from '@/utils/clinicalDayUtils';
 import { useAuditContext } from '@/context/AuditContext';
 import { useDailyRecordData } from '@/context/DailyRecordContext';

@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * Maps a normalized Rayen encounter to an HHR `PatientData`, reusing the
  * canonical `EMPTY_PATIENT` defaults so every required field is populated.
@@ -8,16 +10,20 @@
 import { EMPTY_PATIENT } from '@/constants/patient';
 import { BEDS } from '@/constants/beds';
 import { PatientStatus } from '@/types/domain/patientClassification';
-import type { PatientData } from '../contracts/rayenDomainContracts';
+
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { mapRayenBed } from './bedMapping';
 import { encounterWallClockInRapaNui } from './encounterWallClock';
-import { isPassportFormat } from '@/utils/rutUtils';
+import { hasNonRutLetter, isPassportFormat, normalizeRut } from '@/utils/rutUtils';
+
+/** Any letter other than a final K check digit makes the source document a passport. */
+const isSourcePassport = (raw?: string): boolean =>
+  isPassportFormat(raw ?? '') || hasNonRutLetter(raw ?? '');
 
 /** Format a RUN as "14.470.055-4" from raw ("144700554") or already-formatted input. */
 export const formatRun = (raw?: string): string => {
-  if (isPassportFormat(raw ?? '')) return (raw ?? '').trim().toUpperCase();
-  const cleaned = (raw ?? '').replace(/[^0-9kK]/g, '');
+  if (isSourcePassport(raw)) return (raw ?? '').trim().toUpperCase();
+  const cleaned = normalizeRut(raw);
   if (cleaned.length < 2) return (raw ?? '').trim();
   const dv = cleaned.slice(-1).toUpperCase();
   const body = cleaned.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
@@ -189,7 +195,7 @@ export const rayenToPatientData = (
     bedId: bedId ?? '',
     clinicalEpisodeId: encounter.encounterId,
     rut: formatRun(encounter.run),
-    documentType: isPassportFormat(encounter.run) ? 'Pasaporte' : 'RUT',
+    documentType: isSourcePassport(encounter.run) ? 'Pasaporte' : 'RUT',
     patientName: fullName,
     firstName: givenNames,
     lastName: firstFamily,

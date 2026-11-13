@@ -34,7 +34,7 @@
 
 | Id    | Estado     | Nota                                                                                                                                                                                                                         |
 | ----- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Q00` | completado | plan iterativo abierto en `docs/ITERATIVE_QUALITY_EXECUTION_PLAN.md` y deuda registrada                                                                                                                                      |
+| `Q00` | completado | plan iterativo abierto en `docs/archive/ITERATIVE_QUALITY_EXECUTION_PLAN.md` y deuda registrada                                                                                                                              |
 | `Q01` | completado | `feature-dependency-matrix`, `test-failure-catalog` y artefactos `reports/*` quedaron alineados; checks de salida en verde                                                                                                   |
 | `Q02` | completado | los shims de compatibilidad de `census` quedaron gobernados explícitamente y `sharedCensusBrowserRuntimeController` ya usa el adapter del feature                                                                            |
 | `Q03` | completado | los casos de uso de `clinical-documents` ya consumen contratos internos en lugar de reingresar por `index/public`, `patient-flow` consolidó `Conflict` en el engine y `check:architecture` más `typecheck` quedaron en verde |
@@ -55,7 +55,6 @@
 | `N06` | completado             | `minsalStatsCalculator.test.ts` quedó repartido entre `ranges-and-snapshots`, `aggregate-stats` y `stay-resolution`                              |
 | `N07` | completado             | `firestore-rules.test.ts` quedó reducido a un entrypoint con harness común y grupos separados por dominio                                        |
 | `N08` | completado             | `flake-risk files` bajó a `0` al eliminar el `Date.now()` no determinista de `auditViewThrottle.test.ts`                                         |
-| `N09` | completado             | `check:domain-hotspot-boundary` volvió a verde al retirar el import directo residual desde `shared/census`                                       |
 | `N10` | completado             | `reports/quality-metrics` ahora mide `raw console warn/error outside structured sink` y el valor quedó en `0`                                    |
 | `N11` | completado             | `ApplicationOutcome` y sus helpers pasaron a `shared/contracts`; ya no quedan imports productivos a `application/shared/applicationOutcome*`     |
 | `N12` | completado             | `docs/TECHNICAL_DEBT_REGISTER.md` quedó alineado con el estado actual; `census-type-drift` se cerró con `typecheck` verde y tests en API vigente |

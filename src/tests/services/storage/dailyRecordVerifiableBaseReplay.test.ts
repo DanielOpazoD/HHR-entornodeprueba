@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import {
@@ -18,7 +19,7 @@ import {
 } from '@/tests/services/storage/specialistHandoffNoteDaySupport';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { persistHydratedRecordToLocalCache } from '@/services/repositories/dailyRecordLocalCachePersistence';
+import { admitRemoteDailyRecords } from '@/services/repositories/dailyRecordLocalCachePersistence';
 import { updateRecordPartial } from '@/services/storage/firestore/firestoreRecordWrites';
 import { extractClinicalAuthorityPatch } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import { normalizeDailyRecordAuthorityError } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
@@ -75,7 +76,7 @@ it.each([false, true])(
     const result = await updatePartialDetailed(
       base.date,
       { 'beds.R6.pathology': 'PENDIENTE SINTETICO' },
-      { baseRecord: base }
+      { authoringSession: captureAuthoringSession(), baseRecord: base }
     );
     expect(result.updatedRemotely).toBe(false);
     expect(remote().beds.R6.pathology).toBe('Dx E');
@@ -98,7 +99,10 @@ it.each([false, true])(
     await expect(retryQuarantinedSyncTask(refused.id)).resolves.toBe(false);
     expect(await queue()).toEqual([refused]);
     expect(await queue()).toHaveLength(1);
-    const hydrated = await persistHydratedRecordToLocalCache(remote(), base.date);
+    const [admission] = await admitRemoteDailyRecords([
+      { record: remote(), remoteRecord: remote() },
+    ]);
+    const hydrated = admission.record!;
     expect(hydrated.beds.R6.pathology).toBe('PENDIENTE SINTETICO');
     expect(await queue()).toEqual([refused]);
     await expect(retryQuarantinedSyncTask(refused.id)).resolves.toBe(false);
@@ -114,7 +118,7 @@ it('publishes a patch whose writer keeps the actual stored version', async () =>
   const result = await updatePartialDetailed(
     base.date,
     { 'beds.R6.pathology': 'ACEPTADO SINTETICO' },
-    { baseRecord: base }
+    { authoringSession: captureAuthoringSession(), baseRecord: base }
   );
   expect(result.updatedRemotely).toBe(true);
   expect(remote().beds.R6.pathology).toBe('ACEPTADO SINTETICO');

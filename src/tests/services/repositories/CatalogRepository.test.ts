@@ -14,6 +14,7 @@ vi.mock('@/services/storage/indexeddb/indexedDbCatalogService', () => ({
   saveCatalog: vi.fn(),
   getCatalogValues: vi.fn(),
   saveCatalogValues: vi.fn(),
+  cacheCatalogValues: vi.fn(),
 }));
 vi.mock('@/services/storage/firestore', () => ({
   saveNurseCatalogToFirestore: vi.fn(),
@@ -54,9 +55,12 @@ describe('CatalogRepository', () => {
     });
 
     it('saveNurses should save to both', async () => {
-      await CatalogRepository.saveNurses([' Nurse A ', 'Nurse A', '']);
-      expect(catalogService.saveCatalog).toHaveBeenCalledWith('nurses', ['Nurse A']);
-      expect(firestoreService.saveNurseCatalogToFirestore).toHaveBeenCalledWith(['Nurse A']);
+      await CatalogRepository.saveNurses([' Nurse A ', 'Nurse A', ''], []);
+      expect(catalogService.cacheCatalogValues).toHaveBeenCalledWith('nurses', ['Nurse A'], true);
+      expect(firestoreService.saveNurseCatalogToFirestore).toHaveBeenCalledWith(
+        ['Nurse A'],
+        expect.any(Array)
+      );
     });
 
     it('subscribeNurses should call firestore service', () => {
@@ -96,9 +100,12 @@ describe('CatalogRepository', () => {
     });
 
     it('saveTens should save to both', async () => {
-      await CatalogRepository.saveTens([' TENS A ', 'TENS A', '']);
-      expect(catalogService.saveCatalog).toHaveBeenCalledWith('tens', ['TENS A']);
-      expect(firestoreService.saveTensCatalogToFirestore).toHaveBeenCalledWith(['TENS A']);
+      await CatalogRepository.saveTens([' TENS A ', 'TENS A', ''], []);
+      expect(catalogService.cacheCatalogValues).toHaveBeenCalledWith('tens', ['TENS A'], true);
+      expect(firestoreService.saveTensCatalogToFirestore).toHaveBeenCalledWith(
+        ['TENS A'],
+        expect.any(Array)
+      );
     });
 
     it('subscribeTens should call firestore service', () => {
@@ -134,8 +141,8 @@ describe('CatalogRepository', () => {
       const profs: ProfessionalCatalogItem[] = [
         { name: 'Dr. X', phone: '123', specialty: 'Cirugía' },
       ];
-      await CatalogRepository.saveProfessionals(profs);
-      expect(catalogService.saveCatalogValues).toHaveBeenCalledWith('professionals', profs);
+      await CatalogRepository.saveProfessionals(profs, []);
+      expect(catalogService.cacheCatalogValues).toHaveBeenCalledWith('professionals', profs, true);
     });
 
     it('subscribeProfessionals should call firestore service', () => {

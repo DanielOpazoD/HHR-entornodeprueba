@@ -1,6 +1,9 @@
+import { authoredOptions, type PublicWriteOptions } from '@/services/storage/authoringSession';
+import { createRecoverableRuntimeLoader } from '@/services/runtime/createRecoverableRuntimeLoader';
 import { createSyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
-import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { CopyPatientToDateResult } from '@/services/repositories/dailyRecordRepositoryInitializationService';
 import type {
   SaveDailyRecordResult,
@@ -35,7 +38,8 @@ const loadDailyRecordInitializationService = createCachedRuntimeLoader(
   () => import('@/services/repositories/dailyRecordRepositoryInitializationService')
 );
 
-const loadDailyRecordWriteService = createCachedRuntimeLoader(
+export const loadDailyRecordWriteService = createRecoverableRuntimeLoader(
+  'save-write',
   () => import('@/services/repositories/dailyRecordRepositoryWriteService')
 );
 
@@ -111,24 +115,20 @@ const createLazySubscription = (
 const updatePartialDailyRecord = (
   date: string,
   patch: DailyRecordPatch,
-  options?: PartialUpdateDailyRecordOptions
-): Promise<UpdatePartialDailyRecordResult> =>
-  withWriteService(service =>
-    options
-      ? service.updatePartialDetailed(date, patch, options)
-      : service.updatePartialDetailed(date, patch)
-  );
+  options?: PublicWriteOptions<PartialUpdateDailyRecordOptions>
+): Promise<UpdatePartialDailyRecordResult> => {
+  const authored = authoredOptions<PartialUpdateDailyRecordOptions>(options ?? {});
+  return withWriteService(service => service.updatePartialDetailed(date, patch, authored));
+};
 
 const saveDailyRecord = (
   record: DailyRecord,
   expectedLastUpdated?: string,
-  options?: SaveDailyRecordOptions
-): Promise<SaveDailyRecordResult> =>
-  withWriteService(service =>
-    options
-      ? service.saveDetailed(record, expectedLastUpdated, options)
-      : service.saveDetailed(record, expectedLastUpdated)
-  );
+  options?: PublicWriteOptions<SaveDailyRecordOptions>
+): Promise<SaveDailyRecordResult> => {
+  const authored = authoredOptions<SaveDailyRecordOptions>(options ?? {});
+  return withWriteService(service => service.saveDetailed(record, expectedLastUpdated, authored));
+};
 
 const deleteDailyRecord = (date: string): Promise<void> =>
   withDeletionService(service => service.deleteDailyRecordAcrossStores(date));
@@ -145,7 +145,6 @@ const adoptAuthoritativeDailyRecord = (
 export interface DailyRecordReadPort {
   getPreviousDay: (date: string) => Promise<DailyRecord | null>;
   getAvailableDates: () => Promise<string[]>;
-  getRecentAvailableDates: (referenceDate: string) => Promise<string[]>;
   getMonthRecords: (year: number, monthZeroBased: number) => Promise<DailyRecord[]>;
   getForDate: (date: string) => Promise<DailyRecord | null>;
   getForDateWithMeta: (date: string, syncFromRemote?: boolean) => Promise<DailyRecordReadResult>;
@@ -155,21 +154,13 @@ export interface DailyRecordReadPort {
   getLocalForDate: (date: string) => Promise<DailyRecord | null>;
   /** Exact local candidate plus proof that its version remains in the active outbox. */
   getLocalForDateWithMeta: (date: string) => Promise<LocalDailyRecordReadResult>;
-  initializeDay: (date: string, copyFromDate?: string) => Promise<DailyRecord>;
+  initializeDay: DailyRecordInitializationService['initializeDay'];
   getPreviousDayWithMeta: (date: string) => Promise<DailyRecordReadResult>;
 }
 
 export interface DailyRecordWritePort {
-  updatePartial: (
-    date: string,
-    patch: DailyRecordPatch,
-    options?: PartialUpdateDailyRecordOptions
-  ) => Promise<UpdatePartialDailyRecordResult>;
-  save: (
-    record: DailyRecord,
-    expectedLastUpdated?: string,
-    options?: SaveDailyRecordOptions
-  ) => Promise<SaveDailyRecordResult>;
+  updatePartial: typeof updatePartialDailyRecord;
+  save: typeof saveDailyRecord;
   delete: (date: string) => Promise<void>;
 }
 
@@ -193,16 +184,8 @@ export interface DailyRecordRepositoryPort
     record: DailyRecord,
     alreadyAppliedPatch?: DailyRecordPatch
   ) => Promise<DailyRecord>;
-  saveDetailed: (
-    record: DailyRecord,
-    expectedLastUpdated?: string,
-    options?: SaveDailyRecordOptions
-  ) => Promise<SaveDailyRecordResult>;
-  updatePartialDetailed: (
-    date: string,
-    patch: DailyRecordPatch,
-    options?: PartialUpdateDailyRecordOptions
-  ) => Promise<UpdatePartialDailyRecordResult>;
+  saveDetailed: typeof saveDailyRecord;
+  updatePartialDetailed: typeof updatePartialDailyRecord;
   subscribeDetailed: (
     date: string,
     callback: (result: SyncDailyRecordResult, hasPendingWrites: boolean) => void,
@@ -220,8 +203,6 @@ export interface DailyRecordRepositoryPort
 export const defaultDailyRecordReadPort: DailyRecordReadPort = {
   getPreviousDay: date => withReadService(service => service.getPreviousDay(date)),
   getAvailableDates: () => withReadService(service => service.getAvailableDates()),
-  getRecentAvailableDates: referenceDate =>
-    withReadService(service => service.getRecentAvailableDates(referenceDate)),
   getMonthRecords: (year, monthZeroBased) =>
     withReadService(service => service.getMonthRecords(year, monthZeroBased)),
   getForDate: date => withReadService(service => service.getForDate(date)),
@@ -232,8 +213,12 @@ export const defaultDailyRecordReadPort: DailyRecordReadPort = {
   getLocalForDate: date => withReadService(service => service.getLocalForDate(date)),
   getLocalForDateWithMeta: date =>
     withReadService(service => service.getLocalForDateWithMeta(date)),
-  initializeDay: (date, copyFromDate) =>
-    withInitializationService(service => service.initializeDay(date, copyFromDate)),
+  initializeDay: (date, copyFromDate, options) =>
+    withInitializationService(service =>
+      options
+        ? service.initializeDay(date, copyFromDate, options)
+        : service.initializeDay(date, copyFromDate)
+    ),
   getPreviousDayWithMeta: date => withReadService(service => service.getPreviousDayWithMeta(date)),
 };
 

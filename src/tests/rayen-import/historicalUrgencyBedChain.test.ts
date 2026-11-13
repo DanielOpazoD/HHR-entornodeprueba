@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
@@ -5,10 +7,7 @@ import { reconstructHistoricalSnapshotAtClose } from '@/features/rayen-import/do
 import { reconcileCensus } from '@/features/rayen-import/domain/reconcileCensus';
 import { applyCensusImportDiff } from '@/features/rayen-import/domain/applyCensusImportDiff';
 import { resolveOccupiedBedTraceabilityChain } from '@/features/rayen-import/bedTraceabilityResolver';
-import type {
-  DailyRecord,
-  PatientData,
-} from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type {
   RayenCensusSnapshot,
   RayenEncounter,

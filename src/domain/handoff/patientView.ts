@@ -1,5 +1,7 @@
+import type { MedicalHandoffEntry, PatientData } from '@/types/domain/patient';
+
 import { readClinicalTimestamp } from '@/utils/dateDisplayUtils';
-import type { MedicalHandoffEntry, PatientData } from '@/domain/handoff/patientContracts';
+
 import {
   formatMedicalHandoffActorLabel,
   formatMedicalHandoffTimestamp,

@@ -22,7 +22,7 @@ query / comando / suscripción
 | `dailyRecordRepositorySyncService.ts`             | Suscripción, reconciliación y adopción confirmada |
 | `dailyRecordRepositoryInitializationService.ts`   | Inicialización de un día y copia de paciente      |
 | `dailyRecordDeletionService.ts`                   | Eliminación protegida por día y papelera remota   |
-| `dailyRecordPersistenceGoldenPath.ts`             | Selección canónica de candidato local/remoto      |
+| `dailyRecordLocalCachePersistence.ts`             | Admisión remota transaccional común               |
 | `dailyRecordConsistencyPolicy.ts` y `contracts/*` | Estados, inputs y resultados tipados              |
 | `repositoryConfig.ts`                             | Disponibilidad del runtime remoto                 |
 

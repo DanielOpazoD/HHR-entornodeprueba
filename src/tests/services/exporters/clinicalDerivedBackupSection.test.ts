@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 const mocks = vi.hoisted(() => ({
@@ -23,7 +23,12 @@ vi.mock('@/services/storage/firestore/clinicalDerivedEpisodeReader', () => ({
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getAllRecords: mocks.getAllRecords,
   saveRecordsStrict: mocks.saveRecordsStrict,
+
   getRecordsRange: mocks.getRecordsRange,
+  // The range readers admit every day: this suite is about the backup section, not admission.
+  admitLocalRecords: vi.fn(async (candidates: { record: DailyRecord }[]) =>
+    candidates.map(({ record }) => ({ date: record.date, status: 'admitted', record }))
+  ),
   // No local copy: the import guard (P4a) lets every day through.
   getRecordForDateStrict: vi.fn(async () => null),
 }));
@@ -34,11 +39,16 @@ vi.mock('@/services/exporters/exportDownload', () => ({ downloadBlob: mocks.down
 vi.mock('file-saver', () => ({ saveAs: mocks.saveAs }));
 vi.mock('@/services/admin/auditService', () => ({ logAuditEvent: vi.fn() }));
 vi.mock('@/services/admin/utils/auditUtils', () => ({ getCurrentUserEmail: () => 'admin@hhr' }));
-vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
-  saveDetailed: mocks.repositorySave,
-}));
 
 import { buildClinicalDerivedBackupSection } from '@/services/exporters/clinicalDerivedBackupSection';
+vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
+  saveDetailed: mocks.repositorySave,
+  saveBackupImport: async (records: unknown[]) => {
+    if (!records.length) return [];
+    await mocks.saveRecordsStrict(records);
+    return [];
+  },
+}));
 import {
   exportDataJSONWithResult,
   importDataJSONDetailed,

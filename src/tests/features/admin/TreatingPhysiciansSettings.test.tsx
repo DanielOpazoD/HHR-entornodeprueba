@@ -5,6 +5,7 @@ import { TreatingPhysiciansSettings } from '@/features/admin/components/Treating
 import { useProfessionalsQuery, useSaveProfessionalsMutation } from '@/hooks/useStaffQuery';
 
 vi.mock('@/hooks/useStaffQuery', () => ({
+  CatalogReadUnavailableError: class extends Error {},
   useProfessionalsQuery: vi.fn(),
   useSaveProfessionalsMutation: vi.fn(),
 }));
@@ -42,12 +43,18 @@ describe('TreatingPhysiciansSettings', () => {
       target: { value: 'Psiquiatría' },
     });
 
-    expect(mutate).toHaveBeenCalledWith([
-      expect.objectContaining({
-        name: 'Angelica Vargas',
-        rayenPractitionerId: '7947',
-        specialty: 'Psiquiatría',
-      }),
-    ]);
+    expect(mutate).toHaveBeenCalledWith(
+      {
+        next: [
+          expect.objectContaining({
+            name: 'Angelica Vargas',
+            rayenPractitionerId: '7947',
+            specialty: 'Psiquiatría',
+          }),
+        ],
+        base: expect.any(Array),
+      },
+      { onSuccess: expect.any(Function) }
+    );
   });
 });

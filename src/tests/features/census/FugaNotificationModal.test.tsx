@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { FugaNotificationModal } from '@/features/census/components/FugaNotificationModal';
-import type { DischargeData } from '@/features/census/contracts/censusMovementContracts';
+import type { DischargeData } from '@/types/domain/movements';
 
 const sendFugaNotificationMock = vi.fn();
 const useAuthStateMock = vi.fn();

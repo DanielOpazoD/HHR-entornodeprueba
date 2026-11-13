@@ -1,3 +1,8 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import type {
+  LocalRecordAdmissionCandidate,
+  LocalRecordBase,
+} from '@/services/storage/indexeddb/indexedDbRecordService';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { PatientStatus } from '@/types/domain/patientClassification';
@@ -7,7 +12,22 @@ import {
 } from '@/tests/services/repositories/dailyRecordRepositoryWriteServiceFixtures';
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
-  getRecordForDate: vi.fn(),
+  captureLocalRecordBase: async (date: string) => ({
+    kind: 'stored',
+    record: await getRecordFromIndexedDB(date),
+  }),
+  inspectLocalRecordAdmission: async (_date: string, base: LocalRecordBase) => ({
+    status: 'admitted',
+    record: base.kind === 'stored' ? base.record : null,
+  }),
+  admitLocalRecords: vi.fn(async (candidates: readonly LocalRecordAdmissionCandidate[]) =>
+    candidates.map(candidate => ({
+      date: candidate.record.date,
+      status: 'admitted',
+      record: candidate.record,
+    }))
+  ),
+  getRecordForDateStrict: vi.fn(),
   saveRecord: vi.fn(),
   saveRecordStrict: vi.fn(record =>
     Promise.resolve({
@@ -20,6 +40,9 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
 }));
 
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
+  getRecordFromFirestoreDetailed: vi
+    .fn()
+    .mockResolvedValue({ status: 'missing', serverConfirmed: false, record: null }),
   getRecordFromFirestore: vi.fn(),
 }));
 
@@ -78,7 +101,7 @@ vi.mock('@/services/repositories/ports/repositoryAuditPort', () => ({
 }));
 
 import { updatePartial } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { getRecordForDate as getRecordFromIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { getRecordForDateStrict as getRecordFromIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { updateRecordPartial as updateRecordPartialToFirestore } from '@/services/storage/firestore/firestoreRecordWrites';
 import { queueDailyRecordSyncTaskWithLocalRecord as queueSyncTask } from '@/services/storage/sync';
@@ -116,7 +139,11 @@ describe('dailyRecordRepositoryWriteService · retry re-basado por versión viej
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
     await expect(
-      updatePartial('2026-02-15', { 'beds.R1.status': 'Grave' })
+      updatePartial(
+        '2026-02-15',
+        { 'beds.R1.status': 'Grave' },
+        { authoringSession: captureAuthoringSession() }
+      )
     ).resolves.toBeUndefined();
 
     expect(updateRecordPartialToFirestore).toHaveBeenCalledTimes(2);
@@ -126,7 +153,8 @@ describe('dailyRecordRepositoryWriteService · retry re-basado por versión viej
     expect(logRepositoryConflictAutoMerged).not.toHaveBeenCalled();
     expect(queueSyncTask).not.toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ origin: 'conflict_auto_merge' })
+      expect.objectContaining({ origin: 'conflict_auto_merge' }),
+      { authoringSession: captureAuthoringSession() }
     );
   });
 
@@ -145,7 +173,11 @@ describe('dailyRecordRepositoryWriteService · retry re-basado por versión viej
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
     await expect(
-      updatePartial('2026-02-15', { 'beds.R1.status': 'Grave' })
+      updatePartial(
+        '2026-02-15',
+        { 'beds.R1.status': 'Grave' },
+        { authoringSession: captureAuthoringSession() }
+      )
     ).resolves.toBeUndefined();
 
     // Una sola escritura: el conflicto real sigue el camino de recuperación
@@ -153,7 +185,8 @@ describe('dailyRecordRepositoryWriteService · retry re-basado por versión viej
     expect(updateRecordPartialToFirestore).toHaveBeenCalledTimes(1);
     expect(queueSyncTask).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ origin: 'conflict_auto_merge' })
+      expect.objectContaining({ origin: 'conflict_auto_merge' }),
+      { authoringSession: captureAuthoringSession() }
     );
   });
 
@@ -192,11 +225,15 @@ describe('dailyRecordRepositoryWriteService · retry re-basado por versión viej
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
     await expect(
-      updatePartial('2026-02-15', {
-        'beds.R1.lastName': 'Paralelo',
-        'beds.R1.patientName': 'Paciente Paralelo Segunda',
-        'beds.R1.birthDate': '1991-02-02',
-      })
+      updatePartial(
+        '2026-02-15',
+        {
+          'beds.R1.lastName': 'Paralelo',
+          'beds.R1.patientName': 'Paciente Paralelo Segunda',
+          'beds.R1.birthDate': '1991-02-02',
+        },
+        { authoringSession: captureAuthoringSession() }
+      )
     ).resolves.toBeUndefined();
 
     expect(updateRecordPartialToFirestore).toHaveBeenCalledTimes(2);
@@ -216,7 +253,8 @@ describe('dailyRecordRepositoryWriteService · retry re-basado por versión viej
     );
     expect(queueSyncTask).not.toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ origin: 'conflict_auto_merge' })
+      expect.objectContaining({ origin: 'conflict_auto_merge' }),
+      { authoringSession: captureAuthoringSession() }
     );
   });
 
@@ -249,16 +287,21 @@ describe('dailyRecordRepositoryWriteService · retry re-basado por versión viej
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
     await expect(
-      updatePartial('2026-02-15', {
-        'beds.R1.lastName': 'Paralelo',
-        'beds.R1.patientName': 'Paciente Paralelo Segunda',
-      })
+      updatePartial(
+        '2026-02-15',
+        {
+          'beds.R1.lastName': 'Paralelo',
+          'beds.R1.patientName': 'Paciente Paralelo Segunda',
+        },
+        { authoringSession: captureAuthoringSession() }
+      )
     ).resolves.toBeUndefined();
 
     expect(updateRecordPartialToFirestore).toHaveBeenCalledTimes(1);
     expect(queueSyncTask).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ origin: 'conflict_auto_merge' })
+      expect.objectContaining({ origin: 'conflict_auto_merge' }),
+      { authoringSession: captureAuthoringSession() }
     );
   });
 
@@ -291,16 +334,21 @@ describe('dailyRecordRepositoryWriteService · retry re-basado por versión viej
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
     await expect(
-      updatePartial('2026-02-15', {
-        'beds.R1.lastName': 'Paralelo',
-        'beds.R1.patientName': 'Paciente Paralelo Segunda',
-      })
+      updatePartial(
+        '2026-02-15',
+        {
+          'beds.R1.lastName': 'Paralelo',
+          'beds.R1.patientName': 'Paciente Paralelo Segunda',
+        },
+        { authoringSession: captureAuthoringSession() }
+      )
     ).resolves.toBeUndefined();
 
     expect(updateRecordPartialToFirestore).toHaveBeenCalledTimes(1);
     expect(queueSyncTask).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ origin: 'conflict_auto_merge' })
+      expect.objectContaining({ origin: 'conflict_auto_merge' }),
+      { authoringSession: captureAuthoringSession() }
     );
   });
 });

@@ -1,5 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import React, { useState, useEffect } from 'react';
-import { PatientData } from '@/domain/handoff/patientContracts';
+
 import type { ClinicalEvent } from '@/types/domain/clinicalEvents';
 import { AlertCircle } from 'lucide-react';
 import clsx from 'clsx';

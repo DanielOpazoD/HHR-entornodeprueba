@@ -1,18 +1,74 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  CatalogConflictError,
+  diffCatalog,
+  catalogChangesAccepted,
+  exactStaffName,
+  professionalCatalogIdentity,
+  type SavedStaffCatalog,
+} from '@/services/repositories/contracts/catalogChanges';
+import { replaceEqualDeep, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef } from 'react';
 import { queryKeys } from '../config/queryClient';
 import { CatalogRepository } from '@/services/repositories/CatalogRepository';
 import { useAuth } from '@/context/AuthContext';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 import { useEloisaStaff } from './useEloisaStaff';
-import { mergeStaffCatalog } from '@/services/staff/eloisaStaffIdentity';
+import {
+  mergeStaffCatalog,
+  savedTextsOfRow,
+  staffCatalogRows,
+  type EloisaStaffIdentity,
+  type NursingRole,
+} from '@/services/staff/eloisaStaffIdentity';
+import {
+  CatalogRemoteSyncError,
+  isCatalogExampleList,
+  normalizeStringCatalog,
+  normalizeProfessionalCatalog,
+} from '@/services/repositories/contracts/catalogContracts';
+
+type CatalogEdit<T> = T[] | { next: T[]; base: T[] };
+const catalogNext = <T>(edit: CatalogEdit<T>): T[] => (Array.isArray(edit) ? edit : edit.next);
 
 const useCatalogRealtimeReady = (): boolean => {
   const { remoteSyncStatus } = useAuth();
   return remoteSyncStatus === 'ready';
 };
 
+export class CatalogReadUnavailableError extends Error {
+  constructor() {
+    super(
+      'No se pudo leer la lista. Lo escrito no se guardó. Pulse Reintentar para leerla y luego vuelva a guardar.'
+    );
+  }
+}
+
 const STAFF_CATALOG_STALE_TIME_MS = 30_000;
+
+// Sharing structure with a list of examples would make it look like a saved list, or the reverse.
+const keepExampleProvenance = (previous: unknown, next: unknown): unknown =>
+  isCatalogExampleList(previous) || isCatalogExampleList(next)
+    ? next
+    : replaceEqualDeep(previous, next);
+
+/** The last confirmed saved list: examples are not saved names and a failed read is unknown. */
+const savedStaffNames = (data: string[] | undefined): string[] | undefined =>
+  data === undefined ? undefined : isCatalogExampleList(data) ? [] : data;
+
+/** What the screen shows and, for each shown row, the saved texts it stands for. */
+const useStaffCatalogView = (
+  data: string[] | undefined,
+  discovered: EloisaStaffIdentity[],
+  role: NursingRole
+) =>
+  useMemo(() => {
+    const list = savedStaffNames(data);
+    const saved: SavedStaffCatalog | undefined = list && {
+      list,
+      textsOf: savedTextsOfRow(staffCatalogRows(list, discovered, role)),
+    };
+    return { data: mergeStaffCatalog(data ?? [], discovered, role), saved };
+  }, [data, discovered, role]);
 
 /**
  * Hook to manage the list of nurses.
@@ -30,6 +86,7 @@ export const useNursesQuery = () => {
       return await CatalogRepository.getNurses();
     },
     staleTime: STAFF_CATALOG_STALE_TIME_MS,
+    structuralSharing: keepExampleProvenance,
   });
 
   useEffect(() => {
@@ -53,15 +110,12 @@ export const useNursesQuery = () => {
     return () => unsubscribe();
   }, [isCatalogRealtimeReady, queryClient]);
 
-  const data = useMemo(
-    () => mergeStaffCatalog(query.data ?? [], discovered, 'nurse'),
-    [query.data, discovered]
-  );
+  const view = useStaffCatalogView(query.data, discovered, 'nurse');
   return {
     ...query,
     manualData: query.data,
     identities: discovered,
-    data,
+    ...view,
   };
 };
 
@@ -81,6 +135,7 @@ export const useTensQuery = () => {
       return await CatalogRepository.getTens();
     },
     staleTime: STAFF_CATALOG_STALE_TIME_MS,
+    structuralSharing: keepExampleProvenance,
   });
 
   useEffect(() => {
@@ -104,14 +159,11 @@ export const useTensQuery = () => {
     return () => unsubscribe();
   }, [isCatalogRealtimeReady, queryClient]);
 
-  const data = useMemo(
-    () => mergeStaffCatalog(query.data ?? [], discovered, 'tens'),
-    [query.data, discovered]
-  );
+  const view = useStaffCatalogView(query.data, discovered, 'tens');
   return {
     ...query,
     manualData: query.data,
-    data,
+    ...view,
   };
 };
 
@@ -155,29 +207,81 @@ export const useProfessionalsQuery = () => {
   return query;
 };
 
+const catalogEditAccepted = <T extends string | ProfessionalCatalogItem>(
+  edit: CatalogEdit<T>,
+  current: unknown,
+  normalize: (value: unknown) => T[],
+  key: (item: T) => string
+): boolean => {
+  if (current === undefined) return false;
+  const accepted = normalize(current);
+  const next = normalize(catalogNext(edit));
+  if (Array.isArray(edit)) return JSON.stringify(accepted) === JSON.stringify(next);
+  return catalogChangesAccepted(accepted, diffCatalog(normalize(edit.base), next, key), key);
+};
+
+const useAcceptedCatalogChange = <T>(
+  key: string,
+  mutation: { error: unknown; variables?: T; reset: () => void },
+  isAccepted: (value: T, current: unknown) => boolean
+) => {
+  const client = useQueryClient();
+  const { error, variables, reset } = mutation;
+  useEffect(() => {
+    if (!(error instanceof CatalogRemoteSyncError) || variables === undefined) return;
+    const reconcile = () => {
+      const accepted = client.getQueryData([...queryKeys.staff.all, key]);
+      if (isAccepted(variables, accepted)) reset();
+    };
+    const unsubscribe = client.getQueryCache().subscribe(reconcile);
+    reconcile();
+    return unsubscribe;
+  }, [client, key, error, variables, reset, isAccepted]);
+  return mutation;
+};
+
 /**
  * Mutation to save the nurses catalog.
  */
 export const useSaveNursesMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: (nurses: string[]) => CatalogRepository.saveNurses(nurses),
-    onMutate: async newNurses => {
-      await queryClient.cancelQueries({ queryKey: [...queryKeys.staff.all, 'nurses'] });
-      const previousNurses = queryClient.getQueryData<string[]>([...queryKeys.staff.all, 'nurses']);
-      queryClient.setQueryData([...queryKeys.staff.all, 'nurses'], newNurses);
-      return { previousNurses };
+  const mutation = useMutation({
+    mutationFn: (edit: CatalogEdit<string>) => {
+      const base = Array.isArray(edit)
+        ? savedStaffNames(queryClient.getQueryData<string[]>([...queryKeys.staff.all, 'nurses']))
+        : edit.base;
+      if (base === undefined) throw new CatalogReadUnavailableError();
+      return CatalogRepository.saveNurses(catalogNext(edit), base);
     },
-    onError: (_err, _newNurses, context) => {
-      if (context?.previousNurses) {
-        queryClient.setQueryData([...queryKeys.staff.all, 'nurses'], context.previousNurses);
+    networkMode: 'always',
+    retry: false,
+    onMutate: async () => {
+      // Display fallbacks are not a loaded base for replacing the complete catalog.
+      if (queryClient.getQueryData([...queryKeys.staff.all, 'nurses']) === undefined) {
+        throw new CatalogReadUnavailableError();
+      }
+      await queryClient.cancelQueries({ queryKey: [...queryKeys.staff.all, 'nurses'] });
+    },
+    onSuccess: (result, edit) => {
+      queryClient.setQueryData(
+        [...queryKeys.staff.all, 'nurses'],
+        normalizeStringCatalog(result ?? catalogNext(edit))
+      );
+    },
+    onError: error => {
+      if (error instanceof CatalogConflictError) {
+        queryClient.setQueryData(
+          [...queryKeys.staff.all, 'nurses'],
+          normalizeStringCatalog(error.current)
+        );
       }
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.staff.all, 'nurses'] });
-    },
   });
+  useAcceptedCatalogChange('nurses', mutation, (edit: CatalogEdit<string>, current: unknown) =>
+    catalogEditAccepted(edit, current, normalizeStringCatalog, exactStaffName)
+  );
+  return mutation;
 };
 
 /**
@@ -186,23 +290,42 @@ export const useSaveNursesMutation = () => {
 export const useSaveTensMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: (tens: string[]) => CatalogRepository.saveTens(tens),
-    onMutate: async newTens => {
-      await queryClient.cancelQueries({ queryKey: [...queryKeys.staff.all, 'tens'] });
-      const previousTens = queryClient.getQueryData<string[]>([...queryKeys.staff.all, 'tens']);
-      queryClient.setQueryData([...queryKeys.staff.all, 'tens'], newTens);
-      return { previousTens };
+  const mutation = useMutation({
+    mutationFn: (edit: CatalogEdit<string>) => {
+      const base = Array.isArray(edit)
+        ? savedStaffNames(queryClient.getQueryData<string[]>([...queryKeys.staff.all, 'tens']))
+        : edit.base;
+      if (base === undefined) throw new CatalogReadUnavailableError();
+      return CatalogRepository.saveTens(catalogNext(edit), base);
     },
-    onError: (_err, _newTens, context) => {
-      if (context?.previousTens) {
-        queryClient.setQueryData([...queryKeys.staff.all, 'tens'], context.previousTens);
+    networkMode: 'always',
+    retry: false,
+    onMutate: async () => {
+      // Display fallbacks are not a loaded base for replacing the complete catalog.
+      if (queryClient.getQueryData([...queryKeys.staff.all, 'tens']) === undefined) {
+        throw new CatalogReadUnavailableError();
+      }
+      await queryClient.cancelQueries({ queryKey: [...queryKeys.staff.all, 'tens'] });
+    },
+    onSuccess: (result, edit) => {
+      queryClient.setQueryData(
+        [...queryKeys.staff.all, 'tens'],
+        normalizeStringCatalog(result ?? catalogNext(edit))
+      );
+    },
+    onError: error => {
+      if (error instanceof CatalogConflictError) {
+        queryClient.setQueryData(
+          [...queryKeys.staff.all, 'tens'],
+          normalizeStringCatalog(error.current)
+        );
       }
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.staff.all, 'tens'] });
-    },
   });
+  useAcceptedCatalogChange('tens', mutation, (edit: CatalogEdit<string>, current: unknown) =>
+    catalogEditAccepted(edit, current, normalizeStringCatalog, exactStaffName)
+  );
+  return mutation;
 };
 
 /**
@@ -211,28 +334,46 @@ export const useSaveTensMutation = () => {
 export const useSaveProfessionalsMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: (professionals: ProfessionalCatalogItem[]) =>
-      CatalogRepository.saveProfessionals(professionals),
-    onMutate: async newProfessionals => {
-      await queryClient.cancelQueries({ queryKey: [...queryKeys.staff.all, 'professionals'] });
-      const previousProfessionals = queryClient.getQueryData<ProfessionalCatalogItem[]>([
-        ...queryKeys.staff.all,
-        'professionals',
-      ]);
-      queryClient.setQueryData([...queryKeys.staff.all, 'professionals'], newProfessionals);
-      return { previousProfessionals };
+  const mutation = useMutation({
+    mutationFn: (edit: CatalogEdit<ProfessionalCatalogItem>) => {
+      const base = Array.isArray(edit)
+        ? queryClient.getQueryData<ProfessionalCatalogItem[]>([
+            ...queryKeys.staff.all,
+            'professionals',
+          ])
+        : edit.base;
+      if (base === undefined) throw new CatalogReadUnavailableError();
+      return CatalogRepository.saveProfessionals(catalogNext(edit), base);
     },
-    onError: (_err, _newProfessionals, context) => {
-      if (context?.previousProfessionals) {
+    networkMode: 'always',
+    retry: false,
+    onMutate: async () => {
+      // Display fallbacks are not a loaded base for replacing the complete catalog.
+      if (queryClient.getQueryData([...queryKeys.staff.all, 'professionals']) === undefined) {
+        throw new CatalogReadUnavailableError();
+      }
+      await queryClient.cancelQueries({ queryKey: [...queryKeys.staff.all, 'professionals'] });
+    },
+    onSuccess: (result, edit) => {
+      queryClient.setQueryData(
+        [...queryKeys.staff.all, 'professionals'],
+        normalizeProfessionalCatalog(result ?? catalogNext(edit))
+      );
+    },
+    onError: error => {
+      if (error instanceof CatalogConflictError) {
         queryClient.setQueryData(
           [...queryKeys.staff.all, 'professionals'],
-          context.previousProfessionals
+          normalizeProfessionalCatalog(error.current)
         );
       }
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.staff.all, 'professionals'] });
-    },
   });
+  useAcceptedCatalogChange(
+    'professionals',
+    mutation,
+    (edit: CatalogEdit<ProfessionalCatalogItem>, current: unknown) =>
+      catalogEditAccepted(edit, current, normalizeProfessionalCatalog, professionalCatalogIdentity)
+  );
+  return mutation;
 };

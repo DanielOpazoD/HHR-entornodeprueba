@@ -6,6 +6,10 @@
 
 import React, { createContext, useContext, useCallback, useMemo, useState, ReactNode } from 'react';
 import {
+  savedCatalogEdit,
+  type SavedStaffCatalog,
+} from '@/services/repositories/contracts/catalogChanges';
+import {
   useNursesQuery,
   useTensQuery,
   useSaveNursesMutation,
@@ -32,13 +36,21 @@ export interface StaffContextType {
   staffUsage?: StaffUsage;
   // Nurse catalog (available names)
   nursesList: string[];
+  /** The saved list behind `nursesList`, from the same source as the shown names. */
+  nursesSaved?: SavedStaffCatalog;
   setNursesList: (nurses: string[]) => void;
   nursesLoading: boolean;
+  nursesCatalogUnavailable?: boolean;
+  retryNursesCatalog?: () => void;
 
   // TENS catalog (available names)
   tensList: string[];
+  /** The saved list behind `tensList`, from the same source as the shown names. */
+  tensSaved?: SavedStaffCatalog;
   setTensList: (tens: string[]) => void;
   tensLoading: boolean;
+  tensCatalogUnavailable?: boolean;
+  retryTensCatalog?: () => void;
 
   // Professionals catalog
   professionalsCatalog: ProfessionalCatalogItem[];
@@ -67,10 +79,19 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
   const {
     data: nurses = NO_STAFF_NAMES,
     isLoading: nursesLoading,
+    isError: nursesReadError,
+    refetch: refetchNurses,
     identities: staffIdentities = NO_STAFF_IDENTITIES,
+    saved: nursesSaved,
   } = useNursesQuery();
   const staffUsage = useStaffUsage(staffIdentities);
-  const { data: tens = NO_STAFF_NAMES, isLoading: tensLoading } = useTensQuery();
+  const {
+    data: tens = NO_STAFF_NAMES,
+    isLoading: tensLoading,
+    isError: tensReadError,
+    refetch: refetchTens,
+    saved: tensSaved,
+  } = useTensQuery();
   const { data: professionals = NO_PROFESSIONALS, isLoading: professionalsLoading } =
     useProfessionalsQuery();
   const reconciledNurses = useMemo(() => reconcileNurseCatalogNames(nurses), [nurses]);
@@ -87,23 +108,25 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
   // Compatibility setters (now trigger mutations)
   const setNursesList = useCallback(
     (updatedNurses: string[]) => {
-      saveNurses(reconcileNurseCatalogNames(updatedNurses));
+      saveNurses(
+        savedCatalogEdit(nursesSaved, reconciledNurses, reconcileNurseCatalogNames(updatedNurses))
+      );
     },
-    [saveNurses]
+    [saveNurses, nursesSaved, reconciledNurses]
   );
 
   const setTensList = useCallback(
     (updatedTens: string[]) => {
-      saveTens(updatedTens);
+      saveTens(savedCatalogEdit(tensSaved, tens, updatedTens));
     },
-    [saveTens]
+    [saveTens, tensSaved, tens]
   );
 
   const setProfessionalsCatalog = useCallback(
     (updatedProfessionals: ProfessionalCatalogItem[]) => {
-      saveProfessionals(updatedProfessionals);
+      saveProfessionals({ next: updatedProfessionals, base: professionals });
     },
-    [saveProfessionals]
+    [saveProfessionals, professionals]
   );
 
   const value = useMemo<StaffContextType>(
@@ -111,11 +134,21 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
       staffIdentities,
       staffUsage,
       nursesList: reconciledNurses,
+      nursesSaved,
       setNursesList,
       nursesLoading,
+      nursesCatalogUnavailable: nursesReadError && reconciledNurses.length === 0,
+      retryNursesCatalog: () => {
+        void refetchNurses();
+      },
       tensList: tens,
+      tensSaved,
       setTensList,
       tensLoading,
+      tensCatalogUnavailable: tensReadError && tens.length === 0,
+      retryTensCatalog: () => {
+        void refetchTens();
+      },
       professionalsCatalog: professionals,
       setProfessionalsCatalog,
       professionalsLoading,
@@ -128,11 +161,17 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
       staffIdentities,
       staffUsage,
       reconciledNurses,
+      nursesSaved,
       setNursesList,
       nursesLoading,
+      nursesReadError,
+      refetchNurses,
       tens,
+      tensSaved,
       setTensList,
       tensLoading,
+      tensReadError,
+      refetchTens,
       professionals,
       setProfessionalsCatalog,
       professionalsLoading,

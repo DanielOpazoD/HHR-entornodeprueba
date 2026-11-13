@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { resolveCensusSyncTarget } from '@/features/rayen-import/domain/historicalCensusSync';
 import { resolveSyncReportRequest } from '@/features/rayen-import/hooks/reportDateHelpers';
 import { resolveClinicalHistoryReadPolicy } from '@/features/rayen-import/domain/clinicalHistoryReadPolicy';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import '../../../extension/clinical-day-runtime.js';
 import '../../../extension/census-sync-horizon-runtime.js';
 

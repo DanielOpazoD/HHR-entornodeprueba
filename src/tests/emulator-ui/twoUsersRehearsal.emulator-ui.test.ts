@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /* @flake-safe: Today's synthetic census satisfies the real rules' hospital write window. */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -235,7 +236,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         updatePartialDetailed(
           date,
           { 'beds.R1.pathology': 'ONLY FOR THE ORIGINAL EPISODE' },
-          { baseRecord: base }
+          { authoringSession: captureAuthoringSession(), baseRecord: base }
         )
       );
       const [pending] = await hospitalDB.syncQueue.toArray();
@@ -281,7 +282,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       updatePartialDetailed(
         date,
         { 'beds.R1.pathology': 'A OFFLINE' },
-        { baseRecord: baseRecord() }
+        { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
       )
     );
     expect(offline).toMatchObject({ savedLocally: true, updatedRemotely: false });

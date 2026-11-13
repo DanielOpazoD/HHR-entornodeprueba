@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
@@ -7,7 +8,7 @@ import {
 } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   buildNursingShiftProposalPatch,
   reconcileNursingShiftProposal,
@@ -106,7 +107,7 @@ export const useRayenStaffingProposalActions = ({
         dailyRecord,
         proposal.censusDate,
         patch,
-        { baseRecord: fresh.record }
+        { baseRecord: fresh.record, authoringSession: captureAuthoringSession() }
       );
       if (result?.blockingError) throw result.blockingError;
       if (isDailyRecordWriteRejectedResult(result)) {

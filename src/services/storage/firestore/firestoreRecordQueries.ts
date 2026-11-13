@@ -12,10 +12,11 @@ import {
   query,
   startAfter,
   where,
+  type Query,
   type QueryDocumentSnapshot,
   type QueryConstraint,
 } from 'firebase/firestore';
-import { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import { DailyRecord } from '@/types/domain/dailyRecord';
 import { COLLECTIONS, getActiveHospitalId } from '@/constants/firestorePaths';
 import {
   docToRecord,
@@ -52,6 +53,7 @@ export interface FirestoreSingleRecordReadResult {
   serverConfirmed: boolean;
   record: DailyRecord | null;
   error?: unknown;
+  hasPendingWrites?: boolean;
 }
 
 export interface FirestoreRecordSnapshotMetadata {
@@ -86,6 +88,7 @@ export const getRecordFromFirestoreDetailed = async (
       return {
         status: 'resolved',
         serverConfirmed,
+        hasPendingWrites: metadata?.hasPendingWrites === true,
         record: docToRecord(docSnap.data(), date),
       };
     }
@@ -107,21 +110,30 @@ export const getRecordFromFirestoreDetailed = async (
 };
 
 /**
+ * Census document ids answered by the server. The SDK cache only holds the days this computer
+ * has read, so a cached answer (offline, or a cold cache) would list too few days or none, and
+ * look like a complete history or a missing previous day. Without the server it throws.
+ */
+const readServerCensusDateIds = async (censusQuery: Query): Promise<string[]> => {
+  const snapshot = await getDocsFromServer(censusQuery);
+  if (snapshot.metadata.fromCache !== false) {
+    throw new Error('La lista de días del censo no vino confirmada por el servidor.');
+  }
+  return snapshot.docs.map(docItem => docItem.id);
+};
+
+/**
  * Reads every census document in history to keep only the document ids. The Web SDK
  * has no field projection, so this is expensive and grows by one document per day.
- * Reserved for migrations and backfills that genuinely need the whole range.
+ * Reserved for migrations and backfills that genuinely need the whole range. A failed
+ * or unconfirmed read throws: an empty list would look like a hospital without census days.
  */
 export const getAvailableDatesFromFirestore = async (): Promise<string[]> => {
   try {
-    const q = query(getRecordsCollection());
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs
-      .map(docItem => docItem.id)
-      .sort()
-      .reverse();
+    return (await readServerCensusDateIds(query(getRecordsCollection()))).sort().reverse();
   } catch (error) {
     logFirestoreQueryError('getAvailableDates', error);
-    return [];
+    throw error;
   }
 };
 
@@ -152,26 +164,13 @@ const readCensusDateWindow = async (fromDate: string, beforeDate?: string): Prom
     orderBy(documentId()),
     limitTo(RECENT_CENSUS_WINDOW_DAYS + 5)
   );
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(docItem => docItem.id).sort();
-};
-
-/** Recent census dates only. Cost stays constant as the hospital accumulates days. */
-export const getRecentAvailableDatesFromFirestore = async (
-  referenceDate: string
-): Promise<string[]> => {
-  try {
-    const from = shiftIsoDate(referenceDate, -RECENT_CENSUS_WINDOW_DAYS);
-    return (await readCensusDateWindow(from)).reverse();
-  } catch (error) {
-    logFirestoreQueryError('getRecentAvailableDates', error);
-    return [];
-  }
+  return (await readServerCensusDateIds(q)).sort();
 };
 
 /**
- * Closest earlier census date. Reads a bounded window; only a gap longer than the
- * window falls back to the expensive full scan, so correctness is preserved.
+ * Closest earlier census date, confirmed by the server. Reads a bounded window; only a gap
+ * longer than the window, or a failed window read, falls back to the expensive full scan.
+ * If the full scan fails too it throws: «no earlier day» must come from the server.
  */
 export const getPreviousRecordDateFromFirestore = async (date: string): Promise<string | null> => {
   try {
@@ -221,6 +220,9 @@ export async function* getRecordPagesFromFirestore(
   }
 }
 
+/** A cache/pending batch is available only as a local fallback, never remote evidence. */
+export class UnconfirmedDailyRecordRangeError extends Error {}
+
 export const getRecordsRangeFromFirestore = async (
   startDate: string,
   endDate: string,
@@ -235,12 +237,16 @@ export const getRecordsRangeFromFirestore = async (
     );
 
     const querySnapshot = await (options.requireServer ? getDocsFromServer(q) : getDocs(q));
+    if (!isServerConfirmedSnapshot(querySnapshot.metadata)) {
+      throw new UnconfirmedDailyRecordRangeError(
+        'No se pudo confirmar el período con el servidor. Reintente con conexión.'
+      );
+    }
     return mapFirestoreRecords(querySnapshot.docs, docToRecord);
   } catch (error) {
-    logFirestoreQueryError('getRecordsRange', error, { startDate, endDate });
-    // A history reader must distinguish a real empty result from unavailable remote data.
-    if (options.requireServer) throw error;
-    return [];
+    if (!(error instanceof UnconfirmedDailyRecordRangeError))
+      logFirestoreQueryError('getRecordsRange', error, { startDate, endDate });
+    throw error;
   }
 };
 

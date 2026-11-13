@@ -1,5 +1,5 @@
 import { isValidRut, normalizeRut } from '@/utils/rutUtils';
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   encounterWallClockInRapaNui,
   parseClinicalPanel,

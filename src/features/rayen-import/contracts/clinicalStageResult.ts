@@ -1,5 +1,5 @@
 import type { ClinicalReadSelection } from './clinicalReadSelection';
-import type { DailyRecord } from './rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ConfirmedRayenCensusHandoff } from '../hooks/rayenCensusPersistenceGuard';
 import type { ClinicalFillSummary } from './clinicalFillContracts';
 

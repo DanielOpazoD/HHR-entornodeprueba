@@ -1,4 +1,5 @@
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import { isAuthoringSessionCurrent } from '@/services/storage/authoringSession';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ErrorSeverity } from '@/services/logging/errorLogTypes';
 import { logError } from '@/services/utils/errorService';
 import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
@@ -142,7 +143,7 @@ export const createSyncQueueEngine = ({
     type: SyncTask['type'],
     payload: unknown,
     meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,
-    options: SyncQueueEnqueueOptions = {}
+    options: Omit<SyncQueueEnqueueOptions, 'authoringSession'> = {}
   ): Promise<SyncQueueEnqueueResult> => {
     const { enqueueStandaloneSyncTask } = await import('./enqueueStandaloneSyncTask');
     return enqueueStandaloneSyncTask(
@@ -156,15 +157,15 @@ export const createSyncQueueEngine = ({
 
   const queueDailyRecordTaskWithLocalRecord = async (
     record: DailyRecord,
-    meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,
-    options: SyncQueueEnqueueOptions = {},
+    meta: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'> | undefined,
+    options: SyncQueueEnqueueOptions,
     /** A specialist note is its own task: never coalesced into the day record task. */
     handoff?: SpecialistHandoffSyncPayload
   ): Promise<SyncQueueEnqueueResult> => {
     const type: SyncTask['type'] = handoff ? 'UPDATE_SPECIALIST_HANDOFF' : 'UPDATE_DAILY_RECORD';
     const payload = handoff ?? record;
     const key = getSyncTaskKey(type, payload);
-    const ownerKey = runtime.getOwnerKey();
+    const ownerKey = options.authoringSession.ownerKey;
     const taskOwnerKey = ownerKey ?? undefined;
     const now = Date.now();
     const contextMeta = buildSyncQueueTaskContextMeta({
@@ -178,7 +179,11 @@ export const createSyncQueueEngine = ({
     const pendingTasks = await countActiveTasks(ownerKey);
     // Only a write folding into an active task leaves the count unchanged: a blocked one revives,
     // and one without its copy is released in the store's transaction and a new task is created.
-    if (existing?.status !== 'PENDING' && pendingTasks >= maxPendingTasks) {
+    if (
+      isAuthoringSessionCurrent(options.authoringSession) &&
+      existing?.status !== 'PENDING' &&
+      pendingTasks >= maxPendingTasks
+    ) {
       return {
         accepted: false,
         mode: 'rejected_backpressure',
@@ -206,8 +211,12 @@ export const createSyncQueueEngine = ({
         ...resolvePreOutboxHoldState(now, options),
       },
       options.patchWrite,
-      options.wholeRecordBase
+      options.wholeRecordBase,
+      options.authoringSession
     );
+    // Kept for its author, off this session's day: nothing for this session to accept or send.
+    if (mode === 'retained_for_owner')
+      return { accepted: false, mode, pendingTasks, maxPendingTasks };
 
     if (!options.deferProcessing) {
       triggerProcessing();

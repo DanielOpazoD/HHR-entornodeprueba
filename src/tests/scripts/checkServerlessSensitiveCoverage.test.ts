@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -111,5 +111,20 @@ describe('check-serverless-sensitive-coverage', () => {
     { endpoint: 'undocumented' },
   ])('preserves rejection of invalid sensitive entries: %j', change => {
     expect(runGuard({ entries: [{ ...entry, ...change }], exempt: [] }).status).toBe(1);
+  });
+});
+
+// E4d: this scheduled credential-bearing function must remain behavior-tested.
+it('requires the telemetry retry behavior suite in the repository registry', () => {
+  const config = JSON.parse(readFileSync(CONFIG, 'utf8'));
+  const functionFile = 'netlify/functions/operational-telemetry-retry.ts';
+  expect(config.exempt.map((item: { functionFile: string }) => item.functionFile)).not.toContain(
+    functionFile
+  );
+  expect(config.entries).toContainEqual({
+    id: 'operational_telemetry_retry',
+    functionFile,
+    endpoint: 'operational-telemetry-retry',
+    testFiles: ['src/tests/netlify/operationalTelemetryRetry.test.ts'],
   });
 });

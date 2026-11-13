@@ -1,9 +1,11 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type {
   ConflictSnapshotRecoveryEvidence,
   ConflictVersionSnapshot,
 } from '@/application/ports/dailyRecordConflictRecoveryPort';
 import { resolveConflictSnapshotRecoveryState } from '@/application/clinical-conflicts/conflictSnapshotRecoveryPresentation';
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   CLINICAL_CONFLICT_MODULE_DESCRIPTORS,
   CLINICAL_CONFLICT_MODULE_ORDER,
@@ -11,7 +13,7 @@ import {
   type ClinicalConflictModuleDescriptor,
   type ClinicalConflictModuleKey,
 } from '@/application/clinical-conflicts/clinicalConflictPathClassifier';
-import type { PatientData } from '@/shared/contracts/patientDomainContracts';
+
 import type { DischargeData, TransferData, CMAData } from '@/types/domain/movements';
 
 export {

@@ -1,0 +1,124 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import 'fake-indexeddb/auto';
+import { beforeEach, afterEach, it, expect, vi } from 'vitest';
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import * as readService from '@/services/repositories/dailyRecordRepositoryReadService';
+import * as patchPreparation from '@/services/repositories/dailyRecordPatchPersistenceController';
+import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
+import { syncWithFirestoreDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
+import { initializeDayDetailed } from '@/services/repositories/dailyRecordRepositoryInitializationService';
+const wire = vi.hoisted(() => ({ fail: false, changeOwner: false }));
+vi.mock('@/services/repositories/repositoryConfig', () => ({ isFirestoreEnabled: () => true }));
+vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
+  getRecordFromFirestore: vi.fn(async (date: string) =>
+    DataFactory.createMockDailyRecord(date, {
+      lastUpdated: '2026-10-24T12:00:00.000Z',
+      nursesDayShift: ['SERVER'],
+    })
+  ),
+  getRecordFromFirestoreDetailed: vi.fn(async (date: string) => {
+    if (wire.changeOwner) localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-other');
+    if (wire.fail) throw new Error('Synthetic network failure');
+    return {
+      record: DataFactory.createMockDailyRecord(date, {
+        lastUpdated: '2026-10-24T12:00:00.000Z',
+        nursesDayShift: ['SERVER'],
+      }),
+      serverConfirmed: true,
+    };
+  }),
+}));
+const date = '2026-10-24';
+beforeEach(async () => {
+  wire.fail = false;
+  wire.changeOwner = false;
+  localStorage.clear();
+  localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-a5');
+  await hospitalDB.syncQueue.clear();
+  await hospitalDB.dailyRecords.clear();
+});
+afterEach(async () => {
+  await hospitalDB.syncQueue.clear();
+  await hospitalDB.dailyRecords.clear();
+  vi.restoreAllMocks();
+});
+async function patchBase(): Promise<DailyRecord | null> {
+  let base: DailyRecord | null = null;
+  vi.spyOn(patchPreparation, 'preparePatchedRecordPersistence').mockImplementation(record => {
+    base = record;
+    throw new Error('Synthetic stop before mutation');
+  });
+  await expect(
+    updatePartialDetailed(
+      date,
+      { handoffNovedadesDayShift: 'Synthetic patch' },
+      { authoringSession: captureAuthoringSession() }
+    )
+  ).rejects.toThrow('Synthetic stop before mutation');
+  return base;
+}
+for (const path of ['P', 'B', 'I'] as const) {
+  for (const holder of [false, true]) {
+    it(`${path} uses admission with holder=${holder}`, async () => {
+      const local = DataFactory.createMockDailyRecord(date, {
+        lastUpdated: '2026-10-24T23:00:00.000Z',
+        nursesDayShift: ['LOCAL'],
+      });
+      await hospitalDB.dailyRecords.put(local);
+      if (holder)
+        await hospitalDB.syncQueue.add({
+          opId: 'synthetic-a5-holder',
+          type: 'UPDATE_DAILY_RECORD',
+          key: `daily:${date}`,
+          payload: local,
+          status: 'FAILED',
+          retryCount: 3,
+          timestamp: 1,
+        });
+      const tasks = await hospitalDB.syncQueue.toArray();
+      if (path === 'I') vi.spyOn(readService, 'getForDate').mockResolvedValueOnce(null);
+      const result =
+        path === 'P'
+          ? await getForDateWithMeta(date)
+          : path === 'B'
+            ? { record: await patchBase() }
+            : await initializeDayDetailed(date);
+      expect(result.record?.nursesDayShift).toEqual([holder ? 'LOCAL' : 'SERVER']);
+      expect(await hospitalDB.dailyRecords.get(date)).toEqual(result.record);
+      expect(await hospitalDB.syncQueue.toArray()).toEqual(tasks);
+    });
+  }
+}
+it('E does not admit after owner changes during network', async () => {
+  wire.changeOwner = true;
+  const result = await syncWithFirestoreDetailed(date);
+  expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
+  expect(result?.serverConfirmed).toBe(false);
+});
+it('I rejects failed remote evidence instead of creating a day', async () => {
+  wire.fail = true;
+  vi.spyOn(readService, 'getForDate').mockResolvedValueOnce(null);
+  await expect(initializeDayDetailed(date)).rejects.toThrow('Synthetic network failure');
+  expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
+});
+
+it('B uses the durable local base after a failed remote read', async () => {
+  const local = DataFactory.createMockDailyRecord(date);
+  await hospitalDB.dailyRecords.put(local);
+  wire.fail = true;
+  expect(await patchBase()).toEqual(local);
+});
+it('B preserves the real read error when no local base exists', async () => {
+  wire.fail = true;
+  await expect(
+    updatePartialDetailed(
+      date,
+      { handoffNovedadesDayShift: 'Synthetic patch' },
+      { authoringSession: captureAuthoringSession() }
+    )
+  ).rejects.toThrow('Synthetic network failure');
+  expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
+});

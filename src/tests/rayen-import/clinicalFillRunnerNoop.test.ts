@@ -1,9 +1,11 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { describe, expect, it, vi } from 'vitest';
 import { buildClinicalPatientPatch } from '@/features/rayen-import/domain/clinicalPatientPatch';
 import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyRecordPersistencePreparation';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { PatientData } from '@/features/rayen-import/contracts/rayenDomainContracts';
+
 import { applyPatches } from '@/utils/patchUtils';
 
 /** Real-shaped Braden 17 (07-10) as a slimmed clinical-history event from the panel de historial. */

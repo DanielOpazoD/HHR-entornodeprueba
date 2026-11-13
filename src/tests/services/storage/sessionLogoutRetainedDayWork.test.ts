@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /* Synthetic only: a census day whose unsent edit outlives the session that wrote it. */
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -40,7 +41,7 @@ import { requeueQuarantinedTask } from '@/services/storage/sync/dexieSyncQueueQu
 import { reconcileSpecialistHandoffProjections } from '@/services/storage/sync/dexieDailyRecordOutbox';
 import { getDailyRecordWriteStateForVersion } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
 const date = '2026-10-29';
@@ -104,16 +105,19 @@ beforeEach(async () => {
   setFirestoreEnabled(true);
   remote.day = serverDay;
   remote.duringFetch = async () => {};
-  vi.mocked(loadRemoteRecordWithFallback).mockImplementation(async (_date, options) => ({
-    record: serverDay,
-    issuedAgainst: options?.base ?? { kind: 'stored', record: null },
-    serverConfirmed: true,
-    source: 'firestore',
-    compatibilityTier: 'current_firestore',
-    compatibilityIntensity: 'none',
-    migrationRulesApplied: [],
-    cachedLocally: false,
-  }));
+  vi.mocked(loadRemoteRecordWithFallback).mockImplementation(async (_date, options) => {
+    await remote.duringFetch();
+    return {
+      record: serverDay,
+      issuedAgainst: options?.base ?? { kind: 'stored', record: null },
+      serverConfirmed: true,
+      source: 'firestore',
+      compatibilityTier: 'current_firestore',
+      compatibilityIntensity: 'none',
+      migrationRulesApplied: [],
+      cachedLocally: false,
+    };
+  });
 });
 afterEach(async () => {
   await hospitalDB.syncQueue.clear();
@@ -151,7 +155,14 @@ describe('a census day with an edit left unsent by a closed session', () => {
     const retained = recoverable(await hospitalDB.syncQueue.get(id));
     await reconcileAuthorizedSessionOwner(owner);
 
-    await updatePartialDetailed(date, { nursesNightShift: ['SYNTHETIC NEW EDIT'] });
+    // Offline, so the new task is observed before any send attempt claims it.
+    const offline = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    await updatePartialDetailed(
+      date,
+      { nursesNightShift: ['SYNTHETIC NEW EDIT'] },
+      { authoringSession: captureAuthoringSession() }
+    );
+    offline.mockRestore();
 
     expect(recoverable(await hospitalDB.syncQueue.get(id))).toEqual(retained);
     const others = (await hospitalDB.syncQueue.toArray()).filter(task => task.id !== id);
@@ -277,7 +288,10 @@ describe('a census day with an edit left unsent by a closed session', () => {
           expectedVersion: serverDay.lastUpdated,
           mutationId: 'synthetic-new-edit',
         },
-      })
+      }),
+      undefined,
+      undefined,
+      captureAuthoringSession()
     );
     const [sent] = (await hospitalDB.syncQueue.toArray()).filter(task => task.id !== id);
     const confirmed = { ...edited, lastUpdated: '2026-10-29T11:00:00.000Z' };
@@ -304,7 +318,11 @@ describe('a census day with an edit left unsent by a closed session', () => {
       );
     };
 
-    await updatePartialDetailed(date, { nursesNightShift: ['SYNTHETIC NEW EDIT'] });
+    await updatePartialDetailed(
+      date,
+      { nursesNightShift: ['SYNTHETIC NEW EDIT'] },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     const shown = (await hospitalDB.dailyRecords.get(date)) as DailyRecord;
     expect(shown.nursesDayShift).toEqual(['SYNTHETIC OTHER TAB']);

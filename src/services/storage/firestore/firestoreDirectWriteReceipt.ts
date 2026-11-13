@@ -1,4 +1,4 @@
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordAuthorityCallableResponse } from './dailyRecordAuthorityCallableClient';
 
 export interface DirectFirestoreWriteReceipt {

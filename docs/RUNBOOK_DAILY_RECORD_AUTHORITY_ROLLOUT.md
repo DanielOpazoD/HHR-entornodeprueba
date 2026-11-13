@@ -10,14 +10,13 @@ big-bang.
 
 - `client_only`: modo por defecto. El cliente mantiene las validaciones locales y escribe
   directo a Firestore.
-- `shadow`: el cliente ejecuta una validacion backend `dryRun` cuando hay usuario autenticado,
-  pero conserva la escritura directa. Los errores de shadow no bloquean al usuario.
 - `enforced`: las escrituras completas directas, los parches clinicos parciales y las
   publicaciones del outbox pasan por autoridad transaccional:
   `saveDailyRecordWithClinicalAuthority` o `patchDailyRecordWithClinicalAuthority`.
 
 Compatibilidad: `VITE_DAILY_RECORD_AUTHORITY_CALLABLE=true` equivale a `enforced`.
-El flag recomendado para rollout nuevo es `VITE_DAILY_RECORD_AUTHORITY_MODE`.
+El flag recomendado para rollout nuevo es `VITE_DAILY_RECORD_AUTHORITY_MODE`. El valor `shadow`
+se retiró como modo del cliente: si aparece en la variable se ignora.
 
 El flag no es la única fuente del modo. `resolveEffectiveDailyRecordAuthorityMode` usa el más
 fuerte entre el flag y la política `settings/rayenImportPolicy` (`schemaVersion: 2`,
@@ -27,14 +26,31 @@ parches de cama a los callables aunque el flag diga `client_only` (con `mode: 's
 servidor confirma igual que `enforced`; sólo `dryRun` no escribe). Ver
 [SYNC_CONCURRENCY_MODEL.md](SYNC_CONCURRENCY_MODEL.md).
 
-## Secuencia Recomendada
+## Estado vigente (medido el 2026-11-12)
+
+Producción publica con la variable sin definir (`client_only`), pero su política
+`settings/rayenImportPolicy` es v2 con `clinicalBatchMode: enforced` desde el 2026-11-07, así que
+el modo efectivo ya es `enforced`. Con dos personas guardando a la vez
+(`src/tests/emulator-ui/productionAuthorityConfiguration.emulator-ui.test.ts`, que reproduce esa
+configuración):
+
+- árbol de camas, dotación, guardado completo del día y reenvío de la cola: una de las dos se
+  rechaza y su edición queda como conflicto por resolver. Cambiar la variable no altera ninguna de
+  estas rutas;
+- los demás campos del día (novedades de entrega, camas extra) se escriben directo, con una
+  comprobación de versión previa que rechaza a quien llega con una base más antigua. Esa
+  comprobación y la escritura no son una sola operación: dos personas con la misma base, en el
+  mismo instante, reciben ambas «guardado» y prevalece la última. Las pruebas lo documentan como
+  falla esperada. El intento de cerrarlo (#1512) se descartó porque no se pudo acreditar que el
+  resto del guardado quedara igual; se reabre solo con evidencia de que ocurre.
+
+## Secuencia para un entorno nuevo sin política v2
 
 1. Desplegar con `VITE_DAILY_RECORD_AUTHORITY_MODE=client_only`.
-2. Cambiar a `shadow` durante al menos un turno clinico observado.
-3. Revisar el panel admin de telemetria de Functions, seccion
+2. Revisar el panel admin de telemetria de Functions, seccion
    `Autoridad censo diario`. Debe mostrar `Listo para enforced` antes de activar el modo
    obligatorio.
-4. Si se necesita auditoria fina, filtrar `functionsTelemetry` por:
+3. Si se necesita auditoria fina, filtrar `functionsTelemetry` por:
    - `service = dailyRecordWriteAuthority`;
    - `operation = saveDailyRecordWithClinicalAuthority` o
      `patchDailyRecordWithClinicalAuthority`;
@@ -42,7 +58,7 @@ servidor confirma igual que `enforced`; sólo `dryRun` no escribe). Ver
    - `fallbackEpisodeKeys`;
    - `degenerateFallbackEpisodeKeys`;
    - `violationCount`.
-5. Si no aparecen fallos inesperados, cambiar a `enforced`.
+4. Si no aparecen fallos inesperados, cambiar a `enforced`.
 
 ## Freshness De Pestañas Inactivas
 
@@ -91,7 +107,7 @@ devuelve la escritura directa del árbol de camas: las reglas la tratan como fro
 Si el problema es especificamente bloqueo por frescura al reactivar pestañas, rollback
 operativo inmediato: volver a `client_only`, mantener realtime activo, limpiar cache local
 solo en usuarios afectados y revisar eventos `daily_record_resume_refresh_failed` antes de
-reintentar `shadow` o `enforced`.
+reintentar `enforced`.
 
 ## Privacidad De Telemetria
 

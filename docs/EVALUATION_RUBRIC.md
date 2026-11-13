@@ -85,7 +85,7 @@ Guía:
 Señales HHR:
 
 - `reports/quality-metrics.md` con `folderDebt=0`
-- `check:architecture`, `check:feature-dependencies`
+- `check:architecture`, ESLint (`hhr/feature-boundaries`)
 
 ### Organización
 
@@ -143,7 +143,7 @@ Guía:
 
 Señales HHR:
 
-- `reports/quality-metrics.md` y `reports/maintenance-debt-scorecard.md`
+- `reports/quality-metrics.md` y el informe que genera `npm run report:maintenance-debt-scorecard` (no está versionado: se genera en `reports/`)
 
 ### Estabilidad
 

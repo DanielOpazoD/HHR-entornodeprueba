@@ -1,5 +1,6 @@
 // @vitest-environment node
 import fs from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -121,4 +122,49 @@ describe('playwright report clean guardrail', () => {
       `playwright report has an invalid ${field} count; expected a non-negative safe integer.`
     );
   });
+});
+
+it.each([0, 1])(
+  'rejects critical omissions with %i executed cases and names the case',
+  executed => {
+    const reportPath = makeRawReport({
+      stats: { expected: executed, unexpected: 0, flaky: 0, skipped: 1 },
+      suites: [
+        {
+          file: 'e2e/synthetic.spec.ts',
+          specs: [
+            {
+              title: 'synthetic skipped case',
+              tests: [{ status: 'skipped', results: [{ status: 'skipped' }] }],
+            },
+          ],
+        },
+      ],
+    });
+    expect(
+      collectPlaywrightReportIssues(reportPath, {
+        label: 'critical-e2e',
+        allowSkipped: false,
+      }).join(' ')
+    ).toContain('critical-e2e');
+    expect(
+      collectPlaywrightReportIssues(reportPath, {
+        label: 'critical-e2e',
+        allowSkipped: false,
+      }).join(' ')
+    ).toContain('synthetic skipped case');
+    const cli = spawnSync(
+      process.execPath,
+      ['scripts/check-playwright-report-clean.mjs', reportPath, '--label', 'critical-e2e'],
+      { encoding: 'utf8' }
+    );
+    expect(cli.status).toBe(1);
+    expect(cli.stderr).toContain('critical-e2e');
+    expect(cli.stderr).toContain('synthetic skipped case');
+  }
+);
+
+it('accepts a collection report with skipped cases when execution is not required', () => {
+  const reportPath = makeReport({ expected: 0, unexpected: 0, flaky: 0, skipped: 38 });
+  expect(collectPlaywrightReportIssues(reportPath, { requireAnyRecordedTest: false })).toEqual([]);
 });

@@ -316,9 +316,9 @@ Debe seguir cubriendo:
 - `test:e2e:critical:ci`
 
 El script extendido `test:release-confidence:full` agrega `test:unit:critical` cuando se quiere una corrida más profunda o diagnóstica.
-El ownership técnico por subsistema crítico vive en `scripts/config/technical-ownership-map.json` y se valida con `npm run check:technical-ownership-map`.
+El ownership técnico por subsistema crítico vive en `scripts/config/technical-ownership-map.json`.
 El scorecard ejecutivo consolidado vive en `reports/release-readiness-scorecard.md` y se regenera con `npm run report:release-readiness-scorecard`.
-La política formal de upgrades, excepciones y tipos de cambio vive en `scripts/config/sustainable-change-policy.json` y se valida con `npm run check:sustainable-change-policy`.
+La política formal de upgrades, excepciones y tipos de cambio vive en `scripts/config/sustainable-change-policy.json`.
 La clasificación compacta de guardrails blocking vs report-only vive en `scripts/config/guardrail-governance.json` y se valida con `npm run check:guardrail-governance`.
 La clasificación de runtime de tests vive en `scripts/config/test-runtime-governance.json` y se valida con `npm run check:test-runtime-governance`.
 El workflow `.github/workflows/nightly-test-runtime.yml` concentra suites largas en `workflow_dispatch`/`schedule`: `test:sync-load`, `test:release-confidence:full` y `test:e2e:clinical-stability:ci`.
@@ -344,7 +344,7 @@ CI regenera los snapshots report-only obligatorios con `npm run report:governanc
 `release-readiness-scorecard` sigue siendo ejecutivo y obligatorio para release, pero ya no duplica bloqueo dentro de `check:quality` si las fuentes primarias siguen verdes.
 `release-confidence-matrix` también pasa a report-only dentro del aggregate: sigue exigiéndose para trazabilidad y revisión técnica, pero no como bloqueo duplicado si el release pack y la cobertura primaria siguen verdes.
 La fuente de verdad es `scripts/config/guardrail-governance.json`: `reportOnly` registra comandos que escriben snapshots y `qualityAggregate.checks` enumera lo que ejecuta el agregado, con su carácter bloqueante o advisory. Un productor registrado no implica que su checker se ejecute.
-`technical-ownership-map` y `sustainable-change-policy` tienen productores registrados, pero sus checkers no están en el agregado. Al preparar un release, ejecutar localmente `npm run check:technical-ownership-map` y `npm run check:sustainable-change-policy`; conservar las políticas de ownership, upgrades, excepciones y definición de cambio seguro.
+`report:technical-ownership-map` y `report:sustainable-change-policy` conservan los snapshots para revisión técnica. Las políticas de ownership, upgrades, excepciones y definición de cambio seguro siguen vigentes, sin validadores de campos separados.
 La validación de tiempos actuales corre en el job `ci-runtime-telemetry` de `.github/workflows/ci-cd.yml`, requerido por `ci-summary`: collect → report → check. El agregado no comprueba el snapshot histórico versionado. `npm run check:ci-runtime-telemetry` sigue disponible localmente y valida el archivo presente; comprobar su fecha y corrida de origen antes de usarlo como evidencia.
 
 Salida esperada:
@@ -366,7 +366,7 @@ Salida esperada:
 5. si agregaste un subsistema crítico nuevo, enlazarlo en la misma change con ownership y suites
 6. no aceptar perfiles compactos sin trazabilidad explícita de qué área protegen
 
-### Falla `check:technical-ownership-map`
+### Revisar responsables técnicos
 
 1. correr `npm run report:technical-ownership-map`
 2. revisar `reports/technical-ownership-map.md`
@@ -401,7 +401,7 @@ Salida esperada:
    - ownership
 4. si el scorecard se degrada por un reporte base, corregir ese reporte o su fuente; no maquillar el scorecard
 
-### Falla `check:sustainable-change-policy`
+### Revisar la política de cambios
 
 1. correr `npm run report:sustainable-change-policy`
 2. revisar `reports/sustainable-change-policy.md`
@@ -703,7 +703,7 @@ Si no hay coincidencia exacta o falla la restauración, se ejecuta `npm ci` con 
 caché habitual de descargas de npm. Un fallo de instalación sigue bloqueando CI;
 solo guardar/restaurar la caché es opcional. No se guardan datos clínicos,
 credenciales ni el resultado de tests/builds. El único lifecycle del proyecto
-es `prepare: husky`; las comprobaciones no dependen de hooks Git instalados.
+es `prepare`, que solo fija `core.hooksPath`; las comprobaciones no dependen de hooks Git instalados.
 
 Motivo medido: en los runs `36484350746` y `36489067347`, la instalación en las
 etapas consecutivas consumía aproximadamente 55–66 segundos por etapa. Comparar

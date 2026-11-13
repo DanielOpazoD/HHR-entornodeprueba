@@ -1,8 +1,6 @@
+import type { CesareanLabor, DeliveryRoute } from '@/types/domain/patient';
+
 import clsx from 'clsx';
-import type {
-  CesareanLabor,
-  DeliveryRoute,
-} from '@/features/census/contracts/censusObstetricContracts';
 
 interface DeliveryRouteOption {
   route: DeliveryRoute;

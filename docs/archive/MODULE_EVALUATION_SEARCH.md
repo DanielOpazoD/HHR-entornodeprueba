@@ -100,7 +100,7 @@ Resultado actual:
 - **Typecheck:** OK
 - **Quality:** OK
 - **Tests focalizados:** `3/3` archivos verdes, `32/32` tests OK
-- **Otros checks:** `check:quality` incluye `census-feature-boundary`, `census-runtime-boundary` y `docs-drift` verdes
+- **Otros checks:** `check:quality` incluye `hhr/public-import-boundaries`, `census-runtime-boundary` y `docs-drift` verdes
 
 ---
 

@@ -1,9 +1,10 @@
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { resolveCurrentClinicalDay } from '@/utils/clinicalDayAdmissionUtils';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { HistoricalSnapshotReconstruction } from './historicalSnapshotReconstruction';
+import { normalizeRut } from '@/utils/rutUtils';
 
 const MILLISECONDS_PER_DAY = 86_400_000;
 
@@ -128,9 +129,6 @@ export const assertHistoricalCensusHasEvidence = (
     'No hay evidencia suficiente en Eloísa para reconstruir este día. El censo no se confirmó como vacío.'
   );
 };
-
-const normalizeRut = (value?: string): string =>
-  (value ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
 
 const hasSameStableIdentity = (
   historical: DailyRecord['beds'][string],

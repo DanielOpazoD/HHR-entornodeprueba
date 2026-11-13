@@ -1,10 +1,13 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /** Applies a reviewed census diff without overwriting occupied beds; pure and deterministic. */
 import { buildMovementUndoSnapshot } from '@/utils/movementUndoSnapshot';
 import { buildImportedMovementStamp } from './buildImportedMovementStamp';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { CensusManager } from '@/domain/CensusManager';
 import { BEDS, OCCUPANCY_ONLY_EXTRA_BED_IDS } from '@/constants/beds';
-import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DischargeData, TransferData, CMAData } from '@/types/domain/movements';
 import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImportDiff';
 import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
@@ -376,6 +379,14 @@ export const applyCensusImportDiff = (
   }
 
   applyRayenDischargeVerification(nextBeds, effectiveDiff.pendingAdministrativeDischarges);
+
+  // Vacating a catalog bed keeps its empty slot, as persistence requires. Visibility
+  // still follows occupancy and activeExtraBeds; never retain the departed patient state.
+  for (const bed of BEDS) {
+    if (current.beds[bed.id] && !nextBeds[bed.id]) {
+      nextBeds[bed.id] = createEmptyPatient(bed.id);
+    }
+  }
 
   const activeExtraBeds = [
     ...(current.activeExtraBeds ?? []).filter(bedId => !OCCUPANCY_ONLY_EXTRA_BED_IDS.has(bedId)),

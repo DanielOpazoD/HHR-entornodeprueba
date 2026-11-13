@@ -1,7 +1,7 @@
 import React from 'react';
 import { Ambulance, Info, Plane, PlaneTakeoff } from 'lucide-react';
 
-import type { DailyRecord } from '@/features/analytics/contracts/analyticsDailyRecordContracts';
+import type { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
 import { formatAnalyticsPercent as formatPercent } from '@/features/analytics/controllers/analyticsPercentageController';
 import {
   buildTransferAnalytics,

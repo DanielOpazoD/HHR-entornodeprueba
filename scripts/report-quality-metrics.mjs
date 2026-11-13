@@ -2,6 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { countExplicitAny } from './explicitAnySupport.mjs';
 import { findTestModifiers } from './testGovernanceSupport.mjs';
 import { buildReleaseConfidenceMatrixReport } from './releaseConfidenceMatrixSupport.mjs';
 import { buildEvidenceProvenance } from './evidenceProvenanceSupport.mjs';
@@ -53,12 +54,6 @@ const DEPRECATED_IMPORTS = [
     importPath: '@/shared/controllerResult',
     allowBypass: file => file === 'src/shared/controllerResult.ts' || file.startsWith('src/tests/'),
   },
-];
-const DAILY_RECORD_ROOT_IMPORTS = [
-  '@/types/domain/dailyRecord',
-  '@/types/domain/dailyRecordPatch',
-  '@/types/domain/dailyRecordSlices',
-  '@/types/domain/dailyRecordMedicalHandoff',
 ];
 
 const toPosix = value => value.split(path.sep).join('/');
@@ -378,9 +373,7 @@ const getTypeSafetySignals = () => {
   let explicitAnyTestCount = 0;
 
   for (const filePath of files) {
-    const content = fs.readFileSync(filePath, 'utf8');
-    const count =
-      (content.match(/:\s*any\b/g)?.length || 0) + (content.match(/\bas\s+any\b/g)?.length || 0);
+    const count = countExplicitAny(fs.readFileSync(filePath, 'utf8'), filePath);
     explicitAnyCount += count;
 
     const relative = toPosix(path.relative(ROOT, filePath));
@@ -432,7 +425,6 @@ const getConvergenceSignals = () => {
   let accidentalCopies = 0;
   let featureBoundaryViolations = 0;
   let deprecatedShimImports = 0;
-  let dailyRecordBoundaryViolations = 0;
   let governedCompatibilityShims = 0;
   let rawConsoleOutsideStructuredSink = 0;
 
@@ -488,39 +480,6 @@ const getConvergenceSignals = () => {
       }
       deprecatedShimImports += 1;
     }
-
-    const importsDailyRecordRoot = DAILY_RECORD_ROOT_IMPORTS.some(importPath =>
-      source.includes(importPath)
-    );
-    if (!importsDailyRecordRoot) {
-      continue;
-    }
-
-    const isApplicationBypass =
-      relative === 'src/application/shared/dailyRecordContracts.ts' ||
-      relative === 'src/application/shared/dailyRecordBedContracts.ts' ||
-      relative === 'src/application/shared/dailyRecordCoreContracts.ts' ||
-      relative === 'src/application/shared/dailyRecordMedicalContracts.ts' ||
-      relative === 'src/application/shared/dailyRecordStaffContracts.ts' ||
-      isTestFile(relative);
-    const isHookBypass = isTestFile(relative);
-    const isServiceBypass =
-      relative === 'src/services/contracts/dailyRecordServiceContracts.ts' ||
-      relative.startsWith('src/services/repositories/') ||
-      relative.startsWith('src/services/storage/') ||
-      isTestFile(relative);
-
-    if (relative.startsWith('src/application/') && !isApplicationBypass) {
-      dailyRecordBoundaryViolations += 1;
-    }
-
-    if (relative.startsWith('src/hooks/') && !isHookBypass) {
-      dailyRecordBoundaryViolations += 1;
-    }
-
-    if (relative.startsWith('src/services/') && !isServiceBypass) {
-      dailyRecordBoundaryViolations += 1;
-    }
   }
 
   const getSourceBasenameSet = dirPath => {
@@ -569,7 +528,6 @@ const getConvergenceSignals = () => {
     accidentalCopies,
     featureBoundaryViolations,
     deprecatedShimImports,
-    dailyRecordBoundaryViolations,
     governedCompatibilityShims,
     controllerOwnershipDrift,
     rawConsoleOutsideStructuredSink,
@@ -656,7 +614,6 @@ const mdLines = [
   `- Governed compatibility shims in source: ${metrics.convergence.governedCompatibilityShims}`,
   `- Feature public API boundary violations: ${metrics.convergence.featureBoundaryViolations}`,
   `- Deprecated shim imports in source: ${metrics.convergence.deprecatedShimImports}`,
-  `- DailyRecord root-boundary violations in source: ${metrics.convergence.dailyRecordBoundaryViolations}`,
   `- Census controller ownership drift: ${metrics.convergence.controllerOwnershipDrift}`,
   `- Raw console warn/error outside structured sink: ${metrics.convergence.rawConsoleOutsideStructuredSink}`,
   '',

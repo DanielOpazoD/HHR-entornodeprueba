@@ -1,11 +1,11 @@
 import { getShiftSchedule } from '@/utils/clinicalDayUtils';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type {
-  DailyRecordPatch,
   DailyRecordStaffingDetailsV1,
   DetailedStaffAssignment,
   DetailedStaffingRole,
   DetailedStaffingShift,
-} from '@/services/contracts/dailyRecordServiceContracts';
+} from '@/types/domain/dailyRecordStaffingDetails';
 import { resolveDetailedStaffingStandardNames } from '@/services/staff/dailyRecordStaffingStandardNames';
 
 const STANDARD_SLOT_COUNT = {

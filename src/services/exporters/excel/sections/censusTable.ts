@@ -1,6 +1,8 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type { Worksheet } from 'exceljs';
 import type { CensusExportRecord } from '@/services/contracts/censusExportServiceContracts';
-import { PatientData } from '@/services/contracts/patientServiceContracts';
+
 import { BEDS } from '@/constants/beds';
 import { getBedTypeForRecord } from '@/utils/bedTypeUtils';
 import { TITLE_STYLE, HEADER_FILL, BORDER_THIN, FREE_FILL, BLOCKED_FILL } from '../styles';

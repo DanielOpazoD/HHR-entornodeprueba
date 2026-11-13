@@ -30,6 +30,19 @@ const findBudget = (config: BundleBudgetConfig, pattern: string) =>
   config.chunkPatternBudgets.find(budget => budget.pattern === pattern);
 
 describe('bundle budget config', () => {
+  it('reserves the recovered Eloisa review headroom without raising the old ceiling', () => {
+    const budget = findBudget(readBundleBudgetConfig(), '^RayenImportButton-.*\\.js$');
+    expect(budget?.maxBytes).toBeLessThanOrEqual(264096 - 20 * 1024 + 12288);
+  });
+
+  it('preserves recovered history headroom and bounds optional metrics', () => {
+    const config = readBundleBudgetConfig();
+    expect(findBudget(config, '^RayenSyncHistoryModal-.*\\.js$')?.maxBytes).toBeLessThanOrEqual(
+      29990 - 3000 + 2000
+    );
+    expect(findBudget(config, '^RayenSyncTechnicalMetricsPanel-.*\\.js$')?.maxBytes).toBe(4737);
+  });
+
   it('bounds the core monthly export and optional Eloisa source separately', () => {
     const config = readBundleBudgetConfig();
     expect(findBudget(config, '^cudyrEssentialWorkbook-.*\\.js$')).toMatchObject({
@@ -70,10 +83,10 @@ describe('bundle budget config', () => {
       maxBytes: 50000,
     });
     expect(findBudget(config, '^RayenSyncHistoryModal-.*\\.js$')).toMatchObject({
-      maxBytes: 30000,
+      maxBytes: 28148,
     });
     expect(findBudget(config, '^perfAuditReport-.*\\.js$')).toMatchObject({ maxBytes: 4000 });
-    expect(findBudget(config, '^RayenImportButton-.*\\.js$')).toMatchObject({ maxBytes: 264096 });
+    expect(findBudget(config, '^RayenImportButton-.*\\.js$')).toMatchObject({ maxBytes: 250430 });
     expect(findBudget(config, '^ClinicalLibraryDrawer-.*\\.js$')).toMatchObject({
       maxBytes: 120000,
     });
@@ -85,10 +98,8 @@ describe('bundle budget config', () => {
     expect(
       config.startupChunkBudgets.find(budget => budget.label === 'app-authenticated-shell')
     ).toMatchObject({
-      // Preserve confirmed-cache ordering, episode metadata and split-day write hygiene within
-      // measured allowances, including shared crash-cart review and the audit documents module
-      // (docs/BUNDLE_RISK_LEDGER.md).
-      maxBytes: 635136,
+      // Owner-approved measured startup headroom (2026-11-11; BUNDLE_RISK_LEDGER.md).
+      maxBytes: 665600,
       severity: 'error',
     });
   });

@@ -1,9 +1,10 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { assertDailyRecordPartialUpdateAccepted } from '@/services/repositories/dailyRecordRepositoryWriteOutcome';
 import type { SpecialtyIntent } from '@/types/domain/specialtyDecision';
-import type { DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { loadCIE10Database } from '@/services/terminology/cie10SpanishDatabase';
 import pilotConfig from '../../../config/specialty-jev-pilot.hhr-pruebas.json';
 
@@ -258,6 +259,7 @@ const writeSpecialtyIntent = async (
       ? `beds.${scope.bedId}.clinicalCrib.specialty`
       : `beds.${scope.bedId}.specialty`;
   const result = await updatePartialDetailed(scope.date, { [path]: value } as DailyRecordPatch, {
+    authoringSession: captureAuthoringSession(),
     specialtyIntent: intent,
     requireAtomicCas: true,
     requireRemoteAuthorityFirst: true,

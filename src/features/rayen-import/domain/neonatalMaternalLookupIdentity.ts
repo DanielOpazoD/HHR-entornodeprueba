@@ -1,5 +1,5 @@
-import { isValidRut, normalizeRut } from '@/utils/rutUtils';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import { isValidRut, isSameRut } from '@/utils/rutUtils';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { ageFromBirthDate } from '../mapping/rayenToPatientData';
 import { isMaternalCandidatePatient } from './clinicalCribMaternalAssociation';
@@ -44,7 +44,7 @@ const maternalCandidates = (
           !/^(?:Hombre|Masculino|Male)$/i.test(s.administrativeSex || '')
       )
       .map(s => ({ episode: s.encounterId, rut: s.run })),
-  ].filter(p => normalizeRut(p.rut) === normalizeRut(sourceRun));
+  ].filter(p => isSameRut(p.rut, sourceRun));
   return candidates;
 };
 

@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
@@ -46,14 +47,14 @@ it('rejects a full save overtaken after preparation and accepts a retry from the
     await boundary.queue(
       { ...base, lastUpdated: `${date}T10:01:00.000Z`, nursesDayShift: ['SYNTHETIC A'] },
       { syncContract: { expectedVersion: base.lastUpdated, changedPaths: ['nursesDayShift'] } },
-      { wholeRecordBase: base }
+      { wholeRecordBase: base, authoringSession: captureAuthoringSession() }
     );
   };
   await expect(
     saveDetailed(
       { ...base, lastUpdated: `${date}T10:02:00.000Z`, tensDayShift: ['SYNTHETIC B'] },
       base.lastUpdated,
-      { baseRecord: base }
+      { authoringSession: captureAuthoringSession(), baseRecord: base }
     )
   ).rejects.toMatchObject({ name: 'ConcurrencyError' });
   const retained = await hospitalDB.dailyRecords.get(date);
@@ -65,7 +66,7 @@ it('rejects a full save overtaken after preparation and accepts a retry from the
   const result = await saveDetailed(
     { ...retained, tensDayShift: ['SYNTHETIC B'] },
     retained.lastUpdated,
-    { baseRecord: retained }
+    { authoringSession: captureAuthoringSession(), baseRecord: retained }
   );
   expect(result.savedLocally).toBe(true);
   const final = await hospitalDB.dailyRecords.get(date);

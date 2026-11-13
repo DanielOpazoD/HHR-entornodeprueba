@@ -1,9 +1,9 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { useCallback, useRef, useEffect } from 'react';
-import type {
-  ApplyDailyRecordPatch,
-  DailyRecord,
-} from '@/application/shared/dailyRecordCoreContracts';
-import { PatientData } from '@/hooks/contracts/patientHookContracts';
+import type { ApplyDailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+
 import type { CudyrBatchUpdate, CudyrScore, CudyrScorePatch } from '@/types/domain/cudyr';
 import { PatientFieldValue } from '@/types/valueTypes';
 import { usePatientValidation } from './usePatientValidation';

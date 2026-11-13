@@ -21,7 +21,8 @@ vi.mock('@/services/storage/firestore/firestoreRecordQueries', async importOrigi
 }));
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/storage/indexeddb/indexedDbRecordService')>()),
-  getRecordForDate: vi.fn(async () => null),
+  getRecordForDateStrict: vi.fn(async () => null),
+  inspectLocalRecordAdmission: vi.fn(async () => ({ status: 'admitted', record: null })),
   captureLocalRecordBase: vi.fn(async () => ({ kind: 'missing' })),
 }));
 vi.mock('@/services/storage/sync/dailyRecordSyncQueueReadService', () => ({

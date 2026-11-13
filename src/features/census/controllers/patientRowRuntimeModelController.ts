@@ -1,5 +1,7 @@
-import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
-import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
+import type { PatientData } from '@/types/domain/patient';
+
+import type { BedDefinition } from '@/types/domain/beds';
+
 import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
 import type { PatientRowDependencies } from '@/features/census/components/patient-row/usePatientRowDependencies';
 import type { PatientRowDerivedState } from '@/features/census/controllers/patientRowStateController';

@@ -1,6 +1,8 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { describe, expect, it } from 'vitest';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
-import type { PatientData } from '@/shared/contracts/patientDomainContracts';
+
 import type { MedifSourceRecord } from '@/features/clinical-library/domain/medifPatientPrefill';
 import { medifValuesFromClinicalPatient } from '@/features/clinical-library/domain/forms/clinicalFormMedif';
 import { MEDIF_FIELDS } from '@/features/clinical-library/domain/medifSchema';

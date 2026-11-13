@@ -1,13 +1,15 @@
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
+  admitLocalRecords,
   clearAllRecords,
   deleteRecord,
   getAllDates,
   getAllRecords,
-  getAllRecordsSorted,
   getPreviousDayRecord,
-  getRecordForDate,
+  getRecordForDateStrict,
   getRecordsForMonth,
   saveRecord,
   saveRecordStrict,
@@ -62,6 +64,8 @@ describe('indexedDBService', () => {
     await clearErrorLogs();
     await clearAuditLogs();
     localStorage.clear();
+    localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-diagnostics');
+    setSessionGeneration('user:synthetic-diagnostics', 'user:synthetic-diagnostics');
     sessionStorage.clear();
     window.__HHR_E2E_OVERRIDE__ = undefined;
     vi.clearAllMocks();
@@ -69,6 +73,36 @@ describe('indexedDBService', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('uses durable admission and queue evidence even with a synthetic census override', async () => {
+    window.__HHR_E2E_OVERRIDE__ = { [mockRecord.date]: mockRecord };
+    try {
+      const [admitted] = await admitLocalRecords([{ record: mockRecord, serverConfirmed: true }]);
+      expect(admitted.record).toEqual(mockRecord);
+      expect(await indexedDbCore.hospitalDB.dailyRecords.get(mockRecord.date)).toEqual(mockRecord);
+      const pending = {
+        opId: 'synthetic-runtime-pending',
+        type: 'UPDATE_DAILY_RECORD' as const,
+        key: `daily:${mockRecord.date}`,
+        payload: mockRecord,
+        status: 'PENDING' as const,
+        timestamp: 1,
+        retryCount: 0,
+      };
+      const id = await indexedDbCore.hospitalDB.syncQueue.add(pending);
+      const [retained] = await admitLocalRecords([
+        {
+          record: { ...mockRecord, nursesDayShift: ['REMOTE'] },
+          serverConfirmed: true,
+        },
+      ]);
+      expect(retained.status).toBe('retained_pending');
+      expect(retained.record).toEqual(mockRecord);
+      expect(await indexedDbCore.hospitalDB.syncQueue.toArray()).toEqual([{ ...pending, id }]);
+    } finally {
+      window.__HHR_E2E_OVERRIDE__ = undefined;
+    }
   });
 
   describe('Daily Records', () => {
@@ -109,7 +143,7 @@ describe('indexedDBService', () => {
       });
       expect(result).toMatchObject({ ok: true, store: 'fallback' });
       expect(queueRead).not.toHaveBeenCalled();
-      expect(await getRecordForDate(mockRecord.date)).toMatchObject(mockRecord);
+      expect(await getRecordForDateStrict(mockRecord.date)).toMatchObject(mockRecord);
     });
 
     it('should report the backing store used by strict record saves', async () => {
@@ -121,7 +155,7 @@ describe('indexedDBService', () => {
         store: 'indexeddb',
         dates: ['2025-01-01'],
       });
-      await expect(getRecordForDate('2025-01-01')).resolves.toMatchObject({
+      await expect(getRecordForDateStrict('2025-01-01')).resolves.toMatchObject({
         date: '2025-01-01',
       });
     });
@@ -131,7 +165,7 @@ describe('indexedDBService', () => {
 
       expect(result.ok).toBe(true);
       expect(localStorage.getItem('hanga_roa_hospital_data')).toBeNull();
-      await expect(getRecordForDate('2025-01-01')).resolves.toMatchObject({
+      await expect(getRecordForDateStrict('2025-01-01')).resolves.toMatchObject({
         date: '2025-01-01',
       });
     });
@@ -155,12 +189,12 @@ describe('indexedDBService', () => {
 
     it('should save and retrieve a record', async () => {
       await saveRecord(mockRecord);
-      const retrieved = await getRecordForDate('2025-01-01');
+      const retrieved = await getRecordForDateStrict('2025-01-01');
       expect(retrieved).toMatchObject({ date: '2025-01-01' });
     });
 
     it('should return null for non-existent record', async () => {
-      const retrieved = await getRecordForDate('9999-12-31');
+      const retrieved = await getRecordForDateStrict('9999-12-31');
       expect(retrieved).toBeNull();
     });
 
@@ -195,19 +229,19 @@ describe('indexedDBService', () => {
     it('should delete a record', async () => {
       await saveRecord(mockRecord);
       await deleteRecord('2025-01-01');
-      const retrieved = await getRecordForDate('2025-01-01');
+      const retrieved = await getRecordForDateStrict('2025-01-01');
       expect(retrieved).toBeNull();
     });
 
-    it('should bulk save and return all records sorted descending', async () => {
+    it('should bulk save all records', async () => {
       await saveRecordsStrict([
         { ...mockRecord, date: '2025-01-02' },
         { ...mockRecord, date: '2025-01-03' },
         { ...mockRecord, date: '2025-01-01' },
       ]);
 
-      const sorted = await getAllRecordsSorted();
-      expect(sorted.map(record => record.date)).toEqual(['2025-01-03', '2025-01-02', '2025-01-01']);
+      const stored = await getAllRecords();
+      expect(Object.keys(stored).sort()).toEqual(['2025-01-01', '2025-01-02', '2025-01-03']);
     });
   });
 
@@ -285,7 +319,7 @@ describe('indexedDBService', () => {
       expect(announced).toEqual([{ operation: 'save', dates: ['2025-01-01'] }]);
       expect(steps).toEqual(['written', 'announced']);
 
-      expect(await getRecordForDate('2025-01-01')).toBeDefined();
+      expect(await getRecordForDateStrict('2025-01-01')).toBeDefined();
       expect(await getCatalog('nurses')).toEqual(['Alice']);
       expect(await getCatalog('tens')).toEqual(['Bob']);
       const logs = await getAuditLogs();

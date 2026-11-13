@@ -1,7 +1,7 @@
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { useCallback, useRef, type MutableRefObject } from 'react';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type {
   RayenSyncEvent,
@@ -200,6 +200,7 @@ export const useRayenSyncAudit = ({
         startedAt: now().toISOString(),
         by: actor,
         source: sourceFromHealth(health),
+        ...(health?.report?.buildId ? { extensionBuildId: health.report.buildId } : {}),
         policy,
         reviewRequirement,
         performance: mergeRayenSyncPerformance(undefined, performance),
@@ -329,9 +330,15 @@ export const useRayenSyncAudit = ({
           if (claim) {
             lifecycle.commitTerminal(claim);
             reportRayenSyncTerminal(
-              claim.run ?? { id: completedEvent.id, startedAt: completedEvent.startedAt },
+              claim.run ?? completedEvent,
               completedEvent.status === 'partial' ? 'partial' : 'complete',
-              issueEvidence,
+              {
+                ...issueEvidence,
+                issueCauses: countRayenSyncIssueCauses(
+                  summary.errors,
+                  completedEvent.structuralReview?.issues
+                ),
+              },
               completedEvent.completedAt
             );
           }
@@ -368,7 +375,7 @@ export const useRayenSyncAudit = ({
           if (failedEvent) {
             if (claim) lifecycle.commitTerminal(claim);
             reportRayenSyncTerminal(
-              claim?.run ?? { id: failedEvent.id, startedAt: failedEvent.startedAt },
+              claim?.run ?? failedEvent,
               'failed',
               { failureReason: classifyRayenApplyFailureReason(error), ...issueEvidence },
               failedEvent.completedAt

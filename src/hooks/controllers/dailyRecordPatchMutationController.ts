@@ -1,4 +1,5 @@
-import type { DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { PublicWriteOptions } from '@/services/storage/authoringSession';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
 
 export type DailyRecordPatchMutationVariables =
@@ -6,7 +7,7 @@ export type DailyRecordPatchMutationVariables =
   | {
       date?: string;
       partial: DailyRecordPatch;
-      options?: PartialUpdateDailyRecordOptions;
+      options?: PublicWriteOptions<PartialUpdateDailyRecordOptions>;
     };
 
 export const getDailyRecordPatchMutationKey = (date: string) => ['dailyRecordPatch', date] as const;
@@ -23,7 +24,8 @@ export const resolvePendingIntentionalClearTarget = (
     return null;
   }
 
-  const options = (variables as { options?: PartialUpdateDailyRecordOptions }).options;
+  const options = (variables as { options?: PublicWriteOptions<PartialUpdateDailyRecordOptions> })
+    .options;
   const intentionalBedClear = options?.intentionalBedClear;
   if (!intentionalBedClear) return null;
 
@@ -54,7 +56,7 @@ export const resolvePendingClinicalCribCreateTarget = (
 
   const { partial, options } = variables as {
     partial: DailyRecordPatch;
-    options?: PartialUpdateDailyRecordOptions;
+    options?: PublicWriteOptions<PartialUpdateDailyRecordOptions>;
   };
   const clinicalCribCreate = options?.clinicalCribCreate;
   if (!clinicalCribCreate) return null;

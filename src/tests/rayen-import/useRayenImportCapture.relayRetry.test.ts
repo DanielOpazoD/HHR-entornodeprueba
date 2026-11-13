@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PreparedRayenSyncContext } from '@/features/rayen-import/hooks/rayenSyncTemporalContext';
 import {
   GESTION_CAMAS_CAPTURE_RETRY_DELAY_MS,
@@ -13,7 +13,7 @@ const bridge = vi.hoisted(() => ({
   subscribeErrors: vi.fn(() => vi.fn()),
 }));
 
-vi.mock('@/features/rayen-import/bridge/rayenImportBridge', () => ({
+vi.mock('@/features/rayen-import/bridge/rayenSnapshotBridge', () => ({
   subscribeToRayenSnapshots: bridge.subscribeSnapshots,
   subscribeToRayenImportErrors: bridge.subscribeErrors,
 }));

@@ -3,9 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createExecutionHarness } from './support/executionHarness';
 import { useRayenImportCapture } from '@/features/rayen-import/hooks/useRayenImportCapture';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
-vi.mock('@/features/rayen-import/bridge/rayenImportBridge', () => ({
+vi.mock('@/features/rayen-import/bridge/rayenSnapshotBridge', () => ({
   subscribeToRayenSnapshots: () => () => undefined,
   subscribeToRayenImportErrors: () => () => undefined,
 }));

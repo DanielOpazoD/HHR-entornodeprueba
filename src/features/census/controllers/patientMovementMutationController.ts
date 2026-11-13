@@ -1,10 +1,6 @@
-import type { DailyRecord } from '@/features/census/contracts/censusRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { tombstoneMovementById } from '@/application/census/movementTombstonePolicy';
-import {
-  DischargeType,
-  TransferData,
-  type IeehData,
-} from '@/features/census/contracts/censusMovementContracts';
+import { DischargeType, TransferData, type IeehData } from '@/types/domain/movements';
 
 interface UpdateDischargeMovementInput {
   record: DailyRecord;

@@ -10,7 +10,15 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 const mocks = vi.hoisted(() => ({ getLocal: vi.fn(), saveMany: vi.fn() }));
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDateStrict: mocks.getLocal,
-  saveRecordsStrict: mocks.saveMany,
+}));
+
+vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
+  saveBackupImport: async (records: unknown[]) => {
+    if (!records.length) return [];
+    const result = await mocks.saveMany(records);
+    if (!result.ok) throw new Error('synthetic backup command failure');
+    return [];
+  },
 }));
 
 import { importDataJSONDetailed } from '@/services/exporters/exportImportJson';

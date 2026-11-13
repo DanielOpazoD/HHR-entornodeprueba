@@ -1,3 +1,8 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import type {
+  LocalRecordAdmissionCandidate,
+  LocalRecordBase,
+} from '@/services/storage/indexeddb/indexedDbRecordService';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
@@ -7,7 +12,22 @@ import {
 } from '@/tests/services/repositories/dailyRecordRepositoryWriteServiceFixtures';
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
-  getRecordForDate: vi.fn(),
+  captureLocalRecordBase: async (date: string) => ({
+    kind: 'stored',
+    record: await getRecordFromIndexedDB(date),
+  }),
+  inspectLocalRecordAdmission: async (_date: string, base: LocalRecordBase) => ({
+    status: 'admitted',
+    record: base.kind === 'stored' ? base.record : null,
+  }),
+  admitLocalRecords: vi.fn(async (candidates: readonly LocalRecordAdmissionCandidate[]) =>
+    candidates.map(candidate => ({
+      date: candidate.record.date,
+      status: 'admitted',
+      record: candidate.record,
+    }))
+  ),
+  getRecordForDateStrict: vi.fn(),
   saveRecord: vi.fn(),
   saveRecordStrict: vi.fn(async record => ({
     ok: true,
@@ -18,6 +38,9 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
 }));
 
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
+  getRecordFromFirestoreDetailed: vi
+    .fn()
+    .mockResolvedValue({ status: 'missing', serverConfirmed: false, record: null }),
   getRecordFromFirestore: vi.fn(),
 }));
 
@@ -68,10 +91,11 @@ import {
   updatePartialDetailed,
 } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import {
-  getRecordForDate as getRecordFromIndexedDB,
+  getRecordForDateStrict as getRecordFromIndexedDB,
   saveRecordStrict as saveToIndexedDB,
+  admitLocalRecords,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
-import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
+import { getRecordFromFirestoreDetailed } from '@/services/storage/firestore/firestoreRecordQueries';
 import {
   saveRecordToFirestore,
   updateRecordPartial as updateRecordPartialToFirestore,
@@ -122,7 +146,9 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
     vi.mocked(isRetryableSyncError).mockReturnValue(true);
 
     const record = buildRecord('2026-02-19');
-    const result = await saveDetailed(record);
+    const result = await saveDetailed(record, undefined, {
+      authoringSession: captureAuthoringSession(),
+    });
     expect(result.outcome).toBe('queued');
     expect(result.queuedForRetry).toBe(true);
 
@@ -150,7 +176,9 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
       maxPendingTasks: 192,
     });
 
-    const result = await saveDetailed(buildRecord('2026-02-20'));
+    const result = await saveDetailed(buildRecord('2026-02-20'), undefined, {
+      authoringSession: captureAuthoringSession(),
+    });
 
     expect(result.outcome).toBe('unrecoverable');
     expect(result.queuedForRetry).toBe(false);
@@ -168,7 +196,9 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
       },
     };
 
-    const result = await saveDetailed(record);
+    const result = await saveDetailed(record, undefined, {
+      authoringSession: captureAuthoringSession(),
+    });
 
     expect(result.outcome).toBe('blocked');
     expect(result.consistencyState).toBe('blocked_validation');
@@ -188,9 +218,13 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
     );
     vi.mocked(isRetryableSyncError).mockReturnValue(true);
 
-    await updatePartial('2026-02-18', {
-      'beds.R1.patientName': 'Paciente Nuevo',
-    });
+    await updatePartial(
+      '2026-02-18',
+      {
+        'beds.R1.patientName': 'Paciente Nuevo',
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     expect(queueSyncTask).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -216,9 +250,13 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(null);
 
     try {
-      const result = await updatePartialDetailed('2026-02-18', {
-        'beds.R1.patientName': 'Paciente Nuevo',
-      });
+      const result = await updatePartialDetailed(
+        '2026-02-18',
+        {
+          'beds.R1.patientName': 'Paciente Nuevo',
+        },
+        { authoringSession: captureAuthoringSession() }
+      );
 
       expect(result.outcome).toBe('blocked');
       expect(result.savedLocally).toBe(false);
@@ -233,9 +271,13 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
 
     try {
       await expect(
-        updatePartial('2026-02-18', {
-          'beds.R1.patientName': 'Paciente Nuevo',
-        })
+        updatePartial(
+          '2026-02-18',
+          {
+            'beds.R1.patientName': 'Paciente Nuevo',
+          },
+          { authoringSession: captureAuthoringSession() }
+        )
       ).rejects.toThrow('No se encontró un registro local válido para aplicar el cambio.');
     } finally {
       restoreConsole(consoleSpies);
@@ -250,16 +292,30 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
     };
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(null);
-    vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(remote);
-
-    const result = await updatePartialDetailed('2026-02-18', {
-      'beds.R2.patientName': 'Paciente Nuevo',
+    vi.mocked(getRecordFromFirestoreDetailed).mockResolvedValueOnce({
+      status: 'resolved',
+      serverConfirmed: true,
+      record: remote,
     });
+
+    const result = await updatePartialDetailed(
+      '2026-02-18',
+      {
+        'beds.R2.patientName': 'Paciente Nuevo',
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     expect(result.outcome).toBe('clean');
     expect(result.savedLocally).toBe(true);
     expect(result.updatedRemotely).toBe(true);
-    expect(saveToIndexedDB).toHaveBeenCalledWith(remote, expect.anything());
+    expect(admitLocalRecords).toHaveBeenCalledWith([
+      expect.objectContaining({
+        record: expect.objectContaining({ date: remote.date, lastUpdated: remote.lastUpdated }),
+        remoteRecord: expect.objectContaining({ date: remote.date }),
+        expectedBase: { kind: 'stored', record: null },
+      }),
+    ]);
     expect(queueSyncTask).toHaveBeenCalledWith(
       expect.objectContaining({
         date: '2026-02-18',
@@ -296,9 +352,13 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
 
-    const result = await updatePartialDetailed('2026-03-05', {
-      'beds.R1.admissionDate': '2026-03-02',
-    });
+    const result = await updatePartialDetailed(
+      '2026-03-05',
+      {
+        'beds.R1.admissionDate': '2026-03-02',
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     expect(result.outcome).toBe('blocked');
     expect(result.consistencyState).toBe('blocked_validation');
@@ -326,12 +386,16 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
 
-    const result = await updatePartialDetailed('2026-05-08', {
-      'beds.R4.patientName': 'Paciente Nuevo',
-      'beds.R4.rut': '22.222.222-2',
-      'beds.R4.firstSeenDate': '2026-05-08',
-      'beds.R4.admissionDate': '2026-05-08',
-    });
+    const result = await updatePartialDetailed(
+      '2026-05-08',
+      {
+        'beds.R4.patientName': 'Paciente Nuevo',
+        'beds.R4.rut': '22.222.222-2',
+        'beds.R4.firstSeenDate': '2026-05-08',
+        'beds.R4.admissionDate': '2026-05-08',
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     expect(result.outcome).toBe('clean');
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
@@ -364,17 +428,21 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
 
-    const result = await updatePartialDetailed('2026-05-08', {
-      'beds.R2': {
-        bedId: 'R2',
-        patientName: '',
-        rut: '',
-        firstSeenDate: '',
-        admissionDate: '',
-        admissionTime: '',
-        location: 'R2',
+    const result = await updatePartialDetailed(
+      '2026-05-08',
+      {
+        'beds.R2': {
+          bedId: 'R2',
+          patientName: '',
+          rut: '',
+          firstSeenDate: '',
+          admissionDate: '',
+          admissionTime: '',
+          location: 'R2',
+        },
       },
-    });
+      { authoringSession: captureAuthoringSession() }
+    );
 
     expect(result.outcome).toBe('clean');
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
@@ -399,7 +467,9 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
     });
     vi.mocked(isRetryableSyncError).mockReturnValue(false);
 
-    await save(buildRecord('2026-02-17'));
+    await save(buildRecord('2026-02-17'), undefined, {
+      authoringSession: captureAuthoringSession(),
+    });
 
     expect(queueSyncTask).toHaveBeenCalledTimes(1);
     expect(vi.mocked(queueSyncTask).mock.calls[0]?.[1]).toEqual(
@@ -414,9 +484,13 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
 
-    await updatePartial('2026-02-13', {
-      'beds.R1.patientName': 'Paciente remoto seguro',
-    });
+    await updatePartial(
+      '2026-02-13',
+      {
+        'beds.R1.patientName': 'Paciente remoto seguro',
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       '2026-02-13',
@@ -433,9 +507,13 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
 
-    await updatePartial('2026-02-11', {
-      medicalHandoffNovedades: 'Nota especialista',
-    });
+    await updatePartial(
+      '2026-02-11',
+      {
+        medicalHandoffNovedades: 'Nota especialista',
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       '2026-02-11',
@@ -455,9 +533,13 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
 
-    await updatePartial('2026-02-10', {
-      'beds.R1.patientName': 'Paciente actualizado',
-    });
+    await updatePartial(
+      '2026-02-10',
+      {
+        'beds.R1.patientName': 'Paciente actualizado',
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       '2026-02-10',
@@ -481,9 +563,13 @@ describe('dailyRecordRepositoryWriteService outbox fallback', () => {
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
 
-    await updatePartial('2026-02-12', {
-      'beds.R1.clinicalCrib.patientName': 'Recien nacido actualizado',
-    });
+    await updatePartial(
+      '2026-02-12',
+      {
+        'beds.R1.clinicalCrib.patientName': 'Recien nacido actualizado',
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       '2026-02-12',

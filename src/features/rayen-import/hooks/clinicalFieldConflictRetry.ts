@@ -1,5 +1,5 @@
 import type { ClinicalFillError, ClinicalFillSummary } from '../contracts/clinicalFillContracts';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import { addClinicalIncrementalMetrics } from '../domain/clinicalStageResolution';
 import { collectClinicalFillCandidates } from '../domain/clinicalFillCandidates';

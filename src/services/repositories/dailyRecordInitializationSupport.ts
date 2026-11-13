@@ -5,7 +5,6 @@ import {
   assignCarriedPatientToRecord,
   buildClinicalBedsFromPreviousRecord,
   buildEmptyClinicalBeds,
-  enrichInitializationRecordFromCopySource,
   preserveCIE10FromPreviousDay,
   preparePatientForCarryover,
 } from '@/services/repositories/dailyRecordClinicalDomainService';
@@ -14,12 +13,7 @@ import { createRecordDateTimestamp } from '@/services/repositories/dailyRecordMe
 import { createEmptyDailyRecordMovements } from '@/services/repositories/dailyRecordMovementsDomainService';
 import { resolveInheritedDailyRecordStaffing } from '@/services/repositories/dailyRecordStaffingDomainService';
 
-export {
-  assignCarriedPatientToRecord,
-  enrichInitializationRecordFromCopySource,
-  preserveCIE10FromPreviousDay,
-  preparePatientForCarryover,
-};
+export { assignCarriedPatientToRecord, preserveCIE10FromPreviousDay, preparePatientForCarryover };
 
 export const buildInitializedDayRecord = (
   date: string,

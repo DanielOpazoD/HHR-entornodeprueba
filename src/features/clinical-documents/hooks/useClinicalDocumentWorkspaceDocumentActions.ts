@@ -1,5 +1,7 @@
+import type { ClinicalDocumentsWorkspacePatientContract } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
+
 import { useCallback } from 'react';
-import type { PatientData } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
+
 import type { UserRole } from '@/types/authRoleTypes';
 import type { ConfirmOptions } from '@/context/uiContracts';
 import type { ClinicalDocumentEpisodeContext } from '@/features/clinical-documents/domain/clinicalDocumentEpisodeTypes';
@@ -33,7 +35,7 @@ interface NotificationPort {
 }
 
 interface UseClinicalDocumentWorkspaceDocumentActionsParams {
-  patient: PatientData;
+  patient: ClinicalDocumentsWorkspacePatientContract;
   role: UserRole | undefined;
   user: {
     uid?: string;

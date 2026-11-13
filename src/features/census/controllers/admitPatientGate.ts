@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * Decides whether an empty-bed demographics save qualifies as a "pure
  * admission" — meaning the user filled exactly the four fields the
@@ -22,7 +24,7 @@
  * untouched. The rollout is gated by the USE_ADMIT_PATIENT_COMMAND
  * feature flag (off by default).
  */
-import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
+
 import { hasMeaningfulPatientIdentity } from '@/features/census/controllers/patientIdentityController';
 
 export interface PureAdmissionInput {

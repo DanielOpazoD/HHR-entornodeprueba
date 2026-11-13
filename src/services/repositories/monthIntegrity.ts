@@ -47,7 +47,8 @@ export const ensureMonthIntegrity = async (
         try {
           const initialized = await initializeDay(
             date,
-            getPreviousMonthIntegrityDate(year, month, index + 1)
+            getPreviousMonthIntegrityDate(year, month, index + 1),
+            { requireConfirmedAbsence: true }
           );
           if (initialized.date === date) {
             initializedDays.push(date);

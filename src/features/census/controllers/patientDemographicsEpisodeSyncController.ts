@@ -1,14 +1,13 @@
-import type { DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { PatientData } from '@/types/domain/patient';
+
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import {
   defaultDailyRecordReadPort,
   defaultDailyRecordWritePort,
   type DailyRecordReadPort,
   type DailyRecordWritePort,
 } from '@/application/ports/dailyRecordPort';
-import type {
-  PatientData,
-  PatientRowPatientPatch,
-} from '@/features/census/components/patient-row/patientRowContracts';
+import type { PatientRowPatientPatch } from '@/features/census/components/patient-row/patientRowContracts';
 import { createScopedLogger, type ScopedLogger } from '@/services/utils/loggerScope';
 import { parseCalendarDateUtcNoon } from '@/utils/clinicalDateUtils';
 import { editsEloisaNameParts } from '@/utils/patientNamePartsSource';

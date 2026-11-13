@@ -174,18 +174,15 @@ import { useDailyRecord } from '@/hooks/useDailyRecord';
 
 ### READMEs por directorio principal de `src/`
 
-- [src/adapters/README.md](src/adapters/README.md)
 - [src/assets/README.md](src/assets/README.md)
 - [src/components/README.md](src/components/README.md)
 - [src/config/README.md](src/config/README.md)
 - [src/constants/README.md](src/constants/README.md)
 - [src/context/README.md](src/context/README.md)
-- [src/core/README.md](src/core/README.md)
 - [src/docs/README.md](src/docs/README.md)
 - [src/domain/README.md](src/domain/README.md)
 - [src/features/README.md](src/features/README.md)
 - [src/hooks/README.md](src/hooks/README.md)
-- [src/infrastructure/README.md](src/infrastructure/README.md)
 - [src/schemas/README.md](src/schemas/README.md)
 - [src/services/README.md](src/services/README.md)
 - [src/shared/README.md](src/shared/README.md)

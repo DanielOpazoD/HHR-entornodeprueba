@@ -1,5 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { clinicalValuesEqual } from './clinicalIncrementalSync';
-import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ClinicalFillPatchOperation } from '../contracts/clinicalFillContracts';
 import {
   clinicalFieldValuesEqual,

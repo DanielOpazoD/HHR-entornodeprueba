@@ -2,9 +2,9 @@ import { useCallback } from 'react';
 import type { RefObject } from 'react';
 import type {
   ApplyDailyRecordPatch,
-  DailyRecord,
   PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { AuditAction } from '@/types/auditActionTypes';
 import type { AuditLogEntry } from '@/types/auditLogTypes';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';

@@ -7,7 +7,13 @@ import {
   presentRayenCoverageIssue,
   presentRayenLegacyCoverageGap,
 } from './rayenSyncPresentation';
-import { RayenSyncTechnicalMetricsPanel } from './RayenSyncTechnicalMetricsPanel';
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
+
+const RayenSyncTechnicalMetricsPanel = lazyWithRetry(() =>
+  import('./RayenSyncTechnicalMetricsPanel').then(module => ({
+    default: module.RayenSyncTechnicalMetricsPanel,
+  }))
+);
 import { RayenSyncStructuralReviewDetail } from './RayenSyncStructuralReviewDetail';
 import { RayenSyncIssueActions } from './RayenSyncIssueActions';
 import { rayenClinicalIssueTarget, rayenSyncTechnicalCode } from './rayenSyncIssueSupport';
@@ -69,6 +75,7 @@ export const RayenSyncClinicalSection: React.FC<{
   event: RayenSyncEvent;
   targetDate?: string | null;
 }> = ({ event, targetDate }) => {
+  const [technicalOpen, setTechnicalOpen] = React.useState(false);
   const censusDate = event.sourceDate ?? targetDate;
   const coverage = presentRayenCoverage(
     event.coverage,
@@ -125,12 +132,20 @@ export const RayenSyncClinicalSection: React.FC<{
           </details>
         )}
 
-      <details data-testid="rayen-sync-technical-report" className="mt-1 text-xs text-slate-500">
+      <details
+        data-testid="rayen-sync-technical-report"
+        className="mt-1 text-xs text-slate-500"
+        onToggle={event => setTechnicalOpen(event.currentTarget.open)}
+      >
         <summary className="cursor-pointer font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600">
           Reporte técnico
         </summary>
         <TechnicalMetadata event={event} />
-        <RayenSyncTechnicalMetricsPanel performance={event.performance} embedded />
+        {technicalOpen && event.performance && (
+          <React.Suspense fallback={<p role="status">Cargando detalle técnico…</p>}>
+            <RayenSyncTechnicalMetricsPanel performance={event.performance} embedded />
+          </React.Suspense>
+        )}
         {!event.performance && (
           <p className="mt-2 text-slate-500">
             Esta ejecución no conserva tiempos ni contadores técnicos detallados.

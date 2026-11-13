@@ -1,10 +1,13 @@
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
+import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import {
   captureLocalRecordBase,
   inspectLocalRecordAdmission,
   type LocalRecordBase,
-  getRecordForDate as getRecordFromIndexedDB,
+  getRecordForDateStrict,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import {
   subscribeToRecord,
@@ -18,13 +21,7 @@ import { measureRepositoryOperation } from '@/services/repositories/repositoryPe
 import { createSyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { dailyRecordSyncLogger } from '@/services/repositories/repositoryLoggers';
 import { resolveDailyRecordSyncConsistency } from '@/services/repositories/dailyRecordConsistencyPolicy';
-import { resolveDailyRecordPersistenceGoldenPath } from '@/services/repositories/dailyRecordPersistenceGoldenPath';
-import {
-  persistHydratedRecordToLocalCache,
-  persistPointReadToLocalCache,
-} from '@/services/repositories/dailyRecordLocalCachePersistence';
-import { AdmissionDatePolicyViolationError } from '@/application/patient-flow/admissionDatePolicy';
-import { createSupersededReadResult } from '@/services/repositories/dailyRecordReadResultController';
+import { admitRemoteDailyRecords } from '@/services/repositories/dailyRecordLocalCachePersistence';
 import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { buildDailyRecordSyncContract } from '@/services/storage/sync/syncTaskContractPolicy';
 import { adoptAuthoritativeDailyRecordAtomically } from '@/services/storage/sync';
@@ -33,31 +30,7 @@ import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSup
 import { rebasePendingDailyRecordWrite } from '@/services/repositories/dailyRecordPendingWriteRebase';
 import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyRecordPersistencePreparation';
 import { buildPendingDailyRecordReplacementTask } from '@/services/storage/sync/syncQueuePendingDailyRecordReplacement';
-import type { DailyRecord as StoredDailyRecord } from '@/services/storage/storageDailyRecordContracts';
-import { getPendingDailyRecordProjection } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
-
-/**
- * Cache hydration preserves unresolved writes atomically. Callers then read the pending
- * projection afresh, including when golden-path selection did not need hydration.
- */
-const hydrateLocalCache = async (
-  record: DailyRecord,
-  date: string,
-  localRecord: DailyRecord | null
-): Promise<void> => {
-  try {
-    await persistHydratedRecordToLocalCache(record, date, localRecord);
-  } catch (error) {
-    if (error instanceof AdmissionDatePolicyViolationError) {
-      dailyRecordSyncLogger.warn(
-        `Skipped local hydration for ${date} due to admissionDate validation`,
-        error
-      );
-      return;
-    }
-    throw error;
-  }
-};
+import type { DailyRecord as StoredDailyRecord } from '@/types/domain/dailyRecord';
 
 const resolveSubscriptionResult = async (
   date: string,
@@ -65,86 +38,113 @@ const resolveSubscriptionResult = async (
   serverConfirmed: boolean,
   localRecord?: DailyRecord | null,
   isCurrent: () => boolean = () => true,
-  pointReadBase?: LocalRecordBase
+  pointReadBase?: LocalRecordBase,
+  hasPendingWrites = false
 ): Promise<SyncDailyRecordResult> => {
-  localRecord = localRecord === undefined ? await getRecordFromIndexedDB(date) : localRecord;
-  const remoteAvailability = remoteRecord
-    ? 'resolved'
-    : serverConfirmed
-      ? 'missing'
-      : 'unavailable';
-  const goldenPath = resolveDailyRecordPersistenceGoldenPath({
-    localRecord,
-    remoteRecord,
-    remoteAvailability,
-    clinicalConsistencyPhase: 'sync_publish',
-  });
-  let superseded: { stored: DailyRecord | null } | undefined;
-  if (pointReadBase) {
-    let admitted = false;
-    if (goldenPath.shouldHydrateLocal && remoteRecord) {
-      try {
-        const hydration = await persistPointReadToLocalCache(
-          goldenPath.selectedRecord || remoteRecord,
-          date,
-          pointReadBase,
-          localRecord
-        );
-        if (hydration.status === 'superseded') superseded = hydration;
-        admitted = true;
-      } catch (error) {
-        if (!(error instanceof AdmissionDatePolicyViolationError)) throw error;
-        dailyRecordSyncLogger.warn(
-          `Skipped local hydration for ${date} due to admissionDate validation`,
-          error
-        );
-      }
-    }
-    if (!admitted) {
-      const admission = await inspectLocalRecordAdmission(
+  localRecord = localRecord === undefined ? await getRecordForDateStrict(date) : localRecord;
+  if (!serverConfirmed && remoteRecord && !hasPendingWrites) {
+    const stored = await getRecordForDateStrict(date);
+    if (stored) {
+      return createSyncDailyRecordResult({
         date,
-        pointReadBase,
-        goldenPath.selectedRecord
-      );
-      if (admission.status === 'superseded') superseded = admission;
+        record: stored,
+        serverConfirmed: false,
+        outcome: 'blocked',
+        sourceOfTruth: 'local',
+        consistencyState: 'blocked',
+        retryability: 'automatic_retry',
+        recoveryAction: 'defer_remote_sync',
+      });
     }
-  } else if (goldenPath.shouldHydrateLocal && remoteRecord && isCurrent()) {
-    await hydrateLocalCache(goldenPath.selectedRecord || remoteRecord, date, localRecord);
   }
-  const retainedRecord = await getPendingDailyRecordProjection(date);
-  if (superseded) {
-    const result = createSupersededReadResult(date, superseded.stored, retainedRecord);
+  if (serverConfirmed && remoteRecord) {
+    const [admission] = await admitRemoteDailyRecords([
+      {
+        record: remoteRecord,
+        remoteRecord,
+        expectedBase: pointReadBase,
+        isCurrent,
+      },
+    ]);
+    if (!admission) throw new Error('No existe una decisión de admisión para el día.');
+    if (admission.status === 'superseded') {
+      return createSyncDailyRecordResult({
+        date,
+        outcome: 'blocked',
+        record: admission.record,
+        serverConfirmed: false,
+        publication: 'superseded',
+        sourceOfTruth: admission.record ? 'local' : 'none',
+        retryability: 'automatic_retry',
+        recoveryAction: 'defer_remote_sync',
+      });
+    }
+    const retained =
+      admission.status === 'retained_pending' ||
+      !arePatchValuesDeepEqual(admission.record, remoteRecord);
     return createSyncDailyRecordResult({
       date,
-      outcome: 'blocked',
-      record: result.record,
-      serverConfirmed: false,
-      publication: 'superseded',
-      sourceOfTruth: result.sourceOfTruth,
-      retryability: 'automatic_retry',
-      recoveryAction: 'defer_remote_sync',
-      observabilityTags: ['daily_record', 'sync', 'point_read_superseded'],
+      outcome: 'clean',
+      record: admission.record,
+      serverConfirmed: true,
+      sourceOfTruth: retained ? 'local' : 'remote',
+      consistencyState: retained ? 'local_kept' : 'remote_applied',
+      retryability: 'not_applicable',
+      recoveryAction: 'none',
     });
   }
-  const record = retainedRecord ?? goldenPath.selectedRecord;
+  // Missing evidence never selects between competing clinical documents.
+  if (remoteRecord && !localRecord && !hasPendingWrites) {
+    const [result] = await admitRemoteDailyRecords([
+      {
+        record: remoteRecord,
+        remoteRecord: null,
+        serverConfirmed: false,
+        expectedBase: pointReadBase ?? { kind: 'stored', record: null },
+        isCurrent,
+      },
+    ]);
+    if (!result) throw new Error('No existe una decisión de admisión para el día.');
+    if (result.status !== 'superseded')
+      return createSyncDailyRecordResult({
+        date,
+        record: result.record,
+        serverConfirmed: false,
+        outcome: 'clean',
+        sourceOfTruth: 'remote',
+        consistencyState: 'remote_applied',
+      });
+    localRecord = result.record;
+  }
+  const admission = await inspectLocalRecordAdmission(
+    date,
+    pointReadBase ?? { kind: 'stored', record: localRecord },
+    null
+  );
+  if (admission.status === 'superseded') {
+    return createSyncDailyRecordResult({
+      date,
+      record: admission.stored,
+      outcome: 'blocked',
+      serverConfirmed: false,
+      publication: 'superseded',
+      sourceOfTruth: admission.stored ? 'local' : 'none',
+      retryability: 'automatic_retry',
+      recoveryAction: 'defer_remote_sync',
+    });
+  }
+  const record = admission.record;
   const consistency = resolveDailyRecordSyncConsistency({
-    localRecord: retainedRecord ?? localRecord,
-    remoteRecord,
+    localRecord: record,
+    remoteRecord: null,
     selectedRecord: record,
-    remoteAvailability,
-    pendingLocalWritesRetained: Boolean(retainedRecord),
+    remoteAvailability: serverConfirmed ? 'missing' : 'unavailable',
   });
-
   return createSyncDailyRecordResult({
     date,
     serverConfirmed,
-    outcome:
-      consistency.consistencyState === 'blocked'
-        ? 'blocked'
-        : consistency.consistencyState === 'missing_remote'
-          ? 'missing'
-          : 'clean',
     record,
+    outcome: serverConfirmed ? 'missing' : 'blocked',
     ...consistency,
   });
 };
@@ -156,7 +156,13 @@ export const subscribeDetailed = (
 ): (() => void) => {
   let active = true;
   let issued = 0;
-  const isCurrent = (revision: number) => active && revision === issued;
+  const owner = getStoredSessionOwnerKey();
+  const epoch = getSessionEpoch();
+  const isCurrent = (revision: number) =>
+    active &&
+    revision === issued &&
+    owner === getStoredSessionOwnerKey() &&
+    epoch === getSessionEpoch();
   const reportFailure = (stage: 'consumer' | 'resolution') =>
     dailyRecordSyncLogger.warn('Daily record subscription failed', { date, stage });
   const deliver = (notify: () => void) => {
@@ -232,6 +238,9 @@ export const syncWithFirestoreDetailed = async (date: string) => {
   return measureRepositoryOperation(
     'dailyRecord.syncWithFirestore',
     async () => {
+      const owner = getStoredSessionOwnerKey();
+      const epoch = getSessionEpoch();
+      const isCurrent = () => owner === getStoredSessionOwnerKey() && epoch === getSessionEpoch();
       const base = await captureLocalRecordBase(date);
       const localRecord = base.kind === 'stored' ? base.record : null;
       try {
@@ -241,8 +250,9 @@ export const syncWithFirestoreDetailed = async (date: string) => {
           remoteResult.record,
           remoteResult.serverConfirmed,
           localRecord,
-          undefined,
-          remoteResult.issuedAgainst ?? base
+          isCurrent,
+          remoteResult.issuedAgainst ?? base,
+          remoteResult.hasPendingWrites
         );
       } catch (err) {
         dailyRecordSyncLogger.warn(`Sync failed for ${date}`, err);
@@ -273,7 +283,9 @@ export const adoptAuthoritativeRecord = async (
   alreadyAppliedPatch?: DailyRecordPatch
 ): Promise<DailyRecord> => {
   if (!alreadyAppliedPatch) {
-    return persistHydratedRecordToLocalCache(record, record.date);
+    const [admission] = await admitRemoteDailyRecords([{ record, remoteRecord: record }]);
+    if (!admission || !admission.record) throw new Error('No existe una fila admitida.');
+    return admission.record;
   }
   const authoritativeRecord = prepareDailyRecordForPersistence(record, record.date);
   const adoption = await adoptAuthoritativeDailyRecordAtomically(

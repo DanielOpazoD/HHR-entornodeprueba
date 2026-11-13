@@ -22,7 +22,6 @@ export { DataMaintenanceView } from './components/DataMaintenanceView';
 export { default as RoleManagementView } from './components/RoleManagementView';
 
 // ── Types / contracts ───────────────────────────────────────────────────────
-export type { DailyRecord } from './contracts/publicMedicalSignatureContracts';
 
 // ── Controllers (pure functions reusable by other modules) ──────────────────
 export { createPublicMedicalSignatureContextValue } from './controllers/publicMedicalSignatureContextController';

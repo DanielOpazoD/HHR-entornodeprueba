@@ -7,11 +7,11 @@ import type { BaseStoredFile } from '@/services/backup/baseStorageService';
 import type { StoredPdfFile } from '@/services/backup/pdfStorageService';
 import { formatBackupShiftLabel } from '@/shared/backup/backupPresentation';
 import type { CensusExportRecord } from '@/services/contracts/censusExportServiceContracts';
-import type { HandoffPdfRecord } from '@/services/pdf/contracts/handoffPdfContracts';
+import type { DailyRecordHandoffPdfState as HandoffPdfRecord } from '@/types/domain/dailyRecordSlices';
 import type {
   DailyRecordBackfillRef,
   DailyRecordCudyrExportState,
-} from '@/services/contracts/dailyRecordServiceContracts';
+} from '@/types/domain/dailyRecordSlices';
 
 export type MonthlyBackfillType = 'handoff' | 'census' | 'cudyr';
 

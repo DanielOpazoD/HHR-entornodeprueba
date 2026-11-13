@@ -193,15 +193,17 @@ async function read(path: Path, remote: DailyRecord): Promise<DailyRecord | null
   if (path === 'rango') return (await syncRecordsRange(DATE, DATE))[0];
   if (path === 'mantenimiento') return (await hydrateRangeRecords(DATE, DATE))[0];
   if (path === 'JSON') {
+    const hasPending = (await hospitalDB.syncQueue.count()) > 0;
     const result = await importDataJSONDetailed(
       new File([JSON.stringify({ [DATE]: remote })], 'synthetic.json', { type: 'application/json' })
     );
     expect(result).toEqual({
-      success: true,
-      outcome: 'clean',
-      importedCount: 1,
+      success: !hasPending,
+      outcome: hasPending ? 'blocked' : 'clean',
+      importedCount: hasPending ? 0 : 1,
       repairedCount: 0,
       skippedEntries: [],
+      ...(hasPending ? { pendingDates: [DATE] } : {}),
     });
     return undefined; // Import returns counts, not a record or remote confirmation.
   }
@@ -231,12 +233,8 @@ for (const path of paths) {
   describe(`admisión ${path}: copia local / llamador / cola intacta`, () => {
     for (const situation of situations) {
       // Design step 2 fixes specialist projection in S/R/M; step 3 fixes point Q publication.
-      const knownDefect =
-        (situation === 'especialista' &&
-          ['suscripción', 'rango', 'mantenimiento'].includes(path)) ||
-        (situation === 'optimista' && path === 'puntual');
-      const testCase = knownDefect ? it.fails : it;
-      if (knownDefect) {
+      const optimisticPointRead = situation === 'optimista' && path === 'puntual';
+      if (optimisticPointRead) {
         it(`${situation}: entrega base remota sin retirar cola ni parche (invariantes del defecto)`, async () => {
           const { remote, tasks } = await prepare(situation);
           const patchBefore = localStorage.getItem(PENDING_DAILY_RECORD_PATCH_STORAGE_KEY);
@@ -253,70 +251,91 @@ for (const path of paths) {
             );
         });
       }
-      const outcome = isExternalCopy(path)
-        ? 'copia externa reemplaza fila; llamador recibe conteo/booleano (D3 pendiente si colisiona)'
-        : situation === 'diaria'
-          ? 'conserva fila local y la devuelve'
-          : situation === 'local nueva'
-            ? `${path === 'rango' ? 'remoto' : 'local'} en fila y retorno (D1 pendiente)`
-            : situation === 'especialista'
-              ? 'nota pendiente durable y visible'
-              : situation === 'optimista'
-                ? `base durable; ${path === 'puntual' || path === 'suscripción' ? 'Q' : 'base'} para llamador`
-                : 'identidad y base remotas en fila y retorno';
-      testCase(
-        `${situation}: ${outcome}; cola intacta${knownDefect ? ' (defecto conocido)' : ''}`,
-        async () => {
-          const { local, remote, tasks } = await prepare(situation);
-          const patchBefore = localStorage.getItem(PENDING_DAILY_RECORD_PATCH_STORAGE_KEY);
-          const returned = await read(path, remote);
-          const stored = await hospitalDB.dailyRecords.get(DATE);
-          // Known-defect queue/patch invariants also run above without an expected-failure marker.
-          expect(await hospitalDB.syncQueue.toArray()).toEqual(tasks);
-          if (situation === 'optimista')
-            expect(localStorage.getItem(PENDING_DAILY_RECORD_PATCH_STORAGE_KEY)).toBe(patchBefore);
-          if (isExternalCopy(path)) {
-            // Design step 4 / D3: characterize replacement until omit-day versus block-batch is decided.
-            expect(returned).toBeUndefined();
+      const outcome =
+        path === 'JSON'
+          ? 'respaldo por comando; D3 rechaza días pendientes'
+          : isExternalCopy(path)
+            ? 'copia externa reemplaza fila; llamador recibe conteo/booleano (D3 pendiente si colisiona)'
+            : situation === 'diaria'
+              ? 'conserva fila local y la devuelve'
+              : situation === 'local nueva'
+                ? `${path === 'rango' ? 'remoto' : 'local'} en fila y retorno (D1 pendiente)`
+                : situation === 'especialista'
+                  ? 'nota pendiente durable y visible'
+                  : situation === 'optimista'
+                    ? `base durable; ${path === 'puntual' || path === 'suscripción' ? 'Q' : 'base'} para llamador`
+                    : 'identidad y base remotas en fila y retorno';
+      it(`${situation}: ${outcome}; cola intacta`, async () => {
+        const { local, remote, tasks } = await prepare(situation);
+        const patchBefore = localStorage.getItem(PENDING_DAILY_RECORD_PATCH_STORAGE_KEY);
+        const returned = await read(path, remote);
+        const stored = await hospitalDB.dailyRecords.get(DATE);
+        if (path === 'JSON') {
+          expect(returned).toBeUndefined();
+          if (tasks.length) {
+            expect(await hospitalDB.syncQueue.toArray()).toEqual(tasks);
+            expect(observed(stored)).toEqual(observed(local));
+          } else {
             expect(observed(stored)).toEqual(observed(remote));
-            return;
+            expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
+              { origin: 'backup_restore' },
+            ]);
           }
-          if (situation === 'diaria') {
-            expect(stored).toEqual(local);
-            expect(observed(returned)).toEqual(observed(local));
-            return;
-          }
-          if (situation === 'especialista') {
-            expect.soft(note(stored), 'durable pending note').toBe(NOTE);
-            expect.soft(note(returned), 'caller pending note').toBe(NOTE);
-            expect(stored?.nursesDayShift).toEqual(remote.nursesDayShift);
-            expect(returned?.nursesDayShift).toEqual(remote.nursesDayShift);
-            return;
-          }
-          if (situation === 'local nueva') {
-            // Design steps 1/3 / D1: preserve the present per-path choice, pending product decision.
-            const expected = path === 'rango' ? remote : local;
-            expect(observed(stored)).toEqual(observed(expected));
-            expect(observed(returned)).toEqual(observed(expected));
-            return;
-          }
-          expect(observed(stored)).toEqual(observed(remote));
-          if (situation === 'optimista') {
-            const projected = clone(remote);
-            projected.beds.R4.pathology = Q;
-            expect(observed(returned)).toEqual(
-              observed(path === 'puntual' || path === 'suscripción' ? projected : remote)
-            );
-            return;
-          }
-          expect(observed(returned)).toEqual(observed(remote));
-          if (situation === 'otro paciente' || situation === 'otro episodio') {
-            expect(note(stored)).not.toBe(NOTE);
-            expect(note(returned)).not.toBe(NOTE);
-            expect(returned?.beds.R4.pathology).not.toBe(Q);
-          }
+          return;
         }
-      );
+        // Known-defect queue/patch invariants also run above without an expected-failure marker.
+        expect(await hospitalDB.syncQueue.toArray()).toEqual(tasks);
+        if (situation === 'optimista')
+          expect(localStorage.getItem(PENDING_DAILY_RECORD_PATCH_STORAGE_KEY)).toBe(patchBefore);
+        if (isExternalCopy(path)) {
+          // Design step 4 / D3: characterize replacement until omit-day versus block-batch is decided.
+          expect(returned).toBeUndefined();
+          expect(observed(stored)).toEqual(observed(remote));
+          return;
+        }
+        if (situation === 'diaria') {
+          expect(stored).toEqual(local);
+          expect(observed(returned)).toEqual(observed(local));
+          return;
+        }
+        if (situation === 'especialista') {
+          expect.soft(note(stored), 'durable pending note').toBe(NOTE);
+          expect.soft(note(returned), 'caller pending note').toBe(NOTE);
+          expect(stored?.nursesDayShift).toEqual(remote.nursesDayShift);
+          expect(returned?.nursesDayShift).toEqual(remote.nursesDayShift);
+          return;
+        }
+        if (situation === 'local nueva') {
+          // Design steps 1/3 / D1: preserve the present per-path choice, pending product decision.
+          const expected = [
+            'puntual',
+            'suscripción',
+            'rango',
+            'mantenimiento',
+            'ACK readback',
+          ].includes(path)
+            ? remote
+            : local;
+          expect(observed(stored)).toEqual(observed(expected));
+          expect(observed(returned)).toEqual(observed(expected));
+          return;
+        }
+        expect(observed(stored)).toEqual(observed(remote));
+        if (situation === 'optimista') {
+          const projected = clone(remote);
+          projected.beds.R4.pathology = Q;
+          expect(observed(returned)).toEqual(
+            observed(path === 'puntual' || path === 'suscripción' ? projected : remote)
+          );
+          return;
+        }
+        expect(observed(returned)).toEqual(observed(remote));
+        if (situation === 'otro paciente' || situation === 'otro episodio') {
+          expect(note(stored)).not.toBe(NOTE);
+          expect(note(returned)).not.toBe(NOTE);
+          expect(returned?.beds.R4.pathology).not.toBe(Q);
+        }
+      });
     }
   });
 }

@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import React from 'react';
 import { MovementsSummary } from '@/features/handoff/components/MovementsSummary';
-import type { DailyRecord } from '@/domain/handoff/recordContracts';
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 
-const buildRecord = (): DailyRecord =>
+const buildRecord = (): HandoffDailyRecordContract =>
   ({
     date: '2026-03-29',
     beds: {},
@@ -53,7 +53,7 @@ const buildRecord = (): DailyRecord =>
         interventionType: 'Control',
       },
     ],
-  }) as unknown as DailyRecord;
+  }) as unknown as HandoffDailyRecordContract;
 
 describe('MovementsSummary', () => {
   it('keeps the receiving sections when records arrive and preserves long movement details', () => {

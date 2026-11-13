@@ -1,4 +1,5 @@
-import type { PatientData } from '../contracts/rayenDomainContracts';
+import type { PatientData } from '@/types/domain/patient';
+
 import type { ReportEgreso } from '../contracts/egresoReport';
 import type { DischargeEntry } from '../contracts/censusImportDiff';
 

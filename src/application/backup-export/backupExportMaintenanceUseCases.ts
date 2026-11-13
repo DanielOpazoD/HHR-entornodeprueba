@@ -19,7 +19,12 @@ export const executeImportJsonBackup = async (
     const result = await importDataJSONDetailed(file);
     if (!result.success) {
       return createApplicationFailed(result, [
-        { kind: 'validation', message: 'No se pudo importar el archivo JSON.' },
+        {
+          kind: 'validation',
+          message: result.pendingDates?.length
+            ? `Hay cambios sin enviar en: ${result.pendingDates.join(', ')}. Reintente cuando sus envíos terminen.`
+            : 'No se pudo importar el archivo JSON.',
+        },
       ]);
     }
     if (result.outcome === 'partial' || result.outcome === 'repaired') {

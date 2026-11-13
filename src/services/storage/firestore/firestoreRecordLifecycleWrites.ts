@@ -1,5 +1,5 @@
 import { deleteDoc, setDoc, Timestamp } from 'firebase/firestore';
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { withRetry } from '@/utils/networkUtils';
 import {
   getRecordDocRef,

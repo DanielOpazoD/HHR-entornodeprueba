@@ -1,24 +1,16 @@
+import {
+  isModuleReloadRequired,
+  setModuleReloadRequired,
+  subscribeModuleRecovery,
+} from '@/services/runtime/moduleReloadRecovery';
 import { isChunkLoadError } from '@/utils/chunkLoadError';
 
 export const FUNCTIONS_RELOAD_REQUIRED_MESSAGE =
   'Recarga la aplicación para restablecer el acceso. Los cambios pendientes se conservan.';
 
-let reloadRequired = false;
-const listeners = new Set<() => void>();
-
-export const isFunctionsReloadRequired = () => reloadRequired;
-export const subscribeFunctionsRecovery = (listener: () => void) => {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-};
-
-const setReloadRequired = (value: boolean) => {
-  if (reloadRequired === value) return;
-  reloadRequired = value;
-  listeners.forEach(listener => listener());
-};
+export const isFunctionsReloadRequired = () => isModuleReloadRequired('functions');
+export const subscribeFunctionsRecovery = subscribeModuleRecovery;
+const setReloadRequired = (value: boolean) => setModuleReloadRequired('functions', value);
 
 /**
  * Loads the Functions SDK, or a module that only works with it (a callable client), with the same

@@ -1,4 +1,4 @@
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ClinicalFillDeps } from '../contracts/clinicalFillContracts';
 import { captureClinicalCudyrSource } from './clinicalCudyrPreflight';
 import { persistCudyrSyncCapture } from './persistCudyrSyncCapture';
@@ -70,8 +70,6 @@ export const startCudyrSyncCapture = (input: {
                         .map(f => key(newbornOwnRut(f.patient) || maternalFor(f)))
                         .filter(Boolean)
                     );
-                    if (identities.size !== 1)
-                      return Promise.reject(new Error('Identidad de episodio ambigua.'));
                     const maternal = facts.every(
                       f =>
                         f.placement.section === 'crib' ||
@@ -81,10 +79,15 @@ export const startCudyrSyncCapture = (input: {
                         (f.patient.neonatalPlacementDecision?.clinicalEpisodeId === episode &&
                           Boolean(f.patient.neonatalPlacementDecision.maternalRut))
                     );
+                    // A newborn with no RUN of its own, once it left with its mother, has no
+                    // document left in the census. The report is read by exact episode and its
+                    // reader accepts that only when it prints the delivery folio alone.
+                    if (identities.size > 1 || (!identities.size && !(facts.length && maternal)))
+                      return Promise.reject(new Error('Identidad de episodio ambigua.'));
                     const parents = new Set(facts.map(f => key(maternalFor(f))).filter(Boolean));
                     return deps.recoverCudyrPlacements!(
                       episode,
-                      [...identities][0],
+                      [...identities][0] ?? '',
                       observedAt,
                       maternal ? 'maternal' : 'patient',
                       maternal && parents.size === 1 ? [...parents][0] : undefined

@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /* @flake-safe: Date usage aligns emulator write-window assertions with current execution time. */
 import 'fake-indexeddb/auto';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -41,7 +42,7 @@ import { updatePartial } from '@/services/repositories/dailyRecordRepositoryWrit
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import {
   clearAllRecords,
-  getRecordForDate,
+  getRecordForDateStrict,
   saveRecord,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { processSyncQueue } from '@/services/storage/sync';
@@ -287,7 +288,7 @@ describeEmulator('Firestore emulator sync concurrency flow', () => {
       'TENS Noche Admin 3',
     ]);
 
-    const hydratedLocal = await getRecordForDate(date);
+    const hydratedLocal = await getRecordForDateStrict(date);
     expect(hydratedLocal?.nursesDayShift).toEqual(['Enf Admin 1', 'Enf Admin 2']);
     expect(hydratedLocal?.tensDayShift).toEqual(['TENS Admin 1', 'TENS Admin 2', 'TENS Admin 3']);
     expect(hydratedLocal?.nursesNightShift).toEqual(['Enf Noche Admin 1', 'Enf Noche Admin 2']);
@@ -335,7 +336,7 @@ describeEmulator('Firestore emulator sync concurrency flow', () => {
 
     expect(result.record?.beds.R1.pathology).toBe('Puérpera');
 
-    const hydratedLocal = await getRecordForDate(date);
+    const hydratedLocal = await getRecordForDateStrict(date);
     expect(hydratedLocal?.beds.R1.pathology).toBe('Puérpera');
   });
 
@@ -386,12 +387,16 @@ describeEmulator('Firestore emulator sync concurrency flow', () => {
       location: localBaseline.beds.R1.location,
     };
 
-    await updatePartial(date, {
-      'beds.R2': movedPatient,
-      'beds.R1': clearedSource,
-    });
+    await updatePartial(
+      date,
+      {
+        'beds.R2': movedPatient,
+        'beds.R1': clearedSource,
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
-    const localAfterConflict = await getRecordForDate(date);
+    const localAfterConflict = await getRecordForDateStrict(date);
     expect(localAfterConflict?.beds.R1.patientName).toBe('');
     expect(localAfterConflict?.beds.R2.patientName).toBe('Paciente Movido');
 
@@ -456,12 +461,16 @@ describeEmulator('Firestore emulator sync concurrency flow', () => {
       },
     };
 
-    await updatePartial(date, {
-      'beds.R1.deviceDetails': retiredDetails,
-      'beds.R1.devices': ['VVP#1'],
-    });
+    await updatePartial(
+      date,
+      {
+        'beds.R1.deviceDetails': retiredDetails,
+        'beds.R1.devices': ['VVP#1'],
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
-    const localAfterConflict = await getRecordForDate(date);
+    const localAfterConflict = await getRecordForDateStrict(date);
     expect(localAfterConflict?.beds.R1.devices).toEqual(['VVP#1']);
     expect(localAfterConflict?.beds.R1.deviceDetails?.CVC?.removalDate).toBe(date);
 

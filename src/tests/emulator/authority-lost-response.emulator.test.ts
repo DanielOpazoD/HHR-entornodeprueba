@@ -17,7 +17,10 @@ vi.mock('firebase/functions', () => ({ httpsCallable: () => invoke }));
 vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
   defaultFunctionsRuntime: { getRegionalFunctions: async () => ({}) },
 }));
-import { saveDailyRecordWithClinicalAuthorityCallable as save } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
+import {
+  saveDailyRecordWithClinicalAuthorityCallable as save,
+  patchDailyRecordWithClinicalAuthorityCallable as patch,
+} from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 
 const describeEmulator =
   process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1' || process.env.FIRESTORE_EMULATOR_HOST
@@ -44,7 +47,7 @@ describeEmulator('authority lost response with server-only Firestore evidence', 
   let env: RulesTestEnvironment;
   beforeAll(async () => {
     env = await initializeTestEnvironment({
-      projectId: 'demo-hhr-authority-response',
+      projectId: 'demo-hhr-n5d3-authority-response',
       firestore: {
         ...resolveFirestoreRulesEmulatorConfig(process.env.FIRESTORE_EMULATOR_HOST),
         rules: readFileSync(path.resolve(__dirname, '../../../firestore.rules'), 'utf8'),
@@ -65,70 +68,98 @@ describeEmulator('authority lost response with server-only Firestore evidence', 
     await env?.cleanup();
   });
 
-  it.each([true, false])(
-    'accepts only the exact committed mutation (matches=%s)',
-    async matches => {
-      const error = Object.assign(new Error('Synthetic lost response'), {
-        code: 'functions/deadline-exceeded',
-      });
-      const committed = {
-        ...record,
-        lastUpdated: `${date}T10:01:00.000Z`,
-        meta: { revision: 2, lastMutationId: matches ? 'synthetic-write' : 'another-write' },
-      };
-      invoke.mockImplementationOnce(async () => {
+  const payload = {
+    date,
+    record,
+    mode: 'enforced' as const,
+    syncContract: { mutationId: 'synthetic-write' },
+  };
+  const committed = () => ({
+    ...record,
+    beds: { R1: { patientName: 'Paciente sintético', cudyr: { changeClothes: 2 } } },
+    lastUpdated: `${date}T10:01:00.000Z`,
+    meta: { revision: 2, lastMutationId: 'synthetic-write' },
+  });
+  const loseResponse = (data: Record<string, unknown> | null, code = 'deadline-exceeded') => {
+    const error = Object.assign(new Error('Synthetic lost response'), {
+      code: `functions/${code}`,
+    });
+    invoke.mockImplementation(async actual => {
+      expect(actual).toMatchObject({ date, syncContract: payload.syncContract });
+      if (data)
         await env.withSecurityRulesDisabled(async context => {
-          await setDoc(doc(context.firestore(), recordPath), committed);
+          await setDoc(doc(context.firestore(), recordPath), data);
         });
-        throw error;
+      throw error;
+    });
+    return error;
+  };
+
+  it.each(['save', 'patch'] as const)(
+    'confirms %s without another write and retains server CUDYR',
+    async kind => {
+      const data = committed();
+      loseResponse(data);
+      const result =
+        kind === 'save'
+          ? await save(payload)
+          : await patch({ ...payload, patch: { nurses: ['Sintética'] } });
+      expect(result).toMatchObject({
+        success: true,
+        mutationId: 'synthetic-write',
+        revision: 2,
+        recordState: {
+          record: { cudyrLocked: true, cudyrLockedAt: record.cudyrLockedAt, beds: data.beds },
+        },
       });
-      const result = save({
-        date,
-        record,
-        mode: 'enforced',
-        syncContract: { mutationId: 'synthetic-write' },
-      });
-      if (matches) {
-        expect(await result).toMatchObject({
-          success: true,
-          revision: 2,
-          recordState: { record: { cudyrLocked: true, cudyrLockedAt: record.cudyrLockedAt } },
-        });
-      } else {
-        await expect(result).rejects.toBe(error);
-      }
       expect(invoke).toHaveBeenCalledTimes(1);
+      expect(payload.record).toEqual(record);
       await env.withSecurityRulesDisabled(async context => {
-        expect((await getDocFromServer(doc(context.firestore(), recordPath))).data()).toEqual(
-          committed
-        );
+        expect((await getDocFromServer(doc(context.firestore(), recordPath))).data()).toEqual(data);
       });
     }
   );
 
-  it('accepts a commit stamped with a Firestore Timestamp, as the authority callables write it', async () => {
-    const error = Object.assign(new Error('Synthetic lost response'), {
-      code: 'functions/deadline-exceeded',
-    });
-    const committed = {
-      ...record,
-      lastUpdated: Timestamp.fromDate(new Date(`${date}T10:01:00.000Z`)),
-      meta: { revision: 2, lastMutationId: 'synthetic-write' },
-    };
-    invoke.mockImplementationOnce(async () => {
-      await env.withSecurityRulesDisabled(async context => {
-        await setDoc(doc(context.firestore(), recordPath), committed);
-      });
-      throw error;
-    });
+  it.each(['unavailable', 'internal', 'unknown'])(
+    'recovers ambiguous %s with an exact server receipt',
+    async code => {
+      loseResponse(committed(), code);
+      expect((await save(payload)).success).toBe(true);
+      expect(invoke).toHaveBeenCalledTimes(1);
+    }
+  );
 
-    await expect(
-      save({ date, record, mode: 'enforced', syncContract: { mutationId: 'synthetic-write' } })
-    ).resolves.toMatchObject({
+  it('accepts the real Firestore Timestamp written by authority callables', async () => {
+    loseResponse({
+      ...committed(),
+      lastUpdated: Timestamp.fromDate(new Date(`${date}T10:01:00.000Z`)),
+    });
+    await expect(save(payload)).resolves.toMatchObject({
       success: true,
       revision: 2,
+      mutationId: 'synthetic-write',
       recordState: { lastUpdated: `${date}T10:01:00.000Z` },
     });
+    expect(invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['different mutation', { meta: { revision: 3, lastMutationId: 'newer-write' } }],
+    ['different day', { date: '2026-10-18' }],
+    ['missing revision', { meta: { lastMutationId: 'synthetic-write' } }],
+    ['invalid timestamp', { lastUpdated: 'invalid' }],
+    ['numeric stamp', { lastUpdated: 1_792_000_000_000 }],
+    ['missing stamp', { lastUpdated: null }],
+    ['plain map stamp', { lastUpdated: { seconds: 1 } }],
+  ])('retains the error for %s even when patient values match', async (_label, overrides) => {
+    const error = loseResponse({ ...committed(), ...overrides });
+    await expect(save(payload)).rejects.toBe(error);
+    expect(invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it('retains the original error when the server has no receipt', async () => {
+    const error = loseResponse(null);
+    await expect(save(payload)).rejects.toBe(error);
     expect(invoke).toHaveBeenCalledTimes(1);
   });
 });

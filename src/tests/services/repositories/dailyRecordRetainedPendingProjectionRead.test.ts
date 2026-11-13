@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -5,7 +6,13 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 const { firestoreEnabled, loadRemote, subscriptionCallbacks } = vi.hoisted(() => ({
   firestoreEnabled: { value: false },
   loadRemote: vi.fn(),
-  subscriptionCallbacks: [] as Array<(record: DailyRecord | null, pending: boolean) => void>,
+  subscriptionCallbacks: [] as Array<
+    (
+      record: DailyRecord | null,
+      pending: boolean,
+      metadata: { fromCache: boolean; hasPendingWrites: boolean }
+    ) => void
+  >,
 }));
 vi.mock('@/services/repositories/repositoryConfig', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/repositories/repositoryConfig')>()),
@@ -18,7 +25,11 @@ vi.mock('@/services/storage/firestore/firestoreRecordQueries', async importOrigi
   ...(await importOriginal<typeof import('@/services/storage/firestore/firestoreRecordQueries')>()),
   subscribeToRecord: (
     _date: string,
-    callback: (record: DailyRecord | null, pending: boolean) => void
+    callback: (
+      record: DailyRecord | null,
+      pending: boolean,
+      metadata: { fromCache: boolean; hasPendingWrites: boolean }
+    ) => void
   ) => {
     subscriptionCallbacks.push(callback);
     return () => {};
@@ -71,7 +82,9 @@ describe('a read that meets a pending local edit publishes the retained projecti
   it('publishes the pending edit that appeared while the remote read was in flight', async () => {
     const localBeforeRead = base();
     await hospitalDB.dailyRecords.put(localBeforeRead);
-    await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit());
+    await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit(), undefined, {
+      authoringSession: captureAuthoringSession(),
+    });
 
     const result = await resolveRemoteGoldenPathReadResult({
       date,
@@ -90,7 +103,9 @@ describe('a read that meets a pending local edit publishes the retained projecti
 
   it('a manual sync keeps the pending edit instead of the newer remote copy', async () => {
     firestoreEnabled.value = true;
-    await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit());
+    await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit(), undefined, {
+      authoringSession: captureAuthoringSession(),
+    });
     loadRemote.mockResolvedValue(remoteLoad(newerRemote()));
 
     const result = await syncWithFirestoreDetailed(date);
@@ -101,12 +116,14 @@ describe('a read that meets a pending local edit publishes the retained projecti
   });
 
   it('a realtime snapshot keeps the pending edit instead of the newer remote copy', async () => {
-    await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit());
+    await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit(), undefined, {
+      authoringSession: captureAuthoringSession(),
+    });
     const published = new Promise<SyncDailyRecordResult>(resolve => {
       subscribeDetailed(date, result => resolve(result));
     });
 
-    subscriptionCallbacks[0](newerRemote(), false);
+    subscriptionCallbacks[0](newerRemote(), false, { fromCache: false, hasPendingWrites: false });
     const result = await published;
 
     expect(result.record?.tensDayShift).toEqual(['SINTETICO PENDIENTE']);
@@ -128,10 +145,14 @@ describe('a read never publishes another copy over a pending local edit', () => 
   it('keeps the pending edit when the remote copy carries the same version time', async () => {
     const localBeforeRead = base();
     await hospitalDB.dailyRecords.put(localBeforeRead);
-    await queueDailyRecordSyncTaskWithLocalRecord({
-      ...pendingEdit(),
-      lastUpdated: newerRemote().lastUpdated,
-    });
+    await queueDailyRecordSyncTaskWithLocalRecord(
+      {
+        ...pendingEdit(),
+        lastUpdated: newerRemote().lastUpdated,
+      },
+      undefined,
+      { authoringSession: captureAuthoringSession() }
+    );
 
     const result = await resolveRemoteGoldenPathReadResult({
       date,
@@ -150,7 +171,9 @@ describe('a read never publishes another copy over a pending local edit', () => 
     firestoreEnabled.value = true;
     await hospitalDB.dailyRecords.put(base());
     loadRemote.mockImplementation(async () => {
-      await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit());
+      await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit(), undefined, {
+        authoringSession: captureAuthoringSession(),
+      });
       return remoteLoad(base());
     });
 
@@ -166,7 +189,9 @@ describe('a read never publishes another copy over a pending local edit', () => 
   it('a read that finds no remote copy publishes the pending edit saved meanwhile', async () => {
     const localBeforeRead = base();
     await hospitalDB.dailyRecords.put(localBeforeRead);
-    await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit());
+    await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit(), undefined, {
+      authoringSession: captureAuthoringSession(),
+    });
 
     const result = await resolveRemoteGoldenPathReadResult({
       date,
@@ -182,16 +207,36 @@ describe('a read never publishes another copy over a pending local edit', () => 
     firestoreEnabled.value = true;
     await hospitalDB.dailyRecords.put(base());
     loadRemote.mockImplementation(async () => {
-      await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit());
+      await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit(), undefined, {
+        authoringSession: captureAuthoringSession(),
+      });
       return { ...remoteLoad(base()), record: null };
     });
 
     const result = await syncWithFirestoreDetailed(date);
 
+    expect(result?.record).toEqual(await hospitalDB.dailyRecords.get(date));
     expect(result?.record?.tensDayShift).toEqual(['SINTETICO PENDIENTE']);
     expect(result?.sourceOfTruth).toBe('local');
     expect(result?.outcome).toBe('missing');
     expect(result?.consistencyState).toBe('missing_remote');
     expect(result?.conflictSummary?.kind).toBe('remote_missing');
   });
+});
+
+it('a missing read cannot confirm a row replaced during the request without a holder', async () => {
+  firestoreEnabled.value = true;
+  await hospitalDB.syncQueue.clear();
+  await hospitalDB.dailyRecords.put(base());
+  loadRemote.mockImplementation(async () => {
+    await hospitalDB.dailyRecords.put(pendingEdit());
+    return { ...remoteLoad(base()), record: null };
+  });
+  const result = await syncWithFirestoreDetailed(date);
+  expect(result).toMatchObject({
+    serverConfirmed: false,
+    publication: 'superseded',
+    outcome: 'blocked',
+  });
+  expect(result?.record).toEqual(await hospitalDB.dailyRecords.get(date));
 });

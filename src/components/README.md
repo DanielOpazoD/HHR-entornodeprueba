@@ -23,6 +23,9 @@ Capa de presentación reusable: layout global, componentes compartidos, modales 
 | `admin/`, `auth/`, `census/`, `handoff/`, `whatsapp/` | Espacios reservados/compatibilidad                                       |
 | `index.ts`                                            | Barrel export de componentes                                             |
 
+`ui/base/Button.tsx` conserva el botón usado por SettingsModalTabs, junto a las
+demás primitivas base. Su contrato y estilos se mantienen.
+
 ## Archivos clave
 
 | Archivo                         | Cuándo tocarlo                                        |

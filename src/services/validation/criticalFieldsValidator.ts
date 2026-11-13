@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * Critical Fields Validator
  * Validates that occupied beds have required fields (Estado, Fecha de ingreso)
@@ -6,8 +8,7 @@
  * @module services/validation/criticalFieldsValidator
  */
 
-import { PatientData } from '@/services/contracts/patientServiceContracts';
-import type { DailyRecordCriticalValidationState } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecordCriticalValidationState } from '@/types/domain/dailyRecordSlices';
 import { PatientStatus } from '@/types/domain/patientClassification';
 import { BEDS } from '@/constants/beds';
 

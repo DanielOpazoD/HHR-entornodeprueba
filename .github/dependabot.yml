@@ -169,7 +169,6 @@ updates:
       repository-tooling-minor:
         patterns:
           - '@netlify/config'
-          - husky
           - lint-staged
           - prettier
         update-types:

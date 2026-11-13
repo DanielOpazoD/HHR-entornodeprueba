@@ -3,7 +3,7 @@ import { renderHook, act } from '@testing-library/react';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { PATIENT_CLINICAL_AUDIT_DEBOUNCE_MS } from '@/hooks/useBedAudit';
 import { useBedManagement } from '@/hooks/useBedManagement';
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
 import { mockAuditContextValue } from '../setup';

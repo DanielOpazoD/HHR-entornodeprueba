@@ -1,3 +1,6 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * Plans and files reviewed corrections on their official historical day.
  * Reads authoritative records, preserves existing outcomes and nurse/admin editing limits,
@@ -14,7 +17,7 @@ import { reportEgresoEntry, reportEgresoPatient } from '../mapping/reportEgresoM
 import { recordedOutcomeEpisodeId } from './censusDischargeHistory';
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
-import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type {
   CensusImportDiff,
   PreviousDayEdit,
@@ -33,6 +36,7 @@ import {
   planPreviousDayAdmissionEdits,
   previousDayAdmissionDays,
 } from './previousDayAdmissionCorrections';
+import { normalizeRut } from '@/utils/rutUtils';
 
 export { verifyPreviousDayAdmissionPlacements } from './previousDayAdmissionEvidence';
 
@@ -46,8 +50,6 @@ export interface CrossDayCorrectionResult {
   /** Ingresos históricos omitidos por condición de dominio (ver planificación). */
   omitted: Array<{ day: string; patientName: string; reason: string }>;
 }
-
-const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
 
 /** Exact episodes never deduplicate by a shared maternal RUN; legacy rows still use RUN. */
 const findRecordedEgreso = (
@@ -101,7 +103,7 @@ export const computePreviousDayEdits = async (
     days.map(async day => {
       const [authoritative, local] = await Promise.all([
         port.getAuthoritativeForDate(day),
-        port.getLocalForDateWithMeta(day),
+        port.getLocalForDateWithMeta(day).catch(() => port.getLocalForDateWithMeta(day)),
       ]);
       if (local.writeState === 'failed' || local.writeState === 'conflict') {
         throw new Error(
@@ -336,6 +338,7 @@ export const fileCrossDayCorrections = async (
     for (const patch of correction.patches) {
       const outcome = classifyHistoricalPatchOutcome(
         await patchDailyRecordWithCompatibility(port, correction.day, patch, {
+          authoringSession: captureAuthoringSession(),
           baseRecord: correction.record,
         })
       );
@@ -384,6 +387,7 @@ export const fileCrossDayCorrections = async (
         if (!Object.keys(patch).length) continue;
         const outcome = classifyHistoricalPatchOutcome(
           await patchDailyRecordWithCompatibility(port, correction.day, patch, {
+            authoringSession: captureAuthoringSession(),
             baseRecord: confirmedRecord,
           })
         );

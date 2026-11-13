@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type { DischargeData, TransferData } from '@/types/domain/movements';
 import type { RayenBedCollisionResolutionReceipt } from '@/types/domain/rayenBedCollision';
 import { normalizeRut } from '@/utils/rutUtils';
@@ -8,7 +10,7 @@ import type {
   DischargeEntry,
 } from '../contracts/censusImportDiff';
 import { reservedRayenStructuralTargetBedIds } from './bedOccupancyCollisionPolicy';
-import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { diffSyncablePatientFields } from './patientSyncPolicy';
 import { matchesDischargeSubject } from './dischargeSubjectIdentity';
 

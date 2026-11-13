@@ -1,8 +1,8 @@
 import type { ApplicationIssue } from '@/shared/contracts/applicationOutcomeTypes';
 import type { CensusExportRecord } from '@/services/contracts/censusExportServiceContracts';
-import type { HandoffPdfRecord } from '@/services/pdf/contracts/handoffPdfContracts';
-import type { DailyRecordCriticalValidationState } from '@/application/shared/dailyRecordBedContracts';
-import type { DailyRecordCudyrExportState } from '@/application/shared/dailyRecordStaffContracts';
+import type { DailyRecordHandoffPdfState as HandoffPdfRecord } from '@/types/domain/dailyRecordSlices';
+import type { DailyRecordCriticalValidationState } from '@/types/domain/dailyRecordSlices';
+import type { DailyRecordCudyrExportState } from '@/types/domain/dailyRecordSlices';
 
 type HandoffBackupRecord = HandoffPdfRecord &
   DailyRecordCriticalValidationState &

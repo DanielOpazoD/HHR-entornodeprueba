@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { StaffCatalogManagerModal } from '@/components/modals/StaffCatalogManagerModal';
 
@@ -35,7 +35,7 @@ describe('StaffCatalogManagerModal', () => {
     const button = screen.getByRole('button', { name: 'Agregar personal' });
     expect(button.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
     fireEvent.click(button);
-    expect(onSave).toHaveBeenCalledWith(['Persona Sintética']);
+    expect(onSave).toHaveBeenCalledWith(['Persona Sintética'], expect.any(Array));
   });
 
   it('shows nurse empty state when no records are provided', () => {
@@ -72,7 +72,7 @@ describe('StaffCatalogManagerModal', () => {
     fireEvent.change(input, { target: { value: '   Maria   ' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
-    expect(onSave).toHaveBeenCalledWith(['Ana', 'Maria']);
+    expect(onSave).toHaveBeenCalledWith(['Ana', 'Maria'], expect.any(Array));
   });
 
   it('shows validation error when trying to add an invalid name', () => {
@@ -97,7 +97,7 @@ describe('StaffCatalogManagerModal', () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
-  it('supports edit and delete actions', () => {
+  it('supports edit and delete actions', async () => {
     const onSave = vi.fn();
     render(
       <StaffCatalogManagerModal
@@ -115,9 +115,10 @@ describe('StaffCatalogManagerModal', () => {
     const editInput = screen.getByDisplayValue('Ana');
     fireEvent.change(editInput, { target: { value: 'Ana María' } });
     fireEvent.keyDown(editInput, { key: 'Enter' });
-    expect(onSave).toHaveBeenCalledWith(['Ana María']);
+    expect(onSave).toHaveBeenCalledWith(['Ana María'], expect.any(Array));
 
+    await waitFor(() => expect(screen.queryByTitle('Guardar')).not.toBeInTheDocument());
     fireEvent.click(screen.getByTitle('Eliminar'));
-    expect(onSave).toHaveBeenCalledWith([]);
+    expect(onSave).toHaveBeenCalledWith([], expect.any(Array));
   });
 });

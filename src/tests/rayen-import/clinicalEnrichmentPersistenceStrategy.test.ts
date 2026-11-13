@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createClinicalEnrichmentPersistenceStrategy } from '@/features/rayen-import/hooks/clinicalEnrichmentPersistenceStrategy';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ClinicalFillPatchOperation } from '@/features/rayen-import';
 
 const record = (lastUpdated: string): DailyRecord =>

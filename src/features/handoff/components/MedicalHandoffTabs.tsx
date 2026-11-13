@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BedDefinition } from '@/types/domain/beds';
-import type { DailyRecord } from '@/domain/handoff/recordContracts';
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import { HandoffPatientTable } from './HandoffPatientTable';
 import type { MedicalHandoffScope } from '@/types/medicalHandoff';
 import type { HandoffClinicalEventActions, HandoffMedicalActions } from './handoffRowContracts';
@@ -16,7 +16,7 @@ import {
 
 interface MedicalHandoffTabsProps {
   visibleBeds: BedDefinition[];
-  record: DailyRecord;
+  record: HandoffDailyRecordContract;
   noteField: 'handoffNoteDayShift' | 'handoffNoteNightShift' | 'medicalHandoffNote';
   onNoteChange: (bedId: string, value: string, isNested: boolean) => void;
   medicalActions?: HandoffMedicalActions;

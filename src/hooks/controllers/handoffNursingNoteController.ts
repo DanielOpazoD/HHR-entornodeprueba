@@ -1,4 +1,5 @@
-import type { PatientData } from '@/hooks/contracts/patientHookContracts';
+import type { PatientData } from '@/types/domain/patient';
+
 import type { NursingShift } from '@/hooks/useHandoffVisibility';
 
 export interface NursingNoteChangePlan {

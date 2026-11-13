@@ -35,7 +35,7 @@ import {
   MinsalStatistics,
   SpecialtyReclassification,
 } from '@/types/minsalTypes';
-import type { MinsalDailyRecord as DailyRecord } from '@/services/calculations/minsal/minsalRecordContracts';
+import type { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import {
   DAILY_RECORD_STORE_CHANGED_EVENT,
@@ -178,12 +178,18 @@ export function useMinsalStats(
         return localRecords;
       }
       lastRemoteRangeSyncRef.current.set(rangeKey, Date.now());
-      const syncedRecords = await syncRecordsRange(previousPeriodStart, endDate);
-      if (syncedRecords.length === 0) {
-        return localRecords;
-      }
+      try {
+        const syncedRecords = await syncRecordsRange(previousPeriodStart, endDate);
+        if (syncedRecords.length === 0) {
+          return localRecords;
+        }
 
-      return mergeByDateDesc(localRecords, syncedRecords);
+        return mergeByDateDesc(localRecords, syncedRecords);
+      } catch (error) {
+        // A failed attempt must not make a retry accept the local range as a completed sync.
+        lastRemoteRangeSyncRef.current.delete(rangeKey);
+        throw error;
+      }
     },
     staleTime: 2 * 60 * 1000,
     gcTime: 15 * 60 * 1000,

@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type { CSSProperties } from 'react';
 import type { TableColumnConfig } from '@/context/TableConfigContext';
 import type {
@@ -5,7 +7,7 @@ import type {
   UnifiedBedRow,
   BedTypesById,
 } from '@/features/census/types/censusTableTypes';
-import type { PatientData } from '@/features/census/types/censusTablePatientContracts';
+
 import type { UserRole } from '@/types/authRoleTypes';
 import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
 import type {

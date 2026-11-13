@@ -1,3 +1,4 @@
+import { initializeDay } from '@/services/repositories/dailyRecordRepositoryInitializationService';
 import { readDailyRecordQuery } from '@/tests/utils/readDailyRecordQuery';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { waitFor } from '@testing-library/react';
@@ -151,6 +152,33 @@ describeEmulator('server confirmation with real Firestore cache metadata', () =>
     }
   });
 
+  it('does not create a day from a real cached absence and permits retry online', async () => {
+    const db = openReader();
+    expect(await getRecordFromFirestoreDetailed(date, { source: 'server' })).toMatchObject({
+      record: null,
+      serverConfirmed: true,
+    });
+    await db.disableNetwork();
+    try {
+      await seedRecord();
+      expect(await getRecordFromFirestoreDetailed(date)).toMatchObject({
+        record: null,
+        serverConfirmed: false,
+      });
+      await expect(
+        initializeDay(date, undefined, { requireConfirmedAbsence: true })
+      ).rejects.toThrow();
+      expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
+      expect(await hospitalDB.syncQueue.count()).toBe(0);
+    } finally {
+      await db.enableNetwork();
+    }
+    expect((await initializeDay(date, undefined, { requireConfirmedAbsence: true })).date).toBe(
+      date
+    );
+    expect(await hospitalDB.syncQueue.count()).toBe(0);
+  });
+
   describe('returning to a tab after a long absence', () => {
     const returnToTab = async (whileHidden: () => Promise<unknown> = async () => {}) => {
       openReader();
@@ -228,10 +256,9 @@ describeEmulator('server confirmation with real Firestore cache metadata', () =>
       await waitFor(() => expect(read()?.runtime.serverConfirmed).toBe(false));
       expect(read()?.record).toBeNull();
       expect(read()?.runtime.availabilityState).not.toBe('confirmed_missing');
-      const result = await readDailyRecordQuery({ getForDateWithMeta }, date);
-      expect(result.record).toBeNull();
-      expect(result.runtime.availabilityState).not.toBe('confirmed_missing');
-      expect(result.runtime.serverConfirmed).toBe(false);
+      await expect(readDailyRecordQuery({ getForDateWithMeta }, date)).rejects.toThrow(
+        'client is offline'
+      );
       expect(await getRecordFromFirestoreDetailed(date, { source: 'server' })).toMatchObject({
         status: 'failed',
         record: null,

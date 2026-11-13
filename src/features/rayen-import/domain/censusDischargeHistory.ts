@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import * as z from 'zod';
 import { BEDS } from '@/constants/beds';
 import { PatientDataSchema } from '@/schemas/zod/patient';
@@ -9,7 +11,7 @@ import {
 } from '@/utils/movementCalendarDate';
 import type { DischargeData } from '@/types/domain/movements';
 import { resolveReportBedId } from '../mapping/resolveReportBed';
-import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type {
   CensusImportDiff,
   DischargeEntry,

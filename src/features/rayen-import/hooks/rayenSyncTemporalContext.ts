@@ -1,4 +1,4 @@
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { raceWithTimeout } from '../domain/raceWithTimeout';
 import type { CensusSyncTarget } from '../domain/historicalCensusSync';
 import { resolveCensusSyncTarget } from '../domain/historicalCensusSync';

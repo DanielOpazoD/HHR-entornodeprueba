@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { reconstructHistoricalSnapshotAtClose } from '@/features/rayen-import/domain/historicalSnapshotReconstruction';
 import { planRayenCensusImport } from '@/features/rayen-import/importRayenCensusUseCase';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenCensusSnapshot } from '@/features/rayen-import/contracts/rayenSnapshot';
 
 describe('historical mother and clinical crib reconstruction', () => {

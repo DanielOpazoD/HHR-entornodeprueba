@@ -14,6 +14,12 @@ vi.mock('firebase/firestore', async () => {
     getDoc: vi.fn(),
     onSnapshot: vi.fn(),
     setDoc: vi.fn(),
+    runTransaction: vi.fn(async (_db: unknown, update: (tx: unknown) => Promise<unknown>) =>
+      update({
+        get: (ref: never) => getDoc(ref),
+        set: (ref: never, data: never) => setDoc(ref, data),
+      })
+    ),
   };
 });
 
@@ -51,7 +57,8 @@ vi.mock('@/services/storage/firestore/firestoreShared', () => ({
   ),
 }));
 
-vi.mock('@/services/repositories/contracts/catalogContracts', () => ({
+vi.mock('@/services/repositories/contracts/catalogContracts', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/repositories/contracts/catalogContracts')>()),
   normalizeProfessionalCatalog: vi.fn((items: unknown) => items ?? []),
   normalizeStringCatalog: vi.fn((values: string[]) =>
     values.map(value => value.trim()).filter(Boolean)
@@ -74,9 +81,10 @@ import {
 describe('firestoreCatalogService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getDoc).mockResolvedValue({ exists: () => false, data: () => undefined } as never);
   });
 
-  it('gets nurse and tens catalogs, returning [] on errors', async () => {
+  it('gets nurse and tens catalogs, propagating read errors', async () => {
     vi.mocked(getDoc).mockResolvedValueOnce({
       exists: () => true,
       data: () => ({ list: ['Nurse A'] }),
@@ -90,13 +98,13 @@ describe('firestoreCatalogService', () => {
     await expect(getTensCatalogFromFirestore()).resolves.toEqual(['TENS A']);
 
     vi.mocked(getDoc).mockRejectedValueOnce(new Error('offline'));
-    await expect(getNurseCatalogFromFirestore()).resolves.toEqual([]);
+    await expect(getNurseCatalogFromFirestore()).rejects.toThrow('offline');
 
     expect(mockGetDb).toHaveBeenCalled();
   });
 
   it('saves normalized nurse, tens and professional catalogs', async () => {
-    await saveNurseCatalogToFirestore([' Nurse A ', '']);
+    await saveNurseCatalogToFirestore([' Nurse A ', ''], []);
     expect(vi.mocked(setDoc).mock.calls[0]?.[1]).toEqual(
       expect.objectContaining({
         list: ['Nurse A'],
@@ -104,7 +112,7 @@ describe('firestoreCatalogService', () => {
       })
     );
 
-    await saveTensCatalogToFirestore([' TENS A ']);
+    await saveTensCatalogToFirestore([' TENS A '], []);
     expect(vi.mocked(setDoc).mock.calls[1]?.[1]).toEqual(
       expect.objectContaining({
         list: ['TENS A'],
@@ -112,7 +120,10 @@ describe('firestoreCatalogService', () => {
       })
     );
 
-    await saveProfessionalsCatalogToFirestore([{ name: 'Dr. A', specialty: 'Medicina' }] as never);
+    await saveProfessionalsCatalogToFirestore(
+      [{ name: 'Dr. A', specialty: 'Medicina' }] as never,
+      []
+    );
     expect(vi.mocked(setDoc).mock.calls[2]?.[1]).toEqual(
       expect.objectContaining({
         list: [{ name: 'Dr. A', specialty: 'Medicina' }],
@@ -135,8 +146,12 @@ describe('firestoreCatalogService', () => {
 
     const nurseCallback = vi.fn();
     vi.mocked(onSnapshot).mockImplementationOnce((...args: unknown[]) => {
-      const onNext = args[1] as (snapshot: unknown) => void;
-      onNext({ exists: () => true, data: () => ({ list: ['Nurse A'] }) });
+      const onNext = args[2] as (snapshot: unknown) => void;
+      onNext({
+        metadata: { hasPendingWrites: false },
+        exists: () => true,
+        data: () => ({ list: ['Nurse A'] }),
+      });
       return vi.fn();
     });
     subscribeToNurseCatalog(nurseCallback);
@@ -145,20 +160,26 @@ describe('firestoreCatalogService', () => {
     });
 
     const tensCallback = vi.fn();
+    const tensError = vi.fn();
     vi.mocked(onSnapshot).mockImplementationOnce((...args: unknown[]) => {
-      const onError = args[2] as (error: unknown) => void;
+      const onError = args[3] as (error: unknown) => void;
       onError(new Error('boom'));
       return vi.fn();
     });
-    subscribeToTensCatalog(tensCallback);
+    subscribeToTensCatalog(tensCallback, tensError);
     await waitFor(() => {
-      expect(tensCallback).toHaveBeenCalledWith([]);
+      expect(tensError).toHaveBeenCalledWith(expect.objectContaining({ message: 'boom' }));
+      expect(tensCallback).not.toHaveBeenCalled();
     });
 
     const professionalsCallback = vi.fn();
     vi.mocked(onSnapshot).mockImplementationOnce((...args: unknown[]) => {
-      const onNext = args[1] as (snapshot: unknown) => void;
-      onNext({ exists: () => true, data: () => ({ list: [{ name: 'Dr. B' }] }) });
+      const onNext = args[2] as (snapshot: unknown) => void;
+      onNext({
+        metadata: { hasPendingWrites: false },
+        exists: () => true,
+        data: () => ({ list: [{ name: 'Dr. B' }] }),
+      });
       return vi.fn();
     });
     subscribeToProfessionalsCatalog(professionalsCallback);
@@ -168,4 +189,60 @@ describe('firestoreCatalogService', () => {
 
     expect(mockGetDb).toHaveBeenCalled();
   });
+});
+
+it.each([
+  getNurseCatalogFromFirestore,
+  getTensCatalogFromFirestore,
+  getProfessionalsCatalogFromFirestore,
+])('propagates point read failures and preserves genuine absence', async read => {
+  vi.mocked(getDoc).mockRejectedValueOnce(new Error('synthetic read failure'));
+  await expect(read()).rejects.toThrow('synthetic read failure');
+  vi.mocked(getDoc).mockResolvedValueOnce({ exists: () => false, data: () => undefined } as never);
+  await expect(read()).resolves.toEqual([]);
+});
+
+it.each([
+  ['Ana Pena', 'Ana Peña'],
+  ['Ana Peña', 'ANA PENA'],
+  ['Ana Peña', ' ANA   PEÑA '],
+])('stores one preferred spelling for %s + %s', async (saved, incoming) => {
+  vi.mocked(getDoc).mockResolvedValueOnce({
+    exists: () => true,
+    data: () => ({ list: [saved] }),
+  } as never);
+  expect(await saveNurseCatalogToFirestore([saved, incoming], [saved])).toEqual(['Ana Peña']);
+  expect(setDoc).toHaveBeenLastCalledWith(
+    expect.anything(),
+    expect.objectContaining({ list: ['Ana Peña'] })
+  );
+});
+
+it.each([
+  ['a capitalization fix', 'ana peña', 'Ana Peña'],
+  ['an accent moved to the right letter', 'Jóse Soto', 'José Soto'],
+  ['an accent typed by mistake and removed', 'Ána Pena', 'Ana Pena'],
+  ['uppercase text from Eloísa fixed by hand', 'BEGOÑA MUÑOZ', 'Begoña Muñoz'],
+])('writes %s exactly as the person typed it', async (_case, before, after) => {
+  vi.mocked(getDoc).mockResolvedValueOnce({
+    exists: () => true,
+    data: () => ({ list: [before] }),
+  } as never);
+  expect(await saveNurseCatalogToFirestore([after], [before])).toEqual([after]);
+  expect(setDoc).toHaveBeenLastCalledWith(
+    expect.anything(),
+    expect.objectContaining({ list: [after] })
+  );
+});
+
+it('keeps two unrelated people and an old duplicate pair untouched by an unrelated add', async () => {
+  const base = ['Ana Pena', 'Ana Peña', 'Ana Pérez'];
+  vi.mocked(getDoc).mockResolvedValueOnce({
+    exists: () => true,
+    data: () => ({ list: base }),
+  } as never);
+  expect(await saveNurseCatalogToFirestore([...base, 'Luis Soto'], base)).toEqual([
+    ...base,
+    'Luis Soto',
+  ]);
 });

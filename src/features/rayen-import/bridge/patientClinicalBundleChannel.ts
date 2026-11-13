@@ -1,7 +1,5 @@
-import {
-  decodeClinicalReadFailure,
-  type ClinicalReadErrorCode,
-} from '../contracts/clinicalReadError';
+import type { ClinicalReadErrorCode } from '@/types/domain/rayenSync';
+import { decodeClinicalReadFailure } from '../contracts/clinicalReadError';
 import { requestViaBridgeChannel } from './bridgeRequestChannel';
 import { CLINICAL_READ_TIMEOUT_MS } from '../contracts/clinicalReadPolicy';
 import type {

@@ -28,6 +28,7 @@ import {
 } from '@/views/LazyViews';
 import { resolveRuntimeLoadingScreenMode } from '@/app-shell/bootstrap/appShellLoadingPolicy';
 import { AuditProvider } from '@/context/AuditContext';
+import { AuthSessionOverlays } from '@/components/layout/AuthSessionOverlays';
 import { AuthProvider } from '@/context/AuthContext';
 import { UIProvider } from '@/context/UIContext';
 import { HospitalProvider } from './context/HospitalContext';
@@ -239,6 +240,7 @@ export default function ProvidedApp() {
             </UIProvider>
           </HospitalProvider>
         </DefaultRepositoryProvider>
+        <AuthSessionOverlays />
       </AuthProvider>
     </QueryClientProvider>
   );

@@ -1,9 +1,8 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { useCallback, useMemo, useState } from 'react';
 import type { DeviceDetails, DeviceInstance } from '@/types/domain/devices';
-import type {
-  PatientData,
-  PatientRowPatientPatch,
-} from '@/features/census/components/patient-row/patientRowContracts';
+import type { PatientRowPatientPatch } from '@/features/census/components/patient-row/patientRowContracts';
 import {
   buildDeviceBundleChangeResult,
   buildDetailsChangeResult,

@@ -1,6 +1,7 @@
 import type { QueryClient, QueryFunctionContext } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryClient';
-import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { hasSamePatientEpisodeIdentity } from '@/application/patient-flow/patientEpisodeIdentityPolicy';
 import { applyPatches } from '@/utils/patchUtils';
 import {
@@ -165,7 +166,8 @@ export const createDailyRecordQueryOptions = (
         current,
         () => queryClient.getQueryData<DailyRecordQueryResult>(key),
         accepted => confirmAcceptedDailyRecordRead(date, accepted, current?.record, 'query'),
-        confirms
+        confirms,
+        result.record === read.record ? (current?.record ?? null) : null
       );
     },
   };

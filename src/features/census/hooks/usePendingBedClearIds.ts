@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { useMemo } from 'react';
 import { useMutationState } from '@tanstack/react-query';
 import {
@@ -7,7 +9,6 @@ import {
   type PendingClinicalCribCreateTarget,
   type PendingIntentionalClearTarget,
 } from '@/hooks/controllers/dailyRecordPatchMutationController';
-import type { PatientData } from '@/features/census/types/censusTablePatientContracts';
 
 export interface PendingIntentionalClearTargets {
   bedIds: ReadonlySet<string>;

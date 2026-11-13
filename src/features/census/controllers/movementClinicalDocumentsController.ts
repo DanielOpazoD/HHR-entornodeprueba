@@ -1,5 +1,7 @@
-import type { CMAData, DischargeData } from '@/features/census/contracts/censusMovementContracts';
-import type { PatientData } from '@/features/census/controllers/censusActionPatientContracts';
+import type { PatientData } from '@/types/domain/patient';
+
+import type { CMAData, DischargeData } from '@/types/domain/movements';
+
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 
 const applyMovementEpisodeId = <T extends PatientData>(

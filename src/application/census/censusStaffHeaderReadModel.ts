@@ -11,7 +11,7 @@ import {
   resolveStaffSelectorsState,
 } from '@/features/census';
 import type { DischargeData, TransferData } from '@/types/domain/movements';
-import type { DailyRecordStaffingDetailsV1 } from '@/application/shared/dailyRecordStaffContracts';
+import type { DailyRecordStaffingDetailsV1 } from '@/types/domain/dailyRecordStaffingDetails';
 
 interface CensusStaffData {
   date?: string;

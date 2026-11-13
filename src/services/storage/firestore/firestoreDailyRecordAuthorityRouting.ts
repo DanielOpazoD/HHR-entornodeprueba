@@ -1,5 +1,5 @@
-import type { SpecialistHandoffTarget } from './specialistMedicalHandoffIdentity';
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { SpecialistHandoffTarget } from '@/types/domain/specialistHandoffTarget';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   evaluateDailyRecordClinicalAuthority,
   recordClinicalAuthorityTelemetry,
@@ -175,8 +175,13 @@ export const shouldRouteDailyRecordSaveViaCallable = async (): Promise<boolean> 
   }
 };
 
+/**
+ * `null`: no enforced mode or no signed-in user. `unavailable`: the session could not be checked.
+ * Routing is advisory either way; only `'enforced'` selects the callable, and the server rules
+ * still reject a fenced direct write.
+ */
 export const resolveAuthenticatedDailyRecordAuthorityMode = async (): Promise<
-  'enforced' | null
+  'enforced' | null | { kind: 'unavailable'; error: unknown }
 > => {
   if (isE2EDailyRecordAuthorityCallableForced()) return 'enforced';
   const mode = await resolveEffectiveDailyRecordAuthorityMode();
@@ -187,7 +192,7 @@ export const resolveAuthenticatedDailyRecordAuthorityMode = async (): Promise<
     return firebaseUser && !firebaseUser.isAnonymous ? mode : null;
   } catch (error) {
     firestoreWriteLogger.warn('Daily record authority callable routing check failed', { error });
-    return null;
+    return { kind: 'unavailable', error };
   }
 };
 

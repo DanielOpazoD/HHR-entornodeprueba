@@ -7,6 +7,8 @@ const GUARDED_TARGETS: Record<string, string> = {
   'src/components/bookmarks/BookmarkBar': 'BookmarkBar',
   'src/components/clinical-conflicts/CensusConflictQuickAction': 'CensusConflictQuickAction',
   'src/components/layout/app-content/AppContentOverlays': 'AppContentOverlays',
+  'src/components/layout/NursingHandoffLogoutDialog': 'NursingHandoffLogoutDialog',
+  'src/components/layout/NursingHandoffSessionNotice': 'NursingHandoffSessionNotice',
   'src/components/layout/date-strip/DateStripBookmarkToggle': 'app-authenticated-shell',
   'src/components/layout/date-strip/DateStripMonthNavigator': 'DateStripMonthNavigator',
   'src/components/layout/date-strip/DateStripQuickActions': 'DateStripQuickActions',
@@ -30,6 +32,8 @@ const GUARDED_TARGETS: Record<string, string> = {
 const OPTIONAL_TARGETS: Record<string, string> = {
   'src/application/clinical-documents/clinicalDocumentUseCases':
     'Document presence lookup has its own loading/error state.',
+  'src/application/ports/clinicalDocumentPort':
+    'Document history reads start on patient selection.',
   'src/components/debug/TestAgent': 'Debug panel opens only on request.',
   'src/components/layout/MoaCompanion':
     'Moa has an isolated error boundary and explicit recovery action.',
@@ -114,8 +118,6 @@ const OPTIONAL_TARGETS: Record<string, string> = {
     'UPC history has an independent loading/error state.',
   'src/services/pdf/antecedentPrescriptionPdf': 'PDF export starts only on request.',
   'src/services/pdf/medicalIndicationsPdfService': 'PDF export starts only on request.',
-  'src/services/repositories/ClinicalDocumentRepository':
-    'Document history reads start on patient selection.',
   'src/services/repositories/dailyRecordClinicalDerivedReadService':
     'Vitals history has its own loading/error state.',
   'src/services/specialty/specialtyJevClient':

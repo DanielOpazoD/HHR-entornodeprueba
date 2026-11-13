@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { BedDefinition } from '@/types/domain/beds';
 import { useAdminCudyrBulkRemoval } from '@/features/cudyr/hooks/useAdminCudyrBulkRemoval';
 

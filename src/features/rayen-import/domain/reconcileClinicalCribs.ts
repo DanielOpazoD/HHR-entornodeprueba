@@ -1,5 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
-import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { withLocalNameParts, type MappedPatient } from '../mapping/rayenToPatientData';
 import { diffSyncablePatientFields, mergeSyncablePatient } from './patientSyncPolicy';

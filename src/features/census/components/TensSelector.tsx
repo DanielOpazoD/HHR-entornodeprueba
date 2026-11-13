@@ -32,7 +32,13 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
   onOpenDetailedStaffing,
   className,
 }) => {
-  const { setShowTensManager, staffIdentities = [], staffUsage } = useStaffContext();
+  const {
+    tensCatalogUnavailable,
+    retryTensCatalog,
+    setShowTensManager,
+    staffIdentities = [],
+    staffUsage,
+  } = useStaffContext();
   const [showAllNames, setShowAllNames] = React.useState<Record<string, boolean>>({});
   const selectClassName =
     'block py-0 pl-1.5 pr-4 border border-slate-200 text-[10px] focus:ring-1 focus:outline-none text-slate-700 h-[20px] w-[60px] appearance-none transition-all';
@@ -49,7 +55,7 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
   const groups = partitionStaffOptions(
     resolvedTensOptions,
     [...tensDayShift, ...tensNightShift].map(name =>
-      resolveStaffSelectionValue(name, staffIdentities, 'tens')
+      resolveStaffSelectionValue(name, staffIdentities, 'tens', resolvedTensOptions)
     ),
     staffUsage?.tens
   );
@@ -73,6 +79,17 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
         >
           <Users size={11} /> TENS
         </button>
+        {tensCatalogUnavailable && (
+          <button
+            type="button"
+            onClick={retryTensCatalog}
+            className="text-[10px] text-slate-500"
+            title="No se pudo leer la lista."
+            aria-label="No se pudo leer la lista. Reintentar"
+          >
+            Reintentar
+          </button>
+        )}
         <button
           type="button"
           onClick={onOpenDetailedStaffing}
@@ -104,7 +121,12 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
                 selectionValue: tensDayShift[idx],
                 tone: 'day',
               })}
-              value={resolveStaffSelectionValue(tensDayShift[idx], staffIdentities, 'tens')}
+              value={resolveStaffSelectionValue(
+                tensDayShift[idx],
+                staffIdentities,
+                'tens',
+                resolvedTensOptions
+              )}
               aria-describedby={
                 isVacancySelection(tensDayShift[idx]) ? undefined : `tens-day-${idx}-name`
               }
@@ -119,7 +141,12 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
             </select>
             <StaffSelectionNameHint
               id={`tens-day-${idx}-name`}
-              name={resolveStaffSelectionValue(tensDayShift[idx], staffIdentities, 'tens')}
+              name={resolveStaffSelectionValue(
+                tensDayShift[idx],
+                staffIdentities,
+                'tens',
+                resolvedTensOptions
+              )}
             />
             {groups.hidden.length === 0 && (
               <ChevronDown
@@ -159,7 +186,12 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
                 selectionValue: tensNightShift[idx],
                 tone: 'night',
               })}
-              value={resolveStaffSelectionValue(tensNightShift[idx], staffIdentities, 'tens')}
+              value={resolveStaffSelectionValue(
+                tensNightShift[idx],
+                staffIdentities,
+                'tens',
+                resolvedTensOptions
+              )}
               aria-describedby={
                 isVacancySelection(tensNightShift[idx]) ? undefined : `tens-night-${idx}-name`
               }
@@ -174,7 +206,12 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
             </select>
             <StaffSelectionNameHint
               id={`tens-night-${idx}-name`}
-              name={resolveStaffSelectionValue(tensNightShift[idx], staffIdentities, 'tens')}
+              name={resolveStaffSelectionValue(
+                tensNightShift[idx],
+                staffIdentities,
+                'tens',
+                resolvedTensOptions
+              )}
             />
             {groups.hidden.length === 0 && (
               <ChevronDown

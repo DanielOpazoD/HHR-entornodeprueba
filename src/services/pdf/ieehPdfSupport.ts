@@ -1,4 +1,5 @@
-import type { PatientData } from '@/services/contracts/patientServiceContracts';
+import type { PatientData } from '@/types/domain/patient';
+
 import { calculateAge, formatDateToCL, splitPatientName } from '@/utils/clinicalUtils';
 import { calculateDischargeStayDays } from '@/utils/clinicalDayUtils';
 import type { DischargeFormData } from './ieehPdfContracts';

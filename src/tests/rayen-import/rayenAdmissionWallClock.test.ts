@@ -8,7 +8,7 @@ import { clinicalAdmissionDay } from '@/features/rayen-import/domain/censusDayPo
 import { createDischargedEncounterMatcher } from '@/features/rayen-import/domain/censusDischargeHistory';
 import { filterRecordedOutcomeActions } from '@/features/rayen-import/domain/filterRecordedOutcomeActions';
 import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import type { RayenEncounter } from '@/features/rayen-import/contracts/rayenSnapshot';
 

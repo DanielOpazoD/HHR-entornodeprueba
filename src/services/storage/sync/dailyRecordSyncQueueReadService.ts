@@ -7,7 +7,7 @@ import {
   holdsDailyRecordProjection,
   listDailyRecordProjectionHolders,
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordQueuedWriteState, SyncTask } from '@/services/storage/syncQueueTypes';
 
 const ACTIVE_WRITE_STATES = new Set<SyncTask['status']>(['PENDING', 'PROCESSING']);

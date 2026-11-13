@@ -3,7 +3,8 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { UIProvider } from '@/context/UIContext';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { BedType, type BedDefinition } from '@/features/census/contracts/censusBedContracts';
+import { BedType } from '@/features/census/contracts/censusBedContracts';
+import { type BedDefinition } from '@/types/domain/beds';
 import { PatientIdentityCell } from '@/features/census/components/patient-row/PatientIdentityCell';
 import { CensusExamOrderLauncher } from '@/features/census/components/exam-orders/CensusExamOrderLauncher';
 import {

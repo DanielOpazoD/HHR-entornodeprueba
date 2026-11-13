@@ -1,15 +1,34 @@
-import React, { useMemo } from 'react';
+import { CatalogConflictError } from '@/services/repositories/contracts/catalogChanges';
+import React, { useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, Cloud, Stethoscope } from 'lucide-react';
 import { SPECIALTY_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
-import { useProfessionalsQuery, useSaveProfessionalsMutation } from '@/hooks/useStaffQuery';
+import {
+  CatalogReadUnavailableError,
+  useProfessionalsQuery,
+  useSaveProfessionalsMutation,
+} from '@/hooks/useStaffQuery';
 import {
   assignProfessionalSpecialty,
   professionalCatalogKey,
 } from '@/services/staff/treatingPhysicianCatalog';
 
 export const TreatingPhysiciansSettings: React.FC = () => {
-  const { data: professionals = [], isLoading } = useProfessionalsQuery();
+  const query = useProfessionalsQuery();
+  const { data: professionals = [], isLoading } = query;
   const saveProfessionals = useSaveProfessionalsMutation();
+  const [pendingDraft, setDraft] = useState<{ catalogKey: string; specialty: string } | null>(null);
+  // Once the shared list shows the choice it is no longer a draft: drop it for good, so a later
+  // change from another computer is never hidden behind it.
+  const draftAccepted =
+    pendingDraft !== null &&
+    !saveProfessionals.isPending &&
+    professionals.some(
+      item =>
+        professionalCatalogKey(item) === pendingDraft.catalogKey &&
+        (item.specialty ?? '') === pendingDraft.specialty
+    );
+  if (draftAccepted) setDraft(null);
+  const draft = draftAccepted ? null : pendingDraft;
   const orderedProfessionals = useMemo(
     () =>
       professionals.toSorted((left, right) =>
@@ -20,8 +39,13 @@ export const TreatingPhysiciansSettings: React.FC = () => {
   const pendingCount = professionals.filter(item => !item.specialty?.trim()).length;
 
   const handleSpecialtyChange = (catalogKey: string, specialty: string) => {
+    setDraft({ catalogKey, specialty });
     saveProfessionals.mutate(
-      assignProfessionalSpecialty(professionals, catalogKey, specialty || undefined)
+      {
+        next: assignProfessionalSpecialty(professionals, catalogKey, specialty || undefined),
+        base: professionals,
+      },
+      { onSuccess: () => setDraft(null) }
     );
   };
 
@@ -53,19 +77,61 @@ export const TreatingPhysiciansSettings: React.FC = () => {
         </div>
       </header>
 
-      {saveProfessionals.isError && (
-        <div
-          role="alert"
-          className="mx-5 mt-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800"
-        >
-          <AlertCircle size={15} />
-          No se pudo sincronizar el cambio. Se conservó la configuración anterior.
+      {(query.isError || saveProfessionals.error instanceof CatalogReadUnavailableError) && (
+        <div role="alert" className="mx-5 mt-4 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
+          No se pudo leer la lista de médicos. Reintente la lectura antes de guardar cambios.
+          <button
+            type="button"
+            disabled={query.isFetching}
+            onClick={async () => {
+              const result = await query.refetch();
+              if (result.isSuccess) saveProfessionals.reset();
+            }}
+          >
+            Reintentar
+          </button>
         </div>
       )}
+      {saveProfessionals.isError &&
+        !(saveProfessionals.error instanceof CatalogReadUnavailableError) && (
+          <div
+            role="alert"
+            className="mx-5 mt-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800"
+          >
+            <AlertCircle size={15} />
+            {saveProfessionals.error instanceof CatalogConflictError
+              ? saveProfessionals.error.message
+              : 'El cambio no se guardó. La especialidad elegida se conserva; reintente cuando haya conexión.'}
+            {draft &&
+              !professionals.some(item => professionalCatalogKey(item) === draft.catalogKey) && (
+                <div>
+                  <input aria-label="Especialidad pendiente" readOnly value={draft.specialty} />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDraft(null);
+                      saveProfessionals.reset();
+                    }}
+                  >
+                    Cerrar edición pendiente
+                  </button>
+                </div>
+              )}
+            {draft &&
+              professionals.some(item => professionalCatalogKey(item) === draft.catalogKey) && (
+                <button
+                  type="button"
+                  onClick={() => handleSpecialtyChange(draft.catalogKey, draft.specialty)}
+                >
+                  Reintentar guardado
+                </button>
+              )}
+          </div>
+        )}
 
       {isLoading ? (
         <div className="p-10 text-center text-sm text-slate-500">Cargando médicos…</div>
-      ) : orderedProfessionals.length === 0 ? (
+      ) : query.isError && professionals.length === 0 ? null : orderedProfessionals.length === 0 ? (
         <div className="p-10 text-center">
           <Stethoscope size={28} className="mx-auto mb-3 text-slate-300" />
           <p className="text-sm font-semibold text-slate-600">Aún no hay médicos identificados</p>
@@ -104,9 +170,16 @@ export const TreatingPhysiciansSettings: React.FC = () => {
                   Especialidad
                   <select
                     aria-label={`Especialidad de ${professional.name}`}
-                    value={professional.specialty ?? ''}
+                    value={
+                      draft?.catalogKey === catalogKey
+                        ? draft.specialty
+                        : (professional.specialty ?? '')
+                    }
                     onChange={event => handleSpecialtyChange(catalogKey, event.target.value)}
-                    disabled={saveProfessionals.isPending}
+                    disabled={
+                      saveProfessionals.isPending ||
+                      (draft !== null && draft.catalogKey !== catalogKey)
+                    }
                     className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium normal-case tracking-normal text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:cursor-wait disabled:opacity-60"
                   >
                     <option value="">Sin especialidad</option>
@@ -128,11 +201,13 @@ export const TreatingPhysiciansSettings: React.FC = () => {
 
       <footer className="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/70 px-5 py-3 text-[11px] text-slate-500">
         <span className="flex items-center gap-1.5">
-          <Cloud size={13} /> Guardado en el catálogo compartido de HHR
+          <Cloud size={13} /> Catálogo compartido de HHR
         </span>
         {saveProfessionals.isPending ? (
           <span className="animate-pulse font-semibold text-sky-600">Guardando…</span>
-        ) : (
+        ) : query.isError || saveProfessionals.isError ? (
+          <span>Confirmación pendiente</span>
+        ) : isLoading ? null : (
           <span className="flex items-center gap-1 font-semibold text-emerald-600">
             <CheckCircle2 size={13} /> Actualizado
           </span>

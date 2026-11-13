@@ -1,3 +1,4 @@
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { describe, expect, it } from 'vitest';
 import {
   applyCensusImportDiff,
@@ -127,7 +128,7 @@ describe('closed clinical crib placement', () => {
 
     expect(diff.conflicts).toHaveLength(0);
     expect(diff.moves).toEqual([expect.objectContaining({ fromBedId: 'H4C1', toBedId: 'H5C1' })]);
-    expect(applied.record.beds.H4C1).toBeUndefined();
+    expect(applied.record.beds.H4C1).toEqual(createEmptyPatient('H4C1'));
     expect(applied.record.beds.H5C1.clinicalCrib).toMatchObject({
       clinicalEpisodeId: 'NEWBORN',
     });
@@ -153,7 +154,7 @@ describe('closed clinical crib placement', () => {
     expect(diff.pendingAdministrativeDischarges).toEqual([
       expect.objectContaining({ encounterId: 'NEWBORN', bedId: 'H5C1' }),
     ]);
-    expect(applied.record.beds.H4C1).toBeUndefined();
+    expect(applied.record.beds.H4C1).toEqual(createEmptyPatient('H4C1'));
     expect(applied.record.beds.H5C1.clinicalCrib).toMatchObject({
       clinicalEpisodeId: 'NEWBORN',
     });

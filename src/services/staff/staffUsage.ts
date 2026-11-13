@@ -1,4 +1,4 @@
-import type { DailyRecordStaffingState } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecordStaffingState } from '@/types/domain/dailyRecordSlices';
 import { collectRecordedStaffNames } from './dailyRecordStaffing';
 import { nurseIdentityKey } from './nurseIdentity';
 import { resolveStaffSelectionValue, isVacancySelection } from './staffSelectionPresentation';

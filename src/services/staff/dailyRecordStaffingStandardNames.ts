@@ -2,7 +2,7 @@ import type {
   DailyRecordStaffingDetailsV1,
   DetailedStaffingRole,
   DetailedStaffingShift,
-} from '@/services/contracts/dailyRecordServiceContracts';
+} from '@/types/domain/dailyRecordStaffingDetails';
 
 const STANDARD_SLOT_COUNT = {
   nurse: 2,

@@ -1,4 +1,6 @@
-import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
+import type { PatientData } from '@/types/domain/patient';
+
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type {
   AdmissionEntry,
   CensusImportDiff,
@@ -10,7 +12,7 @@ import { mapRayenBed } from '../mapping/bedMapping';
 import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
 import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
 import { missingHistoricalDiagnosis } from './historicalAdmissionPatch';
-const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+import { normalizeRut } from '@/utils/rutUtils';
 export type HistoricalAdmissionSubject = {
   day: string;
   kind: 'principal' | 'clinical-crib';

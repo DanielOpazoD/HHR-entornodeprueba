@@ -1,9 +1,7 @@
 import { useMemo, useCallback, useRef, useEffect } from 'react';
-import type {
-  ApplyDailyRecordPatch,
-  DailyRecord,
-  DailyRecordPatch,
-} from '@/application/shared/dailyRecordCoreContracts';
+import type { ApplyDailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { CMAData } from '@/types/domain/movements';
 import { capitalizeWords } from '@/utils/stringUtils';
 import { formatRut, isValidRut, isPassportFormat } from '@/utils/rutUtils';

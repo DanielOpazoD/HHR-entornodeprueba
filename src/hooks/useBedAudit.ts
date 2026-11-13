@@ -1,6 +1,8 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { useCallback, useRef, useEffect } from 'react';
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
-import { PatientData } from '@/hooks/contracts/patientHookContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+
 import type { CudyrScore } from '@/types/domain/cudyr';
 import { PatientFieldValue } from '@/types/valueTypes';
 import { useAuditContext } from '@/context/AuditContext';

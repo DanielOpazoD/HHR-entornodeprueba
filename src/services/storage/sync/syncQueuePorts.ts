@@ -1,9 +1,12 @@
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { SyncQueueTelemetryRow } from '@/services/storage/sync/syncQueueTelemetryContracts';
-import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { PendingDailyRecordSyncTaskIdentity } from '@/services/storage/sync/pendingDailyRecordSyncTask';
+import type { AuthoringSession } from '@/services/storage/authoringSession';
 
-export type SyncQueueTaskWriteMode = 'created' | 'reused';
+/** `retained_for_owner`: the session changed first, so the task waits for its author, off the day. */
+export type SyncQueueTaskWriteMode = 'created' | 'reused' | 'retained_for_owner';
 
 export interface SyncQueueLeaseClaim {
   leaseOwner: string;
@@ -59,8 +62,9 @@ export interface SyncQueueStorePort {
   saveDailyRecordWithTask(
     record: DailyRecord,
     task: SyncTask,
-    patchWrite?: DailyRecordPatchWrite,
-    wholeRecordBase?: DailyRecord
+    patchWrite: DailyRecordPatchWrite | undefined,
+    wholeRecordBase: DailyRecord | undefined,
+    authoringSession: AuthoringSession
   ): Promise<SyncQueueTaskWriteMode>;
   /** Atomically replace an existing pending daily-record task; never creates a second task. */
   replacePendingDailyRecordWithTask?(

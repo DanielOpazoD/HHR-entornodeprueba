@@ -1,4 +1,4 @@
-import type { DailyRecordCudyrExportState } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecordCudyrExportState } from '@/types/domain/dailyRecordSlices';
 import type { PatientData } from '@/types/domain/patient';
 import type { CudyrHistoryObservation } from '@/types/domain/cudyrHistory';
 import type { CudyrCaptureReceipt } from '@/types/domain/cudyrCapture';

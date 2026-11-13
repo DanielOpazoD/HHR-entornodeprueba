@@ -15,6 +15,10 @@ export const RayenSyncDiagnosticContextSchema = z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/)
       .optional(),
+    sourceClinicalTime: z
+      .string()
+      .regex(/^\d{2}:\d{2}$/)
+      .optional(),
     source: z.string().max(100).optional(),
   })
   .optional()

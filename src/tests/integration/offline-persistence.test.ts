@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getForDate } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { initializeDay } from '@/services/repositories/dailyRecordRepositoryInitializationService';
@@ -72,7 +73,7 @@ describe('Offline Persistence Integration', () => {
     );
 
     try {
-      await saveRecord(mockRecord);
+      await saveRecord(mockRecord, undefined, { authoringSession: captureAuthoringSession() });
     } catch (_e) {
       // expected
     }
@@ -84,7 +85,7 @@ describe('Offline Persistence Integration', () => {
 
   it('should not call Firestore if disabled', async () => {
     setFirestoreEnabled(false);
-    await saveRecord(mockRecord);
+    await saveRecord(mockRecord, undefined, { authoringSession: captureAuthoringSession() });
     expect(firestoreService.saveRecordToFirestore).not.toHaveBeenCalled();
   });
 
@@ -92,7 +93,7 @@ describe('Offline Persistence Integration', () => {
     // Setup local storage with a previous day
     const prevDate = '2024-12-24';
     const prevRecord = { ...mockRecord, date: prevDate };
-    await saveRecord(prevRecord);
+    await saveRecord(prevRecord, undefined, { authoringSession: captureAuthoringSession() });
 
     // Mock Firestore failure for GET
     vi.mocked(firestoreService.getRecordFromFirestore).mockRejectedValue(new Error('Timeout'));

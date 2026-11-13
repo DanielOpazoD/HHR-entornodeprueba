@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { DailyRecordDateRef } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecordDateRef } from '@/types/domain/dailyRecordSlices';
 import { useAuth } from '@/context/AuthContext';
 import { buildStabilityRules, type StabilityRules } from './stabilityRulesController';
 import { isE2EEditableRecordOverrideEnabled } from '@/shared/runtime/e2eRuntime';

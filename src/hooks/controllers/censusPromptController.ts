@@ -1,5 +1,5 @@
 import { getPreviousDay } from '@/utils/clinicalDayUtils';
-import type { DailyRecordDateRef } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecordDateRef } from '@/types/domain/dailyRecordSlices';
 
 export interface CensusPromptState {
   previousRecordAvailable: boolean;

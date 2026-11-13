@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { BedType, type BedDefinition } from '@/features/census/contracts/censusBedContracts';
+import { BedType } from '@/features/census/contracts/censusBedContracts';
+import { type BedDefinition } from '@/types/domain/beds';
 import { listCensusExamRequestCandidates } from '@/features/census/controllers/censusExamRequestController';
 
 const bed = (id: string): BedDefinition => ({ id, name: id, type: BedType.UTI, isCuna: false });

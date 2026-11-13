@@ -1,7 +1,8 @@
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { ReportEgreso } from '../contracts/egresoReport';
-import { normalizeRut } from '@/utils/rutUtils';
+import { normalizedName } from './previousCensusEgresoCandidates';
+import { isValidRut, normalizeRut } from '@/utils/rutUtils';
 
 type ConflictEntry = CensusImportDiff['conflicts'][number];
 type DischargeEntry = CensusImportDiff['discharges'][number];
@@ -46,6 +47,44 @@ export const dropRedundantUnverifiedReportConflicts = (
 ): ConflictEntry[] =>
   conflicts.filter(conflict => {
     if (!conflict.code || !REDUNDANT_ROW_CODES.has(conflict.code) || !conflict.bedId) return true;
+    // A folio is explained by the attached crib, never by treating it as that crib's RUN: same
+    // bed, same name, same clinical day and minute, and no other non-RUN event at that bed.
+    if (!isValidRut(conflict.rut ?? '')) {
+      const name = normalizedName(conflict.patientName);
+      const day = conflict.diagnostic?.sourceClinicalDay;
+      const time = conflict.diagnostic?.sourceClinicalTime;
+      // Jasper repeats one administrative event per principal diagnosis: count events, not rows.
+      const eventOf = (entry: ConflictEntry): string =>
+        `${entry.rut ?? ''}|${normalizedName(entry.patientName)}|${entry.diagnostic?.sourceTimestamp ?? ''}`;
+      const events = new Set(
+        conflicts
+          .filter(
+            entry =>
+              entry.bedId === conflict.bedId &&
+              Boolean(entry.code && REDUNDANT_ROW_CODES.has(entry.code)) &&
+              !isValidRut(entry.rut ?? '')
+          )
+          .map(eventOf)
+      );
+      if (
+        name &&
+        day &&
+        time &&
+        events.size === 1 &&
+        discharges.some(entry => {
+          const crib = entry.associatedClinicalCrib;
+          return (
+            entry.bedId === conflict.bedId &&
+            crib &&
+            !crib.rut?.trim() &&
+            normalizedName(crib.patientName) === name &&
+            (entry.correctedDay ?? record.date) === day &&
+            entry.correctedTime === time
+          );
+        })
+      )
+        return false;
+    }
     const run = normalizeRut(conflict.rut);
     if (!run) return true;
     const discharge = discharges.find(

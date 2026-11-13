@@ -1,7 +1,9 @@
+import { authoredOptions, type PublicWriteOptions } from '@/services/storage/authoringSession';
 import { isSpecialistScopedDailyRecordPatch } from '@/services/repositories/dailyRecordClinicalDomainService';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRef } from 'react';
-import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import { mutationOptions, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { queryKeys } from '@/config/queryClient';
 import { useRepositories } from '@/services/RepositoryContext';
 import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
@@ -36,7 +38,6 @@ import {
   forgetDailyRecordPatchBaseRecord,
   getDailyRecordPatchBaseRecord,
   rememberDailyRecordPatchBaseRecord,
-  type DailyRecordPatchBaseRecordRegistry,
 } from '@/hooks/controllers/dailyRecordPatchBaseRecordController';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import {
@@ -60,11 +61,19 @@ import {
   shouldRollbackOptimisticDailyRecord,
 } from '@/hooks/controllers/dailyRecordLocalProjectionController';
 
-type PatchMutationInput = DailyRecordPatchMutationVariables;
+type PatchMutationInput = {
+  date?: string;
+  partial: DailyRecordPatch;
+  options: PartialUpdateDailyRecordOptions;
+};
 
 const resolveInput = (
-  input: PatchMutationInput
-): { date?: string; partial: DailyRecordPatch; options?: PartialUpdateDailyRecordOptions } => {
+  input: DailyRecordPatchMutationVariables
+): {
+  date?: string;
+  partial: DailyRecordPatch;
+  options?: PublicWriteOptions<PartialUpdateDailyRecordOptions>;
+} => {
   if (
     'partial' in input &&
     input.partial !== null &&
@@ -74,13 +83,20 @@ const resolveInput = (
     return input as {
       date?: string;
       partial: DailyRecordPatch;
-      options?: PartialUpdateDailyRecordOptions;
+      options?: PublicWriteOptions<PartialUpdateDailyRecordOptions>;
     };
   }
   return { partial: input as DailyRecordPatch };
 };
 
 const mutationTails = new Map<string, Promise<void>>();
+const captureInput = (input: DailyRecordPatchMutationVariables): PatchMutationInput => {
+  const resolved = resolveInput(input);
+  return {
+    ...resolved,
+    options: authoredOptions<PartialUpdateDailyRecordOptions>(resolved.options ?? {}),
+  };
+};
 
 const acquireMutationTurn = async (date: string): Promise<() => void> => {
   const previousTurn = mutationTails.get(date) ?? Promise.resolve();
@@ -114,17 +130,14 @@ class AuthoritativeDailyRecordConflictError extends ConcurrencyError {
 export const usePatchDailyRecordMutation = (currentDate: string) => {
   const queryClient = useQueryClient();
   const { dailyRecord } = useRepositories();
-  const patchBaseRecordsRef = useRef<DailyRecordPatchBaseRecordRegistry | null>(null);
-  if (patchBaseRecordsRef.current == null) {
-    patchBaseRecordsRef.current = createDailyRecordPatchBaseRecordRegistry();
-  }
-  const patchBaseRecords = patchBaseRecordsRef.current;
-  return useMutation({
+  const [patchBaseRecords] = useState(createDailyRecordPatchBaseRecordRegistry);
+  const [remoteSelected, setRemoteSelected] = useState(false);
+  const options = mutationOptions({
     mutationKey: getDailyRecordPatchMutationKey(currentDate),
     // The repository owns retries; do not replay a rejected decision as a new command.
     retry: false,
     mutationFn: async (input: PatchMutationInput) => {
-      const { partial, options, date = currentDate } = resolveInput(input);
+      const { partial, options, date = currentDate } = input;
       let writePatch = partial;
       const baseRecord = getDailyRecordPatchBaseRecord(patchBaseRecords, partial);
       const buildOptions = (record: DailyRecord | undefined) => ({
@@ -140,12 +153,7 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
           : {}),
       });
       const write = (record: DailyRecord | undefined) =>
-        patchDailyRecordWithCompatibility(
-          dailyRecord,
-          date,
-          writePatch,
-          record || options ? buildOptions(record) : undefined
-        );
+        patchDailyRecordWithCompatibility(dailyRecord, date, writePatch, buildOptions(record));
       const adoptAlreadyAppliedClear = async (record: DailyRecord) => {
         const intent = options?.intentionalBedClear;
         const appliedPatch = buildAppliedBedClearPatch(intent, record, partial);
@@ -244,10 +252,10 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
       return { partial, options, result };
     },
     onMutate: async input => {
-      const { date = currentDate } = resolveInput(input);
+      const { date = currentDate } = input;
       const releaseMutationTurn = await acquireMutationTurn(date);
       try {
-        const { partial, options } = resolveInput(input);
+        const { partial, options } = input;
         const previousRecordBeforeFreshness = queryClient.getQueryData<DailyRecordQueryResult>(
           getDailyRecordQueryKey(date)
         )?.record;
@@ -324,7 +332,7 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
       }
     },
     onError: (error, input, context) => {
-      const { date = currentDate } = resolveInput(input);
+      const { date = currentDate } = input;
       if (error instanceof AuthoritativeDailyRecordConflictError) {
         const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
           getDailyRecordQueryKey(date)
@@ -346,10 +354,10 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
           setDailyRecordQueryData(queryClient, date, context.previousRecord);
         }
       }
-      forgetDailyRecordPatchBaseRecord(patchBaseRecords, resolveInput(input).partial);
+      forgetDailyRecordPatchBaseRecord(patchBaseRecords, input.partial);
     },
     onSuccess: async (payload, input, context) => {
-      const { date = currentDate } = resolveInput(input);
+      const { date = currentDate } = input;
       if (isDailyRecordWriteRejectedResult(payload.result)) {
         if (context?.optimisticApplied) {
           const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
@@ -361,7 +369,30 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
         }
         return;
       }
-      if (!payload.result?.updatedRemotely) return;
+      if (!payload.result?.updatedRemotely) {
+        // A durable specialist note is the base for this tab's next edit, but is not an ACK.
+        // Publish only after local CAS accepted it, and never replace a newer visible record.
+        const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
+          getDailyRecordQueryKey(date)
+        )?.record;
+        if (
+          payload.result?.savedLocally &&
+          payload.result.queuedForRetry &&
+          isSpecialistScopedDailyRecordPatch(payload.partial) &&
+          context &&
+          cachedRecord &&
+          cachedRecord === context.previousRecord
+        ) {
+          context.unregisterPendingPatch();
+          context.unregisterPendingPatch = registerPendingDailyRecordPatch(date, payload.partial);
+          setDailyRecordQueryData(
+            queryClient,
+            date,
+            applyOptimisticDailyRecordPatch(cachedRecord, payload.partial)
+          );
+        }
+        return;
+      }
       const confirmedRecord = payload.result.confirmedRecord;
       const displayRecord = payload.result.localProjectionRecord ?? confirmedRecord;
       const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
@@ -401,7 +432,7 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
     },
     onSettled: (payload, error, input, context) => {
       context?.releaseMutationTurn();
-      const partial = resolveInput(input).partial;
+      const partial = input.partial;
       if (!context?.unregisterPendingPatch) return;
       if (error || isDailyRecordWriteRejectedResult(payload?.result)) {
         context.unregisterPendingPatch();
@@ -412,4 +443,39 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
       releasePendingPatchAfterFallbackTtl(context.unregisterPendingPatch);
     },
   });
+  // Keep server decisions paused offline; only local-first writes may enter the outbox now.
+  const local = useMutation({ ...options, networkMode: 'always' });
+  const remote = useMutation({ ...options, networkMode: 'online' });
+  const selectMutation = (input: PatchMutationInput) => {
+    const { options } = resolveInput(input);
+    const requiresRemote = Boolean(
+      options?.requireRemoteAuthorityFirst ||
+      options?.intentionalBedClear ||
+      options?.clinicalCribCreate ||
+      options?.specialtyIntent
+    );
+    setRemoteSelected(requiresRemote);
+    return requiresRemote ? remote : local;
+  };
+  return {
+    ...(remoteSelected ? remote : local),
+    mutate: (
+      input: DailyRecordPatchMutationVariables,
+      options?: Parameters<typeof local.mutate>[1]
+    ) => {
+      const authored = captureInput(input);
+      return selectMutation(authored).mutate(authored, options);
+    },
+    mutateAsync: (
+      input: DailyRecordPatchMutationVariables,
+      options?: Parameters<typeof local.mutateAsync>[1]
+    ) => {
+      const authored = captureInput(input);
+      return selectMutation(authored).mutateAsync(authored, options);
+    },
+    reset: () => {
+      local.reset();
+      remote.reset();
+    },
+  };
 };

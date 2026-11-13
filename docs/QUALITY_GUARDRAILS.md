@@ -101,10 +101,10 @@ modifica archivos ni sincroniza automáticamente durante CI.
 - `test:release-confidence` es el pack blocking compacto; no debe crecer sin justificar el riesgo nuevo en `guardrail-governance.json`.
 - Los budgets por flujo se leen desde `reports/e2e/flow-performance-budget.json` y su resumen en `reports/e2e/flow-performance-budget-summary.json` / `.md`.
 - El estado operativo por flujo distingue `ok`, `near-limit`, `target-miss` y `blocking`.
-- El ownership técnico crítico vive en `scripts/config/technical-ownership-map.json` y se valida con `npm run check:technical-ownership-map`.
-- `technical-ownership-map` tiene un productor de snapshots registrado; su checker no forma parte de `qualityAggregate.checks`. Ejecutar el comando local anterior al preparar un release; generar el reporte no acredita esa validación.
-- La política de cambio sostenible vive en `scripts/config/sustainable-change-policy.json` y se valida con `npm run check:sustainable-change-policy`.
-- `sustainable-change-policy` también tiene un productor registrado y su checker queda fuera del agregado. Ejecutar su comando local al preparar un release; la política de upgrades, excepciones y DoD sigue vigente.
+- El ownership técnico crítico vive en `scripts/config/technical-ownership-map.json`.
+- `report:technical-ownership-map` conserva el snapshot de responsables, métricas, gates y runbooks para revisión técnica; no hay un validador de campos separado.
+- La política de cambio sostenible vive en `scripts/config/sustainable-change-policy.json`.
+- `report:sustainable-change-policy` conserva el snapshot de la política para revisión técnica; siguen vigentes upgrades, excepciones y DoD, sin un validador de campos separado.
 - La política para decidir si una mejora técnica vale la pena antes de ejecutarla vive en [docs/ENGINEERING_CHANGE_DECISION_POLICY.md](./ENGINEERING_CHANGE_DECISION_POLICY.md).
 - La definición de terminado vive en [docs/ENGINEERING_DEFINITION_OF_DONE.md](./ENGINEERING_DEFINITION_OF_DONE.md).
 - La deuda priorizada vive en [docs/TECHNICAL_DEBT_REGISTER.md](./TECHNICAL_DEBT_REGISTER.md).
@@ -119,7 +119,6 @@ Además de tamaño, lint y coverage, la base debe vigilar:
 - imports profundos fuera de la API pública de `census`, `handoff`, `transfers` y `clinical-documents`;
 - imports nuevos hacia shims de compatibilidad;
 - drift entre owners documentados y owners reales en controllers compartidos;
-- megatests de más de `500` líneas;
 - fallos de `typecheck` causados por contratos o shapes ya retirados.
 
 La referencia reportable de estas señales vive en `reports/quality-metrics.md` y el backlog operativo en `docs/FOUNDATION_TRACKER.md`.
@@ -140,24 +139,16 @@ npm run report:quality-metrics
 npm run report:compatibility-governance
 npm run report:legacy-retirement-debt
 npm run report:maintenance-debt-scorecard
-npm run report:dependency-debt
 ```
 
 El scorecard de mantenimiento consume `quality-metrics.json` y
-`legacy-retirement-debt.json`; el reporte de carpetas es una medición independiente
-y no es un input del scorecard.
+`legacy-retirement-debt.json`. Comprobar fecha, SHA y estado del checkout antes de
+comparar resultados.
 
-Comprobar fecha, SHA y estado del checkout antes de comparar resultados. El reporte
-de dependencias de carpetas sólo conserva fecha; registrar también el SHA de origen
-en la evaluación. Sus señales se contrastan con la gobernanza de compatibilidad:
-un reexport legacy hacia el dueño canónico requiere revisar consumidores y criterio
-de retiro, no mover la implementación ni flexibilizar la matriz para obtener cero.
-
-El snapshot de dependencias de este ciclo, medido sobre `4c381d76` el 6 de octubre
-de 2026, reemplaza el de febrero: identifica nueve reexports de controllers de
-`hooks` a sus dueños en `features/census`. Son señales de compatibilidad pendientes
-de evaluación, no fallos clínicos demostrados. Regenerar al cerrar otro ciclo si el
-código de origen cambia; evitar una ronda de CI por cada snapshot derivado.
+La frontera de carpetas no tiene lista de excepciones ni reporte de deuda:
+`npm run check:folder-dependencies` falla ante cualquier import fuera de
+`scripts/folder-dependency-matrix.json`. Un import así se corrige moviéndolo a una
+capa que pueda conocer el feature, no flexibilizando la matriz.
 
 ## Cuándo abrir una excepción
 

@@ -5,7 +5,6 @@ import { useRayenImport } from '../hooks/useRayenImport';
 import { useRayenFillProgress } from '../hooks/useRayenFillStatus';
 import { useRayenExtensionHealth } from '../hooks/useRayenExtensionHealth';
 import { RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS } from '../bridge/extensionHealthBridge';
-import { RayenImportPreviewModal } from './RayenImportPreviewModal';
 import { RayenImportFlowStatus } from './RayenImportFlowStatus';
 import { RayenNursingShiftProposalModal } from './RayenNursingShiftProposalModal';
 import { RayenConnectionMonitor } from './RayenConnectionMonitor';
@@ -32,6 +31,11 @@ const RayenSyncQueueDetails = lazyWithRetry(() =>
 
 const LazyRayenSyncHistoryModal = lazy(() =>
   import('./RayenSyncHistoryModal').then(module => ({ default: module.RayenSyncHistoryModal }))
+);
+
+// Review is opened after a capture; it contains no writes and confirmation remains explicit.
+const RayenImportPreviewModal = lazyWithRetry(() =>
+  import('./RayenImportPreviewModal').then(module => ({ default: module.RayenImportPreviewModal }))
 );
 
 const SYNC_QUEUE_PAGE_SIZE = 12;
@@ -400,16 +404,20 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
         </div>
       </div>
 
-      <RayenImportPreviewModal
-        isOpen={isPreviewOpen}
-        diff={diff}
-        stage={execution?.stage}
-        error={error}
-        isApplied={Boolean(result)}
-        targetDate={targetDate}
-        onConfirm={confirm}
-        onCancel={cancel}
-      />
+      {isPreviewOpen ? (
+        <Suspense fallback={null}>
+          <RayenImportPreviewModal
+            isOpen={isPreviewOpen}
+            diff={diff}
+            stage={execution?.stage}
+            error={error}
+            isApplied={Boolean(result)}
+            targetDate={targetDate}
+            onConfirm={confirm}
+            onCancel={cancel}
+          />
+        </Suspense>
+      ) : null}
       {historyOpen ? (
         <Suspense fallback={null}>
           <LazyRayenSyncHistoryModal

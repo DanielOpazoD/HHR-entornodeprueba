@@ -1,3 +1,8 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import type {
+  LocalRecordAdmissionCandidate,
+  LocalRecordBase,
+} from '@/services/storage/indexeddb/indexedDbRecordService';
 /**
  * Multi-tab regression integration tests.
  *
@@ -25,7 +30,22 @@ import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
-  getRecordForDate: vi.fn(),
+  captureLocalRecordBase: async (date: string) => ({
+    kind: 'stored',
+    record: await getRecordFromIndexedDB(date),
+  }),
+  inspectLocalRecordAdmission: async (_date: string, base: LocalRecordBase) => ({
+    status: 'admitted',
+    record: base.kind === 'stored' ? base.record : null,
+  }),
+  admitLocalRecords: vi.fn(async (candidates: readonly LocalRecordAdmissionCandidate[]) =>
+    candidates.map(candidate => ({
+      date: candidate.record.date,
+      status: 'admitted',
+      record: candidate.record,
+    }))
+  ),
+  getRecordForDateStrict: vi.fn(),
   saveRecord: vi.fn(),
   saveRecordStrict: vi.fn(record =>
     Promise.resolve({
@@ -38,6 +58,9 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
 }));
 
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
+  getRecordFromFirestoreDetailed: vi
+    .fn()
+    .mockResolvedValue({ status: 'missing', serverConfirmed: false, record: null }),
   getRecordFromFirestore: vi.fn(),
 }));
 
@@ -110,7 +133,7 @@ import {
   updatePartial,
   updatePartialDetailed,
 } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { getRecordForDate as getRecordFromIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { getRecordForDateStrict as getRecordFromIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { updateRecordPartial as updateRecordPartialToFirestore } from '@/services/storage/firestore/firestoreRecordWrites';
 import { attemptConflictAutoMergeRecovery } from '@/services/repositories/dailyRecordConflictAutoMergeController';
@@ -186,7 +209,9 @@ describe('Multi-tab regression — stale snapshot writes are detected', () => {
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(localStale);
     vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(remoteDense);
 
-    const result = await saveDetailed(localStale);
+    const result = await saveDetailed(localStale, undefined, {
+      authoringSession: captureAuthoringSession(),
+    });
 
     expect(result.savedRemotely).toBe(false);
     expect(result.consistencyState).toBe('blocked_regression');
@@ -205,7 +230,9 @@ describe('Multi-tab regression — stale snapshot writes are detected', () => {
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
     vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(remoteNewer);
 
-    const result = await saveDetailed(local);
+    const result = await saveDetailed(local, undefined, {
+      authoringSession: captureAuthoringSession(),
+    });
 
     expect(result.savedRemotely).toBe(false);
     expect(result.consistencyState).toBe('blocked_version_mismatch');
@@ -226,8 +253,16 @@ describe('Multi-tab regression — stale snapshot writes are detected', () => {
     vi.mocked(getRecordFromFirestore).mockResolvedValue(baseline);
     vi.mocked(updateRecordPartialToFirestore).mockResolvedValue(undefined);
 
-    await updatePartial(date, { 'beds.R1.pathology': 'Diagnostico actualizado por Tab A' });
-    await updatePartial(date, { 'beds.R2.pathology': 'Diagnostico actualizado por Tab B' });
+    await updatePartial(
+      date,
+      { 'beds.R1.pathology': 'Diagnostico actualizado por Tab A' },
+      { authoringSession: captureAuthoringSession() }
+    );
+    await updatePartial(
+      date,
+      { 'beds.R2.pathology': 'Diagnostico actualizado por Tab B' },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     const calls = vi.mocked(updateRecordPartialToFirestore).mock.calls;
     expect(calls).toHaveLength(2);
@@ -260,7 +295,11 @@ describe('Multi-tab regression — stale snapshot writes are detected', () => {
     vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(remote);
     vi.mocked(updateRecordPartialToFirestore).mockResolvedValueOnce(undefined);
 
-    const result = await updatePartialDetailed(date, { 'beds.R1.pathology': 'NAC' });
+    const result = await updatePartialDetailed(
+      date,
+      { 'beds.R1.pathology': 'NAC' },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     expect(result.outcome).toBe('blocked');
     expect(result.consistencyState).toBe('blocked_regression');
@@ -304,14 +343,19 @@ describe('Multi-tab regression — stale snapshot writes are detected', () => {
     vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce(concurrencyError);
     vi.mocked(attemptConflictAutoMergeRecovery).mockResolvedValueOnce({ status: 'auto_merged' });
 
-    const result = await updatePartialDetailed(date, {
-      'beds.R1.pathology': 'Diagnostico actualizado por Tab A',
-    });
+    const result = await updatePartialDetailed(
+      date,
+      {
+        'beds.R1.pathology': 'Diagnostico actualizado por Tab A',
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     expect(attemptConflictAutoMergeRecovery).toHaveBeenCalledWith(
       date,
       expect.objectContaining({ date }),
-      expect.arrayContaining(['beds.R1.pathology'])
+      expect.arrayContaining(['beds.R1.pathology']),
+      captureAuthoringSession()
     );
     expect(result.outcome).not.toBe('failed');
     expect(result.autoMerged).toBe(true);

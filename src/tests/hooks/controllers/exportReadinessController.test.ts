@@ -4,7 +4,7 @@ import {
   waitForExportReadiness,
 } from '@/hooks/controllers/exportReadinessController';
 import type { SyncStatus } from '@/context/dailyRecordContextContracts';
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const date = '2026-10-01';
 const record = { date } as DailyRecord;

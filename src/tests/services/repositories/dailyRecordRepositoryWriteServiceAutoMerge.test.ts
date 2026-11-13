@@ -1,3 +1,8 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import type {
+  LocalRecordAdmissionCandidate,
+  LocalRecordBase,
+} from '@/services/storage/indexeddb/indexedDbRecordService';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { PatientStatus } from '@/types/domain/patientClassification';
@@ -6,7 +11,22 @@ import {
   buildRecord,
 } from '@/tests/services/repositories/dailyRecordRepositoryWriteServiceFixtures';
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
-  getRecordForDate: vi.fn(),
+  captureLocalRecordBase: async (date: string) => ({
+    kind: 'stored',
+    record: await getRecordFromIndexedDB(date),
+  }),
+  inspectLocalRecordAdmission: async (_date: string, base: LocalRecordBase) => ({
+    status: 'admitted',
+    record: base.kind === 'stored' ? base.record : null,
+  }),
+  admitLocalRecords: vi.fn(async (candidates: readonly LocalRecordAdmissionCandidate[]) =>
+    candidates.map(candidate => ({
+      date: candidate.record.date,
+      status: 'admitted',
+      record: candidate.record,
+    }))
+  ),
+  getRecordForDateStrict: vi.fn(),
   saveRecord: vi.fn(),
   saveRecordStrict: vi.fn(record =>
     Promise.resolve({
@@ -18,6 +38,9 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   ),
 }));
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
+  getRecordFromFirestoreDetailed: vi
+    .fn()
+    .mockResolvedValue({ status: 'missing', serverConfirmed: false, record: null }),
   getRecordFromFirestore: vi.fn(),
 }));
 vi.mock('@/services/storage/firestore/firestoreRecordWrites', () => ({
@@ -75,7 +98,7 @@ import {
   updatePartial,
   updatePartialDetailed,
 } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { getRecordForDate as getRecordFromIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { getRecordForDateStrict as getRecordFromIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import {
   saveRecordToFirestore,
@@ -101,6 +124,7 @@ describe('dailyRecordRepositoryWriteService concurrency auto-merge', () => {
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
     vi.mocked(getRecordFromIndexedDB).mockResolvedValue(remote);
     const result = await saveDetailed({ ...remote, beds: {} }, remote.lastUpdated, {
+      authoringSession: captureAuthoringSession(),
       rayenStructuralWriteGuard: true,
       requireConfirmedRecord: true,
     });
@@ -126,7 +150,9 @@ describe('dailyRecordRepositoryWriteService concurrency auto-merge', () => {
     vi.mocked(saveRecordToFirestore).mockRejectedValueOnce(concurrencyError);
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
-    await expect(save(local, '2026-02-16T00:00:00.000Z')).resolves.toBeUndefined();
+    await expect(
+      save(local, '2026-02-16T00:00:00.000Z', { authoringSession: captureAuthoringSession() })
+    ).resolves.toBeUndefined();
     expect(queueSyncTask).toHaveBeenCalledWith(
       expect.objectContaining({
         date: '2026-02-16',
@@ -137,7 +163,8 @@ describe('dailyRecordRepositoryWriteService concurrency auto-merge', () => {
       expect.objectContaining({
         contexts: ['clinical', 'staffing', 'movements', 'handoff', 'metadata'],
         origin: 'conflict_auto_merge',
-      })
+      }),
+      { authoringSession: captureAuthoringSession() }
     );
     expect(logRepositoryConflictAutoMerged).toHaveBeenCalledWith(
       '2026-02-16',
@@ -207,7 +234,9 @@ describe('dailyRecordRepositoryWriteService concurrency auto-merge', () => {
     vi.mocked(saveRecordToFirestore).mockRejectedValueOnce(concurrencyError);
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
-    await expect(save(local, '2026-02-16T00:00:00.000Z')).resolves.toBeUndefined();
+    await expect(
+      save(local, '2026-02-16T00:00:00.000Z', { authoringSession: captureAuthoringSession() })
+    ).resolves.toBeUndefined();
 
     expect(queueSyncTask).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -221,7 +250,8 @@ describe('dailyRecordRepositoryWriteService concurrency auto-merge', () => {
       expect.objectContaining({
         contexts: ['clinical', 'staffing', 'movements', 'handoff', 'metadata'],
         origin: 'conflict_auto_merge',
-      })
+      }),
+      { authoringSession: captureAuthoringSession() }
     );
   });
 
@@ -242,9 +272,13 @@ describe('dailyRecordRepositoryWriteService concurrency auto-merge', () => {
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
     await expect(
-      updatePartial('2026-02-15', {
-        'beds.R1.pathology': 'Diagnostico local',
-      })
+      updatePartial(
+        '2026-02-15',
+        {
+          'beds.R1.pathology': 'Diagnostico local',
+        },
+        { authoringSession: captureAuthoringSession() }
+      )
     ).resolves.toBeUndefined();
 
     expect(queueSyncTask).toHaveBeenCalledWith(
@@ -257,7 +291,8 @@ describe('dailyRecordRepositoryWriteService concurrency auto-merge', () => {
       expect.objectContaining({
         contexts: ['clinical'],
         origin: 'conflict_auto_merge',
-      })
+      }),
+      { authoringSession: captureAuthoringSession() }
     );
     expect(logRepositoryConflictAutoMerged).toHaveBeenCalledWith(
       '2026-02-15',
@@ -310,9 +345,13 @@ describe('dailyRecordRepositoryWriteService concurrency auto-merge', () => {
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
     await expect(
-      updatePartial('2026-02-15', {
-        'beds.R1.medicalHandoffEntries': current.beds.R1.medicalHandoffEntries as never,
-      })
+      updatePartial(
+        '2026-02-15',
+        {
+          'beds.R1.medicalHandoffEntries': current.beds.R1.medicalHandoffEntries as never,
+        },
+        { authoringSession: captureAuthoringSession() }
+      )
     ).resolves.toBeUndefined();
 
     expect(queueSyncTask).toHaveBeenCalledWith(
@@ -330,7 +369,8 @@ describe('dailyRecordRepositoryWriteService concurrency auto-merge', () => {
       expect.objectContaining({
         contexts: ['handoff'],
         origin: 'conflict_auto_merge',
-      })
+      }),
+      { authoringSession: captureAuthoringSession() }
     );
   });
 
@@ -381,10 +421,14 @@ describe('dailyRecordRepositoryWriteService concurrency auto-merge', () => {
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
     await expect(
-      updatePartial('2026-02-15', {
-        'beds.R2': movedPatient,
-        'beds.R1': clearedSource,
-      })
+      updatePartial(
+        '2026-02-15',
+        {
+          'beds.R2': movedPatient,
+          'beds.R1': clearedSource,
+        },
+        { authoringSession: captureAuthoringSession() }
+      )
     ).resolves.toBeUndefined();
 
     expect(updateRecordPartialToFirestore).toHaveBeenCalledTimes(2);
@@ -409,7 +453,8 @@ describe('dailyRecordRepositoryWriteService concurrency auto-merge', () => {
       expect.objectContaining({
         contexts: expect.arrayContaining(['clinical']),
         origin: 'conflict_auto_merge',
-      })
+      }),
+      { authoringSession: captureAuthoringSession() }
     );
   });
 
@@ -450,10 +495,14 @@ describe('dailyRecordRepositoryWriteService concurrency auto-merge', () => {
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
     await expect(
-      updatePartial('2026-02-15', {
-        'beds.R1.deviceDetails': current.beds.R1.deviceDetails,
-        'beds.R1.devices': current.beds.R1.devices,
-      })
+      updatePartial(
+        '2026-02-15',
+        {
+          'beds.R1.deviceDetails': current.beds.R1.deviceDetails,
+          'beds.R1.devices': current.beds.R1.devices,
+        },
+        { authoringSession: captureAuthoringSession() }
+      )
     ).resolves.toBeUndefined();
 
     expect(queueSyncTask).toHaveBeenCalledWith(
@@ -470,7 +519,8 @@ describe('dailyRecordRepositoryWriteService concurrency auto-merge', () => {
       expect.objectContaining({
         contexts: expect.arrayContaining(['clinical']),
         origin: 'conflict_auto_merge',
-      })
+      }),
+      { authoringSession: captureAuthoringSession() }
     );
   });
 
@@ -485,9 +535,13 @@ describe('dailyRecordRepositoryWriteService concurrency auto-merge', () => {
     vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce(concurrencyError);
     vi.mocked(getRecordFromFirestore).mockResolvedValue(null);
 
-    const result = await updatePartialDetailed('2026-02-14', {
-      'beds.R1.patientName': 'Paciente actualizado',
-    });
+    const result = await updatePartialDetailed(
+      '2026-02-14',
+      {
+        'beds.R1.patientName': 'Paciente actualizado',
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     expect(queueSyncTask).not.toHaveBeenCalledWith(expect.objectContaining({ date: '2026-02-14' }));
     expect(logRepositoryConflictAutoMerged).not.toHaveBeenCalled();

@@ -1,10 +1,10 @@
-import { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import { DailyRecord } from '@/types/domain/dailyRecord';
 import { AuditLogEntry } from '@/types/auditLogTypes';
 import { safeJsonParse } from '@/utils/jsonUtils';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 
 import { ensureDbReady, hospitalDB as db } from './indexedDbCore';
-import { saveCatalog } from './indexedDbCatalogService';
+import { cacheCatalogValues } from './indexedDbCatalogService';
 import { dispatchDailyRecordStoreChanged } from './indexedDbRecordEvents';
 
 const STORAGE_KEY = 'hanga_roa_hospital_data';
@@ -55,13 +55,13 @@ export const migrateFromLocalStorage = async (): Promise<boolean> => {
     const nursesData = localStorage.getItem(NURSES_KEY);
     if (nursesData) {
       const nurses = safeJsonParse<string[]>(nursesData, []);
-      await saveCatalog('nurses', nurses);
+      await cacheCatalogValues('nurses', nurses);
     }
 
     const tensData = localStorage.getItem(TENS_KEY);
     if (tensData) {
       const tens = safeJsonParse<string[]>(tensData, []);
-      await saveCatalog('tens', tens);
+      await cacheCatalogValues('tens', tens);
     }
 
     const auditData = localStorage.getItem(AUDIT_KEY);

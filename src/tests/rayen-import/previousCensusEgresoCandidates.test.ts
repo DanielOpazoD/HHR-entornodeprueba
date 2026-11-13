@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { EgresoReportRow } from '@/features/rayen-import/contracts/egresoReport';
 import { previousCensusEgresoCandidates } from '@/features/rayen-import/domain/previousCensusEgresoCandidates';
 

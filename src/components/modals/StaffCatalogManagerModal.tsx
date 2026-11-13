@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Users, Plus, Trash2, Cloud, AlertCircle, Pencil, Check, X } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { StaffNameSchema } from '@/schemas/inputSchemas';
+import {
+  savedCatalogEdit,
+  type SavedStaffCatalog,
+} from '@/services/repositories/contracts/catalogChanges';
 import clsx from 'clsx';
 import { RecoverCensusStaffButton } from './RecoverCensusStaffButton';
 
@@ -11,7 +15,11 @@ interface StaffCatalogManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
   staffList: string[];
-  onSave: (updatedStaffList: string[]) => void;
+  /** The confirmed saved list behind `staffList`, from the same source as the shown rows. */
+  saved?: SavedStaffCatalog;
+  onSave: (updatedStaffList: string[], base?: string[]) => boolean | void | Promise<boolean | void>;
+  saveError?: string;
+  onRetry?: () => Promise<void>;
   syncing: boolean;
   hasSyncError: boolean;
   variant: StaffCatalogVariant;
@@ -61,18 +69,28 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
   isOpen,
   onClose,
   staffList,
+  saved,
   onSave,
   syncing,
   hasSyncError,
   variant,
+  saveError,
+  onRetry,
 }) => {
+  const editBase = useRef({ shown: staffList, saved });
+  // Removing or renaming a row changes exactly the saved texts that row stands for.
+  const saveChange = (next: string[], base = { shown: staffList, saved }) => {
+    const edit = savedCatalogEdit(base.saved, base.shown, next);
+    return onSave(edit.next, edit.base);
+  };
   const config = STAFF_CATALOG_VARIANT_CONFIG[variant];
   const [newStaffName, setNewStaffName] = useState('');
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
+    if (syncing) return;
     const trimmed = newStaffName.trim();
     const result = StaffNameSchema.safeParse(trimmed);
 
@@ -82,22 +100,23 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
     }
 
     setValidationError(null);
-    onSave([...staffList, trimmed]);
+    if ((await saveChange([...staffList, trimmed])) === false) return;
     setNewStaffName('');
   };
 
   const handleRemove = (name: string) => {
-    onSave(staffList.filter(staffName => staffName !== name));
+    saveChange(staffList.filter(staffName => staffName !== name));
   };
 
   const handleStartEdit = (name: string) => {
+    editBase.current = { shown: staffList, saved };
     setEditingName(name);
     setEditValue(name);
     setValidationError(null);
   };
 
-  const handleUpdate = () => {
-    if (!editingName) return;
+  const handleUpdate = async () => {
+    if (!editingName || syncing) return;
 
     const trimmed = editValue.trim();
     const result = StaffNameSchema.safeParse(trimmed);
@@ -107,7 +126,13 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
     }
 
     setValidationError(null);
-    onSave(staffList.map(staffName => (staffName === editingName ? trimmed : staffName)));
+    if (
+      (await saveChange(
+        editBase.current.shown.map(staffName => (staffName === editingName ? trimmed : staffName)),
+        editBase.current
+      )) === false
+    )
+      return;
     setEditingName(null);
     setEditValue('');
   };
@@ -148,10 +173,20 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
             )}
           </div>
 
+          {saveError && (
+            <div role="alert" className="mb-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-700">
+              <p>{saveError}</p>
+              {onRetry && (
+                <button type="button" onClick={() => void onRetry()} disabled={syncing}>
+                  Reintentar
+                </button>
+              )}
+            </div>
+          )}
           {hasSyncError && (
             <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs text-amber-700">
               <AlertCircle size={14} />
-              Error al sincronizar con la nube. Se guardó localmente.
+              El cambio no se guardó. Lo escrito se conserva; vuelva a guardar cuando haya conexión.
             </div>
           )}
 
@@ -167,6 +202,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
                 )}
                 placeholder="Nombre completo…"
                 value={newStaffName}
+                disabled={syncing}
                 onChange={event => {
                   setNewStaffName(event.target.value);
                   setValidationError(null);
@@ -199,6 +235,16 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
             Catálogo Actual
           </label>
           <div className="max-h-[45vh] space-y-2 overflow-y-auto pr-1">
+            {editingName && !staffList.includes(editingName) && (
+              <div>
+                <input
+                  aria-label="Edición pendiente"
+                  value={editValue}
+                  onChange={event => setEditValue(event.target.value)}
+                />
+                <button onClick={handleCancelEdit}>Cerrar edición pendiente</button>
+              </div>
+            )}
             {staffList.map(staffName => (
               <div
                 key={staffName}
@@ -296,7 +342,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
         <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-[9px] font-bold uppercase tracking-widest text-slate-400">
           <div className="flex items-center gap-1.5">
             <Cloud size={12} className={config.cloudIconColor} />
-            Sincronizado con Firebase
+            Catálogo compartido de HHR
           </div>
           <div className="text-slate-300">{staffList.length} Registros</div>
         </div>

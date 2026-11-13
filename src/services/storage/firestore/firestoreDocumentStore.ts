@@ -6,6 +6,7 @@ import {
   type Firestore,
   type SetOptions,
   type SnapshotListenOptions,
+  type DocumentSnapshot,
 } from 'firebase/firestore';
 import { ensureFirestoreRuntimeReady } from '@/services/storage/firestore/firestoreRuntimeSupport';
 
@@ -56,6 +57,7 @@ interface SubscribeToFirestoreDocumentInput<
   onData: (value: TDocument | null) => void;
   onError: (error: unknown) => void;
   options?: SnapshotListenOptions;
+  confirmedChangesOnly?: boolean;
 }
 
 export const subscribeToFirestoreDocument = <
@@ -67,6 +69,7 @@ export const subscribeToFirestoreDocument = <
   onData,
   onError,
   options,
+  confirmedChangesOnly = false,
 }: SubscribeToFirestoreDocumentInput<TDocument, TRuntime>): (() => void) => {
   let active = true;
   let unsubscribeSnapshot = () => {};
@@ -77,15 +80,27 @@ export const subscribeToFirestoreDocument = <
         return;
       }
 
-      const next = (snapshot: { exists: () => boolean; data: () => unknown }) => {
-        if (active) onData(snapshot.exists() ? (snapshot.data() as TDocument) : null);
+      let previous: DocumentSnapshot | undefined;
+      const next = (snapshot: DocumentSnapshot) => {
+        if (!active || (confirmedChangesOnly && snapshot.metadata.hasPendingWrites)) return;
+        if (
+          confirmedChangesOnly &&
+          previous &&
+          JSON.stringify(previous.data()) === JSON.stringify(snapshot.data())
+        )
+          return;
+        previous = snapshot;
+        onData(snapshot.exists() ? (snapshot.data() as TDocument) : null);
       };
       const error = (snapshotError: unknown) => {
         if (active) onError(snapshotError);
       };
 
-      unsubscribeSnapshot = options
-        ? onSnapshot(resolveRef(runtime), options, next, error)
+      const listenOptions = confirmedChangesOnly
+        ? { ...options, includeMetadataChanges: true }
+        : options;
+      unsubscribeSnapshot = listenOptions
+        ? onSnapshot(resolveRef(runtime), listenOptions, next, error)
         : onSnapshot(resolveRef(runtime), next, error);
     })
     .catch(error => {

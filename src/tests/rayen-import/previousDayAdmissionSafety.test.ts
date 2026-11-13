@@ -1,6 +1,7 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
-import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   computePreviousDayEdits,
   fileCrossDayCorrections,
@@ -342,7 +343,7 @@ describe('previous clinical-day admission evidence and safety', () => {
         'beds.H4C2.bedId': 'H4C2',
         'beds.H4C2.clinicalEpisodeId': '143100',
       }),
-      { baseRecord: historicalRecord }
+      { authoringSession: captureAuthoringSession(), baseRecord: historicalRecord }
     );
   });
 
@@ -455,7 +456,7 @@ describe('previous clinical-day admission evidence and safety', () => {
         expect.objectContaining({
           [`beds.${bedId}.clinicalCrib.clinicalEpisodeId`]: '143101',
         }),
-        { baseRecord: recordWithMother }
+        { authoringSession: captureAuthoringSession(), baseRecord: recordWithMother }
       );
     }
   );

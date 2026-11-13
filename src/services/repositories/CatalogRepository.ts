@@ -1,8 +1,8 @@
+import { CatalogConflictError } from './contracts/catalogChanges';
 import {
-  saveCatalog,
   getCatalog,
   getCatalogValues,
-  saveCatalogValues,
+  cacheCatalogValues,
 } from '@/services/storage/indexeddb/indexedDbCatalogService';
 import {
   saveNurseCatalogToFirestore,
@@ -18,23 +18,61 @@ import {
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 import {
+  CatalogRemoteSyncError,
   normalizeProfessionalCatalog,
   normalizeStringCatalog,
   assertCatalogSubscriptionCallback,
+  NURSE_CATALOG_EXAMPLES,
+  TENS_CATALOG_EXAMPLES,
+  catalogExamples,
 } from '@/services/repositories/contracts/catalogContracts';
 import { catalogRepositoryLogger } from '@/services/repositories/repositoryLoggers';
 
 export interface ICatalogRepository {
   getNurses(): Promise<string[]>;
-  saveNurses(nurses: string[]): Promise<void>;
-  subscribeNurses(callback: (nurses: string[]) => void): () => void;
+  saveNurses(nurses: string[], base: string[]): Promise<string[] | void>;
+  subscribeNurses(
+    callback: (nurses: string[]) => void,
+    onError?: (error: unknown) => void
+  ): () => void;
   getTens(): Promise<string[]>;
-  saveTens(tens: string[]): Promise<void>;
-  subscribeTens(callback: (tens: string[]) => void): () => void;
+  saveTens(tens: string[], base: string[]): Promise<string[] | void>;
+  subscribeTens(callback: (tens: string[]) => void, onError?: (error: unknown) => void): () => void;
   getProfessionals(): Promise<ProfessionalCatalogItem[]>;
-  saveProfessionals(professionals: ProfessionalCatalogItem[]): Promise<void>;
-  subscribeProfessionals(callback: (professionals: ProfessionalCatalogItem[]) => void): () => void;
+  saveProfessionals(
+    professionals: ProfessionalCatalogItem[],
+    base: ProfessionalCatalogItem[]
+  ): Promise<ProfessionalCatalogItem[] | void>;
+  subscribeProfessionals(
+    callback: (professionals: ProfessionalCatalogItem[]) => void,
+    onError?: (error: unknown) => void
+  ): () => void;
 }
+
+// A disabled runtime has no durable resend path for catalogs.
+const assertCatalogRemoteAvailable = (): void => {
+  if (!isFirestoreEnabled() || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+    throw new CatalogRemoteSyncError(new Error('Catalog remote unavailable'));
+  }
+};
+
+// Bounds the complete retry chain; the SDK may still acknowledge the write later.
+const confirmCatalogSave = async <T>(save: Promise<T>): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      save,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () => reject(new CatalogRemoteSyncError('confirmation_timeout')),
+          15_000
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+};
 
 // ============================================================================
 // Nurses Catalog
@@ -54,38 +92,53 @@ export const getNurses = async (): Promise<string[]> => {
     try {
       const remoteList = await getNurseCatalogFromFirestore();
       if (remoteList.length > 0) {
-        await saveCatalog('nurses', remoteList);
+        await cacheCatalogValues('nurses', remoteList, true);
         return remoteList;
       }
     } catch (err) {
       catalogRepositoryLogger.warn('Failed to fetch nurses from remote', err);
+      throw err;
     }
   }
 
-  return ['Enfermero/a 1', 'Enfermero/a 2'];
+  return catalogExamples(NURSE_CATALOG_EXAMPLES);
 };
 
 /**
- * Saves the nurses list to local storage and syncs to Firestore if enabled.
+ * Confirms the nurses list remotely before refreshing its local cache.
  */
-export const saveNurses = async (nurses: string[]): Promise<void> => {
+export const saveNurses = async (nurses: string[], base: string[]): Promise<string[] | void> => {
   const normalized = normalizeStringCatalog(nurses);
-  await saveCatalog('nurses', normalized);
-  if (isFirestoreEnabled()) {
-    await saveNurseCatalogToFirestore(normalized);
+  assertCatalogRemoteAvailable();
+  let accepted: string[];
+  try {
+    accepted = await confirmCatalogSave(saveNurseCatalogToFirestore(normalized, base));
+  } catch (cause) {
+    if (cause instanceof CatalogConflictError) {
+      await cacheCatalogValues('nurses', normalizeStringCatalog(cause.current), true);
+      throw cause;
+    }
+    throw new CatalogRemoteSyncError(cause);
   }
+  await cacheCatalogValues('nurses', accepted ?? normalized, true);
+  return accepted;
 };
 
 const subscribeToLocalStringCatalog = (
   key: 'nurses' | 'tens',
-  callback: (items: string[]) => void
+  callback: (items: string[]) => void,
+  onError?: (error: unknown) => void
 ): (() => void) => {
   let isActive = true;
-  void getCatalog(key).then(items => {
-    if (isActive) {
-      callback(normalizeStringCatalog(items));
-    }
-  });
+  void getCatalog(key)
+    .then(items => {
+      if (isActive) {
+        callback(normalizeStringCatalog(items));
+      }
+    })
+    .catch(error => {
+      if (isActive) onError?.(error);
+    });
 
   return () => {
     isActive = false;
@@ -93,14 +146,19 @@ const subscribeToLocalStringCatalog = (
 };
 
 const subscribeToLocalProfessionalsCatalog = (
-  callback: (professionals: ProfessionalCatalogItem[]) => void
+  callback: (professionals: ProfessionalCatalogItem[]) => void,
+  onError?: (error: unknown) => void
 ): (() => void) => {
   let isActive = true;
-  void getCatalogValues<ProfessionalCatalogItem>('professionals').then(items => {
-    if (isActive) {
-      callback(normalizeProfessionalCatalog(items));
-    }
-  });
+  void getCatalogValues<ProfessionalCatalogItem>('professionals')
+    .then(items => {
+      if (isActive) {
+        callback(normalizeProfessionalCatalog(items));
+      }
+    })
+    .catch(error => {
+      if (isActive) onError?.(error);
+    });
 
   return () => {
     isActive = false;
@@ -110,17 +168,20 @@ const subscribeToLocalProfessionalsCatalog = (
 /**
  * Subscribes to real-time updates for the nurses catalog from Firestore.
  */
-export const subscribeNurses = (callback: (nurses: string[]) => void): (() => void) => {
+export const subscribeNurses = (
+  callback: (nurses: string[]) => void,
+  onError?: (error: unknown) => void
+): (() => void) => {
   assertCatalogSubscriptionCallback(callback, 'nurses');
   if (!isFirestoreEnabled()) {
-    return subscribeToLocalStringCatalog('nurses', callback);
+    return subscribeToLocalStringCatalog('nurses', callback, onError);
   }
 
   return subscribeToNurseCatalog(async nurses => {
     const normalized = normalizeStringCatalog(nurses);
-    await saveCatalog('nurses', normalized);
+    await cacheCatalogValues('nurses', normalized, true);
     callback(normalized);
-  });
+  }, onError);
 };
 
 // ============================================================================
@@ -140,42 +201,55 @@ export const getTens = async (): Promise<string[]> => {
     try {
       const remoteList = await getTensCatalogFromFirestore();
       if (remoteList.length > 0) {
-        await saveCatalog('tens', remoteList);
+        await cacheCatalogValues('tens', remoteList, true);
         return remoteList;
       }
     } catch (err) {
       catalogRepositoryLogger.warn('Failed to fetch TENS from remote', err);
+      throw err;
     }
   }
 
-  return ['TENS 1', 'TENS 2', 'TENS 3'];
+  return catalogExamples(TENS_CATALOG_EXAMPLES);
 };
 
 /**
- * Saves the TENS list to local storage and syncs to Firestore if enabled.
+ * Confirms the TENS list remotely before refreshing its local cache.
  */
-export const saveTens = async (tens: string[]): Promise<void> => {
+export const saveTens = async (tens: string[], base: string[]): Promise<string[] | void> => {
   const normalized = normalizeStringCatalog(tens);
-  await saveCatalog('tens', normalized);
-  if (isFirestoreEnabled()) {
-    await saveTensCatalogToFirestore(normalized);
+  assertCatalogRemoteAvailable();
+  let accepted: string[];
+  try {
+    accepted = await confirmCatalogSave(saveTensCatalogToFirestore(normalized, base));
+  } catch (cause) {
+    if (cause instanceof CatalogConflictError) {
+      await cacheCatalogValues('tens', normalizeStringCatalog(cause.current), true);
+      throw cause;
+    }
+    throw new CatalogRemoteSyncError(cause);
   }
+  await cacheCatalogValues('tens', accepted ?? normalized, true);
+  return accepted;
 };
 
 /**
  * Subscribes to real-time updates for the TENS catalog from Firestore.
  */
-export const subscribeTens = (callback: (tens: string[]) => void): (() => void) => {
+export const subscribeTens = (
+  callback: (tens: string[]) => void,
+  onError?: (error: unknown) => void
+): (() => void) => {
   assertCatalogSubscriptionCallback(callback, 'tens');
   if (!isFirestoreEnabled()) {
-    return subscribeToLocalStringCatalog('tens', callback);
+    return subscribeToLocalStringCatalog('tens', callback, onError);
   }
 
   return subscribeToTensCatalog(async tens => {
     const normalized = normalizeStringCatalog(tens);
-    await saveCatalog('tens', normalized);
+    await cacheCatalogValues('tens', normalized, true);
     callback(normalized);
-  });
+  }, onError);
 };
 
 // ============================================================================
@@ -196,11 +270,12 @@ export const getProfessionals = async (): Promise<ProfessionalCatalogItem[]> => 
     try {
       const remoteList = await getProfessionalsCatalogFromFirestore();
       if (remoteList.length > 0) {
-        await saveCatalogValues<ProfessionalCatalogItem>('professionals', remoteList);
+        await cacheCatalogValues<ProfessionalCatalogItem>('professionals', remoteList, true);
         return remoteList;
       }
     } catch (err) {
       catalogRepositoryLogger.warn('Failed to fetch professionals from remote', err);
+      throw err;
     }
   }
 
@@ -208,34 +283,45 @@ export const getProfessionals = async (): Promise<ProfessionalCatalogItem[]> => 
 };
 
 /**
- * Saves the professionals list to local storage and syncs to Firestore if enabled.
+ * Confirms the professionals list remotely before refreshing its local cache.
  */
 export const saveProfessionals = async (
-  professionals: ProfessionalCatalogItem[]
-): Promise<void> => {
+  professionals: ProfessionalCatalogItem[],
+  base: ProfessionalCatalogItem[]
+): Promise<ProfessionalCatalogItem[] | void> => {
   const normalized = normalizeProfessionalCatalog(professionals);
-  await saveCatalogValues<ProfessionalCatalogItem>('professionals', normalized);
-  if (isFirestoreEnabled()) {
-    await saveProfessionalsCatalogToFirestore(normalized);
+  assertCatalogRemoteAvailable();
+  let accepted: ProfessionalCatalogItem[];
+  try {
+    accepted = await confirmCatalogSave(saveProfessionalsCatalogToFirestore(normalized, base));
+  } catch (cause) {
+    if (cause instanceof CatalogConflictError) {
+      await cacheCatalogValues('professionals', normalizeProfessionalCatalog(cause.current), true);
+      throw cause;
+    }
+    throw new CatalogRemoteSyncError(cause);
   }
+  await cacheCatalogValues('professionals', accepted ?? normalized, true);
+  return accepted;
 };
 
 /**
  * Subscribes to real-time updates for the professionals catalog from Firestore.
  */
 export const subscribeProfessionals = (
-  callback: (professionals: ProfessionalCatalogItem[]) => void
+  callback: (professionals: ProfessionalCatalogItem[]) => void,
+  onError?: (error: unknown) => void
 ): (() => void) => {
   assertCatalogSubscriptionCallback(callback, 'professionals');
   if (!isFirestoreEnabled()) {
-    return subscribeToLocalProfessionalsCatalog(callback);
+    return subscribeToLocalProfessionalsCatalog(callback, onError);
   }
 
   return subscribeToProfessionalsCatalog(async professionals => {
     const normalized = normalizeProfessionalCatalog(professionals);
-    await saveCatalogValues<ProfessionalCatalogItem>('professionals', normalized);
+    await cacheCatalogValues<ProfessionalCatalogItem>('professionals', normalized, true);
     callback(normalized);
-  });
+  }, onError);
 };
 
 // ============================================================================

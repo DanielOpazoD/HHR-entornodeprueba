@@ -1,10 +1,30 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import type {
+  LocalRecordAdmissionCandidate,
+  LocalRecordBase,
+} from '@/services/storage/indexeddb/indexedDbRecordService';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
-  getRecordForDate: vi.fn(),
+  captureLocalRecordBase: async (date: string) => ({
+    kind: 'stored',
+    record: await getRecordFromIndexedDB(date),
+  }),
+  inspectLocalRecordAdmission: async (_date: string, base: LocalRecordBase) => ({
+    status: 'admitted',
+    record: base.kind === 'stored' ? base.record : null,
+  }),
+  admitLocalRecords: vi.fn(async (candidates: readonly LocalRecordAdmissionCandidate[]) =>
+    candidates.map(candidate => ({
+      date: candidate.record.date,
+      status: 'admitted',
+      record: candidate.record,
+    }))
+  ),
+  getRecordForDateStrict: vi.fn(),
   saveRecord: vi.fn(),
   saveRecordStrict: vi.fn(record =>
     Promise.resolve({
@@ -17,6 +37,9 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
 }));
 
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
+  getRecordFromFirestoreDetailed: vi
+    .fn()
+    .mockResolvedValue({ status: 'missing', serverConfirmed: false, record: null }),
   getRecordFromFirestore: vi.fn(),
 }));
 
@@ -74,7 +97,7 @@ import {
   updatePartial,
   updatePartialDetailed,
 } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { getRecordForDate as getRecordFromIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
+import { getRecordForDateStrict as getRecordFromIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { updateRecordPartial as updateRecordPartialToFirestore } from '@/services/storage/firestore/firestoreRecordWrites';
 import { queueDailyRecordSyncTaskWithLocalRecord as queueSyncTask } from '@/services/storage/sync';
@@ -143,11 +166,15 @@ describe('dailyRecordRepositoryWriteService explicit census patch auto-merge', (
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
     await expect(
-      updatePartial('2026-02-15', {
-        'beds.R1.specialty': 'Otra especialidad',
-        'beds.R1.secondarySpecialty': 'Infectologia',
-        'beds.R1.status': PatientStatus.GRAVE,
-      })
+      updatePartial(
+        '2026-02-15',
+        {
+          'beds.R1.specialty': 'Otra especialidad',
+          'beds.R1.secondarySpecialty': 'Infectologia',
+          'beds.R1.status': PatientStatus.GRAVE,
+        },
+        { authoringSession: captureAuthoringSession() }
+      )
     ).resolves.toBeUndefined();
 
     expect(queueSyncTask).toHaveBeenCalledWith(
@@ -165,7 +192,8 @@ describe('dailyRecordRepositoryWriteService explicit census patch auto-merge', (
       expect.objectContaining({
         contexts: ['clinical'],
         origin: 'conflict_auto_merge',
-      })
+      }),
+      { authoringSession: captureAuthoringSession() }
     );
   });
 
@@ -208,7 +236,9 @@ describe('dailyRecordRepositoryWriteService explicit census patch auto-merge', (
     vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce(concurrencyError);
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
-    await expect(updatePartialDetailed('2026-02-15', patch)).resolves.toMatchObject({
+    await expect(
+      updatePartialDetailed('2026-02-15', patch, { authoringSession: captureAuthoringSession() })
+    ).resolves.toMatchObject({
       outcome: 'auto_merged',
       autoMerged: true,
       queuedForRetry: true,
@@ -237,7 +267,8 @@ describe('dailyRecordRepositoryWriteService explicit census patch auto-merge', (
           expectedVersion: '2026-02-15T10:05:00.000Z',
           changedPaths: Object.keys(patch),
         }),
-      })
+      }),
+      { authoringSession: captureAuthoringSession() }
     );
   });
 
@@ -271,7 +302,9 @@ describe('dailyRecordRepositoryWriteService explicit census patch auto-merge', (
     vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce(concurrencyError);
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
-    await expect(updatePartialDetailed('2026-02-15', patch)).resolves.toMatchObject({
+    await expect(
+      updatePartialDetailed('2026-02-15', patch, { authoringSession: captureAuthoringSession() })
+    ).resolves.toMatchObject({
       outcome: 'auto_merged',
       autoMerged: true,
       queuedForRetry: true,
@@ -293,7 +326,8 @@ describe('dailyRecordRepositoryWriteService explicit census patch auto-merge', (
       expect.objectContaining({
         contexts: ['clinical'],
         origin: 'conflict_auto_merge',
-      })
+      }),
+      { authoringSession: captureAuthoringSession() }
     );
   });
 });

@@ -1,10 +1,9 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { describe, expect, it, vi } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
-import type {
-  DailyRecord,
-  PatientData,
-} from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { EgresoLookupTarget } from '@/features/rayen-import/contracts/egresoLookup';
 import type { EgresoReportRow } from '@/features/rayen-import/contracts/egresoReport';
 import { applyCensusImportDiff } from '@/features/rayen-import/domain/applyCensusImportDiff';

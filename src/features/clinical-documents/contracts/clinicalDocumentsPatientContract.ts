@@ -13,5 +13,3 @@ export interface ClinicalDocumentsWorkspacePatientContract extends PatientEpisod
   dischargeDate?: string;
   transferDate?: string;
 }
-
-export type PatientData = ClinicalDocumentsWorkspacePatientContract;

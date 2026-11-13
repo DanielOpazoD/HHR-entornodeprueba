@@ -1,6 +1,8 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { BEDS } from '@/constants/beds';
 import { isClinicalFormRut } from './clinicalFormIdentity';
-import type { PatientData } from '@/shared/contracts/patientDomainContracts';
+
 import type { MedifSourceRecord } from '../medifPatientPrefill';
 import { formAgeAt, parseFormDate } from './clinicalFormDates';
 import type {

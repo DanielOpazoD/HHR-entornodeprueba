@@ -1,4 +1,5 @@
-import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
+import type { PatientData } from '@/types/domain/patient';
+
 import {
   ControllerError,
   ControllerResult,

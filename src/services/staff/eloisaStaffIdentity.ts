@@ -1,4 +1,4 @@
-import { nurseIdentityKey } from './nurseIdentity';
+import { nurseIdentityKey, preferredStaffName } from './nurseIdentity';
 
 export type NursingRole = 'nurse' | 'tens';
 export interface StaffObservation {
@@ -24,9 +24,6 @@ export const nursingRole = (role: string): NursingRole | null =>
     : /enfermer/i.test(role)
       ? 'nurse'
       : null;
-export const uniqueStaffNames = (names: string[]) => [
-  ...new Map(names.map(name => [nurseIdentityKey(name), name])).values(),
-];
 export const staffNameMatches = (entry: EloisaStaffIdentity, name: string) =>
   [entry.name, ...entry.aliases].some(alias => nurseIdentityKey(alias) === nurseIdentityKey(name));
 
@@ -49,14 +46,50 @@ export const resolveEloisaStaffName = (
   entries: EloisaStaffIdentity[],
   role?: NursingRole | null,
   practitionerId?: string
-): string => resolveEloisaStaffIdentity(name, entries, role, practitionerId)?.name ?? name;
+): string => {
+  const resolved = resolveEloisaStaffIdentity(name, entries, role, practitionerId)?.name;
+  return resolved === undefined
+    ? name
+    : nurseIdentityKey(resolved) === nurseIdentityKey(name)
+      ? preferredStaffName(name, resolved)
+      : resolved;
+};
+
+/** A shown row and the exact saved texts it was built from (none for a name only Eloísa gives). */
+export interface StaffCatalogRow {
+  name: string;
+  saved: string[];
+}
+
+/** The rows the screen shows: saved names resolved through Eloísa, grouped by identity. */
+export const staffCatalogRows = (
+  manual: string[],
+  entries: EloisaStaffIdentity[],
+  role: NursingRole
+): StaffCatalogRow[] => {
+  const rows = new Map<string, StaffCatalogRow>();
+  // Preserve the saved spelling on ties and keep exact texts for conflict detection.
+  const place = (name: string, saved: string[]) => {
+    const key = nurseIdentityKey(name);
+    const row = rows.get(key);
+    rows.set(key, {
+      name: row ? preferredStaffName(row.name, name) : name,
+      saved: [...(row?.saved ?? []), ...saved],
+    });
+  };
+  manual.forEach(name => place(resolveEloisaStaffName(name, entries, role), [name]));
+  entries.filter(entry => entry.role === role).forEach(entry => place(entry.name, []));
+  return [...rows.values()];
+};
 
 export const mergeStaffCatalog = (
   manual: string[],
   entries: EloisaStaffIdentity[],
   role: NursingRole
-): string[] =>
-  uniqueStaffNames([
-    ...manual.map(name => resolveEloisaStaffName(name, entries, role)),
-    ...entries.filter(entry => entry.role === role).map(entry => entry.name),
-  ]);
+): string[] => staffCatalogRows(manual, entries, role).map(row => row.name);
+
+/** The saved texts behind a shown name; a display may restyle the name but keeps its identity. */
+export const savedTextsOfRow =
+  (rows: readonly StaffCatalogRow[]) =>
+  (shown: string): readonly string[] =>
+    rows.find(row => nurseIdentityKey(row.name) === nurseIdentityKey(shown))?.saved ?? [];

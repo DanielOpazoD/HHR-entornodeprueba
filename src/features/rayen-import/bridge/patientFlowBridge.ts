@@ -46,7 +46,5 @@ export const requestPatientFlowReport = (
       resolve({ base64: '', error: 'Tiempo de espera agotado consultando la trazabilidad.' });
     }, timeoutMs);
   });
-import {
-  decodeClinicalReadFailure,
-  type ClinicalReadErrorCode,
-} from '../contracts/clinicalReadError';
+import type { ClinicalReadErrorCode } from '@/types/domain/rayenSync';
+import { decodeClinicalReadFailure } from '../contracts/clinicalReadError';

@@ -10,7 +10,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { setFirestoreSyncState } from '@/services/repositories/repositoryConfig';
 import { PatientStatus } from '@/types/domain/patientClassification';
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   applyOptimisticDailyRecordPatch,
   buildPreviousDayDate,

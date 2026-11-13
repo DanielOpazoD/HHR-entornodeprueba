@@ -1,10 +1,10 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
-import {
-  isFunctionsReloadRequired,
-  subscribeFunctionsRecovery,
-} from '@/services/firebase-runtime/functionsModuleLoader';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
+import {
+  getModuleReloadReason,
+  subscribeModuleRecovery,
+} from '@/services/runtime/moduleReloadRecovery';
 import { AUTH_UI_COPY } from '@/services/auth/authUiCopy';
 
 const warmFunctions = async () => {
@@ -14,7 +14,7 @@ const warmFunctions = async () => {
 };
 
 export default function FunctionsRecoveryNotice() {
-  const needsReload = useSyncExternalStore(subscribeFunctionsRecovery, isFunctionsReloadRequired);
+  const needsReload = useSyncExternalStore(subscribeModuleRecovery, getModuleReloadReason);
   useEffect(() => {
     const warm = () => {
       void warmFunctions().catch(() => {});
@@ -36,6 +36,7 @@ export default function FunctionsRecoveryNotice() {
 }
 
 function FunctionsRecoveryBanner() {
+  const reason = useSyncExternalStore(subscribeModuleRecovery, getModuleReloadReason);
   const [connected, setConnected] = useState(false);
   useEffect(() => {
     let active = true;
@@ -54,7 +55,7 @@ function FunctionsRecoveryBanner() {
           return;
         }
         await warmFunctions().catch(() => {});
-        if (active) setConnected(isFunctionsReloadRequired());
+        if (active) setConnected(getModuleReloadReason() !== null);
       } catch {
         if (active) setConnected(false);
       }
@@ -76,8 +77,11 @@ function FunctionsRecoveryBanner() {
   if (!connected) return null;
   return (
     <div className="border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900">
-      Se restableció la conexión. Recarga para reanudar el acceso y la sincronización; los cambios
-      pendientes se conservan.{' '}
+      {reason === 'save'
+        ? 'La aplicación no terminó de cargar lo necesario para guardar. Lo editado desde entonces no quedó guardado. Recarga la aplicación.'
+        : reason === 'audit'
+          ? 'Una parte de la aplicación no se cargó. Lo editado sí quedó guardado. Recarga la aplicación para que todo vuelva a quedar registrado.'
+          : 'Se restableció la conexión. Recarga para reanudar el acceso y la sincronización; los cambios pendientes se conservan.'}{' '}
       <button
         type="button"
         className="underline"

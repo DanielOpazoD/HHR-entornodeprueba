@@ -1,6 +1,7 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type { CensusWorkbookSheetDescriptor } from '@/services/exporters/excel/censusWorkbookContracts';
 import type { CensusExportRecord } from '@/services/contracts/censusExportServiceContracts';
-import type { PatientData } from '@/services/contracts/patientServiceContracts';
 
 export interface CensusWorkbookSnapshotSheet {
   record: CensusExportRecord;

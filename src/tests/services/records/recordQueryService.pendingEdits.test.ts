@@ -8,6 +8,7 @@ import { syncRecordsRange } from '@/services/records/recordQueryService';
 const remote = vi.hoisted(() => vi.fn());
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
   getRecordsRangeFromFirestore: remote,
+  UnconfirmedDailyRecordRangeError: class extends Error {},
 }));
 
 const date = '2026-04-02';

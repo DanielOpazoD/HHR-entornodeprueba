@@ -8,7 +8,7 @@ import { invokeWithTelemetry } from './lib/observability';
 import {
   Cie10SearchRequestSchema,
   Cie10SearchResponseSchema,
-} from '../../src/contracts/serverless';
+} from '../../src/shared/contracts/serverless';
 import {
   buildCorsHeaders,
   buildJsonResponse,

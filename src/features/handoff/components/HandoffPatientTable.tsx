@@ -1,9 +1,11 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { medicalHandoffPatientKey } from './medicalHandoffPatientKey';
 import { MedicalHandoffDraftsPanel } from './MedicalHandoffDraftsPanel';
 import React, { useState } from 'react';
 import { BedDefinition } from '@/types/domain/beds';
-import type { DailyRecord } from '@/domain/handoff/recordContracts';
-import { PatientData } from '@/domain/handoff/patientContracts';
+import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
+
 import type { ClinicalEvent } from '@/types/domain/clinicalEvents';
 import { resolveHandoffPatientRowPlan } from '@/features/handoff/controllers/handoffPatientTableController';
 import { HandoffRow } from './HandoffRow';
@@ -12,7 +14,7 @@ import type { HandoffClinicalEventActions, HandoffMedicalActions } from './hando
 
 interface HandoffPatientTableProps {
   visibleBeds: BedDefinition[];
-  record: DailyRecord;
+  record: HandoffDailyRecordContract;
   noteField: 'handoffNoteDayShift' | 'handoffNoteNightShift' | 'medicalHandoffNote';
   onNoteChange: (bedId: string, value: string, isNested: boolean) => void;
   medicalActions?: HandoffMedicalActions;

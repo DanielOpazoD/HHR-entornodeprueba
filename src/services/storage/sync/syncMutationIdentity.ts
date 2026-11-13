@@ -17,6 +17,7 @@ const readLocalStorage = (key: string): string | null => {
   try {
     return typeof localStorage === 'undefined' ? null : localStorage.getItem(key);
   } catch {
+    // empty-on-failure-allow optional-capability: localStorage unavailable; retain a stable client identity in memory.
     return null;
   }
 };
@@ -36,6 +37,7 @@ const readSessionStorage = (key: string): string | null => {
   try {
     return typeof sessionStorage === 'undefined' ? null : sessionStorage.getItem(key);
   } catch {
+    // empty-on-failure-allow optional-capability: sessionStorage unavailable; retain a stable tab identity in memory.
     return null;
   }
 };

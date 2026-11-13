@@ -17,7 +17,7 @@ const checks = [
   { id: 'check:architecture', group: 'boundaries' },
   { id: 'report:compatibility-governance', group: 'governance-inputs' },
   { id: 'check:schema-governance', group: 'governance' },
-  { id: 'check:critical-any', group: 'type-safety' },
+  { id: 'check:synthetic-type-safety', group: 'type-safety' },
   { id: 'check:repo-hygiene', group: 'hygiene' },
   { id: 'check:security', group: 'security' },
   { id: 'check:module-size', group: 'size' },
@@ -26,6 +26,17 @@ const checks = [
 ];
 
 describe('quality aggregate support', () => {
+  it('keeps the domain home check while retiring the hotspot import restriction', () => {
+    const governance = JSON.parse(
+      fs.readFileSync('scripts/config/guardrail-governance.json', 'utf8')
+    );
+    const ids = governance.qualityAggregate.checks.map((entry: { id: string }) => entry.id);
+    expect(ids).toContain('check:repo-hygiene');
+    expect(ids).not.toContain('check:domain-hotspot-boundary');
+    const scripts = JSON.parse(fs.readFileSync('package.json', 'utf8')).scripts;
+    expect(scripts['check:repo-hygiene']).toBeDefined();
+    expect(scripts['check:domain-hotspot-boundary']).toBeUndefined();
+  });
   it('keeps the governed CI group plan explicit and non-overlapping', () => {
     expect(getQualityGroupPlan()).toEqual({
       boundaries: ['boundaries'],
@@ -39,7 +50,7 @@ describe('quality aggregate support', () => {
 
   it('selects only the requested public quality group without losing advisory metadata', () => {
     expect(selectQualitySteps(checks, { group: 'security' })).toEqual([
-      { id: 'check:critical-any', group: 'type-safety' },
+      { id: 'check:synthetic-type-safety', group: 'type-safety' },
       { id: 'check:repo-hygiene', group: 'hygiene' },
       { id: 'check:security', group: 'security' },
     ]);
@@ -108,7 +119,7 @@ describe('quality aggregate support', () => {
       completedAt: '2026-07-01T10:00:03.000Z',
       results: [
         {
-          id: 'check:critical-any',
+          id: 'check:synthetic-type-safety',
           group: 'type-safety',
           status: 'passed',
           durationMs: 1000,

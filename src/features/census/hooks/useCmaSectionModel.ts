@@ -1,5 +1,7 @@
-import type { CMAData } from '@/features/census/contracts/censusMovementContracts';
-import type { PatientData } from '@/features/census/controllers/censusActionPatientContracts';
+import type { PatientData } from '@/types/domain/patient';
+
+import type { CMAData } from '@/types/domain/movements';
+
 import { resolveCmaSectionState } from '@/features/census/controllers/censusCmaSectionController';
 import type { ControllerConfirmDescriptor } from '@/shared/contracts/controllers/confirmDescriptor';
 import { useCmaSectionActions } from '@/features/census/hooks/useCmaSectionActions';

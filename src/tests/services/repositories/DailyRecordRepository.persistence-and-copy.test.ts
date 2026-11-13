@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
@@ -22,7 +23,7 @@ describe('DailyRecordRepository persistence and copy flows', () => {
   it('saves to both local and remote', async () => {
     firestoreMock.getRecordFromFirestore.mockResolvedValueOnce(null);
 
-    await Repository.save(mockRecord);
+    await Repository.save(mockRecord, undefined, { authoringSession: captureAuthoringSession() });
 
     expect(indexedDbFacadeMock.saveRecord).toHaveBeenCalled();
     expect(firestoreMock.saveRecordToFirestore).toHaveBeenCalled();
@@ -31,7 +32,7 @@ describe('DailyRecordRepository persistence and copy flows', () => {
   it('logs invariant repairs when record is auto-corrected', async () => {
     firestoreMock.getRecordFromFirestore.mockResolvedValueOnce(null);
 
-    await Repository.save(mockRecord);
+    await Repository.save(mockRecord, undefined, { authoringSession: captureAuthoringSession() });
 
     expect(logErrorMock).toHaveBeenCalledWith(
       'Invariant repair applied on save',
@@ -54,9 +55,9 @@ describe('DailyRecordRepository persistence and copy flows', () => {
 
     firestoreMock.getRecordFromFirestore.mockResolvedValueOnce(remoteWithData);
 
-    await expect(Repository.save(mockRecord)).rejects.toThrow(
-      'Se detectó una pérdida masiva de datos'
-    );
+    await expect(
+      Repository.save(mockRecord, undefined, { authoringSession: captureAuthoringSession() })
+    ).rejects.toThrow('Se detectó una pérdida masiva de datos');
   });
 
   it('updates both local and remote on updatePartial', async () => {
@@ -64,11 +65,15 @@ describe('DailyRecordRepository persistence and copy flows', () => {
       'beds.R1.patientName': 'New Name',
       'beds.R1.rut': '12.345.678-9',
     };
-    indexedDbFacadeMock.getRecordForDate.mockResolvedValueOnce(mockRecord);
+    indexedDbFacadeMock.getRecordForDateStrict.mockImplementation(async date =>
+      date === mockDate ? mockRecord : null
+    );
 
-    await Repository.updatePartial(mockDate, patch);
+    await Repository.updatePartial(mockDate, patch, {
+      authoringSession: captureAuthoringSession(),
+    });
 
-    expect(indexedDbFacadeMock.getRecordForDate).toHaveBeenCalledWith(mockDate);
+    expect(indexedDbFacadeMock.getRecordForDateStrict).toHaveBeenCalledWith(mockDate);
     expect(firestoreMock.updateRecordPartial).toHaveBeenCalledWith(
       mockDate,
       expect.anything(),
@@ -106,7 +111,7 @@ describe('DailyRecordRepository persistence and copy flows', () => {
     };
     recordsByDate.set(sourceDate, sourceRecord);
 
-    indexedDbFacadeMock.getRecordForDate.mockImplementation(async date => {
+    indexedDbFacadeMock.getRecordForDateStrict.mockImplementation(async date => {
       return recordsByDate.get(date) ?? null;
     });
     indexedDbFacadeMock.saveRecord.mockImplementation(async record => {
@@ -161,7 +166,7 @@ describe('DailyRecordRepository persistence and copy flows', () => {
       },
     };
 
-    indexedDbFacadeMock.getRecordForDate.mockImplementation(async date => {
+    indexedDbFacadeMock.getRecordForDateStrict.mockImplementation(async date => {
       if (date === sourceDate) return sourceRecord;
       if (date === targetDate) return targetRecord;
       return null;
@@ -205,7 +210,7 @@ describe('DailyRecordRepository persistence and copy flows', () => {
     };
     recordsByDate.set(sourceDate, sourceRecord);
 
-    indexedDbFacadeMock.getRecordForDate.mockImplementation(async date => {
+    indexedDbFacadeMock.getRecordForDateStrict.mockImplementation(async date => {
       return recordsByDate.get(date) ?? null;
     });
     indexedDbFacadeMock.saveRecord.mockImplementation(async record => {

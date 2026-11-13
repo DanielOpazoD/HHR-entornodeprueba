@@ -1,58 +1,178 @@
 import js from '@eslint/js';
+import { publicImportBoundaryRule } from './scripts/lib/publicImportBoundaryRule.mjs';
 import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
 import react from 'eslint-plugin-react';
 import tseslint from 'typescript-eslint';
 import boundaries from 'eslint-plugin-boundaries';
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-// Feature boundaries. scripts/feature-dependency-matrix.json says which features a feature may
-// import, and the public-API allowlist which entry points of a feature are public. ESLint turns
-// both into `no-restricted-imports` patterns so a violation shows in the editor and fails
-// `npm run lint`; `npm run check:feature-dependencies` keeps the same rule as a backstop in CI.
+// One AST rule owns cross-feature imports, including relative and dynamic imports.
 const readJson = relativePath =>
   JSON.parse(readFileSync(new URL(relativePath, import.meta.url), 'utf8'));
+const FEATURE_ROOT = path.dirname(fileURLToPath(import.meta.url));
 const FEATURE_MATRIX = readJson('./scripts/feature-dependency-matrix.json');
 const FEATURE_PUBLIC_MODULES =
   readJson('./scripts/feature-public-api-allowlist.json').publicModulesByFeature ?? {};
-// Known deep imports the dependency check tolerates: `rule|importer|importPath|feature`.
-const FEATURE_IMPORT_DEBT = (
+const FEATURE_IMPORT_DEBT = new Set(
   readJson('./scripts/feature-dependency-allowlist.json').violations ?? []
-)
-  .map(entry => entry.split('|'))
-  .filter(([rule]) => rule === 'feature-must-use-public-api')
-  .map(([, importer, importPath]) => ({ importer, importPath }));
-const FEATURE_NAMES = Object.keys(FEATURE_MATRIX.features);
-
+);
 const featurePublicPaths = feature => [
   ...FEATURE_MATRIX.publicImportPatterns.map(pattern => pattern.replace('{feature}', feature)),
   ...(FEATURE_PUBLIC_MODULES[feature] ?? []),
 ];
-
-/** `no-restricted-imports` patterns for sources of `feature`; `tolerated` are deep paths one allowlisted importer may still use. */
-const featureImportPatterns = (feature, tolerated = []) => {
-  const allowed = new Set(FEATURE_MATRIX.features[feature] ?? []);
-  return FEATURE_NAMES.filter(other => other !== feature).map(other => {
-    const toleratedHere = tolerated
-      .filter(path => path.startsWith(`@/features/${other}/`))
-      .map(path => `!${path}`);
-    if (!allowed.has(other)) {
-      return {
-        group: [`@/features/${other}`, `@/features/${other}/**`, ...toleratedHere],
-        message: `«${feature}» no depende de «${other}» en scripts/feature-dependency-matrix.json. Agrega la dependencia allí o resuelve la necesidad en otra capa.`,
-      };
-    }
-    const publicPaths = featurePublicPaths(other);
-    return {
-      // `/**` leaves the bare `@/features/<other>` path alone: that one is public.
-      group: [
-        `@/features/${other}/**`,
-        ...publicPaths.filter(path => path !== `@/features/${other}`).map(path => `!${path}`),
-        ...toleratedHere,
-      ],
-      message: `Importa «${other}» por su superficie pública: ${publicPaths.join(', ')}.`,
+const featureOf = importer => importer.match(/^src\/features\/([^/]+)\//)?.[1];
+const FEATURE_BOUNDARY_RULE = {
+  meta: {
+    type: 'problem',
+    schema: [
+      {
+        type: 'object',
+        properties: { checkDynamicImports: { type: 'boolean' }, checkPorts: { type: 'boolean' } },
+        additionalProperties: false,
+      },
+    ],
+    messages: {
+      port: 'Accede a «{{target}}» por su puerto de aplicación.',
+      dependency:
+        '«{{from}}» no depende de «{{to}}» en scripts/feature-dependency-matrix.json. Agrega la dependencia allí o resuelve la necesidad en otra capa.',
+      public: '{{target}}: Importa «{{to}}» por su superficie pública: {{paths}}.',
+    },
+  },
+  create(context) {
+    const importer = path.relative(FEATURE_ROOT, context.filename).split(path.sep).join('/');
+    const from = featureOf(importer);
+    const check = source => {
+      if (!source || typeof source.value !== 'string') return;
+      const raw = source.value;
+      const target = raw.startsWith('.')
+        ? path.posix
+            .normalize(path.posix.join(path.posix.dirname(importer), raw))
+            .replace(/^src\/features\//, '@/features/')
+        : raw;
+      const service = (
+        raw.startsWith('.')
+          ? path.posix.normalize(path.posix.join(path.posix.dirname(importer), raw))
+          : raw.replace(/^@\//, 'src/')
+      ).replace(/\.[cm]?[jt]sx?$/, '');
+      if (
+        context.options[0]?.checkPorts &&
+        [
+          'src/services/repositories/ClinicalDocumentRepository',
+          'src/services/integrations/censusEmailService',
+        ].includes(service)
+      )
+        context.report({ node: source, messageId: 'port', data: { target: raw } });
+      if (!from || !target.startsWith('@/features/')) return;
+      const to = target.slice('@/features/'.length).split('/')[0];
+      if (to === from) return;
+      const allowed = FEATURE_MATRIX.features[from]?.includes(to);
+      const rule = allowed ? 'feature-must-use-public-api' : 'feature-dependency-not-allowed';
+      if (allowed && featurePublicPaths(to).includes(target)) return;
+      // Exceptions retain their exact importer and spelling; relative variants gain no exception.
+      if (FEATURE_IMPORT_DEBT.has(`${rule}|${importer}|${raw}|${to}`)) return;
+      context.report({
+        node: source,
+        messageId: allowed ? 'public' : 'dependency',
+        data: { from, to, target: raw, paths: featurePublicPaths(to).join(', ') },
+      });
     };
-  });
+    return {
+      ImportDeclaration: node => check(node.source),
+      ExportNamedDeclaration: node => check(node.source),
+      ExportAllDeclaration: node => check(node.source),
+      ImportExpression: node => {
+        if (context.options[0]?.checkDynamicImports !== false) check(node.source);
+      },
+      TSImportEqualsDeclaration: node => check(node.moduleReference.expression),
+      CallExpression(node) {
+        if (node.callee.type === 'Identifier' && node.callee.name === 'require') {
+          check(node.arguments[0]);
+        }
+      },
+    };
+  },
+};
+
+const HHR_PLUGIN = {
+  rules: {
+    'feature-boundaries': FEATURE_BOUNDARY_RULE,
+    'public-import-boundaries': publicImportBoundaryRule,
+  },
+};
+
+const REMOTE_ADMISSION_RULE = {
+  meta: {
+    type: 'problem',
+    schema: [],
+    messages: {
+      admission:
+        'Las lecturas remotas deben entrar por admitRemoteDailyRecords y usar su fila devuelta; no abras ni escribas el almacén directamente.',
+    },
+  },
+  create(context) {
+    const report = node => context.report({ node, messageId: 'admission' });
+    const check = (source, declaration) => {
+      if (!source || typeof source.value !== 'string') return;
+      const raw = source.value;
+      const target = (
+        raw.startsWith('.')
+          ? path.posix.normalize(
+              path.posix.join(
+                path.posix.dirname(path.relative(FEATURE_ROOT, context.filename)),
+                raw
+              )
+            )
+          : raw.replace(/^@\//, 'src/')
+      ).replace(/\.[cm]?[jt]sx?$/, '');
+      if (target === 'src/services/storage/indexeddb/indexedDbRecordService') {
+        const allowed =
+          /^(get|captureLocalRecordBase$|inspectLocalRecordAdmission$|admitLocalRecords$)/;
+        if (!declaration || declaration.type !== 'ImportDeclaration') return report(source);
+        for (const specifier of declaration.specifiers) {
+          if (declaration.importKind === 'type' || specifier.importKind === 'type') continue;
+          if (
+            specifier.type !== 'ImportSpecifier' ||
+            !allowed.test(specifier.imported.name ?? specifier.imported.value)
+          )
+            report(specifier);
+        }
+        return;
+      }
+      if (
+        /^dexie(?:\/|$)/.test(target) ||
+        /^src\/services\/storage\/(indexeddb|localpersistence|localstorage)\//.test(target)
+      )
+        report(source);
+    };
+    return {
+      ImportDeclaration: node => check(node.source, node),
+      ExportNamedDeclaration: node => check(node.source),
+      ExportAllDeclaration: node => check(node.source),
+      ImportExpression: node => check(node.source),
+      TSImportEqualsDeclaration: node => check(node.moduleReference.expression),
+      CallExpression(node) {
+        if (node.callee.type === 'Identifier' && node.callee.name === 'require')
+          check(node.arguments[0]);
+      },
+      Identifier(node) {
+        if (node.name !== 'indexedDB') return;
+        if (
+          node.parent.type === 'MemberExpression' &&
+          node.parent.property === node &&
+          !node.parent.computed
+        )
+          return;
+        report(node);
+      },
+      MemberExpression(node) {
+        const name = node.computed ? node.property.value : node.property.name;
+        if (name === 'indexedDB') report(node);
+      },
+    };
+  },
 };
 
 // cudyr and handoff also keep data access behind controllers/use-cases/ports.
@@ -66,34 +186,19 @@ const DATA_ACCESS_RESTRICTION = {
     'Usa controllers/use-cases/ports para acceder a datos. No importes repositorios ni infraestructura directo desde UI/feature shell.',
 };
 const FEATURES_WITHOUT_DIRECT_DATA_ACCESS = new Set(['cudyr', 'handoff']);
-const featureOf = importer => importer.match(/^src\/features\/([^/]+)\//)?.[1];
-const restrictedImportsFor = (feature, tolerated = []) => [
-  'error',
-  {
-    patterns: [
-      ...featureImportPatterns(feature, tolerated),
-      ...(FEATURES_WITHOUT_DIRECT_DATA_ACCESS.has(feature) ? [DATA_ACCESS_RESTRICTION] : []),
-    ],
-  },
-];
 const FEATURE_BOUNDARY_CONFIGS = [
-  ...FEATURE_NAMES.map(feature => ({
+  {
+    files: ['src/features/**/*.{ts,tsx,js,jsx}'],
+    ignores: ['**/*.test.*', '**/*.stories.*'],
+    languageOptions: { parser: tseslint.parser },
+    plugins: { hhr: HHR_PLUGIN },
+    rules: { 'hhr/feature-boundaries': 'error' },
+  },
+  ...[...FEATURES_WITHOUT_DIRECT_DATA_ACCESS].map(feature => ({
     files: [`src/features/${feature}/**/*.{ts,tsx}`],
     ignores: ['**/*.test.{ts,tsx}', '**/*.stories.{ts,tsx}'],
-    rules: { 'no-restricted-imports': restrictedImportsFor(feature) },
+    rules: { 'no-restricted-imports': ['error', { patterns: [DATA_ACCESS_RESTRICTION] }] },
   })),
-  // One block per allowlisted importer: its tolerated deep paths, and nothing else.
-  ...Object.entries(
-    FEATURE_IMPORT_DEBT.reduce((byImporter, { importer, importPath }) => {
-      (byImporter[importer] ??= []).push(importPath);
-      return byImporter;
-    }, {})
-  )
-    .filter(([importer]) => featureOf(importer))
-    .map(([importer, tolerated]) => ({
-      files: [importer],
-      rules: { 'no-restricted-imports': restrictedImportsFor(featureOf(importer), tolerated) },
-    })),
 ];
 
 // Glossary enforcement — only terms with zero current usage are banned (see docs/GLOSSARY.md).
@@ -109,6 +214,23 @@ const GLOSSARY_SYNTAX_RESTRICTIONS = [
     message: 'Use "moveOrCopy" / "bedMovement" instead of "swap" — see docs/GLOSSARY.md',
   },
 ];
+
+// One session scope: the sender in sessionStorageTransition notifies every listener
+// synchronously. Listening to the window message elsewhere brought back reads of the
+// previous person twice (clinical explorer, 2026-11-05).
+const SESSION_MESSAGE_RESTRICTION = {
+  selector: 'Literal[value="HHR_RAYEN_SESSION_CHANGED"]',
+  message:
+    'Observa el cambio de sesión con onSessionChange() o useSessionEpoch(), no con el mensaje HHR_RAYEN_SESSION_CHANGED (AGENTS.md).',
+};
+
+// A copy of the RUT cleaner compares a passport by its digits as if it were a RUT. The helpers
+// that know the difference live in one module.
+const RUT_REGEX_RESTRICTION = {
+  selector: 'Literal[regex.pattern=/\\[\\^0-9(kK|Kk)\\]/]',
+  message:
+    'No copies la expresión de RUT: usa normalizeRut(), isSameRut() o isSameDocument() de src/utils/rutUtils.ts (AGENTS.md).',
+};
 
 export default tseslint.config(
   {
@@ -259,20 +381,32 @@ export default tseslint.config(
       'no-restricted-syntax': [
         'warn',
         ...GLOSSARY_SYNTAX_RESTRICTIONS,
-        {
-          // One session scope: the sender in sessionStorageTransition notifies every listener
-          // synchronously. Listening to the window message elsewhere brought back reads of the
-          // previous person twice (clinical explorer, 2026-11-05).
-          selector: 'Literal[value="HHR_RAYEN_SESSION_CHANGED"]',
-          message:
-            'Observa el cambio de sesión con onSessionChange() o useSessionEpoch(), no con el mensaje HHR_RAYEN_SESSION_CHANGED (AGENTS.md).',
-        },
+        SESSION_MESSAGE_RESTRICTION,
+        RUT_REGEX_RESTRICTION,
       ],
     },
   },
   {
-    // The sender of the session message and the tests that assert the page bridge.
-    files: ['src/services/storage/sessionStorageTransition.ts', 'src/tests/**/*.{ts,tsx}'],
+    // The sender of the session message.
+    files: ['src/services/storage/sessionStorageTransition.ts'],
+    rules: {
+      'no-restricted-syntax': ['warn', ...GLOSSARY_SYNTAX_RESTRICTIONS, RUT_REGEX_RESTRICTION],
+    },
+  },
+  {
+    // The home of the RUT helpers.
+    files: ['src/utils/rutUtils.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'warn',
+        ...GLOSSARY_SYNTAX_RESTRICTIONS,
+        SESSION_MESSAGE_RESTRICTION,
+      ],
+    },
+  },
+  {
+    // Tests assert the page bridge of the session message and build their own document text.
+    files: ['src/tests/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-syntax': ['warn', ...GLOSSARY_SYNTAX_RESTRICTIONS],
     },
@@ -291,6 +425,28 @@ export default tseslint.config(
     },
   },
   ...FEATURE_BOUNDARY_CONFIGS,
+  {
+    files: ['src/{hooks,components,features,application}/**/*.{ts,tsx,js,jsx}'],
+    ignores: [
+      'src/hooks/controllers/**',
+      'src/features/backup/**',
+      'src/application/ports/**',
+      '**/*.d.ts',
+      '**/*.test.*',
+      '**/*.spec.*',
+      '**/*.stories.*',
+    ],
+    languageOptions: { parser: tseslint.parser },
+    plugins: { hhr: HHR_PLUGIN },
+    rules: { 'hhr/feature-boundaries': ['error', { checkPorts: true }] },
+  },
+  {
+    files: ['src/**/*.{ts,tsx,js,jsx}'],
+    ignores: ['**/*.d.ts', '**/*.test.*', '**/*.spec.*', '**/*.stories.*'],
+    languageOptions: { parser: tseslint.parser },
+    plugins: { hhr: HHR_PLUGIN },
+    rules: { 'hhr/public-import-boundaries': 'error' },
+  },
   {
     extends: [js.configs.recommended],
     files: ['functions/**/*.js', 'netlify/functions/**/*.js'],
@@ -325,5 +481,26 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-unused-vars': 'off',
     },
+  },
+  {
+    // Production source: the former source scanner's scope, with syntax-aware errors.
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['**/*.d.ts', '**/tests/**', '**/*.test.*', '**/*.spec.*'],
+    rules: { '@typescript-eslint/no-explicit-any': 'error' },
+  },
+  {
+    // Critical services also cover spec and story files, as the critical scanner did.
+    files: ['src/services/{storage,repositories,admin}/**/*.{ts,tsx}'],
+    ignores: ['**/*.d.ts', '**/tests/**', '**/*.test.*'],
+    rules: { '@typescript-eslint/no-explicit-any': 'error' },
+  },
+  {
+    files: [
+      'src/services/repositories/dailyRecord*Read*.ts',
+      'src/services/repositories/dailyRecord*Initialization*.ts',
+      'src/services/repositories/dailyRecordLocalCachePersistence.ts',
+    ],
+    plugins: { admission: { rules: { 'remote-reads': REMOTE_ADMISSION_RULE } } },
+    rules: { 'admission/remote-reads': 'error' },
   }
 );

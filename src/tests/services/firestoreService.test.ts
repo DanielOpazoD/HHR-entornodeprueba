@@ -252,7 +252,11 @@ describe('firestoreService', () => {
 
   it('should save nurse catalog to firestore', async () => {
     const setDocMock = vi.mocked(firestore.setDoc);
-    await saveNurseCatalogToFirestore(['Nurse A']);
+    vi.mocked(firestore.getDoc).mockResolvedValueOnce({
+      exists: () => false,
+      data: () => undefined,
+    } as never);
+    await saveNurseCatalogToFirestore(['Nurse A'], []);
     expect(setDocMock).toHaveBeenCalled();
     const payload = setDocMock.mock.calls[0]?.[1] as Record<string, unknown>;
     expect(payload).toEqual(expect.objectContaining({ list: ['Nurse A'], nurses: ['Nurse A'] }));
@@ -263,12 +267,14 @@ describe('firestoreService', () => {
     const callback = vi.fn();
 
     onSnapshotMock.mockImplementationOnce((...args: unknown[]) => {
-      const onNext = args[1];
+      // Catalogs listen with options, so the snapshot handler is the first function argument.
+      const onNext = args.find(arg => typeof arg === 'function');
       if (typeof onNext === 'function') {
         (onNext as (snapshot: unknown) => void)({
           exists: () => true,
           id: 'mock-id',
           data: () => ({ list: ['Staff 1'] }),
+          metadata: { hasPendingWrites: false, fromCache: false },
         } as unknown as DocumentSnapshot<DocumentData>);
       }
       return vi.fn();
@@ -286,12 +292,14 @@ describe('firestoreService', () => {
     const callback = vi.fn();
 
     onSnapshotMock.mockImplementationOnce((...args: unknown[]) => {
-      const onNext = args[1];
+      // Catalogs listen with options, so the snapshot handler is the first function argument.
+      const onNext = args.find(arg => typeof arg === 'function');
       if (typeof onNext === 'function') {
         (onNext as (snapshot: unknown) => void)({
           exists: () => true,
           id: 'mock-id',
           data: () => ({ nurses: ['Legacy Nurse'] }),
+          metadata: { hasPendingWrites: false, fromCache: false },
         } as unknown as DocumentSnapshot<DocumentData>);
       }
       return vi.fn();
@@ -304,7 +312,11 @@ describe('firestoreService', () => {
 
   it('should save TENS catalog to firestore', async () => {
     const setDocMock = vi.mocked(firestore.setDoc);
-    await saveTensCatalogToFirestore(['TENS A']);
+    vi.mocked(firestore.getDoc).mockResolvedValueOnce({
+      exists: () => false,
+      data: () => undefined,
+    } as never);
+    await saveTensCatalogToFirestore(['TENS A'], []);
     expect(setDocMock).toHaveBeenCalled();
   });
 
@@ -319,20 +331,18 @@ describe('firestoreService', () => {
     expect(list).toEqual(['TENS 1']);
   });
 
-  it('should handle catalog fetch errors gracefully', async () => {
+  it('rejects catalog fetch errors so callers can distinguish failure from empty', async () => {
     const getDocMock = vi.mocked(firestore.getDoc);
     getDocMock.mockRejectedValue(new Error('Firestore error'));
 
-    const list = await getNurseCatalogFromFirestore();
-    expect(list).toEqual([]);
+    await expect(getNurseCatalogFromFirestore()).rejects.toThrow('Firestore error');
   });
 
   it('should return empty array if catalog does not exist', async () => {
     const getDocMock = vi.mocked(firestore.getDoc);
     getDocMock.mockResolvedValueOnce({ exists: () => false } as unknown as DocumentSnapshot);
 
-    const list = await getNurseCatalogFromFirestore();
-    expect(list).toEqual([]);
+    await expect(getNurseCatalogFromFirestore()).resolves.toEqual([]);
   });
 
   it('should delete a record from firestore', async () => {
@@ -345,6 +355,7 @@ describe('firestoreService', () => {
     const getDocsMock = vi.mocked(firestore.getDocsFromServer);
     getDocsMock.mockResolvedValueOnce({
       docs: [{ id: '2024-12-01', data: () => ({ date: '2024-12-01' }) }],
+      metadata: { fromCache: false, hasPendingWrites: false },
     } as unknown as QuerySnapshot);
 
     const records = await getMonthRecordsFromFirestore(2024, 11); // December (0-indexed)
@@ -382,12 +393,14 @@ describe('firestoreService', () => {
     const callback = vi.fn();
 
     onSnapshotMock.mockImplementationOnce((...args: unknown[]) => {
-      const onNext = args[1];
+      // Catalogs listen with options, so the snapshot handler is the first function argument.
+      const onNext = args.find(arg => typeof arg === 'function');
       if (typeof onNext === 'function') {
         (onNext as (snapshot: unknown) => void)({
           exists: () => true,
           id: 'mock-id',
           data: () => ({ list: ['TENS A'] }),
+          metadata: { hasPendingWrites: false, fromCache: false },
         } as unknown as DocumentSnapshot<DocumentData>);
       }
       return vi.fn();

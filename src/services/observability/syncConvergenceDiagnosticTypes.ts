@@ -1,5 +1,5 @@
 import type { AuditLogEntry } from '@/types/auditLogTypes';
-import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncQueueOperationSnapshot } from '@/services/storage/sync';
 
 export type SyncConvergenceStatus = 'healthy' | 'recoverable' | 'needs_review' | 'unsafe';

@@ -1,6 +1,8 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type { PatientFlowReportResult } from '../bedTraceabilityResolver';
 import type { AdmissionEntry, CensusImportDiff } from '../contracts/censusImportDiff';
-import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenCensusSnapshot, RayenEncounter } from '../contracts/rayenSnapshot';
 import { historicalEncounterFromLocal } from './historicalEncounterFromLocal';
 import { isOccupied } from './applyCensusImportDiff';
@@ -22,8 +24,7 @@ import { mapRayenBed } from '../mapping/bedMapping';
 import { rayenToPatientData } from '../mapping/rayenToPatientData';
 import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
 import { resolveClinicalDayBounds } from '@/utils/clinicalDayScheduleUtils';
-
-const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+import { normalizeRut } from '@/utils/rutUtils';
 
 interface EvidenceDependencies {
   fetchReport: (encounterId: string) => Promise<PatientFlowReportResult>;

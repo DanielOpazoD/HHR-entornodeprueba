@@ -1,13 +1,15 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type {
   ApplyDailyRecordPatch,
-  DailyRecord,
   PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type {
   MedicalHandoffActor,
   MedicalSpecialty,
-} from '@/application/shared/dailyRecordMedicalContracts';
-import type { PatientData } from '@/hooks/contracts/patientHookContracts';
+} from '@/types/domain/dailyRecordMedicalHandoff';
+
 import type { CudyrBatchUpdate, CudyrScore, CudyrScorePatch } from '@/types/domain/cudyr';
 import type { CMAData } from '@/types/domain/movements';
 import type { PatientFieldValue } from '@/types/valueTypes';
@@ -19,9 +21,7 @@ import type { StabilityRules } from '@/hooks/useStabilityRules';
 import type { DailyRecordStaffingDetailsV1 } from '@/types/domain/dailyRecordStaffingDetails';
 import type { ConfirmedBedOccupantIdentity } from '@/types/domain/intentionalBedClear';
 
-export type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
-
-export type SyncStatus = 'idle' | 'saving' | 'saved' | 'error';
+export type SyncStatus = 'idle' | 'saving' | 'saved' | 'local' | 'error';
 
 export interface InventoryStats {
   occupiedCount: number;
@@ -40,6 +40,7 @@ export interface UseDailyRecordSyncResult {
     record: DailyRecord | null | ((prev: DailyRecord | null) => DailyRecord | null)
   ) => void;
   syncStatus: SyncStatus;
+  hasSaveException?: boolean;
   lastSyncTime: Date | null;
   bootstrapPhase: DailyRecordBootstrapPhase;
   saveAndUpdate: PersistDailyRecord;
@@ -51,6 +52,7 @@ export interface UseDailyRecordSyncResult {
 export interface DailyRecordDataContextType {
   record: DailyRecord | null;
   syncStatus: SyncStatus;
+  hasSaveException?: boolean;
   lastSyncTime: Date | null;
   bootstrapPhase: DailyRecordBootstrapPhase;
   inventory: InventoryStats;

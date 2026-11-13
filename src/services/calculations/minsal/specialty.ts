@@ -1,4 +1,5 @@
-import { PatientData } from '@/services/contracts/patientServiceContracts';
+import type { PatientData } from '@/types/domain/patient';
+
 import { BEDS } from '@/constants/beds';
 import type { MinsalCalculationOptions } from '@/types/minsalTypes';
 import { resolveReportingSpecialty } from './specialtyReporting';

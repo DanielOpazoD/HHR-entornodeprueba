@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /**
  * Concrete AdmitPatientPort backed by the daily-record write service.
  *
@@ -13,7 +14,7 @@ import type {
   AdmittedPatientSnapshot,
 } from '@/application/daily-record/commands/admitPatientCommand';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import type { DailyRecordPatch } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { resolveClinicalEpisodeIdForAdmission } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
 import type { UpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { isDailyRecordWriteBlockedResult } from '@/services/repositories/contracts/dailyRecordResults';
@@ -52,7 +53,7 @@ const buildManualEloisaAdmissionPatient = (input: AdmitPatientInput) => {
 export type AdmitPatientPersistenceFn = (
   date: string,
   patch: DailyRecordPatch,
-  options?: PartialUpdateDailyRecordOptions
+  options: PartialUpdateDailyRecordOptions
 ) => Promise<void | UpdatePartialDailyRecordResult>;
 
 export const buildAdmitPatientPatch = (input: AdmitPatientInput): DailyRecordPatch => {
@@ -134,11 +135,10 @@ export const createDailyRecordAdmitPatientPort = (
       clinicalEpisodeId: resolveClinicalEpisodeIdForAdmission(input),
     };
     const patch = buildAdmitPatientPatch(inputWithEpisodeId);
-    const result = inputWithEpisodeId.baseRecord
-      ? await persist(inputWithEpisodeId.recordDate, patch, {
-          baseRecord: inputWithEpisodeId.baseRecord,
-        })
-      : await persist(inputWithEpisodeId.recordDate, patch);
+    const result = await persist(inputWithEpisodeId.recordDate, patch, {
+      baseRecord: inputWithEpisodeId.baseRecord,
+      authoringSession: captureAuthoringSession(),
+    });
     assertAdmissionPersistenceAccepted(result);
     return buildSnapshotFromInput(inputWithEpisodeId);
   },

@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import { describe, expect, it } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import {
@@ -5,10 +7,7 @@ import {
   type CrossDayEntry,
 } from '@/features/rayen-import/domain/applyCrossDayDiff';
 import type { DischargeEntry } from '@/features/rayen-import/contracts/censusImportDiff';
-import type {
-  DailyRecord,
-  PatientData,
-} from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const day = '2026-07-11';
 const ctx = {

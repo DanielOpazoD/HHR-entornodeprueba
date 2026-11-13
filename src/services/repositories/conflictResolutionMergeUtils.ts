@@ -1,4 +1,5 @@
-import { PatientData } from '@/services/contracts/patientServiceContracts';
+import type { PatientData } from '@/types/domain/patient';
+
 import { resolveConflictDomainContextForPath } from '@/services/repositories/conflictResolutionDomainPolicy';
 import {
   decideScalarByPolicy,

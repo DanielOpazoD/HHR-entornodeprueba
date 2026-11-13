@@ -1,3 +1,5 @@
+import type { PatientData } from '@/types/domain/patient';
+
 /**
  * Per-row clinical acuity for the census (rediseño 2026). Pure + testable: derives, from a patient's
  * already-synced data, whether the row needs attention and why — driving the left "acuity rail" on
@@ -13,7 +15,7 @@
  */
 
 import { buildScoresCellModel } from './evaluationScoresCellController';
-import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
+
 import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
 
 export type RowAcuityLevel = 'none' | 'watch' | 'alert';

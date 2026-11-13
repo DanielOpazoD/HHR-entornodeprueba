@@ -1,5 +1,5 @@
 import type { MutableRefObject } from 'react';
-import type { DailyRecord } from '@/features/census/contracts/censusRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { StabilityRules } from '@/hooks/useStabilityRules';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import type {

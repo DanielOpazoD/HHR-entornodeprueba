@@ -1,7 +1,8 @@
+import type { PatientData } from '@/types/domain/patient';
+
 import type { PatientRowSaveResult } from './inputCellTypes';
 import { usePatientRowHandlersModel } from './usePatientRowHandlersModel';
 import type {
-  PatientData,
   PatientRowPatientDocumentType,
   PatientRowPatientField,
   PatientRowPatientPatch,

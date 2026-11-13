@@ -1,7 +1,4 @@
-import type {
-  CesareanLabor,
-  DeliveryRoute,
-} from '@/features/census/contracts/censusObstetricContracts';
+import type { CesareanLabor, DeliveryRoute } from '@/types/domain/patient';
 
 import { formatCensusRouteDateLabel } from '@/shared/census/censusPresentation';
 

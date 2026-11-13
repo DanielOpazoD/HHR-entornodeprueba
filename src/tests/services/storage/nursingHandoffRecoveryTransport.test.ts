@@ -6,7 +6,7 @@ import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueu
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const { callable, remoteRead } = vi.hoisted(() => ({ callable: vi.fn(), remoteRead: vi.fn() }));
 vi.mock('firebase/firestore', async original => ({

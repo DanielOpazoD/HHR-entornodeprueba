@@ -1,0 +1,98 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import 'fake-indexeddb/auto';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { createRemoteWriteState } from '@/services/repositories/dailyRecordWriteState';
+import { persistLocalAndAttemptRemoteSync } from '@/services/repositories/dailyRecordRemotePersistenceController';
+import { classifySyncError } from '@/services/storage/syncErrorCatalog';
+
+vi.mock('@/services/repositories/repositoryConfig', () => ({ isFirestoreEnabled: () => true }));
+
+const MISSING_MESSAGE = 'La autoridad remota no devolvió la versión confirmada del registro.';
+const blockingClass = (error: unknown) => {
+  const { category, retryable } = classifySyncError(error);
+  return { category, retryable };
+};
+
+afterEach(async () => {
+  await hospitalDB.dailyRecords.clear();
+  await hospitalDB.syncQueue.clear();
+});
+
+describe('authority readback preserves pending edits', () => {
+  it.each([false, true])(
+    'retains the original read error (remote first: %s)',
+    async remoteAuthorityFirst => {
+      const record = DataFactory.createMockDailyRecord('2026-04-01');
+      await hospitalDB.dailyRecords.put(record);
+      await hospitalDB.syncQueue.add({
+        opId: 'synthetic-readback',
+        key: `daily:${record.date}`,
+        type: 'UPDATE_DAILY_RECORD',
+        status: 'PENDING',
+        payload: record,
+        timestamp: 1,
+        retryCount: 0,
+      });
+      const pending = await hospitalDB.syncQueue.toArray();
+      const state = createRemoteWriteState();
+      // Shaped like the SDK's offline read failure, which the sync catalog would treat as network.
+      const error = Object.assign(new Error('synthetic readback offline'), {
+        code: 'unavailable',
+      });
+      const ack = vi.fn();
+      const result = await persistLocalAndAttemptRemoteSync({
+        authoringSession: captureAuthoringSession(),
+        date: record.date,
+        record,
+        changedPaths: ['beds.R1.status'],
+        remoteState: state,
+        remoteWrite: async () => undefined,
+        onRemoteFailure: vi.fn(),
+        readRemoteConfirmedRecord: async () => {
+          throw error;
+        },
+        remoteAuthorityFirst,
+        requireConfirmedRecord: true,
+        ackLocalAfterRemote: ack,
+        queueLocalBeforeRemote: async () => ({
+          accepted: true,
+          mode: 'created',
+          pendingTasks: 1,
+          maxPendingTasks: 10,
+        }),
+      });
+      expect(result).toBe('return');
+      expect(state.confirmedRecord).toBeUndefined();
+      expect(state.consistencyState).toBe('unrecoverable');
+      expect(ack).not.toHaveBeenCalled();
+      expect(await hospitalDB.dailyRecords.get(record.date)).toEqual(record);
+      expect(await hospitalDB.syncQueue.toArray()).toEqual(pending);
+      expect(state.blockingError?.cause).toBe(error);
+      expect(state.blockingError?.message).not.toBe(MISSING_MESSAGE);
+      // The read failure must not turn a blocked save into an automatic network retry.
+      expect(blockingClass(state.blockingError)).toEqual(blockingClass(new Error(MISSING_MESSAGE)));
+    }
+  );
+
+  it('keeps genuine absence blocked without inventing confirmation', async () => {
+    const record = DataFactory.createMockDailyRecord('2026-04-02');
+    const state = createRemoteWriteState();
+    const result = await persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
+      date: record.date,
+      record,
+      changedPaths: [],
+      remoteState: state,
+      remoteWrite: async () => undefined,
+      onRemoteFailure: vi.fn(),
+      readRemoteConfirmedRecord: async () => null,
+      remoteAuthorityFirst: true,
+    });
+    expect(result).toBe('return');
+    expect(state.confirmedRecord).toBeUndefined();
+    expect(state.blockingError?.message).toBe(MISSING_MESSAGE);
+    expect(state.blockingError?.cause).toBeUndefined();
+  });
+});

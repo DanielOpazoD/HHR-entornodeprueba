@@ -1,5 +1,6 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
 
 const mocks = vi.hoisted(() => ({
@@ -116,7 +117,9 @@ const createDay = async (date: string, source: DailyRecord, initialize = initial
   );
   const record = await initialize(date, source.date);
   expect(mocks.save).toHaveBeenCalledTimes(1);
-  expect(mocks.save).toHaveBeenCalledWith(record, '');
+  expect(mocks.save).toHaveBeenCalledWith(record, '', {
+    authoringSession: captureAuthoringSession(),
+  });
   return record;
 };
 
@@ -126,7 +129,7 @@ describe('client day creation from a split source day (D10)', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(NOW);
     mocks.isFirestoreEnabled.mockReturnValue(true);
-    mocks.loadRemote.mockResolvedValue({ record: null });
+    mocks.loadRemote.mockResolvedValue({ record: null, serverConfirmed: true });
     mocks.save.mockResolvedValue(undefined);
   });
   afterEach(() => vi.useRealTimers());

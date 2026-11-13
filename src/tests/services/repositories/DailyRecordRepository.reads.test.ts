@@ -1,3 +1,4 @@
+import type { LocalRecordAdmissionCandidate } from '@/services/storage/indexeddb/indexedDbRecordService';
 vi.unmock('@/services/repositories/dailyRecordRepositoryReadService');
 vi.unmock('@/services/repositories/dailyRecordRepositoryWriteService');
 vi.unmock('@/services/repositories/dailyRecordRepositoryInitializationService');
@@ -32,7 +33,7 @@ import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 
 const { indexedDbFacadeMock, firestoreMock } = vi.hoisted(() => ({
   indexedDbFacadeMock: {
-    getRecordForDate: vi.fn().mockResolvedValue(null),
+    getRecordForDateStrict: vi.fn().mockResolvedValue(null),
     getPreviousDayRecord: vi.fn().mockResolvedValue(null),
     saveRecord: vi.fn(),
     saveRecordStrict: vi.fn(),
@@ -45,6 +46,7 @@ const { indexedDbFacadeMock, firestoreMock } = vi.hoisted(() => ({
     getCatalog: vi.fn().mockResolvedValue([]),
     getCatalogValues: vi.fn().mockResolvedValue([]),
     saveCatalogValues: vi.fn(),
+    cacheCatalogValues: vi.fn(),
   },
   firestoreMock: {
     saveRecordToFirestore: vi.fn(),
@@ -68,12 +70,29 @@ const { indexedDbFacadeMock, firestoreMock } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
-  getRecordForDate: indexedDbFacadeMock.getRecordForDate,
+  getRecordForDateStrict: indexedDbFacadeMock.getRecordForDateStrict,
   captureLocalRecordBase: async (date: string) => ({
     kind: 'stored',
-    record: await indexedDbFacadeMock.getRecordForDate(date),
+    record: await indexedDbFacadeMock.getRecordForDateStrict(date),
   }),
-  inspectLocalRecordAdmission: async () => ({ status: 'admitted' }),
+  inspectLocalRecordAdmission: async (date: string) => ({
+    status: 'admitted',
+    record: await indexedDbFacadeMock.getRecordForDateStrict(date),
+  }),
+  admitLocalRecords: vi.fn(async (candidates: readonly LocalRecordAdmissionCandidate[]) =>
+    Promise.all(
+      candidates.map(async candidate => ({
+        date: candidate.record.date,
+        status: 'admitted',
+        record:
+          candidate.serverConfirmed === false &&
+          candidate.expectedBase?.kind === 'stored' &&
+          candidate.expectedBase.record
+            ? candidate.expectedBase.record
+            : candidate.record,
+      }))
+    )
+  ),
   getPreviousDayRecord: indexedDbFacadeMock.getPreviousDayRecord,
   saveRecord: indexedDbFacadeMock.saveRecord,
   saveRecordStrict: indexedDbFacadeMock.saveRecordStrict,
@@ -88,11 +107,13 @@ vi.mock('@/services/storage/indexeddb/indexedDbCatalogService', () => ({
   getCatalog: indexedDbFacadeMock.getCatalog,
   getCatalogValues: indexedDbFacadeMock.getCatalogValues,
   saveCatalogValues: indexedDbFacadeMock.saveCatalogValues,
+  cacheCatalogValues: indexedDbFacadeMock.cacheCatalogValues,
 }));
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
   getRecordFromFirestore: firestoreMock.getRecordFromFirestore,
   getRecordFromFirestoreDetailed: firestoreMock.getRecordFromFirestoreDetailed,
   getAvailableDatesFromFirestore: firestoreMock.getAvailableDatesFromFirestore,
+  getPreviousRecordDateFromFirestore: vi.fn(async () => null),
   subscribeToRecord: firestoreMock.subscribeToRecord,
 }));
 vi.mock('@/services/storage/firestore/firestoreRecordWrites', () => ({
@@ -166,14 +187,14 @@ describe('DailyRecordRepository reads', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(idbRecordService.getRecordForDate).mockReset();
+    vi.mocked(idbRecordService.getRecordForDateStrict).mockReset();
     vi.mocked(idbRecordService.getPreviousDayRecord).mockReset();
     vi.mocked(idbRecordService.saveRecord).mockReset();
     vi.mocked(indexedDbFacadeMock.saveRecordStrict).mockReset();
     vi.mocked(firestoreService.getRecordFromFirestore).mockReset();
 
     Repository.setFirestoreEnabled(true);
-    vi.mocked(idbRecordService.getRecordForDate).mockResolvedValue(null);
+    vi.mocked(idbRecordService.getRecordForDateStrict).mockResolvedValue(null);
     vi.mocked(indexedDbFacadeMock.saveRecordStrict).mockImplementation(async record => {
       await indexedDbFacadeMock.saveRecord(record);
       return {
@@ -189,7 +210,7 @@ describe('DailyRecordRepository reads', () => {
         try {
           const record = await vi.mocked(firestoreService.getRecordFromFirestore)(date);
           return {
-            serverConfirmed: false,
+            serverConfirmed: true,
             status: record ? 'resolved' : 'missing',
             record,
           };
@@ -206,17 +227,17 @@ describe('DailyRecordRepository reads', () => {
   });
 
   it('returns from IndexedDB if available', async () => {
-    vi.mocked(idbRecordService.getRecordForDate).mockResolvedValue(mockRecord);
+    vi.mocked(idbRecordService.getRecordForDateStrict).mockResolvedValue(mockRecord);
     const result = await Repository.getForDate(mockDate);
     expect(result).toMatchObject({
       ...mockRecord,
       beds: expect.any(Object),
     });
-    expect(idbRecordService.getRecordForDate).toHaveBeenCalledWith(mockDate);
+    expect(idbRecordService.getRecordForDateStrict).toHaveBeenCalledWith(mockDate);
   });
 
   it('falls back to Firestore if not in IndexedDB', async () => {
-    vi.mocked(idbRecordService.getRecordForDate).mockResolvedValue(null);
+    vi.mocked(idbRecordService.getRecordForDateStrict).mockResolvedValue(null);
     vi.mocked(firestoreService.getRecordFromFirestore).mockResolvedValue(mockRecord);
 
     const result = await Repository.getForDate(mockDate);
@@ -224,11 +245,11 @@ describe('DailyRecordRepository reads', () => {
       ...mockRecord,
       beds: expect.any(Object),
     });
-    expect(idbRecordService.saveRecord).toHaveBeenCalled();
+    expect(idbRecordService.admitLocalRecords).toHaveBeenCalled();
   });
 
   it('returns source metadata via getForDateWithMeta', async () => {
-    vi.mocked(idbRecordService.getRecordForDate).mockResolvedValue(mockRecord);
+    vi.mocked(idbRecordService.getRecordForDateStrict).mockResolvedValue(mockRecord);
 
     const result = await Repository.getForDateWithMeta(mockDate);
 
@@ -277,7 +298,7 @@ describe('DailyRecordRepository reads', () => {
       ...mockRecord,
       beds: expect.any(Object),
     });
-    expect(idbRecordService.saveRecord).toHaveBeenCalled();
+    expect(idbRecordService.admitLocalRecords).toHaveBeenCalled();
   });
 
   it('returns null when remote Firestore record is missing', async () => {
@@ -288,7 +309,7 @@ describe('DailyRecordRepository reads', () => {
     expect(result).toBeNull();
   });
 
-  it('keeps the newer local record when remote sync returns older data', async () => {
+  it('adopts the confirmed server record without a holder even when its clock is older', async () => {
     const newerLocalRecord = {
       ...mockRecord,
       lastUpdated: `${mockDate}T12:00:00.000Z`,
@@ -298,12 +319,14 @@ describe('DailyRecordRepository reads', () => {
       lastUpdated: `${mockDate}T08:00:00.000Z`,
     };
 
-    vi.mocked(idbRecordService.getRecordForDate).mockImplementation(async () => newerLocalRecord);
+    vi.mocked(idbRecordService.getRecordForDateStrict).mockImplementation(
+      async () => newerLocalRecord
+    );
     vi.mocked(firestoreService.getRecordFromFirestore).mockResolvedValueOnce(olderRemoteRecord);
 
     const result = await Repository.syncWithFirestore(mockDate);
 
-    expect(result?.lastUpdated).toBe(`${mockDate}T12:00:00.000Z`);
+    expect(result?.lastUpdated).toBe(`${mockDate}T08:00:00.000Z`);
   });
 
   it('returns combined dates from local and remote', async () => {
@@ -313,15 +336,21 @@ describe('DailyRecordRepository reads', () => {
   });
 
   it('saves nurses to local and remote', async () => {
-    await CatalogRepository.saveNurses(['N1']);
-    expect(idbCatalogService.saveCatalog).toHaveBeenCalledWith('nurses', ['N1']);
-    expect(firestoreService.saveNurseCatalogToFirestore).toHaveBeenCalledWith(['N1']);
+    await CatalogRepository.saveNurses(['N1'], []);
+    expect(idbCatalogService.cacheCatalogValues).toHaveBeenCalledWith('nurses', ['N1'], true);
+    expect(firestoreService.saveNurseCatalogToFirestore).toHaveBeenCalledWith(
+      ['N1'],
+      expect.any(Array)
+    );
   });
 
   it('saves TENS to local and remote', async () => {
-    await CatalogRepository.saveTens(['T1']);
-    expect(idbCatalogService.saveCatalog).toHaveBeenCalledWith('tens', ['T1']);
-    expect(firestoreService.saveTensCatalogToFirestore).toHaveBeenCalledWith(['T1']);
+    await CatalogRepository.saveTens(['T1'], []);
+    expect(idbCatalogService.cacheCatalogValues).toHaveBeenCalledWith('tens', ['T1'], true);
+    expect(firestoreService.saveTensCatalogToFirestore).toHaveBeenCalledWith(
+      ['T1'],
+      expect.any(Array)
+    );
   });
 
   it('provides subscribe methods', () => {

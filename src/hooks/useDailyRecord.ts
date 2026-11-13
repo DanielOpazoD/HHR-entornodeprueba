@@ -37,6 +37,7 @@ export const useDailyRecord = (
     record,
     setRecord,
     syncStatus,
+    hasSaveException,
     lastSyncTime,
     bootstrapPhase,
     saveAndUpdate,
@@ -85,6 +86,7 @@ export const useDailyRecord = (
     () => ({
       record,
       syncStatus,
+      hasSaveException,
       lastSyncTime,
       bootstrapPhase,
       inventory,
@@ -148,6 +150,7 @@ export const useDailyRecord = (
     [
       record,
       syncStatus,
+      hasSaveException,
       lastSyncTime,
       bootstrapPhase,
       inventory,
