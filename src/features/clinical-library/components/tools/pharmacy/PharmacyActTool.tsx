@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Download, FileText, Plus, Printer, Save } from 'lucide-react';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
 import { useAuth } from '@/context/AuthContext';
 import type { UserRole } from '@/types/authRoleTypes';
 import { readSessionProfessionalIdentity } from '@/services/user-profile/sessionProfessionalIdentity';
@@ -21,8 +22,7 @@ import { PharmacyMedicationLine } from './PharmacyMedicationLine';
 import { loadPharmacyProfessional, savePharmacyProfessional } from './pharmacyProfessionalProfile';
 import { usePharmacyActPdf } from './usePharmacyActPdf';
 
-const BUTTON_CLASS =
-  'inline-flex items-center justify-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-medical-600 disabled:cursor-not-allowed disabled:opacity-40';
+const BUTTON_CLASS = buttonClassName('secondary', 'sm');
 const ACTS = {
   return: { title: 'Devolución de fármacos', filename: 'acta-devolucion-farmacos' },
   disposal: { title: 'Entrega de fármacos eliminados', filename: 'acta-entrega-eliminados' },
@@ -107,13 +107,13 @@ const PharmacyActEditor: React.FC<PharmacyActEditorProps> = ({
       testId={`library-tool-pharmacy-${kind}`}
     >
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-medical-700">
+        <p className="text-xs font-semibold uppercase tracking-wide text-medical-700">
           Hospital Hanga Roa · Farmacia
         </p>
         <a
           href={`${assetBase}.docx`}
           download
-          className="text-[11px] font-semibold text-slate-500 underline underline-offset-2"
+          className="text-xs font-semibold text-slate-500 underline underline-offset-2"
         >
           Descargar Word en blanco
         </a>
@@ -126,7 +126,7 @@ const PharmacyActEditor: React.FC<PharmacyActEditorProps> = ({
           >
             <h4 className="mb-3 text-xs font-bold text-slate-800">Datos del acta</h4>
             <div className="grid grid-cols-2 gap-3">
-              <label className="text-[11px] font-semibold text-slate-600">
+              <label className="text-xs font-semibold text-slate-600">
                 N.° / año {kind === 'return' ? '(opcional)' : '(obligatorio)'}
                 <input
                   className={`${TOOL_INPUT_CLASS} mt-1`}
@@ -146,7 +146,7 @@ const PharmacyActEditor: React.FC<PharmacyActEditorProps> = ({
               />
             </div>
             <div className="mt-3">
-              <label className="text-[11px] font-semibold text-slate-600">
+              <label className="text-xs font-semibold text-slate-600">
                 Tamaño de papel
                 <select
                   className={`${TOOL_INPUT_CLASS} mt-1`}
@@ -176,12 +176,12 @@ const PharmacyActEditor: React.FC<PharmacyActEditorProps> = ({
             className="rounded-lg border border-slate-200 bg-white p-3"
           >
             <h4 className="text-xs font-bold text-slate-800">De · Responsable</h4>
-            <p className="mb-3 mt-1 text-[10px] leading-relaxed text-slate-500">
+            <p className="mb-3 mt-1 text-xs leading-relaxed text-slate-500">
               Datos del documento editables. Se conservan en este equipo durante la sesión y se
               borran al cerrar sesión.
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
-              <label className="sm:col-span-2 text-[11px] font-semibold text-slate-600">
+              <label className="sm:col-span-2 text-xs font-semibold text-slate-600">
                 Nombre del responsable
                 <input
                   className={`${TOOL_INPUT_CLASS} mt-1`}
@@ -191,7 +191,7 @@ const PharmacyActEditor: React.FC<PharmacyActEditorProps> = ({
                   onChange={event => changeProfessional('name', event.target.value)}
                 />
               </label>
-              <label className="text-[11px] font-semibold text-slate-600">
+              <label className="text-xs font-semibold text-slate-600">
                 RUT del responsable
                 <input
                   className={`${TOOL_INPUT_CLASS} mt-1`}
@@ -209,7 +209,7 @@ const PharmacyActEditor: React.FC<PharmacyActEditorProps> = ({
                   }}
                 />
               </label>
-              <label className="text-[11px] font-semibold text-slate-600">
+              <label className="text-xs font-semibold text-slate-600">
                 Cargo
                 <input
                   className={`${TOOL_INPUT_CLASS} mt-1`}
@@ -220,7 +220,7 @@ const PharmacyActEditor: React.FC<PharmacyActEditorProps> = ({
                   onChange={event => changeProfessional('role', event.target.value)}
                 />
               </label>
-              <label className="sm:col-span-2 text-[11px] font-semibold text-slate-600">
+              <label className="sm:col-span-2 text-xs font-semibold text-slate-600">
                 Unidad o servicio
                 <input
                   className={`${TOOL_INPUT_CLASS} mt-1`}
@@ -245,14 +245,14 @@ const PharmacyActEditor: React.FC<PharmacyActEditorProps> = ({
               <Save size={13} aria-hidden="true" /> Guardar mis datos en este equipo
             </button>
             {profileNotice && (
-              <p role="status" className="mt-2 text-[11px] text-slate-600">
+              <p role="status" className="mt-2 text-xs text-slate-600">
                 {profileNotice}
               </p>
             )}
           </section>
           <section aria-label="Fármacos e insumos">
             <h4 className="text-xs font-bold text-slate-800">Fármacos e insumos</h4>
-            <p className="mb-3 mt-1 text-[10px] text-slate-500">
+            <p className="mb-3 mt-1 text-xs text-slate-500">
               Arsenal HHR {arsenal.source.year} · referencia de nombres y presentaciones.
             </p>
             <div className="space-y-3">
@@ -306,7 +306,7 @@ const PharmacyActEditor: React.FC<PharmacyActEditorProps> = ({
             type="button"
             disabled={pdf.busy}
             onClick={prepare}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-medical-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-medical-700 focus-visible:outline-2 focus-visible:outline-medical-600 disabled:opacity-50"
+            className={buttonClassName('primary', 'md', 'w-full')}
           >
             <FileText size={15} aria-hidden="true" />
             {pdf.busy ? 'Preparando PDF…' : 'Preparar vista previa'}
@@ -342,7 +342,7 @@ const PharmacyActEditor: React.FC<PharmacyActEditorProps> = ({
                 href={pdf.currentPdf.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-2 inline-block text-[11px] font-semibold text-medical-700 underline underline-offset-2"
+                className="mt-2 inline-block text-xs font-semibold text-medical-700 underline underline-offset-2"
               >
                 Abrir PDF en otra pestaña
               </a>
@@ -357,13 +357,13 @@ const PharmacyActEditor: React.FC<PharmacyActEditorProps> = ({
                 href={`${assetBase}.pdf`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[11px] font-semibold text-medical-700 underline underline-offset-2"
+                className="text-xs font-semibold text-medical-700 underline underline-offset-2"
               >
                 Abrir plantilla en blanco
               </a>
             </div>
           )}
-          <p className="mt-3 text-[10px] text-slate-500">
+          <p className="mt-3 text-xs text-slate-500">
             Firmas manuscritas al imprimir. Los fármacos y pacientes permanecen en esta sesión.
           </p>
         </section>
@@ -418,11 +418,7 @@ export const PharmacyExitConfirmation: React.FC<{
       <button type="button" autoFocus onClick={onCancel} className={BUTTON_CLASS}>
         Seguir editando
       </button>
-      <button
-        type="button"
-        onClick={onConfirm}
-        className="rounded-md bg-medical-600 px-3 py-2 text-sm font-semibold text-white hover:bg-medical-700 focus-visible:outline-2 focus-visible:outline-medical-600"
-      >
+      <button type="button" onClick={onConfirm} className={buttonClassName('danger', 'md')}>
         Salir y descartar
       </button>
     </div>

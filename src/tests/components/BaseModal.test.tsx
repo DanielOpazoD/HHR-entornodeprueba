@@ -138,7 +138,7 @@ describe('BaseModal z-index behavior', () => {
     );
 
     const backdrop = document.querySelector('.fixed.inset-0');
-    const innerButton = document.querySelector('button[type="button"]');
+    const innerButton = screen.getByRole('button', { name: 'Inner action' });
     expect(backdrop).toBeTruthy();
     expect(innerButton).toBeTruthy();
 
@@ -161,7 +161,7 @@ describe('BaseModal z-index behavior', () => {
       </BaseModal>
     );
 
-    const innerButton = document.querySelector('button[type="button"]');
+    const innerButton = screen.getByRole('button', { name: 'Inner action' });
     expect(innerButton).toBeTruthy();
 
     fireEvent.mouseDown(innerButton!);

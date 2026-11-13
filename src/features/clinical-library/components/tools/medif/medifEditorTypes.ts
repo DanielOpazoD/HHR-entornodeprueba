@@ -1,3 +1,4 @@
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
 import type { MedifValues } from '../../../domain/medifDraft';
 import type { MedifPreferences } from '../../../domain/medifPreferences';
 
@@ -21,8 +22,7 @@ export interface MedifEditorProps {
   onDirtyChange?: (dirty: boolean) => void;
 }
 
-export const MEDIF_SECONDARY_BUTTON =
-  'inline-flex min-h-8 items-center justify-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:border-medical-300 hover:text-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600 disabled:cursor-not-allowed disabled:opacity-50';
+export const MEDIF_SECONDARY_BUTTON = buttonClassName('outline', 'sm');
 
 export const downloadMedifJson = (content: string, name: string): void => {
   const url = URL.createObjectURL(new Blob([content], { type: 'application/json' }));
