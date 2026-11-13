@@ -83,9 +83,19 @@ describe('rutUtils', () => {
       }
     );
 
-    it.each(['10.000.013-K', '10000013k'])('still accepts the K check digit in %s', rut => {
-      expect(isValidRut(rut)).toBe(true);
-    });
+    it.each(['10.000.013-K', '10000013k', ' 10.000.013-k ', '10.000.013-K.', '(10.000.013-K)'])(
+      'still accepts the K check digit in %s',
+      rut => {
+        expect(isValidRut(rut)).toBe(true);
+      }
+    );
+
+    it.each(['1234K5678-5', '10.000.013-KK', 'K10.000.013'])(
+      'does not take a K elsewhere in %s for the check digit',
+      value => {
+        expect(isValidRut(value)).toBe(false);
+      }
+    );
   });
 
   describe('isPassportFormat', () => {
