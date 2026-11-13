@@ -4,7 +4,7 @@ import type { CensusLabPatient } from '@/shared/contracts/censusLaboratory';
 import type { BedDefinition } from '@/types/domain/beds';
 
 import { buildCensusBedRows } from './censusTableViewController';
-import { isValidRut, normalizeRut } from '@/utils/rutUtils';
+import { isValidRut, normalizeRut, isSameRut } from '@/utils/rutUtils';
 import { parseCalendarDateUtcNoon } from '@/utils/clinicalDateUtils';
 
 const isValidAdmissionDay = (value: string): boolean => {
@@ -36,7 +36,7 @@ export const buildCensusLaboratoryCohort = (
     if (
       data.documentType === 'Pasaporte' ||
       data.identityStatus === 'provisional' ||
-      (row.isSubRow && normalizeRut(data.rut) === normalizeRut(beds[row.bed.id]?.rut)) ||
+      (row.isSubRow && isSameRut(data.rut, beds[row.bed.id]?.rut)) ||
       !isValidRut(data.rut) ||
       !/^\d{5,9}$/.test(rutBody) ||
       !episodeId ||
