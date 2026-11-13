@@ -3,6 +3,7 @@ import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import { waitForFirestoreSdkSource } from '@/tests/utils/firestoreSdkSource';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
@@ -63,7 +64,10 @@ const send = (doctor = '') =>
 describeEmulator('census date index and previous day need server confirmation', () => {
   let environment: RulesTestEnvironment;
   let client = 0;
-  let offline: { enableNetwork: () => Promise<void> } | null = null;
+  let offline: {
+    enableNetwork: () => Promise<void>;
+    waitForPendingWrites: () => Promise<void>;
+  } | null = null;
 
   beforeAll(async () => {
     const endpoint = /^(127\.0\.0\.1|localhost):(\d+)$/.exec(host ?? '');
@@ -89,9 +93,11 @@ describeEmulator('census date index and previous day need server confirmation', 
   afterEach(async () => {
     if (offline) {
       await offline.enableNetwork();
+      // Let the reconnected client settle before the next test clears the emulator: it reads from
+      // the server again and has no write left to send.
+      await waitForFirestoreSdkSource(offline, path(PREVIOUS), 'server');
+      await offline.waitForPendingWrites();
       offline = null;
-      // Let the reconnected client settle before the next test clears the emulator.
-      await new Promise(done => setTimeout(done, 10_000));
     }
     await hospitalDB.dailyRecords.clear();
     await hospitalDB.syncQueue.clear();
