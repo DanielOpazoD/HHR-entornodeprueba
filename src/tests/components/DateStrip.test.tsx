@@ -197,6 +197,12 @@ describe('DateStrip', () => {
     expect(screen.queryByText('Respaldo en Firebase')).not.toBeInTheDocument();
   });
 
+  it('offers direct PDF printing for the nursing handoff', () => {
+    render(<DateStrip {...defaultProps} currentModule="NURSING_HANDOFF" />);
+    fireEvent.click(screen.getByTitle('Descargar PDF (rápido)'));
+    expect(defaultProps.onExportPDF).toHaveBeenCalledTimes(1);
+  });
+
   it('hides firebase backup option in nursing handoff save menu', async () => {
     render(<DateStrip {...defaultProps} currentModule="NURSING_HANDOFF" />);
 

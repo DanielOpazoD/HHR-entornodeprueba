@@ -150,7 +150,6 @@ const HandoffViewContent: React.FC<HandoffViewContentProps> = ({
       hideButtonLabel={!isMedical}
     />
   );
-  const nursingHeaderAction = !isMedical && clinicalConflictAction;
   return (
     <div
       className={`${isMedical ? '' : 'nursing-handoff '}space-y-3 print:space-y-2 animate-fade-in pb-20 font-sans max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 print:max-w-none print:w-full print:px-0 print:pb-0`}
@@ -180,7 +179,6 @@ const HandoffViewContent: React.FC<HandoffViewContentProps> = ({
         readOnly={effectiveReadOnly}
         onUpdateStaff={updateHandoffStaff}
         onUpdateChecklist={updateHandoffChecklist}
-        extraAction={nursingHeaderAction || undefined}
       />
       {isMedical ? (
         <HandoffMedicalContent
