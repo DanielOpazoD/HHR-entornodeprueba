@@ -1,3 +1,4 @@
+import { documentIdentityKey } from '@/utils/rutUtils';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
@@ -39,10 +40,7 @@ export const buildBedOptions = (record: DailyRecord | null): DailyBedOption[] =>
   if (!record) return [];
   const seen = new Set<string>();
   const remember = (option: DailyBedOption): boolean => {
-    const rutKey = option.patientRut
-      .trim()
-      .toLowerCase()
-      .replace(/[^0-9k]/g, '');
+    const rutKey = documentIdentityKey(option.patientRut);
     const identityKey = rutKey || `bed:${option.bedId}`;
     if (seen.has(identityKey)) return false;
     seen.add(identityKey);

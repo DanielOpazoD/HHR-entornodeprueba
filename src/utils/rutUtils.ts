@@ -105,6 +105,16 @@ export const isSameDocument = (left?: string, right?: string): boolean =>
     passportText(left) === passportText(right));
 
 /**
+ * Map/Set key for a document: two keys are equal exactly when isSameDocument holds. A value
+ * without any digit ("SIN RUT", "S/N", "RN") is a marker, not a document, and has no key, so
+ * two people without a document are never grouped by it.
+ */
+export const documentIdentityKey = (value?: string): string => {
+  if (!/\d/.test(value ?? '')) return '';
+  return hasNonRutLetter(value ?? '') ? `passport:${passportText(value)}` : normalizeRut(value);
+};
+
+/**
  * Check if value looks like a passport (not a RUT)
  */
 export const isPassportFormat = (value: string): boolean => {
