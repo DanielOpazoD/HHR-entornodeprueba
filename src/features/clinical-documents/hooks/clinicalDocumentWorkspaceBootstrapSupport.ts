@@ -3,6 +3,7 @@ import type {
   ClinicalDocumentTemplate,
 } from '@/domain/clinical-documents/entities';
 import { isLegacyClinicalEpisodeKey } from '@/application/patient-flow/clinicalEpisode';
+import { normalizeRut } from '@/utils/rutUtils';
 
 export const resolveSelectedClinicalTemplateId = (
   templates: ClinicalDocumentTemplate[],
@@ -15,13 +16,8 @@ export const resolveSelectedClinicalTemplateId = (
   return templates[0]?.id || 'epicrisis';
 };
 
-const normalizePatientRut = (rut?: string): string =>
-  String(rut || '')
-    .replace(/[^0-9kK]/g, '')
-    .toUpperCase();
-
 const resolveDocumentRut = (document: ClinicalDocumentRecord): string => {
-  const explicitRut = normalizePatientRut(document.patientRut);
+  const explicitRut = normalizeRut(document.patientRut);
   if (explicitRut) {
     return explicitRut;
   }
@@ -29,14 +25,14 @@ const resolveDocumentRut = (document: ClinicalDocumentRecord): string => {
   const fieldRut = document.patientFields.find(
     field => field.id === 'rut' || field.id === 'patientRut'
   );
-  return normalizePatientRut(fieldRut?.value);
+  return normalizeRut(fieldRut?.value);
 };
 
 const filterDocumentsForCurrentPatientIdentity = (
   documents: ClinicalDocumentRecord[],
   currentPatientRut?: string
 ): ClinicalDocumentRecord[] => {
-  const normalizedCurrentRut = normalizePatientRut(currentPatientRut);
+  const normalizedCurrentRut = normalizeRut(currentPatientRut);
   if (!normalizedCurrentRut) {
     return documents;
   }

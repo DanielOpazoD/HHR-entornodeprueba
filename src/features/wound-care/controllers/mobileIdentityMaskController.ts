@@ -16,6 +16,8 @@
  * here.
  */
 
+import { normalizeRut } from '@/utils/rutUtils';
+
 const collapseSpaces = (value: string): string => value.replace(/\s+/g, ' ').trim();
 
 const tokeniseName = (name: string): string[] =>
@@ -29,10 +31,8 @@ export const maskPatientName = (fullName: string): string => {
   return tokens.map(token => `${token.charAt(0).toUpperCase()}.`).join(' ');
 };
 
-const stripRutFormatting = (rut: string): string => rut.replace(/[^0-9kK]/g, '').toUpperCase();
-
 export const maskPatientRut = (rut: string): string => {
-  const compact = stripRutFormatting(rut);
+  const compact = normalizeRut(rut);
   if (compact.length === 0) return '—';
   if (compact.length <= 4) return `••••-${compact}`;
   const tail = compact.slice(-4);

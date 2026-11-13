@@ -215,6 +215,23 @@ const GLOSSARY_SYNTAX_RESTRICTIONS = [
   },
 ];
 
+// One session scope: the sender in sessionStorageTransition notifies every listener
+// synchronously. Listening to the window message elsewhere brought back reads of the
+// previous person twice (clinical explorer, 2026-11-05).
+const SESSION_MESSAGE_RESTRICTION = {
+  selector: 'Literal[value="HHR_RAYEN_SESSION_CHANGED"]',
+  message:
+    'Observa el cambio de sesión con onSessionChange() o useSessionEpoch(), no con el mensaje HHR_RAYEN_SESSION_CHANGED (AGENTS.md).',
+};
+
+// A copy of the RUT cleaner compares a passport by its digits as if it were a RUT. The helpers
+// that know the difference live in one module.
+const RUT_REGEX_RESTRICTION = {
+  selector: 'Literal[regex.pattern=/\\[\\^0-9(kK|Kk)\\]/]',
+  message:
+    'No copies la expresión de RUT: usa normalizeRut(), isSameRut() o isSameDocument() de src/utils/rutUtils.ts (AGENTS.md).',
+};
+
 export default tseslint.config(
   {
     ignores: [
@@ -364,20 +381,32 @@ export default tseslint.config(
       'no-restricted-syntax': [
         'warn',
         ...GLOSSARY_SYNTAX_RESTRICTIONS,
-        {
-          // One session scope: the sender in sessionStorageTransition notifies every listener
-          // synchronously. Listening to the window message elsewhere brought back reads of the
-          // previous person twice (clinical explorer, 2026-11-05).
-          selector: 'Literal[value="HHR_RAYEN_SESSION_CHANGED"]',
-          message:
-            'Observa el cambio de sesión con onSessionChange() o useSessionEpoch(), no con el mensaje HHR_RAYEN_SESSION_CHANGED (AGENTS.md).',
-        },
+        SESSION_MESSAGE_RESTRICTION,
+        RUT_REGEX_RESTRICTION,
       ],
     },
   },
   {
-    // The sender of the session message and the tests that assert the page bridge.
-    files: ['src/services/storage/sessionStorageTransition.ts', 'src/tests/**/*.{ts,tsx}'],
+    // The sender of the session message.
+    files: ['src/services/storage/sessionStorageTransition.ts'],
+    rules: {
+      'no-restricted-syntax': ['warn', ...GLOSSARY_SYNTAX_RESTRICTIONS, RUT_REGEX_RESTRICTION],
+    },
+  },
+  {
+    // The home of the RUT helpers.
+    files: ['src/utils/rutUtils.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'warn',
+        ...GLOSSARY_SYNTAX_RESTRICTIONS,
+        SESSION_MESSAGE_RESTRICTION,
+      ],
+    },
+  },
+  {
+    // Tests assert the page bridge of the session message and build their own document text.
+    files: ['src/tests/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-syntax': ['warn', ...GLOSSARY_SYNTAX_RESTRICTIONS],
     },

@@ -21,6 +21,7 @@ import { usePatchDailyRecordMutation } from '@/hooks/usePatchDailyRecordMutation
 import { setDailyRecordQueryData } from '@/hooks/controllers/dailyRecordQueryController';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import { waitForFirestoreSdkSource } from '@/tests/utils/firestoreSdkSource';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { MedicalHandoffDraftTextarea } from '@/features/handoff/components/MedicalHandoffDraftTextarea';
 import { buildMedicalEntryNoteFields } from '@/domain/handoff/patientEntryMutations';
@@ -107,7 +108,7 @@ beforeAll(async () => {
       .set(JSON.parse(JSON.stringify(base)));
   });
   await disableNetwork(db);
-  await new Promise(resolve => setTimeout(resolve, 10000));
+  await waitForFirestoreSdkSource(db, `hospitals/hanga_roa/dailyRecords/${date}`, 'cache');
   Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
   onlineManager.setOnline(false);
   setFirestoreSyncState({ mode: 'local_only', reason: 'offline' });
