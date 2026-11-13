@@ -121,7 +121,7 @@ Si una propuesta solo agrega capas, nombres o archivos sin bajar branching, acop
 
 - Para reglas operativas concretas: `docs/OPERATIVE_RULES_REFERENCE.md`
 - Para trazabilidad de iteraciones: `docs/MAINTENANCE_ITERATION_LOG.md`
-- Para deuda viva y watchlist: `reports/maintenance-debt-scorecard.md`
+- Para deuda viva y watchlist: el informe que genera `npm run report:maintenance-debt-scorecard` (no está versionado: se genera en `reports/`)
 
 Este documento responde una pregunta simple:
 
