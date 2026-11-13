@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-import { execFileSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import { getChangedFiles } from './lib/changedFiles.mjs';
 
 const started = Date.now();
-const git = args => execFileSync('git', args, { encoding: 'utf8' }).split('\0').filter(Boolean);
 const run = (command, args, repair) => {
   const start = Date.now();
   const result = spawnSync(command, args, { stdio: 'inherit' });
@@ -17,20 +17,7 @@ const run = (command, args, repair) => {
 };
 
 try {
-  if (!fs.existsSync('node_modules')) {
-    throw new Error('Falta node_modules: enlázalo desde otra copia o instala con npm ci.');
-  }
-  try {
-    execFileSync('git', ['rev-parse', '--verify', 'origin/main'], { stdio: 'ignore' });
-  } catch {
-    throw new Error('Falta origin/main: ejecuta git fetch origin main y vuelve a intentar.');
-  }
-  const changed = new Set([
-    ...git(['diff', '--name-only', '-z', 'origin/main...HEAD']),
-    ...git(['diff', '--name-only', '-z']),
-    ...git(['diff', '--cached', '--name-only', '-z', 'HEAD']),
-    ...git(['ls-files', '--others', '--exclude-standard', '-z']),
-  ]);
+  const changed = getChangedFiles();
   console.log(`[changed] ${changed.size} archivos respecto de origin/main y cambios locales.`);
   const matches = pattern => [...changed].some(file => pattern.test(file));
   const source = /^(src\/|tsconfig.*\.json$|package(?:-lock)?\.json$)/;
