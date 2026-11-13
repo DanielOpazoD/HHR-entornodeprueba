@@ -10,6 +10,7 @@ import {
   isSameRut,
   isSameDocument,
   normalizeRut,
+  documentIdentityKey,
 } from '@/utils/rutUtils';
 
 describe('rutUtils', () => {
@@ -157,5 +158,46 @@ describe('rutUtils', () => {
       expect(isPassportFormat('12.345.678-9')).toBe(false);
       expect(isPassportFormat('')).toBe(false);
     });
+  });
+});
+
+describe('documentIdentityKey', () => {
+  it('has exactly isSameDocument equality across RUT, passport and empty values', () => {
+    const corpus = [
+      undefined,
+      '',
+      ' ',
+      '.-',
+      '12.345.678-5',
+      '123456785',
+      ' 12.345.678-5 ',
+      '12.345.678-K',
+      '12345678k',
+      '12.345.678-k.',
+      'K12345678',
+      '123K45678',
+      'P123456785',
+      ' p-123.456785 ',
+      'X123456785',
+      'AB12345',
+      'ab-12345',
+      'P123/45',
+      'P12345',
+      'Ñ12345',
+      'ñ12-345',
+      'K',
+      'k',
+      '11.111.111-1',
+    ];
+    for (const left of corpus)
+      for (const right of corpus) {
+        expect({
+          left,
+          right,
+          equal: documentIdentityKey(left) === documentIdentityKey(right),
+        }).toEqual({ left, right, equal: isSameDocument(left, right) });
+      }
+    expect(documentIdentityKey(undefined)).toBe('');
+    expect(documentIdentityKey(' .- ')).toBe('');
   });
 });

@@ -71,6 +71,33 @@ const countAssignedRecords = (rows: ReturnType<typeof buildBedRows>): number =>
   );
 
 describe('prescriptionBedGridSupport', () => {
+  it('keeps a passport prescription under its own patient, never the matching RUT digits', () => {
+    const rows = buildBedRows(
+      buildDailyRecord({
+        R2: patient('R2', 'Luna Sintetica', 'P123456785'),
+        R1: patient('R1', 'Sol Sintetico', '12.345.678-5'),
+      }),
+      [
+        buildPrescription('passport-rx', {
+          bedId: 'R2',
+          patientName: 'Luna Sintetica',
+          patientRut: 'p123456785',
+        }),
+      ]
+    );
+    expect(idsInCell(rows, 'R1')).toEqual([]);
+    expect(idsInCell(rows, 'R2')).toEqual(['passport-rx']);
+  });
+
+  it('matches the same RUT in another format after a bed move', () => {
+    const rows = buildBedRows(
+      buildDailyRecord({ R1: patient('R1', 'Sol Sintetico', '12.345.678-5') }),
+      [buildPrescription('rut-rx', { bedId: 'R2', patientRut: '123456785' })]
+    );
+    expect(rows).toHaveLength(1);
+    expect(idsInCell(rows, 'R1')).toEqual(['rut-rx']);
+  });
+
   it('keeps prescriptions visible after a home discharge using the last known bed snapshot', () => {
     const rows = buildBedRows(
       buildDailyRecord({

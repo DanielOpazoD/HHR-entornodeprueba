@@ -104,6 +104,10 @@ export const isSameDocument = (left?: string, right?: string): boolean =>
     hasNonRutLetter(right ?? '') &&
     passportText(left) === passportText(right));
 
+/** Map/Set key with the same equality as isSameDocument; empty RUT keys stay empty. */
+export const documentIdentityKey = (value?: string): string =>
+  hasNonRutLetter(value ?? '') ? `passport:${passportText(value)}` : normalizeRut(value);
+
 /**
  * Check if value looks like a passport (not a RUT)
  */
