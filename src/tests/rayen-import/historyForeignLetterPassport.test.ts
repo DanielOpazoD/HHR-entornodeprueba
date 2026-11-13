@@ -3,7 +3,11 @@ import { recoverHistoricalReportEpisodes } from '@/features/rayen-import/domain/
 import { enrichReportOnlyDischarges } from '@/features/rayen-import/domain/enrichReportOnlyDischarges';
 import { associateClinicalCribsWithMothers } from '@/features/rayen-import/domain/clinicalCribMaternalAssociation';
 import { rayenToPatientData } from '@/features/rayen-import/mapping/rayenToPatientData';
+import { applyEgresoReport } from '@/features/rayen-import/domain/applyEgresoReport';
+import { createEmptyCensusImportDiff } from '@/features/rayen-import/domain/censusImportDiffFactory';
 import type { EgresoReportRow } from '@/features/rayen-import/contracts/egresoReport';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { PatientData } from '@/types/domain/patient';
 import { encounter, newborn, REFERENCE } from './clinicalCribDischargePromotion.fixtures';
 
 const row = (run: string): EgresoReportRow => ({
@@ -110,7 +114,8 @@ describe('history passport isolation', () => {
               }
             : {}),
         });
-        expect(result).toEqual([row(passport)]);
+        // Never looked up by its digits, and still waiting for review.
+        expect(result).toEqual([{ ...row(passport), exactEpisodeVerification: 'unverified' }]);
         expect(h.lookupEgresos).not.toHaveBeenCalled();
       }
     );
@@ -196,4 +201,93 @@ describe('crib association already distinguishes foreign letters on main', () =>
       else expect(result[1].maternalAssociationConflict).toBe('unmatched');
     }
   );
+});
+
+describe('a report row whose document has a letter in the middle, once applied', () => {
+  const DAY = '2026-07-08';
+  const occupant = (rut: string, givenName: string, episode?: string): PatientData => ({
+    ...rayenToPatientData(
+      {
+        encounterId: episode ?? 'X',
+        run: rut,
+        firstGivenName: givenName,
+        firstFamilyName: 'INVENTADA',
+        birthDate: '1980-01-01',
+        service: 'Área Médico Quirúrgica Indiferenciada',
+        room: 'H5',
+        bed: 'C1',
+        admissionDatetime: '2026-07-05T10:00:00-06:00',
+      },
+      new Date('2026-07-08T20:00:00Z')
+    ).patient,
+    clinicalEpisodeId: episode,
+  });
+  const reportRow = (run: string): EgresoReportRow => ({
+    ...row(run),
+    patientName: 'AMALIA INVENTADA',
+    bedLabel: 'H5C1',
+    fechaEgreso: '08-07-2026 14:00',
+    correctedDay: DAY,
+  });
+  const apply = async (run: string, bed: PatientData | undefined, foundEpisodeOf?: string) => {
+    const lookup = foundEpisodeOf
+      ? dependencies(foundEpisodeOf)
+      : {
+          ...dependencies(run),
+          lookupEgresos: vi.fn(async (targets: { run: string }[]) =>
+            targets.map(target => ({ run: target.run, encounterId: '', error: 'not found' }))
+          ),
+        };
+    const rows = await enrichReportOnlyDischarges([reportRow(run)], DAY, lookup);
+    const record = {
+      date: DAY,
+      beds: bed ? { H5C1: bed } : {},
+      discharges: [],
+      transfers: [],
+      cma: [],
+      lastUpdated: '',
+      activeExtraBeds: [],
+    } as unknown as DailyRecord;
+    const diff = applyEgresoReport(createEmptyCensusImportDiff(true), rows, record);
+    return {
+      episodes: rows.map(enriched => enriched.encounterId),
+      discharges: diff.discharges.map(discharge => discharge.rut),
+      conflicts: diff.conflicts.map(conflict => conflict.rut),
+    };
+  };
+
+  it.each([
+    ['in her own bed', occupant('12A3456785', 'AMALIA', '700001'), undefined],
+    ['in her own bed, stored without an episode', occupant('12A3456785', 'AMALIA'), undefined],
+    ['with the RUT patient in that bed', occupant('12.345.678-5', 'BRUNO', '700002'), undefined],
+    [
+      'with the RUT patient in that bed and an episode found for that RUT',
+      occupant('12.345.678-5', 'BRUNO', '700002'),
+      '12.345.678-5',
+    ],
+    ['with nobody in that bed', undefined, undefined],
+    ['stored earlier as digits only', occupant('123456785', 'AMALIA', '700001'), undefined],
+  ] as const)(
+    'never discharges and stays visible for review: %s',
+    async (_label, bed, foundEpisodeOf) => {
+      expect(await apply('12A3456785', bed, foundEpisodeOf)).toEqual({
+        episodes: [undefined],
+        discharges: [],
+        conflicts: ['12A3456785'],
+      });
+    }
+  );
+
+  it('keeps the policy of a document that starts as a passport and of a plain RUN', async () => {
+    expect(await apply('P123456785', occupant('P123456785', 'AMALIA', '700001'))).toEqual({
+      episodes: [undefined],
+      discharges: ['P123456785'],
+      conflicts: [],
+    });
+    expect(await apply('12.345.678-5', occupant('12.345.678-5', 'AMALIA', '700001'))).toEqual({
+      episodes: [undefined],
+      discharges: [],
+      conflicts: ['12.345.678-5'],
+    });
+  });
 });

@@ -134,12 +134,25 @@ const enrichFromGestionCamas = async (
   }
   const enrichedByKey = new Map<string, EgresoReportRow>();
   const enrichedByRow = new Map<EgresoReportRow, EgresoReportRow>();
+  // A letter in the middle or at the end (other than the final K) makes the document a passport,
+  // so its digits never query a RUN. Without an exact episode it still waits for review, as it
+  // did when that query found nothing: only a document that starts as a passport follows the
+  // discharge-by-document policy.
+  const needsReviewAsForeignLetterDocument = (row: EgresoReportRow): boolean =>
+    !row.encounterId &&
+    !isPavilionRecoveryLocation(row.bedLabel) &&
+    !isPassportFormat(row.run) &&
+    hasNonRutLetter(row.run);
+  const unverified = (row: EgresoReportRow): EgresoReportRow => ({
+    ...row,
+    exactEpisodeVerification: 'unverified',
+  });
   const withVerificationState = (row: EgresoReportRow): EgresoReportRow => {
     if (exactCandidateByRow.has(row)) {
       return enrichedByRow.get(row) ?? { ...row, exactEpisodeVerification: 'unverified' };
     }
     const key = rowKey(row);
-    if (!key) return row;
+    if (!key) return needsReviewAsForeignLetterDocument(row) ? unverified(row) : row;
     const enriched = enrichedByKey.get(key);
     return enriched
       ? { ...enriched, diagnostico: row.diagnostico }
