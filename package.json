@@ -191,6 +191,7 @@
     "ci:quality-core": "npm run ci:inner-loop",
     "ci:strict": "npm run ci:release-gate",
     "typecheck": "tsc --noEmit --skipLibCheck -p tsconfig.json && tsc --noEmit --skipLibCheck -p tsconfig.netlify.json",
+    "typecheck:local": "tsc --noEmit --skipLibCheck -p tsconfig.json --incremental --tsBuildInfoFile output/typecheck/tsconfig.json.tsbuildinfo && tsc --noEmit --skipLibCheck -p tsconfig.netlify.json --incremental --tsBuildInfoFile output/typecheck/tsconfig.netlify.json.tsbuildinfo",
     "test:rules": "RUN_FIRESTORE_RULES_TESTS=1 vitest run -c vitest.rules.config.ts src/tests/security/firestore-rules.test.ts",
     "test:rules:ci": "bash scripts/run-firestore-rules-ci.sh",
     "test:storage-rules": "RUN_STORAGE_RULES_TESTS=1 vitest run -c vitest.storage-rules.config.ts src/tests/security/storage-rules.test.ts",
