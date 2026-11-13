@@ -33,6 +33,7 @@ vi.mock('firebase/firestore', async () => {
   }
 
   const getDocFn = vi.fn((_ref?: unknown) => undefined as unknown);
+  const updateDocFn = vi.fn();
   const setDocFn = vi.fn((_ref?: unknown, _data?: unknown) => undefined);
 
   return {
@@ -42,7 +43,7 @@ vi.mock('firebase/firestore', async () => {
     doc: vi.fn(() => ({ path: 'hospitals/test/dailyRecords/mock' })),
     getDoc: getDocFn,
     setDoc: setDocFn,
-    updateDoc: vi.fn(),
+    updateDoc: updateDocFn,
     deleteDoc: vi.fn(),
     getDocs: vi.fn(),
     getDocsFromServer: vi.fn(),
@@ -57,8 +58,14 @@ vi.mock('firebase/firestore', async () => {
         fn: (tx: {
           get: (ref: unknown) => unknown;
           set: (ref: unknown, data: unknown) => void;
+          update: (ref: unknown, data: unknown) => void;
         }) => Promise<unknown>
-      ) => fn({ get: ref => getDocFn(ref), set: (ref, data) => setDocFn(ref, data) })
+      ) =>
+        fn({
+          get: ref => getDocFn(ref),
+          set: (ref, data) => setDocFn(ref, data),
+          update: updateDocFn,
+        })
     ),
   };
 });
@@ -137,12 +144,19 @@ describe('firestoreService', () => {
     getDocMock.mockResolvedValueOnce({
       exists: () => true,
       id: 'mock-id',
-      data: () => ({}),
+      data: () => ({ lastUpdated: '2026-02-20T00:00:00.000Z' }),
     } as unknown as DocumentSnapshot<DocumentData>);
 
-    await updateRecordPartial(mockDate, {
-      'beds.BED_01.patientName': 'Jane Doe',
-    } as unknown as PartialUpdatePatch);
+    await updateRecordPartial(
+      mockDate,
+      {
+        'beds.BED_01.patientName': 'Jane Doe',
+      } as unknown as PartialUpdatePatch,
+      '2026-02-20T00:00:00.000Z',
+      { historyPolicy: 'snapshot' }
+    );
+    expect(firestore.runTransaction).toHaveBeenCalled();
+    expect(firestore.setDoc).toHaveBeenCalled();
 
     expect(updateDocMock).toHaveBeenCalled();
   });

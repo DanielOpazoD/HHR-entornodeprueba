@@ -197,18 +197,16 @@ describeEmulator('Firestore emulator sync concurrency flow', () => {
     expect(persisted?.handoffNovedadesNightShift).toBe('local update');
   });
 
-  it('rejects partial update on missing doc due security rules precondition', async () => {
+  it('rejects a partial update on a missing document without creating it', async () => {
     const date = CURRENT_RECORD_DATE;
-
-    // Known emulator limitation:
-    // Firestore still reports an evaluation error for this denied update against a missing document,
-    // even though the effective contract we care about remains stable: the write is rejected with
-    // permission-denied and no document is created. See docs/FIRESTORE_RULES_COMPLEXITY_AUDIT.md.
     await expect(
-      updateRecordPartial(date, { 'beds.R1.patientName': 'Paciente Fallback' })
-    ).rejects.toMatchObject({
-      code: 'permission-denied',
-    });
+      updateRecordPartial(
+        date,
+        { 'beds.R1.patientName': 'Paciente Fallback' },
+        isoAt(date, '07:00:00')
+      )
+    ).rejects.toMatchObject({ name: 'ConcurrencyError' });
+    expect((await getDoc(getRecordDocRef(date))).exists()).toBe(false);
   });
 
   it('applies partial update when record exists and is within nurse edit window', async () => {
@@ -224,10 +222,14 @@ describeEmulator('Firestore emulator sync concurrency flow', () => {
     });
 
     await expect(
-      updateRecordPartial(date, {
-        'beds.R1.patientName': 'Paciente Parcial',
-        'beds.R1.pathology': 'Dx Parcial',
-      })
+      updateRecordPartial(
+        date,
+        {
+          'beds.R1.patientName': 'Paciente Parcial',
+          'beds.R1.pathology': 'Dx Parcial',
+        },
+        isoAt(date, '07:00:00')
+      )
     ).resolves.toBeUndefined();
 
     const snap = await getDoc(getRecordDocRef(date));
