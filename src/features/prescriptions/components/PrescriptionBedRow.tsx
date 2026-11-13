@@ -1,4 +1,5 @@
 import React from 'react';
+import { prescriptionBedRowKey } from '@/features/prescriptions/components/prescriptionBedGridSupport';
 import { Bed, Check, Loader2, Minus } from 'lucide-react';
 import {
   PRESCRIPTION_TYPES,
@@ -19,15 +20,15 @@ export interface PrescriptionBedRowData {
 interface PrescriptionBedRowProps {
   row: PrescriptionBedRowData;
   draggingRecord: PrescriptionRecord | null;
-  hoverCell: { bedId: string; type: PrescriptionType } | null;
+  hoverCell: { rowKey: string; type: PrescriptionType } | null;
   pickerSource: PrescriptionRecord | null;
   pendingAssignId: string | null;
   onDragOver: (
     event: React.DragEvent<HTMLTableCellElement>,
     type: PrescriptionType,
-    bedId: string
+    rowKey: string
   ) => void;
-  onDragLeave: (type: PrescriptionType, bedId: string) => void;
+  onDragLeave: (type: PrescriptionType, rowKey: string) => void;
   onDrop: (
     event: React.DragEvent<HTMLTableCellElement>,
     row: PrescriptionBedRowData,
@@ -55,6 +56,8 @@ export const PrescriptionBedRow: React.FC<PrescriptionBedRowProps> = ({
   onReassignRecord,
   enableDrop,
 }) => {
+  const rowKey = prescriptionBedRowKey(row);
+  const testIdRow = row.isDischargeSnapshot ? rowKey : row.bedId;
   return (
     <tr className="border-t border-slate-100 align-top">
       <td className="px-2 py-2 font-mono text-xs font-semibold text-slate-700">{row.bedId}</td>
@@ -72,14 +75,14 @@ export const PrescriptionBedRow: React.FC<PrescriptionBedRowProps> = ({
         const has = cell.length > 0;
         const dragMatch = !!draggingRecord && draggingRecord.prescriptionType === type;
         const dragMismatch = !!draggingRecord && draggingRecord.prescriptionType !== type;
-        const isHovering = hoverCell?.bedId === row.bedId && hoverCell.type === type;
+        const isHovering = hoverCell?.rowKey === rowKey && hoverCell.type === type;
         const isPickerTarget = !!pickerSource && pickerSource.prescriptionType === type;
         return (
           <td
             key={type}
-            data-testid={`prescription-bed-cell-${row.bedId}-${type}`}
-            onDragOver={enableDrop ? event => onDragOver(event, type, row.bedId) : undefined}
-            onDragLeave={enableDrop ? () => onDragLeave(type, row.bedId) : undefined}
+            data-testid={`prescription-bed-cell-${testIdRow}-${type}`}
+            onDragOver={enableDrop ? event => onDragOver(event, type, rowKey) : undefined}
+            onDragLeave={enableDrop ? () => onDragLeave(type, rowKey) : undefined}
             onDrop={enableDrop ? event => onDrop(event, row, type) : undefined}
             className={`px-2 py-2 transition-colors ${
               isHovering
@@ -137,7 +140,7 @@ export const PrescriptionBedRow: React.FC<PrescriptionBedRowProps> = ({
               {isPickerTarget && pickerSource && (
                 <button
                   type="button"
-                  data-testid={`prescription-assign-here-${row.bedId}-${type}`}
+                  data-testid={`prescription-assign-here-${testIdRow}-${type}`}
                   disabled={pendingAssignId === pickerSource.id}
                   onClick={() => onPickerAssign(pickerSource, row)}
                   className="inline-flex items-center gap-1 rounded-md bg-sky-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
