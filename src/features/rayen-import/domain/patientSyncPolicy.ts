@@ -3,7 +3,7 @@ import type { PatientData } from '@/types/domain/patient';
 import { isNeonatalPatient, newbornOwnRut } from './clinicalCribMaternalAssociation';
 import type { FieldChange, MoveEntry } from '../contracts/censusImportDiff';
 
-import { hasNonRutLetter, normalizeRut } from '@/utils/rutUtils';
+import { hasNonRutLetter, isPassportFormat, normalizeRut } from '@/utils/rutUtils';
 import { isDismissedTreatingPhysician } from '@/shared/census/treatingPhysicianDismissal';
 import { normalizePatientUpcForBed } from '@/shared/census/upcBedPolicy';
 import { rayenToPatientData } from '../mapping/rayenToPatientData';
@@ -68,12 +68,14 @@ export const diffSyncablePatientFields = (
     Boolean(current.rut) &&
     matchesCensusEpisodeIdentity(current, incoming) &&
     normalizePatientRut(current.rut) === normalizePatientRut(incoming.rut);
-  // Letters now make a source document a passport, for new cases only. A patient stored with
-  // these same digits as a RUT keeps that document: the change is not an ordinary sync update.
+  // Letters make a source document a passport from new cases on (owner, 2026-11-12). A value the
+  // mapper read as a RUT until then (no leading letter, no two letters in a row) leaves the RUT
+  // stored with its digits for this episode as it is. Passport formats keep their earlier repair.
   const preserveStoredRut =
     Boolean(normalizeRut(current.rut)) &&
     !hasNonRutLetter(current.rut ?? '') &&
     hasNonRutLetter(incoming.rut ?? '') &&
+    !isPassportFormat(incoming.rut ?? '') &&
     matchesCensusEpisodeIdentity(current, incoming) &&
     normalizeRut(current.rut) === normalizeRut(incoming.rut);
   for (const field of SYNCABLE_FIELDS) {
