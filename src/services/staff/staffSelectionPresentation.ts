@@ -1,3 +1,4 @@
+import { nurseIdentityKey, preferredStaffName, uniqueStaffNames } from './nurseIdentity';
 export const VACANCY_LABEL = 'Vacante';
 
 export const normalizeStaffSelectionValue = (value?: string | null): string => {
@@ -29,17 +30,21 @@ export const buildResolvedStaffSelectionOptions = (
     uniqueOptions.add(resolveStaffSelectionValue(value, identities, role));
   });
 
-  return Array.from(uniqueOptions);
+  return uniqueStaffNames(Array.from(uniqueOptions));
 };
 
 export const resolveStaffSelectionValue = (
   value: string | undefined,
   identities: EloisaStaffIdentity[],
-  role?: NursingRole
-): string =>
-  normalizeStaffSelectionValue(
+  role?: NursingRole,
+  catalog: string[] = []
+): string => {
+  const resolved = normalizeStaffSelectionValue(
     resolveEloisaStaffName(normalizeStaffSelectionValue(value), identities, role)
   );
+  const known = catalog.find(name => nurseIdentityKey(name) === nurseIdentityKey(resolved));
+  return known === undefined ? resolved : preferredStaffName(known, resolved);
+};
 import {
   resolveEloisaStaffName,
   type EloisaStaffIdentity,

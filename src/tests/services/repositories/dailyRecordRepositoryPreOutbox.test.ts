@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
@@ -91,7 +92,9 @@ describe('dailyRecordRepositoryWriteService pre-outbox', () => {
     const record = buildRecord('2026-02-21');
     record.lastUpdated = '2026-02-21T08:00:00.000Z';
 
-    await saveDetailed(record, '2026-02-21T07:55:00.000Z');
+    await saveDetailed(record, '2026-02-21T07:55:00.000Z', {
+      authoringSession: captureAuthoringSession(),
+    });
 
     expect(queueSyncTask).toHaveBeenCalledWith(
       expect.objectContaining({ date: '2026-02-21' }),
@@ -130,6 +133,7 @@ describe('dailyRecordRepositoryWriteService pre-outbox', () => {
 
     await expect(
       saveDetailed(record, '2026-02-21T07:55:00.000Z', {
+        authoringSession: captureAuthoringSession(),
         requireConfirmedRecord: true,
         rayenStructuralWriteGuard: true,
       })
@@ -149,7 +153,10 @@ describe('dailyRecordRepositoryWriteService pre-outbox', () => {
     const record = buildRecord('2026-02-21');
     record.lastUpdated = '2026-02-21T08:00:00.000Z';
 
-    await saveDetailed(record, '2026-02-21T07:55:00.000Z', options);
+    await saveDetailed(record, '2026-02-21T07:55:00.000Z', {
+      ...options,
+      authoringSession: captureAuthoringSession(),
+    });
 
     const writeOptions = vi.mocked(saveRecordToFirestore).mock.calls[0]?.[2];
     expect(writeOptions).toMatchObject(expected);

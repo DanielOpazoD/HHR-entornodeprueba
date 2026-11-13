@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { createRemoteWriteState } from '@/services/repositories/dailyRecordWriteState';
@@ -71,6 +72,7 @@ describe('guarded remote-first daily-record persistence', () => {
     const ackLocalAfterRemote = vi.fn(() => new Promise<void>(() => {}));
 
     const result = await persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
       date: '2026-05-23',
       record: buildRecord('2026-05-23'),
       changedPaths: ['beds.R1.clinicalCrib'],
@@ -113,6 +115,7 @@ describe('guarded remote-first daily-record persistence', () => {
       mergedPatches: patch,
       baseRecord,
       options: {
+        authoringSession: captureAuthoringSession(),
         clinicalCribCreate: {
           bedId: 'R1',
           confirmedLastUpdated: baseRecord.lastUpdated,
@@ -149,6 +152,7 @@ describe('guarded remote-first daily-record persistence', () => {
     const adoptRemoteAuthorityRecord = vi.fn().mockResolvedValue(localProjection);
 
     const result = await persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
       date: '2026-05-23',
       record: buildRecord('2026-05-23'),
       changedPaths: ['beds.R1.clinicalCrib'],

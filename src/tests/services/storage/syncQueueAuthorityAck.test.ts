@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -68,7 +69,7 @@ const beginAck = async () => {
     {
       syncContract: { changedPaths: ['nursesDayShift'], mutationId: 'synthetic-mutation-A' },
     },
-    { deferProcessing: true }
+    { authoringSession: captureAuthoringSession(), deferProcessing: true }
   );
   const processing = engine.processQueue();
   await startedPromise;
@@ -100,6 +101,7 @@ describe('transactional outbox authority ACK', () => {
     async status => {
       const { engine, processing, finish, task } = await beginAck();
       await engine.queueDailyRecordTaskWithLocalRecord(newer(), undefined, {
+        authoringSession: captureAuthoringSession(),
         wholeRecordBase: first(),
         deferProcessing: true,
         holdForMs: 60000,
@@ -144,6 +146,7 @@ describe('transactional outbox authority ACK', () => {
   it('does not overwrite an unresolved projection owned by another user', async () => {
     const { engine, processing, finish, task } = await beginAck();
     await engine.queueDailyRecordTaskWithLocalRecord(newer(), undefined, {
+      authoringSession: captureAuthoringSession(),
       wholeRecordBase: first(),
       deferProcessing: true,
       holdForMs: 60000,
@@ -163,6 +166,7 @@ describe('transactional outbox authority ACK', () => {
     const { engine, processing, finish } = await beginAck();
     const other = { ...newer(), date: '2026-10-09' };
     await engine.queueDailyRecordTaskWithLocalRecord(other, undefined, {
+      authoringSession: captureAuthoringSession(),
       deferProcessing: true,
       holdForMs: 60000,
     });
@@ -189,6 +193,7 @@ describe('transactional outbox authority ACK', () => {
   it('does not discard tasks if their unresolved local projection is missing', async () => {
     const { engine, processing, finish } = await beginAck();
     await engine.queueDailyRecordTaskWithLocalRecord(newer(), undefined, {
+      authoringSession: captureAuthoringSession(),
       wholeRecordBase: first(),
       deferProcessing: true,
       holdForMs: 60000,
@@ -227,6 +232,7 @@ describe('transactional outbox authority ACK', () => {
   it('replays B after completing A without losing B or treating A as its confirmation', async () => {
     const { engine, processing, finish, task } = await beginAck();
     await engine.queueDailyRecordTaskWithLocalRecord(newer(), undefined, {
+      authoringSession: captureAuthoringSession(),
       wholeRecordBase: first(),
       deferProcessing: true,
       holdForMs: 60000,
@@ -266,7 +272,7 @@ describe('transactional outbox authority ACK', () => {
             changedPaths: [changedPath],
           },
         },
-        { deferProcessing: true, holdForMs: 60000 }
+        { authoringSession: captureAuthoringSession(), deferProcessing: true, holdForMs: 60000 }
       );
       const later = (await hospitalDB.syncQueue.toArray()).find(row => row.id !== task.id)!;
       const persistedA = {

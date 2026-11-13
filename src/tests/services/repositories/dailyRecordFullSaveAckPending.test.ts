@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -49,6 +50,7 @@ const beginSave = async (requireConfirmedRecord = true) => {
     return response.promise;
   });
   const request = saveDetailed({ ...base, nursesDayShift: ['SYNTHETIC A'] }, base.lastUpdated, {
+    authoringSession: captureAuthoringSession(),
     baseRecord: base,
     requireConfirmedRecord,
   });
@@ -135,7 +137,7 @@ describe('confirmed local-first full save with a pending projection', () => {
           mutationId: 'synthetic-b',
         },
       },
-      { wholeRecordBase: sent }
+      { authoringSession: captureAuthoringSession(), wholeRecordBase: sent }
     );
     const tasksBefore = await hospitalDB.syncQueue.toArray();
     finish();

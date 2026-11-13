@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import type { PatientData } from '@/types/domain/patient';
 
 /**
@@ -35,6 +36,7 @@ import {
   planPreviousDayAdmissionEdits,
   previousDayAdmissionDays,
 } from './previousDayAdmissionCorrections';
+import { normalizeRut } from '@/utils/rutUtils';
 
 export { verifyPreviousDayAdmissionPlacements } from './previousDayAdmissionEvidence';
 
@@ -48,8 +50,6 @@ export interface CrossDayCorrectionResult {
   /** Ingresos históricos omitidos por condición de dominio (ver planificación). */
   omitted: Array<{ day: string; patientName: string; reason: string }>;
 }
-
-const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
 
 /** Exact episodes never deduplicate by a shared maternal RUN; legacy rows still use RUN. */
 const findRecordedEgreso = (
@@ -338,6 +338,7 @@ export const fileCrossDayCorrections = async (
     for (const patch of correction.patches) {
       const outcome = classifyHistoricalPatchOutcome(
         await patchDailyRecordWithCompatibility(port, correction.day, patch, {
+          authoringSession: captureAuthoringSession(),
           baseRecord: correction.record,
         })
       );
@@ -386,6 +387,7 @@ export const fileCrossDayCorrections = async (
         if (!Object.keys(patch).length) continue;
         const outcome = classifyHistoricalPatchOutcome(
           await patchDailyRecordWithCompatibility(port, correction.day, patch, {
+            authoringSession: captureAuthoringSession(),
             baseRecord: confirmedRecord,
           })
         );

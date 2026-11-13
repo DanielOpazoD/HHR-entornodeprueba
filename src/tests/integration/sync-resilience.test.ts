@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -193,9 +194,13 @@ describe('Sync resilience integration', () => {
     vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce(conflictError);
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
-    await updatePartial(date, {
-      'beds.R1.pathology': 'Diagnostico local',
-    });
+    await updatePartial(
+      date,
+      {
+        'beds.R1.pathology': 'Diagnostico local',
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     const tasks = await hospitalDB.syncQueue.toArray();
     expect(tasks).toHaveLength(1);
@@ -219,16 +224,27 @@ describe('Sync resilience integration', () => {
     const local = buildRecord(date);
     local.beds.R1 = buildPatient('R1', { bedMode: 'Cuna' });
     local.nursesNightShift = ['Enfermera sintetica', ''];
-    await queueDailyRecordSyncTaskWithLocalRecord(local, {
-      syncContract: { changedPaths: ['nursesNightShift'], expectedVersion: local.lastUpdated },
-    });
+    await queueDailyRecordSyncTaskWithLocalRecord(
+      local,
+      {
+        syncContract: { changedPaths: ['nursesNightShift'], expectedVersion: local.lastUpdated },
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
     const remote = buildRecord(date);
     remote.beds.R1 = buildPatient('R1', { bedMode: 'Cama' });
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
     const incoming = structuredClone(local);
     incoming.beds.R1.pathology = 'Diagnostico sintetico local';
-    expect(await attemptConflictAutoMergeRecovery(date, incoming, ['beds.R1.pathology'])).toEqual({
+    expect(
+      await attemptConflictAutoMergeRecovery(
+        date,
+        incoming,
+        ['beds.R1.pathology'],
+        captureAuthoringSession()
+      )
+    ).toEqual({
       status: 'auto_merged',
     });
 
@@ -249,15 +265,26 @@ describe('Sync resilience integration', () => {
     const date = '2026-02-17';
     const local = buildRecord(date);
     local.beds.R1 = buildPatient('R1', { bedMode: 'Cuna' });
-    await queueDailyRecordSyncTaskWithLocalRecord(local, {
-      syncContract: { changedPaths: ['*'] },
-    });
+    await queueDailyRecordSyncTaskWithLocalRecord(
+      local,
+      {
+        syncContract: { changedPaths: ['*'] },
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
     const before = await hospitalDB.syncQueue.toArray();
     const remote = structuredClone(local);
     remote.beds.R1.bedMode = 'Cama';
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
-    expect(await attemptConflictAutoMergeRecovery(date, local, ['beds.R1.pathology'])).toEqual({
+    expect(
+      await attemptConflictAutoMergeRecovery(
+        date,
+        local,
+        ['beds.R1.pathology'],
+        captureAuthoringSession()
+      )
+    ).toEqual({
       status: 'not_possible',
     });
     expect(await hospitalDB.syncQueue.toArray()).toEqual(before);
@@ -268,16 +295,27 @@ describe('Sync resilience integration', () => {
     const date = '2026-02-17';
     const local = buildRecord(date);
     local.beds.R1 = buildPatient('R1', { bedMode: 'Cuna' });
-    await queueDailyRecordSyncTaskWithLocalRecord(local, {
-      syncContract: { changedPaths: ['beds.R1.bedMode'], expectedVersion: local.lastUpdated },
-    });
+    await queueDailyRecordSyncTaskWithLocalRecord(
+      local,
+      {
+        syncContract: { changedPaths: ['beds.R1.bedMode'], expectedVersion: local.lastUpdated },
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
     const remote = buildRecord(date);
     remote.beds.R1 = buildPatient('R1', { bedMode: 'Cama' });
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
     const incoming = structuredClone(local);
     incoming.beds.R1.pathology = 'DIAGNOSTICO SINTETICO';
 
-    expect(await attemptConflictAutoMergeRecovery(date, incoming, ['beds.R1.pathology'])).toEqual({
+    expect(
+      await attemptConflictAutoMergeRecovery(
+        date,
+        incoming,
+        ['beds.R1.pathology'],
+        captureAuthoringSession()
+      )
+    ).toEqual({
       status: 'auto_merged',
     });
     const tasks = await hospitalDB.syncQueue.toArray();

@@ -148,9 +148,9 @@ it('removing an example or adding beside them on a missing catalog saves no exam
 it('renaming a row with hidden case variants does not bring the old name back', async () => {
   await setDoc(settingsRef('nurses'), { list: ['Sintético Uno', 'sintético uno'] });
   renderManager(<Nurses />);
-  await screen.findByText('sintético uno');
-  expect(screen.queryByText('Sintético Uno')).not.toBeInTheDocument();
-  rename('sintético uno', 'Sintético Nuevo');
+  await screen.findByText('Sintético Uno');
+  expect(screen.queryByText('sintético uno')).not.toBeInTheDocument();
+  rename('Sintético Uno', 'Sintético Nuevo');
   await waitFor(async () => expect(await serverList()).toEqual(['Sintético Nuevo']), REMOTE);
   await screen.findByText('Sintético Nuevo', {}, REMOTE);
   expect(screen.queryByText('Sintético Uno')).not.toBeInTheDocument();
@@ -181,3 +181,24 @@ it('removing the only row leaves a real empty list', async () => {
   await waitFor(() => expect(screen.queryByText('Sintético Uno')).not.toBeInTheDocument(), REMOTE);
   expect(screen.queryByText(CONFLICT)).not.toBeInTheDocument();
 });
+
+for (const [saved, incoming] of [
+  ['Ana Pena', 'Ana Peña'],
+  ['Ana Peña', 'ANA PENA'],
+]) {
+  it(`keeps one accented row after adding ${incoming} to ${saved}`, async () => {
+    await setDoc(settingsRef('nurses'), { list: [saved] });
+    renderManager(<Nurses />);
+    await screen.findByText(saved);
+    fireEvent.change(screen.getByPlaceholderText('Nombre completo…'), {
+      target: { value: incoming },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar personal' }));
+    await waitFor(async () => expect(await serverList()).toEqual(['Ana Peña']), REMOTE);
+    await waitFor(() => expect(visibleRows()).toEqual(['Ana Peña']), REMOTE);
+    cleanup();
+    renderManager(<Nurses />);
+    await screen.findByText('Ana Peña');
+    expect(visibleRows()).toEqual(['Ana Peña']);
+  });
+}

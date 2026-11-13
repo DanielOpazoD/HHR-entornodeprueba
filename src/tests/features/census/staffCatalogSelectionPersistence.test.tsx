@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -43,7 +44,7 @@ const record: DailyRecord = {
 };
 let pendingWrite: Promise<void> | undefined;
 const persistPatch = (patch: DailyRecordPatch) => {
-  pendingWrite = updatePartial(date, patch);
+  pendingWrite = updatePartial(date, patch, { authoringSession: captureAuthoringSession() });
   return pendingWrite;
 };
 function Staffing({ role }: { role: 'nurses' | 'tens' }) {
@@ -144,6 +145,20 @@ describe('catalog selection reaches durable daily staffing', () => {
       expect((await hospitalDB.syncQueue.toArray())[0].payload).toMatchObject({
         [`${role}DayShift`]: expect.arrayContaining(['Personal Sintético']),
       });
+    });
+    it(`${role}: selecting a grouped variant persists the accented spelling`, async () => {
+      boundary.read.mockResolvedValue(['Ana Peña', 'Ana Pena']);
+      render(<Staffing role={role} />, { wrapper: createQueryClientTestWrapper().wrapper });
+      await screen.findByText('Lectura correcta');
+      revealNames();
+      const select = screen.getAllByRole('combobox')[0];
+      expect(select.querySelectorAll('option[value="Ana Peña"]')).toHaveLength(1);
+      expect(select.querySelector('option[value="Ana Pena"]')).toBeNull();
+      expect(pendingWrite).toBeUndefined();
+      boundary.enabled = false;
+      fireEvent.change(select, { target: { value: 'Ana Peña' } });
+      await pendingWrite;
+      expect((await hospitalDB.dailyRecords.get(date))?.[`${role}DayShift`]).toContain('Ana Peña');
     });
     it(`${role}: failed read offers no placeholder and still permits removing assigned staff`, async () => {
       render(<Staffing role={role} />, { wrapper: createQueryClientTestWrapper().wrapper });

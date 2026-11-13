@@ -1,3 +1,5 @@
+import { authoredOptions } from '@/services/storage/authoringSession';
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 vi.unmock('@/application/ports/dailyRecordPort');
 import {
   prepareRecordExport,
@@ -94,11 +96,14 @@ const setupHook = () => {
   const repository = buildMockDailyRecordRepository();
   // El port delega sin simular al repositorio real; cuenta entradas a mutationFn.
   repository.updatePartialDetailed = async (...args) => {
+    const [date, patch, options] = args;
+    const authored = authoredOptions(options ?? {});
     persistCalls++;
     await writeGate;
-    return actualWrite(...args);
+    return actualWrite(date, patch, authored);
   };
-  repository.saveDetailed = actualSave;
+  repository.saveDetailed = (first, second, options) =>
+    actualSave(first, second, authoredOptions(options ?? {}));
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>
       <RepositoryProvider value={createRepositoryContainer({ dailyRecord: repository })}>
@@ -475,7 +480,13 @@ it('full save reaches the existing durable outbox offline', async () => {
   const h = setupHook();
   const save = renderHook(() => useSaveDailyRecordMutation(), { wrapper: h.wrapper });
   const record = { ...base, nursesDayShift: ['SYNTHETIC NURSE'] };
-  act(() => save.result.current.mutate({ record, baseRecord: base }));
+  act(() =>
+    save.result.current.mutate({
+      authoringSession: captureAuthoringSession(),
+      record,
+      baseRecord: base,
+    })
+  );
   await waitFor(() => expect(save.result.current.isSuccess).toBe(true));
   expect((await hospitalDB.dailyRecords.get(date))?.nursesDayShift).toEqual(['SYNTHETIC NURSE']);
   expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
@@ -484,7 +495,10 @@ it('full save reaches the existing durable outbox offline', async () => {
 });
 it.each([
   { partial: patch, options: { requireRemoteAuthorityFirst: true } },
-  { partial: { 'beds.R1.medicalHandoffEntries': [] } },
+  {
+    partial: { 'beds.R1.medicalHandoffEntries': [] },
+    options: { requireRemoteAuthorityFirst: true },
+  },
 ])('remote-authority patch remains paused without a local task: %j', async input => {
   onlineManager.setOnline(false);
   const h = setupHook();
@@ -501,7 +515,13 @@ it('remote-first full save stays paused offline', async () => {
   onlineManager.setOnline(false);
   const h = setupHook();
   const save = renderHook(() => useSaveDailyRecordMutation(), { wrapper: h.wrapper });
-  act(() => save.result.current.mutate({ record: base, rayenStructuralWriteGuard: true }));
+  act(() =>
+    save.result.current.mutate({
+      authoringSession: captureAuthoringSession(),
+      record: base,
+      rayenStructuralWriteGuard: true,
+    })
+  );
   await waitFor(() => expect(save.result.current.isPaused).toBe(true));
   expect(await hospitalDB.syncQueue.count()).toBe(0);
   onlineManager.setOnline(true);

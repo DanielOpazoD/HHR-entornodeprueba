@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /* @flake-safe: Date usage aligns emulator write-window assertions with current execution time. */
 import 'fake-indexeddb/auto';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -386,10 +387,14 @@ describeEmulator('Firestore emulator sync concurrency flow', () => {
       location: localBaseline.beds.R1.location,
     };
 
-    await updatePartial(date, {
-      'beds.R2': movedPatient,
-      'beds.R1': clearedSource,
-    });
+    await updatePartial(
+      date,
+      {
+        'beds.R2': movedPatient,
+        'beds.R1': clearedSource,
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     const localAfterConflict = await getRecordForDateStrict(date);
     expect(localAfterConflict?.beds.R1.patientName).toBe('');
@@ -456,10 +461,14 @@ describeEmulator('Firestore emulator sync concurrency flow', () => {
       },
     };
 
-    await updatePartial(date, {
-      'beds.R1.deviceDetails': retiredDetails,
-      'beds.R1.devices': ['VVP#1'],
-    });
+    await updatePartial(
+      date,
+      {
+        'beds.R1.deviceDetails': retiredDetails,
+        'beds.R1.devices': ['VVP#1'],
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     const localAfterConflict = await getRecordForDateStrict(date);
     expect(localAfterConflict?.beds.R1.devices).toEqual(['VVP#1']);

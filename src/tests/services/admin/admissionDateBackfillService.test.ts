@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
@@ -163,8 +164,8 @@ describe('admissionDateBackfillService', () => {
     expect(mockSaveDetailed).toHaveBeenCalledTimes(2);
     // A bulk rewrite of past days keeps each day's previous state in history.
     expect(mockSaveDetailed.mock.calls.map(call => call[2])).toEqual([
-      { historyPolicy: 'snapshot' },
-      { historyPolicy: 'snapshot' },
+      { historyPolicy: 'snapshot', authoringSession: captureAuthoringSession() },
+      { historyPolicy: 'snapshot', authoringSession: captureAuthoringSession() },
     ]);
     expect(mockSaveDetailed.mock.calls[0]?.[0]).toMatchObject({
       date: '2026-03-01',

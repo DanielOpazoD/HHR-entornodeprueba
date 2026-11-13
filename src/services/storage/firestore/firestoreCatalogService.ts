@@ -1,3 +1,4 @@
+import { preferredStaffName, nurseIdentityKey } from '@/services/staff/nurseIdentity';
 import { doc, runTransaction } from 'firebase/firestore';
 import { classifySyncError } from '@/services/storage/syncErrorCatalog';
 import { reportBasicReadPermissionDenied } from '@/services/auth/sessionPermissionStormDetector';
@@ -62,7 +63,30 @@ const saveStringCatalog = async (
       normalizeStringCatalog(values),
       exactStaffName
     );
-    const merged = applyCatalogChanges(current, changes, exactStaffName);
+    let merged = applyCatalogChanges(current, changes, exactStaffName);
+    // Admit edits by exact text first; choose spelling only for names being written.
+    for (const change of changes) {
+      if (change.kind === 'remove') continue;
+      const variants = merged.filter(
+        name => nurseIdentityKey(name) === nurseIdentityKey(change.after)
+      );
+      const previous = current.find(
+        name => nurseIdentityKey(name) === nurseIdentityKey(change.after)
+      );
+      // Someone respelling a row by hand means exactly that text: the preference only settles
+      // variants that arrive as another row, never a deliberate correction of the same one.
+      const respelled =
+        change.kind === 'edit' &&
+        nurseIdentityKey(change.before) === nurseIdentityKey(change.after);
+      const preferred = respelled
+        ? change.after
+        : variants.reduce(preferredStaffName, previous ?? change.after);
+      const first = variants[0];
+      const texts = new Set(variants);
+      merged = merged.flatMap(name =>
+        name === first ? [preferred] : texts.has(name) ? [] : [name]
+      );
+    }
     transaction.set(ref, { list: merged, [key]: merged, lastUpdated: new Date().toISOString() });
     return merged;
   });

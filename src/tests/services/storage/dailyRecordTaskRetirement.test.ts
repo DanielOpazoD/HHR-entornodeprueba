@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
@@ -266,12 +267,18 @@ it('does not reuse a retired backup when a fresh edit is queued for that date', 
   expect(await retireReviewedDailyRecordTask(await reviewTask())).toBe(true);
   const fresh = { ...record, nurses: ['SYNTHETIC FRESH'], lastUpdated: '2026-10-23T20:00:00.000Z' };
   expect(
-    await createDexieSyncQueueStore().saveDailyRecordWithTask(fresh, {
-      ...failed,
-      opId: 'fresh',
-      payload: fresh,
-      status: 'PENDING',
-    })
+    await createDexieSyncQueueStore().saveDailyRecordWithTask(
+      fresh,
+      {
+        ...failed,
+        opId: 'fresh',
+        payload: fresh,
+        status: 'PENDING',
+      },
+      undefined,
+      undefined,
+      captureAuthoringSession()
+    )
   ).toBe('created');
   expect((await hospitalDB.syncQueue.get(taskId))?.payload).toEqual(record);
   expect((await listDailyRecordProjectionHolders(DATE)).map(task => task.payload)).toEqual([fresh]);

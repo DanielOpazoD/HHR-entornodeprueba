@@ -2,6 +2,9 @@ import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
+import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
+import { hasSameNoteValue } from './dayTaskReplayGuard';
+
 const MERGEABLE_MOVEMENT_ARRAY_ROOTS = new Set(['discharges', 'transfers', 'cma']);
 const MEDICAL_HANDOFF_SUMMARY_PATH = 'medicalHandoffNovedades';
 const MEDICAL_HANDOFF_SPECIALTY_PREFIX = 'medicalHandoffBySpecialty.';
@@ -144,7 +147,8 @@ export const assertNoSamePathRemoteMutation = (
   task: SyncTask,
   remoteData: Record<string, unknown>,
   remoteRecord: DailyRecord,
-  localRecord: DailyRecord
+  localRecord: DailyRecord,
+  appliedPaths: string[] = []
 ): void => {
   const remoteMeta = remoteData.meta as Record<string, unknown> | undefined;
   if (hasRemoteAppliedMutation(task, remoteMeta)) {
@@ -152,7 +156,9 @@ export const assertNoSamePathRemoteMutation = (
   }
 
   const remoteChangedPaths = normalizeChangedPaths(remoteMeta?.lastChangedPaths);
-  const localChangedPaths = normalizeChangedPaths(task.syncContract?.changedPaths);
+  const localChangedPaths = normalizeChangedPaths(task.syncContract?.changedPaths).filter(
+    path => !appliedPaths.includes(path)
+  );
   if (
     remoteChangedPaths.length > 0 &&
     localChangedPaths.length > 0 &&
@@ -167,4 +173,62 @@ export const assertNoSamePathRemoteMutation = (
       `Sync queue: remote mutation changed the same changed path for ${String(task.key || 'daily record')}.`
     );
   }
+};
+
+const withTrimmedText = (value: unknown): unknown => {
+  if (typeof value === 'string') return value.trim();
+  if (Array.isArray(value)) return value.map(withTrimmedText);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [key, withTrimmedText(entry)])
+  );
+};
+
+/**
+ * Two stored values say the same: key order and a null or absent leaf do not count (the existing
+ * base-vs-current tolerance), and neither do spaces around a text.
+ */
+const hasEquivalentReplayValue = (left: unknown, right: unknown): boolean =>
+  hasSameNoteValue({ value: withTrimmedText(left) }, { value: withTrimmedText(right) });
+
+/** Hydration pads staffing arrays: the stored or the hydrated value may carry the match. */
+const remoteHolds = (
+  remoteData: Record<string, unknown>,
+  remoteRecord: DailyRecord,
+  path: string,
+  expected: unknown
+): boolean =>
+  hasEquivalentReplayValue(getValueAtPath(remoteData, path), expected) ||
+  hasEquivalentReplayValue(getValueAtPath(remoteRecord, path), expected);
+
+/**
+ * Compare each captured field with its edit base even when a direct writer left no changed-path
+ * metadata. A field conflicts only when the server holds neither the base nor the pending value.
+ * Returns the captured fields the server already holds as the pending value.
+ */
+export const assertUnchangedReplayPatchBase = (
+  task: SyncTask,
+  remoteData: Record<string, unknown>,
+  remoteRecord: DailyRecord,
+  localRecord: DailyRecord
+): string[] => {
+  const base = task.patchBaseValues;
+  if (!base) return [];
+  const paths = normalizeChangedPaths(task.syncContract?.changedPaths);
+  const captured = paths.filter(path => Object.hasOwn(base, path));
+  // Defaults from hydration permit replay but do not prove the pending write was stored.
+  const applied = captured.filter(path =>
+    hasEquivalentReplayValue(getValueAtPath(remoteData, path), getValueAtPath(localRecord, path))
+  );
+  const remotePaths = captured.filter(
+    path =>
+      !remoteHolds(remoteData, remoteRecord, path, getValueAtPath(localRecord, path)) &&
+      !remoteHolds(remoteData, remoteRecord, path, base[path])
+  );
+  if (hasBlockingOverlappingChangedPath(remotePaths, paths, remoteRecord, localRecord)) {
+    throw new ConcurrencyError(
+      'El campo cambió en otro equipo. La edición pendiente se conserva para revisión.'
+    );
+  }
+  return applied;
 };

@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
@@ -28,6 +29,7 @@ export const persistHistoricalOccupancyCorrection = async (
   corrected: DailyRecord
 ): Promise<void> => {
   const result = await saveDailyRecordWithCompatibility(repository, corrected, base.lastUpdated, {
+    authoringSession: captureAuthoringSession(),
     rayenStructuralWriteGuard: true,
     requireConfirmedRecord: true,
   });

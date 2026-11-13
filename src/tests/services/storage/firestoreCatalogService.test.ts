@@ -201,3 +201,48 @@ it.each([
   vi.mocked(getDoc).mockResolvedValueOnce({ exists: () => false, data: () => undefined } as never);
   await expect(read()).resolves.toEqual([]);
 });
+
+it.each([
+  ['Ana Pena', 'Ana Peña'],
+  ['Ana Peña', 'ANA PENA'],
+  ['Ana Peña', ' ANA   PEÑA '],
+])('stores one preferred spelling for %s + %s', async (saved, incoming) => {
+  vi.mocked(getDoc).mockResolvedValueOnce({
+    exists: () => true,
+    data: () => ({ list: [saved] }),
+  } as never);
+  expect(await saveNurseCatalogToFirestore([saved, incoming], [saved])).toEqual(['Ana Peña']);
+  expect(setDoc).toHaveBeenLastCalledWith(
+    expect.anything(),
+    expect.objectContaining({ list: ['Ana Peña'] })
+  );
+});
+
+it.each([
+  ['a capitalization fix', 'ana peña', 'Ana Peña'],
+  ['an accent moved to the right letter', 'Jóse Soto', 'José Soto'],
+  ['an accent typed by mistake and removed', 'Ána Pena', 'Ana Pena'],
+  ['uppercase text from Eloísa fixed by hand', 'BEGOÑA MUÑOZ', 'Begoña Muñoz'],
+])('writes %s exactly as the person typed it', async (_case, before, after) => {
+  vi.mocked(getDoc).mockResolvedValueOnce({
+    exists: () => true,
+    data: () => ({ list: [before] }),
+  } as never);
+  expect(await saveNurseCatalogToFirestore([after], [before])).toEqual([after]);
+  expect(setDoc).toHaveBeenLastCalledWith(
+    expect.anything(),
+    expect.objectContaining({ list: [after] })
+  );
+});
+
+it('keeps two unrelated people and an old duplicate pair untouched by an unrelated add', async () => {
+  const base = ['Ana Pena', 'Ana Peña', 'Ana Pérez'];
+  vi.mocked(getDoc).mockResolvedValueOnce({
+    exists: () => true,
+    data: () => ({ list: base }),
+  } as never);
+  expect(await saveNurseCatalogToFirestore([...base, 'Luis Soto'], base)).toEqual([
+    ...base,
+    'Luis Soto',
+  ]);
+});
