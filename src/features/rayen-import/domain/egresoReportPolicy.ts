@@ -6,7 +6,7 @@ import { mapDestinoDeAlta } from '../mapping/mapDestinoDeAlta';
 import { toTitleCaseName } from '../mapping/rayenToPatientData';
 import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
 import { resolveReportBedId } from '../mapping/resolveReportBed';
-import { normalizeRut } from '@/utils/rutUtils';
+import { isSameDocument, normalizeRut } from '@/utils/rutUtils';
 import { calendarDateForMovement } from '@/utils/movementCalendarDate';
 import { recordedOutcomeEpisodeId } from './censusDischargeHistory';
 export interface OccupiedBedEvidence {
@@ -58,7 +58,9 @@ export const createReportEpisodeMatcher =
   (rut?: string, episodeId?: string, requireKnownEpisode = false): boolean => {
     const candidateEpisode = String(episodeId ?? '').trim();
     const row =
-      rowsByRun.get(normalizeRut(rut)) ??
+      [...rowsByRun.values()].find(
+        entry => !entry.encounterId && normalizeRut(entry.run) === normalizeRut(rut)
+      ) ??
       [...rowsByRun.values()].find(
         entry => candidateEpisode && entry.encounterId === candidateEpisode
       );
@@ -71,14 +73,27 @@ export const createReportEpisodeMatcher =
   };
 export const selectReportRowsByEpisode = (
   rows: EgresoReportRow[],
-  activeEpisodeForRun: (run: string) => string
+  activeEpisodeForRun: (run: string) => string,
+  sourceDocuments: ReadonlyMap<EgresoReportRow, string> = new Map()
 ): { primaryByRun: Map<string, EgresoReportRow>; supplemental: EgresoReportRow[] } => {
   const byIdentity = new Map<string, EgresoReportRow>();
   for (const row of rows) {
     const run = normalizeRut(row.run);
     const episode = String(row.encounterId ?? '').trim();
     const patientKey = episode ? `episode:${episode}` : run;
-    const key = `${patientKey}|${episode || 'episode-less'}`;
+    const documentKey = !episode
+      ? [...byIdentity].find(
+          ([, candidate]) =>
+            !candidate.encounterId &&
+            isSameDocument(
+              sourceDocuments.get(candidate) ?? candidate.run,
+              sourceDocuments.get(row) ?? row.run
+            )
+        )?.[0]
+      : undefined;
+    const key = episode
+      ? `${patientKey}|${episode}`
+      : (documentKey ?? `${run}|document:${byIdentity.size}`);
     const previous = byIdentity.get(key);
     const stamp = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
     const previousStamp =
@@ -100,11 +115,11 @@ export const selectReportRowsByEpisode = (
       })
       .map(row => normalizeRut(row.run))
   );
-  for (const row of byIdentity.values()) {
+  for (const [key, row] of byIdentity) {
     const episode = String(row.encounterId ?? '').trim();
     const run = normalizeRut(row.run);
     if (!episode && exactActiveRuns.has(run)) continue;
-    primaryByRun.set(episode ? `episode:${episode}` : run, row);
+    primaryByRun.set(episode ? `episode:${episode}` : key, row);
   }
   return { primaryByRun, supplemental: [] };
 };

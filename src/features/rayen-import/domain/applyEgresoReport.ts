@@ -22,14 +22,19 @@ import {
 } from './egresoReportPolicy';
 import { mergeSyncablePatient } from './patientSyncPolicy';
 import { resolveReleasedBedPlacements } from './resolveReleasedBedPlacements';
-import { markReportChecked, pushUniqueConflict } from './egresoReportConflicts';
-import { normalizeRut } from '@/utils/rutUtils';
+import {
+  appendReportConflict,
+  markReportChecked,
+  pushUniqueConflict,
+} from './egresoReportConflicts';
+import { isSameDocument, normalizeRut } from '@/utils/rutUtils';
 import { selectEligibleEgresoRows, type PromotionCandidate } from './egresoReportEligibility';
 import { dropRedundantUnverifiedReportConflicts } from './redundantReportRowConflicts';
 import { buildClinicalCribPromotionCandidates } from './associatedClinicalCribDischarge';
 import { finalizeDischargePlan } from './dischargePlanInvariants';
 import { cribConflictBlocksDischarge, hasDifferentIncomingPrincipal } from './cribPromotionGuards';
 import { resolveReportedOccupant } from './reportedOccupant';
+import { resolveReportBedId } from '../mapping/resolveReportBed';
 import { isPavilionRecoveryLocation } from './pavilionRecoverySyncPolicy';
 export { collectRecordedMovementRuns } from './egresoReportPolicy';
 export { markEgresoReportUnavailable } from './egresoReportConflicts';
@@ -43,21 +48,63 @@ export const applyEgresoReport = (
   if (eligibleLocationRows.length === 0) return checkedDiff;
   const occupied = occupiedBedsByRun(record);
   const occupiedCribs = occupiedClinicalCribsByRun(record);
-  const { diff: diffWithReportConflicts, rows: eligibleRows } = selectEligibleEgresoRows(
-    checkedDiff,
-    eligibleLocationRows,
-    record
+  const {
+    diff: eligibilityDiff,
+    rows: eligibleRows,
+    sourceDocuments,
+  } = selectEligibleEgresoRows(checkedDiff, eligibleLocationRows, record);
+  let diffWithReportConflicts = eligibilityDiff;
+  const { primaryByRun: byRun, supplemental } = selectReportRowsByEpisode(
+    eligibleRows,
+    key =>
+      key.startsWith('episode:')
+        ? key.slice(8)
+        : resolveActiveEpisode(
+            checkedDiff,
+            key,
+            findOccupiedBed(occupied, key)?.clinicalEpisodeId ??
+              findOccupiedClinicalCrib(occupiedCribs, key)?.patient.clinicalEpisodeId
+          ),
+    sourceDocuments
   );
-  const { primaryByRun: byRun, supplemental } = selectReportRowsByEpisode(eligibleRows, key =>
-    key.startsWith('episode:')
-      ? key.slice(8)
-      : resolveActiveEpisode(
-          checkedDiff,
-          key,
-          findOccupiedBed(occupied, key)?.clinicalEpisodeId ??
-            findOccupiedClinicalCrib(occupiedCribs, key)?.patient.clinicalEpisodeId
-        )
-  );
+  // Check only rows selected for application, retaining the source document that eligibility
+  // may have replaced with the matched occupant's document. All prior decisions remain intact.
+  const blockedDocuments: string[] = [];
+  for (const [key, row] of byRun) {
+    if (row.encounterId?.trim()) continue;
+    const document = sourceDocuments.get(row) ?? row.run;
+    const run = normalizeRut(document);
+    const current = resolveReportedOccupant(occupied, occupiedCribs, row.run, row.encounterId);
+    const currentCrib = current ? undefined : findOccupiedClinicalCrib(occupiedCribs, row.run);
+    const matchedDocuments = [
+      current?.rut ?? currentCrib?.patient.rut,
+      ...checkedDiff.admissions.flatMap(entry => [
+        entry.patient.rut,
+        entry.patient.clinicalCrib?.rut,
+      ]),
+      ...checkedDiff.moves.map(entry => entry.rut),
+      ...checkedDiff.updates
+        .filter(entry => entry.changes.some(change => change.field === 'clinicalCrib'))
+        .map(entry => entry.rut),
+      ...checkedDiff.pendingAdministrativeDischarges.map(entry => entry.rut),
+      ...checkedDiff.discharges.map(entry => entry.rut),
+    ];
+    if (
+      !run ||
+      !matchedDocuments.some(
+        candidate => normalizeRut(candidate) === run && !isSameDocument(candidate, document)
+      )
+    )
+      continue;
+    byRun.delete(key);
+    blockedDocuments.push(document);
+    diffWithReportConflicts = appendReportConflict(diffWithReportConflicts, {
+      bedId: resolveReportBedId(row.bedLabel) || null,
+      rut: document,
+      patientName: row.patientName,
+      reason: `El documento ${document} del informe de egresos coincide solo en sus dígitos con otro documento; se requiere revisión antes de aplicar el egreso.`,
+    });
+  }
   if (byRun.size === 0) return diffWithReportConflicts;
   const reportConfirmsEpisode = createReportEpisodeMatcher(byRun);
   const activeCribsByParent = buildClinicalCribPromotionCandidates(checkedDiff, occupiedCribs);
@@ -160,6 +207,7 @@ export const applyEgresoReport = (
     entry => !reportConfirmsEpisode(entry.rut, entry.encounterId ?? entry.source?.encounterId)
   );
   const conflicts = diffWithReportConflicts.conflicts.filter(entry => {
+    if (blockedDocuments.some(document => isSameDocument(document, entry.rut))) return true;
     const run = normalizeRut(entry.rut);
     if (reportConfirmsEpisode(run, entry.source?.encounterId)) {
       const occupant = entry.bedId ? record.beds[entry.bedId] : undefined;
