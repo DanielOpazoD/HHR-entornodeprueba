@@ -45,6 +45,60 @@ describe('countExplicitAny', () => {
     ).toBe(1);
   });
 
+  it.each([
+    [
+      'the directive words inside a string on the previous line',
+      [
+        'export const text = "eslint-disable-next-line @typescript-eslint/no-explicit-any";',
+        'export type Value = any;',
+      ],
+    ],
+    [
+      'the directive words inside a string on the same line',
+      [
+        'export const pair: [string, any] = ["eslint-disable-line @typescript-eslint/no-explicit-any", 1];',
+      ],
+    ],
+    [
+      'a comment that only mentions the directive',
+      [
+        '// We avoid eslint-disable-next-line @typescript-eslint/no-explicit-any in this module.',
+        'export type Value = any;',
+      ],
+    ],
+    [
+      'a directive that names another rule with the same beginning',
+      [
+        '// eslint-disable-next-line @typescript-eslint/no-explicit-anything',
+        'export type Value = any;',
+      ],
+    ],
+    ['a directive without any rule', ['// eslint-disable-next-line', 'export type Value = any;']],
+    [
+      'a file-wide disable',
+      ['/* eslint-disable @typescript-eslint/no-explicit-any */', 'export type Value = any;'],
+    ],
+  ])('still counts an any next to %s', (_case, lines) => {
+    expect(countExplicitAny(lines.join('\n'))).toBe(1);
+  });
+
+  it('accepts the directive among other rules, with a reason, in a block comment or mid-statement', () => {
+    expect(
+      countExplicitAny(
+        [
+          '// eslint-disable-next-line no-console, @typescript-eslint/no-explicit-any -- props are erased by unknown',
+          'export type A = any;',
+          '/* eslint-disable-next-line @typescript-eslint/no-explicit-any */',
+          'export type B = any;',
+          'export const c = call(',
+          '  // eslint-disable-next-line @typescript-eslint/no-explicit-any',
+          '  value as any',
+          ');',
+        ].join('\n')
+      )
+    ).toBe(0);
+  });
+
   it('reads JSX files', () => {
     expect(countExplicitAny('const View = (props: any) => <p>any: text</p>;', 'View.tsx')).toBe(1);
   });
