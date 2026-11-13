@@ -78,6 +78,10 @@ export const isValidRut = (rut: string): boolean => {
   return verifier === expectedVerifier;
 };
 
+/** Identity equality requires two valid RUNs; normalization alone can erase passport letters. */
+export const isSameRut = (left?: string, right?: string): boolean =>
+  isValidRut(left ?? '') && isValidRut(right ?? '') && normalizeRut(left) === normalizeRut(right);
+
 /**
  * Check if value looks like a passport (not a RUT)
  */
