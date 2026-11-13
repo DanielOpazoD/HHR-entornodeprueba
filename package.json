@@ -211,6 +211,7 @@
     "test:e2e:shared-offscreen": "node scripts/smoke-shared-offscreen-runtime.mjs",
     "test:e2e:census-performance": "playwright test --config=playwright.census-performance.config.ts",
     "test:census-performance-report": "node --test scripts/tests/census-startup-performance-report.test.mjs",
+    "test:scripts": "node --test \"scripts/tests/*.test.mjs\"",
     "check:extension-source": "node scripts/check-extension-source.mjs",
     "extension:sync": "node scripts/check-extension-source.mjs --write",
     "check:changed": "node scripts/check-changed.mjs"
