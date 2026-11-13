@@ -37,11 +37,62 @@ const createEmptyPrescriptionBuckets = (): Record<PrescriptionType, Prescription
 const normalizeIdentityToken = (value: string | undefined): string =>
   value?.trim().toLowerCase().replace(/\s+/g, ' ') ?? '';
 
+export const prescriptionBedRowKey = (row: PrescriptionBedRowData): string =>
+  JSON.stringify([
+    row.bedId,
+    row.isDischargeSnapshot ? 'discharged' : 'current',
+    row.isDischargeSnapshot
+      ? documentIdentityKey(row.patientRut) || normalizeIdentityToken(row.patientName)
+      : '',
+  ]);
+
+/**
+ * One row per person who left a bed: by document, or by name without one. A prescription
+ * without a document joins the only documented person of that bed with its name, whatever the
+ * order the prescriptions arrive in.
+ */
+const buildDischargedRows = (records: PrescriptionRecord[]): PrescriptionBedRowData[] => {
+  const bedAndName = (record: PrescriptionRecord): string =>
+    JSON.stringify([record.bedId, normalizeIdentityToken(record.patientName)]);
+  const documentsByBedAndName = new Map<string, Set<string>>();
+  for (const record of records) {
+    const document = documentIdentityKey(record.patientRut);
+    if (!document) continue;
+    const documents = documentsByBedAndName.get(bedAndName(record)) ?? new Set<string>();
+    documents.add(document);
+    documentsByBedAndName.set(bedAndName(record), documents);
+  }
+
+  const rows = new Map<string, PrescriptionBedRowData>();
+  for (const record of records) {
+    const document = documentIdentityKey(record.patientRut);
+    const name = normalizeIdentityToken(record.patientName);
+    const namesakes = [...(documentsByBedAndName.get(bedAndName(record)) ?? [])];
+    const [onlyNamesake] = name && namesakes.length === 1 ? namesakes : [];
+    const key = JSON.stringify([record.bedId, document || onlyNamesake || name]);
+    const row = rows.get(key) ?? {
+      bedId: record.bedId ?? '',
+      patientName: record.patientName?.trim() ?? '',
+      patientRut: record.patientRut?.trim() ?? '',
+      isDischargeSnapshot: true,
+      byType: createEmptyPrescriptionBuckets(),
+    };
+    // The row shows the document even when a prescription without one arrived first.
+    if (document && !documentIdentityKey(row.patientRut)) {
+      row.patientRut = record.patientRut?.trim() ?? '';
+    }
+    rows.set(key, row);
+    row.byType[record.prescriptionType].push(record);
+  }
+  return [...rows.values()];
+};
+
 export const buildBedRows = (
   daily: DailyRecord | null,
   records: PrescriptionRecord[]
 ): PrescriptionBedRowData[] => {
   const byBed = new Map<string, PrescriptionBedRowData>();
+  const discharged: PrescriptionRecord[] = [];
   const activeRowsByRut = new Map<string, PrescriptionBedRowData>();
   const activeRowsByName = new Map<string, PrescriptionBedRowData | null>();
 
@@ -87,21 +138,14 @@ export const buildBedRows = (
       row = bedRow && !hasRutConflict && !hasNameConflict ? bedRow : undefined;
     }
 
-    if (!row) {
-      row = {
-        bedId: record.bedId,
-        patientName: record.patientName?.trim() ?? '',
-        patientRut: record.patientRut?.trim() ?? '',
-        isDischargeSnapshot: true,
-        byType: createEmptyPrescriptionBuckets(),
-      };
-      byBed.set(record.bedId, row);
-    }
-    row.byType[record.prescriptionType].push(record);
+    if (row) row.byType[record.prescriptionType].push(record);
+    else discharged.push(record);
   }
 
-  return Array.from(byBed.values()).sort((a, b) =>
-    a.bedId.localeCompare(b.bedId, 'es', { numeric: true })
+  return [...byBed.values(), ...buildDischargedRows(discharged)].sort(
+    (a, b) =>
+      a.bedId.localeCompare(b.bedId, 'es', { numeric: true }) ||
+      Number(Boolean(a.isDischargeSnapshot)) - Number(Boolean(b.isDischargeSnapshot))
   );
 };
 
