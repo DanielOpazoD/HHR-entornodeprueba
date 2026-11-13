@@ -54,18 +54,22 @@ export const applyEgresoReport = (
     sourceDocuments,
   } = selectEligibleEgresoRows(checkedDiff, eligibleLocationRows, record);
   let diffWithReportConflicts = eligibilityDiff;
-  const { primaryByRun: byRun, supplemental } = selectReportRowsByEpisode(eligibleRows, key =>
-    key.startsWith('episode:')
-      ? key.slice(8)
-      : resolveActiveEpisode(
-          checkedDiff,
-          key,
-          findOccupiedBed(occupied, key)?.clinicalEpisodeId ??
-            findOccupiedClinicalCrib(occupiedCribs, key)?.patient.clinicalEpisodeId
-        )
+  const { primaryByRun: byRun, supplemental } = selectReportRowsByEpisode(
+    eligibleRows,
+    key =>
+      key.startsWith('episode:')
+        ? key.slice(8)
+        : resolveActiveEpisode(
+            checkedDiff,
+            key,
+            findOccupiedBed(occupied, key)?.clinicalEpisodeId ??
+              findOccupiedClinicalCrib(occupiedCribs, key)?.patient.clinicalEpisodeId
+          ),
+    sourceDocuments
   );
   // Check only rows selected for application, retaining the source document that eligibility
   // may have replaced with the matched occupant's document. All prior decisions remain intact.
+  const blockedDocuments: string[] = [];
   for (const [key, row] of byRun) {
     if (row.encounterId?.trim()) continue;
     const document = sourceDocuments.get(row) ?? row.run;
@@ -93,6 +97,7 @@ export const applyEgresoReport = (
     )
       continue;
     byRun.delete(key);
+    blockedDocuments.push(document);
     diffWithReportConflicts = appendReportConflict(diffWithReportConflicts, {
       bedId: resolveReportBedId(row.bedLabel) || null,
       rut: document,
@@ -202,6 +207,7 @@ export const applyEgresoReport = (
     entry => !reportConfirmsEpisode(entry.rut, entry.encounterId ?? entry.source?.encounterId)
   );
   const conflicts = diffWithReportConflicts.conflicts.filter(entry => {
+    if (blockedDocuments.some(document => isSameDocument(document, entry.rut))) return true;
     const run = normalizeRut(entry.rut);
     if (reportConfirmsEpisode(run, entry.source?.encounterId)) {
       const occupant = entry.bedId ? record.beds[entry.bedId] : undefined;
