@@ -55,7 +55,7 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
   const groups = partitionStaffOptions(
     resolvedTensOptions,
     [...tensDayShift, ...tensNightShift].map(name =>
-      resolveStaffSelectionValue(name, staffIdentities, 'tens')
+      resolveStaffSelectionValue(name, staffIdentities, 'tens', resolvedTensOptions)
     ),
     staffUsage?.tens
   );
@@ -121,7 +121,12 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
                 selectionValue: tensDayShift[idx],
                 tone: 'day',
               })}
-              value={resolveStaffSelectionValue(tensDayShift[idx], staffIdentities, 'tens')}
+              value={resolveStaffSelectionValue(
+                tensDayShift[idx],
+                staffIdentities,
+                'tens',
+                resolvedTensOptions
+              )}
               aria-describedby={
                 isVacancySelection(tensDayShift[idx]) ? undefined : `tens-day-${idx}-name`
               }
@@ -136,7 +141,12 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
             </select>
             <StaffSelectionNameHint
               id={`tens-day-${idx}-name`}
-              name={resolveStaffSelectionValue(tensDayShift[idx], staffIdentities, 'tens')}
+              name={resolveStaffSelectionValue(
+                tensDayShift[idx],
+                staffIdentities,
+                'tens',
+                resolvedTensOptions
+              )}
             />
             {groups.hidden.length === 0 && (
               <ChevronDown
@@ -176,7 +186,12 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
                 selectionValue: tensNightShift[idx],
                 tone: 'night',
               })}
-              value={resolveStaffSelectionValue(tensNightShift[idx], staffIdentities, 'tens')}
+              value={resolveStaffSelectionValue(
+                tensNightShift[idx],
+                staffIdentities,
+                'tens',
+                resolvedTensOptions
+              )}
               aria-describedby={
                 isVacancySelection(tensNightShift[idx]) ? undefined : `tens-night-${idx}-name`
               }
@@ -191,7 +206,12 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
             </select>
             <StaffSelectionNameHint
               id={`tens-night-${idx}-name`}
-              name={resolveStaffSelectionValue(tensNightShift[idx], staffIdentities, 'tens')}
+              name={resolveStaffSelectionValue(
+                tensNightShift[idx],
+                staffIdentities,
+                'tens',
+                resolvedTensOptions
+              )}
             />
             {groups.hidden.length === 0 && (
               <ChevronDown

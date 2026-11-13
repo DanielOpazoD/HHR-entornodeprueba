@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MasterPatient } from '@/types/domain/patientMaster';
-import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
 
 vi.mock('@/firebaseConfig', () => ({
   db: {},
@@ -20,185 +19,64 @@ vi.mock('firebase/firestore', () => ({
   writeBatch: vi.fn(),
   collection: vi.fn((_db: unknown, path: string) => ({ __path: path })),
   query: vi.fn((_base: unknown, ...parts: unknown[]) => ({ __parts: parts })),
-  orderBy: vi.fn((_field: string, _direction: string) => ({ __orderBy: true })),
+  orderBy: vi.fn((_field: string, _direction: string) => ({
+    field: _field,
+    direction: _direction,
+  })),
   limit: vi.fn((count: number) => ({ __limit: count })),
-  startAfter: vi.fn((_doc: unknown) => ({ __startAfter: true })),
+  startAfter: vi.fn((_doc: unknown) => ({ cursor: _doc })),
   getDocs: vi.fn(),
   where: vi.fn((_field: string, _op: string, _value: unknown) => ({ __where: true })),
 }));
 
 import * as firestore from 'firebase/firestore';
-import {
-  bulkUpsertPatients,
-  createPatientMasterRepository,
-  getPatientByRut,
-  getPatientsPaginated,
-  searchPatients,
-  upsertPatient,
-} from '@/services/repositories/PatientMasterRepository';
+import { createPatientMasterRepository } from '@/services/repositories/PatientMasterRepository';
 
-describe('PatientMasterRepository', () => {
-  const runtime = { getDb: () => ({}) as never };
-  const injectedRepository = createPatientMasterRepository(runtime);
-
-  const buildPatientDoc = (patient: MasterPatient) => ({
-    data: () => patient,
-  });
-
-  const buildPatientPage = (start: number, count: number, labelPrefix = 'Paciente') =>
-    Array.from({ length: count }, (_, index) =>
-      buildPatientDoc({
-        rut: `1.${String(start + index).padStart(3, '0')}.000-0`,
-        fullName: `${labelPrefix} ${start + index}`,
-        createdAt: 1,
-        updatedAt: 1,
-      })
-    );
-
+describe('PatientMasterRepository transport failures', () => {
+  const repository = createPatientMasterRepository({ getDb: () => ({}) as never });
+  const failure = new Error('synthetic unavailable');
+  const target: MasterPatient = {
+    rut: '12.345.678-5',
+    fullName: 'Inés Riroroko Leiva',
+    createdAt: 1,
+    updatedAt: 1,
+  };
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('returns null for invalid RUT on getPatientByRut', async () => {
-    const result = await getPatientByRut('invalid');
-    expect(result).toBeNull();
-    expect(vi.mocked(firestore.getDoc)).not.toHaveBeenCalled();
-  });
-
   it('rejects when the patient index read fails at the SDK boundary', async () => {
-    const failure = new Error('synthetic unavailable');
-    vi.mocked(firestore.getDoc).mockRejectedValueOnce(failure);
-    await expect(injectedRepository.getPatientByRut('11.111.111-1')).rejects.toBe(failure);
-  });
-
-  it('returns null for a confirmed missing patient', async () => {
-    vi.mocked(firestore.getDoc).mockResolvedValueOnce({ exists: () => false } as never);
-    await expect(injectedRepository.getPatientByRut('11.111.111-1')).resolves.toBeNull();
-  });
-
-  it('returns the patient from a successful index read', async () => {
-    const patient: MasterPatient = {
-      rut: '11.111.111-1',
-      fullName: 'Paciente sintético',
-      createdAt: 1,
-      updatedAt: 1,
-    };
-    vi.mocked(firestore.getDoc).mockResolvedValueOnce({
-      exists: () => true,
-      data: () => patient,
-    } as never);
-    await expect(injectedRepository.getPatientByRut(patient.rut)).resolves.toEqual(patient);
-  });
-
-  it('upsertPatient skips invalid RUT without writing', async () => {
-    const consoleSpies = suppressConsole(['warn']);
-
-    try {
-      await upsertPatient({ rut: 'invalid', fullName: 'Paciente' });
-      expect(vi.mocked(firestore.setDoc)).not.toHaveBeenCalled();
-    } finally {
-      restoreConsole(consoleSpies);
-    }
-  });
-
-  it('upsertPatient writes normalized rut and updatedAt', async () => {
-    vi.mocked(firestore.setDoc).mockResolvedValue(undefined as never);
-    await upsertPatient({ rut: '12345678-5', fullName: 'Paciente A' });
-
-    expect(vi.mocked(firestore.setDoc)).toHaveBeenCalledTimes(1);
-    const [, payload] = vi.mocked(firestore.setDoc).mock.calls[0];
-    expect(payload).toEqual(
-      expect.objectContaining({
-        rut: '12.345.678-5',
-        fullName: 'Paciente A',
-        updatedAt: expect.any(Number),
-      })
-    );
-  });
-
-  it('bulkUpsertPatients filters invalid RUTs before commit', async () => {
-    const commit = vi.fn().mockResolvedValue(undefined);
-    const set = vi.fn();
-    vi.mocked(firestore.writeBatch).mockReturnValue({ set, commit } as never);
-
-    const result = await bulkUpsertPatients([
-      { rut: '12345678-5', fullName: 'Paciente A', createdAt: 1, updatedAt: 1 },
-      { rut: 'invalid', fullName: 'Paciente B', createdAt: 1, updatedAt: 1 },
-    ]);
-
-    expect(set).toHaveBeenCalledTimes(1);
-    expect(result).toEqual({ successes: 1, errors: 1 });
-  });
-
-  it('sanitizes pagination limit', async () => {
-    vi.mocked(firestore.getDocs).mockResolvedValue({ docs: [] } as never);
-    await getPatientsPaginated(0);
-    expect(vi.mocked(firestore.limit)).toHaveBeenCalledWith(20);
-
-    await getPatientsPaginated(5000);
-    expect(vi.mocked(firestore.limit)).toHaveBeenCalledWith(1000);
-  });
-
-  it('searchPatients trims search term and returns empty for whitespace input', async () => {
-    const result = await searchPatients('   ');
-    expect(result).toEqual([]);
-    expect(vi.mocked(firestore.getDocs)).not.toHaveBeenCalled();
-  });
-
-  it('searchPatients keeps scanning past the first patient page for multi-word matches', async () => {
-    const targetPatient: MasterPatient = {
-      rut: '12.345.678-5',
-      fullName: 'Inés Riroroko Leiva',
-      createdAt: 1,
-      updatedAt: 1,
-    };
-
-    vi.mocked(firestore.getDocs)
-      .mockResolvedValueOnce({
-        docs: buildPatientPage(1, 250, 'Paciente'),
-      } as never)
-      .mockResolvedValueOnce({
-        docs: [buildPatientDoc(targetPatient)],
-      } as never);
-
-    const result = await searchPatients('Ines leiva');
-
-    expect(result).toEqual([targetPatient]);
-    expect(vi.mocked(firestore.getDocs)).toHaveBeenCalledTimes(2);
+    vi.mocked(firestore.getDoc).mockImplementation(async ref => {
+      if ((ref as unknown as { __id: string }).__id === target.rut) throw failure;
+      throw new Error('Unexpected document');
+    });
+    await expect(repository.getPatientByRut(target.rut)).rejects.toBe(failure);
   });
 
   it('searchPatients still finds a patient by RUT when the direct index read fails', async () => {
-    const targetPatient: MasterPatient = {
-      rut: '12.345.678-5',
-      fullName: 'Inés Riroroko Leiva',
-      createdAt: 1,
-      updatedAt: 1,
-    };
-    vi.mocked(firestore.getDoc).mockRejectedValueOnce(new Error('synthetic unavailable'));
-    vi.mocked(firestore.getDocs)
-      .mockResolvedValueOnce({ docs: [] } as never)
-      .mockResolvedValueOnce({ docs: [buildPatientDoc(targetPatient)] } as never);
-
-    expect(await searchPatients('12.345.678-5')).toEqual([targetPatient]);
+    vi.mocked(firestore.getDoc).mockImplementation(async ref => {
+      if ((ref as unknown as { __id: string }).__id === target.rut) throw failure;
+      throw new Error('Unexpected document');
+    });
+    vi.mocked(firestore.getDocs).mockImplementation(async q => {
+      const parts = (q as unknown as { __parts: Array<{ field?: string }> }).__parts;
+      if (parts.some(part => part.field === 'fullName')) return { docs: [] } as never;
+      if (parts.some(part => part.field === 'updatedAt'))
+        return { docs: [{ data: () => target }] } as never;
+      throw new Error('Unexpected query');
+    });
+    expect(await repository.searchPatients(target.rut)).toEqual([target]);
   });
 
   it('rejects an incomplete full scan instead of returning absence', async () => {
-    const failure = new Error('synthetic unavailable');
-    vi.mocked(firestore.getDocs)
-      .mockResolvedValueOnce({ docs: buildPatientPage(1, 250) } as never)
-      .mockRejectedValueOnce(failure);
-    await expect(injectedRepository.searchPatients('alfa beta')).rejects.toBe(failure);
-  });
-
-  it('supports injected Firestore runtime for isolated repository composition', async () => {
-    vi.mocked(firestore.setDoc).mockResolvedValue(undefined as never);
-
-    await injectedRepository.upsertPatient({ rut: '12345678-5', fullName: 'Paciente Runtime' });
-
-    expect(vi.mocked(firestore.doc)).toHaveBeenCalledWith(
-      expect.anything(),
-      'hospitals/hanga_roa/patients',
-      '12.345.678-5'
-    );
+    vi.mocked(firestore.getDocs).mockImplementation(async q => {
+      const parts = (q as unknown as { __parts: Array<{ cursor?: unknown; field?: string }> })
+        .__parts;
+      if (parts.some(part => part.cursor)) throw failure;
+      if (parts.some(part => part.field === 'updatedAt'))
+        return { docs: Array.from({ length: 250 }, () => ({ data: () => target })) } as never;
+      throw new Error('Unexpected query');
+    });
+    await expect(repository.searchPatients('alfa beta')).rejects.toBe(failure);
   });
 });

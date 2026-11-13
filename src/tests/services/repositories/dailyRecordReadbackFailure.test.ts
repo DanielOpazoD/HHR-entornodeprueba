@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
@@ -42,6 +43,7 @@ describe('authority readback preserves pending edits', () => {
       });
       const ack = vi.fn();
       const result = await persistLocalAndAttemptRemoteSync({
+        authoringSession: captureAuthoringSession(),
         date: record.date,
         record,
         changedPaths: ['beds.R1.status'],
@@ -78,6 +80,7 @@ describe('authority readback preserves pending edits', () => {
     const record = DataFactory.createMockDailyRecord('2026-04-02');
     const state = createRemoteWriteState();
     const result = await persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
       date: record.date,
       record,
       changedPaths: [],

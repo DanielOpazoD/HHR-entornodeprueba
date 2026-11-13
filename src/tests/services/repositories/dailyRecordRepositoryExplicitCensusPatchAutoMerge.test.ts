@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import type {
   LocalRecordAdmissionCandidate,
   LocalRecordBase,
@@ -165,11 +166,15 @@ describe('dailyRecordRepositoryWriteService explicit census patch auto-merge', (
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
     await expect(
-      updatePartial('2026-02-15', {
-        'beds.R1.specialty': 'Otra especialidad',
-        'beds.R1.secondarySpecialty': 'Infectologia',
-        'beds.R1.status': PatientStatus.GRAVE,
-      })
+      updatePartial(
+        '2026-02-15',
+        {
+          'beds.R1.specialty': 'Otra especialidad',
+          'beds.R1.secondarySpecialty': 'Infectologia',
+          'beds.R1.status': PatientStatus.GRAVE,
+        },
+        { authoringSession: captureAuthoringSession() }
+      )
     ).resolves.toBeUndefined();
 
     expect(queueSyncTask).toHaveBeenCalledWith(
@@ -187,7 +192,8 @@ describe('dailyRecordRepositoryWriteService explicit census patch auto-merge', (
       expect.objectContaining({
         contexts: ['clinical'],
         origin: 'conflict_auto_merge',
-      })
+      }),
+      { authoringSession: captureAuthoringSession() }
     );
   });
 
@@ -230,7 +236,9 @@ describe('dailyRecordRepositoryWriteService explicit census patch auto-merge', (
     vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce(concurrencyError);
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
-    await expect(updatePartialDetailed('2026-02-15', patch)).resolves.toMatchObject({
+    await expect(
+      updatePartialDetailed('2026-02-15', patch, { authoringSession: captureAuthoringSession() })
+    ).resolves.toMatchObject({
       outcome: 'auto_merged',
       autoMerged: true,
       queuedForRetry: true,
@@ -259,7 +267,8 @@ describe('dailyRecordRepositoryWriteService explicit census patch auto-merge', (
           expectedVersion: '2026-02-15T10:05:00.000Z',
           changedPaths: Object.keys(patch),
         }),
-      })
+      }),
+      { authoringSession: captureAuthoringSession() }
     );
   });
 
@@ -293,7 +302,9 @@ describe('dailyRecordRepositoryWriteService explicit census patch auto-merge', (
     vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce(concurrencyError);
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
-    await expect(updatePartialDetailed('2026-02-15', patch)).resolves.toMatchObject({
+    await expect(
+      updatePartialDetailed('2026-02-15', patch, { authoringSession: captureAuthoringSession() })
+    ).resolves.toMatchObject({
       outcome: 'auto_merged',
       autoMerged: true,
       queuedForRetry: true,
@@ -315,7 +326,8 @@ describe('dailyRecordRepositoryWriteService explicit census patch auto-merge', (
       expect.objectContaining({
         contexts: ['clinical'],
         origin: 'conflict_auto_merge',
-      })
+      }),
+      { authoringSession: captureAuthoringSession() }
     );
   });
 });

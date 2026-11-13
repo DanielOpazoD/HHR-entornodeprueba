@@ -1,3 +1,4 @@
+import { nurseIdentityKey, preferredStaffName } from './nurseIdentity';
 import { doc, onSnapshot, runTransaction } from 'firebase/firestore';
 import { defaultFirestoreServiceRuntime as runtime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import {
@@ -48,6 +49,9 @@ export const planSharedStaffCatalog = (
   const merged = mergeStaffRegistries(incoming, previous);
   const entries = merged.map(entry => ({
     ...entry,
+    name: (entry.role === 'nurse' ? nurses : tens)
+      .filter(name => nurseIdentityKey(name) === nurseIdentityKey(entry.name))
+      .reduce((preferred, name) => preferredStaffName(name, preferred), entry.name),
     manuallyCatalogued:
       entry.manuallyCatalogued ??
       (entry.role === 'nurse' ? nurses : tens).some(

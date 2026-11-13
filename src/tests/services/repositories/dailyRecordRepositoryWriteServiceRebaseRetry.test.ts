@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import type {
   LocalRecordAdmissionCandidate,
   LocalRecordBase,
@@ -138,7 +139,11 @@ describe('dailyRecordRepositoryWriteService · retry re-basado por versión viej
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
     await expect(
-      updatePartial('2026-02-15', { 'beds.R1.status': 'Grave' })
+      updatePartial(
+        '2026-02-15',
+        { 'beds.R1.status': 'Grave' },
+        { authoringSession: captureAuthoringSession() }
+      )
     ).resolves.toBeUndefined();
 
     expect(updateRecordPartialToFirestore).toHaveBeenCalledTimes(2);
@@ -148,7 +153,8 @@ describe('dailyRecordRepositoryWriteService · retry re-basado por versión viej
     expect(logRepositoryConflictAutoMerged).not.toHaveBeenCalled();
     expect(queueSyncTask).not.toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ origin: 'conflict_auto_merge' })
+      expect.objectContaining({ origin: 'conflict_auto_merge' }),
+      { authoringSession: captureAuthoringSession() }
     );
   });
 
@@ -167,7 +173,11 @@ describe('dailyRecordRepositoryWriteService · retry re-basado por versión viej
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
     await expect(
-      updatePartial('2026-02-15', { 'beds.R1.status': 'Grave' })
+      updatePartial(
+        '2026-02-15',
+        { 'beds.R1.status': 'Grave' },
+        { authoringSession: captureAuthoringSession() }
+      )
     ).resolves.toBeUndefined();
 
     // Una sola escritura: el conflicto real sigue el camino de recuperación
@@ -175,7 +185,8 @@ describe('dailyRecordRepositoryWriteService · retry re-basado por versión viej
     expect(updateRecordPartialToFirestore).toHaveBeenCalledTimes(1);
     expect(queueSyncTask).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ origin: 'conflict_auto_merge' })
+      expect.objectContaining({ origin: 'conflict_auto_merge' }),
+      { authoringSession: captureAuthoringSession() }
     );
   });
 
@@ -214,11 +225,15 @@ describe('dailyRecordRepositoryWriteService · retry re-basado por versión viej
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
     await expect(
-      updatePartial('2026-02-15', {
-        'beds.R1.lastName': 'Paralelo',
-        'beds.R1.patientName': 'Paciente Paralelo Segunda',
-        'beds.R1.birthDate': '1991-02-02',
-      })
+      updatePartial(
+        '2026-02-15',
+        {
+          'beds.R1.lastName': 'Paralelo',
+          'beds.R1.patientName': 'Paciente Paralelo Segunda',
+          'beds.R1.birthDate': '1991-02-02',
+        },
+        { authoringSession: captureAuthoringSession() }
+      )
     ).resolves.toBeUndefined();
 
     expect(updateRecordPartialToFirestore).toHaveBeenCalledTimes(2);
@@ -238,7 +253,8 @@ describe('dailyRecordRepositoryWriteService · retry re-basado por versión viej
     );
     expect(queueSyncTask).not.toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ origin: 'conflict_auto_merge' })
+      expect.objectContaining({ origin: 'conflict_auto_merge' }),
+      { authoringSession: captureAuthoringSession() }
     );
   });
 
@@ -271,16 +287,21 @@ describe('dailyRecordRepositoryWriteService · retry re-basado por versión viej
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
     await expect(
-      updatePartial('2026-02-15', {
-        'beds.R1.lastName': 'Paralelo',
-        'beds.R1.patientName': 'Paciente Paralelo Segunda',
-      })
+      updatePartial(
+        '2026-02-15',
+        {
+          'beds.R1.lastName': 'Paralelo',
+          'beds.R1.patientName': 'Paciente Paralelo Segunda',
+        },
+        { authoringSession: captureAuthoringSession() }
+      )
     ).resolves.toBeUndefined();
 
     expect(updateRecordPartialToFirestore).toHaveBeenCalledTimes(1);
     expect(queueSyncTask).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ origin: 'conflict_auto_merge' })
+      expect.objectContaining({ origin: 'conflict_auto_merge' }),
+      { authoringSession: captureAuthoringSession() }
     );
   });
 
@@ -313,16 +334,21 @@ describe('dailyRecordRepositoryWriteService · retry re-basado por versión viej
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
     await expect(
-      updatePartial('2026-02-15', {
-        'beds.R1.lastName': 'Paralelo',
-        'beds.R1.patientName': 'Paciente Paralelo Segunda',
-      })
+      updatePartial(
+        '2026-02-15',
+        {
+          'beds.R1.lastName': 'Paralelo',
+          'beds.R1.patientName': 'Paciente Paralelo Segunda',
+        },
+        { authoringSession: captureAuthoringSession() }
+      )
     ).resolves.toBeUndefined();
 
     expect(updateRecordPartialToFirestore).toHaveBeenCalledTimes(1);
     expect(queueSyncTask).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ origin: 'conflict_auto_merge' })
+      expect.objectContaining({ origin: 'conflict_auto_merge' }),
+      { authoringSession: captureAuthoringSession() }
     );
   });
 });

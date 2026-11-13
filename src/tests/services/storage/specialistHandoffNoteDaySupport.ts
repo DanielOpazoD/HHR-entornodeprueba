@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /**
  * Synthetic-only helpers for a specialist note queued offline on a day that later gets a census
  * edit, while another session replaces a patient. The device clock moves forward between the read
@@ -99,7 +100,10 @@ export const saveWholeDay = (
   at(when, async () => {
     h.offline = true;
     try {
-      return await saveDetailed(record, record.lastUpdated, { baseRecord });
+      return await saveDetailed(record, record.lastUpdated, {
+        authoringSession: captureAuthoringSession(),
+        baseRecord,
+      });
     } finally {
       h.offline = false;
     }
@@ -127,6 +131,7 @@ export const writeDay = (
     h.offline = true;
     try {
       return await updatePartialDetailed(DATE, patch as DailyRecordPatch, {
+        authoringSession: captureAuthoringSession(),
         baseRecord: baseRecord ?? (await local()),
       });
     } finally {
@@ -160,7 +165,7 @@ export const cribNote = (bedId: string, entryId: string, text: string) =>
             value,
           ])
         ) as DailyRecordPatch,
-        { baseRecord: record }
+        { authoringSession: captureAuthoringSession(), baseRecord: record }
       );
     } finally {
       h.offline = false;

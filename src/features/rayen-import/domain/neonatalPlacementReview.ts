@@ -5,7 +5,7 @@ import { isMaternalCandidatePatient } from './clinicalCribMaternalAssociation';
 import { occupied, plannedCribOccupied } from './neonatalPlacementAvailability';
 import { neonatalSourcePlacementKey } from './reviewedNeonatalSourcePlacement';
 import { includeAutomaticMaternalChoices } from './neonatalPlacementReviewPlan';
-import { isValidRut, normalizeRut } from '@/utils/rutUtils';
+import { isValidRut, isSameRut } from '@/utils/rutUtils';
 import type { NeonatalPlacementDecision } from '@/types/domain/neonatalPlacementDecision';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
@@ -160,7 +160,7 @@ export const resolveNeonatalPlacements = (
         isMaternalCandidatePatient(p) &&
         !p.isBlocked &&
         isValidRut(review.source.run) &&
-        normalizeRut(p.rut) === normalizeRut(review.source.run)
+        isSameRut(p.rut, review.source.run)
     );
     const distinctMaternalEpisodes = new Set(maternalMatches.map(p => p.clinicalEpisodeId));
     const selectedMaternal = mother
@@ -179,19 +179,17 @@ export const resolveNeonatalPlacements = (
     decision.sourceRunIsMaternal = Boolean(
       (maternalMatches.length > 0 &&
         (distinctMaternalEpisodes.size === 1 ||
-          normalizeRut(review.patient.rut) !== normalizeRut(review.source.run))) ||
-      (maternalRut && normalizeRut(maternalRut) === normalizeRut(review.source.run)) ||
+          !isSameRut(review.patient.rut, review.source.run))) ||
+      (maternalRut && isSameRut(maternalRut, review.source.run)) ||
       (existing?.neonatalPlacementDecision?.sourceRunIsMaternal &&
-        normalizeRut(existing.neonatalPlacementDecision.sourceRun ?? '') ===
-          normalizeRut(review.source.run))
+        isSameRut(existing.neonatalPlacementDecision.sourceRun ?? '', review.source.run))
     );
     const carriesMaternalRun = Boolean(
       ((distinctMaternalEpisodes.size === 1 && maternalMatches.length > 0) ||
-        (maternalRut && normalizeRut(maternalRut) === normalizeRut(review.source.run)) ||
+        (maternalRut && isSameRut(maternalRut, review.source.run)) ||
         (existing?.neonatalPlacementDecision?.sourceRunIsMaternal &&
-          normalizeRut(existing.neonatalPlacementDecision.sourceRun ?? '') ===
-            normalizeRut(review.source.run))) &&
-      normalizeRut(review.patient.rut) === normalizeRut(review.source.run)
+          isSameRut(existing.neonatalPlacementDecision.sourceRun ?? '', review.source.run))) &&
+      isSameRut(review.patient.rut, review.source.run)
     );
     if (maternalRut) decision.maternalRut = maternalRut;
     else if (!mother && existing?.neonatalPlacementDecision?.maternalRut)

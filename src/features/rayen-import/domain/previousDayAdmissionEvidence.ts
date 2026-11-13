@@ -24,8 +24,7 @@ import { mapRayenBed } from '../mapping/bedMapping';
 import { rayenToPatientData } from '../mapping/rayenToPatientData';
 import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
 import { resolveClinicalDayBounds } from '@/utils/clinicalDayScheduleUtils';
-
-const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+import { normalizeRut } from '@/utils/rutUtils';
 
 interface EvidenceDependencies {
   fetchReport: (encounterId: string) => Promise<PatientFlowReportResult>;

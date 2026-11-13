@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /* @flake-safe: Today's synthetic census satisfies the real rules' hospital write window. */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -164,9 +165,10 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       }
     );
   };
-  const mode = async (value: (typeof modes)[number]) => {
-    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', value);
-    if (value === 'enforced')
+  // 'production': the schema-v2 policy with the variable undefined, as published since 2026-11-07.
+  const mode = async (value: (typeof modes)[number] | 'production') => {
+    vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', value === 'production' ? '' : value);
+    if (value !== 'client_only')
       await admin.doc('hospitals/hanga_roa/settings/rayenImportPolicy').set({
         schemaVersion: 2,
         mode: 'preview',
@@ -293,9 +295,11 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     });
   }
 
-  it('3 authority rejects one simultaneous same-field edit explicitly (SAVE-01)', async () => {
-    await mode('enforced');
-    const results = await race({ 'beds.R1.pathology': 'A' }, { 'beds.R1.pathology': 'B' }, false);
+  it('3 SAVE-01: under the production configuration one of two same-field writers is refused', async () => {
+    await mode('production');
+    // Direct writes would be held together after their checks; production sends both to the
+    // authority, whose transaction refuses the second base.
+    const results = await race({ 'beds.R1.pathology': 'A' }, { 'beds.R1.pathology': 'B' }, true);
     expect(results.filter(item => item.status === 'fulfilled')).toHaveLength(1);
     expect(results.filter(item => item.status === 'rejected')).toMatchObject([
       { reason: { name: 'ConcurrencyError' } },
@@ -303,9 +307,11 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     expect(['A', 'B']).toContain((await read()).beds.R1.pathology);
   });
 
-  // Pending accepted by the owner until after 2026-11-08: concurrent direct same-field writes.
+  // Describes `client_only` without the schema-v2 policy, a configuration production no longer
+  // uses (policy enforced since 2026-11-07): both direct same-field writes report success there.
+  // Production is the case above and productionAuthorityConfiguration.emulator-ui.test.ts.
   it.fails(
-    '3 SAVE-01: direct simultaneous same-field writes must not both report success',
+    '3 client_only without policy (not production): direct same-field writes must not both succeed',
     async () => {
       const results = await race({ 'beds.R1.pathology': 'A' }, { 'beds.R1.pathology': 'B' }, true);
       expect(['A', 'B']).toContain((await read()).beds.R1.pathology);
@@ -370,10 +376,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   // Authority replay belongs to the active offline-edit-other-bed branch; do not duplicate it.
   for (const selected of ['client_only'] as const) {
     for (const path of ['beds.R2.pathology', 'beds.R1.pathology'] as const) {
-      // Pending accepted by the owner until after 2026-11-08: direct replay overwrites a peer.
-      const knownFailure = path === 'beds.R1.pathology';
-      const testCase = knownFailure ? it.fails : it;
-      testCase(`5 offline replay after B edits ${path} (${selected})`, async () => {
+      it(`5 offline replay after B edits ${path} (${selected})`, async () => {
         await mode(selected);
         await hospitalDB.dailyRecords.put(baseRecord());
         setFirestoreSyncState({ mode: 'local_only', reason: 'offline' });
@@ -381,7 +384,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
           updatePartialDetailed(
             date,
             { 'beds.R1.pathology': 'A OFFLINE' },
-            { baseRecord: baseRecord() }
+            { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
           )
         );
         expect(offline).toMatchObject({ savedLocally: true, updatedRemotely: false });

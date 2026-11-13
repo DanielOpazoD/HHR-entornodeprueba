@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildAdmitPatientPatch,
@@ -181,13 +182,17 @@ describe('createDailyRecordAdmitPatientPort', () => {
     const snapshot = await port.persistAdmission(input);
 
     expect(persist).toHaveBeenCalledTimes(1);
-    expect(persist).toHaveBeenCalledWith('2026-05-03', {
-      'beds.H5C1.patientName': 'Paciente Demo',
-      'beds.H5C1.rut': '11.111.111-1',
-      'beds.H5C1.admissionDate': '2026-05-03',
-      'beds.H5C1.pathology': 'Diagnóstico demo',
-      'beds.H5C1.clinicalEpisodeId': expect.stringMatching(/^ep_/),
-    });
+    expect(persist).toHaveBeenCalledWith(
+      '2026-05-03',
+      {
+        'beds.H5C1.patientName': 'Paciente Demo',
+        'beds.H5C1.rut': '11.111.111-1',
+        'beds.H5C1.admissionDate': '2026-05-03',
+        'beds.H5C1.pathology': 'Diagnóstico demo',
+        'beds.H5C1.clinicalEpisodeId': expect.stringMatching(/^ep_/),
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
     expect(snapshot).toEqual({
       bedId: 'H5C1',
       patientName: 'Paciente Demo',
@@ -220,7 +225,7 @@ describe('createDailyRecordAdmitPatientPort', () => {
       expect.objectContaining({
         'beds.H5C1.patientName': 'Paciente Demo',
       }),
-      { baseRecord }
+      { authoringSession: captureAuthoringSession(), baseRecord }
     );
   });
 

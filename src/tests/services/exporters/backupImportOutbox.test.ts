@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { day, harnessState, writeNote, A } from '../storage/specialistHandoffOutboxHarness';
@@ -29,7 +30,8 @@ it('queues every imported day offline with backup origin', async () => {
 it.each(['daily', 'specialist'])('rejects the whole file with a live %s task', async kind => {
   const record = records()[1];
   await hospitalDB.dailyRecords.put(record);
-  if (kind === 'daily') await saveDetailed(record);
+  if (kind === 'daily')
+    await saveDetailed(record, undefined, { authoringSession: captureAuthoringSession() });
   else await writeNote(record, 'R4', 'entry-A', 'Edición sin enviar');
   const before = await hospitalDB.dailyRecords.toArray();
   const queue = await hospitalDB.syncQueue.toArray();
@@ -59,7 +61,7 @@ it.each(['PENDING', 'PROCESSING', 'FAILED', 'CONFLICT'] as const)(
   'rejects a file for %s work owned by another session',
   async status => {
     const record = records()[1];
-    await saveDetailed(record);
+    await saveDetailed(record, undefined, { authoringSession: captureAuthoringSession() });
     const task = (await hospitalDB.syncQueue.toArray())[0];
     await hospitalDB.syncQueue.update(task.id!, { status, ownerKey: 'user:other' });
     expect(await importDataJSONDetailed(file())).toMatchObject({
@@ -95,7 +97,7 @@ it('characterizes the retained legacy migration: overwrites a local day without 
 it('exposes D3 dates through the application outcome', async () => {
   const { executeImportJsonBackup } =
     await import('@/application/backup-export/backupExportMaintenanceUseCases');
-  await saveDetailed(records()[1]);
+  await saveDetailed(records()[1], undefined, { authoringSession: captureAuthoringSession() });
   const outcome = await executeImportJsonBackup(file());
   expect(outcome.status).toBe('failed');
   expect(outcome.issues[0]?.message).toContain(dates[1]);
@@ -106,10 +108,14 @@ it.each(['user:synthetic', 'user:other'])(
   'rejects a file whose entry is keyed by one date but holds a day with unsent work of %s',
   async ownerKey => {
     const [keyDate, writtenDate] = dates;
-    await saveDetailed({
-      ...day(writtenDate, { R4: A() }),
-      nursesDayShift: ['Edición sin enviar'],
-    });
+    await saveDetailed(
+      {
+        ...day(writtenDate, { R4: A() }),
+        nursesDayShift: ['Edición sin enviar'],
+      },
+      undefined,
+      { authoringSession: captureAuthoringSession() }
+    );
     const [task] = await hospitalDB.syncQueue.toArray();
     await hospitalDB.syncQueue.update(task!.id!, { ownerKey });
     const before = await hospitalDB.dailyRecords.toArray();

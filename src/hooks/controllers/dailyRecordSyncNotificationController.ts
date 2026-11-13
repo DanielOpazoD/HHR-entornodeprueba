@@ -160,7 +160,8 @@ const resolveWriteOutcomeFeedback = (
   result: SaveDailyRecordResult | UpdatePartialDailyRecordResult | null | undefined,
   patch: boolean
 ): SyncOutcomeFeedback | null => {
-  if (!result) return null;
+  if (!result || result.observabilityTags?.includes('sync_queue_write_retained_for_owner'))
+    return null;
   const savedState = resolveDailyRecordSavedState(result);
   const remoteConfirmed = savedState === 'saved';
   const consistencyMessage = (fallbackMessage: string) =>
@@ -243,7 +244,4 @@ export const resolveSaveOutcomeFeedback = (result: SaveDailyRecordResult | null 
 
 export const resolvePatchOutcomeFeedback = (
   result: UpdatePartialDailyRecordResult | null | undefined
-) =>
-  result?.observabilityTags?.includes('sync_queue_write_retained_for_owner')
-    ? null
-    : resolveWriteOutcomeFeedback(result, true);
+) => resolveWriteOutcomeFeedback(result, true);

@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import type {
   LocalRecordAdmissionCandidate,
   LocalRecordBase,
@@ -119,7 +120,7 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       {
         'beds.R2.patientName': 'Paciente Nuevo',
       },
-      { baseRecord: hydratedBase }
+      { authoringSession: captureAuthoringSession(), baseRecord: hydratedBase }
     );
     expect(result.outcome).toBe('clean');
     expect(getRecordFromIndexedDB).not.toHaveBeenCalled();
@@ -150,7 +151,7 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
         'beds.H5C2.status': PatientStatus.GRAVE,
         'beds.H5C2.devices': [],
       },
-      { baseRecord: hydratedBase }
+      { authoringSession: captureAuthoringSession(), baseRecord: hydratedBase }
     );
     expect(result.outcome).toBe('clean');
     expect(getRecordFromIndexedDB).not.toHaveBeenCalled();
@@ -184,7 +185,7 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       {
         'beds.H5C2.devices': ['VVP#1'],
       },
-      { baseRecord: hydratedBase }
+      { authoringSession: captureAuthoringSession(), baseRecord: hydratedBase }
     );
 
     expect(result.outcome).toBe('clean');
@@ -231,6 +232,7 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       sourceBedIds: ['NEO2'],
     });
     const result = await updatePartialDetailed('2026-02-18', patch, {
+      authoringSession: captureAuthoringSession(),
       baseRecord: hydratedBase,
     });
     expect(result.outcome).toBe('clean');
@@ -292,6 +294,7 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
     });
 
     const result = await updatePartialDetailed('2026-02-18', patch, {
+      authoringSession: captureAuthoringSession(),
       baseRecord: hydratedBase,
     });
 
@@ -351,6 +354,7 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       sourceBedIds: ['NEO1'],
     });
     const result = await updatePartialDetailed('2026-02-18', patch, {
+      authoringSession: captureAuthoringSession(),
       baseRecord: hydratedBase,
     });
     expect(result.outcome).toBe('clean');
@@ -427,6 +431,7 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
         ],
       },
       {
+        authoringSession: captureAuthoringSession(),
         baseRecord: hydratedBase,
         requireConfirmedRecord: true,
         requireRemoteAuthorityFirst: true,
@@ -491,7 +496,12 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
     const result = await updatePartialDetailed(
       '2026-02-13',
       { 'beds.R1.vitalSigns': { heartRate: 72 } },
-      { baseRecord: hydratedBase, requireRemoteAuthorityFirst: true, requireConfirmedRecord: true }
+      {
+        authoringSession: captureAuthoringSession(),
+        baseRecord: hydratedBase,
+        requireRemoteAuthorityFirst: true,
+        requireConfirmedRecord: true,
+      }
     );
     expect(result.outcome).toBe('clean');
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(

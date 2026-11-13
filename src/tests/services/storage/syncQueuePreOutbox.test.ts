@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
@@ -116,7 +117,7 @@ describe('storage/sync pre-outbox guarantees', () => {
         origin: 'direct_queue',
         syncContract,
       },
-      { deferProcessing: true }
+      { authoringSession: captureAuthoringSession(), deferProcessing: true }
     );
 
     expect(result).toMatchObject({ accepted: true, mode: 'created' });
@@ -142,7 +143,11 @@ describe('storage/sync pre-outbox guarantees', () => {
           mutationId: 'mutation-held-direct-save',
         },
       },
-      { deferProcessing: true, holdForMs: ACTIVE_HOLD_DURATION_MS }
+      {
+        authoringSession: captureAuthoringSession(),
+        deferProcessing: true,
+        holdForMs: ACTIVE_HOLD_DURATION_MS,
+      }
     );
 
     const [task] = await hospitalDB.syncQueue.toArray();
@@ -173,6 +178,7 @@ describe('storage/sync pre-outbox guarantees', () => {
         syncContract,
       },
       {
+        authoringSession: captureAuthoringSession(),
         deferProcessing: true,
         holdForMs: 60_000,
         preOutboxHoldOwner: 'tab-direct-writer',
@@ -298,6 +304,7 @@ describe('storage/sync pre-outbox guarantees', () => {
         syncContract,
       },
       {
+        authoringSession: captureAuthoringSession(),
         deferProcessing: true,
         holdForMs: 5_000,
         preOutboxHoldOwner: 'tab-direct-writer',
@@ -339,6 +346,7 @@ describe('storage/sync pre-outbox guarantees', () => {
         syncContract,
       },
       {
+        authoringSession: captureAuthoringSession(),
         deferProcessing: true,
         holdForMs: 5_000,
         preOutboxHoldOwner: 'tab-direct-writer',
@@ -374,15 +382,19 @@ describe('storage/sync pre-outbox guarantees', () => {
       }),
     } as Awaited<ReturnType<typeof getDoc>>);
 
-    await queueDailyRecordSyncTaskWithLocalRecord(record, {
-      contexts: ['clinical'],
-      origin: 'direct_queue',
-      syncContract: {
-        expectedVersion: '2025-01-19T09:55:00.000Z',
-        changedPaths: ['beds.R1.pathology'],
-        mutationId: 'mutation-already-applied',
+    await queueDailyRecordSyncTaskWithLocalRecord(
+      record,
+      {
+        contexts: ['clinical'],
+        origin: 'direct_queue',
+        syncContract: {
+          expectedVersion: '2025-01-19T09:55:00.000Z',
+          changedPaths: ['beds.R1.pathology'],
+          mutationId: 'mutation-already-applied',
+        },
       },
-    });
+      { authoringSession: captureAuthoringSession() }
+    );
 
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
     const { processSyncQueue } = await import('@/services/storage/sync');
@@ -412,7 +424,7 @@ describe('storage/sync pre-outbox guarantees', () => {
             mutationId: 'mutation-local-signals',
           },
         },
-        { deferProcessing: true }
+        { authoringSession: captureAuthoringSession(), deferProcessing: true }
       );
 
       expect(result).toMatchObject({ accepted: true, mode: 'created' });

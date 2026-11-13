@@ -224,7 +224,7 @@ export function usePatientSelection(): UsePatientSelectionReturn {
       globalPatientSearchLogger.warn(`Failed to load documents for ${compositeKey}`, err);
       setEpisodeDocuments(prev => ({
         ...prev,
-        [compositeKey]: { episodeKey: compositeKey, docs: [], isLoading: false },
+        [compositeKey]: { episodeKey: compositeKey, docs: [], isLoading: false, loadFailed: true },
       }));
     }
   }, []);

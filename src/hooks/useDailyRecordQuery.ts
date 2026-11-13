@@ -1,3 +1,4 @@
+import { isAuthoringSessionCurrent } from '@/services/storage/authoringSession';
 import { loadDailyRecordSavePersistence } from '@/hooks/useWarmDailyRecordSavePath';
 import { mutationOptions, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../config/queryClient';
@@ -204,16 +205,19 @@ export const useSaveDailyRecordMutation = () => {
         getDailyRecordQueryKey(newRecord.date)
       )?.record;
 
-      setDailyRecordQueryData(queryClient, newRecord.date, newRecord);
+      if (isAuthoringSessionCurrent(input.authoringSession))
+        setDailyRecordQueryData(queryClient, newRecord.date, newRecord);
 
       return { previousRecord };
     },
-    onError: (err, { record: newRecord }, context) => {
+    onError: (err, { record: newRecord, authoringSession }, context) => {
+      if (!isAuthoringSessionCurrent(authoringSession)) return;
       if (context?.previousRecord) {
         setDailyRecordQueryData(queryClient, newRecord.date, context.previousRecord);
       }
     },
     onSuccess: async (payload, input, context) => {
+      if (!isAuthoringSessionCurrent(input.authoringSession)) return;
       if (isDailyRecordWriteRejectedResult(payload.result)) {
         setDailyRecordQueryData(queryClient, payload.record.date, context?.previousRecord ?? null);
         return;
@@ -238,7 +242,8 @@ export const useSaveDailyRecordMutation = () => {
         confirmedRecord: payload.record,
       });
     },
-    onSettled: payload => {
+    onSettled: (payload, _error, input) => {
+      if (!isAuthoringSessionCurrent(input.authoringSession)) return;
       if (payload?.record) {
         invalidateDailyRecordQuery(queryClient, payload.record.date);
       }
