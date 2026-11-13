@@ -146,6 +146,20 @@ describe('catalog selection reaches durable daily staffing', () => {
         [`${role}DayShift`]: expect.arrayContaining(['Personal Sintético']),
       });
     });
+    it(`${role}: selecting a grouped variant persists the accented spelling`, async () => {
+      boundary.read.mockResolvedValue(['Ana Peña', 'Ana Pena']);
+      render(<Staffing role={role} />, { wrapper: createQueryClientTestWrapper().wrapper });
+      await screen.findByText('Lectura correcta');
+      revealNames();
+      const select = screen.getAllByRole('combobox')[0];
+      expect(select.querySelectorAll('option[value="Ana Peña"]')).toHaveLength(1);
+      expect(select.querySelector('option[value="Ana Pena"]')).toBeNull();
+      expect(pendingWrite).toBeUndefined();
+      boundary.enabled = false;
+      fireEvent.change(select, { target: { value: 'Ana Peña' } });
+      await pendingWrite;
+      expect((await hospitalDB.dailyRecords.get(date))?.[`${role}DayShift`]).toContain('Ana Peña');
+    });
     it(`${role}: failed read offers no placeholder and still permits removing assigned staff`, async () => {
       render(<Staffing role={role} />, { wrapper: createQueryClientTestWrapper().wrapper });
       await screen.findByText(/Lectura (fallida|correcta)/);
