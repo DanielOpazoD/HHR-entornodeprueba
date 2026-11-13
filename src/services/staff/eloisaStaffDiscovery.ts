@@ -1,7 +1,6 @@
-import { nurseIdentityKey } from './nurseIdentity';
+import { nurseIdentityKey, preferredStaffName, uniqueStaffNames } from './nurseIdentity';
 import {
   nursingRole,
-  uniqueStaffNames,
   staffNameMatches,
   type EloisaStaffIdentity,
   type StaffObservation,
@@ -27,7 +26,12 @@ export const mergeStaffRegistries = (
         ? {
             ...entry,
             ...known,
-            name: entry.name.length > known.name.length ? entry.name : known.name,
+            name:
+              nurseIdentityKey(entry.name) === nurseIdentityKey(known.name)
+                ? preferredStaffName(known.name, entry.name)
+                : entry.name.length > known.name.length
+                  ? entry.name
+                  : known.name,
             aliases: uniqueStaffNames([...known.aliases, ...entry.aliases, known.name, entry.name]),
           }
         : entry
@@ -73,7 +77,12 @@ export const mergeEloisaStaff = (
       ...previous,
       key,
       role,
-      name: previous && previous.name.length > name.length ? previous.name : name,
+      name:
+        previous && nurseIdentityKey(previous.name) === nurseIdentityKey(name)
+          ? preferredStaffName(previous.name, name)
+          : previous && previous.name.length > name.length
+            ? previous.name
+            : name,
       ...(practitionerId ? { practitionerId } : {}),
       aliases,
     });

@@ -1,4 +1,4 @@
-import { nurseIdentityKey } from './nurseIdentity';
+import { nurseIdentityKey, preferredStaffName } from './nurseIdentity';
 
 export type NursingRole = 'nurse' | 'tens';
 export interface StaffObservation {
@@ -24,9 +24,6 @@ export const nursingRole = (role: string): NursingRole | null =>
     : /enfermer/i.test(role)
       ? 'nurse'
       : null;
-export const uniqueStaffNames = (names: string[]) => [
-  ...new Map(names.map(name => [nurseIdentityKey(name), name])).values(),
-];
 export const staffNameMatches = (entry: EloisaStaffIdentity, name: string) =>
   [entry.name, ...entry.aliases].some(alias => nurseIdentityKey(alias) === nurseIdentityKey(name));
 
@@ -49,7 +46,14 @@ export const resolveEloisaStaffName = (
   entries: EloisaStaffIdentity[],
   role?: NursingRole | null,
   practitionerId?: string
-): string => resolveEloisaStaffIdentity(name, entries, role, practitionerId)?.name ?? name;
+): string => {
+  const resolved = resolveEloisaStaffIdentity(name, entries, role, practitionerId)?.name;
+  return resolved === undefined
+    ? name
+    : nurseIdentityKey(resolved) === nurseIdentityKey(name)
+      ? preferredStaffName(name, resolved)
+      : resolved;
+};
 
 /** A shown row and the exact saved texts it was built from (none for a name only Eloísa gives). */
 export interface StaffCatalogRow {
@@ -64,11 +68,14 @@ export const staffCatalogRows = (
   role: NursingRole
 ): StaffCatalogRow[] => {
   const rows = new Map<string, StaffCatalogRow>();
-  // Same grouping as uniqueStaffNames: first position, last name.
+  // Preserve the saved spelling on ties and keep exact texts for conflict detection.
   const place = (name: string, saved: string[]) => {
     const key = nurseIdentityKey(name);
     const row = rows.get(key);
-    rows.set(key, { name, saved: [...(row?.saved ?? []), ...saved] });
+    rows.set(key, {
+      name: row ? preferredStaffName(row.name, name) : name,
+      saved: [...(row?.saved ?? []), ...saved],
+    });
   };
   manual.forEach(name => place(resolveEloisaStaffName(name, entries, role), [name]));
   entries.filter(entry => entry.role === role).forEach(entry => place(entry.name, []));
