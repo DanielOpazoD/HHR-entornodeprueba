@@ -27,9 +27,10 @@ A client write is either published directly to Firestore or handed to a server c
 
 - **Deployment mode** — `resolveDailyRecordAuthorityMode`: `VITE_DAILY_RECORD_AUTHORITY_MODE`
   (`client_only` | `enforced`), else `VITE_DAILY_RECORD_AUTHORITY_CALLABLE=true` →
-  `enforced`, else `client_only`. `.env.example` uses `client_only` and notes that a release must
-  use `enforced`; the value each Netlify environment actually sets is not in the repo, so check it
-  before extrapolating a test to an environment. A retired `shadow` value is treated as
+  `enforced`, else `client_only`. `.env.example` uses `client_only`. Production publishes with the
+  flag unset and is `enforced` through the server policy below (measured 2026-11-12; see
+  [RUNBOOK_DAILY_RECORD_AUTHORITY_ROLLOUT.md](RUNBOOK_DAILY_RECORD_AUTHORITY_ROLLOUT.md)); the value
+  another environment sets is not in the repo, so check it before extrapolating a test to it. A retired `shadow` value is treated as
   undefined, falling back to the legacy flag or `client_only` before policy promotion.
 - **Server policy** — `resolveEffectiveDailyRecordAuthorityMode` uses the stronger of the
   deployment mode and `settings/rayenImportPolicy` (`schemaVersion: 2`, `clinicalBatchMode`). The
