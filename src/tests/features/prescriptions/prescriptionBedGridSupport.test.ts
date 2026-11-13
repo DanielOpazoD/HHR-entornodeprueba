@@ -303,3 +303,58 @@ describe('prescriptionBedGridSupport', () => {
     ).toBe(8);
   });
 });
+
+describe('prescription grid patient retention', () => {
+  it.each([false, true])('keeps current and discharged prescriptions, reversed=%s', reverse => {
+    const current = buildPrescription('current', { bedId: 'R2' });
+    const previous = buildPrescription('previous', {
+      bedId: 'R2',
+      patientName: 'Anterior Sintetico',
+      patientRut: '10.000.013-K',
+    });
+    const records = reverse ? [previous, current] : [current, previous];
+    const rows = buildBedRows(
+      buildDailyRecord({ R2: patient('R2', 'Paciente', '11.111.111-1') }),
+      records
+    );
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({ patientName: 'Paciente', patientRut: '11.111.111-1' });
+    expect(rows[0].byType.comun.map(record => record.id)).toEqual(['current']);
+    expect(rows[1].isDischargeSnapshot).toBe(true);
+    expect(rows[1].byType.comun.map(record => record.id)).toEqual(['previous']);
+  });
+
+  it.each(['11.111.111-2', 'P111111111'])(
+    'retains both prescriptions after document correction to %s',
+    corrected => {
+      const rows = buildBedRows(buildDailyRecord({ R2: patient('R2', 'Paciente', corrected) }), [
+        buildPrescription('before', { bedId: 'R2' }),
+        buildPrescription('after', { bedId: 'R2', patientRut: corrected }),
+      ]);
+      expect(countAssignedRecords(rows)).toBe(2);
+      expect(rows).toHaveLength(2);
+      expect(rows[0].byType.comun.map(record => record.id)).toEqual(['after']);
+      expect(rows[1].byType.comun.map(record => record.id)).toEqual(['before']);
+    }
+  );
+
+  it.each([true, false])('groups each previous person separately, documents=%s', withDocuments => {
+    const records = ['A', 'B', 'A'].map((name, index) =>
+      buildPrescription(String(index), {
+        bedId: 'R2',
+        patientName: name,
+        patientRut: withDocuments ? `P${name}123456` : 'SIN RUT',
+      })
+    );
+    const rows = buildBedRows(
+      buildDailyRecord({ R2: patient('R2', 'Actual Sintetico', '11.111.111-1') }),
+      records
+    );
+    expect(rows).toHaveLength(3);
+    expect(rows.slice(1).map(row => row.byType.comun.map(record => record.id))).toEqual([
+      ['0', '2'],
+      ['1'],
+    ]);
+    expect(countAssignedRecords(rows)).toBe(3);
+  });
+});
