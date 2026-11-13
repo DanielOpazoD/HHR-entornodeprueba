@@ -20,7 +20,10 @@ import {
 import { processSyncQueue } from '@/services/storage/sync';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import { resolveRecordBaseRevision } from '@/services/storage/sync/syncTaskContractPolicy';
-import { createDailyRecordWriteAuthorityFunctions } from '@/tests/functions/dailyRecordWriteAuthorityFunctions.test-support';
+import {
+  createDailyRecordWriteAuthorityFunctions,
+  makeCanonicalEmptyBed,
+} from '@/tests/functions/dailyRecordWriteAuthorityFunctions.test-support';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 
@@ -395,6 +398,64 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       );
     }
   }
+
+  // The same gap through the app: device B's census save reports a confirmed remote write while
+  // device A's simultaneous write of the same novedades is also accepted.
+  it.fails(
+    'handoff novedades: the app must not tell both simultaneous nurses «guardado»',
+    async () => {
+      await configure('production');
+      await hospitalDB.dailyRecords.put(baseRecord());
+      holdDirectWritesTogether();
+      const [other, observed] = await Promise.allSettled([
+        patch('A', { handoffNovedadesDayShift: 'NOVEDAD A' }),
+        actor('B', () =>
+          updatePartialDetailed(
+            date,
+            { handoffNovedadesDayShift: 'NOVEDAD B' },
+            { baseRecord: baseRecord() }
+          )
+        ),
+      ]);
+      expect(calls.direct).toBe(2);
+      const bothSaved =
+        other.status === 'fulfilled' &&
+        observed.status === 'fulfilled' &&
+        observed.value.updatedRemotely;
+      expect(bothSaved).toBe(false);
+    }
+  );
+
+  it('clearing a bed and editing its patient at once: the authority refuses one', async () => {
+    await configure('production');
+    const base = baseRecord();
+    const clear = actor('A', () =>
+      writes.updateRecordPartial(
+        date,
+        { 'beds.R1': makeCanonicalEmptyBed('R1') },
+        base.lastUpdated,
+        {
+          historyPolicy: 'skip',
+          intentionalBedClear: {
+            bedId: 'R1',
+            target: 'bed',
+            confirmedLastUpdated: base.lastUpdated,
+            confirmedOccupant: base.beds.R1,
+          },
+          syncContract: {
+            mutationId: 'synthetic-A-clear',
+            baseRevision: resolveRecordBaseRevision(base),
+            changedPaths: ['beds.R1'],
+          },
+        }
+      )
+    );
+    const results = await Promise.allSettled([clear, patch('B', { 'beds.R1.pathology': 'B' })]);
+    expect(calls).toMatchObject({ patch: 2, direct: 0 });
+    expect(results.filter(item => item.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter(item => item.status === 'rejected')).toHaveLength(1);
+    expect((await read()).beds.R1.pathology).toBe(results[0].status === 'fulfilled' ? '' : 'B');
+  });
 
   it('the device that loses a same-field bed edit keeps it as a conflict, never overwrites', async () => {
     await configure('production');
