@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UIProvider } from '@/context/UIContext';
 
@@ -444,4 +444,44 @@ describe('PrescriptionBedGridView', () => {
       expect(onDelete).toHaveBeenCalledWith(expect.objectContaining({ id: record.id }))
     );
   });
+});
+
+it('renders both people in one bed without duplicate React keys and counts one bed', async () => {
+  const daily = buildDailyRecord();
+  daily.beds.H1C2.patientName = 'Actual Sintetico';
+  daily.beds.H1C2.rut = '11.111.111-1';
+  vi.mocked(getRecordFromFirestore).mockResolvedValue(daily);
+  const errors = vi.spyOn(console, 'error');
+  try {
+    renderGrid(
+      <PrescriptionBedGridView
+        dayIso="2026-05-04"
+        records={[
+          buildRecord('current', {
+            assignmentScope: 'patient',
+            bedId: 'H1C2',
+            patientName: 'Actual Sintetico',
+            patientRut: '11.111.111-1',
+          }),
+          buildRecord('previous', {
+            assignmentScope: 'patient',
+            bedId: 'H1C2',
+            patientName: 'Anterior Sintetico',
+            patientRut: '10.000.013-K',
+          }),
+        ]}
+      />
+    );
+    const current = await screen.findByText('Actual Sintetico');
+    const previous = screen.getByText('Anterior Sintetico');
+    expect(within(current.closest('tr')!).getByLabelText('1 receta(s) comun')).toBeTruthy();
+    expect(within(previous.closest('tr')!).getByText('Egreso')).toBeTruthy();
+    expect(within(previous.closest('tr')!).getByLabelText('1 receta(s) comun')).toBeTruthy();
+    expect(screen.getByText('1 cama(s) · 2 receta(s) en vista')).toBeTruthy();
+    expect(errors.mock.calls.filter(call => /same key|unique.*key/i.test(call.join(' ')))).toEqual(
+      []
+    );
+  } finally {
+    errors.mockRestore();
+  }
 });
