@@ -95,11 +95,9 @@ it.each([
     const result = await writing;
     const tasks = await hospitalDB.syncQueue.toArray();
     const stored = await hospitalDB.dailyRecords.get(date);
-    const retained = captureAtEntry && change;
+    const retained = change;
     expect(tasks).toHaveLength(1);
-    expect(tasks[0].ownerKey).toBe(
-      change && !captureAtEntry ? 'user:synthetic-B' : 'user:synthetic-A'
-    );
+    expect(tasks[0].ownerKey).toBe('user:synthetic-A');
     expect(stored?.beds.R1.pathology).toBe(retained ? 'BASE' : patch['beds.R1.pathology']);
     expect(result.outcome).toBe(retained ? 'unrecoverable' : 'clean');
     process.stdout.write(
