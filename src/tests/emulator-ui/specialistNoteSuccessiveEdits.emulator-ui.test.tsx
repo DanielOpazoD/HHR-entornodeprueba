@@ -20,7 +20,7 @@ import {
 } from '@/hooks/controllers/dailyRecordQueryController';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { getTodayISO } from '@/utils/dateCoreUtils';
+import { resolveCurrentClinicalDay } from '@/utils/clinicalDayAdmissionUtils';
 import { MedicalHandoffDraftTextarea } from '@/features/handoff/components/MedicalHandoffDraftTextarea';
 import { buildMedicalEntryNoteFields } from '@/domain/handoff/patientEntryMutations';
 import {
@@ -92,7 +92,9 @@ vi.mock('@/firebaseConfig', () => ({
   mountConfigWarning: vi.fn(),
 }));
 
-const date = getTodayISO();
+// The server only lets a specialist write the current clinical day, which before the morning
+// rollover is still yesterday's date: the calendar day would fail every night.
+const date = resolveCurrentClinicalDay();
 const dayPath = `hospitals/hanga_roa/dailyRecords/${date}`;
 const projectId = 'demo-hhr-n4d-review';
 const owner = 'user:n4d';
