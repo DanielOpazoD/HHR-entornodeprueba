@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /* Synthetic-only: an unresolved handoff queue task vs. later ordinary writes on the same device and date. */
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -77,7 +78,7 @@ describe('poisoned day', () => {
             mutationId: 'm-A',
           },
         },
-        { deferProcessing: true }
+        { authoringSession: captureAuthoringSession(), deferProcessing: true }
       );
       const [task] = await hospitalDB.syncQueue.toArray();
       await hospitalDB.syncQueue.update(task.id!, { status });
@@ -92,7 +93,7 @@ describe('poisoned day', () => {
         result = await updatePartialDetailed(
           DATE,
           { 'beds.R5.pathology': 'Diagnóstico corregido C' },
-          { baseRecord: recB }
+          { authoringSession: captureAuthoringSession(), baseRecord: recB }
         );
       } catch (e) {
         error = e;

@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { describe, expect, it, vi } from 'vitest';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -21,9 +22,13 @@ describe('saveDailyRecordWithCompatibility', () => {
     const saveDetailed = vi.fn().mockResolvedValue(null);
     const repository = { saveDetailed } as unknown as DailyRecordRepositoryPort;
 
-    await saveDailyRecordWithCompatibility(repository, record, '2026-08-07T23:00:00.000Z');
+    await saveDailyRecordWithCompatibility(repository, record, '2026-08-07T23:00:00.000Z', {
+      authoringSession: captureAuthoringSession(),
+    });
 
-    expect(saveDetailed).toHaveBeenCalledWith(record, '2026-08-07T23:00:00.000Z');
+    expect(saveDetailed).toHaveBeenCalledWith(record, '2026-08-07T23:00:00.000Z', {
+      authoringSession: captureAuthoringSession(),
+    });
   });
 
   it('passes remote confirmation intent only for an explicit structural handoff', async () => {
@@ -31,10 +36,12 @@ describe('saveDailyRecordWithCompatibility', () => {
     const repository = { saveDetailed } as unknown as DailyRecordRepositoryPort;
 
     await saveDailyRecordWithCompatibility(repository, record, '2026-08-07T23:00:00.000Z', {
+      authoringSession: captureAuthoringSession(),
       requireConfirmedRecord: true,
     });
 
     expect(saveDetailed).toHaveBeenCalledWith(record, '2026-08-07T23:00:00.000Z', {
+      authoringSession: captureAuthoringSession(),
       requireConfirmedRecord: true,
     });
   });
@@ -44,11 +51,13 @@ describe('saveDailyRecordWithCompatibility', () => {
     const repository = { saveDetailed } as unknown as DailyRecordRepositoryPort;
 
     await saveDailyRecordWithCompatibility(repository, record, '2026-08-07T23:00:00.000Z', {
+      authoringSession: captureAuthoringSession(),
       requireConfirmedRecord: true,
       rayenStructuralWriteGuard: true,
     });
 
     expect(saveDetailed).toHaveBeenCalledWith(record, '2026-08-07T23:00:00.000Z', {
+      authoringSession: captureAuthoringSession(),
       requireConfirmedRecord: true,
       rayenStructuralWriteGuard: true,
     });
@@ -62,6 +71,7 @@ it.each(['saveDetailed', 'save'] as const)(
     const repository = { [method]: persist } as unknown as DailyRecordRepositoryPort;
     const baseRecord = { ...record, lastUpdated: '2026-08-07T23:00:00.000Z' };
     await persistDailyRecordSaveMutation(repository, {
+      authoringSession: captureAuthoringSession(),
       record,
       baseRecord,
       expectedLastUpdated: baseRecord.lastUpdated,

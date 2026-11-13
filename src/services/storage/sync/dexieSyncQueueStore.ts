@@ -209,30 +209,28 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
     const save = () => saveDailyRecordInOutbox(record, task, patchWrite, wholeRecordBase);
     type Written = Awaited<ReturnType<typeof save>> | 'retained_for_owner';
     // Checked in the transaction that writes: logout clears the days in one of its own.
-    const written: Written = authoringSession
-      ? await hospitalDB.transaction(
-          'rw',
-          hospitalDB.dailyRecords,
-          hospitalDB.syncQueue,
-          (): Promise<Written> =>
-            isAuthoringSessionCurrent(authoringSession)
-              ? save()
-              : retainForAuthor(
-                  task.type === 'UPDATE_DAILY_RECORD'
-                    ? foldWriteIntoOutbox({
-                        task,
-                        existing: null,
-                        stored: undefined,
-                        unresolved: [],
-                        rebase: undefined,
-                        wholeRecordBase,
-                        patchWrite,
-                      })
-                    : task,
-                  authoringSession
-                )
-        )
-      : await save();
+    const written: Written = await hospitalDB.transaction(
+      'rw',
+      hospitalDB.dailyRecords,
+      hospitalDB.syncQueue,
+      (): Promise<Written> =>
+        isAuthoringSessionCurrent(authoringSession)
+          ? save()
+          : retainForAuthor(
+              task.type === 'UPDATE_DAILY_RECORD'
+                ? foldWriteIntoOutbox({
+                    task,
+                    existing: null,
+                    stored: undefined,
+                    unresolved: [],
+                    rebase: undefined,
+                    wholeRecordBase,
+                    patchWrite,
+                  })
+                : task,
+              authoringSession
+            )
+    );
     if (written === 'retained_for_owner') return written;
     const { mode, persistedRecord } = written;
     const transaction = Dexie.currentTransaction;

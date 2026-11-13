@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
@@ -103,6 +104,7 @@ export const receipt = (record: RevisionRecord) => ({
 });
 export const save = (base: DailyRecord, intent = makeIntent()) =>
   updatePartialDetailed(date, patchFor(intent), {
+    authoringSession: captureAuthoringSession(),
     baseRecord: base,
     specialtyIntent: intent,
     requireAtomicCas: true,

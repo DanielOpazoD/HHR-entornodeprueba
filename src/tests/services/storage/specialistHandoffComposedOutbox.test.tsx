@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /**
  * Synthetic-only: the note sync unit (#1026) composed with the outbox compaction (#1024).
  * Each case observes the local projection, the queue and the remote day.
@@ -50,7 +51,10 @@ const writeDay = async (record: DailyRecord, patch: Record<string, unknown>) => 
   vi.mocked(shouldRouteSpecialistPatchViaCallable).mockResolvedValue(false);
   h.offline = true;
   try {
-    return await updatePartialDetailed(DATE, patch as DailyRecordPatch, { baseRecord: record });
+    return await updatePartialDetailed(DATE, patch as DailyRecordPatch, {
+      authoringSession: captureAuthoringSession(),
+      baseRecord: record,
+    });
   } finally {
     h.offline = false;
     vi.mocked(shouldRouteSpecialistPatchViaCallable).mockResolvedValue(true);

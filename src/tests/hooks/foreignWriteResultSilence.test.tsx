@@ -1,3 +1,4 @@
+import { authoredOptions } from '@/services/storage/authoringSession';
 import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import { renderHook, act, waitFor, cleanup } from '@testing-library/react';
 import type { ReactNode } from 'react';
@@ -164,8 +165,10 @@ async function runCase(outcome: string, change: boolean, whole: boolean) {
   });
   setDailyRecordQueryData(client, date, base);
   const repository = buildMockDailyRecordRepository();
-  repository.updatePartialDetailed = updatePartialDetailed;
-  repository.saveDetailed = saveDetailed;
+  repository.updatePartialDetailed = (first, second, options) =>
+    updatePartialDetailed(first, second, authoredOptions(options ?? {}));
+  repository.saveDetailed = (first, second, options) =>
+    saveDetailed(first, second, authoredOptions(options ?? {}));
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>
       <RepositoryProvider value={createRepositoryContainer({ dailyRecord: repository })}>

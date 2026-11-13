@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -80,6 +81,7 @@ const enqueueA = () =>
     editA(),
     { contexts: ['staffing'], origin: 'direct_queue', syncContract: contractA() },
     {
+      authoringSession: captureAuthoringSession(),
       deferProcessing: true,
       holdForMs: 60_000,
       preOutboxHoldOwner: 'synthetic-c1-tab',
@@ -96,6 +98,7 @@ const recover = async (
   let sent: SyncTask | undefined;
   const state = createRemoteWriteState();
   const result = await persistLocalAndAttemptRemoteSync({
+    authoringSession: captureAuthoringSession(),
     date,
     record: editA(),
     changedPaths: ['*'],
@@ -248,7 +251,11 @@ describe('durable daily record retry identity', () => {
             changedPaths: ['*'],
           }),
         },
-        { deferProcessing: true, wholeRecordBase: editA() }
+        {
+          authoringSession: captureAuthoringSession(),
+          deferProcessing: true,
+          wholeRecordBase: editA(),
+        }
       )
     ).toMatchObject({ accepted: true });
     const pending = await onlyTask();

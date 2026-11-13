@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /* Synthetic only: a closed session's unsent work must stop competing for the day and the queue. */
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -217,7 +218,10 @@ describe('the queue after a session closes with unsent day work', () => {
             expectedVersion: serverDay.lastUpdated,
             mutationId: 'synthetic-new-edit',
           },
-        })
+        }),
+        undefined,
+        undefined,
+        captureAuthoringSession()
       );
 
       expect(await hospitalDB.syncQueue.get(id)).toEqual({ ...before, projectionReleased: true });
@@ -239,7 +243,7 @@ describe('the queue after a session closes with unsent day work', () => {
           changedPaths: ['*'],
         },
       },
-      { deferProcessing: true }
+      { authoringSession: captureAuthoringSession(), deferProcessing: true }
     );
 
     expect(result.mode).toBe('created');
@@ -260,7 +264,7 @@ describe('the queue after a session closes with unsent day work', () => {
     const result = await engine.queueDailyRecordTaskWithLocalRecord(
       serverDay,
       { origin: 'direct_queue', syncContract: { mutationId: 'synthetic-new-edit' } },
-      { deferProcessing: true }
+      { authoringSession: captureAuthoringSession(), deferProcessing: true }
     );
 
     expect(result).toMatchObject({ accepted: false, mode: 'rejected_backpressure' });

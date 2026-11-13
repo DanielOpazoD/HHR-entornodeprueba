@@ -256,14 +256,14 @@ export const persistLocalAndAttemptRemoteSync = async ({
    * Fail-closed path for guarded writes: commit the atomic remote authority check before touching
    * IndexedDB, and never enqueue a rejected stale writer for later replay.
    */
-  authoringSession?: AuthoringSession;
+  authoringSession: AuthoringSession;
   remoteAuthorityFirst?: boolean;
   allowOfflineQueue?: boolean;
 }): Promise<'continue' | 'return'> => {
   if (remoteAuthorityFirst) {
     const sessionChanged = new Error('La sesión cambió antes de enviar la escritura.');
     const assertAuthor = () => {
-      if (authoringSession && !isAuthoringSessionCurrent(authoringSession)) throw sessionChanged;
+      if (!isAuthoringSessionCurrent(authoringSession)) throw sessionChanged;
     };
     const rejectForeignWrite = async (): Promise<'return'> => {
       const retained =
@@ -295,8 +295,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
       });
       return 'return';
     };
-    if (authoringSession && !isAuthoringSessionCurrent(authoringSession))
-      return rejectForeignWrite();
+    if (!isAuthoringSessionCurrent(authoringSession)) return rejectForeignWrite();
     if (
       !isFirestoreEnabled() &&
       (!allowOfflineQueue || getFirestoreSyncState().reason !== 'offline')
@@ -502,6 +501,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
       record,
       changedPaths,
       err,
+      authoringSession,
       expectedVersion,
       allowConflictAutoMerge,
       Boolean(queueLocalBeforeRemote)

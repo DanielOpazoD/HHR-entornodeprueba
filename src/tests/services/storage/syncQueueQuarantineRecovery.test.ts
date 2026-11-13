@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { afterEach, describe, it, expect, beforeEach, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
@@ -127,7 +128,11 @@ describe('storage/sync cuarentena y recuperación', () => {
     // The quarantined write still holds the stored day, as it does in use.
     await hospitalDB.dailyRecords.put(makeRecord('2025-02-03', 'v1'));
 
-    const result = await queueDailyRecordSyncTaskWithLocalRecord(makeRecord('2025-02-03', 'v2'));
+    const result = await queueDailyRecordSyncTaskWithLocalRecord(
+      makeRecord('2025-02-03', 'v2'),
+      undefined,
+      { authoringSession: captureAuthoringSession() }
+    );
 
     expect(result).toMatchObject({ accepted: true, mode: 'reused' });
     const tasks = await hospitalDB.syncQueue.toArray();

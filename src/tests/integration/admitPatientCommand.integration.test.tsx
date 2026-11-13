@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /**
  * End-to-end integration test for the admit-patient command pipeline.
  *
@@ -101,13 +102,17 @@ describe('admitPatientCommand integration (hook → port → repository)', () =>
 
     // Repository receives the bed-scoped patch with all admission fields
     expect(updatePartialMock).toHaveBeenCalledTimes(1);
-    expect(updatePartialMock).toHaveBeenCalledWith('2026-05-03', {
-      'beds.H5C1.patientName': 'Paciente Demo',
-      'beds.H5C1.rut': '11.111.111-1',
-      'beds.H5C1.admissionDate': '2026-05-03',
-      'beds.H5C1.pathology': 'Diagnóstico demo',
-      'beds.H5C1.clinicalEpisodeId': expect.stringMatching(/^ep_/),
-    });
+    expect(updatePartialMock).toHaveBeenCalledWith(
+      '2026-05-03',
+      {
+        'beds.H5C1.patientName': 'Paciente Demo',
+        'beds.H5C1.rut': '11.111.111-1',
+        'beds.H5C1.admissionDate': '2026-05-03',
+        'beds.H5C1.pathology': 'Diagnóstico demo',
+        'beds.H5C1.clinicalEpisodeId': expect.stringMatching(/^ep_/),
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     // Audit emitted with the authenticated email as actor
     expect(executeWriteAuditEventMock).toHaveBeenCalledTimes(1);

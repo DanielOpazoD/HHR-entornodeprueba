@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { beforeEach, afterEach, it, expect, vi } from 'vitest';
 import { A, day, clone, harnessState } from './specialistHandoffOutboxHarness';
@@ -245,7 +246,7 @@ for (const path of ['S', 'E', 'P'] as const)
     const result = await updatePartialDetailed(
       DATE,
       { nursesDayShift: ['Offline after logout'] },
-      { baseRecord: r!.record! }
+      { authoringSession: captureAuthoringSession(), baseRecord: r!.record! }
     );
     expect(result.savedLocally).toBe(true);
     expect(await hospitalDB.dailyRecords.count()).toBe(1);

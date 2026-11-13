@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -108,7 +109,7 @@ describe('a direct write acknowledges only its own edit', () => {
     const offlineEdit = await updatePartialDetailed(
       date,
       { nursesDayShift: ['SINTETICA SIN RED'] },
-      { baseRecord: baseRecord() }
+      { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
     );
     expect(offlineEdit.savedLocally).toBe(true);
     expect(remote.record?.nursesDayShift).toEqual(['SINTETICA BASE']);
@@ -117,7 +118,7 @@ describe('a direct write acknowledges only its own edit', () => {
     await updatePartialDetailed(
       date,
       { tensDayShift: ['SINTETICO CON RED'] },
-      { baseRecord: await localRecord() }
+      { authoringSession: captureAuthoringSession(), baseRecord: await localRecord() }
     );
 
     expect(remote.record?.tensDayShift).toEqual(['SINTETICO CON RED']);
@@ -133,14 +134,14 @@ describe('a direct write acknowledges only its own edit', () => {
     await updatePartialDetailed(
       date,
       { nursesDayShift: ['SINTETICA OTRA PESTANA'] },
-      { baseRecord: baseRecord() }
+      { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
     );
     remote.enabled = true;
     vi.setSystemTime(new Date('2026-10-24T13:00:00.000Z'));
     await updatePartialDetailed(
       date,
       { tensDayShift: ['SINTETICO ESTA PESTANA'] },
-      { baseRecord: baseRecord() }
+      { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
     );
 
     expect((await localRecord()).nursesDayShift).toEqual(['SINTETICA OTRA PESTANA']);
@@ -153,7 +154,7 @@ describe('a direct write acknowledges only its own edit', () => {
     const result = await updatePartialDetailed(
       date,
       { tensDayShift: ['SINTETICO UNICO'] },
-      { baseRecord: baseRecord() }
+      { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
     );
 
     expect(result.savedLocally).toBe(true);

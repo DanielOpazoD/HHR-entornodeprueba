@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
@@ -54,7 +55,11 @@ const startSave = async () => {
   const { result } = renderHook(() => useSaveDailyRecordMutation(), { wrapper });
   let pending!: ReturnType<typeof result.current.mutateAsync>;
   await act(async () => {
-    pending = result.current.mutateAsync({ record: record(), rayenStructuralWriteGuard: true });
+    pending = result.current.mutateAsync({
+      authoringSession: captureAuthoringSession(),
+      record: record(),
+      rayenStructuralWriteGuard: true,
+    });
     await entered.promise;
   });
   const finish = async (confirmedRecord: DailyRecord, localProjectionRecord?: DailyRecord) => {
