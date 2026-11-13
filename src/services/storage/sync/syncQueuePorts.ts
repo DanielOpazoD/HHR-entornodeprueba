@@ -62,9 +62,9 @@ export interface SyncQueueStorePort {
   saveDailyRecordWithTask(
     record: DailyRecord,
     task: SyncTask,
-    patchWrite?: DailyRecordPatchWrite,
-    wholeRecordBase?: DailyRecord,
-    authoringSession?: AuthoringSession
+    patchWrite: DailyRecordPatchWrite | undefined,
+    wholeRecordBase: DailyRecord | undefined,
+    authoringSession: AuthoringSession
   ): Promise<SyncQueueTaskWriteMode>;
   /** Atomically replace an existing pending daily-record task; never creates a second task. */
   replacePendingDailyRecordWithTask?(

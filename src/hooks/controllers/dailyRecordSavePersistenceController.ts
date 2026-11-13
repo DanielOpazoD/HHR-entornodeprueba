@@ -8,16 +8,12 @@ export const saveDailyRecordWithCompatibility = async (
   dailyRecord: DailyRecordRepositoryPort,
   record: DailyRecord,
   expectedLastUpdated: string = record.lastUpdated,
-  options?: SaveDailyRecordOptions
+  options: SaveDailyRecordOptions
 ): Promise<SaveDailyRecordResult | null> => {
   if (typeof dailyRecord.saveDetailed === 'function') {
-    return options
-      ? dailyRecord.saveDetailed(record, expectedLastUpdated, options)
-      : dailyRecord.saveDetailed(record, expectedLastUpdated);
+    return dailyRecord.saveDetailed(record, expectedLastUpdated, options);
   }
-
-  if (options) await dailyRecord.save(record, expectedLastUpdated, options);
-  else await dailyRecord.save(record, expectedLastUpdated);
+  await dailyRecord.save(record, expectedLastUpdated, options);
   return null;
 };
 
@@ -25,34 +21,7 @@ export const persistDailyRecordSaveMutation = async (
   dailyRecord: DailyRecordRepositoryPort,
   input: SaveDailyRecordMutationInput
 ) => {
-  const {
-    record,
-    baseRecord,
-    expectedLastUpdated,
-    requireConfirmedRecord,
-    rayenStructuralWriteGuard,
-    dailyRecordWriteLease,
-    authoringSession,
-  } = input;
-  const options =
-    baseRecord ||
-    requireConfirmedRecord ||
-    rayenStructuralWriteGuard ||
-    dailyRecordWriteLease ||
-    authoringSession
-      ? {
-          baseRecord,
-          requireConfirmedRecord,
-          rayenStructuralWriteGuard,
-          dailyRecordWriteLease,
-          authoringSession,
-        }
-      : undefined;
-  const result = await saveDailyRecordWithCompatibility(
-    dailyRecord,
-    record,
-    expectedLastUpdated,
-    options
-  );
+  const { record, expectedLastUpdated: version, ...options } = input;
+  const result = await saveDailyRecordWithCompatibility(dailyRecord, record, version, options);
   return { record: result?.confirmedRecord ?? record, result };
 };

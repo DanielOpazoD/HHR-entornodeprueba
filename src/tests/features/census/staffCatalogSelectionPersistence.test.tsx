@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -43,7 +44,7 @@ const record: DailyRecord = {
 };
 let pendingWrite: Promise<void> | undefined;
 const persistPatch = (patch: DailyRecordPatch) => {
-  pendingWrite = updatePartial(date, patch);
+  pendingWrite = updatePartial(date, patch, { authoringSession: captureAuthoringSession() });
   return pendingWrite;
 };
 function Staffing({ role }: { role: 'nurses' | 'tens' }) {

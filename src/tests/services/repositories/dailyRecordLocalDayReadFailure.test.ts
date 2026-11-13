@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -104,7 +105,10 @@ describe('a local day that could not be read is unknown, never absent', () => {
       failNextDayReads(1);
 
       await expect(
-        saveDetailed(changedAdmission(), pendingVersion, { baseRecord: pending() })
+        saveDetailed(changedAdmission(), pendingVersion, {
+          authoringSession: captureAuthoringSession(),
+          baseRecord: pending(),
+        })
       ).rejects.toBe(readFailure);
 
       // The pending edit stays as it was, and nothing new is queued as if it were saved.
@@ -116,6 +120,7 @@ describe('a local day that could not be read is unknown, never absent', () => {
       await storePendingDay(pending());
 
       const result = await saveDetailed(changedAdmission(), pendingVersion, {
+        authoringSession: captureAuthoringSession(),
         baseRecord: pending(),
       });
 
@@ -124,7 +129,9 @@ describe('a local day that could not be read is unknown, never absent', () => {
     });
 
     it('keeps validating a day that really is absent by its admission window', async () => {
-      const result = await saveDetailed(changedAdmission(), pendingVersion);
+      const result = await saveDetailed(changedAdmission(), pendingVersion, {
+        authoringSession: captureAuthoringSession(),
+      });
 
       expect(result).toMatchObject({ savedLocally: true });
       expect((await hospitalDB.dailyRecords.get(date))?.beds.R1.admissionDate).toBe('2026-10-21');

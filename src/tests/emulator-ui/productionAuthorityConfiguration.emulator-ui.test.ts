@@ -6,6 +6,7 @@ import { initializeApp, deleteApp, type App } from 'firebase-admin/app';
 import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { getTodayISO } from '@/utils/dateCoreUtils';
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import * as writes from '@/services/storage/firestore/firestoreRecordWrites';
 import * as guards from '@/services/storage/firestore/firestoreWriteSupport';
@@ -413,7 +414,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
           updatePartialDetailed(
             date,
             { handoffNovedadesDayShift: 'NOVEDAD B' },
-            { baseRecord: baseRecord() }
+            { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
           )
         ),
       ]);
@@ -462,7 +463,11 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     await hospitalDB.dailyRecords.put(baseRecord());
     await patch('A', { 'beds.R1.pathology': 'A' });
     const result = await actor('B', () =>
-      updatePartialDetailed(date, { 'beds.R1.pathology': 'B' }, { baseRecord: baseRecord() })
+      updatePartialDetailed(
+        date,
+        { 'beds.R1.pathology': 'B' },
+        { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
+      )
     );
     expect(result).toMatchObject({ savedLocally: true, updatedRemotely: false });
     await settleQueue();
@@ -481,7 +486,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       updatePartialDetailed(
         date,
         { 'beds.R1.pathology': 'B OFFLINE' },
-        { baseRecord: baseRecord() }
+        { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
       )
     );
     expect(offline).toMatchObject({ savedLocally: true, updatedRemotely: false });
@@ -502,7 +507,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       updatePartialDetailed(
         date,
         { 'beds.R1.pathology': 'B OFFLINE' },
-        { baseRecord: baseRecord() }
+        { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
       )
     );
     await patch('A', { 'beds.R1.pathology': 'A ONLINE' });
@@ -527,7 +532,11 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       countDirectWrites();
       await hospitalDB.dailyRecords.put(baseRecord());
       const result = await actor('B', () =>
-        updatePartialDetailed(date, { 'beds.R1.pathology': 'B' }, { baseRecord: baseRecord() })
+        updatePartialDetailed(
+          date,
+          { 'beds.R1.pathology': 'B' },
+          { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
+        )
       );
       expect(calls.direct).toBeGreaterThan(0);
       expect(calls.patch).toBe(1);

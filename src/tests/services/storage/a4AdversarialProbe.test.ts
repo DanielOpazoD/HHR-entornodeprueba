@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { QueryClient } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -307,7 +308,7 @@ for (const path of ['suscripción', 'E', 'rango', 'mantenimiento', 'A'] as const
             Object.fromEntries(
               Object.entries(fields).map(([k, v]) => ['beds.R4.clinicalCrib.' + k, v])
             ) as DailyRecordPatch,
-            { baseRecord: remote }
+            { authoringSession: captureAuthoringSession(), baseRecord: remote }
           );
           h.offline = false;
           if (scenario === 'otherRN') remote.beds.R4.clinicalCrib!.clinicalEpisodeId = 'rn2';

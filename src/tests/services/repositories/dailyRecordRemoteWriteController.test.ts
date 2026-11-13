@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { VersionMismatchError } from '@/utils/integrityGuard';
@@ -99,7 +100,8 @@ describe('dailyRecordRemoteWriteController', () => {
       '2026-04-16',
       buildRecord('2026-04-16', '2026-04-16T12:00:00.000Z'),
       ['beds.R1.patientName'],
-      new Error('network down')
+      new Error('network down'),
+      captureAuthoringSession()
     );
 
     expect(result.status).toBe('queued_for_retry');
@@ -107,7 +109,8 @@ describe('dailyRecordRemoteWriteController', () => {
       expect.objectContaining({ date: '2026-04-16' }),
       expect.objectContaining({
         origin: 'partial_update_retry',
-      })
+      }),
+      { authoringSession: captureAuthoringSession() }
     );
   });
 
@@ -119,6 +122,7 @@ describe('dailyRecordRemoteWriteController', () => {
       buildRecord('2026-04-16', '2026-04-16T12:00:00.000Z'),
       ['*'],
       new Error('network down'),
+      captureAuthoringSession(),
       '2026-04-16T11:00:00.000Z',
       true,
       true
@@ -151,6 +155,7 @@ describe('dailyRecordRemoteWriteController', () => {
       buildRecord('2026-04-16', '2026-04-16T12:00:00.000Z'),
       ['*'],
       error,
+      captureAuthoringSession(),
       undefined,
       false,
       true

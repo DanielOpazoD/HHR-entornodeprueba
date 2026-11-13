@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import {
   recoverCudyrArchivesAfterClinicalSync,
   isCurrentRayenClinicalRun,
@@ -104,6 +105,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
       baseRecord: DailyRecord
     ) =>
       saveDailyRecordMutation({
+        authoringSession: captureAuthoringSession(),
         record,
         baseRecord,
         expectedLastUpdated,

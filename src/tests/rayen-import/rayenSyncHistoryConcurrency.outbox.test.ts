@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -34,7 +35,11 @@ const record = (history: RayenSyncEvent[]): DailyRecord => ({
   rayenSyncHistory: history,
 });
 const write = (baseRecord: DailyRecord, history: RayenSyncEvent[]) =>
-  updatePartialDetailed(date, { rayenSyncHistory: history }, { baseRecord });
+  updatePartialDetailed(
+    date,
+    { rayenSyncHistory: history },
+    { authoringSession: captureAuthoringSession(), baseRecord }
+  );
 const readHistory = async () => {
   const stored = await hospitalDB.dailyRecords.get(date);
   const tasks = await hospitalDB.syncQueue.toArray();
@@ -95,10 +100,14 @@ describe('Rayen history rebase against the writer base', () => {
       const before = await hospitalDB.syncQueue.toArray();
 
       await expect(
-        queueDailyRecordSyncTaskWithLocalRecord(record([event('R2', 'failed'), event('R1')]), {
-          origin,
-          syncContract: { changedPaths: ['rayenSyncHistory'] },
-        })
+        queueDailyRecordSyncTaskWithLocalRecord(
+          record([event('R2', 'failed'), event('R1')]),
+          {
+            origin,
+            syncContract: { changedPaths: ['rayenSyncHistory'] },
+          },
+          { authoringSession: captureAuthoringSession() }
+        )
       ).rejects.toBeInstanceOf(ConcurrencyError);
       expect(await readHistory()).toEqual([event('R1', 'failed')]);
       expect(await hospitalDB.syncQueue.toArray()).toEqual(before);
@@ -137,7 +146,11 @@ describe('Rayen terminal hooks with another stale run in their history', () => {
     const patchDailyRecord: Parameters<typeof useRayenSyncAudit>[0]['patchDailyRecord'] = ({
       partial,
       options,
-    }) => updatePartialDetailed(date, partial, options);
+    }) =>
+      updatePartialDetailed(date, partial, {
+        ...options,
+        authoringSession: captureAuthoringSession(),
+      });
     const hook = renderHook(() =>
       useRayenSyncAudit({
         currentRecordRef: { current: base },

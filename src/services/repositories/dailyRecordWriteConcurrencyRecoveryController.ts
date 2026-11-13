@@ -1,3 +1,4 @@
+import type { AuthoringSession } from '@/services/storage/authoringSession';
 import { attemptConflictAutoMergeRecovery } from '@/services/repositories/dailyRecordConflictAutoMergeController';
 import type { DailyRecordConflictSummary } from '@/services/repositories/contracts/dailyRecordConsistency';
 import type { RemoteWriteRecoveryResult } from '@/services/repositories/contracts/dailyRecordWriteRecoveryResult';
@@ -18,6 +19,7 @@ export const resolveConcurrencyRemoteWriteRecovery = async (
   changedPaths: string[],
   error: unknown,
   buildConflictSummary: ConflictSummaryBuilder,
+  authoringSession: AuthoringSession,
   allowAutoMerge: boolean = true
 ): Promise<RemoteWriteRecoveryResult> => {
   if (!allowAutoMerge) {
@@ -33,7 +35,12 @@ export const resolveConcurrencyRemoteWriteRecovery = async (
     });
   }
 
-  const mergeResult = await attemptConflictAutoMergeRecovery(date, record, changedPaths);
+  const mergeResult = await attemptConflictAutoMergeRecovery(
+    date,
+    record,
+    changedPaths,
+    authoringSession
+  );
   if (mergeResult.status === 'auto_merged') {
     return buildAutoMergedRecoveryResult(
       buildConflictSummary(

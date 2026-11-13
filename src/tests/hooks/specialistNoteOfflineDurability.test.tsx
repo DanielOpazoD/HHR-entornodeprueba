@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 /* @flake-safe: Synthetic current-day record; no production Firebase configuration. */
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
@@ -165,6 +166,7 @@ it('rejects a stale tab after another tab accepted a different note', async () =
       ).map(([key, value]) => [`beds.R4.${key}`, value])
     ) as DailyRecordPatch;
   await defaultDailyRecordRepositoryPort.updatePartialDetailed(date, patchFor('OTRA PESTAÑA'), {
+    authoringSession: captureAuthoringSession(),
     baseRecord: visible,
   });
   await act(async () => {

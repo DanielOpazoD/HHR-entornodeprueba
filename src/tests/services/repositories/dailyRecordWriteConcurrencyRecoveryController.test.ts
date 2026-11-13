@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { resolveConcurrencyRemoteWriteRecovery } from '@/services/repositories/dailyRecordWriteConcurrencyRecoveryController';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -39,7 +40,8 @@ describe('dailyRecordWriteConcurrencyRecoveryController', () => {
         localTimestamp: '2026-04-15T10:00:00.000Z',
         changedPaths: ['*'],
         message,
-      })
+      }),
+      captureAuthoringSession()
     );
 
     expect(result.status).toBe('auto_merged');
@@ -62,7 +64,8 @@ describe('dailyRecordWriteConcurrencyRecoveryController', () => {
         localTimestamp: '2026-04-15T10:00:00.000Z',
         changedPaths: ['beds.R1.patientName'],
         message,
-      })
+      }),
+      captureAuthoringSession()
     );
 
     expect(result.status).toBe('throw');
@@ -85,6 +88,7 @@ describe('dailyRecordWriteConcurrencyRecoveryController', () => {
         changedPaths: ['discharges', 'cma'],
         message,
       }),
+      captureAuthoringSession(),
       false
     );
 
