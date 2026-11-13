@@ -32,7 +32,7 @@ El script `scripts/lib/firebase-emulator-ci.sh:ensure_java_available` intenta es
 
 ## Correr el paquete completo de E2E críticos
 
-Lanza los 7 specs emulator-críticos + el flow-performance spec en un solo run. ~3-6 min total. Limpia el emulador al salir.
+Compila la app y lanza en serie los specs emulator-críticos (los que lista `test:e2e:critical` en `package.json`: 20 al 13-11-2026) + el flow-performance spec en un solo run. Limpia el emulador al salir. En CI esos mismos specs se reparten en tres carriles (`scripts/criticalE2ELanes.mjs`); para correr solo uno, pasa su nombre como argumento.
 
 ```bash
 bash scripts/run-e2e-critical-emulator-ci.sh
