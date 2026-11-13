@@ -95,7 +95,7 @@ describe('history passport isolation', () => {
 
   for (const exact of [false, true]) {
     it.each(pairs)(
-      `does not enrich passport %s using RUN %s (exact=${exact})`,
+      `never looks passport %s up by the digits of RUN %s (own census episode=${exact})`,
       async (passport, run) => {
         const h = dependencies(run);
         const result = await enrichReportOnlyDischarges([row(passport)], '2024-09-21', {
@@ -114,9 +114,26 @@ describe('history passport isolation', () => {
               }
             : {}),
         });
-        // Never looked up by its digits, and still waiting for review.
-        expect(result).toEqual([{ ...row(passport), exactEpisodeVerification: 'unverified' }]);
-        expect(h.lookupEgresos).not.toHaveBeenCalled();
+        if (exact) {
+          // The census's own episode for this person is asked by episode, as before. The
+          // statistical report of the seven-digit pair does not confirm it, as before too.
+          expect(result).toEqual([
+            passport === '12A3456785'
+              ? expect.objectContaining({
+                  run: passport,
+                  encounterId: '900001',
+                  exactEpisodeVerification: 'verified',
+                })
+              : { ...row(passport), exactEpisodeVerification: 'unverified' },
+          ]);
+          expect(h.lookupEgresos.mock.calls.flat(2)).toEqual([
+            expect.objectContaining({ run: passport, encounterId: '900001' }),
+          ]);
+        } else {
+          // Never looked up by its digits, and still waiting for review.
+          expect(result).toEqual([{ ...row(passport), exactEpisodeVerification: 'unverified' }]);
+          expect(h.lookupEgresos).not.toHaveBeenCalled();
+        }
       }
     );
   }
@@ -201,6 +218,18 @@ describe('crib association already distinguishes foreign letters on main', () =>
       else expect(result[1].maternalAssociationConflict).toBe('unmatched');
     }
   );
+});
+
+describe('rows that never needed the review mark', () => {
+  it.each([
+    ['already carries its exact episode', { encounterId: '900001' }],
+    ['belongs to pavilion recovery', { bedLabel: 'PR1' }],
+  ])('leaves a middle-letter row untouched when it %s', async (_label, overrides) => {
+    const untouched = { ...row('12A3456785'), ...overrides };
+    const h = dependencies('12.345.678-5');
+    expect(await enrichReportOnlyDischarges([untouched], '2024-09-21', h)).toEqual([untouched]);
+    expect(h.lookupEgresos).not.toHaveBeenCalled();
+  });
 });
 
 describe('a report row whose document has a letter in the middle, once applied', () => {

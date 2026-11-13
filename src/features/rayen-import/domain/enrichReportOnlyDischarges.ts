@@ -111,7 +111,9 @@ const enrichFromGestionCamas = async (
   );
   const exactCandidateByRow = new Map<EgresoReportRow, PreviousCensusEgresoCandidate>();
   for (const row of rows) {
-    if (isPassportFormat(row.run) || hasNonRutLetter(row.run)) continue;
+    // The census's own episode for this person (digits, name and day) is asked by episode, not
+    // by digits: a document with a letter in the middle keeps this route.
+    if (isPassportFormat(row.run)) continue;
     const identity = previousCensusEgresoRowIdentity(row);
     const candidate = exactCandidatesByIdentity.get(identity);
     if (candidate && !row.encounterId && !dependencies.alreadyApplied?.(row, candidate)) {
@@ -135,8 +137,8 @@ const enrichFromGestionCamas = async (
   const enrichedByKey = new Map<string, EgresoReportRow>();
   const enrichedByRow = new Map<EgresoReportRow, EgresoReportRow>();
   // A letter in the middle or at the end (other than the final K) makes the document a passport,
-  // so its digits never query a RUN. Without an exact episode it still waits for review, as it
-  // did when that query found nothing: only a document that starts as a passport follows the
+  // so its digits never query a RUN. Unless the census's own episode confirms the discharge, it
+  // waits for review: only a document that starts as a passport follows the
   // discharge-by-document policy.
   const needsReviewAsForeignLetterDocument = (row: EgresoReportRow): boolean =>
     !row.encounterId &&
