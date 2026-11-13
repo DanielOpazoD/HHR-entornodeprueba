@@ -78,6 +78,8 @@ describe('a stored patient keeps its document when the same episode arrives with
   it.each([
     ['12A3456785', '12.345.678-5'],
     ['1234567A', '123.456-7'],
+    // The earlier mapper kept an inner K among the digits.
+    ['12K3456785', '12K.345.678-5'],
   ])('incoming %j leaves the stored RUT %j untouched', (run, storedRut) => {
     const source = passportSource(run);
     const stored: PatientData = {

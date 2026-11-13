@@ -69,11 +69,12 @@ export const diffSyncablePatientFields = (
     matchesCensusEpisodeIdentity(current, incoming) &&
     normalizePatientRut(current.rut) === normalizePatientRut(incoming.rut);
   // Letters make a source document a passport from new cases on (owner, 2026-11-12). A value the
-  // mapper read as a RUT until then (no leading letter, no two letters in a row) leaves the RUT
-  // stored with its digits for this episode as it is. Passport formats keep their earlier repair.
+  // mapper read as a RUT until then (no leading letter, no two letters in a row) leaves the
+  // document stored for this episode as it is, also when it kept an inner K. Passport formats keep
+  // their earlier repair.
   const preserveStoredRut =
     Boolean(normalizeRut(current.rut)) &&
-    !hasNonRutLetter(current.rut ?? '') &&
+    (!hasNonRutLetter(current.rut ?? '') || current.documentType !== 'Pasaporte') &&
     hasNonRutLetter(incoming.rut ?? '') &&
     !isPassportFormat(incoming.rut ?? '') &&
     matchesCensusEpisodeIdentity(current, incoming) &&
