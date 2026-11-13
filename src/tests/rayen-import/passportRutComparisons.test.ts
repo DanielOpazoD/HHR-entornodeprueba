@@ -96,12 +96,22 @@ describe('passport digits never identify another person by RUN', () => {
     expect(saved.rut).toBe('12.345.678-5');
     expect(saved.neonatalPlacementDecision?.maternalRut).toBeUndefined();
   });
-  it.each(['1234567A', '  P123456785  ', '  12345678K  '])(
-    'preserves invalid RUN text for correction: %s',
+  it.each(['1234567A', '  P123456785  ', ' p123456785 ', '12A45678-5'])(
+    'keeps the letters of a value that is not a RUN: %s',
     value => {
-      expect(formatRun(value)).toBe(value.trim());
+      expect(formatRun(value)).toBe(value.trim().toUpperCase());
     }
   );
+  it.each([
+    ['123456785', '12.345.678-5'],
+    ['12.345.678-5', '12.345.678-5'],
+    ['10000013k', '10.000.013-K'],
+    // A mistyped check digit is still a RUN-shaped value: formatted as before, never as a passport.
+    ['123456789', '12.345.678-9'],
+    ['7', '7'],
+  ])('formats the digits-only RUN %s as before', (value, formatted) => {
+    expect(formatRun(value)).toBe(formatted);
+  });
   it('preserves valid RUN formatting and maternal lookup', () => {
     const parent = { ...mother(), run: '123456785' };
     const rn = child();

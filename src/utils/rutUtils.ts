@@ -52,14 +52,20 @@ export const calculateRutVerifier = (rutBody: string): string => {
 };
 
 /**
+ * A letter other than the K check digit (the last letter or digit of the value; spaces or
+ * punctuation may follow it). Such a value is a passport or free text, never a RUT.
+ */
+export const hasNonRutLetter = (value: string): boolean =>
+  /\p{L}/u.test(value.replace(/[kK](?=[^\p{L}\p{N}]*$)/u, ''));
+
+/**
  * Validate Chilean RUT
  */
 export const isValidRut = (rut: string): boolean => {
   if (!rut) return false;
 
-  // A passport is never read as a RUT: any letter disqualifies it, except the K check digit
-  // (the last letter or digit of the value; spaces or punctuation may follow it).
-  if (/\p{L}/u.test(rut.replace(/[kK](?=[^\p{L}\p{N}]*$)/u, ''))) return false;
+  // A passport is never read as a RUT.
+  if (hasNonRutLetter(rut)) return false;
 
   // 1. Clean RUT (remove dots and dashes) and match user's logic
   const cleaned = rut.replace(/[^0-9kK]/g, '').toUpperCase();
@@ -78,9 +84,19 @@ export const isValidRut = (rut: string): boolean => {
   return verifier === expectedVerifier;
 };
 
-/** Identity equality requires two valid RUNs; normalization alone can erase passport letters. */
-export const isSameRut = (left?: string, right?: string): boolean =>
-  isValidRut(left ?? '') && isValidRut(right ?? '') && normalizeRut(left) === normalizeRut(right);
+/**
+ * Two documents name the same RUT. Normalizing alone would erase a passport's letters and match it
+ * with the RUT its digits happen to form, so a value with letters never equals anything here.
+ */
+export const isSameRut = (left?: string, right?: string): boolean => {
+  const digits = normalizeRut(left);
+  return (
+    Boolean(digits) &&
+    digits === normalizeRut(right) &&
+    !hasNonRutLetter(left ?? '') &&
+    !hasNonRutLetter(right ?? '')
+  );
+};
 
 /**
  * Check if value looks like a passport (not a RUT)

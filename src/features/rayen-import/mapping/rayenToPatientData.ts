@@ -14,12 +14,15 @@ import { PatientStatus } from '@/types/domain/patientClassification';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { mapRayenBed } from './bedMapping';
 import { encounterWallClockInRapaNui } from './encounterWallClock';
-import { isPassportFormat, isValidRut, formatRut, normalizeRut } from '@/utils/rutUtils';
+import { formatRut, hasNonRutLetter, isPassportFormat, normalizeRut } from '@/utils/rutUtils';
 
 /** Format a RUN as "14.470.055-4" from raw ("144700554") or already-formatted input. */
 export const formatRun = (raw?: string): string => {
   const value = (raw ?? '').trim();
-  return isValidRut(value) ? formatRut(normalizeRut(value)) : value;
+  // A passport, or any text with letters, keeps its letters: it is never reshaped into a RUT.
+  if (isPassportFormat(value) || hasNonRutLetter(value)) return value.toUpperCase();
+  const digits = normalizeRut(value);
+  return digits.length < 2 ? value : formatRut(digits);
 };
 
 const parseIsoCalendarDate = (
