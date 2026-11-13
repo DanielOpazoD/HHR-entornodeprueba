@@ -1,4 +1,4 @@
-// Sonda de escenarios E7e (temporal, sin commit). Se corre en head y con los cinco módulos de main.
+// Permanent synthetic regressions for report document identity.
 import { describe, expect, it } from 'vitest';
 
 import type { PatientData } from '@/types/domain/patient';
@@ -93,7 +93,6 @@ it.each([
   'pending',
   'active-crib',
   'conflict',
-  'blocked-admission',
   'discharge',
 ] as const)('retains plans and exposes collision in %s', location => {
   const rec = record('99.999.999-9');
@@ -149,12 +148,6 @@ it.each([
     diff.activeClinicalCribs = [{ parentBedId: 'H5C1', patient, source }];
   if (location === 'conflict')
     diff.conflicts.push({ bedId: 'H5C1', rut: patient.rut, reason: 'SYNTHETIC' });
-  if (location === 'blocked-admission')
-    diff.conflicts.push({
-      bedId: 'H5C1',
-      reason: 'SYNTHETIC',
-      blockedAdmission: { bedId: 'H5C1', patient, isCma: false },
-    });
   if (location === 'discharge')
     diff.discharges.push({
       bedId: 'H5C2',
@@ -187,17 +180,6 @@ it.each(['08-07-2026 12:00', '07-07-2026 12:00'])(
     expect(result.conflicts).toHaveLength(1);
   }
 );
-it('does not let one report row hide a different document with the same digits', () => {
-  const result = applyEgresoReport(
-    createEmptyCensusImportDiff(true),
-    [row('P123456785', '08-07-2026 12:00'), row('12.345.678-5', '08-07-2026 12:00')],
-    record('99.999.999-9')
-  );
-  expect(result.discharges).toEqual([]);
-  expect(result.reportEgresos ?? []).toEqual([]);
-  expect(result.conflicts).toHaveLength(2);
-});
-
 it('does not resolve a different document through the bed and crib lookup APIs', async () => {
   const {
     findOccupiedBed,
@@ -232,7 +214,7 @@ it('keeps the exact passport episode ahead of an episode-less duplicate', () => 
 });
 
 it.each(['discharges', 'transfers', 'cma'] as const)(
-  'does not hide a passport row behind another document in %s',
+  'does not raise a collision for recorded history in %s',
   collection => {
     const rec = record('99.999.999-9');
     const movement = {
@@ -254,8 +236,7 @@ it.each(['discharges', 'transfers', 'cma'] as const)(
     );
     expect(result.discharges).toEqual([]);
     expect(result.reportEgresos ?? []).toEqual([]);
-    expect(result.conflicts).toHaveLength(1);
-    expect(result.conflicts[0].bedId).toBe('H5C1');
+    expect(result.conflicts).toEqual([]);
   }
 );
 it('still discharges the same passport in an attached crib', () => {
@@ -272,3 +253,30 @@ it('still discharges the same passport in an attached crib', () => {
   expect(result.updates[0].changes).toMatchObject([{ field: 'clinicalCrib', to: undefined }]);
   expect(result.conflicts).toEqual([]);
 });
+
+it.each(['principal', 'crib'] as const)(
+  'accepts a legacy document with an exact %s episode',
+  location => {
+    const rec = record('99.999.999-9');
+    const patient = { ...occupant('123.456-7'), clinicalEpisodeId: '777' };
+    if (location === 'principal') rec.beds.H5C1 = patient;
+    else rec.beds.H5C1.clinicalCrib = patient;
+    const result = applyEgresoReport(
+      createEmptyCensusImportDiff(true),
+      [
+        {
+          ...row('1234567A', '08-07-2026 12:00'),
+          encounterId: '777',
+          exactEpisodeVerification: 'verified',
+        },
+      ],
+      rec
+    );
+    expect(result.conflicts).toEqual([]);
+    if (location === 'principal') expect(result.discharges).toMatchObject([{ encounterId: '777' }]);
+    else {
+      expect(result.reportEgresos).toMatchObject([{ encounterId: '777', fromClinicalCrib: true }]);
+      expect(result.updates[0].changes).toMatchObject([{ field: 'clinicalCrib', to: undefined }]);
+    }
+  }
+);

@@ -10,48 +10,67 @@ import { isSameDocument, normalizeRut } from '@/utils/rutUtils';
 import { calendarDateForMovement } from '@/utils/movementCalendarDate';
 import { appendReportConflict } from './egresoReportConflicts';
 import { recordedOutcomeEpisodeId } from './censusDischargeHistory';
-/**
- * Keep the legacy digit indexes only after proving that no document in their bucket differs.
- * Reject the entire ambiguous bucket before eligibility can rewrite a row's document and before
- * matching can cancel a planned admission/move. This can only remove report authority.
- */
+/** Guard digit indexes only where a report can alter the current plan. */
 export const selectDocumentSafeReportRows = (
   diff: CensusImportDiff,
   rows: EgresoReportRow[],
   record: DailyRecord
 ): { diff: CensusImportDiff; rows: EgresoReportRow[] } => {
-  const documents = [
-    ...Object.values(record.beds).flatMap(patient => [patient?.rut, patient?.clinicalCrib?.rut]),
-    ...diff.admissions.flatMap(entry => [entry.patient.rut, entry.patient.clinicalCrib?.rut]),
-    ...diff.moves.map(entry => entry.rut),
-    ...diff.updates.flatMap(entry => [
-      entry.rut,
-      entry.patient.rut,
-      entry.patient.clinicalCrib?.rut,
+  const occupants = [
+    ...occupiedBedsByRun(record).values(),
+    ...[...occupiedClinicalCribsByRun(record).values()].map(entry => entry.patient),
+  ];
+  const candidate = (rut?: string, episode?: string) => ({ rut, clinicalEpisodeId: episode });
+  // These entries feed episode resolution, cancellation, promotion or row selection below.
+  // Recorded history only suppresses already applied outcomes; it cannot cancel a plan.
+  const candidates = [
+    ...occupants,
+    ...diff.admissions.flatMap(entry => [
+      candidate(entry.patient.rut, entry.source?.encounterId ?? entry.patient.clinicalEpisodeId),
+      candidate(entry.patient.clinicalCrib?.rut, entry.patient.clinicalCrib?.clinicalEpisodeId),
     ]),
-    ...diff.pendingAdministrativeDischarges.map(entry => entry.rut),
-    ...diff.discharges.map(entry => entry.rut),
-    ...(diff.activeClinicalCribs?.flatMap(entry => [entry.patient.rut, entry.principalRut]) ?? []),
-    ...diff.conflicts.flatMap(entry => [
-      entry.rut,
-      entry.blockedAdmission?.patient.rut,
-      entry.blockedAdmission?.patient.clinicalCrib?.rut,
-      entry.blockedMove?.rut,
-    ]),
-    ...[...(record.discharges ?? []), ...(record.transfers ?? []), ...(record.cma ?? [])].map(
-      entry => entry.rut
+    ...diff.moves.map(entry => candidate(entry.rut, entry.source.encounterId)),
+    ...diff.updates.map(entry => candidate(entry.rut, entry.source?.encounterId)),
+    ...diff.pendingAdministrativeDischarges.map(entry =>
+      candidate(entry.rut, entry.encounterId ?? entry.source?.encounterId)
     ),
-    ...rows.map(row => row.run),
+    ...diff.discharges.map(entry =>
+      candidate(entry.rut, entry.encounterId ?? entry.source?.encounterId)
+    ),
+    ...(diff.activeClinicalCribs?.flatMap(entry => [
+      candidate(entry.patient.rut, entry.source.encounterId),
+      candidate(entry.principalRut),
+    ]) ?? []),
+    ...diff.conflicts.map(entry => candidate(entry.rut, entry.source?.encounterId)),
   ];
   let nextDiff = diff;
   const safeRows = rows.filter(row => {
     const run = normalizeRut(row.run);
+    const episode = String(row.encounterId ?? '').trim();
+    // Exact episode evidence takes precedence over all digit buckets, including other beds.
+    if (episode && candidates.some(entry => entry.clinicalEpisodeId === episode)) return true;
     const collision =
       Boolean(run) &&
-      documents.some(
-        document => normalizeRut(document) === run && !isSameDocument(document, row.run)
+      candidates.some(
+        entry => normalizeRut(entry.rut) === run && !isSameDocument(entry.rut, row.run)
       );
     if (!collision) return true;
+    const stamp = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
+    if (!stamp.correctedDay || !stamp.correctedTime) return true;
+    if (!record.date || stamp.correctedDay > record.date) return false;
+    // Preserve the legacy eligibility discard before the document guard removes its occupant.
+    const legacyOccupant = occupants.find(entry => run && normalizeRut(entry.rut) === run);
+    if (
+      !episode &&
+      row.exactEpisodeVerification !== 'unverified' &&
+      legacyOccupant &&
+      resolveActiveEpisode(diff, run, legacyOccupant.clinicalEpisodeId) &&
+      reportPredatesAdmission(
+        { iso: stamp.correctedDay, hhmm: stamp.correctedTime },
+        legacyOccupant
+      )
+    )
+      return false;
     nextDiff = appendReportConflict(nextDiff, {
       bedId: resolveReportBedId(row.bedLabel) || null,
       rut: row.run,
