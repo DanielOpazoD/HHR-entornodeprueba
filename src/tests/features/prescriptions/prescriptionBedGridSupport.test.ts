@@ -4,6 +4,7 @@ import {
   buildBedRows,
   isStockRecord,
   isUnassignedRecord,
+  prescriptionBedRowKey,
 } from '@/features/prescriptions/components/prescriptionBedGridSupport';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PrescriptionRecord } from '@/types/prescriptionTypes';
@@ -406,4 +407,50 @@ it('preserves every patient prescription and every occupied bed in 3200 generate
       ]);
     }
   }
+});
+
+describe('a person who left an empty bed', () => {
+  const withRut = (id: string) =>
+    buildPrescription(id, {
+      bedId: 'R4',
+      patientName: 'Mar Inventado',
+      patientRut: '10.000.013-K',
+    });
+  const withoutDocument = (id: string, patientRut?: string) =>
+    buildPrescription(id, { bedId: 'R4', patientName: 'mar  inventado', patientRut });
+  const orders = <T>(items: T[]): T[][] =>
+    items.length <= 1
+      ? [items]
+      : items.flatMap((item, index) =>
+          orders([...items.slice(0, index), ...items.slice(index + 1)]).map(rest => [item, ...rest])
+        );
+
+  it('stays in one row whether or not each prescription carries the document, in any order', () => {
+    for (const records of orders([withRut('a'), withoutDocument('b', 'SIN RUT'), withRut('c')])) {
+      const rows = buildBedRows(buildDailyRecord({}), records);
+      expect(rows.map(row => [row.patientRut, row.byType.comun.length])).toEqual([
+        ['10.000.013-K', 3],
+      ]);
+      expect(rows[0]?.byType.comun.map(record => record.id)).toEqual(
+        records.map(record => record.id)
+      );
+    }
+  });
+
+  it('keeps a corrected document apart and does not guess for an undocumented namesake', () => {
+    const corrected = buildPrescription('corrected', {
+      bedId: 'R4',
+      patientName: 'Mar Inventado',
+      patientRut: '11.111.111-1',
+    });
+    for (const records of orders([withRut('a'), corrected, withoutDocument('b')])) {
+      const rows = buildBedRows(buildDailyRecord({}), records);
+      expect(rows.map(row => row.byType.comun.map(record => record.id)).sort()).toEqual([
+        ['a'],
+        ['b'],
+        ['corrected'],
+      ]);
+      expect(new Set(rows.map(prescriptionBedRowKey)).size).toBe(3);
+    }
+  });
 });
