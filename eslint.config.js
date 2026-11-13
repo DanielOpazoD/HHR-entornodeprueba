@@ -227,9 +227,9 @@ const SESSION_MESSAGE_RESTRICTION = {
 // A copy of the RUT cleaner compares a passport by its digits as if it were a RUT. The helpers
 // that know the difference live in one module.
 const RUT_REGEX_RESTRICTION = {
-  selector: 'Literal[regex.pattern=/\\[\\^0-9(kK|Kk)\\]/]',
+  selector: 'Literal[regex.pattern=/\\[\\^0-9(kK|Kk|k|K)\\]/]',
   message:
-    'No copies la expresión de RUT: usa normalizeRut(), isSameRut() o isSameDocument() de src/utils/rutUtils.ts (AGENTS.md).',
+    'No copies la expresión de RUT: usa normalizeRut(), isSameRut(), isSameDocument() o documentIdentityKey() de src/utils/rutUtils.ts (AGENTS.md).',
 };
 
 export default tseslint.config(

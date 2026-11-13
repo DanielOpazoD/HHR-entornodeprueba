@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2, Pencil, Save } from 'lucide-react';
+import { documentIdentityKey } from '@/utils/rutUtils';
 import type { PrescriptionRecord } from '@/types/prescriptionTypes';
 import {
   FALLBACK_DAYS_BACK,
@@ -9,6 +10,14 @@ import {
   todayIso,
   type DailyBedOption,
 } from '@/features/prescriptions/components/prescriptionReassignDialogSupport';
+
+// buildBedOptions deduplicates documents (or beds for people without a document).
+// Keep the location and status too, so the picker identifies the complete option.
+const optionKey = (option: DailyBedOption): string =>
+  JSON.stringify([option.bedId, option.patientStatus, option.patientRut, option.patientName]);
+
+const normalizedName = (name: string | undefined): string =>
+  (name ?? '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('es');
 
 interface PrescriptionReassignDialogProps {
   record: PrescriptionRecord;
@@ -42,7 +51,7 @@ export const PrescriptionReassignDialog: React.FC<PrescriptionReassignDialogProp
     | { kind: 'error'; day: string; message: string }
   >({ kind: 'loading', day: requestedDay });
 
-  const [selectedBedId, setSelectedBedId] = useState('');
+  const [selectedOptionKey, setSelectedOptionKey] = useState('');
   const [manualMode, setManualMode] = useState(false);
   const [manualBedId, setManualBedId] = useState(record.bedId ?? '');
   const [manualPatientName, setManualPatientName] = useState(record.patientName ?? '');
@@ -59,8 +68,25 @@ export const PrescriptionReassignDialog: React.FC<PrescriptionReassignDialogProp
         if (cancelled) return;
         setBedOptions(options);
         setResolvedDay(day);
-        const match = record.bedId ? options.find(option => option.bedId === record.bedId) : null;
-        setSelectedBedId(match ? match.bedId : '');
+        const sameBed = options.filter(option => option.bedId === record.bedId);
+        const documentKey = documentIdentityKey(record.patientRut);
+        const documentMatch = documentKey
+          ? sameBed.find(option => documentIdentityKey(option.patientRut) === documentKey)
+          : undefined;
+        const name = normalizedName(record.patientName);
+        const nameMatches = name
+          ? sameBed.filter(
+              option =>
+                normalizedName(option.patientName) === name &&
+                (!documentKey || !documentIdentityKey(option.patientRut))
+            )
+          : [];
+        const match =
+          documentMatch ??
+          (nameMatches.length === 1 ? nameMatches[0] : undefined) ??
+          sameBed.find(option => option.patientStatus === 'active') ??
+          sameBed[0];
+        setSelectedOptionKey(match ? optionKey(match) : '');
         setBedsPhase({ kind: 'ready', day: requestedDay });
       })
       .catch(caught => {
@@ -77,7 +103,7 @@ export const PrescriptionReassignDialog: React.FC<PrescriptionReassignDialogProp
     return () => {
       cancelled = true;
     };
-  }, [requestedDay, record.bedId]);
+  }, [requestedDay, record.bedId, record.patientName, record.patientRut]);
 
   const dayLabel = useMemo(
     () => formatDayLabel(resolvedDay ?? requestedDay),
@@ -87,8 +113,8 @@ export const PrescriptionReassignDialog: React.FC<PrescriptionReassignDialogProp
   const usingFallbackDay = !!resolvedDay && resolvedDay !== requestedDay;
 
   const selectedOption = useMemo(
-    () => bedOptions.find(option => option.bedId === selectedBedId) ?? null,
-    [bedOptions, selectedBedId]
+    () => bedOptions.find(option => optionKey(option) === selectedOptionKey) ?? null,
+    [bedOptions, selectedOptionKey]
   );
 
   const canSubmit =
@@ -169,14 +195,14 @@ export const PrescriptionReassignDialog: React.FC<PrescriptionReassignDialogProp
     return (
       <>
         <select
-          value={selectedBedId}
-          onChange={event => setSelectedBedId(event.target.value)}
+          value={selectedOptionKey}
+          onChange={event => setSelectedOptionKey(event.target.value)}
           disabled={submitting}
           className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:bg-slate-100"
         >
           <option value="">— Selecciona una cama —</option>
           {bedOptions.map(option => (
-            <option key={option.bedId} value={option.bedId}>
+            <option key={optionKey(option)} value={optionKey(option)}>
               {option.bedId} · {option.patientName || 'Sin nombre'}
               {option.patientRut ? ` (${option.patientRut})` : ''} ·{' '}
               {formatPatientStatus(option.patientStatus)}
