@@ -85,7 +85,7 @@ test('runs related unit tests, forwards arguments, explains emulator exclusion a
   fs.chmodSync(path.join(cwd, 'node_modules/.bin/vitest'), 0o755);
   const result = run(cwd, ['--maxWorkers=2']);
   assert.equal(result.status, 7);
-  assert.match(result.stdout, /npm run test:emulator:sync:ci/);
+  assert.match(result.stdout, /npm run test:emulator:file -- <ruta>/);
   const args = JSON.parse(result.stdout.split('\n').find(line => line.startsWith('["')));
   assert.equal(args[0], 'related');
   assert.ok(args.includes('src/space name.ts'));

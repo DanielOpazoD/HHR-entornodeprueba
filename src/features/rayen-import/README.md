@@ -369,7 +369,8 @@ la del registro completo; no aplica tolerancias de minutos ni inventa una hora c
   identifica a un único paciente) y el motivo del conflicto. Si una asignación de personal se
   excluye cerca del relevo, conserva evidencia operacional acotada del funcionario (nombre, rol,
   fuente y hora). Nunca guarda diagnósticos, contenido clínico, errores crudos ni credenciales.
-- **Historial acotado:** cada `runId` se actualiza en el mismo evento y se conservan máximo 20 por día.
+- **Historial acotado:** cada `runId` se actualiza en el mismo evento y se conservan máximo 8 por día
+  (`MAX_RAYEN_SYNC_HISTORY`).
 - **Telemetría técnica sin datos clínicos:** el mismo evento `rayenSyncHistory` registra tiempos de
   preflight, captura dual, reconciliación, evidencia histórica, lecturas clínicas, espera de
   escrituras y persistencia, más contadores agregados de solicitudes, caché, parches, reintentos y
