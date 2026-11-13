@@ -1,3 +1,4 @@
+import { authoredOptions, type PublicWriteOptions } from '@/services/storage/authoringSession';
 import { isSpecialistScopedDailyRecordPatch } from '@/services/repositories/dailyRecordClinicalDomainService';
 import { mutationOptions, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -40,10 +41,6 @@ import {
 } from '@/hooks/controllers/dailyRecordPatchBaseRecordController';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import {
-  captureAuthoringSession,
-  type AuthoringSession,
-} from '@/services/storage/authoringSession';
-import {
   canApplyClinicalCribCreate,
   rebaseClinicalCribCreate,
   rebaseClinicalCribCreatePatch,
@@ -64,11 +61,19 @@ import {
   shouldRollbackOptimisticDailyRecord,
 } from '@/hooks/controllers/dailyRecordLocalProjectionController';
 
-type PatchMutationInput = DailyRecordPatchMutationVariables;
+type PatchMutationInput = {
+  date?: string;
+  partial: DailyRecordPatch;
+  options: PartialUpdateDailyRecordOptions;
+};
 
 const resolveInput = (
-  input: PatchMutationInput
-): { date?: string; partial: DailyRecordPatch; options?: PartialUpdateDailyRecordOptions } => {
+  input: DailyRecordPatchMutationVariables
+): {
+  date?: string;
+  partial: DailyRecordPatch;
+  options?: PublicWriteOptions<PartialUpdateDailyRecordOptions>;
+} => {
   if (
     'partial' in input &&
     input.partial !== null &&
@@ -78,15 +83,20 @@ const resolveInput = (
     return input as {
       date?: string;
       partial: DailyRecordPatch;
-      options?: PartialUpdateDailyRecordOptions;
+      options?: PublicWriteOptions<PartialUpdateDailyRecordOptions>;
     };
   }
   return { partial: input as DailyRecordPatch };
 };
 
 const mutationTails = new Map<string, Promise<void>>();
-/** Who began each edit, taken before it waits for its turn or a freshness read. */
-const authoringSessions = new WeakMap<PatchMutationInput, AuthoringSession>();
+const captureInput = (input: DailyRecordPatchMutationVariables): PatchMutationInput => {
+  const resolved = resolveInput(input);
+  return {
+    ...resolved,
+    options: authoredOptions<PartialUpdateDailyRecordOptions>(resolved.options ?? {}),
+  };
+};
 
 const acquireMutationTurn = async (date: string): Promise<() => void> => {
   const previousTurn = mutationTails.get(date) ?? Promise.resolve();
@@ -127,13 +137,11 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
     // The repository owns retries; do not replay a rejected decision as a new command.
     retry: false,
     mutationFn: async (input: PatchMutationInput) => {
-      const { partial, options, date = currentDate } = resolveInput(input);
+      const { partial, options, date = currentDate } = input;
       let writePatch = partial;
       const baseRecord = getDailyRecordPatchBaseRecord(patchBaseRecords, partial);
-      const authoringSession = authoringSessions.get(input) ?? captureAuthoringSession();
       const buildOptions = (record: DailyRecord | undefined) => ({
         ...options,
-        authoringSession,
         ...(record ? { baseRecord: record } : {}),
         ...(options?.intentionalBedClear && record
           ? {
@@ -244,11 +252,10 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
       return { partial, options, result };
     },
     onMutate: async input => {
-      authoringSessions.set(input, captureAuthoringSession());
-      const { date = currentDate } = resolveInput(input);
+      const { date = currentDate } = input;
       const releaseMutationTurn = await acquireMutationTurn(date);
       try {
-        const { partial, options } = resolveInput(input);
+        const { partial, options } = input;
         const previousRecordBeforeFreshness = queryClient.getQueryData<DailyRecordQueryResult>(
           getDailyRecordQueryKey(date)
         )?.record;
@@ -325,7 +332,7 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
       }
     },
     onError: (error, input, context) => {
-      const { date = currentDate } = resolveInput(input);
+      const { date = currentDate } = input;
       if (error instanceof AuthoritativeDailyRecordConflictError) {
         const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
           getDailyRecordQueryKey(date)
@@ -347,10 +354,10 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
           setDailyRecordQueryData(queryClient, date, context.previousRecord);
         }
       }
-      forgetDailyRecordPatchBaseRecord(patchBaseRecords, resolveInput(input).partial);
+      forgetDailyRecordPatchBaseRecord(patchBaseRecords, input.partial);
     },
     onSuccess: async (payload, input, context) => {
-      const { date = currentDate } = resolveInput(input);
+      const { date = currentDate } = input;
       if (isDailyRecordWriteRejectedResult(payload.result)) {
         if (context?.optimisticApplied) {
           const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
@@ -425,7 +432,7 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
     },
     onSettled: (payload, error, input, context) => {
       context?.releaseMutationTurn();
-      const partial = resolveInput(input).partial;
+      const partial = input.partial;
       if (!context?.unregisterPendingPatch) return;
       if (error || isDailyRecordWriteRejectedResult(payload?.result)) {
         context.unregisterPendingPatch();
@@ -452,9 +459,20 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
   };
   return {
     ...(remoteSelected ? remote : local),
-    mutate: (...args: Parameters<typeof local.mutate>) => selectMutation(args[0]).mutate(...args),
-    mutateAsync: (...args: Parameters<typeof local.mutateAsync>) =>
-      selectMutation(args[0]).mutateAsync(...args),
+    mutate: (
+      input: DailyRecordPatchMutationVariables,
+      options?: Parameters<typeof local.mutate>[1]
+    ) => {
+      const authored = captureInput(input);
+      return selectMutation(authored).mutate(authored, options);
+    },
+    mutateAsync: (
+      input: DailyRecordPatchMutationVariables,
+      options?: Parameters<typeof local.mutateAsync>[1]
+    ) => {
+      const authored = captureInput(input);
+      return selectMutation(authored).mutateAsync(authored, options);
+    },
     reset: () => {
       local.reset();
       remote.reset();

@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /* @flake-safe: Synthetic current-day record; no production Firebase configuration. */
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import React, { type ReactNode } from 'react';
@@ -124,6 +125,7 @@ afterAll(async () => {
 it('control: the real repository already commits the specialist row and authored queue offline', async () => {
   await hospitalDB.dailyRecords.put(base);
   const result = await defaultDailyRecordRepositoryPort.updatePartialDetailed(date, patch, {
+    authoringSession: captureAuthoringSession(),
     baseRecord: base,
   });
   expect(result).toMatchObject({

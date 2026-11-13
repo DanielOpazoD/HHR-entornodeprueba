@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -81,7 +82,9 @@ describe('a read that meets a pending local edit publishes the retained projecti
   it('publishes the pending edit that appeared while the remote read was in flight', async () => {
     const localBeforeRead = base();
     await hospitalDB.dailyRecords.put(localBeforeRead);
-    await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit());
+    await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit(), undefined, {
+      authoringSession: captureAuthoringSession(),
+    });
 
     const result = await resolveRemoteGoldenPathReadResult({
       date,
@@ -100,7 +103,9 @@ describe('a read that meets a pending local edit publishes the retained projecti
 
   it('a manual sync keeps the pending edit instead of the newer remote copy', async () => {
     firestoreEnabled.value = true;
-    await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit());
+    await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit(), undefined, {
+      authoringSession: captureAuthoringSession(),
+    });
     loadRemote.mockResolvedValue(remoteLoad(newerRemote()));
 
     const result = await syncWithFirestoreDetailed(date);
@@ -111,7 +116,9 @@ describe('a read that meets a pending local edit publishes the retained projecti
   });
 
   it('a realtime snapshot keeps the pending edit instead of the newer remote copy', async () => {
-    await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit());
+    await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit(), undefined, {
+      authoringSession: captureAuthoringSession(),
+    });
     const published = new Promise<SyncDailyRecordResult>(resolve => {
       subscribeDetailed(date, result => resolve(result));
     });
@@ -138,10 +145,14 @@ describe('a read never publishes another copy over a pending local edit', () => 
   it('keeps the pending edit when the remote copy carries the same version time', async () => {
     const localBeforeRead = base();
     await hospitalDB.dailyRecords.put(localBeforeRead);
-    await queueDailyRecordSyncTaskWithLocalRecord({
-      ...pendingEdit(),
-      lastUpdated: newerRemote().lastUpdated,
-    });
+    await queueDailyRecordSyncTaskWithLocalRecord(
+      {
+        ...pendingEdit(),
+        lastUpdated: newerRemote().lastUpdated,
+      },
+      undefined,
+      { authoringSession: captureAuthoringSession() }
+    );
 
     const result = await resolveRemoteGoldenPathReadResult({
       date,
@@ -160,7 +171,9 @@ describe('a read never publishes another copy over a pending local edit', () => 
     firestoreEnabled.value = true;
     await hospitalDB.dailyRecords.put(base());
     loadRemote.mockImplementation(async () => {
-      await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit());
+      await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit(), undefined, {
+        authoringSession: captureAuthoringSession(),
+      });
       return remoteLoad(base());
     });
 
@@ -176,7 +189,9 @@ describe('a read never publishes another copy over a pending local edit', () => 
   it('a read that finds no remote copy publishes the pending edit saved meanwhile', async () => {
     const localBeforeRead = base();
     await hospitalDB.dailyRecords.put(localBeforeRead);
-    await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit());
+    await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit(), undefined, {
+      authoringSession: captureAuthoringSession(),
+    });
 
     const result = await resolveRemoteGoldenPathReadResult({
       date,
@@ -192,7 +207,9 @@ describe('a read never publishes another copy over a pending local edit', () => 
     firestoreEnabled.value = true;
     await hospitalDB.dailyRecords.put(base());
     loadRemote.mockImplementation(async () => {
-      await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit());
+      await queueDailyRecordSyncTaskWithLocalRecord(pendingEdit(), undefined, {
+        authoringSession: captureAuthoringSession(),
+      });
       return { ...remoteLoad(base()), record: null };
     });
 

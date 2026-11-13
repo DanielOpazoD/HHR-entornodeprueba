@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /* @flake-safe: The emulator read window requires today's synthetic census date. */
 import 'fake-indexeddb/auto';
 import { readFileSync } from 'node:fs';
@@ -96,7 +97,7 @@ describeEmulator('Queue recovery after a persisted remote commit loses its respo
           changedPaths: ['nursesDayShift'],
         },
       },
-      { deferProcessing: true }
+      { authoringSession: captureAuthoringSession(), deferProcessing: true }
     );
     return record;
   };

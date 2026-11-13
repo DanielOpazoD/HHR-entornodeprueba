@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import type { PatientData } from '@/types/domain/patient';
 
 /**
@@ -338,6 +339,7 @@ export const fileCrossDayCorrections = async (
     for (const patch of correction.patches) {
       const outcome = classifyHistoricalPatchOutcome(
         await patchDailyRecordWithCompatibility(port, correction.day, patch, {
+          authoringSession: captureAuthoringSession(),
           baseRecord: correction.record,
         })
       );
@@ -386,6 +388,7 @@ export const fileCrossDayCorrections = async (
         if (!Object.keys(patch).length) continue;
         const outcome = classifyHistoricalPatchOutcome(
           await patchDailyRecordWithCompatibility(port, correction.day, patch, {
+            authoringSession: captureAuthoringSession(),
             baseRecord: confirmedRecord,
           })
         );

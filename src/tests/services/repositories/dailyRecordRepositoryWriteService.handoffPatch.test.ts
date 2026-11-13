@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
@@ -38,7 +39,7 @@ describe('dailyRecordRepositoryWriteService specialist handoff patches', () => {
       updatePartialDetailed(
         current.date,
         { 'beds.R1.medicalHandoffNote': 'Nota de A' },
-        { baseRecord: current }
+        { authoringSession: captureAuthoringSession(), baseRecord: current }
       )
     ).rejects.toBe(conflict);
     expect(updateRecordPartialToFirestore).toHaveBeenCalledTimes(1);
@@ -69,16 +70,20 @@ describe('dailyRecordRepositoryWriteService specialist handoff patches', () => {
     const current = buildRecord('2026-02-11');
     current.beds = { R1: buildPatient('R1', 'Paciente local') };
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
-    await updatePartial('2026-02-11', {
-      'beds.R1.medicalHandoffNote': 'Evolución especialista',
-      'beds.R1.medicalHandoffEntries': [
-        {
-          id: 'entry-1',
-          specialty: 'Med Interna',
-          note: 'Evolución especialista',
-        },
-      ] as never,
-    });
+    await updatePartial(
+      '2026-02-11',
+      {
+        'beds.R1.medicalHandoffNote': 'Evolución especialista',
+        'beds.R1.medicalHandoffEntries': [
+          {
+            id: 'entry-1',
+            specialty: 'Med Interna',
+            note: 'Evolución especialista',
+          },
+        ] as never,
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       '2026-02-11',
       expect.not.objectContaining({
@@ -100,16 +105,20 @@ describe('dailyRecordRepositoryWriteService specialist handoff patches', () => {
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
 
-    await updatePartial('2026-02-11', {
-      'beds.R1.medicalHandoffNote': 'Evolución especialista',
-      'beds.R1.medicalHandoffEntries': [
-        {
-          id: 'entry-1',
-          specialty: 'Med Interna',
-          note: 'Evolución especialista',
-        },
-      ] as never,
-    });
+    await updatePartial(
+      '2026-02-11',
+      {
+        'beds.R1.medicalHandoffNote': 'Evolución especialista',
+        'beds.R1.medicalHandoffEntries': [
+          {
+            id: 'entry-1',
+            specialty: 'Med Interna',
+            note: 'Evolución especialista',
+          },
+        ] as never,
+      },
+      { authoringSession: captureAuthoringSession() }
+    );
 
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       '2026-02-11',
@@ -157,6 +166,7 @@ describe('dailyRecordRepositoryWriteService intentional clear authority payloads
       current.date,
       { 'beds.R1.clinicalCrib': null },
       {
+        authoringSession: captureAuthoringSession(),
         intentionalBedClear: {
           bedId: 'R1',
           target: 'clinicalCrib',
@@ -203,6 +213,7 @@ describe('dailyRecordRepositoryWriteService intentional clear authority payloads
         'beds.R1.hasCompanionCrib': false,
       },
       {
+        authoringSession: captureAuthoringSession(),
         requireConfirmedRecord: true,
         requireRemoteAuthorityFirst: true,
         requireAtomicCas: true,
@@ -258,6 +269,7 @@ describe('dailyRecordRepositoryWriteService intentional clear authority payloads
       current.date,
       { 'beds.R1.clinicalCrib': newCrib },
       {
+        authoringSession: captureAuthoringSession(),
         requireConfirmedRecord: true,
         requireRemoteAuthorityFirst: true,
         requireAtomicCas: true,
@@ -311,6 +323,7 @@ describe('dailyRecordRepositoryWriteService intentional clear authority payloads
           'beds.R1.hasCompanionCrib': false,
         },
         {
+          authoringSession: captureAuthoringSession(),
           requireConfirmedRecord: true,
           requireRemoteAuthorityFirst: true,
           requireAtomicCas: true,
@@ -353,6 +366,7 @@ describe('dailyRecordRepositoryWriteService intentional clear authority payloads
       current.date,
       { 'beds.R1.clinicalCrib': null },
       {
+        authoringSession: captureAuthoringSession(),
         requireConfirmedRecord: true,
         requireRemoteAuthorityFirst: true,
         intentionalBedClear: {
@@ -403,6 +417,7 @@ describe('dailyRecordRepositoryWriteService intentional clear authority payloads
         current.date,
         { 'beds.R1.clinicalCrib': null },
         {
+          authoringSession: captureAuthoringSession(),
           requireConfirmedRecord: true,
           requireRemoteAuthorityFirst: true,
           intentionalBedClear: {
@@ -450,6 +465,7 @@ describe('dailyRecordRepositoryWriteService intentional clear authority payloads
         current.date,
         { 'beds.R1': clearedPatient },
         {
+          authoringSession: captureAuthoringSession(),
           requireConfirmedRecord: true,
           requireRemoteAuthorityFirst: true,
           intentionalBedClear: {

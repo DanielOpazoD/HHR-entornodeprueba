@@ -12,7 +12,7 @@ export interface SyncQueueEnqueueOptions {
   patchWrite?: DailyRecordPatchWrite;
   wholeRecordBase?: DailyRecord;
   /** The session that began this write; the store keeps it with that owner if the session changed. */
-  authoringSession?: AuthoringSession;
+  authoringSession: AuthoringSession;
 }
 
 export const countActiveSyncTasks = (tasks: SyncTask[]): number =>
@@ -20,12 +20,12 @@ export const countActiveSyncTasks = (tasks: SyncTask[]): number =>
 
 export const resolveSyncTaskNextAttemptAt = (
   now: number,
-  options: SyncQueueEnqueueOptions
+  options: Omit<SyncQueueEnqueueOptions, 'authoringSession'>
 ): number => (options.holdForMs && options.holdForMs > 0 ? now + options.holdForMs : 0);
 
 export const resolvePreOutboxHoldState = (
   now: number,
-  options: SyncQueueEnqueueOptions
+  options: Omit<SyncQueueEnqueueOptions, 'authoringSession'>
 ): Partial<SyncTask> => {
   if (!options.preOutboxHoldOwner || !options.preOutboxHoldReason || !options.holdForMs) {
     return {};

@@ -51,7 +51,7 @@ import {
 
 // Unstarted mutations have no author; started writes belong to their captured session.
 const isCurrentWrite = (session?: AuthoringSession): boolean =>
-  !session || isAuthoringSessionCurrent(session);
+  session !== undefined && isAuthoringSessionCurrent(session);
 
 export const useDailyRecordSyncQuery = (
   currentDateString: string,
@@ -140,9 +140,7 @@ export const useDailyRecordSyncQuery = (
   });
 
   // 3. Status Mapping
-  const patchAuthor = (
-    patchMutation.variables as { options?: { authoringSession?: AuthoringSession } } | undefined
-  )?.options?.authoringSession;
+  const patchAuthor = patchMutation.variables?.options.authoringSession;
   const currentMutations = [
     ...(isCurrentWrite(saveMutation.variables?.authoringSession) ? [saveMutation] : []),
     ...(isCurrentWrite(patchAuthor) ? [patchMutation] : []),

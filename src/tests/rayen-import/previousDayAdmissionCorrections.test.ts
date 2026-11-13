@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
@@ -168,7 +169,7 @@ describe('previous clinical-day admission corrections', () => {
         'beds.H4C1.clinicalEpisodeId': '143100',
         'beds.H4C1.clinicalCrib.clinicalEpisodeId': '143101',
       }),
-      { baseRecord: historicalRecord }
+      { authoringSession: captureAuthoringSession(), baseRecord: historicalRecord }
     );
     expect(result).toEqual({ confirmed: 1, durablyQueued: 0, omitted: [] });
   });
@@ -213,7 +214,7 @@ describe('previous clinical-day admission corrections', () => {
         'beds.H4C1.clinicalEpisodeId': '143100',
         'beds.H4C1.clinicalCrib': undefined,
       }),
-      { baseRecord: historicalRecord }
+      { authoringSession: captureAuthoringSession(), baseRecord: historicalRecord }
     );
   });
 
@@ -262,7 +263,7 @@ describe('previous clinical-day admission corrections', () => {
         'beds.H4C1.clinicalEpisodeId': '143100',
         'beds.H4C1.clinicalCrib.clinicalEpisodeId': '143101',
       }),
-      { baseRecord: recordWithMother }
+      { authoringSession: captureAuthoringSession(), baseRecord: recordWithMother }
     );
   });
 
@@ -430,7 +431,7 @@ describe('previous clinical-day admission corrections', () => {
         'beds.H4C2.clinicalCrib.clinicalEpisodeId': '143101',
         'beds.H4C2.clinicalCrib.bedId': 'H4C2',
       }),
-      { baseRecord: historicalMotherInAnotherBed }
+      { authoringSession: captureAuthoringSession(), baseRecord: historicalMotherInAnotherBed }
     );
   });
 });

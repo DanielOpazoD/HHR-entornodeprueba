@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /* @flake-safe: Date usage aligns emulator write-window assertions with current execution time. */
 import 'fake-indexeddb/auto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -145,7 +146,12 @@ describeEmulator('Firestore emulator conflict version recovery', () => {
     const incoming = buildRecord(date, isoAt(date, '09:00:00'));
     incoming.beds = { R1: buildPatient('R1', { patientName: 'Local', pathology: 'Dx local' }) };
 
-    await attemptConflictAutoMergeRecovery(date, incoming, ['beds.R1.pathology']);
+    await attemptConflictAutoMergeRecovery(
+      date,
+      incoming,
+      ['beds.R1.pathology'],
+      captureAuthoringSession()
+    );
 
     // The two pre-merge versions are recoverable, each with `expireAt` for the TTL policy.
     let snapshots: { origin: string; expireAt: unknown; record: unknown }[] = [];

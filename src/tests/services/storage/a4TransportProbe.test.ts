@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { QueryClient } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -304,7 +305,7 @@ for (const path of ['suscripción', 'E', 'rango', 'mantenimiento'] as const)
     const result = await updatePartialDetailed(
       DATE,
       { 'beds.R4.pathology': 'Diagnóstico editado sintético' },
-      { baseRecord: base }
+      { authoringSession: captureAuthoringSession(), baseRecord: base }
     );
     h.offline = false;
     const tasks = await hospitalDB.syncQueue.toArray();
@@ -401,7 +402,7 @@ for (const path of ['suscripción', 'E'] as const)
     await updatePartialDetailed(
       DATE,
       { 'beds.R4.pathology': 'Diagnóstico editado sintético' },
-      { baseRecord: base }
+      { authoringSession: captureAuthoringSession(), baseRecord: base }
     );
     h.offline = false;
     const [task] = await hospitalDB.syncQueue.toArray();

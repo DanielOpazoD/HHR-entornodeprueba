@@ -1,3 +1,4 @@
+import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
@@ -56,6 +57,7 @@ describe('patch bases with optional empty cache fields', () => {
       await hospitalDB.dailyRecords.put(stored);
       expect(await hospitalDB.syncQueue.count()).toBe(0);
       const result = await updatePartialDetailed(date, patch, {
+        authoringSession: captureAuthoringSession(),
         baseRecord: { ...stored, [field]: empty },
       });
       expect(result.savedLocally).toBe(true);
@@ -70,8 +72,16 @@ describe('patch bases with optional empty cache fields', () => {
     const base = { ...record(), rayenSyncHistory: [] };
     await hospitalDB.dailyRecords.put(base);
     const results = await Promise.all([
-      updatePartialDetailed(date, { rayenSyncHistory: [event('run-a')] }, { baseRecord: base }),
-      updatePartialDetailed(date, { rayenSyncHistory: [event('run-b')] }, { baseRecord: base }),
+      updatePartialDetailed(
+        date,
+        { rayenSyncHistory: [event('run-a')] },
+        { authoringSession: captureAuthoringSession(), baseRecord: base }
+      ),
+      updatePartialDetailed(
+        date,
+        { rayenSyncHistory: [event('run-b')] },
+        { authoringSession: captureAuthoringSession(), baseRecord: base }
+      ),
     ]);
     expect(results.every(result => result.savedLocally)).toBe(true);
     for (const value of [
@@ -88,15 +98,13 @@ describe('patch bases with optional empty cache fields', () => {
     await updatePartialDetailed(
       date,
       { handoffNovedadesDayShift: 'NOVEDAD A' },
-      { baseRecord: base }
+      { authoringSession: captureAuthoringSession(), baseRecord: base }
     );
     await expect(
       updatePartialDetailed(
         date,
         { handoffNovedadesDayShift: 'NOVEDAD B' },
-        {
-          baseRecord: base,
-        }
+        { authoringSession: captureAuthoringSession(), baseRecord: base }
       )
     ).rejects.toBeInstanceOf(ConcurrencyError);
     expect((await hospitalDB.dailyRecords.get(date))?.handoffNovedadesDayShift).toBe('NOVEDAD A');
@@ -110,6 +118,7 @@ describe('patch bases with optional empty cache fields', () => {
         date,
         { handoffNovedadesDayShift: '' },
         {
+          authoringSession: captureAuthoringSession(),
           baseRecord: { ...stored, handoffNovedadesDayShift: 'NOVEDAD ANTERIOR' },
         }
       )
