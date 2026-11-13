@@ -37,11 +37,21 @@ const createEmptyPrescriptionBuckets = (): Record<PrescriptionType, Prescription
 const normalizeIdentityToken = (value: string | undefined): string =>
   value?.trim().toLowerCase().replace(/\s+/g, ' ') ?? '';
 
+export const prescriptionBedRowKey = (row: PrescriptionBedRowData): string =>
+  JSON.stringify([
+    row.bedId,
+    row.isDischargeSnapshot ? 'discharged' : 'current',
+    row.isDischargeSnapshot
+      ? documentIdentityKey(row.patientRut) || normalizeIdentityToken(row.patientName)
+      : '',
+  ]);
+
 export const buildBedRows = (
   daily: DailyRecord | null,
   records: PrescriptionRecord[]
 ): PrescriptionBedRowData[] => {
   const byBed = new Map<string, PrescriptionBedRowData>();
+  const dischargedRows = new Map<string, PrescriptionBedRowData>();
   const activeRowsByRut = new Map<string, PrescriptionBedRowData>();
   const activeRowsByName = new Map<string, PrescriptionBedRowData | null>();
 
@@ -95,13 +105,18 @@ export const buildBedRows = (
         isDischargeSnapshot: true,
         byType: createEmptyPrescriptionBuckets(),
       };
-      byBed.set(record.bedId, row);
+      const key = prescriptionBedRowKey(row);
+      const existing = dischargedRows.get(key);
+      if (existing) row = existing;
+      else dischargedRows.set(key, row);
     }
     row.byType[record.prescriptionType].push(record);
   }
 
-  return Array.from(byBed.values()).sort((a, b) =>
-    a.bedId.localeCompare(b.bedId, 'es', { numeric: true })
+  return [...byBed.values(), ...dischargedRows.values()].sort(
+    (a, b) =>
+      a.bedId.localeCompare(b.bedId, 'es', { numeric: true }) ||
+      Number(Boolean(a.isDischargeSnapshot)) - Number(Boolean(b.isDischargeSnapshot))
   );
 };
 

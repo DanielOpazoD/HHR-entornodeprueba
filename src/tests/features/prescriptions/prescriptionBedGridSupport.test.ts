@@ -358,3 +358,52 @@ describe('prescription grid patient retention', () => {
     expect(countAssignedRecords(rows)).toBe(3);
   });
 });
+
+it('preserves every patient prescription and every occupied bed in 3200 generated scenarios', () => {
+  let seed = 64123;
+  const next = (max: number) => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed % max;
+  };
+  for (let scenario = 0; scenario < 3200; scenario++) {
+    const beds: DailyRecord['beds'] = {};
+    const records: PrescriptionRecord[] = [];
+    const count = 1 + next(8);
+    for (let personIndex = 0; personIndex < count; personIndex++) {
+      const name = `Sintetico ${personIndex}`;
+      const document = ['', 'SIN RUT', `P${personIndex}123456`, `${personIndex + 10}.000.013-K`][
+        next(4)
+      ];
+      const currentBed = `R${personIndex + 1}`;
+      if (next(3) !== 0) beds[currentBed] = patient(currentBed, name, document);
+      for (let copy = 0; copy < 1 + next(4); copy++) {
+        records.push(
+          buildPrescription(`${personIndex}-${copy}`, {
+            bedId: `R${1 + next(count + 2)}`,
+            patientName: name,
+            patientRut: copy === 0 && next(3) === 0 ? `CORRECTED${personIndex}` : document,
+            prescriptionType: (['comun', 'psicotropicos', 'benzodiazepinas'] as const)[next(3)],
+          })
+        );
+      }
+    }
+    for (let index = records.length - 1; index > 0; index--) {
+      const other = next(index + 1);
+      [records[index], records[other]] = [records[other], records[index]];
+    }
+    const rows = buildBedRows(buildDailyRecord(beds), records);
+    const actualIds = rows
+      .flatMap(row =>
+        Object.values(row.byType)
+          .flat()
+          .map(record => record.id)
+      )
+      .sort();
+    expect(actualIds, `scenario ${scenario}`).toEqual(records.map(record => record.id).sort());
+    for (const [bedId, occupant] of Object.entries(beds)) {
+      expect(rows.filter(row => row.bedId === bedId && !row.isDischargeSnapshot)).toMatchObject([
+        { patientName: occupant.patientName, patientRut: occupant.rut },
+      ]);
+    }
+  }
+});

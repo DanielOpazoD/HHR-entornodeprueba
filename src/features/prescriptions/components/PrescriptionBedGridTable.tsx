@@ -8,7 +8,10 @@ import {
   PrescriptionBedRow,
   type PrescriptionBedRowData,
 } from '@/features/prescriptions/components/PrescriptionBedRow';
-import { PRESCRIPTION_TYPES } from '@/features/prescriptions/components/prescriptionBedGridSupport';
+import {
+  PRESCRIPTION_TYPES,
+  prescriptionBedRowKey,
+} from '@/features/prescriptions/components/prescriptionBedGridSupport';
 
 interface PrescriptionBedGridTableProps {
   rows: PrescriptionBedRowData[];
@@ -72,7 +75,7 @@ export const PrescriptionBedGridTable: React.FC<PrescriptionBedGridTableProps> =
       <tbody>
         {rows.map(row => (
           <PrescriptionBedRow
-            key={row.bedId}
+            key={prescriptionBedRowKey(row)}
             row={row}
             draggingRecord={draggingRecord}
             hoverCell={hoverCell}

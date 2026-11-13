@@ -288,7 +288,7 @@ export const PrescriptionBedGridView: React.FC<PrescriptionBedGridViewProps> = (
         </p>
         {!loading && !activeError && (
           <p className="text-[11px] text-slate-400">
-            {rows.length} cama(s) · {records.length} receta(s) en vista
+            {new Set(rows.map(row => row.bedId)).size} cama(s) · {records.length} receta(s) en vista
           </p>
         )}
       </header>
