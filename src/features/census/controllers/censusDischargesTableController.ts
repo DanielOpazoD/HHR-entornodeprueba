@@ -1,3 +1,4 @@
+import { hasNonRutLetter, normalizeRut } from '@/utils/rutUtils';
 import type { DischargeData } from '@/types/domain/movements';
 import { buildCensusMovementTableHeaders } from './censusMovementTableHeaders';
 import { buildMovementRowActions } from '@/features/census/controllers/censusMovementRowActionsController';
@@ -39,7 +40,10 @@ export const buildDischargeRowActions = (
     },
   ];
 
-  if (/^[0-9]{6,8}[0-9K]$/.test((discharge.rut || '').toUpperCase().replace(/[^0-9K]/g, ''))) {
+  if (
+    !hasNonRutLetter(discharge.rut || '') &&
+    /^[0-9]{6,8}[0-9K]$/.test(normalizeRut(discharge.rut))
+  ) {
     actions.push({
       kind: 'hospitalizationReports' as const,
       title: 'Informes de hospitalización',
