@@ -188,7 +188,7 @@ describe('unchecked-index CLI', () => {
         `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(output)}); process.exit(1);\n`
       );
       chmodSync(executable, 0o755);
-      const result = run(root, ['--write-baseline'], '', {
+      const result = run(root, [], '', {
         PATH: `${bin}${path.delimiter}${process.env.PATH}`,
       });
       expect(result.status).toBe(1);
@@ -196,4 +196,51 @@ describe('unchecked-index CLI', () => {
       expect(readFileSync(path.join(root, baselinePath), 'utf8')).toBe(baseline);
     }
   );
+
+  describe('a compiler that exits 1 with the diagnostics of the baseline', () => {
+    const fakeCompiler = (stderr: string) => {
+      const root = fixture('hhr unchecked exit one ');
+      const bin = path.join(root, 'bin');
+      mkdirSync(bin);
+      const file = path.join(root, 'src/example/read.ts');
+      const diagnostic = (line: number) =>
+        `src/example/read.ts(${line},30): error TS2322: synthetic unchecked read`;
+      const output = `${diagnostic(1)}\n${diagnostic(2)}\n${file}\n`;
+      const executable = path.join(bin, 'npx');
+      writeFileSync(
+        executable,
+        `#!/usr/bin/env node\nprocess.stderr.write(${JSON.stringify(stderr)}); process.stdout.write(${JSON.stringify(output)}); process.exit(1);\n`
+      );
+      chmodSync(executable, 0o755);
+      return { root, env: { PATH: `${bin}${path.delimiter}${process.env.PATH}` } };
+    };
+    const expectRejected = (root: string, result: { status: number | null; output: string }) => {
+      expect(result.status).toBe(1);
+      expect(result.output).toContain('Analysis failed');
+      expect(readFileSync(path.join(root, baselinePath), 'utf8')).toBe(baseline);
+    };
+
+    it('is a warm local repetition: the count is compared as usual', () => {
+      const { root, env } = fakeCompiler('');
+      const result = run(root, [], '', env);
+      expect(result.output).toContain('[unchecked-index] OK (2 production reads');
+      expect(result.status).toBe(0);
+    });
+
+    it('is rejected when the compiler also wrote to stderr', () => {
+      const { root, env } = fakeCompiler('compiler crashed halfway');
+      expectRejected(root, run(root, [], '', env));
+    });
+
+    it('is rejected in CI, which never compiles incrementally', () => {
+      const { root, env } = fakeCompiler('');
+      expectRejected(root, run(root, [], 'true', env));
+    });
+
+    it('never writes the baseline, which always comes from a full compilation', () => {
+      const { root, env } = fakeCompiler('');
+      expectRejected(root, run(root, ['--write-baseline'], '', env));
+      expectRejected(root, run(root, ['--write-baseline'], 'true', env));
+    });
+  });
 });

@@ -51,7 +51,9 @@ export const compareWithBaseline = (current, baseline) => {
 };
 
 const compile = () => {
-  const incremental = !process.env.CI;
+  // The committed baseline is always written from a full compilation: a warm cache can carry a
+  // diagnostic from an earlier tree.
+  const incremental = !process.env.CI && !process.argv.includes('--write-baseline');
   const result = spawnSync(
     'npx',
     [
