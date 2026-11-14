@@ -10,7 +10,6 @@ Organización principal por módulo funcional (feature-first). Cada feature agru
 | ------------------- | ------------------------------------------------------------------------------------------------------- | ---------------------------- |
 | `census/`           | `components`, `hooks`, `controllers`, `domain`, `types`, `validation`                                   | Núcleo principal del sistema |
 | `handoff/`          | Entrega de turno (enfermería/médica), controllers y servicios                                           | Activo                       |
-| `transfers/`        | Flujo de gestión de traslados y documentos                                                              | Activo                       |
 | `admin/`            | Paneles de administración, roles, auditoría                                                             | Activo                       |
 | `analytics/`        | KPIs MINSAL/DEIS, visualización y ruta propia `/statistics`                                             | Activo                       |
 | `backup/`           | Gestión de respaldos y archivos                                                                         | Activo                       |
@@ -40,17 +39,13 @@ feature/
 - Módulo más extenso del sistema.
 - Implementa patrón de comandos tipados para acciones de movimiento (alta/traslado/move-copy).
 - Incluye boundaries de runtime y validaciones de fecha/turno centralizadas.
+- Incluye los traslados: `TransfersSection` y controllers `censusTransfer*`; el modal está en
+  `src/components/modals/actions/TransferModal.tsx`.
 
 ### `handoff/`
 
 - Consolida entrega de turno y comunicación clínica.
 - Se apoya en `DailyRecordContext` + hooks de handoff.
-
-### `transfers/`
-
-- Gestión de solicitud/confirmación/cancelación de traslados.
-- Integración con generación documental y Google Drive.
-- Documentación específica del módulo en [transfers/README.md](transfers/README.md).
 
 ### `analytics/`
 
@@ -109,5 +104,4 @@ components/Modal
 - `cudyr/index.ts` y `cudyr/public.ts`: vistas y utilidades permitidas.
 - `clinical-library/index.ts`, `clinical-library/public.ts` y `clinical-library/quick-action.ts`: botón «Documentos» y panel lateral de la biblioteca clínica.
 - `handoff/index.ts` y `handoff/public.ts`: shell público de entrega de turno y helpers permitidos.
-- `transfers/index.ts` y `transfers/public.ts`: vista pública de gestión de traslados.
 - `whatsapp/index.ts`: integración principal de WhatsApp.
