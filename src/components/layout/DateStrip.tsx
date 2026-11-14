@@ -249,6 +249,10 @@ export const DateStrip: React.FC<DateStripProps> = ({
               </React.Suspense>
             )}
 
+            {currentModule === 'NURSING_HANDOFF' && !isGuest && onExportPDF && (
+              <PdfButton onExportPDF={onExportPDF} />
+            )}
+
             {currentModule === 'NURSING_HANDOFF' && !isGuest && (
               <React.Suspense fallback={<DateStripActionFallback widthClassName="min-w-[40px]" />}>
                 <HandoffSaveDropdown

@@ -27,8 +27,6 @@ interface HandoffChecklistSectionProps {
     field: string,
     value: boolean | string
   ) => void;
-  /** Optional action rendered at the right of the shift tabs row (e.g. CUDYR button) */
-  extraAction?: React.ReactNode;
 }
 
 export const HandoffChecklistSection: React.FC<HandoffChecklistSectionProps> = ({
@@ -42,7 +40,6 @@ export const HandoffChecklistSection: React.FC<HandoffChecklistSectionProps> = (
   readOnly,
   onUpdateStaff,
   onUpdateChecklist,
-  extraAction,
 }) => {
   const checklistSectionViewModel = buildHandoffChecklistSectionViewModel({
     isMedical,
@@ -57,12 +54,11 @@ export const HandoffChecklistSection: React.FC<HandoffChecklistSectionProps> = (
 
   return (
     <div className="handoff-header min-w-0 bg-white rounded-2xl border border-slate-200/80 p-3 sm:p-4 print:hidden shadow-sm ring-1 ring-black/[0.02]">
-      {/* Row 1: Shift tabs + CUDYR action (same line) */}
+      {/* Row 1: Shift tabs */}
       <div className="flex min-w-0 items-center gap-2 mb-3 pb-3 border-b border-slate-100">
         {showShiftSwitcher && setSelectedShift && (
           <HandoffShiftSwitcher selectedShift={selectedShift} setSelectedShift={setSelectedShift} />
         )}
-        {extraAction && <div className="ml-auto shrink-0">{extraAction}</div>}
       </div>
 
       {/* Row 2: Staff names — min-h ensures consistent height between day/night shifts */}
