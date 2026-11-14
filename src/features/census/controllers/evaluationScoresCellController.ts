@@ -86,7 +86,7 @@ const completedYearsFromAgeText = (age: string | undefined): number | null => {
   const parts = (age ?? '')
     .trim()
     .toLowerCase()
-    .match(/^(\d{1,5})\s*([^\d\s,]*)/);
+    .match(/^(\d+)\s*([^\d\s,]*)/);
   if (!parts) return null;
   const amount = Number(parts[1]);
   const unit = parts[2].replace(/[()]/g, '');
