@@ -97,10 +97,9 @@ export const useRoleManagement = () => {
 
   // Success auto-hide
   useEffect(() => {
-    if (message?.type === 'success') {
-      const timer = setTimeout(() => setMessage(null), 5000);
-      return () => clearTimeout(timer);
-    }
+    if (message?.type !== 'success') return undefined;
+    const timer = setTimeout(() => setMessage(null), 5000);
+    return () => clearTimeout(timer);
   }, [message]);
 
   const resetForm = useCallback((options: { preserveMessage?: boolean } = {}) => {

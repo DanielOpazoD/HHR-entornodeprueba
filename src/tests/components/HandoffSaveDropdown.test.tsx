@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import React from 'react';
 import { HandoffSaveDropdown } from '@/components/layout/date-strip/actions/HandoffSaveDropdown';
 
 describe('HandoffSaveDropdown', () => {

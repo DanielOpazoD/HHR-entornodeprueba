@@ -1,5 +1,4 @@
 import 'fake-indexeddb/auto';
-import React from 'react';
 import {
   act,
   cleanup,

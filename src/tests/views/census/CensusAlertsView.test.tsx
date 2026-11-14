@@ -1,4 +1,3 @@
-import React from 'react';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CensusTableHeader } from '@/features/census/components/CensusTableHeader';

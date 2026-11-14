@@ -6,6 +6,7 @@ import type { PatientData } from '@/types/domain/patient';
  * Reads authoritative records, preserves existing outcomes and nurse/admin editing limits,
  * Applies verified night admissions after ordinary sync confirmation; other corrections need acknowledgment.
  */
+import { RayenPlanningStop } from './rayenPlanningStop';
 import { planPreviousDayEdits } from './planPreviousDayEdits';
 import {
   buildHistoricalAdmissionPatch,
@@ -106,7 +107,7 @@ export const computePreviousDayEdits = async (
         port.getLocalForDateWithMeta(day).catch(() => port.getLocalForDateWithMeta(day)),
       ]);
       if (local.writeState === 'failed' || local.writeState === 'conflict') {
-        throw new Error(
+        throw new RayenPlanningStop(
           `El censo del ${day} tiene cambios locales que no pudieron guardarse. Resuélvelos antes de sincronizar con Eloísa.`
         );
       }

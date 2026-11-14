@@ -1,5 +1,4 @@
 import 'fake-indexeddb/auto';
-import React from 'react';
 import { render, screen, cleanup } from '@testing-library/react';
 import { beforeEach, afterEach, it, expect, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
