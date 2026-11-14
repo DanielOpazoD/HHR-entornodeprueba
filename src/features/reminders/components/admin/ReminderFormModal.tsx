@@ -1,6 +1,7 @@
 import React from 'react';
 import { BellRing, ImagePlus } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
 import type { Reminder } from '@/types/reminders';
 import type { ReminderDraftInput } from '@/domain/reminders/reminderValidation';
 import {
@@ -105,21 +106,17 @@ export const ReminderFormModal: React.FC<ReminderFormModalProps> = ({
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="md:col-span-2">
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
-              Título
-            </label>
+            <label className="mb-1.5 block text-xs font-semibold text-slate-600">Título</label>
             <input
               required
               value={draft.title}
               onChange={event => setDraft(previous => ({ ...previous, title: event.target.value }))}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-sky-400"
+              className="hhr-field"
             />
           </div>
 
           <div className="md:col-span-2">
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
-              Mensaje
-            </label>
+            <label className="mb-1.5 block text-xs font-semibold text-slate-600">Mensaje</label>
             <textarea
               required
               rows={5}
@@ -127,14 +124,12 @@ export const ReminderFormModal: React.FC<ReminderFormModalProps> = ({
               onChange={event =>
                 setDraft(previous => ({ ...previous, message: event.target.value }))
               }
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-sky-400"
+              className="hhr-field"
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
-              Tipo
-            </label>
+            <label className="mb-1.5 block text-xs font-semibold text-slate-600">Tipo</label>
             <select
               value={draft.type}
               onChange={event =>
@@ -143,7 +138,7 @@ export const ReminderFormModal: React.FC<ReminderFormModalProps> = ({
                   type: event.target.value as ReminderDraftInput['type'],
                 }))
               }
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-sky-400"
+              className="hhr-field"
             >
               {Object.entries(REMINDER_TYPE_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
@@ -154,15 +149,13 @@ export const ReminderFormModal: React.FC<ReminderFormModalProps> = ({
           </div>
 
           <div>
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
-              Prioridad
-            </label>
+            <label className="mb-1.5 block text-xs font-semibold text-slate-600">Prioridad</label>
             <select
               value={draft.priority}
               onChange={event =>
                 setDraft(previous => ({ ...previous, priority: Number(event.target.value) }))
               }
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-sky-400"
+              className="hhr-field"
             >
               <option value={1}>Normal</option>
               <option value={2}>Alta</option>
@@ -171,7 +164,7 @@ export const ReminderFormModal: React.FC<ReminderFormModalProps> = ({
           </div>
 
           <div>
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
+            <label className="mb-1.5 block text-xs font-semibold text-slate-600">
               Vigencia desde
             </label>
             <input
@@ -180,12 +173,12 @@ export const ReminderFormModal: React.FC<ReminderFormModalProps> = ({
               onChange={event =>
                 setDraft(previous => ({ ...previous, startDate: event.target.value }))
               }
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-sky-400"
+              className="hhr-field"
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
+            <label className="mb-1.5 block text-xs font-semibold text-slate-600">
               Vigencia hasta
             </label>
             <input
@@ -194,15 +187,13 @@ export const ReminderFormModal: React.FC<ReminderFormModalProps> = ({
               onChange={event =>
                 setDraft(previous => ({ ...previous, endDate: event.target.value }))
               }
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-sky-400"
+              className="hhr-field"
             />
           </div>
         </div>
 
-        <section className="space-y-3 rounded-[1.5rem] border border-slate-100 bg-slate-50/80 p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
-            Destinatarios por rol
-          </p>
+        <section className="space-y-3 rounded-xl border border-slate-100 bg-slate-50/80 p-4">
+          <p className="text-xs font-semibold text-slate-600">Destinatarios por rol</p>
           <div className="flex flex-wrap gap-2">
             {REMINDER_ROLE_OPTIONS.map(option => (
               <button
@@ -221,10 +212,8 @@ export const ReminderFormModal: React.FC<ReminderFormModalProps> = ({
           </div>
         </section>
 
-        <section className="space-y-3 rounded-[1.5rem] border border-slate-100 bg-slate-50/80 p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
-            Turnos
-          </p>
+        <section className="space-y-3 rounded-xl border border-slate-100 bg-slate-50/80 p-4">
+          <p className="text-xs font-semibold text-slate-600">Turnos</p>
           <div className="flex flex-wrap gap-2">
             {REMINDER_SHIFT_OPTIONS.map(option => (
               <button
@@ -243,11 +232,9 @@ export const ReminderFormModal: React.FC<ReminderFormModalProps> = ({
           </div>
         </section>
 
-        <section className="space-y-3 rounded-[1.5rem] border border-slate-100 bg-slate-50/80 p-4">
+        <section className="space-y-3 rounded-xl border border-slate-100 bg-slate-50/80 p-4">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
-              Imagen opcional
-            </p>
+            <p className="text-xs font-semibold text-slate-600">Imagen opcional</p>
             {draft.imageUrl && (
               <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
                 <input
@@ -259,7 +246,7 @@ export const ReminderFormModal: React.FC<ReminderFormModalProps> = ({
               </label>
             )}
           </div>
-          <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-4 text-sm font-semibold text-slate-600">
+          <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-slate-300 bg-white px-4 py-4 text-sm font-semibold text-slate-600">
             <ImagePlus size={18} />
             <span>{imageFile ? imageFile.name : 'Seleccionar imagen JPG, PNG o WEBP'}</span>
             <input
@@ -273,7 +260,7 @@ export const ReminderFormModal: React.FC<ReminderFormModalProps> = ({
             <img
               src={previewImageUrl}
               alt="Vista previa del aviso"
-              className="h-44 w-full rounded-2xl object-cover"
+              className="h-44 w-full rounded-lg object-cover"
             />
           )}
         </section>
@@ -294,15 +281,11 @@ export const ReminderFormModal: React.FC<ReminderFormModalProps> = ({
             type="button"
             onClick={onClose}
             disabled={processing}
-            className="rounded-2xl border border-slate-200 px-4 py-3 text-xs font-black uppercase tracking-[0.2em] text-slate-600 transition hover:bg-slate-50"
+            className={buttonClassName('secondary')}
           >
             Cancelar
           </button>
-          <button
-            type="submit"
-            disabled={processing}
-            className="rounded-2xl bg-slate-900 px-4 py-3 text-xs font-black uppercase tracking-[0.2em] text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-slate-300"
-          >
+          <button type="submit" disabled={processing} className={buttonClassName('primary')}>
             {processing ? 'Guardando...' : reminder ? 'Guardar cambios' : 'Crear aviso'}
           </button>
         </div>
