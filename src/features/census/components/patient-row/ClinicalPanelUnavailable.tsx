@@ -1,5 +1,6 @@
 import React from 'react';
 import { FileHeart, Unplug, Clock3, RefreshCw } from 'lucide-react';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
 
 export const ClinicalPanelUnavailable: React.FC<{ message: string; onRetry: () => void }> = ({
   message,
@@ -36,15 +37,11 @@ export const ClinicalPanelUnavailable: React.FC<{ message: string; onRetry: () =
             ? 'Abre Ficha Médico con la extensión Eloísa activa. Cuando la conexión esté disponible, podrás consultar los registros del paciente.'
             : 'Eloísa no pudo completar la consulta. Puedes volver a intentarlo en unos momentos.'}
       </p>
-      <button
-        type="button"
-        onClick={onRetry}
-        className="mt-5 inline-flex items-center gap-2 rounded-lg bg-teal-700 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-800"
-      >
+      <button type="button" onClick={onRetry} className={buttonClassName('primary', 'sm', 'mt-5')}>
         <RefreshCw size={14} />
         Reintentar
       </button>
-      <details className="mt-4 text-left text-[11px] text-slate-400">
+      <details className="mt-4 text-left text-xs text-slate-500">
         <summary className="cursor-pointer">Detalle de la conexión</summary>
         <p className="mt-2 break-words">{message}</p>
       </details>
