@@ -1,9 +1,9 @@
 import type { Worksheet } from 'exceljs';
 
-export const CENSUS_HIDDEN_SHEETS_PASSWORD = 'HHR';
+const CENSUS_HIDDEN_SHEETS_PASSWORD = 'HHR';
 export const CENSUS_WORKBOOK_STRUCTURE_PASSWORD = 'HHR';
 
-export const CENSUS_HIDDEN_SHEET_PROTECTION_OPTIONS = {
+const CENSUS_HIDDEN_SHEET_PROTECTION_OPTIONS = {
   selectLockedCells: false,
   selectUnlockedCells: false,
   formatCells: false,
