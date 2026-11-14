@@ -165,8 +165,8 @@ describe('ClinicalExplorerImaging', () => {
     vi.stubGlobal(
       'URL',
       class extends OriginalURL {
-        static createObjectURL = createUrl;
-        static revokeObjectURL = revokeUrl;
+        static override createObjectURL = createUrl;
+        static override revokeObjectURL = revokeUrl;
       }
     );
     return { popup, createUrl, revokeUrl };
