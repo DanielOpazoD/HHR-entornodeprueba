@@ -194,7 +194,7 @@ export const reconcileCensus = (
         bedId: null,
         rut: patient.rut,
         patientName: patient.patientName,
-        reason: `No se pudo mapear la cama de Rayen (servicio "${encounter.service ?? ''}", sala "${encounter.room ?? ''}", cama "${encounter.bed ?? ''}").`,
+        reason: `La cama de Rayen no corresponde a ninguna cama del censo (servicio "${encounter.service ?? ''}", sala "${encounter.room ?? ''}", cama "${encounter.bed ?? ''}"), así que la sincronización no ubicó a este paciente. Revisa su cama en Gestión de Camas.`,
         source: encounter,
       });
       continue;
