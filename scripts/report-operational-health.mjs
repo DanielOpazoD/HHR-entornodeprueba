@@ -35,7 +35,6 @@ const repositoryFiles = [
   'src/services/repositories/dailyRecordRepositoryReadService.ts',
   'src/services/repositories/dailyRecordRepositoryInitializationService.ts',
   'src/services/repositories/dailyRecordRepositorySyncService.ts',
-  'src/services/repositories/monthIntegrity.ts',
   'src/services/repositories/dailyRecordRemoteLoader.ts',
 ];
 

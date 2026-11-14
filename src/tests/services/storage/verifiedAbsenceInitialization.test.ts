@@ -3,7 +3,6 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { A, clone, day, harnessState } from './specialistHandoffOutboxHarness';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { initializeDay } from '@/services/repositories/dailyRecordRepositoryInitializationService';
-import { ensureMonthIntegrity } from '@/services/repositories/monthIntegrity';
 import { executeSendCensusEmail } from '@/application/census-email/sendCensusEmailUseCases';
 import { defaultDailyRecordReadPort } from '@/application/ports/dailyRecordPort';
 vi.unmock('@/application/ports/dailyRecordPort');
@@ -106,41 +105,11 @@ it.each(['failed lookup', 'cached absence'])(
     expect(delivery.sendEmailWithResult).toHaveBeenCalledTimes(1);
   }
 );
-it.each(['failed lookup', 'cached absence'])(
-  'month reports error without creating a day: %s, then retries',
-  async kind => {
-    failLookup(kind);
-    const result = await ensureMonthIntegrity(2026, 11, 1);
-    console.log(
-      JSON.stringify({
-        flow: 'month',
-        kind,
-        ...result,
-        newRows: (await hospitalDB.dailyRecords.get(DATE)) ? 1 : 0,
-        tasks: await hospitalDB.syncQueue.count(),
-      })
-    );
-    expect(result).toEqual({ success: false, errors: [DATE], initializedDays: [], totalDays: 1 });
-    await noCreation();
-    vi.mocked(sdk.getDoc).mockResolvedValue({
-      exists: () => false,
-      metadata: { fromCache: false, hasPendingWrites: false },
-    } as never);
-    harnessState().remote = null;
-    expect(await ensureMonthIntegrity(2026, 11, 1)).toEqual({
-      success: true,
-      errors: [],
-      initializedDays: [DATE],
-      totalDays: 1,
-    });
-  }
-);
 it('preserves confirmed absence initialization from the main screen', async () => {
   expect((await initializeDay(DATE)).date).toBe(DATE);
   expect(await hospitalDB.dailyRecords.get(DATE)).toBeDefined();
 });
-it('preserves confirmed absence in email and month', async () => {
+it('preserves confirmed absence in email', async () => {
   expect((await send()).status).toBe('success');
   expect(delivery.sendEmailWithResult).toHaveBeenCalledTimes(1);
-  expect((await ensureMonthIntegrity(2026, 11, 1)).success).toBe(true);
 });

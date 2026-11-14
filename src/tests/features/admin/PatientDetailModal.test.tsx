@@ -19,7 +19,56 @@ const patient: MasterPatient = {
   ],
 };
 
+const OpenerHarness = () => {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
+        Ver ficha
+      </button>
+      {open && <PatientDetailModal patient={patient} onClose={() => setOpen(false)} />}
+    </>
+  );
+};
+
+const openFromTrigger = () => {
+  render(<OpenerHarness />);
+  const trigger = screen.getByRole('button', { name: 'Ver ficha' });
+  trigger.focus();
+  fireEvent.click(trigger);
+  return trigger;
+};
+
 describe('PatientDetailModal', () => {
+  it('is announced as a modal dialog named by the patient and takes focus', () => {
+    openFromTrigger();
+
+    const dialog = screen.getByRole('dialog', { name: patient.fullName });
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+  });
+
+  it('closes with Escape and gives focus back to the trigger', () => {
+    const trigger = openFromTrigger();
+
+    screen.getByRole('button', { name: 'Cerrar' }).focus();
+    fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'Escape' });
+
+    expect(screen.queryByText(patient.fullName)).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it('gives focus back to the trigger when closed from a button', () => {
+    const trigger = openFromTrigger();
+
+    const footer = screen.getByRole('button', { name: 'Cerrar Explorer' });
+    footer.focus();
+    fireEvent.click(footer);
+
+    expect(screen.queryByText(patient.fullName)).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
   it('names the patient in the header heading with identity and event count', () => {
     render(<PatientDetailModal patient={patient} onClose={vi.fn()} />);
 

@@ -33,8 +33,7 @@ interface DemographicsOriginSectionProps {
   canUseArbitraryAdmissionDate?: boolean;
 }
 
-const missingRequiredClass =
-  'border-amber-300 bg-amber-50/60 focus:border-amber-500 focus:ring-amber-500/20';
+const missingRequiredClass = 'border-amber-300 bg-amber-50/60 focus:border-amber-500';
 
 export const DemographicsOriginSection: React.FC<DemographicsOriginSectionProps> = ({
   localData,
@@ -121,7 +120,7 @@ export const DemographicsOriginSection: React.FC<DemographicsOriginSectionProps>
 
   return (
     <div className="space-y-3">
-      <h4 className="flex items-center gap-2 text-[11px] font-bold text-slate-800 uppercase tracking-wider pb-1.5 border-b border-slate-100">
+      <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-800 pb-1.5 border-b border-slate-100">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           className="h-3.5 w-3.5 text-emerald-500"
@@ -158,7 +157,7 @@ export const DemographicsOriginSection: React.FC<DemographicsOriginSectionProps>
           <div className="space-y-1">
             <label
               htmlFor="demographics-admission-date"
-              className="block text-[9px] font-bold text-slate-500 uppercase tracking-wide ml-1"
+              className="block text-xs font-semibold text-slate-600"
             >
               Fecha de ingreso
             </label>
@@ -168,10 +167,8 @@ export const DemographicsOriginSection: React.FC<DemographicsOriginSectionProps>
                 type="date"
                 aria-invalid={isMissingRequired('fecha de ingreso') || undefined}
                 className={clsx(
-                  'w-full px-2.5 py-1.5 border rounded-lg text-[13px] text-slate-700 focus:bg-white focus:ring-2 outline-none shadow-sm transition-all',
-                  isMissingRequired('fecha de ingreso')
-                    ? missingRequiredClass
-                    : 'bg-slate-50 border-transparent focus:ring-blue-500/20 focus:border-blue-500'
+                  'hhr-field',
+                  isMissingRequired('fecha de ingreso') && missingRequiredClass
                 )}
                 value={localData.admissionDate}
                 onChange={updateAdmissionDate}
@@ -181,10 +178,8 @@ export const DemographicsOriginSection: React.FC<DemographicsOriginSectionProps>
                 id="demographics-admission-date"
                 aria-invalid={isMissingRequired('fecha de ingreso') || undefined}
                 className={clsx(
-                  'w-full px-2.5 py-1.5 border rounded-lg text-[13px] text-slate-700 focus:bg-white focus:ring-2 outline-none shadow-sm transition-all',
-                  isMissingRequired('fecha de ingreso')
-                    ? missingRequiredClass
-                    : 'bg-slate-50 border-transparent focus:ring-blue-500/20 focus:border-blue-500'
+                  'hhr-field',
+                  isMissingRequired('fecha de ingreso') && missingRequiredClass
                 )}
                 value={localData.admissionDate}
                 onChange={updateAdmissionDate}
@@ -200,9 +195,7 @@ export const DemographicsOriginSection: React.FC<DemographicsOriginSectionProps>
           </div>
 
           <div className="space-y-1">
-            <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wide ml-1">
-              Hora de ingreso
-            </label>
+            <label className="block text-xs font-semibold text-slate-600">Hora de ingreso</label>
             <div
               role="group"
               aria-label="Configuración de hora de ingreso"
@@ -265,12 +258,10 @@ export const DemographicsOriginSection: React.FC<DemographicsOriginSectionProps>
         </div>
 
         <div className="space-y-1">
-          <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wide ml-1">
-            Condición
-          </label>
+          <label className="block text-xs font-semibold text-slate-600">Condición</label>
           <div className="relative">
             <select
-              className="w-full px-2.5 py-1.5 bg-slate-50 border border-transparent rounded-lg text-[13px] text-slate-700 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none appearance-none cursor-pointer shadow-sm transition-all"
+              className="hhr-field appearance-none cursor-pointer pr-8"
               value={localData.origin}
               onChange={e =>
                 setLocalData(current => ({ ...current, origin: e.target.value as Origin }))

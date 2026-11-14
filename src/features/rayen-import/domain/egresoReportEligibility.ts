@@ -330,7 +330,7 @@ export const selectEligibleEgresoRows = (
         },
         rut: row.run,
         patientName: current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName,
-        reason: `El alta administrativa de ${current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName} no pudo vincularse a un episodio clínico exacto; no se aplicó.`,
+        reason: `El alta administrativa de ${current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName} quedó sin vincular a un episodio clínico exacto; no se aplicó.`,
       });
       continue;
     }
