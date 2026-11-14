@@ -2,6 +2,8 @@ import type { LabPatient, SyslabExamItem } from '@/types/domain/labExamTypes';
 import type { LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
 import { EXAM_FILTER_CATEGORIES } from '../constants/labExamConstants';
 import { bedSortKey } from './labFormattingController';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
+import { addCalendarDays } from '@/utils/clinicalDateUtils';
 
 export const resolveInitialLabViewerRut = (
   patients: LabPatient[],
@@ -113,6 +115,14 @@ const parseLabExamCalendarDate = (value: string): Date | null => {
   return new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]));
 };
 
+/** A `YYYY-MM-DD` day at the same local midnight that `parseLabExamCalendarDate` gives an exam. */
+const startOfCalendarDay = (calendarDay: string): Date =>
+  new Date(
+    Number(calendarDay.slice(0, 4)),
+    Number(calendarDay.slice(5, 7)) - 1,
+    Number(calendarDay.slice(8, 10))
+  );
+
 export const resolveLabExamIdsByDateRange = ({
   examList,
   from,
@@ -142,14 +152,11 @@ export const resolveLabExamIdsByDays = ({
   days: number;
   now?: Date;
 }): string[] => {
-  const cutoff = new Date(now);
-  cutoff.setDate(cutoff.getDate() - days);
-  cutoff.setHours(0, 0, 0, 0);
-
+  const today = getClinicalCalendarDateISO(now);
   return resolveLabExamIdsByDateRange({
     examList,
-    from: cutoff,
-    to: now,
+    from: startOfCalendarDay(addCalendarDays(today, -days)),
+    to: startOfCalendarDay(today),
   });
 };
 
