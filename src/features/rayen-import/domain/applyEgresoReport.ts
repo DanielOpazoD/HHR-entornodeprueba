@@ -260,7 +260,7 @@ export const applyEgresoReport = (
             bedId: current.bedId,
             rut: row.run,
             patientName: current.patientName,
-            reason: `El egreso identifica un episodio (${reportedEpisode}), pero el episodio activo de HHR no se pudo confirmar.`,
+            reason: `El egreso identifica un episodio (${reportedEpisode}), pero el episodio activo de HHR quedó sin confirmar. Revisa el episodio antes de registrar el alta.`,
           });
         }
         continue;
@@ -326,7 +326,7 @@ export const applyEgresoReport = (
             bedId: currentCrib.parentBedId,
             rut: currentCrib.patient.rut,
             patientName: currentCrib.patient.patientName,
-            reason: `El egreso identifica un episodio (${reportedEpisode}), pero el episodio activo de la cuna no se pudo confirmar.`,
+            reason: `El egreso identifica un episodio (${reportedEpisode}), pero el episodio activo de la cuna quedó sin confirmar. Revisa el episodio antes de registrar el alta.`,
           });
         else if (!hasRecordedMovement(record, row.run, reportedEpisode)) {
           reportEgresos.push(reportEgresoFromRow(row));

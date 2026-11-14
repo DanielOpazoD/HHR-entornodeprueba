@@ -282,6 +282,26 @@ describe('DemographicsModal', () => {
     expect(onSave.mock.calls[0]?.[0]).not.toHaveProperty('pathology');
   });
 
+  it('explains the provisional newborn mode with correct spelling', () => {
+    render(
+      <DemographicsModal
+        isOpen
+        onClose={vi.fn()}
+        data={createEmptyDemographics()}
+        onSave={vi.fn()}
+        bedId="R1"
+        recordDate="2026-05-01"
+        isClinicalCribPatient
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'RN provisional' }));
+
+    expect(
+      screen.getByText('Usa este modo cuando el RN aún no tiene nombre oficial ni RUT.')
+    ).toBeInTheDocument();
+  });
+
   it('nunca emite campos de autoridad clínica: el guardado demográfico es estructural puro', () => {
     // Contrato con la separación de autoridad del repositorio: si el payload
     // incluyera un campo de CLINICAL_CENSUS_EDITABLE_FIELDS, todo guardado

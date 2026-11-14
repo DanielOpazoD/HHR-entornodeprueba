@@ -5,6 +5,8 @@
     "useDefineForClassFields": false,
     "module": "ESNext",
     "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
     "noImplicitOverride": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
