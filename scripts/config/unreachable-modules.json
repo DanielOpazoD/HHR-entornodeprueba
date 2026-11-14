@@ -37,25 +37,6 @@
         "src/features/cudyr/hooks/useAdminCudyrResult.ts",
         "src/services/cudyr/adminCudyrResultService.ts"
       ]
-    },
-    {
-      "reason": "Diagnósticos de convergencia que la app no carga, pero cuyo texto leen los scripts de evidencia de sincronización (check-sync-convergence-evidence, report-operational-health). Se retiran junto con esa evidencia.",
-      "files": [
-        "src/services/observability/syncConvergenceDiagnosticTypes.ts",
-        "src/services/observability/syncConvergenceDiagnostics.ts",
-        "src/services/observability/syncConvergenceHandoffDiagnostics.ts",
-        "src/services/observability/syncConvergenceSharedHelpers.ts",
-        "src/services/observability/syncRecoveryPlanner.ts",
-        "src/services/repositories/monthIntegrity.ts",
-        "src/services/repositories/monthIntegritySupport.ts"
-      ]
-    },
-    {
-      "reason": "Contratos de runtime que la app no carga, pero que check-runtime-contracts y check-docs-drift exigen documentados. Se retiran junto con esa exigencia.",
-      "files": [
-        "src/services/repositories/runtimeCompatibilityPolicy.ts",
-        "src/services/repositories/runtimeContractGovernance.ts"
-      ]
     }
   ]
 }

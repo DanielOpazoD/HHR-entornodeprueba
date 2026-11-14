@@ -7,16 +7,12 @@ import {
   fetchExistingDaysInMonth,
   fetchRecordsForMonth,
 } from '@/services/records/recordQueryService';
-import { ensureMonthIntegrity } from '@/services/repositories/monthIntegrity';
 import { generateCensusMasterExcel } from '@/services/exporters/censusMasterExport';
 import { useExistingDaysQuery } from '@/hooks/useExistingDaysQuery';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import { localPersistence } from '@/services/storage/localpersistence/localPersistenceService';
 
-const mocks = vi.hoisted(() => ({ initializeDay: vi.fn(), saveAs: vi.fn() }));
-vi.mock('@/services/repositories/dailyRecordRepositoryInitializationService', () => ({
-  initializeDay: mocks.initializeDay,
-}));
+const mocks = vi.hoisted(() => ({ saveAs: vi.fn() }));
 vi.mock('@/services/storage/firestore', () => ({}));
 vi.mock('@/services/repositories/repositoryConfig', () => ({ isFirestoreEnabled: () => false }));
 vi.mock('file-saver', () => ({ saveAs: mocks.saveAs }));
@@ -72,12 +68,6 @@ describe('local monthly read failure reaches decisions', () => {
     failRead();
     await expect(fetchRecordsForMonth(2026, 4)).rejects.toThrow('synthetic');
     await expect(fetchExistingDaysInMonth(2026, 4)).rejects.toThrow('synthetic');
-  });
-
-  it('does not initialize any days when the stored month cannot be read', async () => {
-    failRead();
-    await expect(ensureMonthIntegrity(2026, 4, 2)).rejects.toThrow('synthetic');
-    expect(mocks.initializeDay).not.toHaveBeenCalled();
   });
 
   it('returns the existing export failure outcome without downloading or claiming no data', async () => {

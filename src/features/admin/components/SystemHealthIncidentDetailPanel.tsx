@@ -11,6 +11,7 @@ import {
   Trash2,
   UserRound,
 } from 'lucide-react';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
 import type { UserHealthStatus } from '@/services/admin/healthService';
 import type { SystemHealthIncidentRow } from './systemHealthIncidentUtils';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
@@ -63,11 +64,9 @@ export const SystemHealthIncidentDetailPanel = ({
   return (
     <aside className="rounded-lg border border-slate-200 bg-white shadow-sm">
       <div className="border-b border-slate-200 p-4">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Detalle operativo
-            </p>
+            <p className="text-xs font-semibold text-slate-600">Detalle operativo</p>
             <h3 className="mt-1 truncate text-sm font-black text-slate-900">{user.displayName}</h3>
             <p className="truncate text-xs text-slate-500">{user.email}</p>
           </div>
@@ -77,7 +76,7 @@ export const SystemHealthIncidentDetailPanel = ({
                 type="button"
                 onClick={() => onClearUserWindow(user, incidents)}
                 disabled={deleting || incidents.length === 0}
-                className="inline-flex items-center gap-1 rounded-md border border-emerald-100 bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700 transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className={buttonClassName('secondary', 'md')}
                 title="Resolver incidentes visibles del usuario y borrar snapshot actual"
               >
                 <CheckCircle2 size={12} /> Limpiar usuario
@@ -86,7 +85,7 @@ export const SystemHealthIncidentDetailPanel = ({
                 type="button"
                 onClick={() => onDeleteSnapshot(user)}
                 disabled={deleting}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-100 bg-red-50 text-red-600 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className={buttonClassName('ghost', 'icon', 'text-red-700 hover:bg-red-50')}
                 title="Borrar registro de salud"
                 aria-label="Borrar registro de salud"
               >
@@ -94,15 +93,15 @@ export const SystemHealthIncidentDetailPanel = ({
               </button>
             </div>
           ) : (
-            <span className="shrink-0 rounded-md border border-amber-100 bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-700">
+            <span className="shrink-0 rounded-md border border-amber-100 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">
               Requiere rol admin
             </span>
           )}
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-slate-600">
+        <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
           <span className="flex items-center gap-1">
-            <Clock size={12} /> Ultima salud: {formatDateTime(user.lastSeen)}
+            <Clock size={12} /> Última salud: {formatDateTime(user.lastSeen)}
           </span>
           <span className="flex items-center gap-1">
             <UserRound size={12} /> {user.isOnline ? 'Online' : 'Offline'}
@@ -127,24 +126,24 @@ export const SystemHealthIncidentDetailPanel = ({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="rounded bg-white/70 px-1.5 py-0.5 text-[10px] font-bold">
+                    <span className="rounded bg-white/70 px-1.5 py-0.5 font-semibold">
                       {incident.statusLabel}
                     </span>
-                    <span className="rounded bg-white/70 px-1.5 py-0.5 text-[10px] font-bold">
+                    <span className="rounded bg-white/70 px-1.5 py-0.5 font-semibold">
                       {incident.sourceLabel}
                     </span>
-                    <span className="rounded bg-white/70 px-1.5 py-0.5 text-[10px] font-bold">
+                    <span className="rounded bg-white/70 px-1.5 py-0.5 font-semibold">
                       {incident.categoryLabel}
                     </span>
                   </div>
                   <h4 className="mt-2 break-words text-sm font-black">{incident.title}</h4>
                 </div>
-                <span className="shrink-0 text-[10px] font-semibold">
+                <span className="shrink-0 text-xs font-semibold">
                   {formatDateTime(incident.timestamp)}
                 </span>
               </div>
 
-              <div className="mt-3 space-y-1 text-[11px]">
+              <div className="mt-3 space-y-1">
                 <p className="flex items-center gap-1">
                   <CalendarClock size={12} /> {incident.originLabel}
                 </p>
@@ -161,7 +160,7 @@ export const SystemHealthIncidentDetailPanel = ({
                   {incident.details.map(detail => (
                     <span
                       key={detail}
-                      className="rounded border border-white/70 bg-white/70 px-1.5 py-0.5 text-[10px]"
+                      className="rounded border border-white/70 bg-white/70 px-1.5 py-0.5"
                     >
                       {detail}
                     </span>
@@ -171,15 +170,12 @@ export const SystemHealthIncidentDetailPanel = ({
 
               {incident.resolutionHistory?.length ? (
                 <div className="mt-3 rounded-md border border-white/70 bg-white/70 p-2">
-                  <p className="mb-1 flex items-center gap-1 text-[10px] font-black uppercase tracking-wider">
-                    <History size={11} /> Historial de resolucion
+                  <p className="mb-1 flex items-center gap-1 font-semibold">
+                    <History size={11} /> Historial de resolución
                   </p>
                   <div className="space-y-1">
                     {incident.resolutionHistory.slice(-3).map(entry => (
-                      <p
-                        key={`${entry.action}:${entry.at}:${entry.actorUid || 'unknown'}`}
-                        className="text-[10px]"
-                      >
+                      <p key={`${entry.action}:${entry.at}:${entry.actorUid || 'unknown'}`}>
                         <span className="font-bold">
                           {entry.action === 'resolved' ? 'Resuelto' : 'Reabierto'}
                         </span>{' '}
@@ -194,14 +190,14 @@ export const SystemHealthIncidentDetailPanel = ({
 
               <div className="mt-3 flex justify-end">
                 {!canManageSystemHealthOperations ? (
-                  <span className="rounded-md border border-amber-100 bg-white/70 px-2 py-1 text-[10px] font-bold text-amber-700">
+                  <span className="rounded-md border border-amber-100 bg-white/70 px-2 py-1 font-semibold text-amber-700">
                     Requiere rol admin
                   </span>
                 ) : incident.status === 'resolved' ? (
                   <button
                     type="button"
                     onClick={() => onReopenIncident(incident.resolutionKey)}
-                    className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-50"
+                    className={buttonClassName('ghost', 'sm')}
                   >
                     <RotateCcw size={12} /> Reabrir
                   </button>
@@ -216,8 +212,8 @@ export const SystemHealthIncidentDetailPanel = ({
                           [incident.resolutionKey]: event.target.value,
                         }))
                       }
-                      placeholder="Nota de resolucion..."
-                      className="min-w-0 flex-1 rounded-md border border-white/80 bg-white/80 px-2 py-1 text-[11px] text-slate-700 outline-none focus:border-medical-400 focus:ring-2 focus:ring-medical-400/20 sm:max-w-[210px]"
+                      placeholder="Nota de resolución..."
+                      className="hhr-field flex-1 sm:max-w-[210px]"
                     />
                     <button
                       type="button"
@@ -227,7 +223,7 @@ export const SystemHealthIncidentDetailPanel = ({
                           resolutionNotes[incident.resolutionKey]?.trim()
                         )
                       }
-                      className="inline-flex items-center justify-center gap-1 rounded-md border border-emerald-100 bg-white px-2 py-1 text-[10px] font-bold text-emerald-700 hover:bg-emerald-50"
+                      className={buttonClassName('ghost', 'sm')}
                     >
                       <CheckCircle2 size={12} /> Marcar resuelto
                     </button>
