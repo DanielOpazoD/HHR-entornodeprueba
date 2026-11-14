@@ -34,7 +34,7 @@ export const resolveRayenPolicyBlockMessage = (status: RayenImportPolicyStatus):
     case 'unauthorized':
       return POLICY_SESSION_EXPIRED_MESSAGE;
     default:
-      return 'No se pudo confirmar la política global de sincronización con el servidor. Reintenta cuando vuelva la conexión.';
+      return 'La política global de sincronización todavía no se confirmó con el servidor. Vuelve a intentar cuando haya conexión.';
   }
 };
 
@@ -72,7 +72,7 @@ export const useRayenImportMode = (): UseRayenImportModeResult => {
           if (snapshot.fromCache || snapshot.hasPendingWrites) {
             setPolicy(safePolicy());
             setStatus('fallback');
-            setError('No se pudo confirmar la política global con el servidor.');
+            setError('La política global todavía no se confirmó con el servidor.');
             return;
           }
           if (!snapshot.exists) {
@@ -113,7 +113,7 @@ export const useRayenImportMode = (): UseRayenImportModeResult => {
             return;
           }
           setStatus('fallback');
-          setError('No se pudo leer la política global; se mantuvo la revisión manual.');
+          setError('La política global todavía no se leyó; se mantiene la revisión manual.');
         },
       }),
     []

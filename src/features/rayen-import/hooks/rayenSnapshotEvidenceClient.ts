@@ -37,7 +37,7 @@ export const createRayenSnapshotEvidenceClient = (
     return {
       report: null,
       error:
-        'No se pudo verificar temporalmente la extensión Eloísa tras dos intentos. Vuelve a intentar la sincronización.',
+        'La extensión Eloísa todavía no respondió a la comprobación tras dos intentos. Vuelve a sincronizar.',
     };
   };
 
@@ -116,7 +116,7 @@ export const createRayenSnapshotEvidenceClient = (
               (!encounterId || result.encounterId === encounterId);
             results[start + index] = matches
               ? result
-              : { run, encounterId, error: 'No se pudo completar la consulta de este egreso.' };
+              : { run, encounterId, error: 'La consulta de este egreso quedó pendiente.' };
           });
         }
       })

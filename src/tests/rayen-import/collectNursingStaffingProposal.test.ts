@@ -63,7 +63,7 @@ describe('collectNursingStaffingProposal', () => {
     );
 
     await expect(collectNursingStaffingProposal(record, { fetchHistory })).rejects.toThrow(
-      /toda la actividad firmada/i
+      /parte de la actividad firmada/i
     );
     expect(fetchHistory).toHaveBeenCalledTimes(2);
   });
@@ -83,7 +83,7 @@ describe('collectNursingStaffingProposal', () => {
 
     await expect(
       collectNursingStaffingProposal(incompleteRecord, { fetchHistory })
-    ).rejects.toThrow(/episodio clínico de todos los pacientes/i);
+    ).rejects.toThrow(/episodio clínico de algunos pacientes/i);
     expect(fetchHistory).not.toHaveBeenCalled();
   });
 });

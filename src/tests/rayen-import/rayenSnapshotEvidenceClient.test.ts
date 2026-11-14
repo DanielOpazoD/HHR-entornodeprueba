@@ -214,7 +214,7 @@ describe('createRayenSnapshotEvidenceClient', () => {
       expectNoPatientReads();
       for (const result of results) {
         expect(result.base64).toBe('');
-        expect(result.error).toContain('No se pudo verificar temporalmente');
+        expect(result.error).toContain('todavía no respondió a la comprobación');
         expect(result.error).toContain('dos intentos');
         expect(result.error).not.toContain('no admite');
       }

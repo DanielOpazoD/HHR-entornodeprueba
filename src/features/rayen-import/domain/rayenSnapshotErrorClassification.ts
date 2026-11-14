@@ -10,13 +10,17 @@ import type { RayenCaptureFailureCheck, RayenSyncFailureReason } from '@/types/d
  * detrás de «Detalle:». Por eso se clasifica sobre el detalle, nunca sobre el
  * envoltorio; el prefijo solo dice que el lector falló, no por qué.
  *
- * La causa persistida es siempre una categoría; el texto de primera parte
- * (lo escribió la extensión para el operador) se muestra acotado y nunca se
- * guarda.
+ * La causa persistida es siempre una categoría. El mensaje para la persona es
+ * siempre un remedio en tono sereno, sin el texto de la extensión; ese texto
+ * (acotado) viaja aparte como detalle técnico, que solo ve el administrador en
+ * «Ver detalle» y que nunca se guarda.
  */
 export interface RayenSnapshotErrorClassification {
   reason: RayenSyncFailureReason;
+  /** Qué pasó y qué hacer, sin palabras de avería ni texto técnico. */
   message: string;
+  /** Texto de la extensión detrás del mensaje, acotado; solo para el administrador. */
+  technicalDetail?: string;
   /** Which check failed; finer than `reason`, for telemetry only. */
   check: RayenCaptureFailureCheck;
 }
@@ -24,7 +28,7 @@ export interface RayenSnapshotErrorClassification {
 const MAX_MESSAGE_LENGTH = 300;
 
 const GENERIC_MESSAGE =
-  'Eloísa no pudo leer la información solicitada. Revisa las pestañas de Rayen e inténtalo nuevamente.';
+  'Eloísa todavía no entregó la lectura. Revisa las pestañas de Eloísa y vuelve a sincronizar.';
 
 const TRANSPORT_WRAPPER =
   /^no se pudo leer rayen\. recarga la pestana de ficha medico[\s\S]*?\bdetalle:\s*/;
@@ -39,14 +43,16 @@ const capAtWordBoundary = (value: string): string => {
   return `${lastSpace > MAX_MESSAGE_LENGTH / 2 ? cut.slice(0, lastSpace) : cut}…`;
 };
 
-const withDetail = (remedy: string, detail: string): string =>
-  capAtWordBoundary(detail ? `${remedy} Detalle: ${detail}` : remedy);
+const technicalDetailOf = (
+  detail: string
+): Pick<RayenSnapshotErrorClassification, 'technicalDetail'> =>
+  detail ? { technicalDetail: capAtWordBoundary(detail) } : {};
 
 interface ClassificationRule {
   test: RegExp;
   reason: RayenSyncFailureReason;
-  /** Remedio enlatado (el detalle se anexa); null = el texto de la extensión ya es el remedio. */
-  remedy: string | null;
+  /** Remedio para la persona; el texto de la extensión queda como detalle técnico. */
+  remedy: string;
 }
 
 /** En orden: lo más específico primero; el fallo de red de Ficha Médico va después de las de GC. */
@@ -54,20 +60,20 @@ const RULES: readonly ClassificationRule[] = [
   {
     test: /no hay una pestana de rayen|abre ficha medico/,
     reason: 'ficha_medico_unavailable',
-    remedy:
-      'No hay una pestaña de Ficha Médico disponible. Ábrela, inicia sesión y vuelve a sincronizar.',
+    remedy: 'Falta una pestaña de Ficha Médico. Ábrela, inicia sesión y vuelve a sincronizar.',
   },
   {
-    // Establecimientos distintos: el remedio (misma sede en ambas sesiones) lo dice la extensión.
+    // Establecimientos distintos: el remedio es abrir la misma sede en ambas sesiones.
     test: /no corresponden al mismo establecimiento/,
     reason: 'snapshot_error',
-    remedy: null,
+    remedy:
+      'Ficha Médico y Gestión de Camas tienen abiertos establecimientos distintos. Abre ambas en el mismo establecimiento y vuelve a sincronizar.',
   },
   {
     test: /tiempo de espera|no respondio dentro del tiempo/,
     reason: 'snapshot_timeout',
     remedy:
-      'Eloísa no respondió a tiempo. Vuelve a intentarlo; si persiste, recarga la pestaña correspondiente.',
+      'Eloísa tardó más de lo esperado en responder. Vuelve a sincronizar; si se repite, recarga la pestaña correspondiente.',
   },
   {
     // Descarga del reporte de egresos (service worker → backend de GC): un fallo de red aquí es de GC.
@@ -77,22 +83,29 @@ const RULES: readonly ClassificationRule[] = [
       'Gestión de Camas no está disponible para la lectura. Revisa su conexión en el monitor de Eloísa y vuelve a sincronizar.',
   },
   {
-    // Sesión clínica ausente/vencida en Ficha Médico: la instrucción precisa la trae la extensión.
+    // Sesión clínica ausente/vencida en Ficha Médico: el remedio es volver a iniciar sesión.
     test: /sesion clinica|inicia sesion|vencio/,
     reason: 'ficha_medico_unavailable',
-    remedy: null,
+    remedy:
+      'La sesión clínica de Ficha Médico no está activa. Inicia sesión en Ficha Médico y vuelve a sincronizar.',
   },
   {
     test: /failed to fetch|networkerror|load failed|fallo de red|http\s*(502|503|504)\b/,
     reason: 'snapshot_network_error',
     remedy:
-      'La lectura de Eloísa falló por un problema de conexión. Esto no confirma que la sesión haya vencido. Vuelve a sincronizar; si persiste, revisa la conexión y las pestañas de Eloísa.',
+      'La conexión con Eloísa se cortó durante la lectura. Esto no confirma que la sesión haya vencido. Vuelve a sincronizar; si se repite, revisa la conexión y las pestañas de Eloísa.',
   },
   {
     test: /no puede leer datos|versi[oó]n anterior de la extensi[oó]n/,
     reason: 'ficha_medico_stale',
     remedy:
-      'La pestaña de Ficha Médico ya no puede leer datos (sesión de red vencida o pestaña envejecida). Recárgala (Cmd+R), espera a que cargue y vuelve a sincronizar.',
+      'La pestaña de Ficha Médico dejó de entregar datos. Recárgala (Cmd+R), espera a que cargue y vuelve a sincronizar.',
+  },
+  {
+    // Va al final: misma causa que el caso genérico; solo conserva la acción que la persona necesita.
+    test: /no corresponde a la identidad clinica/,
+    reason: 'snapshot_error',
+    remedy: 'La lista abierta en Eloísa es de otra sesión. Recarga Eloísa y vuelve a sincronizar.',
   },
 ];
 
@@ -145,7 +158,7 @@ export const classifyRayenSnapshotError = (
     return {
       reason: 'snapshot_timeout',
       message:
-        'El lector de Ficha Médico no terminó dentro del plazo. Revisa esa pestaña y vuelve a sincronizar.',
+        'El lector de Ficha Médico tardó más de lo esperado. Revisa esa pestaña y vuelve a sincronizar.',
       check: 'ficha_relay_timeout',
     };
   }
@@ -153,7 +166,7 @@ export const classifyRayenSnapshotError = (
     return {
       reason: 'snapshot_timeout',
       message:
-        'La pestaña de Ficha Médico no respondió a la extensión dentro del plazo. Recárgala y vuelve a sincronizar.',
+        'La pestaña de Ficha Médico tardó en responder a la extensión. Recárgala y vuelve a sincronizar.',
       check: 'ficha_relay_timeout',
     };
   }
@@ -166,7 +179,8 @@ export const classifyRayenSnapshotError = (
     if (!rule.test.test(detailNormalized)) continue;
     return {
       reason: rule.reason,
-      message: rule.remedy ? withDetail(rule.remedy, detail) : capAtWordBoundary(detail),
+      message: rule.remedy,
+      ...technicalDetailOf(detail),
       check:
         rule.reason === 'snapshot_network_error'
           ? networkCheck(check, detailNormalized, detail !== raw)
@@ -175,7 +189,8 @@ export const classifyRayenSnapshotError = (
   }
   return {
     reason: 'snapshot_error',
-    message: detail ? capAtWordBoundary(detail) : GENERIC_MESSAGE,
+    message: GENERIC_MESSAGE,
+    ...technicalDetailOf(detail),
     check,
   };
 };

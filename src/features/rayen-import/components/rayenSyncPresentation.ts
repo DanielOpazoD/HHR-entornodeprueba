@@ -102,17 +102,17 @@ export const rayenPrimaryActionLabel = (
 };
 
 const failureReasonLabel: Record<RayenSyncFailureReason, string> = {
-  extension_unavailable: 'Extensión no disponible',
-  extension_incompatible: 'Extensión incompatible',
-  ficha_medico_unavailable: 'Ficha Médico no disponible',
-  ficha_medico_stale: 'Ficha Médico: lector bloqueado o desactualizado',
-  gestion_camas_unavailable: 'Gestión de Camas no disponible',
-  snapshot_network_error: 'Problema de conexión al leer Eloísa',
-  snapshot_timeout: 'Tiempo de espera al capturar Eloísa',
-  snapshot_error: 'No se pudo leer Eloísa',
-  apply_unauthorized: 'Sesión sin permisos para guardar',
+  extension_unavailable: 'Extensión sin conexión',
+  extension_incompatible: 'La extensión necesita actualizarse',
+  ficha_medico_unavailable: 'Falta abrir Ficha Médico',
+  ficha_medico_stale: 'Ficha Médico necesita recargarse',
+  gestion_camas_unavailable: 'Falta abrir Gestión de Camas',
+  snapshot_network_error: 'La conexión con Eloísa se cortó durante la lectura',
+  snapshot_timeout: 'Eloísa tardó en responder',
+  snapshot_error: 'Eloísa todavía no entregó la lectura',
+  apply_unauthorized: 'La sesión no tiene permiso para guardar',
   apply_conflict: 'El censo cambió durante el guardado',
-  apply_failed: 'No se pudo aplicar el censo',
+  apply_failed: 'El censo de Eloísa todavía no se aplicó',
 };
 export const rayenFailureReasonLabel = (reason?: RayenSyncFailureReason): string =>
   reason && Object.hasOwn(failureReasonLabel, reason)
@@ -211,7 +211,7 @@ export const presentRayenDeferredHistoricalAdmissionNote = (
 const partialReasons = (event: RayenSyncEvent): string[] => {
   const reasons = presentRayenStructuralReviewSummary(event.structuralReview);
   if (event.coverage?.errors) {
-    reasons.push(`${plural(event.coverage.errors, 'paciente')} no se pudo completar`);
+    reasons.push(`${plural(event.coverage.errors, 'paciente')} por completar`);
   }
   const issues = event.coverage?.issues ?? [];
   if (
@@ -224,7 +224,7 @@ const partialReasons = (event: RayenSyncEvent): string[] => {
     reasons.push('Fuente clínica incompleta');
   }
   if (issues.some(issue => issue.reason === 'record_load_failed'))
-    reasons.push('No se pudo cargar el censo HHR');
+    reasons.push('El censo de HHR todavía no se cargó');
   if (event.source?.gestionCamas && event.source.gestionCamas !== 'ready') {
     reasons.push('Gestión de Camas no disponible');
   }

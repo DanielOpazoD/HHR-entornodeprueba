@@ -14,7 +14,11 @@ import * as dailyRecordQuery from '@/hooks/useDailyRecordQuery';
 import { useRepositories } from '@/services/RepositoryContext';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { resolveRayenPolicyBlockMessage, useRayenImportMode } from './useRayenImportMode';
-import { INITIAL_RAYEN_IMPORT_STATE, type RayenImportState } from './rayenImportState';
+import {
+  INITIAL_RAYEN_IMPORT_STATE,
+  visibleErrorTechnicalDetail,
+  type RayenImportState,
+} from './rayenImportState';
 import { useRayenSyncAudit } from './useRayenSyncAudit';
 import { useRayenClinicalFill } from './useRayenClinicalFill';
 import { useHistoricalCudyrPersistence } from './useHistoricalCudyrPersistence';
@@ -376,6 +380,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
       isPreviewOpen: state.isPreviewOpen && keepsPreviewOpen,
       result: state.result,
       error: state.error,
+      errorTechnicalDetail: visibleErrorTechnicalDetail(state, isAdmin),
       staffingProposal,
       isStaffingProposalBusy,
       staffingProposalError,
@@ -394,6 +399,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
       execution,
       keepsPreviewOpen,
       state,
+      isAdmin,
       staffingProposal,
       isStaffingProposalBusy,
       staffingProposalError,

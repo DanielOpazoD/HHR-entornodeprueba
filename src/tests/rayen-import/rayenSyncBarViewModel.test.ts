@@ -290,7 +290,7 @@ describe('buildRayenSyncBarViewModel', () => {
 
     expect(model).toMatchObject({
       phase: 'action',
-      label: 'No se pudo completar la sincronización',
+      label: 'Sincronización por completar',
       detail: 'La captura agotó el tiempo.',
     });
   });
@@ -313,7 +313,7 @@ describe('buildRayenSyncBarViewModel', () => {
       })
     );
 
-    expect(model.label).toBe('Última sincronización con observaciones');
+    expect(model.label).toBe('Revisar datos de la última sincronización');
     expect(model.label).not.toContain('Enfermería/TENS');
   });
 

@@ -229,7 +229,7 @@ describe('Rayen import against specialty server authority', () => {
     expect(
       getRayenImportErrorMessage(new Error('Specialty change requires explicit intent.'))
     ).toBe(
-      'No se pudo completar la sincronización porque se intentó modificar una especialidad protegida. Actualiza la aplicación y vuelve a capturar el censo. No necesitas asignar una especialidad para sincronizar.'
+      'La sincronización se detuvo porque intentaba modificar una especialidad protegida. Actualiza la aplicación y vuelve a sincronizar. No necesitas asignar una especialidad para sincronizar.'
     );
     expect(getRayenImportErrorMessage(new Error('Other failure'))).toBe('Other failure');
   });

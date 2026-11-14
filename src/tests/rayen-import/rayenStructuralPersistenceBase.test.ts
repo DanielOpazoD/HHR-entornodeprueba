@@ -251,7 +251,7 @@ describe('buildRayenStructuralPersistenceBase', () => {
 
     expect(() =>
       buildRayenStructuralPersistenceBase(authoritative, local, emptyDiff, pendingLocal)
-    ).toThrow('No se pudo verificar la versión local pendiente');
+    ).toThrow('La versión local pendiente quedó por verificar');
   });
 
   it('blocks a stale but still-active outbox placement before it can overwrite remote structure', () => {

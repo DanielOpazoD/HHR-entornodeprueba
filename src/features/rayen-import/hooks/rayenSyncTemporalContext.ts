@@ -40,7 +40,7 @@ interface PrepareRayenSyncTemporalContextInput {
 export const RAYEN_SYNC_CONTEXT_LOAD_TIMEOUT_MS = 30_000;
 
 const CONTEXT_LOAD_TIMEOUT_MESSAGE =
-  'No se pudo leer la versión vigente del censo para preparar la sincronización. Revisa la conexión y reintenta.';
+  'La versión vigente del censo todavía no se leyó para preparar la sincronización. Revisa la conexión y vuelve a intentar.';
 
 /**
  * Freezes the selected census day and its freshest persisted state before requesting Rayen.

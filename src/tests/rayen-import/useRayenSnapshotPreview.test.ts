@@ -259,7 +259,8 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
     expect(mocks.prepareRayenStructuralPlan).not.toHaveBeenCalled();
     expect(harness.failRun).toHaveBeenCalledWith('apply_failed', 'run-1');
     expect(appliedState(harness.setState)).toMatchObject({
-      error: 'No se pudo leer la lista de pacientes no válidos. Revisa la conexión y reintenta.',
+      error:
+        'La lista de pacientes no válidos todavía no se leyó. Revisa la conexión y vuelve a intentar.',
     });
   });
 

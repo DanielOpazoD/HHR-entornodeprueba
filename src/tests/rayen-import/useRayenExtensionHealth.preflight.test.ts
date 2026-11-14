@@ -372,7 +372,7 @@ describe('useRayenExtensionHealth synchronization preflight', () => {
     await act(async () => {
       const preflight = await result.current.refresh({ showChecking: true });
       expectConnection(preflight, 'blocked', false);
-      expect(preflight.message).toContain('No se pudieron comprobar');
+      expect(preflight.message).toContain('todavía no se comprobaron');
     });
   });
 });
