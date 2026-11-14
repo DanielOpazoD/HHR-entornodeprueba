@@ -5,44 +5,6 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 
 describe('useValidation', () => {
-  const mockRecord: Partial<DailyRecord> = {
-    date: '2024-12-28',
-    beds: {
-      R1: { bedId: 'R1', patientName: 'Test Patient', admissionDate: '2024-12-01' } as PatientData,
-      R2: { bedId: 'R2', patientName: '', isBlocked: false } as PatientData,
-      R3: { bedId: 'R3', patientName: '', isBlocked: true } as PatientData,
-    },
-  };
-
-  describe('canMovePatient', () => {
-    it('should return false when no record is loaded', () => {
-      const { result } = renderHook(() => useValidation());
-      const check = result.current.canMovePatient('R2', null);
-      expect(check.canMove).toBe(false);
-      expect(check.reason).toBe('No hay registro cargado');
-    });
-
-    it('should return false when target bed is occupied', () => {
-      const { result } = renderHook(() => useValidation());
-      const check = result.current.canMovePatient('R1', mockRecord as DailyRecord);
-      expect(check.canMove).toBe(false);
-      expect(check.reason).toBe('La cama de destino ya está ocupada');
-    });
-
-    it('should return false when target bed is blocked', () => {
-      const { result } = renderHook(() => useValidation());
-      const check = result.current.canMovePatient('R3', mockRecord as DailyRecord);
-      expect(check.canMove).toBe(false);
-      expect(check.reason).toBe('La cama de destino está bloqueada');
-    });
-
-    it('should return true when target bed is empty and not blocked', () => {
-      const { result } = renderHook(() => useValidation());
-      const check = result.current.canMovePatient('R2', mockRecord as DailyRecord);
-      expect(check.canMove).toBe(true);
-    });
-  });
-
   describe('canDischargePatient', () => {
     it('should return true when patient has name and admission date', () => {
       const { result } = renderHook(() => useValidation());
