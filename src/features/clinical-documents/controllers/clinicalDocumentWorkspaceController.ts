@@ -55,16 +55,6 @@ export const getClinicalDocumentPatientFieldLabel = (
   return definition.resolvePatientFieldLabel?.(field) || field.label;
 };
 
-/** Auto-resizes a section textarea to fit its content, enforcing a minimum height. */
-export const resizeClinicalDocumentSectionTextarea = (
-  textarea: HTMLTextAreaElement | null
-): void => {
-  if (!textarea) return;
-  textarea.style.height = 'auto';
-  const minHeight = 92;
-  textarea.style.height = `${Math.max(textarea.scrollHeight, minHeight)}px`;
-};
-
 /**
  * Builds an audit actor object from the current Firebase user and their role.
  * @param user - Firebase auth user (uid, email, displayName)
