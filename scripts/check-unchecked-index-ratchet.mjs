@@ -51,6 +51,7 @@ export const compareWithBaseline = (current, baseline) => {
 };
 
 const compile = () => {
+  const incremental = !process.env.CI;
   const result = spawnSync(
     'npx',
     [
@@ -63,6 +64,9 @@ const compile = () => {
       '--pretty',
       'false',
       '--listFiles',
+      ...(incremental
+        ? ['--incremental', '--tsBuildInfoFile', 'output/typecheck/unchecked-index.tsbuildinfo']
+        : []),
     ],
     { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] }
   );
@@ -70,7 +74,10 @@ const compile = () => {
   if (
     result.error ||
     result.signal ||
-    ![0, 2].includes(result.status) ||
+    // A warm incremental run returns 1 for cached diagnostics. It still needs file
+    // diagnostics and evaluated production files below; configuration errors stay fatal.
+    !([0, 2].includes(result.status) || (incremental && result.status === 1)) ||
+    (result.status === 1 && Boolean(result.stderr?.trim())) ||
     /^error TS\d+:/m.test(output) ||
     /^.+\.json\(\d+,\d+\): error TS\d+:/m.test(output) ||
     (result.status !== 0 && !/^.+\(\d+,\d+\): error TS\d+:/m.test(output))
