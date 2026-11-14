@@ -2,10 +2,7 @@ import React from 'react';
 import clsx from 'clsx';
 import { AlertTriangle, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { BaseModalContent } from '@/components/shared/baseModalContent';
-import {
-  ClinicalConflictCenterButton,
-  type ClinicalConflictCenterButtonVariant,
-} from '@/components/clinical-conflicts/ClinicalConflictCenterButton';
+import { ClinicalConflictCenterButton } from '@/components/clinical-conflicts/ClinicalConflictCenterButton';
 import { useConflictVersionRecovery } from '@/hooks/clinical-conflicts/useConflictVersionRecovery';
 import {
   buildClinicalConflictCenterModel,
@@ -30,9 +27,7 @@ interface ClinicalConflictCenterControlProps {
   currentRecord?: DailyRecord | null;
   buttonTestId?: string;
   className?: string;
-  hideButtonLabel?: boolean;
   buttonLabel?: string;
-  buttonVariant?: ClinicalConflictCenterButtonVariant;
 }
 
 const MODULE_TONE_CLASS: Record<ClinicalConflictModuleDescriptor['tone'], string> = {
@@ -278,9 +273,7 @@ export const ClinicalConflictCenterControl: React.FC<ClinicalConflictCenterContr
   currentRecord,
   buttonTestId = 'clinical-conflict-center-button',
   className,
-  hideButtonLabel = false,
   buttonLabel = 'Conflictos',
-  buttonVariant = 'default',
 }) => {
   const recovery = useConflictVersionRecovery({ date, port });
   const centerModel = React.useMemo(
@@ -339,14 +332,11 @@ export const ClinicalConflictCenterControl: React.FC<ClinicalConflictCenterContr
     <>
       <ClinicalConflictCenterButton
         onClick={recovery.open}
-        scopeLabel={SCOPE_LABEL[scope]}
         snapshotCount={recovery.snapshots.length}
         requiresAttention={centerModel.hasReviewableConflicts}
         testId={buttonTestId}
         className={className}
-        hideLabel={hideButtonLabel}
         label={buttonLabel}
-        variant={buttonVariant}
       />
 
       <BaseModalContent

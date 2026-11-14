@@ -20,13 +20,10 @@ export const ClinicalLibraryToolbarFallback = () => (
 export const CensusConflictMenuFallback = () => (
   <ClinicalConflictCenterButton
     disabled
-    scopeLabel="censo"
     snapshotCount={0}
     requiresAttention={false}
     testId="conflict-versions-loading"
-    hideLabel={false}
     label="Conflictos HHR"
-    variant="menu"
   />
 );
 

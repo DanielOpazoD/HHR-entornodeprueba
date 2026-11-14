@@ -1,97 +1,37 @@
 import clsx from 'clsx';
-import { History } from 'lucide-react';
-
-export type ClinicalConflictCenterButtonVariant =
-  | 'default'
-  | 'operations'
-  | 'quick-action'
-  | 'menu';
 
 interface ClinicalConflictCenterButtonProps {
   onClick?: () => void;
   disabled?: boolean;
-  scopeLabel: string;
   snapshotCount: number;
   requiresAttention: boolean;
   testId: string;
   className?: string;
-  hideLabel: boolean;
   label: string;
-  variant: ClinicalConflictCenterButtonVariant;
 }
 
+/** Entry of the census options menu: plain text, no icon and no alarm colour. */
 export function ClinicalConflictCenterButton({
   onClick,
   disabled,
-  scopeLabel,
   snapshotCount,
   requiresAttention,
   testId,
   className,
-  hideLabel,
   label,
-  variant,
 }: ClinicalConflictCenterButtonProps) {
-  if (variant === 'menu') {
-    return (
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={onClick}
-        data-census-menu-action
-        data-testid={testId}
-        className={clsx('flex items-center gap-2 rounded-md text-slate-600', className)}
-      >
-        {label}
-        {snapshotCount > 0 ? ` · ${snapshotCount}` : ''}
-        {requiresAttention ? ' · revisión requerida' : ''}
-      </button>
-    );
-  }
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={onClick}
-      title={`Centro de conflictos clínicos · ${scopeLabel}`}
-      aria-label={`Centro de conflictos clínicos de ${scopeLabel}${requiresAttention ? ' · revisión requerida' : ''}`}
+      data-census-menu-action
       data-testid={testId}
-      className={clsx(
-        'relative inline-flex items-center justify-center gap-1.5 border font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
-        variant === 'quick-action'
-          ? clsx(
-              'h-[30px] shrink-0 rounded-lg py-0 text-[10px]',
-              hideLabel ? 'w-[30px] px-0' : 'min-w-[96px] px-2.5',
-              requiresAttention
-                ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 focus-visible:outline-amber-500'
-                : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-slate-400'
-            )
-          : 'border-slate-200 bg-white text-xs shadow-sm hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700 focus-visible:outline-slate-400',
-        variant === 'operations' && 'min-h-9 rounded-lg px-2.5 py-2 text-slate-600',
-        variant === 'default' && 'rounded-md px-2 py-1.5 text-slate-500',
-        className
-      )}
+      className={clsx('flex items-center gap-2 rounded-md text-slate-600', className)}
     >
-      <History size={14} />
-      {!hideLabel && <span className="hidden sm:inline">{label}</span>}
-      {snapshotCount > 0 && !hideLabel && (
-        <span
-          className={clsx(
-            'ml-0.5 rounded-full px-1.5 py-0.5 text-[10px]',
-            variant === 'quick-action' && !requiresAttention
-              ? 'bg-slate-200 text-slate-600'
-              : 'bg-amber-100 text-amber-700'
-          )}
-        >
-          {snapshotCount}
-        </span>
-      )}
-      {snapshotCount > 0 && hideLabel && (
-        <span
-          aria-hidden="true"
-          className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-amber-500 ring-2 ring-white"
-        />
-      )}
+      {label}
+      {snapshotCount > 0 ? ` · ${snapshotCount}` : ''}
+      {requiresAttention ? ' · revisión requerida' : ''}
     </button>
   );
 }
