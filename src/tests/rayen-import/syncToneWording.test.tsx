@@ -327,13 +327,15 @@ describe('sync box source wording', () => {
       readFileSync(file, 'utf8')
         .split('\n')
         .flatMap((line, index) => {
-          const found = line.match(alarmColor)?.[0];
-          const clinical = CLINICAL_COLORS.some(
-            exception => exception.file === path.basename(file) && exception.line.test(line)
+          // Only the clinical token itself is excused; the rest of its line is still inspected.
+          const withoutClinicalTokens = CLINICAL_COLORS.filter(
+            exception => exception.file === path.basename(file)
+          ).reduce(
+            (rest, exception) => rest.replace(new RegExp(exception.line.source, 'g'), ''),
+            line
           );
-          return found && !clinical
-            ? [`${path.basename(file)}:${index + 1}: ${found} (use syncTone.ts)`]
-            : [];
+          const found = withoutClinicalTokens.match(alarmColor)?.[0];
+          return found ? [`${path.basename(file)}:${index + 1}: ${found} (use syncTone.ts)`] : [];
         })
     );
     expect(offending).toEqual([]);

@@ -6,7 +6,9 @@ import type {
 import { cmaAdmissionReviewKey } from '../domain/cmaAdmissionReview';
 import { Section } from './RayenImportDiffReviewParts';
 import { BEDS } from '@/constants/beds';
-import { SYNC_TONE } from './syncTone';
+import { SYNC_TONE, SYNC_TONE_ICON } from './syncTone';
+
+const DecisionIcon = SYNC_TONE_ICON.action;
 
 const bedName = (bedId: string): string => BEDS.find(bed => bed.id === bedId)?.name ?? bedId;
 
@@ -52,11 +54,12 @@ export const RayenAdmissionReview = ({
       </Section>
 
       {cmaAdmissions.length > 0 && (
-        <div className={`mb-4 rounded-lg border p-3 ${SYNC_TONE.review.surface}`}>
-          <h4 className="mb-1 text-sm font-semibold">
+        <div className={`mb-4 rounded-lg p-3 ${SYNC_TONE.action.surface}`}>
+          <h4 className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
+            <DecisionIcon size={16} className={SYNC_TONE.action.icon} aria-hidden="true" />
             Revisar ingresos provenientes de CMA ({cmaAdmissions.length})
           </h4>
-          <p className={`mb-2 text-xs leading-relaxed ${SYNC_TONE.review.text}`}>
+          <p className="mb-2 text-xs leading-relaxed text-slate-700">
             Las ubicaciones CMA se muestran por separado de las camas hospitalarias. Confirma su
             incorporación al censo.
           </p>
@@ -65,7 +68,7 @@ export const RayenAdmissionReview = ({
               const admissionKey = cmaAdmissionReviewKey(entry);
               const radioName = `cma-admission-${admissionKey}`;
               return (
-                <li key={admissionKey} className="rounded border border-sky-200 bg-white/60 p-2">
+                <li key={admissionKey} className="rounded border border-slate-200 p-2">
                   <div className="mb-2">
                     <span className="font-semibold">{bedName(entry.bedId)}</span> —{' '}
                     {entry.patient.patientName}

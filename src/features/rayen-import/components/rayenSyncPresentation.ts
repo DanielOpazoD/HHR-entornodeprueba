@@ -134,7 +134,7 @@ export const rayenSyncStatusLabel = (status?: RayenSyncStatus): string | null =>
   if (status === 'complete') return 'Completa';
   if (status === 'partial') return 'Por completar';
   if (status === 'applied') return 'Censo aplicado';
-  if (status === 'failed') return 'Sin aplicar';
+  if (status === 'failed') return 'Requiere revisión';
   return null;
 };
 
@@ -173,7 +173,7 @@ const structuralIssueReasonLabel: Record<RayenSyncStructuralIssue['reason'], str
   'crib-conflict-blocks-discharge': 'el alta no se aplicó: la cuna de la cama tiene un conflicto',
   'admission-date-policy':
     'la fecha de ingreso quedó sin cambiar porque difiere de la ya registrada',
-  'structural-write-rejected': 'los cambios del censo no se guardaron en este intento',
+  'structural-write-rejected': 'el guardado de los cambios del censo quedó sin confirmar',
   unclassified: 'el cambio del censo no se aplicó',
 };
 export const presentRayenStructuralIssue = (issue: RayenSyncStructuralIssue): string => {

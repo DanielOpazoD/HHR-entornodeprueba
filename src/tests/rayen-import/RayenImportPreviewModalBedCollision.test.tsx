@@ -73,6 +73,9 @@ describe('Rayen equivalent-bed collision review', () => {
 
     const confirm = screen.getByRole('button', { name: 'Confirmar e importar' });
     expect(confirm).toBeDisabled();
+    const review = screen.getByTestId('equivalent-bed-collision-review');
+    expect(review).toHaveTextContent('Decide quién queda antes de confirmar');
+    expect(review.querySelector('svg')).not.toBeNull();
     fireEvent.click(screen.getByLabelText(/Paciente CMA · CMA R1/));
     fireEvent.change(screen.getByLabelText('Acción para Paciente MQ'), {
       target: { value: 'move' },

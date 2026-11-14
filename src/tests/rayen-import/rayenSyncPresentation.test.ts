@@ -388,9 +388,23 @@ describe('rayen sync presentation', () => {
   it('keeps the persisted last-sync status concise and backward compatible', () => {
     expect(rayenSyncStatusLabel('complete')).toBe('Completa');
     expect(rayenSyncStatusLabel('partial')).toBe('Por completar');
-    expect(rayenSyncStatusLabel('failed')).toBe('Sin aplicar');
+    expect(rayenSyncStatusLabel('failed')).toBe('Requiere revisión');
     expect(rayenSyncStatusLabel('applied')).toBe('Censo aplicado');
     expect(rayenSyncStatusLabel(undefined)).toBeNull();
+  });
+
+  it('never words an unknown outcome as certainty that nothing was saved or applied', () => {
+    // A run can be recorded as failed after the census was applied (its closing record did not save),
+    // and a save whose acknowledgement never arrived may still have reached the server.
+    expect(rayenSyncStatusLabel('failed')).not.toMatch(/sin aplicar|no se aplic/i);
+    const unconfirmedSave = presentRayenStructuralIssue({
+      reason: 'structural-write-rejected',
+      bedId: 'H3C1',
+    });
+    expect(unconfirmedSave).toBe(
+      'Cama H3C1: el guardado de los cambios del censo quedó sin confirmar.'
+    );
+    expect(unconfirmedSave).not.toMatch(/no se guard/i);
   });
 
   it('una pestaña de Ficha Médico inactiva pide recargarla antes de ofrecer «Revisar censo», aunque Eloísa esté sana', () => {
