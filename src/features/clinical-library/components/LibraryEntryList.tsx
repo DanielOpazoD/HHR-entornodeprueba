@@ -26,7 +26,7 @@ const LibraryToolRow: React.FC<{
       <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-medical-50 text-medical-700 [&>svg]:size-4">
         {TOOL_REGISTRY[entry.id].icon}
       </span>
-      <span className="min-w-0 flex-1 text-[12px] font-medium leading-snug text-slate-800 group-hover:text-medical-800">
+      <span className="min-w-0 flex-1 text-[13px] font-medium leading-snug text-slate-800 group-hover:text-medical-800">
         {entry.title}
       </span>
       <ChevronRight
@@ -65,7 +65,7 @@ export const LibraryEntryList: React.FC<LibraryEntryListProps> = ({
 
   if (visibleGroups.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-[12px] leading-relaxed text-slate-500">
+      <p className="rounded-lg border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-[13px] leading-relaxed text-slate-500">
         {trimmedQuery ? `Sin resultados para «${trimmedQuery}»` : 'No hay documentos disponibles.'}
       </p>
     );
@@ -80,12 +80,12 @@ export const LibraryEntryList: React.FC<LibraryEntryListProps> = ({
           <section key={group.category} aria-labelledby={headingId}>
             <h3
               id={headingId}
-              className="mb-1.5 border-b border-slate-200 px-2 pb-2 text-[11px] font-semibold text-slate-500"
+              className="mb-1.5 border-b border-slate-200 px-2 pb-2 text-xs font-semibold text-slate-500"
             >
               {meta.label}
             </h3>
             {group.entries.length === 0 ? (
-              <p className="px-2 py-3 text-[12px] leading-relaxed text-slate-500">
+              <p className="px-2 py-3 text-[13px] leading-relaxed text-slate-500">
                 {meta.emptyTitle}
               </p>
             ) : (

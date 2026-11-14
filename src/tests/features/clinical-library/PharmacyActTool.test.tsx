@@ -59,6 +59,21 @@ describe('pharmacy act tool', () => {
     });
   });
 
+  it('uses the shared visual controls without changing pharmacy actions', () => {
+    render(<PharmacyReturnTool {...props()} />);
+    expect(screen.getByRole('button', { name: 'Preparar vista previa' })).toHaveClass(
+      'hhr-button',
+      'hhr-button--primary'
+    );
+    expect(screen.getByRole('button', { name: 'Agregar fármaco o insumo' })).toHaveClass(
+      'hhr-button',
+      'hhr-button--secondary'
+    );
+    expect(screen.getByLabelText('Fundamento de la devolución')).toHaveClass('hhr-field');
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar fármaco o insumo' }));
+    expect(screen.getByRole('button', { name: 'Eliminar registro 2' })).toHaveClass('hhr-button');
+  });
+
   it('prefills only the session name, selects an exact presentation, and prepares a PDF', async () => {
     render(<PharmacyReturnTool {...props()} />);
     expect(screen.getByLabelText('Nombre del responsable')).toHaveValue('Profesional A');

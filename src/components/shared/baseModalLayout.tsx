@@ -1,6 +1,12 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import clsx from 'clsx';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
+import {
+  PANEL_HEADER_CLASS,
+  PANEL_TITLE_CLASS,
+  PANEL_ICON_CLASS,
+} from '@/components/ui/base/panelStyles';
 
 interface BaseModalBackdropProps {
   printable: boolean;
@@ -54,43 +60,28 @@ export const BaseModalHeader: React.FC<BaseModalHeaderProps> = ({
 }) => (
   <div
     className={clsx(
-      'px-4 py-2 border-b flex justify-between items-center gap-2 sticky top-0 z-10',
+      PANEL_HEADER_CLASS,
+      'px-4 sticky top-0 z-10',
       variant === 'white' ? 'bg-white border-slate-100' : 'bg-white/30 border-white/20'
     )}
   >
-    <h3
-      id={titleId}
-      className="font-display flex min-w-0 items-center gap-2 font-bold tracking-tight text-slate-800"
-    >
-      {/* One header pattern: the tool's icon on a soft badge of its own colour. */}
-      {icon && (
-        <span
-          className={clsx(
-            'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-current/10 [&_svg]:size-4',
-            headerIconColor
-          )}
-        >
-          {icon}
-        </span>
-      )}
-      {title}
+    <h3 id={titleId} className={`${PANEL_TITLE_CLASS} flex items-center gap-2`}>
+      {/* One header pattern: the tool's icon, in its own colour, on a neutral badge. */}
+      {icon && <span className={clsx(PANEL_ICON_CLASS, headerIconColor)}>{icon}</span>}
+      <span className="min-w-0 break-words">{title}</span>
     </h3>
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="ml-auto flex min-w-0 flex-wrap items-center gap-2">
       {headerActions && (
-        <div className="mr-1 flex min-w-0 items-center gap-1.5">{headerActions}</div>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">{headerActions}</div>
       )}
       {showCloseButton && (
         <button
           onClick={onClose}
-          className={clsx(
-            'transition-colors p-1 rounded-full',
-            variant === 'white'
-              ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
-              : 'text-slate-400 hover:text-slate-600 bg-white/50'
-          )}
+          type="button"
+          className={buttonClassName('ghost', 'icon', 'shrink-0')}
           aria-label="Cerrar modal"
         >
-          <X size={18} />
+          <X size={18} aria-hidden="true" />
         </button>
       )}
     </div>

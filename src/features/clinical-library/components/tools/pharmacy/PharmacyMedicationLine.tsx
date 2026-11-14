@@ -1,4 +1,5 @@
 import React, { useId, useMemo, useState } from 'react';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
 import { Search, Trash2 } from 'lucide-react';
 import { searchPharmacyArsenal } from '../../../domain/pharmacy/pharmacyDraft';
 import type {
@@ -46,7 +47,7 @@ export const PharmacyMedicationLine: React.FC<PharmacyMedicationLineProps> = ({
     <fieldset className="min-w-0 rounded-lg border border-slate-200 bg-white p-3">
       <legend className="px-1 text-xs font-bold text-slate-700">Registro {index + 1}</legend>
       <div className="mb-3 flex items-center justify-between gap-2">
-        <span className="text-[11px] text-slate-500">
+        <span className="text-xs text-slate-500">
           {manual ? 'Ingreso fuera del arsenal' : 'Selección del arsenal HHR'}
         </span>
         {canRemove && (
@@ -54,7 +55,7 @@ export const PharmacyMedicationLine: React.FC<PharmacyMedicationLineProps> = ({
             type="button"
             onClick={onRemove}
             aria-label={`Eliminar registro ${index + 1}`}
-            className="rounded p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-2 focus-visible:outline-medical-600"
+            className={buttonClassName('ghost', 'icon', 'text-slate-500 hover:text-rose-700')}
           >
             <Trash2 size={14} aria-hidden="true" />
           </button>
@@ -63,18 +64,18 @@ export const PharmacyMedicationLine: React.FC<PharmacyMedicationLineProps> = ({
       {selected ? (
         <div className="mb-3 rounded-md border border-medical-200 bg-medical-50 p-2.5">
           <p className="break-words text-xs font-semibold text-slate-800">{line.name}</p>
-          <p className="mt-1 text-[11px] text-slate-600">Presentación: {line.presentation}</p>
+          <p className="mt-1 text-xs text-slate-600">Presentación: {line.presentation}</p>
           <button
             type="button"
             onClick={resetSelection}
-            className="mt-2 text-[11px] font-semibold text-medical-700 underline underline-offset-2"
+            className="mt-2 text-xs font-semibold text-medical-700 underline underline-offset-2"
           >
             Cambiar selección
           </button>
         </div>
       ) : manual ? (
         <div className="mb-3 grid gap-3">
-          <label className="text-[11px] font-semibold text-slate-600">
+          <label className="text-xs font-semibold text-slate-600">
             Nombre del fármaco o insumo
             <input
               className={`${TOOL_INPUT_CLASS} mt-1`}
@@ -84,7 +85,7 @@ export const PharmacyMedicationLine: React.FC<PharmacyMedicationLineProps> = ({
               onChange={event => change('name', event.target.value)}
             />
           </label>
-          <label className="text-[11px] font-semibold text-slate-600">
+          <label className="text-xs font-semibold text-slate-600">
             Presentación / unidad de cantidad
             <input
               className={`${TOOL_INPUT_CLASS} mt-1`}
@@ -98,7 +99,7 @@ export const PharmacyMedicationLine: React.FC<PharmacyMedicationLineProps> = ({
           <button
             type="button"
             onClick={resetSelection}
-            className="justify-self-start text-[11px] font-semibold text-medical-700 underline underline-offset-2"
+            className="justify-self-start text-xs font-semibold text-medical-700 underline underline-offset-2"
           >
             Buscar en el arsenal
           </button>
@@ -107,7 +108,7 @@ export const PharmacyMedicationLine: React.FC<PharmacyMedicationLineProps> = ({
         <div className="mb-3">
           <label
             htmlFor={`${id}-search`}
-            className="mb-1 block text-[11px] font-semibold text-slate-600"
+            className="mb-1 block text-xs font-semibold text-slate-600"
           >
             Buscar fármaco o insumo
           </label>
@@ -130,11 +131,7 @@ export const PharmacyMedicationLine: React.FC<PharmacyMedicationLineProps> = ({
           </div>
           {query.trim() && (
             <>
-              <p
-                id={`${id}-results-count`}
-                role="status"
-                className="mt-1.5 text-[10px] text-slate-500"
-              >
+              <p id={`${id}-results-count`} role="status" className="mt-1.5 text-xs text-slate-500">
                 {matches.length
                   ? `${matches.length} coincidencias${matches.length > 12 ? ' · mostrando las primeras 12; afina la búsqueda' : ''}`
                   : 'Sin coincidencias en el arsenal 2025.'}
@@ -159,10 +156,10 @@ export const PharmacyMedicationLine: React.FC<PharmacyMedicationLineProps> = ({
                           });
                         }}
                       >
-                        <span className="block break-words text-[11px] font-semibold text-slate-800">
+                        <span className="block break-words text-xs font-semibold text-slate-800">
                           {item.name}
                         </span>
-                        <span className="mt-0.5 block text-[10px] text-slate-500">
+                        <span className="mt-0.5 block text-xs text-slate-500">
                           {item.presentation}
                         </span>
                       </button>
@@ -182,14 +179,14 @@ export const PharmacyMedicationLine: React.FC<PharmacyMedicationLineProps> = ({
             onClick={() =>
               onChange({ ...line, medicationId: 'manual', name: '', presentation: '' })
             }
-            className="mt-2 text-[11px] font-semibold text-medical-700 underline underline-offset-2"
+            className="mt-2 text-xs font-semibold text-medical-700 underline underline-offset-2"
           >
             Ingresar fuera del arsenal
           </button>
         </div>
       )}
       <div className="grid grid-cols-2 gap-3">
-        <label className="text-[11px] font-semibold text-slate-600">
+        <label className="text-xs font-semibold text-slate-600">
           Cantidad{line.presentation ? ` (${line.presentation.toLocaleLowerCase('es-CL')})` : ''}
           <input
             className={`${TOOL_INPUT_CLASS} mt-1`}
@@ -221,10 +218,10 @@ export const PharmacyMedicationLine: React.FC<PharmacyMedicationLineProps> = ({
             value={line.patient}
             onChange={value => change('patient', value)}
           />
-          <label className="text-[11px] font-semibold text-slate-600">
+          <label className="text-xs font-semibold text-slate-600">
             Fundamento de la devolución
             <textarea
-              className="mt-1 min-h-16 w-full rounded-md border border-slate-300 bg-white px-2.5 py-2 text-[13px] font-normal text-slate-800 focus:border-medical-500 focus:outline-none focus:ring-2 focus:ring-medical-200"
+              className={`${TOOL_INPUT_CLASS} mt-1 min-h-16`}
               value={line.reason}
               maxLength={500}
               onChange={event => change('reason', event.target.value)}
@@ -232,7 +229,7 @@ export const PharmacyMedicationLine: React.FC<PharmacyMedicationLineProps> = ({
           </label>
         </div>
       ) : (
-        <label className="mt-3 block text-[11px] font-semibold text-slate-600">
+        <label className="mt-3 block text-xs font-semibold text-slate-600">
           Causa de eliminación
           <select
             className={`${TOOL_INPUT_CLASS} mt-1`}
