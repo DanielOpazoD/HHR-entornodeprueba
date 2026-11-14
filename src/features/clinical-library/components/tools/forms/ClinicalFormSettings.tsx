@@ -42,7 +42,10 @@ export const ClinicalFormSettings: React.FC<Props> = ({
     []
   );
   const visible = form.fields.filter(
-    field => !isSuppressedClinicalFormField(field) && matchesClinicalFormField(field, query)
+    field =>
+      field.fixedValue === undefined &&
+      !isSuppressedClinicalFormField(field) &&
+      matchesClinicalFormField(field, query)
   );
   const importFile = async (file?: File) => {
     if (!file) return;

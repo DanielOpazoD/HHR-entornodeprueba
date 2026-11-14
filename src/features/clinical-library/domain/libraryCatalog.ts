@@ -21,6 +21,21 @@ const HHR_SOURCE = 'Hospital Hanga Roa · Hospitalizados';
 const DOCUMENTS: ReadonlyArray<LibraryDocumentEntry> = [
   {
     kind: 'document',
+    id: 'solicitud-interconsulta-hhr',
+    editorId: 'solicitud-interconsulta-hhr',
+    category: 'forms',
+    title: 'Solicitud de interconsulta de derivación (SIC)',
+    description:
+      'SIC Hanga Roa–Red SSMO: paciente del censo o manual, prioridad alta y firma del usuario.',
+    format: 'docx',
+    url: '/docs/biblioteca/solicitud-interconsulta-hhr.docx',
+    pages: 1,
+    sizeKb: 134,
+    keywords: ['SIC', 'interconsulta', 'derivación', 'especialidad', 'SSMO', 'firma', 'word'],
+    source: HHR_SOURCE,
+  },
+  {
+    kind: 'document',
     id: 'acta-devolucion-farmacos',
     editorId: 'pharmacy-return',
     category: 'forms',

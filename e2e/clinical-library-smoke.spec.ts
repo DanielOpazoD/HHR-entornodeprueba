@@ -14,6 +14,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { test, expect, type Page } from '@playwright/test';
 import { PDFDocument } from 'pdf-lib';
+import {
+  installSavedSicSignature,
+  assertSavedSicSignatureExports,
+  logoutDuringSignedSicExport,
+} from './fixtures/sicSavedSignature';
 import { PatientStatus } from '../src/types/domain/patientClassification';
 import { buildCanonicalE2ERecord, MOCK_USERS } from './fixtures/auth';
 import {
@@ -24,7 +29,7 @@ import {
 const PREVIEW_DATE = process.env.E2E_FIXED_DATE ?? '2026-04-03';
 const SEEDED_PATIENT_NAME = 'PACIENTE VALIDACION PREVIEW';
 
-const seedPersistedSession = async (page: Page) => {
+const seedPersistedSession = async (page: Page, bootstrapUser = MOCK_USERS.admin) => {
   const firebaseConfig = await installPreviewFirebaseRuntime(page);
   const baseRecord = buildCanonicalE2ERecord(PREVIEW_DATE) as Record<string, unknown>;
   const baseBeds = baseRecord.beds as Record<string, Record<string, unknown>>;
@@ -74,7 +79,7 @@ const seedPersistedSession = async (page: Page) => {
       localStorage.setItem('hanga_roa_hospital_data', JSON.stringify(existing));
     },
     {
-      bootstrapUser: MOCK_USERS.admin,
+      bootstrapUser,
       date: PREVIEW_DATE,
       seededRecord: record,
       runtimeConfig: firebaseConfig,
@@ -452,4 +457,126 @@ test('fills shared forms from the census and manually, retaining original print 
   );
   await capture(page, '12-shared-forms-mobile');
   expect(errors).toEqual([]);
+});
+
+test.describe('SIC export and saved signature isolation', () => {
+  // Network fixtures must reach the SDK and template fetches, not a service-worker cache.
+  test.use({ serviceWorkers: 'block' });
+  for (const signed of [false, true])
+    test(`exports the original SIC from census data and manual clinical answers (${signed ? 'saved signature and session cleanup' : 'unsigned'})`, async ({
+      page,
+    }) => {
+      const signatureReads = await installSavedSicSignature(page, MOCK_USERS.admin.uid);
+      test.setTimeout(90_000);
+      await seedPersistedSession(page);
+      await page.goto(`/?date=${PREVIEW_DATE}`);
+      await expect(
+        page.locator('[data-testid="patient-row"][data-bed-id="R1"] input[name="patientName"]')
+      ).toHaveValue(SEEDED_PATIENT_NAME, { timeout: 20_000 });
+      await page.getByTestId('clinical-library-quick-action').click();
+      const drawer = page.getByTestId('clinical-library-drawer');
+      await drawer
+        .getByTestId('library-document-solicitud-interconsulta-hhr')
+        .getByRole('button', { name: /^Completar/ })
+        .click();
+      const editor = drawer.getByTestId('library-tool-clinical-form');
+      const source = editor.getByLabel('Origen de los datos');
+      const key = await source
+        .locator('option')
+        .filter({ hasText: SEEDED_PATIENT_NAME })
+        .getAttribute('value');
+      expect(key).toBeTruthy();
+      await source.selectOption(key!);
+      await expect(editor.getByLabel('Prioridad')).toHaveValue('Alta');
+      await expect(editor.getByLabel('Dirección')).toHaveValue('Simón PAOA S/N');
+      await editor.getByLabel('Fecha de nacimiento').fill('1982-04-03');
+      await editor.getByLabel('Especialidad').fill('MEDICINA INTERNA');
+      await editor.getByLabel('Establecimiento').fill('HOSPITAL DEL SALVADOR');
+      await editor.getByLabel('Tipo de consulta').selectOption('Hospitalización');
+      await editor.getByLabel('Confirmación diagnóstica').check();
+      await editor.getByLabel('Tratamiento', { exact: true }).check();
+      await editor
+        .getByLabel('Fundamentos del diagnóstico')
+        .fill('Fundamento sintético para validar el formulario.');
+      await editor.getByLabel('Nombre del profesional').fill('PROFESIONAL DE PRUEBA');
+      await editor.getByLabel('RUT del profesional').fill('11.111.111-1');
+      await expect(
+        editor.getByRole('img', { name: 'Firma seleccionada para esta SIC' })
+      ).toBeVisible();
+      await expect(editor.getByLabel('Adjuntar firma al documento')).toBeChecked();
+      expect(
+        signatureReads.some(url =>
+          url.includes(`/user-signatures/${MOCK_USERS.admin.uid}/signature`)
+        )
+      ).toBe(true);
+      if (!signed) {
+        await editor.getByLabel('Adjuntar firma al documento').uncheck();
+        await expect(
+          editor.getByRole('img', { name: 'Firma seleccionada para esta SIC' })
+        ).toHaveCount(0);
+      }
+      const pdfDownload = page.waitForEvent(
+        'download',
+        download => download.suggestedFilename() === 'solicitud-interconsulta-hhr-imprimible.pdf'
+      );
+      await editor.getByRole('button', { name: 'PDF imprimible', exact: true }).click();
+      const pdfPath = test.info().outputPath('sic.pdf');
+      await (await pdfDownload).saveAs(pdfPath);
+      expect(
+        (await PDFDocument.load(new Uint8Array(fs.readFileSync(pdfPath)))).getPageCount()
+      ).toBe(1);
+      const docxDownload = page.waitForEvent(
+        'download',
+        download => download.suggestedFilename() === 'solicitud-interconsulta-hhr.docx'
+      );
+      await editor.getByRole('button', { name: 'Word (.docx)', exact: true }).click();
+      const docx = await docxDownload;
+      expect(docx.suggestedFilename()).toBe('solicitud-interconsulta-hhr.docx');
+      const docxPath = test.info().outputPath('sic.docx');
+      await docx.saveAs(docxPath);
+      await assertSavedSicSignatureExports(page, pdfPath, docxPath, signed);
+      if (signed) {
+        await test
+          .info()
+          .attach('SIC con firma sintética PDF', { path: pdfPath, contentType: 'application/pdf' });
+        await test.info().attach('SIC con firma sintética Word', {
+          path: docxPath,
+          contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        });
+      }
+      await page.setViewportSize({ width: 375, height: 812 });
+      await expect(editor.getByLabel('Tipo de consulta')).toBeVisible();
+      await page.screenshot({ path: test.info().outputPath('sic-mobile.png'), fullPage: true });
+      if (signed) {
+        await logoutDuringSignedSicExport(page, editor);
+        const nextPage = await page.context().newPage();
+        const nextUid = 'e2e-sic-next-owner';
+        const nextReads = await installSavedSicSignature(nextPage, null);
+        await seedPersistedSession(nextPage, { ...MOCK_USERS.admin, uid: nextUid });
+        await nextPage.goto(`/?date=${PREVIEW_DATE}`);
+        await expect(
+          nextPage.locator(
+            '[data-testid="patient-row"][data-bed-id="R1"] input[name="patientName"]'
+          )
+        ).toHaveValue(SEEDED_PATIENT_NAME, { timeout: 20_000 });
+        await nextPage.getByTestId('clinical-library-quick-action').click();
+        await nextPage
+          .getByTestId('library-document-solicitud-interconsulta-hhr')
+          .getByRole('button', { name: /^Completar/ })
+          .click();
+        const nextEditor = nextPage.getByTestId('library-tool-clinical-form');
+        await expect(nextEditor.getByText(/No tienes una firma guardada/)).toBeVisible();
+        await expect(
+          nextEditor.getByRole('img', { name: 'Firma seleccionada para esta SIC' })
+        ).toHaveCount(0);
+        await expect(
+          nextEditor.getByLabel('Nombre completo (si no hay nombres separados)')
+        ).toHaveValue('');
+        expect(nextReads.length).toBeGreaterThan(0);
+        expect(nextReads.every(url => url.includes(`/user-signatures/${nextUid}/signature`))).toBe(
+          true
+        );
+        await nextPage.close();
+      }
+    });
 });

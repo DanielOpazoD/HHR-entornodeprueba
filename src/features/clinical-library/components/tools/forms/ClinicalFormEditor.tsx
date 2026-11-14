@@ -38,6 +38,10 @@ export interface ClinicalFormEditorProps {
   onDirtyChange?: (dirty: boolean) => void;
   onGeneratePdf: ClinicalFormPdfGenerator;
   onGenerateDocx?: ClinicalFormDocxGenerator;
+  exportContext?: string;
+  exportFields?: React.ReactNode;
+  exportBlocked?: boolean;
+  exportDirty?: boolean;
 }
 
 export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
@@ -49,6 +53,10 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
   onDirtyChange,
   onGeneratePdf,
   onGenerateDocx,
+  exportContext,
+  exportFields,
+  exportBlocked = false,
+  exportDirty = false,
 }) => {
   const form = getClinicalForm(formId);
   const draft = useClinicalFormDraft(formId, patients, onFormChange);
@@ -62,8 +70,8 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
   ]);
   const annexes = useClinicalFormAnnexes(annexContext, patientId);
   useEffect(() => {
-    onDirtyChange?.(draft.dirty || annexes.images.length > 0);
-  }, [draft.dirty, annexes.images.length, onDirtyChange]);
+    onDirtyChange?.(draft.dirty || annexes.images.length > 0 || exportDirty);
+  }, [draft.dirty, annexes.images.length, exportDirty, onDirtyChange]);
   const [query, setQuery] = useState('');
   const [settings, setSettings] = useState(false);
   const [overrides, setOverrides] = useState<Record<string, ClinicalFormPreferences>>({});
@@ -75,6 +83,7 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
     draft.values,
     preferences.hidden,
     JSON.stringify([
+      exportContext,
       draft.source?.key,
       draft.sourceMissing,
       draft.sourceChanged,
@@ -85,7 +94,8 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
     onGenerateDocx,
     annexes.images
   );
-  const blocked = Boolean(draft.replacement) || draft.sourceMissing || draft.sourceChanged;
+  const blocked =
+    exportBlocked || Boolean(draft.replacement) || draft.sourceMissing || draft.sourceChanged;
   const changePreferences = (next: ClinicalFormPreferences) => {
     setOverrides(current => ({ ...current, [formId]: next }));
     draft.setNotice(
@@ -300,6 +310,7 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
               />
             </>
           )}
+          {exportFields}
         </fieldset>
         {formId === 'informe-traslado-hospital-salvador' && (
           <ClinicalFormAnnexPanel
@@ -339,7 +350,8 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
               <Download size={15} />
               {pdf.busyFormat === 'pdf' ? 'Preparando…' : 'PDF imprimible'}
             </button>
-            {formId === 'informe-traslado-hospital-salvador' && (
+            {(formId === 'informe-traslado-hospital-salvador' ||
+              formId === 'solicitud-interconsulta-hhr') && (
               <button
                 type="button"
                 className="clinical-form-button"

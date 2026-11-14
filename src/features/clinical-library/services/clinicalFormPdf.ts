@@ -9,7 +9,7 @@ import type {
 } from '../domain/forms/clinicalFormTypes';
 import { layoutClinicalFormText } from './clinicalFormPdfLayout';
 
-const targetText = (target: ClinicalFormTarget, value: ClinicalFormValue): string => {
+export const targetText = (target: ClinicalFormTarget, value: ClinicalFormValue): string => {
   if (Object.hasOwn(target, 'equals')) return value === target.equals ? 'X' : '';
   if (value === null || value === undefined) return '';
   const text = String(value);
