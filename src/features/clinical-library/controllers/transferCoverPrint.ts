@@ -39,12 +39,15 @@ body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #0f17
 const field = (label: string, value: string): string =>
   `<div class="field"><div class="k">${escapeHtml(label)}</div><div class="v">${escapeHtml(value)}</div></div>`;
 
+/** A bare number is years; a stored age with its own unit ("29d", "2a 4m") prints as written. */
+const coverAge = (age: string): string => (/^\d+$/.test(age) ? `${age} años` : age);
+
 export const buildTransferCoverDocument = (cover: TransferCoverData): PrintableHtmlDocument => {
   const contents = TRANSFER_COVER_CONTENTS.map(
     item => `<div class="item"><span class="box"></span>${escapeHtml(item)}</div>`
   ).join('');
   const meta = [
-    cover.age.trim() ? `${escapeHtml(cover.age.trim())} años` : '',
+    cover.age.trim() ? escapeHtml(coverAge(cover.age.trim())) : '',
     cover.bedId.trim() ? `Cama ${escapeHtml(cover.bedId.trim())}` : '',
   ]
     .filter(Boolean)

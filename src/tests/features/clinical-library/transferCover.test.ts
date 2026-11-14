@@ -52,4 +52,24 @@ describe('transfer cover', () => {
     expect(letter.styles).toContain('size: letter landscape');
     expect(letter.body).not.toContain('class="meta"');
   });
+
+  it.each([
+    ['29d', '29d · Cama H2C1'],
+    ['11m', '11m · Cama H2C1'],
+    ['2a 4m', '2a 4m · Cama H2C1'],
+    ['45a', '45a · Cama H2C1'],
+    ['45', '45 años · Cama H2C1'],
+    [' 45 ', '45 años · Cama H2C1'],
+    ['45 años', '45 años · Cama H2C1'],
+    ['', 'Cama H2C1'],
+  ])('prints the stored age %j with its own unit', (age, meta) => {
+    const cover = {
+      ...emptyTransferCover(),
+      patientName: 'Ana Pakarati',
+      rut: '12.345.678-9',
+      age,
+      bedId: 'H2C1',
+    };
+    expect(buildTransferCoverDocument(cover).body).toContain(`<div class="meta">${meta}</div>`);
+  });
 });
