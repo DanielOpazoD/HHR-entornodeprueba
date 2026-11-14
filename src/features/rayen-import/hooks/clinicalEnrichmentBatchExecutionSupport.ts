@@ -24,7 +24,7 @@ export const failureMessage = (error: unknown): string =>
     ? error.message
     : typeof (error as { message?: unknown } | null)?.message === 'string'
       ? String((error as { message: string }).message)
-      : String(error || 'Error desconocido');
+      : String(error || 'Causa sin identificar');
 
 export const isClinicalBatchRetryableError = (error: unknown): boolean => {
   const code = errorCode(error);

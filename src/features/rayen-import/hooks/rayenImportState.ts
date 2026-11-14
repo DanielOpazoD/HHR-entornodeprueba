@@ -8,7 +8,27 @@ export interface RayenImportState {
   result: ApplyResult | null;
   hasSkippedItems: boolean;
   error: string | null;
+  /**
+   * Texto técnico de la fuente detrás de `error`, ligado al mensaje que acompaña. Solo lo ve el
+   * administrador y nunca se guarda.
+   */
+  errorTechnicalDetail?: RayenImportErrorTechnicalDetail | null;
 }
+
+export interface RayenImportErrorTechnicalDetail {
+  /** El mensaje de `error` al que pertenece; otro mensaje posterior no lo hereda. */
+  message: string;
+  detail: string;
+}
+
+/** The source text behind the message on screen, only for administrators and only for that message. */
+export const visibleErrorTechnicalDetail = (
+  state: Pick<RayenImportState, 'error' | 'errorTechnicalDetail'>,
+  isAdmin: boolean
+): string | null =>
+  isAdmin && state.errorTechnicalDetail && state.errorTechnicalDetail.message === state.error
+    ? state.errorTechnicalDetail.detail
+    : null;
 
 export const INITIAL_RAYEN_IMPORT_STATE: RayenImportState = {
   diff: null,
@@ -16,19 +36,48 @@ export const INITIAL_RAYEN_IMPORT_STATE: RayenImportState = {
   result: null,
   hasSkippedItems: false,
   error: null,
+  errorTechnicalDetail: null,
 };
+
+/** A dropped connection reaches the box as a browser or SDK phrase; the person reads a remedy. */
+const CONNECTION_FAILURE = /failed to fetch|networkerror|load failed|network request failed/i;
+const CONNECTION_CODES = new Set([
+  'unavailable',
+  'deadline-exceeded',
+  'functions/unavailable',
+  'functions/deadline-exceeded',
+]);
+
+/**
+ * The structural write timeout keeps an English prefix so diagnostics classify it as a timeout;
+ * the person reads only the Spanish remedy behind it.
+ */
+const DIAGNOSTIC_PREFIX = /^Structural persist timeout:\s*/;
+
+const RAYEN_IMPORT_CONNECTION_MESSAGE =
+  'La conexión se cortó antes de terminar. Vuelve a sincronizar cuando haya conexión.';
 
 export const getRayenImportErrorMessage = (error: unknown): string => {
   const fields =
     error !== null && typeof error === 'object'
-      ? (error as { message?: unknown; details?: { reason?: unknown } | null })
+      ? (error as { message?: unknown; code?: unknown; details?: { reason?: unknown } | null })
       : null;
   const message = typeof fields?.message === 'string' ? fields.message : String(error);
   if (
     fields?.details?.reason === 'specialty_explicit_intent_required' ||
     message === 'Specialty change requires explicit intent.'
   ) {
-    return 'No se pudo completar la sincronización porque se intentó modificar una especialidad protegida. Actualiza la aplicación y vuelve a capturar el censo. No necesitas asignar una especialidad para sincronizar.';
+    return 'La sincronización se detuvo porque intentaba modificar una especialidad protegida. Actualiza la aplicación y vuelve a sincronizar. No necesitas asignar una especialidad para sincronizar.';
+  }
+  if (
+    CONNECTION_FAILURE.test(message) ||
+    (typeof fields?.code === 'string' && CONNECTION_CODES.has(fields.code))
+  ) {
+    return RAYEN_IMPORT_CONNECTION_MESSAGE;
+  }
+  if (DIAGNOSTIC_PREFIX.test(message)) {
+    const remedy = message.replace(DIAGNOSTIC_PREFIX, '');
+    return `${remedy.charAt(0).toUpperCase()}${remedy.slice(1)}`;
   }
   return message;
 };

@@ -69,7 +69,8 @@ export const useRayenStaffingProposalActions = ({
         { dailyRecord, queryClient },
         'clinical_patch'
       );
-      if (!fresh.record) throw new Error('No se pudo obtener la versión vigente del censo.');
+      if (!fresh.record)
+        throw new Error('La versión vigente del censo todavía no se leyó. Vuelve a intentar.');
       if (
         !proposal.sourceLastUpdated ||
         !isNursingStaffingCollectionContextCurrent(

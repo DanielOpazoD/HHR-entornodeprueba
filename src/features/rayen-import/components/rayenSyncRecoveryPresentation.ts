@@ -1,13 +1,15 @@
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import type { RayenExtensionConnectionState } from '../hooks/useRayenExtensionHealth';
 import { presentRayenSyncOutcome } from './rayenSyncPresentation';
+import type { SyncToneLevel } from './syncTone';
 
 export interface RayenSyncRecoveryPresentation {
   title: string;
   detail: string;
   action: 'refresh' | 'retry_full' | 'retry_clinical' | null;
   actionLabel: string | null;
-  tone: 'warning' | 'danger' | 'info';
+  /** A failed Eloísa read loses no edit: recovery is informative or something to review. */
+  level: Exclude<SyncToneLevel, 'action'>;
 }
 
 export const presentRayenSyncRecovery = (
@@ -26,7 +28,7 @@ export const presentRayenSyncRecovery = (
       detail: outcome.detail ?? 'Completando la ejecución actual.',
       action: null,
       actionLabel: null,
-      tone: 'info',
+      level: 'info',
     };
   }
 
@@ -36,7 +38,7 @@ export const presentRayenSyncRecovery = (
       detail: outcome.detail ?? 'Validando si Eloísa está disponible.',
       action: null,
       actionLabel: null,
-      tone: 'info',
+      level: 'info',
     };
   }
 
@@ -45,12 +47,12 @@ export const presentRayenSyncRecovery = (
   // extensión ni en el servidor, sino en la sesión (visto en vivo el 01-09).
   if (event.failureReason === 'apply_unauthorized') {
     return {
-      title: 'Sesión sin permisos',
+      title: 'Vuelve a iniciar sesión',
       detail:
-        'El censo se capturó pero no se pudo guardar: tu sesión perdió permisos. Vuelve a iniciar sesión y sincroniza de nuevo.',
+        'La lectura de Eloísa todavía no se guardó porque la sesión ya no tiene permiso. Inicia sesión de nuevo y vuelve a sincronizar.',
       action: null,
       actionLabel: null,
-      tone: 'warning',
+      level: 'review',
     };
   }
   // Otra pestaña o usuario guardó el mismo censo mientras se confirmaba (visto
@@ -58,12 +60,12 @@ export const presentRayenSyncRecovery = (
   // se repite, la causa está en la otra pestaña, no en Eloísa.
   if (event.failureReason === 'apply_conflict' && connection === 'ready') {
     return {
-      title: 'Otra escritura se adelantó',
+      title: 'Otra pestaña guardó primero',
       detail:
         'Otra pestaña o usuario guardó este censo mientras se confirmaba la sincronización. Vuelve a sincronizar; si se repite, cierra las otras pestañas de HHR con este censo abierto.',
       action: 'retry_full',
       actionLabel: 'Revisar censo',
-      tone: 'warning',
+      level: 'review',
     };
   }
   // La salud dice «lista» pero la pestaña no puede leer: reintentar sin
@@ -75,12 +77,12 @@ export const presentRayenSyncRecovery = (
     (connection === 'ready' || connection === 'blocked')
   ) {
     return {
-      title: 'Ficha Médico quedó inactiva',
+      title: 'Recarga Ficha Médico',
       detail:
-        'Eloísa respondió, pero la pestaña de Ficha Médico ya no puede leer datos (sesión de red vencida o pestaña envejecida). Recárgala (Cmd+R), espera a que cargue y luego pulsa «Revisar censo».',
+        'Recarga la pestaña de Ficha Médico (Cmd+R), espera a que cargue y luego pulsa «Revisar censo». Esa pestaña dejó de entregar datos.',
       action: 'retry_full',
       actionLabel: 'Revisar censo',
-      tone: 'warning',
+      level: 'review',
     };
   }
   if (connection === 'ready') {
@@ -113,23 +115,23 @@ export const presentRayenSyncRecovery = (
         : closedClinicalRun
           ? 'Reintentar sincronización'
           : 'Revisar censo',
-      tone: 'warning',
+      level: 'review',
     };
   }
 
   const title =
     connection === 'blocked'
-      ? 'Ficha Médico requiere atención'
+      ? 'Revisar Ficha Médico'
       : connection === 'incompatible'
-        ? 'La extensión debe actualizarse'
+        ? 'Actualizar la extensión'
         : connection === 'degraded'
-          ? 'La conexión sigue parcial'
-          : 'Eloísa no responde';
+          ? 'Conexión parcial con Eloísa'
+          : 'Esperando respuesta de Eloísa';
   return {
     title,
-    detail: outcome.detail ?? 'La ejecución no se completó.',
+    detail: outcome.detail ?? 'La sincronización quedó pendiente.',
     action: 'refresh',
     actionLabel: 'Comprobar nuevamente',
-    tone: connection === 'blocked' || connection === 'incompatible' ? 'danger' : 'warning',
+    level: 'review',
   };
 };

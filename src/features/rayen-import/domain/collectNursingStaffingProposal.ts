@@ -36,7 +36,7 @@ export const collectNursingStaffingProposal = async (
   );
   if (hasUnavailableSource) {
     throw new Error(
-      'No se pudo identificar el episodio clínico de todos los pacientes para revisar la dotación.'
+      'Falta identificar el episodio clínico de algunos pacientes para revisar la dotación.'
     );
   }
   const candidates = collectClinicalFillCandidates(record);
@@ -69,7 +69,7 @@ export const collectNursingStaffingProposal = async (
   }
   if (failedSources > 0) {
     throw new Error(
-      'No se pudo leer toda la actividad firmada de Enfermería/TENS en Eloísa. Reintenta la revisión de dotación.'
+      'Falta leer parte de la actividad firmada de Enfermería/TENS en Eloísa. Vuelve a revisar la dotación.'
     );
   }
 

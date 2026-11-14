@@ -10,6 +10,7 @@ import {
 import { downloadBlob } from '@/services/exporters/exportDownload';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { targetLabelFromKey } from './localSyncPresentation';
+import { SYNC_TONE } from './syncTone';
 import {
   classifyConflictChangedContexts,
   type ConflictDomainContext,
@@ -78,7 +79,7 @@ const Review: React.FC<{
         if (!value) setError('El envío cambió o ya no está bloqueado. Revisa el panel de nuevo.');
       })
       .catch(() => {
-        if (active) setError('No se pudo leer el envío. Sigue pendiente.');
+        if (active) setError('El envío todavía no se leyó y sigue pendiente; vuelve a intentar.');
       });
     return () => {
       active = false;
@@ -96,7 +97,7 @@ const Review: React.FC<{
         await onRetired();
       } else saveBackup(await getDailyRecordReviewBackup(review), taskId);
     } catch {
-      setError('No se pudo completar la acción. Revisa el panel de nuevo antes de continuar.');
+      setError('La acción no terminó. Revisa el panel de nuevo antes de continuar.');
     } finally {
       setBusy(false);
     }
@@ -128,7 +129,7 @@ const Review: React.FC<{
             type="button"
             disabled={!confirmed || busy}
             onClick={() => void act(true)}
-            className="text-rose-700 disabled:opacity-50"
+            className={`${SYNC_TONE.action.text} underline disabled:opacity-50`}
           >
             Sí, descartar envío
           </button>{' '}
@@ -152,7 +153,8 @@ const Backups: React.FC = () => {
         if (active) setTasks(rows);
       })
       .catch(() => {
-        if (active) setError('No se pudieron leer las copias locales.');
+        if (active)
+          setError('Las copias locales todavía no se leyeron; vuelve a abrir esta sección.');
       });
     return () => {
       active = false;
@@ -162,7 +164,7 @@ const Backups: React.FC = () => {
     try {
       saveBackup(await getDiscardedDailyRecordBackup(id), id);
     } catch {
-      setError('No se pudo descargar la copia. Revisa la sesión e inténtalo de nuevo.');
+      setError('La copia todavía no se descargó. Revisa la sesión y vuelve a intentar.');
     }
   };
   return (

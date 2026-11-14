@@ -185,7 +185,7 @@ describe('deterministic sanitized clinical replay', () => {
     });
     expect(result.presentation).toMatchObject({
       label: 'Parcial',
-      detail: '1 paciente no se pudo completar · Fuente clínica incompleta',
+      detail: '1 paciente por completar · Fuente clínica incompleta',
       tone: 'warning',
       unresolved: true,
     });

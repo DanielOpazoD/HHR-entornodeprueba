@@ -44,7 +44,7 @@ describe('sincronización · honestidad ante sesión sin permisos', () => {
     it('conserva los mensajes propios de los demás estados', () => {
       expect(resolveRayenPolicyBlockMessage('unconfigured')).toMatch(/no está configurada/i);
       expect(resolveRayenPolicyBlockMessage('migration-required')).toMatch(/migración a v2/i);
-      expect(resolveRayenPolicyBlockMessage('fallback')).toMatch(/vuelva la conexión/i);
+      expect(resolveRayenPolicyBlockMessage('fallback')).toMatch(/cuando haya conexión/i);
     });
   });
 
@@ -69,10 +69,12 @@ describe('sincronización · honestidad ante sesión sin permisos', () => {
 
     it('distingue las tres causas en el historial en vez de un rótulo único', () => {
       expect(rayenFailureReasonLabel('apply_unauthorized')).toBe(
-        'Sesión sin permisos para guardar'
+        'La sesión no tiene permiso para guardar'
       );
       expect(rayenFailureReasonLabel('apply_conflict')).toBe('El censo cambió durante el guardado');
-      expect(rayenFailureReasonLabel('apply_failed')).toBe('No se pudo aplicar el censo');
+      expect(rayenFailureReasonLabel('apply_failed')).toBe(
+        'El censo de Eloísa todavía no se aplicó'
+      );
     });
   });
 
@@ -91,12 +93,12 @@ describe('sincronización · honestidad ante sesión sin permisos', () => {
       const recovery = presentRayenSyncRecovery(failedRun('apply_unauthorized'), 'ready', false);
 
       expect(recovery).toMatchObject({
-        title: 'Sesión sin permisos',
+        title: 'Vuelve a iniciar sesión',
         action: null,
         actionLabel: null,
-        tone: 'warning',
+        level: 'review',
       });
-      expect(recovery?.detail).toMatch(/vuelve a iniciar sesión/i);
+      expect(recovery?.detail).toMatch(/inicia sesión de nuevo/i);
       // Con Eloísa sana el banner decía «Eloísa está operativa» y ofrecía
       // «Revisar censo»: cierto pero irrelevante, y el reintento volvía a fallar.
       expect(recovery?.detail).not.toMatch(/Eloísa está operativa/i);

@@ -181,7 +181,9 @@ describe('applyConfirmedRayenImport', () => {
     expect(rejection).toBeInstanceOf(ConcurrencyError);
     expect(rejection).toMatchObject({
       name: 'ConcurrencyError',
-      message: expect.stringMatching(/HHR recargó y recalculó la propuesta automáticamente/i),
+      message: expect.stringMatching(
+        /HHR recargó y recalculó la propuesta, y la dejó sin guardar/i
+      ),
       cause: conflict,
     });
 

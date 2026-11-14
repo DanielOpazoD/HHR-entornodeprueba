@@ -9,7 +9,8 @@ import { RayenImportFlowStatus } from './RayenImportFlowStatus';
 import { RayenNursingShiftProposalModal } from './RayenNursingShiftProposalModal';
 import { RayenConnectionMonitor } from './RayenConnectionMonitor';
 import { useSyncQueueMonitor } from '@/hooks/useSyncQueueMonitor';
-import { hasLocalSyncAttention } from './localSyncPresentation';
+import { localSyncAttentionLevel } from './localSyncPresentation';
+import { highestSyncTone, SYNC_TONE, SYNC_TONE_INFO_VARIANT } from './syncTone';
 import { RayenSyncStatusLine } from './RayenSyncStatusLine';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { rayenPrimaryActionLabel } from './rayenSyncPresentation';
@@ -70,7 +71,8 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
   const queue = useSyncQueueMonitor({
     operationLimit: (connectionMonitorOpen ? operationLimit : SYNC_QUEUE_PAGE_SIZE) + 1,
   });
-  const queueAttention = hasLocalSyncAttention(queue.stats);
+  const queueAttentionLevel = localSyncAttentionLevel(queue.stats);
+  const queueAttention = queueAttentionLevel !== null;
   const [staffingReviewOpen, setStaffingReviewOpen] = React.useState(false);
   const historyTriggerRef = React.useRef<HTMLButtonElement>(null);
   const syncPreflightInFlightRef = React.useRef(false);
@@ -84,6 +86,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
     isPreviewOpen,
     result,
     error,
+    errorTechnicalDetail,
     staffingProposal,
     isStaffingProposalBusy,
     staffingProposalError,
@@ -149,6 +152,8 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
       ),
     [extension.connection, history, captureBlocked, execution]
   );
+
+  const historyAttentionLevel = highestSyncTone(recovery?.level, queueAttentionLevel) ?? 'info';
 
   const handleSync = React.useCallback(
     async (options?: RayenImportCaptureOptions): Promise<RayenImportTriggerOutcome> => {
@@ -306,11 +311,12 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
           }
           lastSyncLine={
             <RayenSyncStatusLine
-              pending={queueAttention && !working}
+              pending={working ? null : queueAttentionLevel}
               onOpen={() => setConnectionMonitorOpen(true)}
             >
               <RayenImportFlowStatus
                 {...flowStatus}
+                technicalDetail={errorTechnicalDetail}
                 compactFallback={lastSync ? `Última ${lastSync}` : 'Aún sin sincronizar hoy'}
               />
             </RayenSyncStatusLine>
@@ -333,8 +339,9 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
             {(recovery || queueAttention) && (
               <span
                 className={`absolute -right-0.5 -top-0.5 size-2 rounded-full border border-white ${
-                  working ? 'bg-slate-300' : 'bg-amber-500'
+                  working ? SYNC_TONE_INFO_VARIANT.idle.dot : SYNC_TONE[historyAttentionLevel].dot
                 }`}
+                data-tone={working ? undefined : historyAttentionLevel}
                 data-testid="rayen-sync-history-indicator"
                 aria-hidden="true"
               />
@@ -353,7 +360,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
             data-testid="rayen-staffing-review-button"
             className={`relative inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-md border bg-white px-1.5 py-0 text-[10px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-not-allowed disabled:opacity-50 ${
               staffingProposalError
-                ? 'border-amber-300 text-amber-700 hover:bg-amber-50'
+                ? `${SYNC_TONE.review.control} ${SYNC_TONE.review.hover}`
                 : 'border-slate-200 text-slate-600 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700'
             }`}
           >

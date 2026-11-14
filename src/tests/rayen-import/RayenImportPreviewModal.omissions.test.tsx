@@ -68,7 +68,7 @@ describe('Rayen synchronization omissions in the pulse bar', () => {
     );
 
     expect(screen.queryByText('Todo al día')).not.toBeInTheDocument();
-    expect(screen.getByText('Última sincronización con observaciones')).toBeVisible();
+    expect(screen.getByText('Revisar datos de la última sincronización')).toBeVisible();
     expect(screen.getByRole('status')).not.toHaveTextContent('Enfermería/TENS');
   });
 

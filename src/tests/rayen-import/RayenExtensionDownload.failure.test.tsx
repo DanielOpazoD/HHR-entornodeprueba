@@ -33,7 +33,7 @@ it('contains a rejected help import, preserves the census draft and keeps ZIP an
   );
   fireEvent.change(screen.getByLabelText('Borrador'), { target: { value: 'edición pendiente' } });
   fireEvent.click(screen.getByRole('button', { name: 'Identidad sin verificar' }));
-  expect(await screen.findByText(/No se pudo cargar la ayuda/)).toBeInTheDocument();
+  expect(await screen.findByText(/La ayuda todavía no cargó/)).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: 'Censo sintético' })).toBeInTheDocument();
   expect(screen.getByLabelText('Borrador')).toHaveValue('edición pendiente');
   expect(screen.queryByText('Error en Censo')).not.toBeInTheDocument();

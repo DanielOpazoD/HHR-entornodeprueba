@@ -159,7 +159,7 @@ export const useRayenImportCapture = ({
         setState(previous => ({
           ...previous,
           error:
-            'No se recibió la captura de Eloísa dentro del plazo. Verifica que ambas fuentes sigan conectadas y vuelve a intentarlo.',
+            'Eloísa tardó en entregar la lectura. Verifica que ambas fuentes sigan conectadas y vuelve a sincronizar.',
         }));
       });
       return requestId;
@@ -254,6 +254,9 @@ export const useRayenImportCapture = ({
           setState(previous => ({
             ...previous,
             error: classified.message,
+            errorTechnicalDetail: classified.technicalDetail
+              ? { message: classified.message, detail: classified.technicalDetail }
+              : null,
           }));
         }
       ),

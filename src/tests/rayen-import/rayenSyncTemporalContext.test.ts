@@ -170,7 +170,7 @@ describe('prepareRayenSyncTemporalContext · techo de lectura', () => {
         loadTimeoutMs: 5_000,
       });
       const expectation = expect(pending).rejects.toThrow(
-        'No se pudo leer la versión vigente del censo'
+        'La versión vigente del censo todavía no se leyó'
       );
       await vi.advanceTimersByTimeAsync(5_001);
       await expectation;

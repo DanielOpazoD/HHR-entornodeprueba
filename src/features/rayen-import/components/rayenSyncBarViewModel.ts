@@ -153,7 +153,7 @@ const clinicalProgress = (
 const structuralReviewLabel = (diff: CensusImportDiff | null): string => {
   const conflicts = Math.max(diff?.conflicts.length ?? 0, diff?.summary.conflicts ?? 0);
   if (conflicts === 0) return 'Revisar cambios del censo';
-  return `${conflicts} cambio${conflicts === 1 ? '' : 's'} del censo ${conflicts === 1 ? 'requiere' : 'requieren'} revisión`;
+  return `Revisar ${conflicts} cambio${conflicts === 1 ? '' : 's'} del censo`;
 };
 
 const canonicalExecutionViewModel = (
@@ -213,7 +213,7 @@ const canonicalExecutionViewModel = (
       return settled(
         'action',
         'warning',
-        withTargetDate('No se pudo completar la sincronización', targetDate),
+        withTargetDate('Sincronización por completar', targetDate),
         { detail: input.error ?? undefined, visuallyHidden: false }
       );
     case 'cancelled':
@@ -253,9 +253,9 @@ export const buildRayenSyncBarViewModel = (
         return settled('action', 'warning', 'Sincronización pendiente de completar');
       }
       if (!input.persistedSync?.coverage) {
-        return settled('action', 'warning', 'Última sincronización sin evidencia clínica');
+        return settled('action', 'warning', 'Datos clínicos por confirmar');
       }
-      return settled('action', 'warning', 'Última sincronización con observaciones');
+      return settled('action', 'warning', 'Revisar datos de la última sincronización');
     }
   }
 

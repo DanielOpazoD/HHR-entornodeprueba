@@ -14,7 +14,8 @@ export const useRayenSyncRecordAccess = (dailyRecord: DailyRecordRepository) => 
   const loadFreshClinicalRecord = useCallback(
     async (date: string): Promise<DailyRecord> => {
       const result = await dailyRecord.getForDateWithMeta(date, true);
-      if (!result.record) throw new Error('No se pudo obtener la versión vigente del censo.');
+      if (!result.record)
+        throw new Error('La versión vigente del censo todavía no se leyó. Vuelve a intentar.');
       return result.record as DailyRecord;
     },
     [dailyRecord]
@@ -23,7 +24,8 @@ export const useRayenSyncRecordAccess = (dailyRecord: DailyRecordRepository) => 
   const loadAuthoritativeStructuralRecord = useCallback(
     async (date: string): Promise<DailyRecord> => {
       const record = await dailyRecord.getAuthoritativeForDate(date);
-      if (!record) throw new Error('No se pudo obtener la versión autoritativa del censo.');
+      if (!record)
+        throw new Error('La versión confirmada del censo todavía no se leyó. Vuelve a intentar.');
       return record as DailyRecord;
     },
     [dailyRecord]

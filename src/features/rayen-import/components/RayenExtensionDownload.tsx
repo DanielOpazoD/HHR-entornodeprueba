@@ -2,6 +2,7 @@ import React from 'react';
 import { Download } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import release from 'virtual:rayen-extension-release';
+import { SYNC_TONE } from './syncTone';
 
 const DownloadDetails = React.lazy(() => import('./RayenExtensionDownloadDetails'));
 
@@ -61,14 +62,14 @@ export const RayenExtensionDownload: React.FC<Props> = ({
         aria-label={label}
         className={`flex size-7 cursor-pointer list-none items-center justify-center rounded-md border focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600 ${
           needsReview
-            ? 'border-amber-300 bg-amber-50 text-amber-700'
+            ? SYNC_TONE.review.surface
             : 'border-slate-200 text-slate-500 hover:bg-slate-50'
         }`}
       >
         <Download size={14} aria-hidden="true" />
         {needsReview && (
           <span
-            className="absolute right-0 top-0 size-1.5 rounded-full bg-amber-500"
+            className={`absolute right-0 top-0 size-1.5 rounded-full ${SYNC_TONE.review.dot}`}
             aria-hidden="true"
           />
         )}
@@ -90,15 +91,15 @@ export const RayenExtensionDownload: React.FC<Props> = ({
           Ver cambios de esta versión
         </a>
         {working && (
-          <p className="mt-2 font-medium text-amber-700">
+          <p className={`mt-2 font-medium ${SYNC_TONE.info.text}`}>
             Espera a que termine la sincronización antes de recargar la extensión o las páginas.
           </p>
         )}
         {detailsRequested && (
           <ErrorBoundary
             fallback={
-              <p role="alert" className="mt-2 text-amber-700">
-                No se pudo cargar la ayuda. La descarga sigue disponible.
+              <p role="alert" className={`mt-2 ${SYNC_TONE.review.text}`}>
+                La ayuda todavía no cargó. La descarga sigue disponible.
               </p>
             }
           >
