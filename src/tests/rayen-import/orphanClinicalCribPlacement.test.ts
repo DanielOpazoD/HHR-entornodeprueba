@@ -10,7 +10,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { Specialty } from '@/types/domain/patientClassification';
 
-const REFERENCE = new Date(2026, 6, 22, 12, 0, 0);
+const REFERENCE = new Date('2026-07-22T12:00:00-06:00');
 
 const makeRecord = (beds: Record<string, PatientData> = {}): DailyRecord => ({
   date: '2026-07-22',

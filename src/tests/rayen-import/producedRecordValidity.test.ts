@@ -13,7 +13,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 
 // Past dates so no future-date business rule can interfere with the structural check.
-const REFERENCE = new Date(2020, 5, 1);
+const REFERENCE = new Date('2020-06-01T12:00:00-06:00');
 const NOW = new Date(2020, 5, 1, 15, 30, 0);
 
 const makeCtx = (): ApplyContext => {

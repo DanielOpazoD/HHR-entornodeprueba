@@ -17,7 +17,7 @@ import type { PatientData } from '@/types/domain/patient';
 import { applyPatches } from '@/utils/patchUtils';
 import { formatPatientDisplayName } from '@/utils/patientNameDisplayUtils';
 
-const REFERENCE = new Date(2026, 10, 8);
+const REFERENCE = new Date('2026-11-08T12:00:00-05:00');
 const FULL_NAME = 'Ana María Josefa Luisa Rosa Elena Pérez Soto';
 const SHORT_NAME = 'Ana María Josefa Pérez Soto';
 
