@@ -1,16 +1,14 @@
 import React from 'react';
-import {
-  ChevronRight,
-  Heart,
-  MapPin,
-  Activity,
-  UploadCloud,
-  CheckCircle,
-  Clock,
-} from 'lucide-react';
+import { X, Heart, MapPin, Activity, UploadCloud, CheckCircle, Clock } from 'lucide-react';
 import type { MasterPatient, HospitalizationEvent } from '@/types/domain/patientMaster';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import clsx from 'clsx';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
+import {
+  PANEL_HEADER_CLASS,
+  PANEL_ICON_CLASS,
+  PANEL_TITLE_CLASS,
+} from '@/components/ui/base/panelStyles';
 
 interface PatientDetailModalProps {
   patient: MasterPatient;
@@ -21,59 +19,52 @@ export const PatientDetailModal: React.FC<PatientDetailModalProps> = ({ patient,
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
-        <div className="p-6 bg-[#0B1120] text-white relative">
-          <button
-            onClick={onClose}
-            className="absolute top-6 right-6 w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full transition-colors z-20"
-            aria-label="Cerrar"
+        <div className={clsx(PANEL_HEADER_CLASS, 'items-start border-slate-100 px-4 sm:px-6')}>
+          <span
+            className={clsx(PANEL_ICON_CLASS, 'text-sm font-semibold text-blue-700')}
+            aria-hidden="true"
           >
-            <ChevronRight className="rotate-90 md:rotate-0" size={20} />
-          </button>
-
-          <div className="flex items-center gap-5 relative z-10">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-3xl font-black shadow-lg shadow-blue-900/40">
-              {patient.fullName.charAt(0)}
+            {patient.fullName.charAt(0)}
+          </span>
+          <div className="min-w-0 flex-1 basis-40">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <h2 className={PANEL_TITLE_CLASS}>{patient.fullName}</h2>
+              <div className="shrink-0 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                {patient.hospitalizations?.length || 0} Eventos
+              </div>
             </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-1">
-                <h2 className="text-2xl font-black leading-tight tracking-tight">
-                  {patient.fullName}
-                </h2>
-                <div className="px-2 py-0.5 bg-blue-500/20 border border-blue-500/30 rounded text-[10px] font-black text-blue-400 uppercase tracking-widest">
-                  {patient.hospitalizations?.length || 0} Eventos
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-400 text-[11px] font-bold">
-                <span className="font-mono bg-white/5 px-2 py-0.5 rounded text-white italic">
-                  {patient.rut}
-                </span>
+            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+              <span className="font-mono text-slate-800">{patient.rut}</span>
+              <span className="flex items-center gap-1">
+                <Heart
+                  size={14}
+                  className={
+                    patient.vitalStatus === 'Fallecido' ? 'text-slate-500' : 'text-emerald-600'
+                  }
+                />
+                {patient.vitalStatus || 'Vivo'}
+              </span>
+              <span className="flex items-center gap-1">
+                <MapPin size={12} className="text-blue-600" /> {patient.forecast || 'SIN PREVISIÓN'}
+              </span>
+              {patient.gender && (
                 <span className="flex items-center gap-1">
-                  <Heart
-                    size={14}
-                    className={
-                      patient.vitalStatus === 'Fallecido'
-                        ? 'text-slate-500'
-                        : 'text-emerald-400 shadow-emerald-400/50 drop-shadow-sm'
-                    }
-                  />
-                  {patient.vitalStatus || 'Vivo'}
+                  <Activity size={12} className="text-indigo-600" /> {patient.gender}
                 </span>
-                <span className="flex items-center gap-1 uppercase tracking-widest">
-                  <MapPin size={12} className="text-blue-400" />{' '}
-                  {patient.forecast || 'SIN PREVISIÓN'}
-                </span>
-                {patient.gender && (
-                  <span className="flex items-center gap-1 uppercase tracking-widest">
-                    <Activity size={12} className="text-indigo-400" /> {patient.gender}
-                  </span>
-                )}
-              </div>
+              )}
             </div>
           </div>
+          <button
+            onClick={onClose}
+            className={buttonClassName('ghost', 'icon', 'ml-auto shrink-0')}
+            aria-label="Cerrar"
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
-          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-6 flex items-center gap-2">
+          <h3 className="text-xs font-semibold text-slate-600 mb-6 flex items-center gap-2">
             <Activity size={14} className="text-blue-500" /> Línea de Tiempo Clínica
           </h3>
 
@@ -83,9 +74,7 @@ export const PatientDetailModal: React.FC<PatientDetailModalProps> = ({ patient,
             {!patient.hospitalizations || patient.hospitalizations.length === 0 ? (
               <div className="text-center py-12 text-slate-400">
                 <Clock size={32} className="mx-auto mb-2 opacity-30" />
-                <p className="text-xs font-bold uppercase tracking-widest">
-                  Sin registros históricos
-                </p>
+                <p className="text-xs font-semibold">Sin registros históricos</p>
               </div>
             ) : (
               patient.hospitalizations
@@ -112,32 +101,28 @@ export const PatientDetailModal: React.FC<PatientDetailModalProps> = ({ patient,
 
                     <div className="bg-white p-3 rounded-xl border border-slate-200/60 shadow-sm transition-all hover:border-blue-200">
                       <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="text-xs font-black text-slate-800 uppercase tracking-tight">
-                          {ev.type}
-                        </span>
-                        <span className="text-[9px] font-black text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100 flex items-center gap-1.5">
+                        <span className="text-xs font-semibold text-slate-800">{ev.type}</span>
+                        <span className="text-xs font-semibold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100 flex items-center gap-1.5">
                           <Clock size={10} /> {formatDateDDMMYYYY(ev.date)}
                         </span>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
                         <div className="space-y-1">
-                          <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                            Diagnóstico
-                          </div>
-                          <div className="text-[11px] text-slate-600 font-bold leading-snug line-clamp-2">
+                          <div className="text-xs font-semibold text-slate-600">Diagnóstico</div>
+                          <div className="text-xs text-slate-700 font-semibold leading-snug line-clamp-2">
                             {ev.diagnosis}
                           </div>
                         </div>
 
                         <div className="flex flex-wrap items-end justify-end gap-1.5">
                           {ev.bedName && (
-                            <div className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-black border border-slate-200">
+                            <div className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-xs font-semibold border border-slate-200">
                               CAMA: {ev.bedName}
                             </div>
                           )}
                           {ev.receivingCenter && (
-                            <div className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded text-[9px] font-black border border-amber-100">
+                            <div className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded text-xs font-semibold border border-amber-100">
                               DESTINO: {ev.receivingCenter}
                             </div>
                           )}
@@ -151,10 +136,7 @@ export const PatientDetailModal: React.FC<PatientDetailModalProps> = ({ patient,
         </div>
 
         <div className="p-4 bg-white border-t border-slate-100 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-6 py-2.5 bg-slate-900 text-white font-bold rounded-xl text-sm transition-all hover:bg-slate-800 active:scale-95 shadow-lg shadow-slate-200"
-          >
+          <button onClick={onClose} className={buttonClassName('secondary')}>
             Cerrar Explorer
           </button>
         </div>
