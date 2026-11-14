@@ -31,7 +31,8 @@ import type {
   EvolutionProfession,
 } from './clinicalPanelTypes';
 import { parseClinicalCareDays } from './parseClinicalCarePlan';
-import { dayKey, flag, timeKey } from './clinicalPanelParsingUtils';
+import { compareStamps, dayKey, flag } from './clinicalPanelParsingUtils';
+import { fichaMedicoMedicationOrderStamp } from './fichaMedicoHistoryClock';
 import { projectValidatedMedicationDays } from './projectValidatedMedicationDays';
 import { toTitleCaseName } from './rayenToPatientData';
 
@@ -54,7 +55,7 @@ const rows = (value: unknown): RawRow[] =>
 const joinParts = (...parts: string[]): string => parts.filter(Boolean).join(' · ');
 
 const byNewestFirst = (a: ClinicalPanelEntry, b: ClinicalPanelEntry): number =>
-  timeKey(b.publishedAt) - timeKey(a.publishedAt);
+  compareStamps(b.publishedAt, a.publishedAt);
 
 /** The person's display name from the split HCP_* parts (HCPR_NAME is the role, not the person). */
 const composeAuthor = (r: RawRow): string =>
@@ -114,7 +115,7 @@ const buildIndicationDays = (entries: ClinicalPanelEntry[]): ClinicalPanelIndica
         : `${entry.kind}:${entry.id}`;
     const bucket = byDay.get(day) ?? new Map<string, ClinicalPanelEntry>();
     const current = bucket.get(dedupKey);
-    if (!current || timeKey(entry.publishedAt) >= timeKey(current.publishedAt)) {
+    if (!current || compareStamps(entry.publishedAt, current.publishedAt) >= 0) {
       bucket.set(dedupKey, entry);
     }
     byDay.set(day, bucket);
@@ -198,7 +199,7 @@ export const parseClinicalPanel = (
     for (const r of rows(event.patientPharmaIndicationResume)) {
       const title = str(r.DESCRIPTOR) || str(r.VIRTUAL_MEDICAL_PRODUCT);
       if (!title) continue;
-      const prescribedAt = str(r.PUBLISH_DATETIME) || eventDate;
+      const prescribedAt = fichaMedicoMedicationOrderStamp(str(r.PUBLISH_DATETIME)) || eventDate;
       const medicationId = str(r.MRE_ID) || `pharma-${seq++}`;
       const prescriptionDay = dayKey(prescribedAt);
       if (prescriptionDay) sourceMedicationDays.add(`${medicationId}:${prescriptionDay}`);
