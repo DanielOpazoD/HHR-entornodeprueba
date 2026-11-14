@@ -28,6 +28,37 @@ describe('ClinicalDocumentVersionHistory', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('gives focus back to what opened it when closed from its button', () => {
+    const Harness = () => {
+      const [open, setOpen] = React.useState(false);
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>
+            v1
+          </button>
+          {open && (
+            <ClinicalDocumentVersionHistory
+              versions={[]}
+              currentVersion={1}
+              onClose={() => setOpen(false)}
+            />
+          )}
+        </>
+      );
+    };
+    render(<Harness />);
+    const trigger = screen.getByRole('button', { name: 'v1' });
+    trigger.focus();
+    fireEvent.click(trigger);
+
+    const close = screen.getByRole('button', { name: 'Cerrar' });
+    close.focus();
+    fireEvent.click(close);
+
+    expect(screen.queryByText('Historial de versiones')).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
   it('renders an empty-state when no versions are provided', () => {
     render(<ClinicalDocumentVersionHistory versions={[]} currentVersion={1} onClose={vi.fn()} />);
 
