@@ -4,28 +4,26 @@ import {
   type PrescriptionRecord,
   type PrescriptionType,
 } from '@/types/prescriptionTypes';
-import {
-  PrescriptionBedRow,
-  type PrescriptionBedRowData,
-} from '@/features/prescriptions/components/PrescriptionBedRow';
+import { PrescriptionBedRow } from '@/features/prescriptions/components/PrescriptionBedRow';
 import {
   PRESCRIPTION_TYPES,
   prescriptionBedRowKey,
+  type PrescriptionBedRowData,
 } from '@/features/prescriptions/components/prescriptionBedGridSupport';
 
 interface PrescriptionBedGridTableProps {
   rows: PrescriptionBedRowData[];
   draggingRecord: PrescriptionRecord | null;
-  hoverCell: { bedId: string; type: PrescriptionType } | null;
+  hoverCell: { rowKey: string; type: PrescriptionType } | null;
   pickerSource: PrescriptionRecord | null;
   pendingAssignId: string | null;
   enableDrop: boolean;
   onDragOver: (
     event: React.DragEvent<HTMLTableCellElement>,
     type: PrescriptionType,
-    bedId: string
+    rowKey: string
   ) => void;
-  onDragLeave: (type: PrescriptionType, bedId: string) => void;
+  onDragLeave: (type: PrescriptionType, rowKey: string) => void;
   onDrop: (
     event: React.DragEvent<HTMLTableCellElement>,
     row: PrescriptionBedRowData,
