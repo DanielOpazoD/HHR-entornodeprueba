@@ -19,18 +19,24 @@ const parsedMs = (value: string): number => {
   return Number.isNaN(timestamp) ? 0 : timestamp;
 };
 
-const WALL_STAMP = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?$/;
+const WALL_STAMP =
+  /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})[T ](?<hour>\d{2}):(?<minute>\d{2})(?::(?<second>\d{2})(?:\.(?<fraction>\d{1,9}))?)?$/;
 
 /** An ISO time on the hospital wall clock, read from its parts (never the device clock), or null. */
 const hospitalWallMs = (value: string): number | null => {
   const instant = parseStrictIsoInstant(value);
-  const parts = WALL_STAMP.exec((instant ? absoluteInstantInRapaNui(value) : value) ?? '');
+  const parts = WALL_STAMP.exec((instant ? absoluteInstantInRapaNui(value) : value) ?? '')?.groups;
   if (!parts) return null;
-  const [year, month, day, hour, minute, second] = parts.slice(1, 7).map(part => Number(part ?? 0));
+  const year = Number(parts.year);
+  const month = Number(parts.month);
+  const day = Number(parts.day);
+  const hour = Number(parts.hour);
+  const minute = Number(parts.minute);
+  const second = Number(parts.second ?? 0);
   if (!buildSortableLocalTimestamp(year, month, day, hour, minute, second)) return null;
   const ms = instant
     ? instant.getUTCMilliseconds()
-    : Number((parts[7] ?? '').padEnd(3, '0').slice(0, 3));
+    : Number((parts.fraction ?? '').padEnd(3, '0').slice(0, 3));
   return Date.UTC(year, month - 1, day, hour, minute, second, ms);
 };
 
