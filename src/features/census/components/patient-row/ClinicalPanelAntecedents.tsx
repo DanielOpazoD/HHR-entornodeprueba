@@ -11,6 +11,7 @@ import {
   clinicalAntecedentEntryKey,
   uniqueClinicalAntecedentEntries,
 } from './clinicalAntecedentEntries';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
 const sameResult = (left: ClinicalActionResult | null, right: ClinicalActionResult): boolean =>
   JSON.stringify(left) === JSON.stringify(right);
 type OlderPage = { requestedEnd: string; data: ClinicalActionResult };
@@ -157,9 +158,7 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<AntecedentsProps> = ({
   return (
     <div className="space-y-2">
       <div className="px-1 py-1.5">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-          Antecedentes de Eloísa
-        </p>
+        <p className="text-xs font-semibold text-slate-600">Antecedentes de Eloísa</p>
       </div>
       {!result ? (
         <p className="flex items-center justify-center gap-2 py-8 text-xs text-slate-500">
@@ -174,15 +173,12 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<AntecedentsProps> = ({
       ) : (
         <>
           {refreshError && (
-            <p
-              role="status"
-              className="rounded-md bg-amber-50 px-2.5 py-2 text-[11px] text-amber-800"
-            >
+            <p role="status" className="rounded-md bg-amber-50 px-2.5 py-2 text-xs text-amber-800">
               {refreshError} Se conserva la última información cargada.
             </p>
           )}
           {!!result.warnings?.length && (
-            <aside className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-[11px] text-slate-600">
+            <aside className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-600">
               <p role="status" className="font-medium">
                 Historial parcial · Los antecedentes cargados siguen disponibles.
               </p>
@@ -202,7 +198,7 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<AntecedentsProps> = ({
             <button
               type="button"
               onClick={() => setAttempt(value => value + 1)}
-              className="text-xs font-semibold text-teal-700"
+              className={buttonClassName('ghost', 'xs')}
             >
               Reintentar antecedentes
             </button>
@@ -212,7 +208,7 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<AntecedentsProps> = ({
               <p
                 key={`${page.requestedEnd}:${warning}`}
                 role="status"
-                className="rounded-md bg-amber-50 px-2.5 py-2 text-[11px] text-amber-800"
+                className="rounded-md bg-amber-50 px-2.5 py-2 text-xs text-amber-800"
               >
                 Período hasta {formatClinicalAntecedentDate(page.requestedEnd)}: {warning}
               </p>
@@ -241,7 +237,7 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<AntecedentsProps> = ({
               type="button"
               disabled={olderLoading}
               onClick={() => void loadOlder()}
-              className="rounded-md border border-teal-200 px-3 py-2 text-xs font-semibold text-teal-700 disabled:opacity-60"
+              className={buttonClassName('outline', 'sm')}
             >
               {olderLoading
                 ? 'Consultando período anterior…'
