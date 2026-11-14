@@ -140,7 +140,8 @@ describe('ClinicalExplorerLab', () => {
     renderLab();
     const card = await screen.findByRole('region', { name: 'Laboratorio' });
     await expandTrends(card);
-    await within(card).findByRole('img', { name: /Creatinina, 2 resultados/ });
+    // First expansion suspends on the lazy trends chunk: React holds the reveal ≥300 ms, and under coverage on a busy runner it measured up to 1.9 s.
+    await within(card).findByRole('img', { name: /Creatinina, 2 resultados/ }, { timeout: 5000 });
     // The report from 20-10 belongs to an earlier attention: it is not even requested.
     expect(mocks.details).toHaveBeenCalledTimes(1);
     expect(mocks.details.mock.calls[0][0]).toEqual([exams[1].link, exams[2].link]);
