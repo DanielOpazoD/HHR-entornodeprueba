@@ -13,6 +13,16 @@ import {
 import { ClinicalPanelHeading } from '@/features/census/components/patient-row/ClinicalPanelHeading';
 import { ClinicalPanelProfessionTabs } from '@/features/census/components/patient-row/ClinicalPanelProfessionTabs';
 import { ClinicalPanelUnavailable } from '@/features/census/components/patient-row/ClinicalPanelUnavailable';
+import { ClinicalPanelAntecedents } from '@/features/census/components/patient-row/ClinicalPanelAntecedents';
+import { ClinicalAntecedentDau } from '@/features/census/components/patient-row/ClinicalAntecedentDau';
+import { ClinicalPanelPrescriptionButton } from '@/features/census/components/patient-row/ClinicalPanelPrescriptionButton';
+import { PatientDocumentManagerButton } from '@/features/census/components/patient-row/PatientDocumentManagerButton';
+
+const { requestClinicalAction } = vi.hoisted(() => ({ requestClinicalAction: vi.fn() }));
+vi.mock('@/features/rayen-import/clinical-panel', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  requestClinicalAction,
+}));
 
 const entry: ClinicalPanelEntry = {
   id: 'note-1',
@@ -32,6 +42,10 @@ const entry: ClinicalPanelEntry = {
 /** Type the panel would render under 12 px, or as spaced capitals instead of a plain label. */
 const SMALL_OR_SHOUTED_TYPE =
   /(^|\s)(text-\[(\d|1[01])(\.\d+)?px\]|uppercase|tracking-\S+)(?=\s|$)/;
+const smallOrShoutedClasses = (container: HTMLElement): string[] =>
+  [...container.querySelectorAll('*')]
+    .map(element => element.getAttribute('class') ?? '')
+    .filter(className => SMALL_OR_SHOUTED_TYPE.test(className));
 
 const indicationDay: ClinicalPanelIndicationDay = {
   day: '2026-09-04',
@@ -100,10 +114,97 @@ describe('Clinical panel reading density', () => {
     fireEvent.click(screen.getByRole('button', { name: /1 inactiva/ }));
 
     expect(screen.getByText('Suspendida')).toBeVisible();
-    const offenders = [...container.querySelectorAll('*')]
-      .map(element => element.getAttribute('class') ?? '')
-      .filter(className => SMALL_OR_SHOUTED_TYPE.test(className));
-    expect(offenders).toEqual([]);
+    expect(smallOrShoutedClasses(container)).toEqual([]);
+  });
+
+  it('reads the Antecedentes tab and the panel actions at 12 px or more, with plain-case labels', async () => {
+    const encounter = {
+      date: '20261102 14:35',
+      diagnosis: 'Diagnóstico sintético',
+      type: 'Consulta',
+    };
+    const details: Record<string, object> = {
+      urgency: {
+        careType: 'emergency',
+        reason: 'Motivo sintético',
+        history: 'Historia sintética',
+        professional: 'Profesional sintético',
+        attachments: [{ id: 'file', label: 'Epicrisis sintética' }],
+        physicalExams: [{ name: 'Signos vitales', fields: [{ label: 'Pulso', value: '80' }] }],
+      },
+      outpatient: {
+        careType: 'outpatient',
+        reason: 'Control sintético',
+        history: '',
+        professional: 'Profesional sintético',
+        attachments: [],
+        prescriptions: [
+          { id: '9', date: '20261020', type: 'Crónica', status: 'Vigente', items: ['Fármaco'] },
+        ],
+      },
+    };
+    requestClinicalAction.mockImplementation(
+      async (
+        _episode: string,
+        operation: string,
+        id?: string,
+        _signal?: AbortSignal,
+        before?: string
+      ) =>
+        operation === 'detail'
+          ? { ok: true, detail: details[id?.split(':')[1] ?? ''] }
+          : before
+            ? { ok: true, entries: [], warnings: ['Fuente sintética sin respuesta.'] }
+            : {
+                ok: true,
+                nextBeforeDate: '2026-05-01',
+                warnings: ['Fuente sintética sin respuesta.'],
+                entries: [
+                  {
+                    ...encounter,
+                    id: 'urgency',
+                    source: 'Primaria',
+                    facility: 'Urgencia sintética',
+                  },
+                  {
+                    ...encounter,
+                    id: 'outpatient',
+                    source: 'Primaria',
+                    facility: 'CESFAM sintético',
+                  },
+                  { ...encounter, id: 'external', source: 'Otra', facility: 'Registro sintético' },
+                ],
+              }
+    );
+    const auth = {
+      flowId: 'flow',
+      url: 'chrome-extension://synthetic/urgency-login.html',
+      reason: 'profile' as const,
+    };
+    const { container } = render(
+      <>
+        <PatientDocumentManagerButton patientName="Paciente de prueba" count={3} onOpen={vi.fn()} />
+        <ClinicalPanelPrescriptionButton clinicalEpisodeId="12" />
+        <ClinicalPanelAntecedents clinicalEpisodeId="12" />
+        <ClinicalAntecedentDau
+          request={async () => ({ opened: false, error: 'Perfil sintético', auth })}
+        />
+      </>
+    );
+    expect(
+      await screen.findByText('Descargar DAU oficial (PDF)', { selector: 'button' })
+    ).toBeVisible();
+    expect(await screen.findByText('Receta N° 9')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Cargar período anterior' }));
+    expect(await screen.findByText(/Período hasta/)).toBeVisible();
+    fireEvent.click(screen.getAllByRole('button', { name: /Descargar DAU oficial/ }).at(-1)!);
+    expect(
+      await screen.findByRole('button', { name: 'Iniciar sesión con otro perfil' })
+    ).toBeVisible();
+
+    expect(screen.getByText('Antecedentes de Eloísa')).toBeVisible();
+    expect(screen.getByText('Documentos')).toBeInTheDocument();
+    expect(smallOrShoutedClasses(container)).toEqual([]);
   });
 
   it('keeps annulled notes collapsed, with identity and status visible, and allows reopening', () => {
