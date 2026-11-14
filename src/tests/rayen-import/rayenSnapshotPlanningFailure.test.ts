@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type {
@@ -7,7 +7,12 @@ import type {
   RayenEncounter,
   RayenSyncBundle,
 } from '@/features/rayen-import/contracts/rayenSnapshot';
-import type { RayenImportState } from '@/features/rayen-import/hooks/rayenImportState';
+import {
+  visibleErrorTechnicalDetail,
+  type RayenImportState,
+} from '@/features/rayen-import/hooks/rayenImportState';
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { errorService } from '@/services/utils/errorService';
 import { rayenToPatientData } from '@/features/rayen-import/mapping/rayenToPatientData';
 import { useRayenSnapshotPreview } from '@/features/rayen-import/hooks/useRayenSnapshotPreview';
 
@@ -184,13 +189,22 @@ const readableDays = () => ({
   getAuthoritativeForDate: vi.fn().mockResolvedValue(null),
 });
 
+const PLANNING_UNFINISHED = 'La conciliación del censo quedó sin terminar. Vuelve a sincronizar.';
+
 describe('structural planning that fails part way through a synchronization', () => {
-  it('ends the run with a message, saving nothing and discharging no one, when the episode lookup rejects', async () => {
+  afterEach(() => {
+    setSessionGeneration(null);
+    errorService.clearErrors();
+    vi.restoreAllMocks();
+  });
+
+  it('ends the run with a calm line, saving nothing and discharging no one, when the episode lookup rejects', async () => {
     evidence.lookupEgresos.mockReset();
     evidence.lookupEgresos.mockImplementation(async (targets: Array<{ encounterId: string }>) => {
       if (targets.length === 0) return [];
-      throw new Error('Gestión de Camas no respondió. Vuelve a sincronizar.');
+      throw new TypeError("Cannot read properties of undefined (reading 'encounterId')");
     });
+    const logged = vi.spyOn(errorService, 'logError').mockImplementation(() => undefined);
     const harness = renderPreview(readableDays());
 
     await harness.preview();
@@ -202,18 +216,65 @@ describe('structural planning that fails part way through a synchronization', ()
     ).toEqual(['111']);
     expect(harness.stages()).toEqual(['planning_structure', 'failed']);
     expect(harness.failRun).toHaveBeenCalledWith('apply_failed', 'run-1');
-    expect(harness.visibleState()).toEqual({
-      ...initialState,
-      error: 'Gestión de Camas no respondió. Vuelve a sincronizar.',
+    const state = harness.visibleState();
+    expect(state.error).toBe(PLANNING_UNFINISHED);
+    // The source text is for the administrator only, and the failure stays diagnosable.
+    expect(visibleErrorTechnicalDetail(state, false)).toBeNull();
+    expect(visibleErrorTechnicalDetail(state, true)).toContain('Cannot read properties');
+    expect(logged).toHaveBeenCalledTimes(1);
+    expect(logged.mock.calls[0]?.[0]).toMatchObject({
+      message: 'Rayen structural planning failed',
+      error: expect.any(TypeError),
     });
     expect(harness.applyDiff).not.toHaveBeenCalled();
     expect(harness.runClinicalStage).not.toHaveBeenCalled();
     expect(harness.preparedSyncContextRef.current).toBeNull();
   });
 
+  it('keeps a refused permission out of the message a non-administrator reads', async () => {
+    evidence.lookupEgresos.mockReset();
+    evidence.lookupEgresos.mockResolvedValue([]);
+    vi.spyOn(errorService, 'logError').mockImplementation(() => undefined);
+    const dailyRecord = readableDays();
+    dailyRecord.getAuthoritativeForDate.mockRejectedValue(
+      Object.assign(new Error('Missing or insufficient permissions.'), {
+        code: 'permission-denied',
+      })
+    );
+    const harness = renderPreview(dailyRecord);
+
+    await harness.preview();
+
+    const state = harness.visibleState();
+    expect(state.error).toBe(PLANNING_UNFINISHED);
+    expect(visibleErrorTechnicalDetail(state, false)).toBeNull();
+    expect(visibleErrorTechnicalDetail(state, true)).toBe('Missing or insufficient permissions.');
+  });
+
+  it('shows the remedy the reconciliation itself wrote when it stops on purpose', async () => {
+    evidence.lookupEgresos.mockReset();
+    evidence.lookupEgresos.mockResolvedValue([]);
+    const logged = vi.spyOn(errorService, 'logError').mockImplementation(() => undefined);
+    const dailyRecord = readableDays();
+    // The previous census arrives under another date.
+    dailyRecord.getAuthoritativeForDate.mockResolvedValue({ ...record, date: '2026-07-01' });
+    const harness = renderPreview(dailyRecord);
+
+    await harness.preview();
+
+    const state = harness.visibleState();
+    expect(state.error).toBe(
+      'El censo previo quedó por verificar porque la fecha recibida no corresponde. Vuelve a sincronizar.'
+    );
+    expect(visibleErrorTechnicalDetail(state, true)).toBeNull();
+    expect(logged).not.toHaveBeenCalled();
+    expect(harness.stages()).toEqual(['planning_structure', 'failed']);
+  });
+
   it('tells the person to retry with a connection when the previous census cannot be read', async () => {
     evidence.lookupEgresos.mockReset();
     evidence.lookupEgresos.mockResolvedValue([]);
+    const logged = vi.spyOn(errorService, 'logError').mockImplementation(() => undefined);
     const dailyRecord = readableDays();
     dailyRecord.getAuthoritativeForDate.mockRejectedValue(
       Object.assign(new Error('Failed to get document because the client is offline.'), {
@@ -229,6 +290,40 @@ describe('structural planning that fails part way through a synchronization', ()
     expect(harness.visibleState().error).toBe(
       'La conexión se cortó antes de terminar. Vuelve a sincronizar cuando haya conexión.'
     );
+    expect(logged).not.toHaveBeenCalled();
     expect(harness.applyDiff).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when the read fails after the session changed', async () => {
+    evidence.lookupEgresos.mockReset();
+    evidence.lookupEgresos.mockResolvedValue([]);
+    const logged = vi.spyOn(errorService, 'logError').mockImplementation(() => undefined);
+    setSessionGeneration('generation-a', 'owner-a');
+    let rejectRead: (error: Error) => void = () => undefined;
+    let readStarted: () => void = () => undefined;
+    const started = new Promise<void>(resolve => {
+      readStarted = resolve;
+    });
+    const dailyRecord = readableDays();
+    dailyRecord.getAuthoritativeForDate.mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          rejectRead = reject;
+          readStarted();
+        })
+    );
+    const harness = renderPreview(dailyRecord);
+
+    const work = harness.preview();
+    await started;
+    setSessionGeneration('generation-b', 'owner-b');
+    rejectRead(new Error('late read of the previous session'));
+    await work;
+
+    expect(harness.failRun).not.toHaveBeenCalled();
+    expect(harness.visibleState()).toEqual(initialState);
+    expect(harness.stages()).toEqual(['planning_structure']);
+    expect(harness.preparedSyncContextRef.current).not.toBeNull();
+    expect(logged).not.toHaveBeenCalled();
   });
 });
