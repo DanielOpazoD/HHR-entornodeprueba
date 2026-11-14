@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1310,
+  "total": 1309,
   "areas": {
     "src/application/backup-export": 4,
     "src/application/census-email": 2,
@@ -30,7 +30,7 @@
     "src/features/reminders": 1,
     "src/features/wound-care": 7,
     "src/hooks/backupFileBrowserController": 1,
-    "src/hooks/controllers": 35,
+    "src/hooks/controllers": 34,
     "src/hooks/useBackupFileBrowser": 1,
     "src/hooks/useBackupFileBrowserActions": 1,
     "src/hooks/useBedOperationsController": 2,
