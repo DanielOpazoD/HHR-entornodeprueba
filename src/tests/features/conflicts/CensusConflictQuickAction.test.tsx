@@ -64,7 +64,7 @@ describe('CensusConflictQuickAction', () => {
   });
 
   it('does not reserve a conflict icon in the admin loading toolbar', () => {
-    render(<CensusToolbarLoadingActions role="admin" />);
+    render(<CensusToolbarLoadingActions />);
     expect(screen.queryByTestId('conflict-versions-loading')).not.toBeInTheDocument();
   });
 

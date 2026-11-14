@@ -30,7 +30,7 @@ export const CensusConflictMenuFallback = () => (
   />
 );
 
-export const CensusToolbarLoadingActions = (_props: { role?: string }) => (
+export const CensusToolbarLoadingActions = () => (
   <>
     <ClinicalLibraryToolbarFallback />
     <CensusOptionsMenu disabled />
