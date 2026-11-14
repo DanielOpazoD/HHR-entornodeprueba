@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   resolveDateStripDayWindow,
   resolveDateStripVisibleDays,
@@ -70,4 +70,29 @@ describe('dateStripDayWindowController', () => {
     expect(blocked(2027, 0, 1)).toBe(false);
     expect(blocked(2027, 0, 2)).toBe(true);
   });
+});
+
+describe('resolveIsFutureDayBlocked on a device far from the hospital zone', () => {
+  const deviceZone = process.env.TZ;
+  afterEach(() => {
+    if (deviceZone === undefined) delete process.env.TZ;
+    else process.env.TZ = deviceZone;
+  });
+
+  it.each(['Pacific/Auckland', 'Pacific/Pago_Pago', 'Pacific/Easter'])(
+    'keeps tomorrow selectable and blocks the day after on a device in %s',
+    zone => {
+      process.env.TZ = zone;
+      const at = (day: number) =>
+        resolveIsFutureDayBlocked({
+          selectedYear: 2026,
+          selectedMonth: 10,
+          day,
+          referenceDay: '2026-11-12',
+        });
+      expect(at(12)).toBe(false);
+      expect(at(13)).toBe(false);
+      expect(at(14)).toBe(true);
+    }
+  );
 });
