@@ -265,11 +265,6 @@ export const createMockDailyRecordContext = (
   }),
   resetMedicalHandoffState: vi.fn().mockResolvedValue(undefined),
   sendMedicalHandoff: vi.fn().mockResolvedValue(undefined),
-
-  // Validation helpers
-  validateRecordSchema: vi.fn(() => ({ isValid: true, errors: [] })),
-  canMovePatient: vi.fn(() => ({ canMove: true })),
-  canDischargePatient: vi.fn(() => true),
 });
 
 export const createMockModal = <T = void,>(
