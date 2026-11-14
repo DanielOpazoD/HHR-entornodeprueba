@@ -328,7 +328,10 @@ export const reconstructHistoricalSnapshotAtClose = async (
       } satisfies ReconstructionEntry;
     } catch {
       return {
-        conflict: unresolvedConflict(encounter, 'falló la lectura del informe de trazabilidad.'),
+        conflict: unresolvedConflict(
+          encounter,
+          'la lectura del informe de trazabilidad quedó sin completar.'
+        ),
       } satisfies ReconstructionEntry;
     }
   });
@@ -370,7 +373,7 @@ export const reconstructHistoricalSnapshotAtClose = async (
       conflicts.push(
         unresolvedConflict(
           encounter,
-          'la cama de la madre no pudo confirmarse al cierre del turno.'
+          'la cama de la madre quedó sin confirmar al cierre del turno.'
         )
       );
       continue;

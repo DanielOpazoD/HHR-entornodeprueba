@@ -56,7 +56,7 @@ describe('bedManagementDispatchController · split de patches mezclados', () => 
       },
     };
     const validation: BedManagementValidationPort = {
-      processFieldValue: vi.fn((field, value) => ({ valid: true, value })),
+      processFieldValue: vi.fn((_field, value) => ({ valid: true, value })),
     };
     const bedAudit: BedManagementAuditPort = {
       auditPatientChange: vi.fn(),
@@ -110,7 +110,7 @@ describe('bedManagementDispatchController · split de patches mezclados', () => 
       },
     };
     const validation: BedManagementValidationPort = {
-      processFieldValue: vi.fn((field, value) => ({ valid: true, value })),
+      processFieldValue: vi.fn((_field, value) => ({ valid: true, value })),
     };
     const bedAudit: BedManagementAuditPort = {
       auditPatientChange: vi.fn(),
@@ -152,7 +152,7 @@ describe('bedManagementDispatchController · split de patches mezclados', () => 
       },
     };
     const validation: BedManagementValidationPort = {
-      processFieldValue: vi.fn((field, value) => ({ valid: true, value })),
+      processFieldValue: vi.fn((_field, value) => ({ valid: true, value })),
     };
     const auditPatientChange = vi.fn();
     const bedAudit: BedManagementAuditPort = {
@@ -189,7 +189,7 @@ describe('bedManagementDispatchController · split de patches mezclados', () => 
       },
     };
     const validation: BedManagementValidationPort = {
-      processFieldValue: vi.fn((field, value) => ({ valid: true, value })),
+      processFieldValue: vi.fn((_field, value) => ({ valid: true, value })),
     };
     const bedAudit: BedManagementAuditPort = {
       auditPatientChange: vi.fn(),

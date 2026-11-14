@@ -117,7 +117,7 @@ const runPipeline = async (
 };
 
 const unlinkedConflicts = (diff: Awaited<ReturnType<typeof runPipeline>>) =>
-  diff.conflicts.filter(conflict => conflict.reason.includes('no pudo vincularse'));
+  diff.conflicts.filter(conflict => conflict.reason.includes('quedó sin vincular'));
 
 describe('replanRayenStructure — madre + RN bajo el mismo RUN (caso vivo 02-09)', () => {
   it.each(['R3', 'Ubicación desconocida', ''])(
@@ -171,7 +171,7 @@ describe('replanRayenStructure — madre + RN bajo el mismo RUN (caso vivo 02-09
     }
   );
 
-  it('el egreso confirmado por el lookup exacto no deja un conflicto «no pudo vincularse» redundante', async () => {
+  it('el egreso confirmado por el lookup exacto no deja un conflicto «quedó sin vincular» redundante', async () => {
     const diff = await runPipeline([motherRow, cribRow], ['1001']);
 
     expect(diff.discharges).toHaveLength(1);

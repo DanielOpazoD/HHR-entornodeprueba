@@ -266,7 +266,7 @@ export const executeUpdateMedicalSignature = async (
 
   const scope = input.scope || 'all';
   const updatedRecord = buildMedicalSignatureRecord(input.record, input.doctorName, scope);
-  const patch = buildMedicalSignaturePatch(input.record, input.doctorName, scope);
+  const patch = buildMedicalSignaturePatch(input.doctorName, scope);
   await persistWithPatchPreference(input, patch, updatedRecord);
   return createApplicationSuccess({ updatedRecord });
 };

@@ -33,11 +33,7 @@ export const useValidation = () => {
    * Custom clinical rule: Check if a bed movement is valid.
    */
   const canMovePatient = useCallback(
-    (
-      sourceBedId: string,
-      targetBedId: string,
-      record: DailyRecord | null
-    ): { canMove: boolean; reason?: string } => {
+    (targetBedId: string, record: DailyRecord | null): { canMove: boolean; reason?: string } => {
       return validateMovePatient(targetBedId, record);
     },
     []
