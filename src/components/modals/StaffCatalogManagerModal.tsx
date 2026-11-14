@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Users, Plus, Trash2, Cloud, AlertCircle, Pencil, Check, X } from 'lucide-react';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { StaffNameSchema } from '@/schemas/inputSchemas';
 import {
@@ -29,9 +30,6 @@ interface StaffCatalogVariantConfig {
   title: string;
   headerIconColor: string;
   syncingTextColor: string;
-  inputFocusClass: string;
-  addButtonClass: string;
-  addButtonShadowClass: string;
   rowHoverBorderClass: string;
   editButtonClass: string;
   cloudIconColor: string;
@@ -43,9 +41,6 @@ const STAFF_CATALOG_VARIANT_CONFIG: Record<StaffCatalogVariant, StaffCatalogVari
     title: 'Gestión de Enfermeros/as',
     headerIconColor: 'text-medical-600',
     syncingTextColor: 'text-medical-600',
-    inputFocusClass: 'border-slate-200 focus:ring-medical-500',
-    addButtonClass: 'bg-medical-600 hover:bg-medical-700',
-    addButtonShadowClass: 'shadow-medical-600/20',
     rowHoverBorderClass: 'hover:border-medical-200',
     editButtonClass: 'hover:text-medical-600 hover:bg-medical-50',
     cloudIconColor: 'text-medical-400',
@@ -55,9 +50,6 @@ const STAFF_CATALOG_VARIANT_CONFIG: Record<StaffCatalogVariant, StaffCatalogVari
     title: 'Gestión de TENS',
     headerIconColor: 'text-teal-600',
     syncingTextColor: 'text-teal-600',
-    inputFocusClass: 'border-slate-200 focus:ring-teal-500',
-    addButtonClass: 'bg-teal-600 hover:bg-teal-700',
-    addButtonShadowClass: 'shadow-teal-600/20',
     rowHoverBorderClass: 'hover:border-teal-200',
     editButtonClass: 'hover:text-teal-600 hover:bg-teal-50',
     cloudIconColor: 'text-teal-400',
@@ -157,13 +149,13 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
         <RecoverCensusStaffButton />
         <div>
           <div className="mb-3 flex items-center justify-between">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
               Agregar Personal
             </label>
             {syncing && (
               <div
                 className={clsx(
-                  'flex items-center gap-1 text-[10px] font-bold animate-pulse',
+                  'flex items-center gap-1 text-xs font-bold animate-pulse',
                   config.syncingTextColor
                 )}
               >
@@ -174,17 +166,28 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
           </div>
 
           {saveError && (
-            <div role="alert" className="mb-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-700">
-              <p>{saveError}</p>
+            <div
+              role="alert"
+              className="mb-3 rounded-xl border border-slate-300 bg-slate-50 p-3 text-xs text-slate-700"
+            >
+              <p className="flex items-start gap-2">
+                <AlertCircle size={14} className="shrink-0" />
+                {saveError}
+              </p>
               {onRetry && (
-                <button type="button" onClick={() => void onRetry()} disabled={syncing}>
+                <button
+                  type="button"
+                  className={buttonClassName('outline', 'sm', 'mt-2')}
+                  onClick={() => void onRetry()}
+                  disabled={syncing}
+                >
                   Reintentar
                 </button>
               )}
             </div>
           )}
           {hasSyncError && (
-            <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs text-amber-700">
+            <div className="mb-3 flex items-center gap-2 rounded-xl border border-slate-300 bg-slate-50 p-3 text-xs text-slate-700">
               <AlertCircle size={14} />
               El cambio no se guardó. Lo escrito se conserva; vuelva a guardar cuando haya conexión.
             </div>
@@ -195,11 +198,10 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
               <input
                 type="text"
                 className={clsx(
-                  'flex-1 rounded-xl border p-2.5 text-sm shadow-sm transition-all focus:outline-none focus:ring-2',
-                  validationError && !editingName
-                    ? 'border-red-300 focus:ring-red-100'
-                    : config.inputFocusClass
+                  'hhr-field flex-1',
+                  validationError && !editingName && 'border-slate-500 border-dashed'
                 )}
+                aria-invalid={Boolean(validationError && !editingName)}
                 placeholder="Nombre completo…"
                 value={newStaffName}
                 disabled={syncing}
@@ -212,18 +214,14 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
               <button
                 aria-label="Agregar personal"
                 onClick={handleAdd}
-                className={clsx(
-                  'flex shrink-0 items-center justify-center rounded-xl p-2.5 text-white shadow-lg transition-all active:scale-95',
-                  config.addButtonClass,
-                  config.addButtonShadowClass
-                )}
+                className={buttonClassName('primary', 'icon', 'shrink-0')}
                 disabled={syncing}
               >
                 <Plus size={20} aria-hidden="true" />
               </button>
             </div>
             {validationError && !editingName && (
-              <p className="animate-fade-in pl-1 text-[10px] font-medium text-red-500">
+              <p className="animate-fade-in pl-1 text-xs font-medium text-slate-700">
                 {validationError}
               </p>
             )}
@@ -231,18 +229,24 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
         </div>
 
         <div>
-          <label className="mb-3 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          <label className="mb-3 block text-xs font-bold uppercase tracking-wider text-slate-500">
             Catálogo Actual
           </label>
           <div className="max-h-[45vh] space-y-2 overflow-y-auto pr-1">
             {editingName && !staffList.includes(editingName) && (
               <div>
                 <input
+                  className="hhr-field"
                   aria-label="Edición pendiente"
                   value={editValue}
                   onChange={event => setEditValue(event.target.value)}
                 />
-                <button onClick={handleCancelEdit}>Cerrar edición pendiente</button>
+                <button
+                  className={buttonClassName('secondary', 'sm', 'mt-2')}
+                  onClick={handleCancelEdit}
+                >
+                  Cerrar edición pendiente
+                </button>
               </div>
             )}
             {staffList.map(staffName => (
@@ -255,14 +259,13 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
               >
                 {editingName === staffName ? (
                   <>
-                    <div className="flex-1 space-y-1">
+                    <div className="min-w-0 flex-1 space-y-1">
                       <input
                         className={clsx(
-                          'w-full rounded-xl border p-2 text-sm shadow-sm transition-all focus:outline-none focus:ring-2',
-                          validationError
-                            ? 'border-red-300 focus:ring-red-100'
-                            : config.inputFocusClass
+                          'hhr-field',
+                          validationError && 'border-slate-500 border-dashed'
                         )}
+                        aria-invalid={Boolean(validationError)}
                         value={editValue}
                         onChange={event => {
                           setEditValue(event.target.value);
@@ -276,7 +279,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
                         autoFocus
                       />
                       {validationError && (
-                        <p className="animate-fade-in pl-1 text-[10px] font-medium text-red-500">
+                        <p className="animate-fade-in pl-1 text-xs font-medium text-slate-700">
                           {validationError}
                         </p>
                       )}
@@ -339,7 +342,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-[9px] font-bold uppercase tracking-widest text-slate-400">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs font-bold uppercase tracking-widest text-slate-400">
           <div className="flex items-center gap-1.5">
             <Cloud size={12} className={config.cloudIconColor} />
             Catálogo compartido de HHR
