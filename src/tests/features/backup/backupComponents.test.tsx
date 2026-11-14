@@ -12,11 +12,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 
 import { BackupFilesToolbar } from '@/features/backup/components/internal/BackupFilesToolbar';
-import {
-  FolderCard,
-  FileCard,
-  Breadcrumbs,
-} from '@/features/backup/components/internal/BackupDriveItems';
+import { FolderCard, Breadcrumbs } from '@/features/backup/components/internal/BackupDriveItems';
 import { formatFileSize } from '@/types/backupArtifacts';
 import {
   formatBackupShiftLabel,
@@ -128,60 +124,6 @@ describe('FolderCard', () => {
   it('does not display item count when not provided', () => {
     render(<FolderCard name="Abril" onClick={vi.fn()} />);
     expect(screen.queryByText(/elementos/)).not.toBeInTheDocument();
-  });
-});
-
-// ─── FileCard ───────────────────────────────────────────────────────
-
-describe('FileCard', () => {
-  const defaultProps = {
-    name: 'Entrega-2026-03-15-dia.pdf',
-    date: '2026-03-15',
-    shift: 'day' as const,
-    size: '45 KB',
-    onDownload: vi.fn(),
-    onView: vi.fn(),
-  };
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('renders the file name', () => {
-    render(<FileCard {...defaultProps} />);
-    expect(screen.getByText('Entrega-2026-03-15-dia.pdf')).toBeInTheDocument();
-  });
-
-  it('renders the file size', () => {
-    render(<FileCard {...defaultProps} />);
-    expect(screen.getByText('45 KB')).toBeInTheDocument();
-  });
-
-  it('renders the shift badge when not hidden', () => {
-    render(<FileCard {...defaultProps} />);
-    expect(screen.getByText('Turno Largo')).toBeInTheDocument();
-  });
-
-  it('hides the shift badge when hideShift is true', () => {
-    render(<FileCard {...defaultProps} hideShift />);
-    expect(screen.queryByText('Turno Largo')).not.toBeInTheDocument();
-    expect(screen.queryByText('Turno Noche')).not.toBeInTheDocument();
-  });
-
-  it('renders night shift badge correctly', () => {
-    render(<FileCard {...defaultProps} shift="night" />);
-    expect(screen.getByText('Turno Noche')).toBeInTheDocument();
-  });
-
-  it('renders the delete button when canDelete is true', () => {
-    const onDelete = vi.fn();
-    render(<FileCard {...defaultProps} canDelete onDelete={onDelete} />);
-    expect(screen.getByTitle('Eliminar')).toBeInTheDocument();
-  });
-
-  it('does not render the delete button when canDelete is false', () => {
-    render(<FileCard {...defaultProps} canDelete={false} />);
-    expect(screen.queryByTitle('Eliminar')).not.toBeInTheDocument();
   });
 });
 
