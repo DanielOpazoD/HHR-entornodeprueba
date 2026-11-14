@@ -1,7 +1,11 @@
 import clsx from 'clsx';
 import { History } from 'lucide-react';
 
-export type ClinicalConflictCenterButtonVariant = 'default' | 'operations' | 'quick-action';
+export type ClinicalConflictCenterButtonVariant =
+  | 'default'
+  | 'operations'
+  | 'quick-action'
+  | 'menu';
 
 interface ClinicalConflictCenterButtonProps {
   onClick?: () => void;
@@ -28,6 +32,22 @@ export function ClinicalConflictCenterButton({
   label,
   variant,
 }: ClinicalConflictCenterButtonProps) {
+  if (variant === 'menu') {
+    return (
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onClick}
+        data-census-menu-action
+        data-testid={testId}
+        className={clsx('flex items-center gap-2 rounded-md text-slate-600', className)}
+      >
+        {label}
+        {snapshotCount > 0 ? ` · ${snapshotCount}` : ''}
+        {requiresAttention ? ' · revisión requerida' : ''}
+      </button>
+    );
+  }
   return (
     <button
       type="button"

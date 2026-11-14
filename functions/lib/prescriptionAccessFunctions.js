@@ -326,8 +326,18 @@ const resolveUploadPickerAccess = async ({ firestore, context, payload, resolveR
 const buildPatientOptionsFromDailyRecord = dailyRecord => {
   const beds = dailyRecord?.beds || {};
   const seen = new Set();
+  const nameKey = option =>
+    option.patientName
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLocaleLowerCase('es');
   const remember = option => {
-    const identityKey = patientDocumentIdentityKey(option.patientRut) || `bed:${option.bedId}`;
+    // Keep the first status (active, discharge, transfer) when the same person reappears.
+    const identityKey =
+      patientDocumentIdentityKey(option.patientRut) ||
+      `bed:${JSON.stringify([option.bedId, nameKey(option)])}`;
     if (seen.has(identityKey)) return false;
     seen.add(identityKey);
     return true;
@@ -351,8 +361,21 @@ const buildPatientOptionsFromDailyRecord = dailyRecord => {
     ...buildMovementPatientOptions(dailyRecord?.transfers, 'transfer'),
   ];
 
-  return [...activeBedOptions, ...movementOptions]
-    .filter(remember)
+  const kept = [...activeBedOptions, ...movementOptions].filter(remember);
+  // Old movements without an id share one fallback key (R1-RN). When several undocumented people
+  // share it, every one of them is keyed by name: a key then names the same person or stops
+  // existing when the census changes between listing and uploading, never someone else.
+  const undocumentedKeyCount = new Map();
+  for (const option of kept) {
+    if (patientDocumentIdentityKey(option.patientRut)) continue;
+    undocumentedKeyCount.set(option.key, (undocumentedKeyCount.get(option.key) || 0) + 1);
+  }
+  return kept
+    .map(option => {
+      const shared =
+        !patientDocumentIdentityKey(option.patientRut) && undocumentedKeyCount.get(option.key) > 1;
+      return shared ? { ...option, key: `${option.key}:${nameKey(option)}` } : option;
+    })
     .sort((a, b) => a.bedId.localeCompare(b.bedId, 'es', { numeric: true }));
 };
 
@@ -361,6 +384,8 @@ const buildMovementPatientOptions = (movements, scope) => {
   return movements
     .map((movement, index) => {
       if (!movement || typeof movement !== 'object') return null;
+      // A deleted movement is not a person to choose, as in the app's own selector.
+      if (String(movement.deletedAt || '').trim()) return null;
       const bedId =
         optionalString(movement.bedId, 32) || optionalString(movement.bedName, 32) || '';
       const patientName = optionalString(movement.patientName, 256) || '';

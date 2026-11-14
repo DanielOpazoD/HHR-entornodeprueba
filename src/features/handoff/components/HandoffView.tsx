@@ -5,7 +5,6 @@ import { HandoffCudyrPrint } from './HandoffCudyrPrint';
 import { HandoffPrintHeader } from './HandoffPrintHeader';
 import { HandoffMedicalContent } from './HandoffMedicalContent';
 import { HandoffNursingContent } from './HandoffNursingContent';
-import { ClinicalConflictCenterControl } from '@/components/clinical-conflicts/ClinicalConflictCenterControl';
 import { useUIState, UseUIStateReturn } from '@/hooks/useUIState';
 import {
   buildHandoffHeaderBindings,
@@ -173,16 +172,7 @@ const HandoffViewContent: React.FC<HandoffViewContentProps> = ({
         onUpdateChecklist={updateHandoffChecklist}
       />
       {isMedical ? (
-        <HandoffMedicalContent
-          {...medicalContentBindings}
-          conflictCenterAction={
-            <ClinicalConflictCenterControl
-              date={record.date}
-              scope="medical_handoff"
-              currentRecord={record}
-            />
-          }
-        />
+        <HandoffMedicalContent {...medicalContentBindings} />
       ) : (
         <HandoffNursingContent {...nursingContentBindings} />
       )}

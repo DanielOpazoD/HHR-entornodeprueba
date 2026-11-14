@@ -207,6 +207,29 @@ const save = async (onSubmit: ReturnType<typeof vi.fn>) => {
 };
 
 describe('reassignment chooses a person', () => {
+  it.each(['Ana Inventada', 'Bea Inventada'])(
+    'submits undocumented %s from R1',
+    async patientName => {
+      const day = {
+        ...buildEmptyDay(),
+        beds: { R1: { ...active, patientName: 'Ana Inventada', rut: '' } },
+        discharges: [{ ...discharged, patientName: 'Bea Inventada', rut: '' }],
+      } as unknown as DailyRecord;
+      const { select, onSubmit } = await openDialog(day);
+      const option = screen.getByRole('option', {
+        name: new RegExp(patientName),
+      }) as HTMLOptionElement;
+      fireEvent.change(select, { target: { value: option.value } });
+      await save(onSubmit);
+      expect(onSubmit).toHaveBeenCalledWith({
+        bedId: 'R1',
+        patientName,
+        patientRut: undefined,
+        clear: false,
+      });
+    }
+  );
+
   it.each([active, discharged])(
     'submits the chosen $patientName when two people share R1',
     async person => {

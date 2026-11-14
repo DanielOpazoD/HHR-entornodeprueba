@@ -22,6 +22,7 @@ vi.mock('@/components/clinical-conflicts/ClinicalConflictCenterControl', () => (
   },
 }));
 
+import { CensusToolbarLoadingActions } from '@/components/layout/date-strip/CensusToolbarLoadingActions';
 import { CensusConflictQuickAction } from '@/components/clinical-conflicts/CensusConflictQuickAction';
 
 describe('CensusConflictQuickAction', () => {
@@ -40,18 +41,31 @@ describe('CensusConflictQuickAction', () => {
         date: '2026-07-13',
         scope: 'census',
         buttonLabel: 'Conflictos HHR',
-        buttonVariant: 'quick-action',
+        buttonVariant: 'menu',
       })
     );
   });
 
-  it('does not render for non-admin roles', () => {
-    mocks.role = 'nurse_hospital';
+  it.each([
+    'nurse_hospital',
+    'doctor_urgency',
+    'doctor_specialist',
+    'viewer',
+    'editor',
+    'nurse',
+    '',
+  ])('does not render for %s', role => {
+    mocks.role = role;
 
     const { container } = render(<CensusConflictQuickAction />);
 
     expect(container).toBeEmptyDOMElement();
     expect(mocks.control).not.toHaveBeenCalled();
+  });
+
+  it('does not reserve a conflict icon in the admin loading toolbar', () => {
+    render(<CensusToolbarLoadingActions />);
+    expect(screen.queryByTestId('conflict-versions-loading')).not.toBeInTheDocument();
   });
 
   it('keeps a disabled entrypoint without initializing conflicts while the record loads', () => {

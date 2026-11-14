@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import clsx from 'clsx';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
 import { Pill, Printer } from 'lucide-react';
 import {
   CRITICAL_MEDICATIONS,
@@ -16,7 +17,6 @@ import { buildCriticalMedicationsDocument } from '../../controllers/criticalMedi
 import { printHtmlDocument } from '../../services/printHtmlDocument';
 import { SegmentedControl, TextField } from './ToolField';
 import { ToolFrame, type ToolComponentProps } from './ToolFrame';
-import { PRINT_ACTION_CLASS } from './TransferCoverTool';
 
 const ALLOWANCE_CLASS: Readonly<Record<RouteAllowance, string>> = {
   si: 'bg-emerald-50 text-emerald-700',
@@ -32,7 +32,7 @@ const Allowance: React.FC<{ label: string; value: RouteAllowance; note?: string 
   note,
 }) => (
   <span
-    className={clsx('rounded px-1.5 py-0.5 text-[10px] font-semibold', ALLOWANCE_CLASS[value])}
+    className={clsx('rounded px-1.5 py-0.5 text-xs font-semibold', ALLOWANCE_CLASS[value])}
     title={note}
   >
     {label} {ROUTE_ALLOWANCE_LABELS[value]}
@@ -49,9 +49,9 @@ const MedicationRow: React.FC<{ medication: CriticalMedication; variant: Ampoule
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <p className="text-[13px] font-semibold text-slate-800">
           {medication.name}
-          <span className="ml-2 text-[11px] font-normal text-slate-500">{presentation.text}</span>
+          <span className="ml-2 text-xs font-normal text-slate-500">{presentation.text}</span>
         </p>
-        <span className="flex gap-1">
+        <span className="flex flex-wrap gap-1">
           <Allowance label="VVP" value={medication.vvp} note={medication.vvpNote} />
           <Allowance label="CVC" value={medication.cvc} />
           <Allowance label="Bolo" value={medication.bolus} note={medication.bolusText} />
@@ -69,9 +69,9 @@ const MedicationRow: React.FC<{ medication: CriticalMedication; variant: Ampoule
         ))}
       </ul>
       {medication.bolusText && (
-        <p className="mt-0.5 text-[11px] text-slate-500">Bolo: {medication.bolusText}</p>
+        <p className="mt-0.5 text-xs text-slate-500">Bolo: {medication.bolusText}</p>
       )}
-      <p className="mt-0.5 text-[11px] text-slate-600">{medication.dose}</p>
+      <p className="mt-0.5 text-xs text-slate-600">{medication.dose}</p>
     </li>
   );
 };
@@ -96,7 +96,7 @@ export const CriticalMedicationsTool: React.FC<ToolComponentProps> = ({ onBack, 
         <button
           type="button"
           onClick={() => printHtmlDocument(buildCriticalMedicationsDocument(variant))}
-          className={PRINT_ACTION_CLASS}
+          className={buttonClassName('primary', 'sm')}
           data-testid="critical-medications-print"
         >
           <Printer size={14} aria-hidden="true" />
@@ -104,7 +104,7 @@ export const CriticalMedicationsTool: React.FC<ToolComponentProps> = ({ onBack, 
         </button>
       }
     >
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <TextField id="critical-search" label="Buscar" value={query} onChange={setQuery} />
         <SegmentedControl
           label="Dopamina y dobutamina"
@@ -116,7 +116,7 @@ export const CriticalMedicationsTool: React.FC<ToolComponentProps> = ({ onBack, 
           ]}
         />
       </div>
-      <p className="mt-2 text-[10px] leading-snug text-slate-500">{sheet.legend}</p>
+      <p className="mt-2 text-xs leading-snug text-slate-500">{sheet.legend}</p>
 
       {GROUPS.map(group => {
         const medications = visible.filter(medication => medication.group === group);
@@ -127,7 +127,7 @@ export const CriticalMedicationsTool: React.FC<ToolComponentProps> = ({ onBack, 
             aria-label={CRITICAL_MEDICATION_GROUP_LABELS[group]}
             className="mt-3"
           >
-            <h4 className="mb-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+            <h4 className="mb-0.5 text-xs font-bold uppercase tracking-wide text-slate-500">
               {CRITICAL_MEDICATION_GROUP_LABELS[group]}
             </h4>
             <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white px-3">
@@ -142,8 +142,8 @@ export const CriticalMedicationsTool: React.FC<ToolComponentProps> = ({ onBack, 
         <p className="py-6 text-center text-[12px] text-slate-500">Sin resultados para «{query}»</p>
       )}
 
-      <section aria-label="Cálculo de velocidad" className="mt-3 text-[11px] text-slate-600">
-        <h4 className="mb-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+      <section aria-label="Cálculo de velocidad" className="mt-3 text-xs text-slate-600">
+        <h4 className="mb-0.5 text-xs font-bold uppercase tracking-wide text-slate-500">
           Cálculo de velocidad
         </h4>
         <ul className="space-y-0.5 tabular-nums">
@@ -152,10 +152,8 @@ export const CriticalMedicationsTool: React.FC<ToolComponentProps> = ({ onBack, 
           ))}
         </ul>
       </section>
-      <section aria-label="Alertas" className="mt-3 text-[11px] text-red-800">
-        <h4 className="mb-0.5 text-[11px] font-bold uppercase tracking-wide text-red-700">
-          Alertas
-        </h4>
+      <section aria-label="Alertas" className="mt-3 text-xs text-red-800">
+        <h4 className="mb-0.5 text-xs font-bold uppercase tracking-wide text-red-700">Alertas</h4>
         <ul className="space-y-0.5">
           {sheet.alerts.map(alert => (
             <li key={alert}>{alert}</li>
@@ -167,7 +165,7 @@ export const CriticalMedicationsTool: React.FC<ToolComponentProps> = ({ onBack, 
           ))}
         </ul>
       </section>
-      <p className="mt-3 text-[10px] text-slate-400">Fuentes: {sheet.sources}</p>
+      <p className="mt-3 text-xs text-slate-400">Fuentes: {sheet.sources}</p>
     </ToolFrame>
   );
 };
