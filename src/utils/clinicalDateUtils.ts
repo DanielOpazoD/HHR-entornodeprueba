@@ -32,8 +32,10 @@ export const parseCalendarDateUtcNoon = (value?: string): number | null => {
 };
 
 export const addCalendarDays = (dateString: string, days: number): string => {
-  const date = new Date(`${dateString}T12:00:00`);
-  date.setDate(date.getDate() + days);
+  // UTC on both sides: the label never passes through the device zone, so a device ahead of
+  // UTC by more than twelve hours gets the same day as the hospital.
+  const date = new Date(`${dateString}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
   // clinical-clock-allow instant-calendar-slice: date represents the input calendar day shifted from noon; it is not an event instant.
   return date.toISOString().split('T')[0];
 };

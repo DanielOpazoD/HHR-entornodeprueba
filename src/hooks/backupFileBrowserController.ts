@@ -1,3 +1,4 @@
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import type { BackupFolder } from '@/hooks/backupFileBrowserContracts';
 import type { BaseStoredFile, StoredPdfFile } from '@/types/backupArtifacts';
 import { MONTH_NAMES } from '@/types/backupArtifacts';
@@ -10,10 +11,10 @@ export type BackupBrowserItem = {
   data: BackupFolder | BaseStoredFile | StoredPdfFile;
 };
 
-export const buildInitialBackupBrowserPath = (now: Date = new Date()): string[] => [
-  now.getFullYear().toString(),
-  MONTH_NAMES[now.getMonth()],
-];
+export const buildInitialBackupBrowserPath = (now: Date = new Date()): string[] => {
+  const today = getClinicalCalendarDateISO(now);
+  return [today.slice(0, 4), MONTH_NAMES[Number(today.slice(5, 7)) - 1]];
+};
 
 export const filterBackupBrowserItems = (
   items: BackupBrowserItem[],

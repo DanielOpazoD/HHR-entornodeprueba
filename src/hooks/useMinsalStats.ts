@@ -343,7 +343,7 @@ export function useMinsalStats(
       if (preset === 'currentMonth') {
         setDateRange({
           preset,
-          currentYearMonth: new Date().getMonth() + 1,
+          currentYearMonth: Number(getTodayISO().slice(5, 7)),
         });
         return;
       }

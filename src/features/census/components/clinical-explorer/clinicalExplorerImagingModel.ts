@@ -1,15 +1,9 @@
 import type { MMRADExam } from '@/services/radiology/mmradService';
-import {
-  formatMmradStamp,
-  mmradStampSortKey,
-  sortByMmradStampDesc,
-} from '@/services/radiology/mmradStamp';
+import { formatMmradStamp, sortByMmradStampDesc } from '@/services/radiology/mmradStamp';
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 // Stamp reading lives with the MMRAD service, shared with the radiology modal.
-export const studySortKey = (exam: Pick<MMRADExam, 'fecha_examen'>): string =>
-  mmradStampSortKey(exam.fecha_examen);
 export const sortStudiesNewestFirst = sortByMmradStampDesc;
 export const formatStudyStamp = formatMmradStamp;
 

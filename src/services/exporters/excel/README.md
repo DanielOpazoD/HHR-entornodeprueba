@@ -15,14 +15,14 @@ Este módulo construye el Excel maestro del censo diario y agrega tres hojas de 
    - filas de resumen,
    - pacientes UPC con historial de cama, conteo UCI/UTI y detalle diario por subtipo.
 4. `censusHiddenSummarySheet.ts` y `censusHiddenUpcSheets.ts` solo escriben celdas ExcelJS a partir de esos view models.
-5. `censusHiddenSheetsProtection.ts` aplica protección por hoja. `RESUMEN` queda oculto por estructura y las dos hojas UPC quedan visibles pero vacías hasta desprotegerlas.
+5. `censusHiddenSheetsProtection.ts` aplica protección por hoja. `RESUMEN` queda oculto y protegido; las dos hojas UPC quedan visibles y sin protección.
 6. `censusWorkbookSerializer.ts` postprocesa `xl/workbook.xml` para aplicar `workbookProtection lockStructure`.
 
 ## Reglas E Invariantes
 
 - Las 3 hojas de soporte siempre van primero en el workbook.
 - Al abrir el archivo, la hoja activa sigue siendo la última hoja diaria visible.
-- La contraseña `HHR` protege la estructura del libro y las hojas UPC de bloqueo cosmético.
+- La contraseña `HHR` protege la estructura del libro y la hoja `RESUMEN`.
 - `UPC PAC` y `UPC DET` permanecen visibles como pestañas y quedan desbloqueadas.
 - El adjunto del correo reemplaza diagnósticos de especialidad primaria o secundaria de psiquiatría por `[Diagnostico reservado]`, incluyendo movimientos y hojas de soporte. La copia se transforma en el servidor; el censo clínico y la descarga local conservan sus diagnósticos.
 - El correo puede cifrar la apertura del archivo completo; la descarga local no.
