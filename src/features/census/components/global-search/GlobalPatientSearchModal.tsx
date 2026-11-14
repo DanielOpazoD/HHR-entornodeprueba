@@ -98,11 +98,12 @@ export const GlobalPatientSearchModal: React.FC<GlobalPatientSearchModalProps> =
 
   // Focus input on open, reset state on close
   useEffect(() => {
-    if (isOpen) {
-      const raf = requestAnimationFrame(() => inputRef.current?.focus());
-      return () => cancelAnimationFrame(raf);
+    if (!isOpen) {
+      resetRef.current();
+      return undefined;
     }
-    resetRef.current();
+    const raf = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(raf);
   }, [isOpen]);
 
   // ---- Keyboard navigation ----

@@ -98,6 +98,7 @@ export const useBedManagementActionCreators = (
       }
 
       dispatch({ type: 'UPDATE_CLINICAL_CRIB', bedId, field, value: value! });
+      return undefined;
     },
     [dispatch, dispatchAndWait]
   );
