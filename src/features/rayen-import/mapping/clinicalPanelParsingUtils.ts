@@ -65,7 +65,8 @@ const isoStampKey = (value: string): number | null => {
 /**
  * One number per Eloísa stamp, the same on every device (TIME-02): an instant (`Z` or an offset)
  * is itself; a time without an offset is read on the hospital wall clock (in the repeated hour of a
- * clock change, its first occurrence). One key per stamp keeps the order total, so mixing formats
+ * clock change, its first occurrence; in the hour that does not exist, the instant an hour earlier,
+ * which a correct Rapa Nui clock never writes). One key per stamp keeps the order total, so mixing formats
  * can never form a cycle. Text that is not an ISO time keeps its Date.parse value (screen forms,
  * a date alone).
  */
