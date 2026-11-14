@@ -4,13 +4,11 @@ import {
   type PrescriptionRecord,
   type PrescriptionType,
 } from '@/types/prescriptionTypes';
-import {
-  PrescriptionBedRow,
-  type PrescriptionBedRowData,
-} from '@/features/prescriptions/components/PrescriptionBedRow';
+import { PrescriptionBedRow } from '@/features/prescriptions/components/PrescriptionBedRow';
 import {
   PRESCRIPTION_TYPES,
   prescriptionBedRowKey,
+  type PrescriptionBedRowData,
 } from '@/features/prescriptions/components/prescriptionBedGridSupport';
 
 interface PrescriptionBedGridTableProps {

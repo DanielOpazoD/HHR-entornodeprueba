@@ -1,5 +1,8 @@
 import React from 'react';
-import { prescriptionBedRowKey } from '@/features/prescriptions/components/prescriptionBedGridSupport';
+import {
+  prescriptionBedRowKey,
+  type PrescriptionBedRowData,
+} from '@/features/prescriptions/components/prescriptionBedGridSupport';
 import { Bed, Check, Loader2, Minus } from 'lucide-react';
 import {
   PRESCRIPTION_TYPES,
@@ -8,14 +11,6 @@ import {
 } from '@/types/prescriptionTypes';
 import { PrescriptionThumbnail } from '@/features/prescriptions/components/PrescriptionThumbnail';
 import { PrescriptionQuickTypeButton } from '@/features/prescriptions/components/PrescriptionQuickTypeButton';
-
-export interface PrescriptionBedRowData {
-  bedId: string;
-  patientName: string;
-  patientRut: string;
-  isDischargeSnapshot?: boolean;
-  byType: Record<PrescriptionType, PrescriptionRecord[]>;
-}
 
 interface PrescriptionBedRowProps {
   row: PrescriptionBedRowData;

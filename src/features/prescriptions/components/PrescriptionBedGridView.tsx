@@ -5,7 +5,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { type PrescriptionRecord, type PrescriptionType } from '@/types/prescriptionTypes';
 import { PrescriptionPatientLightbox } from '@/features/prescriptions/components/PrescriptionPatientLightbox';
 import { PrescriptionReassignDialog } from '@/features/prescriptions/components/PrescriptionReassignDialog';
-import type { PrescriptionBedRowData } from '@/features/prescriptions/components/PrescriptionBedRow';
+import type { PrescriptionBedRowData } from '@/features/prescriptions/components/prescriptionBedGridSupport';
 import { PrescriptionBedGridTable } from '@/features/prescriptions/components/PrescriptionBedGridTable';
 import { PrescriptionUnassignedTray } from '@/features/prescriptions/components/PrescriptionUnassignedTray';
 import {
