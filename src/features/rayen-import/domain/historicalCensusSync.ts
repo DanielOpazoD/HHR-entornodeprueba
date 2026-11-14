@@ -4,6 +4,7 @@ import { resolveCurrentClinicalDay } from '@/utils/clinicalDayAdmissionUtils';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { HistoricalSnapshotReconstruction } from './historicalSnapshotReconstruction';
+import { RayenPlanningStop } from './rayenPlanningStop';
 import { normalizeRut } from '@/utils/rutUtils';
 
 const MILLISECONDS_PER_DAY = 86_400_000;
@@ -125,7 +126,7 @@ export const assertHistoricalCensusHasEvidence = (
     reconstruction.conflicts.length
   )
     return;
-  throw new Error(
+  throw new RayenPlanningStop(
     'No hay evidencia suficiente en Eloísa para reconstruir este día. El censo no se confirmó como vacío.'
   );
 };

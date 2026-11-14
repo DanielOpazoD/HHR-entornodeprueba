@@ -84,7 +84,8 @@ export const CensusTable: React.FC<CensusTableProps> = ({
   const clinicalDerivedDay = useCensusClinicalDerivedDay(record, currentDateString);
   const canObserveTable = isReady && Boolean(bindings) && record?.date === currentDateString;
   useEffect(() => {
-    if (canObserveTable) return observeCensusTable(currentDateString, tableRootRef.current);
+    if (!canObserveTable) return undefined;
+    return observeCensusTable(currentDateString, tableRootRef.current);
   }, [currentDateString, canObserveTable]);
   const beds = useDailyRecordBeds();
   const admitPatient = useAdmitPatient();

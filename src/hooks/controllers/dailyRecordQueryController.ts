@@ -1,3 +1,4 @@
+import { addCalendarDays } from '@/utils/clinicalDateUtils';
 import type { QueryClient, QueryFunctionContext } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryClient';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -381,20 +382,13 @@ export const createDailyRecordSubscription = (
   };
 };
 
-export const buildPreviousDayDate = (date: string) => {
-  const currentDate = new Date(`${date}T12:00:00`);
-  currentDate.setDate(currentDate.getDate() - 1);
-  // clinical-clock-allow instant-calendar-slice: currentDate is calendar arithmetic from the requested day at noon, not an event instant.
-  return currentDate.toISOString().split('T')[0];
-};
-
 export const prefetchPreviousDailyRecord = (
   queryClient: QueryClient,
   dailyRecord: DailyRecordReader,
   date: string
 ) =>
   queryClient.prefetchQuery({
-    ...createDailyRecordQueryOptions(dailyRecord, buildPreviousDayDate(date), queryClient),
+    ...createDailyRecordQueryOptions(dailyRecord, addCalendarDays(date, -1), queryClient),
     staleTime: 5 * 60 * 1000,
   });
 
