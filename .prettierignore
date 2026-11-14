@@ -7,3 +7,7 @@ apps/horas-extras/public/assets/planilla-hospitalizados.json
 
 # Historical documents retain their original contents when moved.
 docs/archive/
+
+# Generated server bundle: its staleness check compares bytes with a fresh build, so prettier must
+# not reformat it (scripts/build-cudyr-source-parser.mjs).
+functions/lib/generated/
