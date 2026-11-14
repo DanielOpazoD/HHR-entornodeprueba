@@ -20,6 +20,14 @@ const pharma = (publishedAt: string) =>
     ],
   });
 
+// Not a medication order: those are written in UTC and read by their own clock (TIME-02).
+const freeIndication = (publishedAt: string) =>
+  event({
+    patientFreeIndicationResume: [
+      { AMRE_ID: 911, INDICATION: 'Curación diaria', PUBLISH_DATETIME: publishedAt },
+    ],
+  });
+
 const careDayOf = (scheduledDate: string): string =>
   parseClinicalPanel([], {
     medicationStates: [],
@@ -84,10 +92,10 @@ describe.each([
 
   it('keeps the date Eloísa wrote for a date alone or a time without an offset', () => {
     process.env.TZ = zone;
-    expect(parseClinicalPanel([pharma('2026-07-14T23:30:00')]).indicationDays[0].day).toBe(
+    expect(parseClinicalPanel([freeIndication('2026-07-14T23:30:00')]).indicationDays[0].day).toBe(
       '2026-07-14'
     );
-    expect(parseClinicalPanel([pharma('2026-07-15T00:30')]).indicationDays[0].day).toBe(
+    expect(parseClinicalPanel([freeIndication('2026-07-15T00:30')]).indicationDays[0].day).toBe(
       '2026-07-15'
     );
     expect(careDayOf('2026-07-15')).toBe('15-07-2026');

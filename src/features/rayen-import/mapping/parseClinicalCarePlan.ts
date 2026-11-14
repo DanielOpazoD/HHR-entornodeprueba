@@ -1,4 +1,4 @@
-import { dayKey } from './clinicalPanelParsingUtils';
+import { compareStamps, dayKey } from './clinicalPanelParsingUtils';
 import { toTitleCaseName } from './rayenToPatientData';
 
 export type ClinicalPanelCareActionStatus =
@@ -45,11 +45,6 @@ const rows = (value: unknown): RawRow[] =>
 const dayLabel = (day: string): string => {
   const match = day.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return match ? `${match[3]}-${match[2]}-${match[1]}` : day || 'Sin fecha';
-};
-
-const timeKey = (raw: string): number => {
-  const timestamp = Date.parse(raw);
-  return Number.isNaN(timestamp) ? 0 : timestamp;
 };
 
 const CARE_METADATA_LABELS: Record<string, string> = {
@@ -113,6 +108,6 @@ export const parseClinicalCareDays = (headers: unknown[]): ClinicalPanelCareDay[
     .map(([day, actions]) => ({
       day,
       label: dayLabel(day),
-      actions: actions.sort((a, b) => timeKey(b.performedAt) - timeKey(a.performedAt)),
+      actions: actions.sort((a, b) => compareStamps(b.performedAt, a.performedAt)),
     }));
 };
