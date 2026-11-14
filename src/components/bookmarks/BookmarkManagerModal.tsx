@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bookmark } from '@/types/bookmarks';
 import { BaseModal } from '@/components/shared/BaseModal';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
 import { ChevronUp, ChevronDown, Trash2, Edit2, GripVertical, Save } from 'lucide-react';
 import { reorderBookmarks, deleteBookmark } from '@/services/bookmarks/bookmarkService';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
@@ -77,12 +78,12 @@ export const BookmarkManagerModal: React.FC<BookmarkManagerModalProps> = ({
     >
       <div className="space-y-4">
         <div className="bg-slate-50 border border-slate-100 rounded-lg overflow-hidden">
-          <table className="w-full text-[11px]">
+          <table className="w-full table-fixed text-xs">
             <thead>
-              <tr className="bg-white border-b border-slate-100 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                <th className="px-3 py-2 text-left w-10">Orden</th>
-                <th className="px-3 py-2 text-left">Nombre / URL</th>
-                <th className="px-3 py-2 text-right w-24">Acciones</th>
+              <tr className="bg-white border-b border-slate-100 text-xs font-bold text-slate-400 uppercase">
+                <th className="px-2 py-2 text-left w-14">Orden</th>
+                <th className="px-2 py-2 text-left">Nombre / URL</th>
+                <th className="px-2 py-2 text-right w-20">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -91,7 +92,7 @@ export const BookmarkManagerModal: React.FC<BookmarkManagerModalProps> = ({
                   key={bookmark.id}
                   className="hover:bg-white bg-slate-50/50 transition-colors group"
                 >
-                  <td className="px-3 py-2">
+                  <td className="px-2 py-2">
                     <div className="flex flex-col gap-0.5">
                       <button
                         aria-label={`Subir marcador ${bookmark.name}`}
@@ -117,16 +118,16 @@ export const BookmarkManagerModal: React.FC<BookmarkManagerModalProps> = ({
                       </button>
                     </div>
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-2 py-2">
                     <div className="flex items-center gap-2">
                       <span className="text-base">{bookmark.icon}</span>
                       <div className="flex flex-col min-w-0">
                         <span className="font-bold text-slate-700 truncate">{bookmark.name}</span>
-                        <span className="text-slate-400 truncate text-[10px]">{bookmark.url}</span>
+                        <span className="text-slate-400 truncate text-xs">{bookmark.url}</span>
                       </div>
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="px-2 py-2 text-right">
                     <div className="flex items-center justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={e => {
@@ -143,7 +144,7 @@ export const BookmarkManagerModal: React.FC<BookmarkManagerModalProps> = ({
                           e.stopPropagation();
                           handleDelete(bookmark.id);
                         }}
-                        className="p-1.5 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors text-slate-400"
+                        className={buttonClassName('danger', 'xs', 'min-h-0 p-1.5')}
                         title="Eliminar"
                       >
                         <Trash2 size={12} />
@@ -166,7 +167,7 @@ export const BookmarkManagerModal: React.FC<BookmarkManagerModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 px-4 py-2 text-slate-400 text-[10px] font-bold hover:bg-slate-50 rounded-lg transition-colors uppercase tracking-widest"
+            className={buttonClassName('secondary', 'sm', 'flex-1')}
           >
             {hasChanges ? 'Descartar Cambios' : 'Cerrar'}
           </button>
@@ -175,7 +176,7 @@ export const BookmarkManagerModal: React.FC<BookmarkManagerModalProps> = ({
               type="button"
               onClick={handleSaveOrder}
               disabled={isSaving}
-              className="flex-1 px-4 py-2 bg-medical-600 text-white text-[10px] font-bold rounded-lg hover:bg-medical-700 shadow-md shadow-medical-100 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
+              className={buttonClassName('primary', 'sm', 'flex-1')}
             >
               {isSaving ? (
                 'Guardando...'
