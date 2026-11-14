@@ -1,4 +1,3 @@
-import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { PrescriptionDateStrip } from '@/features/prescriptions/components/PrescriptionDateStrip';

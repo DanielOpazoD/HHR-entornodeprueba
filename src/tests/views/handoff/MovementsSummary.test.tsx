@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import React from 'react';
 import { MovementsSummary } from '@/features/handoff/components/MovementsSummary';
 import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 

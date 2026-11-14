@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, act, fireEvent, renderHook } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { UIProvider, useUI } from '@/context/UIContext';

@@ -2,7 +2,6 @@
 import '../../setup';
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import React from 'react';
 import { ClinicalEventsPanel } from '@/features/handoff/components/ClinicalEventsPanel';
 import type { ClinicalEvent } from '@/types/domain/clinicalEvents';
 

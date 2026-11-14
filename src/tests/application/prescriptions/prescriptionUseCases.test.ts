@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { PrescriptionPort } from '@/application/ports/prescriptionPort';
 import { executeReassignPrescriptionPatient } from '@/application/prescriptions/reassignPrescriptionPatientUseCase';
@@ -249,5 +249,67 @@ describe('executeDeletePrescription', () => {
     ).rejects.toThrow(/auditoría/i);
 
     expect(port.delete).not.toHaveBeenCalled();
+  });
+});
+
+describe('executeDeletePrescription: audit day', () => {
+  const originalTimeZone = process.env.TZ;
+
+  afterEach(() => {
+    process.env.TZ = originalTimeZone;
+  });
+
+  // 22:30 on 5 May in Rapa Nui: already 6 May in UTC, mainland Chile and Auckland.
+  const createdLateEveningInRapaNui = '2026-05-06T04:30:00.000Z';
+
+  it.each(['UTC', 'America/Santiago', 'Pacific/Easter', 'Pacific/Auckland', 'Pacific/Pago_Pago'])(
+    'files the audit event under the hospital day of the prescription on a %s computer',
+    async zone => {
+      process.env.TZ = zone;
+      const port = buildPort({
+        get: vi.fn(
+          async () =>
+            ({
+              id: 'rx-2',
+              patientRut: '11.111.111-1',
+              createdAt: createdLateEveningInRapaNui,
+            }) as PrescriptionRecord
+        ),
+      });
+      const writeAuditEvent = vi.fn(async () => ({
+        status: 'success' as const,
+        data: null,
+        issues: [],
+      }));
+
+      await executeDeletePrescription(
+        { prescriptionId: 'rx-2', deletedBy: 'admin@h.cl' },
+        { prescriptionPort: port, writeAuditEvent }
+      );
+
+      expect(writeAuditEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ recordDate: '2026-05-05' })
+      );
+    }
+  );
+
+  it('leaves the audit day empty when the prescription has no readable creation instant', async () => {
+    const port = buildPort({
+      get: vi.fn(async () => ({ id: 'rx-3', createdAt: 'sin fecha' }) as PrescriptionRecord),
+    });
+    const writeAuditEvent = vi.fn(async () => ({
+      status: 'success' as const,
+      data: null,
+      issues: [],
+    }));
+
+    await executeDeletePrescription(
+      { prescriptionId: 'rx-3', deletedBy: 'admin@h.cl' },
+      { prescriptionPort: port, writeAuditEvent }
+    );
+
+    expect(writeAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ recordDate: undefined })
+    );
   });
 });

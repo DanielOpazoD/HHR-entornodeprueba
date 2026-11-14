@@ -2,7 +2,6 @@
 import '../../setup';
 import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
-import React from 'react';
 import { HandoffRow } from '@/features/handoff/components/HandoffRow';
 import { render, createMockPatient } from '../../integration/setup';
 import { PatientStatus } from '@/types/domain/patientClassification';

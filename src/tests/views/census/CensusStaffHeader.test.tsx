@@ -1,6 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import React from 'react';
 import { CensusToolbarMenuTargetContext } from '@/shared/ui/CensusToolbarMenuTargetContext';
 import { CensusStaffHeader } from '@/features/census/components/CensusStaffHeader';
 import { DataFactory } from '@/tests/factories/DataFactory';

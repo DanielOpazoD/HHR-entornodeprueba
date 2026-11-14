@@ -6,7 +6,6 @@
  * matching bed/patient/RUT.
  */
 
-import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 

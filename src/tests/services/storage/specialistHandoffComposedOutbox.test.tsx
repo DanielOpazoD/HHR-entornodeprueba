@@ -18,7 +18,6 @@ import {
   reconnect,
   writeNote,
 } from './specialistHandoffOutboxHarness';
-import React from 'react';
 
 const h = harnessState();
 import { cleanup, render, screen } from '@testing-library/react';
