@@ -117,8 +117,7 @@ export const listQuarantinedOperations = (
             ? 'Revisar antes de reenviar'
             : isPolicyBlockedCudyrArchive(operation)
               ? 'Autorización anterior'
-              : (CATEGORY_LABELS[operation.lastErrorCategory ?? 'unknown'] ??
-                CATEGORY_LABELS.unknown),
+              : (CATEGORY_LABELS[operation.lastErrorCategory ?? 'unknown'] ?? 'Envío detenido'),
         canRetire:
           operation.type === 'UPDATE_DAILY_RECORD' &&
           /^daily:\d{4}-\d{2}-\d{2}$/.test(operation.key ?? ''),
