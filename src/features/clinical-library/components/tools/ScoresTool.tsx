@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import clsx from 'clsx';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
 import { ListChecks, RotateCcw } from 'lucide-react';
 import { SCORE_DEFINITIONS, findScoreDefinition } from '../../domain/scoreDefinitions';
 import { evaluateScore, type ScoreAnswers, type ScoreItem } from '../../domain/scoreEngine';
@@ -23,11 +24,9 @@ const ScoreItemRow: React.FC<{
         />
         <span className="flex-1 text-[12px] leading-snug text-slate-700">
           {item.label}
-          {item.help && (
-            <span className="mt-0.5 block text-[10px] text-slate-400">{item.help}</span>
-          )}
+          {item.help && <span className="mt-0.5 block text-xs text-slate-400">{item.help}</span>}
         </span>
-        <span className="text-[11px] font-bold tabular-nums text-slate-500">
+        <span className="text-xs font-bold tabular-nums text-slate-500">
           +{formatClinicalNumber(item.points)}
         </span>
       </label>
@@ -37,7 +36,7 @@ const ScoreItemRow: React.FC<{
   return (
     <fieldset className="border-b border-slate-100 px-3 py-2 last:border-b-0">
       <legend className="text-[12px] font-semibold text-slate-700">{item.label}</legend>
-      {item.help && <p className="text-[10px] text-slate-400">{item.help}</p>}
+      {item.help && <p className="text-xs text-slate-400">{item.help}</p>}
       <div className="mt-1 space-y-0.5">
         {item.options.map(option => (
           <label
@@ -53,9 +52,7 @@ const ScoreItemRow: React.FC<{
               className="size-3.5 accent-medical-600"
             />
             <span className="flex-1">{option.label}</span>
-            <span className="text-[11px] font-bold tabular-nums text-slate-500">
-              {option.points}
-            </span>
+            <span className="text-xs font-bold tabular-nums text-slate-500">{option.points}</span>
           </label>
         ))}
       </div>
@@ -98,7 +95,7 @@ export const ScoresTool: React.FC<ToolComponentProps> = ({ onBack, onClose }) =>
             aria-pressed={item.id === definition.id}
             onClick={() => setActiveId(item.id)}
             className={clsx(
-              'rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600',
+              'rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600',
               item.id === definition.id
                 ? 'border-medical-600 bg-medical-600 text-white'
                 : 'border-slate-200 bg-white text-slate-600 hover:border-medical-300 hover:text-medical-700'
@@ -112,12 +109,12 @@ export const ScoresTool: React.FC<ToolComponentProps> = ({ onBack, onClose }) =>
       <div className="mt-3 flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h4 className="text-[13px] font-bold text-slate-800">{definition.name}</h4>
-          <p className="mt-0.5 text-[11px] leading-snug text-slate-500">{definition.purpose}</p>
+          <p className="mt-0.5 text-xs leading-snug text-slate-500">{definition.purpose}</p>
         </div>
         <button
           type="button"
           onClick={reset}
-          className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600"
+          className={buttonClassName('secondary', 'xs', 'shrink-0')}
         >
           <RotateCcw size={12} aria-hidden="true" />
           Limpiar
@@ -147,7 +144,7 @@ export const ScoresTool: React.FC<ToolComponentProps> = ({ onBack, onClose }) =>
         )}
       >
         <div className="flex items-baseline justify-between gap-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wide opacity-70">
+          <p className="text-xs font-semibold uppercase tracking-wide opacity-70">
             {definition.shortName}
           </p>
           {!definition.hideTotal && (
@@ -163,10 +160,10 @@ export const ScoresTool: React.FC<ToolComponentProps> = ({ onBack, onClose }) =>
         {band ? (
           <>
             <p className="text-[13px] font-bold">{band.label}</p>
-            <p className="mt-0.5 text-[11px] leading-snug">{band.detail}</p>
+            <p className="mt-0.5 text-xs leading-snug">{band.detail}</p>
           </>
         ) : (
-          <p className="text-[11px]">
+          <p className="text-xs">
             {evaluation.missingItemIds.length}{' '}
             {evaluation.missingItemIds.length === 1 ? 'ítem pendiente' : 'ítems pendientes'}
           </p>
@@ -174,7 +171,7 @@ export const ScoresTool: React.FC<ToolComponentProps> = ({ onBack, onClose }) =>
       </div>
 
       {definition.notes && definition.notes.length > 0 && (
-        <ul className="mt-2 space-y-1 text-[11px] text-slate-500">
+        <ul className="mt-2 space-y-1 text-xs text-slate-500">
           {definition.notes.map(note => (
             <li key={note}>{note}</li>
           ))}
