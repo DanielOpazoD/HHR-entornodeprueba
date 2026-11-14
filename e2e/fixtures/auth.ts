@@ -332,38 +332,6 @@ export async function setupE2EContext(
   }
 }
 
-/**
- * Legacy helpers (maintained for compatibility if needed, but setupE2EContext is preferred)
- */
-export async function injectMockUser(page: Page, role: 'editor' | 'admin' | 'viewer' = 'editor') {
-  await setupE2EContext(page, role);
-}
-
-export async function injectMockData(
-  page: Page,
-  date?: string,
-  populateWithPatient: boolean = false
-) {
-  // If we're already on the page, inject data without reload to preserve auth/session state
-  const targetDate = date || E2E_DEFAULT_DATE;
-  await page.addInitScript(() => {
-    (window as Window & { __HHR_E2E_OVERRIDE__?: Record<string, unknown> }).__HHR_E2E_OVERRIDE__ =
-      {};
-  });
-  await page.evaluate(
-    ({ dateStr, _populate }: { dateStr: string; _populate: boolean }) => {
-      const STORAGE_KEY = 'hanga_roa_hospital_data';
-      // ... (simplified version for legacy support)
-      const records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-      if (!records[dateStr]) {
-        records[dateStr] = { date: dateStr, beds: {}, discharges: [], transfers: [], cma: [] };
-      }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-    },
-    { dateStr: targetDate, _populate: populateWithPatient }
-  );
-}
-
 export async function bootstrapSeededRecord(
   page: Page,
   {

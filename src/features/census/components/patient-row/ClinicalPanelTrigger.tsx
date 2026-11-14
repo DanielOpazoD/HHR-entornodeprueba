@@ -105,7 +105,7 @@ const ClinicalPanelImportFallback: React.FC<{
             <h2 className="break-words text-[14px] font-semibold leading-snug text-slate-800">
               {patientName}
             </h2>
-            <p className="mt-0.5 text-[10px] text-slate-500">Cama {bedId}</p>
+            <p className="mt-0.5 text-xs text-slate-500">Cama {bedId}</p>
           </div>
           <button
             type="button"

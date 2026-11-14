@@ -1,6 +1,7 @@
 import React from 'react';
 import { ClipboardPaste, User } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
 import { DemographicsModalProps } from './demographics/types';
 import { useDemographicsLogic } from './demographics/useDemographicsLogic';
 import { DemographicsHeader } from './demographics/DemographicsHeader';
@@ -101,7 +102,7 @@ export const DemographicsModal: React.FC<DemographicsModalProps> = ({
             <div
               role="status"
               aria-live="polite"
-              className="mb-1.5 flex items-center justify-end gap-2 text-[10px] font-semibold text-slate-500"
+              className="mb-1.5 flex items-center justify-end gap-2 text-xs font-semibold text-slate-600"
             >
               <span>Campos obligatorios pendientes</span>
               <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-slate-600">
@@ -115,26 +116,19 @@ export const DemographicsModal: React.FC<DemographicsModalProps> = ({
               <button
                 type="button"
                 onClick={onImportEloisaCode}
-                className="mr-auto inline-flex items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-[13px] font-bold text-teal-800 transition-colors hover:bg-teal-100"
+                className={buttonClassName('outline', 'md', 'mr-auto')}
               >
                 <ClipboardPaste size={15} />
                 Importar código de Eloísa
               </button>
             ) : null}
-            <button
-              onClick={handleCancel}
-              className="text-slate-400 hover:text-slate-600 text-[13px] font-bold transition-colors px-2"
-            >
+            <button onClick={handleCancel} className={buttonClassName('ghost')}>
               Cancelar
             </button>
             <button
               onClick={handleSave}
               disabled={requiresCompleteDemographics && !requiredCompletion.isComplete}
-              className={`px-5 py-2 rounded-lg text-[13px] font-bold transition-all active:scale-95 active:translate-y-0 flex items-center gap-1.5 ${
-                requiresCompleteDemographics && !requiredCompletion.isComplete
-                  ? 'cursor-not-allowed bg-slate-200 text-slate-500 shadow-none'
-                  : 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 hover:bg-blue-700 hover:shadow-blue-500/40 hover:-translate-y-0.5'
-              }`}
+              className={buttonClassName('primary')}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

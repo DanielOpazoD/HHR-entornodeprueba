@@ -46,7 +46,7 @@ const unverifiedConflict = (overrides: Partial<Conflict> = {}): Conflict => ({
   patientName: 'Tania Valencia',
   code: 'unverified-report-row',
   reason:
-    'El alta administrativa de Tania Valencia no pudo vincularse a un episodio clínico exacto; no se aplicó.',
+    'El alta administrativa de Tania Valencia quedó sin vincular a un episodio clínico exacto; no se aplicó.',
   ...overrides,
 });
 

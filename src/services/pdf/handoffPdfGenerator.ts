@@ -96,7 +96,7 @@ export const generateHandoffPdf = async (
   }
 
   // 7. PAGE NUMBERS
-  addPageFooter(doc, margin.left, margin);
+  addPageFooter(doc, margin);
 
   const pdfBytes = new Uint8Array(doc.output('arraybuffer') as ArrayBuffer);
   const fileName = buildHandoffPdfFileName(record.date, selectedShift);

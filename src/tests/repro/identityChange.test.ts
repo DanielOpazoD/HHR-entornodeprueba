@@ -17,7 +17,7 @@ vi.mock('../../context/AuditContext', () => ({
 // Mock hook dependencies
 vi.mock('../../hooks/usePatientValidation', () => ({
   usePatientValidation: () => ({
-    processFieldValue: (field: string, value: unknown) => ({ valid: true, value }),
+    processFieldValue: (_field: string, value: unknown) => ({ valid: true, value }),
   }),
 }));
 

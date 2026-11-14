@@ -8,7 +8,7 @@ import { replanRayenStructure } from '@/features/rayen-import/hooks/replanRayenS
 
 // Auditoría del 02-09: `applyEgresoReport` corre dos veces sobre el mismo diff
 // (informe y, si nada cambió entre medio, otra vez antes del lookup). Un conflicto
-// rederivado en cada pasada se contaba doble («episodio activo de HHR no se pudo
+// rederivado en cada pasada se contaba doble («episodio activo de HHR quedó sin
 // confirmar» ×2), bloqueaba la etapa clínica de la cama y dejaba la corrida
 // «Parcial» por un único motivo. Realista con ingresos manuales sin episodio.
 
@@ -80,11 +80,11 @@ const runPipeline = async (rows: EgresoReportRow[]) => {
 };
 
 describe('replanRayenStructure — ocupante sin episodio y fila verificada con episodio', () => {
-  it('el conflicto «episodio activo de HHR no se pudo confirmar» aparece una sola vez aunque el informe se aplique dos veces', async () => {
+  it('el conflicto «episodio activo de HHR quedó sin confirmar» aparece una sola vez aunque el informe se aplique dos veces', async () => {
     const diff = await runPipeline([verifiedRow]);
 
     const unconfirmed = diff.conflicts.filter(conflict =>
-      conflict.reason.includes('episodio activo de HHR no se pudo confirmar')
+      conflict.reason.includes('episodio activo de HHR quedó sin confirmar')
     );
     expect(diff.discharges).toEqual([]);
     expect(unconfirmed).toHaveLength(1);

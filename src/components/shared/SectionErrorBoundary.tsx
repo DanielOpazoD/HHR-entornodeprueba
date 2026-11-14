@@ -34,7 +34,7 @@ export class SectionErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     sectionErrorBoundaryLogger.error(`Error in ${this.props.sectionName}`, {
       error,
       componentStack: errorInfo.componentStack,
@@ -45,7 +45,7 @@ export class SectionErrorBoundary extends Component<Props, State> {
     this.setState({ hasError: false, error: null });
   };
 
-  render() {
+  override render() {
     const { hasError, error } = this.state;
     const { children, sectionName, fallbackHeight = 'auto' } = this.props;
 

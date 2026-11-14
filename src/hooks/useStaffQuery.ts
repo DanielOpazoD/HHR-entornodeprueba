@@ -1,3 +1,4 @@
+import { nurseIdentityKey } from '@/services/staff/nurseIdentity';
 import {
   CatalogConflictError,
   diffCatalog,
@@ -211,13 +212,18 @@ const catalogEditAccepted = <T extends string | ProfessionalCatalogItem>(
   edit: CatalogEdit<T>,
   current: unknown,
   normalize: (value: unknown) => T[],
-  key: (item: T) => string
+  key: (item: T) => string,
+  additionKey = key
 ): boolean => {
   if (current === undefined) return false;
   const accepted = normalize(current);
   const next = normalize(catalogNext(edit));
   if (Array.isArray(edit)) return JSON.stringify(accepted) === JSON.stringify(next);
-  return catalogChangesAccepted(accepted, diffCatalog(normalize(edit.base), next, key), key);
+  // Additions may be deduplicated by person; deliberate respellings and removals still
+  // require the exact saved text, so an unchanged spelling cannot confirm a correction.
+  return diffCatalog(normalize(edit.base), next, key).every(change =>
+    catalogChangesAccepted(accepted, [change], change.kind === 'add' ? additionKey : key)
+  );
 };
 
 const useAcceptedCatalogChange = <T>(
@@ -279,7 +285,7 @@ export const useSaveNursesMutation = () => {
     },
   });
   useAcceptedCatalogChange('nurses', mutation, (edit: CatalogEdit<string>, current: unknown) =>
-    catalogEditAccepted(edit, current, normalizeStringCatalog, exactStaffName)
+    catalogEditAccepted(edit, current, normalizeStringCatalog, exactStaffName, nurseIdentityKey)
   );
   return mutation;
 };
@@ -323,7 +329,7 @@ export const useSaveTensMutation = () => {
     },
   });
   useAcceptedCatalogChange('tens', mutation, (edit: CatalogEdit<string>, current: unknown) =>
-    catalogEditAccepted(edit, current, normalizeStringCatalog, exactStaffName)
+    catalogEditAccepted(edit, current, normalizeStringCatalog, exactStaffName, nurseIdentityKey)
   );
   return mutation;
 };

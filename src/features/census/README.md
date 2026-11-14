@@ -24,8 +24,12 @@ Módulo central del producto: censo diario, acciones sobre camas/pacientes, movi
 
 ## API pública mínima
 
-- Código fuera de `src/features/census/**` debe consumir `census` solo desde `@/features/census`.
-- `src/features/census/index.ts` reexporta `public.ts` y es el único entrypoint externo soportado para código productivo.
+- Código fuera de `src/features/census/**` consume `census` por tres puertas públicas:
+  - `@/features/census` (`index.ts`, que reexporta `public.ts`): controllers livianos, tipos y vistas permitidas.
+  - `@/features/census/census-view`: solo `CensusView` y su tipo de contexto, para la carga perezosa de `/censo`.
+  - `@/features/census/public-components`: componentes pesados (`CensusView`, `CensusEmailConfigModal`,
+    `GlobalPatientSearchModal`), que se cargan con `import()` dinámico para no entrar al arranque.
+- Las dos últimas figuran en `publicModulesByFeature` de `scripts/feature-public-api-allowlist.json`.
 - Imports directos a `components/`, `hooks/`, `controllers/`, `contracts/`, `types/` o `context/` desde fuera de la feature se consideran saltos de boundary.
 - Excepción intencional: `src/tests/**` puede importar internals para testear unidades puras; `src/hooks/controllers/**` mantiene shims históricos mientras exista compatibilidad de transición.
 

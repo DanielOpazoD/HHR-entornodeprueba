@@ -21,7 +21,7 @@ export const DemographicsAdmissionOriginField: React.FC<DemographicsAdmissionOri
   <div className="space-y-1">
     <label
       htmlFor="demographics-admission-origin"
-      className="block text-[9px] font-bold text-slate-500 uppercase tracking-wide ml-1"
+      className="block text-xs font-semibold text-slate-600"
     >
       Origen del Ingreso
     </label>
@@ -32,10 +32,8 @@ export const DemographicsAdmissionOriginField: React.FC<DemographicsAdmissionOri
           aria-label="Origen del ingreso"
           aria-invalid={isOriginMissing || undefined}
           className={clsx(
-            'w-full px-2.5 py-1.5 border rounded-lg text-[13px] text-slate-700 focus:bg-white focus:ring-2 outline-none appearance-none cursor-pointer shadow-sm transition-all',
-            isOriginMissing
-              ? missingRequiredClass
-              : 'bg-slate-50 border-transparent focus:ring-blue-500/20 focus:border-blue-500'
+            'hhr-field appearance-none cursor-pointer pr-8',
+            isOriginMissing && missingRequiredClass
           )}
           value={localData.admissionOrigin}
           onChange={e =>
@@ -69,12 +67,7 @@ export const DemographicsAdmissionOriginField: React.FC<DemographicsAdmissionOri
         <input
           type="text"
           aria-invalid={isOriginDetailsMissing || undefined}
-          className={clsx(
-            'w-full px-2.5 py-1.5 border rounded-lg text-[13px] focus:ring-2 outline-none transition-all shadow-inner',
-            isOriginDetailsMissing
-              ? missingRequiredClass
-              : 'bg-white border-slate-200 focus:ring-blue-500/20 focus:border-blue-500'
-          )}
+          className={clsx('hhr-field', isOriginDetailsMissing && missingRequiredClass)}
           placeholder="Especifique origen…"
           value={localData.admissionOriginDetails}
           onChange={e =>
