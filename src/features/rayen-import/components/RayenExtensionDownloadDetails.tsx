@@ -1,5 +1,6 @@
 import React from 'react';
 import release from 'virtual:rayen-extension-release';
+import { SYNC_TONE } from './syncTone';
 
 interface Props {
   installedVersion?: string;
@@ -28,7 +29,7 @@ const RayenExtensionDownloadDetails: React.FC<Props> = ({
       <p className="mt-2 text-teal-700">El identificador coincide con el publicado.</p>
     )}
     {(differentPackage || unidentified) && (
-      <p className="mt-2 text-amber-700">
+      <p className={`mt-2 ${SYNC_TONE.review.text}`}>
         {differentPackage
           ? 'El paquete instalado es distinto del publicado.'
           : 'Esta extensión no informa una identidad verificable.'}{' '}
@@ -37,9 +38,9 @@ const RayenExtensionDownloadDetails: React.FC<Props> = ({
       </p>
     )}
     {incompatible && (
-      <p className="mt-2 text-amber-700">
-        La extensión no es compatible. Instala la versión publicada y vuelve a comprobar la
-        conexión.
+      <p className={`mt-2 ${SYNC_TONE.review.text}`}>
+        Instala la versión publicada y vuelve a comprobar la conexión: esta versión ya no es
+        compatible.
       </p>
     )}
 

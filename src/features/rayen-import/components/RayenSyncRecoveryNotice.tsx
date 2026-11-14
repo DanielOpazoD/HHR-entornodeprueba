@@ -1,6 +1,7 @@
 import React from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import type { RayenSyncRecoveryPresentation } from './rayenSyncRecoveryPresentation';
+import { SYNC_TONE, SYNC_TONE_ICON } from './syncTone';
 
 interface RayenSyncRecoveryNoticeProps {
   presentation: RayenSyncRecoveryPresentation | null;
@@ -15,25 +16,23 @@ export const RayenSyncRecoveryNotice: React.FC<RayenSyncRecoveryNoticeProps> = (
 }) => {
   if (!presentation) return null;
 
-  const toneClass =
-    presentation.tone === 'danger'
-      ? 'border-red-200 bg-red-50 text-red-800'
-      : presentation.tone === 'warning'
-        ? 'border-amber-200 bg-amber-50 text-amber-800'
-        : 'border-sky-200 bg-sky-50 text-sky-800';
+  const tone = SYNC_TONE[presentation.level];
+  // Informative recovery (a run or check in progress) carries no warning icon.
+  const Icon = presentation.level === 'review' ? SYNC_TONE_ICON.review : null;
 
   return (
     <div
-      className={`mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2.5 ${toneClass}`}
+      className={`mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2.5 ${tone.surface}`}
       data-testid="rayen-sync-recovery-notice"
+      data-tone={presentation.level}
       role="region"
       aria-label="Recuperación de sincronización"
     >
       <div className="flex min-w-0 items-start gap-2">
-        <AlertTriangle className="mt-0.5 shrink-0" size={15} aria-hidden="true" />
+        {Icon && <Icon className={`mt-0.5 shrink-0 ${tone.icon}`} size={15} aria-hidden="true" />}
         <div className="min-w-0">
           <p className="text-xs font-bold">{presentation.title}</p>
-          <p className="mt-0.5 text-[11px] font-medium opacity-80">{presentation.detail}</p>
+          <p className="mt-0.5 text-[11px] font-medium">{presentation.detail}</p>
         </div>
       </div>
       {presentation.action && presentation.actionLabel && (

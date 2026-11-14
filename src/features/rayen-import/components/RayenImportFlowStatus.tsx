@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { formatRayenSyncIslandTime, formatRayenSyncTargetDate } from './rayenSyncPresentation';
-import { Check, Circle, LoaderCircle, TriangleAlert } from 'lucide-react';
+import { Check, Circle, LoaderCircle } from 'lucide-react';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { RayenSyncMeta } from '@/types/domain/dailyRecord';
 import type { RayenSyncStage } from '../hooks/rayenSyncExecutionState';
 import type { RayenFillProgress } from '../hooks/useRayenFillStatus';
 import { buildRayenSyncBarViewModel, type RayenSyncBarTone } from './rayenSyncBarViewModel';
+import { SYNC_TONE, SYNC_TONE_ICON, SYNC_TONE_INFO_VARIANT } from './syncTone';
 
 interface RayenImportFlowStatusProps {
   diff: CensusImportDiff | null;
@@ -21,12 +22,14 @@ interface RayenImportFlowStatusProps {
   compactFallback?: string;
 }
 
+// The status line has only the informative and review levels: a pending Eloísa read loses no edit.
 const toneClass: Record<RayenSyncBarTone, string> = {
-  neutral: 'text-slate-600',
-  progress: 'text-teal-700',
-  success: 'text-emerald-700',
-  warning: 'text-amber-700',
+  neutral: SYNC_TONE.info.text,
+  progress: SYNC_TONE_INFO_VARIANT.progress.text,
+  success: SYNC_TONE_INFO_VARIANT.ok.text,
+  warning: SYNC_TONE.review.text,
 };
+const reviewIconClass = SYNC_TONE.review.icon;
 
 const CompactSyncSpinner = () => {
   const [visible, setVisible] = useState(false);
@@ -69,7 +72,7 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = props
       : viewModel.phase === 'complete'
         ? `Actualizado${props.targetDate ? ` · ${formatRayenSyncTargetDate(props.targetDate)}` : ''}${completedTime ? ` · ${completedTime}` : ''}`
         : props.executionStage?.type === 'partial'
-          ? 'Actualización parcial'
+          ? 'Datos clínicos por completar'
           : viewModel.label;
   const visuallyHidden = viewModel.visuallyHidden && !(compact && viewModel.phase === 'complete');
   const detail =
@@ -84,7 +87,7 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = props
       : viewModel.tone === 'success'
         ? Check
         : viewModel.tone === 'warning'
-          ? TriangleAlert
+          ? SYNC_TONE_ICON.review
           : Circle;
 
   return (
@@ -112,8 +115,10 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = props
                 strokeWidth={compact ? 1.5 : 2}
                 className={
                   viewModel.tone === 'progress'
-                    ? 'animate-spin text-teal-600 motion-reduce:animate-none'
-                    : toneClass[viewModel.tone]
+                    ? `animate-spin ${SYNC_TONE_INFO_VARIANT.progress.icon} motion-reduce:animate-none`
+                    : viewModel.tone === 'warning'
+                      ? reviewIconClass
+                      : toneClass[viewModel.tone]
                 }
               />
             )
@@ -129,15 +134,17 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = props
         </p>
         {detail && (
           <details
-            className="group ml-auto shrink-0 text-[11px] text-amber-800"
+            className={`group ml-auto shrink-0 text-[11px] ${SYNC_TONE.review.text}`}
             data-testid="rayen-import-error"
           >
             <summary
-              className={`cursor-pointer rounded px-1.5 ${props.compactFallback !== undefined ? 'py-0' : 'py-1'} font-semibold hover:bg-amber-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600`}
+              className={`cursor-pointer rounded px-1.5 ${props.compactFallback !== undefined ? 'py-0' : 'py-1'} font-semibold ${SYNC_TONE.review.hover} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600`}
             >
               Ver detalle
             </summary>
-            <p className="absolute left-0 top-[calc(100%+0.45rem)] z-30 w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-[11px] font-medium leading-relaxed text-amber-900 shadow-lg">
+            <p
+              className={`absolute left-0 top-[calc(100%+0.45rem)] z-30 w-full rounded-lg border px-3 py-2 text-[11px] font-medium leading-relaxed shadow-lg ${SYNC_TONE.review.surface}`}
+            >
               {detail}
             </p>
           </details>

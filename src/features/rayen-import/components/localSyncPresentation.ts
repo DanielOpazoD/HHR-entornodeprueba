@@ -1,6 +1,7 @@
 import { isPolicyBlockedCudyrArchive } from '@/services/storage/sync/cudyrPolicyBlockedRecovery';
 import { requiresDailyRecordBaseReview } from '@/services/storage/sync/dailyRecordBaseReview';
 import type { SyncQueueOperation, SyncQueueStats } from '@/hooks/useSyncQueueMonitor';
+import type { SyncToneLevel } from './syncTone';
 
 /**
  * Evita parpadeos durante guardados normales. El aviso del cuadro Eloísa aparece
@@ -15,12 +16,25 @@ export const hasLocalSyncAttention = (stats: SyncQueueStats): boolean =>
   stats.recentOperationsReadState === 'unavailable' ||
   (stats.pending > 0 && stats.oldestPendingAgeMs >= LOCAL_SYNC_PENDING_VISIBILITY_MS);
 
+/**
+ * How the local save indicator reads, only while `hasLocalSyncAttention` shows it. A stopped send
+ * (failed or conflict) does not resume alone, so it is the only case that asks for action
+ * (SAVE-01). An unreadable queue is something to check; aging or retrying sends go out by themselves.
+ */
+export const localSyncAttentionLevel = (stats: SyncQueueStats): SyncToneLevel | null => {
+  if (!hasLocalSyncAttention(stats)) return null;
+  if (stats.failed + stats.conflict > 0) return 'action';
+  if (stats.readState === 'unavailable' || stats.recentOperationsReadState === 'unavailable')
+    return 'review';
+  return 'info';
+};
+
 const CATEGORY_LABELS: Record<string, string> = {
-  conflict: 'Conflicto de versiones',
+  conflict: 'Otra persona cambió este censo',
   authorization: 'Sin permisos',
-  validation: 'Rechazado por validación',
-  network: 'Sin conexión',
-  unknown: 'Error desconocido',
+  validation: 'El servidor no aceptó este cambio',
+  network: 'Sin conexión al enviar',
+  unknown: 'Envío detenido',
 };
 
 interface QuarantinedOperationTarget {
@@ -100,10 +114,11 @@ export const listQuarantinedOperations = (
         targetLabel: targetLabelFromKey(operation.key, operation.type),
         categoryLabel:
           recovery === 'review_base'
-            ? 'Requiere revisión de la versión de origen'
+            ? 'Revisar antes de reenviar'
             : isPolicyBlockedCudyrArchive(operation)
               ? 'Autorización anterior'
-              : (CATEGORY_LABELS[operation.lastErrorCategory ?? 'unknown'] ?? 'Error desconocido'),
+              : (CATEGORY_LABELS[operation.lastErrorCategory ?? 'unknown'] ??
+                CATEGORY_LABELS.unknown),
         canRetire:
           operation.type === 'UPDATE_DAILY_RECORD' &&
           /^daily:\d{4}-\d{2}-\d{2}$/.test(operation.key ?? ''),
