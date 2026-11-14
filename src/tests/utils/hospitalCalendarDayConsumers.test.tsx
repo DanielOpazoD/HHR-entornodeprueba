@@ -16,7 +16,15 @@ import type { SyslabExamItem } from '@/types/domain/labExamTypes';
 // must stay on the hospital day, whatever zone the device runs in.
 const MONTH_END = new Date('2026-12-01T03:30:00.000Z');
 const YEAR_END = new Date('2027-01-01T03:30:00.000Z');
-const DEVICE_ZONES = ['UTC', 'America/Santiago', 'Pacific/Easter', 'Pacific/Auckland'];
+// 00:30 on December 1 in Rapa Nui is still November 30 on a device in Pago Pago (UTC-11).
+const NEW_DAY = new Date('2026-12-01T05:30:00.000Z');
+const DEVICE_ZONES = [
+  'UTC',
+  'America/Santiago',
+  'Pacific/Easter',
+  'Pacific/Auckland',
+  'Pacific/Pago_Pago',
+];
 
 const deviceZone = process.env.TZ;
 afterEach(() => {
@@ -76,6 +84,15 @@ describe.each(DEVICE_ZONES)('hospital calendar day on a device in %s', zone => {
     expect(resolveLabExamIdsByDays({ examList, days: 3, now: MONTH_END })).toEqual([
       'today',
       'third-day-back',
+    ]);
+  });
+
+  it('keeps the exams of the new hospital day just after midnight', () => {
+    onDevice(zone);
+    const examList = [exam('new-day', '01/12/2026'), exam('previous-day', '30/11/2026')];
+    expect(resolveLabExamIdsByDays({ examList, days: 1, now: NEW_DAY })).toEqual([
+      'new-day',
+      'previous-day',
     ]);
   });
 
