@@ -84,12 +84,14 @@ export const fichaMedicoHistoryStampInRapaNui = (raw: string | undefined): strin
 const NAIVE_ISO_STAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/;
 
 /**
- * Medication order's `PUBLISH_DATETIME` on the Rapa Nui clock. The history JSON writes it in UTC
- * without an offset, the rule of the extension's prescription center (`prescriptionPublishDateTime`);
- * any other text is returned as Eloísa wrote it.
+ * Medication order's `PUBLISH_DATETIME` as an instant. The history JSON writes it in UTC without an
+ * offset, so it gets its `Z`, the rule of the extension's prescription center
+ * (`prescriptionPublishDateTime`). The panel shows an instant on the Rapa Nui clock and orders two
+ * versions by their instants, which a converted wall clock cannot do in the repeated hour of a clock
+ * change. Any other text is returned as Eloísa wrote it.
  */
 export const fichaMedicoMedicationOrderStamp = (raw: string): string =>
-  (NAIVE_ISO_STAMP.test(raw) && absoluteInstantInRapaNui(`${raw}Z`)) || raw;
+  NAIVE_ISO_STAMP.test(raw) ? `${raw}Z` : raw;
 
 /** Nursing activity read from the history JSON, converted by the clock of the field it came from. */
 export const fichaMedicoActivityStampInRapaNui = (

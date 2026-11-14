@@ -14,7 +14,7 @@ const event = (over: Partial<RayenClinicalPanelEvent> = {}): RayenClinicalPanelE
   ...over,
 });
 
-const medicationOrder = (publishDatetime: string, posology = '1 g c/8 h') =>
+const medicationOrder = (publishDatetime: string, posology = '1 g c/8 h', suspended = false) =>
   event({
     patientPharmaIndicationResume: [
       {
@@ -22,9 +22,20 @@ const medicationOrder = (publishDatetime: string, posology = '1 g c/8 h') =>
         DESCRIPTOR: 'CEFTRIAXONA',
         POSOLOGY: posology,
         PUBLISH_DATETIME: publishDatetime,
+        SUSPENDED: suspended,
       },
     ],
   });
+
+/** Active and suspended versions of the order on the sheets, for the events in both orders. */
+const versionsInBothOrders = (events: RayenClinicalPanelEvent[]) =>
+  [events, [...events].reverse()].map(order =>
+    parseClinicalPanel(order).indicationDays.map(day => ({
+      day: day.day,
+      active: day.active.map(entry => entry.text),
+      suspended: day.suspended.map(entry => entry.text),
+    }))
+  );
 
 /** Sheet and time the panel shows for the only medication order of `events`. */
 const shown = (events: RayenClinicalPanelEvent[]) => {
@@ -85,6 +96,62 @@ describe.each([
     expect(panel.indicationDays.map(day => [day.day, day.active.map(entry => entry.text)])).toEqual(
       [['2026-07-14', ['2 g c/12 h']]]
     );
+  });
+
+  // On 05-04-2026 Rapa Nui goes back from UTC-5 to UTC-6: 02:50Z is 21:50 and 03:10Z is 21:10.
+  it('keeps the later suspension within the repeated hour of the clock change', () => {
+    process.env.TZ = zone;
+    const sheets = versionsInBothOrders([
+      medicationOrder('2026-04-05T02:50:00', 'activa'),
+      medicationOrder('2026-04-05T03:10:00', 'suspendida', true),
+    ]);
+    for (const sheet of sheets) {
+      expect(sheet).toEqual([{ day: '2026-04-04', active: [], suspended: ['suspendida'] }]);
+    }
+  });
+
+  it('keeps the later reactivation within the repeated hour of the clock change', () => {
+    process.env.TZ = zone;
+    const sheets = versionsInBothOrders([
+      medicationOrder('2026-04-05T02:50:00', 'suspendida', true),
+      medicationOrder('2026-04-05T03:10:00', 'reactivada'),
+    ]);
+    for (const sheet of sheets) {
+      expect(sheet).toEqual([{ day: '2026-04-04', active: ['reactivada'], suspended: [] }]);
+    }
+  });
+
+  it('orders a stamp with Z and one without an offset by their instants', () => {
+    process.env.TZ = zone;
+    const sheets = versionsInBothOrders([
+      medicationOrder('2026-07-14T15:00:00Z', 'activa'),
+      medicationOrder('2026-07-14T16:00:00', 'suspendida', true),
+    ]);
+    for (const sheet of sheets) {
+      expect(sheet).toEqual([{ day: '2026-07-14', active: [], suspended: ['suspendida'] }]);
+    }
+  });
+
+  // The validation's clock is not measured: it is compared, as before, with the Rapa Nui time.
+  it('compares a daily validation with the order’s Rapa Nui time', () => {
+    process.env.TZ = zone;
+    const panel = parseClinicalPanel(
+      [
+        medicationOrder('2026-07-15T05:30:00'),
+        event({
+          publishDatetime: '2026-07-15T00:10:00',
+          validationDatetime: '2026-07-15T00:10:00',
+        }),
+      ],
+      {
+        carePlanHeaders: [],
+        medicationStates: [{ id: 910, suspended: false, archived: false, finalized: false }],
+      }
+    );
+    expect(panel.indicationDays.map(day => [day.day, day.active[0]?.validitySource])).toEqual([
+      ['2026-07-15', 'daily-validation'],
+      ['2026-07-14', 'indication'],
+    ]);
   });
 
   it('projects a daily validation from the order’s Rapa Nui time', () => {

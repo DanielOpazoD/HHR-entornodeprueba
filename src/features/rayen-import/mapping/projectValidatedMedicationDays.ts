@@ -1,5 +1,6 @@
 import type { ClinicalPanelEntry } from './clinicalPanelTypes';
 import { dayKey, flag, timeKey } from './clinicalPanelParsingUtils';
+import { absoluteInstantInRapaNui } from './encounterWallClock';
 
 type MedicationState = Record<string, unknown>;
 
@@ -39,13 +40,19 @@ const latestValidationByDay = (validations: string[]): Map<string, string> => {
   return result;
 };
 
+/**
+ * Versions of an order compare by their instants. The validation's clock is not measured (TIME-02),
+ * so the validation's text is compared with the order's Rapa Nui wall clock, the same on every device.
+ */
 const versionAt = (
   candidates: ClinicalPanelEntry[],
   validationDatetime: string
 ): ClinicalPanelEntry | null =>
   candidates.reduce<ClinicalPanelEntry | null>((selected, candidate) => {
-    const candidateTime = timeKey(candidate.prescribedAt ?? candidate.publishedAt);
-    if (candidateTime <= 0 || candidateTime > timeKey(validationDatetime)) return selected;
+    const stamp = candidate.prescribedAt ?? candidate.publishedAt;
+    const wallTime = timeKey(absoluteInstantInRapaNui(stamp) ?? stamp);
+    if (wallTime <= 0 || wallTime > timeKey(validationDatetime)) return selected;
+    const candidateTime = timeKey(stamp);
     if (!selected || candidateTime > timeKey(selected.prescribedAt ?? selected.publishedAt)) {
       return candidate;
     }
