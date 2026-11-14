@@ -208,7 +208,8 @@ export const resolveRequiredDemographicsCompletion = (
 export const calculateFormattedAge = (dob: string) => {
   if (!dob) return '';
   // Both are calendar days at UTC midnight read with UTC getters, so the device zone moves neither.
-  const birth = new Date(dob.split('T')[0]);
+  const [birthDay = ''] = dob.split('T');
+  const birth = new Date(birthDay);
   const today = new Date(getClinicalCalendarDateISO());
 
   const diffTime = today.getTime() - birth.getTime();

@@ -32,7 +32,7 @@ export const splitPatientName = (fullName: string | undefined): [string, string,
 export const calculateAge = (birthDate: string | undefined): string => {
   if (!birthDate) return '';
   try {
-    const day = birthDate.split('T')[0];
+    const [day = ''] = birthDate.split('T');
     const parts = day.includes('-') ? day.split('-').map(part => part.padStart(2, '0')) : [];
     let birth: Date;
     if (parts.length === 3 && parts[0].length === 4) {
