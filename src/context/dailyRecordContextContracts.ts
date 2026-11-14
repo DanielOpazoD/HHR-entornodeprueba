@@ -69,19 +69,6 @@ export interface DailyRecordDayActions {
   refresh: () => void;
 }
 
-export interface DailyRecordValidationActions {
-  validateRecordSchema: (record: DailyRecord) => {
-    isValid: boolean;
-    errors: import('zod').ZodIssue[];
-  };
-  canMovePatient: (
-    sourceBedId: string,
-    targetBedId: string,
-    record: DailyRecord | null
-  ) => { canMove: boolean; reason?: string };
-  canDischargePatient: (patient: PatientData) => boolean;
-}
-
 export interface DailyRecordBedActions {
   updatePatient: (bedId: string, field: keyof PatientData, value: PatientFieldValue) => void;
   updatePatientMultiple: (
@@ -172,7 +159,6 @@ export interface DailyRecordHandoffActions {
 export interface DailyRecordActionsContextType
   extends
     DailyRecordDayActions,
-    DailyRecordValidationActions,
     DailyRecordBedActions,
     DailyRecordStaffActions,
     DailyRecordMovementActions,

@@ -2,6 +2,7 @@ import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { RayenSyncMeta } from '@/types/domain/dailyRecord';
 import type { RayenSyncStage } from '../hooks/rayenSyncExecutionState';
 import type { RayenFillProgress } from '../hooks/useRayenFillStatus';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 
 export type RayenSyncBarPhase =
   | 'idle'
@@ -103,19 +104,12 @@ const withTargetDate = (label: string, targetDate?: string | null): string => {
   return formatted ? `${label} · ${formatted}` : label;
 };
 
-const localDateKey = (timestamp: number): string => {
-  const date = new Date(timestamp);
-  const year = String(date.getFullYear());
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
 const staleSyncPresentation = (input: RayenSyncBarViewModelInput): RayenSyncBarViewModel | null => {
   const now = input.now ?? Date.now();
   const synchronizedAt = Date.parse(input.persistedSync?.at ?? '');
   // Without an explicit selected day, age alone cannot prove that the visible census is stale.
-  const isCurrentDay = Boolean(input.targetDate) && input.targetDate === localDateKey(now);
+  const isCurrentDay =
+    Boolean(input.targetDate) && input.targetDate === getClinicalCalendarDateISO(new Date(now));
   if (!isCurrentDay || !Number.isFinite(synchronizedAt)) return null;
   const ageMinutes = Math.floor(Math.max(0, now - synchronizedAt) / 60_000);
   if (ageMinutes <= 15) return null;

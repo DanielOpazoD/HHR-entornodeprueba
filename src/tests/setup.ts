@@ -1,4 +1,5 @@
 import 'fake-indexeddb/auto';
+import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { afterEach, vi } from 'vitest';
 import { wrapConsoleForOperationalNoise } from '@/tests/utils/operationalConsoleNoiseFilter';
 
@@ -142,7 +143,7 @@ vi.mock('../firebaseConfig', () => firebaseMock);
 // Mock firebase/auth module
 vi.mock('firebase/auth', () => ({
   getAuth: vi.fn(() => mockAuth),
-  onAuthStateChanged: vi.fn((auth, callback) => {
+  onAuthStateChanged: vi.fn((_auth, callback) => {
     callback(null);
     return vi.fn();
   }),
@@ -294,6 +295,8 @@ const globalDailyRecordRepositoryPortMock = {
     hasPendingWritesForDate: false,
     writeState: 'none',
   }),
+  adoptAuthoritativeRecord: vi.fn(async record => record),
+  delete: vi.fn(),
   getPreviousDay: vi.fn(),
   getPreviousDayWithMeta: vi.fn(),
   save: vi.fn(),
@@ -307,12 +310,9 @@ const globalDailyRecordRepositoryPortMock = {
   }),
   subscribeDetailed: vi.fn(() => () => {}),
   initializeDay: vi.fn(),
-  initializeDayDetailed: vi.fn(),
   deleteDay: vi.fn(),
-  getAllDates: vi.fn().mockResolvedValue([]),
   getAvailableDates: vi.fn().mockResolvedValue([]),
   getMonthRecords: vi.fn().mockResolvedValue([]),
-  copyPatientToDate: vi.fn().mockResolvedValue(true),
   copyPatientToDateDetailed: vi.fn().mockResolvedValue({
     sourceDate: '2026-01-01',
     targetDate: '2026-01-02',
@@ -337,7 +337,7 @@ const globalDailyRecordRepositoryPortMock = {
     outcome: 'clean',
     record: null,
   }),
-};
+} satisfies Record<keyof DailyRecordRepositoryPort, ReturnType<typeof vi.fn>>;
 
 vi.mock('@/services/repositories/CatalogRepository', () => ({
   CatalogRepository: globalCatalogRepositoryMock,

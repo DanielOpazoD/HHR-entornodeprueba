@@ -57,4 +57,5 @@
 - `npm run typecheck`
 - `npm run check:quality`
 - relevant `handoff` application/domain/view tests
-- `npm run check:handoff-feature-boundary`
+- `npm run lint` (the `handoff` boundary is enforced by the ESLint rules `hhr/feature-boundaries` and
+  `hhr/public-import-boundaries`)

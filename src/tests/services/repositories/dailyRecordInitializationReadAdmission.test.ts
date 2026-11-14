@@ -8,6 +8,7 @@ import { initializeDayDetailed } from '@/services/repositories/dailyRecordReposi
 import { getForDate } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { loadRemoteRecordWithFallback } from '@/services/repositories/dailyRecordRemoteLoader';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { save } from '@/services/repositories/dailyRecordRepositoryWriteService';
 
 vi.mock('@/services/repositories/dailyRecordRepositoryReadService', () => ({
@@ -21,7 +22,9 @@ vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
   save: vi.fn(),
   updatePartial: vi.fn(),
 }));
-vi.mock('@/services/repositories/repositoryConfig', () => ({ isFirestoreEnabled: () => true }));
+vi.mock('@/services/repositories/repositoryConfig', () => ({
+  isFirestoreEnabled: vi.fn(() => true),
+}));
 
 const date = '2026-10-29';
 const copyDate = '2026-10-28';
@@ -38,6 +41,7 @@ const deferred = <T>() => {
 describe('initialization return value after a superseded remote read', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    vi.mocked(isFirestoreEnabled).mockReturnValue(true);
     await hospitalDB.syncQueue.clear();
     await hospitalDB.dailyRecords.clear();
   });
@@ -135,6 +139,61 @@ describe('initialization return value after a superseded remote read', () => {
     expect(await hospitalDB.syncQueue.count()).toBe(0);
     expect(await hospitalDB.settings.toArray()).toEqual(settings);
     expect(save).not.toHaveBeenCalled();
+  });
+
+  it('propagates a failed remote lookup without creating a day', async () => {
+    const failure = new Error('Synthetic remote lookup failed');
+    vi.mocked(getForDate).mockResolvedValue(null);
+    vi.mocked(loadRemoteRecordWithFallback).mockRejectedValue(failure);
+
+    await expect(
+      initializeDayDetailed(date, undefined, { requireConfirmedAbsence: true })
+    ).rejects.toBe(failure);
+    expect(save).not.toHaveBeenCalled();
+    expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
+    expect(await hospitalDB.syncQueue.count()).toBe(0);
+  });
+
+  it('does not create a day requiring confirmed absence when Firestore is disabled', async () => {
+    vi.mocked(isFirestoreEnabled).mockReturnValue(false);
+    vi.mocked(getForDate).mockResolvedValue(null);
+
+    await expect(
+      initializeDayDetailed(date, undefined, { requireConfirmedAbsence: true })
+    ).rejects.toThrow('No se pudo confirmar la ausencia del día con el servidor');
+    expect(save).not.toHaveBeenCalled();
+    expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
+    expect(await hospitalDB.syncQueue.count()).toBe(0);
+  });
+
+  it('preserves a failed initial lookup during offline copy requiring confirmed absence', async () => {
+    const failure = new Error('Synthetic initial lookup failed');
+    const source = DataFactory.createMockDailyRecord(copyDate, { beds: {} });
+    vi.mocked(getForDate).mockImplementation(async requested => {
+      if (requested === date) throw failure;
+      return source;
+    });
+    vi.mocked(loadRemoteRecordWithFallback).mockResolvedValue({
+      record: null,
+      serverConfirmed: true,
+      source: 'not_found',
+      compatibilityTier: 'none',
+      compatibilityIntensity: 'none',
+      migrationRulesApplied: [],
+      cachedLocally: false,
+    });
+    const online = navigator.onLine;
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    try {
+      await expect(
+        initializeDayDetailed(date, copyDate, { requireConfirmedAbsence: true })
+      ).rejects.toBe(failure);
+      expect(save).not.toHaveBeenCalled();
+      expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
+      expect(await hospitalDB.syncQueue.count()).toBe(0);
+    } finally {
+      Object.defineProperty(navigator, 'onLine', { value: online, configurable: true });
+    }
   });
 
   it('copies offline with enabled runtime even when the SDK returns cached absence', async () => {

@@ -28,8 +28,8 @@ describe('viewer patient header and explicit report download', () => {
     vi.stubGlobal(
       'URL',
       class extends URL {
-        static createObjectURL = create;
-        static revokeObjectURL = revoke;
+        static override createObjectURL = create;
+        static override revokeObjectURL = revoke;
       }
     );
     vi.stubGlobal(

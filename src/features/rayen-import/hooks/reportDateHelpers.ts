@@ -71,6 +71,3 @@ export const resolveSyncReportRequest = (
   const target = resolveCensusSyncTarget(reportDate, now);
   return { target, range: syncReportRange(reportDate, target) };
 };
-
-/** @deprecated Use toSyncReportDate. Kept for compatible imports while the feature migrates. */
-export const toLiveSyncReportDate = toSyncReportDate;

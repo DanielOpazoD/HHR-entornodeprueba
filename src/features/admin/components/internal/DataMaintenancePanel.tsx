@@ -13,6 +13,7 @@ import { DataImportModal } from './DataImportModal';
 import { DataMaintenanceExportCard } from './DataMaintenanceExportCard';
 import { DataMaintenanceImportCard } from './DataMaintenanceImportCard';
 import { AdmissionDateBackfillPanel } from './AdmissionDateBackfillPanel';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 
 interface DataMaintenancePanelProps {
   onDailyExport?: () => void;
@@ -36,11 +37,12 @@ export const DataMaintenancePanel: React.FC<DataMaintenancePanelProps> = ({
   const [admissionDateBackfillError, setAdmissionDateBackfillError] = useState<string | null>(null);
   const [backfillProgress, setBackfillProgress] = useState({ current: 0, total: 0 });
 
-  const now = new Date();
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
+  const today = getClinicalCalendarDateISO();
+  const currentYear = Number(today.slice(0, 4));
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [selectedMonth, setSelectedMonth] = useState(Number(today.slice(5, 7)));
 
-  const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
   const months = [
     { value: 1, label: 'Enero' },
     { value: 2, label: 'Febrero' },
