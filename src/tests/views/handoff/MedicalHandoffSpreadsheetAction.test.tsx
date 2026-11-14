@@ -1,4 +1,3 @@
-import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -73,7 +72,9 @@ describe('MedicalHandoffSpreadsheetAction', () => {
         openSpreadsheet={openSpreadsheet}
       />
     );
-    expect(screen.getByRole('button', { name: /crear entrega de turno médica/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /crear entrega de turno médica/i })
+    ).toBeInTheDocument();
     openWindow.mockRestore();
   });
 

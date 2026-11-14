@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import React from 'react';
 import { DateStrip } from '@/components/layout/DateStrip';
 import { ModuleType } from '@/constants/navigationConfig';
 

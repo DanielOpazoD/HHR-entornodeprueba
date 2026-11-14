@@ -1,6 +1,5 @@
 /** @vitest-environment jsdom */
 import '../setup';
-import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { render, createMockDailyRecordContext } from './setup';

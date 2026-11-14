@@ -1,4 +1,4 @@
-import React, { memo, useLayoutEffect } from 'react';
+import { memo, useLayoutEffect } from 'react';
 import { act, render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { StaffProvider, useStaffContext, type StaffContextType } from '@/context/StaffContext';

@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { useAppContentEventBridge } from '@/components/layout/app-content/useAppContentEventBridge';
