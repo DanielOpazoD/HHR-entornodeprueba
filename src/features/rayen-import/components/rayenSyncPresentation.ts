@@ -57,7 +57,7 @@ export const presentRayenCoverage = (
   enrichmentPending = false
 ): CoveragePresentation => {
   if (!coverage) {
-    if (enrichmentPending) return { label: 'Enriquecimiento pendiente', tone: 'warning' };
+    if (enrichmentPending) return { label: 'Datos clínicos por completar', tone: 'warning' };
     return hasSync
       ? { label: 'No disponible en sincronizaciones antiguas', tone: 'muted' }
       : { label: 'Sin sincronización', tone: 'muted' };
@@ -83,7 +83,9 @@ export const presentRayenLegacyCoverageGap = (coverage: RayenSyncCoverage): stri
     gaps.push(`${plural(coverage.errors, 'paciente')} con información clínica incompleta`);
   }
   if (coverage.sourceErrors > 0) {
-    gaps.push(`${plural(coverage.sourceErrors, 'falla')} de fuente`);
+    gaps.push(
+      `${plural(coverage.sourceErrors, 'lectura')} de fuente ${coverage.sourceErrors === 1 ? 'pendiente' : 'pendientes'}`
+    );
   }
   const summary = gaps.join(' y ') || 'información clínica incompleta';
   return `Esta ejecución anterior registró ${summary}, pero no conservó la cama ni la etapa. Al reintentar, una nueva ejecución mostrará cama, fuente y causa si vuelve a ocurrir.`;
@@ -130,9 +132,9 @@ export interface RayenSyncOutcomePresentation {
 
 export const rayenSyncStatusLabel = (status?: RayenSyncStatus): string | null => {
   if (status === 'complete') return 'Completa';
-  if (status === 'partial') return 'Parcial';
+  if (status === 'partial') return 'Por completar';
   if (status === 'applied') return 'Censo aplicado';
-  if (status === 'failed') return 'Fallida';
+  if (status === 'failed') return 'Requiere revisión';
   return null;
 };
 
@@ -169,9 +171,10 @@ const structuralIssueReasonLabel: Record<RayenSyncStructuralIssue['reason'], str
   'episode-less-report-row': 'una fila del informe de GC no identifica el episodio activo',
   'report-predates-admission': 'un egreso del informe de GC es anterior al ingreso activo',
   'crib-conflict-blocks-discharge': 'el alta no se aplicó: la cuna de la cama tiene un conflicto',
-  'admission-date-policy': 'la validación rechazó un cambio en la fecha de ingreso',
-  'structural-write-rejected': 'el guardado del censo no pudo confirmarse',
-  unclassified: 'el cambio estructural no pudo aplicarse',
+  'admission-date-policy':
+    'la fecha de ingreso quedó sin cambiar porque difiere de la ya registrada',
+  'structural-write-rejected': 'el guardado de los cambios del censo quedó sin confirmar',
+  unclassified: 'el cambio del censo no se aplicó',
 };
 export const presentRayenStructuralIssue = (issue: RayenSyncStructuralIssue): string => {
   const scope = issue.bedId ? `Cama ${issue.bedId}` : 'Censo';
@@ -231,8 +234,8 @@ const partialReasons = (event: RayenSyncEvent): string[] => {
   return reasons;
 };
 
-const unable = (action: string): string => `no se pudo ${action}`;
-const retryConnection = (detail: string): string => `${detail}; comprueba la conexión y reintenta`;
+const retryConnection = (detail: string): string =>
+  `${detail}; comprueba la conexión y vuelve a intentar`;
 const issueSourceLabel: Record<RayenSyncCoverageIssue['source'], string> = {
   census: 'Carga del censo HHR',
   devices: 'Dispositivos',
@@ -250,22 +253,23 @@ const issueReasonLabel: Record<
   string
 > = {
   concurrent_write: 'el censo cambió mientras se guardaba; reintenta para completar este dato',
-  source_unavailable: unable('leer esta información; comprueba la ficha y reintenta'),
-  source_timeout: retryConnection('la fuente demoró demasiado'),
+  source_unavailable: 'falta leer esta información; revisa la ficha y vuelve a intentar',
+  source_timeout: retryConnection('la fuente tardó en responder'),
   historical_archive_failed: 'recuperación histórica del CUDYR pendiente; revisa y reintenta',
   historical_census_write_failed:
     'las correcciones de días previos quedaron pendientes; reintenta la sincronización',
   structural_conflict:
     'la estructura de este episodio requiere revisión; los demás pacientes sí continuaron',
   sync_already_running: 'ya había otra sincronización clínica en curso; espera y reintenta',
-  record_load_failed: unable(retryConnection('cargar el censo actual')),
-  write_failed: unable(retryConnection('confirmar el guardado')),
-  unexpected: 'ocurrió un error no esperado; reintenta y revisa el nuevo detalle',
+  record_load_failed: retryConnection('el censo actual todavía no se cargó'),
+  write_failed: retryConnection('el guardado quedó sin confirmar'),
+  unexpected:
+    'quedó pendiente por una causa no identificada; vuelve a intentar y revisa el nuevo detalle',
 
-  read_failed: unable('consultar el informe; reintenta'),
-  attribution_unreliable: unable('atribuir al episodio; revisa la fuente'),
-  documentary_inconclusive: unable('recuperar una categoría; revisa la noche'),
-  archive_unconfirmed: unable('confirmar el respaldo documental; reintenta'),
+  read_failed: 'el informe todavía no se consultó; vuelve a intentar',
+  attribution_unreliable: 'falta atribuir al episodio; revisa la fuente',
+  documentary_inconclusive: 'falta recuperar una categoría; revisa la noche',
+  archive_unconfirmed: 'el respaldo documental quedó sin confirmar; vuelve a intentar',
 };
 
 export const presentRayenCoverageIssue = (issue: RayenSyncCoverageIssue): string => {
@@ -277,9 +281,7 @@ export const presentRayenCoverageIssue = (issue: RayenSyncCoverageIssue): string
       ? 'contexto censal sin comprobar; reintenta'
       : detail?.kind === 'read_failed' && issue.cause === 'invalid_response'
         ? // Eloísa delivered the report and HHR could not read it: retrying reads the same file.
-          unable(
-            'leer el informe mensual de Eloísa; reintentar no lo resuelve, avisa al administrador de HHR'
-          )
+          'HHR todavía no puede leer el informe mensual de Eloísa; reintentar no lo resuelve, avisa al administrador de HHR'
         : issueReasonLabel[detail?.kind ?? issue.reason];
   return `${scope} · ${issueSourceLabel[issue.source]}: ${label}.`;
 };
@@ -288,7 +290,7 @@ export const presentRayenSyncOutcome = (event: RayenSyncEvent): RayenSyncOutcome
   const status = event.status;
   const complete = status === 'complete';
   return {
-    label: rayenSyncStatusLabel(status) ?? 'Parcial',
+    label: rayenSyncStatusLabel(status) ?? 'Por completar',
     detail: complete
       ? null
       : status === 'failed'

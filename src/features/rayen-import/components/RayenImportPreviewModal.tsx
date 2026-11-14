@@ -26,6 +26,7 @@ import { RayenAdmissionReview } from './RayenAdmissionReview';
 import { areCmaAdmissionsResolved } from '../domain/cmaAdmissionReview';
 import { ClinicalCribDischargeRepairReview } from './ClinicalCribDischargeRepairReview';
 import { RayenReportEgresoStamp } from './RayenReportEgresoStamp';
+import { SYNC_TONE } from './syncTone';
 const reservedRayenTargetBedIds = (diff: CensusImportDiff | null): string[] =>
   diff ? reservedRayenStructuralTargetBedIds(diff) : [];
 
@@ -185,7 +186,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                 <HistoricalReconstructionReview conflicts={historicalConflicts} />
                 <Section title="Cambios que requieren revisión" count={blockingConflicts.length}>
                   {blockingConflicts.map((entry, index) => (
-                    <li key={`pending-${index}`} className="text-red-700">
+                    <li key={`pending-${index}`} className={SYNC_TONE.review.text}>
                       {entry.bedId ? `${entry.bedId}: ` : ''}
                       {entry.reason}
                     </li>
@@ -244,7 +245,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                           </span>
                         ) : (
                           previousDays.has(entry.correctedDay ?? '') && (
-                            <span className="ml-1 font-medium text-amber-700">
+                            <span className={`ml-1 font-medium ${SYNC_TONE.info.text}`}>
                               → se grabará el {ddmmyyyy(entry.correctedDay)}
                               {entry.correctedTime ? ` ${entry.correctedTime} (hora isla)` : ''}, no
                               hoy
@@ -295,7 +296,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
 
                 <Section title="Cambios que requieren revisión" count={blockingConflicts.length}>
                   {blockingConflicts.map((entry, index) => (
-                    <li key={`con-${index}`} className="text-red-700">
+                    <li key={`con-${index}`} className={SYNC_TONE.review.text}>
                       {entry.scope === 'clinical-crib'
                         ? `${entry.patientName}: `
                         : entry.bedId
@@ -348,11 +349,11 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
 
         {error && (
           <details
-            className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+            className={`mt-4 rounded-lg border p-3 text-sm ${SYNC_TONE.review.surface}`}
             open
           >
             <summary className="cursor-pointer font-semibold">
-              La sincronización requiere atención
+              La sincronización quedó pendiente
             </summary>
             <p className="mt-2 leading-relaxed">{error}</p>
           </details>

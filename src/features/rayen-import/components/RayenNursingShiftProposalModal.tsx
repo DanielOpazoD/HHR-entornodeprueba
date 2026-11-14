@@ -7,6 +7,7 @@ import type {
   NursingShiftSuggestion,
 } from '../contracts/nursingShiftInference';
 import { RayenStaffingActivity } from './RayenStaffingActivity';
+import { SYNC_TONE } from './syncTone';
 import { buildRayenStaffingObservation } from '../domain/rayenSyncHistory';
 import {
   hasUnresolvedStaffingAmbiguity,
@@ -51,7 +52,7 @@ const ShiftSuggestion: React.FC<{
         </p>
       )}
       {replacedStaffingNames(suggestion).length > 0 && (
-        <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+        <p className={`mt-2 rounded-lg border px-3 py-2 text-xs ${SYNC_TONE.review.surface}`}>
           Se reemplazará la asignación actual: {replacedStaffingNames(suggestion).join(', ')}.
         </p>
       )}
@@ -79,7 +80,7 @@ const ShiftSuggestion: React.FC<{
         })}
       </ul>
       {hasUnresolvedAmbiguity && (
-        <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        <p className={`mt-2 rounded-lg border px-3 py-2 text-xs ${SYNC_TONE.review.surface}`}>
           Un cupo quedó sin sugerencia porque hay profesionales con la misma evidencia.
         </p>
       )}
@@ -201,7 +202,7 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
         <RayenStaffingActivity observation={buildRayenStaffingObservation(proposal)} />
         {error && (
           <p
-            className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+            className={`rounded-lg border px-3 py-2 text-sm ${SYNC_TONE.review.surface}`}
             role="alert"
           >
             {error}

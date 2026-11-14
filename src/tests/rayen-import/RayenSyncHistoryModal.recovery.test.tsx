@@ -38,7 +38,7 @@ it('shows actionable missing information before expandable technical metrics', a
       ]}
     />
   );
-  const issue = screen.getByText(/Cama R1 · Dispositivos: no se pudo leer/);
+  const issue = screen.getByText(/Cama R1 · Dispositivos: falta leer/);
   const technical = screen.getByTestId('rayen-sync-technical-report');
   expect(issue).not.toBeVisible();
   fireEvent.click(screen.getByText('Qué quedó pendiente en la información clínica'));

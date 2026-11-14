@@ -3,6 +3,9 @@ import type {
   BedOccupancyCollision,
   BedOccupancyCollisionResolution,
 } from '../contracts/censusImportDiff';
+import { SYNC_TONE, SYNC_TONE_ICON } from './syncTone';
+
+const DecisionIcon = SYNC_TONE_ICON.action;
 
 interface CollisionDraft {
   selectedEpisodeId: string;
@@ -82,15 +85,16 @@ export const EquivalentBedCollisionReview: React.FC<EquivalentBedCollisionReview
     return (
       <div
         key={collision.id}
-        className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4"
+        className={`mt-4 rounded-lg p-4 ${SYNC_TONE.action.surface}`}
         data-testid="equivalent-bed-collision-review"
       >
-        <h4 className="text-sm font-semibold text-red-900">
+        <h4 className="flex items-center gap-1.5 text-sm font-semibold">
+          <DecisionIcon size={16} className={SYNC_TONE.action.icon} aria-hidden="true" />
           Ocupación simultánea CMA {collision.bedId} / {collision.bedId}
         </h4>
-        <p className="mt-1 text-xs leading-relaxed text-red-800">
-          Rayen informa dos episodios para la única cama {collision.bedId} de HHR. Esta decisión es
-          manual y se aplicará como una sola operación.
+        <p className="mt-1 text-xs leading-relaxed text-slate-700">
+          Rayen informa dos episodios para la única cama {collision.bedId} de HHR. Decide quién
+          queda antes de confirmar; la decisión es manual y se aplicará como una sola operación.
         </p>
         <fieldset className="mt-3 space-y-2">
           <legend className="text-sm font-medium text-slate-800">

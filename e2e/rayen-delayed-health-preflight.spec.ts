@@ -102,7 +102,7 @@ test.describe('Rayen delayed extension health preflight', () => {
     await expect(page.locator('html')).toHaveAttribute('data-capture-requests', '1');
     await expect(history).toHaveAttribute('aria-label', /1 eventos/, { timeout: 20_000 });
     await history.click();
-    await expect(page.getByTestId('rayen-sync-history-modal')).toContainText('Fallida');
+    await expect(page.getByTestId('rayen-sync-history-modal')).toContainText('Requiere revisión');
   });
 
   test('accepts a valid five-second greeting within the synchronization budget', async ({

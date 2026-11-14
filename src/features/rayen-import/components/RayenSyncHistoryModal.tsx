@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, CheckCircle2, CircleX, Clock3, History } from 'lucide-react';
+import { CheckCircle2, Clock3, History } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import {
@@ -14,6 +14,7 @@ import { RayenSyncClinicalSection } from './RayenSyncHistorySections';
 import { RayenSyncSessionReportButton } from './RayenSyncSessionReportButton';
 import { RayenSyncIssueActions } from './RayenSyncIssueActions';
 import { rayenSyncTechnicalCode } from './rayenSyncIssueSupport';
+import { SYNC_TONE, SYNC_TONE_ICON, SYNC_TONE_INFO_VARIANT } from './syncTone';
 
 interface RayenSyncHistoryModalProps {
   isOpen: boolean;
@@ -25,10 +26,11 @@ interface RayenSyncHistoryModalProps {
   targetDate?: string | null;
 }
 
+// A partial or failed Eloísa run loses no edit: both are something to review, not a breakdown.
 const statusStyles = {
-  success: { Icon: CheckCircle2, className: 'text-emerald-700' },
-  warning: { Icon: AlertTriangle, className: 'text-amber-700' },
-  danger: { Icon: CircleX, className: 'text-red-700' },
+  success: { Icon: CheckCircle2, className: SYNC_TONE_INFO_VARIANT.ok.text },
+  warning: { Icon: SYNC_TONE_ICON.review, className: SYNC_TONE.review.text },
+  danger: { Icon: SYNC_TONE_ICON.review, className: SYNC_TONE.review.text },
   info: { Icon: Clock3, className: 'text-slate-500' },
 };
 
@@ -123,7 +125,9 @@ const QuietHistoryGroup: React.FC<{ events: RayenSyncEvent[] }> = ({ events }) =
           </span>
           <span className="truncate font-semibold text-slate-500">{newest.by}</span>
         </p>
-        <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-emerald-700">
+        <span
+          className={`inline-flex shrink-0 items-center gap-1 text-xs font-semibold ${SYNC_TONE_INFO_VARIANT.ok.text}`}
+        >
           <CheckCircle2 size={14} aria-hidden="true" />
           Completa
         </span>
@@ -167,7 +171,7 @@ const HistoryEvent: React.FC<{
           {event.status !== 'failed' && outcome.detail && (
             <p
               className={`mt-1 text-sm font-semibold ${
-                outcome.tone === 'warning' ? 'text-amber-700' : 'text-sky-700'
+                outcome.tone === 'warning' ? SYNC_TONE.review.text : 'text-sky-700'
               }`}
             >
               {outcome.detail}

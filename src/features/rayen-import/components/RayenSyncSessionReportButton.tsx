@@ -33,7 +33,7 @@ export const RayenSyncSessionReportButton: React.FC<{ history: RayenSyncEvent[] 
         {state === 'copied'
           ? 'Resumen copiado'
           : state === 'failed'
-            ? 'No se pudo copiar. Intenta nuevamente.'
+            ? 'El resumen todavía no se copió. Vuelve a intentarlo.'
             : ''}
       </span>
     </div>
