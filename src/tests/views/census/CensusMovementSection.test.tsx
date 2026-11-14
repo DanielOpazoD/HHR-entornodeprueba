@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import React from 'react';
 import { CheckCircle } from 'lucide-react';
 import { CensusMovementSection } from '@/features/census/components/CensusMovementSection';
 

@@ -12,7 +12,6 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import React from 'react';
 import { useDailyRecord } from '@/hooks/useDailyRecord';
 import { AuthProvider } from '@/context/AuthContext';
 import { UIProvider } from '@/context/UIContext';
