@@ -345,8 +345,8 @@ var normalizeDateOnly = (value) => {
   return value.split("T")[0];
 };
 var addCalendarDays = (dateString, days) => {
-  const date = /* @__PURE__ */ new Date(`${dateString}T12:00:00`);
-  date.setDate(date.getDate() + days);
+  const date = /* @__PURE__ */ new Date(`${dateString}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().split("T")[0];
 };
 

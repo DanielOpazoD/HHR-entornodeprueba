@@ -29,7 +29,6 @@ const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
     getAvailableDates: vi.fn(),
     getMonthRecords: vi.fn(),
     copyPatientToDateDetailed: vi.fn(),
-    syncWithFirestore: vi.fn(),
     syncWithFirestoreDetailed: vi.fn(),
   },
 }));

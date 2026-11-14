@@ -51,7 +51,7 @@ export const recoverLocalBedFromStatisticalDischarge = async (
     if (!report.base64 || report.error) return null;
     const text = await extractText(decodePdfBase64(report.base64));
     const evidence = parseStatisticalDischargeEvidence(text);
-    if (!evidence) return { reason: 'el egreso individual no pudo verificarse.' };
+    if (!evidence) return { reason: 'el egreso individual quedó sin verificar.' };
     if (evidence.run !== normalizeRut(candidate.encounter.run)) {
       return { reason: 'el RUN del egreso individual no coincide.' };
     }

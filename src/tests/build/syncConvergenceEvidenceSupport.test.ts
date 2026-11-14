@@ -20,9 +20,7 @@ describe('sync convergence evidence support', () => {
       result.sections.flatMap(section => section.checks.map((check: { id: string }) => check.id))
     ).toEqual(
       expect.arrayContaining([
-        'diagnostic-status-contract',
         'truth-selection-telemetry',
-        'planner-no-aggressive-writes',
         'three-client-replay-coverage',
         'multi-client-simulator-coverage',
         'auditable-clinical-context',

@@ -94,23 +94,23 @@ export const resolveYearToDateRange = (
   year: number,
   now: Date = new Date()
 ): { startDate: string; endDate: string; isCurrentYear: boolean } => {
-  const currentYear = now.getFullYear();
-  const isCurrentYear = year === currentYear;
+  const today = getTodayISO(now);
+  const isCurrentYear = year === Number(today.slice(0, 4));
 
   return {
     startDate: `${year}-01-01`,
-    endDate: isCurrentYear ? getTodayISO() : `${year}-12-31`,
+    endDate: isCurrentYear ? today : `${year}-12-31`,
     isCurrentYear,
   };
 };
 
 export const resolveYearToDateFileSuffix = (year: number, now: Date = new Date()): string => {
-  const { isCurrentYear } = resolveYearToDateRange(year, now);
+  const { isCurrentYear, endDate } = resolveYearToDateRange(year, now);
   if (!isCurrentYear) {
     return 'anual_completo';
   }
 
-  return `${DATA_MAINTENANCE_MONTH_NAMES[now.getMonth()]}_${String(now.getDate()).padStart(2, '0')}`;
+  return `${DATA_MAINTENANCE_MONTH_NAMES[Number(endDate.slice(5, 7)) - 1]}_${endDate.slice(8, 10)}`;
 };
 
 export const downloadJsonBackup = async (payload: unknown, fileName: string): Promise<void> => {

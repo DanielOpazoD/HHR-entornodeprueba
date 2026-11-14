@@ -25,7 +25,7 @@ export class LabChartErrorBoundary extends React.Component<Props, State> {
     return { hasError: true };
   }
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       return (
         <div className="flex items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-4 py-8 text-center">
