@@ -27,25 +27,25 @@ import {
 // Own tool names keep Original and Comparar drawings apart from MPR's on the same frame.
 // The stacks hold one image at a time, so Cornerstone's per-image index (k) is always 0.
 export class DicomStackLengthTool extends LengthTool {
-  static toolName = dicomStackToolNames.length;
+  static override toolName = dicomStackToolNames.length;
 }
 export class DicomStackAngleTool extends AngleTool {
-  static toolName = dicomStackToolNames.angle;
+  static override toolName = dicomStackToolNames.angle;
 }
 export class DicomStackCobbAngleTool extends CobbAngleTool {
-  static toolName = dicomStackToolNames.cobb;
+  static override toolName = dicomStackToolNames.cobb;
 }
 export class DicomStackProbeTool extends ProbeTool {
-  static toolName = dicomStackToolNames.probe;
+  static override toolName = dicomStackToolNames.probe;
 }
 export class DicomStackEllipseTool extends EllipticalROITool {
-  static toolName = dicomStackToolNames.roi;
+  static override toolName = dicomStackToolNames.roi;
 }
 export class DicomStackRectangleTool extends RectangleROITool {
-  static toolName = dicomStackToolNames.rectangle;
+  static override toolName = dicomStackToolNames.rectangle;
 }
 export class DicomStackCircleTool extends CircleROITool {
-  static toolName = dicomStackToolNames.circle;
+  static override toolName = dicomStackToolNames.circle;
 }
 export type { DicomStackMeasureTool };
 

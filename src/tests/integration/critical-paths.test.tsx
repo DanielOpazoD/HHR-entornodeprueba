@@ -38,7 +38,6 @@ const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
     subscribeDetailed: vi.fn(() => {
       return () => {};
     }),
-    syncWithFirestore: vi.fn().mockResolvedValue(null),
     syncWithFirestoreDetailed: vi.fn().mockResolvedValue(null),
     getPreviousDay: vi.fn(),
     getPreviousDayWithMeta: vi.fn(),
@@ -83,7 +82,7 @@ vi.mock('firebase/auth', async importOriginal => {
   return {
     ...actual,
     getAuth: vi.fn(),
-    onAuthStateChanged: vi.fn((auth, callback) => {
+    onAuthStateChanged: vi.fn((_auth, callback) => {
       // Return user with static role email
       callback({
         uid: 'test-user-123',

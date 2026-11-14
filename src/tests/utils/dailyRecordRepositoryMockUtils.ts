@@ -18,8 +18,6 @@ interface DailyRecordRepositoryMockLike {
     options?: { requireConfirmedRecord?: boolean }
   ) => Promise<unknown>;
   initializeDay?: (date: string, copyFromDate?: string) => Promise<unknown>;
-  initializeDayDetailed?: (date: string, copyFromDate?: string) => Promise<unknown>;
-  syncWithFirestore?: (date: string) => Promise<unknown>;
 }
 
 interface StatefulWireOptions {
@@ -105,17 +103,5 @@ export const wireStatefulDailyRecordRepoMock = (
           : null;
       }
     );
-  }
-
-  if (repo.initializeDayDetailed && repo.initializeDay) {
-    vi.mocked(repo.initializeDayDetailed).mockImplementation(
-      async (date: string, copyFromDate?: string) => {
-        return repo.initializeDay?.(date, copyFromDate);
-      }
-    );
-  }
-
-  if (repo.syncWithFirestore) {
-    vi.mocked(repo.syncWithFirestore).mockResolvedValue(null);
   }
 };

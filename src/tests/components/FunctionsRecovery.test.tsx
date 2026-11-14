@@ -10,11 +10,11 @@ vi.mock('@/components/ui/FunctionsRecoveryNotice', () => {
 });
 
 class AppBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-  state = { failed: false };
+  override state = { failed: false };
   static getDerivedStateFromError() {
     return { failed: true };
   }
-  render() {
+  override render() {
     return this.state.failed ? <p>Aplicación no disponible</p> : this.props.children;
   }
 }
