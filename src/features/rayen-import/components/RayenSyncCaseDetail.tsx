@@ -22,7 +22,7 @@ export const RayenSyncCaseDetail: React.FC<{
           cama.
         </p>
       )}
-      {diagnostic?.detail && <p className="mt-1">Qué ocurrió: {diagnostic.detail}</p>}
+      {diagnostic?.detail && <p className="mt-1">Motivo: {diagnostic.detail}</p>}
       {diagnostic?.sourceTimestamp && (
         <p className="mt-1">
           Fecha informada por la fuente: {diagnostic.sourceTimestamp}
