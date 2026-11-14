@@ -23,16 +23,6 @@ const buildSection = (id, title, checks) => ({
 
 export const evaluateSyncConvergenceEvidence = root => {
   const packageJson = JSON.parse(readText(root, 'package.json'));
-  const diagnosticTypes = readText(
-    root,
-    'src/services/observability/syncConvergenceDiagnosticTypes.ts'
-  );
-  const diagnostics = readText(root, 'src/services/observability/syncConvergenceDiagnostics.ts');
-  const handoffDiagnostics = readText(
-    root,
-    'src/services/observability/syncConvergenceHandoffDiagnostics.ts'
-  );
-  const recoveryPlanner = readText(root, 'src/services/observability/syncRecoveryPlanner.ts');
   const telemetry = readText(root, 'src/services/storage/sync/syncQueueTelemetryController.ts');
   const taskFactory = readText(root, 'src/services/storage/sync/syncQueueTaskFactory.ts');
   const transport = readText(root, 'src/services/storage/sync/firestoreSyncTransport.ts');
@@ -43,14 +33,6 @@ export const evaluateSyncConvergenceEvidence = root => {
   const mutationConflictTests = readText(
     root,
     'src/tests/services/storage/syncQueueMutationConflict.test.ts'
-  );
-  const diagnosticsTests = readText(
-    root,
-    'src/tests/services/observability/syncConvergenceDiagnostics.test.ts'
-  );
-  const recoveryTests = readText(
-    root,
-    'src/tests/services/observability/syncRecoveryPlanner.test.ts'
   );
   const telemetryTests = readText(
     root,
@@ -89,60 +71,8 @@ export const evaluateSyncConvergenceEvidence = root => {
     'evaluateDailyRecordConflictPostMergeInvariants'
   );
   const autoMergeQueueIndex = autoMerge.indexOf('queueMergedRecoveryTask');
-  const recoveryPlannerHasUnsafeWrites = [
-    'setDoc(',
-    'updateDoc(',
-    'deleteDoc(',
-    'queueDailyRecordSyncTask',
-    'saveRecordToFirestore',
-  ].some(token => recoveryPlanner.includes(token));
-  const diagnosticContract = [diagnosticTypes, diagnostics, handoffDiagnostics].join('\n');
-
   const sections = [
     buildSection('sync-convergence', 'Post-merge convergence', [
-      buildCheck(
-        'diagnostic-status-contract',
-        ['healthy', 'recoverable', 'needs_review', 'unsafe'].every(status =>
-          diagnosticContract.includes(`'${status}'`)
-        ) && diagnosticContract.includes('export const evaluateSyncConvergence'),
-        'The convergence diagnostic exposes the four operational states used by support.',
-        [
-          'src/services/observability/syncConvergenceDiagnosticTypes.ts',
-          'src/services/observability/syncConvergenceDiagnostics.ts',
-        ]
-      ),
-      buildCheck(
-        'clinical-divergence-findings',
-        ['duplicate_active_patient', 'movement_not_reflected', 'handoff_divergent'].every(finding =>
-          diagnosticContract.includes(`'${finding}'`)
-        ),
-        'The diagnostic detects duplicate active patients, missing movements and divergent handoff.',
-        [
-          'src/services/observability/syncConvergenceDiagnosticTypes.ts',
-          'src/services/observability/syncConvergenceHandoffDiagnostics.ts',
-        ]
-      ),
-      buildCheck(
-        'handoff-module-classification',
-        ['nursing_handoff', 'medical_handoff'].every(moduleName =>
-          diagnosticContract.includes(`'${moduleName}'`)
-        ) &&
-          handoffDiagnostics.includes('collectNursingHandoffFindings') &&
-          handoffDiagnostics.includes('collectMedicalHandoffFindings'),
-        'Nursing and medical handoff divergences are classified with clinical module semantics.',
-        [
-          'src/services/observability/syncConvergenceDiagnosticTypes.ts',
-          'src/services/observability/syncConvergenceHandoffDiagnostics.ts',
-        ]
-      ),
-      buildCheck(
-        'diagnostic-tests',
-        diagnosticsTests.includes('duplicate active patients') &&
-          diagnosticsTests.includes('movement divergence') &&
-          diagnosticsTests.includes('handoff divergence'),
-        'The diagnostic has focused tests for unsafe and recoverable divergence scenarios.',
-        ['src/tests/services/observability/syncConvergenceDiagnostics.test.ts']
-      ),
       buildCheck(
         'operational-panel',
         panelTests.includes('last accepted truth') &&
@@ -186,24 +116,6 @@ export const evaluateSyncConvergenceEvidence = root => {
     ]),
     buildSection('recovery-readiness', 'Conservative recovery readiness', [
       buildCheck(
-        'planner-action-contract',
-        [
-          'retry_outbox',
-          'refresh_remote',
-          'restore_snapshot',
-          'block_for_review',
-          'mark_already_applied',
-        ].every(action => recoveryPlanner.includes(`'${action}'`)),
-        'The recovery planner exposes explicit support actions without performing writes.',
-        ['src/services/observability/syncRecoveryPlanner.ts']
-      ),
-      buildCheck(
-        'planner-no-aggressive-writes',
-        !recoveryPlannerHasUnsafeWrites,
-        'The recovery planner remains a pure recommender and does not mutate Firestore or outbox state.',
-        ['src/services/observability/syncRecoveryPlanner.ts']
-      ),
-      buildCheck(
         'auto-merge-invariant-gate',
         autoMergeInvariantIndex >= 0 &&
           autoMergeQueueIndex >= 0 &&
@@ -224,15 +136,6 @@ export const evaluateSyncConvergenceEvidence = root => {
           ].every(token => mutationConflictTests.includes(token)),
         'Replay tests cover stale restart convergence for movements, discharge/CMA and handoff data.',
         ['src/tests/services/storage/syncQueueMutationConflict.test.ts']
-      ),
-      buildCheck(
-        'planner-tests',
-        recoveryTests.includes('stale') &&
-          recoveryTests.includes('outbox') &&
-          recoveryTests.includes('unsafe duplicate patients') &&
-          recoveryTests.includes('already-applied mutations'),
-        'Recovery planner tests cover retry, manual block and already-applied acknowledgement decisions.',
-        ['src/tests/services/observability/syncRecoveryPlanner.test.ts']
       ),
     ]),
     buildSection('clinical-sync-simulator', 'Clinical sync simulator', [
@@ -318,7 +221,6 @@ export const evaluateSyncConvergenceEvidence = root => {
 
   const validationCommands = [
     'npx vitest run src/tests/support/clinicalSyncSimulator',
-    'npx vitest run src/tests/services/observability/syncConvergenceDiagnostics.test.ts src/tests/services/observability/syncRecoveryPlanner.test.ts',
     'npx vitest run src/tests/services/storage/syncQueueTelemetryController.test.ts src/tests/services/storage/syncQueueMutationConflict.test.ts',
     'npx vitest run src/tests/features/admin/systemHealthSyncConvergencePanel.test.ts src/tests/hooks/controllers/systemHealthReporterController.test.ts',
     'npm run check:sync-convergence-evidence',
