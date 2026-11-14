@@ -75,3 +75,37 @@ describe('server undocumented people sharing a bed', () => {
     }
   );
 });
+
+it.each(['', 'RN', 'SIN RUT'])(
+  'gives distinct keys to different movements without ids: %s',
+  async rut => {
+    const harness = buildAdminHarness({
+      dailyRecords: {
+        [date]: {
+          beds: {},
+          discharges: [
+            { bedId: 'R1', patientName: 'Ana Inventada', rut },
+            { bedId: 'R1', patientName: 'Bea Inventada', rut },
+            { bedId: 'R1', patientName: 'Bea Inventada', rut },
+          ],
+        },
+      },
+    });
+    const handler = createListUploadPatientOptionsHandler({
+      firestore: harness.admin.firestore(),
+      resolveRoleForEmail: async () => 'nurse_hospital',
+    });
+    const result = await handler(
+      { date },
+      { auth: { token: { email: 'synthetic@example.test' } } }
+    );
+    expect(result.patientOptions.map((o: { patientName: string }) => o.patientName)).toEqual([
+      'Ana Inventada',
+      'Bea Inventada',
+    ]);
+    const keys = result.patientOptions.map((o: { key: string }) => o.key);
+    expect(keys[0]).toBe(`discharge:R1-${rut || 0}`);
+    expect(new Set(keys).size).toBe(2);
+    expect(keys[1]).toMatch(/^discharge:/);
+  }
+);

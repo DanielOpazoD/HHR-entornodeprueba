@@ -327,7 +327,16 @@ const buildPatientOptionsFromDailyRecord = dailyRecord => {
   const beds = dailyRecord?.beds || {};
   const seen = new Set();
   const remember = option => {
-    const identityKey = patientDocumentIdentityKey(option.patientRut) || `bed:${option.bedId}`;
+    const nameKey = option.patientName
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLocaleLowerCase('es');
+    // Keep the first status (active, discharge, transfer) when the same person reappears.
+    const identityKey =
+      patientDocumentIdentityKey(option.patientRut) ||
+      `bed:${JSON.stringify([option.bedId, nameKey])}`;
     if (seen.has(identityKey)) return false;
     seen.add(identityKey);
     return true;
@@ -351,8 +360,26 @@ const buildPatientOptionsFromDailyRecord = dailyRecord => {
     ...buildMovementPatientOptions(dailyRecord?.transfers, 'transfer'),
   ];
 
-  return [...activeBedOptions, ...movementOptions]
-    .filter(remember)
+  const options = [...activeBedOptions, ...movementOptions].filter(remember);
+  const reservedKeys = new Set(options.map(option => option.key));
+  const usedKeys = new Set();
+  const undocumentedBeds = new Set();
+  return options
+    .map((option, index) => {
+      let key = option.key;
+      const undocumented = !patientDocumentIdentityKey(option.patientRut);
+      const newlyVisible = undocumented && undocumentedBeds.has(option.bedId);
+      if (undocumented) undocumentedBeds.add(option.bedId);
+      // Newly visible movements can share the legacy fallback id (e.g. R1-RN).
+      if (newlyVisible && usedKeys.has(key)) {
+        let suffix = index;
+        while (reservedKeys.has(`${option.key}-${suffix}`)) suffix += 1;
+        key = `${option.key}-${suffix}`;
+        reservedKeys.add(key);
+      }
+      usedKeys.add(key);
+      return key === option.key ? option : { ...option, key };
+    })
     .sort((a, b) => a.bedId.localeCompare(b.bedId, 'es', { numeric: true }));
 };
 
