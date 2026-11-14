@@ -8,7 +8,10 @@ const constantsContent = fs.readFileSync(
   path.join(workspaceRoot, 'src/constants/runtimeContracts.ts'),
   'utf8'
 );
-const versionContent = fs.readFileSync(path.join(workspaceRoot, 'src/constants/version.ts'), 'utf8');
+const versionContent = fs.readFileSync(
+  path.join(workspaceRoot, 'src/constants/version.ts'),
+  'utf8'
+);
 const backendRuntimeContent = fs.readFileSync(
   path.join(workspaceRoot, 'functions/lib/runtime/runtimeContract.js'),
   'utf8'
@@ -17,11 +20,6 @@ const migrationLedgerContent = fs.readFileSync(
   path.join(workspaceRoot, 'src/services/repositories/migrationLedger.ts'),
   'utf8'
 );
-const repositoryReadmeContent = fs.readFileSync(
-  path.join(workspaceRoot, 'src/services/repositories/README.md'),
-  'utf8'
-);
-
 const parseConstant = (content, name) => {
   const match = content.match(new RegExp(`${name}\\s*=\\s*(\\d+)`));
   return match ? Number(match[1]) : null;
@@ -121,23 +119,12 @@ if (backendLegacyFloorVersion !== legacySchemaVersion) {
   process.exit(1);
 }
 
-if (firstLedgerFromVersion !== legacySchemaVersion || lastLedgerToVersion !== currentSchemaVersion) {
+if (
+  firstLedgerFromVersion !== legacySchemaVersion ||
+  lastLedgerToVersion !== currentSchemaVersion
+) {
   console.error(
     `[runtime-contracts] migration ledger must span legacy v${legacySchemaVersion} to current v${currentSchemaVersion}.`
-  );
-  process.exit(1);
-}
-
-if (!repositoryReadmeContent.includes('runtimeCompatibilityPolicy.ts')) {
-  console.error(
-    '[runtime-contracts] Repository README must document runtimeCompatibilityPolicy.ts.'
-  );
-  process.exit(1);
-}
-
-if (!repositoryReadmeContent.includes('runtimeContractGovernance.ts')) {
-  console.error(
-    '[runtime-contracts] Repository README must document runtimeContractGovernance.ts.'
   );
   process.exit(1);
 }

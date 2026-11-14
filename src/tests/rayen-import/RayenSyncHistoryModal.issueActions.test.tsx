@@ -100,7 +100,7 @@ describe('synchronization issue navigation and shareable code', () => {
     expect(screen.getByText('Alta sin vinculación confirmada')).toBeVisible();
     expect(screen.getByText('Paciente Sintético · Cama C-R3')).toBeVisible();
     expect(screen.getByText('Documento: PAS-TEST')).toBeVisible();
-    expect(screen.getByText(/Qué ocurrió: El informe no informa/)).toBeVisible();
+    expect(screen.getByText(/Motivo: El informe no informa/)).toBeVisible();
     expect(screen.getByText(/Comprueba el episodio y las fechas/)).toBeVisible();
     expect(screen.getByText('Este cambio no se aplicó automáticamente.')).toBeVisible();
   });

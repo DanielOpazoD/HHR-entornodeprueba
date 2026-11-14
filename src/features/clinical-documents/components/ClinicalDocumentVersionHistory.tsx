@@ -87,6 +87,9 @@ export const ClinicalDocumentVersionHistory: React.FC<ClinicalDocumentVersionHis
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [expandedSectionKey, setExpandedSectionKey] = useState<string | null>(null);
+  // However it closes, focus goes back to what opened it (Escape already leaves it there).
+  const [opener] = useState(() => document.activeElement as HTMLElement | null);
+  useEffect(() => () => opener?.focus(), [opener]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

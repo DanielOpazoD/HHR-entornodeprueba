@@ -3,12 +3,14 @@ import { X, Heart, MapPin, Activity, UploadCloud, CheckCircle, Clock } from 'luc
 import type { MasterPatient, HospitalizationEvent } from '@/types/domain/patientMaster';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import clsx from 'clsx';
+import { BaseModalBackdrop } from '@/components/shared/baseModalLayout';
 import { buttonClassName } from '@/components/ui/base/buttonStyles';
 import {
   PANEL_HEADER_CLASS,
   PANEL_ICON_CLASS,
   PANEL_TITLE_CLASS,
 } from '@/components/ui/base/panelStyles';
+import { useBaseModalLifecycle } from '@/hooks/useBaseModalLifecycle';
 
 interface PatientDetailModalProps {
   patient: MasterPatient;
@@ -16,9 +18,24 @@ interface PatientDetailModalProps {
 }
 
 export const PatientDetailModal: React.FC<PatientDetailModalProps> = ({ patient, onClose }) => {
+  const titleId = React.useId();
+  // The shared modal lifecycle: Escape closes, Tab stays inside, focus returns to the opener.
+  const { modalRef } = useBaseModalLifecycle({ isOpen: true, onClose });
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+    <BaseModalBackdrop
+      printable={false}
+      scrollableBody
+      onClick={event => event.target === event.currentTarget && onClose()}
+    >
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200"
+      >
         <div className={clsx(PANEL_HEADER_CLASS, 'items-start border-slate-100 px-4 sm:px-6')}>
           <span
             className={clsx(PANEL_ICON_CLASS, 'text-sm font-semibold text-blue-700')}
@@ -28,7 +45,9 @@ export const PatientDetailModal: React.FC<PatientDetailModalProps> = ({ patient,
           </span>
           <div className="min-w-0 flex-1 basis-40">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <h2 className={PANEL_TITLE_CLASS}>{patient.fullName}</h2>
+              <h2 id={titleId} className={PANEL_TITLE_CLASS}>
+                {patient.fullName}
+              </h2>
               <div className="shrink-0 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
                 {patient.hospitalizations?.length || 0} Eventos
               </div>
@@ -141,6 +160,6 @@ export const PatientDetailModal: React.FC<PatientDetailModalProps> = ({ patient,
           </button>
         </div>
       </div>
-    </div>
+    </BaseModalBackdrop>
   );
 };
