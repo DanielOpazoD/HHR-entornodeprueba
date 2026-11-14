@@ -5,7 +5,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { type PrescriptionRecord, type PrescriptionType } from '@/types/prescriptionTypes';
 import { PrescriptionPatientLightbox } from '@/features/prescriptions/components/PrescriptionPatientLightbox';
 import { PrescriptionReassignDialog } from '@/features/prescriptions/components/PrescriptionReassignDialog';
-import type { PrescriptionBedRowData } from '@/features/prescriptions/components/PrescriptionBedRow';
+import type { PrescriptionBedRowData } from '@/features/prescriptions/components/prescriptionBedGridSupport';
 import { PrescriptionBedGridTable } from '@/features/prescriptions/components/PrescriptionBedGridTable';
 import { PrescriptionUnassignedTray } from '@/features/prescriptions/components/PrescriptionUnassignedTray';
 import {
@@ -80,7 +80,7 @@ export const PrescriptionBedGridView: React.FC<PrescriptionBedGridViewProps> = (
     initialUrl: string;
   } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [hoverCell, setHoverCell] = useState<{ bedId: string; type: PrescriptionType } | null>(
+  const [hoverCell, setHoverCell] = useState<{ rowKey: string; type: PrescriptionType } | null>(
     null
   );
   const [pendingAssignId, setPendingAssignId] = useState<string | null>(null);
@@ -232,17 +232,17 @@ export const PrescriptionBedGridView: React.FC<PrescriptionBedGridViewProps> = (
   const handleCellDragOver = (
     event: React.DragEvent<HTMLTableCellElement>,
     type: PrescriptionType,
-    bedId: string
+    rowKey: string
   ) => {
     if (!onAssign || !draggingRecord) return;
     if (draggingRecord.prescriptionType !== type) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
-    setHoverCell({ bedId, type });
+    setHoverCell({ rowKey, type });
   };
 
-  const handleCellDragLeave = (type: PrescriptionType, bedId: string) => {
-    setHoverCell(prev => (prev?.bedId === bedId && prev.type === type ? null : prev));
+  const handleCellDragLeave = (type: PrescriptionType, rowKey: string) => {
+    setHoverCell(prev => (prev?.rowKey === rowKey && prev.type === type ? null : prev));
   };
 
   const handleCellDrop = async (
