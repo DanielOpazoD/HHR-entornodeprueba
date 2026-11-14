@@ -1,4 +1,4 @@
-import React, { Suspense, useReducer, type ReactNode } from 'react';
+import { Suspense, useReducer, type ReactNode } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 
 /** Keeps load failures local; the caller replaces React.lazy's rejected payload. */

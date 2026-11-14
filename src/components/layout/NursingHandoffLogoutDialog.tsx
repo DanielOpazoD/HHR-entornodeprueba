@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import type { NursingLogoutPrompt } from '@/hooks/useNursingHandoffLogout';
 
 export default function NursingHandoffLogoutDialog({ choose, error }: NursingLogoutPrompt) {

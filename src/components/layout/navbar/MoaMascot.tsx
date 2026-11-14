@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { MoaIcon } from './MoaIcon';
 
 /** Decorative only; the surrounding control supplies its accessible name. */

@@ -1,4 +1,4 @@
-import React, { Component, Suspense, type ReactNode } from 'react';
+import { Component, Suspense, type ReactNode } from 'react';
 import { BaseModal, type BaseModalProps } from '@/components/shared/BaseModal';
 
 interface Props {

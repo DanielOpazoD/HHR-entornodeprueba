@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react';
+import { lazy, Suspense } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
 const NursingHandoffLogoutDialog = lazy(() => import('./NursingHandoffLogoutDialog'));

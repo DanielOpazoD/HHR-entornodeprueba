@@ -1,4 +1,3 @@
-import React from 'react';
 import { Pencil, RotateCcw, ShieldOff, ShieldCheck, Trash2 } from 'lucide-react';
 import type { NursingAccount } from '@/services/auth/nursingAccountService';
 import { resolveRoleAccess } from '@/shared/access/roleAccessMatrix';

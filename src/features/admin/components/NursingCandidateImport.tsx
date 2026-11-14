@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { parseNursingCandidates, type NursingCandidate } from '../domain/nursingCandidates';
 export default function NursingCandidateImport({
   existingRuts,

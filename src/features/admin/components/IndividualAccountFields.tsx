@@ -1,4 +1,3 @@
-import React from 'react';
 import { getManagedRoleOptions, type ManagedUserRole } from '@/shared/access/roleAccessMatrix';
 
 export const accountInputClass =

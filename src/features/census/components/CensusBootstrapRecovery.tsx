@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryClient';
 import { CensusLoadingState } from '@/components/ui/CensusLoadingState';

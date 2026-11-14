@@ -1,4 +1,3 @@
-import React from 'react';
 import { formatDateDDMMYYYY, formatDateTimeCL } from '@/utils/dateDisplayUtils';
 import { admissionVitalRows } from './admissionAuditBook';
 import type { AdmissionAuditEntry } from './admissionAuditModel';

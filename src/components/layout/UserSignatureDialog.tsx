@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { ImagePlus, PenLine, Trash2 } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { useUserSignatureImage } from '@/hooks/useUserSignatureImage';
