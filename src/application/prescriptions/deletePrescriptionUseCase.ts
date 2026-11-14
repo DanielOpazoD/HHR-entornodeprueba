@@ -16,6 +16,7 @@ import {
   defaultPrescriptionPort,
   type PrescriptionPort,
 } from '@/application/ports/prescriptionPort';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 
 export interface DeletePrescriptionInput {
   prescriptionId: string;
@@ -32,10 +33,7 @@ interface DeletePrescriptionDeps {
 const resolveRecordDate = (iso: string | undefined): string | undefined => {
   if (!iso) return undefined;
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return undefined;
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-    date.getDate()
-  ).padStart(2, '0')}`;
+  return Number.isNaN(date.getTime()) ? undefined : getClinicalCalendarDateISO(date);
 };
 
 export const executeDeletePrescription = async (
