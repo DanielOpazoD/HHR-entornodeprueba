@@ -80,7 +80,7 @@ export const BookmarkManagerModal: React.FC<BookmarkManagerModalProps> = ({
         <div className="bg-slate-50 border border-slate-100 rounded-lg overflow-hidden">
           <table className="w-full table-fixed text-xs">
             <thead>
-              <tr className="bg-white border-b border-slate-100 text-xs font-bold text-slate-400 uppercase">
+              <tr className="bg-white border-b border-slate-100 text-xs font-semibold text-slate-500">
                 <th className="px-2 py-2 text-left w-14">Orden</th>
                 <th className="px-2 py-2 text-left">Nombre / URL</th>
                 <th className="px-2 py-2 text-right w-20">Acciones</th>
@@ -134,7 +134,11 @@ export const BookmarkManagerModal: React.FC<BookmarkManagerModalProps> = ({
                           e.stopPropagation();
                           onEdit(bookmark);
                         }}
-                        className="p-1.5 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors text-slate-400"
+                        className={buttonClassName(
+                          'ghost',
+                          'xs',
+                          'min-h-0 p-1.5 text-slate-500 hover:text-sky-700'
+                        )}
                         title="Editar"
                       >
                         <Edit2 size={12} />
@@ -144,7 +148,11 @@ export const BookmarkManagerModal: React.FC<BookmarkManagerModalProps> = ({
                           e.stopPropagation();
                           handleDelete(bookmark.id);
                         }}
-                        className={buttonClassName('danger', 'xs', 'min-h-0 p-1.5')}
+                        className={buttonClassName(
+                          'ghost',
+                          'xs',
+                          'min-h-0 p-1.5 text-slate-500 hover:text-red-700'
+                        )}
                         title="Eliminar"
                       >
                         <Trash2 size={12} />

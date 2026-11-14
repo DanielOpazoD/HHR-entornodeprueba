@@ -88,9 +88,7 @@ export const BookmarkEditorModal: React.FC<BookmarkEditorModalProps> = ({
       <form onSubmit={handleSubmit} className="space-y-4 -mt-2">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-              Nombre del Sistema
-            </label>
+            <label className="text-xs font-semibold text-slate-600">Nombre del Sistema</label>
             <input
               autoFocus
               required
@@ -102,9 +100,7 @@ export const BookmarkEditorModal: React.FC<BookmarkEditorModalProps> = ({
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-              Icono
-            </label>
+            <label className="text-xs font-semibold text-slate-600">Icono</label>
             <select
               value={icon}
               onChange={e => setIcon(e.target.value)}
@@ -120,9 +116,7 @@ export const BookmarkEditorModal: React.FC<BookmarkEditorModalProps> = ({
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-            URL / Enlace
-          </label>
+          <label className="text-xs font-semibold text-slate-600">URL / Enlace</label>
           <input
             required
             type="text"
@@ -134,9 +128,7 @@ export const BookmarkEditorModal: React.FC<BookmarkEditorModalProps> = ({
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-            Notas o Credenciales
-          </label>
+          <label className="text-xs font-semibold text-slate-600">Notas o Credenciales</label>
           <textarea
             value={notes}
             onChange={e => setNotes(e.target.value)}
