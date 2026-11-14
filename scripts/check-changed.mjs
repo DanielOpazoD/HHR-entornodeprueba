@@ -50,6 +50,11 @@ try {
     ],
     ['import-cycles', /^src\//, 'Rompe el ciclo de imports indicado por el control.'],
     [
+      'architecture',
+      /^src\//,
+      'Rompe la dependencia circular indicada (aquí también cuentan los imports de tipo) o respeta la capa que nombra el control.',
+    ],
+    [
       'clinical-clock',
       /^(src\/|functions\/|netlify\/|e2e\/|extension\/|playwright[\w.-]*\.config\.ts$)/,
       'Usa el reloj del hospital (src/utils/clinicalTimeZone.ts) como indica el control.',
