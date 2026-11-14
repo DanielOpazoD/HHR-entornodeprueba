@@ -4,6 +4,9 @@ import type {
   NeonatalPlacementReview as Review,
   NeonatalPlacementResolution,
 } from '../contracts/neonatalPlacementReview';
+import { SYNC_TONE, SYNC_TONE_ICON } from './syncTone';
+
+const DecisionIcon = SYNC_TONE_ICON.action;
 
 /** A clinical wall clock must resolve uniquely, including DST. Never guess the onset of illness. */
 export const neonatalEffectiveInstants = (local: string): string[] => {
@@ -34,10 +37,11 @@ export const NeonatalPlacementReview: React.FC<{
     onChange([...choices.filter(c => c.episodeId !== choice.episodeId), choice]);
   return (
     <section
-      className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3"
+      className={`mt-4 rounded-lg p-3 ${manual ? SYNC_TONE.action.surface : `border ${SYNC_TONE.review.surface}`}`}
       aria-label="Ubicación del RN"
     >
-      <h4 className="text-sm font-semibold text-slate-800">
+      <h4 className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+        {manual && <DecisionIcon size={16} className={SYNC_TONE.action.icon} aria-hidden="true" />}
         {manual ? 'Confirma la ubicación del RN' : 'Cunas con su madre'}
       </h4>
       <p className="mt-1 text-xs text-slate-600">

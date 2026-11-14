@@ -103,7 +103,9 @@ describe('RayenDayBootstrapButton', () => {
       />
     );
     fireEvent.click(screen.getByRole('button', { name: /Copiar censo y sincronizar/i }));
-    expect(await screen.findByText(/No se pudo copiar el censo anterior/)).toBeVisible();
+    expect(
+      await screen.findByText(/El censo anterior todavía no se copió\. Vuelve a intentarlo\./)
+    ).toBeVisible();
     expect(mocks.refresh).not.toHaveBeenCalled();
     expect(onReady).not.toHaveBeenCalled();
   });
@@ -122,7 +124,7 @@ describe('RayenDayBootstrapButton', () => {
 
     expect(await screen.findByText('Gestión de Camas no está disponible.')).toBeVisible();
     expect(screen.getByTestId('eloisa-bootstrap-status')).toHaveTextContent(
-      'Extensión requiere atención'
+      'Revisa la conexión con Eloísa'
     );
     expect(onCreateBlank).not.toHaveBeenCalled();
     expect(onReady).not.toHaveBeenCalled();
@@ -198,7 +200,9 @@ describe('RayenDayBootstrapButton', () => {
     render(<RayenDayBootstrapButton onCreateBlank={onCreateBlank} onReady={onReady} />);
     fireEvent.click(screen.getByRole('button', { name: /Crear desde Eloísa/i }));
 
-    expect(await screen.findByText(/No se pudo crear el día/)).toBeVisible();
+    expect(
+      await screen.findByText(/El día todavía no se creó y no se importó nada desde Eloísa/)
+    ).toBeVisible();
     expect(
       screen.queryByRole('button', { name: 'Iniciar censo sin Eloísa' })
     ).not.toBeInTheDocument();

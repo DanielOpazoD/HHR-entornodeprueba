@@ -1,6 +1,7 @@
 import React from 'react';
 import type { RayenSyncStaffingObservation } from '@/types/domain/rayenSync';
 import { StaffingBoundaryExclusions } from './StaffingBoundaryExclusions';
+import { SYNC_TONE } from './syncTone';
 
 const STAFFING_SECTION_LABELS = {
   nurse_day: 'Enfermería · turno día',
@@ -22,7 +23,7 @@ export const RayenStaffingActivity: React.FC<{ observation?: RayenSyncStaffingOb
           className="mt-1 rounded-md text-xs text-slate-600"
         >
           <summary className="cursor-pointer rounded-md py-1.5 font-semibold hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600">
-            <span className={staffingNeedsReview ? 'text-amber-700' : 'text-slate-600'}>
+            <span className={staffingNeedsReview ? SYNC_TONE.review.text : 'text-slate-600'}>
               {staffingNeedsReview ? 'Requiere revisión' : 'Actividad de relevo'}
             </span>
             <span className="ml-2 font-normal text-slate-500">

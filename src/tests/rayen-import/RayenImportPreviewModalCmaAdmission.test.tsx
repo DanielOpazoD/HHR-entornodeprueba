@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import { RayenImportPreviewModal } from '@/features/rayen-import/components/RayenImportPreviewModal';
+import { SYNC_TONE } from '@/features/rayen-import/components/syncTone';
 import type { CensusImportDiff } from '@/features/rayen-import';
 
 const cmaAdmissionDiff: CensusImportDiff = {
@@ -56,6 +57,10 @@ describe('Rayen CMA first-sync admission review', () => {
     expect(screen.getByText('(procedencia CMA)')).toBeVisible();
     const confirm = screen.getByRole('button', { name: 'Confirmar e importar' });
     expect(confirm).toBeDisabled();
+    // A decision that blocks confirming is told apart by shape and icon, not by an alarm colour.
+    const panel = screen.getByText('Revisar ingresos provenientes de CMA (1)').parentElement!;
+    expect(panel).toHaveClass(...SYNC_TONE.action.surface.split(' '));
+    expect(panel.querySelector('svg')).not.toBeNull();
 
     fireEvent.click(
       screen.getByRole('radio', {

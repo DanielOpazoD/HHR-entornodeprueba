@@ -184,7 +184,7 @@ describe('deterministic sanitized clinical replay', () => {
       },
     });
     expect(result.presentation).toMatchObject({
-      label: 'Parcial',
+      label: 'Por completar',
       detail: '1 paciente por completar · Fuente clínica incompleta',
       tone: 'warning',
       unresolved: true,
@@ -226,7 +226,7 @@ describe('deterministic sanitized clinical replay', () => {
       },
     });
     expect(result.presentation).toMatchObject({
-      label: 'Parcial',
+      label: 'Por completar',
       detail: '1 cambio del censo no se aplicó',
       tone: 'warning',
       unresolved: true,

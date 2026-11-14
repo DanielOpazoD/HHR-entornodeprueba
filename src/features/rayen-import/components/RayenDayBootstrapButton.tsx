@@ -2,6 +2,13 @@ import React from 'react';
 import { RefreshCw } from 'lucide-react';
 import { RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS } from '../bridge/extensionHealthBridge';
 import { useRayenExtensionHealth } from '../hooks/useRayenExtensionHealth';
+import { SYNC_TONE, SYNC_TONE_INFO_VARIANT } from './syncTone';
+
+// Nothing is lost when these steps stop: each message says what did not happen yet and what to do.
+const COPY_PENDING = 'El censo anterior todavía no se copió. Vuelve a intentarlo.';
+const DAY_PENDING =
+  'El día todavía no se creó y no se importó nada desde Eloísa. Vuelve a intentarlo.';
+const MANUAL_PENDING = 'El censo todavía no se inició. Vuelve a intentarlo.';
 
 interface RayenDayBootstrapButtonProps {
   historical?: boolean;
@@ -43,14 +50,14 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
       try {
         const copied = await onCopyPrevious();
         if (!copied) {
-          setError('No se pudo copiar el censo anterior. Inténtalo de nuevo.');
+          setError(COPY_PENDING);
           return;
         }
         // The request waits in the sync button until both sources answer, so a slow or sleeping
         // Eloísa tab delays the sync instead of dropping it. The first import is still reviewed.
         onReady();
       } catch {
-        setError('No se pudo copiar el censo anterior. Inténtalo de nuevo.');
+        setError(COPY_PENDING);
       } finally {
         setBusy(false);
         setStep(null);
@@ -70,7 +77,7 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
           showChecking: true,
         });
       } catch {
-        setError('No se pudo comprobar la conexión con Eloísa. Inténtalo de nuevo.');
+        setError('La conexión con Eloísa todavía no se comprobó. Vuelve a intentarlo.');
         setManualAvailable(!historical);
         return;
       }
@@ -82,12 +89,12 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
       setStep('creating');
       const created = await onCreateBlank();
       if (!created) {
-        setError('No se pudo crear el día. No se importó información desde Eloísa.');
+        setError(DAY_PENDING);
         return;
       }
       onReady();
     } catch {
-      setError('No se pudo crear el día. No se importó información desde Eloísa.');
+      setError(DAY_PENDING);
     } finally {
       setBusy(false);
       setStep(null);
@@ -102,12 +109,12 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
     try {
       const created = await onCreateBlank();
       if (!created) {
-        setError('No se pudo iniciar el censo. Inténtalo de nuevo.');
+        setError(MANUAL_PENDING);
         return;
       }
       setConfirmManual(false);
     } catch {
-      setError('No se pudo iniciar el censo. Inténtalo de nuevo.');
+      setError(MANUAL_PENDING);
     } finally {
       setBusy(false);
       setStep(null);
@@ -126,13 +133,13 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
             ? 'Comprobando conexión'
             : !error && extension.canSync
               ? 'Lista para sincronizar'
-              : 'Extensión requiere atención';
+              : 'Revisa la conexión con Eloísa';
   const statusTone =
     step || checking
       ? 'bg-blue-500'
       : !error && extension.canSync
-        ? 'bg-emerald-500'
-        : 'bg-amber-500';
+        ? SYNC_TONE_INFO_VARIANT.ok.dot
+        : SYNC_TONE.review.dot;
   const connectionLabel = checking
     ? 'Comprobando conexiones…'
     : extension.canSync
@@ -141,12 +148,12 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
         ? 'Sin conexión'
         : 'Conexión incompleta';
   const connectionTone = checking
-    ? 'bg-amber-500'
+    ? SYNC_TONE_INFO_VARIANT.progress.dot
     : extension.canSync
-      ? 'bg-emerald-500'
+      ? SYNC_TONE_INFO_VARIANT.ok.dot
       : extension.connection === 'offline'
         ? 'bg-slate-400'
-        : 'bg-amber-500';
+        : SYNC_TONE.review.dot;
   const connectionDetail = extension.canSync
     ? 'Extensión, Ficha Médico y Gestión de Camas disponibles, con sesiones vigentes.'
     : extension.message;
@@ -247,7 +254,7 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
         </div>
       )}
       {copySourceDate && error && (
-        <p role="alert" className="text-sm text-red-700">
+        <p role="alert" className={`text-sm ${SYNC_TONE.review.text}`}>
           {error}
         </p>
       )}
@@ -261,7 +268,7 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
         </button>
       )}
       {manualAvailable && confirmManual && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+        <div className={`rounded-lg border p-3 text-xs ${SYNC_TONE.review.surface}`}>
           <p>Se iniciará un censo vacío. Los pacientes deberán ingresarse manualmente.</p>
           <div className="mt-2 flex justify-end gap-3">
             <button

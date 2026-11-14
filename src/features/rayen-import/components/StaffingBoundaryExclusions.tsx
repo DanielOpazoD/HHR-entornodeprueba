@@ -5,6 +5,7 @@ import type {
 } from '../contracts/nursingShiftInference';
 import type { RayenStaffingBoundaryExclusion } from '@/types/domain/rayenSync';
 import { fichaMedicoActivityStampInRapaNui } from '../mapping/fichaMedicoHistoryClock';
+import { SYNC_TONE } from './syncTone';
 
 type BoundaryEvidence = NursingBoundaryExclusion | RayenStaffingBoundaryExclusion;
 
@@ -56,11 +57,11 @@ export const StaffingBoundaryExclusions: React.FC<{
   const palette =
     tone === 'warning'
       ? {
-          container: 'border-amber-200 bg-white/60',
-          summary: 'text-amber-900',
-          note: 'text-amber-800',
-          item: 'border-amber-100',
-          reason: 'text-amber-800',
+          container: 'border-sky-200 bg-white/60',
+          summary: SYNC_TONE.review.text,
+          note: SYNC_TONE.review.text,
+          item: 'border-sky-100',
+          reason: SYNC_TONE.review.text,
         }
       : {
           container: 'border-slate-200 bg-white/70',

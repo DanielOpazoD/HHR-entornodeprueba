@@ -8,6 +8,7 @@ import {
 } from './rayenSyncPresentation';
 import { RayenSyncIssueActions } from './RayenSyncIssueActions';
 import { rayenStructuralIssueHasCurrentBed, rayenSyncTechnicalCode } from './rayenSyncIssueSupport';
+import { SYNC_TONE } from './syncTone';
 
 interface RayenSyncStructuralReviewDetailProps {
   review?: RayenSyncStructuralReviewEvidence;
@@ -27,7 +28,7 @@ export const RayenSyncStructuralReviewDetail: React.FC<RayenSyncStructuralReview
       {details.length > 0 && (
         <details
           data-testid="rayen-structural-review-detail"
-          className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-sm leading-relaxed text-amber-900"
+          className={`mt-2 rounded-lg border px-2.5 py-2 text-sm leading-relaxed ${SYNC_TONE.review.surface}`}
         >
           <summary className="cursor-pointer font-bold">Qué quedó pendiente en el censo</summary>
           {review?.structureConfirmed && (

@@ -144,7 +144,7 @@ describe('RayenImportButton history and progress', () => {
     });
     await screen.findByTestId('rayen-sync-history-modal');
     expect(screen.getByText('Gestión de Camas no disponible')).toBeInTheDocument();
-    expect(screen.getByText('Cobertura clínica: 11/11 completa')).toHaveClass('text-emerald-700');
+    expect(screen.getByText('Cobertura clínica: 11/11 completa')).toHaveClass('text-teal-700');
   });
 
   it('shows what was structurally omitted instead of a generic partial message', async () => {
@@ -182,7 +182,7 @@ describe('RayenImportButton history and progress', () => {
     fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
     await screen.findByTestId('rayen-sync-history-modal');
 
-    expect(screen.getByText('Cobertura clínica: 10/10 completa')).toHaveClass('text-emerald-700');
+    expect(screen.getByText('Cobertura clínica: 10/10 completa')).toHaveClass('text-teal-700');
     expect(screen.getByTestId('rayen-structural-review-detail')).toHaveTextContent(
       'Las fuentes no coinciden sobre quién ocupa esta cama.'
     );
