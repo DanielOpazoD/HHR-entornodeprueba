@@ -26,7 +26,7 @@ import {
 } from '@/features/rayen-import/components/syncTone';
 
 const ALARM_COLOR = /\b[a-z:-]*(?:red|rose|amber|orange|yellow)-\d{2,3}\b/;
-const FAILURE_WORDING = /error|falló|alerta|¡/i;
+const FAILURE_WORDING = /error|falló|alerta|¡|no se pudo/i;
 
 interface PresentedState {
   id: string;

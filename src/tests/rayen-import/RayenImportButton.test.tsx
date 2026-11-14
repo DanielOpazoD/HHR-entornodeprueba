@@ -448,7 +448,7 @@ describe('RayenImportButton', () => {
     expect(screen.getByRole('dialog', { name: 'Historial de sincronización · hoy' })).toBeVisible();
     expect(screen.getByText('1 ingresos · 2 actualizaciones')).toBeInTheDocument();
     expect(screen.getByText('Parcial')).toBeInTheDocument();
-    expect(screen.getAllByText(/1 paciente no se pudo completar/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/1 paciente por completar/).length).toBeGreaterThan(0);
     expect(
       screen.getByText(
         /Esta ejecución anterior registró 1 paciente con información clínica incompleta y 1 falla de fuente/i

@@ -211,7 +211,7 @@ export const presentRayenDeferredHistoricalAdmissionNote = (
 const partialReasons = (event: RayenSyncEvent): string[] => {
   const reasons = presentRayenStructuralReviewSummary(event.structuralReview);
   if (event.coverage?.errors) {
-    reasons.push(`${plural(event.coverage.errors, 'paciente')} no se pudo completar`);
+    reasons.push(`${plural(event.coverage.errors, 'paciente')} por completar`);
   }
   const issues = event.coverage?.issues ?? [];
   if (
@@ -224,7 +224,7 @@ const partialReasons = (event: RayenSyncEvent): string[] => {
     reasons.push('Fuente clínica incompleta');
   }
   if (issues.some(issue => issue.reason === 'record_load_failed'))
-    reasons.push('No se pudo cargar el censo HHR');
+    reasons.push('El censo de HHR todavía no se cargó');
   if (event.source?.gestionCamas && event.source.gestionCamas !== 'ready') {
     reasons.push('Gestión de Camas no disponible');
   }

@@ -113,7 +113,7 @@ describe('rayen sync presentation', () => {
     expect(presentRayenSyncOutcome(event)).toMatchObject({
       label: 'Parcial',
       detail:
-        '1 paciente no se pudo completar · Fuente clínica incompleta · Gestión de Camas no disponible',
+        '1 paciente por completar · Fuente clínica incompleta · Gestión de Camas no disponible',
       tone: 'warning',
       unresolved: true,
     });
@@ -155,7 +155,7 @@ describe('rayen sync presentation', () => {
           completedAt: '2026-08-26T10:00:01.000Z',
         },
       }).detail
-    ).toBe('No se pudo cargar el censo HHR');
+    ).toBe('El censo de HHR todavía no se cargó');
   });
 
   it('explains a structurally partial run even when clinical coverage is complete', () => {
@@ -237,7 +237,7 @@ describe('rayen sync presentation', () => {
       },
     };
 
-    expect(presentRayenSyncOutcome(event).detail).toBe('1 paciente no se pudo completar');
+    expect(presentRayenSyncOutcome(event).detail).toBe('1 paciente por completar');
   });
 
   it('does not mislabel a global synchronization issue as an incomplete clinical source', () => {
