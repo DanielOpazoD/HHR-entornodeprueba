@@ -17,24 +17,22 @@ export const ClinicalLibraryToolbarFallback = () => (
   </button>
 );
 
-export const CensusConflictToolbarFallback = () => (
+export const CensusConflictMenuFallback = () => (
   <ClinicalConflictCenterButton
     disabled
     scopeLabel="censo"
     snapshotCount={0}
     requiresAttention={false}
     testId="conflict-versions-loading"
-    hideLabel
+    hideLabel={false}
     label="Conflictos HHR"
-    variant="quick-action"
-    className="shrink-0 self-center"
+    variant="menu"
   />
 );
 
-export const CensusToolbarLoadingActions = ({ role }: { role?: string }) => (
+export const CensusToolbarLoadingActions = () => (
   <>
     <ClinicalLibraryToolbarFallback />
     <CensusOptionsMenu disabled />
-    {role === 'admin' && <CensusConflictToolbarFallback />}
   </>
 );

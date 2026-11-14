@@ -3,6 +3,8 @@ import '../../setup';
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { CensusOptionsMenu } from '@/components/layout/date-strip/CensusOptionsMenu';
+import { canManageClinicalConflictCenter } from '@/shared/access/operationalAccessPolicy';
 import { ClinicalConflictCenterControl } from '@/components/clinical-conflicts/ClinicalConflictCenterControl';
 import type { ConflictVersionRecoveryModel } from '@/hooks/clinical-conflicts/useConflictVersionRecovery';
 import type { ConflictVersionSnapshot } from '@/application/ports/dailyRecordConflictRecoveryPort';
@@ -111,6 +113,54 @@ const defaultRecovery = (
 describe('ClinicalConflictCenterControl', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it.each([
+    'admin',
+    'nurse_hospital',
+    'doctor_urgency',
+    'doctor_specialist',
+    'viewer',
+    'editor',
+    'nurse',
+    undefined,
+  ])('opens the menu center only for %s and keeps it visible after the menu closes', role => {
+    mockRecovery.mockImplementation(function useRecovery() {
+      const [isOpen, setOpen] = React.useState(false);
+      return defaultRecovery({
+        canManageClinicalConflicts: canManageClinicalConflictCenter(role),
+        isOpen,
+        open: () => setOpen(true),
+        close: () => setOpen(false),
+      });
+    });
+    render(
+      <CensusOptionsMenu>
+        <ClinicalConflictCenterControl
+          date="2026-07-01"
+          scope="census"
+          buttonVariant="menu"
+          buttonLabel="Conflictos HHR"
+        />
+      </CensusOptionsMenu>
+    );
+    const trigger = screen.getByRole('button', { name: 'Más opciones del censo' });
+    expect(screen.queryByRole('button', { name: /Conflictos HHR/ })).not.toBeInTheDocument();
+    fireEvent.click(trigger);
+    if (role !== 'admin') {
+      expect(screen.queryByRole('button', { name: /Conflictos HHR/ })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('clinical-conflict-center-modal')).not.toBeInTheDocument();
+      return;
+    }
+    const item = screen.getByRole('button', { name: /Conflictos HHR/ });
+    expect(item).toHaveFocus();
+    fireEvent.keyDown(item, { key: 'Escape' });
+    expect(trigger).toHaveFocus();
+    fireEvent.click(trigger);
+    fireEvent.click(item);
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByTestId('clinical-conflict-center-modal')).toBeVisible();
+    expect(screen.getByText('Censo diario · 2026-07-01')).toBeVisible();
   });
 
   it('does not render the affordance for users without conflict management access', () => {

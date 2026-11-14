@@ -72,7 +72,7 @@ vi.mock('@/components/AppRouter', () => ({
 }));
 
 vi.mock('@/components/clinical-conflicts/CensusConflictQuickAction', () => ({
-  CensusConflictQuickAction: () => null,
+  CensusConflictQuickAction: () => <button data-census-menu-action>Conflictos HHR</button>,
 }));
 
 vi.mock('@/features/census/components/global-search/GlobalPatientSearchModal', () => ({
@@ -140,6 +140,19 @@ describe('AppContentChrome', () => {
     handleExportExcel: vi.fn(),
     censusAccessProfile: 'full',
   } as const;
+
+  it('keeps the admin conflict entry inside the options menu only', () => {
+    render(<AppContentChrome ui={ui as never} runtime={runtime as never} />);
+    const trailing = (mockDateStrip.mock.lastCall?.[0] as { trailingActions?: React.ReactNode })
+      .trailingActions;
+    render(<>{trailing}</>);
+    expect(screen.queryByRole('button', { name: 'Conflictos HHR' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Más opciones del censo' }));
+    const menu = screen.getByRole('group', { name: 'Opciones del censo' });
+    expect(within(menu).getByRole('button', { name: 'Conflictos HHR' })).toBeVisible();
+    fireEvent.click(within(menu).getByRole('button', { name: 'Conflictos HHR' }));
+    expect(menu).not.toBeVisible();
+  });
 
   it('renders chrome in normal mode', () => {
     render(

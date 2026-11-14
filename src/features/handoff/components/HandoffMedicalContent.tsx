@@ -51,7 +51,6 @@ interface HandoffMedicalContentProps {
   onSendWhatsApp?: () => void;
   onShareLink?: (scope: MedicalHandoffScope) => void;
   canPrint: boolean;
-  conflictCenterAction?: React.ReactNode;
 }
 
 export const HandoffMedicalContent: React.FC<HandoffMedicalContentProps> = ({
@@ -84,7 +83,6 @@ export const HandoffMedicalContent: React.FC<HandoffMedicalContentProps> = ({
   onSendWhatsApp,
   onShareLink,
   canPrint,
-  conflictCenterAction,
 }) => {
   const { professionalsCatalog = [] } = useStaffContext();
   const [bedStats, setBedStats] = useState<MedicalHandoffBedStatsData | null>(null);
@@ -130,17 +128,12 @@ export const HandoffMedicalContent: React.FC<HandoffMedicalContentProps> = ({
         markMedicalHandoffAsSent={markMedicalHandoffAsSent}
         resetMedicalHandoffState={resetMedicalHandoffState}
         shareActions={
-          conflictCenterAction || (onSendWhatsApp && onShareLink) ? (
-            <div className="flex items-center gap-2">
-              {conflictCenterAction}
-              {onSendWhatsApp && onShareLink ? (
-                <MedicalShareActions
-                  medicalSignature={scopedMedicalSignature}
-                  onSendWhatsApp={onSendWhatsApp}
-                  onShareLink={onShareLink}
-                />
-              ) : null}
-            </div>
+          onSendWhatsApp && onShareLink ? (
+            <MedicalShareActions
+              medicalSignature={scopedMedicalSignature}
+              onSendWhatsApp={onSendWhatsApp}
+              onShareLink={onShareLink}
+            />
           ) : undefined
         }
       />
