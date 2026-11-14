@@ -119,6 +119,7 @@ export const useCudyrReviews = (
           error:
             'No se confirmó el guardado o existe una revisión más reciente. Recargue antes de continuar; su borrador sigue visible.',
         }));
+      return undefined;
     } finally {
       if (active.current === request) saving.current = false;
     }
