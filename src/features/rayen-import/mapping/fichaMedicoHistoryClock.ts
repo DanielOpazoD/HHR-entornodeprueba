@@ -8,7 +8,7 @@
  * - mainland Chile: scale labels (100 % at -2 h), evolutions (66 %), medication administration
  *   records (56 %), diagnoses, general orders and shift changes;
  * - already Rapa Nui: vital signs (unchanged in 66 % of 2001);
- * - UTC: medication orders, read by the extension's prescription center.
+ * - UTC: medication orders, as the extension's prescription center reads them.
  * HHR always reads the hospital clock, so each stamp is converted here by the clock of its field.
  */
 import type { NursingActivitySource } from '../contracts/nursingShiftInference';
@@ -79,6 +79,19 @@ export const fichaMedicoHistoryStampInRapaNui = (raw: string | undefined): strin
     Number(second ?? 0)
   );
 };
+
+/** An ISO stamp without an offset, as the history JSON writes medication orders. */
+const NAIVE_ISO_STAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/;
+
+/**
+ * Medication order's `PUBLISH_DATETIME` as an instant. The history JSON writes it in UTC without an
+ * offset, so it gets its `Z`, the rule of the extension's prescription center
+ * (`prescriptionPublishDateTime`). The panel shows an instant on the Rapa Nui clock and orders two
+ * versions by their instants, which a converted wall clock cannot do in the repeated hour of a clock
+ * change. Any other text is returned as Eloísa wrote it.
+ */
+export const fichaMedicoMedicationOrderStamp = (raw: string): string =>
+  NAIVE_ISO_STAMP.test(raw) ? `${raw}Z` : raw;
 
 /** Nursing activity read from the history JSON, converted by the clock of the field it came from. */
 export const fichaMedicoActivityStampInRapaNui = (

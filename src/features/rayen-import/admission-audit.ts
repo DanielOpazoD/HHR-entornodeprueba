@@ -7,3 +7,4 @@ export { parseClinicalPanel } from './mapping/parseClinicalPanel';
 export type { ClinicalPanelEntry } from './mapping/parseClinicalPanel';
 export { parseAdmissionVitalSigns } from './mapping/parseAdmissionVitalSigns';
 export { encounterWallClockInRapaNui } from './mapping/encounterWallClock';
+export { compareStamps } from './mapping/clinicalPanelParsingUtils';

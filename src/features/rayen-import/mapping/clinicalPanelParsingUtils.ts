@@ -1,4 +1,5 @@
 import { absoluteInstantInRapaNui } from './encounterWallClock';
+import { buildSortableLocalTimestamp, parseStrictIsoInstant } from './localTimestamp';
 
 export const flag = (value: unknown): boolean => {
   if (value === true || value === 1) return true;
@@ -13,10 +14,51 @@ export const flag = (value: unknown): boolean => {
   );
 };
 
-export const timeKey = (value: string): number => {
+const parsedMs = (value: string): number => {
   const timestamp = Date.parse(value);
   return Number.isNaN(timestamp) ? 0 : timestamp;
 };
+
+const WALL_STAMP =
+  /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})[T ](?<hour>\d{2}):(?<minute>\d{2})(?::(?<second>\d{2})(?:\.(?<fraction>\d{1,9}))?)?$/;
+
+/** An ISO time on the hospital wall clock, read from its parts (never the device clock), or null. */
+const hospitalWallMs = (value: string): number | null => {
+  const instant = parseStrictIsoInstant(value);
+  const parts = WALL_STAMP.exec((instant ? absoluteInstantInRapaNui(value) : value) ?? '')?.groups;
+  if (!parts) return null;
+  const year = Number(parts.year);
+  const month = Number(parts.month);
+  const day = Number(parts.day);
+  const hour = Number(parts.hour);
+  const minute = Number(parts.minute);
+  const second = Number(parts.second ?? 0);
+  if (!buildSortableLocalTimestamp(year, month, day, hour, minute, second)) return null;
+  const ms = instant
+    ? instant.getUTCMilliseconds()
+    : Number((parts.fraction ?? '').padEnd(3, '0').slice(0, 3));
+  return Date.UTC(year, month - 1, day, hour, minute, second, ms);
+};
+
+/**
+ * Order of two Eloísa stamps, the same on every device (TIME-02): two instants (`Z` or an offset)
+ * by their instants; otherwise each ISO time on the hospital wall clock, an instant converted to
+ * Rapa Nui and a time without an offset as written.
+ */
+export const compareStamps = (a: string, b: string): number => {
+  const instantA = parseStrictIsoInstant(a);
+  const instantB = parseStrictIsoInstant(b);
+  if (instantA && instantB) return instantA.getTime() - instantB.getTime();
+  const wallA = hospitalWallMs(a);
+  const wallB = hospitalWallMs(b);
+  if (wallA !== null && wallB !== null) return wallA - wallB;
+  // Text that is not an ISO time (screen forms, garbage, a date alone) keeps its Date.parse order.
+  return parsedMs(a) - parsedMs(b);
+};
+
+/** Whether a stamp can be ordered at all. */
+export const isUsableStamp = (value: string): boolean =>
+  (hospitalWallMs(value) ?? parsedMs(value)) > 0;
 
 /**
  * Hospital calendar day (`YYYY-MM-DD`) of an Eloísa date, or `''` when it is not a date (TIME-02).
