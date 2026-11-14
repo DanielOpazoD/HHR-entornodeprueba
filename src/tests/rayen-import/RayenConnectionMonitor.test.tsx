@@ -112,7 +112,7 @@ describe('RayenConnectionMonitor', () => {
     expect(screen.queryByText('Conectada')).not.toBeInTheDocument();
     expect(screen.queryByText(/Sesión clínica vigente/)).not.toBeInTheDocument();
     const message = screen.getByText(/La sesión de Ficha Médico venció/);
-    expect(message.parentElement?.parentElement?.querySelector('.bg-emerald-500')).toBeNull();
+    expect(message.parentElement?.parentElement?.querySelector('.bg-teal-500')).toBeNull();
     expect(screen.getByText('Revisar Ficha Médico')).toBeVisible();
   });
   it('muestra identidad, vigencia y frescura de cada fuente', () => {
@@ -148,7 +148,7 @@ describe('RayenConnectionMonitor', () => {
     expect(screen.getByText('Conectada')).toBeVisible();
     expect(extension.canSync).toBe(true);
     expect(screen.getByTestId('rayen-compatible-reader-version-notice')).toHaveTextContent(
-      'Ficha Médico conserva un lector de otra versión (extensión v0.48.61)'
+      'Abre una pestaña nueva de Ficha Médico para cargar el lector actual (extensión v0.48.61)'
     );
     expect(screen.queryByTestId('rayen-monitor-repair')).not.toBeInTheDocument();
 

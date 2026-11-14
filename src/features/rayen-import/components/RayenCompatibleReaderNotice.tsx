@@ -1,3 +1,4 @@
+import { SYNC_TONE } from './syncTone';
 import type { RayenExtensionHealthReport } from '../bridge/extensionHealthBridge';
 import type { RayenExtensionConnectionState } from '../hooks/useRayenExtensionHealth';
 
@@ -26,11 +27,10 @@ export const RayenCompatibleReaderNotice = ({
   return (
     <p
       data-testid="rayen-compatible-reader-version-notice"
-      className="mt-2 rounded-md bg-amber-50 px-2 py-1.5 text-[11px] leading-snug text-amber-800"
+      className={`mt-2 rounded-md border px-2 py-1.5 text-[11px] leading-snug ${SYNC_TONE.review.surface}`}
     >
-      La pestaña comprobada de {readers.join(' y ')} conserva un lector de otra versión (extensión v
-      {report.version}). Abre una pestaña nueva para cargar el lector actual. La sincronización
-      sigue disponible.
+      Abre una pestaña nueva de {readers.join(' y ')} para cargar el lector actual (extensión v
+      {report.version}). La sincronización sigue disponible.
     </p>
   );
 };

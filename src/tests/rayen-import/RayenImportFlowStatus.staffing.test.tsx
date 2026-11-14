@@ -68,7 +68,7 @@ describe('RayenImportFlowStatus staffing observations', () => {
     expect(screen.getByText('Todo al día').parentElement).toHaveClass('sr-only');
     expect(screen.getAllByRole('status')).toHaveLength(1);
     expect(screen.getByRole('status')).not.toHaveTextContent('Enfermería/TENS');
-    expect(screen.queryByText('Última sincronización con observaciones')).not.toBeInTheDocument();
+    expect(screen.queryByText('Revisar datos de la última sincronización')).not.toBeInTheDocument();
   });
 
   it('keeps a completed sync green when staffing only has handoff-boundary traceability', () => {
@@ -89,7 +89,7 @@ describe('RayenImportFlowStatus staffing observations', () => {
 
     expect(screen.getByText('Todo al día').parentElement).toHaveClass('sr-only');
     expect(screen.getAllByRole('status')).toHaveLength(1);
-    expect(screen.queryByText('Última sincronización con observaciones')).not.toBeInTheDocument();
+    expect(screen.queryByText('Revisar datos de la última sincronización')).not.toBeInTheDocument();
   });
 });
 
@@ -177,7 +177,7 @@ describe('compact synchronization presentation', () => {
         executionStage={{ type: 'partial', retry: 'clinical_only' }}
       />
     );
-    expect(screen.getByRole('status')).toHaveTextContent('Actualización parcial');
+    expect(screen.getByRole('status')).toHaveTextContent('Datos clínicos por completar');
     expect(screen.getByText('Ver detalle')).toBeInTheDocument();
     expect(screen.getByText('Una fuente no respondió')).toBeInTheDocument();
   });

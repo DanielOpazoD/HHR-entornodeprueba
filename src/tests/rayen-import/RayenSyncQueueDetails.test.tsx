@@ -38,7 +38,7 @@ it('keeps a baseless write for review while other failed writes can still retry'
   );
   fireEvent.click(screen.getByText('Guardado local · 2 por enviar'));
   const [blocked, retryable] = screen.getAllByRole('listitem');
-  expect(within(blocked).getByText('Requiere revisión de la versión de origen')).toBeVisible();
+  expect(within(blocked).getByText('Revisar antes de reenviar')).toBeVisible();
   expect(within(blocked).getByText(/Los cambios siguen guardados en este equipo/)).toBeVisible();
   expect(within(blocked).getByRole('button', { name: 'Descartar envío' })).toBeVisible();
   expect(within(blocked).queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
@@ -106,7 +106,7 @@ it.each([
   [
     'functions/unauthenticated',
     'Sesión no validada',
-    'El servidor no pudo validar la sesión de este envío.',
+    'El servidor todavía no validó la sesión de este envío.',
   ],
 ])(
   'requires review before manually retrying %s, while retaining discard',

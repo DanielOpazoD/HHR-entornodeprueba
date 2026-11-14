@@ -4,8 +4,15 @@ import { discardQuarantinedSyncTask, retryQuarantinedSyncTask } from '@/services
 import { isPolicyBlockedCudyrArchive } from '@/services/storage/sync/cudyrPolicyBlockedRecovery';
 import { listQuarantinedOperations, targetLabelFromKey } from './localSyncPresentation';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { SYNC_TONE, SYNC_TONE_ICON } from './syncTone';
 
 const DailyRecordTaskRecovery = lazyWithRetry(() => import('./DailyRecordTaskRecovery'));
+
+// A stopped send does not resume alone (SAVE-01): its guidance and discard decisions take the action
+// level, distinguished by weight and wording rather than an alarm color.
+const stoppedSendText = SYNC_TONE.action.text;
+const StoppedSendIcon = SYNC_TONE_ICON.action;
+const discardButton = `${SYNC_TONE.action.text} underline disabled:opacity-50`;
 
 /** On-demand detail inside the existing Eloísa panel; never another census overlay. */
 export const RayenSyncQueueDetails: React.FC<{
@@ -53,7 +60,11 @@ export const RayenSyncQueueDetails: React.FC<{
           <summary className="cursor-pointer font-semibold text-slate-600">
             Guardado local · {unavailable ? 'por comprobar' : `${total} por enviar`}
           </summary>
-          {unavailable && <p className="mt-1 text-amber-700">No se pudo leer la cola local.</p>}
+          {unavailable && (
+            <p className={`mt-1 ${SYNC_TONE.review.text}`}>
+              Envíos por comprobar. Vuelve a abrir este panel.
+            </p>
+          )}
           {policyBlocked && (
             <p className="mt-1 text-slate-500">
               CUDYR · autorización anterior. Se recupera al sincronizar.
@@ -74,7 +85,12 @@ export const RayenSyncQueueDetails: React.FC<{
               ))}
             {blocked.map(operation => (
               <li key={operation.id} className="flex items-center justify-between gap-2">
-                <span className="min-w-0 flex-1">
+                <span className={`min-w-0 flex-1 ${stoppedSendText}`}>
+                  <StoppedSendIcon
+                    size={11}
+                    className="mr-1 inline align-[-1px]"
+                    aria-hidden="true"
+                  />
                   {operation.targetLabel}
                   <span className="block text-[10px] text-slate-500">
                     {!releasedIds.has(operation.id)
@@ -84,7 +100,7 @@ export const RayenSyncQueueDetails: React.FC<{
                         : 'Sin copia local'}
                   </span>
                   {releasedIds.has(operation.id) ? (
-                    <span className="block text-[10px] text-amber-700">
+                    <span className={`block text-[10px] ${stoppedSendText}`}>
                       {operation.code === 'session_owner_logged_out'
                         ? 'Este envío quedó pendiente al cerrar sesión. '
                         : 'Este envío perdió su copia local. '}
@@ -93,14 +109,14 @@ export const RayenSyncQueueDetails: React.FC<{
                     </span>
                   ) : (
                     operation.recovery === 'review_base' && (
-                      <span className="block text-[10px] text-amber-700">
+                      <span className={`block text-[10px] ${stoppedSendText}`}>
                         Los cambios siguen guardados en este equipo. Solicita su revisión antes de
                         reenviarlos.
                       </span>
                     )
                   )}
                   {operation.recovery === 'review_authorization' && (
-                    <span className="block text-[10px] text-amber-700">
+                    <span className={`block text-[10px] ${stoppedSendText}`}>
                       {operation.retryGuidance}
                     </span>
                   )}
@@ -119,7 +135,7 @@ export const RayenSyncQueueDetails: React.FC<{
                       type="button"
                       onClick={() => setReviewingCensus(operation.id)}
                       disabled={working || busy}
-                      className="text-rose-700 disabled:opacity-50"
+                      className={discardButton}
                     >
                       Descartar envío
                     </button>
@@ -161,7 +177,7 @@ export const RayenSyncQueueDetails: React.FC<{
                         type="button"
                         onClick={() => void run(operation.id, discardQuarantinedSyncTask)}
                         disabled={working || busy}
-                        className="text-rose-700 disabled:opacity-50"
+                        className={discardButton}
                       >
                         Sí, descartar envío
                       </button>{' '}
@@ -174,7 +190,7 @@ export const RayenSyncQueueDetails: React.FC<{
                       type="button"
                       onClick={() => setConfirmingDiscard(operation.id)}
                       disabled={working || busy}
-                      className="text-rose-700 disabled:opacity-50"
+                      className={discardButton}
                     >
                       Descartar
                     </button>
@@ -194,8 +210,8 @@ export const RayenSyncQueueDetails: React.FC<{
             </button>
           )}
           {actionFailed && (
-            <p className="mt-1 text-amber-700" role="status">
-              El envío sigue pendiente.
+            <p className={`mt-1 ${stoppedSendText}`} role="status">
+              El envío sigue pendiente; vuelve a intentar o revisa el detalle.
             </p>
           )}
         </details>

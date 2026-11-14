@@ -1,10 +1,15 @@
 import React from 'react';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
+import { SYNC_TONE } from './syncTone';
+
+// Discharges, conflicts and bed decisions are reviewed in this same dialog before confirming.
 const Chip = ({ label, value, tone }: { label: string; value: number; tone: string }) =>
   value > 0 ? (
     <span
       className={`text-xs ${
-        tone === 'red' || tone === 'amber' ? 'font-semibold text-amber-800' : 'text-slate-600'
+        tone === 'red' || tone === 'amber'
+          ? `font-semibold ${SYNC_TONE.review.text}`
+          : SYNC_TONE.info.text
       }`}
     >
       <strong className="tabular-nums">{value}</strong> {label}

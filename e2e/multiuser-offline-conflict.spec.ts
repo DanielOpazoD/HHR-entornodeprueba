@@ -115,7 +115,7 @@ for (const rejection of [
     await page.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }).click();
     const details = page.getByTestId('rayen-local-sync-details');
     await details.locator('summary').first().click();
-    await expect(details.getByText('Requiere revisión de la versión de origen')).toBeVisible();
+    await expect(details.getByText('Revisar antes de reenviar')).toBeVisible();
     await expect(details.getByText(/Los cambios siguen guardados en este equipo/)).toBeVisible();
     await expect(details.getByRole('button', { name: 'Reintentar', exact: true })).toHaveCount(0);
     await expect(details.getByRole('button', { name: 'Descartar', exact: true })).toHaveCount(0);
@@ -276,7 +276,7 @@ test('shows a failed recent-send read instead of a healthy empty queue and recov
   const details = page.getByTestId('rayen-local-sync-details');
   await details.locator('summary').first().click();
   await expect(details.getByText('Guardado local · por comprobar')).toBeVisible();
-  await expect(details.getByText('No se pudo leer la cola local.')).toBeVisible();
+  await expect(details.getByText(/Envíos por comprobar\. Vuelve a abrir este panel/)).toBeVisible();
   await expect(details.getByText('Guardado local · 0 por enviar')).toHaveCount(0);
 
   await page.reload({ waitUntil: 'domcontentloaded' });

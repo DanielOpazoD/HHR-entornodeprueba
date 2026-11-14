@@ -94,7 +94,7 @@ export const assertRayenCensusPersistenceConfirmed = (
   const { result } = payload;
   if (!result) {
     throw new Error(
-      'No se pudo confirmar el resultado del guardado del censo. La información clínica no se aplicó; actualiza la página y vuelve a sincronizar.'
+      'El guardado del censo todavía no está confirmado. La información clínica no se aplicó; actualiza la página y vuelve a sincronizar.'
     );
   }
 

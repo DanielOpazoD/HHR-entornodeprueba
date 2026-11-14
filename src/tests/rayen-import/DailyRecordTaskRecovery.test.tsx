@@ -104,7 +104,7 @@ it('leaves the newer send pending when another tab changes it while the confirma
   await hospitalDB.syncQueue.update(id, { payload });
   fireEvent.click(screen.getByRole('checkbox'));
   fireEvent.click(screen.getByRole('button', { name: 'Sí, descartar envío' }));
-  await screen.findByText(/No se pudo completar la acción/);
+  await screen.findByText(/La acción no terminó/);
   expect(await hospitalDB.syncQueue.get(id)).toMatchObject({ status: 'FAILED', payload });
   expect(screen.getByText('Guardado local · 1 por enviar')).toBeVisible();
   expect(screen.queryByRole('button', { name: 'Descargar respaldo' })).not.toBeInTheDocument();
@@ -117,7 +117,7 @@ it('keeps the failed send visible when its retirement cannot be persisted', asyn
   );
   fireEvent.click(screen.getByRole('checkbox'));
   fireEvent.click(screen.getByRole('button', { name: 'Sí, descartar envío' }));
-  await screen.findByText(/No se pudo completar la acción/);
+  await screen.findByText(/La acción no terminó/);
   expect(await hospitalDB.syncQueue.get(id)).toEqual({ ...task, id });
   expect(screen.getByText('Guardado local · 1 por enviar')).toBeVisible();
 });

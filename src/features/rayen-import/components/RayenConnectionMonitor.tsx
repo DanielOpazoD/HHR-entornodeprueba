@@ -15,6 +15,7 @@ import type {
   RayenExtensionConnectionState,
   RayenExtensionHealthState,
 } from '../hooks/useRayenExtensionHealth';
+import { SYNC_TONE, SYNC_TONE_INFO_VARIANT } from './syncTone';
 
 /**
  * Columna «Eloísa» de la barra del censo: semáforo de conexión + popover con
@@ -59,7 +60,11 @@ const remainingLabel = (source: RayenSourceHealth | undefined, now: number): str
 };
 
 const sourceDotClass = (status: RayenSourceHealth['status'] | undefined): string =>
-  status === 'ready' ? 'bg-emerald-500' : status === 'stale' ? 'bg-amber-500' : 'bg-slate-300';
+  status === 'ready'
+    ? SYNC_TONE_INFO_VARIANT.ok.dot
+    : status === 'stale'
+      ? SYNC_TONE.review.dot
+      : SYNC_TONE_INFO_VARIANT.idle.dot;
 
 export const rayenSourceStateLabel = (
   connection: RayenExtensionConnectionState,
@@ -80,7 +85,7 @@ export const rayenSourceStateLabel = (
               (blockedBy ?? (fichaMedicoReady ? 'gestionCamas' : 'fichaMedico')) === 'gestionCamas'
               ? 'Conectar Gestión de Camas'
               : 'Revisar Ficha Médico'
-            : 'Extensión sin respuesta';
+            : 'Revisar la extensión';
 
 interface SourceRowProps {
   label: string;
@@ -226,7 +231,8 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
       });
       // El éxito real (sesión capturada y verificada) llega por el push
       // gc-captured del latido; aquí solo reportamos si la ventana no abrió.
-      if (!result.ok) setActionError(result.error ?? 'No se pudo abrir Gestión de Camas.');
+      if (!result.ok)
+        setActionError(result.error ?? 'Gestión de Camas todavía no se abrió; vuelve a intentar.');
     } finally {
       setBusy(null);
     }
@@ -241,7 +247,9 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
         setActionError(
           result.requiresLogin
             ? 'Completa el inicio de sesión en las pestañas nuevas de Eloísa.'
-            : (result.error ?? result.message ?? 'La conexión todavía no pudo verificarse.')
+            : (result.error ??
+                result.message ??
+                'La conexión todavía no se verificó; vuelve a intentar.')
         );
       }
       if (result.report) adoptExtensionReport(result.report);
@@ -280,10 +288,10 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
         data-testid="eloisa-links-trigger"
         className={`inline-flex size-8 shrink-0 items-center justify-center rounded-lg border hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 ${
           working || connection === 'checking'
-            ? 'border-teal-200 bg-teal-100 text-teal-700'
+            ? SYNC_TONE_INFO_VARIANT.progress.surface
             : connection === 'ready'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-              : 'border-amber-200 bg-amber-50 text-amber-700'
+              ? SYNC_TONE_INFO_VARIANT.ok.surface
+              : SYNC_TONE.review.surface
         }`}
       >
         <img
@@ -312,16 +320,20 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
           <span
             className={`size-1.5 rounded-full ${
               working || connection === 'checking'
-                ? 'animate-pulse bg-teal-500'
+                ? `animate-pulse ${SYNC_TONE_INFO_VARIANT.progress.dot}`
                 : connection === 'ready'
-                  ? 'bg-emerald-500'
-                  : 'bg-amber-500'
+                  ? SYNC_TONE_INFO_VARIANT.ok.dot
+                  : SYNC_TONE.review.dot
             }`}
             aria-hidden="true"
           />
           <span
             className={`truncate text-[11px] font-medium ${
-              checking ? 'text-teal-700' : attention ? 'text-amber-700' : 'text-slate-500'
+              checking
+                ? SYNC_TONE_INFO_VARIANT.progress.text
+                : attention
+                  ? SYNC_TONE.review.text
+                  : 'text-slate-500'
             }`}
           >
             {stateLabel}
@@ -362,7 +374,7 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
             {syncQueueDetail}
             <RayenCompatibleReaderNotice report={report} connection={connection} />
             {actionError && (
-              <p className="mt-2 text-[11px] leading-snug text-amber-700" role="alert">
+              <p className={`mt-2 text-[11px] leading-snug ${SYNC_TONE.review.text}`} role="alert">
                 {actionError}
               </p>
             )}

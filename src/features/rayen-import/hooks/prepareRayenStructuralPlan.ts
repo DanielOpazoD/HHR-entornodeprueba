@@ -76,7 +76,9 @@ export const prepareRayenStructuralPlan = async ({
     ? null
     : await measureEvidence(() => dailyRecord.getAuthoritativeForDate(previousDate));
   if (previous && previous.date !== previousDate) {
-    throw new Error('No se pudo verificar el censo previo: la fecha recibida no corresponde.');
+    throw new Error(
+      'El censo previo quedó por verificar porque la fecha recibida no corresponde. Vuelve a sincronizar.'
+    );
   }
   const previousCensusCandidates = excludeInvalidEpisodeRows(
     [
