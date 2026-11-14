@@ -1,3 +1,4 @@
+import { dayKey } from './clinicalPanelParsingUtils';
 import { toTitleCaseName } from './rayenToPatientData';
 
 export type ClinicalPanelCareActionStatus =
@@ -40,15 +41,6 @@ const rows = (value: unknown): RawRow[] =>
   Array.isArray(value)
     ? value.filter((row): row is RawRow => !!row && typeof row === 'object')
     : [];
-
-const dayKey = (raw: string): string => {
-  const iso = raw.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (iso) return iso[1];
-  const timestamp = Date.parse(raw);
-  if (Number.isNaN(timestamp)) return '';
-  const date = new Date(timestamp);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-};
 
 const dayLabel = (day: string): string => {
   const match = day.match(/^(\d{4})-(\d{2})-(\d{2})$/);

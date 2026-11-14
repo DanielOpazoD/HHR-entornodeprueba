@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { CensusEmailConfigModal } from '@/features/census/components/CensusEmailConfigModal';

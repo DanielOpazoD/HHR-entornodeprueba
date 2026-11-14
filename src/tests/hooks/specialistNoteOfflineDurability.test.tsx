@@ -2,7 +2,7 @@ import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 /* @flake-safe: Synthetic current-day record; no production Firebase configuration. */
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import React, { type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 
 import { beforeAll, beforeEach, afterAll, afterEach, expect, it, vi } from 'vitest';
 

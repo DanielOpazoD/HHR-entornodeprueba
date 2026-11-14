@@ -19,7 +19,6 @@ import {
   reconnect,
   writeNote,
 } from './specialistHandoffOutboxHarness';
-import React from 'react';
 
 const h = harnessState();
 const OWNER = 'user:synthetic-specialist';

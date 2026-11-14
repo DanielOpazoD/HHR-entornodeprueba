@@ -1,7 +1,7 @@
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /* @flake-safe: Synthetic current-day record; no production Firebase configuration. */
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import React, { type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { readFileSync } from 'node:fs';
 import { beforeAll, afterAll, afterEach, expect, it, vi } from 'vitest';
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';

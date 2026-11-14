@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { CatalogRemoteSyncError } from '@/services/repositories/contracts/catalogContracts';
 import { render } from '@testing-library/react';

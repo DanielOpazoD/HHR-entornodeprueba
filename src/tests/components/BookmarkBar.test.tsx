@@ -1,6 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import React from 'react';
 
 const mockSubscribeToBookmarks = vi.fn();
 const mockAddBookmark = vi.fn();

@@ -9,7 +9,6 @@
  * dissolves the wrapper and asserts the controller restores it before persist.
  */
 
-import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/react';
 
