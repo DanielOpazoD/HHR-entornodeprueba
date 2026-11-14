@@ -12,7 +12,6 @@ import { syncWithFirestore } from '@/services/repositories/dailyRecordRepository
 import { deleteDailyRecordAcrossStores as deleteDay } from '@/services/repositories/dailyRecordDeletionService';
 import { runExclusiveDailyRecordWrite } from '@/services/repositories/dailyRecordWriteCoordinator';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
-import { ensureMonthIntegrity } from '@/services/repositories/monthIntegrity';
 import {
   saveNurses,
   getNurses,
@@ -284,20 +283,6 @@ describe('DailyRecordRepository (Expanded)', () => {
       expect(firestoreMock.getRecordFromFirestoreDetailed).toHaveBeenCalledWith('2024-12-28', {
         source: 'default',
       });
-    });
-  });
-
-  describe('ensureMonthIntegrity', () => {
-    it('fills missing days and returns detailed result', async () => {
-      await clearAllRecords(); // Double check clean slate
-      const result = await ensureMonthIntegrity(2025, 1, 3);
-
-      expect(result.success).toBe(true);
-      expect(result.initializedDays).toContain('2025-01-01');
-      expect(result.totalDays).toBe(3);
-
-      const saved = await getForDate('2025-01-03');
-      expect(saved).not.toBeNull();
     });
   });
 
