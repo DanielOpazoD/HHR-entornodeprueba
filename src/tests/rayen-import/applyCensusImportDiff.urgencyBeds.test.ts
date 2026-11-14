@@ -11,7 +11,7 @@ import {
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 
-const REFERENCE = new Date(2026, 6, 8);
+const REFERENCE = new Date('2026-07-08T12:00:00-06:00');
 const NOW = new Date(2026, 6, 8, 15, 30, 0);
 
 const makeCtx = (): ApplyContext => ({

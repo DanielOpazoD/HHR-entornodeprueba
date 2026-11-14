@@ -13,7 +13,7 @@ import {
 import { resolveReleasedBedPlacements } from '@/features/rayen-import/domain/resolveReleasedBedPlacements';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
-const REFERENCE = new Date(2026, 6, 24);
+const REFERENCE = new Date('2026-07-24T12:00:00-06:00');
 const encounter = (overrides: Partial<RayenEncounter> = {}): RayenEncounter => ({
   encounterId: 'old-episode',
   run: '111111111',
