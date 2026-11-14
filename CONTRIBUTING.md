@@ -115,6 +115,9 @@ sus componentes sobre el mismo diff salvo fallo o nueva incertidumbre.
 
 El hook de commit formatea y ejecuta ESLint sobre los archivos de código preparados
 para el commit, sin admitir advertencias. Después comprueba tipos y secretos.
+La comprobación local de tipos usa `npm run typecheck:local` y conserva su caché en
+`output/typecheck/` dentro del worktree; borrarla es seguro. CI sigue usando
+`npm run typecheck`, que comprueba ambos proyectos desde cero.
 Respeta los archivos excluidos por la configuración de ESLint y no modifica sus reglas.
 El lint focalizado permite detectar antes errores como un `setState` síncrono en un
 efecto de React; el CI completo sigue siendo obligatorio para validar dependencias.

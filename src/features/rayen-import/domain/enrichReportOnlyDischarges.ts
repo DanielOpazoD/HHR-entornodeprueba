@@ -1,5 +1,5 @@
 import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
-import { isPassportFormat, normalizeRut } from '@/utils/rutUtils';
+import { hasNonRutLetter, isPassportFormat, normalizeRut } from '@/utils/rutUtils';
 import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { EgresoReportRow } from '../contracts/egresoReport';
@@ -80,7 +80,7 @@ const enrichFromGestionCamas = async (
   reportDate: string,
   dependencies: ReportOnlyDischargeDependencies
 ): Promise<EgresoReportRow[]> => {
-  const rowKey = (row: EgresoReportRow): string => {
+  const digitRowKey = (row: EgresoReportRow): string => {
     if (row.encounterId || isPavilionRecoveryLocation(row.bedLabel) || isPassportFormat(row.run))
       return '';
     const run = normalizeRut(row.run);
@@ -94,6 +94,9 @@ const enrichFromGestionCamas = async (
     const day = local && censusDay(local) === reportDate ? reportDate : correctedDay;
     return run && day && (dependencies.allReportDays || day === reportDate) ? `${run}|${day}` : '';
   };
+  // A letter other than the final K makes the document a passport: its digits never query a RUN.
+  const rowKey = (row: EgresoReportRow): string =>
+    hasNonRutLetter(row.run) ? '' : digitRowKey(row);
   const exactCandidatesByIdentity = new Map(
     (dependencies.previousCensusCandidates ?? []).map(candidate => [
       previousCensusEgresoIdentity(
@@ -106,6 +109,8 @@ const enrichFromGestionCamas = async (
   );
   const exactCandidateByRow = new Map<EgresoReportRow, PreviousCensusEgresoCandidate>();
   for (const row of rows) {
+    // The census's own episode for this person (digits, name and day) is asked by episode, not
+    // by digits: a document with a letter in the middle keeps this route.
     if (isPassportFormat(row.run)) continue;
     const identity = previousCensusEgresoRowIdentity(row);
     const candidate = exactCandidatesByIdentity.get(identity);
@@ -129,12 +134,21 @@ const enrichFromGestionCamas = async (
   }
   const enrichedByKey = new Map<string, EgresoReportRow>();
   const enrichedByRow = new Map<EgresoReportRow, EgresoReportRow>();
+  // Such a row used to be looked up by its digits. It no longer is, and unless the census's own
+  // episode confirms the discharge it waits for review, exactly where that lookup applied (a row
+  // of this report's day): rows it never covered keep their previous handling.
+  const needsReviewAsForeignLetterDocument = (row: EgresoReportRow): boolean =>
+    hasNonRutLetter(row.run) && Boolean(digitRowKey(row));
+  const unverified = (row: EgresoReportRow): EgresoReportRow => ({
+    ...row,
+    exactEpisodeVerification: 'unverified',
+  });
   const withVerificationState = (row: EgresoReportRow): EgresoReportRow => {
     if (exactCandidateByRow.has(row)) {
       return enrichedByRow.get(row) ?? { ...row, exactEpisodeVerification: 'unverified' };
     }
     const key = rowKey(row);
-    if (!key) return row;
+    if (!key) return needsReviewAsForeignLetterDocument(row) ? unverified(row) : row;
     const enriched = enrichedByKey.get(key);
     return enriched
       ? { ...enriched, diagnostico: row.diagnostico }

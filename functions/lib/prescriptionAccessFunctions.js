@@ -327,8 +327,7 @@ const buildPatientOptionsFromDailyRecord = dailyRecord => {
   const beds = dailyRecord?.beds || {};
   const seen = new Set();
   const remember = option => {
-    const rutKey = option.patientRut?.replace(/[^0-9kK]/g, '').toLowerCase();
-    const identityKey = rutKey || `bed:${option.bedId}`;
+    const identityKey = patientDocumentIdentityKey(option.patientRut) || `bed:${option.bedId}`;
     if (seen.has(identityKey)) return false;
     seen.add(identityKey);
     return true;
@@ -402,10 +401,15 @@ const resolveUploadPatientOptionsForDate = async (firestore, date) => {
   return { sourceDate: date, isFallbackFromPreviousDay: false, patientOptions };
 };
 
-const normalizePatientRut = value =>
-  String(value || '')
-    .toLowerCase()
-    .replace(/[^0-9k]/g, '');
+// Keep document equivalence aligned with src/utils/rutUtils.ts (separate server runtime).
+const patientDocumentIdentityKey = value => {
+  const text = String(value || '');
+  if (!/\d/.test(text)) return '';
+  const hasNonRutLetter = /\p{L}/u.test(text.replace(/[kK](?=[^\p{L}\p{N}]*$)/u, ''));
+  return hasNonRutLetter
+    ? `passport:${text.toUpperCase().replace(/[\s.-]/g, '')}`
+    : (text.match(/[0-9kK]/g) || []).join('').toUpperCase();
+};
 
 const resolveUploadPatientOptionForExactDate = async (
   firestore,
@@ -438,8 +442,8 @@ const resolveUploadPatientOptionForExactDate = async (
       'La cama o el paciente ya no están disponibles en el censo seleccionado.'
     );
   }
-  const expectedRut = normalizePatientRut(expectedPatientRut);
-  const currentRut = normalizePatientRut(selected.patientRut);
+  const expectedRut = patientDocumentIdentityKey(expectedPatientRut);
+  const currentRut = patientDocumentIdentityKey(selected.patientRut);
   if (!expectedRut || !currentRut || expectedRut !== currentRut) {
     throw new functions.https.HttpsError(
       'failed-precondition',

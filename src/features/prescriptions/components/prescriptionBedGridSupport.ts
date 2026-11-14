@@ -6,9 +6,17 @@ import {
   type PrescriptionRecord,
   type PrescriptionType,
 } from '@/types/prescriptionTypes';
-import type { PrescriptionBedRowData } from '@/features/prescriptions/components/PrescriptionBedRow';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { formatCalendarDate } from '@/utils/dateDisplayUtils';
+
+/** One row of the grid: the bed's current occupant, or a person who left it. */
+export interface PrescriptionBedRowData {
+  bedId: string;
+  patientName: string;
+  patientRut: string;
+  isDischargeSnapshot?: boolean;
+  byType: Record<PrescriptionType, PrescriptionRecord[]>;
+}
 
 export const todayIso = (): string => getTodayISO();
 
