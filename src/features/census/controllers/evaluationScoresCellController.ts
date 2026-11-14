@@ -76,6 +76,26 @@ export interface ScoresCellModel {
   history: EvaluationScoreEntry[];
 }
 
+const DAYS_PER_YEAR = 365.2425;
+
+/**
+ * Completed years in a stored age text, honouring its leading unit: "29d" → 0, "3m 8d" → 0,
+ * "20m" → 1, "2a 4m" → 2, "45a" / "45 años" / "45" → 45. Empty or unreadable text ("RN") → null.
+ */
+const completedYearsFromAgeText = (age: string | undefined): number | null => {
+  const parts = (age ?? '')
+    .trim()
+    .toLowerCase()
+    .match(/^(\d{1,5})\s*([^\d\s,]*)/);
+  if (!parts) return null;
+  const amount = Number(parts[1]);
+  const unit = parts[2].replace(/[()]/g, '');
+  if (/^(?:a|años?)?$/.test(unit)) return amount;
+  if (/^m(?:es|eses)?$/.test(unit)) return Math.floor(amount / 12);
+  if (/^d(?:[ií]as?)?$/.test(unit)) return Math.floor(amount / DAYS_PER_YEAR);
+  return null;
+};
+
 /** Age in years at `referenceDate`: birthDate when available, else the stored age string. */
 export const resolveAgeYears = (patient: PatientData, referenceDate: string): number | null => {
   if (patient.birthDate) {
@@ -90,8 +110,7 @@ export const resolveAgeYears = (patient: PatientData, referenceDate: string): nu
       if (years >= 0) return years;
     }
   }
-  const match = (patient.age ?? '').trim().match(/^(\d{1,3})/);
-  return match ? Number(match[1]) : null;
+  return completedYearsFromAgeText(patient.age);
 };
 
 const plural = (n: number, singular: string, pluralForm: string): string =>

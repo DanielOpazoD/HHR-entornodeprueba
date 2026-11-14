@@ -83,6 +83,44 @@ describe('censusTransferSyncController', () => {
     });
   });
 
+  describe('patient age sent with an autocreated transfer', () => {
+    const sentAge = async (overrides: Parameters<typeof DataFactory.createMockPatient>[1]) => {
+      const createFinalizedTransfer = vi.fn().mockResolvedValue({
+        status: 'success',
+        data: { id: 'TR-AGE', status: 'TRANSFERRED' },
+      });
+      await syncCensusTransferRequest({
+        bedId: 'R1',
+        patient: DataFactory.createMockPatient('R1', overrides),
+        recordDate: '2026-11-14',
+        destinationHospital: 'Hospital Sintético',
+        createdByEmail: 'fake@example.com',
+        getLatestOpenTransferRequestByBedId: vi.fn().mockResolvedValue(null),
+        createFinalizedTransferRequestWithResult: createFinalizedTransfer,
+        completeTransferWithResult: vi.fn(),
+      });
+      return createFinalizedTransfer.mock.calls[0][0].patientSnapshot.age;
+    };
+
+    it.each([
+      ['29d', 0],
+      ['11m', 0],
+      ['3m 8d', 0],
+      ['20m', 1],
+      ['2a 4m', 2],
+      ['45a', 45],
+      ['45', 45],
+      ['', 0],
+    ])('sends completed years for the stored age text %j', async (age, years) => {
+      expect(await sentAge({ age, birthDate: '' })).toBe(years);
+    });
+
+    it('counts completed years from a valid birth date on the census day', async () => {
+      expect(await sentAge({ age: '29d', birthDate: '2026-10-16' })).toBe(0);
+      expect(await sentAge({ age: '45', birthDate: '1980-11-15' })).toBe(45);
+    });
+  });
+
   it('skips request creation when there is already an open linked transfer', async () => {
     const getLatest = vi.fn().mockResolvedValue({ id: 'TR-1' });
     const createFinalizedTransfer = vi.fn();
