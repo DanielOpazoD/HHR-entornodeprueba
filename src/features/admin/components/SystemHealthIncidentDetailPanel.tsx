@@ -85,7 +85,7 @@ export const SystemHealthIncidentDetailPanel = ({
                 type="button"
                 onClick={() => onDeleteSnapshot(user)}
                 disabled={deleting}
-                className={buttonClassName('danger', 'icon')}
+                className={buttonClassName('ghost', 'icon', 'text-red-700 hover:bg-red-50')}
                 title="Borrar registro de salud"
                 aria-label="Borrar registro de salud"
               >
@@ -101,7 +101,7 @@ export const SystemHealthIncidentDetailPanel = ({
 
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
           <span className="flex items-center gap-1">
-            <Clock size={12} /> Ultima salud: {formatDateTime(user.lastSeen)}
+            <Clock size={12} /> Última salud: {formatDateTime(user.lastSeen)}
           </span>
           <span className="flex items-center gap-1">
             <UserRound size={12} /> {user.isOnline ? 'Online' : 'Offline'}
@@ -171,7 +171,7 @@ export const SystemHealthIncidentDetailPanel = ({
               {incident.resolutionHistory?.length ? (
                 <div className="mt-3 rounded-md border border-white/70 bg-white/70 p-2">
                   <p className="mb-1 flex items-center gap-1 font-semibold">
-                    <History size={11} /> Historial de resolucion
+                    <History size={11} /> Historial de resolución
                   </p>
                   <div className="space-y-1">
                     {incident.resolutionHistory.slice(-3).map(entry => (
@@ -212,7 +212,7 @@ export const SystemHealthIncidentDetailPanel = ({
                           [incident.resolutionKey]: event.target.value,
                         }))
                       }
-                      placeholder="Nota de resolucion..."
+                      placeholder="Nota de resolución..."
                       className="hhr-field flex-1 sm:max-w-[210px]"
                     />
                     <button
