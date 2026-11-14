@@ -30,7 +30,6 @@ export const persistConfirmedRemoteRecordLocally = async ({
     } catch (error) {
       await releaseLocalPreOutboxHold?.();
       applyLocalPersistenceFailure(
-        date,
         changedPaths,
         {
           ok: false,
@@ -50,7 +49,7 @@ export const persistConfirmedRemoteRecordLocally = async ({
     const localResult = await saveToIndexedDB(authoritativeRecord);
     if (!localResult.ok) {
       await releaseLocalPreOutboxHold?.();
-      applyLocalPersistenceFailure(date, changedPaths, localResult, remoteState, {
+      applyLocalPersistenceFailure(changedPaths, localResult, remoteState, {
         remoteCommitted: true,
       });
       return false;

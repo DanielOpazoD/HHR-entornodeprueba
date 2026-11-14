@@ -11,13 +11,13 @@ interface Props {
 
 /** Keep a missing detail chunk from taking down the census or reloading an active edit. */
 export class ClinicalDetailLoadBoundary extends Component<Props, { failed: boolean }> {
-  state = { failed: false };
+  override state = { failed: false };
 
   static getDerivedStateFromError() {
     return { failed: true };
   }
 
-  render() {
+  override render() {
     const { title, onClose, children, size } = this.props;
     const pending = (
       <BaseModal isOpen title={title} onClose={onClose} variant="white" size={size}>

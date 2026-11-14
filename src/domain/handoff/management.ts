@@ -318,7 +318,6 @@ export const buildMedicalNoChangesPatch = (
 };
 
 export const buildMedicalSignaturePatch = (
-  record: HandoffDailyRecordContract,
   doctorName: string,
   scope: MedicalHandoffScope
 ): DailyRecordPatch => {
