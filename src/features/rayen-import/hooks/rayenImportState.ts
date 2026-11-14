@@ -1,5 +1,6 @@
 import type { ApplyResult } from '../domain/applyCensusImportDiff';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
+import { RayenPlanningStop } from '../domain/rayenPlanningStop';
 
 export interface RayenImportState {
   diff: CensusImportDiff | null;
@@ -80,4 +81,30 @@ export const getRayenImportErrorMessage = (error: unknown): string => {
     return `${remedy.charAt(0).toUpperCase()}${remedy.slice(1)}`;
   }
   return message;
+};
+
+const PLANNING_UNFINISHED_MESSAGE =
+  'La conciliación del censo quedó sin terminar. Vuelve a sincronizar.';
+const MAX_TECHNICAL_DETAIL_LENGTH = 300;
+
+/**
+ * What a failed reconciliation shows. A deliberate stop and a dropped connection carry their own
+ * remedy. Anything else is unforeseen: the person reads a calm line and the source text stays
+ * with the administrator.
+ */
+export const describeRayenPlanningFailure = (
+  error: unknown
+): Pick<RayenImportState, 'error' | 'errorTechnicalDetail'> & { unforeseen: boolean } => {
+  const message = getRayenImportErrorMessage(error);
+  if (error instanceof RayenPlanningStop || message === RAYEN_IMPORT_CONNECTION_MESSAGE) {
+    return { error: message, errorTechnicalDetail: null, unforeseen: false };
+  }
+  return {
+    error: PLANNING_UNFINISHED_MESSAGE,
+    errorTechnicalDetail: {
+      message: PLANNING_UNFINISHED_MESSAGE,
+      detail: message.slice(0, MAX_TECHNICAL_DETAIL_LENGTH),
+    },
+    unforeseen: true,
+  };
 };

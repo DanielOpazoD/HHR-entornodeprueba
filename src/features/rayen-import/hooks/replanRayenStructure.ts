@@ -9,6 +9,7 @@ import {
   resolveOccupiedBedTraceabilityChain,
   type PatientFlowReportResult,
 } from '../bedTraceabilityResolver';
+import { RayenPlanningStop } from '../domain/rayenPlanningStop';
 import { applyEgresoLookupFallback } from '../domain/applyEgresoLookupFallback';
 import { applyEgresoReport } from '../domain/applyEgresoReport';
 import { applyPreviousCensusEgresoScope } from '../domain/previousCensusEgresoScope';
@@ -185,7 +186,7 @@ export const replanRayenStructure = async (
   );
   if (previousRecord) {
     if (previousRecord.date !== previousDate) {
-      throw new Error(
+      throw new RayenPlanningStop(
         'El censo previo quedó por verificar porque la fecha recibida no corresponde. Vuelve a sincronizar.'
       );
     }
