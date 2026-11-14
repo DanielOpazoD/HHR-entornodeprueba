@@ -104,9 +104,13 @@ it.each(['', 'RN', 'SIN RUT'])(
       'Bea Inventada',
     ]);
     const keys = result.patientOptions.map((o: { key: string }) => o.key);
-    expect(keys[0]).toBe(`discharge:R1-${rut || 0}`);
-    expect(new Set(keys).size).toBe(2);
-    expect(keys[1]).toMatch(/^discharge:/);
+    // Without a document the fallback key is the row position; with the same marker both rows
+    // share one fallback key, so both are keyed by name.
+    expect(keys).toEqual(
+      rut
+        ? [`discharge:R1-${rut}:ana inventada`, `discharge:R1-${rut}:bea inventada`]
+        : ['discharge:R1-0', 'discharge:R1-1']
+    );
   }
 );
 
@@ -140,6 +144,35 @@ describe('server option keys between listing and uploading', () => {
       expect(after.find(candidate => candidate.key === option.key)?.patientName).toBe(
         option.patientName
       );
+    }
+  });
+
+  it('never hands a key to another person when the first of the group leaves', async () => {
+    const withBeaInBed = {
+      beds: { R1: { patientName: 'Bea Ficticia', rut: '' } },
+      discharges: [
+        { bedId: 'R1', patientName: 'Bea Ficticia', rut: 'RN' },
+        { bedId: 'R1', patientName: 'Ceci Sintética', rut: 'RN' },
+      ],
+    };
+    const firstDischargeDeleted = {
+      beds: {},
+      discharges: [
+        { ...legacyDischarges[0], deletedAt: '2026-05-04T10:00:00Z' },
+        legacyDischarges[1],
+        legacyDischarges[2],
+      ],
+    };
+    for (const [before, after] of [
+      [withBeaInBed, { ...withBeaInBed, beds: {} }],
+      [{ beds: {}, discharges: legacyDischarges }, firstDischargeDeleted],
+    ]) {
+      const listed = await list(before);
+      const later = await list(after);
+      for (const option of listed) {
+        const sameKey = later.find(candidate => candidate.key === option.key);
+        if (sameKey) expect(sameKey.patientName).toBe(option.patientName);
+      }
     }
   });
 

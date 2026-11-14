@@ -361,21 +361,20 @@ const buildPatientOptionsFromDailyRecord = dailyRecord => {
     ...buildMovementPatientOptions(dailyRecord?.transfers, 'transfer'),
   ];
 
-  const usedKeys = new Set();
-  const undocumentedBeds = new Set();
-  return [...activeBedOptions, ...movementOptions]
-    .filter(remember)
+  const kept = [...activeBedOptions, ...movementOptions].filter(remember);
+  // Old movements without an id share one fallback key (R1-RN). When several undocumented people
+  // share it, every one of them is keyed by name: a key then names the same person or stops
+  // existing when the census changes between listing and uploading, never someone else.
+  const undocumentedKeyCount = new Map();
+  for (const option of kept) {
+    if (patientDocumentIdentityKey(option.patientRut)) continue;
+    undocumentedKeyCount.set(option.key, (undocumentedKeyCount.get(option.key) || 0) + 1);
+  }
+  return kept
     .map(option => {
-      const undocumented = !patientDocumentIdentityKey(option.patientRut);
-      const newlyVisible = undocumented && undocumentedBeds.has(option.bedId);
-      if (undocumented) undocumentedBeds.add(option.bedId);
-      // Old movements without an id share one fallback key (R1-RN). The name tells them apart
-      // and, unlike a position, keeps naming the same person when the census changes between
-      // listing and uploading.
-      const key =
-        newlyVisible && usedKeys.has(option.key) ? `${option.key}:${nameKey(option)}` : option.key;
-      usedKeys.add(key);
-      return key === option.key ? option : { ...option, key };
+      const shared =
+        !patientDocumentIdentityKey(option.patientRut) && undocumentedKeyCount.get(option.key) > 1;
+      return shared ? { ...option, key: `${option.key}:${nameKey(option)}` } : option;
     })
     .sort((a, b) => a.bedId.localeCompare(b.bedId, 'es', { numeric: true }));
 };
