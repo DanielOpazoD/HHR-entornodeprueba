@@ -109,3 +109,61 @@ it.each(['', 'RN', 'SIN RUT'])(
     expect(keys[1]).toMatch(/^discharge:/);
   }
 );
+
+describe('server option keys between listing and uploading', () => {
+  const legacyDischarges = [
+    { bedId: 'R1', patientName: 'Ana Inventada', rut: 'RN' },
+    { bedId: 'R1', patientName: 'Bea Ficticia', rut: 'RN' },
+    { bedId: 'R1', patientName: 'Ceci Sintética', rut: 'RN' },
+  ];
+  const list = async (record: Record<string, unknown>) => {
+    const harness = buildAdminHarness({ dailyRecords: { [date]: record } });
+    const handler = createListUploadPatientOptionsHandler({
+      firestore: harness.admin.firestore(),
+      resolveRoleForEmail: async () => 'nurse_hospital',
+    });
+    const result = await handler(
+      { date },
+      { auth: { token: { email: 'synthetic@example.test' } } }
+    );
+    return result.patientOptions as { key: string; bedId: string; patientName: string }[];
+  };
+
+  it('keeps naming the same person after an unrelated admission', async () => {
+    const before = await list({ beds: {}, discharges: legacyDischarges });
+    const after = await list({
+      beds: { R5: { patientName: 'Dina Prueba', rut: '12.345.678-5' } },
+      discharges: legacyDischarges,
+    });
+    expect(new Set(before.map(option => option.key)).size).toBe(3);
+    for (const option of before) {
+      expect(after.find(candidate => candidate.key === option.key)?.patientName).toBe(
+        option.patientName
+      );
+    }
+  });
+
+  it('does not offer a deleted movement', async () => {
+    const options = await list({
+      beds: { R1: { patientName: 'Ana Inventada', rut: '' } },
+      discharges: [
+        {
+          id: 'd1',
+          bedId: 'R1',
+          patientName: 'Bea Ficticia',
+          rut: '',
+          deletedAt: '2026-05-04T10:00:00Z',
+        },
+        {
+          id: 'd2',
+          bedId: 'R1',
+          patientName: 'Ceci Sintética',
+          rut: '12.345.678-5',
+          deletedAt: '2026-05-04T11:00:00Z',
+        },
+        { id: 'd3', bedId: 'R1', patientName: 'Dina Prueba', rut: '' },
+      ],
+    });
+    expect(options.map(option => option.patientName)).toEqual(['Ana Inventada', 'Dina Prueba']);
+  });
+});

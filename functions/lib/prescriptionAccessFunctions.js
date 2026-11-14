@@ -326,17 +326,18 @@ const resolveUploadPickerAccess = async ({ firestore, context, payload, resolveR
 const buildPatientOptionsFromDailyRecord = dailyRecord => {
   const beds = dailyRecord?.beds || {};
   const seen = new Set();
-  const remember = option => {
-    const nameKey = option.patientName
+  const nameKey = option =>
+    option.patientName
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .trim()
       .replace(/\s+/g, ' ')
       .toLocaleLowerCase('es');
+  const remember = option => {
     // Keep the first status (active, discharge, transfer) when the same person reappears.
     const identityKey =
       patientDocumentIdentityKey(option.patientRut) ||
-      `bed:${JSON.stringify([option.bedId, nameKey])}`;
+      `bed:${JSON.stringify([option.bedId, nameKey(option)])}`;
     if (seen.has(identityKey)) return false;
     seen.add(identityKey);
     return true;
@@ -360,23 +361,19 @@ const buildPatientOptionsFromDailyRecord = dailyRecord => {
     ...buildMovementPatientOptions(dailyRecord?.transfers, 'transfer'),
   ];
 
-  const options = [...activeBedOptions, ...movementOptions].filter(remember);
-  const reservedKeys = new Set(options.map(option => option.key));
   const usedKeys = new Set();
   const undocumentedBeds = new Set();
-  return options
-    .map((option, index) => {
-      let key = option.key;
+  return [...activeBedOptions, ...movementOptions]
+    .filter(remember)
+    .map(option => {
       const undocumented = !patientDocumentIdentityKey(option.patientRut);
       const newlyVisible = undocumented && undocumentedBeds.has(option.bedId);
       if (undocumented) undocumentedBeds.add(option.bedId);
-      // Newly visible movements can share the legacy fallback id (e.g. R1-RN).
-      if (newlyVisible && usedKeys.has(key)) {
-        let suffix = index;
-        while (reservedKeys.has(`${option.key}-${suffix}`)) suffix += 1;
-        key = `${option.key}-${suffix}`;
-        reservedKeys.add(key);
-      }
+      // Old movements without an id share one fallback key (R1-RN). The name tells them apart
+      // and, unlike a position, keeps naming the same person when the census changes between
+      // listing and uploading.
+      const key =
+        newlyVisible && usedKeys.has(option.key) ? `${option.key}:${nameKey(option)}` : option.key;
       usedKeys.add(key);
       return key === option.key ? option : { ...option, key };
     })
@@ -388,6 +385,8 @@ const buildMovementPatientOptions = (movements, scope) => {
   return movements
     .map((movement, index) => {
       if (!movement || typeof movement !== 'object') return null;
+      // A deleted movement is not a person to choose, as in the app's own selector.
+      if (String(movement.deletedAt || '').trim()) return null;
       const bedId =
         optionalString(movement.bedId, 32) || optionalString(movement.bedName, 32) || '';
       const patientName = optionalString(movement.patientName, 256) || '';
