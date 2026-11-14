@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { Calendar, ChevronDown } from 'lucide-react';
 import { DateRangePreset, DATE_RANGE_LABELS } from '@/types/minsalTypes';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 
 interface DateRangeSelectorProps {
   currentPreset: DateRangePreset;
@@ -57,9 +58,9 @@ export const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
     }
   };
 
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const maxAvailableMonth = now.getMonth() + 1;
+  const today = getClinicalCalendarDateISO();
+  const currentYear = Number(today.slice(0, 4));
+  const maxAvailableMonth = Number(today.slice(5, 7));
   const selectedCurrentYearMonth = currentYearMonth ?? maxAvailableMonth;
   const monthOptions = [
     'Enero',
