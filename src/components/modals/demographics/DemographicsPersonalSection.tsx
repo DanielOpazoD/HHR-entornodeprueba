@@ -13,8 +13,7 @@ interface DemographicsPersonalSectionProps {
   missingRequiredFields?: string[];
 }
 
-const missingRequiredClass =
-  'border-amber-300 bg-amber-50/60 focus:border-amber-500 focus:ring-amber-500/20';
+const missingRequiredClass = 'border-amber-300 bg-amber-50/60 focus:border-amber-500';
 
 export const DemographicsPersonalSection: React.FC<DemographicsPersonalSectionProps> = ({
   localData,
@@ -28,7 +27,7 @@ export const DemographicsPersonalSection: React.FC<DemographicsPersonalSectionPr
 
   return (
     <div className="space-y-3">
-      <h4 className="flex items-center gap-2 text-[11px] font-bold text-slate-800 uppercase tracking-wider pb-1.5 border-b border-slate-100">
+      <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-800 pb-1.5 border-b border-slate-100">
         <User size={14} className="text-blue-500" />
         Información Personal
       </h4>
@@ -36,17 +35,15 @@ export const DemographicsPersonalSection: React.FC<DemographicsPersonalSectionPr
       <div className="space-y-3">
         {isProvisionalRnMode ? (
           <div className="space-y-1">
-            <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wide ml-1">
+            <label className="block text-xs font-semibold text-slate-600">
               Nombre provisional RN
             </label>
             <input
               type="text"
               aria-invalid={isMissingRequired('nombre provisional') || undefined}
               className={clsx(
-                'w-full px-2.5 py-1.5 border rounded-lg text-[13px] transition-all shadow-sm focus:bg-white focus:ring-2',
-                isMissingRequired('nombre provisional')
-                  ? missingRequiredClass
-                  : 'bg-slate-50 border-transparent focus:ring-blue-500/20 focus:border-blue-500'
+                'hhr-field',
+                isMissingRequired('nombre provisional') && missingRequiredClass
               )}
               placeholder="RN de Nombre Apellido Madre"
               value={localData.provisionalName}
@@ -55,26 +52,19 @@ export const DemographicsPersonalSection: React.FC<DemographicsPersonalSectionPr
                 setError(null);
               }}
             />
-            <p className="text-[9px] text-amber-700 font-semibold ml-1">
-              Usa este modo cuando el RN aun no tiene nombre oficial ni RUT.
+            <p className="text-xs text-amber-700 font-semibold">
+              Usa este modo cuando el RN aún no tiene nombre oficial ni RUT.
             </p>
           </div>
         ) : (
           <>
             <div className="space-y-1">
-              <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wide ml-1">
-                Nombre
-              </label>
+              <label className="block text-xs font-semibold text-slate-600">Nombre</label>
               <div className="grid grid-cols-1 gap-2">
                 <input
                   type="text"
                   aria-invalid={isMissingRequired('nombre') || undefined}
-                  className={clsx(
-                    'w-full px-2.5 py-1.5 border rounded-lg text-[13px] transition-all shadow-sm focus:bg-white focus:ring-2',
-                    isMissingRequired('nombre')
-                      ? missingRequiredClass
-                      : 'bg-slate-50 border-transparent focus:ring-blue-500/20 focus:border-blue-500'
-                  )}
+                  className={clsx('hhr-field', isMissingRequired('nombre') && missingRequiredClass)}
                   placeholder="Nombre"
                   value={localData.firstName}
                   onChange={e => {
@@ -86,18 +76,14 @@ export const DemographicsPersonalSection: React.FC<DemographicsPersonalSectionPr
             </div>
 
             <div className="space-y-1">
-              <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wide ml-1">
-                Apellidos
-              </label>
+              <label className="block text-xs font-semibold text-slate-600">Apellidos</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <input
                   type="text"
                   aria-invalid={isMissingRequired('apellido paterno') || undefined}
                   className={clsx(
-                    'w-full px-2.5 py-1.5 border rounded-lg text-[13px] transition-all shadow-sm focus:bg-white focus:ring-2',
-                    isMissingRequired('apellido paterno')
-                      ? missingRequiredClass
-                      : 'bg-slate-50 border-transparent focus:ring-blue-500/20 focus:border-blue-500'
+                    'hhr-field',
+                    isMissingRequired('apellido paterno') && missingRequiredClass
                   )}
                   placeholder="Apellido paterno"
                   value={localData.lastName}
@@ -110,10 +96,8 @@ export const DemographicsPersonalSection: React.FC<DemographicsPersonalSectionPr
                   type="text"
                   aria-invalid={isMissingRequired('apellido materno') || undefined}
                   className={clsx(
-                    'w-full px-2.5 py-1.5 border rounded-lg text-[13px] transition-all shadow-sm focus:bg-white focus:ring-2',
-                    isMissingRequired('apellido materno')
-                      ? missingRequiredClass
-                      : 'bg-slate-50 border-transparent focus:ring-blue-500/20 focus:border-blue-500'
+                    'hhr-field',
+                    isMissingRequired('apellido materno') && missingRequiredClass
                   )}
                   placeholder="Apellido materno"
                   value={localData.secondLastName}
@@ -128,12 +112,10 @@ export const DemographicsPersonalSection: React.FC<DemographicsPersonalSectionPr
         )}
 
         <div className="space-y-1">
-          <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wide ml-1">
-            Documento
-          </label>
+          <label className="block text-xs font-semibold text-slate-600">Documento</label>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <select
-              className="w-full px-2.5 py-1.5 bg-slate-50 border border-transparent rounded-lg text-[13px] text-slate-700 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none disabled:opacity-70"
+              className="hhr-field"
               value={localData.documentType}
               disabled={isProvisionalRnMode}
               onChange={e => {
@@ -151,10 +133,8 @@ export const DemographicsPersonalSection: React.FC<DemographicsPersonalSectionPr
               type="text"
               aria-invalid={isMissingRequired('documento') || undefined}
               className={clsx(
-                'w-full sm:col-span-2 px-2.5 py-1.5 border rounded-lg text-[13px] transition-all shadow-sm focus:bg-white focus:ring-2 disabled:opacity-70',
-                isMissingRequired('documento')
-                  ? missingRequiredClass
-                  : 'bg-slate-50 border-transparent focus:ring-blue-500/20 focus:border-blue-500'
+                'hhr-field sm:col-span-2',
+                isMissingRequired('documento') && missingRequiredClass
               )}
               placeholder={
                 isProvisionalRnMode
@@ -174,20 +154,15 @@ export const DemographicsPersonalSection: React.FC<DemographicsPersonalSectionPr
         </div>
 
         <div className="space-y-1">
-          <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wide ml-1">
-            Fecha de Nacimiento
-          </label>
+          <label className="block text-xs font-semibold text-slate-600">Fecha de Nacimiento</label>
           <input
             type="date"
             aria-invalid={isMissingRequired('fecha de nacimiento') || undefined}
             className={clsx(
-              'w-full px-2.5 py-1.5 bg-slate-50 border rounded-lg text-[13px] transition-all shadow-sm',
-              'focus:bg-white focus:ring-2 focus:ring-blue-500/20 ease-out duration-200',
+              'hhr-field',
               error
                 ? 'border-red-300 focus:border-red-400'
-                : isMissingRequired('fecha de nacimiento')
-                  ? 'border-amber-300 bg-amber-50/60 focus:border-amber-500 focus:ring-amber-500/20'
-                  : 'border-transparent focus:border-blue-500'
+                : isMissingRequired('fecha de nacimiento') && missingRequiredClass
             )}
             value={localData.birthDate}
             onChange={e => {
@@ -195,21 +170,19 @@ export const DemographicsPersonalSection: React.FC<DemographicsPersonalSectionPr
               setError(null);
             }}
           />
-          {error && <p className="text-[9px] text-red-500 font-bold ml-1">{error}</p>}
+          {error && <p className="text-xs text-red-600 font-semibold">{error}</p>}
           {!error && localData.birthDate && calculateFormattedAge(localData.birthDate) && (
-            <p className="text-[9px] text-emerald-600 font-bold ml-1">
+            <p className="text-xs text-emerald-700 font-semibold">
               Edad calculada: {calculateFormattedAge(localData.birthDate)}
             </p>
           )}
         </div>
 
         <div className="space-y-1">
-          <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wide ml-1">
-            Previsión
-          </label>
+          <label className="block text-xs font-semibold text-slate-600">Previsión</label>
           <div className="relative">
             <select
-              className="w-full px-2.5 py-1.5 bg-slate-50 border border-transparent rounded-lg text-[13px] text-slate-700 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none appearance-none cursor-pointer shadow-sm transition-all"
+              className="hhr-field appearance-none cursor-pointer pr-8"
               value={localData.insurance}
               onChange={e =>
                 setLocalData(current => ({ ...current, insurance: e.target.value as Insurance }))
