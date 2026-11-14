@@ -130,6 +130,41 @@ test.describe('Sync conflict resolution', () => {
       },
     });
 
+    // The callable response can arrive before the client releases its durable ACK hold.
+    // Reload only after the saved edit is durable and no write still protects it.
+    await expect
+      .poll(() =>
+        page.evaluate(async date => {
+          const request = indexedDB.open('HangaRoaDB');
+          const db = await new Promise<IDBDatabase>((resolve, reject) => {
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+          try {
+            const tx = db.transaction(['dailyRecords', 'syncQueue'], 'readonly');
+            const record = tx.objectStore('dailyRecords').get(date);
+            const pending = tx.objectStore('syncQueue').count();
+            await new Promise<void>((resolve, reject) => {
+              tx.oncomplete = () => resolve();
+              tx.onerror = () => reject(tx.error);
+              tx.onabort = () => reject(tx.error);
+            });
+            return { bed: record.result?.beds?.R1, pending: pending.result };
+          } finally {
+            db.close();
+          }
+        }, CONFLICT_DATE)
+      )
+      .toMatchObject({
+        bed: {
+          patientName: 'Local Draft',
+          firstName: 'Local',
+          lastName: 'Draft',
+          secondLastName: '',
+        },
+        pending: 0,
+      });
+
     const remoteRecord = await page.evaluate(date => {
       const storageKey = 'hanga_roa_hospital_data';
       const records = JSON.parse(localStorage.getItem(storageKey) || '{}') as Record<
@@ -141,7 +176,7 @@ test.describe('Sync conflict resolution', () => {
       };
       const currentBeds = currentRecord.beds || {};
 
-      return {
+      const nextRecord = {
         ...currentRecord,
         lastUpdated: `${date}T23:59:59.000Z`,
         beds: {
@@ -158,9 +193,23 @@ test.describe('Sync conflict resolution', () => {
           },
         },
       };
+      const runtimeWindow = window as Window & {
+        __HHR_E2E_SET_REMOTE_AUTHORITY__?: (date: string, record: unknown) => void;
+        __HHR_E2E_OVERRIDE__?: Record<string, unknown>;
+      };
+      if (!runtimeWindow.__HHR_E2E_SET_REMOTE_AUTHORITY__) {
+        throw new Error('The remote authority fixture was not installed');
+      }
+      runtimeWindow.__HHR_E2E_SET_REMOTE_AUTHORITY__(date, nextRecord);
+      return {
+        expected: nextRecord,
+        authority: runtimeWindow.__HHR_E2E_OVERRIDE__?.[date],
+        shadow: JSON.parse(localStorage.getItem('hhr_e2e_remote_override_shadow') || 'null'),
+      };
     }, CONFLICT_DATE);
 
-    await injectRemoteSnapshotForNextLoad(page, remoteRecord);
+    expect(remoteRecord.authority).toEqual(remoteRecord.expected);
+    expect(remoteRecord.shadow).toEqual({ date: CONFLICT_DATE, record: remoteRecord.expected });
     await page.reload();
 
     await expect(page.getByTestId('census-table')).toBeVisible({ timeout: 20_000 });
