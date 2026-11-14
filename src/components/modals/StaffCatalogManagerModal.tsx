@@ -149,18 +149,16 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
         <RecoverCensusStaffButton />
         <div>
           <div className="mb-3 flex items-center justify-between">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Agregar Personal
-            </label>
+            <label className="text-xs font-semibold text-slate-600">Agregar Personal</label>
             {syncing && (
               <div
                 className={clsx(
-                  'flex items-center gap-1 text-xs font-bold animate-pulse',
+                  'flex items-center gap-1 text-xs font-medium animate-pulse',
                   config.syncingTextColor
                 )}
               >
                 <Cloud size={12} />
-                SINCRONIZANDO...
+                Sincronizando…
               </div>
             )}
           </div>
@@ -229,9 +227,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
         </div>
 
         <div>
-          <label className="mb-3 block text-xs font-bold uppercase tracking-wider text-slate-500">
-            Catálogo Actual
-          </label>
+          <label className="mb-3 block text-xs font-semibold text-slate-600">Catálogo Actual</label>
           <div className="max-h-[45vh] space-y-2 overflow-y-auto pr-1">
             {editingName && !staffList.includes(editingName) && (
               <div>
@@ -342,7 +338,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs font-bold uppercase tracking-widest text-slate-400">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs font-medium text-slate-500">
           <div className="flex items-center gap-1.5">
             <Cloud size={12} className={config.cloudIconColor} />
             Catálogo compartido de HHR
