@@ -16,7 +16,7 @@ import { replanRayenStructure } from '@/features/rayen-import/hooks/replanRayenS
 // mismo RUN y lookup exacto que confirma ambos episodios. `findOccupiedBed` caía al
 // RUN para la fila del RN (episodio de la CUNA) y construía un SEGUNDO egreso de la
 // madre en la misma cama: alta duplicada en la estadística, RN sin egreso y conflicto
-// «no pudo vincularse» conservado.
+// «quedó sin vincular» conservado.
 
 const MOTHER_RUN = '28.106.852-0';
 
@@ -170,7 +170,7 @@ describe('replanRayenStructure — madre y RN cerrados en Ficha, lookup confirma
     ]);
     const newbornEgresos = (diff.reportEgresos ?? []).filter(e => e.encounterId === '1002');
     expect(newbornEgresos).toHaveLength(1);
-    expect(diff.conflicts.filter(c => c.reason.includes('no pudo vincularse'))).toEqual([]);
+    expect(diff.conflicts.filter(c => c.reason.includes('quedó sin vincular'))).toEqual([]);
     expect(diff.summary.conflicts).toBe(diff.conflicts.length);
 
     const applied = applyCensusImportDiff(record, diff, {
@@ -228,6 +228,6 @@ describe('replanRayenStructure — madre y RN cerrados en Ficha, lookup confirma
 
     expect(diff.discharges.map(d => `${d.bedId}:${d.encounterId}`)).toEqual(['H5C1:1001']);
     expect((diff.reportEgresos ?? []).some(e => e.encounterId === '1002')).toBe(false);
-    expect(diff.conflicts.filter(c => c.reason.includes('no pudo vincularse'))).toHaveLength(1);
+    expect(diff.conflicts.filter(c => c.reason.includes('quedó sin vincular'))).toHaveLength(1);
   });
 });

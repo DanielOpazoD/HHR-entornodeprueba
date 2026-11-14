@@ -18,6 +18,7 @@ export const formatClinicalDocumentDateTime = (isoString?: string): string => {
 
 export const formatClinicalDocumentDate = (value?: string): string => {
   if (!value) return 'Sin fecha';
+  // clinical-clock-allow server-clock-today: local midnight of a calendar day read back with local getters keeps its label in every zone.
   const parsed = new Date(`${value}T00:00:00`);
   if (Number.isNaN(parsed.getTime())) return value;
   const day = String(parsed.getDate()).padStart(2, '0');
@@ -28,25 +29,6 @@ export const formatClinicalDocumentDate = (value?: string): string => {
 
 export const resolveClinicalDocumentSourceDateLabel = (value?: string): string =>
   value ? formatClinicalDocumentDate(value) : 'Sin fecha';
-
-export const formatClinicalDocumentPdfDate = (rawDate?: string): string | null => {
-  if (!rawDate) return null;
-
-  const dateOnlyMatch = rawDate.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (dateOnlyMatch) {
-    return resolveClinicalDocumentSourceDateLabel(rawDate);
-  }
-
-  const parsed = new Date(rawDate);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-
-  const day = String(parsed.getDate()).padStart(2, '0');
-  const month = String(parsed.getMonth() + 1).padStart(2, '0');
-  const year = parsed.getFullYear();
-  return `${day}/${month}/${year}`;
-};
 
 export const getClinicalDocumentStatusLabel = (status: ClinicalDocumentStatus): string => {
   switch (status) {

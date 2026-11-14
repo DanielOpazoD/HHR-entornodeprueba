@@ -37,23 +37,15 @@ const { mockDailyRecordPorts } = vi.hoisted(() => ({
       patchedFields: 1,
     }),
     initializeDay: vi.fn().mockResolvedValue(null),
-    initializeDayDetailed: vi.fn().mockResolvedValue({
-      record: null,
-      outcome: 'clean',
-      sourceCompatibilityIntensity: 'none',
-      sourceMigrationRulesApplied: [],
-    }),
     deleteDay: vi.fn().mockResolvedValue(undefined),
     syncWithFirestoreDetailed: vi.fn().mockResolvedValue({
       date: '2025-01-01',
       outcome: 'clean',
       record: null,
     }),
-    syncWithFirestore: vi.fn().mockResolvedValue(null),
     getPreviousDay: vi.fn().mockResolvedValue(null),
     getAvailableDates: vi.fn().mockResolvedValue([]),
     getMonthRecords: vi.fn().mockResolvedValue([]),
-    copyPatientToDate: vi.fn().mockResolvedValue(undefined),
     copyPatientToDateDetailed: vi.fn().mockResolvedValue({
       sourceDate: '2025-01-01',
       targetDate: '2025-01-02',
@@ -162,16 +154,6 @@ describe('useDailyRecord lifecycle', () => {
       const rec = DataFactory.createMockDailyRecord(date);
       recordsMap[date] = rec;
       return rec;
-    });
-    vi.mocked(repo.initializeDayDetailed).mockImplementation(async date => {
-      const rec = DataFactory.createMockDailyRecord(date);
-      recordsMap[date] = rec;
-      return {
-        record: rec,
-        outcome: 'clean',
-        sourceCompatibilityIntensity: 'none',
-        sourceMigrationRulesApplied: [],
-      };
     });
 
     vi.mocked(repo.updatePartial).mockImplementation(async (date, partial) => {
@@ -297,10 +279,7 @@ describe('useDailyRecord lifecycle', () => {
     });
 
     expect(created).toBe(false);
-    expect(mockDailyRecordPorts.initializeDayDetailed).not.toHaveBeenCalledWith(
-      futureDate,
-      mockDate
-    );
+    expect(mockDailyRecordPorts.initializeDay).not.toHaveBeenCalled();
 
     vi.useRealTimers();
   });

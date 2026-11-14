@@ -30,7 +30,7 @@ const canRepresentStructuredAlias = (alias: string, fullName: string): boolean =
   const surnameTokens = aliasTokens.slice(1);
   const surnameStart = fullTokens
     .slice(1)
-    .findIndex((token, index, remainingTokens) =>
+    .findIndex((_token, index, remainingTokens) =>
       surnameTokens.every(
         (surnameToken, offset) => remainingTokens[index + offset] === surnameToken
       )
