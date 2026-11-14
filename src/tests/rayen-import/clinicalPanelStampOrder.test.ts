@@ -172,6 +172,71 @@ describe('stamp comparisons are the same on every device', () => {
     }
   });
 
+  describe('a stamp without offset inside the repeated hour', () => {
+    // Two versions of an order (21:50 then 21:10 of 04-04 in Rapa Nui, 20 real minutes apart) and a
+    // free indication written 21:30 without offset. A pairwise rule formed a cycle here and the
+    // result depended on the order the events arrived in.
+    const first = '2026-04-05T02:50:00Z';
+    const later = '2026-04-05T03:10:00Z';
+    const naive = '2026-04-04T21:30:00';
+    const permutations = <T>(items: T[]): T[][] =>
+      items.length <= 1
+        ? [items]
+        : items.flatMap((item, i) =>
+            permutations([...items.slice(0, i), ...items.slice(i + 1)]).map(rest => [item, ...rest])
+          );
+
+    it('orders mixed stamps the same way whatever order they arrive in', () => {
+      const sorted = permutations([first, later, naive]).flatMap(stamps =>
+        inEveryZone(() => [...stamps].sort(compareStamps).join(' '))
+      );
+      expect(new Set(sorted)).toEqual(new Set([[naive, first, later].join(' ')]));
+    });
+
+    it('never takes the later version as the first order of an admission', () => {
+      const events = [
+        ...['2026-04-05T02:50:00', '2026-04-05T03:10:00'].map((stamp, i) =>
+          event({
+            publishDatetime: '2026-04-05T08:00:00',
+            patientPharmaIndicationResume: [
+              {
+                MRE_ID: 910,
+                DESCRIPTOR: 'CEFTRIAXONA',
+                POSOLOGY: i ? 'revisión posterior' : 'original',
+                PUBLISH_DATETIME: stamp,
+              },
+            ],
+          })
+        ),
+        event({
+          publishDatetime: '2026-04-05T08:00:00',
+          patientFreeIndicationResume: [
+            { AMRE_ID: 77, INDICATION: 'Reposo relativo', PUBLISH_DATETIME: naive },
+          ],
+        }),
+      ];
+      const patient = {
+        key: 'person:1',
+        episodeId: '1',
+        patientName: 'Paciente Sintético',
+        document: '12.345.678-5',
+        admissionDate: '2026-04-04',
+        admissionTime: '20:00',
+      };
+      const chosen = permutations(events).flatMap(input =>
+        inEveryZone(() =>
+          JSON.stringify(
+            buildAdmissionAuditEntry(patient, input, [], 'first-set')
+              .indications.filter(n => n.kind === 'pharma')
+              .map(n => n.text)
+          )
+        )
+      );
+      expect(new Set(chosen).size).toBe(1);
+      expect(chosen[0]).not.toContain('revisión posterior');
+    });
+  });
+
   describe.each(SHIFTS)('%i hours from each threshold', hours => {
     const after = hours > 0;
     // 18:00Z is 12:00 in Rapa Nui (winter, UTC-6).

@@ -40,25 +40,42 @@ const hospitalWallMs = (value: string): number | null => {
   return Date.UTC(year, month - 1, day, hour, minute, second, ms);
 };
 
-/**
- * Order of two Eloísa stamps, the same on every device (TIME-02): two instants (`Z` or an offset)
- * by their instants; otherwise each ISO time on the hospital wall clock, an instant converted to
- * Rapa Nui and a time without an offset as written.
- */
-export const compareStamps = (a: string, b: string): number => {
-  const instantA = parseStrictIsoInstant(a);
-  const instantB = parseStrictIsoInstant(b);
-  if (instantA && instantB) return instantA.getTime() - instantB.getTime();
-  const wallA = hospitalWallMs(a);
-  const wallB = hospitalWallMs(b);
-  if (wallA !== null && wallB !== null) return wallA - wallB;
-  // Text that is not an ISO time (screen forms, garbage, a date alone) keeps its Date.parse order.
-  return parsedMs(a) - parsedMs(b);
+/** The instant at which the hospital wall clock read `wallMs` (its parts as UTC milliseconds). */
+const instantOfHospitalWall = (wallMs: number): number => {
+  const offsetAt = (instantMs: number) =>
+    (hospitalWallMs(new Date(instantMs).toISOString()) ?? instantMs) - instantMs;
+  return wallMs - offsetAt(wallMs - offsetAt(wallMs));
 };
 
+// A sort asks for the same stamps many times. An ISO key never depends on the device, so it is
+// kept; the Date.parse value of other text is read each time.
+const isoStampKeys = new Map<string, number | null>();
+const isoStampKey = (value: string): number | null => {
+  let key = isoStampKeys.get(value);
+  if (key === undefined) {
+    const instant = parseStrictIsoInstant(value);
+    const wall = instant ? null : hospitalWallMs(value);
+    key = instant ? instant.getTime() : wall === null ? null : instantOfHospitalWall(wall);
+    if (isoStampKeys.size >= 5000) isoStampKeys.clear();
+    isoStampKeys.set(value, key);
+  }
+  return key;
+};
+
+/**
+ * One number per Eloísa stamp, the same on every device (TIME-02): an instant (`Z` or an offset)
+ * is itself; a time without an offset is read on the hospital wall clock (in the repeated hour of a
+ * clock change, its first occurrence). One key per stamp keeps the order total, so mixing formats
+ * can never form a cycle. Text that is not an ISO time keeps its Date.parse value (screen forms,
+ * a date alone).
+ */
+const stampKey = (value: string): number => isoStampKey(value) ?? parsedMs(value);
+
+/** Order of two Eloísa stamps, by their keys. */
+export const compareStamps = (a: string, b: string): number => stampKey(a) - stampKey(b);
+
 /** Whether a stamp can be ordered at all. */
-export const isUsableStamp = (value: string): boolean =>
-  (hospitalWallMs(value) ?? parsedMs(value)) > 0;
+export const isUsableStamp = (value: string): boolean => stampKey(value) > 0;
 
 /**
  * Hospital calendar day (`YYYY-MM-DD`) of an Eloísa date, or `''` when it is not a date (TIME-02).
