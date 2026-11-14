@@ -48,7 +48,7 @@ describe('documentary CUDYR outcomes in synchronization history', () => {
   it.each([
     { kind: 'attribution_unreliable', text: /atribuir.*episodio/ },
     { kind: 'documentary_inconclusive', text: /recuperar una categoría/ },
-    { kind: 'read_failed', text: /no se pudo consultar/i },
+    { kind: 'read_failed', text: /el informe todavía no se consultó/i },
   ])('shows $kind with the night to review after rereading history', ({ kind, text }) => {
     show(kind);
     expect(screen.getByText(text)).toBeVisible();
@@ -56,7 +56,7 @@ describe('documentary CUDYR outcomes in synchronization history', () => {
       'href',
       '/census?date=2026-10-26'
     );
-    expect(screen.queryByText(/confirmar el guardado/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/guardado quedó sin confirmar/)).not.toBeInTheDocument();
     expect(screen.queryByText(/No registrado/)).not.toBeInTheDocument();
   });
 
@@ -64,17 +64,17 @@ describe('documentary CUDYR outcomes in synchronization history', () => {
     showEvent(eventWith('read_failed', 'source_unavailable', 'invalid_response'));
     expect(
       screen.getByText(
-        /no se pudo leer el informe mensual de Eloísa; reintentar no lo resuelve, avisa al administrador de HHR/
+        /HHR todavía no puede leer el informe mensual de Eloísa; reintentar no lo resuelve, avisa al administrador de HHR/
       )
     ).toBeVisible();
-    expect(screen.queryByText(/consultar el informe; reintenta/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/el informe todavía no se consultó/)).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ver censo · 26-10-2026' })).toBeVisible();
   });
 
   it('distinguishes an unconfirmed source archive from an unconfirmed clinical write', () => {
     show('archive_unconfirmed', 'historical_archive_failed');
-    expect(screen.getByText(/confirmar el respaldo documental/)).toBeVisible();
-    expect(screen.queryByText(/confirmar el guardado histórico/)).not.toBeInTheDocument();
+    expect(screen.getByText(/respaldo documental quedó sin confirmar/)).toBeVisible();
+    expect(screen.queryByText(/guardado quedó sin confirmar/)).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ver censo · 26-10-2026' })).toHaveAttribute(
       'href',
       '/census?date=2026-10-26'
@@ -90,7 +90,7 @@ describe('documentary CUDYR outcomes in synchronization history', () => {
       'cudyrRecovery'
     );
     show('future-recovery-detail');
-    expect(screen.getByText(/no se pudo leer esta información/)).toBeVisible();
+    expect(screen.getByText(/falta leer esta información/)).toBeVisible();
   });
 
   it('reports unavailable census context without guessing a night or linking a bed', () => {
@@ -99,7 +99,7 @@ describe('documentary CUDYR outcomes in synchronization history', () => {
     showEvent(event);
     expect(screen.getByText(/contexto censal sin comprobar/)).toBeVisible();
     expect(screen.queryByRole('link', { name: /Ver censo/ })).not.toBeInTheDocument();
-    expect(screen.queryByText(/consultar el informe/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/el informe todavía no se consultó/)).not.toBeInTheDocument();
   });
 
   it.each(['2026-02-30', '2026-13-01', 'not-a-date'])(
@@ -110,7 +110,7 @@ describe('documentary CUDYR outcomes in synchronization history', () => {
       const reread = RayenSyncEventSchema.parse(JSON.parse(JSON.stringify(event)));
       expect(reread.coverage!.issues![0].cudyrRecovery).toBeUndefined();
       showEvent(reread);
-      expect(screen.getByText(/no se pudo leer esta información/)).toBeVisible();
+      expect(screen.getByText(/falta leer esta información/)).toBeVisible();
       expect(screen.getByRole('link', { name: 'Ver censo · 27-10-2026' })).toHaveAttribute(
         'href',
         '/census?date=2026-10-27'

@@ -17,6 +17,7 @@ const RayenSyncTechnicalMetricsPanel = lazyWithRetry(() =>
 import { RayenSyncStructuralReviewDetail } from './RayenSyncStructuralReviewDetail';
 import { RayenSyncIssueActions } from './RayenSyncIssueActions';
 import { rayenClinicalIssueTarget, rayenSyncTechnicalCode } from './rayenSyncIssueSupport';
+import { SYNC_TONE, SYNC_TONE_INFO_VARIANT } from './syncTone';
 
 const sourceLabel = (event: RayenSyncEvent): string | null => {
   const source = event.source;
@@ -88,9 +89,9 @@ export const RayenSyncClinicalSection: React.FC<{
         <span
           className={
             coverage.tone === 'success'
-              ? 'text-xs text-emerald-700'
+              ? `text-xs ${SYNC_TONE_INFO_VARIANT.ok.text}`
               : coverage.tone === 'warning'
-                ? 'text-sm font-semibold text-amber-700'
+                ? `text-sm font-semibold ${SYNC_TONE.review.text}`
                 : 'text-sm text-slate-500'
           }
         >
@@ -102,7 +103,9 @@ export const RayenSyncClinicalSection: React.FC<{
         (event.coverage.errors > 0 ||
           event.coverage.sourceErrors > 0 ||
           Boolean(event.coverage.issues?.length)) && (
-          <details className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-sm leading-relaxed text-amber-900">
+          <details
+            className={`mt-2 rounded-lg border px-2.5 py-2 text-sm leading-relaxed ${SYNC_TONE.review.surface}`}
+          >
             <summary className="cursor-pointer font-bold">
               Qué quedó pendiente en la información clínica
             </summary>

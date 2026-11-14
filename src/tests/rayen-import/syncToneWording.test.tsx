@@ -215,11 +215,14 @@ const personFacingTexts = (file: string): string[] => {
   return texts;
 };
 
+/** The administrator's technical panel shows raw values on purpose. */
+const ADMIN_TECHNICAL = ['RayenSyncTechnicalMetricsPanel.tsx'];
+
 /**
- * Deployed dialogs: the second part of the calm tone, a unit of its own. Everything else in the
- * folder, including any new file, is part of the box and is checked.
+ * Dialogs opened from the box and the modules that word them. A person reads these while deciding
+ * what to confirm, so the stricter wording rule applies: no «error» and no «falla/fallida» either.
  */
-const DIALOGS_PENDING = [
+const DIALOGS = [
   'ClinicalCribDischargeRepairReview.tsx',
   'EquivalentBedCollisionReview.tsx',
   'NeonatalPlacementReview.tsx',
@@ -238,11 +241,29 @@ const DIALOGS_PENDING = [
   'RayenSyncSessionReportButton.tsx',
   'RayenSyncStructuralReviewDetail.tsx',
   'StaffingBoundaryExclusions.tsx',
+  'rayenSyncPresentation.ts',
 ];
-/** Wording that only the history dialogs show; the box functions of this module are walked by state. */
-const HISTORY_WORDING = ['rayenSyncPresentation.ts'];
-/** The administrator's technical panel shows raw values on purpose. */
-const ADMIN_TECHNICAL = ['RayenSyncTechnicalMetricsPanel.tsx'];
+const DIALOG_FAILURE = new RegExp(
+  `${PERSON_FACING_FAILURE.source}|\\berror\\b|\\bfallas?\\b|\\bfallidas?\\b`,
+  'i'
+);
+
+/**
+ * Colors that are clinical, not sync tone, and stay as they are. Each one names the exact line it
+ * may appear on, so a sync state on any other line is still caught.
+ */
+const CLINICAL_COLORS: ReadonlyArray<{ file: string; line: RegExp; reason: string }> = [
+  {
+    file: 'RayenImportPreviewModal.tsx',
+    line: /text-red-600">\(Fallecido\)</,
+    reason: 'clinical mark of a death, not a sync state',
+  },
+  {
+    file: 'RayenNursingShiftProposalModal.tsx',
+    line: /<Sun size=\{16\} className="text-amber-500"/,
+    reason: 'icon of the day shift, not a sync state',
+  },
+];
 
 const componentsDirectory = path.join(FEATURE, 'components');
 const boxComponentFiles = (excluded: readonly string[]) =>
@@ -262,11 +283,13 @@ const DOMAIN_FEEDING_BOX = [
   'collectNursingStaffingProposal.ts',
   'rayenStructuralPersistenceBase.ts',
 ];
+/** Domain module that words the census review of the history dialog. */
+const DOMAIN_FEEDING_DIALOGS = ['rayenStructuralIssueExplanation.ts'];
 
 describe('sync box source wording', () => {
-  it('names only files that exist in the exclusion lists', () => {
+  it('names only files that exist in the dialog and exclusion lists', () => {
     const names = readdirSync(componentsDirectory);
-    for (const file of [...DIALOGS_PENDING, ...HISTORY_WORDING, ...ADMIN_TECHNICAL])
+    for (const file of [...DIALOGS, ...ADMIN_TECHNICAL, ...CLINICAL_COLORS.map(c => c.file)])
       expect(names, file).toContain(file);
   });
 
@@ -274,7 +297,7 @@ describe('sync box source wording', () => {
     const files = [
       ...sourceFiles(path.join(FEATURE, 'hooks')),
       ...DOMAIN_FEEDING_BOX.map(file => path.join(FEATURE, 'domain', file)),
-      ...boxComponentFiles([...DIALOGS_PENDING, ...HISTORY_WORDING, ...ADMIN_TECHNICAL]),
+      ...boxComponentFiles([...DIALOGS, ...ADMIN_TECHNICAL]),
     ];
     expect(files.length).toBeGreaterThan(60);
     const offending = files.flatMap(file =>
@@ -285,12 +308,46 @@ describe('sync box source wording', () => {
     expect(offending).toEqual([]);
   });
 
-  it('leaves no loose alarm color classes in any box component', () => {
-    const alarmColor = /\b[a-z:-]*(?:red|rose|amber|orange|yellow)-\d{2,3}\b/;
-    const offending = boxComponentFiles(DIALOGS_PENDING).flatMap(file => {
-      const found = readFileSync(file, 'utf8').match(alarmColor)?.[0];
-      return found ? [`${path.basename(file)}: ${found} (use syncTone.ts)`] : [];
-    });
+  it('words every dialog without breakdown words, «error» or «falla»', () => {
+    const files = [
+      ...DIALOGS.map(file => path.join(componentsDirectory, file)),
+      ...DOMAIN_FEEDING_DIALOGS.map(file => path.join(FEATURE, 'domain', file)),
+    ];
+    const offending = files.flatMap(file =>
+      personFacingTexts(file)
+        .filter(text => DIALOG_FAILURE.test(text))
+        .map(text => `${path.relative(FEATURE, file)}: ${text}`)
+    );
     expect(offending).toEqual([]);
+  });
+
+  it('leaves no loose alarm color classes in any box component or dialog', () => {
+    const alarmColor = /\b[a-z:-]*(?:red|rose|amber|orange|yellow)-\d{2,3}\b/;
+    const offending = boxComponentFiles([]).flatMap(file =>
+      readFileSync(file, 'utf8')
+        .split('\n')
+        .flatMap((line, index) => {
+          const found = line.match(alarmColor)?.[0];
+          const clinical = CLINICAL_COLORS.some(
+            exception => exception.file === path.basename(file) && exception.line.test(line)
+          );
+          return found && !clinical
+            ? [`${path.basename(file)}:${index + 1}: ${found} (use syncTone.ts)`]
+            : [];
+        })
+    );
+    expect(offending).toEqual([]);
+  });
+
+  it('keeps each clinical color exception in use, so a stale one cannot hide a sync color', () => {
+    for (const exception of CLINICAL_COLORS) {
+      const lines = readFileSync(path.join(componentsDirectory, exception.file), 'utf8').split(
+        '\n'
+      );
+      expect(
+        lines.some(line => exception.line.test(line)),
+        exception.reason
+      ).toBe(true);
+    }
   });
 });

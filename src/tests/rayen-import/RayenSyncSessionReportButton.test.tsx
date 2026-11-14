@@ -24,7 +24,9 @@ describe('sync performance summary copy', () => {
     render(<RayenSyncSessionReportButton history={[]} />);
     const button = screen.getByRole('button', { name: 'Copiar informe de sincronización' });
     fireEvent.click(button);
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('No se pudo copiar'));
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('El resumen todavía no se copió')
+    );
     fireEvent.click(button);
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Resumen copiado'));
   });

@@ -4,6 +4,7 @@ import type {
   NeonatalPlacementReview as Review,
   NeonatalPlacementResolution,
 } from '../contracts/neonatalPlacementReview';
+import { SYNC_TONE } from './syncTone';
 
 /** A clinical wall clock must resolve uniquely, including DST. Never guess the onset of illness. */
 export const neonatalEffectiveInstants = (local: string): string[] => {
@@ -34,7 +35,7 @@ export const NeonatalPlacementReview: React.FC<{
     onChange([...choices.filter(c => c.episodeId !== choice.episodeId), choice]);
   return (
     <section
-      className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3"
+      className={`mt-4 rounded-lg border p-3 ${SYNC_TONE.review.surface}`}
       aria-label="Ubicación del RN"
     >
       <h4 className="text-sm font-semibold text-slate-800">

@@ -32,7 +32,7 @@ describe('rayen sync presentation', () => {
       'No disponible en sincronizaciones antiguas'
     );
     expect(presentRayenCoverage(undefined, true, true)).toEqual({
-      label: 'Enriquecimiento pendiente',
+      label: 'Datos clínicos por completar',
       tone: 'warning',
     });
     expect(
@@ -73,7 +73,16 @@ describe('rayen sync presentation', () => {
         sourceErrors: 2,
         completedAt: 'now',
       })
-    ).toContain('2 fallas de fuente');
+    ).toContain('2 lecturas de fuente pendientes');
+    expect(
+      presentRayenLegacyCoverageGap({
+        total: 3,
+        completed: 2,
+        errors: 0,
+        sourceErrors: 1,
+        completedAt: 'now',
+      })
+    ).toContain('1 lectura de fuente pendiente,');
   });
 
   it('names the action the current extension state can actually perform', () => {
@@ -111,7 +120,7 @@ describe('rayen sync presentation', () => {
     };
 
     expect(presentRayenSyncOutcome(event)).toMatchObject({
-      label: 'Parcial',
+      label: 'Por completar',
       detail:
         '1 paciente por completar · Fuente clínica incompleta · Gestión de Camas no disponible',
       tone: 'warning',
@@ -138,7 +147,7 @@ describe('rayen sync presentation', () => {
       reason: 'record_load_failed' as const,
     };
     expect(presentRayenCoverageIssue(issue)).toBe(
-      'General · Carga del censo HHR: no se pudo cargar el censo actual; comprueba la conexión y reintenta.'
+      'General · Carga del censo HHR: el censo actual todavía no se cargó; comprueba la conexión y vuelve a intentar.'
     );
     expect(
       presentRayenSyncOutcome({
@@ -182,7 +191,7 @@ describe('rayen sync presentation', () => {
     };
 
     expect(presentRayenSyncOutcome(event)).toMatchObject({
-      label: 'Parcial',
+      label: 'Por completar',
       detail: '1 cambio del censo no se aplicó',
       unresolved: true,
     });
@@ -217,7 +226,7 @@ describe('rayen sync presentation', () => {
         reason: 'source_unavailable',
       })
     ).toBe(
-      'Cama H2C1 · Enfermería / TENS: no se pudo leer esta información; comprueba la ficha y reintenta.'
+      'Cama H2C1 · Enfermería / TENS: falta leer esta información; revisa la ficha y vuelve a intentar.'
     );
   });
 
@@ -378,7 +387,8 @@ describe('rayen sync presentation', () => {
 
   it('keeps the persisted last-sync status concise and backward compatible', () => {
     expect(rayenSyncStatusLabel('complete')).toBe('Completa');
-    expect(rayenSyncStatusLabel('partial')).toBe('Parcial');
+    expect(rayenSyncStatusLabel('partial')).toBe('Por completar');
+    expect(rayenSyncStatusLabel('failed')).toBe('Sin aplicar');
     expect(rayenSyncStatusLabel('applied')).toBe('Censo aplicado');
     expect(rayenSyncStatusLabel(undefined)).toBeNull();
   });

@@ -36,7 +36,7 @@ export const explainRayenStructuralIssue = (reason: RayenSyncStructuralIssueReas
     return {
       title: 'Alta sin vinculación confirmada',
       meaning:
-        'El alta del informe no pudo asociarse con seguridad a la hospitalización de este paciente.',
+        'El alta del informe todavía no se asocia con seguridad a la hospitalización de este paciente.',
       action:
         'Comprueba el episodio y las fechas de ingreso y alta en Gestión de Camas; luego vuelve a sincronizar.',
     };
@@ -60,7 +60,7 @@ export const explainRayenStructuralIssue = (reason: RayenSyncStructuralIssueReas
     return {
       title: 'Ubicación o episodio sin confirmar',
       meaning:
-        'No se pudo confirmar la hospitalización o la cama que correspondía al cierre del turno solicitado.',
+        'Falta confirmar la hospitalización o la cama que correspondía al cierre del turno solicitado.',
       action:
         'Revisa el informe de movimientos del paciente y sus fechas en Gestión de Camas; después vuelve a sincronizar ese día.',
     };
@@ -68,7 +68,7 @@ export const explainRayenStructuralIssue = (reason: RayenSyncStructuralIssueReas
   return {
     title: 'Cambio del censo no confirmado',
     meaning:
-      'Este intento no pudo confirmar un cambio. La categoría registrada no permite precisar más.',
+      'Este intento dejó un cambio sin confirmar. La categoría registrada no permite precisar más.',
     action:
       'Vuelve a revisar el censo. Si se repite, copia el informe de sincronización para investigar el caso.',
   };

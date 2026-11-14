@@ -1,5 +1,6 @@
 import React from 'react';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
+import { SYNC_TONE } from './syncTone';
 export const NeonatalSourceChanges: React.FC<{
   changes: CensusImportDiff['neonatalSourceChanges'];
   acceptedEpisodes: string[];
@@ -7,7 +8,7 @@ export const NeonatalSourceChanges: React.FC<{
 }> = ({ changes, acceptedEpisodes, onChange }) =>
   !changes?.length ? null : (
     <section
-      className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3"
+      className={`mt-3 rounded-lg border p-3 ${SYNC_TONE.review.surface}`}
       aria-label="Cambio de ubicación del RN"
     >
       <h4 className="text-sm font-semibold">Revisa la ubicación del RN</h4>

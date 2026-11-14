@@ -1,6 +1,7 @@
 import React from 'react';
 import type { ReportEgreso } from '../contracts/egresoReport';
 import { ddmmyyyy } from './RayenImportDiffReviewParts';
+import { SYNC_TONE } from './syncTone';
 
 interface RayenReportEgresoStampProps {
   entry: ReportEgreso;
@@ -20,7 +21,9 @@ export const RayenReportEgresoStamp: React.FC<RayenReportEgresoStampProps> = ({
     <>
       {stamp && <span className="text-gray-400"> · {stamp}</span>}
       {isPreviousDay && (
-        <span className="ml-1 font-medium text-amber-700">→ se grabará en ese día, no hoy</span>
+        <span className={`ml-1 font-medium ${SYNC_TONE.info.text}`}>
+          → se grabará en ese día, no hoy
+        </span>
       )}
     </>
   );
