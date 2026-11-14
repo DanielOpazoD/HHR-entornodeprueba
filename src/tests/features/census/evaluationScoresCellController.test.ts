@@ -42,6 +42,8 @@ describe('resolveAgeYears', () => {
     ['16a', 16],
     ['60 año(s), 3 mes(es)', 60],
     ['3 meses', 0],
+    ['45 a.', 45],
+    ['45 años.', 45],
     ['RN', null],
   ])('reads the unit of the stored age text %j as completed years', (age, years) => {
     expect(resolveAgeYears(patient({ age }), '2026-07-10')).toBe(years);
@@ -223,6 +225,7 @@ describe('buildScoresCellModel — Braden countdown', () => {
       ).braden?.assessment.riskLevel;
     expect(at('20m')).toBe('medio');
     expect(at('16a')).toBe('bajo');
+    expect(at('45 a.')).toBe('bajo');
   });
 
   it('uses the pediatric band: Braden 15 at age 8 is riesgo medio (cada 3 días)', () => {

@@ -28,6 +28,7 @@ import {
 } from '@/domain/evaluationScales/sourceRiskSeverity';
 
 import { evaluationScaleStampInRapaNui } from '@/domain/evaluationScales/evaluationScaleClock';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 
 export interface BradenCellModel {
   entry: EvaluationScoreEntry;
@@ -90,26 +91,46 @@ const completedYearsFromAgeText = (age: string | undefined): number | null => {
   if (!parts) return null;
   const [, digits = '', unitText = ''] = parts;
   const amount = Number(digits);
-  const unit = unitText.replace(/[()]/g, '');
+  const unit = unitText.replace(/[().]/g, '');
   if (/^(?:a|años?)?$/.test(unit)) return amount;
   if (/^m(?:es|eses)?$/.test(unit)) return Math.floor(amount / 12);
   if (/^d(?:[ií]as?)?$/.test(unit)) return Math.floor(amount / DAYS_PER_YEAR);
   return null;
 };
 
-/** Age in years at `referenceDate`: birthDate when available, else the stored age string. */
+const ZONED_INSTANT = /T.*(?:Z|[+-]\d{2}:?\d{2})$/i;
+
+/**
+ * Year, month and day of a stored date, or null when that day does not exist. A calendar date
+ * keeps its label; an instant with a zone is read on the Rapa Nui calendar (TIME-02).
+ */
+const calendarDayParts = (value: string): [number, number, number] | null => {
+  const text = value.trim();
+  const instant = ZONED_INSTANT.test(text) ? new Date(text) : null;
+  if (instant && Number.isNaN(instant.getTime())) return null;
+  const [written = ''] = text.split('T');
+  const day = instant ? getClinicalCalendarDateISO(instant) : written;
+  const [, yearText = '', monthText = '', dateText = ''] =
+    /^(\d{4})-(\d{2})-(\d{2})$/.exec(day) ?? [];
+  const [year, month, date] = [Number(yearText), Number(monthText), Number(dateText)];
+  const check = new Date(Date.UTC(year, month - 1, date));
+  const exists =
+    check.getUTCFullYear() === year &&
+    check.getUTCMonth() === month - 1 &&
+    check.getUTCDate() === date;
+  return yearText && exists ? [year, month, date] : null;
+};
+
+/** Age in years at `referenceDate`: a birth date that exists when available, else the stored age text. */
 export const resolveAgeYears = (patient: PatientData, referenceDate: string): number | null => {
-  if (patient.birthDate) {
-    // clinical-clock-allow server-clock-today: local noon of a calendar day read back with local getters keeps its label in every zone.
-    const born = new Date(`${patient.birthDate.split('T')[0]}T12:00:00`);
-    // clinical-clock-allow server-clock-today: local noon of the census day, read back with local getters.
-    const ref = new Date(`${referenceDate}T12:00:00`);
-    if (!Number.isNaN(born.getTime()) && !Number.isNaN(ref.getTime())) {
-      let years = ref.getFullYear() - born.getFullYear();
-      const monthDelta = ref.getMonth() - born.getMonth();
-      if (monthDelta < 0 || (monthDelta === 0 && ref.getDate() < born.getDate())) years -= 1;
-      if (years >= 0) return years;
-    }
+  const born = patient.birthDate ? calendarDayParts(patient.birthDate) : null;
+  const reference = calendarDayParts(referenceDate);
+  if (born && reference) {
+    const [bornYear, bornMonth, bornDate] = born;
+    const [year, month, date] = reference;
+    const beforeBirthday = month < bornMonth || (month === bornMonth && date < bornDate);
+    const years = year - bornYear - (beforeBirthday ? 1 : 0);
+    if (years >= 0) return years;
   }
   return completedYearsFromAgeText(patient.age);
 };

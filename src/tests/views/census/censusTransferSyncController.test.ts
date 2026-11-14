@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   buildTransferPatientSnapshot,
@@ -118,6 +118,39 @@ describe('censusTransferSyncController', () => {
     it('counts completed years from a valid birth date on the census day', async () => {
       expect(await sentAge({ age: '29d', birthDate: '2026-10-16' })).toBe(0);
       expect(await sentAge({ age: '45', birthDate: '1980-11-15' })).toBe(45);
+      // The birth date wins over a stale stored text.
+      expect(await sentAge({ age: '99', birthDate: '1980-11-14' })).toBe(46);
+    });
+
+    it.each(['45 a.', '45a.', '45 años.'])(
+      'keeps the years of the restored abbreviation %j',
+      async age => {
+        expect(await sentAge({ age, birthDate: '' })).toBe(45);
+      }
+    );
+
+    it('falls back to the stored text when the birth date names a day that does not exist', async () => {
+      expect(await sentAge({ age: '45', birthDate: '1980-02-30' })).toBe(45);
+    });
+
+    describe('a birth instant restored with its zone', () => {
+      const deviceZone = process.env.TZ;
+      afterEach(() => {
+        if (deviceZone === undefined) delete process.env.TZ;
+        else process.env.TZ = deviceZone;
+      });
+
+      it.each([
+        'UTC',
+        'America/Santiago',
+        'Pacific/Easter',
+        'Pacific/Auckland',
+        'Pacific/Pago_Pago',
+      ])('counts from its Rapa Nui day on a %s computer', async zone => {
+        process.env.TZ = zone;
+        // 01:00 UTC on 15 November is still 14 November in Rapa Nui: the birthday is today.
+        expect(await sentAge({ age: '45a', birthDate: '1980-11-15T01:00:00Z' })).toBe(46);
+      });
     });
   });
 
