@@ -1,5 +1,4 @@
 import { SpecialtyRoundLoadingTrigger } from '@/features/census/components/specialty-round/SpecialtyRoundTrigger';
-import React from 'react';
 import { fireEvent, render, screen, within, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SpecialtyRoundEntry } from '@/features/census/components/specialty-round/SpecialtyRoundEntry';

@@ -1,4 +1,3 @@
-import React from 'react';
 import { act, fireEvent, render, screen, cleanup } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';

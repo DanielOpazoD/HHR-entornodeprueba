@@ -3,7 +3,6 @@ vi.mock('@/hooks/useStabilityRules', () => ({
 }));
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import React from 'react';
 import { TransfersSection } from '@/features/census/components/TransfersSection';
 import { useCensusActionCommands } from '@/features/census/context/censusActionContexts';
 import { useDailyRecordStaff, useDailyRecordMovements } from '@/context/DailyRecordContext';

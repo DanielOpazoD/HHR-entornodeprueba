@@ -1,4 +1,3 @@
-import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { TransferInlineField } from '@/features/census/components/TransferInlineField';

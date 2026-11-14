@@ -2,7 +2,6 @@
 import '../../setup';
 import { describe, it, expect, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
-import React from 'react';
 import { HandoffPatientTable } from '@/features/handoff/components/HandoffPatientTable';
 import { render } from '../../integration/setup';
 import { BEDS } from '@/constants/beds';
