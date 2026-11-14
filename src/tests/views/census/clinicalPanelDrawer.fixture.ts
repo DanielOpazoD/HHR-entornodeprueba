@@ -54,19 +54,20 @@ export const panelResult = {
           PUBLISH_DATETIME: '2026-07-13T11:00:00',
         },
       ],
+      // Medication orders arrive in UTC (TIME-02): 14:00 is 08:00 in Rapa Nui.
       patientPharmaIndicationResume: [
         {
           MRE_ID: 7,
           DESCRIPTOR: 'CEFTRIAXONA 2 g',
           POSOLOGY: '2 g cada 24 h',
-          PUBLISH_DATETIME: '2026-07-13T08:00:00',
+          PUBLISH_DATETIME: '2026-07-13T14:00:00',
           IS_NEW: true,
           SUSPENDED: true,
         },
         {
           MRE_ID: 8,
           DESCRIPTOR: 'AMOXICILINA 500 mg',
-          PUBLISH_DATETIME: '2026-07-13T08:30:00',
+          PUBLISH_DATETIME: '2026-07-13T14:30:00',
           SUSPENDED: false,
           FINALIZED: true,
         },

@@ -32,6 +32,7 @@ import type {
 } from './clinicalPanelTypes';
 import { parseClinicalCareDays } from './parseClinicalCarePlan';
 import { dayKey, flag, timeKey } from './clinicalPanelParsingUtils';
+import { fichaMedicoMedicationOrderStamp } from './fichaMedicoHistoryClock';
 import { projectValidatedMedicationDays } from './projectValidatedMedicationDays';
 import { toTitleCaseName } from './rayenToPatientData';
 
@@ -198,7 +199,7 @@ export const parseClinicalPanel = (
     for (const r of rows(event.patientPharmaIndicationResume)) {
       const title = str(r.DESCRIPTOR) || str(r.VIRTUAL_MEDICAL_PRODUCT);
       if (!title) continue;
-      const prescribedAt = str(r.PUBLISH_DATETIME) || eventDate;
+      const prescribedAt = fichaMedicoMedicationOrderStamp(str(r.PUBLISH_DATETIME)) || eventDate;
       const medicationId = str(r.MRE_ID) || `pharma-${seq++}`;
       const prescriptionDay = dayKey(prescribedAt);
       if (prescriptionDay) sourceMedicationDays.add(`${medicationId}:${prescriptionDay}`);
