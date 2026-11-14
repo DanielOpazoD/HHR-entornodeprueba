@@ -31,11 +31,11 @@ const mount = (factory: () => Promise<{ default: typeof Chunk }>) => {
 };
 
 class TestBoundary extends React.Component<{ children: React.ReactNode }, { failed: boolean }> {
-  state = { failed: false };
+  override state = { failed: false };
   static getDerivedStateFromError() {
     return { failed: true };
   }
-  render() {
+  override render() {
     return this.state.failed
       ? React.createElement('span', null, 'Error contenido')
       : this.props.children;
