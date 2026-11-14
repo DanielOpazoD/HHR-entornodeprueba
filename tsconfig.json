@@ -10,6 +10,7 @@
     "noImplicitOverride": true,
     "noUnusedParameters": true,
     "noUnusedLocals": true,
+    "noImplicitReturns": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
     "types": ["node", "vite/client"],

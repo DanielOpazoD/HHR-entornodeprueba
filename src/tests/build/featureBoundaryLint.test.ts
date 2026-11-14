@@ -106,6 +106,20 @@ describe('feature boundaries in ESLint (from scripts/feature-dependency-matrix.j
     expect(Object.keys(matrix.features).sort()).toEqual(directories);
   });
 
+  it('keeps the src/features/README.md table in parity with the feature directories', () => {
+    const readme = fs.readFileSync(path.join(ROOT, 'src/features/README.md'), 'utf8');
+    const rows = [...readme.matchAll(/^\|\s*\[?`([a-z-]+)\/`/gm)].map(match => match[1]).sort();
+    const directories = fs
+      .readdirSync(path.join(ROOT, 'src/features'), { withFileTypes: true })
+      .filter(entry => entry.isDirectory())
+      .map(entry => entry.name)
+      .sort();
+    expect(
+      rows,
+      'Agrega o quita la fila de la carpeta en «Mapa de features» de src/features/README.md'
+    ).toEqual(directories);
+  });
+
   it('preserves every exact exception and rejects a different deep path there', async () => {
     const { violations } = JSON.parse(
       fs.readFileSync(path.join(ROOT, 'scripts/feature-dependency-allowlist.json'), 'utf8')
