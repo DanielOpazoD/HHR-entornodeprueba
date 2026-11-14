@@ -6,6 +6,7 @@ import {
   RECEIVING_CENTER_OTHER,
 } from '@/constants/clinicalMovementConstants';
 import type { TransferExecutionInput } from '@/features/census/domain/movements/contracts';
+import { resolveAgeYears } from '@/features/census/controllers/evaluationScoresCellController';
 
 import type {
   completeTransferWithResult,
@@ -59,7 +60,7 @@ export const resolveTransferCurrentDiagnosis = (patient: PatientData): string =>
 export const buildTransferPatientSnapshot = (patient: PatientData, recordDate: string) => ({
   name: patient.patientName || 'Paciente sin nombre',
   rut: patient.rut || 'Sin RUT',
-  age: Number.parseInt(patient.age || '', 10) || 0,
+  age: resolveAgeYears(patient, recordDate) ?? 0,
   birthDate: patient.birthDate,
   sex: patient.biologicalSex === 'Masculino' ? ('M' as const) : ('F' as const),
   diagnosis: resolveTransferCurrentDiagnosis(patient),
