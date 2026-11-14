@@ -283,8 +283,20 @@ const DOMAIN_FEEDING_BOX = [
   'collectNursingStaffingProposal.ts',
   'rayenStructuralPersistenceBase.ts',
 ];
-/** Domain module that words the census review of the history dialog. */
-const DOMAIN_FEEDING_DIALOGS = ['rayenStructuralIssueExplanation.ts'];
+/**
+ * Domain modules whose texts a person reads in the dialogs: the census review of the history, and
+ * the conflict reasons the preview lists as they come («Cambios que requieren revisión», the
+ * historical reconstruction list) and the history keeps as each case's «Motivo».
+ */
+const DOMAIN_FEEDING_DIALOGS = [
+  'rayenStructuralIssueExplanation.ts',
+  'reconcileCensus.ts',
+  'applyEgresoReport.ts',
+  'egresoReportEligibility.ts',
+  'historicalReconstructionConflicts.ts',
+  'historicalSnapshotReconstruction.ts',
+  'historicalStatisticalDischargeRecovery.ts',
+];
 
 describe('sync box source wording', () => {
   it('names only files that exist in the dialog and exclusion lists', () => {
