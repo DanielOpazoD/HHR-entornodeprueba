@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { SCORE_DEFINITIONS } from '@/features/clinical-library/domain/scoreDefinitions';
+import * as scoreEngine from '@/features/clinical-library/domain/scoreEngine';
 import { ScoresTool } from '@/features/clinical-library/components/tools/ScoresTool';
 
 describe('ScoresTool', () => {
@@ -56,5 +58,28 @@ describe('ScoresTool', () => {
     fireEvent.click(screen.getByLabelText(/Frecuencia cardíaca > 100/));
     expect(screen.getByTestId('score-result')).toHaveTextContent('1,5 / 12,5');
     expect(screen.getByTestId('score-result')).toHaveAttribute('data-band', 'Probabilidad baja');
+  });
+  it('presents every interpretation in full, with its detail after its label', () => {
+    const originalEvaluate = scoreEngine.evaluateScore;
+    const evaluate = vi.spyOn(scoreEngine, 'evaluateScore');
+    try {
+      for (const definition of SCORE_DEFINITIONS) {
+        for (const band of [
+          ...definition.bands,
+          ...(definition.singleItemAlert ? [definition.singleItemAlert.band] : []),
+        ]) {
+          evaluate.mockReturnValue({ ...originalEvaluate(definition, {}), band });
+          const view = render(<ScoresTool onBack={vi.fn()} onClose={vi.fn()} patients={[]} />);
+          fireEvent.click(screen.getByRole('button', { name: definition.shortName }));
+          const result = screen.getByTestId('score-result');
+          expect(result).toHaveAttribute('data-band', band.label);
+          const paragraphs = [...result.querySelectorAll('p')].map(item => item.textContent);
+          expect(paragraphs.slice(-2)).toEqual([band.label, band.detail]);
+          view.unmount();
+        }
+      }
+    } finally {
+      evaluate.mockRestore();
+    }
   });
 });
