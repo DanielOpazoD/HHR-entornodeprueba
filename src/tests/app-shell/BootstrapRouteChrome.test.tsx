@@ -80,6 +80,31 @@ describe('BootstrapRouteChrome', () => {
     expect(screen.queryByTestId('view-loader')).not.toBeInTheDocument();
   });
 
+  it.each(['/census', '/census?date=2027-00-01'])(
+    'lands on the hospital day, not the device date, at %s',
+    route => {
+      // 22:30 on 31 December 2026 in Rapa Nui; mainland Chile and UTC already read 1 January 2027.
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2027-01-01T03:30:00Z'));
+      try {
+        window.history.replaceState({}, '', route);
+        render(<BootstrapRouteChrome />);
+      } finally {
+        vi.useRealTimers();
+      }
+
+      expect(mockDateStrip).toHaveBeenCalledWith(
+        expect.objectContaining({
+          selectedYear: 2026,
+          selectedMonth: 11,
+          selectedDay: 31,
+          currentDateString: '2026-12-31',
+          clinicalToday: '2026-12-31',
+        })
+      );
+    }
+  );
+
   it('honors the saved typography preference during bootstrap', () => {
     window.history.replaceState({}, '', '/census');
     window.localStorage.setItem('hhr_ui_settings', JSON.stringify({ modernTypography: false }));
