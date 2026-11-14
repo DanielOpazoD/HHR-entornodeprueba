@@ -339,11 +339,7 @@ export async function injectMockUser(page: Page, role: 'editor' | 'admin' | 'vie
   await setupE2EContext(page, role);
 }
 
-export async function injectMockData(
-  page: Page,
-  date?: string,
-  populateWithPatient: boolean = false
-) {
+export async function injectMockData(page: Page, date?: string) {
   // If we're already on the page, inject data without reload to preserve auth/session state
   const targetDate = date || E2E_DEFAULT_DATE;
   await page.addInitScript(() => {
@@ -351,7 +347,7 @@ export async function injectMockData(
       {};
   });
   await page.evaluate(
-    ({ dateStr, _populate }: { dateStr: string; _populate: boolean }) => {
+    ({ dateStr }: { dateStr: string }) => {
       const STORAGE_KEY = 'hanga_roa_hospital_data';
       // ... (simplified version for legacy support)
       const records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
@@ -360,7 +356,7 @@ export async function injectMockData(
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
     },
-    { dateStr: targetDate, _populate: populateWithPatient }
+    { dateStr: targetDate }
   );
 }
 

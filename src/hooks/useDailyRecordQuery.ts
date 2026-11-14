@@ -210,7 +210,7 @@ export const useSaveDailyRecordMutation = () => {
 
       return { previousRecord };
     },
-    onError: (err, { record: newRecord, authoringSession }, context) => {
+    onError: (_err, { record: newRecord, authoringSession }, context) => {
       if (!isAuthoringSessionCurrent(authoringSession)) return;
       if (context?.previousRecord) {
         setDailyRecordQueryData(queryClient, newRecord.date, context.previousRecord);

@@ -161,7 +161,7 @@ describe('egreso report eligibility', () => {
 
     expect(result.rows).toEqual([]);
     expect(result.diff.conflicts).toHaveLength(1);
-    expect(result.diff.conflicts[0]?.reason).toContain('no pudo vincularse');
+    expect(result.diff.conflicts[0]?.reason).toContain('quedó sin vincular');
   });
 
   it('does not duplicate the same report conflict when evidence is reconciled twice', () => {
@@ -339,7 +339,7 @@ describe('egreso report eligibility', () => {
     const result = selectEligibleEgresoRows(emptyDiff(), [today, nextDay, invalid], record);
 
     expect(result.rows).toEqual([]);
-    const unlinked = result.diff.conflicts.filter(c => c.reason.includes('no pudo vincularse'));
+    const unlinked = result.diff.conflicts.filter(c => c.reason.includes('quedó sin vincular'));
     expect(unlinked).toHaveLength(1);
     expect(unlinked[0]).toMatchObject({ bedId: 'H5C1', code: 'unverified-report-row' });
   });
@@ -392,7 +392,7 @@ describe('egreso report eligibility', () => {
 
     const result = selectEligibleEgresoRows(emptyDiff(), rows, record);
 
-    const unlinked = result.diff.conflicts.filter(c => c.reason.includes('no pudo vincularse'));
+    const unlinked = result.diff.conflicts.filter(c => c.reason.includes('quedó sin vincular'));
     expect(unlinked).toHaveLength(1);
     expect(unlinked[0]?.code).toBeUndefined();
   });

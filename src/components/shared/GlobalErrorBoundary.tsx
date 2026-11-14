@@ -39,7 +39,7 @@ export class GlobalErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     // Log error to error service
     errorService.logError({
       // `${error}` keeps the class (`TypeError: …`), which telemetry reports as a code.
@@ -94,7 +94,7 @@ export class GlobalErrorBoundary extends Component<Props, State> {
       });
   };
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       // Custom fallback UI if provided
       if (this.props.fallbackComponent) {

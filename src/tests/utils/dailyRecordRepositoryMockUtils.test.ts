@@ -10,7 +10,6 @@ describe('dailyRecordRepositoryMockUtils', () => {
       getForDate: vi.fn(),
       save: vi.fn(),
       updatePartial: vi.fn(),
-      syncWithFirestore: vi.fn(),
     };
 
     wireStatefulDailyRecordRepoMock(repo, {
@@ -38,7 +37,6 @@ describe('dailyRecordRepositoryMockUtils', () => {
       getForDate: vi.fn(),
       save: vi.fn(),
       updatePartial: vi.fn(),
-      syncWithFirestore: vi.fn(),
     };
 
     wireStatefulDailyRecordRepoMock(repo, {
