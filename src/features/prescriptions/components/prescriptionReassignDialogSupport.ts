@@ -41,7 +41,14 @@ export const buildBedOptions = (record: DailyRecord | null): DailyBedOption[] =>
   const seen = new Set<string>();
   const remember = (option: DailyBedOption): boolean => {
     const rutKey = documentIdentityKey(option.patientRut);
-    const identityKey = rutKey || `bed:${option.bedId}`;
+    const nameKey = option.patientName
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLocaleLowerCase('es');
+    // Keep the first status (active, discharge, transfer) when the same person reappears.
+    const identityKey = rutKey || `bed:${JSON.stringify([option.bedId, nameKey])}`;
     if (seen.has(identityKey)) return false;
     seen.add(identityKey);
     return true;
