@@ -66,7 +66,7 @@ export const BaseModalHeader: React.FC<BaseModalHeaderProps> = ({
     )}
   >
     <h3 id={titleId} className={`${PANEL_TITLE_CLASS} flex items-center gap-2`}>
-      {/* One header pattern: the tool's icon on a soft badge of its own colour. */}
+      {/* One header pattern: the tool's icon, in its own colour, on a neutral badge. */}
       {icon && <span className={clsx(PANEL_ICON_CLASS, headerIconColor)}>{icon}</span>}
       <span className="min-w-0 break-words">{title}</span>
     </h3>
