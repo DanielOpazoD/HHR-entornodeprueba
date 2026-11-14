@@ -66,7 +66,7 @@ export const EvolutionCard: React.FC<{
           {entry.author && entry.role && (
             <span
               className={clsx(
-                'rounded px-1 py-px text-[9px] font-medium ring-1',
+                'rounded px-1 py-px text-xs font-medium ring-1',
                 PROFESSION_CHIP[entry.profession ?? 'other']
               )}
             >
@@ -74,12 +74,12 @@ export const EvolutionCard: React.FC<{
             </span>
           )}
           {entry.kind === 'shift-change' && (
-            <span className="rounded border border-slate-300 bg-slate-50 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-slate-600">
+            <span className="rounded border border-slate-300 bg-slate-50 px-1 py-px text-xs font-semibold text-slate-600">
               Entrega turno
             </span>
           )}
           {(entry.archived || entry.crossedOut) && (
-            <span className="rounded bg-slate-200 px-1 py-px text-[9px] font-bold uppercase text-slate-600">
+            <span className="rounded bg-slate-200 px-1 py-px text-xs font-semibold text-slate-600">
               {entry.crossedOut ? 'Anulada' : 'Archivada'}
             </span>
           )}
@@ -99,7 +99,7 @@ export const EvolutionCard: React.FC<{
             </button>
           )}
           <time
-            className="whitespace-nowrap text-[10px] tabular-nums text-slate-500"
+            className="whitespace-nowrap text-xs tabular-nums text-slate-500"
             dateTime={entry.publishedAt}
           >
             {formatWhen(entry.publishedAt)}
@@ -112,7 +112,7 @@ export const EvolutionCard: React.FC<{
               aria-label={
                 showAnnulledText ? 'Ocultar evolución anulada' : 'Mostrar evolución anulada'
               }
-              className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
+              className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-xs font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
             >
               <ChevronRight
                 size={12}
@@ -154,16 +154,16 @@ const IndicationLine: React.FC<{ entry: ClinicalPanelEntry; muted?: boolean }> =
     )}
     title={[entry.author, entry.role, formatTime(entry.publishedAt)].filter(Boolean).join(' · ')}
   >
-    <span className="mt-0.5 rounded bg-slate-100 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-slate-500">
+    <span className="rounded bg-slate-100 px-1 py-px text-xs font-medium text-slate-600">
       {INDICATION_KIND_LABEL[entry.kind]}
     </span>
     <span className={clsx('min-w-0', muted && 'line-through decoration-slate-400')}>
       <span className="block font-semibold text-slate-700">{entry.title}</span>
-      {entry.text && <span className="block text-[11px] text-slate-500">{entry.text}</span>}
+      {entry.text && <span className="block text-xs text-slate-500">{entry.text}</span>}
     </span>
     {!muted && entry.kind === 'pharma' && entry.validitySource === 'daily-validation' && (
       <span
-        className="shrink-0 rounded bg-emerald-50 px-1 py-px text-[9px] font-bold uppercase text-emerald-700 ring-1 ring-emerald-200"
+        className="shrink-0 rounded bg-emerald-50 px-1 py-px text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200"
         title={`Vigente por validación diaria del tratamiento${entry.prescribedAt ? ` · indicada el ${formatWhen(entry.prescribedAt)}` : ''}`}
       >
         Vigente
@@ -172,7 +172,7 @@ const IndicationLine: React.FC<{ entry: ClinicalPanelEntry; muted?: boolean }> =
     {muted && (
       <span
         className={clsx(
-          'shrink-0 rounded px-1 py-px text-[9px] font-bold uppercase',
+          'shrink-0 rounded px-1 py-px text-xs font-semibold',
           entry.suspended ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'
         )}
       >
@@ -186,11 +186,9 @@ export const IndicationDayCard: React.FC<{ day: ClinicalPanelIndicationDay }> = 
   const [showSuspended, setShowSuspended] = useState(false);
   return (
     <section className="rounded-md border border-slate-200 bg-white p-2 shadow-sm">
-      <h3 className="mb-1 flex items-center justify-between border-b border-slate-100 pb-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+      <h3 className="mb-1 flex items-center justify-between border-b border-slate-100 pb-1 text-xs font-semibold text-slate-600">
         <span>{day.label}</span>
-        <span className="text-[9px] font-medium normal-case text-slate-400">
-          {day.active.length} activas
-        </span>
+        <span className="font-medium text-slate-500">{day.active.length} activas</span>
       </h3>
       {day.active.length > 0 ? (
         <ul className="space-y-1">
@@ -199,14 +197,14 @@ export const IndicationDayCard: React.FC<{ day: ClinicalPanelIndicationDay }> = 
           ))}
         </ul>
       ) : (
-        <p className="text-[11px] italic text-slate-400">Sin indicaciones activas este día.</p>
+        <p className="text-xs italic text-slate-500">Sin indicaciones activas este día.</p>
       )}
       {day.suspended.length > 0 && (
         <div className="mt-1.5 border-t border-slate-100 pt-1">
           <button
             type="button"
             onClick={() => setShowSuspended(open => !open)}
-            className="flex items-center gap-0.5 text-[10px] font-medium text-slate-400 transition-colors hover:text-slate-600"
+            className="flex items-center gap-0.5 text-xs font-medium text-slate-500 transition-colors hover:text-slate-700"
             aria-expanded={showSuspended}
           >
             <ChevronRight
@@ -266,9 +264,9 @@ export const CareDayCard: React.FC<{ day: ClinicalPanelCareDay }> = ({ day }) =>
 
   return (
     <section className="rounded-md border border-slate-200 bg-white p-2 shadow-sm">
-      <h3 className="mb-1.5 flex items-center justify-between border-b border-slate-100 pb-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+      <h3 className="mb-1.5 flex items-center justify-between border-b border-slate-100 pb-1 text-xs font-semibold text-slate-600">
         <span>{day.label}</span>
-        <span className="text-[9px] font-medium normal-case text-emerald-600">
+        <span className="font-medium text-emerald-600">
           {executed}/{day.actions.length} ejecutadas
         </span>
       </h3>
@@ -283,7 +281,7 @@ export const CareDayCard: React.FC<{ day: ClinicalPanelCareDay }> = ({ day }) =>
                 </span>
                 <span
                   className={clsx(
-                    'inline-flex shrink-0 items-center gap-1 rounded px-1 py-px text-[9px] font-bold ring-1',
+                    'inline-flex shrink-0 items-center gap-1 rounded px-1 py-px text-xs font-semibold ring-1',
                     status.className
                   )}
                 >
@@ -292,12 +290,12 @@ export const CareDayCard: React.FC<{ day: ClinicalPanelCareDay }> = ({ day }) =>
                 </span>
               </div>
               {(action.detail || action.schedule) && (
-                <p className="mt-0.5 text-[10px] leading-snug text-slate-500">
+                <p className="mt-0.5 text-xs leading-snug text-slate-500">
                   {[action.detail, action.schedule].filter(Boolean).join(' · ')}
                 </p>
               )}
               {(action.author || action.performedAt) && (
-                <p className="mt-0.5 text-right text-[9px] text-slate-400">
+                <p className="mt-0.5 text-right text-xs text-slate-500">
                   {[action.author, formatWhen(action.performedAt)].filter(Boolean).join(' · ')}
                 </p>
               )}

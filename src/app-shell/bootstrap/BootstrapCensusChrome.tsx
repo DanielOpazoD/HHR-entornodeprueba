@@ -146,33 +146,22 @@ const readPersistedFirebaseAuthUser = () => {
   return null;
 };
 
+const toBootstrapDate = (isoDate: string) => ({
+  selectedYear: Number(isoDate.slice(0, 4)),
+  selectedMonth: Number(isoDate.slice(5, 7)) - 1,
+  selectedDay: Number(isoDate.slice(8, 10)),
+});
+
 const resolveBootstrapDate = () => {
-  const today = new Date();
-  const fallback = {
-    selectedYear: today.getFullYear(),
-    selectedMonth: today.getMonth(),
-    selectedDay: today.getDate(),
-  };
-
-  if (typeof window === 'undefined') {
-    return fallback;
-  }
-
-  const rawDate = new URLSearchParams(window.location.search).get('date');
-  if (!rawDate || !/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
-    return fallback;
-  }
-
-  const [year, month, day] = rawDate.split('-').map(Number);
-  if (!year || !month || !day) {
-    return fallback;
-  }
-
-  return {
-    selectedYear: year,
-    selectedMonth: month - 1,
-    selectedDay: day,
-  };
+  const rawDate =
+    typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('date');
+  // A route date with no zero part wins; otherwise land where useDateNavigation does: the
+  // hospital's clinical day, never the device date.
+  return toBootstrapDate(
+    rawDate && /^(?!0000)\d{4}-(?!00)\d{2}-(?!00)\d{2}$/.test(rawDate)
+      ? rawDate
+      : resolveCurrentClinicalDay()
+  );
 };
 
 const resolveDaysInMonth = (year: number, monthIndex: number) =>

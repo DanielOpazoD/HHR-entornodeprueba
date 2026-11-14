@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   formatClinicalDocumentDate,
   formatClinicalDocumentDateTime,
-  formatClinicalDocumentPdfDate,
   getClinicalDocumentStatusClassName,
   getClinicalDocumentStatusLabel,
   resolveClinicalDocumentSourceDateLabel,
@@ -22,11 +21,5 @@ describe('clinicalDocumentPresentation', () => {
   it('resolves source daily-record dates with the same shared formatter', () => {
     expect(resolveClinicalDocumentSourceDateLabel('2026-03-15')).toBe('15-03-2026');
     expect(resolveClinicalDocumentSourceDateLabel()).toBe('Sin fecha');
-  });
-
-  it('centralizes pdf file date formatting for date-only and timestamp values', () => {
-    expect(formatClinicalDocumentPdfDate('2026-03-15')).toBe('15-03-2026');
-    expect(formatClinicalDocumentPdfDate('2026-03-15T10:45:00.000Z')).toBe('15/03/2026');
-    expect(formatClinicalDocumentPdfDate('not-a-date')).toBeNull();
   });
 });

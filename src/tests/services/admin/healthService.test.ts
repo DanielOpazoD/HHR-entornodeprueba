@@ -229,7 +229,7 @@ describe('healthService', () => {
       const onUpdate = vi.fn();
       let capturedCallback: ((data: unknown[]) => void) | undefined;
 
-      vi.mocked(firestoreDb.subscribeQuery).mockImplementation((path, options, callback) => {
+      vi.mocked(firestoreDb.subscribeQuery).mockImplementation((_path, _options, callback) => {
         capturedCallback = callback as unknown as (data: unknown[]) => void;
         return vi.fn();
       });
@@ -290,7 +290,7 @@ describe('healthService', () => {
       const onUpdate = vi.fn();
       let capturedCallback: ((data: unknown[]) => void) | undefined;
 
-      vi.mocked(firestoreDb.subscribeQuery).mockImplementation((path, options, callback) => {
+      vi.mocked(firestoreDb.subscribeQuery).mockImplementation((_path, _options, callback) => {
         capturedCallback = callback as unknown as (data: unknown[]) => void;
         return vi.fn();
       });

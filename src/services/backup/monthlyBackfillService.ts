@@ -3,6 +3,7 @@ import type { ShiftType } from '@/types/domain/shift';
 import { getMonthRecordsFromFirestore } from '@/services/storage/firestore';
 import { generateDateRange } from '@/utils/dateRangeUtils';
 import { getShiftSchedule } from '@/utils/clinicalDayUtils';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 import type { BaseStoredFile } from '@/services/backup/baseStorageService';
 import type { StoredPdfFile } from '@/services/backup/pdfStorageService';
 import { formatBackupShiftLabel } from '@/shared/backup/backupPresentation';
@@ -69,10 +70,8 @@ const isStoredPdfFile = (file: BaseStoredFile | StoredPdfFile): file is StoredPd
   return 'shiftType' in file;
 };
 
-const resolveCurrentMonthFlag = (year: number, monthNumber: number): boolean => {
-  const now = new Date();
-  return now.getFullYear() === year && now.getMonth() + 1 === monthNumber;
-};
+const resolveCurrentMonthFlag = (year: number, monthNumber: number): boolean =>
+  getTodayISO().slice(0, 7) === `${year}-${String(monthNumber).padStart(2, '0')}`;
 
 const getNoRecordDates = (
   year: number,

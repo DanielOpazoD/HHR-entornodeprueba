@@ -14,6 +14,7 @@ import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { ChevronLeft, ChevronRight, Compass, FileDown, RefreshCw } from 'lucide-react';
 import { type EvolutionProfession } from '@/features/rayen-import/clinical-panel';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
 import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 import { CareDayCard, EvolutionCard, IndicationDayCard } from './ClinicalPanelSections';
 import { ClinicalPanelHistoryPrintButton } from './ClinicalPanelHistoryPrintButton';
@@ -55,6 +56,9 @@ interface ClinicalPanelDrawerProps {
   onOpenClinicalExplorer?: () => void;
   onClose: () => void;
 }
+
+/** Text actions of the drawer header: the shared compact outline button, kept on one 28 px row. */
+const HEADER_TEXT_BUTTON = buttonClassName('outline', 'xs', 'shrink-0 gap-1 px-1.5');
 
 type PanelTab = 'evolutions' | 'indications' | 'care' | 'antecedents';
 type EvolutionView = 'notes' | 'handoffs';
@@ -146,7 +150,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
       )}
     >
       {label}
-      {count !== null && <span className="ml-1 text-[10px] font-bold text-slate-400">{count}</span>}
+      {count !== null && <span className="ml-1 font-bold text-slate-400">{count}</span>}
     </button>
   );
 
@@ -218,7 +222,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
             <button
               type="button"
               onClick={onOpenHospitalizationReports}
-              className="inline-flex h-7 min-w-7 shrink-0 items-center justify-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-1.5 text-[11px] font-semibold text-sky-700 transition-colors hover:border-sky-300 hover:bg-sky-100 hover:text-sky-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700"
+              className={HEADER_TEXT_BUTTON}
               title="Informes de hospitalización"
               aria-label={`Abrir informes de hospitalización de ${patientName}`}
             >
@@ -229,7 +233,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
               <button
                 type="button"
                 onClick={onOpenClinicalExplorer}
-                className="inline-flex h-7 min-w-7 shrink-0 items-center justify-center gap-1 rounded-md border border-slate-200 bg-white px-1.5 text-[11px] font-semibold text-slate-600 transition-colors hover:border-teal-200 hover:bg-teal-50 hover:text-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-700"
+                className={HEADER_TEXT_BUTTON}
                 title="Explorador clínico (experimental)"
                 aria-label={`Abrir explorador clínico de ${patientName}`}
               >

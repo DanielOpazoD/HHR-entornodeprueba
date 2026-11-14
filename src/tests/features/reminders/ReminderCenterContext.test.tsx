@@ -211,7 +211,7 @@ describe('ReminderCenterProvider', () => {
   it('no autoabre el modal cuando la suscripcion falla por permisos', async () => {
     subscribeMock.mockImplementation(
       (
-        callback: (reminders: unknown[]) => void,
+        _callback: (reminders: unknown[]) => void,
         options?: { onError?: (error: unknown, kind: string) => void }
       ) => {
         options?.onError?.({ code: 'permission-denied' }, 'permission_denied');

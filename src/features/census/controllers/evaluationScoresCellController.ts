@@ -79,7 +79,9 @@ export interface ScoresCellModel {
 /** Age in years at `referenceDate`: birthDate when available, else the stored age string. */
 export const resolveAgeYears = (patient: PatientData, referenceDate: string): number | null => {
   if (patient.birthDate) {
+    // clinical-clock-allow server-clock-today: local noon of a calendar day read back with local getters keeps its label in every zone.
     const born = new Date(`${patient.birthDate.split('T')[0]}T12:00:00`);
+    // clinical-clock-allow server-clock-today: local noon of the census day, read back with local getters.
     const ref = new Date(`${referenceDate}T12:00:00`);
     if (!Number.isNaN(born.getTime()) && !Number.isNaN(ref.getTime())) {
       let years = ref.getFullYear() - born.getFullYear();
