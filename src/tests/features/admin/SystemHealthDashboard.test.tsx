@@ -176,7 +176,7 @@ describe('SystemHealthDashboard', () => {
     expect(screen.queryByText('Detalle')).not.toBeInTheDocument();
 
     await userEvent.type(
-      screen.getAllByPlaceholderText('Nota de resolucion...')[0],
+      screen.getAllByPlaceholderText('Nota de resolución...')[0],
       'Permiso corregido'
     );
     await userEvent.click(screen.getAllByRole('button', { name: /Marcar resuelto/i })[0]);
@@ -195,7 +195,7 @@ describe('SystemHealthDashboard', () => {
       )
     );
     expect((await screen.findAllByText('Resuelto')).length).toBeGreaterThan(0);
-    expect(screen.getByText('Historial de resolucion')).toBeInTheDocument();
+    expect(screen.getByText('Historial de resolución')).toBeInTheDocument();
     expect(screen.getAllByText(/Admin User/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Permiso corregido/i).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: /Reabrir/i }).length).toBeGreaterThan(0);
