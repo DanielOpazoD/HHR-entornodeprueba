@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react';
+import { lazy, Suspense } from 'react';
 import { SectionErrorBoundary } from '@/components/shared/SectionErrorBoundary';
 
 const RoleManagementPanel = lazy(() => import('./RoleManagementPanel'));

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import type { LabAnalysisData } from '@/types/domain/labAnalyticsTypes';

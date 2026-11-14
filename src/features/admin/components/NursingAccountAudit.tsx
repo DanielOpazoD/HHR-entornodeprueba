@@ -1,4 +1,3 @@
-import React from 'react';
 import type { NursingAccount, NursingAccountList } from '@/services/auth/nursingAccountService';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useRetainedNursingHandoffOwners } from '@/hooks/useNursingHandoffLogout';
 
 export default function NursingHandoffSessionNotice({ uid }: { uid: string }) {

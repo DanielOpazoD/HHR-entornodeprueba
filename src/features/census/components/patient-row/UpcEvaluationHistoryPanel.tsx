@@ -1,6 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 
 import type { UpcEvaluationSnapshot } from '@/domain/upc/upcContracts';

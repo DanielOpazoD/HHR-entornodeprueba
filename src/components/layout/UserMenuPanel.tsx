@@ -1,4 +1,3 @@
-import React from 'react';
 import { Camera, LogOut, PenLine } from 'lucide-react';
 
 interface UserMenuPanelProps {
