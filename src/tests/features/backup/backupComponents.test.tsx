@@ -8,16 +8,14 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import React from 'react';
 
 import { BackupFilesToolbar } from '@/features/backup/components/internal/BackupFilesToolbar';
-import {
-  FolderCard,
-  FileCard,
-  Breadcrumbs,
-} from '@/features/backup/components/internal/BackupDriveItems';
-import { formatFileSize } from '@/types/backupArtifacts';
+import { BackupFilesContent } from '@/features/backup/components/internal/BackupFilesContent';
+import { FolderCard, Breadcrumbs } from '@/features/backup/components/internal/BackupDriveItems';
+import { formatFileSize, type BaseStoredFile, type StoredPdfFile } from '@/types/backupArtifacts';
+import type { BackupItem } from '@/hooks/backupFileBrowserContracts';
 import {
   formatBackupShiftLabel,
   formatBackupTimestamp,
@@ -128,60 +126,6 @@ describe('FolderCard', () => {
   it('does not display item count when not provided', () => {
     render(<FolderCard name="Abril" onClick={vi.fn()} />);
     expect(screen.queryByText(/elementos/)).not.toBeInTheDocument();
-  });
-});
-
-// ─── FileCard ───────────────────────────────────────────────────────
-
-describe('FileCard', () => {
-  const defaultProps = {
-    name: 'Entrega-2026-03-15-dia.pdf',
-    date: '2026-03-15',
-    shift: 'day' as const,
-    size: '45 KB',
-    onDownload: vi.fn(),
-    onView: vi.fn(),
-  };
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('renders the file name', () => {
-    render(<FileCard {...defaultProps} />);
-    expect(screen.getByText('Entrega-2026-03-15-dia.pdf')).toBeInTheDocument();
-  });
-
-  it('renders the file size', () => {
-    render(<FileCard {...defaultProps} />);
-    expect(screen.getByText('45 KB')).toBeInTheDocument();
-  });
-
-  it('renders the shift badge when not hidden', () => {
-    render(<FileCard {...defaultProps} />);
-    expect(screen.getByText('Turno Largo')).toBeInTheDocument();
-  });
-
-  it('hides the shift badge when hideShift is true', () => {
-    render(<FileCard {...defaultProps} hideShift />);
-    expect(screen.queryByText('Turno Largo')).not.toBeInTheDocument();
-    expect(screen.queryByText('Turno Noche')).not.toBeInTheDocument();
-  });
-
-  it('renders night shift badge correctly', () => {
-    render(<FileCard {...defaultProps} shift="night" />);
-    expect(screen.getByText('Turno Noche')).toBeInTheDocument();
-  });
-
-  it('renders the delete button when canDelete is true', () => {
-    const onDelete = vi.fn();
-    render(<FileCard {...defaultProps} canDelete onDelete={onDelete} />);
-    expect(screen.getByTitle('Eliminar')).toBeInTheDocument();
-  });
-
-  it('does not render the delete button when canDelete is false', () => {
-    render(<FileCard {...defaultProps} canDelete={false} />);
-    expect(screen.queryByTitle('Eliminar')).not.toBeInTheDocument();
   });
 });
 
@@ -311,14 +255,120 @@ describe('BackupFilesToolbar', () => {
 });
 
 // ─── BackupFilesContent ─────────────────────────────────────────────
-// This component is tightly coupled to complex types and sub-components.
-// We test its core rendering branches with minimal mocks.
 
 describe('BackupFilesContent', () => {
-  it.todo('renders loading state when isLoading is true and not refetching');
-  it.todo('renders empty state when items array is empty');
-  it.todo('renders HandoffCalendarView when path.length === 2 and type is handoff');
-  it.todo('renders DailyBackupCalendarView when path.length === 2 and type is census');
-  it.todo('renders folder cards for folder items');
-  it.todo('renders file cards for file items');
+  const yearFolder = (name: string): BackupItem => ({
+    type: 'folder',
+    data: { name, type: 'year' },
+  });
+
+  const handoffFile = (date: string, shiftType: 'day' | 'night'): StoredPdfFile => ({
+    name: `Entrega sintética ${date} ${shiftType}.pdf`,
+    fullPath: `entregas-enfermeria/2026/03/${date}-${shiftType}.pdf`,
+    downloadUrl: `https://example.test/${date}-${shiftType}.pdf`,
+    date,
+    createdAt: `${date}T12:00:00.000Z`,
+    size: 2048,
+    shiftType,
+  });
+
+  const renderContent = (
+    overrides: Partial<React.ComponentProps<typeof BackupFilesContent>> = {}
+  ) => {
+    const handlers = {
+      onPreviewFile: vi.fn(),
+      onOpenFolder: vi.fn(),
+      onDownloadFile: vi.fn(),
+      onDeleteFile: vi.fn(),
+    };
+    const items = overrides.items ?? [yearFolder('2026')];
+    render(
+      <BackupFilesContent
+        items={items}
+        filteredItems={items}
+        path={[]}
+        selectedBackupType="handoff"
+        viewMode="grid"
+        isLoading={false}
+        isRefetching={false}
+        canDelete={false}
+        {...handlers}
+        {...overrides}
+      />
+    );
+    return handlers;
+  };
+
+  it('shows the search message instead of the listing while the first load runs', () => {
+    renderContent({ isLoading: true });
+
+    expect(screen.getByText('Buscando archivos...')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /2026/ })).not.toBeInTheDocument();
+  });
+
+  it('keeps the current listing visible while it is being refreshed', () => {
+    renderContent({ isLoading: true, isRefetching: true });
+
+    expect(screen.queryByText('Buscando archivos...')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /2026/ })).toBeInTheDocument();
+  });
+
+  it('tells the person that the location has no backups when the listing is empty', () => {
+    renderContent({ items: [], filteredItems: [] });
+
+    expect(screen.getByText('No se encontraron respaldos en esta ubicación')).toBeInTheDocument();
+  });
+
+  it('shows a handoff month as a day and night calendar that opens the chosen shift', () => {
+    const nightFile = handoffFile('2026-03-15', 'night');
+    const { onPreviewFile } = renderContent({
+      path: ['2026', 'Marzo'],
+      selectedBackupType: 'handoff',
+      items: [{ type: 'file', data: nightFile }],
+    });
+
+    expect(screen.getByRole('columnheader', { name: /T\. Largo/ })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: /T\. Noche/ })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: /Respaldo del día/ })).toBeNull();
+
+    const row = screen.getByRole('row', { name: /15-03-2026/ });
+    fireEvent.click(within(row).getByRole('button', { name: 'Ver' }));
+    expect(onPreviewFile).toHaveBeenCalledWith(nightFile);
+  });
+
+  it('shows a census month as a one-backup-per-day calendar that downloads the chosen day', () => {
+    const censusFile: BaseStoredFile = {
+      name: 'Censo sintético 2026-03-15.xlsx',
+      fullPath: 'censo-diario/2026/03/2026-03-15.xlsx',
+      downloadUrl: 'https://example.test/censo-2026-03-15.xlsx',
+      date: '2026-03-15',
+      createdAt: '2026-03-15T12:00:00.000Z',
+      size: 2048,
+    };
+    const { onDownloadFile } = renderContent({
+      path: ['2026', 'Marzo'],
+      selectedBackupType: 'census',
+      items: [{ type: 'file', data: censusFile }],
+    });
+
+    expect(screen.getByRole('columnheader', { name: /Respaldo del día/ })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: /T\. Noche/ })).toBeNull();
+
+    const row = screen.getByRole('row', { name: /15-03-2026/ });
+    expect(within(row).getByText('2 KB')).toBeInTheDocument();
+    fireEvent.click(within(row).getByRole('button', { name: 'Descargar' }));
+    expect(onDownloadFile).toHaveBeenCalledWith(censusFile);
+  });
+
+  it('lists only the folders that match the search and opens the one clicked', () => {
+    const matching = yearFolder('2026');
+    const { onOpenFolder } = renderContent({
+      items: [yearFolder('2025'), matching],
+      filteredItems: [matching],
+    });
+
+    expect(screen.queryByRole('button', { name: /2025/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /2026/ }));
+    expect(onOpenFolder).toHaveBeenCalledWith(matching.data);
+  });
 });

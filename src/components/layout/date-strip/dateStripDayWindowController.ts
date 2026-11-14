@@ -1,4 +1,6 @@
 import type { ModuleType } from '@/constants/navigationConfig';
+import { buildDayDateString } from '@/components/layout/date-strip/dateStripDayClassification';
+import { addCalendarDays } from '@/utils/clinicalDateUtils';
 
 export const DATE_STRIP_MOBILE_BREAKPOINT = 640;
 export const DATE_STRIP_TABLET_BREAKPOINT = 1024;
@@ -75,28 +77,19 @@ export const resolveDateStripDayWindow = ({
   };
 };
 
-const createMaxAllowedDate = (referenceDate: Date): Date => {
-  const maxAllowedDate = new Date(referenceDate);
-  maxAllowedDate.setHours(0, 0, 0, 0);
-  maxAllowedDate.setDate(maxAllowedDate.getDate() + 1);
-  return maxAllowedDate;
-};
-
 interface ResolveIsFutureDayBlockedParams {
   selectedYear: number;
   selectedMonth: number;
   day: number;
-  referenceDate?: Date;
+  /** Hospital day (`YYYY-MM-DD`) the strip treats as today. */
+  referenceDay: string;
 }
 
+/** Days after tomorrow (relative to the hospital reference day) cannot be selected. */
 export const resolveIsFutureDayBlocked = ({
   selectedYear,
   selectedMonth,
   day,
-  referenceDate = new Date(),
-}: ResolveIsFutureDayBlockedParams): boolean => {
-  const buttonDate = new Date(selectedYear, selectedMonth, day);
-  buttonDate.setHours(0, 0, 0, 0);
-
-  return buttonDate > createMaxAllowedDate(referenceDate);
-};
+  referenceDay,
+}: ResolveIsFutureDayBlockedParams): boolean =>
+  buildDayDateString(selectedYear, selectedMonth, day) > addCalendarDays(referenceDay, 1);

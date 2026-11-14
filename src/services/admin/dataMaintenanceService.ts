@@ -198,7 +198,7 @@ const exportMonthRecordsInternal = async (
  * or through December 31st when exporting a past year.
  */
 const exportYearToDateRecordsInternal = async (
-  year: number = new Date().getFullYear()
+  year: number
 ): Promise<DataMaintenanceExportResult> => {
   try {
     const now = new Date();
@@ -258,7 +258,7 @@ export const exportMonthRecordsWithResult = async (
 ): Promise<DataMaintenanceExportResult> => exportMonthRecordsInternal(year, month);
 
 export const exportYearToDateRecordsWithResult = async (
-  year: number = new Date().getFullYear()
+  year: number
 ): Promise<DataMaintenanceExportResult> => exportYearToDateRecordsInternal(year);
 
 export const exportMonthRecordsWithOutcome = async (
@@ -268,7 +268,7 @@ export const exportMonthRecordsWithOutcome = async (
   toDataMaintenanceOutcome(await exportMonthRecordsInternal(year, month));
 
 export const exportYearToDateRecordsWithOutcome = async (
-  year: number = new Date().getFullYear()
+  year: number
 ): Promise<ApplicationOutcome<DataMaintenanceExportResult | null>> =>
   toDataMaintenanceOutcome(await exportYearToDateRecordsInternal(year));
 
@@ -282,9 +282,7 @@ export const exportMonthRecords = async (year: number, month: number): Promise<v
   }
 };
 
-export const exportYearToDateRecords = async (
-  year: number = new Date().getFullYear()
-): Promise<void> => {
+export const exportYearToDateRecords = async (year: number): Promise<void> => {
   const result = await exportYearToDateRecordsInternal(year);
   if (result.status === 'failed') {
     throw new Error(result.userSafeMessage);

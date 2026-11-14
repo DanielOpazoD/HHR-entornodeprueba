@@ -177,7 +177,7 @@ export const resolveHandoffAuditDescriptor = ({
   },
 });
 
-export interface HandoffScreenShellModel {
+interface HandoffScreenShellModel {
   screenFrame: ReturnType<typeof resolveHandoffScreenFrame>;
   auditDescriptor: ReturnType<typeof resolveHandoffAuditDescriptor>;
   medicalCapabilities: MedicalHandoffCapabilities;
@@ -219,7 +219,7 @@ export const buildHandoffScreenShellModel = ({
   };
 };
 
-export interface HandoffHeaderBindings {
+interface HandoffHeaderBindings {
   isMedical: boolean;
   selectedShift: ShiftType;
   setSelectedShift: (shift: ShiftType) => void;
@@ -235,7 +235,7 @@ export interface HandoffHeaderBindings {
   showNightCudyrAction: boolean;
 }
 
-export interface HandoffChecklistSectionViewModel {
+interface HandoffChecklistSectionViewModel {
   shouldRender: boolean;
   showShiftSwitcher: boolean;
   isReceivesEditable: boolean;
@@ -259,7 +259,7 @@ export const buildHandoffChecklistSectionViewModel = ({
   activeChecklistShift: selectedShift,
 });
 
-export interface HandoffNovedadesBindings {
+interface HandoffNovedadesBindings {
   value: string;
   readOnly: boolean;
   onChange: (value: string) => void;
@@ -329,7 +329,7 @@ export const buildHandoffHeaderBindings = ({
   showNightCudyrAction: shouldShowNightCudyrActions({ isMedical, selectedShift }),
 });
 
-export interface MedicalHandoffContentBindings {
+interface MedicalHandoffContentBindings {
   record: HandoffDailyRecordContract;
   effectiveVisibleBeds: BedDefinition[];
   specialtyFilteredBeds: BedDefinition[];
@@ -365,7 +365,7 @@ export const buildMedicalHandoffContentBindings = (
   bindings: MedicalHandoffContentBindings
 ): MedicalHandoffContentBindings => bindings;
 
-export interface NursingHandoffContentBindings {
+interface NursingHandoffContentBindings {
   visibleBeds: BedDefinition[];
   record: HandoffDailyRecordContract;
   noteField: 'handoffNoteDayShift' | 'handoffNoteNightShift' | 'medicalHandoffNote';

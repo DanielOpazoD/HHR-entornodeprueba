@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1313,
+  "total": 1310,
   "areas": {
     "src/application/backup-export": 4,
     "src/application/census-email": 2,
@@ -37,7 +37,6 @@
     "src/hooks/useClinicalCrib": 5,
     "src/hooks/useCMA": 2,
     "src/hooks/useDateNavigation": 4,
-    "src/hooks/useDevMetrics": 3,
     "src/hooks/useExcelParser": 1,
     "src/hooks/useExistingDaysQuery": 1,
     "src/hooks/usePatientAnalysis": 1,

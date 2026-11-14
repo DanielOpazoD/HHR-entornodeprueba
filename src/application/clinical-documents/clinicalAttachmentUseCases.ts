@@ -30,7 +30,7 @@ interface ClinicalAttachmentUseCaseDependencies {
   compressImage?: (file: File) => Promise<ClinicalAttachmentImageCompressionResult>;
 }
 
-export interface UploadClinicalAttachmentUseCaseInput {
+interface UploadClinicalAttachmentUseCaseInput {
   hospitalId: string;
   patientRut: string;
   patientName?: string;
@@ -47,50 +47,50 @@ export interface UploadClinicalAttachmentUseCaseInput {
   image?: ClinicalAttachmentRecord['image'];
 }
 
-export interface ListClinicalAttachmentsByEpisodeInput {
+interface ListClinicalAttachmentsByEpisodeInput {
   episodeKey: string;
   hospitalId: string;
 }
 
-export interface ListClinicalAttachmentsByPatientInput {
+interface ListClinicalAttachmentsByPatientInput {
   patientRut: string;
   hospitalId: string;
 }
 
-export interface AuditClinicalAttachmentPatientStorageInput {
+interface AuditClinicalAttachmentPatientStorageInput {
   patientRut: string;
   hospitalId: string;
 }
 
-export interface ClinicalAttachmentStorageIntegrityReport {
+interface ClinicalAttachmentStorageIntegrityReport {
   activeMetadataCount: number;
   storageObjectCount: number;
   orphanStoragePaths: string[];
   missingStorageRecords: Array<Pick<ClinicalAttachmentRecord, 'id' | 'storagePath'>>;
 }
 
-export interface DeleteClinicalAttachmentUseCaseInput {
+interface DeleteClinicalAttachmentUseCaseInput {
   attachmentId: string;
   hospitalId: string;
   storagePath: string;
   actor: ClinicalDocumentAuditActor;
 }
 
-export interface RenameClinicalAttachmentUseCaseInput {
+interface RenameClinicalAttachmentUseCaseInput {
   attachmentId: string;
   hospitalId: string;
   displayName: string;
   actor: ClinicalDocumentAuditActor;
 }
 
-export interface RegenerateClinicalAttachmentAccessUseCaseInput {
+interface RegenerateClinicalAttachmentAccessUseCaseInput {
   attachmentId: string;
   hospitalId: string;
   storagePath: string;
   actor: ClinicalDocumentAuditActor;
 }
 
-export interface SuggestClinicalAttachmentDisplayNameInput {
+interface SuggestClinicalAttachmentDisplayNameInput {
   attachment: Pick<
     ClinicalAttachmentRecord,
     | 'originalFileName'

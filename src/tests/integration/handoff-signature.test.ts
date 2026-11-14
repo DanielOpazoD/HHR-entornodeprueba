@@ -43,7 +43,7 @@ vi.mock('../../context', () => ({
 
 // Mock WhatsApp Service
 vi.mock('../../services/integrations/whatsapp/whatsappService', () => ({
-  formatHandoffMessage: vi.fn((template, data) => `Formatted: ${data.signedBy}`),
+  formatHandoffMessage: vi.fn((_template, data) => `Formatted: ${data.signedBy}`),
   sendWhatsAppMessage: vi.fn(() => Promise.resolve({ success: true })),
 }));
 
