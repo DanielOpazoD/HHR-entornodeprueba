@@ -37,13 +37,6 @@
         "src/features/cudyr/hooks/useAdminCudyrResult.ts",
         "src/services/cudyr/adminCudyrResultService.ts"
       ]
-    },
-    {
-      "reason": "Contratos de runtime que la app no carga, pero que check-runtime-contracts y check-docs-drift exigen documentados. Se retiran junto con esa exigencia.",
-      "files": [
-        "src/services/repositories/runtimeCompatibilityPolicy.ts",
-        "src/services/repositories/runtimeContractGovernance.ts"
-      ]
     }
   ]
 }
