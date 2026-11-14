@@ -18,7 +18,14 @@ import {
   Wrench,
   Eye,
   Sparkles,
+  History,
 } from 'lucide-react';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
+import {
+  PANEL_HEADER_CLASS,
+  PANEL_ICON_CLASS,
+  PANEL_TITLE_CLASS,
+} from '@/components/ui/base/panelStyles';
 import { getClinicalDocumentVersionChangedSectionSnapshots } from '@/domain/clinical-documents/versionHistory';
 import { stripClinicalDocumentHtml } from '@/features/clinical-documents/controllers/clinicalDocumentRichTextController';
 import type {
@@ -100,18 +107,23 @@ export const ClinicalDocumentVersionHistory: React.FC<ClinicalDocumentVersionHis
         className="relative bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-md max-h-[70vh] flex flex-col animate-scale-in"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-          <h3 className="text-sm font-semibold text-slate-800">
-            Historial de versiones
-            <span className="ml-1.5 text-[10px] font-normal text-slate-400">v{currentVersion}</span>
+        <div className={`${PANEL_HEADER_CLASS} border-slate-100 px-4`}>
+          <h3 className={`${PANEL_TITLE_CLASS} flex items-center gap-2`}>
+            <span className={`${PANEL_ICON_CLASS} text-medical-700`} aria-hidden="true">
+              <History />
+            </span>
+            <span className="min-w-0 break-words">
+              Historial de versiones
+              <span className="ml-1.5 text-xs font-normal text-slate-500">v{currentVersion}</span>
+            </span>
           </h3>
           <button
             type="button"
             aria-label="Cerrar"
             onClick={onClose}
-            className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            className={buttonClassName('ghost', 'icon', 'ml-auto shrink-0')}
           >
-            <X size={14} aria-hidden="true" />
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
 
@@ -144,24 +156,22 @@ export const ClinicalDocumentVersionHistory: React.FC<ClinicalDocumentVersionHis
                   />
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="text-[10px] text-slate-400 font-mono">v{v.version}</span>
-                      <span className="text-[10px] text-slate-500 ml-2">
+                      <span className="text-xs text-slate-500 font-mono">v{v.version}</span>
+                      <span className="text-xs text-slate-500 ml-2">
                         {formatDateTime(v.savedAt)}
                       </span>
-                      <p className="text-[11px] text-slate-700 mt-0.5">{v.savedBy.displayName}</p>
+                      <p className="text-xs text-slate-700 mt-0.5">{v.savedBy.displayName}</p>
                     </div>
                     <span
-                      className={`flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${config.badgeClass}`}
+                      className={`flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${config.badgeClass}`}
                     >
-                      <Icon size={9} />
+                      <Icon size={12} />
                       {config.label}
                     </span>
                   </div>
                   {changedSnapshots.length > 0 && (
                     <div className="mt-2 rounded-lg border border-slate-100 bg-slate-50 px-2 py-1.5">
-                      <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
-                        Cambios
-                      </p>
+                      <p className="text-xs font-semibold text-slate-600">Cambios</p>
                       <div className="mt-1 space-y-1">
                         {changedSnapshots.map(section => {
                           const sectionKey = `${v.version}-${section.sectionId}`;
@@ -170,7 +180,7 @@ export const ClinicalDocumentVersionHistory: React.FC<ClinicalDocumentVersionHis
                           return (
                             <div key={section.sectionId} className="rounded-md bg-white p-1.5">
                               <div className="flex items-center justify-between gap-2">
-                                <span className="min-w-0 truncate text-[11px] font-semibold text-slate-700">
+                                <span className="min-w-0 truncate text-xs font-semibold text-slate-700">
                                   {section.title}
                                 </span>
                                 <div className="flex shrink-0 items-center gap-1">
@@ -181,10 +191,10 @@ export const ClinicalDocumentVersionHistory: React.FC<ClinicalDocumentVersionHis
                                         current === sectionKey ? null : sectionKey
                                       )
                                     }
-                                    className="inline-flex h-6 items-center rounded-md border border-slate-200 px-1.5 text-[9px] font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+                                    className={buttonClassName('ghost', 'xs')}
                                     aria-label={`Ver anterior ${section.title}`}
                                   >
-                                    <Eye size={10} className="mr-1" />
+                                    <Eye size={12} aria-hidden="true" />
                                     Ver
                                   </button>
                                   {canRestoreSection && onRestoreSection && (
@@ -197,7 +207,7 @@ export const ClinicalDocumentVersionHistory: React.FC<ClinicalDocumentVersionHis
                                           content: section.content,
                                         })
                                       }
-                                      className="inline-flex h-6 items-center rounded-md border border-medical-200 bg-medical-50 px-1.5 text-[9px] font-semibold text-medical-700 transition-colors hover:bg-medical-100"
+                                      className={buttonClassName('outline', 'xs')}
                                       aria-label={`Restaurar ${section.title}`}
                                     >
                                       Restaurar
@@ -206,7 +216,7 @@ export const ClinicalDocumentVersionHistory: React.FC<ClinicalDocumentVersionHis
                                 </div>
                               </div>
                               {isExpanded && (
-                                <div className="mt-1 max-h-28 overflow-y-auto whitespace-pre-wrap rounded border border-slate-100 bg-slate-50 p-1.5 text-[10px] leading-relaxed text-slate-600">
+                                <div className="mt-1 max-h-28 overflow-y-auto whitespace-pre-wrap rounded border border-slate-100 bg-slate-50 p-1.5 text-xs leading-relaxed text-slate-600">
                                   {stripClinicalDocumentHtml(section.content) ||
                                     'Sección sin contenido en esta versión.'}
                                 </div>
@@ -218,7 +228,7 @@ export const ClinicalDocumentVersionHistory: React.FC<ClinicalDocumentVersionHis
                     </div>
                   )}
                   {!hasSectionSnapshots && (
-                    <p className="mt-2 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2 py-1.5 text-[10px] leading-relaxed text-slate-500">
+                    <p className="mt-2 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2 py-1.5 text-xs leading-relaxed text-slate-500">
                       Versión sin detalle por sección. La comparación estará disponible desde los
                       próximos guardados.
                     </p>
