@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const service = vi.hoisted(() => ({
@@ -29,6 +29,8 @@ vi.mock('@/services/specialty/specialtyJevClient', () => ({
 
 import { SpecialtyRulesWindow } from '@/features/census/components/specialty-round/SpecialtyRulesWindow';
 
+import { useSpecialtyRulesEditor } from '@/features/census/components/specialty-round/useSpecialtyRulesEditor';
+
 describe('admin specialty rules panel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -47,6 +49,19 @@ describe('admin specialty rules panel', () => {
     service.history.mockResolvedValue([]);
     service.current.mockResolvedValue({ status: 'missing', record: null });
   });
+
+  it.each(['Otro', '', 'Desconocida', ' Med Interna '])(
+    'does not stage an unsupported specialty %s',
+    async specialty => {
+      const { result } = renderHook(() => useSpecialtyRulesEditor('2026-09-10'));
+      await waitFor(() => expect(result.current.setup).not.toBeNull());
+      act(() => result.current.stageAssociation('F23', specialty));
+      expect(result.current.rules).toEqual([]);
+      expect(result.current.message).toBe('');
+      act(() => result.current.stageAssociation('F23', 'Psiquiatría'));
+      expect(result.current.rules).toEqual([expect.objectContaining({ specialty: 'Psiquiatría' })]);
+    }
+  );
 
   it('publishes a current three-character CIE-10 association under revision CAS', async () => {
     render(<SpecialtyRulesWindow onClose={vi.fn()} />);

@@ -2,7 +2,7 @@ import type { PatientData } from '@/types/domain/patient';
 
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
-import { SPECIALTY_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
+import { isSpecialtyOption } from '@/constants/clinicalSpecialtyConstants';
 
 export interface DiagnosisAssociation {
   code: string;
@@ -25,7 +25,7 @@ export const isValidDiagnosisCode = (code: string): boolean =>
   /^[A-Z][0-9]{2}(?:\.[0-9A-Z]{1,4})?$/.test(code);
 
 const allowedSpecialty = (value: string | undefined): value is string =>
-  Boolean(value && value !== 'Otro' && SPECIALTY_OPTIONS.includes(value as never));
+  Boolean(value && value !== 'Otro' && isSpecialtyOption(value));
 
 const occupied = (beds: Record<string, PatientData> | null | undefined): PatientData[] =>
   Object.values(beds ?? {}).flatMap(bed =>
