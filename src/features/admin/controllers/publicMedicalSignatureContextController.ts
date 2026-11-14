@@ -46,7 +46,6 @@ export const createPublicMedicalSignatureContextValue = ({
     isValid: true,
     errors: [],
   }),
-  canMovePatient: () => ({ canMove: false, reason: 'Modo solo lectura.' }),
   canDischargePatient: () => false,
   updatePatient: noop,
   updatePatientMultiple: noop,

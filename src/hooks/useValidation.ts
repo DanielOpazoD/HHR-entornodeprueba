@@ -4,10 +4,7 @@ import { useCallback } from 'react';
 import { DailyRecordSchema } from '@/schemas/zodSchemas';
 
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import {
-  validateMovePatient,
-  validatePatientDischarge,
-} from '@/hooks/controllers/validationController';
+import { validatePatientDischarge } from '@/hooks/controllers/validationController';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 
 const validationLogger = createScopedLogger('Validation');
@@ -30,20 +27,6 @@ export const useValidation = () => {
   }, []);
 
   /**
-   * Custom clinical rule: Check if a bed movement is valid.
-   */
-  const canMovePatient = useCallback(
-    (
-      sourceBedId: string,
-      targetBedId: string,
-      record: DailyRecord | null
-    ): { canMove: boolean; reason?: string } => {
-      return validateMovePatient(targetBedId, record);
-    },
-    []
-  );
-
-  /**
    * Custom clinical rule: Check if patient data is complete enough for discharge.
    */
   const canDischargePatient = useCallback(
@@ -53,7 +36,6 @@ export const useValidation = () => {
 
   return {
     validateRecordSchema,
-    canMovePatient,
     canDischargePatient,
   };
 };

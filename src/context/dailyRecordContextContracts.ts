@@ -74,11 +74,6 @@ export interface DailyRecordValidationActions {
     isValid: boolean;
     errors: import('zod').ZodIssue[];
   };
-  canMovePatient: (
-    sourceBedId: string,
-    targetBedId: string,
-    record: DailyRecord | null
-  ) => { canMove: boolean; reason?: string };
   canDischargePatient: (patient: PatientData) => boolean;
 }
 
