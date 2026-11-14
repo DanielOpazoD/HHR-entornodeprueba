@@ -1,5 +1,4 @@
 /** Synthetic-only: the specialist keeps typing while saves are confirmed or a colleague writes. */
-import React from 'react';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HandoffMedicalObservationsCell } from '@/features/handoff/components/HandoffMedicalObservationsCell';
