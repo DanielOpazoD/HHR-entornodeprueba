@@ -63,7 +63,7 @@ export const ClinicalActionButton: React.FC<ClinicalActionButtonProps> = ({
     {!loading && badge !== undefined && badge > 0 && (
       <span
         aria-hidden="true"
-        className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-teal-700 px-1 text-[9px] font-bold leading-none text-white ring-2 ring-white"
+        className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-teal-700 px-1 text-xs font-bold leading-none text-white ring-2 ring-white"
       >
         {badge > 99 ? '99+' : badge}
       </span>
@@ -71,7 +71,7 @@ export const ClinicalActionButton: React.FC<ClinicalActionButtonProps> = ({
     {hint && !loading && (
       <span
         aria-hidden="true"
-        className="pointer-events-none invisible absolute left-1/2 top-full z-50 mt-1 w-max max-w-40 -translate-x-1/2 rounded-md border border-slate-200 bg-slate-900 px-2 py-1 text-[11px] font-medium leading-tight text-white opacity-0 shadow-md transition-opacity group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100"
+        className="pointer-events-none invisible absolute left-1/2 top-full z-50 mt-1 w-max max-w-40 -translate-x-1/2 rounded-md border border-slate-200 bg-slate-900 px-2 py-1 text-xs font-medium leading-tight text-white opacity-0 shadow-md transition-opacity group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100"
       >
         {hint}
       </span>

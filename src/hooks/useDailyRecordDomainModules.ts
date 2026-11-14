@@ -16,7 +16,6 @@ import { useCMA } from '@/hooks/useCMA';
 import { useHandoffManagement } from '@/hooks/useHandoffManagement';
 import { useInventory } from '@/hooks/useInventory';
 import { useStabilityRules } from '@/hooks/useStabilityRules';
-import { useValidation } from '@/hooks/useValidation';
 
 export const useDailyRecordDomainModules = (
   record: DailyRecord | null,
@@ -26,7 +25,6 @@ export const useDailyRecordDomainModules = (
 ) => {
   const inventory = useInventory(record);
   const stabilityRules = useStabilityRules(record);
-  const validation = useValidation();
   const bedManagement = useBedManagement(record, patchRecord, ensureStaleDayEditAllowed);
   const dischargeManagement = usePatientDischarges(record, saveAndUpdate, undefined, patchRecord);
   const transferManagement = usePatientTransfers(record, saveAndUpdate, undefined, patchRecord);
@@ -39,7 +37,6 @@ export const useDailyRecordDomainModules = (
   return {
     inventory,
     stabilityRules,
-    validation,
     bedManagement,
     dischargeManagement,
     transferManagement,

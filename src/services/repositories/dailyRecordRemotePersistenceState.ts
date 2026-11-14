@@ -24,7 +24,6 @@ const toLocalPersistenceError = (result: LocalRecordWriteResult): Error =>
     : new Error(result.userSafeMessage || 'No fue posible guardar el registro local.');
 
 export const applyLocalPersistenceFailure = (
-  date: string,
   changedPaths: string[],
   result: LocalRecordWriteResult,
   state: RemoteWriteState,
@@ -104,7 +103,6 @@ export const recoverAlreadyAppliedRemoteWrite = async ({
     state.localProjectionRecord = await adoptAlreadyAppliedRemoteRecord(alreadyAppliedRecord);
   } catch (error) {
     applyLocalPersistenceFailure(
-      date,
       changedPaths,
       {
         ok: false,

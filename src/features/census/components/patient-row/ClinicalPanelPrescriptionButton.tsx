@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Printer, Loader2 } from 'lucide-react';
 import { requestClinicalAction } from '@/features/rayen-import/clinical-panel';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
 
 export const ClinicalPanelPrescriptionButton: React.FC<{ clinicalEpisodeId: string }> = ({
   clinicalEpisodeId,
@@ -29,7 +30,7 @@ export const ClinicalPanelPrescriptionButton: React.FC<{ clinicalEpisodeId: stri
         type="button"
         onClick={() => void print()}
         disabled={busy}
-        className="inline-flex items-center gap-2 rounded-lg border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-50 disabled:opacity-50"
+        className={buttonClassName('outline', 'sm')}
         title="Abrir receta completa vigente para imprimir o guardar en PDF"
       >
         {busy ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}Imprimir

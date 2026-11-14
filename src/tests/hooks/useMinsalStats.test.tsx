@@ -502,4 +502,30 @@ describe('useMinsalStats', () => {
       }
     });
   });
+
+  // 22:30 on November 30 in Rapa Nui is already December in UTC, Santiago and Auckland.
+  it.each(['UTC', 'America/Santiago', 'Pacific/Easter', 'Pacific/Auckland'])(
+    'opens the current-month preset on the hospital month on a device in %s',
+    async zone => {
+      const deviceZone = process.env.TZ;
+      process.env.TZ = zone;
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-12-01T03:30:00.000Z'));
+      try {
+        mockFetchRecordsRangeSorted.mockResolvedValue([]);
+        mockSyncRecordsRange.mockResolvedValue([]);
+        mockCalculateMinsalStats.mockReturnValue(buildStats());
+        mockCallable.mockResolvedValue({ data: buildStats() });
+        const { result } = renderHook(() => useMinsalStats('lastMonth'), {
+          wrapper: createWrapper(),
+        });
+        act(() => result.current.setPreset('currentMonth'));
+        expect(result.current.dateRange).toEqual({ preset: 'currentMonth', currentYearMonth: 11 });
+      } finally {
+        vi.useRealTimers();
+        if (deviceZone === undefined) delete process.env.TZ;
+        else process.env.TZ = deviceZone;
+      }
+    }
+  );
 });

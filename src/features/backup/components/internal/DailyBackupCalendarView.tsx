@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { Download, Trash2, Calendar, Eye, FileText } from 'lucide-react';
 import type { BaseStoredFile } from '@/types/backupArtifacts';
 import { generateDateRange } from '@/utils/dateRangeUtils';
@@ -35,8 +36,8 @@ export const DailyBackupCalendarView: React.FC<DailyBackupCalendarViewProps> = (
   const monthNumber = MONTH_NAMES.indexOf(monthName) + 1;
 
   // 2. Determine if we should limit to today
-  const now = new Date();
-  const isCurrentMonth = now.getFullYear() === year && now.getMonth() + 1 === monthNumber;
+  const [currentYear, currentMonth] = getClinicalCalendarDateISO().split('-').map(Number);
+  const isCurrentMonth = currentYear === year && currentMonth === monthNumber;
 
   // 3. Generate all days for this month (limited to today if current)
   const allDays = generateDateRange(year, monthNumber, isCurrentMonth);

@@ -23,6 +23,23 @@ const record = (date: string, beds: Record<string, PatientData>): DailyRecord =>
   ({ date, beds }) as DailyRecord;
 
 describe('specialty rule diagnosis sources', () => {
+  it.each([undefined, '', 'Otro', 'Desconocida'])(
+    'excludes unsupported specialty %s from associations and suggestions',
+    specialty => {
+      const beds = { R1: patient({ specialty }) };
+      expect(summarizeHistoricalAssociations([record('2026-09-10', beds)])).toEqual([]);
+      expect(summarizeCurrentDiagnoses(beds)[0].suggestedSpecialty).toBe('');
+    }
+  );
+
+  it('retains a valid specialty after trimming historical source text', () => {
+    const beds = { R1: patient({ specialty: ' Med Interna ' }) };
+    expect(summarizeCurrentDiagnoses(beds)[0].suggestedSpecialty).toBe('Med Interna');
+    expect(summarizeHistoricalAssociations([record('2026-09-10', beds)])).toEqual([
+      { code: 'J18.9', specialty: 'Med Interna', observations: 1, lastDate: '2026-09-10' },
+    ]);
+  });
+
   it('groups current hospitalised mother and clinical crib diagnoses, excluding empty beds', () => {
     const result = summarizeCurrentDiagnoses({
       R1: patient({ clinicalCrib: patient({ cie10Code: 'F23', specialty: '' }) }),

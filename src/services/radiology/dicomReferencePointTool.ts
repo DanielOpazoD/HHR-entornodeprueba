@@ -3,7 +3,7 @@ import { BaseTool, type Types as ToolTypes } from '@cornerstonejs/tools';
 
 /** Moves a shared physical point without enabling oblique rotation of MPR planes. */
 export class DicomReferencePointTool extends BaseTool {
-  static toolName = 'DicomReferencePoint';
+  static override toolName = 'DicomReferencePoint';
   constructor(toolProps: ToolTypes.PublicToolProps = {}) {
     super(toolProps, { supportedInteractionTypes: ['Mouse'], configuration: {} });
   }
