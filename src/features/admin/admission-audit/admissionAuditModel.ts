@@ -1,6 +1,7 @@
 import { isValidRut, normalizeRut } from '@/utils/rutUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
+  compareStamps,
   encounterWallClockInRapaNui,
   parseClinicalPanel,
   type ClinicalPanelEntry,
@@ -236,16 +237,18 @@ export const buildAdmissionAuditEntry = (
   // Deduplicate before the admission fence: a later revision cannot become a new admission order.
   const firstVersions = new Map<string, (typeof sourceOrders)[number]>();
   const conflictingKeys = new Set<string>();
+  // Versions of an order sort by the panel's stamp order: two instants by their instants, also in
+  // the repeated hour of a clock change. The admission fence below stays on the Rapa Nui clock.
   for (const order of [...sourceOrders].sort(
     (a, b) =>
-      (sourceClock(a.publishedAt) ?? '').localeCompare(sourceClock(b.publishedAt) ?? '') ||
+      compareStamps(a.publishedAt, b.publishedAt) ||
       (a.sourceObservedAt ?? '').localeCompare(b.sourceObservedAt ?? '')
   )) {
     const key = orderKey(order);
     const prior = firstVersions.get(key);
     if (!prior) firstVersions.set(key, order);
     else if (
-      sourceClock(prior.publishedAt) === sourceClock(order.publishedAt) &&
+      compareStamps(prior.publishedAt, order.publishedAt) === 0 &&
       (!prior.sourceObservedAt ||
         !order.sourceObservedAt ||
         prior.sourceObservedAt === order.sourceObservedAt) &&

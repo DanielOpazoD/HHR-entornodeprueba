@@ -1,6 +1,5 @@
 import type { ClinicalPanelEntry } from './clinicalPanelTypes';
-import { dayKey, flag, timeKey } from './clinicalPanelParsingUtils';
-import { absoluteInstantInRapaNui } from './encounterWallClock';
+import { compareStamps, dayKey, flag, isUsableStamp } from './clinicalPanelParsingUtils';
 
 type MedicationState = Record<string, unknown>;
 
@@ -21,9 +20,9 @@ const earliestInactiveDates = (states: Map<string, MedicationState>): Map<string
       state.deletedDateTime,
     ]) {
       const candidate = value === null || value === undefined ? '' : String(value).trim();
-      if (timeKey(candidate) <= 0) continue;
+      if (!isUsableStamp(candidate)) continue;
       const current = result.get(medicationId);
-      if (!current || timeKey(candidate) < timeKey(current)) result.set(medicationId, candidate);
+      if (!current || compareStamps(candidate, current) < 0) result.set(medicationId, candidate);
     }
   }
   return result;
@@ -35,25 +34,19 @@ const latestValidationByDay = (validations: string[]): Map<string, string> => {
     const day = dayKey(validation);
     if (!day) continue;
     const current = result.get(day);
-    if (!current || timeKey(validation) > timeKey(current)) result.set(day, validation);
+    if (!current || compareStamps(validation, current) > 0) result.set(day, validation);
   }
   return result;
 };
 
-/**
- * Versions of an order compare by their instants. The validation's clock is not measured (TIME-02),
- * so the validation's text is compared with the order's Rapa Nui wall clock, the same on every device.
- */
 const versionAt = (
   candidates: ClinicalPanelEntry[],
   validationDatetime: string
 ): ClinicalPanelEntry | null =>
   candidates.reduce<ClinicalPanelEntry | null>((selected, candidate) => {
     const stamp = candidate.prescribedAt ?? candidate.publishedAt;
-    const wallTime = timeKey(absoluteInstantInRapaNui(stamp) ?? stamp);
-    if (wallTime <= 0 || wallTime > timeKey(validationDatetime)) return selected;
-    const candidateTime = timeKey(stamp);
-    if (!selected || candidateTime > timeKey(selected.prescribedAt ?? selected.publishedAt)) {
+    if (!isUsableStamp(stamp) || compareStamps(stamp, validationDatetime) > 0) return selected;
+    if (!selected || compareStamps(stamp, selected.prescribedAt ?? selected.publishedAt) > 0) {
       return candidate;
     }
     return selected;
@@ -74,7 +67,7 @@ export const projectValidatedMedicationDays = ({
       const prescribedAt = medication.prescribedAt ?? medication.publishedAt;
       if (!dayKey(prescribedAt) || dayKey(prescribedAt) > validationDay) continue;
       const inactiveAt = inactiveDates.get(medicationId);
-      if (inactiveAt && timeKey(validationDatetime) >= timeKey(inactiveAt)) continue;
+      if (inactiveAt && compareStamps(validationDatetime, inactiveAt) >= 0) continue;
       const currentState = medicationStates.get(medicationId);
       if (!currentState) continue;
       const currentlyInactive =
