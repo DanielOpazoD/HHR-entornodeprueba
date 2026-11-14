@@ -175,6 +175,7 @@ export const reconcileCensus = (
   for (const { encounter, mapped } of principalPlacements) {
     const { patient, bedId } = mapped;
     const match = findCurrent(encounter);
+    if (match) consumedBedIds.add(match.bedId);
     const movingNestedCrib =
       bedId && !mapped.isClinicalCrib ? findCurrentCrib(encounter) : undefined;
     if (movingNestedCrib) {
@@ -200,7 +201,6 @@ export const reconcileCensus = (
       continue;
     }
     if (match) {
-      consumedBedIds.add(match.bedId);
       if (match.bedId === bedId) {
         if (!claimTarget(bedId, patient.patientName, encounter)) continue;
         confirmedPrincipalBedIds.add(bedId);
