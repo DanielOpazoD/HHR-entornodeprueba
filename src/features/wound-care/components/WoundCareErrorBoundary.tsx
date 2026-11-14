@@ -20,13 +20,13 @@ const woundCareErrorBoundaryLogger = createScopedLogger('WoundCareErrorBoundary'
  * without crashing the entire handoff view.
  */
 export class WoundCareErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false, error: null };
+  override state: State = { hasError: false, error: null };
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, info: React.ErrorInfo) {
+  override componentDidCatch(error: Error, info: React.ErrorInfo) {
     woundCareErrorBoundaryLogger.error('Error boundary caught', {
       error,
       componentStack: info.componentStack,
@@ -38,7 +38,7 @@ export class WoundCareErrorBoundary extends Component<Props, State> {
     this.setState({ hasError: false, error: null });
   };
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       return (
         <div className="relative flex flex-col items-center justify-center p-6 text-center overflow-hidden">

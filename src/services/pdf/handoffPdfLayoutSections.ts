@@ -220,7 +220,6 @@ export const addNovedadesSection = (
 
 export const addPageFooter = (
   doc: jsPDF,
-  margin: number,
   pageMargin: HandoffPdfPageMargin = HANDOFF_PDF_PAGE_LAYOUT.margin
 ) => {
   const pageCount = doc.getNumberOfPages();
