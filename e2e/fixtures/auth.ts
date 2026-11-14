@@ -332,13 +332,6 @@ export async function setupE2EContext(
   }
 }
 
-/**
- * Legacy helper (maintained for compatibility if needed, but setupE2EContext is preferred)
- */
-export async function injectMockUser(page: Page, role: 'editor' | 'admin' | 'viewer' = 'editor') {
-  await setupE2EContext(page, role);
-}
-
 export async function bootstrapSeededRecord(
   page: Page,
   {
