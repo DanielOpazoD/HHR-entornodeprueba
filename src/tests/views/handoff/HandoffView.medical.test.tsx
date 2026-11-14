@@ -122,6 +122,9 @@ describe('HandoffView medical flows', () => {
       contextValue: createMockDailyRecordContext(record),
     });
 
+    expect(
+      screen.queryByRole('button', { name: /Centro de conflictos clínicos/i })
+    ).not.toBeInTheDocument();
     expect(screen.getByText(/Entrega Turno Médicos/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Especialidad/i).length).toBeGreaterThan(0);
 

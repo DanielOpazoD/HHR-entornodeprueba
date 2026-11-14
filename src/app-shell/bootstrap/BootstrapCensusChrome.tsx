@@ -302,9 +302,7 @@ export const BootstrapRouteChrome: React.FC = () => {
                 isLoading
                 hideQuickActions={canUseCensusChromeActions}
                 trailingActions={
-                  canUseCensusChromeActions ? (
-                    <CensusToolbarLoadingActions role={DEFAULT_BOOTSTRAP_ROLE} />
-                  ) : undefined
+                  canUseCensusChromeActions ? <CensusToolbarLoadingActions /> : undefined
                 }
                 selectedYear={bootstrapDate.selectedYear}
                 setSelectedYear={noopSetNumber}

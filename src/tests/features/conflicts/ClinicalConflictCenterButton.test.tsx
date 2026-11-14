@@ -18,6 +18,25 @@ const renderButton = (snapshotCount: number, requiresAttention = false) =>
   );
 
 describe('ClinicalConflictCenterButton', () => {
+  it('shows count and attention as neutral menu text without an icon', () => {
+    render(
+      <ClinicalConflictCenterButton
+        scopeLabel="Censo diario"
+        snapshotCount={2}
+        requiresAttention
+        testId="menu-conflicts"
+        hideLabel={false}
+        label="Conflictos HHR"
+        variant="menu"
+      />
+    );
+    const item = screen.getByRole('button', { name: 'Conflictos HHR · 2 · revisión requerida' });
+    expect(item).toHaveAttribute('data-census-menu-action');
+    expect(item).toHaveClass('text-slate-600');
+    expect(item.querySelector('svg')).toBeNull();
+    expect(item.querySelector('[aria-hidden]')).toBeNull();
+  });
+
   it('uses a calm neutral treatment when no conflict requires attention', () => {
     renderButton(2);
 

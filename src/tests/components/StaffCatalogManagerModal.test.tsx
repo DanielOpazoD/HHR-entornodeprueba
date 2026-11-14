@@ -94,6 +94,9 @@ describe('StaffCatalogManagerModal', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
 
     expect(screen.getByText('El nombre debe tener al menos 2 caracteres')).toBeTruthy();
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    fireEvent.change(input, { target: { value: 'Persona Sintética' } });
+    expect(input).toHaveAttribute('aria-invalid', 'false');
     expect(onSave).not.toHaveBeenCalled();
   });
 
