@@ -1,3 +1,4 @@
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
 import React, { useEffect, useRef } from 'react';
 
 export const LibraryExitConfirmation: React.FC<{
@@ -29,15 +30,11 @@ export const LibraryExitConfirmation: React.FC<{
           ref={cancelRef}
           type="button"
           onClick={onCancel}
-          className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 focus-visible:outline-2 focus-visible:outline-medical-600"
+          className={buttonClassName('outline')}
         >
           Seguir editando
         </button>
-        <button
-          type="button"
-          onClick={onConfirm}
-          className="rounded-md bg-medical-600 px-3 py-2 text-sm font-semibold text-white hover:bg-medical-700 focus-visible:outline-2 focus-visible:outline-medical-600"
-        >
+        <button type="button" onClick={onConfirm} className={buttonClassName('danger')}>
           Salir y descartar
         </button>
       </div>

@@ -1,5 +1,11 @@
 import React, { useId } from 'react';
 import { ChevronLeft, X } from 'lucide-react';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
+import {
+  PANEL_HEADER_CLASS,
+  PANEL_TITLE_CLASS,
+  PANEL_ICON_CLASS,
+} from '@/components/ui/base/panelStyles';
 import type { LibraryPatientOption } from '../../domain/libraryCatalogTypes';
 import type { ScoreReference } from '../../domain/scoreEngine';
 
@@ -25,8 +31,7 @@ interface ToolFrameProps {
   children: React.ReactNode;
 }
 
-const ICON_BUTTON_CLASS =
-  'inline-flex size-8 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-white hover:text-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600';
+const ICON_BUTTON_CLASS = buttonClassName('ghost', 'icon', 'shrink-0');
 
 /** Cabecera única de una herramienta: volver, título y cerrar; la referencia va al pie. */
 export const ToolFrame: React.FC<ToolFrameProps> = ({
@@ -42,7 +47,7 @@ export const ToolFrame: React.FC<ToolFrameProps> = ({
   const headingId = useId();
   return (
     <section aria-labelledby={headingId} data-testid={testId} className="flex min-h-full flex-col">
-      <div className="flex items-center gap-2">
+      <header className={PANEL_HEADER_CLASS}>
         <button
           type="button"
           onClick={onBack}
@@ -52,8 +57,10 @@ export const ToolFrame: React.FC<ToolFrameProps> = ({
         >
           <ChevronLeft size={16} aria-hidden="true" />
         </button>
-        <span className="text-medical-700">{icon}</span>
-        <h3 id={headingId} className="min-w-0 flex-1 truncate text-[14px] font-bold text-slate-800">
+        <span aria-hidden="true" className={`${PANEL_ICON_CLASS} text-medical-700`}>
+          {icon}
+        </span>
+        <h3 id={headingId} className={PANEL_TITLE_CLASS}>
           {title}
         </h3>
         {action}
@@ -66,10 +73,10 @@ export const ToolFrame: React.FC<ToolFrameProps> = ({
         >
           <X size={16} aria-hidden="true" />
         </button>
-      </div>
-      <div className="mt-3 flex-1">{children}</div>
+      </header>
+      <div className="min-w-0 flex-1 py-4">{children}</div>
       {reference && (
-        <footer className="mt-4 border-t border-slate-200 pt-2 text-[10px] leading-relaxed text-slate-500">
+        <footer className="mt-4 border-t border-slate-200 pt-2 text-xs leading-relaxed text-slate-600">
           {reference.citation}
           {reference.url && (
             <>

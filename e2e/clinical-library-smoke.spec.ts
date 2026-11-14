@@ -89,7 +89,9 @@ const shotsDir = (): string => {
 };
 
 const capture = async (page: Page, name: string) => {
-  await page.screenshot({ path: path.join(shotsDir(), `${name}.png`), fullPage: false });
+  const screenshotPath = path.join(shotsDir(), `${name}.png`);
+  await page.screenshot({ path: screenshotPath, fullPage: false });
+  await test.info().attach(name, { path: screenshotPath, contentType: 'image/png' });
 };
 
 test.describe('Clinical library (preview build)', () => {
@@ -112,6 +114,30 @@ test.describe('Clinical library (preview build)', () => {
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
     await capture(page, '01-census-with-documents-button');
 
+    // Shared controls must not wrap the four census cards at the supported laptop width.
+    await page.setViewportSize({ width: 1024, height: 768 });
+    const toolbarCards = page
+      .getByTestId('census-staff-and-sync')
+      .locator(
+        '.census-toolbar-staff > .census-toolbar-card, [data-testid="rayen-operations-bar"], [data-testid="census-summary-switcher"]'
+      );
+    await expect(toolbarCards).toHaveCount(4);
+    const bounds = await toolbarCards.evaluateAll(elements =>
+      elements.map(element => {
+        const box = element.getBoundingClientRect();
+        return { top: box.top, left: box.left, right: box.right };
+      })
+    );
+    const firstCard = bounds[0];
+    expect(firstCard).toBeDefined();
+    for (const box of bounds) {
+      expect(Math.abs(box.top - firstCard!.top)).toBeLessThanOrEqual(1);
+      expect(box.left).toBeGreaterThanOrEqual(0);
+      expect(box.right).toBeLessThanOrEqual(1024);
+    }
+    await capture(page, '01b-census-four-cards-1024');
+    await page.setViewportSize({ width: 1440, height: 900 });
+
     await trigger.click();
     const drawer = page.getByTestId('clinical-library-drawer');
     await expect(drawer).toBeVisible({ timeout: 15_000 });
@@ -125,6 +151,14 @@ test.describe('Clinical library (preview build)', () => {
     await drawer.getByRole('button', { name: 'Protocolos' }).click();
     await expect(drawer.getByText('Aún no hay protocolos publicados')).toBeVisible();
     await drawer.getByRole('button', { name: 'Todo' }).click();
+    const searchField = page.getByRole('searchbox');
+    await expect(searchField).toHaveClass(/hhr-field/);
+    await searchField.focus();
+    await expect(searchField).toHaveCSS('outline-style', 'solid');
+    await expect(searchField).toHaveCSS('outline-width', '2px');
+    await expect(
+      drawer.getByRole('button', { name: 'Cerrar documentos', exact: true })
+    ).toHaveClass(/hhr-button--icon/);
     await capture(page, '02-documents-panel');
 
     await page.getByRole('searchbox').fill('imagenologia');
@@ -147,6 +181,10 @@ test.describe('Clinical library (preview build)', () => {
 
     await drawer.getByTestId('library-tool-infusion').click();
     await expect(drawer.getByTestId('library-tool-infusion')).toBeVisible();
+    await expect(drawer.locator('label').filter({ hasText: /^Peso$/ })).toHaveCSS(
+      'font-size',
+      '12px'
+    );
     await drawer.getByLabel('Peso').fill('70');
     await drawer.getByLabel('Dosis indicada').fill('0,1');
     await expect(drawer.getByTestId('infusion-result')).toContainText('26,3');
@@ -452,4 +490,40 @@ test('fills shared forms from the census and manually, retaining original print 
   );
   await capture(page, '12-shared-forms-mobile');
   expect(errors).toEqual([]);
+});
+
+test('pharmacy act keeps consistent controls and reachable actions on mobile and desktop', async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await seedPersistedSession(page);
+  await page.goto(`/?date=${PREVIEW_DATE}`);
+  const trigger = page.getByTestId('clinical-library-quick-action');
+  await expect(trigger).toBeVisible({ timeout: 20_000 });
+  await trigger.click();
+  const drawer = page.getByTestId('clinical-library-drawer');
+  const card = drawer.getByTestId('library-document-acta-devolucion-farmacos');
+  await card.getByRole('button', { name: /Completar/ }).click();
+  const editor = drawer.getByTestId('library-tool-pharmacy-return');
+  await expect(editor).toBeVisible();
+  await expect(editor.getByRole('button', { name: 'Preparar vista previa' })).toHaveClass(
+    /hhr-button--primary/
+  );
+  await expect(editor.getByRole('button', { name: 'Agregar fármaco o insumo' })).toHaveClass(
+    /hhr-button--secondary/
+  );
+  await capture(page, 'pharmacy-desktop');
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expect(editor.getByLabel('Nombre del responsable')).toBeVisible();
+  const bounds = await editor.evaluate(el => ({ scroll: el.scrollWidth, client: el.clientWidth }));
+  expect(bounds.scroll).toBeLessThanOrEqual(bounds.client + 1);
+  await capture(page, 'pharmacy-mobile');
+  await editor.getByLabel('Nombre del responsable').fill('Profesional sintético');
+  await drawer.getByRole('button', { name: 'Volver a la biblioteca' }).click();
+  await expect(drawer.getByRole('alertdialog')).toBeVisible();
+  await expect(drawer.getByRole('button', { name: 'Salir y descartar' })).toHaveClass(
+    /hhr-button--danger/
+  );
+  await drawer.getByRole('button', { name: 'Seguir editando' }).click();
+  await expect(editor.getByLabel('Nombre del responsable')).toHaveValue('Profesional sintético');
 });

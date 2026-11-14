@@ -98,6 +98,24 @@ describe('HandoffView Component', () => {
     expect(screen.getByText(/Entrega Turno Enfermería - Noche/i)).toBeInTheDocument();
   });
 
+  it('shows compact shift controls without the conflict center icon in nursing', () => {
+    const record = createMockRecord('2024-12-11');
+    render(<HandoffView type="nursing" ui={createMockUIState({ selectedShift: 'day' })} />, {
+      contextValue: createMockDailyRecordContext(record),
+    });
+    expect(screen.getByRole('button', { name: 'Turno Largo' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(screen.getByRole('button', { name: 'Turno Noche' })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
+    expect(
+      screen.queryByRole('button', { name: /Centro de conflictos clínicos/i })
+    ).not.toBeInTheDocument();
+  });
+
   it('keeps CUDYR access in the census instead of the nursing handoff', () => {
     const record = createMockRecord('2024-12-11');
     const ui = createMockUIState({ selectedShift: 'night' });

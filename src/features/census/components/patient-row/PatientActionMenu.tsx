@@ -13,6 +13,10 @@ import { usePatientActionMenu } from './usePatientActionMenu';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
 import { resolvePatientActionMenuDemographicsInteraction } from '@/features/census/controllers/patientActionMenuController';
 
+// The census row is compact on purpose: these two triggers keep their 20 px height at any
+// pointer type instead of the shared button minimum (28 px with a mouse, 44 px on touch).
+const COMPACT_ROW_BUTTON = '!min-h-5 !border-0 !py-0.5';
+
 const LazyPatientActionMenuPanel = lazy(() =>
   import('@/features/census/components/patient-row/PatientActionMenuPanel').then(module => ({
     default: module.PatientActionMenuPanel,
@@ -127,7 +131,7 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
             onClick={handleViewDemographics}
             variant="ghost"
             size="xs"
-            className="!px-1.5 !py-0.5 rounded-md text-medical-500 hover:text-medical-700"
+            className={`${COMPACT_ROW_BUTTON} !px-1.5 rounded-md text-medical-500 hover:text-medical-700`}
             title="Datos del Paciente"
             icon={<PatientActionPrimaryIcon indicators={binding.indicators} />}
           />
@@ -138,7 +142,7 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
           onClick={toggle}
           variant="secondary"
           size="xs"
-          className="!px-1 !py-0.5 rounded-md text-slate-500"
+          className={`${COMPACT_ROW_BUTTON} !px-1 rounded-md text-slate-500`}
           title="Acciones"
           aria-expanded={isOpen}
           aria-haspopup="menu"

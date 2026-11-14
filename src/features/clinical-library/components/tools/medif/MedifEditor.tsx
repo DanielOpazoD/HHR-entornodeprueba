@@ -1,3 +1,4 @@
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
 import React, { useEffect, useRef, useState } from 'react';
 import { Download, FileText, Printer, Save, Settings2, Upload } from 'lucide-react';
 import {
@@ -377,7 +378,7 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
             type="button"
             disabled={busy}
             onClick={() => void generate('print')}
-            className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md bg-medical-600 px-3 py-2 text-[12px] font-semibold text-white hover:bg-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600 disabled:cursor-wait disabled:opacity-50"
+            className={buttonClassName('primary')}
           >
             <Printer size={14} aria-hidden="true" />
             {busy ? 'Preparando PDF…' : 'PDF imprimible'}
