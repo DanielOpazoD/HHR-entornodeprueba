@@ -86,6 +86,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
     isPreviewOpen,
     result,
     error,
+    errorTechnicalDetail,
     staffingProposal,
     isStaffingProposalBusy,
     staffingProposalError,
@@ -315,6 +316,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
             >
               <RayenImportFlowStatus
                 {...flowStatus}
+                technicalDetail={errorTechnicalDetail}
                 compactFallback={lastSync ? `Última ${lastSync}` : 'Aún sin sincronizar hoy'}
               />
             </RayenSyncStatusLine>

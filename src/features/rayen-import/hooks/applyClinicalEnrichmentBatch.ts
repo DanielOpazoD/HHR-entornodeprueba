@@ -141,7 +141,9 @@ export const applyClinicalEnrichmentBatch = async ({
         mutationId: chunk.mutationId,
       });
       if (!prepared.payload) {
-        throw new Error('No se pudo preparar el lote clínico transaccional.');
+        throw new Error(
+          'Los datos clínicos todavía no quedaron listos para guardarse. Vuelve a sincronizar.'
+        );
       }
 
       let activePayload = prepared.payload;
@@ -216,7 +218,9 @@ export const applyClinicalEnrichmentBatch = async ({
                   batch: prepared.evidence,
                 };
               }
-              throw new Error('No se pudo reconstruir el lote clínico contra el censo vigente.');
+              throw new Error(
+                'Los datos clínicos quedaron por recalcular con el censo vigente. Vuelve a sincronizar.'
+              );
             }
             activePayload = prepared.payload;
           }

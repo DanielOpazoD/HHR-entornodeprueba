@@ -290,7 +290,7 @@ describe('buildRayenSyncBarViewModel', () => {
 
     expect(model).toMatchObject({
       phase: 'action',
-      label: 'Sincronización pendiente · puedes reintentar',
+      label: 'Sincronización por completar',
       detail: 'La captura agotó el tiempo.',
     });
   });

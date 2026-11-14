@@ -20,6 +20,8 @@ interface RayenImportFlowStatusProps {
   executionStage?: RayenSyncStage | null;
   targetDate?: string | null;
   compactFallback?: string;
+  /** Texto técnico de la fuente; solo llega para el administrador. */
+  technicalDetail?: string | null;
 }
 
 // The status line has only the informative and review levels: a pending Eloísa read loses no edit.
@@ -146,6 +148,14 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = props
               className={`absolute left-0 top-[calc(100%+0.45rem)] z-30 w-full rounded-lg border px-3 py-2 text-[11px] font-medium leading-relaxed shadow-lg ${SYNC_TONE.review.surface}`}
             >
               {detail}
+              {props.technicalDetail && (
+                <span
+                  className="mt-1 block break-words font-mono text-[10px] font-normal text-slate-600"
+                  data-testid="rayen-import-error-technical"
+                >
+                  Detalle técnico: {props.technicalDetail}
+                </span>
+              )}
             </p>
           </details>
         )}

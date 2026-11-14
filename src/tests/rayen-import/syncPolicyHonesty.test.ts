@@ -44,7 +44,7 @@ describe('sincronización · honestidad ante sesión sin permisos', () => {
     it('conserva los mensajes propios de los demás estados', () => {
       expect(resolveRayenPolicyBlockMessage('unconfigured')).toMatch(/no está configurada/i);
       expect(resolveRayenPolicyBlockMessage('migration-required')).toMatch(/migración a v2/i);
-      expect(resolveRayenPolicyBlockMessage('fallback')).toMatch(/vuelva la conexión/i);
+      expect(resolveRayenPolicyBlockMessage('fallback')).toMatch(/cuando haya conexión/i);
     });
   });
 

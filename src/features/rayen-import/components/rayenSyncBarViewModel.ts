@@ -213,7 +213,7 @@ const canonicalExecutionViewModel = (
       return settled(
         'action',
         'warning',
-        withTargetDate('Sincronización pendiente · puedes reintentar', targetDate),
+        withTargetDate('Sincronización por completar', targetDate),
         { detail: input.error ?? undefined, visuallyHidden: false }
       );
     case 'cancelled':

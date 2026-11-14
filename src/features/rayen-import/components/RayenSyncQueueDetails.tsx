@@ -62,8 +62,7 @@ export const RayenSyncQueueDetails: React.FC<{
           </summary>
           {unavailable && (
             <p className={`mt-1 ${SYNC_TONE.review.text}`}>
-              La lista de envíos de este equipo todavía no se leyó; vuelve a abrir este panel en un
-              momento.
+              Envíos por comprobar. Vuelve a abrir este panel.
             </p>
           )}
           {policyBlocked && (

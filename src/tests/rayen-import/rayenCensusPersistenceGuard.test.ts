@@ -85,7 +85,7 @@ describe('rayenCensusPersistenceGuard', () => {
   it('stops enrichment when the persistence adapter returns no confirmation', () => {
     expect(() =>
       assertRayenCensusPersistenceConfirmed({ record: buildRecord(), result: null })
-    ).toThrow(/no se pudo confirmar el resultado del guardado/i);
+    ).toThrow(/el guardado del censo todavía no está confirmado/i);
   });
 
   it('allows clinical enrichment after a clean census write', () => {

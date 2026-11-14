@@ -150,7 +150,7 @@ const deriveHealthState = (
     return {
       connection: 'incompatible',
       report,
-      message: `Extensión v${report.version} incompatible. Actualiza a la versión ${RAYEN_EXTENSION_MINIMUM_VERSION} o superior y recarga la extensión Eloísa.`,
+      message: `Actualiza la extensión Eloísa a la versión ${RAYEN_EXTENSION_MINIMUM_VERSION} o superior y recárgala (instalada: v${report.version}).`,
       canSync: false,
     };
   }
@@ -288,8 +288,7 @@ export const useRayenExtensionHealth = () => {
               connection: 'blocked',
               report: result.report,
               canSync: false,
-              message:
-                'No se pudieron comprobar ambas conexiones antes de sincronizar. Vuelve a intentar.',
+              message: 'Las dos conexiones todavía no se comprobaron. Vuelve a intentar.',
             }
           : options.showChecking
             ? next

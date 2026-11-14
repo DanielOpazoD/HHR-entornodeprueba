@@ -87,7 +87,7 @@ describe('localSyncPresentation', () => {
       {
         id: 8,
         targetLabel: 'Censo del 02-09-2026',
-        categoryLabel: 'Otra persona cambió este censo',
+        categoryLabel: 'El censo cambió antes del envío',
         recovery: 'retry',
         canRetire: true,
       },

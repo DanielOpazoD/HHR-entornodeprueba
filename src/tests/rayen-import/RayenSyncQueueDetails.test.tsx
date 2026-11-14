@@ -106,7 +106,7 @@ it.each([
   [
     'functions/unauthenticated',
     'Sesión no validada',
-    'El servidor no pudo validar la sesión de este envío.',
+    'El servidor todavía no validó la sesión de este envío.',
   ],
 ])(
   'requires review before manually retrying %s, while retaining discard',

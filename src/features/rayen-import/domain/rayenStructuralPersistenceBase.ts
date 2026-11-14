@@ -170,7 +170,7 @@ export const buildRayenStructuralPersistenceBase = (
   if (!Number.isFinite(localUpdatedAt) || !Number.isFinite(authoritativeUpdatedAt)) {
     if (options.localWriteState === 'active') {
       throw new Error(
-        'No se pudo verificar la versión local pendiente. Actualiza el censo antes de continuar.'
+        'La versión local pendiente quedó por verificar. Actualiza el censo antes de continuar.'
       );
     }
     return authoritative;

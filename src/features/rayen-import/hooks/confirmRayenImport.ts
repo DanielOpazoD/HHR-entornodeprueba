@@ -103,7 +103,7 @@ export class RayenHistoricalCorrectionAfterCommitError extends Error {
 
   constructor(committedResult: ConfirmedRayenImportResult<ApplyResult>, cause: unknown) {
     super(
-      'El censo del día seleccionado quedó confirmado, pero una corrección histórica no pudo guardarse. Vuelve a capturar la sincronización para recalcular esa corrección.',
+      'El censo del día seleccionado quedó confirmado; una corrección histórica todavía no se guardó. Vuelve a sincronizar para recalcular esa corrección.',
       cause === undefined ? undefined : { cause }
     );
     this.name = 'RayenHistoricalCorrectionAfterCommitError';
@@ -186,7 +186,7 @@ export const applyConfirmedRayenImport = async <TApplyResult extends ApplyResult
 
   if (!appliedResult) {
     const exhausted = new ConcurrencyError(
-      'Otra actualización modificó este censo de HHR mientras se confirmaba. HHR recargó y recalculó la propuesta automáticamente, pero no pudo guardarla sin riesgo de sobrescribir cambios. Vuelve a sincronizar.'
+      'Otra actualización modificó este censo de HHR mientras se confirmaba. HHR recargó y recalculó la propuesta, y la dejó sin guardar para no sobrescribir esos cambios. Vuelve a sincronizar.'
     );
     if (lastConflict !== undefined) exhausted.cause = lastConflict;
     throw exhausted;

@@ -52,7 +52,7 @@ const createRayenSnapshotExecutionReporter = (
 
 const INVALID_EPISODE_LOAD_TIMEOUT_MS = 30_000;
 const INVALID_EPISODE_LOAD_ERROR =
-  'No se pudo leer la lista de pacientes no válidos. Revisa la conexión y reintenta.';
+  'La lista de pacientes no válidos todavía no se leyó. Revisa la conexión y vuelve a intentar.';
 
 export const useRayenSnapshotPreview = ({
   dailyRecord,
@@ -101,7 +101,8 @@ export const useRayenSnapshotPreview = ({
         void failRun('apply_failed', run.id).catch(() => undefined);
         setState(prev => ({
           ...prev,
-          error: 'No se pudo confirmar el contexto temporal de esta sincronización.',
+          error:
+            'La fecha y el turno de esta sincronización quedaron por confirmar. Vuelve a sincronizar.',
         }));
         return;
       }

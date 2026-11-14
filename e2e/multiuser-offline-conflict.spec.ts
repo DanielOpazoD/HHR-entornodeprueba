@@ -276,9 +276,7 @@ test('shows a failed recent-send read instead of a healthy empty queue and recov
   const details = page.getByTestId('rayen-local-sync-details');
   await details.locator('summary').first().click();
   await expect(details.getByText('Guardado local · por comprobar')).toBeVisible();
-  await expect(
-    details.getByText(/La lista de envíos de este equipo todavía no se leyó/)
-  ).toBeVisible();
+  await expect(details.getByText(/Envíos por comprobar\. Vuelve a abrir este panel/)).toBeVisible();
   await expect(details.getByText('Guardado local · 0 por enviar')).toHaveCount(0);
 
   await page.reload({ waitUntil: 'domcontentloaded' });

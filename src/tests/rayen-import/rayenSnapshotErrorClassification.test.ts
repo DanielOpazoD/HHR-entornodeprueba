@@ -32,7 +32,8 @@ describe('classifyRayenSnapshotError', () => {
 
     expect(classified.reason).toBe('snapshot_network_error');
     expect(classified.message).toContain('Esto no confirma que la sesión haya vencido');
-    expect(classified.message).toContain('Detalle: Failed to fetch');
+    expect(classified.message).not.toContain('Failed to fetch');
+    expect(classified.technicalDetail).toBe('Failed to fetch');
   });
 
   it('el mismo fallo, ya descrito por la extensión con el endpoint, y el mensaje de salud de lectura bloqueada', () => {
@@ -60,26 +61,29 @@ describe('classifyRayenSnapshotError', () => {
     );
   });
 
-  it('un 500 del backend o una lista ajena a la identidad NO son pestaña inactiva: causa genérica con el detalle real', () => {
+  it('un 500 del backend o una lista ajena a la identidad NO son pestaña inactiva: causa genérica, el detalle real queda como detalle técnico', () => {
     const http = classifyRayenSnapshotError(`${WRAP}500 en /encounter/list/filter`);
     expect(http.reason).toBe('snapshot_error');
-    expect(http.message).toBe('500 en /encounter/list/filter');
+    expect(http.message).toContain('Revisa las pestañas de Eloísa');
+    expect(http.technicalDetail).toBe('500 en /encounter/list/filter');
 
     const identity = classifyRayenSnapshotError(
       `${WRAP}La lista abierta no corresponde a la identidad clínica actual. Recarga Eloísa.`
     );
     expect(identity.reason).toBe('snapshot_error');
-    expect(identity.message).toBe(
+    expect(identity.message).not.toContain('identidad clínica');
+    expect(identity.technicalDetail).toBe(
       'La lista abierta no corresponde a la identidad clínica actual. Recarga Eloísa.'
     );
   });
 
-  it('sesión clínica ausente o vencida en Ficha Médico: causa «no disponible» con la instrucción de la extensión', () => {
+  it('sesión clínica ausente o vencida en Ficha Médico: causa «no disponible» con la instrucción de iniciar sesión', () => {
     const missing = classifyRayenSnapshotError(
       `${WRAP}La sesión clínica de Eloísa no está disponible. Inicia sesión y reintenta.`
     );
     expect(missing.reason).toBe('ficha_medico_unavailable');
-    expect(missing.message).toBe(
+    expect(missing.message).toContain('Inicia sesión en Ficha Médico');
+    expect(missing.technicalDetail).toBe(
       'La sesión clínica de Eloísa no está disponible. Inicia sesión y reintenta.'
     );
     expect(
@@ -111,12 +115,14 @@ describe('classifyRayenSnapshotError', () => {
     ).toBe('snapshot_timeout');
   });
 
-  it('establecimientos distintos: causa genérica con el texto exacto de la extensión (el remedio no es «conectar GC»)', () => {
+  it('establecimientos distintos: causa genérica con el remedio de la misma sede (no «conectar GC»)', () => {
     const classified = classifyRayenSnapshotError(
       'Ficha Médico y Gestión de Camas no corresponden al mismo establecimiento.'
     );
     expect(classified.reason).toBe('snapshot_error');
-    expect(classified.message).toBe(
+    expect(classified.message).toContain('mismo establecimiento');
+    expect(classified.message).not.toContain('Conecta');
+    expect(classified.technicalDetail).toBe(
       'Ficha Médico y Gestión de Camas no corresponden al mismo establecimiento.'
     );
   });
@@ -126,16 +132,17 @@ describe('classifyRayenSnapshotError', () => {
       `${WRAP}Tiempo de espera agotado (Ficha Médico).`
     );
     expect(classified.reason).toBe('snapshot_timeout');
-    expect(classified.message).toContain('Detalle: Tiempo de espera agotado (Ficha Médico).');
+    expect(classified.technicalDetail).toBe('Tiempo de espera agotado (Ficha Médico).');
   });
 
-  it('acota los mensajes largos en un límite de palabra y vuelve al genérico sin texto', () => {
+  it('acota el detalle técnico largo en un límite de palabra y vuelve al genérico sin texto', () => {
     const long = classifyRayenSnapshotError(`${WRAP}${'palabra '.repeat(80)}`);
-    expect(long.message.length).toBeLessThanOrEqual(301);
-    expect(long.message.endsWith('…')).toBe(true);
-    expect(long.message).not.toMatch(/palabr…$/);
+    expect(long.technicalDetail!.length).toBeLessThanOrEqual(301);
+    expect(long.technicalDetail!.endsWith('…')).toBe(true);
+    expect(long.technicalDetail).not.toMatch(/palabr…$/);
 
-    expect(classifyRayenSnapshotError('').message).toContain('Revisa las pestañas de Rayen');
+    expect(classifyRayenSnapshotError('').message).toContain('Revisa las pestañas de Eloísa');
+    expect(classifyRayenSnapshotError('').technicalDetail).toBeUndefined();
     expect(classifyRayenSnapshotError(undefined).reason).toBe('snapshot_error');
   });
 
@@ -145,6 +152,7 @@ describe('classifyRayenSnapshotError', () => {
     );
 
     expect(classified.reason).toBe('ficha_medico_stale');
-    expect(classified.message).toContain('versión anterior de la extensión');
+    expect(classified.message).toContain('Recárgala (Cmd+R)');
+    expect(classified.technicalDetail).toContain('versión anterior de la extensión');
   });
 });

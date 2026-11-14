@@ -30,7 +30,7 @@ export const localSyncAttentionLevel = (stats: SyncQueueStats): SyncToneLevel | 
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
-  conflict: 'Otra persona cambió este censo',
+  conflict: 'El censo cambió antes del envío',
   authorization: 'Sin permisos',
   validation: 'El servidor no aceptó este cambio',
   network: 'Sin conexión al enviar',
@@ -138,7 +138,7 @@ export const listQuarantinedOperations = (
           recovery,
           categoryLabel: sessionNotValidated ? 'Sesión no validada' : 'Sin permisos',
           retryGuidance: sessionNotValidated
-            ? 'El servidor no pudo validar la sesión de este envío. Comprueba tu sesión antes de reenviarlo.'
+            ? 'El servidor todavía no validó la sesión de este envío. Comprueba tu sesión antes de reenviarlo.'
             : 'El servidor rechazó este envío por permisos. Revisa el acceso de tu cuenta antes de reenviarlo.',
         };
       }

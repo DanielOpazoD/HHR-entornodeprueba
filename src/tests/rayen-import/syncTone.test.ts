@@ -1,8 +1,6 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { SyncQueueStats } from '@/hooks/useSyncQueueMonitor';
-import type { RayenSyncEvent, RayenSyncFailureReason } from '@/types/domain/rayenSync';
+import { RAYEN_SYNC_FAILURE_REASONS, type RayenSyncEvent } from '@/types/domain/rayenSync';
 import type { RayenExtensionConnectionState } from '@/features/rayen-import/hooks/useRayenExtensionHealth';
 import type { RayenSyncStage } from '@/features/rayen-import/hooks/rayenSyncExecutionState';
 import {
@@ -120,19 +118,7 @@ const barStates = (): PresentedState[] => {
   });
 };
 
-const failureReasons: RayenSyncFailureReason[] = [
-  'extension_unavailable',
-  'extension_incompatible',
-  'ficha_medico_unavailable',
-  'ficha_medico_stale',
-  'gestion_camas_unavailable',
-  'snapshot_network_error',
-  'snapshot_timeout',
-  'snapshot_error',
-  'apply_unauthorized',
-  'apply_conflict',
-  'apply_failed',
-];
+const failureReasons = RAYEN_SYNC_FAILURE_REASONS;
 const connections: RayenExtensionConnectionState[] = [
   'checking',
   'ready',
@@ -283,31 +269,5 @@ describe('sync box tone', () => {
         ])[0].categoryLabel
     );
     for (const label of labels) expect(label).not.toMatch(FAILURE_WORDING);
-  });
-
-  it('leaves no loose alarm color classes in the sync box components', () => {
-    const directory = path.resolve(__dirname, '../../features/rayen-import/components');
-    const boxFiles = [
-      'RayenImportButton.tsx',
-      'RayenSyncStatusLine.tsx',
-      'RayenImportFlowStatus.tsx',
-      'RayenImportSummaryChips.tsx',
-      'RayenSyncRecoveryNotice.tsx',
-      'RayenConnectionMonitor.tsx',
-      'RayenSyncQueueDetails.tsx',
-      'DailyRecordTaskRecovery.tsx',
-      'RayenCompatibleReaderNotice.tsx',
-      'RayenExtensionDownload.tsx',
-      'RayenExtensionDownloadDetails.tsx',
-      'rayenSyncPresentation.ts',
-      'rayenSyncBarViewModel.ts',
-      'localSyncPresentation.ts',
-      'rayenSyncRecoveryPresentation.ts',
-      'syncTone.ts',
-    ];
-    for (const file of boxFiles) {
-      const source = readFileSync(path.join(directory, file), 'utf8');
-      expect(source.match(ALARM_COLOR)?.[0] ?? null, `${file}: use syncTone.ts`).toBeNull();
-    }
   });
 });

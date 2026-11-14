@@ -185,7 +185,9 @@ export const replanRayenStructure = async (
   );
   if (previousRecord) {
     if (previousRecord.date !== previousDate) {
-      throw new Error('No se pudo verificar el censo previo: la fecha recibida no corresponde.');
+      throw new Error(
+        'El censo previo quedó por verificar porque la fecha recibida no corresponde. Vuelve a sincronizar.'
+      );
     }
     diff = scrubInvalidEpisodesFromDiff(
       appendConflicts(diff, previousCensusContinuityConflicts(previousRecord, record, diff)),

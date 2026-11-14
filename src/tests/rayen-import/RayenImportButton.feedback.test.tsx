@@ -209,7 +209,7 @@ describe('RayenImportButton feedback', () => {
     );
     expect(await screen.findByText('Guardado local · por comprobar')).toBeInTheDocument();
     expect(
-      screen.getByText(/La lista de envíos de este equipo todavía no se leyó/)
+      screen.getByText(/Envíos por comprobar\. Vuelve a abrir este panel/)
     ).toBeInTheDocument();
     expect(screen.queryByText('Guardado local · 0 por enviar')).not.toBeInTheDocument();
     expect(mocks.triggerImport).not.toHaveBeenCalled();
@@ -220,7 +220,7 @@ describe('RayenImportButton feedback', () => {
     });
     rerender(<RayenImportButton />);
     expect(
-      screen.queryByText(/La lista de envíos de este equipo todavía no se leyó/)
+      screen.queryByText(/Envíos por comprobar\. Vuelve a abrir este panel/)
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Guardado pendiente · Ver detalle' })
@@ -278,9 +278,7 @@ describe('RayenImportButton feedback', () => {
 
     const notice = screen.getByTestId('rayen-import-error');
     expect(screen.getAllByRole('status')).toHaveLength(1);
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Sincronización pendiente · puedes reintentar'
-    );
+    expect(screen.getByRole('status')).toHaveTextContent('Sincronización por completar');
     expect(screen.getByText(error)).not.toBeVisible();
     fireEvent.click(screen.getByText('Ver detalle'));
     expect(notice).toHaveAttribute('open');
