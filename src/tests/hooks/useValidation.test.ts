@@ -17,28 +17,28 @@ describe('useValidation', () => {
   describe('canMovePatient', () => {
     it('should return false when no record is loaded', () => {
       const { result } = renderHook(() => useValidation());
-      const check = result.current.canMovePatient('R1', 'R2', null);
+      const check = result.current.canMovePatient('R2', null);
       expect(check.canMove).toBe(false);
       expect(check.reason).toBe('No hay registro cargado');
     });
 
     it('should return false when target bed is occupied', () => {
       const { result } = renderHook(() => useValidation());
-      const check = result.current.canMovePatient('R2', 'R1', mockRecord as DailyRecord);
+      const check = result.current.canMovePatient('R1', mockRecord as DailyRecord);
       expect(check.canMove).toBe(false);
       expect(check.reason).toBe('La cama de destino ya está ocupada');
     });
 
     it('should return false when target bed is blocked', () => {
       const { result } = renderHook(() => useValidation());
-      const check = result.current.canMovePatient('R1', 'R3', mockRecord as DailyRecord);
+      const check = result.current.canMovePatient('R3', mockRecord as DailyRecord);
       expect(check.canMove).toBe(false);
       expect(check.reason).toBe('La cama de destino está bloqueada');
     });
 
     it('should return true when target bed is empty and not blocked', () => {
       const { result } = renderHook(() => useValidation());
-      const check = result.current.canMovePatient('R1', 'R2', mockRecord as DailyRecord);
+      const check = result.current.canMovePatient('R2', mockRecord as DailyRecord);
       expect(check.canMove).toBe(true);
     });
   });

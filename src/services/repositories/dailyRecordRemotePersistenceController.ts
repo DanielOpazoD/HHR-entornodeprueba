@@ -269,7 +269,6 @@ export const persistLocalAndAttemptRemoteSync = async ({
       const retained =
         allowOfflineQueue && queueLocalBeforeRemote ? await queueLocalBeforeRemote() : undefined;
       applyLocalPersistenceFailure(
-        date,
         changedPaths,
         retained
           ? toRejectedOutboxPersistenceResult(retained)
@@ -350,7 +349,6 @@ export const persistLocalAndAttemptRemoteSync = async ({
         const queued = await queueLocalBeforeRemote();
         if (!queued.accepted) {
           applyLocalPersistenceFailure(
-            date,
             changedPaths,
             toRejectedOutboxPersistenceResult(queued),
             remoteState
@@ -379,7 +377,6 @@ export const persistLocalAndAttemptRemoteSync = async ({
     );
     if (authority.kind !== 'confirmed') {
       applyLocalPersistenceFailure(
-        date,
         changedPaths,
         unconfirmedRemoteAuthorityStateResult(date, authority),
         remoteState,
@@ -405,7 +402,6 @@ export const persistLocalAndAttemptRemoteSync = async ({
     const outboxResult = await queueLocalBeforeRemote();
     if (!outboxResult.accepted) {
       applyLocalPersistenceFailure(
-        date,
         changedPaths,
         toRejectedOutboxPersistenceResult(outboxResult),
         remoteState
@@ -419,7 +415,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
   } else {
     const localResult = await saveToIndexedDB(record);
     if (!localResult.ok) {
-      applyLocalPersistenceFailure(date, changedPaths, localResult, remoteState);
+      applyLocalPersistenceFailure(changedPaths, localResult, remoteState);
       return 'return';
     }
     markLocalWriteSucceeded(remoteState);
@@ -469,7 +465,6 @@ export const persistLocalAndAttemptRemoteSync = async ({
       if (authority.kind !== 'confirmed') {
         await releaseLocalPreOutboxHold?.();
         applyLocalPersistenceFailure(
-          date,
           changedPaths,
           unconfirmedRemoteAuthorityStateResult(date, authority),
           remoteState,

@@ -142,7 +142,7 @@ vi.mock('../firebaseConfig', () => firebaseMock);
 // Mock firebase/auth module
 vi.mock('firebase/auth', () => ({
   getAuth: vi.fn(() => mockAuth),
-  onAuthStateChanged: vi.fn((auth, callback) => {
+  onAuthStateChanged: vi.fn((_auth, callback) => {
     callback(null);
     return vi.fn();
   }),
