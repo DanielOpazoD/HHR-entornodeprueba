@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { SPECIALTY_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
+import { isSpecialtyOption } from '@/constants/clinicalSpecialtyConstants';
 import { useDailyRecordBeds } from '@/context/DailyRecordContext';
 import type {
   SpecialtyCatalogRule,
@@ -147,7 +147,7 @@ export const useSpecialtyRulesEditor = (date: string) => {
   const stageAssociation = (selectedCode: string, selectedSpecialty: string) => {
     if (
       !isValidDiagnosisCode(selectedCode) ||
-      !SPECIALTY_OPTIONS.includes(selectedSpecialty as never) ||
+      !isSpecialtyOption(selectedSpecialty) ||
       selectedSpecialty === 'Otro'
     )
       return;

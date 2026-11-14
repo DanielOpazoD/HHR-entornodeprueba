@@ -21,6 +21,42 @@ const run = (id: string, overrides: Partial<RayenSyncEvent> = {}): RayenSyncEven
 });
 
 describe('aggregate synchronization session report', () => {
+  it.each([
+    {},
+    { coverage: {} },
+    { coverage: { incremental: {} } },
+    { coverage: { incremental: { batch: {} } } },
+    { coverage: { incremental: { batch: { mode: 'unsupported' } } } },
+  ])('retains unknown cohorts when optional source fields are absent: %j', overrides => {
+    const event = run('missing', { source: undefined });
+    Object.assign(event, overrides);
+    expect(buildRayenSyncSessionReport([event]).groups[0].cohort).toEqual({
+      extensionVersion: 'unknown',
+      status: 'complete',
+      batchMode: 'unknown',
+      activity: 'unknown',
+      target: 'unknown',
+      clinicalRetry: 'unknown',
+    });
+    event.performance = undefined;
+    expect(buildRayenSyncSessionReport([event])).toMatchObject({ omitted: 1, groups: [] });
+  });
+
+  it.each([
+    ['current', 0, 'no'],
+    ['historical', 2, 'yes'],
+    ['unsupported', -1, 'unknown'],
+    [undefined, NaN, 'unknown'],
+    [undefined, undefined, 'unknown'],
+  ])('classifies target %s and retries %s', (target, clinicalRetries, expectedRetry) => {
+    const event = run('coordination');
+    Object.assign(event.performance ?? {}, { coordination: { target, clinicalRetries } });
+    expect(buildRayenSyncSessionReport([event]).groups[0].cohort).toMatchObject({
+      target: target === 'current' || target === 'historical' ? target : 'unknown',
+      clinicalRetry: expectedRetry,
+    });
+  });
+
   it('exports only numeric allowlisted evidence, without clinical identifiers or arbitrary strings', () => {
     const event = run('PRIVATE-RUN');
     event.source!.extensionVersion = 'PRIVATE-SECRET';

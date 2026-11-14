@@ -157,25 +157,22 @@ export const buildRayenSyncSessionReport = (history: RayenSyncEvent[]) => {
   };
 };
 
-const cohortFor = (event: RayenSyncEvent) => ({
-  extensionVersion: /^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$/.test(
-    event.source?.extensionVersion ?? ''
-  )
-    ? event.source!.extensionVersion
-    : 'unknown',
-  status: ['applied', 'complete', 'partial', 'failed'].includes(event.status)
-    ? event.status
-    : 'unknown',
-  batchMode: ['shadow', 'enforced'].includes(event.coverage?.incremental?.batch?.mode ?? '')
-    ? event.coverage!.incremental!.batch!.mode
-    : 'unknown',
-  activity: activity(event),
-  target: ['current', 'historical'].includes(event.performance?.coordination?.target ?? '')
-    ? event.performance!.coordination!.target
-    : 'unknown',
-  clinicalRetry: validNumber(event.performance?.coordination?.clinicalRetries)
-    ? event.performance!.coordination!.clinicalRetries > 0
-      ? 'yes'
-      : 'no'
-    : 'unknown',
-});
+const cohortFor = (event: RayenSyncEvent) => {
+  const extensionVersion = event.source?.extensionVersion;
+  const batchMode = event.coverage?.incremental?.batch?.mode;
+  const target = event.performance?.coordination?.target;
+  const clinicalRetries = event.performance?.coordination?.clinicalRetries;
+  return {
+    extensionVersion:
+      extensionVersion && /^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$/.test(extensionVersion)
+        ? extensionVersion
+        : 'unknown',
+    status: ['applied', 'complete', 'partial', 'failed'].includes(event.status)
+      ? event.status
+      : 'unknown',
+    batchMode: batchMode === 'shadow' || batchMode === 'enforced' ? batchMode : 'unknown',
+    activity: activity(event),
+    target: target === 'current' || target === 'historical' ? target : 'unknown',
+    clinicalRetry: validNumber(clinicalRetries) ? (clinicalRetries > 0 ? 'yes' : 'no') : 'unknown',
+  };
+};

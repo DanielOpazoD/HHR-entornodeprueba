@@ -1,6 +1,9 @@
 import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
 
 export const SPECIALTY_OPTIONS = Object.values(Specialty).filter(s => s !== '');
+export const isSpecialtyOption = (value: unknown): value is (typeof SPECIALTY_OPTIONS)[number] =>
+  SPECIALTY_OPTIONS.some(option => option === value);
+
 export const STATUS_OPTIONS = Object.values(PatientStatus).filter(s => s !== '');
 
 export const SPECIALTY_ABBREVIATIONS: Record<string, string> = {
