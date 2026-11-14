@@ -22,6 +22,7 @@ import {
 } from './date-strip/DateStripButtonControls';
 import { DateStripPeriodControl } from './date-strip/DateStripPeriodControl';
 import { MONTH_NAMES } from '@/constants/export';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import type { ModuleType } from '@/constants/navigationConfig';
 
 const SaveDropdown = React.lazy(() =>
@@ -214,8 +215,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
     setSelectedDay(resolveMonthLandingDay(nextMonthYear.year, nextMonthYear.month, currentModule));
   };
 
-  const today = new Date();
-  const isCurrentMonth = today.getMonth() === selectedMonth && today.getFullYear() === selectedYear;
+  const calendarToday = getClinicalCalendarDateISO();
   const specialistCensusAccess =
     currentModule === 'CENSUS' && isSpecialistCensusAccessProfile(accessProfile);
   const isHandoffModule =
@@ -352,8 +352,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
               existingDaysInMonth={existingDaysInMonth}
               selectedYear={selectedYear}
               selectedMonth={selectedMonth}
-              isCurrentMonth={isCurrentMonth}
-              today={today}
+              calendarToday={calendarToday}
               clinicalToday={clinicalToday}
               currentModule={currentModule}
             />

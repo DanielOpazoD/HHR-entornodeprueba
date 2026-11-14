@@ -6,6 +6,7 @@ import type {
   ClinicalAntecedentPrescription,
 } from '@/features/rayen-import/clinical-panel';
 import { formatClinicalAntecedentDate } from './clinicalAntecedentDate';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
 
 const PrescriptionCopy = ({
   recipe,
@@ -52,7 +53,7 @@ const PrescriptionCopy = ({
   return (
     <div className="mt-2 rounded border border-slate-200 p-2">
       <p className="font-semibold">Receta N° {recipe.id}</p>
-      <p className="text-[11px] text-slate-500">
+      <p className="text-slate-500">
         {[formatClinicalAntecedentDate(recipe.date), recipe.type, recipe.status]
           .filter(Boolean)
           .join(' · ')}
@@ -67,7 +68,7 @@ const PrescriptionCopy = ({
         onClick={() => void download()}
         disabled={busy || !detail.patientName?.trim()}
         aria-label={`Descargar copia PDF de receta ${recipe.id}`}
-        className="mt-2 inline-flex items-center gap-1 font-semibold text-teal-700 disabled:opacity-50"
+        className={buttonClassName('ghost', 'xs', '-ml-2 mt-2')}
       >
         <FileDown size={14} aria-hidden="true" /> {busy ? 'Preparando PDF…' : 'Receta PDF · copia'}
       </button>
@@ -91,9 +92,7 @@ export const ClinicalAntecedentContent = ({
   entry: ClinicalAntecedentEntry;
 }) => (
   <div className="space-y-1.5 break-words [&>section+section]:border-t [&>section+section]:border-slate-100 [&>section+section]:pt-1.5">
-    {detail.professional && (
-      <p className="text-[11px] font-medium text-slate-500">{detail.professional}</p>
-    )}
+    {detail.professional && <p className="font-medium text-slate-500">{detail.professional}</p>}
     {detail.reason && (
       <section>
         <h5 className="font-semibold text-teal-800">Motivo de consulta</h5>

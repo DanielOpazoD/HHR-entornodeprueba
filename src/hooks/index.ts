@@ -28,7 +28,6 @@ export { useBedOperations } from './useBedOperations';
 export { useDateNavigation } from './useDateNavigation';
 export { useExistingDaysQuery } from './useExistingDaysQuery';
 export { useSignatureMode } from './useSignatureMode';
-export { useDevMetrics } from './useDevMetrics';
 export { useDropdownMenu } from './useDropdownMenu';
 export { useLatest } from './useLatest';
 export { useLatestRef } from './useLatestRef';

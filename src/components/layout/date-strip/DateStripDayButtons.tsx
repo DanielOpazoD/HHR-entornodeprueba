@@ -4,7 +4,10 @@ import {
   resolveDateStripDayWindow,
   resolveIsFutureDayBlocked,
 } from '@/components/layout/date-strip/dateStripDayWindowController';
-import { classifyDateStripDay } from '@/components/layout/date-strip/dateStripDayClassification';
+import {
+  buildDayDateString,
+  classifyDateStripDay,
+} from '@/components/layout/date-strip/dateStripDayClassification';
 import type { ModuleType } from '@/constants/navigationConfig';
 
 const shortWeekdayFormatter = new Intl.DateTimeFormat('es-CL', {
@@ -26,13 +29,13 @@ interface DateStripDayButtonsProps {
   existingDaysInMonth: number[];
   selectedYear: number;
   selectedMonth: number;
-  isCurrentMonth: boolean;
-  today: Date;
+  /** Hospital calendar day (YYYY-MM-DD, Rapa Nui), whatever the device zone. */
+  calendarToday: string;
   /**
    * Active clinical day (YYYY-MM-DD, 08:00/09:00 shift rollover). When present, the
    * HOY marker tracks it instead of the calendar date — before the rollover the
    * night shift's clinical "today" is still the previous calendar day. Falls back to
-   * the calendar date when absent (e.g. handoff modules).
+   * the hospital calendar date when absent (e.g. handoff modules).
    */
   clinicalToday?: string;
   currentModule?: ModuleType;
@@ -45,8 +48,7 @@ export const DateStripDayButtons: React.FC<DateStripDayButtonsProps> = ({
   existingDaysInMonth,
   selectedYear,
   selectedMonth,
-  isCurrentMonth,
-  today,
+  calendarToday,
   clinicalToday,
   currentModule,
 }) => {
@@ -72,14 +74,8 @@ export const DateStripDayButtons: React.FC<DateStripDayButtonsProps> = ({
   // marker), so a calendar day that is still a future clinical day before the 08:00/
   // 09:00 rollover is not selectable. Handoff (no clinical day) keeps the calendar
   // reference.
-  const futureBlockReferenceDate =
-    currentModule === 'CENSUS' && clinicalToday
-      ? new Date(
-          Number(clinicalToday.slice(0, 4)),
-          Number(clinicalToday.slice(5, 7)) - 1,
-          Number(clinicalToday.slice(8, 10))
-        )
-      : today;
+  const futureBlockReferenceDay =
+    currentModule === 'CENSUS' && clinicalToday ? clinicalToday : calendarToday;
 
   const dayButtons = Array.from(
     { length: Math.max(0, endDay - startDay + 1) },
@@ -98,11 +94,11 @@ export const DateStripDayButtons: React.FC<DateStripDayButtonsProps> = ({
             clinicalToday,
           })
         : null;
-      // Clinical today drives the HOY marker; fall back to the calendar date when no
-      // clinical day was provided (handoff modules).
+      // Clinical today drives the HOY marker; fall back to the hospital calendar date when
+      // no clinical day was provided (handoff modules).
       const isClinicalToday = classification
         ? classification.isClinicalToday
-        : isCurrentMonth && today.getDate() === day;
+        : buildDayDateString(selectedYear, selectedMonth, day) === calendarToday;
       // A selected day that sits before the clinical today is the dangerous "you are
       // editing a previous day" state — mark it amber.
       const isSelectedPast = isSelected && Boolean(classification?.isBeforeClinicalToday);
@@ -110,7 +106,7 @@ export const DateStripDayButtons: React.FC<DateStripDayButtonsProps> = ({
         selectedYear,
         selectedMonth,
         day,
-        referenceDate: futureBlockReferenceDate,
+        referenceDay: futureBlockReferenceDay,
       });
 
       return (

@@ -300,8 +300,3 @@ export const rayenSyncMetaFromEvent = (event: RayenSyncEvent): RayenSyncMeta => 
   source: event.source,
   staffingObservation: event.staffingObservation,
 });
-
-export const rayenSyncChangeCount = (event: RayenSyncEvent): number => {
-  const changes = event.changes;
-  return changes ? changes.admissions + changes.updates + changes.moves + changes.discharges : 0;
-};

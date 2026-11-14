@@ -95,7 +95,7 @@ describe('censusHiddenSheetsRenderer', () => {
     expect(sheet.columns[0]?.width).toBe(14);
   });
 
-  it('renders UPC sheets and applies cosmetic sheet protection metadata', async () => {
+  it('renders UPC sheets visible and without sheet protection', async () => {
     const workbook = new ExcelJS.Workbook();
     const upcSheet = workbook.addWorksheet('UPC PAC MARZO 2026');
     const matrixSheet = workbook.addWorksheet('UPC DET');

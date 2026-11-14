@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { FileDown } from 'lucide-react';
 import type { ClinicalActionResult } from '@/features/rayen-import';
 import { ClinicalAntecedentDauLogin } from './ClinicalAntecedentDauLogin';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
 
 type DownloadState =
   | { kind: 'idle' | 'downloading' }
@@ -49,12 +50,12 @@ export const ClinicalAntecedentDau = ({
     }
   };
   return (
-    <div className="mt-1.5 text-[11px]">
+    <div className="mt-1.5">
       <button
         type="button"
         onClick={() => void download()}
         disabled={state.kind === 'downloading' || state.kind === 'login'}
-        className="inline-flex items-center gap-1 font-semibold text-teal-700 disabled:opacity-50"
+        className={buttonClassName('ghost', 'xs', '-ml-2')}
       >
         <FileDown size={12} aria-hidden="true" />
         {state.kind === 'downloading' ? 'Descargando DAU…' : 'Descargar DAU oficial (PDF)'}
@@ -76,7 +77,7 @@ export const ClinicalAntecedentDau = ({
           {state.auth && (
             <button
               type="button"
-              className="mt-1 font-semibold text-teal-700 underline"
+              className={buttonClassName('ghost', 'xs', '-ml-2 mt-1')}
               onClick={() => {
                 if (state.auth)
                   setState({ kind: 'login', auth: state.auth, message: state.message });
