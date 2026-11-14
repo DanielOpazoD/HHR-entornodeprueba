@@ -1,5 +1,5 @@
 import { canAccessAppModuleRoute } from '@/shared/access/operationalAccessPolicy';
-import { CensusConflictToolbarFallback } from '@/components/layout/date-strip/CensusToolbarLoadingActions';
+import { CensusConflictMenuFallback } from '@/components/layout/date-strip/CensusToolbarLoadingActions';
 import React from 'react';
 import { Navbar } from '@/components/layout/Navbar';
 import { DateStrip } from '@/components/layout/DateStrip';
@@ -126,13 +126,13 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
                         CUDYR · control diario
                       </button>
                     )}
+                    {auth.role === 'admin' && (
+                      <React.Suspense fallback={<CensusConflictMenuFallback />}>
+                        <CensusConflictQuickAction />
+                      </React.Suspense>
+                    )}
                     <div ref={setHandoffTarget} />
                   </CensusOptionsMenu>
-                  {auth.role === 'admin' && (
-                    <React.Suspense fallback={<CensusConflictToolbarFallback />}>
-                      <CensusConflictQuickAction />
-                    </React.Suspense>
-                  )}
                 </>
               ) : undefined
             }

@@ -125,7 +125,14 @@ export const checkCensusToolbarRefresh = async (page: Page, date: string) => {
     releaseRayen();
     await expect(page.getByTestId('rayen-import-button')).toBeVisible();
     await expect(page.getByTestId('clinical-library-quick-action')).toBeVisible();
+    await expect(page.getByTestId('conflict-versions-button')).not.toBeVisible();
+    await page.getByRole('button', { name: 'Más opciones del censo' }).click();
     await expect(page.getByTestId('conflict-versions-button')).toBeVisible();
+    await page.getByTestId('conflict-versions-button').click();
+    const center = page.getByTestId('clinical-conflict-center-modal');
+    await expect(center).toBeVisible();
+    await center.getByRole('button', { name: 'Cerrar modal' }).click();
+    await expect(page.getByTestId('conflict-versions-button')).not.toBeVisible();
     await test.info().attach('toolbar-geometry', {
       body: JSON.stringify({ bootstrap, ready: await toolbarGeometry(page) }, null, 2),
       contentType: 'application/json',
@@ -147,7 +154,11 @@ export const checkCensusToolbarRefresh = async (page: Page, date: string) => {
     // F5 uses the same origin and persisted browser state; chunk routes keep cache disabled.
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('rayen-import-button')).toBeVisible();
+    await expect(page.getByTestId('conflict-versions-button')).not.toBeVisible();
+    await page.getByRole('button', { name: 'Más opciones del censo' }).click();
     await expect(page.getByTestId('conflict-versions-button')).toBeVisible();
+    await page.getByRole('button', { name: 'Más opciones del censo' }).press('Escape');
+    await expect(page.getByTestId('conflict-versions-button')).not.toBeVisible();
     await test.info().attach('toolbar-geometry', {
       body: JSON.stringify({ bootstrap, ready: await toolbarGeometry(page) }, null, 2),
       contentType: 'application/json',
