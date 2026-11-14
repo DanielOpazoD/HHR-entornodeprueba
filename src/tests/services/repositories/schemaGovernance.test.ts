@@ -8,7 +8,6 @@ import {
   migrateRecordSchemaToCurrent,
   resolveSchemaVersion,
 } from '@/services/repositories/schemaGovernance';
-import { assessRuntimeCompatibility } from '@/services/repositories/runtimeCompatibilityPolicy';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const makeRecord = (schemaVersion?: number): DailyRecord => ({
@@ -76,10 +75,5 @@ describe('schemaGovernance', () => {
 
   it('asserts schema governance integrity without throwing for valid config', () => {
     expect(() => assertSchemaGovernanceIntegrity()).not.toThrow();
-  });
-
-  it('keeps runtime compatibility aligned with schema governance', () => {
-    const compatibility = assessRuntimeCompatibility();
-    expect(compatibility.ok).toBe(true);
   });
 });

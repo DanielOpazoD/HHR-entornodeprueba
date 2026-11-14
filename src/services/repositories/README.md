@@ -43,9 +43,6 @@ primitives Firestore; no sustituirlas por nuevos singletons internos.
 - `dataMigration.ts` normaliza payloads históricos antes de usar el modelo actual.
 - `schemaGovernance.ts`, `schemaEvolutionPolicy.ts` y `migrationLedger.ts` definen
   versión y evolución; la compatibilidad histórica permanece protegida.
-- `runtimeCompatibilityPolicy.ts` clasifica la compatibilidad cliente/backend y
-  las restricciones de versión; `runtimeContractGovernance.ts` cruza contratos
-  runtime, versiones de schema y el ledger de migración.
 - `dailyRecordAggregate.ts` concentra las operaciones del agregado.
 
 Los informes generados son evidencia, no otra implementación de la política:
