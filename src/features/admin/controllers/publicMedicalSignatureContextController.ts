@@ -42,11 +42,6 @@ export const createPublicMedicalSignatureContextValue = ({
   createDay: asyncFalse,
   resetDay: asyncNoop,
   refresh: noop,
-  validateRecordSchema: () => ({
-    isValid: true,
-    errors: [],
-  }),
-  canDischargePatient: () => false,
   updatePatient: noop,
   updatePatientMultiple: noop,
   updateClinicalCrib: noop,
