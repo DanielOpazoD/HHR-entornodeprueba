@@ -5,6 +5,8 @@
  * between different PDF services and UI components.
  */
 
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
+
 /**
  * Split a full name into components: [nombres, primerApellido, segundoApellido]
  * Assumes format: Nombres ApellidoPaterno ApellidoMaterno
@@ -24,13 +26,14 @@ export const splitPatientName = (fullName: string | undefined): [string, string,
 };
 
 /**
- * Calculate age from birthDate string.
+ * Calculate age from birthDate string on the hospital calendar day.
  * Supports DD-MM-YYYY and YYYY-MM-DD.
  */
 export const calculateAge = (birthDate: string | undefined): string => {
   if (!birthDate) return '';
   try {
-    const parts = birthDate.includes('-') ? birthDate.split('-') : [];
+    const day = birthDate.split('T')[0];
+    const parts = day.includes('-') ? day.split('-').map(part => part.padStart(2, '0')) : [];
     let birth: Date;
     if (parts.length === 3 && parts[0].length === 4) {
       birth = new Date(`${parts[0]}-${parts[1]}-${parts[2]}`);
@@ -39,10 +42,11 @@ export const calculateAge = (birthDate: string | undefined): string => {
     } else {
       return '';
     }
-    const today = new Date();
-    let age = today.getFullYear() - birth.getFullYear();
-    const m = today.getMonth() - birth.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    // Both are calendar days at UTC midnight read with UTC getters, so the device zone moves neither.
+    const today = new Date(getClinicalCalendarDateISO());
+    let age = today.getUTCFullYear() - birth.getUTCFullYear();
+    const m = today.getUTCMonth() - birth.getUTCMonth();
+    if (m < 0 || (m === 0 && today.getUTCDate() < birth.getUTCDate())) age--;
     return `${age} años`;
   } catch {
     return '';

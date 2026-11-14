@@ -8,6 +8,7 @@ import {
   BiologicalSex,
 } from './types';
 import { PatientIdentityStatus } from '@/types/domain/patientIdentity';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 
 export const normalizeNamePart = (value: string): string => value.trim().replace(/\s+/g, ' ');
 const normalizeComparableName = (value: string): string => normalizeNamePart(value).toLowerCase();
@@ -203,10 +204,12 @@ export const resolveRequiredDemographicsCompletion = (
   };
 };
 
+/** Age on the hospital calendar day; `dob` is a `YYYY-MM-DD` calendar day, not an instant. */
 export const calculateFormattedAge = (dob: string) => {
   if (!dob) return '';
-  const birth = new Date(dob);
-  const today = new Date();
+  // Both are calendar days at UTC midnight read with UTC getters, so the device zone moves neither.
+  const birth = new Date(dob.split('T')[0]);
+  const today = new Date(getClinicalCalendarDateISO());
 
   const diffTime = today.getTime() - birth.getTime();
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
@@ -218,8 +221,9 @@ export const calculateFormattedAge = (dob: string) => {
   }
 
   let months =
-    (today.getFullYear() - birth.getFullYear()) * 12 + (today.getMonth() - birth.getMonth());
-  if (today.getDate() < birth.getDate()) {
+    (today.getUTCFullYear() - birth.getUTCFullYear()) * 12 +
+    (today.getUTCMonth() - birth.getUTCMonth());
+  if (today.getUTCDate() < birth.getUTCDate()) {
     months--;
   }
 
