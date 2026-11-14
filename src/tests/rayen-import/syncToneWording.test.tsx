@@ -138,6 +138,16 @@ describe('sync box detail wording', () => {
     );
   });
 
+  it('keeps the reload instruction for a person when the open list belongs to another session', () => {
+    const foreignList = classifyRayenSnapshotError(
+      `${WRAP}La lista abierta no corresponde a la identidad clínica actual. Recarga Eloísa.`
+    );
+    const personDetail = renderFailedDetail(foreignList.message);
+    expect(personDetail).toContain('Recarga Eloísa y vuelve a sincronizar.');
+    expect(personDetail).not.toMatch(PERSON_FACING_FAILURE);
+    expect(personDetail).not.toContain('identidad clínica');
+  });
+
   it('gives the source text only to an administrator, and only next to the message it explains', () => {
     const network = classifyRayenSnapshotError(`${WRAP}Failed to fetch`);
     const state = {

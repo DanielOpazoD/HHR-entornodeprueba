@@ -61,7 +61,7 @@ describe('classifyRayenSnapshotError', () => {
     );
   });
 
-  it('un 500 del backend o una lista ajena a la identidad NO son pestaña inactiva: causa genérica, el detalle real queda como detalle técnico', () => {
+  it('un 500 del backend o una lista ajena a la identidad NO son pestaña inactiva: causa genérica, el detalle real queda como detalle técnico y la lista ajena conserva «Recarga Eloísa»', () => {
     const http = classifyRayenSnapshotError(`${WRAP}500 en /encounter/list/filter`);
     expect(http.reason).toBe('snapshot_error');
     expect(http.message).toContain('Revisa las pestañas de Eloísa');
@@ -71,7 +71,10 @@ describe('classifyRayenSnapshotError', () => {
       `${WRAP}La lista abierta no corresponde a la identidad clínica actual. Recarga Eloísa.`
     );
     expect(identity.reason).toBe('snapshot_error');
-    expect(identity.message).not.toContain('identidad clínica');
+    expect(identity.check).toBe(http.check);
+    expect(identity.message).toBe(
+      'La lista abierta en Eloísa es de otra sesión. Recarga Eloísa y vuelve a sincronizar.'
+    );
     expect(identity.technicalDetail).toBe(
       'La lista abierta no corresponde a la identidad clínica actual. Recarga Eloísa.'
     );

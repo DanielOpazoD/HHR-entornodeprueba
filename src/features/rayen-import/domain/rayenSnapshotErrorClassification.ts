@@ -101,6 +101,12 @@ const RULES: readonly ClassificationRule[] = [
     remedy:
       'La pestaña de Ficha Médico dejó de entregar datos. Recárgala (Cmd+R), espera a que cargue y vuelve a sincronizar.',
   },
+  {
+    // Va al final: misma causa que el caso genérico; solo conserva la acción que la persona necesita.
+    test: /no corresponde a la identidad clinica/,
+    reason: 'snapshot_error',
+    remedy: 'La lista abierta en Eloísa es de otra sesión. Recarga Eloísa y vuelve a sincronizar.',
+  },
 ];
 
 /** Texto real del error: el detalle detrás del envoltorio del transporte, o el mensaje entero. */
