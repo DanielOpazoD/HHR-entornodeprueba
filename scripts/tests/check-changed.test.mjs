@@ -68,6 +68,7 @@ test('includes committed, staged, unstaged, untracked and deleted changes', () =
   assert.ok(!result.calls.includes('src/deleted.ts'));
   assert.match(result.calls, /check:unchecked-index/);
   assert.match(result.calls, /check:module-size/);
+  assert.match(result.calls, /check:architecture/);
 });
 
 test('docs run formatting without source checks', () => {
