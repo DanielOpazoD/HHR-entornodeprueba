@@ -8,6 +8,7 @@ import {
 import { formatClinicalAntecedentDate } from './clinicalAntecedentDate';
 import { ClinicalAntecedentContent } from './ClinicalAntecedentContent';
 import { ClinicalAntecedentDau } from './ClinicalAntecedentDau';
+import { buttonClassName } from '@/components/ui/base/buttonStyles';
 
 export const ClinicalAntecedentCard = ({
   entry,
@@ -58,7 +59,7 @@ export const ClinicalAntecedentCard = ({
 
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
+      <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs">
         <time className="font-semibold tabular-nums text-slate-700">
           {formatClinicalAntecedentDate(entry.date)}
         </time>
@@ -74,7 +75,7 @@ export const ClinicalAntecedentCard = ({
                 : entry.type || entry.source}
         </span>
       </div>
-      {entry.facility && <p className="mt-1 text-[10px] text-slate-500">{entry.facility}</p>}
+      {entry.facility && <p className="mt-1 text-xs text-slate-500">{entry.facility}</p>}
       {!result?.detail?.diagnoses?.length && (
         <h4 className="mt-0.5 text-xs font-semibold text-slate-800">
           {entry.diagnosis || 'Atención sin diagnóstico informado'}
@@ -84,13 +85,13 @@ export const ClinicalAntecedentCard = ({
         <button
           type="button"
           onClick={() => setDetailRequested(true)}
-          className="mt-2 text-xs font-semibold text-teal-700"
+          className={buttonClassName('ghost', 'xs', '-ml-2 mt-2')}
         >
           Ver detalle de la atención
         </button>
       )}
       {canLoadDetail && detailRequested && (
-        <div className="mt-1.5 whitespace-pre-wrap border-t border-slate-100 pt-1.5 text-[11px] leading-[1.4] text-slate-600">
+        <div className="mt-1.5 whitespace-pre-wrap border-t border-slate-100 pt-1.5 text-xs leading-[1.4] text-slate-600">
           {!result ? (
             <p>Cargando atención…</p>
           ) : result.error ? (
@@ -102,7 +103,7 @@ export const ClinicalAntecedentCard = ({
                   setResult(null);
                   setDetailAttempt(value => value + 1);
                 }}
-                className="shrink-0 font-semibold text-teal-700"
+                className={buttonClassName('ghost', 'xs', 'shrink-0')}
               >
                 Reintentar
               </button>
@@ -123,11 +124,11 @@ export const ClinicalAntecedentCard = ({
                   <p className="font-semibold text-slate-700">Archivos adjuntos</p>
                   {result.detail.attachments.map(attachment => (
                     <div key={attachment.id} className="mt-2">
-                      <p className="text-[11px] text-slate-600">{attachment.label}</p>
+                      <p className="text-slate-600">{attachment.label}</p>
                       <button
                         type="button"
                         onClick={() => void openAttachment(attachment.id)}
-                        className="mt-1 flex items-center gap-1 font-semibold text-teal-700 underline-offset-2 hover:underline"
+                        className={buttonClassName('ghost', 'xs', '-ml-2 mt-1')}
                       >
                         <Paperclip size={12} /> Descargar adjunto
                       </button>

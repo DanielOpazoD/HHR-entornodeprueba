@@ -120,6 +120,7 @@ export const getMonthContext = (date: string): CensusHiddenSheetMonthContext => 
     year,
     monthIndex,
     monthName: (MONTH_NAMES[monthIndex] || '').toUpperCase(),
+    // clinical-clock-allow server-clock-today: day 0 of the next month is calendar arithmetic, not an instant.
     daysInMonth: new Date(Number(year), Number(month), 0).getDate(),
   };
 };

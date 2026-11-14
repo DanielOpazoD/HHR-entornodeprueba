@@ -1,6 +1,7 @@
 import React from 'react';
 import { DateStripPeriodControl } from './DateStripPeriodControl';
 import { useDropdownMenu } from '@/hooks/useDropdownMenu';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 
 interface DateStripYearNavigatorProps {
   selectedYear: number;
@@ -14,7 +15,7 @@ export const DateStripYearNavigator: React.FC<DateStripYearNavigatorProps> = ({
   setSelectedYear,
 }) => {
   const { isOpen, menuRef, toggle, close } = useDropdownMenu();
-  const currentYear = new Date().getFullYear();
+  const currentYear = Number(getClinicalCalendarDateISO().slice(0, 4));
   const years = Array.from({ length: YEAR_RANGE * 2 + 1 }, (_, i) => currentYear - YEAR_RANGE + i);
 
   return (

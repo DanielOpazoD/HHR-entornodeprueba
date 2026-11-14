@@ -25,14 +25,12 @@ export const ClinicalPanelProfessionTabs: React.FC<{
         aria-label={`${{ medical: 'Médico', nursing: 'Enfermería', other: 'Otros' }[key]} (${count(key)})`}
         aria-pressed={selected === key}
         className={clsx(
-          'shrink-0 rounded-md px-1.5 py-1 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
+          'shrink-0 rounded-md px-1.5 py-1 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
           selected === key ? 'bg-medical-50 text-medical-800' : 'text-slate-500 hover:bg-slate-100'
         )}
       >
         {{ medical: 'Médico', nursing: 'Enfermería', other: 'Otros' }[key]}
-        <span className="ml-1 hidden text-[9px] font-bold opacity-60 min-[400px]:inline">
-          {count(key)}
-        </span>
+        <span className="ml-1 hidden font-bold opacity-60 min-[400px]:inline">{count(key)}</span>
       </button>
     ))}
     {selected !== 'other' && (
@@ -52,16 +50,14 @@ export const ClinicalPanelProfessionTabs: React.FC<{
             aria-label={`${item.label} (${item.count})`}
             aria-pressed={view === item.key}
             className={clsx(
-              'shrink-0 rounded-md px-1.5 py-1 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
+              'shrink-0 rounded-md px-1.5 py-1 text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700',
               view === item.key
                 ? 'bg-slate-100 text-slate-800'
                 : 'text-slate-500 hover:bg-slate-100'
             )}
           >
             {item.label}
-            <span className="ml-1 hidden text-[9px] opacity-60 min-[400px]:inline">
-              {item.count}
-            </span>
+            <span className="ml-1 hidden opacity-60 min-[400px]:inline">{item.count}</span>
           </button>
         ))}
       </div>

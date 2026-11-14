@@ -2,7 +2,7 @@ import React from 'react';
 import clsx from 'clsx';
 import { Folder, RefreshCw } from 'lucide-react';
 
-import { FolderCard, FileCard } from './BackupDriveItems';
+import { FolderCard } from './BackupDriveItems';
 import { HandoffCalendarView } from './HandoffCalendarView';
 import { DailyBackupCalendarView } from './DailyBackupCalendarView';
 import type { BackupFolder, BackupItem, BackupType } from '@/hooks/backupFileBrowserContracts';
@@ -106,29 +106,14 @@ export const BackupFilesContent: React.FC<BackupFilesContentProps> = ({
           : 'flex flex-col'
       )}
     >
-      {filteredItems.map((item, index) =>
-        item.type === 'folder' ? (
-          <FolderCard
-            key={(item.data as BackupFolder).name}
-            name={(item.data as BackupFolder).name}
-            onClick={() => onOpenFolder(item.data as BackupFolder)}
-          />
-        ) : (
-          <FileCard
-            key={(item.data as BaseStoredFile).fullPath || index}
-            name={(item.data as BaseStoredFile).name}
-            date={(item.data as BaseStoredFile).date}
-            shift={(item.data as StoredPdfFile).shiftType || 'day'}
-            size={formatFileSize((item.data as BaseStoredFile).size)}
-            onView={() => onPreviewFile(item.data as BaseStoredFile | StoredPdfFile)}
-            onDownload={() => onDownloadFile(item.data as BaseStoredFile | StoredPdfFile)}
-            onDelete={() => onDeleteFile(item.data as BaseStoredFile | StoredPdfFile)}
-            canDelete={canDelete}
-            hideShift={selectedBackupType !== 'handoff'}
-            compact={selectedBackupType !== 'handoff'}
-          />
-        )
-      )}
+      {filteredItems
+        .filter(item => item.type === 'folder')
+        .map(item => {
+          const folder = item.data as BackupFolder;
+          return (
+            <FolderCard key={folder.name} name={folder.name} onClick={() => onOpenFolder(folder)} />
+          );
+        })}
     </div>
   );
 };

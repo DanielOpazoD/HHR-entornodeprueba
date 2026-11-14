@@ -1,6 +1,6 @@
 import { CatalogRemoteSyncError } from '@/services/repositories/contracts/catalogContracts';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import {
   useNursesQuery,
   useTensQuery,
@@ -285,5 +285,51 @@ describe('useStaffQuery Hooks', () => {
       ['Synthetic Base', 'Synthetic One', 'Synthetic Two']
     );
     await waitFor(() => expect(result.current.error).toBeNull());
+  });
+});
+
+describe.each([
+  ['nurses', useSaveNursesMutation, 'saveNurses'],
+  ['tens', useSaveTensMutation, 'saveTens'],
+] as const)('%s late spelling confirmation', (catalog, useSave, save) => {
+  it.each([
+    ['adds an equivalent variant', ['Ana Peña'], ['Ana Peña', 'ANA PENA'], ['Ana Peña'], true],
+    ['adds a newly discovered variant', [], ['ANA PENA'], ['Ana Peña'], true],
+    ['keeps an unsaved spelling correction', ['Ana Pena'], ['Ana Peña'], ['Ana Pena'], false],
+    ['accepts the saved spelling correction', ['Ana Pena'], ['Ana Peña'], ['Ana Peña'], true],
+    ['keeps an unsaved accent removal', ['Ána Pena'], ['Ana Pena'], ['Ána Pena'], false],
+    ['keeps an unsaved deletion', ['Ana Peña'], [], ['Ana Peña'], false],
+    ['accepts a saved deletion', ['Ana Peña'], [], [], true],
+    ['keeps a failed addition', [], ['Ana Peña'], ['Otra Persona'], false],
+  ])('%s', async (_label, base, next, stored, accepted) => {
+    const { wrapper, queryClient } = createQueryClientTestWrapper();
+    queryClient.setQueryData(['staff', catalog], base);
+    const error = new CatalogRemoteSyncError('confirmation_timeout');
+    vi.mocked(CatalogRepository[save]).mockRejectedValue(error);
+    const { result } = renderHook(() => useSave(), { wrapper });
+    await act(async () => {
+      await expect(result.current.mutateAsync({ base, next })).rejects.toBe(error);
+    });
+    await act(async () => {
+      queryClient.setQueryData(['staff', catalog], stored);
+    });
+    await waitFor(() => expect(result.current.error).toBe(accepted ? null : error));
+  });
+
+  it('retains a real write failure even when an equivalent name is present', async () => {
+    const { wrapper, queryClient } = createQueryClientTestWrapper();
+    queryClient.setQueryData(['staff', catalog], ['Ana Peña']);
+    const error = new Error('write rejected');
+    vi.mocked(CatalogRepository[save]).mockRejectedValue(error);
+    const { result } = renderHook(() => useSave(), { wrapper });
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({ base: ['Ana Peña'], next: ['Ana Peña', 'ANA PENA'] })
+      ).rejects.toBe(error);
+    });
+    await act(async () => {
+      queryClient.setQueryData(['staff', catalog], ['Ana Peña', 'Otra Persona']);
+    });
+    await waitFor(() => expect(result.current.error).toBe(error));
   });
 });

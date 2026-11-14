@@ -63,8 +63,8 @@ Estos son los módulos que más sentido tiene evaluar uno por uno primero.
 
 ### 5. Gestión de traslados
 
-- **Feature principal:** [src/features/transfers](../src/features/transfers)
-- **Hooks y soporte también en census**
+- **Feature principal:** [src/features/census](../src/features/census) (`TransfersSection` y controllers `censusTransfer*`)
+- **Modal:** [src/components/modals/actions/TransferModal.tsx](../src/components/modals/actions/TransferModal.tsx)
 - Incluye:
   - solicitudes
   - estados del traslado
@@ -119,7 +119,7 @@ Estos son los módulos que más sentido tiene evaluar uno por uno primero.
 ### 12. CUDYR
 
 - **Feature principal:** [src/features/cudyr](../src/features/cudyr)
-- **Application:** [src/application/cudyr](../src/application/cudyr)
+- **Dominio:** [src/domain/cudyr](../src/domain/cudyr)
 - Módulo suficientemente grande e importante para evaluarse por separado.
 
 ---
