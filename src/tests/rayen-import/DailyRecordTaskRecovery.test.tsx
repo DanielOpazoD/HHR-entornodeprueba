@@ -1,5 +1,4 @@
 import 'fake-indexeddb/auto';
-import React from 'react';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { RayenSyncQueueDetails } from '@/features/rayen-import/components/RayenSyncQueueDetails';
