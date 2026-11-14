@@ -3,6 +3,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
 import { createRayenSnapshotEvidenceClient } from './rayenSnapshotEvidenceClient';
 import type { CapturedRayenStructuralEvidence } from './replanRayenStructure';
+import { RayenPlanningStop } from '../domain/rayenPlanningStop';
 import type { InvalidClinicalEpisodeIds } from '../domain/invalidClinicalEpisodePolicy';
 
 interface EvidenceCounters {
@@ -76,7 +77,7 @@ export const prepareRayenStructuralPlan = async ({
     ? null
     : await measureEvidence(() => dailyRecord.getAuthoritativeForDate(previousDate));
   if (previous && previous.date !== previousDate) {
-    throw new Error(
+    throw new RayenPlanningStop(
       'El censo previo quedó por verificar porque la fecha recibida no corresponde. Vuelve a sincronizar.'
     );
   }

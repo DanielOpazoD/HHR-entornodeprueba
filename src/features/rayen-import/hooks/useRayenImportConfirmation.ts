@@ -270,6 +270,7 @@ export const useRayenImportConfirmation = ({
             hasSkippedItems: false,
             error: null,
           }));
+          return true;
         },
         persist: () =>
           runSerializedPersistence(() => {

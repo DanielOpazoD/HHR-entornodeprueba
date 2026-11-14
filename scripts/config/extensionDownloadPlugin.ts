@@ -13,7 +13,7 @@ export function extensionDownloadPlugin(_root: string): Plugin {
   return {
     name: 'rayen-extension-download',
     resolveId(id) {
-      if (id === MODULE_ID) return `\0${MODULE_ID}`;
+      return id === MODULE_ID ? `\0${MODULE_ID}` : undefined;
     },
     load(id) {
       if (id !== `\0${MODULE_ID}`) return;

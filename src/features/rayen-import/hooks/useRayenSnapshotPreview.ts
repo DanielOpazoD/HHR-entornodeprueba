@@ -1,6 +1,13 @@
 import { useCallback, type Dispatch } from 'react';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
-import { getRayenImportErrorMessage } from './rayenImportState';
+import {
+  describeRayenPlanningFailure,
+  getRayenImportErrorMessage,
+  type RayenImportState,
+} from './rayenImportState';
+import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
+import { logError } from '@/services/utils/errorService';
 import { defaultMonotonicNow, elapsedMilliseconds } from '../domain/rayenSyncPerformance';
 import { useTreatingPhysicianCatalogSync } from './useTreatingPhysicianCatalogSync';
 import { buildRayenCapturePerformance } from '../domain/rayenSyncSourceQuality';
@@ -114,6 +121,13 @@ export const useRayenSnapshotPreview = ({
         selectedDate: preparedContext.selectedDate,
       };
       if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
+      const sessionOwner = getStoredSessionOwnerKey();
+      const sessionGeneration = getSessionGeneration();
+      // A failure that arrives after the session or the execution changed belongs to no one.
+      const ownsPlanning = () =>
+        isRayenSyncExecutionCurrent(executionRef.current, executionIdentity) &&
+        sessionOwner === getStoredSessionOwnerKey() &&
+        sessionGeneration === getSessionGeneration();
       const execution = createRayenSnapshotExecutionReporter(dispatchExecution, executionIdentity);
       const returnReplanToReview = (error: unknown) =>
         returnRayenReplanToReview({
@@ -134,16 +148,16 @@ export const useRayenSnapshotPreview = ({
         ),
         run.id
       );
-      const metrics = createRayenPlanningMetrics();
-      const evidence = prepareRayenSnapshotEvidence(preparedContext, snapshot, bundle);
-      if (!evidence.valid) {
+      const stopPlanning = (failure: Pick<RayenImportState, 'error' | 'errorTechnicalDetail'>) => {
         execution.transition({ type: 'failed' });
         preparedSyncContextRef.current = null;
         void failRun('apply_failed', run.id).catch(() => undefined);
-        setState(prev => ({
-          ...prev,
-          error: evidence.error,
-        }));
+        setState(prev => ({ ...prev, ...failure }));
+      };
+      const metrics = createRayenPlanningMetrics();
+      const evidence = prepareRayenSnapshotEvidence(preparedContext, snapshot, bundle);
+      if (!evidence.valid) {
+        stopPlanning({ error: evidence.error });
         return;
       }
       // Without the marks the sync could admit a removed patient again or file its egreso.
@@ -157,26 +171,39 @@ export const useRayenSnapshotPreview = ({
           )
         );
       } catch {
-        if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
-        execution.transition({ type: 'failed' });
-        preparedSyncContextRef.current = null;
-        void failRun('apply_failed', run.id).catch(() => undefined);
-        setState(prev => ({ ...prev, error: INVALID_EPISODE_LOAD_ERROR }));
+        if (!ownsPlanning()) return;
+        stopPlanning({ error: INVALID_EPISODE_LOAD_ERROR });
         return;
       }
       if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
-      const structuralPlan = await prepareRayenStructuralPlan({
-        baseRecord: authoritativeBaseRecord,
-        planningSnapshot,
-        bundle,
-        isHistoricalDay: evidence.isHistoricalDay,
-        reportDate: evidence.reportDate,
-        dailyRecord,
-        isAdmin,
-        counters: metrics.counters,
-        measureEvidence: metrics.measureEvidence,
-        invalidEpisodeIds,
-      });
+      let structuralPlan: Awaited<ReturnType<typeof prepareRayenStructuralPlan>>;
+      try {
+        structuralPlan = await prepareRayenStructuralPlan({
+          baseRecord: authoritativeBaseRecord,
+          planningSnapshot,
+          bundle,
+          isHistoricalDay: evidence.isHistoricalDay,
+          reportDate: evidence.reportDate,
+          dailyRecord,
+          isAdmin,
+          counters: metrics.counters,
+          measureEvidence: metrics.measureEvidence,
+          invalidEpisodeIds,
+        });
+      } catch (error) {
+        // A failed evidence read or a refused reconstruction proposes nothing and saves nothing.
+        if (!ownsPlanning()) return;
+        const { unforeseen, ...failure } = describeRayenPlanningFailure(error);
+        if (unforeseen) {
+          logError(
+            'Rayen structural planning failed',
+            error instanceof Error ? error : new Error(String(error)),
+            { operation: 'rayen_structural_planning' }
+          );
+        }
+        stopPlanning(failure);
+        return;
+      }
       const { replanDiff } = structuralPlan;
       let diff = structuralPlan.diff;
       if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;

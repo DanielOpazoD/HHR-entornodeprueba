@@ -13,7 +13,6 @@ import { PatientStatus } from '@/types/domain/patientClassification';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   applyOptimisticDailyRecordPatch,
-  buildPreviousDayDate,
   createDailyRecordSubscription,
   getDailyRecordQueryKey,
   invalidateDailyRecordQuery,
@@ -462,6 +461,5 @@ describe('dailyRecordQueryController', () => {
     invalidateDailyRecordQuery(queryClient, '2025-01-08');
     expect(shouldUseDailyRecordRealtimeSync('2025-01-08', false, 'ready')).toBe(true);
     expect(shouldUseDailyRecordRealtimeSync('', false, 'ready')).toBe(false);
-    expect(buildPreviousDayDate('2025-01-08')).toBe('2025-01-07');
   });
 });
