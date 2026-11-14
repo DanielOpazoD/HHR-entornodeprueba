@@ -31,8 +31,7 @@ export const dayKey = (value: string): string => {
   if (written) return written[1];
   const timestamp = Date.parse(value);
   if (Number.isNaN(timestamp)) return '';
-  // Date.parse reads other zone-less text on the device clock and it is read back on that clock,
-  // so such a text gets the same day on every device.
+  // clinical-clock-allow device-calendar-today: Date.parse reads other zone-less text on the device clock and it is read back on that clock, so it keeps the day written on every device.
   const date = new Date(timestamp);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
     date.getDate()

@@ -18,7 +18,7 @@ export const formatClinicalDocumentDateTime = (isoString?: string): string => {
 
 export const formatClinicalDocumentDate = (value?: string): string => {
   if (!value) return 'Sin fecha';
-  // clinical-clock-allow server-clock-today: local midnight of a calendar day read back with local getters keeps its label in every zone.
+  // clinical-clock-allow device-calendar-today: local midnight of a calendar day read back with local getters keeps its label in every zone.
   const parsed = new Date(`${value}T00:00:00`);
   if (Number.isNaN(parsed.getTime())) return value;
   const day = String(parsed.getDate()).padStart(2, '0');
