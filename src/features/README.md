@@ -6,19 +6,30 @@ Organización principal por módulo funcional (feature-first). Cada feature agru
 
 ## Mapa de features
 
-| Feature             | Contenido típico                                                                                        | Estado                       |
-| ------------------- | ------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| `census/`           | `components`, `hooks`, `controllers`, `domain`, `types`, `validation`                                   | Núcleo principal del sistema |
-| `handoff/`          | Entrega de turno (enfermería/médica), controllers y servicios                                           | Activo                       |
-| `admin/`            | Paneles de administración, roles, auditoría                                                             | Activo                       |
-| `analytics/`        | KPIs MINSAL/DEIS, visualización y ruta propia `/statistics`                                             | Activo                       |
-| `backup/`           | Gestión de respaldos y archivos                                                                         | Activo                       |
-| `audit-documents/`  | Descarga en ZIP de informes oficiales de Eloísa para auditoría (lista de RUT, vía extensión)            | Activo                       |
-| `cudyr/`            | Módulo clínico CUDYR                                                                                    | Activo                       |
-| `clinical-library/` | Biblioteca del censo: formularios, protocolos, infografías y herramientas clínicas (botón «Documentos») | Activo                       |
-| `whatsapp/`         | Integración y configuración WhatsApp                                                                    | Activo                       |
-| `auth/`             | UI/flows específicos de autenticación                                                                   | Acotado                      |
-| `reports/`          | Espacio para reportes adicionales                                                                       | Reservado/ligero             |
+Una fila por carpeta de `src/features/`; `featureBoundaryLint.test.ts` falla si falta o sobra una.
+De quién puede depender cada feature lo dice
+[`scripts/feature-dependency-matrix.json`](../../scripts/feature-dependency-matrix.json), no esta tabla.
+
+| Feature                                               | Qué hace para el hospital                                                                                     |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `admin/`                                              | Panel del administrador: cuentas y roles, auditoría, salud del sistema, mantenimiento de datos y firma médica |
+| [`analytics/`](analytics/README.md)                   | Estadísticas MINSAL/DEIS, CUDYR por nivel de cuidado y traslados, en la ruta `/statistics`                    |
+| `audit-documents/`                                    | Descarga en ZIP los informes oficiales de Eloísa de una lista de RUT, para auditorías                         |
+| `auth/`                                               | Pantalla de ingreso: cuenta Google y acceso de enfermería                                                     |
+| [`backup/`](backup/README.md)                         | Explorar, guardar, revisar y mantener los respaldos históricos                                                |
+| [`census/`](census/README.md)                         | Censo diario: camas, pacientes, ingresos, altas, traslados y turnos. Núcleo de la aplicación                  |
+| [`clinical-documents/`](clinical-documents/README.md) | Epicrisis, evoluciones e informes médicos del episodio: borrador, guardado automático, impresión y PDF        |
+| [`clinical-library/`](clinical-library/README.md)     | Botón «Documentos» del censo: formularios para completar, protocolos, infografías y herramientas clínicas     |
+| [`cudyr/`](cudyr/README.md)                           | Categorización CUDYR de enfermería: registro, exportación e impresión para la entrega nocturna                |
+| `document-scanner/`                                   | Escanea documentos con el teléfono a PDF; quedan en una bandeja temporal hasta confirmar su carga en Eloísa   |
+| [`handoff/`](handoff/README.md)                       | Entrega de turno de enfermería y médica                                                                       |
+| [`laboratory/`](laboratory/README.md)                 | Exámenes del paciente: visor de Syslab, informes originales de Exalab y bandeja de exámenes del censo         |
+| `prescriptions/`                                      | Respaldo fotográfico de recetas por cama: carga con QR y PIN, visor y administración                          |
+| [`rayen-import/`](rayen-import/README.md)             | Sincroniza el censo con Eloísa mediante la extensión; los cambios de camas se aplican tras confirmarlos       |
+| `rayen-manual-import/`                                | Ingresa en una cama vacía un paciente copiado de Eloísa con un código, avisando si ya está en el censo        |
+| [`reminders/`](reminders/README.md)                   | Avisos que jefatura o administración publican para el personal clínico                                        |
+| `whatsapp/`                                           | WhatsApp: turnos de pabellón, plantillas de mensajes y configuración                                          |
+| [`wound-care/`](wound-care/README.md)                 | Registro fotográfico de curaciones de heridas, con consentimiento, desde la entrega de enfermería             |
 
 ## Subestructura esperada por feature
 
@@ -90,18 +101,9 @@ components/Modal
 4. `controllers` para reglas de negocio.
 5. `domain/types` para contratos.
 
-## Entry points públicos actuales
+## Entradas públicas
 
-- `auth/index.ts`: autenticación de alto nivel.
-- `auth/public.ts`: API pública mínima de autenticación (`LoginPage` + props).
-- `census/public.ts`: vistas públicas y read-model helpers permitidos para `application`.
-- `clinical-documents/public.ts`: contratos y helpers permitidos para `application`/`shared`.
-- `reminders/index.ts` y `reminders/public.ts`: vista administrativa pública del feature.
-- `admin/index.ts`: vistas operativas del panel admin.
-- `analytics/index.ts` y `analytics/public.ts`: vista pública del dashboard MINSAL/DEIS.
-- `backup/index.ts`: explorador de respaldos.
-- `census/index.ts`: vistas y modales públicos del módulo.
-- `cudyr/index.ts` y `cudyr/public.ts`: vistas y utilidades permitidas.
-- `clinical-library/index.ts`, `clinical-library/public.ts` y `clinical-library/quick-action.ts`: botón «Documentos» y panel lateral de la biblioteca clínica.
-- `handoff/index.ts` y `handoff/public.ts`: shell público de entrega de turno y helpers permitidos.
-- `whatsapp/index.ts`: integración principal de WhatsApp.
+Cada feature se consume desde fuera solo por su `public.ts` o su `index.ts`. Las entradas adicionales
+permitidas están en `publicModulesByFeature` y las excepciones puntuales en `exceptionsByFeature`, ambas en
+[`scripts/feature-public-api-allowlist.json`](../../scripts/feature-public-api-allowlist.json); ESLint las
+impone.
