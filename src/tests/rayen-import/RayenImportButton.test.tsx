@@ -246,9 +246,7 @@ describe('RayenImportButton', () => {
 
     expect(screen.getByText('Conectada')).toBeInTheDocument();
     expect(screen.getByRole('status')).not.toHaveClass('sr-only');
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Última sincronización sin evidencia clínica'
-    );
+    expect(screen.getByRole('status')).toHaveTextContent('Datos clínicos por confirmar');
     expect(
       screen.queryByRole('progressbar', { name: 'Progreso de sincronización con Eloísa' })
     ).not.toBeInTheDocument();
@@ -437,7 +435,9 @@ describe('RayenImportButton', () => {
 
     render(<RayenImportButton />);
 
-    expect(screen.getByRole('status')).toHaveTextContent('Última sincronización con observaciones');
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Revisar datos de la última sincronización'
+    );
     expect(screen.queryByText('Todo al día')).not.toBeInTheDocument();
     const historyButton = screen.getByRole('button', {
       name: 'Abrir historial de sincronización del día, 1 eventos',

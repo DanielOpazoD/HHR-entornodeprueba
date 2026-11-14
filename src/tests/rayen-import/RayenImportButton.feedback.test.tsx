@@ -111,6 +111,11 @@ describe('RayenImportButton feedback', () => {
     });
     render(<RayenImportButton />);
     expect(screen.queryByTestId('sync-queue-status-chip')).not.toBeInTheDocument();
+    // Stopped sends do not resume alone: the history mark takes the action level (SAVE-01).
+    expect(screen.getByTestId('rayen-sync-history-indicator')).toHaveAttribute(
+      'data-tone',
+      'action'
+    );
     await clickLazyControl(
       screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' })
     );
@@ -127,6 +132,8 @@ describe('RayenImportButton feedback', () => {
       refresh: vi.fn(),
     });
     render(<RayenImportButton />);
+    // Retries go out by themselves: informative, never the action level.
+    expect(screen.getByTestId('rayen-sync-history-indicator')).toHaveAttribute('data-tone', 'info');
     await clickLazyControl(
       screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' })
     );
@@ -201,7 +208,9 @@ describe('RayenImportButton feedback', () => {
       screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' })
     );
     expect(await screen.findByText('Guardado local · por comprobar')).toBeInTheDocument();
-    expect(screen.getByText('No se pudo leer la cola local.')).toBeInTheDocument();
+    expect(
+      screen.getByText(/La lista de envíos de este equipo todavía no se leyó/)
+    ).toBeInTheDocument();
     expect(screen.queryByText('Guardado local · 0 por enviar')).not.toBeInTheDocument();
     expect(mocks.triggerImport).not.toHaveBeenCalled();
 
@@ -210,7 +219,9 @@ describe('RayenImportButton feedback', () => {
       stats: { ...queue.stats, recentOperationsReadState: 'ok' },
     });
     rerender(<RayenImportButton />);
-    expect(screen.queryByText('No se pudo leer la cola local.')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/La lista de envíos de este equipo todavía no se leyó/)
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Guardado pendiente · Ver detalle' })
     ).not.toBeInTheDocument();
@@ -267,7 +278,9 @@ describe('RayenImportButton feedback', () => {
 
     const notice = screen.getByTestId('rayen-import-error');
     expect(screen.getAllByRole('status')).toHaveLength(1);
-    expect(screen.getByRole('status')).toHaveTextContent('No se pudo completar la sincronización');
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Sincronización pendiente · puedes reintentar'
+    );
     expect(screen.getByText(error)).not.toBeVisible();
     fireEvent.click(screen.getByText('Ver detalle'));
     expect(notice).toHaveAttribute('open');
@@ -330,7 +343,7 @@ describe('RayenImportButton feedback', () => {
     render(<RayenImportButton />);
 
     expect(screen.getByRole('button', { name: 'Revisar conflictos' })).toBeDisabled();
-    expect(screen.getByRole('status')).toHaveTextContent('1 cambio del censo requiere revisión');
+    expect(screen.getByRole('status')).toHaveTextContent('Revisar 1 cambio del censo');
     expect(screen.queryByText('Aplicar enfermería')).not.toBeInTheDocument();
   });
 

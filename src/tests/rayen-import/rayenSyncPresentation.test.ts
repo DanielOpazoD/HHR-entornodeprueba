@@ -309,9 +309,7 @@ describe('rayen sync presentation', () => {
       failureReason: 'snapshot_timeout',
     };
 
-    expect(rayenFailureReasonLabel(event.failureReason)).toBe(
-      'Tiempo de espera al capturar Eloísa'
-    );
+    expect(rayenFailureReasonLabel(event.failureReason)).toBe('Eloísa tardó en responder');
 
     expect(presentRayenSyncRecovery(event, 'offline')).toMatchObject({
       action: 'refresh',
@@ -386,9 +384,7 @@ describe('rayen sync presentation', () => {
   });
 
   it('una pestaña de Ficha Médico inactiva pide recargarla antes de ofrecer «Revisar censo», aunque Eloísa esté sana', () => {
-    expect(rayenFailureReasonLabel('ficha_medico_stale')).toBe(
-      'Ficha Médico: lector bloqueado o desactualizado'
-    );
+    expect(rayenFailureReasonLabel('ficha_medico_stale')).toBe('Ficha Médico necesita recargarse');
 
     const event: RayenSyncEvent = {
       id: 'stale-tab',
@@ -401,12 +397,12 @@ describe('rayen sync presentation', () => {
     const recovery = presentRayenSyncRecovery(event, 'ready', false);
 
     expect(recovery).toMatchObject({
-      title: 'Ficha Médico quedó inactiva',
+      title: 'Recarga Ficha Médico',
       action: 'retry_full',
       actionLabel: 'Revisar censo',
-      tone: 'warning',
+      level: 'review',
     });
-    expect(recovery?.detail).toContain('Recárgala (Cmd+R)');
+    expect(recovery?.detail).toContain('Recarga la pestaña de Ficha Médico (Cmd+R)');
     expect(recovery?.detail).not.toContain('Eloísa está operativa');
   });
 
@@ -422,9 +418,9 @@ describe('rayen sync presentation', () => {
     const recovery = presentRayenSyncRecovery(event, 'ready', false);
 
     expect(recovery).toMatchObject({
-      title: 'Otra escritura se adelantó',
+      title: 'Otra pestaña guardó primero',
       action: 'retry_full',
-      tone: 'warning',
+      level: 'review',
     });
     expect(recovery?.detail).toContain('otras pestañas de HHR');
     expect(recovery?.detail).not.toContain('Eloísa está operativa');
