@@ -7,7 +7,6 @@ import type { CudyrScore } from '@/types/domain/cudyr';
 import { DATE_REGEX, RUT_REGEX } from './zod/helpers';
 import { PatientDataSchema, CudyrScoreSchema } from './zod/patient';
 import { DailyRecordSchema, FullBackupSchema } from './zod/dailyRecord';
-import { DischargeDataSchema, TransferDataSchema } from './zod/movements';
 import type { ValidationResult } from './zodParseReports';
 
 const toValidationResult = <T>(result: z.ZodSafeParseResult<T>): ValidationResult<T> =>
@@ -52,9 +51,3 @@ export const validateAdmissionDate = (dateStr: string): ValidationResult<string>
 
 export const validateCudyrScore = (score: unknown): ValidationResult<CudyrScore> =>
   toValidationResult(CudyrScoreSchema.safeParse(score));
-
-export type PatientDataValidated = z.infer<typeof PatientDataSchema>;
-export type DailyRecordValidated = z.infer<typeof DailyRecordSchema>;
-export type CudyrScoreValidated = z.infer<typeof CudyrScoreSchema>;
-export type DischargeDataValidated = z.infer<typeof DischargeDataSchema>;
-export type TransferDataValidated = z.infer<typeof TransferDataSchema>;

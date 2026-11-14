@@ -27,16 +27,14 @@ import { escapeHtml } from '@/utils/htmlEscape';
 
 export const CLINICAL_DOCUMENT_MAX_INLINE_IMAGE_BYTES = CLINICAL_ATTACHMENT_INLINE_IMAGE_MAX_BYTES;
 
-export type PasteContentKind = 'image-file' | 'image-too-large' | 'html' | 'plain-text' | 'empty';
-
-export interface PasteContentImageFile {
+interface PasteContentImageFile {
   kind: 'image-file';
   file: File;
   requiresStorage: boolean;
   requiresCompression: boolean;
 }
 
-export interface PasteContentImageTooLarge {
+interface PasteContentImageTooLarge {
   kind: 'image-too-large';
   file: File;
   actualBytes: number;
@@ -44,21 +42,21 @@ export interface PasteContentImageTooLarge {
   message: string;
 }
 
-export interface PasteContentHtml {
+interface PasteContentHtml {
   kind: 'html';
   sanitizedHtml: string;
 }
 
-export interface PasteContentPlainText {
+interface PasteContentPlainText {
   kind: 'plain-text';
   text: string;
 }
 
-export interface PasteContentEmpty {
+interface PasteContentEmpty {
   kind: 'empty';
 }
 
-export type PasteContentDescriptor =
+type PasteContentDescriptor =
   | PasteContentImageFile
   | PasteContentImageTooLarge
   | PasteContentHtml
@@ -239,7 +237,7 @@ export const readFileAsDataUrl = (file: File): Promise<string> =>
 export const buildPastedImageHtml = (dataUrl: string): string =>
   `<img src="${dataUrl}" alt="Imagen pegada" style="max-width:100%">`;
 
-export interface PastedStorageImageHtmlParams {
+interface PastedStorageImageHtmlParams {
   attachmentId: string;
   imageUrl: string;
   storagePath: string;

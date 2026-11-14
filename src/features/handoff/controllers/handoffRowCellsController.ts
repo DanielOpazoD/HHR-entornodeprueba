@@ -5,7 +5,7 @@ import { createMedicalHandoffEntry } from '@/domain/handoff/patientEntries';
 import { PatientStatus } from '@/domain/handoff/patientContracts';
 import type { MedicalBadgeVariant } from '@/shared/ui/medicalBadgeContracts';
 
-export interface PendingMedicalEntryDraft {
+interface PendingMedicalEntryDraft {
   entry: MedicalHandoffEntry;
   expiresAt: number;
 }
@@ -37,7 +37,7 @@ export const shouldRenderClinicalEventsPanel = ({
   canDelete: boolean;
 }): boolean => showEvents && canAdd && canUpdate && canDelete;
 
-export interface ClinicalEventsCellState {
+interface ClinicalEventsCellState {
   statusVariant: MedicalBadgeVariant;
   canToggleEvents: boolean;
   shouldRenderEventsPanel: boolean;
@@ -158,9 +158,9 @@ export const shouldShowMedicalPrimaryNoteFallback = ({
   hasCreatePrimaryEntryAction: boolean;
 }): boolean => entriesCount === 0 && !isFieldReadOnly && !hasCreatePrimaryEntryAction;
 
-export type MedicalObservationEmptyState = 'create-entry' | 'primary-note' | 'empty';
+type MedicalObservationEmptyState = 'create-entry' | 'primary-note' | 'empty';
 
-export interface MedicalObservationCellState {
+interface MedicalObservationCellState {
   displayEntries: MedicalHandoffEntry[];
   emptyState: MedicalObservationEmptyState;
   showPrimaryNoteFallback: boolean;
