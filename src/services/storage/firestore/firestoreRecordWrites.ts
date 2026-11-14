@@ -148,6 +148,8 @@ export const saveRecordToFirestore = async (
         committedAt.toDate()
       );
     }
+    // Plain local-first saves stay receipt-less, like the partial update below.
+    return undefined;
   } catch (error) {
     logFirestoreWriteError('save', record.date, error);
     throw error;
