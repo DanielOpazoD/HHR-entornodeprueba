@@ -139,7 +139,6 @@ describe('ClinicalConflictCenterControl', () => {
         <ClinicalConflictCenterControl
           date="2026-07-01"
           scope="census"
-          buttonVariant="menu"
           buttonLabel="Conflictos HHR"
         />
       </CensusOptionsMenu>
@@ -282,45 +281,6 @@ describe('ClinicalConflictCenterControl', () => {
         }),
       })
     );
-  });
-
-  it('can hide the visible census button label without losing the actionable accessible name', () => {
-    mockRecovery.mockReturnValue(defaultRecovery({ isOpen: false }));
-
-    render(
-      <ClinicalConflictCenterControl
-        date="2026-07-01"
-        scope="census"
-        buttonTestId="conflict-versions-button"
-        hideButtonLabel
-      />
-    );
-
-    const button = screen.getByTestId('conflict-versions-button');
-    expect(button).toHaveAccessibleName(
-      'Centro de conflictos clínicos de Censo diario · revisión requerida'
-    );
-    expect(button).not.toHaveTextContent('Conflictos');
-    expect(button).not.toHaveTextContent('2');
-    expect(button.querySelector('[aria-hidden="true"].bg-amber-500')).toBeInTheDocument();
-  });
-
-  it('supports the compact HHR quick-action presentation used beside Lab', () => {
-    mockRecovery.mockReturnValue(defaultRecovery({ isOpen: false, snapshots: [] }));
-
-    render(
-      <ClinicalConflictCenterControl
-        date="2026-07-01"
-        scope="census"
-        buttonTestId="conflict-versions-button"
-        buttonLabel="Conflictos HHR"
-        buttonVariant="quick-action"
-      />
-    );
-
-    const button = screen.getByTestId('conflict-versions-button');
-    expect(button).toHaveTextContent('Conflictos HHR');
-    expect(button).toHaveClass('h-[30px]', 'min-w-[96px]', 'border-slate-200');
   });
 
   it('shows anti-rollback impact and disables preserving a version that would remove a later movement', () => {

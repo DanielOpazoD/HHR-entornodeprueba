@@ -41,7 +41,6 @@ describe('CensusConflictQuickAction', () => {
         date: '2026-07-13',
         scope: 'census',
         buttonLabel: 'Conflictos HHR',
-        buttonVariant: 'menu',
       })
     );
   });

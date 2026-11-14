@@ -19,7 +19,6 @@ export const CensusConflictQuickAction: React.FC = () => {
       currentRecord={record}
       buttonTestId="conflict-versions-button"
       buttonLabel="Conflictos HHR"
-      buttonVariant="menu"
     />
   );
 };
