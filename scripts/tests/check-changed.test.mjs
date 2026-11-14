@@ -69,6 +69,7 @@ test('includes committed, staged, unstaged, untracked and deleted changes', () =
   assert.match(result.calls, /check:unchecked-index/);
   assert.match(result.calls, /check:module-size/);
   assert.match(result.calls, /check:architecture/);
+  assert.match(result.calls, /check:cudyr-source-parser/);
 });
 
 test('docs run formatting without source checks', () => {
@@ -77,7 +78,10 @@ test('docs run formatting without source checks', () => {
   const result = run();
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.calls, /prettier/);
-  assert.doesNotMatch(result.calls, /check:unchecked-index|check:test-governance|eslint/);
+  assert.doesNotMatch(
+    result.calls,
+    /check:unchecked-index|check:test-governance|check:cudyr-source-parser|eslint/
+  );
 });
 
 test('test changes select governance and propagate a failed command with repair advice', () => {

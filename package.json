@@ -102,6 +102,7 @@
     "check:runtime-adapter-boundary": "node scripts/check-runtime-adapter-boundary.mjs",
     "check:native-dialogs": "node scripts/check-native-dialogs.mjs",
     "check:clinical-clock": "node scripts/check-clinical-clock.mjs",
+    "check:cudyr-source-parser": "node scripts/build-cudyr-source-parser.mjs --check",
     "check:declared-dependencies": "node scripts/check-declared-dependencies.mjs",
     "check:empty-on-failure-reads": "node scripts/check-empty-on-failure-reads.mjs",
     "check:unchecked-index": "node scripts/check-unchecked-index-ratchet.mjs",

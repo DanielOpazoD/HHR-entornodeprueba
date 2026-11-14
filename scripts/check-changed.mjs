@@ -59,6 +59,11 @@ try {
       /^(src\/|functions\/|netlify\/|e2e\/|extension\/|playwright[\w.-]*\.config\.ts$)/,
       'Usa el reloj del hospital (src/utils/clinicalTimeZone.ts) como indica el control.',
     ],
+    [
+      'cudyr-source-parser',
+      /^(src\/|functions\/)/,
+      'El analizador CUDYR del servidor quedó distinto de su fuente: ejecuta node scripts/build-cudyr-source-parser.mjs y agrega functions/lib/generated/cudyrSourceParser.cjs al commit.',
+    ],
   ];
   for (const [name, pattern, repair] of checks) {
     if (matches(pattern) || matches(/^package(?:-lock)?\.json$/) || matches(/^scripts\//)) {
