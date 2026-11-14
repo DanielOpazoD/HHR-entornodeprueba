@@ -2,6 +2,7 @@ import React from 'react';
 import { DateStripPeriodControl } from './DateStripPeriodControl';
 import { MONTH_NAMES } from '@/constants/export';
 import { useDropdownMenu } from '@/hooks/useDropdownMenu';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 
 interface DateStripMonthNavigatorProps {
   selectedMonth: number;
@@ -15,7 +16,7 @@ export const DateStripMonthNavigator: React.FC<DateStripMonthNavigatorProps> = (
   onSelectMonth,
 }) => {
   const { isOpen, menuRef, toggle, close } = useDropdownMenu();
-  const currentMonth = new Date().getMonth();
+  const currentMonth = Number(getClinicalCalendarDateISO().slice(5, 7)) - 1;
 
   return (
     <DateStripPeriodControl
