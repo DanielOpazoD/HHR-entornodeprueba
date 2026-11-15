@@ -45,6 +45,10 @@ describe('a source document with letters is a passport in a new case', () => {
     ['12A3456785', '12A3456785'],
     ['12345678-5X', '12345678-5X'],
     [' 1234567a ', '1234567A'],
+    // A lone K kept its earlier passport shape: Laboratorio, form and CUDYR recovery read the type.
+    ['K', 'K'],
+    [' k ', 'K'],
+    ['-K', '-K'],
   ])('maps %j as the passport %j', (run, rut) => {
     const { patient } = rayenToPatientData(passportSource(run), REFERENCE);
     expect(patient.rut).toBe(rut);

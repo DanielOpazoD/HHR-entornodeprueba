@@ -102,6 +102,24 @@ describe('newborn numbers that cannot be its own RUN', () => {
     ).toBe('22.222.222-2');
   });
 
+  // #1508 and #1530: a newborn whose source document has a letter in the middle stays provisional
+  // without it, until the owner decides otherwise. That document may be its mother's passport.
+  it.each(['12A3456785', '1234567A'])(
+    'leaves the newborn provisional without the source document %j',
+    passport => {
+      const ownCrib = syncedCrib(record({ H5C1: seed(mother()) }), [mother(), newborn(passport)]);
+      const passportMother = { ...mother(), run: passport };
+      const motherPassportCrib = syncedCrib(record({ H5C1: seed(passportMother) }), [
+        passportMother,
+        newborn(passport),
+      ]);
+
+      for (const crib of [ownCrib, motherPassportCrib]) {
+        expect(crib).toMatchObject({ rut: '', identityStatus: 'provisional' });
+      }
+    }
+  );
+
   it('keeps a RUN the nurse entered in HHR instead of the folio', () => {
     const local = {
       ...seed(newborn('7906953')),

@@ -15,11 +15,14 @@ import { PatientStatus } from '@/types/domain/patientClassification';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { mapRayenBed } from './bedMapping';
 import { encounterWallClockInRapaNui } from './encounterWallClock';
-import { hasNonRutLetter, isPassportFormat, normalizeRut } from '@/utils/rutUtils';
+import { hasNonRutLetter, hasPassportShapeBeforeLetterRule, normalizeRut } from '@/utils/rutUtils';
 
-/** Any letter other than a final K check digit makes the source document a passport. */
+/**
+ * Any letter other than a final K check digit makes the source document a passport. A lone K keeps
+ * its earlier passport shape: Laboratorio, Eloísa form recovery and CUDYR recovery read that type.
+ */
 const isSourcePassport = (raw?: string): boolean =>
-  isPassportFormat(raw ?? '') || hasNonRutLetter(raw ?? '');
+  hasNonRutLetter(raw ?? '') || hasPassportShapeBeforeLetterRule(raw ?? '');
 
 /** Format a RUN as "14.470.055-4" from raw ("144700554") or already-formatted input. */
 export const formatRun = (raw?: string): string => {
