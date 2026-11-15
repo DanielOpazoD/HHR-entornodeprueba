@@ -19,7 +19,7 @@ El [diccionario completo](medif-variables.md) identifica cada variable, su pági
 
 ## Datos del censo
 
-[MedifTool](../src/features/clinical-library/components/tools/MedifTool.tsx) obtiene el registro diario ya disponible en `DailyRecordContext`. El [adaptador](../src/features/clinical-library/domain/medifPatientPrefill.ts) construye opciones para camas ocupadas y cunas clínicas; excluye CMA, camas bloqueadas y camas extra inactivas. La lista corresponde a la fecha del censo seleccionado, que puede ser histórica.
+[MedifTool](../src/features/clinical-library/components/tools/MedifTool.tsx) obtiene el registro diario ya disponible en `DailyRecordContext`. El [adaptador](../src/features/clinical-library/domain/forms/clinicalFormPatient.ts) construye opciones para camas ocupadas y cunas clínicas; excluye CMA, camas bloqueadas y camas extra inactivas. La lista corresponde a la fecha del censo seleccionado, que puede ser histórica.
 
 Al elegir un paciente se copian hasta siete campos:
 
@@ -106,7 +106,7 @@ Estas comprobaciones cubren la estructura y el ajuste al PDF. No establecen apti
 Pruebas focales disponibles:
 
 ```sh
-npm exec -- vitest run src/tests/features/clinical-library/medifFormLayout.test.ts src/tests/features/clinical-library/medifSchema.test.ts src/tests/features/clinical-library/medifPreferences.test.ts src/tests/features/clinical-library/medifPatientPrefill.test.ts src/tests/features/clinical-library/medifPdf.test.ts src/tests/features/clinical-library/MedifEditor.test.tsx
+npm exec -- vitest run src/tests/features/clinical-library/medifFormLayout.test.ts src/tests/features/clinical-library/medifSchema.test.ts src/tests/features/clinical-library/medifPreferences.test.ts src/tests/features/clinical-library/clinicalFormPatient.test.ts src/tests/features/clinical-library/medifPdf.test.ts src/tests/features/clinical-library/MedifEditor.test.tsx
 ```
 
 Al cambiar la plantilla deben revisarse juntos los nombres de campo, el esquema, las imágenes de referencia y el diccionario. Las pruebas de dominio no sustituyen la inspección del PDF generado ni una comprobación de impresión en el visor utilizado.
