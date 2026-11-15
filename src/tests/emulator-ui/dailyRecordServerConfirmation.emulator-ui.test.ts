@@ -106,10 +106,21 @@ describeEmulator('server confirmation with real Firestore cache metadata', () =>
     return record;
   };
 
-  const watchRecord = () => {
+  const watchRecord = (onDelivery?: (serverConfirmed: boolean) => void) => {
     const client = new QueryClient();
     const stop = createDailyRecordSubscription(
-      { getForDateWithMeta, subscribeDetailed },
+      {
+        getForDateWithMeta,
+        subscribeDetailed: (day, callback, onFailure) =>
+          subscribeDetailed(
+            day,
+            (result, pending) => {
+              onDelivery?.(result.serverConfirmed);
+              callback(result, pending);
+            },
+            onFailure
+          ),
+      },
       date,
       client
     );
@@ -252,10 +263,12 @@ describeEmulator('server confirmation with real Firestore cache metadata', () =>
         record: null,
         serverConfirmed: false,
       });
-      const read = watchRecord();
-      await waitFor(() => expect(read()?.runtime.serverConfirmed).toBe(false));
-      expect(read()?.record).toBeNull();
-      expect(read()?.runtime.availabilityState).not.toBe('confirmed_missing');
+      const deliveries: boolean[] = [];
+      const read = watchRecord(serverConfirmed => deliveries.push(serverConfirmed));
+      await waitFor(() => expect(deliveries).toEqual([false]));
+      // The cached absence is published neither as an empty day nor as a failed check;
+      // the point read below is what reports that this date could not be read.
+      expect(read()).toBeUndefined();
       await expect(readDailyRecordQuery({ getForDateWithMeta }, date)).rejects.toThrow(
         'client is offline'
       );
