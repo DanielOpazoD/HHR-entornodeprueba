@@ -1,7 +1,7 @@
 import type { PatientData } from '@/types/domain/patient';
 
 import { isValidRut } from '@/utils/rutUtils';
-import { normalizePatientRut as normalizeRut } from './censusPatientIdentityIndex';
+import { normalizePatientRut } from './censusPatientIdentityIndex';
 import type { EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -30,7 +30,7 @@ export const previousCensusEgresoIdentity = (
   patientName: string | undefined,
   dischargeDay: string
 ): string => {
-  const normalizedRun = normalizeRut(run);
+  const normalizedRun = normalizePatientRut(run);
   const name = normalizedName(patientName);
   return normalizedRun && name && /^\d{4}-\d{2}-\d{2}$/.test(dischargeDay)
     ? `${normalizedRun}|${dischargeDay}|${name}`
@@ -50,7 +50,7 @@ interface PreviousOccupant {
 }
 
 const occupantIdentityWithoutDay = (patient: PatientData): string =>
-  `${normalizeRut(patient.rut)}|${normalizedName(patient.patientName)}`;
+  `${normalizePatientRut(patient.rut)}|${normalizedName(patient.patientName)}`;
 
 /**
  * Builds exact lookup targets only when one report row maps to one identified D-1 occupant.
@@ -145,13 +145,14 @@ export const previousCensusEgresoCandidates = (
     const encounterId = patient.clinicalEpisodeId?.trim() ?? '';
     const patientIdentity = occupantIdentityWithoutDay({ ...patient, rut: lookupRun });
     if (
-      !normalizeRut(lookupRun) ||
+      !normalizePatientRut(lookupRun) ||
       !/^\d+$/.test(encounterId) ||
       occupantIdentityCount.get(patientIdentity) !== 1
     )
       return [];
     const matchingRows = eligibleRows.filter(
-      row => `${normalizeRut(row.run)}|${normalizedName(row.patientName)}` === patientIdentity
+      row =>
+        `${normalizePatientRut(row.run)}|${normalizedName(row.patientName)}` === patientIdentity
     );
     if (matchingRows.length !== 1) return [];
     const row = matchingRows[0];

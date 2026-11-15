@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { reconstructHistoricalSnapshotAtClose } from '@/features/rayen-import/domain/historicalSnapshotReconstruction';
+import { relevantHistoricalReportRows } from '@/features/rayen-import/domain/historicalAdministrativeEvidence';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { EgresoReportRow } from '@/features/rayen-import/contracts/egresoReport';
 import type {
@@ -26,6 +27,13 @@ const live = (encounters: RayenEncounter[]): RayenCensusSnapshot => ({
   isComplete: true,
   encounters,
 });
+const earlierCensusRow = (run: string) =>
+  ({
+    run,
+    patientName: 'Fila Antigua',
+    bedLabel: 'H2C1',
+    fechaEgreso: '20-07-2026 10:00',
+  }) as EgresoReportRow;
 const reviewedNames = (conflicts: { patientName?: string }[]) =>
   conflicts.map(conflict => conflict.patientName).sort();
 
@@ -53,12 +61,7 @@ describe('historical reconstruction keeps a passport apart from the RUT its digi
   ])(
     'an unlinked report row of an earlier census by %s blocks this day only when it is the patient',
     async (_label, rowDocument, expectedReviews) => {
-      const oldRow = {
-        run: rowDocument,
-        patientName: 'Fila Antigua',
-        bedLabel: 'H2C1',
-        fechaEgreso: '20-07-2026 10:00',
-      } as EgresoReportRow;
+      const oldRow = earlierCensusRow(rowDocument);
 
       const result = await reconstructHistoricalSnapshotAtClose(
         emptyRecord.date,
@@ -79,6 +82,29 @@ describe('historical reconstruction keeps a passport apart from the RUT its digi
         }),
       ]);
       expect(reviewedNames(result.conflicts)).toEqual(expectedReviews);
+    }
+  );
+
+  const localBed = { bedId: 'H3C1', patientName: 'Local', rut: PASSPORT };
+  const localCrib = {
+    bedId: 'H3C1',
+    patientName: 'Madre',
+    rut: '11.111.111-1',
+    clinicalCrib: { rut: PASSPORT, patientName: 'RN' },
+  };
+  it.each([
+    ['local bed', RUT_WITH_SAME_DIGITS, localBed, 0],
+    ['local bed', 'p-123 456785', localBed, 1],
+    ['local crib', RUT_WITH_SAME_DIGITS, localCrib, 0],
+    ['local crib', PASSPORT, localCrib, 1],
+  ])(
+    'a passport in a %s references the earlier-census row %s only when it is the same document',
+    (_label, rowDocument, bed, referencedRows) => {
+      const record = { date: emptyRecord.date, beds: { H3C1: bed } } as unknown as DailyRecord;
+
+      expect(
+        relevantHistoricalReportRows([earlierCensusRow(rowDocument)], record.date, record, [])
+      ).toHaveLength(referencedRows);
     }
   );
 });
