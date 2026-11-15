@@ -1,6 +1,7 @@
 import { Enums, type RenderingEngine, type Types } from '@cornerstonejs/core';
 import { ToolGroupManager, StackScrollTool, Enums as ToolEnums } from '@cornerstonejs/tools';
 import { dicomTools } from './dicomInitialization';
+import { removeDicomViewports } from './dicomGraphicsResources';
 import type { DicomMode } from './dicomRuntimeTypes';
 export const configureDicomViewports = (
   engine: RenderingEngine,
@@ -14,6 +15,7 @@ export const configureDicomViewports = (
     Enums.OrientationAxis.SAGITTAL,
   ];
   const viewportIds = elements.map((_, i) => `${id}-${mode}-${i}`);
+  removeDicomViewports(engine);
   engine.setViewports(
     elements.map((element, i) => ({
       viewportId: viewportIds[i],

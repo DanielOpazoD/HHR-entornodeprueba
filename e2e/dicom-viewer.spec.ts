@@ -1513,6 +1513,8 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       await cdp.send('HeapProfiler.collectGarbage');
       const after = await cdp.send('Runtime.getHeapUsage');
       expect(after.usedSize - before.usedSize).toBeLessThan(32 * 1024 * 1024);
+      // Replaced viewports once kept their VTK pipelines: about 1 MB more after every cycle.
+      expect((heapSamples[5] - heapSamples[1]) / 4).toBeLessThan(512 * 1024);
       expect(requests).toBe(24);
       await loseDicomGraphics(page, false);
       await expect(viewer.getByRole('alert')).toHaveText(
