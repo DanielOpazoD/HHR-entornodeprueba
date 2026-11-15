@@ -46,6 +46,7 @@ vi.mock('@/features/census/components/patient-row/ClinicalPanelDrawer', () => ({
 }));
 
 import { PatientClinicalAccess } from '@/features/census/components/patient-row/PatientClinicalAccess';
+import { rayenToPatientData } from '@/features/rayen-import/mapping/rayenToPatientData';
 
 const patient = DataFactory.createMockPatient('R2', {
   patientName: 'Paciente de prueba',
@@ -214,6 +215,35 @@ describe('PatientClinicalAccess', () => {
     expect(onRequestExams).toHaveBeenCalledTimes(1);
     expect(onRequestImaging).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('offers the exam request for a lone K from Eloísa, which stays a passport', () => {
+    const fromEloisa = rayenToPatientData(
+      {
+        encounterId: '141336',
+        run: 'K',
+        firstGivenName: 'Paciente',
+        firstFamilyName: 'Sintético',
+        birthDate: '1990-01-01',
+        service: 'Área Médico Quirúrgica Indiferenciada',
+        room: 'H5',
+        bed: 'C1',
+        admissionDatetime: '2026-11-05T10:00:00-06:00',
+        diagnosis: 'Diagnóstico sintético',
+      },
+      new Date('2026-11-07T08:30:00-06:00')
+    ).patient;
+    expect(fromEloisa).toMatchObject({ rut: 'K', documentType: 'Pasaporte' });
+    const onRequestExams = vi.fn();
+    renderAccess({
+      patient: { ...fromEloisa, bedId: 'R2', patientName: 'Paciente de prueba' },
+      onRequestExams,
+    });
+
+    fireEvent.click(access('Laboratorio'));
+
+    expect(onRequestExams).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog', { name: 'Visualizador de laboratorio' })).toBeNull();
   });
 
   it('moves by arrow towards each topic, opens with Enter and closes with Escape', async () => {
