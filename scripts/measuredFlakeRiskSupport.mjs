@@ -24,6 +24,13 @@ export const measureFlakeRisk = (manifest, expectedGitSha) => {
     observation => observation?.mode === 'execution'
   );
   if (observations.length === 0) return unmeasured('manifest has no executed suites');
+  // A re-run job replaces its evidence, so the failure that caused the re-run is gone.
+  const rerun = observations.find(observation => Number(observation.ci?.runAttempt) > 1);
+  if (rerun) {
+    return unmeasured(
+      `${rerun.suiteId} ran again in attempt ${rerun.ci.runAttempt}; earlier attempts are not in the manifest, see npm run report:ci-reruns`
+    );
+  }
 
   const byFile = new Map();
   const count = (file, kind) => {

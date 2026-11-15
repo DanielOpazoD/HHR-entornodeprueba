@@ -780,8 +780,8 @@ misma corrida; `final-confidence-and-readiness` lo descarga de `test-execution-m
 Sin manifiesto del commit, el indicador queda degradado como «sin medir». La lista
 `clockSignalFiles` de `quality-metrics` (pruebas con reloj, aleatoriedad o temporizadores
 sin temporizadores falsos) es solo informativa y no degrada ningún informe. Un reintento
-manual de un job reemplaza su evidencia en el manifiesto; esos casos se miden entre corridas
-con `npm run report:ci-reruns`. Se retiró `seedPersistedBedFields`, sin consumidores después de
+manual de un job reemplaza su evidencia en el manifiesto, así que esa corrida también queda
+«sin medir»; el fallo del intento anterior se consulta con `npm run report:ci-reruns`. Se retiró `seedPersistedBedFields`, sin consumidores después de
 corregir los E2E de reconexión; las pruebas deben preparar su estado inicial y luego
 observar el guardado de la aplicación.
 

@@ -66,11 +66,18 @@ const workspace = () => {
 const writeManifest = (
   root: string,
   cases: ManifestCase[],
-  gitSha = git(root, ['rev-parse', 'HEAD'])
+  { gitSha = git(root, ['rev-parse', 'HEAD']), storageAttempt = '1' } = {}
 ) =>
   writeJson(root, 'reports/test-execution-manifest.json', {
     identity: { gitSha },
     observations: [
+      {
+        suiteId: 'storage',
+        mode: 'execution',
+        ci: { runId: '1', runAttempt: storageAttempt, job: 'rules-emulator' },
+        cases: [],
+        suiteErrors: [],
+      },
       {
         suiteId: 'unit-1',
         mode: 'execution',
@@ -162,10 +169,23 @@ describe('measured flake risk in system confidence', () => {
     expect(missing.report.flakeRisk).toMatchObject({ measured: false, fileCount: null });
     expect(missing.report.missingPrerequisites).toContain('reports/test-execution-manifest.json');
 
-    writeManifest(root, [passed(timerTest)], 'f'.repeat(40));
+    writeManifest(root, [passed(timerTest)], { gitSha: 'f'.repeat(40) });
     expect(systemConfidence(root).testGovernance).toMatchObject({
       status: 'degraded',
       summary: expect.stringContaining(`flakeRisk=unmeasured (manifest is for ${'f'.repeat(40)}`),
     });
+  });
+
+  it('reports flake risk as unmeasured when a job was re-run, because its failed attempt is gone', () => {
+    const root = workspace();
+    writeManifest(root, [passed(timerTest), passed(e2eSpec)], { storageAttempt: '2' });
+
+    const { report, testGovernance } = systemConfidence(root);
+
+    expect(testGovernance).toMatchObject({
+      status: 'degraded',
+      summary: expect.stringContaining('flakeRisk=unmeasured (storage ran again in attempt 2;'),
+    });
+    expect(report.flakeRisk).toMatchObject({ measured: false, fileCount: null });
   });
 });
