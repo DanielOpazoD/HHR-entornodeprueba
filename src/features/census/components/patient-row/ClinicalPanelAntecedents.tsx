@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import {
   requestClinicalAction,
   type ClinicalActionResult,
@@ -200,6 +200,7 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<AntecedentsProps> = ({
               onClick={() => setAttempt(value => value + 1)}
               className={buttonClassName('ghost', 'xs')}
             >
+              <RefreshCw size={14} aria-hidden="true" />
               Reintentar antecedentes
             </button>
           )}
