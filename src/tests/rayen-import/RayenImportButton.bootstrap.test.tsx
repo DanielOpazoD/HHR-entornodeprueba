@@ -286,6 +286,38 @@ describe('RayenImportButton · inicio del día desde Eloísa', () => {
     expect(onAutoStartHandled).toHaveBeenCalledTimes(1);
   });
 
+  it('waits for an earlier nursing proposal to finish applying, then starts the request', async () => {
+    const fillStore = await vi.importActual<
+      typeof import('@/features/rayen-import/hooks/useRayenFillStatus')
+    >('@/features/rayen-import/hooks/useRayenFillStatus');
+    mocks.useRayenFillProgress.mockImplementation(fillStore.useRayenFillProgress);
+    // An earlier synchronization's nursing proposal is being saved; the capture gate refuses it.
+    fillStore.reportRayenStaffingOutcome('applying');
+    const outcomes: string[] = [];
+    const triggerImport = vi.fn(async () => {
+      const outcome = fillStore.resetRayenFillProgress() ? 'started' : 'blocked';
+      outcomes.push(outcome);
+      return outcome;
+    });
+    mocks.useRayenImport.mockReturnValue(importState({ triggerImport }));
+    const onAutoStartHandled = vi.fn();
+    render(<RayenImportButton autoStartRequestId={22} onAutoStartHandled={onAutoStartHandled} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(triggerImport).not.toHaveBeenCalled();
+
+    act(() => {
+      fillStore.reportRayenStaffingOutcome('resolved');
+    });
+
+    await waitFor(() => expect(onAutoStartHandled).toHaveBeenCalledTimes(1));
+    expect(outcomes).toEqual(['started']);
+    expect(triggerImport).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
+      reviewRequirement: 'day_bootstrap',
+    });
+  });
+
   it('does not preflight an incompatible version during automatic startup', async () => {
     const { deriveHealthState } = await vi.importActual<
       typeof import('@/features/rayen-import/hooks/useRayenExtensionHealth')

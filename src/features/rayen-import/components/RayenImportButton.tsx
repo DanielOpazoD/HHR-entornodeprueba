@@ -182,6 +182,9 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
 
   const bootstrapRecordReady = Boolean(recordForSelectedDate);
   const canAutoStart = extension.canSync;
+  // The fill store outlives the day: a synchronization of another day can still be reading.
+  // Same condition under which `resetRayenFillProgress` makes the capture refuse.
+  const earlierFillBusy = fill.running || fill.staffingOutcome === 'applying';
   React.useEffect(() => {
     if (
       autoStartRequestId === undefined ||
@@ -191,10 +194,10 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
       return;
     }
     // La solicitud sobrevive a la espera: sólo se marca como atendida cuando la captura dejó
-    // evidencia (un run, aunque falle). Si la compuerta la bloqueó sin registrar nada (fuentes
-    // desconectadas, política o censo cargando, revisión previa terminando), el token se conserva
-    // y el arranque se reintenta en cuanto cambie alguna de esas condiciones.
-    if (!policyReady || !bootstrapRecordReady || !canAutoStart) return;
+    // evidencia (un run, aunque falle). Cada condición que hace rechazar la captura sin registrar
+    // nada (fuentes, política, censo, lectura clínica anterior) se espera aquí, porque sólo un
+    // cambio de estas dependencias vuelve a evaluar la solicitud.
+    if (!policyReady || !bootstrapRecordReady || !canAutoStart || earlierFillBusy) return;
     autoStartInFlightRef.current = autoStartRequestId;
     // The census did not exist a moment ago; this first import defines the whole day, so it is
     // reviewed by a human, with the requirement recorded for this attempt.
@@ -208,6 +211,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
     autoStartRequestId,
     bootstrapRecordReady,
     canAutoStart,
+    earlierFillBusy,
     handleSync,
     onAutoStartHandled,
     policyReady,
