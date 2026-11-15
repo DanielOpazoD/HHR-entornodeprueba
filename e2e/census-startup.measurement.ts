@@ -44,22 +44,34 @@ beds.R1 = {
   admissionDate: date,
 };
 
+const sameOriginWrites: string[] = [];
 async function isolate(context: BrowserContext) {
   // Routing disables Chromium HTTP cache. Both scenarios use this identical policy;
   // warm means same ephemeral context/storage + application/server/module warmup.
-  await context.route('**/*', async route => {
+  // Only what must be blocked or answered is routed: Playwright Test keeps every routed
+  // request as a step until the test ends, and routing each same-origin module request
+  // (~1,400 per development navigation) made every later sample slower than the one before.
+  await context.route(new RegExp(`^(?!${origin.replaceAll('.', '\\.')}/)`), route =>
+    route.abort('blockedbyclient')
+  );
+  await context.route(`${origin}/.netlify/**`, async route => {
     const url = new URL(route.request().url());
-    if (url.origin !== origin) return route.abort('blockedbyclient');
     if (url.pathname === '/.netlify/functions/firebase-config') {
       return route.fulfill({ json: firebase });
     }
+    return route.abort('blockedbyclient');
+  });
+  // Unrouted requests reach only the local server, which has no write endpoint outside
+  // /.netlify/. A write to it would still void the run instead of being measured.
+  context.on('request', request => {
+    const url = new URL(request.url());
     if (
-      url.pathname.startsWith('/.netlify/') ||
-      !['GET', 'HEAD'].includes(route.request().method())
+      url.origin === origin &&
+      !url.pathname.startsWith('/.netlify/') &&
+      !['GET', 'HEAD'].includes(request.method())
     ) {
-      return route.abort('blockedbyclient');
+      sameOriginWrites.push(request.method());
     }
-    return route.continue();
   });
   await context.routeWebSocket(/.*/, route => {
     // Vite HMR only. No Firebase or external WebSockets are permitted.
@@ -285,6 +297,7 @@ test(`census startup ${smoke ? '@smoke NOT_VALID_BASELINE' : '@measurement'} (${
     revision: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     samples,
   };
+  expect(sameOriginWrites, 'Writes to the measurement server void the run').toEqual([]);
   validateRun(run);
   const budgets = JSON.parse(
     fs.readFileSync('scripts/config/flow-performance-budgets.json', 'utf8')
