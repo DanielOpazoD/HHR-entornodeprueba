@@ -142,6 +142,44 @@ describe('check-clinical-clock', () => {
     expect(output).toContain(`[server-clock-today] functions/lib/${file}`);
   });
 
+  it.each([
+    'const day = new Date().getDate();',
+    'const created = new Date(createdAt);\nconst year = created.getFullYear();',
+  ])('rejects device calendar getters on now or an instant in the app: %s', source => {
+    const { status, output } = runGuard({
+      'src/features/a.ts': source,
+      'src/tests/a.test.ts': 'const day = new Date().getDate();\n',
+    });
+    expect(status).toBe(1);
+    expect(output).toContain(
+      '[device-calendar-today] src/features/a.ts:1 — use getClinicalCalendarDateISO()'
+    );
+    expect(output).not.toContain('src/tests/a.test.ts');
+  });
+
+  it('allows app calendar arithmetic, UTC getters and a device calendar exception with a reason', () => {
+    const { status, output } = runGuard({
+      'src/features/a.ts': [
+        'const a = new Date(2026, 0, 1).getDate();',
+        'const b = new Date().getUTCDate();',
+        '// clinical-clock-allow device-calendar-today: local midnight of a calendar day read back locally.',
+        'const c = new Date(`${value}T00:00:00`);',
+        'const label = c.getDate();',
+        '// clinical-clock-allow device-calendar-today:',
+        'const d = new Date().getMonth();',
+        '// clinical-clock-allow server-clock-today: the server rule name does not exempt the app.',
+        'const e = new Date().getFullYear();',
+      ].join('\n'),
+      'functions/lib/a.js':
+        '// clinical-clock-allow server-clock-today: a reasoned server exception.\nconst f = new Date(createdAt).getDate();\n',
+    });
+    expect(status).toBe(1);
+    expect(output).toContain('[device-calendar-today] src/features/a.ts:7');
+    expect(output).toContain('[device-calendar-today] src/features/a.ts:9');
+    expect(output.match(/\[device-calendar-today\]/g)).toHaveLength(2);
+    expect(output).not.toContain('functions/lib/a.js');
+  });
+
   it('reports UTC today in Functions libraries and the entrypoint', () => {
     const today = ['new Date()', 'toISOString()', 'slice(0, 10)'].join('.');
     const { status, output } = runGuard({
