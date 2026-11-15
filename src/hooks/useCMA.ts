@@ -4,7 +4,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { CMAData } from '@/types/domain/movements';
 import { capitalizeWords } from '@/utils/stringUtils';
-import { formatRut, isValidRut, isPassportFormat } from '@/utils/rutUtils';
+import { formatRut, hasNonRutLetter, isValidRut } from '@/utils/rutUtils';
 import { buildClearPatientPatches } from '@/hooks/controllers/bedManagementPatchController';
 import { buildAtomicPatientMovementPatch, buildUndoCmaPatch } from '@/application/census/public';
 import { tombstoneMovementById } from '@/application/census/movementTombstonePolicy';
@@ -45,7 +45,7 @@ const normalizePatientData = (data: Partial<CMAData>): Partial<CMAData> => {
   // Format RUT (if not passport)
   if (normalized.rut && typeof normalized.rut === 'string') {
     const trimmedRut = normalized.rut.trim();
-    if (!isPassportFormat(trimmedRut)) {
+    if (!hasNonRutLetter(trimmedRut)) {
       const formatted = formatRut(trimmedRut);
       if (isValidRut(formatted)) {
         normalized.rut = formatted;

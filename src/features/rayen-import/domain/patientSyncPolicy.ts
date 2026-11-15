@@ -3,7 +3,12 @@ import type { PatientData } from '@/types/domain/patient';
 import { isNeonatalPatient, newbornOwnRut } from './clinicalCribMaternalAssociation';
 import type { FieldChange, MoveEntry } from '../contracts/censusImportDiff';
 
-import { hasNonRutLetter, isPassportFormat, isSameDocument, normalizeRut } from '@/utils/rutUtils';
+import {
+  hasNonRutLetter,
+  hasPassportShapeBeforeLetterRule,
+  isSameDocument,
+  normalizeRut,
+} from '@/utils/rutUtils';
 import { isDismissedTreatingPhysician } from '@/shared/census/treatingPhysicianDismissal';
 import { normalizePatientUpcForBed } from '@/shared/census/upcBedPolicy';
 import { rayenToPatientData } from '../mapping/rayenToPatientData';
@@ -76,7 +81,7 @@ export const diffSyncablePatientFields = (
     Boolean(normalizeRut(current.rut)) &&
     (!hasNonRutLetter(current.rut ?? '') || current.documentType !== 'Pasaporte') &&
     hasNonRutLetter(incoming.rut ?? '') &&
-    !isPassportFormat(incoming.rut ?? '') &&
+    !hasPassportShapeBeforeLetterRule(incoming.rut ?? '') &&
     matchesCensusEpisodeIdentity(current, incoming) &&
     normalizeRut(current.rut) === normalizeRut(incoming.rut);
   for (const field of SYNCABLE_FIELDS) {

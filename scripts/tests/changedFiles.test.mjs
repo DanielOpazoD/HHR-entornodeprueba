@@ -118,3 +118,69 @@ test('reports missing prerequisites with the existing messages', () => {
     /Falta node_modules: enlázalo desde otra copia o instala con npm ci\./
   );
 });
+
+function withRealConfig() {
+  const repo = fixture();
+  const { cwd, git, write } = repo;
+  for (const file of ['vitest.config.ts', 'src/tests/setup.ts']) {
+    write(file, fs.readFileSync(path.join(root, file), 'utf8'));
+  }
+  for (const file of [
+    'tsconfig.json',
+    'package-lock.json',
+    'scripts/config/testTimeZone.ts',
+    'src/tests/utils/operationalConsoleNoiseFilter.ts',
+    'src/application/ports/dailyRecordPort.ts',
+    'src/components/Leaf.tsx',
+  ]) {
+    write(file, '// synthetic\n');
+  }
+  git('add', '.');
+  git('commit', '-m', 'config');
+  git('update-ref', 'refs/remotes/origin/main', 'HEAD');
+  write(
+    'node_modules/.bin/vitest',
+    '#!/usr/bin/env node\nconsole.log(JSON.stringify(process.argv.slice(2)));\n'
+  );
+  fs.chmodSync(path.join(cwd, 'node_modules/.bin/vitest'), 0o755);
+  const runChanged = file => {
+    write(file, '// changed\n');
+    const result = run(cwd, ['--maxWorkers=2']);
+    assert.equal(result.status, 0, result.stderr);
+    const args = JSON.parse(result.stdout.split('\n').find(line => line.startsWith('["')));
+    return { ...result, args };
+  };
+  return { ...repo, runChanged };
+}
+
+for (const file of [
+  'vitest.config.ts',
+  'src/tests/setup.ts',
+  'tsconfig.json',
+  'package-lock.json',
+  'scripts/config/testTimeZone.ts',
+  'src/tests/utils/operationalConsoleNoiseFilter.ts',
+]) {
+  test(`a change in ${file} runs the whole unit suite and says why`, () => {
+    const { runChanged } = withRealConfig();
+    const { args, stdout } = runChanged(file);
+    assert.equal(args[0], 'run');
+    assert.ok(!args.includes('related'));
+    assert.ok(args.includes('--maxWorkers=2'));
+    assert.equal(args[args.indexOf('--config') + 1], 'vitest.config.ts');
+    assert.ok(args.includes('src/tests/emulator-ui/**'));
+    assert.match(
+      stdout,
+      new RegExp(`Cambió ${file.replace(/\./g, '\\.')}, .*suite unitaria completa`)
+    );
+  });
+}
+
+for (const file of ['src/components/Leaf.tsx', 'src/application/ports/dailyRecordPort.ts']) {
+  test(`a change in ${file} still runs only the related tests`, () => {
+    const { runChanged } = withRealConfig();
+    const { args, stdout } = runChanged(file);
+    assert.deepEqual(args.slice(0, 3), ['related', file, '--maxWorkers=2']);
+    assert.doesNotMatch(stdout, /suite unitaria completa/);
+  });
+}
