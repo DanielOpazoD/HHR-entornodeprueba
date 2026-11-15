@@ -20,7 +20,7 @@ const write = (dir: string, file: string, value: unknown) => {
   fs.writeFileSync(target, JSON.stringify(value));
 };
 
-const fixture = () => {
+const fixture = (attempts: Record<string, number> = { '1': 1, '2': 1, '3': 1 }) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'critical-merge-'));
   temporary.push(dir);
   const archive = execFileSync(
@@ -46,7 +46,7 @@ const fixture = () => {
   const suites = buildRequiredCiSuites(dir).filter(suite => suite.kind === 'playwright');
   for (const suite of suites) {
     const lane = suite.suiteId.startsWith('critical-') ? suite.suiteId.slice(-1) : '3';
-    const base = `reports/critical-lanes/e2e-critical-lane-1-${lane}`;
+    const base = `reports/critical-lanes/e2e-critical-lane-${attempts[lane]}-${lane}`;
     const report = {
       suites: suite.files.map((file: string) => ({
         file,
@@ -79,7 +79,7 @@ const fixture = () => {
       mode: 'execution',
       identity,
       sourceUnchanged: true,
-      ci: { runId: '123', runAttempt: '1', job: suite.job },
+      ci: { runId: '123', runAttempt: String(attempts[lane]), job: suite.job },
       command: ['npm', 'run', suite.script, ...('args' in suite ? suite.args : [])],
       exitCode: 0,
       report,
@@ -101,23 +101,28 @@ const fixture = () => {
     'flow-performance-budget-summary.json',
     'flow-performance-playwright-report.json',
   ])
-    write(dir, `reports/critical-lanes/e2e-critical-lane-1-3/reports/e2e/${file}`, {
+    write(dir, `reports/critical-lanes/e2e-critical-lane-${attempts['3']}-3/reports/e2e/${file}`, {
       synthetic: true,
     });
   fs.writeFileSync(
     path.join(
       dir,
-      'reports/critical-lanes/e2e-critical-lane-1-3/reports/e2e/flow-performance-budget.md'
+      `reports/critical-lanes/e2e-critical-lane-${attempts['3']}-3/reports/e2e/flow-performance-budget.md`
     ),
     'synthetic'
   );
   return dir;
 };
-const run = (dir: string) =>
+const run = (dir: string, attempt = '1') =>
   spawnSync(process.execPath, [path.join(root, 'scripts/merge-critical-e2e-lanes.mjs')], {
     cwd: dir,
     encoding: 'utf8',
-    env: { ...process.env, PATH: '/usr/bin:/bin', GITHUB_RUN_ID: '123', GITHUB_RUN_ATTEMPT: '1' },
+    env: {
+      ...process.env,
+      PATH: '/usr/bin:/bin',
+      GITHUB_RUN_ID: '123',
+      GITHUB_RUN_ATTEMPT: attempt,
+    },
   });
 
 it('merges all three lanes without Playwright on PATH and produces every downstream artifact', () => {
@@ -138,6 +143,56 @@ it('merges all three lanes without Playwright on PATH and produces every downstr
     'flow-performance-playwright-report.json',
   ])
     expect(fs.existsSync(path.join(dir, `reports/e2e/${file}`))).toBe(true);
+});
+
+it('after re-running only lane 3, merges lanes 1 and 2 from attempt 1 and lane 3 from attempt 2', () => {
+  const dir = fixture({ '1': 1, '2': 1, '3': 2 });
+  // The failed first attempt of lane 3 left evidence too; the newer attempt replaces it.
+  const stale = path.join(dir, 'reports/critical-lanes/e2e-critical-lane-1-3');
+  fs.cpSync(path.join(dir, 'reports/critical-lanes/e2e-critical-lane-2-3'), stale, {
+    recursive: true,
+  });
+  const staleFile = path.join(stale, 'reports/execution/critical-3.evidence.json');
+  fs.writeFileSync(
+    staleFile,
+    JSON.stringify({ ...JSON.parse(fs.readFileSync(staleFile, 'utf8')), exitCode: 1 })
+  );
+  const result = run(dir, '2');
+  expect(result.stderr).toBe('');
+  expect(result.status).toBe(0);
+  const index = JSON.parse(
+    fs.readFileSync(path.join(dir, 'reports/execution/critical.evidence.json'), 'utf8')
+  );
+  expect(
+    index.lanes.map((lane: { suiteId: string; ci: { runAttempt: string } }) => [
+      lane.suiteId,
+      lane.ci.runAttempt,
+    ])
+  ).toEqual([
+    ['critical-1', '1'],
+    ['critical-2', '1'],
+    ['critical-3', '2'],
+  ]);
+});
+
+it('rejects a lane whose evidence was captured in another attempt than its artifact', () => {
+  const dir = fixture({ '1': 1, '2': 1, '3': 2 });
+  const file = path.join(
+    dir,
+    'reports/critical-lanes/e2e-critical-lane-2-3/reports/execution/cudyr.evidence.json'
+  );
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      ...JSON.parse(fs.readFileSync(file, 'utf8')),
+      ci: { runId: '123', runAttempt: '1', job: 'e2e-critical-lanes' },
+    })
+  );
+  const result = run(dir, '2');
+  expect(result.status).not.toBe(0);
+  expect(result.stderr).toContain(
+    'e2e-critical-lane-2-3/cudyr.evidence.json was captured in another attempt'
+  );
 });
 
 it.each([
