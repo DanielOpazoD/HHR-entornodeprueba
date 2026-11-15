@@ -421,25 +421,29 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       baseRecord().nursesDayShift
     );
   });
-  it('a transient SDK error that outlasts the transaction retries is still saved', async () => {
-    clients.B = {
-      uid: 'synthetic-B',
-      role: 'nurse_hospital',
-      db: env
-        .authenticatedContext('synthetic-B', {
-          email: 'synthetic@example.invalid',
-          role: 'nurse_hospital',
-        })
-        .firestore(),
-    };
-    await admin.doc(dayPath).set(baseRecord());
-    // The SDK makes five attempts of its own; only the outer retry reaches the sixth.
-    transport.transactionFailures = 5;
-    await patch('B', { nursesDayShift: ['ENFERMERA NUEVA', ''] });
-    expect(transport.transactionAttempts).toBe(6);
-    expect((await admin.doc(dayPath).get()).data()?.nursesDayShift).toEqual([
-      'ENFERMERA NUEVA',
-      '',
-    ]);
-  });
+  // Staffing and plain day fields both commit through the versioned transaction.
+  it.each<[string, DailyRecordPatch]>([
+    ['staffing', { nursesDayShift: ['ENFERMERA NUEVA', ''] }],
+    ['handoff novedades', { handoffNovedadesDayShift: 'NOVEDAD NUEVA' }],
+  ])(
+    '%s: a transient SDK error that outlasts the transaction retries is still saved',
+    async (_label, edit) => {
+      clients.B = {
+        uid: 'synthetic-B',
+        role: 'nurse_hospital',
+        db: env
+          .authenticatedContext('synthetic-B', {
+            email: 'synthetic@example.invalid',
+            role: 'nurse_hospital',
+          })
+          .firestore(),
+      };
+      await admin.doc(dayPath).set(baseRecord());
+      // The SDK makes five attempts of its own; only the outer retry reaches the sixth.
+      transport.transactionFailures = 5;
+      await patch('B', edit);
+      expect(transport.transactionAttempts).toBe(6);
+      expect((await admin.doc(dayPath).get()).data()).toMatchObject(edit);
+    }
+  );
 });
