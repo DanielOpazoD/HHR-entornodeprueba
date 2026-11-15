@@ -1,9 +1,10 @@
-/* @flake-safe: Date usage is limited to deriving a same-day key for deterministic reminder receipts. */
+/* @flake-safe: Date usage is limited to deriving the hospital day key for deterministic reminder receipts. */
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReminderCenterProvider } from '@/context/ReminderCenterContext';
 import { useReminderCenter } from '@/hooks/useReminders';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 
 const subscribeMock = vi.fn();
 const getUserShiftReadStateMock = vi.fn();
@@ -11,13 +12,7 @@ const markAsReadWithResultMock = vi.fn();
 let mockShift: 'day' | 'night' = 'day';
 let mockRemoteSyncStatus: 'ready' | 'bootstrapping' | 'local_only' = 'ready';
 
-const getCurrentDateKey = (): string => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = `${now.getMonth() + 1}`.padStart(2, '0');
-  const day = `${now.getDate()}`.padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+const getCurrentDateKey = (): string => getClinicalCalendarDateISO();
 
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({
@@ -248,5 +243,45 @@ describe('ReminderCenterProvider', () => {
     expect(subscribeMock).not.toHaveBeenCalled();
     expect(getUserShiftReadStateMock).not.toHaveBeenCalled();
     expect(screen.getByTestId('modal-state').textContent).toBe('closed');
+  });
+
+  describe('the hospital day on a computer in another zone', () => {
+    const deviceZone = process.env.TZ;
+    afterEach(() => {
+      vi.useRealTimers();
+      if (deviceZone === undefined) delete process.env.TZ;
+      else process.env.TZ = deviceZone;
+    });
+
+    it.each(['America/Santiago', 'UTC', 'Pacific/Auckland'])(
+      'keeps a reminder that ends today and files its receipt on that day on a %s computer',
+      async zone => {
+        process.env.TZ = zone;
+        // 22:30 on 14 Nov in Rapa Nui: already 15 Nov on the mainland and in UTC.
+        vi.useFakeTimers({ now: new Date('2026-11-15T03:30:00Z'), shouldAdvanceTime: true });
+        subscribeMock.mockImplementation((callback: (reminders: unknown[]) => void) => {
+          callback([{ ...reminder, endDate: '2026-11-14' }]);
+          return () => undefined;
+        });
+        render(
+          <ReminderCenterProvider>
+            <ReminderProbe />
+          </ReminderCenterProvider>
+        );
+
+        await waitFor(() => {
+          expect(screen.getByTestId('unread-count').textContent).toBe('1');
+        });
+        await act(async () => {
+          fireEvent.click(screen.getByText('mark'));
+        });
+        await waitFor(() => {
+          expect(markAsReadWithResultMock).toHaveBeenCalledWith(
+            'rem-1',
+            expect.objectContaining({ dateKey: '2026-11-14' })
+          );
+        });
+      }
+    );
   });
 });
