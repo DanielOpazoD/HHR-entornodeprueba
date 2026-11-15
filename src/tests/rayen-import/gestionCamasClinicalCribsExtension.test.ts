@@ -69,7 +69,7 @@ describe('Gestión de Camas clinical-crib mapping', () => {
   it.each([...CLINICAL_CRIB_PARENT_BEDS])(
     'imports a newly created %s crib through verified extension evidence without duplicates',
     parentBedId => {
-      const reference = new Date(2026, 6, 8);
+      const reference = new Date('2026-07-08T12:00:00-06:00');
       const mother: RayenEncounter = {
         encounterId: '900001',
         run: '144700554',

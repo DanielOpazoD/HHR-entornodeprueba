@@ -149,7 +149,7 @@ describe('parseClinicalPanel — hoja diaria de indicaciones', () => {
               MRE_ID: 902,
               DESCRIPTOR: 'CEFTRIAXONA 2 g',
               POSOLOGY: '2 g cada 24 h',
-              PUBLISH_DATETIME: '2026-07-10T08:00:00',
+              PUBLISH_DATETIME: '2026-07-10T14:00:00',
             },
           ],
         }),
@@ -188,7 +188,7 @@ describe('parseClinicalPanel — hoja diaria de indicaciones', () => {
         expect.objectContaining({
           title: 'CEFTRIAXONA 2 g',
           validitySource: 'daily-validation',
-          prescribedAt: '2026-07-10T08:00:00',
+          prescribedAt: '2026-07-10T14:00:00Z',
         }),
       ])
     );
@@ -207,7 +207,7 @@ describe('parseClinicalPanel — hoja diaria de indicaciones', () => {
               MRE_ID: 908,
               DESCRIPTOR: 'CEFTRIAXONA 1 g',
               POSOLOGY: '1 g cada 24 h',
-              PUBLISH_DATETIME: '2026-07-10T08:00:00',
+              PUBLISH_DATETIME: '2026-07-10T14:00:00',
             },
           ],
         }),
@@ -220,7 +220,7 @@ describe('parseClinicalPanel — hoja diaria de indicaciones', () => {
               MRE_ID: 908,
               DESCRIPTOR: 'CEFTRIAXONA 2 g',
               POSOLOGY: '2 g cada 24 h',
-              PUBLISH_DATETIME: '2026-07-13T08:00:00',
+              PUBLISH_DATETIME: '2026-07-13T14:00:00',
             },
           ],
         }),
@@ -235,12 +235,12 @@ describe('parseClinicalPanel — hoja diaria de indicaciones', () => {
     expect(panel.indicationDays.find(day => day.day === '2026-07-11')?.active[0]).toMatchObject({
       id: '908',
       title: 'CEFTRIAXONA 1 g',
-      prescribedAt: '2026-07-10T08:00:00',
+      prescribedAt: '2026-07-10T14:00:00Z',
       validitySource: 'daily-validation',
     });
     expect(panel.indicationDays.find(day => day.day === '2026-07-12')?.active[0]).toMatchObject({
       title: 'CEFTRIAXONA 1 g',
-      prescribedAt: '2026-07-10T08:00:00',
+      prescribedAt: '2026-07-10T14:00:00Z',
     });
     expect(panel.indicationDays.find(day => day.day === '2026-07-13')?.active[0]).toMatchObject({
       title: 'CEFTRIAXONA 2 g',
@@ -248,7 +248,7 @@ describe('parseClinicalPanel — hoja diaria de indicaciones', () => {
     });
     expect(panel.indicationDays.find(day => day.day === '2026-07-14')?.active[0]).toMatchObject({
       title: 'CEFTRIAXONA 2 g',
-      prescribedAt: '2026-07-13T08:00:00',
+      prescribedAt: '2026-07-13T14:00:00Z',
       validitySource: 'daily-validation',
     });
   });

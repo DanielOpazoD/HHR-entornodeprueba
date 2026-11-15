@@ -1,4 +1,5 @@
 import { isValidRut, isSameRut } from '@/utils/rutUtils';
+import { parseCalendarDateUtcNoon } from '@/utils/clinicalDateUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { ageFromBirthDate } from '../mapping/rayenToPatientData';
@@ -13,6 +14,8 @@ const maternalCandidates = (
   sourceRun: string
 ): Array<{ episode: string; rut: string }> => {
   if (!isValidRut(sourceRun)) return [];
+  // Noon UTC falls on the census day in Rapa Nui (06:00 or 07:00), whatever the computer's zone.
+  const censusDayInstant = new Date(parseCalendarDateUtcNoon(current.date) ?? Number.NaN);
 
   const candidates = [
     ...Object.values(current.beds)
@@ -32,7 +35,7 @@ const maternalCandidates = (
             (s.hasMedicalDischarge || s.hasNurseDischarge) &&
             !Object.values(current.beds).some(p => p.clinicalEpisodeId === s.encounterId)
           ) &&
-          !/^\d+d$/.test(ageFromBirthDate(s.birthDate, new Date(current.date + 'T12:00:00'))) &&
+          !/^\d+d$/.test(ageFromBirthDate(s.birthDate, censusDayInstant)) &&
           !mapRayenBed(s).isClinicalCrib &&
           !current.beds[mapRayenBed(s).bedId ?? '']?.isBlocked &&
           !/^RN\s+de\b/i.test([s.firstGivenName, s.nextGivenNames, s.firstFamilyName].join(' ')) &&
