@@ -99,27 +99,28 @@ const recover = async (
   const state = createRemoteWriteState();
   const result = await persistLocalAndAttemptRemoteSync({
     authoringSession: captureAuthoringSession(),
-    date,
-    record: editA(),
-    changedPaths: ['*'],
-    expectedVersion: baseVersion,
+    change: { date, record: editA(), changedPaths: ['*'], expectedVersion: baseVersion },
     remoteState: state,
-    queueLocalBeforeRemote: enqueueA,
-    remoteWrite: async () => {
-      sent = await onlyTask();
-      await createFirestoreSyncTransport().run(sent);
+    outbox: {
+      queueLocalBeforeRemote: enqueueA,
+      releaseLocalPreOutboxHold: async () => {
+        await releaseDailyRecordPreOutboxHold(editA(), contractA());
+        if (workerDuringRelease) {
+          await processSyncQueue();
+          expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
+        }
+      },
     },
-    releaseLocalPreOutboxHold: async () => {
-      await releaseDailyRecordPreOutboxHold(editA(), contractA());
-      if (workerDuringRelease) {
-        await processSyncQueue();
-        expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
-      }
+    remote: {
+      remoteWrite: async () => {
+        sent = await onlyTask();
+        await createFirestoreSyncTransport().run(sent);
+      },
+      readRemoteConfirmedRecord: async () => {
+        throw networkError();
+      },
+      onRemoteFailure: () => {},
     },
-    readRemoteConfirmedRecord: async () => {
-      throw networkError();
-    },
-    onRemoteFailure: () => {},
   });
   if (!sent) throw new Error('The controller did not reach the remote boundary');
   return { sent, state, result };

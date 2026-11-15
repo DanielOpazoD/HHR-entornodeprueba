@@ -62,20 +62,20 @@ describe('daily record confirmed state handoff', () => {
 
     const result = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
-      date: '2026-08-07',
-      record: buildRecord(),
-      changedPaths: ['*'],
+      change: { date: '2026-08-07', record: buildRecord(), changedPaths: ['*'] },
       remoteState: state,
-      remoteWrite: vi.fn().mockResolvedValue({
-        recordState: {
-          lastUpdated: confirmedRecord.lastUpdated,
-          meta: confirmedMeta,
-          record: confirmedRecord,
-        },
-      }),
-      readRemoteConfirmedRecord: staleReadback,
-      onRemoteFailure: vi.fn(),
-      remoteAuthorityFirst: true,
+      remote: {
+        remoteWrite: vi.fn().mockResolvedValue({
+          recordState: {
+            lastUpdated: confirmedRecord.lastUpdated,
+            meta: confirmedMeta,
+            record: confirmedRecord,
+          },
+        }),
+        readRemoteConfirmedRecord: staleReadback,
+        onRemoteFailure: vi.fn(),
+      },
+      policy: { remoteAuthorityFirst: true },
     });
 
     expect(result).toBe('continue');
@@ -95,14 +95,14 @@ describe('daily record confirmed state handoff', () => {
 
     const result = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
-      date: '2026-08-07',
-      record: buildRecord(),
-      changedPaths: ['*'],
+      change: { date: '2026-08-07', record: buildRecord(), changedPaths: ['*'] },
       remoteState: state,
-      remoteWrite: vi.fn().mockResolvedValue({ success: true }),
-      readRemoteConfirmedRecord,
-      onRemoteFailure: vi.fn(),
-      remoteAuthorityFirst: true,
+      remote: {
+        remoteWrite: vi.fn().mockResolvedValue({ success: true }),
+        readRemoteConfirmedRecord,
+        onRemoteFailure: vi.fn(),
+      },
+      policy: { remoteAuthorityFirst: true },
     });
 
     expect(result).toBe('continue');
@@ -122,14 +122,14 @@ describe('daily record confirmed state handoff', () => {
 
     const result = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
-      date: '2026-08-07',
-      record: submittedRecord,
-      changedPaths: ['*'],
+      change: { date: '2026-08-07', record: submittedRecord, changedPaths: ['*'] },
       remoteState: state,
-      remoteWrite: vi.fn().mockResolvedValue(undefined),
-      readRemoteConfirmedRecord,
-      requireConfirmedRecord: true,
-      onRemoteFailure: vi.fn(),
+      remote: {
+        remoteWrite: vi.fn().mockResolvedValue(undefined),
+        readRemoteConfirmedRecord,
+        onRemoteFailure: vi.fn(),
+      },
+      policy: { requireConfirmedRecord: true },
     });
 
     expect(result).toBe('continue');
@@ -162,26 +162,28 @@ describe('daily record confirmed state handoff', () => {
 
     const result = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
-      date: submittedRecord.date,
-      record: submittedRecord,
-      changedPaths: ['beds.R1'],
+      change: { date: submittedRecord.date, record: submittedRecord, changedPaths: ['beds.R1'] },
       remoteState: state,
-      remoteWrite: vi.fn().mockResolvedValue({
-        recordState: {
-          lastUpdated: remoteRecord.lastUpdated,
-          meta: { revision: 2 },
-          record: remoteRecord,
-        },
-      }),
-      queueLocalBeforeRemote: vi.fn().mockResolvedValue({
-        accepted: true,
-        mode: 'reused',
-        pendingTasks: 1,
-        maxPendingTasks: 192,
-      }),
-      adoptRemoteAuthorityRecord,
-      ackLocalAfterRemote,
-      onRemoteFailure: vi.fn(),
+      remote: {
+        remoteWrite: vi.fn().mockResolvedValue({
+          recordState: {
+            lastUpdated: remoteRecord.lastUpdated,
+            meta: { revision: 2 },
+            record: remoteRecord,
+          },
+        }),
+        onRemoteFailure: vi.fn(),
+      },
+      outbox: {
+        queueLocalBeforeRemote: vi.fn().mockResolvedValue({
+          accepted: true,
+          mode: 'reused',
+          pendingTasks: 1,
+          maxPendingTasks: 192,
+        }),
+        ackLocalAfterRemote,
+      },
+      adoption: { adoptRemoteAuthorityRecord },
     });
 
     expect(result).toBe('continue');
@@ -199,13 +201,13 @@ describe('daily record confirmed state handoff', () => {
 
     const result = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
-      date: '2026-08-07',
-      record: buildRecord(),
-      changedPaths: ['*'],
+      change: { date: '2026-08-07', record: buildRecord(), changedPaths: ['*'] },
       remoteState: state,
-      remoteWrite: vi.fn().mockResolvedValue({ success: true }),
-      onRemoteFailure: vi.fn(),
-      remoteAuthorityFirst: true,
+      remote: {
+        remoteWrite: vi.fn().mockResolvedValue({ success: true }),
+        onRemoteFailure: vi.fn(),
+      },
+      policy: { remoteAuthorityFirst: true },
     });
 
     expect(result).toBe('return');
@@ -234,16 +236,19 @@ describe('daily record confirmed readback guard', () => {
   ) =>
     persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
-      date: '2026-08-07',
-      record: buildRecord(),
-      changedPaths: ['rayenSync'],
+      change: {
+        date: '2026-08-07',
+        record: buildRecord(),
+        changedPaths: ['rayenSync'],
+        expectedVersion: baseVersion,
+      },
       remoteState: state,
-      remoteWrite: vi.fn().mockResolvedValue(remoteResult),
-      readRemoteConfirmedRecord,
-      requireConfirmedRecord: true,
-      remoteAuthorityFirst,
-      expectedVersion: baseVersion,
-      onRemoteFailure: vi.fn(),
+      remote: {
+        remoteWrite: vi.fn().mockResolvedValue(remoteResult),
+        readRemoteConfirmedRecord,
+        onRemoteFailure: vi.fn(),
+      },
+      policy: { requireConfirmedRecord: true, remoteAuthorityFirst },
     });
 
   beforeEach(() => {
