@@ -24,7 +24,7 @@ import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 const { scope, queueControl, transport } = await vi.hoisted(async () => {
   const { AsyncLocalStorage } = await import('node:async_hooks');
   return {
-    transport: { reject: '', attempts: 0 },
+    transport: { reject: '', attempts: 0, transactionFailures: 0, transactionAttempts: 0 },
     queueControl: { online: false },
     scope: new AsyncLocalStorage<{ db: unknown; uid: string; role: string }>(),
   };
@@ -33,20 +33,29 @@ vi.mock('firebase/firestore', async importOriginal => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();
   return {
     ...actual,
+    // Fails the real transaction's attempts as the SDK does for a transient RPC or token error.
+    runTransaction: <T>(
+      db: Parameters<typeof actual.runTransaction>[0],
+      callback: (transaction: import('firebase/firestore').Transaction) => Promise<T>,
+      options?: Parameters<typeof actual.runTransaction>[2]
+    ) =>
+      actual.runTransaction(
+        db,
+        async transaction => {
+          transport.transactionAttempts++;
+          if (transport.transactionFailures-- > 0) {
+            const { FirebaseError } = await import('firebase/app');
+            throw new FirebaseError('unknown', 'Synthetic transient backend error');
+          }
+          return callback(transaction);
+        },
+        options
+      ),
     updateDoc: (...args: Parameters<typeof actual.updateDoc>) => {
       transport.attempts++;
       if (transport.reject) return Promise.reject({ code: transport.reject });
       return actual.updateDoc(...args);
     },
-  };
-});
-// Same attempts, no backoff wait: rejected writes spent over half of this file's ~6 CI minutes asleep.
-vi.mock('@/utils/networkUtils', async importOriginal => {
-  const actual = await importOriginal<typeof import('@/utils/networkUtils')>();
-  return {
-    ...actual,
-    withRetry: <T>(fn: () => Promise<T>, options?: Parameters<typeof actual.withRetry>[1]) =>
-      actual.withRetry(fn, { ...options, initialDelay: 0, maxDelay: 0 }),
   };
 });
 vi.mock('@/firebaseConfig', () => ({
@@ -226,6 +235,8 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     queueControl.online = false;
     transport.reject = '';
     transport.attempts = 0;
+    transport.transactionFailures = 0;
+    transport.transactionAttempts = 0;
     await env.clearFirestore();
     // Isolated fake IndexedDB only; never operate on a browser's real outbox.
     await hospitalDB.dailyRecords.clear();
@@ -409,5 +420,26 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     expect((await admin.doc(dayPath).get()).data()?.nursesDayShift).toEqual(
       baseRecord().nursesDayShift
     );
+  });
+  it('a transient SDK error that outlasts the transaction retries is still saved', async () => {
+    clients.B = {
+      uid: 'synthetic-B',
+      role: 'nurse_hospital',
+      db: env
+        .authenticatedContext('synthetic-B', {
+          email: 'synthetic@example.invalid',
+          role: 'nurse_hospital',
+        })
+        .firestore(),
+    };
+    await admin.doc(dayPath).set(baseRecord());
+    // The SDK makes five attempts of its own; only the outer retry reaches the sixth.
+    transport.transactionFailures = 5;
+    await patch('B', { nursesDayShift: ['ENFERMERA NUEVA', ''] });
+    expect(transport.transactionAttempts).toBe(6);
+    expect((await admin.doc(dayPath).get()).data()?.nursesDayShift).toEqual([
+      'ENFERMERA NUEVA',
+      '',
+    ]);
   });
 });
