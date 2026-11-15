@@ -262,6 +262,7 @@ export const updateRecordPartial = async (
       lastUpdated: Timestamp.now(),
     }) as Record<string, unknown>;
     const persist = async () => {
+      options.assertCanPublish?.();
       if (specialistScopedPatch && (await shouldRouteSpecialistPatchViaCallable())) {
         // This callable has no server version CAS (its transaction protects the patient and
         // episode), so the version is checked by a read first. Every other route checks it when
@@ -412,6 +413,7 @@ export const updateRecordPartial = async (
       // function, so the same per-field check decides.
       await getDoc(docRef);
 
+      options.assertCanPublish?.();
       // Outside the transaction: roles the rules do not let write history still save the day.
       if (options.historyPolicy !== 'skip')
         await saveHistorySnapshot(date, { force: options.historyPolicy === 'snapshot' });
@@ -451,12 +453,20 @@ export const updateRecordPartial = async (
               expectedLastUpdated,
               'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
               'partial update',
-              { historyPolicy: 'skip', acceptsOtherVersion }
+              {
+                historyPolicy: 'skip',
+                acceptsOtherVersion,
+                assertCanCommit: options.assertCanPublish,
+              }
             ),
           {
             onRetry: (err: unknown, attempt: number) =>
               logFirestoreWriteRetry('partialUpdate', date, attempt, err),
-            shouldRetry: shouldRetryWrite,
+            // A changed session stops here instead of waiting to retry.
+            shouldRetry: error => {
+              options.assertCanPublish?.();
+              return shouldRetryWrite(error);
+            },
           }
         );
         // An empty base is the not-stored-yet branch: no read to project the committed record on.

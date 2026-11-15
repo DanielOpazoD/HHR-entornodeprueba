@@ -35,7 +35,11 @@ export const plainDayFieldReplayPaths = (task: SyncTask): string[] | undefined =
     paths.length > 0 &&
     paths.every(
       path =>
-        isPlainDayFieldPath(path) && !MOVEMENT_LIST_PATH.test(path) && Object.hasOwn(base, path)
+        // '*' is a whole-day write, never a field.
+        path !== '*' &&
+        isPlainDayFieldPath(path) &&
+        !MOVEMENT_LIST_PATH.test(path) &&
+        Object.hasOwn(base, path)
     );
   return plain ? paths : undefined;
 };
@@ -56,7 +60,6 @@ export const replayPlainDayFields = async (
   const base = new Map(Object.entries(task.patchBaseValues ?? {}));
   const patchAt = (valueAt: (path: string) => unknown) =>
     Object.fromEntries(paths.map(path => [path, valueAt(path)])) as DailyRecordPatch;
-  assertCanPublish?.();
   const receipt = await updateRecordPartial(
     record.date,
     patchAt(path => getValueAtPath(record, path)),
@@ -69,6 +72,8 @@ export const replayPlainDayFields = async (
       ),
       syncContract: task.syncContract,
       returnCommittedRecord: true,
+      // A changed owner or session generation stops the write at every step (no write, no notice).
+      assertCanPublish,
     }
   );
   // Without a projectable receipt, the stored day after the commit is the committed record.
