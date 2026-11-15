@@ -1,7 +1,7 @@
 import type { PatientData } from '@/types/domain/patient';
 
 import { mapRayenBed } from '../mapping/bedMapping';
-import { hasNonRutLetter, isValidRut, isSameRut } from '@/utils/rutUtils';
+import { hasPassportShapeBeforeLetterRule, isValidRut, isSameRut } from '@/utils/rutUtils';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 
 import type { MappedPatient } from '../mapping/rayenToPatientData';
@@ -47,10 +47,11 @@ export const isNeonatalPatient = (patient: NeonatalSignals): boolean =>
 /**
  * Eloísa opens a newborn's episode at birth, before Registro Civil issues a RUN, and may show a
  * delivery-receipt folio or a typo as its identification. For a newborn, a number that is neither
- * a valid RUN nor a passport is never the child's own document.
+ * a valid RUN nor a passport by its earlier shape is never the child's own document: a letter in
+ * the middle leaves the newborn provisional (#1508, #1530) until the owner decides otherwise.
  */
 export const isUnusableNewbornRun = (run: string): boolean =>
-  Boolean(run.trim()) && !hasNonRutLetter(run) && !isValidRut(run);
+  Boolean(run.trim()) && !hasPassportShapeBeforeLetterRule(run) && !isValidRut(run);
 
 /** A newborn's own document, leaving out a stored number that cannot be one. */
 export const newbornOwnRut = (
