@@ -185,7 +185,7 @@ computed from another base (a second tab, or a read that showed an older copy), 
 that projection instead of replacing it, and compacting an unresolved task keeps its original
 `expectedVersion` and `baseRevision` even for ordinary sequential edits:
 
-- a new patch (`buildPatchRebase` in `dexieDailyRecordOutbox.ts`) is prepared again over the projection. A path that
+- a new patch (`buildPatchRebase` in `pendingProjectionRebase.ts`) is prepared again over the projection. A path that
   both writes changed follows the same-path policy, not last-write-wins: movement logs merge by
   id, anything else is rejected with `ConcurrencyError`. So is a field edit whose bed or crib now
   holds another patient or episode; a RUT never matches a passport;
