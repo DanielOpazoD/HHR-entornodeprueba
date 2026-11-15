@@ -63,6 +63,7 @@ describe('dailyRecordSyncNotificationController', () => {
     ).toEqual({
       channel: 'warning',
       title: 'Guardado local pendiente',
+      kind: 'pending_sync',
       message: 'Los cambios se guardaron localmente y quedarán pendientes de sincronización.',
       state: 'retrying',
       actionRequired: false,
@@ -82,6 +83,7 @@ describe('dailyRecordSyncNotificationController', () => {
     ).toEqual({
       channel: 'warning',
       title: 'Censo actualizado',
+      kind: 'auto_merged',
       message: 'El sistema integró los cambios recientes automáticamente.',
       state: 'degraded',
       actionRequired: false,
@@ -108,6 +110,7 @@ describe('dailyRecordSyncNotificationController', () => {
     expect(conflict).toEqual({
       channel: 'warning',
       title: 'Cambio pendiente de revisión',
+      kind: 'pending_review',
       message: 'El campo cambió en otro equipo. La edición pendiente se conserva para revisión.',
       state: 'degraded',
       actionRequired: false,
@@ -162,6 +165,7 @@ describe('dailyRecordSyncNotificationController', () => {
     ).toEqual({
       channel: 'error',
       title: 'Actualización bloqueada',
+      kind: 'blocked',
       message: 'No se encontró un registro local válido para aplicar el cambio.',
       state: 'blocked',
       actionRequired: true,
@@ -188,6 +192,7 @@ describe('dailyRecordSyncNotificationController', () => {
     ).toEqual({
       channel: 'error',
       title: 'Protección de Datos',
+      kind: 'blocked',
       message: 'Se bloqueó una reducción sospechosa de texto clínico. Recarga antes de reintentar.',
       state: 'blocked',
       actionRequired: true,
@@ -231,6 +236,7 @@ describe('dailyRecordSyncNotificationController', () => {
     expect(feedback).toEqual({
       channel: 'error',
       title: 'Guardado no confirmado',
+      kind: 'not_saved',
       message: 'No fue posible confirmar una copia local ni remota de los cambios.',
       state: 'blocked',
       actionRequired: true,
@@ -331,6 +337,7 @@ describe('dailyRecordSyncNotificationController', () => {
     ).toEqual({
       channel: 'warning',
       title: 'Guardado local sin sincronización',
+      kind: 'unrecoverable',
       message: 'mensaje visible de sync',
       state: 'degraded',
       actionRequired: false,

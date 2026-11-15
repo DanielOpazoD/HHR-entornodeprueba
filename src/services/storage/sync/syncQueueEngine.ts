@@ -17,6 +17,7 @@ import {
 } from '@/services/storage/sync/syncQueueFailurePolicy';
 import {
   buildSyncQueueTelemetryFromRows,
+  recordSyncQueueConflictTelemetry,
   recordSyncQueueDecisionTelemetry,
   recordSyncQueueStaleClaimTelemetry,
 } from '@/services/storage/sync/syncQueueTelemetryController';
@@ -359,6 +360,10 @@ export const createSyncQueueEngine = ({
                   );
                   if (!deleted) {
                     recordSyncQueueStaleClaimTelemetry(task, 'delete');
+                  } else {
+                    // Edits held because their bed changed patient were stored as conflicts.
+                    for (const conflict of result.detachedConflicts ?? [])
+                      recordSyncQueueConflictTelemetry(conflict, conflict.error ?? '');
                   }
                 }
               } catch (error) {

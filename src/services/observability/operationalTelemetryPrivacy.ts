@@ -25,6 +25,7 @@ import {
   RAYEN_SYNC_ISSUE_CAUSE_KEYS,
   RAYEN_SYNC_ISSUE_REASONS,
 } from '@/types/domain/rayenSync';
+import { SYNC_TASK_ORIGINS } from '@/services/storage/sync/syncDomainContracts';
 import { withErrorServiceCause } from './operationalTelemetryErrorCause';
 import {
   OPERATIONAL_TELEMETRY_OPERATIONS,
@@ -78,6 +79,17 @@ export const OPERATIONAL_TELEMETRY_ISSUE_CODES = [
   OPERATIONAL_TELEMETRY_UNCLASSIFIED_ISSUE,
 ] as const;
 export type OperationalTelemetryIssueCode = (typeof OPERATIONAL_TELEMETRY_ISSUE_CODES)[number];
+
+/** The sync notices a save or an update can show, as `daily_record_sync_notice` reports them. */
+export const OPERATIONAL_TELEMETRY_SYNC_NOTICE_KINDS = [
+  'blocked',
+  'pending_sync',
+  'pending_review',
+  'auto_merged',
+  'not_saved',
+  'unrecoverable',
+  'local_only',
+] as const;
 
 // The generic bucket itself is accepted so that sanitizing stays idempotent.
 const ALLOWED_OPERATIONS = new Set<string>([
@@ -145,7 +157,11 @@ const STRING_ENUMS = new Map<string, ReadonlySet<string>>(
       backend_too_old compatible client_too_old_for_backend base_version_mismatch remote_blocked
       episode_closed clinical_day_changed historical_archive_failed default_local_priority
       default_remote_priority metadata_remote_priority admin_remote_priority stale_day
-      duplicate_episode unsupported_layout carryover_overlay_failed unheld_newer_local_replaced`,
+      duplicate_episode unsupported_layout carryover_overlay_failed unheld_newer_local_replaced
+      occupant_changed`,
+    // Which path queued a task that ended in CONFLICT, and which sync notice the person saw.
+    origin: SYNC_TASK_ORIGINS.join(' '),
+    noticeKind: OPERATIONAL_TELEMETRY_SYNC_NOTICE_KINDS.join(' '),
     region: 'us-central1 southamerica-east1 southamerica-west1',
     errorCode: `functions/internal functions/unavailable functions/deadline-exceeded
       permission-denied unauthenticated unavailable deadline-exceeded resource-exhausted

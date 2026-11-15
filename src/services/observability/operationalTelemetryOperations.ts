@@ -80,6 +80,7 @@ export const OPERATIONAL_TELEMETRY_OPERATIONS = [
   'daily_record_resume_refresh_remote_newer',
   'daily_record_resume_refresh_started',
   'daily_record_size_observed',
+  'daily_record_sync_notice',
   'delete',
   'delete_backup_file',
   'delete_clinical_document',
