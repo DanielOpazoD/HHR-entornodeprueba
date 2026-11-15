@@ -1,5 +1,6 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ConflictResolutionTraceContext } from '@/services/repositories/conflictResolutionTrace';
+import { dailyRecordFieldSet } from '@/services/repositories/conflictResolutionUtils';
 import {
   buildCompatibleDayShiftStaffingMirror,
   resolveDayShiftNurses,
@@ -10,7 +11,7 @@ const isVacantStaffingSlot = (value: string | null | undefined): boolean => {
   return normalized === '' || normalized === '--' || normalized === 'Vacante';
 };
 
-export const STAFFING_SLOT_ARRAY_FIELDS = new Set([
+export const STAFFING_SLOT_ARRAY_FIELDS = dailyRecordFieldSet([
   'nursesNightShift',
   'tensDayShift',
   'tensNightShift',
@@ -68,16 +69,14 @@ export const resolveCanonicalDayShiftNurses = (
 export const resolveStaffingSlotArray = (
   remote: DailyRecord,
   local: DailyRecord,
-  root: string,
+  root: 'nursesNightShift' | 'tensDayShift' | 'tensNightShift',
   preferLocal: boolean,
   traceContext: ConflictResolutionTraceContext,
   preservePreferredVacancies = false
 ): string[] => {
-  const remoteMap = remote as unknown as Record<string, unknown>;
-  const localMap = local as unknown as Record<string, unknown>;
   return mergeFixedStaffingSlots(
-    (remoteMap[root] as string[]) || [],
-    (localMap[root] as string[]) || [],
+    remote[root] || [],
+    local[root] || [],
     preferLocal,
     traceContext,
     root,

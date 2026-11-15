@@ -2,20 +2,24 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { mergeObject } from '@/services/repositories/conflictResolutionMergeUtils';
 import type { ConflictResolutionTraceContext } from '@/services/repositories/conflictResolutionTrace';
 
-const mergeRecordObject = <K extends keyof DailyRecord>(
+type RecordObjectField =
+  | 'handoffSharedChecklist'
+  | 'handoffDayChecklist'
+  | 'handoffNightChecklist'
+  | 'medicalHandoffBySpecialty'
+  | 'medicalSignature'
+  | 'medicalSignatureByScope'
+  | 'medicalHandoffSentAtByScope'
+  | 'medicalSignatureLinkTokenByScope';
+
+const mergeRecordObject = <K extends RecordObjectField>(
   remote: DailyRecord,
   local: DailyRecord,
   key: K,
   preferLocal: boolean,
   traceContext: ConflictResolutionTraceContext
 ): DailyRecord[K] =>
-  mergeObject(
-    remote[key] as unknown as Record<string, unknown> | undefined,
-    local[key] as unknown as Record<string, unknown> | undefined,
-    preferLocal,
-    traceContext,
-    String(key)
-  ) as DailyRecord[K];
+  mergeObject(remote[key], local[key], preferLocal, traceContext, String(key)) as DailyRecord[K];
 
 export const mergeRecordObjectFields = (
   remote: DailyRecord,
