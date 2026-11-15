@@ -33,17 +33,6 @@ export type CudyrCategory =
   | 'D2'
   | 'D3';
 
-/** Structure for categorized patient data */
-export interface CategorizedPatient {
-  bedId: string;
-  bedName: string;
-  bedType: BedType;
-  patientName: string;
-  rut: string;
-  category: CudyrCategory;
-  isCrib: boolean;
-}
-
 /** Category counts split by bed type */
 export interface CategoryCounts {
   uti: Record<CudyrCategory, number>;
@@ -120,58 +109,6 @@ const resolvePatientCudyrCategory = (
 // ============================================================================
 
 /**
- * Collects all categorized patients from a daily record.
- * Includes clinical cribs.
- *
- * @param record - The daily record to process
- * @returns Array of categorized patients
- */
-export const collectDailyCudyrPatients = (record: DailyRecordCudyrState): CategorizedPatient[] => {
-  const patients: CategorizedPatient[] = [];
-  const visibleBeds = resolveVisibleCudyrBeds(record);
-
-  visibleBeds.forEach(bed => {
-    const patient = record.beds[bed.id];
-    if (!patient) return;
-
-    // Process main patient
-    if (isCudyrPatientEligible(record.date, patient)) {
-      const { category, isCategorized } = resolvePatientCudyrCategory(patient, record.date);
-      if (isCategorized) {
-        patients.push({
-          bedId: bed.id,
-          bedName: bed.name,
-          bedType: bed.type,
-          patientName: patient.patientName,
-          rut: patient.rut || '',
-          category,
-          isCrib: false,
-        });
-      }
-    }
-
-    // Process clinical crib
-    const clinicalCrib = patient.clinicalCrib;
-    if (clinicalCrib && isCudyrPatientEligible(record.date, clinicalCrib)) {
-      const { category, isCategorized } = resolvePatientCudyrCategory(clinicalCrib, record.date);
-      if (isCategorized) {
-        patients.push({
-          bedId: `${bed.id}-crib`,
-          bedName: `${bed.name} (CC)`,
-          bedType: bed.type,
-          patientName: clinicalCrib.patientName,
-          rut: clinicalCrib.rut || '',
-          category,
-          isCrib: true,
-        });
-      }
-    }
-  });
-
-  return patients;
-};
-
-/**
  * Builds the daily CUDYR summary with category counts split by UTI/Media.
  *
  * @param record - The daily record to process
@@ -228,81 +165,5 @@ export const buildDailyCudyrSummary = (record: DailyRecordCudyrState): CudyrDail
     mediaTotal,
     occupiedCount,
     categorizedCount,
-  };
-};
-
-/**
- * Gets aggregated monthly totals from Firestore.
- * Fetches each day's record and aggregates the summaries.
- *
- * @param year - Year to aggregate
- * @param month - Month (1-12) to aggregate
- * @param endDate - Optional end date (YYYY-MM-DD) to limit aggregation
- * @param fetchRecordFn - Function to fetch a DailyRecord by date string
- * @returns Monthly summary with aggregated counts
- */
-export const getCudyrMonthlyTotals = async (
-  year: number,
-  month: number,
-  endDate: string | undefined,
-  fetchRecordFn: (dateStr: string) => Promise<DailyRecordCudyrState | null>,
-  overrideRecord?: DailyRecordCudyrState | null // Optional override for current day
-): Promise<CudyrMonthlySummary> => {
-  const totals: CategoryCounts = {
-    uti: createEmptyCounts(),
-    media: createEmptyCounts(),
-  };
-
-  let utiTotal = 0;
-  let mediaTotal = 0;
-  let totalOccupied = 0;
-  let totalCategorized = 0;
-  const dailySummaries: CudyrDailySummary[] = [];
-
-  // Determine date range
-  const lastDayOfMonth = new Date(year, month, 0).getDate();
-  const endDay = endDate
-    ? Math.min(parseInt(endDate.split('-')[2], 10), lastDayOfMonth)
-    : lastDayOfMonth;
-
-  for (let day = 1; day <= endDay; day++) {
-    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-
-    let record: DailyRecordCudyrState | null = null;
-
-    // Use override if available and matches date
-    if (overrideRecord && overrideRecord.date === dateStr) {
-      record = overrideRecord;
-    } else {
-      record = await fetchRecordFn(dateStr);
-    }
-
-    if (record) {
-      const summary = buildDailyCudyrSummary(record);
-      dailySummaries.push(summary);
-
-      // Aggregate counts
-      (Object.keys(summary.counts.uti) as CudyrCategory[]).forEach(cat => {
-        totals.uti[cat] += summary.counts.uti[cat];
-        totals.media[cat] += summary.counts.media[cat];
-      });
-
-      utiTotal += summary.utiTotal;
-      mediaTotal += summary.mediaTotal;
-      totalOccupied += summary.occupiedCount;
-      totalCategorized += summary.categorizedCount;
-    }
-  }
-
-  return {
-    year,
-    month,
-    endDate,
-    totals,
-    utiTotal,
-    mediaTotal,
-    totalOccupied,
-    totalCategorized,
-    dailySummaries,
   };
 };

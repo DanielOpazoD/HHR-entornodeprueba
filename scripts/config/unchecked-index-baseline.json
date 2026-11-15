@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1308,
+  "total": 1300,
   "areas": {
     "src/application/backup-export": 4,
     "src/application/census-email": 2,
@@ -19,7 +19,7 @@
     "src/features/backup": 5,
     "src/features/census": 35,
     "src/features/clinical-documents": 16,
-    "src/features/clinical-library": 95,
+    "src/features/clinical-library": 88,
     "src/features/cudyr": 12,
     "src/features/document-scanner": 6,
     "src/features/handoff": 1,
@@ -46,7 +46,7 @@
     "src/services/backup": 13,
     "src/services/calculations": 1,
     "src/services/config": 2,
-    "src/services/cudyr": 216,
+    "src/services/cudyr": 215,
     "src/services/exporters": 21,
     "src/services/integrations": 7,
     "src/services/laboratory": 4,
