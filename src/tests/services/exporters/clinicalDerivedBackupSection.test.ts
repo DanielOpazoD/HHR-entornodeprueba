@@ -43,6 +43,8 @@ vi.mock('@/services/admin/utils/auditUtils', () => ({ getCurrentUserEmail: () =>
 import { buildClinicalDerivedBackupSection } from '@/services/exporters/clinicalDerivedBackupSection';
 vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
   saveDetailed: mocks.repositorySave,
+}));
+vi.mock('@/services/repositories/dailyRecordBackupImportWriteService', () => ({
   saveBackupImport: async (records: unknown[]) => {
     if (!records.length) return [];
     await mocks.saveRecordsStrict(records);

@@ -19,6 +19,7 @@ query / comando / suscripción
 | ------------------------------------------------- | ------------------------------------------------- |
 | `dailyRecordRepositoryReadService.ts`             | Lectura y resultado con metadata                  |
 | `dailyRecordRepositoryWriteService.ts`            | Guardado y patches, validación y recuperación     |
+| `dailyRecordBackupImportWriteService.ts`          | Importación de un respaldo, bajo bloqueo por día  |
 | `dailyRecordRepositorySyncService.ts`             | Suscripción, reconciliación y adopción confirmada |
 | `dailyRecordRepositoryInitializationService.ts`   | Inicialización de un día y copia de paciente      |
 | `dailyRecordDeletionService.ts`                   | Eliminación protegida por día y papelera remota   |
