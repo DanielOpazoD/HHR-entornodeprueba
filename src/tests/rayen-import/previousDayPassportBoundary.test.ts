@@ -314,6 +314,26 @@ describe('previous-day corrections keep a passport apart from the RUT its digits
     expect(result.record.discharges[0]).toBe(syncedBruno);
   });
 
+  it("does not file the passport holder's egreso twice on a day corrected with the earlier digit id", () => {
+    // Before this change the movement id was built from the passport's digits; on a re-sync the
+    // new id differs, so only the stored document keeps the egreso from being appended again.
+    const filedEarlier = {
+      ...brunoDischarge(`rayen-egreso:123456785:${DAY}`),
+      bedId: 'H2C1',
+      bedName: 'H2C1',
+      patientName: 'Ana Pasaporte',
+      rut: ANA_PASSPORT,
+    };
+    const result = applyCrossDayDiff(
+      record(DAY, { discharges: [filedEarlier] }),
+      [{ entry: anaDischarge(), patient: anaPatient() }],
+      crossDayContext
+    );
+
+    expect(result.applied).toBe(0);
+    expect(result.record.discharges).toEqual([filedEarlier]);
+  });
+
   it('still recognises the same RUT written in two formats as one patient', () => {
     const result = applyCrossDayDiff(
       record(DAY, { discharges: [brunoDischarge()] }),
