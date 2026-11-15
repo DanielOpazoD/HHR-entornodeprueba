@@ -11,6 +11,16 @@ import type {
   EgresoLookupTarget,
 } from '@/features/rayen-import/contracts/egresoLookup';
 import type { RayenCensusSnapshot } from '@/features/rayen-import/contracts/rayenSnapshot';
+import '../../../extension/clinical-day-runtime.js';
+import '../../../extension/gestion-camas-egreso-lookup.js';
+
+const extensionTargets = (
+  globalThis as typeof globalThis & {
+    HhrGestionCamasEgresoLookup: {
+      normalizeTargets: (runs: unknown[], targets: unknown[]) => EgresoLookupTarget[];
+    };
+  }
+).HhrGestionCamasEgresoLookup;
 
 const now = new Date('2026-10-03T02:00:00Z'); // Still October 2 in Rapa Nui.
 const patient = {
@@ -48,6 +58,17 @@ const result: EgresoLookupResult = {
     isDead: false,
   },
 };
+/** Gestión de Camas holds `discharged` episodes; the extension echoes each document without letters. */
+const extensionLookup =
+  (discharged: Record<string, number>) =>
+  async (targets: Array<string | EgresoLookupTarget>): Promise<EgresoLookupResult[]> =>
+    extensionTargets.normalizeTargets([], targets).map(({ run, encounterId }) => ({
+      run,
+      encounterId,
+      egreso: discharged[encounterId]
+        ? { ...result.egreso, id: discharged[encounterId] }
+        : undefined,
+    }));
 const fixture = () => {
   const previous: DailyRecord = { ...record('2026-10-01'), beds: { H6C2: { ...patient } } };
   const lookupEgresos = vi.fn(async (targets: Array<string | EgresoLookupTarget>) =>
@@ -111,22 +132,49 @@ const apply = (
   }).record;
 
 describe('D-1 departure absent from both live census and bulk report', () => {
-  it.each(['E9876543', 'F9876543'])(
-    'retains the passport prefix when verifying an exact D-1 discharge: %s',
-    async returnedIdentifier => {
-      const { previous } = fixture();
-      const diff = createEmptyCensusImportDiff(true);
-      previous.beds.H6C2 = { ...patient, rut: 'E9876543', documentType: 'Pasaporte' };
-      const rows = await recoverPreviousCensusDischarges(
-        previous,
-        record(),
-        diff,
-        snapshot,
-        async () => [{ ...result, run: returnedIdentifier }]
-      );
-      expect(rows).toHaveLength(returnedIdentifier === 'E9876543' ? 1 : 0);
+  it.each(['P123456785', '1234567A', '12A3456785'])(
+    'recovers a passport holder through the letterless echo of the exact episode: %s',
+    async passport => {
+      const { prepare, lookupEgresos, previous } = fixture();
+      previous.beds.H6C2 = { ...patient, rut: passport, documentType: 'Pasaporte' };
+      lookupEgresos.mockImplementation(extensionLookup({ 1001: 1001 }));
+      const current = record();
+      const { diff } = await prepare(current);
+      expect(diff.conflicts).toEqual([]);
+      const applied = apply(current, diff);
+      expect(applied.discharges).toEqual([
+        expect.objectContaining({ clinicalEpisodeId: '1001', rut: passport, time: '15:10' }),
+      ]);
     }
   );
+
+  it('never gives the passport holder the discharge of the RUT its digits form', async () => {
+    const { prepare, lookupEgresos, previous } = fixture();
+    const other = { ...patient, bedId: 'H6C3', patientName: 'Otra Persona', rut: '12.345.678-5' };
+    previous.beds.H6C2 = { ...patient, rut: 'P123456785', documentType: 'Pasaporte' };
+    previous.beds.H6C3 = { ...other, clinicalEpisodeId: '2002' };
+    lookupEgresos.mockImplementation(extensionLookup({ 2002: 2002 }));
+    const current = record();
+    current.beds.H6C3 = { ...EMPTY_PATIENT, bedId: 'H6C3' };
+    const applied = apply(current, (await prepare(current)).diff);
+    expect(applied.discharges).toEqual([
+      expect.objectContaining({ clinicalEpisodeId: '2002', rut: '12.345.678-5' }),
+    ]);
+  });
+
+  it('does not recover a passport holder by document when the answer has no episode', async () => {
+    const { previous } = fixture();
+    previous.beds.H6C2 = { ...patient, rut: 'P123456785', documentType: 'Pasaporte' };
+    const lookup = extensionLookup({ 1001: 1001 });
+    const rows = await recoverPreviousCensusDischarges(
+      previous,
+      record(),
+      createEmptyCensusImportDiff(true),
+      snapshot,
+      async targets => (await lookup(targets)).map(answer => ({ ...answer, encounterId: '' }))
+    );
+    expect(rows).toEqual([]);
+  });
 
   it('recovers an official discharge after manual bed clearing', async () => {
     const { prepare, lookupEgresos } = fixture();
