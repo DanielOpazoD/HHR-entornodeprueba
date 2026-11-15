@@ -1,9 +1,7 @@
 import { ErrorLog, ErrorSeverity, LogLevel } from '@/services/logging/errorLogTypes';
 import {
   buildErrorLog,
-  buildRetryDelayMs,
   classifyErrorForService,
-  DEFAULT_RETRY_CONFIG,
   getFirebaseErrorSeverity,
   getUserFriendlyErrorMessage as getUserFriendlyErrorMessageFromController,
   isRetryableError as isRetryableErrorFromController,
@@ -20,51 +18,6 @@ export type { ErrorLog, ErrorSeverity, LogLevel, RetryConfig };
 // ============================================================================
 // Retry Logic Utility
 // ============================================================================
-
-/**
- * Wraps an async function with exponential backoff retry logic.
- * Useful for Firestore operations that may fail due to network issues.
- *
- * @example
- * const result = await withRetry(() => saveToFirestore(data), {
- *   maxRetries: 3,
- *   onRetry: (attempt, error) => console.debug(`Retry ${attempt}...`)
- * });
- */
-export async function withRetry<T>(
-  fn: () => Promise<T>,
-  options: {
-    config?: Partial<RetryConfig>;
-    onRetry?: (attempt: number, error: unknown) => void;
-  } = {}
-): Promise<T> {
-  const config = { ...DEFAULT_RETRY_CONFIG, ...options.config };
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= config.maxRetries + 1; attempt++) {
-    try {
-      return await fn();
-    } catch (error: unknown) {
-      lastError = error;
-
-      // Check if error is retryable
-      const isRetryable = isRetryableErrorFromController(error, config.retryableErrors);
-
-      if (!isRetryable || attempt > config.maxRetries) {
-        throw error;
-      }
-
-      // Calculate delay with exponential backoff + jitter
-      const delay = buildRetryDelayMs(attempt, config);
-
-      options.onRetry?.(attempt, error);
-
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-
-  throw lastError;
-}
 
 /**
  * Check if an error is retryable based on its code

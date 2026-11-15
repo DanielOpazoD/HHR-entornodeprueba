@@ -40,12 +40,6 @@ export const DEFAULT_RETRY_CONFIG: RetryConfig = {
 
 const buildErrorId = (): string => `err_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 
-export const buildRetryDelayMs = (
-  attempt: number,
-  config: Pick<RetryConfig, 'baseDelayMs' | 'maxDelayMs'>
-): number =>
-  Math.min(config.baseDelayMs * Math.pow(2, attempt - 1) + Math.random() * 100, config.maxDelayMs);
-
 export const isRetryableError = (
   error: unknown,
   retryableErrors: string[] = DEFAULT_RETRY_CONFIG.retryableErrors

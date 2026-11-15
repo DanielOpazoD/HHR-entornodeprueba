@@ -3,14 +3,9 @@ import type { AuthUser } from '@/types/authRoleTypes';
 import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import type {
   MedicalHandoffActor,
-  MedicalHandoffDailyContinuityEntry,
   MedicalSpecialty,
   MedicalSpecialtyHandoffNote,
 } from '@/types/domain/dailyRecordMedicalHandoff';
-import {
-  canEditMedicalHandoffForDate,
-  canManageAllMedicalSpecialties,
-} from '@/shared/access/operationalAccessPolicy';
 import { getMedicalSpecialtyContinuityHint } from '@/shared/handoff/handoffPresentation';
 
 export const MEDICAL_SPECIALTY_ORDER: readonly MedicalSpecialty[] = [
@@ -67,37 +62,6 @@ export const resolveMedicalSpecialtyDailyStatus = (
   if (continuity?.status === 'updated_by_specialist') return 'updated_by_specialist';
 
   return 'pending';
-};
-
-export const resolveEditableMedicalSpecialties = (
-  user: AuthUser | null | undefined,
-  role: string | undefined,
-  options?: {
-    readOnly?: boolean;
-    recordDate?: string;
-    todayISO?: string;
-  }
-): MedicalSpecialty[] => {
-  if (
-    !canEditMedicalHandoffForDate({
-      role,
-      readOnly: options?.readOnly ?? false,
-      recordDate: options?.recordDate,
-      todayISO: options?.todayISO,
-    })
-  ) {
-    return [];
-  }
-
-  const claimedSpecialties = (user?.medicalSpecialties || []).filter(
-    (value): value is MedicalSpecialty =>
-      MEDICAL_SPECIALTY_ORDER.includes(value as MedicalSpecialty)
-  );
-
-  if (claimedSpecialties.length > 0) return claimedSpecialties;
-  if (canManageAllMedicalSpecialties(role)) return [...MEDICAL_SPECIALTY_ORDER];
-
-  return [];
 };
 
 export const canConfirmMedicalSpecialtyNoChanges = (role: string | undefined): boolean =>
@@ -223,19 +187,6 @@ export interface PrintableMedicalSpecialtyBlock {
   continuityComment?: string;
 }
 
-export interface MedicalSpecialtySectionViewModel {
-  tabStates: MedicalSpecialtyTabState[];
-  resolvedActiveSpecialty: MedicalSpecialty;
-  activeNote: MedicalSpecialtyHandoffNote | undefined;
-  activeStatus: MedicalSpecialtyDailyStatus;
-  activeContinuity: MedicalHandoffDailyContinuityEntry | undefined;
-  canEditActiveSpecialty: boolean;
-  activeContinuityDraft: string;
-  hasSpecialtyData: boolean;
-  printableBlocks: PrintableMedicalSpecialtyBlock[];
-  continuityEditorState: ReturnType<typeof resolveMedicalSpecialtyContinuityEditorState>;
-}
-
 export const buildPrintableMedicalSpecialtyBlocks = (
   record: Pick<HandoffDailyRecordContract, 'date' | 'medicalHandoffBySpecialty'>
 ): PrintableMedicalSpecialtyBlock[] =>
@@ -262,57 +213,6 @@ export const buildPrintableMedicalSpecialtyBlocks = (
       },
     ];
   });
-
-export const buildMedicalSpecialtySectionViewModel = ({
-  record,
-  role,
-  readOnly,
-  activeSpecialty,
-  editableSpecialties,
-  continuityDrafts,
-}: {
-  record: Pick<HandoffDailyRecordContract, 'date' | 'medicalHandoffBySpecialty'>;
-  role?: string;
-  readOnly: boolean;
-  activeSpecialty: MedicalSpecialty;
-  editableSpecialties: MedicalSpecialty[];
-  continuityDrafts: Partial<Record<MedicalSpecialty, string>>;
-}): MedicalSpecialtySectionViewModel => {
-  const resolvedActiveSpecialty = resolveActiveMedicalSpecialty({
-    activeSpecialty,
-    editableSpecialties,
-  });
-  const activeNote = getMedicalSpecialtyNote(record, resolvedActiveSpecialty);
-  const activeStatus = resolveMedicalSpecialtyDailyStatus(activeNote, record.date);
-
-  return {
-    tabStates: buildMedicalSpecialtyTabsState({
-      record,
-      dateKey: record.date,
-      editableSpecialties,
-      readOnly,
-      activeSpecialty: resolvedActiveSpecialty,
-    }),
-    resolvedActiveSpecialty,
-    activeNote,
-    activeStatus,
-    activeContinuity: activeNote?.dailyContinuity?.[record.date],
-    canEditActiveSpecialty: !readOnly && editableSpecialties.includes(resolvedActiveSpecialty),
-    activeContinuityDraft: resolveMedicalSpecialtyContinuityDraft({
-      drafts: continuityDrafts,
-      specialty: resolvedActiveSpecialty,
-      note: activeNote,
-      dateKey: record.date,
-    }),
-    hasSpecialtyData: hasMedicalSpecialtyStructuredData(record),
-    printableBlocks: buildPrintableMedicalSpecialtyBlocks(record),
-    continuityEditorState: resolveMedicalSpecialtyContinuityEditorState({
-      role,
-      readOnly,
-      activeStatus,
-    }),
-  };
-};
 
 const buildSpecialtySummaryBlock = (
   specialty: MedicalSpecialty,

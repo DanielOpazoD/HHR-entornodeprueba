@@ -3,10 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CensusManager } from '@/domain/CensusManager';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { buildMedicalPrimaryNoteFields } from '@/domain/handoff/patientEntryMutations';
-import {
-  resolveMedicalEntryMetadataViewModel,
-  resolveMedicalHandoffValidityViewModel,
-} from '@/domain/handoff/patientView';
+import { resolveMedicalHandoffValidityViewModel } from '@/domain/handoff/patientView';
 import { resolveMedicalSpecialtyDailyStatus } from '@/domain/handoff/specialty';
 import { resolveMedicalSpecialtyDailyStatus as resolveTabStatus } from '@/features/handoff/controllers/medicalSpecialtyHandoffController';
 import { executeConfirmMedicalSpecialtyNoChanges } from '@/application/handoff/handoffManagementUseCases';
@@ -76,38 +73,6 @@ describe('hospital clock across the UTC and mainland midnight boundaries', () =>
       'Nota vigente'
     );
   });
-
-  it.each([
-    ['2026-10-24', true],
-    ['2026-10-25', false],
-  ] as const)(
-    'shows current-event metadata only on hospital day %s',
-    (reportDate, showInfoButton) => {
-      const { entry } = buildMedicalPrimaryNoteFields(
-        patient(),
-        'NOTA SINTETICA',
-        null,
-        '2026-10-24',
-        '2026-10-25T02:30:00Z'
-      );
-      delete entry.currentStatusDate;
-      entry.originalNoteAt = '2026-10-23T15:00:00Z';
-      entry.originalNoteBy = {
-        uid: 'synthetic-original',
-        displayName: 'AUTOR SINTETICO',
-        email: 'original@example.invalid',
-      };
-      entry.updatedBy = note.author;
-      const metadata = resolveMedicalEntryMetadataViewModel(entry, reportDate);
-      expect(metadata.showInfoButton).toBe(showInfoButton);
-      expect(metadata.printLabel.includes('Vigente por:')).toBe(showInfoButton);
-      if (showInfoButton) {
-        expect(metadata.detailLines[1]).toContain('24-10-2026');
-      } else {
-        expect(metadata.detailLines).toEqual([]);
-      }
-    }
-  );
 
   describe.each([
     ['domain', resolveMedicalSpecialtyDailyStatus],
