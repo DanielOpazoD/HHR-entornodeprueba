@@ -183,7 +183,7 @@ describe('replanRayenStructure', () => {
     const initial = await replanRayenStructure(makeRecord({}), evidence, dependencies);
     expect(initial.admissions).toHaveLength(1);
 
-    const mapped = rayenToPatientData(encounter, new Date(2026, 6, 28));
+    const mapped = rayenToPatientData(encounter, new Date('2026-07-28T12:00:00-06:00'));
     const fresh = await replanRayenStructure(
       makeRecord({ [mapped.bedId ?? 'H1C2']: mapped.patient }),
       evidence,
@@ -196,7 +196,7 @@ describe('replanRayenStructure', () => {
   });
 
   it('re-evaluates conflicts instead of carrying conflicts from an obsolete HHR revision', async () => {
-    const occupied = rayenToPatientData(encounter, new Date(2026, 6, 28));
+    const occupied = rayenToPatientData(encounter, new Date('2026-07-28T12:00:00-06:00'));
     const evidence = {
       sourceSnapshot: snapshot,
       egresoRows: [],

@@ -8,7 +8,7 @@ import {
 } from '@/features/rayen-import';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
-const reference = new Date(2026, 6, 24);
+const reference = new Date('2026-07-24T12:00:00-06:00');
 const encounter: RayenEncounter = {
   encounterId: '142040',
   run: '111111111',
