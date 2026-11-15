@@ -12,6 +12,8 @@ import {
   isSameDocument,
   normalizeRut,
   documentIdentityKey,
+  documentKeyBeforeLetterRule,
+  isSameDocumentBeforeLetterRule,
 } from '@/utils/rutUtils';
 
 describe('rutUtils', () => {
@@ -227,5 +229,51 @@ describe('documentIdentityKey', () => {
   it('gives no key to a value without digits, so markers never group two people', () => {
     for (const marker of [undefined, '', ' ', ' .- ', 'SIN RUT', 'S/R', 's/n', 'RN', 'K', 'k'])
       expect({ marker, key: documentIdentityKey(marker) }).toEqual({ marker, key: '' });
+  });
+});
+
+describe('isSameDocumentBeforeLetterRule, the discharge report comparison', () => {
+  it('never matches a passport HHR always read as one with the RUT of its digits', () => {
+    expect(isSameDocumentBeforeLetterRule('P123456785', '12.345.678-5')).toBe(false);
+    expect(isSameDocumentBeforeLetterRule('12.345.678-5', 'AB12345')).toBe(false);
+    expect(isSameDocumentBeforeLetterRule('P123456785', ' p-123.456785 ')).toBe(true);
+  });
+
+  it('keeps the digit reading for everything else, as before the letter rule', () => {
+    const corpus = [
+      '12.345.678-5',
+      '123456785',
+      '12.345.678-K',
+      '12345678k',
+      '123K45678',
+      '1234567A',
+      '123.456-7',
+      '12A3456785',
+      'P123456785',
+      'p-123456785',
+      'AB12345',
+      '',
+      'SIN RUT',
+      'RN',
+    ];
+    for (const left of corpus)
+      for (const right of corpus) {
+        const alwaysPassport =
+          /\d/.test(left) &&
+          /\d/.test(right) &&
+          (hasPassportShapeBeforeLetterRule(left) || hasPassportShapeBeforeLetterRule(right));
+        expect({ left, right, equal: isSameDocumentBeforeLetterRule(left, right) }).toEqual({
+          left,
+          right,
+          equal: alwaysPassport
+            ? isSameDocument(left, right)
+            : normalizeRut(left) === normalizeRut(right),
+        });
+        expect({
+          left,
+          right,
+          equal: documentKeyBeforeLetterRule(left) === documentKeyBeforeLetterRule(right),
+        }).toEqual({ left, right, equal: isSameDocumentBeforeLetterRule(left, right) });
+      }
   });
 });
