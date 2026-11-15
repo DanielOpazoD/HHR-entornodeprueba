@@ -2,10 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   mapPatientToFhir,
   mapEncounterToFhir,
-  mapRecordToFhirBundle,
   mapMasterPatientToFhir,
 } from '@/services/utils/fhirMappers';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { FhirResource } from '@/types/domain/fhir';
 import type { PatientData } from '@/types/domain/patient';
 import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
@@ -22,11 +20,6 @@ interface FhirEncounter extends FhirResource {
   status?: string;
   class: { code: string; system?: string; display?: string };
   subject: { identifier: { value: string; system?: string } };
-}
-
-interface FhirBundle extends FhirResource {
-  type: string;
-  entry?: Array<{ fullUrl: string; resource: FhirResource }>;
 }
 
 describe('FhirMappingService', () => {
@@ -91,25 +84,5 @@ describe('FhirMappingService', () => {
     expect(fhirPatient.name![0].given).toContain('MARIA');
     expect(fhirPatient.gender).toBe('female');
     expect(fhirPatient.birthDate).toBe('1990-05-20');
-  });
-
-  it('should create a FHIR Bundle from a DailyRecord', () => {
-    const mockRecord: DailyRecord = {
-      date: '2023-12-28',
-      beds: { 'bed-1': mockPatient },
-      discharges: [],
-      transfers: [],
-      cma: [],
-      lastUpdated: '2023-12-28T00:00:00.000Z',
-      nurses: [],
-      activeExtraBeds: [],
-    };
-
-    const bundle = mapRecordToFhirBundle(mockRecord) as FhirBundle;
-    expect(bundle.resourceType).toBe('Bundle');
-    expect(bundle.type).toBe('transaction');
-    expect(bundle.entry).toBeDefined();
-    // Since entries are mapped as [Patient, Encounter], we expect 2
-    expect(bundle.entry!.length).toBe(2);
   });
 });

@@ -202,36 +202,3 @@ export function mapEncounterToFhir(patient: PatientData, hospitalId: string): Fh
       : [],
   };
 }
-
-/**
- * Maps an entire DailyRecord to a FHIR Bundle (collection of resources)
- */
-export function mapRecordToFhirBundle(record: {
-  date: string;
-  beds: Record<string, PatientData>;
-}): FhirResource {
-  const entries = Object.values(record.beds)
-    .filter(p => p.patientName && p.patientName.trim())
-    .flatMap(patient => {
-      const fhirPatient = mapPatientToFhir(patient);
-      const fhirEncounter = mapEncounterToFhir(patient, 'hanga_roa');
-
-      return [
-        {
-          fullUrl: `urn:uuid:${fhirPatient.id}`,
-          resource: fhirPatient,
-        },
-        {
-          fullUrl: `urn:uuid:${fhirEncounter.id}`,
-          resource: fhirEncounter,
-        },
-      ];
-    });
-
-  return {
-    resourceType: 'Bundle',
-    type: 'transaction',
-    timestamp: new Date().toISOString(),
-    entry: entries,
-  };
-}
