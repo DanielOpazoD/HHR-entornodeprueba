@@ -302,8 +302,9 @@ formal generada desde un worktree sucio, reportes stale, signoff clínico incomp
 smoke visual clínico faltante y un riesgo de pruebas inestables (`flakeRisk` de
 `system-confidence`) mayor que cero o sin medir. Ese riesgo cuenta los archivos de prueba que
 fallaron o necesitaron un reintento en `reports/test-execution-manifest.json` del mismo commit;
-sin ese manifiesto queda «sin medir», nunca en cero. Si falla por flake-risk, corregir el test
-nombrado antes de repetir `ci:release-gate`.
+sin ese manifiesto completo (todas sus suites requeridas y sin problemas registrados) queda «sin
+medir», nunca en cero. Si falla por flake-risk, corregir el test nombrado antes de repetir
+`ci:release-gate`.
 
 ### `test:release-confidence`
 
@@ -777,11 +778,19 @@ errores sin copiar sus mensajes o posibles datos sensibles al diagnóstico.
 El riesgo de pruebas inestables (`flakeRisk` en `system-confidence`) cuenta los archivos
 de prueba que fallaron o pasaron solo tras un reintento en el manifiesto de ejecución de la
 misma corrida; `final-confidence-and-readiness` lo descarga de `test-execution-manifest`.
-Sin manifiesto del commit, el indicador queda degradado como «sin medir». La lista
-`clockSignalFiles` de `quality-metrics` (pruebas con reloj, aleatoriedad o temporizadores
-sin temporizadores falsos) es solo informativa y no degrada ningún informe. Un reintento
-manual de un job reemplaza su evidencia en el manifiesto, así que esa corrida también queda
-«sin medir»; el fallo del intento anterior se consulta con `npm run report:ci-reruns`. Se retiró `seedPersistedBedFields`, sin consumidores después de
+El indicador queda degradado como «sin medir», nunca en cero, si falta el manifiesto del
+commit, si le falta alguna de sus `requiredCiSuites`, si registra problemas (`issues`) o si
+el job de informes corre en un intento mayor que 1 (`GITHUB_RUN_ATTEMPT`). Esto último
+cubre el reintento de un job que no regenera el manifiesto, como preview smoke; el fallo
+del intento anterior se consulta con `npm run report:ci-reruns`. El informe nombra en una
+línea las pruebas de CI que esta cuenta no mide: preview smoke, rendimiento del censo,
+cobertura crítica, `clinical-sync-release-gate`, suites de emulador, pasos E2E adicionales
+y pruebas de scripts. `postmerge-evidence` no descarga el manifiesto, así que sus informes
+de `main` quedan «sin medir». La lista `clockSignalFiles` de `quality-metrics` (pruebas con
+reloj, aleatoriedad o temporizadores sin temporizadores falsos) es solo informativa y no
+degrada ningún informe.
+
+Se retiró `seedPersistedBedFields`, sin consumidores después de
 corregir los E2E de reconexión; las pruebas deben preparar su estado inicial y luego
 observar el guardado de la aplicación.
 

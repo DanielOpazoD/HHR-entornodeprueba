@@ -6,6 +6,7 @@ import { formatWorktreeState, getGitReportState } from './gitReportState.mjs';
 import { buildEvidenceProvenance } from './evidenceProvenanceSupport.mjs';
 import {
   TEST_EXECUTION_MANIFEST,
+  TEST_RUNS_OUTSIDE_MANIFEST,
   formatFlakeRiskSummary,
   readMeasuredFlakeRisk,
 } from './measuredFlakeRiskSupport.mjs';
@@ -32,7 +33,13 @@ const criticalCoverageReport = readOptionalJson('reports/critical-coverage.json'
 const operationalHealth = operationalHealthReport.data;
 const criticalCoverage = criticalCoverageReport.data;
 const gitState = getGitReportState(ROOT);
-const flakeRisk = readMeasuredFlakeRisk(ROOT, gitState.gitSha);
+const flakeRisk = {
+  ...readMeasuredFlakeRisk(ROOT, {
+    gitSha: gitState.gitSha,
+    runAttempt: process.env.GITHUB_RUN_ATTEMPT,
+  }),
+  notMeasured: TEST_RUNS_OUTSIDE_MANIFEST,
+};
 
 const indicators = [
   {
@@ -149,14 +156,13 @@ const markdown = [
   '',
   '## Flake risk',
   '',
-  ...(flakeRisk.measured
-    ? [
-        `- Test files that failed or needed a retry in this run: ${flakeRisk.fileCount} (suites: ${flakeRisk.suites.join(', ')})`,
-        ...flakeRisk.files.map(
-          entry => `  - ${entry.file}: failed=${entry.failed}, retried=${entry.retried}`
-        ),
-      ]
-    : [`- Unmeasured: ${flakeRisk.reason}`]),
+  flakeRisk.measured
+    ? `- Test files that failed or needed a retry in this run: ${flakeRisk.fileCount} (suites: ${flakeRisk.suites.join(', ')})`
+    : `- Unmeasured: ${flakeRisk.reason}`,
+  ...flakeRisk.files.map(
+    entry => `  - ${entry.file}: failed=${entry.failed}, retried=${entry.retried}`
+  ),
+  `- Not measured by this count (outside the manifest): ${flakeRisk.notMeasured.join(', ')}`,
   '',
 ];
 
