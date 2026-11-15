@@ -549,7 +549,9 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       await configure('production');
       unreadablePolicy();
       const results = await race({ 'beds.R1.pathology': 'A' }, { 'beds.R1.pathology': 'B' });
-      expect(calls.patch).toBe(2);
+      // The winner goes through the authority; the loser is refused by whichever version check
+      // sees the winner's write first: its own before the fallback, or the authority's.
+      expect(calls.patch).toBeGreaterThan(0);
       expect(results.filter(item => item.status === 'fulfilled')).toHaveLength(1);
       expect(results.filter(item => item.status === 'rejected')).toHaveLength(1);
       expect((await read()).beds.R1.pathology).toBe(results[0].status === 'fulfilled' ? 'A' : 'B');

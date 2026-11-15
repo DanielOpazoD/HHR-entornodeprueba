@@ -24,7 +24,7 @@ import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 const { scope, queueControl, transport } = await vi.hoisted(async () => {
   const { AsyncLocalStorage } = await import('node:async_hooks');
   return {
-    transport: { missing: false },
+    transport: { reject: '', attempts: 0, transactionFailures: 0, transactionAttempts: 0 },
     queueControl: { online: false },
     scope: new AsyncLocalStorage<{ db: unknown; uid: string; role: string }>(),
   };
@@ -33,19 +33,29 @@ vi.mock('firebase/firestore', async importOriginal => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();
   return {
     ...actual,
+    // Fails the real transaction's attempts as the SDK does for a transient RPC or token error.
+    runTransaction: <T>(
+      db: Parameters<typeof actual.runTransaction>[0],
+      callback: (transaction: import('firebase/firestore').Transaction) => Promise<T>,
+      options?: Parameters<typeof actual.runTransaction>[2]
+    ) =>
+      actual.runTransaction(
+        db,
+        async transaction => {
+          transport.transactionAttempts++;
+          if (transport.transactionFailures-- > 0) {
+            const { FirebaseError } = await import('firebase/app');
+            throw new FirebaseError('unknown', 'Synthetic transient backend error');
+          }
+          return callback(transaction);
+        },
+        options
+      ),
     updateDoc: (...args: Parameters<typeof actual.updateDoc>) => {
-      if (transport.missing) return Promise.reject({ code: 'not-found' });
+      transport.attempts++;
+      if (transport.reject) return Promise.reject({ code: transport.reject });
       return actual.updateDoc(...args);
     },
-  };
-});
-// Same attempts, no backoff wait: rejected writes spent over half of this file's ~6 CI minutes asleep.
-vi.mock('@/utils/networkUtils', async importOriginal => {
-  const actual = await importOriginal<typeof import('@/utils/networkUtils')>();
-  return {
-    ...actual,
-    withRetry: <T>(fn: () => Promise<T>, options?: Parameters<typeof actual.withRetry>[1]) =>
-      actual.withRetry(fn, { ...options, initialDelay: 0, maxDelay: 0 }),
   };
 });
 vi.mock('@/firebaseConfig', () => ({
@@ -223,7 +233,10 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   });
   beforeEach(async () => {
     queueControl.online = false;
-    transport.missing = false;
+    transport.reject = '';
+    transport.attempts = 0;
+    transport.transactionFailures = 0;
+    transport.transactionAttempts = 0;
     await env.clearFirestore();
     // Isolated fake IndexedDB only; never operate on a browser's real outbox.
     await hospitalDB.dailyRecords.clear();
@@ -334,7 +347,81 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       }
     }
   }
-  it('never creates a partial day when the transport reports not-found', async () => {
+  // Waiting cannot make a missing day, a denial or a malformed write succeed; only a network
+  // failure is retried with backoff. The denial still gets its one role refresh and retry.
+  for (const [code, attempts] of [
+    ['not-found', 1],
+    ['invalid-argument', 1],
+    ['permission-denied', 2],
+    ['unavailable', 4],
+  ] as const) {
+    it(`a ${code} direct write fails after ${attempts} attempt(s) and stays queued`, async () => {
+      clients.B = {
+        uid: 'synthetic-B',
+        role: 'nurse_hospital',
+        db: env
+          .authenticatedContext('synthetic-B', {
+            email: 'synthetic@example.invalid',
+            role: 'nurse_hospital',
+          })
+          .firestore(),
+      };
+      transport.reject = code;
+      await expect(patch('B', { handoffNovedadesDayShift: 'EDITADO' })).rejects.toMatchObject({
+        code,
+      });
+      expect(transport.attempts).toBe(attempts);
+      expect((await admin.doc(dayPath).get()).data()).toBeUndefined();
+      if (code === 'unavailable') return;
+
+      transport.attempts = 0;
+      await hospitalDB.dailyRecords.put(baseRecord());
+      const result = await actor('B', () =>
+        updatePartialDetailed(
+          date,
+          { handoffNovedadesDayShift: 'EDITADO' },
+          { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
+        )
+      );
+      expect(transport.attempts).toBe(attempts);
+      expect(result).toMatchObject({ savedLocally: true, updatedRemotely: false });
+      expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
+        { status: 'PENDING', payload: { date, handoffNovedadesDayShift: 'EDITADO' } },
+      ]);
+    });
+  }
+  it('a write the rules deny is not retried with backoff on the atomic paths', async () => {
+    clients.B = {
+      uid: 'synthetic-B',
+      role: 'doctor_urgency',
+      db: env
+        .authenticatedContext('synthetic-B', {
+          email: 'synthetic@example.invalid',
+          role: 'doctor_urgency',
+        })
+        .firestore(),
+    };
+    await admin.doc(dayPath).set(baseRecord());
+    const save = guards.saveRecordAtomically;
+    let saves = 0;
+    vi.spyOn(guards, 'saveRecordAtomically').mockImplementation(async (...args) => {
+      saves++;
+      return save(...args);
+    });
+
+    await expect(patch('B', { nursesDayShift: ['ENFERMERA NUEVA', ''] })).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    await expect(
+      actor('B', () => writes.saveRecordToFirestore(baseRecord(), baseRecord().lastUpdated))
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    // One attempt, then one more after the role refresh: the recovery that can succeed.
+    expect({ staffing: calls.transaction, save: saves }).toEqual({ staffing: 2, save: 2 });
+    expect((await admin.doc(dayPath).get()).data()?.nursesDayShift).toEqual(
+      baseRecord().nursesDayShift
+    );
+  });
+  it('a transient SDK error that outlasts the transaction retries is still saved', async () => {
     clients.B = {
       uid: 'synthetic-B',
       role: 'nurse_hospital',
@@ -345,14 +432,14 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         })
         .firestore(),
     };
-    transport.missing = true;
-    const result = await patch('B', { handoffNovedadesDayShift: 'EDITADO' }).then(
-      () => 'accepted',
-      () => 'rejected'
-    );
-    const remote = (await admin.doc(dayPath).get()).data();
-    console.log('Missing-target transport result', { result, remote });
-    expect(remote).toBeUndefined();
-    expect(result).toBe('rejected');
+    await admin.doc(dayPath).set(baseRecord());
+    // The SDK makes five attempts of its own; only the outer retry reaches the sixth.
+    transport.transactionFailures = 5;
+    await patch('B', { nursesDayShift: ['ENFERMERA NUEVA', ''] });
+    expect(transport.transactionAttempts).toBe(6);
+    expect((await admin.doc(dayPath).get()).data()?.nursesDayShift).toEqual([
+      'ENFERMERA NUEVA',
+      '',
+    ]);
   });
 });
