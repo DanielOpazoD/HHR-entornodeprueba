@@ -12,7 +12,7 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDateStrict: mocks.getLocal,
 }));
 
-vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
+vi.mock('@/services/repositories/dailyRecordBackupImportWriteService', () => ({
   saveBackupImport: async (records: unknown[]) => {
     if (!records.length) return [];
     const result = await mocks.saveMany(records);

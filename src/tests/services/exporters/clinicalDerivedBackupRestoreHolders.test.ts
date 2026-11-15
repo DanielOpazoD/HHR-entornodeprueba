@@ -28,6 +28,8 @@ vi.mock('@/services/admin/utils/auditUtils', () => ({
 import { importRecordsFromBackup } from '@/services/admin/dataMaintenanceService';
 vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
   saveDetailed: mocks.saveRemote,
+}));
+vi.mock('@/services/repositories/dailyRecordBackupImportWriteService', () => ({
   saveBackupImport: async (records: unknown[]) => {
     if (!records.length) return [];
     const result = await mocks.saveMany(records);

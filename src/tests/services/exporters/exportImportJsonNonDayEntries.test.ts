@@ -5,7 +5,7 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDateStrict: storage.read,
 }));
 
-vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
+vi.mock('@/services/repositories/dailyRecordBackupImportWriteService', () => ({
   saveBackupImport: async (records: unknown[]) => {
     if (!records.length) return [];
     const result = await storage.save(records);

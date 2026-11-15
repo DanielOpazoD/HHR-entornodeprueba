@@ -10,7 +10,7 @@ import {
   importDataCSV,
   importDataCSVWithResult,
 } from '@/services/exporters/exportService';
-import * as backupStorage from '@/services/repositories/dailyRecordRepositoryWriteService';
+import * as backupStorage from '@/services/repositories/dailyRecordBackupImportWriteService';
 import * as recordStorage from '@/services/storage/indexeddb/indexedDbRecordService';
 import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -28,7 +28,7 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', async importOrigi
   };
 });
 
-vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
+vi.mock('@/services/repositories/dailyRecordBackupImportWriteService', () => ({
   saveBackupImport: vi.fn(async () => []),
 }));
 

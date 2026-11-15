@@ -17,7 +17,7 @@ vi.mock('@/services/exporters/clinicalDerivedBackupRestore', () => {
   throw new Error('synthetic chunk load failure');
 });
 
-vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => ({
+vi.mock('@/services/repositories/dailyRecordBackupImportWriteService', () => ({
   saveBackupImport: async (records: unknown[]) => {
     if (!records.length) return [];
     const result = await mocks.saveMany(records);
