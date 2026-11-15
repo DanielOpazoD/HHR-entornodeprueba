@@ -83,6 +83,18 @@ Los registros anteriores no contienen este marcador: no es posible atribuir retr
 edición manual sólo a partir del texto. Las pruebas acreditan la protección de las ediciones realizadas
 con esta versión; no acreditan una migración de autoría de diagnósticos históricos.
 
+### Documentos con letras (ID-01)
+
+Un pasaporte nunca se convierte en RUT ni se compara como RUT. Un documento de Eloísa con una
+letra que no sea la K final es un pasaporte y se guarda como tal en los casos nuevos; un paciente
+ya guardado conserva su documento.
+
+### Nombres del personal
+
+En los catálogos de enfermería y TENS, las variantes que solo difieren en tildes, diéresis, ñ,
+mayúsculas o espacios son una persona. Se conserva la forma con más diacríticos y, en empate, la
+ya catalogada. La presentación no reescribe turnos históricos.
+
 ## Fechas y población del censo
 
 | ID      | Comportamiento esperado                                                                                                                                                                                                                                | Por qué                                                                                                                        |
@@ -110,6 +122,26 @@ El contrato de campos procede de los módulos públicos 21622 y 55326 de Eloísa
 `outputQuantity` (negativo en el editor de egresos). El episodio inspeccionado no
 tenía movimientos de balance; por ello sólo se aceptan instantes con desfase explícito.
 Un `regDatetime` sin zona requiere verificar su semántica antes de habilitarlo.
+
+### Exámenes del censo
+
+La actualización de exámenes del censo muestra su período y permite Desde/Hasta explícitos,
+independientes del día censal. Cambiar el filtro conserva informes y revisiones.
+
+### Dispositivos de Eloísa
+
+Un dispositivo de Eloísa se considera retirado cuando deja de aparecer en una lectura JSON
+correcta del día; su fecha de vencimiento no indica nada. Lo manual no se retira, y lo que
+enfermería editó sigue retirado aunque Eloísa vuelva a listarlo.
+
+### Reloj del hospital (TIME-02)
+
+«Hoy», la hora y el turno salen del reloj del hospital, Pacific/Easter
+(`src/utils/clinicalTimeZone.ts`), también para el año, el mes y el día; nunca del reloj del
+computador. No se corta un instante ISO para obtener una fecha u hora ni se extrae con regex la
+hora ignorando su desfase: se convierte a Rapa Nui. Una hora continental se convierte; nunca se
+lee su reloj ignorando el desfase. Las excepciones locales sin desfase llevan su motivo en la
+línea anterior.
 
 ### Zona horaria de cada fuente de Eloísa (TIME-02)
 
@@ -157,6 +189,13 @@ aplicaciones guardadas). Pendiente: la detección de personal todavía lee esas 
 | CUD-09 | Cumplimiento = pacientes-día elegibles con CUDYR / pacientes-día elegibles. Separar personas de pacientes-día y excluir el día abierto del acumulado cerrado.                                                                                                                                   | Evita sumar personas repetidas o penalizar registros aún dentro de ventana.                    |
 | CUD-10 | Separar el día de lectura de Eloísa del censo confirmado que autoriza el guardado. Sincronizar D en la mañana de D+1 conserva la autoridad de D; cada CUDYR se atribuye por su fecha de aplicación al turno correspondiente.                                                                    | Evita rechazos de archivo y desplazar resultados al día de la consulta.                        |
 
+### Quién sincroniza CUDYR
+
+`nurse_hospital` sincroniza CUDYR con las mismas fechas y caminos que `admin`, en la sincronización
+diaria, el reenvío y el archivo mensual. Esto no habilita `setAdminCudyrResult`, que sigue siendo
+solo de administrador, ni otros campos clínicos ni otros roles, y conserva la ventana estructural
+de 48 horas.
+
 ## Guardado y condición oficial
 
 | ID      | Comportamiento esperado                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Por qué                                                                  |
@@ -167,6 +206,58 @@ aplicaciones guardadas). Pendiente: la detección de personal todavía lee esas 
 | OFF-01  | Recuperar un mes no lo aprueba automáticamente. «Oficial» exige población reconstruida, resultados y elegibilidad resueltos, aprobación autorizada y trazabilidad. No significa cumplimiento del 100%.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Se certifica la calidad del cálculo, no que todos tengan CUDYR.          |
 | OFF-02  | Consultar el mes oficial desde su proyección guardada en Firebase y reutilizar su copia local válida. Abrir o navegar no debe volver a consultar Eloísa ni reconstruir el mes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Los datos ya resueltos deben estar disponibles rápidamente.              |
 | OFF-03  | Una corrección documental, de egreso o de elegibilidad relevante exige revisar la vigencia del informe oficial afectado. Una lectura rutinaria no equivale a una corrección.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Mantiene rapidez sin declarar inmutable un informe que realmente cambió. |
+
+### Cola y descarte (SAVE-03)
+
+Ninguna reparación, cierre de sesión o reinicio borra la cola, los parches pendientes ni el
+outbox sin confirmación explícita, y una cola nunca se purga por antigüedad ni por número de
+fallos. Descartar un censo bloqueado conserva un respaldo descargable y no cuenta como guardado
+remoto.
+
+### Lecturas fallidas (SAVE-01)
+
+Una lectura fallida no es «sin datos», tampoco en suscripciones: se conserva lo último conocido y
+el fallo se señala por su canal de error. Una escritura fallida no es «guardado». El control
+`check:empty-on-failure-reads` no admite excepciones heredadas; solo capacidades opcionales del
+navegador, con su motivo junto al retorno.
+
+### Reenvío sin conexión (SAVE-01, SAVE-02)
+
+En el reenvío, solo el valor almacenado acredita un campo ya aplicado; un valor igual por
+hidratación se envía. Las rutas ya aplicadas no generan conflictos por metadatos, y un conflicto
+real conserva la tarea completa sin escritura.
+
+### Decisión manual de especialidad
+
+La decisión manual de especialidad reintenta una vez la lectura local; si sigue fallando, usa solo
+la base explícita del llamador, bajo CAS y confirmación remota obligatorios. Nunca confirma una
+decisión rechazada ni inventa ausencia local.
+
+## Sesión
+
+- Una corrida clínica se detiene si cambia el propietario o la generación de sesión. Conserva lo
+  confirmado y la cola durable; una corrida interrumpida exige una captura nueva, sin reanudación
+  ni avisos de sesión. Al cambiar de sesión solo se recupera la entrega de turno de enfermería;
+  las sincronizaciones salen de Eloísa y se detienen.
+- La edición local en vuelo conserva propietario, base y contexto en reposo, aunque la cola activa
+  siguiente esté llena; revierte la vista sin avisar a la sesión siguiente.
+- El cambio de sesión de Eloísa se observa solo con `onSessionChange` o `useSessionEpoch`
+  (`src/services/storage/sessionStorageTransition.ts`). Nadie escucha el mensaje
+  `HHR_RAYEN_SESSION_CHANGED` en la app: lo que recuerda algo por persona lo olvida ahí, esté o no
+  montado.
+- La atribución del diagnóstico local usa el propietario admitido en memoria por esta pestaña,
+  nunca la clave compartida. Sin admisión no se atribuye; fallar el almacenamiento no interrumpe
+  el envío. Solo el administrador conserva el historial del equipo en Errores locales.
+
+## Avisos y tono
+
+Lo recuperable se resuelve solo y en silencio. Solo se avisa lo que una persona debe resolver: una
+edición que no se guardó y no se recuperará sola, o datos en riesgo.
+
+El cuadro de sincronización y sus diálogos usan un tono sereno: tres niveles (informativo,
+pendiente de revisar, necesita tu acción) desde `syncTone.ts`, sin rojo, naranja ni amarillo de
+alarma y sin palabras de avería para lo que permite seguir trabajando. Solo un envío local
+detenido pide acción. El texto técnico de la fuente solo lo ve el administrador.
 
 ## Ejemplos de aceptación
 
