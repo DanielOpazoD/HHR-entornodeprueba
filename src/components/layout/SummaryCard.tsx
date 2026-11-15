@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Statistics } from '@/types/domain/statistics';
 import { DischargeData, TransferData } from '@/types/domain/movements';
-import { Activity, Bed, Baby } from 'lucide-react';
+import { Activity, Bed } from 'lucide-react';
 import { buildMovementSummaryModel } from '@/components/layout/controllers/movementSummaryController';
 
 interface SummaryCardProps {
@@ -11,109 +11,6 @@ interface SummaryCardProps {
   cmaCount?: number;
   newAdmissions?: number;
 }
-
-/**
- * Common Card Wrapper to maintain consistency with Nurse/Tens selectors
- */
-const BaseSummaryCard: React.FC<{
-  title: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}> = ({ title, icon, children }) => (
-  <div className="rounded-xl border border-slate-200/80 bg-white px-3 py-2 flex flex-col justify-between gap-2 hover:border-slate-300 hover:shadow-sm transition-all min-w-[140px] min-h-[88px] animate-fade-in">
-    <div className="flex justify-between items-center pb-1 border-b border-slate-100">
-      <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-[0.08em] flex items-center gap-1">
-        {icon} {title}
-      </label>
-    </div>
-    {children}
-  </div>
-);
-
-export const BedSummaryCard: React.FC<{ stats: Statistics }> = ({ stats }) => {
-  const capacidadServicio = stats.serviceCapacity - stats.blockedBeds;
-  return (
-    <BaseSummaryCard title="Censo Camas" icon={<Bed size={12} className="text-accent-500" />}>
-      <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-        <div className="flex justify-between items-center bg-slate-50/80 rounded px-1.5 py-0.5 border border-slate-100/50">
-          <span className="text-slate-500 text-[10px]">Ocu.</span>
-          <span className="font-bold text-accent-900 text-[11px]">{stats.occupiedBeds}</span>
-        </div>
-        <div className="flex justify-between items-center bg-accent-50 rounded px-1.5 py-0.5 border border-accent-100/50">
-          <span className="text-accent-700 font-bold text-[10px]">Cap:</span>
-          <span className="font-bold text-accent-900 text-[11px]">{capacidadServicio}</span>
-        </div>
-        <div className="flex justify-between items-center px-1.5">
-          <span className="text-red-500 font-medium text-[10px]">Bloq.</span>
-          <span className="font-bold text-red-600 text-[11px]">{stats.blockedBeds}</span>
-        </div>
-        <div className="flex justify-between items-center px-1.5">
-          <span className="text-slate-400 text-[10px]">Lib.</span>
-          <span className="font-bold text-slate-600 text-[11px]">{stats.availableCapacity}</span>
-        </div>
-        <div className="col-span-2 flex justify-between items-center px-1.5">
-          <span className="text-slate-500 text-[10px]">Cunas</span>
-          <span className="font-bold text-accent-800 text-[11px]">{stats.totalCribsUsed}</span>
-        </div>
-      </div>
-    </BaseSummaryCard>
-  );
-};
-
-export const CribSummaryCard: React.FC<{ stats: Statistics }> = ({ stats }) => (
-  <BaseSummaryCard title="Cunas RN" icon={<Baby size={12} className="text-accent-500" />}>
-    <div className="space-y-1">
-      <div className="flex justify-between items-center px-1">
-        <span className="text-slate-500 text-[10px]">Con ficha</span>
-        <span className="font-bold text-accent-600 text-[11px]">{stats.clinicalCribsCount}</span>
-      </div>
-      <div className="flex justify-between items-center mt-1 px-1 pt-1 border-t border-slate-200/50 border-dashed">
-        <span className="text-accent-900 font-bold text-[10px]">Total Uso</span>
-        <span className="font-bold text-accent-800 text-[11px] leading-none">
-          {stats.totalCribsUsed}
-        </span>
-      </div>
-    </div>
-  </BaseSummaryCard>
-);
-
-export const MovementSummaryCard: React.FC<{
-  discharges: DischargeData[];
-  transfers: TransferData[];
-  cmaCount: number;
-  newAdmissions?: number;
-}> = ({ discharges, transfers, cmaCount, newAdmissions = 0 }) => {
-  const summary = buildMovementSummaryModel(discharges, transfers, cmaCount, newAdmissions);
-
-  return (
-    <BaseSummaryCard title="Movimientos" icon={<Activity size={12} className="text-accent-500" />}>
-      <div className="flex flex-col gap-1 px-1">
-        <div className="flex justify-between items-center text-[10px]">
-          <span className="text-slate-500 font-medium">Altas</span>
-          <span className="font-bold text-green-600">{summary.totalDischarges}</span>
-        </div>
-        <div className="flex justify-between items-center text-[10px]">
-          <span className="text-slate-500 font-medium">Traslados</span>
-          <span className="font-bold text-blue-600">{summary.totalTransfers}</span>
-        </div>
-        <div className="flex justify-between items-center text-[10px]">
-          <span className="text-slate-500 font-medium">H. Diurna</span>
-          <span className="font-bold text-orange-600">{summary.cmaCount}</span>
-        </div>
-        <div className="flex justify-between items-center text-[10px]">
-          <span className="text-slate-500 font-medium">Ingresos</span>
-          <span className="font-bold text-indigo-600">{summary.newAdmissions}</span>
-        </div>
-        {summary.totalDeaths > 0 && (
-          <div className="flex justify-between items-center text-[10px] mt-0.5 pt-0.5 border-t border-red-100">
-            <span className="text-red-500 font-bold">Fallecidos</span>
-            <span className="font-bold text-red-600">{summary.totalDeaths}</span>
-          </div>
-        )}
-      </div>
-    </BaseSummaryCard>
-  );
-};
 
 /**
  * Legacy wrapper for backward compatibility, though we'll now prefer individual components

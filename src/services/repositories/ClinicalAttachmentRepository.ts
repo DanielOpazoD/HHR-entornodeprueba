@@ -42,18 +42,6 @@ const filterActiveClinicalAttachments = (records: unknown[]): ClinicalAttachment
   return { records: sortClinicalAttachments(activeRecords), omittedCount };
 };
 
-const collectStorageObjectPaths = async (
-  storageRuntime: ClinicalAttachmentStorageRuntime,
-  storageRef: ReturnType<ClinicalAttachmentStorageRuntime['ref']>
-): Promise<string[]> => {
-  const result = await storageRuntime.listAll(storageRef);
-  const itemPaths = result.items.map(item => item.fullPath);
-  const nestedPaths = await Promise.all(
-    result.prefixes.map(prefix => collectStorageObjectPaths(storageRuntime, prefix))
-  );
-  return [...itemPaths, ...nestedPaths.flat()].sort((left, right) => left.localeCompare(right));
-};
-
 export interface UploadClinicalAttachmentInput {
   id: string;
   hospitalId?: string;
@@ -201,18 +189,6 @@ export const createClinicalAttachmentRepository = ({
       ],
     });
     return filterActiveClinicalAttachments(records);
-  },
-
-  async listStoragePathsByPatient(
-    patientRut: string,
-    hospitalId: string = getActiveHospitalId()
-  ): Promise<string[]> {
-    const storage = await storageRuntime.getStorage();
-    const patientRootRef = storageRuntime.ref(
-      storage,
-      `clinical-attachments/${hospitalId}/${normalizeClinicalAttachmentRutKey(patientRut)}`
-    );
-    return collectStorageObjectPaths(storageRuntime, patientRootRef);
   },
 
   async rename(input: RenameClinicalAttachmentInput): Promise<void> {

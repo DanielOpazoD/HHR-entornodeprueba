@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   buildDeviceConfigMutation,
   buildRetireDeviceMutation,
-  renameCustomDeviceBundle,
   resolveRetiringDeviceLabel,
 } from '@/components/device-selector/deviceSelectorMutationController';
 
@@ -72,46 +71,6 @@ describe('deviceSelectorMutationController', () => {
     });
   });
 
-  it('renames a custom device across active list, details and history', () => {
-    const renamed = renameCustomDeviceBundle({
-      previousDevice: 'drenaje pleural izquierdo',
-      nextDevice: 'drenaje pleural',
-      normalizedDevices: ['VVP#1', 'drenaje pleural izquierdo'],
-      deviceDetails: {
-        'VVP#1': { installationDate: '2026-02-14' },
-        'drenaje pleural izquierdo': {
-          installationDate: '2026-02-15',
-          note: 'lado izquierdo',
-        },
-      },
-      history: [
-        {
-          id: 'custom-1',
-          type: 'drenaje pleural izquierdo',
-          status: 'Active',
-          installationDate: '2026-02-15',
-          createdAt: 1,
-          updatedAt: 1,
-        },
-      ],
-    });
-
-    expect(renamed.nextDevices).toEqual(['VVP#1', 'drenaje pleural']);
-    expect(renamed.nextDetails).toEqual({
-      'VVP#1': { installationDate: '2026-02-14' },
-      'drenaje pleural': {
-        installationDate: '2026-02-15',
-        note: 'lado izquierdo',
-      },
-    });
-    expect(renamed.nextHistory).toEqual([
-      expect.objectContaining({
-        id: 'custom-1',
-        type: 'drenaje pleural',
-      }),
-    ]);
-  });
-
   it('does not rename a configured device over another active device', () => {
     const mutation = buildDeviceConfigMutation({
       pendingAddition: null,
@@ -159,37 +118,6 @@ describe('deviceSelectorMutationController', () => {
       renamedDevice: null,
       nextDevices: null,
       nextDetails: null,
-    });
-  });
-
-  it('keeps bundle unchanged when a custom device rename collides with an active device', () => {
-    const history = [
-      {
-        id: 'custom-1',
-        type: 'drenaje pleural izquierdo',
-        status: 'Active' as const,
-        installationDate: '2026-02-15',
-        createdAt: 1,
-        updatedAt: 1,
-      },
-    ];
-    const deviceDetails = {
-      CVC: { installationDate: '2026-02-14', note: 'central' },
-      'drenaje pleural izquierdo': { installationDate: '2026-02-15' },
-    };
-
-    const renamed = renameCustomDeviceBundle({
-      previousDevice: 'drenaje pleural izquierdo',
-      nextDevice: 'CVC',
-      normalizedDevices: ['CVC', 'drenaje pleural izquierdo'],
-      deviceDetails,
-      history,
-    });
-
-    expect(renamed).toEqual({
-      nextDevices: ['CVC', 'drenaje pleural izquierdo'],
-      nextDetails: deviceDetails,
-      nextHistory: history,
     });
   });
 

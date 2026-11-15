@@ -4,9 +4,7 @@ import {
 } from '@/features/census/controllers/censusEmptyStateDiagnostic';
 import { describe, expect, it } from 'vitest';
 import {
-  describeDailyRecordBootstrapPhase,
   isDailyRecordBootstrapPending,
-  resolveCensusEmptyStatePolicy,
   resolveDailyRecordBootstrapPhase,
   shouldAttemptTodayEmptyRecovery,
 } from '@/hooks/controllers/dailyRecordBootstrapController';
@@ -83,47 +81,6 @@ describe('dailyRecordBootstrapController', () => {
     ).toBe('local_only');
   });
 
-  it('deferes the empty state only while bootstrap remains pending', () => {
-    expect(
-      resolveCensusEmptyStatePolicy({
-        branch: 'empty',
-        currentDateString: '2025-01-02',
-        todayDateString: '2025-01-01',
-        isAuthenticated: true,
-        bootstrapPhase: 'remote_record_bootstrapping',
-      })
-    ).toEqual({
-      shouldDeferEmptyState: true,
-      deferMs: 15_000,
-    });
-
-    expect(
-      resolveCensusEmptyStatePolicy({
-        branch: 'empty',
-        currentDateString: '2025-01-02',
-        todayDateString: '2025-01-01',
-        isAuthenticated: true,
-        bootstrapPhase: 'remote_record_timeout',
-      })
-    ).toEqual({
-      shouldDeferEmptyState: true,
-      deferMs: 800,
-    });
-
-    expect(
-      resolveCensusEmptyStatePolicy({
-        branch: 'empty',
-        currentDateString: '2025-01-01',
-        todayDateString: '2025-01-01',
-        isAuthenticated: true,
-        bootstrapPhase: 'remote_record_timeout',
-      })
-    ).toEqual({
-      shouldDeferEmptyState: true,
-      deferMs: 15_000,
-    });
-  });
-
   it('marks only pending phases as recoverable bootstrap states', () => {
     expect(isDailyRecordBootstrapPending('remote_runtime_bootstrapping')).toBe(true);
     expect(isDailyRecordBootstrapPending('remote_record_bootstrapping')).toBe(true);
@@ -142,9 +99,6 @@ describe('dailyRecordBootstrapController', () => {
         bootstrapPhase: 'remote_record_bootstrapping',
       })
     ).toBe(false);
-    expect(describeDailyRecordBootstrapPhase('remote_record_timeout')).toContain(
-      'ventana de gracia'
-    );
   });
 
   it('describes confirmed empty census days as a remote/local miss instead of a generic blank day', () => {

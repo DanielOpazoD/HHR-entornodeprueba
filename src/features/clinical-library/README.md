@@ -70,7 +70,7 @@ clinical-library/
 │   ├── infusionCalculator.ts · infusionPresets.ts
 │   ├── doseCalculator.ts · transferCover.ts · criticalMedications.ts
 │   ├── scoreEngine.ts · scoreDefinitions.ts · scores/<score>.ts
-│   └── medifSchema.* · medifDraft.ts · medifPreferences.ts · medifPatientPrefill.ts
+│   └── medifSchema.* · medifDraft.ts · medifPreferences.ts
 ├── services/libraryDocumentActions.ts   # imprimir PDF (iframe con fallback) y codificar rutas
 ├── services/printHtmlDocument.ts        # imprimir HTML generado en una pestaña nueva
 ├── services/medifPdf.ts · medifDownload.ts   # plantilla, validación y descarga local del PDF

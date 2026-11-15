@@ -1,4 +1,4 @@
-import type { DeviceDetails, DeviceInfo, DeviceInstance } from '@/types/domain/devices';
+import type { DeviceDetails, DeviceInfo } from '@/types/domain/devices';
 import { buildRetireNote } from '@/components/device-selector/deviceSelectorController';
 
 interface BuildRetireDeviceMutationParams {
@@ -28,20 +28,6 @@ export interface DeviceConfigMutationResult {
   renamedDevice?: { from: string; to: string } | null;
   nextDevices: string[] | null;
   nextDetails: DeviceDetails | null;
-}
-
-interface RenameCustomDeviceBundleParams {
-  previousDevice: string;
-  nextDevice: string;
-  normalizedDevices: string[];
-  deviceDetails: DeviceDetails;
-  history: DeviceInstance[];
-}
-
-export interface RenameCustomDeviceBundleResult {
-  nextDevices: string[];
-  nextDetails: DeviceDetails;
-  nextHistory: DeviceInstance[];
 }
 
 export const buildRetireDeviceMutation = ({
@@ -122,42 +108,6 @@ export const buildDeviceConfigMutation = ({
         ? normalizedDevices.map(device => (device === operatedDevice ? resolvedDeviceName : device))
         : null,
     nextDetails,
-  };
-};
-
-export const renameCustomDeviceBundle = ({
-  previousDevice,
-  nextDevice,
-  normalizedDevices,
-  deviceDetails,
-  history,
-}: RenameCustomDeviceBundleParams): RenameCustomDeviceBundleResult => {
-  const trimmedNextDevice = nextDevice.trim();
-  const collidesWithAnotherDevice = normalizedDevices.some(
-    device => device !== previousDevice && device === trimmedNextDevice
-  );
-  if (!trimmedNextDevice || trimmedNextDevice === previousDevice || collidesWithAnotherDevice) {
-    return {
-      nextDevices: normalizedDevices,
-      nextDetails: deviceDetails,
-      nextHistory: history,
-    };
-  }
-
-  const nextDetails = { ...deviceDetails };
-  if (nextDetails[previousDevice]) {
-    nextDetails[trimmedNextDevice] = nextDetails[previousDevice];
-    delete nextDetails[previousDevice];
-  }
-
-  return {
-    nextDevices: normalizedDevices.map(device =>
-      device === previousDevice ? trimmedNextDevice : device
-    ),
-    nextDetails,
-    nextHistory: history.map(item =>
-      item.type === previousDevice ? { ...item, type: trimmedNextDevice } : item
-    ),
   };
 };
 

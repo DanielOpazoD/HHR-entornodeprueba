@@ -21,7 +21,7 @@ El [diccionario completo](medif-variables.md) identifica cada variable, su pági
 
 [MedifTool](../src/features/clinical-library/components/tools/MedifTool.tsx) obtiene el registro diario ya disponible en `DailyRecordContext`. El [adaptador](../src/features/clinical-library/domain/forms/clinicalFormPatient.ts) construye opciones para camas ocupadas y cunas clínicas; excluye CMA, camas bloqueadas y camas extra inactivas. La lista corresponde a la fecha del censo seleccionado, que puede ser histórica.
 
-Al elegir un paciente se copian hasta siete campos:
+Al elegir un paciente se copian hasta diez campos:
 
 | Dato del censo                   | Variables MEDIF                            | Revisión                                                                                                            |
 | -------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
@@ -29,7 +29,7 @@ Al elegir un paciente se copian hasta siete campos:
 | `record.beds[bedId].age`         | `p1_edad`, `p2_edad`                       | Conserva la unidad escrita. Si falta, usa `birthDate` y la fecha válida del censo para calcular años, meses o días. |
 | `record.beds[bedId].pathology`   | `p2_diagnostico_actual`                    | Borrador editable que requiere revisión médica, incluida resolución o alta cuando corresponda.                      |
 
-También se copian `biologicalSex` a `p2_genero` y la fecha válida de ingreso `admissionDate`, en formato día/mes/año, a `p2_contagiosa_fecha_tipo` (Enfermedad y fecha de inicio), conforme al mapeo solicitado. Ambos datos son editables. Una fecha de ingreso inválida o posterior al censo deja el campo vacío.
+También se copian `treatingPhysicianName` a `p2_nombre_medico`, `p1_medico_autorizado` y `p3_medico_declaracion`, `biologicalSex` a `p2_genero` y la fecha válida de ingreso `admissionDate`, en formato día/mes/año, a `p2_contagiosa_fecha_tipo` (Enfermedad y fecha de inicio), conforme al mapeo solicitado. Todos son editables. Una fecha de ingreso inválida o posterior al censo deja el campo vacío.
 
 Para una cuna clínica se aplica el mismo mapeo a `record.beds[bedId].clinicalCrib`. El formulario conserva la copia cargada mientras se edita: las actualizaciones posteriores del censo no reemplazan lo escrito. Elegir otro paciente, volver al ingreso manual o cargar otro borrador solicita reemplazar todos los datos cuando el formulario contiene información.
 
