@@ -71,7 +71,9 @@ npm run check:quality:group -- boundaries
 La rama parte de `origin/main` recién traído: un worktree puede estar varios commits atrás.
 `npx vitest run <ruta>` ejecuta una suite. `npm run test:changed` ejecuta las pruebas
 unitarias que alcanzan lo cambiado por imports, también a través de un `index.ts`; una
-prueba que solo nombra el módulo en `vi.mock` puede quedar fuera.
+prueba que solo nombra el módulo en `vi.mock` puede quedar fuera. Si cambia lo que carga cada
+prueba (`vitest.config.ts` y lo que importa, `tsconfig.json`, `package.json`, el lockfile o
+`src/tests/setup.ts` y sus imports), ejecuta la suite unitaria completa y lo avisa.
 `npm run test:emulator:file -- <ruta>` levanta el emulador con puertos libres para uno o
 varios archivos de `src/tests/emulator/` o `src/tests/emulator-ui/`, de modo que dos
 worktrees pueden correr a la vez. `npm test` ejecuta unitarios, reglas y sincronización con
