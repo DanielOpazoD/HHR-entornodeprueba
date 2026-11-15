@@ -3,12 +3,12 @@ import type { PatientData } from '@/types/domain/patient';
 import { describe, expect, it } from 'vitest';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 
-import type { MedifSourceRecord } from '@/features/clinical-library/domain/medifPatientPrefill';
 import { medifValuesFromClinicalPatient } from '@/features/clinical-library/domain/forms/clinicalFormMedif';
 import { MEDIF_FIELDS } from '@/features/clinical-library/domain/medifSchema';
 import {
   buildClinicalFormPatientOptions,
   mergeEmptyFormValues,
+  type ClinicalFormSourceRecord,
 } from '@/features/clinical-library/domain/forms/clinicalFormPatient';
 import {
   formAgeAt,
@@ -29,7 +29,7 @@ const patient = (patch: Partial<PatientData> = {}): PatientData => ({
   pathology: 'Diagnóstico de prueba',
   ...patch,
 });
-const record = (p = patient()): MedifSourceRecord => ({
+const record = (p = patient()): ClinicalFormSourceRecord => ({
   date: '2026-10-16',
   lastUpdated: '2026-10-16T12:00:00Z',
   beds: { R1: p },
