@@ -25,7 +25,9 @@ de registros existente, pero NO el helper de preview Firebase, que lee `.env.pro
 `.env` y `.env.local`. El servidor dedicado deshabilita `envDir` de Vite y elimina variables
 heredadas antes de cargar su configuración; configura exclusivamente un proyecto demo.
 Se bloquea tráfico externo, funciones Netlify excepto la respuesta Firebase-config
-sintética, métodos diferentes de GET/HEAD y WebSockets externos. Solo HMR local permitido.
+sintética y WebSockets externos. Solo HMR local permitido. Una petición al servidor local
+con un método distinto de GET/HEAD invalida la medición: ese servidor no tiene dónde escribir
+fuera de `/.netlify/`, y la ejecución falla en vez de medirse.
 
 Este fixture usa `__HHR_E2E_OVERRIDE__`, que activa el repositorio E2E, no el transporte
 real IndexedDB/Firestore. **NO auth Google real, NO emulador, NO latencia remota.** Se
@@ -264,6 +266,18 @@ un build repetido por muestra que retirar. No se cambió el banco para reducir s
 tiempo: paralelizar muestras, activar HTTP cache o reducirlas alteraría el contrato.
 Una optimización posterior debe investigar el arranque de la aplicación con
 mediciones comparables; no atribuir al CI un ahorro obtenido cambiando la prueba.
+
+## Cada muestra de development era más lenta que la anterior — 2026-11-15
+
+En `main`, development tardaba 11–26 min (12 corridas) y cada muestra era más lenta que la
+anterior: `warm_reload` pasaba de 3–4 s a 13–18 s y `cold_context` empezaba ya en 15–20 s.
+Production no cambiaba. La causa era el propio banco: interceptaba toda petición, y Playwright
+Test guarda cada petición interceptada como un paso de la prueba hasta que termina. Una
+navegación de development pide ~1.400 módulos, así que 61 navegaciones dejaban ~85.000 pasos y
+el proceso de la prueba trabajaba al 100 % de una CPU. Ahora solo se interceptan las peticiones
+externas y las de `/.netlify/`, que el servidor de Playwright distingue sin pasar por la prueba.
+Al haber rutas, Chromium sigue sin HTTP cache en ambos escenarios. Escenarios, 30 muestras y
+presupuestos no cambian; las cifras de development dejan de incluir ese costo y bajan.
 
 ## Cuadro de copia: solo ayer y solo con el día confirmado vacío — 2026-10-23
 
