@@ -17,13 +17,6 @@ export interface MedicalHandoffValidityViewModel {
   canConfirm: boolean;
 }
 
-export interface MedicalEntryMetadataViewModel {
-  primaryLabel: string;
-  printLabel: string;
-  detailLines: string[];
-  showInfoButton: boolean;
-}
-
 export const resolveMedicalEntryInlineMeta = (entry: MedicalHandoffEntry): string => {
   // After validation, show the most recent actor and timestamp (updatedBy/updatedAt),
   // not the original. This makes a validated note look like it was written now.
@@ -35,26 +28,6 @@ export const resolveMedicalEntryInlineMeta = (entry: MedicalHandoffEntry): strin
   );
   const timestamp = formatMedicalHandoffTimestamp(entry.updatedAt || entry.originalNoteAt);
   return [actor, timestamp].filter(Boolean).join(' · ');
-};
-
-const resolveFormattedActorAndTimestamp = (
-  actor: MedicalHandoffEntry['updatedBy'] | undefined,
-  timestamp: string | undefined
-): string =>
-  [
-    formatMedicalHandoffActorLabel(actor?.displayName || actor?.email),
-    formatMedicalHandoffTimestamp(timestamp),
-  ]
-    .filter(Boolean)
-    .join(' · ');
-
-const areSameAuditActors = (
-  left: MedicalHandoffEntry['updatedBy'] | undefined,
-  right: MedicalHandoffEntry['updatedBy'] | undefined
-): boolean => {
-  if (!left && !right) return true;
-  if (!left || !right) return false;
-  return left.uid === right.uid || left.email === right.email;
 };
 
 export const resolveMedicalHandoffValidityViewModel = (
@@ -77,53 +50,6 @@ export const resolveMedicalHandoffValidityViewModel = (
     isMuted: !wasUpdatedToday,
     tooltipLabel: statusLabel,
     canConfirm: canRefreshAsCurrent,
-  };
-};
-
-export const resolveMedicalEntryMetadataViewModel = (
-  entry: MedicalHandoffEntry,
-  reportDate: string
-): MedicalEntryMetadataViewModel => {
-  const originalActor = entry.originalNoteBy || entry.updatedBy;
-  const originalAt = entry.originalNoteAt || entry.updatedAt;
-  const wasUpdatedToday = entry.updatedAt
-    ? readClinicalTimestamp(entry.updatedAt)?.iso === reportDate
-    : false;
-  const currentActor =
-    entry.currentStatusDate === reportDate
-      ? entry.currentStatusBy || entry.updatedBy
-      : wasUpdatedToday
-        ? entry.updatedBy
-        : undefined;
-  const currentAt =
-    entry.currentStatusDate === reportDate
-      ? entry.currentStatusAt || entry.updatedAt
-      : wasUpdatedToday
-        ? entry.updatedAt
-        : undefined;
-
-  const originalLabel = resolveFormattedActorAndTimestamp(originalActor, originalAt);
-  const currentLabel = resolveFormattedActorAndTimestamp(currentActor, currentAt);
-  const hasDistinctCurrentEvent =
-    Boolean(currentLabel) &&
-    Boolean(originalLabel) &&
-    (!areSameAuditActors(originalActor, currentActor) || originalAt !== currentAt);
-
-  if (!hasDistinctCurrentEvent) {
-    const primaryLabel = originalLabel || currentLabel;
-    return {
-      primaryLabel,
-      printLabel: primaryLabel,
-      detailLines: [],
-      showInfoButton: false,
-    };
-  }
-
-  return {
-    primaryLabel: `Nota base: ${originalLabel}`,
-    printLabel: `Nota base: ${originalLabel} | Vigente por: ${currentLabel}`,
-    detailLines: [`Nota original: ${originalLabel}`, `Marcada como actual por: ${currentLabel}`],
-    showInfoButton: true,
   };
 };
 

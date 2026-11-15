@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 import type { MedicalHandoffEntry, PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import {
-  resolveMedicalEntryMetadataViewModel,
   resolveMedicalHandoffValidityViewModel,
   resolveMedicalObservationEntries,
 } from '@/domain/handoff/patientView';
@@ -33,62 +32,6 @@ const buildPatient = (overrides: Partial<PatientData> = {}): PatientData =>
   }) as PatientData;
 
 describe('handoff patient view domain', () => {
-  it('builds simple metadata when the note author and current note event are the same', () => {
-    const entry = buildEntry({
-      originalNoteAt: '2026-03-03T20:33:00.000Z',
-      originalNoteBy: {
-        uid: 'doctor-1',
-        displayName: 'Daniel Opazo Damiani',
-        email: 'doctor@hospitalhangaroa.cl',
-      },
-      updatedAt: '2026-03-03T20:33:00.000Z',
-      updatedBy: {
-        uid: 'doctor-1',
-        displayName: 'Daniel Opazo Damiani',
-        email: 'doctor@hospitalhangaroa.cl',
-      },
-    });
-    const metadata = resolveMedicalEntryMetadataViewModel(entry, '2026-03-03');
-
-    expect(metadata.primaryLabel).toContain('Daniel Opazo');
-    expect(metadata.primaryLabel).toContain('03-03-2026');
-    expect(metadata.showInfoButton).toBe(false);
-  });
-
-  it('builds dual metadata when another user marks the note as current', () => {
-    const entry = buildEntry({
-      originalNoteAt: '2026-03-02T20:33:00.000Z',
-      originalNoteBy: {
-        uid: 'doctor-1',
-        displayName: 'Daniel Opazo Damiani',
-        email: 'doctor@hospitalhangaroa.cl',
-      },
-      updatedAt: '2026-03-03T10:00:00.000Z',
-      updatedBy: {
-        uid: 'admin-1',
-        displayName: 'Admin Test',
-        email: 'admin@hospitalhangaroa.cl',
-      },
-      currentStatus: 'updated_by_specialist',
-      currentStatusDate: '2026-03-03',
-      currentStatusAt: '2026-03-03T10:00:00.000Z',
-      currentStatusBy: {
-        uid: 'admin-1',
-        displayName: 'Admin Test',
-        email: 'admin@hospitalhangaroa.cl',
-      },
-    });
-    const metadata = resolveMedicalEntryMetadataViewModel(entry, '2026-03-03');
-
-    expect(metadata.primaryLabel).toContain('Nota base: Daniel Opazo');
-    expect(metadata.printLabel).toContain('Vigente por: Admin Test');
-    expect(metadata.showInfoButton).toBe(true);
-    expect(metadata.detailLines).toEqual([
-      expect.stringContaining('Nota original: Daniel Opazo'),
-      expect.stringContaining('Marcada como actual por: Admin Test'),
-    ]);
-  });
-
   it('resolves inline note status using only same-day specialist updates', () => {
     const updatedToday = resolveMedicalHandoffValidityViewModel(
       buildEntry({

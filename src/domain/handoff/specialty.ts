@@ -1,11 +1,9 @@
 import { readClinicalTimestamp } from '@/utils/dateDisplayUtils';
-import type { AuthUser } from '@/types/authRoleTypes';
 import type { DailyRecordMedicalHandoffSummaryState } from '@/types/domain/dailyRecordSlices';
 import type {
   MedicalSpecialty,
   MedicalSpecialtyHandoffNote,
 } from '@/types/domain/dailyRecordMedicalHandoff';
-import { canManageAllMedicalSpecialties } from '@/shared/access/operationalAccessPolicy';
 
 export const MEDICAL_SPECIALTY_ORDER: readonly MedicalSpecialty[] = [
   'cirugia',
@@ -51,19 +49,6 @@ export const resolveMedicalSpecialtyDailyStatus = (
   if (continuity?.status === 'confirmed_no_changes') return 'confirmed_no_changes';
   if (continuity?.status === 'updated_by_specialist') return 'updated_by_specialist';
   return 'pending';
-};
-
-export const resolveEditableMedicalSpecialties = (
-  user: AuthUser | null | undefined,
-  role: string | undefined
-): MedicalSpecialty[] => {
-  const claimedSpecialties = (user?.medicalSpecialties || []).filter(
-    (value): value is MedicalSpecialty =>
-      MEDICAL_SPECIALTY_ORDER.includes(value as MedicalSpecialty)
-  );
-  if (claimedSpecialties.length > 0) return claimedSpecialties;
-  if (canManageAllMedicalSpecialties(role)) return [...MEDICAL_SPECIALTY_ORDER];
-  return [];
 };
 
 export const canConfirmMedicalSpecialtyNoChanges = (role: string | undefined): boolean =>
