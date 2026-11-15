@@ -5,7 +5,7 @@ import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImport
 import { hasRecordedMovement } from './egresoReportPolicy';
 import type { OccupiedClinicalCrib } from './egresoReportPolicy';
 import type { PromotionCandidate } from './egresoReportEligibility';
-import { normalizeRut } from '@/utils/rutUtils';
+import { isSameDocumentBeforeLetterRule, normalizeRut } from '@/utils/rutUtils';
 import type { DischargeData } from '@/types/domain/movements';
 import { recordedOutcomeEpisodeId } from './censusDischargeHistory';
 
@@ -68,8 +68,7 @@ const samePrincipal = (
   const entryEpisode = episodeIdOf(entry.encounterId ?? entry.source?.encounterId);
   const patientEpisode = episodeIdOf(patient.clinicalEpisodeId);
   if (entryEpisode && patientEpisode) return entryEpisode === patientEpisode;
-  const entryRun = normalizeRut(entry.rut);
-  return Boolean(entryRun && entryRun === normalizeRut(patient.rut));
+  return Boolean(normalizeRut(entry.rut)) && isSameDocumentBeforeLetterRule(entry.rut, patient.rut);
 };
 
 const parentBedCandidates = (
@@ -113,9 +112,10 @@ export const buildClinicalCribPromotionCandidates = (
     // A complete snapshot is authoritative: a missing exact episode is stale local state, not a
     // newborn that should be promoted into the mother's newly released bed.
     if (diff.snapshotComplete === true && !activeEpisodes.has(cribEpisode)) continue;
-    const parentRun = normalizeRut(crib.parent.rut);
     const parentMove = diff.moves.find(
-      entry => entry.fromBedId === crib.parentBedId && normalizeRut(entry.rut) === parentRun
+      entry =>
+        entry.fromBedId === crib.parentBedId &&
+        isSameDocumentBeforeLetterRule(entry.rut, crib.parent.rut)
     );
     const parentBedId = parentMove?.toBedId ?? crib.parentBedId;
     if (!candidates.has(parentBedId)) {

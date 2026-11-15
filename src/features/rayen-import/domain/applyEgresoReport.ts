@@ -27,7 +27,7 @@ import {
   markReportChecked,
   pushUniqueConflict,
 } from './egresoReportConflicts';
-import { isSameDocument, normalizeRut } from '@/utils/rutUtils';
+import { isSameDocument, isSameDocumentBeforeLetterRule, normalizeRut } from '@/utils/rutUtils';
 import { selectEligibleEgresoRows, type PromotionCandidate } from './egresoReportEligibility';
 import { dropRedundantUnverifiedReportConflicts } from './redundantReportRowConflicts';
 import { buildClinicalCribPromotionCandidates } from './associatedClinicalCribDischarge';
@@ -68,12 +68,12 @@ export const applyEgresoReport = (
     sourceDocuments
   );
   // Check only rows selected for application, retaining the source document that eligibility
-  // may have replaced with the matched occupant's document. All prior decisions remain intact.
+  // may have replaced with the matched occupant's document. The report routes still read a
+  // document stored before the letter rule by its digits; such a match is reviewed, not applied.
   const blockedDocuments: string[] = [];
   for (const [key, row] of byRun) {
     if (row.encounterId?.trim()) continue;
     const document = sourceDocuments.get(row) ?? row.run;
-    const run = normalizeRut(document);
     const current = resolveReportedOccupant(occupied, occupiedCribs, row.run, row.encounterId);
     const currentCrib = current ? undefined : findOccupiedClinicalCrib(occupiedCribs, row.run);
     const matchedDocuments = [
@@ -90,9 +90,11 @@ export const applyEgresoReport = (
       ...checkedDiff.discharges.map(entry => entry.rut),
     ];
     if (
-      !run ||
+      !normalizeRut(document) ||
       !matchedDocuments.some(
-        candidate => normalizeRut(candidate) === run && !isSameDocument(candidate, document)
+        candidate =>
+          isSameDocumentBeforeLetterRule(candidate, document) &&
+          !isSameDocument(candidate, document)
       )
     )
       continue;
@@ -108,30 +110,32 @@ export const applyEgresoReport = (
   if (byRun.size === 0) return diffWithReportConflicts;
   const reportConfirmsEpisode = createReportEpisodeMatcher(byRun);
   const activeCribsByParent = buildClinicalCribPromotionCandidates(checkedDiff, occupiedCribs);
-  const principalBedByRun = indexPrincipalBeds(checkedDiff, occupied);
+  const principalBedFor = indexPrincipalBeds(checkedDiff, occupied);
   const conflictedCribParents = clinicalCribConflictBeds(checkedDiff, record);
   const promotedCribs = new Map<string, PromotionCandidate>();
   for (const [, reportRow] of byRun) {
-    const run = normalizeRut(reportRow.run);
+    const document = reportRow.run;
     const reportedEpisode = String(reportRow.encounterId ?? '').trim();
-    const exactPrincipal = findOccupiedBed(occupied, reportRow.run, reportRow.encounterId);
+    const exactPrincipal = findOccupiedBed(occupied, document, reportRow.encounterId);
     const exactPlannedBed = findPlannedBedByEpisode(checkedDiff, reportedEpisode);
-    const parentBedId = exactPlannedBed ?? exactPrincipal?.bedId ?? principalBedByRun.get(run);
+    const parentBedId = exactPlannedBed ?? exactPrincipal?.bedId ?? principalBedFor(document);
     if (!parentBedId) continue;
     const crib = activeCribsByParent.get(parentBedId);
     if (
       crib &&
       (exactPrincipal?.clinicalEpisodeId === reportedEpisode ||
         exactPlannedBed === parentBedId ||
-        (run ? normalizeRut(crib.principalRut) === run : exactPrincipal?.bedId === parentBedId)) &&
+        (normalizeRut(document)
+          ? isSameDocumentBeforeLetterRule(crib.principalRut, document)
+          : exactPrincipal?.bedId === parentBedId)) &&
       !conflictedCribParents.has(parentBedId) &&
       !(
         exactPrincipal && cribConflictBlocksDischarge(exactPrincipal, record, conflictedCribParents)
       ) &&
-      !hasDifferentIncomingPrincipal(checkedDiff, parentBedId, reportedEpisode, run) &&
+      !hasDifferentIncomingPrincipal(checkedDiff, parentBedId, reportedEpisode, document) &&
       reportConfirmsEpisode(
-        run,
-        resolveActiveEpisode(checkedDiff, run, exactPrincipal?.clinicalEpisodeId),
+        document,
+        resolveActiveEpisode(checkedDiff, document, exactPrincipal?.clinicalEpisodeId),
         true
       ) &&
       !reportConfirmsEpisode(
@@ -142,9 +146,9 @@ export const applyEgresoReport = (
       promotedCribs.set(parentBedId, crib);
     }
   }
-  const promotedCribRuns = new Set(
-    [...promotedCribs.values()].map(crib => normalizeRut(crib.patient.rut))
-  );
+  const promotedCribDocuments = [...promotedCribs.values()].map(crib => crib.patient.rut);
+  const isPromotedCrib = (rut?: string): boolean =>
+    promotedCribDocuments.some(document => isSameDocumentBeforeLetterRule(document, rut));
   const unchangedCribEpisodes = unchangedClinicalCribEpisodes(checkedDiff, occupiedCribs);
   const admissions = checkedDiff.admissions
     .filter(
@@ -155,8 +159,8 @@ export const applyEgresoReport = (
         )
     )
     .map(entry => {
-      const cribRun = normalizeRut(entry.patient.clinicalCrib?.rut);
-      if (!reportConfirmsEpisode(cribRun, entry.patient.clinicalCrib?.clinicalEpisodeId))
+      const cribDocument = entry.patient.clinicalCrib?.rut;
+      if (!reportConfirmsEpisode(cribDocument, entry.patient.clinicalCrib?.clinicalEpisodeId))
         return entry;
       return {
         ...entry,
@@ -188,14 +192,13 @@ export const applyEgresoReport = (
     });
   }
   const updates = checkedDiff.updates.flatMap(entry => {
-    const run = normalizeRut(entry.rut);
-    if (reportConfirmsEpisode(run, entry.source?.encounterId)) {
+    if (reportConfirmsEpisode(entry.rut, entry.source?.encounterId)) {
       const changes = entry.changes.filter(change => change.field !== 'clinicalCrib');
       return changes.length ? [{ ...entry, changes }] : [];
     }
     const removesPromotedCrib =
       promotedCribs.has(entry.bedId) &&
-      promotedCribRuns.has(run) &&
+      isPromotedCrib(entry.rut) &&
       entry.changes.some(change => change.field === 'clinicalCrib');
     return removesPromotedCrib ? [] : [entry];
   });
@@ -208,8 +211,7 @@ export const applyEgresoReport = (
   );
   const conflicts = diffWithReportConflicts.conflicts.filter(entry => {
     if (blockedDocuments.some(document => isSameDocument(document, entry.rut))) return true;
-    const run = normalizeRut(entry.rut);
-    if (reportConfirmsEpisode(run, entry.source?.encounterId)) {
+    if (reportConfirmsEpisode(entry.rut, entry.source?.encounterId)) {
       const occupant = entry.bedId ? record.beds[entry.bedId] : undefined;
       const conflictedPatient = entry.scope === 'clinical-crib' ? occupant?.clinicalCrib : occupant;
       const identitylessOccupant =
@@ -221,7 +223,7 @@ export const applyEgresoReport = (
     return !(
       entry.bedId !== null &&
       promotedCribs.has(entry.bedId) &&
-      promotedCribRuns.has(run) &&
+      isPromotedCrib(entry.rut) &&
       entry.code === 'unconfirmed-principal-bed'
     );
   });
@@ -244,6 +246,7 @@ export const applyEgresoReport = (
   }
   for (const [, row] of byRun) {
     const run = normalizeRut(row.run);
+    const sameDocument = (rut?: string) => isSameDocumentBeforeLetterRule(rut, row.run);
     const current = resolveReportedOccupant(occupied, occupiedCribs, row.run, row.encounterId);
     const mapped = resolveReportDischarge(row, current);
     if (current) {
@@ -251,7 +254,7 @@ export const applyEgresoReport = (
       const activeEpisode =
         reportedEpisode === current.clinicalEpisodeId
           ? reportedEpisode
-          : resolveActiveEpisode(checkedDiff, run, current.clinicalEpisodeId);
+          : resolveActiveEpisode(checkedDiff, row.run, current.clinicalEpisodeId);
       if (reportedEpisode && reportedEpisode !== activeEpisode) {
         if (activeEpisode && !hasRecordedMovement(record, row.run, reportedEpisode)) {
           reportEgresos.push(reportEgresoFromRow(row));
@@ -270,14 +273,14 @@ export const applyEgresoReport = (
         pushUniqueConflict(conflicts, cribBlock);
         continue;
       }
-      const pending = checkedDiff.pendingAdministrativeDischarges.find(
-        entry => normalizeRut(entry.rut) === run
+      const pending = checkedDiff.pendingAdministrativeDischarges.find(entry =>
+        sameDocument(entry.rut)
       );
       // Confirmed departures stop contributing to the unchanged aggregate.
       if (!hasPlannedPatientIdentity(checkedDiff, row.run, activeEpisode)) overriddenUnchanged += 1;
       const promotionBedId =
         findPlannedBedByEpisode(checkedDiff, activeEpisode) ??
-        principalBedByRun.get(run) ??
+        principalBedFor(row.run) ??
         current.bedId;
       const promotedCrib = promotedCribs.get(promotionBedId);
       if (promotedCrib && unchangedCribEpisodes.has(promotedCrib.source?.encounterId ?? '')) {
@@ -310,7 +313,7 @@ export const applyEgresoReport = (
       const activeSnapshotCrib = checkedDiff.activeClinicalCribs?.find(
         crib =>
           crib.source.encounterId === reportedEpisode ||
-          (Boolean(run) && normalizeRut(crib.patient.rut) === run)
+          (Boolean(run) && sameDocument(crib.patient.rut))
       );
       const activeEpisode =
         [
@@ -333,13 +336,12 @@ export const applyEgresoReport = (
         }
         continue;
       }
-      const parentRun = normalizeRut(currentCrib.parent.rut),
-        parentEpisode = currentCrib.parent.clinicalEpisodeId?.trim() ?? '';
+      const parentEpisode = currentCrib.parent.clinicalEpisodeId?.trim() ?? '';
       // Sin update si la madre ya sale en este plan (por una llamada anterior): un
       // update sobre una cama que la corrida desocupa se «salta» al aplicar y dejaba
       // la corrida «Parcial» sin motivo real.
       const parentLeaves =
-        reportConfirmsEpisode(parentRun, currentCrib.parent.clinicalEpisodeId) ||
+        reportConfirmsEpisode(currentCrib.parent.rut, currentCrib.parent.clinicalEpisodeId) ||
         discharges.some(entry => entry.bedId === currentCrib.parentBedId);
       if (!parentLeaves) {
         const parentMove = checkedDiff.moves.find(
@@ -351,13 +353,12 @@ export const applyEgresoReport = (
         const source =
           checkedDiff.pendingAdministrativeDischarges.find(
             entry =>
-              entry.encounterId === reportedEpisode ||
-              (Boolean(run) && normalizeRut(entry.rut) === run)
+              entry.encounterId === reportedEpisode || (Boolean(run) && sameDocument(entry.rut))
           )?.source ??
           checkedDiff.activeClinicalCribs?.find(
             crib =>
               crib.source.encounterId === reportedEpisode ||
-              (Boolean(run) && normalizeRut(crib.patient.rut) === run)
+              (Boolean(run) && sameDocument(crib.patient.rut))
           )?.source;
         updates.push({
           bedId: targetBedId,
@@ -410,7 +411,7 @@ export const applyEgresoReport = (
     const pendingEpisode = entry.encounterId ?? entry.source?.encounterId;
     const samePatient = pendingEpisode
       ? move.source.encounterId === pendingEpisode
-      : normalizeRut(move.rut) === normalizeRut(entry.rut);
+      : isSameDocumentBeforeLetterRule(move.rut, entry.rut);
     return samePatient ? { ...entry, bedId: move.toBedId } : entry;
   });
   return {

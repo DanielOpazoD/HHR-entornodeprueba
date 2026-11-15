@@ -6,7 +6,12 @@ import { mapDestinoDeAlta } from '../mapping/mapDestinoDeAlta';
 import { toTitleCaseName } from '../mapping/rayenToPatientData';
 import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
 import { resolveReportBedId } from '../mapping/resolveReportBed';
-import { isSameDocument, normalizeRut } from '@/utils/rutUtils';
+import {
+  documentKeyBeforeLetterRule,
+  isSameDocument,
+  isSameDocumentBeforeLetterRule,
+  normalizeRut,
+} from '@/utils/rutUtils';
 import { calendarDateForMovement } from '@/utils/movementCalendarDate';
 import { recordedOutcomeEpisodeId } from './censusDischargeHistory';
 export interface OccupiedBedEvidence {
@@ -26,18 +31,15 @@ export interface OccupiedClinicalCrib {
 /** Prefers episode evidence observed during this reconciliation over a legacy stored value. */
 export const resolveActiveEpisode = (
   diff: CensusImportDiff,
-  normalizedRun: string,
+  document: string,
   storedEpisode?: string
 ): string => {
-  if (!normalizedRun) return String(storedEpisode ?? '').trim();
-  const admission = diff.admissions.find(
-    entry => normalizeRut(entry.patient.rut) === normalizedRun
-  );
-  const move = diff.moves.find(entry => normalizeRut(entry.rut) === normalizedRun);
-  const update = diff.updates.find(entry => normalizeRut(entry.rut) === normalizedRun);
-  const pending = diff.pendingAdministrativeDischarges.find(
-    entry => normalizeRut(entry.rut) === normalizedRun
-  );
+  if (!normalizeRut(document)) return String(storedEpisode ?? '').trim();
+  const sameDocument = (rut?: string) => isSameDocumentBeforeLetterRule(rut, document);
+  const admission = diff.admissions.find(entry => sameDocument(entry.patient.rut));
+  const move = diff.moves.find(entry => sameDocument(entry.rut));
+  const update = diff.updates.find(entry => sameDocument(entry.rut));
+  const pending = diff.pendingAdministrativeDischarges.find(entry => sameDocument(entry.rut));
   return (
     [
       admission?.source?.encounterId,
@@ -59,7 +61,7 @@ export const createReportEpisodeMatcher =
     const candidateEpisode = String(episodeId ?? '').trim();
     const row =
       [...rowsByRun.values()].find(
-        entry => !entry.encounterId && normalizeRut(entry.run) === normalizeRut(rut)
+        entry => !entry.encounterId && isSameDocumentBeforeLetterRule(entry.run, rut)
       ) ??
       [...rowsByRun.values()].find(
         entry => candidateEpisode && entry.encounterId === candidateEpisode
@@ -73,7 +75,7 @@ export const createReportEpisodeMatcher =
   };
 export const selectReportRowsByEpisode = (
   rows: EgresoReportRow[],
-  activeEpisodeForRun: (run: string) => string,
+  activeEpisodeForRun: (document: string) => string,
   sourceDocuments: ReadonlyMap<EgresoReportRow, string> = new Map()
 ): { primaryByRun: Map<string, EgresoReportRow>; supplemental: EgresoReportRow[] } => {
   const byIdentity = new Map<string, EgresoReportRow>();
@@ -107,36 +109,40 @@ export const selectReportRowsByEpisode = (
       byIdentity.set(key, row);
   }
   const primaryByRun = new Map<string, EgresoReportRow>();
-  const exactActiveRuns = new Set(
-    [...byIdentity.values()]
-      .filter(row => {
-        const run = normalizeRut(row.run);
-        return Boolean(run && row.encounterId && row.encounterId === activeEpisodeForRun(run));
-      })
-      .map(row => normalizeRut(row.run))
-  );
+  const exactActiveDocuments = [...byIdentity.values()]
+    .filter(
+      row =>
+        Boolean(normalizeRut(row.run)) &&
+        Boolean(row.encounterId) &&
+        row.encounterId === activeEpisodeForRun(row.run)
+    )
+    .map(row => row.run);
   for (const [key, row] of byIdentity) {
     const episode = String(row.encounterId ?? '').trim();
-    const run = normalizeRut(row.run);
-    if (!episode && exactActiveRuns.has(run)) continue;
+    if (
+      !episode &&
+      normalizeRut(row.run) &&
+      exactActiveDocuments.some(document => isSameDocumentBeforeLetterRule(document, row.run))
+    )
+      continue;
     primaryByRun.set(episode ? `episode:${episode}` : key, row);
   }
   return { primaryByRun, supplemental: [] };
 };
 
-export const indexPrincipalBeds = (
-  diff: CensusImportDiff,
-  occupied: ReadonlyMap<string, OccupiedBedEvidence>
-): Map<string, string> => {
-  const result = new Map<string, string>();
-  for (const current of occupied.values()) {
-    const run = normalizeRut(current.rut);
-    if (run) result.set(run, current.bedId);
-  }
-  for (const entry of diff.admissions) result.set(normalizeRut(entry.patient.rut), entry.bedId);
-  for (const entry of diff.moves) result.set(normalizeRut(entry.rut), entry.toBedId);
-  return result;
-};
+/** The principal bed a document ends in under this plan: its move, admission or current bed. */
+export const indexPrincipalBeds =
+  (diff: CensusImportDiff, occupied: ReadonlyMap<string, OccupiedBedEvidence>) =>
+  (document: string): string | undefined => {
+    const sameDocument = (rut?: string) => isSameDocumentBeforeLetterRule(rut, document);
+    return (
+      diff.moves.findLast(entry => sameDocument(entry.rut))?.toBedId ??
+      diff.admissions.findLast(entry => sameDocument(entry.patient.rut))?.bedId ??
+      (normalizeRut(document)
+        ? [...occupied.values()].findLast(current => sameDocument(current.rut))?.bedId
+        : undefined)
+    );
+  };
 
 export const hasPlannedPatientIdentity = (
   diff: CensusImportDiff,
@@ -154,16 +160,15 @@ export const hasPlannedPatientIdentity = (
     ...diff.conflicts.map(entry => entry.source?.encounterId),
   ];
   if (episodeId && plannedEpisodes.includes(episodeId)) return true;
-  const normalizedRun = normalizeRut(run);
   return (
-    Boolean(normalizedRun) &&
+    Boolean(normalizeRut(run)) &&
     [
       ...diff.admissions.map(entry => entry.patient.rut),
       ...diff.updates.map(entry => entry.rut),
       ...diff.moves.map(entry => entry.rut),
       ...diff.pendingAdministrativeDischarges.map(entry => entry.rut),
       ...diff.conflicts.map(entry => entry.rut),
-    ].some(rut => normalizeRut(rut) === normalizedRun)
+    ].some(rut => isSameDocumentBeforeLetterRule(rut, run))
   );
 };
 
@@ -212,12 +217,11 @@ export const hasRecordedDifferentEpisode = (
   run: string,
   activeEpisode: string
 ): boolean => {
-  const normalizedRun = normalizeRut(run);
   return (
     Boolean(activeEpisode) &&
     [...(record.discharges ?? []), ...(record.cma ?? []), ...(record.transfers ?? [])].some(
       movement =>
-        normalizeRut(movement.rut) === normalizedRun &&
+        isSameDocumentBeforeLetterRule(movement.rut, run) &&
         Boolean(movement.clinicalEpisodeId) &&
         movement.clinicalEpisodeId !== activeEpisode
     )
@@ -232,8 +236,9 @@ export const episodeLessReportConflict = (
   currentCrib?: OccupiedClinicalCrib
 ): CensusImportDiff['conflicts'][number] | null => {
   if (row.encounterId) return null;
-  const run = normalizeRut(row.run);
-  const activeCrib = diff.activeClinicalCribs?.find(crib => normalizeRut(crib.patient.rut) === run);
+  const activeCrib = diff.activeClinicalCribs?.find(crib =>
+    isSameDocumentBeforeLetterRule(crib.patient.rut, row.run)
+  );
   const storedEpisode = String(
     current?.clinicalEpisodeId ??
       activeCrib?.source.encounterId ??
@@ -241,8 +246,8 @@ export const episodeLessReportConflict = (
       currentCrib?.patient.clinicalEpisodeId ??
       ''
   ).trim();
-  const activeEpisode = resolveActiveEpisode(diff, run, storedEpisode);
-  if (!hasRecordedDifferentEpisode(record, run, activeEpisode)) return null;
+  const activeEpisode = resolveActiveEpisode(diff, row.run, storedEpisode);
+  if (!hasRecordedDifferentEpisode(record, row.run, activeEpisode)) return null;
   const patientName = current?.patientName ?? currentCrib?.patient.patientName;
   return {
     bedId: current?.bedId ?? currentCrib?.parentBedId ?? null,
@@ -272,13 +277,12 @@ export const hasRecordedMovement = (
   run: string,
   encounterId?: string
 ): boolean => {
-  const normalizedRun = normalizeRut(run);
   return [...(record.discharges ?? []), ...(record.cma ?? []), ...(record.transfers ?? [])].some(
     movement =>
       !movement.deletedAt &&
       (encounterId
         ? recordedOutcomeEpisodeId(movement) === encounterId
-        : normalizeRut(movement.rut) === normalizedRun)
+        : isSameDocumentBeforeLetterRule(movement.rut, run))
   );
 };
 
@@ -316,13 +320,12 @@ export const reportPredatesAdmission = (
 export const reportPredatesActiveAdmission = (
   diff: CensusImportDiff,
   row: EgresoReportRow,
-  run: string,
   stamp: { iso: string; hhmm: string },
   evidence?: CmaOriginEvidence & { clinicalEpisodeId?: string }
 ): boolean => {
   if (!evidence) return false;
   const reportedEpisode = String(row.encounterId ?? '').trim();
-  const activeEpisode = resolveActiveEpisode(diff, run, evidence.clinicalEpisodeId);
+  const activeEpisode = resolveActiveEpisode(diff, row.run, evidence.clinicalEpisodeId);
   if (reportedEpisode && activeEpisode && reportedEpisode !== activeEpisode) return false;
   return reportPredatesAdmission(stamp, evidence);
 };
@@ -348,7 +351,7 @@ export const occupiedBedsByRun = (record: DailyRecord): Map<string, OccupiedBedE
   const byRun = new Map<string, OccupiedBedEvidence>();
   for (const [bedId, patient] of Object.entries(record.beds)) {
     if (!patient?.patientName?.trim() || patient.isBlocked) continue;
-    const run = normalizeRut(patient.rut);
+    const run = documentKeyBeforeLetterRule(patient.rut);
     const key = patient.clinicalEpisodeId ? `episode:${patient.clinicalEpisodeId}` : run;
     if (key)
       byRun.set(key, {
@@ -372,7 +375,7 @@ export const findOccupiedBed = (
   (episodeId ? index.get(`episode:${episodeId}`) : undefined) ??
   [...index.values()].find(entry => episodeId && entry.clinicalEpisodeId === episodeId) ??
   (normalizeRut(run)
-    ? [...index.values()].find(entry => normalizeRut(entry.rut) === normalizeRut(run))
+    ? [...index.values()].find(entry => isSameDocumentBeforeLetterRule(entry.rut, run))
     : undefined);
 
 export const occupiedClinicalCribsByRun = (
@@ -382,7 +385,7 @@ export const occupiedClinicalCribsByRun = (
   for (const [parentBedId, parent] of Object.entries(record.beds)) {
     const patient = parent?.clinicalCrib;
     if (!patient?.patientName?.trim() || patient.isBlocked) continue;
-    const run = normalizeRut(patient.rut);
+    const run = documentKeyBeforeLetterRule(patient.rut);
     const key = patient.clinicalEpisodeId
       ? `episode:${patient.clinicalEpisodeId}`
       : run || `parent:${parentBedId}`;
@@ -400,7 +403,7 @@ export const findOccupiedClinicalCrib = (
   (episodeId ? index.get(`episode:${episodeId}`) : undefined) ??
   [...index.values()].find(entry => episodeId && entry.patient.clinicalEpisodeId === episodeId) ??
   (normalizeRut(run)
-    ? [...index.values()].find(entry => normalizeRut(entry.patient.rut) === normalizeRut(run))
+    ? [...index.values()].find(entry => isSameDocumentBeforeLetterRule(entry.patient.rut, run))
     : undefined) ??
   (parentBedId ? index.get(`parent:${parentBedId}`) : undefined) ??
   [...index.values()].find(entry => parentBedId && entry.parentBedId === parentBedId);
