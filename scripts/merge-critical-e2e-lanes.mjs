@@ -1,4 +1,4 @@
-import { mergeCriticalLaneReports } from './criticalE2EMergeSupport.mjs';
+import { mergeCriticalLaneReports, selectLatestLaneArtifacts } from './criticalE2EMergeSupport.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { CRITICAL_LANES, criticalLaneSpecs } from './criticalE2ELanes.mjs';
@@ -19,9 +19,20 @@ const write = (file, value) => {
 };
 const records = [];
 const listings = [];
-for (const lane of CRITICAL_LANES) {
-  const dir = `reports/critical-lanes/e2e-critical-lane-${ci.runAttempt}-${lane}`;
-  const evidence = read(`${dir}/reports/execution/critical-${lane}.evidence.json`);
+const lanes = selectLatestLaneArtifacts(
+  fs.readdirSync('reports/critical-lanes'),
+  CRITICAL_LANES,
+  ci.runAttempt
+);
+for (const { lane, attempt, name } of lanes) {
+  const dir = `reports/critical-lanes/${name}`;
+  const readCapture = file => {
+    const capture = read(`${dir}/reports/execution/${file}`);
+    if (String(capture.ci?.runAttempt) !== String(attempt))
+      throw new Error(`${name}/${file} was captured in another attempt`);
+    return capture;
+  };
+  const evidence = readCapture(`critical-${lane}.evidence.json`);
   const listed = read(`${dir}/reports/e2e/critical-expected.json`);
   const files = summarizeTestReporter({
     kind: 'playwright',
@@ -37,8 +48,8 @@ for (const lane of CRITICAL_LANES) {
   listings.push(listed);
   records.push(evidence);
   if (lane === '3') {
-    records.push(read(`${dir}/reports/execution/flow.evidence.json`));
-    records.push(read(`${dir}/reports/execution/cudyr.evidence.json`));
+    records.push(readCapture('flow.evidence.json'));
+    records.push(readCapture('cudyr.evidence.json'));
     fs.cpSync(`${dir}/reports/e2e`, 'reports/e2e', { recursive: true });
   }
 }

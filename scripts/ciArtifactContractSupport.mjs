@@ -72,6 +72,7 @@ const collectActionSteps = (jobs, action) =>
         line: step.line,
         stepIndex: step.index,
         name: textOf(step.with.name).trim(),
+        pattern: textOf(step.with.pattern).trim(),
         path: textOf(step.with.path).trim(),
         with: step.with,
         block: step.block,
@@ -98,6 +99,8 @@ export const collectTransitiveNeeds = (jobs, jobName, visited = new Set()) => {
 
   return visited;
 };
+
+const escapeRegExp = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const isTrue = value => value === true || value === 'true';
 
@@ -142,17 +145,23 @@ export const collectCiArtifactContractIssues = workflowText => {
   const issues = [];
 
   for (const download of downloads) {
-    if (!download.name) {
+    const artifact = download.name || download.pattern;
+    if (!artifact) {
       issues.push(
-        `${download.jobName}: download-artifact at line ${download.line} is missing name.`
+        `${download.jobName}: download-artifact at line ${download.line} is missing name or pattern.`
       );
       continue;
     }
 
-    const producers = uploads.filter(upload => upload.name === download.name);
+    // A pattern is matched against the upload name as written, expressions included.
+    const matchesPattern = name =>
+      new RegExp(`^${download.pattern.split('*').map(escapeRegExp).join('[^/]*')}$`).test(name);
+    const producers = uploads.filter(upload =>
+      download.name ? upload.name === download.name : matchesPattern(upload.name)
+    );
     if (producers.length === 0) {
       issues.push(
-        `${download.jobName}: downloads artifact "${download.name}" but no job uploads that artifact.`
+        `${download.jobName}: downloads artifact "${artifact}" but no job uploads that artifact.`
       );
       continue;
     }
@@ -163,7 +172,7 @@ export const collectCiArtifactContractIssues = workflowText => {
     );
     if (orderedProducers.length === 0) {
       issues.push(
-        `${download.jobName}: downloads artifact "${download.name}" before declaring a needs chain to one of its producers (${producers
+        `${download.jobName}: downloads artifact "${artifact}" before declaring a needs chain to one of its producers (${producers
           .map(producer => producer.jobName)
           .join(', ')}).`
       );
@@ -235,7 +244,10 @@ export const collectCiArtifactContractIssues = workflowText => {
     const downloadPreview = downloadPosition(postmergeJob, PREVIEW_BOOTSTRAP_ARTIFACT);
     const validatePreview = runPosition(postmergeJob, 'npm run check:preview-bootstrap-evidence');
     const generateEvidence = runPosition(postmergeJob, 'npm run postmerge:evidence');
-    const builtContract = runPosition(postmergeJob, 'npm run check:release-evidence-contract:built');
+    const builtContract = runPosition(
+      postmergeJob,
+      'npm run check:release-evidence-contract:built'
+    );
 
     if (!verifyPreview) {
       issues.push(
@@ -340,7 +352,10 @@ export const collectCiArtifactContractIssues = workflowText => {
             `build: release evidence runtime must download to "${RELEASE_EVIDENCE_RUNTIME_PATH}".`
           );
         }
-        const runtimeDownloadPosition = downloadPosition(buildJob, RELEASE_EVIDENCE_RUNTIME_ARTIFACT);
+        const runtimeDownloadPosition = downloadPosition(
+          buildJob,
+          RELEASE_EVIDENCE_RUNTIME_ARTIFACT
+        );
         const productionBuild = runPosition(buildJob, 'npm run build');
         if (!productionBuild) {
           issues.push('build: must run npm run build after downloading release evidence.');

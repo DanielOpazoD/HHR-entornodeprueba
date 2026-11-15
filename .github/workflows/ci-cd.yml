@@ -802,21 +802,13 @@ jobs:
         uses: actions/checkout@v7
       - name: Setup CI dependencies
         uses: ./.github/actions/setup-ci-dependencies
-      - name: Download current-attempt lane 1
+      # Every attempt of this run: re-running failed jobs repeats only the failed lane, and
+      # the merge takes each lane's newest attempt.
+      - name: Download lane evidence from every attempt of this run
         uses: actions/download-artifact@v7
         with:
-          name: e2e-critical-lane-${{ github.run_attempt }}-1
-          path: reports/critical-lanes/e2e-critical-lane-${{ github.run_attempt }}-1
-      - name: Download current-attempt lane 2
-        uses: actions/download-artifact@v7
-        with:
-          name: e2e-critical-lane-${{ github.run_attempt }}-2
-          path: reports/critical-lanes/e2e-critical-lane-${{ github.run_attempt }}-2
-      - name: Download current-attempt lane 3
-        uses: actions/download-artifact@v7
-        with:
-          name: e2e-critical-lane-${{ github.run_attempt }}-3
-          path: reports/critical-lanes/e2e-critical-lane-${{ github.run_attempt }}-3
+          pattern: e2e-critical-lane-*
+          path: reports/critical-lanes
       - name: Require all lanes and merge original execution evidence
         env:
           LANES_RESULT: ${{ needs.e2e-critical-lanes.result }}

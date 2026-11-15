@@ -30,6 +30,30 @@ describe('CI artifact contract parsing', () => {
     expect(collectCiArtifactContractIssues(withFlowNeeds(reformat(workflow)))).toEqual([]);
   });
 
+  it('holds a pattern download to the same producer and ordering contract as a named one', () => {
+    const laneDownload = 'pattern: e2e-critical-lane-*';
+    expect(workflow).toContain(laneDownload);
+    expect(
+      collectCiArtifactContractIssues(
+        workflow.replace(laneDownload, 'pattern: e2e-critical-lanes-*')
+      )
+    ).toContain(
+      'e2e-critical-emulator: downloads artifact "e2e-critical-lanes-*" but no job uploads that artifact.'
+    );
+    const unordered = parseDocument(workflow);
+    unordered.setIn(['jobs', 'e2e-critical-emulator', 'needs'], ['ci-scope']);
+    expect(collectCiArtifactContractIssues(String(unordered))).toContainEqual(
+      expect.stringMatching(
+        /^e2e-critical-emulator: downloads artifact "e2e-critical-lane-\*" before declaring a needs chain/
+      )
+    );
+    expect(
+      collectCiArtifactContractIssues(workflow.replace(laneDownload, 'merge-multiple: false'))
+    ).toContainEqual(
+      expect.stringMatching(/download-artifact at line \d+ is missing name or pattern\.$/)
+    );
+  });
+
   it('still finds a real break after reformatting', () => {
     const document = parseDocument(workflow);
     const steps = document.getIn(['jobs', 'postmerge-evidence', 'steps']) as {

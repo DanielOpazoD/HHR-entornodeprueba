@@ -19,7 +19,10 @@ it('runs three isolated lanes and rejects any failed or absent lane before publi
 });
 
 import { criticalLaneSpecs, CRITICAL_LANES } from '../../../scripts/criticalE2ELanes.mjs';
-import { mergeCriticalLaneReports } from '../../../scripts/criticalE2EMergeSupport.mjs';
+import {
+  mergeCriticalLaneReports,
+  selectLatestLaneArtifacts,
+} from '../../../scripts/criticalE2EMergeSupport.mjs';
 import { buildRequiredCiSuites } from '../../../scripts/testExecutionManifestSupport.mjs';
 
 const identity = { gitSha: 'a'.repeat(40), sourceFingerprint: 'synthetic', worktreeDirty: false };
@@ -69,6 +72,60 @@ it('preserves the canonical file selection once and retains original case result
 });
 
 it.each([
+  {
+    case: 'run 43730132130 after re-running only lane 3',
+    names: [
+      'e2e-critical-emulator-artifacts',
+      'e2e-critical-lane-2-3',
+      'e2e-critical-lane-1-1',
+      'e2e-critical-lane-1-2',
+    ],
+    current: '2',
+    chosen: ['e2e-critical-lane-1-1', 'e2e-critical-lane-1-2', 'e2e-critical-lane-2-3'],
+  },
+  {
+    case: 'a newer attempt of a lane over an older one, in any order',
+    names: [
+      'e2e-critical-lane-3-2',
+      'e2e-critical-lane-1-2',
+      'e2e-critical-lane-1-3',
+      'e2e-critical-lane-1-1',
+      'e2e-critical-lane-2-3',
+      'e2e-critical-lane-10-1',
+    ],
+    current: '10',
+    chosen: ['e2e-critical-lane-10-1', 'e2e-critical-lane-3-2', 'e2e-critical-lane-2-3'],
+  },
+])('takes each lane from its newest attempt: $case', ({ names, current, chosen }) => {
+  expect(
+    selectLatestLaneArtifacts(names, CRITICAL_LANES, current).map(artifact => artifact.name)
+  ).toEqual(chosen);
+});
+
+it.each([
+  {
+    case: 'a lane with no evidence in any attempt',
+    names: ['e2e-critical-lane-1-1', 'e2e-critical-lane-2-3', 'e2e-critical-lane-2-1x'],
+    current: '2',
+    error: 'Lane 2 has no evidence in this run',
+  },
+  {
+    case: 'an artifact newer than the current attempt',
+    names: ['e2e-critical-lane-1-1', 'e2e-critical-lane-1-2', 'e2e-critical-lane-3-3'],
+    current: '2',
+    error: 'e2e-critical-lane-3-3 is newer than the current attempt',
+  },
+  {
+    case: 'an unknown current attempt',
+    names: ['e2e-critical-lane-1-1', 'e2e-critical-lane-1-2', 'e2e-critical-lane-1-3'],
+    current: undefined,
+    error: 'Invalid current run attempt',
+  },
+])('rejects $case', ({ names, current, error }) => {
+  expect(() => selectLatestLaneArtifacts(names, CRITICAL_LANES, current)).toThrow(error);
+});
+
+it.each([
   'missing',
   'duplicate',
   'producer',
@@ -112,9 +169,14 @@ it('preserves execution and performance artifact names and extraction paths for 
     const upload = jobs['e2e-critical-lanes'].steps.find(step => step.with?.name === name);
     expect(String(upload?.with?.path)).toContain('reports/e2e/**');
     expect(String(upload?.with?.path)).toContain('reports/execution/**');
-    const download = aggregate.steps.find(step => step.with?.name === name);
-    expect(download?.with?.path).toBe(`reports/critical-lanes/${name}`);
   }
+  // One folder per artifact of every attempt, so the merge can pick each lane's newest.
+  const laneDownload = aggregate.steps.find(step => step.with?.pattern === 'e2e-critical-lane-*');
+  expect(laneDownload?.uses).toContain('actions/download-artifact@');
+  expect(laneDownload?.with).toEqual({
+    pattern: 'e2e-critical-lane-*',
+    path: 'reports/critical-lanes',
+  });
   const performance = aggregate.steps.find(step => step.with?.name === 'flow-performance-evidence');
   expect(String(performance?.with?.path).trim().split('\n')).toEqual([
     'reports/e2e/flow-performance-budget.json',
