@@ -1,5 +1,5 @@
 import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
-import { hasNonRutLetter, isPassportFormat, normalizeRut } from '@/utils/rutUtils';
+import { hasNonRutLetter, hasPassportShapeBeforeLetterRule, normalizeRut } from '@/utils/rutUtils';
 import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { EgresoReportRow } from '../contracts/egresoReport';
@@ -81,7 +81,11 @@ const enrichFromGestionCamas = async (
   dependencies: ReportOnlyDischargeDependencies
 ): Promise<EgresoReportRow[]> => {
   const digitRowKey = (row: EgresoReportRow): string => {
-    if (row.encounterId || isPavilionRecoveryLocation(row.bedLabel) || isPassportFormat(row.run))
+    if (
+      row.encounterId ||
+      isPavilionRecoveryLocation(row.bedLabel) ||
+      hasPassportShapeBeforeLetterRule(row.run)
+    )
       return '';
     const run = normalizeRut(row.run);
     const { correctedDay } = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
@@ -111,7 +115,7 @@ const enrichFromGestionCamas = async (
   for (const row of rows) {
     // The census's own episode for this person (digits, name and day) is asked by episode, not
     // by digits: a document with a letter in the middle keeps this route.
-    if (isPassportFormat(row.run)) continue;
+    if (hasPassportShapeBeforeLetterRule(row.run)) continue;
     const identity = previousCensusEgresoRowIdentity(row);
     const candidate = exactCandidatesByIdentity.get(identity);
     if (candidate && !row.encounterId && !dependencies.alreadyApplied?.(row, candidate)) {

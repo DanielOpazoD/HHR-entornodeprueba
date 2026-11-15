@@ -10,7 +10,7 @@ import { useCallback } from 'react';
 
 import { PatientFieldValue } from '@/types/valueTypes';
 import { capitalizeWords } from '@/utils/stringUtils';
-import { formatRut, isValidRut, isPassportFormat } from '@/utils/rutUtils';
+import { formatRut, hasNonRutLetter, isValidRut } from '@/utils/rutUtils';
 
 // ============================================================================
 // Types
@@ -69,7 +69,7 @@ export const usePatientValidation = (): PatientValidationActions => {
     const trimmedRut = rut.trim();
 
     // If it looks like a passport, don't format
-    if (isPassportFormat(trimmedRut)) {
+    if (hasNonRutLetter(trimmedRut)) {
       return { valid: true, value: trimmedRut };
     }
 

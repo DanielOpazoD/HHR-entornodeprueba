@@ -6,7 +6,8 @@ import {
   formatRut,
   calculateRutVerifier,
   isValidRut,
-  isPassportFormat,
+  hasNonRutLetter,
+  hasPassportShapeBeforeLetterRule,
   isSameRut,
   isSameDocument,
   normalizeRut,
@@ -148,15 +149,45 @@ describe('rutUtils', () => {
     });
   });
 
-  describe('isPassportFormat', () => {
-    it('should return true for passport formats', () => {
-      expect(isPassportFormat('A1234567')).toBe(true);
-      expect(isPassportFormat('123 ABC 456')).toBe(true);
+  describe('hasNonRutLetter, the passport detector', () => {
+    it.each([
+      'P123456785',
+      'p123456785',
+      '1234567A',
+      '12A3456785',
+      '12K3456785',
+      'E9876543',
+      'AB123456',
+      '123 ABC 456',
+      'Ñ1234567',
+    ])('reads %j as a passport', value => {
+      expect(hasNonRutLetter(value)).toBe(true);
     });
 
-    it('should return false for RUT formats', () => {
-      expect(isPassportFormat('12.345.678-9')).toBe(false);
-      expect(isPassportFormat('')).toBe(false);
+    it.each([
+      '12.345.678-5',
+      '11.111.111-1',
+      '10.000.013-K',
+      '10000013k',
+      '12345678K',
+      '12.345.678',
+      '',
+      ' ',
+      'K',
+    ])('does not read %j as a passport', value => {
+      expect(hasNonRutLetter(value)).toBe(false);
+    });
+  });
+
+  describe('hasPassportShapeBeforeLetterRule', () => {
+    it('keeps the shape read as a passport before the letter rule', () => {
+      expect(hasPassportShapeBeforeLetterRule('A1234567')).toBe(true);
+      expect(hasPassportShapeBeforeLetterRule('123 ABC 456')).toBe(true);
+      // A letter in the middle was read as a RUT then; it is a passport now.
+      expect(hasPassportShapeBeforeLetterRule('12A3456785')).toBe(false);
+      expect(hasNonRutLetter('12A3456785')).toBe(true);
+      expect(hasPassportShapeBeforeLetterRule('12.345.678-9')).toBe(false);
+      expect(hasPassportShapeBeforeLetterRule('')).toBe(false);
     });
   });
 });

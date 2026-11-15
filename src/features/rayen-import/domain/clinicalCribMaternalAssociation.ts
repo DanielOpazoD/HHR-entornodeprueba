@@ -1,7 +1,7 @@
 import type { PatientData } from '@/types/domain/patient';
 
 import { mapRayenBed } from '../mapping/bedMapping';
-import { isPassportFormat, isValidRut, isSameRut } from '@/utils/rutUtils';
+import { hasNonRutLetter, isValidRut, isSameRut } from '@/utils/rutUtils';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 
 import type { MappedPatient } from '../mapping/rayenToPatientData';
@@ -50,7 +50,7 @@ export const isNeonatalPatient = (patient: NeonatalSignals): boolean =>
  * a valid RUN nor a passport is never the child's own document.
  */
 export const isUnusableNewbornRun = (run: string): boolean =>
-  Boolean(run.trim()) && !isPassportFormat(run) && !isValidRut(run);
+  Boolean(run.trim()) && !hasNonRutLetter(run) && !isValidRut(run);
 
 /** A newborn's own document, leaving out a stored number that cannot be one. */
 export const newbornOwnRut = (

@@ -115,11 +115,12 @@ export const documentIdentityKey = (value?: string): string => {
 };
 
 /**
- * Check if value looks like a passport (not a RUT)
+ * A leading letter or two letters in a row: what HHR read as a passport until letters made a
+ * document a passport (2026-11-12). Not a passport detector, use hasNonRutLetter. It only keeps
+ * the decisions taken before that rule as they were: stored documents on sync and the discharge
+ * report routes, which also never look up a lone K.
  */
-export const isPassportFormat = (value: string): boolean => {
-  if (!value) return false;
-  // Passport: starts with letter or has letters in middle
+export const hasPassportShapeBeforeLetterRule = (value: string): boolean => {
   const cleaned = value.replace(/[\s-.]/g, '');
   return /^[A-Za-z]/.test(cleaned) || /[A-Za-z]{2,}/.test(cleaned);
 };

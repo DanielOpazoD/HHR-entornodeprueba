@@ -102,6 +102,29 @@ describe('newborn numbers that cannot be its own RUN', () => {
     ).toBe('22.222.222-2');
   });
 
+  // A letter other than the final K makes the document a passport (AGENTS.md), also for an RN:
+  // it is the newborn's own document, not a folio.
+  it.each(['12A3456785', '1234567A'])('keeps the passport %j as the newborn document', run => {
+    const crib = syncedCrib(record({ H5C1: seed(mother()) }), [mother(), newborn(run)]);
+
+    expect(crib).toMatchObject({ rut: run, documentType: 'Pasaporte' });
+  });
+
+  it('keeps the inner-K document an earlier sync stored for the newborn', () => {
+    // The mapper before the letter rule kept an inner K among the digits, as a RUT.
+    const stored: PatientData = {
+      ...seed(newborn('12K3456785')),
+      rut: '12K.345.678-5',
+      documentType: 'RUT',
+    };
+    const crib = syncedCrib(record({ H5C1: { ...seed(mother()), clinicalCrib: stored } }), [
+      mother(),
+      newborn('12K3456785'),
+    ]);
+
+    expect(crib).toMatchObject({ rut: '12K.345.678-5', documentType: 'RUT' });
+  });
+
   it('keeps a RUN the nurse entered in HHR instead of the folio', () => {
     const local = {
       ...seed(newborn('7906953')),
