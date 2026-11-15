@@ -12,12 +12,13 @@ import {
   shouldPreserveLocalPatientNarrative,
   shouldUseRemoteEpisodeScopedValue,
 } from '@/services/repositories/patientEpisodeNarrativePolicy';
-import { isPlainObject, isPrimitive } from '@/services/repositories/conflictResolutionUtils';
 import {
-  mergePatientDevices,
-  type DeviceDetailsLike,
-  type DeviceHistoryLike,
-} from '@/services/repositories/conflictResolutionDeviceMergeUtils';
+  dailyRecordFieldSet,
+  isPlainObject,
+  isPrimitive,
+  readField,
+} from '@/services/repositories/conflictResolutionUtils';
+import { mergePatientDevices } from '@/services/repositories/conflictResolutionDeviceMergeUtils';
 import {
   ConflictResolutionTraceContext,
   traceFromScalarDecision,
@@ -27,13 +28,13 @@ import {
   shouldKeepExplicitLocalCensusValue,
 } from '@/services/repositories/conflictResolutionPatientMergeGuards';
 
-export const ID_BASED_ARRAY_FIELDS = new Set([
+export const ID_BASED_ARRAY_FIELDS = dailyRecordFieldSet([
   'discharges',
   'transfers',
   'cma',
   'rayenBedCollisionResolutions',
 ]);
-export const UNIQUE_ARRAY_FIELDS = new Set(['activeExtraBeds']);
+export const UNIQUE_ARRAY_FIELDS = dailyRecordFieldSet(['activeExtraBeds']);
 export const PATIENT_ID_ARRAY_FIELDS = new Set([
   'clinicalEvents',
   'deviceInstanceHistory',
@@ -144,8 +145,8 @@ export const mergeUnknown = (
 
   if (isPlainObject(remote) || isPlainObject(local)) {
     return mergeObject(
-      (isPlainObject(remote) ? remote : {}) as Record<string, unknown>,
-      (isPlainObject(local) ? local : {}) as Record<string, unknown>,
+      isPlainObject(remote) ? remote : {},
+      isPlainObject(local) ? local : {},
       preferLocal,
       traceContext,
       path
@@ -157,12 +158,12 @@ export const mergeUnknown = (
 };
 
 export const mergeObject = (
-  remote: Record<string, unknown> | undefined,
-  local: Record<string, unknown> | undefined,
+  remote: object | undefined,
+  local: object | undefined,
   preferLocal: boolean,
   traceContext?: ConflictResolutionTraceContext,
   pathPrefix = ''
-): Record<string, unknown> | undefined => {
+): object | undefined => {
   if (!remote && !local) return undefined;
   if (!remote) return local;
   if (!local) return remote;
@@ -178,7 +179,13 @@ export const mergeObject = (
 
   keys.forEach(key => {
     const childPath = pathPrefix ? `${pathPrefix}.${key}` : key;
-    result[key] = mergeUnknown(remote[key], local[key], preferLocal, childPath, traceContext);
+    result[key] = mergeUnknown(
+      readField(remote, key),
+      readField(local, key),
+      preferLocal,
+      childPath,
+      traceContext
+    );
   });
 
   return result;
@@ -199,25 +206,25 @@ export const mergePatientData = (
   // user/tab on beds that the local actor never edited (issue #16).
   isExplicitlyChangedPath = false
 ): PatientData => {
-  if (!remotePatient && localPatient) {
-    traceContext?.add({
-      path: pathPrefix,
-      strategy: 'copy_local_value',
-      winner: 'local',
-      reason: 'remote_patient_missing',
-    });
-    return localPatient;
-  }
-  if (!localPatient && remotePatient) {
-    traceContext?.add({
-      path: pathPrefix,
-      strategy: 'copy_local_value',
-      winner: 'remote',
-      reason: 'local_patient_missing',
-    });
-    return remotePatient;
-  }
-  if (!remotePatient && !localPatient) {
+  if (!remotePatient || !localPatient) {
+    if (localPatient) {
+      traceContext?.add({
+        path: pathPrefix,
+        strategy: 'copy_local_value',
+        winner: 'local',
+        reason: 'remote_patient_missing',
+      });
+      return localPatient;
+    }
+    if (remotePatient) {
+      traceContext?.add({
+        path: pathPrefix,
+        strategy: 'copy_local_value',
+        winner: 'remote',
+        reason: 'local_patient_missing',
+      });
+      return remotePatient;
+    }
     return {} as PatientData;
   }
 
@@ -233,7 +240,7 @@ export const mergePatientData = (
       winner: 'local',
       reason: 'intentional_local_bed_clear',
     });
-    return localPatient as PatientData;
+    return localPatient;
   }
 
   if (
@@ -247,13 +254,11 @@ export const mergePatientData = (
       winner: 'local',
       reason: 'local_patient_replacement',
     });
-    return localPatient as PatientData;
+    return localPatient;
   }
 
-  const remoteRecord = remotePatient as unknown as Record<string, unknown>;
-  const localRecord = localPatient as unknown as Record<string, unknown>;
   const merged: Record<string, unknown> = {};
-  const keys = new Set([...Object.keys(remoteRecord), ...Object.keys(localRecord)]);
+  const keys = new Set([...Object.keys(remotePatient), ...Object.keys(localPatient)]);
   const preserveLocalNarrative = shouldPreserveLocalPatientNarrative(remotePatient, localPatient);
   traceContext?.add({
     path: pathPrefix,
@@ -263,8 +268,8 @@ export const mergePatientData = (
   });
 
   keys.forEach(key => {
-    const remoteValue = remoteRecord[key];
-    const localValue = localRecord[key];
+    const remoteValue = readField(remotePatient, key);
+    const localValue = readField(localPatient, key);
 
     if (
       shouldKeepExplicitLocalCensusValue(key, remotePatient, localPatient, remoteValue, localValue)
@@ -327,8 +332,8 @@ export const mergePatientData = (
       merged[key] = mergePatientDevices(
         (remoteValue as string[]) || [],
         (localValue as string[]) || [],
-        localRecord.deviceDetails as DeviceDetailsLike | undefined,
-        localRecord.deviceInstanceHistory as DeviceHistoryLike | undefined,
+        localPatient.deviceDetails,
+        localPatient.deviceInstanceHistory,
         preferLocal,
         traceContext,
         `${pathPrefix}.${key}`,
@@ -360,6 +365,7 @@ export const mergePatientData = (
 
   filterDeviceDetailsToActiveOrRetired(merged);
 
+  // Built key by key from two PatientData values; the compiler cannot follow a merge by run-time key.
   return merged as unknown as PatientData;
 };
 

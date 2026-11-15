@@ -63,14 +63,12 @@ const isDeletedMovement = (movement: MovementLike | undefined): boolean =>
 const hasText = (value: unknown): boolean => String(value || '').trim().length > 0;
 
 const getMovementItems = (record: DailyRecord, field: MovementField): MovementLike[] =>
-  Array.isArray(record[field]) ? (record[field] as unknown as MovementLike[]) : [];
+  Array.isArray(record[field]) ? record[field] : [];
 
 const getMedicalHandoffEntries = (
   patient: DailyRecord['beds'][string] | undefined
 ): MedicalHandoffEntryLike[] =>
-  Array.isArray(patient?.medicalHandoffEntries)
-    ? (patient.medicalHandoffEntries as unknown as MedicalHandoffEntryLike[])
-    : [];
+  Array.isArray(patient?.medicalHandoffEntries) ? patient.medicalHandoffEntries : [];
 
 const collectById = (record: DailyRecord, field: MovementField): Map<string, MovementLike> => {
   const items = new Map<string, MovementLike>();
