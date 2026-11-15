@@ -212,6 +212,14 @@ describe('firestoreRecordWrites', () => {
     expect(setDoc).not.toHaveBeenCalled();
   });
 
+  it('offline, fails at the reachability read instead of waiting in a transaction', async () => {
+    vi.mocked(getDoc).mockRejectedValueOnce({ code: 'unavailable' });
+    await expect(
+      updateRecordPartial('2026-03-14', { status: 'ok' } as never, '2026-03-14T10:00:00.000Z')
+    ).rejects.toMatchObject({ code: 'unavailable' });
+    expect(updateRecordPartiallyAtomically).not.toHaveBeenCalled();
+  });
+
   it.each([
     { nursesDayShift: ['SYNTHETIC NURSE'], tensDayShift: ['SYNTHETIC TENS'] },
     { 'staffingDetailsV1.day.nurses': [] },

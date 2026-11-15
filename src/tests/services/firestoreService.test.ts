@@ -146,8 +146,11 @@ describe('firestoreService', () => {
       id: 'mock-id',
       data: () => ({}),
     } as unknown as DocumentSnapshot<DocumentData>;
-    // The history copy reads the day, then the write's transaction reads it again.
-    getDocMock.mockResolvedValueOnce(stored).mockResolvedValueOnce(stored);
+    // The reachability read, the history copy and the write's transaction each read the day.
+    getDocMock
+      .mockResolvedValueOnce(stored)
+      .mockResolvedValueOnce(stored)
+      .mockResolvedValueOnce(stored);
 
     await updateRecordPartial(mockDate, {
       'beds.BED_01.patientName': 'Jane Doe',
@@ -166,7 +169,10 @@ describe('firestoreService', () => {
         lastUpdated: Timestamp.now(),
       }),
     } as unknown as DocumentSnapshot<DocumentData>;
-    getDocMock.mockResolvedValueOnce(newer).mockResolvedValueOnce(newer);
+    getDocMock
+      .mockResolvedValueOnce(newer)
+      .mockResolvedValueOnce(newer)
+      .mockResolvedValueOnce(newer);
 
     await expect(
       updateRecordPartial(

@@ -1,4 +1,4 @@
-import { Timestamp, type DocumentData } from 'firebase/firestore';
+import { getDoc, Timestamp, type DocumentData } from 'firebase/firestore';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { withRetry } from '@/utils/networkUtils';
@@ -398,6 +398,11 @@ export const updateRecordPartial = async (
           ? buildAtomicPartialCommitReceipt(date, committedBase, sanitizedData)
           : undefined;
       }
+
+      // Offline, a transaction waits for the network and holds the day's write. This read fails at
+      // once without it, as the version read before the write did, so the edit stays local and goes
+      // to the queue; the queue applies the same check when it sends it with network.
+      await getDoc(docRef);
 
       // Outside the transaction: roles the rules do not let write history still save the day.
       if (options.historyPolicy !== 'skip')
