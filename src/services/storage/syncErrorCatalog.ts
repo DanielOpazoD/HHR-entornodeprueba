@@ -12,6 +12,20 @@ export class ConcurrencyError extends Error {
   }
 }
 
+/** What the person whose edit lost to another device's value of the same field reads (SAVE-02). */
+export const FIELD_CHANGED_ELSEWHERE_MESSAGE =
+  'El campo cambió en otro equipo. La edición pendiente se conserva para revisión.';
+const FIELD_CHANGED_ELSEWHERE_CODE = 'daily_record_field_changed_elsewhere';
+
+export const createFieldChangedElsewhereError = () =>
+  Object.assign(new ConcurrencyError(FIELD_CHANGED_ELSEWHERE_MESSAGE, 'semantic_conflict'), {
+    code: FIELD_CHANGED_ELSEWHERE_CODE,
+  } as const);
+
+export const isFieldChangedElsewhereError = (error: unknown): boolean =>
+  error instanceof ConcurrencyError &&
+  (error as { code?: unknown }).code === FIELD_CHANGED_ELSEWHERE_CODE;
+
 export const createDailyRecordBaseReviewError = (message: string) =>
   Object.assign(new ConcurrencyError(message, 'semantic_conflict'), {
     code: 'sync_daily_record_base_review',

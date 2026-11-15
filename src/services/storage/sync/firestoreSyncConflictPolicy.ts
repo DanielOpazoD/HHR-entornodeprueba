@@ -1,6 +1,7 @@
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
+import { FIELD_CHANGED_ELSEWHERE_MESSAGE } from '@/services/storage/syncErrorCatalog';
 
 import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
 import { hasSameNoteValue } from './dayTaskReplayGuard';
@@ -226,9 +227,7 @@ export const assertUnchangedReplayPatchBase = (
       !remoteHolds(remoteData, remoteRecord, path, base[path])
   );
   if (hasBlockingOverlappingChangedPath(remotePaths, paths, remoteRecord, localRecord)) {
-    throw new ConcurrencyError(
-      'El campo cambió en otro equipo. La edición pendiente se conserva para revisión.'
-    );
+    throw new ConcurrencyError(FIELD_CHANGED_ELSEWHERE_MESSAGE);
   }
   return applied;
 };

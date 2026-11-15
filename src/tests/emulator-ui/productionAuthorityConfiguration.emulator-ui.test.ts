@@ -13,6 +13,11 @@ import * as guards from '@/services/storage/firestore/firestoreWriteSupport';
 import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import * as fence from '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
+import type { UpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import {
+  presentSyncOutcomeFeedback,
+  resolvePatchOutcomeFeedback,
+} from '@/hooks/controllers/dailyRecordSyncNotificationController';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {
   setFirestoreEnabled,
@@ -143,6 +148,23 @@ const valueAt = (record: DailyRecord, path: string): unknown =>
   path
     .split('.')
     .reduce<unknown>((value, key) => (value as Record<string, unknown>)?.[key], record);
+/** The notice the census shows for a patch result, as `useDailyRecordSyncQuery` presents it. */
+const shownNotice = (result: UpdatePartialDailyRecordResult) => {
+  const shown: [channel: string, title: string, message?: string][] = [];
+  presentSyncOutcomeFeedback(resolvePatchOutcomeFeedback(result), 'Actualización', {
+    success: (title, message) => shown.push(['success', title, message]),
+    warning: (title, message) => shown.push(['warning', title, message]),
+    error: (title, message) => shown.push(['error', title, message]),
+  });
+  return shown;
+};
+const FIELD_CHANGED_NOTICE = [
+  [
+    'warning',
+    'Cambio pendiente de revisión',
+    'El campo cambió en otro equipo. La edición pendiente se conserva para revisión.',
+  ],
+];
 const normalize = (value: unknown) =>
   Array.isArray(value) ? value.filter(item => item !== '') : value;
 
@@ -429,11 +451,45 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     await settleQueue();
     expect((await read()).handoffNovedadesDayShift).toBe(savedB ? 'NOVEDAD B' : 'NOVEDAD A');
     if (!savedB) {
+      expect(shownNotice(observed.value)).toEqual(FIELD_CHANGED_NOTICE);
       expect((await hospitalDB.dailyRecords.get(date))?.handoffNovedadesDayShift).toBe('NOVEDAD B');
       expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
         { status: 'CONFLICT', lastErrorCategory: 'conflict' },
       ]);
     }
+  });
+
+  it('the nurse who loses a real race is told the field changed elsewhere, not «integrated»', async () => {
+    await configure('production');
+    await hospitalDB.dailyRecords.put(baseRecord());
+    // Both start from the same base; B's transaction opens only after A's write resolved.
+    let releaseB!: () => void;
+    const aDone = new Promise<void>(done => {
+      releaseB = done;
+    });
+    transactionGate = async () => {
+      if (scope.getStore()?.uid === 'synthetic-B') await aDone;
+    };
+    const [other, observed] = await Promise.allSettled([
+      patch('A', { handoffNovedadesDayShift: 'NOVEDAD A' }).finally(() => releaseB()),
+      actor('B', () =>
+        updatePartialDetailed(
+          date,
+          { handoffNovedadesDayShift: 'NOVEDAD B' },
+          { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
+        )
+      ),
+    ]);
+    if (observed.status === 'rejected') throw observed.reason;
+    expect(other.status).toBe('fulfilled');
+    expect(observed.value).toMatchObject({ savedLocally: true, updatedRemotely: false });
+    expect(shownNotice(observed.value)).toEqual(FIELD_CHANGED_NOTICE);
+    await settleQueue();
+    expect((await read()).handoffNovedadesDayShift).toBe('NOVEDAD A');
+    expect((await hospitalDB.dailyRecords.get(date))?.handoffNovedadesDayShift).toBe('NOVEDAD B');
+    expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
+      { status: 'CONFLICT', lastErrorCategory: 'conflict' },
+    ]);
   });
 
   it('a nurse whose novedades another device replaced first is warned and keeps the text', async () => {
@@ -448,6 +504,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       )
     );
     expect(result).toMatchObject({ savedLocally: true, updatedRemotely: false });
+    expect(shownNotice(result)).toEqual(FIELD_CHANGED_NOTICE);
     await settleQueue();
     expect((await read()).handoffNovedadesDayShift).toBe('NOVEDAD A');
     expect((await hospitalDB.dailyRecords.get(date))?.handoffNovedadesDayShift).toBe('NOVEDAD B');
@@ -472,6 +529,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         })
       );
       expect(result).toMatchObject({ outcome: 'clean', updatedRemotely: true });
+      expect(shownNotice(result).map(([channel]) => channel)).toEqual(['success']);
       expect(await read()).toMatchObject({ handoffNovedadesDayShift: 'NOVEDAD A', ...edit });
       expect(await hospitalDB.syncQueue.count()).toBe(0);
     }

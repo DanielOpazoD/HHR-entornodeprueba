@@ -27,6 +27,7 @@ import {
   UnsupportedFirestoreUpdateProjectionError,
 } from '@/services/storage/firestore/firestoreUpdateProjection';
 import { createOperationalError } from '@/services/observability/operationalError';
+import { createFieldChangedElsewhereError } from '@/services/storage/syncErrorCatalog';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import {
   isPermissionDeniedError,
@@ -422,22 +423,28 @@ export const updateRecordPartial = async (
           })
         );
       };
-      await withRetry(
-        () =>
-          updateRecordPartiallyAtomically(
-            docRef,
-            asFirestoreUpdatePayload(sanitizedData),
-            expectedLastUpdated,
-            'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
-            'partial update',
-            { historyPolicy: 'skip', acceptsOtherVersion }
-          ),
-        {
-          onRetry: (err: unknown, attempt: number) =>
-            logFirestoreWriteRetry('partialUpdate', date, attempt, err),
-          shouldRetry: (err: unknown) => !(err instanceof ConcurrencyError),
-        }
-      );
+      try {
+        await withRetry(
+          () =>
+            updateRecordPartiallyAtomically(
+              docRef,
+              asFirestoreUpdatePayload(sanitizedData),
+              expectedLastUpdated,
+              'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
+              'partial update',
+              { historyPolicy: 'skip', acceptsOtherVersion }
+            ),
+          {
+            onRetry: (err: unknown, attempt: number) =>
+              logFirestoreWriteRetry('partialUpdate', date, attempt, err),
+            shouldRetry: (err: unknown) => !(err instanceof ConcurrencyError),
+          }
+        );
+      } catch (error) {
+        // Only a field of this edit holding another writer's value refuses it here.
+        if (error instanceof ConcurrencyError) throw createFieldChangedElsewhereError();
+        throw error;
+      }
     };
     // A protected specialty decision already uses the authority callable. Its
     // rejection must never be retried as a legacy patch without that intent.
