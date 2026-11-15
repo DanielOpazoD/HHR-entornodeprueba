@@ -1,3 +1,5 @@
+import type { DailyRecord } from '@/types/domain/dailyRecord';
+
 export const getValueAtPath = (source: unknown, path: string): unknown => {
   const parts = path.split('.');
   let cursor: unknown = source;
@@ -63,3 +65,21 @@ export const isPlainObject = (value: unknown): value is Record<string, unknown> 
 
 export const isPrimitive = (value: unknown): value is string | number | boolean =>
   ['string', 'number', 'boolean'].includes(typeof value);
+
+/**
+ * Reads a field by a key known only at run time, exactly as `source[key]` does: a stored object may
+ * carry keys its type omits, and a legacy day may hold a primitive there, which an index read boxes.
+ */
+export const readField = (source: object, key: string): unknown =>
+  Reflect.get(Object(source), key, source);
+
+/**
+ * Day-record fields merged by one rule. `has` narrows a run-time key to one of them, so the caller
+ * reads the field with its declared type and a renamed field stops compiling.
+ */
+export const dailyRecordFieldSet = <const Field extends keyof DailyRecord>(
+  fields: readonly Field[]
+) => {
+  const names: ReadonlySet<string> = new Set(fields);
+  return { has: (key: string): key is Field => names.has(key) };
+};

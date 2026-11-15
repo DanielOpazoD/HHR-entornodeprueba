@@ -9,6 +9,7 @@ import {
 import {
   getValueAtPath,
   normalizeChangedPaths,
+  readField,
   toIso,
   toMillis,
 } from '@/services/repositories/conflictResolutionUtils';
@@ -178,17 +179,21 @@ const resolveWholeRecord = (
     lastUpdated: toIso(Math.max(remoteTs, localTs)),
   };
 
-  const remoteRecord = remote as unknown as Record<string, unknown>;
-  const localRecord = local as unknown as Record<string, unknown>;
-  const scalarKeys = new Set([...Object.keys(remoteRecord), ...Object.keys(localRecord)]);
+  const scalarFields: Record<string, unknown> = {};
+  const scalarKeys = new Set([...Object.keys(remote), ...Object.keys(local)]);
   scalarKeys.forEach(key => {
     if (RECORD_STRUCTURAL_FIELDS.has(key)) return;
-    const decision = decideScalarByPolicy(key, remoteRecord[key], localRecord[key], preferLocal);
-    (resolved as unknown as Record<string, unknown>)[key] = decision.value;
+    const decision = decideScalarByPolicy(
+      key,
+      readField(remote, key),
+      readField(local, key),
+      preferLocal
+    );
+    scalarFields[key] = decision.value;
     traceContext.add(traceFromScalarDecision(key, decision));
   });
 
-  return normalizeMovementBedConsistency(resolved).record;
+  return normalizeMovementBedConsistency(Object.assign(resolved, scalarFields)).record;
 };
 
 const resolveByChangedPaths = (
@@ -246,11 +251,9 @@ const resolveByChangedPaths = (
     }
 
     if (ID_BASED_ARRAY_FIELDS.has(root)) {
-      const remoteMap = remote as unknown as Record<string, unknown>;
-      const localMap = local as unknown as Record<string, unknown>;
-      (patches as Record<string, unknown>)[root] = mergeMovementArrayById(
-        remoteMap[root] as unknown[],
-        localMap[root] as unknown[],
+      (patches as Record<string, unknown>)[root] = mergeMovementArrayById<unknown>(
+        remote[root],
+        local[root],
         true,
         traceContext,
         root
@@ -279,11 +282,9 @@ const resolveByChangedPaths = (
     }
 
     if (UNIQUE_ARRAY_FIELDS.has(root)) {
-      const remoteMap = remote as unknown as Record<string, unknown>;
-      const localMap = local as unknown as Record<string, unknown>;
       (patches as Record<string, unknown>)[root] = mergeUniquePrimitiveArray(
-        (remoteMap[root] as string[]) || [],
-        (localMap[root] as string[]) || [],
+        remote[root] || [],
+        local[root] || [],
         true,
         traceContext,
         root
