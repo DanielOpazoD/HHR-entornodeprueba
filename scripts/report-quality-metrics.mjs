@@ -315,8 +315,8 @@ const getTestMetrics = () => {
 
   let skipCount = 0;
   let onlyCount = 0;
-  let flakeRiskFiles = 0;
-  const flakeRiskFilePaths = [];
+  // Informative only: flake risk is measured from test execution (system-confidence).
+  const clockSignalFilePaths = [];
   let megatestFilesOver500 = 0;
 
   for (const filePath of testFiles) {
@@ -347,8 +347,7 @@ const getTestMetrics = () => {
     const explicitlyMarkedFlakeSafe = /@flake-safe/.test(content);
 
     if (hasNonDeterministicSignals && !hasFakeTimerControls && !explicitlyMarkedFlakeSafe) {
-      flakeRiskFiles += 1;
-      flakeRiskFilePaths.push(relative);
+      clockSignalFilePaths.push(relative);
     }
   }
 
@@ -356,8 +355,8 @@ const getTestMetrics = () => {
     testFileCount: testFiles.length,
     skippedMarkers: skipCount,
     onlyMarkers: onlyCount,
-    flakeRiskFiles,
-    flakeRiskFilePaths,
+    clockSignalFiles: clockSignalFilePaths.length,
+    clockSignalFilePaths,
     megatestFilesOver500,
   };
 };
@@ -596,9 +595,9 @@ const mdLines = [
   `- Test files: ${metrics.tests.testFileCount}`,
   `- Forbidden .skip markers: ${metrics.tests.skippedMarkers}`,
   `- Forbidden .only markers: ${metrics.tests.onlyMarkers}`,
-  `- Flake-risk test files: ${metrics.tests.flakeRiskFiles}`,
-  ...(metrics.tests.flakeRiskFilePaths.length > 0
-    ? metrics.tests.flakeRiskFilePaths.map(filePath => `  - ${filePath}`)
+  `- Test files with clock or timer calls and no fake timers (informative, not flake risk): ${metrics.tests.clockSignalFiles}`,
+  ...(metrics.tests.clockSignalFilePaths.length > 0
+    ? metrics.tests.clockSignalFilePaths.map(filePath => `  - ${filePath}`)
     : []),
   `- Megatests >500 lines: ${metrics.tests.megatestFilesOver500}`,
   '',

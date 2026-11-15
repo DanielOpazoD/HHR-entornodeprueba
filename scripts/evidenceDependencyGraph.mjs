@@ -48,6 +48,7 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
     command: 'report:system-confidence',
     artifacts: ['reports/system-confidence.json', 'reports/system-confidence.md'],
     dependencies: ['quality-metrics', 'critical-coverage', 'operational-health'],
+    fileDependencies: ['reports/test-execution-manifest.json'],
   }),
   'release-confidence-matrix': reportNode({
     command: 'report:release-confidence-matrix',

@@ -107,7 +107,11 @@ const makeRoot = (reportPayload: Record<string, unknown>) => {
   );
 
   for (const reportFile of trackedReports) {
-    fs.writeFileSync(path.join(root, reportFile), JSON.stringify(reportPayload), 'utf8');
+    const payload =
+      reportFile === 'reports/system-confidence.json'
+        ? { flakeRisk: { measured: true, fileCount: 0, files: [] }, ...reportPayload }
+        : reportPayload;
+    fs.writeFileSync(path.join(root, reportFile), JSON.stringify(payload), 'utf8');
   }
   fs.writeFileSync(
     path.join(root, 'reports/e2e/clinical-visual-release-report.json'),
@@ -165,27 +169,45 @@ describe('release evidence guardrail', () => {
     );
   });
 
-  it('blocks release evidence while quality metrics still report flake-risk tests', () => {
-    const root = makeRoot({ gitSha: 'abc123', gitDirty: false });
-    fs.writeFileSync(
-      path.join(root, 'reports/quality-metrics.json'),
-      JSON.stringify({
-        gitSha: 'abc123',
-        gitDirty: false,
-        tests: {
-          flakeRiskFiles: 2,
-          flakeRiskFilePaths: [
-            'src/tests/components/layout/date-strip/MedicalIndicationsQuickAction.test.tsx',
-            'src/tests/services/storage/dailyRecordConflictSnapshotService.test.ts',
-          ],
-        },
-      }),
-      'utf8'
-    );
+  it('blocks release evidence on test files that really failed or needed a retry', () => {
+    const root = makeRoot({
+      gitSha: 'abc123',
+      gitDirty: false,
+      flakeRisk: {
+        measured: true,
+        fileCount: 2,
+        files: [
+          { file: 'e2e/login.spec.ts', failed: 0, retried: 1 },
+          { file: 'src/tests/timer.test.ts', failed: 1, retried: 0 },
+        ],
+      },
+    });
 
     expect(collectReleaseEvidenceIssues(root)).toContain(
-      'reports/quality-metrics.json reports 2 flake-risk test file(s): src/tests/components/layout/date-strip/MedicalIndicationsQuickAction.test.tsx, src/tests/services/storage/dailyRecordConflictSnapshotService.test.ts.'
+      'reports/system-confidence.json reports 2 test file(s) that failed or needed a retry: e2e/login.spec.ts, src/tests/timer.test.ts.'
     );
+  });
+
+  it('blocks release evidence while flake risk is unmeasured', () => {
+    const root = makeRoot({
+      gitSha: 'abc123',
+      gitDirty: false,
+      flakeRisk: { measured: false, reason: 'missing reports/test-execution-manifest.json' },
+    });
+
+    expect(collectReleaseEvidenceIssues(root)).toContain(
+      "reports/system-confidence.json has unmeasured flake risk (missing reports/test-execution-manifest.json); regenerate it with reports/test-execution-manifest.json from this commit's CI run."
+    );
+  });
+
+  it('does not block release evidence on informative clock or timer calls in tests', () => {
+    const root = makeRoot({
+      gitSha: 'abc123',
+      gitDirty: false,
+      tests: { clockSignalFiles: 1, clockSignalFilePaths: ['src/tests/timer.test.ts'] },
+    });
+
+    expect(collectReleaseEvidenceIssues(root)).toEqual([]);
   });
 
   it('requires the release confidence matrix to be present in the evidence pack', () => {

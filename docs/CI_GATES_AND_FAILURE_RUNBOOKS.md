@@ -167,8 +167,9 @@ de CI fue correcto; no ampliar automáticamente a un gate local completo.
 
 ### Evidencia final de rendimiento
 
-`final-confidence-and-readiness` espera a `e2e-critical-emulator` y descarga su artefacto
-`flow-performance-evidence` de la misma ejecución, sin seleccionar otra rama ni un run anterior.
+`final-confidence-and-readiness` espera a `e2e-critical-emulator` y a `test-execution-manifest`
+y descarga sus artefactos `flow-performance-evidence` y `test-execution-manifest` de la misma
+ejecución, sin seleccionar otra rama ni un run anterior.
 Valida el reporte Playwright (sin fallos, interrupciones ni recuperaciones por reintento) y los presupuestos
 antes de regenerar salud operativa, confianza y readiness. Publica también las mediciones fuente. `postmerge-evidence` reutiliza y valida el mismo
 artefacto antes de regenerar los informes de main.
@@ -298,8 +299,11 @@ Incluye:
 El gate regenera primero el paquete completo, incluido el smoke visual clínico y el
 bundle que incorpora el manifiesto. Después `check:release-evidence` bloquea evidencia
 formal generada desde un worktree sucio, reportes stale, signoff clínico incompleto,
-smoke visual clínico faltante y `quality-metrics` con `flakeRiskFiles > 0`. Si falla por
-flake-risk, corregir o aislar el test afectado antes de repetir `ci:release-gate`.
+smoke visual clínico faltante y un riesgo de pruebas inestables (`flakeRisk` de
+`system-confidence`) mayor que cero o sin medir. Ese riesgo cuenta los archivos de prueba que
+fallaron o necesitaron un reintento en `reports/test-execution-manifest.json` del mismo commit;
+sin ese manifiesto queda «sin medir», nunca en cero. Si falla por flake-risk, corregir el test
+nombrado antes de repetir `ci:release-gate`.
 
 ### `test:release-confidence`
 
@@ -770,11 +774,14 @@ acredita una ejecución limpia. Se conserva compatibilidad con reportes anterior
 que omiten `errors`; una lista vacía es evidencia válida. El gate resume el número de
 errores sin copiar sus mensajes o posibles datos sensibles al diagnóstico.
 
-El indicador estático `flakeRiskFiles` de `quality-metrics` detecta patrones de reloj,
-aleatoriedad y temporizadores sin controles reconocidos. No equivale al número de
-pruebas que fallaron intermitentemente en una ejecución: ese resultado se consulta en
-los reportes de test. No reducir umbrales ni añadir marcas `@flake-safe` sólo para
-mejorar el score. Se retiró `seedPersistedBedFields`, sin consumidores después de
+El riesgo de pruebas inestables (`flakeRisk` en `system-confidence`) cuenta los archivos
+de prueba que fallaron o pasaron solo tras un reintento en el manifiesto de ejecución de la
+misma corrida; `final-confidence-and-readiness` lo descarga de `test-execution-manifest`.
+Sin manifiesto del commit, el indicador queda degradado como «sin medir». La lista
+`clockSignalFiles` de `quality-metrics` (pruebas con reloj, aleatoriedad o temporizadores
+sin temporizadores falsos) es solo informativa y no degrada ningún informe. Un reintento
+manual de un job reemplaza su evidencia en el manifiesto; esos casos se miden entre corridas
+con `npm run report:ci-reruns`. Se retiró `seedPersistedBedFields`, sin consumidores después de
 corregir los E2E de reconexión; las pruebas deben preparar su estado inicial y luego
 observar el guardado de la aplicación.
 
