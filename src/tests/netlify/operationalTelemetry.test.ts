@@ -141,6 +141,44 @@ describe('operational-telemetry netlify function', () => {
     expect(JSON.stringify(line)).not.toContain('Juan');
   });
 
+  it('logs a sync conflict and a sync notice with their closed values only, without mailing', async () => {
+    for (const event of [
+      {
+        category: 'sync',
+        status: 'degraded',
+        operation: 'sync_queue_task_conflict',
+        context: { origin: 'conflict_auto_merge', reason: 'occupant_changed', key: 'daily:x' },
+      },
+      {
+        category: 'daily_record',
+        status: 'degraded',
+        operation: 'daily_record_sync_notice',
+        context: { noticeKind: 'auto_merged' },
+      },
+      {
+        category: 'daily_record',
+        status: 'degraded',
+        operation: 'daily_record_sync_notice',
+        // A hand-crafted POST: free text under the allowlisted keys is still refused.
+        context: { noticeKind: 'Juan Pérez', origin: '12.345.678-5' },
+      },
+    ]) {
+      const response = await handler(
+        request(envelope({ ...event, timestamp: '2026-09-11T03:10:00.000Z' }))
+      );
+      expect(JSON.parse(response.body)).toEqual({ accepted: true, alert: 'not_alertable' });
+    }
+    const logged = log.mock.calls.map(([line]) => JSON.parse(line).event);
+    expect(logged.map(event => [event.operation, event.context])).toEqual([
+      ['sync_queue_task_conflict', { origin: 'conflict_auto_merge', reason: 'occupant_changed' }],
+      ['daily_record_sync_notice', { noticeKind: 'auto_merged' }],
+      ['daily_record_sync_notice', {}],
+    ]);
+    expect(JSON.stringify(log.mock.calls)).not.toContain('Juan');
+    expect(JSON.stringify(log.mock.calls)).not.toContain('12.345.678');
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
   it('only logs an Eloísa sync that failed because a source was slow or unreachable', async () => {
     for (const issue of ['snapshot_timeout', 'gestion_camas_unavailable']) {
       log.mockClear();

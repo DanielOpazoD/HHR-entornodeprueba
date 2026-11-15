@@ -19,6 +19,11 @@ import {
   createRetryingNotice,
   type OperationalNotice,
 } from '@/shared/feedback/operationalNoticePolicy';
+import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
+import type { OPERATIONAL_TELEMETRY_SYNC_NOTICE_KINDS } from '@/services/observability/operationalTelemetryPrivacy';
+
+/** Which sync notice a save or an update showed; the production log counts it by this value. */
+export type SyncNoticeKind = (typeof OPERATIONAL_TELEMETRY_SYNC_NOTICE_KINDS)[number];
 
 interface SaveErrorFeedback {
   title: string;
@@ -89,6 +94,8 @@ export const resolvePatchErrorFeedback = (error: unknown): SaveErrorFeedback =>
 
 interface SyncOutcomeFeedback {
   channel: 'success' | 'warning' | 'error';
+  /** Absent only on the routine confirmation, which is not counted. */
+  kind?: SyncNoticeKind;
   title: string;
   message: string;
   state: OperationalNotice['state'];
@@ -103,7 +110,12 @@ interface SyncNotificationChannels {
 
 export const presentSyncOutcomeFeedback = (
   notice:
-    | { channel: 'success' | 'warning' | 'error' | null; title?: string; message?: string }
+    | {
+        channel: 'success' | 'warning' | 'error' | null;
+        kind?: SyncNoticeKind;
+        title?: string;
+        message?: string;
+      }
     | null
     | undefined,
   fallbackTitle: string,
@@ -111,6 +123,14 @@ export const presentSyncOutcomeFeedback = (
 ): void => {
   if (!notice?.message || !notice.channel) return;
   channels[notice.channel](notice.title || fallbackTitle, notice.message);
+  // Counted as `degraded`, never `failed`: a notice already on screen is not mailed as well.
+  if (notice.kind)
+    recordOperationalTelemetry({
+      category: 'daily_record',
+      status: 'degraded',
+      operation: 'daily_record_sync_notice',
+      context: { noticeKind: notice.kind },
+    });
 };
 
 const createSyncSuccess = (title: string, message: string): SyncOutcomeFeedback => ({
@@ -121,19 +141,34 @@ const createSyncSuccess = (title: string, message: string): SyncOutcomeFeedback 
   actionRequired: false,
 });
 
-const createSyncRetrying = (title: string, message: string): SyncOutcomeFeedback => ({
+const createSyncRetrying = (
+  kind: SyncNoticeKind,
+  title: string,
+  message: string
+): SyncOutcomeFeedback => ({
   ...createRetryingNotice(title, message),
   channel: 'warning',
+  kind,
 });
 
-const createSyncDegraded = (title: string, message: string): SyncOutcomeFeedback => ({
+const createSyncDegraded = (
+  kind: SyncNoticeKind,
+  title: string,
+  message: string
+): SyncOutcomeFeedback => ({
   ...createDegradedNotice(title, message),
   channel: 'warning',
+  kind,
 });
 
-const createSyncBlocked = (title: string, message: string): SyncOutcomeFeedback => ({
+const createSyncBlocked = (
+  kind: SyncNoticeKind,
+  title: string,
+  message: string
+): SyncOutcomeFeedback => ({
   ...createBlockedNotice(title, message),
   channel: 'error',
+  kind,
 });
 
 const LOCAL_PERSISTENCE_CLAIM =
@@ -176,6 +211,7 @@ const resolveWriteOutcomeFeedback = (
     resolveSyncConsistencyMessage({ ...result, remoteConfirmed }, fallbackMessage);
   if (isDailyRecordWriteBlockedResult(result) || result.outcome === 'blocked') {
     return createSyncBlocked(
+      'blocked',
       result.consistencyState === 'blocked_regression'
         ? 'Protección de Datos'
         : result.consistencyState === 'blocked_version_mismatch'
@@ -192,6 +228,7 @@ const resolveWriteOutcomeFeedback = (
   }
   if (result.outcome === 'queued' && result.savedLocally && result.queuedForRetry) {
     return createSyncRetrying(
+      'pending_sync',
       patch ? 'Cambio pendiente de sincronización' : 'Guardado local pendiente',
       patch
         ? 'La actualización quedó guardada localmente y se reintentará la sincronización.'
@@ -204,18 +241,21 @@ const resolveWriteOutcomeFeedback = (
   ) {
     // Nothing was integrated: the edit waits for review with this device's text.
     return createSyncDegraded(
+      'pending_review',
       patch ? 'Cambio pendiente de revisión' : 'Censo pendiente de revisión',
       consistencyMessage(FIELD_CHANGED_ELSEWHERE_MESSAGE)
     );
   }
   if (result.outcome === 'auto_merged' && result.autoMerged) {
     return createSyncDegraded(
+      'auto_merged',
       patch ? 'Cambio actualizado' : 'Censo actualizado',
       'El sistema integró los cambios recientes automáticamente.'
     );
   }
   if (savedState === 'error') {
     return createSyncBlocked(
+      'not_saved',
       patch ? 'Cambio no guardado' : 'Guardado no confirmado',
       patch
         ? 'No fue posible confirmar una copia local ni remota del cambio.'
@@ -224,6 +264,7 @@ const resolveWriteOutcomeFeedback = (
   }
   if (result.outcome === 'unrecoverable' || result.consistencyState === 'unrecoverable') {
     return createSyncDegraded(
+      'unrecoverable',
       remoteConfirmed
         ? patch
           ? 'Cambio guardado; copia local pendiente'
@@ -250,6 +291,7 @@ const resolveWriteOutcomeFeedback = (
           : 'Los cambios quedaron confirmados en el servidor.'
       )
     : createSyncDegraded(
+        'local_only',
         patch ? 'Cambio sólo local' : 'Guardado sólo local',
         patch
           ? 'La actualización quedó guardada en este dispositivo, sin confirmación del servidor.'
