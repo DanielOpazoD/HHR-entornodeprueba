@@ -60,7 +60,7 @@ const row = (
 });
 
 describe('episode-less report document selection', () => {
-  it.each(['10:00', '22:00'])('retains the exact RUT row when its time is %s', time => {
+  it.each(['10:00', '22:00'])('discharges each own occupant when the RUT row is at %s', time => {
     const r = rec({
       H5C1: person('12.345.678-5', 'RUT', '1001'),
       H5C2: person('P123456785', 'PAS', '4004', 'H5C2'),
@@ -73,29 +73,37 @@ describe('episode-less report document selection', () => {
     for (const result of [once, applyEgresoReport(once, rows, r)]) {
       expect(result.discharges).toEqual([
         expect.objectContaining({ bedId: 'H5C1', encounterId: '1001', rut: '12.345.678-5' }),
-      ]);
-      expect(result.conflicts).toHaveLength(1);
-      expect(result.conflicts[0]).toMatchObject({ bedId: 'H5C2', rut: 'P123456785' });
-    }
-  });
-  it.each(['10:00', '22:00'])('retains the exact passport row when its time is %s', time => {
-    const r = rec({
-      H5C2: person('P123456785', 'PAS', '4004', 'H5C2'),
-      H5C1: person('12.345.678-5', 'RUT', '1001'),
-    });
-    const rows = [
-      row('P123456785', undefined, 'H5C2', `07-07-2026 ${time}`),
-      row('12.345.678-5', undefined, 'H5C1', `07-07-2026 ${time === '10:00' ? '22:00' : '10:00'}`),
-    ];
-    const once = applyEgresoReport(createEmptyCensusImportDiff(true), rows, r);
-    for (const result of [once, applyEgresoReport(once, rows, r)]) {
-      expect(result.discharges).toEqual([
         expect.objectContaining({ bedId: 'H5C2', encounterId: '4004', rut: 'P123456785' }),
       ]);
-      expect(result.conflicts).toHaveLength(1);
-      expect(result.conflicts[0]).toMatchObject({ bedId: 'H5C1', rut: '12.345.678-5' });
+      expect(result.conflicts).toEqual([]);
     }
   });
+  it.each(['10:00', '22:00'])(
+    'discharges each own occupant when the passport row is at %s',
+    time => {
+      const r = rec({
+        H5C2: person('P123456785', 'PAS', '4004', 'H5C2'),
+        H5C1: person('12.345.678-5', 'RUT', '1001'),
+      });
+      const rows = [
+        row('P123456785', undefined, 'H5C2', `07-07-2026 ${time}`),
+        row(
+          '12.345.678-5',
+          undefined,
+          'H5C1',
+          `07-07-2026 ${time === '10:00' ? '22:00' : '10:00'}`
+        ),
+      ];
+      const once = applyEgresoReport(createEmptyCensusImportDiff(true), rows, r);
+      for (const result of [once, applyEgresoReport(once, rows, r)]) {
+        expect(result.discharges).toEqual([
+          expect.objectContaining({ bedId: 'H5C2', encounterId: '4004', rut: 'P123456785' }),
+          expect.objectContaining({ bedId: 'H5C1', encounterId: '1001', rut: '12.345.678-5' }),
+        ]);
+        expect(result.conflicts).toEqual([]);
+      }
+    }
+  );
   it.each([
     ['12.345.678-5', '123456785'],
     ['P123456785', 'p-123 456785'],

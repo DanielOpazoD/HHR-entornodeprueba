@@ -2,7 +2,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { ReportEgreso } from '../contracts/egresoReport';
 import { normalizedName } from './previousCensusEgresoCandidates';
-import { isValidRut, normalizeRut } from '@/utils/rutUtils';
+import { isSameDocumentBeforeLetterRule, isValidRut, normalizeRut } from '@/utils/rutUtils';
 
 type ConflictEntry = CensusImportDiff['conflicts'][number];
 type DischargeEntry = CensusImportDiff['discharges'][number];
@@ -85,12 +85,12 @@ export const dropRedundantUnverifiedReportConflicts = (
       )
         return false;
     }
-    const run = normalizeRut(conflict.rut);
-    if (!run) return true;
+    if (!normalizeRut(conflict.rut)) return true;
     const discharge = discharges.find(
       entry =>
         entry.bedId === conflict.bedId &&
-        (normalizeRut(entry.rut) === run || normalizeRut(entry.associatedClinicalCrib?.rut) === run)
+        (isSameDocumentBeforeLetterRule(entry.rut, conflict.rut) ||
+          isSameDocumentBeforeLetterRule(entry.associatedClinicalCrib?.rut, conflict.rut))
     );
     if (!discharge) return true;
     const crib = record.beds[conflict.bedId]?.clinicalCrib;

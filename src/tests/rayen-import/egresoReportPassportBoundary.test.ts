@@ -56,19 +56,21 @@ const row = (
 });
 
 describe('passport report document boundary', () => {
-  it.each([undefined, '1001'])('does not discharge a RUT occupant (episode %s)', episode => {
-    const rec = record('12.345.678-5');
-    rec.beds.H5C1.clinicalEpisodeId = episode;
-    const result = applyEgresoReport(
-      createEmptyCensusImportDiff(true),
-      [row('P123456785', '08-07-2026 12:00')],
-      rec
-    );
-    expect(result.discharges).toEqual([]);
-    expect(result.reportEgresos ?? []).toEqual([]);
-    expect(result.conflicts).toHaveLength(1);
-    expect(result.conflicts[0].bedId).toBe('H5C1');
-  });
+  it.each([undefined, '1001'])(
+    'does not discharge a RUT occupant and keeps the passport egreso (episode %s)',
+    episode => {
+      const rec = record('12.345.678-5');
+      rec.beds.H5C1.clinicalEpisodeId = episode;
+      const result = applyEgresoReport(
+        createEmptyCensusImportDiff(true),
+        [row('P123456785', '08-07-2026 12:00')],
+        rec
+      );
+      expect(result.discharges).toEqual([]);
+      expect(result.reportEgresos).toMatchObject([{ run: 'P123456785' }]);
+      expect(result.conflicts).toEqual([]);
+    }
+  );
   it.each([
     ['12.345.678-5', '123456785'],
     ['P123456785', 'p-123 456785'],
@@ -94,7 +96,7 @@ it.each([
   'active-crib',
   'conflict',
   'discharge',
-] as const)('retains plans and exposes collision in %s', location => {
+] as const)('retains the RUT plans in %s and records only the passport egreso', location => {
   const rec = record('99.999.999-9');
   const diff = createEmptyCensusImportDiff(true);
   const patient = occupant('12.345.678-5');
@@ -159,14 +161,13 @@ it.each([
     });
   const result = applyEgresoReport(diff, [row('P123456785', '08-07-2026 12:00')], rec);
   expect(result.discharges).toEqual(diff.discharges);
-  const onlyContext = location === 'active-crib' || location === 'conflict';
-  expect(result.reportEgresos ?? []).toHaveLength(onlyContext ? 1 : 0);
+  expect(result.reportEgresos).toMatchObject([{ run: 'P123456785' }]);
   expect(result.admissions).toEqual(diff.admissions);
   expect(result.moves).toEqual(diff.moves);
   expect(result.updates).toEqual(diff.updates);
   expect(result.pendingAdministrativeDischarges).toEqual(diff.pendingAdministrativeDischarges);
-  expect(result.conflicts).toHaveLength(onlyContext ? 0 : diff.conflicts.length + 1);
-  if (!onlyContext) expect(result.conflicts.at(-1)?.bedId).toBe('H5C1');
+  // The RUT patient's own review stays: the passport row is not that person's egreso.
+  expect(result.conflicts).toEqual(diff.conflicts);
 });
 it.each(['08-07-2026 12:00', '07-07-2026 12:00'])(
   'keeps legacy truncated documents visible (%s)',
@@ -205,7 +206,7 @@ it('keeps the exact passport episode ahead of an episode-less duplicate', () => 
 });
 
 it.each(['discharges', 'transfers', 'cma'] as const)(
-  'does not raise a collision for recorded history in %s',
+  'keeps the passport egreso despite a RUT with its digits recorded in %s',
   collection => {
     const rec = record('99.999.999-9');
     const movement = {
@@ -226,7 +227,7 @@ it.each(['discharges', 'transfers', 'cma'] as const)(
       withHistory
     );
     expect(result.discharges).toEqual([]);
-    expect(result.reportEgresos ?? []).toEqual([]);
+    expect(result.reportEgresos).toMatchObject([{ run: 'P123456785' }]);
     expect(result.conflicts).toEqual([]);
   }
 );

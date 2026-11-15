@@ -1,7 +1,7 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { OccupiedBedEvidence } from './egresoReportPolicy';
-import { normalizeRut } from '@/utils/rutUtils';
+import { isSameDocumentBeforeLetterRule, normalizeRut } from '@/utils/rutUtils';
 
 type ConflictEntry = CensusImportDiff['conflicts'][number];
 
@@ -13,19 +13,19 @@ export const hasDifferentIncomingPrincipal = (
   diff: CensusImportDiff,
   parentBedId: string,
   reportedEpisode: string,
-  run: string
+  document: string
 ): boolean =>
   diff.admissions.some(
     entry =>
       entry.bedId === parentBedId &&
       entry.source?.encounterId !== reportedEpisode &&
-      normalizeRut(entry.patient.rut) !== run
+      !isSameDocumentBeforeLetterRule(entry.patient.rut, document)
   ) ||
   diff.moves.some(
     entry =>
       entry.toBedId === parentBedId &&
       entry.source.encounterId !== reportedEpisode &&
-      normalizeRut(entry.rut) !== run
+      !isSameDocumentBeforeLetterRule(entry.rut, document)
   ) ||
   diff.conflicts.some(
     entry =>

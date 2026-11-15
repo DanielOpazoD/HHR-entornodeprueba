@@ -128,6 +128,26 @@ export const hasPassportShapeBeforeLetterRule = (value: string): boolean => {
 };
 
 /**
+ * The same document as HHR read documents before letters made one a passport: a passport it
+ * always read as one (P123456785) is only that passport, never the RUT its digits form. Any other
+ * value compares by its digits, because HHR stored a document such as 1234567A as 123.456-7 and
+ * that patient keeps it. For the discharge report routes and the historical reconstruction; a
+ * new comparison uses isSameDocument.
+ */
+export const isSameDocumentBeforeLetterRule = (left = '', right = ''): boolean =>
+  /\d/.test(left) &&
+  /\d/.test(right) &&
+  (hasPassportShapeBeforeLetterRule(left) || hasPassportShapeBeforeLetterRule(right))
+    ? isSameDocument(left, right)
+    : normalizeRut(left) === normalizeRut(right);
+
+/** Map/Set key: two keys are equal exactly when isSameDocumentBeforeLetterRule holds. */
+export const documentKeyBeforeLetterRule = (value = ''): string =>
+  /\d/.test(value) && hasPassportShapeBeforeLetterRule(value)
+    ? documentIdentityKey(value)
+    : normalizeRut(value);
+
+/**
  * The same RUT number registered with another, mistyped check digit, as MMRAD keeps some exams
  * (observed 2026-11-03). Only RUT-shaped values qualify: a passport is never read as a RUT.
  */

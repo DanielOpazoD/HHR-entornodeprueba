@@ -1,6 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import { isValidRut, normalizeRut } from '@/utils/rutUtils';
+import { documentKeyBeforeLetterRule, isValidRut, normalizeRut } from '@/utils/rutUtils';
 import type { ConflictEntry } from '../contracts/censusImportDiff';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -83,18 +83,19 @@ export const relevantHistoricalReportRows = (
 ): EgresoReportRow[] => {
   // Bulk reports include the previous night's discharges. An unlinked row from
   // an earlier census cannot block this day when no local/live patient references it.
+  // A passport references only itself, never the RUT its digits form.
   const referencedRuns = new Set(
     [
-      ...encounters.map(encounter => normalizeRut(encounter.run)),
+      ...encounters.map(encounter => documentKeyBeforeLetterRule(encounter.run)),
       ...Object.values(record.beds).flatMap(patient => [
-        normalizeRut(patient.rut),
-        normalizeRut(patient.clinicalCrib?.rut ?? ''),
+        documentKeyBeforeLetterRule(patient.rut),
+        documentKeyBeforeLetterRule(patient.clinicalCrib?.rut),
       ]),
     ].filter(Boolean)
   );
   return reportRows.filter(row => {
     const stamp = reportClinicalStamp(row);
-    const run = normalizeRut(row.run);
+    const run = documentKeyBeforeLetterRule(row.run);
     return !stamp || stamp.iso >= censusDay || !run || referencedRuns.has(run);
   });
 };

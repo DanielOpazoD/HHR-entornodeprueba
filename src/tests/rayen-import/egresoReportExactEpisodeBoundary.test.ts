@@ -85,8 +85,9 @@ it(
     for (const [name, [record, rows]] of Object.entries(cases)) {
       const result = await run(record, rows);
       if (name.startsWith('cross')) {
+        // The passport row is another person's egreso: the RUT occupant stays, without review.
         expect(result.discharges, name).toEqual([]);
-        expect(result.conflicts, name).toHaveLength(1);
+        expect(result.conflicts, name).toEqual([]);
       } else {
         expect(result.discharges, name).toMatchObject([{ bedId: 'H4C1', encounterId: '777' }]);
         expect(result.conflicts, name).toEqual([]);

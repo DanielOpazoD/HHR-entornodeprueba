@@ -2,7 +2,12 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import { normalizedName } from './previousCensusEgresoCandidates';
-import { isValidRut, isSameDocument, normalizeRut } from '@/utils/rutUtils';
+import {
+  isValidRut,
+  isSameDocument,
+  isSameDocumentBeforeLetterRule,
+  normalizeRut,
+} from '@/utils/rutUtils';
 import { calendarDateForMovement } from '@/utils/movementCalendarDate';
 import { eligibleExactEpisodes, findPlannedPatientByEpisode } from './egresoReportEvidence';
 import {
@@ -61,7 +66,7 @@ const resolveLocalBedTurnoverEgreso = ({
     cribOccupied ||
     rowsSharingRun !== 1 ||
     (row.encounterId?.trim() && row.encounterId.trim() !== current.clinicalEpisodeId) ||
-    normalizeRut(row.run) !== normalizeRut(current.rut) ||
+    !isSameDocumentBeforeLetterRule(row.run, current.rut) ||
     resolveReportBedId(row.bedLabel) !== current.bedId ||
     reportPredatesAdmission(stamp, current)
   ) {
@@ -82,9 +87,13 @@ const resolveLocalBedTurnoverEgreso = ({
       Boolean(conflict.blockedAdmission)
   );
   if (replacements.length !== 1) return null;
-  const incomingRun = normalizeRut(replacements[0]?.blockedAdmission?.patient.rut);
-  const currentRun = normalizeRut(current.rut);
-  if (!incomingRun || !currentRun || incomingRun === currentRun) return null;
+  const incomingDocument = replacements[0]?.blockedAdmission?.patient.rut;
+  if (
+    !normalizeRut(incomingDocument) ||
+    !normalizeRut(current.rut) ||
+    isSameDocumentBeforeLetterRule(incomingDocument, current.rut)
+  )
+    return null;
 
   return {
     ...row,
@@ -102,7 +111,6 @@ const CLOCK_STAMP = /^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/;
 const isAppliedDischargeOfEarlierEpisode = (
   record: DailyRecord,
   row: EgresoReportRow,
-  run: string,
   stamp: { hhmm: string },
   current?: OccupiedBedEvidence
 ): boolean => {
@@ -116,7 +124,7 @@ const isAppliedDischargeOfEarlierEpisode = (
     const applied = `${discharge.movementDate}T${discharge.time}`;
     return (
       !discharge.deletedAt &&
-      normalizeRut(discharge.rut) === run &&
+      isSameDocumentBeforeLetterRule(discharge.rut, row.run) &&
       discharge.bedId === current?.bedId &&
       Boolean(episode) &&
       episode !== activeEpisode &&
@@ -217,12 +225,12 @@ export const selectEligibleEgresoRows = (
     const activeCrib = diff.activeClinicalCribs?.find(
       crib =>
         (Boolean(reportedEpisode) && crib.source.encounterId === reportedEpisode) ||
-        (Boolean(run) && normalizeRut(crib.patient.rut) === run)
+        (Boolean(run) && isSameDocumentBeforeLetterRule(crib.patient.rut, row.run))
     );
     const provisional = diff.admissions.find(
       entry =>
         (Boolean(reportedEpisode) && entry.source?.encounterId === reportedEpisode) ||
-        (Boolean(run) && normalizeRut(entry.patient.rut) === run)
+        (Boolean(run) && isSameDocumentBeforeLetterRule(entry.patient.rut, row.run))
     );
     // A prior-census orphan is outside this request. Keep prior-day correction
     // handling when the patient still has local or planned presence.
@@ -265,7 +273,7 @@ export const selectEligibleEgresoRows = (
         : -1;
     const alreadyRecorded = reportedEpisode
       ? hasRecordedMovement(record, '', reportedEpisode)
-      : (Boolean(run) && hasRecordedMovement(record, run)) || recordedCribIndex >= 0;
+      : (Boolean(run) && hasRecordedMovement(record, row.run)) || recordedCribIndex >= 0;
 
     if (!current && !currentCrib && !activeCrib && !provisional && alreadyRecorded) {
       if (recordedCribIndex >= 0)
@@ -274,7 +282,7 @@ export const selectEligibleEgresoRows = (
     }
     // Same-day readmission: this row is a discharge already applied to an earlier episode, so it
     // no longer describes the active one. Unapplied rows still ask for review.
-    if (!reportedEpisode && isAppliedDischargeOfEarlierEpisode(record, row, run, stamp, current))
+    if (!reportedEpisode && isAppliedDischargeOfEarlierEpisode(record, row, stamp, current))
       continue;
     // Etiqueta estable de los conflictos de FILA: applyEgresoReport descarta esa
     // revisión si el pipeline termina construyendo el egreso de esa cama/RUN por
@@ -349,8 +357,12 @@ export const selectEligibleEgresoRows = (
       currentCrib?.patient ??
       activeCrib?.patient ??
       provisional?.patient;
-    if (reportPredatesActiveAdmission(diff, row, run, stamp, admissionEvidence)) {
-      const activeEpisode = resolveActiveEpisode(diff, run, admissionEvidence?.clinicalEpisodeId);
+    if (reportPredatesActiveAdmission(diff, row, stamp, admissionEvidence)) {
+      const activeEpisode = resolveActiveEpisode(
+        diff,
+        row.run,
+        admissionEvidence?.clinicalEpisodeId
+      );
       // An episode-less discharge from before a known readmission cannot refer to the
       // active hospitalization. Keep the active bed and ignore the historical evidence.
       if (!reportedEpisode && activeEpisode) continue;

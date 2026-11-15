@@ -4,7 +4,7 @@ import type {
   DischargeEntry,
   MoveEntry,
 } from '../contracts/censusImportDiff';
-import { isSameDocument, normalizeRut } from '@/utils/rutUtils';
+import { isSameDocument, isSameDocumentBeforeLetterRule, normalizeRut } from '@/utils/rutUtils';
 import { isVerifiableLegacyOccupant } from './dischargeSubjectIdentity';
 
 interface ReleasedBedPlacementResult {
@@ -125,7 +125,7 @@ export const resolveReleasedBedPlacements = (
       (dischargesByBed.get(conflict.bedId ?? '') ?? []).some(
         discharge =>
           Boolean(normalizeRut(discharge.rut)) &&
-          normalizeRut(discharge.rut) === normalizeRut(conflict.rut)
+          isSameDocumentBeforeLetterRule(discharge.rut, conflict.rut)
       );
     if (conflict.bedId && !reviewsDischargedOccupant) {
       const bedConflicts = conflictsByBed.get(conflict.bedId) ?? [];
