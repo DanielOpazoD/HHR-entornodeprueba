@@ -23,7 +23,6 @@
  *
  * FUNCIONES EXPORTADAS:
  *  - searchDiagnoses(query, signal?) → TerminologyConcept[]
- *  - searchDiagnosesAI(query, signal?) → TerminologyConcept[]
  *  - forceAISearch(query, signal?) → TerminologyConcept[]
  *  - getCIE10Description(code) → string | null
  */
@@ -97,34 +96,6 @@ export async function searchDiagnoses(
       message: 'No fue posible buscar diagnosticos en CIE-10.',
       severity: 'warning',
       userSafeMessage: 'No fue posible buscar diagnosticos en este momento.',
-      context: { queryLength: query.length },
-    });
-    return [];
-  }
-}
-
-/**
- * Searches for diagnoses using AI (Gemini)
- * This function is intended to be called when AI results are specifically requested,
- * or when local results are insufficient.
- */
-export async function searchDiagnosesAI(
-  query: string,
-  signal?: AbortSignal
-): Promise<TerminologyConcept[]> {
-  try {
-    // This function should ideally call a dedicated AI search function,
-    // or forceAISearch if it's meant to update the cache.
-    // Assuming 'forceAISearch' is the intended target for live AI search.
-    const results = await forceAISearch(query, signal);
-    return results;
-  } catch (error) {
-    signal?.throwIfAborted();
-    recordOperationalErrorTelemetry('integration', 'search_diagnoses_ai', error, {
-      code: 'terminology_search_ai_failed',
-      message: 'No fue posible buscar diagnosticos con IA.',
-      severity: 'warning',
-      userSafeMessage: 'La busqueda asistida por IA no esta disponible en este momento.',
       context: { queryLength: query.length },
     });
     return [];

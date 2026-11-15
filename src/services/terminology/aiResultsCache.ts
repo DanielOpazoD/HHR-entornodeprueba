@@ -136,37 +136,9 @@ export function cacheAIResults(query: string, results: CIE10Entry[]): void {
 }
 
 /**
- * Get all cached queries (for debugging/display)
- */
-export function getCachedQueries(): string[] {
-  const cache = getCache();
-  return cache.entries.filter(isValidEntry).map(e => e.query);
-}
-
-/**
  * Clear all cached AI results
  */
 export function clearAICache(): void {
   if (typeof window === 'undefined' || !window.localStorage) return;
   localStorage.removeItem(CACHE_KEY);
-}
-
-/**
- * Get cache statistics
- */
-export function getCacheStats(): { entries: number; oldestAge: number } {
-  const cache = getCache();
-  const validEntries = cache.entries.filter(isValidEntry);
-
-  if (validEntries.length === 0) {
-    return { entries: 0, oldestAge: 0 };
-  }
-
-  const oldest = Math.min(...validEntries.map(e => e.timestamp));
-  const oldestAge = Date.now() - oldest;
-
-  return {
-    entries: validEntries.length,
-    oldestAge: Math.round(oldestAge / 1000 / 60), // minutes
-  };
 }

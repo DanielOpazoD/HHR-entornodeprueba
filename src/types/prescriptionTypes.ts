@@ -60,25 +60,6 @@ export const PRESCRIPTION_RETENTION_DAYS_BY_TYPE: Record<PrescriptionType, numbe
 export const resolvePrescriptionRetentionDays = (type: PrescriptionType): number =>
   PRESCRIPTION_RETENTION_DAYS_BY_TYPE[type] ?? PRESCRIPTION_RETENTION_DAYS;
 
-/**
- * Computes the legacy ISO `expiresAt` timestamp for a record created at
- * `createdAtIso` and tagged with the given prescription type. Operationally,
- * this is now the suggested monthly backup/delete review date; no scheduler
- * deletes records from it.
- */
-export const computePrescriptionExpiresAt = (
-  type: PrescriptionType,
-  createdAtIso: string
-): string => {
-  const days = resolvePrescriptionRetentionDays(type);
-  const created = new Date(createdAtIso);
-  if (Number.isNaN(created.getTime())) {
-    throw new Error(`Invalid createdAt ISO timestamp: ${createdAtIso}`);
-  }
-  const expiry = new Date(created.getTime() + days * 24 * 60 * 60 * 1000);
-  return expiry.toISOString();
-};
-
 export interface PrescriptionUploaderRef {
   /** Firebase auth uid when the upload comes from a logged-in clinician. */
   uid?: string;

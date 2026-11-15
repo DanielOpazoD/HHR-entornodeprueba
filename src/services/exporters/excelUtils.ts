@@ -8,7 +8,7 @@
  * @module services/exporters/excelUtils
  */
 
-import type { Workbook, Worksheet } from 'exceljs';
+import type { Workbook } from 'exceljs';
 import {
   loadExcelJSModule,
   resolveExcelWorkbookConstructor,
@@ -60,27 +60,4 @@ export const HEADER_FILL = {
   type: 'pattern' as const,
   pattern: 'solid' as const,
   fgColor: { argb: 'FFF5F5F5' },
-};
-
-/**
- * Auto-fits column widths based on content (simplified approach).
- *
- * @param worksheet - The worksheet to auto-fit
- * @param minWidth - Minimum column width (default: 10)
- * @param maxWidth - Maximum column width (default: 50)
- */
-export const autoFitColumns = (
-  worksheet: Worksheet,
-  minWidth: number = 10,
-  maxWidth: number = 50
-): void => {
-  worksheet.columns.forEach(column => {
-    if (column.values) {
-      const lengths = column.values.filter(v => v != null).map(v => String(v).length);
-      const maxLength = Math.max(...lengths, minWidth);
-      column.width = Math.min(maxLength + 2, maxWidth);
-    } else {
-      column.width = minWidth;
-    }
-  });
 };

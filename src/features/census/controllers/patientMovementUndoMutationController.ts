@@ -19,13 +19,6 @@ interface ApplyUndoTransferInput {
   updatedBed: PatientData;
 }
 
-interface ApplyUndoCmaInput {
-  record: DailyRecord;
-  cmaId: string;
-  bedId: string;
-  updatedBed: PatientData;
-}
-
 interface RestoredPatientDestinationInput {
   record: DailyRecord;
   bedId: string;
@@ -97,23 +90,4 @@ export const resolveApplyUndoTransferRecord = ({
     bedId,
     updatedBed,
     transferId,
-  });
-
-export const resolveApplyUndoCmaRecord = ({
-  record,
-  cmaId,
-  bedId,
-  updatedBed,
-}: ApplyUndoCmaInput): DailyRecord =>
-  removeRestoredPatientDestinationEntries({
-    record: {
-      ...record,
-      beds: {
-        ...record.beds,
-        [bedId]: updatedBed,
-      },
-    },
-    bedId,
-    updatedBed,
-    cmaId,
   });

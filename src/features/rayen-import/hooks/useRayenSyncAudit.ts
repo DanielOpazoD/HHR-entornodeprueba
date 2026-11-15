@@ -91,38 +91,6 @@ const sourceFromHealth = (health?: RayenExtensionHealthState): RayenSyncSource |
       }
     : undefined;
 
-/**
- * Una pestaña de Ficha Médico que verifica sesión pero cuyas lecturas fallan
- * en red se declara «stale» con este mensaje (extensión ≥ 0.48.4): es la
- * causa `ficha_medico_stale`, no una sesión ausente.
- */
-const FICHA_MEDICO_READ_BLOCKED_RE =
-  /no puede leer datos|fallo de red|versi[oó]n anterior de la extensi[oó]n/i;
-
-export const failureReasonFromHealth = (
-  health: RayenExtensionHealthState
-): RayenSyncFailureReason => {
-  if (health.connection === 'incompatible') return 'extension_incompatible';
-  if (health.connection === 'blocked') {
-    const fichaMedico = health.report?.fichaMedico;
-    // `blockedBy` distingue una Ficha Médico «lista» pero por vencer (#306) de
-    // un bloqueo de Gestión de Camas; sin él, el criterio heredado por estado.
-    if (health.blockedBy === 'gestionCamas') return 'gestion_camas_unavailable';
-    if (health.blockedBy === 'fichaMedico' && fichaMedico?.status === 'ready') {
-      return 'ficha_medico_unavailable';
-    }
-    if (fichaMedico?.status === 'ready') return 'gestion_camas_unavailable';
-    if (
-      fichaMedico?.status === 'stale' &&
-      FICHA_MEDICO_READ_BLOCKED_RE.test(String(fichaMedico.message ?? ''))
-    ) {
-      return 'ficha_medico_stale';
-    }
-    return 'ficha_medico_unavailable';
-  }
-  return 'extension_unavailable';
-};
-
 export const useRayenSyncAudit = ({
   currentRecordRef,
   patchDailyRecord,

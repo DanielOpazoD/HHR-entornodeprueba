@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1300,
+  "total": 1299,
   "areas": {
     "src/application/backup-export": 4,
     "src/application/census-email": 2,
@@ -22,7 +22,6 @@
     "src/features/clinical-library": 88,
     "src/features/cudyr": 12,
     "src/features/document-scanner": 6,
-    "src/features/handoff": 1,
     "src/features/laboratory": 48,
     "src/features/prescriptions": 9,
     "src/features/rayen-import": 149,
