@@ -183,8 +183,22 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
   const bootstrapRecordReady = Boolean(recordForSelectedDate);
   const canAutoStart = extension.canSync;
   // The fill store outlives the day: a synchronization of another day can still be reading.
-  // Same condition under which `resetRayenFillProgress` makes the capture refuse.
-  const earlierFillBusy = fill.running || fill.staffingOutcome === 'applying';
+  // Same condition under which `resetRayenFillProgress` makes the capture refuse, except a hung
+  // reading: once its watchdog deadline passes, the next capture releases it, so the request
+  // stops waiting and attempts (also when the deadline had already passed on mount).
+  const fillStaleAtMs = fill.running && typeof fill.staleAtMs === 'number' ? fill.staleAtMs : null;
+  const [expiredFillDeadline, setExpiredFillDeadline] = React.useState<number | null>(null);
+  React.useEffect(() => {
+    if (autoStartRequestId === undefined || fillStaleAtMs === null) return undefined;
+    const timer = window.setTimeout(
+      () => setExpiredFillDeadline(fillStaleAtMs),
+      Math.max(0, fillStaleAtMs - Date.now())
+    );
+    return () => window.clearTimeout(timer);
+  }, [autoStartRequestId, fillStaleAtMs]);
+  const hungFillReleasable = fillStaleAtMs !== null && expiredFillDeadline === fillStaleAtMs;
+  const earlierFillBusy =
+    (fill.running && !hungFillReleasable) || fill.staffingOutcome === 'applying';
   React.useEffect(() => {
     if (
       autoStartRequestId === undefined ||

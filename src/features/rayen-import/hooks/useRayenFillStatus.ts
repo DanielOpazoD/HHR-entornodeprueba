@@ -25,6 +25,8 @@ export interface RayenFillProgress {
   lastCompletedAt: string | null;
   /** User-decision state for the nursing proposal produced by this same synchronization. */
   staffingOutcome: 'idle' | 'resolved' | 'pending' | 'applying' | 'ambiguous' | 'declined';
+  /** While running: from this instant the next capture releases the reading as hung. */
+  staleAtMs: number | null;
 }
 
 const IDLE: RayenFillProgress = {
@@ -36,6 +38,7 @@ const IDLE: RayenFillProgress = {
   errors: 0,
   lastCompletedAt: null,
   staffingOutcome: 'idle',
+  staleAtMs: null,
 };
 
 /**
@@ -94,8 +97,12 @@ const releaseStaleFill = (nowMs: number): boolean => {
   return true;
 };
 
-const emit = (next: RayenFillProgress): void => {
-  progress = next;
+const emit = (next: Omit<RayenFillProgress, 'staleAtMs'>): void => {
+  progress = {
+    ...next,
+    staleAtMs:
+      next.running && runningSinceMs !== null ? runningSinceMs + RAYEN_FILL_STALE_AFTER_MS : null,
+  };
   for (const listener of listeners) listener();
 };
 

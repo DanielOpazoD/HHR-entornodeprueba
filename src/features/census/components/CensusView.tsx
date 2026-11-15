@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { CensusLoadingState } from '@/components/ui/CensusLoadingState';
 import { useDailyRecordStatus } from '@/context/DailyRecordContext';
+import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import { useCensusViewScreenModel } from '@/features/census/hooks/useCensusViewScreenModel';
 import { CensusBootstrapRecovery } from './CensusBootstrapRecovery';
 import { CensusRegisterContent } from './CensusRegisterContent';
@@ -56,21 +57,29 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
     accessProfile,
   });
   const dailyRecordStatus = useDailyRecordStatus();
+  const sessionEpoch = useSessionEpoch();
   const rayenBootstrapSequenceRef = useRef(0);
   const [rayenBootstrapRequest, setRayenBootstrapRequest] = useState<{
     date: string;
+    sessionEpoch: number;
     id: number;
   } | null>(null);
   const requestRayenBootstrap = (): void => {
     rayenBootstrapSequenceRef.current += 1;
-    setRayenBootstrapRequest({ date: currentDateString, id: rayenBootstrapSequenceRef.current });
+    setRayenBootstrapRequest({
+      date: currentDateString,
+      sessionEpoch,
+      id: rayenBootstrapSequenceRef.current,
+    });
   };
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- a bootstrap intent belongs only to the date that created it
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- a bootstrap intent belongs only to the date and session that created it
     setRayenBootstrapRequest(previous =>
-      previous?.date && previous.date !== currentDateString ? null : previous
+      previous && (previous.date !== currentDateString || previous.sessionEpoch !== sessionEpoch)
+        ? null
+        : previous
     );
-  }, [currentDateString]);
+  }, [currentDateString, sessionEpoch]);
 
   const isEmptyBranchPending =
     branch === 'empty' &&
@@ -111,7 +120,10 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
         <CensusRegisterContent
           {...registerContentProps}
           rayenBootstrapRequestId={
-            rayenBootstrapRequest?.date === currentDateString ? rayenBootstrapRequest.id : undefined
+            rayenBootstrapRequest?.date === currentDateString &&
+            rayenBootstrapRequest.sessionEpoch === sessionEpoch
+              ? rayenBootstrapRequest.id
+              : undefined
           }
           onRayenBootstrapHandled={() => setRayenBootstrapRequest(null)}
         />

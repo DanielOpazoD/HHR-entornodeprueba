@@ -13,6 +13,7 @@ const fill = (overrides: Partial<RayenFillProgress> = {}): RayenFillProgress => 
   errors: 0,
   lastCompletedAt: null,
   staffingOutcome: 'idle',
+  staleAtMs: null,
   ...overrides,
 });
 
