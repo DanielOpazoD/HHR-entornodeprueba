@@ -112,18 +112,30 @@ describe('admission audit projection', () => {
       )
     ).toThrow('No hay lecturas clínicas actualizadas');
   });
+  // Medication orders arrive in UTC (TIME-02): 14:30 is 08:30 in Rapa Nui, as the other rows.
   it.each([
     [
       'patientPharmaIndicationResume',
       { DESCRIPTOR: 'Fármaco', POSOLOGY: 'Original' },
       { DESCRIPTOR: 'Fármaco', POSOLOGY: 'Cambio' },
+      '2026-07-13T14:30',
     ],
-    ['patientFreeIndicationResume', { INDICATION: 'Original' }, { INDICATION: 'Cambio' }],
-    ['nutritionOrderResume', { DIET_type: 'Original' }, { DIET_type: 'Cambio' }],
-    ['restResume', { rest_type: 'Original' }, { rest_type: 'Cambio' }],
+    [
+      'patientFreeIndicationResume',
+      { INDICATION: 'Original' },
+      { INDICATION: 'Cambio' },
+      '2026-07-13T08:30',
+    ],
+    [
+      'nutritionOrderResume',
+      { DIET_type: 'Original' },
+      { DIET_type: 'Cambio' },
+      '2026-07-13T08:30',
+    ],
+    ['restResume', { rest_type: 'Original' }, { rest_type: 'Cambio' }, '2026-07-13T08:30'],
   ] as const)(
     'fails closed for anonymous conflicting %s snapshots regardless of observation order',
-    (field, firstRow, nextRow) => {
+    (field, firstRow, nextRow, publishedAt) => {
       const base = {
         ...event([note(1, '2026-07-13T08:10')]),
         patientPharmaIndicationResume: [],
@@ -135,12 +147,12 @@ describe('admission audit projection', () => {
         const first = {
           ...base,
           publishDatetime: '2026-07-13T09:00',
-          [field]: [{ ...firstRow, PUBLISH_DATETIME: '2026-07-13T08:30' }],
+          [field]: [{ ...firstRow, PUBLISH_DATETIME: publishedAt }],
         };
         const next = {
           ...base,
           publishDatetime: observed,
-          [field]: [{ ...nextRow, PUBLISH_DATETIME: '2026-07-13T08:30' }],
+          [field]: [{ ...nextRow, PUBLISH_DATETIME: publishedAt }],
         };
         const result = buildAdmissionAuditEntry(patient, [next, first], [], 'first-set');
         expect(result.notes).toHaveLength(1);
@@ -157,13 +169,13 @@ describe('admission audit projection', () => {
           MRE_ID: 7,
           DESCRIPTOR: 'Tratamiento',
           POSOLOGY: 'Texto A',
-          PUBLISH_DATETIME: '2026-07-13T08:00',
+          PUBLISH_DATETIME: '2026-07-13T14:00',
         },
         {
           MRE_ID: 7,
           DESCRIPTOR: 'Tratamiento',
           POSOLOGY: 'Texto B',
-          PUBLISH_DATETIME: '2026-07-13T08:00',
+          PUBLISH_DATETIME: '2026-07-13T14:00',
         },
       ],
       patientFreeIndicationResume: [],
@@ -184,7 +196,7 @@ describe('admission audit projection', () => {
           MRE_ID: 7,
           DESCRIPTOR: 'Tratamiento',
           POSOLOGY: 'Original',
-          PUBLISH_DATETIME: '2026-07-13T08:00',
+          PUBLISH_DATETIME: '2026-07-13T14:00',
         },
       ],
       patientFreeIndicationResume: [],
@@ -230,7 +242,7 @@ describe('admission audit projection', () => {
       restResume: [],
       patientFreeIndicationResume: [],
       patientPharmaIndicationResume: [
-        { MRE_ID: 2, DESCRIPTOR: 'Orden de ingreso', PUBLISH_DATETIME: '2026-07-13T08:30' },
+        { MRE_ID: 2, DESCRIPTOR: 'Orden de ingreso', PUBLISH_DATETIME: '2026-07-13T14:30' },
       ],
     };
     const result = buildAdmissionAuditEntry(patient, [raw], [], 'first-set');
@@ -252,15 +264,15 @@ describe('admission audit projection', () => {
           MRE_ID: 1,
           DESCRIPTOR: 'Orden previa',
           POSOLOGY: 'Original',
-          PUBLISH_DATETIME: '2026-07-13T07:00',
+          PUBLISH_DATETIME: '2026-07-13T13:00',
         },
         {
           MRE_ID: 1,
           DESCRIPTOR: 'Orden previa',
           POSOLOGY: 'Revisión',
-          PUBLISH_DATETIME: '2026-07-13T08:15',
+          PUBLISH_DATETIME: '2026-07-13T14:15',
         },
-        { MRE_ID: 2, DESCRIPTOR: 'Orden de ingreso', PUBLISH_DATETIME: '2026-07-13T08:30' },
+        { MRE_ID: 2, DESCRIPTOR: 'Orden de ingreso', PUBLISH_DATETIME: '2026-07-13T14:30' },
       ],
       patientFreeIndicationResume: [],
       nutritionOrderResume: [],
@@ -318,9 +330,9 @@ describe('admission audit projection', () => {
       ...event([note(1, '2026-07-14T00:20')]),
       publishDatetime: '2026-07-14T00:30',
       patientPharmaIndicationResume: [
-        { MRE_ID: 1, DESCRIPTOR: 'Orden inicial A', PUBLISH_DATETIME: '2026-07-14T00:30' },
-        { MRE_ID: 2, DESCRIPTOR: 'Orden inicial B', PUBLISH_DATETIME: '2026-07-14T00:30' },
-        { MRE_ID: 3, DESCRIPTOR: 'Orden de la mañana', PUBLISH_DATETIME: '2026-07-14T08:00' },
+        { MRE_ID: 1, DESCRIPTOR: 'Orden inicial A', PUBLISH_DATETIME: '2026-07-14T06:30' },
+        { MRE_ID: 2, DESCRIPTOR: 'Orden inicial B', PUBLISH_DATETIME: '2026-07-14T06:30' },
+        { MRE_ID: 3, DESCRIPTOR: 'Orden de la mañana', PUBLISH_DATETIME: '2026-07-14T14:00' },
       ],
       patientFreeIndicationResume: [],
       nutritionOrderResume: [],
@@ -384,7 +396,7 @@ describe('admission audit projection', () => {
         {
           ...old.patientPharmaIndicationResume[0],
           POSOLOGY: 'Cambio posterior',
-          PUBLISH_DATETIME: '2026-07-13T15:00',
+          PUBLISH_DATETIME: '2026-07-13T21:00',
         },
       ],
     };

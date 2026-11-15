@@ -11,7 +11,7 @@ import {
 } from '@/features/rayen-import';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
-const REFERENCE = new Date(2026, 6, 24);
+const REFERENCE = new Date('2026-07-24T12:00:00-06:00');
 const encounter = (overrides: Partial<RayenEncounter> = {}): RayenEncounter => ({
   encounterId: 'old-episode',
   run: '111111111',
@@ -236,7 +236,11 @@ describe('local sequential bed turnover', () => {
     const concurrent = currentRecord();
     concurrent.beds.NEO1 = {
       ...rayenToPatientData(
-        encounter({ encounterId: 'concurrent-episode', run: '333333333', firstFamilyName: 'Concurrente' }),
+        encounter({
+          encounterId: 'concurrent-episode',
+          run: '333333333',
+          firstFamilyName: 'Concurrente',
+        }),
         REFERENCE
       ).patient,
       bedId: 'NEO1',

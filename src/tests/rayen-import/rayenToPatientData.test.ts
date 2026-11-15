@@ -10,7 +10,7 @@ import {
   type RayenEncounter,
 } from '@/features/rayen-import';
 
-const REFERENCE = new Date(2026, 6, 8); // 2026-07-08 local
+const REFERENCE = new Date('2026-07-08T12:00:00-06:00'); // Hospital calendar day
 
 const baseEncounter = (overrides: Partial<RayenEncounter> = {}): RayenEncounter => ({
   encounterId: '141119',
@@ -43,7 +43,7 @@ describe('helpers', () => {
   });
 
   it('uses clinically useful day, month and year precision for pediatric ages', () => {
-    const reference = new Date(2026, 6, 21);
+    const reference = new Date('2026-07-21T12:00:00-06:00');
 
     expect(ageFromBirthDate('2026-07-21', reference)).toBe('0d');
     expect(ageFromBirthDate('2026-07-01', reference)).toBe('20d');
@@ -56,9 +56,9 @@ describe('helpers', () => {
   });
 
   it('counts a clamped month anniversary at the end of a shorter month', () => {
-    expect(ageFromBirthDate('2026-01-31', new Date(2026, 1, 28))).toBe('1m 0d');
-    expect(ageFromBirthDate('2026-08-31', new Date(2026, 8, 30))).toBe('1m 0d');
-    expect(ageFromBirthDate('2026-01-31', new Date(2026, 1, 27))).toBe('27d');
+    expect(ageFromBirthDate('2026-01-31', new Date('2026-02-28T12:00:00-05:00'))).toBe('1m 0d');
+    expect(ageFromBirthDate('2026-08-31', new Date('2026-09-30T12:00:00-05:00'))).toBe('1m 0d');
+    expect(ageFromBirthDate('2026-01-31', new Date('2026-02-27T12:00:00-05:00'))).toBe('27d');
   });
 
   it('rejects impossible and future birth dates', () => {

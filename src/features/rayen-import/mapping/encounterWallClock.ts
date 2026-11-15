@@ -1,20 +1,22 @@
 import { buildSortableLocalTimestamp, parseStrictIsoInstant } from './localTimestamp';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
+const RAPA_NUI_WALL_CLOCK = new Intl.DateTimeFormat('en-CA', {
+  timeZone: CLINICAL_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+});
+
 /** Converts an absolute instant to the sortable wall clock used by Rayen's Rapa Nui reports. */
 export const absoluteInstantInRapaNui = (raw: string | undefined): string | null => {
   const instant = parseStrictIsoInstant((raw ?? '').trim());
   if (!instant) return null;
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: CLINICAL_TIME_ZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(instant);
+  const parts = RAPA_NUI_WALL_CLOCK.formatToParts(instant);
   const value = (type: Intl.DateTimeFormatPartTypes): number =>
     Number(parts.find(part => part.type === type)?.value ?? 0);
   return buildSortableLocalTimestamp(
