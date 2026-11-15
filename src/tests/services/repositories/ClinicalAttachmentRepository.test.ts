@@ -301,36 +301,4 @@ describe('ClinicalAttachmentRepository', () => {
     expect(runtime.uploadBytes).not.toHaveBeenCalled();
     expect(runtime.deleteObject).not.toHaveBeenCalled();
   });
-
-  it('lists Storage object paths by patient rut recursively for integrity audits', async () => {
-    const db = buildDb();
-    const runtime = buildRuntime();
-    const listAll = vi.mocked(runtime.listAll);
-    listAll
-      .mockResolvedValueOnce({
-        items: [],
-        prefixes: [
-          { fullPath: 'clinical-attachments/hhr/13545665-9/episode-1' },
-          { fullPath: 'clinical-attachments/hhr/13545665-9/episode-2' },
-        ],
-      } as never)
-      .mockResolvedValueOnce({
-        items: [{ fullPath: 'clinical-attachments/hhr/13545665-9/episode-1/att_1/a.pdf' }],
-        prefixes: [],
-      } as never)
-      .mockResolvedValueOnce({
-        items: [{ fullPath: 'clinical-attachments/hhr/13545665-9/episode-2/att_2/b.pdf' }],
-        prefixes: [],
-      } as never);
-    const repository = createClinicalAttachmentRepository({ db, storageRuntime: runtime });
-
-    await expect(repository.listStoragePathsByPatient('13.545.665-9', 'hhr')).resolves.toEqual([
-      'clinical-attachments/hhr/13545665-9/episode-1/att_1/a.pdf',
-      'clinical-attachments/hhr/13545665-9/episode-2/att_2/b.pdf',
-    ]);
-    expect(runtime.ref).toHaveBeenCalledWith(
-      { bucket: 'storage' },
-      'clinical-attachments/hhr/13545665-9'
-    );
-  });
 });

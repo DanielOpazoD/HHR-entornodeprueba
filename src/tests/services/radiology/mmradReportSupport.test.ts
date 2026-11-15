@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   buildMMRADPortalReceiptPrintHtml,
   buildMMRADReportClipboardText,
-  buildMMRADReportPrintHtml,
   parseMMRADReportSections,
 } from '@/services/radiology/mmradReportSupport';
 
@@ -61,21 +60,6 @@ describe('mmradReportSupport', () => {
     expect(text).toBe(
       'TAC de Tórax (09-04-2026).\n\nHallazgos: Parénquima pulmonar. Tráquea central.\n\nImpresión: Cardiomegalia. Ateromatosis.'
     );
-  });
-
-  it('builds printable report html with title and sections', () => {
-    const html = buildMMRADReportPrintHtml('TC Torax', '12/04/2026', {
-      title: 'TOMOGRAFÍA SIMPLE DE TÓRAX',
-      technique: 'Técnica',
-      antecedentesClinicos: 'Antecedentes',
-      findings: 'Hallazgos',
-      impression: 'Impresión',
-    });
-
-    expect(html).toContain('TOMOGRAFÍA SIMPLE DE TÓRAX');
-    expect(html).toContain('Fecha: 12/04/2026');
-    expect(html).toContain('HALLAZGOS');
-    expect(html).toContain('IMPRESION');
   });
 
   it('stops parsing impression before signature and embedded print script', () => {

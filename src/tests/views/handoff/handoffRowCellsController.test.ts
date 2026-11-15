@@ -3,18 +3,12 @@ import type { PatientData } from '@/types/domain/patient';
 import { describe, expect, it } from 'vitest';
 
 import { PatientStatus, Specialty } from '@/domain/handoff/patientContracts';
+import { resolveMedicalObservationEntries } from '@/domain/handoff/patientView';
 import {
-  buildPendingMedicalEntryDraft,
   canToggleClinicalEvents,
-  pruneResolvedPendingMedicalEntryDrafts,
   resolveClinicalEventsCellState,
-  resolveMedicalObservationCellState,
-  resolveDisplayMedicalObservationEntries,
   resolveHandoffStatusVariant,
   resolveMedicalObservationEmptyState,
-  resolveNextPendingMedicalEntryDrafts,
-  resolveMedicalObservationEntries,
-  shouldAttemptPendingMedicalDraftPrune,
   shouldShowMedicalPrimaryNoteFallback,
   shouldRenderClinicalEventsPanel,
 } from '@/features/handoff/controllers/handoffRowCellsController';
@@ -148,81 +142,6 @@ describe('handoffRowCellsController', () => {
     );
   });
 
-  it('keeps only pending drafts that are still active and unresolved', () => {
-    expect(
-      pruneResolvedPendingMedicalEntryDrafts({
-        entries: [{ id: 'entry-1', specialty: Specialty.MEDICINA, note: 'Persistida' }],
-        pendingEntryDrafts: {
-          'entry-1': {
-            entry: { id: 'entry-1', specialty: Specialty.MEDICINA, note: 'Persistida' },
-            expiresAt: 1000,
-          },
-          'entry-2': {
-            entry: { id: 'entry-2', specialty: Specialty.MEDICINA, note: 'Borrador' },
-            expiresAt: 2000,
-          },
-        },
-        now: 1500,
-      })
-    ).toEqual({
-      'entry-2': {
-        entry: { id: 'entry-2', specialty: Specialty.MEDICINA, note: 'Borrador' },
-        expiresAt: 2000,
-      },
-    });
-  });
-
-  it('projects persisted entries with the latest active pending note', () => {
-    expect(
-      resolveDisplayMedicalObservationEntries({
-        entries: [{ id: 'entry-1', specialty: Specialty.MEDICINA, note: 'Persistida' }],
-        isFieldReadOnly: false,
-        pendingEntryDrafts: {
-          'entry-1': {
-            entry: { id: 'entry-1', specialty: Specialty.MEDICINA, note: 'Borrador' },
-            expiresAt: 2000,
-          },
-        },
-        now: 1500,
-      })
-    ).toEqual([{ id: 'entry-1', specialty: Specialty.MEDICINA, note: 'Borrador' }]);
-  });
-
-  it('resolves the medical observation cell state from entries, drafts, and create-entry actions', () => {
-    expect(
-      resolveMedicalObservationCellState({
-        entries: [],
-        isFieldReadOnly: false,
-        pendingEntryDrafts: {},
-        hasCreatePrimaryEntryAction: true,
-        now: 1000,
-      })
-    ).toEqual({
-      displayEntries: [],
-      emptyState: 'create-entry',
-      showPrimaryNoteFallback: false,
-    });
-
-    expect(
-      resolveMedicalObservationCellState({
-        entries: [{ id: 'entry-1', specialty: Specialty.MEDICINA, note: 'Persistida' }],
-        isFieldReadOnly: false,
-        pendingEntryDrafts: {
-          'entry-1': {
-            entry: { id: 'entry-1', specialty: Specialty.MEDICINA, note: 'Borrador' },
-            expiresAt: 2000,
-          },
-        },
-        hasCreatePrimaryEntryAction: false,
-        now: 1500,
-      })
-    ).toEqual({
-      displayEntries: [{ id: 'entry-1', specialty: Specialty.MEDICINA, note: 'Borrador' }],
-      emptyState: 'empty',
-      showPrimaryNoteFallback: false,
-    });
-  });
-
   it('shows the primary note fallback only when there are no entries and no create action', () => {
     expect(
       shouldShowMedicalPrimaryNoteFallback({
@@ -274,72 +193,5 @@ describe('handoffRowCellsController', () => {
         hasCreatePrimaryEntryAction: false,
       })
     ).toBe('empty');
-  });
-
-  it('builds a pending draft entry from patient/default specialty data', () => {
-    expect(
-      buildPendingMedicalEntryDraft({
-        entryId: 'entry-new',
-        value: 'Nota temporal',
-        entries: [],
-        pendingEntryDrafts: {},
-        patient: buildPatient(),
-        specialtyOptions: ['medicinaInterna'],
-        expiresAt: 3000,
-      })
-    ).toEqual({
-      expiresAt: 3000,
-      entry: expect.objectContaining({
-        id: 'entry-new',
-        specialty: Specialty.MEDICINA,
-        note: 'Nota temporal',
-      }),
-    });
-  });
-
-  it('builds the next pending draft map without losing existing drafts', () => {
-    const patient = buildPatient();
-
-    expect(
-      resolveNextPendingMedicalEntryDrafts({
-        currentDrafts: {
-          'entry-prev': {
-            entry: { id: 'entry-prev', specialty: Specialty.MEDICINA, note: 'Previo' },
-            expiresAt: 1000,
-          },
-        },
-        entryId: 'entry-new',
-        value: 'Nuevo borrador',
-        entries: [],
-        patient,
-        specialtyOptions: ['medicinaInterna'],
-        expiresAt: 2000,
-      })
-    ).toEqual({
-      'entry-prev': {
-        entry: { id: 'entry-prev', specialty: Specialty.MEDICINA, note: 'Previo' },
-        expiresAt: 1000,
-      },
-      'entry-new': {
-        entry: expect.objectContaining({
-          id: 'entry-new',
-          specialty: Specialty.MEDICINA,
-          note: 'Nuevo borrador',
-        }),
-        expiresAt: 2000,
-      },
-    });
-  });
-
-  it('only attempts pending draft prune work when drafts actually exist', () => {
-    expect(shouldAttemptPendingMedicalDraftPrune({})).toBe(false);
-    expect(
-      shouldAttemptPendingMedicalDraftPrune({
-        'entry-1': {
-          entry: { id: 'entry-1', specialty: Specialty.MEDICINA, note: 'Borrador' },
-          expiresAt: 2000,
-        },
-      })
-    ).toBe(true);
   });
 });

@@ -1,5 +1,3 @@
-import { escapeHtml } from '@/utils/htmlEscape';
-
 export interface MMRADReportSections {
   title: string | null;
   technique: string | null;
@@ -163,43 +161,6 @@ export const buildMMRADReportClipboardText = ({
   ].filter(Boolean);
 
   return sections.length > 0 ? sections.join('\n\n') : null;
-};
-
-const toPrintableBlock = (label: string, value: string | null): string =>
-  value
-    ? `<section style="margin-bottom:24px;"><h2 style="margin:0 0 10px;font-size:18px;font-weight:700;">${label}</h2><div style="white-space:pre-wrap;font-size:16px;line-height:1.5;">${value}</div></section>`
-    : '';
-
-export const buildMMRADReportPrintHtml = (
-  examName: string,
-  examDate: string,
-  report: MMRADReportSections
-): string => {
-  const safeTitle = escapeHtml(report.title || examName || 'Informe radiologico');
-  const safeDate = examDate
-    ? `<p style="margin:0 0 20px;color:#475569;">Fecha: ${escapeHtml(examDate)}</p>`
-    : '';
-
-  return `<!doctype html>
-<html lang="es">
-  <head>
-    <meta charset="utf-8" />
-    <title>${safeTitle}</title>
-  </head>
-  <body style="font-family: Arial, Helvetica, sans-serif; color:#111827; margin:32px;">
-    <main>
-      <h1 style="margin:0 0 12px;font-size:28px;font-weight:800;">${safeTitle}</h1>
-      ${safeDate}
-      ${toPrintableBlock('TECNICA', report.technique ? escapeHtml(report.technique) : null)}
-      ${toPrintableBlock(
-        'ANTECEDENTES CLINICOS',
-        report.antecedentesClinicos ? escapeHtml(report.antecedentesClinicos) : null
-      )}
-      ${toPrintableBlock('HALLAZGOS', report.findings ? escapeHtml(report.findings) : null)}
-      ${toPrintableBlock('IMPRESION', report.impression ? escapeHtml(report.impression) : null)}
-    </main>
-  </body>
-</html>`;
 };
 
 export const buildMMRADPortalReceiptPrintHtml = (receiptHtml: string): string => {
