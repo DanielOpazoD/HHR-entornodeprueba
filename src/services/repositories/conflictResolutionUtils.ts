@@ -66,8 +66,12 @@ export const isPlainObject = (value: unknown): value is Record<string, unknown> 
 export const isPrimitive = (value: unknown): value is string | number | boolean =>
   ['string', 'number', 'boolean'].includes(typeof value);
 
-/** Reads a field by a key known only at run time: a stored object may carry keys its type omits. */
-export const readField = (source: object, key: string): unknown => Reflect.get(source, key);
+/**
+ * Reads a field by a key known only at run time, exactly as `source[key]` does: a stored object may
+ * carry keys its type omits, and a legacy day may hold a primitive there, which an index read boxes.
+ */
+export const readField = (source: object, key: string): unknown =>
+  Reflect.get(Object(source), key, source);
 
 /**
  * Day-record fields merged by one rule. `has` narrows a run-time key to one of them, so the caller
