@@ -33,13 +33,17 @@ export const buildGuardedDailyRecordRemoteWriteOptions = ({
   policy,
   syncContract,
   isReclassification,
+  baseRecord,
 }: {
   options: PartialUpdateDailyRecordOptions;
   policy: GuardedDailyRecordPatchPolicy;
   syncContract: SyncTaskContract;
   isReclassification: boolean;
+  /** The record the patch was built on (see DailyRecordPartialWriteOptions.baseRecord). */
+  baseRecord: DailyRecord;
 }): DailyRecordPartialWriteOptions => ({
   syncContract,
+  baseRecord,
   requireAtomicCas:
     isReclassification || Boolean(options.requireAtomicCas) || policy.requireAtomicCas,
   // Only confirmed writes take the committed record; plain local-first writes stay receipt-less.

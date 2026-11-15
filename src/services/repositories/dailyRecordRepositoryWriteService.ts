@@ -446,6 +446,7 @@ const updatePartialDetailedWithinLock = async (
     policy: guardedCommandPolicy,
     syncContract,
     isReclassification,
+    baseRecord: current,
   });
 
   if (specialistScopedPatch && options.specialistHandoffTargets) {
