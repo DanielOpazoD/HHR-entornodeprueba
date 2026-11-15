@@ -1,5 +1,5 @@
-import { isValidRut } from '@/utils/rutUtils';
-import { normalizePatientRut as normalizeRut } from './censusPatientIdentityIndex';
+import { isValidRut, normalizeRut } from '@/utils/rutUtils';
+import { normalizePatientRut } from './censusPatientIdentityIndex';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
@@ -44,7 +44,7 @@ export const recoverPreviousCensusDischarges = async (
       return [];
     // The stored nested relation identifies the mother; the bed number alone never does.
     const mother = patient.scope === 'crib' ? previous.beds[patient.bedId!] : undefined;
-    const lookupRun = normalizeRut(patient.rut)
+    const lookupRun = normalizePatientRut(patient.rut)
       ? patient.rut
       : isValidRut(patient.neonatalMaternalRut ?? '')
         ? patient.neonatalMaternalRut
@@ -73,6 +73,8 @@ export const recoverPreviousCensusDischarges = async (
     candidates.map(async ({ patient, lookupRun }): Promise<EgresoReportRow[]> => {
       const matches = results.filter(
         result =>
+          // The extension echoes the queried document without letters: the exact episode
+          // decides, and the echo only confirms that this answer belongs to this query.
           result.encounterId === patient.clinicalEpisodeId &&
           normalizeRut(result.run) === normalizeRut(lookupRun)
       );
@@ -85,7 +87,7 @@ export const recoverPreviousCensusDischarges = async (
         egreso.hasAdministrativeDischarge === false ||
         (egreso.hasAdministrativeDischarge !== true &&
           !egreso.dateDischarge &&
-          !(documents && !normalizeRut(patient.rut)))
+          !(documents && !normalizePatientRut(patient.rut)))
       )
         return [];
       for (const id of [egreso.id, egreso.encounterId]) {
@@ -103,7 +105,7 @@ export const recoverPreviousCensusDischarges = async (
       );
       // Maternal identifiers use the neonatal document layout. Its local clock is authoritative;
       // the API timestamp has previously differed from the actual printed discharge time.
-      if (!normalizeRut(patient.rut)) {
+      if (!normalizePatientRut(patient.rut)) {
         if (!documents) return [];
         try {
           const report = await documents.fetchStatisticalDischarge(patient.clinicalEpisodeId!);
@@ -117,7 +119,7 @@ export const recoverPreviousCensusDischarges = async (
           if (
             !evidence ||
             evidence.identifierKind !== 'maternal' ||
-            evidence.run !== normalizeRut(lookupRun)
+            evidence.run !== normalizePatientRut(lookupRun)
           )
             return [];
           // clinical-clock-allow instant-calendar-slice: Parsed report dischargeAt is unzoned hospital wall time; preserve its official calendar day.
