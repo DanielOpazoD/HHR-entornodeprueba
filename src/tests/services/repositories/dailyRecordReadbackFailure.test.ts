@@ -44,24 +44,25 @@ describe('authority readback preserves pending edits', () => {
       const ack = vi.fn();
       const result = await persistLocalAndAttemptRemoteSync({
         authoringSession: captureAuthoringSession(),
-        date: record.date,
-        record,
-        changedPaths: ['beds.R1.status'],
+        change: { date: record.date, record, changedPaths: ['beds.R1.status'] },
         remoteState: state,
-        remoteWrite: async () => undefined,
-        onRemoteFailure: vi.fn(),
-        readRemoteConfirmedRecord: async () => {
-          throw error;
+        remote: {
+          remoteWrite: async () => undefined,
+          onRemoteFailure: vi.fn(),
+          readRemoteConfirmedRecord: async () => {
+            throw error;
+          },
         },
-        remoteAuthorityFirst,
-        requireConfirmedRecord: true,
-        ackLocalAfterRemote: ack,
-        queueLocalBeforeRemote: async () => ({
-          accepted: true,
-          mode: 'created',
-          pendingTasks: 1,
-          maxPendingTasks: 10,
-        }),
+        policy: { remoteAuthorityFirst, requireConfirmedRecord: true },
+        outbox: {
+          ackLocalAfterRemote: ack,
+          queueLocalBeforeRemote: async () => ({
+            accepted: true,
+            mode: 'created',
+            pendingTasks: 1,
+            maxPendingTasks: 10,
+          }),
+        },
       });
       expect(result).toBe('return');
       expect(state.confirmedRecord).toBeUndefined();
@@ -81,14 +82,14 @@ describe('authority readback preserves pending edits', () => {
     const state = createRemoteWriteState();
     const result = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
-      date: record.date,
-      record,
-      changedPaths: [],
+      change: { date: record.date, record, changedPaths: [] },
       remoteState: state,
-      remoteWrite: async () => undefined,
-      onRemoteFailure: vi.fn(),
-      readRemoteConfirmedRecord: async () => null,
-      remoteAuthorityFirst: true,
+      remote: {
+        remoteWrite: async () => undefined,
+        onRemoteFailure: vi.fn(),
+        readRemoteConfirmedRecord: async () => null,
+      },
+      policy: { remoteAuthorityFirst: true },
     });
     expect(result).toBe('return');
     expect(state.confirmedRecord).toBeUndefined();

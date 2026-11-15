@@ -81,12 +81,9 @@ describe('dailyRecordRemotePersistenceController', () => {
 
     const result = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
-      date: '2026-05-23',
-      record: buildRecord('2026-05-23'),
-      changedPaths: ['*'],
+      change: { date: '2026-05-23', record: buildRecord('2026-05-23'), changedPaths: ['*'] },
       remoteState: state,
-      remoteWrite,
-      onRemoteFailure: vi.fn(),
+      remote: { remoteWrite, onRemoteFailure: vi.fn() },
     });
 
     expect(result).toBe('continue');
@@ -105,13 +102,14 @@ describe('dailyRecordRemotePersistenceController', () => {
 
     const result = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
-      date: '2026-05-23',
-      record: buildRecord('2026-05-23'),
-      changedPaths: ['*'],
+      change: {
+        date: '2026-05-23',
+        record: buildRecord('2026-05-23'),
+        changedPaths: ['*'],
+        expectedVersion: '2026-05-23T10:00:00.000Z',
+      },
       remoteState: state,
-      remoteWrite,
-      onRemoteFailure: vi.fn(),
-      expectedVersion: '2026-05-23T10:00:00.000Z',
+      remote: { remoteWrite, onRemoteFailure: vi.fn() },
     });
 
     expect(result).toBe('continue');
@@ -137,15 +135,15 @@ describe('dailyRecordRemotePersistenceController', () => {
 
     const result = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
-      date: '2026-05-23',
-      record: buildRecord('2026-05-23'),
-      changedPaths: ['*'],
+      change: {
+        date: '2026-05-23',
+        record: buildRecord('2026-05-23'),
+        changedPaths: ['*'],
+        expectedVersion: '2026-05-23T10:00:00.000Z',
+      },
       remoteState: state,
-      remoteWrite,
-      onRemoteFailure: vi.fn(),
-      expectedVersion: '2026-05-23T10:00:00.000Z',
-      queueLocalBeforeRemote,
-      ackLocalAfterRemote,
+      remote: { remoteWrite, onRemoteFailure: vi.fn() },
+      outbox: { queueLocalBeforeRemote, ackLocalAfterRemote },
     });
 
     expect(result).toBe('continue');
@@ -177,13 +175,17 @@ describe('dailyRecordRemotePersistenceController', () => {
 
     const result = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
-      date: '2026-05-23',
-      record: buildRecord('2026-05-23'),
-      changedPaths: ['beds.R1.vitalSigns'],
+      change: {
+        date: '2026-05-23',
+        record: buildRecord('2026-05-23'),
+        changedPaths: ['beds.R1.vitalSigns'],
+      },
       remoteState: state,
-      remoteWrite: vi.fn().mockResolvedValue(buildAuthorityReceipt()),
-      onRemoteFailure: vi.fn(),
-      remoteAuthorityFirst: true,
+      remote: {
+        remoteWrite: vi.fn().mockResolvedValue(buildAuthorityReceipt()),
+        onRemoteFailure: vi.fn(),
+      },
+      policy: { remoteAuthorityFirst: true },
     });
 
     expect(result).toBe('return');
@@ -225,15 +227,15 @@ describe('dailyRecordRemotePersistenceController', () => {
 
     const result = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
-      date: '2026-05-23',
-      record: buildRecord('2026-05-23'),
-      changedPaths: ['beds.R1.vitalSigns'],
+      change: {
+        date: '2026-05-23',
+        record: buildRecord('2026-05-23'),
+        changedPaths: ['beds.R1.vitalSigns'],
+      },
       remoteState: state,
-      remoteWrite,
-      onRemoteFailure: vi.fn(),
-      queueLocalBeforeRemote,
-      ackLocalAfterRemote,
-      remoteAuthorityFirst: true,
+      remote: { remoteWrite, onRemoteFailure: vi.fn() },
+      outbox: { queueLocalBeforeRemote, ackLocalAfterRemote },
+      policy: { remoteAuthorityFirst: true },
     });
 
     expect(result).toBe('continue');
@@ -254,13 +256,14 @@ describe('dailyRecordRemotePersistenceController', () => {
 
     const result = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
-      date: '2026-05-23',
-      record: buildRecord('2026-05-23'),
-      changedPaths: ['beds.R1.vitalSigns'],
+      change: {
+        date: '2026-05-23',
+        record: buildRecord('2026-05-23'),
+        changedPaths: ['beds.R1.vitalSigns'],
+      },
       remoteState: state,
-      remoteWrite: vi.fn().mockResolvedValue(undefined),
-      onRemoteFailure: vi.fn(),
-      remoteAuthorityFirst: true,
+      remote: { remoteWrite: vi.fn().mockResolvedValue(undefined), onRemoteFailure: vi.fn() },
+      policy: { remoteAuthorityFirst: true },
     });
 
     expect(result).toBe('return');
@@ -279,14 +282,15 @@ describe('dailyRecordRemotePersistenceController', () => {
     await expect(
       persistLocalAndAttemptRemoteSync({
         authoringSession: captureAuthoringSession(),
-        date: '2026-05-23',
-        record: buildRecord('2026-05-23'),
-        changedPaths: ['beds.R1.vitalSigns'],
+        change: {
+          date: '2026-05-23',
+          record: buildRecord('2026-05-23'),
+          changedPaths: ['beds.R1.vitalSigns'],
+        },
         remoteState: createRemoteWriteState(),
-        remoteWrite: vi.fn().mockRejectedValue(rejection),
-        onRemoteFailure,
-        queueLocalBeforeRemote,
-        remoteAuthorityFirst: true,
+        remote: { remoteWrite: vi.fn().mockRejectedValue(rejection), onRemoteFailure },
+        outbox: { queueLocalBeforeRemote },
+        policy: { remoteAuthorityFirst: true },
       })
     ).rejects.toBe(rejection);
 
@@ -317,17 +321,19 @@ describe('dailyRecordRemotePersistenceController', () => {
 
     const pending = persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
-      date: '2026-05-23',
-      record: buildRecord('2026-05-23'),
-      changedPaths: ['*'],
+      change: {
+        date: '2026-05-23',
+        record: buildRecord('2026-05-23'),
+        changedPaths: ['*'],
+        expectedVersion: '2026-05-23T10:00:00.000Z',
+      },
       remoteState: state,
-      remoteWrite,
-      onRemoteFailure: vi.fn(),
-      expectedVersion: '2026-05-23T10:00:00.000Z',
-      queueLocalBeforeRemote,
-      ackLocalAfterRemote,
-      renewLocalPreOutboxHold,
-      renewLocalPreOutboxHoldEveryMs: 2_000,
+      remote: { remoteWrite, onRemoteFailure: vi.fn() },
+      outbox: {
+        queueLocalBeforeRemote,
+        ackLocalAfterRemote,
+        preOutboxHoldRenewal: { renewLocalPreOutboxHold, everyMs: 2_000 },
+      },
     });
 
     await vi.advanceTimersByTimeAsync(2_000);
@@ -354,14 +360,15 @@ describe('dailyRecordRemotePersistenceController', () => {
 
     const result = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
-      date: '2026-05-23',
-      record: buildRecord('2026-05-23'),
-      changedPaths: ['beds.R1.patientName'],
+      change: {
+        date: '2026-05-23',
+        record: buildRecord('2026-05-23'),
+        changedPaths: ['beds.R1.patientName'],
+        expectedVersion: '2026-05-23T10:00:00.000Z',
+      },
       remoteState: state,
-      remoteWrite,
-      onRemoteFailure: vi.fn(),
-      expectedVersion: '2026-05-23T10:00:00.000Z',
-      queueLocalBeforeRemote,
+      remote: { remoteWrite, onRemoteFailure: vi.fn() },
+      outbox: { queueLocalBeforeRemote },
     });
 
     expect(result).toBe('return');
@@ -398,13 +405,14 @@ describe('dailyRecordRemotePersistenceController', () => {
 
     const result = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
-      date: '2026-05-23',
-      record: buildRecord('2026-05-23'),
-      changedPaths: ['beds.R1.patientName'],
+      change: {
+        date: '2026-05-23',
+        record: buildRecord('2026-05-23'),
+        changedPaths: ['beds.R1.patientName'],
+        expectedVersion: '2026-05-23T10:00:00.000Z',
+      },
       remoteState: state,
-      remoteWrite: vi.fn().mockRejectedValue(remoteError),
-      onRemoteFailure,
-      expectedVersion: '2026-05-23T10:00:00.000Z',
+      remote: { remoteWrite: vi.fn().mockRejectedValue(remoteError), onRemoteFailure },
     });
 
     expect(result).toBe('return');
@@ -439,14 +447,15 @@ describe('dailyRecordRemotePersistenceController', () => {
 
     await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
-      date: '2026-05-23',
-      record: buildRecord('2026-05-23'),
-      changedPaths: ['discharges', 'cma'],
+      change: {
+        date: '2026-05-23',
+        record: buildRecord('2026-05-23'),
+        changedPaths: ['discharges', 'cma'],
+        expectedVersion: '2026-05-23T10:00:00.000Z',
+      },
       remoteState: createRemoteWriteState(),
-      remoteWrite: vi.fn().mockRejectedValue(remoteError),
-      onRemoteFailure: vi.fn(),
-      expectedVersion: '2026-05-23T10:00:00.000Z',
-      allowConflictAutoMerge: false,
+      remote: { remoteWrite: vi.fn().mockRejectedValue(remoteError), onRemoteFailure: vi.fn() },
+      policy: { allowConflictAutoMerge: false },
     });
 
     expect(resolveRemoteWriteRecoveryMock).toHaveBeenCalledWith(
@@ -476,13 +485,14 @@ describe('dailyRecordRemotePersistenceController', () => {
 
     const result = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
-      date: '2026-05-23',
-      record: buildRecord('2026-05-23'),
-      changedPaths: ['*'],
+      change: {
+        date: '2026-05-23',
+        record: buildRecord('2026-05-23'),
+        changedPaths: ['*'],
+        expectedVersion: '2026-05-23T10:00:00.000Z',
+      },
       remoteState: state,
-      remoteWrite,
-      onRemoteFailure: vi.fn(),
-      expectedVersion: '2026-05-23T10:00:00.000Z',
+      remote: { remoteWrite, onRemoteFailure: vi.fn() },
     });
 
     expect(result).toBe('return');

@@ -73,14 +73,18 @@ describe('guarded remote-first daily-record persistence', () => {
 
     const result = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
-      date: '2026-05-23',
-      record: buildRecord('2026-05-23'),
-      changedPaths: ['beds.R1.clinicalCrib'],
+      change: {
+        date: '2026-05-23',
+        record: buildRecord('2026-05-23'),
+        changedPaths: ['beds.R1.clinicalCrib'],
+      },
       remoteState: state,
-      remoteWrite: vi.fn().mockResolvedValue(buildAuthorityReceipt()),
-      onRemoteFailure: vi.fn(),
-      ackLocalAfterRemote,
-      remoteAuthorityFirst: true,
+      remote: {
+        remoteWrite: vi.fn().mockResolvedValue(buildAuthorityReceipt()),
+        onRemoteFailure: vi.fn(),
+      },
+      outbox: { ackLocalAfterRemote },
+      policy: { remoteAuthorityFirst: true },
     });
 
     expect(result).toBe('continue');
@@ -153,15 +157,15 @@ describe('guarded remote-first daily-record persistence', () => {
 
     const result = await persistLocalAndAttemptRemoteSync({
       authoringSession: captureAuthoringSession(),
-      date: '2026-05-23',
-      record: buildRecord('2026-05-23'),
-      changedPaths: ['beds.R1.clinicalCrib'],
+      change: {
+        date: '2026-05-23',
+        record: buildRecord('2026-05-23'),
+        changedPaths: ['beds.R1.clinicalCrib'],
+      },
       remoteState: state,
-      remoteWrite: vi.fn().mockRejectedValue(rejection),
-      onRemoteFailure,
-      resolveAlreadyAppliedRemoteRecord,
-      adoptRemoteAuthorityRecord,
-      remoteAuthorityFirst: true,
+      remote: { remoteWrite: vi.fn().mockRejectedValue(rejection), onRemoteFailure },
+      adoption: { resolveAlreadyAppliedRemoteRecord, adoptRemoteAuthorityRecord },
+      policy: { remoteAuthorityFirst: true },
     });
 
     expect(result).toBe('continue');

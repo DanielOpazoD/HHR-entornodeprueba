@@ -17,9 +17,11 @@ export const buildPreOutboxRemoteAckCallbacks = (
   ackLocalAfterRemote: () => ackDailyRecordSyncTask(record, syncContract),
   releaseLocalPreOutboxHold: () =>
     releaseDailyRecordPreOutboxHold(record, syncContract).then(() => {}),
-  renewLocalPreOutboxHold: () =>
-    renewDailyRecordPreOutboxHold(record, syncContract, getPreOutboxRemoteAckLeaseMs()).then(
-      () => {}
-    ),
-  renewLocalPreOutboxHoldEveryMs: getPreOutboxRemoteAckHeartbeatMs(),
+  preOutboxHoldRenewal: {
+    renewLocalPreOutboxHold: () =>
+      renewDailyRecordPreOutboxHold(record, syncContract, getPreOutboxRemoteAckLeaseMs()).then(
+        () => {}
+      ),
+    everyMs: getPreOutboxRemoteAckHeartbeatMs(),
+  },
 });

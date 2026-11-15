@@ -218,55 +218,62 @@ const saveDetailedWithinLock = async (
     return buildSaveResult(command.date, remoteState);
   }
   const nextAction = await persistLocalAndAttemptRemoteSync({
-    date: command.date,
-    record: validatedRecord,
-    changedPaths: ['*'],
+    change: {
+      date: command.date,
+      record: validatedRecord,
+      changedPaths: ['*'],
+      expectedVersion: command.expectedLastUpdated,
+    },
     remoteState,
     authoringSession: options.authoringSession,
-    remoteWrite: () =>
-      saveRecordToFirestore(validatedRecord, command.expectedLastUpdated, {
-        syncContract,
-        returnCommittedRecord: options.requireConfirmedRecord,
-        origin: options.writeOrigin,
-        // An automated structural import overwrites the day: keep the state it replaces.
-        ...(options.rayenStructuralWriteGuard || options.historyPolicy === 'snapshot'
-          ? { historyPolicy: 'snapshot' as const }
-          : {}),
-        assertSafeOverwrite: remoteData =>
-          assertNoPatientErasures(docToRecord(remoteData, command.date), validatedRecord),
-      }),
-    queueLocalBeforeRemote: () =>
-      queueDailyRecordSyncTaskWithLocalRecord(
-        validatedRecord,
-        {
-          contexts: ['clinical', 'staffing', 'movements', 'handoff', 'metadata'],
-          origin: options.writeOrigin === 'backup_restore' ? 'backup_restore' : 'direct_queue',
+    remote: {
+      remoteWrite: () =>
+        saveRecordToFirestore(validatedRecord, command.expectedLastUpdated, {
           syncContract,
-        },
-        {
-          ...buildPreOutboxRemoteAckOptions(syncContract),
-          wholeRecordBase: options.baseRecord,
-          authoringSession: options.authoringSession,
-        }
-      ),
-    ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
-    completeConfirmedLocalWrite: confirmedRecord =>
-      completeDirectDailyRecordSyncTask({
-        sentRecord: validatedRecord,
-        confirmedRecord,
-        syncContract,
-      }),
-    readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),
-    requireConfirmedRecord: options.requireConfirmedRecord,
-    onRemoteFailure: err => {
-      dailyRecordWriteLogger.warn(
-        `Firestore sync failed for ${command.date}; data persisted in IndexedDB`,
-        err
-      );
+          returnCommittedRecord: options.requireConfirmedRecord,
+          origin: options.writeOrigin,
+          // An automated structural import overwrites the day: keep the state it replaces.
+          ...(options.rayenStructuralWriteGuard || options.historyPolicy === 'snapshot'
+            ? { historyPolicy: 'snapshot' as const }
+            : {}),
+          assertSafeOverwrite: remoteData =>
+            assertNoPatientErasures(docToRecord(remoteData, command.date), validatedRecord),
+        }),
+      readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),
+      onRemoteFailure: err =>
+        dailyRecordWriteLogger.warn(
+          `Firestore sync failed for ${command.date}; data persisted in IndexedDB`,
+          err
+        ),
     },
-    expectedVersion: command.expectedLastUpdated,
-    allowConflictAutoMerge: !options.rayenStructuralWriteGuard,
-    remoteAuthorityFirst: Boolean(options.rayenStructuralWriteGuard),
+    outbox: {
+      queueLocalBeforeRemote: () =>
+        queueDailyRecordSyncTaskWithLocalRecord(
+          validatedRecord,
+          {
+            contexts: ['clinical', 'staffing', 'movements', 'handoff', 'metadata'],
+            origin: options.writeOrigin === 'backup_restore' ? 'backup_restore' : 'direct_queue',
+            syncContract,
+          },
+          {
+            ...buildPreOutboxRemoteAckOptions(syncContract),
+            wholeRecordBase: options.baseRecord,
+            authoringSession: options.authoringSession,
+          }
+        ),
+      ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
+      completeConfirmedLocalWrite: confirmedRecord =>
+        completeDirectDailyRecordSyncTask({
+          sentRecord: validatedRecord,
+          confirmedRecord,
+          syncContract,
+        }),
+    },
+    policy: {
+      requireConfirmedRecord: options.requireConfirmedRecord,
+      allowConflictAutoMerge: !options.rayenStructuralWriteGuard,
+      remoteAuthorityFirst: Boolean(options.rayenStructuralWriteGuard),
+    },
   });
   if (nextAction === 'return') {
     return buildSaveResult(command.date, remoteState);
@@ -414,86 +421,96 @@ const updatePartialDetailedWithinLock = async (
   }
 
   await persistLocalAndAttemptRemoteSync({
-    date: command.date,
-    record: validatedRecord,
-    changedPaths: semanticChangedPaths,
+    change: {
+      date: command.date,
+      record: validatedRecord,
+      changedPaths: semanticChangedPaths,
+      expectedVersion: current.lastUpdated,
+    },
     remoteState,
     authoringSession: options.authoringSession,
-    remoteWrite: () =>
-      updateRecordPartialToFirestore(
-        command.date,
-        guardedCommandPolicy.remoteAuthorityPatch,
-        current.lastUpdated,
-        remoteWriteOptions
-      ),
-    queueLocalBeforeRemote: () =>
-      specialistHandoff && handoffTargets
-        ? // Its own task, replayed through the same occupant-bound callable.
-          queueDailyRecordSyncTaskWithLocalRecord(
-            validatedRecord,
-            {
-              contexts: ['handoff'],
-              origin: 'direct_queue',
-              syncContract: {
-                changedPaths: semanticChangedPaths,
-                mutationId: syncContract.mutationId,
-              },
-            },
-            { patchWrite, authoringSession: options.authoringSession },
-            {
-              date: command.date,
-              patch: sanitizeForFirestore(guardedCommandPolicy.remoteAuthorityPatch) as Record<
-                string,
-                unknown
-              >,
-              expectedOccupants: handoffTargets,
-              mutationId: syncContract.mutationId,
-            }
-          )
-        : queueDailyRecordSyncTaskWithLocalRecord(
-            validatedRecord,
-            {
-              contexts: classifyConflictChangedContexts(semanticChangedPaths),
-              origin: 'direct_queue',
-              syncContract,
-            },
-            {
-              ...buildPreOutboxRemoteAckOptions(syncContract),
-              patchWrite,
-              authoringSession: options.authoringSession,
-            }
-          ),
-    ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
-    readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),
-    ...(!specialistHandoff &&
-      buildGranularPatchStaleVersionRetryHooks({
-        date: command.date,
-        options,
-        policy: guardedCommandPolicy,
-        isReclassification,
-        semanticChangedPaths,
-        baseRecord: current,
-        syncContract,
-      })),
-    resolveAlreadyAppliedRemoteRecord: guardedCommandPolicy.resolveAlreadyAppliedRemoteRecord,
-    adoptRemoteAuthorityRecord: authoritativeRecord =>
-      adoptAuthoritativeRecord(
-        authoritativeRecord,
-        guardedCommandPolicy.buildLocalAdoptionPatch(authoritativeRecord)
-      ),
-    requireConfirmedRecord: guardedCommandPolicy.requireConfirmedRecord,
-    onRemoteFailure: err => {
-      dailyRecordWriteLogger.warn(`Firestore partial update failed for ${command.date}`, err);
+    remote: {
+      remoteWrite: () =>
+        updateRecordPartialToFirestore(
+          command.date,
+          guardedCommandPolicy.remoteAuthorityPatch,
+          current.lastUpdated,
+          remoteWriteOptions
+        ),
+      readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),
+      onRemoteFailure: err =>
+        dailyRecordWriteLogger.warn(`Firestore partial update failed for ${command.date}`, err),
     },
-    expectedVersion: current.lastUpdated,
-    allowConflictAutoMerge:
-      !specialistHandoff &&
-      !isReclassification &&
-      !options.specialtyIntent &&
-      !options.requireAtomicCas &&
-      !guardedCommandPolicy.requireAtomicCas,
-    remoteAuthorityFirst: specialistHandoff || guardedCommandPolicy.remoteAuthorityFirst,
-    allowOfflineQueue: specialistHandoff,
+    outbox: {
+      queueLocalBeforeRemote: () =>
+        specialistHandoff && handoffTargets
+          ? // Its own task, replayed through the same occupant-bound callable.
+            queueDailyRecordSyncTaskWithLocalRecord(
+              validatedRecord,
+              {
+                contexts: ['handoff'],
+                origin: 'direct_queue',
+                syncContract: {
+                  changedPaths: semanticChangedPaths,
+                  mutationId: syncContract.mutationId,
+                },
+              },
+              { patchWrite, authoringSession: options.authoringSession },
+              {
+                date: command.date,
+                patch: sanitizeForFirestore(guardedCommandPolicy.remoteAuthorityPatch) as Record<
+                  string,
+                  unknown
+                >,
+                expectedOccupants: handoffTargets,
+                mutationId: syncContract.mutationId,
+              }
+            )
+          : queueDailyRecordSyncTaskWithLocalRecord(
+              validatedRecord,
+              {
+                contexts: classifyConflictChangedContexts(semanticChangedPaths),
+                origin: 'direct_queue',
+                syncContract,
+              },
+              {
+                ...buildPreOutboxRemoteAckOptions(syncContract),
+                patchWrite,
+                authoringSession: options.authoringSession,
+              }
+            ),
+      ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
+    },
+    adoption: {
+      resolveAlreadyAppliedRemoteRecord: guardedCommandPolicy.resolveAlreadyAppliedRemoteRecord,
+      adoptRemoteAuthorityRecord: authoritativeRecord =>
+        adoptAuthoritativeRecord(
+          authoritativeRecord,
+          guardedCommandPolicy.buildLocalAdoptionPatch(authoritativeRecord)
+        ),
+    },
+    staleVersion: specialistHandoff
+      ? undefined
+      : buildGranularPatchStaleVersionRetryHooks({
+          date: command.date,
+          options,
+          policy: guardedCommandPolicy,
+          isReclassification,
+          semanticChangedPaths,
+          baseRecord: current,
+          syncContract,
+        }),
+    policy: {
+      requireConfirmedRecord: guardedCommandPolicy.requireConfirmedRecord,
+      allowConflictAutoMerge:
+        !specialistHandoff &&
+        !isReclassification &&
+        !options.specialtyIntent &&
+        !options.requireAtomicCas &&
+        !guardedCommandPolicy.requireAtomicCas,
+      remoteAuthorityFirst: specialistHandoff || guardedCommandPolicy.remoteAuthorityFirst,
+      allowOfflineQueue: specialistHandoff,
+    },
   });
   if (remoteState.savedRemotely && handoffTargets) {
     // The server took this exact text for these patients: only now may its drafts go.

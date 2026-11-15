@@ -27,7 +27,10 @@ import {
   markRemoteWriteSucceeded,
   recoverAlreadyAppliedRemoteWrite,
 } from '@/services/repositories/dailyRecordRemotePersistenceState';
-import { attemptStaleVersionRebaseRetry } from '@/services/repositories/dailyRecordStaleVersionRebase';
+import {
+  attemptStaleVersionRebaseRetry,
+  type StaleVersionRebaseRetryHooks,
+} from '@/services/repositories/dailyRecordStaleVersionRebase';
 import { persistConfirmedRemoteRecordLocally } from '@/services/repositories/dailyRecordConfirmedLocalPersistence';
 
 export interface RemoteAuthorityWriteResult {
@@ -62,18 +65,17 @@ const toRejectedOutboxPersistenceResult = (
 
 const runWithOptionalPreOutboxRenewal = async <T>(
   remoteStep: () => Promise<T>,
-  renewLocalPreOutboxHold?: () => Promise<void>,
-  renewIntervalMs?: number
+  renewal?: PreOutboxHoldRenewal
 ): Promise<T> => {
-  if (!renewLocalPreOutboxHold || !renewIntervalMs || renewIntervalMs <= 0) {
+  if (!renewal || !(renewal.everyMs > 0)) {
     return remoteStep();
   }
 
   const intervalId = globalThis.setInterval(() => {
-    renewLocalPreOutboxHold().catch(error =>
-      logger.warn('Failed to renew local pre-outbox hold', error)
-    );
-  }, renewIntervalMs);
+    renewal
+      .renewLocalPreOutboxHold()
+      .catch(error => logger.warn('Failed to renew local pre-outbox hold', error));
+  }, renewal.everyMs);
 
   try {
     return await remoteStep();
@@ -190,50 +192,40 @@ const unconfirmedRemoteAuthorityStateResult = (
   userSafeMessage: 'La copia local no pudo confirmar la versión guardada en el servidor.',
 });
 
-export const persistLocalAndAttemptRemoteSync = async ({
-  date,
-  record,
-  changedPaths,
-  remoteState,
-  remoteWrite,
-  onRemoteFailure,
-  expectedVersion,
-  queueLocalBeforeRemote,
-  ackLocalAfterRemote,
-  releaseLocalPreOutboxHold,
-  renewLocalPreOutboxHold,
-  renewLocalPreOutboxHoldEveryMs,
-  readRemoteConfirmedRecord,
-  resolveAlreadyAppliedRemoteRecord,
-  adoptRemoteAuthorityRecord,
-  completeConfirmedLocalWrite,
-  retryRemoteWriteOnStaleVersion,
-  canRebaseStaleVersionConflict,
-  requireConfirmedRecord = false,
-  allowConflictAutoMerge = true,
-  authoringSession,
-  remoteAuthorityFirst = false,
-  allowOfflineQueue = false,
-}: {
+/** What is written: the day, its record, the paths it changes and the version it expects. */
+interface DailyRecordPersistedChange {
   date: string;
   record: DailyRecord;
   changedPaths: string[];
-  remoteState: RemoteWriteState;
-  remoteWrite: () => Promise<RemoteAuthorityWriteResult | void>;
-  onRemoteFailure: (error: unknown) => void;
   expectedVersion?: string;
-  queueLocalBeforeRemote?: () => Promise<SyncQueueEnqueueResult>;
-  ackLocalAfterRemote?: () => Promise<boolean | void>;
-  releaseLocalPreOutboxHold?: () => Promise<void>;
-  renewLocalPreOutboxHold?: () => Promise<void>;
-  renewLocalPreOutboxHoldEveryMs?: number;
+}
+
+/** The server side: the write, the server read of what it committed, and the failure report. */
+interface DailyRecordRemoteWriteAttempt {
+  remoteWrite: () => Promise<RemoteAuthorityWriteResult | void>;
   /** Compatibility readback when a deployed callable confirms without returning recordState. */
   readRemoteConfirmedRecord?: () => Promise<DailyRecord | null>;
-  /** Reintento acotado por versión vieja — ver dailyRecordStaleVersionRebase. */
-  retryRemoteWriteOnStaleVersion?: (
-    freshRemoteRecord: DailyRecord
-  ) => Promise<RemoteAuthorityWriteResult | void>;
-  canRebaseStaleVersionConflict?: (freshRemoteRecord: DailyRecord, writeError: unknown) => boolean;
+  onRemoteFailure: (error: unknown) => void;
+}
+
+/** Renews the pre-outbox hold every `everyMs` while the remote step is in flight. */
+interface PreOutboxHoldRenewal {
+  renewLocalPreOutboxHold: () => Promise<void>;
+  everyMs: number;
+}
+
+/** The local outbox task written before the remote write, and how it is closed or released. */
+interface PreOutboxLocalRetention {
+  queueLocalBeforeRemote?: () => Promise<SyncQueueEnqueueResult>;
+  ackLocalAfterRemote?: () => Promise<boolean | void>;
+  /** Atomically completes only a confirmed local-first full save and returns retained work. */
+  completeConfirmedLocalWrite?: (record: DailyRecord) => Promise<DailyRecord | undefined>;
+  releaseLocalPreOutboxHold?: () => Promise<void>;
+  preOutboxHoldRenewal?: PreOutboxHoldRenewal;
+}
+
+/** How a server-confirmed record is adopted locally. */
+interface RemoteRecordAdoption {
   /**
    * A guarded command can lose its CAS race after another writer already reached the same desired
    * state. When that can be proven from a fresh authoritative read, adopt that exact record instead
@@ -242,8 +234,9 @@ export const persistLocalAndAttemptRemoteSync = async ({
   resolveAlreadyAppliedRemoteRecord?: (error: unknown) => Promise<DailyRecord | null>;
   /** Reconciles a confirmed guarded record with any exact pending local outbox projection. */
   adoptRemoteAuthorityRecord?: (record: DailyRecord) => Promise<DailyRecord>;
-  /** Atomically completes only a confirmed local-first full save and returns retained work. */
-  completeConfirmedLocalWrite?: (record: DailyRecord) => Promise<DailyRecord | undefined>;
+}
+
+interface RemotePersistencePolicy {
   /**
    * Require the exact server-confirmed revision even when the remote adapter returns `void`.
    * Rayen structural imports need this handoff before starting their clinical stage; ordinary
@@ -256,10 +249,43 @@ export const persistLocalAndAttemptRemoteSync = async ({
    * Fail-closed path for guarded writes: commit the atomic remote authority check before touching
    * IndexedDB, and never enqueue a rejected stale writer for later replay.
    */
-  authoringSession: AuthoringSession;
   remoteAuthorityFirst?: boolean;
   allowOfflineQueue?: boolean;
-}): Promise<'continue' | 'return'> => {
+}
+
+interface PersistLocalAndAttemptRemoteSyncInput {
+  change: DailyRecordPersistedChange;
+  remoteState: RemoteWriteState;
+  authoringSession: AuthoringSession;
+  remote: DailyRecordRemoteWriteAttempt;
+  outbox?: PreOutboxLocalRetention;
+  adoption?: RemoteRecordAdoption;
+  /** Reintento acotado por versión vieja — ver dailyRecordStaleVersionRebase. */
+  staleVersion?: StaleVersionRebaseRetryHooks<RemoteAuthorityWriteResult>;
+  policy?: RemotePersistencePolicy;
+}
+
+export const persistLocalAndAttemptRemoteSync = async ({
+  change: { date, record, changedPaths, expectedVersion },
+  remoteState,
+  authoringSession,
+  remote: { remoteWrite, readRemoteConfirmedRecord, onRemoteFailure },
+  outbox: {
+    queueLocalBeforeRemote,
+    ackLocalAfterRemote,
+    completeConfirmedLocalWrite,
+    releaseLocalPreOutboxHold,
+    preOutboxHoldRenewal,
+  } = {},
+  adoption: { resolveAlreadyAppliedRemoteRecord, adoptRemoteAuthorityRecord } = {},
+  staleVersion: { retryRemoteWriteOnStaleVersion, canRebaseStaleVersionConflict } = {},
+  policy: {
+    requireConfirmedRecord = false,
+    allowConflictAutoMerge = true,
+    remoteAuthorityFirst = false,
+    allowOfflineQueue = false,
+  } = {},
+}: PersistLocalAndAttemptRemoteSyncInput): Promise<'continue' | 'return'> => {
   if (remoteAuthorityFirst) {
     const sessionChanged = new Error('La sesión cambió antes de enviar la escritura.');
     const assertAuthor = () => {
@@ -428,11 +454,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
   try {
     let remoteResult: RemoteAuthorityWriteResult | void;
     try {
-      remoteResult = await runWithOptionalPreOutboxRenewal(
-        remoteWrite,
-        renewLocalPreOutboxHold,
-        renewLocalPreOutboxHoldEveryMs
-      );
+      remoteResult = await runWithOptionalPreOutboxRenewal(remoteWrite, preOutboxHoldRenewal);
     } catch (writeError) {
       const rebased = await attemptStaleVersionRebaseRetry<RemoteAuthorityWriteResult>({
         writeError,
@@ -459,8 +481,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
             readRemoteConfirmedRecord,
             expectedVersion
           ),
-        renewLocalPreOutboxHold,
-        renewLocalPreOutboxHoldEveryMs
+        preOutboxHoldRenewal
       );
       if (authority.kind !== 'confirmed') {
         await releaseLocalPreOutboxHold?.();
