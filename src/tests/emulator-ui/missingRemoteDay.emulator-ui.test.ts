@@ -39,6 +39,15 @@ vi.mock('firebase/firestore', async importOriginal => {
     },
   };
 });
+// Same attempts, no backoff wait: rejected writes spent over half of this file's ~6 CI minutes asleep.
+vi.mock('@/utils/networkUtils', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/utils/networkUtils')>();
+  return {
+    ...actual,
+    withRetry: <T>(fn: () => Promise<T>, options?: Parameters<typeof actual.withRetry>[1]) =>
+      actual.withRetry(fn, { ...options, initialDelay: 0, maxDelay: 0 }),
+  };
+});
 vi.mock('@/firebaseConfig', () => ({
   get db() {
     return scope.getStore()?.db;
