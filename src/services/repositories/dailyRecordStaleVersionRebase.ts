@@ -187,6 +187,7 @@ export const buildGranularPatchStaleVersionRetryHooks = <TResult>({
             changedPaths: semanticChangedPaths,
           }),
           isReclassification,
+          baseRecord: freshRemoteRecord,
         })
       ) as Promise<TResult | void>;
     },

@@ -7,6 +7,11 @@ import {
   buildThrowUnrecoverableRecoveryResult,
 } from '@/services/repositories/dailyRecordWriteRecoveryResultController';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { FIELD_CHANGED_ELSEWHERE_TAG } from '@/services/repositories/contracts/dailyRecordResults';
+import {
+  FIELD_CHANGED_ELSEWHERE_MESSAGE,
+  isFieldChangedElsewhereError,
+} from '@/services/storage/syncErrorCatalog';
 
 type ConflictSummaryBuilder = (
   kind: DailyRecordConflictSummary['kind'],
@@ -41,6 +46,14 @@ export const resolveConcurrencyRemoteWriteRecovery = async (
     changedPaths,
     authoringSession
   );
+  if (mergeResult.status === 'auto_merged' && isFieldChangedElsewhereError(error)) {
+    // Queued as a conflict that keeps this device's text: nothing was integrated.
+    return buildAutoMergedRecoveryResult(
+      buildConflictSummary('concurrency', FIELD_CHANGED_ELSEWHERE_MESSAGE),
+      FIELD_CHANGED_ELSEWHERE_MESSAGE,
+      ['daily_record', 'write', 'auto_merged', FIELD_CHANGED_ELSEWHERE_TAG]
+    );
+  }
   if (mergeResult.status === 'auto_merged') {
     return buildAutoMergedRecoveryResult(
       buildConflictSummary(

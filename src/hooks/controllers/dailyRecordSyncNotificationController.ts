@@ -1,4 +1,5 @@
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreRecordWrites';
+import { FIELD_CHANGED_ELSEWHERE_MESSAGE } from '@/services/storage/syncErrorCatalog';
 import { DataRegressionError, VersionMismatchError } from '@/utils/integrityGuard';
 import { resolveApplicationOutcomeMessage } from '@/shared/contracts/applicationOutcomeMessage';
 import { AdmissionDatePolicyViolationError } from '@/application/patient-flow/admissionDatePolicy';
@@ -7,6 +8,7 @@ import type {
   UpdatePartialDailyRecordResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
 import {
+  FIELD_CHANGED_ELSEWHERE_TAG,
   isDailyRecordWriteBlockedResult,
   resolveDailyRecordSavedState,
 } from '@/services/repositories/contracts/dailyRecordResults';
@@ -188,6 +190,16 @@ const resolveWriteOutcomeFeedback = (
       patch
         ? 'La actualización quedó guardada localmente y se reintentará la sincronización.'
         : 'Los cambios se guardaron localmente y quedarán pendientes de sincronización.'
+    );
+  }
+  if (
+    result.outcome === 'auto_merged' &&
+    result.observabilityTags?.includes(FIELD_CHANGED_ELSEWHERE_TAG)
+  ) {
+    // Nothing was integrated: the edit waits for review with this device's text.
+    return createSyncDegraded(
+      patch ? 'Cambio pendiente de revisión' : 'Censo pendiente de revisión',
+      consistencyMessage(FIELD_CHANGED_ELSEWHERE_MESSAGE)
     );
   }
   if (result.outcome === 'auto_merged' && result.autoMerged) {

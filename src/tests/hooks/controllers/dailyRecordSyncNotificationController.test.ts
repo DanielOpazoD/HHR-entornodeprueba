@@ -88,6 +88,37 @@ describe('dailyRecordSyncNotificationController', () => {
     });
   });
 
+  it('tells the writer whose field another device changed that the text waits for review', () => {
+    const queued = {
+      date: '2026-03-03',
+      outcome: 'auto_merged',
+      savedLocally: true,
+      updatedRemotely: false,
+      queuedForRetry: true,
+      autoMerged: true,
+      patchedFields: 1,
+    } as const;
+    const conflict = resolvePatchOutcomeFeedback(
+      createUpdatePartialDailyRecordResult({
+        ...queued,
+        observabilityTags: ['daily_record', 'write', 'auto_merged', 'field_changed_elsewhere'],
+      })
+    );
+
+    expect(conflict).toEqual({
+      channel: 'warning',
+      title: 'Cambio pendiente de revisión',
+      message: 'El campo cambió en otro equipo. La edición pendiente se conserva para revisión.',
+      state: 'degraded',
+      actionRequired: false,
+    });
+    expect(conflict?.message).not.toMatch(/integró|guardad/i);
+    // A real integration keeps its notice.
+    expect(resolvePatchOutcomeFeedback(createUpdatePartialDailyRecordResult(queued))?.message).toBe(
+      'El sistema integró los cambios recientes automáticamente.'
+    );
+  });
+
   it('returns feedback for blocked patch outcomes', () => {
     expect(
       resolvePatchOutcomeFeedback(

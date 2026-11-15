@@ -36,6 +36,7 @@ const buildOptions = (
     policy,
     syncContract: buildDailyRecordSyncContract(baseRecord, { changedPaths: Object.keys(patch) }),
     isReclassification,
+    baseRecord,
   });
 };
 

@@ -6,12 +6,14 @@ const {
   mockAssertFirestoreConcurrency,
   mockFlattenObject,
   mockGetDoc,
+  mockUpdateRecordPartiallyAtomically,
 } = vi.hoisted(() => ({
   firestoreWriteLoggerWarn: vi.fn(),
   firestoreWriteLoggerError: vi.fn(),
   mockAssertFirestoreConcurrency: vi.fn(),
   mockFlattenObject: vi.fn((value: Record<string, unknown>) => value),
   mockGetDoc: vi.fn(),
+  mockUpdateRecordPartiallyAtomically: vi.fn(),
 }));
 
 const { mockEnsureUserRoleClaim, mockResolveFirebaseUserRole, mockGetCurrentUser, mockAuthReady } =
@@ -67,6 +69,7 @@ vi.mock('@/services/storage/firestore/firestoreWriteSupport', () => ({
   assertFirestoreConcurrency: mockAssertFirestoreConcurrency,
   createDeletedRecordRef: vi.fn((date: string) => ({ trashRef: date })),
   saveHistorySnapshot: vi.fn(),
+  updateRecordPartiallyAtomically: mockUpdateRecordPartiallyAtomically,
 }));
 
 vi.mock('@/services/storage/storageLoggers', () => ({
@@ -145,6 +148,7 @@ describe('firestoreRecordWrites authority fallback routing', () => {
       })
     );
     expect(updateDoc).not.toHaveBeenCalled();
+    expect(mockUpdateRecordPartiallyAtomically).not.toHaveBeenCalled();
   });
 
   it('fails closed for mixed structural and document updates after the schema-v2 fence', async () => {
@@ -173,9 +177,10 @@ describe('firestoreRecordWrites authority fallback routing', () => {
 
     expect(mockAuthorityCallable).not.toHaveBeenCalled();
     expect(updateDoc).not.toHaveBeenCalled();
+    expect(mockUpdateRecordPartiallyAtomically).not.toHaveBeenCalled();
   });
 
-  it('keeps non-clinical partial updates on direct Firestore writes in enforced mode', async () => {
+  it('keeps non-clinical partial updates on the direct Firestore transaction in enforced mode', async () => {
     (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
       'enforced';
     mockGetCurrentUser.mockReturnValue({
@@ -196,7 +201,15 @@ describe('firestoreRecordWrites authority fallback routing', () => {
     );
     expect(mockAuthorityCallable).not.toHaveBeenCalled();
     expect(saveHistorySnapshot).toHaveBeenCalledWith('2026-03-14', { force: false });
-    expect(updateDoc).toHaveBeenCalledTimes(1);
+    // The copy stays outside: roles that cannot write history must still save the day.
+    expect(mockUpdateRecordPartiallyAtomically).toHaveBeenCalledExactlyOnceWith(
+      { date: '2026-03-14' },
+      expect.objectContaining({ handoffNovedadesDayShift: 'Novedad administrativa' }),
+      '2026-03-14T10:00:00.000Z',
+      expect.any(String),
+      'partial update',
+      expect.objectContaining({ historyPolicy: 'skip' })
+    );
   });
 
   it('forces the copy an automated run explicitly asks for before its first write', async () => {
@@ -208,7 +221,7 @@ describe('firestoreRecordWrites authority fallback routing', () => {
     );
 
     expect(saveHistorySnapshot).toHaveBeenCalledExactlyOnceWith('2026-03-14', { force: true });
-    expect(updateDoc).toHaveBeenCalledTimes(1);
+    expect(mockUpdateRecordPartiallyAtomically).toHaveBeenCalledTimes(1);
   });
 
   it('can skip a repeated history snapshot for a serialized automated clinical patch', async () => {
@@ -220,6 +233,6 @@ describe('firestoreRecordWrites authority fallback routing', () => {
     );
 
     expect(saveHistorySnapshot).not.toHaveBeenCalled();
-    expect(updateDoc).toHaveBeenCalledTimes(1);
+    expect(mockUpdateRecordPartiallyAtomically).toHaveBeenCalledTimes(1);
   });
 });

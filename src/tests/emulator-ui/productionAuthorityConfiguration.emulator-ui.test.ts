@@ -13,6 +13,11 @@ import * as guards from '@/services/storage/firestore/firestoreWriteSupport';
 import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import * as fence from '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
+import type { UpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import {
+  presentSyncOutcomeFeedback,
+  resolvePatchOutcomeFeedback,
+} from '@/hooks/controllers/dailyRecordSyncNotificationController';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {
   setFirestoreEnabled,
@@ -98,7 +103,7 @@ const baseRecord = () => ({
  */
 const configs = ['production', 'variable_and_policy'] as const;
 type Config = (typeof configs)[number];
-type Route = 'authority' | 'transaction' | 'direct';
+type Route = 'authority' | 'transaction';
 type Row = [label: string, route: Route, a: DailyRecordPatch, b: DailyRecordPatch, path: string];
 
 // Each row is two different values for the SAME field, written from the same base at once.
@@ -124,18 +129,16 @@ const serialized: Row[] = [
     { nursesDayShift: ['ENFERMERA B', ''] },
     'nursesDayShift',
   ],
-];
-const direct: Row[] = [
   [
     'nursing handoff novedades',
-    'direct',
+    'transaction',
     { handoffNovedadesDayShift: 'NOVEDAD A' },
     { handoffNovedadesDayShift: 'NOVEDAD B' },
     'handoffNovedadesDayShift',
   ],
   [
     'active extra beds',
-    'direct',
+    'transaction',
     { activeExtraBeds: ['E1'] },
     { activeExtraBeds: ['E2'] },
     'activeExtraBeds',
@@ -145,6 +148,23 @@ const valueAt = (record: DailyRecord, path: string): unknown =>
   path
     .split('.')
     .reduce<unknown>((value, key) => (value as Record<string, unknown>)?.[key], record);
+/** The notice the census shows for a patch result, as `useDailyRecordSyncQuery` presents it. */
+const shownNotice = (result: UpdatePartialDailyRecordResult) => {
+  const shown: [channel: string, title: string, message?: string][] = [];
+  presentSyncOutcomeFeedback(resolvePatchOutcomeFeedback(result), 'Actualización', {
+    success: (title, message) => shown.push(['success', title, message]),
+    warning: (title, message) => shown.push(['warning', title, message]),
+    error: (title, message) => shown.push(['error', title, message]),
+  });
+  return shown;
+};
+const FIELD_CHANGED_NOTICE = [
+  [
+    'warning',
+    'Cambio pendiente de revisión',
+    'El campo cambió en otro equipo. La edición pendiente se conserva para revisión.',
+  ],
+];
 const normalize = (value: unknown) =>
   Array.isArray(value) ? value.filter(item => item !== '') : value;
 
@@ -176,6 +196,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     actor(id, () =>
       writes.updateRecordPartial(date, data, base.lastUpdated, {
         historyPolicy: 'skip',
+        baseRecord: base,
         syncContract: {
           mutationId: `synthetic-${id}-${Object.keys(data).join('-')}`,
           baseRevision: resolveRecordBaseRevision(base),
@@ -214,8 +235,22 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     const atomic = guards.updateRecordPartiallyAtomically;
     vi.spyOn(guards, 'updateRecordPartiallyAtomically').mockImplementation(async (...args) => {
       calls.transaction++;
+      await transactionGate?.();
       return atomic(...args);
     });
+  };
+  let transactionGate: (() => Promise<void>) | undefined;
+  /** Resolves for every caller once two have arrived. */
+  const arriveTogether = () => {
+    let release!: () => void;
+    const together = new Promise<void>(done => {
+      release = done;
+    });
+    let arrivals = 0;
+    return async () => {
+      if (++arrivals === 2) release();
+      await together;
+    };
   };
   const configure = async (config: Config) => {
     vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_MODE', config === 'production' ? '' : 'enforced');
@@ -227,46 +262,40 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       clinicalBatchMode: 'enforced',
     });
   };
-  /** Holds every direct write after its version check until both writers passed it. */
-  const holdDirectWritesTogether = () => {
-    let release!: () => void;
-    const together = new Promise<void>(done => {
-      release = done;
-    });
-    let arrivals = 0;
+  /**
+   * Starts both writers' transactions together. A version check by a read before the write (the
+   * gap closed on 2026-11-15) would also be held after both passed it, so a reopened gap shows up
+   * as two «guardado».
+   */
+  const holdWritesTogether = () => {
+    transactionGate = arriveTogether();
+    const passed = arriveTogether();
     const check = guards.assertFirestoreConcurrency;
     vi.spyOn(guards, 'assertFirestoreConcurrency').mockImplementation(async (...args) => {
       calls.direct++;
       await check(...args);
-      if (++arrivals === 2) release();
-      await together;
-    });
-  };
-  const countDirectWrites = () => {
-    const check = guards.assertFirestoreConcurrency;
-    vi.spyOn(guards, 'assertFirestoreConcurrency').mockImplementation(async (...args) => {
-      calls.direct++;
-      return check(...args);
+      await passed();
     });
   };
   const race = (a: DailyRecordPatch, b: DailyRecordPatch) => {
-    holdDirectWritesTogether();
+    holdWritesTogether();
     return Promise.allSettled([patch('A', a), patch('B', b)]);
   };
-  const routeOf = (): Route =>
+  const routeOf = (): Route | 'direct' =>
     calls.patch + calls.save > 0 ? 'authority' : calls.transaction > 0 ? 'transaction' : 'direct';
   /** Runs device B's queue until nothing is ready, as its browser would over the next minutes. */
   const settleQueue = async () => {
     let shift = 0;
     for (let round = 0; round < 4; round++) {
-      await vi.waitFor(
+      // One read: a task the queue claims between two reads would otherwise end the wait early.
+      const tasks = await vi.waitFor(
         async () => {
           const tasks = await hospitalDB.syncQueue.toArray();
           if (tasks.some(task => task.status === 'PROCESSING')) throw new Error('queue busy');
+          return tasks;
         },
         { timeout: 20_000, interval: 50 }
       );
-      const tasks = await hospitalDB.syncQueue.toArray();
       if (!tasks.some(task => task.status === 'PENDING' || task.status === 'FAILED')) return;
       shift += 10 * 60_000;
       const now = Date.now() + shift;
@@ -323,6 +352,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     setFirestoreEnabled(true);
     await admin.doc(dayPath).set(baseRecord());
     calls.patch = calls.save = calls.transaction = calls.direct = 0;
+    transactionGate = undefined;
     bridge();
   });
   afterEach(() => {
@@ -376,54 +406,132 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       expect((await read()).beds.R1.pathology).toBe(results[0].status === 'fulfilled' ? 'A' : 'B');
     });
 
-    for (const [label, , a, b, path] of direct) {
-      it(`${label}: neither the policy nor the variable routes it away from Firestore (${config})`, async () => {
-        await configure(config);
-        await race(a, b);
-        expect(calls).toMatchObject({ patch: 0, save: 0, transaction: 0, direct: 2 });
-        expect([a, b].map(item => normalize(Object.values(item)[0]))).toContainEqual(
-          normalize(valueAt(await read(), path))
-        );
-      });
-
-      // Measured gap (E8, 2026-11-12): a plain day field is checked by a read and then written
-      // with updateDoc. Two writers inside that window both pass the check and both are told
-      // «guardado»; the later write replaces the earlier text. Not closed by policy or variable.
-      it.fails(
-        `${label}: two simultaneous writers must not both be told saved (${config})`,
-        async () => {
-          await configure(config);
-          const results = await race(a, b);
-          expect(results.filter(item => item.status === 'rejected')).toHaveLength(1);
-        }
+    it(`different fields of the same day: both simultaneous writers are saved (${config})`, async () => {
+      await configure(config);
+      const results = await race(
+        { handoffNovedadesDayShift: 'NOVEDAD A' },
+        { activeExtraBeds: ['E2'] }
       );
-    }
+      expect(routeOf()).toBe('transaction');
+      expect(results.map(item => item.status)).toEqual(['fulfilled', 'fulfilled']);
+      expect(await read()).toMatchObject({
+        handoffNovedadesDayShift: 'NOVEDAD A',
+        activeExtraBeds: ['E2'],
+      });
+    });
+
+    it(`the same value written twice at once: both writers succeed (${config})`, async () => {
+      await configure(config);
+      const same = { handoffNovedadesDayShift: 'NOVEDAD A' };
+      const results = await race(same, same);
+      expect(results.map(item => item.status)).toEqual(['fulfilled', 'fulfilled']);
+      expect((await read()).handoffNovedadesDayShift).toBe('NOVEDAD A');
+    });
   }
 
-  // The same gap through the app: device B's census save reports a confirmed remote write while
-  // device A's simultaneous write of the same novedades is also accepted.
-  it.fails(
-    'handoff novedades: the app must not tell both simultaneous nurses «guardado»',
-    async () => {
+  // Through the app: device B's census save races device A's write of the same novedades.
+  it('handoff novedades: one of two simultaneous nurses is saved, the other keeps the text', async () => {
+    await configure('production');
+    await hospitalDB.dailyRecords.put(baseRecord());
+    holdWritesTogether();
+    const [other, observed] = await Promise.allSettled([
+      patch('A', { handoffNovedadesDayShift: 'NOVEDAD A' }),
+      actor('B', () =>
+        updatePartialDetailed(
+          date,
+          { handoffNovedadesDayShift: 'NOVEDAD B' },
+          { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
+        )
+      ),
+    ]);
+    if (observed.status === 'rejected') throw observed.reason;
+    const savedB = observed.value.updatedRemotely;
+    expect(calls.direct).toBe(0);
+    expect([other.status === 'fulfilled', savedB].filter(Boolean)).toHaveLength(1);
+    await settleQueue();
+    expect((await read()).handoffNovedadesDayShift).toBe(savedB ? 'NOVEDAD B' : 'NOVEDAD A');
+    if (!savedB) {
+      expect(shownNotice(observed.value)).toEqual(FIELD_CHANGED_NOTICE);
+      expect((await hospitalDB.dailyRecords.get(date))?.handoffNovedadesDayShift).toBe('NOVEDAD B');
+      expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
+        { status: 'CONFLICT', lastErrorCategory: 'conflict' },
+      ]);
+    }
+  });
+
+  it('the nurse who loses a real race is told the field changed elsewhere, not «integrated»', async () => {
+    await configure('production');
+    await hospitalDB.dailyRecords.put(baseRecord());
+    // Both start from the same base; B's transaction opens only after A's write resolved.
+    let releaseB!: () => void;
+    const aDone = new Promise<void>(done => {
+      releaseB = done;
+    });
+    transactionGate = async () => {
+      if (scope.getStore()?.uid === 'synthetic-B') await aDone;
+    };
+    const [other, observed] = await Promise.allSettled([
+      patch('A', { handoffNovedadesDayShift: 'NOVEDAD A' }).finally(() => releaseB()),
+      actor('B', () =>
+        updatePartialDetailed(
+          date,
+          { handoffNovedadesDayShift: 'NOVEDAD B' },
+          { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
+        )
+      ),
+    ]);
+    if (observed.status === 'rejected') throw observed.reason;
+    expect(other.status).toBe('fulfilled');
+    expect(observed.value).toMatchObject({ savedLocally: true, updatedRemotely: false });
+    expect(shownNotice(observed.value)).toEqual(FIELD_CHANGED_NOTICE);
+    await settleQueue();
+    expect((await read()).handoffNovedadesDayShift).toBe('NOVEDAD A');
+    expect((await hospitalDB.dailyRecords.get(date))?.handoffNovedadesDayShift).toBe('NOVEDAD B');
+    expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
+      { status: 'CONFLICT', lastErrorCategory: 'conflict' },
+    ]);
+  });
+
+  it('a nurse whose novedades another device replaced first is warned and keeps the text', async () => {
+    await configure('production');
+    await hospitalDB.dailyRecords.put(baseRecord());
+    await patch('A', { handoffNovedadesDayShift: 'NOVEDAD A' });
+    const result = await actor('B', () =>
+      updatePartialDetailed(
+        date,
+        { handoffNovedadesDayShift: 'NOVEDAD B' },
+        { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
+      )
+    );
+    expect(result).toMatchObject({ savedLocally: true, updatedRemotely: false });
+    expect(shownNotice(result)).toEqual(FIELD_CHANGED_NOTICE);
+    await settleQueue();
+    expect((await read()).handoffNovedadesDayShift).toBe('NOVEDAD A');
+    expect((await hospitalDB.dailyRecords.get(date))?.handoffNovedadesDayShift).toBe('NOVEDAD B');
+    expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
+      { status: 'CONFLICT', lastErrorCategory: 'conflict' },
+    ]);
+  });
+
+  it.each<[string, DailyRecordPatch]>([
+    ['another field', { activeExtraBeds: ['E2'] }],
+    ['the same value', { handoffNovedadesDayShift: 'NOVEDAD A' }],
+  ])(
+    'a nurse who writes %s after another device saved novedades is saved without a warning',
+    async (_label, edit) => {
       await configure('production');
       await hospitalDB.dailyRecords.put(baseRecord());
-      holdDirectWritesTogether();
-      const [other, observed] = await Promise.allSettled([
-        patch('A', { handoffNovedadesDayShift: 'NOVEDAD A' }),
-        actor('B', () =>
-          updatePartialDetailed(
-            date,
-            { handoffNovedadesDayShift: 'NOVEDAD B' },
-            { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
-          )
-        ),
-      ]);
-      expect(calls.direct).toBe(2);
-      const bothSaved =
-        other.status === 'fulfilled' &&
-        observed.status === 'fulfilled' &&
-        observed.value.updatedRemotely;
-      expect(bothSaved).toBe(false);
+      await patch('A', { handoffNovedadesDayShift: 'NOVEDAD A' });
+      const result = await actor('B', () =>
+        updatePartialDetailed(date, edit, {
+          authoringSession: captureAuthoringSession(),
+          baseRecord: baseRecord(),
+        })
+      );
+      expect(result).toMatchObject({ outcome: 'clean', updatedRemotely: true });
+      expect(shownNotice(result).map(([channel]) => channel)).toEqual(['success']);
+      expect(await read()).toMatchObject({ handoffNovedadesDayShift: 'NOVEDAD A', ...edit });
+      expect(await hospitalDB.syncQueue.count()).toBe(0);
     }
   );
 
@@ -529,7 +637,6 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     it('still saves a bed edit through the authority after the rules refuse the direct write', async () => {
       await configure('production');
       unreadablePolicy();
-      countDirectWrites();
       await hospitalDB.dailyRecords.put(baseRecord());
       const result = await actor('B', () =>
         updatePartialDetailed(
@@ -538,7 +645,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
           { authoringSession: captureAuthoringSession(), baseRecord: baseRecord() }
         )
       );
-      expect(calls.direct).toBeGreaterThan(0);
+      expect(calls.transaction).toBeGreaterThan(0);
       expect(calls.patch).toBe(1);
       expect(result).toMatchObject({ savedLocally: true, updatedRemotely: true });
       expect((await read()).beds.R1.pathology).toBe('B');
@@ -549,8 +656,8 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       await configure('production');
       unreadablePolicy();
       const results = await race({ 'beds.R1.pathology': 'A' }, { 'beds.R1.pathology': 'B' });
-      // The winner goes through the authority; the loser is refused by whichever version check
-      // sees the winner's write first: its own before the fallback, or the authority's.
+      // The authority saves the first writer. The second is refused there, or already by the
+      // transaction when it reads the first one's value before the rules refuse its write.
       expect(calls.patch).toBeGreaterThan(0);
       expect(results.filter(item => item.status === 'fulfilled')).toHaveLength(1);
       expect(results.filter(item => item.status === 'rejected')).toHaveLength(1);

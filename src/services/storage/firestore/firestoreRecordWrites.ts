@@ -1,4 +1,4 @@
-import { Timestamp, updateDoc, type DocumentData, type UpdateData } from 'firebase/firestore';
+import { getDoc, Timestamp, type DocumentData } from 'firebase/firestore';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { withRetry } from '@/utils/networkUtils';
@@ -10,6 +10,10 @@ import {
   sanitizeForFirestore,
 } from '@/services/storage/firestore/firestoreShared';
 import { isSpecialistScopedDailyRecordPatch } from '@/services/repositories/dailyRecordClinicalDomainService';
+import {
+  getValueAtPath,
+  hasSameComparableValue,
+} from '@/services/repositories/conflictResolutionUtils';
 import {
   asFirestoreUpdatePayload,
   assertFirestoreConcurrency,
@@ -23,6 +27,7 @@ import {
   UnsupportedFirestoreUpdateProjectionError,
 } from '@/services/storage/firestore/firestoreUpdateProjection';
 import { createOperationalError } from '@/services/observability/operationalError';
+import { createFieldChangedElsewhereError } from '@/services/storage/syncErrorCatalog';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import {
   isPermissionDeniedError,
@@ -229,21 +234,6 @@ export const updateRecordPartial = async (
 ): Promise<DailyRecordAuthorityCallableResponse | DirectFirestoreWriteReceipt | void> => {
   try {
     const docRef = getRecordDocRef(date);
-    // La verificación de concurrencia por lectura directa sólo protege las rutas
-    // SIN CAS de versión del lado servidor (updateDoc directo y el callable specialist,
-    // cuya transacción protege además la identidad del paciente y episodio).
-    // Las rutas del callable de autoridad y la transacción atómica ya validan
-    // versión/revisión al commitear: duplicar la lectura aquí costaba un viaje
-    // remoto extra por edición y rechazaba ráfagas legítimas cuando el eco de la
-    // edición anterior aún no se adoptaba localmente.
-    const assertDirectWriteConcurrency = () =>
-      assertFirestoreConcurrency(
-        docRef,
-        expectedLastUpdated,
-        'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
-        'partial update',
-        { toleranceMs: 0, failClosed: true }
-      );
     // Specialist dot-notation patches must not be re-flattened: Firestore rules reject shape changes.
     const specialistScopedPatch = isSpecialistScopedDailyRecordPatch(partialData);
     const intentionalBedClear = options.intentionalBedClear;
@@ -263,7 +253,16 @@ export const updateRecordPartial = async (
     }) as Record<string, unknown>;
     const persist = async () => {
       if (specialistScopedPatch && (await shouldRouteSpecialistPatchViaCallable())) {
-        await assertDirectWriteConcurrency();
+        // This callable has no server version CAS (its transaction protects the patient and
+        // episode), so the version is checked by a read first. Every other route checks it when
+        // committing: a read here would cost a round trip per edit.
+        await assertFirestoreConcurrency(
+          docRef,
+          expectedLastUpdated,
+          'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
+          'partial update',
+          { toleranceMs: 0, failClosed: true }
+        );
         return (await loadSpecialistMedicalHandoffClient()).saveSpecialistMedicalHandoff({
           date,
           patch: sanitizedPatch,
@@ -400,19 +399,65 @@ export const updateRecordPartial = async (
           : undefined;
       }
 
-      await assertDirectWriteConcurrency();
+      // Offline, a transaction waits for the network and holds the day's write. When the day is not
+      // in the local cache this read fails at once, as the version read before the write did, so the
+      // edit stays local and goes to the queue. With the day cached, or on a cut that the SDK does
+      // not notice yet, it waits like main did. The queue resends with its own version check, not
+      // this per-field one.
+      await getDoc(docRef);
+
+      // Outside the transaction: roles the rules do not let write history still save the day.
       if (options.historyPolicy !== 'skip')
         await saveHistorySnapshot(date, { force: options.historyPolicy === 'snapshot' });
 
-      return withRetry(
-        () =>
-          updateDoc(docRef, asFirestoreUpdatePayload(sanitizedData) as UpdateData<DocumentData>),
-        {
-          onRetry: (err: unknown, attempt: number) =>
-            logFirestoreWriteRetry('partialUpdate', date, attempt, err),
-          shouldRetry: shouldRetryWrite,
-        }
-      );
+      // Checked inside the transaction, so two writers can no longer both pass a read and then
+      // overwrite each other. A version newer than this writer's base refuses the write only when
+      // it changed a field of this patch to a value other than the one written now. A bed field
+      // always needs its base version: the bed may hold another patient or episode by now (ID-01).
+      const { baseRecord } = options;
+      const changedPaths = Object.keys(sanitizedPatch);
+      const acceptsOtherVersion = (stored: DocumentData) => {
+        const current = docToRecord(stored, date);
+        // An older version is this writer's own edit still on its way, as before.
+        if (
+          !expectedLastUpdated ||
+          Date.parse(current.lastUpdated) <= Date.parse(expectedLastUpdated)
+        )
+          return true;
+        return Boolean(
+          baseRecord &&
+          changedPaths.every(path => {
+            if (isDailyRecordBedTreePath(path)) return false;
+            const value = getValueAtPath(current, path);
+            return (
+              hasSameComparableValue(value, getValueAtPath(baseRecord, path)) ||
+              hasSameComparableValue(value, sanitizedPatch[path])
+            );
+          })
+        );
+      };
+      try {
+        await withRetry(
+          () =>
+            updateRecordPartiallyAtomically(
+              docRef,
+              asFirestoreUpdatePayload(sanitizedData),
+              expectedLastUpdated,
+              'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
+              'partial update',
+              { historyPolicy: 'skip', acceptsOtherVersion }
+            ),
+          {
+            onRetry: (err: unknown, attempt: number) =>
+              logFirestoreWriteRetry('partialUpdate', date, attempt, err),
+            shouldRetry: shouldRetryWrite,
+          }
+        );
+      } catch (error) {
+        // Only a field of this edit holding another writer's value refuses it here.
+        if (error instanceof ConcurrencyError) throw createFieldChangedElsewhereError();
+        throw error;
+      }
     };
     // A protected specialty decision already uses the authority callable. Its
     // rejection must never be retried as a legacy patch without that intent.

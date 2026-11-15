@@ -34,6 +34,7 @@ vi.mock('firebase/firestore', async () => {
 
   const getDocFn = vi.fn((_ref?: unknown) => undefined as unknown);
   const setDocFn = vi.fn((_ref?: unknown, _data?: unknown) => undefined);
+  const updateDocFn = vi.fn((_ref?: unknown, _data?: unknown) => undefined as unknown);
 
   return {
     ...actual,
@@ -42,7 +43,7 @@ vi.mock('firebase/firestore', async () => {
     doc: vi.fn(() => ({ path: 'hospitals/test/dailyRecords/mock' })),
     getDoc: getDocFn,
     setDoc: setDocFn,
-    updateDoc: vi.fn(),
+    updateDoc: updateDocFn,
     deleteDoc: vi.fn(),
     getDocs: vi.fn(),
     getDocsFromServer: vi.fn(),
@@ -57,8 +58,14 @@ vi.mock('firebase/firestore', async () => {
         fn: (tx: {
           get: (ref: unknown) => unknown;
           set: (ref: unknown, data: unknown) => void;
+          update: (ref: unknown, data: unknown) => void;
         }) => Promise<unknown>
-      ) => fn({ get: ref => getDocFn(ref), set: (ref, data) => setDocFn(ref, data) })
+      ) =>
+        fn({
+          get: ref => getDocFn(ref),
+          set: (ref, data) => setDocFn(ref, data),
+          update: (ref, data) => void updateDocFn(ref, data),
+        })
     ),
   };
 });
@@ -134,11 +141,16 @@ describe('firestoreService', () => {
     const updateDocMock = vi.mocked(firestore.updateDoc);
     const getDocMock = vi.mocked(firestore.getDoc);
 
-    getDocMock.mockResolvedValueOnce({
+    const stored = {
       exists: () => true,
       id: 'mock-id',
       data: () => ({}),
-    } as unknown as DocumentSnapshot<DocumentData>);
+    } as unknown as DocumentSnapshot<DocumentData>;
+    // The reachability read, the history copy and the write's transaction each read the day.
+    getDocMock
+      .mockResolvedValueOnce(stored)
+      .mockResolvedValueOnce(stored)
+      .mockResolvedValueOnce(stored);
 
     await updateRecordPartial(mockDate, {
       'beds.BED_01.patientName': 'Jane Doe',
@@ -150,13 +162,17 @@ describe('firestoreService', () => {
   it('should reject partial update when remote record is newer than local base', async () => {
     const getDocMock = vi.mocked(firestore.getDoc);
 
-    getDocMock.mockResolvedValueOnce({
+    const newer = {
       exists: () => true,
       id: 'mock-id',
       data: () => ({
         lastUpdated: Timestamp.now(),
       }),
-    } as unknown as DocumentSnapshot<DocumentData>);
+    } as unknown as DocumentSnapshot<DocumentData>;
+    getDocMock
+      .mockResolvedValueOnce(newer)
+      .mockResolvedValueOnce(newer)
+      .mockResolvedValueOnce(newer);
 
     await expect(
       updateRecordPartial(

@@ -5,6 +5,7 @@ import {
   runTransaction,
   setDoc,
   Timestamp,
+  updateDoc,
   type DocumentData,
   type DocumentReference,
 } from 'firebase/firestore';
@@ -237,8 +238,10 @@ export const saveRecordAtomically = async (
 /**
  * Applies a dot-notation partial update in the same transaction that verifies the caller's base
  * version and snapshots the previous document (hourly cadence unless `historyPolicy` says
- * otherwise). This is reserved for mutations whose invariant spans more than one field (for
- * example, moving one egreso classification to another).
+ * otherwise). Without `acceptsOtherVersion` any other version is refused, as mutations whose
+ * invariant spans more than one field need (for example, moving one egreso classification to
+ * another). `acceptsOtherVersion` decides, from the stored document, whether a patch may still
+ * commit over a version other than its base.
  *
  * Resolves with the document data the committing attempt read. update() carries an updateTime
  * precondition on that read and no trigger writes daily records, so the committed document is
@@ -250,13 +253,39 @@ export const updateRecordPartiallyAtomically = async (
   expectedLastUpdated: string | undefined,
   conflictMessage: string,
   contextLabel: string,
-  { historyPolicy }: { historyPolicy?: 'snapshot' | 'skip' } = {},
+  {
+    historyPolicy,
+    acceptsOtherVersion,
+  }: {
+    historyPolicy?: 'snapshot' | 'skip';
+    acceptsOtherVersion?: (stored: DocumentData) => boolean;
+  } = {},
   runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
 ): Promise<DocumentData> => {
   const db = runtime.getDb();
   const captureHistory =
     historyPolicy === 'snapshot' || (historyPolicy !== 'skip' && isHistorySnapshotDue(docRef.path));
   let historyWritten = false;
+  const refuse = (context: Record<string, unknown>): never => {
+    recordOperationalErrorTelemetry(
+      'firestore',
+      'atomic_partial_update_concurrency',
+      createOperationalError({
+        code: 'firestore_concurrency_conflict',
+        message: conflictMessage,
+        severity: 'warning',
+        userSafeMessage: conflictMessage,
+        context: { contextLabel, ...context },
+      }),
+      {
+        code: 'firestore_concurrency_conflict',
+        message: conflictMessage,
+        severity: 'warning',
+        userSafeMessage: conflictMessage,
+      }
+    );
+    throw new ConcurrencyError(conflictMessage);
+  };
 
   // runTransaction resolves with the value of the attempt that committed.
   const baseData = await runTransaction(db, async transaction => {
@@ -265,62 +294,25 @@ export const updateRecordPartiallyAtomically = async (
 
     // A partial mutation can never reconstruct a deleted daily record safely. Reclassification
     // payloads only carry movement arrays, so creating from them would omit beds and metadata.
-    if (!snap.exists() || !expectedLastUpdated) {
-      recordOperationalErrorTelemetry(
-        'firestore',
-        'atomic_partial_update_concurrency',
-        createOperationalError({
-          code: 'firestore_concurrency_conflict',
-          message: conflictMessage,
-          severity: 'warning',
-          userSafeMessage: conflictMessage,
-          context: {
-            contextLabel,
-            reason: snap.exists() ? 'missing_base_version' : 'missing_remote_record',
-          },
-        }),
-        {
-          code: 'firestore_concurrency_conflict',
-          message: conflictMessage,
-          severity: 'warning',
-          userSafeMessage: conflictMessage,
-        }
-      );
-      throw new ConcurrencyError(conflictMessage);
+    if (!snap.exists()) {
+      if (!acceptsOtherVersion) return refuse({ reason: 'missing_remote_record' });
+      return null;
     }
 
     const data = snap.data() as DocumentData;
     const remoteLastUpdated = getRemoteLastUpdatedIso(data);
     const remoteVersionMs = Date.parse(remoteLastUpdated || '');
-    const expectedVersionMs = Date.parse(expectedLastUpdated);
-    if (
-      !Number.isFinite(remoteVersionMs) ||
-      !Number.isFinite(expectedVersionMs) ||
-      remoteVersionMs !== expectedVersionMs
-    ) {
-      recordOperationalErrorTelemetry(
-        'firestore',
-        'atomic_partial_update_concurrency',
-        createOperationalError({
-          code: 'firestore_concurrency_conflict',
-          message: conflictMessage,
-          severity: 'warning',
-          userSafeMessage: conflictMessage,
-          context: {
-            contextLabel,
-            reason: 'base_version_mismatch',
-            remoteLastUpdated,
-            expectedLastUpdated,
-          },
-        }),
-        {
-          code: 'firestore_concurrency_conflict',
-          message: conflictMessage,
-          severity: 'warning',
-          userSafeMessage: conflictMessage,
-        }
+    const expectedVersionMs = Date.parse(expectedLastUpdated || '');
+    const sameVersion =
+      Number.isFinite(remoteVersionMs) &&
+      Number.isFinite(expectedVersionMs) &&
+      remoteVersionMs === expectedVersionMs;
+    if (!sameVersion && !acceptsOtherVersion?.(data)) {
+      refuse(
+        expectedLastUpdated
+          ? { reason: 'base_version_mismatch', remoteLastUpdated, expectedLastUpdated }
+          : { reason: 'missing_base_version' }
       );
-      throw new ConcurrencyError(conflictMessage);
     }
 
     if (captureHistory) {
@@ -336,7 +328,11 @@ export const updateRecordPartiallyAtomically = async (
     return data;
   });
   if (historyWritten) markHistorySnapshotTaken(docRef.path);
-  return baseData;
+  if (baseData) return baseData;
+  // A day not stored yet: the server refuses the update, as rules or not-found, and the caller
+  // recovers from that answer as from any plain update.
+  await updateDoc(docRef, partialData);
+  return {};
 };
 
 /** `force` is for explicit 'snapshot' requests, such as the one copy before an import run. */

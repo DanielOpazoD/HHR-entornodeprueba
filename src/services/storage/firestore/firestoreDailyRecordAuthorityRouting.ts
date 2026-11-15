@@ -30,6 +30,11 @@ import { isE2EDailyRecordAuthorityCallableForced } from '@/shared/runtime/e2eRun
 export interface DailyRecordPartialWriteOptions {
   specialistHandoffTargets?: SpecialistHandoffTarget[];
   syncContract?: SyncTaskContract;
+  /**
+   * The day this writer edited. A plain day field then commits over another writer's newer
+   * version when that writer left this patch's fields alone; without it any newer version refuses.
+   */
+  baseRecord?: DailyRecord;
   /** Enforces the base version inside the same transaction as the multi-field patch. */
   requireAtomicCas?: boolean;
   /**

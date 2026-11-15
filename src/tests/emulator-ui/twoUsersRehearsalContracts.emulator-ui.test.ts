@@ -131,6 +131,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     actor(id, () =>
       writes.updateRecordPartial(date, data, base.lastUpdated, {
         historyPolicy: 'skip',
+        baseRecord: base,
         syncContract: {
           mutationId: `synthetic-${id}-${Object.keys(data).join('-')}`,
           baseRevision: resolveRecordBaseRevision(base),
@@ -187,7 +188,8 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         await checked.promise;
       });
     }
-    // Both direct checks see the SAME real base before either updateDoc is released.
+    // A version check by a read before the write is held until both writers passed it, so a
+    // reopened gap shows up as two successes; the transaction checks when committing.
     return Promise.allSettled([patch('A', a), patch('B', b)]);
   };
   const publish = () =>
@@ -276,18 +278,16 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       ['2 different fields', { 'beds.R1.age': '51' }],
     ] as const)(`%s: retains both accepted edits (${selected})`, async (_label, b) => {
       await mode(selected);
+      // A bed edit is bound to the version it read (the bed may hold another patient by then):
+      // the second is refused and accepted again from a fresh base, as the app's rebase does.
       const results = await race({ 'beds.R1.pathology': 'A' }, b, selected === 'client_only');
-      if (selected === 'client_only') {
-        expect(results.map(item => item.status)).toEqual(['fulfilled', 'fulfilled']);
-      } else {
-        expect(results.filter(item => item.status === 'fulfilled')).toHaveLength(1);
-        expect(results.filter(item => item.status === 'rejected')).toMatchObject([
-          { reason: { name: 'ConcurrencyError' } },
-        ]);
-        if (results[0].status === 'rejected')
-          await patch('A', { 'beds.R1.pathology': 'A' }, await read());
-        else await patch('B', b, await read());
-      }
+      expect(results.filter(item => item.status === 'fulfilled')).toHaveLength(1);
+      expect(results.filter(item => item.status === 'rejected')).toMatchObject([
+        { reason: { name: 'ConcurrencyError' } },
+      ]);
+      if (results[0].status === 'rejected')
+        await patch('A', { 'beds.R1.pathology': 'A' }, await read());
+      else await patch('B', b, await read());
       const stored = await read();
       expect(stored.beds.R1.pathology).toBe('A');
       if ('beds.R2.pathology' in b) expect(stored.beds.R2.pathology).toBe('B');
@@ -307,17 +307,15 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     expect(['A', 'B']).toContain((await read()).beds.R1.pathology);
   });
 
-  // Describes `client_only` without the schema-v2 policy, a configuration production no longer
-  // uses (policy enforced since 2026-11-07): both direct same-field writes report success there.
-  // Production is the case above and productionAuthorityConfiguration.emulator-ui.test.ts.
-  it.fails(
-    '3 client_only without policy (not production): direct same-field writes must not both succeed',
-    async () => {
-      const results = await race({ 'beds.R1.pathology': 'A' }, { 'beds.R1.pathology': 'B' }, true);
-      expect(['A', 'B']).toContain((await read()).beds.R1.pathology);
-      expect(results.filter(item => item.status === 'rejected')).toHaveLength(1);
-    }
-  );
+  // `client_only` without the schema-v2 policy, a configuration production no longer uses (policy
+  // enforced since 2026-11-07), sends bed fields through the same transaction as plain day fields.
+  it('3 client_only without policy (not production): one of two same-field writers is refused', async () => {
+    const results = await race({ 'beds.R1.pathology': 'A' }, { 'beds.R1.pathology': 'B' }, true);
+    expect(results.filter(item => item.status === 'rejected')).toMatchObject([
+      { reason: { name: 'ConcurrencyError' } },
+    ]);
+    expect((await read()).beds.R1.pathology).toBe(results[0].status === 'fulfilled' ? 'A' : 'B');
+  });
 
   it('4 Eloisa batch and a manual edit serialize; a fresh-base retry preserves both', async () => {
     await mode('enforced');
