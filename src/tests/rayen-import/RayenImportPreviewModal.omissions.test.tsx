@@ -14,6 +14,7 @@ const settledFill = (staffingOutcome: RayenFillProgress['staffingOutcome']): Ray
   errors: 0,
   lastCompletedAt: '2026-07-21T17:00:00.000Z',
   staffingOutcome,
+  staleAtMs: null,
 });
 
 const renderSettledPulse = (

@@ -111,6 +111,7 @@ describe.each(DEVICE_ZONES)('hospital calendar day on a device in %s', zone => {
         errors: 0,
         lastCompletedAt: null,
         staffingOutcome: 'idle',
+        staleAtMs: null,
       },
       now: MONTH_END.getTime(),
       targetDate: '2026-11-30',

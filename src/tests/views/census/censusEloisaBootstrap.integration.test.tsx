@@ -2,6 +2,13 @@ import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CensusView } from '@/features/census/components/CensusView';
+import {
+  beginRayenFill,
+  endRayenFill,
+  getRayenFillAttemptId,
+  resetRayenFillProgress,
+} from '@/features/rayen-import/hooks/useRayenFillStatus';
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 
 /**
  * Costura real del arranque desde Eloísa.
@@ -115,18 +122,7 @@ vi.mock('@/features/rayen-import/hooks/useRayenExtensionHealth', () => ({
 vi.mock('@/features/rayen-import/hooks/useRayenImport', () => ({
   useRayenImport: () => mocks.rayenImport(),
 }));
-vi.mock('@/features/rayen-import/hooks/useRayenFillStatus', () => ({
-  useRayenFillProgress: () => ({
-    running: false,
-    done: 0,
-    total: 0,
-    errors: 0,
-    lastCompletedAt: null,
-    outcome: null,
-    attemptId: null,
-    staffingOutcome: null,
-  }),
-}));
+
 vi.mock('@/features/rayen-import/components/RayenImportPreviewModal', () => ({
   RayenImportPreviewModal: () => null,
 }));
@@ -391,5 +387,79 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
     expect(retriedTrigger).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
       reviewRequirement: 'day_bootstrap',
     });
+  });
+
+  it('starts the copied day once the previous sync finishes its clinical reading', async () => {
+    // Synchronize yesterday, then copy it: yesterday's clinical reading (devices, scales, CUDYR)
+    // keeps running for minutes in the shared fill store while today is created.
+    createCensusWorld(CLINICAL_TODAY, '2026-09-09');
+    expect(beginRayenFill(4)).toBe(true);
+    const previousFill = getRayenFillAttemptId();
+    // Same gate as the real capture: it records nothing while a clinical reading is running.
+    const outcomes: string[] = [];
+    mocks.triggerImport.mockImplementation(async () => {
+      const outcome = resetRayenFillProgress() ? 'started' : 'blocked';
+      outcomes.push(outcome);
+      return outcome;
+    });
+    const view = renderCensus();
+
+    const copyButton = await screen.findByTestId('create-from-rayen-btn', {}, { timeout: 3000 });
+    await act(async () => {
+      fireEvent.click(copyButton);
+    });
+    view.rerender(censusElement());
+    await waitForRayenToolbar();
+    // The request waits in silence: no attempt, so no «todavía está terminando» message.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mocks.triggerImport).not.toHaveBeenCalled();
+
+    await act(async () => {
+      endRayenFill(0, false, previousFill);
+    });
+
+    await waitFor(() => expect(outcomes).toContain('started'));
+    expect(mocks.triggerImport).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), {
+      reviewRequirement: 'day_bootstrap',
+    });
+  });
+
+  it.each([
+    ['another person', 'synthetic-generation-b', 'synthetic-owner-b'],
+    ['the same person in a new session', 'synthetic-generation-b', 'synthetic-owner-a'],
+    ['a logout', null, null],
+  ])('drops a pending start when %s takes over the session', async (_label, generation, owner) => {
+    setSessionGeneration('synthetic-generation-a', 'synthetic-owner-a');
+    createCensusWorld(CLINICAL_TODAY, '2026-09-09');
+    // The previous sync's clinical reading keeps the request waiting across the session change.
+    expect(beginRayenFill(4)).toBe(true);
+    const previousFill = getRayenFillAttemptId();
+    mocks.triggerImport.mockImplementation(async () =>
+      resetRayenFillProgress() ? 'started' : 'blocked'
+    );
+    try {
+      const view = renderCensus();
+      const copyButton = await screen.findByTestId('create-from-rayen-btn', {}, { timeout: 3000 });
+      await act(async () => {
+        fireEvent.click(copyButton);
+      });
+      view.rerender(censusElement());
+      await waitForRayenToolbar();
+      expect(mocks.triggerImport).not.toHaveBeenCalled();
+
+      await act(async () => {
+        setSessionGeneration(generation, owner);
+        endRayenFill(0, false, previousFill);
+      });
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      });
+
+      expect(mocks.triggerImport).not.toHaveBeenCalled();
+    } finally {
+      setSessionGeneration(null);
+    }
   });
 });

@@ -1,8 +1,12 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as healthBridge from '@/features/rayen-import/bridge/extensionHealthBridge';
 import { RayenImportButton } from '@/features/rayen-import/components/RayenImportButton';
 import { RAYEN_EXTENSION_PROTOCOL_VERSION } from '@/features/rayen-import/bridge/extensionHealthBridge';
+
+const { RAYEN_FILL_STALE_AFTER_MS } = await vi.importActual<
+  typeof import('@/features/rayen-import/hooks/useRayenFillStatus')
+>('@/features/rayen-import/hooks/useRayenFillStatus');
 
 /**
  * Arranque del censo desde Eloísa.
@@ -284,6 +288,118 @@ describe('RayenImportButton · inicio del día desde Eloísa', () => {
     );
     await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
     expect(onAutoStartHandled).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for an earlier nursing proposal to finish applying, then starts the request', async () => {
+    const fillStore = await vi.importActual<
+      typeof import('@/features/rayen-import/hooks/useRayenFillStatus')
+    >('@/features/rayen-import/hooks/useRayenFillStatus');
+    mocks.useRayenFillProgress.mockImplementation(fillStore.useRayenFillProgress);
+    // An earlier synchronization's nursing proposal is being saved; the capture gate refuses it.
+    fillStore.reportRayenStaffingOutcome('applying');
+    const outcomes: string[] = [];
+    const triggerImport = vi.fn(async () => {
+      const outcome = fillStore.resetRayenFillProgress() ? 'started' : 'blocked';
+      outcomes.push(outcome);
+      return outcome;
+    });
+    mocks.useRayenImport.mockReturnValue(importState({ triggerImport }));
+    const onAutoStartHandled = vi.fn();
+    render(<RayenImportButton autoStartRequestId={22} onAutoStartHandled={onAutoStartHandled} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(triggerImport).not.toHaveBeenCalled();
+
+    act(() => {
+      fillStore.reportRayenStaffingOutcome('resolved');
+    });
+
+    await waitFor(() => expect(onAutoStartHandled).toHaveBeenCalledTimes(1));
+    expect(outcomes).toEqual(['started']);
+    expect(triggerImport).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
+      reviewRequirement: 'day_bootstrap',
+    });
+  });
+
+  describe('a hung earlier clinical reading', () => {
+    const renderWithHungFill = async (startedAgoMs: number) => {
+      const fillStore = await vi.importActual<
+        typeof import('@/features/rayen-import/hooks/useRayenFillStatus')
+      >('@/features/rayen-import/hooks/useRayenFillStatus');
+      mocks.useRayenFillProgress.mockImplementation(fillStore.useRayenFillProgress);
+      fillStore.resetRayenFillProgress();
+      expect(fillStore.beginRayenFill(4, Date.now() - startedAgoMs)).toBe(true);
+      const hungAttempt = fillStore.getRayenFillAttemptId();
+      const abortHungWorker = vi.fn();
+      fillStore.registerRayenFillAbort(abortHungWorker, hungAttempt);
+      // The real capture gate: the watchdog inside it releases a reading past its deadline.
+      const outcomes: string[] = [];
+      const triggerImport = vi.fn(async () => {
+        const outcome = fillStore.resetRayenFillProgress() ? 'started' : 'blocked';
+        outcomes.push(outcome);
+        return outcome;
+      });
+      mocks.useRayenImport.mockReturnValue(importState({ triggerImport }));
+      const onAutoStartHandled = vi.fn();
+      render(<RayenImportButton autoStartRequestId={23} onAutoStartHandled={onAutoStartHandled} />);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      return {
+        fillStore,
+        hungAttempt,
+        abortHungWorker,
+        outcomes,
+        triggerImport,
+        onAutoStartHandled,
+      };
+    };
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('waits for the watchdog deadline, then releases the reading and starts once', async () => {
+      const run = await renderWithHungFill(0);
+      expect(run.triggerImport).not.toHaveBeenCalled();
+      expect(screen.getByTestId('rayen-import-button')).toBeDisabled();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(RAYEN_FILL_STALE_AFTER_MS - 1_000);
+      });
+      expect(run.triggerImport).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+      expect(run.outcomes).toEqual(['started']);
+      expect(run.triggerImport).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
+        reviewRequirement: 'day_bootstrap',
+      });
+      expect(run.onAutoStartHandled).toHaveBeenCalledTimes(1);
+      // One worker: the hung one is stopped and its late completion no longer owns the store.
+      expect(run.abortHungWorker).toHaveBeenCalledTimes(1);
+      run.fillStore.endRayenFill(0, false, run.hungAttempt);
+      expect(run.fillStore.getRayenFillProgressSnapshot()).toMatchObject({
+        running: false,
+        outcome: 'idle',
+      });
+    });
+
+    it('attempts at once when the reading was already past its deadline on mount', async () => {
+      const run = await renderWithHungFill(RAYEN_FILL_STALE_AFTER_MS + 60_000);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(run.outcomes).toEqual(['started']);
+      expect(run.onAutoStartHandled).toHaveBeenCalledTimes(1);
+      expect(run.abortHungWorker).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('rayen-import-button')).toBeEnabled();
+    });
   });
 
   it('does not preflight an incompatible version during automatic startup', async () => {
