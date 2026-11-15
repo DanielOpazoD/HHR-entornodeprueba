@@ -1,4 +1,4 @@
-import { compareStamps, dayKey } from './clinicalPanelParsingUtils';
+import { compareStamps, dayKey, flag } from './clinicalPanelParsingUtils';
 import { toTitleCaseName } from './rayenToPatientData';
 
 export type ClinicalPanelCareActionStatus =
@@ -28,11 +28,6 @@ type RawRow = Record<string, unknown>;
 
 const str = (value: unknown): string =>
   value === null || value === undefined ? '' : String(value).trim();
-
-const flag = (value: unknown): boolean => {
-  if (value === true || value === 1) return true;
-  return ['true', '1', 's', 'si', 'sí'].includes(str(value).toLowerCase());
-};
 
 const marker = (value: unknown): boolean =>
   flag(value) || (!!value && typeof value === 'object' && Object.keys(value).length > 0);
