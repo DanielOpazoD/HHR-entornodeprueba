@@ -24,7 +24,7 @@ const env = {
 const event: SanitizedOperationalTelemetryEvent = {
   category: 'integration',
   status: 'failed',
-  operation: 'telemetry_delivery_probe',
+  operation: 'export_clinical_document_pdf',
   timestamp: '2026-09-11T16:00:00.000Z',
   context: {},
   issues: [],

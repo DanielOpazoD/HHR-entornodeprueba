@@ -91,22 +91,3 @@ export const dispatchOperationalTelemetryExternally = async (
     return false;
   }
 };
-
-/**
- * Controlled end-to-end check of the alert channel. It carries no incident and no context, and the
- * alert mail announces itself as a PRUEBA CONTROLADA so nobody mistakes it for a real failure.
- */
-export const dispatchOperationalTelemetryDeliveryProbe = (
-  config: OperationalTelemetryExternalConfig = resolveOperationalTelemetryExternalConfig()
-): Promise<boolean> =>
-  import('./operationalTelemetryPrivacy').then(({ OPERATIONAL_TELEMETRY_PROBE_OPERATION }) =>
-    dispatchOperationalTelemetryExternally(
-      {
-        category: 'integration',
-        status: 'failed',
-        operation: OPERATIONAL_TELEMETRY_PROBE_OPERATION,
-        timestamp: new Date().toISOString(),
-      },
-      config
-    )
-  );

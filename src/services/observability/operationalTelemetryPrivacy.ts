@@ -27,10 +27,7 @@ import {
 } from '@/types/domain/rayenSync';
 import { SYNC_TASK_ORIGINS } from '@/services/storage/sync/syncDomainContracts';
 import { withErrorServiceCause } from './operationalTelemetryErrorCause';
-import {
-  OPERATIONAL_TELEMETRY_OPERATIONS,
-  type OperationalTelemetryOperation,
-} from './operationalTelemetryOperations';
+import { OPERATIONAL_TELEMETRY_OPERATIONS } from './operationalTelemetryOperations';
 
 /** Allowlists are written as whitespace separated literals to stay readable and compact. */
 const tokens = (raw: string): string[] => raw.split(/\s+/).filter(Boolean);
@@ -59,9 +56,6 @@ export type OperationalTelemetryPrivacyStatus = (typeof OPERATIONAL_TELEMETRY_ST
 const RUNTIME_STATES = tokens('retryable recoverable degraded blocked unauthorized');
 const OTHER_ERROR_NAME = 'other_error';
 
-/** Deliberate end-to-end check of the alert channel. Never an incident. */
-export const OPERATIONAL_TELEMETRY_PROBE_OPERATION =
-  'telemetry_delivery_probe' satisfies OperationalTelemetryOperation;
 /** Every operation outside the allowlist reports under this name. */
 export const OPERATIONAL_TELEMETRY_FALLBACK_OPERATION = 'other_operation';
 export const OPERATIONAL_TELEMETRY_UNCLASSIFIED_ISSUE = 'unclassified_issue';

@@ -6,7 +6,6 @@ import {
   OPERATIONAL_TELEMETRY_ISSUE_CODES,
   OPERATIONAL_TELEMETRY_MAX_CONTEXT_KEYS,
   OPERATIONAL_TELEMETRY_MAX_ISSUES,
-  OPERATIONAL_TELEMETRY_PROBE_OPERATION,
   classifyOperationalTelemetryIssue,
   normalizeOperationalTelemetryOperation,
   sanitizeOperationalTelemetryContextValues,
@@ -15,7 +14,6 @@ import {
 import {
   buildOperationalTelemetryAlert,
   parseOperationalTelemetryBody,
-  shouldAlertOperationalTelemetry,
 } from '@/services/observability/operationalTelemetryIngestPolicy';
 
 const PATIENT = 'Juan Pérez';
@@ -49,7 +47,6 @@ describe('operational telemetry privacy: operations', () => {
       'unavailable_null_realtime_record',
       'sync_queue_task_failure',
       'export_clinical_document_pdf',
-      OPERATIONAL_TELEMETRY_PROBE_OPERATION,
     ]) {
       expect(normalizeOperationalTelemetryOperation(operation)).toBe(operation);
     }
@@ -466,25 +463,6 @@ describe('operational telemetry privacy: ingest and alert surface', () => {
     expectNoLeak(result.event, 'run-1', 'R1');
   });
 
-  it('labels the controlled probe and tells the reader detailed errors stay on the device', () => {
-    const probe = sanitizeOperationalTelemetryEvent({
-      category: 'integration',
-      status: 'failed',
-      operation: OPERATIONAL_TELEMETRY_PROBE_OPERATION,
-      timestamp: '2026-09-11T16:00:00.000Z',
-    });
-
-    expect(shouldAlertOperationalTelemetry(probe)).toBe(true);
-
-    const { subject, body } = buildOperationalTelemetryAlert(probe, 'HHR');
-
-    expect(subject).toContain('PRUEBA CONTROLADA');
-    expect(subject).toContain(OPERATIONAL_TELEMETRY_PROBE_OPERATION);
-    expect(body).toContain('PRUEBA CONTROLADA del canal de alertas');
-    expect(body).toContain('los mensajes de error detallados NO salen del dispositivo');
-    expect(body).toContain('claves de contexto descartadas: 0');
-  });
-
   it('mails only codes and counts for a real failure, never the raw incident text', () => {
     const sanitized = sanitizeOperationalTelemetryEvent(realEvent());
     const { subject, body } = buildOperationalTelemetryAlert(sanitized, 'https://hhr.test');
@@ -493,6 +471,7 @@ describe('operational telemetry privacy: ingest and alert surface', () => {
     expect(body).toContain('- timeout_issue');
     expect(body).toContain('- patientCount: 24');
     expect(body).toContain('claves de contexto descartadas: 1');
+    expect(body).toContain('los mensajes de error detallados NO salen del dispositivo');
     expect(body).not.toContain('Structural persist timeout');
     expectNoLeak(body, 'run-1');
   });
