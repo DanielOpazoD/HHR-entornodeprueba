@@ -1,5 +1,6 @@
 import * as z from 'zod';
 import { isValidRut } from '@/utils/rutUtils';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 
 /**
  * Input Validation Schemas
@@ -91,10 +92,11 @@ export const PatientInputSchema = z.object({
   birthDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha de nacimiento inválido')
-    .refine(val => {
-      if (!val) return true;
-      return new Date(val) <= new Date();
-    }, 'La fecha de nacimiento no puede ser en el futuro')
+    // A birth date is a calendar day; "today" is the hospital's (TIME-02). ISO days compare as text.
+    .refine(
+      val => !val || val <= getClinicalCalendarDateISO(),
+      'La fecha de nacimiento no puede ser en el futuro'
+    )
     .optional()
     .or(z.literal('')),
 });

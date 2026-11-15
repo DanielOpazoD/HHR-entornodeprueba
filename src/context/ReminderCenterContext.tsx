@@ -13,15 +13,9 @@ import {
   sortRemindersByPriority,
 } from '@/shared/reminders/reminderVisibility';
 import { getCurrentShift } from '@/services/admin/attributionService';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import type { Reminder } from '@/types/reminders';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
-
-const formatLocalDate = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 const buildUserName = (displayName?: string | null, email?: string | null): string =>
   displayName?.trim() || email?.trim() || 'Usuario del sistema';
@@ -47,7 +41,8 @@ export const ReminderCenterProvider: React.FC<{ children: React.ReactNode }> = (
     return () => window.clearInterval(timeoutId);
   }, []);
 
-  const currentDate = React.useMemo(() => formatLocalDate(now), [now]);
+  // The reminder window and its read receipts follow the hospital day, like the shift (TIME-02).
+  const currentDate = React.useMemo(() => getClinicalCalendarDateISO(now), [now]);
   const currentShift = React.useMemo(() => getCurrentShift(now), [now]);
   const visibleReminders = React.useMemo(
     () =>

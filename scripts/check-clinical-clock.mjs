@@ -22,10 +22,12 @@
  *  6. instant-calendar-slice: cutting a stored instant to its UTC date bypasses the hospital
  *     calendar. A preceding `clinical-clock-allow instant-calendar-slice: <reason>` comment
  *     exempts only the next line when a legacy field is actually a hospital wall-clock value.
- *  7. server-clock-today (functions/ only): local getFullYear/getMonth/getDate on a Date
- *     constructed from now or an instant are forbidden, both inline and through a variable.
- *     Calendar arithmetic on a multi-argument Date(year, month, day) and UTC getters is allowed.
- *     Use functions/lib/hospitalCalendarDay.js for the hospital calendar.
+ *  7. server-clock-today (functions/) and device-calendar-today (src/): local getFullYear,
+ *     getMonth and getDate on a Date constructed from now or an instant are forbidden, both
+ *     inline and through a variable. Calendar arithmetic on a multi-argument Date(year, month,
+ *     day) and UTC getters is allowed; a local calendar value needs a preceding
+ *     `clinical-clock-allow <rule>: <reason>`. Use functions/lib/hospitalCalendarDay.js on the
+ *     server and getClinicalCalendarDateISO() / calendarStampInClinicalTimeZone() in the app.
  *
  *  8. raw-offset-clock (rayen-import/ and extension/): ISO regex prefixes and time slices
  *     must convert offsets to Rapa Nui; unzoned report exceptions need a preceding reason.
@@ -117,8 +119,10 @@ const zoneLessFormatLines = source => {
   return lines;
 };
 
-const serverClockCalendarLines = source => {
+const localCalendarGetterLines = rule => source => {
   const lines = [];
+  const sourceLines = source.split('\n');
+  const allowed = new RegExp(`^\\s*// clinical-clock-allow ${rule}:\\s*\\S.*$`);
   const constructors = /(?:\b(?:const|let|var)\s+(\w+)\s*=\s*)?new\s+Date\s*\(/g;
   const localGetter = /^\s*\.\s*get(?:FullYear|Month|Date)\s*\(\s*\)/;
   for (const match of source.matchAll(constructors)) {
@@ -135,8 +139,12 @@ const serverClockCalendarLines = source => {
       : -1;
     const variableUses =
       nextDeclaration < 0 ? afterConstructor : afterConstructor.slice(0, nextDeclaration);
-    if (localGetter.test(afterConstructor) || variableGetter?.test(variableUses)) {
-      lines.push(lineOf(source, match.index));
+    const line = lineOf(source, match.index);
+    if (
+      (localGetter.test(afterConstructor) || variableGetter?.test(variableUses)) &&
+      !allowed.test(sourceLines[line - 2] ?? '')
+    ) {
+      lines.push(line);
     }
   }
   return lines;
@@ -468,8 +476,14 @@ const RULES = [
   {
     rule: 'server-clock-today',
     files: functionsFiles,
-    find: serverClockCalendarLines,
+    find: localCalendarGetterLines('server-clock-today'),
     hint: 'use hospitalCalendarDay() from functions/lib/hospitalCalendarDay for the hospital day',
+  },
+  {
+    rule: 'device-calendar-today',
+    files: productionFiles,
+    find: localCalendarGetterLines('device-calendar-today'),
+    hint: 'use getClinicalCalendarDateISO() / calendarStampInClinicalTimeZone() from src/utils/clinicalTimeZone for the hospital day; document a local calendar value with clinical-clock-allow device-calendar-today: <reason>',
   },
   {
     rule: 'zone-literal',
