@@ -3,7 +3,11 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RayenClinicalPanelResult } from '@/features/rayen-import/bridge/clinicalPanelBridge';
 
-const mocks = vi.hoisted(() => ({ request: vi.fn() }));
+const mocks = vi.hoisted(() => ({ request: vi.fn(), timing: vi.fn() }));
+vi.mock('@/services/observability/dailyActionTiming', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/observability/dailyActionTiming')>()),
+  recordDailyActionTiming: (...args: unknown[]) => mocks.timing(...args),
+}));
 vi.mock('@/features/rayen-import/clinical-panel', async importOriginal => ({
   ...(await importOriginal<typeof import('@/features/rayen-import/clinical-panel')>()),
   requestClinicalPanel: (...args: unknown[]) => mocks.request(...args),
@@ -34,7 +38,10 @@ const deferred = () => {
 };
 
 describe('clinical panel snapshot ownership', () => {
-  beforeEach(() => mocks.request.mockReset());
+  beforeEach(() => {
+    mocks.request.mockReset();
+    mocks.timing.mockReset();
+  });
 
   it('discards a late read and clears documents when the session changes in the same episode', async () => {
     const stale = deferred();
@@ -141,5 +148,26 @@ describe('clinical panel snapshot ownership', () => {
     expect(result.current.documentState.phase).toBe('error');
     act(() => result.current.reload());
     await waitFor(() => expect(result.current.state.phase).toBe('ready'));
+  });
+
+  it('times each read the person sees, and not one they closed before it arrived', async () => {
+    const closed = deferred();
+    mocks.request
+      .mockReturnValueOnce(closed.promise)
+      .mockResolvedValueOnce(payload('shown'))
+      .mockResolvedValueOnce({ ...payload('failed'), error: 'Eloísa no respondió' });
+    const first = renderHook(() => useClinicalPanelSnapshot('a'));
+    first.unmount();
+    await act(async () => closed.resolve(payload('late')));
+
+    const { result } = renderHook(() => useClinicalPanelSnapshot('a'));
+    await waitFor(() => expect(result.current.state.phase).toBe('ready'));
+    act(() => result.current.reload());
+    await waitFor(() => expect(result.current.state.phase).toBe('error'));
+
+    expect(mocks.timing.mock.calls.map(([action, , completed]) => [action, completed])).toEqual([
+      ['clinical_panel_ready', true],
+      ['clinical_panel_ready', false],
+    ]);
   });
 });

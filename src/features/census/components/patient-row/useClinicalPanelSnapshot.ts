@@ -2,6 +2,10 @@ import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  dailyActionNow,
+  recordDailyActionTiming,
+} from '@/services/observability/dailyActionTiming';
+import {
   parseClinicalPanel,
   requestClinicalPanel,
   type ClinicalPanel,
@@ -53,6 +57,7 @@ export const useClinicalPanelSnapshot = (clinicalEpisodeId: string) => {
     if (pending.current?.episode === clinicalEpisodeId) return false;
     pending.current?.controller.abort();
     const request = { episode: clinicalEpisodeId, controller: new AbortController() };
+    const startedAt = dailyActionNow();
     pending.current = request;
     void requestClinicalPanel(clinicalEpisodeId, undefined, request.controller.signal)
       .then(result => {
@@ -62,10 +67,12 @@ export const useClinicalPanelSnapshot = (clinicalEpisodeId: string) => {
           generation !== getSessionEpoch()
         )
           return;
+        const state = panelStateFrom(result);
+        recordDailyActionTiming('clinical_panel_ready', startedAt, state.phase === 'ready');
         setSnapshot({
           generation,
           episode: clinicalEpisodeId,
-          state: panelStateFrom(result),
+          state,
           documentState: documentStateFrom(result),
         });
       })
@@ -76,6 +83,7 @@ export const useClinicalPanelSnapshot = (clinicalEpisodeId: string) => {
           generation !== getSessionEpoch()
         )
           return;
+        recordDailyActionTiming('clinical_panel_ready', startedAt, false);
         const error = {
           phase: 'error' as const,
           message: 'No se pudo cargar el panel clínico. Vuelve a intentar.',
