@@ -15,8 +15,9 @@
   después de cada caso, incluso cuando falla una aserción. Se conservan los casos
   que impiden sobrescribir revisiones con tareas pendientes, fallidas o en conflicto.
 
-No se añade `@flake-safe` para ocultar indicadores. El inventario heurístico de
-riesgo no demuestra flakiness ni permite atribuirle fallos sin reproducirlos.
+No se añade `@flake-safe` para ocultar indicadores. La lista informativa
+`clockSignalFiles` no demuestra flakiness ni permite atribuirle fallos sin reproducirlos;
+el riesgo se mide con los fallos y reintentos del manifiesto de ejecución.
 
 ## Comprobación de sensibilidad
 
