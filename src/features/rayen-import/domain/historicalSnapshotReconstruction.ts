@@ -11,7 +11,7 @@ import {
   latestPatientFlowPlacement,
   patientIdentifierFromFlowReport,
 } from '../mapping/parsePatientFlow';
-import { normalizePatientRut as normalizeRut } from './censusPatientIdentityIndex';
+import { normalizePatientRut } from './censusPatientIdentityIndex';
 import type {
   BedTraceabilityResolverDependencies,
   PatientFlowReportResult,
@@ -202,7 +202,7 @@ export const reconstructHistoricalSnapshotAtClose = async (
     exactEgresoVerified,
     exactDischargeAt,
   } of candidates) {
-    if (reportRow && normalizeRut(reportRow.run) !== normalizeRut(encounter.run)) {
+    if (reportRow && normalizePatientRut(reportRow.run) !== normalizePatientRut(encounter.run)) {
       conflicts.push(
         unresolvedConflict(
           encounter,
@@ -227,7 +227,7 @@ export const reconstructHistoricalSnapshotAtClose = async (
     const knownParentEpisodeId = verifiedHistoricalCribParent(record, encounter, reportRow);
     if (
       !/^\d+$/.test(encounter.encounterId) ||
-      (!normalizeRut(encounter.run) && !knownParentEpisodeId)
+      (!normalizePatientRut(encounter.run) && !knownParentEpisodeId)
     ) {
       conflicts.push(unresolvedConflict(encounter, 'la identidad del episodio es incompleta.'));
       continue;
@@ -286,7 +286,7 @@ export const reconstructHistoricalSnapshotAtClose = async (
       }
       const text = await extractText(decodePdfBase64(report.base64));
       const reportIdentity = patientIdentifierFromFlowReport(text);
-      if (reportIdentity !== normalizeRut(encounter.run)) {
+      if (reportIdentity !== normalizePatientRut(encounter.run)) {
         return {
           conflict: unresolvedConflict(encounter, 'el RUN del informe no coincide.'),
         } satisfies ReconstructionEntry;
