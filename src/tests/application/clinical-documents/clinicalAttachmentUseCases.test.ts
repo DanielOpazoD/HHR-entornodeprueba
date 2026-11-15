@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
-  executeAuditClinicalAttachmentPatientStorage,
   executeDeleteClinicalAttachment,
   executeListClinicalAttachmentsByEpisode,
   executeListClinicalAttachmentsByPatient,
@@ -21,7 +20,6 @@ const buildRepository = () => ({
   upload: vi.fn(),
   listByEpisode: vi.fn(),
   listByPatient: vi.fn(),
-  listStoragePathsByPatient: vi.fn(),
   rename: vi.fn(),
   regenerateAccess: vi.fn(),
   delete: vi.fn(),
@@ -258,47 +256,6 @@ describe('clinicalAttachmentUseCases', () => {
       storagePath: 'clinical-attachments/hhr/rut/episode/att_1/informe.pdf',
       actor,
       now: '2026-05-21T12:00:00.000Z',
-    });
-  });
-
-  it.each([0, 1])('audits patient Storage with %i omitted metadata records', async omittedCount => {
-    const repository = buildRepository();
-    repository.listByPatient.mockResolvedValue({
-      records: [
-        {
-          id: 'att_active',
-          storagePath: 'clinical-attachments/hhr/rut/episode/att_active/a.pdf',
-        },
-        {
-          id: 'att_missing',
-          storagePath: 'clinical-attachments/hhr/rut/episode/att_missing/missing.pdf',
-        },
-      ],
-      omittedCount,
-    });
-    repository.listStoragePathsByPatient.mockResolvedValue([
-      'clinical-attachments/hhr/rut/episode/att_active/a.pdf',
-      'clinical-attachments/hhr/rut/episode/orphan/orphan.pdf',
-    ]);
-
-    const outcome = await executeAuditClinicalAttachmentPatientStorage(
-      { patientRut: '13.545.665-9', hospitalId: 'hhr' },
-      { repository }
-    );
-
-    expect(outcome).toMatchObject({
-      status: omittedCount ? 'partial' : 'success',
-      data: {
-        activeMetadataCount: 2,
-        storageObjectCount: 2,
-        orphanStoragePaths: ['clinical-attachments/hhr/rut/episode/orphan/orphan.pdf'],
-        missingStorageRecords: [
-          {
-            id: 'att_missing',
-            storagePath: 'clinical-attachments/hhr/rut/episode/att_missing/missing.pdf',
-          },
-        ],
-      },
     });
   });
 });

@@ -57,18 +57,6 @@ interface ListClinicalAttachmentsByPatientInput {
   hospitalId: string;
 }
 
-interface AuditClinicalAttachmentPatientStorageInput {
-  patientRut: string;
-  hospitalId: string;
-}
-
-interface ClinicalAttachmentStorageIntegrityReport {
-  activeMetadataCount: number;
-  storageObjectCount: number;
-  orphanStoragePaths: string[];
-  missingStorageRecords: Array<Pick<ClinicalAttachmentRecord, 'id' | 'storagePath'>>;
-}
-
 interface DeleteClinicalAttachmentUseCaseInput {
   attachmentId: string;
   hospitalId: string;
@@ -255,49 +243,6 @@ export const executeListClinicalAttachmentsByPatient = async (
           userSafeMessage: 'No se pudieron cargar los archivos del paciente.',
         },
       ]
-    );
-  }
-};
-
-export const executeAuditClinicalAttachmentPatientStorage = async (
-  input: AuditClinicalAttachmentPatientStorageInput,
-  dependencies: ClinicalAttachmentUseCaseDependencies = {}
-): Promise<ApplicationOutcome<ClinicalAttachmentStorageIntegrityReport | null>> => {
-  const repository = dependencies.repository || ClinicalAttachmentRepository;
-  try {
-    const [metadataResult, storagePaths] = await Promise.all([
-      repository.listByPatient(input.patientRut, input.hospitalId),
-      repository.listStoragePathsByPatient(input.patientRut, input.hospitalId),
-    ]);
-    const metadataRecords = metadataResult.records;
-    const metadataPathSet = new Set(metadataRecords.map(record => record.storagePath));
-    const storagePathSet = new Set(storagePaths);
-
-    return attachmentListOutcome(
-      {
-        activeMetadataCount: metadataRecords.length,
-        storageObjectCount: storagePaths.length,
-        orphanStoragePaths: storagePaths.filter(storagePath => !metadataPathSet.has(storagePath)),
-        missingStorageRecords: metadataRecords
-          .filter(record => !storagePathSet.has(record.storagePath))
-          .map(record => ({ id: record.id, storagePath: record.storagePath })),
-      },
-      metadataResult.omittedCount
-    );
-  } catch (error) {
-    return createApplicationFailed(
-      null,
-      [
-        {
-          kind: 'unknown',
-          message:
-            error instanceof Error
-              ? error.message
-              : 'No se pudo auditar la integridad de archivos.',
-          userSafeMessage: 'No se pudo auditar la integridad de archivos del episodio.',
-        },
-      ],
-      { userSafeMessage: 'No se pudo auditar la integridad de archivos del episodio.' }
     );
   }
 };

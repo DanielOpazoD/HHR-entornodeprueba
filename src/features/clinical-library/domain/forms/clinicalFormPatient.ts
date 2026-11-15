@@ -1,9 +1,9 @@
+import type { DailyRecordRawExportState } from '@/types/domain/dailyRecordSlices';
 import type { PatientData } from '@/types/domain/patient';
 
 import { BEDS } from '@/constants/beds';
 import { isClinicalFormRut } from './clinicalFormIdentity';
 
-import type { MedifSourceRecord } from '../medifPatientPrefill';
 import { formAgeAt, parseFormDate } from './clinicalFormDates';
 import type {
   ClinicalFormPatientOption,
@@ -11,11 +11,15 @@ import type {
   ClinicalFormValues,
 } from './clinicalFormTypes';
 
+/** Read-only census projection. No remote lookups or patient writes belong here. */
+export type ClinicalFormSourceRecord = Pick<DailyRecordRawExportState, 'date' | 'beds'> &
+  Partial<Pick<DailyRecordRawExportState, 'activeExtraBeds' | 'lastUpdated'>>;
+
 const trim = (value: string | undefined): string => value?.trim() ?? '';
 
 /** Project only the authorized census fields used by forms. Never write to the census. */
 export const buildClinicalFormPatientOptions = (
-  record: MedifSourceRecord | null
+  record: ClinicalFormSourceRecord | null
 ): ClinicalFormPatientOption[] => {
   if (!record || !parseFormDate(record.date)) return [];
   const options: ClinicalFormPatientOption[] = [];
