@@ -1558,7 +1558,9 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       await page.waitForFunction(
         () => (window as unknown as { syntheticDragStarted: boolean }).syntheticDragStarted
       );
-      await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2 + 30, { steps: 12 });
+      // Each move renders the volume again in software WebGL (about 4 s on a slow runner);
+      // three moves of the same total drag still render more than one frame.
+      await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2 + 30, { steps: 3 });
       await page.mouse.up();
       await expectGraphics
         .poll(() =>
@@ -2089,7 +2091,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     await viewer.getByRole('button', { name: 'Restablecer 3D' }).click();
     await expect(viewer.getByLabel('Eje de recorte 3D')).toHaveValue('none');
     await expect(viewer.getByLabel('Opacidad 3D')).toHaveValue('100');
-    await expect.poll(async () => (await hashes())[0]).toBe(bone[0]);
+    await expect.poll(async () => (await hashes())[0], { timeout: 30000 }).toBe(bone[0]);
     await viewer.getByRole('button', { name: 'Original', exact: true }).first().click();
     await ready();
     await expect(viewer.getByRole('alert')).toHaveCount(0);
