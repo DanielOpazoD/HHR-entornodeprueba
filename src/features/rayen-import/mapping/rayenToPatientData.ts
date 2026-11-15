@@ -192,7 +192,7 @@ export const rayenToPatientData = (
     bedId: bedId ?? '',
     clinicalEpisodeId: encounter.encounterId,
     rut: formatRun(encounter.run),
-    documentType: hasNonRutLetter(encounter.run) ? 'Pasaporte' : 'RUT',
+    documentType: hasNonRutLetter(encounter.run ?? '') ? 'Pasaporte' : 'RUT',
     patientName: fullName,
     firstName: givenNames,
     lastName: firstFamily,

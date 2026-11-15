@@ -121,6 +121,7 @@ export const documentIdentityKey = (value?: string): string => {
  * report routes, which also never look up a lone K.
  */
 export const hasPassportShapeBeforeLetterRule = (value: string): boolean => {
+  if (!value) return false;
   const cleaned = value.replace(/[\s-.]/g, '');
   return /^[A-Za-z]/.test(cleaned) || /[A-Za-z]{2,}/.test(cleaned);
 };
