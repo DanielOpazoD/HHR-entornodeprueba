@@ -131,7 +131,8 @@ export const hasPassportShapeBeforeLetterRule = (value: string): boolean => {
  * The same document as HHR read documents before letters made one a passport: a passport it
  * always read as one (P123456785) is only that passport, never the RUT its digits form. Any other
  * value compares by its digits, because HHR stored a document such as 1234567A as 123.456-7 and
- * that patient keeps it. For the discharge report routes; a new comparison uses isSameDocument.
+ * that patient keeps it. For the discharge report routes and the historical reconstruction; a
+ * new comparison uses isSameDocument.
  */
 export const isSameDocumentBeforeLetterRule = (left = '', right = ''): boolean =>
   /\d/.test(left) &&

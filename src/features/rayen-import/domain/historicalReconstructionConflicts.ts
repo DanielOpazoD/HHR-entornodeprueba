@@ -1,4 +1,4 @@
-import { normalizeRut } from '@/utils/rutUtils';
+import { documentKeyBeforeLetterRule } from '@/utils/rutUtils';
 import type { ConflictEntry } from '../contracts/censusImportDiff';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import {
@@ -35,8 +35,9 @@ export const historicalReconstructionConflict = (
   };
 };
 
+// A passport and the RUT its digits form are two patients: each keeps its review item.
 const conflictKey = (conflict: ConflictEntry): string =>
-  normalizeRut(conflict.rut) ||
+  documentKeyBeforeLetterRule(conflict.rut) ||
   String(conflict.source?.encounterId ?? '').trim() ||
   (conflict.patientName ?? '').trim().toLocaleUpperCase('es-CL');
 
