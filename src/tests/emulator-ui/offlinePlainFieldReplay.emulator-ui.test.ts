@@ -88,6 +88,8 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   let api: ReturnType<typeof createDailyRecordWriteAuthorityFunctions>;
   let clients: Record<'A' | 'B', { db: unknown; uid: string; role: string }>;
   const calls = { authority: 0, fieldTransaction: 0 };
+  /** Runs once when the per-field transaction is called, before it reads the day. */
+  let beforeFieldTransaction: (() => void) | undefined;
   const actor = <T>(id: 'A' | 'B', action: () => T): T => scope.run(clients[id], action);
   const read = async () => {
     const data = (await admin.doc(dayPath).get()).data();
@@ -230,8 +232,12 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       }
     );
     const fieldTransaction = guards.updateRecordPartiallyAtomically;
+    beforeFieldTransaction = undefined;
     vi.spyOn(guards, 'updateRecordPartiallyAtomically').mockImplementation(async (...args) => {
       calls.fieldTransaction++;
+      const hook = beforeFieldTransaction;
+      beforeFieldTransaction = undefined;
+      hook?.();
       return fieldTransaction(...args);
     });
   });
@@ -325,4 +331,50 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     expect((await read()).beds.R1.age).toBe('40');
     expect((await queue()).map(task => task.status)).toEqual(['CONFLICT']);
   });
+
+  // Another person signs in on this computer while B's edit is on its way (shared computers).
+  for (const when of ['as the write starts', 'inside its transaction'] as const)
+    it(`stops without writing when the session owner changes ${when}, and keeps the edit for its owner`, async () => {
+      const db = await offlineB();
+      await editOnB({ handoffNovedadesDayShift: 'OFFLINE B' });
+      await writeOnA({ handoffNovedadesNightShift: 'NOCHE A' });
+      const before = await read();
+      const [queuedOffline] = await queue();
+      const signInC = () => localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-C');
+      if (when === 'inside its transaction') beforeFieldTransaction = signInC;
+      else {
+        const write = writes.updateRecordPartial;
+        let armed = true;
+        vi.spyOn(writes, 'updateRecordPartial').mockImplementation(async (...args) => {
+          if (armed) signInC();
+          armed = false;
+          return write(...args);
+        });
+      }
+      calls.fieldTransaction = 0;
+      await db.enableNetwork();
+      await runQueueOnB();
+
+      expect(localStorage.getItem(SESSION_OWNER_KEY)).toBe('user:synthetic-C');
+      expect(calls.fieldTransaction).toBe(when === 'as the write starts' ? 0 : 1);
+      // Nothing reached the server, and the task stays queued for B: the stop adds no error.
+      expect(await read()).toEqual(before);
+      const [task] = await queue();
+      expect(task).toMatchObject({
+        ownerKey: 'user:synthetic-B',
+        error: queuedOffline.error,
+        retryCount: queuedOffline.retryCount,
+      });
+      expect(['PENDING', 'PROCESSING']).toContain(task.status);
+      expect((task.payload as DailyRecord).handoffNovedadesDayShift).toBe('OFFLINE B');
+
+      // Back in B's session, its queue sends the edit and both changes stay.
+      localStorage.setItem(SESSION_OWNER_KEY, 'user:synthetic-B');
+      await runQueueOnB();
+      expect(await read()).toMatchObject({
+        handoffNovedadesDayShift: 'OFFLINE B',
+        handoffNovedadesNightShift: 'NOCHE A',
+      });
+      expect(await queue()).toEqual([]);
+    });
 });
