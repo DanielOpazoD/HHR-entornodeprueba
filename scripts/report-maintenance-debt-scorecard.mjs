@@ -120,7 +120,7 @@ const payload = {
   pendingHotspots,
   watchlist,
   tests: {
-    flakeRiskFiles: qualityMetrics?.tests?.flakeRiskFiles ?? null,
+    clockSignalFiles: qualityMetrics?.tests?.clockSignalFiles ?? null,
   },
   legacyRetirementDebt,
   firestoreRules: {
@@ -167,7 +167,7 @@ ${watchlist
 
 ## Test Stability Signals
 
-- Flake-risk test files: ${payload.tests.flakeRiskFiles ?? 'n/a'}
+- Test files with clock or timer calls and no fake timers (informative; flake risk is measured in system-confidence): ${payload.tests.clockSignalFiles ?? 'n/a'}
 
 ## Legacy Retirement Debt
 

@@ -4,6 +4,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { formatWorktreeState, getGitReportState } from './gitReportState.mjs';
 import { buildEvidenceProvenance } from './evidenceProvenanceSupport.mjs';
+import {
+  TEST_EXECUTION_MANIFEST,
+  TEST_RUNS_OUTSIDE_MANIFEST,
+  formatFlakeRiskSummary,
+  readMeasuredFlakeRisk,
+} from './measuredFlakeRiskSupport.mjs';
 
 const ROOT = process.cwd();
 const REPORTS_DIR = path.join(ROOT, 'reports');
@@ -27,6 +33,13 @@ const criticalCoverageReport = readOptionalJson('reports/critical-coverage.json'
 const operationalHealth = operationalHealthReport.data;
 const criticalCoverage = criticalCoverageReport.data;
 const gitState = getGitReportState(ROOT);
+const flakeRisk = {
+  ...readMeasuredFlakeRisk(ROOT, {
+    gitSha: gitState.gitSha,
+    runAttempt: process.env.GITHUB_RUN_ATTEMPT,
+  }),
+  notMeasured: TEST_RUNS_OUTSIDE_MANIFEST,
+};
 
 const indicators = [
   {
@@ -47,12 +60,13 @@ const indicators = [
   {
     name: 'test_governance',
     status:
-      qualityMetrics.tests.flakeRiskFiles === 0 &&
+      flakeRisk.measured &&
+      flakeRisk.fileCount === 0 &&
       qualityMetrics.tests.onlyMarkers === 0 &&
       qualityMetrics.tests.skippedMarkers === 0
         ? 'ok'
         : 'degraded',
-    summary: `flakeRisk=${qualityMetrics.tests.flakeRiskFiles}, skip=${qualityMetrics.tests.skippedMarkers}, only=${qualityMetrics.tests.onlyMarkers}`,
+    summary: `flakeRisk=${formatFlakeRiskSummary(flakeRisk)}, skip=${qualityMetrics.tests.skippedMarkers}, only=${qualityMetrics.tests.onlyMarkers}`,
   },
   {
     name: 'critical_coverage',
@@ -104,7 +118,9 @@ const report = {
       ? 'all indicators ok'
       : 'one or more technical indicators degraded',
   indicators,
+  flakeRisk,
   missingPrerequisites: [
+    ...(flakeRisk.measured ? [] : [TEST_EXECUTION_MANIFEST]),
     ...(operationalHealthReport.missing ? ['reports/operational-health.json'] : []),
     ...(criticalCoverageReport.missing ? ['reports/critical-coverage.json'] : []),
   ],
@@ -137,6 +153,16 @@ const markdown = [
   '## Prerequisites',
   '',
   `- Missing prerequisites: ${report.missingPrerequisites.join(', ') || 'none'}`,
+  '',
+  '## Flake risk',
+  '',
+  flakeRisk.measured
+    ? `- Test files that failed or needed a retry in this run: ${flakeRisk.fileCount} (suites: ${flakeRisk.suites.join(', ')})`
+    : `- Unmeasured: ${flakeRisk.reason}`,
+  ...flakeRisk.files.map(
+    entry => `  - ${entry.file}: failed=${entry.failed}, retried=${entry.retried}`
+  ),
+  `- Not measured by this count (outside the manifest): ${flakeRisk.notMeasured.join(', ')}`,
   '',
 ];
 

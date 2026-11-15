@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getGitReportState, formatWorktreeState } from './gitReportState.mjs';
 import { collectClinicalReleaseCandidateIssues } from './clinicalReleaseSignoffSupport.mjs';
+import { TEST_EXECUTION_MANIFEST } from './measuredFlakeRiskSupport.mjs';
 
 const ROOT = process.cwd();
 const trackedReports = [
@@ -44,20 +45,21 @@ const fail = issues => {
   process.exit(1);
 };
 
-const collectQualityMetricEvidenceIssues = (reportFile, parsedReport) => {
-  const issues = [];
-  const flakeRiskFiles = Number(parsedReport?.tests?.flakeRiskFiles ?? 0);
-  if (flakeRiskFiles > 0) {
-    const filePaths = Array.isArray(parsedReport?.tests?.flakeRiskFilePaths)
-      ? parsedReport.tests.flakeRiskFilePaths
-          .filter(filePath => typeof filePath === 'string' && filePath.trim())
-          .map(filePath => filePath.trim())
-      : [];
-    const fileList = filePaths.length > 0 ? `: ${filePaths.join(', ')}` : '';
-    issues.push(`${reportFile} reports ${flakeRiskFiles} flake-risk test file(s)${fileList}.`);
+// Release evidence needs flake risk measured from this commit's test execution.
+const collectFlakeRiskEvidenceIssues = (reportFile, parsedReport) => {
+  const flakeRisk = parsedReport?.flakeRisk;
+  if (flakeRisk?.measured !== true) {
+    return [
+      `${reportFile} has unmeasured flake risk (${flakeRisk?.reason || 'no flakeRisk field'}); regenerate it with ${TEST_EXECUTION_MANIFEST} from this commit's CI run.`,
+    ];
   }
-
-  return issues;
+  const files = Array.isArray(flakeRisk.files) ? flakeRisk.files : [];
+  if (files.length === 0) return [];
+  return [
+    `${reportFile} reports ${files.length} test file(s) that failed or needed a retry: ${files
+      .map(entry => entry.file)
+      .join(', ')}.`,
+  ];
 };
 
 export const collectReleaseEvidenceIssues = (root = ROOT) => {
@@ -91,8 +93,8 @@ export const collectReleaseEvidenceIssues = (root = ROOT) => {
       issues.push(`${reportFile} was generated with worktree=dirty.`);
     }
 
-    if (reportFile === 'reports/quality-metrics.json') {
-      issues.push(...collectQualityMetricEvidenceIssues(reportFile, parsedReport));
+    if (reportFile === 'reports/system-confidence.json') {
+      issues.push(...collectFlakeRiskEvidenceIssues(reportFile, parsedReport));
     }
   }
 

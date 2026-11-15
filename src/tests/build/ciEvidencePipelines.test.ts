@@ -81,6 +81,7 @@ export const EVIDENCE_PIPELINES: Record<string, Matcher[]> = {
     upload('flow-performance-evidence'),
   ],
   'final-confidence-and-readiness': [
+    download('test-execution-manifest'),
     download('preview-bootstrap-artifacts'),
     download('dist'),
     run('npm run check:preview-bootstrap-evidence'),
@@ -227,6 +228,7 @@ describe('CI evidence pipelines', () => {
         'e2e-critical-emulator',
         'preview-smoke',
         'quality-static-governance-snapshots',
+        'test-execution-manifest',
       ].sort()
     );
     const postmerge = jobs['postmerge-evidence'];
