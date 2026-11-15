@@ -19,7 +19,6 @@ import {
   OPERATIONAL_TELEMETRY_DROPPED_KEY_TOKEN,
   OPERATIONAL_TELEMETRY_MAX_CONTEXT_KEYS,
   OPERATIONAL_TELEMETRY_MAX_ISSUES,
-  OPERATIONAL_TELEMETRY_PROBE_OPERATION,
   OPERATIONAL_TELEMETRY_STATUSES,
   sanitizeOperationalTelemetryContextValues,
   sanitizeOperationalTelemetryEvent,
@@ -126,10 +125,9 @@ export const shouldAlertOperationalTelemetry = (
     issues?: readonly string[];
   }
 ): boolean =>
-  event.operation === OPERATIONAL_TELEMETRY_PROBE_OPERATION ||
-  (event.status === 'failed' &&
-    !RESOLVED_IN_PLACE_OPERATIONS.has(event.operation) &&
-    !isRetryableSyncFailure(event.operation, event.issues));
+  event.status === 'failed' &&
+  !RESOLVED_IN_PLACE_OPERATIONS.has(event.operation) &&
+  !isRetryableSyncFailure(event.operation, event.issues);
 
 const PRIVACY_NOTE =
   'Por privacidad, los mensajes de error detallados NO salen del dispositivo: quedan solo en el ' +
@@ -139,18 +137,9 @@ export const buildOperationalTelemetryAlert = (
   event: SanitizedOperationalTelemetryEvent,
   siteLabel: string
 ): { subject: string; body: string } => {
-  const isProbe = event.operation === OPERATIONAL_TELEMETRY_PROBE_OPERATION;
-  const statusLabel = isProbe
-    ? 'PRUEBA CONTROLADA'
-    : event.status === 'failed'
-      ? 'FALLO'
-      : 'PARCIAL';
+  const statusLabel = event.status === 'failed' ? 'FALLO' : 'PARCIAL';
   const subject = `[HHR] ${statusLabel} · ${event.operation} · ${event.date ?? getClinicalCalendarDateISO(new Date(event.timestamp))}`;
   const lines = [
-    isProbe
-      ? 'PRUEBA CONTROLADA del canal de alertas. No corresponde a un incidente clínico ni operacional.'
-      : null,
-    isProbe ? '' : null,
     `Sitio: ${siteLabel}`,
     `Operación: ${event.operation} (${event.category})`,
     `Estado: ${event.status}`,

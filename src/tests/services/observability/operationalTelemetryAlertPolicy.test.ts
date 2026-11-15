@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { OPERATIONAL_TELEMETRY_PROBE_OPERATION } from '@/services/observability/operationalTelemetryPrivacy';
 import { shouldAlertOperationalTelemetry } from '@/services/observability/operationalTelemetryIngestPolicy';
 
 describe('who gets an email for an operational event', () => {
@@ -7,6 +6,12 @@ describe('who gets an email for an operational event', () => {
     expect(shouldAlertOperationalTelemetry({ status: 'failed', operation: 'rayen_sync_run' })).toBe(
       true
     );
+  });
+
+  it('does not mail an event that did not fail, whatever operation it names', () => {
+    expect(
+      shouldAlertOperationalTelemetry({ status: 'success', operation: 'telemetry_delivery_probe' })
+    ).toBe(false);
   });
 
   it.each([
@@ -47,15 +52,6 @@ describe('who gets an email for an operational event', () => {
         issues: ['unavailable_issue'],
       })
     ).toBe(false);
-  });
-
-  it('mails the controlled probe of the channel', () => {
-    expect(
-      shouldAlertOperationalTelemetry({
-        status: 'failed',
-        operation: OPERATIONAL_TELEMETRY_PROBE_OPERATION,
-      })
-    ).toBe(true);
   });
 
   it.each([

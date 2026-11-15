@@ -68,8 +68,8 @@ un receptor autenticado ni protege contra todos los ataques de denegación de se
    persistente y Gmail HTTP simulado. Eso no prueba por sí solo el backend remoto de Netlify.
    El servidor local oficial de Blobs 11.0.3 no devuelve ETag en GET y no permite validar este contrato.
 3. Preview desplegado: comprobar almacenamiento/CAS y que no envíe correos ni acceda al store productivo.
-4. Producción: un evento `telemetry_delivery_probe` se etiqueta PRUEBA CONTROLADA. Comprobar correo
-   recibido, referencia, remitente y destinatario; repetir en paralelo y revisar un solo intento en Blobs.
+4. Producción: el correo llega solo ante un fallo real (`status: failed`). No hay evento de prueba del
+   canal; para revisar remitente, destinatario y el intento único en Blobs, usar el primer fallo real.
 5. En Netlify, Functions → `operational-telemetry-retry` → Run now permite comprobar el barrido privado.
    Su configuración `schedule` impide invocarlo por una URL pública.
 6. Netlify Blobs muestra el último estado por operación. `retry_sweep` informa contadores sin datos
