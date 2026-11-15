@@ -76,6 +76,13 @@ export {
   moveRecordToTrash,
 } from '@/services/storage/firestore/firestoreRecordLifecycleWrites';
 
+// Waiting ~7 s never fixed these (measured); the SDK's `unknown` and other codes do recover.
+const PERMANENT_WRITE_ERROR_CODES = new Set(['not-found', 'invalid-argument', 'permission-denied']);
+const shouldRetryWrite = (error: unknown): boolean =>
+  !(error instanceof ConcurrencyError) &&
+  !(error instanceof DataRegressionError) &&
+  !PERMANENT_WRITE_ERROR_CODES.has(String((error as { code?: unknown })?.code));
+
 export const saveRecordToFirestore = async (
   record: DailyRecord,
   expectedLastUpdated?: string,
@@ -131,8 +138,7 @@ export const saveRecordToFirestore = async (
         {
           onRetry: (err: unknown, attempt: number) =>
             logFirestoreWriteRetry('save', record.date, attempt, err),
-          shouldRetry: (err: unknown) =>
-            !(err instanceof ConcurrencyError) && !(err instanceof DataRegressionError),
+          shouldRetry: shouldRetryWrite,
         }
       );
 
@@ -383,7 +389,7 @@ export const updateRecordPartial = async (
           {
             onRetry: (err: unknown, attempt: number) =>
               logFirestoreWriteRetry('partialUpdate', date, attempt, err),
-            shouldRetry: (err: unknown) => !(err instanceof ConcurrencyError),
+            shouldRetry: shouldRetryWrite,
           }
         );
         // Plain local-first writes stay receipt-less, because a returned
@@ -437,7 +443,7 @@ export const updateRecordPartial = async (
           {
             onRetry: (err: unknown, attempt: number) =>
               logFirestoreWriteRetry('partialUpdate', date, attempt, err),
-            shouldRetry: (err: unknown) => !(err instanceof ConcurrencyError),
+            shouldRetry: shouldRetryWrite,
           }
         );
       } catch (error) {
