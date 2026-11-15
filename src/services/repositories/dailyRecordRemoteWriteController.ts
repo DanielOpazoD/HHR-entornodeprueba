@@ -29,6 +29,9 @@ import { resolveBlockedRemoteWriteRecovery } from '@/services/repositories/daily
 import { resolveConcurrencyRemoteWriteRecovery } from '@/services/repositories/dailyRecordWriteConcurrencyRecoveryController';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { dailyRecordWriteLogger } from '@/services/repositories/repositoryLoggers';
+import { buildQueuedRetryRecoveryResult } from '@/services/repositories/dailyRecordWriteRecoveryResultController';
+import { SAVED_BY_QUEUE_ROUTE_TAG } from '@/services/repositories/contracts/dailyRecordResults';
+import { isSavedByQueueRouteError } from '@/services/storage/syncErrorCatalog';
 
 const isConcurrencyError = (error: unknown): boolean =>
   error instanceof Error && error.name === 'ConcurrencyError';
@@ -120,6 +123,32 @@ export const resolveRemoteWriteRecovery = async (
     return blockedRecovery;
   }
 
+  const ensureQueued = async () =>
+    localWriteAlreadyQueued ||
+    (await queueRecoveryTask(
+      record,
+      buildRecoveryTaskMeta(changedPaths, resolveRetryOrigin(changedPaths), expectedVersion),
+      authoringSession
+    ));
+
+  // Not a conflict: nothing remote to merge. The day's queue task saves this edit with its base
+  // version, and that task alone, so it waits there without a second copy or a notice.
+  if (isSavedByQueueRouteError(error)) {
+    return (await ensureQueued())
+      ? buildQueuedRetryRecoveryResult(
+          null,
+          'Los cambios se guardaron localmente y quedaron pendientes de sincronización.',
+          ['daily_record', 'write', SAVED_BY_QUEUE_ROUTE_TAG]
+        )
+      : resolveQueuedRetryRecoveryResult(
+          false,
+          conflictSummary(
+            'remote_unavailable',
+            'La cola de sincronización alcanzó su límite operativo antes de programar el guardado.'
+          )
+        );
+  }
+
   if (isConcurrencyError(error)) {
     return resolveConcurrencyRemoteWriteRecovery(
       date,
@@ -133,13 +162,7 @@ export const resolveRemoteWriteRecovery = async (
   }
 
   if (isRetryableSyncError(error)) {
-    const queued =
-      localWriteAlreadyQueued ||
-      (await queueRecoveryTask(
-        record,
-        buildRecoveryTaskMeta(changedPaths, resolveRetryOrigin(changedPaths), expectedVersion),
-        authoringSession
-      ));
+    const queued = await ensureQueued();
     return resolveQueuedRetryRecoveryResult(
       queued,
       conflictSummary(

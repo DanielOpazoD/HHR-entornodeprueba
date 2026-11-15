@@ -9,6 +9,7 @@ import type {
 } from '@/services/repositories/contracts/dailyRecordResults';
 import {
   FIELD_CHANGED_ELSEWHERE_TAG,
+  SAVED_BY_QUEUE_ROUTE_TAG,
   isDailyRecordWriteBlockedResult,
   resolveDailyRecordSavedState,
 } from '@/services/repositories/contracts/dailyRecordResults';
@@ -162,7 +163,12 @@ const resolveWriteOutcomeFeedback = (
   result: SaveDailyRecordResult | UpdatePartialDailyRecordResult | null | undefined,
   patch: boolean
 ): SyncOutcomeFeedback | null => {
-  if (!result || result.observabilityTags?.includes('sync_queue_write_retained_for_owner'))
+  if (
+    !result ||
+    result.observabilityTags?.includes('sync_queue_write_retained_for_owner') ||
+    // Routine: the day's queue task saves it right away, and the sync status shows it pending.
+    result.observabilityTags?.includes(SAVED_BY_QUEUE_ROUTE_TAG)
+  )
     return null;
   const savedState = resolveDailyRecordSavedState(result);
   const remoteConfirmed = savedState === 'saved';

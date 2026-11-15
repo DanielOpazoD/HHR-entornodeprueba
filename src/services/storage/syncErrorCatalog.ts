@@ -26,6 +26,20 @@ export const isFieldChangedElsewhereError = (error: unknown): boolean =>
   error instanceof ConcurrencyError &&
   (error as { code?: unknown }).code === FIELD_CHANGED_ELSEWHERE_CODE;
 
+const SAVED_BY_QUEUE_ROUTE_CODE = 'daily_record_saved_by_queue_route';
+
+/**
+ * A patch shape the direct write does not take while the authority separation is on (a movement
+ * that frees a bed carries its list and the bed). A route, not a conflict: the day's queue task
+ * saves it whole with its base version, and a newer version there leaves that task in conflict.
+ */
+export const createSavedByQueueRouteError = (message: string) =>
+  Object.assign(new ConcurrencyError(message), { code: SAVED_BY_QUEUE_ROUTE_CODE } as const);
+
+export const isSavedByQueueRouteError = (error: unknown): boolean =>
+  error instanceof ConcurrencyError &&
+  (error as { code?: unknown }).code === SAVED_BY_QUEUE_ROUTE_CODE;
+
 export const createDailyRecordBaseReviewError = (message: string) =>
   Object.assign(new ConcurrencyError(message, 'semantic_conflict'), {
     code: 'sync_daily_record_base_review',
