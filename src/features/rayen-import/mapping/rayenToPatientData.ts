@@ -7,6 +7,7 @@ import type { PatientData } from '@/types/domain/patient';
  * Field-level mapping is documented in PLAN-SINCRONIZACION.md §2.1.
  */
 
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import { BEDS } from '@/constants/beds';
 import { PatientStatus } from '@/types/domain/patientClassification';
@@ -74,9 +75,9 @@ export const ageFromBirthDate = (birthDate?: string, reference: Date = new Date(
   const born = parseIsoCalendarDate(birthDate);
   if (!born || Number.isNaN(reference.getTime())) return '';
 
-  const referenceYear = reference.getFullYear();
-  const referenceMonth = reference.getMonth();
-  const referenceDay = reference.getDate();
+  const referenceCalendar = parseIsoCalendarDate(getClinicalCalendarDateISO(reference));
+  if (!referenceCalendar) return '';
+  const { year: referenceYear, month: referenceMonth, day: referenceDay } = referenceCalendar;
   const bornDayNumber = utcDayNumber(born.year, born.month, born.day);
   const referenceDayNumber = utcDayNumber(referenceYear, referenceMonth, referenceDay);
   if (referenceDayNumber < bornDayNumber) return '';

@@ -11,7 +11,7 @@ import type { PatientData } from '@/types/domain/patient';
 import { createDischargedEncounterMatcher } from '@/features/rayen-import/domain/censusDischargeHistory';
 import { filterRecordedOutcomeActions } from '@/features/rayen-import/domain/filterRecordedOutcomeActions';
 
-const REFERENCE = new Date(2026, 6, 8);
+const REFERENCE = new Date('2026-07-08T12:00:00-06:00');
 const NOW = new Date(2026, 6, 8, 15, 30, 0);
 
 const makeContext = (): ApplyContext => ({

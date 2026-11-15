@@ -9,7 +9,7 @@ import {
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 
-const REFERENCE = new Date(2026, 8, 15);
+const REFERENCE = new Date('2026-09-15T12:00:00-05:00');
 const NOW = new Date(2026, 8, 15, 9, 45, 0);
 
 const makeCtx = (): ApplyContext => {
