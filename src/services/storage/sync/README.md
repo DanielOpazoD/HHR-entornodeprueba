@@ -59,6 +59,12 @@ o una tarea antigua sin esta evidencia conserva la revisión existente; no se pu
 ni se confirma como guardada.
 No requiere cambios en Functions ni reglas (SAVE-01 a SAVE-03).
 
+Los datos simples del día (fuera de camas, dotación y movimientos), con el valor base de cada
+campo y una versión conocida, se reenvían con la misma escritura que una edición directa
+(`updateRecordPartial`, en `plainDayFieldReplay.ts`): su transacción acepta una versión más nueva
+solo si cada campo de la tarea conserva su base o ya tiene el valor pendiente. Si no, la tarea
+queda completa en `CONFLICT`, sin escritura (SAVE-02).
+
 La publicación vuelve a comparar cada campo con su valor base capturado, antes de
 aceptar el registro y dentro de cada intento de la transacción existente. No depende
 de que el otro equipo haya escrito `lastChangedPaths` ni de que avance su reloj.

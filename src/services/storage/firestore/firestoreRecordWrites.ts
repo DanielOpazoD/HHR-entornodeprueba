@@ -78,6 +78,16 @@ export {
 
 // Waiting ~7 s never fixed these (measured); the SDK's `unknown` and other codes do recover.
 const PERMANENT_WRITE_ERROR_CODES = new Set(['not-found', 'invalid-argument', 'permission-denied']);
+const STAFFING_PATH =
+  /^(nurses|nurseName|nursesDayShift|nursesNightShift|tensDayShift|tensNightShift|staffingDetailsV1)(\.|$)/;
+
+/**
+ * A day field outside the bed tree and staffing. A patch of only these fields, without
+ * requireAtomicCas, commits through the per-field versioned transaction of updateRecordPartial.
+ */
+export const isPlainDayFieldPath = (path: string): boolean =>
+  !isDailyRecordBedTreePath(path) && !STAFFING_PATH.test(path);
+
 const shouldRetryWrite = (error: unknown): boolean =>
   !(error instanceof ConcurrencyError) &&
   !(error instanceof DataRegressionError) &&
@@ -252,6 +262,7 @@ export const updateRecordPartial = async (
       lastUpdated: Timestamp.now(),
     }) as Record<string, unknown>;
     const persist = async () => {
+      options.assertCanPublish?.();
       if (specialistScopedPatch && (await shouldRouteSpecialistPatchViaCallable())) {
         // This callable has no server version CAS (its transaction protects the patient and
         // episode), so the version is checked by a read first. Every other route checks it when
@@ -368,11 +379,7 @@ export const updateRecordPartial = async (
         );
       }
 
-      const isStaffingPatch = Object.keys(sanitizedPatch).some(path =>
-        /^(nurses|nurseName|nursesDayShift|nursesNightShift|tensDayShift|tensNightShift|staffingDetailsV1)(\.|$)/.test(
-          path
-        )
-      );
+      const isStaffingPatch = Object.keys(sanitizedPatch).some(path => STAFFING_PATH.test(path));
       if (options.requireAtomicCas || isStaffingPatch) {
         const committedBase = await withRetry(
           () =>
@@ -402,10 +409,11 @@ export const updateRecordPartial = async (
       // Offline, a transaction waits for the network and holds the day's write. When the day is not
       // in the local cache this read fails at once, as the version read before the write did, so the
       // edit stays local and goes to the queue. With the day cached, or on a cut that the SDK does
-      // not notice yet, it waits like main did. The queue resends with its own version check, not
-      // this per-field one.
+      // not notice yet, it waits like main did. The queue resends these fields through this same
+      // function, so the same per-field check decides.
       await getDoc(docRef);
 
+      options.assertCanPublish?.();
       // Outside the transaction: roles the rules do not let write history still save the day.
       if (options.historyPolicy !== 'skip')
         await saveHistorySnapshot(date, { force: options.historyPolicy === 'snapshot' });
@@ -437,7 +445,7 @@ export const updateRecordPartial = async (
         );
       };
       try {
-        await withRetry(
+        const committedBase = await withRetry(
           () =>
             updateRecordPartiallyAtomically(
               docRef,
@@ -445,14 +453,26 @@ export const updateRecordPartial = async (
               expectedLastUpdated,
               'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
               'partial update',
-              { historyPolicy: 'skip', acceptsOtherVersion }
+              {
+                historyPolicy: 'skip',
+                acceptsOtherVersion,
+                assertCanCommit: options.assertCanPublish,
+              }
             ),
           {
             onRetry: (err: unknown, attempt: number) =>
               logFirestoreWriteRetry('partialUpdate', date, attempt, err),
-            shouldRetry: shouldRetryWrite,
+            // A changed session stops here instead of waiting to retry.
+            shouldRetry: error => {
+              options.assertCanPublish?.();
+              return shouldRetryWrite(error);
+            },
           }
         );
+        // An empty base is the not-stored-yet branch: no read to project the committed record on.
+        return options.returnCommittedRecord && Object.keys(committedBase).length
+          ? buildAtomicPartialCommitReceipt(date, committedBase, sanitizedData)
+          : undefined;
       } catch (error) {
         // Only a field of this edit holding another writer's value refuses it here.
         if (error instanceof ConcurrencyError) throw createFieldChangedElsewhereError();

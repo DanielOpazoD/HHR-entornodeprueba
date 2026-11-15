@@ -256,9 +256,12 @@ export const updateRecordPartiallyAtomically = async (
   {
     historyPolicy,
     acceptsOtherVersion,
+    assertCanCommit,
   }: {
     historyPolicy?: 'snapshot' | 'skip';
     acceptsOtherVersion?: (stored: DocumentData) => boolean;
+    /** Runs in each attempt right before it writes; a throw aborts the write. */
+    assertCanCommit?: () => void;
   } = {},
   runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
 ): Promise<DocumentData> => {
@@ -315,6 +318,7 @@ export const updateRecordPartiallyAtomically = async (
       );
     }
 
+    assertCanCommit?.();
     if (captureHistory) {
       const historyRef = doc(collection(docRef, 'history'), new Date().toISOString());
       transaction.set(historyRef, {
@@ -331,6 +335,7 @@ export const updateRecordPartiallyAtomically = async (
   if (baseData) return baseData;
   // A day not stored yet: the server refuses the update, as rules or not-found, and the caller
   // recovers from that answer as from any plain update.
+  assertCanCommit?.();
   await updateDoc(docRef, partialData);
   return {};
 };
