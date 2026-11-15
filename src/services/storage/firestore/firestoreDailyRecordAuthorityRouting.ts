@@ -38,8 +38,9 @@ export interface DailyRecordPartialWriteOptions {
   /** Enforces the base version inside the same transaction as the multi-field patch. */
   requireAtomicCas?: boolean;
   /**
-   * With requireAtomicCas, returns the record that transaction committed. Set only for writes that
-   * need a confirmed record; a receipt sends the caller into its confirm-and-adopt path.
+   * With requireAtomicCas, staffing or plain day fields, returns the record that transaction
+   * committed. Set only for writes that need a confirmed record; a receipt sends the caller into
+   * its confirm-and-adopt path.
    */
   returnCommittedRecord?: boolean;
   /** See PartialUpdateDailyRecordOptions.historyPolicy. Without it, copies follow the hourly cadence. */

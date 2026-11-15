@@ -50,6 +50,7 @@ import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import type { DetachedOccupantWork } from './dayTaskOccupantDetach';
 import type { SpecialistNoteValue } from './dayTaskReplayGuard';
 import { nursingHandoffPaths } from './nursingHandoffTasks';
+import { plainDayFieldReplayPaths, replayPlainDayFields } from './plainDayFieldReplay';
 import {
   resolveOptionalBaseRevision,
   resolveRecordBaseRevision,
@@ -271,6 +272,14 @@ const resolveRecordForSyncTask = async (
       ) as DailyRecordPatch
     );
   }
+  // Its write compares each field with its base inside its transaction (replayPlainDayFields).
+  if (plainDayFieldReplayPaths(task))
+    return {
+      record,
+      resolution: 'accepted',
+      acceptedVersion: remoteLastUpdated,
+      storedData: remoteData,
+    };
   const canRebasePatch =
     !detached && Boolean(checks?.hasUnchangedPatchBase(queuedTask, remoteRecord, queuedRecord));
   if (task.nursingHandoffRecovery) {
@@ -420,6 +429,22 @@ const syncDailyRecord = async (
         return { authoritativeRecord: resolved.record };
       }
       const recordToWrite = resolved.record;
+      const plainPaths = plainDayFieldReplayPaths(task);
+      if (plainPaths && resolved.storedData) {
+        const replayed = await replayPlainDayFields(
+          task,
+          recordToWrite,
+          plainPaths,
+          runtime,
+          assertCanPublish
+        );
+        recordSyncQueueTruthSelectionTelemetry(task, {
+          resolution: resolved.resolution,
+          acceptedVersion: replayed.authoritativeRecord.lastUpdated,
+          selectedTruth: 'legacy_direct_publish',
+        });
+        return replayed;
+      }
 
       assertResolvedClinicalAuthority(task, resolved);
 
