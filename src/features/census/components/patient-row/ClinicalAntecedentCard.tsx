@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Paperclip } from 'lucide-react';
+import { Paperclip, RefreshCw } from 'lucide-react';
 import {
   requestClinicalAction,
   type ClinicalActionResult,
@@ -105,6 +105,7 @@ export const ClinicalAntecedentCard = ({
                 }}
                 className={buttonClassName('ghost', 'xs', 'shrink-0')}
               >
+                <RefreshCw size={14} aria-hidden="true" />
                 Reintentar
               </button>
             </div>
