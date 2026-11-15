@@ -399,9 +399,11 @@ export const updateRecordPartial = async (
           : undefined;
       }
 
-      // Offline, a transaction waits for the network and holds the day's write. This read fails at
-      // once without it, as the version read before the write did, so the edit stays local and goes
-      // to the queue; the queue applies the same check when it sends it with network.
+      // Offline, a transaction waits for the network and holds the day's write. When the day is not
+      // in the local cache this read fails at once, as the version read before the write did, so the
+      // edit stays local and goes to the queue. With the day cached, or on a cut that the SDK does
+      // not notice yet, it waits like main did. The queue resends with its own version check, not
+      // this per-field one.
       await getDoc(docRef);
 
       // Outside the transaction: roles the rules do not let write history still save the day.
