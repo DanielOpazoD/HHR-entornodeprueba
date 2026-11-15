@@ -350,7 +350,10 @@ export const createDailyRecordSubscription = (
     }
 
     if (!previousResult?.record) {
-      applyResolvedQueryResult(result);
+      // Firestore answers a known target from its cache before the server. A cached miss says
+      // nothing about this date: the point read and the server snapshot decide, and the day keeps
+      // loading instead of showing a failed check. Listener failures arrive through onFailure.
+      if (result.runtime.serverConfirmed) applyResolvedQueryResult(result);
       return;
     }
 
