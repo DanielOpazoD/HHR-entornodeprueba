@@ -55,7 +55,7 @@ export const buildThrowUnrecoverableRecoveryResult = (input: {
 });
 
 export const buildQueuedRetryRecoveryResult = (
-  conflictSummary: DailyRecordConflictSummary,
+  conflictSummary: DailyRecordConflictSummary | null,
   userSafeMessage: string,
   observabilityTags: string[]
 ): RemoteWriteRecoveryResult => ({

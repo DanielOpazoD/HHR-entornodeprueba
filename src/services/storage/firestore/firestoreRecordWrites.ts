@@ -27,7 +27,10 @@ import {
   UnsupportedFirestoreUpdateProjectionError,
 } from '@/services/storage/firestore/firestoreUpdateProjection';
 import { createOperationalError } from '@/services/observability/operationalError';
-import { createFieldChangedElsewhereError } from '@/services/storage/syncErrorCatalog';
+import {
+  createFieldChangedElsewhereError,
+  createSavedByQueueRouteError,
+} from '@/services/storage/syncErrorCatalog';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import {
   isPermissionDeniedError,
@@ -313,8 +316,9 @@ export const updateRecordPartial = async (
       const clinicalAuthorityFenced = hasClinicalAuthorityPatch && bedTreeAuthorityFenced;
       const requiresAuthoritySeparation =
         clinicalAuthorityMode === 'enforced' || bedTreeAuthorityFenced;
+      // These three refusals choose the route, not a conflict: the day's queue task saves the edit.
       if (requiresAuthoritySeparation && hasStructuralBedPatch && hasClinicalAuthorityPatch) {
-        throw new ConcurrencyError(
+        throw createSavedByQueueRouteError(
           'La edición mezcla campos clínicos y estructurales de cama y debe guardarse por separado.'
         );
       }
@@ -323,7 +327,7 @@ export const updateRecordPartial = async (
         hasClinicalAuthorityPatch &&
         !isClinicalPatchForAuthority
       ) {
-        throw new ConcurrencyError(
+        throw createSavedByQueueRouteError(
           'La edición mezcla cambios clínicos con otros campos y debe guardarse por separado.'
         );
       }
@@ -332,7 +336,7 @@ export const updateRecordPartial = async (
         hasStructuralBedPatch &&
         structuralCompanionPaths.length > 0
       ) {
-        throw new ConcurrencyError(
+        throw createSavedByQueueRouteError(
           'La edición mezcla cambios de cama con otros campos y debe guardarse por separado.'
         );
       }

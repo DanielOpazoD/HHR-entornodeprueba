@@ -131,6 +131,9 @@ export interface CopyPatientResult {
 /** Tags a write queued as a conflict because another device changed the same field (SAVE-02). */
 export const FIELD_CHANGED_ELSEWHERE_TAG = 'field_changed_elsewhere';
 
+/** Tags an edit that only the day's queue task saves (a movement that frees a bed). */
+export const SAVED_BY_QUEUE_ROUTE_TAG = 'saved_by_queue_route';
+
 /** Persistence evidence for the attempted write, independent of promise resolution. */
 export const resolveDailyRecordSavedState = (result: {
   savedLocally: boolean;

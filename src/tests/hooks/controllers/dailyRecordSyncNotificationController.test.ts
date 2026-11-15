@@ -119,6 +119,31 @@ describe('dailyRecordSyncNotificationController', () => {
     );
   });
 
+  it('stays silent for an edit that the day queue task saves, and only for that one', () => {
+    const queued = {
+      date: '2026-03-03',
+      outcome: 'queued',
+      savedLocally: true,
+      updatedRemotely: false,
+      queuedForRetry: true,
+      autoMerged: false,
+      patchedFields: 2,
+    } as const;
+
+    expect(
+      resolvePatchOutcomeFeedback(
+        createUpdatePartialDailyRecordResult({
+          ...queued,
+          observabilityTags: ['daily_record', 'write', 'saved_by_queue_route'],
+        })
+      )
+    ).toBeNull();
+    // A retry after a failed remote write keeps its notice.
+    expect(resolvePatchOutcomeFeedback(createUpdatePartialDailyRecordResult(queued))?.title).toBe(
+      'Cambio pendiente de sincronización'
+    );
+  });
+
   it('returns feedback for blocked patch outcomes', () => {
     expect(
       resolvePatchOutcomeFeedback(
