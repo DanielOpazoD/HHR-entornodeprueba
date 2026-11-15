@@ -33,6 +33,41 @@ export const destroyDicomEngine = (engine: RenderingEngine) => {
   }
 };
 
+/** The parts of a VTK OpenGL window and mapper node that hold shared textures. */
+interface SharedTextureWindow {
+  getViewNodeFor: (renderable: unknown) => { get: (...keys: string[]) => object } | undefined;
+  unregisterGraphicsResourceUser: (coreObject: unknown, user: unknown) => void;
+}
+const VOLUME_MAPPER_TEXTURES = [
+  '_colorTextureCore',
+  '_opacityTextureCore',
+  '_labelOutlineThicknessTextureCore',
+];
+
+/**
+ * Remove the viewports a mode change replaces. Cornerstone 4.22 setViewports keeps their VTK
+ * renderers (actors, mappers, textures) in the shared window; disableElement removes them. Its
+ * volume mapper counts its transfer-function textures privately, so deleting it never releases
+ * them: unregister them first (VTK keeps a texture while another mapper still uses it).
+ */
+export const removeDicomViewports = (engine: RenderingEngine) => {
+  for (const viewport of engine.getViewports()) {
+    if (!getShouldUseCPURendering()) {
+      const window = engine
+        .getOffscreenMultiRenderWindow(viewport.id)
+        .getOpenGLRenderWindow() as unknown as SharedTextureWindow;
+      for (const { actor } of viewport.getActors()) {
+        const mapper = window.getViewNodeFor((actor as { getMapper: () => unknown }).getMapper());
+        if (!mapper) continue;
+        Object.values(mapper.get(...VOLUME_MAPPER_TEXTURES)).forEach(texture =>
+          window.unregisterGraphicsResourceUser(texture, mapper)
+        );
+      }
+    }
+    engine.disableElement(viewport.id);
+  }
+};
+
 /** Invalidate the old GPU handle, retaining the verified voxels and marking every slice for upload. */
 export const resetDicomVolumeGraphics = (engine: RenderingEngine, volumeId: string) => {
   const volume = cache.getVolume(volumeId);

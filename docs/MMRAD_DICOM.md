@@ -717,7 +717,14 @@ una nueva ejecución después de una pérdida gráfica; no continúa con cuadros
 La prueba sintética de estabilidad provoca pérdidas de contexto, alterna seis veces
 Original/MPR/3D/comparación, verifica posiciones y descargas únicas, mide heap tras GC
 y comprueba cero contextos del visor activos tras cerrar. El límite de crecimiento es
-32 MiB para ese fixture; no constituye una garantía de memoria para estudios reales.
+32 MiB para ese fixture, y de la segunda a la sexta vuelta cada vuelta suma menos de 512 KiB;
+no constituye una garantía de memoria para estudios reales.
+
+Al cambiar de modo, el visor retira los viewports anteriores con `disableElement` antes de
+`setViewports` (`removeDicomViewports`). En Cornerstone 4.22, `setViewports` conserva los
+renderizadores VTK reemplazados, y su mapeador de volumen no libera al borrarse las texturas
+de color, opacidad y contorno; sin este paso cada vuelta 3D/Original/Comparar/MPR retenía
+~1 MB y un dibujo más lento hasta cerrar el visor (medido en 40 vueltas, 2026-11-15).
 
 ### Medición de arranque y fases de descarga (2026-10-18)
 
