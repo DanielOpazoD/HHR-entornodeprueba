@@ -3,7 +3,6 @@ import {
   formatHandoffDate,
   formatHandoffDateTime,
   formatHandoffVerboseDate,
-  getMedicalSpecialtyContinuityHint,
   getMedicalSpecialtyStatusLabel,
   resolveHandoffDocumentTitleLabel,
 } from '@/shared/handoff/handoffPresentation';
@@ -22,12 +21,6 @@ describe('handoffPresentation', () => {
     );
     expect(getMedicalSpecialtyStatusLabel('confirmed_no_changes')).toBe('Confirmado sin cambios');
     expect(getMedicalSpecialtyStatusLabel('pending')).toBe('Pendiente');
-  });
-
-  it('resolves compact continuity hints from the same shared contract', () => {
-    expect(getMedicalSpecialtyContinuityHint('updated_by_specialist')).toContain('actualizada hoy');
-    expect(getMedicalSpecialtyContinuityHint('confirmed_no_changes')).toContain('confirmada');
-    expect(getMedicalSpecialtyContinuityHint('pending')).toContain('Pendiente');
   });
 
   it('reuses a shared title label for generated handoff documents', () => {

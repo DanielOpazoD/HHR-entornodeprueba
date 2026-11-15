@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildMedicalHandoffSignatureLink,
   resolveMedicalHandoffScope,
-  resolveScopedMedicalHandoffSentAt,
   resolveScopedMedicalSignature,
-  resolveScopedMedicalSignatureToken,
 } from '@/features/handoff/controllers/medicalHandoffScopeController';
+// The signature link, token and sent-at readers live only in the domain module the delivery uses.
+import {
+  buildMedicalHandoffSignatureLink,
+  resolveScopedMedicalHandoffSentAt,
+  resolveScopedMedicalSignatureToken,
+} from '@/domain/handoff/scope';
 
 describe('resolveMedicalHandoffScope', () => {
   it.each([['all'], ['upc'], ['no-upc']] as const)(

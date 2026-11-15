@@ -121,30 +121,3 @@ export const getMissingFieldsLabel = (fields: CriticalField[]): string => {
 
   return fields.map(f => labels[f]).join(', ');
 };
-
-/**
- * Check if a specific bed has critical field issues
- */
-export const hasCriticalIssues = (
-  record: DailyRecordCriticalValidationState,
-  bedId: string,
-  isCrib: boolean = false
-): CriticalField[] => {
-  const bed = BEDS.find(b => b.id === bedId);
-  if (!bed) return [];
-
-  const patient = record.beds[bedId];
-  if (!patient) return [];
-
-  if (isCrib) {
-    if (patient.clinicalCrib?.patientName && patient.clinicalCrib.patientName.trim() !== '') {
-      return getMissingCriticalFields(patient.clinicalCrib);
-    }
-  } else {
-    if (patient.patientName && patient.patientName.trim() !== '' && !patient.isBlocked) {
-      return getMissingCriticalFields(patient);
-    }
-  }
-
-  return [];
-};

@@ -1,4 +1,3 @@
-import type { AuditLogEntry } from '@/types/auditLogTypes';
 import {
   hasMeaningfulAuditDetails,
   normalizeAuditDetails,
@@ -73,23 +72,3 @@ export const mergeDebouncedAuditDetails = (
     changes: mergedChanges,
   });
 };
-
-export const buildAuditEntryInput = (
-  userId: string,
-  action: string,
-  entityType: AuditLogEntry['entityType'],
-  entityId: string,
-  details: Record<string, unknown>,
-  patientRut?: string,
-  recordDate?: string,
-  authors?: string
-) => ({
-  userId,
-  action,
-  entityType,
-  entityId,
-  details,
-  patientRut,
-  recordDate,
-  authors,
-});

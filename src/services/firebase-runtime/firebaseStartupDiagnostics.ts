@@ -46,20 +46,4 @@ export const validateFirebaseRuntimeConfig = (config: FirebaseOptions) => {
   }
 };
 
-export const buildMissingFirebaseConfigDiagnostics = (): FirebaseRuntimeConfigDiagnostics => ({
-  issues: [
-    {
-      field: 'apiKey',
-      severity: 'blocking',
-      summary: 'No fue posible obtener la configuración principal de Firebase.',
-      action:
-        'Revisa la función de configuración del entorno y confirma que pueda devolver las variables de Firebase.',
-    },
-  ],
-  hasBlockingIssue: true,
-  summary:
-    'No se pudo cargar la configuración principal del sistema. Revisa la función de configuración y las variables de Firebase del entorno.',
-  nextStep: 'Corrige la configuración del entorno y vuelve a intentar.',
-});
-
 export { mountFirebaseConfigWarning };

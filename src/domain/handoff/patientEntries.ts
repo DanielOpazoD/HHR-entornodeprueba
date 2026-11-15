@@ -84,24 +84,6 @@ export const getPatientMedicalHandoffEntries = (patient: PatientData): MedicalHa
   ];
 };
 
-export const getDisplayMedicalHandoffEntries = (
-  patient: PatientData,
-  ensureDraft: boolean
-): MedicalHandoffEntry[] => {
-  const persisted = getPatientMedicalHandoffEntries(patient);
-  if (persisted.length > 0) return persisted;
-  if (!ensureDraft) return [];
-
-  return [
-    createMedicalHandoffEntry(
-      patient.specialty || MEDICAL_SPECIALTY_OPTIONS[0] || Specialty.MEDICINA,
-      {
-        id: 'draft-primary',
-      }
-    ),
-  ];
-};
-
 export const getNextMedicalHandoffSpecialty = (
   patient: PatientData,
   entries: MedicalHandoffEntry[]

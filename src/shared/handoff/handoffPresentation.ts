@@ -80,16 +80,3 @@ export const getMedicalSpecialtyStatusLabel = (
       return 'Pendiente';
   }
 };
-
-export const getMedicalSpecialtyContinuityHint = (
-  status: 'updated_by_specialist' | 'confirmed_no_changes' | 'pending'
-): string => {
-  switch (status) {
-    case 'updated_by_specialist':
-      return 'La especialidad ya fue actualizada hoy por un especialista.';
-    case 'confirmed_no_changes':
-      return 'La continuidad diaria ya fue confirmada hoy.';
-    default:
-      return 'Pendiente de actualización o confirmación diaria.';
-  }
-};

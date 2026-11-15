@@ -25,7 +25,6 @@
  *
  * FUNCIONES EXPORTADAS:
  *  - searchDiagnoses(query, signal?) → TerminologyConcept[]
- *  - searchDiagnosesAI(query, signal?) → TerminologyConcept[]  (wrapper de forceAISearch)
  *  - forceAISearch(query, signal?) → TerminologyConcept[]
  *  - getCIE10Description(code) → string | null
  */

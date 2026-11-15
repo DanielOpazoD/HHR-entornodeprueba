@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Bot,
   Download,
   MousePointer2,
   Move,
@@ -18,17 +17,6 @@ import { ModalSection } from '@/components/shared/baseModalSection';
 import { SecuritySettings } from './SecuritySettings';
 
 export type SettingsTabId = 'visual' | 'table' | 'security' | 'diagnostics';
-
-export const settingsTabs: Array<{
-  id: SettingsTabId;
-  label: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-}> = [
-  { id: 'visual', label: 'Visual', icon: Sparkles },
-  { id: 'table', label: 'Tabla', icon: TableProperties },
-  { id: 'security', label: 'Seguridad', icon: Shield },
-  { id: 'diagnostics', label: 'Diagnóstico', icon: Bot },
-];
 
 const aestheticOptions = [
   {
@@ -262,31 +250,6 @@ export const SettingsSecurityTab: React.FC = () => (
       variant="warning"
     >
       <SecuritySettings />
-    </ModalSection>
-  </div>
-);
-
-interface DiagnosticsTabProps {
-  onClose: () => void;
-  onRunTest: () => void;
-}
-
-export const SettingsDiagnosticsTab: React.FC<DiagnosticsTabProps> = ({ onClose, onRunTest }) => (
-  <div className="grid gap-4">
-    <ModalSection title="Diagnóstico" icon={<Bot size={16} />} className="min-h-[220px]">
-      <p className="mb-4 text-xs text-slate-500">
-        Lance una prueba rápida del sistema desde este mismo panel.
-      </p>
-      <Button
-        onClick={() => {
-          onRunTest();
-          onClose();
-        }}
-        variant="outline"
-        className="w-full"
-      >
-        Ejecutar Test
-      </Button>
     </ModalSection>
   </div>
 );

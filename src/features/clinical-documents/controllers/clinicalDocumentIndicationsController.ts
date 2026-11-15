@@ -1,8 +1,3 @@
-import {
-  convertPlainTextToClinicalDocumentHtml,
-  normalizeClinicalDocumentContentForStorage,
-} from '@/features/clinical-documents/controllers/clinicalDocumentRichTextController';
-
 export type ClinicalDocumentIndicationSpecialtyId =
   | 'tmt'
   | 'cirugia'
@@ -31,31 +26,6 @@ const normalizeSearchValue = (value: string): string =>
     .toLowerCase()
     .replace(/\s+/g, ' ')
     .trim();
-
-/**
- * Appends an indication text block to existing rich-text content.
- * @param currentContent - The current HTML content of the indications section.
- * @param indicationText - Plain text to append.
- * @returns The merged HTML content normalized for storage.
- */
-export const appendClinicalDocumentIndicationText = (
-  currentContent: string,
-  indicationText: string
-): string => {
-  const trimmedText = indicationText.trim();
-  if (!trimmedText) {
-    return normalizeClinicalDocumentContentForStorage(currentContent);
-  }
-
-  const normalizedCurrent = normalizeClinicalDocumentContentForStorage(currentContent);
-  const nextBlock = convertPlainTextToClinicalDocumentHtml(trimmedText);
-
-  if (!normalizedCurrent) {
-    return nextBlock;
-  }
-
-  return normalizeClinicalDocumentContentForStorage(`${normalizedCurrent}<br>${nextBlock}`);
-};
 
 /**
  * Resolves a free-text specialty label to a known specialty ID using fuzzy matching.
