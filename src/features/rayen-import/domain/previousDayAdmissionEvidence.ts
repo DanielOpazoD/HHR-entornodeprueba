@@ -24,7 +24,7 @@ import { mapRayenBed } from '../mapping/bedMapping';
 import { rayenToPatientData } from '../mapping/rayenToPatientData';
 import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
 import { resolveClinicalDayBounds } from '@/utils/clinicalDayScheduleUtils';
-import { normalizeRut } from '@/utils/rutUtils';
+import { isSameDocumentBeforeLetterRule, normalizeRut } from '@/utils/rutUtils';
 
 interface EvidenceDependencies {
   fetchReport: (encounterId: string) => Promise<PatientFlowReportResult>;
@@ -109,7 +109,7 @@ const currentPrincipalFor = (
       return encounter.encounterId === patient.clinicalEpisodeId;
     }
     return (
-      !!normalizeRut(encounter.run) && normalizeRut(encounter.run) === normalizeRut(patient.rut)
+      !!normalizeRut(encounter.run) && isSameDocumentBeforeLetterRule(encounter.run, patient.rut)
     );
   });
 

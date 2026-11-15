@@ -23,7 +23,7 @@ import {
   type ApplyContext,
   type ResolvedApplyContext,
 } from './applyCensusImportDiff';
-import { normalizeRut } from '@/utils/rutUtils';
+import { documentKeyBeforeLetterRule, normalizeRut } from '@/utils/rutUtils';
 
 const normalizeEpisode = (episode?: string): string => String(episode ?? '').trim();
 
@@ -33,7 +33,7 @@ const normalizeEpisode = (episode?: string): string => String(episode ?? '').tri
  * same day would collapse to one id and silently drop a movement.
  */
 const crossDayMovementId = (entry: DischargeEntry, day: string): string => {
-  const rut = normalizeRut(entry.rut);
+  const rut = documentKeyBeforeLetterRule(entry.rut);
   const episode = String(entry.encounterId ?? '').trim();
   // Exact episodes take precedence: mother and newborn may legitimately share one maternal RUN.
   // Legacy rows keep their established RUT id and still fall back to bed when identity is absent.
@@ -111,7 +111,9 @@ export const applyCrossDayDiff = (
   // Also index by patient RUT: a discharge the nurse (or a prior path) already recorded that day has
   // a DIFFERENT id than our deterministic one, so id-only dedup would append a SECOND egreso for the
   // same patient. Skip by RUT too, so a patient already egresado that day is never double-counted.
-  const seenRuts = new Set(existing.map(movement => normalizeRut(movement.rut)).filter(Boolean));
+  const seenRuts = new Set(
+    existing.map(movement => documentKeyBeforeLetterRule(movement.rut)).filter(Boolean)
+  );
   const seenEpisodes = new Set(
     existing.map(movement => normalizeEpisode(movement.clinicalEpisodeId)).filter(Boolean)
   );
@@ -136,7 +138,7 @@ export const applyCrossDayDiff = (
     const patient = known?.patient ?? incoming.patient;
     const isNested = known?.isNested ?? incoming.isNested ?? false;
     const id = crossDayMovementId(entry, day);
-    const rut = normalizeRut(entry.rut);
+    const rut = documentKeyBeforeLetterRule(entry.rut);
     const episode = normalizeEpisode(entry.encounterId);
     const principalAlreadyRecorded =
       seen.has(id) ||
@@ -170,7 +172,7 @@ export const applyCrossDayDiff = (
     // must not prevent the missing newborn traceability row from being backfilled.
     if (hasAssociatedCrib) {
       const nestedId = crossDayMovementId(nestedEntry, day);
-      const nestedRut = normalizeRut(nestedEntry.rut);
+      const nestedRut = documentKeyBeforeLetterRule(nestedEntry.rut);
       const nestedEpisode = normalizeEpisode(nestedEntry.encounterId);
       if (
         !seen.has(nestedId) &&
