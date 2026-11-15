@@ -37,7 +37,11 @@ import {
   planPreviousDayAdmissionEdits,
   previousDayAdmissionDays,
 } from './previousDayAdmissionCorrections';
-import { normalizeRut } from '@/utils/rutUtils';
+import {
+  documentKeyBeforeLetterRule,
+  isSameDocumentBeforeLetterRule,
+  normalizeRut,
+} from '@/utils/rutUtils';
 
 export { verifyPreviousDayAdmissionPlacements } from './previousDayAdmissionEvidence';
 
@@ -58,7 +62,7 @@ const findRecordedEgreso = (
   rut: string,
   encounterId?: string
 ) => {
-  const norm = normalizeRut(rut);
+  const norm = documentKeyBeforeLetterRule(rut);
   if (!record || (!norm && !encounterId)) return undefined;
   const episode = encounterId?.trim();
   const movements = [...record.discharges, ...record.transfers, ...record.cma];
@@ -67,7 +71,7 @@ const findRecordedEgreso = (
       !movement.deletedAt &&
       (episode
         ? recordedOutcomeEpisodeId(movement) === episode
-        : normalizeRut(movement.rut) === norm)
+        : documentKeyBeforeLetterRule(movement.rut) === norm)
   );
 };
 
@@ -128,7 +132,7 @@ export const computePreviousDayEdits = async (
           Boolean(patient?.patientName) &&
           (encounterId
             ? patient?.clinicalEpisodeId === encounterId
-            : Boolean(normalizeRut(rut)) && normalizeRut(patient?.rut) === normalizeRut(rut))
+            : Boolean(normalizeRut(rut)) && isSameDocumentBeforeLetterRule(patient?.rut, rut))
       );
 
   const dischargeEdits = planPreviousDayEdits(diff, censusDay, {
@@ -373,7 +377,7 @@ export const fileCrossDayCorrections = async (
             (expected.clinicalEpisodeId
               ? actual.clinicalEpisodeId !== expected.clinicalEpisodeId
               : !normalizeRut(expected.rut) ||
-                normalizeRut(actual.rut) !== normalizeRut(expected.rut))
+                !isSameDocumentBeforeLetterRule(actual.rut, expected.rut))
           ) {
             throw new Error(
               'El paciente del ingreso histórico cambió antes de copiar el diagnóstico.'

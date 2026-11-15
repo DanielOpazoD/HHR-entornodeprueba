@@ -12,7 +12,7 @@ import { mapRayenBed } from '../mapping/bedMapping';
 import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
 import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
 import { missingHistoricalDiagnosis } from './historicalAdmissionPatch';
-import { normalizeRut } from '@/utils/rutUtils';
+import { isSameDocumentBeforeLetterRule, normalizeRut } from '@/utils/rutUtils';
 export type HistoricalAdmissionSubject = {
   day: string;
   kind: 'principal' | 'clinical-crib';
@@ -100,8 +100,9 @@ const samePatient = (candidate: PatientData | undefined, expected: PatientData):
   if (episodeId && candidate.clinicalEpisodeId) {
     return candidate.clinicalEpisodeId === episodeId;
   }
-  const rut = normalizeRut(expected.rut);
-  return !!rut && normalizeRut(candidate.rut) === rut;
+  return (
+    !!normalizeRut(expected.rut) && isSameDocumentBeforeLetterRule(candidate.rut, expected.rut)
+  );
 };
 
 const recordHasSubject = (
