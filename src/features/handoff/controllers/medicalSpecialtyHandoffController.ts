@@ -1,12 +1,9 @@
 import { readClinicalTimestamp } from '@/utils/dateDisplayUtils';
-import type { AuthUser } from '@/types/authRoleTypes';
 import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import type {
-  MedicalHandoffActor,
   MedicalSpecialty,
   MedicalSpecialtyHandoffNote,
 } from '@/types/domain/dailyRecordMedicalHandoff';
-import { getMedicalSpecialtyContinuityHint } from '@/shared/handoff/handoffPresentation';
 
 export const MEDICAL_SPECIALTY_ORDER: readonly MedicalSpecialty[] = [
   'cirugia',
@@ -34,14 +31,6 @@ export type MedicalSpecialtyDailyStatus =
   | 'confirmed_no_changes'
   | 'pending';
 
-export interface MedicalSpecialtyTabState {
-  specialty: MedicalSpecialty;
-  label: string;
-  status: MedicalSpecialtyDailyStatus;
-  isEditable: boolean;
-  isActive: boolean;
-}
-
 export const getMedicalSpecialtyLabel = (specialty: MedicalSpecialty): string =>
   MEDICAL_SPECIALTY_LABELS[specialty];
 
@@ -63,156 +52,6 @@ export const resolveMedicalSpecialtyDailyStatus = (
 
   return 'pending';
 };
-
-export const canConfirmMedicalSpecialtyNoChanges = (role: string | undefined): boolean =>
-  role === 'admin' || role === 'nurse_hospital' || role === 'editor';
-
-export const buildMedicalSpecialtyActor = (
-  user: AuthUser | null | undefined,
-  role?: string
-): Partial<MedicalHandoffActor> => ({
-  uid: user?.uid,
-  email: user?.email || undefined,
-  displayName: user?.displayName || user?.email || undefined,
-  role,
-});
-
-export const resolveActiveMedicalSpecialty = ({
-  activeSpecialty,
-  editableSpecialties,
-}: {
-  activeSpecialty: MedicalSpecialty;
-  editableSpecialties: MedicalSpecialty[];
-}): MedicalSpecialty =>
-  editableSpecialties.length > 0 && !editableSpecialties.includes(activeSpecialty)
-    ? editableSpecialties[0]
-    : activeSpecialty;
-
-export const resolveMedicalSpecialtyContinuityDraft = ({
-  drafts,
-  specialty,
-  note,
-  dateKey,
-}: {
-  drafts: Partial<Record<MedicalSpecialty, string>>;
-  specialty: MedicalSpecialty;
-  note: MedicalSpecialtyHandoffNote | undefined;
-  dateKey: string;
-}): string =>
-  drafts[specialty] || note?.dailyContinuity?.[dateKey]?.comment || DEFAULT_NO_CHANGES_COMMENT;
-
-export const buildMedicalSpecialtyTabState = ({
-  specialty,
-  record,
-  dateKey,
-  editableSpecialties,
-  readOnly,
-  activeSpecialty,
-}: {
-  specialty: MedicalSpecialty;
-  record: Pick<HandoffDailyRecordContract, 'medicalHandoffBySpecialty'>;
-  dateKey: string;
-  editableSpecialties: MedicalSpecialty[];
-  readOnly: boolean;
-  activeSpecialty: MedicalSpecialty;
-}): MedicalSpecialtyTabState => ({
-  specialty,
-  label: getMedicalSpecialtyLabel(specialty),
-  status: resolveMedicalSpecialtyDailyStatus(getMedicalSpecialtyNote(record, specialty), dateKey),
-  isEditable: editableSpecialties.includes(specialty) && !readOnly,
-  isActive: activeSpecialty === specialty,
-});
-
-export const buildMedicalSpecialtyTabsState = ({
-  record,
-  dateKey,
-  editableSpecialties,
-  readOnly,
-  activeSpecialty,
-}: {
-  record: Pick<HandoffDailyRecordContract, 'medicalHandoffBySpecialty'>;
-  dateKey: string;
-  editableSpecialties: MedicalSpecialty[];
-  readOnly: boolean;
-  activeSpecialty: MedicalSpecialty;
-}): MedicalSpecialtyTabState[] =>
-  MEDICAL_SPECIALTY_ORDER.map(specialty =>
-    buildMedicalSpecialtyTabState({
-      specialty,
-      record,
-      dateKey,
-      editableSpecialties,
-      readOnly,
-      activeSpecialty,
-    })
-  );
-
-export const resolveMedicalSpecialtyContinuityEditorState = ({
-  role,
-  readOnly,
-  activeStatus,
-}: {
-  role?: string;
-  readOnly: boolean;
-  activeStatus: MedicalSpecialtyDailyStatus;
-}): {
-  canConfirmToday: boolean;
-  isCommentDisabled: boolean;
-  helperText: string;
-} => {
-  const canConfirmToday = canConfirmMedicalSpecialtyNoChanges(role) && !readOnly;
-
-  return {
-    canConfirmToday,
-    isCommentDisabled: !canConfirmToday || activeStatus === 'updated_by_specialist',
-    helperText: canConfirmToday
-      ? activeStatus === 'pending'
-        ? 'Usa este comentario cuando la condición permanezca sin cambios respecto a la última nota del especialista.'
-        : getMedicalSpecialtyContinuityHint(activeStatus)
-      : readOnly
-        ? 'Solo lectura para este registro.'
-        : 'Solo un usuario autorizado puede confirmar continuidad.',
-  };
-};
-
-export const hasMedicalSpecialtyStructuredData = (
-  record: Pick<HandoffDailyRecordContract, 'medicalHandoffBySpecialty'>
-): boolean =>
-  MEDICAL_SPECIALTY_ORDER.some(specialty => Boolean(getMedicalSpecialtyNote(record, specialty)));
-
-export interface PrintableMedicalSpecialtyBlock {
-  specialty: MedicalSpecialty;
-  title: string;
-  content?: string;
-  continuityComment?: string;
-}
-
-export const buildPrintableMedicalSpecialtyBlocks = (
-  record: Pick<HandoffDailyRecordContract, 'date' | 'medicalHandoffBySpecialty'>
-): PrintableMedicalSpecialtyBlock[] =>
-  MEDICAL_SPECIALTY_ORDER.flatMap(specialty => {
-    const note = getMedicalSpecialtyNote(record, specialty);
-    const status = resolveMedicalSpecialtyDailyStatus(note, record.date);
-    const continuity = note?.dailyContinuity?.[record.date];
-    const content = note?.note?.trim();
-    const continuityComment =
-      status === 'confirmed_no_changes'
-        ? continuity?.comment?.trim() || DEFAULT_NO_CHANGES_COMMENT
-        : undefined;
-
-    if (!content && !continuityComment) {
-      return [];
-    }
-
-    return [
-      {
-        specialty,
-        title: getMedicalSpecialtyLabel(specialty),
-        content,
-        continuityComment,
-      },
-    ];
-  });
 
 const buildSpecialtySummaryBlock = (
   specialty: MedicalSpecialty,

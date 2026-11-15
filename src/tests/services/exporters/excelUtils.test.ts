@@ -1,9 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import type { Worksheet } from 'exceljs';
 import {
   createWorkbook,
   workbookToBuffer,
-  autoFitColumns,
   BORDER_THIN,
   HEADER_FILL,
 } from '@/services/exporters/excelUtils';
@@ -22,11 +20,6 @@ vi.mock('exceljs/dist/exceljs.min.js', () => ({
 }));
 
 describe('excelUtils', () => {
-  type WorksheetColumnLike = { values: unknown[] | null; width: number };
-  type WorksheetLike = { columns: WorksheetColumnLike[] };
-
-  const asWorksheet = (value: WorksheetLike): Worksheet => value as unknown as Worksheet;
-
   describe('createWorkbook', () => {
     it('should create a new workbook', async () => {
       const workbook = await createWorkbook();
@@ -39,36 +32,6 @@ describe('excelUtils', () => {
       const workbook = await createWorkbook();
       const buffer = await workbookToBuffer(workbook);
       expect(buffer).toBeInstanceOf(Buffer);
-    });
-  });
-
-  describe('autoFitColumns', () => {
-    it('should auto-fit columns', () => {
-      const mockWorksheet = {
-        columns: [
-          { values: ['Header', 'Short', 'LongerValue'], width: 0 },
-          { values: ['H2', 'V1', 'V2'], width: 0 },
-          { values: null, width: 0 },
-        ],
-      };
-
-      autoFitColumns(asWorksheet(mockWorksheet));
-
-      // First column with values should have been fitted
-      expect(mockWorksheet.columns[0].width).toBeGreaterThan(0);
-      // Empty column should have default width
-      expect(mockWorksheet.columns[2].width).toBe(10);
-    });
-
-    it('should respect min and max width', () => {
-      const mockWorksheet = {
-        columns: [{ values: ['VeryLongColumnHeaderThatExceedsMax' + 'X'.repeat(100)], width: 0 }],
-      };
-
-      autoFitColumns(asWorksheet(mockWorksheet), 10, 50);
-
-      // Should not exceed maxWidth
-      expect(mockWorksheet.columns[0].width).toBeLessThanOrEqual(50);
     });
   });
 

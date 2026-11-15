@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   validateCriticalFields,
   getMissingFieldsLabel,
-  hasCriticalIssues,
 } from '@/services/validation/criticalFieldsValidator';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
@@ -159,38 +158,6 @@ describe('criticalFieldsValidator', () => {
       const label = getMissingFieldsLabel(['status', 'admissionDate']);
       expect(label).toContain('Estado');
       expect(label).toContain('Fecha de ingreso');
-    });
-  });
-
-  describe('hasCriticalIssues', () => {
-    it('should return empty array for complete patient', () => {
-      const record = createRecord({
-        R1: createPatient(),
-      });
-
-      const issues = hasCriticalIssues(record, 'R1');
-      expect(issues).toHaveLength(0);
-    });
-
-    it('should return missing fields for incomplete patient', () => {
-      const record = createRecord({
-        R1: createPatient({ status: PatientStatus.EMPTY }),
-      });
-
-      const issues = hasCriticalIssues(record, 'R1');
-      expect(issues).toContain('status');
-    });
-
-    it('should check clinical crib if isCrib is true', () => {
-      const record = createRecord({
-        M1: {
-          ...createPatient(),
-          clinicalCrib: createPatient({ admissionDate: '' }),
-        },
-      });
-
-      const issues = hasCriticalIssues(record, 'M1', true);
-      expect(issues).toContain('admissionDate');
     });
   });
 });

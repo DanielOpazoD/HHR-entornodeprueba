@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { buildUndoCmaPatch } from '@/application/census/cmaUndoPatchUseCase';
-import { resolveApplyUndoCmaRecord } from '@/features/census/controllers/patientMovementUndoMutationController';
 import { preparePatchedRecordPersistence } from '@/services/repositories/dailyRecordPatchPersistenceController';
 
 const date = '2026-10-10';
@@ -49,23 +48,15 @@ const createScenario = (rut = '11.111.111-1') => {
 
 describe('CMA undo episode isolation', () => {
   it.each(['11.111.111-1', ''])(
-    'keeps prior discharges, transfers and CMA in both undo paths (document=%s)',
+    'keeps prior discharges, transfers and CMA when undoing (document=%s)',
     rut => {
-      const { current, item, restored } = createScenario(rut);
+      const { current, item } = createScenario(rut);
       const patch = buildUndoCmaPatch(current, item)!;
-      const alternate = resolveApplyUndoCmaRecord({
-        record: current,
-        cmaId: item.id,
-        bedId: 'R1',
-        updatedBed: restored,
-      });
 
-      for (const result of [patch, alternate]) {
-        expect(result.discharges?.[0].deletedAt).toBeUndefined();
-        expect(result.transfers?.[0].deletedAt).toBeUndefined();
-        expect(result.cma?.[0].deletedAt).toBeUndefined();
-        expect(result.cma?.[1].deletedAt).toEqual(expect.any(String));
-      }
+      expect(patch.discharges?.[0].deletedAt).toBeUndefined();
+      expect(patch.transfers?.[0].deletedAt).toBeUndefined();
+      expect(patch.cma?.[0].deletedAt).toBeUndefined();
+      expect(patch.cma?.[1].deletedAt).toEqual(expect.any(String));
     }
   );
 
