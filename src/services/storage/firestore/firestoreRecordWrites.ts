@@ -3,7 +3,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { withRetry } from '@/utils/networkUtils';
 import { loadFunctionsModule } from '@/services/firebase-runtime/functionsModuleLoader';
-import { DataRegressionError } from '@/utils/integrityGuard';
+import { isRetryableError } from '@/services/utils/errorServiceController';
 import {
   docToRecord,
   getRecordDocRef,
@@ -126,8 +126,9 @@ export const saveRecordToFirestore = async (
         {
           onRetry: (err: unknown, attempt: number) =>
             logFirestoreWriteRetry('save', record.date, attempt, err),
-          shouldRetry: (err: unknown) =>
-            !(err instanceof ConcurrencyError) && !(err instanceof DataRegressionError),
+          // Only a transient transport error can succeed by waiting; a conflict, a regression,
+          // a denial or a missing document fails at once and keeps today's fallback and notice.
+          shouldRetry: isRetryableError,
         }
       );
 
@@ -384,7 +385,7 @@ export const updateRecordPartial = async (
           {
             onRetry: (err: unknown, attempt: number) =>
               logFirestoreWriteRetry('partialUpdate', date, attempt, err),
-            shouldRetry: (err: unknown) => !(err instanceof ConcurrencyError),
+            shouldRetry: isRetryableError,
           }
         );
         // Plain local-first writes stay receipt-less, because a returned
@@ -404,6 +405,7 @@ export const updateRecordPartial = async (
         {
           onRetry: (err: unknown, attempt: number) =>
             logFirestoreWriteRetry('partialUpdate', date, attempt, err),
+          shouldRetry: isRetryableError,
         }
       );
     };
