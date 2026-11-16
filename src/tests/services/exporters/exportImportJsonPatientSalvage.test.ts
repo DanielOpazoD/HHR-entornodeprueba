@@ -93,3 +93,21 @@ describe('JSON patient salvage', () => {
     });
   });
 });
+
+describe('JSON day salvage', () => {
+  it('counts a day whose only repair is a discarded top-level field', async () => {
+    const backup = { [DATE]: { date: DATE, beds: {}, medicalSignature: 42 } };
+    const result = await importDataJSONDetailed(
+      new File([JSON.stringify(backup)], 'synthetic.json', { type: 'application/json' })
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      outcome: 'repaired',
+      importedCount: 1,
+      repairedCount: 1,
+    });
+    const saved: DailyRecord[] = storage.save.mock.calls[0][0];
+    expect('medicalSignature' in saved[0]).toBe(false);
+  });
+});

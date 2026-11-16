@@ -15,6 +15,8 @@ export interface DailyRecordParseReport {
   droppedCmaItems: number;
   /** Eventos del historial de sincronización que no pudieron salvarse en la ruta de reparación. */
   droppedRayenSyncEvents: number;
+  /** Campos de primer nivel cuyo valor no pasó su esquema ni llegó al registro; solo el nombre. */
+  discardedTopLevelFields: string[];
 }
 
 export interface PatientDataParseReport {
@@ -41,6 +43,7 @@ export const hasStructuralRepairs = (
     report.droppedDischargeItems > 0 ||
     report.droppedTransferItems > 0 ||
     report.droppedCmaItems > 0 ||
-    report.droppedRayenSyncEvents > 0
+    report.droppedRayenSyncEvents > 0 ||
+    report.discardedTopLevelFields.length > 0
   );
 };

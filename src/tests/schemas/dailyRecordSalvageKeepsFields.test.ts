@@ -1,7 +1,11 @@
 // @vitest-environment node
 
 import { describe, expect, it } from 'vitest';
-import { parseDailyRecordWithDefaultsReport, safeParseDailyRecord } from '@/schemas/zodSchemas';
+import {
+  hasStructuralRepairs,
+  parseDailyRecordWithDefaultsReport,
+  safeParseDailyRecord,
+} from '@/schemas/zodSchemas';
 
 const DATE = '2026-03-04';
 
@@ -72,5 +76,39 @@ describe('salvaging a day with one invalid value', () => {
     expect('cudyrLocked' in record).toBe(false);
     expect(record.medicalSignatureByScope?.all?.doctorName).toBe('Dra. Sintética');
     expect(record.medicalHandoffDoctor).toBe('Dra. Sintética');
+  });
+});
+
+describe('the salvage report', () => {
+  it('names each top-level field it discards, without its value', () => {
+    const { report } = parseDailyRecordWithDefaultsReport(
+      { ...signedDay(), medicalSignature: 42, cudyrLocked: 'sí' },
+      DATE
+    );
+
+    expect(report.discardedTopLevelFields).toEqual(['medicalSignature', 'cudyrLocked']);
+    expect(hasStructuralRepairs(report)).toBe(true);
+  });
+
+  it('does not name a field it keeps as stored or repairs item by item', () => {
+    const { record, report } = parseDailyRecordWithDefaultsReport(
+      { ...withBrokenBed(signedDay()), bedTypeOverrides: { R1: 'NO_EXISTE' } },
+      DATE
+    );
+
+    expect(record.bedTypeOverrides).toEqual({ R1: 'NO_EXISTE' });
+    expect(report.salvagedBeds).toEqual(['R2']);
+    expect(report.discardedTopLevelFields).toEqual([]);
+  });
+
+  it('names a list or bed map it discards whole', () => {
+    const { record, report } = parseDailyRecordWithDefaultsReport(
+      { ...signedDay(), beds: 42, discharges: 'x' },
+      DATE
+    );
+
+    expect(record.beds).toEqual({});
+    expect(record.discharges).toEqual([]);
+    expect(report.discardedTopLevelFields).toEqual(['beds', 'discharges']);
   });
 });
