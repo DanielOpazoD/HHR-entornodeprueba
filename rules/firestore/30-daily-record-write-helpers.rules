@@ -11,24 +11,6 @@
       );
     }
 
-    //
-    // 1.11 Medical signature update helpers
-    // ---------------------------------------------
-    // Checks whether an update is limited to medical signature fields.
-
-    function isMedicalUpdate() {
-      let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
-      return affectedKeys.hasOnly([
-        'medicalSignature',
-        'medicalSignatureByScope',
-        'medicalHandoffDoctor',
-        'medicalHandoffSentAt',
-        'medicalHandoffSentAtByScope',
-        'medicalSignatureLinkTokenByScope',
-        'lastUpdated'
-      ]);
-    }
-
     function dailyRecordTimestampDate(recordTS) {
       let recordTime = timestamp.value(recordTS);
       return string(recordTime.year()) + '-' +
@@ -51,18 +33,12 @@
              isWithinEditingWindow(request.resource.data.dateTimestamp);
     }
 
-    function canDoctorUpdatePersistedDailyRecord() {
-      return isMedicalUpdate();
-    }
-
-    function canSpecialistUpdatePersistedDailyRecord() {
-      return isSpecialistMedicalHandoffPayload();
-    }
-
     function hasPersistedDailyRecordResource() {
       return resource != null && resource.data != null;
     }
 
+    // Only admin and nurse_hospital write a day directly; the doctor roles lost their write
+    // paths with the old medical handoff (signature and specialist notes, retired 2026-11).
     function canUpdatePersistedDailyRecord() {
       let effectiveRole = getEffectiveRole();
 
@@ -72,11 +48,7 @@
               ? true
               : effectiveRole == 'nurse_hospital'
                 ? canNurseUpdatePersistedDailyRecord()
-                : effectiveRole == 'doctor_urgency'
-                  ? canDoctorUpdatePersistedDailyRecord()
-                  : effectiveRole == 'doctor_specialist'
-                    ? canSpecialistUpdatePersistedDailyRecord()
-                    : false
+                : false
           )
         : false;
     }

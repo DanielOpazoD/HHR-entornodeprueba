@@ -291,107 +291,108 @@ export const RayenBedCollisionResolutionReceiptSchema = z.object({
   ]),
 });
 
-export const DailyRecordSchema: z.ZodType<DailyRecord, unknown> = z.preprocess(
-  input => {
-    if (!input || typeof input !== 'object' || Array.isArray(input)) {
-      return input;
-    }
+// Each top-level field of a day with its own schema. The salvage path validates them one by one,
+// so one invalid value never costs the day its other fields (signature, CUDYR lock, unknown ones).
+export const DailyRecordFieldsSchema = z
+  .object({
+    date: StringSchema.regex(DATE_REGEX),
+    beds: z.record(StringSchema, PatientDataSchema).prefault({}),
+    bedTypeOverrides: z
+      .preprocess(
+        val => {
+          if (!val || typeof val !== 'object') return {};
+          const record: Record<string, unknown> = { ...(val as Record<string, unknown>) };
+          // Filter out null/undefined values which might come from Firestore deletes or reverts
+          Object.keys(record).forEach(key => {
+            if (record[key] === null || record[key] === undefined) delete record[key];
+          });
+          return record;
+        },
+        z.record(StringSchema, BedTypeSchema)
+      )
+      .prefault({}),
+    discharges: nullishDefault(z.array(DischargeDataSchema), () => []),
+    transfers: nullishDefault(z.array(TransferDataSchema), () => []),
+    cma: nullishDefault(z.array(CMADataSchema), () => []),
+    lastUpdated: StringSchema.prefault(() => new Date().toISOString()),
+    rayenSync: nullableOptional(RayenSyncMetaSchema),
+    rayenSyncHistory: nullableOptional(z.array(RayenSyncEventSchema)),
+    rayenBedCollisionResolutions: nullableOptional(
+      z.array(RayenBedCollisionResolutionReceiptSchema)
+    ),
+    // Kept as stored, whatever its shape: the clinicalDerived contract decides whether the day
+    // is marked, unmarked or unsupported, so a marker this client does not understand is never
+    // dropped (and never sends the whole day to the salvage path).
+    clinicalDerivedLayout: nullableOptional(z.unknown()),
+    dateTimestamp: nullableOptional(z.number()),
+    schemaVersion: z.number().prefault(1),
+    nurses: TwoStaffSlotsSchema,
+    nurseName: NullableOptionalStringSchema,
+    nursesDayShift: TwoStaffSlotsSchema,
+    nursesNightShift: TwoStaffSlotsSchema,
+    tensDayShift: ThreeStaffSlotsSchema,
+    tensNightShift: ThreeStaffSlotsSchema,
+    staffingDetailsV1: nullableOptional(DailyRecordStaffingDetailsSchema),
+    activeExtraBeds: EmptyStringArraySchema,
+    handoffSharedChecklist: nullableOptional(HandoffSharedChecklistSchema),
+    handoffDayChecklist: z
+      .object({
+        escalaBraden: OptionalBooleanSchema,
+        escalaRiesgoCaidas: OptionalBooleanSchema,
+        escalaRiesgoLPP: OptionalBooleanSchema,
+      })
+      .prefault({}),
+    handoffNightChecklist: z
+      .object({
+        estadistica: OptionalBooleanSchema,
+        categorizacionCudyr: OptionalBooleanSchema,
+        encuestaUTI: OptionalBooleanSchema,
+        encuestaMedias: OptionalBooleanSchema,
+        conteoMedicamento: OptionalBooleanSchema,
+        conteoNoControlados: OptionalBooleanSchema,
+        conteoNoControladosProximaFecha: NullableOptionalStringSchema,
+      })
+      .prefault({}),
+    handoffNovedadesDayShift: NullableOptionalStringSchema,
+    handoffNovedadesNightShift: NullableOptionalStringSchema,
+    medicalHandoffNovedades: NullableOptionalStringSchema,
+    medicalHandoffBySpecialty: nullableOptional(
+      z.record(StringSchema, MedicalSpecialtyHandoffNoteSchema)
+    ),
+    medicalHandoffDoctor: NullableOptionalStringSchema,
+    medicalHandoffSentAt: NullableOptionalStringSchema,
+    medicalHandoffSentAtByScope: OptionalMedicalHandoffScopesSchema,
+    medicalSignatureLinkTokenByScope: OptionalMedicalHandoffScopesSchema,
+    medicalSignature: OptionalMedicalSignatureSchema,
+    medicalSignatureByScope: nullableOptional(
+      z.object({
+        all: OptionalMedicalSignatureSchema,
+        upc: OptionalMedicalSignatureSchema,
+        'no-upc': OptionalMedicalSignatureSchema,
+      })
+    ),
+    cudyrLocked: OptionalBooleanSchema,
+    cudyrLockedAt: NullableOptionalStringSchema,
+    cudyrLockedBy: NullableOptionalStringSchema,
+    cudyrUpdatedAt: NullableOptionalStringSchema,
+    cudyrUpdatedBy: NullableOptionalStringSchema,
+    cudyrUpdatedById: NullableOptionalStringSchema,
+    cudyrShiftDate: NullableOptionalStringSchema,
+    cudyrCompletedAt: NullableOptionalStringSchema,
+    cudyrCompletedBy: NullableOptionalStringSchema,
+    handoffNightReceives: EmptyStringArraySchema,
+  })
+  .passthrough();
 
-    return applyDailyRecordStaffingCompatibility(
-      input as Pick<DailyRecord, 'nurses' | 'nurseName' | 'nursesDayShift' | 'nursesNightShift'>
-    );
-  },
-  z
-    .object({
-      date: StringSchema.regex(DATE_REGEX),
-      beds: z.record(StringSchema, PatientDataSchema).prefault({}),
-      bedTypeOverrides: z
-        .preprocess(
-          val => {
-            if (!val || typeof val !== 'object') return {};
-            const record: Record<string, unknown> = { ...(val as Record<string, unknown>) };
-            // Filter out null/undefined values which might come from Firestore deletes or reverts
-            Object.keys(record).forEach(key => {
-              if (record[key] === null || record[key] === undefined) delete record[key];
-            });
-            return record;
-          },
-          z.record(StringSchema, BedTypeSchema)
-        )
-        .prefault({}),
-      discharges: nullishDefault(z.array(DischargeDataSchema), () => []),
-      transfers: nullishDefault(z.array(TransferDataSchema), () => []),
-      cma: nullishDefault(z.array(CMADataSchema), () => []),
-      lastUpdated: StringSchema.prefault(() => new Date().toISOString()),
-      rayenSync: nullableOptional(RayenSyncMetaSchema),
-      rayenSyncHistory: nullableOptional(z.array(RayenSyncEventSchema)),
-      rayenBedCollisionResolutions: nullableOptional(
-        z.array(RayenBedCollisionResolutionReceiptSchema)
-      ),
-      // Kept as stored, whatever its shape: the clinicalDerived contract decides whether the day
-      // is marked, unmarked or unsupported, so a marker this client does not understand is never
-      // dropped (and never sends the whole day to the salvage path).
-      clinicalDerivedLayout: nullableOptional(z.unknown()),
-      dateTimestamp: nullableOptional(z.number()),
-      schemaVersion: z.number().prefault(1),
-      nurses: TwoStaffSlotsSchema,
-      nurseName: NullableOptionalStringSchema,
-      nursesDayShift: TwoStaffSlotsSchema,
-      nursesNightShift: TwoStaffSlotsSchema,
-      tensDayShift: ThreeStaffSlotsSchema,
-      tensNightShift: ThreeStaffSlotsSchema,
-      staffingDetailsV1: nullableOptional(DailyRecordStaffingDetailsSchema),
-      activeExtraBeds: EmptyStringArraySchema,
-      handoffSharedChecklist: nullableOptional(HandoffSharedChecklistSchema),
-      handoffDayChecklist: z
-        .object({
-          escalaBraden: OptionalBooleanSchema,
-          escalaRiesgoCaidas: OptionalBooleanSchema,
-          escalaRiesgoLPP: OptionalBooleanSchema,
-        })
-        .prefault({}),
-      handoffNightChecklist: z
-        .object({
-          estadistica: OptionalBooleanSchema,
-          categorizacionCudyr: OptionalBooleanSchema,
-          encuestaUTI: OptionalBooleanSchema,
-          encuestaMedias: OptionalBooleanSchema,
-          conteoMedicamento: OptionalBooleanSchema,
-          conteoNoControlados: OptionalBooleanSchema,
-          conteoNoControladosProximaFecha: NullableOptionalStringSchema,
-        })
-        .prefault({}),
-      handoffNovedadesDayShift: NullableOptionalStringSchema,
-      handoffNovedadesNightShift: NullableOptionalStringSchema,
-      medicalHandoffNovedades: NullableOptionalStringSchema,
-      medicalHandoffBySpecialty: nullableOptional(
-        z.record(StringSchema, MedicalSpecialtyHandoffNoteSchema)
-      ),
-      medicalHandoffDoctor: NullableOptionalStringSchema,
-      medicalHandoffSentAt: NullableOptionalStringSchema,
-      medicalHandoffSentAtByScope: OptionalMedicalHandoffScopesSchema,
-      medicalSignatureLinkTokenByScope: OptionalMedicalHandoffScopesSchema,
-      medicalSignature: OptionalMedicalSignatureSchema,
-      medicalSignatureByScope: nullableOptional(
-        z.object({
-          all: OptionalMedicalSignatureSchema,
-          upc: OptionalMedicalSignatureSchema,
-          'no-upc': OptionalMedicalSignatureSchema,
-        })
-      ),
-      cudyrLocked: OptionalBooleanSchema,
-      cudyrLockedAt: NullableOptionalStringSchema,
-      cudyrLockedBy: NullableOptionalStringSchema,
-      cudyrUpdatedAt: NullableOptionalStringSchema,
-      cudyrUpdatedBy: NullableOptionalStringSchema,
-      cudyrUpdatedById: NullableOptionalStringSchema,
-      cudyrShiftDate: NullableOptionalStringSchema,
-      cudyrCompletedAt: NullableOptionalStringSchema,
-      cudyrCompletedBy: NullableOptionalStringSchema,
-      handoffNightReceives: EmptyStringArraySchema,
-    })
-    .passthrough()
-);
+export const DailyRecordSchema: z.ZodType<DailyRecord, unknown> = z.preprocess(input => {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return input;
+  }
+
+  return applyDailyRecordStaffingCompatibility(
+    input as Pick<DailyRecord, 'nurses' | 'nurseName' | 'nursesDayShift' | 'nursesNightShift'>
+  );
+}, DailyRecordFieldsSchema);
 
 /**
  * Full backup schema for import/export

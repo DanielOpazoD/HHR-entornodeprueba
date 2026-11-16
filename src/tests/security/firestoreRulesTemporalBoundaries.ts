@@ -21,28 +21,19 @@ const frozenHelper = (file: string, name: string): string => {
 /** Executes the production comparator helpers with a fixed clock; role/schema access stays in the full suite. */
 export const registerFirestoreRulesTemporalBoundaries = (): void => {
   describe('Temporal helpers exact boundaries', () => {
-    it('keeps the nurse open -24/+48h and specialist closed/open 0/+24h edges', async () => {
+    it('keeps the nurse open -24/+48h edges', async () => {
       const emulator = resolveFirestoreRulesEmulatorConfig(process.env.FIRESTORE_EMULATOR_HOST);
       const nurse = frozenHelper(
         'rules/firestore/30-daily-record-write-helpers.rules',
         'isWithinEditingWindow'
       );
-      const specialist = frozenHelper(
-        'rules/firestore/12-specialist-handoff-boundary-helpers.rules',
-        'isWithinSpecialistMedicalHandoffWindow'
-      );
       const cases = [
-        ['nurse', DAY + 1, false],
-        ['nurse', DAY, false],
-        ['nurse', DAY - 1, true],
-        ['nurse', -2 * DAY + 1, true],
-        ['nurse', -2 * DAY, false],
-        ['nurse', -2 * DAY - 1, false],
-        ['specialist', 1, false],
-        ['specialist', 0, true],
-        ['specialist', -DAY + 1, true],
-        ['specialist', -DAY, false],
-        ['specialist', -DAY - 1, false],
+        [DAY + 1, false],
+        [DAY, false],
+        [DAY - 1, true],
+        [-2 * DAY + 1, true],
+        [-2 * DAY, false],
+        [-2 * DAY - 1, false],
       ] as const;
       const env = await initializeTestEnvironment({
         projectId: 'demo-hhr-temporal-boundaries',
@@ -50,11 +41,9 @@ export const registerFirestoreRulesTemporalBoundaries = (): void => {
           ...emulator,
           rules: `rules_version = '2';
           service cloud.firestore { match /databases/{database}/documents {
-            ${nurse} ${specialist}
+            ${nurse}
             match /cases/{caseId} {
-              allow get: if resource.data.kind == 'nurse'
-                ? isWithinEditingWindow(resource.data.anchor)
-                : isWithinSpecialistMedicalHandoffWindow(resource.data.anchor);
+              allow get: if isWithinEditingWindow(resource.data.anchor);
             }
           } }`,
         },
@@ -62,14 +51,14 @@ export const registerFirestoreRulesTemporalBoundaries = (): void => {
       try {
         await env.clearFirestore();
         await env.withSecurityRulesDisabled(async context => {
-          for (const [index, [kind, offset]] of cases.entries()) {
+          for (const [index, [offset]] of cases.entries()) {
             await context
               .firestore()
               .doc(`cases/${index}`)
-              .set({ kind, anchor: FROZEN_NOW + offset });
+              .set({ anchor: FROZEN_NOW + offset });
           }
         });
-        for (const [index, [, , allowed]] of cases.entries()) {
+        for (const [index, [, allowed]] of cases.entries()) {
           const attempt = env.unauthenticatedContext().firestore().doc(`cases/${index}`).get();
           await (allowed ? assertSucceeds(attempt) : assertFails(attempt));
         }

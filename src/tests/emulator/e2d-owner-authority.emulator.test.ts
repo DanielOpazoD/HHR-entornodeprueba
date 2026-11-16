@@ -14,9 +14,6 @@ const { createAuthHelpers } = require('../../../functions/lib/auth/authHelpersFa
 const {
   createDailyRecordWriteAuthorityFunctions,
 } = require('../../../functions/lib/dailyRecordWriteAuthorityFunctions.js');
-const {
-  createSpecialistMedicalHandoffFunctions,
-} = require('../../../functions/lib/specialistMedicalHandoffFunctions.js');
 const projectId = 'demo-hhr-e2d-owner';
 let rules: RulesTestEnvironment;
 const app = initializeApp({ projectId }, 'e2d');
@@ -86,7 +83,7 @@ afterAll(async () => {
   await db.terminate();
   await deleteApp(app);
 });
-it.each(['specialist', 'specialty', 'clear', 'structural'])(
+it.each(['specialty', 'clear', 'structural'])(
   'measures A payload dispatched using B authority: %s',
   async kind => {
     if (kind === 'clear')
@@ -98,23 +95,11 @@ it.each(['specialist', 'specialty', 'clear', 'structural'])(
       firestore: db,
       Timestamp,
       FieldValue,
-      resolveRoleForEmail: async (...args: unknown[]) =>
-        kind === 'specialist' ? 'admin' : helpers.resolveRoleForEmail(...args),
+      resolveRoleForEmail: helpers.resolveRoleForEmail,
     };
     const api = createDailyRecordWriteAuthorityFunctions(deps);
     let result;
-    if (kind === 'specialist') {
-      const specialist = createSpecialistMedicalHandoffFunctions(deps);
-      result = await specialist.updateSpecialistMedicalHandoff.run(
-        {
-          date,
-          patch: { 'beds.R1.medicalHandoffNote': 'SYNTHETIC NOTE AUTHORED BY A' },
-          expectedOccupants: [{ bedId: 'R1', target: 'bed', ...base().beds.R1 }],
-          mutationId: 'synthetic-A-note',
-        },
-        context
-      );
-    } else if (kind === 'structural') {
+    if (kind === 'structural') {
       result = await api.saveDailyRecordWithClinicalAuthority.run(
         {
           date,
