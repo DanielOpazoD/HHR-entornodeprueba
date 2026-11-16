@@ -19,6 +19,7 @@ import { mapPatientToFhir } from '@/services/utils/fhirMappers';
 import { applyPatches } from '@/utils/patchUtils';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
+import { hasSameBedOccupant } from '@/services/storage/sync/bedOccupantIdentity';
 
 const DEMOGRAPHIC_NAME_PART_FIELDS = ['firstName', 'lastName', 'secondLastName'] as const;
 
@@ -96,6 +97,27 @@ const buildDemographicNameRebasedPatch = (
 
   return rebasedPatch as DailyRecordPatch;
 };
+
+const BED_SLOT_FIELDS = new Set(['isBlocked', 'blockedReason']);
+
+/**
+ * ID-01: an edit under a bed belongs to the patient and episode it was written for. A field that
+ * still holds its base value says nothing about who the bed or crib holds now.
+ */
+const hasSameOccupantsAtPaths = (
+  paths: string[],
+  baseRecord: DailyRecord,
+  freshRemoteRecord: DailyRecord
+): boolean =>
+  paths.every(path => {
+    const [root, bedId, field] = path.split('.');
+    if (root !== 'beds' || !bedId || (field && BED_SLOT_FIELDS.has(field))) return true;
+    const base = baseRecord.beds?.[bedId];
+    const fresh = freshRemoteRecord.beds?.[bedId];
+    return field === 'clinicalCrib'
+      ? hasSameBedOccupant(base?.clinicalCrib, fresh?.clinicalCrib)
+      : hasSameBedOccupant(base, fresh);
+  });
 
 const hasConsistentDerivedPatientName = (
   patient: DailyRecord['beds'][string] | undefined
@@ -200,6 +222,7 @@ export const buildGranularPatchStaleVersionRetryHooks = <TResult>({
           canRebaseManualSpecialtyIntent(options.specialtyIntent, baseRecord, freshRemoteRecord)
         )) &&
       hasSameValuesAtPaths(freshRemoteRecord, baseValuesAtPatchPaths) &&
+      hasSameOccupantsAtPaths(semanticChangedPaths, baseRecord, freshRemoteRecord) &&
       demographicNameRebases.every(
         ({ bedId }) =>
           hasConsistentDerivedPatientName(freshRemoteRecord.beds[bedId]) &&

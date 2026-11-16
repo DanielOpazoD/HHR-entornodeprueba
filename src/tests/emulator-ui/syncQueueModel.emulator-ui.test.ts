@@ -50,7 +50,7 @@ import type { SyncTask } from '@/services/storage/syncQueueTypes';
  * After every step the model checks the rules of docs/DOMAIN_RULES.md that hold for every
  * sequence (SAVE-01, SAVE-02, SAVE-03, Sesión, ID-01), and at the end, with the network back and
  * the queue run, that nothing is left waiting and a conflict stays only where another computer
- * changed one of its fields or the bed holds another patient. KNOWN_DEFECT marks the four rule
+ * changed one of its fields or the bed holds another patient. KNOWN_DEFECT marks the three rule
  * breaks W12-MODEL2 found, still open (the `it.fails` below); nothing after one in a sequence is
  * judged.
  * `FC_NUM_RUNS` / `FC_SEED` repeat or widen a run, as in src/tests/properties.
@@ -233,15 +233,8 @@ const checkRules = async (m: Model, step: string) => {
     const now = getValueAtPath(server, path);
     const edit = editOf(m, now);
     // ID-01: a bed edit is only ever applied to the patient and episode it was written for.
-    if (path === BED_PATH && edit && edit.occupant !== occupant) {
-      // KNOWN_DEFECT 3: a diagnosis written over an empty one.
-      if (edit.base === '') {
-        m.log.push('[KNOWN_DEFECT]');
-        m.reachedKnownDefect = true;
-        return;
-      }
+    if (path === BED_PATH && edit && edit.occupant !== occupant)
       fail('ID-01', `«${String(now)}», escrito para ${edit.occupant}, quedó en ${occupant}`);
-    }
     // The other computer writes over the server's current text by construction; '' is a bed
     // emptied or admitted, which clears the diagnosis.
     if (now === before || (typeof now === 'string' && (now === '' || now.startsWith('A'))))
@@ -1022,24 +1015,29 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     60_000
   );
 
-  // KNOWN_DEFECT 3 (ID-01): this computer still shows a patient without a diagnosis when another
-  // computer discharges them and admits another, also without one. A diagnosis written here meets
-  // the newer version; its retry checks only that the diagnosis still holds its base value, which
-  // the new patient's empty one does, and writes it on the new patient, reported as saved.
-  it.fails(
-    'never writes a diagnosis meant for the patient shown here on the patient admitted meanwhile',
-    async () => {
-      const m = await resetWorld();
-      for (const patch of patchOf(await readServer(), BED_PATH, '')) await onA(patch);
-      await refresh.run(m, {});
-      await replaceOnA.run(m, {});
-      expect((await readServer()).beds[BED].rut).toBe('11111111-1');
+  // ID-01 (KNOWN_DEFECT 3 until W12-CW6): this computer still shows a patient without a diagnosis
+  // when another computer discharges them and admits another, also without one. A diagnosis
+  // written here meets the newer version; its retry once checked only that the diagnosis still
+  // held its base value, which the new patient's empty one does, and wrote it on the new patient.
+  it('never writes a diagnosis meant for the patient shown here on the patient admitted meanwhile', async () => {
+    const m = await resetWorld();
+    for (const patch of patchOf(await readServer(), BED_PATH, '')) await onA(patch);
+    await refresh.run(m, {});
+    await replaceOnA.run(m, {});
+    expect((await readServer()).beds[BED].rut).toBe('11111111-1');
 
-      expect(await editIn(m, BED_PATH)).toBe('editar B1 en cama');
-      expect((await readServer()).beds[BED].pathology).toBe('');
-    },
-    60_000
-  );
+    expect(await editIn(m, BED_PATH)).toBe('editar B1 en cama');
+    expect((await readServer()).beds[BED].pathology).toBe('');
+    // Kept for the patient it was written for, and still never published on the new one.
+    await replayIn(m);
+    expect((await readServer()).beds[BED].pathology).toBe('');
+    const held = (await hospitalDB.syncQueue.toArray()).filter(
+      task => getValueAtPath(task.payload, BED_PATH) === 'B1'
+    );
+    expect(held.map(task => [task.status, (task.payload as DailyRecord).beds[BED]?.rut])).toEqual([
+      ['CONFLICT', '12345678-5'],
+    ]);
+  }, 60_000);
 
   // KNOWN_DEFECT 4: the defect #1637 fixed for day fields, still open for a bed field. The
   // diagnosis written here meets the other computer's and gets the «changed elsewhere» notice; the
