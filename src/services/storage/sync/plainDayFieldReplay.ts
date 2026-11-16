@@ -9,6 +9,7 @@ import { updateRecordPartial } from '@/services/storage/firestore/firestoreRecor
 import { isPlainDayFieldPath } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import {
   getValueAtPath,
+  hasSameComparableValue,
   normalizeChangedPaths,
 } from '@/services/repositories/conflictResolutionUtils';
 import { applyPatches } from '@/utils/patchUtils';
@@ -42,33 +43,66 @@ export const plainDayFieldReplayPaths = (task: SyncTask): string[] | undefined =
 };
 
 /**
- * A direct edit of plain day fields that a day write of this computer still holds unsent is
- * checked as that write's replay will be: against the values and version the server had when it
- * was made, not against the day shown here, which keeps the unsent text. So a text another
- * computer saved meanwhile is met again, even after a «changed elsewhere» notice, and this
- * computer's own unsent text is not mistaken for someone else's (SAVE-02). Undefined when no
- * unsent write of the day changes these fields.
+ * A day write that also holds a bed's diagnosis or status, both unsent edits of this computer, is
+ * rebased as each part alone would be: its plain day fields must still hold, in the stored day,
+ * their base or already the queued value, and the rest keeps its own check. The write without
+ * those plain fields, or undefined when another computer changed one of them.
  */
-export const resolveUnsentPlainDayFieldBase = async (
+export const withoutUnchangedPlainDayFields = (
+  task: SyncTask,
+  stored: DailyRecord,
+  queued: DailyRecord
+): SyncTask | undefined => {
+  const paths = normalizeChangedPaths(task.syncContract?.changedPaths);
+  const plain = paths.filter(isPlainDayFieldReplayPath);
+  const base = task.patchBaseValues ?? {};
+  const unchanged = plain.every(path => {
+    const value = getValueAtPath(stored, path);
+    return (
+      Object.hasOwn(base, path) &&
+      (hasSameComparableValue(value, base[path]) ||
+        hasSameComparableValue(value, getValueAtPath(queued, path)))
+    );
+  });
+  if (!unchanged) return undefined;
+  return {
+    ...task,
+    syncContract: {
+      ...task.syncContract,
+      changedPaths: paths.filter(path => !plain.includes(path)),
+    },
+  };
+};
+
+/**
+ * The server instant a direct edit of this day is checked against while a day write of this
+ * computer is still unsent: the local day then carries that write's local time, or the server's
+ * version over a value the server does not hold, and neither is a version of the server (SAVE-02).
+ * The edit takes the version those writes were made on, and, for each field one of them holds,
+ * the value the server had then. A field another computer changed meanwhile is met again, even
+ * after a «changed elsewhere» notice, and this computer's own unsent text is not mistaken for
+ * someone else's. Undefined when no unsent write holds the day.
+ */
+export const resolveUnsentDayBase = async (
   date: string,
   shown: DailyRecord,
   paths: string[]
 ): Promise<{ baseRecord: DailyRecord; expectedVersion: string } | undefined> => {
-  if (!paths.length || !paths.every(isPlainDayFieldReplayPath) || isDatabaseInFallbackMode())
-    return undefined;
+  if (!paths.length || isDatabaseInFallbackMode()) return undefined;
   const values = new Map<string, unknown>();
   let version: string | undefined;
   for (const task of await hospitalDB.syncQueue.where('key').equals(`daily:${date}`).toArray()) {
-    const replayed = holdsDailyRecordProjection(task, date) && plainDayFieldReplayPaths(task);
-    if (!replayed) continue;
+    if (!holdsDailyRecordProjection(task, date)) continue;
+    const taskVersion = task.syncContract?.expectedVersion;
+    // Writes made over different versions: only the field check decides.
+    version =
+      version === undefined || version === taskVersion
+        ? (taskVersion ?? UNKNOWN_SERVER_VERSION)
+        : UNKNOWN_SERVER_VERSION;
+    const held = normalizeChangedPaths(task.syncContract?.changedPaths);
     for (const path of paths)
-      if (replayed.includes(path) && !values.has(path)) {
-        values.set(path, task.patchBaseValues?.[path]);
-        const taskVersion = task.syncContract?.expectedVersion ?? UNKNOWN_SERVER_VERSION;
-        // Two writes made over different versions: only the field check decides.
-        version =
-          version === undefined || version === taskVersion ? taskVersion : UNKNOWN_SERVER_VERSION;
-      }
+      if (held.includes(path) && Object.hasOwn(task.patchBaseValues ?? {}, path))
+        if (!values.has(path)) values.set(path, task.patchBaseValues?.[path]);
   }
   if (version === undefined) return undefined;
   return {
