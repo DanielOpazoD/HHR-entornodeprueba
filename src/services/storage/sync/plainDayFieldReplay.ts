@@ -57,21 +57,23 @@ export const resolveUnsentPlainDayFieldBase = async (
   if (!paths.length || !paths.every(isPlainDayFieldReplayPath) || isDatabaseInFallbackMode())
     return undefined;
   const values = new Map<string, unknown>();
-  const versions = new Set<string>();
+  let version: string | undefined;
   for (const task of await hospitalDB.syncQueue.where('key').equals(`daily:${date}`).toArray()) {
     const replayed = holdsDailyRecordProjection(task, date) && plainDayFieldReplayPaths(task);
     if (!replayed) continue;
     for (const path of paths)
       if (replayed.includes(path) && !values.has(path)) {
         values.set(path, task.patchBaseValues?.[path]);
-        versions.add(task.syncContract?.expectedVersion ?? UNKNOWN_SERVER_VERSION);
+        const taskVersion = task.syncContract?.expectedVersion ?? UNKNOWN_SERVER_VERSION;
+        // Two writes made over different versions: only the field check decides.
+        version =
+          version === undefined || version === taskVersion ? taskVersion : UNKNOWN_SERVER_VERSION;
       }
   }
-  if (!values.size) return undefined;
+  if (version === undefined) return undefined;
   return {
     baseRecord: applyPatches(shown, Object.fromEntries(values) as DailyRecordPatch),
-    // Two writes made over different versions: only the field check decides.
-    expectedVersion: versions.size === 1 ? [...versions][0] : UNKNOWN_SERVER_VERSION,
+    expectedVersion: version,
   };
 };
 
