@@ -5,6 +5,7 @@ import type {
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus } from '@/types/domain/patientClassification';
 import {
   buildPatient,
@@ -350,5 +351,56 @@ describe('dailyRecordRepositoryWriteService · retry re-basado por versión viej
       expect.objectContaining({ origin: 'conflict_auto_merge' }),
       { authoringSession: captureAuthoringSession() }
     );
+  });
+
+  // ID-01: a field still holding its base value says nothing about who the bed or crib holds now.
+  it.each([
+    {
+      slot: 'la cama',
+      patch: { 'beds.R1.pathology': 'Diagnostico para el ocupante anterior' },
+      replace: (bed: PatientData): PatientData => ({
+        ...bed,
+        patientName: 'Paciente nuevo',
+        rut: '10.000.013-K',
+        clinicalEpisodeId: 'ep_replacement',
+      }),
+    },
+    {
+      slot: 'la cuna',
+      patch: { 'beds.R1.clinicalCrib.pathology': 'Diagnostico para el ocupante anterior' },
+      replace: (bed: PatientData): PatientData => ({
+        ...bed,
+        clinicalCrib: {
+          ...(bed.clinicalCrib as PatientData),
+          patientName: 'RN nuevo',
+          clinicalEpisodeId: 'ep_crib_replacement',
+        },
+      }),
+    },
+  ])('no rebasa una edición de $slot si cambió su ocupante', async ({ patch, replace }) => {
+    const bed: PatientData = {
+      ...buildPatient('R1', 'Paciente uno'),
+      clinicalEpisodeId: 'ep_original',
+      pathology: '',
+      clinicalCrib: {
+        ...buildPatient('R1', 'RN uno'),
+        rut: '',
+        clinicalEpisodeId: 'ep_crib_original',
+        pathology: '',
+      },
+    };
+    const current = buildRecord('2026-02-15');
+    current.beds = { R1: bed };
+    const remote = buildRecord('2026-02-15');
+    remote.beds = { R1: replace(bed) };
+    remote.lastUpdated = '2026-02-15T12:34:56.000Z';
+
+    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
+    vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce(buildConcurrencyError());
+    vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
+
+    await updatePartial('2026-02-15', patch, { authoringSession: captureAuthoringSession() });
+
+    expect(updateRecordPartialToFirestore).toHaveBeenCalledTimes(1);
   });
 });
