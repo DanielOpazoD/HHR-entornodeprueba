@@ -146,6 +146,8 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     };
     clients.B = { db, uid: 'synthetic-B', role: 'nurse_hospital' };
     await db.disableNetwork();
+    // The browser is offline too, so the queue waits instead of starting an attempt.
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
     return db;
   };
 
@@ -265,6 +267,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     await writeOnA(onA);
     calls.authority = calls.fieldTransaction = 0;
     await db.enableNetwork();
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
     await runQueueOnB();
     return queued.length;
   };
@@ -353,6 +356,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       }
       calls.fieldTransaction = 0;
       await db.enableNetwork();
+      Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
       await runQueueOnB();
 
       expect(localStorage.getItem(SESSION_OWNER_KEY)).toBe('user:synthetic-C');
