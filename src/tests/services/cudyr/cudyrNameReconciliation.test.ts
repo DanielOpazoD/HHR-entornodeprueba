@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { applyCudyrMonthlySources } from '@/services/cudyr/cudyrMonthlyProjection';
+import { createCudyrIdentityResolver } from '@/services/cudyr/cudyrNameReconciliation';
 import { verifyCudyrMonthlySources } from '@/services/cudyr/cudyrMonthlyVerification';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
+import { cudyrArchiveCoverage } from '@/services/cudyr/cudyrArchiveCoverage';
 import { confirmedReportInput, reportRecord, reportPatient } from './reportFixtures';
 import { supplementRequest } from '@/tests/fixtures/cudyrSupplementFixture';
 import type { ArchivedCudyrSupplement } from '@/services/cudyr/cudyrSupplementService';
@@ -249,4 +251,104 @@ describe('census-supported CUDYR name reconciliation', () => {
       )
     ).toBe(true);
   });
+});
+
+describe('a validated RUN whose Eloísa spelling changes between report versions', () => {
+  const versions = (later = 'ANA PRUEBA OTRO') => {
+    const { data, source } = fixture('Ana Maria', 'Prueba', 'Ejemplo', 'ANA PRUEBA EJEMPLO');
+    data.rows[0].rut = '11.111.111-1';
+    data.rows[0].documentType = 'RUT';
+    source.report.patients[0].document = '11111111-1';
+    const next = structuredClone(source);
+    next.id = 'next-version';
+    next.importedAt = '2026-11-02T19:30:00Z';
+    next.capture!.observedAt = '2026-11-02T19:10:00Z';
+    next.report.patients[0].patientName = later;
+    return { data, sources: [source, next] };
+  };
+  const recovered = (output: ReturnType<typeof applyCudyrMonthlySources>) =>
+    output.rows.filter(r => r.contextSource === 'eloisa_monthly_report');
+
+  it('joins every spelling carrying the census first given name to the one census episode', () => {
+    const { data, sources } = versions();
+    const output = applyCudyrMonthlySources(data, sources);
+    expect(output.rows.find(r => r.key === data.rows[0].key)).toMatchObject({
+      patientName: data.rows[0].patientName,
+      rut: '11.111.111-1',
+      evaluation: { category: 'C2' },
+      monthlyEvidence: { state: 'found' },
+    });
+    expect(recovered(output)).toEqual([]);
+    const identity = createCudyrIdentityResolver(
+      data,
+      sources.map(s => s.report)
+    );
+    expect(identity('11111111-1', 'ANA PRUEBA EJEMPLO')).toBe(
+      identity(data.rows[0].rut, data.rows[0].patientName)
+    );
+    expect(identity('11111111-1', 'ANA PRUEBA OTRO')).toBe(
+      identity(data.rows[0].rut, data.rows[0].patientName)
+    );
+    const night = (d: typeof data) =>
+      cudyrArchiveCoverage(d, new Date(d.generatedAt)).find(day => day.date === '2026-10-02');
+    expect(night(output)?.state).toBe('complete');
+  });
+  it.each([
+    [
+      'two census episodes',
+      (d: ReturnType<typeof versions>) =>
+        d.data.rows.push({
+          ...d.data.rows[0],
+          key: 'readmission',
+          date: '2026-10-01',
+          clinicalEpisodeId: 'another-episode',
+        }),
+    ],
+    [
+      'a passport that looks like a RUN',
+      (d: ReturnType<typeof versions>) => {
+        d.data.rows[0].rut = '123456785';
+        d.data.rows[0].documentType = 'Pasaporte';
+        for (const s of d.sources) s.report.patients[0].document = '123456785';
+      },
+    ],
+    [
+      'a different first given name',
+      (d: ReturnType<typeof versions>) =>
+        (d.sources[1].report.patients[0].patientName = 'SOFIA PRUEBA OTRO'),
+    ],
+  ])('keeps Eloísa and HHR apart with %s', (_, change) => {
+    const input = versions();
+    change(input);
+    const output = applyCudyrMonthlySources(input.data, input.sources);
+    expect(output.rows.find(r => r.key === input.data.rows[0].key)?.evaluation).toBeNull();
+    expect(recovered(output).length).toBeGreaterThan(0);
+  });
+});
+
+it('keeps two spellings of one RUN inside the same report version as two people', () => {
+  const { data, source } = fixture('Ana Maria', 'Prueba', 'Ejemplo', 'ANA PRUEBA EJEMPLO');
+  data.rows[0].rut = '11.111.111-1';
+  data.rows[0].documentType = 'RUT';
+  data.rows.push({ ...data.rows[0], key: 'next-night', date: '2026-10-03' });
+  const mother = source.report.patients[0];
+  mother.document = '11111111-1';
+  source.report.patients.push({
+    ...mother,
+    sourceRow: 999,
+    patientName: 'ANA SOFIA PRUEBA EJEMPLO',
+    days: mother.days.map(d => ({
+      ...d,
+      category: d.sourceDay === 4 ? 'D2' : null,
+      originalValue: d.sourceDay === 4 ? 'D2' : '',
+      state: d.sourceDay === 4 ? 'category' : 'blank',
+    })),
+  });
+  const identity = createCudyrIdentityResolver(data, [source.report]);
+  expect(identity('11111111-1', 'ANA PRUEBA EJEMPLO')).not.toBe(
+    identity('11111111-1', 'ANA SOFIA PRUEBA EJEMPLO')
+  );
+  const output = applyCudyrMonthlySources(data, [source]);
+  expect(output.rows.find(r => r.key === 'next-night')?.evaluation).toBeNull();
+  expect(output.rows.filter(r => r.contextSource === 'eloisa_monthly_report')).toHaveLength(2);
 });

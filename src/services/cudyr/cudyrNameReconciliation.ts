@@ -68,26 +68,36 @@ export const createCudyrIdentityResolver = (
     rowsByDocument.set(document, [...(rowsByDocument.get(document) || []), row]);
   }
   const sourcesByDocument = new Map<string, string[]>();
-  for (const report of reports)
+  // Two spellings inside one report version are two source rows (e.g. mother and newborn);
+  // a spelling that changes only between versions is Eloísa rewriting the same person.
+  const sharedInOneReport = new Set<string>();
+  for (const report of reports) {
+    const inReport = new Map<string, string>();
     for (const patient of report.patients) {
       const document = cudyrDocumentKey(patient.document);
-      if (document)
-        sourcesByDocument.set(document, [
-          ...(sourcesByDocument.get(document) || []),
-          patient.patientName,
-        ]);
+      if (!document) continue;
+      sourcesByDocument.set(document, [
+        ...(sourcesByDocument.get(document) || []),
+        patient.patientName,
+      ]);
+      const identity = cudyrOrderedIdentity(document, patient.patientName);
+      if ((inReport.get(document) ?? identity) !== identity) sharedInOneReport.add(document);
+      inReport.set(document, identity);
     }
+  }
   for (const [document, rows] of rowsByDocument) {
     const sourceNames = sourcesByDocument.get(document);
     if (!sourceNames || rows.some(r => !r.clinicalEpisodeId)) continue;
     // A validated, non-shared RUN is the primary identifier. Keep RN/maternal documents
-    // separate and require one census episode; the downstream day linker still checks ownership.
+    // separate and require one census episode; every source spelling must carry the census
+    // first given name. The downstream day linker still checks ownership.
     if (
       isValidRut(document) &&
+      !rows.some(r => r.documentType === 'Pasaporte') &&
       new Set(rows.map(r => r.clinicalEpisodeId)).size === 1 &&
       !rows.some(r => r.modality === 'cuna' || isNewborn(r.patientName)) &&
       !sourceNames.some(isNewborn) &&
-      new Set(sourceNames.map(name => cudyrOrderedIdentity(document, name))).size === 1 &&
+      !sharedInOneReport.has(document) &&
       sourceNames.every(
         name =>
           cudyrMatchesCensusName(name, rows[0]) ||
