@@ -16,6 +16,7 @@ import type { AuthContextType } from '@/context/AuthContext';
 import type { CensusContextType } from '@/context/CensusContext';
 import type { AppAuthenticatedDateNavigation } from '@/app-shell/bootstrap/useAppBootstrapState';
 import { markPerf } from '@/shared/runtime/perfAudit';
+import { startDailyActionTiming } from '@/services/observability/dailyActionTiming';
 export interface AuthenticatedAppRuntime {
   dailyRecordHook: DailyRecordContextType;
   existingDaysInMonth: number[];
@@ -104,6 +105,8 @@ export const useAuthenticatedAppRuntime = ({
   dateNav,
 }: UseAuthenticatedAppRuntimeParams): AuthenticatedAppRuntime => {
   const ui = useAppState({ date: dateNav.currentDateString });
+  // Daily-action timing lives as long as this session's app; leaving it drops the open window.
+  React.useEffect(() => startDailyActionTiming(), []);
   const clinicalToday = useClinicalToday();
   const { setSelectedYear, setSelectedMonth, setSelectedDay } = dateNav;
   const goToClinicalToday = React.useCallback(() => {

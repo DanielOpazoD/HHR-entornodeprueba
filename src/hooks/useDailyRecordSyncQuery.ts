@@ -3,7 +3,15 @@ import {
   type AuthoringSession,
   isAuthoringSessionCurrent,
 } from '@/services/storage/authoringSession';
-import { useCensusBootstrapPerf, useCensusRecordPerf } from '@/hooks/useCensusRecordPerf';
+import {
+  useCensusBootstrapPerf,
+  useCensusDayChangeTiming,
+  useCensusRecordPerf,
+} from '@/hooks/useCensusRecordPerf';
+import {
+  dailyActionNow,
+  recordDailyActionTiming,
+} from '@/services/observability/dailyActionTiming';
 
 import { useCallback, useMemo, useEffect, useRef } from 'react';
 import {
@@ -121,6 +129,7 @@ export const useDailyRecordSyncQuery = (
   });
 
   useCensusBootstrapPerf(currentDateString, bootstrapPhase);
+  useCensusDayChangeTiming(currentDateString, record?.date, bootstrapPhase);
 
   const runRemoteSync = useRemoteDailyRecordSync(dailyRecord);
 
@@ -209,6 +218,7 @@ export const useDailyRecordSyncQuery = (
   const patchRecord = useCallback(
     async (partial: DailyRecordPatch, options?: ApplyDailyRecordPatchOptions) => {
       const authoringSession = captureAuthoringSession();
+      const startedAt = dailyActionNow();
       try {
         const input = {
           date: currentDateString,
@@ -250,8 +260,14 @@ export const useDailyRecordSyncQuery = (
           });
         }
         assertDailyRecordWriteAccepted(payload.result);
+        // Accepted edits only: a refused one is timed once, in the catch below.
+        if (isCurrentWrite(authoringSession)) {
+          const confirmed = payload.result?.updatedRemotely === true;
+          recordDailyActionTiming('census_edit_saved', startedAt, confirmed);
+        }
       } catch (err) {
         if (!isCurrentWrite(authoringSession)) throw err;
+        recordDailyActionTiming('census_edit_saved', startedAt, false);
         if (err instanceof DailyRecordFreshnessGateError) {
           if (err.presentation !== 'silent') {
             warning('Censo en actualización', err.message);
