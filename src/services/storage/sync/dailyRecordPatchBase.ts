@@ -43,9 +43,12 @@ export const capturePatchBaseContext = (record: DailyRecord): Record<string, unk
       )
   );
 
-/** Keep the narrow automatic lane out of identity changes, movements and handoff writes. */
+/**
+ * Keep the narrow automatic lane out of identity changes, movements and handoff writes. The census
+ * marks every diagnosis edit as manual (`diagnosisManualOverride`), so that flag travels with it.
+ */
 const isOrdinaryClinicalPatchPath = (path: string): boolean =>
-  /^beds\.[^.]+\.(?:clinicalCrib\.)?(?:pathology|status)$/.test(path);
+  /^beds\.[^.]+\.(?:clinicalCrib\.)?(?:pathology|status|diagnosisManualOverride)$/.test(path);
 
 const hasOriginalPatchContext = (
   context: Record<string, unknown> | undefined,

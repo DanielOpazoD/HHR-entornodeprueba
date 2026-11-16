@@ -10,7 +10,7 @@ import {
 } from '@/services/repositories/dailyRecordGuardedCommandPolicy';
 import {
   getValueAtPath,
-  hasSameValuesAtPaths,
+  hasSameComparableValue,
 } from '@/services/repositories/conflictResolutionUtils';
 import { isValidRemoteAuthorityRecord } from '@/services/repositories/dailyRecordRemotePersistenceState';
 import { isSameEpisodeForExplicitCensusPatch } from '@/services/repositories/explicitLocalCensusPatchPolicy';
@@ -153,6 +153,7 @@ export const buildGranularPatchStaleVersionRetryHooks = <TResult>({
   isReclassification,
   semanticChangedPaths,
   baseRecord,
+  unsentBaseRecord,
   syncContract,
 }: {
   date: string;
@@ -161,6 +162,11 @@ export const buildGranularPatchStaleVersionRetryHooks = <TResult>({
   isReclassification: boolean;
   semanticChangedPaths: string[];
   baseRecord: DailyRecord;
+  /**
+   * The server's values when this computer's unsent day writes were made (resolveUnsentDayBase).
+   * A field may also be rebased while the server still holds the value its unsent edit replaced.
+   */
+  unsentBaseRecord?: DailyRecord;
   syncContract: SyncTaskContract;
 }): StaleVersionRebaseRetryHooks<TResult> => {
   const manualSpecialty = options.specialtyIntent?.kind === 'manual';
@@ -184,9 +190,17 @@ export const buildGranularPatchStaleVersionRetryHooks = <TResult>({
   const compatibilityPaths = semanticChangedPaths.filter(
     path => !derivedPatientNamePaths.has(path)
   );
-  const baseValuesAtPatchPaths = Object.fromEntries(
-    compatibilityPaths.map(path => [path, getValueAtPath(baseRecord, path)])
-  );
+  const holdsBaseValues = (freshRemoteRecord: DailyRecord) =>
+    compatibilityPaths.every(path =>
+      [baseRecord, unsentBaseRecord].some(
+        base =>
+          base &&
+          hasSameComparableValue(
+            getValueAtPath(freshRemoteRecord, path),
+            getValueAtPath(base, path)
+          )
+      )
+    );
 
   return {
     retryRemoteWriteOnStaleVersion: freshRemoteRecord => {
@@ -221,7 +235,7 @@ export const buildGranularPatchStaleVersionRetryHooks = <TResult>({
           options.specialtyIntent &&
           canRebaseManualSpecialtyIntent(options.specialtyIntent, baseRecord, freshRemoteRecord)
         )) &&
-      hasSameValuesAtPaths(freshRemoteRecord, baseValuesAtPatchPaths) &&
+      holdsBaseValues(freshRemoteRecord) &&
       hasSameOccupantsAtPaths(semanticChangedPaths, baseRecord, freshRemoteRecord) &&
       demographicNameRebases.every(
         ({ bedId }) =>

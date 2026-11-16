@@ -48,7 +48,11 @@ import {
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import type { DetachedOccupantWork } from './dayTaskOccupantDetach';
 import { nursingHandoffPaths } from './nursingHandoffTasks';
-import { plainDayFieldReplayPaths, replayPlainDayFields } from './plainDayFieldReplay';
+import {
+  plainDayFieldReplayPaths,
+  replayPlainDayFields,
+  withoutUnchangedPlainDayFields,
+} from './plainDayFieldReplay';
 import {
   resolveOptionalBaseRevision,
   resolveRecordBaseRevision,
@@ -276,8 +280,10 @@ const resolveRecordForSyncTask = async (
       acceptedVersion: remoteLastUpdated,
       storedData: remoteData,
     };
+  const rebasedPart = withoutUnchangedPlainDayFields(queuedTask, remoteRecord, queuedRecord);
   const canRebasePatch =
-    !detached && Boolean(checks?.hasUnchangedPatchBase(queuedTask, remoteRecord, queuedRecord));
+    !detached &&
+    Boolean(rebasedPart && checks?.hasUnchangedPatchBase(rebasedPart, remoteRecord, queuedRecord));
   if (task.nursingHandoffRecovery) {
     record = resolveDailyRecordConflict(remoteRecord, record, {
       changedPaths: task.syncContract?.changedPaths,

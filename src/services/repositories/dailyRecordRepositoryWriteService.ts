@@ -69,7 +69,7 @@ import {
 } from '@/services/repositories/dailyRecordGuardedCommandPolicy';
 import { adoptAuthoritativeRecord } from '@/services/repositories/dailyRecordRepositorySyncService';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
-import { resolveUnsentPlainDayFieldBase } from '@/services/storage/sync/plainDayFieldReplay';
+import { resolveUnsentDayBase } from '@/services/storage/sync/plainDayFieldReplay';
 import { isValidRemoteAuthorityRecord } from '@/services/repositories/dailyRecordRemotePersistenceState';
 import { assertAuthoringSessionCurrent } from '@/services/storage/authoringSession';
 
@@ -378,10 +378,14 @@ const updatePartialDetailedWithinLock = async (
     baseRecord: current,
   });
 
+  // Server-first and atomic writes keep their exact base; a bed field's stale version is rebased
+  // below against the same unsent base.
   const unsentBase =
-    remoteWriteOptions.requireAtomicCas || clinicalEventsOnlyPatch
+    remoteWriteOptions.requireAtomicCas ||
+    guardedCommandPolicy.remoteAuthorityFirst ||
+    clinicalEventsOnlyPatch
       ? undefined
-      : await resolveUnsentPlainDayFieldBase(command.date, current, semanticChangedPaths);
+      : await resolveUnsentDayBase(command.date, current, semanticChangedPaths);
   if (unsentBase) remoteWriteOptions.baseRecord = unsentBase.baseRecord;
   // The outbox applies this patch again on the day's stored projection (#1024).
   const patchWrite = {
@@ -457,6 +461,7 @@ const updatePartialDetailedWithinLock = async (
       isReclassification,
       semanticChangedPaths,
       baseRecord: current,
+      unsentBaseRecord: unsentBase?.baseRecord,
       syncContract,
     }),
     policy: {
