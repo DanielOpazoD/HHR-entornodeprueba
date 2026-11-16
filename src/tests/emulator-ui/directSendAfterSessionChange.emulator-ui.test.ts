@@ -8,6 +8,7 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
+import * as fence from '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode';
 import { createDailyRecordWriteAuthorityFunctions } from '@/tests/functions/dailyRecordWriteAuthorityFunctions.test-support';
 import {
   saveDetailed,
@@ -25,6 +26,7 @@ import {
   resolveSaveOutcomeFeedback,
 } from '@/hooks/controllers/dailyRecordSyncNotificationController';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 
 /**
  * A census edit that already entered this computer's queue is on its way to the server when its
@@ -32,9 +34,10 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
  * same computer. The direct send that follows the local write checks the session before each wait
  * and inside its transaction, as the queue's resend does, so the edit stays in its author's queue
  * instead of reaching the server inside the next person's session (W12-SC2, rule «nada se publica
- * a nombre de una sesión que ya no es la vigente»). The held server step stands for a slow or
- * returning network: the read before a field edit, or the transaction of a full-day save.
- * Everything else is the shipped code against the Firestore emulator.
+ * a nombre de una sesión que ya no es la vigente»). The held step stands for a slow or returning
+ * network: the read before a field edit or before its history copy, the transaction of a full-day
+ * save, or the permission refresh after the rules refuse a bed edit. Everything else is the
+ * shipped code against the Firestore emulator.
  */
 
 // One SDK per person, bound to the async chain that writes, as in syncQueueModel.
@@ -68,37 +71,54 @@ vi.mock('@/firebaseConfig', () => ({
   mountConfigWarning: vi.fn(),
 }));
 
-// The armed server step answers only when the test says so (a slow network): a read of one
-// document, or the next transaction.
-type HeldStep = { read: string } | 'transaction';
-const slowStep = vi.hoisted(() => ({
-  next: undefined as undefined | { step: HeldStep; reached: () => void; released: Promise<void> },
-}));
+// The armed step answers only when the test says so (a slow network): a read of one document
+// (after `skip` earlier reads of it), the next transaction, or the next permission refresh.
+type HeldStep = { read: string; skip?: number } | 'transaction' | 'role refresh';
+const slowStep = vi.hoisted(() => {
+  const state = {
+    next: undefined as
+      | undefined
+      | { step: HeldStep; reached: () => void; released: Promise<void>; seen: number },
+    hold: async (matches: (step: HeldStep) => boolean) => {
+      const held = state.next;
+      if (!held || !matches(held.step)) return;
+      if (typeof held.step === 'object' && held.seen++ < (held.step.skip ?? 0)) return;
+      state.next = undefined;
+      held.reached();
+      await held.released;
+    },
+  };
+  return state;
+});
 vi.mock('firebase/firestore', async importOriginal => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();
-  const hold = async (matches: (step: HeldStep) => boolean) => {
-    const held = slowStep.next;
-    if (!held || !matches(held.step)) return;
-    slowStep.next = undefined;
-    held.reached();
-    await held.released;
-  };
   return {
     ...actual,
     getDoc: async (...args: Parameters<typeof actual.getDoc>) => {
-      await hold(step => typeof step === 'object' && step.read === args[0].path);
+      await slowStep.hold(step => typeof step === 'object' && step.read === args[0].path);
       return actual.getDoc(...args);
     },
     runTransaction: async (...args: Parameters<typeof actual.runTransaction>) => {
-      await hold(step => step === 'transaction');
+      await slowStep.hold(step => step === 'transaction');
       return actual.runTransaction(...args);
     },
   };
 });
+// The permission refresh that follows a refused write waits, then fails (a token race).
+vi.mock('@/services/storage/firestore/firestoreRecordWriteUtilities', async importOriginal => ({
+  ...(await importOriginal<
+    typeof import('@/services/storage/firestore/firestoreRecordWriteUtilities')
+  >()),
+  tryRefreshCurrentUserRoleClaim: async () => {
+    await slowStep.hold(step => step === 'role refresh');
+    return false;
+  },
+}));
 
 // Only the callable's network hop is replaced: the shipped client and its session checks run,
 // then the shipped authority handler commits with the real admin transaction.
 const server = vi.hoisted(() => ({
+  dispatched: 0,
   api: undefined as
     | undefined
     | Record<
@@ -112,6 +132,7 @@ vi.mock('@/services/storage/firestore/dailyRecordAuthorityTransport', async () =
   return {
     invokeAuthority: async (operation: 'save' | 'patch', payload: unknown, check: () => void) => {
       check();
+      server.dispatched++;
       const uid = scope.getStore()?.uid;
       try {
         return await server.api?.[`${operation}DailyRecordWithClinicalAuthority`].run(payload, {
@@ -129,6 +150,10 @@ const dayPath = `hospitals/hanga_roa/dailyRecords/${date}`;
 const policyPath = 'hospitals/hanga_roa/settings/rayenImportPolicy';
 const projectId = 'demo-hhr-direct-send-session';
 const ownerOf = (person: 'P1' | 'P2') => `user:synthetic-${person}`;
+const note = (record: Partial<DailyRecord>) => record.handoffNovedadesNightShift;
+const diagnosis = (record: Partial<DailyRecord>) => record.beds?.R1?.pathology;
+// History copies written after the session changed.
+const countHistory = async () => (await admin.collection(`${dayPath}/history`).get()).size;
 
 let env: RulesTestEnvironment;
 let app: App;
@@ -200,27 +225,52 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       updatedRemotely: result.savedRemotely,
       feedback: resolveSaveOutcomeFeedback(result),
     }));
+  const editField =
+    (patch: DailyRecordPatch, extra: { historyPolicy?: 'snapshot' } = {}) =>
+    (shown: DailyRecord) =>
+      updatePartialDetailed(date, patch, {
+        authoringSession: captureAuthoringSession(),
+        baseRecord: shown,
+        ...extra,
+      }).then(result => ({
+        updatedRemotely: result.updatedRemotely,
+        feedback: resolvePatchOutcomeFeedback(result),
+      }));
+  const writeNote = editField({ handoffNovedadesNightShift: 'NOTA SINTETICA DE P1' });
   const sends: Record<
     string,
     {
       fence: boolean;
+      /** The routing reads miss the fence, as on a token race at startup. */
+      staleRouting?: boolean;
       held: HeldStep;
       send: (shown: DailyRecord) => Promise<{ updatedRemotely: boolean; feedback: unknown }>;
+      field?: (record: Partial<DailyRecord>) => string | undefined;
+      base?: string;
+      written?: string;
     }
   > = {
     // A field edit: the read of the day before its transaction waits for the network.
-    'field edit': {
+    'field edit': { fence: true, held: { read: dayPath }, send: writeNote },
+    // The same edit, with the read of its history copy waiting for the network.
+    'field edit and its history copy': {
       fence: true,
-      held: { read: dayPath },
-      send: (shown: DailyRecord) =>
-        updatePartialDetailed(
-          date,
-          { handoffNovedadesNightShift: 'NOTA SINTETICA DE P1' },
-          { authoringSession: captureAuthoringSession(), baseRecord: shown }
-        ).then(result => ({
-          updatedRemotely: result.updatedRemotely,
-          feedback: resolvePatchOutcomeFeedback(result),
-        })),
+      held: { read: dayPath, skip: 1 },
+      send: editField(
+        { handoffNovedadesNightShift: 'NOTA SINTETICA DE P1' },
+        { historyPolicy: 'snapshot' }
+      ),
+    },
+    // A bed edit written directly: the rules refuse it, and the permission refresh that would let
+    // it go on through the authority waits for the network.
+    'bed edit refused while permissions refresh': {
+      fence: true,
+      staleRouting: true,
+      held: 'role refresh',
+      send: editField({ 'beds.R1.pathology': 'DIAGNOSTICO SINTETICO DE P1' }),
+      field: diagnosis,
+      base: 'DIAGNOSTICO BASE',
+      written: 'DIAGNOSTICO SINTETICO DE P1',
     },
     // A full-day save with the server's write fence on, as in production: the routing read
     // before the authority call waits for the network.
@@ -236,6 +286,16 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   it.each(Object.keys(sends))(
     'does not publish a %s after its author’s session ended',
     async kind => {
+      const { field = note, base = 'NOCHE BASE', written = 'NOTA SINTETICA DE P1' } = sends[kind];
+      server.dispatched = 0;
+      const routing = sends[kind].staleRouting
+        ? [
+            vi.spyOn(fence, 'isServerClinicalWriteFenceActive').mockResolvedValue(false),
+            vi
+              .spyOn(fence, 'resolveEffectiveDailyRecordAuthorityMode')
+              .mockResolvedValue('client_only'),
+          ]
+        : [];
       await env.clearFirestore();
       await hospitalDB.dailyRecords.clear();
       await hospitalDB.syncQueue.clear();
@@ -247,15 +307,17 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
           revision: 7,
           clinicalBatchMode: 'enforced',
         });
-      await admin.doc(dayPath).set({
-        ...DataFactory.createMockDailyRecord(date, {
-          lastUpdated: '2026-01-01T00:00:00.000Z',
-          dateTimestamp: Date.parse(`${date}T00:00:00.000Z`),
-          handoffNovedadesNightShift: 'NOCHE BASE',
-          activeExtraBeds: [],
-        }),
-        meta: { revision: 1 },
+      const day = DataFactory.createMockDailyRecord(date, {
+        lastUpdated: '2026-01-01T00:00:00.000Z',
+        dateTimestamp: Date.parse(`${date}T00:00:00.000Z`),
+        handoffNovedadesNightShift: 'NOCHE BASE',
+        activeExtraBeds: [],
       });
+      day.beds.R1 = DataFactory.createMockPatient('R1', {
+        pathology: 'DIAGNOSTICO BASE',
+        clinicalEpisodeId: 'ep_synthetic_R1',
+      });
+      await admin.doc(dayPath).set({ ...day, meta: { revision: 1 } });
       // P1 is signed in on this computer and has the day open.
       await as('P1', () => reconcileAuthorizedSessionOwner(ownerOf('P1')));
       await as('P1', () => syncWithFirestoreDetailed(date));
@@ -269,6 +331,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         step: sends[kind].held,
         reached,
         released: new Promise<void>(resolve => (release = resolve)),
+        seen: 0,
       };
       const edit = as('P1', () => sends[kind].send(shown));
       await sending;
@@ -276,13 +339,11 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       const queued = await hospitalDB.syncQueue.toArray();
       expect(
         queued.some(
-          task =>
-            task.ownerKey === ownerOf('P1') &&
-            (task.payload as Partial<DailyRecord>).handoffNovedadesNightShift ===
-              'NOTA SINTETICA DE P1'
+          task => task.ownerKey === ownerOf('P1') && field(task.payload as DailyRecord) === written
         )
       ).toBe(true);
 
+      const historyBeforeChange = await countHistory();
       // P1 closes the session (the 1 h inactivity logout runs the same cleanup) and P2 signs in.
       await as('P1', () => clearSessionScopedClientState('manual'));
       await as('P2', () => reconcileAuthorizedSessionOwner(ownerOf('P2')));
@@ -290,22 +351,28 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       // The server answers.
       release();
       const result = await edit;
+      routing.forEach(spy => spy.mockRestore());
+      const history = (await countHistory()) - historyBeforeChange;
       const retained = (await hospitalDB.syncQueue.toArray()).map(task => ({
         owner: task.ownerKey,
         status: task.status,
         code: task.lastErrorCode,
-        text: (task.payload as Partial<DailyRecord>).handoffNovedadesNightShift,
+        text: field(task.payload as DailyRecord),
       }));
       process.stdout.write(
         `SC2 ${kind} after session change ${JSON.stringify({
           updatedRemotely: result.updatedRemotely,
-          server: (await readServer()).handoffNovedadesNightShift,
+          server: field(await readServer()),
+          dispatched: server.dispatched,
+          history,
           retained,
         })}\n`
       );
       // Rule: nothing is published for a session that is no longer the current one. P1's text
       // stays in P1's queue («Sesión cerrada») for P1 to review and resend, and P2 sees nothing.
-      expect((await readServer()).handoffNovedadesNightShift).toBe('NOCHE BASE');
+      expect(field(await readServer())).toBe(base);
+      expect(server.dispatched).toBe(0);
+      expect(history).toBe(0);
       expect(result.updatedRemotely).toBe(false);
       expect(result.feedback).toBeNull();
       expect(retained).toEqual([
@@ -313,7 +380,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
           owner: ownerOf('P1'),
           status: 'FAILED',
           code: 'session_owner_logged_out',
-          text: 'NOTA SINTETICA DE P1',
+          text: written,
         },
       ]);
     },

@@ -29,6 +29,14 @@ export const logFirestoreWriteError = (
   });
 };
 
+/** A changed session stops the write here instead of waiting to retry. */
+export const unlessSessionChanged =
+  (options: { assertCanPublish?: () => void }, shouldRetry: (error: unknown) => boolean) =>
+  (error: unknown): boolean => {
+    options.assertCanPublish?.();
+    return shouldRetry(error);
+  };
+
 export const isPermissionDeniedError = (error: unknown): boolean => {
   const code = String((error as { code?: unknown })?.code || '').toLowerCase();
   const message = String((error as { message?: unknown })?.message || '').toLowerCase();

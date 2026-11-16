@@ -35,6 +35,7 @@ import {
   logFirestoreWriteError,
   logFirestoreWriteRetry,
   tryRefreshCurrentUserRoleClaim,
+  unlessSessionChanged,
 } from '@/services/storage/firestore/firestoreRecordWriteUtilities';
 import {
   patchDailyRecordWithClinicalAuthorityCallable,
@@ -84,14 +85,6 @@ const shouldRetryWrite = (error: unknown): boolean =>
   !(error instanceof ConcurrencyError) &&
   !(error instanceof DataRegressionError) &&
   !PERMANENT_WRITE_ERROR_CODES.has(String((error as { code?: unknown })?.code));
-
-/** A changed session stops the write here instead of waiting to retry. */
-const unlessSessionChanged =
-  (options: { assertCanPublish?: () => void }, shouldRetry: (error: unknown) => boolean) =>
-  (error: unknown): boolean => {
-    options.assertCanPublish?.();
-    return shouldRetry(error);
-  };
 
 export const saveRecordToFirestore = async (
   record: DailyRecord,
@@ -397,7 +390,10 @@ export const updateRecordPartial = async (
       options.assertCanPublish?.();
       // Outside the transaction: roles the rules do not let write history still save the day.
       if (options.historyPolicy !== 'skip')
-        await saveHistorySnapshot(date, { force: options.historyPolicy === 'snapshot' });
+        await saveHistorySnapshot(date, {
+          force: options.historyPolicy === 'snapshot',
+          assertCanCommit: options.assertCanPublish,
+        });
 
       // Checked inside the transaction, so two writers can no longer both pass a read and then
       // overwrite each other. A version newer than this writer's base refuses the write only when
@@ -466,6 +462,7 @@ export const updateRecordPartial = async (
       expectedLastUpdated,
       syncContract: options.syncContract,
       tryRefreshCurrentUserRoleClaim,
+      assertCanPublish: options.assertCanPublish,
     });
   } catch (error) {
     logFirestoreWriteError('partialUpdate', date, error);
