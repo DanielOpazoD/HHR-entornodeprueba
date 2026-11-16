@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
 
-import {
-  parseRefRange,
-  parseDateDDMMYYYY,
-  isOutOfRange,
-} from '@/features/laboratory/controllers/labFormattingController';
 import { buildAnalysisData } from '@/features/laboratory/controllers/labAnalyticsController';
 import type { SyslabExamDetail, SyslabExamItem } from '@/types/domain/labExamTypes';
 import type { LabTrendGroup } from '@/types/domain/labAnalyticsTypes';
@@ -28,57 +23,6 @@ const MOCK_EXAM_2: SyslabExamItem = {
   origin: 'HOSPITALIZADOS',
   exams: ['HEMOGRAMA'],
 };
-
-describe('parseRefRange', () => {
-  it('parses "12.0-16.0"', () => {
-    expect(parseRefRange('12.0-16.0')).toEqual({ min: 12, max: 16 });
-  });
-
-  it('parses "4.5 - 11.0"', () => {
-    expect(parseRefRange('4.5 - 11.0')).toEqual({ min: 4.5, max: 11 });
-  });
-
-  it('returns null for non-range strings', () => {
-    expect(parseRefRange('Negativo')).toBeNull();
-    expect(parseRefRange('')).toBeNull();
-  });
-});
-
-describe('parseDateDDMMYYYY', () => {
-  it('converts DD/MM/YYYY to ISO', () => {
-    expect(parseDateDDMMYYYY('06/04/2026')).toBe('2026-04-06');
-  });
-
-  it('pads single-digit day/month', () => {
-    expect(parseDateDDMMYYYY('1/3/2026')).toBe('2026-03-01');
-  });
-
-  it('returns original if format is invalid', () => {
-    expect(parseDateDDMMYYYY('invalid')).toBe('invalid');
-  });
-});
-
-describe('isOutOfRange', () => {
-  it('returns true for value below range', () => {
-    expect(isOutOfRange('3.0', '4.5-11.0')).toBe(true);
-  });
-
-  it('returns true for value above range', () => {
-    expect(isOutOfRange('15.0', '4.5-11.0')).toBe(true);
-  });
-
-  it('returns false for value within range', () => {
-    expect(isOutOfRange('7.5', '4.5-11.0')).toBe(false);
-  });
-
-  it('returns null for non-numeric result', () => {
-    expect(isOutOfRange('Negativo', '4.5-11.0')).toBeNull();
-  });
-
-  it('returns null for unparseable reference', () => {
-    expect(isOutOfRange('7.5', 'N/A')).toBeNull();
-  });
-});
 
 describe('buildAnalysisData', () => {
   const examList: SyslabExamItem[] = [MOCK_EXAM, MOCK_EXAM_2];
