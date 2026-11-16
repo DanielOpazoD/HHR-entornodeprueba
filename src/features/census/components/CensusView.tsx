@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import React, { Suspense, lazy, useRef, useState } from 'react';
 import { CensusLoadingState } from '@/components/ui/CensusLoadingState';
 import { useDailyRecordStatus } from '@/context/DailyRecordContext';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
@@ -72,14 +72,6 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
       id: rayenBootstrapSequenceRef.current,
     });
   };
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- a bootstrap intent belongs only to the date and session that created it
-    setRayenBootstrapRequest(previous =>
-      previous && (previous.date !== currentDateString || previous.sessionEpoch !== sessionEpoch)
-        ? null
-        : previous
-    );
-  }, [currentDateString, sessionEpoch]);
 
   const isEmptyBranchPending =
     branch === 'empty' &&
@@ -117,6 +109,8 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
       {registerContentProps ? (
         <CensusRegisterContent
           {...registerContentProps}
+          // The request waits for its own day: looking at another day only hides it, and it starts
+          // on return. The session epoch only grows, so a request of an ended session never runs.
           rayenBootstrapRequestId={
             rayenBootstrapRequest?.date === currentDateString &&
             rayenBootstrapRequest.sessionEpoch === sessionEpoch
