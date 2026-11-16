@@ -318,6 +318,16 @@ describe('a validated RUN whose Eloísa spelling changes between report versions
         (d.sources[1].report.patients[0].patientName = 'SOFIA PRUEBA OTRO'),
     ],
     [
+      'a spelling without the census first given name',
+      (d: ReturnType<typeof versions>) => {
+        const other = d.sources[1].report.patients[0];
+        other.patientName = 'MARIA PRUEBA EJEMPLO';
+        other.days = other.days.map(day =>
+          day.category ? { ...day, category: 'D2', originalValue: 'D2' } : day
+        );
+      },
+    ],
+    [
       'a spelling without the census first surname',
       (d: ReturnType<typeof versions>) =>
         (d.sources[1].report.patients[0].patientName = 'ANA MARIA EJEMPLO'),
@@ -376,4 +386,13 @@ it('keeps two spellings of one RUN inside the same report version as two people'
   const output = applyCudyrMonthlySources(data, [source]);
   expect(output.rows.find(r => r.key === 'next-night')?.evaluation).toBeNull();
   expect(output.rows.filter(r => r.contextSource === 'eloisa_monthly_report')).toHaveLength(2);
+});
+
+it('keeps the single-spelling RUN rule when the census surname is empty', () => {
+  const { data, source } = fixture('Ana Maria', '', '', 'ANA PRUEBA EJEMPLO');
+  data.rows[0].rut = '11.111.111-1';
+  data.rows[0].documentType = 'RUT';
+  source.report.patients[0].document = '11111111-1';
+  const output = applyCudyrMonthlySources(data, [source]);
+  expect(output.rows.find(r => r.key === data.rows[0].key)?.evaluation?.category).toBe('C2');
 });

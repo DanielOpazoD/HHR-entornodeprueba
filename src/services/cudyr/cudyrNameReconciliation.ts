@@ -58,6 +58,43 @@ export const cudyrMatchesCensusName = (name: string, row: CudyrReportRow) => {
   return Boolean(given && expected && given.replace(/ /g, '') === expected.replace(/ /g, ''));
 };
 
+/** One spelling in every report version: the census-supported rule that predates versions. */
+const keepsOneSpelling = (name: string, census: CudyrReportRow) => {
+  const [firstGiven] = normalizedGiven(census.firstName).split(' ');
+  return (
+    cudyrMatchesCensusName(name, census) ||
+    (firstGiven !== undefined &&
+      normalizedGiven(name)
+        .split(/[^A-Z0-9]+/)
+        .includes(firstGiven))
+  );
+};
+
+/** Eloísa may drop words or add placeholders between versions, but every word of every
+ * spelling must belong to the census name, and each spelling keeps the census first given
+ * name and the whole first surname: another person sharing a mistyped RUN stays apart.
+ */
+const joinsChangedSpellings = (sourceNames: string[], census: CudyrReportRow) => {
+  const censusWords = new Set(
+    nameWords(
+      [census.firstName, census.lastName, normalizeOptionalPersonName(census.secondLastName)]
+        .filter(Boolean)
+        .join(' ')
+    )
+  );
+  const [firstGiven] = nameWords(census.firstName || '');
+  const firstSurname = nameWords(census.lastName || '');
+  if (!firstGiven || !firstSurname.length) return false;
+  return sourceNames.every(name => {
+    const spelling = nameWords(name);
+    return (
+      spelling.includes(firstGiven) &&
+      firstSurname.every(word => spelling.includes(word)) &&
+      spelling.every(word => censusWords.has(word))
+    );
+  });
+};
+
 /** An alias is enabled only when every archived/census identity sharing this document
  * agrees with one structured census name. Never uses score, bed, fuzzy distance or an empty RUT.
  * The original names/documents remain untouched; episode/day ambiguity is handled downstream.
@@ -95,21 +132,8 @@ export const createCudyrIdentityResolver = (
     const sourceNames = sourcesByDocument.get(document);
     if (!sourceNames || rows.some(r => !r.clinicalEpisodeId)) continue;
     // A validated, non-shared RUN is the primary identifier. Keep RN/maternal documents
-    // separate and require one census episode. Eloísa may drop words or add placeholders
-    // between versions, but every word of every source spelling must belong to the census
-    // name, and each spelling must keep the census first given name and the whole first
-    // surname: another person sharing a mistyped RUN in another version stays apart.
-    // The downstream day linker still checks ownership.
+    // separate and require one census episode. The downstream day linker still checks ownership.
     const [census] = rows;
-    const censusWords = new Set(
-      nameWords(
-        [census?.firstName, census?.lastName, normalizeOptionalPersonName(census?.secondLastName)]
-          .filter(Boolean)
-          .join(' ')
-      )
-    );
-    const [firstGiven = ''] = nameWords(census?.firstName || '');
-    const firstSurname = nameWords(census?.lastName || '');
     const oneSpelling =
       new Set(sourceNames.map(name => cudyrOrderedIdentity(document, name))).size === 1;
     if (
@@ -119,18 +143,10 @@ export const createCudyrIdentityResolver = (
       !rows.some(r => r.modality === 'cuna' || isNewborn(r.patientName)) &&
       !sourceNames.some(isNewborn) &&
       !sharedInOneReport.has(document) &&
-      Boolean(census && firstGiven && firstSurname.length) &&
-      sourceNames.every(name => {
-        const spelling = nameWords(name);
-        // One spelling in every version: the census-supported rule that predates versions.
-        if (oneSpelling)
-          return cudyrMatchesCensusName(name, census) || spelling.includes(firstGiven);
-        return (
-          spelling.includes(firstGiven) &&
-          firstSurname.every(word => spelling.includes(word)) &&
-          spelling.every(word => censusWords.has(word))
-        );
-      })
+      census &&
+      (oneSpelling
+        ? sourceNames.every(name => keepsOneSpelling(name, census))
+        : joinsChangedSpellings(sourceNames, census))
     ) {
       const canonical = JSON.stringify([document, 'RUN']);
       for (const name of [...rows.map(r => r.patientName), ...sourceNames])
