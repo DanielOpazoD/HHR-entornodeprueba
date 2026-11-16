@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DocumentReference, Firestore } from 'firebase/firestore';
 import { subscribeToFirestoreDocument } from '@/services/storage/firestore/firestoreDocumentStore';

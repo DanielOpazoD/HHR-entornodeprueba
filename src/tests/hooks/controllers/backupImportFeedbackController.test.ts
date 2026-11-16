@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { summarizeBackupImportOutcome } from '@/hooks/controllers/backupImportFeedbackController';
 

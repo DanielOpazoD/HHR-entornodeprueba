@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Exam Categories Constants Tests
  * Tests for exam categories structure and data integrity.

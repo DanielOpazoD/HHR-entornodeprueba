@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMMRADSearchHandler } from '../../../netlify/functions/mmrad-search';
 import { forgetMMRADSession } from '../../../netlify/functions/lib/mmrad-session';

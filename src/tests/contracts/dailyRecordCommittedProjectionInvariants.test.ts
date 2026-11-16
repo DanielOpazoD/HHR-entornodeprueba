@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * The atomic partial update returns its committed record by projecting the payload onto the base
  * read in the same transaction (firestoreUpdateProjection). That is exact only while nothing else

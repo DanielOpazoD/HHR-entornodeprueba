@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { parseVitalSigns, latestVitalsAsOf } from '@/features/rayen-import/mapping/parseVitalSigns';
 

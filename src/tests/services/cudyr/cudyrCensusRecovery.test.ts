@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect } from 'vitest';
 import { createCudyrRecoveredRow } from '@/services/cudyr/cudyrRecoveredRow';
 import { applyCudyrCensusContinuity } from '@/services/cudyr/cudyrCensusContinuity';

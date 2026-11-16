@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { createCensusPerfModel } from '@/shared/runtime/censusPerfModel';
 const setup = () => {

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import type { ClinicalDocumentsWorkspacePatientContract } from '@/features/clinical-documents/contracts/clinicalDocumentsPatientContract';
 
 import { describe, expect, it } from 'vitest';

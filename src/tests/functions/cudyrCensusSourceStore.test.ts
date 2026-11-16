@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { utils, write } from 'xlsx';
 import { createRequire } from 'node:module';
 import { describe, it, expect } from 'vitest';

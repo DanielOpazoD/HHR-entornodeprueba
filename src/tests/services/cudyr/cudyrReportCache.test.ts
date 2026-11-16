@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it } from 'vitest';
 import { cudyrReportCache } from '@/services/cudyr/cudyrReportCache';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { collectNursingStaffingProposal } from '@/features/rayen-import/domain/collectNursingStaffingProposal';
 import type { DailyRecord } from '@/types/domain/dailyRecord';

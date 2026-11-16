@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import type { Page } from '@playwright/test';
 import { bootstrapSeededRecord, setupE2EContext } from '../../../e2e/fixtures/auth';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { reconstructHistoricalSnapshotAtClose } from '@/features/rayen-import/domain/historicalSnapshotReconstruction';
 import { relevantHistoricalReportRows } from '@/features/rayen-import/domain/historicalAdministrativeEvidence';

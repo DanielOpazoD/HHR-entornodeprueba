@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import type { Page } from '@playwright/test';
 import { buildCanonicalE2ERecord, setupE2EContext } from '../../../e2e/fixtures/auth';

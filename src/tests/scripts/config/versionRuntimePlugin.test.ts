@@ -1,3 +1,4 @@
+// @vitest-environment node
 import type { ViteDevServer } from 'vite';
 import { describe, expect, it, vi } from 'vitest';
 

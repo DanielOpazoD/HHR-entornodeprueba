@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect } from 'vitest';
 import { INSTITUTIONAL_ACCOUNTS, isInstitutionalAccount } from '@/constants/identities';
 

@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Guards the extension's exam-request forms module (extension/hhr-request-forms.js):
  * patient-view derivation, the imaging documents' overlay/PDF field maps (HHR parity)

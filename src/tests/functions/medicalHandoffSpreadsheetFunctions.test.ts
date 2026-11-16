@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
   AUDIT_CONNECTION_MIN_OFFLINE_MS,

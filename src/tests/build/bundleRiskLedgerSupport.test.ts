@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
   BUNDLE_RISK_LEDGER_GENERATED_AT,

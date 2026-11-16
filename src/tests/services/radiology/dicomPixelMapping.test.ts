@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { parseDicom } from 'dicom-parser';
 import { supportsDicomResampling } from '@/services/radiology/dicomPixelMapping';
