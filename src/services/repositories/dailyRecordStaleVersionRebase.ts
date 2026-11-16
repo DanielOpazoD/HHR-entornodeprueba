@@ -190,14 +190,16 @@ export const buildGranularPatchStaleVersionRetryHooks = <TResult>({
   const compatibilityPaths = semanticChangedPaths.filter(
     path => !derivedPatientNamePaths.has(path)
   );
+  // A field the server omits and one this computer holds as null are the same empty value: a bed
+  // emptied by a confirmed discharge has no `firstSeenDate` there and null here.
   const holdsBaseValues = (freshRemoteRecord: DailyRecord) =>
     compatibilityPaths.every(path =>
       [baseRecord, unsentBaseRecord].some(
         base =>
           base &&
           hasSameComparableValue(
-            getValueAtPath(freshRemoteRecord, path),
-            getValueAtPath(base, path)
+            getValueAtPath(freshRemoteRecord, path) ?? null,
+            getValueAtPath(base, path) ?? null
           )
       )
     );
