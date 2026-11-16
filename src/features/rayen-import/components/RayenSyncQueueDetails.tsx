@@ -170,9 +170,7 @@ export const RayenSyncQueueDetails: React.FC<{
                     </button>
                   ) : confirmingDiscard === operation.id ? (
                     <span className="text-right">
-                      {operation.recovery === 'discard_note'
-                        ? 'Revisa antes su borrador en Entrega médica.'
-                        : 'Estos cambios no se enviarán.'}{' '}
+                      Estos cambios no se enviarán.{' '}
                       <button
                         type="button"
                         onClick={() => void run(operation.id, discardQuarantinedSyncTask)}

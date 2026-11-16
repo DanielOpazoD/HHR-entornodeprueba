@@ -22,13 +22,12 @@ export const useBedManagementActionCreators = (
   );
 
   const updatePatientMultiple = useCallback(
-    (bedId: string, fields: Partial<PatientData>, expectedHandoffPatient?: PatientData) => {
+    (bedId: string, fields: Partial<PatientData>) => {
       if (dispatchAndWait)
         return dispatchAndWait({
           type: 'UPDATE_PATIENT_MULTIPLE',
           bedId,
           fields,
-          ...(expectedHandoffPatient ? { expectedHandoffPatient } : {}),
         });
       // A signed evaluation must not start if its confirmation cannot be awaited.
       if (fields.upcChecklist?.evaluatedForDate) return Promise.resolve(false);
@@ -36,7 +35,6 @@ export const useBedManagementActionCreators = (
         type: 'UPDATE_PATIENT_MULTIPLE',
         bedId,
         fields,
-        ...(expectedHandoffPatient ? { expectedHandoffPatient } : {}),
       });
       return Promise.resolve(false);
     },
@@ -104,20 +102,18 @@ export const useBedManagementActionCreators = (
   );
 
   const updateClinicalCribMultiple = useCallback(
-    (bedId: string, fields: Partial<PatientData>, expectedHandoffPatient?: PatientData) => {
+    (bedId: string, fields: Partial<PatientData>) => {
       if (dispatchAndWait)
         return dispatchAndWait({
           type: 'UPDATE_CLINICAL_CRIB_MULTIPLE',
           bedId,
           fields,
-          ...(expectedHandoffPatient ? { expectedHandoffPatient } : {}),
         });
       if (fields.upcChecklist?.evaluatedForDate) return Promise.resolve(false);
       dispatch({
         type: 'UPDATE_CLINICAL_CRIB_MULTIPLE',
         bedId,
         fields,
-        ...(expectedHandoffPatient ? { expectedHandoffPatient } : {}),
       });
       return Promise.resolve(false);
     },

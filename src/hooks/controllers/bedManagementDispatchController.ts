@@ -1,6 +1,5 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import { buildSpecialistHandoffTargets } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import type { ApplyDailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
@@ -323,29 +322,7 @@ export const executeBedManagementAction = async ({
     }
 
     try {
-      if (
-        (validatedAction.type === 'UPDATE_PATIENT_MULTIPLE' ||
-          validatedAction.type === 'UPDATE_CLINICAL_CRIB_MULTIPLE') &&
-        validatedAction.expectedHandoffPatient
-      ) {
-        const bedId = validatedAction.bedId;
-        const nested = validatedAction.type === 'UPDATE_CLINICAL_CRIB_MULTIPLE';
-        const editedRecord = {
-          ...currentRecord,
-          beds: {
-            ...currentRecord.beds,
-            [bedId]: nested
-              ? {
-                  ...currentRecord.beds[bedId],
-                  clinicalCrib: validatedAction.expectedHandoffPatient,
-                }
-              : validatedAction.expectedHandoffPatient,
-          },
-        };
-        await patchRecord(patch, {
-          specialistHandoffTargets: buildSpecialistHandoffTargets(editedRecord, patch),
-        });
-      } else if (validatedAction.type === 'CLEAR_PATIENT') {
+      if (validatedAction.type === 'CLEAR_PATIENT') {
         const currentBed = currentRecord.beds[validatedAction.bedId]!;
         await patchRecord(patch, {
           consistency: 'remote_confirmed',

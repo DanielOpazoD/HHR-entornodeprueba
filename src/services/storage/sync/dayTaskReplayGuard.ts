@@ -6,12 +6,6 @@ import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { PatientData } from '@/types/domain/patient';
-import type { SpecialistHandoffTarget } from '@/types/domain/specialistHandoffTarget';
-import {
-  buildSpecialistHandoffTargets,
-  sameSpecialistHandoffTarget,
-} from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
-
 import { hasSameBedOccupant } from '@/services/storage/sync/bedOccupantIdentity';
 import {
   getValueAtPath,
@@ -20,15 +14,10 @@ import {
 } from '@/services/repositories/conflictResolutionUtils';
 import { applyPatches } from '@/utils/patchUtils';
 
-export interface SpecialistNoteValue {
-  target: SpecialistHandoffTarget;
-  value: unknown;
-}
-
 const pathsOverlap = (left: string, right: string): boolean =>
   left === right || left.startsWith(`${right}.`) || right.startsWith(`${left}.`);
 
-/** Fields a specialist note writes on a patient; its own task publishes them. */
+/** Note fields on a patient: a day write publishes only the ones it changed. */
 export const NOTE_FIELDS = [
   'medicalHandoffEntries',
   'medicalHandoffNote',
@@ -101,17 +90,15 @@ export const hasOtherOccupantInUntouchedBed = (
 
 /**
  * A day write never publishes a note it did not write: note fields outside its changed paths keep
- * the stored day's values. A whole-record write names no paths, so a note field keeps the stored
- * value where the write holds exactly what a specialist note still queued for that day wants
- * there for that same patient and episode, pending or refused: that text is the note's own.
+ * the stored day's values. A whole-record write names no paths and writes the day it holds.
  */
 export const keepStoredNoteFields = (
   task: SyncTask,
   local: DailyRecord,
-  remote: DailyRecord | undefined,
-  noteValues: ReadonlyMap<string, readonly SpecialistNoteValue[]> = new Map()
+  remote: DailyRecord | undefined
 ): DailyRecord => {
   const changed = ownedPaths(task);
+  if (!changed) return local;
   const stored: Record<string, unknown> = {};
   for (const [bedId, bed] of Object.entries(local.beds ?? {})) {
     const targets = [`beds.${bedId}`, ...(bed?.clinicalCrib ? [`beds.${bedId}.clinicalCrib`] : [])];
@@ -119,16 +106,7 @@ export const keepStoredNoteFields = (
       const value = getValueAtPath(local, path);
       const storedValue = getValueAtPath(remote, path);
       if (hasSameNoteValue(value, storedValue)) continue;
-      const notTheDayWrites = changed
-        ? !changed.some(changedPath => pathsOverlap(changedPath, path))
-        : (noteValues.get(path) ?? []).some(
-            noteValue =>
-              hasSameNoteValue(value, noteValue.value) &&
-              buildSpecialistHandoffTargets(local, { [path]: value }).some(target =>
-                sameSpecialistHandoffTarget(target, noteValue.target)
-              )
-          );
-      if (notTheDayWrites) stored[path] = storedValue;
+      if (!changed.some(changedPath => pathsOverlap(changedPath, path))) stored[path] = storedValue;
     }
   }
   return Object.keys(stored).length ? applyPatches(local, stored as DailyRecordPatch) : local;

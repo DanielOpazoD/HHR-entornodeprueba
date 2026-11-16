@@ -2,7 +2,7 @@ import type { OperationalTelemetryOperation } from '@/services/observability/ope
 import { createCudyrArchiveQueue } from './publicCudyrArchiveQueue';
 import { ensureDbReady } from '@/services/storage/indexeddb/indexedDbCore';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
-import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
+import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { createBrowserSyncRuntime } from '@/services/storage/sync/browserSyncRuntime';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
@@ -290,18 +290,12 @@ export const queueCudyrArchiveTask = createCudyrArchiveQueue(syncQueueEngine.que
 export const queueDailyRecordSyncTaskWithLocalRecord = async (
   record: DailyRecord,
   meta: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'> | undefined,
-  options: SyncQueueEnqueueOptions,
-  handoff?: SpecialistHandoffSyncPayload
+  options: SyncQueueEnqueueOptions
 ): Promise<SyncQueueEnqueueResult> => {
-  const type = handoff ? 'UPDATE_SPECIALIST_HANDOFF' : 'UPDATE_DAILY_RECORD';
+  const type = 'UPDATE_DAILY_RECORD';
   try {
     await ensureDbReady();
-    const result = await syncQueueEngine.queueDailyRecordTaskWithLocalRecord(
-      record,
-      meta,
-      options,
-      handoff
-    );
+    const result = await syncQueueEngine.queueDailyRecordTaskWithLocalRecord(record, meta, options);
     if (result.mode === 'retained_for_owner') {
       recordOperationalTelemetry({
         category: 'sync',

@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { A, clone, day, harnessState } from './specialistHandoffOutboxHarness';
+import { A, clone, day, harnessState } from './dayRecordOutboxHarness';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {

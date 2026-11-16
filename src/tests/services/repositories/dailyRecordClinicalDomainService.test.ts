@@ -7,6 +7,7 @@ import {
   buildClinicalBedsFromPreviousRecord,
   buildEmptyClinicalBeds,
   preparePatientForCarryover,
+  isClinicalEventsOnlyDailyRecordPatch,
   preserveCIE10FromPreviousDay,
 } from '@/services/repositories/dailyRecordClinicalDomainService';
 
@@ -297,20 +298,12 @@ describe('dailyRecordClinicalDomainService', () => {
     expect(mergedPatches['beds.R2.fhir_resource']).toBeUndefined();
   });
 
-  it('does not add fhir patches for specialist-scoped medical handoff updates', () => {
-    const mergedPatches: DailyRecordPatch = {
-      'beds.R1.medicalHandoffNote': 'Nueva evolución',
-      'beds.R1.medicalHandoffEntries': [
-        {
-          id: 'entry-1',
-          specialty: Specialty.MEDICINA,
-          note: 'Nueva evolución',
-        },
-      ] as never,
-      'beds.R1.medicalHandoffAudit': {
-        lastSpecialistUpdateAt: '2026-03-21T22:10:00.000Z',
-      },
-    };
+  it('does not add fhir patches for a clinical-events-only update', () => {
+    const mergedPatches = {
+      'beds.R1.clinicalEvents': [
+        { id: 'event-1', name: 'Procedimiento', date: '2026-03-21', createdAt: '2026-03-21' },
+      ],
+    } as unknown as DailyRecordPatch;
     const record = {
       beds: {
         R1: buildPatient('R1', {
@@ -324,5 +317,26 @@ describe('dailyRecordClinicalDomainService', () => {
 
     expect(mergedPatches['beds.R1.fhir_resource']).toBeUndefined();
     expect(mergedPatches['beds.R1.clinicalCrib.fhir_resource']).toBeUndefined();
+  });
+
+  it('treats only one bed clinical events as a clinical-events-only patch', () => {
+    const events = [] as never;
+    expect(isClinicalEventsOnlyDailyRecordPatch({ 'beds.R1.clinicalEvents': events })).toBe(true);
+    expect(
+      isClinicalEventsOnlyDailyRecordPatch({
+        'beds.R1.clinicalCrib.clinicalEvents': events,
+        dateTimestamp: 1,
+      } as DailyRecordPatch)
+    ).toBe(true);
+    // The retired medical handoff no longer has a write path of its own.
+    expect(
+      isClinicalEventsOnlyDailyRecordPatch({ 'beds.R1.medicalHandoffNote': 'Nota' } as never)
+    ).toBe(false);
+    expect(
+      isClinicalEventsOnlyDailyRecordPatch({
+        'beds.R1.clinicalEvents': events,
+        'beds.R2.clinicalEvents': events,
+      })
+    ).toBe(false);
   });
 });

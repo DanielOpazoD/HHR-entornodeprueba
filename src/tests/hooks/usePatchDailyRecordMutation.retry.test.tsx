@@ -1,3 +1,4 @@
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
@@ -30,7 +31,10 @@ describe('daily record patch retry ownership', () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it('keeps handoff bound to the displayed patient when freshness returns another occupant', async () => {
+  it('keeps clinical events bound to the displayed patient when freshness returns another occupant', async () => {
+    const events = [
+      { id: 'event-A', name: 'Procedimiento de A', date: '2026-05-16', createdAt: '2026-05-16' },
+    ];
     const date = '2026-05-16';
     const displayed = DataFactory.createMockDailyRecord(date);
     displayed.beds.R1 = {
@@ -83,8 +87,8 @@ describe('daily record patch retry ownership', () => {
     vi.mocked(dailyRecord.updatePartialDetailed).mockImplementation(async () => {
       expect(
         queryClient.getQueryData<{ record: typeof displayed }>(getDailyRecordQueryKey(date))?.record
-          .beds.R1.medicalHandoffNote
-      ).not.toBe('Nota de A sintético');
+          .beds.R1.clinicalEvents
+      ).not.toEqual(events);
       throw conflict;
     });
     const wrapper = ({ children }: { children: ReactNode }) => (
@@ -95,7 +99,7 @@ describe('daily record patch retry ownership', () => {
       </QueryClientProvider>
     );
     const { result } = renderHook(() => usePatchDailyRecordMutation(date), { wrapper });
-    const partial = { 'beds.R1.medicalHandoffNote': 'Nota de A sintético' };
+    const partial = { 'beds.R1.clinicalEvents': events } as unknown as DailyRecordPatch;
     await act(async () => {
       await expect(result.current.mutateAsync(partial)).rejects.toBe(conflict);
     });
@@ -112,8 +116,8 @@ describe('daily record patch retry ownership', () => {
     );
     expect(
       queryClient.getQueryData<{ record: typeof displayed }>(getDailyRecordQueryKey(date))?.record
-        .beds.R1.medicalHandoffNote
-    ).not.toBe('Nota de A sintético');
+        .beds.R1.clinicalEvents
+    ).not.toEqual(events);
     queryClient.clear();
   });
 

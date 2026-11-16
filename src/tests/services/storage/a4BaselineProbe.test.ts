@@ -1,15 +1,6 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import {
-  A,
-  clone,
-  day,
-  harnessState,
-  writeNote,
-  createServerHandler,
-  reconnect,
-} from './specialistHandoffOutboxHarness';
-import { readMedicalHandoffDrafts } from '@/services/storage/medicalHandoffDraftStorage';
+import { A, clone, day, harnessState } from './dayRecordOutboxHarness';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {
@@ -37,7 +28,7 @@ vi.mock('@/services/storage/firestore/firestoreRecordQueries', async importOrigi
   },
 }));
 const DATE = '2026-10-24';
-const NOTE = 'Nota especialista sintética pendiente';
+const NOTE = 'Nota sintética ya confirmada';
 const h = harnessState();
 const fields = [
   'handoffNote',
@@ -87,28 +78,17 @@ async function read(path: 'S' | 'E', remote: DailyRecord): Promise<SyncDailyReco
 for (const path of ['S', 'E'] as const) {
   for (const nextNote of ['Texto confirmado posterior', '']) {
     it(`${path} adopts a newer ${nextNote ? 'shorter' : 'empty'} colleague note after ACK`, async () => {
-      const base = day(DATE, { R4: A() });
-      await hospitalDB.dailyRecords.put(base);
-      h.remote = clone(base);
-      await writeNote(base, 'R4', 'entry-A', NOTE);
-      h.handler = createServerHandler();
-      await reconnect();
-      expect(await hospitalDB.syncQueue.count()).toBe(0);
-      const confirmed = await hospitalDB.dailyRecords.get(DATE);
-      if (!confirmed) throw new Error('Missing confirmed row');
-      expect(confirmed.beds.R4.medicalHandoffEntries?.[0].note).toBe(NOTE);
+      // This device's notes are confirmed: no task holds the day.
+      const confirmed = day(DATE, { R4: A() });
       for (const field of fields) confirmed.beds.R4[field] = NOTE;
       await hospitalDB.dailyRecords.put(confirmed);
+      h.remote = clone(confirmed);
       const remote = clone(confirmed);
       remote.lastUpdated = '2026-10-24T16:00:00.000Z';
       for (const field of fields) remote.beds.R4[field] = nextNote;
-      const entry = remote.beds.R4.medicalHandoffEntries?.[0];
-      if (!entry) throw new Error('Missing entry');
-      entry.note = nextNote;
       const result = await read(path, remote);
       const stored = await hospitalDB.dailyRecords.get(DATE);
       for (const row of [result.record, stored]) {
-        expect.soft(row?.beds.R4.medicalHandoffEntries?.[0].note).toBe(nextNote);
         for (const field of fields) expect.soft(row?.beds.R4[field]).toBe(nextNote);
       }
       expect(await hospitalDB.syncQueue.count()).toBe(0);
@@ -117,52 +97,6 @@ for (const path of ['S', 'E'] as const) {
 }
 
 for (const path of ['S', 'E'] as const) {
-  it(`${path} detaches an unsent specialist note when a colleague changed its base`, async () => {
-    const base = day(DATE, { R4: A() });
-    await hospitalDB.dailyRecords.put(base);
-    h.remote = clone(base);
-    await writeNote(base, 'R4', 'entry-A', NOTE);
-    const tasks = await hospitalDB.syncQueue.toArray();
-    expect(tasks).toMatchObject([{ type: 'UPDATE_SPECIALIST_HANDOFF', status: 'PENDING' }]);
-    const local = await hospitalDB.dailyRecords.get(DATE);
-    if (!local) throw new Error('Missing pending row');
-    local.lastUpdated = '2026-10-24T11:00:00.000Z';
-    await hospitalDB.dailyRecords.put(local);
-    const remote = clone(local);
-    remote.lastUpdated = '2026-10-24T16:00:00.000Z';
-    remote.beds.R4.medicalHandoffNote = 'Texto confirmado posterior';
-    const entry = remote.beds.R4.medicalHandoffEntries?.[0];
-    if (!entry) throw new Error('Missing entry');
-    entry.note = 'Texto confirmado posterior';
-    const result = await read(path, remote);
-    const stored = await hospitalDB.dailyRecords.get(DATE);
-    for (const row of [result.record, stored]) {
-      expect.soft(row?.beds.R4.medicalHandoffEntries?.[0].note).toBe('Texto confirmado posterior');
-      expect.soft(row?.beds.R4.medicalHandoffNote).toBe('Texto confirmado posterior');
-    }
-    expect(await hospitalDB.syncQueue.toArray()).toEqual(tasks);
-    expect(readMedicalHandoffDrafts().some(draft => draft.value === NOTE)).toBe(true);
-  });
-}
-
-for (const path of ['S', 'E'] as const) {
-  it(`${path} projects only a compatible pending note and preserves remote metadata`, async () => {
-    const base = day(DATE, { R4: A() });
-    await hospitalDB.dailyRecords.put(base);
-    h.remote = clone(base);
-    await writeNote(base, 'R4', 'entry-A', NOTE);
-    const tasks = await hospitalDB.syncQueue.toArray();
-    const remote = clone(base);
-    remote.lastUpdated = '2026-10-24T16:00:00.000Z';
-    const result = await read(path, remote);
-    expect(result.record?.beds.R4.medicalHandoffEntries?.[0].note).toBe(NOTE);
-    expect(result.record?.lastUpdated).toBe(remote.lastUpdated);
-    expect(result.sourceOfTruth).toBe('local');
-    expect(result.serverConfirmed).toBe(true);
-    expect(await hospitalDB.dailyRecords.get(DATE)).toEqual(result.record);
-    expect(await hospitalDB.syncQueue.toArray()).toEqual(tasks);
-  });
-
   it(`${path} records an unheld newer row replacement without copying it and repeats without writes or events`, async () => {
     const remote = day(DATE, { R4: A() });
     const local = clone(remote);

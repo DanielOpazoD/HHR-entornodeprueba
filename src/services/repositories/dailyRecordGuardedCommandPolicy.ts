@@ -100,7 +100,7 @@ const getManualClinicalCribCreationIntent = (
     request: explicitCreate,
     authorityPatch: prepareFirestorePartialData({
       partialData: patch,
-      specialistScopedPatch: false,
+      clinicalEventsOnlyPatch: false,
       intentionalBedClear: undefined,
       clinicalCribCreate: true,
     }),

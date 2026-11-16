@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { QueryClient } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { A, B, clone, day, harnessState, writeNote } from './specialistHandoffOutboxHarness';
+import { A, B, clone, day, harnessState } from './dayRecordOutboxHarness';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
@@ -23,7 +23,6 @@ import {
   registerPendingDailyRecordPatch,
 } from '@/hooks/controllers/dailyRecordPendingPatchController';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
-import { resetMedicalHandoffDraftMemoryForTests } from '@/services/storage/medicalHandoffDraftStorage';
 
 const wire = vi.hoisted(() => ({
   emit: undefined as
@@ -47,13 +46,11 @@ vi.mock('@/services/storage/firestore/firestoreRecordQueries', async importOrigi
 }));
 
 const DATE = '2026-10-24';
-const NOTE = 'Nota especialista sintética pendiente';
 const Q = 'Diagnóstico optimista sintético';
 const paths = ['puntual', 'suscripción', 'rango', 'mantenimiento', 'JSON', 'heredada'] as const;
 type Path = (typeof paths)[number];
 const situations = [
   'diaria',
-  'especialista',
   'optimista',
   'local nueva',
   'otro paciente',
@@ -72,7 +69,6 @@ beforeEach(async () => {
   sessionStorage.clear();
   localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-admission');
   clearPendingDailyRecordPatchesForTests();
-  resetMedicalHandoffDraftMemoryForTests();
   await hospitalDB.syncQueue.clear();
   await hospitalDB.dailyRecords.clear();
   h.remote = null;
@@ -85,7 +81,6 @@ afterEach(async () => {
   client.clear();
   wire.emit = undefined;
   clearPendingDailyRecordPatchesForTests();
-  resetMedicalHandoffDraftMemoryForTests();
   await hospitalDB.syncQueue.clear();
   await hospitalDB.dailyRecords.clear();
   localStorage.clear();
@@ -93,29 +88,22 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
+/**
+ * A backup whose R4 holds another patient or episode, over a stored R4 whose handoff entries that
+ * backup never read, is refused by the full-save note base guard (`fullSaveNoteBaseGuard`).
+ */
+let backupReplacesOccupant = false;
+const backupReplacesOccupantIn = (situation: Situation) =>
+  situation === 'otro paciente' || situation === 'otro episodio';
+
 async function prepare(situation: Situation) {
+  backupReplacesOccupant = backupReplacesOccupantIn(situation);
   const base = day(DATE, {
     R4: A('R4', { pathology: 'Diagnóstico base', clinicalEpisodeId: 'ep_admission_a' }),
   });
   base.nursesDayShift = ['Local sintética'];
   await hospitalDB.dailyRecords.put(base);
   h.remote = clone(base);
-  if (
-    situation === 'especialista' ||
-    situation === 'otro paciente' ||
-    situation === 'otro episodio'
-  ) {
-    const result = await writeNote(base, 'R4', 'entry-A', NOTE);
-    expect(result.result).toMatchObject({ queuedForRetry: true, updatedRemotely: false });
-    expect(note(await hospitalDB.dailyRecords.get(DATE))).toBe(NOTE);
-    expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
-      {
-        type: 'UPDATE_SPECIALIST_HANDOFF',
-        status: 'PENDING',
-        key: expect.stringMatching(/^handoff:/),
-      },
-    ]);
-  }
   if (situation === 'diaria') {
     const task: SyncTask = {
       opId: 'synthetic-admission-daily',
@@ -194,13 +182,14 @@ async function read(path: Path, remote: DailyRecord): Promise<DailyRecord | null
   if (path === 'mantenimiento') return (await hydrateRangeRecords(DATE, DATE))[0];
   if (path === 'JSON') {
     const hasPending = (await hospitalDB.syncQueue.count()) > 0;
+    const blocked = hasPending || backupReplacesOccupant;
     const result = await importDataJSONDetailed(
       new File([JSON.stringify({ [DATE]: remote })], 'synthetic.json', { type: 'application/json' })
     );
     expect(result).toEqual({
-      success: !hasPending,
-      outcome: hasPending ? 'blocked' : 'clean',
-      importedCount: hasPending ? 0 : 1,
+      success: !blocked,
+      outcome: blocked ? 'blocked' : 'clean',
+      importedCount: blocked ? 0 : 1,
       repairedCount: 0,
       skippedEntries: [],
       ...(hasPending ? { pendingDates: [DATE] } : {}),
@@ -232,7 +221,7 @@ const observed = (record: DailyRecord | null | undefined) =>
 for (const path of paths) {
   describe(`admisión ${path}: copia local / llamador / cola intacta`, () => {
     for (const situation of situations) {
-      // Design step 2 fixes specialist projection in S/R/M; step 3 fixes point Q publication.
+      // Design step 3 fixes point Q publication.
       const optimisticPointRead = situation === 'optimista' && path === 'puntual';
       if (optimisticPointRead) {
         it(`${situation}: entrega base remota sin retirar cola ni parche (invariantes del defecto)`, async () => {
@@ -253,18 +242,18 @@ for (const path of paths) {
       }
       const outcome =
         path === 'JSON'
-          ? 'respaldo por comando; D3 rechaza días pendientes'
+          ? backupReplacesOccupantIn(situation)
+            ? 'respaldo por comando; la guarda de base de nota lo rechaza'
+            : 'respaldo por comando; D3 rechaza días pendientes'
           : isExternalCopy(path)
             ? 'copia externa reemplaza fila; llamador recibe conteo/booleano (D3 pendiente si colisiona)'
             : situation === 'diaria'
               ? 'conserva fila local y la devuelve'
               : situation === 'local nueva'
                 ? `${path === 'rango' ? 'remoto' : 'local'} en fila y retorno (D1 pendiente)`
-                : situation === 'especialista'
-                  ? 'nota pendiente durable y visible'
-                  : situation === 'optimista'
-                    ? `base durable; ${path === 'puntual' || path === 'suscripción' ? 'Q' : 'base'} para llamador`
-                    : 'identidad y base remotas en fila y retorno';
+                : situation === 'optimista'
+                  ? `base durable; ${path === 'puntual' || path === 'suscripción' ? 'Q' : 'base'} para llamador`
+                  : 'identidad y base remotas en fila y retorno';
       it(`${situation}: ${outcome}; cola intacta`, async () => {
         const { local, remote, tasks } = await prepare(situation);
         const patchBefore = localStorage.getItem(PENDING_DAILY_RECORD_PATCH_STORAGE_KEY);
@@ -272,7 +261,7 @@ for (const path of paths) {
         const stored = await hospitalDB.dailyRecords.get(DATE);
         if (path === 'JSON') {
           expect(returned).toBeUndefined();
-          if (tasks.length) {
+          if (tasks.length || backupReplacesOccupant) {
             expect(await hospitalDB.syncQueue.toArray()).toEqual(tasks);
             expect(observed(stored)).toEqual(observed(local));
           } else {
@@ -296,13 +285,6 @@ for (const path of paths) {
         if (situation === 'diaria') {
           expect(stored).toEqual(local);
           expect(observed(returned)).toEqual(observed(local));
-          return;
-        }
-        if (situation === 'especialista') {
-          expect.soft(note(stored), 'durable pending note').toBe(NOTE);
-          expect.soft(note(returned), 'caller pending note').toBe(NOTE);
-          expect(stored?.nursesDayShift).toEqual(remote.nursesDayShift);
-          expect(returned?.nursesDayShift).toEqual(remote.nursesDayShift);
           return;
         }
         if (situation === 'local nueva') {
@@ -331,8 +313,6 @@ for (const path of paths) {
         }
         expect(observed(returned)).toEqual(observed(remote));
         if (situation === 'otro paciente' || situation === 'otro episodio') {
-          expect(note(stored)).not.toBe(NOTE);
-          expect(note(returned)).not.toBe(NOTE);
           expect(returned?.beds.R4.pathology).not.toBe(Q);
         }
       });

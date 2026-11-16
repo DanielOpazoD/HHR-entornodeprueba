@@ -13,7 +13,6 @@ import { resetDailyRecordFreshnessGateForTests } from '@/hooks/controllers/daily
 const notices = vi.hoisted(() => ({ error: vi.fn(), warning: vi.fn(), success: vi.fn() }));
 vi.mock('@/context/UIContext', () => ({ useNotification: () => notices }));
 vi.mock('@/context/VersionContext', () => ({ useVersion: () => ({ checkVersion: vi.fn() }) }));
-import { resetMedicalHandoffDraftMemoryForTests } from '@/services/storage/medicalHandoffDraftStorage';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { afterAll, beforeEach, afterEach, expect, it, vi } from 'vitest';
@@ -36,7 +35,6 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 vi.unmock('@/application/ports/dailyRecordPort');
 const remote = vi.hoisted(() => ({
   record: null as DailyRecord | null,
-  specialist: false,
   write: vi.fn(),
   read: vi.fn(),
   enabled: true,
@@ -45,12 +43,6 @@ const remote = vi.hoisted(() => ({
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', async original => ({
   ...(await original<typeof import('@/services/storage/firestore/firestoreRecordQueries')>()),
   getRecordFromFirestore: (...args: unknown[]) => remote.read(...args),
-}));
-vi.mock('@/services/storage/firestore/firestoreDailyRecordAuthorityRouting', async original => ({
-  ...(await original<
-    typeof import('@/services/storage/firestore/firestoreDailyRecordAuthorityRouting')
-  >()),
-  shouldRouteSpecialistPatchViaCallable: async () => remote.specialist,
 }));
 vi.mock('@/services/storage/firestore/firestoreRecordWrites', async original => ({
   ...(await original<typeof import('@/services/storage/firestore/firestoreRecordWrites')>()),
@@ -99,7 +91,6 @@ beforeEach(async () => {
   Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-11-12T12:00:00Z'));
-  resetMedicalHandoffDraftMemoryForTests();
   resetDailyRecordFreshnessGateForTests();
   onlineManager.setOnline(true);
   Object.values(notices).forEach(n => n.mockClear());
@@ -187,7 +178,6 @@ async function runCase(outcome: string, change: boolean, whole: boolean) {
     lastUpdated: '2026-11-12T12:00:05.000Z',
     meta: { revision: 2 },
   };
-  remote.specialist = !whole;
   remote.write.mockImplementation(async () => {
     await gate;
     if (outcome === 'conflict')
@@ -208,7 +198,7 @@ async function runCase(outcome: string, change: boolean, whole: boolean) {
         whole
           ? hook.result.current.saveAndUpdate({ ...base, nursesDayShift: ['A'] }, base)
           : hook.result.current.patchRecord(
-              { 'beds.R1.medicalHandoffNote': 'SYNTHETIC A NOTE' },
+              { 'beds.R1.pathology': 'SYNTHETIC A DIAGNOSIS' },
               { consistency: 'remote_confirmed' }
             )
       ).catch(e => e);
@@ -230,13 +220,10 @@ async function runCase(outcome: string, change: boolean, whole: boolean) {
     if (change) {
       expect(await hospitalDB.dailyRecords.get(date)).toEqual(nextRow());
       expect(cached?.nursesDayShift).toEqual(nextRow().nursesDayShift);
-      expect(cached?.beds.R1.medicalHandoffNote).not.toBe('SYNTHETIC A NOTE');
+      expect(cached?.beds.R1.pathology).not.toBe('SYNTHETIC A DIAGNOSIS');
+      // A remote-confirmed write is never queued: the departed session's edit was not saved.
       if (outcome === 'network' && !whole)
-        expect(await hospitalDB.syncQueue.toArray()).toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({ ownerKey: 'user:synthetic-A', status: 'FAILED' }),
-          ])
-        );
+        expect(await hospitalDB.syncQueue.toArray()).toEqual([nextTask()]);
       Object.values(notices).forEach(n => expect(n).not.toHaveBeenCalled());
       await waitFor(() => expect(hook.result.current.syncStatus).toBe('idle'));
       expect(hook.result.current.hasSaveException).toBe(false);
@@ -251,11 +238,6 @@ async function runCase(outcome: string, change: boolean, whole: boolean) {
     } else {
       if (outcome === 'success')
         expect(notices.success).toHaveBeenCalledWith('Cambio guardado', expect.any(String));
-      else if (outcome === 'network')
-        expect(notices.warning).toHaveBeenCalledWith(
-          'Cambio pendiente de sincronización',
-          expect.any(String)
-        );
       else
         expect(notices.error).toHaveBeenCalledWith(
           outcome === 'conflict' ? 'Conflicto de Edición' : 'Cambio no guardado',

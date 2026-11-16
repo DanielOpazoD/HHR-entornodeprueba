@@ -2,21 +2,19 @@ import { getDoc, Timestamp, type DocumentData } from 'firebase/firestore';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { withRetry } from '@/utils/networkUtils';
-import { loadFunctionsModule } from '@/services/firebase-runtime/functionsModuleLoader';
 import { DataRegressionError } from '@/utils/integrityGuard';
 import {
   docToRecord,
   getRecordDocRef,
   sanitizeForFirestore,
 } from '@/services/storage/firestore/firestoreShared';
-import { isSpecialistScopedDailyRecordPatch } from '@/services/repositories/dailyRecordClinicalDomainService';
+import { isClinicalEventsOnlyDailyRecordPatch } from '@/services/repositories/dailyRecordClinicalDomainService';
 import {
   getValueAtPath,
   hasSameComparableValue,
 } from '@/services/repositories/conflictResolutionUtils';
 import {
   asFirestoreUpdatePayload,
-  assertFirestoreConcurrency,
   ConcurrencyError,
   saveHistorySnapshot,
   saveRecordAtomically,
@@ -54,7 +52,6 @@ import {
   shouldRouteDailyRecordSaveViaCallable,
   shouldRouteClinicalAuthorityPatch,
   shouldRouteStructuralBedPatchViaCallable,
-  shouldRouteSpecialistPatchViaCallable,
   type DailyRecordPartialWriteOptions,
   type DailyRecordSaveWriteOptions,
 } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
@@ -223,14 +220,6 @@ const buildAtomicPartialCommitReceipt = (
   }
 };
 
-/**
- * The note callable needs the network, so its client is not precached. It loads through the
- * shared Functions loader: offline it is refused as unavailable, so the note goes to the queue,
- * and a stale chunk asks for a reload while queued notes stay pending.
- */
-export const loadSpecialistMedicalHandoffClient = () =>
-  loadFunctionsModule(() => import('./specialistMedicalHandoffClient'));
-
 export const updateRecordPartial = async (
   date: string,
   partialData: DailyRecordPatch,
@@ -239,12 +228,12 @@ export const updateRecordPartial = async (
 ): Promise<DailyRecordAuthorityCallableResponse | DirectFirestoreWriteReceipt | void> => {
   try {
     const docRef = getRecordDocRef(date);
-    // Specialist dot-notation patches must not be re-flattened: Firestore rules reject shape changes.
-    const specialistScopedPatch = isSpecialistScopedDailyRecordPatch(partialData);
+    // Clinical-event dot-notation patches are written as they come, never re-flattened.
+    const clinicalEventsOnlyPatch = isClinicalEventsOnlyDailyRecordPatch(partialData);
     const intentionalBedClear = options.intentionalBedClear;
     const flatData = prepareFirestorePartialData({
       partialData: partialData as unknown as Record<string, unknown>,
-      specialistScopedPatch,
+      clinicalEventsOnlyPatch,
       intentionalBedClear,
       clinicalCribCreate: Boolean(options.clinicalCribCreate),
     });
@@ -258,25 +247,6 @@ export const updateRecordPartial = async (
     }) as Record<string, unknown>;
     const persist = async () => {
       options.assertCanPublish?.();
-      if (specialistScopedPatch && (await shouldRouteSpecialistPatchViaCallable())) {
-        // This callable has no server version CAS (its transaction protects the patient and
-        // episode), so the version is checked by a read first. Every other route checks it when
-        // committing: a read here would cost a round trip per edit.
-        await assertFirestoreConcurrency(
-          docRef,
-          expectedLastUpdated,
-          'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
-          'partial update',
-          { toleranceMs: 0, failClosed: true }
-        );
-        return (await loadSpecialistMedicalHandoffClient()).saveSpecialistMedicalHandoff({
-          date,
-          patch: sanitizedPatch,
-          expectedOccupants: options.specialistHandoffTargets ?? [],
-          mutationId: options.syncContract?.mutationId,
-        });
-      }
-
       const isClinicalPatchForAuthority = shouldRouteClinicalAuthorityPatch(sanitizedPatch);
       const authorityPatch = extractClinicalAuthorityPatch(sanitizedPatch);
       const authorityPaths = new Set(Object.keys(authorityPatch));

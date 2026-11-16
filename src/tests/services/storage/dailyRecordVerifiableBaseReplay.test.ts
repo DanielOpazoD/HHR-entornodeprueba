@@ -1,22 +1,16 @@
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
-import {
-  A,
-  B,
-  E,
-  harnessState,
-  reconnect,
-} from '@/tests/services/storage/specialistHandoffOutboxHarness';
+import { A, B, E, harnessState, reconnect } from '@/tests/services/storage/dayRecordOutboxHarness';
 import {
   local,
   queue,
   readStored,
   remote,
   remoteWrite,
-  resetNoteDay,
+  resetDay,
   writeDay,
-} from '@/tests/services/storage/specialistHandoffNoteDaySupport';
+} from '@/tests/services/storage/dayRecordDaySupport';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { admitRemoteDailyRecords } from '@/services/repositories/dailyRecordLocalCachePersistence';
@@ -58,7 +52,7 @@ vi.mock('@/services/storage/firestore/firestoreRecordWrites', async importOrigin
 }));
 const h = harnessState();
 beforeEach(async () => {
-  await resetNoteDay('user:synthetic-r04-replay');
+  await resetDay('user:synthetic-r04-replay');
   h.authorityMode = true;
   vi.mocked(updateRecordPartial).mockClear();
 });
