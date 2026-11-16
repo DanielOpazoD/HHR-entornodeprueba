@@ -32,6 +32,16 @@ export interface CudyrReportFact {
 }
 const episodeKey = (date: string, episode: string | undefined, fallback: string) =>
   `${date}:${episode ? 'episode:' + episode : 'legacy:' + fallback}`;
+/** The stored discharge id behind a row built from one discharge without episode, else ''.
+ * Read from the row key itself: never inferred from name or document. */
+export const cudyrEpisodelessDischargeId = (row: {
+  date: string;
+  key: string;
+  clinicalEpisodeId: string;
+}) => {
+  const prefix = episodeKey(row.date, undefined, 'discharges:');
+  return !row.clinicalEpisodeId && row.key.startsWith(prefix) ? row.key.slice(prefix.length) : '';
+};
 const epicrisis = (patient: Pick<ReportPatient, 'dischargeVerification' | 'clinicalEpisodeId'>) => {
   const verification = patient.dischargeVerification;
   return verification?.encounterId === patient.clinicalEpisodeId ? verification : undefined;

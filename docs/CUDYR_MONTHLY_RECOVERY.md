@@ -104,6 +104,11 @@ calendario de la madrugada siguiente corresponde a la noche censal. Se exige doc
 propio RUT, nombre completo, un episodio único entre la noche censal y su día
 calendario de aplicación, incluidos sus movimientos, y una sola fila documental. Documentos compartidos, pasaportes sin tipificación en el
 XLS, reingresos ambiguos o categorías ausentes quedan pendientes para revisión.
+Con un RUT válido y un solo episodio en el mes, las formas del nombre que Eloísa cambió
+entre versiones del informe se unen si cada una conserva el primer nombre y el primer apellido
+completo del censo y todas sus palabras pertenecen al nombre del censo (Eloísa puede omitir
+palabras o agregar «No refiere», nunca palabras ajenas); dos formas dentro de una misma versión
+siguen siendo dos personas, y un pasaporte nunca se une así.
 
 La categoría recuperada conserva la procedencia `Eloísa · informe mensual`, el archivo,
 la fila y la fecha fuente. No incorpora una hora, profesional, ítems o historial de

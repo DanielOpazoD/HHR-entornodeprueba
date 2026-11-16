@@ -3,10 +3,18 @@ export type CudyrExclusionReason =
   | 'healthy_crib'
   | 'not_hospitalized'
   | 'under_eight_hours';
+/** Reasons a person may record on a discharge row that has no episode. */
+export const CUDYR_EPISODELESS_EXCLUSION_REASONS = [
+  'not_hospitalized',
+  'under_eight_hours',
+] as const satisfies readonly CudyrExclusionReason[];
 export interface CudyrDailyExclusion {
   id: string;
   date: string;
+  /** Empty when the decision belongs to a discharge without episode (`dischargeId`). */
   clinicalEpisodeId: string;
+  /** Stored id of that day's discharge; only for rows without episode. */
+  dischargeId?: string;
   revision: number;
   operationId: string;
   reason: CudyrExclusionReason | null;
@@ -15,17 +23,20 @@ export interface CudyrDailyExclusion {
   updatedAt: string;
   updatedBy: { uid: string; name: string; email: string; role: string };
 }
-export interface SaveCudyrExclusionRequest {
+/** A row is either its confirmed episode or, without one, the discharge stored that day. */
+export type CudyrExclusionTarget =
+  | { clinicalEpisodeId: string; dischargeId?: never }
+  | { dischargeId: string; clinicalEpisodeId?: never };
+export type SaveCudyrExclusionRequest = CudyrExclusionTarget & {
   kind: 'save-daily-exclusion';
   schemaVersion: 1;
   date: string;
-  clinicalEpisodeId: string;
   expectedRevision: number;
   operationId: string;
   reason: CudyrExclusionReason | null;
   note: string;
   confirmed: true;
-}
+};
 export const CUDYR_EXCLUSION_LABELS: Record<CudyrExclusionReason, string> = {
   cma: 'Cama CMA',
   healthy_crib: 'Cuna RN sano',

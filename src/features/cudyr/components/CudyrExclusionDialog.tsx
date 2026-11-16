@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
-import { CUDYR_EXCLUSION_LABELS, type CudyrExclusionReason } from '@/types/domain/cudyrExclusion';
+import {
+  CUDYR_EPISODELESS_EXCLUSION_REASONS,
+  CUDYR_EXCLUSION_LABELS,
+  type CudyrExclusionReason,
+  type CudyrExclusionTarget,
+} from '@/types/domain/cudyrExclusion';
 import { saveCudyrExclusion } from '@/services/cudyr/cudyrExclusionService';
 import { cudyrEligibilityOrigin } from '@/services/cudyr/cudyrDailyControl';
+import { cudyrEpisodelessDischargeId } from '@/services/cudyr/cudyrReportFacts';
 import { Info } from 'lucide-react';
 import { CudyrCaseInfo } from './CudyrCaseInfo';
 
@@ -18,6 +24,17 @@ export const CudyrExclusionDialog = ({
   onClose: () => void;
   onSaved: () => void;
 }) => {
+  const dischargeId = cudyrEpisodelessDischargeId(row);
+  const target: CudyrExclusionTarget | null = row.clinicalEpisodeId
+    ? { clinicalEpisodeId: row.clinicalEpisodeId }
+    : dischargeId
+      ? { dischargeId }
+      : null;
+  const reasons = (
+    dischargeId
+      ? CUDYR_EPISODELESS_EXCLUSION_REASONS
+      : (Object.keys(CUDYR_EXCLUSION_LABELS) as CudyrExclusionReason[])
+  ).map(value => [value, CUDYR_EXCLUSION_LABELS[value]] as const);
   const [showInfo, setShowInfo] = useState(false);
   const [reason, setReason] = useState<CudyrExclusionReason | ''>(row.exclusion?.reason || '');
   const [note, setNote] = useState('');
@@ -34,14 +51,14 @@ export const CudyrExclusionDialog = ({
   }, []);
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (locked.current || !canEdit || !confirmed || !note.trim() || !row.clinicalEpisodeId) return;
+    if (locked.current || !canEdit || !confirmed || !note.trim() || !target) return;
     if (!reason && !row.exclusion?.reason) return;
     locked.current = true;
     setBusy(true);
     setError('');
     const payload = {
       date: row.date,
-      clinicalEpisodeId: row.clinicalEpisodeId,
+      ...target,
       expectedRevision: row.exclusion?.revision || 0,
       reason: reason || null,
       note: note.trim(),
@@ -64,7 +81,8 @@ export const CudyrExclusionDialog = ({
         !result.persisted ||
         result.exclusion.operationId !== request.current.id ||
         result.exclusion.date !== row.date ||
-        result.exclusion.clinicalEpisodeId !== row.clinicalEpisodeId
+        result.exclusion.clinicalEpisodeId !== row.clinicalEpisodeId ||
+        (result.exclusion.dischargeId || '') !== dischargeId
       )
         throw new Error('No se confirmó el guardado remoto. Reintente.');
       onSaved();
@@ -114,7 +132,12 @@ export const CudyrExclusionDialog = ({
         <p className="text-xs text-slate-500">
           Solo si falta una exclusión automática. Se aplica a este paciente y este día.
         </p>
-        <fieldset disabled={busy || !canEdit || !row.clinicalEpisodeId} className="space-y-3">
+        {dischargeId && (
+          <p className="text-xs text-slate-500">
+            Egreso sin episodio: la excepción queda ligada a este egreso del día.
+          </p>
+        )}
+        <fieldset disabled={busy || !canEdit || !target} className="space-y-3">
           <label className="block">
             Motivo de exclusión
             <select
@@ -127,7 +150,7 @@ export const CudyrExclusionDialog = ({
                   ? 'Retirar exclusión manual y recalcular'
                   : 'Seleccione un motivo'}
               </option>
-              {Object.entries(CUDYR_EXCLUSION_LABELS).map(([value, label]) => (
+              {reasons.map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
                 </option>
@@ -154,7 +177,7 @@ export const CudyrExclusionDialog = ({
             Confirmo esta excepción para el día seleccionado.
           </label>
         </fieldset>
-        {!row.clinicalEpisodeId && (
+        {!target && (
           <p role="alert">
             Falta un episodio confirmado; actualice el censo antes de agregar una excepción.
           </p>
@@ -172,7 +195,7 @@ export const CudyrExclusionDialog = ({
             !confirmed ||
             !note.trim() ||
             (!reason && !row.exclusion?.reason) ||
-            !row.clinicalEpisodeId
+            !target
           }
           className="rounded-lg bg-teal-700 px-4 py-2 font-semibold text-white disabled:opacity-40"
         >

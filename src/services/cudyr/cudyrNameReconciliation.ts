@@ -14,6 +14,12 @@ export const cudyrOrderedIdentity = (document: string, name: string) =>
       .join(' '),
   ]);
 const normalizedGiven = (value: string) => cudyrNameKey(composeRayenGivenNames(value));
+/** Name words without Eloísa's administrative tokens, placeholders or punctuation. */
+const nameWords = (value: string) =>
+  cudyrNameKey(composeRayenGivenNames(value))
+    .replace(/\b(?:NO\s*REFIERE|NO\s*INFORMAD[OA]?|SIN\s+INFORMACION)\b/g, ' ')
+    .split(/[^A-Z0-9Ñ]+/)
+    .filter(Boolean);
 const isNewborn = (value: string) =>
   /^(RN\b|RECIEN NACID[OA]\b|PACIENTE NN\b)/.test(cudyrNameKey(value));
 
@@ -52,6 +58,44 @@ export const cudyrMatchesCensusName = (name: string, row: CudyrReportRow) => {
   return Boolean(given && expected && given.replace(/ /g, '') === expected.replace(/ /g, ''));
 };
 
+/** One spelling in every report version: the census-supported rule that predates versions. */
+const keepsOneSpelling = (name: string, census: CudyrReportRow) => {
+  const [firstGiven] = normalizedGiven(census.firstName).split(' ');
+  return (
+    cudyrMatchesCensusName(name, census) ||
+    (firstGiven !== undefined &&
+      firstGiven !== '' &&
+      normalizedGiven(name)
+        .split(/[^A-Z0-9]+/)
+        .includes(firstGiven))
+  );
+};
+
+/** Eloísa may drop words or add placeholders between versions, but every word of every
+ * spelling must belong to the census name, and each spelling keeps the census first given
+ * name and the whole first surname: another person sharing a mistyped RUN stays apart.
+ */
+const joinsChangedSpellings = (sourceNames: string[], census: CudyrReportRow) => {
+  const censusWords = new Set(
+    nameWords(
+      [census.firstName, census.lastName, normalizeOptionalPersonName(census.secondLastName)]
+        .filter(Boolean)
+        .join(' ')
+    )
+  );
+  const [firstGiven] = nameWords(census.firstName || '');
+  const firstSurname = nameWords(census.lastName || '');
+  if (!firstGiven || !firstSurname.length) return false;
+  return sourceNames.every(name => {
+    const spelling = nameWords(name);
+    return (
+      spelling.includes(firstGiven) &&
+      firstSurname.every(word => spelling.includes(word)) &&
+      spelling.every(word => censusWords.has(word))
+    );
+  });
+};
+
 /** An alias is enabled only when every archived/census identity sharing this document
  * agrees with one structured census name. Never uses score, bed, fuzzy distance or an empty RUT.
  * The original names/documents remain untouched; episode/day ambiguity is handled downstream.
@@ -68,33 +112,42 @@ export const createCudyrIdentityResolver = (
     rowsByDocument.set(document, [...(rowsByDocument.get(document) || []), row]);
   }
   const sourcesByDocument = new Map<string, string[]>();
-  for (const report of reports)
+  // Two spellings inside one report version are two source rows (e.g. mother and newborn);
+  // a spelling that changes only between versions is Eloísa rewriting the same person.
+  const sharedInOneReport = new Set<string>();
+  for (const report of reports) {
+    const inReport = new Map<string, string>();
     for (const patient of report.patients) {
       const document = cudyrDocumentKey(patient.document);
-      if (document)
-        sourcesByDocument.set(document, [
-          ...(sourcesByDocument.get(document) || []),
-          patient.patientName,
-        ]);
+      if (!document) continue;
+      sourcesByDocument.set(document, [
+        ...(sourcesByDocument.get(document) || []),
+        patient.patientName,
+      ]);
+      const identity = cudyrOrderedIdentity(document, patient.patientName);
+      if ((inReport.get(document) ?? identity) !== identity) sharedInOneReport.add(document);
+      inReport.set(document, identity);
     }
+  }
   for (const [document, rows] of rowsByDocument) {
     const sourceNames = sourcesByDocument.get(document);
     if (!sourceNames || rows.some(r => !r.clinicalEpisodeId)) continue;
     // A validated, non-shared RUN is the primary identifier. Keep RN/maternal documents
-    // separate and require one census episode; the downstream day linker still checks ownership.
+    // separate and require one census episode. The downstream day linker still checks ownership.
+    const [census] = rows;
+    const oneSpelling =
+      new Set(sourceNames.map(name => cudyrOrderedIdentity(document, name))).size === 1;
     if (
       isValidRut(document) &&
+      !rows.some(r => r.documentType === 'Pasaporte') &&
       new Set(rows.map(r => r.clinicalEpisodeId)).size === 1 &&
       !rows.some(r => r.modality === 'cuna' || isNewborn(r.patientName)) &&
       !sourceNames.some(isNewborn) &&
-      new Set(sourceNames.map(name => cudyrOrderedIdentity(document, name))).size === 1 &&
-      sourceNames.every(
-        name =>
-          cudyrMatchesCensusName(name, rows[0]) ||
-          normalizedGiven(name)
-            .split(/[^A-Z0-9]+/)
-            .includes(normalizedGiven(rows[0].firstName).split(' ')[0])
-      )
+      !sharedInOneReport.has(document) &&
+      census &&
+      (oneSpelling
+        ? sourceNames.every(name => keepsOneSpelling(name, census))
+        : joinsChangedSpellings(sourceNames, census))
     ) {
       const canonical = JSON.stringify([document, 'RUN']);
       for (const name of [...rows.map(r => r.patientName), ...sourceNames])
