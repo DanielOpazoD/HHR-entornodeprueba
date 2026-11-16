@@ -273,7 +273,27 @@ let api: ReturnType<typeof createDailyRecordWriteAuthorityFunctions>;
 let deviceA: { db: unknown; uid: string; role: string };
 let deviceB: { db: { disableNetwork(): Promise<void>; enableNetwork(): Promise<void> } };
 let skew = 0;
+/** How far the other computer's clock runs ahead of this one's; 0 unless a test says so. */
+let aheadOnA = 0;
 const realNow = Date.now.bind(Date);
+/**
+ * Each computer's one clock, moved forward by `skew`. `Date.now()` (the queue's waits, the stamp a
+ * direct write sends) and `new Date()` (the local day's stamp) agree, as on a real computer: a
+ * clock moved for one only (W12-CW9) stamped the server ahead of this computer's own later edits.
+ */
+const clockNow = () => realNow() + skew + (scope.getStore()?.uid === deviceA?.uid ? aheadOnA : 0);
+const RealDate = Date;
+class ModelDate extends RealDate {
+  constructor(...args: unknown[]) {
+    super(...((args.length ? args : [clockNow()]) as [number]));
+  }
+  static override now() {
+    return clockNow();
+  }
+  static override [Symbol.hasInstance](value: unknown) {
+    return value instanceof RealDate;
+  }
+}
 /** One browser tab of computer B: its own module graph (memory, write lock, session). */
 interface Tab {
   name: string;
@@ -710,6 +730,7 @@ const resetWorld = async () => {
   // The clock moves forward within a sequence; across hundreds of them it would leave the day's
   // 48-hour nurse editing window that the shipped handler checks.
   skew = 0;
+  aheadOnA = 0;
   await deviceB.db.enableNetwork();
   for (const tab of [tab1, tab2]) tab.setFirestoreEnabled(true);
   await env.clearFirestore();
@@ -767,7 +788,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     vi.stubEnv('VITE_DAILY_RECORD_AUTHORITY_CALLABLE', '');
     // The queue runs only when a step says so: the browser's own wake-ups are steps here.
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
-    vi.spyOn(Date, 'now').mockImplementation(() => realNow() + skew);
+    vi.stubGlobal('Date', ModelDate);
     const context = () => ({
       auth: {
         uid: scope.getStore()?.uid,
@@ -865,6 +886,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   afterAll(async () => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
     await env?.cleanup();
     await admin?.terminate();
     if (app) await deleteApp(app);
@@ -1020,9 +1042,11 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
   // the patient here empties the bed, and the confirmed discharge was taken as covering that
   // diagnosis, which left the queue: the text was neither on the server nor in the queue. It stays
   // now, held for the patient it was written for (ID-01), and never lands on the empty bed.
+  // The other computer's clock runs ahead of this one's, as the model's two clocks once made it by
+  // accident: with one clock this discharge is refused (KNOWN_DEFECT 9 below).
   it('keeps a diagnosis waiting for its patient when this computer then discharges them', async () => {
     const m = await resetWorld();
-    await replay.run(m, {});
+    aheadOnA = 10 * 60_000;
     await writeOnA(BED_PATH).run(m, {});
     expect(await editIn(m, BED_PATH)).toBe('editar B2 en cama');
     await dischargeOnB.run(m, {});
@@ -1036,6 +1060,42 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     ).toEqual([['CONFLICT', 'occupant_changed', expect.objectContaining({ rut: '12345678-5' })]]);
     await replayIn(m);
     expect((await readServer()).beds[BED]).toMatchObject({ rut: '', pathology: '' });
+  }, 60_000);
+
+  // KNOWN_DEFECT 9 (W12-CW9; open, also on main). With one clock for both computers, a day kept
+  // here with an unsent edit carries this computer's time, not a version of the server. A
+  // discharge confirms the exact version the person saw, so it is refused («HHR detectó una versión
+  // más reciente de este censo») while the diagnosis waits, also after the day arrives again.
+  // Nothing is lost: the patient stays and the diagnosis stays in the queue.
+  it.fails(
+    'discharges a patient whose diagnosis edit waits after a «changed elsewhere» notice',
+    async () => {
+      const m = await resetWorld();
+      await writeOnA(BED_PATH).run(m, {});
+      expect(await editIn(m, BED_PATH)).toBe('editar B2 en cama');
+      await refresh.run(m, {});
+      await dischargeOnB.run(m, {});
+      expect(m.log.at(-1)).toBe('egresar al paciente de la cama (egresado)');
+    },
+    60_000
+  );
+
+  // W12-CW9, CI seed -435688032, path "16:6:5": an error of this model, not of the app. It moved
+  // `Date.now()` past the queue's waits but not `new Date()`, so one computer had two clocks: a day
+  // note sent after that stamped the server ten minutes ahead of the offline edit made next, which
+  // the queue then refused as older than the server. One clock now moves both.
+  it('publishes an offline diagnosis written after a day note saved past a queue wait', async () => {
+    const m = await resetWorld();
+    await replayIn(m);
+    expect(await editIn(m, 'handoffNovedadesDayShift')).toBe('editar B1 en DayShift');
+    await refresh.run(m, {});
+    await network(false).run(m, {});
+    expect(await editIn(m, BED_PATH)).toBe('editar B2 en cama sin red');
+    await network(true).run(m, {});
+    for (let round = 0; round < 3; round++) await replayIn(m);
+
+    expect((await readServer()).beds[BED].pathology).toBe('B2');
+    expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
   }, 60_000);
 
   // The defect #1637 fixed for day fields, in a bed field. The diagnosis written here meets the
@@ -1067,6 +1127,22 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
 
     expect(await editIn(m, day)).toBe('editar B4 en DayShift');
     expect((await readServer())[day]).toBe('A2');
+  }, 60_000);
+
+  // W12-CW9, CI seed -389886332, path "12:2:1:1:3". A day note saved here leaves this computer's
+  // day on its own clock, and the next bed edit meets a newer version. The admission's retry
+  // compared each field with its base, and the server, which emptied the bed, has no
+  // `firstSeenDate` where this computer holds null: «conflicto que requiere revisión manual», and
+  // the admission stayed in a conflict nobody caused. An omitted field and null are one empty value.
+  it('admits a patient in the bed this computer emptied, after it saved a day note', async () => {
+    const m = await resetWorld();
+    await dischargeOnB.run(m, {});
+    expect(m.log.at(-1)).toBe('egresar al paciente de la cama (egresado)');
+    expect(await editIn(m, 'handoffNovedadesDayShift')).toBe('editar B1 en DayShift');
+    await admitOnB.run(m, {});
+
+    expect((await readServer()).beds[BED]).toMatchObject({ rut: '11111111-1', pathology: '' });
+    expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
   }, 60_000);
 
   it('keeps every rule after every step of random sequences', async () => {
