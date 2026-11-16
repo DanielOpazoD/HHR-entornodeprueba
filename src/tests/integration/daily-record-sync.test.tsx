@@ -9,7 +9,7 @@ import { createUnconfirmedDailyRecordSubscriptionResult } from '@/tests/factorie
  * Tests useDailyRecordSync hook and its interaction with the repository and Firestore logic.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import React from 'react';
 import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
@@ -20,7 +20,10 @@ import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { OperationalTelemetryEvent } from '@/services/observability/operationalTelemetryTypes';
-import { flushDailyActionTimings } from '@/services/observability/dailyActionTiming';
+import {
+  flushDailyActionTimings,
+  startDailyActionTiming,
+} from '@/services/observability/dailyActionTiming';
 
 // ============================================================================
 // Mocks
@@ -150,8 +153,11 @@ describe('DailyRecord Sync Integration', () => {
     repairApplied: false,
   });
 
+  // The authenticated app owns the timing window; this hook runs without it, so the test owns it.
+  let stopTimingOwner: () => void;
+  afterEach(() => stopTimingOwner());
   beforeEach(() => {
-    flushDailyActionTimings();
+    stopTimingOwner = startDailyActionTiming();
     vi.clearAllMocks();
     mockGetForDate.mockReturnValue(null);
     mockSyncWithFirestore.mockResolvedValue(null);

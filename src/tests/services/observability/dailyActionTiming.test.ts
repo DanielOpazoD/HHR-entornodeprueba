@@ -1,4 +1,5 @@
 import { renderHook } from '@testing-library/react';
+import { useEffect } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecordBootstrapPhase } from '@/hooks/controllers/dailyRecordBootstrapController';
 import type { OperationalTelemetryEvent } from '@/services/observability/operationalTelemetryTypes';
@@ -18,7 +19,9 @@ import {
   DAILY_ACTION_SUMMARY_INTERVAL_MS,
   flushDailyActionTimings,
   recordDailyActionTiming,
+  startDailyActionTiming,
 } from '@/services/observability/dailyActionTiming';
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { useCensusDayChangeTiming } from '@/hooks/useCensusRecordPerf';
 
 const envelope = (event: unknown) => JSON.stringify({ source: 'hhr_operational_telemetry', event });
@@ -29,13 +32,33 @@ const ingest = (event: OperationalTelemetryEvent) => {
   return parsed.event;
 };
 
+/** Summary timers still pending: created with the 15-minute interval and not cleared since. */
+const watchSummaryTimers = () => {
+  const set = vi.spyOn(globalThis, 'setTimeout');
+  const clear = vi.spyOn(globalThis, 'clearTimeout');
+  return () => {
+    const cleared = new Set(clear.mock.calls.map(([id]) => id));
+    return set.mock.calls
+      .map(([, delay], index) => [delay, set.mock.results[index]?.value] as const)
+      .filter(([delay, id]) => delay === DAILY_ACTION_SUMMARY_INTERVAL_MS && !cleared.has(id))
+      .length;
+  };
+};
+
+/** The same line the authenticated app runs: measuring lives as long as its owner is mounted. */
+const mountOwner = () => renderHook(() => useEffect(() => startDailyActionTiming(), []));
+
 describe('daily action timing', () => {
+  let stopSuiteOwner: () => void;
   beforeEach(() => {
-    flushDailyActionTimings();
     mocks.dispatch.mockClear();
     vi.stubEnv('URL', 'https://testinghhr.netlify.app');
+    stopSuiteOwner = startDailyActionTiming();
   });
   afterEach(() => {
+    stopSuiteOwner();
+    setSessionGeneration(null);
+    vi.restoreAllMocks();
     vi.useRealTimers();
     vi.unstubAllEnvs();
   });
@@ -163,5 +186,62 @@ describe('daily action timing', () => {
     expect(
       sent().map(event => [event.operation, event.context?.count, event.context?.degradedCount])
     ).toEqual([['census_day_change_ready', 2, 1]]);
+  });
+
+  it('never summarises one person with the next: a logout drops the open window and its timer', () => {
+    vi.useFakeTimers();
+    const summaryTimers = watchSummaryTimers();
+    setSessionGeneration('session-a', 'user:a');
+    recordDailyActionTiming('census_edit_saved', 0, true, 100);
+    expect(summaryTimers()).toBe(1);
+
+    setSessionGeneration(null);
+    expect(summaryTimers()).toBe(0);
+    setSessionGeneration('session-b', 'user:b');
+    recordDailyActionTiming('census_edit_saved', 0, true, 900);
+    flushDailyActionTimings();
+
+    expect(sent().map(event => event.context)).toEqual([
+      { count: 1, degradedCount: 0, p50Ms: 900, p90Ms: 900, maxMs: 900 },
+    ]);
+  });
+
+  it('does the same across unmounting and mounting the owner, with one set of listeners', () => {
+    stopSuiteOwner();
+    vi.useFakeTimers();
+    const summaryTimers = watchSummaryTimers();
+    const added = vi.spyOn(document, 'addEventListener');
+    const removed = vi.spyOn(document, 'removeEventListener');
+    const visibilityListeners = () =>
+      added.mock.calls.filter(([type]) => type === 'visibilitychange').length -
+      removed.mock.calls.filter(([type]) => type === 'visibilitychange').length;
+
+    let owner = mountOwner();
+    setSessionGeneration('session-a', 'user:a');
+    recordDailyActionTiming('census_edit_saved', 0, true, 100);
+    owner.unmount();
+    expect(summaryTimers()).toBe(0);
+    expect(visibilityListeners()).toBe(0);
+    recordDailyActionTiming('census_edit_saved', 0, true, 500);
+    expect(summaryTimers()).toBe(0);
+
+    setSessionGeneration('session-b', 'user:b');
+    owner = mountOwner();
+    owner.unmount();
+    owner = mountOwner();
+    expect(visibilityListeners()).toBe(1);
+    recordDailyActionTiming('census_edit_saved', 0, true, 900);
+    expect(summaryTimers()).toBe(1);
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+
+    expect(sent().map(event => event.context)).toEqual([
+      { count: 1, degradedCount: 0, p50Ms: 900, p90Ms: 900, maxMs: 900 },
+    ]);
+    expect(summaryTimers()).toBe(0);
+    owner.unmount();
+    expect(visibilityListeners()).toBe(0);
+    stopSuiteOwner = startDailyActionTiming();
   });
 });
