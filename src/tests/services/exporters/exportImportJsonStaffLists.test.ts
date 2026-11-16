@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
+import { resolveDetailedStaffingState } from '@/services/staff/dailyRecordDetailedStaffing';
 
 const storage = vi.hoisted(() => ({ read: vi.fn(), save: vi.fn() }));
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
@@ -31,12 +32,12 @@ beforeEach(() => {
 });
 
 describe('a backup day whose staff list carries an item that is not text', () => {
-  it('is imported with its patients and readable names, without the damaged item', async () => {
+  it('is imported with its patients, and the damaged item empties only its own slot', async () => {
     const result = await importDataJSONDetailed(
       backup({
         nursesDayShift: ['Ana Pérez', 7],
         nursesNightShift: [{ name: 'x' }, 'Ñusta Tuki'],
-        tensDayShift: ['Rosa', ['x'], 'María José'],
+        tensDayShift: [7, 'Rosa', 'María José'],
       })
     );
 
@@ -52,7 +53,14 @@ describe('a backup day whose staff list carries an item that is not text', () =>
     expect(saved[0].nursesDayShift).toEqual(['Ana Pérez']);
     expect(saved[0].nurses).toEqual(['Ana Pérez']);
     expect(saved[0].nursesNightShift).toEqual(['Ñusta Tuki']);
-    expect(saved[0].tensDayShift).toEqual(['Rosa', 'María José']);
+    expect(saved[0].tensDayShift).toEqual(['', 'Rosa', 'María José']);
+    // The shift grid shows TENS by standard slot: Rosa stays in slot 2, María José in slot 3.
+    const tensDay = resolveDetailedStaffingState(saved[0], DATE).day.tens;
+    expect(tensDay.map(person => [person.standardSlotIndex, person.name])).toEqual([
+      [0, ''],
+      [1, 'Rosa'],
+      [2, 'María José'],
+    ]);
   });
 
   it('keeps the legacy nurse list when it is the only one, without its damaged item', async () => {
@@ -71,21 +79,21 @@ describe('a backup day whose staff list carries an item that is not text', () =>
 });
 
 describe('salvaging the other text lists of a day', () => {
-  it('keeps only their text items', () => {
+  it('empties the damaged staff slot in place and drops a damaged extra-bed id', () => {
     const { record } = parseDailyRecordWithDefaultsReport(
       {
         date: DATE,
         beds: { R1: { bedId: 'R1', patientName: 42 } },
-        tensNightShift: [3, 'Hina'],
+        tensNightShift: ['Hina', 3, 'Rosa'],
         activeExtraBeds: ['E1', { id: 'E2' }],
-        handoffNightReceives: [null, 'Ana', false],
+        handoffNightReceives: [false, 'Ana'],
       },
       DATE
     );
 
-    expect(record.tensNightShift).toEqual(['Hina']);
+    expect(record.tensNightShift).toEqual(['Hina', '', 'Rosa']);
     expect(record.activeExtraBeds).toEqual(['E1']);
-    expect(record.handoffNightReceives).toEqual(['Ana']);
+    expect(record.handoffNightReceives).toEqual(['', 'Ana']);
   });
 
   it('names each list it repaired in the report, without its names', () => {

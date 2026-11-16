@@ -97,12 +97,10 @@ const isSalvagedItemByItem = (key: string, value: unknown): boolean =>
     ? Boolean(value) && typeof value === 'object' && !Array.isArray(value)
     : ['discharges', 'transfers', 'cma', 'rayenSyncHistory'].includes(key) && Array.isArray(value);
 
-// A staff or extra-bed list keeps its text items; any other item goes, as a null entry already
-// does, so one damaged name never costs the day (or the list) its readable names.
-const textItems = (value: unknown, fallback: string[]): string[] =>
-  Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === 'string')
-    : fallback;
+// Staff lists are positional: item i is standard slot i (`normalizeRoleAssignments`). A damaged
+// item empties its own slot, so one bad value never costs the day, or the other slots, their names.
+const staffSlots = (value: unknown, fallback: string[]): string[] =>
+  Array.isArray(value) ? value.map(item => (typeof item === 'string' ? item : '')) : fallback;
 
 export const parseDailyRecordWithDefaultsReport = (
   data: unknown,
@@ -190,13 +188,16 @@ export const parseDailyRecordWithDefaultsReport = (
     transfers: salvagedTransfers.values,
     cma: salvagedCma.values,
     lastUpdated: typeof raw.lastUpdated === 'string' ? raw.lastUpdated : new Date().toISOString(),
-    nurses: textItems(raw.nurses, ['', '']),
-    nursesDayShift: textItems(raw.nursesDayShift, ['', '']),
-    nursesNightShift: textItems(raw.nursesNightShift, ['', '']),
+    nurses: staffSlots(raw.nurses, ['', '']),
+    nursesDayShift: staffSlots(raw.nursesDayShift, ['', '']),
+    nursesNightShift: staffSlots(raw.nursesNightShift, ['', '']),
     nurseName: typeof raw.nurseName === 'string' ? raw.nurseName : undefined,
-    tensDayShift: textItems(raw.tensDayShift, ['', '', '']),
-    tensNightShift: textItems(raw.tensNightShift, ['', '', '']),
-    activeExtraBeds: textItems(raw.activeExtraBeds, []),
+    tensDayShift: staffSlots(raw.tensDayShift, ['', '', '']),
+    tensNightShift: staffSlots(raw.tensNightShift, ['', '', '']),
+    // A set of bed ids, not slots: a damaged id just goes.
+    activeExtraBeds: Array.isArray(raw.activeExtraBeds)
+      ? raw.activeExtraBeds.filter((bedId): bedId is string => typeof bedId === 'string')
+      : [],
     rayenBedCollisionResolutions: Array.isArray(raw.rayenBedCollisionResolutions)
       ? raw.rayenBedCollisionResolutions.flatMap(value => {
           const parsed = RayenBedCollisionResolutionReceiptSchema.safeParse(value);
@@ -218,7 +219,7 @@ export const parseDailyRecordWithDefaultsReport = (
       !Array.isArray(raw.medicalHandoffBySpecialty)
         ? (raw.medicalHandoffBySpecialty as DailyRecord['medicalHandoffBySpecialty'])
         : undefined,
-    handoffNightReceives: textItems(raw.handoffNightReceives, []),
+    handoffNightReceives: staffSlots(raw.handoffNightReceives, []),
     bedTypeOverrides: (raw.bedTypeOverrides as Record<string, BedType>) || {},
     schemaVersion: typeof raw.schemaVersion === 'number' ? raw.schemaVersion : 1,
     ...(Array.isArray(raw.rayenSyncHistory)
