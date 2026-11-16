@@ -5,21 +5,11 @@ import type {
   SyncDomainContext,
   SyncTaskOrigin,
 } from '@/services/storage/sync/syncDomainContracts';
-import type { SpecialistHandoffTarget } from '@/types/domain/specialistHandoffTarget';
-
-/** One specialist callable request: the handoff fields of one bed or crib, for the patients typed for. */
-export interface SpecialistHandoffSyncPayload {
-  date: string;
-  patch: Record<string, unknown>;
-  expectedOccupants: SpecialistHandoffTarget[];
-  /** The write's id: the server acknowledges a replay of a write it already took. */
-  mutationId?: string;
-}
 
 export interface SyncTask {
   id?: number;
   opId: string;
-  type: 'UPDATE_DAILY_RECORD' | 'UPDATE_PATIENT' | 'ARCHIVE_CUDYR' | 'UPDATE_SPECIALIST_HANDOFF';
+  type: 'UPDATE_DAILY_RECORD' | 'UPDATE_PATIENT' | 'ARCHIVE_CUDYR';
   payload: unknown;
   timestamp: number;
   retryCount: number;
@@ -61,7 +51,7 @@ export interface SyncTask {
   syncContract?: SyncTaskContract;
   /** Original values of granular edits, kept locally to prove a safe authority rebase. */
   patchBaseValues?: Record<string, unknown>;
-  /** Original occupant/episode and specialist-note context; never renewed by compaction. */
+  /** Original occupant/episode context; never renewed by compaction. */
   patchBaseContext?: Record<string, unknown>;
   /** Local projection ancestry only; these ids never acknowledge publication of another task. */
   localProjectionBaseIds?: string[];
@@ -75,13 +65,6 @@ export interface SyncTask {
   nursingHandoffRecovery?: true;
   /** Staff identity only, for the shared-computer notice; never handoff content. */
   nursingHandoffOwnerLabel?: string;
-  /** A note's base and its projected or already-held day values, settled on refusal or ACK. */
-  handoffProjection?: {
-    replaced: Record<string, unknown>;
-    projected: Record<string, unknown>;
-    /** Refusal restored the base; keep both values for a later explicit retry and ACK. */
-    released?: true;
-  };
 }
 
 export type DailyRecordQueuedWriteState = 'none' | 'active' | 'failed' | 'conflict';

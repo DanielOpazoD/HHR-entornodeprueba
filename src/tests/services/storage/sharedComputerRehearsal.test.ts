@@ -15,7 +15,6 @@ import {
   getDailyRecordReviewBackup,
   reviewBlockedDailyRecordTask,
 } from '@/services/storage/sync/dailyRecordTaskRetirement';
-import { resetMedicalHandoffDraftMemoryForTests } from '@/services/storage/medicalHandoffDraftStorage';
 import { persistOperationalTelemetryEvents } from '@/services/observability/operationalTelemetryStore';
 import { listQuarantinedOperations } from '@/features/rayen-import/components/localSyncPresentation';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -64,7 +63,6 @@ const engine = (run: SyncTransportPort['run'] = vi.fn(async () => undefined)) =>
 beforeEach(async () => {
   localStorage.clear();
   sessionStorage.clear();
-  resetMedicalHandoffDraftMemoryForTests();
   persistOperationalTelemetryEvents([]);
   await hospitalDB.syncQueue.clear();
   await hospitalDB.dailyRecords.clear();
@@ -80,7 +78,6 @@ afterEach(async () => {
   localStorage.clear();
   sessionStorage.clear();
   setSessionGeneration(null);
-  resetMedicalHandoffDraftMemoryForTests();
   persistOperationalTelemetryEvents([]);
 });
 

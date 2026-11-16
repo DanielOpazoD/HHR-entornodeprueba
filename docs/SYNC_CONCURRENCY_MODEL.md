@@ -60,10 +60,8 @@ patches stay direct: the server rejects them unless the fence is active.
 | **Partial update**       | `updatePartialDetailed` → `updateRecordPartial` | `updateRecordPartiallyAtomically` when `requireAtomicCas` ✅; otherwise `updateDoc` dot-paths ❌ | `patchDailyRecordWithClinicalAuthority` (clinical paths; bed-tree paths only when fenced) ✅ |
 | **Sync queue**           | `syncDailyRecord` (`firestoreSyncTransport.ts`) | `runTransaction` that re-resolves the task, then `transaction.set(…, { merge: true })` ✅        | `saveDailyRecordWithClinicalAuthority` with the task's `syncContract` ✅                     |
 | **Rayen clinical batch** | `applyRayenClinicalEnrichmentBatch` callable    | —                                                                                                | Server transaction, allowlisted clinical fields ✅                                           |
-| **Specialist handoff**   | `updateSpecialistMedicalHandoff` callable       | —                                                                                                | Patient/episode-bound server transaction for a `doctor_specialist` specialist-scoped patch   |
 
-Other server writers (CUDYR admin adjustments, specialty policy application, specialist notes)
-also stamp `meta.lastChangedPaths`. Client direct writes never do.
+Other server writers (CUDYR admin adjustments, specialty policy application) also stamp `meta.lastChangedPaths`. Client direct writes never do.
 
 ## Guards, by path
 
@@ -95,66 +93,15 @@ must not be retried.
 
 The first matching route wins:
 
-1. **Specialist-scoped patch by a `doctor_specialist`** — `assertFirestoreConcurrency`
-   (fail-closed, no tolerance) and then the `updateSpecialistMedicalHandoff` callable, loaded on
-   demand (`specialistMedicalHandoffClient.ts`). The payload carries `expectedOccupants`, frozen
-   from the edited record for the bed and its clinical crib separately. Every attempt re-reads
-   them; the server checks them and writes in one transaction, and a mismatch is a
-   `failed-precondition` editing conflict. Stored patients without episode metadata use the same
-   deterministic legacy ID as client hydration (identity and admission, never the bed alone).
-
-   Each target also carries `handoffBases`: the stored note text (the note plus each entry's id
-   and text) the edit started from, and the texts this device already sent for that note. In the
-   same transaction the server refuses any other stored text, unless the stored note already holds
-   this write's text, so a queued or lost-answer replay never replaces a note saved after the edit
-   began; the specialist's text stays as a draft. The request carries the write's `mutationId`.
-   Every write records in `meta` its paths, its id and `lastMutationDigest`, a SHA-256 of the
-   operation (date, exact paths and values, and each target's patient and episode); a write
-   without an id records `null` for both, so no earlier id outlives it. The server answers
-   without writing only a replay whose id and digest both match the write the record last took
-   while the record still holds the values it wrote. That id with any other text, path, patient
-   or episode (logged as `specialist_handoff_write_id_reused`, with date and bed only), or over
-   values another write changed since, is a `failed-precondition` conflict, and the text stays as
-   a draft. Only whole note fields are accepted (`medicalHandoffEntries`,
-   `medicalHandoffNote`, `medicalHandoffAudit`, `clinicalEvents`, and the same under
-   `clinicalCrib`): a nested or array-index path would escape the text check, and Firestore would
-   turn the entries array into a map. No client sends one.
-
-   On a network failure the note becomes its own `UPDATE_SPECIALIST_HANDOFF` task, keyed by date,
-   bed, bed or crib, and patient plus episode, whose payload is the callable request. It never
-   joins the day's `UPDATE_DAILY_RECORD` task, so its conflict cannot hold another edit of the
-   day. A later edit of the same note folds into the task and keeps its earlier bases and sent
-   texts. Replay uses the same callable. A refused note (other occupant, or the clinical day closed)
-   stays in the queue as that task's `CONFLICT`; the local sync panel names it by patient and date
-   and offers a confirmed discard, never a retry that always fails.
-
-   Typed text is kept from the first keystroke as a draft: one localStorage key per draft and
-   editing session, for the signed-in user, clinical date, patient, episode and entry. A session
-   writes only its own key; deletes are conditional on the exact text. Only a server confirmation
-   of that exact text for that identity clears a draft (callable success online or on replay, a
-   remote success with the expected targets, or a day-task ACK record); a matching local copy never
-   does. The editor owns its text while focused, while a debounce or a send is pending, and while
-   its draft is unconfirmed; a stored value that is neither its base nor a text it sent shows both
-   texts and holds sending until the user chooses. Text typed without a signed-in user stays in
-   memory and goes back only to the user last signed in on that tab; another user gets a notice
-   without patient data. Any owner change clears this page's unsaved copies and editing sessions.
-
-   **Deploy transition:** requests that omit `expectedOccupants` entirely keep the old allowlisted
-   semantics inside the transaction; malformed or empty supplied metadata still fails closed.
-   Requests without `handoffBases` or `mutationId` skip those two checks.
-   `specialist_handoff_legacy_client` telemetry identifies this temporary path. Remove it in a
-   separate release only after supported tabs have refreshed and legacy traffic has reached zero.
-   Old tabs retain their original occupant-binding limitation until refreshed.
-
-2. **Frozen Rayen run guard** (`rayenClinicalWriteGuard`) — patch callable; the server requires the
+1. **Frozen Rayen run guard** (`rayenClinicalWriteGuard`) — patch callable; the server requires the
    exact base version and creates `history/rayen-{runId}` once per run.
-3. **Clinical envelope or bed tree** — a clinical-envelope patch goes to the patch callable when
+2. **Clinical envelope or bed tree** — a clinical-envelope patch goes to the patch callable when
    the effective mode is `enforced` or the v2 fence is active; a structural bed-tree patch only
    with the fence. Either goes when the command carries `intentionalBedClear` or `specialtyIntent`.
    Mixed patches are rejected with `ConcurrencyError` instead of being split: clinical with
    structural or other fields under `enforced` or the fence, and bed-tree with other top-level
    fields under the fence.
-4. **`requireAtomicCas`** (e.g. movement reclassification) — `updateRecordPartiallyAtomically`:
+3. **`requireAtomicCas`** (e.g. movement reclassification) — `updateRecordPartiallyAtomically`:
    exact base version, history snapshot (hourly cadence and `historyPolicy`) and `update` in one
    transaction. A command that needs a confirmed record (`requireConfirmedRecord`, passed down as
    `returnCommittedRecord`) gets the committed record back. It does not depend on a server
@@ -167,7 +114,7 @@ The first matching route wins:
    twice (about 250 and 750 ms) and then fails closed. It rejects only that exact version, because
    a client-clock `lastUpdated` cannot be ordered safely: a listener view older than the base still
    passes.
-5. **Otherwise** — `assertFirestoreConcurrency` (**fail-closed**: a verification error aborts),
+4. **Otherwise** — `assertFirestoreConcurrency` (**fail-closed**: a verification error aborts),
    a history snapshot (hourly cadence; `'snapshot'` forces it, `'skip'` omits it), and `updateDoc`
    with dot-path fields. It
    structurally cannot erase a whole bed, but it is not atomic; on abort the change is already in
@@ -196,33 +143,6 @@ that projection instead of replacing it, and compacting an unresolved task keeps
 - whole-record writes (`*`) replace the projection only after checking their construction
   base and preserving accepted pending edits. A stale opaque replay keeps its original
   base and payload for review instead of choosing the newer clock;
-- a specialist note task (`UPDATE_SPECIALIST_HANDOFF`) lands its projection with the same patch
-  rebase, but never changes a projection that a pending day task still holds. The projection
-  publishes nothing, so the day keeps the `lastUpdated` it was read at: a later day write starts
-  from that version, and a read still prefers a newer server day. The task records the values the
-  projection replaced; once the note can no longer publish (`CONFLICT`, `FAILED` or discarded),
-  the stored day and any day write folded on top get them back wherever they still show the
-  note's values, a later note projected over it now replaces those values, and the view is told
-  to refresh the day. Quarantine or explicit discard and restoration commit in one IndexedDB
-  transaction: a storage failure keeps the task and its projection metadata for retry. Every queue
-  pass repairs any unreleased quarantined projection; a repair failure stops the pass before any
-  task is dispatched. A note queued before this rule recorded nothing: the same repair releases
-  such notes once, so the day counts as older than any server version
-  (`UNKNOWN_SERVER_VERSION`) and its day writes merge by changed paths. That may hold an edit as a
-  conflict when the last writer before this device's read changed the same path. The cached version
-  is invalidated even while a day task is held, without changing that task's payload. Its ACK can
-  adopt the committed day only if every cached value besides that invalidated version still
-  matches the claimed payload; a different local edit continues to block adoption. Each task of a
-  claimed batch replays as stored when it is dispatched, so a release earlier in the batch reaches
-  it. On a successful note publish, its local ACK replaces any still-matching older projection in
-  the stored day and queued day payloads with the published note values before removing the note
-  task, in the same transaction. This leaves the day version unchanged and preserves unrelated
-  pending edits. If a day task already owned the projection when the note was created, the note
-  records those existing field values for the same ACK step without changing the day up front.
-  Refusal marks the projection as released while retaining both its before and projected values.
-  An explicit retry can then settle either the restored value or a stale pre-refusal copy to the
-  confirmed note. It never replaces a newer, different local value or another occupant's note.
-  Releasing the same projection again does nothing.
   If the ACK fails, its projection metadata remains available for retry. Retired notes do not
   participate in projection repair. Restoration and confirmation also require the note's original
   patient and episode in the affected bed or crib; identical text on another occupant is untouched.
@@ -280,9 +200,9 @@ latest mutation marker does not by itself acknowledge the other mutations.
    `lastUpdated` gets the strict drift check (`assertSyncQueueConcurrency`, drift > 0 →
    `ConcurrencyError`). Before either acceptance or merging, note fields (`medicalHandoffEntries`,
    `medicalHandoffNote`, `medicalHandoffAudit`, `clinicalEvents`, bed and crib) keep the stored day's
-   values outside the task's changed paths, or, for a whole-record write, wherever they hold what
-   a specialist note still queued for the day wants there. A recreated day uses absent stored
-   values for the same check: a day write never publishes a note it did not write.
+   values outside the task's changed paths; a whole-record write names no paths and writes the
+   day it holds. A recreated day uses absent stored values for the same check: a day write never
+   publishes a note it did not write.
 4. **Clinical authority** — `evaluateDailyRecordClinicalAuthority` must not block.
 5. **Publish** — enforced or fenced: the save callable, whose response must carry the committed
    record. A merged task still sends its own base, so the callable refuses it while the stored day

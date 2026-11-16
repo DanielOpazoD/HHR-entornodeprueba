@@ -152,7 +152,7 @@ describeEmulator('Firestore emulator atomic partial projection fuzz', () => {
         ...(sanitizeForFirestore(
           prepareFirestorePartialData({
             partialData: patch,
-            specialistScopedPatch: false,
+            clinicalEventsOnlyPatch: false,
             intentionalBedClear: undefined,
             clinicalCribCreate: rng() < 0.3,
           })

@@ -1,12 +1,7 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
-import { harnessState, reconnect } from '@/tests/services/storage/specialistHandoffOutboxHarness';
-import {
-  queue,
-  remote,
-  resetNoteDay,
-  DATE,
-} from '@/tests/services/storage/specialistHandoffNoteDaySupport';
+import { harnessState, reconnect } from '@/tests/services/storage/dayRecordOutboxHarness';
+import { queue, remote, resetDay, DATE } from '@/tests/services/storage/dayRecordDaySupport';
 import { initializeDay } from '@/services/repositories/dailyRecordRepositoryInitializationService';
 import { buildInitializedDayRecord } from '@/services/repositories/dailyRecordInitializationSupport';
 import * as routing from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
@@ -29,7 +24,7 @@ const h = harnessState();
 const stamp = DATE + 'T10:00:00.000Z';
 let race = false;
 beforeEach(async () => {
-  await resetNoteDay('user:synthetic-day-creation');
+  await resetDay('user:synthetic-day-creation');
   h.remote = null;
   h.authorityMode = true;
   race = false;

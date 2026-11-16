@@ -1,28 +1,17 @@
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
 /**
- * Synthetic-only helpers for a specialist note queued offline on a day that later gets a census
- * edit, while another session replaces a patient. The device clock moves forward between the read
- * (T0, 10:00), the other session's write (10:15), the note (10:30) and the census edit (10:45).
+ * Synthetic-only helpers for a census day edited offline while another session writes it. The
+ * device clock moves forward between the read (T0, 10:00), the other session's write (10:15) and
+ * the census edit (10:45).
  */
 import { expect, vi } from 'vitest';
-import {
-  T0,
-  clone,
-  createServerHandler,
-  day,
-  draftsFor,
-  harnessState,
-  writeNote,
-} from './specialistHandoffOutboxHarness';
+import { T0, clone, day, harnessState } from './dayRecordOutboxHarness';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {
   saveDetailed,
   updatePartialDetailed,
 } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { shouldRouteSpecialistPatchViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
-import { resetMedicalHandoffDraftMemoryForTests } from '@/services/storage/medicalHandoffDraftStorage';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
-import { buildMedicalEntryNoteFields } from '@/tests/services/storage/specialistNoteFields';
 import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
 import type { DailyRecord, DailyRecordPatch } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
@@ -53,17 +42,13 @@ export const at = async <T>(iso: string, run: () => Promise<T>): Promise<T> => {
   }
 };
 
-export const resetNoteDay = async (owner: string) => {
+export const resetDay = async (owner: string) => {
   Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
-  resetMedicalHandoffDraftMemoryForTests();
   localStorage.clear();
   localStorage.setItem('hhr_session_owner_v1', owner);
   await hospitalDB.syncQueue.clear();
   await hospitalDB.dailyRecords.clear();
-  h.handler = createServerHandler();
-  h.role = 'admin';
   h.offline = false;
-  h.loseNextResponse = false;
   h.authorityMode = false;
 };
 
@@ -109,17 +94,6 @@ export const saveWholeDay = (
     }
   });
 
-/** As a device updated from #1026 keeps a note: no record of its projection, day at its time. */
-export const asQueuedBeforeFix = async (status?: 'CONFLICT') => {
-  for (const task of (await queue()).filter(item => item.type === 'UPDATE_SPECIALIST_HANDOFF'))
-    await hospitalDB.syncQueue.update(task.id!, {
-      handoffProjection: undefined,
-      ...(status ? { status, lastErrorCode: 'synthetic_refused_before_fix' } : {}),
-    });
-  const stored = await local();
-  await hospitalDB.dailyRecords.put({ ...stored, lastUpdated: '2026-10-24T10:30:00.000Z' });
-};
-
 /** A census edit, offline: it goes through the day task. */
 export const writeDay = (
   patch: Record<string, unknown>,
@@ -127,7 +101,6 @@ export const writeDay = (
   baseRecord?: DailyRecord
 ) =>
   at(when, async () => {
-    vi.mocked(shouldRouteSpecialistPatchViaCallable).mockResolvedValue(false);
     h.offline = true;
     try {
       return await updatePartialDetailed(DATE, patch as DailyRecordPatch, {
@@ -136,60 +109,15 @@ export const writeDay = (
       });
     } finally {
       h.offline = false;
-      vi.mocked(shouldRouteSpecialistPatchViaCallable).mockResolvedValue(true);
     }
   });
 
-/** A specialist note on the bed's patient, offline unless said otherwise. */
-export const note = (
-  bedId: string,
-  entryId: string,
-  text: string,
-  when = '2026-10-24T10:30:00.000Z',
-  offline = true
-) => at(when, async () => writeNote(await local(), bedId, entryId, text, { offline }));
-
-/** A specialist note on the newborn in the bed's crib, offline. */
-export const cribNote = (bedId: string, entryId: string, text: string) =>
-  at('2026-10-24T10:30:00.000Z', async () => {
-    const record = await local();
-    const crib = record.beds[bedId].clinicalCrib as PatientData;
-    const { fields } = buildMedicalEntryNoteFields(crib, entryId, text, null, record.date, T0);
-    h.offline = true;
-    try {
-      return await updatePartialDetailed(
-        record.date,
-        Object.fromEntries(
-          Object.entries(fields).map(([field, value]) => [
-            `beds.${bedId}.clinicalCrib.${field}`,
-            value,
-          ])
-        ) as DailyRecordPatch,
-        { authoringSession: captureAuthoringSession(), baseRecord: record }
-      );
-    } finally {
-      h.offline = false;
-    }
-  });
-
-/** The other session's patient B is still in R4, without the note written for A. */
+/** The other session's patient B is still in R4. */
 export const expectBInR4 = () =>
   expect(remote().beds.R4).toMatchObject({
     patientName: 'Paciente B Sintético',
     clinicalEpisodeId: 'ep-B',
-    medicalHandoffNote: '',
   });
-
-/** The refused note stays a CONFLICT task, and its text a draft of its own patient. */
-export const expectRefusedNoteKept = async (
-  name = 'Paciente A Sintético',
-  entryId = 'entry-A',
-  text = 'Nota de A'
-) => {
-  const notes = (await queue()).filter(task => task.type === 'UPDATE_SPECIALIST_HANDOFF');
-  expect(notes.map(task => task.status)).toEqual(['CONFLICT']);
-  expect(draftsFor(name)).toEqual([[DATE, entryId, text]]);
-};
 
 /** Asserts publication or queued retention, as requested by the case. */
 export const expectDayEditsPublishedOrKept = async (

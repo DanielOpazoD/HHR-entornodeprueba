@@ -365,7 +365,7 @@ describeEmulator('Firestore emulator atomic partial committed record', () => {
     const otherPayload = sanitizeForFirestore({
       ...prepareFirestorePartialData({
         partialData: { 'beds.R1.pathology': 'Edición B' },
-        specialistScopedPatch: false,
+        clinicalEventsOnlyPatch: false,
         intentionalBedClear: undefined,
       }),
       lastUpdated: Timestamp.now(),

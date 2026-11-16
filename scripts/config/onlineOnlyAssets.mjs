@@ -94,11 +94,6 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
   },
   { glob: '**/assets/vendor-heic2any-*.js', reason: 'Same policy as the entry above.' },
   {
-    glob: '**/assets/specialistMedicalHandoffClient-*.js',
-    reason:
-      'The specialist note callable and its queued replay need the network. They load through the shared Functions loader, which queues the note while offline.',
-  },
-  {
     glob: '**/assets/clinicalCarryoverVerification-*.js',
     reason:
       'Carryover verification requires fresh remote clinical reports; load it with sync. The copied evidence and its creation seed remain available in offline precache.',

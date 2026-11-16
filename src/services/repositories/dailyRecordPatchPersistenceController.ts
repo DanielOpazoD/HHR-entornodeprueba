@@ -11,7 +11,7 @@ import { applyPatches } from '@/utils/patchUtils';
 import { logError } from '@/services/utils/errorService';
 import {
   addClinicalFhirPatchesForTouchedBeds,
-  isSpecialistScopedDailyRecordPatch,
+  isClinicalEventsOnlyDailyRecordPatch,
 } from '@/services/repositories/dailyRecordClinicalDomainService';
 import {
   ensureDailyRecordDateTimestamp,
@@ -45,7 +45,7 @@ export const preparePatchedRecordPersistence = (
     mergedPatches.dateTimestamp = updatedForInvariants.dateTimestamp;
   }
 
-  const shouldSkipStructuralNormalization = isSpecialistScopedDailyRecordPatch(mergedPatches);
+  const shouldSkipStructuralNormalization = isClinicalEventsOnlyDailyRecordPatch(mergedPatches);
   if (!shouldSkipStructuralNormalization) {
     Object.assign(mergedPatches, buildDailyRecordClinicalEpisodeIdPatches(updatedForInvariants));
   }

@@ -1,7 +1,7 @@
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { beforeEach, afterEach, it, expect, vi } from 'vitest';
-import { A, day, clone, harnessState } from './specialistHandoffOutboxHarness';
+import { A, day, clone, harnessState } from './dayRecordOutboxHarness';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';

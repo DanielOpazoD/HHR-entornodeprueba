@@ -35,14 +35,9 @@ export const saveBackupImport = async (records: DailyRecord[], sourceDates: stri
           tasks.some(
             task =>
               task.status !== 'RETIRED' &&
-              ((task.type === 'UPDATE_DAILY_RECORD' &&
-                (task.key === `daily:${date}` ||
-                  (typeof task.payload === 'object' &&
-                    task.payload !== null &&
-                    'date' in task.payload &&
-                    task.payload.date === date))) ||
-                (task.type === 'UPDATE_SPECIALIST_HANDOFF' &&
-                  typeof task.payload === 'object' &&
+              task.type === 'UPDATE_DAILY_RECORD' &&
+              (task.key === `daily:${date}` ||
+                (typeof task.payload === 'object' &&
                   task.payload !== null &&
                   'date' in task.payload &&
                   task.payload.date === date))

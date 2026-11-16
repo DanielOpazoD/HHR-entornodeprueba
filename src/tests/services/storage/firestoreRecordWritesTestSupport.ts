@@ -10,9 +10,9 @@ const { mockEnsureUserRoleClaim, mockResolveFirebaseUserRole, mockGetCurrentUser
     mockGetCurrentUser: vi.fn(),
     mockAuthReady: Promise.resolve(),
   }));
-const { mockHttpsCallable, mockSpecialistCallable, mockGetFunctions } = vi.hoisted(() => ({
+const { mockHttpsCallable, mockCallable, mockGetFunctions } = vi.hoisted(() => ({
   mockHttpsCallable: vi.fn(),
-  mockSpecialistCallable: vi.fn(),
+  mockCallable: vi.fn(),
   mockGetFunctions: vi.fn().mockResolvedValue({ name: 'functions-runtime' }),
 }));
 vi.mock('firebase/firestore', async () => {
@@ -79,19 +79,19 @@ vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
     getRegionalFunctions: () => mockGetFunctions(),
   },
 }));
-const specialistHandoffTargets = [
-  {
-    bedId: 'R4',
-    target: 'bed' as const,
-    clinicalEpisodeId: 'synthetic-episode-A',
-    patientName: 'Paciente A Sintético',
-    rut: '99.999.999-9',
-    documentType: 'RUT',
-  },
-];
-const specialistSnapshot = (episode = 'synthetic-episode-A') => ({
+const occupiedSnapshot = () => ({
   exists: () => true,
-  data: () => ({ beds: { R4: { ...specialistHandoffTargets[0], clinicalEpisodeId: episode } } }),
+  data: () => ({
+    beds: {
+      R4: {
+        bedId: 'R4',
+        clinicalEpisodeId: 'synthetic-episode-A',
+        patientName: 'Paciente A Sintético',
+        rut: '99.999.999-9',
+        documentType: 'RUT',
+      },
+    },
+  }),
 });
 
 export {
@@ -101,8 +101,7 @@ export {
   mockResolveFirebaseUserRole,
   mockGetCurrentUser,
   mockHttpsCallable,
-  mockSpecialistCallable,
+  mockCallable,
   mockGetFunctions,
-  specialistHandoffTargets,
-  specialistSnapshot,
+  occupiedSnapshot,
 };

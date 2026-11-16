@@ -252,8 +252,9 @@ it('records a conflicted send as withdrawn without converting its rejection into
   });
 });
 
-it('does not offer this whole-census action for a specialist note or detached occupant edits', async () => {
-  await hospitalDB.syncQueue.update(taskId, { type: 'UPDATE_SPECIALIST_HANDOFF' });
+it('does not offer this whole-census action for a leftover retired-type task or detached occupant edits', async () => {
+  // A specialist note queued before the old medical handoff was retired.
+  await hospitalDB.syncQueue.update(taskId, { type: 'UPDATE_SPECIALIST_HANDOFF' as never });
   expect(await reviewBlockedDailyRecordTask(taskId)).toBeNull();
   await hospitalDB.syncQueue.update(taskId, {
     type: 'UPDATE_DAILY_RECORD',

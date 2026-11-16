@@ -107,20 +107,6 @@ it('declares old tasks without episode evidence unknown', async () => {
   const log = await fail(task({ payload: {}, syncContract: undefined }));
   expect(JSON.stringify(log.context)).toContain('desconocido');
 });
-it('uses captured specialist targets', async () => {
-  const log = await fail(
-    task({
-      type: 'UPDATE_SPECIALIST_HANDOFF',
-      payload: {
-        date: '2026-11-10',
-        patch: {},
-        expectedOccupants: [{ ...patient('specialist-A'), bedId: 'R1', target: 'clinicalCrib' }],
-      },
-      syncContract: undefined,
-    })
-  );
-  expect(JSON.stringify(log.context)).toContain('specialist-A');
-});
 it('keeps new local context out of the external payload and health summary', async () => {
   const log = await fail(task());
   expect(log.context).toMatchObject({ localSyncFailure: [{ clinicalEpisodeId: 'synthetic-A' }] });

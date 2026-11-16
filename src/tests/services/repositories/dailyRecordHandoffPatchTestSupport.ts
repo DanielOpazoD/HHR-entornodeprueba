@@ -7,15 +7,6 @@ import { vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
-vi.mock(
-  '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting',
-  async importOriginal => ({
-    ...(await importOriginal<
-      typeof import('@/services/storage/firestore/firestoreDailyRecordAuthorityRouting')
-    >()),
-    shouldRouteSpecialistPatchViaCallable: vi.fn().mockResolvedValue(false),
-  })
-);
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   captureLocalRecordBase: async (date: string) => ({
     kind: 'stored',

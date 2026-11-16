@@ -18,7 +18,6 @@ import {
   ConcurrencyError,
   createDailyRecordBaseReviewError,
 } from '@/services/storage/syncErrorCatalog';
-import { loadSpecialistMedicalHandoffClient } from '@/services/storage/firestore/firestoreRecordWrites';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import {
   getValueAtPath,
@@ -48,7 +47,6 @@ import {
 } from '@/services/storage/sync/firestoreSyncConflictPolicy';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import type { DetachedOccupantWork } from './dayTaskOccupantDetach';
-import type { SpecialistNoteValue } from './dayTaskReplayGuard';
 import { nursingHandoffPaths } from './nursingHandoffTasks';
 import { plainDayFieldReplayPaths, replayPlainDayFields } from './plainDayFieldReplay';
 import {
@@ -165,16 +163,14 @@ interface ResolvedSyncRecordForTask {
   detached?: DetachedOccupantWork;
 }
 
-/** The day task's occupant and replay checks, loaded with the outbox, and the day's queued notes. */
-interface ReplayChecks extends Pick<
+/** The day task's occupant and replay checks, loaded with the outbox. */
+type ReplayChecks = Pick<
   typeof import('./dexieDailyRecordOutbox'),
   | 'detachStaleOccupantPaths'
   | 'hasOtherOccupantInUntouchedBed'
   | 'hasUnchangedPatchBase'
   | 'keepStoredNoteFields'
-> {
-  noteValues: ReadonlyMap<string, readonly SpecialistNoteValue[]>;
-}
+>;
 
 const resolveRecordForSyncTask = async (
   queuedTask: SyncTask,
@@ -192,7 +188,7 @@ const resolveRecordForSyncTask = async (
       throw new ConcurrencyError('La entrega retenida requiere revisar el censo que falta.');
     assertKnownWholeRecordBase(task);
     return {
-      record: checks?.keepStoredNoteFields(task, record, undefined, checks.noteValues) ?? record,
+      record: checks?.keepStoredNoteFields(task, record, undefined) ?? record,
       resolution: 'accepted',
       acceptedVersion: record.lastUpdated,
     };
@@ -287,9 +283,9 @@ const resolveRecordForSyncTask = async (
       changedPaths: task.syncContract?.changedPaths,
     });
   }
-  // A stale whole-day save can carry a refused note too. Strip it before either acceptance or
-  // conflict merging, so merging arrays cannot hide that the value belongs to the note's task.
-  record = checks?.keepStoredNoteFields(task, record, remoteRecord, checks.noteValues) ?? record;
+  // Note fields outside this write's changed paths keep the stored day's values, before either
+  // acceptance or conflict merging.
+  record = checks?.keepStoredNoteFields(task, record, remoteRecord) ?? record;
   if (
     !detached &&
     !shouldRevalidateAgainstRemote(remoteLastUpdated, task.syncContract?.expectedVersion) &&
@@ -404,16 +400,7 @@ const syncDailyRecord = async (
       },
     };
   }
-  const outbox = await import('./dexieDailyRecordOutbox');
-  // Only a whole-record write needs to know what the day's queued notes want written.
-  const changedPaths = task.syncContract?.changedPaths ?? [];
-  const occupants: ReplayChecks = {
-    ...outbox,
-    noteValues:
-      !changedPaths.length || changedPaths.includes('*')
-        ? await outbox.listSpecialistNoteValues(record.date)
-        : new Map(),
-  };
+  const occupants: ReplayChecks = await import('./dexieDailyRecordOutbox');
   let detached: DetachedOccupantWork | undefined;
   const result = await measureRepositoryOperation(
     'syncQueue.writeDailyRecord',
@@ -547,9 +534,7 @@ const syncDailyRecord = async (
     { thresholdMs: 180, context: record.date }
   );
   if (!detached) return result;
-  // The conflicts are durable: the store writes them with this task's completion. The drafts
-  // only offer the note text in the handoff view.
-  if (detached.notes) await outbox.publishDetachedNotes(detached.notes);
+  // The conflicts are durable: the store writes them with this task's completion.
   return { ...result, detachedConflicts: detached.conflicts };
 };
 
@@ -565,10 +550,6 @@ export const createFirestoreSyncTransport = (
         return;
       case 'UPDATE_DAILY_RECORD':
         return syncDailyRecord(task, task.payload as DailyRecord, runtime, assertCanPublish);
-      case 'UPDATE_SPECIALIST_HANDOFF':
-        return loadSpecialistMedicalHandoffClient().then(({ replaySpecialistHandoff }) =>
-          replaySpecialistHandoff(task)
-        );
       default:
         throw new Error(`[SyncQueue] Unsupported task type: ${String(task.type)}`);
     }

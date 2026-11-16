@@ -49,7 +49,7 @@ interface QuarantinedOperationTarget {
 export type QuarantinedOperationView = QuarantinedOperationTarget &
   (
     | { recovery: 'review_authorization'; retryGuidance: string }
-    | { recovery: 'retry' | 'review_base' | 'discard_note' | 'discard_detached' }
+    | { recovery: 'retry' | 'review_base' | 'discard_detached' }
   );
 
 export const targetLabelFromKey = (
@@ -58,22 +58,16 @@ export const targetLabelFromKey = (
 ): string => {
   if (type === 'ARCHIVE_CUDYR') return 'Archivo CUDYR';
   if (type === 'UPDATE_PATIENT') return 'Datos del paciente';
-  // handoff:<date>:[[bed, target, documentType, rut, patientName, episode], ...]
   // daily:<date>:detached:<task>:[bed, target, documentType, rut, patientName, episode]
-  const named =
-    key?.match(/^handoff:([^:]*):(.*)$/) ?? key?.match(/^daily:([^:]*):detached:[^:]*:(.*)$/);
+  const named = key?.match(/^daily:([^:]*):detached:[^:]*:(.*)$/);
   if (named) {
-    let names = 'paciente';
+    let name = 'paciente';
     try {
-      const occupants = JSON.parse(named[2]) as string[] | string[][];
-      names = (Array.isArray(occupants[0]) ? (occupants as string[][]) : [occupants as string[]])
-        .map(occupant => occupant[4])
-        .join(' y ');
+      name = (JSON.parse(named[2]) as string[])[4] ?? '';
     } catch {
       // Keep the generic label for a malformed key.
     }
-    const what = type === 'UPDATE_SPECIALIST_HANDOFF' ? 'Nota de entrega' : 'Cambios';
-    return `${what} de ${names} · ${named[1].split('-').reverse().join('-')}`;
+    return `Cambios de ${name} · ${named[1].split('-').reverse().join('-')}`;
   }
   const date = key?.startsWith('daily:') ? key.slice('daily:'.length) : null;
   if (!date) return 'Registro del censo';
@@ -82,8 +76,8 @@ export const targetLabelFromKey = (
 };
 
 /**
- * A refused specialist note, or edits detached from a patient who left the bed, can never be
- * sent as they are: a retry always fails, so the panel offers a confirmed discard instead.
+ * Edits detached from a patient who left the bed can never be sent as they are: a retry always
+ * fails, so the panel offers a confirmed discard instead.
  */
 const resolveQuarantineRecovery = (
   operation: SyncQueueOperation
@@ -95,7 +89,6 @@ const resolveQuarantineRecovery = (
   if (operation.status === 'FAILED' && operation.lastErrorCategory === 'authorization')
     return 'review_authorization';
   if (operation.status !== 'CONFLICT') return 'retry';
-  if (operation.type === 'UPDATE_SPECIALIST_HANDOFF') return 'discard_note';
   return operation.key?.includes(':detached:') ? 'discard_detached' : 'retry';
 };
 

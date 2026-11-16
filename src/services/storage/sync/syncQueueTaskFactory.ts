@@ -1,6 +1,6 @@
 import type { SyncQueueLeaseClaim } from '@/services/storage/sync/syncQueuePorts';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
+import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
 export const matchesTaskClaim = (
   task: SyncTask | undefined,
@@ -59,21 +59,6 @@ export const getSyncTaskKey = (type: SyncTask['type'], payload: unknown): string
     const record = payload as DailyRecord;
     return record?.date ? `daily:${record.date}` : undefined;
   }
-  if (type === 'UPDATE_SPECIALIST_HANDOFF') {
-    // Same key only for the same date, bed and patient+episode: other occupants never coalesce.
-    const { date, expectedOccupants } = payload as SpecialistHandoffSyncPayload;
-    return `handoff:${date}:${JSON.stringify(
-      expectedOccupants.map(occupant => [
-        occupant.bedId,
-        occupant.target,
-        occupant.documentType,
-        occupant.rut,
-        occupant.patientName,
-        occupant.clinicalEpisodeId,
-      ])
-    )}`;
-  }
-
   return undefined;
 };
 
