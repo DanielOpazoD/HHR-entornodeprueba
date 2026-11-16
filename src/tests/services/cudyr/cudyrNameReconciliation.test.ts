@@ -317,6 +317,16 @@ describe('a validated RUN whose Eloísa spelling changes between report versions
       (d: ReturnType<typeof versions>) =>
         (d.sources[1].report.patients[0].patientName = 'SOFIA PRUEBA OTRO'),
     ],
+    [
+      'another person with the same first given name but another surname',
+      (d: ReturnType<typeof versions>) => {
+        const other = d.sources[1].report.patients[0];
+        other.patientName = 'ANA SOFIA DISTINTO APELLIDO';
+        other.days = other.days.map(day =>
+          day.category ? { ...day, category: 'D2', originalValue: 'D2' } : day
+        );
+      },
+    ],
   ])('keeps Eloísa and HHR apart with %s', (_, change) => {
     const input = versions();
     change(input);

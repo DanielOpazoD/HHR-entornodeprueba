@@ -90,7 +90,10 @@ export const createCudyrIdentityResolver = (
     if (!sourceNames || rows.some(r => !r.clinicalEpisodeId)) continue;
     // A validated, non-shared RUN is the primary identifier. Keep RN/maternal documents
     // separate and require one census episode; every source spelling must carry the census
-    // first given name. The downstream day linker still checks ownership.
+    // first given name and first surname, so a mistyped RUN shared by another person with the
+    // same first name in another version stays apart. The downstream day linker still checks ownership.
+    const firstGiven = normalizedGiven(rows[0].firstName || '').split(' ')[0];
+    const firstSurname = cudyrNameKey(rows[0].lastName || '').split(/[^A-Z0-9]+/)[0];
     if (
       isValidRut(document) &&
       !rows.some(r => r.documentType === 'Pasaporte') &&
@@ -101,9 +104,13 @@ export const createCudyrIdentityResolver = (
       sourceNames.every(
         name =>
           cudyrMatchesCensusName(name, rows[0]) ||
-          normalizedGiven(name)
-            .split(/[^A-Z0-9]+/)
-            .includes(normalizedGiven(rows[0].firstName).split(' ')[0])
+          (Boolean(firstSurname) &&
+            normalizedGiven(name)
+              .split(/[^A-Z0-9]+/)
+              .includes(firstGiven) &&
+            cudyrNameKey(name)
+              .split(/[^A-Z0-9]+/)
+              .includes(firstSurname))
       )
     ) {
       const canonical = JSON.stringify([document, 'RUN']);
