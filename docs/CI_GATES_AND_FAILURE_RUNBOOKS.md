@@ -723,9 +723,11 @@ El pack `ci:preview-smoke:built` se valida una vez por run, ahora en carriles
 paralelos. `preview-smoke-lanes` arranca junto con los demás gates (necesita sólo
 `ci-scope`), compila el mismo commit y ejecuta un tramo del pack por carril:
 `app` (censo, biblioteca, panel clínico, historial y arrastre clínico),
-`dicom-graphics-stress` (la prueba etiquetada `@graphics-stress`) y las dos mitades
-`dicom-1`/`dicom-2` del resto del visor DICOM. Los carriles se reparten por duración
-observada, no por número de pruebas; se definen en `scripts/previewSmokeLaneSupport.mjs`.
+`dicom-graphics-stress` (las pruebas etiquetadas `@graphics-stress`: el ciclo de estrés
+de WebGL por software y las dos vistas 3D más largas de la segunda mitad) y las dos
+mitades `dicom-1`/`dicom-2` del resto del visor DICOM. Los carriles se reparten por
+duración observada, no por número de pruebas; se definen en
+`scripts/previewSmokeLaneSupport.mjs`.
 
 `preview-smoke` fusiona los blobs con `playwright merge-reports`, exige que todos los
 carriles terminaran bien y compara el informe fusionado con

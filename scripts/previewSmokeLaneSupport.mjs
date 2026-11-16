@@ -26,9 +26,11 @@ export const readPreviewSmokeSpecs = (root = process.cwd()) => {
 
 /**
  * Lanes are balanced by observed duration, not test count: the DICOM spec is
- * most of the pack and a single tagged software-WebGL stress test takes about
- * as long as each remaining DICOM half. The merge job proves the union of all
- * lanes is exactly the canonical pack, so a lane change cannot drop a test.
+ * most of the pack, and its halves split by count. The stress lane runs the
+ * software-WebGL stress loop plus the two heaviest 3D renders of the second
+ * half, all tagged, so each DICOM lane takes about the same time in CI. The
+ * merge job proves the union of all lanes is exactly the canonical pack, so a
+ * lane change cannot drop a test.
  *
  * @param {string[]} specs
  * @returns {Record<string, string[]>} Playwright arguments per lane.
