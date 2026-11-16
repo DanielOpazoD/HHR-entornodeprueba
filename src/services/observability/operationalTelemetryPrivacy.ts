@@ -107,10 +107,11 @@ const COUNT_KEYS = tokens(`
   clinicalFieldCount pendingTasks maxPendingTasks retryCount attempt attempts maxAttempts batchSize
   pageCount rowCount totalCount failedCount blockedCount occupiedCount unchangedCount selectedCount
   eligibleCount correctionCount limitCount categorizedCount localErrorCount droppedCount
-  catalogDenialCount recordDenialCount
+  catalogDenialCount recordDenialCount degradedCount
 `);
 const DURATION_KEYS = tokens(`
   durationMs elapsedMs timeoutMs remainingMs ttlMs ageMs pendingAgeMs oldestPendingAgeMs debounceMs blockedForMs
+  p50Ms p90Ms maxMs
   driftSeconds remainingSeconds
 `);
 const SIZE_KEYS = tokens(`

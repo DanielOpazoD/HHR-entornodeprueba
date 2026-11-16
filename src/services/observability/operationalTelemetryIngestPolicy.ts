@@ -24,6 +24,7 @@ import {
   sanitizeOperationalTelemetryEvent,
   type OperationalTelemetryContextValue,
 } from './operationalTelemetryPrivacy';
+import { DAILY_ACTION_SUMMARY_KEYS, isDailyActionOperation } from './dailyActionSummaryContract';
 
 export const OPERATIONAL_TELEMETRY_MAX_BODY_BYTES = 8 * 1024;
 const MAX_STRING = 200;
@@ -99,7 +100,37 @@ export const parseOperationalTelemetryBody = (
   const parsed = envelopeSchema.safeParse(json);
   if (!parsed.success) return { ok: false, reason: 'invalid_shape' };
   // Shape first, privacy second: validation proves the envelope, sanitizing decides what survives.
-  return { ok: true, event: sanitizeOperationalTelemetryEvent(parsed.data.event) };
+  const event = sanitizeOperationalTelemetryEvent(parsed.data.event);
+  return {
+    ok: true,
+    event: isDailyActionOperation(event.operation) ? toDailyActionSummary(event) : event,
+  };
+};
+
+/**
+ * A daily-action timing summary describes durations, never a day or a patient. Whatever a hand-made
+ * request adds is dropped here: the date, issues and every context key outside the closed numbers.
+ */
+const toDailyActionSummary = (
+  event: SanitizedOperationalTelemetryEvent
+): SanitizedOperationalTelemetryEvent => {
+  const context: Record<string, OperationalTelemetryContextValue> = {};
+  for (const key of DAILY_ACTION_SUMMARY_KEYS) {
+    if (typeof event.context[key] === 'number') context[key] = event.context[key];
+  }
+  const dropped = Object.keys(event.context).length - Object.keys(context).length;
+  return {
+    category: event.category,
+    status: event.status,
+    operation: event.operation,
+    timestamp: event.timestamp,
+    issues: [],
+    context,
+    droppedContextKeys: [
+      ...event.droppedContextKeys,
+      ...Array.from({ length: dropped }, () => OPERATIONAL_TELEMETRY_DROPPED_KEY_TOKEN),
+    ].slice(0, OPERATIONAL_TELEMETRY_MAX_CONTEXT_KEYS),
+  };
 };
 
 /**
@@ -127,6 +158,8 @@ export const shouldAlertOperationalTelemetry = (
 ): boolean =>
   event.status === 'failed' &&
   !RESOLVED_IN_PLACE_OPERATIONS.has(event.operation) &&
+  // A timing summary only counts; even a hand-made `failed` one never reaches the alert queue.
+  !isDailyActionOperation(event.operation) &&
   !isRetryableSyncFailure(event.operation, event.issues);
 
 const PRIVACY_NOTE =

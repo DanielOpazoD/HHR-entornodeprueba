@@ -1,35 +1,89 @@
 /**
- * How long the day's routine actions take for the people using the app, as one counted duration
- * per action. Nothing else travels: no date, bed, patient, user or free text, only the operation,
- * whether it completed, and `durationMs`.
+ * How long the day's routine actions take for the people using the app.
  *
- * These events go straight to the external endpoint and skip the local event buffer. An edit is
- * saved many times per shift, and the local buffer keeps only the last 200 events: timings would
- * push out the failures that local diagnostics and the system health report depend on.
+ * Each action's duration is kept in memory for this tab and leaves as one summary per action
+ * (`count`, `degradedCount`, `p50Ms`, `p90Ms`, `maxMs`) every 15 minutes, or when the tab is hidden
+ * or closed, and only if there was an action. So a whole shift of edits costs at most three
+ * requests per window and never competes with a real failure for the endpoint's per-IP limit.
+ *
+ * Summaries go straight to the external endpoint and skip the local 200-event buffer, which keeps
+ * the failures that local diagnostics and the system health report depend on.
  * Successful Eloísa syncs are not repeated here; their stages live in `rayenSyncHistory.performance`.
  */
 import { dispatchOperationalTelemetryExternally } from './operationalTelemetryExternalAdapter';
 import type { OperationalTelemetryCategory } from './operationalTelemetryTypes';
+import type { DailyAction } from './dailyActionSummaryContract';
 
-const DAILY_ACTION_CATEGORIES = {
-  /** Another day chosen in the census, until its census (or its confirmed absence) is shown. */
+export type { DailyAction } from './dailyActionSummaryContract';
+
+const CATEGORIES: Record<DailyAction, OperationalTelemetryCategory> = {
   census_day_change_ready: 'daily_record',
-  /** A census edit, until the server confirms it (`success`) or it stays local or fails. */
   census_edit_saved: 'daily_record',
-  /** A patient's clinical panel opened, until Eloísa's reading is shown or fails. */
   clinical_panel_ready: 'integration',
-} as const satisfies Record<string, OperationalTelemetryCategory>;
+};
 
-export type DailyAction = keyof typeof DAILY_ACTION_CATEGORIES;
+export const DAILY_ACTION_SUMMARY_INTERVAL_MS = 15 * 60 * 1000;
+/** Percentiles come from the first samples of a window; `count` and `maxMs` still see every one. */
+const MAX_SAMPLES = 500;
+
+interface ActionWindow {
+  samples: number[];
+  count: number;
+  degradedCount: number;
+  maxMs: number;
+}
+
+const windows = new Map<DailyAction, ActionWindow>();
+let flushTimer: ReturnType<typeof setTimeout> | undefined;
+let listening = false;
 
 export const dailyActionNow = (): number =>
   typeof performance !== 'undefined' && typeof performance.now === 'function'
     ? performance.now()
     : Date.now();
 
+/** Nearest-rank percentile of an ascending list; a window always holds at least one sample. */
+const percentile = (sorted: number[], p: number): number =>
+  sorted[Math.max(0, Math.ceil(p * sorted.length) - 1)] ?? 0;
+
+/** Sends one summary per action measured since the last one, then starts a new window. */
+export const flushDailyActionTimings = (): void => {
+  if (flushTimer !== undefined) clearTimeout(flushTimer);
+  flushTimer = undefined;
+  const timestamp = new Date().toISOString();
+  for (const [action, bucket] of windows) {
+    const sorted = [...bucket.samples].sort((a, b) => a - b);
+    void dispatchOperationalTelemetryExternally({
+      category: CATEGORIES[action],
+      operation: action,
+      status: 'success',
+      timestamp,
+      context: {
+        count: bucket.count,
+        degradedCount: bucket.degradedCount,
+        p50Ms: percentile(sorted, 0.5),
+        p90Ms: percentile(sorted, 0.9),
+        maxMs: bucket.maxMs,
+      },
+    });
+  }
+  windows.clear();
+};
+
+const flushWhenHidden = (): void => {
+  if (document.visibilityState === 'hidden') flushDailyActionTimings();
+};
+
+const listenForLeaving = (): void => {
+  if (listening || typeof window === 'undefined') return;
+  listening = true;
+  document.addEventListener('visibilitychange', flushWhenHidden);
+  window.addEventListener('pagehide', flushDailyActionTimings);
+};
+
 /**
- * `completed: false` means the action ended without the expected result (`degraded`, never
- * `failed`: a slow or unconfirmed action is counted, it never mails anyone).
+ * `completed: false` means the action ended without the expected result; it is counted in
+ * `degradedCount`. A summary is never `failed`, so it never mails anyone.
  */
 export const recordDailyActionTiming = (
   action: DailyAction,
@@ -37,11 +91,13 @@ export const recordDailyActionTiming = (
   completed: boolean,
   endedAt: number = dailyActionNow()
 ): void => {
-  void dispatchOperationalTelemetryExternally({
-    category: DAILY_ACTION_CATEGORIES[action],
-    operation: action,
-    status: completed ? 'success' : 'degraded',
-    timestamp: new Date().toISOString(),
-    context: { durationMs: Math.max(0, Math.round(endedAt - startedAt)) },
-  });
+  const durationMs = Math.max(0, Math.round(endedAt - startedAt));
+  const bucket = windows.get(action) ?? { samples: [], count: 0, degradedCount: 0, maxMs: 0 };
+  windows.set(action, bucket);
+  bucket.count += 1;
+  if (!completed) bucket.degradedCount += 1;
+  bucket.maxMs = Math.max(bucket.maxMs, durationMs);
+  if (bucket.samples.length < MAX_SAMPLES) bucket.samples.push(durationMs);
+  listenForLeaving();
+  flushTimer ??= setTimeout(flushDailyActionTimings, DAILY_ACTION_SUMMARY_INTERVAL_MS);
 };

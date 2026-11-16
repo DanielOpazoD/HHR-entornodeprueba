@@ -1,5 +1,5 @@
 import { renderHook } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecordBootstrapPhase } from '@/hooks/controllers/dailyRecordBootstrapController';
 import type { OperationalTelemetryEvent } from '@/services/observability/operationalTelemetryTypes';
 
@@ -10,61 +10,141 @@ vi.mock('@/services/observability/operationalTelemetryExternalAdapter', () => ({
   dispatchOperationalTelemetryExternally: mocks.dispatch,
 }));
 
-import {
-  parseOperationalTelemetryBody,
-  shouldAlertOperationalTelemetry,
-} from '@/services/observability/operationalTelemetryIngestPolicy';
+import { createOperationalTelemetryHandler } from '../../../../netlify/functions/operational-telemetry';
+import type { AlertQueue } from '../../../../netlify/functions/lib/telemetry-alerts/queueTypes';
+import { parseOperationalTelemetryBody } from '@/services/observability/operationalTelemetryIngestPolicy';
 import { getOperationalTelemetryEvents } from '@/services/observability/operationalTelemetryRecorder';
 import {
+  DAILY_ACTION_SUMMARY_INTERVAL_MS,
+  flushDailyActionTimings,
   recordDailyActionTiming,
-  type DailyAction,
 } from '@/services/observability/dailyActionTiming';
 import { useCensusDayChangeTiming } from '@/hooks/useCensusRecordPerf';
 
-const ACTIONS: DailyAction[] = [
-  'census_day_change_ready',
-  'census_edit_saved',
-  'clinical_panel_ready',
-];
-
+const envelope = (event: unknown) => JSON.stringify({ source: 'hhr_operational_telemetry', event });
+const sent = () => mocks.dispatch.mock.calls.map(([event]) => event);
 const ingest = (event: OperationalTelemetryEvent) => {
-  const parsed = parseOperationalTelemetryBody(
-    JSON.stringify({ source: 'hhr_operational_telemetry', event })
-  );
+  const parsed = parseOperationalTelemetryBody(envelope(event));
   if (!parsed.ok) throw new Error(parsed.reason);
   return parsed.event;
 };
 
 describe('daily action timing', () => {
-  afterEach(() => mocks.dispatch.mockClear());
+  beforeEach(() => {
+    flushDailyActionTimings();
+    mocks.dispatch.mockClear();
+    vi.stubEnv('URL', 'https://testinghhr.netlify.app');
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+  });
 
-  it.each(ACTIONS)('%s reaches the server as its name, its outcome and a duration only', action => {
-    recordDailyActionTiming(action, 1_000, true, 1_234.6);
-    recordDailyActionTiming(action, 1_000, false, 41_000);
+  it('sends one summary per action with closed numbers only, and nothing without actions', () => {
+    for (const ms of [100, 200, 300, 400, 5_000])
+      recordDailyActionTiming('census_edit_saved', 0, true, ms);
+    recordDailyActionTiming('census_edit_saved', 0, false, 50);
+    recordDailyActionTiming('clinical_panel_ready', 1_000, true, 1_234.6);
+    expect(sent()).toHaveLength(0);
 
-    const [done, unfinished] = mocks.dispatch.mock.calls.map(([event]) => ingest(event));
-    expect(done).toMatchObject({
-      operation: action,
+    flushDailyActionTimings();
+    const [edits, panels] = sent().map(ingest);
+    expect(edits).toMatchObject({
+      operation: 'census_edit_saved',
       status: 'success',
-      context: { durationMs: 235 },
-      droppedContextKeys: [],
       issues: [],
+      droppedContextKeys: [],
+      context: { count: 6, degradedCount: 1, p50Ms: 200, p90Ms: 5_000, maxMs: 5_000 },
     });
-    expect(done.date).toBeUndefined();
-    expect(unfinished).toMatchObject({ status: 'degraded', context: { durationMs: 40_000 } });
-    expect([done, unfinished].some(shouldAlertOperationalTelemetry)).toBe(false);
+    expect(edits.date).toBeUndefined();
+    expect(panels.context).toEqual({
+      count: 1,
+      degradedCount: 0,
+      p50Ms: 235,
+      p90Ms: 235,
+      maxMs: 235,
+    });
+
+    flushDailyActionTimings();
+    expect(sent()).toHaveLength(2);
+  });
+
+  it('flushes every 15 minutes and when the tab is hidden', () => {
+    vi.useFakeTimers();
+    recordDailyActionTiming('census_day_change_ready', 0, true, 10);
+    vi.advanceTimersByTime(DAILY_ACTION_SUMMARY_INTERVAL_MS - 1);
+    expect(sent()).toHaveLength(0);
+    vi.advanceTimersByTime(1);
+    expect(sent()).toHaveLength(1);
+
+    recordDailyActionTiming('census_day_change_ready', 0, true, 10);
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    expect(sent()).toHaveLength(2);
+    vi.advanceTimersByTime(DAILY_ACTION_SUMMARY_INTERVAL_MS);
+    expect(sent()).toHaveLength(2);
+  });
+
+  it('keeps a real failure deliverable after a burst of 250 actions', async () => {
+    for (let action = 0; action < 250; action += 1) {
+      recordDailyActionTiming(
+        (['census_edit_saved', 'clinical_panel_ready', 'census_day_change_ready'] as const)[
+          action % 3
+        ],
+        0,
+        action % 7 !== 0,
+        action
+      );
+    }
+    flushDailyActionTimings();
+    expect(sent().length).toBeLessThanOrEqual(3);
+
+    const enqueue = vi.fn(async () => ({ alert: 'queued' as const, id: 'job-1' }));
+    const queue = {
+      enqueue,
+      deliver: vi.fn(async () => ({ alert: 'sent' })),
+      drain: vi.fn(),
+    } as unknown as AlertQueue;
+    const handler = createOperationalTelemetryHandler({
+      queue: () => queue,
+      now: () => Date.now(),
+      log: () => undefined,
+    });
+    const post = (event: unknown) =>
+      handler({
+        httpMethod: 'POST',
+        headers: {
+          origin: 'https://testinghhr.netlify.app',
+          'x-nf-client-connection-ip': '192.0.2.77',
+        },
+        body: envelope(event),
+      });
+    for (const summary of sent()) expect((await post(summary)).statusCode).toBe(202);
+    const failure = await post({
+      category: 'integration',
+      status: 'failed',
+      operation: 'rayen_sync_run',
+      timestamp: '2026-11-15T12:00:00.000Z',
+      issues: ['persistence_issue'],
+      context: { durationMs: 91_000 },
+    });
+    expect(failure.statusCode).toBe(202);
+    expect(enqueue).toHaveBeenCalledTimes(1);
   });
 
   it('stays out of the local buffer that keeps failures for diagnostics and system health', () => {
     const before = getOperationalTelemetryEvents().length;
     for (let edit = 0; edit < 250; edit += 1)
       recordDailyActionTiming('census_edit_saved', 0, true, 5);
+    flushDailyActionTimings();
     expect(getOperationalTelemetryEvents()).toHaveLength(before);
   });
 
   it('never reports a negative wait when the clock moves backwards', () => {
     recordDailyActionTiming('census_day_change_ready', 500, true, 200);
-    expect(ingest(mocks.dispatch.mock.calls[0][0]).context).toEqual({ durationMs: 0 });
+    flushDailyActionTimings();
+    expect(ingest(sent()[0]).context).toMatchObject({ p50Ms: 0, maxMs: 0 });
   });
 
   it('counts a day left before it showed as nothing, and a day that never loaded as unfinished', () => {
@@ -78,10 +158,10 @@ describe('daily action timing', () => {
     rerender({ date: '2026-11-16', recordDate: undefined, phase: 'remote_record_timeout' });
     rerender({ date: '2026-11-16', recordDate: '2026-11-16', phase: 'record_ready' });
     rerender({ date: '2026-11-17', recordDate: undefined, phase: 'confirmed_empty' });
+    flushDailyActionTimings();
 
-    expect(mocks.dispatch.mock.calls.map(([event]) => [event.operation, event.status])).toEqual([
-      ['census_day_change_ready', 'degraded'],
-      ['census_day_change_ready', 'success'],
-    ]);
+    expect(
+      sent().map(event => [event.operation, event.context?.count, event.context?.degradedCount])
+    ).toEqual([['census_day_change_ready', 2, 1]]);
   });
 });

@@ -20,6 +20,7 @@ import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { OperationalTelemetryEvent } from '@/services/observability/operationalTelemetryTypes';
+import { flushDailyActionTimings } from '@/services/observability/dailyActionTiming';
 
 // ============================================================================
 // Mocks
@@ -71,11 +72,15 @@ vi.mock('@/services/observability/operationalTelemetryExternalAdapter', () => ({
   dispatchOperationalTelemetryExternally: mockDispatch,
 }));
 
-const timingsOf = (operation: string) =>
-  mockDispatch.mock.calls
+/** The summary the tab would send now: one per action, with its count and unfinished count. */
+const timingsOf = (operation: string) => {
+  mockDispatch.mockClear();
+  flushDailyActionTimings();
+  return mockDispatch.mock.calls
     .map(([event]) => event)
     .filter(event => event.operation === operation)
-    .map(({ status, context }) => ({ status, keys: Object.keys(context ?? {}) }));
+    .map(({ context }) => ({ count: context?.count, degradedCount: context?.degradedCount }));
+};
 
 // Mock Firebase Auth
 vi.mock('../../firebaseConfig', () => ({
@@ -146,6 +151,7 @@ describe('DailyRecord Sync Integration', () => {
   });
 
   beforeEach(() => {
+    flushDailyActionTimings();
     vi.clearAllMocks();
     mockGetForDate.mockReturnValue(null);
     mockSyncWithFirestore.mockResolvedValue(null);
@@ -488,7 +494,7 @@ describe('DailyRecord Sync Integration', () => {
     });
   });
 
-  it('times each edit once: confirmed by the server, or left local, with only its duration', async () => {
+  it('times each edit once: confirmed by the server, or left local or failed', async () => {
     const initialRecord = createMockRecord('2024-12-28');
     mockGetForDate.mockReturnValue(initialRecord);
     const { result } = renderHook(() => useDailyRecordSyncQuery('2024-12-28', false, 'ready'), {
@@ -518,11 +524,7 @@ describe('DailyRecord Sync Integration', () => {
       await result.current.patchRecord({ 'beds.R1.age': '40a' }).catch(() => undefined);
     });
 
-    expect(timingsOf('census_edit_saved')).toEqual([
-      { status: 'success', keys: ['durationMs'] },
-      { status: 'degraded', keys: ['durationMs'] },
-      { status: 'degraded', keys: ['durationMs'] },
-    ]);
+    expect(timingsOf('census_edit_saved')).toEqual([{ count: 3, degradedCount: 2 }]);
   });
 
   it('times a day change until that census is shown, but not the first day', async () => {
@@ -537,9 +539,7 @@ describe('DailyRecord Sync Integration', () => {
     rerender({ date: '2024-12-29' });
     await waitFor(() => expect(result.current.record?.date).toBe('2024-12-29'));
     await waitFor(() =>
-      expect(timingsOf('census_day_change_ready')).toEqual([
-        { status: 'success', keys: ['durationMs'] },
-      ])
+      expect(timingsOf('census_day_change_ready')).toEqual([{ count: 1, degradedCount: 0 }])
     );
   });
 });
