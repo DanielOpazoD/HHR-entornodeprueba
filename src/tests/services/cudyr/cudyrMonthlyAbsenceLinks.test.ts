@@ -3,9 +3,12 @@ import { applyCudyrMonthlyAbsenceLinks } from '@/services/cudyr/cudyrMonthlyAbse
 import { applyCudyrMonthlySources } from '@/services/cudyr/cudyrMonthlyProjection';
 import { verifyCudyrMonthlySources } from '@/services/cudyr/cudyrMonthlyVerification';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
+import { cudyrArchiveCoverage } from '@/services/cudyr/cudyrArchiveCoverage';
 import { confirmedReportInput, reportRecord, reportPatient } from './reportFixtures';
 import { supplementRequest } from '@/tests/fixtures/cudyrSupplementFixture';
 import type { ArchivedCudyrSupplement } from '@/services/cudyr/cudyrSupplementService';
+import { CUDYR_ADMIN_ADJUSTMENT_SOURCE } from '@/domain/evaluationScales/importedCudyr';
+import type { CudyrReportEvaluation } from '@/types/domain/cudyrReport';
 
 const make = () => {
   const data = buildCudyrReport(
@@ -162,4 +165,73 @@ it('does not infer absence when a document-less positive has a compatible normal
   source.report.patients[0].patientName = 'Ana Urgencias Pérez';
   const result = applyCudyrMonthlyAbsenceLinks(data, [source]);
   expect(result.rows.find(r => r.key === 'blank')!.monthlyEvidence).toBeUndefined();
+});
+
+describe('an authorized administrative contingency on an empty monthly cell', () => {
+  const contingency = (patch: Partial<CudyrReportEvaluation> = {}): CudyrReportEvaluation => ({
+    category: 'C2',
+    source: CUDYR_ADMIN_ADJUSTMENT_SOURCE,
+    recordedAt: '2026-10-04T08:00:00Z',
+    sourceEvaluationId: 'contingency',
+    author: 'Administración sintética',
+    authorId: 'admin-1',
+    authorRole: 'admin',
+    adjustmentReason: 'Noche sin internet documentada',
+    adjustmentEvidence: 'Planilla en papel sintética',
+    ...patch,
+  });
+  // The person returns later in the month, so the direct projection cannot own the blank cell.
+  const withContingency = (patch: Partial<CudyrReportEvaluation> = {}) => {
+    const { data, source } = make();
+    const target = data.rows.find(r => r.key === 'blank')!;
+    target.evaluation = contingency(patch);
+    target.evaluationCount = 1;
+    target.cudyrStatus = 'registrado';
+    data.rows.push({
+      ...target,
+      key: 'readmission',
+      date: '2026-10-05',
+      clinicalEpisodeId: 'readmission-episode',
+      evaluation: null,
+      cudyrStatus: 'sin_captura',
+      warnings: [],
+    });
+    return { data, source };
+  };
+
+  it('receives the episode absence and keeps its category, so the night is verified', () => {
+    const { data, source } = withContingency();
+    data.coverage.push({
+      ...data.coverage.find(d => d.date === '2026-10-02')!,
+      date: '2026-10-03',
+    });
+    const night = (d: typeof data) =>
+      cudyrArchiveCoverage(d, new Date(d.generatedAt)).find(day => day.date === '2026-10-03');
+    expect(night(data)?.state).toBe('pending');
+    const result = applyCudyrMonthlyAbsenceLinks(data, [source]);
+    const row = result.rows.find(r => r.key === 'blank')!;
+    expect(row.monthlyEvidence).toMatchObject({
+      state: 'absent',
+      sourceDate: '2026-10-04',
+      linkMethod: 'episode_timeline',
+    });
+    expect(row.evaluation).toEqual(contingency());
+    expect(row.cudyrStatus).toBe('registrado');
+    expect(row.warnings).toEqual([]);
+    expect(result.rows.find(r => r.key === 'readmission')?.monthlyEvidence).toBeUndefined();
+    expect(night(result)?.state).toBe('complete');
+    expect(
+      verifyCudyrMonthlySources(result, [source]).checks.find(c => c.date === '2026-10-04')
+    ).toMatchObject({ state: 'empty', needsReview: false });
+  });
+  it.each([
+    ['without a reason', { adjustmentReason: ' ' }],
+    ['without evidence', { adjustmentEvidence: '' }],
+    ['from another source', { source: 'HHR · manual' }],
+  ])('leaves an evaluated row %s untouched', (_, patch) => {
+    const { data, source } = withContingency(patch);
+    const row = applyCudyrMonthlyAbsenceLinks(data, [source]).rows.find(r => r.key === 'blank')!;
+    expect(row.monthlyEvidence).toBeUndefined();
+    expect(row.cudyrStatus).toBe('registrado');
+  });
 });
