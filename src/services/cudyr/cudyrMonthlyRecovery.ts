@@ -28,7 +28,7 @@ export interface MonthlyRecoveryResult {
   expectedReports?: number;
   verificationResult?: ReturnType<typeof verifyCudyrMonthlySources>;
   verificationError?: string;
-  /** Closed days still unverified after this run, from the final HHR read. */
+  /** Closed days still unverified after this run; only set when the final HHR read is complete. */
   remainingDays?: string[];
   reports: ArchivedCudyrSupplement[];
   recovered: number;
@@ -37,6 +37,8 @@ export interface MonthlyRecoveryResult {
   /** Documentary reports alone never establish a complete episode query or absence. */
   verification: 'documentary';
 }
+const FINAL_READ_INCOMPLETE =
+  'La lectura final de HHR quedó incompleta; falta completar la conciliación. Puede reintentar.';
 const dependencies = {
   ...cudyrMonthlyReportPorts,
   load: loadCudyrSupplements,
@@ -227,16 +229,23 @@ export const recoverCudyrMonthlyReports = async (
     const census = await ports.readCensus(period.from, period.last, signal);
     check();
     result.verificationResult = verifyCudyrMonthlySources(census, result.reports);
-    result.remainingDays = census.officialSnapshot
-      ? []
-      : cudyrArchiveCoverage(census, new Date(completedAt))
-          .filter(day => day.state === 'pending')
-          .map(day => day.date);
+    // A partial read can complete on retry; only a complete one shows what is truly left.
+    if (
+      census.readIncomplete === true ||
+      census.issues.length > 0 ||
+      census.coverage.some(day => day.state === 'error')
+    )
+      result.verificationError = FINAL_READ_INCOMPLETE;
+    else
+      result.remainingDays = census.officialSnapshot
+        ? []
+        : cudyrArchiveCoverage(census, new Date(completedAt))
+            .filter(day => day.state === 'pending')
+            .map(day => day.date);
     remember(census);
   } catch {
     check(); // Cancellation/session changes still invalidate this caller.
-    result.verificationError =
-      'Fuentes guardadas. Falta completar la conciliación; puede reintentar.';
+    result.verificationError = FINAL_READ_INCOMPLETE;
   }
   return result;
 };

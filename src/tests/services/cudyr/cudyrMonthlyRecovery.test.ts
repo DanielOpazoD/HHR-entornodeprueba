@@ -162,7 +162,7 @@ describe('monthly documentary recovery', () => {
     expect(await run(ports)).toMatchObject({
       recovered: 1,
       failures: ['2026-08'],
-      verificationError: expect.stringContaining('Fuentes guardadas'),
+      verificationError: expect.stringContaining('Puede reintentar'),
     });
   });
   it('ends by naming the closed days that the final HHR read still leaves unverified', async () => {
@@ -192,6 +192,46 @@ describe('monthly documentary recovery', () => {
       .mockResolvedValueOnce(census([]));
     expect((await run(ports)).remainingDays).toEqual([]);
   });
+
+  it.each([
+    ['flags an incomplete read', { readIncomplete: true }],
+    ['flags it without issues left by the projection', { readIncomplete: true, issues: [] }],
+    ['carries a read issue', { issues: ['Capturas del período: lectura incompleta.'] }],
+    ['has a day that could not be read', { errorDay: '2026-08-05' }],
+  ] as const)(
+    'offers a retry instead of naming days for review when the final HHR read %s',
+    async (_case, partial) => {
+      const ports = setup();
+      const days = Array.from(
+        { length: 31 },
+        (_, i) => `2026-08-${String(i + 1).padStart(2, '0')}`
+      );
+      const census = (missing: string[], change: Record<string, unknown> = {}) => ({
+        from: '2026-08-01',
+        to: '2026-08-31',
+        rows: [],
+        captures: [],
+        issues: [],
+        coverage: days.map(date => ({
+          date,
+          state:
+            'errorDay' in change && change.errorDay === date
+              ? 'error'
+              : missing.includes(date)
+                ? 'sin_censo'
+                : 'disponible',
+        })),
+        ...('errorDay' in change ? {} : change),
+      });
+      ports.readCensus
+        .mockResolvedValueOnce(census(['2026-08-12']))
+        .mockResolvedValueOnce(census(['2026-08-12'], partial));
+      const result = await run(ports);
+      expect(result.failures).toEqual([]);
+      expect(result.remainingDays).toBeUndefined();
+      expect(result.verificationError).toContain('lectura final de HHR quedó incompleta');
+    }
+  );
 
   it('propagates cancellation during the final reconciliation read', async () => {
     const ports = setup();

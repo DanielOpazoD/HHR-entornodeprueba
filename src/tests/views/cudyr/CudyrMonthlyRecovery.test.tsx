@@ -145,6 +145,47 @@ describe('explicit monthly documentary action', () => {
     ).toBeInTheDocument();
     expect(screen.queryByText(/sin verificar/)).not.toBeInTheDocument();
   });
+  it('asks for another attempt, not a review, when the final HHR read was partial', async () => {
+    recover.mockResolvedValue({
+      recovered: 1,
+      reused: 0,
+      failures: [],
+      pendingDays: 1,
+      // A stale or older result shape must not turn a partial read into a review request.
+      remainingDays: ['2026-08-12'],
+      verificationError:
+        'La lectura final de HHR quedó incompleta; falta completar la conciliación. Puede reintentar.',
+      verification: 'documentary',
+    });
+    render(<CudyrMonthlyRecovery month="2026-08" onSaved={vi.fn()} />);
+    fireEvent.click(screen.getByText('Actualizar CUDYR'));
+    expect(await screen.findByText(/Puede reintentar/)).toBeInTheDocument();
+    expect(screen.queryByText(/sin verificar/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/quedaron verificados/)).not.toBeInTheDocument();
+    expect(screen.getByText('Actualizar CUDYR')).toBeEnabled();
+    expect(recordCudyrOperation).toHaveBeenCalledExactlyOnceWith(
+      'cudyr_monthly_recovery',
+      expect.any(Number),
+      'partial',
+      { recordCount: 1, unchangedCount: 0, failedCount: 0 }
+    );
+  });
+  it('does not claim every day verified when the final read was partial', async () => {
+    recover.mockResolvedValue({
+      recovered: 1,
+      reused: 0,
+      failures: [],
+      pendingDays: 2,
+      remainingDays: [],
+      verificationError:
+        'La lectura final de HHR quedó incompleta; falta completar la conciliación. Puede reintentar.',
+      verification: 'documentary',
+    });
+    render(<CudyrMonthlyRecovery month="2026-08" onSaved={vi.fn()} />);
+    fireEvent.click(screen.getByText('Actualizar CUDYR'));
+    expect(await screen.findByText(/Puede reintentar/)).toBeInTheDocument();
+    expect(screen.queryByText(/quedaron verificados/)).not.toBeInTheDocument();
+  });
   it('aborts on unmount and never refreshes another screen after an in-flight read', async () => {
     let finish: (value: unknown) => void = () => {};
     recover.mockImplementation(

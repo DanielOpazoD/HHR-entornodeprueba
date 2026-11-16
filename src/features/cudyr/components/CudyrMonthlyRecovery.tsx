@@ -160,7 +160,7 @@ export const CudyrMonthlyRecovery = ({
           separado.
         </p>
       )}
-      {result?.remainingDays && result.remainingDays.length > 0 && (
+      {result?.remainingDays && result.remainingDays.length > 0 && !result.verificationError && (
         <p role="status" className="mt-2 text-sky-800">
           {result.remainingDays.length === 1
             ? 'Queda 1 día sin verificar'
@@ -171,11 +171,13 @@ export const CudyrMonthlyRecovery = ({
             : 'Eloísa ya fue consultada para esos días y volver a actualizar no los completa. Requieren revisión: abra «CUDYR verificados» y el detalle de cada día para ver los pacientes por cotejar.'}
         </p>
       )}
-      {result?.remainingDays?.length === 0 && Boolean(result.pendingDays) && (
-        <p role="status" className="mt-2 text-teal-800">
-          Todos los turnos cerrados quedaron verificados.
-        </p>
-      )}
+      {result?.remainingDays?.length === 0 &&
+        Boolean(result.pendingDays) &&
+        !result.verificationError && (
+          <p role="status" className="mt-2 text-teal-800">
+            Todos los turnos cerrados quedaron verificados.
+          </p>
+        )}
       {error && (
         <p role="alert" className="mt-2 text-red-800">
           {error}
