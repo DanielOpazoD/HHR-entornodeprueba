@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
   CLINICAL_FULL_REVALIDATION_LOOKBACK_DAYS,

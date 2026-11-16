@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { reconcileCensus } from '@/features/rayen-import/domain/reconcileCensus';
 import {

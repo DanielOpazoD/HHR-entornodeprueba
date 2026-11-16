@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { Specialty } from '@/types/domain/patientClassification';
 import type { DailyRecord } from '@/types/domain/dailyRecord';

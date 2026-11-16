@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { scrubInvalidEpisodesFromDiff } from '@/features/rayen-import/domain/invalidClinicalEpisodePolicy';
 import { createEmptyCensusImportDiff } from '@/features/rayen-import/domain/censusImportDiffFactory';

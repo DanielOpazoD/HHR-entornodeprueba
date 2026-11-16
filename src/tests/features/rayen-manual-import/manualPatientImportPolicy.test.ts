@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { findManualPatientDuplicate } from '@/features/rayen-manual-import/domain/manualPatientImportPolicy';
 import { createEmptyPatient } from '@/services/factories/patientFactory';

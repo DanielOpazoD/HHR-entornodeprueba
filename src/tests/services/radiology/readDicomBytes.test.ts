@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, vi } from 'vitest';
 import { readDicomBytes } from '@/services/radiology/readDicomBytes';
 describe('bounded speculative DICOM read', () => {

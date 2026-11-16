@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Static drift guard between the prescription constants declared in TS
  * (`src/types/prescriptionTypes.ts`) and the parallel constants used by

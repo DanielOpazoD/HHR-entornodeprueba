@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Integration Tests for Census Operations
  * Tests complete workflows without complex hook rendering.

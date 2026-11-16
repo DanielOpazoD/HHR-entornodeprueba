@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Synthetic-only: a specialist note never replaces a stored note saved after its edit began, and a
  * replay of a write the server already took changes nothing while the record still holds it.

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { Settings } from 'lucide-react';
 import { resolveNavbarMenuAction } from '@/components/layout/navbar/navbarMenuController';

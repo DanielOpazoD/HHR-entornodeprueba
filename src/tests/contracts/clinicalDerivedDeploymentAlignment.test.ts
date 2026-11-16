@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * The rules, the index exemptions, the storage-policy operator and the critical access matrix spell
  * the clinicalDerived contract names as literals. Renaming a constant or moving another field must

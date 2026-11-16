@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Tests for auditSummaryGenerator.ts
  * Tests the human-readable summary generation for audit logs

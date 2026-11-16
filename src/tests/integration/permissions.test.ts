@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Integration Tests for Permissions (RBAC) System
  * Validates module-level and action-level permissions for all user roles.

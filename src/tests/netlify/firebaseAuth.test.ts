@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { createProviderError, credentialMarkers } from './providerErrorFixture';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSign, generateKeyPairSync } from 'node:crypto';

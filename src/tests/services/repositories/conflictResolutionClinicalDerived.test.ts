@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Conflict auto-merge on split days (D9 of DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md): the
  * marker and, on a marked remote, `meta` and the moved clinical fields come only from the remote,

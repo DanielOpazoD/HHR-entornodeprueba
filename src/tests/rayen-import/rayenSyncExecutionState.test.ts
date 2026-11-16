@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
   INITIAL_RAYEN_SYNC_EXECUTION_STATE,

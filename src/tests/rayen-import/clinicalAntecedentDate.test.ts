@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { formatClinicalAntecedentDate } from '@/features/census/components/patient-row/clinicalAntecedentDate';
 

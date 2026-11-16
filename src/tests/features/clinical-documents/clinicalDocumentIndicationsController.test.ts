@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
 import { resolveClinicalDocumentIndicationSpecialty } from '@/features/clinical-documents/controllers/clinicalDocumentIndicationsController';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { expect, it, vi } from 'vitest';
 import type { RenderingEngine } from '@cornerstonejs/core';
 const getVolume = vi.hoisted(() => vi.fn());

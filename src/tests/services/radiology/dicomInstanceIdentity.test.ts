@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { parseDicom } from 'dicom-parser';
 import { describe, expect, it } from 'vitest';
 import { validateDicomInstanceIdentity } from '@/services/radiology/dicomInstanceIdentity';

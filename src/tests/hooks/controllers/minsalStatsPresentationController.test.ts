@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { resolveDisplayedMinsalStats } from '@/hooks/controllers/minsalStatsPresentationController';
 import type { MinsalStatistics } from '@/types/minsalTypes';

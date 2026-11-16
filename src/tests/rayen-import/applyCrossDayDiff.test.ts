@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { applyCrossDayDiff } from '@/features/rayen-import/domain/applyCrossDayDiff';
 import { planPreviousDayEdits } from '@/features/rayen-import/domain/planPreviousDayEdits';

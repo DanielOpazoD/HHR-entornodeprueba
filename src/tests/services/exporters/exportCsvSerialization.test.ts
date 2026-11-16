@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { buildDailyRecordCsv } from '@/services/exporters/exportCsvSerialization';
 import { CSV_HEADERS } from '@/constants/export';

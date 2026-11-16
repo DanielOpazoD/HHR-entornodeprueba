@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Tests for audit.ts types and utilities
  * Tests the maskRut function for privacy protection

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { describe, expect, it } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';

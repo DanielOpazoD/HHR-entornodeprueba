@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { readHistoricalPatientFlow } from '@/features/rayen-import/domain/historicalFlowAuthorizationRecovery';
 const encounter = {

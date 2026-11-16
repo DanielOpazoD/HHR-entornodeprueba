@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { planDicomVolume, type SliceGeometry } from '@/domain/radiology/dicomGeometry';
 import { resampleDicomVolume } from '@/domain/radiology/dicomResampling';

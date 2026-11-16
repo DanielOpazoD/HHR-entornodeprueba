@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { resolveClinicalInitialBlockEditorPosition } from '@/features/census/controllers/clinicalInitialBlockEditorPosition';
 
