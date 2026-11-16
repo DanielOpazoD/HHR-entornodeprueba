@@ -466,17 +466,104 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
     };
   };
 
-  it.fails(
-    "keeps the copied day's sync when the person looks at another day while it waits",
-    async () => {
-      // Synchronize yesterday, copy it into today, and glance back at yesterday while yesterday's
-      // clinical reading (minutes, up to the 8-minute watchdog) keeps today's sync waiting.
-      createCensusWorld(CLINICAL_TODAY, '2026-09-09');
-      expect(beginRayenFill(4)).toBe(true);
-      const previousFill = getRayenFillAttemptId();
-      mocks.triggerImport.mockImplementation(async () =>
-        resetRayenFillProgress() ? 'started' : 'blocked'
-      );
+  it("keeps the copied day's sync when the person looks at another day while it waits", async () => {
+    // Synchronize yesterday, copy it into today, and glance back at yesterday while yesterday's
+    // clinical reading (minutes, up to the 8-minute watchdog) keeps today's sync waiting.
+    createCensusWorld(CLINICAL_TODAY, '2026-09-09');
+    expect(beginRayenFill(4)).toBe(true);
+    const previousFill = getRayenFillAttemptId();
+    mocks.triggerImport.mockImplementation(async () =>
+      resetRayenFillProgress() ? 'started' : 'blocked'
+    );
+    const view = renderCensus();
+    const copyButton = await screen.findByTestId('create-from-rayen-btn', {}, { timeout: 3000 });
+    await act(async () => {
+      fireEvent.click(copyButton);
+    });
+    view.rerender(censusElement());
+    await waitForRayenToolbar();
+    expect(mocks.triggerImport).not.toHaveBeenCalled();
+
+    const away = showYesterdayWhileAway();
+    await act(async () => {
+      view.rerender(away.show(away.yesterday));
+    });
+    await act(async () => {
+      view.rerender(away.show(CLINICAL_TODAY));
+    });
+    await act(async () => {
+      endRayenFill(0, false, previousFill);
+    });
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    });
+
+    // Back on today, the request still belongs to it and starts once the earlier reading ends.
+    expect(mocks.triggerImport).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
+      reviewRequirement: 'day_bootstrap',
+    });
+    expect(mocks.triggerImport).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts the copied day's sync on return when the copy finished while the person was away", async () => {
+    const world = createCensusWorld(CLINICAL_TODAY, '2026-09-09');
+    let finishCopy!: (copied: boolean) => void;
+    const copyWorld = mocks.screenModel.getMockImplementation()!;
+    mocks.screenModel.mockImplementation(() => {
+      const model = copyWorld();
+      if (!model.emptyDayPromptProps) return model;
+      return {
+        ...model,
+        emptyDayPromptProps: {
+          ...model.emptyDayPromptProps,
+          onCreateDay: () =>
+            new Promise<boolean>(resolve => {
+              finishCopy = copied => {
+                world.hasRecord = copied;
+                resolve(copied);
+              };
+            }),
+        },
+      };
+    });
+    const view = renderCensus();
+    const copyButton = await screen.findByTestId('create-from-rayen-btn', {}, { timeout: 3000 });
+    await act(async () => {
+      fireEvent.click(copyButton);
+    });
+
+    const away = showYesterdayWhileAway();
+    await act(async () => {
+      view.rerender(away.show(away.yesterday));
+    });
+    await waitForRayenToolbar();
+    await act(async () => {
+      finishCopy(true);
+    });
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    });
+    // Never for the day on screen: yesterday is not the day that was copied.
+    expect(mocks.triggerImport).not.toHaveBeenCalled();
+
+    await act(async () => {
+      view.rerender(away.show(CLINICAL_TODAY));
+    });
+    await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
+    expect(mocks.triggerImport).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
+      reviewRequirement: 'day_bootstrap',
+    });
+  });
+
+  it("drops the copied day's sync when the session changes while another day is shown", async () => {
+    setSessionGeneration('synthetic-generation-a', 'synthetic-owner-a');
+    createCensusWorld(CLINICAL_TODAY, '2026-09-09');
+    expect(beginRayenFill(4)).toBe(true);
+    const previousFill = getRayenFillAttemptId();
+    mocks.triggerImport.mockImplementation(async () =>
+      resetRayenFillProgress() ? 'started' : 'blocked'
+    );
+    try {
       const view = renderCensus();
       const copyButton = await screen.findByTestId('create-from-rayen-btn', {}, { timeout: 3000 });
       await act(async () => {
@@ -484,11 +571,13 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
       });
       view.rerender(censusElement());
       await waitForRayenToolbar();
-      expect(mocks.triggerImport).not.toHaveBeenCalled();
 
       const away = showYesterdayWhileAway();
       await act(async () => {
         view.rerender(away.show(away.yesterday));
+      });
+      await act(async () => {
+        setSessionGeneration('synthetic-generation-b', 'synthetic-owner-b');
       });
       await act(async () => {
         view.rerender(away.show(CLINICAL_TODAY));
@@ -500,13 +589,11 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
         await new Promise(resolve => setTimeout(resolve, 50));
       });
 
-      // Today: the request was dropped when the visible date changed. The copied census stays
-      // unsynchronized and nothing says the requested synchronization will not happen.
-      expect(mocks.triggerImport).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
-        reviewRequirement: 'day_bootstrap',
-      });
+      expect(mocks.triggerImport).not.toHaveBeenCalled();
+    } finally {
+      setSessionGeneration(null);
     }
-  );
+  });
 
   it.each([
     ['another person', 'synthetic-generation-b', 'synthetic-owner-b'],
