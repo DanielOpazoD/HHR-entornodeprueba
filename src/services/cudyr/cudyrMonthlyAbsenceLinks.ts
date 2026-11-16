@@ -2,7 +2,7 @@ import { isValidRut } from '@/utils/rutUtils';
 import { cudyrDocumentKey, cudyrFullNameKey } from '@/domain/cudyr/cudyrSourceIdentity';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import type { ArchivedCudyrSupplement } from './cudyrSupplementService';
-import { monthlySourceIsFinal } from './cudyrMonthlyProjection';
+import { isAuthorizedCudyrAdminAdjustment, monthlySourceIsFinal } from './cudyrMonthlyProjection';
 import { composeRayenGivenNames } from '@/utils/eloisaPersonName';
 import { createCudyrIdentityResolver, cudyrMatchesCensusName } from './cudyrNameReconciliation';
 import { getNextDay } from '@/utils/clinicalDayUtils';
@@ -63,7 +63,13 @@ export const applyCudyrMonthlyAbsenceLinks = (
       const own = rows.filter(row => row.clinicalEpisodeId === episode);
       if (own.some(row => identity(row.rut, row.patientName) !== id)) continue;
       for (const row of own) {
-        if (row.monthlyEvidence || row.evaluation || !monthlySourceIsFinal(source, row.date, now))
+        // An authorized contingency keeps its category and may still own the empty cell
+        // (e.g. a night without internet). Any other evaluated row is never relinked here.
+        if (
+          row.monthlyEvidence ||
+          (row.evaluation && !isAuthorizedCudyrAdminAdjustment(row.evaluation)) ||
+          !monthlySourceIsFinal(source, row.date, now)
+        )
           continue;
         const day = patient.days.find(cell => cell.sourceDate === getNextDay(row.date));
         if (
@@ -84,7 +90,7 @@ export const applyCudyrMonthlyAbsenceLinks = (
           state: 'absent',
           linkMethod: 'episode_timeline',
         };
-        row.cudyrStatus = 'sin_registro_observado';
+        row.cudyrStatus = row.evaluation ? 'registrado' : 'sin_registro_observado';
         row.warnings = row.warnings.filter(
           warning => warning !== 'Informe mensual: identidad o turno ambiguo; requiere cotejo.'
         );

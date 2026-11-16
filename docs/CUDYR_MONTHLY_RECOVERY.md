@@ -45,7 +45,9 @@ el denominador. La explicación aparece en el detalle y en el Excel diario.
 
 La excepción prevalece sobre sincronizaciones posteriores, incluso frente a un
 Excel vacío o con otra categoría. Se conserva por separado la evidencia de Eloísa;
-una discrepancia no reemplaza silenciosamente la decisión administrativa. El
+una discrepancia no reemplaza silenciosamente la decisión administrativa. Si la persona
+tiene otro episodio en el mes, la casilla vacía de esa noche se reconoce por la línea de
+tiempo del episodio, como en una fila sin categoría, y la excepción conserva la suya. El
 archivo de auditoría debe conservar los puntajes originales, la fuente y la
 validación. La hora del guardado antiguo no se inventa como hora de aplicación ni
 se atribuye al operador de recuperación la autoría clínica original.
