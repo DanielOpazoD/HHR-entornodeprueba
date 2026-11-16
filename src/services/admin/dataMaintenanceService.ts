@@ -10,7 +10,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { saveDetailed as saveDailyRecordDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { logAuditEvent } from './auditService';
 import { getCurrentUserEmail } from './utils/auditUtils';
-import { parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
+import { hasStructuralRepairs, parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
 import { dataMaintenanceLogger } from '@/services/admin/adminLoggers';
 import { getRecordForDateStrict } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDerivedImportGuard';
@@ -308,14 +308,7 @@ export const importRecordsFromBackup = async (
     const record = backup.records[i];
     try {
       const parsed = parseDailyRecordWithDefaultsReport(record, record.date);
-      const hadRepairs =
-        parsed.report.nullNormalization.replacedNullCount > 0 ||
-        parsed.report.nullNormalization.droppedArrayEntriesCount > 0 ||
-        parsed.report.salvagedBeds.length > 0 ||
-        parsed.report.droppedDischargeItems > 0 ||
-        parsed.report.droppedTransferItems > 0 ||
-        parsed.report.droppedCmaItems > 0 ||
-        parsed.report.droppedRayenSyncEvents > 0;
+      const hadRepairs = hasStructuralRepairs(parsed.report);
 
       // A local split day is never replaced by a copy that is not newer and lost (or changed) its
       // marker (D10). The date counts as failed, as does one whose local copy cannot be read.

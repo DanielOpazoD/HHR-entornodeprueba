@@ -73,15 +73,29 @@ const dailyRecordFieldSchemas = new Map(Object.entries(DailyRecordFieldsSchema.s
 // does not know stay as stored, as the strict schema passes them through. Only the invalid value
 // goes: a signed or CUDYR-locked day keeps its signature and lock (CUD-01), and a split day keeps
 // its layout and `meta` revision, so strict readers never see it as ahead of itself.
-const keepValidTopLevelFields = (raw: Record<string, unknown>): Record<string, unknown> =>
-  Object.fromEntries(
+const keepValidTopLevelFields = (
+  raw: Record<string, unknown>
+): { kept: Record<string, unknown>; rejected: [string, unknown][] } => {
+  const rejected: [string, unknown][] = [];
+  const kept = Object.fromEntries(
     Object.entries(raw).flatMap(([key, value]) => {
       const fieldSchema = dailyRecordFieldSchemas.get(key);
       if (!fieldSchema) return [[key, value]];
       const parsed = fieldSchema.safeParse(value);
-      return parsed.success ? [[key, parsed.data]] : [];
+      if (parsed.success) return [[key, parsed.data]];
+      rejected.push([key, value]);
+      return [];
     })
   );
+  return { kept, rejected };
+};
+
+// The bed map and the movement lists are salvaged item by item, and the report counts their
+// lost items; only a value that is not such a container at all is lost whole.
+const isSalvagedItemByItem = (key: string, value: unknown): boolean =>
+  key === 'beds'
+    ? Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+    : ['discharges', 'transfers', 'cma', 'rayenSyncHistory'].includes(key) && Array.isArray(value);
 
 export const parseDailyRecordWithDefaultsReport = (
   data: unknown,
@@ -101,6 +115,7 @@ export const parseDailyRecordWithDefaultsReport = (
           droppedTransferItems: 0,
           droppedCmaItems: 0,
           droppedRayenSyncEvents: 0,
+          discardedTopLevelFields: [],
         },
       };
     }
@@ -159,50 +174,55 @@ export const parseDailyRecordWithDefaultsReport = (
     RayenSyncEventSchema
   );
 
-  return {
-    record: applyDailyRecordStaffingCompatibility({
-      ...keepValidTopLevelFields(raw),
-      date: typeof raw.date === 'string' ? raw.date : docId,
-      beds: salvagedBeds,
-      discharges: salvagedDischarges.values,
-      transfers: salvagedTransfers.values,
-      cma: salvagedCma.values,
-      lastUpdated: typeof raw.lastUpdated === 'string' ? raw.lastUpdated : new Date().toISOString(),
-      nurses: Array.isArray(raw.nurses) ? raw.nurses : ['', ''],
-      nursesDayShift: Array.isArray(raw.nursesDayShift) ? raw.nursesDayShift : ['', ''],
-      nursesNightShift: Array.isArray(raw.nursesNightShift) ? raw.nursesNightShift : ['', ''],
-      nurseName: typeof raw.nurseName === 'string' ? raw.nurseName : undefined,
-      tensDayShift: Array.isArray(raw.tensDayShift) ? raw.tensDayShift : ['', '', ''],
-      tensNightShift: Array.isArray(raw.tensNightShift) ? raw.tensNightShift : ['', '', ''],
-      activeExtraBeds: Array.isArray(raw.activeExtraBeds) ? raw.activeExtraBeds : [],
-      rayenBedCollisionResolutions: Array.isArray(raw.rayenBedCollisionResolutions)
-        ? raw.rayenBedCollisionResolutions.flatMap(value => {
-            const parsed = RayenBedCollisionResolutionReceiptSchema.safeParse(value);
-            return parsed.success ? [parsed.data] : [];
-          })
+  const topLevel = keepValidTopLevelFields(raw);
+  const fields = {
+    ...topLevel.kept,
+    date: typeof raw.date === 'string' ? raw.date : docId,
+    beds: salvagedBeds,
+    discharges: salvagedDischarges.values,
+    transfers: salvagedTransfers.values,
+    cma: salvagedCma.values,
+    lastUpdated: typeof raw.lastUpdated === 'string' ? raw.lastUpdated : new Date().toISOString(),
+    nurses: Array.isArray(raw.nurses) ? raw.nurses : ['', ''],
+    nursesDayShift: Array.isArray(raw.nursesDayShift) ? raw.nursesDayShift : ['', ''],
+    nursesNightShift: Array.isArray(raw.nursesNightShift) ? raw.nursesNightShift : ['', ''],
+    nurseName: typeof raw.nurseName === 'string' ? raw.nurseName : undefined,
+    tensDayShift: Array.isArray(raw.tensDayShift) ? raw.tensDayShift : ['', '', ''],
+    tensNightShift: Array.isArray(raw.tensNightShift) ? raw.tensNightShift : ['', '', ''],
+    activeExtraBeds: Array.isArray(raw.activeExtraBeds) ? raw.activeExtraBeds : [],
+    rayenBedCollisionResolutions: Array.isArray(raw.rayenBedCollisionResolutions)
+      ? raw.rayenBedCollisionResolutions.flatMap(value => {
+          const parsed = RayenBedCollisionResolutionReceiptSchema.safeParse(value);
+          return parsed.success ? [parsed.data] : [];
+        })
+      : undefined,
+    handoffDayChecklist: (raw.handoffDayChecklist as DailyRecord['handoffDayChecklist']) || {},
+    handoffNightChecklist:
+      (raw.handoffNightChecklist as DailyRecord['handoffNightChecklist']) || {},
+    handoffNovedadesDayShift:
+      typeof raw.handoffNovedadesDayShift === 'string' ? raw.handoffNovedadesDayShift : '',
+    handoffNovedadesNightShift:
+      typeof raw.handoffNovedadesNightShift === 'string' ? raw.handoffNovedadesNightShift : '',
+    medicalHandoffNovedades:
+      typeof raw.medicalHandoffNovedades === 'string' ? raw.medicalHandoffNovedades : '',
+    medicalHandoffBySpecialty:
+      raw.medicalHandoffBySpecialty &&
+      typeof raw.medicalHandoffBySpecialty === 'object' &&
+      !Array.isArray(raw.medicalHandoffBySpecialty)
+        ? (raw.medicalHandoffBySpecialty as DailyRecord['medicalHandoffBySpecialty'])
         : undefined,
-      handoffDayChecklist: (raw.handoffDayChecklist as DailyRecord['handoffDayChecklist']) || {},
-      handoffNightChecklist:
-        (raw.handoffNightChecklist as DailyRecord['handoffNightChecklist']) || {},
-      handoffNovedadesDayShift:
-        typeof raw.handoffNovedadesDayShift === 'string' ? raw.handoffNovedadesDayShift : '',
-      handoffNovedadesNightShift:
-        typeof raw.handoffNovedadesNightShift === 'string' ? raw.handoffNovedadesNightShift : '',
-      medicalHandoffNovedades:
-        typeof raw.medicalHandoffNovedades === 'string' ? raw.medicalHandoffNovedades : '',
-      medicalHandoffBySpecialty:
-        raw.medicalHandoffBySpecialty &&
-        typeof raw.medicalHandoffBySpecialty === 'object' &&
-        !Array.isArray(raw.medicalHandoffBySpecialty)
-          ? (raw.medicalHandoffBySpecialty as DailyRecord['medicalHandoffBySpecialty'])
-          : undefined,
-      handoffNightReceives: Array.isArray(raw.handoffNightReceives) ? raw.handoffNightReceives : [],
-      bedTypeOverrides: (raw.bedTypeOverrides as Record<string, BedType>) || {},
-      schemaVersion: typeof raw.schemaVersion === 'number' ? raw.schemaVersion : 1,
-      ...(Array.isArray(raw.rayenSyncHistory)
-        ? { rayenSyncHistory: salvagedRayenSyncHistory.values }
-        : {}),
-    } as DailyRecord),
+    handoffNightReceives: Array.isArray(raw.handoffNightReceives) ? raw.handoffNightReceives : [],
+    bedTypeOverrides: (raw.bedTypeOverrides as Record<string, BedType>) || {},
+    schemaVersion: typeof raw.schemaVersion === 'number' ? raw.schemaVersion : 1,
+    ...(Array.isArray(raw.rayenSyncHistory)
+      ? { rayenSyncHistory: salvagedRayenSyncHistory.values }
+      : {}),
+  };
+
+  const rebuilt = new Map<string, unknown>(Object.entries(fields));
+
+  return {
+    record: applyDailyRecordStaffingCompatibility(fields as DailyRecord),
     report: {
       nullNormalization,
       salvagedBeds: salvagedBedIds,
@@ -211,6 +231,10 @@ export const parseDailyRecordWithDefaultsReport = (
       droppedTransferItems: salvagedTransfers.dropped,
       droppedCmaItems: salvagedCma.dropped,
       droppedRayenSyncEvents: salvagedRayenSyncHistory.dropped,
+      // A rejected value the rebuild above takes back as stored was not discarded.
+      discardedTopLevelFields: topLevel.rejected
+        .filter(([key, value]) => rebuilt.get(key) !== value && !isSalvagedItemByItem(key, value))
+        .map(([key]) => key),
     },
   };
 };

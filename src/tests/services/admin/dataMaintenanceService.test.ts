@@ -270,6 +270,20 @@ describe('dataMaintenanceService', () => {
     );
   });
 
+  it('counts a backup day whose only repair is a discarded top-level field', async () => {
+    const result = await importRecordsFromBackup({
+      version: '1.0',
+      exportDate: '2026-03-03T10:00:00.000Z',
+      year: 2026,
+      month: 3,
+      recordCount: 1,
+      records: [{ date: '2026-03-03', beds: {}, medicalSignature: 42 } as unknown as DailyRecord],
+    });
+
+    expect(result).toEqual({ success: 1, failed: 0, repaired: 1, outcome: 'repaired' });
+    expect(mockRepositorySave.mock.calls[0][0]).not.toHaveProperty('medicalSignature');
+  });
+
   it('never replaces a newer local split day with an unmarked backup copy (D10)', async () => {
     const backupDay = (date: string) =>
       ({
