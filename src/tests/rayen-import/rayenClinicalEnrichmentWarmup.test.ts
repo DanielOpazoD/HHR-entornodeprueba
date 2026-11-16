@@ -1,5 +1,3 @@
-import { deleteApp, initializeApp, type FirebaseApp } from 'firebase/app';
-import { connectFunctionsEmulator, getFunctions } from 'firebase/functions';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { warmRayenClinicalEnrichmentBatch } from '@/features/rayen-import/bridge/rayenClinicalEnrichmentBatchClient';
 
@@ -9,29 +7,27 @@ vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
   defaultFunctionsRuntime: { getRegionalFunctions: mocks.getRegionalFunctions },
 }));
 
-// Real SDK instances: the warm-up must reach the address the callable itself uses.
+// A stand-in for the SDK's Functions instance: the real SDK starts a background IndexedDB
+// heartbeat that outlives the test. The warm-up uses the instance's own resolver (`_url`).
+const regionalFunctions = (origin: string) => (region: string) => ({
+  region,
+  _url: (name: string) => `${origin}/${region}/${name}`,
+});
+
 describe('clinical batch warm-up', () => {
-  let app: FirebaseApp;
   const fetchMock = vi.fn();
 
   beforeEach(() => {
-    app = initializeApp(
-      { projectId: 'demo-hhr-warmup', apiKey: 'synthetic-key', appId: 'synthetic-app' },
-      `warmup-${Math.random()}`
-    );
-    mocks.getRegionalFunctions.mockImplementation(async (region: string) =>
-      getFunctions(app, region)
-    );
-    fetchMock.mockReset();
+    vi.resetAllMocks();
     vi.stubGlobal('fetch', fetchMock);
   });
 
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    await deleteApp(app);
-  });
+  afterEach(() => vi.unstubAllGlobals());
 
-  it('sends one bare preflight to the regional callable and nothing else', async () => {
+  it('sends one bare preflight to the address the callable itself resolves', async () => {
+    mocks.getRegionalFunctions.mockImplementation(async (region: string) =>
+      regionalFunctions('https://functions.example')(region)
+    );
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
 
     await warmRayenClinicalEnrichmentBatch();
@@ -39,32 +35,26 @@ describe('clinical batch warm-up', () => {
     expect(mocks.getRegionalFunctions).toHaveBeenCalledExactlyOnceWith('southamerica-east1');
     // No body, no Authorization and no payload: the server only answers the CORS preflight.
     expect(fetchMock).toHaveBeenCalledExactlyOnceWith(
-      'https://southamerica-east1-demo-hhr-warmup.cloudfunctions.net/applyRayenClinicalEnrichmentBatch',
-      { method: 'OPTIONS' }
-    );
-  });
-
-  it('targets the emulator when the app is connected to it', async () => {
-    mocks.getRegionalFunctions.mockImplementation(async (region: string) => {
-      const functions = getFunctions(app, region);
-      connectFunctionsEmulator(functions, '127.0.0.1', 5611);
-      return functions;
-    });
-    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
-
-    await warmRayenClinicalEnrichmentBatch();
-
-    expect(fetchMock).toHaveBeenCalledExactlyOnceWith(
-      'http://127.0.0.1:5611/demo-hhr-warmup/southamerica-east1/applyRayenClinicalEnrichmentBatch',
+      'https://functions.example/southamerica-east1/applyRayenClinicalEnrichmentBatch',
       { method: 'OPTIONS' }
     );
   });
 
   it('settles quietly when the browser refuses the OPTIONS request after its preflight', async () => {
+    mocks.getRegionalFunctions.mockImplementation(async (region: string) =>
+      regionalFunctions('https://functions.example')(region)
+    );
     fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
 
     await expect(warmRayenClinicalEnrichmentBatch()).resolves.toBeUndefined();
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('sends nothing when the SDK instance exposes no address resolver', async () => {
+    mocks.getRegionalFunctions.mockResolvedValue({ region: 'southamerica-east1' });
+
+    await expect(warmRayenClinicalEnrichmentBatch()).resolves.toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('sends nothing when the Functions runtime is unavailable', async () => {
