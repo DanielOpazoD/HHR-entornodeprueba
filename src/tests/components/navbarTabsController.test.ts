@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { resolveIsNavbarItemActive } from '@/components/layout/navbar/navbarTabsController';
 

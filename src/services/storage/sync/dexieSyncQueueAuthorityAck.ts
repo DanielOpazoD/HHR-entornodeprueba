@@ -1,5 +1,5 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
+import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import type { matchesTaskClaim } from '@/services/storage/sync/syncQueueTaskFactory';
 import type {
@@ -8,7 +8,6 @@ import type {
   DirectDailyRecordAckInput,
   DirectDailyRecordAckResult,
 } from '@/services/storage/sync/syncQueuePorts';
-import { UNKNOWN_SERVER_VERSION } from '@/services/storage/sync/syncTaskContractPolicy';
 import { hasSameComparableValue } from '@/services/repositories/conflictResolutionUtils';
 import { isNursingHandoffPath } from './nursingHandoffTasks';
 import { clearSyncTaskRuntimeState } from './syncQueueTaskFactory';
@@ -23,7 +22,6 @@ interface AckRuntime {
   db: typeof hospitalDB;
   matchesClaim: typeof matchesTaskClaim;
   pending: typeof listDailyRecordProjectionHolders;
-  confirmNote: (task: SyncTask) => Promise<boolean>;
 }
 
 class SyncQueueAckError extends Error {
@@ -107,24 +105,16 @@ export const completeDirectDailyRecord = async ({
   });
 };
 
-export const completeClaimedSyncTask = async (
-  { db, matchesClaim, pending, confirmNote }: AckRuntime,
+export const completeClaimedSyncTask = (
+  { db, matchesClaim, pending }: AckRuntime,
   taskId: number,
   claim: SyncQueueLeaseClaim,
   authoritativeRecord?: DailyRecord,
   detachedConflicts: SyncTask[] = []
-): Promise<{ deleted: boolean; adopted: boolean; noteProjectionDate?: string }> => {
-  let handoffNotes = false;
-  const result = await db.transaction('rw', db.syncQueue, db.dailyRecords, async () => {
+): Promise<{ deleted: boolean; adopted: boolean }> =>
+  db.transaction('rw', db.syncQueue, db.dailyRecords, async () => {
     const task = await db.syncQueue.get(taskId);
     if (!matchesClaim(task, claim)) return { deleted: false, adopted: false };
-    const noteProjectionDate =
-      task.type === 'UPDATE_SPECIALIST_HANDOFF' && (await confirmNote(task))
-        ? (task.payload as SpecialistHandoffSyncPayload).date
-        : undefined;
-    handoffNotes = Boolean(
-      task.syncContract?.changedPaths?.some(path => path.includes('.medicalHandoffEntries'))
-    );
     let adopted = false;
     if (authoritativeRecord) {
       const payload = task.payload as Partial<DailyRecord> | undefined;
@@ -144,18 +134,11 @@ export const completeClaimedSyncTask = async (
         if (!local)
           throw new SyncQueueAckError('sync_ack_missing_projection', 'Missing local projection.');
       } else {
-        // Legacy note repair invalidates only the cached server version, preserving queued
-        // intent. Accept its ACK only when every other cached value still matches that intent.
-        const invalidatedVersionOnly =
-          local?.lastUpdated === UNKNOWN_SERVER_VERSION &&
-          task.syncContract?.expectedVersion === UNKNOWN_SERVER_VERSION &&
-          hasSameComparableValue(local, { ...payload, lastUpdated: UNKNOWN_SERVER_VERSION });
         if (
           !task.nursingHandoffRecovery &&
           local &&
           local.lastUpdated !== payload.lastUpdated &&
-          local.lastUpdated !== authoritativeRecord.lastUpdated &&
-          !invalidatedVersionOnly
+          local.lastUpdated !== authoritativeRecord.lastUpdated
         )
           throw new SyncQueueAckError('sync_ack_projection_conflict', 'ACK version conflict.');
         await db.dailyRecords.put(authoritativeRecord);
@@ -187,15 +170,8 @@ export const completeClaimedSyncTask = async (
         error: 'Sesión cerrada. Revisa los cambios pendientes con su usuario original.',
       });
     } else await db.syncQueue.delete(taskId);
-    return { deleted: true, adopted, noteProjectionDate };
+    return { deleted: true, adopted };
   });
-  // The server now holds this record: drafts with exactly its text for the same patient are saved.
-  if (result.deleted && authoritativeRecord && handoffNotes)
-    (await import('../medicalHandoffDraftStorage')).confirmMedicalHandoffDraftsFromRecord(
-      authoritativeRecord
-    );
-  return result;
-};
 
 export const adoptAuthoritativeDailyRecordInOutbox: NonNullable<
   SyncQueueStorePort['adoptAuthoritativeDailyRecord']

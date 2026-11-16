@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { buildLabTrendChartModel } from '@/features/laboratory/components/labTrendChartModel';
 import type { LabTrendPoint } from '@/types/domain/labAnalyticsTypes';

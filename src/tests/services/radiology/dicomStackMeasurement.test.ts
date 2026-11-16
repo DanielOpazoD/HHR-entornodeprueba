@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Types as ToolTypes } from '@cornerstonejs/tools';
 import {

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { buildCudyrBedHistory } from '@/domain/cudyr/cudyrBedHistory';
 import { reportPlacement } from '../../services/cudyr/reportFixtures';

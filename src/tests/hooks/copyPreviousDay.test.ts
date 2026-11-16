@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Tests for Copy Previous Day Functionality
  * Verifies that copying from previous day works correctly.

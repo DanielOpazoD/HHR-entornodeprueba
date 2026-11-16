@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { Timestamp } from 'firebase/firestore';
 import { transferDocToEntity } from '@/services/transfers/transferSerializationController';

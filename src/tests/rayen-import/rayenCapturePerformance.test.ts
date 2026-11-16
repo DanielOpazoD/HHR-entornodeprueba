@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { buildRayenCapturePerformance } from '@/features/rayen-import/domain/rayenSyncSourceQuality';
 import type {

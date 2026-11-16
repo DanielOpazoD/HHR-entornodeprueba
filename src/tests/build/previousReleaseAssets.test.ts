@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { MAX_RETIRED, planReleaseAssets } from '../../../scripts/link-previous-release-assets.mjs';

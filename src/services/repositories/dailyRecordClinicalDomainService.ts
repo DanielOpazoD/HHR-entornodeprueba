@@ -201,41 +201,33 @@ const getTouchedBedPaths = (patch: DailyRecordPatch, bedId: string): string[] =>
     .filter(key => key.startsWith(`beds.${bedId}.`))
     .map(key => key.slice(`beds.${bedId}.`.length));
 
-const SPECIALIST_ALLOWED_BED_PATH_PREFIXES = [
-  'medicalHandoffEntries',
-  'medicalHandoffNote',
-  'medicalHandoffAudit',
-  'clinicalEvents',
-  'clinicalCrib.medicalHandoffEntries',
-  'clinicalCrib.medicalHandoffNote',
-  'clinicalCrib.medicalHandoffAudit',
-  'clinicalCrib.clinicalEvents',
-];
+const CLINICAL_EVENTS_BED_PATH_PREFIXES = ['clinicalEvents', 'clinicalCrib.clinicalEvents'];
 
-const SPECIALIST_ALLOWED_RECORD_KEYS = ['lastUpdated', 'dateTimestamp'];
+const CLINICAL_EVENTS_RECORD_KEYS = ['lastUpdated', 'dateTimestamp'];
 
-const isSpecialistScopedBedPatch = (patch: DailyRecordPatch, bedId: string): boolean => {
+const isClinicalEventsOnlyBedPatch = (patch: DailyRecordPatch, bedId: string): boolean => {
   const touchedPaths = getTouchedBedPaths(patch, bedId);
   if (touchedPaths.length === 0) {
     return false;
   }
 
   return touchedPaths.every(path =>
-    SPECIALIST_ALLOWED_BED_PATH_PREFIXES.some(
+    CLINICAL_EVENTS_BED_PATH_PREFIXES.some(
       prefix => path === prefix || path.startsWith(`${prefix}.`)
     )
   );
 };
 
-export const isSpecialistScopedDailyRecordPatch = (patch: DailyRecordPatch): boolean => {
+/** One bed's clinical events alone: written as they come, without structural normalization. */
+export const isClinicalEventsOnlyDailyRecordPatch = (patch: DailyRecordPatch): boolean => {
   const touchedBedIds = getTouchedBedIds(patch);
   const nonBedKeys = Object.keys(patch).filter(key => !key.startsWith('beds.'));
 
-  if (!nonBedKeys.every(key => SPECIALIST_ALLOWED_RECORD_KEYS.includes(key))) {
+  if (!nonBedKeys.every(key => CLINICAL_EVENTS_RECORD_KEYS.includes(key))) {
     return false;
   }
 
-  return touchedBedIds.length == 1 && isSpecialistScopedBedPatch(patch, touchedBedIds[0]);
+  return touchedBedIds.length == 1 && isClinicalEventsOnlyBedPatch(patch, touchedBedIds[0]);
 };
 
 export const addClinicalFhirPatchesForTouchedBeds = (
@@ -243,7 +235,7 @@ export const addClinicalFhirPatchesForTouchedBeds = (
   validatedRecord: DailyRecord
 ): void => {
   getTouchedBedIds(mergedPatches).forEach(bedId => {
-    if (isSpecialistScopedDailyRecordPatch(mergedPatches)) {
+    if (isClinicalEventsOnlyDailyRecordPatch(mergedPatches)) {
       return;
     }
 

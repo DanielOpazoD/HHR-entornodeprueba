@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import type { Types as ToolTypes } from '@cornerstonejs/tools';
 const { enabled } = vi.hoisted(() => ({ enabled: vi.fn() }));

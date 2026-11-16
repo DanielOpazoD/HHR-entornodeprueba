@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { supplementRequest } from '@/tests/fixtures/cudyrSupplementFixture';
 import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';

@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { buildRecord, buildPatient } from './dailyRecordHandoffPatchTestSupport';
-import { shouldRouteSpecialistPatchViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import {
   updatePartial,
   updatePartialDetailed,
@@ -12,76 +11,24 @@ import { getRecordForDateStrict as getRecordFromIndexedDB } from '@/services/sto
 import { saveRecordStrict as saveToIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { updateRecordPartial as updateRecordPartialToFirestore } from '@/services/storage/firestore/firestoreRecordWrites';
-import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
-import { specialistHandoffTextState } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 
-describe('dailyRecordRepositoryWriteService specialist handoff patches', () => {
+const clinicalEvents = [
+  { id: 'event-1', name: 'Procedimiento', date: '2026-02-11', createdAt: '2026-02-11T10:00:00Z' },
+];
+
+describe('dailyRecordRepositoryWriteService clinical-events-only patches', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(shouldRouteSpecialistPatchViaCallable).mockResolvedValue(false);
-  });
-  it('binds the edited occupant and rejects turnover without saving or queueing the note', async () => {
-    vi.mocked(shouldRouteSpecialistPatchViaCallable).mockResolvedValue(true);
-    const current = buildRecord('2026-02-11');
-    current.beds = {
-      R1: {
-        ...buildPatient('R1', 'Paciente A Sintético'),
-        clinicalEpisodeId: 'synthetic-episode-A',
-      },
-    };
-    const conflict = new ConcurrencyError(
-      'El episodio de R1 cambió. Recarga.',
-      'semantic_conflict'
-    );
-    vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce(conflict);
-    await expect(
-      updatePartialDetailed(
-        current.date,
-        { 'beds.R1.medicalHandoffNote': 'Nota de A' },
-        { authoringSession: captureAuthoringSession(), baseRecord: current }
-      )
-    ).rejects.toBe(conflict);
-    expect(updateRecordPartialToFirestore).toHaveBeenCalledTimes(1);
-    expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
-      current.date,
-      expect.anything(),
-      current.lastUpdated,
-      expect.objectContaining({
-        specialistHandoffTargets: [
-          {
-            bedId: 'R1',
-            target: 'bed',
-            clinicalEpisodeId: 'synthetic-episode-A',
-            patientName: 'Paciente A Sintético',
-            rut: current.beds.R1.rut,
-            documentType: 'RUT',
-            // The note text this edit started from, which the server compares before writing.
-            handoffBases: [specialistHandoffTextState(current.beds.R1)],
-          },
-        ],
-      })
-    );
-    expect(saveToIndexedDB).not.toHaveBeenCalled();
-    expect(queueDailyRecordSyncTaskWithLocalRecord).not.toHaveBeenCalled();
   });
 
-  it('does not append fhir patches for specialist-scoped medical handoff updates', async () => {
+  it('does not append fhir patches for a clinical-events-only update', async () => {
     const current = buildRecord('2026-02-11');
     current.beds = { R1: buildPatient('R1', 'Paciente local') };
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
     await updatePartial(
       '2026-02-11',
-      {
-        'beds.R1.medicalHandoffNote': 'Evolución especialista',
-        'beds.R1.medicalHandoffEntries': [
-          {
-            id: 'entry-1',
-            specialty: 'Med Interna',
-            note: 'Evolución especialista',
-          },
-        ] as never,
-      },
+      { 'beds.R1.clinicalEvents': clinicalEvents },
       { authoringSession: captureAuthoringSession() }
     );
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
@@ -92,14 +39,14 @@ describe('dailyRecordRepositoryWriteService specialist handoff patches', () => {
       current.lastUpdated,
       expect.objectContaining({
         syncContract: expect.objectContaining({
-          changedPaths: ['beds.R1.medicalHandoffNote', 'beds.R1.medicalHandoffEntries'],
+          changedPaths: ['beds.R1.clinicalEvents'],
           expectedVersion: current.lastUpdated,
         }),
       })
     );
   });
 
-  it('does not append structural bed normalization patches for specialist-scoped medical handoff updates', async () => {
+  it('does not append structural bed normalization patches for a clinical-events-only update', async () => {
     const current = buildRecord('2026-02-11');
     current.beds = { R1: buildPatient('R1', 'Paciente local') };
 
@@ -107,16 +54,7 @@ describe('dailyRecordRepositoryWriteService specialist handoff patches', () => {
 
     await updatePartial(
       '2026-02-11',
-      {
-        'beds.R1.medicalHandoffNote': 'Evolución especialista',
-        'beds.R1.medicalHandoffEntries': [
-          {
-            id: 'entry-1',
-            specialty: 'Med Interna',
-            note: 'Evolución especialista',
-          },
-        ] as never,
-      },
+      { 'beds.R1.clinicalEvents': clinicalEvents },
       { authoringSession: captureAuthoringSession() }
     );
 
@@ -129,7 +67,7 @@ describe('dailyRecordRepositoryWriteService specialist handoff patches', () => {
       current.lastUpdated,
       expect.objectContaining({
         syncContract: expect.objectContaining({
-          changedPaths: ['beds.R1.medicalHandoffNote', 'beds.R1.medicalHandoffEntries'],
+          changedPaths: ['beds.R1.clinicalEvents'],
           expectedVersion: current.lastUpdated,
         }),
       })

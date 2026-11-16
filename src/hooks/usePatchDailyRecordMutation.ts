@@ -1,5 +1,5 @@
 import { authoredOptions, type PublicWriteOptions } from '@/services/storage/authoringSession';
-import { isSpecialistScopedDailyRecordPatch } from '@/services/repositories/dailyRecordClinicalDomainService';
+import { isClinicalEventsOnlyDailyRecordPatch } from '@/services/repositories/dailyRecordClinicalDomainService';
 import { mutationOptions, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -295,7 +295,7 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
           patchBaseRecords,
           partial,
           options?.baseRecord ??
-            (isSpecialistScopedDailyRecordPatch(partial)
+            (isClinicalEventsOnlyDailyRecordPatch(partial)
               ? (previousRecordBeforeFreshness ?? freshRecord)
               : freshRecord)
         );
@@ -303,7 +303,7 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
         await queryClient.cancelQueries({ queryKey: queryKeys.dailyRecord.byDate(date) });
         const isRemoteAuthorityFirst =
           options?.requireRemoteAuthorityFirst === true ||
-          isSpecialistScopedDailyRecordPatch(partial);
+          isClinicalEventsOnlyDailyRecordPatch(partial);
         const unregisterPendingPatch = isRemoteAuthorityFirst
           ? () => {}
           : registerPendingDailyRecordPatch(date, partial);
@@ -370,7 +370,7 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
         return;
       }
       if (!payload.result?.updatedRemotely) {
-        // A durable specialist note is the base for this tab's next edit, but is not an ACK.
+        // A queued clinical-events edit is the base for this tab's next edit, but is not an ACK.
         // Publish only after local CAS accepted it, and never replace a newer visible record.
         const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
           getDailyRecordQueryKey(date)
@@ -378,7 +378,7 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
         if (
           payload.result?.savedLocally &&
           payload.result.queuedForRetry &&
-          isSpecialistScopedDailyRecordPatch(payload.partial) &&
+          isClinicalEventsOnlyDailyRecordPatch(payload.partial) &&
           context &&
           cachedRecord &&
           cachedRecord === context.previousRecord

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import {

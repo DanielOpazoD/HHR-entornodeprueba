@@ -1,7 +1,7 @@
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
-import { day, harnessState, writeNote, A } from '../storage/specialistHandoffOutboxHarness';
+import { day, harnessState, A } from '../storage/dayRecordOutboxHarness';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { importDataJSONDetailed } from '@/services/exporters/exportImportJson';
 import { saveDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
@@ -27,12 +27,10 @@ it('queues every imported day offline with backup origin', async () => {
     'backup_restore',
   ]);
 });
-it.each(['daily', 'specialist'])('rejects the whole file with a live %s task', async kind => {
+it('rejects the whole file with a live daily task', async () => {
   const record = records()[1];
   await hospitalDB.dailyRecords.put(record);
-  if (kind === 'daily')
-    await saveDetailed(record, undefined, { authoringSession: captureAuthoringSession() });
-  else await writeNote(record, 'R4', 'entry-A', 'Edición sin enviar');
+  await saveDetailed(record, undefined, { authoringSession: captureAuthoringSession() });
   const before = await hospitalDB.dailyRecords.toArray();
   const queue = await hospitalDB.syncQueue.toArray();
   expect(await importDataJSONDetailed(file())).toMatchObject({

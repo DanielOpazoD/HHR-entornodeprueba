@@ -1,6 +1,5 @@
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type { SpecialistHandoffTarget } from '@/types/domain/specialistHandoffTarget';
 
 import type {
   ClinicalCribCreateRequest,
@@ -11,7 +10,6 @@ import type { SpecialtyManualIntent } from '@/types/domain/specialtyDecision';
 /** Options for this layer's daily-record writes. */
 
 export type ApplyDailyRecordPatchOptions = {
-  specialistHandoffTargets?: SpecialistHandoffTarget[];
   /**
    * Wait for the remote authority to return the exact committed record before
    * exposing the mutation as successful. Used for destructive actions and

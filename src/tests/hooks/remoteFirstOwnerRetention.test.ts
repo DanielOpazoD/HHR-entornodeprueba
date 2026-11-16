@@ -1,9 +1,4 @@
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
-import {
-  writeMedicalHandoffDraft,
-  readMedicalHandoffDrafts,
-  resetMedicalHandoffDraftMemoryForTests,
-} from '@/services/storage/medicalHandoffDraftStorage';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { afterAll, beforeEach, afterEach, expect, it, vi } from 'vitest';
@@ -34,18 +29,11 @@ import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/co
 vi.unmock('@/application/ports/dailyRecordPort');
 const remote = vi.hoisted(() => ({
   record: null as DailyRecord | null,
-  specialist: false,
   write: vi.fn(),
 }));
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', async original => ({
   ...(await original<typeof import('@/services/storage/firestore/firestoreRecordQueries')>()),
   getRecordFromFirestore: async () => remote.record,
-}));
-vi.mock('@/services/storage/firestore/firestoreDailyRecordAuthorityRouting', async original => ({
-  ...(await original<
-    typeof import('@/services/storage/firestore/firestoreDailyRecordAuthorityRouting')
-  >()),
-  shouldRouteSpecialistPatchViaCallable: async () => remote.specialist,
 }));
 vi.mock('@/services/storage/firestore/firestoreRecordWrites', async original => ({
   ...(await original<typeof import('@/services/storage/firestore/firestoreRecordWrites')>()),
@@ -72,7 +60,6 @@ beforeEach(async () => {
   Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-11-12T12:00:00Z'));
-  resetMedicalHandoffDraftMemoryForTests();
   vi.mocked(recordOperationalTelemetry).mockClear();
   local.clear();
   session.clear();
@@ -104,11 +91,10 @@ afterEach(() => {
   Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
 });
 it.each(
-  ['specialist', 'specialty', 'clear', 'structural', 'crib'].flatMap(kind =>
+  ['specialty', 'clear', 'structural', 'crib'].flatMap(kind =>
     [false, true].map(change => ({ kind, change }))
   )
 )('keeps ownership for $kind (session changes: $change)', async ({ kind, change }) => {
-  remote.specialist = kind === 'specialist';
   let unlock!: () => void;
   const gate = new Promise<void>(r => (unlock = r));
   const lock = runExclusiveDailyRecordWrite(date, () => gate);
@@ -118,7 +104,7 @@ it.each(
     requireRemoteAuthorityFirst: true,
     requireConfirmedRecord: true,
   };
-  let patch: DailyRecordPatch = { 'beds.R1.medicalHandoffNote': 'SYNTHETIC A NOTE' };
+  let patch: DailyRecordPatch = {};
   if (kind === 'specialty') {
     patch = { 'beds.R1.specialty': 'Cirugía' };
     options.requireAtomicCas = true;
@@ -161,16 +147,6 @@ it.each(
       },
     };
   }
-  if (kind === 'specialist')
-    writeMedicalHandoffDraft('synthetic-writer', {
-      date,
-      documentType: 'RUT',
-      rut: base.beds.R1.rut,
-      patientName: base.beds.R1.patientName,
-      clinicalEpisodeId: 'synthetic-episode',
-      entryId: 'primary-note',
-      value: 'SYNTHETIC A NOTE',
-    });
   const nextRow = { ...base, notes: 'SYNTHETIC B ROW' };
   const nextTask = {
     id: 800,
@@ -233,29 +209,16 @@ it.each(
     status: 'degraded',
     runtimeState: 'recoverable',
     issues: ['La sesión de autoría terminó antes del despacho remoto.'],
-    context: { retained: kind === 'specialist' },
   });
   if ('updatedRemotely' in result) expect(resolvePatchOutcomeFeedback(result)).toBeNull();
   if ('savedRemotely' in result) expect(resolveSaveOutcomeFeedback(result)).toBeNull();
   const tasks = (await hospitalDB.syncQueue.toArray()).filter(
     task => task.ownerKey === 'user:synthetic-A'
   );
-  if (kind === 'specialist') {
-    expect(tasks).toHaveLength(1);
-    expect(tasks[0]).toMatchObject({
-      type: 'UPDATE_SPECIALIST_HANDOFF',
-      ownerKey: 'user:synthetic-A',
-    });
-    expect(JSON.stringify(tasks[0])).toContain('SYNTHETIC A NOTE');
-    expect(JSON.stringify(tasks[0])).toContain('synthetic-episode');
-    expect(readMedicalHandoffDrafts()).toEqual([]);
-    local.setItem(SESSION_OWNER_KEY, 'user:synthetic-A');
-    expect(readMedicalHandoffDrafts().some(draft => draft.value === 'SYNTHETIC A NOTE')).toBe(true);
-  } else expect(tasks).toHaveLength(0);
+  expect(tasks).toHaveLength(0);
 });
 
 it('preserves the same-session rejection and its existing feedback', async () => {
-  remote.specialist = false;
   const error = new ConcurrencyError('SYNTHETIC SERVER REJECTION', 'semantic_conflict');
   remote.write.mockRejectedValue(error);
   await expect(
@@ -277,7 +240,6 @@ it('preserves the same-session rejection and its existing feedback', async () =>
   expect(await hospitalDB.dailyRecords.get(date)).toEqual(base);
 });
 it('does not retry a CAS rejection after the author leaves', async () => {
-  remote.specialist = false;
   remote.write.mockImplementationOnce(async () => {
     await clearSessionScopedClientState('manual');
     await reconcileAuthorizedSessionOwner('user:synthetic-B');

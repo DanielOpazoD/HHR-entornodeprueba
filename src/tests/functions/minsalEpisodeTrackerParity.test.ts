@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 import { createEpisodeAdmissionTracker as createFrontendEpisodeTracker } from '@/services/calculations/minsal/episodeTracker';

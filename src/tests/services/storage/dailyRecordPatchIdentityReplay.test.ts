@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { A, E, harnessState, reconnect } from './specialistHandoffOutboxHarness';
+import { A, E, harnessState, reconnect } from './dayRecordOutboxHarness';
 import {
   MODES,
   local,
@@ -8,13 +8,13 @@ import {
   readStored,
   remote,
   remoteWrite,
-  resetNoteDay,
+  resetDay,
   writeDay,
-} from './specialistHandoffNoteDaySupport';
+} from './dayRecordDaySupport';
 import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
 
 const h = harnessState();
-beforeEach(() => resetNoteDay('user:synthetic-patch-identity'));
+beforeEach(() => resetDay('user:synthetic-patch-identity'));
 afterEach(() => {
   vi.restoreAllMocks();
   vi.useRealTimers();

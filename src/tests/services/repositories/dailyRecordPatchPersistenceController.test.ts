@@ -9,7 +9,7 @@ const {
   applyPatchesMock,
   normalizeDailyRecordInvariantsMock,
   ensureDailyRecordDateTimestampMock,
-  isSpecialistScopedDailyRecordPatchMock,
+  isClinicalEventsOnlyDailyRecordPatchMock,
   touchDailyRecordLastUpdatedMock,
   validateAndSalvageRecordMock,
   addClinicalFhirPatchesForTouchedBedsMock,
@@ -19,7 +19,7 @@ const {
   applyPatchesMock: vi.fn(),
   normalizeDailyRecordInvariantsMock: vi.fn(),
   ensureDailyRecordDateTimestampMock: vi.fn(),
-  isSpecialistScopedDailyRecordPatchMock: vi.fn(),
+  isClinicalEventsOnlyDailyRecordPatchMock: vi.fn(),
   touchDailyRecordLastUpdatedMock: vi.fn(),
   validateAndSalvageRecordMock: vi.fn(),
   addClinicalFhirPatchesForTouchedBedsMock: vi.fn(),
@@ -36,7 +36,7 @@ vi.mock('@/utils/recordInvariants', () => ({
 }));
 
 vi.mock('@/services/repositories/dailyRecordClinicalDomainService', () => ({
-  isSpecialistScopedDailyRecordPatch: isSpecialistScopedDailyRecordPatchMock,
+  isClinicalEventsOnlyDailyRecordPatch: isClinicalEventsOnlyDailyRecordPatchMock,
   addClinicalFhirPatchesForTouchedBeds: addClinicalFhirPatchesForTouchedBedsMock,
 }));
 
@@ -78,7 +78,7 @@ describe('dailyRecordPatchPersistenceController', () => {
       patches: { 'beds.R2': { bedId: 'R2' } },
     });
     validateAndSalvageRecordMock.mockImplementation((record: DailyRecord) => record);
-    isSpecialistScopedDailyRecordPatchMock.mockReturnValue(false);
+    isClinicalEventsOnlyDailyRecordPatchMock.mockReturnValue(false);
   });
 
   it('merges invariant repairs into the outgoing patch for non-specialist updates', () => {
@@ -257,14 +257,15 @@ describe('dailyRecordPatchPersistenceController', () => {
     );
   });
 
-  it('skips structural invariant repairs for specialist-scoped patches', () => {
-    isSpecialistScopedDailyRecordPatchMock.mockReturnValue(true);
-    const patch: DailyRecordPatch = { 'beds.R1.medicalHandoffNote': 'Nota especialista' };
+  it('skips structural invariant repairs for a clinical-events-only patch', () => {
+    isClinicalEventsOnlyDailyRecordPatchMock.mockReturnValue(true);
+    const events = [{ id: 'event-1', type: 'Procedimiento', note: 'Evento sintético' }];
+    const patch = { 'beds.R1.clinicalEvents': events } as unknown as DailyRecordPatch;
 
     const result = preparePatchedRecordPersistence(current, '2026-04-19', patch);
 
     expect(result.mergedPatches).toMatchObject({
-      'beds.R1.medicalHandoffNote': 'Nota especialista',
+      'beds.R1.clinicalEvents': events,
       dateTimestamp: 123,
     });
     expect(result.mergedPatches).not.toHaveProperty('beds.R2');

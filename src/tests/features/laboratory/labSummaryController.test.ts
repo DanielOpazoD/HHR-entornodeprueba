@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * @fileoverview Tests for the lab summary controller.
  * Validates clinical abbreviation mapping, value formatting, and summary generation.

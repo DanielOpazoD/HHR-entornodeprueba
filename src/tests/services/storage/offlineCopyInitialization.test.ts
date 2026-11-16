@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { A, clone, day, harnessState } from './specialistHandoffOutboxHarness';
+import { A, clone, day, harnessState } from './dayRecordOutboxHarness';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { copyPatientToDateDetailed } from '@/services/repositories/dailyRecordRepositoryInitializationService';
 import { executeMoveOrCopyController } from '@/features/census/controllers/censusActionRuntimeController';

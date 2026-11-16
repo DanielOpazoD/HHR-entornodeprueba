@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * @fileoverview Unit tests for labFormattingController pure functions.
  */

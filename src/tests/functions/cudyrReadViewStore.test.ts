@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { createRequire } from 'node:module';
 import { gunzipSync } from 'node:zlib';
 import { expect, it, vi } from 'vitest';

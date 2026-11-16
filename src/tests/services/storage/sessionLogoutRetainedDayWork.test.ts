@@ -38,7 +38,6 @@ import { loadRemoteRecordWithFallback } from '@/services/repositories/dailyRecor
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { requeueQuarantinedTask } from '@/services/storage/sync/dexieSyncQueueQuarantine';
-import { reconcileSpecialistHandoffProjections } from '@/services/storage/sync/dexieDailyRecordOutbox';
 import { getDailyRecordWriteStateForVersion } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -248,27 +247,6 @@ describe('a census day with an edit left unsent by a closed session', () => {
     await expect(getForDateWithMeta(date, true)).rejects.toThrow(
       'No existe la copia local de una escritura pendiente.'
     );
-  });
-
-  it('leaves the unsent edit and its base untouched when an older note is released', async () => {
-    const id = await closeSessionWithUnsentEdit();
-    const retained = await hospitalDB.syncQueue.get(id);
-    await reconcileAuthorizedSessionOwner(owner);
-    await getForDateWithMeta(date, true);
-    await hospitalDB.syncQueue.add({
-      opId: 'synthetic-legacy-note',
-      ownerKey: owner,
-      type: 'UPDATE_SPECIALIST_HANDOFF',
-      key: `handoff:${date}:synthetic`,
-      payload: { date, patch: {}, expectedOccupants: [] },
-      timestamp: 2,
-      retryCount: 0,
-      status: 'FAILED',
-    });
-
-    await reconcileSpecialistHandoffProjections();
-
-    expect(await hospitalDB.syncQueue.get(id)).toEqual(retained);
   });
 
   it('confirms a new edit without waiting on, or changing, the unsent one', async () => {

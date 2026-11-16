@@ -1,11 +1,8 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { PatientData } from '@/types/domain/patient';
-import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
-import {
-  buildSpecialistHandoffIdentity,
-  buildSpecialistHandoffTargets,
-} from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
+import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import { buildSpecialistHandoffIdentity } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
 import { applyPatches } from '@/utils/patchUtils';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
@@ -18,8 +15,6 @@ export interface DetachedOccupantWork {
   record: DailyRecord;
   /** One preserved conflict per bed or crib, bound to the patient its edits were written for. */
   conflicts: SyncTask[];
-  /** Detached note text, also offered as drafts in the handoff view. */
-  notes?: SpecialistHandoffSyncPayload;
 }
 
 const IDENTITY_FIELDS = new Set(['patientName', 'rut', 'documentType', 'clinicalEpisodeId']);
@@ -77,7 +72,6 @@ export const detachStaleOccupantPaths = (
   const { mutationIds: _compacted, ...contract } = task.syncContract ?? {};
   const valuesIn = (source: DailyRecord, paths: string[]) =>
     Object.fromEntries(paths.map(path => [path, getValueAtPath(source, path)]));
-  const notePaths = detached.filter(path => /\.medicalHandoff(?:Note|Entries|Audit)$/.test(path));
   return {
     task: {
       ...task,
@@ -116,12 +110,5 @@ export const detachStaleOccupantPaths = (
         lastErrorAt: Date.now(),
       };
     }),
-    notes: notePaths.length
-      ? {
-          date: record.date,
-          patch: valuesIn(record, notePaths),
-          expectedOccupants: buildSpecialistHandoffTargets(record, valuesIn(record, notePaths)),
-        }
-      : undefined,
   };
 };

@@ -1,3 +1,4 @@
+// @vitest-environment node
 // Synthetic regressions for resolved and historical report collisions.
 import { expect, it } from 'vitest';
 import type { PatientData } from '@/types/domain/patient';

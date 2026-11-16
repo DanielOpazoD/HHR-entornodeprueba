@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMMRADDicomHandler } from '../../../netlify/functions/mmrad-dicom';
 import {

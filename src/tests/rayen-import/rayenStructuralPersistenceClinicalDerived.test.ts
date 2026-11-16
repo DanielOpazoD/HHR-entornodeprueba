@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Structural Rayen base on split days (D9 of DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md): the
  * base merges a pending local copy into each authoritative bed, so on a marked authoritative day

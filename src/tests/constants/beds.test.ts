@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Tests for beds.ts constants
  * Tests bed configuration and filtering

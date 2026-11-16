@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Tests for core contracts that still add behavioral signal.
  * Avoids trivial enum/constant assertions.

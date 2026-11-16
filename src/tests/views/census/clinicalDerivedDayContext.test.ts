@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { collectDuplicateActiveEpisodeIds } from '@/features/census/components/patient-row/clinicalDerivedDayContext';
 import { collectClinicalDerivedEpisodes } from '@/services/storage/clinicalDerivedContract';

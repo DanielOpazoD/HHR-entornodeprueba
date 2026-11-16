@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { collectExamFinding } from '@/features/laboratory/controllers/labFindingCollectionController';
 import type { DetailProcessingContext } from '@/features/laboratory/controllers/labAnalyticsContracts';

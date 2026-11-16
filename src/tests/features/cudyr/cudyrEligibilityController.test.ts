@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
   CUDYR_MIN_HOSPITALIZATION_HOURS,

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { resolveCudyrHospitalAdmission } from '@/domain/cudyr/cudyrHospitalAdmission';
 import { resolveCudyrDailyPlacement } from '@/domain/cudyr/cudyrDailyPlacement';

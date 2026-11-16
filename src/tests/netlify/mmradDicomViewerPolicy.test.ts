@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { viewerStudyFromHtml } from '../../../netlify/functions/lib/mmrad-dicom-policy';
 

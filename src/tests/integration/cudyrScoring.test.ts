@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Integration Tests for CUDYR Scoring
  * Tests the complete CUDYR categorization flow.

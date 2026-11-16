@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Tests for Bed Operations - Simplified
  * Tests basic bed operation logic without complex hook dependencies.

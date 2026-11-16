@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { mergeRayenBedCollisionResolutionReceipts } from '@/features/rayen-import/domain/applyCensusImportDiff';
 import type { RayenBedCollisionResolutionReceipt } from '@/types/domain/rayenBedCollision';

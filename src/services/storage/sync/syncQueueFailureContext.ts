@@ -17,19 +17,6 @@ export const buildSyncQueueFailureContext = (task: SyncTask) => {
     patientName: text(getValueAtPath(source, 'patientName')),
     clinicalEpisodeId: text(getValueAtPath(source, 'clinicalEpisodeId')),
   });
-  if (task.type === 'UPDATE_SPECIALIST_HANDOFF') {
-    const targets = getValueAtPath(task.payload, 'expectedOccupants');
-    if (Array.isArray(targets) && targets.length) {
-      return {
-        localSyncFailure: targets.map(target =>
-          context(
-            `${text(getValueAtPath(target, 'bedId'))}.${text(getValueAtPath(target, 'target'))}`,
-            target
-          )
-        ),
-      };
-    }
-  }
   if (task.type === 'UPDATE_PATIENT') {
     return { localSyncFailure: [context('desconocido', task.payload)] };
   }

@@ -13,12 +13,6 @@ import {
 } from '@/services/storage/sessionScopedStorageService';
 import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import {
-  createMedicalHandoffDraftWriter,
-  readMedicalHandoffDrafts,
-  resetMedicalHandoffDraftMemoryForTests,
-  writeMedicalHandoffDraft,
-} from '@/services/storage/medicalHandoffDraftStorage';
-import {
   appendOperationalTelemetryEvent,
   persistOperationalTelemetryEvents,
   readOperationalTelemetryEvents,
@@ -34,7 +28,6 @@ const day = { date: '2026-11-01' };
 beforeEach(async () => {
   localStorage.clear();
   sessionStorage.clear();
-  resetMedicalHandoffDraftMemoryForTests();
   persistOperationalTelemetryEvents([]);
   await hospitalDB.errorLogs.clear();
   await reconcileAuthorizedSessionOwner(ownerA);
@@ -44,7 +37,6 @@ afterEach(async () => {
   localStorage.clear();
   sessionStorage.clear();
   setSessionGeneration(null);
-  resetMedicalHandoffDraftMemoryForTests();
   persistOperationalTelemetryEvents([]);
 });
 
@@ -164,30 +156,14 @@ describe('shared Chrome profile: retained drafts and isolated diagnostics', () =
     ready.mockRestore();
   });
 
-  it('preserves a durable handoff draft across logout and a reload, returning its text only to A', async () => {
-    const draft = {
-      date: day.date,
-      documentType: 'Pasaporte',
-      rut: 'SYNTHETIC-PASSPORT',
-      patientName: 'SYNTHETIC PATIENT A',
-      clinicalEpisodeId: 'synthetic-episode-a',
-      entryId: 'primary-note',
-      value: 'SYNTHETIC UNCONFIRMED HANDOFF',
-    };
-    expect(writeMedicalHandoffDraft(createMedicalHandoffDraftWriter(), draft)).toBe(true);
+  it('leaves a draft of the retired medical handoff untouched across logout', async () => {
+    // Text typed in the old medical handoff view before it was retired: no code reads it now,
+    // and nothing deletes it.
+    const slot = `hhr.medicalHandoffDraft.v2:${ownerA}:synthetic-writer:synthetic-key`;
+    const draft = JSON.stringify({ date: day.date, value: 'SYNTHETIC UNCONFIRMED HANDOFF' });
+    localStorage.setItem(slot, draft);
     await clearSessionScopedClientState('manual');
     await reconcileAuthorizedSessionOwner(ownerB);
-    resetMedicalHandoffDraftMemoryForTests();
-    expect(readMedicalHandoffDrafts()).toEqual([]);
-    const slots = Array.from({ length: localStorage.length }, (_, index) =>
-      localStorage.key(index)
-    ).filter((key): key is string => Boolean(key?.startsWith('hhr.medicalHandoffDraft.v2:')));
-    expect(slots).toHaveLength(1); // Isolation in the reader, not removal/encryption from this Chrome profile.
-    expect(JSON.parse(localStorage.getItem(slots[0]) ?? '{}')).toEqual(draft);
-    await clearSessionScopedClientState('manual');
-    await reconcileAuthorizedSessionOwner(ownerA);
-    expect(readMedicalHandoffDrafts()).toEqual([
-      expect.objectContaining({ ...draft, durable: true }),
-    ]);
+    expect(localStorage.getItem(slot)).toBe(draft);
   });
 });

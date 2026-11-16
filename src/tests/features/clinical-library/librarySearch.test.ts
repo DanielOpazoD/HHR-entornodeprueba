@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
 import { CLINICAL_LIBRARY_ENTRIES } from '@/features/clinical-library/domain/libraryCatalog';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import { buildMovementsSummaryViewModel } from '@/features/handoff/controllers/movementsSummaryController';

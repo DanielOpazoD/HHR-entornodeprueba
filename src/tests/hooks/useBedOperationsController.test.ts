@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { buildClearPatientPatch } from '@/hooks/useBedOperationsController';
 import type { DailyRecord } from '@/types/domain/dailyRecord';

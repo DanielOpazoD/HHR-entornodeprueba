@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { parseFluidBalance } from '@/features/rayen-import/mapping/parseFluidBalance';
 const DAY = '2026-11-04';
