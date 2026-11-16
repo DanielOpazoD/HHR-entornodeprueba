@@ -207,8 +207,9 @@ const QUEUE_REMOVAL_RULE = {
       ].includes(node?.type)
         ? unwrap(node.expression)
         : node;
-    // Local names bound to the queue table: `const q = db.syncQueue`, `const { syncQueue } = db`,
-    // `const t = db.table('syncQueue')`, and aliases of those, resolved through the scope.
+    // const names bound to the queue table: `const q = db.syncQueue`, `const { syncQueue } = db`,
+    // `const t = db.table('syncQueue')`, and const aliases of those, resolved through the scope.
+    // Not followed: let/reassignment, parameters, return values and collections.
     const aliases = new Set();
     const variableOf = node => {
       for (let scope = context.sourceCode.getScope(node); scope; scope = scope.upper) {
@@ -250,8 +251,8 @@ const QUEUE_REMOVAL_RULE = {
       }
     };
     return {
-      VariableDeclarator: node => bind(node.id, node.init),
-      AssignmentExpression: node => node.operator === '=' && bind(node.left, node.right),
+      // Only const bindings: they cannot be reassigned, so an alias needs no flow analysis.
+      VariableDeclarator: node => node.parent.kind === 'const' && bind(node.id, node.init),
       CallExpression(node) {
         const callee = unwrap(node.callee);
         const method = nameOf(callee);
@@ -264,9 +265,13 @@ const QUEUE_REMOVAL_RULE = {
         else if (['delete', 'bulkDelete', 'clear'].includes(method)) removals.push([node, object]);
       },
       'Program:exit'() {
-        for (const [target, value] of bindings) {
-          const variable = variableOf(target);
-          if (variable && reachesSyncQueue(value)) aliases.add(variable);
+        // First every const alias of the file, in any order (a closure may use one declared later).
+        for (let size = -1; size !== aliases.size; ) {
+          size = aliases.size;
+          for (const [target, value] of bindings) {
+            const variable = variableOf(target);
+            if (variable && reachesSyncQueue(value)) aliases.add(variable);
+          }
         }
         for (const [node, object] of removals) {
           if (reachesSyncQueue(object)) context.report({ node, messageId: 'removal' });

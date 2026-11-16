@@ -25,7 +25,8 @@ describe('SAVE-03: only the queue modules remove queue tasks or the local databa
     'const { syncQueue: queue = db.syncQueue } = db; await queue.delete(taskId);',
     "const q = db.table('syncQueue'); await q.bulkDelete(ids);",
     'const q = hospitalDB.syncQueue as Table; const r = q; await r.delete(taskId);',
-    "let q; q = db.syncQueue; await q.where('status').equals('FAILED').delete();",
+    "const q = db.syncQueue; const r = q; await r.where('status').equals('FAILED').delete();",
+    'const run = () => { const r = q; r.clear(); }; const q = db.syncQueue; run();',
   ])('rejects a new removal route and names the fix: %s', async code => {
     const [message] = await violations(code);
     expect(message?.message).toContain(
@@ -54,6 +55,13 @@ describe('SAVE-03: only the queue modules remove queue tasks or the local databa
       const reset = (q: Map<string, number>) => q.clear();
     `)
     ).toEqual([]);
+  });
+
+  it.each([
+    'let q = db.syncQueue; q = new Map(); q.clear();',
+    'let q = new Map(); q.clear(); q = db.syncQueue;',
+  ])('does not follow let bindings, so a reassigned Map stays clear: %s', async code => {
+    expect(await violations(code)).toEqual([]);
   });
 
   it('lets the queue modules remove tasks', async () => {
