@@ -95,6 +95,7 @@
     "check:serverless-sensitive-coverage": "node scripts/check-serverless-sensitive-coverage.mjs",
     "check:netlify-functions-bundle": "node scripts/check-netlify-functions-bundle.mjs",
     "check:folder-dependencies": "node scripts/check-folder-dependencies.mjs",
+    "check:feature-map": "node scripts/check-feature-map.mjs",
     "check:module-size": "node scripts/check-module-size.mjs",
     "check:extension-hotspots": "node scripts/check-extension-hotspots.mjs",
     "update:extension-hotspots-baseline": "node scripts/check-extension-hotspots.mjs --write-baseline",

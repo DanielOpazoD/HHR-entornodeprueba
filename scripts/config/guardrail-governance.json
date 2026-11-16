@@ -170,6 +170,7 @@
       { "id": "check:serverless-sensitive-coverage", "group": "governance" },
       { "id": "check:docs-drift", "group": "governance" },
       { "id": "check:operational-runbooks", "group": "governance" },
+      { "id": "check:feature-map", "group": "governance" },
       { "id": "check:folder-dependencies", "group": "boundaries" },
       { "id": "check:module-size", "group": "size" },
       { "id": "check:extension-hotspots", "group": "size" },
