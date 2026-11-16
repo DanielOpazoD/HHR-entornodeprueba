@@ -145,6 +145,16 @@ export const isDailyRecordBedTreePath = (path: string): boolean => {
   return root === 'beds' || root === 'bedTypeOverrides';
 };
 
+export const STAFFING_PATH =
+  /^(nurses|nurseName|nursesDayShift|nursesNightShift|tensDayShift|tensNightShift|staffingDetailsV1)(\.|$)/;
+
+/**
+ * A day field outside the bed tree and staffing. A patch of only these fields, without
+ * requireAtomicCas, commits through the per-field versioned transaction of updateRecordPartial.
+ */
+export const isPlainDayFieldPath = (path: string): boolean =>
+  !isDailyRecordBedTreePath(path) && !STAFFING_PATH.test(path);
+
 export const touchesDailyRecordBedTree = (patch: Record<string, unknown>): boolean =>
   Object.keys(patch).some(isDailyRecordBedTreePath);
 

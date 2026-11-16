@@ -49,6 +49,7 @@ import {
   extractDailyRecordBedTreePatch,
   extractClinicalAuthorityPatch,
   isDailyRecordBedTreePath,
+  STAFFING_PATH,
   resolveAuthenticatedDailyRecordAuthorityMode,
   shouldRouteDailyRecordSaveViaCallable,
   shouldRouteClinicalAuthorityPatch,
@@ -81,15 +82,6 @@ export {
 
 // Waiting ~7 s never fixed these (measured); the SDK's `unknown` and other codes do recover.
 const PERMANENT_WRITE_ERROR_CODES = new Set(['not-found', 'invalid-argument', 'permission-denied']);
-const STAFFING_PATH =
-  /^(nurses|nurseName|nursesDayShift|nursesNightShift|tensDayShift|tensNightShift|staffingDetailsV1)(\.|$)/;
-
-/**
- * A day field outside the bed tree and staffing. A patch of only these fields, without
- * requireAtomicCas, commits through the per-field versioned transaction of updateRecordPartial.
- */
-export const isPlainDayFieldPath = (path: string): boolean =>
-  !isDailyRecordBedTreePath(path) && !STAFFING_PATH.test(path);
 
 const shouldRetryWrite = (error: unknown): boolean =>
   !(error instanceof ConcurrencyError) &&

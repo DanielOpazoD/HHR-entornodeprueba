@@ -74,6 +74,7 @@ import {
 } from '@/services/repositories/dailyRecordGuardedCommandPolicy';
 import { adoptAuthoritativeRecord } from '@/services/repositories/dailyRecordRepositorySyncService';
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
+import { resolveUnsentPlainDayFieldBase } from '@/services/storage/sync/plainDayFieldReplay';
 import { isValidRemoteAuthorityRecord } from '@/services/repositories/dailyRecordRemotePersistenceState';
 
 const tryAutoMergeBlockedFullSaveRegression = async (
@@ -399,6 +400,11 @@ const updatePartialDetailedWithinLock = async (
     ? options.specialistHandoffTargets || buildSpecialistHandoffTargets(current, command.patch)
     : undefined;
   remoteWriteOptions.specialistHandoffTargets = handoffTargets;
+  const unsentBase =
+    remoteWriteOptions.requireAtomicCas || specialistScopedPatch
+      ? undefined
+      : await resolveUnsentPlainDayFieldBase(command.date, current, semanticChangedPaths);
+  if (unsentBase) remoteWriteOptions.baseRecord = unsentBase.baseRecord;
   // The outbox applies this patch again on the day's stored projection (#1024).
   const patchWrite = {
     baseRecord: current,
@@ -434,7 +440,7 @@ const updatePartialDetailedWithinLock = async (
         updateRecordPartialToFirestore(
           command.date,
           guardedCommandPolicy.remoteAuthorityPatch,
-          current.lastUpdated,
+          unsentBase?.expectedVersion ?? current.lastUpdated,
           remoteWriteOptions
         ),
       readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),
