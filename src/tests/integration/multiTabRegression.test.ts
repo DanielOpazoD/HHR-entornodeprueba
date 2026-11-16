@@ -355,7 +355,8 @@ describe('Multi-tab regression — stale snapshot writes are detected', () => {
       date,
       expect.objectContaining({ date }),
       expect.arrayContaining(['beds.R1.pathology']),
-      captureAuthoringSession()
+      captureAuthoringSession(),
+      { keepsOwnValue: false }
     );
     expect(result.outcome).not.toBe('failed');
     expect(result.autoMerged).toBe(true);

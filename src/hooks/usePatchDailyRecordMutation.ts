@@ -9,8 +9,10 @@ import { useRepositories } from '@/services/RepositoryContext';
 import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
 import {
   createUpdatePartialDailyRecordResult,
+  FIELD_CHANGED_ELSEWHERE_TAG,
   isDailyRecordWriteRejectedResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
+import { UNKNOWN_SERVER_VERSION } from '@/services/storage/sync/syncTaskContractPolicy';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import {
   applyOptimisticDailyRecordPatch,
@@ -370,11 +372,26 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
         return;
       }
       if (!payload.result?.updatedRemotely) {
-        // A durable specialist note is the base for this tab's next edit, but is not an ACK.
-        // Publish only after local CAS accepted it, and never replace a newer visible record.
         const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
           getDailyRecordQueryKey(date)
         )?.record;
+        // «El campo cambió en otro equipo»: the screen keeps this text, which no server version
+        // holds, so its day counts as older than any of them, as the stored day does. The next
+        // edit then meets the other computer's text field by field instead of passing as this
+        // computer's own write (SAVE-02), and the next read of the day replaces it.
+        if (
+          payload.result?.observabilityTags?.includes(FIELD_CHANGED_ELSEWHERE_TAG) &&
+          cachedRecord &&
+          cachedRecord.lastUpdated === context?.optimisticRecord?.lastUpdated
+        ) {
+          setDailyRecordQueryData(queryClient, date, {
+            ...cachedRecord,
+            lastUpdated: UNKNOWN_SERVER_VERSION,
+          });
+          return;
+        }
+        // A durable specialist note is the base for this tab's next edit, but is not an ACK.
+        // Publish only after local CAS accepted it, and never replace a newer visible record.
         if (
           payload.result?.savedLocally &&
           payload.result.queuedForRetry &&
