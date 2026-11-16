@@ -6,6 +6,7 @@ import { useCensusMigrationBootstrap } from './useCensusMigrationBootstrap';
 import { useCensusViewRouteModel } from './useCensusViewRouteModel';
 import type { CensusAccessProfile } from '../types/censusAccessProfile';
 import { resolveCensusEmptyStateDiagnostic } from '@/features/census/controllers/censusEmptyStateDiagnostic';
+import { resolveCensusDayView } from '@/features/census/controllers/censusViewController';
 import { readPostDeployRecentRecordRefreshMarker } from '@/services/config/postDeployRecentRecordRefresh';
 import type { RenderCensusMedicalHandoffAction } from '../contracts/censusMedicalHandoffAction';
 
@@ -49,15 +50,12 @@ export const useCensusViewScreenModel = ({
   // Absence is a repository result, never a grace-period deadline.
   const effectiveBootstrapPhase =
     auth.remoteSyncStatus === 'bootstrapping' ? 'remote_runtime_bootstrapping' : bootstrapPhase;
-  const shouldDeferTodayEmptyState = effectiveBootstrapPhase !== 'confirmed_empty';
-  const resolvedTodayEmptyDate = shouldDeferTodayEmptyState ? '' : currentDateString;
   const emptyStateDiagnostic = resolveCensusEmptyStateDiagnostic({
     branch: routeModel.branch,
     currentDateString,
     todayDateString: getTodayISO(),
     isAuthenticated: auth.isAuthenticated,
-    bootstrapPhase:
-      auth.remoteSyncStatus === 'bootstrapping' ? 'remote_runtime_bootstrapping' : bootstrapPhase,
+    bootstrapPhase: effectiveBootstrapPhase,
     hasPostDeployRefreshMarker,
   });
 
@@ -69,14 +67,13 @@ export const useCensusViewScreenModel = ({
   }, [currentDateString]);
 
   return {
-    ...routeModel,
-    emptyDayPromptProps: routeModel.emptyDayPromptProps
-      ? {
-          ...routeModel.emptyDayPromptProps,
-          emptyStateDiagnostic,
-        }
-      : null,
-    shouldDeferTodayEmptyState,
-    resolvedTodayEmptyDate,
+    dayView: resolveCensusDayView({
+      registerContentProps: routeModel.registerContentProps,
+      emptyDayPromptProps: routeModel.emptyDayPromptProps
+        ? { ...routeModel.emptyDayPromptProps, emptyStateDiagnostic }
+        : null,
+      remoteSyncStatus: auth.remoteSyncStatus,
+      bootstrapPhase,
+    }),
   };
 };

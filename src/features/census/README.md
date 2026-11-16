@@ -115,7 +115,7 @@ El IEEH ya no se completa desde el censo: se llena en el panel IEEH de la epicri
 | `src/hooks/useTransferModalForm.ts`                      | Form flow de traslados                                          |
 | `src/hooks/useBedManagerModalModel.ts`                   | Orquestación UI vs dominio del modal de camas                   |
 | `hooks/useCensusMovementActionsCellModel.ts`             | View-model para celda de acciones de movimientos                |
-| `hooks/useCensusViewScreenModel.ts`                      | Fachada de pantalla para ramas `empty/register`                 |
+| `hooks/useCensusViewScreenModel.ts`                      | Fachada de pantalla: un solo `dayView` cerrado por día          |
 | `hooks/useCensusTableRuntime.ts`                         | Runtime unificado de tabla (dependencias + resize + activación) |
 | `hooks/useDischargesSectionModel.ts`                     | Fachada de wiring para altas                                    |
 | `hooks/useTransfersSectionModel.ts`                      | Fachada de wiring para traslados                                |
@@ -160,6 +160,9 @@ El IEEH ya no se completa desde el censo: se llena en el panel IEEH de la epicri
   de `CensusView` y nunca bloquear la primera pintura del registro o del prompt de día vacío.
 - `useCensusViewRouteModel` debe construir props solo para la rama visible (`empty`, `register`)
   para mantener bajo el costo sincrónico del primer render del censo.
+- Qué muestra `CensusView` para el día lo decide solo `resolveCensusDayView`
+  (`controllers/censusViewController.ts`): `register`, `confirmedEmpty`, `readFailed` o `loading`.
+  La vista hace un `switch` exhaustivo; un estado nuevo se agrega ahí y en su prueba de tabla.
 - Los componentes grandes (`CensusView`, `DischargesSection`, `TransfersSection`) deben preferir
   facades locales de feature (`use*ScreenModel`, `use*SectionModel`, `use*Runtime`) en vez de
   recomponer dependencias de contexto y acciones manualmente en cada render.
