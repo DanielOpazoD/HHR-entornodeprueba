@@ -5,18 +5,22 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { docToRecord, getRecordDocRef } from '@/services/storage/firestore/firestoreShared';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
-import {
-  isPlainDayFieldPath,
-  updateRecordPartial,
-} from '@/services/storage/firestore/firestoreRecordWrites';
+import { updateRecordPartial } from '@/services/storage/firestore/firestoreRecordWrites';
+import { isPlainDayFieldPath } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import {
   getValueAtPath,
   normalizeChangedPaths,
 } from '@/services/repositories/conflictResolutionUtils';
 import { applyPatches } from '@/utils/patchUtils';
+import { hospitalDB, isDatabaseInFallbackMode } from '@/services/storage/indexeddb/indexedDbCore';
+import { holdsDailyRecordProjection } from './dexieSyncQueueQuarantine';
 import { UNKNOWN_SERVER_VERSION } from './syncTaskContractPolicy';
 
 const MOVEMENT_LIST_PATH = /^(discharges|transfers|cma)(\.|$)/;
+
+// '*' is a whole-day write, never a field.
+const isPlainDayFieldReplayPath = (path: string): boolean =>
+  path !== '*' && isPlainDayFieldPath(path) && !MOVEMENT_LIST_PATH.test(path);
 
 /**
  * The changed paths of a day write of plain fields only, each with its captured base and a known
@@ -33,15 +37,42 @@ export const plainDayFieldReplayPaths = (task: SyncTask): string[] | undefined =
     version !== UNKNOWN_SERVER_VERSION &&
     Number.isFinite(Date.parse(version ?? '')) &&
     paths.length > 0 &&
-    paths.every(
-      path =>
-        // '*' is a whole-day write, never a field.
-        path !== '*' &&
-        isPlainDayFieldPath(path) &&
-        !MOVEMENT_LIST_PATH.test(path) &&
-        Object.hasOwn(base, path)
-    );
+    paths.every(path => isPlainDayFieldReplayPath(path) && Object.hasOwn(base, path));
   return plain ? paths : undefined;
+};
+
+/**
+ * A direct edit of plain day fields that a day write of this computer still holds unsent is
+ * checked as that write's replay will be: against the values and version the server had when it
+ * was made, not against the day shown here, which keeps the unsent text. So a text another
+ * computer saved meanwhile is met again, even after a «changed elsewhere» notice, and this
+ * computer's own unsent text is not mistaken for someone else's (SAVE-02). Undefined when no
+ * unsent write of the day changes these fields.
+ */
+export const resolveUnsentPlainDayFieldBase = async (
+  date: string,
+  shown: DailyRecord,
+  paths: string[]
+): Promise<{ baseRecord: DailyRecord; expectedVersion: string } | undefined> => {
+  if (!paths.length || !paths.every(isPlainDayFieldReplayPath) || isDatabaseInFallbackMode())
+    return undefined;
+  const values = new Map<string, unknown>();
+  const versions = new Set<string>();
+  for (const task of await hospitalDB.syncQueue.where('key').equals(`daily:${date}`).toArray()) {
+    const replayed = holdsDailyRecordProjection(task, date) && plainDayFieldReplayPaths(task);
+    if (!replayed) continue;
+    for (const path of paths)
+      if (replayed.includes(path) && !values.has(path)) {
+        values.set(path, task.patchBaseValues?.[path]);
+        versions.add(task.syncContract?.expectedVersion ?? UNKNOWN_SERVER_VERSION);
+      }
+  }
+  if (!values.size) return undefined;
+  return {
+    baseRecord: applyPatches(shown, Object.fromEntries(values) as DailyRecordPatch),
+    // Two writes made over different versions: only the field check decides.
+    expectedVersion: versions.size === 1 ? [...versions][0] : UNKNOWN_SERVER_VERSION,
+  };
 };
 
 /**

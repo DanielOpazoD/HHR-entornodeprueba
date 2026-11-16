@@ -13,10 +13,7 @@ import {
   resolveEffectiveChangedPaths,
 } from '@/services/repositories/dailyRecordWriteRecoveryController';
 import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
-import {
-  buildDailyRecordSyncContract,
-  UNKNOWN_SERVER_VERSION,
-} from '@/services/storage/sync/syncTaskContractPolicy';
+import { buildDailyRecordSyncContract } from '@/services/storage/sync/syncTaskContractPolicy';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import {
   buildConflictId,
@@ -42,18 +39,11 @@ const queueMergedRecoveryTask = async (
   return { accepted: result.accepted, syncContract };
 };
 
-/**
- * `keepsOwnValue`: the server refused this edit because another computer had already changed one
- * of its fields to another value, and the merged day keeps this computer's text there. That day
- * then holds a value no server version holds, so it counts as older than any of them: the next
- * edit compares field by field instead of passing as this computer's own write (SAVE-02).
- */
 export const attemptConflictAutoMergeRecovery = async (
   date: string,
   localRecord: DailyRecord,
   changedPaths: string[],
-  authoringSession: AuthoringSession,
-  { keepsOwnValue = false }: { keepsOwnValue?: boolean } = {}
+  authoringSession: AuthoringSession
 ): Promise<ConflictAutoMergeRecoveryResult> => {
   const effectiveChangedPaths = resolveEffectiveChangedPaths(changedPaths);
 
@@ -115,9 +105,7 @@ export const attemptConflictAutoMergeRecovery = async (
     }
 
     const { accepted: queued, syncContract } = await queueMergedRecoveryTask(
-      keepsOwnValue
-        ? { ...postMergeInvariants.record, lastUpdated: UNKNOWN_SERVER_VERSION }
-        : postMergeInvariants.record,
+      postMergeInvariants.record,
       effectiveChangedPaths,
       authoringSession,
       remoteRecord.lastUpdated
