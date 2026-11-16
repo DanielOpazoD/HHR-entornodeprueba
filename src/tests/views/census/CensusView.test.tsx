@@ -216,6 +216,36 @@ describe('CensusView', () => {
     expect(screen.queryByTestId('empty-day-prompt')).not.toBeInTheDocument();
   });
 
+  it('keeps checking an unread day while a save of another day stays refused', async () => {
+    vi.useFakeTimers();
+    mockUseDailyRecordData.mockReturnValue({ bootstrapPhase: 'remote_record_bootstrapping' });
+    mockUseDailyRecordStatus.mockReturnValue({
+      bootstrapPhase: 'remote_record_bootstrapping',
+      syncStatus: 'error',
+    });
+    vi.mocked(useCensusViewModel).mockReturnValue(buildViewModel({ beds: null }));
+    render(<CensusView {...defaultProps} currentDateString="2025-01-02" />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText('Cargando')).toBeInTheDocument();
+  });
+
+  it('reports a failed read of this day at once', () => {
+    mockUseDailyRecordData.mockReturnValue({ bootstrapPhase: 'remote_record_timeout' });
+    mockUseDailyRecordStatus.mockReturnValue({
+      bootstrapPhase: 'remote_record_timeout',
+      syncStatus: 'idle',
+    });
+    vi.mocked(useCensusViewModel).mockReturnValue(buildViewModel({ beds: null }));
+    render(<CensusView {...defaultProps} currentDateString="2025-01-02" />);
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'No se pudo comprobar si existe un censo para esta fecha.'
+    );
+    expect(screen.queryByTestId('empty-day-prompt')).not.toBeInTheDocument();
+  });
+
   it('does not offer creation when only an empty local cache is available', async () => {
     vi.useFakeTimers();
     mockUseDailyRecordData.mockReturnValue({ bootstrapPhase: 'local_only' });

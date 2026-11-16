@@ -94,10 +94,8 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
         <CensusBootstrapRecovery
           key={currentDateString}
           date={currentDateString}
-          failed={
-            dailyRecordStatus.syncStatus === 'error' ||
-            dailyRecordStatus.bootstrapPhase === 'remote_record_timeout'
-          }
+          // Only a failed read of this date; a refused save (perhaps of another day) is not one.
+          failed={dailyRecordStatus.bootstrapPhase === 'remote_record_timeout'}
         />
       );
     }
