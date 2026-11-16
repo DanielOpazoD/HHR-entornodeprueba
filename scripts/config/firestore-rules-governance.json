@@ -15,24 +15,6 @@
       "reason": "resuelve roles, identidad y accesos base"
     },
     {
-      "path": "rules/firestore/10-specialist-bed-update-helpers.rules",
-      "ownerAreaId": "handoff",
-      "risk": "high",
-      "reason": "limita edición especialista por cama y turno"
-    },
-    {
-      "path": "rules/firestore/11-specialist-structured-handoff-helpers.rules",
-      "ownerAreaId": "handoff",
-      "risk": "high",
-      "reason": "valida payload estructurado de entrega médica"
-    },
-    {
-      "path": "rules/firestore/12-specialist-handoff-boundary-helpers.rules",
-      "ownerAreaId": "handoff",
-      "risk": "high",
-      "reason": "controla límites temporales y campos editables de handoff"
-    },
-    {
       "path": "rules/firestore/12-clinical-document-permission-helpers.rules",
       "ownerAreaId": "clinical-documents",
       "risk": "critical",
