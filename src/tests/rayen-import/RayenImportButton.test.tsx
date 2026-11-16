@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   useRayenExtensionHealth: vi.fn(),
   refreshHealth: vi.fn(),
   confirm: vi.fn(),
+  warmClinicalBatch: vi.fn(),
 }));
 
 vi.mock('@/context/DailyRecordContext', () => ({
@@ -33,6 +34,9 @@ vi.mock('@/features/rayen-import/hooks/useRayenExtensionHealth', () => ({
   useRayenExtensionHealth: () => mocks.useRayenExtensionHealth(),
 }));
 
+vi.mock('@/features/rayen-import/bridge/rayenClinicalEnrichmentBatchClient', () => ({
+  warmRayenClinicalEnrichmentBatch: mocks.warmClinicalBatch,
+}));
 vi.mock('@/features/rayen-import/components/RayenImportPreviewModal', () => ({
   RayenImportPreviewModal: () => null,
 }));
@@ -262,6 +266,8 @@ describe('RayenImportButton', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sincronizar' }));
 
     await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
+    // The clinical save's server instance starts booting with the run, not at its end.
+    expect(mocks.warmClinicalBatch).toHaveBeenCalledOnce();
     expect(mocks.refreshHealth).toHaveBeenCalledTimes(1);
     expect(mocks.refreshHealth).toHaveBeenCalledWith({
       timeoutMs: RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
@@ -299,6 +305,7 @@ describe('RayenImportButton', () => {
       await Promise.resolve();
     });
     await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
+    expect(mocks.warmClinicalBatch).toHaveBeenCalledOnce();
   });
 
   it('disables synchronization honestly when Gestión de Camas is unavailable', async () => {

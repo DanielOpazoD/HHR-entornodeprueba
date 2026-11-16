@@ -78,6 +78,9 @@ export interface RayenClinicalEnrichmentBatchResponse {
   };
 }
 
+const CALLABLE_REGION = 'southamerica-east1';
+const CALLABLE_NAME = 'applyRayenClinicalEnrichmentBatch';
+
 export const callRayenClinicalEnrichmentBatch = async (
   payload: RayenClinicalEnrichmentBatchPayload
 ): Promise<RayenClinicalEnrichmentBatchResponse> => {
@@ -87,17 +90,39 @@ export const callRayenClinicalEnrichmentBatch = async (
     if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration())
       throw new Error('La sesión cambió.');
   };
-  const functions = await defaultFunctionsRuntime.getRegionalFunctions('southamerica-east1');
+  const functions = await defaultFunctionsRuntime.getRegionalFunctions(CALLABLE_REGION);
   check();
   const { httpsCallable } = await import('firebase/functions');
   check();
   const callable = httpsCallable<
     RayenClinicalEnrichmentBatchPayload,
     RayenClinicalEnrichmentBatchResponse
-  >(functions, 'applyRayenClinicalEnrichmentBatch', {
+  >(functions, CALLABLE_NAME, {
     timeout: RAYEN_CLINICAL_ENRICHMENT_TIMEOUT_MS,
   });
   const result = await callable(withClientRuntimeContractVersion(payload));
   check();
   return result.data;
+};
+
+/**
+ * Starts the callable's server instance when a synchronization begins, so the clinical save at its
+ * end does not wait for a cold start. Production, 08–15 Nov: the first call of a run took ~3.7 s
+ * more than a second call of the same run. The function is called a few times a day, so it is
+ * almost always cold.
+ *
+ * Only a CORS preflight reaches the server: the function answers it without running its handler,
+ * so nothing is read, written or logged, and no credential or patient data is sent. The browser then
+ * refuses the OPTIONS request itself; that refusal is the expected outcome and is ignored. A failed
+ * warm-up costs only the cold start the save already pays today.
+ */
+export const warmRayenClinicalEnrichmentBatch = async (): Promise<void> => {
+  try {
+    const functions = await defaultFunctionsRuntime.getRegionalFunctions(CALLABLE_REGION);
+    // The SDK's own resolver, so the emulator and the deployed region use the same address.
+    const url = (functions as Partial<{ _url: (name: string) => string }>)._url?.(CALLABLE_NAME);
+    if (url) await fetch(url, { method: 'OPTIONS' });
+  } catch {
+    // Expected: the browser rejects the OPTIONS request after the preflight booted the instance.
+  }
 };
