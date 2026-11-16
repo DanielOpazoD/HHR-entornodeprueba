@@ -1147,6 +1147,22 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     expect((await readServer())[day]).toBe('A2');
   }, 60_000);
 
+  // W12-CW9, CI seed -389886332, path "12:2:1:1:3". A day note saved here leaves this computer's
+  // day on its own clock, and the next bed edit meets a newer version. The admission's retry
+  // compared each field with its base, and the server, which emptied the bed, has no
+  // `firstSeenDate` where this computer holds null: «conflicto que requiere revisión manual», and
+  // the admission stayed in a conflict nobody caused. An omitted field and null are one empty value.
+  it('admits a patient in the bed this computer emptied, after it saved a day note', async () => {
+    const m = await resetWorld();
+    await dischargeOnB.run(m, {});
+    expect(m.log.at(-1)).toBe('egresar al paciente de la cama (egresado)');
+    expect(await editIn(m, 'handoffNovedadesDayShift')).toBe('editar B1 en DayShift');
+    await admitOnB.run(m, {});
+
+    expect((await readServer()).beds[BED]).toMatchObject({ rut: '11111111-1', pathology: '' });
+    expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
+  }, 60_000);
+
   it('keeps every rule after every step of random sequences', async () => {
     await fc.assert(
       fc.asyncProperty(
