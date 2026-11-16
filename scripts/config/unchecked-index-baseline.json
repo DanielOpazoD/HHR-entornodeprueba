@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1276,
+  "total": 1273,
   "areas": {
     "src/application/backup-export": 4,
     "src/application/census-email": 2,
@@ -43,7 +43,7 @@
     "src/services/backup": 13,
     "src/services/calculations": 1,
     "src/services/config": 2,
-    "src/services/cudyr": 215,
+    "src/services/cudyr": 212,
     "src/services/exporters": 21,
     "src/services/integrations": 7,
     "src/services/laboratory": 4,
