@@ -5,6 +5,11 @@ import {
   resolveDailyRecordConflictWithTrace,
 } from '@/services/repositories/conflictResolutionMatrix';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import {
+  buildDetailedStaffingPatch,
+  resolveDetailedStaffingState,
+  updateDetailedStaffingStandardSlot,
+} from '@/services/staff/dailyRecordDetailedStaffing';
 
 const makeRecord = (date: string, lastUpdated: string): DailyRecord => ({
   date,
@@ -173,6 +178,50 @@ describe('conflictResolutionMatrix', () => {
 
     expect(resolved.nursesDayShift).toEqual(['Enf Local 1', 'Enf Remota 2']);
     expect(resolved.tensNightShift).toEqual(['TENS Remota N1', 'TENS Local N2', 'TENS Remota N3']);
+  });
+
+  describe('day-shift nurse slots are positional', () => {
+    // A nurse picked only in slot 2 (slot 1 left empty), as the census grid writes it.
+    const pickDayNurse = (record: DailyRecord, slotIndex: number, name: string): DailyRecord => {
+      const detail = resolveDetailedStaffingState(record, record.date);
+      return {
+        ...record,
+        ...buildDetailedStaffingPatch(
+          updateDetailedStaffingStandardSlot(detail, 'day', 'nurse', slotIndex, name)
+        ),
+      } as DailyRecord;
+    };
+    const gridDayNurses = (record: DailyRecord) =>
+      resolveDetailedStaffingState(record, record.date).day.nurses.map(slot => slot.name);
+
+    const remote = pickDayNurse(
+      makeRecord('2026-02-18', '2026-02-18T10:00:00.000Z'),
+      0,
+      'Bea Tuki'
+    );
+    const local = pickDayNurse(
+      makeRecord('2026-02-18', '2026-02-18T10:05:00.000Z'),
+      1,
+      'Ana Pérez'
+    );
+
+    it('keeps the local nurse in slot 2 when the edit itself is merged', () => {
+      const resolved = resolveDailyRecordConflict(remote, local, {
+        changedPaths: ['nurses', 'nursesDayShift', 'staffingDetailsV1'],
+      });
+
+      expect(resolved.nursesDayShift).toEqual(['', 'Ana Pérez']);
+      expect(resolved.nurses).toEqual(['', 'Ana Pérez']);
+      expect(gridDayNurses(resolved)).toEqual(['', 'Ana Pérez']);
+    });
+
+    it('fills only the empty slot from remote in a full-record merge', () => {
+      const resolved = resolveDailyRecordConflict(remote, local);
+
+      expect(resolved.nursesDayShift).toEqual(['Bea Tuki', 'Ana Pérez']);
+      expect(resolved.nurses).toEqual(['Bea Tuki', 'Ana Pérez']);
+      expect(gridDayNurses(resolved)).toEqual(['Bea Tuki', 'Ana Pérez']);
+    });
   });
 
   it('preserves explicit staffing clears when the changed path identifies the local edit', () => {
