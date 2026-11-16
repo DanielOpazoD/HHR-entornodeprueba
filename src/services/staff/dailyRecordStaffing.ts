@@ -65,6 +65,25 @@ const normalizeStaffSlots = (staff?: string[] | null, slotCount = 0): string[] =
 const presentStaffSelectionsForExport = (staff: string[]): string[] =>
   staff.map(value => normalizeStaffSelectionValue(value));
 
+/**
+ * Stored shift lists are positional: item i is grid slot i (`dailyRecordDetailedStaffing`), so
+ * reading keeps an empty slot before a name. Only trailing empty slots, which hold no position,
+ * are dropped.
+ */
+const readStoredShiftSlots = (staff?: string[] | null): string[] => {
+  const slots = normalizeStaffSlots(staff);
+  while (slots.length > 0 && !slots[slots.length - 1]) slots.pop();
+  return slots;
+};
+
+const resolveStoredDayShiftSlots = (record: DailyRecordShiftStaffingShape): string[] => {
+  for (const staff of [record.nursesDayShift, record.nurses]) {
+    const slots = readStoredShiftSlots(staff);
+    if (slots.length > 0) return slots;
+  }
+  return readStoredShiftSlots([record.nurseName ?? '']);
+};
+
 const toEmptyShiftPair = (staff: string[]): string[] => (staff.length > 0 ? staff : ['', '']);
 
 const resolveLegacyDayShiftNurses = (record: DailyRecordShiftStaffingShape): string[] => {
@@ -159,8 +178,8 @@ export const applyDailyRecordStaffingCompatibility = <T extends DailyRecordStaff
   record: T
 ): T => {
   const compatRecord = record as unknown as DailyRecordStaffingCompatShape;
-  const resolvedDayShift = toEmptyShiftPair(resolveDayShiftNurses(compatRecord));
-  const resolvedNightShift = toEmptyShiftPair(resolveNightShiftNurses(compatRecord));
+  const resolvedDayShift = toEmptyShiftPair(resolveStoredDayShiftSlots(compatRecord));
+  const resolvedNightShift = toEmptyShiftPair(readStoredShiftSlots(compatRecord.nursesNightShift));
 
   return {
     ...record,

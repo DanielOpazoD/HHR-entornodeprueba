@@ -110,6 +110,29 @@ describeEmulator('record queries against the real server', () => {
     expect(await isFirestoreAvailable()).toBe(true);
   });
 
+  it('opens a day whose staff lists keep an empty first slot or carry an item that is not text', async () => {
+    await seed([
+      [
+        '2026-03-16',
+        {
+          ...record('2026-03-16'),
+          nursesDayShift: ['', 'Ana Pérez'],
+          nursesNightShift: [7, 'Ñusta Tuki'],
+          tensDayShift: [false, 'Rosa', 'María José'],
+        },
+      ],
+    ]);
+
+    const read = await getRecordFromFirestoreDetailed('2026-03-16', { source: 'server' });
+    expect(read).toMatchObject({ status: 'resolved', serverConfirmed: true });
+    // Staff lists are positional: each name stays in the slot it was saved in.
+    expect(read.record).toMatchObject({
+      nursesDayShift: ['', 'Ana Pérez'],
+      nursesNightShift: ['', 'Ñusta Tuki'],
+      tensDayShift: ['', 'Rosa', 'María José'],
+    });
+  });
+
   it('returns inclusive date ranges ascending and only the requested month', async () => {
     await seedDates(['2026-01-31', '2026-02-01', '2026-02-14', '2026-02-28', '2026-03-01']);
     for (const requireServer of [false, true]) {
