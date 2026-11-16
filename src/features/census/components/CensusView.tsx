@@ -117,7 +117,10 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
               ? rayenBootstrapRequest.id
               : undefined
           }
-          onRayenBootstrapHandled={() => setRayenBootstrapRequest(null)}
+          // Clears only the request it handled: a day copied meanwhile keeps its own.
+          onRayenBootstrapHandled={handledId =>
+            setRayenBootstrapRequest(request => (request?.id === handledId ? null : request))
+          }
         />
       ) : null}
     </div>

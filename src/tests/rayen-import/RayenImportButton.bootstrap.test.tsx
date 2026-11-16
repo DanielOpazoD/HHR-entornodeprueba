@@ -180,7 +180,9 @@ describe('RayenImportButton · inicio del día desde Eloísa', () => {
     );
 
     await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
-    expect(onAutoStartHandled).toHaveBeenCalledTimes(1);
+    // It names the request it handled, so the census clears that one and no later one.
+    expect(onAutoStartHandled).toHaveBeenCalledOnce();
+    expect(onAutoStartHandled).toHaveBeenCalledWith(7);
 
     rerender(<RayenImportButton autoStartRequestId={7} onAutoStartHandled={onAutoStartHandled} />);
     expect(mocks.triggerImport).toHaveBeenCalledTimes(1);
