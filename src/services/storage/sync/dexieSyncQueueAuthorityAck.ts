@@ -195,8 +195,8 @@ export const adoptAuthoritativeDailyRecordInOutbox: NonNullable<
       await hospitalDB.dailyRecords.put(authoritativeRecord);
       return { status: 'adopted' as const, record: authoritativeRecord };
     }
-    if (unresolvedTasks.length !== 1) return blocked;
     const [heldTask] = unresolvedTasks;
+    if (unresolvedTasks.length !== 1 || !heldTask) return blocked;
     const localRecord = await hospitalDB.dailyRecords.get(authoritativeRecord.date);
     const pendingPayload = heldTask.payload as Partial<DailyRecord> | null | undefined;
     if (
