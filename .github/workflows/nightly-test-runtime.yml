@@ -71,3 +71,50 @@ jobs:
             test-results/**
             playwright-report/**
           retention-days: 30
+
+  # The required rules-emulator check runs the save-queue model with its fixed seed (20261115),
+  # so a pull request or main fails only for its own change. New sequences are drawn here; a
+  # counterexample is reported with its seed, path and replay and blocks no deploy.
+  nightly-sync-model:
+    name: nightly-sync-model
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
+
+      - name: Setup Java (Firestore emulator)
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Prepare verified Firestore emulator artifact
+        uses: ./.github/actions/setup-ci-firestore-emulator
+
+      - name: Explore the save-queue model with a new seed
+        run: |
+          set -o pipefail
+          seed="$(node -e 'console.log(require("node:crypto").randomInt(-(2 ** 31), 2 ** 31))')"
+          status=0
+          FC_SEED="$seed" FC_NUM_RUNS=300 npm run test:emulator:file -- \
+            src/tests/emulator-ui/syncQueueModel.emulator-ui.test.ts -- -t 'random sequences' \
+            2>&1 | tee model.log || status=$?
+          {
+            echo "### Modelo de la cola: semilla $seed, 300 secuencias"
+            if [ "$status" -eq 0 ]; then
+              echo 'Sin contraejemplos.'
+            else
+              echo 'Contraejemplo. Repetirlo en local con FC_SEED, FC_PATH y FC_REPLAY:'
+              echo '```'
+              sed 's/\x1b\[[0-9;]*m//g' model.log | grep -E 'Property failed|seed:|^Counterexample:' || echo 'Sin contraejemplo en el log: revisar el paso.'
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+        env:
+          CI: true
