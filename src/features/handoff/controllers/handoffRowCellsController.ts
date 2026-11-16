@@ -43,7 +43,6 @@ export const resolveClinicalEventsCellState = ({
   canUpdate,
   canDelete,
   showEvents,
-  isMedical,
 }: {
   patientStatus: PatientStatus | string | undefined;
   isSubRow: boolean;
@@ -52,7 +51,6 @@ export const resolveClinicalEventsCellState = ({
   canUpdate: boolean;
   canDelete: boolean;
   showEvents: boolean;
-  isMedical: boolean;
 }): ClinicalEventsCellState => {
   const canToggleEvents = canToggleClinicalEvents({
     isSubRow,
@@ -70,44 +68,6 @@ export const resolveClinicalEventsCellState = ({
     statusVariant: resolveHandoffStatusVariant(patientStatus),
     canToggleEvents,
     shouldRenderEventsPanel,
-    showStatusBadge: !showEvents && !isMedical,
+    showStatusBadge: !showEvents,
   };
-};
-
-export const shouldShowMedicalPrimaryNoteFallback = ({
-  entriesCount,
-  isFieldReadOnly,
-  hasCreatePrimaryEntryAction,
-}: {
-  entriesCount: number;
-  isFieldReadOnly: boolean;
-  hasCreatePrimaryEntryAction: boolean;
-}): boolean => entriesCount === 0 && !isFieldReadOnly && !hasCreatePrimaryEntryAction;
-
-type MedicalObservationEmptyState = 'create-entry' | 'primary-note' | 'empty';
-
-export const resolveMedicalObservationEmptyState = ({
-  displayEntriesCount,
-  isFieldReadOnly,
-  hasCreatePrimaryEntryAction,
-}: {
-  displayEntriesCount: number;
-  isFieldReadOnly: boolean;
-  hasCreatePrimaryEntryAction: boolean;
-}): MedicalObservationEmptyState => {
-  if (displayEntriesCount > 0) {
-    return 'empty';
-  }
-
-  if (!isFieldReadOnly && hasCreatePrimaryEntryAction) {
-    return 'create-entry';
-  }
-
-  return shouldShowMedicalPrimaryNoteFallback({
-    entriesCount: displayEntriesCount,
-    isFieldReadOnly,
-    hasCreatePrimaryEntryAction,
-  })
-    ? 'primary-note'
-    : 'empty';
 };

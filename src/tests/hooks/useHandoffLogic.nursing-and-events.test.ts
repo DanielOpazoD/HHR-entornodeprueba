@@ -130,7 +130,7 @@ describe('useHandoffLogic nursing and events', () => {
     );
   });
 
-  it('adds clinical events from the medical handoff flow as a shared feature', async () => {
+  it('adds clinical events and tells the person it worked', async () => {
     const mockUpdate = vi.fn();
     const onSuccess = vi.fn();
     setDailyRecordBedActionsMock({
@@ -140,12 +140,7 @@ describe('useHandoffLogic nursing and events', () => {
       updateClinicalCribMultiple: vi.fn(),
     } as unknown as BedActionsMock);
 
-    const { result } = renderUseHandoffLogic(
-      buildHandoffLogicParams({
-        type: 'medical',
-        onSuccess,
-      })
-    );
+    const { result } = renderUseHandoffLogic(buildHandoffLogicParams({ onSuccess }));
 
     await act(async () => {
       await result.current.handleClinicalEventAdd('R1', {

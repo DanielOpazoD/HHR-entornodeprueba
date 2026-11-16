@@ -56,7 +56,8 @@ describe('authenticatedRoutePreloadController', () => {
   it('preloads the authenticated shell for known module deep links without pulling it into login', () => {
     expect(shouldPreloadAuthenticatedShellForPathname('/censo')).toBe(true);
     expect(shouldPreloadAuthenticatedShellForPathname('/census')).toBe(true);
-    expect(shouldPreloadAuthenticatedShellForPathname('/medical-handoff')).toBe(true);
+    expect(shouldPreloadAuthenticatedShellForPathname('/nursing-handoff')).toBe(true);
+    expect(shouldPreloadAuthenticatedShellForPathname('/medical-handoff')).toBe(false);
     expect(shouldPreloadAuthenticatedShellForPathname('/transfer-management')).toBe(false);
     expect(shouldPreloadAuthenticatedShellForPathname('/')).toBe(false);
     expect(shouldPreloadAuthenticatedShellForPathname('/login')).toBe(false);

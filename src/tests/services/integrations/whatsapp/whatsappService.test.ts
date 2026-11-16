@@ -8,7 +8,6 @@ import {
   updateWhatsAppConfig,
   getMessageTemplates,
   getDefaultTemplates,
-  formatHandoffMessage,
   saveManualShift,
 } from '@/services/integrations/whatsapp/whatsappService';
 import { getDoc, setDoc, addDoc } from 'firebase/firestore';
@@ -147,23 +146,6 @@ describe('whatsappService', () => {
   });
 
   describe('Formatting and Parsing', () => {
-    it('should format handoff message', () => {
-      const template = 'Date: {{date}}, Patients: {{hospitalized}}';
-      const data = {
-        date: '2025-01-01',
-        signedBy: 'Dr. Test',
-        signedAt: '10:00',
-        hospitalized: 20,
-        freeBeds: 5,
-        newAdmissions: 2,
-        discharges: 1,
-        handoffUrl: 'http://link',
-      };
-      const msg = formatHandoffMessage(template, data);
-      expect(msg).toContain('2025-01-01');
-      expect(msg).toContain('20');
-    });
-
     it('should parse and save manual shift message', async () => {
       const msg = 'Turno PABELLON del 01/01/2025 hasta el 07/01/2025\nLunes: Juan\nMartes: Pedro';
       vi.mocked(addDoc).mockResolvedValue({ id: '123' } as Awaited<ReturnType<typeof addDoc>>);

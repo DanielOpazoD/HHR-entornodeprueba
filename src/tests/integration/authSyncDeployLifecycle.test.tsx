@@ -73,7 +73,7 @@ describe('auth/sync/deploy lifecycle integration', () => {
     vi.useFakeTimers();
     authSessionStateCallback = null;
     setOnlineStatus(true);
-    window.history.replaceState({}, '', '/medical-handoff');
+    window.history.replaceState({}, '', '/nursing-handoff');
 
     vi.mocked(authSession.onAuthSessionStateChange).mockImplementation(
       (cb: (sessionState: AuthSessionState) => void | Promise<void>) => {
@@ -117,7 +117,7 @@ describe('auth/sync/deploy lifecycle integration', () => {
     await flushBootstrap();
     expect(firstRender.result.current.auth.authLoading).toBe(false);
 
-    expect(firstRender.result.current.app.currentModule).toBe('MEDICAL_HANDOFF');
+    expect(firstRender.result.current.app.currentModule).toBe('NURSING_HANDOFF');
 
     await act(async () => {
       await authSessionStateCallback?.({

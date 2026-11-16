@@ -11,7 +11,6 @@ const createDailyRecordFixture = (overrides: Partial<DailyRecord> = {}) =>
 
 const initialRecord = () => createDailyRecordFixture({ date: '2026-10-29' });
 const checklistProps = {
-  isMedical: false,
   deliversList: [],
   receivesList: [],
   nursesList: [],
@@ -127,21 +126,6 @@ describe('shared crash cart checklist UI', () => {
     );
     expect(screen.getByLabelText('Código')).toBeDisabled();
     expect(screen.getByLabelText('Última fecha revisión carro de paro')).toBeDisabled();
-  });
-
-  it('keeps the shared nursing controls out of the medical handoff', () => {
-    render(
-      <HandoffChecklistSection
-        {...checklistProps}
-        isMedical
-        record={initialRecord()}
-        selectedShift="day"
-        readOnly={false}
-        onUpdateChecklist={vi.fn()}
-      />
-    );
-    expect(screen.queryByLabelText('Código')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Última fecha revisión carro de paro')).not.toBeInTheDocument();
   });
 
   it('renames the nursing novedades heading', () => {

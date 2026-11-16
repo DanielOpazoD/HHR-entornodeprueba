@@ -18,7 +18,7 @@ import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 
-import { buildMedicalEntryNoteFields } from '@/domain/handoff/patientEntryMutations';
+import { buildMedicalEntryNoteFields } from '@/tests/services/storage/specialistNoteFields';
 
 import { reconcileAuthorizedSessionOwner } from '@/services/storage/sessionScopedStorageService';
 import { clearPendingDailyRecordPatchesForTests } from '@/hooks/controllers/dailyRecordPendingPatchController';

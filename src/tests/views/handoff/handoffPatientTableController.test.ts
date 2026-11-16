@@ -37,7 +37,6 @@ describe('handoffPatientTableController', () => {
 
     expect(
       resolveHandoffPatientRowPlan(bed, undefined, {
-        isMedical: false,
         shouldShowPatient,
       })
     ).toMatchObject({
@@ -48,19 +47,16 @@ describe('handoffPatientTableController', () => {
     expect(shouldShowPatient).not.toHaveBeenCalled();
   });
 
-  it('hides blocked beds in medical view', () => {
+  it('keeps blocked beds as a row so the nursing view shows the block reason', () => {
+    const blocked = { ...basePatient, isBlocked: true };
     expect(
-      resolveHandoffPatientRowPlan(
-        bed,
-        { ...basePatient, isBlocked: true },
-        {
-          isMedical: true,
-          shouldShowPatient: vi.fn(),
-        }
-      )
+      resolveHandoffPatientRowPlan(bed, blocked, {
+        shouldShowPatient: vi.fn().mockReturnValue(false),
+      })
     ).toMatchObject({
-      shouldRender: false,
-      shouldRenderMainRow: false,
+      basePatient: blocked,
+      shouldRender: true,
+      shouldRenderMainRow: true,
       shouldRenderClinicalCrib: false,
     });
   });
@@ -68,10 +64,7 @@ describe('handoffPatientTableController', () => {
   it('falls back to an empty row when a patient should not be shown for the shift', () => {
     const shouldShowPatient = vi.fn().mockReturnValue(false);
 
-    const plan = resolveHandoffPatientRowPlan(bed, basePatient, {
-      isMedical: false,
-      shouldShowPatient,
-    });
+    const plan = resolveHandoffPatientRowPlan(bed, basePatient, { shouldShowPatient });
 
     expect(plan.shouldRender).toBe(true);
     expect(plan.shouldRenderMainRow).toBe(true);
@@ -90,10 +83,7 @@ describe('handoffPatientTableController', () => {
           patientName: 'RN',
         },
       },
-      {
-        isMedical: false,
-        shouldShowPatient: vi.fn().mockReturnValue(true),
-      }
+      { shouldShowPatient: vi.fn().mockReturnValue(true) }
     );
 
     expect(plan.shouldRender).toBe(true);

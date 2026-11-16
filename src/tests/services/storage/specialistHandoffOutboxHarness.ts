@@ -9,7 +9,7 @@ import type { DailyRecord, DailyRecordPatch } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { buildMedicalEntryNoteFields } from '@/domain/handoff/patientEntryMutations';
+import { buildMedicalEntryNoteFields } from '@/tests/services/storage/specialistNoteFields';
 import { processSyncQueue } from '@/services/storage/sync';
 import { readMedicalHandoffDrafts } from '@/services/storage/medicalHandoffDraftStorage';
 

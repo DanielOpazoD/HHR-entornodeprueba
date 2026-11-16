@@ -91,26 +91,20 @@ test.describe('Census persistence and reload', () => {
         db.close();
       }
     }, second);
-    await page.goto(`/medical-handoff?date=${firstDate}`);
+    await page.goto(`/nursing-handoff?date=${firstDate}`);
     await expect(
       page.getByText('PACIENTE SINTETICO DIA 20', { exact: true }).first()
     ).toBeVisible();
-    await expect(page).toHaveURL(`/medical-handoff?date=${firstDate}`);
+    await expect(page).toHaveURL(`/nursing-handoff?date=${firstDate}`);
     await page.reload();
     await expect(
       page.getByText('PACIENTE SINTETICO DIA 20', { exact: true }).first()
     ).toBeVisible();
     await page.getByRole('button', { name: /21 de febrero de 2026/ }).click();
-    await expect(page).toHaveURL(`/medical-handoff?date=${secondDate}`);
-    await expect(
-      page.getByText('PACIENTE SINTETICO DIA 21', { exact: true }).first()
-    ).toBeVisible();
-    await page.reload();
-    await expect(
-      page.getByText('PACIENTE SINTETICO DIA 21', { exact: true }).first()
-    ).toBeVisible();
-    await page.getByRole('button', { name: 'Entrega Turno Enfermería', exact: true }).click();
     await expect(page).toHaveURL(`/nursing-handoff?date=${secondDate}`);
+    await expect(
+      page.getByText('PACIENTE SINTETICO DIA 21', { exact: true }).first()
+    ).toBeVisible();
     await page.reload();
     await expect(
       page.getByText('PACIENTE SINTETICO DIA 21', { exact: true }).first()

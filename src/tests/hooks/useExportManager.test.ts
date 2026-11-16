@@ -170,29 +170,9 @@ describe('useExportManager', () => {
     expect(backupExportArchiveUseCases.executeExportHandoffPdf).toHaveBeenCalledWith({
       record: exportedRecord,
       selectedShift: 'day',
-      isMedical: false,
     });
     expect(flushBeforeExport).toHaveBeenCalledTimes(1);
     expect(getStableRecordForExport).toHaveBeenCalledTimes(1);
-  });
-
-  it('exports medical handoff PDFs as local downloads', async () => {
-    const { result } = renderHook(() =>
-      useExportManager({
-        ...defaultProps,
-        currentModule: 'MEDICAL_HANDOFF',
-      })
-    );
-
-    await act(async () => {
-      await result.current.handleExportPDF();
-    });
-
-    expect(backupExportArchiveUseCases.executeExportHandoffPdf).toHaveBeenCalledWith({
-      record: mockRecord,
-      selectedShift: 'day',
-      isMedical: true,
-    });
   });
 
   it('should check archive status on mount for CENSUS module', async () => {

@@ -4,7 +4,6 @@ import { fireEvent, render, screen } from '@testing-library/react';
 const mockSendWhatsAppMessage = vi.fn();
 const mockGetWhatsAppConfig = vi.fn();
 const mockGetMessageTemplates = vi.fn();
-const mockFormatHandoffMessage = vi.fn();
 const mockSaveMessageTemplates = vi.fn();
 
 vi.mock('@/context/UIContext', () => ({
@@ -26,7 +25,6 @@ vi.mock('@/services/integrations/whatsapp/whatsappService', () => ({
   sendWhatsAppMessage: (...args: unknown[]) => mockSendWhatsAppMessage(...args),
   getWhatsAppConfig: (...args: unknown[]) => mockGetWhatsAppConfig(...args),
   getMessageTemplates: (...args: unknown[]) => mockGetMessageTemplates(...args),
-  formatHandoffMessage: (...args: unknown[]) => mockFormatHandoffMessage(...args),
   saveMessageTemplates: (...args: unknown[]) => mockSaveMessageTemplates(...args),
   saveManualShift: vi.fn().mockResolvedValue({ success: true }),
   subscribeToCurrentShift: vi.fn((cb: (data: null) => void) => {

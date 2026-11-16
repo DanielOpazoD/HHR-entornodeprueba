@@ -136,7 +136,6 @@ test.describe('Release role smoke', () => {
     );
 
     await expect(page.getByTestId('nav-tab-transfer-management')).toHaveCount(0);
-    await expect(page.getByTestId('nav-tab-medical-handoff')).toHaveCount(0);
     await page.getByTestId('nav-tab-nursing-handoff').click();
     await expect(page).toHaveURL(/\/nursing-handoff/, { timeout: 20000 });
     await expect(page.getByTestId('handoff-shift-day-button')).toBeVisible({
@@ -166,7 +165,6 @@ test.describe('Release role smoke', () => {
     });
 
     await expect(page.getByTestId('nav-tab-transfer-management')).toHaveCount(0);
-    await expect(page.getByTestId('nav-tab-medical-handoff')).toHaveCount(0);
   });
 
   test('specialist has restricted census without hidden modules', async ({ page }) => {
@@ -183,7 +181,6 @@ test.describe('Release role smoke', () => {
     );
 
     await expect(page.getByTestId('nav-tab-transfer-management')).toHaveCount(0);
-    await expect(page.getByTestId('nav-tab-medical-handoff')).toHaveCount(0);
     await expect(page.getByTestId('census-table')).toBeVisible();
   });
 });

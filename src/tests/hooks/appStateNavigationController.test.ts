@@ -13,8 +13,15 @@ describe('appStateNavigationController', () => {
     });
 
     it('resolves known clean paths to their modules', () => {
-      expect(resolveModuleFromPathname('/medical-handoff')).toBe('MEDICAL_HANDOFF');
+      expect(resolveModuleFromPathname('/nursing-handoff')).toBe('NURSING_HANDOFF');
       expect(resolveModuleFromPathname('/transfer-management')).toBeNull();
+    });
+
+    it('no longer opens the retired medical handoff screen from an old bookmark', () => {
+      expect(resolveModuleFromPathname('/medical-handoff')).toBeNull();
+      expect(resolveInitialModuleFromLocation({ pathname: '/medical-handoff', search: '' })).toBe(
+        'CENSUS'
+      );
     });
 
     it('returns null for unknown paths', () => {
@@ -27,7 +34,7 @@ describe('appStateNavigationController', () => {
       expect(
         resolveInitialModuleFromLocation({
           pathname: '/statistics',
-          search: '?module=MEDICAL_HANDOFF',
+          search: '?module=NURSING_HANDOFF',
         })
       ).toBe('ANALYTICS');
     });
@@ -36,9 +43,15 @@ describe('appStateNavigationController', () => {
       expect(
         resolveInitialModuleFromLocation({
           pathname: '/admin',
+          search: '?module=NURSING_HANDOFF',
+        })
+      ).toBe('NURSING_HANDOFF');
+      expect(
+        resolveInitialModuleFromLocation({
+          pathname: '/admin',
           search: '?module=MEDICAL_HANDOFF',
         })
-      ).toBe('MEDICAL_HANDOFF');
+      ).toBe('CENSUS');
     });
 
     it('defaults to census when neither path nor query resolves a module', () => {
@@ -77,7 +90,7 @@ describe('appStateNavigationController', () => {
     it('returns true only for print-capable modules', () => {
       expect(shouldShowPrintButtonForModule('CUDYR')).toBe(true);
       expect(shouldShowPrintButtonForModule('NURSING_HANDOFF')).toBe(true);
-      expect(shouldShowPrintButtonForModule('MEDICAL_HANDOFF')).toBe(true);
+      expect(shouldShowPrintButtonForModule('MEDICAL_HANDOFF')).toBe(false);
       expect(shouldShowPrintButtonForModule('CENSUS')).toBe(false);
     });
   });

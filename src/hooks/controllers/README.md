@@ -25,8 +25,6 @@ Controladores puros consumidos por hooks para separar:
 | `censusEmailSendController.ts`                    | Reglas de envío de email de censo                                                  |
 | `censusEmailBrowserRuntimeController.ts`          | Runtime del flujo email desacoplado del browser global                             |
 | `handoffManagementMutationController.ts`          | Runner común para mutaciones de handoff con errores y auditoría consistentes       |
-| `handoffShareLinkController.ts`                   | Política pura para decidir copia real, fallback E2E o mensaje de error             |
-| `medicalHandoffHandlersController.ts`             | Guardas, target patient y filtros de outcome para mutaciones de handoff médico     |
 
 ## Patrón
 

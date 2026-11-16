@@ -33,7 +33,6 @@ describe('HandoffPatientTable', () => {
     },
     tableHeaderClass: 'bg-slate-50',
     readOnly: false,
-    isMedical: false,
     hasAnyPatients: true,
     shouldShowPatient: () => true,
   };
@@ -58,36 +57,22 @@ describe('HandoffPatientTable', () => {
     expect(screen.queryByText('Cirugía P1')).not.toBeInTheDocument();
   });
 
-  it('shows global expand button in medical mode when clinical event actions are available', () => {
-    render(<HandoffPatientTable {...defaultProps} isMedical={true} />);
-
-    const globalExpandBtn = screen.getByTitle(/Expandir todos los eventos/i);
-    fireEvent.click(globalExpandBtn);
-
-    expect(screen.getByText('Cirugía P1')).toBeInTheDocument();
-  });
-
-  it('hides blocked beds in medical mode', () => {
+  it('shows a blocked bed with its reason in the nursing handoff', () => {
     const blockedRecord: DailyRecord = DataFactory.createMockDailyRecord('2025-01-01', {
       beds: {
         R1: DataFactory.createMockPatient('R1', {
           patientName: 'Paciente bloqueado',
           isBlocked: true,
+          blockedReason: 'Aislamiento',
         }),
         R2: DataFactory.createMockPatient('R2', { patientName: 'Paciente visible' }),
       },
     });
 
-    render(
-      <HandoffPatientTable
-        {...defaultProps}
-        isMedical={true}
-        record={blockedRecord}
-        visibleBeds={BEDS.filter(b => b.id === 'R1' || b.id === 'R2')}
-      />
-    );
+    render(<HandoffPatientTable {...defaultProps} record={blockedRecord} />);
 
-    expect(screen.queryByText('Paciente bloqueado')).not.toBeInTheDocument();
+    expect(screen.getByText('BLOQUEADA:')).toBeInTheDocument();
+    expect(screen.getByText(/Aislamiento/)).toBeInTheDocument();
     expect(screen.getByText('Paciente visible')).toBeInTheDocument();
   });
 });

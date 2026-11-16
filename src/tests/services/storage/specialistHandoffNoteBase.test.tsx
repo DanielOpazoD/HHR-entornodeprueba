@@ -18,7 +18,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { resetMedicalHandoffDraftMemoryForTests } from '@/services/storage/medicalHandoffDraftStorage';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { buildMedicalEntryNoteFields } from '@/domain/handoff/patientEntryMutations';
+import { buildMedicalEntryNoteFields } from '@/tests/services/storage/specialistNoteFields';
 import type { DailyRecord, DailyRecordPatch } from '@/types/domain/dailyRecord';
 
 const h = harnessState();

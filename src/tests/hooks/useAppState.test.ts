@@ -20,16 +20,23 @@ describe('useAppState', () => {
       expect(result.current.currentModule).toBe('CENSUS');
     });
 
-    it('should initialize MEDICAL_HANDOFF for handoff deep-links', () => {
-      window.history.replaceState({}, '', '/?module=MEDICAL_HANDOFF&date=2026-03-14');
+    it('should initialize NURSING_HANDOFF for handoff deep-links', () => {
+      window.history.replaceState({}, '', '/?module=NURSING_HANDOFF&date=2026-03-14');
       const { result } = renderHook(() => useAppState());
-      expect(result.current.currentModule).toBe('MEDICAL_HANDOFF');
+      expect(result.current.currentModule).toBe('NURSING_HANDOFF');
     });
 
     it('should initialize the module from a clean path slug', () => {
-      window.history.replaceState({}, '', '/medical-handoff');
+      window.history.replaceState({}, '', '/nursing-handoff');
       const { result } = renderHook(() => useAppState());
-      expect(result.current.currentModule).toBe('MEDICAL_HANDOFF');
+      expect(result.current.currentModule).toBe('NURSING_HANDOFF');
+    });
+
+    it('opens the census for an old medical handoff link or bookmark', () => {
+      window.history.replaceState({}, '', '/medical-handoff?date=2026-03-14');
+      expect(renderHook(() => useAppState()).result.current.currentModule).toBe('CENSUS');
+      window.history.replaceState({}, '', '/?module=MEDICAL_HANDOFF&date=2026-03-14');
+      expect(renderHook(() => useAppState()).result.current.currentModule).toBe('CENSUS');
     });
 
     it('should initialize the statistics module from its own path slug', () => {
@@ -61,10 +68,10 @@ describe('useAppState', () => {
       const { result } = renderHook(() => useAppState());
 
       act(() => {
-        result.current.setCurrentModule('MEDICAL_HANDOFF');
+        result.current.setCurrentModule('NURSING_HANDOFF');
       });
 
-      expect(window.location.pathname).toBe('/medical-handoff');
+      expect(window.location.pathname).toBe('/nursing-handoff');
       expect(window.location.search).toBe('');
     });
 
@@ -176,14 +183,14 @@ describe('useAppState', () => {
       expect(result.current.showPrintButton).toBe(true);
     });
 
-    it('should be true for MEDICAL_HANDOFF module', () => {
+    it('should be false for the screenless MEDICAL_HANDOFF permission', () => {
       const { result } = renderHook(() => useAppState());
 
       act(() => {
         result.current.setCurrentModule('MEDICAL_HANDOFF');
       });
 
-      expect(result.current.showPrintButton).toBe(true);
+      expect(result.current.showPrintButton).toBe(false);
     });
   });
 });

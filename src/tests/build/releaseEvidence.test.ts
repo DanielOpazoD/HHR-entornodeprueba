@@ -60,7 +60,6 @@ const clinicalVisualReleaseReport = {
                         { name: 'clinical-release-cudyr.png' },
                         { name: 'clinical-release-cudyr-mobile.png' },
                         { name: 'clinical-release-cudyr-excel-download.json' },
-                        { name: 'clinical-release-medical-handoff.png' },
                       ],
                     },
                   ],

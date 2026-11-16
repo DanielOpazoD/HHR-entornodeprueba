@@ -9,7 +9,6 @@ import { HandoffShiftSwitcher } from './HandoffShiftSwitcher';
 import { buildHandoffChecklistSectionViewModel } from '@/features/handoff/controllers/handoffViewController';
 
 interface HandoffChecklistSectionProps {
-  isMedical: boolean;
   selectedShift: 'day' | 'night';
   setSelectedShift?: (shift: 'day' | 'night') => void;
   record: HandoffDailyRecordContract;
@@ -30,7 +29,6 @@ interface HandoffChecklistSectionProps {
 }
 
 export const HandoffChecklistSection: React.FC<HandoffChecklistSectionProps> = ({
-  isMedical,
   selectedShift,
   setSelectedShift,
   record,
@@ -42,15 +40,11 @@ export const HandoffChecklistSection: React.FC<HandoffChecklistSectionProps> = (
   onUpdateChecklist,
 }) => {
   const checklistSectionViewModel = buildHandoffChecklistSectionViewModel({
-    isMedical,
     selectedShift,
     readOnly,
     hasShiftSwitcher: Boolean(setSelectedShift),
   });
-  const { shouldRender, showShiftSwitcher, isReceivesEditable, activeChecklistShift } =
-    checklistSectionViewModel;
-
-  if (!shouldRender) return null;
+  const { showShiftSwitcher, isReceivesEditable, activeChecklistShift } = checklistSectionViewModel;
 
   return (
     <div className="handoff-header min-w-0 bg-white rounded-2xl border border-slate-200/80 p-3 sm:p-4 print:hidden shadow-sm ring-1 ring-black/[0.02]">

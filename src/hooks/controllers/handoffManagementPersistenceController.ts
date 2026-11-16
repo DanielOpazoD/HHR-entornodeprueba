@@ -1,16 +1,10 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type {
-  MedicalHandoffActor,
-  MedicalSpecialty,
-} from '@/types/domain/dailyRecordMedicalHandoff';
-import type { MedicalHandoffScope } from '@/types/medicalHandoff';
 import { getAttributedAuthors } from '@/services/admin/attributionService';
-import { normalizeMedicalHandoffActor } from '@/domain/handoff/management';
 
-type HandoffShift = 'day' | 'night' | 'medical';
+type HandoffShift = 'day' | 'night';
 
-export interface HandoffAuditEventPayload {
-  action: 'HANDOFF_NOVEDADES_MODIFIED' | 'MEDICAL_HANDOFF_SIGNED' | 'MEDICAL_HANDOFF_RESTORED';
+interface HandoffAuditEventPayload {
+  action: 'HANDOFF_NOVEDADES_MODIFIED';
   entityType: 'dailyRecord';
   entityId: string;
   details: Record<string, unknown>;
@@ -24,17 +18,9 @@ export const buildHandoffNovedadesAuditPayload = (
   value: string,
   userId: string
 ): { authors: string; details: Record<string, unknown> } => {
-  const authors = getAttributedAuthors(
-    userId,
-    record,
-    shift === 'medical' ? undefined : (shift as 'day' | 'night')
-  );
+  const authors = getAttributedAuthors(userId, record, shift);
   const previousValue =
-    shift === 'day'
-      ? record.handoffNovedadesDayShift
-      : shift === 'night'
-        ? record.handoffNovedadesNightShift
-        : record.medicalHandoffNovedades;
+    shift === 'day' ? record.handoffNovedadesDayShift : record.handoffNovedadesNightShift;
 
   return {
     authors: authors ?? '',
@@ -64,122 +50,3 @@ export const buildHandoffNovedadesAuditEvent = (
     authors,
   };
 };
-
-export const buildMedicalSpecialtyNoteAuditPayload = (
-  record: DailyRecord,
-  specialty: MedicalSpecialty,
-  value: string
-): Record<string, unknown> => ({
-  shift: 'medical',
-  specialty,
-  value,
-  operation: 'specialty_note_update',
-  changes: {
-    novedades: { old: record.medicalHandoffBySpecialty?.[specialty]?.note || '', new: value },
-  },
-});
-
-export const buildMedicalSpecialtyAuditEvent = (
-  record: DailyRecord,
-  specialty: MedicalSpecialty,
-  value: string
-): HandoffAuditEventPayload => ({
-  action: 'HANDOFF_NOVEDADES_MODIFIED',
-  entityType: 'dailyRecord',
-  entityId: record.date,
-  details: buildMedicalSpecialtyNoteAuditPayload(record, specialty, value),
-  recordDate: record.date,
-});
-
-export const buildMedicalNoChangesAuditPayload = (
-  updatedRecord: DailyRecord,
-  specialty: MedicalSpecialty,
-  actor: Partial<MedicalHandoffActor>,
-  effectiveDateKey: string,
-  confirmedAt: string
-): Record<string, unknown> => {
-  const normalizedActor = normalizeMedicalHandoffActor(actor, specialty);
-
-  return {
-    shift: 'medical',
-    specialty,
-    operation: 'confirm_no_changes',
-    comment:
-      updatedRecord.medicalHandoffBySpecialty?.[specialty]?.dailyContinuity?.[effectiveDateKey]
-        ?.comment,
-    confirmedAt,
-    confirmedBy: normalizedActor.displayName,
-  };
-};
-
-export const buildMedicalNoChangesAuditEvent = (
-  record: DailyRecord,
-  auditDetails: Record<string, unknown>
-): HandoffAuditEventPayload => ({
-  action: 'HANDOFF_NOVEDADES_MODIFIED',
-  entityType: 'dailyRecord',
-  entityId: record.date,
-  details: auditDetails,
-  recordDate: record.date,
-});
-
-export const buildMedicalSignatureAuditPayload = (
-  updatedRecord: DailyRecord,
-  doctorName: string,
-  scope: MedicalHandoffScope
-): Record<string, unknown> => ({
-  doctorName,
-  signedAt: updatedRecord.medicalSignatureByScope?.[scope]?.signedAt,
-  scope,
-});
-
-export const buildMedicalSignatureAuditEvent = (
-  record: DailyRecord,
-  updatedRecord: DailyRecord,
-  doctorName: string,
-  scope: MedicalHandoffScope
-): HandoffAuditEventPayload => ({
-  action: 'MEDICAL_HANDOFF_SIGNED',
-  entityType: 'dailyRecord',
-  entityId: record.date,
-  details: buildMedicalSignatureAuditPayload(updatedRecord, doctorName, scope),
-  recordDate: record.date,
-});
-
-export const buildResetMedicalHandoffAuditPayload = (
-  record: DailyRecord
-): Record<string, unknown> => {
-  const clearedFields: string[] = [];
-
-  if (record.medicalHandoffSentAt) {
-    clearedFields.push('entrega');
-  }
-
-  if (record.medicalSignature) {
-    clearedFields.push('firma');
-  }
-
-  return {
-    clearedFields,
-    hadMedicalHandoffSentAt: Boolean(record.medicalHandoffSentAt),
-    hadMedicalSignature: Boolean(record.medicalSignature),
-    hadScopedMedicalHandoffSentAt: Boolean(
-      record.medicalHandoffSentAtByScope &&
-      Object.keys(record.medicalHandoffSentAtByScope).length > 0
-    ),
-    hadScopedMedicalSignature: Boolean(
-      record.medicalSignatureByScope && Object.keys(record.medicalSignatureByScope).length > 0
-    ),
-    doctorName: record.medicalHandoffDoctor || '',
-  };
-};
-
-export const buildResetMedicalHandoffAuditEvent = (
-  record: DailyRecord
-): HandoffAuditEventPayload => ({
-  action: 'MEDICAL_HANDOFF_RESTORED',
-  entityType: 'dailyRecord',
-  entityId: record.date,
-  details: buildResetMedicalHandoffAuditPayload(record),
-  recordDate: record.date,
-});

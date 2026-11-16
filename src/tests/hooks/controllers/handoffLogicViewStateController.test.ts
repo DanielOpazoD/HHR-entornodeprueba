@@ -5,7 +5,6 @@ import { buildHandoffLogicViewState } from '@/hooks/controllers/handoffLogicView
 describe('handoffLogicViewStateController', () => {
   it('returns the shared derived handoff view state as a single contract', () => {
     const viewState = buildHandoffLogicViewState({
-      isMedical: false,
       visibleBeds: [{ id: 'R1' }] as never,
       hasAnyPatients: true,
       noteField: 'handoffNoteDayShift',
@@ -15,7 +14,6 @@ describe('handoffLogicViewStateController', () => {
     });
 
     expect(viewState).toEqual({
-      isMedical: false,
       visibleBeds: [{ id: 'R1' }],
       hasAnyPatients: true,
       noteField: 'handoffNoteDayShift',

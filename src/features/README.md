@@ -22,7 +22,7 @@ De quién puede depender cada feature lo dice
 | [`clinical-library/`](clinical-library/README.md)     | Botón «Documentos» del censo: formularios para completar, protocolos, infografías y herramientas clínicas   |
 | [`cudyr/`](cudyr/README.md)                           | Categorización CUDYR de enfermería: registro, exportación e impresión para la entrega nocturna              |
 | `document-scanner/`                                   | Escanea documentos con el teléfono a PDF; quedan en una bandeja temporal hasta confirmar su carga en Eloísa |
-| [`handoff/`](handoff/README.md)                       | Entrega de turno de enfermería y médica                                                                     |
+| [`handoff/`](handoff/README.md)                       | Entrega de turno de enfermería y planilla de entrega médica en Drive                                        |
 | [`laboratory/`](laboratory/README.md)                 | Exámenes del paciente: visor de Syslab, informes originales de Exalab y bandeja de exámenes del censo       |
 | `prescriptions/`                                      | Respaldo fotográfico de recetas por cama: carga con QR y PIN, visor y administración                        |
 | [`rayen-import/`](rayen-import/README.md)             | Sincroniza el censo con Eloísa mediante la extensión; los cambios de camas se aplican tras confirmarlos     |
@@ -55,7 +55,7 @@ feature/
 
 ### `handoff/`
 
-- Consolida entrega de turno y comunicación clínica.
+- Consolida la entrega de turno de enfermería y el botón de la planilla médica del censo.
 - Se apoya en `DailyRecordContext` + hooks de handoff.
 
 ### `analytics/`

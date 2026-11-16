@@ -321,7 +321,7 @@ describe('App loading behavior', () => {
       configurable: true,
       value: {
         ...window.location,
-        pathname: '/medical-handoff',
+        pathname: '/nursing-handoff',
         search: '',
       },
       writable: true,

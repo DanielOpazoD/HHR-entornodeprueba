@@ -199,7 +199,7 @@ async function read(path: Path, remote: DailyRecord | null) {
   });
 }
 import { appendFileSync } from 'node:fs';
-import { buildMedicalEntryNoteFields } from '@/domain/handoff/patientEntryMutations';
+import { buildMedicalEntryNoteFields } from '@/tests/services/storage/specialistNoteFields';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
 import * as firebase from 'firebase/firestore';

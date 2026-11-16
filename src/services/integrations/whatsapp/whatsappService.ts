@@ -14,7 +14,6 @@ import {
   updateWhatsAppConfig,
 } from '@/services/integrations/whatsapp/whatsappConfigStore';
 import {
-  formatHandoffMessage,
   getDefaultTemplates,
   getMessageTemplates,
   saveMessageTemplates,
@@ -188,7 +187,6 @@ export async function fetchShiftsFromGroup(): Promise<{
 }
 
 export {
-  formatHandoffMessage,
   getDefaultTemplates,
   getMessageTemplates,
   getWhatsAppConfig,
