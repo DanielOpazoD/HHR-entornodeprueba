@@ -11,6 +11,9 @@ reales de pacientes.
 Este archivo basta para empezar. Lee además **solo** lo que corresponde a lo que vas a tocar;
 el resto de `docs/` es de consulta, no lectura previa.
 
+- **Una función que ve el usuario** (un botón, un flujo): su fila en
+  [feature-map.json](scripts/config/feature-map.json) dice cómo se llega, la puerta de código y
+  qué pruebas la acreditan.
 - **Un texto, un estilo o una constante:** nada más. Si la constante figura en una regla de
   este archivo, actualiza su fila.
 - **Datos clínicos, identidad, hora, guardado, sincronización, sesión o permisos:** la regla,
