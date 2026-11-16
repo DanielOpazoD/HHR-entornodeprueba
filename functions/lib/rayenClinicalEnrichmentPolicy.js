@@ -337,9 +337,12 @@ const parseClinicalEnrichmentPayload = data => {
       `Clinical enrichment exceeds ${MAX_BATCH_TARGETS} unique targets.`
     );
   }
+  // The sections exactly as received: the client measures the same object before sending
+  // (prepareClinicalEnrichmentBatchPayload). The parsed targets add `clinicalCrib: false` and wrap
+  // each checkpoint, so measuring them rejected a batch the client had already sized as valid.
   const receivedSections = {
-    patches: rawPatches,
-    ...(rawCheckpoints.length > 0 ? { checkpoints: rawCheckpoints } : {}),
+    patches: Array.isArray(data.patches) ? data.patches : [],
+    ...(rawCheckpoints.length > 0 ? { checkpoints: data.checkpoints } : {}),
   };
   if (Buffer.byteLength(JSON.stringify(receivedSections), 'utf8') > MAX_BATCH_BYTES) {
     throw new functions.https.HttpsError(
