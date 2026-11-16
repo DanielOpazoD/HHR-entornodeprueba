@@ -21,6 +21,7 @@ import {
 import {
   collectCudyrDailyFacts,
   collectCudyrArchiveFacts,
+  cudyrEpisodelessDischargeId,
   cudyrFactEpicrisis,
   type CudyrReportFact,
 } from './cudyrReportFacts';
@@ -261,8 +262,13 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
         warnings,
       };
       const reconciled = reconcileCudyrDischarge(row);
+      const dischargeId = cudyrEpisodelessDischargeId(row);
       const exclusion = input.exclusions?.find(
-        item => item.date === row.date && Boolean(episode) && item.clinicalEpisodeId === episode
+        item =>
+          item.date === row.date &&
+          (episode
+            ? item.clinicalEpisodeId === episode
+            : Boolean(dischargeId) && item.dischargeId === dischargeId)
       );
       return {
         ...reconciled,
