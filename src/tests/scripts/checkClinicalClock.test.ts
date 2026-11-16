@@ -5,13 +5,14 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
+import { checkClinicalClock } from '../../../scripts/check-clinical-clock.mjs';
 
 const GUARD = path.resolve('scripts/check-clinical-clock.mjs');
 const CLOCK_SOURCE = "export const CLINICAL_TIME_ZONE = 'Pacific/Easter';\n";
 const roots: string[] = [];
 
-/** Runs the guard on a synthetic repository made of `files`. */
-const runGuard = (files: Record<string, string>) => {
+/** A synthetic repository made of `files`. */
+const createRepository = (files: Record<string, string>) => {
   const root = mkdtempSync(path.join(tmpdir(), 'hhr-clinical-clock-'));
   roots.push(root);
   for (const [relativePath, content] of Object.entries({
@@ -21,7 +22,12 @@ const runGuard = (files: Record<string, string>) => {
     mkdirSync(path.dirname(path.join(root, relativePath)), { recursive: true });
     writeFileSync(path.join(root, relativePath), content);
   }
-  const result = spawnSync(process.execPath, [GUARD], { cwd: root, encoding: 'utf8' });
+  return root;
+};
+
+/** Runs the guard, in this process, on a synthetic repository made of `files`. */
+const runGuard = (files: Record<string, string>) => {
+  const result = checkClinicalClock(createRepository(files));
   return { status: result.status, output: `${result.stdout}${result.stderr}` };
 };
 
@@ -30,6 +36,21 @@ afterEach(() => {
 });
 
 describe('check-clinical-clock', () => {
+  it('prints and exits as the command exactly what it decides in process', () => {
+    for (const [source, status] of [
+      ['export const a = 1;\n', 0],
+      ["\nconst zone = 'Pacific/Easter';\n", 1],
+    ] as const) {
+      const root = createRepository({ 'src/features/a.ts': source });
+      const result = spawnSync(process.execPath, [GUARD], { cwd: root, encoding: 'utf8' });
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(status);
+      expect({ status: result.status, stdout: result.stdout, stderr: result.stderr }).toEqual(
+        checkClinicalClock(root)
+      );
+    }
+  });
+
   it('passes code that reads every date and time on the hospital clock', () => {
     const { status, output } = runGuard({
       'src/features/a.ts': [

@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { spawnSync, type SpawnSyncOptions } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -7,6 +8,18 @@ import {
   profileMailBundles,
   smokeMailBundles,
 } from '../../../scripts/netlifyMailRuntimeSupport.mjs';
+
+// Probes run as real children; only the deadline test shortens the kill so it does not wait 10 s.
+const deadline = vi.hoisted(() => ({ ms: undefined as number | undefined }));
+vi.mock('node:child_process', async importOriginal => {
+  const actual = await importOriginal<typeof import('node:child_process')>();
+  return {
+    ...actual,
+    spawnSync: vi.fn((command: string, args: readonly string[], options: SpawnSyncOptions) =>
+      actual.spawnSync(command, args, { ...options, timeout: deadline.ms ?? options.timeout })
+    ),
+  };
+});
 
 let directory: string;
 beforeEach(() => {
@@ -98,10 +111,16 @@ describe('Netlify mail artifact runtime probes', () => {
   });
 
   it('fails a child that exceeds the ten second deadline', () => {
-    expect(() =>
-      profileMailBundles([fixture('timeout', 'while (true) {}')], { repetitions: 1 })
-    ).toThrow('timeout');
-  }, 15_000);
+    deadline.ms = 500;
+    try {
+      expect(() =>
+        profileMailBundles([fixture('endless', 'while (true) {}')], { repetitions: 1 })
+      ).toThrow('Mail runtime profile failed for endless: timeout');
+    } finally {
+      deadline.ms = undefined;
+    }
+    expect(vi.mocked(spawnSync).mock.lastCall?.[2]).toMatchObject({ timeout: 10_000 });
+  });
 
   it.each([
     `fetch('https://mail-smoke.invalid');`,

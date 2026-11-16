@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
+import { checkEmptyOnFailureReads } from '../../../scripts/check-empty-on-failure-reads.mjs';
 
 const GUARD = path.resolve('scripts/check-empty-on-failure-reads.mjs');
 const roots: string[] = [];
@@ -33,8 +34,18 @@ const createRepository = (files: Record<string, string>) => {
   return root;
 };
 
-const runGuard = (root: string, args: string[] = []) => {
+/** Runs the guard in this process; the command and its arguments go through `runCommand`. */
+const runGuard = (root: string) => {
+  const result = checkEmptyOnFailureReads(root);
+  return { status: result.status, output: `${result.stdout}${result.stderr}` };
+};
+
+const runCommand = (root: string, args: string[] = []) => {
   const result = spawnSync(process.execPath, [GUARD, ...args], { cwd: root, encoding: 'utf8' });
+  expect(result.error).toBeUndefined();
+  expect({ status: result.status, stdout: result.stdout, stderr: result.stderr }).toEqual(
+    checkEmptyOnFailureReads(root)
+  );
   return { status: result.status, output: `${result.stdout}${result.stderr}` };
 };
 
@@ -116,7 +127,7 @@ describe('check-empty-on-failure-reads', () => {
       ),
       'src/features/view.ts': READ_WITH_EMPTY_FALLBACK,
     });
-    expect(runGuard(root)).toEqual({
+    expect(runCommand(root)).toEqual({
       status: 0,
       output: expect.stringContaining('OK (no reads return empty on failure)'),
     });
@@ -134,7 +145,7 @@ describe('check-empty-on-failure-reads', () => {
         'src/services/storage/indexeddb/reads.ts': READ_WITH_EMPTY_FALLBACK,
         [legacyPath]: legacy,
       });
-      expect(runGuard(root, args)).toEqual({
+      expect(runCommand(root, args)).toEqual({
         status: 1,
         output: expect.stringContaining(
           'src/services/storage/indexeddb/reads.ts::getMonth returns empty on failure'
@@ -143,7 +154,7 @@ describe('check-empty-on-failure-reads', () => {
       const withoutLegacy = createRepository({
         'src/services/storage/indexeddb/reads.ts': READ_WITH_EMPTY_FALLBACK,
       });
-      expect(runGuard(withoutLegacy, args).status).toBe(1);
+      expect(runCommand(withoutLegacy, args).status).toBe(1);
       expect(existsSync(path.join(withoutLegacy, legacyPath))).toBe(false);
     }
   );

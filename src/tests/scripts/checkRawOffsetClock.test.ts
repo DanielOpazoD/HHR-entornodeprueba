@@ -1,18 +1,17 @@
 // @vitest-environment node
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { checkClinicalClock } from '../../../scripts/check-clinical-clock.mjs';
 
-const guard = path.resolve('scripts/check-clinical-clock.mjs');
 const roots: string[] = [];
 const run = (file: string, source: string) => {
   const root = mkdtempSync(path.join(tmpdir(), 'hhr-offset-clock-'));
   roots.push(root);
   mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
   writeFileSync(path.join(root, file), source);
-  const result = spawnSync(process.execPath, [guard], { cwd: root, encoding: 'utf8' });
+  const result = checkClinicalClock(root);
   return { status: result.status, output: `${result.stdout}${result.stderr}` };
 };
 afterEach(() => {
