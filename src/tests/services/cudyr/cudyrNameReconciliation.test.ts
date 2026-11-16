@@ -254,7 +254,7 @@ describe('census-supported CUDYR name reconciliation', () => {
 });
 
 describe('a validated RUN whose Eloísa spelling changes between report versions', () => {
-  const versions = (later = 'ANA PRUEBA OTRO') => {
+  const versions = (later = 'ANA MARIA URGENCIAS PRUEBA NO REFIERE') => {
     const { data, source } = fixture('Ana Maria', 'Prueba', 'Ejemplo', 'ANA PRUEBA EJEMPLO');
     data.rows[0].rut = '11.111.111-1';
     data.rows[0].documentType = 'RUT';
@@ -286,7 +286,7 @@ describe('a validated RUN whose Eloísa spelling changes between report versions
     expect(identity('11111111-1', 'ANA PRUEBA EJEMPLO')).toBe(
       identity(data.rows[0].rut, data.rows[0].patientName)
     );
-    expect(identity('11111111-1', 'ANA PRUEBA OTRO')).toBe(
+    expect(identity('11111111-1', 'ANA MARIA URGENCIAS PRUEBA NO REFIERE')).toBe(
       identity(data.rows[0].rut, data.rows[0].patientName)
     );
     const night = (d: typeof data) =>
@@ -316,6 +316,21 @@ describe('a validated RUN whose Eloísa spelling changes between report versions
       'a different first given name',
       (d: ReturnType<typeof versions>) =>
         (d.sources[1].report.patients[0].patientName = 'SOFIA PRUEBA OTRO'),
+    ],
+    [
+      'a spelling without the census first surname',
+      (d: ReturnType<typeof versions>) =>
+        (d.sources[1].report.patients[0].patientName = 'ANA MARIA EJEMPLO'),
+    ],
+    [
+      'another person who shares the first given name and surname but has other names',
+      (d: ReturnType<typeof versions>) => {
+        const other = d.sources[1].report.patients[0];
+        other.patientName = 'ANA SOFIA PRUEBA APELLIDO';
+        other.days = other.days.map(day =>
+          day.category ? { ...day, category: 'D2', originalValue: 'D2' } : day
+        );
+      },
     ],
     [
       'another person with the same first given name but another surname',
