@@ -67,8 +67,7 @@ export interface DailyRecordBedActions {
   updatePatient: (bedId: string, field: keyof PatientData, value: PatientFieldValue) => void;
   updatePatientMultiple: (
     bedId: string,
-    fields: Partial<PatientData>,
-    expectedHandoffPatient?: PatientData
+    fields: Partial<PatientData>
   ) => void | Promise<boolean | void>;
   updateClinicalCrib: (
     bedId: string,
@@ -79,8 +78,7 @@ export interface DailyRecordBedActions {
   ) => void | Promise<boolean>;
   updateClinicalCribMultiple: (
     bedId: string,
-    fields: Partial<PatientData>,
-    expectedHandoffPatient?: PatientData
+    fields: Partial<PatientData>
   ) => void | Promise<boolean | void>;
   updateClinicalCribCudyr: (bedId: string, field: keyof CudyrScore, value: number) => void;
   updateClinicalCribCudyrMultiple?: (bedId: string, fields: CudyrScorePatch) => void;

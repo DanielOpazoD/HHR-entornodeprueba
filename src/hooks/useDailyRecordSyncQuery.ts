@@ -244,9 +244,7 @@ export const useDailyRecordSyncQuery = (
                   ...(options.specialtyIntent ? { specialtyIntent: options.specialtyIntent } : {}),
                 },
               }
-            : options?.specialistHandoffTargets
-              ? { options: { specialistHandoffTargets: options.specialistHandoffTargets } }
-              : {}),
+            : {}),
         };
         const payload = await patchMutation.mutateAsync({
           ...input,

@@ -3,16 +3,12 @@ import {
   type AuthoringSession,
 } from '@/services/storage/authoringSession';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
-import { classifySyncError } from '@/services/storage/syncErrorCatalog';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   saveRecordStrict as saveToIndexedDB,
   type LocalRecordWriteResult,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
-import {
-  isFirestoreEnabled,
-  getFirestoreSyncState,
-} from '@/services/repositories/repositoryConfig';
+import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { logger } from '@/services/utils/loggerService';
 import { resolveRemoteWriteRecovery } from '@/services/repositories/dailyRecordRemoteWriteController';
 import {
@@ -250,7 +246,6 @@ interface RemotePersistencePolicy {
    * IndexedDB, and never enqueue a rejected stale writer for later replay.
    */
   remoteAuthorityFirst?: boolean;
-  allowOfflineQueue?: boolean;
 }
 
 interface PersistLocalAndAttemptRemoteSyncInput {
@@ -283,7 +278,6 @@ export const persistLocalAndAttemptRemoteSync = async ({
     requireConfirmedRecord = false,
     allowConflictAutoMerge = true,
     remoteAuthorityFirst = false,
-    allowOfflineQueue = false,
   } = {},
 }: PersistLocalAndAttemptRemoteSyncInput): Promise<'continue' | 'return'> => {
   if (remoteAuthorityFirst) {
@@ -291,21 +285,17 @@ export const persistLocalAndAttemptRemoteSync = async ({
     const assertAuthor = () => {
       if (!isAuthoringSessionCurrent(authoringSession)) throw sessionChanged;
     };
-    const rejectForeignWrite = async (): Promise<'return'> => {
-      const retained =
-        allowOfflineQueue && queueLocalBeforeRemote ? await queueLocalBeforeRemote() : undefined;
+    const rejectForeignWrite = (): 'return' => {
       applyLocalPersistenceFailure(
         changedPaths,
-        retained
-          ? toRejectedOutboxPersistenceResult(retained)
-          : {
-              ok: false,
-              operation: 'save',
-              store: 'none',
-              dates: [],
-              error: sessionChanged,
-              userSafeMessage: 'La sesión cambió. La operación no fue enviada ni guardada.',
-            },
+        {
+          ok: false,
+          operation: 'save',
+          store: 'none',
+          dates: [],
+          error: sessionChanged,
+          userSafeMessage: 'La sesión cambió. La operación no fue enviada ni guardada.',
+        },
         remoteState
       );
       // The existing outcome tag silences work belonging to a departed session.
@@ -316,25 +306,16 @@ export const persistLocalAndAttemptRemoteSync = async ({
         status: 'degraded',
         runtimeState: 'recoverable',
         issues: ['La sesión de autoría terminó antes del despacho remoto.'],
-        context: { retained: retained?.mode === 'retained_for_owner' },
       });
       return 'return';
     };
     if (!isAuthoringSessionCurrent(authoringSession)) return rejectForeignWrite();
-    if (
-      !isFirestoreEnabled() &&
-      (!allowOfflineQueue || getFirestoreSyncState().reason !== 'offline')
-    ) {
+    if (!isFirestoreEnabled()) {
       throw new Error('La autoridad remota no está disponible para esta escritura clínica.');
     }
     let remoteResult: RemoteAuthorityWriteResult | void;
     try {
       try {
-        if (!isFirestoreEnabled()) {
-          throw Object.assign(new Error('La sincronización está sin conexión.'), {
-            code: 'unavailable',
-          });
-        }
         remoteResult = await remoteWrite();
       } catch (writeError) {
         const rebased = await attemptStaleVersionRebaseRetry<RemoteAuthorityWriteResult>({
@@ -367,30 +348,6 @@ export const persistLocalAndAttemptRemoteSync = async ({
       if (alreadyAppliedRecovery !== 'not_applied') return alreadyAppliedRecovery;
 
       onRemoteFailure(error);
-      if (
-        allowOfflineQueue &&
-        classifySyncError(error).category === 'network' &&
-        queueLocalBeforeRemote
-      ) {
-        const queued = await queueLocalBeforeRemote();
-        if (!queued.accepted) {
-          applyLocalPersistenceFailure(
-            changedPaths,
-            toRejectedOutboxPersistenceResult(queued),
-            remoteState
-          );
-          return 'return';
-        }
-        markLocalWriteSucceeded(remoteState);
-        await releaseLocalPreOutboxHold?.();
-        remoteState.queuedForRetry = true;
-        remoteState.consistencyState = 'queued_for_retry';
-        remoteState.retryability = 'automatic_retry';
-        remoteState.recoveryAction = 'queue_retry';
-        remoteState.userSafeMessage =
-          'Entrega guardada en este dispositivo, pendiente de sincronización para el paciente y episodio originales.';
-        return 'return';
-      }
       throw error;
     }
     markRemoteWriteSucceeded(remoteState);

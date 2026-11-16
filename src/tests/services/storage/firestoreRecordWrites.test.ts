@@ -6,10 +6,9 @@ import {
   mockResolveFirebaseUserRole,
   mockGetCurrentUser,
   mockHttpsCallable,
-  mockSpecialistCallable,
+  mockCallable,
   mockGetFunctions,
-  specialistHandoffTargets,
-  specialistSnapshot,
+  occupiedSnapshot,
 } from './firestoreRecordWritesTestSupport';
 import { deleteDoc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import {
@@ -31,15 +30,15 @@ describe('firestoreRecordWrites', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(withRetry).mockImplementation(operation => operation());
-    vi.mocked(getDoc).mockResolvedValue(specialistSnapshot() as never);
+    vi.mocked(getDoc).mockResolvedValue(occupiedSnapshot() as never);
     delete (import.meta.env as Record<string, string | undefined>)
       .VITE_DAILY_RECORD_AUTHORITY_CALLABLE;
     delete (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE;
     mockGetCurrentUser.mockReturnValue(null);
     mockResolveFirebaseUserRole.mockResolvedValue(null);
     mockEnsureUserRoleClaim.mockResolvedValue(undefined);
-    mockHttpsCallable.mockReturnValue(mockSpecialistCallable);
-    mockSpecialistCallable.mockResolvedValue({ data: { success: true } });
+    mockHttpsCallable.mockReturnValue(mockCallable);
+    mockCallable.mockResolvedValue({ data: { success: true } });
   });
 
   it('saves full records after concurrency and history checks', async () => {
@@ -124,7 +123,7 @@ describe('firestoreRecordWrites', () => {
       '2026-03-16T10:00:00.000Z'
     );
 
-    expect(mockSpecialistCallable).not.toHaveBeenCalled();
+    expect(mockCallable).not.toHaveBeenCalled();
     expect(saveRecordAtomically).toHaveBeenCalledWith(
       { date: '2026-03-16' },
       expect.objectContaining({ date: '2026-03-16' }),
@@ -170,7 +169,7 @@ describe('firestoreRecordWrites', () => {
       'saveDailyRecordWithClinicalAuthority',
       { timeout: 45_000 }
     );
-    expect(mockSpecialistCallable).toHaveBeenCalledWith(
+    expect(mockCallable).toHaveBeenCalledWith(
       expect.objectContaining({
         date: '2026-03-14',
         expectedLastUpdated: '2026-03-14T10:00:00.000Z',
@@ -290,61 +289,20 @@ describe('firestoreRecordWrites', () => {
     );
   });
 
-  it('routes specialist-scoped patches through the callable backend for doctor_specialist users', async () => {
-    const currentUser = {
+  it('writes a doctor_specialist clinical-events patch directly, never through a note callable', async () => {
+    mockGetCurrentUser.mockReturnValue({
       uid: 'specialist-2',
       email: 'specialist@example.com',
       isAnonymous: false,
-    };
-    mockGetCurrentUser.mockReturnValue(currentUser);
+    });
     mockResolveFirebaseUserRole.mockResolvedValue('doctor_specialist');
 
-    await updateRecordPartial(
-      '2026-03-20',
-      {
-        'beds.R4.medicalHandoffEntries': [{ id: 'entry-1', note: 'Seguimiento' }],
-        'beds.R4.medicalHandoffNote': 'Seguimiento',
-        'beds.R4.medicalHandoffAudit': { currentStatus: 'updated_by_specialist' },
-      } as never,
-      undefined,
-      { specialistHandoffTargets }
-    );
-
-    expect(mockGetFunctions).toHaveBeenCalled();
-    expect(mockHttpsCallable).toHaveBeenCalledWith(
-      { name: 'functions-runtime' },
-      'updateSpecialistMedicalHandoff',
-      { timeout: 45_000 }
-    );
-    expect(mockSpecialistCallable).toHaveBeenCalledWith({
-      date: '2026-03-20',
-      expectedOccupants: specialistHandoffTargets,
-      patch: {
-        'beds.R4.medicalHandoffEntries': [{ id: 'entry-1', note: 'Seguimiento' }],
-        'beds.R4.medicalHandoffNote': 'Seguimiento',
-        'beds.R4.medicalHandoffAudit': { currentStatus: 'updated_by_specialist' },
-      },
-    });
-    expect(updateDoc).not.toHaveBeenCalled();
-  });
-
-  it('keeps direct Firestore writes for the same scoped patch when the user is not doctor_specialist', async () => {
-    const currentUser = {
-      uid: 'admin-1',
-      email: 'admin@example.com',
-      isAnonymous: false,
-    };
-    mockGetCurrentUser.mockReturnValue(currentUser);
-    mockResolveFirebaseUserRole.mockResolvedValue('admin');
-
     await updateRecordPartial('2026-03-21', {
-      'beds.R4.medicalHandoffEntries': [{ id: 'entry-1', note: 'Seguimiento admin' }],
-      'beds.R4.medicalHandoffNote': 'Seguimiento admin',
-      'beds.R4.medicalHandoffAudit': { currentStatus: 'updated_by_specialist' },
+      'beds.R4.clinicalEvents': [{ id: 'event-1', name: 'Procedimiento', date: '2026-03-21' }],
     } as never);
 
     expect(mockGetFunctions).not.toHaveBeenCalled();
-    expect(mockSpecialistCallable).not.toHaveBeenCalled();
+    expect(mockCallable).not.toHaveBeenCalled();
     expect(updateRecordPartiallyAtomically).toHaveBeenCalledTimes(1);
   });
 

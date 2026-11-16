@@ -21,7 +21,7 @@ describe('firestoreRecordWritePatchPolicy', () => {
         },
         'beds.R1.hasCompanionCrib': false,
       },
-      specialistScopedPatch: false,
+      clinicalEventsOnlyPatch: false,
       intentionalBedClear: undefined,
       clinicalCribCreate: true,
     });
@@ -73,7 +73,7 @@ describe('firestoreRecordWritePatchPolicy', () => {
         'bedTypeOverrides.R3': 'UCI',
         dateTimestamp: 123,
       },
-      specialistScopedPatch: false,
+      clinicalEventsOnlyPatch: false,
       intentionalBedClear: undefined,
     });
 
@@ -90,7 +90,7 @@ describe('firestoreRecordWritePatchPolicy', () => {
       partialData: {
         beds: { R3: { upcChecklist: { classification: 'UPC_UTI' }, isUPC: true } },
       },
-      specialistScopedPatch: false,
+      clinicalEventsOnlyPatch: false,
       intentionalBedClear: undefined,
     });
 
@@ -103,7 +103,7 @@ describe('firestoreRecordWritePatchPolicy', () => {
       partialData: {
         'beds.R3.deviceDetails': { LA: { installationDate: '2026-08-31' } },
       },
-      specialistScopedPatch: false,
+      clinicalEventsOnlyPatch: false,
       intentionalBedClear: undefined,
     });
 
@@ -114,7 +114,7 @@ describe('firestoreRecordWritePatchPolicy', () => {
   it('does not strip Rayen fields from unrelated patches', () => {
     const result = prepareFirestorePartialData({
       partialData: { 'beds.R1.devices': ['VVP'] },
-      specialistScopedPatch: false,
+      clinicalEventsOnlyPatch: false,
       intentionalBedClear: undefined,
     });
 
@@ -136,7 +136,7 @@ describe('firestoreRecordWritePatchPolicy', () => {
           },
         },
       },
-      specialistScopedPatch: false,
+      clinicalEventsOnlyPatch: false,
       intentionalBedClear: undefined,
       clinicalCribCreate: true,
     });
@@ -162,7 +162,7 @@ describe('firestoreRecordWritePatchPolicy', () => {
           vitalSigns: { heartRate: 80 },
         },
       },
-      specialistScopedPatch: false,
+      clinicalEventsOnlyPatch: false,
       intentionalBedClear: undefined,
     });
 

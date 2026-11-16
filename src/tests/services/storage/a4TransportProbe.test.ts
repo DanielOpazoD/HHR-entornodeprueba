@@ -2,7 +2,7 @@ import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { QueryClient } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { A, B, clone, day, harnessState, writeNote } from './specialistHandoffOutboxHarness';
+import { A, B, clone, day, harnessState } from './dayRecordOutboxHarness';
 import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
@@ -28,7 +28,6 @@ import {
   registerPendingDailyRecordPatch,
 } from '@/hooks/controllers/dailyRecordPendingPatchController';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
-import { resetMedicalHandoffDraftMemoryForTests } from '@/services/storage/medicalHandoffDraftStorage';
 
 const wire = vi.hoisted(() => ({
   emit: undefined as
@@ -52,7 +51,6 @@ vi.mock('@/services/storage/firestore/firestoreRecordQueries', async importOrigi
 }));
 
 const DATE = '2026-10-24';
-const NOTE = 'Nota especialista sintética pendiente';
 const Q = 'Diagnóstico optimista sintético';
 const _paths = [
   'puntual',
@@ -67,7 +65,6 @@ const _paths = [
 type Path = (typeof _paths)[number];
 const _situations = [
   'diaria',
-  'especialista',
   'optimista',
   'local nueva',
   'otro paciente',
@@ -77,15 +74,12 @@ const _situations = [
 type Situation = (typeof _situations)[number];
 const h = harnessState();
 let client: QueryClient;
-const note = (record: DailyRecord | null | undefined) =>
-  record?.beds.R4.medicalHandoffEntries?.[0]?.note;
 
 beforeEach(async () => {
   localStorage.clear();
   sessionStorage.clear();
   localStorage.setItem('hhr_session_owner_v1', 'user:synthetic-admission');
   clearPendingDailyRecordPatchesForTests();
-  resetMedicalHandoffDraftMemoryForTests();
   await hospitalDB.syncQueue.clear();
   await hospitalDB.dailyRecords.clear();
   h.remote = null;
@@ -98,7 +92,6 @@ afterEach(async () => {
   client.clear();
   wire.emit = undefined;
   clearPendingDailyRecordPatchesForTests();
-  resetMedicalHandoffDraftMemoryForTests();
   await hospitalDB.syncQueue.clear();
   await hospitalDB.dailyRecords.clear();
   localStorage.clear();
@@ -113,22 +106,6 @@ async function prepare(situation: Situation) {
   base.nursesDayShift = ['Local sintética'];
   await hospitalDB.dailyRecords.put(base);
   h.remote = clone(base);
-  if (
-    situation === 'especialista' ||
-    situation === 'otro paciente' ||
-    situation === 'otro episodio'
-  ) {
-    const result = await writeNote(base, 'R4', 'entry-A', NOTE);
-    expect(result.result).toMatchObject({ queuedForRetry: true, updatedRemotely: false });
-    expect(note(await hospitalDB.dailyRecords.get(DATE))).toBe(NOTE);
-    expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
-      {
-        type: 'UPDATE_SPECIALIST_HANDOFF',
-        status: 'PENDING',
-        key: expect.stringMatching(/^handoff:/),
-      },
-    ]);
-  }
   if (situation === 'diaria') {
     const task: SyncTask = {
       opId: 'synthetic-admission-daily',
@@ -231,8 +208,6 @@ import { migrateLegacyData } from '@/services/repositories/dataMigration';
 import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyRecordPersistencePreparation';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import * as firebase from 'firebase/firestore';
-import * as fresh from '@/hooks/controllers/dailyRecordFreshnessGateController';
-import * as confirm from '@/hooks/controllers/dailyRecordRemoteConfirmationController';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
 for (const path of ['suscripción', 'E', 'rango', 'mantenimiento'] as const)
@@ -344,21 +319,6 @@ for (const path of ['suscripción', 'E'] as const)
       sourceOfTruth: 'local',
       consistencyState: 'local_kept',
     });
-  });
-for (const path of ['suscripción', 'puntual'] as const)
-  it(`real publication ${path}`, async () => {
-    const { remote } = await prepare('especialista');
-    fresh.resetDailyRecordFreshnessGateForTests();
-    fresh.markDailyRecordRemoteConfirmed(DATE, { source: 'query', confirmedRecord: clone(remote) });
-    const mark = vi.spyOn(fresh, 'markDailyRecordRemoteConfirmed');
-    const apply = vi.spyOn(confirm, 'applyDailyRecordRemoteConfirmation');
-    if (path === 'puntual') await read('E', remote);
-    const published = await read(path, remote);
-    expect(note(published)).toBe(NOTE);
-    expect(mark).toHaveBeenCalled();
-    for (const [, params] of mark.mock.calls) expect(params).not.toHaveProperty('confirmedRecord');
-    for (const [state] of apply.mock.calls)
-      expect(JSON.stringify(state.lastConfirmedRecord)).not.toContain(NOTE);
   });
 for (const available of [true, false])
   it(`null E available ${available}`, async () => {

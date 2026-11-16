@@ -1,4 +1,3 @@
-import type { SpecialistHandoffTarget } from '@/types/domain/specialistHandoffTarget';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   evaluateDailyRecordClinicalAuthority,
@@ -11,14 +10,12 @@ import {
 } from '@/services/storage/dailyRecordAuthorityContract';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import { firestoreWriteLogger } from '@/services/storage/storageLoggers';
-import { resolveFirebaseUserRole } from '@/services/auth/authAccessResolution';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import {
   isServerClinicalWriteFenceActive,
   resolveEffectiveDailyRecordAuthorityMode,
 } from '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode';
-import type { UserRole } from '@/types/authRoleTypes';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import type {
   ClinicalCribCreateRequest,
@@ -28,7 +25,6 @@ import type { SpecialtyManualIntent } from '@/types/domain/specialtyDecision';
 import { isE2EDailyRecordAuthorityCallableForced } from '@/shared/runtime/e2eRuntime';
 
 export interface DailyRecordPartialWriteOptions {
-  specialistHandoffTargets?: SpecialistHandoffTarget[];
   syncContract?: SyncTaskContract;
   /**
    * The day this writer edited. A plain day field then commits over another writer's newer
@@ -110,9 +106,6 @@ const isClinicalAuthorityDerivedPatchPath = (path: string): boolean => {
   return field === 'clinicalEpisodeId' && nestedField === undefined && rest.length === 0;
 };
 
-const isDoctorSpecialistRole = (role: UserRole | null): role is 'doctor_specialist' =>
-  role === 'doctor_specialist';
-
 export const isClinicalAuthorityPatch = (patch: Record<string, unknown>): boolean => {
   const paths = Object.keys(patch);
   return paths.length > 0 && paths.every(isClinicalAuthorityPatchPath);
@@ -162,21 +155,6 @@ export const extractDailyRecordBedTreePatch = (
   patch: Record<string, unknown>
 ): Record<string, unknown> =>
   Object.fromEntries(Object.entries(patch).filter(([path]) => isDailyRecordBedTreePath(path)));
-
-export const shouldRouteSpecialistPatchViaCallable = async (): Promise<boolean> => {
-  try {
-    await defaultAuthRuntime.ready;
-    const firebaseUser = defaultAuthRuntime.getCurrentUser();
-    if (!firebaseUser || firebaseUser.isAnonymous) {
-      return false;
-    }
-
-    return isDoctorSpecialistRole(await resolveFirebaseUserRole(firebaseUser));
-  } catch (error) {
-    firestoreWriteLogger.warn('Specialist callable routing role check failed', { error });
-    return false;
-  }
-};
 
 export const shouldRouteDailyRecordSaveViaCallable = async (): Promise<boolean> => {
   const [mode, writeFenceActive] = await Promise.all([

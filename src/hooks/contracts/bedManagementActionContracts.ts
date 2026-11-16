@@ -11,7 +11,6 @@ export type BedAction =
       type: 'UPDATE_PATIENT_MULTIPLE';
       bedId: string;
       fields: Partial<PatientData>;
-      expectedHandoffPatient?: PatientData;
     }
   | { type: 'UPDATE_CUDYR'; bedId: string; field: keyof CudyrScore; value: number }
   | { type: 'UPDATE_CUDYR_MULTIPLE'; bedId: string; fields: CudyrScorePatch }
@@ -46,7 +45,6 @@ export type BedAction =
       type: 'UPDATE_CLINICAL_CRIB_MULTIPLE';
       bedId: string;
       fields: Partial<PatientData>;
-      expectedHandoffPatient?: PatientData;
     }
   | { type: 'UPDATE_CLINICAL_CRIB_CUDYR'; bedId: string; field: keyof CudyrScore; value: number }
   | { type: 'UPDATE_CLINICAL_CRIB_CUDYR_MULTIPLE'; bedId: string; fields: CudyrScorePatch }

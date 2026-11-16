@@ -99,17 +99,17 @@ const flattenClinicalAwareDailyRecordPatch = (
 
 export const prepareFirestorePartialData = ({
   partialData,
-  specialistScopedPatch,
+  clinicalEventsOnlyPatch,
   intentionalBedClear,
   clinicalCribCreate = false,
 }: {
   partialData: Record<string, unknown>;
-  specialistScopedPatch: boolean;
+  clinicalEventsOnlyPatch: boolean;
   intentionalBedClear: DailyRecordPartialWriteOptions['intentionalBedClear'];
   clinicalCribCreate?: boolean;
 }): Record<string, unknown> => {
   if (!intentionalBedClear) {
-    if (specialistScopedPatch) return partialData;
+    if (clinicalEventsOnlyPatch) return partialData;
     const flattenedData = flattenClinicalAwareDailyRecordPatch(partialData);
     return clinicalCribCreate
       ? stripServerOwnedFieldsFromClinicalCribCreates(partialData, flattenedData)

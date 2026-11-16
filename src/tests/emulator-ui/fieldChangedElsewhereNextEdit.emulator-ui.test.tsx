@@ -1,9 +1,8 @@
-/* @flake-safe: Synthetic census on the current clinical day, which the real rules let nurses and specialists write. */
+/* @flake-safe: Synthetic census on the current clinical day, which the real rules let nurses write. */
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { ReactNode } from 'react';
 import { readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { initializeApp, deleteApp, type App } from 'firebase-admin/app';
@@ -19,8 +18,6 @@ import {
 } from '@/hooks/controllers/dailyRecordQueryController';
 import { buildClinicalCribPatch } from '@/hooks/controllers/clinicalCribController';
 import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
-import { buildMedicalEntryNoteFields } from '@/tests/services/storage/specialistNoteFields';
-import { buildSpecialistHandoffTargets } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -37,26 +34,19 @@ import type { DailyRecordQueryResult } from '@/services/repositories/contracts/d
  * What the census does after «El campo cambió en otro equipo» (W12-CW5): the screen keeps this
  * computer's text, and the person's next edit of that field must again meet the other computer's
  * text instead of replacing it unseen. The edits run through the census hook, whose base is the
- * record on screen, against the real rules, the shipped authority and specialist handlers and the
- * Firestore emulator.
+ * record on screen, against the real rules, the shipped authority handler and the Firestore
+ * emulator.
  */
 vi.unmock('@/application/ports/dailyRecordPort');
 vi.unmock('@/services/repositories/dailyRecordRepositoryWriteService');
 
 const h = vi.hoisted(() => ({
   db: undefined as unknown,
-  specialist: false,
-  server: undefined as undefined | ((name: string, data: unknown) => Promise<unknown>),
 }));
 vi.mock('firebase/functions', () => ({
-  httpsCallable: (_functions: unknown, name: string) => async (data: unknown) => {
-    if (!h.server) throw new Error('no server');
-    return { data: await h.server(name, data) };
+  httpsCallable: (_functions: unknown, name: string) => async () => {
+    throw new Error(`unexpected callable ${name}`);
   },
-}));
-vi.mock('@/services/storage/firestore/firestoreDailyRecordAuthorityRouting', async original => ({
-  ...(await original<object>()),
-  shouldRouteSpecialistPatchViaCallable: async () => h.specialist,
 }));
 vi.mock('@/firebaseConfig', () => ({
   get db() {
@@ -68,7 +58,7 @@ vi.mock('@/firebaseConfig', () => ({
       email: 'synthetic-B@example.invalid',
       isAnonymous: false,
       getIdTokenResult: async () => ({
-        claims: { role: h.specialist ? 'doctor_specialist' : 'nurse_hospital' },
+        claims: { role: 'nurse_hospital' },
       }),
     },
   },
@@ -81,7 +71,7 @@ vi.mock('@/firebaseConfig', () => ({
   mountConfigWarning: vi.fn(),
 }));
 
-// The server lets a specialist write only the current clinical day (yesterday before rollover).
+// The current clinical day (yesterday before rollover).
 const date = resolveCurrentClinicalDay();
 const dayPath = `hospitals/hanga_roa/dailyRecords/${date}`;
 const projectId = 'demo-hhr-field-changed-elsewhere';
@@ -100,8 +90,6 @@ const base = (): DailyRecord =>
             rut: '11111111-1',
             clinicalEpisodeId: 'episode-a',
             admissionDate: date,
-            medicalHandoffNote: '',
-            medicalHandoffEntries: [{ id: 'entry-x', specialty: 'Medicina Interna', note: '' }],
           }),
         },
       })
@@ -152,30 +140,10 @@ beforeAll(async () => {
       }
     }
   );
-  const { createSpecialistMedicalHandoffFunctions } = createRequire(import.meta.url)(
-    '../../../functions/lib/specialistMedicalHandoffFunctions.js'
-  );
-  const specialistApi = createSpecialistMedicalHandoffFunctions({
-    firestore: admin,
-    Timestamp,
-    resolveRoleForEmail: async () => 'doctor_specialist',
-  });
-  h.server = async (name, data) => {
-    if (name !== 'updateSpecialistMedicalHandoff') throw new Error(`unexpected callable ${name}`);
-    try {
-      return await specialistApi.updateSpecialistMedicalHandoff.run(data, context());
-    } catch (error) {
-      const code = (error as { code?: string }).code;
-      throw Object.assign(new Error((error as Error).message), {
-        code: code ? `functions/${code}` : 'functions/internal',
-      });
-    }
-  };
 });
 afterEach(async () => {
   client?.clear();
   client?.unmount();
-  h.specialist = false;
 });
 afterAll(async () => {
   vi.restoreAllMocks();
@@ -304,49 +272,6 @@ it.each(['live', 'refetch'] as const)(
     expect((await server())[night]).toBe('A1');
     await expectUnsentNightKept('B5');
     hook.unmount();
-  },
-  60_000
-);
-
-// Measured on main too, with a single conflict (W12-CW5 report): while a write in conflict holds
-// the day, a confirmed read keeps this computer's copy as it was (dailyRecordRemoteReadController,
-// retained_pending) and the outbox does not adopt a server day over a quarantined write
-// (adoptAuthoritativeDailyRecordInOutbox). The copy's version stays behind the server's, so a
-// specialist's note, checked against it, is refused until the conflict is reviewed. Its own unit.
-it.fails(
-  'lets a specialist note through after a confirmed read while a conflict holds the day',
-  async () => {
-    const { mutate, hook } = await conflictOnNight();
-    await recover(hook, 'live');
-    // Another computer's later write that this copy cannot take while the conflict holds it.
-    await admin
-      .doc(dayPath)
-      .update({ handoffNovedadesDayShift: 'A7', lastUpdated: Timestamp.now() });
-    await recover(hook, 'refetch');
-    h.specialist = true;
-    const visible = shown()!.record!;
-    const { fields } = buildMedicalEntryNoteFields(
-      visible.beds.R4,
-      'entry-x',
-      'NOTA SINTETICA',
-      null,
-      date,
-      new Date().toISOString()
-    );
-    const note = Object.fromEntries(
-      Object.entries(fields).map(([key, value]) => [`beds.R4.${key}`, value])
-    ) as DailyRecordPatch;
-    try {
-      const noted = await mutate(note, {
-        specialistHandoffTargets: buildSpecialistHandoffTargets(visible, note),
-      });
-      expect(noted?.updatedRemotely).toBe(true);
-      expect(
-        (await server()).beds.R4.medicalHandoffEntries?.find(entry => entry.id === 'entry-x')?.note
-      ).toBe('NOTA SINTETICA');
-    } finally {
-      hook.unmount();
-    }
   },
   60_000
 );

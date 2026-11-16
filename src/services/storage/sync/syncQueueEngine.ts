@@ -2,7 +2,7 @@ import { isAuthoringSessionCurrent } from '@/services/storage/authoringSession';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ErrorSeverity } from '@/services/logging/errorLogTypes';
 import { logError } from '@/services/utils/errorService';
-import type { SpecialistHandoffSyncPayload, SyncTask } from '@/services/storage/syncQueueTypes';
+import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { SyncTransportResult } from '@/services/storage/sync/syncQueuePorts';
 import type { SyncErrorCategory } from '@/services/storage/syncErrorCatalog';
 import type {
@@ -159,12 +159,10 @@ export const createSyncQueueEngine = ({
   const queueDailyRecordTaskWithLocalRecord = async (
     record: DailyRecord,
     meta: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'> | undefined,
-    options: SyncQueueEnqueueOptions,
-    /** A specialist note is its own task: never coalesced into the day record task. */
-    handoff?: SpecialistHandoffSyncPayload
+    options: SyncQueueEnqueueOptions
   ): Promise<SyncQueueEnqueueResult> => {
-    const type: SyncTask['type'] = handoff ? 'UPDATE_SPECIALIST_HANDOFF' : 'UPDATE_DAILY_RECORD';
-    const payload = handoff ?? record;
+    const type: SyncTask['type'] = 'UPDATE_DAILY_RECORD';
+    const payload = record;
     const key = getSyncTaskKey(type, payload);
     const ownerKey = options.authoringSession.ownerKey;
     const taskOwnerKey = ownerKey ?? undefined;
@@ -270,16 +268,6 @@ export const createSyncQueueEngine = ({
       generation !== runtime.getSessionGeneration?.();
 
     try {
-      // Never dispatch from a day whose note projections could not be repaired.
-      try {
-        await store.reconcileSpecialistHandoffProjections?.();
-      } catch (releaseError) {
-        logError(
-          'Repairing specialist note projections failed; queue replay deferred',
-          releaseError instanceof Error ? releaseError : undefined
-        );
-        return;
-      }
       await measureRepositoryOperation(
         'syncQueue.process',
         async () => {

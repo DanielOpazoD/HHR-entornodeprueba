@@ -45,7 +45,7 @@ it('keeps a baseless write for review while other failed writes can still retry'
   expect(retryQuarantinedSyncTask).toHaveBeenCalledExactlyOnceWith(42);
 });
 
-it.each(['UPDATE_SPECIALIST_HANDOFF', 'UPDATE_DAILY_RECORD'] as const)(
+it.each(['UPDATE_DAILY_RECORD'] as const)(
   'still requires confirmation to discard a refused occupant-bound write: %s',
   type => {
     render(

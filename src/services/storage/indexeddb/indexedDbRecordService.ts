@@ -7,10 +7,8 @@ import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
 import { listDailyRecordProjectionHolders } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 import { ensureDbReady, hospitalDB as db, isDatabaseInFallbackMode } from './indexedDbCore';
 import { dispatchDailyRecordStoreChanged } from './indexedDbRecordEvents';
-import { projectRemoteAdmissionNotes } from './remoteAdmissionNoteProjection';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
-import type { SpecialistHandoffSyncPayload } from '@/services/storage/syncQueueTypes';
 import { publishAdmissionEffects } from './remoteAdmissionEffects';
 
 export type LocalRecordWriteStore = 'indexeddb' | 'fallback' | 'e2e' | 'none';
@@ -295,7 +293,6 @@ export const admitLocalRecords = async (
   if (!unique.length) return [];
   const owner = getStoredSessionOwnerKey();
   const epoch = getSessionEpoch();
-  const detached: SpecialistHandoffSyncPayload[] = [];
   const changed: string[] = [];
   let occurrences = 0;
   try {
@@ -337,18 +334,7 @@ export const admitLocalRecords = async (
               decisions.push({ date: record.date, status: 'admitted', record: stored });
               continue;
             }
-            const tasks = await db.syncQueue
-              .where('key')
-              .startsWith(`handoff:${record.date}:`)
-              .toArray();
-            const owned = tasks.filter(task => task.ownerKey === owner);
-            const projected = projectRemoteAdmissionNotes(
-              remoteRecord ? record : (stored ?? record),
-              remoteRecord ?? null,
-              owned,
-              detached
-            );
-            const selected = projected.record;
+            const selected = remoteRecord ? record : (stored ?? record);
             if (!arePatchValuesDeepEqual(stored, selected)) {
               if (
                 stored &&
@@ -390,7 +376,7 @@ export const admitLocalRecords = async (
       if (result.record) syncE2ERuntimeRecordMirror(result.record);
     }
     if (changed.length) dispatchDailyRecordStoreChanged({ operation: 'save', dates: changed });
-    publishAdmissionEffects({ owner, epoch, detached, occurrences });
+    publishAdmissionEffects(occurrences);
     return results;
   } catch (error) {
     recordOperationalErrorTelemetry('indexeddb', 'indexeddb_save_records', error, {
