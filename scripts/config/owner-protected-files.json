@@ -1,0 +1,42 @@
+{
+  "$comment": "AGENTS.md: no se borran Formularios/ ni Hospital Salvador/ (neverDelete), y se pregunta al responsable antes de tocar printables/ o los PNG de la raíz (askOwnerFirst: ruta → blob de git). Lo verifica el control de higiene del repositorio (scripts/lib/ownerProtectedFiles.mjs).",
+  "neverDelete": [
+    "Formularios/Encuestaimagen.pdf",
+    "Formularios/Solicit-imagen.pdf",
+    "Formularios/Solicitud de examen de laboratorio policlinico.pdf",
+    "Formularios/consentimiento.docx",
+    "Formularios/consentimiento.pdf",
+    "Formularios/consentimiento_pag_1.png",
+    "Formularios/indicaciones medicas y plan de enfermreia.pdf",
+    "Formularios/pdf-fieldsconsentimiento.json",
+    "Formularios/pdffieldencuestacontraste.json",
+    "Formularios/pdffieldsolicitudimg2.json",
+    "Formularios/solicitud_imagenologia.png",
+    "Hospital Salvador/Correos.txt",
+    "Hospital Salvador/Encuesta de COVID.docx",
+    "Hospital Salvador/Formulario de traslado IAAS.xlsx",
+    "Hospital Salvador/Solicitud Ambulancia 2.docx",
+    "Hospital Salvador/Solicitud Cama HDS 1.doc",
+    "Hospital Salvador/Tapa de traslado.docx",
+    "Hospital Salvador/solicitud-cama-hds.docx"
+  ],
+  "askOwnerFirst": {
+    "Ahutepitokura.png": "c2750bdc45085d470f29a28473b1815393645663",
+    "Hoonu.png": "0d1a5c7c2aa11a68225395f816fa92f1f70356d9",
+    "Mangai.png": "6502fe4f92202fc7e62346337ded327c5549ee3e",
+    "Manutara.png": "0dc3577f42d6626d1b47bbd417c4c1b8a8ff0e70",
+    "Manutara2.png": "d435bda4553dcfc4109c400f16a06bbac0c5b423",
+    "Rapa.png": "fa6ea13fcedba454546b823dfeaaf89f477cca4f",
+    "Rongorongo.png": "99c68ad14de05beb5d5e0b2b20d2d958cc240f92",
+    "printables/caballo_de_mar_6_paginas_carta.pdf": "195f8cd486327cb4ab8b374c4a0b55ec045e2a43",
+    "printables/caballo_de_mar_poster_2x3_carta.pdf": "e9c028de7e7a605e5d1d15a9e5f688274ffdaf3a",
+    "printables/caballo_de_mar_poster_2x3_carta_v2.pdf": "1c30c725bd18e61c39ae249714eeb2ebc737e42d",
+    "printables/caballo_de_mar_poster_2x3_carta_v3.pdf": "c01808e65821cd3795b2641a24d73e7bea2ea50f",
+    "printables/caballo_de_mar_preview.png": "28d70aaa294c91dec76ed14cd03097c4dd21da2f",
+    "printables/caballo_de_mar_ref_style.pdf": "c01808e65821cd3795b2641a24d73e7bea2ea50f",
+    "printables/caballo_de_mar_ref_style_v2.pdf": "c6f11b483f7af6b29b797fee2a459a0424326982",
+    "printables/caballo_de_mar_ref_style_v3.pdf": "e9c028de7e7a605e5d1d15a9e5f688274ffdaf3a",
+    "printables/generate_caballo_de_mar_pdf.py": "6af2cd6445576bbac2a4b5a6c1345058e29350c3",
+    "tmp-specialist-localhost-check.png": "d128ff3295576c2dd8d8b0502f30e1251aee5204"
+  }
+}

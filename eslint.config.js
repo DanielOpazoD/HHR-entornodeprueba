@@ -175,6 +175,63 @@ const REMOTE_ADMISSION_RULE = {
   },
 };
 
+// SAVE-03: queue rows and the local database are removed only in the modules whose tests prove when.
+const QUEUE_REMOVAL_HOMES = [
+  'src/services/storage/sync/dexieSyncQueueStore.ts',
+  'src/services/storage/sync/dexieSyncQueueAuthorityAck.ts',
+  'src/services/storage/sync/dexieSyncQueueQuarantine.ts',
+  'src/services/storage/indexeddb/indexedDbDeleteController.ts',
+];
+const QUEUE_REMOVAL_RULE = {
+  meta: {
+    type: 'problem',
+    schema: [],
+    messages: {
+      removal:
+        'Solo dexieSyncQueueStore, dexieSyncQueueAuthorityAck, dexieSyncQueueQuarantine e indexedDbDeleteController borran tareas de la cola o la base local (SAVE-03). Llama a sus funciones; nada borra la cola sin confirmación explícita.',
+    },
+  },
+  create(context) {
+    const nameOf = node =>
+      node?.type === 'MemberExpression'
+        ? node.computed
+          ? node.property.value
+          : node.property.name
+        : undefined;
+    const unwrap = node =>
+      node?.type === 'ChainExpression' || node?.type === 'TSNonNullExpression'
+        ? unwrap(node.expression)
+        : node;
+    const reachesSyncQueue = node => {
+      for (let current = unwrap(node); current; ) {
+        if (current.type === 'MemberExpression') {
+          if (nameOf(current) === 'syncQueue') return true;
+          current = unwrap(current.object);
+        } else if (current.type === 'CallExpression') {
+          const callee = unwrap(current.callee);
+          if (nameOf(callee) === 'table' && current.arguments[0]?.value === 'syncQueue')
+            return true;
+          current = callee;
+        } else return false;
+      }
+      return false;
+    };
+    return {
+      CallExpression(node) {
+        const callee = unwrap(node.callee);
+        const method = nameOf(callee);
+        const object = unwrap(callee?.object);
+        if (
+          method === 'deleteDatabase' ||
+          (method === 'delete' && ['Dexie', 'hospitalDB'].includes(object?.name)) ||
+          (['delete', 'bulkDelete', 'clear'].includes(method) && reachesSyncQueue(object))
+        )
+          context.report({ node, messageId: 'removal' });
+      },
+    };
+  },
+};
+
 // cudyr and handoff also keep data access behind controllers/use-cases/ports.
 const DATA_ACCESS_RESTRICTION = {
   group: [
@@ -502,5 +559,11 @@ export default tseslint.config(
     ],
     plugins: { admission: { rules: { 'remote-reads': REMOTE_ADMISSION_RULE } } },
     rules: { 'admission/remote-reads': 'error' },
+  },
+  {
+    files: ['src/**/*.{ts,tsx,js,jsx}'],
+    ignores: ['**/*.d.ts', '**/tests/**', '**/*.test.*', '**/*.spec.*', ...QUEUE_REMOVAL_HOMES],
+    plugins: { queue: { rules: { 'removal-home': QUEUE_REMOVAL_RULE } } },
+    rules: { 'queue/removal-home': 'error' },
   }
 );

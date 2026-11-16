@@ -4,6 +4,11 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { isDomainTypeFacade } from './lib/domainTypeHome.mjs';
+import {
+  findOwnerProtectedFileChanges,
+  OWNER_PROTECTED_FILES_CONFIG,
+  readTrackedBlobs,
+} from './lib/ownerProtectedFiles.mjs';
 
 const root = process.cwd();
 const HOOK_CONTROLLERS_DIR = path.join(root, 'src', 'hooks', 'controllers');
@@ -255,6 +260,19 @@ for (const basename of hookControllerBasenames) {
       },
     });
   }
+}
+
+const ownerProtectedConfig = JSON.parse(
+  fs.readFileSync(path.join(root, OWNER_PROTECTED_FILES_CONFIG), 'utf8')
+);
+for (const description of findOwnerProtectedFileChanges(
+  ownerProtectedConfig,
+  readTrackedBlobs(root)
+)) {
+  failures.push({
+    file: OWNER_PROTECTED_FILES_CONFIG,
+    rule: { id: 'owner-protected-files', description },
+  });
 }
 
 if (failures.length > 0) {
