@@ -1,6 +1,6 @@
 import { CUDYR_ADMIN_ADJUSTMENT_SOURCE } from '@/domain/evaluationScales/importedCudyr';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
-import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
+import type { CudyrReportDataset, CudyrReportEvaluation } from '@/types/domain/cudyrReport';
 import type { ArchivedCudyrSupplement } from './cudyrSupplementService';
 import { previousCensusIsoDay } from '@/domain/evaluationScales/importedCudyr';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
@@ -25,6 +25,12 @@ import { cudyrDocumentKey } from '@/domain/cudyr/cudyrSourceIdentity';
 import { createCudyrIdentityResolver, cudyrOrderedIdentity } from './cudyrNameReconciliation';
 import { resolveRepeatedMonthlyEpisodes } from './cudyrMonthlyEpisodeLink';
 export const isEloisaCudyr = (source: string) => /elo[ií]sa/i.test(source);
+/** A justified administrative contingency: it stays authoritative over Eloísa's cell for its row. */
+export const isAuthorizedCudyrAdminAdjustment = (
+  evaluation: CudyrReportEvaluation | null
+): boolean =>
+  evaluation?.source === CUDYR_ADMIN_ADJUSTMENT_SOURCE &&
+  Boolean(evaluation.adjustmentReason?.trim() && evaluation.adjustmentEvidence?.trim());
 export const monthlySourceIsFinal = (r: ArchivedCudyrSupplement, day: string, now: Date) => {
   const times = [r.capture?.observedAt || '', r.importedAt];
   return (
@@ -51,11 +57,7 @@ export const applyCudyrMonthlySources = (
     if (
       row.evaluation &&
       !isEloisaCudyr(row.evaluation.source) &&
-      !(
-        row.evaluation.source === CUDYR_ADMIN_ADJUSTMENT_SOURCE &&
-        row.evaluation.adjustmentReason?.trim() &&
-        row.evaluation.adjustmentEvidence?.trim()
-      )
+      !isAuthorizedCudyrAdminAdjustment(row.evaluation)
     ) {
       row.evaluation = null;
       row.evaluationCount = 0;
@@ -261,12 +263,8 @@ export const applyCudyrMonthlySources = (
             : {}),
         };
         // A reviewed contingency remains authoritative; source evidence stays visible separately.
-        if (
-          row.evaluation?.source === CUDYR_ADMIN_ADJUSTMENT_SOURCE &&
-          row.evaluation.adjustmentReason &&
-          row.evaluation.adjustmentEvidence
-        ) {
-          if (cell.category && cell.category !== row.evaluation.category) {
+        if (isAuthorizedCudyrAdminAdjustment(row.evaluation)) {
+          if (cell.category && cell.category !== row.evaluation?.category) {
             const warning =
               'Eloísa difiere del ajuste administrativo; se conserva la excepción autorizada.';
             if (!row.warnings.includes(warning)) row.warnings.push(warning);
