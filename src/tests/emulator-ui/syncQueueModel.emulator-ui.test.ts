@@ -41,8 +41,7 @@ import type { SyncTask } from '@/services/storage/syncQueueTypes';
  * authority handler, against the Firestore emulator. After every step the model checks the rules
  * of docs/DOMAIN_RULES.md that hold for every sequence (SAVE-01, SAVE-02, SAVE-03, Sesión), and
  * at the end, with the network back and the queue run, that nothing is left waiting and a conflict
- * stays only where another computer changed one of its fields. KNOWN_DEFECT marks the one rule
- * break it found, still open; nothing after it in a sequence is judged.
+ * stays only where another computer changed one of its fields.
  * `FC_NUM_RUNS` / `FC_SEED` repeat or widen a run, as in src/tests/properties.
  */
 
@@ -109,8 +108,6 @@ interface Edit {
   owner: string;
   generation: string | null;
   base: unknown;
-  /** The save answered «El campo cambió en otro equipo»: see KNOWN_DEFECT. */
-  warned: boolean;
 }
 interface Model {
   online: boolean;
@@ -120,8 +117,6 @@ interface Model {
   everOnServer: Set<unknown>;
   count: number;
   log: string[];
-  /** The sequence reached KNOWN_DEFECT; nothing after it is judged. */
-  reachedKnownDefect: boolean;
 }
 const newModel = (): Model => ({
   online: true,
@@ -131,7 +126,6 @@ const newModel = (): Model => ({
   everOnServer: new Set(['DIA BASE', 'NOCHE BASE']),
   count: 0,
   log: [],
-  reachedKnownDefect: false,
 });
 const editOf = (m: Model, value: unknown) => m.edits.find(edit => edit.value === value);
 /** The texts an edit was written over: its base, the base of that one if it was ours, and so on. */
@@ -163,7 +157,6 @@ const heldBy = (tasks: SyncTask[], edit: Edit) =>
 /** Every rule, after every step. Each failure names the rule and the sequence so far. */
 const checkRules = async (m: Model, step: string) => {
   m.log.push(step);
-  if (m.reachedKnownDefect) return;
   const fail = (rule: string, detail: string): never => {
     throw new Error(`${rule}: ${detail}\nPasos: ${m.log.join(' → ')}`);
   };
@@ -177,17 +170,11 @@ const checkRules = async (m: Model, step: string) => {
     if (now === before || (typeof now === 'string' && now.startsWith('A'))) continue;
     const edit = editOf(m, now);
     // SAVE-02: a text reaches the server only over the text its writer saw (no lost update).
-    if (!edit || !replacedBy(m, edit).includes(before)) {
-      if (edit && m.edits.some(earlier => earlier.warned && earlier !== edit)) {
-        m.log.push('[KNOWN_DEFECT]');
-        m.reachedKnownDefect = true;
-        return;
-      }
+    if (!edit || !replacedBy(m, edit).includes(before))
       return fail(
         'SAVE-02',
         `${field}: «${String(before)}» reemplazado por «${String(now)}» sin verlo`
       );
-    }
     // Sesión: nothing is published for a session that is no longer the current one.
     if (edit.owner !== owner || edit.generation !== getSessionGeneration())
       fail(
@@ -270,14 +257,12 @@ const editOnB = (field: Field) =>
       );
       if (!result.savedLocally) return `editar ${value} (rechazada)`;
       const { generation } = authoringSession;
-      const warned = result.observabilityTags.includes('field_changed_elsewhere');
       m.edits.push({
         value,
         field,
         base: local[field],
         owner: ownerOf(person),
         generation,
-        warned,
       });
       // SAVE-01: «guardado» only when the server holds it.
       if (result.updatedRemotely && (await readServer())[field] !== value)
@@ -380,11 +365,9 @@ const commands = [
  * waiting, and a conflict is kept only where someone else changed one of its fields.
  */
 const checkSettledAfterDrain = async (m: Model) => {
-  if (m.reachedKnownDefect) return;
   if (!m.online) await network(true).run(m, {});
   if (!m.person) await signIn('P1').run(m, {});
   for (let round = 0; round < 3; round++) await replay.run(m, {});
-  if (m.reachedKnownDefect) return;
   const server = await readServer();
   const owner = ownerOf(m.person as Person);
   for (const task of await hospitalDB.syncQueue.toArray()) {
@@ -497,35 +480,65 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     if (app) await deleteApp(app);
   });
 
-  // KNOWN_DEFECT, the counterexample this model found, shrunk by fast-check (W12-MODEL1). The
-  // first edit meets the other computer's text and answers «El campo cambió en otro equipo»; the
-  // day it keeps carries a local time newer than the server's version, so the next edit passes
-  // as this computer's own write and replaces a text nobody here has seen, reported as saved.
-  // `it.fails` until its fix: the fix turns it into `it` and removes KNOWN_DEFECT from the model.
-  it.fails(
-    'keeps the other computer’s text when a second edit follows a «changed elsewhere» notice',
-    async () => {
-      const m = await resetWorld();
-      const night = 'handoffNovedadesNightShift';
-      await writeOnA(night).run(m, {});
-      const edit = async (value: string) => {
-        const local = (await hospitalDB.dailyRecords.get(date)) as DailyRecord;
-        return onB('P1', () =>
-          updatePartialDetailed(
-            date,
-            { [night]: value },
-            { authoringSession: captureAuthoringSession(), baseRecord: local }
-          )
-        );
-      };
-      expect(await edit('B2')).toMatchObject({ updatedRemotely: false, outcome: 'auto_merged' });
-      const second = await edit('B3');
+  // The counterexample this model found, shrunk by fast-check (W12-MODEL1). The first edit meets
+  // the other computer's text and answers «El campo cambió en otro equipo»; the day it keeps
+  // carries a local time newer than the server's version, and the next edit passed as this
+  // computer's own write and replaced a text nobody here had seen, reported as saved (W12-CW5).
+  it('keeps the other computer’s text when a second edit follows a «changed elsewhere» notice', async () => {
+    const m = await resetWorld();
+    const night = 'handoffNovedadesNightShift';
+    await writeOnA(night).run(m, {});
+    const edit = async (field: Field, value: string) => {
+      const local = (await hospitalDB.dailyRecords.get(date)) as DailyRecord;
+      return onB('P1', () =>
+        updatePartialDetailed(date, patchOf(field, value), {
+          authoringSession: captureAuthoringSession(),
+          baseRecord: local,
+        })
+      );
+    };
+    expect(await edit(night, 'B2')).toMatchObject({
+      updatedRemotely: false,
+      outcome: 'auto_merged',
+    });
+    const second = await edit(night, 'B3');
+    expect((await readServer())[night]).toBe('A1');
+    expect(second.updatedRemotely).toBe(false);
+    expect(second.observabilityTags).toContain('field_changed_elsewhere');
 
-      expect((await readServer())[night]).toBe('A1');
-      expect(second.updatedRemotely).toBe(false);
-    },
-    60_000
-  );
+    // A field nobody else changed is still saved at once, without a notice (#1603).
+    const day = await edit('handoffNovedadesDayShift', 'B4');
+    expect(day).toMatchObject({ updatedRemotely: true });
+    expect(day.observabilityTags).not.toContain('field_changed_elsewhere');
+    expect(await readServer()).toMatchObject({
+      handoffNovedadesDayShift: 'B4',
+      handoffNovedadesNightShift: 'A1',
+    });
+  }, 60_000);
+
+  // What the per-field check must not mistake for another computer: this computer's own edit
+  // of the same field, made without network and not resent yet.
+  it('saves an edit over this computer’s own unsent edit of the same field without a notice', async () => {
+    const m = await resetWorld();
+    const night = 'handoffNovedadesNightShift';
+    const edit = async (value: string) => {
+      const local = (await hospitalDB.dailyRecords.get(date)) as DailyRecord;
+      return onB('P1', () =>
+        updatePartialDetailed(date, patchOf(night, value), {
+          authoringSession: captureAuthoringSession(),
+          baseRecord: local,
+        })
+      );
+    };
+    await network(false).run(m, {});
+    expect(await edit('B1')).toMatchObject({ savedLocally: true, updatedRemotely: false });
+    await network(true).run(m, {});
+
+    const online = await edit('B2');
+    expect(online).toMatchObject({ updatedRemotely: true });
+    expect(online.observabilityTags).not.toContain('field_changed_elsewhere');
+    expect((await readServer())[night]).toBe('B2');
+  }, 60_000);
 
   it('keeps every rule after every step of random sequences', async () => {
     await fc.assert(
