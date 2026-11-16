@@ -102,7 +102,8 @@
       "tests": [
         "src/tests/hooks/useCMA.test.ts",
         "src/tests/views/census/CMASection.test.tsx",
-        "src/tests/integration/censusCmaUndoEpisodeConsistency.test.ts"
+        "src/tests/integration/censusCmaUndoEpisodeConsistency.test.ts",
+        "src/tests/integration/censusCmaDischargeFlow.test.tsx"
       ],
       "rules": ["ID-02", "CUD-03"]
     },
@@ -140,6 +141,7 @@
         "src/components/modals/ExtraBedsGrid.tsx"
       ],
       "tests": [
+        "src/tests/integration/bedBlockingFlow.test.tsx",
         "src/tests/components/BedManagerModal.integration.test.tsx",
         "src/tests/components/ExtraBedsGrid.test.tsx",
         "src/tests/views/census/useBedManagerModalModel.test.ts"
@@ -565,6 +567,7 @@
       ],
       "tests": [
         "src/tests/components/UserMenu.test.tsx",
+        "src/tests/integration/idleSessionLogout.test.tsx",
         "src/tests/hooks/useInactivityLogout.test.tsx",
         "src/tests/services/auth/sessionActivityMonitor.test.ts",
         "src/tests/services/storage/sessionLogoutQueuePreservation.test.ts",
