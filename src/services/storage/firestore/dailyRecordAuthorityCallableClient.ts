@@ -137,5 +137,7 @@ export const saveDailyRecordWithClinicalAuthorityCallable = (
   invokeAuthority('save', payload, assertCanPublish);
 
 export const patchDailyRecordWithClinicalAuthorityCallable = (
-  payload: DailyRecordAuthorityPatchCallablePayload
-): Promise<DailyRecordAuthorityCallableResponse> => invokeAuthority('patch', payload);
+  payload: DailyRecordAuthorityPatchCallablePayload,
+  assertCanPublish?: () => void
+): Promise<DailyRecordAuthorityCallableResponse> =>
+  invokeAuthority('patch', payload, assertCanPublish);

@@ -3,6 +3,7 @@ import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { PatientData } from '@/types/domain/patient';
 import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
 import type { ClinicalCribCreateRequest } from '@/types/domain/intentionalBedClear';
+import { assertAuthoringSessionCurrent } from '@/services/storage/authoringSession';
 import type { DailyRecordPartialWriteOptions } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import type { SpecialtyManualIntent } from '@/types/domain/specialtyDecision';
@@ -44,6 +45,8 @@ export const buildGuardedDailyRecordRemoteWriteOptions = ({
 }): DailyRecordPartialWriteOptions => ({
   syncContract,
   baseRecord,
+  // Nothing is published once the session that wrote it has ended (the queue checks the same).
+  assertCanPublish: () => assertAuthoringSessionCurrent(options.authoringSession),
   requireAtomicCas:
     isReclassification || Boolean(options.requireAtomicCas) || policy.requireAtomicCas,
   // Only confirmed writes take the committed record; plain local-first writes stay receipt-less.
