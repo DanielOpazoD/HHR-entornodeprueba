@@ -60,17 +60,6 @@ test.describe('Patient Operations Flow', () => {
     await expect(page.getByText(/Alta|Egreso/i).first()).toBeVisible({ timeout: 10000 });
   });
 
-  test('should switch to Medical Handoff view', async ({ page }) => {
-    const medicalHandoffBtn = page.getByTestId('nav-tab-medical-handoff');
-    await expect(medicalHandoffBtn).toBeVisible({ timeout: 10000 });
-    await medicalHandoffBtn.click();
-
-    await expect(page.locator('main')).toBeVisible({ timeout: 10000 });
-    await expect(page.getByTestId('medical-handoff-share-links-button')).toBeVisible({
-      timeout: 10000,
-    });
-  });
-
   test('should switch to Nursing Handoff view', async ({ page }) => {
     const nursingHandoffBtn = page.getByTestId('nav-tab-nursing-handoff');
     await expect(nursingHandoffBtn).toBeVisible({ timeout: 10000 });

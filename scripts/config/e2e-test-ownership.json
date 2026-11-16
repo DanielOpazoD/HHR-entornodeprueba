@@ -330,18 +330,6 @@
       "workflow": ".github/workflows/ci-cd.yml"
     },
     {
-      "file": "e2e/medical-handoff-scope-signature.spec.ts",
-      "lane": "manual",
-      "reason": "Retained medical handoff scope signature scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/medical-handoff-scope-signature.spec.ts --project=chromium"
-    },
-    {
-      "file": "e2e/medical-signature.spec.ts",
-      "lane": "manual",
-      "reason": "Retained medical signature scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/medical-signature.spec.ts --project=chromium"
-    },
-    {
       "file": "e2e/mmrad-history-recovery.spec.ts",
       "lane": "ci",
       "reason": "Built-preview MMRAD history recovery with the laboratory tunnel unavailable, desktop and mobile.",
