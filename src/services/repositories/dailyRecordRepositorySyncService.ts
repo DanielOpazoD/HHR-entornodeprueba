@@ -24,6 +24,10 @@ import { resolveDailyRecordSyncConsistency } from '@/services/repositories/daily
 import { admitRemoteDailyRecords } from '@/services/repositories/dailyRecordLocalCachePersistence';
 import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { buildDailyRecordSyncContract } from '@/services/storage/sync/syncTaskContractPolicy';
+import {
+  getValueAtPath,
+  hasSameComparableValue,
+} from '@/services/repositories/conflictResolutionUtils';
 import { adoptAuthoritativeDailyRecordAtomically } from '@/services/storage/sync';
 import { classifyConflictChangedContexts } from '@/services/repositories/conflictResolutionDomainPolicy';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
@@ -317,10 +321,28 @@ export const adoptAuthoritativeRecord = async (
         // en la misma transacción; re-emitirla sólo replicaría estado ya durable.
         return { record: authoritativeRecord, task: null };
       }
-      const syncContract = buildDailyRecordSyncContract(rebasedRecord, {
-        expectedVersion: authoritativeRecord.lastUpdated,
-        changedPaths,
-      });
+      // A field's base value and the version it is checked against are one server instant
+      // (SAVE-02): the task moves to the confirmed version only while every pending field still
+      // holds its base there. Otherwise another computer changed it, and the task keeps its own
+      // version, so its replay and the next edit of that field still meet that change.
+      const bases = task.patchBaseValues ?? {};
+      const basesHold = changedPaths.every(
+        path =>
+          !Object.hasOwn(bases, path) ||
+          hasSameComparableValue(getValueAtPath(authoritativeRecord, path), bases[path])
+      );
+      const syncContract = {
+        ...buildDailyRecordSyncContract(rebasedRecord, {
+          expectedVersion: authoritativeRecord.lastUpdated,
+          changedPaths,
+        }),
+        ...(basesHold
+          ? {}
+          : {
+              expectedVersion: task.syncContract?.expectedVersion,
+              baseRevision: task.syncContract?.baseRevision,
+            }),
+      };
       return {
         record: rebasedRecord,
         task: buildPendingDailyRecordReplacementTask({
