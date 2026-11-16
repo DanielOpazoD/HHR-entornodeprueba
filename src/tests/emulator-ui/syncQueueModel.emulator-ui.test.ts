@@ -50,8 +50,8 @@ import type { SyncTask } from '@/services/storage/syncQueueTypes';
  * After every step the model checks the rules of docs/DOMAIN_RULES.md that hold for every
  * sequence (SAVE-01, SAVE-02, SAVE-03, Sesión, ID-01), and at the end, with the network back and
  * the queue run, that nothing is left waiting and a conflict stays only where another computer
- * changed one of its fields or the bed holds another patient. KNOWN_DEFECT marks the three rule
- * breaks W12-MODEL2 found, still open (the `it.fails` below); nothing after one in a sequence is
+ * changed one of its fields or the bed holds another patient. KNOWN_DEFECT marks the rule breaks
+ * W12-MODEL2 and W12-CW6 found, still open (the `it.fails` below); nothing after one in a sequence is
  * judged.
  * `FC_NUM_RUNS` / `FC_SEED` repeat or widen a run, as in src/tests/properties.
  */
@@ -150,7 +150,7 @@ interface Edit {
   base: unknown;
   /** For the bed: the patient and episode the person saw when writing. */
   occupant: string;
-  /** Written over its own unsent edit whose base another computer changed (`isOverStaleBase`). */
+  /** Written while its own unsent edit of it, or of a bed, waits over a changed base (`isOverStaleBase`). */
   overStaleBase: boolean;
 }
 interface Model {
@@ -241,7 +241,7 @@ const checkRules = async (m: Model, step: string) => {
       continue;
     // SAVE-02: a text reaches the server only over the text its writer saw (no lost update).
     if (!edit || !replacedBy(m, edit).includes(before)) {
-      // KNOWN_DEFECT 1 and 4.
+      // KNOWN_DEFECT 1, 4 and 5.
       if (edit?.overStaleBase) {
         m.log.push('[KNOWN_DEFECT]');
         m.reachedKnownDefect = true;
@@ -397,17 +397,21 @@ const admissionOf = (m: Model): Partial<PatientData> => {
 };
 
 /**
- * An unsent edit of this field waits in the queue over a base the server no longer holds: another
- * computer changed the field. KNOWN_DEFECT 1 and 4 start here; the exact cases are the `it.fails`
- * below, and the first test keeps the one #1637 fixed.
+ * An unsent edit of this field, or of a bed, waits in the queue over a base the server no longer
+ * holds: another computer changed it. KNOWN_DEFECT 1, 4 (this field) and 5 (a bed) start here; the
+ * exact cases are the `it.fails` below, and the first test keeps the one #1637 fixed.
  */
 const isOverStaleBase = async (path: Path, owner: string) => {
-  const stored = getValueAtPath(await readServer(), path);
+  const server = await readServer();
   return (await hospitalDB.syncQueue.toArray()).some(
     task =>
       task.ownerKey === owner &&
-      (task.syncContract?.changedPaths ?? []).includes(path) &&
-      task.patchBaseValues?.[path] !== stored
+      (task.syncContract?.changedPaths ?? []).some(
+        changed =>
+          (changed === path ||
+            (changed.startsWith('beds.') && Object.hasOwn(task.patchBaseValues ?? {}, changed))) &&
+          task.patchBaseValues?.[changed] !== getValueAtPath(server, changed)
+      )
   );
 };
 
@@ -1053,6 +1057,27 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
 
       expect(await editIn(m, BED_PATH)).toBe('editar B3 en cama');
       expect((await readServer()).beds[BED].pathology).toBe('A1');
+    },
+    60_000
+  );
+
+  // KNOWN_DEFECT 5 (W12-CW6, CI seed -1229459481, path "13:5"), same family as 1 and 4. A bed edit
+  // written here meets a readmission, so it waits in the queue for its patient (ID-01), and the day
+  // kept here takes the time of that local save, later than the server's version. The next edit of
+  // a day field sends that time as its version; the server's looks older, «this writer's own edit
+  // on its way», so no field is compared and the other computer's text, unseen here, is replaced.
+  it.fails(
+    'keeps the other computer’s day note when it is edited after a bed edit held for its patient',
+    async () => {
+      const m = await resetWorld();
+      const day = 'handoffNovedadesDayShift';
+      await readmitOnServer.run(m, {});
+      await writeOnA(day).run(m, {});
+      expect(await editIn(m, BED_PATH)).toBe('editar B3 en cama');
+      expect((await readServer()).beds[BED].pathology).toBe('');
+
+      expect(await editIn(m, day)).toBe('editar B4 en DayShift');
+      expect((await readServer())[day]).toBe('A2');
     },
     60_000
   );
