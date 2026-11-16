@@ -63,7 +63,8 @@ const keepsOneSpelling = (name: string, census: CudyrReportRow) => {
   const [firstGiven] = normalizedGiven(census.firstName).split(' ');
   return (
     cudyrMatchesCensusName(name, census) ||
-    (Boolean(firstGiven) &&
+    (firstGiven !== undefined &&
+      firstGiven !== '' &&
       normalizedGiven(name)
         .split(/[^A-Z0-9]+/)
         .includes(firstGiven))
