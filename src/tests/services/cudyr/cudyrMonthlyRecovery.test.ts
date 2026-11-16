@@ -165,6 +165,34 @@ describe('monthly documentary recovery', () => {
       verificationError: expect.stringContaining('Fuentes guardadas'),
     });
   });
+  it('ends by naming the closed days that the final HHR read still leaves unverified', async () => {
+    const ports = setup();
+    const days = Array.from({ length: 31 }, (_, i) => `2026-08-${String(i + 1).padStart(2, '0')}`);
+    // Every day has its census except the 12th; the final read is the one that counts.
+    const census = (missing: string[]) => ({
+      from: '2026-08-01',
+      to: '2026-08-31',
+      rows: [],
+      captures: [],
+      issues: [],
+      coverage: days.map(date => ({
+        date,
+        state: missing.includes(date) ? 'sin_censo' : 'disponible',
+      })),
+    });
+    ports.readCensus
+      .mockResolvedValueOnce(census(['2026-08-12', '2026-08-24']))
+      .mockResolvedValueOnce(census(['2026-08-12']));
+    const result = await run(ports);
+    expect(result.pendingDays).toBe(2);
+    expect(result.remainingDays).toEqual(['2026-08-12']);
+
+    ports.readCensus
+      .mockResolvedValueOnce(census(['2026-08-12']))
+      .mockResolvedValueOnce(census([]));
+    expect((await run(ports)).remainingDays).toEqual([]);
+  });
+
   it('propagates cancellation during the final reconciliation read', async () => {
     const ports = setup();
     const control = new AbortController();

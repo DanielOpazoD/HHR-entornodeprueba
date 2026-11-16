@@ -98,6 +98,53 @@ describe('explicit monthly documentary action', () => {
       { recordCount: 0, unchangedCount: 0, failedCount: 1 }
     );
   });
+  it('says which days still need a person once every source was consulted', async () => {
+    recover.mockResolvedValue({
+      recovered: 1,
+      reused: 1,
+      failures: [],
+      pendingDays: 3,
+      remainingDays: ['2026-08-12', '2026-08-24', '2026-08-31'],
+      verification: 'documentary',
+    });
+    render(<CudyrMonthlyRecovery month="2026-08" onSaved={vi.fn()} />);
+    fireEvent.click(screen.getByText('Actualizar CUDYR'));
+    const remaining = await screen.findByText(/Quedan 3 días sin verificar/);
+    expect(remaining).toHaveTextContent('12-08-2026, 24-08-2026, 31-08-2026.');
+    expect(remaining).toHaveTextContent('volver a actualizar no los completa');
+    expect(remaining).not.toHaveTextContent('puede volver a actualizar');
+  });
+  it('offers another attempt for remaining days when a consultation did not complete', async () => {
+    recover.mockResolvedValue({
+      recovered: 0,
+      reused: 0,
+      failures: ['2026-08-31'],
+      pendingDays: 1,
+      remainingDays: ['2026-08-31'],
+      verification: 'documentary',
+    });
+    render(<CudyrMonthlyRecovery month="2026-08" onSaved={vi.fn()} />);
+    fireEvent.click(screen.getByText('Actualizar CUDYR'));
+    expect(await screen.findByText(/Queda 1 día sin verificar/)).toHaveTextContent(
+      'puede volver a actualizar'
+    );
+  });
+  it('confirms when the run leaves every closed day verified', async () => {
+    recover.mockResolvedValue({
+      recovered: 1,
+      reused: 0,
+      failures: [],
+      pendingDays: 2,
+      remainingDays: [],
+      verification: 'documentary',
+    });
+    render(<CudyrMonthlyRecovery month="2026-08" onSaved={vi.fn()} />);
+    fireEvent.click(screen.getByText('Actualizar CUDYR'));
+    expect(
+      await screen.findByText('Todos los turnos cerrados quedaron verificados.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/sin verificar/)).not.toBeInTheDocument();
+  });
   it('aborts on unmount and never refreshes another screen after an in-flight read', async () => {
     let finish: (value: unknown) => void = () => {};
     recover.mockImplementation(

@@ -14,6 +14,7 @@ import { getSessionGeneration } from '@/services/storage/sessionStorageTransitio
 import { loadCudyrSupplements, type ArchivedCudyrSupplement } from './cudyrSupplementService';
 
 import { monthlyRecoveryWindow, pendingCudyrRecoveryPlan } from './cudyrMonthlyRecoveryPlan';
+import { cudyrArchiveCoverage } from './cudyrArchiveCoverage';
 export { monthlyRecoveryPeriod, monthlyRecoveryWindow } from './cudyrMonthlyRecoveryPlan';
 
 export interface MonthlyRecoveryProgress {
@@ -27,6 +28,8 @@ export interface MonthlyRecoveryResult {
   expectedReports?: number;
   verificationResult?: ReturnType<typeof verifyCudyrMonthlySources>;
   verificationError?: string;
+  /** Closed days still unverified after this run, from the final HHR read. */
+  remainingDays?: string[];
   reports: ArchivedCudyrSupplement[];
   recovered: number;
   reused: number;
@@ -224,6 +227,11 @@ export const recoverCudyrMonthlyReports = async (
     const census = await ports.readCensus(period.from, period.last, signal);
     check();
     result.verificationResult = verifyCudyrMonthlySources(census, result.reports);
+    result.remainingDays = census.officialSnapshot
+      ? []
+      : cudyrArchiveCoverage(census, new Date(completedAt))
+          .filter(day => day.state === 'pending')
+          .map(day => day.date);
     remember(census);
   } catch {
     check(); // Cancellation/session changes still invalidate this caller.
