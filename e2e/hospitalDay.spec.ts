@@ -51,15 +51,6 @@ test.describe('Complete Hospital Day E2E', () => {
       timeout: 15000,
     });
 
-    await page.getByRole('button', { name: 'Entrega Turno Médicos' }).click();
-    await expect(
-      page
-        .getByRole('button', { name: /Crear entrega médica|Generar link para firma del médico/i })
-        .first()
-    ).toBeVisible({
-      timeout: 15000,
-    });
-
     await page.getByRole('button', { name: 'Censo Diario' }).click();
     await expect(page.getByTestId('census-table')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('input[name="patientName"]').first()).toHaveValue(

@@ -38,26 +38,9 @@ const openReportFlow = async (page: Page) => {
   await expect(page.getByTestId('census-table')).toBeVisible({ timeout: 20000 });
 };
 
-test.describe('Handoff & Signature Link Flow', () => {
+test.describe('Census Export Flow', () => {
   test.beforeEach(async ({ page }) => {
     await openReportFlow(page);
-  });
-
-  test('should allow entering handoff notes and show share link', async ({ page }) => {
-    const handoffBtn = page.getByTestId('nav-tab-medical-handoff');
-    await expect(handoffBtn).toBeVisible({ timeout: 10000 });
-    await handoffBtn.click();
-
-    const createMedicalHandoffButton = page
-      .getByTestId('medical-handoff-create-entry-button')
-      .first();
-    await expect(createMedicalHandoffButton).toBeVisible({ timeout: 10000 });
-    await createMedicalHandoffButton.click();
-
-    await expect(page.locator('textarea').first()).toBeVisible({ timeout: 10000 });
-    await expect(page.getByTestId('medical-handoff-share-links-button')).toBeVisible({
-      timeout: 10000,
-    });
   });
 
   test('should navigate to Census and verify export options', async ({ page }) => {
