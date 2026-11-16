@@ -123,7 +123,6 @@ describe('useAppContentRuntime', () => {
             lastSyncTime: 'now',
           },
           dateNav: {
-            isSignatureMode: false,
             currentDateString: selectedDate,
             selectedYear: 2026,
             selectedMonth: 2,

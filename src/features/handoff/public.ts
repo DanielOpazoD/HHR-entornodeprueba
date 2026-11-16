@@ -6,7 +6,3 @@ export {
   buildMedicalHandoffSpreadsheetRows,
   MEDICAL_HANDOFF_SPREADSHEET_MAX_ROWS,
 } from './controllers/medicalHandoffSpreadsheetController';
-export {
-  resolveMedicalHandoffScope,
-  resolveScopedMedicalSignature,
-} from './controllers/medicalHandoffScopeController';

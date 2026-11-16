@@ -1,6 +1,5 @@
 import React from 'react';
 import { useDateNavigation } from '@/hooks/useDateNavigation';
-import { useSignatureMode } from '@/hooks/useSignatureMode';
 import { useVersionCheck } from '@/hooks/useVersionCheck';
 import { useStalenessGuard } from '@/hooks/useStalenessGuard';
 import type { UseDateNavigationReturn } from '@/hooks/useDateNavigation';
@@ -11,28 +10,17 @@ import { hasRecentAuthenticatedSessionHint } from '@/services/auth/authStorageHi
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import { useAuth, type AuthContextType } from '@/context/AuthContext';
 
-export interface AppAuthenticatedDateNavigation extends UseDateNavigationReturn {
-  isSignatureMode: boolean;
-  currentDateString: string;
-}
-
 export type AppBootstrapPhase =
   | 'bootstrapping'
   | 'rehydrating'
   | 'authenticated'
   | 'unauthenticated'
-  | 'local_only'
-  | 'signature_mode';
+  | 'local_only';
 
 export type AppBootstrapState =
   | {
       status: 'loading';
       phase: 'bootstrapping' | 'rehydrating';
-      auth: AuthContextType;
-    }
-  | {
-      status: 'signature_mode';
-      phase: 'signature_mode';
       auth: AuthContextType;
     }
   | {
@@ -44,14 +32,12 @@ export type AppBootstrapState =
       status: 'authenticated';
       phase: 'authenticated';
       auth: AuthContextType;
-      dateNav: AppAuthenticatedDateNavigation;
+      dateNav: UseDateNavigationReturn;
     };
 
 interface BuildAppBootstrapStateParams {
   auth: AuthContextType;
   dateNav: UseDateNavigationReturn;
-  isSignatureMode: boolean;
-  currentDateString: string;
   hasRecentAuthenticatedSessionHint?: boolean;
 }
 
@@ -148,18 +134,8 @@ const useSyncFirestoreStatus = (remoteSyncState: AuthContextType['remoteSyncStat
 export const buildAppBootstrapState = ({
   auth,
   dateNav,
-  isSignatureMode,
-  currentDateString,
   hasRecentAuthenticatedSessionHint = false,
 }: BuildAppBootstrapStateParams): AppBootstrapState => {
-  if (isSignatureMode) {
-    return {
-      status: 'signature_mode',
-      phase: 'signature_mode',
-      auth,
-    };
-  }
-
   if (
     auth.isLoading ||
     shouldKeepSameTabRefreshRehydrating({
@@ -186,11 +162,7 @@ export const buildAppBootstrapState = ({
     status: 'authenticated',
     phase: 'authenticated',
     auth,
-    dateNav: {
-      ...dateNav,
-      isSignatureMode,
-      currentDateString,
-    },
+    dateNav,
   };
 };
 
@@ -204,21 +176,14 @@ export const useAppBootstrapState = (): AppBootstrapState => {
   useSyncFirestoreStatus(auth.remoteSyncState);
 
   const dateNav = useDateNavigation();
-  const { isSignatureMode, currentDateString } = useSignatureMode(
-    dateNav.currentDateString,
-    auth.currentUser,
-    auth.isLoading
-  );
 
   return React.useMemo<AppBootstrapState>(
     () =>
       buildAppBootstrapState({
         auth,
         dateNav,
-        isSignatureMode,
-        currentDateString,
         hasRecentAuthenticatedSessionHint: recentAuthenticatedSessionHint,
       }),
-    [auth, currentDateString, dateNav, isSignatureMode, recentAuthenticatedSessionHint]
+    [auth, dateNav, recentAuthenticatedSessionHint]
   );
 };

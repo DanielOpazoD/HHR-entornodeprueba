@@ -11,8 +11,6 @@ export interface CensusContextType {
 
   // Time & Navigation
   dateNav: UseDateNavigationReturn & {
-    isSignatureMode: boolean;
-    currentDateString: string;
     existingDaysInMonth: number[]; // From useExistingDays
     /** Active clinical day (08:00/09:00 shift rollover); reactive across the rollover. */
     clinicalToday: string;

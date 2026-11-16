@@ -16,7 +16,6 @@ import {
   DataView,
   FunctionsTelemetryView,
   HandoffView,
-  MedicalSignatureView,
   PatientMasterView,
   ReminderAdminView,
   RoleManagementView,
@@ -43,7 +42,6 @@ export interface AppRouterShellState {
   selectedMonth: number;
   currentDateString: string;
   role: UserRole;
-  isSignatureMode: boolean;
   showBedManagerModal: boolean;
   onCloseBedManagerModal: () => void;
   onOpenCensusDate?: (date: string) => void;
@@ -161,12 +159,6 @@ export const SIMPLE_MODULE_ROUTE_DEFINITIONS: readonly SimpleModuleRouteDefiniti
     render: () => <AuditDocumentsView />,
   },
 ];
-
-export const SIGNATURE_ROUTE_DEFINITION: CoreModuleRouteDefinition = {
-  module: 'MEDICAL_HANDOFF',
-  sectionName: 'Firma Médica',
-  render: () => <MedicalSignatureView />,
-};
 
 export const CORE_MODULE_ROUTE_DEFINITIONS: readonly CoreModuleRouteDefinition[] = [
   {

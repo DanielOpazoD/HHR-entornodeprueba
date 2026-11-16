@@ -109,7 +109,6 @@ describe('AppContent entrypoint wiring', () => {
   };
 
   const dateNav = {
-    isSignatureMode: false,
     setSelectedYear: vi.fn(),
     setSelectedMonth: vi.fn(),
     setSelectedDay: vi.fn(),

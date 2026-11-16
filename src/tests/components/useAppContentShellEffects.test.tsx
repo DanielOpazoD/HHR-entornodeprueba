@@ -13,7 +13,6 @@ describe('useAppContentShellEffects', () => {
     role: 'admin',
     currentModule: 'CENSUS',
     setCurrentModule: vi.fn(),
-    isSignatureMode: false,
     setSelectedShift: vi.fn(),
   });
 
@@ -86,18 +85,5 @@ describe('useAppContentShellEffects', () => {
       }),
       { allowSuccess: true }
     );
-  });
-
-  it('does not record app shell telemetry in signature mode', () => {
-    const baseParams = createBaseParams();
-
-    renderHook(() =>
-      useAppContentShellEffects({
-        ...baseParams,
-        isSignatureMode: true,
-      })
-    );
-
-    expect(mockRecordOperationalTelemetry).not.toHaveBeenCalled();
   });
 });

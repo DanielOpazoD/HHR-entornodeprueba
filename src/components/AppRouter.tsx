@@ -19,7 +19,6 @@ import {
   resolveCoreModuleRoute,
   resolveModuleReadOnly,
   resolveSimpleModuleRoute,
-  SIGNATURE_ROUTE_DEFINITION,
 } from '@/components/app-router/appRouterController';
 
 interface AppRouterProps {
@@ -39,7 +38,6 @@ export const AppRouter: React.FC<AppRouterProps> = ({ ui, shell }) => {
     selectedMonth,
     currentDateString,
     role,
-    isSignatureMode,
     showBedManagerModal,
     onCloseBedManagerModal,
     onOpenCensusDate,
@@ -60,9 +58,9 @@ export const AppRouter: React.FC<AppRouterProps> = ({ ui, shell }) => {
   return (
     <GlobalErrorBoundary>
       <Suspense fallback={currentModule === 'CENSUS' ? <CensusLoadingState /> : <ViewLoader />}>
-        {isSignatureMode ? (
-          <SectionErrorBoundary sectionName={SIGNATURE_ROUTE_DEFINITION.sectionName}>
-            {SIGNATURE_ROUTE_DEFINITION.render({
+        {coreRoute && (
+          <SectionErrorBoundary sectionName={coreRoute.sectionName}>
+            {coreRoute.render({
               ui,
               selectedDay,
               selectedMonth,
@@ -76,38 +74,18 @@ export const AppRouter: React.FC<AppRouterProps> = ({ ui, shell }) => {
               canOpenMedicalHandoff: visibleModules.includes('MEDICAL_HANDOFF'),
             })}
           </SectionErrorBoundary>
-        ) : (
-          <>
-            {coreRoute && (
-              <SectionErrorBoundary sectionName={coreRoute.sectionName}>
-                {coreRoute.render({
-                  ui,
-                  selectedDay,
-                  selectedMonth,
-                  currentDateString,
-                  showBedManagerModal,
-                  onCloseBedManagerModal,
-                  onOpenCensusDate,
-                  resolveReadOnly,
-                  allowAdminCopyOverride,
-                  censusAccessProfile,
-                  canOpenMedicalHandoff: visibleModules.includes('MEDICAL_HANDOFF'),
-                })}
-              </SectionErrorBoundary>
-            )}
-            {simpleRoute &&
-              canRenderSimpleModuleRoute({
-                currentModule,
-                route: simpleRoute,
-                role,
-                visibleModules,
-              }) && (
-                <SectionErrorBoundary sectionName={simpleRoute.sectionName}>
-                  {simpleRoute.render()}
-                </SectionErrorBoundary>
-              )}
-          </>
         )}
+        {simpleRoute &&
+          canRenderSimpleModuleRoute({
+            currentModule,
+            route: simpleRoute,
+            role,
+            visibleModules,
+          }) && (
+            <SectionErrorBoundary sectionName={simpleRoute.sectionName}>
+              {simpleRoute.render()}
+            </SectionErrorBoundary>
+          )}
       </Suspense>
     </GlobalErrorBoundary>
   );

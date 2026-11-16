@@ -54,8 +54,7 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
   renderFeatureQuickActions,
   renderCensusTrailingActions,
 }) => {
-  const { auth, dateNav } = runtime;
-  const { isSignatureMode } = dateNav;
+  const { auth } = runtime;
   const [handoffTarget, setHandoffTarget] = React.useState<HTMLDivElement | null>(null);
 
   const medicalIndicationsPatients = React.useMemo<MedicalIndicationsPatientOption[]>(() => {
@@ -73,12 +72,11 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
   const showDateStrip = shouldRenderDateStrip({
     currentModule: ui.currentModule,
     censusViewMode: ui.censusViewMode,
-    isSignatureMode,
   });
 
   return (
     <>
-      {!isSignatureMode && <Navbar {...navbarProps} />}
+      <Navbar {...navbarProps} />
 
       <div className="census-operational-chrome contents">
         {showDateStrip && (
@@ -153,7 +151,6 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
         {shouldRenderBookmarkBar({
           currentModule: ui.currentModule,
           censusViewMode: ui.censusViewMode,
-          isSignatureMode,
           showBookmarksBar: ui.showBookmarksBar,
           role: auth.role,
         }) && (

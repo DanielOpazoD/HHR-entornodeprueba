@@ -27,7 +27,6 @@ export { useBedOperations } from './useBedOperations';
 // Date Navigation
 export { useDateNavigation } from './useDateNavigation';
 export { useExistingDaysQuery } from './useExistingDaysQuery';
-export { useSignatureMode } from './useSignatureMode';
 export { useDropdownMenu } from './useDropdownMenu';
 export { useLatestRef } from './useLatestRef';
 

@@ -7,7 +7,6 @@ import type { AuthUser } from '@/types/authRoleTypes';
 const {
   mockUseAuth,
   mockUseDateNavigation,
-  mockUseSignatureMode,
   mockUseStorageMigration,
   mockUseVersionCheck,
   mockSetFirestoreSyncState,
@@ -15,7 +14,6 @@ const {
 } = vi.hoisted(() => ({
   mockUseAuth: vi.fn(),
   mockUseDateNavigation: vi.fn(),
-  mockUseSignatureMode: vi.fn(),
   mockUseStorageMigration: vi.fn(),
   mockUseVersionCheck: vi.fn(),
   mockSetFirestoreSyncState: vi.fn(),
@@ -28,10 +26,6 @@ vi.mock('@/context/AuthContext', () => ({
 
 vi.mock('@/hooks/useDateNavigation', () => ({
   useDateNavigation: () => mockUseDateNavigation(),
-}));
-
-vi.mock('@/hooks/useSignatureMode', () => ({
-  useSignatureMode: (...args: unknown[]) => mockUseSignatureMode(...args),
 }));
 
 vi.mock('@/hooks/useVersionCheck', () => ({
@@ -135,11 +129,6 @@ describe('useAppBootstrapState', () => {
     mockGetOptionalDb.mockReturnValue(null);
     mockUseAuth.mockReturnValue(createAuthState());
     mockUseDateNavigation.mockReturnValue(createDateNavigation());
-    mockUseSignatureMode.mockReturnValue({
-      isSignatureMode: false,
-      signatureDate: null,
-      currentDateString: '2026-03-27',
-    });
   });
 
   it('returns loading while auth is resolving and keeps migration disabled', async () => {
@@ -157,7 +146,6 @@ describe('useAppBootstrapState', () => {
     expect(result.current.phase).toBe('rehydrating');
     expect(mockUseStorageMigration).toHaveBeenCalledWith({ enabled: false });
     expect(mockUseVersionCheck).toHaveBeenCalledTimes(1);
-    expect(mockUseSignatureMode).toHaveBeenCalledWith('2026-03-27', null, true);
     await waitFor(() => {
       expect(mockSetFirestoreSyncState).toHaveBeenCalledWith({
         mode: 'bootstrapping',
@@ -216,22 +204,16 @@ describe('useAppBootstrapState', () => {
     expect(result.current.phase).toBe('rehydrating');
   });
 
-  it('prioritizes signature mode over loading and auth gating', () => {
-    mockUseAuth.mockReturnValue(
-      createAuthState({
-        isLoading: true,
-      })
-    );
-    mockUseSignatureMode.mockReturnValue({
-      isSignatureMode: true,
-      signatureDate: '27-03-2026',
-      currentDateString: '2026-03-27',
-    });
+  it('opens the normal sign-in gate for an old medical signature link', () => {
+    window.history.replaceState(null, '', '/?mode=signature&date=27-03-2026&token=synthetic');
+    try {
+      const { result } = renderHook(() => useAppBootstrapState());
 
-    const { result } = renderHook(() => useAppBootstrapState());
-
-    expect(result.current.status).toBe('signature_mode');
-    expect(mockUseStorageMigration).toHaveBeenCalledWith({ enabled: false });
+      expect(result.current.status).toBe('unauthenticated');
+      expect(result.current.phase).toBe('local_only');
+    } finally {
+      window.history.replaceState(null, '', '/');
+    }
   });
 
   it('returns unauthenticated when there is no active session', () => {
@@ -266,11 +248,9 @@ describe('useAppBootstrapState', () => {
         remoteSyncStatus: 'ready',
       })
     );
-    mockUseSignatureMode.mockReturnValue({
-      isSignatureMode: false,
-      signatureDate: null,
-      currentDateString: '2026-03-31',
-    });
+    mockUseDateNavigation.mockReturnValue(
+      createDateNavigation({ currentDateString: '2026-03-31' })
+    );
     mockGetOptionalDb.mockReturnValue({ name: 'db' } as never);
 
     const { result } = renderHook(() => useAppBootstrapState());
@@ -279,10 +259,8 @@ describe('useAppBootstrapState', () => {
     expect(result.current.phase).toBe('authenticated');
     if (result.current.status === 'authenticated') {
       expect(result.current.dateNav.currentDateString).toBe('2026-03-31');
-      expect(result.current.dateNav.isSignatureMode).toBe(false);
     }
     expect(mockUseStorageMigration).toHaveBeenCalledWith({ enabled: true });
-    expect(mockUseSignatureMode).toHaveBeenCalledWith('2026-03-27', currentUser, false);
     expect(mockSetFirestoreSyncState).toHaveBeenCalledWith({
       mode: 'enabled',
       reason: 'ready',
@@ -359,24 +337,6 @@ describe('useAppBootstrapState', () => {
     );
   });
 
-  it('buildAppBootstrapState prioritizes signature mode over the other gates', () => {
-    const auth = createAuthState({
-      isLoading: true,
-      isAuthenticated: false,
-    });
-    const dateNav = createDateNavigation();
-
-    const result = buildAppBootstrapState({
-      auth,
-      dateNav,
-      isSignatureMode: true,
-      currentDateString: '2026-03-27',
-    });
-
-    expect(result.status).toBe('signature_mode');
-    expect(result.phase).toBe('signature_mode');
-  });
-
   it('buildAppBootstrapState returns authenticated navigation wiring when access is ready', () => {
     const currentUser: AuthUser = {
       uid: 'user-1',
@@ -394,13 +354,11 @@ describe('useAppBootstrapState', () => {
       isEditor: true,
       isViewer: false,
     });
-    const dateNav = createDateNavigation();
+    const dateNav = createDateNavigation({ currentDateString: '2026-03-31' });
 
     const result = buildAppBootstrapState({
       auth,
       dateNav,
-      isSignatureMode: false,
-      currentDateString: '2026-03-31',
     });
 
     expect(result.status).toBe('authenticated');
@@ -426,8 +384,6 @@ describe('useAppBootstrapState', () => {
     const result = buildAppBootstrapState({
       auth,
       dateNav,
-      isSignatureMode: false,
-      currentDateString: '2026-03-27',
     });
 
     expect(result.status).toBe('loading');

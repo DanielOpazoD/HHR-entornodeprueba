@@ -10,26 +10,26 @@ Una fila por carpeta de `src/features/`; `featureBoundaryLint.test.ts` falla si 
 De quién puede depender cada feature lo dice
 [`scripts/feature-dependency-matrix.json`](../../scripts/feature-dependency-matrix.json), no esta tabla.
 
-| Feature                                               | Qué hace para el hospital                                                                                     |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `admin/`                                              | Panel del administrador: cuentas y roles, auditoría, salud del sistema, mantenimiento de datos y firma médica |
-| [`analytics/`](analytics/README.md)                   | Estadísticas MINSAL/DEIS, CUDYR por nivel de cuidado y traslados, en la ruta `/statistics`                    |
-| `audit-documents/`                                    | Descarga en ZIP los informes oficiales de Eloísa de una lista de RUT, para auditorías                         |
-| `auth/`                                               | Pantalla de ingreso: cuenta Google y acceso de enfermería                                                     |
-| [`backup/`](backup/README.md)                         | Explorar, guardar, revisar y mantener los respaldos históricos                                                |
-| [`census/`](census/README.md)                         | Censo diario: camas, pacientes, ingresos, altas, traslados y turnos. Núcleo de la aplicación                  |
-| [`clinical-documents/`](clinical-documents/README.md) | Epicrisis, evoluciones e informes médicos del episodio: borrador, guardado automático, impresión y PDF        |
-| [`clinical-library/`](clinical-library/README.md)     | Botón «Documentos» del censo: formularios para completar, protocolos, infografías y herramientas clínicas     |
-| [`cudyr/`](cudyr/README.md)                           | Categorización CUDYR de enfermería: registro, exportación e impresión para la entrega nocturna                |
-| `document-scanner/`                                   | Escanea documentos con el teléfono a PDF; quedan en una bandeja temporal hasta confirmar su carga en Eloísa   |
-| [`handoff/`](handoff/README.md)                       | Entrega de turno de enfermería y médica                                                                       |
-| [`laboratory/`](laboratory/README.md)                 | Exámenes del paciente: visor de Syslab, informes originales de Exalab y bandeja de exámenes del censo         |
-| `prescriptions/`                                      | Respaldo fotográfico de recetas por cama: carga con QR y PIN, visor y administración                          |
-| [`rayen-import/`](rayen-import/README.md)             | Sincroniza el censo con Eloísa mediante la extensión; los cambios de camas se aplican tras confirmarlos       |
-| `rayen-manual-import/`                                | Ingresa en una cama vacía un paciente copiado de Eloísa con un código, avisando si ya está en el censo        |
-| [`reminders/`](reminders/README.md)                   | Avisos que jefatura o administración publican para el personal clínico                                        |
-| `whatsapp/`                                           | WhatsApp: turnos de pabellón, plantillas de mensajes y configuración                                          |
-| [`wound-care/`](wound-care/README.md)                 | Registro fotográfico de curaciones de heridas, con consentimiento, desde la entrega de enfermería             |
+| Feature                                               | Qué hace para el hospital                                                                                   |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `admin/`                                              | Panel del administrador: cuentas y roles, auditoría, salud del sistema y mantenimiento de datos             |
+| [`analytics/`](analytics/README.md)                   | Estadísticas MINSAL/DEIS, CUDYR por nivel de cuidado y traslados, en la ruta `/statistics`                  |
+| `audit-documents/`                                    | Descarga en ZIP los informes oficiales de Eloísa de una lista de RUT, para auditorías                       |
+| `auth/`                                               | Pantalla de ingreso: cuenta Google y acceso de enfermería                                                   |
+| [`backup/`](backup/README.md)                         | Explorar, guardar, revisar y mantener los respaldos históricos                                              |
+| [`census/`](census/README.md)                         | Censo diario: camas, pacientes, ingresos, altas, traslados y turnos. Núcleo de la aplicación                |
+| [`clinical-documents/`](clinical-documents/README.md) | Epicrisis, evoluciones e informes médicos del episodio: borrador, guardado automático, impresión y PDF      |
+| [`clinical-library/`](clinical-library/README.md)     | Botón «Documentos» del censo: formularios para completar, protocolos, infografías y herramientas clínicas   |
+| [`cudyr/`](cudyr/README.md)                           | Categorización CUDYR de enfermería: registro, exportación e impresión para la entrega nocturna              |
+| `document-scanner/`                                   | Escanea documentos con el teléfono a PDF; quedan en una bandeja temporal hasta confirmar su carga en Eloísa |
+| [`handoff/`](handoff/README.md)                       | Entrega de turno de enfermería y médica                                                                     |
+| [`laboratory/`](laboratory/README.md)                 | Exámenes del paciente: visor de Syslab, informes originales de Exalab y bandeja de exámenes del censo       |
+| `prescriptions/`                                      | Respaldo fotográfico de recetas por cama: carga con QR y PIN, visor y administración                        |
+| [`rayen-import/`](rayen-import/README.md)             | Sincroniza el censo con Eloísa mediante la extensión; los cambios de camas se aplican tras confirmarlos     |
+| `rayen-manual-import/`                                | Ingresa en una cama vacía un paciente copiado de Eloísa con un código, avisando si ya está en el censo      |
+| [`reminders/`](reminders/README.md)                   | Avisos que jefatura o administración publican para el personal clínico                                      |
+| `whatsapp/`                                           | WhatsApp: turnos de pabellón, plantillas de mensajes y configuración                                        |
+| [`wound-care/`](wound-care/README.md)                 | Registro fotográfico de curaciones de heridas, con consentimiento, desde la entrega de enfermería           |
 
 ## Subestructura esperada por feature
 

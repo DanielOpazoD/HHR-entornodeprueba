@@ -106,7 +106,6 @@ export const AppContent: React.FC<AppContentProps> = ({
     role: auth.role,
     currentModule: ui.currentModule,
     setCurrentModule: ui.setCurrentModule,
-    isSignatureMode: dateNav.isSignatureMode,
     setSelectedShift: ui.setSelectedShift,
   });
 
