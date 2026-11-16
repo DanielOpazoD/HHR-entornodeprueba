@@ -1,5 +1,5 @@
 {
-  "$comment": "AGENTS.md: no se borran Formularios/ ni Hospital Salvador/ (neverDelete), y se pregunta al responsable antes de tocar printables/ o los PNG de la raíz (askOwnerFirst: ruta → blob de git). Lo verifica el control de higiene del repositorio (scripts/lib/ownerProtectedFiles.mjs).",
+  "$comment": "AGENTS.md: no se borran Formularios/ ni Hospital Salvador/ (neverDelete: todo archivo de esas carpetas, también los nuevos), y se pregunta al responsable antes de tocar printables/ o los PNG de la raíz (askOwnerFirst: ruta → blob de git). Lo verifica el control de higiene del repositorio (scripts/lib/ownerProtectedFiles.mjs).",
   "neverDelete": [
     "Formularios/Encuestaimagen.pdf",
     "Formularios/Solicit-imagen.pdf",

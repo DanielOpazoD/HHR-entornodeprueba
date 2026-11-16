@@ -199,11 +199,27 @@ const QUEUE_REMOVAL_RULE = {
           : node.property.name
         : undefined;
     const unwrap = node =>
-      node?.type === 'ChainExpression' || node?.type === 'TSNonNullExpression'
+      [
+        'ChainExpression',
+        'TSNonNullExpression',
+        'TSAsExpression',
+        'TSSatisfiesExpression',
+      ].includes(node?.type)
         ? unwrap(node.expression)
         : node;
+    // Local names bound to the queue table: `const q = db.syncQueue`, `const { syncQueue } = db`,
+    // `const t = db.table('syncQueue')`, and aliases of those, resolved through the scope.
+    const aliases = new Set();
+    const variableOf = node => {
+      for (let scope = context.sourceCode.getScope(node); scope; scope = scope.upper) {
+        const variable = scope.set.get(node.name);
+        if (variable) return variable;
+      }
+      return undefined;
+    };
     const reachesSyncQueue = node => {
       for (let current = unwrap(node); current; ) {
+        if (current.type === 'Identifier') return aliases.has(variableOf(current));
         if (current.type === 'MemberExpression') {
           if (nameOf(current) === 'syncQueue') return true;
           current = unwrap(current.object);
@@ -216,17 +232,45 @@ const QUEUE_REMOVAL_RULE = {
       }
       return false;
     };
+    const bindings = [];
+    const removals = [];
+    const bind = (target, value) => {
+      if (!target || !value) return;
+      if (target.type === 'AssignmentPattern') return bind(target.left, value);
+      if (target.type === 'Identifier') return void bindings.push([target, value]);
+      if (target.type !== 'ObjectPattern') return;
+      for (const property of target.properties) {
+        const key = property.type === 'Property' && !property.computed ? property.key : undefined;
+        if (key?.name === 'syncQueue' || key?.value === 'syncQueue')
+          bind(property.value, {
+            type: 'MemberExpression',
+            computed: true,
+            property: { value: 'syncQueue' },
+          });
+      }
+    };
     return {
+      VariableDeclarator: node => bind(node.id, node.init),
+      AssignmentExpression: node => node.operator === '=' && bind(node.left, node.right),
       CallExpression(node) {
         const callee = unwrap(node.callee);
         const method = nameOf(callee);
         const object = unwrap(callee?.object);
         if (
           method === 'deleteDatabase' ||
-          (method === 'delete' && ['Dexie', 'hospitalDB'].includes(object?.name)) ||
-          (['delete', 'bulkDelete', 'clear'].includes(method) && reachesSyncQueue(object))
+          (method === 'delete' && ['Dexie', 'hospitalDB'].includes(object?.name))
         )
           context.report({ node, messageId: 'removal' });
+        else if (['delete', 'bulkDelete', 'clear'].includes(method)) removals.push([node, object]);
+      },
+      'Program:exit'() {
+        for (const [target, value] of bindings) {
+          const variable = variableOf(target);
+          if (variable && reachesSyncQueue(value)) aliases.add(variable);
+        }
+        for (const [node, object] of removals) {
+          if (reachesSyncQueue(object)) context.report({ node, messageId: 'removal' });
+        }
       },
     };
   },

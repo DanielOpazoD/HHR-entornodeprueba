@@ -2,6 +2,10 @@ import { execFileSync } from 'node:child_process';
 
 export const OWNER_PROTECTED_FILES_CONFIG = 'scripts/config/owner-protected-files.json';
 
+/** Formularios/ and Hospital Salvador/: never deleted, so every file there is in the inventory. */
+const isNeverDeletePath = file =>
+  file.startsWith('Formularios/') || file.startsWith('Hospital Salvador/');
+
 /** printables/ and the PNGs at the repository root: touching them needs the owner's approval. */
 const isAskOwnerFirstPath = file => file.startsWith('printables/') || /^[^/]+\.png$/i.test(file);
 
@@ -23,10 +27,19 @@ export const readTrackedBlobs = (cwd = process.cwd()) =>
  */
 export const findOwnerProtectedFileChanges = (config, trackedBlobs) => {
   const failures = [];
-  for (const file of config.neverDelete ?? []) {
+  const neverDelete = new Set(config.neverDelete ?? []);
+  for (const file of neverDelete) {
     if (!trackedBlobs.has(file)) {
       failures.push(
         `${file} ya no está en el repositorio. AGENTS.md prohíbe borrar Formularios/ y Hospital Salvador/: restáuralo con git checkout origin/main -- "${file}".`
+      );
+    }
+  }
+  // A new form joins the inventory in the same change, so a later deletion is caught too.
+  for (const file of trackedBlobs.keys()) {
+    if (isNeverDeletePath(file) && !neverDelete.has(file)) {
+      failures.push(
+        `${file} es nuevo y AGENTS.md prohíbe borrar Formularios/ y Hospital Salvador/: agrega "${file}" a neverDelete en ${OWNER_PROTECTED_FILES_CONFIG}.`
       );
     }
   }

@@ -22,10 +22,23 @@ const tree = (changes: Record<string, string | null> = {}) => {
 };
 
 describe('owner-protected files (AGENTS.md)', () => {
-  it('accepts the recorded tree, new forms and PNGs outside the root', () => {
-    expect(findOwnerProtectedFileChanges(config, tree({ 'Formularios/nuevo.pdf': 'n1' }))).toEqual(
-      []
-    );
+  it('accepts the recorded tree and PNGs outside the root', () => {
+    expect(findOwnerProtectedFileChanges(config, tree())).toEqual([]);
+  });
+
+  it('asks to inventory a new form, so deleting it later is also caught', () => {
+    const added = tree({ 'Formularios/nuevo.pdf': 'n1' });
+    expect(findOwnerProtectedFileChanges(config, added)).toEqual([
+      'Formularios/nuevo.pdf es nuevo y AGENTS.md prohíbe borrar Formularios/ y Hospital Salvador/: agrega "Formularios/nuevo.pdf" a neverDelete en scripts/config/owner-protected-files.json.',
+    ]);
+    const inventoried = {
+      ...config,
+      neverDelete: [...config.neverDelete, 'Formularios/nuevo.pdf'],
+    };
+    expect(findOwnerProtectedFileChanges(inventoried, added)).toEqual([]);
+    expect(findOwnerProtectedFileChanges(inventoried, tree())).toEqual([
+      'Formularios/nuevo.pdf ya no está en el repositorio. AGENTS.md prohíbe borrar Formularios/ y Hospital Salvador/: restáuralo con git checkout origin/main -- "Formularios/nuevo.pdf".',
+    ]);
   });
 
   it('rejects deleting a form and says how to restore it', () => {
