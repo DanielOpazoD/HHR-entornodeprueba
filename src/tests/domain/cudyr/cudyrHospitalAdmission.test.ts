@@ -124,6 +124,37 @@ describe('first registered hospital bed entry', () => {
     });
     expect(day.eligibility).toBe('por_revisar');
   });
+  it('compares repeated captures of one assignment by start, bed, closing and capture time', () => {
+    const first = observed('R1', '2026-10-07T08:00:00-05:00', '2026-10-07T12:00:00-05:00');
+    const back = observed('H1C1', '2026-10-07T22:00:00-05:00');
+    const capture = (observedAt: string, change: Partial<typeof first.placement> = {}) => ({
+      ...first,
+      observedAt,
+      placement: { ...first.placement, ...change },
+    });
+    // The same closed assignment seen in many captures is one stay.
+    const repeated = [first, capture('2026-10-08T16:00:00Z'), capture('2026-10-08T17:00:00Z')];
+    expect(resolve([...repeated, back], true).at).toBe(back.placement.sourceStartAt);
+    // An older capture that still showed it open does not contradict a later closure.
+    const openBefore = capture('2026-10-08T05:00:00Z', { sourceEndAt: '0001-01-01T00:00:00Z' });
+    expect(resolve([openBefore, ...repeated, back], true).at).toBe(back.placement.sourceStartAt);
+    // A later capture showing it open again, or a different closing time, leaves the stay to review.
+    const openAfter = capture('2026-10-08T16:00:00Z', { sourceEndAt: '0001-01-01T00:00:00Z' });
+    const otherClosure = capture('2026-10-08T16:00:00Z', {
+      sourceEndAt: '2026-10-07T13:00:00-05:00',
+    });
+    // Seen open by a capture taken at the same instant as the closure counts as reopened.
+    const openSameInstant = capture(first.observedAt, { sourceEndAt: '0001-01-01T00:00:00Z' });
+    for (const contradiction of [openAfter, openSameInstant, otherClosure])
+      expect(resolve([first, contradiction, back], true)).toEqual({
+        at: '',
+        source: 'Cierres de camas contradictorios; permanencia hospitalaria por confirmar.',
+      });
+    // Outside the eight-hour calculation the first entry stays visible.
+    expect(resolve([first, openAfter, back]).at).toBe(first.placement.sourceStartAt);
+    // Another bed for the same assignment cannot identify the entry.
+    expect(resolve([first, capture('2026-10-08T16:00:00Z', { sourceBedId: 'R2' })]).at).toBe('');
+  });
   it('does not project future assignments backwards or join another episode', () => {
     const future = observed('H1C1', '2026-10-08T10:00:00-05:00');
     const other = observed('R1', '2026-10-06T10:00:00-05:00');
