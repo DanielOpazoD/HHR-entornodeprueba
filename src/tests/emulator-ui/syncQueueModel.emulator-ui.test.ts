@@ -1029,6 +1029,29 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     ]);
   }, 60_000);
 
+  // SAVE-03 (W12-CW8; CI seed -467918566, path "20:4:5:4:4"). The diagnosis written here meets
+  // the other computer's and waits in the queue with the «changed elsewhere» notice. Discharging
+  // the patient here empties the bed, and the confirmed discharge was taken as covering that
+  // diagnosis, which left the queue: the text was neither on the server nor in the queue. It stays
+  // now, held for the patient it was written for (ID-01), and never lands on the empty bed.
+  it('keeps a diagnosis waiting for its patient when this computer then discharges them', async () => {
+    const m = await resetWorld();
+    await replay.run(m, {});
+    await writeOnA(BED_PATH).run(m, {});
+    expect(await editIn(m, BED_PATH)).toBe('editar B2 en cama');
+    await dischargeOnB.run(m, {});
+    expect(m.log.at(-1)).toBe('egresar al paciente de la cama (egresado)');
+
+    const held = (await hospitalDB.syncQueue.toArray()).filter(
+      task => getValueAtPath(task.payload, BED_PATH) === 'B2'
+    );
+    expect(
+      held.map(task => [task.status, task.lastErrorCode, (task.payload as DailyRecord).beds[BED]])
+    ).toEqual([['CONFLICT', 'occupant_changed', expect.objectContaining({ rut: '12345678-5' })]]);
+    await replayIn(m);
+    expect((await readServer()).beds[BED]).toMatchObject({ rut: '', pathology: '' });
+  }, 60_000);
+
   // The defect #1637 fixed for day fields, in a bed field. The diagnosis written here meets the
   // other computer's and gets the «changed elsewhere» notice; the day kept here takes the server's
   // version, which once let the next diagnosis replace the other computer's unseen. The edit is

@@ -11,6 +11,7 @@ import {
 } from '@/services/storage/sync';
 import { resetSyncMutationIdentityForTests } from '@/services/storage/sync/syncMutationIdentity';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
@@ -200,6 +201,38 @@ describe('authoritative reconciliation of quarantined daily writes', () => {
       expect(persisted?.beds.R1.deviceDetails).toEqual(remote.beds.R1.deviceDetails);
       expect(persisted?.beds.R1.clinicalCarryover).toEqual(remote.beds.R1.clinicalCarryover);
       expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
+    }
+  );
+
+  // SAVE-03 and ID-01 (W12-CW8): a confirmed discharge emptied the bed. The diagnosis still waiting
+  // for the patient who left is neither covered by it nor written on the empty bed: it stays for
+  // that patient as a held conflict, and the rest of the task still publishes.
+  it.each([
+    ['CONFLICT', ['beds.R1.pathology'], []],
+    [
+      'PENDING',
+      ['handoffNovedadesNightShift', 'beds.R1.pathology'],
+      ['handoffNovedadesNightShift'],
+    ],
+  ] as const)(
+    'keeps a %s diagnosis for its patient when a confirmed discharge empties the bed',
+    async (status, changedPaths, stillPending) => {
+      const { local, remote } = await setup(status, [...changedPaths]);
+      const discharge = { 'beds.R1': createEmptyPatient('R1') };
+      remote.beds.R1 = discharge['beds.R1'];
+      await adoptAuthoritativeRecord(remote, discharge);
+
+      const tasks = await hospitalDB.syncQueue.toArray();
+      const held = tasks.filter(task => task.key !== `daily:${DATE}`);
+      expect(
+        held.map(task => [task.status, task.lastErrorCode, task.syncContract?.changedPaths])
+      ).toEqual([['CONFLICT', 'occupant_changed', ['beds.R1.pathology']]]);
+      expect((held[0].payload as typeof local).beds.R1).toEqual(local.beds.R1);
+      const day = tasks.filter(task => task.key === `daily:${DATE}`);
+      expect(day.map(task => task.syncContract?.changedPaths)).toEqual(
+        stillPending.length ? [stillPending] : []
+      );
+      expect((await hospitalDB.dailyRecords.get(DATE))?.beds.R1.rut).toBe('');
     }
   );
 
