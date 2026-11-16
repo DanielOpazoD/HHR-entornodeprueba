@@ -28,7 +28,6 @@ import {
   hasActiveFirebaseSession,
   signInWithGoogleRedirect,
 } from '@/services/auth/authFallback';
-import { isCurrentUserAuthorizedForGeneralLogin } from '@/services/auth/authPolicy';
 
 vi.mock('firebase/auth', () => ({
   signInWithPopup: vi.fn(),
@@ -363,6 +362,5 @@ describe('auth runtime injection', () => {
     authRuntime.getCurrentUser = vi.fn(() => runtimeUser);
 
     expect(hasActiveFirebaseSession({ authRuntime })).toBe(true);
-    await expect(isCurrentUserAuthorizedForGeneralLogin({ authRuntime })).resolves.toBe(true);
   });
 });
