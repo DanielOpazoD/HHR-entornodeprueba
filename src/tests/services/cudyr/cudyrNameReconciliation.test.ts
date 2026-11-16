@@ -396,3 +396,20 @@ it('keeps the single-spelling RUN rule when the census surname is empty', () => 
   const output = applyCudyrMonthlySources(data, [source]);
   expect(output.rows.find(r => r.key === data.rows[0].key)?.evaluation?.category).toBe('C2');
 });
+
+it('does not join a RUN through spellings that coexist in one report version', () => {
+  const { data, source } = fixture('Ana Maria', 'Prueba', 'Ejemplo', 'ANA PRUEBA EJEMPLO');
+  data.rows[0].rut = '11.111.111-1';
+  data.rows[0].documentType = 'RUT';
+  const first = source.report.patients[0];
+  first.document = '11111111-1';
+  source.report.patients.push({
+    ...first,
+    sourceRow: 999,
+    patientName: 'ANA MARIA PRUEBA EJEMPLO',
+  });
+  const identity = createCudyrIdentityResolver(data, [source.report]);
+  expect(identity('11111111-1', 'ANA PRUEBA EJEMPLO')).not.toBe(
+    identity('11111111-1', 'ANA MARIA PRUEBA EJEMPLO')
+  );
+});
