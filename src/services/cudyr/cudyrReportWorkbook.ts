@@ -100,7 +100,7 @@ export const buildCudyrReportWorkbook = async (
       ],
       data.exclusions.map(item => [
         item.date,
-        item.clinicalEpisodeId,
+        item.clinicalEpisodeId || `Egreso sin episodio ${item.dischargeId || ''}`,
         item.reason || 'Exclusión retirada',
         item.note,
         item.source,
