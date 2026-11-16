@@ -6,7 +6,10 @@ import {
 } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import { buildAuthorityPatchSyncContract } from '@/services/storage/firestore/firestoreRecordWritePatchPolicy';
 import { extractDailyRecordBedTreePatch } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
-import { isPermissionDeniedError } from '@/services/storage/firestore/firestoreRecordWriteUtilities';
+import {
+  isPermissionDeniedError,
+  unlessSessionChanged,
+} from '@/services/storage/firestore/firestoreRecordWriteUtilities';
 import { firestoreWriteLogger } from '@/services/storage/storageLoggers';
 
 /**
@@ -20,6 +23,10 @@ import { firestoreWriteLogger } from '@/services/storage/storageLoggers';
  * directo sobre el árbol de camas es en sí la prueba de que la valla está
  * activa: tras agotar el refresh de claim, el parche de camas se reintenta
  * UNA vez por el callable autoritativo, sin volver a consultar la advisory.
+ *
+ * `assertCanPublish` es la comprobación de sesión del escritor: corre tras renovar permisos, antes
+ * de cada despacho y reintento. Si la sesión cambió, la escritura se detiene con ese error, que la
+ * recuperación de permisos no reemplaza por el de permisos.
  */
 export const runPartialUpdatePersistWithPermissionFallbacks = async <TResult>({
   persist,
@@ -28,6 +35,7 @@ export const runPartialUpdatePersistWithPermissionFallbacks = async <TResult>({
   expectedLastUpdated,
   syncContract,
   tryRefreshCurrentUserRoleClaim,
+  assertCanPublish,
 }: {
   persist: () => Promise<TResult>;
   date: string;
@@ -35,6 +43,7 @@ export const runPartialUpdatePersistWithPermissionFallbacks = async <TResult>({
   expectedLastUpdated?: string;
   syncContract?: SyncTaskContract;
   tryRefreshCurrentUserRoleClaim: (date: string) => Promise<boolean>;
+  assertCanPublish?: () => void;
 }): Promise<TResult> => {
   const retryBedTreeViaCallable = async (error: unknown): Promise<TResult | null> => {
     if (!isPermissionDeniedError(error)) return null;
@@ -47,17 +56,26 @@ export const runPartialUpdatePersistWithPermissionFallbacks = async <TResult>({
     try {
       return await withRetry(
         () =>
-          patchDailyRecordWithClinicalAuthorityCallable({
-            date,
-            patch: bedTreePatch,
-            expectedLastUpdated,
-            mode: 'enforced',
-            origin: 'direct_write_permission_fallback',
-            syncContract: buildAuthorityPatchSyncContract(syncContract, bedTreePatch),
-          }) as Promise<TResult>,
-        { shouldRetry: shouldRetryDailyRecordAuthorityError }
+          patchDailyRecordWithClinicalAuthorityCallable(
+            {
+              date,
+              patch: bedTreePatch,
+              expectedLastUpdated,
+              mode: 'enforced',
+              origin: 'direct_write_permission_fallback',
+              syncContract: buildAuthorityPatchSyncContract(syncContract, bedTreePatch),
+            },
+            assertCanPublish
+          ) as Promise<TResult>,
+        {
+          shouldRetry: unlessSessionChanged(
+            { assertCanPublish },
+            shouldRetryDailyRecordAuthorityError
+          ),
+        }
       );
     } catch (fallbackError) {
+      assertCanPublish?.();
       // El fallback es oportunista: si el callable tampoco puede (documento
       // inexistente, infra no disponible), el error ORIGINAL de permisos es
       // el diagnóstico veraz para el caller y sus recuperaciones.
@@ -72,7 +90,10 @@ export const runPartialUpdatePersistWithPermissionFallbacks = async <TResult>({
   try {
     return await persist();
   } catch (error) {
-    if (isPermissionDeniedError(error) && (await tryRefreshCurrentUserRoleClaim(date))) {
+    const refreshed =
+      isPermissionDeniedError(error) && (await tryRefreshCurrentUserRoleClaim(date));
+    assertCanPublish?.();
+    if (refreshed) {
       try {
         return await persist();
       } catch (retryError) {

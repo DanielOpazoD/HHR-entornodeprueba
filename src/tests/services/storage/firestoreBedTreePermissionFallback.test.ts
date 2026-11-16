@@ -53,7 +53,9 @@ describe('runPartialUpdatePersistWithPermissionFallbacks', () => {
           'beds.NEO2.devices': ['LA', 'SNG'],
           'beds.NEO2.deviceDetails': { SNG: { installationDate: '2026-08-31' } },
         },
-      })
+      }),
+      // No session check was given: the callable runs without one.
+      undefined
     );
   });
 

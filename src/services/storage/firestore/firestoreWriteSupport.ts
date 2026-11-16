@@ -136,10 +136,13 @@ export const saveRecordAtomically = async (
   {
     assertSafeOverwrite,
     forceHistorySnapshot = false,
+    assertCanCommit,
   }: {
     assertSafeOverwrite?: (remoteData: Record<string, unknown>) => void;
     /** Restores overwrite live data, so they always keep the previous state. */
     forceHistorySnapshot?: boolean;
+    /** Runs in each attempt right before it writes; a throw aborts the write. */
+    assertCanCommit?: () => void;
   } = {},
   runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
 ): Promise<Record<string, unknown>> => {
@@ -225,6 +228,7 @@ export const saveRecordAtomically = async (
       }
     }
 
+    assertCanCommit?.();
     committedRecord = adoptStoredClinicalDerivedState(
       record,
       snap.exists() ? (snap.data() as Record<string, unknown>) : undefined
@@ -340,10 +344,14 @@ export const updateRecordPartiallyAtomically = async (
   return {};
 };
 
-/** `force` is for explicit 'snapshot' requests, such as the one copy before an import run. */
+/**
+ * `force` is for explicit 'snapshot' requests, such as the one copy before an import run.
+ * `assertCanCommit` runs after the read and before the copy is written; its throw stops the write
+ * and reaches the caller instead of counting as an ordinary history failure.
+ */
 export const saveHistorySnapshot = async (
   date: string,
-  { force = false }: { force?: boolean } = {}
+  { force = false, assertCanCommit }: { force?: boolean; assertCanCommit?: () => void } = {}
 ): Promise<void> => {
   let documentPath: string | undefined;
   try {
@@ -358,6 +366,7 @@ export const saveHistorySnapshot = async (
 
     const data = docSnap.data();
     const historyRef = doc(collection(docRef, 'history'), new Date().toISOString());
+    assertCanCommit?.();
 
     await setDoc(historyRef, {
       ...data,
@@ -365,6 +374,7 @@ export const saveHistorySnapshot = async (
     });
     markHistorySnapshotTaken(docRef.path);
   } catch (error) {
+    assertCanCommit?.();
     // Roles the rules do not let write history would otherwise re-read the whole day on every
     // save; one denied attempt per hour is enough.
     if (documentPath && (error as { code?: unknown })?.code === 'permission-denied') {

@@ -71,6 +71,7 @@ import { adoptAuthoritativeRecord } from '@/services/repositories/dailyRecordRep
 import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { resolveUnsentPlainDayFieldBase } from '@/services/storage/sync/plainDayFieldReplay';
 import { isValidRemoteAuthorityRecord } from '@/services/repositories/dailyRecordRemotePersistenceState';
+import { assertAuthoringSessionCurrent } from '@/services/storage/authoringSession';
 
 const tryAutoMergeBlockedFullSaveRegression = async (
   date: string,
@@ -234,6 +235,7 @@ const saveDetailedWithinLock = async (
             : {}),
           assertSafeOverwrite: remoteData =>
             assertNoPatientErasures(docToRecord(remoteData, command.date), validatedRecord),
+          assertCanPublish: () => assertAuthoringSessionCurrent(options.authoringSession),
         }),
       readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),
       onRemoteFailure: err =>

@@ -22,6 +22,12 @@ export const isAuthoringSessionCurrent = (session: AuthoringSession): boolean =>
   session.ownerKey === getStoredSessionOwnerKey() &&
   session.generation === getSessionGeneration();
 
+/** A write's send checks this before each wait and inside its transaction; a throw stops it. */
+export const assertAuthoringSessionCurrent = (session: AuthoringSession): void => {
+  if (!isAuthoringSessionCurrent(session))
+    throw new Error('La sesión cambió antes de enviar la escritura.');
+};
+
 /** Only the public write boundary accepts an uncaptured request. */
 export type PublicWriteOptions<T extends { authoringSession: AuthoringSession }> = Omit<
   T,
