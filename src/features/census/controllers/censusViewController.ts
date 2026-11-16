@@ -5,6 +5,8 @@ import type { CSSProperties } from 'react';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import type { CensusEmptyStateDiagnostic } from '@/features/census/controllers/censusEmptyStateDiagnostic';
 import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
+import type { DailyRecordBootstrapPhase } from '@/hooks/controllers/dailyRecordBootstrapController';
+import type { RemoteSyncRuntimeStatus } from '@/services/repositories/repositoryConfig';
 
 export type CensusViewBranch = 'empty' | 'register';
 
@@ -93,3 +95,41 @@ export const buildRegisterContentProps = ({
   ...(renderMedicalHandoffAction ? { renderMedicalHandoffAction } : {}),
   ...(accessProfile ? { accessProfile } : {}),
 });
+
+/** What the census shows for the selected day: one closed state instead of loose flags. */
+export type CensusDayView =
+  | { kind: 'register'; registerContentProps: ReturnType<typeof buildRegisterContentProps> }
+  | { kind: 'confirmedEmpty'; emptyDayPromptProps: ReturnType<typeof buildEmptyDayPromptProps> }
+  | { kind: 'readFailed' }
+  | { kind: 'loading' };
+
+export interface ResolveCensusDayViewParams {
+  registerContentProps: ReturnType<typeof buildRegisterContentProps> | null;
+  emptyDayPromptProps: ReturnType<typeof buildEmptyDayPromptProps> | null;
+  remoteSyncStatus: RemoteSyncRuntimeStatus;
+  bootstrapPhase: DailyRecordBootstrapPhase;
+}
+
+/**
+ * A record shows the register. Without one, only an absence the server confirmed, with the remote
+ * runtime up, offers creating or copying the day; elapsed time and cached misses never do. A failed
+ * read of this day is never «no data» (SAVE-01). A save error, of this day or another, is not an
+ * input: it never opens the «could not check» box.
+ */
+export const resolveCensusDayView = ({
+  registerContentProps,
+  emptyDayPromptProps,
+  remoteSyncStatus,
+  bootstrapPhase,
+}: ResolveCensusDayViewParams): CensusDayView => {
+  if (registerContentProps) return { kind: 'register', registerContentProps };
+  if (bootstrapPhase === 'remote_record_timeout') return { kind: 'readFailed' };
+  if (
+    emptyDayPromptProps &&
+    bootstrapPhase === 'confirmed_empty' &&
+    remoteSyncStatus !== 'bootstrapping'
+  ) {
+    return { kind: 'confirmedEmpty', emptyDayPromptProps };
+  }
+  return { kind: 'loading' };
+};

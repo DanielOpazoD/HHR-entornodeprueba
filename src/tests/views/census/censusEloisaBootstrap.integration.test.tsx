@@ -179,33 +179,31 @@ const createCensusWorld = (date = CLINICAL_TODAY, previousRecordDate?: string) =
   mocks.screenModel.mockImplementation(() =>
     world.hasRecord
       ? {
-          branch: 'register',
-          emptyDayPromptProps: null,
-          registerContentProps,
-          shouldDeferTodayEmptyState: false,
-          resolvedTodayEmptyDate: date,
+          dayView: {
+            kind: 'register',
+            registerContentProps,
+          },
         }
       : {
-          branch: 'empty',
-          emptyDayPromptProps: {
-            selectedDay: Number(date.slice(-2)),
-            selectedMonth: 8,
-            currentDateString: date,
-            previousRecordAvailable: Boolean(world.previousRecordDate),
-            previousRecordDate: world.previousRecordDate,
-            emptyStateDiagnostic: {
-              source: date === CLINICAL_TODAY ? 'remote_missing' : 'date_mismatch',
-              message: 'No hay censo para esta fecha.',
-            },
-            onCreateDay: async (...args: unknown[]) => {
-              world.createDayCalls.push(args);
-              world.hasRecord = true;
-              return true;
+          dayView: {
+            kind: 'confirmedEmpty',
+            emptyDayPromptProps: {
+              selectedDay: Number(date.slice(-2)),
+              selectedMonth: 8,
+              currentDateString: date,
+              previousRecordAvailable: Boolean(world.previousRecordDate),
+              previousRecordDate: world.previousRecordDate,
+              emptyStateDiagnostic: {
+                source: date === CLINICAL_TODAY ? 'remote_missing' : 'date_mismatch',
+                message: 'No hay censo para esta fecha.',
+              },
+              onCreateDay: async (...args: unknown[]) => {
+                world.createDayCalls.push(args);
+                world.hasRecord = true;
+                return true;
+              },
             },
           },
-          registerContentProps: null,
-          shouldDeferTodayEmptyState: false,
-          resolvedTodayEmptyDate: date,
         }
   );
   mocks.dailyRecordData.mockImplementation(() => ({
@@ -435,20 +433,19 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
     mocks.screenModel.mockImplementation(() =>
       visible.date === yesterday
         ? {
-            branch: 'register',
-            emptyDayPromptProps: null,
-            registerContentProps: {
-              currentDateString: yesterday,
-              readOnly: false,
-              beds: {},
-              visibleBeds: [],
-              marginStyle: {},
-              stats: null,
-              showBedManagerModal: false,
-              onCloseBedManagerModal: vi.fn(),
+            dayView: {
+              kind: 'register',
+              registerContentProps: {
+                currentDateString: yesterday,
+                readOnly: false,
+                beds: {},
+                visibleBeds: [],
+                marginStyle: {},
+                stats: null,
+                showBedManagerModal: false,
+                onCloseBedManagerModal: vi.fn(),
+              },
             },
-            shouldDeferTodayEmptyState: false,
-            resolvedTodayEmptyDate: yesterday,
           }
         : today()
     );
@@ -511,18 +508,20 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
     const copyWorld = mocks.screenModel.getMockImplementation()!;
     mocks.screenModel.mockImplementation(() => {
       const model = copyWorld();
-      if (!model.emptyDayPromptProps) return model;
+      if (model.dayView.kind !== 'confirmedEmpty') return model;
       return {
-        ...model,
-        emptyDayPromptProps: {
-          ...model.emptyDayPromptProps,
-          onCreateDay: () =>
-            new Promise<boolean>(resolve => {
-              finishCopy = copied => {
-                world.hasRecord = copied;
-                resolve(copied);
-              };
-            }),
+        dayView: {
+          ...model.dayView,
+          emptyDayPromptProps: {
+            ...model.dayView.emptyDayPromptProps,
+            onCreateDay: () =>
+              new Promise<boolean>(resolve => {
+                finishCopy = copied => {
+                  world.hasRecord = copied;
+                  resolve(copied);
+                };
+              }),
+          },
         },
       };
     });
@@ -641,38 +640,36 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
       const date = visibleDate;
       return hasRecord[date]
         ? {
-            branch: 'register',
-            emptyDayPromptProps: null,
-            registerContentProps: {
-              currentDateString: date,
-              readOnly: false,
-              beds: {},
-              visibleBeds: [],
-              marginStyle: {},
-              stats: null,
-              showBedManagerModal: false,
-              onCloseBedManagerModal: vi.fn(),
-            },
-            shouldDeferTodayEmptyState: false,
-            resolvedTodayEmptyDate: date,
-          }
-        : {
-            branch: 'empty',
-            emptyDayPromptProps: {
-              selectedDay: Number(date.slice(-2)),
-              selectedMonth: 8,
-              currentDateString: date,
-              previousRecordAvailable: true,
-              previousRecordDate: date === CLINICAL_TODAY ? '2026-09-09' : '2026-09-07',
-              emptyStateDiagnostic: { source: 'date_mismatch', message: 'No hay censo.' },
-              onCreateDay: async () => {
-                hasRecord[date] = true;
-                return true;
+            dayView: {
+              kind: 'register',
+              registerContentProps: {
+                currentDateString: date,
+                readOnly: false,
+                beds: {},
+                visibleBeds: [],
+                marginStyle: {},
+                stats: null,
+                showBedManagerModal: false,
+                onCloseBedManagerModal: vi.fn(),
               },
             },
-            registerContentProps: null,
-            shouldDeferTodayEmptyState: false,
-            resolvedTodayEmptyDate: date,
+          }
+        : {
+            dayView: {
+              kind: 'confirmedEmpty',
+              emptyDayPromptProps: {
+                selectedDay: Number(date.slice(-2)),
+                selectedMonth: 8,
+                currentDateString: date,
+                previousRecordAvailable: true,
+                previousRecordDate: date === CLINICAL_TODAY ? '2026-09-09' : '2026-09-07',
+                emptyStateDiagnostic: { source: 'date_mismatch', message: 'No hay censo.' },
+                onCreateDay: async () => {
+                  hasRecord[date] = true;
+                  return true;
+                },
+              },
+            },
           };
     });
     mocks.dailyRecordData.mockImplementation(() => ({

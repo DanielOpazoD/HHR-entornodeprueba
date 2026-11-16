@@ -1,6 +1,5 @@
 import React, { Suspense, lazy, useRef, useState } from 'react';
 import { CensusLoadingState } from '@/components/ui/CensusLoadingState';
-import { useDailyRecordStatus } from '@/context/DailyRecordContext';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import { useCensusViewScreenModel } from '@/features/census/hooks/useCensusViewScreenModel';
 import { CensusBootstrapRecovery } from './CensusBootstrapRecovery';
@@ -39,13 +38,7 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
   allowAdminCopyOverride = false,
   accessProfile = 'default',
 }) => {
-  const {
-    branch,
-    emptyDayPromptProps,
-    registerContentProps,
-    shouldDeferTodayEmptyState,
-    resolvedTodayEmptyDate,
-  } = useCensusViewScreenModel({
+  const { dayView } = useCensusViewScreenModel({
     selectedDay,
     selectedMonth,
     currentDateString,
@@ -56,7 +49,6 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
     allowAdminCopyOverride,
     accessProfile,
   });
-  const dailyRecordStatus = useDailyRecordStatus();
   const sessionEpoch = useSessionEpoch();
   const rayenBootstrapSequenceRef = useRef(0);
   const [rayenBootstrapRequest, setRayenBootstrapRequest] = useState<{
@@ -73,58 +65,51 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
     });
   };
 
-  const isEmptyBranchPending =
-    branch === 'empty' &&
-    shouldDeferTodayEmptyState &&
-    resolvedTodayEmptyDate !== currentDateString;
-
-  if (branch === 'empty') {
-    // Elapsed grace time is not evidence of absence. Only confirmed_empty may
-    // mount creation UI; cached/late Firebase responses must never flash it.
-    if (isEmptyBranchPending || dailyRecordStatus.bootstrapPhase !== 'confirmed_empty') {
+  switch (dayView.kind) {
+    case 'register':
+      return (
+        <div className="space-y-4">
+          <CensusRegisterContent
+            {...dayView.registerContentProps}
+            // The request waits for its own day: looking at another day only hides it, and it starts
+            // on return. The session epoch only grows, so a request of an ended session never runs.
+            rayenBootstrapRequestId={
+              rayenBootstrapRequest?.date === currentDateString &&
+              rayenBootstrapRequest.sessionEpoch === sessionEpoch
+                ? rayenBootstrapRequest.id
+                : undefined
+            }
+            // Clears only the request it handled: a day copied meanwhile keeps its own.
+            onRayenBootstrapHandled={handledId =>
+              setRayenBootstrapRequest(request => (request?.id === handledId ? null : request))
+            }
+          />
+        </div>
+      );
+    case 'confirmedEmpty':
+      return (
+        <Suspense fallback={<CensusLoadingState />}>
+          <LazyEmptyDayPrompt
+            {...dayView.emptyDayPromptProps}
+            onRayenBootstrapReady={requestRayenBootstrap}
+          />
+        </Suspense>
+      );
+    case 'loading':
+    case 'readFailed':
+      // Elapsed grace time is not evidence of absence: only confirmedEmpty mounts creation UI.
       return (
         <CensusBootstrapRecovery
           key={currentDateString}
           date={currentDateString}
-          // Only a failed read of this date; a refused save (perhaps of another day) is not one.
-          failed={dailyRecordStatus.bootstrapPhase === 'remote_record_timeout'}
+          failed={dayView.kind === 'readFailed'}
         />
       );
+    default: {
+      const unhandled: never = dayView;
+      return unhandled;
     }
-
-    return (
-      <Suspense fallback={<CensusLoadingState />}>
-        {emptyDayPromptProps ? (
-          <LazyEmptyDayPrompt
-            {...emptyDayPromptProps}
-            onRayenBootstrapReady={requestRayenBootstrap}
-          />
-        ) : null}
-      </Suspense>
-    );
   }
-
-  return (
-    <div className="space-y-4">
-      {registerContentProps ? (
-        <CensusRegisterContent
-          {...registerContentProps}
-          // The request waits for its own day: looking at another day only hides it, and it starts
-          // on return. The session epoch only grows, so a request of an ended session never runs.
-          rayenBootstrapRequestId={
-            rayenBootstrapRequest?.date === currentDateString &&
-            rayenBootstrapRequest.sessionEpoch === sessionEpoch
-              ? rayenBootstrapRequest.id
-              : undefined
-          }
-          // Clears only the request it handled: a day copied meanwhile keeps its own.
-          onRayenBootstrapHandled={handledId =>
-            setRayenBootstrapRequest(request => (request?.id === handledId ? null : request))
-          }
-        />
-      ) : null}
-    </div>
-  );
 };
 
 // Exported component
