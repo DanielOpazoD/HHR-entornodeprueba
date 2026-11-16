@@ -96,7 +96,9 @@ export interface SyncQueueStorePort {
     type: SyncTask['type'],
     key: string,
     ownerKey?: string | null,
-    mutationId?: string
+    mutationId?: string,
+    /** A confirmed direct write's fields: the base they keep in the compacted task holding it. */
+    confirmedValues?: Record<string, unknown>
   ): Promise<boolean>;
   renewPreOutboxHoldByKey(
     type: SyncTask['type'],

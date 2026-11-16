@@ -51,8 +51,8 @@ import type { SyncTask } from '@/services/storage/syncQueueTypes';
  * sequence (SAVE-01, SAVE-02, SAVE-03, Sesión, ID-01), and at the end, with the network back and
  * the queue run, that nothing is left waiting and a conflict stays only where another computer
  * changed one of its fields or the bed holds another patient. The rule breaks it found
- * (W12-MODEL1, W12-MODEL2, W12-CW6, W12-CW7) keep their exact case among the tests below; only
- * KNOWN_DEFECT 6 is still open (its `it.fails`), and a conflict of that kind is not judged.
+ * (W12-MODEL1, W12-MODEL2, W12-CW6 to W12-CW9) keep their exact case among the tests below; one
+ * still open keeps its `it.fails`.
  * Without `FC_SEED` every run, pull requests and main included, draws the same 30 sequences (seed
  * 20261115), so the required check fails for the change under test and not for a defect another
  * draw finds; the nightly `nightly-sync-model` job draws new ones and reports a counterexample's
@@ -718,20 +718,6 @@ const checkSettledAfterDrain = async (m: Model) => {
       return changedElsewhere || (edit.path === BED_PATH && edit.occupant !== occupantOf(server));
     });
     if (task.status === 'CONFLICT' && explained) continue;
-    // KNOWN_DEFECT 6: the conflict meets this person's own confirmed text, which its edit replaced.
-    const ownTextMet = m.edits.some(edit => {
-      if (getValueAtPath(task.payload, edit.path) !== edit.value) return false;
-      const stored = getValueAtPath(server, edit.path);
-      return (
-        stored !== edit.value &&
-        replacedBy(m, edit).includes(stored) &&
-        editOf(m, stored)?.owner === edit.owner
-      );
-    });
-    if (task.status === 'CONFLICT' && ownTextMet) {
-      m.log.push('[KNOWN_DEFECT 6]');
-      continue;
-    }
     throw new Error(
       `Al terminar: tarea ${task.status} (${task.lastErrorCode ?? 'sin código'}) de ${owner} ` +
         `sin un cambio ajeno que la explique\nPasos: ${m.log.join(' → ')}`
@@ -1005,31 +991,27 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
   }, 60_000);
 
-  // KNOWN_DEFECT 6 (W12-CW7; open, apart from the version drift fixed above). Removing the broad
-  // mark of the old defect 2 showed it, on main as well. A direct save folded into this computer's
-  // queued day write (another field still unsent) is confirmed, but its acknowledgement cannot take
-  // its field out of that compacted write, which keeps the field's older base. An edit of the field
-  // made offline afterwards joins that write, and its replay takes this computer's own confirmed
-  // text for another computer's: both unsent edits stay in a conflict nobody caused (SAVE-02).
-  it.fails(
-    'publishes an offline edit made over this computer’s own confirmed text',
-    async () => {
-      const m = await resetWorld();
-      const day = 'handoffNovedadesDayShift';
-      await network(false).run(m, {});
-      expect(await editIn(m, 'handoffNovedadesNightShift')).toBe('editar B1 en ghtShift sin red');
-      await network(true).run(m, {});
-      expect(await editIn(m, day)).toBe('editar B2 en DayShift');
-      await network(false).run(m, {});
-      expect(await editIn(m, day)).toBe('editar B3 en DayShift sin red');
-      await network(true).run(m, {});
-      for (let round = 0; round < 3; round++) await replayIn(m);
-      const server = await readServer();
-      expect([server[day], server.handoffNovedadesNightShift]).toEqual(['B3', 'B1']);
-      expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
-    },
-    60_000
-  );
+  // W12-CW9, the defect 6 of W12-CW7. A direct save folded into this computer's queued day write
+  // (another field still unsent) is confirmed, but its acknowledgement cannot take its field out of
+  // that compacted write, which kept the field's older base. An edit of the field made offline
+  // afterwards joined that write, and its replay took this computer's own confirmed text for
+  // another computer's: both unsent edits stayed in a conflict nobody caused (SAVE-02). The
+  // confirmed text is now that field's base in the write.
+  it('publishes an offline edit made over this computer’s own confirmed text', async () => {
+    const m = await resetWorld();
+    const day = 'handoffNovedadesDayShift';
+    await network(false).run(m, {});
+    expect(await editIn(m, 'handoffNovedadesNightShift')).toBe('editar B1 en ghtShift sin red');
+    await network(true).run(m, {});
+    expect(await editIn(m, day)).toBe('editar B2 en DayShift');
+    await network(false).run(m, {});
+    expect(await editIn(m, day)).toBe('editar B3 en DayShift sin red');
+    await network(true).run(m, {});
+    for (let round = 0; round < 3; round++) await replayIn(m);
+    const server = await readServer();
+    expect([server[day], server.handoffNovedadesNightShift]).toEqual(['B3', 'B1']);
+    expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
+  }, 60_000);
 
   // ID-01 (fixed in W12-CW6): this computer still shows a patient without a diagnosis
   // when another computer discharges them and admits another, also without one. A diagnosis
