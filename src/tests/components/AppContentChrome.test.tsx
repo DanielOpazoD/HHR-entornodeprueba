@@ -108,7 +108,6 @@ describe('AppContentChrome', () => {
       isFirebaseConnected: true,
     },
     dateNav: {
-      isSignatureMode: false,
       currentDateString: '2026-03-27',
       selectedYear: 2026,
       setSelectedYear: vi.fn(),
@@ -164,25 +163,6 @@ describe('AppContentChrome', () => {
     expect(screen.getByTestId('bookmark-bar')).toBeInTheDocument();
     expect(screen.getByTestId('app-router')).toBeInTheDocument();
     expect(screen.getByTestId('app-router')).toHaveAttribute('data-has-open-date', 'true');
-  });
-
-  it('hides navigation chrome in signature mode', () => {
-    render(
-      <AppContentChrome
-        ui={ui as never}
-        runtime={
-          {
-            ...runtime,
-            dateNav: { ...runtime.dateNav, isSignatureMode: true },
-          } as never
-        }
-        onOpenCensusDate={vi.fn()}
-      />
-    );
-
-    expect(screen.queryByTestId('navbar')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('datestrip')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('bookmark-bar')).not.toBeInTheDocument();
   });
 
   it('keeps census export actions only on allowed census views', () => {

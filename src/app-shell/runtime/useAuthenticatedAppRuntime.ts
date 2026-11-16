@@ -14,7 +14,7 @@ import type { DailyRecordContextType } from '@/context/dailyRecordContextContrac
 import { resolveShiftNurseSignature } from '@/services/staff/dailyRecordStaffing';
 import type { AuthContextType } from '@/context/AuthContext';
 import type { CensusContextType } from '@/context/CensusContext';
-import type { AppAuthenticatedDateNavigation } from '@/app-shell/bootstrap/useAppBootstrapState';
+import type { UseDateNavigationReturn } from '@/hooks/useDateNavigation';
 import { markPerf } from '@/shared/runtime/perfAudit';
 import { startDailyActionTiming } from '@/services/observability/dailyActionTiming';
 export interface AuthenticatedAppRuntime {
@@ -29,12 +29,12 @@ export interface AuthenticatedAppRuntime {
 
 interface UseAuthenticatedAppRuntimeParams {
   auth: AuthContextType;
-  dateNav: AppAuthenticatedDateNavigation;
+  dateNav: UseDateNavigationReturn;
 }
 
 interface BuildCensusContextValueParams {
   dailyRecordHook: DailyRecordContextType;
-  dateNav: AppAuthenticatedDateNavigation;
+  dateNav: UseDateNavigationReturn;
   existingDaysInMonth: number[];
   clinicalToday: string;
   goToClinicalToday: () => void;

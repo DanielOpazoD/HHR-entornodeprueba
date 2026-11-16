@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   buildAppShellReadyTelemetry,
   resolveSanitizedCurrentModule,
-  shouldRecordAppShellTelemetry,
 } from '@/components/layout/app-content/appContentShellEffectsController';
 
 describe('appContentShellEffectsController', () => {
@@ -30,28 +29,5 @@ describe('appContentShellEffectsController', () => {
         role: 'viewer',
       },
     });
-  });
-
-  it('only records telemetry when it is still pending and not in signature mode', () => {
-    expect(
-      shouldRecordAppShellTelemetry({
-        alreadyRecorded: false,
-        isSignatureMode: false,
-      })
-    ).toBe(true);
-
-    expect(
-      shouldRecordAppShellTelemetry({
-        alreadyRecorded: true,
-        isSignatureMode: false,
-      })
-    ).toBe(false);
-
-    expect(
-      shouldRecordAppShellTelemetry({
-        alreadyRecorded: false,
-        isSignatureMode: true,
-      })
-    ).toBe(false);
   });
 });

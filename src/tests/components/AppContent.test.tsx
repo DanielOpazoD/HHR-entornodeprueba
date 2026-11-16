@@ -179,7 +179,6 @@ describe('AppContent', () => {
   const mockCensusContext = {
     dailyRecord: { record: {}, syncStatus: 'idle', lastSyncTime: null },
     dateNav: {
-      isSignatureMode: false,
       currentDateString: '2024-01-01',
       selectedYear: 2024,
       selectedMonth: 1,
@@ -242,20 +241,6 @@ describe('AppContent', () => {
     expect(screen.getByTestId('app-router')).toBeInTheDocument();
     expect(screen.getByTestId('storage-badge')).toBeInTheDocument();
     expect(screen.queryByTestId('reminder-modal')).not.toBeInTheDocument();
-  });
-
-  it('hides Navbar and DateStrip in signature mode', () => {
-    const signatureContext = {
-      ...mockCensusContext,
-      dateNav: { ...mockCensusContext.dateNav, isSignatureMode: true },
-    };
-    vi.mocked(useCensusContext).mockReturnValue(signatureContext as unknown as CensusContextValue);
-
-    render(<AppContent ui={mockUI} />);
-
-    expect(screen.queryByTestId('navbar')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('datestrip')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('bookmark-bar')).not.toBeInTheDocument();
   });
 
   it('hides DateStrip in the standalone statistics module', () => {

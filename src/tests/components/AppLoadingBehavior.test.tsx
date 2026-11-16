@@ -34,7 +34,6 @@ vi.mock('@/views/LazyViews', () => ({
   PrescriptionVisorView: () => <div>Prescription viewer</div>,
   PrescriptionAdminView: () => <div>Prescription admin</div>,
   WoundCareMobileUploadView: () => <div>Wound upload</div>,
-  MedicalSignatureView: () => <div data-testid="signature-view">Signature View</div>,
 }));
 
 const createAuth = (
@@ -108,7 +107,6 @@ describe('App loading behavior', () => {
     ['/recetas/visor', 'authenticated'],
     ['/admin/recetas-config', 'authenticated'],
     ['/wound-care/mobile-upload/synthetic', 'unauthenticated'],
-    ['/firma/synthetic', 'signature_mode'],
   ])('mounts one shared recovery on %s (%s)', async (pathname, status) => {
     window.location.pathname = pathname;
     mockUseAppBootstrapState.mockReturnValue({ status, auth: createAuth() });
@@ -369,7 +367,6 @@ describe('App loading behavior', () => {
         daysInMonth: 30,
         currentDateString: '2026-04-18',
         navigateDays: vi.fn(),
-        isSignatureMode: false,
       },
     });
 
@@ -377,19 +374,5 @@ describe('App loading behavior', () => {
 
     expect(await screen.findByTestId('authenticated-shell')).toBeInTheDocument();
     expect(screen.queryByTestId('login-loading-shell')).not.toBeInTheDocument();
-  });
-
-  it('renders the signature view when bootstrap enters signature mode', () => {
-    mockUseAppBootstrapState.mockReturnValue({
-      status: 'signature_mode',
-      phase: 'signature_mode',
-      auth: createAuth('authorized'),
-    });
-
-    render(<App />);
-
-    expect(screen.getByTestId('signature-view')).toBeInTheDocument();
-    expect(screen.queryByTestId('authenticated-shell')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('login-page')).not.toBeInTheDocument();
   });
 });

@@ -260,7 +260,6 @@ export const BootstrapRouteChrome: React.FC = () => {
   const renderDateStrip = shouldRenderDateStrip({
     currentModule: bootstrapModule,
     censusViewMode: BOOTSTRAP_CENSUS_VIEW_MODE,
-    isSignatureMode: false,
   });
   const canUseCensusChromeActions = bootstrapModule === 'CENSUS';
   const canUseHandoffPrintActions = shouldShowPrintButtonForModule(bootstrapModule);
