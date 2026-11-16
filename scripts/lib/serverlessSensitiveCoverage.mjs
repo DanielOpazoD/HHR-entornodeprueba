@@ -125,6 +125,20 @@ export const buildServerlessSensitiveCoverageReport = root => {
       );
     }
   }
+  // Endpoints the owner retired on purpose: reopening one is his decision, not a refactor's.
+  for (const { endpoint, reason } of Array.isArray(config.retired) ? config.retired : []) {
+    const reopened = [
+      ...functionFiles.filter(file => path.parse(file).name === endpoint),
+      ...normalizedEntries
+        .filter(entry => entry.endpoint === endpoint)
+        .map(entry => entry.functionFile),
+    ];
+    for (const where of reopened) {
+      issues.push(
+        `${where}: el endpoint ${endpoint} se retiró a propósito (${reason}). No lo reabras sin que el responsable lo pida; si lo pidió, quítalo de retired en ${CONFIG_PATH}.`
+      );
+    }
+  }
 
   return {
     generatedAt: new Date().toISOString(),

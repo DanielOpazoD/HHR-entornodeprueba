@@ -243,5 +243,11 @@
       "functionFile": "netlify/functions/runtime-contract.js",
       "reason": "Devuelve constantes públicas de versiones de runtime y esquema; no lee pacientes, secretos ni realiza acciones administrativas."
     }
+  ],
+  "retired": [
+    {
+      "endpoint": "clinical-ai-summary",
+      "reason": "resumen clínico con IA que ninguna pantalla usaba; decisión del responsable del 2026-10-22, PR #959"
+    }
   ]
 }
