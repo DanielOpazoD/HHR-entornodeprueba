@@ -40,9 +40,9 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 
-const ROOT = process.cwd();
 const CLOCK_SOURCE = 'src/utils/clinicalTimeZone.ts';
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs']);
 const DATE_OPTION = /\b(?:hour|minute|second|day|month|year|weekday|dateStyle|timeStyle|era)\b/;
@@ -51,13 +51,13 @@ const FORMAT_CALL =
 
 const toPosix = value => value.split(path.sep).join('/');
 
-const walk = (relativeDir, accept) => {
-  const absoluteDir = path.join(ROOT, relativeDir);
+const walkIn = (root, relativeDir, accept) => {
+  const absoluteDir = path.join(root, relativeDir);
   if (!fs.existsSync(absoluteDir)) return [];
   const files = [];
   for (const entry of fs.readdirSync(absoluteDir, { withFileTypes: true })) {
     const relativePath = toPosix(path.join(relativeDir, entry.name));
-    if (entry.isDirectory()) files.push(...walk(relativePath, accept));
+    if (entry.isDirectory()) files.push(...walkIn(root, relativePath, accept));
     else if (
       entry.isFile() &&
       SOURCE_EXTENSIONS.has(path.extname(entry.name)) &&
@@ -70,24 +70,6 @@ const walk = (relativeDir, accept) => {
 
 const isTestFile = relativePath =>
   relativePath.startsWith('src/tests/') || /\.(?:test|spec|stories)\./.test(relativePath);
-
-const productionFiles = walk(
-  'src',
-  relativePath => !relativePath.endsWith('.d.ts') && !isTestFile(relativePath)
-);
-const functionsFiles = [
-  ...walk('functions/lib', relativePath => !isTestFile(relativePath)),
-  ...(fs.existsSync(path.join(ROOT, 'functions/index.js')) ? ['functions/index.js'] : []),
-];
-const netlifyFiles = walk(
-  'netlify',
-  relativePath => !relativePath.endsWith('.d.ts') && !isTestFile(relativePath)
-);
-const testFiles = walk('src/tests', () => true);
-const e2eFiles = [
-  ...walk('e2e', () => true),
-  ...fs.readdirSync(ROOT).filter(name => /^playwright[\w.-]*\.config\.ts$/.test(name)),
-];
 
 const lineOf = (source, index) => source.slice(0, index).split('\n').length;
 
@@ -463,94 +445,127 @@ const rawOffsetClockLines = (source, relativePath) => {
   return [...lines];
 };
 
-const RULES = [
-  {
-    rule: 'raw-offset-clock',
-    files: [
-      ...walk('src/features/rayen-import', file => !isTestFile(file)),
-      ...walk('extension', file => !isTestFile(file) && !file.endsWith('.min.js')),
-    ],
-    find: rawOffsetClockLines,
-    hint: 'use encounterWallClockInRapaNui() or hora de Rapa Nui con Intl (timeZone: Pacific/Easter); document unzoned local history with clinical-clock-allow raw-offset-clock: <reason>',
-  },
-  {
-    rule: 'server-clock-today',
-    files: functionsFiles,
-    find: localCalendarGetterLines('server-clock-today'),
-    hint: 'use hospitalCalendarDay() from functions/lib/hospitalCalendarDay for the hospital day',
-  },
-  {
-    rule: 'device-calendar-today',
-    files: productionFiles,
-    find: localCalendarGetterLines('device-calendar-today'),
-    hint: 'use getClinicalCalendarDateISO() / calendarStampInClinicalTimeZone() from src/utils/clinicalTimeZone for the hospital day; document a local calendar value with clinical-clock-allow device-calendar-today: <reason>',
-  },
-  {
-    rule: 'zone-literal',
-    files: [...productionFiles, ...netlifyFiles, ...e2eFiles].filter(file => file !== CLOCK_SOURCE),
-    find: regexRule(/['"`]Pacific\/Easter['"`]/),
-    hint: 'import CLINICAL_TIME_ZONE from src/utils/clinicalTimeZone instead of the literal',
-  },
-  {
-    rule: 'device-clock-today',
-    files: [...productionFiles, ...netlifyFiles],
-    find: regexRule(/getTimezoneOffset\(\)[\s\S]{0,160}toISOString\(\)\s*\.\s*(split|slice)\(/),
-    hint: 'use getTodayISO() (hospital calendar) instead of the device clock',
-  },
-  {
-    rule: 'utc-today',
-    files: [...productionFiles, ...netlifyFiles, ...testFiles, ...e2eFiles, ...functionsFiles],
-    find: regexRule(
-      /new Date\(\)\s*\.\s*toISOString\(\)\s*\.\s*(?:(?:slice|substring|substr)\(\s*0\s*,\s*10\s*\)|split\(\s*['"]T['"]\s*\)\s*\[\s*0\s*\])/
-    ),
-    hint: relativePath =>
-      relativePath.startsWith('functions/')
-        ? 'use hospitalCalendarDay() from functions/lib/hospitalCalendarDay instead of the UTC date'
-        : 'use getTodayISO() (hospital calendar) instead of the UTC date',
-  },
-  {
-    rule: 'zone-less-format',
-    files: [...productionFiles, ...netlifyFiles],
-    find: zoneLessFormatLines,
-    hint: 'pass timeZone (CLINICAL_TIME_ZONE, or UTC for UTC-anchored calendar dates) or use dateDisplayUtils',
-  },
-  {
-    rule: 'device-clock-time',
-    files: [...productionFiles, ...netlifyFiles],
-    find: source =>
-      [...source.matchAll(/\.(?:get(?:Hours|Minutes)|toTimeString)\s*\(\s*\)/g)].map(match =>
-        lineOf(source, match.index)
+/** Checks the hospital clock rules in the repository at `root`, as the command prints and exits. */
+export const checkClinicalClock = (root = process.cwd()) => {
+  const walk = (relativeDir, accept) => walkIn(root, relativeDir, accept);
+  const productionFiles = walk(
+    'src',
+    relativePath => !relativePath.endsWith('.d.ts') && !isTestFile(relativePath)
+  );
+  const functionsFiles = [
+    ...walk('functions/lib', relativePath => !isTestFile(relativePath)),
+    ...(fs.existsSync(path.join(root, 'functions/index.js')) ? ['functions/index.js'] : []),
+  ];
+  const netlifyFiles = walk(
+    'netlify',
+    relativePath => !relativePath.endsWith('.d.ts') && !isTestFile(relativePath)
+  );
+  const testFiles = walk('src/tests', () => true);
+  const e2eFiles = [
+    ...walk('e2e', () => true),
+    ...fs.readdirSync(root).filter(name => /^playwright[\w.-]*\.config\.ts$/.test(name)),
+  ];
+
+  const RULES = [
+    {
+      rule: 'raw-offset-clock',
+      files: [
+        ...walk('src/features/rayen-import', file => !isTestFile(file)),
+        ...walk('extension', file => !isTestFile(file) && !file.endsWith('.min.js')),
+      ],
+      find: rawOffsetClockLines,
+      hint: 'use encounterWallClockInRapaNui() or hora de Rapa Nui con Intl (timeZone: Pacific/Easter); document unzoned local history with clinical-clock-allow raw-offset-clock: <reason>',
+    },
+    {
+      rule: 'server-clock-today',
+      files: functionsFiles,
+      find: localCalendarGetterLines('server-clock-today'),
+      hint: 'use hospitalCalendarDay() from functions/lib/hospitalCalendarDay for the hospital day',
+    },
+    {
+      rule: 'device-calendar-today',
+      files: productionFiles,
+      find: localCalendarGetterLines('device-calendar-today'),
+      hint: 'use getClinicalCalendarDateISO() / calendarStampInClinicalTimeZone() from src/utils/clinicalTimeZone for the hospital day; document a local calendar value with clinical-clock-allow device-calendar-today: <reason>',
+    },
+    {
+      rule: 'zone-literal',
+      files: [...productionFiles, ...netlifyFiles, ...e2eFiles].filter(
+        file => file !== CLOCK_SOURCE
       ),
-    hint: 'read the hospital clock: readClinicalTimestamp() / calendarStampInClinicalTimeZone()',
-  },
-  {
-    rule: 'instant-calendar-slice',
-    files: [...productionFiles, ...netlifyFiles],
-    find: instantCalendarSliceLines,
-    hint: 'convert stored instants with readClinicalTimestamp() / getClinicalCalendarDateISO(); exempt only documented wall-clock fields',
-  },
-];
+      find: regexRule(/['"`]Pacific\/Easter['"`]/),
+      hint: 'import CLINICAL_TIME_ZONE from src/utils/clinicalTimeZone instead of the literal',
+    },
+    {
+      rule: 'device-clock-today',
+      files: [...productionFiles, ...netlifyFiles],
+      find: regexRule(/getTimezoneOffset\(\)[\s\S]{0,160}toISOString\(\)\s*\.\s*(split|slice)\(/),
+      hint: 'use getTodayISO() (hospital calendar) instead of the device clock',
+    },
+    {
+      rule: 'utc-today',
+      files: [...productionFiles, ...netlifyFiles, ...testFiles, ...e2eFiles, ...functionsFiles],
+      find: regexRule(
+        /new Date\(\)\s*\.\s*toISOString\(\)\s*\.\s*(?:(?:slice|substring|substr)\(\s*0\s*,\s*10\s*\)|split\(\s*['"]T['"]\s*\)\s*\[\s*0\s*\])/
+      ),
+      hint: relativePath =>
+        relativePath.startsWith('functions/')
+          ? 'use hospitalCalendarDay() from functions/lib/hospitalCalendarDay instead of the UTC date'
+          : 'use getTodayISO() (hospital calendar) instead of the UTC date',
+    },
+    {
+      rule: 'zone-less-format',
+      files: [...productionFiles, ...netlifyFiles],
+      find: zoneLessFormatLines,
+      hint: 'pass timeZone (CLINICAL_TIME_ZONE, or UTC for UTC-anchored calendar dates) or use dateDisplayUtils',
+    },
+    {
+      rule: 'device-clock-time',
+      files: [...productionFiles, ...netlifyFiles],
+      find: source =>
+        [...source.matchAll(/\.(?:get(?:Hours|Minutes)|toTimeString)\s*\(\s*\)/g)].map(match =>
+          lineOf(source, match.index)
+        ),
+      hint: 'read the hospital clock: readClinicalTimestamp() / calendarStampInClinicalTimeZone()',
+    },
+    {
+      rule: 'instant-calendar-slice',
+      files: [...productionFiles, ...netlifyFiles],
+      find: instantCalendarSliceLines,
+      hint: 'convert stored instants with readClinicalTimestamp() / getClinicalCalendarDateISO(); exempt only documented wall-clock fields',
+    },
+  ];
 
-const violations = [];
-for (const { rule, files, find, hint } of RULES) {
-  for (const relativePath of files) {
-    const source = fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
-    for (const line of find(source, relativePath))
-      violations.push({
-        rule,
-        location: `${relativePath}:${line}`,
-        hint: typeof hint === 'function' ? hint(relativePath) : hint,
-      });
+  const violations = [];
+  for (const { rule, files, find, hint } of RULES) {
+    for (const relativePath of files) {
+      const source = fs.readFileSync(path.join(root, relativePath), 'utf8');
+      for (const line of find(source, relativePath))
+        violations.push({
+          rule,
+          location: `${relativePath}:${line}`,
+          hint: typeof hint === 'function' ? hint(relativePath) : hint,
+        });
+    }
   }
-}
 
-if (violations.length === 0) {
-  console.log('Clinical clock checks passed (one hospital clock, no device or UTC dates).');
-  process.exit(0);
-}
+  if (violations.length === 0) {
+    return {
+      status: 0,
+      stdout: 'Clinical clock checks passed (one hospital clock, no device or UTC dates).\n',
+      stderr: '',
+    };
+  }
+  const lines = ['\nClinical clock violations:'];
+  for (const { rule, location, hint } of violations) {
+    lines.push(`- [${rule}] ${location} — ${hint}`);
+  }
+  return { status: 1, stdout: '', stderr: `${lines.join('\n')}\n` };
+};
 
-console.error('\nClinical clock violations:');
-for (const { rule, location, hint } of violations) {
-  console.error(`- [${rule}] ${location} — ${hint}`);
+if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {
+  const { status, stdout, stderr } = checkClinicalClock();
+  process.stdout.write(stdout);
+  process.stderr.write(stderr);
+  process.exitCode = status;
 }
-process.exit(1);

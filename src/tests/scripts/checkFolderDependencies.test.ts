@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { checkFolderDependencies } from '../../../scripts/check-folder-dependencies.mjs';
 
 const roots: string[] = [];
 const zones = ['components', 'context', 'hooks', 'services'];
@@ -190,33 +191,49 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
+const createRepository = (files: Record<string, string>) => {
+  const root = mkdtempSync(path.join(tmpdir(), 'hhr-folder-dependencies-'));
+  roots.push(root);
+  for (const [relativePath, content] of Object.entries({
+    'scripts/folder-dependency-matrix.json': matrix,
+    ...files,
+  })) {
+    const destination = path.join(root, relativePath);
+    mkdirSync(path.dirname(destination), { recursive: true });
+    writeFileSync(destination, content);
+  }
+  return root;
+};
+
 describe('check-folder-dependencies frozen verdicts', () => {
+  // The verdicts run in this process; the command itself is checked once below.
   it.each(fixtures)('$name', fixture => {
-    const root = mkdtempSync(path.join(tmpdir(), 'hhr-folder-dependencies-'));
-    roots.push(root);
-    const files = {
-      'scripts/folder-dependency-matrix.json': matrix,
-      ...fixture.files,
-    };
-    for (const [relativePath, content] of Object.entries(files)) {
-      const destination = path.join(root, relativePath);
-      mkdirSync(path.dirname(destination), { recursive: true });
-      writeFileSync(destination, content);
-    }
-    const result = spawnSync(
-      process.execPath,
-      [path.resolve('scripts/check-folder-dependencies.mjs')],
-      {
-        cwd: root,
-        encoding: 'utf8',
-      }
-    );
+    const result = checkFolderDependencies(createRepository(fixture.files));
     if (fixture.diagnostic) {
       expect(result.stderr).toContain(fixture.diagnostic);
       expect(result.stderr).toContain('scripts/folder-dependency-matrix.json');
       expect(result.stderr).toContain('responsable');
     }
-    expect(result.error).toBeUndefined();
     expect(result.status, `${result.stdout}${result.stderr}`).toBe(fixture.status);
+  });
+
+  it('prints and exits as the command exactly what it decides in process', () => {
+    const cliFixtures = fixtures.filter(fixture =>
+      ['components->components alias', 'ignores a former exception list'].includes(fixture.name)
+    );
+    expect(cliFixtures.map(fixture => fixture.status)).toEqual([0, 1]);
+    for (const fixture of cliFixtures) {
+      const root = createRepository(fixture.files);
+      const result = spawnSync(
+        process.execPath,
+        [path.resolve('scripts/check-folder-dependencies.mjs')],
+        { cwd: root, encoding: 'utf8' }
+      );
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(fixture.status);
+      expect({ status: result.status, stdout: result.stdout, stderr: result.stderr }).toEqual(
+        checkFolderDependencies(root)
+      );
+    }
   });
 });

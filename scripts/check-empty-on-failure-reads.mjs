@@ -9,9 +9,9 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 
-const ROOT = process.cwd();
 const AREAS = [
   'src/features/laboratory/services/labFirestoreService.ts',
   'src/services/repositories',
@@ -31,14 +31,14 @@ const KEYWORDS = new Set(['if', 'for', 'while', 'switch', 'catch', 'function', '
 
 const toPosix = value => value.split(path.sep).join('/');
 
-const walk = relativeDir => {
-  const absoluteDir = path.join(ROOT, relativeDir);
+const walk = (root, relativeDir) => {
+  const absoluteDir = path.join(root, relativeDir);
   if (!fs.existsSync(absoluteDir)) return [];
   if (fs.statSync(absoluteDir).isFile()) return [relativeDir];
   const files = [];
   for (const entry of fs.readdirSync(absoluteDir, { withFileTypes: true })) {
     const relativePath = toPosix(path.join(relativeDir, entry.name));
-    if (entry.isDirectory()) files.push(...walk(relativePath));
+    if (entry.isDirectory()) files.push(...walk(root, relativePath));
     else if (/\.(ts|tsx)$/.test(entry.name) && !/\.(test|spec)\./.test(entry.name))
       files.push(relativePath);
   }
@@ -63,10 +63,10 @@ const enclosingName = (lines, lineIndex) => {
   return '(module)';
 };
 
-const findEntries = () => {
+const findEntries = root => {
   const entries = [];
-  for (const file of AREAS.flatMap(walk)) {
-    const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
+  for (const file of AREAS.flatMap(area => walk(root, area))) {
+    const source = fs.readFileSync(path.join(root, file), 'utf8');
     const lines = source.split('\n');
     // Subscription error callbacks are reads too: emitting [] after onError masks failure.
     const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
@@ -153,14 +153,26 @@ const findEntries = () => {
   return entries.sort();
 };
 
-const current = findEntries();
-if (current.length === 0) {
-  console.log('[empty-on-failure-reads] OK (no reads return empty on failure).');
-  process.exit(0);
-}
-for (const key of new Set(current)) {
-  console.error(
-    `- new: ${key} returns empty on failure. Throw, or return a result the caller must handle. Only optional browser capabilities (Storage, BroadcastChannel, etc.), never data reads, may use an immediately preceding "// empty-on-failure-allow optional-capability: <reason>".`
+/** Checks the data-layer reads in the repository at `root`, as the command prints and exits. */
+export const checkEmptyOnFailureReads = (root = process.cwd()) => {
+  const current = findEntries(root);
+  if (current.length === 0) {
+    return {
+      status: 0,
+      stdout: '[empty-on-failure-reads] OK (no reads return empty on failure).\n',
+      stderr: '',
+    };
+  }
+  const lines = [...new Set(current)].map(
+    key =>
+      `- new: ${key} returns empty on failure. Throw, or return a result the caller must handle. Only optional browser capabilities (Storage, BroadcastChannel, etc.), never data reads, may use an immediately preceding "// empty-on-failure-allow optional-capability: <reason>".`
   );
+  return { status: 1, stdout: '', stderr: `${lines.join('\n')}\n` };
+};
+
+if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {
+  const { status, stdout, stderr } = checkEmptyOnFailureReads();
+  process.stdout.write(stdout);
+  process.stderr.write(stderr);
+  process.exitCode = status;
 }
-process.exit(1);
