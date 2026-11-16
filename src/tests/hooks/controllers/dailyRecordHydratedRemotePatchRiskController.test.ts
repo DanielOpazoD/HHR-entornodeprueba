@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { classifyHydratedRemotePatchRisk } from '@/hooks/controllers/dailyRecordHydratedRemotePatchRiskController';
 import { DataFactory } from '@/tests/factories/DataFactory';

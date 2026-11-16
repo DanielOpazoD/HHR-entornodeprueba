@@ -1,3 +1,4 @@
+// @vitest-environment node
 // A passport HHR always read as one (P123456785) and another person's RUT with the same digits
 // (12.345.678-5) are two people in every step of the discharge report. Synthetic data only.
 import { expect, it } from 'vitest';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 // Permanent synthetic regressions for report document identity.
 import { describe, expect, it } from 'vitest';
 

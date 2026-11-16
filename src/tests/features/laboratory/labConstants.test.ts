@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * @fileoverview Validation tests for the laboratory comparison and trend catalogs.
  * Ensures no duplicates, no overlap between exclude/order, and trend groups integrity.

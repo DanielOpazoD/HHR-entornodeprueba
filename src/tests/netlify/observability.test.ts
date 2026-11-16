@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { createProviderError, credentialMarkers } from './providerErrorFixture';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 

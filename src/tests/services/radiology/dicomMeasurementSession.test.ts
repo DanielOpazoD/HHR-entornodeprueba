@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beforeEach, expect, it, vi } from 'vitest';
 const cs = vi.hoisted(() => {
   const events = new EventTarget();

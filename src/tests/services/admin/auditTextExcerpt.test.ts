@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { excerptAroundChange } from '@/services/admin/auditTextExcerpt';
 import { compactAuditDetails } from '@/services/admin/auditDetailsCompaction';

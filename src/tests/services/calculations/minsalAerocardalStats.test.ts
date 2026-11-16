@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { calculateMinsalStats } from '@/services/calculations/minsalStatsCalculator';
 import type { DailyRecord } from '@/types/domain/dailyRecord';

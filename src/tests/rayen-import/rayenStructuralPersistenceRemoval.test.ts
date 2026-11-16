@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { expect, it } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';

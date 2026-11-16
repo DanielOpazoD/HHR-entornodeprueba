@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { createProviderError, credentialMarkers } from '../netlify/providerErrorFixture';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { buildLabPdfFilename } from '@/services/laboratory/labPdfFilenameController';
 import type { SyslabExamItem } from '@/types/domain/labExamTypes';

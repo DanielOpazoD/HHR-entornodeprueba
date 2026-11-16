@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { parseCudyrDischargeReport } from '@/services/cudyr/cudyrDischargeReportParser';
 import { readCudyrWorkbookMatrix } from '@/services/cudyr/cudyrSupplementBinary';

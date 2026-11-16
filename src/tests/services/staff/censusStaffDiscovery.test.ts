@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { collectCensusStaff } from '@/services/staff/censusStaffDiscovery';
 import { mergeEloisaStaff } from '@/services/staff/eloisaStaffDiscovery';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Alignment of the clinicalDerived contract twins (phase 1a). The server writes and reads episode
  * documents with functions/lib/clinicalDerivedContract.js and the client overlays them with

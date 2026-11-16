@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { parseNursingCandidates } from '@/features/admin/domain/nursingCandidates';
 describe('nursing candidate review', () => {

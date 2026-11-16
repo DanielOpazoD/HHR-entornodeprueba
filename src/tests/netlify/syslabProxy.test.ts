@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { createSyslabProxyHarness } from './support/syslabProxyHarness';
 import { restoreConsole, suppressConsole } from '@/tests/utils/consoleTestUtils';

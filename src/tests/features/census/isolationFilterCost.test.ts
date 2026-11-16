@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { expect, it, vi } from 'vitest';
 import { filterCensusRowsByAttention } from '@/features/census/controllers/rowAcuityController';
 import * as scores from '@/features/census/controllers/evaluationScoresCellController';

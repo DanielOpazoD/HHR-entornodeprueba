@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { formatStaffDisplayName } from '@/services/staff/staffDisplayName';
 import type { EloisaStaffIdentity } from '@/services/staff/eloisaStaffIdentity';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { parseDicom } from 'dicom-parser';
 import { metaData } from '@cornerstonejs/core';

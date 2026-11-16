@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Test de alineación del CONTRATO ÚNICO de autoridad clínico/estructural.
  *

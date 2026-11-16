@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
 import { resolveClinicalDocumentKeyboardShortcut } from '@/features/clinical-documents/controllers/clinicalDocumentRichTextKeyboardController';

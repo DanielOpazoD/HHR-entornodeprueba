@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HISTORY_SNAPSHOT_INTERVAL_MS } from '@/services/storage/firestore/historySnapshotCadence';
 
