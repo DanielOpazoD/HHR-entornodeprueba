@@ -3,7 +3,7 @@ import type { ConflictResolutionTraceContext } from '@/services/repositories/con
 import { dailyRecordFieldSet } from '@/services/repositories/conflictResolutionUtils';
 import {
   buildCompatibleDayShiftStaffingMirror,
-  resolveDayShiftNurses,
+  resolveStoredDayShiftSlots,
 } from '@/services/staff/dailyRecordStaffing';
 
 const isVacantStaffingSlot = (value: string | null | undefined): boolean => {
@@ -58,8 +58,8 @@ export const resolveCanonicalDayShiftNurses = (
   preservePreferredVacancies = false
 ): string[] =>
   mergeFixedStaffingSlots(
-    resolveDayShiftNurses(remote),
-    resolveDayShiftNurses(local),
+    resolveStoredDayShiftSlots(remote),
+    resolveStoredDayShiftSlots(local),
     preferLocal,
     traceContext,
     'nursesDayShift',

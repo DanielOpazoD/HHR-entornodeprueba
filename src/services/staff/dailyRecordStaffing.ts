@@ -76,7 +76,7 @@ const readStoredShiftSlots = (staff?: string[] | null): string[] => {
   return slots;
 };
 
-const resolveStoredDayShiftSlots = (record: DailyRecordShiftStaffingShape): string[] => {
+export const resolveStoredDayShiftSlots = (record: DailyRecordShiftStaffingShape): string[] => {
   for (const staff of [record.nursesDayShift, record.nurses]) {
     const slots = readStoredShiftSlots(staff);
     if (slots.length > 0) return slots;
@@ -193,7 +193,7 @@ export const applyDailyRecordStaffingCompatibility = <T extends DailyRecordStaff
 export const buildCompatibleDayShiftStaffingMirror = (
   staff: string[] | null | undefined
 ): Pick<DailyRecordStaffingCompatShape, 'nurses' | 'nursesDayShift'> => {
-  const resolvedDayShift = toEmptyShiftPair(normalizeStaffList(staff));
+  const resolvedDayShift = toEmptyShiftPair(readStoredShiftSlots(staff));
   return {
     nurses: [...resolvedDayShift],
     nursesDayShift: [...resolvedDayShift],
