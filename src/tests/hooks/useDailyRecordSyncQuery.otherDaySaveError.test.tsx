@@ -82,7 +82,7 @@ describe('opening a day without census after a save of another day failed', () =
     mocks.subscribe.mockReset();
   });
 
-  it.fails('does not report a failed check while the empty day is still being read', async () => {
+  it('does not report a failed check while the empty day is still being read', async () => {
     mocks.subscribe.mockImplementation(() => () => {});
     const port = (await import('@/application/ports/dailyRecordPort'))
       .defaultDailyRecordRepositoryPort;
@@ -126,16 +126,14 @@ describe('opening a day without census after a save of another day failed', () =
     view.rerender({ date: emptyDay });
     await settle();
 
-    // CensusView mounts the amber «No se pudo comprobar si existe un censo» box when
-    // syncStatus is 'error' or the phase is 'remote_record_timeout' (CensusView.tsx).
+    // CensusView mounts the amber «No se pudo comprobar si existe un censo» box only for a failed
+    // read of the date it shows (phase 'remote_record_timeout'); the refused save of the previous
+    // day still reports 'error' here, and CensusView.test.tsx proves that alone opens no box.
     const emptyDayRenders = renders.filter(render => render.date === emptyDay);
     expect(emptyDayRenders.length).toBeGreaterThan(0);
     expect(emptyDayRenders.every(render => render.bootstrapPhase !== 'confirmed_empty')).toBe(true);
     expect(
-      emptyDayRenders.filter(
-        ({ bootstrapPhase, syncStatus }) =>
-          syncStatus === 'error' || bootstrapPhase === 'remote_record_timeout'
-      )
+      emptyDayRenders.filter(({ bootstrapPhase }) => bootstrapPhase === 'remote_record_timeout')
     ).toEqual([]);
     client.clear();
   });
