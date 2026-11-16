@@ -15,7 +15,11 @@ const entry = {
   testFiles: ['src/tests/clinical.test.ts'],
 };
 const runGuard = (
-  config: { entries: (typeof entry)[]; exempt: { functionFile: string; reason?: string }[] } = {
+  config: {
+    entries: (typeof entry)[];
+    exempt: { functionFile: string; reason?: string }[];
+    retired?: { endpoint: string; reason: string }[];
+  } = {
     entries: [entry],
     exempt: [],
   },
@@ -105,6 +109,25 @@ describe('check-serverless-sensitive-coverage', () => {
     expect(result.output).toContain('netlify/functions/deleted.ts');
     expect(result.output).toContain(CONFIG);
   });
+  it('rejects reopening an endpoint the owner retired, as a file or a registry entry', () => {
+    const retired = [{ endpoint: 'clinical-ai-summary', reason: 'PR #959' }];
+    const reopened = runGuard(
+      { entries: [entry], exempt: [], retired },
+      { 'netlify/functions/clinical-ai-summary.ts': '' }
+    );
+    expect(reopened.status).toBe(1);
+    expect(reopened.output).toContain(
+      'netlify/functions/clinical-ai-summary.ts: el endpoint clinical-ai-summary se retiró a propósito (PR #959). No lo reabras sin que el responsable lo pida'
+    );
+    const registered = runGuard({
+      entries: [entry],
+      exempt: [],
+      retired: [{ endpoint: 'clinical', reason: 'PR #959' }],
+    });
+    expect(registered.status).toBe(1);
+    expect(registered.output).toContain(`${entry.functionFile}: el endpoint clinical se retiró`);
+    expect(runGuard({ entries: [entry], exempt: [], retired }).status).toBe(0);
+  });
   it.each([
     { functionFile: 'netlify/functions/deleted.ts' },
     { testFiles: ['src/tests/missing.test.ts'] },
@@ -127,4 +150,11 @@ it('requires the telemetry retry behavior suite in the repository registry', () 
     endpoint: 'operational-telemetry-retry',
     testFiles: ['src/tests/netlify/operationalTelemetryRetry.test.ts'],
   });
+});
+
+it('keeps the clinical AI summary endpoint retired in the repository registry', () => {
+  const config = JSON.parse(readFileSync(CONFIG, 'utf8'));
+  expect(config.retired.map((item: { endpoint: string }) => item.endpoint)).toContain(
+    'clinical-ai-summary'
+  );
 });
