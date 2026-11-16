@@ -136,10 +136,13 @@ export const saveRecordAtomically = async (
   {
     assertSafeOverwrite,
     forceHistorySnapshot = false,
+    assertCanCommit,
   }: {
     assertSafeOverwrite?: (remoteData: Record<string, unknown>) => void;
     /** Restores overwrite live data, so they always keep the previous state. */
     forceHistorySnapshot?: boolean;
+    /** Runs in each attempt right before it writes; a throw aborts the write. */
+    assertCanCommit?: () => void;
   } = {},
   runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
 ): Promise<Record<string, unknown>> => {
@@ -225,6 +228,7 @@ export const saveRecordAtomically = async (
       }
     }
 
+    assertCanCommit?.();
     committedRecord = adoptStoredClinicalDerivedState(
       record,
       snap.exists() ? (snap.data() as Record<string, unknown>) : undefined

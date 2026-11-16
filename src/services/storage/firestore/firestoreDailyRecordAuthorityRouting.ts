@@ -34,9 +34,9 @@ export interface DailyRecordPartialWriteOptions {
   /** Enforces the base version inside the same transaction as the multi-field patch. */
   requireAtomicCas?: boolean;
   /**
-   * The queue's session check for a plain day field write: it runs before each attempt, the
-   * history copy and each retry, and inside the transaction right before it writes. A throw
-   * stops the write.
+   * The writer's session check, from the queue's resend or the direct send: it runs before each
+   * attempt, the history copy and each retry, and inside the transaction right before it writes.
+   * A throw stops the write.
    */
   assertCanPublish?: () => void;
   /**
@@ -71,6 +71,8 @@ export interface DailyRecordSaveWriteOptions {
    * need. Otherwise copies follow the hourly cadence (historySnapshotCadence).
    */
   historyPolicy?: 'snapshot';
+  /** The writer's session check: before each attempt and retry, and inside the transaction. */
+  assertCanPublish?: () => void;
 }
 
 // Clasificación de rutas: delega en el CONTRATO ÚNICO de autoridad (la

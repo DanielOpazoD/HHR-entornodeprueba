@@ -1,4 +1,5 @@
 import {
+  assertAuthoringSessionCurrent,
   isAuthoringSessionCurrent,
   type AuthoringSession,
 } from '@/services/storage/authoringSession';
@@ -281,10 +282,6 @@ export const persistLocalAndAttemptRemoteSync = async ({
   } = {},
 }: PersistLocalAndAttemptRemoteSyncInput): Promise<'continue' | 'return'> => {
   if (remoteAuthorityFirst) {
-    const sessionChanged = new Error('La sesión cambió antes de enviar la escritura.');
-    const assertAuthor = () => {
-      if (!isAuthoringSessionCurrent(authoringSession)) throw sessionChanged;
-    };
     const rejectForeignWrite = (): 'return' => {
       applyLocalPersistenceFailure(
         changedPaths,
@@ -293,7 +290,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
           operation: 'save',
           store: 'none',
           dates: [],
-          error: sessionChanged,
+          error: new Error('La sesión cambió antes de enviar la escritura.'),
           userSafeMessage: 'La sesión cambió. La operación no fue enviada ni guardada.',
         },
         remoteState
@@ -324,7 +321,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
           hooks: {
             retryRemoteWriteOnStaleVersion: retryRemoteWriteOnStaleVersion
               ? fresh => {
-                  assertAuthor();
+                  assertAuthoringSessionCurrent(authoringSession);
                   return retryRemoteWriteOnStaleVersion(fresh);
                 }
               : undefined,
@@ -336,7 +333,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
         remoteResult = rebased.result;
       }
     } catch (error) {
-      if (error === sessionChanged) return rejectForeignWrite();
+      if (!isAuthoringSessionCurrent(authoringSession)) return rejectForeignWrite();
       const alreadyAppliedRecovery = await recoverAlreadyAppliedRemoteWrite({
         error,
         date,
@@ -467,8 +464,23 @@ export const persistLocalAndAttemptRemoteSync = async ({
     await ackLocalAfterRemote?.();
     return 'continue';
   } catch (err) {
-    onRemoteFailure(err);
     await releaseLocalPreOutboxHold?.();
+    // The send stopped because its session ended: the edit stays in its author's queue, for that
+    // person to review and resend. Nothing is recovered or shown in the next session.
+    if (!isAuthoringSessionCurrent(authoringSession)) {
+      remoteState.queuedForRetry = true;
+      remoteState.consistencyState = 'queued_for_retry';
+      remoteState.observabilityTags.push('sync_queue_write_retained_for_owner');
+      recordOperationalTelemetry({
+        category: 'sync',
+        operation: 'direct_send_session_changed',
+        status: 'degraded',
+        runtimeState: 'recoverable',
+        issues: ['La sesión de autoría terminó antes de que el envío directo llegara al servidor.'],
+      });
+      return 'return';
+    }
+    onRemoteFailure(err);
     const recovery = await resolveRemoteWriteRecovery(
       date,
       record,

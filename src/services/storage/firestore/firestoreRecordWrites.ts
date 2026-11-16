@@ -85,6 +85,14 @@ const shouldRetryWrite = (error: unknown): boolean =>
   !(error instanceof DataRegressionError) &&
   !PERMANENT_WRITE_ERROR_CODES.has(String((error as { code?: unknown })?.code));
 
+/** A changed session stops the write here instead of waiting to retry. */
+const unlessSessionChanged =
+  (options: { assertCanPublish?: () => void }, shouldRetry: (error: unknown) => boolean) =>
+  (error: unknown): boolean => {
+    options.assertCanPublish?.();
+    return shouldRetry(error);
+  };
+
 export const saveRecordToFirestore = async (
   record: DailyRecord,
   expectedLastUpdated?: string,
@@ -99,18 +107,21 @@ export const saveRecordToFirestore = async (
     if (callableAuthorityMode === 'enforced' || writeFenceActive) {
       return withRetry(
         () =>
-          saveDailyRecordWithClinicalAuthorityCallable({
-            date: record.date,
-            record,
-            expectedLastUpdated,
-            mode: 'enforced',
-            origin: options.origin ?? 'direct_save',
-            syncContract: options.syncContract,
-          }),
+          saveDailyRecordWithClinicalAuthorityCallable(
+            {
+              date: record.date,
+              record,
+              expectedLastUpdated,
+              mode: 'enforced',
+              origin: options.origin ?? 'direct_save',
+              syncContract: options.syncContract,
+            },
+            options.assertCanPublish
+          ),
         {
           onRetry: (err: unknown, attempt: number) =>
             logFirestoreWriteRetry('save', record.date, attempt, err),
-          shouldRetry: shouldRetryDailyRecordAuthorityError,
+          shouldRetry: unlessSessionChanged(options, shouldRetryDailyRecordAuthorityError),
         }
       );
     }
@@ -135,12 +146,13 @@ export const saveRecordToFirestore = async (
               assertSafeOverwrite: options.assertSafeOverwrite,
               forceHistorySnapshot:
                 options.historyPolicy === 'snapshot' || options.origin === 'backup_restore',
+              assertCanCommit: options.assertCanPublish,
             }
           ),
         {
           onRetry: (err: unknown, attempt: number) =>
             logFirestoreWriteRetry('save', record.date, attempt, err),
-          shouldRetry: shouldRetryWrite,
+          shouldRetry: unlessSessionChanged(options, shouldRetryWrite),
         }
       );
 
@@ -327,20 +339,23 @@ export const updateRecordPartial = async (
       ) {
         return withRetry(
           () =>
-            patchDailyRecordWithClinicalAuthorityCallable({
-              date,
-              patch: callablePatch,
-              expectedLastUpdated,
-              mode: 'enforced',
-              origin: 'direct_partial_update',
-              intentionalBedClear,
-              specialtyIntent: options.specialtyIntent,
-              syncContract: buildAuthorityPatchSyncContract(options.syncContract, callablePatch),
-            }),
+            patchDailyRecordWithClinicalAuthorityCallable(
+              {
+                date,
+                patch: callablePatch,
+                expectedLastUpdated,
+                mode: 'enforced',
+                origin: 'direct_partial_update',
+                intentionalBedClear,
+                specialtyIntent: options.specialtyIntent,
+                syncContract: buildAuthorityPatchSyncContract(options.syncContract, callablePatch),
+              },
+              options.assertCanPublish
+            ),
           {
             onRetry: (err: unknown, attempt: number) =>
               logFirestoreWriteRetry('partialUpdate', date, attempt, err),
-            shouldRetry: shouldRetryDailyRecordAuthorityError,
+            shouldRetry: unlessSessionChanged(options, shouldRetryDailyRecordAuthorityError),
           }
         );
       }
@@ -357,12 +372,12 @@ export const updateRecordPartial = async (
                 ? 'El censo cambió. Este cambio de dotación no se guardó. Recarga el censo y revisa la dotación antes de volver a guardar.'
                 : 'El egreso fue modificado por otro usuario. Recarga el censo antes de reclasificarlo.',
               isStaffingPatch ? 'staffing update' : 'movement reclassification',
-              { historyPolicy: options.historyPolicy }
+              { historyPolicy: options.historyPolicy, assertCanCommit: options.assertCanPublish }
             ),
           {
             onRetry: (err: unknown, attempt: number) =>
               logFirestoreWriteRetry('partialUpdate', date, attempt, err),
-            shouldRetry: shouldRetryWrite,
+            shouldRetry: unlessSessionChanged(options, shouldRetryWrite),
           }
         );
         // Plain local-first writes stay receipt-less, because a returned
@@ -428,11 +443,7 @@ export const updateRecordPartial = async (
           {
             onRetry: (err: unknown, attempt: number) =>
               logFirestoreWriteRetry('partialUpdate', date, attempt, err),
-            // A changed session stops here instead of waiting to retry.
-            shouldRetry: error => {
-              options.assertCanPublish?.();
-              return shouldRetryWrite(error);
-            },
+            shouldRetry: unlessSessionChanged(options, shouldRetryWrite),
           }
         );
         // An empty base is the not-stored-yet branch: no read to project the committed record on.
