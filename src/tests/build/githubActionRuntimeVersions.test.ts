@@ -15,7 +15,7 @@ describe('GitHub Action runtime versions', () => {
       workflow => workflow.match(/actions\/setup-java@[^\s]+/g) ?? []
     );
 
-    expect(setupJavaUses).toHaveLength(3);
-    expect(setupJavaUses).toEqual(Array(3).fill('actions/setup-java@v6'));
+    expect(setupJavaUses).toHaveLength(4);
+    expect(setupJavaUses).toEqual(Array(4).fill('actions/setup-java@v6'));
   });
 });

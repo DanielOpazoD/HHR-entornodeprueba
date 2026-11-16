@@ -326,8 +326,8 @@ El scorecard ejecutivo consolidado vive en `reports/release-readiness-scorecard.
 La política formal de upgrades, excepciones y tipos de cambio vive en `scripts/config/sustainable-change-policy.json`.
 La clasificación compacta de guardrails blocking vs report-only vive en `scripts/config/guardrail-governance.json` y se valida con `npm run check:guardrail-governance`.
 La clasificación de runtime de tests vive en `scripts/config/test-runtime-governance.json` y se valida con `npm run check:test-runtime-governance`.
-El workflow `.github/workflows/nightly-test-runtime.yml` concentra suites largas en `workflow_dispatch`/`schedule`: `test:sync-load`, `test:release-confidence:full` y `test:e2e:clinical-stability:ci`.
-Su job usa `ubuntu-24.04` y el instalador compartido `setup-ci-chromium`, igual que
+El workflow `.github/workflows/nightly-test-runtime.yml` concentra suites largas en `workflow_dispatch`/`schedule`: `test:sync-load`, `test:release-confidence:full` y `test:e2e:clinical-stability:ci`, más la exploración del modelo de la cola en su propio job, `nightly-sync-model`.
+El job principal usa `ubuntu-24.04` y el instalador compartido `setup-ci-chromium`, igual que
 el E2E clínico de PR. No cambiarlo a `ubuntu-latest` sin comprobar que la versión
 fijada de Playwright admite la nueva imagen: un fallo de instalación no acredita
 ninguna de las suites nocturnas. El instalador verifica el arranque del navegador;
@@ -589,6 +589,21 @@ fallido cuando no hay prueba). Solo lee con `gh api`; `--json` da el detalle con
 2. si falla `rules`, validar contratos de schema y paths Firestore antes de tocar tests
 3. si falla `emulator:sync/ui`, revisar sync queue, repositorios, IndexedDB o adapters Firestore
 4. regenerar snapshots/reportes operativos si el cambio modificó budgets o recovery policies
+
+### Falla el modelo de la cola de guardado
+
+El modelo (`syncQueueModel.emulator-ui.test.ts`) corre en `rules-emulator`, y en local, siempre
+con las mismas 30 secuencias (semilla 20261115). Un fallo en una PR o en `main` apunta a ese
+cambio: se corrige ahí, no se reintenta. Las semillas nuevas (300 secuencias) las explora cada
+noche el job `nightly-sync-model` de `nightly-test-runtime.yml`, que no bloquea despliegues. Su
+resumen da la semilla, la ruta y el `replayPath`, y el caso se repite en local con:
+
+```bash
+FC_SEED=<semilla> FC_PATH=<ruta> FC_REPLAY=<replayPath> npm run test:emulator:file -- \
+  src/tests/emulator-ui/syncQueueModel.emulator-ui.test.ts
+```
+
+El caso exacto pasa a una prueba propia junto a su arreglo.
 
 ### Timeouts locales del emulador con CI verde
 

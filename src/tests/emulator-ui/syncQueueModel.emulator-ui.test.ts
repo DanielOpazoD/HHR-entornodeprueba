@@ -53,8 +53,12 @@ import type { SyncTask } from '@/services/storage/syncQueueTypes';
  * changed one of its fields or the bed holds another patient. The rule breaks it found
  * (W12-MODEL1, W12-MODEL2, W12-CW6, W12-CW7) keep their exact case among the tests below; only
  * KNOWN_DEFECT 6 is still open (its `it.fails`), and a conflict of that kind is not judged.
- * `FC_NUM_RUNS` / `FC_SEED` repeat or widen a run, as in src/tests/properties; `FC_PATH` and
- * `FC_REPLAY` (the counterexample's `replayPath`) replay one counterexample exactly.
+ * Without `FC_SEED` every run, pull requests and main included, draws the same 30 sequences (seed
+ * 20261115), so the required check fails for the change under test and not for a defect another
+ * draw finds; the nightly `nightly-sync-model` job draws new ones and reports a counterexample's
+ * seed, path and replay. `FC_NUM_RUNS` / `FC_SEED` widen or move a run,
+ * as in src/tests/properties; `FC_PATH` and `FC_REPLAY` (the counterexample's `replayPath`)
+ * replay one counterexample exactly.
  */
 
 // Bind SDK/auth per async writer; a mutable global DB would mix the two computers mid-write.
@@ -1100,7 +1104,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       {
         // About 15 s on a laptop; `FC_NUM_RUNS=300` is the local exploration of the report.
         numRuns: Number(process.env.FC_NUM_RUNS ?? 30),
-        ...(process.env.FC_SEED ? { seed: Number(process.env.FC_SEED) } : {}),
+        seed: Number(process.env.FC_SEED || 20261115),
         ...(process.env.FC_PATH ? { path: process.env.FC_PATH } : {}),
         verbose: 1,
       }
