@@ -426,6 +426,88 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
     });
   });
 
+  /** Lets the person look at yesterday, which has a census, and come back to the copied day. */
+  const showYesterdayWhileAway = () => {
+    const today = mocks.screenModel.getMockImplementation()!;
+    const todayData = mocks.dailyRecordData.getMockImplementation()!;
+    const visible = { date: CLINICAL_TODAY };
+    const yesterday = '2026-09-09';
+    mocks.screenModel.mockImplementation(() =>
+      visible.date === yesterday
+        ? {
+            branch: 'register',
+            emptyDayPromptProps: null,
+            registerContentProps: {
+              currentDateString: yesterday,
+              readOnly: false,
+              beds: {},
+              visibleBeds: [],
+              marginStyle: {},
+              stats: null,
+              showBedManagerModal: false,
+              onCloseBedManagerModal: vi.fn(),
+            },
+            shouldDeferTodayEmptyState: false,
+            resolvedTodayEmptyDate: yesterday,
+          }
+        : today()
+    );
+    mocks.dailyRecordData.mockImplementation(() =>
+      visible.date === yesterday
+        ? { bootstrapPhase: 'record_ready', record: { date: yesterday, beds: {} } }
+        : todayData()
+    );
+    return {
+      yesterday,
+      show: (date: string) => {
+        visible.date = date;
+        return censusElement(date);
+      },
+    };
+  };
+
+  it.fails(
+    "keeps the copied day's sync when the person looks at another day while it waits",
+    async () => {
+      // Synchronize yesterday, copy it into today, and glance back at yesterday while yesterday's
+      // clinical reading (minutes, up to the 8-minute watchdog) keeps today's sync waiting.
+      createCensusWorld(CLINICAL_TODAY, '2026-09-09');
+      expect(beginRayenFill(4)).toBe(true);
+      const previousFill = getRayenFillAttemptId();
+      mocks.triggerImport.mockImplementation(async () =>
+        resetRayenFillProgress() ? 'started' : 'blocked'
+      );
+      const view = renderCensus();
+      const copyButton = await screen.findByTestId('create-from-rayen-btn', {}, { timeout: 3000 });
+      await act(async () => {
+        fireEvent.click(copyButton);
+      });
+      view.rerender(censusElement());
+      await waitForRayenToolbar();
+      expect(mocks.triggerImport).not.toHaveBeenCalled();
+
+      const away = showYesterdayWhileAway();
+      await act(async () => {
+        view.rerender(away.show(away.yesterday));
+      });
+      await act(async () => {
+        view.rerender(away.show(CLINICAL_TODAY));
+      });
+      await act(async () => {
+        endRayenFill(0, false, previousFill);
+      });
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      });
+
+      // Today: the request was dropped when the visible date changed. The copied census stays
+      // unsynchronized and nothing says the requested synchronization will not happen.
+      expect(mocks.triggerImport).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
+        reviewRequirement: 'day_bootstrap',
+      });
+    }
+  );
+
   it.each([
     ['another person', 'synthetic-generation-b', 'synthetic-owner-b'],
     ['the same person in a new session', 'synthetic-generation-b', 'synthetic-owner-a'],
