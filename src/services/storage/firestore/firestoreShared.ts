@@ -43,9 +43,12 @@ export const sanitizeForFirestore = (obj: unknown): unknown => {
   return obj;
 };
 
+/** Staff lists are positional, so a stored item that is not text reads as an empty slot. */
+const slotText = (item: unknown): string => (typeof item === 'string' ? item : '');
+
 export const ensureArray = (value: unknown, defaultLength: number): string[] => {
   if (Array.isArray(value)) {
-    const result = [...value];
+    const result = value.map(slotText);
     while (result.length < defaultLength) {
       result.push('');
     }
@@ -53,10 +56,10 @@ export const ensureArray = (value: unknown, defaultLength: number): string[] => 
   }
 
   if (value && typeof value === 'object') {
-    const obj = value as Record<string, string>;
+    const obj = value as Record<string, unknown>;
     const result: string[] = [];
     for (let i = 0; i < defaultLength; i++) {
-      result.push(obj[String(i)] || '');
+      result.push(slotText(obj[String(i)]));
     }
     return result;
   }

@@ -52,7 +52,8 @@ describe('a backup day whose staff list carries an item that is not text', () =>
     expect(saved[0].beds.R1).toMatchObject(patient);
     expect(saved[0].nursesDayShift).toEqual(['Ana Pérez']);
     expect(saved[0].nurses).toEqual(['Ana Pérez']);
-    expect(saved[0].nursesNightShift).toEqual(['Ñusta Tuki']);
+    // Staff lists are positional: Ñusta Tuki stays in slot 2 behind the emptied damaged item.
+    expect(saved[0].nursesNightShift).toEqual(['', 'Ñusta Tuki']);
     expect(saved[0].tensDayShift).toEqual(['', 'Rosa', 'María José']);
     // The shift grid shows TENS by standard slot: Rosa stays in slot 2, María José in slot 3.
     const tensDay = resolveDetailedStaffingState(saved[0], DATE).day.tens;
