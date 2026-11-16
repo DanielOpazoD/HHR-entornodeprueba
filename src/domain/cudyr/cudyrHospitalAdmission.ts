@@ -76,18 +76,28 @@ export const resolveCudyrHospitalAdmission = (
       start <= seen
     );
   });
+  // Captures repeat each assignment many times; compare them per assignment, not pairwise.
+  const byAssignment = new Map<string, ObservedCudyrPlacement[]>();
+  for (const item of valid)
+    if (item.placement.sourceMappingId)
+      byAssignment.set(item.placement.sourceMappingId, [
+        ...(byAssignment.get(item.placement.sourceMappingId) || []),
+        item,
+      ]);
+  const assignments = [...byAssignment.values()];
   // Different starts/locations for one assignment cannot identify an unambiguous first entry.
   if (
-    valid.some(
-      ({ placement: p }) =>
-        p.sourceMappingId &&
-        valid.some(
-          ({ placement: other }) =>
-            other.sourceMappingId === p.sourceMappingId &&
-            (cudyrSourceInstant(other.sourceStartAt) !== cudyrSourceInstant(p.sourceStartAt) ||
-              other.sourceBedId !== p.sourceBedId ||
-              sourceCudyrModality(other) !== sourceCudyrModality(p))
-        )
+    assignments.some(
+      items =>
+        new Set(
+          items.map(({ placement: p }) =>
+            JSON.stringify([
+              cudyrSourceInstant(p.sourceStartAt),
+              p.sourceBedId,
+              sourceCudyrModality(p),
+            ])
+          )
+        ).size > 1
     )
   )
     return {
@@ -109,18 +119,18 @@ export const resolveCudyrHospitalAdmission = (
     };
   if (
     forEligibility &&
-    valid.some(({ placement: p, observedAt }) => {
-      const end = cudyrSourceInstant(p.sourceEndAt);
-      if (end === null || !p.sourceMappingId) return false;
-      return (
-        end <= Date.parse(p.sourceStartAt) ||
-        valid.some(
-          other =>
-            other.placement.sourceMappingId === p.sourceMappingId &&
-            cudyrSourceInstant(other.placement.sourceEndAt) !== end &&
-            (cudyrSourceInstant(other.placement.sourceEndAt) !== null ||
-              Date.parse(other.observedAt) >= Date.parse(observedAt))
-        )
+    assignments.some(items => {
+      const captures = items.map(({ placement: p, observedAt }) => ({
+        start: Date.parse(p.sourceStartAt),
+        end: cudyrSourceInstant(p.sourceEndAt),
+        seen: Date.parse(observedAt),
+      }));
+      const closures = new Set(captures.flatMap(({ end }) => (end === null ? [] : [end])));
+      // The latest capture that still shows the assignment open.
+      const lastOpen = Math.max(...captures.filter(({ end }) => end === null).map(c => c.seen));
+      return captures.some(
+        ({ start, end, seen }) =>
+          end !== null && (end <= start || closures.size > 1 || lastOpen >= seen)
       );
     })
   )
