@@ -9,7 +9,7 @@ import { createUnconfirmedDailyRecordSubscriptionResult } from '@/tests/factorie
  * Tests useDailyRecordSync hook and its interaction with the repository and Firestore logic.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import React from 'react';
 import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
@@ -19,6 +19,11 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import type { OperationalTelemetryEvent } from '@/services/observability/operationalTelemetryTypes';
+import {
+  flushDailyActionTimings,
+  startDailyActionTiming,
+} from '@/services/observability/dailyActionTiming';
 
 // ============================================================================
 // Mocks
@@ -63,6 +68,23 @@ vi.mock('@/application/ports/dailyRecordPort', () => ({
   defaultDailyRecordRepositoryPort: mockDailyRecordRepositoryPort,
 }));
 
+const { mockDispatch } = vi.hoisted(() => ({
+  mockDispatch: vi.fn(async (_event: OperationalTelemetryEvent) => false),
+}));
+vi.mock('@/services/observability/operationalTelemetryExternalAdapter', () => ({
+  dispatchOperationalTelemetryExternally: mockDispatch,
+}));
+
+/** The summary the tab would send now: one per action, with its count and unfinished count. */
+const timingsOf = (operation: string) => {
+  mockDispatch.mockClear();
+  flushDailyActionTimings();
+  return mockDispatch.mock.calls
+    .map(([event]) => event)
+    .filter(event => event.operation === operation)
+    .map(({ context }) => ({ count: context?.count, degradedCount: context?.degradedCount }));
+};
+
 // Mock Firebase Auth
 vi.mock('../../firebaseConfig', () => ({
   auth: {
@@ -78,6 +100,7 @@ vi.mock('../../context/UIContext', () => ({
   useNotification: () => ({
     success: vi.fn(),
     error: vi.fn(),
+    warning: vi.fn(),
   }),
   UIProvider: ({ children }: React.PropsWithChildren) => <>{children}</>,
 }));
@@ -130,7 +153,11 @@ describe('DailyRecord Sync Integration', () => {
     repairApplied: false,
   });
 
+  // The authenticated app owns the timing window; this hook runs without it, so the test owns it.
+  let stopTimingOwner: () => void;
+  afterEach(() => stopTimingOwner());
   beforeEach(() => {
+    stopTimingOwner = startDailyActionTiming();
     vi.clearAllMocks();
     mockGetForDate.mockReturnValue(null);
     mockSyncWithFirestore.mockResolvedValue(null);
@@ -471,5 +498,54 @@ describe('DailyRecord Sync Integration', () => {
         true
       );
     });
+  });
+
+  it('times each edit once: confirmed by the server, or left local or failed', async () => {
+    const initialRecord = createMockRecord('2024-12-28');
+    mockGetForDate.mockReturnValue(initialRecord);
+    const { result } = renderHook(() => useDailyRecordSyncQuery('2024-12-28', false, 'ready'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.record).toEqual(initialRecord));
+
+    await act(async () => {
+      await result.current.patchRecord({ 'beds.R1.patientName': 'Paciente Sintético' });
+    });
+    mockUpdatePartial.mockResolvedValueOnce(
+      createUpdatePartialDailyRecordResult({
+        date: '2024-12-28',
+        outcome: 'queued',
+        savedLocally: true,
+        updatedRemotely: false,
+        queuedForRetry: true,
+        autoMerged: false,
+        patchedFields: 1,
+      })
+    );
+    await act(async () => {
+      await result.current.patchRecord({ 'beds.R1.pathology': 'Diagnóstico sintético' });
+    });
+    mockUpdatePartial.mockRejectedValueOnce(new Error('Firebase error'));
+    await act(async () => {
+      await result.current.patchRecord({ 'beds.R1.age': '40a' }).catch(() => undefined);
+    });
+
+    expect(timingsOf('census_edit_saved')).toEqual([{ count: 3, degradedCount: 2 }]);
+  });
+
+  it('times a day change until that census is shown, but not the first day', async () => {
+    mockGetForDate.mockImplementation(async (date: string) => createMockRecord(date));
+    const { result, rerender } = renderHook(
+      ({ date }) => useDailyRecordSyncQuery(date, false, 'ready'),
+      { wrapper: createWrapper(), initialProps: { date: '2024-12-28' } }
+    );
+    await waitFor(() => expect(result.current.record?.date).toBe('2024-12-28'));
+    expect(timingsOf('census_day_change_ready')).toEqual([]);
+
+    rerender({ date: '2024-12-29' });
+    await waitFor(() => expect(result.current.record?.date).toBe('2024-12-29'));
+    await waitFor(() =>
+      expect(timingsOf('census_day_change_ready')).toEqual([{ count: 1, degradedCount: 0 }])
+    );
   });
 });
