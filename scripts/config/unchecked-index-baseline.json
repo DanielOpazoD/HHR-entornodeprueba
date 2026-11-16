@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1273,
+  "total": 1266,
   "areas": {
     "src/application/backup-export": 4,
     "src/application/census-email": 2,
@@ -53,7 +53,7 @@
     "src/services/records": 2,
     "src/services/repositories": 32,
     "src/services/staff": 8,
-    "src/services/storage": 40,
+    "src/services/storage": 33,
     "src/services/terminology": 2,
     "src/shared/date": 4,
     "src/types/auditLogTypes": 1,
