@@ -5,6 +5,7 @@ import {
 } from '@/domain/evaluationScales/importedCudyr';
 import { buildCudyrBedHistory } from '@/domain/cudyr/cudyrBedHistory';
 import { resolveCudyrHospitalAdmission } from '@/domain/cudyr/cudyrHospitalAdmission';
+import type { ObservedCudyrPlacement } from '@/domain/cudyr/cudyrPlacementTimeline';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { CUDYR_EXCLUSION_LABELS } from '@/types/domain/cudyrExclusion';
 import type { DailyRecordCudyrExportState } from '@/types/domain/dailyRecordSlices';
@@ -40,14 +41,19 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
   facts
     .filter(fact => fact.date >= input.from && fact.date <= input.to)
     .forEach(fact => groups.set(fact.key, [...(groups.get(fact.key) || []), fact]));
-  const placements = input.captures.flatMap(receipt =>
-    (receipt.capture.sourcePlacements || []).map(placement => ({
-      placement,
-      observedAt: receipt.capture.observedAt,
-      censusDate: receipt.censusDate,
-      captureId: receipt.id,
-    }))
-  );
+  // Every placement reader filters by its own episode first, so each row reads only that list.
+  const placementsByEpisode = new Map<string, ObservedCudyrPlacement[]>();
+  for (const receipt of input.captures)
+    for (const placement of receipt.capture.sourcePlacements || []) {
+      const own = placementsByEpisode.get(placement.clinicalEpisodeId) || [];
+      own.push({
+        placement,
+        observedAt: receipt.capture.observedAt,
+        censusDate: receipt.censusDate,
+        captureId: receipt.id,
+      });
+      placementsByEpisode.set(placement.clinicalEpisodeId, own);
+    }
   const cutoffs = new Map(
     [...new Set(facts.map(fact => fact.date))].map(date => [date, cudyrReferenceInstant(date)])
   );
@@ -62,6 +68,7 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
         ) || contexts[0];
       const p = first.patient;
       const episode = p.clinicalEpisodeId || '';
+      const placements = (episode && placementsByEpisode.get(episode)) || [];
       const record = input.records.find(item => item.date === first.date);
       const selected = selectCudyrReportEvaluation(
         first.date,
@@ -134,7 +141,7 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
         useCensusAdmission: first.contextIsDaily && !identityConflict,
         isBlocked: contexts.some(item => item.patient.isBlocked),
         clinicalEpisodeId: episode,
-        sourcePlacements: episode ? placements : [],
+        sourcePlacements: placements,
         placements: daily.map(item => item.placement),
         evaluationAt:
           selected.referenceAt ||

@@ -74,13 +74,13 @@ export const resolveCudyrPlacementAt = (
       ({ placement }) => `${placement.bedId || placement.sourceBedId}:${placement.modality}`
     )
   );
-  const conflictingRevision = evidence.some(
-    ({ placement: candidate }) =>
-      candidate.sourceMappingId &&
-      observations.some(({ placement, observedAt }) => {
+  // Assignments that a capture at or after the reference shows starting later or already closed.
+  const revised = new Set(
+    observations
+      .filter(({ placement, observedAt }) => {
         if (
           placement.clinicalEpisodeId !== clinicalEpisodeId ||
-          placement.sourceMappingId !== candidate.sourceMappingId ||
+          !placement.sourceMappingId ||
           placement.isDeleted ||
           reference === null
         )
@@ -95,6 +95,11 @@ export const resolveCudyrPlacementAt = (
           (start > reference || (end !== null && end > start && end <= reference))
         );
       })
+      .map(({ placement }) => placement.sourceMappingId)
+  );
+  const conflictingRevision = evidence.some(
+    ({ placement: candidate }) =>
+      Boolean(candidate.sourceMappingId) && revised.has(candidate.sourceMappingId)
   );
   if (!evidence.length)
     return {

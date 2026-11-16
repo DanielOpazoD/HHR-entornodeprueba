@@ -133,6 +133,17 @@ export const createCudyrIdentityResolver = (
       .sort()[0];
     for (const name of names) aliases.set(cudyrOrderedIdentity(document, name), canonical);
   }
-  return (document, name) =>
-    aliases.get(cudyrOrderedIdentity(document, name)) || cudyrOrderedIdentity(document, name);
+  // Pure per (document, name): projections ask for the same pair once per row and source cell.
+  const known = new Map<string, Map<string, string>>();
+  return (document, name) => {
+    const byName = known.get(document) || new Map<string, string>();
+    known.set(document, byName);
+    let identity = byName.get(name);
+    if (identity === undefined) {
+      const ordered = cudyrOrderedIdentity(document, name);
+      identity = aliases.get(ordered) || ordered;
+      byName.set(name, identity);
+    }
+    return identity;
+  };
 };
