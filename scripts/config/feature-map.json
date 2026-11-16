@@ -1,0 +1,599 @@
+{
+  "version": 1,
+  "meaning": "Funciones que ve una persona: cómo se llega, la puerta de código y las pruebas que acreditan que funciona. `npm run check:feature-map` comprueba que todo lo citado exista. Una prueba e2e se cita como «ruta › título» y debe correr en CI o nightly según scripts/config/e2e-test-ownership.json.",
+  "features": [
+    {
+      "id": "census.open-day",
+      "name": "Abrir y cambiar el día del censo",
+      "reach": {
+        "screen": "Censo Diario, franja de fechas",
+        "controls": [{ "text": "Ir a hoy" }, { "text": "Volver al día de hoy" }]
+      },
+      "gate": ["src/components/layout/DateStrip.tsx", "src/hooks/useDateNavigation.ts"],
+      "tests": [
+        "src/tests/components/DateStrip.test.tsx",
+        "src/tests/hooks/useDateNavigation.test.ts",
+        "e2e/census-persistence-reload.spec.ts › keeps the selected historical day and its record across handoff reloads and day changes"
+      ],
+      "rules": ["TIME-01", "TIME-02"]
+    },
+    {
+      "id": "census.edit-patient",
+      "name": "Editar los datos de un paciente en su cama",
+      "reach": {
+        "screen": "Censo Diario, fila del paciente",
+        "controls": [{ "testId": "patient-row" }, { "testId": "census-table" }]
+      },
+      "gate": [
+        "src/features/census/components/patient-row/PatientInputCells.tsx",
+        "src/features/census/components/patient-row/NameInput.tsx",
+        "src/features/census/components/patient-row/DiagnosisInput.tsx"
+      ],
+      "tests": [
+        "src/tests/views/census/PatientInputCells.test.tsx",
+        "src/tests/views/census/NameInput.test.tsx",
+        "src/tests/features/census/components/patient-row/DiagnosisInputOffline.test.tsx",
+        "e2e/census-persistence-reload.spec.ts › keeps patient edits after save and page reload",
+        "e2e/admit-edit-discharge-smoke.spec.ts › persists a diagnosis edit through the canonical pipeline and surfaces a discharge action"
+      ],
+      "rules": ["ID-01", "SAVE-01", "SAVE-02"]
+    },
+    {
+      "id": "census.save-status",
+      "name": "Guardado automático y su estado",
+      "reach": {
+        "screen": "Barra superior, cuadro de sincronización",
+        "controls": [{ "testId": "sync-status-indicator-slot" }]
+      },
+      "gate": ["src/components/layout/SyncStatusIndicator.tsx"],
+      "tests": [
+        "src/tests/components/SyncStatusIndicator.test.tsx",
+        "e2e/multiuser-offline-conflict.spec.ts › persists an offline edit before loading another client accepted diagnosis",
+        "e2e/multiuser-offline-conflict.spec.ts › shows a failed recent-send read instead of a healthy empty queue and recovers after reload"
+      ],
+      "rules": ["SAVE-01", "SAVE-02", "SAVE-03"]
+    },
+    {
+      "id": "census.discharge",
+      "name": "Dar de alta a un paciente",
+      "reach": {
+        "screen": "Censo Diario, menú de la fila",
+        "controls": [{ "text": "Dar de Alta" }, { "testId": "patient-row-menu-portal" }]
+      },
+      "gate": [
+        "src/components/modals/actions/DischargeModal.tsx",
+        "src/hooks/useDischargeModalForm.ts"
+      ],
+      "tests": [
+        "src/tests/components/DischargeModal.test.tsx",
+        "src/tests/views/census/useDischargeModalForm.test.ts",
+        "src/tests/hooks/usePatientDischarges.test.ts",
+        "e2e/census-preview-bootstrap.spec.ts › shows discharge download progress without changing the row and unlocks on failure"
+      ],
+      "rules": ["ID-02", "TIME-01", "TIME-03"]
+    },
+    {
+      "id": "census.transfer",
+      "name": "Trasladar a un paciente a otro centro",
+      "reach": {
+        "screen": "Censo Diario, menú de la fila",
+        "controls": [{ "text": "Trasladar" }]
+      },
+      "gate": [
+        "src/components/modals/actions/TransferModal.tsx",
+        "src/hooks/useTransferModalForm.ts"
+      ],
+      "tests": [
+        "src/tests/components/TransferModal.test.tsx",
+        "src/tests/views/census/useTransferModalForm.test.ts",
+        "src/tests/hooks/usePatientTransfers.test.ts",
+        "e2e/census-preview-bootstrap.spec.ts › shows transfer beds without their type suffixes"
+      ],
+      "rules": ["ID-02", "TIME-01"]
+    },
+    {
+      "id": "census.cma",
+      "name": "Egreso CMA (cirugía mayor ambulatoria)",
+      "reach": {
+        "screen": "Censo Diario, menú de la fila y sección CMA",
+        "controls": [{ "text": "Egreso CMA" }]
+      },
+      "gate": ["src/features/census/components/CMASection.tsx", "src/hooks/useCMA.ts"],
+      "tests": [
+        "src/tests/hooks/useCMA.test.ts",
+        "src/tests/views/census/CMASection.test.tsx",
+        "src/tests/integration/censusCmaUndoEpisodeConsistency.test.ts"
+      ],
+      "rules": ["ID-02", "CUD-03"]
+    },
+    {
+      "id": "census.move-copy-clear",
+      "name": "Mover, copiar o limpiar una cama",
+      "reach": {
+        "screen": "Censo Diario, menú de la fila",
+        "controls": [
+          { "text": "Mover de cama" },
+          { "text": "Copiar a otro día" },
+          { "text": "Borrar datos" }
+        ]
+      },
+      "gate": [
+        "src/components/modals/actions/MoveCopyModal.tsx",
+        "src/features/census/components/patient-row/patientActionMenuConfig.ts"
+      ],
+      "tests": [
+        "src/tests/components/MoveCopyModal.test.tsx",
+        "src/tests/views/census/PatientActionMenu.test.tsx",
+        "e2e/bed-crib-lifecycle-critical.spec.ts › clears an occupied bed and its attached crib as one optimistic, confirmed command"
+      ],
+      "rules": ["ID-02", "ID-03"]
+    },
+    {
+      "id": "census.extra-beds-and-blocking",
+      "name": "Camas extras y bloqueo de camas",
+      "reach": {
+        "screen": "Censo Diario, «Más opciones del censo»",
+        "controls": [{ "text": "Bloqueo de camas" }, { "text": "Camas Extras" }]
+      },
+      "gate": [
+        "src/components/modals/BedManagerModal.tsx",
+        "src/components/modals/ExtraBedsGrid.tsx"
+      ],
+      "tests": [
+        "src/tests/components/BedManagerModal.integration.test.tsx",
+        "src/tests/components/ExtraBedsGrid.test.tsx",
+        "src/tests/views/census/useBedManagerModalModel.test.ts"
+      ],
+      "rules": []
+    },
+    {
+      "id": "census.specialty",
+      "name": "Elegir la especialidad del paciente",
+      "reach": {
+        "screen": "Censo Diario, ronda de especialidad",
+        "controls": [{ "testId": "specialty-actions" }]
+      },
+      "gate": ["src/features/census/components/specialty-round/SpecialtyRoundEntry.tsx"],
+      "tests": [
+        "src/tests/views/census/SpecialtyRoundEntry.test.tsx",
+        "src/tests/services/storage/firestoreRecordWritesSpecialtyRejection.test.ts",
+        "e2e/census-specialty-save.spec.ts › queues different beds, keeps each choice pending, and survives a real reload"
+      ],
+      "rules": ["SAVE-01"]
+    },
+    {
+      "id": "census.shift-staff",
+      "name": "Enfermería y TENS del turno",
+      "reach": {
+        "screen": "Censo Diario, encabezado del personal",
+        "controls": [{ "testId": "census-staff-and-sync" }]
+      },
+      "gate": [
+        "src/features/census/components/NurseSelector.tsx",
+        "src/features/census/components/TensSelector.tsx"
+      ],
+      "tests": [
+        "src/tests/features/census/NurseSelector.test.tsx",
+        "src/tests/features/census/TensSelector.test.tsx",
+        "src/tests/services/staff/staffPreferredName.test.ts"
+      ],
+      "rules": []
+    },
+    {
+      "id": "eloisa.sync",
+      "name": "Sincronizar el censo con Eloísa",
+      "reach": {
+        "screen": "Censo Diario, barra de Eloísa",
+        "controls": [{ "testId": "rayen-import-button" }, { "text": "Sincronizar" }]
+      },
+      "gate": [
+        "src/features/rayen-import/components/RayenImportButton.tsx",
+        "src/features/rayen-import/hooks/useRayenImport.ts"
+      ],
+      "tests": [
+        "src/tests/rayen-import/RayenImportButton.test.tsx",
+        "src/tests/rayen-import/RayenImportButton.policy.test.tsx",
+        "e2e/night-admission-sync-recovery-critical.spec.ts › admits, diagnoses, retries synchronization, clears, and survives reload",
+        "e2e/rayen-delayed-health-preflight.spec.ts › accepts a valid five-second greeting within the synchronization budget"
+      ],
+      "rules": ["CEN-01", "CEN-03", "SRC-01", "RN-02", "TIME-02"]
+    },
+    {
+      "id": "eloisa.copy-and-sync",
+      "name": "Copiar censo y sincronizar (día sin censo)",
+      "reach": {
+        "screen": "Censo Diario, día vacío",
+        "controls": [
+          { "testId": "create-from-rayen-btn" },
+          { "text": "Copiar censo y sincronizar" }
+        ]
+      },
+      "gate": [
+        "src/features/rayen-import/components/RayenDayBootstrapButton.tsx",
+        "src/features/census/components/EmptyDayPrompt.tsx"
+      ],
+      "tests": [
+        "src/tests/rayen-import/RayenDayBootstrapButton.test.tsx",
+        "src/tests/views/census/censusEloisaBootstrap.integration.test.tsx",
+        "e2e/eloisa-day-bootstrap-critical.spec.ts › waits for a confirmed empty day and keeps the previous census available"
+      ],
+      "rules": ["CEN-01", "CEN-02"]
+    },
+    {
+      "id": "eloisa.create-day",
+      "name": "Crear el día desde Eloísa",
+      "reach": {
+        "screen": "Censo Diario, día vacío sin censo anterior",
+        "controls": [{ "testId": "create-from-rayen-btn" }, { "text": "Crear desde Eloísa" }]
+      },
+      "gate": [
+        "src/features/rayen-import/components/RayenDayBootstrapButton.tsx",
+        "src/features/census/components/EmptyDayPrompt.tsx"
+      ],
+      "tests": [
+        "src/tests/views/census/EmptyDayPrompt.test.tsx",
+        "src/tests/rayen-import/RayenImportButton.bootstrap.test.tsx",
+        "e2e/eloisa-day-bootstrap-critical.spec.ts › does not let extension readiness bypass the remote census check"
+      ],
+      "rules": ["CEN-01", "SRC-01", "SAVE-01"]
+    },
+    {
+      "id": "eloisa.sync-history",
+      "name": "Historial de sincronizaciones",
+      "reach": {
+        "screen": "Censo Diario, barra de Eloísa",
+        "controls": [{ "testId": "rayen-sync-history-button" }]
+      },
+      "gate": ["src/features/rayen-import/components/RayenSyncHistoryModal.tsx"],
+      "tests": [
+        "src/tests/rayen-import/RayenSyncHistoryModal.recovery.test.tsx",
+        "src/tests/rayen-import/RayenImportButton.historyAndProgress.test.tsx",
+        "e2e/census-sync-history-navigation.spec.ts › navigates from history to the current occupied or empty bed and copies a category-only code"
+      ],
+      "rules": ["SAVE-01"]
+    },
+    {
+      "id": "eloisa.patient-code-import",
+      "name": "Importar un paciente con el código copiado de Eloísa",
+      "reach": {
+        "screen": "Censo Diario, datos del paciente de una cama",
+        "controls": [{ "text": "Importar código de Eloísa" }]
+      },
+      "gate": [
+        "src/features/rayen-manual-import/components/EloisaPatientCodeImportModal.tsx",
+        "src/components/modals/DemographicsModal.tsx"
+      ],
+      "tests": [
+        "src/tests/features/rayen-manual-import/EloisaPatientCodeImportModal.test.tsx",
+        "e2e/manual-eloisa-patient-code.spec.ts › validates, previews and persists one patient through the canonical admission command"
+      ],
+      "rules": ["ID-01", "ID-02"]
+    },
+    {
+      "id": "handoff.nursing",
+      "name": "Entrega de turno de enfermería",
+      "reach": {
+        "screen": "Pestaña «Entrega Turno Enfermería»",
+        "controls": [
+          { "text": "Entrega Turno Enfermería" },
+          { "testId": "handoff-shift-day-button" },
+          { "testId": "handoff-shift-night-button" }
+        ]
+      },
+      "gate": [
+        "src/features/handoff/components/HandoffView.tsx",
+        "src/features/handoff/components/HandoffNursingContent.tsx"
+      ],
+      "tests": [
+        "src/tests/views/handoff/HandoffView.test.tsx",
+        "src/tests/hooks/useHandoffLogic.nursing-and-events.test.ts",
+        "e2e/release-role-smoke.spec.ts › hospital nurse can reach census and nursing handoff without hidden modules",
+        "e2e/handoff-shift-export-smoke.spec.ts › exports the active nursing handoff as a local PDF artifact"
+      ],
+      "rules": []
+    },
+    {
+      "id": "handoff.medical",
+      "name": "Entrega de turno médica, firma y enlace",
+      "reach": {
+        "screen": "Módulo MEDICAL_HANDOFF (sin pestaña propia en la barra)",
+        "controls": [
+          { "testId": "medical-handoff-sign-button" },
+          { "testId": "medical-handoff-share-links-button" }
+        ]
+      },
+      "gate": [
+        "src/features/handoff/components/HandoffView.tsx",
+        "src/features/handoff/components/MedicalHandoffHeader.tsx",
+        "src/features/admin/components/MedicalSignatureView.tsx"
+      ],
+      "tests": [
+        "src/tests/views/handoff/HandoffView.medical.test.tsx",
+        "src/tests/hooks/useHandoffLogic.medical-handoff.test.ts",
+        "src/tests/services/handoff/publicMedicalSignatureService.test.ts",
+        "src/tests/functions/handoffSignatureFunctions.test.ts"
+      ],
+      "rules": []
+    },
+    {
+      "id": "handoff.medical-spreadsheet",
+      "name": "Planilla de entrega médica desde el censo",
+      "reach": {
+        "screen": "Censo Diario, «Más opciones del censo»",
+        "controls": [{ "testId": "medical-handoff-spreadsheet-button" }]
+      },
+      "gate": [
+        "src/features/handoff/components/MedicalHandoffSpreadsheetAction.tsx",
+        "src/views/CensusRouteView.tsx"
+      ],
+      "tests": [
+        "src/tests/views/handoff/MedicalHandoffSpreadsheetAction.test.tsx",
+        "src/tests/views/census/CensusStaffHeader.test.tsx"
+      ],
+      "rules": []
+    },
+    {
+      "id": "cudyr.daily",
+      "name": "CUDYR · control diario",
+      "reach": {
+        "screen": "Censo Diario, «Más opciones del censo»; columna de escalas de la fila",
+        "controls": [{ "text": "CUDYR · control diario" }, { "testId": "cudyr-pending-status" }]
+      },
+      "gate": [
+        "src/features/cudyr/components/CudyrView.tsx",
+        "src/features/census/components/patient-row/ScoresCell.tsx"
+      ],
+      "tests": [
+        "src/tests/views/cudyr/CudyrView.test.tsx",
+        "src/tests/views/census/ScoresCell.test.tsx",
+        "src/tests/rayen-import/dailyCudyrRecovery.test.ts",
+        "e2e/cudyr-flow-critical.spec.ts › reuses the verified period when returning from the explorer without changes"
+      ],
+      "rules": ["CUD-01", "CUD-03", "CUD-05", "CUD-07", "CUD-10"]
+    },
+    {
+      "id": "cudyr.monthly-report",
+      "name": "Reporte estadístico mensual de CUDYR",
+      "reach": {
+        "screen": "CUDYR · control diario",
+        "controls": [
+          { "text": "Explorar reporte estadístico" },
+          { "testId": "cudyr-report-explorer" }
+        ]
+      },
+      "gate": ["src/features/cudyr/components/CudyrReportExplorer.tsx"],
+      "tests": [
+        "src/tests/views/cudyr/CudyrExplorerCache.test.tsx",
+        "e2e/cudyr-flow-critical.spec.ts › explores the saved period, preserves group totals in Excel and audits a confirmed actual discharge",
+        "e2e/cudyr-flow-critical.spec.ts › retains the verified copy and blocks exports on a failed refresh, then recovers"
+      ],
+      "rules": ["CUD-02", "CUD-08", "CUD-09", "OFF-01", "OFF-02"]
+    },
+    {
+      "id": "clinical.panel",
+      "name": "Ficha clínica del paciente (panel lateral)",
+      "reach": {
+        "screen": "Censo Diario, columna «Accesos» de la fila",
+        "controls": [{ "testId": "clinical-access-menu" }, { "testId": "clinical-panel-content" }]
+      },
+      "gate": [
+        "src/features/census/components/patient-row/PatientClinicalAccess.tsx",
+        "src/features/census/components/patient-row/ClinicalPanelTrigger.tsx",
+        "src/features/census/components/patient-row/ClinicalPanelDrawer.tsx"
+      ],
+      "tests": [
+        "src/tests/views/census/PatientClinicalAccess.test.tsx",
+        "src/tests/views/census/ClinicalPanelDrawer.test.tsx",
+        "src/tests/views/census/ClinicalPanelTrigger.test.tsx",
+        "e2e/clinical-panel-reading-smoke.spec.ts › keeps the patient identity fixed above a calm chronological clinical list"
+      ],
+      "rules": ["ID-02", "ID-03"]
+    },
+    {
+      "id": "clinical.explorer",
+      "name": "Explorador clínico",
+      "reach": {
+        "screen": "Centro del anillo «Accesos» o menú del censo",
+        "controls": [
+          { "testId": "clinical-explorer-menu-entry" },
+          { "testId": "clinical-explorer" }
+        ]
+      },
+      "gate": [
+        "src/features/census/components/clinical-explorer/ClinicalExplorerView.tsx",
+        "src/features/census/components/clinical-explorer/ClinicalExplorerMenuEntry.tsx"
+      ],
+      "tests": [
+        "src/tests/views/census/clinical-explorer/clinicalExplorerEntries.test.tsx",
+        "src/tests/views/census/clinical-explorer/clinicalExplorerStore.test.tsx",
+        "e2e/clinical-explorer-visual.spec.ts › keeps the clinical explorer legible at 13-inch 100% and 125% and returns to the census",
+        "e2e/clinical-explorer-history.spec.ts › reads a long clinical history in batches and keeps the full history available"
+      ],
+      "rules": ["ID-02"]
+    },
+    {
+      "id": "labs.census-update",
+      "name": "Actualizar los exámenes del censo",
+      "reach": {
+        "screen": "Censo Diario, menú del censo",
+        "controls": [{ "testId": "census-laboratory-menu-entry" }]
+      },
+      "gate": [
+        "src/features/census/components/CensusLaboratoryMenuEntry.tsx",
+        "src/features/laboratory/components/CensusLaboratoryInbox.tsx"
+      ],
+      "tests": [
+        "src/tests/features/laboratory/censusLaboratoryPeriod.test.ts",
+        "src/tests/views/census/censusLaboratoryController.test.ts",
+        "e2e/census-laboratory-inbox.spec.ts › updates census labs and reviews a result at ${viewport.width}px"
+      ],
+      "rules": ["SAVE-01", "TIME-02"]
+    },
+    {
+      "id": "labs.patient-viewer",
+      "name": "Resultados de laboratorio de un paciente",
+      "reach": {
+        "screen": "Columna «Accesos», sector Laboratorio",
+        "controls": [
+          { "testId": "clinical-access-menu" },
+          { "text": "Laboratorio" },
+          { "testId": "lab-analysis-sticky-header" }
+        ]
+      },
+      "gate": [
+        "src/features/laboratory/components/LabResultsViewerModal.tsx",
+        "src/features/laboratory/components/LabViewerAnalysis.tsx"
+      ],
+      "tests": [
+        "src/tests/components/laboratory/LabResultsViewerModal.test.tsx",
+        "src/tests/features/laboratory/useLabViewerQuery.repositoryFailure.test.tsx",
+        "e2e/clinical-explorer-visual.spec.ts › compares compact original laboratory reports on desktop and opens the exact PDF"
+      ],
+      "rules": ["SAVE-01", "ID-01"]
+    },
+    {
+      "id": "imaging.mmrad",
+      "name": "Imágenes MMRAD de un paciente",
+      "reach": {
+        "screen": "Columna «Accesos», sector Imágenes",
+        "controls": [
+          { "testId": "clinical-access-menu" },
+          { "text": "Imágenes" },
+          { "text": "Radiología / Imagenología" }
+        ]
+      },
+      "gate": [
+        "src/components/modals/RadiologyViewerModal.tsx",
+        "src/components/modals/RadiologyViewerModalContent.tsx"
+      ],
+      "tests": [
+        "src/tests/components/modals/RadiologyViewerModal.test.tsx",
+        "src/tests/services/radiology/mmradService.test.ts",
+        "src/tests/netlify/mmradLoginFlow.test.ts",
+        "src/tests/netlify/mmradSearch.test.ts",
+        "e2e/mmrad-history-recovery.spec.ts › recovers earlier MMRAD studies while the laboratory tunnel is unavailable at ${width}px"
+      ],
+      "rules": ["SAVE-01", "ID-01"]
+    },
+    {
+      "id": "imaging.dicom",
+      "name": "Visor DICOM",
+      "reach": {
+        "screen": "Visor de imágenes MMRAD o explorador clínico, «Ver DICOM»",
+        "controls": [{ "text": "Ver DICOM" }, { "testId": "clinical-imaging-actions" }]
+      },
+      "gate": [
+        "src/components/radiology/DicomViewerDialog.tsx",
+        "src/components/radiology/DicomViewer.tsx"
+      ],
+      "tests": [
+        "src/tests/netlify/mmradDicomViewerPolicy.test.ts",
+        "src/tests/services/radiology/dicomSeriesLoader.test.ts",
+        "e2e/dicom-viewer.spec.ts › compares verified series by physical position and reuses one series for independent windows",
+        "e2e/dicom-viewer.spec.ts › blocks an original from another patient before rendering or allowing captures"
+      ],
+      "rules": ["ID-01", "ID-02"]
+    },
+    {
+      "id": "documents.clinical-library",
+      "name": "Documentos y herramientas clínicas",
+      "reach": {
+        "screen": "Censo Diario, botón «Documentos»",
+        "controls": [
+          { "testId": "clinical-library-quick-action" },
+          { "testId": "clinical-library-drawer" }
+        ]
+      },
+      "gate": [
+        "src/features/clinical-library/components/ClinicalLibraryQuickAction.tsx",
+        "src/features/clinical-library/components/ClinicalLibraryDrawer.tsx"
+      ],
+      "tests": [
+        "src/tests/features/clinical-library/ClinicalLibraryQuickAction.test.tsx",
+        "src/tests/features/clinical-library/ClinicalLibraryDrawer.test.tsx",
+        "e2e/clinical-library-smoke.spec.ts › opens the Documentos panel from the census and drives every tool"
+      ],
+      "rules": []
+    },
+    {
+      "id": "backup.excel-export",
+      "name": "Descargar el censo en Excel y respaldo en Firebase",
+      "reach": {
+        "screen": "Censo Diario, «Opciones de guardado»",
+        "controls": [
+          { "text": "Opciones de guardado" },
+          { "text": "Descargar Excel" },
+          { "text": "Respaldo en Firebase" }
+        ]
+      },
+      "gate": [
+        "src/components/layout/date-strip/actions/SaveDropdown.tsx",
+        "src/hooks/useExportManager.ts"
+      ],
+      "tests": [
+        "src/tests/hooks/useExportManager.test.ts",
+        "src/tests/services/excelExport.workbooks.test.ts",
+        "e2e/backup-restore-export-smoke.spec.ts › exports a non-empty census artifact without altering the active patient after reload"
+      ],
+      "rules": []
+    },
+    {
+      "id": "backup.files",
+      "name": "Archivos de respaldo (administrador)",
+      "reach": {
+        "screen": "Menú de utilidades, «Archivos»",
+        "controls": [{ "text": "Archivos" }, { "testId": "backup-files-view" }]
+      },
+      "gate": ["src/features/backup/components/BackupFilesView.tsx"],
+      "tests": [
+        "src/tests/hooks/useBackupFilesQuery.test.tsx",
+        "src/tests/hooks/useBackupFileBrowser.test.ts",
+        "src/tests/components/AppRouter.test.tsx"
+      ],
+      "rules": []
+    },
+    {
+      "id": "session.login",
+      "name": "Iniciar sesión (RUT o Google)",
+      "reach": {
+        "screen": "Pantalla de ingreso",
+        "controls": [{ "testId": "login-google-button" }, { "testId": "login-error-alert" }]
+      },
+      "gate": [
+        "src/features/auth/components/LoginPage.tsx",
+        "src/features/auth/components/LoginPageCard.tsx"
+      ],
+      "tests": [
+        "src/tests/features/auth/LoginPageCard.test.tsx",
+        "src/tests/features/auth/useLoginPageController.test.ts",
+        "e2e/auth-login-resilience.spec.ts › shows stable RUT loading feedback until rejection and permits retry",
+        "e2e/auth-login-resilience.spec.ts › popup blocked surfaces a clear error and stays on login"
+      ],
+      "rules": []
+    },
+    {
+      "id": "session.logout-and-timeout",
+      "name": "Cerrar sesión, cierre por 1 hora sin uso y cuenta visible",
+      "reach": {
+        "screen": "Menú de usuario",
+        "controls": [
+          { "testId": "authenticated-user-menu-button" },
+          { "testId": "active-account-name" }
+        ]
+      },
+      "gate": [
+        "src/components/layout/UserMenu.tsx",
+        "src/services/auth/sessionActivityMonitor.ts",
+        "src/hooks/useAuthState.ts"
+      ],
+      "tests": [
+        "src/tests/components/UserMenu.test.tsx",
+        "src/tests/hooks/useInactivityLogout.test.tsx",
+        "src/tests/services/auth/sessionActivityMonitor.test.ts",
+        "src/tests/services/storage/sessionLogoutQueuePreservation.test.ts",
+        "e2e/auth-login-resilience.spec.ts › manual logout preserves the original owned send for review instead of deleting it"
+      ],
+      "rules": ["SAVE-03"]
+    }
+  ]
+}
