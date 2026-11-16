@@ -65,7 +65,7 @@ interface CensusRegisterContentProps {
   renderMedicalHandoffAction?: RenderCensusMedicalHandoffAction;
   accessProfile?: CensusAccessProfile;
   rayenBootstrapRequestId?: number;
-  onRayenBootstrapHandled?: () => void;
+  onRayenBootstrapHandled?: (requestId: number) => void;
 }
 
 export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({

@@ -39,7 +39,7 @@ interface CensusStaffHeaderProps {
   visibleBeds?: readonly BedDefinition[];
   renderMedicalHandoffAction?: RenderCensusMedicalHandoffAction;
   rayenBootstrapRequestId?: number;
-  onRayenBootstrapHandled?: () => void;
+  onRayenBootstrapHandled?: (requestId: number) => void;
 }
 
 /**

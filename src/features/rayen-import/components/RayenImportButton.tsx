@@ -54,7 +54,8 @@ const SYNC_QUEUE_PAGE_SIZE = 12;
 interface RayenImportButtonProps {
   selectedDate?: string;
   autoStartRequestId?: number;
-  onAutoStartHandled?: () => void;
+  /** Receives the id it handled, so a request made meanwhile (another copied day) survives. */
+  onAutoStartHandled?: (requestId: number) => void;
 }
 
 export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
@@ -224,7 +225,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
       autoStartInFlightRef.current = null;
       if (outcome === 'blocked') return;
       autoStartHandledRef.current = autoStartRequestId;
-      onAutoStartHandled?.();
+      onAutoStartHandled?.(autoStartRequestId);
     });
   }, [
     autoStartRequestId,

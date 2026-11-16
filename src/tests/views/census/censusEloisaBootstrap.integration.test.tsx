@@ -631,4 +631,102 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
       setSessionGeneration(null);
     }
   });
+
+  it("starts a day copied while another copied day's sync is still running", async () => {
+    // Copy today and its sync starts; while it runs, copy another empty day that waits for Eloísa.
+    const SECOND_DAY = '2026-09-08';
+    const hasRecord: Record<string, boolean> = {};
+    let visibleDate = CLINICAL_TODAY;
+    mocks.screenModel.mockImplementation(() => {
+      const date = visibleDate;
+      return hasRecord[date]
+        ? {
+            branch: 'register',
+            emptyDayPromptProps: null,
+            registerContentProps: {
+              currentDateString: date,
+              readOnly: false,
+              beds: {},
+              visibleBeds: [],
+              marginStyle: {},
+              stats: null,
+              showBedManagerModal: false,
+              onCloseBedManagerModal: vi.fn(),
+            },
+            shouldDeferTodayEmptyState: false,
+            resolvedTodayEmptyDate: date,
+          }
+        : {
+            branch: 'empty',
+            emptyDayPromptProps: {
+              selectedDay: Number(date.slice(-2)),
+              selectedMonth: 8,
+              currentDateString: date,
+              previousRecordAvailable: true,
+              previousRecordDate: date === CLINICAL_TODAY ? '2026-09-09' : '2026-09-07',
+              emptyStateDiagnostic: { source: 'date_mismatch', message: 'No hay censo.' },
+              onCreateDay: async () => {
+                hasRecord[date] = true;
+                return true;
+              },
+            },
+            registerContentProps: null,
+            shouldDeferTodayEmptyState: false,
+            resolvedTodayEmptyDate: date,
+          };
+    });
+    mocks.dailyRecordData.mockImplementation(() => ({
+      bootstrapPhase: hasRecord[visibleDate] ? 'record_ready' : 'confirmed_empty',
+      record: hasRecord[visibleDate] ? { date: visibleDate, beds: {} } : null,
+    }));
+    const show = (date: string) => {
+      visibleDate = date;
+      return censusElement(date);
+    };
+    const startedFor: string[] = [];
+    let finishFirst!: (outcome: string) => void;
+    mocks.triggerImport.mockImplementation(() => {
+      startedFor.push(visibleDate);
+      return startedFor.length === 1
+        ? new Promise(resolve => (finishFirst = resolve))
+        : Promise.resolve('started');
+    });
+    const copyShownDay = async (view: ReturnType<typeof renderCensus>, date: string) => {
+      const copyButton = await screen.findByTestId('create-from-rayen-btn', {}, { timeout: 3000 });
+      await act(async () => {
+        fireEvent.click(copyButton);
+      });
+      view.rerender(show(date));
+      await waitForRayenToolbar();
+    };
+
+    const view = renderCensus();
+    await copyShownDay(view, CLINICAL_TODAY);
+    await waitFor(() => expect(startedFor).toEqual([CLINICAL_TODAY]));
+    const offline = {
+      connection: 'offline',
+      report: null,
+      message: 'Sin extensión.',
+      canSync: false,
+    };
+    mocks.extensionHealth.mockReturnValue({ ...offline, refresh: mocks.refreshHealth });
+    await act(async () => {
+      view.rerender(show(SECOND_DAY));
+    });
+    await copyShownDay(view, SECOND_DAY);
+    expect(startedFor).toEqual([CLINICAL_TODAY]);
+    // Today's sync ends after the second day was copied; it closes only its own request.
+    await act(async () => {
+      finishFirst('started');
+    });
+    mocks.extensionHealth.mockReturnValue({ ...readyHealth, refresh: mocks.refreshHealth });
+    await act(async () => {
+      view.rerender(show(SECOND_DAY));
+    });
+
+    await waitFor(() => expect(startedFor).toEqual([CLINICAL_TODAY, SECOND_DAY]));
+    expect(mocks.triggerImport).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), {
+      reviewRequirement: 'day_bootstrap',
+    });
+  });
 });
