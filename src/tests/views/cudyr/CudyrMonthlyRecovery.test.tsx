@@ -98,6 +98,94 @@ describe('explicit monthly documentary action', () => {
       { recordCount: 0, unchangedCount: 0, failedCount: 1 }
     );
   });
+  it('says which days still need a person once every source was consulted', async () => {
+    recover.mockResolvedValue({
+      recovered: 1,
+      reused: 1,
+      failures: [],
+      pendingDays: 3,
+      remainingDays: ['2026-08-12', '2026-08-24', '2026-08-31'],
+      verification: 'documentary',
+    });
+    render(<CudyrMonthlyRecovery month="2026-08" onSaved={vi.fn()} />);
+    fireEvent.click(screen.getByText('Actualizar CUDYR'));
+    const remaining = await screen.findByText(/Quedan 3 días sin verificar/);
+    expect(remaining).toHaveTextContent('12-08-2026, 24-08-2026, 31-08-2026.');
+    expect(remaining).toHaveTextContent('volver a actualizar no los completa');
+    expect(remaining).not.toHaveTextContent('puede volver a actualizar');
+  });
+  it('offers another attempt for remaining days when a consultation did not complete', async () => {
+    recover.mockResolvedValue({
+      recovered: 0,
+      reused: 0,
+      failures: ['2026-08-31'],
+      pendingDays: 1,
+      remainingDays: ['2026-08-31'],
+      verification: 'documentary',
+    });
+    render(<CudyrMonthlyRecovery month="2026-08" onSaved={vi.fn()} />);
+    fireEvent.click(screen.getByText('Actualizar CUDYR'));
+    expect(await screen.findByText(/Queda 1 día sin verificar/)).toHaveTextContent(
+      'puede volver a actualizar'
+    );
+  });
+  it('confirms when the run leaves every closed day verified', async () => {
+    recover.mockResolvedValue({
+      recovered: 1,
+      reused: 0,
+      failures: [],
+      pendingDays: 2,
+      remainingDays: [],
+      verification: 'documentary',
+    });
+    render(<CudyrMonthlyRecovery month="2026-08" onSaved={vi.fn()} />);
+    fireEvent.click(screen.getByText('Actualizar CUDYR'));
+    expect(
+      await screen.findByText('Todos los turnos cerrados quedaron verificados.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/sin verificar/)).not.toBeInTheDocument();
+  });
+  it('asks for another attempt, not a review, when the final HHR read was partial', async () => {
+    recover.mockResolvedValue({
+      recovered: 1,
+      reused: 0,
+      failures: [],
+      pendingDays: 1,
+      // A stale or older result shape must not turn a partial read into a review request.
+      remainingDays: ['2026-08-12'],
+      verificationError:
+        'La lectura final de HHR quedó incompleta; falta completar la conciliación. Puede reintentar.',
+      verification: 'documentary',
+    });
+    render(<CudyrMonthlyRecovery month="2026-08" onSaved={vi.fn()} />);
+    fireEvent.click(screen.getByText('Actualizar CUDYR'));
+    expect(await screen.findByText(/Puede reintentar/)).toBeInTheDocument();
+    expect(screen.queryByText(/sin verificar/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/quedaron verificados/)).not.toBeInTheDocument();
+    expect(screen.getByText('Actualizar CUDYR')).toBeEnabled();
+    expect(recordCudyrOperation).toHaveBeenCalledExactlyOnceWith(
+      'cudyr_monthly_recovery',
+      expect.any(Number),
+      'partial',
+      { recordCount: 1, unchangedCount: 0, failedCount: 0 }
+    );
+  });
+  it('does not claim every day verified when the final read was partial', async () => {
+    recover.mockResolvedValue({
+      recovered: 1,
+      reused: 0,
+      failures: [],
+      pendingDays: 2,
+      remainingDays: [],
+      verificationError:
+        'La lectura final de HHR quedó incompleta; falta completar la conciliación. Puede reintentar.',
+      verification: 'documentary',
+    });
+    render(<CudyrMonthlyRecovery month="2026-08" onSaved={vi.fn()} />);
+    fireEvent.click(screen.getByText('Actualizar CUDYR'));
+    expect(await screen.findByText(/Puede reintentar/)).toBeInTheDocument();
+    expect(screen.queryByText(/quedaron verificados/)).not.toBeInTheDocument();
+  });
   it('aborts on unmount and never refreshes another screen after an in-flight read', async () => {
     let finish: (value: unknown) => void = () => {};
     recover.mockImplementation(
