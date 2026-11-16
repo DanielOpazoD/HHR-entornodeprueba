@@ -64,7 +64,6 @@ vi.mock('@/views/LazyViews', () => ({
   ConfigurationView: () => <div data-testid="configuration-view" />,
   DataView: () => <div data-testid="data-view" />,
   FunctionsTelemetryView: () => <div data-testid="functions-telemetry-view" />,
-  MedicalSignatureView: () => <div data-testid="medical-signature-view" />,
   WhatsAppIntegrationView: () => <div data-testid="whatsapp-view" />,
   SystemDiagnosticsView: () => <div data-testid="system-diagnostics-view" />,
   BackupFilesView: ({ backupType }: { backupType: string }) => (
@@ -105,7 +104,6 @@ const createProps = (overrides: Partial<AppRouterProps> = {}): AppRouterProps =>
     selectedMonth: 3,
     currentDateString: '2026-04-22',
     role: 'admin',
-    isSignatureMode: false,
     showBedManagerModal: false,
     onCloseBedManagerModal: vi.fn(),
     onOpenCensusDate: vi.fn(),
@@ -232,22 +230,5 @@ describe('AppRouter', () => {
 
     expect(screen.getByTestId('view-loader')).toBeInTheDocument();
     expect(screen.queryByTestId('handoff-medical')).not.toBeInTheDocument();
-  });
-
-  it('renders the signature route ahead of module-specific content', () => {
-    render(
-      <AppRouter
-        {...createProps({
-          shell: {
-            ...createProps().shell,
-            isSignatureMode: true,
-          },
-        })}
-      />
-    );
-
-    expect(screen.getByTestId('section-Firma Médica')).toBeInTheDocument();
-    expect(screen.getByTestId('medical-signature-view')).toBeInTheDocument();
-    expect(screen.queryByTestId('census-view')).not.toBeInTheDocument();
   });
 });

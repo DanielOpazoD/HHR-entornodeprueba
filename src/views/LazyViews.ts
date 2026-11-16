@@ -75,12 +75,6 @@ export const CommunicationsView = lazyWithRetry(() =>
   }))
 );
 
-export const MedicalSignatureView = lazyWithRetry(() =>
-  import(/* webpackChunkName: "signature" */ '@/features/admin').then(module => ({
-    default: module.MedicalSignatureView,
-  }))
-);
-
 export const WoundCareMobileUploadView = lazyWithRetry(() =>
   import(/* webpackChunkName: "wound-care-mobile-upload" */ '@/features/wound-care').then(
     module => ({

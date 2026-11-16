@@ -25,11 +25,3 @@ export const buildAppShellReadyTelemetry = ({
     role: role || 'viewer',
   },
 });
-
-export const shouldRecordAppShellTelemetry = ({
-  alreadyRecorded,
-  isSignatureMode,
-}: {
-  alreadyRecorded: boolean;
-  isSignatureMode: boolean;
-}): boolean => !alreadyRecorded && !isSignatureMode;

@@ -48,16 +48,6 @@ const openNursingHandoff = async (page: Page) => {
   });
 };
 
-const openMedicalHandoff = async (page: Page) => {
-  await openSeededCensus(page);
-  const medicalTab = page.getByTestId('nav-tab-medical-handoff');
-  await expect(medicalTab).toBeVisible({ timeout: 10000 });
-  await medicalTab.click();
-  await expect(page.getByTestId('medical-handoff-share-links-button')).toBeVisible({
-    timeout: 10000,
-  });
-};
-
 test.describe('Shift Handoff with Signature', () => {
   test('should complete nursing handoff workflow', async ({ page }) => {
     await openNursingHandoff(page);
@@ -65,31 +55,6 @@ test.describe('Shift Handoff with Signature', () => {
     await expect(page.getByTestId('handoff-shift-day-button')).toBeVisible();
     await expect(page.locator('main')).toContainText('Shift Patient');
     await expect(page.getByRole('button', { name: /Guardar/i }).first()).toBeVisible();
-  });
-
-  test('should complete medical handoff workflow', async ({ page }) => {
-    await openMedicalHandoff(page);
-
-    const createMedicalHandoffButton = page
-      .getByTestId('medical-handoff-create-entry-button')
-      .first();
-    await expect(createMedicalHandoffButton).toBeVisible({ timeout: 10000 });
-    await createMedicalHandoffButton.click();
-
-    await expect(page.locator('textarea').first()).toBeVisible({ timeout: 10000 });
-    await page
-      .locator('textarea')
-      .first()
-      .fill('Plan de tratamiento actualizado. Próximo control en 4 horas.');
-    await expect(page.locator('textarea').first()).toHaveValue(/próximo control/i);
-  });
-
-  test('should expose WhatsApp delivery action from medical handoff', async ({ page }) => {
-    await openMedicalHandoff(page);
-
-    await expect(page.getByTestId('medical-handoff-send-whatsapp-button')).toBeVisible({
-      timeout: 10000,
-    });
   });
 
   test('should expose PDF generation action from nursing handoff', async ({ page }) => {

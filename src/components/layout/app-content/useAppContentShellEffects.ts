@@ -5,7 +5,6 @@ import { recordOperationalTelemetry } from '@/services/observability/operational
 import {
   buildAppShellReadyTelemetry,
   resolveSanitizedCurrentModule,
-  shouldRecordAppShellTelemetry,
 } from '@/components/layout/app-content/appContentShellEffectsController';
 import { useAppContentEventBridge } from '@/components/layout/app-content/useAppContentEventBridge';
 
@@ -13,7 +12,6 @@ interface UseAppContentShellEffectsParams {
   role: AuthContextType['role'];
   currentModule: UseUIStateReturn['currentModule'];
   setCurrentModule: UseUIStateReturn['setCurrentModule'];
-  isSignatureMode: boolean;
   setSelectedShift: UseUIStateReturn['setSelectedShift'];
 }
 
@@ -21,7 +19,6 @@ export const useAppContentShellEffects = ({
   role,
   currentModule,
   setCurrentModule,
-  isSignatureMode,
   setSelectedShift,
 }: UseAppContentShellEffectsParams): void => {
   const appShellTelemetryRecordedRef = React.useRef(false);
@@ -39,12 +36,7 @@ export const useAppContentShellEffects = ({
   }, [currentModule, role, setCurrentModule]);
 
   React.useEffect(() => {
-    if (
-      !shouldRecordAppShellTelemetry({
-        alreadyRecorded: appShellTelemetryRecordedRef.current,
-        isSignatureMode,
-      })
-    ) {
+    if (appShellTelemetryRecordedRef.current) {
       return;
     }
 
@@ -52,5 +44,5 @@ export const useAppContentShellEffects = ({
       allowSuccess: true,
     });
     appShellTelemetryRecordedRef.current = true;
-  }, [currentModule, isSignatureMode, role]);
+  }, [currentModule, role]);
 };

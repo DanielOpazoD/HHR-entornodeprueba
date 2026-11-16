@@ -293,29 +293,6 @@
       "rules": []
     },
     {
-      "id": "handoff.medical",
-      "name": "Entrega de turno médica, firma y enlace",
-      "reach": {
-        "screen": "Módulo MEDICAL_HANDOFF (sin pestaña propia en la barra)",
-        "controls": [
-          { "testId": "medical-handoff-sign-button" },
-          { "testId": "medical-handoff-share-links-button" }
-        ]
-      },
-      "gate": [
-        "src/features/handoff/components/HandoffView.tsx",
-        "src/features/handoff/components/MedicalHandoffHeader.tsx",
-        "src/features/admin/components/MedicalSignatureView.tsx"
-      ],
-      "tests": [
-        "src/tests/views/handoff/HandoffView.medical.test.tsx",
-        "src/tests/hooks/useHandoffLogic.medical-handoff.test.ts",
-        "src/tests/services/handoff/publicMedicalSignatureService.test.ts",
-        "src/tests/functions/handoffSignatureFunctions.test.ts"
-      ],
-      "rules": []
-    },
-    {
       "id": "handoff.medical-spreadsheet",
       "name": "Planilla de entrega médica desde el censo",
       "reach": {
