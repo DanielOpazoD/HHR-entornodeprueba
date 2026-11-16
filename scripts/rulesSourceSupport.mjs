@@ -13,9 +13,6 @@ export const RULE_ASSETS = {
     },
     sources: [
       'rules/firestore/00-auth-and-role-helpers.rules',
-      'rules/firestore/10-specialist-bed-update-helpers.rules',
-      'rules/firestore/11-specialist-structured-handoff-helpers.rules',
-      'rules/firestore/12-specialist-handoff-boundary-helpers.rules',
       'rules/firestore/12-clinical-document-permission-helpers.rules',
       'rules/firestore/20-clinical-and-access-helpers.rules',
       'rules/firestore/22-invitation-and-receipt-helpers.rules',
@@ -28,10 +25,7 @@ export const RULE_ASSETS = {
   },
   storage: {
     output: 'storage.rules',
-    sources: [
-      'rules/storage/00-helper-functions.rules',
-      'rules/storage/10-storage-paths.rules',
-    ],
+    sources: ['rules/storage/00-helper-functions.rules', 'rules/storage/10-storage-paths.rules'],
   },
 };
 
@@ -112,7 +106,10 @@ export const buildRuleAssetContent = (root, assetName) => {
         throw new Error(`Missing rules source fragment: ${relativePath}`);
       }
 
-      return normalizeGeneratedRuleFragment(fs.readFileSync(absolutePath, 'utf8'), asset.generatedFormat);
+      return normalizeGeneratedRuleFragment(
+        fs.readFileSync(absolutePath, 'utf8'),
+        asset.generatedFormat
+      );
     })
     .join('');
 };

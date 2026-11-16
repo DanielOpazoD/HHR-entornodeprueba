@@ -334,14 +334,14 @@ No usa la misma regla de acceso que el login general y no debe mezclarse con est
 
 ## 6. Roles operativos actuales
 
-| Rol                 | Puede usar login general | Alcance resumido                                       |
-| ------------------- | ------------------------ | ------------------------------------------------------ |
-| `admin`             | sí                       | acceso completo                                        |
-| `nurse_hospital`    | sí                       | operación clínica/enfermería                           |
-| `doctor_urgency`    | sí                       | handoff/firma médica y permisos clínicos asociados     |
-| `doctor_specialist` | sí                       | `CENSUS` + `MEDICAL_HANDOFF` con capacidades limitadas |
-| `viewer`            | sí                       | acceso limitado según policy vigente                   |
-| `editor`            | sí                       | accesos técnicos/operativos según policy vigente       |
+| Rol                 | Puede usar login general | Alcance resumido                                      |
+| ------------------- | ------------------------ | ----------------------------------------------------- |
+| `admin`             | sí                       | acceso completo                                       |
+| `nurse_hospital`    | sí                       | operación clínica/enfermería                          |
+| `doctor_urgency`    | sí                       | lectura clínica, Excel de entrega médica y documentos |
+| `doctor_specialist` | sí                       | censo abreviado, Excel de entrega médica y documentos |
+| `viewer`            | sí                       | acceso limitado según policy vigente                  |
+| `editor`            | sí                       | accesos técnicos/operativos según policy vigente      |
 
 ## 7. Perfil especialista
 
@@ -416,7 +416,7 @@ Para soporte operativo rápido:
 
 ## 14. Metadatos temporales del censo
 
-Las actualizaciones directas de enfermería y especialista requieren que `date`, el ID
+Las actualizaciones directas de enfermería requieren que `date`, el ID
 del documento y la fecha UTC de `dateTimestamp` coincidan. Un timestamp persistido no
 se reemplaza; si falta o es null, sólo puede repararse con un entero coherente con
 esa fecha y dentro de la ventana de edición del rol. El cliente conserva timestamps
@@ -428,15 +428,14 @@ UTC sigue coincidiendo con el ID. No se migran timestamps persistidos válidos.
 Metadatos existentes inconsistentes requieren reparación administrativa antes de editar;
 no se debe corregirlos asignando la hora actual a un registro histórico.
 
-La escritura productiva del especialista usa el callable con día clínico del calendario
-compartido: `Pacific/Easter`, cambio a las 08:00 hábiles y 09:00 fines de semana/feriados.
-Las reglas de escritura directa conservan sus ventanas rolling, no el calendario completo.
-
 La enfermería conserva el intervalo abierto desde 24 horas antes hasta 48 horas
-después del timestamp; el especialista directo conserva `[timestamp, timestamp + 24h)`.
-Son duraciones absolutas y no se cambian a ventanas 08:00/09:00: ese corte pertenece
-al callable clínico. En un cambio de horario, 24 horas rolling no equivalen necesariamente
-a volver a la misma hora local.
+después del timestamp. Es una duración absoluta y no se cambia a ventanas 08:00/09:00.
+En un cambio de horario, 24 horas rolling no equivalen necesariamente a volver a la
+misma hora local.
+
+Los roles médicos (`doctor_urgency`, `doctor_specialist`) leen el día, también las
+firmas y notas médicas de días pasados, pero no lo escriben: su firma y sus notas se
+retiraron con la entrega médica antigua (noviembre de 2026).
 
 Para un registro legacy inconsistente: confirmar ID y fecha del censo, conservar copia
 previa, y reparar sólo esos metadatos mediante la ruta administrativa autorizada,
