@@ -17,6 +17,7 @@ import {
   setDailyRecordQueryData,
 } from '@/hooks/controllers/dailyRecordQueryController';
 import { buildClinicalCribPatch } from '@/hooks/controllers/clinicalCribController';
+import { bedManagementReducer } from '@/hooks/useBedManagementReducer';
 import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
 import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
@@ -275,3 +276,38 @@ it.each(['live', 'refetch'] as const)(
   },
   60_000
 );
+
+// W12-CW10. The day kept here with this person's unsent texts carries this computer's time, never a
+// version of the server. The census binds a discharge to the server's day, so the patient is
+// discharged while a diagnosis waits after the notice, and that diagnosis stays held for the
+// patient it was written for (ID-01), never on the empty bed.
+it('discharges a patient whose diagnosis waits after the notice', async () => {
+  const { mutate, hook } = await conflictOnNight();
+  await admin.doc(dayPath).update({ 'beds.R4.pathology': 'A4', lastUpdated: Timestamp.now() });
+  await mutate({ 'beds.R4.pathology': 'B4' } as DailyRecordPatch);
+  await recover(hook, 'refetch');
+
+  const record = shown()!.record!;
+  const discharge = await mutate(
+    bedManagementReducer(record, { type: 'CLEAR_PATIENT', bedId: 'R4' }) as DailyRecordPatch,
+    {
+      consistency: 'remote_confirmed',
+      optimisticRemoteConfirmed: true,
+      intentionalBedClear: {
+        bedId: 'R4',
+        confirmedLastUpdated: record.lastUpdated,
+        confirmedOccupant: buildConfirmedBedOccupantIdentity(record.beds.R4),
+      },
+    }
+  );
+  expect(discharge?.updatedRemotely).toBe(true);
+  expect((await server()).beds.R4).toMatchObject({ rut: '', pathology: '' });
+  const held = (await hospitalDB.syncQueue.toArray()).filter(
+    task => (task.payload as DailyRecord | undefined)?.beds?.R4?.pathology === 'B4'
+  );
+  expect(held.map(task => [task.status, (task.payload as DailyRecord).beds.R4.rut])).toEqual([
+    ['CONFLICT', '11111111-1'],
+  ]);
+  await expectUnsentNightKept('B3');
+  hook.unmount();
+}, 60_000);
