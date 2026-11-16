@@ -92,8 +92,9 @@ export const createCudyrIdentityResolver = (
     // separate and require one census episode; every source spelling must carry the census
     // first given name and first surname, so a mistyped RUN shared by another person with the
     // same first name in another version stays apart. The downstream day linker still checks ownership.
-    const firstGiven = normalizedGiven(rows[0].firstName || '').split(' ')[0];
-    const firstSurname = cudyrNameKey(rows[0].lastName || '').split(/[^A-Z0-9]+/)[0];
+    const [census] = rows;
+    const [firstGiven = ''] = normalizedGiven(census?.firstName || '').split(' ');
+    const [firstSurname = ''] = cudyrNameKey(census?.lastName || '').split(/[^A-Z0-9]+/);
     if (
       isValidRut(document) &&
       !rows.some(r => r.documentType === 'Pasaporte') &&
