@@ -8,11 +8,10 @@ import type { ZodSafeParseResult } from 'zod';
 
 import { normalizeLegacyNullsDeep } from './zod/legacyNormalization';
 import {
+  DailyRecordFieldsSchema,
   DailyRecordSchema,
-  HandoffSharedChecklistSchema,
   RayenBedCollisionResolutionReceiptSchema,
   RayenSyncEventSchema,
-  RayenSyncMetaSchema,
 } from './zod/dailyRecord';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import { PatientDataSchema } from './zod/patient';
@@ -67,6 +66,22 @@ export const parsePatientDataWithDefaultsReport = (
 
 export const parsePatientDataWithDefaults = (data: unknown, bedId: string): PatientData =>
   parsePatientDataWithDefaultsReport(data, bedId).patient;
+
+const dailyRecordFieldSchemas = new Map(Object.entries(DailyRecordFieldsSchema.shape));
+
+// Every top-level value that passes its own schema survives the salvage, and fields this client
+// does not know stay as stored, as the strict schema passes them through. Only the invalid value
+// goes: a signed or CUDYR-locked day keeps its signature and lock (CUD-01), and a split day keeps
+// its layout and `meta` revision, so strict readers never see it as ahead of itself.
+const keepValidTopLevelFields = (raw: Record<string, unknown>): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(raw).flatMap(([key, value]) => {
+      const fieldSchema = dailyRecordFieldSchemas.get(key);
+      if (!fieldSchema) return [[key, value]];
+      const parsed = fieldSchema.safeParse(value);
+      return parsed.success ? [[key, parsed.data]] : [];
+    })
+  );
 
 export const parseDailyRecordWithDefaultsReport = (
   data: unknown,
@@ -136,7 +151,6 @@ export const parseDailyRecordWithDefaultsReport = (
   const salvagedDischarges = salvageArrayItems<DischargeData>(raw.discharges, DischargeDataSchema);
   const salvagedTransfers = salvageArrayItems<TransferData>(raw.transfers, TransferDataSchema);
   const salvagedCma = salvageArrayItems<CMAData>(raw.cma, CMADataSchema);
-  const sharedChecklist = HandoffSharedChecklistSchema.safeParse(raw.handoffSharedChecklist);
   // El historial de sincronización se salvaba a cero: cualquier reparación
   // estructural del registro (una cama rota, un enum desconocido) lo perdía
   // entero y la siguiente corrida lo reescribía con un solo evento.
@@ -144,15 +158,10 @@ export const parseDailyRecordWithDefaultsReport = (
     raw.rayenSyncHistory,
     RayenSyncEventSchema
   );
-  const salvagedRayenSyncMeta = RayenSyncMetaSchema.safeParse(raw.rayenSync);
-  // A salvaged split day must still read as split, and at its own revision: without `meta` every
-  // episode document would look ahead of the day and strict readers would fail closed for good.
-  const salvagedLayout = raw.clinicalDerivedLayout ?? undefined;
-  const salvagedMeta =
-    raw.meta && typeof raw.meta === 'object' && !Array.isArray(raw.meta) ? raw.meta : undefined;
 
   return {
     record: applyDailyRecordStaffingCompatibility({
+      ...keepValidTopLevelFields(raw),
       date: typeof raw.date === 'string' ? raw.date : docId,
       beds: salvagedBeds,
       discharges: salvagedDischarges.values,
@@ -173,7 +182,6 @@ export const parseDailyRecordWithDefaultsReport = (
           })
         : undefined,
       handoffDayChecklist: (raw.handoffDayChecklist as DailyRecord['handoffDayChecklist']) || {},
-      handoffSharedChecklist: sharedChecklist.success ? sharedChecklist.data : undefined,
       handoffNightChecklist:
         (raw.handoffNightChecklist as DailyRecord['handoffNightChecklist']) || {},
       handoffNovedadesDayShift:
@@ -194,9 +202,6 @@ export const parseDailyRecordWithDefaultsReport = (
       ...(Array.isArray(raw.rayenSyncHistory)
         ? { rayenSyncHistory: salvagedRayenSyncHistory.values }
         : {}),
-      ...(salvagedRayenSyncMeta.success ? { rayenSync: salvagedRayenSyncMeta.data } : {}),
-      ...(salvagedLayout !== undefined ? { clinicalDerivedLayout: salvagedLayout } : {}),
-      ...(salvagedMeta ? { meta: salvagedMeta } : {}),
     } as DailyRecord),
     report: {
       nullNormalization,
