@@ -19,28 +19,6 @@ export interface MessageTemplate {
 export function getDefaultTemplates(): MessageTemplate[] {
   return [
     {
-      id: 'handoff-default',
-      name: 'Entrega de Turno Estandar',
-      type: 'handoff',
-      content: `🏥 Hospital Hanga Roa
-📋 Entrega de Turno Médico
-
-📅 Fecha: {{date}}
-👨‍⚕️ Entregado por: {{signedBy}}
-🕐 Firmado: {{signedAt}}
-
-📊 Resumen:
-• Hospitalizados: {{hospitalized}} pacientes
-• Camas libres: {{freeBeds}}
-• Nuevos ingresos: {{newAdmissions}}
-• Altas: {{discharges}}
-
-🔗 Ver entrega completa:
-{{handoffUrl}}
-
-- Enviado automáticamente por Sistema HHR`,
-    },
-    {
       id: 'handoff-urgent',
       name: 'Entrega Urgente',
       type: 'handoff',
@@ -92,32 +70,6 @@ export const createWhatsAppTemplatesStore = (
     saveMessageTemplates,
   };
 };
-
-export function formatHandoffMessage(
-  template: string,
-  data: {
-    date: string;
-    signedBy: string;
-    signedAt: string;
-    hospitalized: number;
-    freeBeds: number;
-    newAdmissions: number;
-    discharges: number;
-    handoffUrl: string;
-    criticalPatients?: number;
-  }
-): string {
-  return template
-    .replace(/\{\{date\}\}/g, data.date)
-    .replace(/\{\{signedBy\}\}/g, data.signedBy)
-    .replace(/\{\{signedAt\}\}/g, data.signedAt)
-    .replace(/\{\{hospitalized\}\}/g, String(data.hospitalized))
-    .replace(/\{\{freeBeds\}\}/g, String(data.freeBeds))
-    .replace(/\{\{newAdmissions\}\}/g, String(data.newAdmissions))
-    .replace(/\{\{discharges\}\}/g, String(data.discharges))
-    .replace(/\{\{handoffUrl\}\}/g, data.handoffUrl)
-    .replace(/\{\{criticalPatients\}\}/g, String(data.criticalPatients || 0));
-}
 
 const defaultWhatsAppTemplatesStore = createWhatsAppTemplatesStore();
 

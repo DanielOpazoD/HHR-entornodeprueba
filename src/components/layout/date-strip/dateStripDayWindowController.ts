@@ -10,11 +10,7 @@ const TABLET_VISIBLE_DAYS = 7;
 const DESKTOP_VISIBLE_DAYS = 13;
 const COMPACT_DESKTOP_VISIBLE_DAYS = 9;
 
-const COMPACT_DAY_STRIP_MODULES = new Set<ModuleType>([
-  'CENSUS',
-  'NURSING_HANDOFF',
-  'MEDICAL_HANDOFF',
-]);
+const COMPACT_DAY_STRIP_MODULES = new Set<ModuleType>(['CENSUS', 'NURSING_HANDOFF']);
 
 export interface DateStripDayWindow {
   startDay: number;

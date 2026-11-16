@@ -7,12 +7,7 @@ interface ResolveDateStripVisibilityParams {
   censusViewMode: CensusViewMode;
 }
 
-const DATE_STRIP_MODULES: ReadonlySet<ModuleType> = new Set([
-  'CENSUS',
-  'CUDYR',
-  'NURSING_HANDOFF',
-  'MEDICAL_HANDOFF',
-]);
+const DATE_STRIP_MODULES: ReadonlySet<ModuleType> = new Set(['CENSUS', 'CUDYR', 'NURSING_HANDOFF']);
 
 export const shouldRenderDateStrip = ({
   currentModule,

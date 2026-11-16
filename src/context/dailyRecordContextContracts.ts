@@ -5,17 +5,11 @@ import type {
   PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import type {
-  MedicalHandoffActor,
-  MedicalSpecialty,
-} from '@/types/domain/dailyRecordMedicalHandoff';
 
 import type { CudyrBatchUpdate, CudyrScore, CudyrScorePatch } from '@/types/domain/cudyr';
 import type { CMAData } from '@/types/domain/movements';
 import type { PatientFieldValue } from '@/types/valueTypes';
 import type { PatientMovementActions } from '@/types/movements';
-import type { MedicalHandoffScope } from '@/types/medicalHandoff';
-import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 import type { DailyRecordBootstrapPhase } from '@/hooks/controllers/dailyRecordBootstrapController';
 import type { StabilityRules } from '@/hooks/useStabilityRules';
 import type { DailyRecordStaffingDetailsV1 } from '@/types/domain/dailyRecordStaffingDetails';
@@ -129,31 +123,12 @@ export interface DailyRecordHandoffActions {
     field: string,
     value: boolean | string
   ) => void;
-  updateHandoffNovedades: (shift: 'day' | 'night' | 'medical', value: string) => void;
-  updateMedicalSpecialtyNote: (
-    specialty: MedicalSpecialty,
-    value: string,
-    actor: Partial<MedicalHandoffActor>
-  ) => Promise<void>;
-  confirmMedicalSpecialtyNoChanges: (input: {
-    specialty: MedicalSpecialty;
-    actor: Partial<MedicalHandoffActor>;
-    comment?: string;
-    dateKey?: string;
-  }) => Promise<void>;
+  updateHandoffNovedades: (shift: 'day' | 'night', value: string) => void;
   updateHandoffStaff: (
     shift: 'day' | 'night',
     type: 'delivers' | 'receives' | 'tens',
     staffList: string[]
   ) => void;
-  updateMedicalSignature: (doctorName: string, scope?: MedicalHandoffScope) => Promise<void>;
-  updateMedicalHandoffDoctor: (doctorName: string) => Promise<void>;
-  markMedicalHandoffAsSent: (doctorName?: string, scope?: MedicalHandoffScope) => Promise<void>;
-  ensureMedicalHandoffSignatureLink: (
-    scope?: MedicalHandoffScope
-  ) => Promise<ApplicationOutcome<{ handoffUrl: string } | null>>;
-  resetMedicalHandoffState: () => Promise<void>;
-  sendMedicalHandoff: (templateContent: string, targetGroupId: string) => Promise<void>;
 }
 
 export interface DailyRecordActionsContextType

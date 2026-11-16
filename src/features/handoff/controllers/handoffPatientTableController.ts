@@ -33,7 +33,6 @@ export const resolveHandoffPatientRowPlan = (
   bed: BedDefinition,
   patient: PatientData | undefined,
   options: {
-    isMedical: boolean;
     shouldShowPatient: (bedId: string) => boolean;
   }
 ): HandoffPatientTableRowPlan => {
@@ -42,15 +41,6 @@ export const resolveHandoffPatientRowPlan = (
       basePatient: createEmptyPatient(),
       shouldRender: true,
       shouldRenderMainRow: true,
-      shouldRenderClinicalCrib: false,
-    };
-  }
-
-  if (options.isMedical && patient.isBlocked) {
-    return {
-      basePatient: patient,
-      shouldRender: false,
-      shouldRenderMainRow: false,
       shouldRenderClinicalCrib: false,
     };
   }

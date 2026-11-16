@@ -317,27 +317,4 @@ describe('Critical Integration Paths', () => {
     // 3. Expect Partial Update
     expect(mockDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalled();
   });
-
-  it('FLOW 4: Medical Handoff Signature', async () => {
-    const { result } = renderHook(() => useDailyRecord(mockDate), {
-      wrapper: createIntegrationWrapper(),
-    });
-    await act(async () => {
-      await result.current.createDay(false);
-    });
-    await waitFor(() => expect(result.current.record).not.toBeNull());
-
-    // 1. Sign
-    await act(async () => {
-      await result.current.updateMedicalSignature('Dr. House');
-    });
-
-    // 2. Verify State
-    await waitFor(() => {
-      expect(result.current.record?.medicalSignature?.doctorName).toBe('Dr. House');
-    });
-
-    // 3. Verify Async Persistence (now uses patchRecord / updatePartialDetailed)
-    expect(mockDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalled();
-  });
 });

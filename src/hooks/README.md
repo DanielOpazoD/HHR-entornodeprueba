@@ -25,12 +25,11 @@ Cuando una operación necesita coordinar repositorios, clasificar outcomes remot
 
 ## Hooks clave (alta prioridad)
 
-| Hook                         | Responsabilidad                                |
-| ---------------------------- | ---------------------------------------------- |
-| `useDailyRecord.ts`          | API consolidada de acciones/estado del censo   |
-| `useDailyRecordQuery.ts`     | Lectura/suscripción/cache y optimistic updates |
-| `useMovements.ts`            | Wrapper de compatibilidad para altas/traslados |
-| `useHandoffCommunication.ts` | Comunicación y envío de handoff                |
+| Hook                     | Responsabilidad                                |
+| ------------------------ | ---------------------------------------------- |
+| `useDailyRecord.ts`      | API consolidada de acciones/estado del censo   |
+| `useDailyRecordQuery.ts` | Lectura/suscripción/cache y optimistic updates |
+| `useMovements.ts`        | Wrapper de compatibilidad para altas/traslados |
 
 ## Patrones usados
 

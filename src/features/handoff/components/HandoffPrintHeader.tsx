@@ -12,7 +12,6 @@ interface HandoffPrintHeaderProps {
   Icon: LucideIcon;
   schedule?: Pick<ShiftSchedule, 'dayStart' | 'dayEnd' | 'nightStart' | 'nightEnd'>;
   selectedShift?: 'day' | 'night';
-  isMedical: boolean;
   deliversList?: string[];
   receivesList?: string[];
   tensList?: string[];
@@ -24,7 +23,6 @@ export const HandoffPrintHeader: React.FC<HandoffPrintHeaderProps> = ({
   Icon: _Icon,
   schedule,
   selectedShift,
-  isMedical,
   deliversList = [],
   receivesList = [],
   tensList = [],
@@ -53,7 +51,7 @@ export const HandoffPrintHeader: React.FC<HandoffPrintHeaderProps> = ({
         </div>
         <div className="text-right">
           <div className="text-xl print:text-base font-bold text-slate-900">{dateString}</div>
-          {!isMedical && schedule && (
+          {schedule && (
             <div className="text-sm text-slate-600 uppercase print:text-xs">
               {resolvePrintableShiftLabel(selectedShift, schedule)}
             </div>
@@ -62,46 +60,44 @@ export const HandoffPrintHeader: React.FC<HandoffPrintHeaderProps> = ({
       </div>
 
       {/* Print: Show Responsible Nurses & TENS */}
-      {!isMedical && (
-        <div className="grid grid-cols-[1fr_1fr_1.5fr] gap-4 text-xs border-t border-slate-300 pt-3">
-          <div className="min-w-0">
-            <span className="block font-bold text-slate-900 uppercase text-[9px] mb-0.5">
-              Enfermero(a) Entrega:
-            </span>
-            <div className="text-slate-800 text-[10px] break-words">
-              {delivers.isFallback ? (
-                <span className="italic text-slate-400">{delivers.text}</span>
-              ) : (
-                delivers.text
-              )}
-            </div>
-          </div>
-          <div className="min-w-0">
-            <span className="block font-bold text-slate-900 uppercase text-[9px] mb-0.5">
-              Enfermero(a) Recibe:
-            </span>
-            <div className="text-slate-800 text-[10px] break-words">
-              {receives.isFallback ? (
-                <span className="italic text-slate-400">{receives.text}</span>
-              ) : (
-                receives.text
-              )}
-            </div>
-          </div>
-          <div className="min-w-0 border-l border-slate-100 pl-4">
-            <span className="block font-bold text-slate-900 uppercase text-[9px] mb-0.5">
-              TENS de Turno:
-            </span>
-            <div className="text-slate-800 text-[10px] break-words font-medium">
-              {tens.isFallback ? (
-                <span className="italic text-slate-400">{tens.text}</span>
-              ) : (
-                tens.text
-              )}
-            </div>
+      <div className="grid grid-cols-[1fr_1fr_1.5fr] gap-4 text-xs border-t border-slate-300 pt-3">
+        <div className="min-w-0">
+          <span className="block font-bold text-slate-900 uppercase text-[9px] mb-0.5">
+            Enfermero(a) Entrega:
+          </span>
+          <div className="text-slate-800 text-[10px] break-words">
+            {delivers.isFallback ? (
+              <span className="italic text-slate-400">{delivers.text}</span>
+            ) : (
+              delivers.text
+            )}
           </div>
         </div>
-      )}
+        <div className="min-w-0">
+          <span className="block font-bold text-slate-900 uppercase text-[9px] mb-0.5">
+            Enfermero(a) Recibe:
+          </span>
+          <div className="text-slate-800 text-[10px] break-words">
+            {receives.isFallback ? (
+              <span className="italic text-slate-400">{receives.text}</span>
+            ) : (
+              receives.text
+            )}
+          </div>
+        </div>
+        <div className="min-w-0 border-l border-slate-100 pl-4">
+          <span className="block font-bold text-slate-900 uppercase text-[9px] mb-0.5">
+            TENS de Turno:
+          </span>
+          <div className="text-slate-800 text-[10px] break-words font-medium">
+            {tens.isFallback ? (
+              <span className="italic text-slate-400">{tens.text}</span>
+            ) : (
+              tens.text
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

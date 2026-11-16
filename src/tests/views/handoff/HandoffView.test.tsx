@@ -76,7 +76,7 @@ describe('HandoffView Component', () => {
   it('renders nursing handoff with correct title', () => {
     const record = createMockRecord('2024-12-11');
 
-    render(<HandoffView type="nursing" />, {
+    render(<HandoffView />, {
       contextValue: createMockDailyRecordContext(record),
     });
 
@@ -87,20 +87,20 @@ describe('HandoffView Component', () => {
     const record = createMockRecord('2024-12-11');
     const ui = createMockUIState({ selectedShift: 'day' });
 
-    const { rerender } = render(<HandoffView type="nursing" ui={ui} />, {
+    const { rerender } = render(<HandoffView ui={ui} />, {
       contextValue: createMockDailyRecordContext(record),
     });
 
     expect(screen.getByText(/Entrega Turno Enfermería - Día/i)).toBeInTheDocument();
 
-    rerender(<HandoffView type="nursing" ui={{ ...ui, selectedShift: 'night' as const }} />);
+    rerender(<HandoffView ui={{ ...ui, selectedShift: 'night' as const }} />);
 
     expect(screen.getByText(/Entrega Turno Enfermería - Noche/i)).toBeInTheDocument();
   });
 
   it('shows compact shift controls without the conflict center icon in nursing', () => {
     const record = createMockRecord('2024-12-11');
-    render(<HandoffView type="nursing" ui={createMockUIState({ selectedShift: 'day' })} />, {
+    render(<HandoffView ui={createMockUIState({ selectedShift: 'day' })} />, {
       contextValue: createMockDailyRecordContext(record),
     });
     expect(screen.getByRole('button', { name: 'Turno Largo' })).toHaveAttribute(
@@ -120,7 +120,7 @@ describe('HandoffView Component', () => {
     const record = createMockRecord('2024-12-11');
     const ui = createMockUIState({ selectedShift: 'night' });
 
-    render(<HandoffView type="nursing" ui={ui} />, {
+    render(<HandoffView ui={ui} />, {
       contextValue: createMockDailyRecordContext(record),
     });
 
@@ -150,7 +150,7 @@ describe('HandoffView Component', () => {
     });
 
     const dayUi = createMockUIState({ selectedShift: 'day' });
-    const { rerender } = render(<HandoffView type="nursing" ui={dayUi} />, {
+    const { rerender } = render(<HandoffView ui={dayUi} />, {
       contextValue: createMockDailyRecordContext(record),
     });
 
@@ -159,7 +159,7 @@ describe('HandoffView Component', () => {
     expect(within(mainTable).queryByText('PACIENTE MANANA')).not.toBeInTheDocument();
     expect(within(mainTable).queryByText('PACIENTE MADRUGADA')).not.toBeInTheDocument();
 
-    rerender(<HandoffView type="nursing" ui={{ ...dayUi, selectedShift: 'night' as const }} />);
+    rerender(<HandoffView ui={{ ...dayUi, selectedShift: 'night' as const }} />);
 
     const nightTable = screen.getAllByRole('table')[0];
     expect(within(nightTable).getByText('PACIENTE DIA')).toBeInTheDocument();
@@ -171,7 +171,7 @@ describe('HandoffView Component', () => {
     const record = createMockRecord('2024-12-11');
     const ui = createMockUIState({ selectedShift: 'night' });
 
-    const { mockContext } = render(<HandoffView type="nursing" ui={ui} />, {
+    const { mockContext } = render(<HandoffView ui={ui} />, {
       contextValue: createMockDailyRecordContext(record),
     });
 
@@ -194,7 +194,7 @@ describe('HandoffView Component', () => {
     const record = createMockRecord('2024-12-11');
     record.handoffNovedadesDayShift = 'Initial novedades';
 
-    const { mockContext } = render(<HandoffView type="nursing" />, {
+    const { mockContext } = render(<HandoffView />, {
       contextValue: createMockDailyRecordContext(record),
     });
 

@@ -120,7 +120,6 @@ export const useExportManager = ({
     const outcome = await executeExportHandoffPdf({
       record: exportRecord,
       selectedShift,
-      isMedical: currentModule === 'MEDICAL_HANDOFF',
     });
     recordOperationalOutcome('export', 'export_handoff_pdf', outcome, {
       date: exportRecord?.date,

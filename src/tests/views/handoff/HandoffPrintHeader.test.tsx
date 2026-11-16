@@ -13,7 +13,6 @@ describe('HandoffPrintHeader', () => {
         dateString="17-03-2026"
         Icon={Stethoscope}
         selectedShift="day"
-        isMedical={false}
         schedule={{
           dayStart: '08:00',
           dayEnd: '20:00',

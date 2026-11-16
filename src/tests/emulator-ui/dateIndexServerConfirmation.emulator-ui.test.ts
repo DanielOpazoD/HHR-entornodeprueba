@@ -15,9 +15,6 @@ import {
 import { copyPatientToDateDetailed } from '@/services/repositories/dailyRecordRepositoryInitializationService';
 import { fetchExistingDaysInMonth } from '@/services/records/recordQueryService';
 import { auditAdmissionDateBackfill } from '@/services/admin/admissionDateBackfillService';
-import { executeSendMedicalHandoff } from '@/application/handoff/sendMedicalHandoffUseCase';
-import { defaultDailyRecordReadPort } from '@/application/ports/dailyRecordPort';
-import { sendWhatsAppMessage } from '@/services/integrations/whatsapp/whatsappService';
 
 let activeDb: unknown;
 vi.mock('@/firebaseConfig', () => ({
@@ -37,10 +34,6 @@ vi.mock('@/firebaseConfig', () => ({
   firebaseReady: Promise.resolve(),
   mountConfigWarning: vi.fn(),
 }));
-vi.mock('@/services/integrations/whatsapp/whatsappService', () => ({
-  formatHandoffMessage: vi.fn((_template: string, data: { signedBy: string }) => data.signedBy),
-  sendWhatsAppMessage: vi.fn(async () => ({ success: true })),
-}));
 
 const host = process.env.FIRESTORE_EMULATOR_HOST;
 const describeEmulator = host ? describe : describe.skip;
@@ -52,14 +45,6 @@ const withPatient = (date: string, doctor: string): DailyRecord => {
   day.beds.R1 = { ...day.beds.R1, patientName: 'Paciente Sintético', rut: '11.111.111-1' };
   return day;
 };
-const send = (doctor = '') =>
-  executeSendMedicalHandoff({
-    record: DataFactory.createMockDailyRecord(TODAY, { medicalHandoffDoctor: doctor }),
-    templateContent: 'Plantilla sintética',
-    targetGroupId: 'synthetic-group',
-    patchRecord: vi.fn(async () => undefined),
-    getPreviousDay: defaultDailyRecordReadPort.getPreviousDay,
-  });
 
 describeEmulator('census date index and previous day need server confirmation', () => {
   let environment: RulesTestEnvironment;
@@ -86,7 +71,6 @@ describeEmulator('census date index and previous day need server confirmation', 
     await environment.clearFirestore();
     await hospitalDB.dailyRecords.clear();
     await hospitalDB.syncQueue.clear();
-    vi.mocked(sendWhatsAppMessage).mockClear();
     setFirestoreEnabled(true);
   });
 
@@ -131,7 +115,7 @@ describeEmulator('census date index and previous day need server confirmation', 
     }
   };
 
-  it('with network, lists the server days and signs with the previous day doctor', async () => {
+  it('with network, lists the server days and reads the previous day', async () => {
     await seedServer(withPatient(PREVIOUS, 'Dra. Servidor'));
     await openClient({ network: true });
 
@@ -142,22 +126,13 @@ describeEmulator('census date index and previous day need server confirmation', 
     const audit = await auditAdmissionDateBackfill();
     expect(audit.outcome).not.toBe('blocked');
     expect(audit.scannedDays).toBe(1);
-    expect(await send()).toMatchObject({
-      status: 'success',
-      data: { doctorName: 'Dra. Servidor' },
-    });
   });
 
-  it('with network and no earlier day anywhere, still audits clean and signs "Sin especificar"', async () => {
+  it('with network and no earlier day anywhere, still audits clean', async () => {
     await openClient({ network: true });
 
     await expect(getAvailableDates()).resolves.toEqual([]);
     expect(await auditAdmissionDateBackfill()).toMatchObject({ outcome: 'clean', scannedDays: 0 });
-    expect(await send()).toMatchObject({
-      status: 'success',
-      data: { doctorName: 'Sin especificar' },
-    });
-    expect(sendWhatsAppMessage).toHaveBeenCalledWith('synthetic-group', 'Sin especificar');
   });
 
   it('without network, an empty cache is neither a complete history nor a missing previous day', async () => {
@@ -165,13 +140,8 @@ describeEmulator('census date index and previous day need server confirmation', 
     await openClient({ network: false });
 
     const audit = await auditAdmissionDateBackfill();
-    const sent = await send();
-    expect({ outcome: audit.outcome, sent: sent.status }).toEqual({
-      outcome: 'blocked',
-      sent: 'failed',
-    });
+    expect(audit.outcome).toBe('blocked');
     expect(audit.userSafeMessage).toMatch(/lista de días/);
-    expect(sendWhatsAppMessage).not.toHaveBeenCalled();
     await expect(getAvailableDates()).rejects.toMatchObject({
       status: 'partial',
       failed: 'remote',
@@ -187,14 +157,6 @@ describeEmulator('census date index and previous day need server confirmation', 
     ]);
     await openClient({ network: false });
 
-    expect(await send('Dr. Hoy')).toMatchObject({
-      status: 'success',
-      data: { doctorName: 'Dr. Hoy' },
-    });
-    expect(await send()).toMatchObject({
-      status: 'success',
-      data: { doctorName: 'Dra. Equipo' },
-    });
     expect((await getForDateWithMeta(PREVIOUS)).record?.medicalHandoffDoctor).toBe('Dra. Equipo');
     expect(await fetchExistingDaysInMonth(2026, 3)).toEqual([10]);
     await copyPatientToDateDetailed(PREVIOUS, 'R1', TODAY, 'R2');

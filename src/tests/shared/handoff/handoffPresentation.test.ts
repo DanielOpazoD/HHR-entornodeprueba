@@ -26,7 +26,6 @@ describe('handoffPresentation', () => {
   it('reuses a shared title label for generated handoff documents', () => {
     expect(
       resolveHandoffDocumentTitleLabel({
-        isMedical: true,
         selectedShift: 'day',
         recordDate: '2026-03-16',
       })

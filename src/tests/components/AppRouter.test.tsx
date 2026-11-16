@@ -52,12 +52,12 @@ vi.mock('@/views/LazyViews', () => ({
   CudyrView: ({ readOnly }: { readOnly: boolean }) => (
     <div data-testid="cudyr-view" data-read-only={String(readOnly)} />
   ),
-  HandoffView: ({ type, readOnly }: { type: string; readOnly: boolean }) => {
-    if (lazyRouteState.suspendedViews.has(`handoff-${type}`)) {
+  HandoffView: ({ readOnly }: { readOnly: boolean }) => {
+    if (lazyRouteState.suspendedViews.has('handoff-nursing')) {
       throw lazyRouteState.pendingViewChunk;
     }
 
-    return <div data-testid={`handoff-${type}`} data-read-only={String(readOnly)} />;
+    return <div data-testid="handoff-nursing" data-read-only={String(readOnly)} />;
   },
   AuditView: () => <div data-testid="audit-view" />,
   CommunicationsView: () => <div data-testid="communications-view" />,
@@ -207,9 +207,8 @@ describe('AppRouter', () => {
 
   it('shows only the internal content loader while handoff chunks are loading', () => {
     lazyRouteState.suspendedViews.add('handoff-nursing');
-    lazyRouteState.suspendedViews.add('handoff-medical');
 
-    const { rerender } = render(
+    render(
       <AppRouter
         {...createProps({
           ui: { currentModule: 'NURSING_HANDOFF' } as AppRouterProps['ui'],
@@ -219,8 +218,10 @@ describe('AppRouter', () => {
 
     expect(screen.getByTestId('view-loader')).toBeInTheDocument();
     expect(screen.queryByTestId('handoff-nursing')).not.toBeInTheDocument();
+  });
 
-    rerender(
+  it('renders no screen for the MEDICAL_HANDOFF permission, which only shows the Excel button', () => {
+    render(
       <AppRouter
         {...createProps({
           ui: { currentModule: 'MEDICAL_HANDOFF' } as AppRouterProps['ui'],
@@ -228,7 +229,7 @@ describe('AppRouter', () => {
       />
     );
 
-    expect(screen.getByTestId('view-loader')).toBeInTheDocument();
-    expect(screen.queryByTestId('handoff-medical')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('handoff-nursing')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('census-view')).not.toBeInTheDocument();
   });
 });

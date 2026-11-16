@@ -1,20 +1,15 @@
 import { useCallback } from 'react';
 import {
-  executeResetMedicalHandoffState,
   executeUpdateHandoffChecklist,
   executeUpdateHandoffNovedades,
   executeUpdateHandoffStaff,
   type PersistedHandoffRecordOutput,
 } from '@/application/handoff';
-import {
-  buildHandoffNovedadesAuditEvent,
-  buildResetMedicalHandoffAuditEvent,
-} from '@/hooks/controllers/handoffManagementPersistenceController';
+import { buildHandoffNovedadesAuditEvent } from '@/hooks/controllers/handoffManagementPersistenceController';
 import type { HandoffPersistenceRuntime } from '@/hooks/useHandoffPersistenceRuntime';
 
 export const useHandoffGeneralPersistenceActions = (runtime: HandoffPersistenceRuntime) => {
-  const { logEvent, logHandoffNovedadesModified, patchRecord, runMutation, saveAndUpdate, userId } =
-    runtime;
+  const { logHandoffNovedadesModified, patchRecord, runMutation, saveAndUpdate, userId } = runtime;
 
   const updateHandoffChecklist = useCallback(
     (shift: 'day' | 'night' | 'shared', field: string, value: boolean | string) => {
@@ -38,7 +33,7 @@ export const useHandoffGeneralPersistenceActions = (runtime: HandoffPersistenceR
   );
 
   const updateHandoffNovedades = useCallback(
-    (shift: 'day' | 'night' | 'medical', value: string) => {
+    (shift: 'day' | 'night', value: string) => {
       void runMutation<PersistedHandoffRecordOutput>(
         record =>
           executeUpdateHandoffNovedades({
@@ -95,37 +90,9 @@ export const useHandoffGeneralPersistenceActions = (runtime: HandoffPersistenceR
     [patchRecord, runMutation, saveAndUpdate]
   );
 
-  const resetMedicalHandoffState = useCallback(async () => {
-    await runMutation<PersistedHandoffRecordOutput>(
-      record =>
-        executeResetMedicalHandoffState({
-          record,
-          saveRecord: saveAndUpdate,
-          patchRecord,
-        }),
-      {
-        fallbackMessage: 'No se pudo restaurar la entrega médica.',
-        fallbackTitle: 'Error al guardar',
-      },
-      ({ currentRecord }) => {
-        const auditEvent = buildResetMedicalHandoffAuditEvent(currentRecord);
-
-        logEvent(
-          auditEvent.action,
-          auditEvent.entityType,
-          auditEvent.entityId,
-          auditEvent.details,
-          undefined,
-          auditEvent.recordDate
-        );
-      }
-    );
-  }, [logEvent, patchRecord, runMutation, saveAndUpdate]);
-
   return {
     updateHandoffChecklist,
     updateHandoffNovedades,
     updateHandoffStaff,
-    resetMedicalHandoffState,
   };
 };

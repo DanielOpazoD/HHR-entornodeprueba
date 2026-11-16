@@ -1,11 +1,12 @@
 import type { ModuleType } from '@/constants/navigationConfig';
 
+// MEDICAL_HANDOFF is only the permission behind the census Excel button: it has no screen, so no
+// path or `?module=` opens it.
 const MODULES_FROM_URL: readonly ModuleType[] = [
   'CENSUS',
   'ANALYTICS',
   'CUDYR',
   'NURSING_HANDOFF',
-  'MEDICAL_HANDOFF',
   'AUDIT',
   'WHATSAPP',
   'BACKUP_FILES',
@@ -27,7 +28,7 @@ export const MODULE_PATH_SEGMENTS: Record<ModuleType, string> = {
   ANALYTICS: 'statistics',
   CUDYR: 'cudyr',
   NURSING_HANDOFF: 'nursing-handoff',
-  MEDICAL_HANDOFF: 'medical-handoff',
+  MEDICAL_HANDOFF: 'census', // no screen: see MODULES_FROM_URL
   AUDIT: 'audit',
   WHATSAPP: 'whatsapp',
   BACKUP_FILES: 'backup-files',
@@ -45,7 +46,7 @@ export const MODULE_PATH_SEGMENTS: Record<ModuleType, string> = {
 };
 
 const MODULE_FROM_PATH_SEGMENT = Object.fromEntries(
-  Object.entries(MODULE_PATH_SEGMENTS).map(([module, segment]) => [segment, module])
+  MODULES_FROM_URL.map(module => [MODULE_PATH_SEGMENTS[module], module])
 ) as Record<string, ModuleType>;
 
 export const resolveModuleFromPathname = (pathname: string | undefined): ModuleType | null => {
@@ -86,12 +87,7 @@ export const resolveInitialModuleFromLocation = ({
   return 'CENSUS';
 };
 
-const DATE_SCOPED_MODULES: readonly ModuleType[] = [
-  'CENSUS',
-  'NURSING_HANDOFF',
-  'MEDICAL_HANDOFF',
-  'CUDYR',
-];
+const DATE_SCOPED_MODULES: readonly ModuleType[] = ['CENSUS', 'NURSING_HANDOFF', 'CUDYR'];
 
 export const resolveSyncedModuleUrl = ({
   module,
@@ -125,4 +121,4 @@ export const syncModuleToUrl = ({ module, date }: { module: ModuleType; date?: s
 };
 
 export const shouldShowPrintButtonForModule = (module: ModuleType): boolean =>
-  module === 'CUDYR' || module === 'NURSING_HANDOFF' || module === 'MEDICAL_HANDOFF';
+  module === 'CUDYR' || module === 'NURSING_HANDOFF';

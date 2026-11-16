@@ -21,7 +21,7 @@ import {
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
 import { saveDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { buildMedicalEntryNoteFields } from '@/domain/handoff/patientEntryMutations';
+import { buildMedicalEntryNoteFields } from '@/tests/services/storage/specialistNoteFields';
 // Use the real authority handler via the existing synthetic network boundary for direct saves.
 vi.mock('@/services/storage/firestore/firestoreRecordWrites', async importOriginal => ({
   ...(await importOriginal<object>()),

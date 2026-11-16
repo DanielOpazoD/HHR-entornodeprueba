@@ -1,22 +1,5 @@
 import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import type {
-  MedicalHandoffActor,
-  MedicalSpecialty,
-} from '@/types/domain/dailyRecordMedicalHandoff';
-import { buildMedicalHandoffSummary, DEFAULT_NO_CHANGES_COMMENT } from '@/domain/handoff/specialty';
-import type { MedicalHandoffScope } from '@/types/medicalHandoff';
-
-export const normalizeMedicalHandoffActor = (
-  actor: Partial<MedicalHandoffActor>,
-  specialty?: MedicalSpecialty
-): MedicalHandoffActor => ({
-  uid: actor.uid || 'unknown-user',
-  displayName: actor.displayName || actor.email || 'Usuario sin nombre',
-  email: actor.email || 'unknown@hospitalhangaroa.cl',
-  role: actor.role,
-  specialty: specialty || actor.specialty,
-});
 
 export const buildChecklistUpdateRecord = (
   record: HandoffDailyRecordContract,
@@ -47,13 +30,12 @@ export const buildChecklistUpdateRecord = (
 
 export const buildNovedadesUpdateRecord = (
   record: HandoffDailyRecordContract,
-  shift: 'day' | 'night' | 'medical',
+  shift: 'day' | 'night',
   value: string
 ): HandoffDailyRecordContract => {
   const updatedRecord = { ...record };
   if (shift === 'day') updatedRecord.handoffNovedadesDayShift = value;
   if (shift === 'night') updatedRecord.handoffNovedadesNightShift = value;
-  if (shift === 'medical') updatedRecord.medicalHandoffNovedades = value;
   updatedRecord.lastUpdated = new Date().toISOString();
   return updatedRecord;
 };
@@ -86,120 +68,6 @@ export const buildUpdatedHandoffStaffRecord = (
   return updatedRecord;
 };
 
-export const buildMedicalSpecialtyNoteRecord = (
-  record: HandoffDailyRecordContract,
-  specialty: MedicalSpecialty,
-  value: string,
-  actor: Partial<MedicalHandoffActor>
-): HandoffDailyRecordContract => {
-  const now = new Date().toISOString();
-  const normalizedActor = normalizeMedicalHandoffActor(actor, specialty);
-  const currentNote = record.medicalHandoffBySpecialty?.[specialty];
-  const updatedRecord: HandoffDailyRecordContract = {
-    ...record,
-    medicalHandoffBySpecialty: {
-      ...(record.medicalHandoffBySpecialty || {}),
-      [specialty]: {
-        note: value,
-        createdAt: currentNote?.createdAt || now,
-        updatedAt: now,
-        author: currentNote?.author || normalizedActor,
-        lastEditor: normalizedActor,
-        version: (currentNote?.version || 0) + 1,
-        dailyContinuity: {
-          ...(currentNote?.dailyContinuity || {}),
-          [record.date]: { status: 'updated_by_specialist' },
-        },
-      },
-    },
-    lastUpdated: now,
-  };
-  updatedRecord.medicalHandoffNovedades = buildMedicalHandoffSummary(updatedRecord);
-  return updatedRecord;
-};
-
-export const buildMedicalNoChangesRecord = (
-  record: HandoffDailyRecordContract,
-  specialty: MedicalSpecialty,
-  actor: Partial<MedicalHandoffActor>,
-  comment?: string,
-  dateKey?: string
-): HandoffDailyRecordContract => {
-  const currentNote = record.medicalHandoffBySpecialty?.[specialty];
-  if (!currentNote) return record;
-  const effectiveDateKey = dateKey || record.date;
-  const now = new Date().toISOString();
-  const normalizedActor = normalizeMedicalHandoffActor(actor, specialty);
-  const nextComment = comment?.trim() || DEFAULT_NO_CHANGES_COMMENT;
-  const updatedRecord: HandoffDailyRecordContract = {
-    ...record,
-    medicalHandoffBySpecialty: {
-      ...(record.medicalHandoffBySpecialty || {}),
-      [specialty]: {
-        ...currentNote,
-        dailyContinuity: {
-          ...(currentNote.dailyContinuity || {}),
-          [effectiveDateKey]: {
-            status: 'confirmed_no_changes',
-            confirmedAt: now,
-            confirmedBy: normalizedActor,
-            comment: nextComment,
-          },
-        },
-      },
-    },
-    lastUpdated: now,
-  };
-  updatedRecord.medicalHandoffNovedades = buildMedicalHandoffSummary(updatedRecord);
-  return updatedRecord;
-};
-
-export const buildMedicalSignatureRecord = (
-  record: HandoffDailyRecordContract,
-  doctorName: string,
-  scope: MedicalHandoffScope
-): HandoffDailyRecordContract => {
-  const signedAt = new Date().toISOString();
-  const signature = { doctorName, signedAt };
-  const updatedRecord = { ...record };
-  updatedRecord.medicalSignatureByScope = {
-    ...(updatedRecord.medicalSignatureByScope || {}),
-    [scope]: signature,
-  };
-  if (scope === 'all') updatedRecord.medicalSignature = signature;
-  updatedRecord.lastUpdated = new Date().toISOString();
-  return updatedRecord;
-};
-
-export const buildMedicalSentPatch = (
-  record: HandoffDailyRecordContract,
-  doctorName?: string,
-  scope: MedicalHandoffScope = 'all'
-): DailyRecordPatch => {
-  const sentAt = new Date().toISOString();
-  const updates: Partial<HandoffDailyRecordContract> = {
-    medicalHandoffSentAtByScope: {
-      ...(record.medicalHandoffSentAtByScope || {}),
-      [scope]: sentAt,
-    },
-  };
-  if (scope === 'all') updates.medicalHandoffSentAt = sentAt;
-  if (doctorName) updates.medicalHandoffDoctor = doctorName;
-  return updates;
-};
-
-export const buildResetMedicalHandoffRecord = (
-  record: HandoffDailyRecordContract
-): HandoffDailyRecordContract => {
-  const updatedRecord = { ...record };
-  updatedRecord.medicalHandoffSentAt = undefined;
-  updatedRecord.medicalSignature = undefined;
-  updatedRecord.medicalHandoffSentAtByScope = {};
-  updatedRecord.medicalSignatureByScope = {};
-  updatedRecord.lastUpdated = new Date().toISOString();
-  return updatedRecord;
-};
-
 // ---------------------------------------------------------------------------
 // Patch builders — return only the changed fields for concurrent-safe writes.
 // Each function mirrors its full-record counterpart above but produces a
@@ -220,14 +88,8 @@ export const buildChecklistPatch = (
   return { [`${key}.${field}`]: value } as DailyRecordPatch;
 };
 
-export const buildNovedadesPatch = (
-  shift: 'day' | 'night' | 'medical',
-  value: string
-): DailyRecordPatch => {
-  if (shift === 'day') return { handoffNovedadesDayShift: value };
-  if (shift === 'night') return { handoffNovedadesNightShift: value };
-  return { medicalHandoffNovedades: value };
-};
+export const buildNovedadesPatch = (shift: 'day' | 'night', value: string): DailyRecordPatch =>
+  shift === 'day' ? { handoffNovedadesDayShift: value } : { handoffNovedadesNightShift: value };
 
 export const buildHandoffStaffPatch = (
   shift: 'day' | 'night',
@@ -243,100 +105,3 @@ export const buildHandoffStaffPatch = (
   if (type === 'receives') return { handoffNightReceives: staffList };
   return { tensNightShift: staffList };
 };
-
-export const buildMedicalSpecialtyNotePatch = (
-  record: HandoffDailyRecordContract,
-  specialty: MedicalSpecialty,
-  value: string,
-  actor: Partial<MedicalHandoffActor>
-): DailyRecordPatch => {
-  const now = new Date().toISOString();
-  const normalizedActor = normalizeMedicalHandoffActor(actor, specialty);
-  const currentNote = record.medicalHandoffBySpecialty?.[specialty];
-  const updatedSpecialtyEntry = {
-    note: value,
-    createdAt: currentNote?.createdAt || now,
-    updatedAt: now,
-    author: currentNote?.author || normalizedActor,
-    lastEditor: normalizedActor,
-    version: (currentNote?.version || 0) + 1,
-    dailyContinuity: {
-      ...(currentNote?.dailyContinuity || {}),
-      [record.date]: { status: 'updated_by_specialist' as const },
-    },
-  };
-  // Compute summary from a projected record to keep it consistent
-  const projectedRecord: HandoffDailyRecordContract = {
-    ...record,
-    medicalHandoffBySpecialty: {
-      ...(record.medicalHandoffBySpecialty || {}),
-      [specialty]: updatedSpecialtyEntry,
-    },
-  };
-  return {
-    [`medicalHandoffBySpecialty.${specialty}`]: updatedSpecialtyEntry,
-    medicalHandoffNovedades: buildMedicalHandoffSummary(projectedRecord),
-  } as DailyRecordPatch;
-};
-
-export const buildMedicalNoChangesPatch = (
-  record: HandoffDailyRecordContract,
-  specialty: MedicalSpecialty,
-  actor: Partial<MedicalHandoffActor>,
-  comment?: string,
-  dateKey?: string
-): DailyRecordPatch | null => {
-  const currentNote = record.medicalHandoffBySpecialty?.[specialty];
-  if (!currentNote) return null;
-  const effectiveDateKey = dateKey || record.date;
-  const now = new Date().toISOString();
-  const normalizedActor = normalizeMedicalHandoffActor(actor, specialty);
-  const nextComment = comment?.trim() || DEFAULT_NO_CHANGES_COMMENT;
-  const updatedEntry = {
-    ...currentNote,
-    dailyContinuity: {
-      ...(currentNote.dailyContinuity || {}),
-      [effectiveDateKey]: {
-        status: 'confirmed_no_changes' as const,
-        confirmedAt: now,
-        confirmedBy: normalizedActor,
-        comment: nextComment,
-      },
-    },
-  };
-  const projectedRecord: HandoffDailyRecordContract = {
-    ...record,
-    medicalHandoffBySpecialty: {
-      ...(record.medicalHandoffBySpecialty || {}),
-      [specialty]: updatedEntry,
-    },
-  };
-  return {
-    [`medicalHandoffBySpecialty.${specialty}`]: updatedEntry,
-    medicalHandoffNovedades: buildMedicalHandoffSummary(projectedRecord),
-  } as DailyRecordPatch;
-};
-
-export const buildMedicalSignaturePatch = (
-  doctorName: string,
-  scope: MedicalHandoffScope
-): DailyRecordPatch => {
-  const signedAt = new Date().toISOString();
-  const signature = { doctorName, signedAt };
-  const patch = {
-    [`medicalSignatureByScope.${scope}`]: signature,
-  } as DailyRecordPatch;
-  if (scope === 'all') (patch as Record<string, unknown>).medicalSignature = signature;
-  return patch;
-};
-
-export const buildMedicalHandoffDoctorPatch = (doctorName: string): DailyRecordPatch => ({
-  medicalHandoffDoctor: doctorName,
-});
-
-export const buildResetMedicalHandoffPatch = (): DailyRecordPatch => ({
-  medicalHandoffSentAt: '',
-  medicalSignature: undefined,
-  medicalHandoffSentAtByScope: {},
-  medicalSignatureByScope: {},
-});

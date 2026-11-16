@@ -22,7 +22,6 @@ describe('HandoffRow', () => {
     noteField: 'handoffNoteDayShift' as const,
     onNoteChange: vi.fn(),
     readOnly: false,
-    isMedical: false,
   };
 
   it('renders basic patient information', () => {

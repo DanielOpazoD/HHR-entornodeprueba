@@ -13,7 +13,6 @@ describe('dateStripDayWindowController', () => {
     expect(resolveDateStripVisibleDays(1280)).toBe(13);
     expect(resolveDateStripVisibleDays(1280, 'CENSUS')).toBe(9);
     expect(resolveDateStripVisibleDays(1280, 'NURSING_HANDOFF')).toBe(9);
-    expect(resolveDateStripVisibleDays(1280, 'MEDICAL_HANDOFF')).toBe(9);
   });
 
   it('centers selected day and clamps to month boundaries', () => {

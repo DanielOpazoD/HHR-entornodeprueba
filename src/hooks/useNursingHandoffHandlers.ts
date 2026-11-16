@@ -9,7 +9,6 @@ import type { NursingShift } from './useHandoffVisibility';
 import { buildNursingNoteChangePlan } from '@/hooks/controllers/handoffNursingNoteController';
 
 interface UseNursingHandoffHandlersParams {
-  isMedical: boolean;
   selectedShift: NursingShift;
   record: { date: string; beds: Record<string, PatientData> } | null;
   updatePatient: (bedId: string, field: keyof PatientData, value: PatientFieldValue) => void;
@@ -33,7 +32,6 @@ interface UseNursingHandoffHandlersParams {
 }
 
 export const useNursingHandoffHandlers = ({
-  isMedical,
   selectedShift,
   record,
   updatePatient,
@@ -44,7 +42,7 @@ export const useNursingHandoffHandlers = ({
 }: UseNursingHandoffHandlersParams) => {
   const handleNursingNoteChange = useCallback(
     async (bedId: string, value: string, isNested: boolean = false) => {
-      if (!record || isMedical) return;
+      if (!record) return;
 
       const bed = record.beds[bedId];
       const nursingNoteChangePlan = buildNursingNoteChangePlan({
@@ -93,7 +91,6 @@ export const useNursingHandoffHandlers = ({
       );
     },
     [
-      isMedical,
       selectedShift,
       record,
       updateClinicalCrib,
