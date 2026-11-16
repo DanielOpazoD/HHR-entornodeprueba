@@ -11,7 +11,6 @@ import { MedicalBadge } from '@/components/ui/base/MedicalBadge';
 
 interface HandoffDiagnosisCellProps {
   patient: PatientData;
-  isMedical: boolean;
   isSubRow: boolean;
   showEvents: boolean;
   setShowEvents: (val: boolean) => void;
@@ -24,7 +23,6 @@ interface HandoffDiagnosisCellProps {
 
 export const HandoffDiagnosisCell: React.FC<HandoffDiagnosisCellProps> = ({
   patient,
-  isMedical,
   isSubRow,
   showEvents,
   setShowEvents,
@@ -44,7 +42,6 @@ export const HandoffDiagnosisCell: React.FC<HandoffDiagnosisCellProps> = ({
     canUpdate: Boolean(onClinicalEventUpdate),
     canDelete: Boolean(onClinicalEventDelete),
     showEvents,
-    isMedical,
   });
   const { canToggleEvents, shouldRenderEventsPanel, showStatusBadge, statusVariant } =
     clinicalEventsCellState;

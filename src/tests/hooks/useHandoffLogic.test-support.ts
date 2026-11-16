@@ -2,23 +2,10 @@ import { renderHook } from '@testing-library/react';
 import { vi } from 'vitest';
 import { useHandoffLogic } from '@/hooks/useHandoffLogic';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
-import {
-  useDailyRecordBedActions,
-  useDailyRecordHandoffActions,
-} from '@/context/useDailyRecordScopedActions';
+import { useDailyRecordBedActions } from '@/context/useDailyRecordScopedActions';
 import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
 import type { NursingShift } from '@/hooks/useHandoffVisibility';
 import * as dateUtils from '@/utils/dateUtils';
-
-export const mockAuthContext = {
-  currentUser: {
-    uid: 'doctor-1',
-    email: 'doctor@hospitalhangaroa.cl',
-    displayName: 'Dr. Test',
-    role: 'doctor_urgency',
-  },
-  role: 'doctor_urgency',
-};
 
 export const mockLogDebouncedEvent = vi.fn();
 
@@ -34,20 +21,14 @@ vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordData: vi.fn(),
 }));
 
-vi.mock('@/context', () => ({
-  useAuth: () => mockAuthContext,
-}));
-
 vi.mock('@/context/useDailyRecordScopedActions', () => ({
   useDailyRecordBedActions: vi.fn(),
-  useDailyRecordHandoffActions: vi.fn(),
 }));
 
 vi.mock('@/utils/dateUtils');
 
 export type DailyRecordDataMock = ReturnType<typeof useDailyRecordData>;
 export type BedActionsMock = ReturnType<typeof useDailyRecordBedActions>;
-export type HandoffActionsMock = ReturnType<typeof useDailyRecordHandoffActions>;
 
 export const mockRecord = {
   date: '2025-01-01',
@@ -84,13 +65,6 @@ export const mockRecord = {
 
 export const resetUseHandoffLogicTestState = () => {
   vi.clearAllMocks();
-  mockAuthContext.currentUser = {
-    uid: 'doctor-1',
-    email: 'doctor@hospitalhangaroa.cl',
-    displayName: 'Dr. Test',
-    role: 'doctor_urgency',
-  };
-  mockAuthContext.role = 'doctor_urgency';
   vi.mocked(dateUtils.getShiftSchedule).mockReturnValue({
     dayStart: '08:00',
     dayEnd: '20:00',
@@ -109,9 +83,6 @@ export const resetUseHandoffLogicTestState = () => {
     stabilityRules: {} as DailyRecordDataMock['stabilityRules'],
   } as DailyRecordDataMock);
   vi.mocked(useDailyRecordBedActions).mockReturnValue({} as BedActionsMock);
-  vi.mocked(useDailyRecordHandoffActions).mockReturnValue({
-    sendMedicalHandoff: vi.fn(),
-  } as unknown as HandoffActionsMock);
 };
 
 export const restoreUseHandoffLogicTestState = () => {
@@ -131,7 +102,6 @@ export const setTodayIsoMock = (value: string) => {
 };
 
 type UseHandoffLogicTestParams = {
-  type: 'nursing' | 'medical';
   selectedShift: NursingShift;
   setSelectedShift: (shift: NursingShift) => void;
   onSuccess: (message: string, description?: string) => void;
@@ -140,7 +110,6 @@ type UseHandoffLogicTestParams = {
 export const buildHandoffLogicParams = (
   overrides: Partial<UseHandoffLogicTestParams> = {}
 ): UseHandoffLogicTestParams => ({
-  type: 'nursing' as const,
   selectedShift: 'day' as const,
   setSelectedShift: vi.fn<(shift: NursingShift) => void>(),
   onSuccess: vi.fn<(message: string, description?: string) => void>(),

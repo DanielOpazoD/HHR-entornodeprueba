@@ -22,7 +22,7 @@ import {
 import { shouldRouteSpecialistPatchViaCallable } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import { resetMedicalHandoffDraftMemoryForTests } from '@/services/storage/medicalHandoffDraftStorage';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
-import { buildMedicalEntryNoteFields } from '@/domain/handoff/patientEntryMutations';
+import { buildMedicalEntryNoteFields } from '@/tests/services/storage/specialistNoteFields';
 import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
 import type { DailyRecord, DailyRecordPatch } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';

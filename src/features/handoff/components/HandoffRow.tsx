@@ -12,25 +12,11 @@ import { HandoffPatientCell } from './HandoffPatientCell';
 import { HandoffDiagnosisCell } from './HandoffDiagnosisCell';
 import { HandoffDevicesCell } from './HandoffDevicesCell';
 import { HandoffObservationsCell } from './HandoffObservationsCell';
-import { HandoffMedicalObservationsCell } from './HandoffMedicalObservationsCell';
-import {
-  hasActiveMedicalMutationPaths,
-  resolveHandoffRowReadOnly,
-  resolveMedicalEntryNoteChangeHandler,
-} from '@/features/handoff/controllers/handoffRowController';
+import { resolveHandoffRowReadOnly } from '@/features/handoff/controllers/handoffRowController';
 
 // ============================================================================
 // HandoffRow Component
 // ============================================================================
-
-interface HandoffRowMedicalActions {
-  onCreatePrimaryEntry?: () => void;
-  onEntryNoteChange?: (entryId: string, value: string) => void;
-  onEntrySpecialtyChange?: (entryId: string, specialty: string) => void;
-  onEntryAdd?: () => void;
-  onEntryDelete?: (entryId: string) => void;
-  onRefreshAsCurrent?: (entryId: string) => void;
-}
 
 interface HandoffRowClinicalEventActions {
   onAdd?: (event: Omit<ClinicalEvent, 'id' | 'createdAt'>) => void;
@@ -46,9 +32,7 @@ interface HandoffRowProps {
   isSubRow?: boolean;
   noteField: keyof PatientData; // Dynamic field
   onNoteChange: (val: string) => void;
-  medicalActions?: HandoffRowMedicalActions;
   readOnly?: boolean;
-  isMedical?: boolean;
   forcedExpand?: boolean;
   clinicalEventActions?: HandoffRowClinicalEventActions;
 }
@@ -60,9 +44,7 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
   isSubRow = false,
   noteField,
   onNoteChange,
-  medicalActions,
   readOnly = false,
-  isMedical = false,
   forcedExpand = false,
   clinicalEventActions,
 }) => {
@@ -75,11 +57,6 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
   }, [forcedExpand]);
 
   const hasEvents = (patient.clinicalEvents?.length || 0) > 0;
-  const hasMedicalMutationPaths = hasActiveMedicalMutationPaths({
-    isMedical,
-    onNoteChange,
-    medicalActions,
-  });
 
   // If bed is blocked (and not a sub-row), show blocked status
   if (!isSubRow && patient.isBlocked) {
@@ -89,7 +66,7 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
           {bedName}
         </td>
         <td
-          colSpan={isMedical ? 3 : 4}
+          colSpan={4}
           className="p-2 text-slate-600 align-middle print:p-1 print:whitespace-nowrap"
         >
           <span className="inline-flex items-center gap-1.5 print:gap-1">
@@ -110,7 +87,6 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
     readOnly,
     noteField,
     canEditField: stabilityRules.canEditField,
-    hasMedicalMutationPaths,
   });
 
   return (
@@ -127,7 +103,6 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
 
       <HandoffDiagnosisCell
         patient={patient}
-        isMedical={isMedical}
         isSubRow={isSubRow}
         showEvents={showEvents}
         setShowEvents={setShowEvents}
@@ -138,32 +113,13 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
         onClinicalEventDelete={clinicalEventActions?.onDelete}
       />
 
-      {/* DMI column only shown in nursing handoff */}
-      {!isMedical && <HandoffDevicesCell patient={patient} reportDate={reportDate} />}
+      <HandoffDevicesCell patient={patient} reportDate={reportDate} />
 
-      {isMedical ? (
-        <HandoffMedicalObservationsCell
-          patient={patient}
-          reportDate={reportDate}
-          isFieldReadOnly={isFieldReadOnly}
-          primaryNoteValue={noteValue}
-          onPrimaryNoteChange={onNoteChange}
-          onCreatePrimaryEntry={medicalActions?.onCreatePrimaryEntry}
-          onEntryNoteChange={resolveMedicalEntryNoteChangeHandler(
-            medicalActions?.onEntryNoteChange
-          )}
-          onEntrySpecialtyChange={medicalActions?.onEntrySpecialtyChange}
-          onAddEntry={medicalActions?.onEntryAdd}
-          onDeleteEntry={medicalActions?.onEntryDelete}
-          onRefreshAsCurrent={medicalActions?.onRefreshAsCurrent}
-        />
-      ) : (
-        <HandoffObservationsCell
-          noteValue={noteValue}
-          onNoteChange={onNoteChange}
-          isFieldReadOnly={isFieldReadOnly}
-        />
-      )}
+      <HandoffObservationsCell
+        noteValue={noteValue}
+        onNoteChange={onNoteChange}
+        isFieldReadOnly={isFieldReadOnly}
+      />
     </tr>
   );
 };

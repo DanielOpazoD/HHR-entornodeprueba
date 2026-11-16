@@ -86,13 +86,7 @@ describe('DailyRecordContext', () => {
     updateDetailedStaffing: vi.fn(),
     updateHandoffChecklist: vi.fn(),
     updateHandoffNovedades: vi.fn(),
-    updateMedicalSpecialtyNote: vi.fn(),
-    confirmMedicalSpecialtyNoChanges: vi.fn(),
     updateHandoffStaff: vi.fn(),
-    updateMedicalSignature: vi.fn(),
-    updateMedicalHandoffDoctor: vi.fn(),
-    markMedicalHandoffAsSent: vi.fn(),
-    sendMedicalHandoff: vi.fn(),
   } as unknown as DailyRecordContextType;
 
   const TestComponent = ({ hook }: { hook: () => unknown }) => {

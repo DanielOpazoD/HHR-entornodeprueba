@@ -19,7 +19,7 @@ import {
 } from '@/hooks/controllers/dailyRecordQueryController';
 import { buildClinicalCribPatch } from '@/hooks/controllers/clinicalCribController';
 import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
-import { buildMedicalEntryNoteFields } from '@/domain/handoff/patientEntryMutations';
+import { buildMedicalEntryNoteFields } from '@/tests/services/storage/specialistNoteFields';
 import { buildSpecialistHandoffTargets } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';

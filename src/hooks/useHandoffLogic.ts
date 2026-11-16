@@ -1,9 +1,7 @@
-import type { MedicalHandoffAuditActor, PatientData } from '@/types/domain/patient';
-
 /**
  * useHandoffLogic Hook
  * Extracted from HandoffView.tsx for better separation of concerns.
- * Handles handoff state management, note sync, and WhatsApp integration.
+ * Handles nursing handoff state management and note sync.
  *
  * ## CRITICAL DESIGN PHILOSOPHY
  *
@@ -31,35 +29,22 @@ import { useCallback, useMemo } from 'react';
 import { getShiftSchedule } from '@/utils/clinicalDayUtils';
 import { useAuditContext } from '@/context/AuditContext';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
-import { useAuth } from '@/context';
-import {
-  useDailyRecordBedActions,
-  useDailyRecordHandoffActions,
-} from '@/context/useDailyRecordScopedActions';
+import { useDailyRecordBedActions } from '@/context/useDailyRecordScopedActions';
 
 // ========== SUB-HOOKS ==========
 import { useHandoffVisibility, NursingShift } from './useHandoffVisibility';
 import { useHandoffStaff } from './useHandoffStaff';
-import { useHandoffCommunication } from './useHandoffCommunication';
-import { useMedicalHandoffHandlers } from './useMedicalHandoffHandlers';
 import { useNursingHandoffHandlers } from './useNursingHandoffHandlers';
 import { useClinicalEventHandlers } from './useClinicalEventHandlers';
 import { buildHandoffLogicViewState } from '@/hooks/controllers/handoffLogicViewStateController';
 
 interface UseHandoffLogicParams {
-  type: 'nursing' | 'medical';
   selectedShift: NursingShift;
   setSelectedShift: (s: NursingShift) => void;
   onSuccess: (message: string, description?: string) => void;
 }
 
-type MedicalPatientFields = Pick<
-  PatientData,
-  'medicalHandoffEntries' | 'medicalHandoffNote' | 'medicalHandoffAudit'
->;
-
 export const useHandoffLogic = ({
-  type,
   selectedShift,
   setSelectedShift,
   onSuccess,
@@ -67,21 +52,10 @@ export const useHandoffLogic = ({
   const { record } = useDailyRecordData();
   const { updatePatient, updatePatientMultiple, updateClinicalCrib, updateClinicalCribMultiple } =
     useDailyRecordBedActions();
-  const { sendMedicalHandoff, ensureMedicalHandoffSignatureLink } = useDailyRecordHandoffActions();
-  const { currentUser, role } = useAuth();
-
-  const isMedical = type === 'medical';
 
   // ========== SUB-HOOKS INVOCATION ==========
   const visibility = useHandoffVisibility(record, selectedShift);
   const staff = useHandoffStaff(record, selectedShift);
-  const comms = useHandoffCommunication(
-    record,
-    visibility.visibleBeds,
-    sendMedicalHandoff,
-    ensureMedicalHandoffSignatureLink,
-    onSuccess
-  );
 
   // ========== MEMOS ==========
 
@@ -97,38 +71,12 @@ export const useHandoffLogic = ({
     return getShiftSchedule(record.date);
   }, [record]);
 
-  const noteField = useMemo(() => {
-    if (!record || isMedical) return 'medicalHandoffNote' as const;
-    return selectedShift === 'day'
-      ? ('handoffNoteDayShift' as const)
-      : ('handoffNoteNightShift' as const);
-  }, [record, isMedical, selectedShift]);
+  const noteField =
+    selectedShift === 'day' ? ('handoffNoteDayShift' as const) : ('handoffNoteNightShift' as const);
 
   // ========== HANDLERS ==========
   const { logDebouncedEvent } = useAuditContext();
-  const medicalAuditActor = useMemo<MedicalHandoffAuditActor | null>(() => {
-    if (!currentUser?.uid || !currentUser.email) return null;
-    return {
-      uid: currentUser.uid,
-      email: currentUser.email,
-      displayName: currentUser.displayName || currentUser.email,
-      role,
-    };
-  }, [currentUser, role]);
-
-  const persistMedicalFields = useCallback(
-    async (bedId: string, fields: MedicalPatientFields, isNested: boolean) => {
-      if (isNested) {
-        await updateClinicalCribMultiple(bedId, fields, record?.beds[bedId]?.clinicalCrib);
-        return;
-      }
-      await updatePatientMultiple(bedId, fields, record?.beds[bedId]);
-    },
-    [record, updateClinicalCribMultiple, updatePatientMultiple]
-  );
-
   const nursingHandlers = useNursingHandoffHandlers({
-    isMedical,
     selectedShift,
     record,
     updatePatient,
@@ -144,23 +92,6 @@ export const useHandoffLogic = ({
     onSuccess,
   });
 
-  const medicalHandlers = useMedicalHandoffHandlers({
-    isMedical,
-    record,
-    role,
-    medicalAuditActor,
-    persistMedicalFields,
-    logDebouncedEvent,
-  });
-
-  const handleNursingNoteChange = useCallback(
-    (bedId: string, value: string, isNested: boolean = false) =>
-      isMedical
-        ? medicalHandlers.handleMedicalPrimaryNoteChange(bedId, value, isNested)
-        : nursingHandlers.handleNursingNoteChange(bedId, value, isNested),
-    [isMedical, medicalHandlers, nursingHandlers]
-  );
-
   const formatPrintDate = useCallback(() => {
     if (!record) return '';
     const [year, month, day] = record.date.split('-');
@@ -168,7 +99,6 @@ export const useHandoffLogic = ({
   }, [record]);
 
   const handoffLogicViewState = buildHandoffLogicViewState({
-    isMedical,
     visibleBeds: visibility.visibleBeds,
     hasAnyPatients: visibility.hasAnyPatients,
     noteField,
@@ -182,26 +112,13 @@ export const useHandoffLogic = ({
     selectedShift,
     setSelectedShift,
 
-    // Comm State
-    whatsappSending: comms.whatsappSending,
-    whatsappSent: comms.whatsappSent,
-
     // Computed
     ...handoffLogicViewState,
     schedule,
 
     // Handlers
     shouldShowPatient: visibility.shouldShowPatient,
-    handleNursingNoteChange,
-    handleMedicalPrimaryEntryCreate: medicalHandlers.handleMedicalPrimaryEntryCreate,
-    handleMedicalEntryAdd: medicalHandlers.handleMedicalEntryAdd,
-    handleMedicalEntryDelete: medicalHandlers.handleMedicalEntryDelete,
-    handleMedicalEntryNoteChange: medicalHandlers.handleMedicalEntryNoteChange,
-    handleMedicalEntrySpecialtyChange: medicalHandlers.handleMedicalEntrySpecialtyChange,
-    handleMedicalRefreshAsCurrent: medicalHandlers.handleMedicalRefreshAsCurrent,
-    handleShareLink: comms.handleShareLink,
-    handleSendWhatsApp: comms.handleSendWhatsApp,
-    handleSendWhatsAppManual: comms.handleSendWhatsAppManual,
+    handleNursingNoteChange: nursingHandlers.handleNursingNoteChange,
     formatPrintDate,
 
     // Clinical Events

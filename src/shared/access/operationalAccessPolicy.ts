@@ -17,7 +17,6 @@ import {
   canAccessSpecialAppModuleRoute,
   resolvePassiveBackupEditableModule,
 } from '@/shared/access/operationalAccessPolicySupport';
-import { canEditSpecialistTodayBoundRecord } from '@/shared/access/specialistAccessPolicy';
 import { getPreviousDay, normalizeDateOnly } from '@/utils/clinicalDayUtils';
 
 type SupportedRole = UserRole | string | undefined;
@@ -107,24 +106,6 @@ export const canVerifyArchiveStatusForModule = (
   role: SupportedRole,
   moduleType: ModuleType | string
 ): boolean => canVerifyPassiveBackupForRole(role, moduleType);
-
-export const canEditMedicalHandoffForDate = ({
-  role,
-  readOnly,
-  recordDate,
-  todayISO,
-}: {
-  role: SupportedRole;
-  readOnly: boolean;
-  recordDate?: string;
-  todayISO?: string;
-}): boolean =>
-  canEditSpecialistTodayBoundRecord({
-    role,
-    readOnly,
-    recordDate,
-    todayISO,
-  });
 
 export const canEditCudyrForDate = ({
   role,
@@ -229,27 +210,5 @@ export const canManageClinicalConflictCenter = (role: SupportedRole): boolean =>
 
 export const canExportAuditDataForRole = (role: SupportedRole): boolean =>
   canDoAction(role, ACTIONS.EXPORT_EXCEL) || canDoAction(role, ACTIONS.EXPORT_PDF);
-
-export const canSignMedicalHandoff = ({
-  role,
-  readOnly,
-  specialistRestrictedAccess,
-}: {
-  role: SupportedRole;
-  readOnly: boolean;
-  specialistRestrictedAccess: boolean;
-}): boolean =>
-  !specialistRestrictedAccess && !readOnly && canDoAction(role, ACTIONS.HANDOFF_MEDICAL_SIGN);
-
-export const canSendMedicalHandoffWhatsApp = ({
-  role,
-  readOnly,
-  specialistRestrictedAccess,
-}: {
-  role: SupportedRole;
-  readOnly: boolean;
-  specialistRestrictedAccess: boolean;
-}): boolean =>
-  !specialistRestrictedAccess && !readOnly && canDoAction(role, ACTIONS.HANDOFF_SEND_WHATSAPP);
 
 export const getRoleDisplayLabel = (role?: UserRole): string => getRoleDisplayName(role);

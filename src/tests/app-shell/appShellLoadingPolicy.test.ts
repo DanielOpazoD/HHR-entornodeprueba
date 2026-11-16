@@ -206,7 +206,7 @@ describe('appShellLoadingPolicy', () => {
 
     expect(
       resolveRuntimeLoadingScreenMode({
-        pathname: '/medical-handoff',
+        pathname: '/nursing-handoff',
         bootstrapState: createLoadingBootstrapState('bootstrapping'),
         hasRecentAuthenticatedSessionHint: true,
         hasPersistedFirebaseAuthHint: false,

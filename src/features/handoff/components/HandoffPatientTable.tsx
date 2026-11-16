@@ -1,26 +1,30 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import { medicalHandoffPatientKey } from './medicalHandoffPatientKey';
-import { MedicalHandoffDraftsPanel } from './MedicalHandoffDraftsPanel';
 import React, { useState } from 'react';
 import { BedDefinition } from '@/types/domain/beds';
 import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContracts';
 
 import type { ClinicalEvent } from '@/types/domain/clinicalEvents';
+import {
+  buildSpecialistHandoffIdentity,
+  specialistHandoffIdentityKey,
+} from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import { resolveHandoffPatientRowPlan } from '@/features/handoff/controllers/handoffPatientTableController';
 import { HandoffRow } from './HandoffRow';
 import { Maximize2, Minimize2 } from 'lucide-react';
-import type { HandoffClinicalEventActions, HandoffMedicalActions } from './handoffRowContracts';
+import type { HandoffClinicalEventActions } from './handoffRowContracts';
+
+/** Rows remount when the patient or episode changes, never only by bed. */
+const handoffPatientKey = (patient: PatientData): string =>
+  specialistHandoffIdentityKey(buildSpecialistHandoffIdentity(patient));
 
 interface HandoffPatientTableProps {
   visibleBeds: BedDefinition[];
   record: HandoffDailyRecordContract;
-  noteField: 'handoffNoteDayShift' | 'handoffNoteNightShift' | 'medicalHandoffNote';
+  noteField: 'handoffNoteDayShift' | 'handoffNoteNightShift';
   onNoteChange: (bedId: string, value: string, isNested: boolean) => void;
-  medicalActions?: HandoffMedicalActions;
   tableHeaderClass: string;
   readOnly: boolean;
-  isMedical: boolean;
   hasAnyPatients: boolean;
   shouldShowPatient: (bedId: string) => boolean;
   clinicalEventActions?: HandoffClinicalEventActions;
@@ -31,10 +35,8 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
   record,
   noteField,
   onNoteChange,
-  medicalActions,
   tableHeaderClass,
   readOnly,
-  isMedical,
   hasAnyPatients,
   shouldShowPatient,
   clinicalEventActions,
@@ -48,32 +50,8 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
   const stillOccupies = (bedId: string, isNested: boolean, patient: PatientData) => {
     const bed = currentRecord.current.beds[bedId];
     const current = isNested ? bed?.clinicalCrib : bed;
-    return current && medicalHandoffPatientKey(current) === medicalHandoffPatientKey(patient);
+    return current && handoffPatientKey(current) === handoffPatientKey(patient);
   };
-  const resolveRowMedicalActions = (bedId: string, isNested: boolean, patient: PatientData) => ({
-    onCreatePrimaryEntry: medicalActions?.onCreatePrimaryEntry
-      ? () => medicalActions.onCreatePrimaryEntry?.(bedId, isNested)
-      : undefined,
-    onEntryNoteChange: medicalActions?.onEntryNoteChange
-      ? (entryId: string, value: string) =>
-          stillOccupies(bedId, isNested, patient) &&
-          medicalActions.onEntryNoteChange?.(bedId, entryId, value, isNested)
-      : undefined,
-    onEntrySpecialtyChange: medicalActions?.onEntrySpecialtyChange
-      ? (entryId: string, specialty: string) =>
-          medicalActions.onEntrySpecialtyChange?.(bedId, entryId, specialty, isNested)
-      : undefined,
-    onEntryAdd: medicalActions?.onEntryAdd
-      ? () => medicalActions.onEntryAdd?.(bedId, isNested)
-      : undefined,
-    onEntryDelete: medicalActions?.onEntryDelete
-      ? (entryId: string) => medicalActions.onEntryDelete?.(bedId, entryId, isNested)
-      : undefined,
-    onRefreshAsCurrent: medicalActions?.onRefreshAsCurrent
-      ? (entryId: string) => medicalActions.onRefreshAsCurrent?.(bedId, entryId, isNested)
-      : undefined,
-  });
-
   const resolveRowClinicalEventActions = (bedId: string) => ({
     onAdd: clinicalEventActions?.onAdd
       ? (event: Omit<ClinicalEvent, 'id' | 'createdAt'>) =>
@@ -94,7 +72,7 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
     options: { isNested: boolean; forcedExpand?: boolean }
   ) => (
     <HandoffRow
-      key={`${bed.id}-${options.isNested ? 'crib' : 'main'}:${medicalHandoffPatientKey(patient)}`}
+      key={`${bed.id}-${options.isNested ? 'crib' : 'main'}:${handoffPatientKey(patient)}`}
       bedName={bed.name}
       bedType={options.isNested ? 'Cuna' : bed.type}
       patient={patient}
@@ -106,9 +84,7 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
           ? onNoteChange(bed.id, value, options.isNested)
           : undefined
       }
-      medicalActions={resolveRowMedicalActions(bed.id, options.isNested, patient)}
       readOnly={readOnly}
-      isMedical={isMedical}
       forcedExpand={options.forcedExpand}
       clinicalEventActions={resolveRowClinicalEventActions(bed.id)}
     />
@@ -116,19 +92,14 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
 
   return (
     <div className="handoff-patient-table bg-white rounded-2xl shadow-sm border border-slate-200/80 ring-1 ring-black/[0.02] overflow-hidden print:shadow-none print:border-none print:rounded-none print:overflow-visible">
-      {isMedical && <MedicalHandoffDraftsPanel />}
-      {!isMedical && (
-        <p id="nursing-handoff-scroll-hint" className="handoff-scroll-hint">
-          Desliza para ver diagnóstico, dispositivos y observaciones →
-        </p>
-      )}
+      <p id="nursing-handoff-scroll-hint" className="handoff-scroll-hint">
+        Desliza para ver diagnóstico, dispositivos y observaciones →
+      </p>
       <div
         className="handoff-patients overflow-x-auto"
         role="region"
-        aria-label={
-          isMedical ? 'Pacientes de entrega médica' : 'Pacientes de entrega de enfermería'
-        }
-        aria-describedby={isMedical ? undefined : 'nursing-handoff-scroll-hint'}
+        aria-label="Pacientes de entrega de enfermería"
+        aria-describedby="nursing-handoff-scroll-hint"
         tabIndex={0}
       >
         <table className="w-full table-fixed text-left border-collapse print:[&_th]:p-1 print:[&_td]:p-1 print:[&_th]:text-[10px] print:[&_td]:text-[10px]">
@@ -172,37 +143,24 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
                   )}
                 </div>
               </th>
-              {!isMedical && (
-                <th
-                  scope="col"
-                  className="p-2 border-r border-slate-200/60 w-28 print:w-[50px] print:text-[10px] print:p-1"
-                  title="Dispositivos médicos invasivos"
-                >
-                  DMI
-                </th>
-              )}
-              {isMedical && (
-                <th
-                  scope="col"
-                  className="p-2 print:w-[49%] print:min-w-0 print:text-[10px] print:p-1"
-                >
-                  Observaciones
-                </th>
-              )}
-              {!isMedical && (
-                <th
-                  scope="col"
-                  className="p-2 print:w-[35%] print:min-w-0 print:text-[10px] print:p-1"
-                >
-                  Observaciones
-                </th>
-              )}
+              <th
+                scope="col"
+                className="p-2 border-r border-slate-200/60 w-28 print:w-[50px] print:text-[10px] print:p-1"
+                title="Dispositivos médicos invasivos"
+              >
+                DMI
+              </th>
+              <th
+                scope="col"
+                className="p-2 print:w-[35%] print:min-w-0 print:text-[10px] print:p-1"
+              >
+                Observaciones
+              </th>
             </tr>
           </thead>
           <tbody>
             {visibleBeds.map(bed => {
               const rowPlan = resolveHandoffPatientRowPlan(bed, record.beds[bed.id], {
-                isMedical,
                 shouldShowPatient,
               });
 
@@ -230,10 +188,7 @@ export const HandoffPatientTable: React.FC<HandoffPatientTableProps> = ({
 
             {!hasAnyPatients && (
               <tr>
-                <td
-                  colSpan={isMedical ? 4 : 5}
-                  className="p-8 text-center text-slate-400 italic text-sm"
-                >
+                <td colSpan={5} className="p-8 text-center text-slate-400 italic text-sm">
                   No hay pacientes registrados en este turno.
                 </td>
               </tr>

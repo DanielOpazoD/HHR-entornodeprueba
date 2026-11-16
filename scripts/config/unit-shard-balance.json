@@ -136,11 +136,6 @@
       "estimatedDurationMs": 1900
     },
     {
-      "id": "ci-measured-1800ms",
-      "globs": ["src/tests/views/handoff/HandoffView.medical.test.tsx"],
-      "estimatedDurationMs": 1800
-    },
-    {
       "id": "ci-measured-1700ms",
       "globs": [
         "src/tests/build/criticalCoverageShardRunner.test.ts",
@@ -352,8 +347,7 @@
         "src/tests/views/census/ClinicalPanelImportFallback.test.tsx",
         "src/tests/views/census/PatientRadiologyTrigger.test.tsx",
         "src/tests/views/census/StatusSelect.test.tsx",
-        "src/tests/views/handoff/HandoffCudyrPrintTable.test.tsx",
-        "src/tests/views/handoff/HandoffRow.medical.test.tsx"
+        "src/tests/views/handoff/HandoffCudyrPrintTable.test.tsx"
       ],
       "estimatedDurationMs": 600
     },

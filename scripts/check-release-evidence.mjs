@@ -31,7 +31,6 @@ const clinicalVisualReleaseAttachments = [
   'clinical-release-cudyr.png',
   'clinical-release-cudyr-mobile.png',
   'clinical-release-cudyr-excel-download.json',
-  'clinical-release-medical-handoff.png',
 ];
 
 const fail = issues => {

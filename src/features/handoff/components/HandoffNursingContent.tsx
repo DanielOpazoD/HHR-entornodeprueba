@@ -4,22 +4,21 @@ import type { HandoffDailyRecordContract } from '@/domain/handoff/recordContract
 import { HandoffPatientTable } from './HandoffPatientTable';
 import { MovementsSummary } from './MovementsSummary';
 import { HandoffNovedades } from './HandoffNovedades';
-import type { HandoffClinicalEventActions, HandoffMedicalActions } from './handoffRowContracts';
+import type { HandoffClinicalEventActions } from './handoffRowContracts';
 import { buildHandoffNovedadesBindings } from '@/features/handoff/controllers/handoffViewController';
 
 interface HandoffNursingContentProps {
   visibleBeds: BedDefinition[];
   record: HandoffDailyRecordContract;
-  noteField: 'handoffNoteDayShift' | 'handoffNoteNightShift' | 'medicalHandoffNote';
+  noteField: 'handoffNoteDayShift' | 'handoffNoteNightShift';
   onNoteChange: (bedId: string, value: string, isNested: boolean) => void;
-  medicalActions: HandoffMedicalActions;
   tableHeaderClass: string;
   readOnly: boolean;
   hasAnyPatients: boolean;
   shouldShowPatient: (bedId: string) => boolean;
   clinicalEventActions: HandoffClinicalEventActions;
   selectedShift: 'day' | 'night';
-  updateHandoffNovedades: (shift: 'day' | 'night' | 'medical', value: string) => void;
+  updateHandoffNovedades: (shift: 'day' | 'night', value: string) => void;
 }
 
 export const HandoffNursingContent: React.FC<HandoffNursingContentProps> = ({
@@ -27,7 +26,6 @@ export const HandoffNursingContent: React.FC<HandoffNursingContentProps> = ({
   record,
   noteField,
   onNoteChange,
-  medicalActions,
   tableHeaderClass,
   readOnly,
   hasAnyPatients,
@@ -37,7 +35,6 @@ export const HandoffNursingContent: React.FC<HandoffNursingContentProps> = ({
   updateHandoffNovedades,
 }) => {
   const handoffNovedadesBindings = buildHandoffNovedadesBindings({
-    isMedical: false,
     selectedShift,
     record,
     readOnly,
@@ -51,10 +48,8 @@ export const HandoffNursingContent: React.FC<HandoffNursingContentProps> = ({
         record={record}
         noteField={noteField}
         onNoteChange={onNoteChange}
-        medicalActions={medicalActions}
         tableHeaderClass={tableHeaderClass}
         readOnly={readOnly}
-        isMedical={false}
         hasAnyPatients={hasAnyPatients}
         shouldShowPatient={shouldShowPatient}
         clinicalEventActions={clinicalEventActions}

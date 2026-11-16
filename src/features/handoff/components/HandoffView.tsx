@@ -3,21 +3,16 @@ import './nursingHandoff.css';
 import { HandoffChecklistSection } from './HandoffChecklistSection';
 import { HandoffCudyrPrint } from './HandoffCudyrPrint';
 import { HandoffPrintHeader } from './HandoffPrintHeader';
-import { HandoffMedicalContent } from './HandoffMedicalContent';
 import { HandoffNursingContent } from './HandoffNursingContent';
 import { useUIState, UseUIStateReturn } from '@/hooks/useUIState';
 import {
-  buildHandoffHeaderBindings,
-  buildMedicalHandoffContentBindings,
   buildNursingHandoffContentBindings,
+  shouldShowNightCudyrActions,
 } from '@/features/handoff/controllers/handoffViewController';
-import type { MedicalHandoffScope } from '@/types/medicalHandoff';
 import { useHandoffViewScreenModel } from '@/features/handoff/hooks/useHandoffViewScreenModel';
 interface HandoffViewProps {
-  type?: 'nursing' | 'medical';
   readOnly?: boolean;
   ui?: UseUIStateReturn;
-  medicalScope?: MedicalHandoffScope;
 }
 
 interface HandoffViewContentProps extends Omit<HandoffViewProps, 'ui'> {
@@ -25,25 +20,18 @@ interface HandoffViewContentProps extends Omit<HandoffViewProps, 'ui'> {
 }
 
 const HandoffViewContent: React.FC<HandoffViewContentProps> = ({
-  type = 'nursing',
   readOnly = false,
   ui: handoffUi,
-  medicalScope,
 }) => {
   const screenModel = useHandoffViewScreenModel({
-    type,
     readOnly,
     ui: handoffUi,
-    medicalScope,
   });
   const {
     record,
-    isMedical,
-    role,
     title,
     readOnly: effectiveReadOnly,
     nursesList,
-    success,
     schedule,
     noteField,
     deliversList,
@@ -53,23 +41,13 @@ const HandoffViewContent: React.FC<HandoffViewContentProps> = ({
     visibleBeds,
     selectedShift,
     setSelectedShift,
-    selectedMedicalSpecialty,
-    setSelectedMedicalSpecialty,
-    medicalBindings,
-    medicalCapabilities,
-    medicalActions,
     clinicalEventActions,
     formatPrintDate,
     shouldShowPatient,
     handleNursingNoteChange,
-    handleShareLink,
-    handleSendWhatsAppManual,
     updateHandoffChecklist,
     updateHandoffNovedades,
     updateHandoffStaff,
-    updateMedicalHandoffDoctor,
-    markMedicalHandoffAsSent,
-    resetMedicalHandoffState,
     tableHeaderClass,
     Icon,
   } = screenModel;
@@ -81,58 +59,11 @@ const HandoffViewContent: React.FC<HandoffViewContentProps> = ({
     );
   }
 
-  const headerBindings = buildHandoffHeaderBindings({
-    isMedical,
-    selectedShift,
-    setSelectedShift,
-    readOnly: effectiveReadOnly,
-    canShareSignatureLinks: medicalCapabilities.canShareSignatureLinks,
-    medicalSignature: medicalBindings.scopedMedicalSignature,
-    medicalHandoffSentAt: medicalBindings.scopedMedicalHandoffSentAt,
-    onSendWhatsApp: medicalCapabilities.canSendWhatsApp ? handleSendWhatsAppManual : undefined,
-    onShareLink: medicalCapabilities.canShareSignatureLinks ? handleShareLink : undefined,
-  });
-  const medicalContentBindings = buildMedicalHandoffContentBindings({
-    record,
-    effectiveVisibleBeds: medicalBindings.effectiveVisibleBeds,
-    specialtyFilteredBeds: medicalBindings.specialtyFilteredBeds,
-    readOnly: effectiveReadOnly,
-    role,
-    canCopySpecialistLink: medicalCapabilities.canCopySpecialistLink,
-    scopedMedicalSignature: medicalBindings.scopedMedicalSignature,
-    scopedMedicalHandoffSentAt: medicalBindings.scopedMedicalHandoffSentAt,
-    showDeliverySection: medicalCapabilities.canShowDeliverySection,
-    canEditDoctorName: medicalCapabilities.canEditDoctorName,
-    canSignMedicalHandoff: medicalCapabilities.canSign,
-    updateMedicalHandoffDoctor: medicalCapabilities.canEditDoctorName
-      ? updateMedicalHandoffDoctor
-      : undefined,
-    markMedicalHandoffAsSent: medicalCapabilities.canSign ? markMedicalHandoffAsSent : undefined,
-    resetMedicalHandoffState: medicalCapabilities.canRestoreSignatures
-      ? resetMedicalHandoffState
-      : undefined,
-    selectedMedicalSpecialty,
-    setSelectedMedicalSpecialty,
-    medicalSpecialties: medicalBindings.medicalSpecialties,
-    success,
-    noteField,
-    onNoteChange: handleNursingNoteChange,
-    medicalActions,
-    clinicalEventActions,
-    tableHeaderClass,
-    shouldShowPatient,
-    scopedMedicalScope: medicalBindings.scopedMedicalScope,
-    hasAnyVisiblePatients: medicalBindings.hasAnyVisiblePatients,
-    onSendWhatsApp: medicalCapabilities.canSendWhatsApp ? handleSendWhatsAppManual : undefined,
-    onShareLink: medicalCapabilities.canShareSignatureLinks ? handleShareLink : undefined,
-    canPrint: medicalCapabilities.canPrint,
-  });
   const nursingContentBindings = buildNursingHandoffContentBindings({
     visibleBeds,
     record,
     noteField,
     onNoteChange: handleNursingNoteChange,
-    medicalActions,
     tableHeaderClass,
     readOnly: effectiveReadOnly,
     hasAnyPatients,
@@ -142,25 +73,20 @@ const HandoffViewContent: React.FC<HandoffViewContentProps> = ({
     updateHandoffNovedades,
   });
   return (
-    <div
-      className={`${isMedical ? '' : 'nursing-handoff '}space-y-3 print:space-y-2 animate-fade-in pb-20 font-sans max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 print:max-w-none print:w-full print:px-0 print:pb-0`}
-    >
+    <div className="nursing-handoff space-y-3 print:space-y-2 animate-fade-in pb-20 font-sans max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 print:max-w-none print:w-full print:px-0 print:pb-0">
       <HandoffPrintHeader
         title={title}
         dateString={formatPrintDate()}
         Icon={Icon}
-        isMedical={isMedical}
         schedule={schedule}
         selectedShift={selectedShift}
         deliversList={deliversList}
         receivesList={receivesList}
         tensList={tensList}
       />
-      {/* Header removed for both nursing and medical:
-          - Nursing: title redundant (already in navbar tab), shift switcher in checklist section
-          - Medical: title redundant, share actions moved to MedicalHandoffHeader */}
+      {/* No on-screen header: the title is already in the navbar tab, and the shift switcher
+          lives in the checklist section. */}
       <HandoffChecklistSection
-        isMedical={isMedical}
         selectedShift={selectedShift}
         setSelectedShift={setSelectedShift}
         record={record}
@@ -171,12 +97,8 @@ const HandoffViewContent: React.FC<HandoffViewContentProps> = ({
         onUpdateStaff={updateHandoffStaff}
         onUpdateChecklist={updateHandoffChecklist}
       />
-      {isMedical ? (
-        <HandoffMedicalContent {...medicalContentBindings} />
-      ) : (
-        <HandoffNursingContent {...nursingContentBindings} />
-      )}
-      {headerBindings.showNightCudyrAction && (
+      <HandoffNursingContent {...nursingContentBindings} />
+      {shouldShowNightCudyrActions(selectedShift) && (
         <div className="print:break-before-page">
           <HandoffCudyrPrint />
         </div>

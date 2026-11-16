@@ -218,8 +218,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
   const calendarToday = getClinicalCalendarDateISO();
   const specialistCensusAccess =
     currentModule === 'CENSUS' && isSpecialistCensusAccessProfile(accessProfile);
-  const isHandoffModule =
-    currentModule === 'NURSING_HANDOFF' || currentModule === 'MEDICAL_HANDOFF';
+  const isHandoffModule = currentModule === 'NURSING_HANDOFF';
   const canShowRoleRestrictedActions = !isGuest && !specialistCensusAccess;
 
   // Keep the census shortcut visible, including on today, so the toolbar

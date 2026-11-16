@@ -50,16 +50,6 @@ const bundleDelivery = async (entries: string[], modules: string[]) => {
 };
 
 describe('authenticated shell delivery boundaries', () => {
-  it('loads the WhatsApp transport only when sending, outside the startup graph', async () => {
-    const transport = 'src/services/integrations/whatsapp/whatsappService.ts';
-    const graph = await bundleDelivery(
-      ['src/application/handoff/sendMedicalHandoffUseCase.ts'],
-      [transport]
-    );
-    expect(graph.allModules).toContain(absolute(transport));
-    expect(graph.startupModules).not.toContain(absolute(transport));
-  });
-
   it('keeps recipient state pure and loads the remote service through the existing lazy use case', async () => {
     const service = 'src/services/email/emailRecipientListService.ts';
     const graph = await bundleDelivery(

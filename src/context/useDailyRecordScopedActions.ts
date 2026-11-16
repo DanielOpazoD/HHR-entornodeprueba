@@ -159,28 +159,8 @@ export const useDailyRecordHandoffActions = (): DailyRecordHandoffActions => {
     () => ({
       updateHandoffChecklist: actions.updateHandoffChecklist,
       updateHandoffNovedades: actions.updateHandoffNovedades,
-      updateMedicalSpecialtyNote: actions.updateMedicalSpecialtyNote,
-      confirmMedicalSpecialtyNoChanges: actions.confirmMedicalSpecialtyNoChanges,
       updateHandoffStaff: actions.updateHandoffStaff,
-      updateMedicalSignature: actions.updateMedicalSignature,
-      updateMedicalHandoffDoctor: actions.updateMedicalHandoffDoctor,
-      markMedicalHandoffAsSent: actions.markMedicalHandoffAsSent,
-      ensureMedicalHandoffSignatureLink: actions.ensureMedicalHandoffSignatureLink,
-      resetMedicalHandoffState: actions.resetMedicalHandoffState,
-      sendMedicalHandoff: actions.sendMedicalHandoff,
     }),
-    [
-      actions.ensureMedicalHandoffSignatureLink,
-      actions.markMedicalHandoffAsSent,
-      actions.resetMedicalHandoffState,
-      actions.sendMedicalHandoff,
-      actions.updateHandoffChecklist,
-      actions.updateHandoffNovedades,
-      actions.updateMedicalSpecialtyNote,
-      actions.confirmMedicalSpecialtyNoChanges,
-      actions.updateHandoffStaff,
-      actions.updateMedicalHandoffDoctor,
-      actions.updateMedicalSignature,
-    ]
+    [actions.updateHandoffChecklist, actions.updateHandoffNovedades, actions.updateHandoffStaff]
   );
 };

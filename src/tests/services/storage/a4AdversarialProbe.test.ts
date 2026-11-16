@@ -230,7 +230,7 @@ async function read(path: Path, remote: DailyRecord): Promise<DailyRecord | null
 import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
 import { admitRemoteDailyRecords } from '@/services/repositories/dailyRecordLocalCachePersistence';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { buildMedicalEntryNoteFields } from '@/domain/handoff/patientEntryMutations';
+import { buildMedicalEntryNoteFields } from '@/tests/services/storage/specialistNoteFields';
 for (const path of ['suscripción', 'E', 'rango', 'mantenimiento', 'A'] as const) {
   for (const scenario of [
     'same',

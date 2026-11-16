@@ -1,33 +1,12 @@
-import type { PatientData } from '@/types/domain/patient';
-
 import { describe, expect, it } from 'vitest';
 
-import { PatientStatus, Specialty } from '@/domain/handoff/patientContracts';
-import { resolveMedicalObservationEntries } from '@/domain/handoff/patientView';
+import { PatientStatus } from '@/domain/handoff/patientContracts';
 import {
   canToggleClinicalEvents,
   resolveClinicalEventsCellState,
   resolveHandoffStatusVariant,
-  resolveMedicalObservationEmptyState,
-  shouldShowMedicalPrimaryNoteFallback,
   shouldRenderClinicalEventsPanel,
 } from '@/features/handoff/controllers/handoffRowCellsController';
-
-const buildPatient = (overrides: Partial<PatientData> = {}): PatientData =>
-  ({
-    patientName: 'Paciente Test',
-    rut: '11.111.111-1',
-    pathology: 'Diagnóstico',
-    status: PatientStatus.ESTABLE,
-    specialty: Specialty.MEDICINA,
-    devices: [],
-    deviceDetails: {},
-    clinicalEvents: [],
-    medicalHandoffEntries: [],
-    age: '40a',
-    admissionDate: '2026-03-15',
-    ...overrides,
-  }) as PatientData;
 
 describe('handoffRowCellsController', () => {
   it('maps patient status to badge variants', () => {
@@ -78,7 +57,6 @@ describe('handoffRowCellsController', () => {
         canUpdate: true,
         canDelete: true,
         showEvents: false,
-        isMedical: false,
       })
     ).toEqual({
       statusVariant: 'orange',
@@ -96,7 +74,6 @@ describe('handoffRowCellsController', () => {
         canUpdate: true,
         canDelete: true,
         showEvents: true,
-        isMedical: true,
       })
     ).toEqual({
       statusVariant: 'green',
@@ -104,94 +81,5 @@ describe('handoffRowCellsController', () => {
       shouldRenderEventsPanel: true,
       showStatusBadge: false,
     });
-  });
-
-  it('prefers persisted medical observation entries and otherwise derives draft display entries', () => {
-    const persistedEntry = {
-      id: 'entry-1',
-      specialty: Specialty.MEDICINA,
-      note: 'Persistida',
-    };
-    expect(
-      resolveMedicalObservationEntries({
-        patient: buildPatient({ medicalHandoffEntries: [persistedEntry] as never }),
-        isFieldReadOnly: false,
-        hasCreatePrimaryEntryAction: false,
-      })
-    ).toEqual([persistedEntry]);
-
-    const derivedEntries = resolveMedicalObservationEntries({
-      patient: buildPatient({ medicalHandoffNote: 'Nota legada' } as never),
-      isFieldReadOnly: false,
-      hasCreatePrimaryEntryAction: false,
-    });
-    expect(derivedEntries).toHaveLength(1);
-
-    expect(
-      resolveMedicalObservationEntries({
-        patient: buildPatient({ medicalHandoffNote: 'Nota legada' } as never),
-        isFieldReadOnly: false,
-        hasCreatePrimaryEntryAction: true,
-      })
-    ).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          note: 'Nota legada',
-        }),
-      ])
-    );
-  });
-
-  it('shows the primary note fallback only when there are no entries and no create action', () => {
-    expect(
-      shouldShowMedicalPrimaryNoteFallback({
-        entriesCount: 0,
-        isFieldReadOnly: false,
-        hasCreatePrimaryEntryAction: false,
-      })
-    ).toBe(true);
-    expect(
-      shouldShowMedicalPrimaryNoteFallback({
-        entriesCount: 1,
-        isFieldReadOnly: false,
-        hasCreatePrimaryEntryAction: false,
-      })
-    ).toBe(false);
-  });
-
-  it('resolves the empty medical observation state for create-entry and primary-note flows', () => {
-    expect(
-      resolveMedicalObservationEmptyState({
-        displayEntriesCount: 0,
-        isFieldReadOnly: false,
-        hasCreatePrimaryEntryAction: true,
-      })
-    ).toBe('create-entry');
-
-    expect(
-      resolveMedicalObservationEmptyState({
-        displayEntriesCount: 0,
-        isFieldReadOnly: false,
-        hasCreatePrimaryEntryAction: false,
-      })
-    ).toBe('primary-note');
-  });
-
-  it('keeps the empty state neutral when entries already exist or the field is read-only', () => {
-    expect(
-      resolveMedicalObservationEmptyState({
-        displayEntriesCount: 1,
-        isFieldReadOnly: false,
-        hasCreatePrimaryEntryAction: true,
-      })
-    ).toBe('empty');
-
-    expect(
-      resolveMedicalObservationEmptyState({
-        displayEntriesCount: 0,
-        isFieldReadOnly: true,
-        hasCreatePrimaryEntryAction: false,
-      })
-    ).toBe('empty');
   });
 });

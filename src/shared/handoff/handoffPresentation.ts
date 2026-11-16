@@ -48,21 +48,15 @@ export const resolveHandoffDocumentDate = (recordDate?: string): string | null =
 };
 
 export const resolveHandoffDocumentTitleLabel = ({
-  isMedical,
   selectedShift,
   recordDate,
 }: {
-  isMedical: boolean;
   selectedShift: 'day' | 'night';
   recordDate?: string;
 }): string | null => {
   const formattedDate = resolveHandoffDocumentDate(recordDate);
   if (!formattedDate) {
     return null;
-  }
-
-  if (isMedical) {
-    return `Entrega Medico ${formattedDate}`;
   }
 
   return `${selectedShift === 'day' ? 'TL' : 'TN'} ${formattedDate}`;

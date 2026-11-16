@@ -206,14 +206,7 @@ export const CORE_MODULE_ROUTE_DEFINITIONS: readonly CoreModuleRouteDefinition[]
     module: 'NURSING_HANDOFF',
     sectionName: 'Entrega Enfermería',
     render: ({ ui, resolveReadOnly }) => (
-      <HandoffView ui={ui} type="nursing" readOnly={resolveReadOnly('NURSING_HANDOFF')} />
-    ),
-  },
-  {
-    module: 'MEDICAL_HANDOFF',
-    sectionName: 'Entrega Médica',
-    render: ({ ui, resolveReadOnly }) => (
-      <HandoffView ui={ui} type="medical" readOnly={resolveReadOnly('MEDICAL_HANDOFF')} />
+      <HandoffView ui={ui} readOnly={resolveReadOnly('NURSING_HANDOFF')} />
     ),
   },
 ];

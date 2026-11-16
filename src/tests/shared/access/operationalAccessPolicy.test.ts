@@ -4,7 +4,6 @@ import {
   canEditAnyAppModule,
   canManageGlobalCensusEmailRecipients,
   canManageClinicalConflictCenter,
-  canEditMedicalHandoffForDate,
   canForceCreateDayCopyOverride,
   canOpenClinicalDocumentsFromCensus,
   canResetOrDeleteDailyRecord,
@@ -88,35 +87,6 @@ describe('operationalAccessPolicy', () => {
     expect(sanitizeAppModuleForRole('doctor_specialist', 'ANALYTICS')).toBe('CENSUS');
     expect(sanitizeAppModuleForRole('admin', 'AUDIT')).toBe('AUDIT');
     expect(sanitizeAppModuleForRole('admin', 'ANALYTICS')).toBe('ANALYTICS');
-  });
-
-  it('keeps medical handoff edit access bound to specialist current-day policy', () => {
-    expect(
-      canEditMedicalHandoffForDate({
-        role: 'doctor_specialist',
-        readOnly: false,
-        recordDate: '2026-03-16',
-        todayISO: '2026-03-16',
-      })
-    ).toBe(true);
-
-    expect(
-      canEditMedicalHandoffForDate({
-        role: 'doctor_specialist',
-        readOnly: false,
-        recordDate: '2026-03-16T00:00:00.000Z',
-        todayISO: '2026-03-16',
-      })
-    ).toBe(true);
-
-    expect(
-      canEditMedicalHandoffForDate({
-        role: 'doctor_specialist',
-        readOnly: false,
-        recordDate: '2026-03-15',
-        todayISO: '2026-03-16',
-      })
-    ).toBe(false);
   });
 
   it('resolves census utility actions, clinical document access and reset permissions by intent', () => {
