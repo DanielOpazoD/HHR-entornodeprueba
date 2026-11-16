@@ -20,7 +20,6 @@ import {
   DocumentScannerDemoView,
   DocumentScannerLocalQueueView,
   DocumentScannerQueueView,
-  MedicalSignatureView,
   PrescriptionAdminView,
   PrescriptionUploadView,
   PrescriptionVisorView,
@@ -138,16 +137,6 @@ function App() {
       <VersionedAppShell>
         <React.Suspense fallback={<ViewLoader />}>
           <DocumentScannerLocalQueueView />
-        </React.Suspense>
-      </VersionedAppShell>
-    );
-  }
-
-  if (bootstrapState.status === 'signature_mode') {
-    return (
-      <VersionedAppShell>
-        <React.Suspense fallback={<ViewLoader />}>
-          <MedicalSignatureView />
         </React.Suspense>
       </VersionedAppShell>
     );

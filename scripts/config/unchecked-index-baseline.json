@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1291,
+  "total": 1287,
   "areas": {
     "src/application/backup-export": 4,
     "src/application/census-email": 2,
@@ -14,7 +14,7 @@
     "src/domain/evaluationScales": 5,
     "src/domain/handoff": 9,
     "src/domain/radiology": 130,
-    "src/features/admin": 28,
+    "src/features/admin": 27,
     "src/features/analytics": 2,
     "src/features/backup": 5,
     "src/features/census": 35,
@@ -40,7 +40,6 @@
     "src/hooks/useExistingDaysQuery": 1,
     "src/hooks/usePatientAnalysis": 1,
     "src/hooks/useRoleManagement": 1,
-    "src/hooks/useSignatureMode": 3,
     "src/services/admin": 25,
     "src/services/backup": 13,
     "src/services/calculations": 1,

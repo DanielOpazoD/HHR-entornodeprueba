@@ -10,7 +10,6 @@ describe('appContentVisibilityController', () => {
       shouldRenderDateStrip({
         currentModule: 'CENSUS',
         censusViewMode: 'REGISTER',
-        isSignatureMode: false,
       })
     ).toBe(true);
 
@@ -18,17 +17,6 @@ describe('appContentVisibilityController', () => {
       shouldRenderDateStrip({
         currentModule: 'ANALYTICS',
         censusViewMode: 'REGISTER',
-        isSignatureMode: false,
-      })
-    ).toBe(false);
-  });
-
-  it('hides date strip in signature mode', () => {
-    expect(
-      shouldRenderDateStrip({
-        currentModule: 'CUDYR',
-        censusViewMode: 'REGISTER',
-        isSignatureMode: true,
       })
     ).toBe(false);
   });
@@ -38,7 +26,6 @@ describe('appContentVisibilityController', () => {
       shouldRenderBookmarkBar({
         currentModule: 'CENSUS',
         censusViewMode: 'REGISTER',
-        isSignatureMode: false,
         showBookmarksBar: true,
         role: 'admin',
       })
@@ -48,7 +35,6 @@ describe('appContentVisibilityController', () => {
       shouldRenderBookmarkBar({
         currentModule: 'CENSUS',
         censusViewMode: 'REGISTER',
-        isSignatureMode: false,
         showBookmarksBar: true,
         role: 'doctor_urgency',
       })

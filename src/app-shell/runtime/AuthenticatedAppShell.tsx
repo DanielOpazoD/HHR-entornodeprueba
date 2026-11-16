@@ -4,7 +4,7 @@ import { FlaskConical } from 'lucide-react';
 import { AppContent } from '@/components/layout/AppContent';
 import { CensusProvider } from '@/context/CensusContext';
 import type { AuthContextType } from '@/context/AuthContext';
-import { type AppAuthenticatedDateNavigation } from '@/app-shell/bootstrap/useAppBootstrapState';
+import type { UseDateNavigationReturn } from '@/hooks/useDateNavigation';
 import { DeferredSystemHealthReporter } from '@/app-shell/runtime/DeferredSystemHealthReporter';
 import { useAuthenticatedAppRuntime } from '@/app-shell/runtime/useAuthenticatedAppRuntime';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
@@ -42,7 +42,7 @@ import { ClinicalLibraryToolbarFallback } from '@/components/layout/date-strip/C
 
 interface AuthenticatedAppShellProps {
   auth: AuthContextType;
-  dateNav: AppAuthenticatedDateNavigation;
+  dateNav: UseDateNavigationReturn;
 }
 
 export const AuthenticatedAppShell = ({ auth, dateNav }: AuthenticatedAppShellProps) => {

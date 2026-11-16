@@ -5,7 +5,6 @@ type CensusViewMode = 'REGISTER' | 'ANALYTICS';
 interface ResolveDateStripVisibilityParams {
   currentModule: ModuleType;
   censusViewMode: CensusViewMode;
-  isSignatureMode: boolean;
 }
 
 const DATE_STRIP_MODULES: ReadonlySet<ModuleType> = new Set([
@@ -18,12 +17,7 @@ const DATE_STRIP_MODULES: ReadonlySet<ModuleType> = new Set([
 export const shouldRenderDateStrip = ({
   currentModule,
   censusViewMode,
-  isSignatureMode,
 }: ResolveDateStripVisibilityParams): boolean => {
-  if (isSignatureMode) {
-    return false;
-  }
-
   if (!DATE_STRIP_MODULES.has(currentModule)) {
     return false;
   }
@@ -38,7 +32,6 @@ export const shouldRenderDateStrip = ({
 interface ResolveBookmarkBarVisibilityParams {
   currentModule: ModuleType;
   censusViewMode: CensusViewMode;
-  isSignatureMode: boolean;
   showBookmarksBar: boolean;
   role?: string | null;
 }
@@ -51,11 +44,10 @@ const BOOKMARK_ALLOWED_ROLES = new Set(['admin', 'nurse_hospital']);
 export const shouldRenderBookmarkBar = ({
   currentModule,
   censusViewMode,
-  isSignatureMode,
   showBookmarksBar,
   role,
 }: ResolveBookmarkBarVisibilityParams): boolean => {
-  if (isSignatureMode || !showBookmarksBar) {
+  if (!showBookmarksBar) {
     return false;
   }
 

@@ -127,7 +127,6 @@ export const buildAppRouterShellState = ({
   selectedMonth: runtime.dateNav.selectedMonth,
   currentDateString: runtime.dateNav.currentDateString,
   role: runtime.auth.role,
-  isSignatureMode: runtime.dateNav.isSignatureMode,
   showBedManagerModal: ui.bedManagerModal.isOpen,
   onCloseBedManagerModal: ui.bedManagerModal.close,
   onOpenCensusDate,

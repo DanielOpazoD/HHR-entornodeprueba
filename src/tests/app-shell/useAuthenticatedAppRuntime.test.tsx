@@ -102,7 +102,6 @@ const createDateNavigation = (overrides: Record<string, unknown> = {}) => ({
   daysInMonth: 31,
   currentDateString: '2026-03-27',
   navigateDays: vi.fn(),
-  isSignatureMode: false,
   ...overrides,
 });
 
