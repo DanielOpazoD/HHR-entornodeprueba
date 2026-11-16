@@ -50,6 +50,11 @@ try {
     ],
     ['import-cycles', /^src\//, 'Rompe el ciclo de imports indicado por el control.'],
     [
+      'repo-hygiene',
+      /^(?:Formularios\/|Hospital Salvador\/|printables\/|[^/]+\.png$)/i,
+      'Restaura los archivos que el responsable protege o registra su aprobación como indica el control.',
+    ],
+    [
       'architecture',
       /^src\//,
       'Rompe la dependencia circular indicada (aquí también cuentan los imports de tipo) o respeta la capa que nombra el control.',
