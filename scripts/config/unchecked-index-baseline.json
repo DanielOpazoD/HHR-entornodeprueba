@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1278,
+  "total": 1276,
   "areas": {
     "src/application/backup-export": 4,
     "src/application/census-email": 2,
@@ -28,7 +28,7 @@
     "src/features/reminders": 1,
     "src/features/wound-care": 7,
     "src/hooks/backupFileBrowserController": 1,
-    "src/hooks/controllers": 34,
+    "src/hooks/controllers": 33,
     "src/hooks/useBackupFileBrowser": 1,
     "src/hooks/useBackupFileBrowserActions": 1,
     "src/hooks/useBedOperationsController": 2,
@@ -53,7 +53,7 @@
     "src/services/records": 2,
     "src/services/repositories": 32,
     "src/services/staff": 8,
-    "src/services/storage": 41,
+    "src/services/storage": 40,
     "src/services/terminology": 2,
     "src/shared/date": 4,
     "src/types/auditLogTypes": 1,
