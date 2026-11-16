@@ -88,12 +88,6 @@ export function registerClinicalDerivedRules(harness: FirestoreRulesHarness): vo
           .doc(recordPath)
           .set({ ...markedDay, meta: { revision: 6 } })
       );
-      await assertSucceeds(
-        doctor().doc(recordPath).update({ medicalSignature: 'signed', lastUpdated: NOW_MS })
-      );
-      await assertSucceeds(
-        specialist().doc(recordPath).update({ 'beds.R1.medicalHandoffNote': 'SINTÉTICO' })
-      );
     });
 
     it('a marked day never moves meta.revision back; an unmarked day is unchanged', async () => {

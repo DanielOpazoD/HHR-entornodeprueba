@@ -99,151 +99,6 @@ service cloud.firestore {
     function isEditorRole() {
       return hasEffectiveRole('editor');
     }
-    function isValidSpecialistClinicalCribMedicalUpdate(beforeCrib, afterCrib) {
-      return beforeCrib != null &&
-             afterCrib != null &&
-             afterCrib.diff(beforeCrib).affectedKeys().hasOnly(['medicalHandoffEntries', 'medicalHandoffNote', 'medicalHandoffAudit', 'clinicalEvents']);
-    }
-    function isValidSpecialistMedicalBedRootUpdate(beforeBed, afterBed) {
-      let affectedBedKeys = afterBed.diff(beforeBed).affectedKeys();
-      return affectedBedKeys.hasOnly(['medicalHandoffEntries', 'medicalHandoffNote', 'medicalHandoffAudit', 'clinicalEvents']);
-    }
-    function isValidSpecialistMedicalBedClinicalCribUpdate(beforeBed, afterBed) {
-      let affectedBedKeys = afterBed.diff(beforeBed).affectedKeys();
-      return affectedBedKeys.hasOnly(['clinicalCrib']) &&
-             isValidSpecialistClinicalCribMedicalUpdate(beforeBed.clinicalCrib, afterBed.clinicalCrib);
-    }
-    function isValidSpecialistMedicalBedUpdate(bedId) {
-      let beforeBed = resource.data.beds[bedId];
-      let afterBed = request.resource.data.beds[bedId];
-      return beforeBed != null &&
-             afterBed != null &&
-             (
-               isValidSpecialistMedicalBedRootUpdate(beforeBed, afterBed) ||
-               isValidSpecialistMedicalBedClinicalCribUpdate(beforeBed, afterBed)
-             );
-    }
-    function isOnlySpecialistAffectedBed(affectedBedIds, bedId) {
-      return affectedBedIds.size() == 1 &&
-             affectedBedIds.hasOnly([bedId]) &&
-             isValidSpecialistMedicalBedUpdate(bedId);
-    }
-    function isAnySpecialistAffectedBed(affectedBedIds) {
-      return isOnlySpecialistAffectedBed(affectedBedIds, 'R1') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'R2') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'R3') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'R4') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'NEO1') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'NEO2') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'H1C1') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'H1C2') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'H2C1') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'H2C2') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'H3C1') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'H3C2') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'H4C1') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'H4C2') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'H5C1') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'H5C2') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'H6C1') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'H6C2') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'E1') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'E2') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'E3') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'E4') ||
-             isOnlySpecialistAffectedBed(affectedBedIds, 'E5');
-    }
-    function getSpecialistStructuredBeforeBySpecialty() {
-      return resource.data.medicalHandoffBySpecialty == null
-        ? {}
-        : resource.data.medicalHandoffBySpecialty;
-    }
-    function getSpecialistStructuredAfterBySpecialty() {
-      return request.resource.data.medicalHandoffBySpecialty == null
-        ? {}
-        : request.resource.data.medicalHandoffBySpecialty;
-    }
-    function hasOnlySpecialistStructuredRecordKeys(affectedRecordKeys) {
-      return affectedRecordKeys.hasOnly(['medicalHandoffBySpecialty', 'medicalHandoffNovedades', 'lastUpdated', 'dateTimestamp']);
-    }
-    function hasOnlySpecialistBedRecordKeys(affectedRecordKeys) {
-      return affectedRecordKeys.hasOnly(['beds', 'lastUpdated', 'dateTimestamp']);
-    }
-    function isAllowedSpecialistStructuredSpecialty(specialty) {
-      return ['cirugia', 'traumatologia', 'ginecobstetricia', 'pediatria', 'psiquiatria', 'medicinaInterna'].hasAny([specialty]);
-    }
-    function isOnlyAffectedSpecialistStructuredSpecialty(affectedSpecialties, specialty) {
-      return affectedSpecialties.size() == 1 &&
-             affectedSpecialties.hasOnly([specialty]) &&
-             isAllowedSpecialistStructuredSpecialty(specialty) &&
-             isValidSpecialistStructuredMedicalSpecialtyEntry(specialty);
-    }
-    function isAnyAllowedSpecialistStructuredSpecialtyAffected(affectedSpecialties) {
-      return isOnlyAffectedSpecialistStructuredSpecialty(affectedSpecialties, 'cirugia') ||
-             isOnlyAffectedSpecialistStructuredSpecialty(affectedSpecialties, 'traumatologia') ||
-             isOnlyAffectedSpecialistStructuredSpecialty(affectedSpecialties, 'ginecobstetricia') ||
-             isOnlyAffectedSpecialistStructuredSpecialty(affectedSpecialties, 'pediatria') ||
-             isOnlyAffectedSpecialistStructuredSpecialty(affectedSpecialties, 'psiquiatria') ||
-             isOnlyAffectedSpecialistStructuredSpecialty(affectedSpecialties, 'medicinaInterna');
-    }
-    function isValidSpecialistStructuredMedicalSpecialtyEntry(specialty) {
-      let beforeEntry = getSpecialistStructuredBeforeBySpecialty()[specialty];
-      let afterEntry = getSpecialistStructuredAfterBySpecialty()[specialty];
-      return afterEntry != null &&
-             (
-               beforeEntry == null ||
-               afterEntry.diff(beforeEntry).affectedKeys().hasOnly(['note', 'createdAt', 'updatedAt', 'author', 'lastEditor', 'version', 'dailyContinuity'])
-             );
-    }
-    function resolveAffectedSpecialistStructuredSpecialties() {
-      return getSpecialistStructuredAfterBySpecialty()
-        .diff(getSpecialistStructuredBeforeBySpecialty())
-        .affectedKeys();
-    }
-    function isSpecialistStructuredMedicalHandoffUpdate(affectedSpecialties) {
-      return isAnyAllowedSpecialistStructuredSpecialtyAffected(affectedSpecialties);
-    }
-    function isWithinSpecialistMedicalHandoffWindow(effectiveRecordTimestamp) {
-      let now = request.time.toMillis();
-      return effectiveRecordTimestamp is int &&
-             (now >= effectiveRecordTimestamp && now < (effectiveRecordTimestamp + 86400000));
-    }
-    function resolveSpecialistMedicalHandoffRecordTimestamp() {
-      let currentRecordTimestamp = resource.data.get('dateTimestamp', null);
-      let nextRecordTimestamp = request.resource.data.get('dateTimestamp', null);
-      return nextRecordTimestamp != null
-        ? nextRecordTimestamp
-        : currentRecordTimestamp;
-    }
-    function resolveAffectedSpecialistBedIds() {
-      return request.resource.data.beds.diff(resource.data.beds).affectedKeys();
-    }
-    function hasValidSpecialistRecordTimestampChange(affectedRecordKeys) {
-      return !affectedRecordKeys.hasAny(['dateTimestamp']) ||
-             !resource.data.keys().hasAny(['dateTimestamp']) ||
-             resource.data.dateTimestamp == null;
-    }
-    function isSpecialistStructuredMedicalHandoffPayload(affectedRecordKeys) {
-      return hasOnlySpecialistStructuredRecordKeys(affectedRecordKeys) &&
-             isSpecialistStructuredMedicalHandoffUpdate(
-               resolveAffectedSpecialistStructuredSpecialties()
-             );
-    }
-    function isSpecialistBedMedicalHandoffPayload(affectedRecordKeys) {
-      return hasOnlySpecialistBedRecordKeys(affectedRecordKeys) &&
-             isAnySpecialistAffectedBed(resolveAffectedSpecialistBedIds());
-    }
-    function isSpecialistMedicalHandoffPayload() {
-      let affectedRecordKeys = request.resource.data.diff(resource.data).affectedKeys();
-      let effectiveRecordTimestamp = resolveSpecialistMedicalHandoffRecordTimestamp();
-      return hasValidDailyRecordTimestamp() &&
-             isWithinSpecialistMedicalHandoffWindow(effectiveRecordTimestamp) &&
-             hasValidSpecialistRecordTimestampChange(affectedRecordKeys) &&
-             (
-               isSpecialistStructuredMedicalHandoffPayload(affectedRecordKeys) ||
-               isSpecialistBedMedicalHandoffPayload(affectedRecordKeys)
-             );
-    }
     function isSpecialistClinicalDocumentDraftWrite() {
       return isDoctorSpecialist() &&
              request.resource.data.status == 'draft' &&
@@ -600,10 +455,6 @@ service cloud.firestore {
              now < (recordTS + 172800000)
       );
     }
-    function isMedicalUpdate() {
-      let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
-      return affectedKeys.hasOnly(['medicalSignature', 'medicalSignatureByScope', 'medicalHandoffDoctor', 'medicalHandoffSentAt', 'medicalHandoffSentAtByScope', 'medicalSignatureLinkTokenByScope', 'lastUpdated']);
-    }
     function dailyRecordTimestampDate(recordTS) {
       let recordTime = timestamp.value(recordTS);
       return string(recordTime.year()) + '-' +
@@ -623,12 +474,6 @@ service cloud.firestore {
       return hasValidDailyRecordTimestamp() &&
              isWithinEditingWindow(request.resource.data.dateTimestamp);
     }
-    function canDoctorUpdatePersistedDailyRecord() {
-      return isMedicalUpdate();
-    }
-    function canSpecialistUpdatePersistedDailyRecord() {
-      return isSpecialistMedicalHandoffPayload();
-    }
     function hasPersistedDailyRecordResource() {
       return resource != null && resource.data != null;
     }
@@ -640,11 +485,7 @@ service cloud.firestore {
               ? true
               : effectiveRole == 'nurse_hospital'
                 ? canNurseUpdatePersistedDailyRecord()
-                : effectiveRole == 'doctor_urgency'
-                  ? canDoctorUpdatePersistedDailyRecord()
-                  : effectiveRole == 'doctor_specialist'
-                    ? canSpecialistUpdatePersistedDailyRecord()
-                    : false
+                : false
           )
         : false;
     }

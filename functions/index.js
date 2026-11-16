@@ -8,10 +8,6 @@ const {
 } = require('./lib/appContext');
 const { createAuthHelpers, createAuthFunctions } = require('./lib/authFunctions');
 const { createMinsalFunctions } = require('./lib/minsalFunctions');
-const { createHandoffSignatureFunctions } = require('./lib/handoffSignatureFunctions');
-const {
-  createSpecialistMedicalHandoffFunctions,
-} = require('./lib/specialistMedicalHandoffFunctions');
 const {
   createDailyRecordWriteAuthorityFunctions,
 } = require('./lib/dailyRecordWriteAuthorityFunctions');
@@ -63,14 +59,6 @@ module.exports = {
   ...createAuthFunctions({
     auth,
     helpers: authHelpers,
-  }),
-  ...createHandoffSignatureFunctions({
-    firestore,
-  }),
-  ...createSpecialistMedicalHandoffFunctions({
-    firestore,
-    Timestamp,
-    resolveRoleForEmail: authHelpers.resolveRoleForEmail,
   }),
   ...createDailyRecordWriteAuthorityFunctions({
     firestore,

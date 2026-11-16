@@ -4,6 +4,11 @@ Fecha: 2026-04-12
 Estado: `P1-02` cerrado con limitación conocida del emulador; el hotspot principal quedó reducido y validado
 Owner sugerido: seguridad / repositorios / runtime
 
+> Noviembre de 2026: el camino del especialista y la firma médica que describe este documento
+> se retiraron junto con la entrega médica antigua. Los fragmentos `10-`, `11-` y
+> `12-specialist-*` ya no existen y los roles médicos no escriben `dailyRecords`. Lo que
+> sigue es historia.
+
 ## Objetivo
 
 Bajar el riesgo operativo de `firestore.rules` sin abrir una reescritura completa.

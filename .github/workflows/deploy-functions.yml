@@ -140,17 +140,22 @@ jobs:
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase/service-account.json"
           chmod 600 "$RUNNER_TEMP/firebase/service-account.json"
 
-      - name: Delete retired mirror functions
+      - name: Delete retired functions
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase/service-account.json
         run: |
           set -euo pipefail
+          # Deploy only touches exported targets, so a function removed from
+          # functions/index.js keeps running until it is listed here.
           RETIRED_FUNCTIONS=(
             mirrorDailyRecords
             mirrorAuditLogs
             mirrorSettings
             mirrorTransferRequests
             mirrorClinicalDocuments
+            updateSpecialistMedicalHandoff
+            getMedicalHandoffSignaturePayload
+            submitMedicalHandoffSignature
           )
 
           for function_name in "${RETIRED_FUNCTIONS[@]}"; do
