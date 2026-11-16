@@ -60,6 +60,9 @@ calcular ocho horas, no la hora obligatoria de registro del instrumento.
 La tabla conserva cama Eloísa, tipo de cama, paciente, puntajes, categoría, primer ingreso
 hospitalario, registro y estado. Los movimientos, origen histórico y motivos de exclusión
 se consultan en detalles. Una excepción manual cambia elegibilidad, nunca el CUDYR.
+Un egreso del día sin episodio admite la excepción manual solo como «UEA / fuera del
+servicio» o «< 8 horas», ligada al egreso guardado en ese censo; el servidor la rechaza si
+ese egreso no existe ese día.
 Altas, traslados externos y fallecimientos resueltos se consultan en el explorador.
 
 El desglose mensual de exclusiones separa personas de pacientes-día y permite abrir los

@@ -18,19 +18,49 @@ const parseExclusion = data => {
     ![null, 'cma', 'healthy_crib', 'not_hospitalized', 'under_eight_hours'].includes(data.reason)
   )
     invalid();
-  return {
-    date: dateOnly(data.date),
-    clinicalEpisodeId: text(data.clinicalEpisodeId),
+  const common = {
     expectedRevision: data.expectedRevision,
     operationId: data.operationId,
     reason: data.reason,
     note: text(data.note, 500),
   };
+  if (data.dischargeId === undefined)
+    return {
+      date: dateOnly(data.date),
+      clinicalEpisodeId: text(data.clinicalEpisodeId),
+      ...common,
+    };
+  // A discharge without episode is never a CMA bed or a healthy crib by itself.
+  if (
+    data.clinicalEpisodeId !== undefined ||
+    ![null, 'not_hospitalized', 'under_eight_hours'].includes(data.reason)
+  )
+    invalid();
+  return {
+    date: dateOnly(data.date),
+    clinicalEpisodeId: '',
+    dischargeId: text(data.dischargeId, 200),
+    ...common,
+  };
 };
-/** The callable owns authorization. Decisions affect exactly one confirmed episode/day. */
+/** Mirrors the client row: an undeleted, named discharge of that day without any episode. */
+const hasEpisodelessDischarge = (record, dischargeId) =>
+  (record.discharges || []).some(
+    movement =>
+      !movement.deletedAt &&
+      movement.id === dischargeId &&
+      !movement.clinicalEpisodeId &&
+      !movement.originalData?.clinicalEpisodeId &&
+      typeof movement.patientName === 'string' &&
+      Boolean(movement.patientName.trim())
+  );
+/** The callable owns authorization. Decisions affect exactly one confirmed episode/day, or one
+ * stored discharge without episode on that day. */
 const saveCudyrExclusion = async ({ hospital, data, actor, runTransaction }) => {
   const input = parseExclusion(data);
-  const id = digest([input.date, input.clinicalEpisodeId]);
+  const id = input.dischargeId
+    ? digest([input.date, 'discharge', input.dischargeId])
+    : digest([input.date, input.clinicalEpisodeId]);
   const ref = hospital.collection('cudyrDailyExclusions').doc(id);
   const audit = ref.collection('revisions').doc(digest([actor.uid, input.operationId]));
   const requestHash = digest(input);
@@ -53,7 +83,12 @@ const saveCudyrExclusion = async ({ hospital, data, actor, runTransaction }) => 
         'failed-precondition',
         'Falta el censo guardado de este día.'
       );
-    episodeContext(record.data(), input.clinicalEpisodeId);
+    if (!input.dischargeId) episodeContext(record.data(), input.clinicalEpisodeId);
+    else if (!hasEpisodelessDischarge(record.data(), input.dischargeId))
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        'El egreso sin episodio no está en el censo guardado de este día.'
+      );
     if ((current.exists ? current.data().revision : 0) !== input.expectedRevision)
       throw new functions.https.HttpsError(
         'aborted',
@@ -63,6 +98,7 @@ const saveCudyrExclusion = async ({ hospital, data, actor, runTransaction }) => 
       id,
       date: input.date,
       clinicalEpisodeId: input.clinicalEpisodeId,
+      ...(input.dischargeId ? { dischargeId: input.dischargeId } : {}),
       revision: input.expectedRevision + 1,
       operationId: input.operationId,
       reason: input.reason,

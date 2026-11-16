@@ -11,6 +11,8 @@ const { getFirestore } = requireFunctions(
   'firebase-admin/firestore'
 ) as typeof import('firebase-admin/firestore');
 const { createCudyrHistoryFunctions } = require('../../../functions/lib/cudyrHistoryFunctions.js');
+const { createHash } = require('node:crypto') as typeof import('node:crypto');
+const sha = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const describeEmulator =
   process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1' ? describe : describe.skip;
 describeEmulator('daily CUDYR eligibility decisions', () => {
@@ -115,5 +117,115 @@ describeEmulator('daily CUDYR eligibility decisions', () => {
       ).size
     ).toBe(2);
     expect((await db.doc(hospital + '/dailyRecords/2026-07-02').get()).data()).toEqual(before);
+  });
+  describe('a discharge without episode', () => {
+    const day = '2026-07-05';
+    const dischargeId = 'rayen-egreso:P123456785:' + day;
+    const { clinicalEpisodeId: _episode, ...base } = request;
+    const discharge = {
+      ...base,
+      date: day,
+      dischargeId,
+      reason: 'under_eight_hours',
+      operationId: '00000000-0000-4000-8000-000000000101',
+    };
+    beforeAll(async () => {
+      const movement = (id: string, patch = {}) => ({
+        id,
+        patientName: 'Paciente Pasaporte Sintético',
+        rut: 'P123456785',
+        bedId: '',
+        ...patch,
+      });
+      await db.doc(hospital + '/dailyRecords/' + day).set({
+        date: day,
+        beds: {},
+        discharges: [
+          movement(dischargeId),
+          movement('with-episode', { clinicalEpisodeId: 'synthetic-episode-2' }),
+          movement('with-original-episode', {
+            originalData: { clinicalEpisodeId: 'synthetic-episode-3' },
+          }),
+          movement('deleted', { deletedAt: '2026-07-05T10:00:00Z' }),
+          movement('unnamed', { patientName: ' ' }),
+        ],
+        transfers: [movement('transfer')],
+      });
+    });
+    it('rejects a discharge that is absent, deleted, unnamed, has an episode or is not a discharge', async () => {
+      for (const id of [
+        'invented',
+        'with-episode',
+        'with-original-episode',
+        'deleted',
+        'unnamed',
+        'transfer',
+      ])
+        await expect(
+          create().archiveCudyrHistory.run({ ...discharge, dischargeId: id }, context)
+        ).rejects.toMatchObject({ code: 'failed-precondition' });
+      await expect(
+        create().archiveCudyrHistory.run({ ...discharge, date: '2026-07-02' }, context)
+      ).rejects.toMatchObject({ code: 'failed-precondition' });
+      await expect(
+        create().archiveCudyrHistory.run({ ...discharge, reason: 'cma' }, context)
+      ).rejects.toMatchObject({ code: 'invalid-argument' });
+      for (const role of ['viewer', 'doctor_specialist', 'doctor_urgency', 'editor'])
+        await expect(
+          create(role).archiveCudyrHistory.run(discharge, context)
+        ).rejects.toMatchObject({ code: 'permission-denied' });
+      expect(
+        (
+          await db
+            .collection(hospital + '/cudyrDailyExclusions')
+            .where('date', '==', day)
+            .get()
+        ).size
+      ).toBe(0);
+    });
+    it('saves an authored decision under its own stable key, for admin and nurse_hospital alike', async () => {
+      const before = (await db.doc(hospital + '/dailyRecords/' + day).get()).data();
+      const saved = await create('nurse_hospital').archiveCudyrHistory.run(discharge, context);
+      expect(saved.exclusion).toMatchObject({
+        id: sha([day, 'discharge', dischargeId]),
+        date: day,
+        clinicalEpisodeId: '',
+        dischargeId,
+        reason: 'under_eight_hours',
+        revision: 1,
+        updatedBy: { uid: 'reviewer', role: 'nurse_hospital' },
+      });
+      const withdrawn = await create('admin').archiveCudyrHistory.run(
+        {
+          ...discharge,
+          reason: null,
+          expectedRevision: 1,
+          operationId: '00000000-0000-4000-8000-000000000102',
+        },
+        context
+      );
+      expect(withdrawn.exclusion).toMatchObject({ id: saved.exclusion.id, revision: 2 });
+      const read = await create().readCudyrHistory.run(
+        { kind: 'daily-exclusions', month: '2026-07' },
+        context
+      );
+      expect(read.exclusions.find((e: { date: string }) => e.date === day)).toMatchObject({
+        dischargeId,
+        month: '2026-07',
+        revision: 2,
+      });
+      // The episode decision keeps its original key.
+      expect(read.exclusions.find((e: { date: string }) => e.date === '2026-07-02').id).toBe(
+        sha(['2026-07-02', request.clinicalEpisodeId])
+      );
+      expect(
+        (
+          await db
+            .collection(hospital + '/cudyrDailyExclusions/' + saved.exclusion.id + '/revisions')
+            .get()
+        ).size
+      ).toBe(2);
+      expect((await db.doc(hospital + '/dailyRecords/' + day).get()).data()).toEqual(before);
+    });
   });
 });
