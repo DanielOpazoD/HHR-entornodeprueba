@@ -128,6 +128,76 @@ describe('storage/sync pre-outbox guarantees', () => {
     await expect(hospitalDB.syncQueue.toArray()).resolves.toHaveLength(0);
   });
 
+  it('keeps a confirmed direct patch in its compacted task with the sent values as their base', async () => {
+    const date = '2025-01-17';
+    const queue = (marker: string, changedPaths: string[], mutationId: string) =>
+      queueSyncTask('UPDATE_DAILY_RECORD', makeRecord(date, marker), {
+        contexts: ['handoff'],
+        origin: 'direct_queue',
+        syncContract: { expectedVersion: '2025-01-17T09:55:00.000Z', changedPaths, mutationId },
+      });
+    await queue('2025-01-17T10:00:00.000Z', ['handoffNovedadesNightShift'], 'mutation-offline');
+    await queue('2025-01-17T10:05:00.000Z', ['handoffNovedadesDayShift'], 'mutation-direct');
+    const [compacted] = await hospitalDB.syncQueue.toArray();
+    await hospitalDB.syncQueue.update(compacted.id!, {
+      patchBaseValues: {
+        handoffNovedadesNightShift: 'NOCHE BASE',
+        handoffNovedadesDayShift: 'DIA BASE',
+      },
+    });
+
+    const sent = {
+      ...makeRecord(date, '2025-01-17T10:05:00.000Z'),
+      handoffNovedadesDayShift: 'B2',
+      handoffNovedadesNightShift: 'B1',
+    };
+    const acknowledged = await ackDailyRecordSyncTask(sent, {
+      changedPaths: ['handoffNovedadesDayShift', 'medicalHandoffNovedades'],
+      mutationId: 'mutation-direct',
+    });
+
+    // The other mutation is still unsent: the task stays, and its field keeps its own base.
+    expect(acknowledged).toBe(false);
+    const [task] = await hospitalDB.syncQueue.toArray();
+    expect(task.patchBaseValues).toEqual({
+      handoffNovedadesNightShift: 'NOCHE BASE',
+      handoffNovedadesDayShift: 'B2',
+    });
+    expect(task.preOutboxHoldState).toBeUndefined();
+  });
+
+  it('rebases a confirmed patch that another tab’s confirmed command folded into a newer task identity', async () => {
+    const date = '2025-01-17';
+    await queueSyncTask('UPDATE_DAILY_RECORD', makeRecord(date, '2025-01-17T10:00:00.000Z'), {
+      contexts: ['handoff'],
+      origin: 'direct_queue',
+      syncContract: {
+        expectedVersion: '2025-01-17T09:55:00.000Z',
+        changedPaths: ['handoffNovedadesDayShift'],
+        mutationId: 'mutation-rebuilt',
+      },
+    });
+    const [task] = await hospitalDB.syncQueue.toArray();
+    await hospitalDB.syncQueue.update(task.id!, {
+      patchBaseValues: { handoffNovedadesDayShift: 'DIA BASE' },
+      preOutboxHoldState: 'AWAITING_REMOTE_ACK',
+      syncContract: {
+        ...task.syncContract,
+        mutationIds: ['mutation-bed', 'mutation-direct', 'mutation-rebuilt'],
+      },
+    });
+
+    await ackDailyRecordSyncTask(
+      { ...makeRecord(date, '2025-01-17T10:05:00.000Z'), handoffNovedadesDayShift: 'B2' },
+      { changedPaths: ['handoffNovedadesDayShift'], mutationId: 'mutation-direct' }
+    );
+
+    // Its field takes the confirmed text as base; the hold stays with the task's newest write.
+    const [rebased] = await hospitalDB.syncQueue.toArray();
+    expect(rebased.patchBaseValues).toEqual({ handoffNovedadesDayShift: 'B2' });
+    expect(rebased.preOutboxHoldState).toBe('AWAITING_REMOTE_ACK');
+  });
+
   it('holds pre-outbox tasks so another worker cannot process them immediately', async () => {
     const record = makeRecord('2025-01-18', '2025-01-18T10:00:00.000Z');
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });

@@ -283,18 +283,43 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
       },
       task => !task.syncContract?.mutationIds?.some(id => id !== mutationId)
     ),
-  releasePreOutboxHoldByKey: (type, key, ownerKey, mutationId) =>
-    withPendingTask(type, key, ownerKey, mutationId, async task => {
-      await hospitalDB.syncQueue.update(task.id, {
-        nextAttemptAt: 0,
-        preOutboxHoldState: undefined,
-        preOutboxHoldOwner: undefined,
-        preOutboxHoldUntil: undefined,
-        preOutboxHoldReason: undefined,
-        preOutboxHoldHeartbeatAt: undefined,
-      });
-      return true;
-    }),
+  // A confirmed write can also be one of the mutations compacted into the task, which another
+  // tab's confirmed command may since have rebuilt with a new identity: its fields still take the
+  // values the server now holds as their base (SAVE-02), and the hold stays with the newest one.
+  releasePreOutboxHoldByKey: (type, key, ownerKey, mutationId, confirmedValues = {}) =>
+    withPendingTask(
+      type,
+      key,
+      ownerKey,
+      undefined,
+      async task => {
+        const base = task.patchBaseValues ?? {};
+        const confirmed = Object.entries(confirmedValues).filter(([path]) =>
+          Object.hasOwn(base, path)
+        );
+        const releasesHold = matchesMutation(task, mutationId);
+        if (!releasesHold && !confirmed.length) return false;
+        await hospitalDB.syncQueue.update(task.id, {
+          ...(releasesHold
+            ? {
+                nextAttemptAt: 0,
+                preOutboxHoldState: undefined,
+                preOutboxHoldOwner: undefined,
+                preOutboxHoldUntil: undefined,
+                preOutboxHoldReason: undefined,
+                preOutboxHoldHeartbeatAt: undefined,
+              }
+            : {}),
+          ...(confirmed.length
+            ? { patchBaseValues: { ...base, ...Object.fromEntries(confirmed) } }
+            : {}),
+        });
+        return releasesHold;
+      },
+      task =>
+        matchesMutation(task, mutationId) ||
+        Boolean(mutationId && task.syncContract?.mutationIds?.includes(mutationId))
+    ),
   renewPreOutboxHoldByKey: (type, key, ownerKey, mutationId, holdOwner, now, holdForMs) =>
     withPendingTask(
       type,

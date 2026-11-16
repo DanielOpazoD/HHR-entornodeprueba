@@ -5,6 +5,7 @@ import { recordSyncQueueAckFailure } from '@/services/storage/sync/syncQueueAckT
 import { getSyncTaskKey } from '@/services/storage/sync/syncQueueTaskFactory';
 import type { PendingDailyRecordSyncTaskIdentity } from '@/services/storage/sync/pendingDailyRecordSyncTask';
 import type { DailyRecordAuthorityAdoptionResult } from '@/services/storage/sync/syncQueuePorts';
+import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
 
 interface DailyRecordSyncQueueActionDependencies {
   ensureReady: () => Promise<void>;
@@ -42,12 +43,17 @@ export const createDailyRecordSyncQueueActions = ({
     }
   };
 
-  const releasePreOutboxHold = async (key: string, mutationId?: string): Promise<boolean> => {
+  const releasePreOutboxHold = async (
+    key: string,
+    mutationId?: string,
+    confirmedValues?: Record<string, unknown>
+  ): Promise<boolean> => {
     const released = await store.releasePreOutboxHoldByKey(
       'UPDATE_DAILY_RECORD',
       key,
       getOwnerKey(),
-      mutationId
+      mutationId,
+      confirmedValues
     );
     if (released) triggerProcessing();
     return released;
@@ -66,8 +72,16 @@ export const createDailyRecordSyncQueueActions = ({
           getOwnerKey(),
           syncContract?.mutationId
         );
-        // A direct patch cannot acknowledge the other mutations in a compacted task.
-        if (!acknowledged) await releasePreOutboxHold(key, syncContract?.mutationId);
+        // A direct patch cannot acknowledge the other mutations in a compacted task; its own
+        // fields stay there with the values the server now holds as their base.
+        if (!acknowledged)
+          await releasePreOutboxHold(
+            key,
+            syncContract?.mutationId,
+            Object.fromEntries(
+              (syncContract?.changedPaths ?? []).map(path => [path, getValueAtPath(record, path)])
+            )
+          );
         return acknowledged;
       },
       error => {
