@@ -1,4 +1,8 @@
-import { authoredOptions, type PublicWriteOptions } from '@/services/storage/authoringSession';
+import {
+  authoredOptions,
+  isAuthoringSessionCurrent,
+  type PublicWriteOptions,
+} from '@/services/storage/authoringSession';
 import { isClinicalEventsOnlyDailyRecordPatch } from '@/services/repositories/dailyRecordClinicalDomainService';
 import { mutationOptions, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -88,6 +92,13 @@ const resolveInput = (
   }
   return { partial: input as DailyRecordPatch };
 };
+
+/**
+ * Logout clears the census cache. An edit whose session has ended since it began must not write
+ * into the cache of whoever comes next; its durable copy and queue task stay with its author.
+ */
+const isAuthorSessionCurrent = (input: PatchMutationInput) =>
+  isAuthoringSessionCurrent(input.options.authoringSession);
 
 const mutationTails = new Map<string, Promise<void>>();
 const captureInput = (input: DailyRecordPatchMutationVariables): PatchMutationInput => {
@@ -300,6 +311,15 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
               : freshRecord)
         );
 
+        if (!isAuthorSessionCurrent(input)) {
+          return {
+            previousRecord: undefined,
+            optimisticRecord: undefined,
+            unregisterPendingPatch: () => {},
+            optimisticApplied: false,
+            releaseMutationTurn,
+          };
+        }
         await queryClient.cancelQueries({ queryKey: queryKeys.dailyRecord.byDate(date) });
         const isRemoteAuthorityFirst =
           options?.requireRemoteAuthorityFirst === true ||
@@ -333,6 +353,8 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
     },
     onError: (error, input, context) => {
       const { date = currentDate } = input;
+      forgetDailyRecordPatchBaseRecord(patchBaseRecords, input.partial);
+      if (!isAuthorSessionCurrent(input)) return;
       if (error instanceof AuthoritativeDailyRecordConflictError) {
         const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
           getDailyRecordQueryKey(date)
@@ -354,10 +376,10 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
           setDailyRecordQueryData(queryClient, date, context.previousRecord);
         }
       }
-      forgetDailyRecordPatchBaseRecord(patchBaseRecords, input.partial);
     },
     onSuccess: async (payload, input, context) => {
       const { date = currentDate } = input;
+      if (!isAuthorSessionCurrent(input)) return;
       if (isDailyRecordWriteRejectedResult(payload.result)) {
         if (context?.optimisticApplied) {
           const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
