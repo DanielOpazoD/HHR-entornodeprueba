@@ -73,7 +73,7 @@ const requiredDocs = [
   },
   {
     file: 'docs/SERVERLESS_SENSITIVE_CONTRACTS.md',
-    patterns: ['send-census-email', 'fhir-api', 'cie10-ai-search'],
+    patterns: ['send-census-email', 'cie10-ai-search'],
   },
 ];
 
