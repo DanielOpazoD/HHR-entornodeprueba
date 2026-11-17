@@ -65,6 +65,28 @@ describe('check-import-cycles', () => {
     expect(status).toBe(0);
   });
 
+  it('covers Functions and Netlify code, where a require() inside a function still closes a cycle', () => {
+    const functionsCycle = runGuard({
+      'functions/lib/store.js':
+        "const { matches } = require('./restore');\nmodule.exports = { read: () => matches() };\n",
+      'functions/lib/restore.js':
+        "const matches = () => true;\nconst attest = () => require('./store').read();\nmodule.exports = { matches, attest };\n",
+    });
+    const netlifyCycle = runGuard({
+      'netlify/functions/a.ts': "import { b } from './lib/b';\nexport const a = b;\n",
+      'netlify/functions/lib/b.ts': "import { a } from '../a';\nexport const b = () => a;\n",
+    });
+
+    expect(functionsCycle.status).toBe(1);
+    expect(functionsCycle.output).toContain(
+      '[2 files] functions/lib/restore.js ↔ functions/lib/store.js'
+    );
+    expect(netlifyCycle.status).toBe(1);
+    expect(netlifyCycle.output).toContain(
+      '[2 files] netlify/functions/a.ts ↔ netlify/functions/lib/b.ts'
+    );
+  });
+
   it('reports a module that imports itself', () => {
     const { status, output } = runGuard({
       'src/self/index.ts': "import { x } from '.';\nexport const x = 1;\nexport const y = x;\n",
