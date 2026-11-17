@@ -13,10 +13,6 @@ const writeTempInput = (content: string) => {
   workspaces.push(workspace);
   const reportDirectory = path.join(workspace, 'reports');
   fs.mkdirSync(reportDirectory);
-  fs.copyFileSync(
-    path.resolve('reports/unit-shard-runtime-profile.json'),
-    path.join(reportDirectory, 'unit-shard-runtime-profile.json')
-  );
   fs.mkdirSync(path.join(workspace, 'scripts/config'), { recursive: true });
   fs.mkdirSync(path.join(workspace, 'src/tests'), { recursive: true });
   fs.writeFileSync(

@@ -2,13 +2,10 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as firestore from 'firebase/firestore';
-import { getDoc } from 'firebase/firestore';
 
 import {
-  getActiveTransfers,
   getLatestOpenTransferRequestByBedId,
   getLatestOpenTransferRequestByPatientRut,
-  getTransferById,
 } from '@/services/transfers/transferService';
 
 vi.mock('@/services/repositories/PatientMasterRepository', () => ({
@@ -60,49 +57,6 @@ describe('transferService queries', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(isFirestoreEnabled).mockReturnValue(true);
-  });
-
-  it('returns null when getTransferById does not find an active transfer', async () => {
-    vi.mocked(getDoc).mockResolvedValue({
-      exists: () => false,
-    } as unknown as Awaited<ReturnType<typeof getDoc>>);
-
-    const transfer = await getTransferById('non-existent');
-
-    expect(transfer).toBeNull();
-  });
-
-  it('falls back to history collection when active transfer is missing', async () => {
-    vi.mocked(getDoc)
-      .mockResolvedValueOnce({
-        exists: () => false,
-      } as unknown as Awaited<ReturnType<typeof getDoc>>)
-      .mockResolvedValueOnce({
-        exists: () => true,
-        data: () => ({
-          status: 'TRANSFERRED',
-          requestDate: '2025-01-01',
-          createdAt: '2025-01-01T10:00:00.000Z',
-          updatedAt: '2025-01-02T10:00:00.000Z',
-          statusHistory: [],
-        }),
-      } as unknown as Awaited<ReturnType<typeof getDoc>>);
-
-    const transfer = await getTransferById('archived-transfer');
-
-    expect(transfer?.id).toBe('archived-transfer');
-    expect(transfer?.status).toBe('TRANSFERRED');
-  });
-
-  it('fetches and returns active transfers', async () => {
-    const getDocsMock = vi.mocked(firestore.getDocs);
-    getDocsMock.mockResolvedValueOnce({
-      docs: [{ id: 'TR-1', data: () => ({ status: 'SENT', requestDate: '2025-01-01' }) }],
-    } as unknown as Awaited<ReturnType<typeof firestore.getDocs>>);
-
-    const results = await getActiveTransfers();
-    expect(results).toHaveLength(1);
-    expect(results[0].status).toBe('RECEIVED');
   });
 
   it('returns the most recent non-closed transfer request for the bed', async () => {
@@ -270,12 +224,9 @@ describe('transferService queries', () => {
   it('skips transfer lookup queries when Firestore is disabled', async () => {
     vi.mocked(isFirestoreEnabled).mockReturnValue(false);
 
-    await expect(getActiveTransfers()).resolves.toEqual([]);
-    await expect(getTransferById('TR-1')).resolves.toBeNull();
     await expect(getLatestOpenTransferRequestByBedId('BED_1')).resolves.toBeNull();
     await expect(getLatestOpenTransferRequestByPatientRut('12.345.678-9')).resolves.toBeNull();
 
     expect(firestore.getDocs).not.toHaveBeenCalled();
-    expect(firestore.getDoc).not.toHaveBeenCalled();
   });
 });

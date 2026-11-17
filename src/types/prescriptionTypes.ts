@@ -56,10 +56,6 @@ export const PRESCRIPTION_RETENTION_DAYS_BY_TYPE: Record<PrescriptionType, numbe
   benzodiazepinas: PRESCRIPTION_RETENTION_DAYS,
 };
 
-/** Resolves the monthly backup review window (in days) for a given prescription type. */
-export const resolvePrescriptionRetentionDays = (type: PrescriptionType): number =>
-  PRESCRIPTION_RETENTION_DAYS_BY_TYPE[type] ?? PRESCRIPTION_RETENTION_DAYS;
-
 export interface PrescriptionUploaderRef {
   /** Firebase auth uid when the upload comes from a logged-in clinician. */
   uid?: string;

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';

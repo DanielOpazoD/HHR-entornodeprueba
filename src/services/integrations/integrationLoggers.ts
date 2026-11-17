@@ -1,6 +1,5 @@
 import { createScopedLogger } from '@/services/utils/loggerScope';
 
-export const censusEmailAuditLogger = createScopedLogger('CensusEmailAudit');
 export const censusEmailSendPolicyLogger = createScopedLogger('CensusEmailSendPolicy');
 export const whatsappConfigLogger = createScopedLogger('WhatsAppConfigStore');
 export const whatsappLoggingLogger = createScopedLogger('WhatsAppLogging');

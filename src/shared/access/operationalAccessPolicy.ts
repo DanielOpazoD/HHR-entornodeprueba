@@ -198,9 +198,6 @@ export const canDeleteTodayDailyRecord = (role: SupportedRole): boolean =>
 
 export const isAdminAppRole = (role: SupportedRole): boolean => isAdmin(role);
 
-export const canManageAllMedicalSpecialties = (role: SupportedRole): boolean =>
-  canEditAppModule(role, 'MEDICAL_HANDOFF');
-
 export const canAccessAuditViewForRole = (role: SupportedRole): boolean =>
   getVisibleAppModules(role).includes('AUDIT') && canDoAction(role, ACTIONS.AUDIT_READ);
 

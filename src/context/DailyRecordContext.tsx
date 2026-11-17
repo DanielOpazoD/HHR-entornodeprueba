@@ -1,5 +1,3 @@
-import type { PatientData } from '@/types/domain/patient';
-
 /**
  * DailyRecordContext
  *
@@ -19,7 +17,6 @@ import { useRequiredContextValue } from './contextHookSupport';
 import {
   DailyRecordBedsContext,
   DailyRecordDataContext,
-  DailyRecordInventoryContext,
   DailyRecordMovementsContext,
   DailyRecordOverridesContext,
   DailyRecordStaffContext,
@@ -40,7 +37,6 @@ export const DailyRecordProvider: React.FC<{
     bedsValue,
     movementsValue,
     stabilityValue,
-    inventoryValue,
     staffValue,
     overridesValue,
     dataValue,
@@ -52,7 +48,6 @@ export const DailyRecordProvider: React.FC<{
       actionsValue={actionsValue}
       syncValue={syncValue}
       stabilityValue={stabilityValue}
-      inventoryValue={inventoryValue}
       staffValue={staffValue}
       movementsValue={movementsValue}
       bedsValue={bedsValue}
@@ -117,13 +112,6 @@ export const useDailyRecordStability = () => {
 };
 
 /**
- * Access inventory stats.
- */
-export const useDailyRecordInventory = () => {
-  return useRequiredContextValue(DailyRecordInventoryContext, 'useDailyRecordInventory');
-};
-
-/**
  * Access staff data.
  */
 export const useDailyRecordStaff = () => {
@@ -143,23 +131,6 @@ export const useDailyRecordOverrides = () => {
  */
 export const useDailyRecordActions = () => {
   return useRequiredDailyRecordActionsContext('useDailyRecordActions');
-};
-
-/**
- * Legacy hook for compatibility.
- * Combines both (triggers re-renders on every data change).
- * @deprecated Prefer fragmented hooks: useDailyRecordData/useDailyRecordActions/useDailyRecordBeds...
- */
-export const useDailyRecordContext = (): DailyRecordContextType => {
-  const data = useDailyRecordData();
-  const actions = useDailyRecordActions();
-  return { ...data, ...actions };
-};
-
-// Hook for accessing specific bed data efficiently
-export const usePatientData = (bedId: string) => {
-  const beds = useDailyRecordBeds();
-  return beds ? (beds as Record<string, PatientData>)[bedId] : undefined;
 };
 
 export {

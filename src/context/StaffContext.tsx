@@ -183,8 +183,6 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
   return <StaffContext.Provider value={value}>{children}</StaffContext.Provider>;
 };
 
-export const StaffContextProvider = StaffContext.Provider;
-
 // ============================================================================
 // Hook
 // ============================================================================

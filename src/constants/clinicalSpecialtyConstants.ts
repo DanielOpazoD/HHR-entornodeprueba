@@ -6,17 +6,6 @@ export const isSpecialtyOption = (value: unknown): value is (typeof SPECIALTY_OP
 
 export const STATUS_OPTIONS = Object.values(PatientStatus).filter(s => s !== '');
 
-export const SPECIALTY_ABBREVIATIONS: Record<string, string> = {
-  [Specialty.MEDICINA]: 'MI',
-  [Specialty.CIRUGIA]: 'Cir',
-  [Specialty.TRAUMATOLOGIA]: 'TMT',
-  [Specialty.GINECOBSTETRICIA]: 'Gyn',
-  [Specialty.PSIQUIATRIA]: 'PSQ',
-  [Specialty.PEDIATRIA]: 'Ped',
-  [Specialty.ODONTOLOGIA]: 'Odo',
-  [Specialty.OTRO]: 'Otro',
-};
-
 /**
  * Chip color per specialty. All real specialties share ONE soft celeste (they are all "a specialty");
  * only the unspecified one ("Otro" / No especificado) stands out in a muted amber so it reads as

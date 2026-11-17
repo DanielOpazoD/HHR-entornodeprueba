@@ -111,7 +111,8 @@ export const completeClaimedSyncTask = (
   taskId: number,
   claim: SyncQueueLeaseClaim,
   authoritativeRecord?: DailyRecord,
-  detachedConflicts: SyncTask[] = []
+  detachedConflicts: SyncTask[] = [],
+  heldTask?: Partial<SyncTask>
 ): Promise<{ deleted: boolean; adopted: boolean }> =>
   db.transaction('rw', db.syncQueue, db.dailyRecords, async () => {
     const task = await db.syncQueue.get(taskId);
@@ -142,7 +143,8 @@ export const completeClaimedSyncTask = (
           local.lastUpdated !== authoritativeRecord.lastUpdated
         )
           throw new SyncQueueAckError('sync_ack_projection_conflict', 'ACK version conflict.');
-        await db.dailyRecords.put(authoritativeRecord);
+        // A part of the task still held keeps its unsent values on the day this computer shows.
+        await db.dailyRecords.put((heldTask?.payload as DailyRecord) ?? authoritativeRecord);
         adopted = true;
       }
     }
@@ -164,6 +166,9 @@ export const completeClaimedSyncTask = (
         lastErrorAction: 'review_owned_pending_changes',
         error: 'Sesión cerrada. Revisa los cambios pendientes con su usuario original.',
       });
+    } else if (heldTask) {
+      // The rest of it is published; the task stays in its place with the part held for review.
+      await db.syncQueue.update(taskId, heldTask);
     } else await db.syncQueue.delete(taskId);
     return { deleted: true, adopted };
   });

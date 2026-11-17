@@ -14,14 +14,9 @@ const readJson = relativePath =>
   JSON.parse(readFileSync(new URL(relativePath, import.meta.url), 'utf8'));
 const FEATURE_ROOT = path.dirname(fileURLToPath(import.meta.url));
 const FEATURE_MATRIX = readJson('./scripts/feature-dependency-matrix.json');
-const FEATURE_PUBLIC_MODULES =
-  readJson('./scripts/feature-public-api-allowlist.json').publicModulesByFeature ?? {};
-const FEATURE_IMPORT_DEBT = new Set(
-  readJson('./scripts/feature-dependency-allowlist.json').violations ?? []
-);
 const featurePublicPaths = feature => [
   ...FEATURE_MATRIX.publicImportPatterns.map(pattern => pattern.replace('{feature}', feature)),
-  ...(FEATURE_PUBLIC_MODULES[feature] ?? []),
+  ...(FEATURE_MATRIX.publicModulesByFeature[feature] ?? []),
 ];
 const featureOf = importer => importer.match(/^src\/features\/([^/]+)\//)?.[1];
 const FEATURE_BOUNDARY_RULE = {
@@ -69,10 +64,7 @@ const FEATURE_BOUNDARY_RULE = {
       const to = target.slice('@/features/'.length).split('/')[0];
       if (to === from) return;
       const allowed = FEATURE_MATRIX.features[from]?.includes(to);
-      const rule = allowed ? 'feature-must-use-public-api' : 'feature-dependency-not-allowed';
       if (allowed && featurePublicPaths(to).includes(target)) return;
-      // Exceptions retain their exact importer and spelling; relative variants gain no exception.
-      if (FEATURE_IMPORT_DEBT.has(`${rule}|${importer}|${raw}|${to}`)) return;
       context.report({
         node: source,
         messageId: allowed ? 'public' : 'dependency',

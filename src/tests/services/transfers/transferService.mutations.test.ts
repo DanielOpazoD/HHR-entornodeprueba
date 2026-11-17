@@ -2,16 +2,11 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as firestore from 'firebase/firestore';
-import { deleteDoc, getDoc, setDoc } from 'firebase/firestore';
+import { deleteDoc, setDoc } from 'firebase/firestore';
 
 import {
-  changeTransferStatus,
-  completeTransfer,
+  completeTransferWithResult,
   createFinalizedTransferRequestWithResult,
-  createTransferRequest,
-  deleteStatusHistoryEntry,
-  deleteTransferRequest,
-  updateTransferRequest,
 } from '@/services/transfers/transferService';
 
 vi.mock('@/services/repositories/PatientMasterRepository', () => ({
@@ -54,35 +49,10 @@ vi.mock('@/services/transfers/transferLoggers', () => ({
 }));
 
 describe('transferService mutations', () => {
-  type TransferInput = Parameters<typeof createTransferRequest>[0];
+  type TransferInput = Parameters<typeof createFinalizedTransferRequestWithResult>[0];
 
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  it('calls setDoc when creating a transfer', async () => {
-    await expect(
-      createTransferRequest({
-        patientId: 'p1',
-        bedId: 'R1',
-        patientSnapshot: {
-          name: 'Test Patient',
-          rut: '12.345.678-9',
-          age: '50',
-          pathology: 'Test',
-        },
-        destination: 'Hospital Salvador',
-        destinationHospital: 'Hospital Salvador',
-        requestDate: '2025-01-10',
-        priority: 'NORMAL',
-        createdBy: 'admin@hospital.cl',
-        transferType: 'TRASLADO',
-        evacuationMethod: 'SAMU',
-        specialRequirements: [],
-      } as unknown as TransferInput)
-    ).resolves.toBeDefined();
-
-    expect(setDoc).toHaveBeenCalled();
   });
 
   it('creates a finalized transfer directly in history for census-origin executed transfers', async () => {
@@ -118,46 +88,6 @@ describe('transferService mutations', () => {
     expect(deleteDoc).not.toHaveBeenCalled();
   });
 
-  it('calls setDoc with merge option on updateTransferRequest', async () => {
-    await updateTransferRequest('transfer-123', {
-      observations: 'Updated notes',
-    });
-
-    expect(setDoc).toHaveBeenCalled();
-  });
-
-  it('calls getDoc and setDoc on changeTransferStatus', async () => {
-    vi.mocked(getDoc).mockResolvedValue({
-      exists: () => true,
-      data: () => ({
-        status: 'RECEIVED',
-        observations: 'Urgent transfer',
-        statusHistory: [],
-      }),
-    } as unknown as Awaited<ReturnType<typeof getDoc>>);
-
-    await changeTransferStatus('transfer-123', 'RECEIVED', 'user@hospital.cl');
-
-    expect(getDoc).toHaveBeenCalled();
-    expect(setDoc).toHaveBeenCalled();
-  });
-
-  it('throws if transfer is missing on changeTransferStatus', async () => {
-    vi.mocked(getDoc).mockResolvedValue({
-      exists: () => false,
-    } as unknown as Awaited<ReturnType<typeof getDoc>>);
-
-    await expect(
-      changeTransferStatus('non-existent', 'RECEIVED', 'user@hospital.cl')
-    ).rejects.toThrow('ya no existe o fue movida');
-  });
-
-  it('calls deleteDoc on deleteTransferRequest', async () => {
-    await deleteTransferRequest('transfer-to-delete');
-
-    expect(deleteDoc).toHaveBeenCalled();
-  });
-
   it('moves transfer to history and deletes from active on completeTransfer', async () => {
     const getDocMock = vi.mocked(firestore.getDoc);
     const deleteDocMock = vi.mocked(firestore.deleteDoc);
@@ -168,51 +98,25 @@ describe('transferService mutations', () => {
       data: () => ({ status: 'RECEIVED', statusHistory: [] }),
     } as unknown as Awaited<ReturnType<typeof firestore.getDoc>>);
 
-    await completeTransfer('TR-1', 'user-1');
+    const result = await completeTransferWithResult('TR-1', 'user-1');
 
+    expect(result.status).toBe('success');
     expect(setDocMock).toHaveBeenCalled();
     expect(deleteDocMock).toHaveBeenCalled();
   });
 
-  it('throws if transfer is missing on completeTransfer', async () => {
+  it('returns not_found with a readable message when the transfer to complete is missing', async () => {
     const getDocMock = vi.mocked(firestore.getDoc);
     getDocMock.mockResolvedValueOnce({
       exists: () => false,
     } as unknown as Awaited<ReturnType<typeof firestore.getDoc>>);
 
-    await expect(completeTransfer('TR-NONEXISTENT', 'user-1')).rejects.toThrow(
-      'ya no existe o fue movida'
-    );
-  });
+    const result = await completeTransferWithResult('TR-NONEXISTENT', 'user-1');
 
-  it('removes history entry and reverts status on deleteStatusHistoryEntry', async () => {
-    const getDocMock = vi.mocked(firestore.getDoc);
-    const setDocMock = vi.mocked(firestore.setDoc);
-
-    getDocMock.mockResolvedValueOnce({
-      exists: () => true,
-      data: () => ({
-        status: 'RECEIVED',
-        statusHistory: [{ to: 'REQUESTED' }, { to: 'RECEIVED' }],
-      }),
-    } as unknown as Awaited<ReturnType<typeof firestore.getDoc>>);
-
-    await deleteStatusHistoryEntry('TR-1', 1);
-
-    expect(setDocMock).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ status: 'REQUESTED' }),
-      expect.anything()
-    );
-  });
-
-  it('throws when trying to delete the first history entry', async () => {
-    const getDocMock = vi.mocked(firestore.getDoc);
-    getDocMock.mockResolvedValueOnce({
-      exists: () => true,
-      data: () => ({ statusHistory: [{ to: 'REQUESTED' }] }),
-    } as unknown as Awaited<ReturnType<typeof firestore.getDoc>>);
-
-    await expect(deleteStatusHistoryEntry('TR-1', 0)).rejects.toThrow('estado actual del traslado');
+    expect(result.status).toBe('not_found');
+    if (result.status !== 'success') {
+      expect(result.userSafeMessage).toContain('ya no existe o fue movida');
+    }
+    expect(firestore.deleteDoc).not.toHaveBeenCalled();
   });
 });

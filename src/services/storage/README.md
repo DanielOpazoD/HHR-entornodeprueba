@@ -97,8 +97,9 @@ Cambios en esta capa requieren:
 - `storage/firestore/firestoreDatabaseProvider.ts` es el entrypoint canónico para servicios
   repository-style que necesitan el provider Firestore-backed; nuevos consumers no deben entrar
   por `services/infrastructure/db` para obtener el singleton concreto.
-- `npm run check:firestore-runtime-boundary` protege `clinical-documents`, `storage` y `transfers`
-  para que nuevos servicios entren por ese adaptador y no por singletons globales.
+- La regla `firestore-runtime` del control de patrones de `src/` (en `check:quality`) rechaza importar
+  `firebase-runtime/firestoreRuntime` fuera de `firestoreServiceRuntime.ts` y
+  `repositoryFirestoreRuntime.ts`, para que los servicios nuevos entren por esos adaptadores.
 - `storage/sync` es el único punto de acceso soportado para telemetría, stats
   y operaciones recientes; la UI no debe leer Dexie directo para esta información.
 - `sync/publicSyncQueue.ts` es la implementación canónica del outbox.

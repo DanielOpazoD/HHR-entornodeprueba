@@ -1,5 +1,5 @@
 import { callCudyrArchive, supplementMonths } from './cudyrSupplementService';
-import type { CudyrVerifiedContext, CudyrVerifiedContextEntry } from './cudyrVerifiedContext';
+import type { CudyrVerifiedContext } from './cudyrVerifiedContext';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 export const loadCudyrVerifiedContexts = async (from: string, to: string, signal: AbortSignal) => {
@@ -18,23 +18,6 @@ export const loadCudyrVerifiedContexts = async (from: string, to: string, signal
   }
   return result;
 };
-export const saveCudyrVerifiedContext = (request: {
-  month: string;
-  action: 'replace' | 'withdraw';
-  reason: string;
-  expectedRevision: number;
-  operationId: string;
-  entries: CudyrVerifiedContextEntry[];
-  reconstructedDays?: CudyrVerifiedContext['reconstructedDays'];
-  files: Array<{ name: string; base64: string }>;
-}) =>
-  callCudyrArchive<{ persisted: boolean; revision: number }>('archiveCudyrHistory', {
-    ...request,
-    kind: 'save-verified-context',
-    schemaVersion: 1,
-    confirmed: true,
-  });
-
 /** Explicit approval by the responsible reviewer; no CUDYR score or original census is written. */
 export const approveCudyrReconstructedCensus = (request: {
   month: string;
