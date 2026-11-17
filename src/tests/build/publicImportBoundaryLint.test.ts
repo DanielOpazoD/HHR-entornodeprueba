@@ -161,15 +161,11 @@ describe('public imports in ESLint', () => {
       expect(await errors('src/views/Probe.ts', forms[0](target))).toHaveLength(1);
     }
   });
-  it('retains the exact census shim exception', async () => {
+  it('keeps no census shim or overlay exception', async () => {
     const target = '@/features/census/controllers/bedManagerModalController';
     const file = 'src/hooks/controllers/bedManagerModalController.ts';
-    expect(await errors(file, `export * from '${target}';`)).toEqual([]);
-    expect(await errors(file, `export * from '${target}';\nexport const extra = 1;`)).toHaveLength(
-      1
-    );
+    expect(await errors(file, `export * from '${target}';`)).toHaveLength(1);
     expect(await errors(file, `import('${target}');`)).toHaveLength(1);
-    // The former overlay exception is gone: every import form is rejected.
     for (const code of forms)
       expect(
         await errors(

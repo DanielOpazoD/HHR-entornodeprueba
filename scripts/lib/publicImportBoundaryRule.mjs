@@ -30,12 +30,6 @@ export const GOVERNED_APPLICATION_PUBLIC_IMPORTS = new Set([
   '@/features/census/types/censusAccessProfile',
 ]);
 
-const isShim = (importer, target, source) =>
-  importer.startsWith('src/hooks/controllers/') &&
-  target.startsWith('@/features/census/controllers/') &&
-  source.trim() ===
-    `export * from '@/features/census/controllers/${path.basename(importer, path.extname(importer))}';`;
-
 // Resolve only existing files, in the same order as the former source checks.
 const resolve = (importer, raw) => {
   if (!raw.startsWith('@/') && !raw.startsWith('.')) return null;
@@ -64,14 +58,12 @@ export const publicImportBoundaryRule = {
   create(context) {
     const importer = path.relative(ROOT, context.filename).split(path.sep).join('/');
     if (['.test.', '.spec.', '.stories.'].some(marker => importer.includes(marker))) return {};
-    const source = context.sourceCode.text;
     const genericScope = !importer.includes('/tests/');
     const sharedScope = sharedLayers.has(importer.split('/')[1]);
-    const check = (node, dynamic = false) => {
+    const check = node => {
       if (typeof node?.value !== 'string') return;
       const target = node.value;
-      const shim = isShim(importer, target, source);
-      if (sharedScope && target.startsWith('@/features/') && (dynamic || !shim)) {
+      if (sharedScope && target.startsWith('@/features/')) {
         context.report({ node, messageId: 'shared', data: { target } });
         return;
       }
@@ -87,10 +79,8 @@ export const publicImportBoundaryRule = {
       ];
       if (publicPaths.includes(target)) return;
       if (
-        feature === 'census' &&
-        (shim ||
-          (importer === 'src/application/census/public.ts' &&
-            GOVERNED_APPLICATION_PUBLIC_IMPORTS.has(target)))
+        importer === 'src/application/census/public.ts' &&
+        GOVERNED_APPLICATION_PUBLIC_IMPORTS.has(target)
       )
         return;
       context.report({ node, messageId: 'public', data: { target, feature } });
@@ -99,7 +89,7 @@ export const publicImportBoundaryRule = {
       ImportDeclaration: node => check(node.source),
       ExportNamedDeclaration: node => check(node.source),
       ExportAllDeclaration: node => check(node.source),
-      ImportExpression: node => check(node.source, true),
+      ImportExpression: node => check(node.source),
     };
   },
 };

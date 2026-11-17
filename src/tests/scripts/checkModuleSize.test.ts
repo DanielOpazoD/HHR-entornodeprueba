@@ -13,11 +13,11 @@ const roots: string[] = [];
 const linesOf = (count: number) =>
   Array.from({ length: count }, (_, index) => `// ${index}`).join('\n');
 
-/** Runs the guard on a synthetic repository with both source roots, `files` and `allowlist`. */
+/** Runs the guard on a synthetic repository with every source root, `files` and `allowlist`. */
 const runGuard = (
   files: Record<string, string>,
   allowlist: Record<string, number> = {},
-  { withFunctions = true } = {}
+  { withNetlify = true } = {}
 ) => {
   const root = mkdtempSync(path.join(tmpdir(), 'hhr-module-size-'));
   roots.push(root);
@@ -29,7 +29,8 @@ const runGuard = (
   );
   const all: Record<string, string> = {
     'src/app.ts': linesOf(10),
-    ...(withFunctions ? { 'functions/lib/small.js': linesOf(10) } : {}),
+    'functions/lib/small.js': linesOf(10),
+    ...(withNetlify ? { 'netlify/functions/small.ts': linesOf(10) } : {}),
     'scripts/module-size-allowlist.json': JSON.stringify({ globalMax: 600, allowlist, backlog }),
     ...files,
   };
@@ -58,6 +59,19 @@ describe('check-module-size', () => {
     expect(output).not.toContain('big.test.js');
   });
 
+  it('fails a Netlify function over the cap, in TypeScript or JavaScript', () => {
+    const { status, output } = runGuard({
+      'netlify/functions/big.ts': linesOf(601),
+      'netlify/functions/lib/big.js': linesOf(601),
+      'netlify/functions/fits.ts': linesOf(600),
+    });
+
+    expect(status).toBe(1);
+    expect(output).toContain('[new overflow] netlify/functions/big.ts: 601 lines (limit 600)');
+    expect(output).toContain('[new overflow] netlify/functions/lib/big.js: 601 lines (limit 600)');
+    expect(output).not.toContain('fits.ts');
+  });
+
   it('passes a listed Functions module at its ceiling and fails it one line over', () => {
     expect(runGuard({ [LISTED]: linesOf(700) }, { [LISTED]: 700 }).status).toBe(0);
 
@@ -76,9 +90,9 @@ describe('check-module-size', () => {
   });
 
   it('treats a missing source root as unmeasured, not compliant', () => {
-    const { status, output } = runGuard({}, {}, { withFunctions: false });
+    const { status, output } = runGuard({}, {}, { withNetlify: false });
 
     expect(status).toBe(1);
-    expect(output).toContain('cannot measure missing source roots: functions/lib');
+    expect(output).toContain('cannot measure missing source roots: netlify/functions');
   });
 });
