@@ -100,8 +100,8 @@ const PRECONDITION_FAILED = 412;
 /**
  * One attempt per request, never a retry. The Blobs SDK retries thrown errors, 429 and 5xx with
  * 5 s sleeps, so a failure is handed back as an answer it does not retry: any failed PUT (thrown,
- * 4xx or 5xx) as 412, because the SDK reports every other conditional PUT status as modified; a
- * failed read as 499, which makes the SDK throw at once. The count may then be lost or, rarely after a PUT timeout that did land,
+ * 4xx or 5xx) as 412, which the SDK reports as modified:false; a failed read as 499, which makes
+ * the SDK throw at once. The count may then be lost or, rarely after a PUT timeout that did land,
  * repeated: these are operational counts, and the beacon is never held for them.
  */
 export const createCountBlobFetch =
