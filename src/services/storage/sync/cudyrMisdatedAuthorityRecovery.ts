@@ -1,4 +1,5 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { addCalendarDays, isCalendarDate } from '@/utils/clinicalDateUtils';
 import type { CudyrArchiveOutboxPayload } from '@/types/domain/cudyrHistory';
 import type { SyncQueueStorePort } from './syncQueuePorts';
 import { isPolicyBlockedCudyrArchive } from './cudyrPolicyBlockedRecovery';
@@ -45,13 +46,8 @@ export const createMisdatedCudyrAuthorityRecovery =
     const repairs = new Map<number, CudyrArchiveOutboxPayload>();
     for (const task of tasks) {
       const payload = task.payload as CudyrArchiveOutboxPayload;
-      const day = Date.parse(`${payload.request.authorityDate}T12:00:00Z`);
-      if (
-        !Number.isFinite(day) ||
-        new Date(day).toISOString().slice(0, 10) !== payload.request.authorityDate
-      )
-        continue;
-      const date = new Date(day - 86_400_000).toISOString().slice(0, 10);
+      if (!isCalendarDate(payload.request.authorityDate)) continue;
+      const date = addCalendarDays(payload.request.authorityDate, -1);
       if (!records.has(date)) records.set(date, await deps.readConfirmedCensus(date));
       if (!valid()) return 0;
       const record = records.get(date);

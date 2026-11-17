@@ -72,7 +72,7 @@ el release de Firestore ni el perfil completo de confianza.
 
 ### Conexión previa y diagnóstico de Eloísa
 
-Owner: sincronización clínica. Verificar `check:rayen-extension-release`, los smokes
+Owner: sincronización clínica. Verificar `node scripts/check-rayen-extension-release.mjs`, los smokes
 `test:e2e:rayen-extension-runtime` y `test:e2e:rayen-extension-upgrade`, y las regresiones
 de salud, inicio bloqueado y diagnóstico entre capturas. Los fixtures deben devolver
 `syncPreflight: true` únicamente cuando reciban `verifySessions: true`, además de anunciar
@@ -394,7 +394,7 @@ Salida esperada:
 4. si agregaste una Function sensible nueva, registrarla en `scripts/config/serverless-sensitive-coverage.json` en la misma change
 5. no aceptar endpoints sensibles sin test focalizado y contrato operativo documentado
 
-### Falla `check:release-readiness-scorecard`
+### Scorecard de release degradado
 
 1. correr `npm run report:release-readiness-scorecard`
 2. revisar `reports/release-readiness-scorecard.md`
@@ -738,9 +738,9 @@ El pack `ci:preview-smoke:built` se valida una vez por run, ahora en carriles
 paralelos. `preview-smoke-lanes` arranca junto con los demás gates (necesita sólo
 `ci-scope`), compila el mismo commit y ejecuta un tramo del pack por carril:
 `app` (censo, biblioteca, panel clínico, historial y arrastre clínico),
-`dicom-graphics-stress` (las pruebas etiquetadas `@graphics-stress`: el ciclo de estrés
-de WebGL por software y las dos vistas 3D más largas de la segunda mitad) y las dos
-mitades `dicom-1`/`dicom-2` del resto del visor DICOM. Los carriles se reparten por
+`dicom-graphics-stress` (la prueba etiquetada `@graphics-stress`: el ciclo de estrés
+de WebGL por software) y los tres tercios `dicom-1`/`dicom-2`/`dicom-3` del resto del
+visor DICOM. Los carriles se reparten por
 duración observada, no por número de pruebas; se definen en
 `scripts/previewSmokeLaneSupport.mjs`.
 
@@ -813,7 +813,8 @@ observar el guardado de la aplicación.
 
 ## Fases del chequeo de paquete de extensión
 
-`check:rayen-extension-release` valida primero manifiesto, protocolo, integridad
+`scripts/check-rayen-extension-release.mjs` (en el repositorio de la extensión,
+`npm run check:release`, que su CI corre en cada cambio) valida primero manifiesto, protocolo, integridad
 de vendors, rutas y referencias. Si esa fase falla, devuelve sus errores con código
 1 sin iniciar un proceso de sintaxis por cada script de un paquete ya rechazado.
 Tras corregir la estructura, una nueva ejecución comprueba la sintaxis de todos

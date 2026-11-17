@@ -2,6 +2,7 @@ const crypto = require('node:crypto');
 const functions = require('firebase-functions/v1');
 const { DOCUMENTARY_FIELD_CONTRACT_VERSION } = require('./rayenDocumentaryCudyrPolicy');
 const { RAYEN_CLINICAL_FIELDS } = require('./dailyRecordAuthorityContract');
+const { addCalendarDays } = require('./hospitalCalendarDay');
 
 const MAX_BATCH_TARGETS = 32;
 const MAX_BATCH_BYTES = 500_000;
@@ -213,9 +214,7 @@ const parseClinicalEnrichmentPayload = data => {
   const authorityDate = authorityDateProvided
     ? assertIsoCalendarDate(data.authorityDate, 'authorityDate')
     : date;
-  const previousAuthorityDay = new Date(`${authorityDate}T12:00:00.000Z`);
-  previousAuthorityDay.setUTCDate(previousAuthorityDay.getUTCDate() - 1);
-  const allowedHistoricalDate = previousAuthorityDay.toISOString().slice(0, 10);
+  const allowedHistoricalDate = addCalendarDays(authorityDate, -1);
   if (date !== authorityDate && date !== allowedHistoricalDate) {
     throw new functions.https.HttpsError(
       'invalid-argument',

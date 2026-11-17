@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as remoteConfirmation from '@/hooks/controllers/dailyRecordRemoteConfirmationController';
 import { QueryClient } from '@tanstack/react-query';
