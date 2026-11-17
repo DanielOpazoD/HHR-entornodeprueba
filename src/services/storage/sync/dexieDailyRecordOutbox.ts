@@ -29,6 +29,7 @@ export {
   hasOtherOccupantInUntouchedBed,
   keepStoredNoteFields,
 } from '@/services/storage/sync/dayTaskReplayGuard';
+import { pathsOverlap } from '@/services/storage/sync/dayTaskReplayGuard';
 import {
   getValueAtPath,
   hasSameComparableValue,
@@ -128,9 +129,28 @@ export const foldWriteIntoOutbox = ({
       if (!previous || !overlapsPending) patchBaseValues[path] = getValueAtPath(base, path);
     }
   }
+  // A direct write of fields the held conflict does not hold: once the server confirms it, the
+  // task is that conflict again, not a resend that meets the same refusal (W12-CW11).
+  const heldPaths = existing?.syncContract?.changedPaths ?? ['*'];
+  const conflictBeforeDirectWrite =
+    task.preOutboxHoldState &&
+    existing?.status === 'CONFLICT' &&
+    !(task.syncContract?.changedPaths ?? ['*']).some(path =>
+      heldPaths.some(held => held === '*' || path === '*' || pathsOverlap(path, held))
+    )
+      ? {
+          error: existing.error,
+          lastErrorCode: existing.lastErrorCode,
+          lastErrorCategory: existing.lastErrorCategory,
+          lastErrorSeverity: existing.lastErrorSeverity,
+          lastErrorAction: existing.lastErrorAction,
+          lastErrorAt: existing.lastErrorAt,
+        }
+      : undefined;
   const nextTask: SyncTask = {
     ...task,
     payload,
+    conflictBeforeDirectWrite,
     patchBaseValues,
     patchBaseContext: previous
       ? previous.patchBaseContext

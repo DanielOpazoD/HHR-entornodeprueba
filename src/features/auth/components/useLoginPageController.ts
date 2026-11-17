@@ -31,6 +31,7 @@ import {
   receiveAuthPerfCredential,
   recordAuthPerfEvent,
 } from '@/shared/runtime/censusStartupPerf';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const POPUP_RECOVERY_GRACE_MS = 1800;
 const POPUP_RECOVERY_POLL_MS = 100;
@@ -134,14 +135,13 @@ export const useLoginPageController = (
     };
   }, []);
 
-  useEffect(() => {
-    if (!initialAuthError?.message) {
-      return;
-    }
-
+  if (
+    useChangedOnRender([initialAuthError?.code, initialAuthError?.message]) &&
+    initialAuthError?.message
+  ) {
     setError(initialAuthError.message);
     setErrorCode(initialAuthError.code ?? null);
-  }, [initialAuthError?.code, initialAuthError?.message]);
+  }
 
   const handleGoogleSignIn = async (credential?: { idToken: string; isCurrent: () => boolean }) => {
     setError(null);

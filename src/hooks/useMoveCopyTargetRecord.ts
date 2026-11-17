@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { useLatestRef } from '@/hooks/useLatestRef';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface UseMoveCopyTargetRecordParams {
   isOpen: boolean;
@@ -30,21 +31,20 @@ export const useMoveCopyTargetRecord = ({
   const currentRecordDate = currentRecord?.date ?? '';
   const useCurrentRecord = !selectedDate || selectedDate === currentRecordDate;
 
+  const loadsTarget = isOpen && !useCurrentRecord;
+  if (useChangedOnRender([currentRecordDate, isOpen, selectedDate, useCurrentRecord])) {
+    // Prevent stale availability from previous date while loading a new target day.
+    setTargetRecord(null);
+    setIsLoading(loadsTarget);
+  }
+
   useEffect(() => {
-    if (!isOpen || useCurrentRecord) {
-      setTargetRecord(null);
-      setIsLoading(false);
-      return;
-    }
+    if (!isOpen || useCurrentRecord) return;
 
     const requestId = ++requestIdRef.current;
     let disposed = false;
 
     const loadTargetRecord = async () => {
-      // Prevent stale availability from previous date while loading a new target day.
-      setTargetRecord(null);
-      setIsLoading(true);
-
       try {
         const fetchedRecord = await getRecordForDateRef.current(selectedDate);
         if (!disposed && requestId === requestIdRef.current) {

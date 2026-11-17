@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { Timestamp } from 'firebase/firestore';
 import * as fs from 'node:fs';
@@ -32,6 +32,12 @@ describeEmulator('specialty decision with real Firestore transactions', () => {
   afterAll(async () => {
     await environment?.cleanup();
   });
+  // The nurse writes the day itself: freeze only Date at 2026-09-23 12:00 in Rapa Nui, inside
+  // the nurse editing window (SAVE-04).
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-09-23T17:00:00.000Z') });
+  });
+  afterEach(() => vi.useRealTimers());
 
   it('commits exactly one decision and audit; rejects a competing stale acceptance', async () => {
     await environment.clearFirestore();

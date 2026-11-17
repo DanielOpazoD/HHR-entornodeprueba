@@ -1,4 +1,3 @@
-import type { jsPDF } from 'jspdf';
 import type { ShiftType } from '@/types/domain/shift';
 import type { DailyRecordHandoffPdfState as HandoffPdfRecord } from '@/types/domain/dailyRecordSlices';
 import { Schedule } from './handoffPdfUtils';
@@ -43,7 +42,7 @@ export const generateHandoffPdf = async (
     unit: HANDOFF_PDF_PAGE_LAYOUT.unit,
     format: HANDOFF_PDF_PAGE_LAYOUT.format,
     compress: true,
-  }) as unknown as jsPDF;
+  });
   const { margin, logoSize } = HANDOFF_PDF_PAGE_LAYOUT;
 
   // 1. HEADER
@@ -63,7 +62,7 @@ export const generateHandoffPdf = async (
   }
 
   // 3. PATIENT TABLE
-  const typedAutoTable = autoTable as unknown as AutoTableFunction;
+  const typedAutoTable = autoTable as AutoTableFunction;
   currentY = addPatientTable(
     doc,
     record,

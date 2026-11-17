@@ -40,14 +40,17 @@ export const resolveConcurrencyRemoteWriteRecovery = async (
     });
   }
 
+  const fieldChangedElsewhere = isFieldChangedElsewhereError(error);
   const mergeResult = await attemptConflictAutoMergeRecovery(
     date,
     record,
     changedPaths,
-    authoringSession
+    authoringSession,
+    fieldChangedElsewhere ? error : undefined
   );
-  if (mergeResult.status === 'auto_merged' && isFieldChangedElsewhereError(error)) {
-    // Queued as a conflict that keeps this device's text: nothing was integrated.
+  if (mergeResult.status === 'auto_merged' && fieldChangedElsewhere) {
+    // Held as a conflict that keeps this device's text: nothing was integrated, and sending it
+    // again would only meet the same refusal.
     return buildAutoMergedRecoveryResult(
       buildConflictSummary('concurrency', FIELD_CHANGED_ELSEWHERE_MESSAGE),
       FIELD_CHANGED_ELSEWHERE_MESSAGE,

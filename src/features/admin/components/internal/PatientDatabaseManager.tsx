@@ -22,7 +22,10 @@ export const PatientDatabaseManager: React.FC = () => {
   const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [indexFailed, setIndexFailed] = useState(false);
-  const retryIndex = useRef<() => void>(() => undefined);
+  // The last index read, so «Reintentar» repeats exactly that read.
+  const lastIndexRead = useRef<
+    { term: string } | { reset: boolean; after?: QueryDocumentSnapshot<DocumentData> | null } | null
+  >(null);
   const requestId = useRef(0);
 
   const {
@@ -39,9 +42,7 @@ export const PatientDatabaseManager: React.FC = () => {
   const fetchMasterIndex = useCallback(
     async (reset = false, docToStartAfter?: QueryDocumentSnapshot<DocumentData> | null) => {
       const currentId = ++requestId.current;
-      retryIndex.current = () => {
-        void fetchMasterIndex(reset, docToStartAfter);
-      };
+      lastIndexRead.current = { reset, after: docToStartAfter };
       setIsLoadingIndex(true);
       try {
         const { patients, lastDoc: nextDoc } = await PatientMasterRepository.getPatientsPaginated(
@@ -78,9 +79,7 @@ export const PatientDatabaseManager: React.FC = () => {
       setSearchTerm(term);
       if (term.length > 2) {
         const currentId = ++requestId.current;
-        retryIndex.current = () => {
-          void handleSearch(term);
-        };
+        lastIndexRead.current = { term };
         setIsLoadingIndex(true);
         try {
           const results = await PatientMasterRepository.searchPatients(term);
@@ -103,6 +102,13 @@ export const PatientDatabaseManager: React.FC = () => {
     },
     [fetchMasterIndex]
   );
+
+  const retryIndexRead = () => {
+    const read = lastIndexRead.current;
+    if (!read) return;
+    if ('term' in read) void handleSearch(read.term);
+    else void fetchMasterIndex(read.reset, read.after);
+  };
 
   const invalidateIndex = useCallback(() => {
     requestId.current++;
@@ -167,7 +173,7 @@ export const PatientDatabaseManager: React.FC = () => {
           <PatientExplorer
             patients={masterIndex}
             queryFailed={indexFailed}
-            onRetry={() => retryIndex.current()}
+            onRetry={retryIndexRead}
             searchTerm={searchTerm}
             setSearchTerm={handleSearch}
             isLoading={isLoadingIndex}

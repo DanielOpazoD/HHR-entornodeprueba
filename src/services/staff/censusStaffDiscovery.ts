@@ -1,10 +1,21 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ClinicalDerivedEpisodeDoc } from '@/types/domain/clinicalDerived';
 import type { PatientData } from '@/types/domain/patient';
+import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
 import type { StaffObservation } from './eloisaStaffIdentity';
 import { collectRecordedStaffNames } from './dailyRecordStaffing';
-const array = <T>(value: readonly T[] | undefined): readonly T[] =>
+const array = <T>(value: readonly T[] | null | undefined): readonly T[] =>
   Array.isArray(value) ? value : [];
+
+/** The attributable fields the collector reads: a patient's, or a clinicalDerived episode's. */
+interface StaffEvidenceSource {
+  evaluationScores?: PatientData['evaluationScores'];
+  vitalSigns?: PatientData['vitalSigns'];
+  /** An episode document stores an absent history as null. */
+  vitalSignsHistory?: readonly PatientVitalSigns[] | null;
+  upcChecklist?: PatientData['upcChecklist'];
+  clinicalCrib?: StaffEvidenceSource;
+}
 
 const createStaffCollector = () => {
   const observations: StaffObservation[] = [];
@@ -12,7 +23,7 @@ const createStaffCollector = () => {
     if (typeof author === 'string' && typeof role === 'string' && typeof recordedAt === 'string')
       observations.push({ author, role, recordedAt });
   };
-  const visit = (patient: PatientData | undefined) => {
+  const visit = (patient: StaffEvidenceSource | undefined) => {
     if (!patient || typeof patient !== 'object') return;
     const scores = patient.evaluationScores;
     const evidence = [
@@ -64,6 +75,6 @@ export const collectClinicalDerivedStaff = (
   docs: readonly ClinicalDerivedEpisodeDoc[]
 ): StaffObservation[] => {
   const { observations, visit } = createStaffCollector();
-  docs.forEach(doc => visit(doc as unknown as PatientData));
+  docs.forEach(doc => visit(doc));
   return observations;
 };

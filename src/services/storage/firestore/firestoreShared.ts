@@ -67,18 +67,14 @@ export const ensureArray = (value: unknown, defaultLength: number): string[] => 
   return Array(defaultLength).fill('');
 };
 
-export const flattenObject = (
-  obj: Record<string, unknown>,
-  prefix = ''
-): Record<string, unknown> => {
-  const keys = Object.keys(obj);
-  if (keys.length === 0) {
+export const flattenObject = (obj: object, prefix = ''): Record<string, unknown> => {
+  const entries: [string, unknown][] = Object.entries(obj);
+  if (entries.length === 0) {
     return prefix ? { [prefix]: {} } : {};
   }
 
-  return keys.reduce((acc: Record<string, unknown>, k) => {
+  return entries.reduce((acc: Record<string, unknown>, [k, val]) => {
     const pre = prefix.length ? `${prefix}.` : '';
-    const val = obj[k];
     if (
       typeof val === 'object' &&
       val !== null &&
@@ -86,7 +82,7 @@ export const flattenObject = (
       !(val instanceof Date) &&
       !(val instanceof Timestamp)
     ) {
-      Object.assign(acc, flattenObject(val as Record<string, unknown>, pre + k));
+      Object.assign(acc, flattenObject(val, pre + k));
     } else {
       acc[pre + k] = val;
     }
@@ -117,6 +113,7 @@ export const docToRecord = (docData: Record<string, unknown>, docId: string): Da
     activeExtraBeds: Array.isArray(rawData.activeExtraBeds) ? rawData.activeExtraBeds : [],
   });
 
+  // Stored data is untyped; migrateLegacyData is what turns it into a DailyRecord.
   return migrateLegacyData(rawData as unknown as DailyRecord, docId);
 };
 

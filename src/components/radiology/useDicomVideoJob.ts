@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { DicomCineProgress } from '@/services/radiology/dicomCine';
 import type { DicomMp4Result } from '@/services/radiology/dicomMp4';
 import { describeDicomVideoLength } from '@/services/radiology/dicomVideoPlan';
@@ -40,8 +40,11 @@ export const useDicomVideoJob = (resetKey: unknown, busyChanged: (value: boolean
   const job = useRef<AbortController | null>(null);
   const previewUrl = useRef('');
   const alive = useRef(true);
+  // The cleanup below must reach the newest callback, so this ref is not a dependency.
   const busyCallback = useRef(busyChanged);
-  busyCallback.current = busyChanged;
+  useLayoutEffect(() => {
+    busyCallback.current = busyChanged;
+  });
   const discard = useCallback(() => {
     if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
     previewUrl.current = '';

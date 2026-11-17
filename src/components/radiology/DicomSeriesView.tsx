@@ -25,6 +25,7 @@ import { DicomViewportGrid, dicomPlaneLabels as labels } from './DicomViewportGr
 import { DicomFullscreenButton } from './DicomFullscreenButton';
 import type { DicomStackState } from '@/services/radiology/dicomProgressiveStack';
 import { saveDicomPng } from '@/services/radiology/saveDicomPng';
+import { useLatestRef } from '@/hooks/useLatestRef';
 
 export const DicomSeriesView: React.FC<{
   study: DicomStudy;
@@ -68,8 +69,7 @@ export const DicomSeriesView: React.FC<{
     stackState?.requested,
     stackState?.pending,
   ]);
-  const latestCaptureContext = useRef(captureContext);
-  latestCaptureContext.current = captureContext;
+  const latestCaptureContext = useLatestRef(captureContext);
   useEffect(() => {
     const controller = new AbortController();
     let current: DicomRuntime | undefined;
