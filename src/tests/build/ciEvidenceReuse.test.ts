@@ -328,9 +328,18 @@ describe('the workflow skips only what the reused run already proved', () => {
 
   it('keeps the Functions deployment and post-merge evidence independent of the scope', () => {
     const jobs = workflow();
-    for (const id of ['function-deploy-scope', 'deploy-functions'])
-      expect(jobs[id].if ?? '', id).not.toContain('ci-scope');
+    // GitHub skips a job without a status function when any ancestor was skipped, and a
+    // reused main push skips every gate: these jobs must opt out and still require ci-summary.
+    for (const id of ['function-deploy-scope', 'deploy-functions', 'postmerge-evidence']) {
+      expect(jobs[id].if ?? '', id).not.toContain('needs.ci-scope');
+      expect(jobs[id].if ?? '', id).toContain('!cancelled()');
+      expect(jobs[id].if ?? '', id).toContain("needs.ci-strict-summary.result == 'success'");
+    }
     expect(jobNeeds(jobs['function-deploy-scope'])).toEqual(['ci-strict-summary']);
+    expect(jobs['function-deploy-scope'].if).toContain("github.ref == 'refs/heads/main'");
+    expect(jobs['deploy-functions'].if).toContain(
+      "needs.function-deploy-scope.result == 'success' && needs.function-deploy-scope.outputs.changed == 'true'"
+    );
     const postmerge = jobs['postmerge-evidence'];
     expect(postmerge.if).toContain("needs.ci-strict-summary.result == 'success'");
     expect(postmerge.env?.EVIDENCE_RUN_ID).toBe(
