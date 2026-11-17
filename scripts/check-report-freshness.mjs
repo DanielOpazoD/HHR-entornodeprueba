@@ -2,7 +2,6 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
 import { getDirectMergeParentShas, getGitReportState } from './gitReportState.mjs';
 import {
   buildDependencyFingerprint,
@@ -73,55 +72,13 @@ const matchesAnyAllowedCommit = (reportSha, allowedShas) =>
 const findMatchingAllowedCommit = (reportSha, allowedShas) =>
   allowedShas.find(allowedSha => isSameCommit(reportSha, allowedSha)) || '';
 
-const runGit = args => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
-
-const governedReportFiles = new Set(
-  [
-    ...selectedReports.map(report => report.file),
-    'reports/clinical-release-validation.json',
-  ].flatMap(file => [file, file.replace(/\.json$/, '.md')])
-);
-
-const getDirectParentSha = () => {
-  try {
-    return runGit(['rev-parse', '--short', 'HEAD^']);
-  } catch {
-    return '';
-  }
-};
-
-const getHeadChangedFiles = () => {
-  try {
-    return runGit(['diff-tree', '--no-commit-id', '--name-only', '-r', 'HEAD'])
-      .split('\n')
-      .map(file => file.trim())
-      .filter(Boolean);
-  } catch {
-    return [];
-  }
-};
-
-const hasOnlyGovernedReportFiles = changedFiles => {
-  return changedFiles.length > 0 && changedFiles.every(file => governedReportFiles.has(file));
-};
-
 const currentGitState = getGitReportState(ROOT);
 const currentGitSha = currentGitState.gitSha;
 if (!currentGitSha) {
   fail(['Could not resolve current git commit.']);
 }
-const baseAllowedReportShas = [currentGitSha, ...getDirectMergeParentShas(ROOT)];
 const directMergeParentShas = getDirectMergeParentShas(ROOT);
-let evidenceOnlyAllowedReportShas;
-const getEvidenceOnlyAllowedReportShas = () => {
-  if (evidenceOnlyAllowedReportShas === undefined) {
-    const changedFiles = getHeadChangedFiles();
-    evidenceOnlyAllowedReportShas = hasOnlyGovernedReportFiles(changedFiles)
-      ? [getDirectParentSha()].filter(Boolean)
-      : [];
-  }
-  return evidenceOnlyAllowedReportShas;
-};
+const allowedReportShas = [currentGitSha, ...directMergeParentShas];
 
 const issues = [];
 const advisories = [];
@@ -180,10 +137,7 @@ for (const report of selectedReports) {
 
   pushProvenanceIssues({ report, parsedReport, reportSha });
 
-  if (
-    !matchesAnyAllowedCommit(reportSha, baseAllowedReportShas) &&
-    !matchesAnyAllowedCommit(reportSha, getEvidenceOnlyAllowedReportShas())
-  ) {
+  if (!matchesAnyAllowedCommit(reportSha, allowedReportShas)) {
     issues.push(
       `${report.file} is stale by commit ancestry: generated for ${reportSha}, current HEAD is ${currentGitSha}; refresh with npm run ${report.refreshScript}.`
     );
@@ -253,5 +207,5 @@ if (advisories.length > 0) {
 }
 
 console.log(
-  `[report-freshness] OK (${selectedReports.length} reports match ${currentGitSha}, a direct merge parent, or an evidence-only direct parent, worktree=${currentGitState.gitDirty ? 'dirty' : 'clean'})`
+  `[report-freshness] OK (${selectedReports.length} reports match ${currentGitSha} or a direct merge parent, worktree=${currentGitState.gitDirty ? 'dirty' : 'clean'})`
 );

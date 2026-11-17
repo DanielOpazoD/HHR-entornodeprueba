@@ -298,14 +298,4 @@ describe('report freshness guardrail', () => {
       /reports\/sync-convergence\.json is stale by commit ancestry/
     );
   });
-
-  it('accepts parent reports when HEAD only commits governed evidence artifacts', () => {
-    const { root } = makeGitRepoWithLinearCommit();
-    const parentSha = run(root, 'git', ['rev-parse', '--short', 'HEAD']);
-    writeReports(root, parentSha, { includeGeneratedFor: true });
-    run(root, 'git', ['add', '-f', 'reports']);
-    run(root, 'git', ['commit', '-m', 'refresh evidence reports']);
-
-    expect(() => run(root, 'node', [scriptPath, '--strict'])).not.toThrow();
-  });
 });

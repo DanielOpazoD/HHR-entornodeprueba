@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const SRC = path.join(ROOT, 'src');
-const { publicModulesByFeature = {}, exceptionsByFeature = {} } = JSON.parse(
-  fs.readFileSync(new URL('../feature-public-api-allowlist.json', import.meta.url), 'utf8')
+const { publicImportPatterns, publicModulesByFeature } = JSON.parse(
+  fs.readFileSync(new URL('../feature-dependency-matrix.json', import.meta.url), 'utf8')
 );
 const extensions = ['.ts', '.tsx', '.js', '.jsx'];
 const sharedLayers = new Set(['components', 'hooks', 'services', 'context', 'domain']);
@@ -14,7 +14,9 @@ export const GOVERNED_APPLICATION_PUBLIC_IMPORTS = new Set([
   '@/features/census/controllers/bedManagerGridItemsController',
   '@/features/census/controllers/bedManagerModalController',
   '@/features/census/controllers/censusEmailRecipientsController',
+  '@/features/census/controllers/clinicalShiftCalendarController',
   '@/features/census/controllers/dischargeModalController',
+  '@/features/census/controllers/modalFormController',
   '@/features/census/controllers/patientMovementCreationController',
   '@/features/census/controllers/patientMovementCreationErrorPresentation',
   '@/features/census/controllers/patientMovementCreationInputController',
@@ -80,22 +82,15 @@ export const publicImportBoundaryRule = {
       const feature = relative.match(/^features\/([^/]+)\//)?.[1];
       if (!feature || importer.startsWith(`src/features/${feature}/`)) return;
       const publicPaths = [
-        `@/features/${feature}`,
-        `@/features/${feature}/index`,
-        `@/features/${feature}/public`,
+        ...publicImportPatterns.map(pattern => pattern.replace('{feature}', feature)),
         ...(publicModulesByFeature[feature] ?? []),
       ];
       if (publicPaths.includes(target)) return;
-      if (feature === 'census') {
-        if (
-          shim ||
+      if (
+        feature === 'census' &&
+        (shim ||
           (importer === 'src/application/census/public.ts' &&
-            GOVERNED_APPLICATION_PUBLIC_IMPORTS.has(target))
-        )
-          return;
-      } else if (
-        feature !== 'clinical-documents' &&
-        (exceptionsByFeature[feature] ?? []).includes(`${importer} -> ${target}`)
+            GOVERNED_APPLICATION_PUBLIC_IMPORTS.has(target)))
       )
         return;
       context.report({ node, messageId: 'public', data: { target, feature } });

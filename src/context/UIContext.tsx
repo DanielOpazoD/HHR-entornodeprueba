@@ -135,7 +135,3 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     </UIContext.Provider>
   );
 };
-
-// Backward compatibility: export aliases for existing imports
-export const NotificationProvider = UIProvider;
-export const ConfirmDialogProvider = UIProvider;

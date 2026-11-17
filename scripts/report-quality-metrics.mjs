@@ -392,25 +392,19 @@ const getTypeSafetySignals = () => {
 };
 
 const getConvergenceSignals = () => {
-  const featureAllowlist = safeReadJson(
-    path.join(ROOT, 'scripts', 'feature-public-api-allowlist.json')
-  );
-  const publicModulesByFeature = featureAllowlist?.publicModulesByFeature || {};
-  const exceptionsByFeature = featureAllowlist?.exceptionsByFeature || {};
-  const featureImportPolicies = Object.fromEntries(
+  const featureMatrix = safeReadJson(path.join(ROOT, 'scripts', 'feature-dependency-matrix.json'));
+  const publicModulesByFeature = featureMatrix?.publicModulesByFeature || {};
+  const featurePublicModules = Object.fromEntries(
     FEATURE_PUBLIC_BOUNDARIES.map(boundary => {
       const feature = boundary.importPrefix.split('/')[2];
       return [
         feature,
-        {
-          publicModules: new Set([
-            `@/features/${feature}`,
-            `@/features/${feature}/index`,
-            `@/features/${feature}/public`,
-            ...(publicModulesByFeature[feature] || []),
-          ]),
-          exceptions: new Set(exceptionsByFeature[feature] || []),
-        },
+        new Set([
+          `@/features/${feature}`,
+          `@/features/${feature}/index`,
+          `@/features/${feature}/public`,
+          ...(publicModulesByFeature[feature] || []),
+        ]),
       ];
     })
   );
@@ -461,11 +455,7 @@ const getConvergenceSignals = () => {
         if (!importPath.startsWith(boundary.importPrefix)) {
           return false;
         }
-        const policy = featureImportPolicies[boundary.importPrefix.split('/')[2]];
-        return (
-          !policy.publicModules.has(importPath) &&
-          !policy.exceptions.has(`${relative} -> ${importPath}`)
-        );
+        return !featurePublicModules[boundary.importPrefix.split('/')[2]].has(importPath);
       });
 
       if (hasUngovernedFeatureImport) {

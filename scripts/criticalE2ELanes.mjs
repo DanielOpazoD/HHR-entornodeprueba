@@ -1,6 +1,10 @@
 import fs from 'node:fs';
 
 export const CRITICAL_LANES = ['1', '2', '3'];
+// Balanced by observed CI duration per lane, not by spec count: lane 2 carries the
+// 125 s multi-user offline spec, and lane 3 also builds the preview and runs the
+// CUDYR, extension, census-read and flow-budget steps. Move specs between lanes
+// using each lane's report; the canonical suite check below still owns membership.
 const partition = [
   [
     'auth-login-resilience.spec.ts',
@@ -11,10 +15,11 @@ const partition = [
     'legacy-firebase-compat.spec.ts',
     'auth-multi-tab-lock.spec.ts',
     'pre-outbox-multitab.spec.ts',
+    'authenticated-clinical-smoke.spec.ts',
+    'census-specialty-save.spec.ts',
   ],
   [
     'multiuser-offline-conflict.spec.ts',
-    'authenticated-clinical-smoke.spec.ts',
     'clinical-document-ai-import.spec.ts',
     'census-persistence-reload.spec.ts',
     'rayen-mother-newborn-d1-discharge-critical.spec.ts',
@@ -22,7 +27,6 @@ const partition = [
     'manual-eloisa-patient-code.spec.ts',
   ],
   [
-    'census-specialty-save.spec.ts',
     'sync-conflict-resolution.spec.ts',
     'rayen-delayed-health-preflight.spec.ts',
     'release-role-smoke.spec.ts',

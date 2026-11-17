@@ -4,6 +4,7 @@ const {
 } = require('./generated/cudyrSourceParser.cjs');
 const functions = require('firebase-functions/v1');
 const { digest, monthValue, verifySupplementBytes } = require('./cudyrSupplementContract');
+const { addCalendarDays } = require('./hospitalCalendarDay');
 const fail = (message = 'Invalid verified CUDYR context.', code = 'invalid-argument') => {
   throw new functions.https.HttpsError(code, message);
 };
@@ -233,9 +234,7 @@ const saveCudyrVerifiedContext = async ({ hospital, data, actor, runTransaction 
       if (digest(bytes) !== s.file.sha256) fail();
       verifySupplementBytes(bytes, s.report);
       for (const e of input.entries.filter(e => e.reportId === id)) {
-        const next = new Date(Date.parse(e.date + 'T12:00:00Z') + 86400000)
-          .toISOString()
-          .slice(0, 10);
+        const next = addCalendarDays(e.date, 1);
         if (e.basis === 'reviewed_report_absence') {
           const mother = s.report.patients.find(p => p.sourceRow === e.maternalSourceRow);
           const maternalBinding =

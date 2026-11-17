@@ -51,7 +51,7 @@ Su presentación debe comunicar la incertidumbre sin impedir abrir la galería.
 - La fuente de verdad de tiers blocking, release confidence y report-only guards vive en `scripts/config/guardrail-governance.json`.
 - Se valida con `npm run check:guardrail-governance` y se reporta con `npm run report:guardrail-governance`.
 - En ese archivo, `reportOnly` registra comandos que escriben snapshots; `qualityAggregate.checks` define los controles que ejecuta `check:quality`, incluido su carácter bloqueante o advisory. Registrar un productor no incorpora su checker al agregado.
-- La telemetría de tiempos se valida en el job `ci-runtime-telemetry` de `.github/workflows/ci-cd.yml`: recoge la corrida actual, genera el reporte y ejecuta `check:ci-runtime-telemetry`; `ci-summary` exige su resultado. El agregado no valida el archivo histórico versionado. El CLI local sigue disponible, pero comprueba el reporte que exista en el checkout; revisar su procedencia y fecha.
+- La telemetría de tiempos se valida en el job `ci-runtime-telemetry` de `.github/workflows/ci-cd.yml`: recoge la corrida actual, genera el reporte y ejecuta `check:ci-runtime-telemetry`; `ci-summary` exige su resultado. El CLI local sigue disponible, pero comprueba el reporte que exista en el checkout; revisar su procedencia y fecha.
 - CI regenera los artefactos obligatorios antes de correr `check:quality` usando `npm run report:governance-snapshots`.
 - `check:quality` no debe bloquear por scorecards ejecutivos derivados si las fuentes primarias del riesgo ya están protegidas; `release-readiness-scorecard` queda como artefacto report-only.
 - `release-confidence-matrix` también queda como guardrail report-only: sigue siendo obligatorio para trazabilidad, pero no duplica bloqueo si el pack de release, la cobertura crítica y los budgets ya siguen verdes.
@@ -121,11 +121,11 @@ Además de tamaño, lint y coverage, la base debe vigilar:
 - drift entre owners documentados y owners reales en controllers compartidos;
 - fallos de `typecheck` causados por contratos o shapes ya retirados.
 
-La referencia reportable de estas señales vive en `reports/quality-metrics.md` y el backlog operativo en `docs/FOUNDATION_TRACKER.md`.
+La referencia reportable de estas señales es el artefacto `quality-metrics` de CI del SHA que se mira (localmente, `npm run report:quality-metrics`) y el backlog operativo en `docs/FOUNDATION_TRACKER.md`.
 
 ### Leer evidencia de deuda sin confundir un snapshot con el estado actual
 
-Los archivos versionados en `reports/` son snapshots: su fecha y `gitSha` indican
+Los archivos de `reports/` no se versionan y son snapshots: su fecha y `gitSha` indican
 qué código se midió. Un merge posterior no los vuelve actuales automáticamente.
 Para evaluar un PR, consultar los artifacts de su SHA: `quality-metrics` contiene
 el inventario estructural; `confidence-and-readiness` incluye la deuda de

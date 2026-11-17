@@ -15,21 +15,6 @@ type ClinicalAIProviderRoutingRepository = Pick<
 
 const getRoutingCollectionPath = (): string => getSettingsPath();
 
-export const getClinicalAIProviderRouting = async (
-  repository: ClinicalAIProviderRoutingRepository = firestoreDb
-): Promise<ClinicalAIProviderRoutingDocument> => {
-  const raw = await repository.getDoc<Partial<ClinicalAIProviderRoutingDocument>>(
-    getRoutingCollectionPath(),
-    CLINICAL_AI_PROVIDER_ROUTING_DOC_ID
-  );
-
-  if (!raw) {
-    return createDefaultClinicalAIProviderRoutingDocument();
-  }
-
-  return normalizeClinicalAIProviderRoutingDocument(raw);
-};
-
 export const saveClinicalAIProviderRouting = async ({
   routing,
   updatedByEmail,

@@ -24,10 +24,6 @@ interface SubmitScannedDocumentPayload {
   pageImagesBase64: string[];
 }
 
-interface DocumentScannerQueueServiceDeps {
-  functionsRuntime?: Pick<FunctionsRuntime, 'getFunctions'>;
-}
-
 const buildService = (
   functionsRuntime: Pick<FunctionsRuntime, 'getFunctions'> = defaultFunctionsRuntime
 ) => {
@@ -55,9 +51,6 @@ const buildService = (
       ),
   };
 };
-
-export const createDocumentScannerQueueService = (deps: DocumentScannerQueueServiceDeps = {}) =>
-  buildService(deps.functionsRuntime);
 
 const service = buildService();
 export const submitScannedDocument = service.submitScannedDocument;

@@ -100,11 +100,7 @@ export const WoundCareMobileUploadSessionSchema = z
 // Parse helpers
 // ============================================================================
 
-export const parseWoundCareConsent = (data: unknown) => WoundCareConsentSchema.parse(data);
 export const safeParseWoundCareConsent = (data: unknown) => WoundCareConsentSchema.safeParse(data);
-export const parseWoundCarePhoto = (data: unknown) => WoundCarePhotoSchema.parse(data);
 export const safeParseWoundCarePhoto = (data: unknown) => WoundCarePhotoSchema.safeParse(data);
-export const parseWoundCareMobileUploadSession = (data: unknown) =>
-  WoundCareMobileUploadSessionSchema.parse(data);
 export const safeParseWoundCareMobileUploadSession = (data: unknown) =>
   WoundCareMobileUploadSessionSchema.safeParse(data);
