@@ -141,6 +141,7 @@ En PR con alcance `full` deben seguir bloqueando:
 - `unit-risk-shards`
 - `clinical-sync-release-gate`
 - `rules-emulator`
+- `emulator-ui`
 - `e2e-critical`
 
 Los alcances `docs-only` y `functions-only` usan gates enfocados y `ci-summary`
@@ -170,7 +171,7 @@ asignación determinista por duración medida/estimada. Para refrescar la medici
 
 El perfil debe responder qué shard es más lento, qué archivos explican el costo y si el balance
 sigue bajo la tolerancia. La suite clínica crítica sigue cubierta por `unit-risk-shards`,
-`clinical-sync-release-gate`, `rules-emulator` y `e2e-critical`.
+`clinical-sync-release-gate`, `rules-emulator`, `emulator-ui` y `e2e-critical`.
 
 El runtime observado de GitHub Actions complementa ese balance local con `reports/ci-runtime-observed-profile.*`.
 En CI lo genera el job `ci-runtime-telemetry`, que corre después de los gates PR-critical, llama a
@@ -308,8 +309,8 @@ Un cambio durante la ejecución, un SHA distinto o un JSON sin procedencia se re
 Los archivos de salida viven en `reports/`, que está ignorado por Git. En PR se valida
 el merge commit probado por Actions; puede diferir del head de la rama.
 
-El job `test-execution-manifest` requiere evidencia de los cuatro shards, Storage, E2E
-crítico y performance de flujo del mismo run. Esa lista es un alcance explícito: no afirma haber observado
+El manifiesto, que arma `final-confidence-and-readiness`, requiere evidencia de los cuatro
+shards, Storage, E2E crítico y performance de flujo del mismo run. Esa lista es un alcance explícito: no afirma haber observado
 cada pack especializado, ni convierte los E2E manuales en pruebas ejecutadas.
 Los scopes parciales omiten este job de forma intencional. Un artefacto de un intento anterior sólo se reutiliza si pertenece al mismo run y
 árbol probado y acredita una ejecución completa aprobada.

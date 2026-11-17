@@ -128,7 +128,7 @@ it('verifies artifacts before saving and keeps the full emulator suites', () => 
   expect(verify['continue-on-error']).not.toBe(true);
   expect(steps.indexOf(save)).toBeGreaterThan(steps.indexOf(verify));
   const { jobs } = parseWorkflow(fs.readFileSync('.github/workflows/ci-cd.yml', 'utf8'));
-  for (const name of ['rules-emulator', 'e2e-critical-lanes']) {
+  for (const name of ['rules-emulator', 'emulator-ui', 'e2e-critical-lanes']) {
     const jobSteps = jobs[name].steps;
     const cache = jobSteps.findIndex(
       step => step.uses === './.github/actions/setup-ci-firestore-emulator'
@@ -137,10 +137,20 @@ it('verifies artifacts before saving and keeps the full emulator suites', () => 
       jobSteps.findIndex(step => step.uses === './.github/actions/setup-ci-dependencies')
     );
     expect(cache).toBeLessThan(
-      jobSteps.findIndex(step => /npm run test:(?:rules:ci|e2e:critical:ci)/.test(step.run || ''))
+      jobSteps.findIndex(step =>
+        /npm run test:(?:rules:ci|emulator:sync:ci|e2e:critical:ci)/.test(step.run || '')
+      )
     );
   }
+  // Both emulator suites run in CI, each in its own job with its own emulator.
   expect(
-    jobs['rules-emulator'].steps.some(step => step.run === 'npm run test:emulator:sync:ci')
+    jobs['rules-emulator'].steps.some(
+      step => step.run === 'npm run test:emulator:sync:ci -- --suite sync'
+    )
+  ).toBe(true);
+  expect(
+    jobs['emulator-ui'].steps.some(
+      step => step.run === 'npm run test:emulator:sync:ci -- --suite ui'
+    )
   ).toBe(true);
 });

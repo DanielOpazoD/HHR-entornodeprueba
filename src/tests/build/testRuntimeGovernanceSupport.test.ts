@@ -138,6 +138,7 @@ describe('test runtime governance support', () => {
         'unit-risk-shards',
         'clinical-sync-release-gate',
         'rules-emulator',
+        'emulator-ui',
         'e2e-critical',
       ])
     );

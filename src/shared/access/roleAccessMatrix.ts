@@ -157,6 +157,10 @@ export const MANAGED_ROLE_OPTIONS = Object.values(ROLE_ACCESS_MATRIX).filter(
   definition => definition.assignableInRoleManagement
 );
 
+/** Validates free text (a stored profile, a claim) at the border: only the domain roles pass. */
+export const isUserRole = (value: unknown): value is UserRole =>
+  typeof value === 'string' && Object.hasOwn(ROLE_ACCESS_MATRIX, value);
+
 export const resolveRoleAccess = (role?: UserRole | string): RoleAccessDefinition =>
   ROLE_ACCESS_MATRIX[(role as UserRole) ?? 'viewer'] ?? DEFAULT_ROLE_ACCESS;
 

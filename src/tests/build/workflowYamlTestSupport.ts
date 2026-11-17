@@ -40,7 +40,7 @@ export const assertTelemetryAccess = (job: WorkflowJob) => {
       'unit-risk',
       'clinical-sync-release-gate',
       'rules-emulator',
-      'e2e-critical-emulator',
+      'e2e-critical-lanes',
       'build',
     ].sort()
   );

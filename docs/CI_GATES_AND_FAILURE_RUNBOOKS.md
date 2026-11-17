@@ -30,9 +30,11 @@ de `main` se mantienen. Comprobar el alcance y los jobs realmente ejecutados; no
 equiparar un job omitido o un informe antiguo con una prueba aprobada.
 
 En la ruta `full`, los jobs de calidad, los cuatro shards unitarios y de cobertura,
-`build-budget` y `preview-smoke` acreditan los controles equivalentes de
-`ci:merge-gate`. `rules-emulator`, `e2e-critical` y `final-confidence-and-readiness`
-aportan reglas, sincronización, E2E y evidencia de rendimiento. Los packs unitarios
+`build-budget` y los carriles de vista previa acreditan los controles equivalentes de
+`ci:merge-gate`. `rules-emulator` (reglas, Storage, suite sync del emulador y cuentas),
+`emulator-ui` (suite UI del emulador, en paralelo y con su propio emulador), los carriles E2E
+críticos y `final-confidence-and-readiness` aportan reglas, sincronización, E2E y evidencia de
+rendimiento. Los packs unitarios
 incluidos en los shards no necesitan una segunda ejecución local. Verificar siempre
 el workflow y la selección de archivos vigentes; un cambio de cobertura exige revisar
 esta correspondencia. Los artefactos formales de release, signoff clínico o pruebas
@@ -167,9 +169,16 @@ de CI fue correcto; no ampliar automáticamente a un gate local completo.
 
 ### Evidencia final de rendimiento
 
-`final-confidence-and-readiness` espera a `e2e-critical-emulator` y a `test-execution-manifest`
-y descarga sus artefactos `flow-performance-evidence` y `test-execution-manifest` de la misma
-ejecución, sin seleccionar otra rama ni un run anterior.
+`final-confidence-and-readiness` es el único job entre los jobs de trabajo y `ci-summary`.
+Espera a todos los que lee y, en este orden, fusiona los carriles de vista previa, fusiona los
+carriles E2E críticos (con `flow-performance-evidence`), arma el manifiesto de ejecución y
+regenera la confianza, todo con evidencia de la misma ejecución, sin seleccionar otra rama ni
+un run anterior. Corre aunque falle un carril, para publicar los informes fusionados; los
+carriles E2E se fusionan aunque haya fallado la vista previa, y antes de la confianza el job
+exige que `build-budget` y los snapshots de gobernanza hayan pasado. Antes eran cuatro jobs en
+serie (`preview-smoke`, `e2e-critical`, `test-execution-manifest` y este), cada uno con su
+checkout e instalación: entre el último job de trabajo y `ci-summary` pasaban 71 s (mediana
+de 20 corridas de `main` del 16 y 17-11).
 Valida el reporte Playwright (sin fallos, interrupciones ni recuperaciones por reintento) y los presupuestos
 antes de regenerar salud operativa, confianza y readiness. Publica también las mediciones fuente. `postmerge-evidence` reutiliza y valida el mismo
 artefacto antes de regenerar los informes de main.
@@ -592,7 +601,7 @@ fallido cuando no hay prueba). Solo lee con `gh api`; `--json` da el detalle con
 
 ### Falla el modelo de la cola de guardado
 
-El modelo (`syncQueueModel.emulator-ui.test.ts`) corre en `rules-emulator`, y en local, siempre
+El modelo (`syncQueueModel.emulator-ui.test.ts`) corre en `emulator-ui`, y en local, siempre
 con las mismas 30 secuencias (semilla 20261115). Un fallo en una PR o en `main` apunta a ese
 cambio: se corrige ahí, no se reintenta. Las semillas nuevas (300 secuencias) las explora cada
 noche el job `nightly-sync-model` de `nightly-test-runtime.yml`, que no bloquea despliegues. Su
@@ -744,15 +753,15 @@ visor DICOM. Los carriles se reparten por
 duración observada, no por número de pruebas; se definen en
 `scripts/previewSmokeLaneSupport.mjs`.
 
-`preview-smoke` fusiona los blobs con `playwright merge-reports`, exige que todos los
+`final-confidence-and-readiness` fusiona los blobs con `playwright merge-reports`, exige que todos los
 carriles terminaran bien y compara el informe fusionado con
 `playwright test --list` del pack completo: cada prueba canónica debe ejecutarse
 exactamente una vez (`check-preview-smoke-completeness.mjs`). Después registra la
-procedencia (productor `preview-smoke`) y publica `preview-bootstrap-artifacts`
+procedencia (productor `final-confidence-and-readiness`) y publica `preview-bootstrap-artifacts`
 para la comprobación final y posterior al merge. `build-budget` conserva el build con
 la evidencia de release, budgets, grafo de chunks y `dist`, sin el smoke.
 
-Cada carril sube su blob, que ya es un zip, con `archive: false`; `preview-smoke`
+Cada carril sube su blob, que ya es un zip, con `archive: false`; `final-confidence-and-readiness`
 lo baja con `download-artifact@v8` y `skip-decompress: true`. Al comprimirlo de
 nuevo, la extracción en streaming de `download-artifact` confundía la firma del
 descriptor de datos del zip interno con el fin de la entrada y fallaba sobre
@@ -764,7 +773,7 @@ Cada carril sirve su propio bundle del mismo commit. Sólo difiere de `build-bud
 en `release-evidence.json`, que no entra en el precache, y Netlify vuelve a compilar
 al desplegar, así que el smoke nunca validó el artefacto desplegado. Localmente,
 `ci:preview-gate` sigue ejecutando el pack completo en serie. `ci-summary` exige
-`build-budget` y `preview-smoke`; los cambios `docs-only` y `functions-only` conservan
+`build-budget`, `preview-smoke-lanes` y `final-confidence-and-readiness`; los cambios `docs-only` y `functions-only` conservan
 sus controles propios.
 
 Motivo medido: en el run 39661114009 el smoke ocupaba 735 s dentro de
@@ -794,7 +803,7 @@ errores sin copiar sus mensajes o posibles datos sensibles al diagnóstico.
 
 El riesgo de pruebas inestables (`flakeRisk` en `system-confidence`) cuenta los archivos
 de prueba que fallaron o pasaron solo tras un reintento en el manifiesto de ejecución de la
-misma corrida; `final-confidence-and-readiness` lo descarga de `test-execution-manifest`.
+misma corrida, que `final-confidence-and-readiness` arma en el mismo job.
 El indicador queda degradado como «sin medir», nunca en cero, si falta el manifiesto del
 commit, si le falta alguna de sus `requiredCiSuites`, si registra problemas (`issues`) o si
 el job de informes corre en un intento mayor que 1 (`GITHUB_RUN_ATTEMPT`). Esto último

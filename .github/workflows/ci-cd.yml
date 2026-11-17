@@ -646,8 +646,9 @@ jobs:
         env:
           CI: true
 
-      - name: Run Firestore emulator test suites (sync + UI)
-        run: npm run test:emulator:sync:ci
+      # The emulator UI suite runs in emulator-ui, in parallel, with its own emulator.
+      - name: Run Firestore emulator sync suite
+        run: npm run test:emulator:sync:ci -- --suite sync
         env:
           CI: true
           RUN_FIRESTORE_EMULATOR_TESTS: 1
@@ -668,6 +669,35 @@ jobs:
 
       - name: Validate individual accounts with Auth, Firestore and Storage emulators
         run: npm run test:accounts:emulator:ci
+
+  # Split from rules-emulator so the two halves of the emulator family run side by side.
+  emulator-ui:
+    name: emulator-ui
+    runs-on: ubuntu-24.04
+    needs: [ci-scope]
+    if: needs.ci-scope.outputs.scope == 'full'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
+
+      - name: Setup Java (Firestore emulator)
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Prepare verified Firestore emulator artifact
+        uses: ./.github/actions/setup-ci-firestore-emulator
+
+      - name: Run Firestore emulator UI suite
+        run: npm run test:emulator:sync:ci -- --suite ui
+        env:
+          CI: true
+          RUN_FIRESTORE_EMULATOR_TESTS: 1
 
   e2e-critical-lanes:
     name: e2e-critical lane ${{ matrix.lane }}
@@ -791,157 +821,6 @@ jobs:
             test-results/**
           if-no-files-found: error
           retention-days: 14
-
-  e2e-critical-emulator:
-    name: e2e-critical
-    runs-on: ubuntu-24.04
-    needs: [ci-scope, e2e-critical-lanes]
-    if: always() && needs.ci-scope.outputs.scope == 'full'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-      - name: Setup CI dependencies
-        uses: ./.github/actions/setup-ci-dependencies
-      # Every attempt of this run: re-running failed jobs repeats only the failed lane, and
-      # the merge takes each lane's newest attempt.
-      - name: Download lane evidence from every attempt of this run
-        uses: actions/download-artifact@v7
-        with:
-          pattern: e2e-critical-lane-*
-          path: reports/critical-lanes
-      - name: Require all lanes and merge original execution evidence
-        env:
-          LANES_RESULT: ${{ needs.e2e-critical-lanes.result }}
-        run: |
-          test "$LANES_RESULT" = success
-          node scripts/merge-critical-e2e-lanes.mjs
-      - name: Generate and enforce E2E operational metrics
-        if: always()
-        run: node scripts/report-e2e-operational-metrics.mjs reports/e2e/critical-playwright-report.json --enforce
-      - name: Upload CUDYR browser execution evidence
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: test-execution-evidence-cudyr
-          path: reports/execution/cudyr.evidence.json
-          overwrite: true
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Upload critical browser execution evidence
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: test-execution-evidence-critical
-          path: reports/execution/critical.evidence.json
-          overwrite: true
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Upload flow browser execution evidence
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: test-execution-evidence-flow
-          path: reports/execution/flow.evidence.json
-          overwrite: true
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Upload flow performance evidence
-        uses: actions/upload-artifact@v7
-        with:
-          name: flow-performance-evidence
-          path: |
-            reports/e2e/flow-performance-budget.json
-            reports/e2e/flow-performance-budget-summary.json
-            reports/e2e/flow-performance-budget.md
-            reports/e2e/flow-performance-playwright-report.json
-          if-no-files-found: error
-          overwrite: true
-          retention-days: 14
-
-      - name: Upload E2E critical artifacts
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: e2e-critical-emulator-artifacts
-          path: |
-            reports/e2e/**
-            playwright-report/**
-            test-results/**
-            reports/critical-lanes/**
-          retention-days: 14
-
-  test-execution-manifest:
-    name: test-execution-manifest
-    runs-on: ubuntu-latest
-    needs: [ci-scope, unit-risk-shards, rules-emulator, e2e-critical-emulator]
-    if: always() && needs.ci-scope.outputs.scope == 'full'
-    steps:
-      - name: Checkout tested merge tree
-        uses: actions/checkout@v7
-      - name: Setup CI dependencies
-        uses: ./.github/actions/setup-ci-dependencies
-      - name: Download same-run unit-1 execution evidence
-        uses: actions/download-artifact@v7
-        with:
-          name: test-execution-evidence-unit-1
-          path: reports/execution
-      - name: Download same-run unit-2 execution evidence
-        uses: actions/download-artifact@v7
-        with:
-          name: test-execution-evidence-unit-2
-          path: reports/execution
-      - name: Download same-run unit-3 execution evidence
-        uses: actions/download-artifact@v7
-        with:
-          name: test-execution-evidence-unit-3
-          path: reports/execution
-      - name: Download same-run unit-4 execution evidence
-        uses: actions/download-artifact@v7
-        with:
-          name: test-execution-evidence-unit-4
-          path: reports/execution
-      - name: Download same-run storage execution evidence
-        uses: actions/download-artifact@v7
-        with:
-          name: test-execution-evidence-storage
-          path: reports/execution
-      - name: Download same-run critical execution evidence
-        uses: actions/download-artifact@v7
-        with:
-          name: test-execution-evidence-critical
-          path: reports/execution
-      - name: Download same-run flow execution evidence
-        uses: actions/download-artifact@v7
-        with:
-          name: test-execution-evidence-flow
-          path: reports/execution
-      - name: Download same-run CUDYR execution evidence
-        uses: actions/download-artifact@v7
-        with:
-          name: test-execution-evidence-cudyr
-          path: reports/execution
-      - name: Require all eight execution reports and validate provenance
-        shell: bash
-        run: |
-          inputs=()
-          for suite in unit-1 unit-2 unit-3 unit-4 storage critical flow cudyr; do
-            evidence="reports/execution/$suite.evidence.json"
-            test -f "$evidence" || { echo "::error::Missing $suite execution evidence"; exit 1; }
-            inputs+=(--input "$evidence")
-          done
-          npm run report:test-execution-manifest -- "${inputs[@]}"
-      - name: Upload execution manifest
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: test-execution-manifest
-          path: reports/test-execution-manifest.*
-          overwrite: true
-          if-no-files-found: error
-          retention-days: 30
 
   build:
     name: build-budget
@@ -1093,11 +972,23 @@ jobs:
           overwrite: true
           retention-days: 7
 
-  preview-smoke:
-    name: preview-smoke
+  # The single job between the work jobs and ci-summary: it merges the preview and critical
+  # E2E lanes, builds the test execution manifest and regenerates confidence. One job pays
+  # the checkout and dependency setup once, instead of a chain of four jobs.
+  # It also runs when lanes fail, so their merged reports and diagnostics are still uploaded.
+  final-confidence-and-readiness:
+    name: final-confidence-and-readiness
     runs-on: ubuntu-latest
-    needs: [ci-scope, preview-smoke-lanes]
-    # Merge whatever the lanes reported so failures are still summarized.
+    needs:
+      [
+        ci-scope,
+        quality-static-governance-snapshots,
+        build,
+        unit-risk-shards,
+        rules-emulator,
+        e2e-critical-lanes,
+        preview-smoke-lanes,
+      ]
     if: ${{ !cancelled() && needs.ci-scope.outputs.scope == 'full' }}
 
     steps:
@@ -1177,25 +1068,93 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  final-confidence-and-readiness:
-    name: final-confidence-and-readiness
-    runs-on: ubuntu-latest
-    # Flake risk counts the test files that failed or needed a retry in this run's manifest.
-    needs:
-      [
-        quality-static-governance-snapshots,
-        build,
-        preview-smoke,
-        e2e-critical-emulator,
-        test-execution-manifest,
-      ]
+      # The critical lanes are merged even when the preview failed, so their diagnostics
+      # are uploaded. Every attempt of this run: re-running failed jobs repeats only the
+      # failed lane, and the merge takes each lane's newest attempt.
+      - name: Download lane evidence from every attempt of this run
+        if: ${{ !cancelled() }}
+        uses: actions/download-artifact@v7
+        with:
+          pattern: e2e-critical-lane-*
+          path: reports/critical-lanes
+      - name: Require all lanes and merge original execution evidence
+        id: e2e-merge
+        if: ${{ !cancelled() }}
+        env:
+          LANES_RESULT: ${{ needs.e2e-critical-lanes.result }}
+        run: |
+          test "$LANES_RESULT" = success
+          node scripts/merge-critical-e2e-lanes.mjs
+      - name: Generate and enforce E2E operational metrics
+        id: e2e-metrics
+        if: always()
+        run: node scripts/report-e2e-operational-metrics.mjs reports/e2e/critical-playwright-report.json --enforce
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
+      - name: Upload flow performance evidence
+        if: ${{ !cancelled() && steps.e2e-merge.outcome == 'success' && steps.e2e-metrics.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: flow-performance-evidence
+          path: |
+            reports/e2e/flow-performance-budget.json
+            reports/e2e/flow-performance-budget-summary.json
+            reports/e2e/flow-performance-budget.md
+            reports/e2e/flow-performance-playwright-report.json
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 14
 
-      - name: Setup CI dependencies
-        uses: ./.github/actions/setup-ci-dependencies
+      # reports/execution keeps the merged critical, flow and CUDYR evidence the manifest reads.
+      - name: Upload E2E critical artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-critical-emulator-artifacts
+          path: |
+            reports/e2e/**
+            reports/execution/critical.evidence.json
+            reports/execution/flow.evidence.json
+            reports/execution/cudyr.evidence.json
+            playwright-report/**
+            test-results/**
+            reports/critical-lanes/**
+          retention-days: 14
+
+      # The manifest needs only the merged lanes, so it is still built when the preview failed.
+      - name: Download same-run unit and storage execution evidence
+        if: ${{ !cancelled() && steps.e2e-merge.outcome == 'success' }}
+        uses: actions/download-artifact@v7
+        with:
+          pattern: test-execution-evidence-*
+          path: reports/execution
+          merge-multiple: true
+      - name: Require all eight execution reports and validate provenance
+        if: ${{ !cancelled() && steps.e2e-merge.outcome == 'success' }}
+        shell: bash
+        run: |
+          inputs=()
+          for suite in unit-1 unit-2 unit-3 unit-4 storage critical flow cudyr; do
+            evidence="reports/execution/$suite.evidence.json"
+            test -f "$evidence" || { echo "::error::Missing $suite execution evidence"; exit 1; }
+            inputs+=(--input "$evidence")
+          done
+          npm run report:test-execution-manifest -- "${inputs[@]}"
+      - name: Upload execution manifest
+        if: ${{ !cancelled() && steps.e2e-merge.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-execution-manifest
+          path: reports/test-execution-manifest.*
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 30
+
+      # Flake risk counts the test files that failed or needed a retry in this manifest.
+      - name: Require the build and governance snapshots of this run
+        run: test "$BUILD_RESULT" = success && test "$SNAPSHOTS_RESULT" = success
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          SNAPSHOTS_RESULT: ${{ needs['quality-static-governance-snapshots'].result }}
 
       - name: Download governance snapshots
         uses: actions/download-artifact@v7
@@ -1203,34 +1162,13 @@ jobs:
           name: quality-static-governance-snapshots
           path: reports
 
-      - name: Download same-run test execution manifest
-        uses: actions/download-artifact@v7
-        with:
-          name: test-execution-manifest
-          path: reports
-
-      - name: Download preview bootstrap artifacts
-        uses: actions/download-artifact@v7
-        with:
-          name: preview-bootstrap-artifacts
-          path: reports/e2e/preview-bootstrap
-
       - name: Download production build
         uses: actions/download-artifact@v7
         with:
           name: dist
           path: dist
 
-      - name: Validate downloaded preview bootstrap evidence
-        run: npm run check:preview-bootstrap-evidence
-
-      - name: Download same-run flow performance evidence
-        uses: actions/download-artifact@v7
-        with:
-          name: flow-performance-evidence
-          path: reports/e2e
-
-      - name: Validate downloaded flow performance evidence
+      - name: Validate flow performance evidence
         run: |
           node scripts/check-playwright-report-clean.mjs reports/e2e/flow-performance-playwright-report.json --label flow-performance
           npm run check:flow-performance-budget
@@ -1260,7 +1198,6 @@ jobs:
             reports/e2e/flow-performance-budget-summary.json
             reports/e2e/flow-performance-playwright-report.json
           retention-days: 30
-
   census-startup-performance:
     name: census-startup-performance (${{ matrix.environment }})
     runs-on: ubuntu-24.04
@@ -1345,7 +1282,7 @@ jobs:
         unit-risk,
         clinical-sync-release-gate,
         rules-emulator,
-        e2e-critical-emulator,
+        e2e-critical-lanes,
         build,
       ]
     permissions:
@@ -1397,12 +1334,12 @@ jobs:
         tooling-scope-gate,
         quality-static,
         unit-risk,
-        test-execution-manifest,
         clinical-sync-release-gate,
         rules-emulator,
-        e2e-critical-emulator,
+        emulator-ui,
+        e2e-critical-lanes,
         build,
-        preview-smoke,
+        preview-smoke-lanes,
         final-confidence-and-readiness,
         ci-runtime-telemetry,
         census-startup-performance,
@@ -1414,13 +1351,13 @@ jobs:
       FUNCTIONS_SCOPE_GATE_RESULT: ${{ needs['functions-scope-gate'].result }}
       TOOLING_SCOPE_GATE_RESULT: ${{ needs['tooling-scope-gate'].result }}
       QUALITY_STATIC_RESULT: ${{ needs['quality-static'].result }}
-      TEST_EXECUTION_RESULT: ${{ needs['test-execution-manifest'].result }}
       UNIT_RISK_RESULT: ${{ needs['unit-risk'].result }}
       CLINICAL_SYNC_RESULT: ${{ needs['clinical-sync-release-gate'].result }}
       RULES_EMULATOR_RESULT: ${{ needs['rules-emulator'].result }}
-      E2E_CRITICAL_RESULT: ${{ needs['e2e-critical-emulator'].result }}
+      EMULATOR_UI_RESULT: ${{ needs['emulator-ui'].result }}
+      E2E_CRITICAL_RESULT: ${{ needs['e2e-critical-lanes'].result }}
       BUILD_RESULT: ${{ needs.build.result }}
-      PREVIEW_SMOKE_RESULT: ${{ needs['preview-smoke'].result }}
+      PREVIEW_SMOKE_RESULT: ${{ needs['preview-smoke-lanes'].result }}
       FINAL_CONFIDENCE_RESULT: ${{ needs['final-confidence-and-readiness'].result }}
       CI_RUNTIME_TELEMETRY_RESULT: ${{ needs['ci-runtime-telemetry'].result }}
       CENSUS_PERFORMANCE_RESULT: ${{ needs['census-startup-performance'].result }}
@@ -1448,12 +1385,12 @@ jobs:
           for gate in \
             "quality-static:$QUALITY_STATIC_RESULT" \
             "unit-risk:$UNIT_RISK_RESULT" \
-            "test-execution-manifest:$TEST_EXECUTION_RESULT" \
             "clinical-sync-release-gate:$CLINICAL_SYNC_RESULT" \
             "rules-emulator:$RULES_EMULATOR_RESULT" \
-            "e2e-critical-emulator:$E2E_CRITICAL_RESULT" \
+            "emulator-ui:$EMULATOR_UI_RESULT" \
+            "e2e-critical-lanes:$E2E_CRITICAL_RESULT" \
             "build:$BUILD_RESULT" \
-            "preview-smoke:$PREVIEW_SMOKE_RESULT" \
+            "preview-smoke-lanes:$PREVIEW_SMOKE_RESULT" \
             "final-confidence-and-readiness:$FINAL_CONFIDENCE_RESULT" \
             "ci-runtime-telemetry:$CI_RUNTIME_TELEMETRY_RESULT" \
             "census-startup-performance:$CENSUS_PERFORMANCE_RESULT"
@@ -1476,7 +1413,7 @@ jobs:
     name: postmerge-evidence
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [build, preview-smoke, ci-strict-summary, e2e-critical-emulator]
+    needs: [build, ci-strict-summary, final-confidence-and-readiness]
     permissions:
       actions: read
       contents: read
@@ -1497,7 +1434,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
 
       - name: Verify preview bootstrap artifact availability
-        run: node scripts/verify-github-run-artifact.mjs --artifact preview-bootstrap-artifacts --producer preview-smoke
+        run: node scripts/verify-github-run-artifact.mjs --artifact preview-bootstrap-artifacts --producer final-confidence-and-readiness
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
