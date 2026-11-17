@@ -16,6 +16,7 @@ import {
   type AdmissionPeriod,
   type IndicationScope,
 } from './admissionAuditModel';
+import { useLatestRef } from '@/hooks/useLatestRef';
 
 export interface AdmissionAuditReport {
   period: AdmissionPeriod;
@@ -25,8 +26,7 @@ export interface AdmissionAuditReport {
 export const useAdmissionAudit = (owner: string | null) => {
   const epoch = useSessionEpoch();
   const scope = `${owner}:${epoch}`;
-  const current = useRef(scope);
-  current.current = scope;
+  const current = useLatestRef(scope);
   const operation = useRef<AbortController | null>(null);
   const [answer, setAnswer] = useState<{ scope: string; report: AdmissionAuditReport } | null>(
     null
