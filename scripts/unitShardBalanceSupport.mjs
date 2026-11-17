@@ -30,7 +30,20 @@ const safeReadJson = (root, relativePath) => {
 
 const escapeRegex = value => value.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
 
+// Every estimate matches each file against every configured glob; compiling a
+// glob once instead of once per file keeps the balancer from dominating CI.
+const compiledGlobs = new Map();
+
 const globToRegex = glob => {
+  let compiled = compiledGlobs.get(glob);
+  if (!compiled) {
+    compiled = compileGlob(glob);
+    compiledGlobs.set(glob, compiled);
+  }
+  return compiled;
+};
+
+const compileGlob = glob => {
   const normalized = normalizePath(glob);
   let output = '^';
   for (let index = 0; index < normalized.length; index += 1) {

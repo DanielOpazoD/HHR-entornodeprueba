@@ -72,7 +72,7 @@ el release de Firestore ni el perfil completo de confianza.
 
 ### Conexión previa y diagnóstico de Eloísa
 
-Owner: sincronización clínica. Verificar `check:rayen-extension-release`, los smokes
+Owner: sincronización clínica. Verificar `node scripts/check-rayen-extension-release.mjs`, los smokes
 `test:e2e:rayen-extension-runtime` y `test:e2e:rayen-extension-upgrade`, y las regresiones
 de salud, inicio bloqueado y diagnóstico entre capturas. Los fixtures deben devolver
 `syncPreflight: true` únicamente cuando reciban `verifySessions: true`, además de anunciar
@@ -338,9 +338,9 @@ Para evaluar un workflow, usar su artifact `ci-runtime-telemetry`, generado al t
 los jobs; sin procedencia verificable no atribuir la medición al run actual.
 
 El artifact `reports/test-runtime-governance.md` muestra budgets, PR vs nightly y señales de fixtures duplicadas para reducir tiempo con datos sin perder cobertura clínica crítica.
-El balance de los 4 `unit-risk-shards` vive en `scripts/config/unit-shard-balance.json` y se evidencia en `reports/unit-shard-runtime-profile.md`. El grupo de calidad `tests` lo valida dentro de `check:test-runtime-governance`, sin una segunda evaluación independiente. Para comprobar solo el balance sigue disponible `npm run check:unit-shard-balance`.
+El balance de los 4 `unit-risk-shards` vive en `scripts/config/unit-shard-balance.json`; `npm run report:unit-shard-runtime-profile` lo muestra en `reports/unit-shard-runtime-profile.md`, que no se versiona. El grupo de calidad `tests` lo valida dentro de `check:test-runtime-governance`, sin una segunda evaluación independiente. Para comprobar solo el balance sigue disponible `npm run check:unit-shard-balance`.
 Si un shard se vuelve dominante, correr `npm run profile:unit-shard-runtime`, revisar los archivos lentos del reporte y ajustar `perFileOverheadMs`, `durationHints`, `affinityGroups` o `lockedAssignments`; no mover tests clínicos PR-critical a nightly para maquillar runtime.
-El runtime observado de GitHub Actions se evidencia en `reports/ci-runtime-observed-profile.md` y se valida con `npm run check:ci-runtime-telemetry`. En PR lo captura `ci-runtime-telemetry`, con permisos mínimos `actions: read`/`contents: read`, después de los gates principales. El collector `npm run collect:ci-runtime-observed-input` usa `GITHUB_RUN_ID`, `GITHUB_REPOSITORY` y `GITHUB_TOKEN` para escribir `reports/ci-runtime-observed-input.json`; luego el reporte compara esos tiempos reales contra `reports/unit-shard-runtime-profile.json`. El job corre después de `unit-risk`, así que un shard que la API aún muestra en cola o en ejecución es un dato atrasado de GitHub: el collector relee hasta 2,5 minutos antes de entregar la última lectura al contrato.
+El runtime observado de GitHub Actions se evidencia en el artefacto `ci-runtime-observed-profile` de cada corrida y se valida con `npm run check:ci-runtime-telemetry`. En PR lo captura `ci-runtime-telemetry`, con permisos mínimos `actions: read`/`contents: read`, después de los gates principales. El collector `npm run collect:ci-runtime-observed-input` usa `GITHUB_RUN_ID`, `GITHUB_REPOSITORY` y `GITHUB_TOKEN` para escribir `reports/ci-runtime-observed-input.json`; luego el reporte compara esos tiempos reales contra la estimación de `scripts/config/unit-shard-balance.json`. El job corre después de `unit-risk`, así que un shard que la API aún muestra en cola o en ejecución es un dato atrasado de GitHub: el collector relee hasta 2,5 minutos antes de entregar la última lectura al contrato.
 Este gate es advisory-first: no bloquea por falta de datos reales ni por una corrida aislada lenta; solo bloquea contratos rotos como JSON inválido, timestamps inválidos, shards duplicados/faltantes cuando el reporte declara datos observados o nombres imposibles de shard.
 Si el observado contradice repetidamente el balance estimado, ajustar primero `durationHints`, `perFileOverheadMs`, `affinityGroups` o `lockedAssignments`, y recién después considerar cambios de suite. No reducir cobertura clínica crítica para bajar minutos. Si el reporte queda en `no_observed_ci_data` dentro de GitHub Actions, revisar que el job `ci-runtime-telemetry` haya ejecutado el collector antes del reporter y que el token tenga permiso de lectura de Actions.
 El gate de rendimiento del censo usa 5 muestras por escenario en PR y conserva 30 en eventos que no son PR, incluidos los `push` a `main` y `develop`. El muestreo corto detecta regresiones durante revisión; el muestreo largo de los eventos que no son PR mantiene la evidencia estable sin cobrar ese costo en cada iteración.
@@ -350,7 +350,7 @@ CI regenera los snapshots report-only obligatorios con `npm run report:governanc
 `release-confidence-matrix` también pasa a report-only dentro del aggregate: sigue exigiéndose para trazabilidad y revisión técnica, pero no como bloqueo duplicado si el release pack y la cobertura primaria siguen verdes.
 La fuente de verdad es `scripts/config/guardrail-governance.json`: `reportOnly` registra comandos que escriben snapshots y `qualityAggregate.checks` enumera lo que ejecuta el agregado, con su carácter bloqueante o advisory. Un productor registrado no implica que su checker se ejecute.
 `report:technical-ownership-map` y `report:sustainable-change-policy` conservan los snapshots para revisión técnica. Las políticas de ownership, upgrades, excepciones y definición de cambio seguro siguen vigentes, sin validadores de campos separados.
-La validación de tiempos actuales corre en el job `ci-runtime-telemetry` de `.github/workflows/ci-cd.yml`, requerido por `ci-summary`: collect → report → check. El agregado no comprueba el snapshot histórico versionado. `npm run check:ci-runtime-telemetry` sigue disponible localmente y valida el archivo presente; comprobar su fecha y corrida de origen antes de usarlo como evidencia.
+La validación de tiempos actuales corre en el job `ci-runtime-telemetry` de `.github/workflows/ci-cd.yml`, requerido por `ci-summary`: collect → report → check. `npm run check:ci-runtime-telemetry` sigue disponible localmente y valida el archivo presente; comprobar su fecha y corrida de origen antes de usarlo como evidencia.
 
 Salida esperada:
 
@@ -394,7 +394,7 @@ Salida esperada:
 4. si agregaste una Function sensible nueva, registrarla en `scripts/config/serverless-sensitive-coverage.json` en la misma change
 5. no aceptar endpoints sensibles sin test focalizado y contrato operativo documentado
 
-### Falla `check:release-readiness-scorecard`
+### Scorecard de release degradado
 
 1. correr `npm run report:release-readiness-scorecard`
 2. revisar `reports/release-readiness-scorecard.md`
@@ -738,9 +738,9 @@ El pack `ci:preview-smoke:built` se valida una vez por run, ahora en carriles
 paralelos. `preview-smoke-lanes` arranca junto con los demás gates (necesita sólo
 `ci-scope`), compila el mismo commit y ejecuta un tramo del pack por carril:
 `app` (censo, biblioteca, panel clínico, historial y arrastre clínico),
-`dicom-graphics-stress` (las pruebas etiquetadas `@graphics-stress`: el ciclo de estrés
-de WebGL por software y las dos vistas 3D más largas de la segunda mitad) y las dos
-mitades `dicom-1`/`dicom-2` del resto del visor DICOM. Los carriles se reparten por
+`dicom-graphics-stress` (la prueba etiquetada `@graphics-stress`: el ciclo de estrés
+de WebGL por software) y los tres tercios `dicom-1`/`dicom-2`/`dicom-3` del resto del
+visor DICOM. Los carriles se reparten por
 duración observada, no por número de pruebas; se definen en
 `scripts/previewSmokeLaneSupport.mjs`.
 
@@ -813,7 +813,8 @@ observar el guardado de la aplicación.
 
 ## Fases del chequeo de paquete de extensión
 
-`check:rayen-extension-release` valida primero manifiesto, protocolo, integridad
+`scripts/check-rayen-extension-release.mjs` (en el repositorio de la extensión,
+`npm run check:release`, que su CI corre en cada cambio) valida primero manifiesto, protocolo, integridad
 de vendors, rutas y referencias. Si esa fase falla, devuelve sus errores con código
 1 sin iniciar un proceso de sintaxis por cada script de un paquete ya rechazado.
 Tras corregir la estructura, una nueva ejecución comprueba la sintaxis de todos

@@ -14,6 +14,10 @@ La evaluación usa evidencia observable del repo:
 - `reports/operational-health.md`
 - `reports/security/dependency-audit.md`
 
+Los `reports/` no se versionan: describen el commit que los generó. Se leen del SHA evaluado, como
+artefactos de su corrida de CI (`quality-metrics`, `confidence-and-readiness`, `critical-coverage`) o
+generándolos en ese checkout con `npm run report:governance-snapshots`; nunca de una corrida anterior.
+
 ## 1. Escala base
 
 Usar esta escala antes de aplicar pesos y techos:
@@ -143,7 +147,7 @@ Guía:
 
 Señales HHR:
 
-- `reports/quality-metrics.md` y el informe que genera `npm run report:maintenance-debt-scorecard` (no está versionado: se genera en `reports/`)
+- `reports/quality-metrics.md` y `reports/maintenance-debt-scorecard.md`
 
 ### Estabilidad
 
@@ -297,16 +301,11 @@ Para entrar aquí deben cumplirse todas:
 - seguridad prod limpia sin excepciones delicadas abiertas
 - hotspots principales bajo control sostenido
 
-## 6. Estado actual de referencia
+## 6. Estado actual
 
-Al momento de esta versión de la rúbrica, el repo cae en el tramo A por estas señales:
-
-- `lint` falla
-- `reports/system-confidence.md`: `Overall status: degraded`
-- `reports/release-readiness-scorecard.md`: `Overall: degraded`
-- `reports/critical-coverage.md`: `Status: failing`
-
-Por eso una nota global cercana a `5.9 - 6.0` es consistente incluso si estructura, tests y documentación están bastante por encima.
+Esta rúbrica no guarda el estado del repositorio: cualquier cifra escrita aquí envejece con el siguiente
+merge. Cada evaluación lo mide sobre su SHA con los comandos y reportes de arriba y lo informa con la regla
+de cierre.
 
 ## 7. Regla de cierre para futuras evaluaciones
 

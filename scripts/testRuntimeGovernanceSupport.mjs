@@ -207,33 +207,33 @@ const walkTestFiles = root => {
   return files;
 };
 
-const countFixtureSignalFiles = (root, predicate) =>
-  walkTestFiles(root).filter(file => {
-    const content = readText(root, file);
-    return predicate(content, file);
-  });
-
 const collectFixtureDuplicationSignals = root => {
-  const inlineDailyRecordFiles = countFixtureSignalFiles(
-    root,
-    content =>
+  const inlineDailyRecordFiles = [];
+  const runtimeMockFiles = [];
+  const customSyncScenarioFiles = [];
+  for (const file of walkTestFiles(root)) {
+    const content = readText(root, file);
+    if (
       content.includes("from '@/types/domain/dailyRecord'") &&
       (content.includes('beds: {') || content.includes('beds: [')) &&
       !content.includes('DataFactory.createMockDailyRecord')
-  );
-  const runtimeMockFiles = countFixtureSignalFiles(
-    root,
-    content =>
+    ) {
+      inlineDailyRecordFiles.push(file);
+    }
+    if (
       content.includes("vi.mock('@/shared/runtime/browserWindowRuntimeCore'") ||
       content.includes('vi.mock("@/shared/runtime/browserWindowRuntimeCore"')
-  );
-  const customSyncScenarioFiles = countFixtureSignalFiles(
-    root,
-    (content, file) =>
+    ) {
+      runtimeMockFiles.push(file);
+    }
+    if (
       content.includes('expectedVersion') &&
       content.includes('changedPaths') &&
       !file.startsWith('src/tests/support/clinicalSyncSimulator/')
-  );
+    ) {
+      customSyncScenarioFiles.push(file);
+    }
+  }
 
   return [
     {

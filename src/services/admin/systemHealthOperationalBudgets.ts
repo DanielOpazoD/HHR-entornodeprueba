@@ -31,12 +31,3 @@ export const DEFAULT_SYSTEM_HEALTH_THRESHOLDS: SystemHealthThresholds = {
 };
 
 export const PROLONGED_OFFLINE_USER_AGE_MS = 900000;
-
-export const SYSTEM_HEALTH_ALERT_SLA_MINUTES = {
-  criticalUsers: 10,
-  failedSync: 10,
-  syncConflicts: 15,
-  staleQueue: 30,
-  offlineUsers: 30,
-  warningUsers: 45,
-} as const;

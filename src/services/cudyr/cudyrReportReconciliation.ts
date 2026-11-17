@@ -1,4 +1,5 @@
 import type { CudyrReportRow, CudyrReportStatus } from '@/types/domain/cudyrReport';
+import { isCalendarDate } from '@/utils/clinicalDateUtils';
 import type { CudyrCaptureReceipt } from '@/types/domain/cudyrCapture';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 
@@ -102,11 +103,7 @@ export const reconcileCudyrDischarge = (row: CudyrReportRow): CudyrReportRow => 
     return review('Egresos del sistema con fechas u horas contradictorias.');
   const departure = actual || [...dates.values()][0];
   if (!departure) return row;
-  const dateValid =
-    /^\d{4}-\d{2}-\d{2}$/.test(departure.date) &&
-    Number.isFinite(Date.parse(departure.date + 'T12:00:00Z')) &&
-    new Date(departure.date + 'T12:00:00Z').toISOString().slice(0, 10) === departure.date;
-  if (!dateValid) return review('Fecha de egreso inválida.');
+  if (!isCalendarDate(departure.date)) return review('Fecha de egreso inválida.');
   const timeValid = /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(departure.time || '');
   const source = actual ? 'Alta real verificada' : 'Egreso del sistema';
   // A manual correction alone is still a visible exception. If a formal departure

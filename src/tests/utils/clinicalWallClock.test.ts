@@ -1,8 +1,16 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest';
+import { createRequire } from 'node:module';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
-import { clinicalWallClockToDate } from '@/utils/clinicalWallClock';
+import { clinicalWallClockToDate, isWithinNurseEditingWindow } from '@/utils/clinicalWallClock';
+
+const require = createRequire(import.meta.url);
+const { hospitalDayStart } = require('../../../functions/lib/hospitalCalendarDay.js');
+const { assertNursePatchWindow } = require('../../../functions/lib/dailyRecordWritePolicy.js');
+
+const DAY_MS = 86_400_000;
+const originalTimezone = process.env.TZ;
 
 describe('clinical wall clock', () => {
   it.each([
@@ -36,5 +44,60 @@ describe('clinical wall clock', () => {
     expect(calendarStampInClinicalTimeZone(clinicalWallClockToDate('2026-09-05', '22:30'))).toEqual(
       { iso: '2026-09-05', hhmm: '23:30' }
     );
+  });
+});
+
+describe.each([
+  'UTC',
+  'America/Santiago',
+  'Pacific/Easter',
+  'Pacific/Auckland',
+  'Pacific/Pago_Pago',
+  'Pacific/Kiritimati',
+])('nurse editing window on a device in %s', timezone => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    if (originalTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTimezone;
+  });
+
+  const serverAllowsNurse = (date: string, now: number): boolean => {
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+    try {
+      assertNursePatchWindow({ date, role: 'nurse_hospital' });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  it('opens and closes at the same instants as the daily-record functions for every day of 2026', () => {
+    process.env.TZ = timezone;
+    // From 24 h before to 48 h after the day's Rapa Nui midnight, both ends excluded.
+    const boundaries: [number, boolean][] = [
+      [-DAY_MS, false],
+      [-DAY_MS + 1, true],
+      [2 * DAY_MS - 1, true],
+      [2 * DAY_MS, false],
+    ];
+    for (let index = 0; index < 365; index += 1) {
+      const day = new Date(Date.UTC(2026, 0, 1 + index)).toISOString().slice(0, 10);
+      const midnight = hospitalDayStart(day);
+      expect(clinicalWallClockToDate(day, '00:00').getTime(), day).toBe(midnight);
+      for (const [offset, open] of boundaries) {
+        const now = midnight + offset;
+        expect(isWithinNurseEditingWindow(day, now), `${day} ${offset}`).toBe(open);
+        expect(serverAllowsNurse(day, now), `${day} ${offset}`).toBe(open);
+      }
+    }
+  });
+
+  it('keeps a malformed day outside the window, as the server does', () => {
+    process.env.TZ = timezone;
+    const now = Date.parse('2026-11-17T12:00:00.000Z');
+    for (const day of ['', '2026-11-17T00:00', '17-11-2026', '2026-02-30', '2026-13-01']) {
+      expect(isWithinNurseEditingWindow(day, now), day).toBe(false);
+      expect(serverAllowsNurse(day, now), day).toBe(false);
+    }
   });
 });

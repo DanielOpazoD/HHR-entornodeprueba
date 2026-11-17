@@ -13,11 +13,6 @@ export const getPrescriptionsCollectionPath = (
   hospitalId: string = getActiveHospitalId()
 ): string => `hospitals/${hospitalId}/prescriptions`;
 
-/** Firestore document holding the QR + PIN access policy (admin-managed). */
-export const getPrescriptionsAccessConfigPath = (
-  hospitalId: string = getActiveHospitalId()
-): string => `hospitals/${hospitalId}/config/prescriptionsAccess`;
-
 /**
  * Storage prefix for prescription images. Each record stores its full
  * image at `${prefix}/${id}/full.jpg` and its thumbnail at
@@ -30,13 +25,3 @@ export const getPrescriptionsAccessConfigPath = (
  */
 export const getPrescriptionsStoragePrefix = (hospitalId: string = getActiveHospitalId()): string =>
   `prescriptions/${hospitalId}`;
-
-export const buildPrescriptionFullImagePath = (
-  prescriptionId: string,
-  hospitalId: string = getActiveHospitalId()
-): string => `${getPrescriptionsStoragePrefix(hospitalId)}/${prescriptionId}/full.jpg`;
-
-export const buildPrescriptionThumbnailPath = (
-  prescriptionId: string,
-  hospitalId: string = getActiveHospitalId()
-): string => `${getPrescriptionsStoragePrefix(hospitalId)}/${prescriptionId}/thumb.jpg`;

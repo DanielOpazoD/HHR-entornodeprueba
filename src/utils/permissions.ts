@@ -225,15 +225,6 @@ export function canDoAction(role: UserRole | undefined, action: ActionPermission
 }
 
 /**
- * Get all action permissions for a role (for debugging/display).
- * @param role - User's role
- * @returns Array of all allowed action strings
- */
-export function getAllowedActions(role: UserRole | undefined): ActionPermission[] {
-  return getActionPermissions(role);
-}
-
-/**
  * Get visible modules for a given role
  *
  * Returns array of module names that should be visible in the navigation
@@ -272,10 +263,6 @@ export function getVisibleModules(role: UserRole | undefined): ModuleType[] {
 export function canEditModule(role: UserRole | undefined, module: ModuleType): boolean {
   const perms = getPermissions(role);
   return perms.canEdit.includes(module);
-}
-
-export function canEditAnyModule(role: UserRole | undefined): boolean {
-  return getPermissions(role).canEdit.length > 0;
 }
 
 /**
