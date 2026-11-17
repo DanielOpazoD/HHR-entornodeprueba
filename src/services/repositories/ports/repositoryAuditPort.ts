@@ -2,7 +2,8 @@ import { loadExecuteWriteAuditEvent } from '@/application/audit/writeAuditEventU
 import { getCurrentUserEmail } from '@/services/admin/utils/auditUtils';
 import type { DailyRecordRestoreImpactAnalysis } from '@/services/repositories/dailyRecordRestoreImpactAnalyzer';
 
-export interface ConflictAuditDetails {
+// A type alias, not an interface: audit details travel as Record<string, unknown>.
+export type ConflictAuditDetails = {
   /** Correlates the audit entry with the recoverable version snapshots in `conflictSnapshots/`. */
   conflictId?: string;
   /** Whether recoverable pre-merge snapshots were stored for the clinical conflict center. */
@@ -47,7 +48,7 @@ export interface ConflictAuditDetails {
     localDominantPaths: string[];
     remoteProtectedPaths: string[];
   };
-}
+};
 
 type ConflictLoggerFn = (date: string, details: ConflictAuditDetails) => Promise<void>;
 
@@ -72,7 +73,7 @@ export const logRepositoryConflictAutoMerged = async (
     action: 'CONFLICT_AUTO_MERGED',
     entityType: 'dailyRecord',
     entityId: date,
-    details: details as unknown as Record<string, unknown>,
+    details,
     recordDate: date,
   });
   // Surface a failed audit outcome (executeWriteAuditEvent never throws). The caller decides the
@@ -87,7 +88,8 @@ export const logRepositoryConflictAutoMerged = async (
   }
 };
 
-export interface ConflictVersionRestoreAuditDetails {
+// A type alias, not an interface: audit details travel as Record<string, unknown>.
+export type ConflictVersionRestoreAuditDetails = {
   /** Snapshot document id that was restored. */
   snapshotId: string;
   /** Which side of the conflict it came from (e.g. remote_premerge / incoming_premerge). */
@@ -142,7 +144,7 @@ export interface ConflictVersionRestoreAuditDetails {
       }>;
     };
   };
-}
+};
 
 /**
  * Audits an authorized reviewer restoring a daily-record version from the conflict panel. Permanent (the
@@ -162,7 +164,7 @@ export const logRepositoryConflictVersionRestored = async (
     action: 'CONFLICT_VERSION_RESTORED',
     entityType: 'dailyRecord',
     entityId: date,
-    details: details as unknown as Record<string, unknown>,
+    details,
     recordDate: date,
   });
   if (outcome.status !== 'success') {

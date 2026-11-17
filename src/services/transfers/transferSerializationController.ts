@@ -33,6 +33,7 @@ export const transferDocToEntity = (
   const status = normalizeLegacyTransferStatus(docData.status as string | undefined);
 
   return {
+    // Firestore data is untyped; the fields normalized below are the ones read defensively.
     ...(docData as unknown as TransferRequest),
     id: docId,
     status,

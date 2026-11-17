@@ -123,5 +123,6 @@ export const createMockDatabase = (): IndexedDbDatabaseLike => {
     isOpen: () => true,
     open: () => Promise.resolve(),
     on: () => ({}),
+    // Implements only the Dexie table methods the app calls, not the whole Table type.
   } as unknown as IndexedDbDatabaseLike;
 };

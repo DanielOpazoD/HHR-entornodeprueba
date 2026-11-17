@@ -48,7 +48,8 @@ export const filterUnchangedBedFieldPatches = (
 ): Record<string, unknown> => {
   const fieldPrefix = `beds.${bedId}.`;
   const overridePath = `bedTypeOverrides.${bedId}`;
-  const currentPatient = state.beds[bedId] as unknown as Record<string, unknown> | undefined;
+  const currentPatient = state.beds[bedId];
+  const currentFields = new Map<string, unknown>(Object.entries(currentPatient ?? {}));
   const filtered: Record<string, unknown> = {};
 
   Object.entries(patches).forEach(([path, value]) => {
@@ -63,7 +64,7 @@ export const filterUnchangedBedFieldPatches = (
       filtered[path] = value;
       return;
     }
-    if (!arePatchValuesDeepEqual(value, currentPatient[field])) {
+    if (!arePatchValuesDeepEqual(value, currentFields.get(field))) {
       filtered[path] = value;
     }
   });

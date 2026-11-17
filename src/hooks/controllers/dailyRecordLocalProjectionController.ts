@@ -46,8 +46,8 @@ export const rebaseLocalProjectionOntoNewerRecord = (
   localProjectionRecord: DailyRecord,
   newerRecord: DailyRecord
 ): DailyRecord => {
-  const confirmed = flattenObject(confirmedRecord as unknown as Record<string, unknown>);
-  const projection = flattenObject(localProjectionRecord as unknown as Record<string, unknown>);
+  const confirmed = flattenObject(confirmedRecord);
+  const projection = flattenObject(localProjectionRecord);
   const paths = new Set([...Object.keys(confirmed), ...Object.keys(projection)]);
   const projectionPatch = Array.from(paths).reduce<DailyRecordPatch>((patch, path) => {
     if (

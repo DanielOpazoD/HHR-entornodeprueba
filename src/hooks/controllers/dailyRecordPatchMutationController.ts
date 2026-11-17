@@ -1,5 +1,6 @@
 import type { PublicWriteOptions } from '@/services/storage/authoringSession';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+import type { PatientData } from '@/types/domain/patient';
 import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
 
 export type DailyRecordPatchMutationVariables =
@@ -38,7 +39,7 @@ export const resolvePendingIntentionalClearTarget = (
 export interface PendingClinicalCribCreateTarget {
   bedId: string;
   /** Exact crib draft the guarded command sent; the census layer renders it verbatim. */
-  crib: Record<string, unknown>;
+  crib: PatientData;
 }
 
 /**
@@ -61,10 +62,9 @@ export const resolvePendingClinicalCribCreateTarget = (
   const clinicalCribCreate = options?.clinicalCribCreate;
   if (!clinicalCribCreate) return null;
 
-  const crib = (partial as Record<string, unknown>)[
-    `beds.${clinicalCribCreate.bedId}.clinicalCrib`
-  ];
+  const crib = partial[`beds.${clinicalCribCreate.bedId}.clinicalCrib`];
   if (!crib || typeof crib !== 'object' || Array.isArray(crib)) return null;
 
-  return { bedId: clinicalCribCreate.bedId, crib: crib as Record<string, unknown> };
+  // The guarded crib command sends a whole patient at this path.
+  return { bedId: clinicalCribCreate.bedId, crib: crib as PatientData };
 };

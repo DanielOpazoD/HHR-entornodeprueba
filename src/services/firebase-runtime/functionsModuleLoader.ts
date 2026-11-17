@@ -17,8 +17,7 @@ const setReloadRequired = (value: boolean) => setModuleReloadRequired('functions
  * offline rejection and reload recovery.
  */
 export const loadFunctionsModule = async <Module = typeof import('firebase/functions')>(
-  importModule: () => Promise<Module> = () =>
-    import('firebase/functions') as unknown as Promise<Module>
+  importModule: () => Promise<Module> = () => import('firebase/functions') as Promise<Module>
 ): Promise<Module> => {
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     throw Object.assign(new Error('Sin conexión.'), {

@@ -78,7 +78,7 @@ export const saveAndDownloadPdf = async (
   if ('showSaveFilePicker' in window) {
     try {
       const handle = await (
-        window as unknown as {
+        window as {
           showSaveFilePicker: (opts: unknown) => Promise<FileSystemFileHandle>;
         }
       ).showSaveFilePicker({
@@ -91,7 +91,7 @@ export const saveAndDownloadPdf = async (
         ],
       });
       const writable = await handle.createWritable();
-      await writable.write(pdfBytes as unknown as BufferSource);
+      await writable.write(pdfBytes);
       await writable.close();
       return;
     } catch (err) {
@@ -100,7 +100,7 @@ export const saveAndDownloadPdf = async (
   }
 
   // Fallback: classic download link
-  const blob = new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' });
+  const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -125,7 +125,7 @@ export const openPdfPrintDialog = async (
   const printDoc = await PDFDocument.load(pdfBytes);
   await injectPrintScript(printDoc);
   const finalBytes = await printDoc.save();
-  const blob = new Blob([finalBytes as unknown as BlobPart], { type: 'application/pdf' });
+  const blob = new Blob([finalBytes as BlobPart], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
   const iframe = createHiddenPrintFrame();
   let hasResolvedFallback = false;
