@@ -208,11 +208,14 @@ describe('test execution manifest evidence', () => {
   it('requires an explicit decision for every E2E source and detects stale or duplicate decisions', () => {
     const decision = {
       file: 'e2e/a.spec.ts',
-      lane: 'manual',
-      reason: 'Synthetic local scenario',
-      command: 'npx playwright test e2e/a.spec.ts',
+      lane: 'ci',
+      reason: 'Synthetic scenario',
+      command: 'npm run test:e2e:a',
     };
     expect(collectE2eOwnershipIssues(['e2e/a.spec.ts'], { specs: [decision] })).toEqual([]);
+    expect(
+      collectE2eOwnershipIssues(['e2e/a.spec.ts'], { specs: [{ ...decision, lane: 'manual' }] })
+    ).toEqual(['E2E spec has no workflow lane (ci or nightly): e2e/a.spec.ts']);
     expect(collectE2eOwnershipIssues(['e2e/b.spec.ts'], { specs: [decision, decision] })).toEqual([
       'Owned E2E file does not exist: e2e/a.spec.ts',
       'Duplicate E2E owner: e2e/a.spec.ts',

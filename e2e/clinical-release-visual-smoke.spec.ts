@@ -330,7 +330,7 @@ const createCudyrEvidence = async (page: Page) => {
     runtimeConfig
   );
   // Layout/download fixture only. Persistence and callable authorization are covered
-  // by cudyr-report-explorer.spec.ts against the isolated Firestore emulator.
+  // by cudyr-flow-critical.spec.ts and the cudyr-*.emulator tests against the emulator.
   await page.route('**/readCudyrHistory', async route => {
     const headers = {
       'access-control-allow-origin': '*',

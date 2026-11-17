@@ -51,10 +51,10 @@ corridas solapadas. Conserva SHA completo y huella de cambios locales; rechaza
 reportes ajenos al árbol probado. Su alcance automático está en
 [README de pruebas](README.md#54-inventario-y-ejecución-por-árbol-probado).
 
-Cada spec E2E tiene decisión explícita en `scripts/config/e2e-test-ownership.json`.
-Los escenarios manuales y candidatos a retirada se conservan: no basta que no
-aparezcan literalmente en un workflow para considerarlos inútiles. El PDF smoke
-no ejecutado por CI tampoco se cuenta como ahorro.
+Cada spec E2E tiene decisión explícita en `scripts/config/e2e-test-ownership.json`,
+y solo caben los carriles `ci` y `nightly`. El 17 de noviembre de 2026 los 32 specs
+manuales se corrieron una vez contra el emulador y se borraron: ningún workflow los
+ejecutaba, así que no protegían nada.
 
 ## Observación de CI en tres corridas
 

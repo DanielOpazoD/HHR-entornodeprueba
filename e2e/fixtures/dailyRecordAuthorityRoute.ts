@@ -32,7 +32,7 @@ export interface PendingAuthorityCall {
   reject: (options?: RejectOptions) => Promise<void>;
 }
 
-export interface DailyRecordAuthorityRouteController {
+interface DailyRecordAuthorityRouteController {
   nextCall: () => Promise<PendingAuthorityCall>;
   queuedCallCount: () => number;
 }

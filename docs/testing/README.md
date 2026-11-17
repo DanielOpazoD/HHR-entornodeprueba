@@ -286,7 +286,8 @@ Objetivo: que el pack blocking siga siendo chico, pero con cobertura explícita 
 `npm run report:test-execution-manifest` genera `reports/test-execution-manifest.json`
 y `.md`. El inventario muestra pertenencia a los shards y la decisión de cada spec
 en `scripts/config/e2e-test-ownership.json`. Declarar un owner no demuestra ejecución.
-Los candidatos a retirada permanecen ejecutables hasta demostrar equivalencia.
+Cada spec corre en un workflow (`ci` o `nightly`); un spec que ningún workflow corre se
+borra en vez de quedar como manual.
 
 Para capturar una ejecución local con Node.js 22:
 
@@ -311,7 +312,7 @@ el merge commit probado por Actions; puede diferir del head de la rama.
 
 El manifiesto, que arma `final-confidence-and-readiness`, requiere evidencia de los cuatro
 shards, Storage, E2E crítico y performance de flujo del mismo run. Esa lista es un alcance explícito: no afirma haber observado
-cada pack especializado, ni convierte los E2E manuales en pruebas ejecutadas.
+cada pack especializado.
 Los scopes parciales omiten este job de forma intencional. Un artefacto de un intento anterior sólo se reutiliza si pertenece al mismo run y
 árbol probado y acredita una ejecución completa aprobada.
 

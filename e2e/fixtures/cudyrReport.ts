@@ -68,7 +68,7 @@ export const record = () =>
     transfers: [],
     cma: [],
   });
-export const seedHospitalAdmissions = async (beds: unknown) => {
+const seedHospitalAdmissions = async (beds: unknown) => {
   const patients = beds as Record<string, ReturnType<typeof patient> & { location?: string }>;
   for (const p of Object.values(patients)) {
     if (!p.patientName || !p.clinicalEpisodeId) continue;
