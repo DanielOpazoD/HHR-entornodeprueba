@@ -5,17 +5,14 @@
  */
 
 import type { DischargeKind } from './dischargeMapping';
+import { removeAccents } from '@/utils/stringUtils';
 
 export interface DestinoDischarge {
   kind: DischargeKind;
   status: 'Vivo' | 'Fallecido';
 }
 
-const normalize = (value: string): string =>
-  value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
+const normalize = (value: string): string => removeAccents(value).toLowerCase();
 
 /** Transfer to another establishment/hospital. */
 const TRASLADO = /traslad|deriv|otro establecimiento|otro hospital|referenc/;

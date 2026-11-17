@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import type { InvasiveDeviceRow } from './parseInvasiveDevices';
 import { isNasogastricDevice } from '@/constants/clinicalDeviceConstants';
+import { removeAccents } from '@/utils/stringUtils';
 
 export interface MappedDevice {
   /** HHR DeviceType: 'CUP' | 'CVC' | 'VVP#1'.. | 'LA' | 'VMNI' | 'CNAF' | 'TET' | raw name. */
@@ -50,11 +51,7 @@ export const DeviceEntriesSchema = z.array(
   })
 );
 
-const norm = (value: string): string =>
-  String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
+const norm = (value: string): string => removeAccents(String(value || '')).toLowerCase();
 
 /** Rayen device name → HHR base device type (VVP left unnumbered here; numbered by the caller). */
 export const canonicalizeRayenDeviceType = (nombre: string): string => {
