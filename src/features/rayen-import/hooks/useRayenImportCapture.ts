@@ -42,6 +42,7 @@ import {
   type RayenSyncExecutionAction,
   type RayenSyncExecutionState,
 } from './rayenSyncExecutionState';
+import { removeAccents } from '@/utils/stringUtils';
 
 interface UseRayenImportCaptureInput {
   currentRecord: DailyRecord | null | undefined;
@@ -92,7 +93,7 @@ const passingCaptureRetryDelayMs = (error: string, stage?: string): number | nul
   if (stage === 'ficha_main_relay' || stage === 'ficha_tab_relay') return 0;
   const { reason } = classifyRayenSnapshotError(error, stage);
   if (reason === 'snapshot_network_error') return 0;
-  const normalized = error.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const normalized = removeAccents(error).toLowerCase();
   return reason === 'gestion_camas_unavailable' && !GESTION_CAMAS_NEEDS_PERSON.test(normalized)
     ? GESTION_CAMAS_CAPTURE_RETRY_DELAY_MS
     : null;

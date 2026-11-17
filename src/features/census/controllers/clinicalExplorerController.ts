@@ -4,6 +4,7 @@ import type { BedDefinition } from '@/types/domain/beds';
 
 import { isValidRut, normalizeRut } from '@/utils/rutUtils';
 import { buildCensusBedRows } from './censusTableViewController';
+import { removeAccents } from '@/utils/stringUtils';
 
 export interface ClinicalExplorerPatient {
   bedId: string;
@@ -67,8 +68,7 @@ export const listClinicalExplorerExamCandidates = (
   });
 };
 
-const normalize = (value: string): string =>
-  value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+const normalize = (value: string): string => removeAccents(value).toLowerCase().trim();
 
 export const filterClinicalExplorerPatients = (
   patients: ClinicalExplorerPatient[],

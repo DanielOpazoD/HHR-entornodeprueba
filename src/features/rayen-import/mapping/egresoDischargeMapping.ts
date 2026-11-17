@@ -12,6 +12,7 @@
 
 import type { DischargeKind } from './dischargeMapping';
 import type { EgresoRecord } from '../contracts/egresoLookup';
+import { removeAccents } from '@/utils/stringUtils';
 
 export interface EgresoDischarge {
   kind: DischargeKind;
@@ -30,11 +31,7 @@ const TEXT_FIELDS: Array<keyof EgresoRecord> = [
 ];
 
 /** Fold accents, lowercase — so "Traslado" / "traslado" / "TRASLADÓ" all match. */
-const normalize = (value: string): string =>
-  value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
+const normalize = (value: string): string => removeAccents(value).toLowerCase();
 
 const collectText = (egreso: EgresoRecord): string =>
   TEXT_FIELDS.map(field => egreso[field])

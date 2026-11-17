@@ -1,6 +1,7 @@
 import type { FluidBalancePeriod, PatientFluidBalance } from '@/types/domain/fluidBalance';
 import { addCalendarDays, calendarDayAtUtcNoon } from '@/utils/clinicalDateUtils';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
+import { removeAccents } from '@/utils/stringUtils';
 
 const emptyPeriod = (): FluidBalancePeriod => ({ intakeMl: 0, urineOutputMl: 0, records: 0 });
 const invalid = (): never => {
@@ -13,9 +14,7 @@ const quantity = (value: unknown): number => {
   return Number.isFinite(parsed) ? parsed : invalid();
 };
 const normalizedName = (value: unknown): string =>
-  String(value ?? '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+  removeAccents(String(value ?? ''))
     .trim()
     .toLowerCase();
 
