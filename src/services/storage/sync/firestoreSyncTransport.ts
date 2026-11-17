@@ -49,7 +49,6 @@ import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import type { DetachedOccupantWork } from './dayTaskOccupantDetach';
 import { nursingHandoffPaths } from './nursingHandoffTasks';
 import {
-  hasCapturedBaseForEveryField,
   holdOutPlainDayFieldsChangedElsewhere,
   keepPlainDayFieldsHeld,
   plainDayFieldReplayPaths,
@@ -265,7 +264,10 @@ const resolveRecordForSyncTask = async (
   }
 
   const remoteRecord = docToRecord(remoteData, record.date);
-  const heldOut = holdOutPlainDayFieldsChangedElsewhere(task, remoteRecord, record);
+  // Never with edits detached for another occupant: the whole write then waits, as before.
+  const heldOut = detached
+    ? undefined
+    : holdOutPlainDayFieldsChangedElsewhere(task, remoteData, remoteRecord, record);
   if (heldOut) ({ task, record } = heldOut);
   const appliedPaths = assertUnchangedReplayPatchBase(task, remoteData, remoteRecord, record);
   if (appliedPaths.length) {
@@ -297,11 +299,10 @@ const resolveRecordForSyncTask = async (
   // Without the fields another computer changed, the rest was just checked field by field.
   const canRebasePatch =
     !detached &&
-    (heldOut
-      ? hasCapturedBaseForEveryField(task)
-      : Boolean(
-          rebasedPart && checks?.hasUnchangedPatchBase(rebasedPart, remoteRecord, queuedRecord)
-        ));
+    (Boolean(heldOut) ||
+      Boolean(
+        rebasedPart && checks?.hasUnchangedPatchBase(rebasedPart, remoteRecord, queuedRecord)
+      ));
   if (task.nursingHandoffRecovery) {
     record = resolveDailyRecordConflict(remoteRecord, record, {
       changedPaths: task.syncContract?.changedPaths,

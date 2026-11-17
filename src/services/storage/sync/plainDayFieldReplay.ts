@@ -12,10 +12,12 @@ import {
   hasSameComparableValue,
   normalizeChangedPaths,
 } from '@/services/repositories/conflictResolutionUtils';
+import { resolveItemId } from '@/services/repositories/conflictResolutionMovementMergePolicy';
 import { applyPatches } from '@/utils/patchUtils';
 import { hospitalDB, isDatabaseInFallbackMode } from '@/services/storage/indexeddb/indexedDbCore';
 import { createFieldChangedElsewhereError } from '@/services/storage/syncErrorCatalog';
 import { holdsDailyRecordProjection } from './dexieSyncQueueQuarantine';
+import { pathsChangedElsewhere } from './firestoreSyncConflictPolicy';
 import { resolveHeldConflictState } from './syncQueueFailurePolicy';
 import { clearSyncTaskRuntimeState } from './syncQueueTaskFactory';
 import { UNKNOWN_SERVER_VERSION } from './syncTaskContractPolicy';
@@ -85,7 +87,10 @@ export const withoutUnchangedPlainDayFields = (
 export interface PlainDayFieldsHeldOut {
   /** Those fields: they stay held in the day task. */
   paths: string[];
-  /** The write without them, under its own mutation id, and its payload with the stored values there. */
+  /**
+   * The write without them, under its own mutation id, and its payload rebased on the stored day:
+   * the stored values at those fields, and movement lists rebased item by item.
+   */
   task: SyncTask;
   record: DailyRecord;
 }
@@ -95,10 +100,12 @@ export interface PlainDayFieldsHeldOut {
  * neither their base nor the queued value) publishes the rest (W12-CW12): different fields keep
  * both edits, and only those fields wait as «El campo cambió en otro equipo» (SAVE-02, SAVE-03).
  * The published part takes its own mutation id, so the server never acknowledges the held fields.
- * Undefined when no plain field changed elsewhere, or when nothing else is left to publish.
+ * Undefined when no plain field changed elsewhere, nothing else is left to publish, or the rest
+ * does not rebase cleanly (`rebaseHeldOutPart`): the whole write then waits for review.
  */
 export const holdOutPlainDayFieldsChangedElsewhere = (
   task: SyncTask,
+  storedData: Record<string, unknown>,
   stored: DailyRecord,
   record: DailyRecord
 ): PlainDayFieldsHeldOut | undefined => {
@@ -118,39 +125,85 @@ export const holdOutPlainDayFieldsChangedElsewhere = (
   )
     return undefined;
   const { mutationIds: _compacted, ...contract } = task.syncContract ?? {};
-  return {
-    paths,
-    task: {
-      ...task,
-      syncContract: {
-        ...contract,
-        changedPaths: changedPaths.filter(path => !paths.includes(path)),
-        mutationId: `${contract.mutationId ?? task.opId}:published-part`,
-      },
+  const rest: SyncTask = {
+    ...task,
+    syncContract: {
+      ...contract,
+      changedPaths: changedPaths.filter(path => !paths.includes(path)),
+      mutationId: `${contract.mutationId ?? task.opId}:published-part`,
     },
-    record: applyPatches(
-      record,
-      Object.fromEntries(
-        paths.map(path => [path, getValueAtPath(stored, path)])
-      ) as DailyRecordPatch
-    ),
   };
+  const restRecord = applyPatches(
+    record,
+    Object.fromEntries(paths.map(path => [path, getValueAtPath(stored, path)])) as DailyRecordPatch
+  );
+  const rebased = rebaseHeldOutPart(
+    rest,
+    pathsChangedElsewhere(rest, storedData, stored, restRecord),
+    stored,
+    restRecord
+  );
+  return rebased ? { paths, task: rest, record: rebased } : undefined;
+};
+
+const WHOLE_MOVEMENT_LIST_PATH = /^(discharges|transfers|cma)$/;
+const asList = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+
+/**
+ * A movement list rebased item by item (by id): each item this computer did not change keeps the
+ * stored one, so another computer's correction stays, and each one it changed or added keeps this
+ * computer's. Undefined when both changed one item to different values: that waits for review.
+ */
+const rebaseMovementList = (
+  base: unknown,
+  queued: unknown,
+  stored: unknown
+): unknown[] | undefined => {
+  const byId = (list: unknown) => new Map(asList(list).map(item => [resolveItemId(item), item]));
+  const [before, mine, theirs] = [byId(base), byId(queued), byId(stored)];
+  const ids = new Set([...theirs.keys(), ...mine.keys(), ...before.keys()]);
+  const rebased: unknown[] = [];
+  for (const id of ids) {
+    const changedHere = !hasSameComparableValue(mine.get(id), before.get(id));
+    const changedThere = !hasSameComparableValue(theirs.get(id), before.get(id));
+    if (changedHere && changedThere && !hasSameComparableValue(mine.get(id), theirs.get(id)))
+      return undefined;
+    const item = changedHere ? mine.get(id) : theirs.get(id);
+    if (item !== undefined) rebased.push(item);
+  }
+  return rebased;
 };
 
 /**
- * Every field of this write has the base it was written over: the stored day can then be checked
- * field by field (`assertUnchangedReplayPatchBase`) and the write rebased on its version, as a
- * direct edit meeting a newer version is.
+ * The rest of a day write, rebased on the stored day as a direct edit meeting a newer version is:
+ * only when every field has the base it was written over and each one the stored day changed
+ * meanwhile (`changed`, from `pathsChangedElsewhere`) is a movement list that rebases item by
+ * item. Undefined otherwise, and the whole write then waits for review as before.
  */
-export const hasCapturedBaseForEveryField = (task: SyncTask): boolean => {
+const rebaseHeldOutPart = (
+  task: SyncTask,
+  changed: string[],
+  stored: DailyRecord,
+  record: DailyRecord
+): DailyRecord | undefined => {
   const paths = normalizeChangedPaths(task.syncContract?.changedPaths);
+  const base = task.patchBaseValues ?? {};
   const version = task.syncContract?.expectedVersion;
-  return (
-    version !== UNKNOWN_SERVER_VERSION &&
-    Number.isFinite(Date.parse(version ?? '')) &&
-    paths.length > 0 &&
-    paths.every(path => path !== '*' && Object.hasOwn(task.patchBaseValues ?? {}, path))
-  );
+  if (
+    version === UNKNOWN_SERVER_VERSION ||
+    !Number.isFinite(Date.parse(version ?? '')) ||
+    !paths.every(path => path !== '*' && Object.hasOwn(base, path))
+  )
+    return undefined;
+  const lists: Record<string, unknown[]> = {};
+  for (const path of changed) {
+    const list = WHOLE_MOVEMENT_LIST_PATH.test(path)
+      ? rebaseMovementList(base[path], getValueAtPath(record, path), getValueAtPath(stored, path))
+      : undefined;
+    if (!list) return undefined;
+    lists[path] = list;
+  }
+  return applyPatches(record, lists as DailyRecordPatch);
 };
 
 /**

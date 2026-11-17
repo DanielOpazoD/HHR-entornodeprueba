@@ -202,6 +202,22 @@ const remoteHolds = (
   hasEquivalentReplayValue(getValueAtPath(remoteData, path), expected) ||
   hasEquivalentReplayValue(getValueAtPath(remoteRecord, path), expected);
 
+/** The captured fields where the server holds neither the edit's base nor its pending value. */
+export const pathsChangedElsewhere = (
+  task: SyncTask,
+  remoteData: Record<string, unknown>,
+  remoteRecord: DailyRecord,
+  localRecord: DailyRecord
+): string[] => {
+  const base = task.patchBaseValues ?? {};
+  return normalizeChangedPaths(task.syncContract?.changedPaths).filter(
+    path =>
+      Object.hasOwn(base, path) &&
+      !remoteHolds(remoteData, remoteRecord, path, getValueAtPath(localRecord, path)) &&
+      !remoteHolds(remoteData, remoteRecord, path, base[path])
+  );
+};
+
 /**
  * Compare each captured field with its edit base even when a direct writer left no changed-path
  * metadata. A field conflicts only when the server holds neither the base nor the pending value.
@@ -221,11 +237,7 @@ export const assertUnchangedReplayPatchBase = (
   const applied = captured.filter(path =>
     hasEquivalentReplayValue(getValueAtPath(remoteData, path), getValueAtPath(localRecord, path))
   );
-  const remotePaths = captured.filter(
-    path =>
-      !remoteHolds(remoteData, remoteRecord, path, getValueAtPath(localRecord, path)) &&
-      !remoteHolds(remoteData, remoteRecord, path, base[path])
-  );
+  const remotePaths = pathsChangedElsewhere(task, remoteData, remoteRecord, localRecord);
   if (hasBlockingOverlappingChangedPath(remotePaths, paths, remoteRecord, localRecord)) {
     throw new ConcurrencyError(FIELD_CHANGED_ELSEWHERE_MESSAGE);
   }

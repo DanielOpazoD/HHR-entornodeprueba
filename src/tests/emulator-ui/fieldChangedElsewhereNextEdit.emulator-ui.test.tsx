@@ -181,8 +181,8 @@ afterAll(async () => {
   await deleteApp(app);
 });
 
-/** The census on this computer and its hook, over the server's day. */
-const censusHere = async () => {
+/** The census on this computer and its hook, over the server's day (`seed` shapes that day). */
+const censusHere = async (seed?: (day: DailyRecord) => void) => {
   await env.clearFirestore();
   await clearSessionScopedClientState('manual');
   await hospitalDB.dailyRecords.clear();
@@ -195,6 +195,7 @@ const censusHere = async () => {
   });
   // One day, so this computer starts on the server's exact version.
   const day = base();
+  seed?.(day);
   await admin.doc(dayPath).set(day);
   await reconcileAuthorizedSessionOwner('user:synthetic-B');
   await hospitalDB.dailyRecords.put(day);
@@ -687,5 +688,124 @@ it('keeps the text held when the confirmation of the published movement was lost
     ])
   ).toEqual([['CONFLICT', [night], 'B2']]);
   expect((await hospitalDB.dailyRecords.get(date))?.[night]).toBe('B2');
+  hook.unmount();
+}, 60_000);
+
+/** An earlier movement of another patient, already on the day at 08:00. */
+const earlierMovement = (kind: Movement) => (day: DailyRecord) => {
+  const fields = {
+    id: 'earlier',
+    patientName: 'PACIENTE SINTETICO B',
+    rut: '10000013-K',
+    bedId: 'R5',
+    time: '08:00',
+  };
+  if (kind === 'discharge') day.discharges = [DataFactory.createMockDischarge(fields)];
+  else day.transfers = [DataFactory.createMockTransfer(fields)];
+};
+const earlierTime = async (kind: Movement) =>
+  ((await server())[listOf(kind)] as { id: string; time: string }[]).find(
+    item => item.id === 'earlier'
+  )?.time;
+/** Another computer corrects the earlier movement's time and writes the text first. */
+const correctEarlierElsewhere = async (kind: Movement) => {
+  const list = (await server())[listOf(kind)] as { id: string }[];
+  await admin.doc(dayPath).update({
+    [listOf(kind)]: list.map(item => (item.id === 'earlier' ? { ...item, time: '09:30' } : item)),
+    [night]: 'A1',
+    lastUpdated: Timestamp.now(),
+  });
+};
+
+// W12-CW12, from the independent review. The movement list is rebased item by item: the earlier
+// movement this computer did not touch keeps the other computer's correction (SAVE-02), and this
+// computer's new movement is still published, with only the text held.
+it.each(['discharge', 'transfer'] as const)(
+  '«%s» saved offline keeps another computer’s correction of an earlier one, and the text held',
+  async kind => {
+    const { mutate, hook } = await censusHere(earlierMovement(kind));
+    setFirestoreEnabled(false);
+    await moveOut(partial => mutate({ ...partial, [night]: 'B2' } as DailyRecordPatch), kind);
+    setFirestoreEnabled(true);
+    await correctEarlierElsewhere(kind);
+    await replay();
+
+    expect(await earlierTime(kind)).toBe('09:30');
+    expect(movedOut(await server(), kind)).toEqual([
+      'PACIENTE SINTETICO B',
+      'PACIENTE SINTETICO A',
+    ]);
+    expect((await server()).beds.R4).toMatchObject({ rut: '', patientName: '' });
+    expect((await server())[night]).toBe('A1');
+    expect(
+      (await hospitalDB.syncQueue.toArray()).map(task => [
+        task.status,
+        task.syncContract?.changedPaths,
+        (task.payload as DailyRecord)[night],
+      ])
+    ).toEqual([['CONFLICT', [night], 'B2']]);
+    hook.unmount();
+  },
+  60_000
+);
+
+// Both computers changed the same earlier movement to different times: nothing of this write is
+// published, and all of it waits for review with this computer's values (SAVE-02, SAVE-03).
+it.each(['discharge', 'transfer'] as const)(
+  'holds the whole write when both computers changed the same earlier «%s»',
+  async kind => {
+    const { mutate, hook } = await censusHere(earlierMovement(kind));
+    const list = shown()!.record![listOf(kind)] as { id: string }[];
+    setFirestoreEnabled(false);
+    await mutate({
+      [listOf(kind)]: list.map(item => ({ ...item, time: '10:15' })),
+      [night]: 'B2',
+    } as DailyRecordPatch);
+    setFirestoreEnabled(true);
+    await correctEarlierElsewhere(kind);
+    await replay();
+
+    expect(await earlierTime(kind)).toBe('09:30');
+    expect((await server())[night]).toBe('A1');
+    const tasks = await hospitalDB.syncQueue.toArray();
+    expect(tasks.map(task => task.status)).toEqual(['CONFLICT']);
+    const payload = tasks[0].payload as DailyRecord;
+    expect(payload[night]).toBe('B2');
+    expect((payload[listOf(kind)] as { time: string }[]).map(item => item.time)).toEqual(['10:15']);
+    hook.unmount();
+  },
+  60_000
+);
+
+// The crib travels in its mother's bed, which is compared whole: another computer's edit of the
+// newborn stops the split, and «Dar de alta» of both waits for review without clearing it (ID-01).
+it('holds «Dar de alta» of mother and newborn when another computer changed the newborn', async () => {
+  const { mutate, hook } = await censusHere(day => {
+    day.beds.R4 = {
+      ...day.beds.R4,
+      hasCompanionCrib: true,
+      clinicalCrib: DataFactory.createMockPatient('R4', {
+        patientName: 'RN SINTETICO A',
+        rut: '12345678-5',
+        clinicalEpisodeId: 'episode-rn',
+        admissionDate: date,
+      }),
+    };
+  });
+  setFirestoreEnabled(false);
+  await moveOut(partial => mutate({ ...partial, [night]: 'B2' } as DailyRecordPatch), 'discharge');
+  setFirestoreEnabled(true);
+  await admin.doc(dayPath).update({
+    'beds.R4.clinicalCrib.pathology': 'A6',
+    [night]: 'A1',
+    lastUpdated: Timestamp.now(),
+  });
+  await replay();
+
+  const remote = await server();
+  expect(remote.beds.R4).toMatchObject({ rut: '11111111-1' });
+  expect(remote.beds.R4.clinicalCrib).toMatchObject({ rut: '12345678-5', pathology: 'A6' });
+  expect(movedOut(remote, 'discharge')).toEqual([]);
+  expect((await hospitalDB.syncQueue.toArray()).map(task => task.status)).toEqual(['CONFLICT']);
   hook.unmount();
 }, 60_000);
