@@ -20,6 +20,8 @@ vi.mock('@/services/auth/authE2EPopupRuntime', () => ({
 }));
 
 vi.unmock('@/services/auth/authFallback');
+vi.unmock('@/services/auth/authCredentialFlow');
+vi.unmock('@/services/auth/authGoogleFlow');
 
 import { signInWithGoogle } from '@/services/auth/authGoogleFlow';
 import { signIn, createUser } from '@/services/auth/authCredentialFlow';

@@ -7,24 +7,23 @@ const ROOT = process.cwd();
 const LAZY_VIEWS_PATH = path.join(ROOT, 'src', 'views', 'LazyViews.ts');
 const source = fs.readFileSync(LAZY_VIEWS_PATH, 'utf8');
 
-// Subpaths explicitly sanctioned as lazy entrypoints. Keep this list tight:
-// each entry must be a light barrel that is intentionally split out of the
-// feature's default public surface (e.g. to keep the authenticated-shell
-// chunk under its budget).
+// A feature's `public.ts` is always a valid lazy entrypoint: it is the surface
+// feature-dependency-matrix already treats as public. Other subpaths must be
+// sanctioned here. Keep this list tight: each entry must be a light barrel that
+// is intentionally split out of the feature's default public surface (e.g. to
+// keep the authenticated-shell chunk under its budget).
 const ALLOWED_LAZY_SUBPATHS = new Set([
   '@/features/admin/admission-audit',
   '@/features/census/census-view',
   '@/features/census/public-components',
 ]);
 
-const violations = [
-  ...source.matchAll(/@\/features\/([^/'"]+)\/([^'"]+)/g),
-]
+const violations = [...source.matchAll(/@\/features\/([^/'"]+)\/([^'"]+)/g)]
   .map(match => ({
     feature: match[1],
     importPath: `@/features/${match[1]}/${match[2]}`,
   }))
-  .filter(entry => entry.feature !== 'whatsapp')
+  .filter(entry => entry.importPath !== `@/features/${entry.feature}/public`)
   .filter(entry => !ALLOWED_LAZY_SUBPATHS.has(entry.importPath));
 
 if (violations.length > 0) {
