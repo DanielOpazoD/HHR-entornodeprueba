@@ -39,7 +39,6 @@ const clinicalDocumentsWorkspaceModules = new Set([
   '/src/features/clinical-documents/services/clinicalDocumentIndicationsCatalogOperations.ts',
   '/src/features/clinical-documents/services/clinicalDocumentIndicationsCatalogService.ts',
   '/src/features/clinical-documents/services/clinicalDocumentLoggers.ts',
-  '/src/features/clinical-documents/services/clinicalDocumentPdfBinarySupport.ts',
   '/src/features/clinical-documents/services/clinicalDocumentPdfRenderService.ts',
   '/src/features/clinical-documents/services/clinicalDocumentPdfSnapshotSupport.ts',
   '/src/features/clinical-documents/services/clinicalDocumentPrintHtmlBuilder.ts',
@@ -109,8 +108,7 @@ export const chunkForModule = (moduleId: string): string | undefined => {
 
   if (
     has('/src/components/layout/app-content/AppContentOverlays.tsx') ||
-    has('/src/components/layout/app-content/appContentOverlaysController.ts') ||
-    has('/src/components/layout/app-content/usePatientSearchShortcut.ts')
+    has('/src/components/layout/app-content/appContentOverlaysController.ts')
   ) {
     return undefined;
   }

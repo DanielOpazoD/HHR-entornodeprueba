@@ -1,5 +1,6 @@
 import { Specialty } from '@/types/domain/patientClassification';
-import { HOSPITAL_CAPACITY } from '@/constants/beds';
+import type { PatientData } from '@/types/domain/patient';
+import { BEDS, HOSPITAL_CAPACITY } from '@/constants/beds';
 import { EVACUATION_METHOD_AEROCARDAL } from '@/constants/clinicalMovementConstants';
 import {
   MinsalCalculationOptions,
@@ -9,7 +10,6 @@ import {
 } from '@/types/minsalTypes';
 import { isFachEvacuationMethod } from './normalization';
 import { countOccupiedBeds, countBlockedBeds, calculateDailySnapshot } from './snapshot';
-import { getPatientsBySpecialty } from './specialty';
 import { calculateDischargeStayDays } from '@/utils/clinicalDayUtils';
 import { createEpisodeAdmissionTracker } from './episodeTracker';
 import type { DailyRecordMovementState as MinsalDailyRecord } from '@/types/domain/dailyRecordSlices';
@@ -23,6 +23,28 @@ import {
   resolveReportingSpecialty,
 } from './specialtyReporting';
 import { buildCmaStatistics, collectCmaStats, createCmaStatsAccumulator } from './cmaStats';
+
+function getPatientsBySpecialty(
+  beds: Record<string, PatientData>,
+  options?: MinsalCalculationOptions
+): Map<string, PatientData[]> {
+  const bySpecialty = new Map<string, PatientData[]>();
+
+  BEDS.forEach(bed => {
+    const data = beds[bed.id];
+    if (data && !data.isBlocked && data.patientName?.trim()) {
+      const specialty = resolveReportingSpecialty({
+        specialty: data.specialty,
+        options,
+      }).reportingSpecialty;
+      const existing = bySpecialty.get(specialty) || [];
+      existing.push(data);
+      bySpecialty.set(specialty, existing);
+    }
+  });
+
+  return bySpecialty;
+}
 
 const resolveTraceabilityDiagnosis = (value: unknown): string | undefined => {
   if (typeof value !== 'string') return undefined;
