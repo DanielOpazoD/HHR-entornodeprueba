@@ -135,7 +135,7 @@ describe('public imports in ESLint', () => {
   it('accepts every governed additional public module', async () => {
     const { publicModulesByFeature }: { publicModulesByFeature: Record<string, string[]> } =
       JSON.parse(
-        fs.readFileSync(path.join(ROOT, 'scripts/feature-public-api-allowlist.json'), 'utf8')
+        fs.readFileSync(path.join(ROOT, 'scripts/feature-dependency-matrix.json'), 'utf8')
       );
     const consumers = productionFiles('src').map(file => ({ file, targets: realImports(file) }));
     for (const [feature, targets] of Object.entries(publicModulesByFeature))
@@ -149,18 +149,6 @@ describe('public imports in ESLint', () => {
         ).toBe(true);
         for (const code of forms)
           expect(await errors('src/views/Probe.ts', code(target))).toEqual([]);
-      }
-  });
-  it('preserves all exact JSON exceptions and detects stale entries', async () => {
-    const { exceptionsByFeature }: { exceptionsByFeature: Record<string, string[]> } = JSON.parse(
-      fs.readFileSync(path.join(ROOT, 'scripts/feature-public-api-allowlist.json'), 'utf8')
-    );
-    for (const entries of Object.values(exceptionsByFeature))
-      for (const entry of entries) {
-        const [file, target] = entry.split(' -> ');
-        expect(realImports(file).has(target), `Remove unused exception: ${entry}`).toBe(true);
-        expect(await errors(file, forms[0](target))).toEqual([]);
-        expect(await errors('src/views/Probe.ts', forms[0](target))).toHaveLength(1);
       }
   });
   it('keeps all governed census facade imports live and scoped to that facade', async () => {

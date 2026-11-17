@@ -13,10 +13,7 @@ import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intention
 import { assertDailyRecordWriteAccepted } from '@/hooks/controllers/dailyRecordWriteOutcomeGuard';
 import { getPreviousDay, resolveCurrentClinicalDay } from '@/utils/clinicalDayUtils';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
-import { clinicalWallClockToDate } from '@/utils/clinicalWallClock';
-
-/** The owner's window: a census day stays editable for 48 h from its midnight in Rapa Nui. */
-const EDITING_WINDOW_MS = 48 * 60 * 60 * 1000;
+import { isWithinNurseEditingWindow } from '@/utils/clinicalWallClock';
 
 export type PreviousDayCleanupOutcome =
   /** Nothing to do: a past census day, or the previous day never held the episode. */
@@ -61,9 +58,7 @@ export const cleanInvalidEpisodeFromPreviousDay = async ({
   const day = getPreviousDay(censusDate);
   // Before the morning handoff today's census is still yesterday's, so its previous day is already
   // past its 48 h. Checked here for every role: the server does not limit admin writes.
-  if (now.getTime() - clinicalWallClockToDate(day, '00:00').getTime() >= EDITING_WINDOW_MS) {
-    return { status: 'not_applicable' };
-  }
+  if (!isWithinNurseEditingWindow(day, now.getTime())) return { status: 'not_applicable' };
   try {
     let record: DailyRecord | null = await repository.getAuthoritativeForDate(day);
     if (!record) return { status: 'not_applicable' };

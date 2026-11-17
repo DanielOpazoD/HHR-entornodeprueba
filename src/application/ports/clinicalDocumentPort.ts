@@ -16,11 +16,6 @@ export interface ClinicalDocumentPort {
     record: ClinicalDocumentRecord,
     hospitalId?: string
   ) => Promise<ClinicalDocumentRecord>;
-  lockDocumentsByEpisodeKey: (
-    episodeKey: string,
-    hospitalId?: string,
-    options?: { lockedAt?: string }
-  ) => Promise<string[]>;
   delete: (documentId: string, hospitalId?: string) => Promise<void>;
   subscribeByEpisode: (
     episodeKey: string,
@@ -43,8 +38,6 @@ export const defaultClinicalDocumentPort: ClinicalDocumentPort = {
   saveDraft: async (record, hospitalId) => ClinicalDocumentRepository.saveDraft(record, hospitalId),
   createDraft: async (record, hospitalId) =>
     ClinicalDocumentRepository.createDraft(record, hospitalId),
-  lockDocumentsByEpisodeKey: async (episodeKey, hospitalId, options) =>
-    ClinicalDocumentRepository.lockDocumentsByEpisodeKey(episodeKey, hospitalId, options),
   delete: async (documentId, hospitalId) =>
     ClinicalDocumentRepository.delete(documentId, hospitalId),
   subscribeByEpisode: (episodeKey, callback, hospitalId) =>
