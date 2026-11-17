@@ -3,6 +3,40 @@
   color: #e2e8f0;
   font-size: 12px;
 }
+.dicom-report-preview {
+  width: min(1100px, 94vw);
+  height: 90dvh;
+  max-height: 94dvh;
+  margin: auto;
+  padding: 0;
+  border: 1px solid #475569;
+  border-radius: 8px;
+  background: #101b2d;
+  color: #e2e8f0;
+}
+.dicom-report-preview[open] {
+  display: flex;
+  flex-direction: column;
+}
+.dicom-report-preview::backdrop {
+  background: #0009;
+}
+.dicom-report-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+}
+.dicom-report-header strong {
+  margin-right: auto;
+}
+.dicom-report-preview iframe {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 0;
+  background: white;
+}
 .dicom-study-bar,
 .dicom-toolbar,
 .dicom-footer {

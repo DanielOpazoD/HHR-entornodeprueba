@@ -1,8 +1,51 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { FileDown } from 'lucide-react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Download, FileText, X } from 'lucide-react';
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
 import { buildMMRADPdfUrl } from '@/services/radiology/mmradService';
 import { formatDicomStudyDate } from '@/services/radiology/dicomTypes';
+
+const ReportPreview: React.FC<{ url: string; close: () => void }> = ({ url, close }) => {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useLayoutEffect(() => {
+    const current = dialog.current;
+    current?.showModal();
+    return () => current?.close();
+  }, []);
+  const dismiss = () => {
+    dialog.current?.close();
+    close();
+  };
+  return (
+    <dialog
+      ref={dialog}
+      role="dialog"
+      className="dicom-report-preview"
+      aria-label="Informe MMRAD"
+      onCancel={event => {
+        event.preventDefault();
+        dismiss();
+      }}
+      onKeyDown={event => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          event.stopPropagation();
+          dismiss();
+        }
+      }}
+    >
+      <div className="dicom-report-header">
+        <strong>Informe</strong>
+        <a href={url} download="informe-mmrad.pdf" aria-label="Descargar PDF" title="Descargar PDF">
+          <Download size={16} />
+        </a>
+        <button type="button" onClick={dismiss} aria-label="Cerrar informe" title="Cerrar informe">
+          <X size={16} />
+        </button>
+      </div>
+      <iframe src={url} title="PDF del informe MMRAD" />
+    </dialog>
+  );
+};
 
 export const DicomPatientBar: React.FC<{
   patientId: string;
@@ -12,6 +55,8 @@ export const DicomPatientBar: React.FC<{
 }> = ({ patientId, patientName, date, reportLink }) => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
+  const [reportUrl, setReportUrl] = useState<string | null>(null);
+  const reportButton = useRef<HTMLButtonElement>(null);
   const request = useRef<AbortController | undefined>(undefined);
   const urls = useRef(new Set<string>());
   useEffect(() => {
@@ -22,8 +67,17 @@ export const DicomPatientBar: React.FC<{
       currentUrls.clear();
     };
   }, [patientId, reportLink]);
-  const download = async () => {
+  const closeReport = () => {
+    if (reportUrl) {
+      URL.revokeObjectURL(reportUrl);
+      urls.current.delete(reportUrl);
+    }
+    setReportUrl(null);
+    reportButton.current?.focus();
+  };
+  const openReport = async () => {
     if (!reportLink || busy) return;
+    if (reportUrl) return;
     const controller = new AbortController();
     request.current = controller;
     setBusy(true);
@@ -42,14 +96,7 @@ export const DicomPatientBar: React.FC<{
       if (!blob.type.includes('application/pdf')) throw new Error('Formato no válido');
       const url = URL.createObjectURL(blob);
       urls.current.add(url);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = 'informe-mmrad.pdf';
-      anchor.click();
-      window.setTimeout(() => {
-        URL.revokeObjectURL(url);
-        urls.current.delete(url);
-      }, 60_000);
+      setReportUrl(url);
     } catch {
       if (!controller.signal.aborted) setError(true);
     } finally {
@@ -64,17 +111,19 @@ export const DicomPatientBar: React.FC<{
       {formattedDate && <time>{formattedDate}</time>}
       {reportLink && (
         <button
+          ref={reportButton}
           type="button"
-          aria-label="Descargar informe MMRAD"
-          title="Descargar informe MMRAD"
+          aria-label="Ver informe MMRAD"
+          title="Ver informe MMRAD"
           disabled={busy}
-          onClick={() => void download()}
+          onClick={() => void openReport()}
         >
-          <FileDown size={15} />
+          <FileText size={15} />
           {busy ? '…' : 'Informe'}
         </button>
       )}
-      {error && <span role="alert">No se pudo descargar el informe.</span>}
+      {error && <span role="alert">No se pudo abrir el informe.</span>}
+      {reportUrl && <ReportPreview url={reportUrl} close={closeReport} />}
     </div>
   );
 };

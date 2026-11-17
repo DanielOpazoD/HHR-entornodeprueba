@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createDicomMeasurementStore } from '@/services/radiology/dicomMeasurementStore';
 import type { DicomMeasurementRequest } from './useDicomMeasurementFocus';
 import { ExternalLink, RefreshCw } from 'lucide-react';
@@ -27,6 +27,18 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
   reviewCache,
   onCapture,
 }) => {
+  const viewer = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const dismissMenus = (event: PointerEvent) => {
+      if (!(event.target instanceof Node)) return;
+      for (const menu of viewer.current?.querySelectorAll<HTMLDetailsElement>('details[open]') ??
+        []) {
+        if (!menu.contains(event.target)) menu.open = false;
+      }
+    };
+    document.addEventListener('pointerdown', dismissMenus, true);
+    return () => document.removeEventListener('pointerdown', dismissMenus, true);
+  }, []);
   const [study, setStudy] = useState<DicomStudy | null>(null);
   const [prefetch, setPrefetch] = useState<ReturnType<typeof createDicomStudyPrefetch>>();
   const [seriesUid, setSeriesUid] = useState('');
@@ -71,6 +83,7 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
   const series = study?.series.find(item => item.uid === seriesUid);
   return (
     <div
+      ref={viewer}
       className="dicom-viewer"
       onKeyDown={event => {
         if (event.key !== 'Escape') return;
@@ -91,6 +104,7 @@ const DicomViewerSession: React.FC<DicomViewerDialogProps> = ({
     >
       <div className="dicom-study-bar">
         <DicomPatientBar
+          key={reportLink}
           patientId={patientId}
           patientName={patientName}
           date={study?.date || studyDate}

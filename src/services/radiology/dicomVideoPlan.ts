@@ -20,7 +20,7 @@ export const dicomVideoBoxes: Record<DicomVideoResolution, readonly [number, num
   '1080p': [1920, 1080],
 };
 
-export const defaultDicomVideoOptions = (fps = 10): DicomVideoOptions => ({
+export const defaultDicomVideoOptions = (fps = 20): DicomVideoOptions => ({
   sequence: 'loop',
   resolution: '720p',
   fps,

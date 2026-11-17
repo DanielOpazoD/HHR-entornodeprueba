@@ -25,11 +25,11 @@ describe('MPR and 3D video controls', () => {
     expect(screen.getByLabelText('Corte final')).toHaveValue(10);
     expect(screen.getByLabelText('Perfil anónimo')).toBeChecked();
     expect(screen.getByLabelText('Resolución del video')).toHaveValue('720p');
-    expect(screen.getByLabelText('Duración del video')).toHaveTextContent('10 cuadros · 1,0 s');
+    expect(screen.getByLabelText('Duración del video')).toHaveTextContent('10 cuadros · 0,5 s');
     fireEvent.change(screen.getByLabelText('Secuencia del video'), {
       target: { value: 'pingpong' },
     });
-    expect(screen.getByLabelText('Duración del video')).toHaveTextContent('18 cuadros · 1,8 s');
+    expect(screen.getByLabelText('Duración del video')).toHaveTextContent('18 cuadros · 0,9 s');
   });
   it('names an oblique plane and resets the range when the plane changes', () => {
     const view = render(
@@ -55,7 +55,7 @@ describe('MPR and 3D video controls', () => {
     );
     expect(screen.getByLabelText('Eje de giro 3D')).toHaveValue('vertical');
     expect(screen.getByLabelText('Giro 3D')).toHaveValue('360');
-    expect(screen.getByLabelText('Duración del video')).toHaveTextContent('48 cuadros · 3,2 s');
+    expect(screen.getByLabelText('Duración del video')).toHaveTextContent('48 cuadros · 2,4 s');
     expect(screen.getByLabelText('Perfil anónimo')).toBeChecked();
     expect(screen.getByLabelText('Perfil anónimo')).toBeDisabled();
     fireEvent.change(screen.getByLabelText('Cuadros del giro 3D'), { target: { value: '2' } });
