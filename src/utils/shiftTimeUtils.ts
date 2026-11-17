@@ -1,8 +1,3 @@
-export const DAY_SHIFT_START = '08:00';
-export const DAY_SHIFT_END = '20:00';
-export const NIGHT_SHIFT_START = '20:00';
-export const NIGHT_SHIFT_END = '08:00';
-
 export const isWithinDayShift = (time?: string): boolean => {
   if (!time || time.length < 5) return true;
 

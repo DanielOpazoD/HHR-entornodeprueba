@@ -13,6 +13,7 @@ type Gate =
   | 'unit-risk'
   | 'clinical-sync-release-gate'
   | 'rules-emulator'
+  | 'emulator-ui'
   | 'e2e-critical-lanes'
   | 'build'
   | 'preview-smoke-lanes'
@@ -32,6 +33,7 @@ const gates: readonly Gate[] = [
   'unit-risk',
   'clinical-sync-release-gate',
   'rules-emulator',
+  'emulator-ui',
   'e2e-critical-lanes',
   'build',
   'preview-smoke-lanes',
@@ -49,6 +51,7 @@ const expectedEnvironment = {
   UNIT_RISK_RESULT: "${{ needs['unit-risk'].result }}",
   CLINICAL_SYNC_RESULT: "${{ needs['clinical-sync-release-gate'].result }}",
   RULES_EMULATOR_RESULT: "${{ needs['rules-emulator'].result }}",
+  EMULATOR_UI_RESULT: "${{ needs['emulator-ui'].result }}",
   E2E_CRITICAL_RESULT: "${{ needs['e2e-critical-lanes'].result }}",
   BUILD_RESULT: '${{ needs.build.result }}',
   PREVIEW_SMOKE_RESULT: "${{ needs['preview-smoke-lanes'].result }}",

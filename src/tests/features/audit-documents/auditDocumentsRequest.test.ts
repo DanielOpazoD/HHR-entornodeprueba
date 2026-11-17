@@ -56,7 +56,7 @@ describe('RUT list for the audit download', () => {
   it('is offered to administration and hospital nursing only', () => {
     expect(getVisibleModules('admin')).toContain('AUDIT_DOCUMENTS');
     expect(getVisibleModules('nurse_hospital')).toContain('AUDIT_DOCUMENTS');
-    for (const role of ['viewer', 'editor', 'doctor_urgency', 'doctor_specialist']) {
+    for (const role of ['viewer', 'editor', 'doctor_urgency', 'doctor_specialist'] as const) {
       expect(getVisibleModules(role)).not.toContain('AUDIT_DOCUMENTS');
     }
   });

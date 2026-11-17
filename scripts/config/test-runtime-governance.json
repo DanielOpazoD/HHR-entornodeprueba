@@ -39,6 +39,15 @@
       "reason": "Security rules and sync emulator behavior protect production writes."
     },
     {
+      "id": "emulator-ui",
+      "label": "Firestore emulator UI suite",
+      "workflow": ".github/workflows/ci-cd.yml",
+      "job": "emulator-ui",
+      "script": "test:emulator:sync:ci",
+      "maxMinutes": 3,
+      "reason": "Offline saving and recovery through the real UI protect production writes."
+    },
+    {
       "id": "e2e-critical",
       "label": "Critical browser flows",
       "workflow": ".github/workflows/ci-cd.yml",

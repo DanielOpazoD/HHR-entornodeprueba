@@ -21,12 +21,8 @@ const {
 }));
 
 import {
-  exportMonthRecords,
   exportMonthRecordsWithOutcome,
-  exportMonthRecordsWithResult,
-  exportYearToDateRecords,
   exportYearToDateRecordsWithOutcome,
-  exportYearToDateRecordsWithResult,
   importRecordsFromBackup,
 } from '@/services/admin/dataMaintenanceService';
 
@@ -113,7 +109,9 @@ describe('dataMaintenanceService', () => {
       },
     ]);
 
-    await exportYearToDateRecords(2026);
+    await expect(exportYearToDateRecordsWithOutcome(2026)).resolves.toMatchObject({
+      status: 'success',
+    });
 
     expect(mockGetRecordsRange).toHaveBeenCalledWith('2026-01-01', '2026-03-03');
     expect(mockGetRemoteRecordsRange).toHaveBeenCalledWith('2026-01-01', '2026-03-03');
@@ -134,19 +132,9 @@ describe('dataMaintenanceService', () => {
     );
   });
 
-  it('throws when there are no records to export for the selected annual range', async () => {
+  it('fails when there are no records to export for the selected annual range', async () => {
     mockGetRecordsRange.mockResolvedValue([]);
     mockGetRemoteRecordsRange.mockResolvedValue([]);
-
-    await expect(exportYearToDateRecords(2026)).rejects.toThrow(
-      'No hay registros para exportar en el rango anual seleccionado.'
-    );
-
-    await expect(exportYearToDateRecordsWithResult(2026)).resolves.toMatchObject({
-      status: 'failed',
-      reason: 'no_records',
-      userSafeMessage: 'No hay registros para exportar en el rango anual seleccionado.',
-    });
 
     await expect(exportYearToDateRecordsWithOutcome(2026)).resolves.toMatchObject({
       status: 'failed',
@@ -189,7 +177,9 @@ describe('dataMaintenanceService', () => {
       },
     ]);
 
-    await exportMonthRecords(2026, 3);
+    await expect(exportMonthRecordsWithOutcome(2026, 3)).resolves.toMatchObject({
+      status: 'success',
+    });
 
     expect(mockGetRecordsRange).toHaveBeenCalledWith('2026-03-01', '2026-03-31');
     expect(mockGetRemoteRecordsRange).toHaveBeenCalledWith('2026-03-01', '2026-03-31');
@@ -211,15 +201,11 @@ describe('dataMaintenanceService', () => {
     ]);
     mockGetRemoteRecordsRange.mockResolvedValue([]);
 
-    await expect(exportMonthRecordsWithResult(2026, 3)).resolves.toMatchObject({
-      status: 'success',
-      reason: 'unknown',
-    });
-
     await expect(exportMonthRecordsWithOutcome(2026, 3)).resolves.toMatchObject({
       status: 'success',
       data: expect.objectContaining({
         status: 'success',
+        reason: 'unknown',
       }),
     });
   });

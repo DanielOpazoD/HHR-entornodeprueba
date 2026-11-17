@@ -56,7 +56,7 @@ import {
   importDataJSONDetailed,
 } from '@/services/exporters/exportService';
 import {
-  exportMonthRecordsWithResult,
+  exportMonthRecordsWithOutcome,
   exportYearToDateRecordsWithOutcome,
   importRecordsFromBackup,
   type MonthBackup,
@@ -220,7 +220,7 @@ describe('clinicalDerived section of the JSON backups (D10)', () => {
     mocks.getRecordsRange.mockResolvedValue([day('2026-11-02', marker)]);
     mocks.getRemoteRecordsRange.mockResolvedValue([]);
 
-    const result = await exportMonthRecordsWithResult(2026, 11);
+    const { data: result } = await exportMonthRecordsWithOutcome(2026, 11);
     const backup = (await blobJson(mocks.saveAs.mock.calls[0][0])) as unknown as MonthBackup;
 
     expect(result).toMatchObject({
@@ -228,7 +228,7 @@ describe('clinicalDerived section of the JSON backups (D10)', () => {
       reason: 'clinical_derived_incomplete',
       recordCount: 1,
     });
-    expect(result.userSafeMessage).toContain('2026-11-02');
+    expect(result?.userSafeMessage).toContain('2026-11-02');
     expect(backup.records).toHaveLength(1);
     expect(backup.clinicalDerived).toEqual({
       '2026-11-02': { status: 'unavailable', reason: 'permission_denied' },

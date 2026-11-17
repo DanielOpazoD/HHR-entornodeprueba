@@ -1,14 +1,5 @@
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
-import {
-  isMovementDateAllowed,
-  isMovementDateTimeAllowed,
-  MOVEMENT_DATE_TIME_OUT_OF_RANGE_ERROR,
-  resolveMovementDateForRecordShift,
-  resolveMovementDateTimeBounds,
-  resolveMovementDateTimeValidationError,
-  resolveMovementEditorInitialDate,
-  resolveMovementTimeInputMax,
-} from '@/features/census/controllers/clinicalShiftCalendarController';
+import { resolveMovementDateForRecordShift } from '@/features/census/controllers/clinicalShiftCalendarController';
 
 export const MOVEMENT_TIME_FALLBACK = '--:--';
 
@@ -49,12 +40,3 @@ export const resolveMovementDateTimeDisplayValue = (
   timeLabel: resolveMovementDisplayTimeLabel(movementTime),
   dateLabel: resolveMovementDisplayDateLabel(recordDate, movementDate, movementTime),
 });
-export {
-  isMovementDateAllowed,
-  isMovementDateTimeAllowed,
-  MOVEMENT_DATE_TIME_OUT_OF_RANGE_ERROR,
-  resolveMovementDateTimeBounds,
-  resolveMovementDateTimeValidationError,
-  resolveMovementEditorInitialDate,
-  resolveMovementTimeInputMax,
-};

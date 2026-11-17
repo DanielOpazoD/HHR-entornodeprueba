@@ -21,7 +21,6 @@ vi.mock('@/services/email/emailRecipientListService', () => ({
   areGlobalEmailRecipientsEqual: (left: string[] = [], right: string[] = []) =>
     JSON.stringify(left) === JSON.stringify(right),
   buildGlobalEmailRecipientListId: vi.fn((name: string) => name.toLowerCase().replace(/\s+/g, '-')),
-  deleteGlobalEmailRecipientList: vi.fn(),
   deleteGlobalEmailRecipientListWithResult: vi.fn().mockResolvedValue({
     status: 'success',
     data: { deleted: true },

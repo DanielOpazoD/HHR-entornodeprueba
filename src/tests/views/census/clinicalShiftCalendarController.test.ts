@@ -31,8 +31,17 @@ describe('clinicalShiftCalendarController', () => {
   });
 
   it('limits next-day time to night cutoff', () => {
+    expect(isMovementDateTimeAllowed('2024-12-11', '2024-12-11', '14:00')).toBe(true);
+    expect(isMovementDateTimeAllowed('2024-12-11', '2024-12-12', '02:00')).toBe(true);
+    expect(isMovementDateTimeAllowed('2024-12-11', '2024-12-12', '10:00')).toBe(false);
+    // 2026-02-14 -> next day sunday => cutoff 09:00
     expect(isMovementDateTimeAllowed('2026-02-14', '2026-02-15', '08:59')).toBe(true);
     expect(isMovementDateTimeAllowed('2026-02-14', '2026-02-15', '09:00')).toBe(false);
+  });
+
+  it('rejects invalid time formats and out-of-range minutes', () => {
+    expect(isMovementDateTimeAllowed('2024-12-11', '2024-12-12', '25:00')).toBe(false);
+    expect(isMovementDateTimeAllowed('2024-12-11', '2024-12-12', '08:99')).toBe(false);
   });
 
   it('normalizes invalid or missing movement time conservatively when inferring date', () => {
@@ -50,6 +59,14 @@ describe('clinicalShiftCalendarController', () => {
         movementTime: '10:00',
       })
     ).toBe(MOVEMENT_DATE_TIME_OUT_OF_RANGE_ERROR);
+
+    expect(
+      resolveMovementDateTimeValidationError({
+        recordDate: '2024-12-11',
+        movementDate: '2024-12-12',
+        movementTime: '02:00',
+      })
+    ).toBeUndefined();
   });
 
   it('computes input max only when next-day date is selected', () => {

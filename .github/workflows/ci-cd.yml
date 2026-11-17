@@ -646,8 +646,9 @@ jobs:
         env:
           CI: true
 
-      - name: Run Firestore emulator test suites (sync + UI)
-        run: npm run test:emulator:sync:ci
+      # The emulator UI suite runs in emulator-ui, in parallel, with its own emulator.
+      - name: Run Firestore emulator sync suite
+        run: npm run test:emulator:sync:ci -- --suite sync
         env:
           CI: true
           RUN_FIRESTORE_EMULATOR_TESTS: 1
@@ -668,6 +669,35 @@ jobs:
 
       - name: Validate individual accounts with Auth, Firestore and Storage emulators
         run: npm run test:accounts:emulator:ci
+
+  # Split from rules-emulator so the two halves of the emulator family run side by side.
+  emulator-ui:
+    name: emulator-ui
+    runs-on: ubuntu-24.04
+    needs: [ci-scope]
+    if: needs.ci-scope.outputs.scope == 'full'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
+
+      - name: Setup Java (Firestore emulator)
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Prepare verified Firestore emulator artifact
+        uses: ./.github/actions/setup-ci-firestore-emulator
+
+      - name: Run Firestore emulator UI suite
+        run: npm run test:emulator:sync:ci -- --suite ui
+        env:
+          CI: true
+          RUN_FIRESTORE_EMULATOR_TESTS: 1
 
   e2e-critical-lanes:
     name: e2e-critical lane ${{ matrix.lane }}
@@ -1306,6 +1336,7 @@ jobs:
         unit-risk,
         clinical-sync-release-gate,
         rules-emulator,
+        emulator-ui,
         e2e-critical-lanes,
         build,
         preview-smoke-lanes,
@@ -1323,6 +1354,7 @@ jobs:
       UNIT_RISK_RESULT: ${{ needs['unit-risk'].result }}
       CLINICAL_SYNC_RESULT: ${{ needs['clinical-sync-release-gate'].result }}
       RULES_EMULATOR_RESULT: ${{ needs['rules-emulator'].result }}
+      EMULATOR_UI_RESULT: ${{ needs['emulator-ui'].result }}
       E2E_CRITICAL_RESULT: ${{ needs['e2e-critical-lanes'].result }}
       BUILD_RESULT: ${{ needs.build.result }}
       PREVIEW_SMOKE_RESULT: ${{ needs['preview-smoke-lanes'].result }}
@@ -1355,6 +1387,7 @@ jobs:
             "unit-risk:$UNIT_RISK_RESULT" \
             "clinical-sync-release-gate:$CLINICAL_SYNC_RESULT" \
             "rules-emulator:$RULES_EMULATOR_RESULT" \
+            "emulator-ui:$EMULATOR_UI_RESULT" \
             "e2e-critical-lanes:$E2E_CRITICAL_RESULT" \
             "build:$BUILD_RESULT" \
             "preview-smoke-lanes:$PREVIEW_SMOKE_RESULT" \
