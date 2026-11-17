@@ -29,13 +29,14 @@ const mockOrImportOf = specifier => {
 const RULES = [
   {
     id: 'legacy-staff',
+    // Tests and stories beside the code are read too; only src/tests/ is exempt.
     files: file =>
-      isProduction(file) &&
       !under(
         'src/schemas/',
         'src/services/repositories/dataMigration.ts',
         'src/services/repositories/dailyRecordAggregate.ts',
         'src/services/staff/dailyRecordStaffing.ts',
+        'src/tests/',
         'src/types/domain/dailyRecord.ts'
       )(file),
     patterns: [/\.[ \t]*nurses\b(?![A-Z])/g, /\.[ \t]*nurseName\b/g],
@@ -129,8 +130,10 @@ const RULES = [
   },
   {
     id: 'firestore-runtime',
+    // Stories are read too: only tests and specs may import the runtime directly.
     files: file =>
-      isProduction(file) &&
+      !file.includes('/tests/') &&
+      !/\.(?:test|spec)\./.test(file) &&
       ![
         'src/services/storage/firestore/firestoreServiceRuntime.ts',
         'src/services/repositories/repositoryFirestoreRuntime.ts',

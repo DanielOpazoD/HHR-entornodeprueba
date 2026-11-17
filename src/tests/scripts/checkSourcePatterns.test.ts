@@ -31,6 +31,13 @@ afterEach(() => {
 const rejected: Array<[rule: string, file: string, source: string]> = [
   ['legacy-staff', 'src/a.ts', 'const n = record.nurses;'],
   ['legacy-staff', 'src/a.ts', 'const n = record. nurseName;'],
+  ['legacy-staff', 'src/features/x/a.stories.ts', 'const n = record.nurseName;'],
+  ['legacy-staff', 'src/features/x/a.test.ts', 'const n = record.nurses;'],
+  [
+    'firestore-runtime',
+    'src/features/x/a.stories.ts',
+    "import '@/services/firebase-runtime/firestoreRuntime';",
+  ],
   [
     'hook-tests-mock-ports',
     'src/tests/hooks/useCensusEmail.test.ts',
