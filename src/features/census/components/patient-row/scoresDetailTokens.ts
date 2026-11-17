@@ -5,7 +5,6 @@
  */
 
 import type { BradenRiskLevel } from '@/types/domain/evaluationScores';
-import { parseSourceRiskLevel } from '@/domain/evaluationScales/sourceRiskSeverity';
 
 /** One risk-level's visual tokens, in the same tone as the census Scores chip. */
 export interface LevelTokens {
@@ -79,6 +78,3 @@ export const formatIsoDay = (isoDay: string): string => {
   const [year, month, day] = isoDay.split('-');
   return year && month && day ? `${day}-${month}-${year}` : isoDay;
 };
-
-/** Derive a risk level from a source severity text ("Riesgo alto" → 'alto') for history coloring. */
-export const severityLevel = parseSourceRiskLevel;

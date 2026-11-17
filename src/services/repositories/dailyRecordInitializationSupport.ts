@@ -2,7 +2,6 @@ import { BedType } from '@/types/domain/beds';
 import { OCCUPANCY_ONLY_EXTRA_BED_IDS } from '@/constants/beds';
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import {
-  assignCarriedPatientToRecord,
   buildClinicalBedsFromPreviousRecord,
   buildEmptyClinicalBeds,
   preserveCIE10FromPreviousDay,
@@ -13,7 +12,7 @@ import { createRecordDateTimestamp } from '@/services/repositories/dailyRecordMe
 import { createEmptyDailyRecordMovements } from '@/services/repositories/dailyRecordMovementsDomainService';
 import { resolveInheritedDailyRecordStaffing } from '@/services/repositories/dailyRecordStaffingDomainService';
 
-export { assignCarriedPatientToRecord, preserveCIE10FromPreviousDay, preparePatientForCarryover };
+export { preserveCIE10FromPreviousDay, preparePatientForCarryover };
 
 export const buildInitializedDayRecord = (
   date: string,

@@ -12,10 +12,6 @@ import type {
   PrescriptionType,
 } from '@/types/prescriptionTypes';
 
-interface PrescriptionAccessServiceDeps {
-  functionsRuntime?: Pick<FunctionsRuntime, 'getFunctions'>;
-}
-
 interface ValidatePinPayload {
   pin: string;
 }
@@ -138,9 +134,6 @@ const buildService = (
     },
   };
 };
-
-export const createPrescriptionAccessService = (deps: PrescriptionAccessServiceDeps = {}) =>
-  buildService(deps.functionsRuntime);
 
 const defaultService = buildService();
 export const validatePrescriptionAccessPin = defaultService.validatePrescriptionAccessPin;
