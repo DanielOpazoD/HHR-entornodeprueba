@@ -1014,7 +1014,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lane: [app, dicom-graphics-stress, dicom-1, dicom-2]
+        lane: [app, dicom-graphics-stress, dicom-1, dicom-2, dicom-3]
 
     steps:
       - name: Checkout code
@@ -1081,6 +1081,17 @@ jobs:
           if-no-files-found: error
           overwrite: true
           retention-days: 7
+      - name: Upload dicom-3 lane report
+        if: always() && matrix.lane == 'dicom-3'
+        uses: actions/upload-artifact@v7
+        with:
+          # archive: false names the artifact after the file; keep both equal.
+          name: preview-smoke-blob-dicom-3.zip
+          path: reports/e2e/preview-blobs/dicom-3/preview-smoke-blob-dicom-3.zip
+          archive: false
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
 
   preview-smoke:
     name: preview-smoke
@@ -1121,6 +1132,12 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: preview-smoke-blob-dicom-2.zip
+          path: reports/e2e/preview-blobs
+          skip-decompress: true
+      - name: Download same-run dicom-3 lane report
+        uses: actions/download-artifact@v8
+        with:
+          name: preview-smoke-blob-dicom-3.zip
           path: reports/e2e/preview-blobs
           skip-decompress: true
 
