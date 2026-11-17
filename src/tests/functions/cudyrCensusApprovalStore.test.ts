@@ -24,6 +24,8 @@ it('requires a complete, closed month and rejects clinical payloads', () => {
   vi.setSystemTime(new Date('2026-10-09T00:00:00Z'));
   try {
     expect(parseCensusApproval(request()).days).toHaveLength(31);
+    // Revision 0: the month has no documentary reconciliation yet.
+    expect(parseCensusApproval({ ...request(), expectedRevision: 0 }).expectedRevision).toBe(0);
     for (const change of [
       { confirmed: false },
       { days: request().days.slice(1) },
@@ -31,6 +33,7 @@ it('requires a complete, closed month and rejects clinical payloads', () => {
       { hospitalId: 'other' },
       { entries: [] },
       { evaluation: { category: 'A1' } },
+      { expectedRevision: -1 },
     ])
       expect(() => parseCensusApproval({ ...request(), ...change })).toThrow();
     vi.setSystemTime(new Date('2026-09-01T11:59:59-06:00'));
@@ -95,4 +98,36 @@ it('preserves documentary reconstruction, audits approval, and checks revisions 
       actor: { uid: 'other', role: 'viewer' },
     })
   ).rejects.toThrow('permission');
+});
+it('creates the month at revision 0 without claiming a documentary review', async () => {
+  const db = new Map<string, any>();
+  const ref = (path: string): any => ({
+    path,
+    collection: (name: string) => ({ doc: (id: string) => ref(`${path}/${name}/${id}`) }),
+  });
+  const tx = {
+    get: async (r: any) => ({ exists: db.has(r.path), data: () => db.get(r.path) }),
+    set: (r: any, d: any) => db.set(r.path, d),
+    create: (r: any, d: any) => db.set(r.path, d),
+  };
+  const save = (data: object) =>
+    saveCudyrCensusApproval({
+      hospital: ref('h'),
+      actor: { uid: 'reviewer', name: 'Reviewer', role: 'nurse_hospital' },
+      data: { ...request(), ...data },
+      runTransaction: (f: any) => f(tx),
+    });
+  await expect(save({ expectedRevision: 1 })).rejects.toThrow('recargue');
+  expect(await save({ expectedRevision: 0 })).toEqual({ persisted: true, revision: 1 });
+  expect(db.get('h/cudyrVerifiedContexts/2026-08')).toMatchObject({
+    revision: 1,
+    entries: [],
+    verification: 'census_approval_only',
+    reviewedBy: { uid: 'reviewer' },
+    censusApproval: { reason: request().reason },
+  });
+  db.set('h/cudyrVerifiedContexts/2026-08', { revision: 1, verification: 'unknown' });
+  await expect(
+    save({ expectedRevision: 1, operationId: 'synthetic-approval-456' })
+  ).rejects.toThrow('Unknown');
 });
