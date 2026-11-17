@@ -53,11 +53,7 @@ export { mapDestinoDeAlta } from './mapping/mapDestinoDeAlta';
 
 export type { DeviceTextItem, InvasiveDeviceRow } from './mapping/parseInvasiveDevices';
 export { parseInvasiveDevices } from './mapping/parseInvasiveDevices';
-export type {
-  EvaluationScaleCode,
-  EvaluationScaleItem,
-  EvaluationScale,
-} from './mapping/parseEvaluationScales';
+export type { EvaluationScaleItem, EvaluationScale } from './mapping/parseEvaluationScales';
 export {
   parseEvaluationScales,
   latestEvaluationScales,

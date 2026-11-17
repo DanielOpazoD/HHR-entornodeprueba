@@ -4,7 +4,7 @@ import { useHandoffLogic } from '@/hooks/useHandoffLogic';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useDailyRecordBedActions } from '@/context/useDailyRecordScopedActions';
 import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
-import type { NursingShift } from '@/hooks/useHandoffVisibility';
+import type { ShiftType } from '@/types/domain/shift';
 import * as dateUtils from '@/utils/dateUtils';
 
 export const mockLogDebouncedEvent = vi.fn();
@@ -102,8 +102,8 @@ export const setTodayIsoMock = (value: string) => {
 };
 
 type UseHandoffLogicTestParams = {
-  selectedShift: NursingShift;
-  setSelectedShift: (shift: NursingShift) => void;
+  selectedShift: ShiftType;
+  setSelectedShift: (shift: ShiftType) => void;
   onSuccess: (message: string, description?: string) => void;
 };
 
@@ -111,7 +111,7 @@ export const buildHandoffLogicParams = (
   overrides: Partial<UseHandoffLogicTestParams> = {}
 ): UseHandoffLogicTestParams => ({
   selectedShift: 'day' as const,
-  setSelectedShift: vi.fn<(shift: NursingShift) => void>(),
+  setSelectedShift: vi.fn<(shift: ShiftType) => void>(),
   onSuccess: vi.fn<(message: string, description?: string) => void>(),
   ...overrides,
 });

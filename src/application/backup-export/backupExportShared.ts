@@ -1,4 +1,4 @@
-import type { StorageListReport } from '@/services/backup/baseStorageService';
+import type { StorageListReport } from '@/types/backupArtifacts';
 import { MONTH_NAMES } from '@/services/backup/baseStorageService';
 
 export const EMPTY_STORAGE_LIST_REPORT: StorageListReport = {

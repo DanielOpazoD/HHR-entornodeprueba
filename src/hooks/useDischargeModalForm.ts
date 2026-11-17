@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
-import type { DischargeStatus, DischargeType } from '@/constants/clinicalMovementConstants';
+import type { DischargeStatus } from '@/constants/clinicalMovementConstants';
+import type { DischargeType } from '@/types/domain/movements';
 import type { DischargeModalConfirmPayload, DischargeTarget } from '@/types/movements';
 import {
   buildDischargeConfirmPayload,

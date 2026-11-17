@@ -11,8 +11,6 @@ export interface StoredPdfFile extends BaseStoredFile {
   shiftType: 'day' | 'night';
 }
 
-export type StoredCensusFile = BaseStoredFile;
-
 export interface StorageListReport {
   skippedNotFound: number;
   skippedRestricted: number;
