@@ -9,7 +9,7 @@ import type { RayenScalesFormsResult } from '../contracts/patientClinicalBundle'
  * Only the message SHAPE is trusted here; the app still previews/confirms before writing.
  */
 
-import { requestViaBridgeChannel } from './bridgeRequestChannel';
+import { requestViaBridgeChannel } from '@/services/transport/extensionRequestChannel';
 import { CLINICAL_READ_TIMEOUT_MS, CUDYR_READ_TIMEOUT_MS } from '../contracts/clinicalReadPolicy';
 import {
   mapDeviceReportPayload,

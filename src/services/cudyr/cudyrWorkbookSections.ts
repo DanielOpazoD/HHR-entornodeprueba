@@ -37,12 +37,9 @@ const DAILY_SHEET_CATEGORY_START_ROW = 4;
 const DAILY_SHEET_OCCUPIED_ROW = 19;
 const DAILY_SHEET_CATEGORIZED_ROW = 20;
 
-/** @deprecated Use formatDateDDMMYYYY from dateFormattingUtils — identical logic */
-export const formatDateDMY = (dateStr: string): string => formatDateDDMMYYYY(dateStr);
-
 export const buildMonthlyCutoffLabel = (year: number, month: number, endDate?: string): string => {
   const endDateFormatted = endDate
-    ? formatDateDMY(endDate)
+    ? formatDateDDMMYYYY(endDate)
     : `${new Date(year, month, 0).getDate()}-${String(month).padStart(2, '0')}-${year}`;
   return `hasta el último registro disponible del ${endDateFormatted}`;
 };

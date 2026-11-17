@@ -23,11 +23,6 @@ export const clearGinecobstetriciaFields = (): Pick<
   ...clearDeliveryRouteFields(),
 });
 
-export const buildPrimarySpecialtyPatch = (specialty: string): Partial<PatientData> => ({
-  specialty: specialty as PatientData['specialty'],
-  ...(isGinecobstetriciaSpecialty(specialty) ? {} : clearGinecobstetriciaFields()),
-});
-
 export const buildGinecobstetriciaTypePatch = (
   ginecobstetriciaType: GinecobstetriciaType
 ): Partial<PatientData> => ({

@@ -20,8 +20,8 @@ A la hora de desarrollar un componente, **elige siempre el hook más específico
 Si necesitas mostrar datos de una cama y editarlos:
 
 ```typescript
-// LEGACY (Deprecated: provoca re-renders en CADA letra que alguien escriba en cualquier cama)
-const { record, updatePatient } = useDailyRecordContext();
+// MAL (provoca re-renders en CADA letra que alguien escriba en cualquier cama)
+const { record } = useDailyRecordData();
 
 // BIEN (Optimizado)
 const beds = useDailyRecordBeds();

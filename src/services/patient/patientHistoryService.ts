@@ -84,25 +84,6 @@ export async function getPatientMovementHistoryDetailed(
   return { history: collectPatientMovementHistory(rut, records), source };
 }
 
-// ============================================================================
-// Main Service Function
-// ============================================================================
-
-/**
- * Retrieves the complete movement history of a patient by RUT.
- *
- * @param rut - Patient's RUT to search for
- * @returns PatientHistoryResult with all movements, or null if not found
- */
-export async function getPatientMovementHistory(
-  rut: string,
-  options?: PatientHistoryLoadOptions
-): Promise<PatientHistoryResult | null> {
-  if (!rut || rut.trim().length < 3) return null;
-
-  return (await getPatientMovementHistoryDetailed(rut, options)).history;
-}
-
 function collectPatientMovementHistory(
   rut: string,
   records: PatientHistoryRecord[]

@@ -9,16 +9,6 @@ const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
 
 const toPosix = value => value.split(path.sep).join('/');
 
-const isGovernedCensusControllerShim = ({ importerPath, importPath, importedPath, source }) => {
-  if (!importerPath.startsWith('src/hooks/controllers/')) return false;
-  if (!importedPath.startsWith('src/features/census/controllers/')) return false;
-  if (!importPath.startsWith('@/features/census/controllers/')) return false;
-
-  const importerModule = path.basename(importerPath, path.extname(importerPath));
-  const expectedSource = `export * from '@/features/census/controllers/${importerModule}';`;
-  return source.trim() === expectedSource;
-};
-
 const isSourceFile = (root, filePath) => {
   const extension = path.extname(filePath);
   if (!SOURCE_EXTENSIONS.has(extension)) return false;
@@ -133,17 +123,6 @@ export const checkFolderDependencies = (root = process.cwd()) => {
       const importedPath = toPosix(path.relative(root, resolvedPath));
       const importedZone = getZoneFromPath(importedPath, knownZones);
       if (!importedZone || importedZone === importerZone) continue;
-
-      if (
-        isGovernedCensusControllerShim({
-          importerPath,
-          importPath,
-          importedPath,
-          source,
-        })
-      ) {
-        continue;
-      }
 
       const allowedDependencies = matrix.zones[importerZone]?.allowedDependencies || [];
       if (!allowedDependencies.includes(importedZone)) {

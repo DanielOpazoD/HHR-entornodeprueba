@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveAuthRedirectRuntimeSupport } from '@/services/auth/authRedirectRuntime';
+import { resolveAuthRedirectEnvironment } from '@/services/auth/authRedirectEnvironment';
+import { buildAuthRedirectRuntimeSupport } from '@/services/auth/authRedirectSupportController';
+
+const resolveAuthRedirectRuntimeSupport = (
+  ...args: Parameters<typeof resolveAuthRedirectEnvironment>
+) => buildAuthRedirectRuntimeSupport(resolveAuthRedirectEnvironment(...args));
 
 describe('authRedirectRuntime', () => {
   it('disables redirect auth on localhost by default', () => {

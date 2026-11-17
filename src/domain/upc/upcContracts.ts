@@ -42,10 +42,3 @@ export interface UpcChecklistRecord extends UpcEvaluationSnapshot {
   /** Signed evaluations retained in this census day; previous days remain in their records. */
   readonly history?: UpcEvaluationSnapshot[];
 }
-
-export const EMPTY_UPC_CHECKLIST: UpcChecklistRecord = {
-  uciCriteria: [],
-  utiCriteria: [],
-  classification: null,
-  evaluatedAt: '',
-};

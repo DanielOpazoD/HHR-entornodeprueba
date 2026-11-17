@@ -1,4 +1,5 @@
 import type { CudyrSupplementMatrix } from '@/types/domain/cudyrSupplement';
+import { isCalendarDate } from '@/utils/clinicalDateUtils';
 import type { CudyrDischargeReport } from '@/types/domain/cudyrReconciliation';
 
 const fold = (value: string) =>
@@ -12,9 +13,7 @@ const iso = (value: string) => {
   const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(value);
   if (!m) throw new Error('Fecha de alta no reconocida.');
   const date = `${m[3]}-${m[2]}-${m[1]}`;
-  const epoch = Date.parse(date + 'T12:00:00Z');
-  if (!Number.isFinite(epoch) || new Date(epoch).toISOString().slice(0, 10) !== date)
-    throw new Error('Fecha inexistente en el informe de altas.');
+  if (!isCalendarDate(date)) throw new Error('Fecha inexistente en el informe de altas.');
   return date;
 };
 const labels = [

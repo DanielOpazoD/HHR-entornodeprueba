@@ -129,6 +129,57 @@ if (
   process.exit(1);
 }
 
+// Schema migrators: exactly one per step from LEGACY_SCHEMA_VERSION to CURRENT_SCHEMA_VERSION.
+if (legacySchemaVersion > currentSchemaVersion) {
+  console.error(
+    `[runtime-contracts] LEGACY_SCHEMA_VERSION (${legacySchemaVersion}) cannot be greater than CURRENT_SCHEMA_VERSION (${currentSchemaVersion}).`
+  );
+  process.exit(1);
+}
+
+const registryBlock = fs
+  .readFileSync(path.join(workspaceRoot, 'src/services/repositories/schemaGovernance.ts'), 'utf8')
+  .match(
+    /const schemaMigrators\s*:\s*Record<number,\s*SchemaMigrator>\s*=\s*\{([\s\S]*?)\n\};/
+  )?.[1];
+if (registryBlock === undefined) {
+  console.error(
+    '[runtime-contracts] schemaMigrators registry not found in src/services/repositories/schemaGovernance.ts.'
+  );
+  process.exit(1);
+}
+const configuredKeys = [...registryBlock.matchAll(/^\s*(\d+)\s*:/gm)]
+  .map(match => Number(match[1]))
+  .sort((a, b) => a - b);
+const expectedKeys = Array.from(
+  { length: currentSchemaVersion - legacySchemaVersion },
+  (_, index) => legacySchemaVersion + index
+);
+const missingKeys = expectedKeys.filter(key => !configuredKeys.includes(key));
+const extraKeys = configuredKeys.filter(key => !expectedKeys.includes(key));
+if (missingKeys.length > 0 || extraKeys.length > 0) {
+  console.error(
+    `[runtime-contracts] Invalid schemaMigrators registry: add a migrator for each version in [${expectedKeys.join(', ')}] (missing [${missingKeys.join(', ')}], extra [${extraKeys.join(', ')}]).`
+  );
+  process.exit(1);
+}
+
+const repositoryReadme = fs.readFileSync(
+  path.join(workspaceRoot, 'src/services/repositories/README.md'),
+  'utf8'
+);
+const missingReadmeTerms = [
+  'schemaEvolutionPolicy.ts',
+  'migrationLedger.ts',
+  'dataMigration.ts',
+].filter(term => !repositoryReadme.includes(term));
+if (missingReadmeTerms.length > 0) {
+  console.error(
+    `[runtime-contracts] src/services/repositories/README.md must still name ${missingReadmeTerms.join(', ')}.`
+  );
+  process.exit(1);
+}
+
 console.log(
-  `[runtime-contracts] OK (client=${clientVersion}, backend=${backendVersion}, min-backend=${minBackendVersion}, min-client=${minClientVersion}, schema=v${currentSchemaVersion})`
+  `[runtime-contracts] OK (client=${clientVersion}, backend=${backendVersion}, min-backend=${minBackendVersion}, min-client=${minClientVersion}, schema=v${currentSchemaVersion}, migrators=[${configuredKeys.join(', ')}])`
 );
