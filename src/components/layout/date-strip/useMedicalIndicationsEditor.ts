@@ -8,6 +8,7 @@ import {
   type MedicalIndicationsPatientOption,
 } from '@/shared/contracts/medicalIndications';
 import { getTodayISO } from '@/utils/dateCoreUtils';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const INDICATIONS_LINES = 15;
 
@@ -49,20 +50,11 @@ export const useMedicalIndicationsEditor = ({
     return patients.find(patient => patient.bedId === selectedBedId) ?? fallbackPatient;
   }, [patients, selectedBedId]);
 
-  React.useEffect(() => {
-    if (!isOpen || !selectedPatient) return;
+  if (useChangedOnRender([isOpen, selectedPatient]) && isOpen && selectedPatient) {
     setSelectedBedId(current => (current ? current : selectedPatient.bedId));
-  }, [isOpen, selectedPatient]);
-
-  React.useEffect(() => {
-    if (!isOpen || !selectedPatient) return;
     setTreatingDoctor(selectedPatient.treatingDoctor);
-  }, [isOpen, selectedPatient]);
-
-  React.useEffect(() => {
-    if (!isOpen || !selectedPatient) return;
     setTargetDate(resolveInitialTargetDate(selectedPatient));
-  }, [isOpen, selectedPatient]);
+  }
 
   const activeIndications = React.useMemo(
     () => indications.map(text => text.trim()).filter(Boolean),

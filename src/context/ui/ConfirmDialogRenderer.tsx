@@ -3,6 +3,7 @@ import { X, AlertTriangle, Info } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useBaseModalLifecycle } from '@/hooks/useBaseModalLifecycle';
 import type { DialogState } from '@/context/uiContracts';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface ConfirmDialogRendererProps {
   dialog: DialogState;
@@ -27,11 +28,7 @@ export const ConfirmDialogRenderer: React.FC<ConfirmDialogRendererProps> = ({
   });
 
   // Reset input when dialog opens/closes
-  React.useEffect(() => {
-    if (dialog.isOpen) {
-      setInputValue('');
-    }
-  }, [dialog.isOpen]);
+  if (useChangedOnRender([dialog.isOpen]) && dialog.isOpen) setInputValue('');
   const variantStyles = {
     danger: {
       icon: 'text-red-600',

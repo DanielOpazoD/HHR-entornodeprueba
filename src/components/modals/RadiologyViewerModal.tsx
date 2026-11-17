@@ -34,12 +34,22 @@ import {
 } from '@/components/modals/controllers/radiologyViewerModalController';
 import { readRememberedMMRADExams } from '@/components/modals/controllers/radiologyExamListMemory';
 import { useLatestRef } from '@/hooks/useLatestRef';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const DicomViewerDialog = React.lazy(() =>
   import('@/components/radiology/DicomViewerDialog').then(module => ({
     default: module.DicomViewerDialog,
   }))
 );
+
+/** Simulated progress while MMRAD answers. */
+const RADIOLOGY_PROGRESS_STEPS = [
+  { pct: 10, text: 'Conectando con el servidor de imágenes…' },
+  { pct: 30, text: 'Iniciando sesión en RIS MMRAD…' },
+  { pct: 50, text: 'Buscando exámenes del paciente…' },
+  { pct: 70, text: 'Extrayendo informes y enlaces…' },
+  { pct: 85, text: 'Procesando resultados…' },
+];
 
 interface RadiologyViewerModalProps {
   isOpen: boolean;
@@ -132,31 +142,25 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
   /**
    * Simulated progress bar.
    */
+  if (useChangedOnRender([isForegroundLoading])) {
+    if (isForegroundLoading) setProgress(RADIOLOGY_PROGRESS_STEPS[0]);
+    else if (progress) setProgress({ pct: 100, text: '¡Completado!' });
+  }
   React.useEffect(() => {
     if (!isForegroundLoading) {
       if (progress) {
-        setProgress({ pct: 100, text: '¡Completado!' });
         const timeout = setTimeout(() => setProgress(null), 600);
         return () => clearTimeout(timeout);
       }
       return;
     }
 
-    const steps = [
-      { pct: 10, text: 'Conectando con el servidor de imágenes…' },
-      { pct: 30, text: 'Iniciando sesión en RIS MMRAD…' },
-      { pct: 50, text: 'Buscando exámenes del paciente…' },
-      { pct: 70, text: 'Extrayendo informes y enlaces…' },
-      { pct: 85, text: 'Procesando resultados…' },
-    ];
-
-    let step = 0;
-    setProgress({ pct: steps[0].pct, text: steps[0].text });
-    step = 1;
+    const steps = RADIOLOGY_PROGRESS_STEPS;
+    let step = 1;
 
     const interval = setInterval(() => {
       if (step < steps.length) {
-        setProgress({ pct: steps[step].pct, text: steps[step].text });
+        setProgress(steps[step]);
         step++;
       } else {
         setProgress(prev =>
@@ -229,6 +233,7 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
       (autoSearchInitialPatient && initialPatientRut) ||
       readRememberedMMRADExams({ rut, dateFrom, dateTo })
     ) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- the request and its state start together
       void runSearch(rut, dateFrom, dateTo);
     } else {
       setResult(null);
@@ -297,14 +302,14 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
     setDateTo(range.to);
   };
 
+  if (useChangedOnRender([isOpen]) && !isOpen) {
+    setPortalReceiptPreview(null);
+    setDicomExam(null);
+    // The search still running finishes in the background and is remembered, unshown.
+    setSearchMode(null);
+  }
   React.useEffect(() => {
-    if (!isOpen) {
-      setPortalReceiptPreview(null);
-      setDicomExam(null);
-      searchSequence.current++;
-      // The search still running finishes in the background and is remembered, unshown.
-      setSearchMode(null);
-    }
+    if (!isOpen) searchSequence.current++;
   }, [isOpen]);
 
   React.useEffect(() => {

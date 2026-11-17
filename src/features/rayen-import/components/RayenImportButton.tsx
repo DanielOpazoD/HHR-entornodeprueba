@@ -23,6 +23,7 @@ import type {
 import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
 import { rayenSyncExecutionDate } from '../hooks/rayenSyncExecutionState';
 import { buildRayenSyncBarViewModel } from './rayenSyncBarViewModel';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 // The sync history is an on-demand panel that only matters while Eloísa is connected, so its
 // sections and technical metrics stay out of the census view and the PWA precache.
@@ -250,9 +251,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
         ? 'Revisar conflictos'
         : rayenPrimaryActionLabel(extension.connection, mainWorking);
 
-  React.useEffect(() => {
-    if (!staffingProposal) setStaffingReviewOpen(false);
-  }, [staffingProposal]);
+  if (useChangedOnRender([staffingProposal]) && !staffingProposal) setStaffingReviewOpen(false);
 
   const handleConfirmStaffingProposal = async (): Promise<void> => {
     if (await confirmStaffingProposal()) setStaffingReviewOpen(false);

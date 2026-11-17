@@ -86,6 +86,7 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
   useLayoutEffect(() => {
     operationGenerationRef.current += 1;
     if (popoverRef.current?.contains(document.activeElement)) anchorRef.current?.focus();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- focus must leave the popover before it closes
     setOpen(false);
     setToolsOpen(false);
     setMessage('');

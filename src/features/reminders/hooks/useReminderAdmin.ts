@@ -9,6 +9,7 @@ import {
   type ReminderImageOutcome,
 } from '@/features/reminders/controllers/reminderAdminSaveController';
 import type { Reminder, ReminderReadReceipt } from '@/types/reminders';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const buildReminderId = (): string => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -41,8 +42,8 @@ export const useReminderAdmin = () => {
   const [readReceipts, setReadReceipts] = React.useState<ReminderReadReceipt[]>([]);
   const [receiptsLoading, setReceiptsLoading] = React.useState(false);
 
+  if (useChangedOnRender([reminderUseCases])) setLoadError(null);
   React.useEffect(() => {
-    setLoadError(null);
     const unsubscribe = reminderUseCases.subscribeToReminderFeed({
       onOutcome: outcome => {
         const nextReminders = outcome.data;

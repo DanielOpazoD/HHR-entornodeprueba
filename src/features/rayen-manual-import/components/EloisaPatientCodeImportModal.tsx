@@ -9,6 +9,7 @@ import {
   parseEloisaPatientCode,
   type EloisaManualPatientPayload,
 } from '../domain/eloisaPatientCode';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface EmptyBedOption {
   id: string;
@@ -54,15 +55,17 @@ export const EloisaPatientCodeImportModal: React.FC<EloisaPatientCodeImportModal
   const [saving, setSaving] = useState(false);
   const validationSequence = useRef(0);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    validationSequence.current += 1;
+  if (useChangedOnRender([isOpen]) && isOpen) {
     setCode('');
     setPayload(null);
     setBedId('');
     setError('');
     setValidating(false);
     setSaving(false);
+  }
+  // A validation still running for a previous opening no longer applies.
+  useEffect(() => {
+    if (isOpen) validationSequence.current += 1;
   }, [isOpen]);
 
   const validate = useCallback(async () => {

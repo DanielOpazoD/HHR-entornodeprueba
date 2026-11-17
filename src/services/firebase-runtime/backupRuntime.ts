@@ -38,5 +38,4 @@ export const createBackupStorageRuntime = (
   getStorage: () => adapter.getStorage(),
 });
 
-export const defaultBackupFirestoreRuntime: BackupFirestoreRuntime = createBackupFirestoreRuntime();
 export const defaultBackupStorageRuntime: BackupStorageRuntime = createBackupStorageRuntime();

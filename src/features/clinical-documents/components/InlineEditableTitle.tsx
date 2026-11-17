@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import clsx from 'clsx';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface InlineEditableTitleProps {
   value: string;
@@ -23,9 +24,7 @@ export const InlineEditableTitle: React.FC<InlineEditableTitleProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [draftValue, setDraftValue] = useState(value);
 
-  useEffect(() => {
-    setDraftValue(value);
-  }, [value]);
+  if (useChangedOnRender([value])) setDraftValue(value);
 
   const commit = () => {
     const normalized = draftValue.trim();

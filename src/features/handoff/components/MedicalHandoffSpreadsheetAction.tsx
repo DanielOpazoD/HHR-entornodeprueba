@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ExternalLink, FileSpreadsheet, LoaderCircle } from 'lucide-react';
 
 import { useNotification } from '@/context/UIContext';
@@ -12,6 +12,7 @@ import {
 } from '@/features/handoff/services/medicalHandoffSpreadsheetService';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import { getErrorMessage } from '@/types/valueTypes';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface MedicalHandoffSpreadsheetActionProps {
   date: string;
@@ -31,9 +32,7 @@ export const MedicalHandoffSpreadsheetAction: React.FC<MedicalHandoffSpreadsheet
   const [isLoading, setIsLoading] = useState(false);
   const [spreadsheetUrl, setSpreadsheetUrl] = useState<string | null>(null);
 
-  useEffect(() => {
-    setSpreadsheetUrl(null);
-  }, [date, rows]);
+  if (useChangedOnRender([date, rows])) setSpreadsheetUrl(null);
 
   const handleOpen = async () => {
     if (rows.length > MEDICAL_HANDOFF_SPREADSHEET_MAX_ROWS) {

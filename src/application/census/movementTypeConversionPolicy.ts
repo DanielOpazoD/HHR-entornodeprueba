@@ -97,9 +97,6 @@ export const canReclassifyHomeDischarge = (
 ): boolean =>
   discharge.status === 'Vivo' && discharge.dischargeType === DEFAULT_HOME_DISCHARGE_TYPE;
 
-/** Backward-compatible name used by existing callers. */
-export const canConvertDischargeToCma = canReclassifyHomeDischarge;
-
 export const convertDischargeToCmaRecord = (
   record: DailyRecord,
   dischargeId: string,

@@ -4,6 +4,7 @@ import type {
   DocumentScanCorners,
   DocumentScanPoint,
 } from '../services/jscanifyDocumentScannerService';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 type CornerKey = keyof DocumentScanCorners;
 
@@ -53,7 +54,7 @@ export const DocumentCropEditor: React.FC<DocumentCropEditorProps> = ({
   const [corners, setCorners] = React.useState(initialCorners);
   const frameRef = React.useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => setCorners(initialCorners), [initialCorners]);
+  if (useChangedOnRender([initialCorners])) setCorners(initialCorners);
 
   const moveCorner = React.useCallback((key: CornerKey, clientX: number, clientY: number) => {
     const frame = frameRef.current;

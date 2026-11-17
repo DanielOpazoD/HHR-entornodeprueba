@@ -25,30 +25,30 @@ export const readPreviewSmokeSpecs = (root = process.cwd()) => {
 };
 
 /**
- * Lanes are balanced by observed duration, not test count: the DICOM spec is
- * most of the pack, and its halves split by count. The stress lane runs the
- * software-WebGL stress loop plus the two heaviest 3D renders of the second
- * half, all tagged, so each DICOM lane takes about the same time in CI. The
- * merge job proves the union of all lanes is exactly the canonical pack, so a
- * lane change cannot drop a test.
+ * Lanes are balanced by observed duration, not test count. The stress lane runs
+ * only the tagged software-WebGL stress loop (about 170 s in CI); the rest of
+ * the DICOM spec, about 500 s, is split in three thirds of similar duration.
+ * The merge job proves the union of all lanes is exactly the canonical pack, so
+ * a lane change cannot drop a test.
  *
  * @param {string[]} specs
  * @returns {Record<string, string[]>} Playwright arguments per lane.
  */
 export const buildPreviewSmokeLanes = specs => {
   const appSpecs = specs.filter(spec => spec !== DICOM_PREVIEW_SPEC);
-  const dicomHalf = shard => [
+  const dicomThird = shard => [
     DICOM_PREVIEW_SPEC,
     '--fully-parallel',
     '--grep-invert',
     GRAPHICS_STRESS_TAG,
-    `--shard=${shard}/2`,
+    `--shard=${shard}/3`,
   ];
   return {
     app: appSpecs,
     'dicom-graphics-stress': [DICOM_PREVIEW_SPEC, '--grep', GRAPHICS_STRESS_TAG],
-    'dicom-1': dicomHalf(1),
-    'dicom-2': dicomHalf(2),
+    'dicom-1': dicomThird(1),
+    'dicom-2': dicomThird(2),
+    'dicom-3': dicomThird(3),
   };
 };
 

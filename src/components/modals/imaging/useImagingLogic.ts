@@ -9,6 +9,7 @@ import {
   resolveImagingCanvasIntent,
   runImagingPrintAction,
 } from '../controllers/imagingRequestDialogController';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface UseImagingLogicProps {
   isOpen: boolean;
@@ -39,15 +40,13 @@ export const useImagingLogic = ({ isOpen, patient }: UseImagingLogicProps) => {
   }, [requestingPhysician]);
 
   // Cleanup when closing
-  useEffect(() => {
-    if (!isOpen) {
-      const closedState = buildImagingClosedState();
-      setMarks(closedState.marks);
-      setIsPrinting(closedState.isPrinting);
-      setToolMode(closedState.toolMode);
-      setActiveText(closedState.activeText);
-    }
-  }, [isOpen]);
+  if (useChangedOnRender([isOpen]) && !isOpen) {
+    const closedState = buildImagingClosedState();
+    setMarks(closedState.marks);
+    setIsPrinting(closedState.isPrinting);
+    setToolMode(closedState.toolMode);
+    setActiveText(closedState.activeText);
+  }
 
   const handlePrint = async () => {
     setIsPrinting(true);

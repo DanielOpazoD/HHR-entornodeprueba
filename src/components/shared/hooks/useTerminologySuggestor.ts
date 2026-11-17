@@ -7,6 +7,7 @@ import {
 import { checkAIAvailability } from '@/services/terminology/cie10AISearch';
 import { getCachedAIResults, cacheAIResults } from '@/services/terminology/aiResultsCache';
 import { createScopedLogger } from '@/services/utils/loggerScope';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const terminologySuggestorLogger = createScopedLogger('TerminologySuggestor');
 
@@ -48,24 +49,28 @@ export const useTerminologySuggestor = ({
   }, [isModalOpen]);
 
   // Auto-load cached AI results when modal opens
-  useEffect(() => {
-    if (isModalOpen) {
-      const searchTerm = cie10Code || query || freeTextValue;
-      if (searchTerm && searchTerm.length >= 2) {
-        const cachedResults = getCachedAIResults(searchTerm);
-        if (cachedResults && cachedResults.length > 0) {
-          const cachedConcepts: TerminologyConcept[] = cachedResults.map(entry => ({
-            code: entry.code,
-            display: entry.description,
-            system: 'http://hl7.org/fhir/sid/icd-10',
-            category: (entry.category || '') + ' (IA ⚡)',
-            fromAI: true,
-          }));
-          setSuggestions(cachedConcepts);
-        }
+  const searchInputsChanged = useChangedOnRender([isModalOpen, cie10Code, freeTextValue, query]);
+  if (searchInputsChanged && isModalOpen) {
+    const searchTerm = cie10Code || query || freeTextValue;
+    if (searchTerm && searchTerm.length >= 2) {
+      const cachedResults = getCachedAIResults(searchTerm);
+      if (cachedResults && cachedResults.length > 0) {
+        const cachedConcepts: TerminologyConcept[] = cachedResults.map(entry => ({
+          code: entry.code,
+          display: entry.description,
+          system: 'http://hl7.org/fhir/sid/icd-10',
+          category: (entry.category || '') + ' (IA ⚡)',
+          fromAI: true,
+        }));
+        setSuggestions(cachedConcepts);
       }
     }
-  }, [isModalOpen, cie10Code, freeTextValue, query]);
+  }
+  // A new search starts idle; a query too short for searching shows no suggestions.
+  if (searchInputsChanged) {
+    setIsLoading(false);
+    if (query.length < 2) setSuggestions([]);
+  }
 
   const onChangeTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastPushedValueRef = useRef<string>(value);
@@ -100,24 +105,21 @@ export const useTerminologySuggestor = ({
     }
   };
 
-  const prevModalOpenRef = useRef(false);
-
   useEffect(() => {
     if (!isFocused && !isModalOpen && value !== query && value !== lastPushedValueRef.current) {
       setQuery(value);
       lastPushedValueRef.current = value;
       currentQueryRef.current = value;
     }
-
-    if (isModalOpen && !prevModalOpenRef.current) {
-      const fillValue = value || query || freeTextValue;
-      if (fillValue && fillValue.length >= 2) {
-        setQuery(fillValue);
-      }
-    }
-
-    prevModalOpenRef.current = isModalOpen;
   }, [value, isFocused, isModalOpen, query, freeTextValue]);
+
+  // Opening the modal searches what the field already holds.
+  if (useChangedOnRender([isModalOpen]) && isModalOpen) {
+    const fillValue = value || query || freeTextValue;
+    if (fillValue && fillValue.length >= 2) {
+      setQuery(fillValue);
+    }
+  }
 
   const onChangeRef = useRef(onChange);
   useEffect(() => {
@@ -139,8 +141,6 @@ export const useTerminologySuggestor = ({
   useEffect(() => {
     const controller = new AbortController();
     activeSearchRef.current = controller;
-    setIsLoading(false);
-    if (query.length < 2) setSuggestions([]);
 
     const timer = setTimeout(async () => {
       if (controller.signal.aborted) return;

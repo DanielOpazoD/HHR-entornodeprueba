@@ -1,11 +1,7 @@
 import type { PatientData } from '@/types/domain/patient';
 
 import React, { createContext } from 'react';
-import type {
-  DailyRecordDataContextType,
-  InventoryStats,
-  SyncStatus,
-} from '@/context/dailyRecordContextContracts';
+import type { DailyRecordDataContextType, SyncStatus } from '@/context/dailyRecordContextContracts';
 
 import type { DailyRecordBootstrapPhase } from '@/hooks/controllers/dailyRecordBootstrapController';
 import type { StabilityRules } from '@/hooks/useStabilityRules';
@@ -44,10 +40,6 @@ export const DailyRecordStabilityContext = createContext<StabilityRules | null |
   undefined
 );
 
-export const DailyRecordInventoryContext = createContext<InventoryStats | null | undefined>(
-  undefined
-);
-
 export const DailyRecordStaffContext = createContext<
   | {
       date?: string;
@@ -70,7 +62,6 @@ interface DailyRecordProviderTreeProps {
   actionsValue: React.ComponentProps<typeof DailyRecordActionsContext.Provider>['value'];
   syncValue: React.ComponentProps<typeof DailyRecordSyncContext.Provider>['value'];
   stabilityValue: React.ComponentProps<typeof DailyRecordStabilityContext.Provider>['value'];
-  inventoryValue: React.ComponentProps<typeof DailyRecordInventoryContext.Provider>['value'];
   staffValue: React.ComponentProps<typeof DailyRecordStaffContext.Provider>['value'];
   movementsValue: React.ComponentProps<typeof DailyRecordMovementsContext.Provider>['value'];
   bedsValue: React.ComponentProps<typeof DailyRecordBedsContext.Provider>['value'];
@@ -83,7 +74,6 @@ export const DailyRecordProviderTree: React.FC<DailyRecordProviderTreeProps> = (
   actionsValue,
   syncValue,
   stabilityValue,
-  inventoryValue,
   staffValue,
   movementsValue,
   bedsValue,
@@ -94,19 +84,17 @@ export const DailyRecordProviderTree: React.FC<DailyRecordProviderTreeProps> = (
   <DailyRecordActionsContext.Provider value={actionsValue}>
     <DailyRecordSyncContext.Provider value={syncValue}>
       <DailyRecordStabilityContext.Provider value={stabilityValue}>
-        <DailyRecordInventoryContext.Provider value={inventoryValue}>
-          <DailyRecordStaffContext.Provider value={staffValue}>
-            <DailyRecordMovementsContext.Provider value={movementsValue}>
-              <DailyRecordBedsContext.Provider value={bedsValue}>
-                <DailyRecordDataContext.Provider value={dataValue}>
-                  <DailyRecordOverridesContext.Provider value={overridesValue}>
-                    {children}
-                  </DailyRecordOverridesContext.Provider>
-                </DailyRecordDataContext.Provider>
-              </DailyRecordBedsContext.Provider>
-            </DailyRecordMovementsContext.Provider>
-          </DailyRecordStaffContext.Provider>
-        </DailyRecordInventoryContext.Provider>
+        <DailyRecordStaffContext.Provider value={staffValue}>
+          <DailyRecordMovementsContext.Provider value={movementsValue}>
+            <DailyRecordBedsContext.Provider value={bedsValue}>
+              <DailyRecordDataContext.Provider value={dataValue}>
+                <DailyRecordOverridesContext.Provider value={overridesValue}>
+                  {children}
+                </DailyRecordOverridesContext.Provider>
+              </DailyRecordDataContext.Provider>
+            </DailyRecordBedsContext.Provider>
+          </DailyRecordMovementsContext.Provider>
+        </DailyRecordStaffContext.Provider>
       </DailyRecordStabilityContext.Provider>
     </DailyRecordSyncContext.Provider>
   </DailyRecordActionsContext.Provider>

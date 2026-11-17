@@ -62,8 +62,10 @@ contrato escala más allá de `admit`, pero fueron eliminados (audit
 2026-05-03) por no tener callers en producción y duplicar 65-70% del código
 con sus adoption facades. La auditoría completa con justificación está en
 [AUDIT_2026-05_PILOT_FACADE_OVERLAP.md](AUDIT_2026-05_PILOT_FACADE_OVERLAP.md).
-La pipeline de producción de discharge/transfer corre vía adoption facade
-(ver [ADR_CANONICAL_WRITE_ADOPTION_FACADES](ADR_CANONICAL_WRITE_ADOPTION_FACADES.md)).
+Las adoption facades que los reemplazaron tampoco llegaron a encenderse y se
+retiraron el 2026-11-17 (ver
+[ADR_CANONICAL_WRITE_ADOPTION_FACADES](ADR_CANONICAL_WRITE_ADOPTION_FACADES.md)).
+Discharge y transfer escriben por `usePatientDischarges` / `usePatientTransfers`.
 
 ## Cobertura mínima de tests
 
@@ -97,6 +99,7 @@ auditoría y dispatch a UI con estilos divergentes. Eso producía:
   transfer). Para mutaciones triviales (`toggleBlockBed`, `clearPatient`)
   basta con retornar `ApplicationOutcome<...>` sin separar puerto + comando.
 - Cuando la persistencia legacy es muy rica para encapsularla en un puerto
-  simple (caso discharge/transfer en este repo), usar el patrón **adoption
-  facade** documentado en
-  [ADR_CANONICAL_WRITE_ADOPTION_FACADES](ADR_CANONICAL_WRITE_ADOPTION_FACADES.md).
+  simple (caso discharge/transfer en este repo), no envolverla en una fachada
+  apagada: el intento quedó registrado en
+  [ADR_CANONICAL_WRITE_ADOPTION_FACADES](ADR_CANONICAL_WRITE_ADOPTION_FACADES.md)
+  y se retiró sin haberse encendido.

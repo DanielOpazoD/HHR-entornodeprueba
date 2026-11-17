@@ -39,6 +39,7 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the preview owns the blob URL it creates and revokes
     updatePreview(file);
     return () =>
       setPreviewUrl(prev => {
