@@ -11,7 +11,7 @@ import type {
 import { hasSameComparableValue } from '@/services/repositories/conflictResolutionUtils';
 import { isNursingHandoffPath } from './nursingHandoffTasks';
 import { clearSyncTaskRuntimeState } from './syncQueueTaskFactory';
-import { detachStaleOccupantPaths } from './dayTaskOccupantDetach';
+import { detachStaleOccupantPaths, keepDetachedConflicts } from './dayTaskOccupantDetach';
 
 import {
   REUSABLE_TASK_STATES,
@@ -104,21 +104,6 @@ export const completeDirectDailyRecord = async ({
     if (eligible.id) await hospitalDB.syncQueue.delete(eligible.id);
     return { status: 'adopted', record: confirmedRecord };
   });
-};
-
-/** Writes edits held for a patient no longer in their bed, one conflict per bed or crib. */
-const keepDetachedConflicts = async (
-  db: typeof hospitalDB,
-  conflicts: SyncTask[],
-  ownerKey: string | undefined
-) => {
-  for (const conflict of conflicts) {
-    const existing = conflict.key
-      ? await db.syncQueue.where('key').equals(conflict.key).first()
-      : undefined;
-    if (existing?.id) await db.syncQueue.put({ ...conflict, id: existing.id });
-    else await db.syncQueue.add({ ...conflict, ownerKey });
-  }
 };
 
 export const completeClaimedSyncTask = (

@@ -41,6 +41,20 @@ it('requires explicit confirmation and submits the prepared revision with a reas
     })
   );
 });
+it('approves a month without documentary reconciliation at revision 0', async () => {
+  mocks.load.mockResolvedValue([]);
+  const onApproved = vi.fn();
+  render(<CudyrCensusApprovalButton data={data} onApproved={onApproved} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Aprobar censo reconstruido' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Confirmar cierre oficial' }));
+  await waitFor(() => expect(onApproved).toHaveBeenCalledOnce());
+  expect(mocks.approve).toHaveBeenCalledWith(
+    expect.objectContaining({ month: '2026-08', expectedRevision: 0 })
+  );
+  // The default reason never claims a documentary reconciliation that did not happen.
+  expect(mocks.approve.mock.calls[0]?.[0].reason).not.toMatch(/concilia/i);
+  expect(screen.queryByRole('alert')).toBeNull();
+});
 it('preserves the form and reports failed publication without claiming approval', async () => {
   mocks.approve.mockRejectedValue(new Error('La conciliación cambió'));
   const onApproved = vi.fn();
