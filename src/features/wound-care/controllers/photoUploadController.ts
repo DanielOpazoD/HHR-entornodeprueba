@@ -14,15 +14,6 @@ export interface UploadProgress {
   message: string;
 }
 
-export const UPLOAD_PROGRESS_MESSAGES: Record<UploadProgress['stage'], string> = {
-  validating: 'Validando archivo...',
-  compressing: 'Comprimiendo imagen...',
-  uploading: 'Subiendo al servidor...',
-  saving: 'Guardando registro...',
-  done: 'Fotografía guardada correctamente.',
-  error: 'Error al subir la fotografía.',
-};
-
 /** Validate a photo file against accepted types and size limits before upload. */
 export const validatePhotoForUpload = (file: File): FileValidationResult => validatePhotoFile(file);
 

@@ -8,15 +8,6 @@ import {
 } from '@/services/auth/authOperationalTelemetry';
 import { isGeneralLoginRole } from '@/shared/access/roleAccessMatrix';
 import { resolveAllowedRoleForEmail } from '@/services/auth/authRoleResolutionController';
-import { type AuthRuntime, defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
-
-interface AuthRuntimeOptions {
-  authRuntime?: AuthRuntime;
-}
-
-const resolveAuthRuntime = ({ authRuntime }: AuthRuntimeOptions = {}): AuthRuntime =>
-  authRuntime ?? defaultAuthRuntime;
-
 export { clearRoleCacheForEmail } from '@/services/auth/authRoleCache';
 
 export interface GeneralLoginAccessResolution {
@@ -76,15 +67,4 @@ export const resolveGeneralLoginAccessForEmail = async (
     });
     return { allowed: false, resolution: 'unavailable' };
   }
-};
-
-export const isCurrentUserAuthorizedForGeneralLogin = async (
-  options?: AuthRuntimeOptions
-): Promise<boolean> => {
-  const authRuntime = resolveAuthRuntime(options);
-  await authRuntime.ready;
-  const user = authRuntime.getCurrentUser();
-  if (!user) return false;
-  const { allowed } = await resolveGeneralLoginAccessForEmail(user.email || '');
-  return allowed;
 };
