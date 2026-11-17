@@ -3,7 +3,10 @@ import type { UserRole } from '@/types/authRoleTypes';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, RefreshCw, Trash2 } from 'lucide-react';
-import { clearErrorLogs, fetchErrorLogs } from '@/services/errorLogService';
+import {
+  clearErrorLogs,
+  getErrorLogs,
+} from '@/services/storage/indexeddb/indexedDbErrorLogService';
 import type { ErrorLog, ErrorSeverity } from '@/services/logging/errorLogTypes';
 import { buildContextSummary } from '@/hooks/controllers/systemHealthReporterController';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
@@ -115,7 +118,7 @@ const SessionErrorLogsView: React.FC<{ role: UserRole }> = ({ role }) => {
   const loadLogs = () => {
     setLoading(true);
     setLoadError(null);
-    return showLogs(fetchErrorLogs(100, role));
+    return showLogs(getErrorLogs(100, role));
   };
 
   if (useChangedOnRender([role])) {
@@ -123,7 +126,7 @@ const SessionErrorLogsView: React.FC<{ role: UserRole }> = ({ role }) => {
     setLoadError(null);
   }
   useEffect(() => {
-    void showLogs(fetchErrorLogs(100, role));
+    void showLogs(getErrorLogs(100, role));
   }, [role, showLogs]);
 
   const severityCounts = useMemo(

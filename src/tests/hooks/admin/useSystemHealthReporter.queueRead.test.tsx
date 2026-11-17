@@ -26,7 +26,10 @@ vi.mock('@/context/VersionContext', () => ({
   useVersion: () => ({ isOutdated: false, updateReason: 'current' }),
 }));
 vi.mock('@tanstack/react-query', () => ({ useIsMutating: () => 0 }));
-vi.mock('@/services/errorLogService', () => ({ fetchErrorLogs: mocks.errorLogs }));
+vi.mock('@/services/storage/indexeddb/indexedDbErrorLogService', () => ({
+  getErrorLogs: mocks.errorLogs,
+  saveErrorLog: vi.fn(),
+}));
 vi.mock('@/services/admin/healthService', () => ({ reportUserHealth: mocks.report }));
 vi.mock('@/services/storage/sync', () => ({
   listRecentSyncQueueOperations: mocks.operations,

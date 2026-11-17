@@ -8,7 +8,7 @@ import {
   getGlobalEmailRecipientListsWithResult,
   type GlobalEmailRecipientList,
 } from '@/services/email/emailRecipientListService';
-import { getAppSetting, saveAppSetting } from '@/services/settingsService';
+import { getSetting, saveSetting } from '@/services/storage/indexeddb/indexedDbSettingsService';
 import { censusEmailBootstrapLogger } from '@/hooks/controllers/hookControllerLoggers';
 
 export interface CensusEmailRecipientsBootstrapResult {
@@ -69,7 +69,7 @@ export const resolveCensusRecipientsBootstrap = async ({
   activeListStorageKey,
   user,
 }: ResolveCensusRecipientsBootstrapParams): Promise<CensusEmailRecipientsBootstrapResult> => {
-  const stored = await getAppSetting<string[] | null>('censusEmailRecipients', null);
+  const stored = await getSetting<string[] | null>('censusEmailRecipients', null);
   const storedRecipients = resolveStoredRecipients(stored);
 
   if (!canManageGlobalRecipientLists) {
@@ -84,14 +84,14 @@ export const resolveCensusRecipientsBootstrap = async ({
       : getDefaultBootstrapResult();
   }
 
-  const storedActiveListId = await getAppSetting<string | null>(activeListStorageKey, null);
+  const storedActiveListId = await getSetting<string | null>(activeListStorageKey, null);
   let seedRecipients = storedRecipients ?? null;
 
   if (!seedRecipients) {
     const legacyRecipients = resolveLegacyRecipients(browserRuntime.getLegacyRecipients());
     if (legacyRecipients) {
       seedRecipients = legacyRecipients;
-      await saveAppSetting('censusEmailRecipients', legacyRecipients);
+      await saveSetting('censusEmailRecipients', legacyRecipients);
       browserRuntime.clearLegacyRecipients();
     }
   }

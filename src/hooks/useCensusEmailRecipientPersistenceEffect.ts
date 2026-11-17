@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { saveAppSetting } from '@/services/settingsService';
+import { saveSetting } from '@/services/storage/indexeddb/indexedDbSettingsService';
 
 const ACTIVE_LIST_STORAGE_KEY = 'censusEmailActiveRecipientListId';
 const RECIPIENTS_STORAGE_KEY = 'censusEmailRecipients';
@@ -17,7 +17,7 @@ export const useCensusEmailRecipientPersistenceEffect = ({
 }: UseCensusEmailRecipientPersistenceEffectParams): void => {
   useEffect(() => {
     if (!recipientsReady) return;
-    void saveAppSetting(RECIPIENTS_STORAGE_KEY, recipients);
-    void saveAppSetting(ACTIVE_LIST_STORAGE_KEY, activeRecipientListId);
+    void saveSetting(RECIPIENTS_STORAGE_KEY, recipients);
+    void saveSetting(ACTIVE_LIST_STORAGE_KEY, activeRecipientListId);
   }, [activeRecipientListId, recipients, recipientsReady]);
 };

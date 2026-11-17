@@ -1,9 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  cudyrExcelDate,
-  cudyrExcelDateText,
-  cudyrExcelMoment,
-} from '@/services/cudyr/cudyrExcelDates';
+import { cudyrExcelDateText, cudyrExcelMoment } from '@/services/cudyr/cudyrExcelDates';
 import { exportSheet, row, source } from './cudyrSourceTable.fixtures';
 import { confirmedReportInput } from './reportFixtures';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
@@ -12,7 +8,6 @@ vi.mock('@/services/cudyr/cudyrSupplementService', () => ({}));
 
 describe('CUDYR Excel dates', () => {
   it('uses a full year without shifting calendar-only dates', () => {
-    expect(cudyrExcelDate('2026-10-01')).toBe('01-10-2026');
     expect(cudyrExcelMoment('2026-10-01')).toBe('01-10-2026');
     expect(cudyrExcelMoment('2026-10-01T02:47:00Z')).toBe('30-09-2026 21:47');
     expect(cudyrExcelMoment('2026-06-01T06:47:00Z')).toBe('01-06-2026 00:47');

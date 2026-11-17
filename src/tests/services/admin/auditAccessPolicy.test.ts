@@ -1,28 +1,28 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
-  canAccessAuditSensitivePanels,
-  canAccessAuditView,
-  canExportAuditData,
-} from '@/services/admin/auditAccessPolicy';
+  canAccessAuditSensitivePanelsForRole,
+  canAccessAuditViewForRole,
+  canExportAuditDataForRole,
+} from '@/shared/access/operationalAccessPolicy';
 
 describe('auditAccessPolicy', () => {
   it('allows audit view only for roles with explicit audit permission', () => {
-    expect(canAccessAuditView('admin')).toBe(true);
-    expect(canAccessAuditView('nurse_hospital')).toBe(false);
-    expect(canAccessAuditView('viewer')).toBe(false);
-    expect(canAccessAuditView(undefined)).toBe(false);
+    expect(canAccessAuditViewForRole('admin')).toBe(true);
+    expect(canAccessAuditViewForRole('nurse_hospital')).toBe(false);
+    expect(canAccessAuditViewForRole('viewer')).toBe(false);
+    expect(canAccessAuditViewForRole(undefined)).toBe(false);
   });
 
   it('restricts sensitive audit panels to administrators', () => {
-    expect(canAccessAuditSensitivePanels('admin')).toBe(true);
-    expect(canAccessAuditSensitivePanels('editor')).toBe(false);
-    expect(canAccessAuditSensitivePanels('nurse_hospital')).toBe(false);
+    expect(canAccessAuditSensitivePanelsForRole('admin')).toBe(true);
+    expect(canAccessAuditSensitivePanelsForRole('editor')).toBe(false);
+    expect(canAccessAuditSensitivePanelsForRole('nurse_hospital')).toBe(false);
   });
 
   it('keeps export permissions aligned with role actions', () => {
-    expect(canExportAuditData('admin')).toBe(true);
-    expect(canExportAuditData('nurse_hospital')).toBe(true);
-    expect(canExportAuditData('viewer')).toBe(false);
+    expect(canExportAuditDataForRole('admin')).toBe(true);
+    expect(canExportAuditDataForRole('nurse_hospital')).toBe(true);
+    expect(canExportAuditDataForRole('viewer')).toBe(false);
   });
 });

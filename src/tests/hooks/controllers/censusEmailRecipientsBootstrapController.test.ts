@@ -2,9 +2,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { resolveCensusRecipientsBootstrap } from '@/hooks/controllers/censusEmailRecipientsBootstrapController';
 
-vi.mock('@/services/settingsService', () => ({
-  getAppSetting: vi.fn(),
-  saveAppSetting: vi.fn(),
+vi.mock('@/services/storage/indexeddb/indexedDbSettingsService', () => ({
+  getSetting: vi.fn(),
+  saveSetting: vi.fn(),
 }));
 
 vi.mock('@/services/email/emailRecipientListService', () => ({
@@ -21,7 +21,7 @@ vi.mock('@/services/email/emailRecipientListService', () => ({
   }),
 }));
 
-import { getAppSetting, saveAppSetting } from '@/services/settingsService';
+import { getSetting, saveSetting } from '@/services/storage/indexeddb/indexedDbSettingsService';
 import {
   ensureGlobalEmailRecipientList,
   getGlobalEmailRecipientListsWithResult,
@@ -40,7 +40,7 @@ describe('censusEmailRecipientsBootstrapController', () => {
   });
 
   it('returns local recipients when user cannot manage global lists', async () => {
-    vi.mocked(getAppSetting).mockResolvedValueOnce(['local@test.com']);
+    vi.mocked(getSetting).mockResolvedValueOnce(['local@test.com']);
 
     const result = await resolveCensusRecipientsBootstrap({
       canManageGlobalRecipientLists: false,
@@ -54,7 +54,7 @@ describe('censusEmailRecipientsBootstrapController', () => {
   });
 
   it('creates default global list when none exists', async () => {
-    vi.mocked(getAppSetting)
+    vi.mocked(getSetting)
       .mockResolvedValueOnce(['seed@test.com'])
       .mockResolvedValueOnce('census-default');
     vi.mocked(getGlobalEmailRecipientListsWithResult)
@@ -98,7 +98,7 @@ describe('censusEmailRecipientsBootstrapController', () => {
   });
 
   it('migrates legacy browser recipients before creating firebase seed', async () => {
-    vi.mocked(getAppSetting).mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+    vi.mocked(getSetting).mockResolvedValueOnce(null).mockResolvedValueOnce(null);
     vi.mocked(getGlobalEmailRecipientListsWithResult).mockResolvedValue({
       status: 'success',
       data: [],
@@ -113,12 +113,12 @@ describe('censusEmailRecipientsBootstrapController', () => {
       user: { email: 'admin@test.com', uid: '1' },
     });
 
-    expect(saveAppSetting).toHaveBeenCalledWith('censusEmailRecipients', ['legacy@test.com']);
+    expect(saveSetting).toHaveBeenCalledWith('censusEmailRecipients', ['legacy@test.com']);
     expect(browserRuntime.clearLegacyRecipients).toHaveBeenCalled();
   });
 
   it('falls back to local recipients when firebase returns a failed outcome', async () => {
-    vi.mocked(getAppSetting)
+    vi.mocked(getSetting)
       .mockResolvedValueOnce(['local@test.com'])
       .mockResolvedValueOnce('census-default');
     vi.mocked(getGlobalEmailRecipientListsWithResult).mockResolvedValueOnce({

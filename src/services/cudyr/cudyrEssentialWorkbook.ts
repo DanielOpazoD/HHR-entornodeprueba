@@ -10,7 +10,7 @@ import { cudyrReportTotals } from './cudyrReportModel';
 import { buildCudyrWorkbook } from './cudyrWorkbookBuilder';
 import { validateCudyrWorkbookTotals } from './cudyrWorkbookValidation';
 import { cudyrWorkbookSummary } from './cudyrWorkbookSummary';
-import { formatDateDMY } from './cudyrWorkbookSections';
+import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { addCudyrEssentialDetail } from './cudyrEssentialDetail';
 import type { CudyrSourceSheet } from './cudyrSourceTypes';
 import { loadCudyrSourceSheets } from './cudyrSourceLoader';
@@ -84,8 +84,8 @@ export const buildCudyrEssentialWorkbook = async (
               : day.reconstructionApproval
                 ? 'Oficial'
                 : 'Verificado con Eloísa';
-    const sheet = workbook.getWorksheet(formatDateDMY(date))!;
-    sheet.getCell('A1').value = `CUDYR · turno noche ${formatDateDMY(date)}`;
+    const sheet = workbook.getWorksheet(formatDateDDMMYYYY(date))!;
+    sheet.getCell('A1').value = `CUDYR · turno noche ${formatDateDDMMYYYY(date)}`;
     note(sheet, 2, state);
     sheet.getCell('A18').value = 'Cumplimiento · pacientes elegibles';
     sheet.getCell('A19').value = 'Pacientes elegibles';
@@ -123,7 +123,7 @@ export const buildCudyrEssentialWorkbook = async (
   const summary = workbook.getWorksheet('Resumen CUDYR Mensual')!;
   summary.columns = [34, 22, 22, 14].map(width => ({ width }));
   summary.getCell('A1').value =
-    `CUDYR mensual · ${formatDateDMY(data.from)} al ${formatDateDMY(data.to)}`;
+    `CUDYR mensual · ${formatDateDDMMYYYY(data.from)} al ${formatDateDDMMYYYY(data.to)}`;
   const unresolved = states.filter(
     item => !item.pending && !['Verificado con Eloísa', 'Oficial'].includes(item.state)
   );
