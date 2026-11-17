@@ -65,7 +65,24 @@ export interface SyncTask {
   nursingHandoffRecovery?: true;
   /** Staff identity only, for the shared-computer notice; never handoff content. */
   nursingHandoffOwnerLabel?: string;
+  /**
+   * The conflict this task was held in when a direct write of other fields folded into it. Once
+   * the server confirms that write, the task is that conflict again: the rest of it was refused
+   * as it stands, and sending it would only meet the same refusal.
+   */
+  conflictBeforeDirectWrite?: SyncTaskHeldConflict;
 }
+
+/** What a task held as a conflict shows for review. */
+export type SyncTaskHeldConflict = Pick<
+  SyncTask,
+  | 'error'
+  | 'lastErrorCode'
+  | 'lastErrorCategory'
+  | 'lastErrorSeverity'
+  | 'lastErrorAction'
+  | 'lastErrorAt'
+>;
 
 export type DailyRecordQueuedWriteState = 'none' | 'active' | 'failed' | 'conflict';
 

@@ -37,6 +37,7 @@ export const clearSyncTaskRuntimeState = () => ({
   preOutboxHoldUntil: undefined,
   preOutboxHoldReason: undefined,
   preOutboxHoldHeartbeatAt: undefined,
+  conflictBeforeDirectWrite: undefined,
 });
 
 /** What logout leaves on an unsent task: blocked, kept for review by its original owner. */
