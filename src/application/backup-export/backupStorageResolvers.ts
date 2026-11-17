@@ -1,6 +1,5 @@
 import type { BackupType } from '@/hooks/backupFileBrowserContracts';
-import type { BaseStoredFile, StorageListReport } from '@/services/backup/baseStorageService';
-import type { StoredPdfFile } from '@/services/backup/pdfStorageService';
+import type { BaseStoredFile, StorageListReport, StoredPdfFile } from '@/types/backupArtifacts';
 import type { StorageLookupResult } from '@/services/backup/storageLookupContracts';
 
 interface BackupStorageListServices {

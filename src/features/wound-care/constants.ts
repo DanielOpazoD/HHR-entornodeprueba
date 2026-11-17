@@ -7,9 +7,6 @@
 // ============================================================================
 
 export const WOUND_CARE_STORAGE_ROOT = 'wound-care';
-export const WOUND_CARE_CONSENTS_PATH = `${WOUND_CARE_STORAGE_ROOT}/consents`;
-export const WOUND_CARE_PHOTOS_PATH = `${WOUND_CARE_STORAGE_ROOT}/photos`;
-export const WOUND_CARE_THUMBNAILS_PATH = `${WOUND_CARE_STORAGE_ROOT}/thumbnails`;
 
 // ============================================================================
 // File Constraints

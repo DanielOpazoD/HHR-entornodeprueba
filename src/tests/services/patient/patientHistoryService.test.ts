@@ -37,7 +37,11 @@ vi.mock('@/services/repositories/repositoryConfig', () => ({
   isFirestoreEnabled,
 }));
 
-import { getPatientMovementHistory } from '@/services/patient/patientHistoryService';
+import { getPatientMovementHistoryDetailed } from '@/services/patient/patientHistoryService';
+
+const getPatientMovementHistory = async (
+  ...args: Parameters<typeof getPatientMovementHistoryDetailed>
+) => (await getPatientMovementHistoryDetailed(...args)).history;
 
 const buildRecord = (date: string, overrides: Partial<DailyRecord> = {}): DailyRecord =>
   ({
@@ -305,9 +309,9 @@ describe('patientHistoryService', () => {
     );
   });
 
-  it('returns null for invalid identifiers and skips all storage lookups', async () => {
-    await expect(getPatientMovementHistory('')).resolves.toBeNull();
-    await expect(getPatientMovementHistory('12')).resolves.toBeNull();
+  it('rejects invalid identifiers and skips all storage lookups', async () => {
+    await expect(getPatientMovementHistory('')).rejects.toThrow('Invalid patient identifier');
+    await expect(getPatientMovementHistory('12')).rejects.toThrow('Invalid patient identifier');
 
     expect(getAllRecords).not.toHaveBeenCalled();
     expect(getRecordsRangeFromFirestore).not.toHaveBeenCalled();

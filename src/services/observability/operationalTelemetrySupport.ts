@@ -114,10 +114,6 @@ export const sanitizePersistedOperationalTelemetryEvent = (
 export const isObservedOperationalTelemetryStatus = (status: OperationalTelemetryStatus): boolean =>
   OBSERVED_OPERATIONAL_STATUSES.includes(status);
 
-export const isDefinedOperationalTelemetryEvent = (
-  event: OperationalTelemetryEvent | null
-): event is OperationalTelemetryEvent => event !== null;
-
 export const createRecordedOperationalTelemetryEvent = (
   input: Omit<OperationalTelemetryEvent, 'timestamp'>
 ): OperationalTelemetryEvent => ({

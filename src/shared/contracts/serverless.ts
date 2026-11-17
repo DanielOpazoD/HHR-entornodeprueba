@@ -33,24 +33,6 @@ export const Cie10SearchResponseSchema = z.object({
 
 export type Cie10SearchResponse = z.infer<typeof Cie10SearchResponseSchema>;
 
-export const ClinicalSummaryRequestSchema = z.object({
-  recordDate: z.string(),
-  bedId: z.string(),
-  instruction: z.string().optional(),
-});
-
-export type ClinicalSummaryRequest = z.infer<typeof ClinicalSummaryRequestSchema>;
-
-export const ClinicalSummaryResponseSchema = z.object({
-  available: z.boolean(),
-  provider: z.string().optional(),
-  model: z.string().optional(),
-  summary: z.string(),
-  message: z.string().optional(),
-});
-
-export type ClinicalSummaryResponse = z.infer<typeof ClinicalSummaryResponseSchema>;
-
 export const ClinicalDocumentAiImportPayloadSchema = z.object({
   antecedentes: z.string(),
   historiaEvolucionClinica: z.string(),

@@ -7,6 +7,7 @@ import {
 } from '@/application/medical-indications/medicalIndicationsUseCases';
 import { defaultMedicalIndicationTemplatePort } from '@/application/ports/medicalIndicationPort';
 import type { MedicalIndicationTemplate } from '@/shared/contracts/medicalIndications';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 export interface MedicalIndicationsLibraryActor {
   userId: string;
@@ -25,32 +26,31 @@ export const useMedicalIndicationsLibrary = (
   const [isSaving, setIsSaving] = React.useState(false);
   const [error, setError] = React.useState('');
 
-  const reload = React.useCallback(async () => {
-    if (!actor) {
+  // Each opening reloads the personal library.
+  if (useChangedOnRender([isOpen, actor]) && isOpen) {
+    if (actor) {
+      setIsLoading(true);
+      setError('');
+    } else {
       setTemplates([]);
-      return;
     }
-
-    setIsLoading(true);
-    setError('');
-    try {
-      const nextTemplates = await defaultMedicalIndicationTemplatePort.listActiveByUser(
-        actor.userId
-      );
-      setTemplates(nextTemplates);
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error ? loadError.message : 'No se pudo cargar la biblioteca personal.'
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, [actor]);
-
+  }
   React.useEffect(() => {
-    if (!isOpen) return;
-    void reload();
-  }, [isOpen, reload]);
+    if (!isOpen || !actor) return;
+    void (async () => {
+      try {
+        setTemplates(await defaultMedicalIndicationTemplatePort.listActiveByUser(actor.userId));
+      } catch (loadError) {
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : 'No se pudo cargar la biblioteca personal.'
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, [isOpen, actor]);
 
   const createTemplate = async (text: string = draftText): Promise<void> => {
     if (!actor) {

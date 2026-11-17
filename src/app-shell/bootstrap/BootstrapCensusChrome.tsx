@@ -333,5 +333,3 @@ export const BootstrapRouteChrome: React.FC = () => {
     </UISettingsProvider>
   );
 };
-
-export const BootstrapCensusChrome = BootstrapRouteChrome;

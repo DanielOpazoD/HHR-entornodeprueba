@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useVersion } from '@/context/VersionContext';
 import { useIsMutating } from '@tanstack/react-query';
-import { fetchErrorLogs } from '@/services/errorLogService';
+import { getErrorLogs } from '@/services/storage/indexeddb/indexedDbErrorLogService';
 import type { UserHealthStatus } from '@/services/admin/healthService';
 import { getLocalPersistenceRuntimeSnapshot } from '@/services/storage/indexeddb/indexedDbCore';
 import { getSyncQueueTelemetry, listRecentSyncQueueOperations } from '@/services/storage/sync';
@@ -52,7 +52,7 @@ export const useSystemHealthReporter = (enabled = true) => {
     const reportHealth = async () => {
       try {
         // The store records its own failed read. The rest of the report remains known.
-        const logs = await fetchErrorLogs(100).catch(() => []);
+        const logs = await getErrorLogs(100).catch(() => []);
         const localErrorCount = logs.length;
         const [syncTelemetry, recentSyncOperations] = await Promise.all([
           getSyncQueueTelemetry(),

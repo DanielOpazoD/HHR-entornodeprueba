@@ -24,7 +24,10 @@ vi.mock('@/context/VersionContext', () => ({
 }));
 vi.mock('@tanstack/react-query', () => ({ useIsMutating: () => 0 }));
 vi.mock('@/services/storage/firestore', () => ({ firestoreDb: { setDoc: mocks.write } }));
-vi.mock('@/services/errorLogService', () => ({ fetchErrorLogs: async () => [] }));
+vi.mock('@/services/storage/indexeddb/indexedDbErrorLogService', () => ({
+  getErrorLogs: async () => [],
+  saveErrorLog: vi.fn(),
+}));
 vi.mock('@/services/storage/sync', () => ({
   listRecentSyncQueueOperations: async () => [],
   getSyncQueueTelemetry: async () => ({

@@ -1,4 +1,4 @@
-import { cudyrExcelDate } from './cudyrExcelDates';
+import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import type { Workbook } from 'exceljs';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import type { CudyrSourceSheet } from './cudyrSourceTypes';
@@ -85,7 +85,7 @@ export const addCudyrSourceSheets = (
           const column = columns.firstDay + day.sourceDay - 1;
           if (day.originalValue.trim()) highlight(column);
           const cell = row.getCell(column);
-          cell.note = `${typeof cell.note === 'string' ? cell.note + '\n' : ''}${prepared.exclusionReasons?.get(patient.sourceRow)?.get(day.sourceDate)}. Aplicación ${cudyrExcelDate(day.sourceDate)} → turno noche ${cudyrExcelDate(getPreviousDay(day.sourceDate))}. Se conserva el valor de Eloísa.`;
+          cell.note = `${typeof cell.note === 'string' ? cell.note + '\n' : ''}${prepared.exclusionReasons?.get(patient.sourceRow)?.get(day.sourceDate)}. Aplicación ${formatDateDDMMYYYY(day.sourceDate)} → turno noche ${formatDateDDMMYYYY(getPreviousDay(day.sourceDate))}. Se conserva el valor de Eloísa.`;
         }
         highlight(statusColumn);
         row.getCell(statusColumn).font = { bold: true, color: { argb: 'FF854D0E' } };
@@ -93,7 +93,7 @@ export const addCudyrSourceSheets = (
           .sort()
           .map(
             date =>
-              `${prepared.exclusionReasons?.get(patient.sourceRow)?.get(date)}: aplicación ${cudyrExcelDate(date)} → turno noche ${cudyrExcelDate(getPreviousDay(date))}`
+              `${prepared.exclusionReasons?.get(patient.sourceRow)?.get(date)}: aplicación ${formatDateDDMMYYYY(date)} → turno noche ${formatDateDDMMYYYY(getPreviousDay(date))}`
           )
           .join('\n');
       });
@@ -106,7 +106,7 @@ export const addCudyrSourceSheets = (
       const days = prepared.patients[0]?.days.filter(d => !excerpt || d.sourceDay === 1) || [];
       for (const day of days) {
         sheet.getCell(1, columns.firstDay + day.sourceDay - 1).note =
-          `Fecha de aplicación en Eloísa: ${cudyrExcelDate(day.sourceDate)}. Corresponde al turno nocturno del ${cudyrExcelDate(getPreviousDay(day.sourceDate))}. Los símbolos de ingreso/egreso usan la fecha real del movimiento.`;
+          `Fecha de aplicación en Eloísa: ${formatDateDDMMYYYY(day.sourceDate)}. Corresponde al turno nocturno del ${formatDateDDMMYYYY(getPreviousDay(day.sourceDate))}. Los símbolos de ingreso/egreso usan la fecha real del movimiento.`;
       }
       sheet.pageSetup.printTitlesRow = '1:1';
     }

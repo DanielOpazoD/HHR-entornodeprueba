@@ -21,10 +21,3 @@ export const getBedTypeForRecord = (
   }
   return bed.type;
 };
-
-/**
- * Checks if a bed type is considered intensive/critical (UTI or UCI).
- */
-export const isIntensiveBedType = (type: BedType): boolean => {
-  return type === BedType.UTI || type === BedType.UCI;
-};

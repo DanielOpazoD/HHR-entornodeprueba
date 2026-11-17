@@ -17,8 +17,8 @@ import {
   createListMonths,
   createListFilesInMonth,
   createListFilesInMonthWithReport,
-  BaseStoredFile,
 } from '@/services/backup/baseStorageService';
+import type { BaseStoredFile } from '@/types/backupArtifacts';
 import {
   isExpectedStorageLookupMiss,
   shouldLogStorageError,

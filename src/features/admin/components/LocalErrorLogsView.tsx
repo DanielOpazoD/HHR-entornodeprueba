@@ -3,10 +3,14 @@ import type { UserRole } from '@/types/authRoleTypes';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, RefreshCw, Trash2 } from 'lucide-react';
-import { clearErrorLogs, fetchErrorLogs } from '@/services/errorLogService';
+import {
+  clearErrorLogs,
+  getErrorLogs,
+} from '@/services/storage/indexeddb/indexedDbErrorLogService';
 import type { ErrorLog, ErrorSeverity } from '@/services/logging/errorLogTypes';
 import { buildContextSummary } from '@/hooks/controllers/systemHealthReporterController';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const PRIVATE_CONTEXT_KEYS = new Set(['patient', 'patientname', 'rut', 'diagnosis', 'diagnostico']);
 
@@ -92,27 +96,38 @@ const SessionErrorLogsView: React.FC<{ role: UserRole }> = ({ role }) => {
 
   const requestIdRef = useRef(0);
 
-  const loadLogs = useCallback(async () => {
+  /** Shows the read unless a newer one started. */
+  const showLogs = useCallback((read: Promise<ErrorLog[]>) => {
     const requestId = ++requestIdRef.current;
+    return read
+      .then(
+        fetchedLogs => {
+          if (requestId === requestIdRef.current) setLogs(fetchedLogs);
+        },
+        () => {
+          if (requestId !== requestIdRef.current) return;
+          setLoadError(
+            'No se pudo leer el historial de errores de este navegador. Eso no significa que no haya errores.'
+          );
+        }
+      )
+      .finally(() => {
+        if (requestId === requestIdRef.current) setLoading(false);
+      });
+  }, []);
+  const loadLogs = () => {
     setLoading(true);
     setLoadError(null);
-    try {
-      const fetchedLogs = await fetchErrorLogs(100, role);
-      if (requestId !== requestIdRef.current) return;
-      setLogs(fetchedLogs);
-    } catch {
-      if (requestId !== requestIdRef.current) return;
-      setLoadError(
-        'No se pudo leer el historial de errores de este navegador. Eso no significa que no haya errores.'
-      );
-    } finally {
-      if (requestId === requestIdRef.current) setLoading(false);
-    }
-  }, [role]);
+    return showLogs(getErrorLogs(100, role));
+  };
 
+  if (useChangedOnRender([role])) {
+    setLoading(true);
+    setLoadError(null);
+  }
   useEffect(() => {
-    void loadLogs();
-  }, [loadLogs]);
+    void showLogs(getErrorLogs(100, role));
+  }, [role, showLogs]);
 
   const severityCounts = useMemo(
     () =>

@@ -8,7 +8,7 @@ import {
   executeSyncCensusRecipientList,
 } from '@/application/census-email/censusRecipientListUseCases';
 import * as emailRecipientListService from '@/services/email/emailRecipientListService';
-import * as settingsService from '@/services/settingsService';
+import * as indexedDbSettingsService from '@/services/storage/indexeddb/indexedDbSettingsService';
 import * as bootstrapController from '@/hooks/controllers/censusEmailRecipientsBootstrapController';
 import type { CensusEmailBrowserRuntime } from '@/hooks/controllers/censusEmailBrowserRuntimeController';
 
@@ -39,8 +39,8 @@ vi.mock('@/hooks/controllers/censusEmailRecipientsBootstrapController', () => ({
   resolveCensusRecipientsBootstrap: vi.fn(),
 }));
 
-vi.mock('@/services/settingsService', () => ({
-  getAppSetting: vi.fn(),
+vi.mock('@/services/storage/indexeddb/indexedDbSettingsService', () => ({
+  getSetting: vi.fn(),
 }));
 
 describe('censusRecipientListUseCases', () => {
@@ -75,7 +75,7 @@ describe('censusRecipientListUseCases', () => {
   });
 
   it('loads stored runtime state when global management is disabled', async () => {
-    vi.mocked(settingsService.getAppSetting)
+    vi.mocked(indexedDbSettingsService.getSetting)
       .mockResolvedValueOnce(['stored@test.com'])
       .mockResolvedValueOnce('custom-list');
 
@@ -100,7 +100,7 @@ describe('censusRecipientListUseCases', () => {
     vi.mocked(bootstrapController.resolveCensusRecipientsBootstrap).mockRejectedValueOnce(
       new Error('bootstrap failed')
     );
-    vi.mocked(settingsService.getAppSetting).mockResolvedValueOnce(['fallback@test.com']);
+    vi.mocked(indexedDbSettingsService.getSetting).mockResolvedValueOnce(['fallback@test.com']);
 
     const result = await executeLoadCensusRecipientRuntimeState({
       canManageGlobalRecipientLists: true,
@@ -121,7 +121,7 @@ describe('censusRecipientListUseCases', () => {
   });
 
   it('keeps the stored runtime state when the UI is disabled even if management is allowed', async () => {
-    vi.mocked(settingsService.getAppSetting)
+    vi.mocked(indexedDbSettingsService.getSetting)
       .mockResolvedValueOnce(['stored@test.com'])
       .mockResolvedValueOnce('custom-list');
 

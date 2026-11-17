@@ -18,6 +18,7 @@ import {
   renderPrescriptionsUploadQrDataUrl,
 } from '@/features/prescriptions/services/prescriptionQrCodeService';
 import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const QR_PIXEL_SIZE = 360;
 
@@ -56,26 +57,29 @@ export const PrescriptionAdminView: React.FC = () => {
   const [pinPhase, setPinPhase] = useState<PinPhase>('idle');
   const [pinMessage, setPinMessage] = useState<string | null>(null);
 
-  const generateQr = useCallback(async () => {
-    if (!origin) return;
+  const showQr = useCallback(
+    (render: Promise<string>) =>
+      render
+        .then(setQrDataUrl, (error: unknown) =>
+          setQrError(error instanceof Error ? error.message : 'No se pudo generar el QR.')
+        )
+        .finally(() => setQrLoading(false)),
+    []
+  );
+  const startQr = () => {
     setQrLoading(true);
     setQrError(null);
-    try {
-      const dataUrl = await renderPrescriptionsUploadQrDataUrl({
-        origin,
-        size: QR_PIXEL_SIZE,
-      });
-      setQrDataUrl(dataUrl);
-    } catch (error) {
-      setQrError(error instanceof Error ? error.message : 'No se pudo generar el QR.');
-    } finally {
-      setQrLoading(false);
-    }
-  }, [origin]);
+  };
+  const generateQr = async () => {
+    if (!origin) return;
+    startQr();
+    await showQr(renderPrescriptionsUploadQrDataUrl({ origin, size: QR_PIXEL_SIZE }));
+  };
 
+  if (useChangedOnRender([origin]) && origin) startQr();
   useEffect(() => {
-    void generateQr();
-  }, [generateQr]);
+    if (origin) void showQr(renderPrescriptionsUploadQrDataUrl({ origin, size: QR_PIXEL_SIZE }));
+  }, [origin, showQr]);
 
   const handleCopyUrl = useCallback(async () => {
     try {

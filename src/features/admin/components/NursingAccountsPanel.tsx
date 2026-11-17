@@ -71,16 +71,22 @@ export default function NursingAccountsPanel({
   const [editing, setEditing] = useState<NursingAccount | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
-  const reload = useCallback(async () => {
-    const result = await callAccount<NursingAccountList>('listNursingAccounts');
-    setAccounts(result.accounts);
-    setRecentAudit(result.recentAudit);
-    setIndividualOnly(result.individualOnly);
-    onPolicyChange?.(result.individualOnly);
-  }, [onPolicyChange]);
+  const showList = useCallback(
+    (result: NursingAccountList) => {
+      setAccounts(result.accounts);
+      setRecentAudit(result.recentAudit);
+      setIndividualOnly(result.individualOnly);
+      onPolicyChange?.(result.individualOnly);
+    },
+    [onPolicyChange]
+  );
+  const reload = async () => showList(await callAccount<NursingAccountList>('listNursingAccounts'));
   useEffect(() => {
-    if (role === 'admin') void reload().catch(error => setMessage(accountErrorMessage(error)));
-  }, [reload, role]);
+    if (role === 'admin')
+      void callAccount<NursingAccountList>('listNursingAccounts')
+        .then(showList)
+        .catch(error => setMessage(accountErrorMessage(error)));
+  }, [showList, role]);
   const run = async (action: () => Promise<void>) => {
     if (busy) return;
     setBusy(true);

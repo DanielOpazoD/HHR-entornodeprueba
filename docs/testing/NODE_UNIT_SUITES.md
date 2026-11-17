@@ -9,7 +9,7 @@ The shared setup, timezone policy, worker isolation and assertion set remain int
 
 The following four pure suites now use Node; all 38 existing tests still run:
 
-- `src/tests/features/census/clinicalDocumentPresenceController.test.ts`
+- `src/tests/views/census/clinicalDocumentPresenceController.test.ts`
 - `src/tests/views/census/clinicalDocumentPresenceController.test.ts`
 - `src/tests/application/patient-flow/clinicalEpisode.test.ts`
 - `src/tests/application/patient-flow/clinicalEpisodeIdPolicy.test.ts`

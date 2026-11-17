@@ -20,6 +20,7 @@ import { DicomVideoPreview } from './DicomVideoPreview';
 import { DicomVideoSettings } from './DicomVideoSettings';
 import { dicomPlaneLabels } from './DicomViewportGrid';
 import './dicomCine.css';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const axes: Array<[DicomTurntableAxis, string]> = [
   ['vertical', 'Vertical de la pantalla'],
@@ -50,11 +51,12 @@ export const DicomVolumeVideoControls: React.FC<{
   // The slice count depends on the plane and its obliquity; frames of a running video must
   // not move the reported current slice.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads the live viewport, which exists only after commit
     if (mode === 'mpr' && !job.busy) setSlices(runtime.mprSlices(plane));
   }, [runtime, mode, plane, reconstruction, job.busy]);
+  if (useChangedOnRender([plane, total])) setRange([1, Math.max(1, total)]);
   useEffect(() => {
     discard();
-    setRange([1, Math.max(1, total)]);
   }, [plane, total, discard]);
   const plan = () =>
     sequenceDicomPositions(

@@ -9,7 +9,7 @@ import { Download, Trash2, Sun, Moon, Calendar, Eye } from 'lucide-react';
 import type { StoredPdfFile } from '@/types/backupArtifacts';
 import { generateDateRange } from '@/utils/dateRangeUtils';
 import { MONTH_NAMES } from '@/types/backupArtifacts';
-import { formatBackupCompactDate } from '@/shared/backup/backupPresentation';
+import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 
 interface HandoffCalendarViewProps {
   files: StoredPdfFile[];
@@ -58,7 +58,7 @@ export const HandoffCalendarView: React.FC<HandoffCalendarViewProps> = ({
     if (!acc[file.date]) {
       acc[file.date] = {
         date: file.date,
-        displayDate: formatBackupCompactDate(file.date),
+        displayDate: formatDateDDMMYYYY(file.date),
       };
     }
     if (file.shiftType === 'day') {
@@ -74,7 +74,7 @@ export const HandoffCalendarView: React.FC<HandoffCalendarViewProps> = ({
     return (
       groupedByDate[dateStr] || {
         date: dateStr,
-        displayDate: formatBackupCompactDate(dateStr),
+        displayDate: formatDateDDMMYYYY(dateStr),
       }
     );
   });

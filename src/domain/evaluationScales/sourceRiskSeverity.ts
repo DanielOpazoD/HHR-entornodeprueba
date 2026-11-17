@@ -1,4 +1,5 @@
 import type { BradenRiskLevel } from '@/types/domain/evaluationScores';
+import { removeAccents } from '@/utils/stringUtils';
 
 /**
  * Maps the severity classification reported by Eloísa to the three visual risk bands used by HHR.
@@ -6,9 +7,7 @@ import type { BradenRiskLevel } from '@/types/domain/evaluationScores';
  * selects its color family. It must not be used to derive reapplication cadence.
  */
 export const parseSourceRiskLevel = (severity: string | null): BradenRiskLevel | null => {
-  const value = (severity ?? '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+  const value = removeAccents(severity ?? '')
     .toLowerCase()
     .trim();
 

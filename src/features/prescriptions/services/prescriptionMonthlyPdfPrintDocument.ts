@@ -10,6 +10,7 @@ import type {
   PrescriptionsPerPageOption,
 } from '@/features/prescriptions/services/prescriptionMonthlyPdfTypes';
 import { formatDateDDMMYYYY, readClinicalTimestamp } from '@/utils/dateDisplayUtils';
+import { formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
 
 export const PRESCRIPTION_MONTHLY_PRINT_ROOT_ID = 'prescription-monthly-print-root';
 export const PRESCRIPTION_MONTHLY_PRINT_STYLE_ID = 'prescription-monthly-print-style';
@@ -33,12 +34,6 @@ interface CreatePrescriptionMonthlyPrintDocumentParams {
   options: PrescriptionMonthlyPdfResolvedOptions;
   scope: MonthlyPrescriptionPdfScope;
 }
-
-const formatIsoDayForDisplay = (isoDay: string): string => {
-  const [year, month, day] = isoDay.split('-');
-  if (!year || !month || !day) return isoDay;
-  return `${day}-${month}-${year}`;
-};
 
 const formatDateTime = (iso: string): string => {
   const stamp = readClinicalTimestamp(iso);
@@ -258,7 +253,7 @@ const createPrescriptionPage = (
 
   const range = document.createElement('p');
   range.className = 'prescription-monthly-meta';
-  range.textContent = `${formatIsoDayForDisplay(scope.startIso)} a ${formatIsoDayForDisplay(
+  range.textContent = `${formatClinicalDayMonthYear(scope.startIso)} a ${formatClinicalDayMonthYear(
     scope.endIso
   )} · página ${pageIndex + 1} de ${pageCount}`;
 

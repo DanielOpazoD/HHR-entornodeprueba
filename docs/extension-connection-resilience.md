@@ -127,7 +127,7 @@ intento fallido. Sigue pendiente una repetición clínica **sólo de lectura** e
 pestañas reales para separar backend inaccesible, sesión inválida y corte del canal. No interpretar
 una conexión verde ni el smoke sintético como cobertura clínica confirmada.
 
-Ejecutar las pruebas afectadas en `src/tests/rayen-import`, `npm run check:rayen-extension-release`, `npm run test:e2e:rayen-extension-runtime` (Chromium aislado con datos sintéticos), `npm run check:extension-hotspots` y el gate previo al merge vigente del proyecto.
+Ejecutar las pruebas afectadas en `src/tests/rayen-import`, `node scripts/check-rayen-extension-release.mjs`, `npm run test:e2e:rayen-extension-runtime` (Chromium aislado con datos sintéticos), `npm run check:extension-hotspots` y el gate previo al merge vigente del proyecto.
 
 El smoke de Chromium mantiene documentos sintéticos de HHR, Ficha Médico y Gestión de Camas
 abiertos, pulsa **Recargar** en `chrome://extensions`, verifica que ninguna página navegó y exige

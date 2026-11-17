@@ -16,6 +16,7 @@ import {
   formatAuditTrailMoment,
   pluralize,
 } from './auditTrailDisplay';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface AuditTrailGroupListProps {
   groups: AuditTrailGroup[];
@@ -61,7 +62,7 @@ const GroupSection: React.FC<
   const sessionText = sessionSummary(group, multiDay);
   const isOpenSession = group.session?.end === 'open';
 
-  React.useEffect(() => setExpanded(preferences.expandGroups), [preferences.expandGroups]);
+  if (useChangedOnRender([preferences.expandGroups])) setExpanded(preferences.expandGroups);
 
   return (
     <section className="border-b border-slate-100 last:border-b-0">

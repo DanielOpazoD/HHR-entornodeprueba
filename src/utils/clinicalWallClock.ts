@@ -33,3 +33,18 @@ export const clinicalWallClockToDate = (isoDate: string, hhmm: string): Date => 
   if (shownAt(withLaterOffset) === target) return new Date(withLaterOffset);
   return new Date(withEarlierOffset);
 };
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The nurse editing window (SAVE-04): from 24 h before to 48 h after the census day's midnight in
+ * Rapa Nui, as the Firestore rules and the daily-record functions allow. The administrator has no
+ * window; callers decide that. A malformed day is outside it, as on the server.
+ */
+export const isWithinNurseEditingWindow = (day: string, now: number = Date.now()): boolean => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
+  const midnight = clinicalWallClockToDate(day, '00:00');
+  if (calendarStampInClinicalTimeZone(midnight).iso !== day) return false;
+  const dayStart = midnight.getTime();
+  return now > dayStart - DAY_MS && now < dayStart + 2 * DAY_MS;
+};

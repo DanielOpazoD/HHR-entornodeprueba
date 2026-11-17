@@ -3,12 +3,12 @@ import type { EvacuationMethod, ReceivingCenter } from '@/constants/clinicalMove
 import { isTransferEscortOption } from '@/constants/clinicalMovementConstants';
 import {
   buildTransferValidationErrors,
+  resolveMovementDateTimeBounds,
   resolveTransferInitialMovementDate,
   resolveTransferInitialTime,
   resolveTransferMethodChangeEffects,
   type TransferModalFieldErrors,
 } from '@/application/census/public';
-import { resolveMovementDateTimeBounds } from '@/hooks/controllers/clinicalShiftCalendarController';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import type { TransferModalConfirmPayload } from '@/types/movements';
 import type { TransferUpdateField } from '@/hooks/types/censusActionModalContracts';

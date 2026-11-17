@@ -94,7 +94,7 @@
 ## Checks del feature
 
 - `npm run test:clinical-documents`
-- `npm run check:clinical-documents`
+- `npm run typecheck`
 - Nota de arquitectura en [ARCHITECTURE.md](./ARCHITECTURE.md)
 
 ## Runtime boundaries
