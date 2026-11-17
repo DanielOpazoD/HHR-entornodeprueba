@@ -96,10 +96,10 @@ const mergeRayenPatient = (
   incoming: PatientData
 ): PatientData => {
   if (!current) return incoming;
-  const merged = { ...current } as unknown as Record<string, unknown>;
+  const merged: Partial<Record<keyof PatientData, unknown>> = { ...current };
   for (const change of diffSyncablePatientFields(current, incoming))
     merged[change.field] = change.to;
-  return merged as unknown as PatientData;
+  return merged as PatientData;
 };
 
 const movementEntry = (

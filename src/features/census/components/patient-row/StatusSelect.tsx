@@ -98,7 +98,7 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
     // Reuse the existing field handler by synthesizing the change event it expects.
     onChange('status')({
       target: { value },
-    } as unknown as React.ChangeEvent<HTMLSelectElement>);
+    } as React.ChangeEvent<HTMLSelectElement>);
     closePopover();
   };
 

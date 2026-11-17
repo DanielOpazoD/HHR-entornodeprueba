@@ -47,9 +47,7 @@ const sortDocuments = (documents: ClinicalDocumentRecord[]): ClinicalDocumentRec
 
 const sanitizeForFirestore = <T>(value: T): T => {
   if (Array.isArray(value)) {
-    return value
-      .map(item => sanitizeForFirestore(item))
-      .filter(item => item !== undefined) as unknown as T;
+    return value.map(item => sanitizeForFirestore(item)).filter(item => item !== undefined) as T;
   }
 
   if (value && typeof value === 'object') {

@@ -109,7 +109,7 @@ export class FirestoreProvider implements IDatabaseProvider {
       this.getFirestoreInstance(),
       collectionName,
       id
-    ) as unknown as DocumentReference<T>;
+    ) as DocumentReference<T>;
 
     if (options?.merge) {
       await this.api.setDoc(docRef, data as WithFieldValue<T>, { merge: true });

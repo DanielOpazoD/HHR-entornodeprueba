@@ -15,7 +15,7 @@ export const reportEgresoPatient = (egreso: ReportEgreso): PatientData =>
     clinicalEpisodeId: egreso.encounterId,
     admissionDate: egreso.admissionDay ?? '',
     admissionTime: egreso.admissionTime ?? '',
-  }) as unknown as PatientData;
+  }) as PatientData;
 
 /**
  * Adapts a report-only egreso for the movement builders. It is intentionally used only when the
