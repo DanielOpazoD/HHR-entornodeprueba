@@ -46,6 +46,18 @@ const openSettings = (): void => {
   if (button.getAttribute('aria-expanded') !== 'true') fireEvent.click(button);
 };
 
+// The form and the preferences list hold 137 controls; querying them by name across the
+// whole editor recomputes every label, so queries start from the group that holds the field.
+const passengerGroup = () => within(screen.getByRole('group', { name: 'Datos del pasajero' }));
+const insurancePreference = () =>
+  within(screen.getByRole('group', { name: 'Paciente' })).getByRole('checkbox', {
+    name: /Seguro de viaje/,
+  });
+const physicianName = () =>
+  within(screen.getByRole('group', { name: 'Datos del médico' })).getByRole('textbox', {
+    name: 'Nombre del médico tratante',
+  });
+
 describe('MedifEditor', () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -94,25 +106,27 @@ describe('MedifEditor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mostrar todos' }));
     openSettings();
     fireEvent.click(screen.getByRole('tab', { name: 'Formulario' }));
-    fireEvent.change(screen.getByLabelText(/Seguro de viaje/), {
+    fireEvent.change(passengerGroup().getByLabelText(/Seguro de viaje/), {
       target: { value: 'Valor conservado en sesión' },
     });
     openSettings();
     fireEvent.click(screen.getByRole('tab', { name: 'Preferencias' }));
     fireEvent.click(screen.getByRole('button', { name: 'Restaurar selección MEDIF' }));
-    expect(screen.getByRole('checkbox', { name: /Seguro de viaje/ })).not.toBeChecked();
+    expect(insurancePreference()).not.toBeChecked();
     expect(JSON.parse(window.localStorage.getItem(MEDIF_PREFERENCES_STORAGE_KEY)!)).toEqual(
       defaultMedifPreferences()
     );
     openSettings();
     fireEvent.click(screen.getByRole('tab', { name: 'Formulario' }));
-    expect(screen.queryByLabelText(/Seguro de viaje/)).not.toBeInTheDocument();
+    expect(passengerGroup().queryByLabelText(/Seguro de viaje/)).not.toBeInTheDocument();
     openSettings();
     fireEvent.click(screen.getByRole('tab', { name: 'Preferencias' }));
     fireEvent.click(screen.getByRole('button', { name: 'Mostrar todos' }));
     openSettings();
     fireEvent.click(screen.getByRole('tab', { name: 'Formulario' }));
-    expect(screen.getByLabelText(/Seguro de viaje/)).toHaveValue('Valor conservado en sesión');
+    expect(passengerGroup().getByLabelText(/Seguro de viaje/)).toHaveValue(
+      'Valor conservado en sesión'
+    );
   });
 
   it('shows one physician name under Datos del médico and fills both PDF declarations', async () => {
@@ -225,11 +239,11 @@ describe('MedifEditor', () => {
     fireEvent.change(screen.getByLabelText('Archivo de preferencias'), {
       target: { files: [file] },
     });
-    fireEvent.click(screen.getByRole('checkbox', { name: /Seguro de viaje/ }));
+    fireEvent.click(insurancePreference());
     await act(async () => {
       resolveRead(JSON.stringify({ version: 1, hiddenFieldIds: [] }));
     });
-    expect(screen.getByRole('checkbox', { name: /Seguro de viaje/ })).not.toBeChecked();
+    expect(insurancePreference()).not.toBeChecked();
     expect(
       JSON.parse(window.localStorage.getItem(MEDIF_PREFERENCES_STORAGE_KEY)!).hiddenFieldIds
     ).toEqual(['p1_seguro_viaje']);
@@ -241,7 +255,7 @@ describe('MedifEditor', () => {
     await act(async () => {
       resolveRead(JSON.stringify({ version: 1, hiddenFieldIds: ['p1_seguro_viaje'] }));
     });
-    expect(screen.getByRole('checkbox', { name: /Seguro de viaje/ })).toBeChecked();
+    expect(insurancePreference()).toBeChecked();
     expect(
       JSON.parse(window.localStorage.getItem(MEDIF_PREFERENCES_STORAGE_KEY)!).hiddenFieldIds
     ).toEqual([]);
@@ -267,7 +281,7 @@ describe('MedifEditor', () => {
     await act(async () => {
       resolveRead(JSON.stringify({ version: 1, hiddenFieldIds: ['p1_seguro_viaje'] }));
     });
-    expect(screen.getByLabelText(/Seguro de viaje/)).toBeInTheDocument();
+    expect(passengerGroup().getByLabelText(/Seguro de viaje/)).toBeInTheDocument();
     expect(JSON.parse(window.localStorage.getItem(MEDIF_PREFERENCES_STORAGE_KEY)!)).toEqual(
       emptyMedifPreferences()
     );
@@ -275,9 +289,7 @@ describe('MedifEditor', () => {
 
   it('guards browser navigation only while the draft contains data and removes the guard on unmount', () => {
     const { unmount } = setup();
-    const insurance = within(
-      screen.getByRole('group', { name: 'Datos del pasajero' })
-    ).getByLabelText(/Seguro de viaje/);
+    const insurance = passengerGroup().getByLabelText(/Seguro de viaje/);
     const navigationIsPrevented = () => {
       const event = new Event('beforeunload', { cancelable: true });
       window.dispatchEvent(event);
@@ -299,9 +311,7 @@ describe('MedifEditor', () => {
 
   it('confirms replacement when the user edits while a draft file is still being read', async () => {
     setup();
-    const insurance = within(
-      screen.getByRole('group', { name: 'Datos del pasajero' })
-    ).getByLabelText(/Seguro de viaje/);
+    const insurance = passengerGroup().getByLabelText(/Seguro de viaje/);
     let resolveRead!: (text: string) => void;
     const read = new Promise<string>(resolve => {
       resolveRead = resolve;
@@ -327,9 +337,7 @@ describe('MedifEditor', () => {
   it('ignores an older import that finishes after a newer draft has loaded', async () => {
     setup();
     const upload = screen.getByLabelText('Archivo de borrador MEDIF');
-    const insurance = within(
-      screen.getByRole('group', { name: 'Datos del pasajero' })
-    ).getByLabelText(/Seguro de viaje/);
+    const insurance = passengerGroup().getByLabelText(/Seguro de viaje/);
     let resolveOlder!: (text: string) => void;
     let resolveNewer!: (text: string) => void;
     const olderRead = new Promise<string>(resolve => {
@@ -368,14 +376,9 @@ describe('MedifEditor', () => {
 
   it('keeps manual identity copies linked and emits exclusive X answers in the printable PDF', async () => {
     const { props } = setup();
-    fireEvent.change(
-      within(screen.getByRole('group', { name: 'Datos del pasajero' })).getByLabelText(
-        /Nombre completo/
-      ),
-      {
-        target: { value: 'Paciente manual de prueba' },
-      }
-    );
+    fireEvent.change(passengerGroup().getByLabelText(/Nombre completo/), {
+      target: { value: 'Paciente manual de prueba' },
+    });
     expect(document.getElementById('medif-p2_nombre_paciente')).not.toBeInTheDocument();
     fireEvent.change(document.getElementById('medif-p1_edad')!, {
       target: { value: '7 meses' },
@@ -406,8 +409,8 @@ describe('MedifEditor', () => {
 
   it('requires explicit replacement and never mixes data between census patients or manual entry', () => {
     setup();
-    const origin = screen.getByLabelText('Origen de los datos');
-    const passenger = within(screen.getByRole('group', { name: 'Datos del pasajero' }));
+    const origin = screen.getByRole('combobox', { name: 'Origen de los datos' });
+    const passenger = passengerGroup();
     const name = passenger.getByLabelText(/Nombre completo/);
     const insurance = passenger.getByLabelText(/Seguro de viaje/);
     fireEvent.change(origin, { target: { value: 'bed-1' } });
@@ -435,38 +438,34 @@ describe('MedifEditor', () => {
     const tabs = within(screen.getByRole('tablist', { name: 'Vistas de MEDIF' }));
     const formTab = tabs.getByRole('tab', { name: 'Formulario' });
     const preferencesTab = tabs.getByRole('tab', { name: 'Preferencias' });
-    fireEvent.change(screen.getByLabelText(/Seguro de viaje/), {
+    fireEvent.change(passengerGroup().getByLabelText(/Seguro de viaje/), {
       target: { value: 'VALOR-PRIVADO-PRUEBA' },
     });
     fireEvent.click(preferencesTab);
-    fireEvent.click(screen.getByRole('checkbox', { name: /Seguro de viaje/ }));
+    fireEvent.click(insurancePreference());
     const saved = window.localStorage.getItem(MEDIF_PREFERENCES_STORAGE_KEY);
     expect(saved).toContain('p1_seguro_viaje');
     expect(saved).not.toContain('VALOR-PRIVADO-PRUEBA');
     fireEvent.click(formTab);
-    expect(screen.queryByLabelText(/Seguro de viaje/)).not.toBeInTheDocument();
+    expect(passengerGroup().queryByLabelText(/Seguro de viaje/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'PDF editable' }));
     await waitFor(() => expect(props.onGeneratePdf).toHaveBeenCalledOnce());
     expect(props.onGeneratePdf.mock.calls[0][1].hiddenFieldIds).toContain('p1_seguro_viaje');
     fireEvent.click(preferencesTab);
-    fireEvent.click(screen.getByRole('checkbox', { name: /Seguro de viaje/ }));
+    fireEvent.click(insurancePreference());
     fireEvent.click(formTab);
-    expect(screen.getByLabelText(/Seguro de viaje/)).toHaveValue('VALOR-PRIVADO-PRUEBA');
+    expect(passengerGroup().getByLabelText(/Seguro de viaje/)).toHaveValue('VALOR-PRIVADO-PRUEBA');
     fireEvent.click(preferencesTab);
-    fireEvent.click(screen.getByRole('checkbox', { name: /Seguro de viaje/ }));
+    fireEvent.click(insurancePreference());
     unmount();
     setup();
-    expect(screen.queryByLabelText(/Seguro de viaje/)).not.toBeInTheDocument();
-    expect(
-      within(screen.getByRole('group', { name: 'Datos del pasajero' })).getByLabelText(
-        /Nombre completo/
-      )
-    ).toHaveValue('');
+    expect(passengerGroup().queryByLabelText(/Seguro de viaje/)).not.toBeInTheDocument();
+    expect(passengerGroup().getByLabelText(/Nombre completo/)).toHaveValue('');
   });
 
   it('closes configuration back to the form without erasing values', () => {
     setup();
-    fireEvent.change(screen.getByRole('textbox', { name: 'Nombre del médico tratante' }), {
+    fireEvent.change(physicianName(), {
       target: { value: 'Dra. Prueba' },
     });
     openSettings();
@@ -477,9 +476,7 @@ describe('MedifEditor', () => {
       'aria-expanded',
       'false'
     );
-    expect(screen.getByRole('textbox', { name: 'Nombre del médico tratante' })).toHaveValue(
-      'Dra. Prueba'
-    );
+    expect(physicianName()).toHaveValue('Dra. Prueba');
   });
 
   it('supports keyboard tabs and searchable documentation for all PDF variables', () => {

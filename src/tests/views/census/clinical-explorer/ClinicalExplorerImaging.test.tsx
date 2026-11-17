@@ -120,9 +120,14 @@ describe('ClinicalExplorerImaging', () => {
     act(() => setSessionGeneration(null));
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   beforeEach(() => {
+    // Every search starts after a 400 ms settle. Fake timers skip that wait; Testing Library
+    // advances them while it waits only when it finds a `jest` global, so lend it Vitest's.
+    vi.useFakeTimers();
+    vi.stubGlobal('jest', { advanceTimersByTime: (ms: number) => vi.advanceTimersByTime(ms) });
     mocks.search.mockReset();
     mocks.checkDigit.mockReset();
     mocks.pdf.mockReset();
@@ -414,6 +419,14 @@ describe('ClinicalExplorerImaging', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
+  it('never searches after it closes during the settle before a search', async () => {
+    const view = renderImaging();
+    view.unmount();
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(mocks.search).not.toHaveBeenCalled();
+    expect(mocks.checkDigit).not.toHaveBeenCalled();
+  });
+
   it('shows a failed first read as a failure with retry, never as "sin estudios"', async () => {
     mocks.search.mockRejectedValueOnce(new Error('Demasiadas solicitudes.'));
     renderImaging();
@@ -438,7 +451,7 @@ describe('ClinicalExplorerImaging', () => {
     );
     renderImaging();
     await waitFor(() => expect(mocks.search).toHaveBeenCalled());
-    await new Promise(resolve => setTimeout(resolve, 20));
+    await act(() => vi.advanceTimersByTimeAsync(20));
     expect(screen.queryByText(/Sin estudios/)).toBeNull();
     failAlternate(new Error('timeout'));
     expect(
@@ -460,7 +473,7 @@ describe('ClinicalExplorerImaging', () => {
     renderImaging();
     await screen.findByRole('alert');
     answerAlternate({ rut: RUT, examenes: [] });
-    await new Promise(resolve => setTimeout(resolve, 20));
+    await act(() => vi.advanceTimersByTimeAsync(20));
     expect(screen.getByRole('alert')).toHaveTextContent('Demasiadas solicitudes.');
     expect(screen.getByRole('button', { name: 'Reintentar' })).toBeVisible();
   });

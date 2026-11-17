@@ -116,6 +116,17 @@ const shiftClick = (name: string): boolean =>
   fireEvent.mouseDown(nameBox(name), { shiftKey: true, button: 0 });
 const isChosen = (name: string): boolean => nameBox(name).hasAttribute('data-exam-order-selected');
 const orderButton = () => screen.queryByRole('button', { name: /Orden de exámenes/ });
+// Each order form lists 67 exams. Naming a checkbox by role computes the accessible name of
+// all of them; starting from the exam's own label text and taking the control it labels finds
+// the same checkbox without that cost.
+const examCheckbox = (form: HTMLElement, exam: string): HTMLInputElement => {
+  const label = within(form).getByText(exam).closest('label');
+  const control = label?.control;
+  if (!(control instanceof HTMLInputElement) || control.type !== 'checkbox') {
+    throw new Error(`No checkbox is labelled ${exam}.`);
+  }
+  return control;
+};
 
 describe('census laboratory orders for several patients', () => {
   // The request loads on demand; load it once so the tests wait for people, not for the module.
@@ -213,7 +224,7 @@ describe('census laboratory orders for several patients', () => {
     ];
     for (const { name, exam, otros, medico } of plan) {
       fireEvent.click(tab(name));
-      fireEvent.click(within(activeForm()).getByRole('checkbox', { name: exam }));
+      fireEvent.click(examCheckbox(activeForm(), exam));
       fireEvent.change(within(activeForm()).getByRole('textbox', { name: 'OTROS' }), {
         target: { value: otros },
       });
@@ -224,8 +235,8 @@ describe('census laboratory orders for several patients', () => {
 
     // Back on the first tab, its own marks and text are still there.
     fireEvent.click(tab('ANA SINTETICA'));
-    expect(within(activeForm()).getByRole('checkbox', { name: 'HEMOGRAMA' })).toBeChecked();
-    expect(within(activeForm()).getByRole('checkbox', { name: 'TROPONINA' })).not.toBeChecked();
+    expect(examCheckbox(activeForm(), 'HEMOGRAMA')).toBeChecked();
+    expect(examCheckbox(activeForm(), 'TROPONINA')).not.toBeChecked();
     expect(within(activeForm()).getByRole('textbox', { name: 'OTROS' })).toHaveValue('Ferritina');
     expect(tab('BRUNO SINTETICO')).toHaveTextContent('1');
 
@@ -239,7 +250,7 @@ describe('census laboratory orders for several patients', () => {
       const own = plan[index]!;
       expect(page.style.breakAfter).toBe(index < 2 ? 'page' : '');
       expect(within(page).getByText(own.name)).toBeInTheDocument();
-      expect(within(page).getByRole('checkbox', { name: own.exam })).toBeChecked();
+      expect(examCheckbox(page, own.exam)).toBeChecked();
       expect(within(page).getByTestId('exam-request-print-otros')).toHaveTextContent(own.otros);
       expect(within(page).getByTestId('exam-request-print-medicoTratante')).toHaveTextContent(
         own.medico
@@ -248,7 +259,7 @@ describe('census laboratory orders for several patients', () => {
         .filter(other => other !== own)
         .forEach(other => {
           expect(within(page).queryByText(other.name)).not.toBeInTheDocument();
-          expect(within(page).getByRole('checkbox', { name: other.exam })).not.toBeChecked();
+          expect(examCheckbox(page, other.exam)).not.toBeChecked();
           expect(page).not.toHaveTextContent(other.medico);
         });
     });
@@ -267,7 +278,7 @@ describe('census laboratory orders for several patients', () => {
     screen.getAllByTestId('exam-request-form').find(form => !form.classList.contains('hidden'))!;
   const prepare = (tablist: HTMLElement, name: string, exam: string, otros: string) => {
     fireEvent.click(within(tablist).getByRole('tab', { name: new RegExp(name) }));
-    fireEvent.click(within(activeForm()).getByRole('checkbox', { name: exam }));
+    fireEvent.click(examCheckbox(activeForm(), exam));
     fireEvent.change(within(activeForm()).getByRole('textbox', { name: 'OTROS' }), {
       target: { value: otros },
     });
@@ -289,7 +300,7 @@ describe('census laboratory orders for several patients', () => {
       expect.stringContaining('CARLA SINTETICA'),
     ]);
     fireEvent.click(tabs.getByRole('tab', { name: /BRUNO SINTETICO/ }));
-    expect(within(activeForm()).getByRole('checkbox', { name: 'TROPONINA' })).toBeChecked();
+    expect(examCheckbox(activeForm(), 'TROPONINA')).toBeChecked();
     expect(within(activeForm()).getByRole('textbox', { name: 'OTROS' })).toHaveValue(
       'Procalcitonina'
     );
