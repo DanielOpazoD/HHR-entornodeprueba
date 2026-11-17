@@ -5,12 +5,10 @@ import {
   buildDischargeConfirmPayload,
   buildInitialDischargeFormState,
   mapDischargeValidationErrors,
-  type DischargeModalFieldErrors,
-} from '@/application/census/public';
-import {
   resolveMovementDateTimeValidationError,
   resolveMovementDateTimeBounds,
-} from '@/hooks/controllers/clinicalShiftCalendarController';
+  type DischargeModalFieldErrors,
+} from '@/application/census/public';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { useModalFormFlow } from '@/hooks/useModalFormFlow';
 

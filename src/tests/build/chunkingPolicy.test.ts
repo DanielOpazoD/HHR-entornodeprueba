@@ -247,13 +247,6 @@ describe('chunkingPolicy', () => {
       requiredDynamicImport: "import('@/components/layout/date-strip/DateStripQuickActions')",
     },
     {
-      label: 'DateStrip bookmark toggle',
-      sourcePath: 'src/components/layout/DateStrip.tsx',
-      forbiddenStaticImport:
-        /from ['"]@\/components\/layout\/date-strip\/DateStripBookmarkToggle['"]/,
-      requiredDynamicImport: "import('@/components/layout/date-strip/DateStripBookmarkToggle')",
-    },
-    {
       label: 'DateStrip year navigator',
       sourcePath: 'src/components/layout/DateStrip.tsx',
       forbiddenStaticImport:

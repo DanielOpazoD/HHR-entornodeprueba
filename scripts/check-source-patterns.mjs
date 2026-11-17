@@ -73,10 +73,11 @@ const RULES = [
     id: 'lazy-view-entrypoints',
     files: file => file === 'src/views/LazyViews.ts',
     patterns: [/@\/features\/[^/'"]+\/[^'"]+/g],
-    // Light subpaths split out of a feature's public surface on purpose (e.g. to keep the
-    // authenticated-shell chunk under budget). Keep this list tight.
+    // A feature's `public.ts` is the surface the dependency matrix already treats as public.
+    // Other light subpaths are split out of it on purpose (e.g. to keep the authenticated-shell
+    // chunk under budget). Keep this list tight.
     allowMatch: text =>
-      text.startsWith('@/features/whatsapp/') ||
+      /^@\/features\/[^/]+\/public$/.test(text) ||
       [
         '@/features/admin/admission-audit',
         '@/features/census/census-view',
