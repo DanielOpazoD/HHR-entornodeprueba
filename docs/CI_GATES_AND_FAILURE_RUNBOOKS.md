@@ -197,6 +197,36 @@ corrida sigue rechazado. Los demás artefactos de la evidencia (confianza, cober
 telemetría de CI, rendimiento del censo, Lighthouse) se leen de la corrida de la PR que
 nombra `ci-summary`.
 
+### Jobs exclusivos de `main`
+
+GitHub salta un job sin `always()` o `!cancelled()` cuando cualquier antecesor quedó
+saltado. Así, en la primera corrida `reused` (44155642457) `function-deploy-scope` no
+corrió y la corrida terminó en verde. Desde entonces, el último job de cada push a `main`,
+`main-only-jobs`, lee el resultado real de cada job exclusivo de `main`
+(`mainOnlyJobViolations` en `scripts/ciEvidenceReuseSupport.mjs`). Si `ci-summary` pasó,
+exige `success` en `postmerge-evidence` y en `function-deploy-scope`. Si el alcance no
+encontró cambios de Functions, el despliegue validado debe quedar `skipped`. Si los encontró,
+el despliegue no puede terminar en `failure` ni `cancelled` y su preflight debe haber corrido:
+el workflow reutilizable devuelve su decisión como output `eligible`, vacío si el preflight no
+corrió. Con `eligible: true` el despliegue debe terminar en `success`; con `eligible: false`
+(una revisión más nueva de Functions en `main`, o las mismas fuentes ya desplegadas) no
+desplegar es la decisión correcta. Así el control no depende del resultado que GitHub asigna
+al llamador cuando el job de despliegue queda saltado a propósito.
+`main-only-jobs` no es un check requerido, no corre en PR y no corre si se cancela la corrida.
+Si `ci-summary` no pasó, termina en verde sin exigir nada: la corrida ya está en rojo por
+`ci-summary`.
+
+Si `main-only-jobs` está en rojo, su registro nombra el job y lo que hizo. Un job saltado
+significa que lo que debía hacer no ocurrió. Revisar su condición `if:`, que debe incluir
+`!cancelled()`, y corregirla en una PR. Si faltó el despliegue de Functions, el responsable
+puede relanzar el workflow `Deploy Firebase Functions` sobre `main`, que pasa por el mismo
+preflight. El siguiente push a `main` también despliega si Functions cambió desde el
+último despliegue exitoso. Si falló `postmerge-evidence`, seguir su propio runbook. Todo
+job que `ci-summary` no necesita queda fuera del check requerido, y `mainOnlyJobs.test.ts`
+falla mientras no esté clasificado: o se suma a `MAIN_ONLY_JOBS` y lo vigila este control, o
+figura en la lista de los que también corren en las PR. La prueba no interpreta la condición
+`if:` del job: lo clasifica por su lugar en el workflow.
+
 Esta clasificación determina qué evidencia aporta CI. Durante la iteración local,
 usar el comando más pequeño que cubra el riesgo. Al cerrar, comprobar que el alcance
 de CI fue correcto; no ampliar automáticamente a un gate local completo.
