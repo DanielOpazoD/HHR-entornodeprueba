@@ -96,10 +96,7 @@
     },
     {
       "id": "ci-measured-2600ms",
-      "globs": [
-        "src/tests/build/reportFreshness.test.ts",
-        "src/tests/rayen-import/relayReentryExtension.test.ts"
-      ],
+      "globs": ["src/tests/build/reportFreshness.test.ts"],
       "estimatedDurationMs": 2600
     },
     {
@@ -188,7 +185,6 @@
         "src/tests/features/clinical-documents/ClinicalDocumentSheet.test.tsx",
         "src/tests/features/cudyr/CudyrReportCache.test.tsx",
         "src/tests/hooks/useDailyRecordSyncQuery.test.tsx",
-        "src/tests/rayen-import/pdfJsChromeCompatibilityExtension.test.ts",
         "src/tests/views/census/ClinicalReportsImportRecovery.test.tsx",
         "src/tests/views/census/CmaSectionRow.test.tsx"
       ],
@@ -303,7 +299,6 @@
         "src/tests/rayen-import/ClinicalPanelAntecedents.test.tsx",
         "src/tests/rayen-import/RayenImportButton.staffing.test.tsx",
         "src/tests/rayen-import/RayenImportPreviewModal.test.tsx",
-        "src/tests/rayen-import/hhrPublishedOriginExtension.test.ts",
         "src/tests/rayen-import/prescriptionPdfDocumentExtension.test.ts",
         "src/tests/views/census/CensusSummarySwitcher.test.tsx",
         "src/tests/views/census/ClinicalInitialBlockEditor.test.tsx",
@@ -340,7 +335,6 @@
         "src/tests/hooks/useAudit.test.ts",
         "src/tests/hooks/useDailyRecordDefinitiveClearConfirmation.test.tsx",
         "src/tests/hooks/useDailyRecordQuery.test.tsx",
-        "src/tests/rayen-import/healthRelaySelfRepairExtension.test.ts",
         "src/tests/views/census/CensusRegisterContent.test.tsx",
         "src/tests/views/census/CensusStaffHeader.test.tsx",
         "src/tests/views/census/ClinicalPanelImportFallback.test.tsx",
@@ -371,7 +365,6 @@
         "src/tests/rayen-import/RayenSyncHistoryModal.staffing.test.tsx",
         "src/tests/rayen-import/contentHhrGcConnectRelay.test.ts",
         "src/tests/rayen-import/examRequestPrintExtension.test.ts",
-        "src/tests/rayen-import/gestionCamasConnectionIndicatorExtension.test.ts",
         "src/tests/services/repositories/boundedAvailableDates.test.ts",
         "src/tests/views/census/CensusRegisterRendering.test.tsx",
         "src/tests/views/census/ClinicalDetailLoading.test.tsx",
