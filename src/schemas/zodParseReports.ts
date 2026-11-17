@@ -1,11 +1,5 @@
 import type { LegacyNullNormalizationReport } from './zod/legacyNormalization';
 
-export interface ValidationResult<T> {
-  success: boolean;
-  data?: T;
-  errors?: string[];
-}
-
 export interface DailyRecordParseReport {
   nullNormalization: LegacyNullNormalizationReport;
   salvagedBeds: string[];

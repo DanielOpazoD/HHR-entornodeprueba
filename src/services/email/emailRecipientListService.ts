@@ -10,7 +10,6 @@ import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTy
 import { resolveApplicationOutcomeMessage } from '@/shared/contracts/applicationOutcomeMessage';
 import {
   buildEnsuredGlobalEmailRecipientList,
-  buildGlobalEmailRecipientListId,
   CENSUS_GLOBAL_EMAIL_RECIPIENT_LIST,
   EMAIL_RECIPIENT_LISTS_COLLECTION,
   GLOBAL_EMAIL_RECIPIENT_LIST_QUERY,
@@ -19,14 +18,11 @@ import {
   normalizeGlobalEmailRecipients,
   normalizeListName,
   normalizeString,
-  areGlobalEmailRecipientsEqual,
   type GlobalEmailRecipientList,
   type SaveGlobalEmailRecipientListInput,
 } from '@/services/email/emailRecipientListSupport';
 
 export {
-  areGlobalEmailRecipientsEqual,
-  buildGlobalEmailRecipientListId,
   CENSUS_GLOBAL_EMAIL_RECIPIENT_LIST,
   normalizeGlobalEmailRecipients,
   type GlobalEmailRecipientList,
@@ -66,11 +62,6 @@ export const getGlobalEmailRecipientListWithResult = async (
       },
     ]);
   }
-};
-
-export const getGlobalEmailRecipientLists = async (): Promise<GlobalEmailRecipientList[]> => {
-  const result = await getGlobalEmailRecipientListsWithResult();
-  return result.status === 'success' ? result.data : [];
 };
 
 export const getGlobalEmailRecipientListsWithResult = async (): Promise<
@@ -169,15 +160,6 @@ export const saveGlobalEmailRecipientListWithResult = async ({
   }
 };
 
-export const deleteGlobalEmailRecipientList = async (listId: string): Promise<void> => {
-  const result = await deleteGlobalEmailRecipientListWithResult(listId);
-  if (result.status !== 'success') {
-    throw new Error(
-      resolveApplicationOutcomeMessage(result, 'No se pudo eliminar la lista global.')
-    );
-  }
-};
-
 export const deleteGlobalEmailRecipientListWithResult = async (
   listId: string
 ): Promise<GlobalEmailRecipientListOutcome<{ deleted: boolean }>> => {
@@ -216,22 +198,3 @@ export const ensureGlobalEmailRecipientList = async (
     ...buildEnsuredGlobalEmailRecipientList(input),
   };
 };
-
-export const subscribeToGlobalEmailRecipientList = (
-  listId: string,
-  onUpdate: (list: GlobalEmailRecipientList | null) => void
-): (() => void) =>
-  firestoreDb.subscribeDoc<Partial<GlobalEmailRecipientList>>(
-    EMAIL_RECIPIENT_LISTS_COLLECTION,
-    listId,
-    data => onUpdate(normalizeGlobalEmailRecipientList(listId, data))
-  );
-
-export const subscribeToGlobalEmailRecipientLists = (
-  onUpdate: (lists: GlobalEmailRecipientList[]) => void
-): (() => void) =>
-  firestoreDb.subscribeQuery<Partial<GlobalEmailRecipientList>>(
-    EMAIL_RECIPIENT_LISTS_COLLECTION,
-    GLOBAL_EMAIL_RECIPIENT_LIST_QUERY,
-    rawLists => onUpdate(normalizeGlobalEmailRecipientLists(rawLists))
-  );

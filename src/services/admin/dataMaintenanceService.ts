@@ -252,15 +252,6 @@ const exportYearToDateRecordsInternal = async (
   }
 };
 
-export const exportMonthRecordsWithResult = async (
-  year: number,
-  month: number
-): Promise<DataMaintenanceExportResult> => exportMonthRecordsInternal(year, month);
-
-export const exportYearToDateRecordsWithResult = async (
-  year: number
-): Promise<DataMaintenanceExportResult> => exportYearToDateRecordsInternal(year);
-
 export const exportMonthRecordsWithOutcome = async (
   year: number,
   month: number
@@ -271,23 +262,6 @@ export const exportYearToDateRecordsWithOutcome = async (
   year: number
 ): Promise<ApplicationOutcome<DataMaintenanceExportResult | null>> =>
   toDataMaintenanceOutcome(await exportYearToDateRecordsInternal(year));
-
-/**
- * Legacy throw-based compatibility wrappers.
- */
-export const exportMonthRecords = async (year: number, month: number): Promise<void> => {
-  const result = await exportMonthRecordsInternal(year, month);
-  if (result.status === 'failed') {
-    throw new Error(result.userSafeMessage);
-  }
-};
-
-export const exportYearToDateRecords = async (year: number): Promise<void> => {
-  const result = await exportYearToDateRecordsInternal(year);
-  if (result.status === 'failed') {
-    throw new Error(result.userSafeMessage);
-  }
-};
 
 /**
  * Imports records from a backup object

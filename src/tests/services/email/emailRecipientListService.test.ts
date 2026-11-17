@@ -2,18 +2,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   areGlobalEmailRecipientsEqual,
   buildGlobalEmailRecipientListId,
+} from '@/services/email/emailRecipientListSupport';
+import {
   CENSUS_GLOBAL_EMAIL_RECIPIENT_LIST,
-  getGlobalEmailRecipientLists,
   getGlobalEmailRecipientList,
   getGlobalEmailRecipientListsWithResult,
   getGlobalEmailRecipientListWithResult,
   normalizeGlobalEmailRecipients,
   saveGlobalEmailRecipientList,
   saveGlobalEmailRecipientListWithResult,
-  subscribeToGlobalEmailRecipientList,
-  subscribeToGlobalEmailRecipientLists,
   deleteGlobalEmailRecipientListWithResult,
-  deleteGlobalEmailRecipientList,
 } from '@/services/email/emailRecipientListService';
 
 vi.mock('@/services/storage/firestore', () => ({
@@ -21,8 +19,6 @@ vi.mock('@/services/storage/firestore', () => ({
     getDoc: vi.fn().mockResolvedValue(null),
     getDocs: vi.fn().mockResolvedValue([]),
     setDoc: vi.fn().mockResolvedValue(undefined),
-    subscribeDoc: vi.fn().mockImplementation((_path, _id, _callback) => vi.fn()),
-    subscribeQuery: vi.fn().mockImplementation((_path, _options, _callback) => vi.fn()),
     deleteDoc: vi.fn().mockResolvedValue(undefined),
   },
 }));
@@ -134,29 +130,6 @@ describe('emailRecipientListService', () => {
     ).rejects.toThrow('No se pudo guardar la lista global de destinatarios.');
   });
 
-  it('subscribes to normalized updates', () => {
-    const onUpdate = vi.fn();
-    let capturedCallback: ((data: unknown) => void) | undefined;
-
-    vi.mocked(firestoreDb.subscribeDoc).mockImplementation((_path, _id, callback) => {
-      capturedCallback = callback as (data: unknown) => void;
-      return vi.fn();
-    });
-
-    subscribeToGlobalEmailRecipientList(CENSUS_GLOBAL_EMAIL_RECIPIENT_LIST.id, onUpdate);
-    capturedCallback?.({
-      name: 'Lista',
-      recipients: ['A@MAIL.COM', 'bad-email'],
-      updatedAt: '2026-03-02T10:00:00.000Z',
-    });
-
-    expect(onUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        recipients: ['a@mail.com'],
-      })
-    );
-  });
-
   it('lists normalized recipient lists from the collection', async () => {
     vi.mocked(firestoreDb.getDocs).mockResolvedValueOnce([
       {
@@ -167,8 +140,9 @@ describe('emailRecipientListService', () => {
       },
     ]);
 
-    const result = await getGlobalEmailRecipientLists();
-    expect(result).toEqual([
+    const result = await getGlobalEmailRecipientListsWithResult();
+    expect(result.status).toBe('success');
+    expect(result.data).toEqual([
       expect.objectContaining({
         id: 'lista-1',
         recipients: ['a@mail.com'],
@@ -213,40 +187,5 @@ describe('emailRecipientListService', () => {
 
     expect(result.status).toBe('failed');
     expect(result.data.deleted).toBe(false);
-  });
-
-  it('throws userSafeMessage from the delete wrapper when deletion fails', async () => {
-    vi.mocked(firestoreDb.deleteDoc).mockRejectedValueOnce(new Error('boom'));
-
-    await expect(deleteGlobalEmailRecipientList('lista-1')).rejects.toThrow(
-      'No se pudo eliminar la lista global de destinatarios.'
-    );
-  });
-
-  it('subscribes to list collection updates', () => {
-    const onUpdate = vi.fn();
-    let capturedCallback: ((data: unknown[]) => void) | undefined;
-
-    vi.mocked(firestoreDb.subscribeQuery).mockImplementation((_path, _options, callback) => {
-      capturedCallback = callback as (data: unknown[]) => void;
-      return vi.fn();
-    });
-
-    subscribeToGlobalEmailRecipientLists(onUpdate);
-    capturedCallback?.([
-      {
-        id: 'lista-1',
-        name: 'Lista 1',
-        recipients: ['A@MAIL.COM'],
-        updatedAt: '2026-03-02T10:00:00.000Z',
-      },
-    ]);
-
-    expect(onUpdate).toHaveBeenCalledWith([
-      expect.objectContaining({
-        id: 'lista-1',
-        recipients: ['a@mail.com'],
-      }),
-    ]);
   });
 });
