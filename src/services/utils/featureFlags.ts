@@ -20,12 +20,8 @@
 export const FEATURE_FLAGS = {
   // UI Features
   SHOW_DEBUG_PANEL: false,
-  ENABLE_ANALYTICS_VIEW: true,
-  SHOW_CUDYR_PRINT: true,
 
   // Experimental Features
-  ENABLE_OPTIMISTIC_UPDATES: true,
-  ENABLE_OFFLINE_MODE: false,
   /** Server-controlled episode assignment is opt-in; this only exposes its client intent. */
   SPECIALTY_EPISODE_ASSIGNMENT: false,
   SPECIALTY_RULES_MEMORY: false,
@@ -40,14 +36,6 @@ export const FEATURE_FLAGS = {
   // repository chain. The flag remains user-toggleable for emergency
   // rollback. See TECHNICAL_DEBT_REGISTER `command-layer-adoption`.
   USE_ADMIT_PATIENT_COMMAND: true,
-
-  // Integration Features
-  ENABLE_WHATSAPP_INTEGRATION: true,
-  ENABLE_EMAIL_NOTIFICATIONS: true,
-
-  // Developer Features
-  VERBOSE_LOGGING: false,
-  SHOW_PERFORMANCE_METRICS: false,
 } as const;
 
 export type FeatureFlag = keyof typeof FEATURE_FLAGS;
@@ -155,9 +143,6 @@ class FeatureFlagsService {
       // Only set if not already overridden by user
       if (this.overrides.SHOW_DEBUG_PANEL === undefined) {
         this.overrides.SHOW_DEBUG_PANEL = true;
-      }
-      if (this.overrides.VERBOSE_LOGGING === undefined) {
-        this.overrides.VERBOSE_LOGGING = true;
       }
     }
   }
