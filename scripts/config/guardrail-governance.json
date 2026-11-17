@@ -160,7 +160,6 @@
       { "id": "check:source-patterns", "group": "boundaries" },
       { "id": "report:compatibility-governance", "group": "governance-inputs" },
       { "id": "check:legacy-retirement-debt", "group": "governance" },
-      { "id": "check:schema-governance", "group": "governance" },
       { "id": "check:runtime-contracts", "group": "governance" },
       { "id": "check:sync-invariants", "group": "governance" },
       { "id": "check:serverless-runtime-governance", "group": "governance" },

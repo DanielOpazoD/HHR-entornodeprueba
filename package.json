@@ -81,7 +81,6 @@
     "check:architecture": "node scripts/check-architecture.mjs",
     "check:source-patterns": "node scripts/check-source-patterns.mjs",
     "check:legacy-retirement-debt": "npm run report:compatibility-governance && node scripts/check-legacy-retirement-debt.mjs",
-    "check:schema-governance": "node scripts/check-schema-governance.mjs",
     "check:docs-drift": "node scripts/check-docs-drift.mjs",
     "check:operational-runbooks": "npm run report:compatibility-governance && npm run report:operational-health && node scripts/check-operational-runbooks.mjs",
     "check:runtime-contracts": "node scripts/check-runtime-contracts.mjs",

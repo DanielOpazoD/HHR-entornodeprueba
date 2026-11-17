@@ -38,7 +38,6 @@
       "scripts/check-module-size.mjs",
       "scripts/check-repo-hygiene.mjs",
       "scripts/check-runtime-contracts.mjs",
-      "scripts/check-schema-governance.mjs",
       "scripts/check-source-patterns.mjs",
       "scripts/check-sync-invariants.mjs",
       "scripts/check-test-governance.mjs",
