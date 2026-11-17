@@ -115,6 +115,7 @@ export const PatientDatabaseManager: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the first page uses the same paging routine as «Cargar más» and «Reintentar»
     void fetchMasterIndex(true, null);
     return invalidateIndex;
   }, [fetchMasterIndex, invalidateIndex]);

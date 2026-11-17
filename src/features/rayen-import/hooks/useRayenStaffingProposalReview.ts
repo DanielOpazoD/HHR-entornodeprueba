@@ -13,6 +13,7 @@ import { collectNursingStaffingProposal } from '../domain/collectNursingStaffing
 import { requestHistoryScales } from '../bridge/rayenImportBridge';
 import { getRayenImportErrorMessage } from './rayenImportState';
 import { reportRayenStaffingOutcome } from './useRayenFillStatus';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface UseRayenStaffingProposalReviewInput {
   currentRecord: DailyRecord | null | undefined;
@@ -41,11 +42,13 @@ export const useRayenStaffingProposalReview = ({
     generation: string | null;
   } | null>(null);
 
-  useEffect(() => {
-    mountedRef.current = true;
+  if (useChangedOnRender([currentRecord?.date])) {
     setStaffingProposal(null);
     setStaffingProposalError(null);
     setIsStaffingProposalBusy(false);
+  }
+  useEffect(() => {
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       activeReviewRef.current?.controller.abort();

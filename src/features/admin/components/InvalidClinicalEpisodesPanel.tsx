@@ -26,17 +26,19 @@ export const InvalidClinicalEpisodesPanel: React.FC = () => {
   const [removing, setRemoving] = useState<string | null>(null);
   const [removeFailed, setRemoveFailed] = useState(false);
 
-  const load = useCallback(async () => {
-    try {
-      setState({ kind: 'ready', marks: await listInvalidClinicalEpisodes() });
-    } catch {
-      setState({ kind: 'failed' });
-    }
-  }, []);
+  const show = useCallback(
+    (read: ReturnType<typeof listInvalidClinicalEpisodes>) =>
+      read.then(
+        marks => setState({ kind: 'ready', marks }),
+        () => setState({ kind: 'failed' })
+      ),
+    []
+  );
+  const load = () => show(listInvalidClinicalEpisodes());
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void show(listInvalidClinicalEpisodes());
+  }, [show]);
 
   const remove = async (clinicalEpisodeId: string) => {
     setRemoving(clinicalEpisodeId);

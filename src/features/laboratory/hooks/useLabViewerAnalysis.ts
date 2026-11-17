@@ -14,6 +14,7 @@ import {
 import { saveLabResults } from '../services/labFirestoreService';
 import { enrichMicrobiologyDetailsFromPdf } from '../services/labMicrobiologyPdfService';
 import { enrichUrineRatioDetailsFromPdf } from '../services/labUrinePdfService';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface UseLabViewerAnalysisParams {
   examList: SyslabExamItem[];
@@ -52,11 +53,13 @@ export const useLabViewerAnalysis = ({
   const analysisVersion = useRef(0);
 
   // Invalidate at commit time, before a stale promise can resume after selection changes.
-  useLayoutEffect(() => {
-    mountedRef.current = true;
+  if (useChangedOnRender([selectedRut])) {
     setIsAnalyzing(false);
     setAnalysisData(null);
     setAnalysisView('trends');
+  }
+  useLayoutEffect(() => {
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       selectionVersion.current += 1;
@@ -67,6 +70,9 @@ export const useLabViewerAnalysis = ({
     progressRef.current = progress;
   }, [progress]);
 
+  if (useChangedOnRender([isLoading, isAnalyzing]) && !isAnalyzing && isLoading) {
+    setProgress(SEARCH_STEPS[0]);
+  }
   useEffect(() => {
     if (isAnalyzing) return;
     const active = isLoading;
@@ -83,7 +89,6 @@ export const useLabViewerAnalysis = ({
 
     const steps = SEARCH_STEPS;
     let stepIndex = 1;
-    setProgress(steps[0]);
 
     const intervalId = setInterval(() => {
       if (stepIndex < steps.length) {
