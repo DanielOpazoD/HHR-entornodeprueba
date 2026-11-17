@@ -78,6 +78,7 @@ it('reuses exact dependencies across compatible jobs with one pristine-cache wri
     'docs',
     'docs-scope-gate',
     'e2e-critical-lanes',
+    'emulator-ui',
     'final-confidence-and-readiness',
     'lighthouse-ci',
     'postmerge-evidence',
