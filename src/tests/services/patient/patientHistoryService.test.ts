@@ -128,6 +128,7 @@ describe('patientHistoryService', () => {
       expect.objectContaining({
         firstSeen: '2026-04-07',
         lastSeen: '2026-04-15',
+        totalDays: 8,
       })
     );
     expect(history?.movements.map(movement => movement.type)).toEqual(['admission', 'discharge']);

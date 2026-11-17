@@ -1,5 +1,6 @@
 import type { DailyRecordDateRef } from '@/types/domain/dailyRecordSlices';
 import { resolveCurrentClinicalDay } from '@/utils/clinicalDayUtils';
+import { isWithinNurseEditingWindow } from '@/utils/clinicalWallClock';
 
 export interface StabilityRules {
   isDateLocked: boolean;
@@ -57,11 +58,10 @@ export const buildStabilityRules = (
     };
   }
 
+  // A past day closes for nurses with the server's window, on the hospital clock (SAVE-04).
   const isHistorical = record.date < todayISO;
-  const recordDateAtNoon = new Date(`${record.date}T12:00:00`);
-  const hoursSinceRecord = (now.getTime() - recordDateAtNoon.getTime()) / (1000 * 60 * 60);
-  const isWithinGracePeriod = hoursSinceRecord < 36;
-  const isDateLocked = isHistorical && !isAdmin && !isWithinGracePeriod;
+  const isDateLocked =
+    isHistorical && !isAdmin && !isWithinNurseEditingWindow(record.date, now.getTime());
 
   // Manual shift locks are currently disabled at product level.
   const isDayShiftLocked = false;
