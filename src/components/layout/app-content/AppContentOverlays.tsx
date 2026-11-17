@@ -7,7 +7,6 @@ import { CensusEmailConfigModal, GlobalPatientSearchModal } from '@/views/LazyVi
 import type { UseUIStateReturn } from '@/hooks/useUIState';
 import type { AppContentRuntime } from '@/components/layout/app-content/useAppContentRuntime';
 import { buildAppContentOverlayState } from '@/components/layout/app-content/appContentOverlaysController';
-import { usePatientSearchShortcut } from '@/components/layout/app-content/usePatientSearchShortcut';
 import { useReminderCenter } from '@/hooks/useReminders';
 
 const TestAgent = lazyWithRetry(() =>
@@ -16,6 +15,20 @@ const TestAgent = lazyWithRetry(() =>
 const ReminderModal = lazyWithRetry(() =>
   import('@/components/reminders/ReminderModal').then(m => ({ default: m.ReminderModal }))
 );
+
+const usePatientSearchShortcut = (togglePatientSearch: () => void): void => {
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+        event.preventDefault();
+        togglePatientSearch();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [togglePatientSearch]);
+};
 
 export interface AppContentOverlaysProps {
   ui: UseUIStateReturn;

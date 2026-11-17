@@ -9,7 +9,6 @@ import {
 } from '@/services/repositories/dailyRecordClinicalDomainService';
 import { resolveInitialDayHandoff } from '@/services/repositories/dailyRecordHandoffDomainService';
 import { createRecordDateTimestamp } from '@/services/repositories/dailyRecordMetadataDomainService';
-import { createEmptyDailyRecordMovements } from '@/services/repositories/dailyRecordMovementsDomainService';
 import { resolveInheritedDailyRecordStaffing } from '@/services/repositories/dailyRecordStaffingDomainService';
 
 export { preserveCIE10FromPreviousDay, preparePatientForCarryover };
@@ -23,7 +22,6 @@ export const buildInitializedDayRecord = (
   const beds = prevRecord
     ? buildClinicalBedsFromPreviousRecord(initialBeds, prevRecord)
     : initialBeds;
-  const movements = createEmptyDailyRecordMovements();
   const inheritedExtraBeds = prevRecord ? [...(prevRecord.activeExtraBeds || [])] : [];
   const activeExtraBeds = [
     ...inheritedExtraBeds.filter(bedId => !OCCUPANCY_ONLY_EXTRA_BED_IDS.has(bedId)),
@@ -35,9 +33,9 @@ export const buildInitializedDayRecord = (
   return {
     date,
     beds,
-    discharges: movements.discharges,
-    transfers: movements.transfers,
-    cma: movements.cma,
+    discharges: [],
+    transfers: [],
+    cma: [],
     bedTypeOverrides: prevRecord
       ? { ...(prevRecord.bedTypeOverrides || {}) }
       : ({} as Record<string, BedType>),
