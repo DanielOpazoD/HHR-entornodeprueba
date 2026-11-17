@@ -1,4 +1,5 @@
 import type { UserRole } from '@/types/authRoleTypes';
+import { addCalendarDays, isCalendarDate } from '@/utils/clinicalDateUtils';
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
@@ -17,13 +18,8 @@ const uniqueBatchItems = (items: HistoricalCudyrBatchItem[]): HistoricalCudyrBat
   ...new Map(items.map(item => [item.clinicalEpisodeId, item])).values(),
 ];
 
-const previousIsoDay = (day: string): string | null => {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
-  const date = new Date(`${day}T12:00:00.000Z`);
-  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== day) return null;
-  date.setUTCDate(date.getUTCDate() - 1);
-  return date.toISOString().slice(0, 10);
-};
+const previousIsoDay = (day: string): string | null =>
+  isCalendarDate(day) ? addCalendarDays(day, -1) : null;
 
 const canWriteAuthoritativeHistoricalDay = ({
   censusDay,
