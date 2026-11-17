@@ -7,7 +7,10 @@ import {
 } from '@/services/cudyr/cudyrCensusApproval';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import { confirmedReportInput } from './reportFixtures';
-import type { CudyrVerifiedContext } from '@/services/cudyr/cudyrVerifiedContext';
+import {
+  applyCudyrVerifiedContexts,
+  type CudyrVerifiedContext,
+} from '@/services/cudyr/cudyrVerifiedContext';
 const fixture = () => {
   const data = buildCudyrReport(confirmedReportInput());
   data.from = data.to = data.rows[0].date;
@@ -127,4 +130,26 @@ it('keeps row fingerprints stable across approval revision without embedding mon
   const result = await applyCudyrCensusApprovals(data, [review]);
   expect(result.coverage[0].reconstructionApproval).toBeDefined();
   expect(result.rows[0].verifiedContext).not.toHaveProperty('censusApproval');
+});
+
+it('reads a month approved without documentary reconciliation without changing any row', async () => {
+  const data = fixture();
+  // Shape the server writes when it creates the month's document at approval.
+  const review: CudyrVerifiedContext = {
+    ...(await reviewFor(data)),
+    schemaVersion: 1,
+    revision: 1,
+    entries: [],
+    files: [],
+    reconstructedDays: [],
+    reviewedBy: { uid: 'reviewer', name: 'Responsable', email: 'test@example.com', role: 'admin' },
+    updatedAt: '2026-10-08T20:00:00Z',
+    verification: 'census_approval_only',
+  };
+  const read = applyCudyrVerifiedContexts(data, [], [review]);
+  expect(read.rows).toEqual(data.rows);
+  expect(read.coverage).toEqual(data.coverage);
+  expect(read.issues).toEqual(data.issues);
+  const result = await applyCudyrCensusApprovals(read, [review]);
+  expect(result.coverage.every(cudyrCensusAccepted)).toBe(true);
 });

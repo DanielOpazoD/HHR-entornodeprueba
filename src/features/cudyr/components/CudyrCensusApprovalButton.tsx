@@ -41,11 +41,12 @@ export const CudyrCensusApprovalButton = ({
       check();
       const reviews = await loadCudyrVerifiedContexts(data.from, data.to, controller.signal);
       check();
-      const review = reviews.find(r => r.month === data.from.slice(0, 7));
-      if (!review) throw new Error('Falta guardar la conciliación documental del mes.');
+      const month = data.from.slice(0, 7);
+      // A month without documentary reconciliation is approved at revision 0.
+      const review = reviews.find(r => r.month === month);
       await approveCudyrReconstructedCensus({
-        month: review.month,
-        expectedRevision: review.revision,
+        month,
+        expectedRevision: review?.revision ?? 0,
         operationId: crypto.randomUUID(),
         reason,
         days,
