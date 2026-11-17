@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import {
   CENSUS_GLOBAL_EMAIL_RECIPIENT_LIST,

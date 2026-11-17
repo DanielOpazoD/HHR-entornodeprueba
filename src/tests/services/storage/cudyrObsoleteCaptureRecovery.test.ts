@@ -1,3 +1,4 @@
+// @vitest-environment node
 import 'fake-indexeddb/auto';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
