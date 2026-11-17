@@ -46,6 +46,7 @@ describe('explicit monthly documentary action', () => {
     render(<CudyrMonthlyRecovery month="2026-08" onSaved={vi.fn()} />);
     fireEvent.click(screen.getByText('Actualizar CUDYR'));
     fireEvent.click(screen.getByText('Detener'));
+    expect(screen.getByText('Detener')).toBeDisabled();
     expect(screen.getByText('Recuperando…')).toBeDisabled();
     fireEvent.click(screen.getByText('Recuperando…'));
     expect(recover).toHaveBeenCalledTimes(1);

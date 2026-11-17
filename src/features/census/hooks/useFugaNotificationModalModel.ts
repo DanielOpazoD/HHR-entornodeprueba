@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { useAuth } from '@/context/AuthContext';
 import { useDailyRecordStaff } from '@/context/DailyRecordContext';
@@ -12,6 +12,7 @@ import {
 } from '@/features/census/controllers/fugaNotificationPolicyController';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import type { DischargeData } from '@/types/domain/movements';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface UseFugaNotificationModalModelParams {
   isOpen: boolean;
@@ -43,11 +44,7 @@ export const useFugaNotificationModalModel = ({
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
+  if (useChangedOnRender([dischargeItem, isOpen, recordDate, specialty]) && isOpen) {
     setAutomaticMessage(
       buildDefaultFugaAutomaticMessage({
         patientName: dischargeItem.patientName,
@@ -64,7 +61,7 @@ export const useFugaNotificationModalModel = ({
     setTestRecipient('');
     setNote('');
     setError(null);
-  }, [dischargeItem, isOpen, recordDate, specialty]);
+  }
 
   const resolvedRecipients = useMemo(
     () =>

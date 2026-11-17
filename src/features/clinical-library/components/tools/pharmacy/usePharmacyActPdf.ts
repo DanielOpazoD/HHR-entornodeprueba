@@ -3,6 +3,7 @@ import type { PharmacyActDraft } from '../../../domain/pharmacy/pharmacyTypes';
 import { validatePharmacyDraft } from '../../../domain/pharmacy/pharmacyDraft';
 import { generatePharmacyActPdf } from '../../../services/pharmacyActPdf';
 import { printLibraryDocument } from '../../../services/libraryDocumentActions';
+import { useLatestRef } from '@/hooks/useLatestRef';
 
 interface PreparedPharmacyPdf {
   bytes: Uint8Array;
@@ -20,8 +21,7 @@ export const usePharmacyActPdf = (
   const [busy, setBusy] = useState(false);
   const [prepared, setPrepared] = useState<PreparedPharmacyPdf | null>(null);
   const fingerprint = JSON.stringify(draft);
-  const latest = useRef(fingerprint);
-  latest.current = fingerprint;
+  const latest = useLatestRef(fingerprint);
   const sequence = useRef(0);
   const currentPdf = prepared?.fingerprint === fingerprint ? prepared : null;
   useEffect(

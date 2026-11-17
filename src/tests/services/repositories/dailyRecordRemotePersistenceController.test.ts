@@ -348,6 +348,56 @@ describe('dailyRecordRemotePersistenceController', () => {
     expect(renewLocalPreOutboxHold).toHaveBeenCalledTimes(1);
   });
 
+  // W12-CW11: released first, the queue replayed the refused write while its recovery stored it
+  // again, which then found no task to fold into and left a second one for the same edit.
+  it('keeps a refused direct write held until its recovery has stored it', async () => {
+    const steps: string[] = [];
+    resolveRemoteWriteRecoveryMock.mockImplementationOnce(async () => {
+      steps.push('recovery');
+      return {
+        status: 'auto_merged',
+        queuedForRetry: true,
+        autoMerged: true,
+        decision: {
+          consistencyState: 'auto_merged',
+          retryability: 'automatic_retry',
+          recoveryAction: 'auto_merge_and_queue',
+          observabilityTags: ['field_changed_elsewhere'],
+          userSafeMessage: 'El campo cambió en otro equipo.',
+        },
+      };
+    });
+
+    const result = await persistLocalAndAttemptRemoteSync({
+      authoringSession: captureAuthoringSession(),
+      change: {
+        date: '2026-05-23',
+        record: buildRecord('2026-05-23'),
+        changedPaths: ['handoffNovedadesNightShift'],
+        expectedVersion: '2026-05-23T10:00:00.000Z',
+      },
+      remoteState: createRemoteWriteState(),
+      remote: {
+        remoteWrite: vi.fn().mockRejectedValue(new Error('changed elsewhere')),
+        onRemoteFailure: vi.fn(),
+      },
+      outbox: {
+        queueLocalBeforeRemote: vi.fn().mockResolvedValue({
+          accepted: true,
+          mode: 'created',
+          pendingTasks: 1,
+          maxPendingTasks: 192,
+        }),
+        releaseLocalPreOutboxHold: vi.fn(async () => {
+          steps.push('release');
+        }),
+      },
+    });
+
+    expect(result).toBe('return');
+    expect(steps).toEqual(['recovery', 'release']);
+  });
+
   it('blocks the remote write when transactional outbox preflight is rejected', async () => {
     const state = createRemoteWriteState();
     const remoteWrite = vi.fn().mockResolvedValue(undefined);

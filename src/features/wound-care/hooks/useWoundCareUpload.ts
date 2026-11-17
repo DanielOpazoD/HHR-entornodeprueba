@@ -6,7 +6,7 @@
  * tracking, and error reporting.
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getActiveHospitalId } from '@/constants/firestorePaths';
 import type { WoundCareAuditActor } from '@/types/domain/woundCare';
@@ -70,11 +70,6 @@ export const useWoundCareUpload = (): UseWoundCareUploadReturn => {
   const [progress, setProgress] = useState<UploadProgress | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Stable ref so the retry helper can call setProgress without
-  // forcing recalculation of every useCallback that depends on it.
-  const setProgressRef = useRef(setProgress);
-  setProgressRef.current = setProgress;
-
   /**
    * Retry wrapper for upload operations.
    * Re-runs `fn` up to `maxRetries` times when the failure is retryable
@@ -93,7 +88,7 @@ export const useWoundCareUpload = (): UseWoundCareUploadReturn => {
         if (!isRetryable) break;
 
         attempts++;
-        setProgressRef.current({
+        setProgress({
           stage: 'uploading',
           message: `Reintentando... (${attempts}/${maxRetries})`,
         });

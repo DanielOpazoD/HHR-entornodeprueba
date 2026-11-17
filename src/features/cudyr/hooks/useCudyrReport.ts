@@ -1,6 +1,6 @@
 import { recordCudyrOperation } from '@/services/cudyr/cudyrOperationTelemetry';
 import { readCudyrReadView, saveCudyrReadView } from '@/services/cudyr/cudyrReadView';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { loadCudyrReport } from '@/services/cudyr/cudyrReportLoader';
@@ -46,15 +46,19 @@ export const useCudyrReport = (
   const dailyDay = dailyRead?.day || '';
   const firstSyncAt = dailyRead?.firstSyncAt || '';
   const cache = () => cudyrReportCache(loader, scope, Boolean(scope) && loader === loadCudyrReport);
-  const [data, setData] = useState<CudyrReportDataset | null>(() =>
-    scope ? cache().get(initialDate.slice(0, 7) + '-01', initialDate) || null : null
-  );
-  const dataScope = useRef(scope);
-  const [busy, setBusy] = useState(() => !dailyReadIsFresh(data, dailyDay, firstSyncAt));
+  // The report remembers the session scope it was read for; another session never sees it.
+  const [held, setHeld] = useState<{ scope: string; data: CudyrReportDataset | null }>(() => ({
+    scope,
+    data: scope ? cache().get(initialDate.slice(0, 7) + '-01', initialDate) || null : null,
+  }));
+  const data = held.scope === scope ? held.data : null;
+  const [busy, setBusy] = useState(() => !dailyReadIsFresh(held.data, dailyDay, firstSyncAt));
   const [error, setError] = useState('');
   const active = useRef<AbortController | null>(null);
   const visibleData = useRef(data);
-  visibleData.current = dataScope.current === scope ? data : null;
+  useLayoutEffect(() => {
+    visibleData.current = data;
+  });
   const revisions = useRef(new Map<string, string>());
   const mountedRead = useRef(false);
   const load = useCallback(
@@ -68,7 +72,7 @@ export const useCudyrReport = (
       // Invalidate freshness, retaining the last good persisted copy if verification fails.
       if (!reuse) store.requireVerification();
       setError('');
-      dataScope.current = scope;
+      const setData = (next: CudyrReportDataset | null) => setHeld({ scope, data: next });
       const visible = visibleData.current;
       const lastGood =
         cached ||
@@ -205,5 +209,5 @@ export const useCudyrReport = (
     }, 1000);
     return () => window.clearInterval(timer);
   }, [refreshWindow, load]);
-  return { data: dataScope.current === scope ? data : null, busy, error, load };
+  return { data, busy, error, load };
 };

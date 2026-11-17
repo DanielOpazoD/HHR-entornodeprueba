@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDailyRecordBeds, useDailyRecordData } from '@/context/DailyRecordContext';
 import { useDailyRecordWriteStatus } from '@/hooks/useDailyRecordWriteStatus';
+import { useLatestRef } from '@/hooks/useLatestRef';
 import { getDailyRecordWriteState } from '@/services/repositories/dailyRecordWriteCoordinator';
 import {
   buildSpecialtyRoundCandidates,
@@ -32,15 +33,12 @@ export const useSpecialtyRound = (date: string, disabled: boolean) => {
   const [choices, setChoices] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState('');
-  const bedsRef = useRef(beds);
-  const recordDateRef = useRef(record?.date);
-  const disabledRef = useRef(disabled);
+  const bedsRef = useLatestRef(beds);
+  const recordDateRef = useLatestRef(record?.date);
+  const disabledRef = useLatestRef(disabled);
   const activeRef = useRef(true);
+  // Only setResult writes the results, and it updates this ref first.
   const resultsRef = useRef(results);
-  bedsRef.current = beds;
-  recordDateRef.current = record?.date;
-  disabledRef.current = disabled;
-  resultsRef.current = results;
   useEffect(() => {
     activeRef.current = true;
     return () => {

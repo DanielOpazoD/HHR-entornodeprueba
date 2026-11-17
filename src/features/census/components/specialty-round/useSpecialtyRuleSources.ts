@@ -7,6 +7,7 @@ import {
   historicalMonthRange,
   summarizeHistoricalAssociations,
 } from './specialtyRulesHistoryModel';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 /** The live census is read once only when the panel was opened from another day. */
 export const useSpecialtyRuleSources = (
@@ -33,10 +34,12 @@ export const useSpecialtyRuleSources = (
     };
   }, []);
 
+  if (useChangedOnRender([date, today, retry]) && date !== today) {
+    setCurrent({ day: today, beds: null, state: 'loading' });
+  }
   useEffect(() => {
     if (date === today) return;
     let active = true;
-    setCurrent({ day: today, beds: null, state: 'loading' });
     void import('@/services/storage/firestore/firestoreRecordQueries')
       .then(service => service.getRecordFromFirestoreDetailed(today, { source: 'server' }))
       .then(result => {
