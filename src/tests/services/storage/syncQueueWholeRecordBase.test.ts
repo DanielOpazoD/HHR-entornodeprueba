@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Timestamp, type Firestore, type Transaction } from 'firebase/firestore';
 import { DataFactory } from '@/tests/factories/DataFactory';
