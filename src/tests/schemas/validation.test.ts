@@ -2,67 +2,16 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  validatePatientData,
-  validateDailyRecord,
-  validateBackupData,
-  validateRut,
-  validateAdmissionDate,
-  validateCudyrScore,
+  CudyrScoreSchema,
+  DailyRecordSchema,
+  PatientDataSchema,
   SpecialtySchema,
   parseDailyRecordWithDefaults,
 } from '@/schemas/zodSchemas';
 import { Specialty } from '@/types/domain/patientClassification';
 
-describe('validation schema helpers', () => {
-  describe('validateRut', () => {
-    it('should return true for empty or null RUT', () => {
-      expect(validateRut('')).toBe(true);
-      expect(validateRut(null as unknown as string)).toBe(true);
-    });
-
-    it('should return true for valid RUT format', () => {
-      expect(validateRut('12.345.678-9')).toBe(true);
-      expect(validateRut('12345678-9')).toBe(true);
-      expect(validateRut('123456789')).toBe(true);
-    });
-
-    it('should return false for invalid RUT format', () => {
-      expect(validateRut('not-a-rut')).toBe(false);
-    });
-  });
-
-  describe('validateAdmissionDate', () => {
-    it('should return success for empty date', () => {
-      const result = validateAdmissionDate('');
-      expect(result.success).toBe(true);
-      expect(result.data).toBe('');
-    });
-
-    it('should return error for invalid format', () => {
-      for (const date of ['23-12-2024', '2024/12/23', 'December 23, 2024']) {
-        const result = validateAdmissionDate(date);
-        expect(result.success).toBe(false);
-        expect(result.errors).toContain('Formato de fecha inválido (YYYY-MM-DD)');
-      }
-    });
-
-    it('should return error for future date', () => {
-      const futureDate = '2099-01-01';
-      const result = validateAdmissionDate(futureDate);
-      expect(result.success).toBe(false);
-      expect(result.errors).toContain('La fecha de ingreso no puede ser futura');
-    });
-
-    it('should return success for valid past date', () => {
-      for (const date of ['2020-01-01', '2024-12-23', '2024-01-01']) {
-        const result = validateAdmissionDate(date);
-        expect(result.success).toBe(true);
-        expect(result.data).toBe(date);
-      }
-    });
-  });
-
-  describe('validatePatientData', () => {
+describe('validation schemas', () => {
+  describe('PatientDataSchema', () => {
     it('should validate valid patient data', () => {
       const validData = {
         bedId: 'R1',
@@ -74,7 +23,7 @@ describe('validation schema helpers', () => {
         isUPC: false,
         bedMode: 'Cama',
       };
-      const result = validatePatientData(validData);
+      const result = PatientDataSchema.safeParse(validData);
       expect(result.success).toBe(true);
     });
 
@@ -83,13 +32,13 @@ describe('validation schema helpers', () => {
         bedId: '', // error: min 1
         isBlocked: 'not-a-boolean', // error: expected boolean
       };
-      const result = validatePatientData(invalidData);
+      const result = PatientDataSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
-      expect(result.errors?.length).toBeGreaterThan(0);
+      expect(result.error?.issues.length).toBeGreaterThan(0);
     });
   });
 
-  describe('validateDailyRecord', () => {
+  describe('DailyRecordSchema', () => {
     it('should validate valid daily record', () => {
       const validData = {
         date: '2025-01-01',
@@ -98,7 +47,7 @@ describe('validation schema helpers', () => {
         transfers: [],
         lastUpdated: '2025-01-01T00:00:00.000Z',
       };
-      const result = validateDailyRecord(validData);
+      const result = DailyRecordSchema.safeParse(validData);
       expect(result.success).toBe(true);
     });
 
@@ -107,27 +56,13 @@ describe('validation schema helpers', () => {
         date: 'invalid-date',
         beds: 'not-an-object',
       };
-      const result = validateDailyRecord(invalidData);
+      const result = DailyRecordSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
-      expect(result.errors?.length).toBeGreaterThan(0);
+      expect(result.error?.issues.length).toBeGreaterThan(0);
     });
   });
 
-  describe('validateBackupData', () => {
-    it('should validate valid backup data', () => {
-      const validData = {
-        '2025-01-01': {
-          date: '2025-01-01',
-          beds: {},
-          lastUpdated: '2025-01-01T00:00:00.000Z',
-        },
-      };
-      const result = validateBackupData(validData);
-      expect(result.success).toBe(true);
-    });
-  });
-
-  describe('validateCudyrScore', () => {
+  describe('CudyrScoreSchema', () => {
     it('should validate valid score', () => {
       const validScore = {
         changeClothes: 1,
@@ -145,7 +80,7 @@ describe('validation schema helpers', () => {
         pharmacology: 3,
         invasiveElements: 4,
       };
-      const result = validateCudyrScore(validScore);
+      const result = CudyrScoreSchema.safeParse(validScore);
       expect(result.success).toBe(true);
     });
 
@@ -154,7 +89,7 @@ describe('validation schema helpers', () => {
         changeClothes: 5, // max 4
         mobilization: -1, // min 0
       };
-      const result = validateCudyrScore(invalidScore);
+      const result = CudyrScoreSchema.safeParse(invalidScore);
       // Schema now uses .catch(0), so it should succeed and replace with 0
       expect(result.success).toBe(true);
       if (result.success && result.data) {
@@ -167,7 +102,7 @@ describe('validation schema helpers', () => {
       const incompleteScore = {
         changeClothes: 1,
       };
-      const result = validateCudyrScore(incompleteScore);
+      const result = CudyrScoreSchema.safeParse(incompleteScore);
       expect(result.success).toBe(true);
       if (result.success && result.data) {
         expect(result.data.changeClothes).toBe(1);
@@ -178,7 +113,7 @@ describe('validation schema helpers', () => {
   });
 
   describe('Edge Cases for Branch Coverage', () => {
-    it('validatePatientData should handle nested clinicalCrib', () => {
+    it('PatientDataSchema should handle nested clinicalCrib', () => {
       const patientWithCrib = {
         bedId: 'M1',
         isBlocked: false,
@@ -197,11 +132,11 @@ describe('validation schema helpers', () => {
           bedMode: 'Cuna',
         },
       };
-      const result = validatePatientData(patientWithCrib);
+      const result = PatientDataSchema.safeParse(patientWithCrib);
       expect(result.success).toBe(true);
     });
 
-    it('validateDailyRecord should handle all optional fields', () => {
+    it('DailyRecordSchema should handle all optional fields', () => {
       const recordWithOptionals = {
         date: '2025-01-01',
         beds: {},
@@ -225,35 +160,8 @@ describe('validation schema helpers', () => {
           userAgent: 'Chrome',
         },
       };
-      const result = validateDailyRecord(recordWithOptionals);
+      const result = DailyRecordSchema.safeParse(recordWithOptionals);
       expect(result.success).toBe(true);
-    });
-
-    it('validateAdmissionDate should handle whitespace-only strings', () => {
-      const result = validateAdmissionDate('   ');
-      expect(result.success).toBe(true);
-      expect(result.data).toBe('');
-    });
-
-    it('validateRut should handle whitespace-only strings', () => {
-      expect(validateRut('   ')).toBe(true);
-    });
-
-    it('validateRut should accept RUT with K verifier', () => {
-      expect(validateRut('12.345.678-K')).toBe(true);
-      expect(validateRut('12345678K')).toBe(true);
-    });
-
-    it('validateBackupData should fail for nested invalid records', () => {
-      const invalidBackup = {
-        '2025-01-01': {
-          date: 'not-a-date', // Invalid
-          beds: {},
-          lastUpdated: 'now',
-        },
-      };
-      const result = validateBackupData(invalidBackup);
-      expect(result.success).toBe(false);
     });
 
     it('should migrate legacy specialties', () => {

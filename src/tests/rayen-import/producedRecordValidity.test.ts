@@ -8,7 +8,7 @@ import {
   type RayenCensusSnapshot,
   type RayenEncounter,
 } from '@/features/rayen-import';
-import { validateDailyRecord } from '@/schemas/zodValidationHelpers';
+import { DailyRecordSchema } from '@/schemas/zod/dailyRecord';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 
@@ -115,8 +115,8 @@ describe('produced DailyRecord validity (fix #2)', () => {
     expect(record.beds[bedB]?.patientName).toBe(patB.patientName);
 
     // The real gate: the produced record must satisfy the HHR's own Zod schema.
-    const result = validateDailyRecord(record);
-    expect(result.success ? [] : result.errors).toEqual([]);
+    const result = DailyRecordSchema.safeParse(record);
+    expect(result.error?.issues ?? []).toEqual([]);
     expect(result.success).toBe(true);
 
     // Firestore rule precondition must survive the transformation.

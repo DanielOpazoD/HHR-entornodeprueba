@@ -393,8 +393,3 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, unknown> = z.preprocess(i
     input as Pick<DailyRecord, 'nurses' | 'nurseName' | 'nursesDayShift' | 'nursesNightShift'>
   );
 }, DailyRecordFieldsSchema);
-
-/**
- * Full backup schema for import/export
- */
-export const FullBackupSchema = z.record(StringSchema, DailyRecordSchema);
