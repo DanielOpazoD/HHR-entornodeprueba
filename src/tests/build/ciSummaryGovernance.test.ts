@@ -11,12 +11,11 @@ type Prerequisite = 'ci-scope' | 'docs-scope-gate' | 'functions-scope-gate' | 't
 type Gate =
   | 'quality-static'
   | 'unit-risk'
-  | 'test-execution-manifest'
   | 'clinical-sync-release-gate'
   | 'rules-emulator'
-  | 'e2e-critical-emulator'
+  | 'e2e-critical-lanes'
   | 'build'
-  | 'preview-smoke'
+  | 'preview-smoke-lanes'
   | 'final-confidence-and-readiness'
   | 'ci-runtime-telemetry'
   | 'census-startup-performance';
@@ -31,12 +30,11 @@ const prerequisites: readonly Prerequisite[] = [
 const gates: readonly Gate[] = [
   'quality-static',
   'unit-risk',
-  'test-execution-manifest',
   'clinical-sync-release-gate',
   'rules-emulator',
-  'e2e-critical-emulator',
+  'e2e-critical-lanes',
   'build',
-  'preview-smoke',
+  'preview-smoke-lanes',
   'final-confidence-and-readiness',
   'ci-runtime-telemetry',
   'census-startup-performance',
@@ -48,13 +46,12 @@ const expectedEnvironment = {
   FUNCTIONS_SCOPE_GATE_RESULT: "${{ needs['functions-scope-gate'].result }}",
   TOOLING_SCOPE_GATE_RESULT: "${{ needs['tooling-scope-gate'].result }}",
   QUALITY_STATIC_RESULT: "${{ needs['quality-static'].result }}",
-  TEST_EXECUTION_RESULT: "${{ needs['test-execution-manifest'].result }}",
   UNIT_RISK_RESULT: "${{ needs['unit-risk'].result }}",
   CLINICAL_SYNC_RESULT: "${{ needs['clinical-sync-release-gate'].result }}",
   RULES_EMULATOR_RESULT: "${{ needs['rules-emulator'].result }}",
-  E2E_CRITICAL_RESULT: "${{ needs['e2e-critical-emulator'].result }}",
+  E2E_CRITICAL_RESULT: "${{ needs['e2e-critical-lanes'].result }}",
   BUILD_RESULT: '${{ needs.build.result }}',
-  PREVIEW_SMOKE_RESULT: "${{ needs['preview-smoke'].result }}",
+  PREVIEW_SMOKE_RESULT: "${{ needs['preview-smoke-lanes'].result }}",
   FINAL_CONFIDENCE_RESULT: "${{ needs['final-confidence-and-readiness'].result }}",
   CI_RUNTIME_TELEMETRY_RESULT: "${{ needs['ci-runtime-telemetry'].result }}",
   CENSUS_PERFORMANCE_RESULT: "${{ needs['census-startup-performance'].result }}",
