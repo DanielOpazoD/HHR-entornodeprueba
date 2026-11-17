@@ -8,14 +8,13 @@ import type { PatientData } from '@/types/domain/patient';
  * 📘 GUÍA DE ESTILO: Para elegir el hook correcto y evitar problemas de performance,
  * consulta src/docs/HOOKS_STYLE_GUIDE.md
  */
-import React from 'react';
+import React, { useContext } from 'react';
 import { DailyRecordContextType } from '@/context/dailyRecordContextContracts';
 import { DailyRecordProviderTree } from '@/context/dailyRecordProviderTree';
 import { buildDailyRecordStatusModel } from '@/context/dailyRecordStatusController';
 
 import { useDailyRecordFragmentedValues } from '@/context/useDailyRecordFragmentedValues';
 import { useRequiredDailyRecordActionsContext } from './dailyRecordActionsContext';
-import { useRequiredContextValue } from './contextHookSupport';
 import {
   DailyRecordBedsContext,
   DailyRecordDataContext,
@@ -26,6 +25,17 @@ import {
   DailyRecordStabilityContext,
   DailyRecordSyncContext,
 } from './dailyRecordProviderTree';
+
+const useRequiredContextValue = <T,>(
+  context: React.Context<T | undefined>,
+  hookName: string
+): T => {
+  const value = useContext(context);
+  if (value === undefined) {
+    throw new Error(`${hookName} must be used within a DailyRecordProvider`);
+  }
+  return value;
+};
 
 /**
  * Fragmented Provider

@@ -1,11 +1,58 @@
-import {
-  getCensusEmailRequestMaxAttempts,
-  getCensusEmailRequestTimeoutMs,
-  isRetryableError,
-  isRetryableStatus,
-  normalizeFetchErrorMessage,
-} from '@/services/integrations/censusEmailRequestPolicy';
-import { sendCensusEmailTransportRequest } from '@/services/integrations/censusEmailTransport';
+import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
+
+interface CensusEmailTransportRequest {
+  endpoint: string;
+  body: string;
+  userEmail?: string | null;
+  userRole?: string | null;
+  signal: AbortSignal;
+}
+
+const sendCensusEmailTransportRequest = async (
+  request: CensusEmailTransportRequest,
+  fetchImpl: typeof fetch
+): Promise<Response> => {
+  const authHeaders = await resolveCurrentUserAuthHeaders();
+
+  return fetchImpl(request.endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders,
+    },
+    body: request.body,
+    signal: request.signal,
+  });
+};
+
+const REQUEST_TIMEOUT_MS = 15000;
+const MAX_ATTEMPTS = 2;
+
+const getCensusEmailRequestTimeoutMs = (): number => REQUEST_TIMEOUT_MS;
+
+const getCensusEmailRequestMaxAttempts = (): number => MAX_ATTEMPTS;
+
+const isRetryableStatus = (status: number): boolean => status === 429 || status >= 500;
+
+const isRetryableError = (error: unknown): boolean => {
+  if (error instanceof TypeError) {
+    return true;
+  }
+  if (error instanceof DOMException) {
+    return error.name === 'AbortError';
+  }
+  return false;
+};
+
+const normalizeFetchErrorMessage = (error: unknown): string => {
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    return 'Tiempo de espera agotado al enviar el correo.';
+  }
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return 'No se pudo enviar el correo.';
+};
 
 export interface SendCensusEmailRequestOptions {
   endpoint: string;

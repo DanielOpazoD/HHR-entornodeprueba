@@ -6,9 +6,22 @@ import type {
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { useNotification } from '@/context/UIContext';
 import { useAuditContext } from '@/context/AuditContext';
-import type { HandoffManagementActions } from '@/hooks/handoffManagementTypes';
 import { useHandoffGeneralPersistenceActions } from '@/hooks/useHandoffGeneralPersistenceActions';
 import { useHandoffPersistenceRuntime } from '@/hooks/useHandoffPersistenceRuntime';
+
+interface HandoffManagementActions {
+  updateHandoffChecklist: (
+    shift: 'day' | 'night' | 'shared',
+    field: string,
+    value: boolean | string
+  ) => void;
+  updateHandoffNovedades: (shift: 'day' | 'night', value: string) => void;
+  updateHandoffStaff: (
+    shift: 'day' | 'night',
+    type: 'delivers' | 'receives' | 'tens',
+    staffList: string[]
+  ) => void;
+}
 
 export const useHandoffManagement = (
   record: DailyRecord | null,
