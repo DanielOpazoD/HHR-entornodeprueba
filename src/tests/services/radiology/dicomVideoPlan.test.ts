@@ -17,7 +17,7 @@ describe('video frame sequences', () => {
     expect(defaultDicomVideoOptions()).toEqual({
       sequence: 'loop',
       resolution: '720p',
-      fps: 10,
+      fps: 20,
       anonymous: true,
     });
   });

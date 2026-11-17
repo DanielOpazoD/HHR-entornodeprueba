@@ -443,7 +443,7 @@ orientación y el punto de referencia quedan como estaban. Si se pierde el conte
 gráfico a mitad del video, la recuperación restaura la cámara de antes del video.
 
 Opciones comunes: **Secuencia** «Bucle» (inicio a fin) o «Ida y vuelta» (vuelve sin
-repetir los extremos, para que el bucle no se detenga); **Velocidad** de 5 a 30 cuadros/s;
+repetir los extremos, para que el bucle no se detenga); **Velocidad** de 5 a 30 cuadros/s (20 por defecto en Original, MPR y 3D);
 **Resolución** «Hasta 720p» (1280×720, por defecto) o «Hasta 1080p» (1920×1080). El cuadro
 se ajusta a esa caja sin ampliar la vista, con dimensiones pares; una vista vertical usa
 la caja girada. Mediabunny elige el nivel H.264 según tamaño y bitrate (3.1 hasta 720p y
@@ -461,13 +461,11 @@ no lleva fecha: Mediabunny 1.61.6 escribe la hora de codificación en los encabe
 visor pone esos campos en cero antes de ofrecer el archivo y rechaza uno sin encabezado.
 No se actualizó Mediabunny, por lo que el tamaño de los paquetes no cambia.
 
-El video queda temporalmente en memoria con un URL blob revocable. Antes de
-activar la descarga, debe poder reproducirse en la vista previa y el usuario
-confirma haber revisado todo el video sin identificadores visibles. Con el perfil
-anónimo desactivado confirma, en cambio, que el video incluye nombre, RUT y fecha y
-que lo compartirá solo por canales clínicos autorizados. Esto NO es
-anonimización: los originales pueden contener texto identificable incrustado en
-píxeles. Descartar/cambiar/cerrar revoca el URL. El nombre de descarga es genérico
+El video queda temporalmente en memoria con un URL blob revocable. La descarga
+se activa cuando la vista previa puede reproducirse, sin aviso ni casilla de revisión.
+El perfil anónimo sigue activado por defecto; los originales pueden contener texto
+identificable incrustado en píxeles.
+Descartar/cambiar/cerrar revoca el URL. El nombre de descarga es genérico
 (`secuencia-dicom.mp4`, `barrido-mpr-dicom.mp4`, `giro-3d-dicom.mp4`); no se agregan
 identificadores, credenciales ni metadatos clínicos al contenedor.
 El MP4 es una copia con contraste fijo y compresión, no sustituye al DICOM.
@@ -596,7 +594,7 @@ marcos incompatibles y rechazo de una segunda serie de otro paciente.
 
 ### Mediciones en Original y Comparar
 
-Original y cada panel de Comparar tienen **Distancia**, **Ángulo**, **Ángulo de Cobb**,
+Original y cada panel de Comparar tienen **Distancia**, **Ángulo**,
 **Densidad puntual** y ROI **elíptica**, **rectangular** y **circular** (área, promedio, DE,
 mínimo y máximo). Son las herramientas de `@cornerstonejs/tools` 4.22.13 con nombres propios
 (`dicomStackTools.ts`), para que sus dibujos no se mezclen con los de MPR en el mismo marco de
@@ -753,3 +751,12 @@ DICOM_LOAD_BENCHMARK=1 npx playwright test -c playwright.preview.config.ts e2e/d
 ```
 
 La prueba normal también queda en CI; la variable solo habilita la salida numérica del fixture sintético. Para una comparación real se requiere que el usuario seleccione/verifique el paciente y el mismo estudio, igual serie y límite de conexiones. Comparar primer corte, tiempo final, bytes transferidos, reintentos y fases del servidor; separar apertura fría, reapertura y datos reutilizados. No usar HAR, grabación ni capturas clínicas como artefactos. Aún no se atribuye una mejora cuantitativa a MMRAD real.
+
+### Menús e informe dentro del visor
+
+Pulsar fuera de un menú de herramientas lo cierra, tanto en Original como en MPR, 3D
+y Comparar. Los controles internos conservan el menú abierto; Escape sigue cerrándolo.
+El botón «Informe» abre el PDF original en un diálogo dentro de la pantalla, también
+en pantalla completa, con las opciones de impresión del navegador y descarga explícita.
+La consulta conserva autenticación, `no-store`, validación de PDF y cancelación al cerrar.
+Cerrar el informe libera su URL temporal y vuelve al visor.

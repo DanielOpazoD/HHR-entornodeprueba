@@ -1,15 +1,31 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DicomPatientBar } from '@/components/radiology/DicomPatientBar';
 vi.mock('@/services/auth/authRequestHeaders', () => ({
   resolveCurrentUserAuthHeaders: async () => ({}),
 }));
+beforeEach(() => {
+  Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
+    configurable: true,
+    value: function (this: HTMLDialogElement) {
+      this.open = true;
+    },
+  });
+  Object.defineProperty(HTMLDialogElement.prototype, 'close', {
+    configurable: true,
+    value: function (this: HTMLDialogElement) {
+      this.open = false;
+    },
+  });
+});
 afterEach(() => {
+  Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal');
+  Reflect.deleteProperty(HTMLDialogElement.prototype, 'close');
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   vi.useRealTimers();
 });
-describe('viewer patient header and explicit report download', () => {
+describe('viewer patient header and embedded report preview', () => {
   it('shows context without fetching a report automatically and hides an unavailable report', () => {
     const fetch = vi.fn();
     vi.stubGlobal('fetch', fetch);
@@ -21,7 +37,7 @@ describe('viewer patient header and explicit report download', () => {
     expect(screen.queryByRole('button')).toBeNull();
     expect(fetch).not.toHaveBeenCalled();
   });
-  it('downloads only a PDF after a click with a generic filename and revokes its URL on close', async () => {
+  it('previews the PDF without downloading and releases it when the report closes', async () => {
     const create = vi.fn(() => 'blob:synthetic-report'),
       revoke = vi.fn();
     vi.stubGlobal(
@@ -43,11 +59,21 @@ describe('viewer patient header and explicit report download', () => {
     const view = render(
       <DicomPatientBar patientId="SYNTHETIC" reportLink="https://example.test/report" />
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Descargar informe MMRAD' }));
-    await waitFor(() => expect(click).toHaveBeenCalledOnce());
-    const anchor = click.mock.instances[0] as HTMLAnchorElement;
-    expect(anchor.download).toBe('informe-mmrad.pdf');
-    expect(anchor.href).toBe('blob:synthetic-report');
+    fireEvent.click(screen.getByRole('button', { name: 'Ver informe MMRAD' }));
+    await waitFor(() =>
+      expect(screen.getByRole('dialog', { name: 'Informe MMRAD' })).toBeVisible()
+    );
+    expect(screen.getByTitle('PDF del informe MMRAD')).toHaveAttribute(
+      'src',
+      'blob:synthetic-report'
+    );
+    expect(click).not.toHaveBeenCalled();
+    expect(screen.getByRole('link', { name: 'Descargar PDF' })).toHaveAttribute(
+      'download',
+      'informe-mmrad.pdf'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar informe' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
     view.unmount();
     expect(revoke).toHaveBeenCalledWith('blob:synthetic-report');
   });
@@ -61,7 +87,7 @@ describe('viewer patient header and explicit report download', () => {
     const view = render(
       <DicomPatientBar patientId="SYNTHETIC" reportLink="https://example.test/report" />
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Descargar informe MMRAD' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ver informe MMRAD' }));
     await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
     expect(fetch.mock.calls[0][1].cache).toBe('no-store');
     view.unmount();

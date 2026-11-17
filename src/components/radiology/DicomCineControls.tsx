@@ -30,7 +30,7 @@ export const DicomCineControls: React.FC<{
 }> = ({ runtime, total, available, disabled, complete, busyChanged, identity }) => {
   const [start, setStart] = useState(1);
   const [end, setEnd] = useState(total);
-  const [video, setVideo] = useState(() => defaultDicomVideoOptions(10));
+  const [video, setVideo] = useState(() => defaultDicomVideoOptions());
   const job = useDicomVideoJob(runtime, busyChanged);
   const run = (exportVideo: boolean) => {
     if (job.busy || disabled || (exportVideo && !complete)) return;

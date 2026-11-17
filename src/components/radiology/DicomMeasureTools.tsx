@@ -5,7 +5,6 @@ import {
   Info,
   Pipette,
   Ruler,
-  Spline,
   Square,
   Trash2,
   Triangle,
@@ -16,12 +15,11 @@ import './dicomMeasurements.css';
 
 export type DicomMeasureTool = Extract<
   DicomTool,
-  'length' | 'angle' | 'cobb' | 'probe' | 'roi' | 'rectangle' | 'circle'
+  'length' | 'angle' | 'probe' | 'roi' | 'rectangle' | 'circle'
 >;
-const tools: Array<{ id: DicomMeasureTool; label: string; icon: typeof Ruler; text?: string }> = [
+const tools: Array<{ id: DicomMeasureTool; label: string; icon: typeof Ruler }> = [
   { id: 'length', label: 'Distancia', icon: Ruler },
   { id: 'angle', label: 'Ángulo', icon: Triangle },
-  { id: 'cobb', label: 'Ángulo de Cobb', icon: Spline, text: 'Cobb' },
   { id: 'probe', label: 'Densidad puntual', icon: Pipette },
   { id: 'roi', label: 'ROI elíptica', icon: Circle },
   { id: 'rectangle', label: 'ROI rectangular', icon: Square },
@@ -69,7 +67,6 @@ export const DicomMeasureTools: React.FC<{
           onClick={() => choose(tool.id)}
         >
           <tool.icon size={16} aria-hidden="true" />
-          {tool.text && <span>{tool.text}</span>}
         </button>
       ))}
       <button
