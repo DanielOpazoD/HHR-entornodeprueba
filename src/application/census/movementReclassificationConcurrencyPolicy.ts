@@ -52,7 +52,7 @@ export const findActiveMovementLineageConflicts = (
   >();
 
   MOVEMENT_KEYS.forEach(key => {
-    const movements = Array.isArray(record[key]) ? (record[key] as unknown as MovementLike[]) : [];
+    const movements: readonly MovementLike[] = Array.isArray(record[key]) ? record[key] : [];
     movements.filter(isActive).forEach(movement => {
       const lineageId = String(movement.movementProvenance?.lineageId || '').trim();
       if (!lineageId) return;

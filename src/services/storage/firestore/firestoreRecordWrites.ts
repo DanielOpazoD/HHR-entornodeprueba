@@ -237,7 +237,7 @@ export const updateRecordPartial = async (
     const clinicalEventsOnlyPatch = isClinicalEventsOnlyDailyRecordPatch(partialData);
     const intentionalBedClear = options.intentionalBedClear;
     const flatData = prepareFirestorePartialData({
-      partialData: partialData as unknown as Record<string, unknown>,
+      partialData,
       clinicalEventsOnlyPatch,
       intentionalBedClear,
       clinicalCribCreate: Boolean(options.clinicalCribCreate),

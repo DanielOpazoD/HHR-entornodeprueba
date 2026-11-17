@@ -61,7 +61,7 @@ export const CudyrView = ({
   const rows = data?.rows.filter(row => row.date === date && !row.resolvedSystemDeparture) || [];
   const visible = rows.filter(row => filter === 'all' || row.eligibility === filter);
   const totals = cudyrReportTotals(data?.rows || []);
-  const asOf = new Date(data?.generatedAt || Date.now());
+  const asOf = data?.generatedAt ? new Date(data.generatedAt) : new Date();
   const archiveDays = data ? cudyrArchiveCoverage(data, asOf) : [];
   const archivePending = archiveDays.filter(day => day.state === 'pending').length;
   const censusPending = archiveDays.filter(

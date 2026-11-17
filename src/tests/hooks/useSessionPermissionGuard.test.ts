@@ -13,12 +13,14 @@ import {
 import type { AuthSessionState } from '@/types/authSessionTypes';
 import type { AuthUser } from '@/types/authRoleTypes';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
+import { setSessionGeneration } from '@/services/storage/sessionStorageTransition';
 
 const probe = vi.hoisted(() => ({
   outcome: 'denied' as 'readable' | 'denied' | 'timeout' | 'failed',
   recent: false,
   mark: true,
   calls: 0,
+  wait: Promise.resolve(),
 }));
 const reload = vi.hoisted(() => vi.fn());
 
@@ -28,6 +30,7 @@ vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
 vi.mock('@/services/auth/sessionPermissionProbe', () => ({
   probeSessionReadPermission: async () => {
     probe.calls += 1;
+    await probe.wait;
     return probe.outcome;
   },
   hasRecentRecoveryReload: () => probe.recent,
@@ -80,7 +83,14 @@ describe('useSessionPermissionGuard', () => {
   beforeEach(() => {
     resetSessionPermissionStormDetector();
     resetSessionPermissionGuardForTests();
-    Object.assign(probe, { outcome: 'denied', recent: false, mark: true, calls: 0 });
+    Object.assign(probe, {
+      outcome: 'denied',
+      recent: false,
+      mark: true,
+      calls: 0,
+      wait: Promise.resolve(),
+    });
+    setSessionGeneration(null);
     reload.mockReset();
     vi.mocked(recordOperationalTelemetry).mockReset();
   });
@@ -122,6 +132,34 @@ describe('useSessionPermissionGuard', () => {
       expect(vi.mocked(recordOperationalTelemetry).mock.calls[0]?.[0].context).toMatchObject({
         probeOutcome: outcome,
       });
+    }
+  );
+
+  it.each(['readable', 'denied'] as const)(
+    'si la sesión que vio la tormenta se cerró mientras se probaba (%s), no recarga ni cierra la siguiente',
+    async outcome => {
+      probe.outcome = outcome;
+      let finishProbe: () => void = () => {};
+      probe.wait = new Promise<void>(resolve => {
+        finishProbe = resolve;
+      });
+      setSessionGeneration('first-session', 'user:u1');
+      const handleLogout = vi.fn().mockResolvedValue(undefined);
+      const setSessionState = vi.fn();
+      renderHook(() => useSessionPermissionGuard(user, handleLogout, setSessionState));
+
+      await storm();
+      expect(probe.calls).toBe(1);
+      // The same person closes and signs in again on this computer before the probe answers.
+      setSessionGeneration(null);
+      setSessionGeneration('next-session', 'user:u1');
+      finishProbe();
+      await settle();
+
+      expect(reload).not.toHaveBeenCalled();
+      expect(handleLogout).not.toHaveBeenCalled();
+      expect(setSessionState).not.toHaveBeenCalled();
+      expect(telemetryOperations()).toEqual([]);
     }
   );
 

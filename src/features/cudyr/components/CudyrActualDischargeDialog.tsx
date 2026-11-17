@@ -39,12 +39,12 @@ export const CudyrActualDischargeDialog = ({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const locked = useRef(false);
-  const initial = useRef({ clinicalEpisodeId, revision: correction?.revision ?? 0 });
+  const [initial] = useState(() => ({ clinicalEpisodeId, revision: correction?.revision ?? 0 }));
   const attempt = useRef<{ signature: string; operationId: string } | null>(null);
   const dateRef = useRef<HTMLInputElement>(null);
   const stale =
-    initial.current.clinicalEpisodeId !== clinicalEpisodeId ||
-    initial.current.revision !== (correction?.revision ?? 0);
+    initial.clinicalEpisodeId !== clinicalEpisodeId ||
+    initial.revision !== (correction?.revision ?? 0);
   const close = () => {
     if (!locked.current) onClose();
   };
@@ -78,7 +78,7 @@ export const CudyrActualDischargeDialog = ({
       operationId: attempt.current.operationId,
       clinicalEpisodeId,
       authorityDate,
-      expectedRevision: initial.current.revision,
+      expectedRevision: initial.revision,
       actualDischarge,
       reason: reason.trim(),
       confirmed: true,

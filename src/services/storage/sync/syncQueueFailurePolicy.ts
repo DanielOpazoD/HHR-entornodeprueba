@@ -57,6 +57,22 @@ export const buildSyncQueueTaskErrorMeta = (error: unknown, now: number = Date.n
   };
 };
 
+/** How a write refused as a conflict is held: by its replay, or at once when it already met it. */
+export const resolveHeldConflictState = (
+  error: unknown,
+  contexts: SyncTask['contexts'],
+  now: number = Date.now()
+) => {
+  const { classification, errorMeta } = buildSyncQueueTaskErrorMeta(error, now);
+  if (classification.category !== 'conflict') return undefined;
+  return {
+    status: 'CONFLICT' as const,
+    ...errorMeta,
+    lastErrorAction: resolveSyncDomainRetryProfile(normalizeSyncTaskContexts(contexts))
+      .conflictAction,
+  };
+};
+
 const computeBackoffMs = (
   attempt: number,
   baseRetryDelayMs: number,
@@ -91,15 +107,14 @@ export const resolveSyncQueueFailureDecision = ({
     };
   }
 
-  if (classification.category === 'conflict') {
+  const heldConflict = resolveHeldConflictState(error, contexts, now);
+  if (heldConflict) {
     return {
-      status: 'CONFLICT',
+      ...heldConflict,
       retryCount: task.retryCount,
       contexts,
       recoveryPolicy,
       shouldLogPermanentFailure: false,
-      ...errorMeta,
-      lastErrorAction: domainProfile.conflictAction,
     };
   }
 

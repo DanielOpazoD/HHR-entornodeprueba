@@ -130,7 +130,7 @@ const fillImagingTemplate = async ({
   drawCustomMarks({ page, font, marks, fontSize: FONT_SIZE });
 
   const pdfBytes = await pdfDoc.save();
-  return pdfBytes as unknown as Uint8Array;
+  return pdfBytes;
 };
 
 const printFilledImagingDocument = async (

@@ -59,6 +59,7 @@ export const createIndexedDbDatabaseOrFallback = <TDatabase extends IndexedDbTab
     });
 
     return {
+      // In-memory stand-in when IndexedDB cannot open; it implements only the tables' methods used.
       database: createMockDatabase() as unknown as TDatabase,
       fallbackMode: true,
     };

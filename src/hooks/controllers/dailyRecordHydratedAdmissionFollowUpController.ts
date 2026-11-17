@@ -59,15 +59,13 @@ const patchValueMatchesHydratedRecord = (
 };
 
 const hasHydratedDiagnosisValue = (hydratedRecord: DailyRecord, bedId: string): boolean => {
-  const hydratedBed = hydratedRecord.beds?.[bedId] as unknown as
-    | Record<string, unknown>
-    | undefined;
+  const hydratedBed = hydratedRecord.beds?.[bedId];
   if (!hydratedBed) {
     return false;
   }
 
   return Array.from(DIAGNOSIS_FOLLOW_UP_FIELDS).some(field =>
-    hasMeaningfulText(hydratedBed[field])
+    hasMeaningfulText(getPathValue(hydratedBed, field))
   );
 };
 

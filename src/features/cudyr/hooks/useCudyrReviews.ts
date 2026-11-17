@@ -9,6 +9,7 @@ import type {
 } from '@/types/domain/cudyrReview';
 import { buildCudyrReviewEvidence } from '@/services/cudyr/cudyrReviewEvidence';
 import { loadCudyrReviews, saveCudyrReview } from '@/services/cudyr/cudyrReviewService';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 export const useCudyrReviews = (
   data: CudyrReportDataset,
@@ -30,10 +31,7 @@ export const useCudyrReviews = (
   }>({ data, items, sources, records: [], evidence: {}, ready: false, busy: false, error: '' });
   const active = useRef<AbortController | null>(null);
   const saving = useRef(false);
-  useEffect(() => {
-    const request = new AbortController();
-    active.current = request;
-    saving.current = false;
+  if (useChangedOnRender([data, items, sources, enabled, canReview, reload])) {
     setState({
       data,
       items,
@@ -44,6 +42,11 @@ export const useCudyrReviews = (
       busy: enabled,
       error: '',
     });
+  }
+  useEffect(() => {
+    const request = new AbortController();
+    active.current = request;
+    saving.current = false;
     if (enabled)
       void Promise.all([
         loadCudyrReviews(data.from.slice(0, 7), request.signal),

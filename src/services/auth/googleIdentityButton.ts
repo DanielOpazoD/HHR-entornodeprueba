@@ -25,7 +25,7 @@ export interface GoogleIdentityApi {
 const scriptId = 'google-identity-services';
 const getApi = () =>
   (
-    window as unknown as {
+    window as {
       google?: { accounts?: { id?: GoogleIdentityApi } };
     }
   ).google?.accounts?.id;

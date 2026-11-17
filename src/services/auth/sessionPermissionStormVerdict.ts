@@ -4,6 +4,8 @@
  * permission loss. When the read works, the tab reloads so the listeners already denied start
  * again (the outbox is durable) and the person keeps the session. A second storm within the
  * cooldown, storage that cannot record the reload, or any doubt ends the session as before.
+ * The probe takes seconds: if the session that saw the storm closed meanwhile, the verdict does
+ * nothing, so it can never reload or close the next person's session.
  */
 import type { SessionPermissionStorm } from '@/services/auth/sessionPermissionStormDetector';
 import {
@@ -19,6 +21,8 @@ import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRunti
 const { stormLogger } = createScopedLoggerMap({ stormLogger: 'SessionPermissionStorm' });
 
 type StormProbeOutcome = SessionPermissionProbeOutcome | 'recent_recovery';
+/** `superseded`: the session that saw the storm closed during the probe; nothing to do. */
+export type SessionPermissionStormVerdict = 'recovering' | 'logout' | 'superseded';
 
 const stormContext = (storm: SessionPermissionStorm, probeOutcome: StormProbeOutcome) => ({
   sources: storm.sources,
@@ -35,14 +39,16 @@ const stormContext = (storm: SessionPermissionStorm, probeOutcome: StormProbeOut
 
 export const decideSessionPermissionStorm = async (
   storm: SessionPermissionStorm,
-  lostMessage: string
-): Promise<'recovering' | 'logout'> => {
+  lostMessage: string,
+  isSameSession: () => boolean
+): Promise<SessionPermissionStormVerdict> => {
   let outcome: StormProbeOutcome = 'failed';
   try {
     outcome = hasRecentRecoveryReload() ? 'recent_recovery' : await probeSessionReadPermission();
   } catch {
     outcome = 'failed';
   }
+  if (!isSameSession()) return 'superseded';
   if (outcome === 'readable' && markRecoveryReload()) {
     stormLogger.warn('Permission storm was transient; reloading to restart listeners', storm);
     recordOperationalTelemetry({

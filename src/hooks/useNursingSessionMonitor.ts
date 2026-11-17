@@ -1,14 +1,14 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import type { AuthUser } from '@/types/authRoleTypes';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import { authStateLogger } from '@/hooks/hookLoggers';
+import { useLatestRef } from '@/hooks/useLatestRef';
 
 export const useNursingSessionMonitor = (
   user: AuthUser | null,
   handleLogout: (reason?: 'manual' | 'automatic') => Promise<void>
 ): void => {
-  const logoutRef = useRef(handleLogout);
-  logoutRef.current = handleLogout;
+  const logoutRef = useLatestRef(handleLogout);
   useEffect(() => {
     const uid = user?.uid;
     if (!uid?.startsWith('hhrn_')) return;
@@ -38,5 +38,5 @@ export const useNursingSessionMonitor = (
       active = false;
       stop();
     };
-  }, [user]);
+  }, [logoutRef, user]);
 };

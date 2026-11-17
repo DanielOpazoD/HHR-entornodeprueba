@@ -55,7 +55,7 @@ export const removeDicomViewports = (engine: RenderingEngine) => {
     if (!getShouldUseCPURendering()) {
       const window = engine
         .getOffscreenMultiRenderWindow(viewport.id)
-        .getOpenGLRenderWindow() as unknown as SharedTextureWindow;
+        .getOpenGLRenderWindow() as SharedTextureWindow;
       for (const { actor } of viewport.getActors()) {
         const mapper = window.getViewNodeFor((actor as { getMapper: () => unknown }).getMapper());
         if (!mapper) continue;

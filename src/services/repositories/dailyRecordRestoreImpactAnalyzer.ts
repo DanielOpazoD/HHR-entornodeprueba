@@ -64,8 +64,10 @@ const normalizeId = (value: unknown): string => normalizeText(value);
 const isDeletedMovement = (movement: MovementLike | undefined): boolean =>
   hasText(movement?.deletedAt);
 
-const getMovementItems = (record: DailyRecord | null | undefined, field: MovementField) =>
-  Array.isArray(record?.[field]) ? (record[field] as unknown as MovementLike[]) : [];
+const getMovementItems = (
+  record: DailyRecord | null | undefined,
+  field: MovementField
+): readonly MovementLike[] => (Array.isArray(record?.[field]) ? record[field] : []);
 
 const getPatientDisplayName = (patient: Partial<PatientData> | undefined): string =>
   normalizeText(patient?.patientName) || 'Paciente no identificado';
