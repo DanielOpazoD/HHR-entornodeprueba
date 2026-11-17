@@ -1,9 +1,13 @@
 // @vitest-environment node
 import { createRequire } from 'node:module';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createRecordDateTimestamp } from '@/services/repositories/dailyRecordMetadataDomainService';
 
 const require = createRequire(import.meta.url);
-const { hospitalCalendarDay } = require('../../../functions/lib/hospitalCalendarDay.js');
+const {
+  hospitalCalendarDay,
+  hospitalDayStart,
+} = require('../../../functions/lib/hospitalCalendarDay.js');
 const { isCurrentRapaNuiDay } = require('../../../functions/lib/specialtyRules.js');
 const instants = [
   ['2026-10-25T03:30:00.000Z', '2026-10-24'],
@@ -56,5 +60,23 @@ describe('hospital calendar day', () => {
       expect(isCurrentRapaNuiDay(legacyDay)).toBe(true);
       expect(isCurrentRapaNuiDay('1900-01-01')).toBe(false);
     }
+  });
+
+  it('starts every day, both DST changes included, at the midnight new census days store', () => {
+    for (
+      let ms = Date.parse('2026-01-01T12:00Z');
+      ms <= Date.parse('2027-01-01T12:00Z');
+      ms += 86_400_000
+    ) {
+      const day = new Date(ms).toISOString().slice(0, 10);
+      const start = hospitalDayStart(day);
+      expect(hospitalCalendarDay(new Date(start))).toBe(day);
+      expect(hospitalCalendarDay(new Date(start - 1))).not.toBe(day);
+      expect(start).toBe(createRecordDateTimestamp(day));
+    }
+  });
+
+  it.each(['2026-02-30', '2026-13-01', '13-05-2026', ''])('has no start for %j', day => {
+    expect(hospitalDayStart(day)).toBeNaN();
   });
 });
