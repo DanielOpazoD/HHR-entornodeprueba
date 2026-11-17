@@ -2,7 +2,6 @@ import type { PatientData } from '@/types/domain/patient';
 
 /** Applies a reviewed census diff without overwriting occupied beds; pure and deterministic. */
 import { buildMovementUndoSnapshot } from '@/utils/movementUndoSnapshot';
-import { buildImportedMovementStamp } from './buildImportedMovementStamp';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { CensusManager } from '@/domain/CensusManager';
@@ -14,7 +13,6 @@ import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
 import { reportEgresoEntry, reportEgresoPatient } from '../mapping/reportEgresoMapping';
 import { normalizeRut } from '@/utils/rutUtils';
 import * as collisionApply from './applyBedOccupancyCollisionResolutions';
-import { buildRayenMovementProvenance } from './rayenMovementProvenance';
 import { applyRayenDischargeVerification } from './applyRayenDischargeVerification';
 import type { RayenBedCollisionResolutionReceipt } from '@/types/domain/rayenBedCollision';
 import { matchesDischargeSubject } from './dischargeSubjectIdentity';
@@ -30,6 +28,52 @@ import {
 import { applyClinicalCribDischargeRepairs } from './clinicalCribDischargeRepairs';
 import { applyReviewedPatientChanges, patientAfterBedMove } from './patientSyncPolicy';
 import { newbornOwnRut } from './clinicalCribMaternalAssociation';
+import { calendarDateForMovement } from '@/utils/movementCalendarDate';
+import { buildMovementProvenance } from '@/application/census/movementProvenancePolicy';
+
+interface MovementProvenanceContext {
+  now: Date;
+  actor?: string;
+  syncRunId: string;
+}
+
+const buildRayenMovementProvenance = (
+  id: string,
+  ctx: MovementProvenanceContext,
+  source: 'manual' | 'gestion_camas'
+) =>
+  source === 'manual'
+    ? buildMovementProvenance({
+        movementId: id,
+        source,
+        actor: ctx.actor,
+        at: ctx.now.toISOString(),
+      })
+    : buildMovementProvenance({
+        movementId: id,
+        source,
+        actor: ctx.actor,
+        at: ctx.now.toISOString(),
+        syncRunId: ctx.syncRunId,
+      });
+
+/** Altas and transfers share one date/time contract, independent of their owning census record. */
+const buildImportedMovementStamp = (
+  entry: DischargeEntry,
+  censusDate: string,
+  now: Date,
+  source: 'manual' | 'gestion_camas'
+) => {
+  const time = entry.correctedTime || calendarStampInClinicalTimeZone(now).hhmm;
+  return {
+    time,
+    movementDate:
+      source === 'gestion_camas'
+        ? calendarDateForMovement(entry.correctedDay || censusDate, time)
+        : censusDate,
+  };
+};
+
 const BED_NAME = new Map(BEDS.map(bed => [bed.id, bed.name]));
 const BED_TYPE = new Map<string, string>(BEDS.map(bed => [bed.id, bed.type]));
 export const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
