@@ -243,7 +243,9 @@ describe('CI evidence pipelines', () => {
       final.steps.findIndex(step => (step.run ?? '').includes('npm run report:operational-health'))
     );
     const postmerge = jobs['postmerge-evidence'];
-    expect(postmerge.if).toBe("github.event_name == 'push' && github.ref == 'refs/heads/main'");
+    expect(postmerge.if).toBe(
+      "${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.ci-strict-summary.result == 'success' }}"
+    );
     expect(jobNeeds(postmerge)).toEqual(
       expect.arrayContaining(['build', 'ci-strict-summary', 'final-confidence-and-readiness'])
     );

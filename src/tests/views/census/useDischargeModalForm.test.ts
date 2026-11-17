@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { DISCHARGE_TYPE_OTHER } from '@/constants/clinicalMovementConstants';
 import { useDischargeModalForm } from '@/hooks/useDischargeModalForm';
-import { MOVEMENT_DATE_TIME_OUT_OF_RANGE_ERROR } from '@/features/census/controllers/censusMovementDatePresentationController';
+import { MOVEMENT_DATE_TIME_OUT_OF_RANGE_ERROR } from '@/features/census/controllers/clinicalShiftCalendarController';
 
 describe('useDischargeModalForm', () => {
   it('resets form state when modal opens and validates required other detail', () => {

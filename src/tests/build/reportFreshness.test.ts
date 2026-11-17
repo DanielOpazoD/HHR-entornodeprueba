@@ -158,6 +158,30 @@ describe('report freshness guardrail', () => {
     expect(report.generatedFor.treeHash).toMatch(/^[a-f0-9]{40}$/);
   });
 
+  it('accepts reports of a reused pull request run only while its tree is HEAD tree', () => {
+    const { root } = makeGitRepoWithLinearCommit();
+    const tree = run(root, 'git', ['rev-parse', 'HEAD^{tree}']);
+    // The pull request run tested another commit (refs/pull/N/merge) with the same tree.
+    const tested = run(root, 'git', ['commit-tree', tree, '-p', 'HEAD~1', '-m', 'tested merge']);
+    writeReports(root, tested.slice(0, 9), { includeGeneratedFor: true });
+    const check = (evidenceTree: string) =>
+      spawnSync('node', [scriptPath, '--strict'], {
+        cwd: root,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          CI_EVIDENCE_RUN_ID: '100',
+          CI_EVIDENCE_RUN_ATTEMPT: '2',
+          CI_EVIDENCE_COMMIT: tested,
+          CI_EVIDENCE_TREE: evidenceTree,
+        },
+      });
+    expect(check(tree).status).toBe(0);
+    const otherTree = check('d'.repeat(40));
+    expect(otherTree.status).not.toBe(0);
+    expect(otherTree.stderr).toContain('is stale by commit ancestry');
+  });
+
   it('accepts unchanged current-commit report inputs in strict mode', () => {
     const { root } = makeGitRepoWithLinearCommit();
     const head = run(root, 'git', ['rev-parse', '--short', 'HEAD']);

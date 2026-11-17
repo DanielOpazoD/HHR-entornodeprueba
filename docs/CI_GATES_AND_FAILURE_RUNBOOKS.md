@@ -158,10 +158,44 @@ una combinación no permitida ejecuta la ruta `full`.
 | `functions-only` | Fuente bajo `functions/**` y scripts de verificación permitidos; excluye ambos manifiestos npm | tests de Functions, despliegue, borrado y regiones; contratos serverless; runtime PDF clínico; `ci-summary` |
 | `full`           | Código de aplicación, dependencias, configuración, reglas, cambios mixtos o cualquier fallback | matriz completa de calidad, shards, sincronización, reglas, E2E, build, rendimiento y readiness             |
 
-Borrados, renombres, más de 50 archivos, documentación API generada, cambios en
-`package.json`/lockfiles y eventos `push` siempre usan `full`. `ci-summary` exige que
-los gates enfocados terminen en `success` y que los jobs completos estén exactamente
-en `skipped`; así, un salto inesperado también falla.
+Borrados, renombres, más de 50 archivos, documentación API generada y cambios en
+`package.json`/lockfiles siempre usan `full`; los eventos `push` también, salvo el caso
+`reused` de la sección siguiente. `ci-summary` exige que los gates enfocados terminen en
+`success` y que los jobs completos estén exactamente en `skipped`; así, un salto
+inesperado también falla.
+
+### `main` no repite la CI de la PR que probó su mismo árbol
+
+Cada corrida de PR prueba el commit de merge que GitHub arma (`refs/pull/N/merge`). Su
+job `ci-scope` deja registrado ese commit y su árbol en el nombre de un artefacto,
+`pr-tested-<commit>-<árbol>`. En el `push` a `main`, `ci-scope` busca la PR fusionada
+como ese commit y sus corridas, y elige `reused` solo si una de ellas:
+
+- probó exactamente el árbol de `main` (`git rev-parse HEAD^{tree}`);
+- terminó en verde en su último intento, sin ningún job fallido o cancelado;
+- pasó todos los gates completos que exige `ci-summary` (una corrida `docs-only`, por
+  ejemplo, no sirve);
+- conserva los artefactos que lee `postmerge-evidence`, y viene de este repositorio.
+
+Cualquier otro caso corre todo como antes: push directo, conflicto resuelto al fusionar,
+rama atrasada, corrida cancelada, reintento que no terminó en verde, corrida anterior a
+este registro o error de la API. La decisión vive en `scripts/ciEvidenceReuseSupport.mjs`
+y su prueba en `src/tests/build/ciEvidenceReuse.test.ts`.
+
+Con `reused`, los jobs de prueba y calidad quedan en `skipped` y `ci-summary` pasa
+declarando en su resumen la corrida, su último intento, el commit probado y el árbol de donde viene la
+evidencia. No se saltan `function-deploy-scope`, el despliegue validado de Functions ni
+`postmerge-evidence`: este último descarga `dist`, preview, cobertura crítica, manifiesto
+de evidencia y rendimiento de flujos desde la corrida de la PR. Los informes de esa
+corrida fueron generados para su commit de merge, no para el de `main`; los controles de
+frescura y procedencia los aceptan solo mientras `CI_EVIDENCE_TREE` sea el árbol de
+`HEAD` (`getReusedEvidenceSource` en `scripts/gitReportState.mjs`), y siguen comparando
+las huellas de sus entradas. La procedencia del preview se compara con el id y el último
+intento de la corrida de la PR, no con los del push a `main`: una PR verde en su intento 2
+sirve aunque `main` corra en el intento 1, y un productor de un intento posterior al de esa
+corrida sigue rechazado. Los demás artefactos de la evidencia (confianza, cobertura,
+telemetría de CI, rendimiento del censo, Lighthouse) se leen de la corrida de la PR que
+nombra `ci-summary`.
 
 Esta clasificación determina qué evidencia aporta CI. Durante la iteración local,
 usar el comando más pequeño que cubra el riesgo. Al cerrar, comprobar que el alcance
@@ -352,7 +386,7 @@ Si un shard se vuelve dominante, correr `npm run profile:unit-shard-runtime`, re
 El runtime observado de GitHub Actions se evidencia en el artefacto `ci-runtime-observed-profile` de cada corrida y se valida con `npm run check:ci-runtime-telemetry`. En PR lo captura `ci-runtime-telemetry`, con permisos mínimos `actions: read`/`contents: read`, después de los gates principales. El collector `npm run collect:ci-runtime-observed-input` usa `GITHUB_RUN_ID`, `GITHUB_REPOSITORY` y `GITHUB_TOKEN` para escribir `reports/ci-runtime-observed-input.json`; luego el reporte compara esos tiempos reales contra la estimación de `scripts/config/unit-shard-balance.json`. El job corre después de `unit-risk`, así que un shard que la API aún muestra en cola o en ejecución es un dato atrasado de GitHub: el collector relee hasta 2,5 minutos antes de entregar la última lectura al contrato.
 Este gate es advisory-first: no bloquea por falta de datos reales ni por una corrida aislada lenta; solo bloquea contratos rotos como JSON inválido, timestamps inválidos, shards duplicados/faltantes cuando el reporte declara datos observados o nombres imposibles de shard.
 Si el observado contradice repetidamente el balance estimado, ajustar primero `durationHints`, `perFileOverheadMs`, `affinityGroups` o `lockedAssignments`, y recién después considerar cambios de suite. No reducir cobertura clínica crítica para bajar minutos. Si el reporte queda en `no_observed_ci_data` dentro de GitHub Actions, revisar que el job `ci-runtime-telemetry` haya ejecutado el collector antes del reporter y que el token tenga permiso de lectura de Actions.
-El gate de rendimiento del censo usa 5 muestras por escenario en PR y conserva 30 en eventos que no son PR, incluidos los `push` a `main` y `develop`. El muestreo corto detecta regresiones durante revisión; el muestreo largo de los eventos que no son PR mantiene la evidencia estable sin cobrar ese costo en cada iteración.
+El gate de rendimiento del censo usa 5 muestras por escenario en PR y conserva 30 en eventos que no son PR, incluidos los `push` a `main` y `develop`. Un `push` a `main` que reutiliza la evidencia de su PR no repite la medición; queda la de 5 muestras de esa PR. El muestreo corto detecta regresiones durante revisión; el muestreo largo de los eventos que no son PR mantiene la evidencia estable sin cobrar ese costo en cada iteración.
 El reporte de release readiness ya regenera también `guardrail-governance`; no debe depender de un artefacto previo manual.
 CI regenera los snapshots report-only obligatorios con `npm run report:governance-snapshots` antes de ejecutar `check:quality`.
 `release-readiness-scorecard` sigue siendo ejecutivo y obligatorio para release, pero ya no duplica bloqueo dentro de `check:quality` si las fuentes primarias siguen verdes.

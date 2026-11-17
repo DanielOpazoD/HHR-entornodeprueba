@@ -1,4 +1,3 @@
-import { RayenSyncDiagnosticContextSchema } from './rayenSyncDiagnosticContext';
 import { isValidCrashCartReviewDate } from '@/domain/handoff/sharedChecklist';
 import * as z from 'zod';
 import { DailyRecord } from '@/types/domain/dailyRecord';
@@ -28,6 +27,31 @@ export const HandoffSharedChecklistSchema = z.object({
   crashCartReviewDate: nullableOptional(z.string().refine(isValidCrashCartReviewDate)),
   crashCartCode: nullableOptional(z.string().regex(/^(?:[0-9]{8})?$/)),
 });
+
+const RayenSyncDiagnosticContextSchema = z
+  .object({
+    patientName: z.string().max(240).optional(),
+    document: z.string().max(80).optional(),
+    clinicalEpisodeId: z.string().max(100).optional(),
+    bedId: z.string().max(80).optional(),
+    censusDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    detail: z.string().max(1500).optional(),
+    sourceTimestamp: z.string().max(100).optional(),
+    sourceClinicalDay: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    sourceClinicalTime: z
+      .string()
+      .regex(/^\d{2}:\d{2}$/)
+      .optional(),
+    source: z.string().max(100).optional(),
+  })
+  .optional()
+  .catch(undefined);
 
 const NonNegativeIntegerSchema = z.number().int().nonnegative();
 const OptionalBooleanSchema = nullableOptional(z.boolean());
@@ -393,8 +417,3 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, unknown> = z.preprocess(i
     input as Pick<DailyRecord, 'nurses' | 'nurseName' | 'nursesDayShift' | 'nursesNightShift'>
   );
 }, DailyRecordFieldsSchema);
-
-/**
- * Full backup schema for import/export
- */
-export const FullBackupSchema = z.record(StringSchema, DailyRecordSchema);

@@ -1,7 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
-import { getGitReportState } from './gitReportState.mjs';
+import {
+  getGitReportState,
+  getReusedEvidenceSource,
+  isReusedEvidenceCommit,
+} from './gitReportState.mjs';
 import {
   RELEASE_DECISION_REPORT_IDS,
   RELEASE_EVIDENCE_CONTRACT_VERSION,
@@ -18,6 +22,7 @@ const readJson = filePath => JSON.parse(fs.readFileSync(filePath, 'utf8'));
 
 export const buildReleaseEvidenceManifest = ({ root, generatedAt = new Date().toISOString() }) => {
   const gitState = getGitReportState(root);
+  const reusedEvidence = getReusedEvidenceSource(root);
   const decisionReports = RELEASE_DECISION_REPORT_IDS.map(id => {
     const inventory = RELEASE_EVIDENCE_INVENTORY.find(report => report.id === id);
     const artifact = getEvidenceNode(id).artifacts.find(file => file.endsWith('.json'));
@@ -34,7 +39,8 @@ export const buildReleaseEvidenceManifest = ({ root, generatedAt = new Date().to
         typeof report.generatedAt === 'string' ? report.generatedAt : 'unknown';
       const status =
         reportSha &&
-        isSameCommit(reportSha, gitState.gitSha) &&
+        (isSameCommit(reportSha, gitState.gitSha) ||
+          isReusedEvidenceCommit(reportSha, reusedEvidence)) &&
         report.gitDirty === gitState.gitDirty
           ? 'current'
           : 'stale';
@@ -115,8 +121,14 @@ export const buildRuntimeReleaseEvidenceManifest = manifest => ({
   summary: manifest.summary,
 });
 
-export const collectReleaseEvidenceManifestIssues = ({ manifest, currentGitState }) => {
+export const collectReleaseEvidenceManifestIssues = ({
+  manifest,
+  currentGitState,
+  reusedEvidence = null,
+}) => {
   const issues = [];
+  const isCurrent = sha =>
+    isSameCommit(sha, currentGitState.gitSha) || isReusedEvidenceCommit(sha, reusedEvidence);
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
     return ['Release evidence manifest must be an object.'];
   }
@@ -127,7 +139,7 @@ export const collectReleaseEvidenceManifestIssues = ({ manifest, currentGitState
       'Release evidence manifest contractVersion does not match the repository contract.'
     );
   }
-  if (!isSameCommit(String(manifest.gitSha || ''), currentGitState.gitSha)) {
+  if (!isCurrent(String(manifest.gitSha || ''))) {
     issues.push(
       `Release evidence manifest targets ${manifest.gitSha || 'unknown'}, current HEAD is ${currentGitState.gitSha}.`
     );
@@ -161,7 +173,7 @@ export const collectReleaseEvidenceManifestIssues = ({ manifest, currentGitState
     if (report.status !== 'current') {
       issues.push(`Release evidence report ${id} is ${report.status || 'invalid'}.`);
     }
-    if (!isSameCommit(report.gitSha, currentGitState.gitSha)) {
+    if (!isCurrent(report.gitSha)) {
       issues.push(`Release evidence report ${id} does not target the current HEAD.`);
     }
     if (typeof report.generatedAt !== 'string' || Number.isNaN(Date.parse(report.generatedAt))) {

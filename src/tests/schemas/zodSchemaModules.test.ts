@@ -5,11 +5,11 @@ import { describe, expect, it } from 'vitest';
 import { buildFallbackPatientData } from '@/schemas/zodFallbackBuilders';
 import { hasStructuralRepairs } from '@/schemas/zodParseReports';
 import { parseDailyRecordWithDefaultsReport, safeParseDailyRecord } from '@/schemas/zodSafeParsers';
-import { validateAdmissionDate, validatePatientData } from '@/schemas/zodValidationHelpers';
+import { PatientDataSchema } from '@/schemas/zod/patient';
 
 describe('zod schema modules', () => {
   it('valida paciente correctamente desde helper modular', () => {
-    const result = validatePatientData({
+    const result = PatientDataSchema.safeParse({
       bedId: 'a1',
       patientName: 'Juan',
       pathology: 'Dx',
@@ -81,10 +81,5 @@ describe('zod schema modules', () => {
 
   it('safeParseDailyRecord retorna null cuando la estructura es invalida', () => {
     expect(safeParseDailyRecord('invalid')).toBeNull();
-  });
-
-  it('valida fecha de ingreso futura como invalida', () => {
-    const result = validateAdmissionDate('2999-01-01');
-    expect(result.success).toBe(false);
   });
 });

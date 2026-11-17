@@ -1,72 +1,31 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   classifyCensusSyncTargetDay,
-  isCurrentCensusDay,
-  isHistoricalCensusDay,
-  isHistoricalCensusSyncDay,
-  isPreviousCensusDay,
   isSupportedCensusSyncDay,
   resolveCensusSyncTarget,
-  toSafeHistoricalDiff,
 } from '@/features/rayen-import/domain/historicalCensusSync';
 
-const liveDiff = {
-  admissions: [{ bedId: 'H5C1' }],
-  updates: [{ bedId: 'H4C2' }],
-  moves: [{ fromBedId: 'H4C2', toBedId: 'NEO1' }],
-  discharges: [{ bedId: 'H3C1' }],
-  pendingAdministrativeDischarges: [{ bedId: 'H2C1' }],
-  conflicts: [{ bedId: 'H1C1' }],
-  reportEgresos: [{}],
-  previousDayEdits: [{}],
-  unchangedCount: 1,
-  summary: {
-    admissions: 1,
-    updates: 1,
-    moves: 1,
-    discharges: 1,
-    pendingAdministrativeDischarges: 1,
-    conflicts: 1,
-    unchanged: 1,
-  },
-} as unknown as CensusImportDiff;
-
-const historicalRecord = {
-  date: '2026-07-15',
-  beds: {
-    H4C2: {
-      patientName: 'Tony Hotumatua Tuki Jimenez',
-      rut: '17.752.753-1',
-      clinicalEpisodeId: 'MOTHER-EPISODE',
-    },
-    H3C1: {
-      patientName: 'Paciente principal',
-      clinicalCrib: { patientName: 'RN clinico' },
-    },
-    NEO1: { patientName: '' },
-  },
-} as unknown as DailyRecord;
+const kindOf = (day: string, now: Date) => resolveCensusSyncTarget(day, now).kind;
+const lookbackOf = (day: string, now: Date) => resolveCensusSyncTarget(day, now).lookbackDays;
 
 describe('historical census synchronization', () => {
   it('uses the Rapa Nui calendar day to distinguish a historical census', () => {
     const now = new Date('2026-07-16T18:00:00.000Z');
-    expect(isHistoricalCensusDay('2026-07-15', now)).toBe(true);
-    expect(isHistoricalCensusDay('2026-07-16', now)).toBe(false);
+    expect(kindOf('2026-07-15', now)).toBe('historical');
+    expect(kindOf('2026-07-16', now)).toBe('current');
   });
 
   it('keeps the previous calendar date current until the nursing handoff', () => {
     // Saturday 08:30 in Rapa Nui: Friday night is still the active census (09:00 handoff).
     const beforeWeekendHandoff = new Date('2026-07-25T14:30:00.000Z');
-    expect(isCurrentCensusDay('2026-07-24', beforeWeekendHandoff)).toBe(true);
-    expect(isPreviousCensusDay('2026-07-23', beforeWeekendHandoff)).toBe(true);
-    expect(isCurrentCensusDay('2026-07-25', beforeWeekendHandoff)).toBe(true);
+    expect(kindOf('2026-07-24', beforeWeekendHandoff)).toBe('current');
+    expect(lookbackOf('2026-07-23', beforeWeekendHandoff)).toBe(1);
+    expect(kindOf('2026-07-25', beforeWeekendHandoff)).toBe('current');
 
     const afterWeekendHandoff = new Date('2026-07-25T15:01:00.000Z');
-    expect(isCurrentCensusDay('2026-07-25', afterWeekendHandoff)).toBe(true);
-    expect(isPreviousCensusDay('2026-07-24', afterWeekendHandoff)).toBe(true);
+    expect(kindOf('2026-07-25', afterWeekendHandoff)).toBe('current');
+    expect(lookbackOf('2026-07-24', afterWeekendHandoff)).toBe(1);
   });
 
   it('also permits a manually created calendar-day census before the weekday handoff', () => {
@@ -117,9 +76,9 @@ describe('historical census synchronization', () => {
   it('supports current and past days while rejecting future and malformed dates', () => {
     const now = new Date('2026-07-16T18:00:00.000Z');
     expect(isSupportedCensusSyncDay('2026-07-16', now)).toBe(true);
-    expect(isPreviousCensusDay('2026-07-15', now)).toBe(true);
+    expect(lookbackOf('2026-07-15', now)).toBe(1);
     expect(isSupportedCensusSyncDay('2026-07-15', now)).toBe(true);
-    expect(isHistoricalCensusSyncDay('2026-07-09', now)).toBe(true);
+    expect(kindOf('2026-07-09', now)).toBe('historical');
     expect(isSupportedCensusSyncDay('2026-07-09', now)).toBe(true);
     expect(isSupportedCensusSyncDay('2026-07-08', now)).toBe(true);
     expect(isSupportedCensusSyncDay('2026-07-17', now)).toBe(false);
@@ -130,263 +89,5 @@ describe('historical census synchronization', () => {
       kind: 'historical',
       lookbackDays: 7,
     });
-  });
-
-  it('preserves beds and removes every live structural change from a historical run', () => {
-    const diff = toSafeHistoricalDiff(liveDiff, historicalRecord);
-
-    expect(diff.admissions).toEqual([]);
-    expect(diff.updates).toEqual([]);
-    expect(diff.moves).toEqual([]);
-    expect(diff.discharges).toEqual([]);
-    expect(diff.pendingAdministrativeDischarges).toEqual([]);
-    expect(diff.conflicts).toEqual([]);
-    expect(diff.reportEgresos).toEqual([]);
-    expect(diff.previousDayEdits).toEqual([]);
-    expect(diff.summary).toMatchObject({
-      admissions: 0,
-      updates: 0,
-      moves: 0,
-      discharges: 0,
-      unchanged: 3,
-    });
-  });
-
-  it('combines safe crib and physician-name backfills while excluding unrelated fields', () => {
-    const record = {
-      ...historicalRecord,
-      beds: {
-        ...historicalRecord.beds,
-        H4C2: {
-          ...historicalRecord.beds.H4C2,
-          treatingPhysicianId: '7947',
-          treatingPhysicianName: '',
-          specialty: 'Med Interna',
-        },
-      },
-    } as DailyRecord;
-    const incomingPatient = {
-      ...record.beds.H4C2,
-      treatingPhysicianName: 'Angelica Vargas',
-      specialty: 'Psiquiatría',
-      clinicalCrib: {
-        patientName: 'RN asociado',
-        clinicalEpisodeId: 'RN-EPISODE',
-        admissionDate: '2026-07-15',
-      },
-    };
-    const candidate = {
-      ...liveDiff,
-      updates: [
-        {
-          bedId: 'H4C2',
-          patientName: incomingPatient.patientName,
-          rut: incomingPatient.rut,
-          patient: incomingPatient,
-          source: {
-            encounterId: 'RN-EPISODE',
-            clinicalCribParentBedId: 'H4C2',
-            hasMedicalDischarge: false,
-          },
-          changes: [
-            { field: 'clinicalCrib', from: undefined, to: incomingPatient.clinicalCrib },
-            { field: 'treatingPhysicianName', from: '', to: 'Angelica Vargas' },
-            { field: 'specialty', from: 'Med Interna', to: 'Psiquiatría' },
-          ],
-        },
-      ],
-    } as CensusImportDiff;
-
-    const diff = toSafeHistoricalDiff(candidate, record);
-
-    expect(diff.updates).toHaveLength(1);
-    expect(diff.updates[0].changes).toEqual([
-      { field: 'clinicalCrib', from: undefined, to: incomingPatient.clinicalCrib },
-      { field: 'treatingPhysicianName', from: '', to: 'Angelica Vargas' },
-    ]);
-    expect(diff.updates[0].patient).toMatchObject({
-      specialty: 'Med Interna',
-      treatingPhysicianName: 'Angelica Vargas',
-      clinicalCrib: incomingPatient.clinicalCrib,
-    });
-    expect(diff.summary.updates).toBe(1);
-  });
-
-  it('never projects a changed physician identity or overwrites a historical physician name', () => {
-    const record = {
-      ...historicalRecord,
-      beds: {
-        ...historicalRecord.beds,
-        H4C2: {
-          ...historicalRecord.beds.H4C2,
-          treatingPhysicianId: '7947',
-          treatingPhysicianName: 'Médica histórica',
-        },
-      },
-    } as DailyRecord;
-    const candidate = {
-      ...liveDiff,
-      updates: [
-        {
-          bedId: 'H4C2',
-          patientName: record.beds.H4C2.patientName,
-          rut: record.beds.H4C2.rut,
-          patient: {
-            ...record.beds.H4C2,
-            treatingPhysicianId: '8001',
-            treatingPhysicianName: 'Médico actual',
-          },
-          changes: [
-            { field: 'treatingPhysicianId', from: '7947', to: '8001' },
-            { field: 'treatingPhysicianName', from: 'Médica histórica', to: 'Médico actual' },
-          ],
-        },
-      ],
-    } as CensusImportDiff;
-
-    expect(toSafeHistoricalDiff(candidate, record).updates).toEqual([]);
-  });
-
-  it('retains only a reviewable attached-crib backfill that already existed on that day', () => {
-    const child = {
-      patientName: 'RN de Paciente principal',
-      clinicalEpisodeId: 'RN-EPISODE',
-      admissionDate: '2026-07-15',
-    };
-    const candidate = {
-      ...liveDiff,
-      updates: [
-        {
-          bedId: 'H4C2',
-          rut: '',
-          patientName: child.patientName,
-          patient: historicalRecord.beds.H4C2,
-          source: {
-            encounterId: 'RN-EPISODE',
-            clinicalCribParentBedId: 'H4C2',
-            hasMedicalDischarge: false,
-          },
-          changes: [{ field: 'clinicalCrib', from: undefined, to: child }],
-        },
-      ],
-    } as unknown as CensusImportDiff;
-
-    const diff = toSafeHistoricalDiff(candidate, historicalRecord);
-
-    expect(diff.updates).toHaveLength(1);
-    expect(diff.updates[0]).toMatchObject({ bedId: 'H4C2', patientName: child.patientName });
-    expect(diff.summary.updates).toBe(1);
-    expect(diff.admissions).toEqual([]);
-    expect(diff.moves).toEqual([]);
-    expect(diff.discharges).toEqual([]);
-  });
-
-  it('rejects an attached crib whose episode starts after the historical census day', () => {
-    const futureChild = {
-      patientName: 'RN futuro',
-      clinicalEpisodeId: 'RN-FUTURE',
-      admissionDate: '2026-07-16',
-    };
-    const candidate = {
-      ...liveDiff,
-      updates: [
-        {
-          bedId: 'H4C2',
-          rut: '',
-          patientName: futureChild.patientName,
-          patient: historicalRecord.beds.H4C2,
-          source: {
-            encounterId: 'RN-FUTURE',
-            clinicalCribParentBedId: 'H4C2',
-            hasMedicalDischarge: false,
-          },
-          changes: [{ field: 'clinicalCrib', from: undefined, to: futureChild }],
-        },
-      ],
-    } as unknown as CensusImportDiff;
-
-    expect(toSafeHistoricalDiff(candidate, historicalRecord).updates).toEqual([]);
-  });
-
-  it('rejects a crib after the newborn episode had already ended', () => {
-    const child = {
-      patientName: 'RN egresado',
-      clinicalEpisodeId: 'RN-DISCHARGED',
-      admissionDate: '2026-07-10',
-    };
-    const candidate = {
-      ...liveDiff,
-      updates: [
-        {
-          bedId: 'H4C2',
-          rut: '',
-          patientName: child.patientName,
-          patient: historicalRecord.beds.H4C2,
-          source: {
-            encounterId: 'RN-DISCHARGED',
-            clinicalCribParentBedId: 'H4C2',
-            hasMedicalDischarge: true,
-            dischargeDatetime: '2026-07-14T20:00:00-06:00',
-          },
-          changes: [{ field: 'clinicalCrib', from: undefined, to: child }],
-        },
-      ],
-    } as unknown as CensusImportDiff;
-
-    expect(toSafeHistoricalDiff(candidate, historicalRecord).updates).toEqual([]);
-  });
-
-  it('rejects a crib when the historical bed belongs to a different principal episode', () => {
-    const child = {
-      patientName: 'RN de otra madre',
-      clinicalEpisodeId: 'RN-OTHER-MOTHER',
-      admissionDate: '2026-07-15',
-    };
-    const candidate = {
-      ...liveDiff,
-      updates: [
-        {
-          bedId: 'H4C2',
-          rut: '',
-          patientName: child.patientName,
-          patient: {
-            ...historicalRecord.beds.H4C2,
-            rut: '11.111.111-1',
-            clinicalEpisodeId: 'OTHER-MOTHER-EPISODE',
-          },
-          source: {
-            encounterId: 'RN-OTHER-MOTHER',
-            clinicalCribParentBedId: 'H4C2',
-            hasMedicalDischarge: false,
-          },
-          changes: [{ field: 'clinicalCrib', from: undefined, to: child }],
-        },
-      ],
-    } as unknown as CensusImportDiff;
-
-    expect(toSafeHistoricalDiff(candidate, historicalRecord).updates).toEqual([]);
-  });
-
-  it('rejects a crib update that is not explicitly attached to the same principal bed', () => {
-    const child = {
-      patientName: 'RN ambiguo',
-      clinicalEpisodeId: 'RN-AMBIGUOUS',
-      admissionDate: '2026-07-15',
-    };
-    const candidate = {
-      ...liveDiff,
-      updates: [
-        {
-          bedId: 'H4C2',
-          rut: '',
-          patientName: child.patientName,
-          patient: historicalRecord.beds.H4C2,
-          source: { encounterId: 'RN-AMBIGUOUS' },
-          changes: [{ field: 'clinicalCrib', from: undefined, to: child }],
-        },
-      ],
-    } as unknown as CensusImportDiff;
-
-    expect(toSafeHistoricalDiff(candidate, historicalRecord).updates).toEqual([]);
   });
 });
