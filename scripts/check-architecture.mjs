@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 
+/**
+ * Layer rules for `src/` imports: controllers and hooks never import a component implementation,
+ * feature-restricted layers never cross features, and code outside the daily record context uses
+ * its scoped actions. Import cycles have their own control (`check:import-cycles`).
+ */
+
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -78,13 +84,11 @@ const resolveFeatureName = relativePath => {
   return match ? match[1] : null;
 };
 
-const collectGraph = files => {
-  const graph = new Map();
+const collectViolations = files => {
   const layerViolations = [];
 
   for (const filePath of files) {
     const source = fs.readFileSync(filePath, 'utf8');
-    const edges = new Set();
     let match;
 
     while ((match = IMPORT_REGEX.exec(source)) !== null) {
@@ -96,7 +100,6 @@ const collectGraph = files => {
       if (!resolved) {
         continue;
       }
-      edges.add(resolved);
 
       const importer = toPosix(path.relative(ROOT, filePath));
       const imported = toPosix(path.relative(ROOT, resolved));
@@ -160,86 +163,22 @@ const collectGraph = files => {
         });
       }
     }
-
-    graph.set(filePath, [...edges]);
   }
 
-  return { graph, layerViolations };
-};
-
-const findCycles = graph => {
-  const visited = new Set();
-  const activeStack = [];
-  const activeSet = new Set();
-  const cycles = new Set();
-
-  const visit = node => {
-    if (activeSet.has(node)) {
-      const cycleStart = activeStack.indexOf(node);
-      if (cycleStart >= 0) {
-        const cyclePath = activeStack.slice(cycleStart).concat(node);
-        const normalized = cyclePath.map(cycleNode => toPosix(path.relative(ROOT, cycleNode)));
-        const rotated = normalized.slice(0, -1);
-        const minIndex = rotated.reduce(
-          (best, current, index) => (current < rotated[best] ? index : best),
-          0
-        );
-        const canonical = rotated
-          .slice(minIndex)
-          .concat(rotated.slice(0, minIndex))
-          .concat(rotated[minIndex]);
-        cycles.add(canonical.join(' -> '));
-      }
-      return;
-    }
-
-    if (visited.has(node)) {
-      return;
-    }
-
-    visited.add(node);
-    activeSet.add(node);
-    activeStack.push(node);
-
-    const neighbors = graph.get(node) || [];
-    for (const neighbor of neighbors) {
-      if (graph.has(neighbor)) {
-        visit(neighbor);
-      }
-    }
-
-    activeStack.pop();
-    activeSet.delete(node);
-  };
-
-  for (const node of graph.keys()) {
-    visit(node);
-  }
-
-  return [...cycles].sort();
+  return layerViolations;
 };
 
 const files = walkFiles(SRC_ROOT);
-const { graph, layerViolations } = collectGraph(files);
-const cycles = findCycles(graph);
+const layerViolations = collectViolations(files);
 
-if (layerViolations.length === 0 && cycles.length === 0) {
+if (layerViolations.length === 0) {
   console.log('Architecture checks passed.');
   process.exit(0);
 }
 
-if (layerViolations.length > 0) {
-  console.error('\nLayer violations:');
-  for (const { rule, importer, imported } of layerViolations) {
-    console.error(`- [${rule}] ${importer} -> ${imported}`);
-  }
-}
-
-if (cycles.length > 0) {
-  console.error('\nCircular dependencies:');
-  for (const cycle of cycles) {
-    console.error(`- ${cycle}`);
-  }
+console.error('\nLayer violations:');
+for (const { rule, importer, imported } of layerViolations) {
+  console.error(`- [${rule}] ${importer} -> ${imported}`);
 }
 
 process.exit(1);

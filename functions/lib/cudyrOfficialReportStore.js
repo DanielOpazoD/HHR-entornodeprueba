@@ -2,7 +2,6 @@ const functions = require('firebase-functions/v1');
 const { createHash } = require('node:crypto');
 const { gzipSync } = require('node:zlib');
 const { monthValue } = require('./cudyrSupplementContract');
-const { matchesRestoreBinding } = require('./cudyrOfficialRestore');
 const POLICY = 2;
 const fail = (message, code = 'failed-precondition') => {
   throw new functions.https.HttpsError(code, message);
@@ -307,6 +306,59 @@ const unchangedFollowingMorning = (docs, snapshot, month) => {
   const excluded = new Set(added.map(doc => doc.ref.path));
   return docs.filter(doc => !excluded.has(doc.ref.path));
 };
+// Restore binding: written only by the operational attestation in cudyrOfficialRestore.js,
+// read here so a restored database can serve its official artifact.
+const digest = value => {
+  const encode = item => {
+    if (item === null) return ['null'];
+    if (typeof item === 'string' || typeof item === 'boolean') return [typeof item, item];
+    if (typeof item === 'bigint') return ['integer', String(item)];
+    if (typeof item === 'number') {
+      if (Number.isInteger(item) && !Number.isSafeInteger(item))
+        throw new Error('restore_unsafe_integer');
+      return ['number', Object.is(item, -0) ? '-0' : String(item)];
+    }
+    if (Array.isArray(item)) return ['array', item.map(encode)];
+    if (Buffer.isBuffer(item)) return ['bytes', item.toString('base64')];
+    if (item instanceof Date) return ['date', item.toISOString()];
+    if (item && typeof item.toDate === 'function' && Number.isInteger(item.nanoseconds))
+      return ['timestamp', String(item.seconds), item.nanoseconds];
+    if (
+      item &&
+      (Object.getPrototypeOf(item) === Object.prototype || Object.getPrototypeOf(item) === null)
+    )
+      return [
+        'map',
+        Object.keys(item)
+          .sort()
+          .map(key => [key, encode(item[key])]),
+      ];
+    throw new Error('restore_unsupported_value');
+  };
+  return createHash('sha256')
+    .update(JSON.stringify(encode(value)))
+    .digest('hex');
+};
+// Use typed protobuf fields for the operational comparison: data() merges integers/doubles.
+// Fail closed on SDK changes; emulator acceptance guards this internal SDK adapter.
+const documentFields = doc => {
+  if (!doc.exists) return null;
+  const fields = doc.toDocumentProto?.().fields;
+  if (!fields || typeof fields !== 'object') throw new Error('restore_typed_snapshot_unavailable');
+  return fields;
+};
+const databaseName = hospital =>
+  `projects/${hospital.firestore.projectId}/databases/${hospital.firestore.databaseId}`;
+const matchesRestoreBinding = (binding, hospital, month, snapshot, current, artifact) =>
+  binding?.schemaVersion === 1 &&
+  binding.database === databaseName(hospital) &&
+  binding.hospital === hospital.path &&
+  binding.month === month &&
+  binding.restoredSourceVersion === current &&
+  binding.originalSourceVersion === snapshot.sourceVersion &&
+  binding.reportVersion === snapshot.version &&
+  binding.artifactHash === digest(documentFields(artifact));
+
 const readOfficialReport = async (hospital, data) => {
   if (data.hospitalId !== undefined) fail('Invalid report request.', 'invalid-argument');
   const month = monthValue(data.month);
@@ -382,4 +434,8 @@ module.exports = {
   validateReport,
   fingerprint,
   bounds,
+  databaseName,
+  digest,
+  documentFields,
+  matchesRestoreBinding,
 };
