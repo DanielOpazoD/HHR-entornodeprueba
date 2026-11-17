@@ -53,6 +53,13 @@ describe('persisted-only report loader', () => {
       '2026-10-01',
       '2026-10-02',
     ]);
+    // Years 0–99 are read as written, not as 1900–1999 (year 0 is a leap year).
+    expect(cudyrReportDates('0099-12-31', '0100-01-01')).toEqual(['0099-12-31', '0100-01-01']);
+    expect(cudyrReportDates('0000-02-28', '0000-03-01')).toEqual([
+      '0000-02-28',
+      '0000-02-29',
+      '0000-03-01',
+    ]);
     for (const pair of [
       ['2026-02-30', '2026-03-01'],
       ['2026-01-01', '2026-03-01'],

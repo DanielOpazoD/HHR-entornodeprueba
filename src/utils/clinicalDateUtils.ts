@@ -28,7 +28,11 @@ export const parseCalendarDateUtcNoon = (value?: string): number | null => {
     return null;
   }
 
-  return Date.UTC(year, month - 1, day, 12, 0, 0);
+  // Date.UTC reads years 0–99 as 1900–1999; setUTCFullYear takes them as written.
+  const anchor = new Date(0);
+  anchor.setUTCFullYear(year, month - 1, day);
+  anchor.setUTCHours(12, 0, 0, 0);
+  return anchor.getTime();
 };
 
 /**
