@@ -281,6 +281,47 @@ const QUEUE_REMOVAL_RULE = {
   },
 };
 
+// `x as unknown as T` converts anything into anything, like an explicit `any`. Each production
+// file keeps at most the count it had; the ceilings only go down.
+const UNKNOWN_CAST_CEILINGS_PATH = 'scripts/config/unknown-cast-ceilings.json';
+const UNKNOWN_CAST_CEILINGS = readJson(`./${UNKNOWN_CAST_CEILINGS_PATH}`).files;
+const UNKNOWN_CAST_RULE = {
+  meta: {
+    type: 'problem',
+    schema: [],
+    messages: {
+      grown:
+        '«as unknown as» convierte cualquier valor en cualquier tipo sin comprobarlo. Este archivo tiene {{now}} y su techo es {{ceiling}} en ' +
+        UNKNOWN_CAST_CEILINGS_PATH +
+        '. Modela el tipo: un solo `as` si TypeScript lo acepta, una guarda de tipo, un tipo estrecho con nombre propio o el tipo que exporta la librería.',
+      lower:
+        'Este archivo bajó a {{now}} «as unknown as» (techo {{ceiling}}). Baja su techo en ' +
+        UNKNOWN_CAST_CEILINGS_PATH +
+        '; si llega a 0, quita la entrada.',
+    },
+  },
+  create(context) {
+    const file = path.relative(FEATURE_ROOT, context.filename).split(path.sep).join('/');
+    const ceiling = UNKNOWN_CAST_CEILINGS[file] ?? 0;
+    const isUnknownCast = node =>
+      ['TSAsExpression', 'TSTypeAssertion'].includes(node.type) &&
+      node.typeAnnotation.type === 'TSUnknownKeyword';
+    const casts = [];
+    const visit = node => isUnknownCast(node.expression) && casts.push(node);
+    return {
+      TSAsExpression: visit,
+      TSTypeAssertion: visit,
+      'Program:exit'(program) {
+        const data = { now: casts.length, ceiling };
+        if (casts.length > ceiling)
+          casts.forEach(node => context.report({ node, messageId: 'grown', data }));
+        else if (casts.length < ceiling)
+          context.report({ node: program, messageId: 'lower', data });
+      },
+    };
+  },
+};
+
 // cudyr and handoff also keep data access behind controllers/use-cases/ports.
 const DATA_ACCESS_RESTRICTION = {
   group: [
@@ -592,7 +633,11 @@ export default tseslint.config(
     // Production source: the former source scanner's scope, with syntax-aware errors.
     files: ['src/**/*.{ts,tsx}'],
     ignores: ['**/*.d.ts', '**/tests/**', '**/*.test.*', '**/*.spec.*'],
-    rules: { '@typescript-eslint/no-explicit-any': 'error' },
+    plugins: { types: { rules: { 'unknown-cast-ceiling': UNKNOWN_CAST_RULE } } },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      'types/unknown-cast-ceiling': 'error',
+    },
   },
   {
     // Critical services also cover spec and story files, as the critical scanner did.
