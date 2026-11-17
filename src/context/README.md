@@ -16,7 +16,6 @@ Providers de estado global y contratos para features transversales.
 | `VersionContext.tsx`                | Estado/versionado de despliegue                                          |
 | `SecurityContext.tsx`               | Configuración de bloqueo/PIN y reglas UX de seguridad                    |
 | `StaffContext.tsx`                  | Estado de staff transversal                                              |
-| `HospitalContext.tsx`               | Contexto de hospital activo/configuración                                |
 | `CensusContext.tsx`                 | Agrega `dailyRecord + dateNav + fileOps + email` para la vista principal |
 | `TableConfigContext.tsx`            | Configuración de columnas y tabla                                        |
 | `AuditContext.tsx`                  | Contexto para trazabilidad/auditoría                                     |
