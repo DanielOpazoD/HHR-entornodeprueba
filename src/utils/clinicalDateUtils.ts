@@ -31,10 +31,25 @@ export const parseCalendarDateUtcNoon = (value?: string): number | null => {
   return Date.UTC(year, month - 1, day, 12, 0, 0);
 };
 
+/**
+ * The one UTC-noon anchor of a `YYYY-MM-DD` calendar day. Read it only with UTC getters or
+ * `timeZone: 'UTC'`: its UTC date, weekday and month are that day's on any device, ahead of UTC
+ * by more than twelve hours or behind it. Pacific/Easter changes of hour never move it.
+ */
+export const calendarDayAtUtcNoon = (dateString: string): Date =>
+  new Date(`${dateString}T12:00:00Z`);
+
+/** A real `YYYY-MM-DD` calendar day: 2026-02-30 and 2026-1-5 are not. */
+export const isCalendarDate = (value: string): boolean => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = calendarDayAtUtcNoon(value);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+};
+
 export const addCalendarDays = (dateString: string, days: number): string => {
   // UTC on both sides: the label never passes through the device zone, so a device ahead of
   // UTC by more than twelve hours gets the same day as the hospital.
-  const date = new Date(`${dateString}T12:00:00Z`);
+  const date = calendarDayAtUtcNoon(dateString);
   date.setUTCDate(date.getUTCDate() + days);
   // clinical-clock-allow instant-calendar-slice: date represents the input calendar day shifted from noon; it is not an event instant.
   return date.toISOString().split('T')[0];

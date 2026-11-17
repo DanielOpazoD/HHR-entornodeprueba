@@ -1,4 +1,4 @@
-const { hospitalCalendarDay } = require('./hospitalCalendarDay');
+const { addCalendarDays, hospitalCalendarDay } = require('./hospitalCalendarDay');
 
 const isValidCalendarDay = value => {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -8,17 +8,7 @@ const isValidCalendarDay = value => {
   return day <= [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
 };
 
-const historyRetentionCutoff = (now = new Date()) => {
-  const today = hospitalCalendarDay(now);
-  // UTC is only a calendar arithmetic container, after resolving the hospital's day.
-  const calendar = new Date(`${today}T12:00:00Z`);
-  calendar.setUTCDate(calendar.getUTCDate() - 30);
-  return [
-    String(calendar.getUTCFullYear()).padStart(4, '0'),
-    String(calendar.getUTCMonth() + 1).padStart(2, '0'),
-    String(calendar.getUTCDate()).padStart(2, '0'),
-  ].join('-');
-};
+const historyRetentionCutoff = (now = new Date()) => addCalendarDays(hospitalCalendarDay(now), -30);
 
 // Preserve nanoseconds when Firestore timestamps or ISO strings differ within a millisecond.
 const snapshotInstant = value => {
