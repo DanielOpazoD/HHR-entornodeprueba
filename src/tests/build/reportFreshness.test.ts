@@ -171,6 +171,7 @@ describe('report freshness guardrail', () => {
         env: {
           ...process.env,
           CI_EVIDENCE_RUN_ID: '100',
+          CI_EVIDENCE_RUN_ATTEMPT: '2',
           CI_EVIDENCE_COMMIT: tested,
           CI_EVIDENCE_TREE: evidenceTree,
         },

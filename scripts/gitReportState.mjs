@@ -49,17 +49,30 @@ const FULL_SHA = /^[0-9a-f]{40}$/;
 
 /**
  * A main push that reuses a pull request run (scripts/ciEvidenceReuseSupport.mjs)
- * downloads evidence produced for the commit GitHub tested, not for HEAD. CI
- * declares that run, commit and tree in CI_EVIDENCE_*; the evidence counts as
- * current only while that tree is HEAD's tree. Otherwise null: evidence must
- * then match HEAD itself.
+ * downloads evidence produced by that run, for the commit GitHub tested, not by
+ * this run for HEAD. CI declares that run, its latest attempt, commit and tree in
+ * CI_EVIDENCE_*; checks then compare producers with that run (its id, attempt and
+ * commit) instead of this one, and the evidence counts as current only while the
+ * tree is HEAD's tree. Otherwise null: evidence must then match this run and HEAD.
  */
 export const getReusedEvidenceSource = (root, env = process.env) => {
-  const { CI_EVIDENCE_RUN_ID: runId, CI_EVIDENCE_COMMIT: commit, CI_EVIDENCE_TREE: tree } = env;
-  if (!/^\d+$/.test(runId || '') || !FULL_SHA.test(commit || '') || !FULL_SHA.test(tree || ''))
+  const {
+    CI_EVIDENCE_RUN_ID: runId,
+    CI_EVIDENCE_RUN_ATTEMPT: runAttempt,
+    CI_EVIDENCE_COMMIT: commit,
+    CI_EVIDENCE_TREE: tree,
+  } = env;
+  if (
+    !/^\d+$/.test(runId || '') ||
+    !/^[1-9]\d*$/.test(runAttempt || '') ||
+    !FULL_SHA.test(commit || '') ||
+    !FULL_SHA.test(tree || '')
+  )
     return null;
   try {
-    return runGitCommand(root, 'git rev-parse HEAD^{tree}') === tree ? { runId, commit } : null;
+    return runGitCommand(root, 'git rev-parse HEAD^{tree}') === tree
+      ? { runId, runAttempt, commit }
+      : null;
   } catch {
     return null;
   }

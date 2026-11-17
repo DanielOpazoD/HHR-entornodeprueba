@@ -60,12 +60,14 @@ const expectedEnvironment = {
   CI_RUNTIME_TELEMETRY_RESULT: "${{ needs['ci-runtime-telemetry'].result }}",
   CENSUS_PERFORMANCE_RESULT: "${{ needs['census-startup-performance'].result }}",
   CI_EVIDENCE_RUN_ID: "${{ needs['ci-scope'].outputs.evidence-run-id }}",
+  CI_EVIDENCE_RUN_ATTEMPT: "${{ needs['ci-scope'].outputs.evidence-run-attempt }}",
   CI_EVIDENCE_COMMIT: "${{ needs['ci-scope'].outputs.evidence-commit }}",
   CI_EVIDENCE_TREE: "${{ needs['ci-scope'].outputs.evidence-tree }}",
 };
 // What ci-scope declares for a main push that reuses a pull request run.
 const reusedEvidence: Record<string, string> = {
   'evidence-run-id': '100',
+  'evidence-run-attempt': '2',
   'evidence-commit': 'e'.repeat(40),
   'evidence-tree': 'c'.repeat(40),
 };
@@ -199,6 +201,7 @@ describe('CI summary governance', () => {
     const execution = runSummary({ scope: 'reused', gateResult: 'skipped' });
     expect(execution.status).toBe(0);
     expect(execution.summary).toContain('https://github.com/owner/hhr/actions/runs/100');
+    expect(execution.summary).toContain('intento 2');
     expect(execution.summary).toContain('e'.repeat(40));
     expect(execution.summary).toContain('c'.repeat(40));
     expect(runSummary({ scope: 'full', gateResult: 'success' }).summary).toBe('');
@@ -212,7 +215,7 @@ describe('CI summary governance', () => {
     });
     expect(execution.status).toBe(1);
     expect(execution.stdout).toContain(
-      'Reused CI evidence does not name its run, commit and tree.'
+      'Reused CI evidence does not name its run, attempt, commit and tree.'
     );
   });
 });

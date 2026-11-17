@@ -29,6 +29,7 @@ jobs:
       scope: ${{ steps.classify.outputs.scope }}
       reason: ${{ steps.classify.outputs.reason }}
       evidence-run-id: ${{ steps.classify.outputs.evidence_run_id }}
+      evidence-run-attempt: ${{ steps.classify.outputs.evidence_run_attempt }}
       evidence-commit: ${{ steps.classify.outputs.evidence_commit }}
       evidence-tree: ${{ steps.classify.outputs.evidence_tree }}
 
@@ -1393,6 +1394,7 @@ jobs:
       CI_RUNTIME_TELEMETRY_RESULT: ${{ needs['ci-runtime-telemetry'].result }}
       CENSUS_PERFORMANCE_RESULT: ${{ needs['census-startup-performance'].result }}
       CI_EVIDENCE_RUN_ID: ${{ needs['ci-scope'].outputs.evidence-run-id }}
+      CI_EVIDENCE_RUN_ATTEMPT: ${{ needs['ci-scope'].outputs.evidence-run-attempt }}
       CI_EVIDENCE_COMMIT: ${{ needs['ci-scope'].outputs.evidence-commit }}
       CI_EVIDENCE_TREE: ${{ needs['ci-scope'].outputs.evidence-tree }}
     steps:
@@ -1419,14 +1421,14 @@ jobs:
           # A main push whose tree a complete green pull request run already
           # tested takes that run's evidence instead of repeating it.
           if [[ "$CI_SCOPE" == "reused" ]]; then
-            if [[ ! "$CI_EVIDENCE_RUN_ID" =~ ^[0-9]+$ || ! "$CI_EVIDENCE_COMMIT" =~ ^[0-9a-f]{40}$ || ! "$CI_EVIDENCE_TREE" =~ ^[0-9a-f]{40}$ ]]; then
-              echo "::error::Reused CI evidence does not name its run, commit and tree."
+            if [[ ! "$CI_EVIDENCE_RUN_ID" =~ ^[0-9]+$ || ! "$CI_EVIDENCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ || ! "$CI_EVIDENCE_COMMIT" =~ ^[0-9a-f]{40}$ || ! "$CI_EVIDENCE_TREE" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::Reused CI evidence does not name its run, attempt, commit and tree."
               exit 1
             fi
             evidence_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$CI_EVIDENCE_RUN_ID"
             {
               echo "### Evidencia reutilizada"
-              echo "El árbol de \`$GITHUB_SHA\` es el que probó la corrida [$CI_EVIDENCE_RUN_ID]($evidence_url)"
+              echo "El árbol de \`$GITHUB_SHA\` es el que probó la corrida [$CI_EVIDENCE_RUN_ID]($evidence_url), intento $CI_EVIDENCE_RUN_ATTEMPT"
               echo "(commit probado \`$CI_EVIDENCE_COMMIT\`, árbol \`$CI_EVIDENCE_TREE\`), completa y en verde."
               echo "Sus pruebas y artefactos acreditan este commit; aquí no se repiten."
             } >> "$GITHUB_STEP_SUMMARY"
@@ -1472,6 +1474,7 @@ jobs:
     # and its commit counts as current while its tree is HEAD's tree.
     env:
       CI_EVIDENCE_RUN_ID: ${{ needs.ci-scope.outputs.evidence-run-id }}
+      CI_EVIDENCE_RUN_ATTEMPT: ${{ needs.ci-scope.outputs.evidence-run-attempt }}
       CI_EVIDENCE_COMMIT: ${{ needs.ci-scope.outputs.evidence-commit }}
       CI_EVIDENCE_TREE: ${{ needs.ci-scope.outputs.evidence-tree }}
       EVIDENCE_RUN_ID: ${{ needs.ci-scope.outputs.evidence-run-id || github.run_id }}

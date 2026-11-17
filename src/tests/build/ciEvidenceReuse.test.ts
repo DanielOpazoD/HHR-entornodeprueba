@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -16,6 +16,11 @@ import {
   getReusedEvidenceSource,
   isReusedEvidenceCommit,
 } from '../../../scripts/gitReportState.mjs';
+import {
+  buildPreviewBootstrapProvenance,
+  PREVIEW_BOOTSTRAP_PROVENANCE,
+  PREVIEW_BOOTSTRAP_REPORT,
+} from '../../../scripts/previewBootstrapEvidenceSupport.mjs';
 import { jobNeeds, parseWorkflow } from './workflowYamlTestSupport';
 
 const tempRoots: string[] = [];
@@ -42,9 +47,13 @@ const prRun = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-const artifactsFor = (tree: string, extra: Array<Record<string, unknown>> = []) => {
+const artifactsFor = (
+  tree: string,
+  extra: Array<Record<string, unknown>> = [],
+  commit = tested
+) => {
   const artifacts = [
-    { name: testedArtifactName({ commit: tested, tree }), expired: false },
+    { name: testedArtifactName({ commit, tree }), expired: false },
     ...REUSED_EVIDENCE_ARTIFACTS.map(name => ({ name, expired: false })),
     ...extra,
   ];
@@ -102,7 +111,7 @@ describe('main reuses the evidence of the pull request run that tested its tree'
       scope: 'reused',
       reason: 'identical_tree_pull_request_run',
       usedFallback: false,
-      evidence: { runId: 100, pullRequest: 7, commit: tested, tree: mainTree },
+      evidence: { runId: 100, runAttempt: 1, pullRequest: 7, commit: tested, tree: mainTree },
     });
   });
 
@@ -132,6 +141,7 @@ describe('main reuses the evidence of the pull request run that tested its tree'
   it('accepts a retried run that ended green in its latest attempt', async () => {
     await expect(decide({ runs: [prRun({ run_attempt: 3 })] })).resolves.toMatchObject({
       scope: 'reused',
+      evidence: { runAttempt: 3 },
     });
   });
 
@@ -247,7 +257,8 @@ describe('main reuses the evidence of the pull request run that tested its tree'
       });
       expect(fs.readFileSync(outputFile, 'utf8')).toBe(
         `scope=reused\nreason=identical_tree_pull_request_run\n` +
-          `evidence_run_id=100\nevidence_commit=${tested}\nevidence_tree=${mainTree}\n`
+          `evidence_run_id=100\nevidence_run_attempt=1\n` +
+          `evidence_commit=${tested}\nevidence_tree=${mainTree}\n`
       );
       fs.writeFileSync(outputFile, '');
       await classifyScope({
@@ -363,6 +374,7 @@ describe('reused evidence counts as current only for HEAD tree', () => {
   };
   const env = (tree: string, overrides: Record<string, string> = {}) => ({
     CI_EVIDENCE_RUN_ID: '100',
+    CI_EVIDENCE_RUN_ATTEMPT: '2',
     CI_EVIDENCE_COMMIT: tested,
     CI_EVIDENCE_TREE: tree,
     ...overrides,
@@ -371,7 +383,7 @@ describe('reused evidence counts as current only for HEAD tree', () => {
   it('names the reused run and commit while the declared tree is HEAD tree', () => {
     const { root, tree } = makeRepo();
     const source = getReusedEvidenceSource(root, env(tree));
-    expect(source).toEqual({ runId: '100', commit: tested });
+    expect(source).toEqual({ runId: '100', runAttempt: '2', commit: tested });
     expect(isReusedEvidenceCommit(tested.slice(0, 9), source)).toBe(true);
     expect(isReusedEvidenceCommit(mainSha.slice(0, 9), source)).toBe(false);
     expect(isReusedEvidenceCommit('eee', source)).toBe(false);
@@ -380,10 +392,149 @@ describe('reused evidence counts as current only for HEAD tree', () => {
   it.each([
     ['another tree', otherTree, {}],
     ['no run', null, { CI_EVIDENCE_RUN_ID: '' }],
+    ['no attempt', null, { CI_EVIDENCE_RUN_ATTEMPT: '' }],
+    ['attempt zero', null, { CI_EVIDENCE_RUN_ATTEMPT: '0' }],
     ['a short commit', null, { CI_EVIDENCE_COMMIT: 'eeeeeee' }],
   ])('ignores a declaration with %s', (_, tree, overrides) => {
     const repo = makeRepo();
     expect(getReusedEvidenceSource(repo.root, env(tree ?? repo.tree, overrides))).toBeNull();
     expect(isReusedEvidenceCommit(tested, null)).toBe(false);
+  });
+});
+
+describe('a pull request run green in a later attempt lends its evidence to main', () => {
+  // End to end: decision -> ci-scope outputs -> postmerge env -> preview provenance check,
+  // with the pull request run green in attempt 2 and the main push in attempt 1.
+  const rehearse = async ({
+    sourceAttempt,
+    producerAttempt,
+    reuse = true,
+  }: Record<string, number | boolean>) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'reused-attempt-'));
+    tempRoots.push(root);
+    const git = (...args: string[]) =>
+      execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
+    git('init', '-q', '-b', 'main');
+    fs.writeFileSync(path.join(root, '.gitignore'), 'reports/\n');
+    git('add', '.gitignore');
+    git('-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '-q', '-m', 'main');
+    const tree = git('rev-parse', 'HEAD^{tree}');
+    // The pull request run tested its own merge commit, with the same tree.
+    const prMerge = git(
+      '-c',
+      'user.name=Test',
+      '-c',
+      'user.email=test@example.com',
+      'commit-tree',
+      tree,
+      '-m',
+      'refs/pull/7/merge'
+    );
+
+    const outputFile = path.join(root, 'github-output');
+    const previous = process.env.GITHUB_OUTPUT;
+    process.env.GITHUB_OUTPUT = outputFile;
+    try {
+      await classifyScope({
+        env: {
+          GITHUB_EVENT_NAME: 'push',
+          GITHUB_REF: 'refs/heads/main',
+          GITHUB_SHA: mainSha,
+          GITHUB_REPOSITORY: repository,
+        },
+        api: fakeApi({
+          runs: [prRun({ run_attempt: sourceAttempt })],
+          artifacts: { 100: artifactsFor(tree, [], prMerge) },
+        }),
+        revision: () => ({ sha: mainSha, tree }),
+      });
+    } finally {
+      if (previous === undefined) delete process.env.GITHUB_OUTPUT;
+      else process.env.GITHUB_OUTPUT = previous;
+    }
+    const outputs = Object.fromEntries(
+      fs
+        .readFileSync(outputFile, 'utf8')
+        .trim()
+        .split('\n')
+        .map(line => line.split('='))
+    );
+    expect(outputs.scope).toBe('reused');
+
+    const write = (file: string, value: unknown) => {
+      fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+      fs.writeFileSync(path.join(root, file), JSON.stringify(value));
+    };
+    write(PREVIEW_BOOTSTRAP_REPORT, {
+      stats: { expected: 3, unexpected: 0, flaky: 0, skipped: 0, duration: 1200 },
+    });
+    write(
+      PREVIEW_BOOTSTRAP_PROVENANCE,
+      buildPreviewBootstrapProvenance({
+        workflow: 'CI/CD Pipeline',
+        runId: '100',
+        runAttempt: String(producerAttempt),
+        commit: prMerge,
+      })
+    );
+    // postmerge-evidence maps ci-scope outputs to these variables (asserted below).
+    const reusedEnv = reuse
+      ? {
+          CI_EVIDENCE_RUN_ID: outputs.evidence_run_id,
+          CI_EVIDENCE_RUN_ATTEMPT: outputs.evidence_run_attempt,
+          CI_EVIDENCE_COMMIT: outputs.evidence_commit,
+          CI_EVIDENCE_TREE: outputs.evidence_tree,
+        }
+      : {};
+    return spawnSync(
+      process.execPath,
+      [path.join(process.cwd(), 'scripts/check-preview-bootstrap-evidence.mjs')],
+      {
+        cwd: root,
+        encoding: 'utf8',
+        env: {
+          PATH: process.env.PATH,
+          GITHUB_WORKFLOW: 'CI/CD Pipeline',
+          GITHUB_RUN_ID: '999',
+          GITHUB_RUN_ATTEMPT: '1',
+          GITHUB_SHA: git('rev-parse', 'HEAD'),
+          ...reusedEnv,
+        },
+      }
+    );
+  };
+
+  it('accepts preview evidence produced in attempt 2 on a main push in attempt 1', async () => {
+    const result = await rehearse({ sourceAttempt: 2, producerAttempt: 2 });
+    expect(result.stderr).toBe('');
+    expect(result.stdout).toContain('Evidence is valid for CI/CD Pipeline run 100 attempt 2');
+  });
+
+  it('still rejects a producer newer than the latest attempt of the reused run', async () => {
+    const result = await rehearse({ sourceAttempt: 2, producerAttempt: 3 });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('producer attempt 3 cannot be newer than consumer attempt 2');
+  });
+
+  it('rejects the reused preview when main does not declare its source run', async () => {
+    const result = await rehearse({ sourceAttempt: 2, producerAttempt: 2, reuse: false });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('workflow.runId mismatch: expected 999, received 100');
+  });
+
+  it('maps every evidence output of ci-scope into postmerge-evidence', () => {
+    const jobs = workflow();
+    const outputs = Object.keys(jobs['ci-scope'].outputs ?? {}).filter(key =>
+      key.startsWith('evidence-')
+    );
+    expect(outputs.sort()).toEqual(
+      ['evidence-commit', 'evidence-run-attempt', 'evidence-run-id', 'evidence-tree'].sort()
+    );
+    for (const output of outputs) {
+      const variable = `CI_${output.toUpperCase().replaceAll('-', '_')}`;
+      expect(jobs['postmerge-evidence'].env?.[variable]).toBe(
+        `\${{ needs.ci-scope.outputs.${output} }}`
+      );
+    }
   });
 });

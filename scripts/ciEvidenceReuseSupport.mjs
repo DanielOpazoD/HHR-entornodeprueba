@@ -56,7 +56,9 @@ const rejectRunMetadata = ({ repository, run }) => {
     run.event !== 'pull_request' ||
     run.path?.split('@')[0] !== WORKFLOW_PATH ||
     run.head_repository?.full_name !== repository ||
-    !Number.isSafeInteger(run.id)
+    !Number.isSafeInteger(run.id) ||
+    !Number.isSafeInteger(run.run_attempt) ||
+    run.run_attempt < 1
   )
     return 'not_a_pull_request_run_of_this_workflow';
   if (run.status !== 'completed' || run.conclusion !== 'success') return 'run_not_green';
@@ -124,7 +126,8 @@ export const findReusableEvidence = async ({ repository, sha, mainTree, api }) =
         reason = verdict;
         continue;
       }
-      return { runId: run.id, pullRequest: pull.number, ...verdict };
+      // The attempt bounds the attempts of the producers postmerge-evidence validates.
+      return { runId: run.id, runAttempt: run.run_attempt, pullRequest: pull.number, ...verdict };
     }
   }
   return { reason };

@@ -183,14 +183,17 @@ este registro o error de la API. La decisión vive en `scripts/ciEvidenceReuseSu
 y su prueba en `src/tests/build/ciEvidenceReuse.test.ts`.
 
 Con `reused`, los jobs de prueba y calidad quedan en `skipped` y `ci-summary` pasa
-declarando en su resumen la corrida, el commit probado y el árbol de donde viene la
+declarando en su resumen la corrida, su último intento, el commit probado y el árbol de donde viene la
 evidencia. No se saltan `function-deploy-scope`, el despliegue validado de Functions ni
 `postmerge-evidence`: este último descarga `dist`, preview, cobertura crítica, manifiesto
 de evidencia y rendimiento de flujos desde la corrida de la PR. Los informes de esa
 corrida fueron generados para su commit de merge, no para el de `main`; los controles de
 frescura y procedencia los aceptan solo mientras `CI_EVIDENCE_TREE` sea el árbol de
 `HEAD` (`getReusedEvidenceSource` en `scripts/gitReportState.mjs`), y siguen comparando
-las huellas de sus entradas. Los demás artefactos de la evidencia (confianza, cobertura,
+las huellas de sus entradas. La procedencia del preview se compara con el id y el último
+intento de la corrida de la PR, no con los del push a `main`: una PR verde en su intento 2
+sirve aunque `main` corra en el intento 1, y un productor de un intento posterior al de esa
+corrida sigue rechazado. Los demás artefactos de la evidencia (confianza, cobertura,
 telemetría de CI, rendimiento del censo, Lighthouse) se leen de la corrida de la PR que
 nombra `ci-summary`.
 

@@ -14,11 +14,12 @@ import { decideMainScope } from './ciEvidenceReuseSupport.mjs';
 const writeOutput = result => {
   const outputPath = process.env.GITHUB_OUTPUT;
   if (outputPath) {
-    const { runId = '', commit = '', tree = '' } = result.evidence ?? {};
+    const { runId = '', runAttempt = '', commit = '', tree = '' } = result.evidence ?? {};
     fs.appendFileSync(
       outputPath,
       `scope=${result.scope}\nreason=${result.reason}\n` +
-        `evidence_run_id=${runId}\nevidence_commit=${commit}\nevidence_tree=${tree}\n`,
+        `evidence_run_id=${runId}\nevidence_run_attempt=${runAttempt}\n` +
+        `evidence_commit=${commit}\nevidence_tree=${tree}\n`,
       'utf8'
     );
   }
