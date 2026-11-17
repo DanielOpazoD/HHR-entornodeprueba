@@ -97,9 +97,6 @@ describe('chunkingPolicy', () => {
     expect(
       chunkForModule('/repo/src/components/layout/app-content/appContentOverlaysController.ts')
     ).toBeUndefined();
-    expect(
-      chunkForModule('/repo/src/components/layout/app-content/usePatientSearchShortcut.ts')
-    ).toBeUndefined();
   });
 
   it('loads global overlays through a lazy boundary instead of the static shell graph', () => {

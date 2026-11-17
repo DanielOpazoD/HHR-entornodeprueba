@@ -1,5 +1,4 @@
 import { destroyDicomToolGroup } from './dicomToolLifecycle';
-import { retainDicomRuntime } from './dicomRuntimeLease';
 import { activateDicomTool } from './dicomToolActivation';
 import { createDicomViewContinuity } from './dicomViewContinuity';
 import { destroyDicomEngine, resetDicomVolumeGraphics } from './dicomGraphicsResources';
@@ -21,14 +20,17 @@ import {
 } from './dicomVolumeVideo';
 import { initializeDicom as initialize } from './dicomInitialization';
 import {
+  getWebWorkerManager,
   RenderingEngine,
   setVolumesForViewports,
+  utilities,
   getShouldUseCPURendering,
   type StackViewport,
   type VolumeViewport,
   type VolumeViewport3D,
 } from '@cornerstonejs/core';
 import { ToolGroupManager, CrosshairsTool } from '@cornerstonejs/tools';
+import { wadouri } from '@cornerstonejs/dicom-image-loader';
 import { captureRuntimeView } from './dicomRuntimeCapture';
 import { createMprTools, type DicomReference, type ReferenceStyle } from './dicomMprTools';
 import { applyVolumePresentation } from './dicomVolumePresentation';
@@ -48,6 +50,22 @@ import { createDicomStackTools, type DicomStackToolSession } from './dicomStackT
 import { dicomStackShowsHu, watchDicomCursorHu } from './dicomCursorValue';
 import { dicomSliceInterval } from './dicomVolumeEstimates';
 export type { DicomTool, DicomMode, DicomOrientation, DicomRuntime } from './dicomRuntimeTypes';
+let runtimeUsers = 0;
+/** Global loader resources outlive individual series until the last session has drained. */
+const retainDicomRuntime = () => {
+  runtimeUsers++;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    if (--runtimeUsers) return;
+    if (getWebWorkerManager().workerRegistry.dicomImageLoader)
+      getWebWorkerManager().terminate('dicomImageLoader');
+    utilities.genericMetadataProvider.clear();
+    wadouri.fileManager.purge();
+    wadouri.dataSetCacheManager.purge();
+  };
+};
 export const createDicomRuntime = async (
   study: DicomStudy,
   series: DicomSeries,
