@@ -44,6 +44,10 @@ catalogs.hook('creating', () => {
 catalogs.hook('updating', () => {
   cacheWrites();
 });
+// Each editor opens from the list saved on this computer, so its first display needs no
+// network: a first server read on CI once took longer than the 1 s these first waits allow.
+const keepLocalCopy = (key: string, list: string[]) =>
+  catalogs.put({ id: key, list, lastUpdated: '2026-01-01' });
 
 const cases = [
   {
@@ -132,6 +136,7 @@ for (const entry of cases) {
       await catalogs.clear();
       const ref = doc(sdkDb, `hospitals/${getActiveHospitalId()}/settings/${entry.key}`);
       await setDoc(ref, { list: ['Synthetic Base'] });
+      await keepLocalCopy(entry.key, ['Synthetic Base']);
       const { wrapper } = createQueryClientTestWrapper();
       render(<Manager entry={entry} />, { wrapper });
       await screen.findByText('Synthetic Base');
@@ -237,6 +242,7 @@ it('offline guard preserves the draft and saves only after explicit retry', asyn
   await catalogs.clear();
   const ref = doc(sdkDb, `hospitals/${getActiveHospitalId()}/settings/nurses`);
   await setDoc(ref, { list: ['Synthetic Base'] });
+  await keepLocalCopy('nurses', ['Synthetic Base']);
   const { wrapper } = createQueryClientTestWrapper();
   render(<Manager entry={cases[0]} />, { wrapper });
   await screen.findByText('Synthetic Base');
@@ -267,6 +273,7 @@ it('conflict refreshes the visible catalog and retains the typed rename', async 
   await catalogs.clear();
   const ref = doc(sdkDb, `hospitals/${getActiveHospitalId()}/settings/nurses`);
   await setDoc(ref, { list: ['Synthetic Base'] });
+  await keepLocalCopy('nurses', ['Synthetic Base']);
   // Model an open editor whose listener has not yet delivered the other computer's change.
   vi.spyOn(remote, 'subscribeToNurseCatalog').mockImplementation(() => () => {});
   const { wrapper } = createQueryClientTestWrapper();
