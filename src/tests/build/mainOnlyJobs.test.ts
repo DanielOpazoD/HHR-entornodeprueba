@@ -155,34 +155,26 @@ describe('check-main-only-jobs.mjs', () => {
   });
 });
 
-// A condition that runs a job only on main, in any spelling of the comparison: spaces,
-// quote style, operand order, github.ref or github.ref_name.
-const MAIN_BRANCH_TESTS = [
-  "github.ref=='refs/heads/main'",
-  "'refs/heads/main'==github.ref",
-  "github.ref_name=='main'",
-  "'main'==github.ref_name",
-];
-const restrictsToMain = (condition = '') => {
-  const normalized = condition.replace(/\s+/g, '').replaceAll('"', "'");
-  return MAIN_BRANCH_TESTS.some(test => normalized.includes(test));
-};
+// Every job ci-summary does not need, directly or through another job, is outside the
+// required check: nothing fails when it is skipped. Each one is either checked by
+// main-only-jobs or listed here because it also runs on pull requests, where its absence
+// shows in the pull request itself. No condition is parsed: a new job is classified by
+// where it hangs, however its `if` is spelled.
+const OUTSIDE_CI_SUMMARY_ON_PULL_REQUESTS = ['docs', 'lighthouse-ci'];
 
-// Jobs that run only on main: restricted by their condition, or needing one that is.
-const mainOnlyJobIds = (jobs: Record<string, WorkflowJob>): Set<string> => {
-  const mainOnly = new Set<string>();
-  let grew = true;
-  while (grew) {
-    grew = false;
-    for (const [id, job] of Object.entries(jobs)) {
-      if (id === 'main-only-jobs' || mainOnly.has(id)) continue;
-      if (restrictsToMain(job.if) || jobNeeds(job).some(need => mainOnly.has(need))) {
-        mainOnly.add(id);
-        grew = true;
-      }
+const jobsOutsideCiSummary = (jobs: Record<string, WorkflowJob>): string[] => {
+  const required = new Set(['ci-strict-summary']);
+  const visit = (id: string) => {
+    for (const need of jobNeeds(jobs[id])) {
+      if (required.has(need)) continue;
+      required.add(need);
+      visit(need);
     }
-  }
-  return mainOnly;
+  };
+  visit('ci-strict-summary');
+  return Object.keys(jobs)
+    .filter(id => !required.has(id))
+    .sort();
 };
 
 describe('the main-only-jobs job in ci-cd.yml', () => {
@@ -191,36 +183,23 @@ describe('the main-only-jobs job in ci-cd.yml', () => {
   ).jobs;
   const checker = jobs['main-only-jobs'];
 
-  it('checks every job that runs only on main, after ci-summary', () => {
-    expect([...mainOnlyJobIds(jobs)].sort()).toEqual([...MAIN_ONLY_JOBS].sort());
+  it('checks every job outside ci-summary that does not also run on pull requests', () => {
+    expect(jobsOutsideCiSummary(jobs)).toEqual(
+      [...MAIN_ONLY_JOBS, ...OUTSIDE_CI_SUMMARY_ON_PULL_REQUESTS, 'main-only-jobs'].sort()
+    );
     expect(jobNeeds(checker).sort()).toEqual(['ci-strict-summary', ...MAIN_ONLY_JOBS].sort());
+    for (const id of OUTSIDE_CI_SUMMARY_ON_PULL_REQUESTS)
+      expect(jobs[id].if ?? '', id).not.toMatch(/github\.(ref|ref_name|event_name)/);
   });
 
   it.each([
-    "${{ github.ref == 'refs/heads/main' }}",
-    "${{ github.ref=='refs/heads/main' }}",
-    'github.ref == "refs/heads/main"',
-    "'refs/heads/main' == github.ref",
-    "${{ github.ref_name == 'main' }}",
-    "github.ref_name=='main'",
-    '"main" == github.ref_name',
-    "${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}",
-    "github.event_name=='push'&&github.ref_name=='main'",
-  ])('takes a new job restricted by %s as main-only, so it must be registered', condition => {
+    ["${{ github.ref=='refs/heads/main' }}"],
+    ["${{ startsWith(github.ref, 'refs/heads/main') && github.event_name == 'push' }}"],
+    ["${{ format('{0}', github.ref) == 'refs/heads/main' }}"],
+    [undefined],
+  ])('makes a new job outside ci-summary be classified, whatever its condition (%s)', condition => {
     const extra: WorkflowJob = { if: condition, 'runs-on': 'ubuntu-latest', steps: [] };
-    const ids = mainOnlyJobIds({ ...jobs, 'extra-main-job': extra });
-    expect([...ids].sort()).not.toEqual([...MAIN_ONLY_JOBS].sort());
-    expect(ids).toContain('extra-main-job');
-  });
-
-  it.each([
-    "${{ github.event_name == 'push' }}",
-    "${{ github.ref != 'refs/heads/main' }}",
-    "github.ref == 'refs/heads/develop'",
-    "github.base_ref == 'main'",
-  ])('does not take a job restricted by %s as main-only', condition => {
-    const extra: WorkflowJob = { if: condition, 'runs-on': 'ubuntu-latest', steps: [] };
-    expect(mainOnlyJobIds({ ...jobs, 'extra-job': extra })).not.toContain('extra-job');
+    expect(jobsOutsideCiSummary({ ...jobs, 'extra-job': extra })).toContain('extra-job');
   });
 
   it('runs on main pushes after skipped or failed ancestors, never on a pull request', () => {

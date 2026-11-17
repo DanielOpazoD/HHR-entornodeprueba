@@ -221,10 +221,11 @@ significa que lo que debía hacer no ocurrió. Revisar su condición `if:`, que 
 `!cancelled()`, y corregirla en una PR. Si faltó el despliegue de Functions, el responsable
 puede relanzar el workflow `Deploy Firebase Functions` sobre `main`, que pasa por el mismo
 preflight. El siguiente push a `main` también despliega si Functions cambió desde el
-último despliegue exitoso. Si falló `postmerge-evidence`, seguir su propio runbook. Un job
-nuevo que solo corra en `main` debe sumarse a `MAIN_ONLY_JOBS`; `mainOnlyJobs.test.ts` falla
-mientras no esté. Esa prueba reconoce la condición escrita con o sin espacios, con comillas
-simples o dobles, con `github.ref` o `github.ref_name` y combinada con `github.event_name`.
+último despliegue exitoso. Si falló `postmerge-evidence`, seguir su propio runbook. Todo
+job que `ci-summary` no necesita queda fuera del check requerido, y `mainOnlyJobs.test.ts`
+falla mientras no esté clasificado: o se suma a `MAIN_ONLY_JOBS` y lo vigila este control, o
+figura en la lista de los que también corren en las PR. La prueba no interpreta la condición
+`if:` del job: lo clasifica por su lugar en el workflow.
 
 Esta clasificación determina qué evidencia aporta CI. Durante la iteración local,
 usar el comando más pequeño que cubra el riesgo. Al cerrar, comprobar que el alcance
