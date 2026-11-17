@@ -57,7 +57,8 @@ tras el segundo `--` se pasan a Vitest en ambos grupos. Por ejemplo:
 npm run test:emulator:file -- src/tests/emulator-ui/missingRemoteDay.emulator-ui.test.ts -- --maxWorkers=2
 ```
 
-`npm run test:emulator:sync:ci` conserva las dos suites completas.
+`npm run test:emulator:sync:ci` conserva las dos suites completas en un emulador. CI corre
+cada una en su job con `-- --suite sync` (`rules-emulator`) y `-- --suite ui` (`emulator-ui`).
 
 Este comando es preferible a correr `npx vitest ... cma-specialty-readback` directamente, porque el test requiere un
 emulador activo y fallará con `ECONNREFUSED 127.0.0.1:8080` si no se lanza dentro de `firebase emulators:exec`.
