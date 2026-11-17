@@ -17,6 +17,7 @@ import {
   type IndicationScope,
 } from './admissionAuditModel';
 import { useLatestRef } from '@/hooks/useLatestRef';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 export interface AdmissionAuditReport {
   period: AdmissionPeriod;
@@ -44,9 +45,11 @@ export const useAdmissionAudit = (owner: string | null) => {
     setStatus({ scope: '', running: false, progress: '', error: '' });
   };
   useEffect(() => onSessionChange(clear), []);
-  useEffect(() => {
+  if (useChangedOnRender([scope])) {
     setAnswer(null);
     setStatus({ scope, running: false, progress: '', error: '' });
+  }
+  useEffect(() => {
     return () => {
       operation.current?.abort();
       operation.current = null;

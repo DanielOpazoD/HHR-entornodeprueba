@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Check, Loader2, Pencil, Trash2, X } from 'lucide-react';
 import {
   CUDYR_RESULT_OPTIONS,
   isCudyrResultOption,
   type CudyrResultOption,
 } from '@/domain/cudyr/adminCudyrResult';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const REMOVE_VALUE = '__remove__';
 
@@ -27,9 +28,9 @@ export const AdminCudyrResultEditor: React.FC<AdminCudyrResultEditorProps> = ({
   const [selection, setSelection] = useState<string>(normalizedCurrent);
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    if (!isEditing) setSelection(normalizedCurrent);
-  }, [isEditing, normalizedCurrent]);
+  if (useChangedOnRender([isEditing, normalizedCurrent]) && !isEditing) {
+    setSelection(normalizedCurrent);
+  }
 
   if (!isEditing) {
     return (

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 import type { AuthUser } from '@/types/authRoleTypes';
 import {
   readCachedUserAvatarProfile,
@@ -36,17 +37,17 @@ export const useUserAvatarProfile = (
   const userUid = user?.uid;
   const userEmail = user?.email;
 
+  if (useChangedOnRender([userUid])) {
+    const uid = userUid?.trim();
+    setProfile(uid ? readCachedUserAvatarProfile(uid) : null);
+    setIsLoading(Boolean(uid));
+    if (uid) setError(null);
+  }
+
   useEffect(() => {
     const uid = userUid?.trim();
-    if (!uid) {
-      setProfile(null);
-      setIsLoading(false);
-      return undefined;
-    }
+    if (!uid) return undefined;
 
-    setProfile(readCachedUserAvatarProfile(uid));
-    setIsLoading(true);
-    setError(null);
     let isDisposed = false;
     let unsubscribe: (() => void) | undefined;
 
