@@ -1,7 +1,8 @@
 # Extensión · Puente Eloísa → HHR
 
-El código se desarrolla en [extensioneloisahhr](https://github.com/DanielOpazoD/extensioneloisahhr).
-Esta carpeta es una copia de compatibilidad para las pruebas de HHR. Actualiza el commit
+El código se desarrolla en [extensioneloisahhr](https://github.com/DanielOpazoD/extensioneloisahhr),
+y sus pruebas internas viven allá. Esta carpeta es una copia fija para las pruebas del contrato
+HHR↔extensión y el empaquetado. Actualiza el commit
 de `@hhr/eloisa-extension` en `package.json` y su lockfile; luego ejecuta
 `npm run extension:sync`. CI rechaza las diferencias directas. El ZIP se construye desde
 la dependencia fijada con el empaquetador del repositorio de la extensión.

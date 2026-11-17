@@ -47,15 +47,16 @@ No añadir rutas de diagnóstico o de cierre al puente público de las páginas 
 
 ```sh
 npx vitest run src/tests/rayen-import/offscreenCoordinatorExtension.test.ts \
-  src/tests/rayen-import/offscreenRouterExtension.test.ts \
-  src/tests/rayen-import/syslabOffscreenTransportExtension.test.ts \
-  src/tests/rayen-import/syslabRuntimeExtension.test.ts \
-  src/tests/rayen-import/syslabSessionTransportExtension.test.ts
+  src/tests/rayen-import/syslabRuntimeExtension.test.ts
 npm run test:e2e:shared-offscreen
 node scripts/check-rayen-extension-release.mjs
 npm run check:extension-hotspots
 npm run lint:extension
 ```
+
+Las pruebas del enrutador offscreen y de los transportes Syslab (`offscreenRouterExtension`,
+`syslabOffscreenTransportExtension`, `syslabSessionTransportExtension`) corren en el
+repositorio de la extensión.
 
 El smoke de Chromium se ejecuta como paso bloqueante de `e2e-critical` en CI. Usa una copia
 transitoria del paquete y perfil efímero, un canal fixture que NO se incluye en producción,
