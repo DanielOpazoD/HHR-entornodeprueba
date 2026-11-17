@@ -179,3 +179,7 @@ were running; this is neither a clinical runtime nor CI-wide speed measurement.
 Reproduce before adding directives with `vitest run <three-paths> --maxWorkers=2`,
 then `--environment=node`, alternating three pairs. Per-file directives take
 precedence on the annotated revision.
+
+Since 2026-11-17, `clinicalReportDirectEpisodeRuntimeExtension` and
+`prescriptionContentStaticExtension` run only in the extension repository
+(`extensioneloisahhr`), with the other internal extension tests.

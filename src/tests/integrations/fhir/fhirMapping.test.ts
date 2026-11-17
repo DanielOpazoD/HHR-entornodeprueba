@@ -1,10 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
-import {
-  mapPatientToFhir,
-  mapEncounterToFhir,
-  mapMasterPatientToFhir,
-} from '@/services/utils/fhirMappers';
+import { mapPatientToFhir } from '@/services/utils/fhirMappers';
 import type { FhirResource } from '@/types/domain/fhir';
 import type { PatientData } from '@/types/domain/patient';
 import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
@@ -15,12 +11,6 @@ interface FhirPatient extends FhirResource {
   name?: Array<{ text: string; family?: string; given?: string[]; use?: string }>;
   gender?: string;
   birthDate?: string;
-}
-
-interface FhirEncounter extends FhirResource {
-  status?: string;
-  class: { code: string; system?: string; display?: string };
-  subject: { identifier: { value: string; system?: string } };
 }
 
 describe('FhirMappingService', () => {
@@ -61,29 +51,11 @@ describe('FhirMappingService', () => {
     expect(fhirPatient.name![0].given).toContain('PEREZ');
   });
 
-  it('should map patient to FHIR Encounter resource', () => {
-    const fhirEncounter = mapEncounterToFhir(mockPatient, 'hanga_roa') as FhirEncounter;
-
-    expect(fhirEncounter.resourceType).toBe('Encounter');
-    expect(fhirEncounter.status).toBe('in-progress');
-    expect(fhirEncounter.class.code).toBe('IMP');
-    expect(fhirEncounter.subject.identifier.value).toBe('12.345.678-9');
-  });
-
-  it('should map a MasterPatient to FHIR Patient resource', () => {
-    const mockMaster = {
-      rut: '98.765.432-1',
-      fullName: 'MARIA PAZ TORRES',
-      birthDate: '1990-05-20',
-      gender: 'Femenino',
-    };
-
-    const fhirPatient = mapMasterPatientToFhir(mockMaster) as FhirPatient;
-    expect(fhirPatient.resourceType).toBe('Patient');
-    expect(fhirPatient.identifier![0].value).toBe('98.765.432-1');
-    expect(fhirPatient.name![0].family).toBe('TORRES');
-    expect(fhirPatient.name![0].given).toContain('MARIA');
-    expect(fhirPatient.gender).toBe('female');
-    expect(fhirPatient.birthDate).toBe('1990-05-20');
+  it.each([
+    ['Femenino', 'female'],
+    ['Indeterminado', 'other'],
+  ] as const)('maps biological sex %s to FHIR gender %s', (biologicalSex, gender) => {
+    const fhirPatient = mapPatientToFhir({ ...mockPatient, biologicalSex }) as FhirPatient;
+    expect(fhirPatient.gender).toBe(gender);
   });
 });

@@ -4,7 +4,7 @@ import type { PatientData } from '@/types/domain/patient';
 import { describe, expect, it, vi } from 'vitest';
 import { BEDS, HOSPITAL_CAPACITY, REGULAR_BEDS } from '@/constants/beds';
 import { EMPTY_PATIENT } from '@/constants/patient';
-import { validateDailyRecord } from '@/schemas/zodValidationHelpers';
+import { DailyRecordSchema } from '@/schemas/zod/dailyRecord';
 import { cudyrModality } from '@/domain/cudyr/cudyrStatisticalContext';
 import {
   buildCensusBedRows,
@@ -120,8 +120,7 @@ describe('operational census bed occupancy', () => {
       expect(diff.bedOccupancyCollisions ?? []).toEqual([]);
       const result = apply(current, diff);
       expect(result.skipped).toEqual([]);
-      const validation = validateDailyRecord(result.record);
-      expect(validation.success ? [] : validation.errors).toEqual([]);
+      expect(DailyRecordSchema.safeParse(result.record).error?.issues ?? []).toEqual([]);
       expect(result.record.beds[bedId].clinicalEpisodeId).toBe('142040');
       expect(result.record.beds[`CMA_${bedId}`].clinicalEpisodeId).toBe('142041');
       const rows = buildCensusBedRows({
@@ -177,7 +176,7 @@ describe('operational census bed occupancy', () => {
         plan(record(), snapshot([encounter({ room: label, bed: label })]))
       );
       expect(result.record.beds[bedId]?.clinicalEpisodeId).toBe('142040');
-      expect(validateDailyRecord(result.record).success).toBe(true);
+      expect(DailyRecordSchema.safeParse(result.record).success).toBe(true);
       expect(result.record.activeExtraBeds).toContain(bedId);
       expect(BEDS.find(bed => bed.id === bedId)?.name).toBe(label);
       expect(resolveReportBedId(label)).toBe(bedId);

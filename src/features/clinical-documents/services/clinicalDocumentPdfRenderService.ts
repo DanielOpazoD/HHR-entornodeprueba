@@ -3,11 +3,22 @@ import * as z from 'zod';
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import { buildClinicalDocumentPrintHtml } from '@/features/clinical-documents/services/clinicalDocumentPrintHtmlBuilder';
 import type { ClinicalDocumentAnnexPrintMode } from '@/features/clinical-documents/services/clinicalDocumentPrintSupport';
-import { decodeBase64PdfBlob } from '@/features/clinical-documents/services/clinicalDocumentPdfBinarySupport';
 import { generateClinicalDocumentDomSnapshotPdfBlob } from '@/features/clinical-documents/services/clinicalDocumentPdfSnapshotSupport';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { FunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { clinicalDocumentPdfRenderLogger } from '@/features/clinical-documents/services/clinicalDocumentLoggers';
+
+const decodeBase64PdfBlob = (contentBase64: string, mimeType: string): Blob => {
+  const clean = contentBase64.replace(/\s+/g, '');
+  const binary = atob(clean);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return new Blob([bytes], { type: mimeType || 'application/pdf' });
+};
 
 interface RenderClinicalDocumentPdfPayload {
   html: string;

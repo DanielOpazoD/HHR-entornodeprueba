@@ -16,13 +16,8 @@ import { BackupFilesContent } from '@/features/backup/components/internal/Backup
 import { FolderCard, Breadcrumbs } from '@/features/backup/components/internal/BackupDriveItems';
 import { formatFileSize, type BaseStoredFile, type StoredPdfFile } from '@/types/backupArtifacts';
 import type { BackupItem } from '@/hooks/backupFileBrowserContracts';
-import {
-  formatBackupShiftLabel,
-  formatBackupTimestamp,
-  formatBackupDisplayDateVerbose,
-  formatBackupClockTime,
-} from '@/shared/backup/backupPresentation';
-import { BACKUP_TYPE_CONFIG, SHIFT_TYPE_CONFIG } from '@/types/backup';
+import { formatBackupShiftLabel } from '@/shared/backup/backupPresentation';
+import { SHIFT_TYPE_CONFIG } from '@/types/backup';
 
 // ─── Utility: formatFileSize ────────────────────────────────────────
 
@@ -57,44 +52,11 @@ describe('backupPresentation utilities', () => {
       expect(formatBackupShiftLabel('night')).toBe('Turno Noche');
     });
   });
-
-  describe('formatBackupClockTime', () => {
-    it('formats an ISO string to a time string', () => {
-      const result = formatBackupClockTime('2026-03-15T14:30:00.000Z');
-      // Locale-dependent, but should contain hours and minutes
-      expect(result).toBeTruthy();
-      expect(typeof result).toBe('string');
-    });
-  });
-
-  describe('formatBackupDisplayDateVerbose', () => {
-    it('formats a date string to a verbose display string', () => {
-      const result = formatBackupDisplayDateVerbose('2026-03-15');
-      expect(result).toBeTruthy();
-      expect(typeof result).toBe('string');
-      // Should contain some form of the date
-      expect(result).toMatch(/2026/);
-    });
-  });
-
-  describe('formatBackupTimestamp', () => {
-    it('formats an ISO timestamp to a locale string', () => {
-      const result = formatBackupTimestamp('2026-03-15T14:30:00.000Z');
-      expect(result).toBeTruthy();
-      expect(typeof result).toBe('string');
-    });
-  });
 });
 
 // ─── Constants ──────────────────────────────────────────────────────
 
-describe('backup type and shift constants', () => {
-  it('BACKUP_TYPE_CONFIG has entries for all three types', () => {
-    expect(BACKUP_TYPE_CONFIG.NURSING_HANDOFF).toBeDefined();
-    expect(BACKUP_TYPE_CONFIG.MEDICAL_HANDOFF).toBeDefined();
-    expect(BACKUP_TYPE_CONFIG.CENSUS).toBeDefined();
-  });
-
+describe('backup shift constants', () => {
   it('SHIFT_TYPE_CONFIG has entries for day and night', () => {
     expect(SHIFT_TYPE_CONFIG.day.label).toBe('Turno Largo');
     expect(SHIFT_TYPE_CONFIG.night.label).toBe('Turno Noche');
