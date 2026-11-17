@@ -37,12 +37,6 @@
       "testFiles": ["src/tests/netlify/sendCensusEmailFunction.test.ts"]
     },
     {
-      "id": "fhir_api",
-      "functionFile": "netlify/functions/fhir-api.ts",
-      "endpoint": "fhir-api",
-      "testFiles": ["src/tests/netlify/fhirApi.test.ts"]
-    },
-    {
       "id": "cie10_ai_search",
       "functionFile": "netlify/functions/cie10-ai-search.ts",
       "endpoint": "cie10-ai-search",

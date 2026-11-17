@@ -8,7 +8,6 @@ const ROOT = path.resolve(__dirname, '../../../');
 const SENSITIVE_NETLIFY_FUNCTIONS = [
   'netlify/functions/cie10-ai-search.ts',
   'netlify/functions/clinical-attachment-name-suggestion.ts',
-  'netlify/functions/fhir-api.ts',
   'netlify/functions/mmrad-search.ts',
   'netlify/functions/send-census-email.ts',
   'netlify/functions/send-fuga-notification.ts',
