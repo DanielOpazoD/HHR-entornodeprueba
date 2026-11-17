@@ -481,7 +481,7 @@ jobs:
         run: npm run check:sync-convergence-evidence
 
       - name: Enforce sync convergence evidence freshness
-        run: npm run check:sync-convergence-freshness:strict
+        run: npm run check:report-freshness:strict -- --only sync-convergence
 
       - name: Upload sync convergence evidence artifact
         if: always()

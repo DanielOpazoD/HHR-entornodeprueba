@@ -49,4 +49,4 @@ normalizaciones de documentos históricos del camino vigente.
 - 0 legacy role aliases detected for 2 consecutive releases antes de retirar el write-back de canonización.
 - La hidratación de legacy clinical document y legacy episode queda confinada a controllers compatibles y tests dirigidos.
 - 0 legacy hydration leaks outside approved controllers en tests estáticos y revisión de import graph.
-- `check:schema-governance` y `check:runtime-contracts` siguen verdes después de cada retiro.
+- `check:runtime-contracts` (contratos de ejecución y registro de migradores de esquema) sigue verde después de cada retiro.

@@ -58,6 +58,12 @@ const copyGovernedFiles = (root: string): void => {
   }
 };
 
+// Building the report over the real repository reads every test file; the two cases that
+// inspect it share one build.
+let repositoryReport: ReturnType<typeof buildTestRuntimeGovernanceReport> | undefined;
+const buildRepositoryReport = () =>
+  (repositoryReport ??= buildTestRuntimeGovernanceReport(process.cwd()));
+
 describe('test runtime governance support', () => {
   it('checks shard balance once in the tests aggregate and still rejects an invalid configuration', () => {
     const root = makeReportRoot();
@@ -123,7 +129,7 @@ describe('test runtime governance support', () => {
     ]);
   });
   it('keeps PR-critical and nightly test surfaces explicit', () => {
-    const report = buildTestRuntimeGovernanceReport(process.cwd());
+    const report = buildRepositoryReport();
 
     expect(report.summary.prBlockingSuites).toBeGreaterThanOrEqual(4);
     expect(report.summary.nightlySuites).toBeGreaterThanOrEqual(3);
@@ -198,7 +204,7 @@ describe('test runtime governance support', () => {
   );
 
   it('renders a compact report with slow-test and fixture governance sections', () => {
-    const report = buildTestRuntimeGovernanceReport(process.cwd());
+    const report = buildRepositoryReport();
     const markdown = formatTestRuntimeGovernanceMarkdown(report);
 
     expect(report.fixtureGovernance.signals.length).toBeGreaterThanOrEqual(3);

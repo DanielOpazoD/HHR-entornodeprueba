@@ -190,6 +190,30 @@ describe('unit shard balance support', () => {
     });
   });
 
+  it('matches each file against its own duration hint, not the first glob compiled', () => {
+    const profile = buildUnitShardRuntimeProfile({
+      files: ['src/tests/a/slow.test.ts', 'src/tests/b/fast.test.ts', 'src/tests/c/plain.test.ts'],
+      durationByFile: {},
+      config: {
+        shardCount: 2,
+        tolerancePercent: 200,
+        perFileOverheadMs: 0,
+        criticalTestGlobs: [],
+        lockedAssignments: {},
+        durationHints: [
+          { globs: ['src/tests/a/**'], estimatedDurationMs: 9000 },
+          { globs: ['src/tests/b/*.test.ts'], estimatedDurationMs: 3000 },
+        ],
+      },
+    });
+
+    expect(profile.durationByFile).toMatchObject({
+      'src/tests/a/slow.test.ts': 9000,
+      'src/tests/b/fast.test.ts': 3000,
+      'src/tests/c/plain.test.ts': 500,
+    });
+  });
+
   it('does not add per-file overhead twice when reusing a persisted profile', () => {
     const measured = normalizePersistedDurationByFile(
       {

@@ -1,4 +1,5 @@
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
+import { calendarDayAtUtcNoon } from '@/utils/clinicalDateUtils';
 import type { buildCudyrMonthlyIndicator } from './cudyrMonthlyIndicator';
 
 export const CUDYR_INDICATOR_START = '2026-08';
@@ -15,7 +16,7 @@ export const cudyrIndicatorMonths = (now: Date) => {
   const months: string[] = [];
   for (let month = CUDYR_INDICATOR_START; month <= last; ) {
     months.push(month);
-    const next = new Date(`${month}-01T12:00:00Z`);
+    const next = calendarDayAtUtcNoon(`${month}-01`);
     next.setUTCMonth(next.getUTCMonth() + 1);
     month = next.toISOString().slice(0, 7);
   }
