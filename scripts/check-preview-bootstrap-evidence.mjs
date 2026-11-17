@@ -2,6 +2,7 @@
 
 import { spawnSync } from 'node:child_process';
 
+import { getReusedEvidenceSource } from './gitReportState.mjs';
 import {
   collectPreviewBootstrapEvidenceIssues,
   readPreviewBootstrapEvidence,
@@ -10,11 +11,13 @@ import {
 const root = process.cwd();
 const gitCommit = () =>
   spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim();
+// A main push that reuses a pull request run checks that run's preview evidence.
+const reusedEvidence = getReusedEvidenceSource(root);
 const expected = {
   workflow: process.env.GITHUB_WORKFLOW || 'local',
-  runId: process.env.GITHUB_RUN_ID || 'local',
+  runId: reusedEvidence?.runId || process.env.GITHUB_RUN_ID || 'local',
   runAttempt: process.env.GITHUB_RUN_ATTEMPT || '1',
-  commit: process.env.GITHUB_SHA || gitCommit(),
+  commit: reusedEvidence?.commit || process.env.GITHUB_SHA || gitCommit(),
 };
 const evidence = readPreviewBootstrapEvidence(root);
 const issues = [

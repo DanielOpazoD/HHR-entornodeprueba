@@ -21,11 +21,16 @@ jobs:
     name: ci-scope
     runs-on: ubuntu-latest
     permissions:
+      # actions: read lets a main push find the pull request run that tested its tree.
+      actions: read
       contents: read
       pull-requests: read
     outputs:
       scope: ${{ steps.classify.outputs.scope }}
       reason: ${{ steps.classify.outputs.reason }}
+      evidence-run-id: ${{ steps.classify.outputs.evidence_run_id }}
+      evidence-commit: ${{ steps.classify.outputs.evidence_commit }}
+      evidence-tree: ${{ steps.classify.outputs.evidence_tree }}
 
     steps:
       - name: Checkout trusted classifier revision
@@ -58,6 +63,32 @@ jobs:
           fi
         env:
           CI_GIT_ROOT: ${{ github.workspace }}/candidate
+          GITHUB_TOKEN: ${{ github.token }}
+
+      # Every job of a pull request run tests github.sha (refs/pull/N/merge). Its
+      # tree, recorded in an artifact name, lets main reuse this run when merging
+      # leaves the tree unchanged. Best effort: without it main runs everything.
+      - name: Record the tree this run tests
+        id: tested
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tree="$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$GITHUB_SHA" --jq .tree.sha)"
+          [[ "$tree" =~ ^[0-9a-f]{40}$ ]]
+          echo "tree=$tree" >> "$GITHUB_OUTPUT"
+          echo "$GITHUB_SHA $tree" > "$RUNNER_TEMP/pr-tested.txt"
+
+      - name: Upload the tested tree record
+        if: github.event_name == 'pull_request' && steps.tested.outcome == 'success'
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-tested-${{ github.sha }}-${{ steps.tested.outputs.tree }}
+          path: ${{ runner.temp }}/pr-tested.txt
+          overwrite: true
+          retention-days: 7
 
   docs-scope-gate:
     name: docs-scope-gate
@@ -1361,6 +1392,9 @@ jobs:
       FINAL_CONFIDENCE_RESULT: ${{ needs['final-confidence-and-readiness'].result }}
       CI_RUNTIME_TELEMETRY_RESULT: ${{ needs['ci-runtime-telemetry'].result }}
       CENSUS_PERFORMANCE_RESULT: ${{ needs['census-startup-performance'].result }}
+      CI_EVIDENCE_RUN_ID: ${{ needs['ci-scope'].outputs.evidence-run-id }}
+      CI_EVIDENCE_COMMIT: ${{ needs['ci-scope'].outputs.evidence-commit }}
+      CI_EVIDENCE_TREE: ${{ needs['ci-scope'].outputs.evidence-tree }}
     steps:
       - name: Enforce strict gate outcomes
         shell: bash
@@ -1373,13 +1407,29 @@ jobs:
           fi
 
           case "$CI_SCOPE" in
-            full|docs-only|functions-only|tooling-only) ;;
+            full|docs-only|functions-only|tooling-only|reused) ;;
             *) echo "::error::Unknown CI scope: $CI_SCOPE"; exit 1 ;;
           esac
 
           expected_result="success"
-          if [[ "$CI_SCOPE" == "docs-only" || "$CI_SCOPE" == "functions-only" || "$CI_SCOPE" == "tooling-only" ]]; then
+          if [[ "$CI_SCOPE" == "docs-only" || "$CI_SCOPE" == "functions-only" || "$CI_SCOPE" == "tooling-only" || "$CI_SCOPE" == "reused" ]]; then
             expected_result="skipped"
+          fi
+
+          # A main push whose tree a complete green pull request run already
+          # tested takes that run's evidence instead of repeating it.
+          if [[ "$CI_SCOPE" == "reused" ]]; then
+            if [[ ! "$CI_EVIDENCE_RUN_ID" =~ ^[0-9]+$ || ! "$CI_EVIDENCE_COMMIT" =~ ^[0-9a-f]{40}$ || ! "$CI_EVIDENCE_TREE" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::Reused CI evidence does not name its run, commit and tree."
+              exit 1
+            fi
+            evidence_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$CI_EVIDENCE_RUN_ID"
+            {
+              echo "### Evidencia reutilizada"
+              echo "El árbol de \`$GITHUB_SHA\` es el que probó la corrida [$CI_EVIDENCE_RUN_ID]($evidence_url)"
+              echo "(commit probado \`$CI_EVIDENCE_COMMIT\`, árbol \`$CI_EVIDENCE_TREE\`), completa y en verde."
+              echo "Sus pruebas y artefactos acreditan este commit; aquí no se repiten."
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
 
           for gate in \
@@ -1412,11 +1462,19 @@ jobs:
   postmerge-evidence:
     name: postmerge-evidence
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [build, ci-strict-summary, final-confidence-and-readiness]
+    # ci-summary passing proves the producers passed, or that their evidence is reused.
+    if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.ci-strict-summary.result == 'success' }}
+    needs: [ci-scope, build, ci-strict-summary, final-confidence-and-readiness]
     permissions:
       actions: read
       contents: read
+    # Set only when main reuses a pull request run: artifacts come from that run
+    # and its commit counts as current while its tree is HEAD's tree.
+    env:
+      CI_EVIDENCE_RUN_ID: ${{ needs.ci-scope.outputs.evidence-run-id }}
+      CI_EVIDENCE_COMMIT: ${{ needs.ci-scope.outputs.evidence-commit }}
+      CI_EVIDENCE_TREE: ${{ needs.ci-scope.outputs.evidence-tree }}
+      EVIDENCE_RUN_ID: ${{ needs.ci-scope.outputs.evidence-run-id || github.run_id }}
 
     steps:
       - name: Checkout code
@@ -1451,24 +1509,32 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v7
         with:
+          run-id: ${{ env.EVIDENCE_RUN_ID }}
+          github-token: ${{ github.token }}
           name: dist
           path: dist
 
       - name: Download preview bootstrap artifacts
         uses: actions/download-artifact@v7
         with:
+          run-id: ${{ env.EVIDENCE_RUN_ID }}
+          github-token: ${{ github.token }}
           name: preview-bootstrap-artifacts
           path: reports/e2e/preview-bootstrap
 
       - name: Download critical coverage artifact
         uses: actions/download-artifact@v7
         with:
+          run-id: ${{ env.EVIDENCE_RUN_ID }}
+          github-token: ${{ github.token }}
           name: critical-coverage
           path: reports
 
       - name: Download release evidence runtime contract
         uses: actions/download-artifact@v7
         with:
+          run-id: ${{ env.EVIDENCE_RUN_ID }}
+          github-token: ${{ github.token }}
           name: release-evidence-runtime
           path: reports/release-evidence-runtime
 
@@ -1478,9 +1544,11 @@ jobs:
       - name: Verify built release evidence contract
         run: npm run check:release-evidence-contract:built
 
-      - name: Download same-run flow performance evidence
+      - name: Download flow performance evidence
         uses: actions/download-artifact@v7
         with:
+          run-id: ${{ env.EVIDENCE_RUN_ID }}
+          github-token: ${{ github.token }}
           name: flow-performance-evidence
           path: reports/e2e
 
