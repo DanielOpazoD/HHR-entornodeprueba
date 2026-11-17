@@ -1,4 +1,5 @@
 import { sortByMmradStampDesc } from '@/services/radiology/mmradStamp';
+import { calendarDayAtUtcNoon } from '@/utils/clinicalDateUtils';
 import { BEDS } from '@/constants/beds';
 import type { MMRADExam, MMRADSearchResult } from '@/services/radiology/mmradService';
 import { getTodayISO } from '@/utils/dateCoreUtils';
@@ -67,7 +68,7 @@ export const resolveMMRADDatePresetRange = (
   now = new Date()
 ): { from: string; to: string } => {
   const to = getTodayISO(now);
-  const from = new Date(`${to}T12:00:00Z`);
+  const from = calendarDayAtUtcNoon(to);
 
   if (preset === 'last-month') {
     from.setUTCMonth(from.getUTCMonth() - 1);

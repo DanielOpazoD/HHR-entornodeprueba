@@ -9,6 +9,7 @@ const {
 const { applyTrustedClinicalCarryover } = require('./clinicalCarryoverSeed');
 const { movementRestoreRecord } = require('./movementRestoreSources');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
+const { addCalendarDays, calendarDayAtUtcNoon } = require('./hospitalCalendarDay');
 const {
   readPriorDayForCarryover,
   settleClinicalDerivedFullSave,
@@ -48,12 +49,8 @@ const {
   recordAuthorityTelemetry,
 } = require('./dailyRecordAuthorityOutcome');
 
-const previousIsoDay = date => {
-  const day = new Date(`${date}T12:00:00.000Z`);
-  if (!Number.isFinite(day.getTime())) return null;
-  day.setUTCDate(day.getUTCDate() - 1);
-  return day.toISOString().slice(0, 10);
-};
+const previousIsoDay = date =>
+  Number.isFinite(calendarDayAtUtcNoon(date).getTime()) ? addCalendarDays(date, -1) : null;
 
 const createFullSaveHandler =
   ({ firestore, Timestamp, resolveRoleForEmail }) =>

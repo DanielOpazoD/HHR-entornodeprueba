@@ -1,4 +1,5 @@
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
+import { addCalendarDays, diffCalendarDays, isCalendarDate } from '@/utils/clinicalDateUtils';
 import { applyCudyrFirstNightRecovery } from './cudyrFirstNightRecovery';
 import { applyCudyrCensusContinuity } from './cudyrCensusContinuity';
 import {
@@ -33,16 +34,11 @@ import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorag
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 
 export const cudyrReportDates = (from: string, to: string): string[] => {
-  const valid = (date: string) =>
-    /^\d{4}-\d{2}-\d{2}$/.test(date) &&
-    Number.isFinite(Date.parse(date + 'T12:00:00Z')) &&
-    new Date(date + 'T12:00:00Z').toISOString().slice(0, 10) === date;
-  if (!valid(from) || !valid(to) || from > to) throw new Error('Seleccione un período válido.');
-  const count = (Date.parse(to + 'T12:00:00Z') - Date.parse(from + 'T12:00:00Z')) / 86400000 + 1;
-  if (count > 32) throw new Error('Seleccione como máximo 32 días por reporte.');
-  return Array.from({ length: count }, (_, index) =>
-    new Date(Date.parse(from + 'T12:00:00Z') + index * 86400000).toISOString().slice(0, 10)
-  );
+  const span = diffCalendarDays(from, to);
+  if (!isCalendarDate(from) || !isCalendarDate(to) || span === null || span < 0)
+    throw new Error('Seleccione un período válido.');
+  if (span + 1 > 32) throw new Error('Seleccione como máximo 32 días por reporte.');
+  return Array.from({ length: span + 1 }, (_, index) => addCalendarDays(from, index));
 };
 export interface CudyrReportLoaderPorts {
   readRecord: (
