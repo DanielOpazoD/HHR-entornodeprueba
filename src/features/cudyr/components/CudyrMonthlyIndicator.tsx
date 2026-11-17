@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { calendarDayAtUtcNoon } from '@/utils/clinicalDateUtils';
 import { ChartNoAxesCombined } from 'lucide-react';
 import { cudyrMonthlyIndicatorRange } from '@/services/cudyr/cudyrMonthlyIndicator';
 import {
@@ -12,7 +13,7 @@ import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorag
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 
 const monthLabel = (month: string) =>
-  new Date(`${month}-01T12:00:00Z`).toLocaleDateString('es-CL', {
+  calendarDayAtUtcNoon(`${month}-01`).toLocaleDateString('es-CL', {
     month: 'short',
     year: 'numeric',
     timeZone: 'UTC',

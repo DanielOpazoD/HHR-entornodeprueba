@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import clsx from 'clsx';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
+import { addCalendarDays, calendarDayAtUtcNoon } from '@/utils/clinicalDateUtils';
 import type { PrescriptionRecord } from '@/types/prescriptionTypes';
 
 interface PrescriptionDateStripProps {
@@ -36,7 +37,7 @@ export const PrescriptionDateStrip: React.FC<PrescriptionDateStripProps> = ({
   records,
   daysBack = 30,
 }) => {
-  const today = useMemo(() => new Date(`${getClinicalCalendarDateISO()}T12:00:00Z`), []);
+  const todayIso = useMemo(() => getClinicalCalendarDateISO(), []);
   const stripRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -47,16 +48,11 @@ export const PrescriptionDateStrip: React.FC<PrescriptionDateStripProps> = ({
   const days = useMemo(() => {
     const out: Array<{ iso: string; date: Date; isToday: boolean }> = [];
     for (let offset = daysBack - 1; offset >= 0; offset -= 1) {
-      const d = new Date(today);
-      d.setUTCDate(today.getUTCDate() - offset);
-      out.push({
-        iso: getClinicalCalendarDateISO(d),
-        date: d,
-        isToday: offset === 0,
-      });
+      const iso = addCalendarDays(todayIso, -offset);
+      out.push({ iso, date: calendarDayAtUtcNoon(iso), isToday: offset === 0 });
     }
     return out;
-  }, [today, daysBack]);
+  }, [todayIso, daysBack]);
 
   const daysWithData = useMemo(() => {
     const set = new Set<string>();

@@ -74,7 +74,6 @@ vi.mock('@/services/auth/authBootstrapState', () => ({
 }));
 
 vi.mock('@/services/auth/authPolicy', () => ({
-  isCurrentUserAuthorizedForGeneralLogin: vi.fn(async () => true),
   resolveGeneralLoginAccessForEmail: vi.fn(async () => ({
     allowed: true,
     role: 'admin',

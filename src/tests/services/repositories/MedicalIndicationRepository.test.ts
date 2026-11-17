@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MedicalIndicationRecordRepository } from '@/services/repositories/MedicalIndicationRecordRepository';
 import { MedicalIndicationTemplateRepository } from '@/services/repositories/MedicalIndicationTemplateRepository';

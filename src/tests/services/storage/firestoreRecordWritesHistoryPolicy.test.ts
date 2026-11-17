@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { firestoreWriteLoggerWarn, firestoreWriteLoggerError } = vi.hoisted(() => ({
   firestoreWriteLoggerWarn: vi.fn(),

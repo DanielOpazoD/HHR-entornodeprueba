@@ -1,6 +1,7 @@
 import type { ConflictResolutionTraceContext } from '@/services/repositories/conflictResolutionTrace';
 
-const resolveItemId = (item: unknown): string => {
+/** A movement's identity in its list: its id, or the whole item when it has none. */
+export const resolveItemId = (item: unknown): string => {
   if (item && typeof item === 'object' && 'id' in item) {
     return String((item as { id?: string | number }).id ?? JSON.stringify(item));
   }

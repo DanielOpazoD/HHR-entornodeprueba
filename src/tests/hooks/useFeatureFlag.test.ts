@@ -87,8 +87,6 @@ describe('useAllFeatureFlags', () => {
       SPECIALTY_RULES_MEMORY: false,
       SPECIALTY_JEV_CONSULTATION: false,
       USE_ADMIT_PATIENT_COMMAND: true,
-      USE_DISCHARGE_PATIENT_COMMAND: false,
-      USE_TRANSFER_PATIENT_COMMAND: false,
     };
 
     vi.mocked(featureFlags.getAll).mockReturnValue(flagsSnapshot);

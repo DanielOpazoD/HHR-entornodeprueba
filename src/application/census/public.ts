@@ -27,6 +27,3 @@ export * from '@/features/census/controllers/patientMovementUndoController';
 export * from '@/features/census/controllers/patientMovementUndoErrorPresentation';
 export * from '@/features/census/controllers/patientMovementUndoMutationController';
 export * from '@/features/census/controllers/transferModalController';
-
-export const loadCensusPublicComponents = () =>
-  import(/* webpackPrefetch: true */ '@/features/census/census-view');

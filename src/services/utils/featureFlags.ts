@@ -36,18 +36,6 @@ export const FEATURE_FLAGS = {
   // repository chain. The flag remains user-toggleable for emergency
   // rollback. See TECHNICAL_DEBT_REGISTER `command-layer-adoption`.
   USE_ADMIT_PATIENT_COMMAND: true,
-
-  // Routes the existing discharge modal (`useCensusDischargeCommand` →
-  // `usePatientDischarges.addDischarge`) through a thin canonical
-  // facade that adds anonymous-actor rejection, typed outcome, and
-  // dispatches the PATIENT_DISCHARGED audit through the canonical
-  // command pipeline. OFF by default — see TECHNICAL_DEBT_REGISTER
-  // `command-layer-discharge` for the rollout plan.
-  USE_DISCHARGE_PATIENT_COMMAND: false,
-
-  // Same facade for the transfer modal flow. OFF by default — see
-  // TECHNICAL_DEBT_REGISTER `command-layer-transfer`.
-  USE_TRANSFER_PATIENT_COMMAND: false,
 } as const;
 
 export type FeatureFlag = keyof typeof FEATURE_FLAGS;
