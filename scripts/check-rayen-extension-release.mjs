@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
+import { Script } from 'node:vm';
 
 const root = process.cwd();
 const extensionDir = path.join(root, 'extension');
@@ -414,14 +414,20 @@ for (const htmlFile of extensionFiles.filter(candidate => /\.html?$/i.test(candi
 for (const file of extensionFiles.filter(candidate => candidate.endsWith('.map'))) {
   fail(`No se permiten source maps en el paquete clínico: ${relative(file)}`);
 }
-// A structurally invalid package is already rejected. Avoid launching a Node process
-// per script until integrity and references pass; valid packages still check every script.
+// A structurally invalid package is already rejected; valid packages check every script.
+// The package loads them all as classic browser scripts (content scripts, importScripts,
+// <script src>), so each one is compiled as a classic script here, never executed.
 if (errors.length === 0) {
   for (const file of extensionFiles.filter(
     candidate => candidate.endsWith('.js') && !candidate.endsWith('.min.js')
   )) {
-    const check = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
-    if (check.status !== 0) fail(`Sintaxis inválida en ${relative(file)}: ${check.stderr.trim()}`);
+    try {
+      new Script(readFileSync(file, 'utf8'), { filename: relative(file) });
+    } catch (error) {
+      // A compile-time SyntaxError's stack starts with `file:line`.
+      const line = /:(\d+)$/.exec(String(error?.stack).split('\n')[0])?.[1];
+      fail(`Sintaxis inválida en ${relative(file)}${line ? `, línea ${line}` : ''}: ${error}`);
+    }
   }
 }
 
