@@ -224,6 +224,46 @@ describe('check-clinical-clock', () => {
     expect(output.match(/\[hand-calendar-anchor\]/g)).toHaveLength(4);
   });
 
+  it('reports a zone-less midnight read as an instant and names the hospital midnight', () => {
+    const { status, output } = runGuard({
+      // The nurse window before 2026-11-17 (previousDayCorrections.ts).
+      'src/features/a.ts': [
+        'export const canWrite = (day: string, isAdmin: boolean): boolean =>',
+        '  isAdmin || Date.now() - new Date(`${day}T00:00:00`).getTime() < 172_800_000;',
+        "const start = Date.parse(day + 'T00:00');",
+        'const open = now < start + 1;',
+        'const midnight = new Date(`${day}T00:00:00.000`);',
+        'const late = Date.now() >= midnight.valueOf();',
+      ].join('\n'),
+      'netlify/functions/b.ts': 'const past = (now as Date) > new Date(`${day}T00:00:00`);\n',
+    });
+    expect(status).toBe(1);
+    for (const location of ['src/features/a.ts:2', 'src/features/a.ts:4', 'src/features/a.ts:6'])
+      expect(output).toContain(
+        `[device-midnight-instant] ${location} — a zone-less T00:00:00 is the device's midnight: use clinicalWallClockToDate(day, '00:00') from src/utils/clinicalWallClock for the hospital's`
+      );
+    expect(output).toContain('[device-midnight-instant] netlify/functions/b.ts:1');
+    expect(output.match(/\[device-midnight-instant\]/g)).toHaveLength(4);
+  });
+
+  it('allows a zone-less midnight read back as a calendar day, zoned midnights and the hospital midnight', () => {
+    const { status, output } = runGuard({
+      'src/features/a.ts': [
+        // clinicalDocumentPresentation.ts reads its label back with local getters.
+        '// clinical-clock-allow device-calendar-today: local midnight read back with local getters.',
+        'const parsed = new Date(`${value}T00:00:00`);',
+        'if (Number.isNaN(parsed.getTime())) throw new Error(value);',
+        'const utc = Date.now() - new Date(`${day}T00:00:00Z`).getTime();',
+        'const offset = Date.now() - Date.parse(`${day}T00:00:00-05:00`);',
+        "const open = Date.now() - clinicalWallClockToDate(day, '00:00').getTime() < 1;",
+        'const name = `${day}T00:00:00` + suffix;',
+      ].join('\n'),
+      'src/tests/a.test.ts': 'const m = Date.now() - new Date(`${day}T00:00:00`).getTime();\n',
+    });
+    expect(output).toContain('Clinical clock checks passed');
+    expect(status).toBe(0);
+  });
+
   it('reports UTC today in Functions libraries and the entrypoint', () => {
     const today = ['new Date()', 'toISOString()', 'slice(0, 10)'].join('.');
     const { status, output } = runGuard({

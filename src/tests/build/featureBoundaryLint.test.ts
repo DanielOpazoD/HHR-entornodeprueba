@@ -120,22 +120,6 @@ describe('feature boundaries in ESLint (from scripts/feature-dependency-matrix.j
     ).toEqual(directories);
   });
 
-  it('preserves every exact exception and rejects a different deep path there', async () => {
-    const { violations } = JSON.parse(
-      fs.readFileSync(path.join(ROOT, 'scripts/feature-dependency-allowlist.json'), 'utf8')
-    ) satisfies { violations: string[] };
-    expect(new Set(violations).size).toBe(3);
-    for (const entry of violations) {
-      const [, importer, target] = entry.split('|');
-      const source = fs.readFileSync(path.join(ROOT, importer), 'utf8');
-      expect(source.includes(`'${target}'`) || source.includes(`"${target}"`)).toBe(true);
-      expect(await boundaryMessages(importer, `import { x } from '${target}';`)).toEqual([]);
-      expect(
-        await boundaryMessages(importer, `import { x } from '${target}/__probe';`)
-      ).toHaveLength(1);
-    }
-  });
-
   it.each(['Probe.spec.ts', 'Probe.d.ts', 'Probe.config.ts'])(
     'enforces the existing or broader scope in %s',
     async name => {
@@ -204,9 +188,9 @@ describe('feature boundaries in ESLint (from scripts/feature-dependency-matrix.j
     ).toEqual([]);
   });
 
-  it('tolerates only the allowlisted deep import of an allowlisted importer', async () => {
+  it('accepts a narrow public module and rejects the internals behind it', async () => {
     const messages = await boundaryMessages(
-      'src/features/census/components/CensusStaffHeader.tsx',
+      'src/features/census/components/Probe.tsx',
       "import { RayenImportButton } from '@/features/rayen-import/RayenImportButton';\nimport { y } from '@/features/rayen-import/bridge/encounterNavigationBridge';\nexport const z = [RayenImportButton, y];\n"
     );
     expect(messages).toHaveLength(1);
