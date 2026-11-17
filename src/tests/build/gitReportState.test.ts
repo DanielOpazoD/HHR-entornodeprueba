@@ -10,25 +10,18 @@ import {
 } from '../../../scripts/gitReportState.mjs';
 
 describe('gitReportState', () => {
-  it('temporarily ignores snapshots awaiting reader migration or clinical-owner decision', () => {
-    expect(
-      hasMeaningfulWorktreeChanges(
-        [
-          ' M reports/quality-metrics.json',
-          ' M reports/clinical-release-validation.md',
-          ' M reports/clinical-release-signoff.json',
-          ' M reports/clinical-release-signoff.md',
-        ].join('\n')
-      )
-    ).toBe(false);
+  it('treats any status line as a meaningful worktree change', () => {
+    expect(hasMeaningfulWorktreeChanges(' M src/app.ts\n')).toBe(true);
+    expect(hasMeaningfulWorktreeChanges('')).toBe(false);
   });
 
-  it('keeps non-generated paths as meaningful worktree changes', () => {
-    expect(hasMeaningfulWorktreeChanges(' M src/app.ts\n')).toBe(true);
+  it('keeps every generated report out of the index', () => {
+    // Reports describe the commit that generated them; a tracked copy goes stale on the next merge.
+    expect(execFileSync('git', ['ls-files', '--', 'reports'], { encoding: 'utf8' })).toBe('');
   });
 });
 
-// Reproduce a fresh checkout using the repository's real tracking and ignore policy.
+// Reproduce a fresh checkout using the repository's real ignore policy.
 describe('generated report checkout', () => {
   it('stays clean when a machine regenerates legacy retirement evidence', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hhr-report-checkout-'));
@@ -40,8 +33,6 @@ describe('generated report checkout', () => {
       fs.mkdirSync(path.join(root, 'reports'));
       fs.writeFileSync(path.join(root, report), '{"synthetic": "initial"}\n');
       git('add', '.gitignore');
-      const tracked = execFileSync('git', ['ls-files', '--', report], { encoding: 'utf8' });
-      if (tracked.trim()) git('add', '-f', report);
       git(
         '-c',
         'user.name=Synthetic Test',

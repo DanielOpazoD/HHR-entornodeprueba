@@ -40,8 +40,7 @@ GitHUBHHR
 coverage/
 playwright-report/
 test-results/
-# Machine reports are generated per run and uploaded as CI artifacts.
-# Historical inputs and clinical evidence still tracked are migrated separately.
+# Machine reports are generated per run and uploaded as CI artifacts; none is tracked.
 reports/
 lint_output.txt
 test-results.json
