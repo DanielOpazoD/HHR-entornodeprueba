@@ -1,6 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import type { NursingShift } from '@/hooks/useHandoffVisibility';
+import type { ShiftType } from '@/types/domain/shift';
 
 export interface NursingNoteChangePlan {
   noteKey: 'handoffNoteDayShift' | 'handoffNoteNightShift';
@@ -14,7 +14,7 @@ export const buildNursingNoteChangePlan = ({
   isNested,
   bed,
 }: {
-  selectedShift: NursingShift;
+  selectedShift: ShiftType;
   isNested: boolean;
   bed: PatientData | undefined;
 }): NursingNoteChangePlan => {

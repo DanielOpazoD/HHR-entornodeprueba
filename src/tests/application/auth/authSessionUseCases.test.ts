@@ -11,8 +11,11 @@ const mockIsPopupRecoverableAuthError = vi.fn();
 const mockIsPopupCancellationAuthError = vi.fn();
 const mockResolveAuthErrorCode = vi.fn();
 
-vi.mock('@/services/auth/authFlow', () => ({
+vi.mock('@/services/auth/authCredentialFlow', () => ({
   signIn: (...args: unknown[]) => mockSignIn(...args),
+}));
+
+vi.mock('@/services/auth/authGoogleFlow', () => ({
   signInWithGoogle: (...args: unknown[]) => mockSignInWithGoogle(...args),
 }));
 

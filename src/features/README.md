@@ -76,7 +76,7 @@ feature/
 - `controllers/hooks/domain/types` de una feature no deben importar capas restringidas de otra feature (controlado por script de arquitectura).
 - Priorizar contratos locales (`types`, `domain/contracts`) antes de usar tipos ad-hoc en componentes.
 - Todo consumo externo a la feature debe entrar por `index.ts` o `public.ts`. Evitar imports profundos desde `src/App.tsx`, `src/views/*` o desde otras features.
-- Entre features, ESLint impone la matriz (`scripts/feature-dependency-matrix.json`) y las entradas públicas (`publicModulesByFeature` en `scripts/feature-public-api-allowlist.json`) con `hhr/feature-boundaries`: el editor marca el import prohibido y `npm run lint` falla. La regla cubre imports estáticos, de tipos, reexportaciones, dinámicos y `require`, tanto por alias como por rutas relativas; las pruebas de configuración verifican la paridad entre carpetas y matriz.
+- Entre features, ESLint impone la matriz (`scripts/feature-dependency-matrix.json`) y sus entradas públicas (`publicModulesByFeature`, en el mismo archivo) con `hhr/feature-boundaries`: el editor marca el import prohibido y `npm run lint` falla. La regla cubre imports estáticos, de tipos, reexportaciones, dinámicos y `require`, tanto por alias como por rutas relativas; las pruebas de configuración verifican la paridad entre carpetas y matriz.
 - Dentro de la feature, preferir imports relativos para distinguir claramente implementación interna
   de API pública. Los aliases `@/features/<feature>/...` quedan reservados para consumo externo y
   deben apuntar solo al entrypoint público.
@@ -103,7 +103,8 @@ components/Modal
 
 ## Entradas públicas
 
-Cada feature se consume desde fuera solo por su `public.ts` o su `index.ts`. Las entradas adicionales
-permitidas están en `publicModulesByFeature` y las excepciones puntuales en `exceptionsByFeature`, ambas en
-[`scripts/feature-public-api-allowlist.json`](../../scripts/feature-public-api-allowlist.json); ESLint las
-impone.
+Cada feature se consume desde fuera solo por su `public.ts` o su `index.ts`, o por una entrada liviana
+declarada en `publicModulesByFeature` de
+[`scripts/feature-dependency-matrix.json`](../../scripts/feature-dependency-matrix.json) (por ejemplo, un
+botón que se carga sin arrastrar el feature entero al arranque). No hay excepciones por archivo: si una
+entrada liviana sirve a un consumidor, sirve a todos. ESLint lo impone.

@@ -70,15 +70,6 @@ export const RECORD_STRUCTURAL_FIELDS = new Set([
   'lastUpdated',
 ]);
 
-export const selectScalarByPolicy = (
-  path: string,
-  remote: unknown,
-  local: unknown,
-  preferLocalDefault: boolean
-): unknown => {
-  return decideScalarByPolicy(path, remote, local, preferLocalDefault).value;
-};
-
 export const decideScalarByPolicy = (
   path: string,
   remote: unknown,

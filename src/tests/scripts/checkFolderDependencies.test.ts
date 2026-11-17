@@ -119,7 +119,8 @@ for (const source of [
   });
 }
 for (const [name, source, folderStatus] of [
-  ['governed shim', "export * from '@/features/census/controllers/probe';", 0],
+  // The census shim exemption is gone: hooks may not reexport feature controllers.
+  ['former governed shim', "export * from '@/features/census/controllers/probe';", 1],
   [
     'shim with extra code',
     "export * from '@/features/census/controllers/probe';\nexport const extra = 1;",

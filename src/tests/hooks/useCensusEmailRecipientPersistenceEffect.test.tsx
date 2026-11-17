@@ -1,10 +1,10 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { useCensusEmailRecipientPersistenceEffect } from '@/hooks/useCensusEmailRecipientPersistenceEffect';
-import { saveAppSetting } from '@/services/settingsService';
+import { saveSetting } from '@/services/storage/indexeddb/indexedDbSettingsService';
 
-vi.mock('@/services/settingsService', () => ({
-  saveAppSetting: vi.fn(),
+vi.mock('@/services/storage/indexeddb/indexedDbSettingsService', () => ({
+  saveSetting: vi.fn(),
 }));
 
 describe('useCensusEmailRecipientPersistenceEffect', () => {
@@ -21,7 +21,7 @@ describe('useCensusEmailRecipientPersistenceEffect', () => {
       })
     );
 
-    expect(saveAppSetting).not.toHaveBeenCalled();
+    expect(saveSetting).not.toHaveBeenCalled();
   });
 
   it('persists recipients and active list once the runtime is ready', () => {
@@ -55,8 +55,8 @@ describe('useCensusEmailRecipientPersistenceEffect', () => {
       recipients: ['destino@test.com'],
     });
 
-    expect(saveAppSetting).toHaveBeenCalledWith('censusEmailRecipients', ['destino@test.com']);
-    expect(saveAppSetting).toHaveBeenCalledWith('censusEmailActiveRecipientListId', 'custom-list');
-    expect(saveAppSetting).toHaveBeenCalledTimes(2);
+    expect(saveSetting).toHaveBeenCalledWith('censusEmailRecipients', ['destino@test.com']);
+    expect(saveSetting).toHaveBeenCalledWith('censusEmailActiveRecipientListId', 'custom-list');
+    expect(saveSetting).toHaveBeenCalledTimes(2);
   });
 });

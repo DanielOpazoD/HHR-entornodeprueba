@@ -1,4 +1,4 @@
-import type { StorageListReport } from '@/services/backup/baseStorageService';
+import type { StorageListReport } from '@/types/backupArtifacts';
 import type { StorageLookupResult } from '@/services/backup/storageLookupContracts';
 import {
   createDegradedNotice,

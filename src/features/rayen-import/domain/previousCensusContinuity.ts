@@ -1,14 +1,11 @@
 import type { PatientData } from '@/types/domain/patient';
+import { addCalendarDays } from '@/utils/clinicalDateUtils';
 
 import { normalizeRut } from '@/utils/rutUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CensusImportDiff, ConflictEntry } from '../contracts/censusImportDiff';
 
-export const previousCensusDate = (day: string): string => {
-  const date = new Date(`${day}T12:00:00Z`);
-  date.setUTCDate(date.getUTCDate() - 1);
-  return date.toISOString().slice(0, 10);
-};
+export const previousCensusDate = (day: string): string => addCalendarDays(day, -1);
 
 type Subject = {
   clinicalEpisodeId?: string;

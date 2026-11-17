@@ -34,11 +34,8 @@
  * census scores view unchanged.
  */
 
-import type {
-  EvaluationScale,
-  EvaluationScaleCode,
-  EvaluationScaleItem,
-} from './parseEvaluationScales';
+import type { EvaluationScaleCode } from '@/types/domain/evaluationScores';
+import type { EvaluationScale, EvaluationScaleItem } from './parseEvaluationScales';
 
 interface RawResumeCampo {
   FORM_NAME?: unknown;

@@ -1,6 +1,7 @@
 /**
  * Base Storage Service
- * Shared exports for Firebase Storage list factories and common backup types.
+ * Shared exports for Firebase Storage list factories. Stored-file types live in
+ * @/types/backupArtifacts.
  */
 
 export {
@@ -17,10 +18,4 @@ export {
 } from './storageListSupport';
 // Single canonical file-size formatter (was duplicated in storageListSupport).
 export { formatFileSize } from '@/types/backupArtifacts';
-export type {
-  BaseStoredFile,
-  ListFilesConfig,
-  MonthInfo,
-  StorageListReport,
-  StorageListResult,
-} from './storageListSupport';
+export type { ListFilesConfig, MonthInfo, StorageListResult } from './storageListSupport';

@@ -7,6 +7,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import * as BaseStorage from '@/services/backup/baseStorageService';
+import type { BaseStoredFile } from '@/types/backupArtifacts';
 import { ListResult, FullMetadata } from 'firebase/storage';
 
 describe('baseStorageService', () => {
@@ -109,7 +110,7 @@ describe('baseStorageService', () => {
     });
 
     it('createListFilesInMonth returns files correctly', async () => {
-      interface TestFile extends BaseStorage.BaseStoredFile {
+      interface TestFile extends BaseStoredFile {
         date: string;
       }
       const config: BaseStorage.ListFilesConfig<TestFile> = {
@@ -143,7 +144,7 @@ describe('baseStorageService', () => {
     });
 
     it('createListFilesInMonth returns empty if no items found', async () => {
-      const config: BaseStorage.ListFilesConfig<BaseStorage.BaseStoredFile> = {
+      const config: BaseStorage.ListFilesConfig<BaseStoredFile> = {
         storageRoot: 'test-root',
         parseFilePath: vi.fn(),
         mapToFile: vi.fn(),
@@ -160,7 +161,7 @@ describe('baseStorageService', () => {
     });
 
     it('createListFilesInMonth skips files that fail parsing', async () => {
-      const config: BaseStorage.ListFilesConfig<BaseStorage.BaseStoredFile> = {
+      const config: BaseStorage.ListFilesConfig<BaseStoredFile> = {
         storageRoot: 'test-root',
         parseFilePath: vi.fn().mockReturnValue(null), // Fail parsing
         mapToFile: vi.fn(),
@@ -177,7 +178,7 @@ describe('baseStorageService', () => {
     });
 
     it('createListFilesInMonth handles individual file info errors', async () => {
-      const config: BaseStorage.ListFilesConfig<BaseStorage.BaseStoredFile> = {
+      const config: BaseStorage.ListFilesConfig<BaseStoredFile> = {
         storageRoot: 'test-root',
         parseFilePath: vi.fn().mockReturnValue({ date: '2025-01-01' }),
         mapToFile: vi.fn(),
@@ -195,7 +196,7 @@ describe('baseStorageService', () => {
     });
 
     it('createListFilesInMonth skips expected miss errors per file', async () => {
-      const config: BaseStorage.ListFilesConfig<BaseStorage.BaseStoredFile> = {
+      const config: BaseStorage.ListFilesConfig<BaseStoredFile> = {
         storageRoot: 'test-root',
         parseFilePath: vi.fn().mockReturnValue({ date: '2025-01-01' }),
         mapToFile: vi.fn(),

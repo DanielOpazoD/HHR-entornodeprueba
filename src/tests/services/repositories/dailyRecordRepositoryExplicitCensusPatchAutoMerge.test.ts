@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import type {
   LocalRecordAdmissionCandidate,

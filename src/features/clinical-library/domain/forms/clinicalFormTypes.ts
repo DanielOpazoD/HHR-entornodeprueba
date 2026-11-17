@@ -76,6 +76,3 @@ export interface ClinicalFormPatientOption {
     sourceLastUpdated: string;
   };
 }
-
-export const isClinicalFormId = (id: string): id is ClinicalFormId =>
-  CLINICAL_FORM_IDS.some(candidate => candidate === id);

@@ -1,7 +1,6 @@
 import type { JsonImportResult } from '@/services/exporters/exportImportJson';
 import type { BackupType } from '@/hooks/backupFileBrowserContracts';
-import type { BaseStoredFile } from '@/services/backup/baseStorageService';
-import type { StoredPdfFile } from '@/services/backup/pdfStorageService';
+import type { BaseStoredFile, StoredPdfFile } from '@/types/backupArtifacts';
 import { importDataJSONDetailed } from '@/services/exporters/exportImportJson';
 import {
   createApplicationFailed,

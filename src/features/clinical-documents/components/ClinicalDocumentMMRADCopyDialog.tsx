@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { addCalendarDays } from '@/utils/clinicalDateUtils';
 import { Check, ClipboardCopy, Loader2, X } from 'lucide-react';
 import { XRayIcon } from '@/components/ui/XRayIcon';
 
@@ -13,14 +14,9 @@ interface ClinicalDocumentMMRADCopyDialogProps {
   onClose: () => void;
 }
 
-// clinical-clock-allow instant-calendar-slice: Only caller supplies a calendar bound anchored at UTC noon, not an event instant.
-const toIsoDate = (date: Date): string => date.toISOString().split('T')[0];
-
 const buildLastThirtyDaysRange = (): { dateFrom: string; dateTo: string } => {
   const dateTo = getTodayISO();
-  const dateFrom = new Date(`${dateTo}T12:00:00Z`);
-  dateFrom.setUTCDate(dateFrom.getUTCDate() - 30);
-  return { dateFrom: toIsoDate(dateFrom), dateTo };
+  return { dateFrom: addCalendarDays(dateTo, -30), dateTo };
 };
 
 const toExamTimestamp = (raw: string): number => {
