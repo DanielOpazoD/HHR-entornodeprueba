@@ -523,6 +523,8 @@ test.describe('DICOM viewer and Salvador annexes', () => {
         return hashes.length === 2 && hashes[0] === hashes[1] && hashes[0] !== beforeZoom[0];
       })
       .toBe(true);
+    await expect(viewer.locator('.dicom-compare-links')).not.toHaveAttribute('open');
+    await viewer.getByLabel('Vincular paneles', { exact: true }).click();
     await viewer.getByRole('checkbox', { name: 'Posición', exact: true }).uncheck();
     await viewer.getByLabel('Vincular paneles', { exact: true }).click();
     await viewer.getByLabel('Comparación panel 1', { exact: true }).focus();
