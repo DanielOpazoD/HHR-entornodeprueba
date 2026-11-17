@@ -2,7 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { getGitReportState } from './gitReportState.mjs';
+import { getGitReportState, getReusedEvidenceSource } from './gitReportState.mjs';
 import { collectReleaseEvidenceContractIssues } from './releaseEvidenceContract.mjs';
 import {
   collectBuiltReleaseEvidenceIssues,
@@ -28,6 +28,7 @@ if (strict) {
         ...collectReleaseEvidenceManifestIssues({
           manifest,
           currentGitState: getGitReportState(root),
+          reusedEvidence: getReusedEvidenceSource(root),
         })
       );
     } catch (error) {

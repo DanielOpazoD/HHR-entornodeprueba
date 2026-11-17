@@ -2,7 +2,11 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { getDirectMergeParentShas, getGitReportState } from './gitReportState.mjs';
+import {
+  getDirectMergeParentShas,
+  getGitReportState,
+  getReusedEvidenceSource,
+} from './gitReportState.mjs';
 import {
   buildDependencyFingerprint,
   normalizeDependencyFingerprintValue,
@@ -78,7 +82,12 @@ if (!currentGitSha) {
   fail(['Could not resolve current git commit.']);
 }
 const directMergeParentShas = getDirectMergeParentShas(ROOT);
-const allowedReportShas = [currentGitSha, ...directMergeParentShas];
+const reusedEvidence = getReusedEvidenceSource(ROOT);
+const allowedReportShas = [
+  currentGitSha,
+  ...directMergeParentShas,
+  ...(reusedEvidence ? [reusedEvidence.commit] : []),
+];
 
 const issues = [];
 const advisories = [];

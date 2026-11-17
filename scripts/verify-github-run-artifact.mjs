@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { getReusedEvidenceSource } from './gitReportState.mjs';
+
 const readArgValue = (flag, fallback = '') => {
   const index = process.argv.indexOf(flag);
   return index === -1 ? fallback : process.argv[index + 1] || fallback;
@@ -18,13 +20,15 @@ const artifactApiTimeoutMs = Number.parseInt(
 const {
   GITHUB_API_URL = 'https://api.github.com',
   GITHUB_REPOSITORY: repository,
-  GITHUB_RUN_ID: runId,
+  GITHUB_RUN_ID: currentRunId,
   GITHUB_RUN_ATTEMPT: runAttempt = '1',
   GITHUB_SHA: commit,
   GITHUB_WORKFLOW: workflow,
   GITHUB_SERVER_URL = 'https://github.com',
   GITHUB_TOKEN: token,
 } = process.env;
+// A main push that reuses a pull request run verifies that run's artifacts.
+const runId = getReusedEvidenceSource(process.cwd())?.runId || currentRunId;
 
 class ArtifactVerificationFailure extends Error {}
 
