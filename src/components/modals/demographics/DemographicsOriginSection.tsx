@@ -8,6 +8,7 @@ import {
 import { LocalDemographicsState, Origin } from './types';
 import { DemographicsAdmissionOriginField } from './DemographicsAdmissionOriginField';
 import { DemographicsSexField } from './DemographicsSexField';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const resolveDraftAdmissionTime = (
   admissionTime?: string
@@ -58,10 +59,10 @@ export const DemographicsOriginSection: React.FC<DemographicsOriginSectionProps>
     localData.admissionTime || ''
   );
 
-  React.useEffect(() => {
+  if (useChangedOnRender([localData.admissionTime])) {
     setDraftAdmissionTime(resolveDraftAdmissionTime(localData.admissionTime));
     setDraftAdmissionTimeText(localData.admissionTime || '');
-  }, [localData.admissionTime]);
+  }
 
   const updateAdmissionTimePart =
     (part: 'hour' | 'minute') => (event: React.ChangeEvent<HTMLSelectElement>) => {

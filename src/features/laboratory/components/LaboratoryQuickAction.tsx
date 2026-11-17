@@ -4,6 +4,7 @@ import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { checkSyslabConnection } from '@/services/laboratory/syslabService';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
 import { DATE_STRIP_QUICK_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const LabResultsViewerModal = lazyWithRetry(() =>
   import('./LabResultsViewerModal').then(module => ({ default: module.LabResultsViewerModal }))
@@ -36,19 +37,18 @@ export const LaboratoryQuickAction: React.FC<LaboratoryQuickActionProps> = ({ pa
     [patients]
   );
 
-  React.useEffect(() => {
-    let active = true;
-
+  if (useChangedOnRender([labPatients.length])) {
     if (labPatients.length === 0) {
       setConnectionStatus('unavailable');
       setConnectionMessage('No hay pacientes con RUT para consultar Syslab');
-      return () => {
-        active = false;
-      };
+    } else {
+      setConnectionStatus('checking');
+      setConnectionMessage('Verificando conexión Syslab');
     }
-
-    setConnectionStatus('checking');
-    setConnectionMessage('Verificando conexión Syslab');
+  }
+  React.useEffect(() => {
+    if (labPatients.length === 0) return;
+    let active = true;
     void checkSyslabConnection().then(result => {
       if (!active) {
         return;

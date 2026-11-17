@@ -21,6 +21,7 @@ import { formatFileSize, formatCompressionRatio } from '../controllers/photoUplo
 import { usePhotoLightboxZoom } from '../hooks/usePhotoLightboxZoom';
 import { resolvePhotoWallClock } from '@/application/wound-care/woundCarePhotoTime';
 import { formatDateTimeCL } from '@/utils/dateDisplayUtils';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface PhotoLightboxProps {
   photos: WoundCarePhoto[];
@@ -57,8 +58,8 @@ export const PhotoLightbox: React.FC<PhotoLightboxProps> = ({
   const zoom = usePhotoLightboxZoom();
 
   // Reset state on navigation
+  if (useChangedOnRender([currentIndex])) setImageLoaded(false);
   useEffect(() => {
-    setImageLoaded(false);
     zoom.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIndex]);

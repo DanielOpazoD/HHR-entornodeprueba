@@ -9,6 +9,7 @@ import type {
   FunctionsTelemetryEntry,
   FunctionsTelemetryFilters,
 } from '@/types/functionsTelemetry';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const DEFAULT_LIMIT = 500;
 
@@ -34,23 +35,29 @@ export const useFunctionsTelemetryData = (limit: number = DEFAULT_LIMIT) => {
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<FunctionsTelemetryFilters>({});
 
-  const refresh = useCallback(async () => {
+  const showEntries = useCallback(
+    (read: Promise<FunctionsTelemetryEntry[]>) =>
+      read
+        .then(setEntries, (err: unknown) => {
+          setError(err instanceof Error ? err.message : 'Error cargando telemetría.');
+          setEntries([]);
+        })
+        .finally(() => setLoading(false)),
+    []
+  );
+  const refresh = useCallback(() => {
     setLoading(true);
     setError(null);
-    try {
-      const data = await fetchFunctionsTelemetry(limit);
-      setEntries(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error cargando telemetría.');
-      setEntries([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [limit]);
+    return showEntries(fetchFunctionsTelemetry(limit));
+  }, [limit, showEntries]);
 
+  if (useChangedOnRender([limit])) {
+    setLoading(true);
+    setError(null);
+  }
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    void showEntries(fetchFunctionsTelemetry(limit));
+  }, [limit, showEntries]);
 
   const filteredEntries = useMemo(
     () => entries.filter(entry => matchesFilters(entry, filters)),

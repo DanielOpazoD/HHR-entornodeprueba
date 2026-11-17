@@ -16,6 +16,7 @@ import type {
   RayenExtensionHealthState,
 } from '../hooks/useRayenExtensionHealth';
 import { SYNC_TONE, SYNC_TONE_INFO_VARIANT } from './syncTone';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 /**
  * Columna «Eloísa» de la barra del censo: semáforo de conexión + popover con
@@ -147,6 +148,7 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
 
   React.useEffect(() => {
     if (!open) return undefined;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the relative times restart from the clock when the detail opens
     setNow(Date.now());
     const timer = setInterval(() => setNow(Date.now()), RELATIVE_TICK_MS);
     const onPointerDown = (event: PointerEvent): void => {
@@ -159,12 +161,12 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
     };
   }, [open, onOpenChange]);
 
+  if (useChangedOnRender([refreshExtension, open]) && open) setBusy('refresh');
   React.useEffect(() => {
     if (!open) return;
     const refreshEpoch = ++autoRefreshEpochRef.current;
     // El detalle siempre se abre con evidencia fresca; el latido sigue siendo
     // la vía normal y este chequeo no queda expuesto como paso obligatorio.
-    setBusy('refresh');
     void refreshExtension()
       .then(() => setNow(Date.now()))
       .catch(() => undefined)
@@ -197,11 +199,14 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
     working,
   });
 
-  React.useEffect(() => {
-    if (report?.fichaMedico.status === 'ready' && report.gestionCamas.status === 'ready') {
-      setActionError(null);
-    }
-  }, [report]);
+  // Both sources ready: an earlier action error no longer applies.
+  if (
+    actionError !== null &&
+    report?.fichaMedico.status === 'ready' &&
+    report.gestionCamas.status === 'ready'
+  ) {
+    setActionError(null);
+  }
   const stateLabel = rayenSourceStateLabel(
     connection,
     fichaMedicoReady,

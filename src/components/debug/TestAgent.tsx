@@ -3,6 +3,7 @@ import { Bot, CheckCircle, XCircle, Loader2, Terminal } from 'lucide-react';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { PatientData } from '@/types/domain/patient';
 import { calculateStats } from '@/services/calculations/statsCalculator';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface TestAgentProps {
   isRunning: boolean;
@@ -101,12 +102,13 @@ export const TestAgent: React.FC<TestAgentProps> = ({ isRunning, onComplete, cur
     onComplete();
   }, [currentRecord, onComplete, addLog, updateLog]);
 
+  if (useChangedOnRender([isRunning, runDiagnostics]) && isRunning) {
+    setLogs([]);
+    setProgress(0);
+  }
   useEffect(() => {
-    if (isRunning) {
-      setLogs([]);
-      setProgress(0);
-      runDiagnostics();
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the run this effect starts logs its first step at once
+    if (isRunning) void runDiagnostics();
   }, [isRunning, runDiagnostics]);
 
   if (!isRunning) return null;

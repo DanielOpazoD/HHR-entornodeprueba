@@ -14,6 +14,7 @@ import {
   shouldRetryLabViewerSearchError,
 } from '../controllers/labViewerController';
 import { resolveLabPatientBirthDateFromPdf } from '../services/labPatientPdfMetadataService';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface UseLabViewerQueryParams {
   patients: LabPatient[];
@@ -70,22 +71,22 @@ export const useLabViewerQuery = ({
   );
   const isLoading = examQuery.isFetching;
 
-  useEffect(() => {
+  if (useChangedOnRender([examQuery.error, examQuery.data])) {
     setError(
       resolveLabViewerSearchErrorMessage({
         queryError: examQuery.error,
         queryData: examQuery.data,
       })
     );
-  }, [examQuery.error, examQuery.data]);
+  }
 
   const uniquePatients = useMemo(() => buildUniqueLabPatients(patients), [patients]);
 
+  const knownPatient = !selectedRut || uniquePatients.some(patient => patient.rut === selectedRut);
+  // A patient of the census needs no manual extra data.
+  if (knownPatient && manualPatientExtra !== null) setManualPatientExtra(null);
   useEffect(() => {
-    if (!selectedRut || uniquePatients.some(patient => patient.rut === selectedRut)) {
-      setManualPatientExtra(null);
-      return;
-    }
+    if (!selectedRut || uniquePatients.some(patient => patient.rut === selectedRut)) return;
 
     if (examList.length === 0) {
       return;

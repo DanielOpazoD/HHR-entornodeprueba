@@ -22,6 +22,7 @@ import { useMedicalIndicationsAppliedRecordLookup } from './medicalIndicationsAp
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const loadPrintMedicalIndicationsPdf = async () =>
   import('@/services/pdf/medicalIndicationsPdfService').then(
@@ -75,14 +76,12 @@ export const MedicalIndicationsDialog: React.FC<MedicalIndicationsDialogProps> =
   const [saveMessage, setSaveMessage] = React.useState('');
   const [isSavingRecord, setIsSavingRecord] = React.useState(false);
 
-  React.useEffect(() => {
-    if (!isOpen) {
-      setUsedTemplateIds([]);
-      setPrintError('');
-      setSaveMessage('');
-      setIsSavingRecord(false);
-    }
-  }, [isOpen]);
+  if (useChangedOnRender([isOpen]) && !isOpen) {
+    setUsedTemplateIds([]);
+    setPrintError('');
+    setSaveMessage('');
+    setIsSavingRecord(false);
+  }
 
   React.useEffect(() => {
     if (!isOpen || !appliedRecordLookup) return;

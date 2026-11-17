@@ -28,6 +28,7 @@ import type { TerminologyConcept } from '@/services/terminology/terminologyServi
 import { searchDiagnoses, forceAISearch } from '@/services/terminology/terminologyService';
 import { logger } from '@/services/utils/loggerService';
 import { ClinicalDocumentIeehFormBody } from '@/features/clinical-documents/components/ClinicalDocumentIeehFormBody';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -90,9 +91,7 @@ export const ClinicalDocumentIeehPanel: React.FC<ClinicalDocumentIeehPanelProps>
   const cie10ContainerRef = useRef<HTMLDivElement>(null);
 
   // Sync from external draft when it changes (e.g. autosave round-trip or clear)
-  useEffect(() => {
-    setLocalDraft(draft ?? createEmptyIeehDraft());
-  }, [draft]);
+  if (useChangedOnRender([draft])) setLocalDraft(draft ?? createEmptyIeehDraft());
 
   // Cleanup timers and abort controllers on unmount
   useEffect(() => {

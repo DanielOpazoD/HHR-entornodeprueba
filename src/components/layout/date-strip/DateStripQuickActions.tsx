@@ -3,6 +3,7 @@ import { FlaskConical, Lock } from 'lucide-react';
 import { XRayIcon } from '@/components/ui/XRayIcon';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
 import { DATE_STRIP_QUICK_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const FEATURE_QUICK_ACTIONS_STARTUP_DELAY_MS = 1200;
 
@@ -30,11 +31,15 @@ export const DateStripQuickActions: React.FC<DateStripQuickActionsProps> = ({
   const [isRadiologyOpen, setIsRadiologyOpen] = React.useState(false);
   const [canRenderFeatureQuickActions, setCanRenderFeatureQuickActions] = React.useState(false);
 
+  const featureQuickActionsHidden = hideClinicalQuickActions || !renderFeatureQuickActions;
+  if (
+    useChangedOnRender([hideClinicalQuickActions, renderFeatureQuickActions]) &&
+    featureQuickActionsHidden
+  ) {
+    setCanRenderFeatureQuickActions(false);
+  }
   React.useEffect(() => {
-    if (hideClinicalQuickActions || !renderFeatureQuickActions) {
-      setCanRenderFeatureQuickActions(false);
-      return;
-    }
+    if (hideClinicalQuickActions || !renderFeatureQuickActions) return;
 
     const timeoutId = window.setTimeout(() => {
       setCanRenderFeatureQuickActions(true);
