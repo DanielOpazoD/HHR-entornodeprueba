@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "meaning": "Lane records declared ownership, not evidence of execution. Retire candidates remain runnable and are not deleted.",
+  "meaning": "Every E2E spec runs in a workflow: ci blocks pull requests, nightly runs on schedule. A spec no workflow runs is deleted, not kept as manual.",
   "specs": [
     {
       "file": "e2e/admit-edit-discharge-smoke.spec.ts",
@@ -8,12 +8,6 @@
       "reason": "PR-blocking emulator clinical/auth/sync contract.",
       "command": "npm run test:e2e:critical:ci",
       "workflow": ".github/workflows/ci-cd.yml"
-    },
-    {
-      "file": "e2e/audit-trail.spec.ts",
-      "lane": "manual",
-      "reason": "Retained audit trail scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/audit-trail.spec.ts --project=chromium"
     },
     {
       "file": "e2e/auth-fixture-readiness.spec.ts",
@@ -51,18 +45,6 @@
       "workflow": ".github/workflows/nightly-test-runtime.yml"
     },
     {
-      "file": "e2e/bed-blocking.spec.ts",
-      "lane": "manual",
-      "reason": "Retained bed blocking scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/bed-blocking.spec.ts --project=chromium"
-    },
-    {
-      "file": "e2e/bed-crib-cycle-diagnostic.spec.ts",
-      "lane": "manual",
-      "reason": "Diagnostic reproduction retained separately from the PR-blocking crib lifecycle contract.",
-      "command": "npx playwright test e2e/bed-crib-cycle-diagnostic.spec.ts --project=chromium"
-    },
-    {
       "file": "e2e/bed-crib-lifecycle-critical.spec.ts",
       "lane": "ci",
       "reason": "PR-blocking emulator clinical/auth/sync contract.",
@@ -77,22 +59,11 @@
       "workflow": ".github/workflows/nightly-census-visual.yml"
     },
     {
-      "file": "e2e/census-alerts-view.spec.ts",
-      "lane": "manual",
-      "reason": "Census «Alertas» view at 13-inch width with synthetic chart alerts; explicit local validation like the 13-inch visual scenario.",
-      "command": "npx playwright test e2e/census-alerts-view.spec.ts --project=chromium"
-    },
-    {
-      "file": "e2e/census-closing.spec.ts",
-      "lane": "manual",
-      "reason": "Retained census closing scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/census-closing.spec.ts --project=chromium"
-    },
-    {
       "file": "e2e/census-interaction.measurement.ts",
-      "lane": "manual",
-      "reason": "Controlled measurement requires explicit sampling; not a generic smoke.",
-      "command": "npm run test:e2e:census-interactions"
+      "lane": "ci",
+      "reason": "Production census interaction measurement, run after startup against the same fresh server.",
+      "command": "npm run test:e2e:census-performance",
+      "workflow": ".github/workflows/ci-cd.yml"
     },
     {
       "file": "e2e/census-laboratory-inbox.spec.ts",
@@ -101,18 +72,6 @@
       "command": "npm run ci:preview-smoke:built",
       "workflow": ".github/workflows/ci-cd.yml",
       "entryJob": "preview-smoke-lanes"
-    },
-    {
-      "file": "e2e/census-mocked.spec.ts",
-      "lane": "manual",
-      "reason": "Retained census mocked scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/census-mocked.spec.ts --project=chromium"
-    },
-    {
-      "file": "e2e/census-navigation.spec.ts",
-      "lane": "manual",
-      "reason": "Retained census navigation scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/census-navigation.spec.ts --project=chromium"
     },
     {
       "file": "e2e/census-persistence-reload.spec.ts",
@@ -159,12 +118,6 @@
       "entryJob": "preview-smoke-lanes"
     },
     {
-      "file": "e2e/chaos-network.spec.ts",
-      "lane": "manual",
-      "reason": "Retained chaos network scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/chaos-network.spec.ts --project=chromium"
-    },
-    {
       "file": "e2e/clinical-carryover-preview.spec.ts",
       "lane": "ci",
       "reason": "Built-preview browser smoke in CI.",
@@ -178,12 +131,6 @@
       "reason": "PR-blocking emulator clinical/auth/sync contract.",
       "command": "npm run test:e2e:critical:ci",
       "workflow": ".github/workflows/ci-cd.yml"
-    },
-    {
-      "file": "e2e/clinical-document-formatting-panel.spec.ts",
-      "lane": "manual",
-      "reason": "Retained clinical document formatting panel scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/clinical-document-formatting-panel.spec.ts --project=chromium"
     },
     {
       "file": "e2e/clinical-explorer-history.spec.ts",
@@ -232,12 +179,6 @@
       "entryScript": "test:release-confidence:full"
     },
     {
-      "file": "e2e/comprehensive.spec.ts",
-      "lane": "manual",
-      "reason": "Broad legacy browser scenario requires explicit local execution and overlap review.",
-      "command": "npx playwright test e2e/comprehensive.spec.ts --project=chromium"
-    },
-    {
       "file": "e2e/critical-emulator.spec.ts",
       "lane": "ci",
       "reason": "PR-blocking emulator clinical/auth/sync contract.",
@@ -250,12 +191,6 @@
       "reason": "CUDYR persisted report, confirmed correction, return navigation, Excel and failed-read recovery against the local emulator.",
       "command": "npm run test:e2e:cudyr-flow:ci",
       "workflow": ".github/workflows/ci-cd.yml"
-    },
-    {
-      "file": "e2e/cudyr-report-explorer.spec.ts",
-      "lane": "manual",
-      "reason": "Retained cudyr report explorer scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/cudyr-report-explorer.spec.ts --project=chromium"
     },
     {
       "file": "e2e/dicom-viewer.spec.ts",
@@ -273,24 +208,6 @@
       "workflow": ".github/workflows/ci-cd.yml"
     },
     {
-      "file": "e2e/excel-export.spec.ts",
-      "lane": "manual",
-      "reason": "Retained excel export scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/excel-export.spec.ts --project=chromium"
-    },
-    {
-      "file": "e2e/export-artifact-validation.spec.ts",
-      "lane": "manual",
-      "reason": "Retained export artifact validation scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/export-artifact-validation.spec.ts --project=chromium"
-    },
-    {
-      "file": "e2e/handoff-flow.spec.ts",
-      "lane": "manual",
-      "reason": "Retained handoff flow scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/handoff-flow.spec.ts --project=chromium"
-    },
-    {
       "file": "e2e/handoff-shift-export-smoke.spec.ts",
       "lane": "nightly",
       "reason": "Scheduled clinical stability regression; overlaps critical pack intentionally.",
@@ -298,29 +215,11 @@
       "workflow": ".github/workflows/nightly-test-runtime.yml"
     },
     {
-      "file": "e2e/hospitalDay.spec.ts",
-      "lane": "manual",
-      "reason": "Retained hospitalDay scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/hospitalDay.spec.ts --project=chromium"
-    },
-    {
-      "file": "e2e/laboratory-flow-smoke.spec.ts",
-      "lane": "manual",
-      "reason": "Dedicated synthetic laboratory smoke, retained for explicit local validation.",
-      "command": "npm run test:e2e:laboratory-smoke"
-    },
-    {
       "file": "e2e/legacy-firebase-compat.spec.ts",
       "lane": "ci",
       "reason": "PR-blocking emulator clinical/auth/sync contract.",
       "command": "npm run test:e2e:critical:ci",
       "workflow": ".github/workflows/ci-cd.yml"
-    },
-    {
-      "file": "e2e/login-flow.spec.ts",
-      "lane": "manual",
-      "reason": "Retained login flow scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/login-flow.spec.ts --project=chromium"
     },
     {
       "file": "e2e/manual-eloisa-patient-code.spec.ts",
@@ -336,12 +235,6 @@
       "command": "npm run ci:preview-smoke:built",
       "workflow": ".github/workflows/ci-cd.yml",
       "entryJob": "preview-smoke-lanes"
-    },
-    {
-      "file": "e2e/movement-role-sync-smoke.spec.ts",
-      "lane": "manual",
-      "reason": "Retained movement role sync smoke scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/movement-role-sync-smoke.spec.ts --project=chromium"
     },
     {
       "file": "e2e/multiuser-offline-conflict.spec.ts",
@@ -365,48 +258,6 @@
       "workflow": ".github/workflows/ci-cd.yml"
     },
     {
-      "file": "e2e/offline-sync-mock.spec.ts",
-      "lane": "manual",
-      "reason": "Retained offline sync mock scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/offline-sync-mock.spec.ts --project=chromium"
-    },
-    {
-      "file": "e2e/patient-admission.spec.ts",
-      "lane": "manual",
-      "reason": "Retained patient admission scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/patient-admission.spec.ts --project=chromium"
-    },
-    {
-      "file": "e2e/patient-discharge.spec.ts",
-      "lane": "manual",
-      "reason": "Retained patient discharge scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/patient-discharge.spec.ts --project=chromium"
-    },
-    {
-      "file": "e2e/patient-flow.spec.ts",
-      "lane": "manual",
-      "reason": "Retained patient flow scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/patient-flow.spec.ts --project=chromium"
-    },
-    {
-      "file": "e2e/patient-full-admission.spec.ts",
-      "lane": "manual",
-      "reason": "Retained patient full admission scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/patient-full-admission.spec.ts --project=chromium"
-    },
-    {
-      "file": "e2e/patient-operations.spec.ts",
-      "lane": "manual",
-      "reason": "Retained patient operations scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/patient-operations.spec.ts --project=chromium"
-    },
-    {
-      "file": "e2e/patient-transfer.spec.ts",
-      "lane": "manual",
-      "reason": "Retained patient transfer scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/patient-transfer.spec.ts --project=chromium"
-    },
-    {
       "file": "e2e/pre-outbox-multitab.spec.ts",
       "lane": "ci",
       "reason": "PR-blocking emulator clinical/auth/sync contract.",
@@ -428,41 +279,11 @@
       "workflow": ".github/workflows/ci-cd.yml"
     },
     {
-      "file": "e2e/rbac-security.spec.ts",
-      "lane": "manual",
-      "reason": "Retained rbac security scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/rbac-security.spec.ts --project=chromium"
-    },
-    {
       "file": "e2e/release-role-smoke.spec.ts",
       "lane": "ci",
       "reason": "PR-blocking emulator clinical/auth/sync contract.",
       "command": "npm run test:e2e:critical:ci",
       "workflow": ".github/workflows/ci-cd.yml"
-    },
-    {
-      "file": "e2e/report-flow.spec.ts",
-      "lane": "manual",
-      "reason": "Retained report flow scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/report-flow.spec.ts --project=chromium"
-    },
-    {
-      "file": "e2e/shared-computer-acceptance.spec.ts",
-      "lane": "manual",
-      "reason": "Standalone shared computer acceptance with Auth/Firestore emulators; existing account CI launcher timed out before running this scenario locally.",
-      "command": "bash scripts/run-shared-computer-acceptance.sh"
-    },
-    {
-      "file": "e2e/session-cleanup-isolation.spec.ts",
-      "lane": "manual",
-      "reason": "Retained session cleanup isolation scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/session-cleanup-isolation.spec.ts --project=chromium"
-    },
-    {
-      "file": "e2e/shift-handoff-signature.spec.ts",
-      "lane": "manual",
-      "reason": "Preserve signature and staff contracts. Only the PDF smoke subcase is an overlap candidate pending retained-contract mapping; the file is not proven redundant.",
-      "command": "npx playwright test e2e/shift-handoff-signature.spec.ts --project=chromium"
     },
     {
       "file": "e2e/startup-performance-budget.spec.ts",
@@ -473,23 +294,11 @@
       "entryScript": "test:e2e:critical:ci"
     },
     {
-      "file": "e2e/statistics-authenticated.spec.ts",
-      "lane": "manual",
-      "reason": "Retained statistics authenticated scenario; no verified CI invocation. Explicit local validation until equivalence or stable automated ownership is demonstrated.",
-      "command": "npx playwright test e2e/statistics-authenticated.spec.ts --project=chromium"
-    },
-    {
       "file": "e2e/sync-conflict-resolution.spec.ts",
       "lane": "ci",
       "reason": "PR-blocking emulator clinical/auth/sync contract.",
       "command": "npm run test:e2e:critical:ci",
       "workflow": ".github/workflows/ci-cd.yml"
-    },
-    {
-      "file": "e2e/visual-regression.spec.ts",
-      "lane": "manual",
-      "reason": "Preserve four active snapshot scenarios. Three additional fixme placeholders require runnable assertions or case-level retirement; the file is not a deletion candidate.",
-      "command": "npx playwright test e2e/visual-regression.spec.ts --project=chromium"
     }
   ]
 }

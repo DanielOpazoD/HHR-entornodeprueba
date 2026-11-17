@@ -267,12 +267,10 @@ export const collectE2eOwnershipIssues = (files, ownership, root) => {
     if (seen.has(entry.file)) issues.push(`Duplicate E2E owner: ${entry.file}`);
     seen.add(entry.file);
     if (!files.includes(entry.file)) issues.push(`Owned E2E file does not exist: ${entry.file}`);
-    if (
-      !['ci', 'nightly', 'manual', 'retire-candidate'].includes(entry.lane) ||
-      !entry.reason ||
-      !entry.command
-    )
-      issues.push(`Incomplete E2E decision: ${entry.file}`);
+    // A spec no workflow runs protects nothing: delete it instead of keeping it manual.
+    if (!['ci', 'nightly'].includes(entry.lane))
+      issues.push(`E2E spec has no workflow lane (ci or nightly): ${entry.file}`);
+    if (!entry.reason || !entry.command) issues.push(`Incomplete E2E decision: ${entry.file}`);
     if (!scripts || !['ci', 'nightly'].includes(entry.lane)) continue;
     const script = entry.command.match(/^npm run ([\w:.-]+)$/)?.[1];
     const invoked = entry.entryScript || script;

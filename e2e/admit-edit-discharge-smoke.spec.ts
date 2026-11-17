@@ -106,7 +106,7 @@ test.describe('Admit → edit → discharge smoke', () => {
 
     // 3. Open the action menu on the row and verify it surfaces the
     //    discharge entry. We do not actually complete the discharge
-    //    modal flow here (that's covered by patient-discharge.spec)
+    //    modal flow here (src/tests/components/DischargeModal.test.tsx covers it)
     //    — the smoke gate just needs to confirm the action is
     //    reachable from the patient row after the edit settled.
     const actionButton = page

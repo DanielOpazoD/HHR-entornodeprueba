@@ -1701,7 +1701,6 @@ interface LabResultsRepository {
             <li>Netlify proxy: origen, autenticación, roles, rate limit, errores y PDF.</li>
             <li>Runtime/session/bridge/content wiring/login/PDF de la extensión.</li>
             <li>Formulario de solicitud, catálogo, controladores e impresión.</li>
-            <li>Smoke E2E: <code>e2e/laboratory-flow-smoke.spec.ts</code>.</li>
             <li>Gobernanza de imports públicos.</li>
           </ul>
           <h3>Criterios de aceptación para la nueva app</h3>
@@ -1739,8 +1738,7 @@ npm run build
 npx vitest run src/tests/features/laboratory
 npx vitest run src/tests/services/laboratory
 npx vitest run src/tests/rayen-import/syslab*.test.ts
-npx vitest run src/tests/components/ExamRequestModal.integration.test.tsx
-npx playwright test e2e/laboratory-flow-smoke.spec.ts</code></pre>
+npx vitest run src/tests/components/ExamRequestModal.integration.test.tsx</code></pre>
           <p>
             Antes de usar estos comandos en otra base, revisar los scripts reales del
             <code>package.json</code>; la lista expresa cobertura, no sustituye el pipeline CI.

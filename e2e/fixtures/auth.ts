@@ -6,7 +6,7 @@
 
 import { expect, Page } from '@playwright/test';
 
-export const E2E_DEFAULT_DATE = process.env.E2E_FIXED_DATE ?? '2026-01-01';
+const E2E_DEFAULT_DATE = process.env.E2E_FIXED_DATE ?? '2026-01-01';
 const RECORD_LAST_UPDATED = `${E2E_DEFAULT_DATE}T00:00:00.000Z`;
 
 // Mock user data for different roles

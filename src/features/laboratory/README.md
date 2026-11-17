@@ -254,7 +254,7 @@ una medición nueva; el tooltip mantiene valor, unidad, original y referencia.
 Pruebas de carga reproducibles: 26 informes en transporte, interrupción entre lotes,
 respuesta incompleta, cambio de búsqueda, 80 puntos sin pérdida y escalas decimales.
 Los tests existentes cubren números localizados, unidades, muestras, órdenes coincidentes,
-microbiología y paridad del parser. Ejecutar también `test:e2e:laboratory-smoke`.
+microbiología y paridad del parser.
 
 ## Servidor remoto en Mac mini
 
