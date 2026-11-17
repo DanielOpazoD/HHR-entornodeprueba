@@ -9,6 +9,8 @@ import {
 } from '@/services/auth/sessionPermissionStormDetector';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { SESSION_PERMISSION_STORM_CAUSE } from '@/hooks/controllers/authBootstrapController';
+import { getSessionEpoch } from '@/services/storage/sessionStorageTransition';
+import type { SessionPermissionStormVerdict } from '@/services/auth/sessionPermissionStormVerdict';
 
 /**
  * Mensaje único del caso «sesión sin permisos». Lo muestra la pantalla de
@@ -28,7 +30,7 @@ export const createSessionPermissionsLostState = (): AuthSessionState =>
 // comprobación, la telemetría y el logout corren UNA vez por tormenta.
 let verdictForStorm: {
   detectedAt: number;
-  verdict: Promise<'recovering' | 'logout'>;
+  verdict: Promise<SessionPermissionStormVerdict>;
 } | null = null;
 
 /** Solo para tests. */
@@ -37,11 +39,21 @@ export const resetSessionPermissionGuardForTests = (): void => {
 };
 
 /** La segunda opinión vive en un módulo diferido: una tormenta es rara y el arranque no tiene espacio. */
-const decideStorm = (storm: SessionPermissionStorm): Promise<'recovering' | 'logout'> => {
+const decideStorm = (storm: SessionPermissionStorm): Promise<SessionPermissionStormVerdict> => {
   if (verdictForStorm?.detectedAt === storm.detectedAt) return verdictForStorm.verdict;
+  // La sesión que vio la tormenta: un cierre o un ingreso posterior cambia la época.
+  const epoch = getSessionEpoch();
   const verdict = import('@/services/auth/sessionPermissionStormVerdict')
-    .then(module => module.decideSessionPermissionStorm(storm, SESSION_PERMISSIONS_LOST_MESSAGE))
-    .catch(() => {
+    .then(module =>
+      module.decideSessionPermissionStorm(
+        storm,
+        SESSION_PERMISSIONS_LOST_MESSAGE,
+        () => getSessionEpoch() === epoch
+      )
+    )
+    .catch((): SessionPermissionStormVerdict => {
+      // Otra sesión ya reemplazó a la que vio la tormenta: nada que cerrar ni registrar.
+      if (getSessionEpoch() !== epoch) return 'superseded';
       // Sin el módulo (p. ej. una publicación nueva sin conexión) se cierra como siempre.
       recordOperationalTelemetry({
         category: 'auth',
@@ -51,7 +63,7 @@ const decideStorm = (storm: SessionPermissionStorm): Promise<'recovering' | 'log
         issues: [SESSION_PERMISSIONS_LOST_MESSAGE],
         context: { sources: storm.sources, detectedAt: storm.detectedAt },
       });
-      return 'logout' as const;
+      return 'logout';
     });
   verdictForStorm = { detectedAt: storm.detectedAt, verdict };
   return verdict;

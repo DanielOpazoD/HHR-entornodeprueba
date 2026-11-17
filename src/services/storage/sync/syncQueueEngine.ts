@@ -12,6 +12,7 @@ import type {
 import { measureRepositoryOperation } from '@/services/repositories/repositoryPerformance';
 import type { SyncQueueTelemetry } from '@/services/storage/sync/syncQueueTelemetryContracts';
 import {
+  resolveHeldConflictState,
   resolveSyncQueueFailureDecision,
   buildSyncQueueTaskContextMeta,
 } from '@/services/storage/sync/syncQueueFailurePolicy';
@@ -171,6 +172,10 @@ export const createSyncQueueEngine = ({
       contexts: meta?.contexts,
       recoveryPolicy: meta?.recoveryPolicy,
     });
+    const heldConflict =
+      options.heldByConflict === undefined
+        ? undefined
+        : resolveHeldConflictState(options.heldByConflict, contextMeta.contexts, now);
     const existing = key ? await store.findReusableTask(type, key, ownerKey) : null;
     // The store merges this write's own intent with the pending task inside its transaction.
     const syncContract = buildSyncTaskContract(type, payload, meta?.syncContract);
@@ -208,6 +213,7 @@ export const createSyncQueueEngine = ({
         ...clearSyncTaskRuntimeState(),
         nextAttemptAt: resolveSyncTaskNextAttemptAt(now, options),
         ...resolvePreOutboxHoldState(now, options),
+        ...heldConflict,
       },
       options.patchWrite,
       options.wholeRecordBase,
@@ -216,6 +222,11 @@ export const createSyncQueueEngine = ({
     // Kept for its author, off this session's day: nothing for this session to accept or send.
     if (mode === 'retained_for_owner')
       return { accepted: false, mode, pendingTasks, maxPendingTasks };
+    if (heldConflict)
+      recordSyncQueueConflictTelemetry(
+        { type, key, contexts: contextMeta.contexts, origin: meta?.origin },
+        heldConflict.error
+      );
 
     if (!options.deferProcessing) {
       triggerProcessing();

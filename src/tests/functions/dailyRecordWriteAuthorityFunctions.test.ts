@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createAdminMock,
   createDailyRecordWriteAuthorityFunctions,
@@ -8,9 +8,13 @@ import {
 } from '@/tests/functions/dailyRecordWriteAuthorityFunctions.test-support';
 
 describe('dailyRecordWriteAuthorityFunctions', () => {
+  // The records belong to 2026-05-13: the clock sits inside the nurse editing window.
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-05-13T12:00:00.000Z'));
   });
+  afterEach(() => vi.useRealTimers());
 
   it('writes daily records in a transaction after clinical authority validation', async () => {
     const { admin, set, docRef, historySet, telemetryAdd } = createAdminMock({

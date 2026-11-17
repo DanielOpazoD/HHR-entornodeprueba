@@ -177,9 +177,8 @@ export const resolveNightShiftNurses = (
 export const applyDailyRecordStaffingCompatibility = <T extends DailyRecordStaffingCompatShape>(
   record: T
 ): T => {
-  const compatRecord = record as unknown as DailyRecordStaffingCompatShape;
-  const resolvedDayShift = toEmptyShiftPair(resolveStoredDayShiftSlots(compatRecord));
-  const resolvedNightShift = toEmptyShiftPair(readStoredShiftSlots(compatRecord.nursesNightShift));
+  const resolvedDayShift = toEmptyShiftPair(resolveStoredDayShiftSlots(record));
+  const resolvedNightShift = toEmptyShiftPair(readStoredShiftSlots(record.nursesNightShift));
 
   return {
     ...record,

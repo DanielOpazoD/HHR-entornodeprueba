@@ -37,6 +37,7 @@ import { queryClient } from '@/config/queryClient';
 import { useAppBootstrapState } from '@/app-shell/bootstrap/useAppBootstrapState';
 import { AuthenticatedAppShell } from '@/app-shell/runtime/AuthenticatedAppShell';
 import { markPerf } from '@/shared/runtime/perfAudit';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const VersionedAppShell = ({ children }: { children: React.ReactNode }) => (
   <VersionProvider>
@@ -73,9 +74,7 @@ const resolveLoginInitialAuthError = (
 function App() {
   const bootstrapState = useAppBootstrapState();
   const [loginCompletionPending, setLoginCompletionPending] = React.useState(false);
-  React.useEffect(() => {
-    setLoginCompletionPending(false);
-  }, [bootstrapState.auth.sessionState]);
+  if (useChangedOnRender([bootstrapState.auth.sessionState])) setLoginCompletionPending(false);
   markPerf('app:first-render');
   React.useEffect(() => {
     if (bootstrapState.status === 'authenticated') {

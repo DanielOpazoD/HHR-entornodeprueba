@@ -17,6 +17,19 @@ import {
   setDailyRecordQueryData,
 } from '@/hooks/controllers/dailyRecordQueryController';
 import { buildClinicalCribPatch } from '@/hooks/controllers/clinicalCribController';
+import { bedManagementReducer } from '@/hooks/useBedManagementReducer';
+import { usePatientMovementCreationExecutor } from '@/hooks/usePatientMovementCreationExecutor';
+import {
+  buildAddDischargeInput,
+  buildAddTransferInput,
+  buildDischargeAddCommandPayload,
+  buildTransferCommandPayload,
+  resolveAddDischargeMovement,
+  resolveAddTransferMovement,
+} from '@/application/census/public';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { BEDS } from '@/constants/beds';
+import { getSyncQueueTelemetry, processSyncQueue } from '@/services/storage/sync';
 import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
 import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
@@ -81,6 +94,7 @@ const base = (): DailyRecord =>
     JSON.stringify(
       DataFactory.createMockDailyRecord(date, {
         lastUpdated: new Date(Date.now() - 60_000).toISOString(),
+        dateTimestamp: Date.parse(`${date}T00:00:00.000Z`),
         handoffNovedadesDayShift: 'DIA BASE',
         handoffNovedadesNightShift: 'NOCHE BASE',
         activeExtraBeds: [],
@@ -122,6 +136,9 @@ beforeAll(async () => {
     })
     .firestore();
   setFirestoreEnabled(true);
+  // The queue runs only when a test says so (`replay`), so each step meets the queue as the last
+  // one left it. One test below runs it as the app does, woken by every save (W12-CW11).
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
   const context = () => ({
     auth: { uid: 'synthetic-B', token: { email: 'synthetic-B@example.invalid' } },
   });
@@ -140,6 +157,15 @@ beforeAll(async () => {
       }
     }
   );
+  vi.spyOn(authority, 'saveDailyRecordWithClinicalAuthorityCallable').mockImplementation(
+    async payload => {
+      try {
+        return await authorityApi.saveDailyRecordWithClinicalAuthority.run(payload, context());
+      } catch (error) {
+        throw authority.normalizeDailyRecordAuthorityError(error);
+      }
+    }
+  );
 });
 afterEach(async () => {
   client?.clear();
@@ -151,8 +177,8 @@ afterAll(async () => {
   await deleteApp(app);
 });
 
-/** The census on this computer, its hook, and the other computer's text already on the server. */
-const conflictOnNight = async () => {
+/** The census on this computer and its hook, over the server's day. */
+const censusHere = async () => {
   await env.clearFirestore();
   await clearSessionScopedClientState('manual');
   await hospitalDB.dailyRecords.clear();
@@ -163,12 +189,14 @@ const conflictOnNight = async () => {
     revision: 7,
     clinicalBatchMode: 'enforced',
   });
-  await admin.doc(dayPath).set(base());
+  // One day, so this computer starts on the server's exact version.
+  const day = base();
+  await admin.doc(dayPath).set(day);
   await reconcileAuthorizedSessionOwner('user:synthetic-B');
-  await hospitalDB.dailyRecords.put(base());
+  await hospitalDB.dailyRecords.put(day);
   client = new QueryClient({ defaultOptions: { mutations: { retry: false, gcTime: 0 } } });
   client.mount();
-  setDailyRecordQueryData(client, date, base());
+  setDailyRecordQueryData(client, date, day);
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>
       <DefaultRepositoryProvider>{children}</DefaultRepositoryProvider>
@@ -194,7 +222,12 @@ const conflictOnNight = async () => {
   };
   const edit = (field: 'handoffNovedadesDayShift' | typeof night, value: string) =>
     mutate({ [field]: value } as DailyRecordPatch);
+  return { hook, mutate, edit };
+};
 
+/** The census on this computer, its hook, and the other computer's text already on the server. */
+const conflictOnNight = async () => {
+  const { hook, mutate, edit } = await censusHere();
   // The other computer writes first; this screen has not received it yet.
   await admin.doc(dayPath).update({ [night]: 'A1', lastUpdated: Timestamp.now() });
   const first = await edit(night, 'B2');
@@ -271,6 +304,298 @@ it.each(['live', 'refetch'] as const)(
     expect((await server()).beds.R4.clinicalCrib?.bedId).toBeTruthy();
     expect((await server())[night]).toBe('A1');
     await expectUnsentNightKept('B5');
+    hook.unmount();
+  },
+  60_000
+);
+
+// W12-CW10. «Limpiar» on the census row (a bed clear, not a discharge). The day kept here with this
+// person's unsent texts carries this computer's time, never a version of the server. The hook binds
+// the clear to the server's day, so the bed is cleared while a diagnosis waits after the notice,
+// and that diagnosis stays held for the patient it was written for (ID-01), never on the empty bed.
+it('clears the bed («Limpiar») of a patient whose diagnosis waits after the notice', async () => {
+  const { mutate, hook } = await conflictOnNight();
+  await admin.doc(dayPath).update({ 'beds.R4.pathology': 'A4', lastUpdated: Timestamp.now() });
+  await mutate({ 'beds.R4.pathology': 'B4' } as DailyRecordPatch);
+  await recover(hook, 'refetch');
+
+  const record = shown()!.record!;
+  const discharge = await mutate(
+    bedManagementReducer(record, { type: 'CLEAR_PATIENT', bedId: 'R4' }) as DailyRecordPatch,
+    {
+      consistency: 'remote_confirmed',
+      optimisticRemoteConfirmed: true,
+      intentionalBedClear: {
+        bedId: 'R4',
+        confirmedLastUpdated: record.lastUpdated,
+        confirmedOccupant: buildConfirmedBedOccupantIdentity(record.beds.R4),
+      },
+    }
+  );
+  expect(discharge?.updatedRemotely).toBe(true);
+  expect((await server()).beds.R4).toMatchObject({ rut: '', pathology: '' });
+  const held = (await hospitalDB.syncQueue.toArray()).filter(
+    task => (task.payload as DailyRecord | undefined)?.beds?.R4?.pathology === 'B4'
+  );
+  expect(held.map(task => [task.status, (task.payload as DailyRecord).beds.R4.rut])).toEqual([
+    ['CONFLICT', '11111111-1'],
+  ]);
+  await expectUnsentNightKept('B3');
+  hook.unmount();
+}, 60_000);
+
+/** The queue run as the browser runs it once the network is back, past any retry wait. */
+const replay = async () => {
+  const now = Date.now;
+  for (let round = 1; round <= 3; round++) {
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now() + round * 10 * 60_000);
+    try {
+      await processSyncQueue();
+    } finally {
+      clock.mockRestore();
+    }
+  }
+};
+
+type Movement = 'discharge' | 'transfer';
+/** «Dar de alta» or «Traslado» on the census row: its controllers and the census's movement executor. */
+const moveOut = async (
+  mutate: Awaited<ReturnType<typeof censusHere>>['mutate'],
+  kind: Movement
+) => {
+  const record = shown()!.record!;
+  const resolution =
+    kind === 'discharge'
+      ? resolveAddDischargeMovement(
+          buildAddDischargeInput({
+            record,
+            bedId: 'R4',
+            payload: buildDischargeAddCommandPayload({
+              status: 'Vivo',
+              dischargeType: 'Domicilio (Habitual)',
+              time: '10:00',
+              target: 'both',
+            }),
+            bedsCatalog: BEDS,
+            createEmptyPatient,
+          })
+        )
+      : resolveAddTransferMovement(
+          buildAddTransferInput({
+            record,
+            bedId: 'R4',
+            payload: buildTransferCommandPayload({
+              method: 'Avión comercial',
+              center: 'Hospital Salvador',
+              centerOther: '',
+              time: '10:00',
+            }),
+            bedsCatalog: BEDS,
+            createEmptyPatient,
+          })
+        );
+  const outcomes: unknown[] = [];
+  const executor = renderHook(() =>
+    usePatientMovementCreationExecutor({
+      saveAndUpdate: async () => {
+        throw new Error('the census saves a movement as a patch');
+      },
+      notifyCreationError: code => outcomes.push(code),
+      patchRecord: async patch => {
+        outcomes.push(await mutate(patch));
+      },
+    })
+  );
+  await act(async () => {
+    // Each kind with its own resolution, as usePatientDischarges and usePatientTransfers call it.
+    await executor.result.current({
+      kind,
+      bedId: 'R4',
+      baseRecord: record,
+      resolution: resolution as Parameters<typeof executor.result.current>[0]['resolution'],
+    });
+  });
+  executor.unmount();
+  return outcomes as { updatedRemotely?: boolean; observabilityTags?: string[] }[];
+};
+const listOf = (kind: Movement) => (kind === 'discharge' ? 'discharges' : 'transfers');
+const movedOut = (record: DailyRecord | undefined, kind: Movement) =>
+  ((record?.[listOf(kind)] ?? []) as { patientName: string; deleted?: boolean }[])
+    .filter(item => !item.deleted)
+    .map(item => item.patientName);
+/** The queue's tasks, each with what the person would review: its patient and the diagnosis. */
+const heldTasks = async () =>
+  (await hospitalDB.syncQueue.toArray()).map(task => {
+    const bed = (task.payload as DailyRecord).beds.R4;
+    return {
+      status: task.status,
+      patient: [bed.rut, bed.clinicalEpisodeId],
+      pathology: bed.pathology,
+      paths: task.syncContract?.changedPaths,
+    };
+  });
+
+// W12-CW10. «Dar de alta» and «Traslado» are not a bed clear: the census's movement executor saves
+// the movement list and the freed bed in one write that the day's queue task publishes. Folded
+// into the day's task, that write replaced the bed and with it the diagnosis written here for the
+// patient who leaves, which was then neither on the server nor in the queue (SAVE-03). It now stays
+// held for that patient and episode (ID-01), as when a confirmed command empties the bed (W12-CW8),
+// and the movement still reaches the server on its own.
+it.each(['discharge', 'transfer'] as const)(
+  '«%s» publishes the movement and keeps for its patient a diagnosis written here offline',
+  async kind => {
+    const { mutate, hook } = await censusHere();
+    setFirestoreEnabled(false);
+    await mutate({ 'beds.R4.pathology': 'B4' } as DailyRecordPatch);
+    setFirestoreEnabled(true);
+
+    const [saved] = await moveOut(mutate, kind);
+    expect(saved?.observabilityTags).toContain('saved_by_queue_route');
+    await replay();
+
+    const remote = await server();
+    expect(remote.beds.R4).toMatchObject({ rut: '', pathology: '' });
+    expect(movedOut(remote, kind)).toEqual(['PACIENTE SINTETICO A']);
+    expect(await heldTasks()).toEqual([
+      {
+        status: 'CONFLICT',
+        patient: ['11111111-1', 'episode-a'],
+        pathology: 'B4',
+        paths: ['beds.R4.pathology'],
+      },
+    ]);
+    expect((await hospitalDB.syncQueue.toArray())[0].error).toMatch(/ya no tiene a PACIENTE/);
+    hook.unmount();
+  },
+  60_000
+);
+
+// W12-CW10. The diagnosis waits after «El campo cambió en otro equipo»: another computer wrote one
+// for this patient, and the screen keeps this person's. Moving the patient out keeps this person's
+// diagnosis held for them (it used to be replaced by the empty bed and lost), and the movement does
+// not clear the other computer's diagnosis unseen (SAVE-02, as with no diagnosis waiting here): it
+// waits for review, and the sync status counts it.
+it.each(['discharge', 'transfer'] as const)(
+  '«%s» of a patient whose diagnosis waits after the notice keeps that diagnosis for them',
+  async kind => {
+    const { mutate, hook } = await censusHere();
+    await admin.doc(dayPath).update({ 'beds.R4.pathology': 'A4', lastUpdated: Timestamp.now() });
+    await mutate({ 'beds.R4.pathology': 'B4' } as DailyRecordPatch);
+    // The browser replays it at once and it is held: «El campo cambió en otro equipo».
+    await replay();
+    expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
+      { status: 'CONFLICT', error: expect.stringMatching(/El campo cambió en otro equipo/) },
+    ]);
+    await recover(hook, 'refetch');
+
+    await moveOut(mutate, kind);
+    await replay();
+
+    expect((await server()).beds.R4).toMatchObject({ rut: '11111111-1', pathology: 'A4' });
+    const tasks = await heldTasks();
+    expect(tasks.filter(task => task.pathology === 'B4')).toEqual([
+      {
+        status: 'CONFLICT',
+        patient: ['11111111-1', 'episode-a'],
+        pathology: 'B4',
+        paths: ['beds.R4.pathology'],
+      },
+    ]);
+    // The movement itself, on its empty bed, waits for review.
+    expect(
+      tasks.filter(task => task.paths?.includes(listOf(kind))).map(task => task.status)
+    ).toEqual(['CONFLICT']);
+    expect((await getSyncQueueTelemetry()).conflict).toBe(2);
+    hook.unmount();
+  },
+  60_000
+);
+
+// ID-01: the bed on the server holds another patient; the movement written here for the first one
+// never empties it.
+it('«Dar de alta» never empties a bed that now holds another patient', async () => {
+  const { mutate, hook } = await censusHere();
+  await admin.doc(dayPath).update({
+    'beds.R4.rut': '12345678-5',
+    'beds.R4.patientName': 'PACIENTE SINTETICO C',
+    'beds.R4.clinicalEpisodeId': 'episode-c',
+    lastUpdated: Timestamp.now(),
+  });
+  await moveOut(mutate, 'discharge');
+  await replay();
+
+  expect((await server()).beds.R4).toMatchObject({
+    rut: '12345678-5',
+    clinicalEpisodeId: 'episode-c',
+  });
+  expect(movedOut(await server(), 'discharge')).toEqual([]);
+  expect(await heldTasks()).toMatchObject([{ status: 'CONFLICT' }]);
+  hook.unmount();
+}, 60_000);
+
+/** The browser's queue is idle: nothing claimed, nothing waiting to be sent. */
+const queueIdle = () =>
+  vi.waitFor(
+    async () => {
+      const busy = (await hospitalDB.syncQueue.toArray()).some(
+        task =>
+          task.status === 'PROCESSING' || (task.status === 'PENDING' && !task.preOutboxHoldState)
+      );
+      if (busy) throw new Error('the queue is still sending');
+    },
+    { timeout: 20_000, interval: 50 }
+  );
+
+// W12-CW11. The queue as the app runs it: every save wakes it, not a test step. A write already
+// refused («El campo cambió en otro equipo») used to be stored as pending and sent again at once,
+// and so did the held write after a direct save of another field. While that resend was under
+// way the person's next edit got a second task, and the review showed the same text twice
+// (19 of 20 runs). The refused write is held as that conflict now, and stays so. Twice: the first
+// run of a process loads the recovery's modules, and the resend ended before the next edit.
+it.each(['first', 'second'])(
+  'keeps one held task for the text while the queue runs on its own, as in the app (%s run)',
+  async () => {
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    try {
+      const { edit, hook } = await censusHere();
+      await admin.doc(dayPath).update({ [night]: 'A1', lastUpdated: Timestamp.now() });
+      expect((await edit(night, 'B2'))?.observabilityTags).toContain('field_changed_elsewhere');
+      expect((await edit(night, 'B3'))?.observabilityTags).toContain('field_changed_elsewhere');
+      // A field nobody else changed is still saved at once (#1603).
+      expect((await edit('handoffNovedadesDayShift', 'B4'))?.updatedRemotely).toBe(true);
+      expect((await edit(night, 'B5'))?.observabilityTags).toContain('field_changed_elsewhere');
+      await queueIdle();
+
+      expect(await server()).toMatchObject({ handoffNovedadesDayShift: 'B4', [night]: 'A1' });
+      expect(
+        (await hospitalDB.syncQueue.toArray()).map(task => [
+          task.status,
+          (task.payload as DailyRecord)[night],
+          task.error,
+        ])
+      ).toEqual([['CONFLICT', 'B5', expect.stringMatching(/El campo cambió en otro equipo/)]]);
+      hook.unmount();
+    } finally {
+      online.mockReturnValue(false);
+    }
+  },
+  60_000
+);
+
+// W12-CW11, not fixed. With a text of the day held after the notice, a later «Dar de alta» folds
+// into that held write, and its replay refuses the whole write because the text changed
+// elsewhere (`withoutUnchangedPlainDayFields` leaves no part to rebase): the movement waits with
+// the text until someone reviews it, although its bed changed nowhere else. Nothing is lost.
+// Publishing it would mean splitting the day's write at replay, a change of its own.
+it.fails(
+  '«Dar de alta» reaches the server while a text of the day waits after the notice',
+  async () => {
+    const { mutate, hook } = await conflictOnNight();
+    await recover(hook, 'refetch');
+    await moveOut(mutate, 'discharge');
+    await replay();
+
+    expect(movedOut(await server(), 'discharge')).toEqual(['PACIENTE SINTETICO A']);
     hook.unmount();
   },
   60_000

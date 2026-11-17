@@ -25,6 +25,7 @@ export const CudyrMonthlyRecovery = ({
   const [progress, setProgress] = useState<MonthlyRecoveryProgress[]>([]);
   const [result, setResult] = useState<MonthlyRecoveryResult | null>(null);
   const [error, setError] = useState('');
+  const [stopping, setStopping] = useState(false);
   const active = useRef<AbortController | null>(null);
   const mounted = useRef(true);
   useEffect(() => {
@@ -54,6 +55,7 @@ export const CudyrMonthlyRecovery = ({
     const controller = new AbortController();
     active.current = controller;
     setBusy(true);
+    setStopping(false);
     setError('');
     setResult(null);
     setProgress([]);
@@ -114,10 +116,11 @@ export const CudyrMonthlyRecovery = ({
       {busy && (
         <button
           type="button"
-          disabled={active.current?.signal.aborted}
+          disabled={stopping}
           className="ml-3 text-slate-600 underline disabled:opacity-50"
           onClick={() => {
             active.current?.abort();
+            setStopping(true);
             setError(
               'Deteniendo: se espera la respuesta del guardado en curso antes de permitir otro intento.'
             );

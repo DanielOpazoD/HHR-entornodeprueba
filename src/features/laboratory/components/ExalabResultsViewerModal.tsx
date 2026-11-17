@@ -20,6 +20,7 @@ import {
   type ExalabSessionStatus,
 } from '@/services/laboratory/exalabService';
 import { type ExalabExam } from '@/types/domain/labExamTypes';
+import { useLatestRef } from '@/hooks/useLatestRef';
 
 const inputClass =
   'min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500';
@@ -61,13 +62,11 @@ export const ExalabResultsViewerModal = ({
   const sequence = useRef(0);
   const pdfUrl = useRef<string | null>(null);
   const initialCheck = useRef<AbortController | null>(null);
-  const connectedRef = useRef(false);
-  const busyRef = useRef(false);
-  const needsLoginRef = useRef(false);
+  const connectedRef = useLatestRef(connected);
+  const busyRef = useLatestRef(busy);
+  // reconnect also writes it, so a retry in the same action sees the new value before a render.
+  const needsLoginRef = useLatestRef(needsLogin);
   const manualPending = useRef(false);
-  connectedRef.current = connected;
-  busyRef.current = busy;
-  needsLoginRef.current = needsLogin;
   const applyStatus = (status: ExalabSessionStatus) => {
     setConnected(status.connected);
     if (status.connected) {
@@ -148,8 +147,7 @@ export const ExalabResultsViewerModal = ({
       }
     });
   // The mount effect and its listeners always call the latest action helpers.
-  const latest = useRef({ run, reconnect });
-  latest.current = { run, reconnect };
+  const latest = useLatestRef({ run, reconnect });
   useEffect(() => {
     const controller = new AbortController();
     initialCheck.current = controller;
@@ -195,7 +193,7 @@ export const ExalabResultsViewerModal = ({
       active.current?.controller.abort();
       if (pdfUrl.current) URL.revokeObjectURL(pdfUrl.current);
     };
-  }, []);
+  }, [busyRef, connectedRef, latest]);
   const changePatient = (value: string) => {
     active.current?.controller.abort();
     sequence.current++;

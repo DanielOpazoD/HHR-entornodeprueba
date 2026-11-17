@@ -55,7 +55,7 @@ function applySinglePath<T>(obj: T, parts: string[], value: unknown): T {
   if (Array.isArray(obj)) {
     const newArr = [...obj] as unknown[];
     newArr[Number(currentPart)] = nextValue;
-    return newArr as unknown as T;
+    return newArr as T;
   }
 
   const baseObject = obj && typeof obj === 'object' ? (obj as Record<string, unknown>) : {};
@@ -63,7 +63,7 @@ function applySinglePath<T>(obj: T, parts: string[], value: unknown): T {
   return {
     ...baseObject,
     [currentPart]: nextValue,
-  } as unknown as T;
+  } as T;
 }
 
 function getChildValue(source: unknown, key: string): unknown {

@@ -12,6 +12,7 @@ import {
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { logger } from '@/services/utils/loggerService';
 import { resolveRemoteWriteRecovery } from '@/services/repositories/dailyRecordRemoteWriteController';
+import type { RemoteWriteRecoveryResult } from '@/services/repositories/contracts/dailyRecordWriteRecoveryResult';
 import {
   applyRecoveryDecisionToState,
   type RemoteWriteState,
@@ -464,10 +465,10 @@ export const persistLocalAndAttemptRemoteSync = async ({
     await ackLocalAfterRemote?.();
     return 'continue';
   } catch (err) {
-    await releaseLocalPreOutboxHold?.();
     // The send stopped because its session ended: the edit stays in its author's queue, for that
     // person to review and resend. Nothing is recovered or shown in the next session.
     if (!isAuthoringSessionCurrent(authoringSession)) {
+      await releaseLocalPreOutboxHold?.();
       remoteState.queuedForRetry = true;
       remoteState.consistencyState = 'queued_for_retry';
       remoteState.observabilityTags.push('sync_queue_write_retained_for_owner');
@@ -481,16 +482,27 @@ export const persistLocalAndAttemptRemoteSync = async ({
       return 'return';
     }
     onRemoteFailure(err);
-    const recovery = await resolveRemoteWriteRecovery(
-      date,
-      record,
-      changedPaths,
-      err,
-      authoringSession,
-      expectedVersion,
-      allowConflictAutoMerge,
-      Boolean(queueLocalBeforeRemote)
-    );
+    // The write stays held while its recovery runs. Released first, the queue could replay it
+    // meanwhile, and a recovery that stores it again would leave a second task for the same edit.
+    let recovery: RemoteWriteRecoveryResult;
+    try {
+      recovery = await runWithOptionalPreOutboxRenewal(
+        () =>
+          resolveRemoteWriteRecovery(
+            date,
+            record,
+            changedPaths,
+            err,
+            authoringSession,
+            expectedVersion,
+            allowConflictAutoMerge,
+            Boolean(queueLocalBeforeRemote)
+          ),
+        preOutboxHoldRenewal
+      );
+    } finally {
+      await releaseLocalPreOutboxHold?.();
+    }
     if (recovery.status === 'throw') {
       applyRecoveryDecisionToState(
         remoteState,

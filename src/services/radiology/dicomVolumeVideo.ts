@@ -73,7 +73,7 @@ export const openDicomVolumeVideo = ({
       if (numScrollSteps + 1 !== total)
         throw new Error('La reconstrucción cambió. Vuelve a generar el video.');
       // Same steps as the wheel (scrollSlabs off), unlike VolumeViewport.scroll's slab steps.
-      utilities.scroll(plane as unknown as Parameters<typeof utilities.scroll>[0], {
+      utilities.scroll(plane as Parameters<typeof utilities.scroll>[0], {
         delta: position - currentStepIndex,
         volumeId: plane.getVolumeId(),
       });

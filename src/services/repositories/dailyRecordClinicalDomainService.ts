@@ -44,14 +44,12 @@ const resetCarryoverCudyr = (patient: PatientData): void => {
 };
 
 const resetCarryoverRayenClinicalFields = (patient: PatientData): void => {
-  const patientFields = patient as unknown as Record<string, unknown>;
-
   RAYEN_OWNED_CLINICAL_FIELDS.forEach(field => {
     if (field === 'devices') {
       patient.devices = [];
       return;
     }
-    delete patientFields[field];
+    delete patient[field];
   });
 
   if (patient.clinicalCrib) {

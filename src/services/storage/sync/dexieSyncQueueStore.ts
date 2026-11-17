@@ -218,7 +218,7 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
                     rebase: undefined,
                     wholeRecordBase,
                     patchWrite,
-                  })
+                  }).task
                 : task,
               authoringSession
             )
@@ -299,6 +299,11 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
         );
         const releasesHold = matchesMutation(task, mutationId);
         if (!releasesHold && !confirmed.length) return false;
+        // Confirmed, the write folded into a held conflict leaves that conflict as it was.
+        const heldAgain =
+          releasesHold && Object.keys(confirmedValues).length
+            ? task.conflictBeforeDirectWrite
+            : undefined;
         await hospitalDB.syncQueue.update(task.id, {
           ...(releasesHold
             ? {
@@ -308,8 +313,10 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
                 preOutboxHoldUntil: undefined,
                 preOutboxHoldReason: undefined,
                 preOutboxHoldHeartbeatAt: undefined,
+                conflictBeforeDirectWrite: undefined,
               }
             : {}),
+          ...(heldAgain ? { ...heldAgain, status: 'CONFLICT' as const } : {}),
           ...(confirmed.length
             ? { patchBaseValues: { ...base, ...Object.fromEntries(confirmed) } }
             : {}),
