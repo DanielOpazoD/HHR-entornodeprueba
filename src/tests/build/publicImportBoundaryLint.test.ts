@@ -215,3 +215,103 @@ describe('public imports in ESLint', () => {
       expect(await errors('src/hooks/Probe.ts', code)).toEqual([]);
   });
 });
+
+// Former source-text tests, now ESLint restrictions whose message names the fix.
+describe('module homes in ESLint', () => {
+  const restrictions = async (file: string, code: string) => {
+    const [result] = await eslint.lintText(code, { filePath: path.join(ROOT, file) });
+    return result.messages
+      .filter(message => /^no-restricted-(syntax|imports)$/.test(message.ruleId ?? ''))
+      .map(message => message.message);
+  };
+  const key = 'export const k = (a: string, b: string) => `${a}__${b}`;';
+  const parse = "export const p = (episodeKey: string) => episodeKey.split('__');";
+  const hydrate =
+    "import { hydrateLegacyClinicalDocument as h } from '@/domain/clinical-documents/compatibility';\nexport { h };";
+
+  it('keeps extensionless deep feature imports behind the public surface', async () => {
+    for (const target of [
+      '@/features/laboratory/hooks/useSyslabAccess',
+      '@/features/clinical-documents/components/ClinicalDocumentsWorkspace',
+    ])
+      expect(await errors('src/views/Probe.ts', `import '${target}';`)).toHaveLength(1);
+  });
+
+  it('builds and parses episode keys only in the patient-flow resolver', async () => {
+    expect(await restrictions('src/views/Probe.ts', key)).toEqual([
+      expect.stringContaining('buildClinicalEpisodeKey()'),
+    ]);
+    expect(await restrictions('src/tests/Probe.test.ts', key)).toHaveLength(1);
+    expect(await restrictions('src/services/reminders/reminderShared.ts', key)).toEqual([]);
+    for (const code of [
+      parse,
+      "export const p = (x: { episodeKey: string }) => x.episodeKey.includes('__');",
+    ])
+      expect(await restrictions('src/views/Probe.ts', code)).toEqual([
+        expect.stringContaining('parseLegacyClinicalEpisodeKey()'),
+      ]);
+    expect(await restrictions('src/tests/Probe.test.ts', parse)).toEqual([]);
+    const home = 'src/application/patient-flow/clinicalEpisode.ts';
+    expect(await restrictions(home, `${key}\n${parse}`)).toEqual([]);
+  });
+
+  it('hydrates legacy clinical documents only through the compatibility port', async () => {
+    expect(await restrictions('src/hooks/Probe.ts', hydrate)).not.toEqual([]);
+    expect(
+      await restrictions('src/application/ports/clinicalDocumentCompatibilityPort.ts', hydrate)
+    ).toEqual([]);
+  });
+
+  it('keeps public entrypoints as re-exports of their focused modules', async () => {
+    for (const [file, code] of [
+      ['src/utils/clinicalDayUtils.ts', 'export const getShiftSchedule = () => 1;'],
+      ['src/utils/clinicalDayUtils.ts', "import { isHoliday } from './chileanHolidays';"],
+      [
+        'src/features/census/components/patient-row/patientRowViewContracts.ts',
+        'export interface PatientRowProps { id: string }',
+      ],
+      ['src/components/shared/BaseModal.tsx', "import { createPortal } from 'react-dom';"],
+      ['src/components/shared/BaseModal.tsx', 'export interface BaseModalProps { id: string }'],
+    ])
+      expect(await restrictions(file, code), `${file}: ${code}`).toHaveLength(1);
+    expect(
+      await restrictions('src/utils/clinicalDayUtils.ts', "export { getShiftSchedule } from './x';")
+    ).toEqual([]);
+  });
+
+  it('keeps census rows and controllers on the patientRowContracts barrel', async () => {
+    for (const [file, target] of [
+      ['src/features/census/components/Probe.tsx', './patient-row/patientRowViewContracts'],
+      [
+        'src/features/census/controllers/Probe.ts',
+        '@/features/census/components/patient-row/patientRowDataContracts',
+      ],
+    ])
+      expect(await restrictions(file, `export type { X } from '${target}';`)).toEqual([
+        expect.stringContaining('patient-row/patientRowContracts'),
+      ]);
+    expect(
+      await restrictions(
+        'src/features/census/components/patient-row/patientRowContracts.ts',
+        "export type { X } from './patientRowDataContracts';"
+      )
+    ).toEqual([]);
+  });
+
+  it('passes on the real homes and entrypoints', async () => {
+    for (const file of [
+      'src/application/patient-flow/clinicalEpisode.ts',
+      'src/services/reminders/reminderShared.ts',
+      'src/domain/clinical-documents/compatibility.ts',
+      'src/application/ports/clinicalDocumentCompatibilityPort.ts',
+      'src/utils/clinicalDayUtils.ts',
+      'src/components/shared/BaseModal.tsx',
+      'src/features/census/components/patient-row/patientRowContracts.ts',
+      'src/features/census/components/patient-row/patientRowViewContracts.ts',
+    ])
+      expect(
+        await restrictions(file, fs.readFileSync(path.join(ROOT, file), 'utf8')),
+        file
+      ).toEqual([]);
+  });
+});
