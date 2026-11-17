@@ -1,5 +1,6 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import type { PatientRowSaveResult } from './inputCellTypes';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 /** UI state only: the existing daily-record authority owns persistence and ordering. */
 export const usePatientRowSaveState = (scopeKey: string) => {
@@ -9,10 +10,11 @@ export const usePatientRowSaveState = (scopeKey: string) => {
   });
   const [status, setStatus] = useState<'ready' | 'saving' | 'failed'>('ready');
 
+  // A new scope starts ready; a save still running for the old one no longer reports here.
+  if (useChangedOnRender([scopeKey])) setStatus('ready');
   useLayoutEffect(() => {
     const active = { scopeKey, request: null };
     activeRef.current = active;
-    setStatus('ready');
     return () => {
       if (activeRef.current === active) activeRef.current.request = null;
     };

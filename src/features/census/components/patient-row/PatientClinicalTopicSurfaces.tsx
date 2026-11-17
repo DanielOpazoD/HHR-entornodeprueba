@@ -38,9 +38,7 @@ export const usePatientClinicalTopicSurface = (patient?: PatientData) => {
     : '';
   const surface = openSurface?.patientIdentity === patientIdentity ? openSurface.kind : null;
 
-  React.useEffect(() => {
-    setOpenSurface(current => (current?.patientIdentity === patientIdentity ? current : null));
-  }, [patientIdentity]);
+  if (openSurface && openSurface.patientIdentity !== patientIdentity) setOpenSurface(null);
 
   const open = React.useCallback(
     (kind: PatientClinicalTopicSurface) => setOpenSurface({ kind, patientIdentity }),

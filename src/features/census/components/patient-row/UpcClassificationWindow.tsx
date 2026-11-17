@@ -18,6 +18,7 @@ import {
 } from './upcClassificationWindowModel';
 import { UpcClassificationRowItem } from './UpcClassificationRowItem';
 import { UpcRoundNurseControl } from './UpcRoundNurseControl';
+import { useLatestRef } from '@/hooks/useLatestRef';
 interface UpcClassificationWindowProps {
   currentDateString: string;
   readOnly?: boolean;
@@ -45,8 +46,7 @@ export const UpcClassificationWindow: React.FC<UpcClassificationWindowProps> = (
   const [message, setMessage] = useState('');
   const pendingRecords = useRef<Record<string, PendingUpcDraftRecord> | null>(null);
   const episodeSnapshots = useRef<Record<string, string>>({});
-  const bedsRef = useRef(beds);
-  bedsRef.current = beds;
+  const bedsRef = useLatestRef(beds);
 
   const actor = useMemo(
     () =>
@@ -201,7 +201,7 @@ export const UpcClassificationWindow: React.FC<UpcClassificationWindowProps> = (
         return 'failed';
       }
     },
-    [actor, currentDateString, readOnly, updateClinicalCribMultiple, updatePatientMultiple]
+    [actor, bedsRef, currentDateString, readOnly, updateClinicalCribMultiple, updatePatientMultiple]
   );
 
   const confirmChanges = useCallback(async () => {

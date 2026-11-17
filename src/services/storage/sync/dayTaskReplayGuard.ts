@@ -14,7 +14,7 @@ import {
 } from '@/services/repositories/conflictResolutionUtils';
 import { applyPatches } from '@/utils/patchUtils';
 
-const pathsOverlap = (left: string, right: string): boolean =>
+export const pathsOverlap = (left: string, right: string): boolean =>
   left === right || left.startsWith(`${right}.`) || right.startsWith(`${left}.`);
 
 /** Note fields on a patient: a day write publishes only the ones it changed. */

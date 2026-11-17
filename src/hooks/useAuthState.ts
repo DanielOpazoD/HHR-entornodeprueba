@@ -22,6 +22,7 @@ import {
 import { beginPendingLogout, hasRecentManualLogout } from '@/services/auth/authLogoutState';
 import { useSessionPermissionGuard } from '@/hooks/useSessionPermissionGuard';
 import { useNursingSessionMonitor } from '@/hooks/useNursingSessionMonitor';
+import { useLatestRef } from '@/hooks/useLatestRef';
 import { useAuditConnectionTracker } from '@/hooks/useAuditConnectionTracker';
 import { shouldPreserveUnauthorizedSessionReason } from '@/hooks/controllers/authBootstrapController';
 import { isAuthBootstrapPending } from '@/services/auth/authBootstrapState';
@@ -131,23 +132,28 @@ export const useAuthState = (): UseAuthStateReturn => {
       : createAuthenticatingAuthSessionState();
   });
   const admissionRevision = useRef(0);
+  // The ref holds the last state this hook set, so a second update before the
+  // re-render already sees the first one.
   const sessionStateRef = useRef(sessionState);
-  sessionStateRef.current = sessionState;
   const setSessionState = useCallback((update: SetStateAction<AuthSessionState>) => {
+    const commit = (state: AuthSessionState) => {
+      sessionStateRef.current = state;
+      setRawSessionState(state);
+    };
     const next = typeof update === 'function' ? update(sessionStateRef.current) : update;
     const revision = ++admissionRevision.current;
     if (next.status !== 'authorized') {
-      setRawSessionState(next);
+      commit(next);
       return;
     }
-    setRawSessionState(createAuthenticatingAuthSessionState());
+    commit(createAuthenticatingAuthSessionState());
     void Promise.resolve(reconcileAuthorizedSessionOwner(resolveSessionOwnerKey(next.user.uid)!))
       .then(() => {
-        if (revision === admissionRevision.current) setRawSessionState(next);
+        if (revision === admissionRevision.current) commit(next);
       })
       .catch(() => {
         if (revision === admissionRevision.current)
-          setRawSessionState(
+          commit(
             createAuthErrorSessionState({
               code: 'auth/session-storage-cleanup-failed',
               message: 'No se pudo preparar el almacenamiento de la sesión. Reintenta el ingreso.',
@@ -165,12 +171,12 @@ export const useAuthState = (): UseAuthStateReturn => {
   const currentUser = getAuthSessionStateUser(sessionState);
   const [authLoading, setAuthLoading] = useState(!initializesUnauthenticated);
   const isOnline = useOnlineStatus();
-  const closeSession = useMemo(
-    () => createHandleLogout(currentUser, signOut, setSessionState),
+  const closeSession = useCallback(
+    (reason?: 'manual' | 'automatic') =>
+      createHandleLogout(currentUser, signOut, setSessionState)(reason),
     [currentUser, setSessionState]
   );
-  const closeSessionRef = useRef(closeSession);
-  closeSessionRef.current = closeSession;
+  const closeSessionRef = useLatestRef(closeSession);
   const { handleLogout, logoutPrompt } = useNursingHandoffLogout(currentUser, closeSession);
   const isFirebaseConnected = useFirebaseConnectionStatus(
     currentUser,
@@ -193,7 +199,7 @@ export const useAuthState = (): UseAuthStateReturn => {
           : next
       );
     },
-    [setSessionState]
+    [closeSessionRef, setSessionState]
   );
   useInactivityLogout(currentUser, handleLogout);
   useNursingSessionMonitor(sessionState.status === 'authorized' ? currentUser : null, handleLogout);
