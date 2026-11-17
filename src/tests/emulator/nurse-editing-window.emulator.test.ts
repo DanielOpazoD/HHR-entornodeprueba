@@ -63,17 +63,18 @@ const enabled =
       },
       makeContext()
     );
-  // A structural field (bed type) needs the nurse window on the patch path.
-  const patch = () =>
+  // Every nurse patch keeps to the window: a structural field (bed type) and a clinical one
+  // (diagnosis), as the rules do for any direct nurse update.
+  const patches = [
+    ['structural', { 'beds.R1.bedMode': 'Cuna' }],
+    ['clinical', { 'beds.R1.pathology': 'DIAGNOSTICO SINTETICO' }],
+  ] as const;
+  const patchWith = (fields: Record<string, unknown>) => () =>
     api.patchDailyRecordWithClinicalAuthority.run(
-      {
-        date,
-        mode: 'enforced',
-        expectedLastUpdated: stamp,
-        patch: { 'beds.R1.bedMode': 'Cuna' },
-      },
+      { date, mode: 'enforced', expectedLastUpdated: stamp, patch: fields },
       makeContext()
     );
+  const patch = patchWith(patches[0][1]);
   const expectUnchanged = async (attempt: () => Promise<unknown>) => {
     const before = await db.doc(dayPath).get();
     await expect(attempt()).rejects.toMatchObject({
@@ -97,6 +98,12 @@ const enabled =
     await expectUnchanged(() => save(Date.now()));
   });
 
+  it.each(patches)('refuses a nurse %s patch of a day seven days old', async (_kind, fields) => {
+    await seed(honestTimestamp);
+    at('2026-05-20T15:00:00.000Z');
+    await expectUnchanged(patchWith(fields));
+  });
+
   it('refuses a patch of an old day whose stored timestamp was rewritten to a current one', async () => {
     await seed(Date.parse('2026-05-20T12:00:00.000Z'));
     at('2026-05-20T15:00:00.000Z');
@@ -115,9 +122,12 @@ const enabled =
     await expect(save(honestTimestamp)).resolves.toMatchObject({ success: true, revision: 3 });
     vi.useRealTimers();
     expect((await db.doc(dayPath).get()).data()?.beds.R1.pathology).toBe('CAMBIO SINTETICO');
-    await seed(honestTimestamp);
-    at(instant);
-    await expect(patch()).resolves.toMatchObject({ success: true, revision: 3 });
+    for (const [, fields] of patches) {
+      vi.useRealTimers();
+      await seed(honestTimestamp);
+      at(instant);
+      await expect(patchWith(fields)()).resolves.toMatchObject({ success: true, revision: 3 });
+    }
   });
 
   it.each([
@@ -129,10 +139,12 @@ const enabled =
     await seed(honestTimestamp);
     at(instant);
     await expectUnchanged(() => save(honestTimestamp));
-    vi.useRealTimers();
-    await seed(honestTimestamp);
-    at(instant);
-    await expectUnchanged(patch);
+    for (const [, fields] of patches) {
+      vi.useRealTimers();
+      await seed(honestTimestamp);
+      at(instant);
+      await expectUnchanged(patchWith(fields));
+    }
   });
 
   it('keeps the administrator outside the window', async () => {
@@ -140,9 +152,12 @@ const enabled =
     await seed(honestTimestamp);
     at('2026-05-20T15:00:00.000Z');
     await expect(save(honestTimestamp)).resolves.toMatchObject({ success: true, revision: 3 });
-    vi.useRealTimers();
-    await seed(honestTimestamp);
-    at('2026-05-20T15:00:00.000Z');
-    await expect(patch()).resolves.toMatchObject({ success: true, revision: 3 });
+    for (const [, fields] of patches) {
+      vi.useRealTimers();
+      await seed(honestTimestamp);
+      at('2026-05-20T15:00:00.000Z');
+      await expect(patchWith(fields)()).resolves.toMatchObject({ success: true, revision: 3 });
+    }
+    expect((await db.doc(dayPath).get()).data()?.beds.R1.pathology).toBe('DIAGNOSTICO SINTETICO');
   });
 });
