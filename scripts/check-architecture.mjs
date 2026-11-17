@@ -5,7 +5,6 @@ import path from 'node:path';
 
 const ROOT = process.cwd();
 const SRC_ROOT = path.join(ROOT, 'src');
-const ALLOWLIST_PATH = path.join(ROOT, 'scripts', 'architecture-allowlist.json');
 const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
 const IMPORT_REGEX =
   /(?:^|\n)\s*import(?:[\s\S]*?\sfrom\s*)?["']([^"']+)["']|(?:^|\n)\s*export\s+[^;\n]*\sfrom\s*["']([^"']+)["']/g;
@@ -174,7 +173,6 @@ const collectGraph = files => {
           imported,
         });
       }
-
     }
 
     graph.set(filePath, [...edges]);
@@ -239,43 +237,21 @@ const files = walkFiles(SRC_ROOT);
 const { graph, layerViolations } = collectGraph(files);
 const cycles = findCycles(graph);
 
-const allowlist = fs.existsSync(ALLOWLIST_PATH)
-  ? JSON.parse(fs.readFileSync(ALLOWLIST_PATH, 'utf8'))
-  : { layerViolations: [], cycles: [] };
-
-const knownLayerViolations = new Set(allowlist.layerViolations || []);
-const knownCycles = new Set(allowlist.cycles || []);
-
-const currentLayerViolationIds = layerViolations.map(
-  violation => `${violation.rule}|${violation.importer}|${violation.imported}`
-);
-const newLayerViolations = currentLayerViolationIds.filter(id => !knownLayerViolations.has(id));
-const currentCycleIds = cycles;
-const newCycles = currentCycleIds.filter(id => !knownCycles.has(id));
-
-if (newLayerViolations.length === 0 && newCycles.length === 0) {
+if (layerViolations.length === 0 && cycles.length === 0) {
   console.log('Architecture checks passed.');
-
-  if (currentLayerViolationIds.length > 0 || currentCycleIds.length > 0) {
-    console.log(
-      `Baseline debt tracked: ${currentLayerViolationIds.length} layer issues, ${currentCycleIds.length} cycles.`
-    );
-  }
-
   process.exit(0);
 }
 
-if (newLayerViolations.length > 0) {
+if (layerViolations.length > 0) {
   console.error('\nLayer violations:');
-  for (const violationId of newLayerViolations) {
-    const [rule, importer, imported] = violationId.split('|');
+  for (const { rule, importer, imported } of layerViolations) {
     console.error(`- [${rule}] ${importer} -> ${imported}`);
   }
 }
 
-if (newCycles.length > 0) {
+if (cycles.length > 0) {
   console.error('\nCircular dependencies:');
-  for (const cycle of newCycles) {
+  for (const cycle of cycles) {
     console.error(`- ${cycle}`);
   }
 }
