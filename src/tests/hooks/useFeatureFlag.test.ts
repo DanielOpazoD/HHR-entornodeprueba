@@ -83,20 +83,12 @@ describe('useAllFeatureFlags', () => {
   it('should return all flags', () => {
     const flagsSnapshot: Record<FeatureFlag, boolean> = {
       SHOW_DEBUG_PANEL: true,
-      ENABLE_ANALYTICS_VIEW: true,
-      SHOW_CUDYR_PRINT: true,
-      ENABLE_OPTIMISTIC_UPDATES: true,
-      ENABLE_OFFLINE_MODE: false,
       SPECIALTY_EPISODE_ASSIGNMENT: false,
       SPECIALTY_RULES_MEMORY: false,
       SPECIALTY_JEV_CONSULTATION: false,
       USE_ADMIT_PATIENT_COMMAND: true,
       USE_DISCHARGE_PATIENT_COMMAND: false,
       USE_TRANSFER_PATIENT_COMMAND: false,
-      ENABLE_WHATSAPP_INTEGRATION: false,
-      ENABLE_EMAIL_NOTIFICATIONS: true,
-      VERBOSE_LOGGING: false,
-      SHOW_PERFORMANCE_METRICS: false,
     };
 
     vi.mocked(featureFlags.getAll).mockReturnValue(flagsSnapshot);
