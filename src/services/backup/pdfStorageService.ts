@@ -18,8 +18,8 @@ import {
   createListMonths,
   createListFilesInMonth,
   createListFilesInMonthWithReport,
-  BaseStoredFile,
 } from './baseStorageService';
+import type { StoredPdfFile } from '@/types/backupArtifacts';
 import {
   isExpectedStorageLookupMiss,
   shouldLogStorageError,
@@ -42,10 +42,6 @@ import {
 } from '@/services/backup/backupStorageRuntimeSupport';
 
 // ============= Types =============
-
-export interface StoredPdfFile extends BaseStoredFile {
-  shiftType: 'day' | 'night';
-}
 
 export interface PdfFolder {
   name: string;

@@ -5,10 +5,10 @@ import {
   DemographicSubset,
   LocalDemographicsState,
   Insurance,
-  AdmissionOrigin,
   Origin,
   BiologicalSex,
 } from './types';
+import type { AdmissionOrigin } from '@/types/domain/patient';
 import {
   buildLocalData,
   normalizeNamePart,

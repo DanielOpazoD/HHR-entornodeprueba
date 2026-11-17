@@ -29,4 +29,3 @@ export const SPECIALTY_CHIP_STYLES: Record<string, string> = {
 export const SPECIALTY_CHIP_FALLBACK = SPECIALTY_CHIP_CELESTE;
 
 export const ADMISSION_ORIGIN_OPTIONS: string[] = ['CAE', 'APS', 'Urgencias', 'Pabellón', 'Otro'];
-export type AdmissionOrigin = 'CAE' | 'APS' | 'Urgencias' | 'Pabellón' | 'Otro';

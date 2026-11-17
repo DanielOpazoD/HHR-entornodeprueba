@@ -5,11 +5,11 @@ import type { AuditAction } from '@/types/auditActionTypes';
 import type { AuditLogEntry } from '@/types/auditLogTypes';
 
 import type { PatientFieldValue } from '@/types/valueTypes';
-import type { NursingShift } from './useHandoffVisibility';
+import type { ShiftType } from '@/types/domain/shift';
 import { buildNursingNoteChangePlan } from '@/hooks/controllers/handoffNursingNoteController';
 
 interface UseNursingHandoffHandlersParams {
-  selectedShift: NursingShift;
+  selectedShift: ShiftType;
   record: { date: string; beds: Record<string, PatientData> } | null;
   updatePatient: (bedId: string, field: keyof PatientData, value: PatientFieldValue) => void;
   updatePatientMultiple: (bedId: string, fields: Partial<PatientData>) => void;
