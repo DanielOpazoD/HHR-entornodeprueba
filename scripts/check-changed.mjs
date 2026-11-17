@@ -30,7 +30,7 @@ try {
     ['test-governance', /^src\/tests\//, 'Retira only/skip prohibidos de las pruebas.'],
     [
       'module-size',
-      /^src\//,
+      /^(src\/|functions\/lib\/|netlify\/functions\/)/,
       'Divide los módulos que superen su límite; retira las excepciones obsoletas.',
     ],
     [

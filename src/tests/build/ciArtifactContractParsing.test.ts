@@ -38,13 +38,13 @@ describe('CI artifact contract parsing', () => {
         workflow.replace(laneDownload, 'pattern: e2e-critical-lanes-*')
       )
     ).toContain(
-      'e2e-critical-emulator: downloads artifact "e2e-critical-lanes-*" but no job uploads that artifact.'
+      'final-confidence-and-readiness: downloads artifact "e2e-critical-lanes-*" but no job uploads that artifact.'
     );
     const unordered = parseDocument(workflow);
-    unordered.setIn(['jobs', 'e2e-critical-emulator', 'needs'], ['ci-scope']);
+    unordered.setIn(['jobs', 'final-confidence-and-readiness', 'needs'], ['ci-scope']);
     expect(collectCiArtifactContractIssues(String(unordered))).toContainEqual(
       expect.stringMatching(
-        /^e2e-critical-emulator: downloads artifact "e2e-critical-lane-\*" before declaring a needs chain/
+        /^final-confidence-and-readiness: downloads artifact "e2e-critical-lane-\*" before declaring a needs chain/
       )
     );
     expect(
@@ -66,7 +66,7 @@ describe('CI artifact contract parsing', () => {
     document.deleteIn(['jobs', 'postmerge-evidence', 'steps', verifyIndex]);
 
     expect(collectCiArtifactContractIssues(reformat(String(document)))).toContain(
-      'postmerge-evidence: must verify "preview-bootstrap-artifacts" from producer "preview-smoke".'
+      'postmerge-evidence: must verify "preview-bootstrap-artifacts" from producer "final-confidence-and-readiness".'
     );
   });
 });

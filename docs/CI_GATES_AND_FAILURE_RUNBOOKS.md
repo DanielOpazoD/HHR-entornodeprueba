@@ -30,9 +30,11 @@ de `main` se mantienen. Comprobar el alcance y los jobs realmente ejecutados; no
 equiparar un job omitido o un informe antiguo con una prueba aprobada.
 
 En la ruta `full`, los jobs de calidad, los cuatro shards unitarios y de cobertura,
-`build-budget` y `preview-smoke` acreditan los controles equivalentes de
-`ci:merge-gate`. `rules-emulator`, `e2e-critical` y `final-confidence-and-readiness`
-aportan reglas, sincronización, E2E y evidencia de rendimiento. Los packs unitarios
+`build-budget` y los carriles de vista previa acreditan los controles equivalentes de
+`ci:merge-gate`. `rules-emulator` (reglas, Storage, suite sync del emulador y cuentas),
+`emulator-ui` (suite UI del emulador, en paralelo y con su propio emulador), los carriles E2E
+críticos y `final-confidence-and-readiness` aportan reglas, sincronización, E2E y evidencia de
+rendimiento. Los packs unitarios
 incluidos en los shards no necesitan una segunda ejecución local. Verificar siempre
 el workflow y la selección de archivos vigentes; un cambio de cobertura exige revisar
 esta correspondencia. Los artefactos formales de release, signoff clínico o pruebas
@@ -156,10 +158,44 @@ una combinación no permitida ejecuta la ruta `full`.
 | `functions-only` | Fuente bajo `functions/**` y scripts de verificación permitidos; excluye ambos manifiestos npm | tests de Functions, despliegue, borrado y regiones; contratos serverless; runtime PDF clínico; `ci-summary` |
 | `full`           | Código de aplicación, dependencias, configuración, reglas, cambios mixtos o cualquier fallback | matriz completa de calidad, shards, sincronización, reglas, E2E, build, rendimiento y readiness             |
 
-Borrados, renombres, más de 50 archivos, documentación API generada, cambios en
-`package.json`/lockfiles y eventos `push` siempre usan `full`. `ci-summary` exige que
-los gates enfocados terminen en `success` y que los jobs completos estén exactamente
-en `skipped`; así, un salto inesperado también falla.
+Borrados, renombres, más de 50 archivos, documentación API generada y cambios en
+`package.json`/lockfiles siempre usan `full`; los eventos `push` también, salvo el caso
+`reused` de la sección siguiente. `ci-summary` exige que los gates enfocados terminen en
+`success` y que los jobs completos estén exactamente en `skipped`; así, un salto
+inesperado también falla.
+
+### `main` no repite la CI de la PR que probó su mismo árbol
+
+Cada corrida de PR prueba el commit de merge que GitHub arma (`refs/pull/N/merge`). Su
+job `ci-scope` deja registrado ese commit y su árbol en el nombre de un artefacto,
+`pr-tested-<commit>-<árbol>`. En el `push` a `main`, `ci-scope` busca la PR fusionada
+como ese commit y sus corridas, y elige `reused` solo si una de ellas:
+
+- probó exactamente el árbol de `main` (`git rev-parse HEAD^{tree}`);
+- terminó en verde en su último intento, sin ningún job fallido o cancelado;
+- pasó todos los gates completos que exige `ci-summary` (una corrida `docs-only`, por
+  ejemplo, no sirve);
+- conserva los artefactos que lee `postmerge-evidence`, y viene de este repositorio.
+
+Cualquier otro caso corre todo como antes: push directo, conflicto resuelto al fusionar,
+rama atrasada, corrida cancelada, reintento que no terminó en verde, corrida anterior a
+este registro o error de la API. La decisión vive en `scripts/ciEvidenceReuseSupport.mjs`
+y su prueba en `src/tests/build/ciEvidenceReuse.test.ts`.
+
+Con `reused`, los jobs de prueba y calidad quedan en `skipped` y `ci-summary` pasa
+declarando en su resumen la corrida, su último intento, el commit probado y el árbol de donde viene la
+evidencia. No se saltan `function-deploy-scope`, el despliegue validado de Functions ni
+`postmerge-evidence`: este último descarga `dist`, preview, cobertura crítica, manifiesto
+de evidencia y rendimiento de flujos desde la corrida de la PR. Los informes de esa
+corrida fueron generados para su commit de merge, no para el de `main`; los controles de
+frescura y procedencia los aceptan solo mientras `CI_EVIDENCE_TREE` sea el árbol de
+`HEAD` (`getReusedEvidenceSource` en `scripts/gitReportState.mjs`), y siguen comparando
+las huellas de sus entradas. La procedencia del preview se compara con el id y el último
+intento de la corrida de la PR, no con los del push a `main`: una PR verde en su intento 2
+sirve aunque `main` corra en el intento 1, y un productor de un intento posterior al de esa
+corrida sigue rechazado. Los demás artefactos de la evidencia (confianza, cobertura,
+telemetría de CI, rendimiento del censo, Lighthouse) se leen de la corrida de la PR que
+nombra `ci-summary`.
 
 Esta clasificación determina qué evidencia aporta CI. Durante la iteración local,
 usar el comando más pequeño que cubra el riesgo. Al cerrar, comprobar que el alcance
@@ -167,9 +203,16 @@ de CI fue correcto; no ampliar automáticamente a un gate local completo.
 
 ### Evidencia final de rendimiento
 
-`final-confidence-and-readiness` espera a `e2e-critical-emulator` y a `test-execution-manifest`
-y descarga sus artefactos `flow-performance-evidence` y `test-execution-manifest` de la misma
-ejecución, sin seleccionar otra rama ni un run anterior.
+`final-confidence-and-readiness` es el único job entre los jobs de trabajo y `ci-summary`.
+Espera a todos los que lee y, en este orden, fusiona los carriles de vista previa, fusiona los
+carriles E2E críticos (con `flow-performance-evidence`), arma el manifiesto de ejecución y
+regenera la confianza, todo con evidencia de la misma ejecución, sin seleccionar otra rama ni
+un run anterior. Corre aunque falle un carril, para publicar los informes fusionados; los
+carriles E2E se fusionan aunque haya fallado la vista previa, y antes de la confianza el job
+exige que `build-budget` y los snapshots de gobernanza hayan pasado. Antes eran cuatro jobs en
+serie (`preview-smoke`, `e2e-critical`, `test-execution-manifest` y este), cada uno con su
+checkout e instalación: entre el último job de trabajo y `ci-summary` pasaban 71 s (mediana
+de 20 corridas de `main` del 16 y 17-11).
 Valida el reporte Playwright (sin fallos, interrupciones ni recuperaciones por reintento) y los presupuestos
 antes de regenerar salud operativa, confianza y readiness. Publica también las mediciones fuente. `postmerge-evidence` reutiliza y valida el mismo
 artefacto antes de regenerar los informes de main.
@@ -343,7 +386,7 @@ Si un shard se vuelve dominante, correr `npm run profile:unit-shard-runtime`, re
 El runtime observado de GitHub Actions se evidencia en el artefacto `ci-runtime-observed-profile` de cada corrida y se valida con `npm run check:ci-runtime-telemetry`. En PR lo captura `ci-runtime-telemetry`, con permisos mínimos `actions: read`/`contents: read`, después de los gates principales. El collector `npm run collect:ci-runtime-observed-input` usa `GITHUB_RUN_ID`, `GITHUB_REPOSITORY` y `GITHUB_TOKEN` para escribir `reports/ci-runtime-observed-input.json`; luego el reporte compara esos tiempos reales contra la estimación de `scripts/config/unit-shard-balance.json`. El job corre después de `unit-risk`, así que un shard que la API aún muestra en cola o en ejecución es un dato atrasado de GitHub: el collector relee hasta 2,5 minutos antes de entregar la última lectura al contrato.
 Este gate es advisory-first: no bloquea por falta de datos reales ni por una corrida aislada lenta; solo bloquea contratos rotos como JSON inválido, timestamps inválidos, shards duplicados/faltantes cuando el reporte declara datos observados o nombres imposibles de shard.
 Si el observado contradice repetidamente el balance estimado, ajustar primero `durationHints`, `perFileOverheadMs`, `affinityGroups` o `lockedAssignments`, y recién después considerar cambios de suite. No reducir cobertura clínica crítica para bajar minutos. Si el reporte queda en `no_observed_ci_data` dentro de GitHub Actions, revisar que el job `ci-runtime-telemetry` haya ejecutado el collector antes del reporter y que el token tenga permiso de lectura de Actions.
-El gate de rendimiento del censo usa 5 muestras por escenario en PR y conserva 30 en eventos que no son PR, incluidos los `push` a `main` y `develop`. El muestreo corto detecta regresiones durante revisión; el muestreo largo de los eventos que no son PR mantiene la evidencia estable sin cobrar ese costo en cada iteración.
+El gate de rendimiento del censo usa 5 muestras por escenario en PR y conserva 30 en eventos que no son PR, incluidos los `push` a `main` y `develop`. Un `push` a `main` que reutiliza la evidencia de su PR no repite la medición; queda la de 5 muestras de esa PR. El muestreo corto detecta regresiones durante revisión; el muestreo largo de los eventos que no son PR mantiene la evidencia estable sin cobrar ese costo en cada iteración.
 El reporte de release readiness ya regenera también `guardrail-governance`; no debe depender de un artefacto previo manual.
 CI regenera los snapshots report-only obligatorios con `npm run report:governance-snapshots` antes de ejecutar `check:quality`.
 `release-readiness-scorecard` sigue siendo ejecutivo y obligatorio para release, pero ya no duplica bloqueo dentro de `check:quality` si las fuentes primarias siguen verdes.
@@ -592,7 +635,7 @@ fallido cuando no hay prueba). Solo lee con `gh api`; `--json` da el detalle con
 
 ### Falla el modelo de la cola de guardado
 
-El modelo (`syncQueueModel.emulator-ui.test.ts`) corre en `rules-emulator`, y en local, siempre
+El modelo (`syncQueueModel.emulator-ui.test.ts`) corre en `emulator-ui`, y en local, siempre
 con las mismas 30 secuencias (semilla 20261115). Un fallo en una PR o en `main` apunta a ese
 cambio: se corrige ahí, no se reintenta. Las semillas nuevas (300 secuencias) las explora cada
 noche el job `nightly-sync-model` de `nightly-test-runtime.yml`, que no bloquea despliegues. Su
@@ -744,15 +787,15 @@ visor DICOM. Los carriles se reparten por
 duración observada, no por número de pruebas; se definen en
 `scripts/previewSmokeLaneSupport.mjs`.
 
-`preview-smoke` fusiona los blobs con `playwright merge-reports`, exige que todos los
+`final-confidence-and-readiness` fusiona los blobs con `playwright merge-reports`, exige que todos los
 carriles terminaran bien y compara el informe fusionado con
 `playwright test --list` del pack completo: cada prueba canónica debe ejecutarse
 exactamente una vez (`check-preview-smoke-completeness.mjs`). Después registra la
-procedencia (productor `preview-smoke`) y publica `preview-bootstrap-artifacts`
+procedencia (productor `final-confidence-and-readiness`) y publica `preview-bootstrap-artifacts`
 para la comprobación final y posterior al merge. `build-budget` conserva el build con
 la evidencia de release, budgets, grafo de chunks y `dist`, sin el smoke.
 
-Cada carril sube su blob, que ya es un zip, con `archive: false`; `preview-smoke`
+Cada carril sube su blob, que ya es un zip, con `archive: false`; `final-confidence-and-readiness`
 lo baja con `download-artifact@v8` y `skip-decompress: true`. Al comprimirlo de
 nuevo, la extracción en streaming de `download-artifact` confundía la firma del
 descriptor de datos del zip interno con el fin de la entrada y fallaba sobre
@@ -764,7 +807,7 @@ Cada carril sirve su propio bundle del mismo commit. Sólo difiere de `build-bud
 en `release-evidence.json`, que no entra en el precache, y Netlify vuelve a compilar
 al desplegar, así que el smoke nunca validó el artefacto desplegado. Localmente,
 `ci:preview-gate` sigue ejecutando el pack completo en serie. `ci-summary` exige
-`build-budget` y `preview-smoke`; los cambios `docs-only` y `functions-only` conservan
+`build-budget`, `preview-smoke-lanes` y `final-confidence-and-readiness`; los cambios `docs-only` y `functions-only` conservan
 sus controles propios.
 
 Motivo medido: en el run 39661114009 el smoke ocupaba 735 s dentro de
@@ -794,7 +837,7 @@ errores sin copiar sus mensajes o posibles datos sensibles al diagnóstico.
 
 El riesgo de pruebas inestables (`flakeRisk` en `system-confidence`) cuenta los archivos
 de prueba que fallaron o pasaron solo tras un reintento en el manifiesto de ejecución de la
-misma corrida; `final-confidence-and-readiness` lo descarga de `test-execution-manifest`.
+misma corrida, que `final-confidence-and-readiness` arma en el mismo job.
 El indicador queda degradado como «sin medir», nunca en cero, si falta el manifiesto del
 commit, si le falta alguna de sus `requiredCiSuites`, si registra problemas (`issues`) o si
 el job de informes corre en un intento mayor que 1 (`GITHUB_RUN_ATTEMPT`). Esto último

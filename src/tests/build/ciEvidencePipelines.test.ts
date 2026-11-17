@@ -68,24 +68,20 @@ export const EVIDENCE_PIPELINES: Record<string, Matcher[]> = {
     run('npm run check:bundle-budget'),
     upload('dist'),
   ],
-  'preview-smoke': [
+  // The single aggregator: preview lanes, critical lanes, execution manifest, then confidence.
+  'final-confidence-and-readiness': [
     run('npx playwright merge-reports'),
     run('node scripts/check-preview-smoke-completeness.mjs'),
     run('npm run write:preview-bootstrap-provenance'),
     run('npm run check:preview-bootstrap-evidence'),
     upload('preview-bootstrap-artifacts'),
-  ],
-  'e2e-critical-emulator': [
     run('node scripts/merge-critical-e2e-lanes.mjs'),
     run('node scripts/report-e2e-operational-metrics.mjs'),
     upload('flow-performance-evidence'),
-  ],
-  'final-confidence-and-readiness': [
-    download('test-execution-manifest'),
-    download('preview-bootstrap-artifacts'),
+    run('npm run report:test-execution-manifest'),
+    upload('test-execution-manifest'),
+    download('quality-static-governance-snapshots'),
     download('dist'),
-    run('npm run check:preview-bootstrap-evidence'),
-    download('flow-performance-evidence'),
     run('node scripts/check-playwright-report-clean.mjs reports/e2e/flow-performance'),
     run('npm run check:flow-performance-budget'),
     run('npm run report:operational-health'),
@@ -104,7 +100,7 @@ export const EVIDENCE_PIPELINES: Record<string, Matcher[]> = {
     run('npm run check:ci-artifact-contracts'),
     run('scripts/verify-github-run-artifact.mjs --artifact dist'),
     run(
-      'scripts/verify-github-run-artifact.mjs --artifact preview-bootstrap-artifacts --producer preview-smoke'
+      'scripts/verify-github-run-artifact.mjs --artifact preview-bootstrap-artifacts --producer final-confidence-and-readiness'
     ),
     download('dist'),
     download('preview-bootstrap-artifacts'),
@@ -122,7 +118,8 @@ export const EVIDENCE_PIPELINES: Record<string, Matcher[]> = {
 /** Commands whose evidence must come from a single job. */
 const EXCLUSIVE_COMMANDS: Record<string, string> = {
   'npm run report:ci-runtime-observed-profile': 'ci-runtime-telemetry',
-  'npm run write:preview-bootstrap-provenance': 'preview-smoke',
+  'npm run write:preview-bootstrap-provenance': 'final-confidence-and-readiness',
+  'npm run report:test-execution-manifest': 'final-confidence-and-readiness',
   'npm run postmerge:evidence': 'postmerge-evidence',
 };
 
@@ -222,24 +219,35 @@ describe('CI evidence pipelines', () => {
 
   it('waits for the producers it reads and runs post-merge evidence only on main pushes', () => {
     const jobs = ciJobs();
-    expect(jobNeeds(jobs['final-confidence-and-readiness']).sort()).toEqual(
+    const final = jobs['final-confidence-and-readiness'];
+    expect(jobNeeds(final).sort()).toEqual(
       [
+        'ci-scope',
         'build',
-        'e2e-critical-emulator',
-        'preview-smoke',
+        'e2e-critical-lanes',
+        'preview-smoke-lanes',
         'quality-static-governance-snapshots',
-        'test-execution-manifest',
+        'rules-emulator',
+        'unit-risk-shards',
       ].sort()
     );
+    // It runs when lanes fail, so it must refuse to build confidence from a failed build.
+    expect(final.if).toBe("${{ !cancelled() && needs.ci-scope.outputs.scope == 'full' }}");
+    const requireUpstream = final.steps.findIndex(step =>
+      (step.run ?? '').includes(
+        'test "$BUILD_RESULT" = success && test "$SNAPSHOTS_RESULT" = success'
+      )
+    );
+    expect(requireUpstream).toBeGreaterThan(-1);
+    expect(requireUpstream).toBeLessThan(
+      final.steps.findIndex(step => (step.run ?? '').includes('npm run report:operational-health'))
+    );
     const postmerge = jobs['postmerge-evidence'];
-    expect(postmerge.if).toBe("github.event_name == 'push' && github.ref == 'refs/heads/main'");
+    expect(postmerge.if).toBe(
+      "${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.ci-strict-summary.result == 'success' }}"
+    );
     expect(jobNeeds(postmerge)).toEqual(
-      expect.arrayContaining([
-        'build',
-        'preview-smoke',
-        'ci-strict-summary',
-        'e2e-critical-emulator',
-      ])
+      expect.arrayContaining(['build', 'ci-strict-summary', 'final-confidence-and-readiness'])
     );
     expect(postmerge.permissions).toMatchObject({ actions: 'read' });
     // The final upload carries the provenance and flow evidence it validated.

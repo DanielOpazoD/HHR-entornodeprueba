@@ -143,7 +143,9 @@ falte en CI. Para cambios críticos, verificar también los controles de su cate
 El PR debe explicar problema, comportamiento resultante, alcance, evidencia,
 riesgos y reversión. Revisar el diff final de forma independiente. Antes del merge,
 verificar el SHA exacto, CI, conflictos y observaciones accionables. Una CI pendiente
-no está aprobada. Tras el merge, comprobar `main` y su evidencia posterior.
+no está aprobada. Tras el merge, comprobar `main` y su evidencia posterior: si su árbol
+es el que probó la PR, su `ci-summary` nombra esa corrida en vez de repetirla
+([CI y recuperación](docs/CI_GATES_AND_FAILURE_RUNBOOKS.md)).
 
 Actualizar el documento dueño de la decisión y sus enlaces. No duplicar una nueva
 versión del mismo contrato en varias guías. Git conserva el código y documentación

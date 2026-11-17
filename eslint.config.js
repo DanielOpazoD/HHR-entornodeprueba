@@ -416,14 +416,6 @@ const BASE_MODAL_ENTRYPOINT_RESTRICTION = {
   message:
     'BaseModal es la entrada pública: los tipos van en baseModalContracts.ts y el portal en baseModalContent.tsx.',
 };
-const PATIENT_ROW_CONTRACT_FILES = [
-  'patientRowContracts',
-  'patientRowViewContracts',
-  'patientRowDataContracts',
-  'patientRowInputViewContracts',
-  'patientRowMainViewContracts',
-  'patientRowShellViewContracts',
-].map(name => `src/features/census/components/patient-row/${name}.ts`);
 
 export default tseslint.config(
   {
@@ -611,35 +603,13 @@ export default tseslint.config(
     },
   },
   {
-    files: [
-      'src/utils/clinicalDayUtils.ts',
-      'src/features/census/components/patient-row/patientRowViewContracts.ts',
-    ],
+    files: ['src/utils/clinicalDayUtils.ts'],
     rules: { 'no-restricted-syntax': syntaxRestrictions({ add: [REEXPORT_ONLY_RESTRICTION] }) },
   },
   {
     files: ['src/components/shared/BaseModal.tsx'],
     rules: {
       'no-restricted-syntax': syntaxRestrictions({ add: [BASE_MODAL_ENTRYPOINT_RESTRICTION] }),
-    },
-  },
-  {
-    // Census rows and controllers read the patient-row contracts from their stable barrel.
-    files: ['src/features/census/{components,controllers}/**/*.{ts,tsx}'],
-    ignores: PATIENT_ROW_CONTRACT_FILES,
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              regex: 'patientRow(Data|View)Contracts$',
-              message:
-                'Importa los contratos de la fila del paciente desde patient-row/patientRowContracts.',
-            },
-          ],
-        },
-      ],
     },
   },
   {

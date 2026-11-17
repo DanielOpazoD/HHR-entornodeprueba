@@ -8,6 +8,7 @@
  */
 
 import { ModuleType } from '@/constants/navigationConfig';
+import type { UserRole } from '@/types/authRoleTypes';
 import { resolveRoleAccess } from '@/shared/access/roleAccessMatrix';
 
 // ==========================================
@@ -28,8 +29,6 @@ export const ROLES = {
   VIEWER: 'viewer', // Invitado interno (solo lectura)
 } as const;
 
-export type UserRole = (typeof ROLES)[keyof typeof ROLES] | string;
-
 // ==========================================
 // 2. CONFIGURACIÓN DE PERMISOS
 // ==========================================
@@ -41,7 +40,7 @@ interface RolePermissions {
   canEdit: ModuleType[]; // Módulos donde puede editar/guardar
 }
 
-const PERMISSIONS: Record<string, RolePermissions> = {
+const PERMISSIONS: Record<UserRole, RolePermissions> = {
   [ROLES.ADMIN]: {
     modules: resolveRoleAccess(ROLES.ADMIN).modules,
     canEdit: resolveRoleAccess(ROLES.ADMIN).canEdit,
@@ -118,7 +117,7 @@ export type ActionPermission = (typeof ACTIONS)[keyof typeof ACTIONS];
  * Mapping of roles to their allowed actions.
  * SECURITY-CRITICAL: This defines what each role can do at a granular level.
  */
-const ACTION_PERMISSIONS: Record<string, ActionPermission[]> = {
+const ACTION_PERMISSIONS: Partial<Record<UserRole, ActionPermission[]>> = {
   [ROLES.ADMIN]: [
     // Admin can do everything
     ACTIONS.PATIENT_READ,
@@ -176,7 +175,7 @@ const DEFAULT_ACTIONS: ActionPermission[] = [ACTIONS.PATIENT_READ];
 /**
  * Obtiene los permisos para un rol dado.
  */
-const getPermissions = (role?: string): RolePermissions => {
+const getPermissions = (role?: UserRole): RolePermissions => {
   if (!role) return DEFAULT_PERMISSIONS;
   return PERMISSIONS[role] || DEFAULT_PERMISSIONS;
 };
@@ -186,7 +185,7 @@ const getPermissions = (role?: string): RolePermissions => {
  * @param role - User's role
  * @returns Array of allowed action permissions
  */
-const getActionPermissions = (role?: string): ActionPermission[] => {
+const getActionPermissions = (role?: UserRole): ActionPermission[] => {
   if (!role) return DEFAULT_ACTIONS;
   return ACTION_PERMISSIONS[role] || DEFAULT_ACTIONS;
 };
@@ -211,7 +210,7 @@ const getActionPermissions = (role?: string): ActionPermission[] => {
  * }
  *
  * // Protect a function:
- * function deleteRecord(role: string) {
+ * function deleteRecord(role: UserRole) {
  *     if (!canDoAction(role, ACTIONS.RECORD_DELETE)) {
  *         throw new Error('Permission denied');
  *     }

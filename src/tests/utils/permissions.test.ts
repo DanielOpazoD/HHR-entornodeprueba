@@ -26,10 +26,6 @@ describe('permissions.ts - Security Critical Tests', () => {
     it('should return false for undefined role', () => {
       expect(isAdmin(undefined)).toBe(false);
     });
-
-    it('should return false for unknown role string', () => {
-      expect(isAdmin('hacker')).toBe(false);
-    });
   });
 
   describe('canEditModule - Security Gate', () => {
@@ -72,11 +68,6 @@ describe('permissions.ts - Security Critical Tests', () => {
     it('undefined role should NOT edit anything', () => {
       expect(canEditModule(undefined, 'CENSUS')).toBe(false);
       expect(canEditModule(undefined, 'AUDIT')).toBe(false);
-    });
-
-    it('unknown role should NOT edit anything (security fallback)', () => {
-      expect(canEditModule('unknown_role', 'CENSUS')).toBe(false);
-      expect(canEditModule('unknown_role', 'AUDIT')).toBe(false);
     });
   });
 

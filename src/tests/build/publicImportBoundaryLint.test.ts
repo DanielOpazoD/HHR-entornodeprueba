@@ -161,15 +161,11 @@ describe('public imports in ESLint', () => {
       expect(await errors('src/views/Probe.ts', forms[0](target))).toHaveLength(1);
     }
   });
-  it('retains the exact census shim exception', async () => {
+  it('keeps no census shim or overlay exception', async () => {
     const target = '@/features/census/controllers/bedManagerModalController';
     const file = 'src/hooks/controllers/bedManagerModalController.ts';
-    expect(await errors(file, `export * from '${target}';`)).toEqual([]);
-    expect(await errors(file, `export * from '${target}';\nexport const extra = 1;`)).toHaveLength(
-      1
-    );
+    expect(await errors(file, `export * from '${target}';`)).toHaveLength(1);
     expect(await errors(file, `import('${target}');`)).toHaveLength(1);
-    // The former overlay exception is gone: every import form is rejected.
     for (const code of forms)
       expect(
         await errors(
@@ -254,35 +250,12 @@ describe('module homes in ESLint', () => {
     for (const [file, code] of [
       ['src/utils/clinicalDayUtils.ts', 'export const getShiftSchedule = () => 1;'],
       ['src/utils/clinicalDayUtils.ts', "import { isHoliday } from './chileanHolidays';"],
-      [
-        'src/features/census/components/patient-row/patientRowViewContracts.ts',
-        'export interface PatientRowProps { id: string }',
-      ],
       ['src/components/shared/BaseModal.tsx', "import { createPortal } from 'react-dom';"],
       ['src/components/shared/BaseModal.tsx', 'export interface BaseModalProps { id: string }'],
     ])
       expect(await restrictions(file, code), `${file}: ${code}`).toHaveLength(1);
     expect(
       await restrictions('src/utils/clinicalDayUtils.ts', "export { getShiftSchedule } from './x';")
-    ).toEqual([]);
-  });
-
-  it('keeps census rows and controllers on the patientRowContracts barrel', async () => {
-    for (const [file, target] of [
-      ['src/features/census/components/Probe.tsx', './patient-row/patientRowViewContracts'],
-      [
-        'src/features/census/controllers/Probe.ts',
-        '@/features/census/components/patient-row/patientRowDataContracts',
-      ],
-    ])
-      expect(await restrictions(file, `export type { X } from '${target}';`)).toEqual([
-        expect.stringContaining('patient-row/patientRowContracts'),
-      ]);
-    expect(
-      await restrictions(
-        'src/features/census/components/patient-row/patientRowContracts.ts',
-        "export type { X } from './patientRowDataContracts';"
-      )
     ).toEqual([]);
   });
 
@@ -295,7 +268,6 @@ describe('module homes in ESLint', () => {
       'src/utils/clinicalDayUtils.ts',
       'src/components/shared/BaseModal.tsx',
       'src/features/census/components/patient-row/patientRowContracts.ts',
-      'src/features/census/components/patient-row/patientRowViewContracts.ts',
     ])
       expect(
         await restrictions(file, fs.readFileSync(path.join(ROOT, file), 'utf8')),

@@ -159,7 +159,12 @@ describe('validated Functions deployment', () => {
     expect(workflow.on.push).toBeUndefined();
     expect(workflow.on.workflow_call).toBeDefined();
     expect(workflow.jobs.deploy.needs).toEqual(['preflight']);
-    expect(workflow.jobs.deploy.if).toContain("eligible == 'true'");
+    // Without a status function GitHub skips a job whose ancestors were skipped, which is
+    // every gate when main reuses the pull request evidence.
+    expect(workflow.jobs.preflight.if).toBe('${{ !cancelled() }}');
+    expect(workflow.jobs.deploy.if).toBe(
+      "${{ !cancelled() && needs.preflight.result == 'success' && needs.preflight.outputs.eligible == 'true' }}"
+    );
     expect(workflow.jobs.preflight.permissions).toEqual({ contents: 'read', actions: 'read' });
     const checkout = workflow.jobs.deploy.steps.find((step: { uses?: string }) =>
       step.uses?.startsWith('actions/checkout@')

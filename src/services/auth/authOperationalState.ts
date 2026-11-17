@@ -19,6 +19,7 @@ import {
   type RemoteSyncRuntimeStatus,
 } from '@/services/repositories/repositoryConfig';
 import { canEditAnyAppModule } from '@/shared/access/operationalAccessPolicy';
+import { isUserRole } from '@/shared/access/roleAccessMatrix';
 
 type AuthSignOutHandler = (reason?: 'manual' | 'automatic') => Promise<void>;
 
@@ -51,15 +52,6 @@ export interface NormalizedAuthOperationalState {
   handleLogout: AuthSignOutHandler;
 }
 
-const VALID_USER_ROLES = new Set<UserRole>([
-  'viewer',
-  'editor',
-  'admin',
-  'nurse_hospital',
-  'doctor_urgency',
-  'doctor_specialist',
-]);
-
 const VALID_FIRESTORE_SYNC_MODES = new Set<FirestoreSyncMode>([
   'enabled',
   'bootstrapping',
@@ -86,9 +78,6 @@ const isAuthUser = (value: unknown): value is AuthUser =>
   ('displayName' in value
     ? value.displayName === null || typeof value.displayName === 'string'
     : true);
-
-const isUserRole = (value: unknown): value is UserRole =>
-  typeof value === 'string' && VALID_USER_ROLES.has(value as UserRole);
 
 const isAuthSessionState = (value: unknown): value is AuthSessionState => {
   if (!isRecord(value) || typeof value.status !== 'string') {

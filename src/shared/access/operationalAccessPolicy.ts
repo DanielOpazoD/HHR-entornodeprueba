@@ -13,16 +13,22 @@ import {
   isSpecialistCensusAccessProfile,
   type CensusAccessProfile,
 } from '@/shared/access/censusAccessProfile';
+import { isUserRole } from '@/shared/access/roleAccessMatrix';
 import {
   canAccessSpecialAppModuleRoute,
   resolvePassiveBackupEditableModule,
 } from '@/shared/access/operationalAccessPolicySupport';
 import { getPreviousDay, normalizeDateOnly } from '@/utils/clinicalDayUtils';
 
-type SupportedRole = UserRole | string | undefined;
+/** The role as callers hold it, possibly free text from a stored profile. */
+type SupportedRole = string | undefined;
+
+/** Free text that is not a domain role carries no access of its own: it gets the default, like no role. */
+const knownRole = (role: SupportedRole): UserRole | undefined =>
+  isUserRole(role) ? role : undefined;
 
 export const getVisibleAppModules = (role: SupportedRole): ModuleType[] =>
-  getVisibleModules((typeof role === 'string' ? role : undefined) as UserRole | undefined);
+  getVisibleModules(knownRole(role));
 
 export const getDefaultAppModuleForRole = (role: SupportedRole): ModuleType =>
   getVisibleAppModules(role)[0] || 'CENSUS';
@@ -33,12 +39,13 @@ export const sanitizeAppModuleForRole = (role: SupportedRole, module: ModuleType
 };
 
 export const canEditAppModule = (role: SupportedRole, module: ModuleType): boolean =>
-  canEditModule((typeof role === 'string' ? role : undefined) as UserRole | undefined, module);
+  canEditModule(knownRole(role), module);
 
 export const canEditAnyAppModule = (role: SupportedRole): boolean =>
   getVisibleAppModules(role).some(module => canEditAppModule(role, module));
 
-export const canForceCreateDayCopyOverride = (role: SupportedRole): boolean => isAdmin(role);
+export const canForceCreateDayCopyOverride = (role: SupportedRole): boolean =>
+  isAdmin(knownRole(role));
 
 export const canVerifyPassiveBackupForRole = (
   role: SupportedRole,
@@ -82,9 +89,11 @@ export const canManageGlobalCensusEmailRecipients = ({
 }: {
   role: SupportedRole;
   userId?: string | null;
-}): boolean => Boolean(userId) && (isAdmin(role) || role === 'nurse_hospital' || role === 'editor');
+}): boolean =>
+  Boolean(userId) && (isAdmin(knownRole(role)) || role === 'nurse_hospital' || role === 'editor');
 
-export const canUseAdminMaintenanceActions = (role: SupportedRole): boolean => isAdmin(role);
+export const canUseAdminMaintenanceActions = (role: SupportedRole): boolean =>
+  isAdmin(knownRole(role));
 
 export const canTriggerCensusExports = ({
   role,
@@ -126,7 +135,7 @@ export const canEditCudyrForDate = ({
     return true;
   }
 
-  if (!canDoAction(role, ACTIONS.CUDYR_EDIT)) {
+  if (!canDoAction(knownRole(role), ACTIONS.CUDYR_EDIT)) {
     return false;
   }
 
@@ -162,10 +171,7 @@ export const canOpenClinicalDocumentsFromCensus = ({
   isEmpty: boolean;
   hasPatientName: boolean;
 }): boolean =>
-  !isBlocked &&
-  !isEmpty &&
-  hasPatientName &&
-  canReadClinicalDocuments((typeof role === 'string' ? role : undefined) as UserRole | undefined);
+  !isBlocked && !isEmpty && hasPatientName && canReadClinicalDocuments(knownRole(role));
 
 export const canUseCensusUtilityActions = ({
   readOnly,
@@ -182,7 +188,7 @@ export const canResetOrDeleteDailyRecord = ({
   role: SupportedRole;
   isToday: boolean;
 }): boolean => {
-  if (isAdmin(role)) {
+  if (isAdmin(knownRole(role))) {
     return true;
   }
 
@@ -190,22 +196,25 @@ export const canResetOrDeleteDailyRecord = ({
     return false;
   }
 
-  return canDoAction(role, ACTIONS.RECORD_DELETE);
+  return canDoAction(knownRole(role), ACTIONS.RECORD_DELETE);
 };
 
 export const canDeleteTodayDailyRecord = (role: SupportedRole): boolean =>
-  canDoAction(role, ACTIONS.RECORD_DELETE);
+  canDoAction(knownRole(role), ACTIONS.RECORD_DELETE);
 
-export const isAdminAppRole = (role: SupportedRole): boolean => isAdmin(role);
+export const isAdminAppRole = (role: SupportedRole): boolean => isAdmin(knownRole(role));
 
 export const canAccessAuditViewForRole = (role: SupportedRole): boolean =>
-  getVisibleAppModules(role).includes('AUDIT') && canDoAction(role, ACTIONS.AUDIT_READ);
+  getVisibleAppModules(role).includes('AUDIT') && canDoAction(knownRole(role), ACTIONS.AUDIT_READ);
 
-export const canAccessAuditSensitivePanelsForRole = (role: SupportedRole): boolean => isAdmin(role);
+export const canAccessAuditSensitivePanelsForRole = (role: SupportedRole): boolean =>
+  isAdmin(knownRole(role));
 
-export const canManageClinicalConflictCenter = (role: SupportedRole): boolean => isAdmin(role);
+export const canManageClinicalConflictCenter = (role: SupportedRole): boolean =>
+  isAdmin(knownRole(role));
 
 export const canExportAuditDataForRole = (role: SupportedRole): boolean =>
-  canDoAction(role, ACTIONS.EXPORT_EXCEL) || canDoAction(role, ACTIONS.EXPORT_PDF);
+  canDoAction(knownRole(role), ACTIONS.EXPORT_EXCEL) ||
+  canDoAction(knownRole(role), ACTIONS.EXPORT_PDF);
 
 export const getRoleDisplayLabel = (role?: UserRole): string => getRoleDisplayName(role);

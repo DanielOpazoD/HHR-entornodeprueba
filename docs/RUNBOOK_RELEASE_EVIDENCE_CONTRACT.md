@@ -70,6 +70,9 @@ la huella manualmente ni usar el modo advisory como aprobación de release.
 5. En `push` a `main`, `postmerge-evidence` descarga los artefactos del mismo run,
    verifica el manifiesto que entró al build y regenera por separado la evidencia
    post-merge. No vuelve a publicar esa regeneración como contrato del bundle.
+   Si `main` reutiliza la corrida de la PR que probó su mismo árbol, los artefactos
+   vienen de esa corrida (ver «`main` no repite la CI de la PR» en
+   [CI y recuperación](CI_GATES_AND_FAILURE_RUNBOOKS.md)).
 
 ## Lectura operativa
 

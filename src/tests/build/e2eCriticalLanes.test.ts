@@ -9,13 +9,15 @@ it('runs three isolated lanes and rejects any failed or absent lane before publi
     'fail-fast': false,
     matrix: { lane: ['1', '2', '3'] },
   });
-  const aggregate = jobs['e2e-critical-emulator'];
-  expect(aggregate.name).toBe('e2e-critical');
-  expect(jobNeeds(aggregate)).toEqual(['ci-scope', 'e2e-critical-lanes']);
-  expect(aggregate.if).toContain('always()');
-  expect(aggregate.steps.some(step => step.run?.includes('test "$LANES_RESULT" = success'))).toBe(
-    true
+  const aggregate = jobs['final-confidence-and-readiness'];
+  expect(jobNeeds(aggregate)).toContain('e2e-critical-lanes');
+  expect(aggregate.if).toContain('!cancelled()');
+  const merge = aggregate.steps.find(step =>
+    step.run?.includes('node scripts/merge-critical-e2e-lanes.mjs')
   );
+  expect(merge?.run).toContain('test "$LANES_RESULT" = success');
+  // Merged even when another family already failed, so lane diagnostics are uploaded.
+  expect(merge?.if).toBe('${{ !cancelled() }}');
 });
 
 import { criticalLaneSpecs, CRITICAL_LANES } from '../../../scripts/criticalE2ELanes.mjs';
@@ -140,7 +142,7 @@ it.each([
   const first = inputs[0];
   if (kind === 'missing') inputs.shift();
   if (kind === 'duplicate') inputs.push(first);
-  if (kind === 'producer') first.ci.job = 'e2e-critical-emulator';
+  if (kind === 'producer') first.ci.job = 'final-confidence-and-readiness';
   if (kind === 'attempt') first.ci.runAttempt = '2';
   if (kind === 'run') first.ci.runId = '456';
   if (kind === 'source') first.identity = { ...identity, gitSha: 'b'.repeat(40) };
@@ -152,18 +154,32 @@ it.each([
 
 it('preserves execution and performance artifact names and extraction paths for all consumers', () => {
   const { jobs } = parseWorkflow(fs.readFileSync('.github/workflows/ci-cd.yml', 'utf8'));
-  const aggregate = jobs['e2e-critical-emulator'];
-  const manifest = jobs['test-execution-manifest'];
-  expect(jobNeeds(manifest)).toContain('e2e-critical-emulator');
-  for (const suite of ['critical', 'flow', 'cudyr']) {
-    const name = `test-execution-evidence-${suite}`;
-    const upload = aggregate.steps.find(step => step.with?.name === name);
-    expect(upload?.uses).toContain('actions/upload-artifact@');
-    expect(upload?.with?.path).toBe(`reports/execution/${suite}.evidence.json`);
-    const download = manifest.steps.find(step => step.with?.name === name);
-    expect(download?.uses).toContain('actions/download-artifact@');
-    expect(download?.with?.path).toBe('reports/execution');
-  }
+  const aggregate = jobs['final-confidence-and-readiness'];
+  const at = (match: (step: (typeof aggregate.steps)[number]) => boolean) =>
+    aggregate.steps.findIndex(match);
+  // The merge writes critical, flow and CUDYR evidence where the manifest reads it, in the
+  // same job; the E2E diagnostics artifact keeps those merged files.
+  const merge = at(step => Boolean(step.run?.includes('merge-critical-e2e-lanes.mjs')));
+  const manifest = at(step =>
+    Boolean(step.run?.includes('npm run report:test-execution-manifest'))
+  );
+  expect(merge).toBeGreaterThan(-1);
+  expect(manifest).toBeGreaterThan(merge);
+  const diagnostics = aggregate.steps.find(
+    step => step.with?.name === 'e2e-critical-emulator-artifacts'
+  );
+  for (const suite of ['critical', 'flow', 'cudyr'])
+    expect(String(diagnostics?.with?.path).split('\n')).toContain(
+      `reports/execution/${suite}.evidence.json`
+    );
+  const evidence = aggregate.steps.find(step => step.with?.pattern === 'test-execution-evidence-*');
+  expect(evidence?.with).toEqual({
+    pattern: 'test-execution-evidence-*',
+    path: 'reports/execution',
+    'merge-multiple': true,
+  });
+  expect(aggregate.steps.indexOf(evidence!)).toBeGreaterThan(merge);
+  expect(aggregate.steps.indexOf(evidence!)).toBeLessThan(manifest);
   for (const lane of CRITICAL_LANES) {
     const name = `e2e-critical-lane-\${{ github.run_attempt }}-${lane}`;
     const upload = jobs['e2e-critical-lanes'].steps.find(step => step.with?.name === name);
@@ -184,11 +200,8 @@ it('preserves execution and performance artifact names and extraction paths for 
     'reports/e2e/flow-performance-budget.md',
     'reports/e2e/flow-performance-playwright-report.json',
   ]);
-  for (const consumer of ['final-confidence-and-readiness', 'postmerge-evidence']) {
-    expect(jobNeeds(jobs[consumer])).toContain('e2e-critical-emulator');
-    const download = jobs[consumer].steps.find(
-      step => step.with?.name === 'flow-performance-evidence'
-    );
-    expect(download?.with?.path).toBe('reports/e2e');
-  }
+  const postmerge = jobs['postmerge-evidence'];
+  expect(jobNeeds(postmerge)).toContain('final-confidence-and-readiness');
+  const download = postmerge.steps.find(step => step.with?.name === 'flow-performance-evidence');
+  expect(download?.with?.path).toBe('reports/e2e');
 });

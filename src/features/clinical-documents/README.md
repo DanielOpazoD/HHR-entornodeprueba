@@ -75,9 +75,9 @@
 - Imprimir abre la vista previa sin generar ni subir un PDF.
 - La búsqueda global conserva la descarga/vista previa PDF. Los metadatos PDF antiguos siguen
   siendo compatibles al leer documentos, sin nuevas exportaciones a Drive.
-- `clinicalDocumentPdfRenderService`: orquesta render backend y fallback snapshot.
+- `clinicalDocumentPdfRenderService`: orquesta render backend y fallback snapshot, y decodifica el
+  PDF base64 que devuelve el backend.
 - `clinicalDocumentPdfSnapshotSupport`: encapsula el frame aislado y el snapshot DOM->PDF.
-- `clinicalDocumentPdfBinarySupport`: decodifica el PDF base64 del render backend.
 - Los resultados esperados de exportación/impresión deben resolverse con outcomes tipados y
   notices compartidos.
 - `useClinicalDocumentWorkspaceDocumentActions` debe tratar outcomes fallidos como estado esperado:

@@ -222,7 +222,6 @@ const ADMIN_TECHNICAL = ['RayenSyncTechnicalMetricsPanel.tsx'];
  * what to confirm, so the stricter wording rule applies: no «error» and no «falla/fallida» either.
  */
 const DIALOGS = [
-  'ClinicalCribDischargeRepairReview.tsx',
   'EquivalentBedCollisionReview.tsx',
   'NeonatalPlacementReview.tsx',
   'NeonatalSourceChanges.tsx',

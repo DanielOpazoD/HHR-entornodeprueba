@@ -69,7 +69,8 @@ describe('CI workflow governance', () => {
       steps.items.splice(findStep(steps, isPreviewDownload).index, 1);
     });
     const wrongProducer = mutatePostmergeSteps(steps => {
-      const verify = '--artifact preview-bootstrap-artifacts --producer preview-smoke';
+      const verify =
+        '--artifact preview-bootstrap-artifacts --producer final-confidence-and-readiness';
       const { step } = findStep(steps, candidate => String(candidate.get('run')).includes(verify));
       step.set(
         'run',
@@ -87,7 +88,7 @@ describe('CI workflow governance', () => {
       'postmerge-evidence: must download artifact "preview-bootstrap-artifacts".'
     );
     expect(collectCiArtifactContractIssues(wrongProducer)).toContain(
-      'postmerge-evidence: must verify "preview-bootstrap-artifacts" from producer "preview-smoke".'
+      'postmerge-evidence: must verify "preview-bootstrap-artifacts" from producer "final-confidence-and-readiness".'
     );
     expect(collectCiArtifactContractIssues(wrongDownloadPath)).toContain(
       'postmerge-evidence: preview bootstrap must download to "reports/e2e/preview-bootstrap".'
@@ -141,7 +142,7 @@ jobs:
         with:
           name: wrong-artifact-name
           path: distribution/
-  preview-smoke:
+  final-confidence-and-readiness:
     steps:
       - name: Record preview bootstrap artifact provenance
         run: npm run write:preview-bootstrap-provenance
@@ -154,14 +155,14 @@ jobs:
           if-no-files-found: error
           overwrite: true
   postmerge-evidence:
-    needs: [build, preview-smoke]
+    needs: [build, final-confidence-and-readiness]
     steps:
       - name: Validate CI artifact contract
         run: npm run check:ci-artifact-contracts
       - name: Verify build artifact availability
         run: node scripts/verify-github-run-artifact.mjs --artifact dist --producer build-budget
       - name: Verify preview bootstrap artifact availability
-        run: node scripts/verify-github-run-artifact.mjs --artifact preview-bootstrap-artifacts --producer preview-smoke
+        run: node scripts/verify-github-run-artifact.mjs --artifact preview-bootstrap-artifacts --producer final-confidence-and-readiness
       - uses: actions/download-artifact@v7
         with:
           name: dist
