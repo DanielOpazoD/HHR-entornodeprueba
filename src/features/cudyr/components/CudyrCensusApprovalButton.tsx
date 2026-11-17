@@ -21,7 +21,8 @@ export const CudyrCensusApprovalButton = ({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [reason, setReason] = useState(
-    'Censo reconstruido y conciliado con los registros HHR y la evidencia de Eloísa. Se aprueba como población oficial del informe CUDYR.'
+    // Neutral by default: a month may be approved without documentary reconciliation.
+    'Censo HHR revisado: todos los días cerrados tienen CUDYR comprobado en Eloísa y no quedan filas por revisar. Se aprueba como población oficial del informe CUDYR.'
   );
   const approve = async () => {
     const controller = new AbortController();

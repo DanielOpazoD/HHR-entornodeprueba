@@ -51,6 +51,8 @@ it('approves a month without documentary reconciliation at revision 0', async ()
   expect(mocks.approve).toHaveBeenCalledWith(
     expect.objectContaining({ month: '2026-08', expectedRevision: 0 })
   );
+  // The default reason never claims a documentary reconciliation that did not happen.
+  expect(mocks.approve.mock.calls[0]?.[0].reason).not.toMatch(/concilia/i);
   expect(screen.queryByRole('alert')).toBeNull();
 });
 it('preserves the form and reports failed publication without claiming approval', async () => {
