@@ -31,7 +31,9 @@
  *
  *  8. raw-offset-clock (rayen-import/ and extension/): ISO regex prefixes and time slices
  *     must convert offsets to Rapa Nui; unzoned report exceptions need a preceding reason.
- *  9. device-midnight-instant: a zone-less `…T00:00:00` is the device's midnight, so subtracting
+ *  9. hand-calendar-anchor: the `T12:00:00Z` noon anchor for calendar-day arithmetic lives only
+ *     in the two calendar modules below, so each day sum, difference or validity check is the same.
+ * 10. device-midnight-instant: a zone-less `…T00:00:00` is the device's midnight, so subtracting
  *     or comparing it as an instant moves a hospital-day boundary by the device's offset (the
  *     nurse window ran 2 h early on mainland computers until 2026-11-17).
  *
@@ -47,6 +49,10 @@ import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 
 const CLOCK_SOURCE = 'src/utils/clinicalTimeZone.ts';
+const CALENDAR_SOURCES = new Set([
+  'src/utils/clinicalDateUtils.ts',
+  'functions/lib/hospitalCalendarDay.js',
+]);
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs']);
 const DATE_OPTION = /\b(?:hour|minute|second|day|month|year|weekday|dateStyle|timeStyle|era)\b/;
 const FORMAT_CALL =
@@ -187,7 +193,7 @@ const instantCalendarSliceLines = (source, relativePath) => {
     }
     if (ts.isCallExpression(node)) {
       if (ts.isIdentifier(node.expression))
-        return node.expression.text === 'parseCalendarDateUtcNoon';
+        return ['parseCalendarDateUtcNoon', 'calendarDayAtUtcNoon'].includes(node.expression.text);
       if (ts.isPropertyAccessExpression(node.expression)) {
         const { expression, name } = node.expression;
         if (ts.isIdentifier(expression) && expression.text === 'Date') {
@@ -591,6 +597,17 @@ export const checkClinicalClock = (root = process.cwd()) => {
           lineOf(source, match.index)
         ),
       hint: 'read the hospital clock: readClinicalTimestamp() / calendarStampInClinicalTimeZone()',
+    },
+    {
+      rule: 'hand-calendar-anchor',
+      files: [...productionFiles, ...netlifyFiles, ...functionsFiles].filter(
+        file => !CALENDAR_SOURCES.has(file)
+      ),
+      find: regexRule(/T12:00:00(?:\.000)?Z/),
+      hint: relativePath =>
+        relativePath.startsWith('functions/')
+          ? 'use addCalendarDays() / isCalendarDay() / calendarDayAtUtcNoon() from functions/lib/hospitalCalendarDay'
+          : 'use addCalendarDays() / diffCalendarDays() / isCalendarDate() / calendarDayAtUtcNoon() from src/utils/clinicalDateUtils',
     },
     {
       rule: 'device-midnight-instant',

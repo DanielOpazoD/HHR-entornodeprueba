@@ -344,8 +344,9 @@ var normalizeDateOnly = (value) => {
   if (!value) return void 0;
   return value.split("T")[0];
 };
+var calendarDayAtUtcNoon = (dateString) => /* @__PURE__ */ new Date(`${dateString}T12:00:00Z`);
 var addCalendarDays = (dateString, days) => {
-  const date = /* @__PURE__ */ new Date(`${dateString}T12:00:00Z`);
+  const date = calendarDayAtUtcNoon(dateString);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().split("T")[0];
 };

@@ -201,6 +201,29 @@ describe('check-clinical-clock', () => {
     expect(output).not.toContain('functions/lib/a.js');
   });
 
+  it('keeps the calendar noon anchor in the app and server calendar modules only', () => {
+    const anchor = "const next = new Date(day + 'T12:00:00Z');";
+    const { status, output } = runGuard({
+      'src/utils/clinicalDateUtils.ts': anchor,
+      'functions/lib/hospitalCalendarDay.js': anchor,
+      'src/tests/a.test.ts': anchor,
+      'src/features/a.ts': `\n${anchor}`,
+      'src/features/b.ts': 'const day = new Date(`${value}T12:00:00.000Z`);',
+      'functions/lib/a.js': anchor,
+      'netlify/functions/a.ts': anchor,
+    });
+    expect(status).toBe(1);
+    expect(output).toContain(
+      '[hand-calendar-anchor] src/features/a.ts:2 — use addCalendarDays() / diffCalendarDays() / isCalendarDate() / calendarDayAtUtcNoon() from src/utils/clinicalDateUtils'
+    );
+    expect(output).toContain('[hand-calendar-anchor] src/features/b.ts:1');
+    expect(output).toContain('[hand-calendar-anchor] netlify/functions/a.ts:1');
+    expect(output).toContain(
+      '[hand-calendar-anchor] functions/lib/a.js:1 — use addCalendarDays() / isCalendarDay() / calendarDayAtUtcNoon() from functions/lib/hospitalCalendarDay'
+    );
+    expect(output.match(/\[hand-calendar-anchor\]/g)).toHaveLength(4);
+  });
+
   it('reports a zone-less midnight read as an instant and names the hospital midnight', () => {
     const { status, output } = runGuard({
       // The nurse window before 2026-11-17 (previousDayCorrections.ts).
@@ -233,7 +256,6 @@ describe('check-clinical-clock', () => {
         'const utc = Date.now() - new Date(`${day}T00:00:00Z`).getTime();',
         'const offset = Date.now() - Date.parse(`${day}T00:00:00-05:00`);',
         "const open = Date.now() - clinicalWallClockToDate(day, '00:00').getTime() < 1;",
-        'const noon = Date.now() - new Date(`${day}T12:00:00Z`).getTime();',
         'const name = `${day}T00:00:00` + suffix;',
       ].join('\n'),
       'src/tests/a.test.ts': 'const m = Date.now() - new Date(`${day}T00:00:00`).getTime();\n',
@@ -263,9 +285,10 @@ describe('check-clinical-clock', () => {
         'const timestamp = new Date().toISOString();',
         "const format = new Intl.DateTimeFormat('en-CA', { timeZone: 'Pacific/Easter', year: 'numeric', month: '2-digit', day: '2-digit' });",
         'const today = format.format(new Date());',
-        "const previousDay = iso => { const date = new Date(iso + 'T12:00:00Z'); date.setUTCDate(date.getUTCDate() - 1); return date.toISOString().slice(0, 10); };",
         'const previousLocal = (year, month, day) => { const date = new Date(year, month, day); date.setDate(date.getDate() - 1); return date; };',
       ].join('\n'),
+      'functions/lib/hospitalCalendarDay.js':
+        "const previousDay = iso => { const date = new Date(iso + 'T12:00:00Z'); date.setUTCDate(date.getUTCDate() - 1); return date.toISOString().slice(0, 10); };",
     });
     expect(output).toContain('Clinical clock checks passed');
     expect(status).toBe(0);
@@ -332,7 +355,7 @@ describe('check-clinical-clock', () => {
     const { status, output } = runGuard({
       'src/features/a.ts': [
         'const day = new Date(Date.UTC(2026, 9, 24, 12)).toISOString().slice(0,10);',
-        'const anchor = new Date(`${key}T12:00:00Z`);',
+        'const anchor = calendarDayAtUtcNoon(key);',
         "const next = new Date(anchor.getTime() + 86400000).toISOString().split('T')[0];",
         'const subset = records.slice(0,10);',
         'const iso = n.updatedAt;',
