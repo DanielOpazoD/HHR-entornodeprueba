@@ -136,8 +136,8 @@ beforeAll(async () => {
     })
     .firestore();
   setFirestoreEnabled(true);
-  // The queue runs only when a test says so (`replay`): a wake-up of the browser's own runtime in
-  // the middle of a step claimed the day's task, so the next edit got a second one (W12-CW10).
+  // The queue runs only when a test says so (`replay`), so each step meets the queue as the last
+  // one left it. One test below runs it as the app does, woken by every save (W12-CW11).
   vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
   const context = () => ({
     auth: { uid: 'synthetic-B', token: { email: 'synthetic-B@example.invalid' } },
@@ -532,3 +532,71 @@ it('«Dar de alta» never empties a bed that now holds another patient', async (
   expect(await heldTasks()).toMatchObject([{ status: 'CONFLICT' }]);
   hook.unmount();
 }, 60_000);
+
+/** The browser's queue is idle: nothing claimed, nothing waiting to be sent. */
+const queueIdle = () =>
+  vi.waitFor(
+    async () => {
+      const busy = (await hospitalDB.syncQueue.toArray()).some(
+        task =>
+          task.status === 'PROCESSING' || (task.status === 'PENDING' && !task.preOutboxHoldState)
+      );
+      if (busy) throw new Error('the queue is still sending');
+    },
+    { timeout: 20_000, interval: 50 }
+  );
+
+// W12-CW11. The queue as the app runs it: every save wakes it, not a test step. A write already
+// refused («El campo cambió en otro equipo») used to be stored as pending and sent again at once,
+// and so did the held write after a direct save of another field. While that resend was under
+// way the person's next edit got a second task, and the review showed the same text twice
+// (19 of 20 runs). The refused write is held as that conflict now, and stays so. Twice: the first
+// run of a process loads the recovery's modules, and the resend ended before the next edit.
+it.each(['first', 'second'])(
+  'keeps one held task for the text while the queue runs on its own, as in the app (%s run)',
+  async () => {
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    try {
+      const { edit, hook } = await censusHere();
+      await admin.doc(dayPath).update({ [night]: 'A1', lastUpdated: Timestamp.now() });
+      expect((await edit(night, 'B2'))?.observabilityTags).toContain('field_changed_elsewhere');
+      expect((await edit(night, 'B3'))?.observabilityTags).toContain('field_changed_elsewhere');
+      // A field nobody else changed is still saved at once (#1603).
+      expect((await edit('handoffNovedadesDayShift', 'B4'))?.updatedRemotely).toBe(true);
+      expect((await edit(night, 'B5'))?.observabilityTags).toContain('field_changed_elsewhere');
+      await queueIdle();
+
+      expect(await server()).toMatchObject({ handoffNovedadesDayShift: 'B4', [night]: 'A1' });
+      expect(
+        (await hospitalDB.syncQueue.toArray()).map(task => [
+          task.status,
+          (task.payload as DailyRecord)[night],
+          task.error,
+        ])
+      ).toEqual([['CONFLICT', 'B5', expect.stringMatching(/El campo cambió en otro equipo/)]]);
+      hook.unmount();
+    } finally {
+      online.mockReturnValue(false);
+    }
+  },
+  60_000
+);
+
+// W12-CW11, not fixed. With a text of the day held after the notice, a later «Dar de alta» folds
+// into that held write, and its replay refuses the whole write because the text changed
+// elsewhere (`withoutUnchangedPlainDayFields` leaves no part to rebase): the movement waits with
+// the text until someone reviews it, although its bed changed nowhere else. Nothing is lost.
+// Publishing it would mean splitting the day's write at replay, a change of its own.
+it.fails(
+  '«Dar de alta» reaches the server while a text of the day waits after the notice',
+  async () => {
+    const { mutate, hook } = await conflictOnNight();
+    await recover(hook, 'refetch');
+    await moveOut(mutate, 'discharge');
+    await replay();
+
+    expect(movedOut(await server(), 'discharge')).toEqual(['PACIENTE SINTETICO A']);
+    hook.unmount();
+  },
+  60_000
+);
