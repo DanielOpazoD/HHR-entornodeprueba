@@ -10,6 +10,7 @@ import {
   todayIso,
   type DailyBedOption,
 } from '@/features/prescriptions/components/prescriptionReassignDialogSupport';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 // buildBedOptions deduplicates documents (or beds for people without a document).
 // Keep the location and status too, so the picker identifies the complete option.
@@ -60,9 +61,11 @@ export const PrescriptionReassignDialog: React.FC<PrescriptionReassignDialogProp
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  if (useChangedOnRender([requestedDay, record.bedId, record.patientName, record.patientRut])) {
+    setBedsPhase({ kind: 'loading', day: requestedDay });
+  }
   useEffect(() => {
     let cancelled = false;
-    setBedsPhase({ kind: 'loading', day: requestedDay });
     resolveDayWithBeds(requestedDay)
       .then(({ bedOptions: options, resolvedDay: day }) => {
         if (cancelled) return;

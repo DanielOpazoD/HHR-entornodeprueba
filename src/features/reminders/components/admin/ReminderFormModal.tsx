@@ -11,6 +11,7 @@ import {
 } from '@/shared/reminders/reminderUiOptions';
 import type { ReminderAdminSubmission } from '@/features/reminders/hooks/useReminderAdmin';
 import { getTodayISO } from '@/utils/dateCoreUtils';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const buildInitialDraft = (reminder?: Reminder | null): ReminderDraftInput => ({
   title: reminder?.title ?? '',
@@ -45,12 +46,12 @@ export const ReminderFormModal: React.FC<ReminderFormModalProps> = ({
   const [removeImage, setRemoveImage] = React.useState(false);
   const [previewImageUrl, setPreviewImageUrl] = React.useState<string>('');
 
-  React.useEffect(() => {
+  if (useChangedOnRender([reminder])) {
     setDraft(buildInitialDraft(reminder));
     setImageFile(null);
     setRemoveImage(false);
     setPreviewImageUrl(reminder?.imageUrl ?? '');
-  }, [reminder]);
+  }
 
   const toggleRole = (role: ReminderDraftInput['targetRoles'][number]) => {
     setDraft(previous => ({
@@ -81,6 +82,7 @@ export const ReminderFormModal: React.FC<ReminderFormModalProps> = ({
 
   React.useEffect(() => {
     if (!imageFile) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- the preview follows the blob URL this effect creates and revokes
       setPreviewImageUrl(removeImage ? '' : (draft.imageUrl ?? ''));
       return;
     }

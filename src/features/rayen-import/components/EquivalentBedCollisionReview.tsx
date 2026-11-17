@@ -4,6 +4,7 @@ import type {
   BedOccupancyCollisionResolution,
 } from '../contracts/censusImportDiff';
 import { SYNC_TONE, SYNC_TONE_ICON } from './syncTone';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const DecisionIcon = SYNC_TONE_ICON.action;
 
@@ -46,8 +47,9 @@ export const EquivalentBedCollisionReview: React.FC<EquivalentBedCollisionReview
 }) => {
   const [drafts, setDrafts] = React.useState<Record<string, CollisionDraft>>({});
 
+  if (useChangedOnRender([collisions, onChange])) setDrafts({});
+  // The parent's choices are its own state, so they are cleared after this render.
   React.useEffect(() => {
-    setDrafts({});
     onChange([]);
   }, [collisions, onChange]);
 

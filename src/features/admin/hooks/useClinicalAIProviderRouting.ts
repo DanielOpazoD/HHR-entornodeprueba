@@ -16,8 +16,8 @@ export const useClinicalAIProviderRouting = (updatedByEmail?: string | null) => 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Mounted once: loading already starts true.
   useEffect(() => {
-    setLoading(true);
     const unsubscribe = subscribeToClinicalAIProviderRouting(nextRouting => {
       setRouting(nextRouting);
       setLoading(false);

@@ -92,7 +92,8 @@ export const useRoleManagement = () => {
   }, [syncNormalizedLegacyClaims]);
 
   useEffect(() => {
-    loadRoles();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the first read is the same routine every role change repeats
+    void loadRoles();
   }, [loadRoles]);
 
   // Success auto-hide
