@@ -15,6 +15,8 @@ import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';
 import type { EloisaManualImportAudit } from '@/shared/contracts/eloisaManualImport';
 import type { SpecialtyDecisionMeta } from './specialtyDecision';
 
+export type AdmissionOrigin = 'CAE' | 'APS' | 'Urgencias' | 'Pabellón' | 'Otro';
+
 export interface MedicalHandoffAuditActor {
   uid: string;
   displayName: string;
@@ -85,7 +87,7 @@ export interface PatientData {
   insurance?: 'Fonasa' | 'Isapre' | 'Particular';
 
   // Demographics Update
-  admissionOrigin?: 'CAE' | 'APS' | 'Urgencias' | 'Pabellón' | 'Otro';
+  admissionOrigin?: AdmissionOrigin;
   admissionOriginDetails?: string; // For 'Otro'
   origin?: 'Residente' | 'Turista Nacional' | 'Turista Extranjero'; // Now labeled "Condición de permanencia"
 

@@ -2,7 +2,6 @@ import React from 'react';
 import { LogOut } from 'lucide-react';
 import { getTimeRoundedToStep } from '@/utils/dateUtils';
 import { BaseModal } from '@/components/shared/BaseModal';
-import { DischargeType } from '@/constants/clinicalMovementConstants';
 import { ClinicalCribStatusSection } from '@/components/modals/actions/discharge/ClinicalCribStatusSection';
 import { DischargeStatusRadioGroup } from '@/components/modals/actions/discharge/DischargeStatusRadioGroup';
 import { DischargeTargetSelector } from '@/components/modals/actions/discharge/DischargeTargetSelector';
@@ -13,8 +12,6 @@ import type { DischargeTarget } from '@/types/movements';
 import { shouldShowBabyStatus, shouldShowMotherStatus } from '@/application/census/public';
 import { useDischargeModalForm } from '@/hooks/useDischargeModalForm';
 import type { DischargeModalProps } from '@/hooks/types/censusActionModalContracts';
-
-export type DischargeTypeUnion = DischargeType;
 
 export const DischargeModal: React.FC<DischargeModalProps> = ({
   isOpen,

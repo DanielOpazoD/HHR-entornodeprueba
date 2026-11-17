@@ -25,7 +25,7 @@ export const GlobalPatientSearchModal = lazyWithRetry(() =>
 );
 
 export const AnalyticsView = lazyWithRetry(() =>
-  import('@/application/analytics/public').then(module => ({
+  import('@/features/analytics/public').then(module => ({
     default: module.AnalyticsView,
   }))
 );
@@ -124,7 +124,7 @@ export const PrescriptionAdminView = lazyWithRetry(() =>
 );
 
 export const BackupFilesView = lazyWithRetry(() =>
-  import(/* webpackChunkName: "backup" */ '@/application/backup/public').then(module => ({
+  import(/* webpackChunkName: "backup" */ '@/features/backup/public').then(module => ({
     default: module.BackupFilesView,
   }))
 );
@@ -156,14 +156,14 @@ export const AuditDocumentsView = lazyWithRetry(() =>
   }))
 );
 export const ReminderAdminView = lazyWithRetry(() =>
-  import('@/application/reminders/public').then(module => ({
+  import('@/features/reminders/public').then(module => ({
     default: module.ReminderAdminView,
   }))
 );
 
 // WhatsApp module
 export const WhatsAppIntegrationView = lazyWithRetry(() =>
-  import(/* webpackChunkName: "whatsapp" */ '@/application/whatsapp/public').then(m => ({
+  import(/* webpackChunkName: "whatsapp" */ '@/features/whatsapp/public').then(m => ({
     default: m.WhatsAppIntegrationView,
   }))
 );

@@ -9,7 +9,6 @@ const GUARDED_TARGETS: Record<string, string> = {
   'src/components/layout/app-content/AppContentOverlays': 'AppContentOverlays',
   'src/components/layout/NursingHandoffLogoutDialog': 'NursingHandoffLogoutDialog',
   'src/components/layout/NursingHandoffSessionNotice': 'NursingHandoffSessionNotice',
-  'src/components/layout/date-strip/DateStripBookmarkToggle': 'app-authenticated-shell',
   'src/components/layout/date-strip/DateStripMonthNavigator': 'DateStripMonthNavigator',
   'src/components/layout/date-strip/DateStripQuickActions': 'DateStripQuickActions',
   'src/components/layout/date-strip/DateStripYearNavigator': 'DateStripYearNavigator',

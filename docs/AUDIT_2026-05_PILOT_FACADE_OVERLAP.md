@@ -1,6 +1,6 @@
 # Audit 2026-05 — Solapamiento Pilot vs Facade (discharge / transfer)
 
-**Estado**: Análisis. Sin cambios de código.
+**Estado**: Análisis. Sin cambios de código. Histórico: las fachadas que aquí se conservan se retiraron el 2026-11-17 sin haberse encendido (ver [ADR_CANONICAL_WRITE_ADOPTION_FACADES](ADR_CANONICAL_WRITE_ADOPTION_FACADES.md)).
 **Acción que informa**: decisión binaria sobre eliminar o promover los canonical pilots (C3 del plan de remediación).
 
 ## Hallazgo

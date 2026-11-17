@@ -6,19 +6,6 @@ export type ClinicalDocumentIndicationSpecialtyId =
   | 'ginecobstetricia'
   | 'pediatria';
 
-/** Short display labels for each indication specialty (e.g. "TMT", "Cir"). */
-export const CLINICAL_DOCUMENT_INDICATION_SPECIALTY_LABELS: Record<
-  ClinicalDocumentIndicationSpecialtyId,
-  string
-> = {
-  tmt: 'TMT',
-  cirugia: 'Cir',
-  medicina_interna: 'Med Int.',
-  psiquiatria: 'Psiq.',
-  ginecobstetricia: 'GyO',
-  pediatria: 'Ped',
-};
-
 const normalizeSearchValue = (value: string): string =>
   value
     .normalize('NFD')

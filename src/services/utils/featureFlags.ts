@@ -20,12 +20,8 @@
 export const FEATURE_FLAGS = {
   // UI Features
   SHOW_DEBUG_PANEL: false,
-  ENABLE_ANALYTICS_VIEW: true,
-  SHOW_CUDYR_PRINT: true,
 
   // Experimental Features
-  ENABLE_OPTIMISTIC_UPDATES: true,
-  ENABLE_OFFLINE_MODE: false,
   /** Server-controlled episode assignment is opt-in; this only exposes its client intent. */
   SPECIALTY_EPISODE_ASSIGNMENT: false,
   SPECIALTY_RULES_MEMORY: false,
@@ -40,26 +36,6 @@ export const FEATURE_FLAGS = {
   // repository chain. The flag remains user-toggleable for emergency
   // rollback. See TECHNICAL_DEBT_REGISTER `command-layer-adoption`.
   USE_ADMIT_PATIENT_COMMAND: true,
-
-  // Routes the existing discharge modal (`useCensusDischargeCommand` →
-  // `usePatientDischarges.addDischarge`) through a thin canonical
-  // facade that adds anonymous-actor rejection, typed outcome, and
-  // dispatches the PATIENT_DISCHARGED audit through the canonical
-  // command pipeline. OFF by default — see TECHNICAL_DEBT_REGISTER
-  // `command-layer-discharge` for the rollout plan.
-  USE_DISCHARGE_PATIENT_COMMAND: false,
-
-  // Same facade for the transfer modal flow. OFF by default — see
-  // TECHNICAL_DEBT_REGISTER `command-layer-transfer`.
-  USE_TRANSFER_PATIENT_COMMAND: false,
-
-  // Integration Features
-  ENABLE_WHATSAPP_INTEGRATION: true,
-  ENABLE_EMAIL_NOTIFICATIONS: true,
-
-  // Developer Features
-  VERBOSE_LOGGING: false,
-  SHOW_PERFORMANCE_METRICS: false,
 } as const;
 
 export type FeatureFlag = keyof typeof FEATURE_FLAGS;
@@ -143,14 +119,18 @@ class FeatureFlagsService {
 
   private applyEnvironmentOverrides(): void {
     // Match the backend's episode authority without enabling the optional AI pilot.
-    if (import.meta.env.MODE !== 'test' &&
-        import.meta.env.VITE_HHR_SPECIALTY_EPISODE_ASSIGNMENT === 'enabled') {
+    if (
+      import.meta.env.MODE !== 'test' &&
+      import.meta.env.VITE_HHR_SPECIALTY_EPISODE_ASSIGNMENT === 'enabled'
+    ) {
       this.overrides.SPECIALTY_EPISODE_ASSIGNMENT = true;
     }
     // This public build flag is set only for the hhr-pruebas pilot builds.
     // The Jev client independently verifies the Firebase project before consulting.
-    if (import.meta.env.MODE !== 'test' &&
-        import.meta.env.VITE_HHR_SPECIALTY_JEV_PILOT === 'enabled') {
+    if (
+      import.meta.env.MODE !== 'test' &&
+      import.meta.env.VITE_HHR_SPECIALTY_JEV_PILOT === 'enabled'
+    ) {
       this.overrides.SPECIALTY_EPISODE_ASSIGNMENT = true;
       this.overrides.SPECIALTY_JEV_CONSULTATION = true;
     }
@@ -163,9 +143,6 @@ class FeatureFlagsService {
       // Only set if not already overridden by user
       if (this.overrides.SHOW_DEBUG_PANEL === undefined) {
         this.overrides.SHOW_DEBUG_PANEL = true;
-      }
-      if (this.overrides.VERBOSE_LOGGING === undefined) {
-        this.overrides.VERBOSE_LOGGING = true;
       }
     }
   }

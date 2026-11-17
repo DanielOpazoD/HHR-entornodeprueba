@@ -2,6 +2,7 @@ import { getActiveTransfers } from '@/application/census/movementTombstonePolicy
 import type { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
 import { roundAnalyticsPercent as roundPercent } from '@/features/analytics/controllers/analyticsPercentageController';
 import type { TransferData } from '@/types/domain/movements';
+import { removeAccents } from '@/utils/stringUtils';
 
 export type TransferAnalyticsCategory =
   | 'latam'
@@ -55,12 +56,7 @@ export interface TransferAnalytics {
   details: TransferAnalyticsDetail[];
 }
 
-const normalizeSearchText = (value: string): string =>
-  value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim();
+const normalizeSearchText = (value: string): string => removeAccents(value).toLowerCase().trim();
 
 const includesAny = (value: string, needles: string[]): boolean =>
   needles.some(needle => value.includes(needle));

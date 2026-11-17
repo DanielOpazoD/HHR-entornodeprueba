@@ -69,7 +69,7 @@ Ese job ejecuta el simulador, regenera `reports/sync-convergence.*`, valida el c
 evidencia y aplica frescura estricta focal con:
 
 ```bash
-npm run check:sync-convergence-freshness:strict
+npm run check:report-freshness:strict -- --only sync-convergence
 ```
 
 El artifact `sync-convergence` debe quedar disponible en cada corrida de PR/main para auditar

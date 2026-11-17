@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { ConcurrencyError } from '@/services/storage/firestore';
 import { DataRegressionError, VersionMismatchError } from '@/utils/integrityGuard';

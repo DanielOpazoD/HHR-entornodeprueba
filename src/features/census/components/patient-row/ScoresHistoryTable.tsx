@@ -1,6 +1,6 @@
 import React from 'react';
 import type { EvaluationScoreEntry } from '@/types/domain/evaluationScores';
-import { formatIsoDay } from './scoresDetailTokens';
+import { formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
 import { useEloisaStaff } from '@/hooks/useEloisaStaff';
 import { nursingRole } from '@/services/staff/eloisaStaffIdentity';
 import { formatStaffDisplayName } from '@/services/staff/staffDisplayName';
@@ -16,7 +16,7 @@ const applicationDateTime = (entry: EvaluationScoreEntry): string => {
         .filter((part): part is string => part != null)
         .join(':')
     : null;
-  return `${formatIsoDay(entry.recordedDate)}${time ? ` · ${time}` : ''}`;
+  return `${formatClinicalDayMonthYear(entry.recordedDate)}${time ? ` · ${time}` : ''}`;
 };
 
 export const ScoresHistoryTable: React.FC<ScoresHistoryTableProps> = ({ history }) => {

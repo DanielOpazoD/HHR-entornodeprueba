@@ -1,4 +1,5 @@
 import React from 'react';
+import { calendarDayAtUtcNoon } from '@/utils/clinicalDateUtils';
 import { RefreshCw } from 'lucide-react';
 import { RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS } from '../bridge/extensionHealthBridge';
 import { useRayenExtensionHealth } from '../hooks/useRayenExtensionHealth';
@@ -163,7 +164,7 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
         month: 'long',
         year: 'numeric',
         timeZone: 'UTC',
-      }).format(new Date(`${copySourceDate}T12:00:00Z`))
+      }).format(calendarDayAtUtcNoon(copySourceDate))
     : '';
   const actionLabel = copySourceDate
     ? 'Copiar censo y sincronizar'

@@ -26,8 +26,7 @@ const FEATURE_PUBLIC_BOUNDARIES = [
       file.startsWith('src/tests/') ||
       // Storybook stories are dev-only artifacts (never bundled into the app), like
       // src/tests/ above; they may reference feature internals for isolated review.
-      file.startsWith('stories/') ||
-      file.startsWith('src/hooks/controllers/'),
+      file.startsWith('stories/'),
     // Sanctioned heavy-component barrel, kept separate from @/features/census
     // so the authenticated-shell chunk does not pull CensusView through the
     // light public surface. Listed callers must load it via dynamic import.
@@ -223,43 +222,20 @@ for (const file of trackedFiles) {
   }
 }
 
-const hookControllerBasenames = getSourceBasenameSet(HOOK_CONTROLLERS_DIR);
 const featureControllerBasenames = getSourceBasenameSet(FEATURE_CENSUS_CONTROLLERS_DIR);
 
-for (const basename of hookControllerBasenames) {
-  if (!featureControllerBasenames.has(basename)) {
-    continue;
-  }
-
-  const moduleName = basename.replace(/\.[^.]+$/, '');
-  const hookPath = path.join(HOOK_CONTROLLERS_DIR, basename);
-  const featurePath = path.join(FEATURE_CENSUS_CONTROLLERS_DIR, basename);
-  const hookSource = fs.readFileSync(hookPath, 'utf8').trim();
-  const featureSource = fs.readFileSync(featurePath, 'utf8');
-  const expectedHookShim = `export * from '@/features/census/controllers/${moduleName}';`;
-  const forbiddenFeatureBackImport = `@/hooks/controllers/${moduleName}`;
-
-  if (hookSource !== expectedHookShim) {
-    failures.push({
-      file: path.relative(root, hookPath),
-      rule: {
-        id: 'census-controller-owner-shim',
-        description:
-          'Duplicate census controller basenames in hooks/controllers must be compatibility shims that reexport the feature owner.',
-      },
-    });
-  }
-
-  if (featureSource.includes(forbiddenFeatureBackImport)) {
-    failures.push({
-      file: path.relative(root, featurePath),
-      rule: {
-        id: 'census-controller-owner-feature',
-        description:
-          'Feature census controllers must own the implementation and must not reexport back from hooks/controllers.',
-      },
-    });
-  }
+// One module, one owner: a census controller lives in the feature, never also in
+// hooks/controllers (not even as a reexport shim).
+for (const basename of getSourceBasenameSet(HOOK_CONTROLLERS_DIR)) {
+  if (!featureControllerBasenames.has(basename)) continue;
+  failures.push({
+    file: path.relative(root, path.join(HOOK_CONTROLLERS_DIR, basename)),
+    rule: {
+      id: 'census-controller-single-owner',
+      description:
+        'A census controller has one owner: import it from @/application/census/public or move it, instead of reexporting it from hooks/controllers.',
+    },
+  });
 }
 
 const ownerProtectedConfig = JSON.parse(

@@ -30,7 +30,6 @@ import { AuditProvider } from '@/context/AuditContext';
 import { AuthSessionOverlays } from '@/components/layout/AuthSessionOverlays';
 import { AuthProvider } from '@/context/AuthContext';
 import { UIProvider } from '@/context/UIContext';
-import { HospitalProvider } from './context/HospitalContext';
 import { DefaultRepositoryProvider } from '@/services/RepositoryContext';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/config/queryClient';
@@ -220,13 +219,11 @@ export default function ProvidedApp() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <DefaultRepositoryProvider>
-          <HospitalProvider>
-            <UIProvider>
-              <AuditProvider>
-                <AppWithErrorBoundary />
-              </AuditProvider>
-            </UIProvider>
-          </HospitalProvider>
+          <UIProvider>
+            <AuditProvider>
+              <AppWithErrorBoundary />
+            </AuditProvider>
+          </UIProvider>
         </DefaultRepositoryProvider>
         <AuthSessionOverlays />
       </AuthProvider>

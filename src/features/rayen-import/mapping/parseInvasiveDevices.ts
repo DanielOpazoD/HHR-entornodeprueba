@@ -9,6 +9,7 @@
  * section; the wrapped "INVASIVOS:" label is skipped.
  */
 
+import { removeAccents } from '@/utils/stringUtils';
 /** One text fragment from the PDF: `x`/`y` are pdfjs `transform[4]`/`transform[5]`. */
 export interface DeviceTextItem {
   x: number;
@@ -28,9 +29,7 @@ export interface InvasiveDeviceRow {
 }
 
 const norm = (value: string): string =>
-  String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+  removeAccents(String(value || ''))
     .toLowerCase()
     .trim();
 

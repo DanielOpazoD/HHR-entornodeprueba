@@ -1,9 +1,8 @@
-import type { PatientData } from '@/types/domain/patient';
+import type { AdmissionOrigin, PatientData } from '@/types/domain/patient';
 import { PatientIdentityStatus } from '@/types/domain/patientIdentity';
 
 export type BiologicalSex = 'Masculino' | 'Femenino' | 'Indeterminado';
 export type Insurance = 'Fonasa' | 'Isapre' | 'Particular';
-export type AdmissionOrigin = 'CAE' | 'APS' | 'Urgencias' | 'Pabellón' | 'Otro';
 export type Origin = 'Residente' | 'Turista Nacional' | 'Turista Extranjero';
 export type DocumentType = 'RUT' | 'Pasaporte';
 

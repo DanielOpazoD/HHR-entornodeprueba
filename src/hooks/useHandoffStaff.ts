@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
+import type { ShiftType } from '@/types/domain/shift';
 import type { DailyRecordStaffingState } from '@/types/domain/dailyRecordSlices';
 import { resolveHandoffShiftStaff } from '@/services/staff/dailyRecordStaffing';
-
-export type NursingShift = 'day' | 'night';
 
 /**
  * useHandoffStaff Hook
@@ -11,7 +10,7 @@ export type NursingShift = 'day' | 'night';
  */
 export const useHandoffStaff = (
   record: DailyRecordStaffingState | null,
-  selectedShift: NursingShift
+  selectedShift: ShiftType
 ) => {
   const deliversList = useMemo(() => {
     return resolveHandoffShiftStaff(record, selectedShift).delivers;

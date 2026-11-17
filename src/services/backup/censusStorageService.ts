@@ -11,8 +11,8 @@ import {
   createListMonths,
   createListFilesInMonth,
   createListFilesInMonthWithReport,
-  BaseStoredFile,
 } from './baseStorageService';
+import type { BaseStoredFile } from '@/types/backupArtifacts';
 import {
   isExpectedStorageLookupMiss,
   shouldLogStorageError,
@@ -32,10 +32,6 @@ import {
   runStorageLookupWithTimeout,
   type BackupStorageMutationResult,
 } from './backupStorageRuntimeSupport';
-
-// ============= Types =============
-
-export type StoredCensusFile = BaseStoredFile;
 
 // ============= Constants =============
 
@@ -263,7 +259,7 @@ export const listCensusMonths = createListMonths(STORAGE_ROOT);
  * List all Census files in a month (using base service)
  * Note: Display name is normalized to format (DD-MM-YYYY - Censo Diario.xlsx)
  */
-export const listCensusFilesInMonth = createListFilesInMonth<StoredCensusFile, { date: string }>({
+export const listCensusFilesInMonth = createListFilesInMonth<BaseStoredFile, { date: string }>({
   storageRoot: STORAGE_ROOT,
   parseFilePath,
   mapToFile: (item, metadata, downloadUrl, parsed) => {
@@ -283,7 +279,7 @@ export const listCensusFilesInMonth = createListFilesInMonth<StoredCensusFile, {
 });
 
 export const listCensusFilesInMonthWithReport = createListFilesInMonthWithReport<
-  StoredCensusFile,
+  BaseStoredFile,
   { date: string }
 >({
   storageRoot: STORAGE_ROOT,

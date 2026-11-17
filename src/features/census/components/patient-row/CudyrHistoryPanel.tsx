@@ -4,17 +4,17 @@ import { useEloisaStaff } from '@/hooks/useEloisaStaff';
 import { formatStaffDisplayName } from '@/services/staff/staffDisplayName';
 import { nursingRole } from '@/services/staff/eloisaStaffIdentity';
 import { CudyrCard } from './ScoresDetailCards';
-import { formatIsoDay } from './scoresDetailTokens';
+import { formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 const dateTime = (value: string | undefined, day: string) => {
   if (!value || !/(?:[zZ]|[+-]\d{2}:?\d{2})$/.test(value)) {
     const clock = value?.match(/[T ](\d{2}:\d{2})/)?.[1];
-    return `${formatIsoDay(day)}${clock ? ` · ${clock}` : ''}`;
+    return `${formatClinicalDayMonthYear(day)}${clock ? ` · ${clock}` : ''}`;
   }
   const epoch = Date.parse(value);
   return Number.isNaN(epoch)
-    ? formatIsoDay(day)
+    ? formatClinicalDayMonthYear(day)
     : new Intl.DateTimeFormat('es-CL', {
         timeZone: CLINICAL_TIME_ZONE,
         day: '2-digit',
@@ -46,7 +46,7 @@ export const CudyrHistoryPanel = ({
       {entry.documentaryEvidence && !entry.recordedAt && (
         <p className="text-xs text-slate-500">
           Informe sin hora: atribuido a la madrugada del{' '}
-          {formatIsoDay(entry.documentaryEvidence.sourceDate)}.
+          {formatClinicalDayMonthYear(entry.documentaryEvidence.sourceDate)}.
         </p>
       )}
       <div className="overflow-x-auto rounded-lg border border-slate-200">

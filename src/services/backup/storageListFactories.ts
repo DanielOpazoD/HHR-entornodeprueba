@@ -18,12 +18,8 @@ import {
   mapWithConcurrency,
   MONTH_NAMES,
 } from './storageListSupport';
-import type {
-  BaseStoredFile,
-  ListFilesConfig,
-  MonthInfo,
-  StorageListResult,
-} from './storageListSupport';
+import type { ListFilesConfig, MonthInfo, StorageListResult } from './storageListSupport';
+import type { BaseStoredFile } from '@/types/backupArtifacts';
 import { resolveBackupStorage } from '@/services/backup/backupStorageRuntimeSupport';
 
 export const createListYears = (storageRoot: string) => {

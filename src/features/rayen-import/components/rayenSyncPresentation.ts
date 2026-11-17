@@ -9,6 +9,7 @@ import type {
   RayenSyncStructuralReviewEvidence,
 } from '@/types/domain/rayenSync';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
+import { formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
 import type { RayenExtensionConnectionState } from '../hooks/useRayenExtensionHealth';
 
 export interface CoveragePresentation {
@@ -16,11 +17,8 @@ export interface CoveragePresentation {
   tone: 'muted' | 'success' | 'warning';
 }
 
-export const formatRayenSyncTargetDate = (value?: string | null): string => {
-  if (!value) return 'hoy';
-  const [year, month, day] = value.split('-');
-  return year && month && day ? `${day}-${month}-${year}` : value;
-};
+export const formatRayenSyncTargetDate = (value?: string | null): string =>
+  value ? formatClinicalDayMonthYear(value) : 'hoy';
 
 export const formatRayenSyncIslandTime = (iso: string): string => {
   const value = new Date(iso);

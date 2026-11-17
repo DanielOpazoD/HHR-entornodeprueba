@@ -168,7 +168,7 @@ export const generateConsentPdf = async (input: ConsentPdfInput): Promise<string
 
   // Queue auto-print and return the blob URL so the caller can open it
   // through the browser window runtime adapter (keeps `window.open` out of
-  // feature services — see scripts/check-runtime-adapter-boundary.mjs).
+  // feature services — see the browser-runtime-adapter source-pattern rule).
   doc.autoPrint();
   // jsPDF types this as a URL; at run time it is the object-URL string.
   return String(doc.output('bloburl'));

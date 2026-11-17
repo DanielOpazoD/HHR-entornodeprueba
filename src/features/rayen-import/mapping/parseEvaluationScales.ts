@@ -45,8 +45,7 @@ import {
   type RawEvaluationCampo,
 } from './groupEvaluationScaleApplications';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
-
-export type EvaluationScaleCode = 'BRADEN' | 'DOWNTON';
+import type { EvaluationScaleCode } from '@/types/domain/evaluationScores';
 
 /** One answered sub-scale field (`sectionId === 0` in the raw form). */
 export interface EvaluationScaleItem {

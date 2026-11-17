@@ -1,4 +1,4 @@
-import type { UserRole } from './auth';
+import type { UserRole } from './authRoleTypes';
 
 export type ReminderType = 'info' | 'warning' | 'urgent';
 export type ReminderShift = 'day' | 'night';

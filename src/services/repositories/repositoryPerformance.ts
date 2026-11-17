@@ -99,10 +99,6 @@ export const measureRepositoryOperation = async <T>(
   }
 };
 
-export const getRepositoryPerformanceMetrics = (): RepositoryPerformanceMetric[] => [
-  ...recordedMetrics,
-];
-
 export const clearRepositoryPerformanceMetrics = (): void => {
   recordedMetrics.length = 0;
 };
