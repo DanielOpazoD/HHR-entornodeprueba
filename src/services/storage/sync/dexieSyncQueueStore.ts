@@ -369,7 +369,7 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
   async delete(taskId) {
     await hospitalDB.syncQueue.delete(taskId);
   },
-  async deleteClaimed(taskId, claim, authoritativeRecord, detachedConflicts) {
+  async deleteClaimed(taskId, claim, authoritativeRecord, detachedConflicts, heldTask) {
     const { completeClaimedSyncTask } = await loadAuthorityAck();
     const result = await completeClaimedSyncTask(
       {
@@ -380,10 +380,13 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
       taskId,
       claim,
       authoritativeRecord,
-      detachedConflicts
+      detachedConflicts,
+      heldTask
     );
     if (result.adopted && authoritativeRecord)
-      mirrorTransactionalDailyRecordWrite(authoritativeRecord);
+      mirrorTransactionalDailyRecordWrite(
+        (heldTask?.payload as DailyRecord | undefined) ?? authoritativeRecord
+      );
     return result.deleted;
   },
   async readTelemetryInputs(ownerKey) {

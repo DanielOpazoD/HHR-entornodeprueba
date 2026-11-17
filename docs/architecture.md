@@ -19,8 +19,7 @@ Resolver primero con el módulo dueño y el camino existente. Crear una separaci
 sólo cuando delimite una responsabilidad, un efecto o un contrato que ya importe.
 No es obligatorio añadir controller, caso de uso, port y repositorio a cada función.
 Las escrituras clínicas tienen controles propios que sí deben conservarse:
-[comandos canónicos](ADR_CANONICAL_WRITE_COMMANDS.md) y
-[facades de adopción](ADR_CANONICAL_WRITE_ADOPTION_FACADES.md).
+[comandos canónicos](ADR_CANONICAL_WRITE_COMMANDS.md).
 
 - Eliminar wrappers sin comportamiento y código sin consumidores comprobados.
   La preparación de escrituras importa sus reglas clínicas y metadatos desde los
