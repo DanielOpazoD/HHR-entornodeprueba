@@ -13,7 +13,6 @@ import {
   useDailyRecordBeds,
   useDailyRecordStaff,
   useDailyRecordMovements,
-  useDailyRecordData,
 } from '@/context/DailyRecordContext';
 import { useDailyRecordStaffActions } from '@/context/useDailyRecordScopedActions';
 import { useStaffContext } from '@/context/StaffContext';
@@ -28,24 +27,9 @@ const RayenImportButton = lazyWithRetry(() =>
   }))
 );
 import { RayenOperationsLoadingCard } from './RayenOperationsLoadingCard';
+import { CensusMedicalHandoffPortal } from './CensusMedicalHandoffPortal';
 import type { BedDefinition } from '@/types/domain/beds';
-import type {
-  CensusMedicalHandoffActionContext,
-  RenderCensusMedicalHandoffAction,
-} from '@/features/census/contracts/censusMedicalHandoffAction';
-import { createPortal } from 'react-dom';
-import { useCensusToolbarMenuTarget } from '@/shared/ui/CensusToolbarMenuTargetContext';
-
-type Props = Pick<CensusMedicalHandoffActionContext, 'visibleBeds' | 'professionalsCatalog'> & {
-  renderAction: RenderCensusMedicalHandoffAction;
-};
-
-/** Only the medical handoff action needs every revision of the full record. */
-const CensusMedicalHandoffPortal = ({ renderAction, ...context }: Props) => {
-  const { record } = useDailyRecordData();
-  const target = useCensusToolbarMenuTarget();
-  return target && record ? createPortal(renderAction({ ...context, record }), target) : null;
-};
+import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
 
 interface CensusStaffHeaderProps {
   selectedDate?: string;
