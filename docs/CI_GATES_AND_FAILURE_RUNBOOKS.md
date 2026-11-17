@@ -197,6 +197,29 @@ corrida sigue rechazado. Los demás artefactos de la evidencia (confianza, cober
 telemetría de CI, rendimiento del censo, Lighthouse) se leen de la corrida de la PR que
 nombra `ci-summary`.
 
+### Jobs exclusivos de `main`
+
+GitHub salta un job sin `always()` o `!cancelled()` cuando cualquier antecesor quedó
+saltado. Así, en la primera corrida `reused` (44155642457) `function-deploy-scope` no
+corrió y la corrida terminó en verde. Desde entonces, el último job de cada push a `main`,
+`main-only-jobs`, lee el resultado real de cada job exclusivo de `main`
+(`mainOnlyJobViolations` en `scripts/ciEvidenceReuseSupport.mjs`). Si `ci-summary` pasó,
+exige `success` en `postmerge-evidence` y en `function-deploy-scope`; exige además `success`
+en el despliegue validado si el alcance encontró cambios de Functions, y `skipped` si no los
+encontró. Que el preflight decida no desplegar (`eligible: false`) cuenta como éxito.
+`main-only-jobs` no es un check requerido, no corre en PR y no corre si se cancela la corrida.
+Si `ci-summary` no pasó, termina en verde sin exigir nada: la corrida ya está en rojo por
+`ci-summary`.
+
+Si `main-only-jobs` está en rojo, su registro nombra el job y lo que hizo. Un job saltado
+significa que lo que debía hacer no ocurrió. Revisar su condición `if:`, que debe incluir
+`!cancelled()`, y corregirla en una PR. Si faltó el despliegue de Functions, el responsable
+puede relanzar el workflow `Deploy Firebase Functions` sobre `main`, que pasa por el mismo
+preflight. El siguiente push a `main` también despliega si Functions cambió desde el
+último despliegue exitoso. Si falló
+`postmerge-evidence`, seguir su propio runbook. Un job nuevo que solo corra en `main` debe
+sumarse a `MAIN_ONLY_JOBS`; `mainOnlyJobs.test.ts` falla mientras no esté.
+
 Esta clasificación determina qué evidencia aporta CI. Durante la iteración local,
 usar el comando más pequeño que cubra el riesgo. Al cerrar, comprobar que el alcance
 de CI fue correcto; no ampliar automáticamente a un gate local completo.

@@ -153,3 +153,39 @@ export const decideMainScope = async ({ repository, sha, mainTree, api }) => {
     };
   }
 };
+
+/**
+ * What did not run as it should among the jobs that exist only on a push to
+ * main, given the workflow `needs` context ({ job: { result, outputs } }).
+ *
+ * GitHub skips a job without a status function when any ancestor was skipped,
+ * and a reused main push skips every gate, so one of these jobs can stay
+ * skipped while the run turns green (run 44155642457 never ran
+ * function-deploy-scope). When ci-summary did not pass the run is already red
+ * and none of these jobs is due, so nothing is reported.
+ */
+/** Jobs of ci-cd.yml that run only on a push to main (kept equal by a workflow test). */
+export const MAIN_ONLY_JOBS = ['function-deploy-scope', 'deploy-functions', 'postmerge-evidence'];
+
+export const mainOnlyJobViolations = needs => {
+  const summary = needs?.['ci-strict-summary']?.result;
+  if (summary === undefined) return ['ci-summary: result unavailable'];
+  if (summary !== 'success') return [];
+
+  const violations = [];
+  const expect = (job, expected) => {
+    const result = needs[job]?.result ?? 'unavailable';
+    if (result !== expected) violations.push(`${job}: ${result}, expected ${expected}`);
+  };
+  expect('postmerge-evidence', 'success');
+  expect('function-deploy-scope', 'success');
+  if (needs['function-deploy-scope']?.result === 'success') {
+    // The reusable deployment also succeeds when its preflight finds nothing to
+    // roll out (eligible false): that is a decision, not a missing job.
+    const changed = needs['function-deploy-scope'].outputs?.changed;
+    if (changed === 'true') expect('deploy-functions', 'success');
+    else if (changed === 'false') expect('deploy-functions', 'skipped');
+    else violations.push(`function-deploy-scope: output changed is ${changed ?? 'missing'}`);
+  }
+  return violations;
+};

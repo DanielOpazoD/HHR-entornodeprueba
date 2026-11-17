@@ -294,6 +294,7 @@ const RUN_WHEN_REUSED = [
   'postmerge-evidence',
   'function-deploy-scope',
   'deploy-functions',
+  'main-only-jobs',
 ];
 
 describe('the workflow skips only what the reused run already proved', () => {
