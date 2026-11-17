@@ -24,7 +24,8 @@ const queueMergedRecoveryTask = async (
   record: DailyRecord,
   changedPaths: string[],
   authoringSession: AuthoringSession,
-  expectedVersion?: string
+  expectedVersion?: string,
+  heldByConflict?: unknown
 ): Promise<{ accepted: boolean; syncContract: SyncTaskContract }> => {
   const meta = buildRecoveryTaskMeta(changedPaths, 'conflict_auto_merge', expectedVersion);
   const syncContract = buildDailyRecordSyncContract(record, meta.syncContract);
@@ -34,16 +35,18 @@ const queueMergedRecoveryTask = async (
       ...meta,
       syncContract,
     },
-    { authoringSession }
+    { authoringSession, heldByConflict }
   );
   return { accepted: result.accepted, syncContract };
 };
 
+/** `heldByConflict`: the server's refusal of this write, which nothing merged; it is kept held. */
 export const attemptConflictAutoMergeRecovery = async (
   date: string,
   localRecord: DailyRecord,
   changedPaths: string[],
-  authoringSession: AuthoringSession
+  authoringSession: AuthoringSession,
+  heldByConflict?: unknown
 ): Promise<ConflictAutoMergeRecoveryResult> => {
   const effectiveChangedPaths = resolveEffectiveChangedPaths(changedPaths);
 
@@ -108,7 +111,8 @@ export const attemptConflictAutoMergeRecovery = async (
       postMergeInvariants.record,
       effectiveChangedPaths,
       authoringSession,
-      remoteRecord.lastUpdated
+      remoteRecord.lastUpdated,
+      heldByConflict
     );
     if (!queued) {
       return { status: 'not_possible' };

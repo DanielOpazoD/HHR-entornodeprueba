@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 import type { AuthUser } from '@/types/authRoleTypes';
 import {
   readCachedUserAvatarProfile,
@@ -33,18 +34,20 @@ export const useUserAvatarProfile = (
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const userUid = user?.uid;
+  const userEmail = user?.email;
+
+  if (useChangedOnRender([userUid])) {
+    const uid = userUid?.trim();
+    setProfile(uid ? readCachedUserAvatarProfile(uid) : null);
+    setIsLoading(Boolean(uid));
+    if (uid) setError(null);
+  }
 
   useEffect(() => {
-    const uid = user?.uid?.trim();
-    if (!uid) {
-      setProfile(null);
-      setIsLoading(false);
-      return undefined;
-    }
+    const uid = userUid?.trim();
+    if (!uid) return undefined;
 
-    setProfile(readCachedUserAvatarProfile(uid));
-    setIsLoading(true);
-    setError(null);
     let isDisposed = false;
     let unsubscribe: (() => void) | undefined;
 
@@ -83,11 +86,11 @@ export const useUserAvatarProfile = (
       isDisposed = true;
       unsubscribe?.();
     };
-  }, [user?.uid]);
+  }, [userUid]);
 
   const uploadAvatar = useCallback(
     async (file: File) => {
-      if (!user?.uid) {
+      if (!userUid) {
         throw new Error('No se pudo identificar al usuario actual.');
       }
 
@@ -96,8 +99,8 @@ export const useUserAvatarProfile = (
       try {
         const service = await loadUserAvatarProfileService();
         const nextProfile = await service.uploadAvatar({
-          uid: user.uid,
-          email: user.email,
+          uid: userUid,
+          email: userEmail,
           file,
         });
         setProfile(nextProfile);
@@ -110,12 +113,12 @@ export const useUserAvatarProfile = (
         setIsSaving(false);
       }
     },
-    [user?.email, user?.uid]
+    [userEmail, userUid]
   );
 
   const selectPresetAvatar = useCallback(
     async (presetId: string) => {
-      if (!user?.uid) {
+      if (!userUid) {
         throw new Error('No se pudo identificar al usuario actual.');
       }
 
@@ -124,8 +127,8 @@ export const useUserAvatarProfile = (
       try {
         const service = await loadUserAvatarProfileService();
         const nextProfile = await service.selectPresetAvatar({
-          uid: user.uid,
-          email: user.email,
+          uid: userUid,
+          email: userEmail,
           presetId,
         });
         setProfile(nextProfile);
@@ -138,11 +141,11 @@ export const useUserAvatarProfile = (
         setIsSaving(false);
       }
     },
-    [user?.email, user?.uid]
+    [userEmail, userUid]
   );
 
   const removeAvatar = useCallback(async () => {
-    if (!user?.uid) {
+    if (!userUid) {
       return;
     }
 
@@ -150,7 +153,7 @@ export const useUserAvatarProfile = (
     setError(null);
     try {
       const service = await loadUserAvatarProfileService();
-      await service.removeAvatar(user.uid);
+      await service.removeAvatar(userUid);
       setProfile(null);
     } catch (removeError) {
       const message = resolveErrorMessage(removeError);
@@ -159,7 +162,7 @@ export const useUserAvatarProfile = (
     } finally {
       setIsSaving(false);
     }
-  }, [user?.uid]);
+  }, [userUid]);
 
   return {
     profile,

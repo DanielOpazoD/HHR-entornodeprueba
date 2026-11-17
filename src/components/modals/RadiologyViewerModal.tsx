@@ -33,6 +33,7 @@ import {
   resolveMMRADDatePresetRange,
 } from '@/components/modals/controllers/radiologyViewerModalController';
 import { readRememberedMMRADExams } from '@/components/modals/controllers/radiologyExamListMemory';
+import { useLatestRef } from '@/hooks/useLatestRef';
 
 const DicomViewerDialog = React.lazy(() =>
   import('@/components/radiology/DicomViewerDialog').then(module => ({
@@ -97,8 +98,7 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
   const context = JSON.stringify([isOpen, selectedRut, dateFrom, dateTo]);
   const pdfOperation = useRef<AbortController | null>(null);
   React.useEffect(() => () => pdfOperation.current?.abort(), [context]);
-  const latestContext = useRef(context);
-  latestContext.current = context;
+  const latestContext = useLatestRef(context);
   const openedForRutRef = useRef<string | null>(null);
 
   const uniquePatients = useMemo(() => buildUniqueRadiologyPatients(patients), [patients]);
@@ -170,40 +170,41 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
     return () => clearInterval(interval);
   }, [isForegroundLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const patientsRef = useRef(uniquePatients);
-  patientsRef.current = uniquePatients;
-  const patientNameOf = (rut: string) =>
-    patientsRef.current.find(
-      patient => normalizeDicomPatientId(patient.rut) === normalizeDicomPatientId(rut)
-    )?.patientName;
+  const patientsRef = useLatestRef(uniquePatients);
 
   // Shows the list remembered in this session at once and refreshes it in the background.
-  const runSearch = useCallback(async (rut: string, from: string, to: string) => {
-    if (!rut) return;
-    const sequence = ++searchSequence.current;
-    // Same shape as `context`, which the rendered selection keeps current.
-    const requestContext = JSON.stringify([true, rut, from, to]);
-    const isCurrent = () =>
-      sequence === searchSequence.current && latestContext.current === requestContext;
-    setDicomExam(null);
-    setError(null);
-    setRefreshError(null);
-    // The exact and the check-digit searches, and the session memory, are one shared routine.
-    const search = searchMmradStudies(
-      { rut, patientName: patientNameOf(rut), dateFrom: from, dateTo: to },
-      {
-        isCurrent,
-        onShown: shown => setResult(shown),
-        // A failed refresh is not "no exams": the remembered list stays.
-        onExactError: (message, remembered) =>
-          remembered ? setRefreshError(message) : setError(message),
-      }
-    );
-    setSearchMode(search.remembered ? 'background' : 'foreground');
-    setResult(search.remembered ?? null);
-    await search.done;
-    if (sequence === searchSequence.current) setSearchMode(null);
-  }, []);
+  const runSearch = useCallback(
+    async (rut: string, from: string, to: string) => {
+      if (!rut) return;
+      const sequence = ++searchSequence.current;
+      // Same shape as `context`, which the rendered selection keeps current.
+      const requestContext = JSON.stringify([true, rut, from, to]);
+      const isCurrent = () =>
+        sequence === searchSequence.current && latestContext.current === requestContext;
+      const patientName = patientsRef.current.find(
+        patient => normalizeDicomPatientId(patient.rut) === normalizeDicomPatientId(rut)
+      )?.patientName;
+      setDicomExam(null);
+      setError(null);
+      setRefreshError(null);
+      // The exact and the check-digit searches, and the session memory, are one shared routine.
+      const search = searchMmradStudies(
+        { rut, patientName, dateFrom: from, dateTo: to },
+        {
+          isCurrent,
+          onShown: shown => setResult(shown),
+          // A failed refresh is not "no exams": the remembered list stays.
+          onExactError: (message, remembered) =>
+            remembered ? setRefreshError(message) : setError(message),
+        }
+      );
+      setSearchMode(search.remembered ? 'background' : 'foreground');
+      setResult(search.remembered ?? null);
+      await search.done;
+      if (sequence === searchSequence.current) setSearchMode(null);
+    },
+    [latestContext, patientsRef]
+  );
 
   const handleSearch = useCallback(
     () => runSearch(selectedRut, dateFrom, dateTo),

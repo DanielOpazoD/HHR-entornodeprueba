@@ -16,6 +16,7 @@ import { getCurrentShift } from '@/services/admin/attributionService';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import type { Reminder } from '@/types/reminders';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const buildUserName = (displayName?: string | null, email?: string | null): string =>
   displayName?.trim() || email?.trim() || 'Usuario del sistema';
@@ -69,26 +70,20 @@ export const ReminderCenterProvider: React.FC<{ children: React.ReactNode }> = (
     [currentDate, currentShift, readReminderIds, role, visibleReminders]
   );
 
-  React.useEffect(() => {
-    if (!isAuthenticated) {
+  if (useChangedOnRender([isAuthenticated, remoteSyncStatus])) {
+    if (!isAuthenticated || remoteSyncStatus !== 'ready') {
       setReadReminderIds([]);
       setReminders([]);
       setLoading(false);
+      setIsAvailable(!isAuthenticated);
+      if (isAuthenticated) setIsOpen(false);
+    } else {
+      setLoading(true);
       setIsAvailable(true);
-      return;
     }
-
-    if (remoteSyncStatus !== 'ready') {
-      setReadReminderIds([]);
-      setReminders([]);
-      setLoading(false);
-      setIsAvailable(false);
-      setIsOpen(false);
-      return;
-    }
-
-    setLoading(true);
-    setIsAvailable(true);
+  }
+  React.useEffect(() => {
+    if (!isAuthenticated || remoteSyncStatus !== 'ready') return;
     const unsubscribe = reminderUseCases.subscribeToReminderFeed({
       onOutcome: outcome => {
         const nextReminders = outcome.data;
@@ -128,12 +123,22 @@ export const ReminderCenterProvider: React.FC<{ children: React.ReactNode }> = (
     return unsubscribe;
   }, [isAuthenticated, remoteSyncStatus]);
 
+  const readStateInputsChanged = useChangedOnRender([
+    currentDate,
+    currentShift,
+    currentUser?.uid,
+    isAvailable,
+    visibleReminders,
+  ]);
+  if (
+    readStateInputsChanged &&
+    isAvailable &&
+    (!currentUser?.uid || visibleReminders.length === 0)
+  ) {
+    setReadReminderIds([]);
+  }
   React.useEffect(() => {
-    if (!isAvailable) return;
-    if (!currentUser?.uid || visibleReminders.length === 0) {
-      setReadReminderIds([]);
-      return;
-    }
+    if (!isAvailable || !currentUser?.uid || visibleReminders.length === 0) return;
 
     let cancelled = false;
     void (async () => {

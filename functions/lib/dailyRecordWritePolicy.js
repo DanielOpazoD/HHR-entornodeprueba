@@ -1,6 +1,6 @@
 // Who may write a daily record, which paths a patch may touch and what a write may never erase.
 const functions = require('firebase-functions/v1');
-const { hospitalCalendarDay } = require('./hospitalCalendarDay');
+const { hospitalDayStart } = require('./hospitalCalendarDay');
 const { requireAuthenticatedEmail } = require('./auth/authPolicies');
 const { evaluateDailyRecordClinicalAuthority } = require('./dailyRecordClinicalAuthorityPolicy');
 const {
@@ -204,42 +204,30 @@ const assertNoRayenClinicalOwnedPatch = patch => {
   );
 };
 
-const toCalendarDayOrdinal = value => {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return undefined;
-  const ordinal = Date.parse(`${value}T00:00:00.000Z`);
-  return Number.isFinite(ordinal) ? ordinal : undefined;
-};
-
-const isNurseStructuralEditWithinWindow = ({ date, remoteData }) => {
-  const recordTimestamp = Number(remoteData?.dateTimestamp);
+// From 24 hours before to 48 hours after the day's hospital midnight (TIME-02), as the Firestore
+// rules allow. The Admin SDK skips those rules, so the day's date sets that midnight: never a
+// dateTimestamp, which the client sends and a full save stores as sent.
+const isWithinNurseEditingWindow = date => {
+  const dayStart = hospitalDayStart(date);
   const now = Date.now();
-  if (remoteData?.dateTimestamp != null && Number.isFinite(recordTimestamp)) {
-    return now > recordTimestamp - 86_400_000 && now < recordTimestamp + 172_800_000;
-  }
-
-  const recordDay = toCalendarDayOrdinal(date);
-  const currentDay = toCalendarDayOrdinal(hospitalCalendarDay());
-  if (recordDay === undefined || currentDay === undefined) return false;
-  const dayOffset = Math.round((recordDay - currentDay) / 86_400_000);
-  return dayOffset >= -1 && dayOffset <= 1;
+  return now > dayStart - 86_400_000 && now < dayStart + 172_800_000;
 };
 
-const assertStructuralPatchPolicy = ({ date, policySnapshot, remoteData, role }) => {
+// Every nurse patch keeps to the window, clinical fields included, as the rules require of any
+// direct nurse update. The administrator has no window.
+const assertNursePatchWindow = ({ date, role }) => {
+  if (role !== 'nurse_hospital' || isWithinNurseEditingWindow(date)) return;
+  throw new functions.https.HttpsError(
+    'permission-denied',
+    'The nurse editing window for this daily record has closed.'
+  );
+};
+
+const assertStructuralPatchPolicy = ({ policySnapshot }) => {
   if (!isRayenClinicalWriteFenceActive(policySnapshot)) {
     throw new functions.https.HttpsError(
       'failed-precondition',
       'Structural daily record patches require the schema-v2 server clinical authority fence.'
-    );
-  }
-
-  if (role !== 'nurse_hospital') {
-    return;
-  }
-
-  if (!isNurseStructuralEditWithinWindow({ date, remoteData })) {
-    throw new functions.https.HttpsError(
-      'permission-denied',
-      'The nurse editing window for this daily record has closed.'
     );
   }
 };
@@ -257,7 +245,7 @@ const assertFullRecordWritePolicy = ({ date, snapshot, record, role }) => {
   if (
     role === 'nurse_hospital' &&
     Number.isFinite(Number(record?.dateTimestamp)) &&
-    isNurseStructuralEditWithinWindow({ date, remoteData: record })
+    isWithinNurseEditingWindow(date)
   ) {
     return;
   }
@@ -346,6 +334,7 @@ module.exports = {
   assertNoPatientErasures,
   assertNoPersistedEpisodeDowngrades,
   assertNoRayenClinicalOwnedPatch,
+  assertNursePatchWindow,
   assertStructuralPatchPolicy,
   inspectAuthorizedPatch,
   specialtyEpisodeEnabled,

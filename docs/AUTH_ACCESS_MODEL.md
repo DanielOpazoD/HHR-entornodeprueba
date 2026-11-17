@@ -431,7 +431,11 @@ no se debe corregirlos asignando la hora actual a un registro histórico.
 La enfermería conserva el intervalo abierto desde 24 horas antes hasta 48 horas
 después del timestamp. Es una duración absoluta y no se cambia a ventanas 08:00/09:00.
 En un cambio de horario, 24 horas rolling no equivalen necesariamente a volver a la
-misma hora local.
+misma hora local. Las Functions de escritura del censo escriben sin pasar por las reglas
+y aplican el mismo intervalo a todo guardado y parche de enfermería, también de campos
+clínicos como el diagnóstico (SAVE-04), desde la medianoche en `Pacific/Easter` de la fecha del
+documento, nunca desde el `dateTimestamp` que envía el cliente o que quedó guardado
+(`nurse-editing-window.emulator.test.ts`).
 
 Los roles médicos (`doctor_urgency`, `doctor_specialist`) leen el día, también las
 firmas y notas médicas de días pasados, pero no lo escriben: su firma y sus notas se
