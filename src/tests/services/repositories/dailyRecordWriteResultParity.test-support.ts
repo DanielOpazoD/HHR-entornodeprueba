@@ -204,11 +204,9 @@ export const observeConsumers = async (result: WriteResult, record: DailyRecord)
     confirmado: {
       // resolveDailyRecordSavedState: what the sync box and the notice call «saved».
       cuadroYAviso: resolveDailyRecordSavedState(result) === 'saved',
-      // Copy of the timing rule at useDailyRecordSyncQuery.ts:263 (inline in a hook; see REPORT).
-      ...(patch
-        ? { medicion: (result as UpdatePartialDailyRecordResult).updatedRemotely === true }
-        : // Copy of the backup restore rule at dataMaintenanceService.ts:318 (inline in a loop).
-          { mantenimiento: (result as SaveDailyRecordResult).savedRemotely === true }),
+      // The timing event (useDailyRecordSyncQuery.ts:263) and the backup restore
+      // (dataMaintenanceService.ts:318) are observed through their own flows: see
+      // dailyRecordWriteRejectionAsSeen.test.tsx and dailyRecordWriteResultParityMaintenance.test.ts.
       especialidad: patch
         ? await outcomeOf(async () => {
             vi.mocked(writeService.updatePartialDetailed).mockResolvedValueOnce(

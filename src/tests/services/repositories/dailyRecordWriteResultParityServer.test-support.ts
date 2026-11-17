@@ -13,7 +13,7 @@ export type ServerAnswer =
 /** The version stamp the scripted server gives what it confirms. */
 export const SERVER_CONFIRMED_AT = '2026-11-17T12:00:00.000Z';
 
-export const endSessionHook = { current: (): void => undefined };
+export const endSessionHook = { current: (): unknown => undefined };
 
 /** What the scripted server does; reset before each case. */
 export const server = {
@@ -39,7 +39,7 @@ export const scriptedServerWrite = async (record: Pick<DailyRecord, 'date'>): Pr
       recordState: { lastUpdated: confirmed.lastUpdated, meta: { revision: 2 }, record: confirmed },
     };
   }
-  if (answer.kind === 'refuses_after_session_ends') endSessionHook.current();
+  if (answer.kind === 'refuses_after_session_ends') await endSessionHook.current();
   throw answer.error();
 };
 

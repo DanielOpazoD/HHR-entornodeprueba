@@ -42,8 +42,7 @@ vi.mock('@/services/firebase-runtime/authRuntime', () => ({
 /**
  * W14-D1-1 — parity table, whole-day saves (`saveDetailed`, `buildSaveResult` and
  * `buildBlockedSaveResult`) through the mounted useSaveDailyRecordMutation, plus the backup
- * import's deferred save. Same harness and columns as dailyRecordWriteResultParity.test.ts;
- * `mantenimiento` is the backup restore's own «saved remotely» rule.
+ * import's deferred save. Same harness and columns as dailyRecordWriteResultParity.test.ts.
  */
 interface SaveCase {
   from: string;
@@ -72,7 +71,6 @@ export const SAVE_CASES: Record<string, SaveCase> = {
       ingreso: 'no aplica',
       confirmado: {
         cuadroYAviso: true,
-        mantenimiento: true,
         especialidad: 'no aplica',
       },
       historico: 'lanza Error: No se confirmó la conciliación del censo histórico.',
@@ -93,7 +91,6 @@ export const SAVE_CASES: Record<string, SaveCase> = {
       ingreso: 'no aplica',
       confirmado: {
         cuadroYAviso: true,
-        mantenimiento: true,
         especialidad: 'no aplica',
       },
       historico: 'confirmada',
@@ -115,7 +112,6 @@ export const SAVE_CASES: Record<string, SaveCase> = {
       ingreso: 'no aplica',
       confirmado: {
         cuadroYAviso: false,
-        mantenimiento: false,
         especialidad: 'no aplica',
       },
       historico:
@@ -143,7 +139,6 @@ export const SAVE_CASES: Record<string, SaveCase> = {
       ingreso: 'no aplica',
       confirmado: {
         cuadroYAviso: false,
-        mantenimiento: false,
         especialidad: 'no aplica',
       },
       historico:
@@ -171,7 +166,6 @@ export const SAVE_CASES: Record<string, SaveCase> = {
       ingreso: 'no aplica',
       confirmado: {
         cuadroYAviso: false,
-        mantenimiento: false,
         especialidad: 'no aplica',
       },
       historico:
@@ -199,7 +193,6 @@ export const SAVE_CASES: Record<string, SaveCase> = {
       ingreso: 'no aplica',
       confirmado: {
         cuadroYAviso: false,
-        mantenimiento: false,
         especialidad: 'no aplica',
       },
       historico:
@@ -225,7 +218,6 @@ export const SAVE_CASES: Record<string, SaveCase> = {
       ingreso: 'no aplica',
       confirmado: {
         cuadroYAviso: true,
-        mantenimiento: true,
         especialidad: 'no aplica',
       },
       historico: 'confirmada',
@@ -249,7 +241,6 @@ export const SAVE_CASES: Record<string, SaveCase> = {
       ingreso: 'no aplica',
       confirmado: {
         cuadroYAviso: false,
-        mantenimiento: false,
         especialidad: 'no aplica',
       },
       historico: 'lanza Error: La sesión cambió antes de enviar la escritura.',
@@ -271,7 +262,6 @@ export const SAVE_CASES: Record<string, SaveCase> = {
       ingreso: 'no aplica',
       confirmado: {
         cuadroYAviso: false,
-        mantenimiento: false,
         especialidad: 'no aplica',
       },
       historico:

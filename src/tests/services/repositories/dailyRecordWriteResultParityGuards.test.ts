@@ -94,7 +94,6 @@ export const GUARDED_CASES: Record<string, ParityCase> = {
       ingreso: 'lanza Error: La sesión cambió antes de enviar la escritura.',
       confirmado: {
         cuadroYAviso: false,
-        medicion: false,
         especialidad: 'lanza Error: La sesión cambió antes de enviar la escritura.',
       },
       historico: 'lanza Error: La sesión cambió antes de enviar la escritura.',
@@ -116,7 +115,6 @@ export const GUARDED_CASES: Record<string, ParityCase> = {
       ingreso: 'sigue',
       confirmado: {
         cuadroYAviso: true,
-        medicion: true,
         especialidad: 'confirmada',
       },
       historico: 'confirmed',
@@ -141,7 +139,6 @@ export const GUARDED_CASES: Record<string, ParityCase> = {
       ingreso: 'lanza Error: La autoridad remota no devolvió la versión confirmada del registro.',
       confirmado: {
         cuadroYAviso: true,
-        medicion: true,
         especialidad:
           'lanza Error: La autoridad remota no devolvió la versión confirmada del registro.',
       },
@@ -186,7 +183,6 @@ export const GUARDED_CASES: Record<string, ParityCase> = {
       ingreso: 'lanza Error: No se encontró un registro local válido para aplicar el cambio.',
       confirmado: {
         cuadroYAviso: false,
-        medicion: false,
         especialidad:
           'lanza Error: No se encontró un registro local válido para aplicar el cambio.',
       },
@@ -221,7 +217,6 @@ export const GUARDED_CASES: Record<string, ParityCase> = {
         'lanza AdmissionDatePolicyViolationError: La fecha no coincide con la primera aparición observada. Revisa 2026-11-16 / 2026-11-17 / 2026-11-18. (PACIENTE SINTETICO NUEVO · 11.111.111-1)',
       confirmado: {
         cuadroYAviso: false,
-        medicion: false,
         especialidad:
           'lanza AdmissionDatePolicyViolationError: La fecha no coincide con la primera aparición observada. Revisa 2026-11-16 / 2026-11-17 / 2026-11-18. (PACIENTE SINTETICO NUEVO · 11.111.111-1)',
       },
@@ -257,7 +252,6 @@ export const GUARDED_CASES: Record<string, ParityCase> = {
         'lanza DataRegressionError: Se bloqueó una reducción sospechosa de texto clínico (37 -> 2 caracteres). Recarga antes de reintentar para evitar pérdida de información.',
       confirmado: {
         cuadroYAviso: false,
-        medicion: false,
         especialidad:
           'lanza DataRegressionError: Se bloqueó una reducción sospechosa de texto clínico (37 -> 2 caracteres). Recarga antes de reintentar para evitar pérdida de información.',
       },
@@ -348,7 +342,6 @@ export const GUARDED_CASES: Record<string, ParityCase> = {
       ingreso: 'sigue',
       confirmado: {
         cuadroYAviso: true,
-        medicion: true,
         especialidad: 'confirmada',
       },
       historico: 'confirmed',

@@ -3,22 +3,30 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
-import { usePatchDailyRecordMutation } from '@/hooks/usePatchDailyRecordMutation';
+import { useDailyRecordQuery } from '@/hooks/useDailyRecordQuery';
 import { DailyRecordWriteBlockedOutcomeError } from '@/hooks/controllers/dailyRecordWriteOutcomeGuard';
+import { getDailyRecordQueryKey } from '@/hooks/controllers/dailyRecordQueryController';
 import {
-  getDailyRecordQueryKey,
-  setDailyRecordQueryData,
-} from '@/hooks/controllers/dailyRecordQueryController';
+  flushDailyActionTimings,
+  startDailyActionTiming,
+} from '@/services/observability/dailyActionTiming';
+import { dispatchOperationalTelemetryExternally } from '@/services/observability/operationalTelemetryExternalAdapter';
+import {
+  clearSessionScopedClientState,
+  reconcileAuthorizedSessionOwner,
+} from '@/services/storage/sessionScopedStorageService';
+import type { ApplyDailyRecordPatchOptions } from '@/application/shared/dailyRecordCoreContracts';
 import * as freshness from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import * as writeService from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
-import { authoredOptions, captureAuthoringSession } from '@/services/storage/authoringSession';
+import { authoredOptions } from '@/services/storage/authoringSession';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { createDailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   BEFORE,
   EDIT,
+  NEXT_OWNER,
   NOTE_PATCH,
   PARITY_DATE,
   endSession,
@@ -29,6 +37,7 @@ import {
 import {
   endSessionHook,
   server,
+  type ServerAnswer,
 } from '@/tests/services/repositories/dailyRecordWriteResultParityServer.test-support';
 
 const port = vi.hoisted(() => ({
@@ -114,6 +123,12 @@ vi.mock('@/services/storage/firestore/firestoreRecordQueries', async importOrigi
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),
 }));
+vi.mock('@/services/observability/operationalTelemetryExternalAdapter', async importOriginal => ({
+  ...(await importOriginal<
+    typeof import('@/services/observability/operationalTelemetryExternalAdapter')
+  >()),
+  dispatchOperationalTelemetryExternally: vi.fn(async () => undefined),
+}));
 vi.mock('@/services/firebase-runtime/authRuntime', () => ({
   defaultAuthRuntime: { getCurrentUser: () => ({ uid: 'synthetic-parity-A' }) },
 }));
@@ -143,7 +158,11 @@ const readResult = (record: DailyRecord | null) => ({
 
 const newClient = () =>
   new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false, gcTime: 0 } },
+    // The app's census staleTime (queryClient.ts): a cached day is not read again for 5 minutes.
+    defaultOptions: {
+      queries: { retry: false, staleTime: 5 * 60 * 1000 },
+      mutations: { retry: false, gcTime: 0 },
+    },
   });
 const wrap = (client: QueryClient) => {
   const Wrapper = ({ children }: { children: ReactNode }) => (
@@ -182,8 +201,9 @@ afterEach(() => {
 });
 
 describe('H1: the server refuses for good an edit already in the queue', () => {
-  // W14-D1 H1: contradice SAVE-01 (ver REPORT): the notice says it was saved here, the cell
-  // goes back and the row says it failed, while this computer keeps the edit and its task.
+  // W14-D1 H1: contradice SAVE-01 (ver REPORT). The notice says «saved locally» and that local
+  // copy does exist; what is inconsistent is the flow that rejects, the cell that reverts and
+  // the durable copy that brings the edit back. No server save is claimed.
   it('says «saved locally», reverts the cell, fails the row, keeps the edit for reload', async () => {
     server.answer = { kind: 'refuses', error: () => firestoreError('permission-denied') };
     const client = newClient();
@@ -237,103 +257,160 @@ describe('H1: the server refuses for good an edit already in the queue', () => {
   });
 });
 
-/** Logout as the app runs it: the query cache is cleared (useAuthState.ts:254), then B signs in. */
-const endSessionAndClear = (client: QueryClient) => () => {
-  endSession();
-  client.clear();
-};
+describe('the census edit timing event (useDailyRecordSyncQuery.ts:263)', () => {
+  it.each<[string, ServerAnswer, { count: number; degradedCount: number }]>([
+    ['the server confirms the edit', { kind: 'accepts' }, { count: 1, degradedCount: 0 }],
+    [
+      'the edit waits in the queue (no network)',
+      { kind: 'refuses', error: () => firestoreError('unavailable') },
+      { count: 1, degradedCount: 1 },
+    ],
+  ])('counts «%s» as reported in the operational summary', async (_label, answer, counts) => {
+    server.answer = answer;
+    flushDailyActionTimings();
+    const stopTiming = startDailyActionTiming();
+    vi.mocked(dispatchOperationalTelemetryExternally).mockClear();
+    const client = newClient();
+    const { result } = renderHook(() => useDailyRecordSyncQuery(PARITY_DATE, false, 'ready'), {
+      wrapper: wrap(client),
+    });
+    await waitFor(() => expect(result.current.record?.handoffNovedadesNightShift).toBe(BEFORE));
+    await act(async () => {
+      await result.current.patchRecord(NOTE_PATCH);
+    });
+    flushDailyActionTimings();
+    stopTiming();
+    const editSummaries = vi
+      .mocked(dispatchOperationalTelemetryExternally)
+      .mock.calls.map(([event]) => event)
+      .filter(event => event.operation === 'census_edit_saved');
+    expect(editSummaries).toHaveLength(1);
+    expect(editSummaries[0].context).toMatchObject(counts);
+  });
+});
 
-const sendDuringSessionEnd = async (options: Record<string, unknown>) => {
+/**
+ * Logout as the app runs it: the census unmounts, the session-scoped state is cleared
+ * (clearSessionScopedClientState), the query cache is cleared (useAuthState.ts:254) and the next
+ * person signs in. The server's answer to the send arrives after all of that.
+ */
+const sendDuringSessionEnd = async (options?: ApplyDailyRecordPatchOptions) => {
   const client = newClient();
-  const shown = (await hospitalDB.dailyRecords.get(PARITY_DATE)) as DailyRecord;
-  setDailyRecordQueryData(client, PARITY_DATE, shown);
-  endSessionHook.current = endSessionAndClear(client);
-  const { result } = renderHook(() => usePatchDailyRecordMutation(PARITY_DATE), {
+  const census = renderHook(() => useDailyRecordSyncQuery(PARITY_DATE, false, 'ready'), {
     wrapper: wrap(client),
   });
-  let shownDuringSend: unknown;
-  port.updatePartialDetailed.mockImplementation(async (date, patch, writeOptions) => {
-    shownDuringSend = shownNote(client);
-    return writeService.updatePartialDetailed(date, patch, authoredOptions(writeOptions ?? {}));
+  await waitFor(() =>
+    expect(census.result.current.record?.handoffNovedadesNightShift).toBe(BEFORE)
+  );
+  let shownToAuthorDuringSend: unknown;
+  const shippedWrite = port.updatePartialDetailed.getMockImplementation()!;
+  port.updatePartialDetailed.mockImplementation(async (...args) => {
+    shownToAuthorDuringSend = shownNote(client);
+    return shippedWrite(...args);
   });
-  let outcome: unknown;
+  endSessionHook.current = async () => {
+    census.unmount();
+    await clearSessionScopedClientState('manual');
+    client.clear();
+    await reconcileAuthorizedSessionOwner(NEXT_OWNER);
+  };
+  let promesa = '';
   await act(async () => {
-    outcome = await result.current
-      .mutateAsync({
-        date: PARITY_DATE,
-        partial: NOTE_PATCH,
-        options: { ...options, authoringSession: captureAuthoringSession() },
-      })
-      .then(payload => payload.result?.outcome)
-      .catch(error => `lanza ${(error as Error).name}`);
+    promesa = await census.result.current.patchRecord(NOTE_PATCH, options).then(
+      () => 'resuelve',
+      (error: Error) => `rechaza ${error.name}: ${error.message}`
+    );
   });
+  // The next person's census mounts with the shipped reader and the app's 5-minute staleTime.
+  const readsBefore = port.getForDateWithMeta.mock.calls.length;
+  const next = renderHook(() => useDailyRecordQuery(PARITY_DATE, false, 'local_only'), {
+    wrapper: wrap(client),
+  });
+  await act(async () => {
+    await new Promise(resolve => setTimeout(resolve, 25));
+  });
+  const sesionSiguiente = {
+    muestra: next.result.current.data?.handoffNovedadesNightShift ?? 'sin censo',
+    lecturasDelDia: port.getForDateWithMeta.mock.calls.length - readsBefore,
+  };
+  next.unmount();
   return {
-    outcome,
-    shownToAuthorDuringSend: shownDuringSend,
-    // The cache B's census starts from after logout cleared it: undefined = nothing of A's.
-    shownToNextSession: shownNote(client),
+    promesa,
+    avisos: [...notices],
+    mostradoAQuienEditaDuranteElEnvio: shownToAuthorDuringSend,
+    sesionSiguiente,
     ...(await readLocalDurability()),
   };
 };
 
 describe('H3: the session ends while a census edit is on its way', () => {
-  // W14-D1 H3: the two routes answer differently (queued vs rejected), but the next session
-  // sees nothing of the departing person's edit on either route.
-  it('direct send: the author keeps the edit on screen; the next session sees nothing', async () => {
+  it('direct send: the promise resolves silently and the next session reads the day itself', async () => {
     server.answer = {
       kind: 'refuses_after_session_ends',
       error: () => firestoreError('unavailable'),
     };
-    const seen = await sendDuringSessionEnd({});
+    const seen = await sendDuringSessionEnd();
     process.stdout.write(`H3 direct ${JSON.stringify(seen)}\n`);
     expect(seen).toEqual({
-      outcome: 'queued',
-      shownToAuthorDuringSend: EDIT,
-      shownToNextSession: undefined,
-      cola: { 'PENDING de quien editó': 1 },
-      notaGuardada: EDIT,
+      promesa: 'resuelve',
+      avisos: [],
+      mostradoAQuienEditaDuranteElEnvio: 'NOTA SINTETICA A',
+      sesionSiguiente: {
+        muestra: 'sin censo',
+        lecturasDelDia: 1,
+      },
+      cola: {
+        'FAILED de quien editó session_owner_logged_out': 1,
+      },
+      notaGuardada: undefined,
     });
   });
 
-  it('server first: the edit is never shown, is rejected, and the next session sees nothing', async () => {
+  it('server first: the promise rejects silently and the next session reads the day itself', async () => {
     server.answer = {
       kind: 'refuses_after_session_ends',
       error: () => firestoreError('permission-denied'),
     };
-    const seen = await sendDuringSessionEnd({
-      requireRemoteAuthorityFirst: true,
-      requireConfirmedRecord: true,
-    });
+    const seen = await sendDuringSessionEnd({ consistency: 'remote_confirmed' });
     process.stdout.write(`H3 server-first ${JSON.stringify(seen)}\n`);
     expect(seen).toEqual({
-      outcome: 'unrecoverable',
-      shownToAuthorDuringSend: BEFORE,
-      shownToNextSession: undefined,
+      promesa:
+        'rechaza DailyRecordWriteBlockedOutcomeError: La sesión cambió. La operación no fue enviada ni guardada.',
+      avisos: [],
+      mostradoAQuienEditaDuranteElEnvio: 'NOCHE BASE',
+      sesionSiguiente: {
+        muestra: 'sin censo',
+        lecturasDelDia: 1,
+      },
       cola: {},
-      notaGuardada: BEFORE,
+      notaGuardada: undefined,
     });
   });
 
-  // W14-D1 H3: contradice la regla de cambio de sesión (ver REPORT): after logout cleared the
-  // cache, the late rollback writes the departing session's census into the next session's.
-  it('server first with the edit shown at once (crib-style): the late rollback refills the cache', async () => {
+  // W14-D1 H3: contradice la regla de cambio de sesión (ver REPORT)
+  // The late rollback writes the departing session's census into the cleared cache, and the
+  // next session's reader shows it without reading the day.
+  it('server first shown at once (crib creation): the next session shows the previous census', async () => {
     server.answer = {
       kind: 'refuses_after_session_ends',
       error: () => firestoreError('permission-denied'),
     };
     const seen = await sendDuringSessionEnd({
-      requireRemoteAuthorityFirst: true,
-      requireConfirmedRecord: true,
-      requireAtomicCas: true,
+      consistency: 'remote_confirmed',
       optimisticRemoteConfirmed: true,
     });
     process.stdout.write(`H3 server-first-optimistic ${JSON.stringify(seen)}\n`);
     expect(seen).toEqual({
-      outcome: 'unrecoverable',
-      shownToAuthorDuringSend: EDIT,
-      shownToNextSession: BEFORE,
+      promesa:
+        'rechaza DailyRecordWriteBlockedOutcomeError: La sesión cambió. La operación no fue enviada ni guardada.',
+      avisos: [],
+      mostradoAQuienEditaDuranteElEnvio: 'NOTA SINTETICA A',
+      sesionSiguiente: {
+        muestra: 'NOCHE BASE',
+        lecturasDelDia: 0,
+      },
       cola: {},
-      notaGuardada: BEFORE,
+      notaGuardada: undefined,
     });
   });
 });

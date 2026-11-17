@@ -64,8 +64,10 @@ vi.mock('@/services/firebase-runtime/authRuntime', () => ({
  * (dailyRecordSyncNotificationController, or the error notice when the mutation rejects);
  * flujo: the census flow (assertDailyRecordWriteAccepted); repositorio: `updatePartial` callers
  * (dailyRecordRepositoryWriteOutcome); ingreso: the admission port; confirmado: each current
- * definition of «server-confirmed» (box/notice, timing, specialty); historico: Rayen's historical
- * class; rayen: the structural guard; cola / notaGuardada: what this computer keeps (Dexie).
+ * definition of «server-confirmed» that takes a result (box/notice, specialty; the timing event
+ * and the backup restore are observed in their own flows: dailyRecordWriteRejectionAsSeen.test.tsx
+ * and dailyRecordWriteResultParityMaintenance.test.ts); historico: Rayen's historical class;
+ * rayen: the structural guard; cola / notaGuardada: what this computer keeps (Dexie).
  */
 const refuses = (error: () => unknown): ServerAnswer => ({ kind: 'refuses', error });
 const versionConflict = () =>
@@ -83,7 +85,6 @@ export const DIRECT_SEND_CASES: Record<string, ParityCase> = {
       ingreso: 'sigue',
       confirmado: {
         cuadroYAviso: true,
-        medicion: true,
         especialidad: 'confirmada',
       },
       historico: 'confirmed',
@@ -104,7 +105,6 @@ export const DIRECT_SEND_CASES: Record<string, ParityCase> = {
       ingreso: 'sigue',
       confirmado: {
         cuadroYAviso: true,
-        medicion: true,
         especialidad: 'confirmada',
       },
       historico: 'confirmed',
@@ -127,7 +127,6 @@ export const DIRECT_SEND_CASES: Record<string, ParityCase> = {
       ingreso: 'sigue',
       confirmado: {
         cuadroYAviso: false,
-        medicion: false,
         especialidad: 'lanza Error: No se confirmó la especialidad en el censo remoto.',
       },
       historico: 'confirmed',
@@ -151,7 +150,6 @@ export const DIRECT_SEND_CASES: Record<string, ParityCase> = {
       ingreso: 'sigue',
       confirmado: {
         cuadroYAviso: false,
-        medicion: false,
         especialidad: 'lanza Error: No se confirmó la especialidad en el censo remoto.',
       },
       historico: 'confirmed',
@@ -163,7 +161,8 @@ export const DIRECT_SEND_CASES: Record<string, ParityCase> = {
       notaGuardada: 'NOTA SINTETICA A',
     },
   },
-  // W14-D1 H1: contradice SAVE-01 (ver REPORT): notice and box say «saved here», view reverts.
+  // W14-D1 H1: contradice SAVE-01 (ver REPORT): the local copy the notice reports exists, yet
+  // the flow rejects and the view reverts while that durable copy keeps the edit.
   'el servidor rechaza sin reintento después de encolar (H1)': {
     from: 'dailyRecordRemoteRecoveryController.ts:29-35 (dailyRecordRemoteWriteController.ts:177)',
     answer: refuses(() => firestoreError('permission-denied')),
@@ -179,7 +178,6 @@ export const DIRECT_SEND_CASES: Record<string, ParityCase> = {
         'lanza Error: Los cambios se guardaron localmente, pero la sincronización remota requiere revisión manual.',
       confirmado: {
         cuadroYAviso: false,
-        medicion: false,
         especialidad: 'lanza Error: No se confirmó la especialidad en el censo remoto.',
       },
       historico: 'durably_queued',
@@ -203,7 +201,6 @@ export const DIRECT_SEND_CASES: Record<string, ParityCase> = {
       ingreso: 'sigue',
       confirmado: {
         cuadroYAviso: false,
-        medicion: false,
         especialidad: 'lanza Error: No se confirmó la especialidad en el censo remoto.',
       },
       historico: 'confirmed',
@@ -233,7 +230,6 @@ export const DIRECT_SEND_CASES: Record<string, ParityCase> = {
       ingreso: 'sigue',
       confirmado: {
         cuadroYAviso: false,
-        medicion: false,
         especialidad: 'lanza Error: No se confirmó la especialidad en el censo remoto.',
       },
       historico: 'confirmed',
@@ -263,7 +259,6 @@ export const DIRECT_SEND_CASES: Record<string, ParityCase> = {
       ingreso: 'sigue',
       confirmado: {
         cuadroYAviso: false,
-        medicion: false,
         especialidad: 'lanza Error: No se confirmó la especialidad en el censo remoto.',
       },
       historico: 'confirmed',
@@ -291,7 +286,6 @@ export const DIRECT_SEND_CASES: Record<string, ParityCase> = {
       ingreso: 'lanza ConcurrencyError: synthetic version conflict',
       confirmado: {
         cuadroYAviso: false,
-        medicion: false,
         especialidad: 'lanza ConcurrencyError: synthetic version conflict',
       },
       historico: 'durably_queued',
@@ -329,7 +323,6 @@ export const DIRECT_SEND_CASES: Record<string, ParityCase> = {
         'lanza Error: La cola de sincronización alcanzó su límite operativo antes de confirmar la persistencia local.',
       confirmado: {
         cuadroYAviso: false,
-        medicion: false,
         especialidad:
           'lanza Error: La cola de sincronización alcanzó su límite operativo antes de confirmar la persistencia local.',
       },
@@ -359,7 +352,6 @@ export const DIRECT_SEND_CASES: Record<string, ParityCase> = {
         'lanza Error: La sesión cambió antes de guardar; el cambio quedó para su usuario original.',
       confirmado: {
         cuadroYAviso: false,
-        medicion: false,
         especialidad:
           'lanza Error: La sesión cambió antes de guardar; el cambio quedó para su usuario original.',
       },
@@ -386,7 +378,6 @@ export const DIRECT_SEND_CASES: Record<string, ParityCase> = {
       ingreso: 'sigue',
       confirmado: {
         cuadroYAviso: false,
-        medicion: false,
         especialidad: 'lanza Error: No se confirmó la especialidad en el censo remoto.',
       },
       historico: 'confirmed',
