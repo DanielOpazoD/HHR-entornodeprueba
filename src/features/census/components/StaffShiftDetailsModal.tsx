@@ -19,6 +19,7 @@ import {
   buildResolvedStaffSelectionOptions,
   resolveStaffSelectionValue,
 } from '@/services/staff/staffSelectionPresentation';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const staffShiftDetailsLogger = createScopedLogger('StaffShiftDetailsModal');
 
@@ -205,13 +206,11 @@ export const StaffShiftDetailsModal: React.FC<StaffShiftDetailsModalProps> = ({
   const roleLabel = ROLE_LABELS[role];
   const activeCatalog = role === 'nurse' ? nursesList : tensList;
 
-  React.useEffect(() => {
-    if (isOpen) {
-      setDraft(detail);
-      setIsSaving(false);
-      setActiveShift(initialShift);
-    }
-  }, [detail, initialShift, isOpen]);
+  if (useChangedOnRender([detail, initialShift, isOpen]) && isOpen) {
+    setDraft(detail);
+    setIsSaving(false);
+    setActiveShift(initialShift);
+  }
 
   const handleSave = async () => {
     setIsSaving(true);
