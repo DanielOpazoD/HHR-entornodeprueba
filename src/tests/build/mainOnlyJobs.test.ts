@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { parse } from 'yaml';
 
 import { MAIN_ONLY_JOBS, mainOnlyJobViolations } from '../../../scripts/ciEvidenceReuseSupport.mjs';
 import {
@@ -12,15 +13,17 @@ import {
   reusedRunDeployed,
   reusedRunSkippedDeployScope,
 } from './mainOnlyJobRuns.fixture';
-import { jobNeeds, parseWorkflow } from './workflowYamlTestSupport';
+import { jobNeeds, parseWorkflow, type WorkflowJob } from './workflowYamlTestSupport';
 
 type Needs = Record<string, { result: string; outputs: Record<string, string> }>;
 
 const DEPLOY_JOB = 'validated-functions-deployment';
 
-// The `needs` context the checker receives in a recorded run. The reusable deployment is
-// one caller job: the API lists its inner jobs, or the caller alone when it was skipped.
-const needsFromRun = (run: RecordedRun): Needs => {
+// The `needs` context the checker receives in a recorded run. The API lists the inner jobs
+// of the reusable deployment, or the caller alone when it was skipped, but never the
+// caller's own result. When the inner jobs mix success and skipped (a preflight that chose
+// not to deploy), GitHub's aggregate is unobserved, so tests pass it in as `mixedAs`.
+const needsFromRun = (run: RecordedRun, mixedAs: 'success' | 'skipped' = 'success'): Needs => {
   const conclusion = (name: string) => {
     const found = run.jobs.filter(([job]) => job === name);
     expect(found, name).toHaveLength(1);
@@ -31,7 +34,11 @@ const needsFromRun = (run: RecordedRun): Needs => {
     .map(([, result]) => result);
   const deployResult =
     deployJobs.find(result => result !== 'success' && result !== 'skipped') ??
-    (deployJobs.includes('success') ? 'success' : 'skipped');
+    (deployJobs.every(result => result === 'success')
+      ? 'success'
+      : deployJobs.includes('success')
+        ? mixedAs
+        : 'skipped');
   return {
     'ci-strict-summary': { result: conclusion('ci-summary'), outputs: {} },
     'postmerge-evidence': { result: conclusion('postmerge-evidence'), outputs: {} },
@@ -39,7 +46,10 @@ const needsFromRun = (run: RecordedRun): Needs => {
       result: conclusion('function-deploy-scope'),
       outputs: run.functionDeployScopeChanged ? { changed: run.functionDeployScopeChanged } : {},
     },
-    'deploy-functions': { result: deployResult, outputs: {} },
+    'deploy-functions': {
+      result: deployResult,
+      outputs: run.deployPreflightEligible ? { eligible: run.deployPreflightEligible } : {},
+    },
   };
 };
 
@@ -47,7 +57,10 @@ const green = (changed: 'true' | 'false'): Needs => ({
   'ci-strict-summary': { result: 'success', outputs: {} },
   'postmerge-evidence': { result: 'success', outputs: {} },
   'function-deploy-scope': { result: 'success', outputs: { changed } },
-  'deploy-functions': { result: changed === 'true' ? 'success' : 'skipped', outputs: {} },
+  'deploy-functions':
+    changed === 'true'
+      ? { result: 'success', outputs: { eligible: 'true' } }
+      : { result: 'skipped', outputs: {} },
 });
 
 describe('main-only jobs must really run on a main push', () => {
@@ -71,15 +84,32 @@ describe('main-only jobs must really run on a main push', () => {
     }
   });
 
-  it('requires the deployment when the scope found Functions changes', () => {
+  it('requires the deployment to reach its preflight when the scope found Functions changes', () => {
     const needs = green('true');
-    needs['deploy-functions'].result = 'skipped';
-    expect(mainOnlyJobViolations(needs)).toEqual(['deploy-functions: skipped, expected success']);
+    needs['deploy-functions'] = { result: 'skipped', outputs: {} };
+    expect(mainOnlyJobViolations(needs)).toEqual([
+      'deploy-functions: skipped and its preflight decided nothing (eligible missing)',
+    ]);
   });
 
-  it('accepts a deployment whose preflight found nothing eligible to roll out', () => {
+  it('requires an eligible deployment to succeed', () => {
+    for (const result of ['skipped', 'failure', 'cancelled']) {
+      const needs = green('true');
+      needs['deploy-functions'].result = result;
+      expect(mainOnlyJobViolations(needs), result).toHaveLength(1);
+    }
+  });
+
+  it('accepts a preflight that chose not to deploy, whatever GitHub reports for the call', () => {
     // Run 44024696522: preflight succeeded with eligible false and skipped its deploy job.
-    expect(mainOnlyJobViolations(needsFromRun(fullRunPreflightNotEligible))).toEqual([]);
+    for (const mixedAs of ['success', 'skipped'] as const)
+      expect(
+        mainOnlyJobViolations(needsFromRun(fullRunPreflightNotEligible, mixedAs)),
+        mixedAs
+      ).toEqual([]);
+    const failed = needsFromRun(fullRunPreflightNotEligible);
+    failed['deploy-functions'].result = 'failure';
+    expect(mainOnlyJobViolations(failed)).toEqual(['deploy-functions: failure, expected success']);
   });
 
   it('requires post-merge evidence and a scope decision', () => {
@@ -125,6 +155,36 @@ describe('check-main-only-jobs.mjs', () => {
   });
 });
 
+// A condition that runs a job only on main, in any spelling of the comparison: spaces,
+// quote style, operand order, github.ref or github.ref_name.
+const MAIN_BRANCH_TESTS = [
+  "github.ref=='refs/heads/main'",
+  "'refs/heads/main'==github.ref",
+  "github.ref_name=='main'",
+  "'main'==github.ref_name",
+];
+const restrictsToMain = (condition = '') => {
+  const normalized = condition.replace(/\s+/g, '').replaceAll('"', "'");
+  return MAIN_BRANCH_TESTS.some(test => normalized.includes(test));
+};
+
+// Jobs that run only on main: restricted by their condition, or needing one that is.
+const mainOnlyJobIds = (jobs: Record<string, WorkflowJob>): Set<string> => {
+  const mainOnly = new Set<string>();
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const [id, job] of Object.entries(jobs)) {
+      if (id === 'main-only-jobs' || mainOnly.has(id)) continue;
+      if (restrictsToMain(job.if) || jobNeeds(job).some(need => mainOnly.has(need))) {
+        mainOnly.add(id);
+        grew = true;
+      }
+    }
+  }
+  return mainOnly;
+};
+
 describe('the main-only-jobs job in ci-cd.yml', () => {
   const jobs = parseWorkflow(
     fs.readFileSync(path.join(process.cwd(), '.github/workflows/ci-cd.yml'), 'utf8')
@@ -132,21 +192,35 @@ describe('the main-only-jobs job in ci-cd.yml', () => {
   const checker = jobs['main-only-jobs'];
 
   it('checks every job that runs only on main, after ci-summary', () => {
-    const mainOnly = new Set<string>();
-    let grew = true;
-    while (grew) {
-      grew = false;
-      for (const [id, job] of Object.entries(jobs)) {
-        if (id === 'main-only-jobs' || mainOnly.has(id)) continue;
-        const onMain = (job.if ?? '').includes("github.ref == 'refs/heads/main'");
-        if (onMain || jobNeeds(job).some(need => mainOnly.has(need))) {
-          mainOnly.add(id);
-          grew = true;
-        }
-      }
-    }
-    expect([...mainOnly].sort()).toEqual([...MAIN_ONLY_JOBS].sort());
+    expect([...mainOnlyJobIds(jobs)].sort()).toEqual([...MAIN_ONLY_JOBS].sort());
     expect(jobNeeds(checker).sort()).toEqual(['ci-strict-summary', ...MAIN_ONLY_JOBS].sort());
+  });
+
+  it.each([
+    "${{ github.ref == 'refs/heads/main' }}",
+    "${{ github.ref=='refs/heads/main' }}",
+    'github.ref == "refs/heads/main"',
+    "'refs/heads/main' == github.ref",
+    "${{ github.ref_name == 'main' }}",
+    "github.ref_name=='main'",
+    '"main" == github.ref_name',
+    "${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}",
+    "github.event_name=='push'&&github.ref_name=='main'",
+  ])('takes a new job restricted by %s as main-only, so it must be registered', condition => {
+    const extra: WorkflowJob = { if: condition, 'runs-on': 'ubuntu-latest', steps: [] };
+    const ids = mainOnlyJobIds({ ...jobs, 'extra-main-job': extra });
+    expect([...ids].sort()).not.toEqual([...MAIN_ONLY_JOBS].sort());
+    expect(ids).toContain('extra-main-job');
+  });
+
+  it.each([
+    "${{ github.event_name == 'push' }}",
+    "${{ github.ref != 'refs/heads/main' }}",
+    "github.ref == 'refs/heads/develop'",
+    "github.base_ref == 'main'",
+  ])('does not take a job restricted by %s as main-only', condition => {
+    const extra: WorkflowJob = { if: condition, 'runs-on': 'ubuntu-latest', steps: [] };
+    expect(mainOnlyJobIds({ ...jobs, 'extra-job': extra })).not.toContain('extra-job');
   });
 
   it('runs on main pushes after skipped or failed ancestors, never on a pull request', () => {
@@ -155,6 +229,18 @@ describe('the main-only-jobs job in ci-cd.yml', () => {
     );
     const step = checker.steps.find(s => s.run === 'node scripts/check-main-only-jobs.mjs');
     expect(step?.env?.NEEDS_JSON).toBe('${{ toJSON(needs) }}');
+  });
+
+  it('receives the preflight decision from the reusable deployment', () => {
+    const deploy = parse(
+      fs.readFileSync(path.join(process.cwd(), '.github/workflows/deploy-functions.yml'), 'utf8')
+    );
+    expect(deploy.on.workflow_call.outputs.eligible.value).toBe(
+      '${{ jobs.preflight.outputs.eligible }}'
+    );
+    expect(deploy.jobs.preflight.outputs.eligible).toBe('${{ steps.guard.outputs.eligible }}');
+    expect(deploy.on).toHaveProperty('workflow_dispatch');
+    expect(jobs['deploy-functions'].uses).toBe('./.github/workflows/deploy-functions.yml');
   });
 
   it('leaves the required ci-summary check unchanged', () => {

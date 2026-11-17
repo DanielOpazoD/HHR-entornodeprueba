@@ -1,8 +1,10 @@
-// Job names and conclusions of real main push runs (gh run view <id> --json jobs),
-// with the changed output function-deploy-scope printed in its log.
+// Job names and conclusions of real main push runs (gh run view <id> --json jobs), with
+// the changed output function-deploy-scope and the eligible decision verify-functions-ci
+// printed in their logs.
 export interface RecordedRun {
   runId: number;
   functionDeployScopeChanged?: 'true' | 'false';
+  deployPreflightEligible?: 'true' | 'false';
   jobs: Array<[name: string, conclusion: string]>;
 }
 
@@ -45,6 +47,7 @@ export const reusedRunSkippedDeployScope: RecordedRun = {
 export const reusedRunDeployed: RecordedRun = {
   runId: 44158750679,
   functionDeployScopeChanged: 'true',
+  deployPreflightEligible: 'true',
   jobs: [
     ['ci-scope', 'success'],
     ['functions-scope-gate', 'success'],
@@ -137,6 +140,7 @@ export const fullRunNothingToDeploy: RecordedRun = {
 export const fullRunPreflightNotEligible: RecordedRun = {
   runId: 44024696522,
   functionDeployScopeChanged: 'true',
+  deployPreflightEligible: 'false',
   jobs: [
     ['ci-scope', 'success'],
     ['functions-scope-gate', 'success'],

@@ -204,9 +204,14 @@ saltado. Así, en la primera corrida `reused` (44155642457) `function-deploy-sco
 corrió y la corrida terminó en verde. Desde entonces, el último job de cada push a `main`,
 `main-only-jobs`, lee el resultado real de cada job exclusivo de `main`
 (`mainOnlyJobViolations` en `scripts/ciEvidenceReuseSupport.mjs`). Si `ci-summary` pasó,
-exige `success` en `postmerge-evidence` y en `function-deploy-scope`; exige además `success`
-en el despliegue validado si el alcance encontró cambios de Functions, y `skipped` si no los
-encontró. Que el preflight decida no desplegar (`eligible: false`) cuenta como éxito.
+exige `success` en `postmerge-evidence` y en `function-deploy-scope`. Si el alcance no
+encontró cambios de Functions, el despliegue validado debe quedar `skipped`. Si los encontró,
+el despliegue no puede terminar en `failure` ni `cancelled` y su preflight debe haber corrido:
+el workflow reutilizable devuelve su decisión como output `eligible`, vacío si el preflight no
+corrió. Con `eligible: true` el despliegue debe terminar en `success`; con `eligible: false`
+(una revisión más nueva de Functions en `main`, o las mismas fuentes ya desplegadas) no
+desplegar es la decisión correcta. Así el control no depende del resultado que GitHub asigna
+al llamador cuando el job de despliegue queda saltado a propósito.
 `main-only-jobs` no es un check requerido, no corre en PR y no corre si se cancela la corrida.
 Si `ci-summary` no pasó, termina en verde sin exigir nada: la corrida ya está en rojo por
 `ci-summary`.
@@ -216,9 +221,10 @@ significa que lo que debía hacer no ocurrió. Revisar su condición `if:`, que 
 `!cancelled()`, y corregirla en una PR. Si faltó el despliegue de Functions, el responsable
 puede relanzar el workflow `Deploy Firebase Functions` sobre `main`, que pasa por el mismo
 preflight. El siguiente push a `main` también despliega si Functions cambió desde el
-último despliegue exitoso. Si falló
-`postmerge-evidence`, seguir su propio runbook. Un job nuevo que solo corra en `main` debe
-sumarse a `MAIN_ONLY_JOBS`; `mainOnlyJobs.test.ts` falla mientras no esté.
+último despliegue exitoso. Si falló `postmerge-evidence`, seguir su propio runbook. Un job
+nuevo que solo corra en `main` debe sumarse a `MAIN_ONLY_JOBS`; `mainOnlyJobs.test.ts` falla
+mientras no esté. Esa prueba reconoce la condición escrita con o sin espacios, con comillas
+simples o dobles, con `github.ref` o `github.ref_name` y combinada con `github.event_name`.
 
 Esta clasificación determina qué evidencia aporta CI. Durante la iteración local,
 usar el comando más pequeño que cubra el riesgo. Al cerrar, comprobar que el alcance
