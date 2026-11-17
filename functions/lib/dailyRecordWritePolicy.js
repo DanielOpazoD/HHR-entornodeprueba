@@ -207,28 +207,27 @@ const assertNoRayenClinicalOwnedPatch = patch => {
 // From 24 hours before to 48 hours after the day's hospital midnight (TIME-02), as the Firestore
 // rules allow. The Admin SDK skips those rules, so the day's date sets that midnight: never a
 // dateTimestamp, which the client sends and a full save stores as sent.
-const isNurseStructuralEditWithinWindow = date => {
+const isWithinNurseEditingWindow = date => {
   const dayStart = hospitalDayStart(date);
   const now = Date.now();
   return now > dayStart - 86_400_000 && now < dayStart + 172_800_000;
 };
 
-const assertStructuralPatchPolicy = ({ date, policySnapshot, role }) => {
+// Every nurse patch keeps to the window, clinical fields included, as the rules require of any
+// direct nurse update. The administrator has no window.
+const assertNursePatchWindow = ({ date, role }) => {
+  if (role !== 'nurse_hospital' || isWithinNurseEditingWindow(date)) return;
+  throw new functions.https.HttpsError(
+    'permission-denied',
+    'The nurse editing window for this daily record has closed.'
+  );
+};
+
+const assertStructuralPatchPolicy = ({ policySnapshot }) => {
   if (!isRayenClinicalWriteFenceActive(policySnapshot)) {
     throw new functions.https.HttpsError(
       'failed-precondition',
       'Structural daily record patches require the schema-v2 server clinical authority fence.'
-    );
-  }
-
-  if (role !== 'nurse_hospital') {
-    return;
-  }
-
-  if (!isNurseStructuralEditWithinWindow(date)) {
-    throw new functions.https.HttpsError(
-      'permission-denied',
-      'The nurse editing window for this daily record has closed.'
     );
   }
 };
@@ -246,7 +245,7 @@ const assertFullRecordWritePolicy = ({ date, snapshot, record, role }) => {
   if (
     role === 'nurse_hospital' &&
     Number.isFinite(Number(record?.dateTimestamp)) &&
-    isNurseStructuralEditWithinWindow(date)
+    isWithinNurseEditingWindow(date)
   ) {
     return;
   }
@@ -335,6 +334,7 @@ module.exports = {
   assertNoPatientErasures,
   assertNoPersistedEpisodeDowngrades,
   assertNoRayenClinicalOwnedPatch,
+  assertNursePatchWindow,
   assertStructuralPatchPolicy,
   inspectAuthorizedPatch,
   specialtyEpisodeEnabled,
