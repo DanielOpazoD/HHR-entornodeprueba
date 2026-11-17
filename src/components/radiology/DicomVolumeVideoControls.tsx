@@ -44,7 +44,7 @@ export const DicomVolumeVideoControls: React.FC<{
   const [axis, setAxis] = useState<DicomTurntableAxis>('vertical');
   const [arc, setArc] = useState(360);
   const [frames, setFrames] = useState(48);
-  const [video, setVideo] = useState(() => defaultDicomVideoOptions(mode === '3d' ? 15 : 10));
+  const [video, setVideo] = useState(() => defaultDicomVideoOptions());
   const total = slices?.total ?? 0;
   const { discard } = job;
   // The slice count depends on the plane and its obliquity; frames of a running video must

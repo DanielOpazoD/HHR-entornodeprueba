@@ -8,6 +8,7 @@ describe('partial cine range selection', () => {
     const runtime = { sessionId: 'synthetic' } as DicomRuntime;
     const props = { runtime, total: 24, disabled: false, complete: false, busyChanged: vi.fn() };
     const view = render(<DicomCineControls {...props} available={[[4, 8]]} />);
+    expect(screen.getByLabelText('Velocidad cine')).toHaveValue('20');
     fireEvent.change(screen.getByLabelText('Intervalo cine parcial'), { target: { value: '4,8' } });
     expect(screen.getByLabelText('Corte inicial')).toHaveValue(5);
     expect(screen.getByLabelText('Corte final')).toHaveValue(9);

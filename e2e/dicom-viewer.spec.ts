@@ -5,7 +5,9 @@ import {
   loseDicomGraphics,
 } from './fixtures/dicomGraphics';
 import fs from 'node:fs';
+import sharp from 'sharp';
 import PizZip from 'pizzip';
+import { PDFDocument } from 'pdf-lib';
 import { Input, BufferSource, MP4 } from 'mediabunny';
 import { test, expect, type Locator, type Page } from '@playwright/test';
 import { buildCanonicalE2ERecord, bootstrapSeededRecord } from './fixtures/auth';
@@ -267,6 +269,8 @@ const downloadReviewedMp4 = async (page: Page, viewer: Locator, filename: string
   }
 };
 
+const nativePdfTest = test.extend({ channel: 'chromium' });
+
 test.describe('DICOM viewer and Salvador annexes', () => {
   test.setTimeout(150000);
   test.use({ viewport: { width: 1440, height: 1000 } });
@@ -274,6 +278,88 @@ test.describe('DICOM viewer and Salvador annexes', () => {
   // then aborts that route.fetch and would fail an already verified test.
   test.afterEach(async ({ page }) => {
     await page.unrouteAll({ behavior: 'ignoreErrors' });
+  });
+  nativePdfTest.describe('embedded PDF with the native browser viewer', () => {
+    // Full Chromium supports the PDF plugin; the default headless shell downloads PDFs.
+    for (const width of [1280, 390])
+      nativePdfTest(
+        `dismisses tool menus outside and previews the report inside the viewer at ${width}px`,
+        async ({ page }) => {
+          await page.setViewportSize({ width, height: 900 });
+          await setup(page);
+          const pdf = await PDFDocument.create();
+          pdf.addPage().drawText('INFORME SINTETICO');
+          const bytes = Buffer.from(await pdf.save());
+          await page.route('**/.netlify/functions/mmrad-search*', route =>
+            route.fulfill({
+              contentType: 'application/json',
+              body: JSON.stringify({
+                rut: '11111111-1',
+                examenes: [{ ...exam, pdf_url: 'https://ris.mmrad.cl/report/synthetic.pdf' }],
+              }),
+            })
+          );
+          await page.route('**/.netlify/functions/mmrad-search?action=pdf&*', route =>
+            route.fulfill({ contentType: 'application/pdf', body: bytes })
+          );
+          let downloads = 0;
+          page.on('download', () => {
+            downloads += 1;
+          });
+          const editor = await openSalvador(page);
+          await editor.getByRole('button', { name: 'Imágenes MMRAD' }).click();
+          await page.getByRole('button', { name: 'Ver DICOM', exact: true }).click();
+          const viewer = page.getByRole('dialog', { name: /Visor DICOM/ });
+          await expect(viewer.getByRole('button', { name: 'PNG', exact: true })).toBeEnabled({
+            timeout: 60000,
+          });
+          await expect(
+            viewer.getByRole('button', { name: 'Ángulo de Cobb', exact: true })
+          ).toHaveCount(0);
+          const cine = viewer.locator('.dicom-cine');
+          await cine.locator('summary').click();
+          await expect(viewer.getByLabel('Velocidad cine', { exact: true })).toHaveValue('20');
+          await viewer.getByLabel('Corte inicial', { exact: true }).fill('2');
+          await expect(cine).toHaveAttribute('open', '');
+          await viewer.getByLabel('Teclado', { exact: true }).click();
+          await expect(cine).not.toHaveAttribute('open');
+          const keyboard = viewer.locator('.dicom-keyboard');
+          await expect(keyboard).toHaveAttribute('open', '');
+          await viewer.locator('.dicom-canvas').first().click();
+          await expect(keyboard).not.toHaveAttribute('open');
+          if (width === 1280)
+            await viewer.getByRole('button', { name: 'Pantalla completa', exact: true }).click();
+          await viewer.getByRole('button', { name: 'Ver informe MMRAD' }).click();
+          const report = page.getByRole('dialog', { name: 'Informe MMRAD', exact: true });
+          await expect(report).toBeVisible();
+          await expect(report.locator('iframe')).toHaveAttribute('src', /^blob:/);
+          // Wait for a real PDF sheet, not just the empty native plugin background.
+          await expect
+            .poll(
+              async () => {
+                const pixels = await sharp(await report.locator('iframe').screenshot()).stats();
+                return pixels.channels[0].mean;
+              },
+              { timeout: 15000 }
+            )
+            .toBeGreaterThan(100);
+          expect(downloads).toBe(0);
+          await expect(report.getByRole('link', { name: 'Descargar PDF' })).toHaveAttribute(
+            'download',
+            'informe-mmrad.pdf'
+          );
+          await page.screenshot({ path: test.info().outputPath(`report-${width}.png`) });
+          await report.getByRole('button', { name: 'Cerrar informe' }).focus();
+          await page.keyboard.press('Escape');
+          await expect(report).toHaveCount(0);
+          await expect(viewer).toBeVisible();
+          await expect(viewer.getByRole('button', { name: 'Ver informe MMRAD' })).toBeFocused();
+          await viewer.getByRole('button', { name: 'Ver informe MMRAD' }).click();
+          await expect(report).toBeVisible();
+          await report.getByRole('button', { name: 'Cerrar informe' }).click();
+          await expect(viewer).toBeVisible();
+        }
+      );
   });
   test('measures cold DICOM startup with controlled metadata and module latency', async ({
     page,
@@ -756,7 +842,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     });
     expect(downloads).toBe(72);
   });
-  test('cine exports an ordered inclusive MP4 with privacy review and cancellation', async ({
+  test('cine exports an ordered inclusive MP4 with direct download and cancellation', async ({
     page,
   }) => {
     await setup(page);
@@ -871,8 +957,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       }
       return values;
     });
-    await expect(viewer.getByRole('link', { name: 'Descargar MP4', exact: true })).toHaveCount(0);
-    await viewer.getByRole('checkbox', { name: /Revisé el video completo/ }).check();
+    await expect(viewer.getByRole('link', { name: 'Descargar MP4', exact: true })).toBeVisible();
     const downloading = page.waitForEvent('download');
     await viewer.getByRole('link', { name: 'Descargar MP4', exact: true }).click();
     const download = await downloading;
@@ -1019,8 +1104,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     expect(Math.abs(frames[4] - frames[2])).toBeLessThanOrEqual(2);
     expect(Math.abs(frames[5] - frames[1])).toBeLessThanOrEqual(2);
     await expect(viewer.getByText(/^\d+×\d+ · 6 cuadros · 1,2 s$/)).toBeVisible();
-    await expect(viewer.getByRole('link', { name: 'Descargar MP4', exact: true })).toHaveCount(0);
-    await viewer.getByRole('checkbox', { name: /Revisé el video completo y no contiene/ }).check();
+    await expect(viewer.getByRole('link', { name: 'Descargar MP4', exact: true })).toBeVisible();
     const mp4 = await downloadReviewedMp4(page, viewer, 'barrido-mpr-dicom.mp4');
     expect(mp4).toEqual({ codec: 'avc', packets: 6, duration: expect.closeTo(1.2, 2), audio: 0 });
     await viewer.getByRole('button', { name: 'Descartar video', exact: true }).click();
@@ -1118,7 +1202,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     await expect(viewer.getByRole('button', { name: 'MPR', exact: true })).toBeEnabled();
   });
 
-  test('turns the 3D view into a reviewed MP4 about a chosen axis and restores the camera', async ({
+  test('turns the 3D view into a downloadable MP4 about a chosen axis and restores the camera', async ({
     page,
   }) => {
     const { viewer, hash, initial, initialCenter } = await openStable3DVideo(page);
@@ -1142,8 +1226,7 @@ test.describe('DICOM viewer and Salvador annexes', () => {
     expect(Math.abs(frames[0].center - initialCenter)).toBeLessThanOrEqual(8);
     expect(frames[1].height).toBeGreaterThan(frames[0].height * 1.08);
     expect(frames[3].height).toBeGreaterThan(frames[2].height * 1.08);
-    await expect(viewer.getByRole('link', { name: 'Descargar MP4', exact: true })).toHaveCount(0);
-    await viewer.getByRole('checkbox', { name: /Incluye nombre, RUT y fecha/ }).check();
+    await expect(viewer.getByRole('link', { name: 'Descargar MP4', exact: true })).toBeVisible();
     const mp4 = await downloadReviewedMp4(page, viewer, 'giro-3d-dicom.mp4');
     expect(mp4).toEqual({ codec: 'avc', packets: 4, duration: expect.closeTo(0.8, 2), audio: 0 });
     await viewer.getByRole('button', { name: 'Descartar video', exact: true }).click();
@@ -2705,10 +2788,13 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       await expectLength(0, Math.hypot(24, 16));
       await expect.poll(async () => (await drawn(0)).lines).toBe(1);
 
-      await viewer.getByRole('button', { name: 'Ángulo de Cobb', exact: true }).click();
+      await expect(viewer.getByRole('button', { name: 'Ángulo de Cobb', exact: true })).toHaveCount(
+        0
+      );
+      await viewer.getByRole('button', { name: 'Ángulo', exact: true }).click();
       await drag(0, [-14, 12], [14, 12]);
-      await drag(0, [-14, -12], [14, -2]);
-      await expect.poll(async () => (await drawn(0)).text).toMatch(/Cobb 19\.\d°|Cobb 2[0-1]\.\d°/);
+      await click(0, [14, -12]);
+      await expect.poll(async () => (await drawn(0)).text).toContain('90.0°');
 
       // Measurements outlive a view change while the viewer stays open.
       await viewer.getByRole('button', { name: 'MPR', exact: true }).click();
@@ -2721,11 +2807,11 @@ test.describe('DICOM viewer and Salvador annexes', () => {
       });
       await expectLength(0, Math.hypot(24, 16));
       await expect(viewer.getByLabel('Medidas (2)', { exact: true })).toBeVisible();
-      // Ctrl/⌘ Z removes the newest one in this view: the Cobb angle.
+      // Ctrl/⌘ Z removes the newest one in this view: the angle.
       await panes.first().focus();
       await page.keyboard.press('ControlOrMeta+z');
       await expect(viewer.getByLabel('Medidas (1)', { exact: true })).toBeVisible();
-      await expect.poll(async () => (await drawn(0)).text).not.toContain('Cobb');
+      await expect.poll(async () => (await drawn(0)).text).not.toContain('90.0°');
       await expectLength(0, Math.hypot(24, 16));
       // With a half-drawn line, undo drops only that line.
       await viewer.getByRole('button', { name: 'Distancia', exact: true }).click();
