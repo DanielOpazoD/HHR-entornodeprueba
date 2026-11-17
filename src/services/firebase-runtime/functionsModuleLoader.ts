@@ -1,7 +1,6 @@
 import {
   isModuleReloadRequired,
   setModuleReloadRequired,
-  subscribeModuleRecovery,
 } from '@/services/runtime/moduleReloadRecovery';
 import { isChunkLoadError } from '@/utils/chunkLoadError';
 
@@ -9,7 +8,6 @@ export const FUNCTIONS_RELOAD_REQUIRED_MESSAGE =
   'Recarga la aplicación para restablecer el acceso. Los cambios pendientes se conservan.';
 
 export const isFunctionsReloadRequired = () => isModuleReloadRequired('functions');
-export const subscribeFunctionsRecovery = subscribeModuleRecovery;
 const setReloadRequired = (value: boolean) => setModuleReloadRequired('functions', value);
 
 /**

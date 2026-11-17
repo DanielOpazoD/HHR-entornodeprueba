@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { signIn, signInWithGoogle, createUser } from '@/services/auth/authFlow';
+import { signIn, createUser } from '@/services/auth/authCredentialFlow';
 import { signInWithGoogleRedirect, handleSignInRedirectResult } from '@/services/auth/authFallback';
 import { signOut } from '@/services/auth/authSession';
 import * as authRedirectRuntime from '@/services/auth/authRedirectRuntime';
 import * as firebaseAuth from 'firebase/auth';
-import { warmGoogleSignInRuntime } from '@/services/auth/authGoogleFlow';
+import { signInWithGoogle, warmGoogleSignInRuntime } from '@/services/auth/authGoogleFlow';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 
-vi.unmock('../../services/auth/authFlow');
-vi.unmock('@/services/auth/authFlow');
+vi.unmock('@/services/auth/authCredentialFlow');
+vi.unmock('@/services/auth/authGoogleFlow');
 vi.unmock('../../services/auth/authFallback');
 vi.unmock('@/services/auth/authFallback');
 vi.unmock('../../services/auth/authSession');

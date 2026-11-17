@@ -6,20 +6,3 @@ export const attachIndexedDbEvents = (
   getRuntimeState: () => { isUsingMock: boolean; stickyFallbackMode: boolean },
   emittedIndexedDbWarnings: Set<string>
 ) => attachIndexedDbWarningBindings(database, getRuntimeState, emittedIndexedDbWarnings);
-
-export const initializeIndexedDbDatabase = (
-  createDatabase: () => IndexedDbDatabaseLike,
-  attachEvents: (database: IndexedDbDatabaseLike) => void,
-  onFallback: (error: unknown) => void
-): IndexedDbDatabaseLike => {
-  try {
-    const database = createDatabase();
-    attachEvents(database);
-    return database;
-  } catch (error) {
-    onFallback(error);
-    const database = createDatabase();
-    attachEvents(database);
-    return database;
-  }
-};

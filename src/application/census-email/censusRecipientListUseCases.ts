@@ -3,7 +3,7 @@ import {
   saveGlobalEmailRecipientListWithResult,
   type GlobalEmailRecipientList,
 } from '@/services/email/emailRecipientListService';
-import { getAppSetting } from '@/services/settingsService';
+import { getSetting } from '@/services/storage/indexeddb/indexedDbSettingsService';
 import type { CensusEmailBrowserRuntime } from '@/hooks/controllers/censusEmailBrowserRuntimeController';
 import { resolveCensusRecipientsBootstrap } from '@/hooks/controllers/censusEmailRecipientsBootstrapController';
 import { resolveBootstrapRecipientSelection } from '@/hooks/controllers/censusEmailRecipientSelectionController';
@@ -74,8 +74,8 @@ export const executeLoadCensusRecipientRuntimeState = async (
 ): Promise<ApplicationOutcome<CensusRecipientRuntimeState>> => {
   if (!input.canManageGlobalRecipientLists || !input.enabled) {
     const [storedRecipients, storedActiveListId] = await Promise.all([
-      getAppSetting<string[] | null>(input.recipientsStorageKey, null),
-      getAppSetting<string | null>(input.activeListStorageKey, null),
+      getSetting<string[] | null>(input.recipientsStorageKey, null),
+      getSetting<string | null>(input.activeListStorageKey, null),
     ]);
 
     return createApplicationSuccess(
@@ -93,7 +93,7 @@ export const executeLoadCensusRecipientRuntimeState = async (
     );
   }
 
-  const storedRecipients = await getAppSetting<string[] | null>(input.recipientsStorageKey, null);
+  const storedRecipients = await getSetting<string[] | null>(input.recipientsStorageKey, null);
   return createApplicationSuccess(
     resolveStoredRecipientRuntimeState(
       storedRecipients,

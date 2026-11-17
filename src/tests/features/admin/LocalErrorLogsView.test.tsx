@@ -4,12 +4,16 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocalErrorLogsView } from '@/features/admin/components/LocalErrorLogsView';
-import { clearErrorLogs, fetchErrorLogs } from '@/services/errorLogService';
+import {
+  clearErrorLogs,
+  getErrorLogs,
+} from '@/services/storage/indexeddb/indexedDbErrorLogService';
 import type { ErrorLog } from '@/services/logging/errorLogTypes';
 
-vi.mock('@/services/errorLogService', () => ({
+vi.mock('@/services/storage/indexeddb/indexedDbErrorLogService', () => ({
   clearErrorLogs: vi.fn(),
-  fetchErrorLogs: vi.fn(),
+  getErrorLogs: vi.fn(),
+  saveErrorLog: vi.fn(),
 }));
 
 const buildLog = (overrides: Partial<ErrorLog> = {}): ErrorLog => ({
@@ -43,7 +47,7 @@ const startRefreshAndClear = async () => {
   const olderRead = deferred<ErrorLog[]>();
   const clear = deferred<void>();
   const newerRead = deferred<ErrorLog[]>();
-  vi.mocked(fetchErrorLogs)
+  vi.mocked(getErrorLogs)
     .mockResolvedValueOnce([buildLog()])
     .mockReturnValueOnce(olderRead.promise)
     .mockReturnValueOnce(newerRead.promise);
@@ -59,14 +63,14 @@ const startRefreshAndClear = async () => {
 describe('LocalErrorLogsView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(fetchErrorLogs).mockResolvedValue([buildLog()]);
+    vi.mocked(getErrorLogs).mockResolvedValue([buildLog()]);
     vi.mocked(clearErrorLogs).mockResolvedValue(undefined);
   });
 
   it('drops A rendered history and delayed reads when B enters', async () => {
     act(() => setSessionGeneration('synthetic-A'));
     const delayed = deferred<ErrorLog[]>();
-    vi.mocked(fetchErrorLogs)
+    vi.mocked(getErrorLogs)
       .mockResolvedValueOnce([buildLog()])
       .mockReturnValueOnce(delayed.promise)
       .mockResolvedValueOnce([]);
@@ -94,7 +98,7 @@ describe('LocalErrorLogsView', () => {
   });
 
   it('shows captured episode and action after more than six technical keys', async () => {
-    vi.mocked(fetchErrorLogs).mockResolvedValueOnce([
+    vi.mocked(getErrorLogs).mockResolvedValueOnce([
       buildLog({
         context: {
           ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`technical${i}`, i])),
@@ -116,7 +120,7 @@ describe('LocalErrorLogsView', () => {
   });
 
   it('shows a clear empty state when there are no local logs', async () => {
-    vi.mocked(fetchErrorLogs).mockResolvedValueOnce([]);
+    vi.mocked(getErrorLogs).mockResolvedValueOnce([]);
 
     render(<LocalErrorLogsView />);
 
@@ -127,7 +131,7 @@ describe('LocalErrorLogsView', () => {
 
   it('refreshes and clears the local log store', async () => {
     const user = userEvent.setup();
-    vi.mocked(fetchErrorLogs).mockResolvedValueOnce([buildLog()]).mockResolvedValueOnce([]);
+    vi.mocked(getErrorLogs).mockResolvedValueOnce([buildLog()]).mockResolvedValueOnce([]);
 
     render(<LocalErrorLogsView />);
 
@@ -136,14 +140,14 @@ describe('LocalErrorLogsView', () => {
     await user.click(screen.getByRole('button', { name: /Limpiar/i }));
 
     await waitFor(() => expect(clearErrorLogs).toHaveBeenCalledTimes(1));
-    expect(fetchErrorLogs).toHaveBeenCalledTimes(2);
+    expect(getErrorLogs).toHaveBeenCalledTimes(2);
     expect(
       await screen.findByText('No hay errores locales registrados para tu usuario.')
     ).toBeInTheDocument();
   });
 
   it('does not pass a failed read off as an empty history', async () => {
-    vi.mocked(fetchErrorLogs).mockRejectedValueOnce(new Error('Synthetic store failure'));
+    vi.mocked(getErrorLogs).mockRejectedValueOnce(new Error('Synthetic store failure'));
 
     render(<LocalErrorLogsView />);
 

@@ -5,7 +5,6 @@ export const bedOperationsLogger = createScopedLogger('useBedOperations');
 export const clinicalCribLogger = createScopedLogger('useClinicalCrib');
 export const dailyRecordSyncLogger = createScopedLogger('DailyRecordSync');
 export const excelParserLogger = createScopedLogger('useExcelParser');
-export const existingDaysLogger = createScopedLogger('useExistingDays');
 export const patientAnalysisLogger = createScopedLogger('usePatientAnalysis');
 export const storageMigrationLogger = createScopedLogger('useStorageMigration');
 export const syncQueueMonitorLogger = createScopedLogger('useSyncQueueMonitor');

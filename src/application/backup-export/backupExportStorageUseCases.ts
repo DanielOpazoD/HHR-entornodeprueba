@@ -9,15 +9,30 @@ import {
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 
 import {
-  EMPTY_STORAGE_LIST_REPORT,
-  hasDegradedStorageListReport,
-  monthNameToNumber,
-} from '@/application/backup-export/backupExportShared';
-import {
   deleteBackupArchiveFile,
   lookupBackupArchiveStatus,
   resolveBackupStorageListServices,
 } from '@/application/backup-export/backupStorageResolvers';
+import { MONTH_NAMES } from '@/services/backup/baseStorageService';
+
+const EMPTY_STORAGE_LIST_REPORT: StorageListReport = {
+  skippedNotFound: 0,
+  skippedRestricted: 0,
+  skippedUnknown: 0,
+  skippedUnparsed: 0,
+  timedOut: false,
+};
+
+const monthNameToNumber = (name: string): string => {
+  const index = MONTH_NAMES.indexOf(name);
+  return String(index + 1).padStart(2, '0');
+};
+
+const hasDegradedStorageListReport = (report: StorageListReport): boolean =>
+  report.timedOut ||
+  report.skippedRestricted > 0 ||
+  report.skippedUnknown > 0 ||
+  report.skippedUnparsed > 0;
 
 export interface LookupBackupArchiveStatusInput {
   backupType: BackupType;

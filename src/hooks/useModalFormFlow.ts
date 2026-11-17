@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { clearModalFieldErrors, submitModalForm } from '@/hooks/controllers/modalFormController';
+import { clearModalFieldErrors, submitModalForm } from '@/application/census/public';
 import { useLatestRef } from '@/hooks/useLatestRef';
 
 type ModalFieldErrorValue = string | undefined;

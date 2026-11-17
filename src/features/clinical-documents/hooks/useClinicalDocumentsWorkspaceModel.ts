@@ -19,13 +19,29 @@ import { useClinicalDocumentWorkspaceDraft } from '@/features/clinical-documents
 import { useClinicalDocumentWorkspaceDocumentActions } from '@/features/clinical-documents/hooks/useClinicalDocumentWorkspaceDocumentActions';
 import { useClinicalDocumentWorkspaceExportActions } from '@/features/clinical-documents/hooks/useClinicalDocumentWorkspaceExportActions';
 import { useClinicalDocumentSignatureProfile } from '@/features/clinical-documents/hooks/useClinicalDocumentSignatureProfile';
-import { useClinicalDocumentsWorkspaceNotifyPort } from '@/features/clinical-documents/hooks/useClinicalDocumentsWorkspaceNotifyPort';
 import { buildClinicalDocumentSignatureProfileFromDraft } from '@/features/clinical-documents/services/clinicalDocumentSignatureProfileService';
 import {
   canDeleteClinicalDocumentFromWorkspace,
   mergeDraftIntoClinicalDocumentsSidebar,
   resolveClinicalDocumentsWorkspaceAccessState,
 } from './clinicalDocumentsWorkspaceModelSupport';
+import { useNotification } from '@/context/UIContext';
+import { buildClinicalDocumentWorkspaceNotifyPort } from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
+
+const useClinicalDocumentsWorkspaceNotifyPort = () => {
+  const { success, warning, error: notifyError, info, confirm } = useNotification();
+
+  const notifyPort = useMemo(
+    () => buildClinicalDocumentWorkspaceNotifyPort(success, warning, notifyError, info, confirm),
+    [confirm, info, notifyError, success, warning]
+  );
+
+  return {
+    notifyPort,
+    info,
+    confirm,
+  };
+};
 
 interface UseClinicalDocumentsWorkspaceModelParams {
   patient: ClinicalDocumentsWorkspacePatientContract;
