@@ -48,17 +48,17 @@ try {
       /./,
       'Retira secretos y artefactos prohibidos; revisa el diagnóstico anterior.',
     ],
-    ['import-cycles', /^src\//, 'Rompe el ciclo de imports indicado por el control.'],
+    [
+      'import-cycles',
+      /^(src\/|functions\/lib\/|netlify\/functions\/)/,
+      'Rompe el ciclo de imports indicado por el control.',
+    ],
     [
       'repo-hygiene',
       /^(?:Formularios\/|Hospital Salvador\/|printables\/|[^/]+\.png$)/i,
       'Restaura los archivos que el responsable protege o registra su aprobación como indica el control.',
     ],
-    [
-      'architecture',
-      /^src\//,
-      'Rompe la dependencia circular indicada (aquí también cuentan los imports de tipo) o respeta la capa que nombra el control.',
-    ],
+    ['architecture', /^src\//, 'Respeta la capa que nombra el control.'],
     [
       'clinical-clock',
       /^(src\/|functions\/|netlify\/|e2e\/|extension\/|playwright[\w.-]*\.config\.ts$)/,

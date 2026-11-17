@@ -1,57 +1,14 @@
-const { createHash } = require('node:crypto');
+const { monthValue } = require('./cudyrSupplementContract');
+const {
+  databaseName,
+  digest,
+  documentFields,
+  matchesRestoreBinding,
+  sourceDocuments,
+  versionsForDocuments,
+} = require('./cudyrOfficialReportStore');
 
 // Operational restoration only. There is deliberately no callable or client writer.
-const digest = value => {
-  const encode = item => {
-    if (item === null) return ['null'];
-    if (typeof item === 'string' || typeof item === 'boolean') return [typeof item, item];
-    if (typeof item === 'bigint') return ['integer', String(item)];
-    if (typeof item === 'number') {
-      if (Number.isInteger(item) && !Number.isSafeInteger(item))
-        throw new Error('restore_unsafe_integer');
-      return ['number', Object.is(item, -0) ? '-0' : String(item)];
-    }
-    if (Array.isArray(item)) return ['array', item.map(encode)];
-    if (Buffer.isBuffer(item)) return ['bytes', item.toString('base64')];
-    if (item instanceof Date) return ['date', item.toISOString()];
-    if (item && typeof item.toDate === 'function' && Number.isInteger(item.nanoseconds))
-      return ['timestamp', String(item.seconds), item.nanoseconds];
-    if (
-      item &&
-      (Object.getPrototypeOf(item) === Object.prototype || Object.getPrototypeOf(item) === null)
-    )
-      return [
-        'map',
-        Object.keys(item)
-          .sort()
-          .map(key => [key, encode(item[key])]),
-      ];
-    throw new Error('restore_unsupported_value');
-  };
-  return createHash('sha256')
-    .update(JSON.stringify(encode(value)))
-    .digest('hex');
-};
-// Use typed protobuf fields for the operational comparison: data() merges integers/doubles.
-// Fail closed on SDK changes; emulator acceptance guards this internal SDK adapter.
-const documentFields = doc => {
-  if (!doc.exists) return null;
-  const fields = doc.toDocumentProto?.().fields;
-  if (!fields || typeof fields !== 'object') throw new Error('restore_typed_snapshot_unavailable');
-  return fields;
-};
-const databaseName = hospital =>
-  `projects/${hospital.firestore.projectId}/databases/${hospital.firestore.databaseId}`;
-const matchesRestoreBinding = (binding, hospital, month, snapshot, current, artifact) =>
-  binding?.schemaVersion === 1 &&
-  binding.database === databaseName(hospital) &&
-  binding.hospital === hospital.path &&
-  binding.month === month &&
-  binding.restoredSourceVersion === current &&
-  binding.originalSourceVersion === snapshot.sourceVersion &&
-  binding.reportVersion === snapshot.version &&
-  binding.artifactHash === digest(documentFields(artifact));
-
 /** Compares every dependency field in memory. It never rewrites the official artifact. */
 const attestOfficialRestore = async ({ sourceHospital, restoredHospital, month }) => {
   const source = sourceHospital.firestore;
@@ -65,9 +22,7 @@ const attestOfficialRestore = async ({ sourceHospital, restoredHospital, month }
     restoredHospital.path !== sourceHospital.path
   )
     throw new Error('restore_destination_not_allowed');
-  const { monthValue } = require('./cudyrSupplementContract');
   monthValue(month);
-  const { sourceDocuments, versionsForDocuments } = require('./cudyrOfficialReportStore');
   const collection = 'cudyrOfficialReports';
   const proof = await source.runTransaction(
     async tx => {
@@ -145,4 +100,4 @@ const attestOfficialRestore = async ({ sourceHospital, restoredHospital, month }
     { maxAttempts: 1 }
   );
 };
-module.exports = { attestOfficialRestore, matchesRestoreBinding, digest };
+module.exports = { attestOfficialRestore };

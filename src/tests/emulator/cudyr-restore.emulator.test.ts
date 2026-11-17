@@ -10,8 +10,9 @@ const { getFirestore } = requireFunctions('firebase-admin/firestore');
 const {
   sourceVersion,
   readOfficialReport,
+  digest,
 } = require('../../../functions/lib/cudyrOfficialReportStore');
-const { attestOfficialRestore, digest } = require('../../../functions/lib/cudyrOfficialRestore');
+const { attestOfficialRestore } = require('../../../functions/lib/cudyrOfficialRestore');
 const describeEmulator =
   process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1' ? describe : describe.skip;
 
