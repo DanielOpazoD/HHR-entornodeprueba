@@ -17,6 +17,15 @@ import {
 import { syncWithFirestoreDetailed } from '@/services/repositories/dailyRecordRepositorySyncService';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
+import { processSyncQueue } from '@/services/storage/sync';
+import {
+  buildAddDischargeInput,
+  buildAtomicPatientMovementPatch,
+  buildDischargeAddCommandPayload,
+  resolveAddDischargeMovement,
+} from '@/application/census/public';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { BEDS } from '@/constants/beds';
 import {
   clearSessionScopedClientState,
   reconcileAuthorizedSessionOwner,
@@ -152,6 +161,8 @@ const projectId = 'demo-hhr-direct-send-session';
 const ownerOf = (person: 'P1' | 'P2') => `user:synthetic-${person}`;
 const note = (record: Partial<DailyRecord>) => record.handoffNovedadesNightShift;
 const diagnosis = (record: Partial<DailyRecord>) => record.beds?.R1?.pathology;
+const discharged = (record: Partial<DailyRecord>) =>
+  (record.discharges ?? []).map(item => item.patientName).join(', ');
 // History copies written after the session changed.
 const countHistory = async () => (await admin.collection(`${dayPath}/history`).get()).size;
 
@@ -237,6 +248,50 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
         feedback: resolvePatchOutcomeFeedback(result),
       }));
   const writeNote = editField({ handoffNovedadesNightShift: 'NOTA SINTETICA DE P1' });
+  // «Dar de alta» as the census saves it: kept here and queued, then sent by the queue.
+  const dischargeThroughQueue = async (shown: DailyRecord) => {
+    const resolution = resolveAddDischargeMovement(
+      buildAddDischargeInput({
+        record: shown,
+        bedId: 'R1',
+        payload: buildDischargeAddCommandPayload({
+          status: 'Vivo',
+          dischargeType: 'Domicilio (Habitual)',
+          time: '10:00',
+          target: 'both',
+        }),
+        bedsCatalog: BEDS,
+        createEmptyPatient,
+      })
+    );
+    if (!resolution.ok) throw new Error(`discharge not resolved: ${resolution.error.code}`);
+    // The network is slow only once the queue sends: the census routes a movement to the queue.
+    const slowOnceQueued = slowStep.next;
+    slowStep.next = undefined;
+    const result = await updatePartialDetailed(
+      date,
+      buildAtomicPatientMovementPatch({
+        updatedRecord: resolution.value.updatedRecord,
+        movementKey: 'discharges',
+        sourceBedIds: ['R1'],
+      }),
+      { authoringSession: captureAuthoringSession(), baseRecord: shown }
+    );
+    expect(result.outcome).toBe('queued');
+    slowStep.next = slowOnceQueued;
+    // Past the short hold before a queued write's first attempt.
+    const now = Date.now;
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now() + 60_000);
+    try {
+      await processSyncQueue();
+    } finally {
+      clock.mockRestore();
+    }
+    return {
+      updatedRemotely: result.updatedRemotely,
+      feedback: resolvePatchOutcomeFeedback(result),
+    };
+  };
   const sends: Record<
     string,
     {
@@ -281,6 +336,16 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     },
     // A full-day save without the fence: its transaction waits for the network.
     'full-day save in a transaction': { fence: false, held: 'transaction', send: saveDay },
+    // «Dar de alta» sent by the queue: the queue's read of the server's write policy, right
+    // before the send, waits for the network.
+    '«Dar de alta» sent by the queue': {
+      fence: true,
+      held: { read: policyPath },
+      send: dischargeThroughQueue,
+      field: discharged,
+      base: '',
+      written: 'John Doe',
+    },
   };
 
   it.each(Object.keys(sends))(
