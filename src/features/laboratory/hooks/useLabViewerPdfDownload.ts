@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { SyslabExamItem, SyslabPdfDownloadStatus } from '@/types/domain/labExamTypes';
 import { downloadCombinedSyslabPdf } from '@/services/laboratory/syslabPdfBundleService';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface UseLabViewerPdfDownloadParams {
   examList: SyslabExamItem[];
@@ -20,7 +21,7 @@ export const useLabViewerPdfDownload = ({
   const requestIdRef = useRef(0);
   const selectionKey = useMemo(() => [...selectedExamIds].sort().join('|'), [selectedExamIds]);
 
-  useEffect(() => setPdfDownloadStatus(null), [selectionKey]);
+  if (useChangedOnRender([selectionKey])) setPdfDownloadStatus(null);
 
   const cancelPdfDownload = useCallback(() => {
     requestIdRef.current += 1;

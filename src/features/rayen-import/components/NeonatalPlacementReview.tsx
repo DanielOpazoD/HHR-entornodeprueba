@@ -5,6 +5,7 @@ import type {
   NeonatalPlacementResolution,
 } from '../contracts/neonatalPlacementReview';
 import { SYNC_TONE, SYNC_TONE_ICON } from './syncTone';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const DecisionIcon = SYNC_TONE_ICON.action;
 
@@ -30,7 +31,7 @@ export const NeonatalPlacementReview: React.FC<{
 }> = ({ reviews, choices, onChange }) => {
   const [localTimes, setLocalTimes] = React.useState<Record<string, string>>({});
   const reviewKey = reviews.map(r => `${r.episodeId}:${r.source.bed}:${r.source.run}`).join('|');
-  React.useEffect(() => setLocalTimes({}), [reviewKey]);
+  if (useChangedOnRender([reviewKey])) setLocalTimes({});
   if (!reviews.length) return null;
   const manual = reviews.some(review => !review.automaticMother);
   const change = (choice: NeonatalPlacementResolution) =>

@@ -16,6 +16,7 @@ import {
 } from '@/services/patient/patientHistoryService';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import { formatHandoffVerboseDate } from '@/shared/handoff/handoffPresentation';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const patientHistoryLogger = createScopedLogger('PatientHistoryModal');
 
@@ -90,16 +91,21 @@ export const PatientHistoryModal: React.FC<PatientHistoryModalProps> = ({
   const showFullHistory = fullHistoryContext === contextKey;
   const hasPeriod = Boolean(admissionDate && throughDate);
 
-  useEffect(() => {
+  if (
+    useChangedOnRender([isOpen, patientRut, retry, admissionDate, throughDate, showFullHistory])
+  ) {
     if (!isOpen) setFullHistoryContext(null);
+    if (isOpen && patientRut) {
+      setIsLoading(true);
+      setError(null);
+      setHistory(null);
+      setIsPartial(false);
+    }
+  }
+  useEffect(() => {
     let active = true;
     if (isOpen && patientRut) {
       const loadData = async () => {
-        setIsLoading(true);
-        setError(null);
-        setHistory(null);
-        setIsPartial(false);
-
         try {
           const result = await getPatientMovementHistoryDetailed(patientRut, {
             ...(admissionDate && throughDate && !showFullHistory

@@ -25,24 +25,29 @@ export const DocumentScannerQueueView: React.FC = () => {
   const [confirmedIds, setConfirmedIds] = React.useState<Set<string>>(() => new Set());
   const [purgingId, setPurgingId] = React.useState<string | null>(null);
 
-  const loadDocuments = React.useCallback(async () => {
+  const showDocuments = React.useCallback(
+    (read: ReturnType<typeof listScannedDocuments>) =>
+      read
+        .then(
+          result => setDocuments(result.documents),
+          (error: unknown) =>
+            setErrorMessage(
+              error instanceof Error ? error.message : 'No se pudo cargar la bandeja temporal.'
+            )
+        )
+        .finally(() => setLoading(false)),
+    []
+  );
+  const loadDocuments = () => {
     setLoading(true);
     setErrorMessage(null);
-    try {
-      const result = await listScannedDocuments();
-      setDocuments(result.documents);
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : 'No se pudo cargar la bandeja temporal.'
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    return showDocuments(listScannedDocuments());
+  };
 
+  // The first read starts with the initial loading state.
   React.useEffect(() => {
-    void loadDocuments();
-  }, [loadDocuments]);
+    void showDocuments(listScannedDocuments());
+  }, [showDocuments]);
 
   const purgeDocument = async (id: string) => {
     if (!confirmedIds.has(id)) return;

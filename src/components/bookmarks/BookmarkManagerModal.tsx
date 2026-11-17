@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Bookmark } from '@/types/bookmarks';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { buttonClassName } from '@/components/ui/base/buttonStyles';
@@ -6,6 +6,7 @@ import { ChevronUp, ChevronDown, Trash2, Edit2, GripVertical, Save } from 'lucid
 import { reorderBookmarks, deleteBookmark } from '@/services/bookmarks/bookmarkService';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import { bookmarkLogger } from '@/services/bookmarks/bookmarkLoggers';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface BookmarkManagerModalProps {
   isOpen: boolean;
@@ -24,12 +25,10 @@ export const BookmarkManagerModal: React.FC<BookmarkManagerModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
-  useEffect(() => {
-    if (isOpen) {
-      setLocalBookmarks([...initialBookmarks]);
-      setHasChanges(false);
-    }
-  }, [isOpen, initialBookmarks]);
+  if (useChangedOnRender([isOpen, initialBookmarks]) && isOpen) {
+    setLocalBookmarks([...initialBookmarks]);
+    setHasChanges(false);
+  }
 
   const handleMove = (index: number, direction: 'up' | 'down') => {
     const newBookmarks = [...localBookmarks];

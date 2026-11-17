@@ -1,4 +1,5 @@
 import type { DailyRecordPatientHistoryState } from '@/types/domain/dailyRecordSlices';
+import { isCalendarDate } from '@/utils/clinicalDateUtils';
 import type { PatientData } from '@/types/domain/patient';
 import type { DischargeData, TransferData } from '@/types/domain/movements';
 import type { HospitalizationEvent } from '@/types/domain/patientMaster';
@@ -155,17 +156,9 @@ export const loadPatientHistoryRecords = async (options?: PatientHistoryLoadOpti
     ? null
     : (options?.dateRange ?? resolveRemoteHistoryRange(options));
   if (remoteRange) {
-    const validDay = (day: string) => {
-      const date = new Date(`${day}T12:00:00Z`);
-      return (
-        /^\d{4}-\d{2}-\d{2}$/.test(day) &&
-        Number.isFinite(date.getTime()) &&
-        date.toISOString().slice(0, 10) === day
-      );
-    };
     if (
-      !validDay(remoteRange.startDate) ||
-      !validDay(remoteRange.endDate) ||
+      !isCalendarDate(remoteRange.startDate) ||
+      !isCalendarDate(remoteRange.endDate) ||
       remoteRange.startDate > remoteRange.endDate
     ) {
       throw new Error('Invalid history date range');

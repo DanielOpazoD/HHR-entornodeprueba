@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Bookmark, BookmarkInput } from '@/types/bookmarks';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { buttonClassName } from '@/components/ui/base/buttonStyles';
@@ -10,6 +10,7 @@ import {
   createBookmarkEditorInitialState,
   DEFAULT_BOOKMARK_ICON,
 } from '@/components/bookmarks/controllers/bookmarkEditorController';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface BookmarkEditorModalProps {
   isOpen: boolean;
@@ -49,15 +50,13 @@ export const BookmarkEditorModal: React.FC<BookmarkEditorModalProps> = ({
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    if (isOpen) {
-      const initialState = createBookmarkEditorInitialState(initialData);
-      setName(initialState.name);
-      setUrl(initialState.url);
-      setIcon(initialState.icon);
-      setNotes(initialState.notes);
-    }
-  }, [isOpen, initialData]);
+  if (useChangedOnRender([isOpen, initialData]) && isOpen) {
+    const initialState = createBookmarkEditorInitialState(initialData);
+    setName(initialState.name);
+    setUrl(initialState.url);
+    setIcon(initialState.icon);
+    setNotes(initialState.notes);
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

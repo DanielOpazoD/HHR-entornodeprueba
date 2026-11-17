@@ -88,7 +88,7 @@ dailyRecord.updatePatient('R1', 'patientName', 'Paciente Demo');
 ## Guardrails activos
 
 - ESLint `hhr/feature-boundaries` con `checkPorts` (frontera de puertos, en `eslint.config.js`)
-- `npm run check:runtime-adapter-boundary`
+- Regla `browser-runtime-adapter` del control de patrones de `src/` (en `check:quality`)
 
 La persistencia de entrega usa los casos de uso de `application/handoff`; el
 controlador de persistencia conserva sólo los builders de auditoría. Ver el

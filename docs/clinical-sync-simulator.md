@@ -33,7 +33,7 @@ El simulador tambien queda registrado en la evidencia formal de convergencia:
 ```bash
 npm run check:sync-convergence-evidence
 npm run report:sync-convergence
-npm run check:sync-convergence-freshness:strict
+npm run check:report-freshness:strict -- --only sync-convergence
 ```
 
 En CI se ejecuta como job dedicado `clinical-sync-release-gate` y sube el artifact

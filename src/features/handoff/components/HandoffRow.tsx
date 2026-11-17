@@ -1,6 +1,6 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 import type { ClinicalEvent } from '@/types/domain/clinicalEvents';
 import { AlertCircle } from 'lucide-react';
@@ -13,6 +13,7 @@ import { HandoffDiagnosisCell } from './HandoffDiagnosisCell';
 import { HandoffDevicesCell } from './HandoffDevicesCell';
 import { HandoffObservationsCell } from './HandoffObservationsCell';
 import { resolveHandoffRowReadOnly } from '@/features/handoff/controllers/handoffRowController';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 // ============================================================================
 // HandoffRow Component
@@ -52,9 +53,7 @@ export const HandoffRow: React.FC<HandoffRowProps> = ({
   const [showEvents, setShowEvents] = useState(false);
 
   // Sync with global expansion
-  useEffect(() => {
-    setShowEvents(forcedExpand);
-  }, [forcedExpand]);
+  if (useChangedOnRender([forcedExpand])) setShowEvents(forcedExpand);
 
   const hasEvents = (patient.clinicalEvents?.length || 0) > 0;
 

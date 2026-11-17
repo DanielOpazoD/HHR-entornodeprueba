@@ -186,6 +186,7 @@ export const useCudyrReport = (
         store.requireVerification();
       revisions.current.set(revisionDate, revisionVersion);
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the cached copy decides at once whether this read must verify
     void load(initialDate.slice(0, 7) + '-01', initialDate, true);
     return () => active.current?.abort();
   }, [initialDate, load, revisionDate, revisionVersion, loader, scope]);

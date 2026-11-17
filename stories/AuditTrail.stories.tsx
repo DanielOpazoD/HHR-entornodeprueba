@@ -22,6 +22,7 @@ import { AuditTrailToolbar } from '@/features/admin/components/internal/audit/Au
 import { AuditTrailGroupList } from '@/features/admin/components/internal/audit/AuditTrailGroupList';
 import { AuditTrailSessionTimeline } from '@/features/admin/components/internal/audit/AuditTrailSessionTimeline';
 import { AUDIT_TRAIL_STORY_LOGS } from './auditTrailStoryData';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const events = normalizeAuditTrailEvents(AUDIT_TRAIL_STORY_LOGS);
 const sessions = buildAuditTrailSessions(events);
@@ -40,10 +41,9 @@ const AuditTrailPreview: React.FC<{
     categories,
     expandGroups,
   });
-  React.useEffect(
-    () => setPreferences(current => ({ ...current, grouping, categories, expandGroups })),
-    [grouping, categories, expandGroups]
-  );
+  if (useChangedOnRender([grouping, categories, expandGroups])) {
+    setPreferences(current => ({ ...current, grouping, categories, expandGroups }));
+  }
 
   const scoped = filterAuditTrailEvents(events, {
     categories: AUDIT_TRAIL_CATEGORY_ORDER,
