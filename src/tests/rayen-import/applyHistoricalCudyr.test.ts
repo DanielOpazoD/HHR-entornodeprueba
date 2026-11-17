@@ -51,20 +51,28 @@ const recordWithTwoEpisodes = (revision: string): DailyRecord =>
 describe('applyHistoricalCudyr', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('keeps the structural 48-hour window unchanged for a non-admin operator', () => {
-    vi.useFakeTimers();
-    try {
-      const day = '2026-07-29';
-      const midnight = new Date(`${day}T00:00:00`).getTime();
-      vi.setSystemTime(midnight + 172_800_000 - 1);
-      expect(canWritePreviousDay(day, false)).toBe(true);
-      vi.setSystemTime(midnight + 172_800_000);
-      expect(canWritePreviousDay(day, false)).toBe(false);
-      expect(canWritePreviousDay(day, true)).toBe(true);
-    } finally {
-      vi.useRealTimers();
+  it.each(['America/Santiago', 'UTC', 'Pacific/Pago_Pago', 'Pacific/Easter'])(
+    'measures the 48-hour window from Rapa Nui midnight for a non-admin operator on a device in %s',
+    timezone => {
+      const originalTimezone = process.env.TZ;
+      process.env.TZ = timezone;
+      vi.useFakeTimers();
+      try {
+        const day = '2026-07-29';
+        // Rapa Nui midnight in winter time (UTC-6), whatever the device's own midnight is.
+        const midnight = Date.parse('2026-07-29T06:00:00.000Z');
+        vi.setSystemTime(midnight + 172_800_000 - 1);
+        expect(canWritePreviousDay(day, false)).toBe(true);
+        vi.setSystemTime(midnight + 172_800_000);
+        expect(canWritePreviousDay(day, false)).toBe(false);
+        expect(canWritePreviousDay(day, true)).toBe(true);
+      } finally {
+        vi.useRealTimers();
+        if (originalTimezone === undefined) delete process.env.TZ;
+        else process.env.TZ = originalTimezone;
+      }
     }
-  });
+  );
 
   it.each(['admin', 'nurse_hospital'] as const)(
     'persists historical CUDYR for %s through the source run',

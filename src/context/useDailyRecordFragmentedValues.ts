@@ -31,7 +31,6 @@ interface UseDailyRecordFragmentedValuesResult {
     cma: CMAData[];
   } | null;
   stabilityValue: StabilityRules | null;
-  inventoryValue: InventoryStats | null;
   staffValue: {
     date?: string;
     nursesDayShift: string[];
@@ -103,7 +102,6 @@ export const useDailyRecordFragmentedValues = (
   }, [hasRecord, discharges, transfers, cma]);
 
   const stabilityValue = useMemo(() => value?.stabilityRules || null, [value?.stabilityRules]);
-  const inventoryValue = useMemo(() => value?.inventory || null, [value?.inventory]);
 
   const staffValue = useMemo(() => {
     if (!hasRecord) return null;
@@ -252,7 +250,6 @@ export const useDailyRecordFragmentedValues = (
     bedsValue,
     movementsValue,
     stabilityValue,
-    inventoryValue,
     staffValue,
     overridesValue,
     dataValue,

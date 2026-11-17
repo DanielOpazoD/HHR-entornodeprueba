@@ -21,12 +21,9 @@ import {
   resolveTransferDestinationHospital,
   syncCensusTransferRequest,
 } from '@/features/census/controllers/censusTransferSyncController';
-import { dispatchCanonicalTransfer } from '@/features/census/controllers/transferCanonicalAdoptionController';
 import { recordCriticalClinicalAction } from '@/services/observability/criticalClinicalActionRecorder';
 import type { OperationalTelemetryOperation } from '@/services/observability/operationalTelemetryOperations';
 import { createScopedLogger } from '@/services/utils/loggerScope';
-import { isFeatureEnabled } from '@/services/utils/featureFlags';
-import { resolveAuditActor } from '@/context/AuditContext';
 
 const censusTransferCommandLogger = createScopedLogger('CensusTransferCommand');
 
@@ -80,7 +77,7 @@ export const useCensusTransferCommand = ({
       });
     };
 
-    const runLegacyTransfer = (): boolean => {
+    const runTransfer = (): boolean => {
       const result = executeTransferController({
         transferState,
         data,
@@ -105,50 +102,7 @@ export const useCensusTransferCommand = ({
       return true;
     };
 
-    let legacyOk = false;
-    if (
-      isFeatureEnabled('USE_TRANSFER_PATIENT_COMMAND') &&
-      bedId &&
-      patient &&
-      destinationHospital &&
-      record?.date
-    ) {
-      const actor = resolveAuditActor(currentUser);
-      const canonicalOutcome = await dispatchCanonicalTransfer({
-        actor,
-        recordDate: record.date,
-        entry: {
-          bedId,
-          patientName: patient.patientName ?? '',
-          rut: patient.rut ?? '',
-          destination: destinationHospital,
-        },
-        performLegacyPersist: () => {
-          legacyOk = runLegacyTransfer();
-          if (!legacyOk) {
-            throw new Error('Transfer persistence rejected by legacy pipeline.');
-          }
-        },
-      });
-
-      if (
-        canonicalOutcome.status.status !== 'ready' &&
-        canonicalOutcome.status.status !== 'degraded' &&
-        legacyOk
-      ) {
-        notifyError({
-          title: 'Traslado auditoría',
-          message:
-            canonicalOutcome.applicationOutcome.userSafeMessage ||
-            canonicalOutcome.applicationOutcome.issues[0]?.message ||
-            'No se pudo registrar el evento canónico de auditoría.',
-        });
-      }
-    } else {
-      legacyOk = runLegacyTransfer();
-    }
-
-    if (!legacyOk) {
+    if (!runTransfer()) {
       return;
     }
 

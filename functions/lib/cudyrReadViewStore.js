@@ -1,20 +1,14 @@
 const functions = require('firebase-functions/v1');
 const { createHash } = require('node:crypto');
 const { gzipSync } = require('node:zlib');
+const { isCalendarDay } = require('./hospitalCalendarDay');
 const POLICY = 1;
 const fail = () => {
   throw new functions.https.HttpsError('invalid-argument', 'Invalid CUDYR read view.');
 };
 const viewRef = (hospital, data, uid) => {
   if (data.hospitalId !== undefined || data.uid !== undefined || !uid) fail();
-  for (const date of [data.from, data.to])
-    if (
-      typeof date !== 'string' ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-      !Number.isFinite(Date.parse(date + 'T12:00:00Z')) ||
-      new Date(date + 'T12:00:00Z').toISOString().slice(0, 10) !== date
-    )
-      fail();
+  for (const date of [data.from, data.to]) if (!isCalendarDay(date)) fail();
   if (data.from > data.to || (Date.parse(data.to) - Date.parse(data.from)) / 86400000 > 31) fail();
   const key = createHash('sha256')
     .update(JSON.stringify([uid, data.from, data.to]))

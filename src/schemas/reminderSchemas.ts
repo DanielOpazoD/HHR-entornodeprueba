@@ -39,16 +39,3 @@ export const ReminderReadReceiptSchema = z.object({
   shift: ReminderShiftSchema,
   dateKey: z.string().regex(ISO_DATE_REGEX).optional(),
 });
-
-export const ReminderDraftSchema = z.object({
-  title: z.string().trim().min(1).max(100),
-  message: z.string().trim().min(1).max(2000),
-  imageUrl: z.string().url().optional().or(z.literal('')),
-  type: ReminderTypeSchema,
-  targetRoles: z.array(ReminderUserRoleSchema).min(1),
-  targetShifts: z.array(ReminderShiftSchema).min(1),
-  startDate: z.string().regex(ISO_DATE_REGEX),
-  endDate: z.string().regex(ISO_DATE_REGEX),
-  priority: z.number().int().min(1).max(3),
-  isActive: z.boolean(),
-});

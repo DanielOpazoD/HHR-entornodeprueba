@@ -3,10 +3,10 @@ import {
   LocalDemographicsState,
   DocumentType,
   Insurance,
-  AdmissionOrigin,
   Origin,
   BiologicalSex,
 } from './types';
+import type { AdmissionOrigin } from '@/types/domain/patient';
 import { PatientIdentityStatus } from '@/types/domain/patientIdentity';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 

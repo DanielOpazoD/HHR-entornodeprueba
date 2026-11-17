@@ -4,10 +4,10 @@ import { useAuth } from '@/context/AuthContext';
 import { useAuditContext } from '@/context/AuditContext';
 import type { AuditTrailCategory } from '@/types/auditTrailTypes';
 import {
-  canAccessAuditSensitivePanels,
-  canAccessAuditView,
-  canExportAuditData,
-} from '@/services/admin/auditAccessPolicy';
+  canAccessAuditSensitivePanelsForRole,
+  canAccessAuditViewForRole,
+  canExportAuditDataForRole,
+} from '@/shared/access/operationalAccessPolicy';
 import { useAuditTrail, AUDIT_TRAIL_FETCH_LIMIT } from '@/features/admin/hooks/useAuditTrail';
 import { AccessRestricted } from './internal/AccessRestricted';
 import { AuditTrailHeader } from './internal/audit/AuditTrailHeader';
@@ -58,7 +58,7 @@ export const AuditView: React.FC = () => {
     onExported,
   });
 
-  if (!canAccessAuditView(role)) {
+  if (!canAccessAuditViewForRole(role)) {
     return <AccessRestricted />;
   }
 
@@ -78,11 +78,13 @@ export const AuditView: React.FC = () => {
         onPeriodChange={trail.setPeriod}
         loading={trail.status === 'loading'}
         onRefresh={trail.refresh}
-        onExport={canExportAuditData(role) ? () => void exportExcel() : undefined}
+        onExport={canExportAuditDataForRole(role) ? () => void exportExcel() : undefined}
         exporting={isExporting}
         exportDisabled={trail.status !== 'ready' || trail.visibleEvents.length === 0}
         onToggleExportKeys={
-          canAccessAuditSensitivePanels(role) ? () => setExportKeysOpen(open => !open) : undefined
+          canAccessAuditSensitivePanelsForRole(role)
+            ? () => setExportKeysOpen(open => !open)
+            : undefined
         }
         exportKeysOpen={exportKeysOpen}
       />

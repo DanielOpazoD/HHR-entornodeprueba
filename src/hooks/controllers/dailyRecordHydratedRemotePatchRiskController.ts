@@ -275,33 +275,6 @@ export const classifyHydratedRemotePatchRisk = ({
 export const isHydratedRemotePatchRiskBlocking = (risk: HydratedRemotePatchRisk): boolean =>
   risk !== 'independent_field';
 
-export const doesPatchTouchHydratedRemoteClinicalLocks = (
-  attemptedPatch: DailyRecordPatch,
-  locksByBedId: HydratedRemoteClinicalFieldLocksByBedId
-): boolean =>
-  Object.keys(attemptedPatch).some(path => {
-    const attemptedBedPatch = parseDailyRecordBedPatchPath(path);
-    if (!attemptedBedPatch) {
-      return false;
-    }
-
-    const locks = locksByBedId[attemptedBedPatch.bedId];
-    if (!locks) {
-      return false;
-    }
-
-    if (locks.allClinical) {
-      return true;
-    }
-
-    if (!attemptedBedPatch.field) {
-      return Object.values(locks).some(Boolean);
-    }
-
-    const lockKey = resolveDailyRecordClinicalLockKey(attemptedBedPatch.field);
-    return lockKey ? locks[lockKey] === true : false;
-  });
-
 export const buildHydratedRemoteClinicalFieldLocks = ({
   previousRecord,
   hydratedRecord,

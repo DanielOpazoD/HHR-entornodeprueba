@@ -1,3 +1,5 @@
+import type { DischargeType } from '@/types/domain/movements';
+
 export const EVACUATION_METHODS = ['Avión comercial', 'Aerocardal', 'Avión FACH', 'Otro'] as const;
 export type EvacuationMethod = (typeof EVACUATION_METHODS)[number];
 export const DEFAULT_EVACUATION_METHOD: EvacuationMethod = EVACUATION_METHODS[0];
@@ -23,8 +25,12 @@ export const DISCHARGE_STATUSES = ['Vivo', 'Fallecido'] as const;
 export type DischargeStatus = (typeof DISCHARGE_STATUSES)[number];
 export const DEFAULT_DISCHARGE_STATUS: DischargeStatus = DISCHARGE_STATUSES[0];
 
-export const DISCHARGE_TYPES = ['Domicilio (Habitual)', 'Voluntaria', 'Fuga', 'Otra'] as const;
-export type DischargeType = (typeof DISCHARGE_TYPES)[number];
+export const DISCHARGE_TYPES = [
+  'Domicilio (Habitual)',
+  'Voluntaria',
+  'Fuga',
+  'Otra',
+] as const satisfies readonly DischargeType[];
 export const DEFAULT_DISCHARGE_TYPE: DischargeType = DISCHARGE_TYPES[0];
 export const DISCHARGE_TYPE_OTHER: DischargeType = 'Otra';
 

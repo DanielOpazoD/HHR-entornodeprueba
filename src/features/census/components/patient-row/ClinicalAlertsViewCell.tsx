@@ -3,10 +3,26 @@
  * newest chart alerts, date and message only. Clicking opens every alert with its time.
  */
 
-import React, { useState } from 'react';
+import React, { useState, lazy } from 'react';
 import type { BaseCellProps } from './inputCellTypes';
-import { ClinicalAlertsDetail } from './ClinicalAlertsDetail';
 import { clinicalAlertStamp } from './clinicalAlertStamp';
+import type { PatientClinicalAlert } from '@/types/domain/clinicalAlerts';
+import { ClinicalDetailLoadBoundary } from './ClinicalDetailLoadBoundary';
+
+const ClinicalAlertsModal = lazy(() =>
+  import('./ClinicalAlertsModal').then(module => ({ default: module.ClinicalAlertsModal }))
+);
+
+/** Every chart alert of the patient, loaded on request. */
+const ClinicalAlertsDetail: React.FC<{
+  patientName: string;
+  alerts: PatientClinicalAlert[];
+  onClose: () => void;
+}> = ({ patientName, alerts, onClose }) => (
+  <ClinicalDetailLoadBoundary title={`Alertas de la ficha — ${patientName}`} onClose={onClose}>
+    <ClinicalAlertsModal patientName={patientName} alerts={alerts} onClose={onClose} />
+  </ClinicalDetailLoadBoundary>
+);
 
 /** Signos, DMI, Scores and UPC. */
 export const ALERTS_VIEW_COLUMN_SPAN = 4;

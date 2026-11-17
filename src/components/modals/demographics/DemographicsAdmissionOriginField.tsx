@@ -1,7 +1,8 @@
 import React from 'react';
 import clsx from 'clsx';
 import { ADMISSION_ORIGIN_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
-import { AdmissionOrigin, LocalDemographicsState } from './types';
+import type { AdmissionOrigin } from '@/types/domain/patient';
+import { LocalDemographicsState } from './types';
 
 interface DemographicsAdmissionOriginFieldProps {
   localData: LocalDemographicsState;

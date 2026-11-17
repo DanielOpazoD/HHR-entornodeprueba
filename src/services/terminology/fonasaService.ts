@@ -19,6 +19,7 @@
 
 import { callLocalAI, isLocalAIAvailable } from '@/services/ai/aiProviderConfig';
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
+import { removeAccents } from '@/utils/stringUtils';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -118,11 +119,7 @@ const ABBREVIATION_MAP: ReadonlyMap<string, readonly string[]> = new Map([
  * Normalises a string for accent-insensitive, case-insensitive comparison.
  * Strips diacritics via NFD decomposition and converts to lowercase.
  */
-const normalise = (str: string): string =>
-  str
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+const normalise = (str: string): string => removeAccents(str.toLowerCase());
 
 // ---------------------------------------------------------------------------
 // Token expansion

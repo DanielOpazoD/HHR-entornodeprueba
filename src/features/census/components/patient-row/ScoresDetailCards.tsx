@@ -12,7 +12,8 @@ import type {
   CudyrCellModel,
   DowntonCellModel,
 } from '@/features/census/controllers/evaluationScoresCellController';
-import { CUDYR_BAND, NEUTRAL_TOKENS, formatIsoDay, tokensFor } from './scoresDetailTokens';
+import { CUDYR_BAND, NEUTRAL_TOKENS, tokensFor } from './scoresDetailTokens';
+import { formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 const formatCudyrTime = (value?: string): string => {
@@ -83,15 +84,15 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
     </div>
     {applicationDate && (applicationDate !== recordedDate || applicationArchived) ? (
       <div className="col-start-2 space-y-0.5 text-[10px] text-slate-500">
-        <div>Resultado vigente del {formatIsoDay(recordedDate)}</div>
+        <div>Resultado vigente del {formatClinicalDayMonthYear(recordedDate)}</div>
         <div>
-          Última aplicación {formatIsoDay(applicationDate)}
+          Última aplicación {formatClinicalDayMonthYear(applicationDate)}
           {applicationArchived ? ' · oculta del resumen rápido' : ''}
         </div>
       </div>
     ) : (
       <div className="col-start-2 text-[10px] text-slate-500">
-        Realizada el {formatIsoDay(recordedDate)}
+        Realizada el {formatClinicalDayMonthYear(recordedDate)}
       </div>
     )}
     {footer && <div className="col-span-2">{footer}</div>}

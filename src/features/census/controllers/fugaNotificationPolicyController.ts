@@ -1,3 +1,5 @@
+import { removeAccents } from '@/utils/stringUtils';
+
 export interface FugaNotificationPolicyInput {
   specialty?: string;
   manualRecipientsInput?: string;
@@ -23,9 +25,7 @@ export interface FugaNotificationValidationResult {
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const normalizeText = (value?: string): string =>
-  String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+  removeAccents(String(value || ''))
     .trim()
     .toLowerCase();
 

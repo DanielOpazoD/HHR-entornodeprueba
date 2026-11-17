@@ -1,5 +1,6 @@
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
 import { cudyrDocumentKey } from '@/domain/cudyr/cudyrSourceIdentity';
+import { removeAccents } from '@/utils/stringUtils';
 
 const labels = {
   cma_pabellon: 'CMA · Pabellón',
@@ -17,10 +18,7 @@ const reason = (row: CudyrReportRow): Reason => {
   if (row.exclusion?.reason === 'healthy_crib') return 'cuna';
   if (row.exclusion?.reason === 'not_hospitalized') return 'manual';
   if (row.exclusion?.reason === 'cma' || row.modality === 'cma') {
-    const bed = row.bedName
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase();
+    const bed = removeAccents(row.bedName).toLowerCase();
     return bed.includes('pabellon')
       ? 'cma_pabellon'
       : bed.includes('hospitaliz')

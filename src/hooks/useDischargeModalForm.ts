@@ -1,16 +1,15 @@
 import { useCallback } from 'react';
-import type { DischargeStatus, DischargeType } from '@/constants/clinicalMovementConstants';
+import type { DischargeStatus } from '@/constants/clinicalMovementConstants';
+import type { DischargeType } from '@/types/domain/movements';
 import type { DischargeModalConfirmPayload, DischargeTarget } from '@/types/movements';
 import {
   buildDischargeConfirmPayload,
   buildInitialDischargeFormState,
   mapDischargeValidationErrors,
-  type DischargeModalFieldErrors,
-} from '@/application/census/public';
-import {
   resolveMovementDateTimeValidationError,
   resolveMovementDateTimeBounds,
-} from '@/hooks/controllers/clinicalShiftCalendarController';
+  type DischargeModalFieldErrors,
+} from '@/application/census/public';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { useModalFormFlow } from '@/hooks/useModalFormFlow';
 

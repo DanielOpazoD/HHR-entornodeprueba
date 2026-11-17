@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 const auth = vi.hoisted(() => ({ user: vi.fn() }));
 vi.mock('@/services/firebase-runtime/authRuntime', () => ({

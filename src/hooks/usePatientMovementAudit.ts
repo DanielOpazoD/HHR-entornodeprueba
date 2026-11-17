@@ -5,7 +5,6 @@ import {
   buildDischargeReclassificationAuditDetails,
   buildDischargeUndoAuditDetails,
 } from '@/services/admin/auditClinicalEventCatalog';
-import { isFeatureEnabled } from '@/services/utils/featureFlags';
 
 interface DischargeAuditEntry {
   bedId: string;
@@ -47,13 +46,6 @@ export const usePatientMovementAudit = () => {
   const { logEvent, logPatientDischarge, logPatientTransfer, userId } = useAuditContext();
   const logDischargeEntries = useCallback(
     (entries: DischargeAuditEntry[], recordDate: string) => {
-      // When the canonical discharge facade is on, the modal owns the
-      // PATIENT_DISCHARGED audit emission via dispatchCanonicalDischarge
-      // (validates anon, returns typed outcome, single audit per
-      // entry). The legacy fan-out below would produce duplicates.
-      if (isFeatureEnabled('USE_DISCHARGE_PATIENT_COMMAND')) {
-        return;
-      }
       for (const entry of entries) {
         logPatientDischarge(entry.bedId, entry.patientName, entry.rut, entry.status, recordDate);
       }
@@ -63,12 +55,6 @@ export const usePatientMovementAudit = () => {
 
   const logTransferEntry = useCallback(
     (entry: TransferAuditEntry, recordDate: string) => {
-      // Same pattern as logDischargeEntries: when the canonical
-      // transfer facade is on, the modal owns the PATIENT_TRANSFERRED
-      // emission via dispatchCanonicalTransfer.
-      if (isFeatureEnabled('USE_TRANSFER_PATIENT_COMMAND')) {
-        return;
-      }
       logPatientTransfer(
         entry.bedId,
         entry.patientName,

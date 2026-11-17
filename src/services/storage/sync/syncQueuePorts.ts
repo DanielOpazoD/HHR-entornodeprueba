@@ -128,13 +128,15 @@ export interface SyncQueueStorePort {
   delete(taskId: number): Promise<void>;
   /**
    * Complete the claim and optionally adopt its ACK without replacing unresolved projections.
-   * Detached conflicts are written in the same transaction, so they are durable before it ends.
+   * Detached conflicts are written in the same transaction, so they are durable before it ends,
+   * and a held part (`heldTask`) stays in the task's place instead of it leaving the queue.
    */
   deleteClaimed(
     taskId: number,
     claim: SyncQueueLeaseClaim,
     authoritativeRecord?: DailyRecord,
-    detachedConflicts?: SyncTask[]
+    detachedConflicts?: SyncTask[],
+    heldTask?: Partial<SyncTask>
   ): Promise<boolean>;
   readTelemetryInputs(ownerKey: string | null): Promise<{
     rows: SyncQueueTelemetryRow[];
@@ -161,4 +163,6 @@ export interface SyncTransportResult {
   authoritativeRecord: DailyRecord;
   /** Edits for a patient who left the bed, kept as conflicts instead of being published. */
   detachedConflicts?: SyncTask[];
+  /** The part of this task not published, which stays queued as it: a conflict to review. */
+  heldTask?: Partial<SyncTask>;
 }

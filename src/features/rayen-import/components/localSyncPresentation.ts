@@ -2,6 +2,7 @@ import { isPolicyBlockedCudyrArchive } from '@/services/storage/sync/cudyrPolicy
 import { requiresDailyRecordBaseReview } from '@/services/storage/sync/dailyRecordBaseReview';
 import type { SyncQueueOperation, SyncQueueStats } from '@/hooks/useSyncQueueMonitor';
 import type { SyncToneLevel } from './syncTone';
+import { formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
 
 /**
  * Evita parpadeos durante guardados normales. El aviso del cuadro Eloísa aparece
@@ -71,8 +72,7 @@ export const targetLabelFromKey = (
   }
   const date = key?.startsWith('daily:') ? key.slice('daily:'.length) : null;
   if (!date) return 'Registro del censo';
-  const [year, month, day] = date.split('-');
-  return year && month && day ? `Censo del ${day}-${month}-${year}` : `Censo del ${date}`;
+  return `Censo del ${formatClinicalDayMonthYear(date)}`;
 };
 
 /**

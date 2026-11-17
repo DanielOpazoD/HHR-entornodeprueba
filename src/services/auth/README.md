@@ -7,7 +7,7 @@ Resolver autenticacion, bootstrap de sesion, claims, roles y degradacion operati
 ## Estructura
 
 - `authSession.ts` y `authSessionState.ts`: contrato canonico de sesion.
-- `authFlow.ts`, `authGoogleFlow.ts`, `authCredentialFlow.ts`: ejecucion de login.
+- `authGoogleFlow.ts` y `authCredentialFlow.ts`: ejecucion de login.
 - `authRoleLookup.ts`, `authAccessResolution.ts`, `authClaimSyncService.ts`: resolucion de rol y sincronizacion de claims.
 - `authErrorPolicy.ts`, `authUiCopy.ts`, `authOperationalTelemetry.ts`: copy, errores y observabilidad.
 - `authRuntimeSnapshot.ts`: snapshot operativo reutilizable para bootstrap, sesion y reporter.

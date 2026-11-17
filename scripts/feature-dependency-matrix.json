@@ -32,5 +32,25 @@
     "@/features/{feature}",
     "@/features/{feature}/index",
     "@/features/{feature}/public"
-  ]
+  ],
+  "publicModulesByFeature": {
+    "admin": ["@/features/admin/admission-audit"],
+    "audit-documents": ["@/features/audit-documents/eloisa-history"],
+    "census": ["@/features/census/census-view", "@/features/census/public-components"],
+    "clinical-documents": ["@/features/clinical-documents/internal"],
+    "clinical-library": ["@/features/clinical-library/quick-action"],
+    "handoff": ["@/features/handoff/medical-handoff-spreadsheet"],
+    "laboratory": [
+      "@/features/laboratory/census-inbox",
+      "@/features/laboratory/hospitalization-reports",
+      "@/features/laboratory/quick-action",
+      "@/features/laboratory/report-pdf"
+    ],
+    "rayen-import": [
+      "@/features/rayen-import/RayenImportButton",
+      "@/features/rayen-import/admission-audit",
+      "@/features/rayen-import/census-status",
+      "@/features/rayen-import/clinical-panel"
+    ]
+  }
 }

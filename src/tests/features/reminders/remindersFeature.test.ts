@@ -13,7 +13,6 @@ import {
   hasUrgentVisibleReminders,
 } from '@/shared/reminders/reminderVisibility';
 import {
-  formatReminderDate,
   formatReminderDateRange,
   formatReminderPriorityLabel,
   formatReminderShiftLabel,
@@ -308,11 +307,11 @@ describe('hasUrgentVisibleReminders', () => {
 
 describe('reminderPresentation', () => {
   it('formats dates in dd-mm-yyyy', () => {
-    expect(formatReminderDate('2026-01-05')).toBe('05-01-2026');
+    expect(formatReminderReceiptDate({ dateKey: '2026-01-05' })).toBe('05-01-2026');
   });
 
   it('returns raw value for malformed date', () => {
-    expect(formatReminderDate('bad')).toBe('bad');
+    expect(formatReminderDateRange('bad', '2026-01-05')).toBe('bad a 05-01-2026');
   });
 
   it('formats date range', () => {

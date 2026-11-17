@@ -1,4 +1,5 @@
 import { isWorkingDay } from './calendarService';
+import { calendarDayAtUtcNoon } from '@/utils/clinicalDateUtils';
 import { INSTITUTIONAL_ACCOUNTS, isInstitutionalAccount } from '@/constants/identities';
 import type { DailyRecordStaffingState } from '@/types/domain/dailyRecordSlices';
 import {
@@ -42,7 +43,7 @@ export const getCurrentShift = (date: Date = new Date()): 'day' | 'night' => {
   const stamp = calendarStampInClinicalTimeZone(date);
   const hour = Number(stamp.hhmm.slice(0, 2));
   // UTC noon of the hospital day keeps its weekday and holiday lookup on that same day.
-  const isHabil = isWorkingDay(new Date(`${stamp.iso}T12:00:00Z`));
+  const isHabil = isWorkingDay(calendarDayAtUtcNoon(stamp.iso));
 
   if (isHabil) {
     // Working Day logic: 08:00 split

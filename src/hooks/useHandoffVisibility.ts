@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import type { ShiftType } from '@/types/domain/shift';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { BEDS } from '@/constants/beds';
 import { isAdmittedDuringShift } from '@/utils/clinicalDayUtils';
@@ -8,14 +9,12 @@ import {
   shouldShowHandoffPatient,
 } from '@/hooks/controllers/handoffVisibilityController';
 
-export type NursingShift = 'day' | 'night';
-
 /**
  * useHandoffVisibility Hook
  *
  * Handles filtering and visibility of patients and beds based on the current shift.
  */
-export const useHandoffVisibility = (record: DailyRecord | null, selectedShift: NursingShift) => {
+export const useHandoffVisibility = (record: DailyRecord | null, selectedShift: ShiftType) => {
   /**
    * Determines if a bed should be visible (ignores extra beds if they are not active)
    */
