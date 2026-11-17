@@ -4,15 +4,12 @@ const {
   parseCudyrCensusSource,
 } = require('./generated/cudyrSourceParser.cjs');
 const { createHash } = require('node:crypto');
+const { isCalendarDay } = require('./hospitalCalendarDay');
 const functions = require('firebase-functions/v1');
 const invalid = () => {
   throw new functions.https.HttpsError('invalid-argument', 'Invalid historical census source.');
 };
-const validDate = value =>
-  typeof value === 'string' &&
-  /^20\d{2}-\d{2}-\d{2}$/.test(value) &&
-  Number.isFinite(Date.parse(value + 'T12:00:00Z')) &&
-  new Date(value + 'T12:00:00Z').toISOString().slice(0, 10) === value;
+const validDate = value => isCalendarDay(value) && value.startsWith('20');
 const parseCensusSource = data => {
   if (
     data?.hospitalId !== undefined ||
