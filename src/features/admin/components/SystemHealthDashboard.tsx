@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { RefreshCw, Users } from 'lucide-react';
 import {
   deleteUserHealthSnapshot,
@@ -36,6 +36,7 @@ import {
   runResolveVisibleSystemHealthIncidentsAction,
 } from './systemHealthUserWindowActions';
 import { getTodayISO } from '@/utils/dateCoreUtils';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const todayInputValue = () => getTodayISO();
 
@@ -99,31 +100,28 @@ export const SystemHealthDashboard = () => {
     });
   }, [selectedIncidents, selectedResolutionKey]);
 
-  useEffect(() => {
+  // A selection that the filters hide moves to the first visible user or incident.
+  if (useChangedOnRender([filteredUsers, selectedUid])) {
     if (!selectedUid && filteredUsers[0]) {
       setSelectedUid(filteredUsers[0].uid);
-      return;
-    }
-    if (selectedUid && !filteredUsers.some(user => user.uid === selectedUid)) {
+    } else if (selectedUid && !filteredUsers.some(user => user.uid === selectedUid)) {
       setSelectedUid(filteredUsers[0]?.uid || null);
       setSelectedResolutionKey(null);
     }
-  }, [filteredUsers, selectedUid]);
+  }
 
-  useEffect(() => {
+  if (useChangedOnRender([filteredUsers, incidentQueue, selectedResolutionKey])) {
     if (!selectedResolutionKey && incidentQueue[0]) {
       setSelectedResolutionKey(incidentQueue[0].resolutionKey);
       setSelectedUid(incidentQueue[0].userUid);
-      return;
-    }
-    if (
+    } else if (
       selectedResolutionKey &&
       !incidentQueue.some(incident => incident.resolutionKey === selectedResolutionKey)
     ) {
       setSelectedResolutionKey(incidentQueue[0]?.resolutionKey || null);
       setSelectedUid(incidentQueue[0]?.userUid || filteredUsers[0]?.uid || null);
     }
-  }, [filteredUsers, incidentQueue, selectedResolutionKey]);
+  }
 
   const handleDeleteSnapshot = async (user: UserHealthStatus) => {
     if (!canManageSystemHealthOperations) {

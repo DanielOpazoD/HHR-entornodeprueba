@@ -46,25 +46,29 @@ export const ClinicalAIProviderRoutingPanel: React.FC = () => {
   const [loadingStatus, setLoadingStatus] = React.useState(true);
   const [testingActionId, setTestingActionId] = React.useState<ClinicalAIActionId | null>(null);
 
-  const loadStatuses = React.useCallback(async () => {
+  const showStatuses = React.useCallback(
+    (read: Promise<ClinicalAIProviderStatus[]>) =>
+      read
+        .then(setStatuses, (loadError: unknown) =>
+          setStatusError(
+            loadError instanceof Error
+              ? loadError.message
+              : 'No se pudo cargar el estado de proveedores IA.'
+          )
+        )
+        .finally(() => setLoadingStatus(false)),
+    []
+  );
+  const loadStatuses = () => {
     setLoadingStatus(true);
     setStatusError(null);
-    try {
-      setStatuses(await getClinicalAIProviderStatuses());
-    } catch (loadError) {
-      setStatusError(
-        loadError instanceof Error
-          ? loadError.message
-          : 'No se pudo cargar el estado de proveedores IA.'
-      );
-    } finally {
-      setLoadingStatus(false);
-    }
-  }, []);
+    return showStatuses(getClinicalAIProviderStatuses());
+  };
 
+  // The first read starts with the initial loading state.
   React.useEffect(() => {
-    void loadStatuses();
-  }, [loadStatuses]);
+    void showStatuses(getClinicalAIProviderStatuses());
+  }, [showStatuses]);
 
   const configuredProviders = React.useMemo(
     () => statuses.filter(status => status.configured).map(status => status.provider),

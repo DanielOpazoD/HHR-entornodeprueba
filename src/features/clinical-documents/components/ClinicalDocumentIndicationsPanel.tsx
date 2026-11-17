@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, Settings } from 'lucide-react';
 
@@ -10,6 +10,7 @@ import type {
 import { ClinicalDocumentIndicationsPanelHeader } from '@/features/clinical-documents/components/ClinicalDocumentIndicationsPanelHeader';
 import { ClinicalDocumentIndicationsItems } from '@/features/clinical-documents/components/ClinicalDocumentIndicationsItems';
 import { ClinicalDocumentIndicationsTabSettings } from '@/features/clinical-documents/components/ClinicalDocumentIndicationsTabSettings';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface ClinicalDocumentIndicationsPanelProps {
   isOpen: boolean;
@@ -61,9 +62,7 @@ export const ClinicalDocumentIndicationsPanel: React.FC<ClinicalDocumentIndicati
     catalog.tabs[0];
   const resolvedActiveTabId = activeTab?.id || 'general';
 
-  useEffect(() => {
-    setActiveTabId(catalog.activeTabId);
-  }, [catalog.activeTabId]);
+  if (useChangedOnRender([catalog.activeTabId])) setActiveTabId(catalog.activeTabId);
 
   const handleAddCustomIndication = async () => {
     const wasSaved = await onAddCustomIndication(resolvedActiveTabId, customText);

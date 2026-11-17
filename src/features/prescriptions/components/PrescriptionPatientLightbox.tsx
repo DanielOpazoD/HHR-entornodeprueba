@@ -3,6 +3,7 @@ import { useConfirmDialog } from '@/context/UIContext';
 import type { PrescriptionRecord } from '@/types/prescriptionTypes';
 import { PrescriptionImageLightbox } from '@/features/prescriptions/components/PrescriptionImageLightbox';
 import { resolvePrescriptionImageDownloadUrl } from '@/features/prescriptions/services/prescriptionStorageImageService';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface PrescriptionPatientLightboxProps {
   record: PrescriptionRecord;
@@ -44,26 +45,23 @@ export const PrescriptionPatientLightbox: React.FC<PrescriptionPatientLightboxPr
 
   const current = group[index] ?? record;
 
-  useEffect(() => {
-    const nextIndex = Math.max(
-      0,
-      group.findIndex(candidate => candidate.id === record.id)
+  if (useChangedOnRender([group, initialUrl, record.id])) {
+    setIndex(
+      Math.max(
+        0,
+        group.findIndex(candidate => candidate.id === record.id)
+      )
     );
-    setIndex(nextIndex);
     setUrls(prev => ({ ...prev, [record.id]: initialUrl }));
-  }, [group, initialUrl, record.id]);
+  }
 
-  useEffect(() => {
-    const cachedUrl = urls[current.id];
-    if (cachedUrl) {
-      setImageUrl(cachedUrl);
-      setImageError(null);
-      return;
-    }
-
-    let cancelled = false;
-    setImageUrl(null);
+  if (useChangedOnRender([current.id, current.image.storagePath, urls])) {
+    setImageUrl(urls[current.id] || null);
     setImageError(null);
+  }
+  useEffect(() => {
+    if (urls[current.id]) return;
+    let cancelled = false;
     resolvePrescriptionImageDownloadUrl(current.image.storagePath)
       .then(url => {
         if (cancelled) return;

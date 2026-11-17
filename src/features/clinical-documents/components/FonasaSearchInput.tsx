@@ -91,6 +91,7 @@ export const FonasaSearchInput: React.FC<FonasaSearchInputProps> = ({
 
   // A response belongs to the current query, catalog and controlled selection.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- invalidates the pending search (refs) together with the state it would set
     resetSearchActivity();
     setResults(previous => (previous.length ? [] : previous));
     setShowDropdown(false);

@@ -27,6 +27,7 @@ import { areCmaAdmissionsResolved } from '../domain/cmaAdmissionReview';
 import { ClinicalCribDischargeRepairReview } from './ClinicalCribDischargeRepairReview';
 import { RayenReportEgresoStamp } from './RayenReportEgresoStamp';
 import { SYNC_TONE } from './syncTone';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 const reservedRayenTargetBedIds = (diff: CensusImportDiff | null): string[] =>
   diff ? reservedRayenStructuralTargetBedIds(diff) : [];
 
@@ -101,21 +102,20 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
   const [collisionResolutions, setCollisionResolutions] = React.useState<
     BedOccupancyCollisionResolution[]
   >([]);
-  React.useEffect(() => {
-    if (isOpen) {
-      setAcceptedPreviousDays(false);
-      setNeonatalResolutions([]);
-      setNeonatalSourceAcknowledgements([]);
-      setCmaAdmissionResolutions([]);
-      setCollisionResolutions([]);
-    }
-  }, [
+  const reviewChanged = useChangedOnRender([
     isOpen,
     diff?.admissions,
     diff?.bedOccupancyCollisions,
     diff?.neonatalPlacementReviews,
     diff?.neonatalSourceChanges,
   ]);
+  if (reviewChanged && isOpen) {
+    setAcceptedPreviousDays(false);
+    setNeonatalResolutions([]);
+    setNeonatalSourceAcknowledgements([]);
+    setCmaAdmissionResolutions([]);
+    setCollisionResolutions([]);
+  }
   const hasConflicts = Boolean(diff?.summary.conflicts);
   const presentedUpdates = React.useMemo(
     () => presentPatientUpdates(diff?.updates ?? []),
