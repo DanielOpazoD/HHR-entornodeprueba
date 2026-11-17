@@ -1,4 +1,5 @@
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
+import { addCalendarDays, calendarDayAtUtcNoon } from '@/utils/clinicalDateUtils';
 import { DateRangePreset } from '@/types/minsalTypes';
 
 /** Calculate date range from preset. */
@@ -8,27 +9,26 @@ export function getDateRangeFromPreset(
   customEnd?: string,
   currentYearMonth?: number
 ): { startDate: string; endDate: string } {
-  const today = new Date(`${getClinicalCalendarDateISO()}T12:00:00Z`);
+  const todayIso = getClinicalCalendarDateISO();
+  const today = calendarDayAtUtcNoon(todayIso);
+  const lastDays = (count: number) => ({
+    startDate: addCalendarDays(todayIso, 1 - count),
+    endDate: todayIso,
+  });
 
   // clinical-clock-allow instant-calendar-slice: Preset bounds are calendar days anchored at UTC noon, not event instants.
   const formatDate = (d: Date): string => d.toISOString().split('T')[0];
 
   switch (preset) {
     case 'today':
-      return { startDate: formatDate(today), endDate: formatDate(today) };
+      return lastDays(1);
 
-    case 'last7days': {
-      const start = new Date(today);
-      start.setUTCDate(start.getUTCDate() - 6);
-      return { startDate: formatDate(start), endDate: formatDate(today) };
-    }
+    case 'last7days':
+      return lastDays(7);
 
-    case 'lastMonth': {
+    case 'lastMonth':
       // Rolling 30 days including today
-      const start = new Date(today);
-      start.setUTCDate(start.getUTCDate() - 29);
-      return { startDate: formatDate(start), endDate: formatDate(today) };
-    }
+      return lastDays(30);
 
     case 'currentMonth': {
       // Configurable month in current year.
@@ -51,23 +51,14 @@ export function getDateRangeFromPreset(
       return { startDate: formatDate(start), endDate: formatDate(today) };
     }
 
-    case 'last3Months': {
-      const start = new Date(today);
-      start.setUTCDate(start.getUTCDate() - 89);
-      return { startDate: formatDate(start), endDate: formatDate(today) };
-    }
+    case 'last3Months':
+      return lastDays(90);
 
-    case 'last6Months': {
-      const start = new Date(today);
-      start.setUTCDate(start.getUTCDate() - 179);
-      return { startDate: formatDate(start), endDate: formatDate(today) };
-    }
+    case 'last6Months':
+      return lastDays(180);
 
-    case 'last12Months': {
-      const start = new Date(today);
-      start.setUTCDate(start.getUTCDate() - 364);
-      return { startDate: formatDate(start), endDate: formatDate(today) };
-    }
+    case 'last12Months':
+      return lastDays(365);
 
     case 'custom':
       if (!customStart || !customEnd) {
@@ -76,6 +67,6 @@ export function getDateRangeFromPreset(
       return { startDate: customStart, endDate: customEnd };
 
     default:
-      return { startDate: formatDate(today), endDate: formatDate(today) };
+      return lastDays(1);
   }
 }

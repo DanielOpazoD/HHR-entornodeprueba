@@ -42,12 +42,13 @@ import {
   isSameDocumentBeforeLetterRule,
   normalizeRut,
 } from '@/utils/rutUtils';
+import { isWithinNurseEditingWindow } from '@/utils/clinicalWallClock';
 
 export { verifyPreviousDayAdmissionPlacements } from './previousDayAdmissionEvidence';
 
-/** ~48h nurse editing window (mirrors firestore.rules isWithinEditingWindow); admin bypasses it. */
+/** The nurse editing window on the hospital clock (SAVE-04); the administrator has none. */
 export const canWritePreviousDay = (day: string, isAdmin: boolean): boolean =>
-  isAdmin || Date.now() - new Date(`${day}T00:00:00`).getTime() < 172_800_000;
+  isAdmin || isWithinNurseEditingWindow(day);
 
 export interface CrossDayCorrectionResult {
   confirmed: number;

@@ -10,8 +10,30 @@
  */
 
 import { emitConsoleLog } from '@/services/utils/loggerConsoleSink';
-import { formatLogMessage } from '@/services/utils/loggerFormat';
 import type { LogEntry, LogLevel, LoggerConfig } from '@/services/utils/loggerTypes';
+
+const formatLogMessage = (
+  config: Pick<LoggerConfig, 'enableTimestamps' | 'enableContext'>,
+  level: LogLevel,
+  message: string,
+  context?: string
+): string => {
+  const parts: string[] = [];
+
+  if (config.enableTimestamps) {
+    parts.push(`[${new Date().toISOString().slice(11, 23)}]`);
+  }
+
+  parts.push(`[${level.toUpperCase()}]`);
+
+  if (context && config.enableContext) {
+    parts.push(`[${context}]`);
+  }
+
+  parts.push(message);
+
+  return parts.join(' ');
+};
 
 export type { LogEntry, LogLevel } from '@/services/utils/loggerTypes';
 

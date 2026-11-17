@@ -20,6 +20,8 @@ vi.mock('@/services/auth/authE2EPopupRuntime', () => ({
 }));
 
 vi.unmock('@/services/auth/authFallback');
+vi.unmock('@/services/auth/authCredentialFlow');
+vi.unmock('@/services/auth/authGoogleFlow');
 
 import { signInWithGoogle } from '@/services/auth/authGoogleFlow';
 import { signIn, createUser } from '@/services/auth/authCredentialFlow';
@@ -74,7 +76,6 @@ vi.mock('@/services/auth/authBootstrapState', () => ({
 }));
 
 vi.mock('@/services/auth/authPolicy', () => ({
-  isCurrentUserAuthorizedForGeneralLogin: vi.fn(async () => true),
   resolveGeneralLoginAccessForEmail: vi.fn(async () => ({
     allowed: true,
     role: 'admin',

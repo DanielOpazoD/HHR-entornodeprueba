@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, Timestamp } from 'firebase/firestore';
 
 import type { StatusChange, TransferRequest } from '@/types/transferRequestTypes';
 import type { TransferStatus } from '@/types/transferStatusTypes';
@@ -17,7 +17,7 @@ export type CreateTransferRequestData = Omit<
 export const generateTransferId = (): string =>
   `TR-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-export const buildStatusChange = (
+const buildStatusChange = (
   from: TransferStatus | null,
   to: TransferStatus,
   userId: string,
@@ -46,7 +46,7 @@ export const buildTransferRequestRecord = (
   };
 };
 
-export const createTransferDocumentRef = (runtime: FirestoreServiceRuntimePort, id: string) =>
+const createTransferDocumentRef = (runtime: FirestoreServiceRuntimePort, id: string) =>
   doc(getTransfersCollection(runtime), id);
 
 export const readTransferRequestOrThrow = async (
@@ -67,20 +67,6 @@ export const readTransferRequestOrThrow = async (
     };
   });
 
-export const writeTransferMergePatch = async (
-  docRef: ReturnType<typeof createTransferDocumentRef>,
-  data: Record<string, unknown>
-) => {
-  await setDoc(
-    docRef,
-    {
-      ...data,
-      updatedAt: Timestamp.now(),
-    },
-    { merge: true }
-  );
-};
-
 export const buildCompletedTransferRecord = (
   transfer: TransferRequest,
   userId: string
@@ -93,29 +79,6 @@ export const buildCompletedTransferRecord = (
   ],
   updatedAt: Timestamp.now(),
 });
-
-export const buildTransferHistoryDeletionPatch = (
-  transfer: TransferRequest,
-  historyIndex: number
-): {
-  status: TransferStatus;
-  statusHistory: StatusChange[];
-  updatedAt: ReturnType<typeof Timestamp.now>;
-} => {
-  const history = transfer.statusHistory || [];
-
-  if (historyIndex === 0 || historyIndex >= history.length) {
-    throw new Error('Cannot delete this history entry');
-  }
-
-  const statusHistory = history.filter((_, index) => index !== historyIndex);
-
-  return {
-    status: statusHistory[statusHistory.length - 1]?.to || 'REQUESTED',
-    statusHistory,
-    updatedAt: Timestamp.now(),
-  };
-};
 
 export const createTransferHistoryDocumentRef = (
   runtime: FirestoreServiceRuntimePort,

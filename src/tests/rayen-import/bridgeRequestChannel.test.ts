@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { requestViaBridgeChannel } from '@/features/rayen-import/bridge/bridgeRequestChannel';
+import { requestViaBridgeChannel } from '@/services/transport/extensionRequestChannel';
 
 const reply = (reqId: string, origin = window.location.origin) =>
   window.dispatchEvent(

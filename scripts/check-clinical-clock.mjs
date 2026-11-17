@@ -31,6 +31,11 @@
  *
  *  8. raw-offset-clock (rayen-import/ and extension/): ISO regex prefixes and time slices
  *     must convert offsets to Rapa Nui; unzoned report exceptions need a preceding reason.
+ *  9. hand-calendar-anchor: the `T12:00:00Z` noon anchor for calendar-day arithmetic lives only
+ *     in the two calendar modules below, so each day sum, difference or validity check is the same.
+ * 10. device-midnight-instant: a zone-less `…T00:00:00` is the device's midnight, so subtracting
+ *     or comparing it as an instant moves a hospital-day boundary by the device's offset (the
+ *     nurse window ran 2 h early on mainland computers until 2026-11-17).
  *
  * `getTodayISO` / `getClinicalCalendarDateISO` / `calendarStampInClinicalTimeZone` and the
  * formatters in `src/utils/dateDisplayUtils.ts` (`formatCalendarDate`, `formatTimestamp`,
@@ -44,6 +49,10 @@ import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 
 const CLOCK_SOURCE = 'src/utils/clinicalTimeZone.ts';
+const CALENDAR_SOURCES = new Set([
+  'src/utils/clinicalDateUtils.ts',
+  'functions/lib/hospitalCalendarDay.js',
+]);
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs']);
 const DATE_OPTION = /\b(?:hour|minute|second|day|month|year|weekday|dateStyle|timeStyle|era)\b/;
 const FORMAT_CALL =
@@ -184,7 +193,7 @@ const instantCalendarSliceLines = (source, relativePath) => {
     }
     if (ts.isCallExpression(node)) {
       if (ts.isIdentifier(node.expression))
-        return node.expression.text === 'parseCalendarDateUtcNoon';
+        return ['parseCalendarDateUtcNoon', 'calendarDayAtUtcNoon'].includes(node.expression.text);
       if (ts.isPropertyAccessExpression(node.expression)) {
         const { expression, name } = node.expression;
         if (ts.isIdentifier(expression) && expression.text === 'Date') {
@@ -275,6 +284,67 @@ const instantCalendarSliceLines = (source, relativePath) => {
         }
       }
     }
+    ts.forEachChild(node, visit);
+  };
+  visit(tree);
+  return [...lines];
+};
+
+const DEVICE_MIDNIGHT = /T00:00(?::00(?:\.0+)?)?$/;
+const INSTANT_OPERATORS = new Set(
+  ['Minus', 'Plus', 'LessThan', 'LessThanEquals', 'GreaterThan', 'GreaterThanEquals'].map(
+    name => ts.SyntaxKind[`${name}Token`]
+  )
+);
+
+// A zone-less midnight read as an instant: an operand of arithmetic or a comparison, directly,
+// through `.getTime()`/`.valueOf()` or through a local. Reading it back with local getters is calendar.
+const deviceMidnightInstantLines = (source, relativePath) => {
+  const tree = ts.createSourceFile(relativePath, source, ts.ScriptTarget.Latest, true);
+  const initializers = new Map();
+  const lines = new Set();
+  // The text a string ends with: a literal, the tail of a template or of a concatenation.
+  const endText = node =>
+    ts.isStringLiteralLike(node)
+      ? node.text
+      : ts.isTemplateExpression(node)
+        ? node.templateSpans.at(-1).literal.text
+        : ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken
+          ? endText(node.right)
+          : '';
+  const readsDeviceMidnight = (node, seen = new Set()) => {
+    if (!node || seen.has(node)) return false;
+    seen.add(node);
+    if (
+      ts.isParenthesizedExpression(node) ||
+      ts.isAsExpression(node) ||
+      ts.isNonNullExpression(node)
+    )
+      return readsDeviceMidnight(node.expression, seen);
+    if (ts.isIdentifier(node)) return readsDeviceMidnight(initializers.get(node.text), seen);
+    const callee = node.expression?.getText(tree);
+    if (
+      (ts.isNewExpression(node) && callee === 'Date') ||
+      (ts.isCallExpression(node) && callee === 'Date.parse')
+    ) {
+      return node.arguments?.length === 1 && DEVICE_MIDNIGHT.test(endText(node.arguments[0]));
+    }
+    return (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      ['getTime', 'valueOf'].includes(node.expression.name.text) &&
+      readsDeviceMidnight(node.expression.expression, seen)
+    );
+  };
+  const visit = node => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name))
+      initializers.set(node.name.text, node.initializer);
+    if (
+      ts.isBinaryExpression(node) &&
+      INSTANT_OPERATORS.has(node.operatorToken.kind) &&
+      (readsDeviceMidnight(node.left) || readsDeviceMidnight(node.right))
+    )
+      lines.add(lineOf(source, node.getStart(tree)));
     ts.forEachChild(node, visit);
   };
   visit(tree);
@@ -527,6 +597,23 @@ export const checkClinicalClock = (root = process.cwd()) => {
           lineOf(source, match.index)
         ),
       hint: 'read the hospital clock: readClinicalTimestamp() / calendarStampInClinicalTimeZone()',
+    },
+    {
+      rule: 'hand-calendar-anchor',
+      files: [...productionFiles, ...netlifyFiles, ...functionsFiles].filter(
+        file => !CALENDAR_SOURCES.has(file)
+      ),
+      find: regexRule(/T12:00:00(?:\.000)?Z/),
+      hint: relativePath =>
+        relativePath.startsWith('functions/')
+          ? 'use addCalendarDays() / isCalendarDay() / calendarDayAtUtcNoon() from functions/lib/hospitalCalendarDay'
+          : 'use addCalendarDays() / diffCalendarDays() / isCalendarDate() / calendarDayAtUtcNoon() from src/utils/clinicalDateUtils',
+    },
+    {
+      rule: 'device-midnight-instant',
+      files: [...productionFiles, ...netlifyFiles],
+      find: deviceMidnightInstantLines,
+      hint: "a zone-less T00:00:00 is the device's midnight: use clinicalWallClockToDate(day, '00:00') from src/utils/clinicalWallClock for the hospital's",
     },
     {
       rule: 'instant-calendar-slice',

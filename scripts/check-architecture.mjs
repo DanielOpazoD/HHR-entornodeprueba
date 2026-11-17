@@ -146,21 +146,7 @@ const collectGraph = files => {
         imported === 'src/context/DailyRecordContext.ts';
       const importerIsTest = importer.includes('/tests/') || importer.includes('.test.');
       const importerIsDailyRecordContext = importer.includes('/context/DailyRecordContext.');
-      const sourceUsesLegacyHook = source.includes('useDailyRecordContext');
       const sourceUsesMonolithicActionsHook = source.includes('useDailyRecordActions');
-
-      if (
-        isDailyRecordContextImport &&
-        sourceUsesLegacyHook &&
-        !importerIsTest &&
-        !importerIsDailyRecordContext
-      ) {
-        layerViolations.push({
-          rule: 'no-legacy-daily-record-context-hook-import',
-          importer,
-          imported,
-        });
-      }
 
       if (
         isDailyRecordContextImport &&
@@ -174,7 +160,6 @@ const collectGraph = files => {
           imported,
         });
       }
-
     }
 
     graph.set(filePath, [...edges]);

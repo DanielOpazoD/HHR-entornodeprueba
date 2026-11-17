@@ -1,11 +1,11 @@
 import type { Workbook, Worksheet } from 'exceljs';
 import { createWorkbook, BORDER_THIN } from '@/services/exporters/excelUtils';
+import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import type { CategoryCounts, CudyrDailySummary, CudyrMonthlySummary } from './cudyrSummary';
 import {
   addMonthlySummarySheet,
   buildMonthlyCutoffLabel,
   CATEGORIES,
-  formatDateDMY,
   MONTHS_ES,
   safeResult,
 } from './cudyrWorkbookSections';
@@ -94,7 +94,7 @@ const addDailySheets = (workbook: Workbook, dailySummaries: CudyrDailySummary[])
   const dailySheetNames: string[] = [];
 
   dailySummaries.forEach(daySummary => {
-    const sheetName = formatDateDMY(daySummary.date);
+    const sheetName = formatDateDDMMYYYY(daySummary.date);
     dailySheetNames.push(sheetName);
 
     const daySheet = workbook.addWorksheet(sheetName);
@@ -148,7 +148,7 @@ export const buildCudyrWorkbook = async ({
   ];
 
   const dailySheetNames = monthlySummary.dailySummaries.map(daySummary =>
-    formatDateDMY(daySummary.date)
+    formatDateDDMMYYYY(daySummary.date)
   );
   addMonthlySummarySheet(
     workbook,

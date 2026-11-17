@@ -90,10 +90,6 @@ vi.mock('@/hooks/useShiftPanel', () => ({
   })),
 }));
 
-vi.mock('@/utils/dateFormattingUtils', () => ({
-  formatDateDDMMYYYY: (d: string) => d,
-}));
-
 import { useShiftPanel } from '@/hooks/useShiftPanel';
 import { WhatsAppIntegrationView } from '@/features/whatsapp/components/WhatsAppIntegrationView';
 import { ShiftPanelView } from '@/features/whatsapp/components/ShiftPanelView';

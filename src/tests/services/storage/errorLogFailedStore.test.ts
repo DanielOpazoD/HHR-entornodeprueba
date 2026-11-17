@@ -1,3 +1,4 @@
+// @vitest-environment node
 import 'fake-indexeddb/auto';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -18,7 +19,10 @@ vi.mock('@/services/observability/operationalTelemetryOutcomeRecorder', () => ({
   recordOperationalErrorTelemetry: vi.fn(),
 }));
 
-import { clearErrorLogs, fetchErrorLogs } from '@/services/errorLogService';
+import {
+  clearErrorLogs,
+  getErrorLogs,
+} from '@/services/storage/indexeddb/indexedDbErrorLogService';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 
 describe('a local error log store that cannot be reached', () => {
@@ -33,12 +37,12 @@ describe('a local error log store that cannot be reached', () => {
   });
 
   it('reads as empty only when the read succeeded', async () => {
-    await expect(fetchErrorLogs()).resolves.toEqual([]);
+    await expect(getErrorLogs()).resolves.toEqual([]);
   });
 
   it('fails the read instead of reporting no errors', async () => {
     state.unavailable = true;
-    await expect(fetchErrorLogs()).rejects.toThrow('Synthetic local log store unavailable');
+    await expect(getErrorLogs()).rejects.toThrow('Synthetic local log store unavailable');
   });
 
   it('fails the clear instead of reporting it done', async () => {

@@ -70,11 +70,7 @@
           "^src/features/clinical-documents/domain/clinicalDocumentEpisodeTypes\\.ts$"
         ]
       },
-      "guardrails": [
-        "src/tests/security/clinicalEpisodeKeyGovernanceStatic.test.ts",
-        "test:clinical-documents",
-        "check:runtime-contracts"
-      ],
+      "guardrails": ["lint", "test:clinical-documents", "check:runtime-contracts"],
       "evidenceReports": ["reports/runtime-contracts.md", "reports/legacy-retirement-debt.md"],
       "retirementCriteria": "All active patients carry canonical clinicalEpisodeId and document lookup no longer needs RUT/admission-date fallback keys.",
       "nextAction": "Keep legacy episode-key parsing confined to patient-flow; migrate callers to lookup-key helpers and block UI-level ad hoc parsing."

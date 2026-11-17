@@ -431,11 +431,14 @@ vi.mock('../hooks/useAuthState', () => ({
 }));
 
 // Mock canonical auth entrypoints globally
-const mockAuthFlow = {
+const mockAuthCredentialFlow = {
   signIn: vi.fn(),
+  createUser: vi.fn(),
+};
+
+const mockAuthGoogleFlow = {
   signInWithGoogle: vi.fn(),
   warmGoogleSignInRuntime: vi.fn(),
-  createUser: vi.fn(),
 };
 
 const mockAuthSession = {
@@ -457,12 +460,13 @@ const mockAuthFallback = {
   hasActiveFirebaseSession: vi.fn().mockReturnValue(false),
 };
 
-const mockAuthFlowFactory = () => mockAuthFlow;
+const mockAuthCredentialFlowFactory = () => mockAuthCredentialFlow;
+const mockAuthGoogleFlowFactory = () => mockAuthGoogleFlow;
 const mockAuthSessionFactory = () => mockAuthSession;
 const mockAuthFallbackFactory = () => mockAuthFallback;
 
-vi.mock('@/services/auth/authFlow', () => mockAuthFlowFactory());
-vi.mock('../services/auth/authFlow', () => mockAuthFlowFactory());
+vi.mock('@/services/auth/authCredentialFlow', () => mockAuthCredentialFlowFactory());
+vi.mock('@/services/auth/authGoogleFlow', () => mockAuthGoogleFlowFactory());
 vi.mock('@/services/auth/authSession', () => mockAuthSessionFactory());
 vi.mock('../services/auth/authSession', () => mockAuthSessionFactory());
 vi.mock('@/services/auth/authFallback', () => mockAuthFallbackFactory());
@@ -578,7 +582,6 @@ export {
   mockAuditContextValue,
   mockAuthContextValue,
   mockAuditService,
-  mockAuthFlow,
   mockAuthSession,
   mockAuthFallback,
 };

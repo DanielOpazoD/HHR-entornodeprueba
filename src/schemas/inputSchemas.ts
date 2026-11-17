@@ -125,8 +125,6 @@ export const StaffNameSchema = z
 // Discharge / Transfer Details
 // ============================================================================
 
-export const ActionNoteSchema = z.string().max(1000, 'La nota es demasiado larga');
-
 export const TimeSchema = z
   .string()
   .regex(/^([01]\d|2[0-3]):?([0-5]\d)$/, 'Formato de hora inválido (HH:mm)');

@@ -1,4 +1,5 @@
 import type { RayenCaptureFailureCheck, RayenSyncFailureReason } from '@/types/domain/rayenSync';
+import { removeAccents } from '@/utils/stringUtils';
 
 /**
  * Clasifica el error que la extensión devuelve al capturar el censo
@@ -33,8 +34,7 @@ const GENERIC_MESSAGE =
 const TRANSPORT_WRAPPER =
   /^no se pudo leer rayen\. recarga la pestana de ficha medico[\s\S]*?\bdetalle:\s*/;
 
-const normalize = (value: string): string =>
-  value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const normalize = (value: string): string => removeAccents(value).toLowerCase();
 
 const capAtWordBoundary = (value: string): string => {
   if (value.length <= MAX_MESSAGE_LENGTH) return value;

@@ -59,7 +59,7 @@ export const EVIDENCE_PIPELINES: Record<string, Matcher[]> = {
     run('npm run test:clinical-sync-simulator'),
     run('npm run report:sync-convergence'),
     run('npm run check:sync-convergence-evidence'),
-    run('npm run check:sync-convergence-freshness:strict'),
+    run('npm run check:report-freshness:strict -- --only sync-convergence'),
     upload('sync-convergence'),
   ],
   build: [

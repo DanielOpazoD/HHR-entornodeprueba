@@ -1,32 +1,128 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
+
 import {
   buildHandoffChecklistSectionViewModel,
   buildHandoffNovedadesBindings,
   buildHandoffScreenShellModel,
   buildNursingHandoffContentBindings,
+  resolveHandoffTitle,
+  resolveHandoffTableHeaderClass,
+  resolveHandoffNovedadesValue,
+  shouldShowNightCudyrActions,
   resolveHandoffAuditDescriptor,
   resolveHandoffScreenFrame,
-  resolveHandoffNovedadesValue,
-  resolveHandoffTableHeaderClass,
-  resolveHandoffTitle,
-  shouldShowNightCudyrActions,
 } from '@/features/handoff/controllers/handoffViewController';
 
+// ---------------------------------------------------------------------------
+// resolveHandoffTitle
+// ---------------------------------------------------------------------------
+describe('resolveHandoffTitle', () => {
+  it('returns nursing day shift title', () => {
+    const title = resolveHandoffTitle('day');
+    expect(title).toContain('Enfermería');
+    expect(title).toContain('Día');
+  });
+
+  it('returns nursing night shift title', () => {
+    const title = resolveHandoffTitle('night');
+    expect(title).toContain('Enfermería');
+    expect(title).toContain('Noche');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resolveHandoffTableHeaderClass
+// ---------------------------------------------------------------------------
+describe('resolveHandoffTableHeaderClass', () => {
+  it('returns sky-themed class for nursing day shift', () => {
+    const cls = resolveHandoffTableHeaderClass('day');
+    expect(cls).toContain('bg-medical-50');
+    expect(cls).toContain('text-sky-900');
+  });
+
+  it('returns slate-themed class for nursing night shift', () => {
+    const cls = resolveHandoffTableHeaderClass('night');
+    expect(cls).toContain('bg-slate-100');
+    expect(cls).toContain('text-slate-500');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resolveHandoffNovedadesValue
+// ---------------------------------------------------------------------------
+describe('resolveHandoffNovedadesValue', () => {
+  const baseRecord = {
+    handoffNovedadesDayShift: 'Day novedades text',
+    handoffNovedadesNightShift: 'Night novedades text',
+  };
+
+  it('returns day shift novedades for nursing day shift', () => {
+    expect(resolveHandoffNovedadesValue({ selectedShift: 'day', record: baseRecord })).toBe(
+      'Day novedades text'
+    );
+  });
+
+  it('returns night shift novedades for nursing night shift', () => {
+    expect(resolveHandoffNovedadesValue({ selectedShift: 'night', record: baseRecord })).toBe(
+      'Night novedades text'
+    );
+  });
+
+  it('falls back to day shift novedades when night shift is empty', () => {
+    const record = { ...baseRecord, handoffNovedadesNightShift: undefined };
+    expect(resolveHandoffNovedadesValue({ selectedShift: 'night', record })).toBe(
+      'Day novedades text'
+    );
+  });
+
+  it('returns empty string when day shift novedades is undefined', () => {
+    const record = { ...baseRecord, handoffNovedadesDayShift: undefined };
+    expect(resolveHandoffNovedadesValue({ selectedShift: 'day', record })).toBe('');
+  });
+
+  it('returns empty string when both nursing shifts are undefined', () => {
+    const record = { handoffNovedadesDayShift: undefined, handoffNovedadesNightShift: undefined };
+    expect(resolveHandoffNovedadesValue({ selectedShift: 'night', record })).toBe('');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// shouldShowNightCudyrActions
+// ---------------------------------------------------------------------------
+describe('shouldShowNightCudyrActions', () => {
+  it('returns true for the night shift', () => {
+    expect(shouldShowNightCudyrActions('night')).toBe(true);
+  });
+
+  it('returns false for the day shift', () => {
+    expect(shouldShowNightCudyrActions('day')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resolveHandoffScreenFrame
+// ---------------------------------------------------------------------------
+describe('resolveHandoffScreenFrame', () => {
+  it('returns correct frame for nursing night shift', () => {
+    const frame = resolveHandoffScreenFrame({ selectedShift: 'night', readOnly: false });
+    expect(frame.title).toContain('Noche');
+    expect(frame.tableHeaderClass).toContain('bg-slate-100');
+  });
+
+  it('respects readOnly flag', () => {
+    const frame = resolveHandoffScreenFrame({ selectedShift: 'day', readOnly: true });
+    expect(frame.effectiveReadOnly).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Screen frame, bindings and shell (formerly src/tests/views/handoff/handoffViewController.test.ts)
+// ---------------------------------------------------------------------------
 const frameFor = (selectedShift: 'day' | 'night', recordDate?: string) =>
   resolveHandoffScreenFrame({ selectedShift, readOnly: false, recordDate });
 
 describe('handoffViewController', () => {
-  it('resolves view title by shift', () => {
-    expect(resolveHandoffTitle('day')).toContain('Día');
-    expect(resolveHandoffTitle('night')).toContain('Noche');
-  });
-
-  it('resolves header classes by shift', () => {
-    expect(resolveHandoffTableHeaderClass('day')).toContain('bg-medical-50');
-    expect(resolveHandoffTableHeaderClass('night')).toContain('bg-slate-100');
-  });
-
   it('resolves the document title for each nursing shift', () => {
     expect(frameFor('day', '2026-02-15').documentTitle).toBe('TL 15-02-2026');
     expect(frameFor('night', '2026-02-15').documentTitle).toBe('TN 15-02-2026');
@@ -37,7 +133,7 @@ describe('handoffViewController', () => {
     expect(frameFor('day', 'invalid').documentTitle).toBeNull();
   });
 
-  it('resolves novedades value with night fallback', () => {
+  it('falls back to day novedades when the night shift is an empty string', () => {
     const record = {
       handoffNovedadesDayShift: 'Day note',
       handoffNovedadesNightShift: '',
@@ -45,11 +141,6 @@ describe('handoffViewController', () => {
 
     expect(resolveHandoffNovedadesValue({ selectedShift: 'day', record })).toBe('Day note');
     expect(resolveHandoffNovedadesValue({ selectedShift: 'night', record })).toBe('Day note');
-  });
-
-  it('shows night CUDYR actions only for the night shift', () => {
-    expect(shouldShowNightCudyrActions('night')).toBe(true);
-    expect(shouldShowNightCudyrActions('day')).toBe(false);
   });
 
   it('builds checklist section state', () => {

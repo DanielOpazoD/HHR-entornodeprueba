@@ -1,6 +1,7 @@
 /**
  * Text and Label normalization for MINSAL stats
  */
+import { removeAccents } from '@/utils/stringUtils';
 
 export function normalizeSpecialty(specialty: string | undefined): string {
   if (!specialty) return 'Sin Especialidad';
@@ -24,11 +25,7 @@ export function normalizeSpecialty(specialty: string | undefined): string {
 }
 
 export const normalizeEvacuationMethodLabel = (value?: string): string =>
-  (value || '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+  removeAccents((value || '').trim().toLowerCase());
 
 export const isFachEvacuationMethod = (value?: string): boolean => {
   const normalized = normalizeEvacuationMethodLabel(value);

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import 'fake-indexeddb/auto';
 import { MAX_RAYEN_SYNC_HISTORY } from '@/types/domain/rayenSync';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

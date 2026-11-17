@@ -96,15 +96,6 @@ export const buildSyncQueueTelemetryFromRows = <T extends SyncQueueTelemetryRow>
   };
 };
 
-export const buildSyncQueueTelemetrySnapshot = (
-  rows: SyncTask[],
-  now: number,
-  batchSize: number
-): SyncQueueTelemetrySnapshot => ({
-  ...buildSyncQueueTelemetryFromRows(rows, now, batchSize),
-  capturedAt: now,
-});
-
 export const recordSyncQueueFailureTelemetry = (
   task: Pick<SyncTask, 'id' | 'type' | 'key' | 'contexts'>,
   errorMessage: string,

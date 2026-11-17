@@ -51,15 +51,3 @@ export const createApplicationFailed = <T>(
   issues: ApplicationIssue[],
   metadata: ApplicationOutcomeMetadata = {}
 ): ApplicationOutcome<T> => createApplicationOutcome('failed', data, issues, metadata);
-
-export const createApplicationFailedFromIssue = <T>(
-  data: T,
-  issue: ApplicationIssue,
-  metadata: ApplicationOutcomeMetadata = {}
-): ApplicationOutcome<T> => createApplicationFailed(data, [issue], metadata);
-
-export const createApplicationDegradedFromIssue = <T>(
-  data: T,
-  issue: ApplicationIssue,
-  metadata: ApplicationOutcomeMetadata = {}
-): ApplicationOutcome<T> => createApplicationDegraded(data, [issue], metadata);

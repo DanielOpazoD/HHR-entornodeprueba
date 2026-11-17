@@ -57,16 +57,6 @@ export const createPassiveVerificationPermissionNotice = (
   state: 'not_verified',
 });
 
-export const createReadOnlyNotice = (title: string, message: string): OperationalNotice => ({
-  ...createInfoNotice(title, message),
-  state: 'read_only',
-});
-
-export const createPendingNotice = (title: string, message: string): OperationalNotice => ({
-  ...createInfoNotice(title, message),
-  state: 'pending',
-});
-
 export const createRetryingNotice = (title: string, message: string): OperationalNotice =>
   createWarningNotice(title, message, {
     state: 'retrying',

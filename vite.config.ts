@@ -310,18 +310,12 @@ export default defineConfig(({ mode }) => {
         'react-dom',
         'react/jsx-runtime',
         'react/jsx-dev-runtime',
-        'motion/react',
         'firebase/app',
         'firebase/auth',
         'firebase/firestore',
         // The optional CUDYR worker is discovered late; avoid a dev reload on its first XLS.
         'xlsx',
       ],
-    },
-    test: {
-      environment: 'jsdom',
-      globals: true,
-      setupFiles: './tests/setup.ts',
     },
   };
 });

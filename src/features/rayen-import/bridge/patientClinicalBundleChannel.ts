@@ -1,6 +1,6 @@
 import type { ClinicalReadErrorCode } from '@/types/domain/rayenSync';
 import { decodeClinicalReadFailure } from '../contracts/clinicalReadError';
-import { requestViaBridgeChannel } from './bridgeRequestChannel';
+import { requestViaBridgeChannel } from '@/services/transport/extensionRequestChannel';
 import { CLINICAL_READ_TIMEOUT_MS } from '../contracts/clinicalReadPolicy';
 import type {
   RayenClinicalAlertsResult,

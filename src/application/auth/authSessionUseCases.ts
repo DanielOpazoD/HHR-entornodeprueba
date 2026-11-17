@@ -8,7 +8,8 @@ import type {
 } from '@/shared/contracts/applicationOutcomeTypes';
 
 import type { AuthSessionState } from '@/types/authSessionTypes';
-import { signIn, signInWithGoogle, warmGoogleSignInRuntime } from '@/services/auth/authFlow';
+import { signIn } from '@/services/auth/authCredentialFlow';
+import { signInWithGoogle, warmGoogleSignInRuntime } from '@/services/auth/authGoogleFlow';
 import {
   getCurrentAuthSessionState,
   resolveCurrentAuthSessionState,

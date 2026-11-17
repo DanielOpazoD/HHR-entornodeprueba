@@ -269,7 +269,6 @@
         "src/tests/properties/vitalHistoryConvergence.property.test.ts",
         "src/tests/rayen-import/RayenConnectionMonitor.test.tsx",
         "src/tests/rayen-import/RayenSyncHistoryModal.issueActions.test.tsx",
-        "src/tests/security/laboratoryImportGovernanceStatic.test.ts",
         "src/tests/services/storage/syncQueueService.test.ts",
         "src/tests/views/census/CensusTable.layout-and-actions.test.tsx",
         "src/tests/views/census/DischargesSection.integration.test.tsx",

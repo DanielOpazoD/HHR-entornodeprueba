@@ -19,8 +19,8 @@ describe('FeatureFlags', () => {
     const { featureFlags, isFeatureEnabled } = await import('@/services/utils/featureFlags');
 
     // Check that defaults are respected
-    expect(featureFlags.isEnabled('ENABLE_ANALYTICS_VIEW')).toBe(
-      isFeatureEnabled('ENABLE_ANALYTICS_VIEW')
+    expect(featureFlags.isEnabled('USE_ADMIT_PATIENT_COMMAND')).toBe(
+      isFeatureEnabled('USE_ADMIT_PATIENT_COMMAND')
     );
     expect(featureFlags.isEnabled('SHOW_DEBUG_PANEL')).toBe(isFeatureEnabled('SHOW_DEBUG_PANEL'));
   });
@@ -50,7 +50,9 @@ describe('FeatureFlags', () => {
 
     const allFlags = featureFlags.getAll();
     expect(allFlags.SHOW_DEBUG_PANEL).toBe(featureFlags.isEnabled('SHOW_DEBUG_PANEL'));
-    expect(allFlags.ENABLE_ANALYTICS_VIEW).toBe(featureFlags.isEnabled('ENABLE_ANALYTICS_VIEW'));
+    expect(allFlags.USE_ADMIT_PATIENT_COMMAND).toBe(
+      featureFlags.isEnabled('USE_ADMIT_PATIENT_COMMAND')
+    );
   });
 
   it('should reset flags to defaults', async () => {
@@ -80,7 +82,7 @@ describe('FeatureFlags', () => {
     const { featureFlags, FEATURE_FLAGS } = await import('@/services/utils/featureFlags');
 
     featureFlags.enable('SHOW_DEBUG_PANEL');
-    featureFlags.disable('ENABLE_ANALYTICS_VIEW');
+    featureFlags.disable('USE_ADMIT_PATIENT_COMMAND');
     featureFlags.resetAll();
 
     expect(featureFlags.getAll()).toEqual(FEATURE_FLAGS);
@@ -90,14 +92,14 @@ describe('FeatureFlags', () => {
     localStorage.setItem(
       'hhr_feature_flags',
       JSON.stringify({
-        ENABLE_ANALYTICS_VIEW: false,
+        USE_ADMIT_PATIENT_COMMAND: false,
         SHOW_DEBUG_PANEL: true,
       })
     );
 
     const { featureFlags } = await import('@/services/utils/featureFlags');
 
-    expect(featureFlags.isEnabled('ENABLE_ANALYTICS_VIEW')).toBe(false);
+    expect(featureFlags.isEnabled('USE_ADMIT_PATIENT_COMMAND')).toBe(false);
     expect(featureFlags.isEnabled('SHOW_DEBUG_PANEL')).toBe(true);
   });
 });
