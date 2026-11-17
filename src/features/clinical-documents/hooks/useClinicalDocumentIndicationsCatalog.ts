@@ -14,6 +14,7 @@ import {
   updateClinicalDocumentIndicationCatalogItem,
 } from '@/features/clinical-documents/services/clinicalDocumentIndicationsCatalogService';
 import { createScopedLogger } from '@/services/utils/loggerScope';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface UseClinicalDocumentIndicationsCatalogParams {
   user: {
@@ -79,11 +80,11 @@ export const useClinicalDocumentIndicationsCatalog = ({
     }
   };
 
+  if (useChangedOnRender([isActive, owner]) && (!isActive || !owner.uid)) {
+    setIndicationsCatalog(getDefaultClinicalDocumentIndicationsCatalog(undefined, owner));
+  }
   useEffect(() => {
-    if (!isActive || !owner.uid) {
-      setIndicationsCatalog(getDefaultClinicalDocumentIndicationsCatalog(undefined, owner));
-      return;
-    }
+    if (!isActive || !owner.uid) return;
 
     const unsubscribe = subscribeToClinicalDocumentIndicationsCatalog(setIndicationsCatalog, owner);
 

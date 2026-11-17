@@ -26,6 +26,7 @@ import { DicomFullscreenButton } from './DicomFullscreenButton';
 import type { DicomStackState } from '@/services/radiology/dicomProgressiveStack';
 import { saveDicomPng } from '@/services/radiology/saveDicomPng';
 import { useLatestRef } from '@/hooks/useLatestRef';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 export const DicomSeriesView: React.FC<{
   study: DicomStudy;
@@ -123,12 +124,14 @@ export const DicomSeriesView: React.FC<{
     };
   }, [study, series, prefetch, measurements]);
 
-  useEffect(() => {
-    if (!runtime || comparing) return;
-    let active = true;
+  if (useChangedOnRender([runtime, mode, comparing]) && runtime && !comparing) {
     setBusy(true);
     setError('');
     setResampled(false);
+  }
+  useEffect(() => {
+    if (!runtime || comparing) return;
+    let active = true;
     const targets = elements.current
       .slice(0, labels[mode].length)
       .filter((item): item is HTMLDivElement => Boolean(item));

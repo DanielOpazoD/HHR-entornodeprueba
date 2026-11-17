@@ -3,6 +3,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Loader2, TriangleAlert } from 'lucide-react';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import { DocumentScannerQueueView } from './DocumentScannerQueueView';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const getLocalQueueCredentials = (): { email: string; accessPhrase: string } => {
   // Emulator-only credentials: a production build drops both reads.
@@ -25,12 +26,12 @@ export const DocumentScannerLocalQueueView: React.FC = () => {
   const [status, setStatus] = React.useState<'loading' | 'ready' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
+  if (useChangedOnRender([enabled]) && !enabled) {
+    setStatus('error');
+    setErrorMessage('La bandeja local solo está disponible con Firebase Auth emulado.');
+  }
   React.useEffect(() => {
-    if (!enabled) {
-      setStatus('error');
-      setErrorMessage('La bandeja local solo está disponible con Firebase Auth emulado.');
-      return;
-    }
+    if (!enabled) return;
     let cancelled = false;
     const authenticate = async () => {
       try {

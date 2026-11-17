@@ -14,6 +14,7 @@ import {
 import { resolvePrescriptionImageDownloadUrl } from '@/features/prescriptions/services/prescriptionStorageImageService';
 import { PrescriptionReassignDialog } from '@/features/prescriptions/components/PrescriptionReassignDialog';
 import { PrescriptionImageLightbox } from '@/features/prescriptions/components/PrescriptionImageLightbox';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 interface PrescriptionDetailModalProps {
   record: PrescriptionRecord;
@@ -67,9 +68,7 @@ export const PrescriptionDetailModal: React.FC<PrescriptionDetailModalProps> = (
     readonlyFullUrl ?? (resolvedFullImage?.path === fullImagePath ? resolvedFullImage.url : null);
   const imageError = !readonlyFullUrl && imageErrorPath === fullImagePath;
 
-  useEffect(() => {
-    setPendingType(record.prescriptionType);
-  }, [record.prescriptionType]);
+  if (useChangedOnRender([record.prescriptionType])) setPendingType(record.prescriptionType);
 
   useEffect(() => {
     let cancelled = false;
