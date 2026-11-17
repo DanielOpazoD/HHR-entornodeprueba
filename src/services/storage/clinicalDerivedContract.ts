@@ -196,11 +196,10 @@ const currentDocsByEpisode = (
  */
 export const applyMovedFields = (holder: unknown, doc: ClinicalDerivedEpisodeDoc): PlainObject => {
   const next: PlainObject = { ...(holder as PlainObject) };
-  const source = doc as unknown as PlainObject;
   CLINICAL_DERIVED_MOVED_FIELDS.forEach(field => {
-    if (!hasOwn(source, field) || source[field] === undefined) return;
-    if (source[field] === null) delete next[field];
-    else next[field] = clonePlain(source[field]);
+    if (!hasOwn(doc, field) || doc[field] === undefined) return;
+    if (doc[field] === null) delete next[field];
+    else next[field] = clonePlain(doc[field]);
   });
   return next;
 };

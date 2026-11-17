@@ -55,32 +55,28 @@ const hasMeaningfulText = (value: unknown): boolean => normalizeComparableText(v
 
 const isMovementListPatchPath = (path: string): boolean => MOVEMENT_LIST_KEYS.has(path);
 
+/** Own fields whose value differs between two versions of the same object. */
+const changedOwnFields = (previous: object, hydrated: object): string[] => {
+  const before = new Map<string, unknown>(Object.entries(previous));
+  const after = new Map<string, unknown>(Object.entries(hydrated));
+  return [...new Set([...before.keys(), ...after.keys()])].filter(field =>
+    valuesDiffer(before.get(field), after.get(field))
+  );
+};
+
 const collectChangedBedFields = (
   previousRecord: DailyRecord,
   hydratedRecord: DailyRecord,
   bedId: string
 ): Set<string> => {
-  const fields = new Set<string>();
-  const previousBed = (previousRecord.beds?.[bedId] ?? {}) as unknown as Record<string, unknown>;
-  const hydratedBed = (hydratedRecord.beds?.[bedId] ?? {}) as unknown as Record<string, unknown>;
-  const keys = new Set([...Object.keys(previousBed), ...Object.keys(hydratedBed)]);
-
-  keys.forEach(field => {
-    if (valuesDiffer(previousBed[field], hydratedBed[field])) {
-      fields.add(field);
-    }
-  });
-
-  const previousCrib = (previousBed.clinicalCrib ?? {}) as Record<string, unknown>;
-  const hydratedCrib = (hydratedBed.clinicalCrib ?? {}) as Record<string, unknown>;
-  const cribKeys = new Set([...Object.keys(previousCrib), ...Object.keys(hydratedCrib)]);
-  cribKeys.forEach(field => {
-    if (valuesDiffer(previousCrib[field], hydratedCrib[field])) {
-      fields.add(`clinicalCrib.${field}`);
-    }
-  });
-
-  return fields;
+  const previousBed = previousRecord.beds?.[bedId];
+  const hydratedBed = hydratedRecord.beds?.[bedId];
+  return new Set([
+    ...changedOwnFields(previousBed ?? {}, hydratedBed ?? {}),
+    ...changedOwnFields(previousBed?.clinicalCrib ?? {}, hydratedBed?.clinicalCrib ?? {}).map(
+      field => `clinicalCrib.${field}`
+    ),
+  ]);
 };
 
 const hasVisibleEpisodeChange = (changedFields: Set<string>): boolean =>
@@ -129,15 +125,14 @@ const isSameHydratedAdmissionActivation = (
   );
   if (!touchesIdentity) return false;
 
-  const touchedFieldsMatchHydrated = [...identityFields, 'admissionDate'].every(field => {
+  const touchedFieldsMatchHydrated = [...identityFields, 'admissionDate' as const].every(field => {
     const path = `beds.${bedId}.${field}`;
     if (!hasOwnPatchPath(attemptedPatch, path)) {
       return true;
     }
-    const hydratedBedValues = hydratedBed as unknown as Record<string, unknown>;
     return (
       normalizeComparableText(getPatchValue(attemptedPatch, path)) ===
-      normalizeComparableText(hydratedBedValues[field])
+      normalizeComparableText(hydratedBed[field])
     );
   });
 

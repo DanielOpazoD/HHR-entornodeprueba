@@ -42,7 +42,7 @@ export const measurementOverlayFor = (
   viewport: Pick<Types.IViewport, 'id' | 'renderingEngineId' | 'element'>
 ): DicomMeasurementOverlay | null => {
   const layer = viewport.element.querySelector<SVGSVGElement>('.viewport-element > .svg-layer');
-  const cache = (toolsState as unknown as { svgNodeCache?: SvgNodeCache }).svgNodeCache?.[
+  const cache = (toolsState as { svgNodeCache?: SvgNodeCache }).svgNodeCache?.[
     `${viewport.id}:${viewport.renderingEngineId}`
   ];
   if (!layer || !cache) return null;

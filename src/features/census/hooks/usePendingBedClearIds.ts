@@ -55,7 +55,7 @@ export const usePendingClinicalCribCreates = (date: string): ReadonlyMap<string,
     const cribsByBedId = new Map<string, PatientData>();
     pendingTargets.forEach(target => {
       if (!target) return;
-      cribsByBedId.set(target.bedId, target.crib as unknown as PatientData);
+      cribsByBedId.set(target.bedId, target.crib);
     });
     return cribsByBedId;
   }, [pendingTargets]);

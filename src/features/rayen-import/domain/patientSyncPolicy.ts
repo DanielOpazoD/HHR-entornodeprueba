@@ -163,7 +163,7 @@ export const mergeSyncablePatient = (current: PatientData, incoming: PatientData
     delete merged.diagnosisManualOverride;
   }
   for (const change of diffSyncablePatientFields(current, incoming)) {
-    (merged as unknown as Record<string, unknown>)[change.field] = change.to;
+    (merged as Record<string, unknown>)[change.field] = change.to;
   }
   return merged;
 };
@@ -208,7 +208,7 @@ export const applyReviewedPatientChanges = (
   incoming: PatientData,
   changes: FieldChange[]
 ): PatientData => {
-  const merged = { ...current } as unknown as Record<string, unknown>;
+  const merged: Partial<Record<keyof PatientData, unknown>> = { ...current };
   if (
     changes.some(
       change =>
@@ -237,5 +237,5 @@ export const applyReviewedPatientChanges = (
         ? preserveClinicalCribSpecialty(current.clinicalCrib, change.to as PatientData | undefined)
         : change.to;
   }
-  return merged as unknown as PatientData;
+  return merged as PatientData;
 };
