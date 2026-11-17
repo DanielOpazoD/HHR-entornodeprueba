@@ -4,6 +4,9 @@ La recuperación documental y la aprobación del mes son operaciones distintas.
 Una persona autorizada confirma explícitamente la población reconstruida y su motivo.
 La aprobación requiere todos los días cerrados, fuentes comprobadas y elegibilidad resuelta.
 Se conservan responsable, fecha, revisión y huellas del contenido de cada día.
+Un mes que no necesitó conciliación documental se aprueba igual: el documento del mes
+se crea sin entradas y queda marcado como `census_approval_only`, sin afirmar una
+revisión documental que no hubo. Una conciliación posterior lo reemplaza y reabre el mes.
 
 Firebase guarda una proyección mensual comprimida y verifica su integridad. La publicación
 rechaza fuentes o contenidos que hayan cambiado desde la aprobación, y las peticiones

@@ -1,5 +1,6 @@
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { PatientData } from '@/types/domain/patient';
 import { resolveCurrentClinicalDay } from '@/utils/clinicalDayAdmissionUtils';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import type { EgresoReportRow } from '../contracts/egresoReport';
@@ -210,9 +211,9 @@ const patientWithHistoricalChanges = (
   historical: DailyRecord['beds'][string],
   changes: CensusImportDiff['updates'][number]['changes']
 ): DailyRecord['beds'][string] => {
-  const patient = { ...historical } as unknown as Record<string, unknown>;
+  const patient: Partial<Record<keyof PatientData, unknown>> = { ...historical };
   for (const change of changes) patient[change.field] = change.to;
-  return patient as unknown as DailyRecord['beds'][string];
+  return patient as DailyRecord['beds'][string];
 };
 
 /**

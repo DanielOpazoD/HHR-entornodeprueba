@@ -36,7 +36,8 @@ export interface CudyrVerifiedContext {
   reconstructedDays?: Array<{ date: string; reason: string; evidenceHashes: string[] }>;
   reviewedBy: { uid: string; name: string; email: string; role: string };
   updatedAt: string;
-  verification: 'reviewed_documentary_context';
+  /** `census_approval_only`: created by an approval of a month that needed no reconciliation. */
+  verification: 'reviewed_documentary_context' | 'census_approval_only';
   files: Array<{ name: string; sha256: string; byteLength: number }>;
 }
 

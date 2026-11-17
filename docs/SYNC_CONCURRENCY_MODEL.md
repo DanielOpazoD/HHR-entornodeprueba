@@ -222,6 +222,10 @@ snapshots and their restore flow are described in
 
 ### Authority callables — `dailyRecordWriteAuthorityFunctions.js`
 
+- The entry file declares both callables; their transactions live in
+  `dailyRecordFullSaveCallable.js` and `dailyRecordPatchCallable.js`, with request parsing,
+  write policy, intentional bed clear, record state and outcome in `dailyRecordWrite*.js`,
+  `dailyRecordIntentionalBedClear.js` and `dailyRecordAuthorityOutcome.js`.
 - Server `runTransaction` for save and patch.
 - **Version** — an existing day requires a verifiable base inside the transaction.
   `meta.revision` must equal `syncContract.baseRevision` when supplied; without a revision,

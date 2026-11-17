@@ -2,6 +2,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { PatientData } from '@/types/domain/patient';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import type { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { buildSpecialistHandoffIdentity } from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
 import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
 import { applyPatches } from '@/utils/patchUtils';
@@ -112,3 +113,43 @@ export const detachStaleOccupantPaths = (
     }),
   };
 };
+
+/** Writes edits held for a patient no longer in their bed, one conflict per bed or crib. */
+export const keepDetachedConflicts = async (
+  db: typeof hospitalDB,
+  conflicts: SyncTask[],
+  ownerKey: string | undefined
+) => {
+  for (const conflict of conflicts) {
+    const existing = conflict.key
+      ? await db.syncQueue.where('key').equals(conflict.key).first()
+      : undefined;
+    if (existing?.id) await db.syncQueue.put({ ...conflict, id: existing.id });
+    else await db.syncQueue.add({ ...conflict, ownerKey });
+  }
+};
+
+const isEmptySlot = (slot: PatientData | undefined) => hasSameBedOccupant(slot, undefined);
+
+/**
+ * The stored day with only the beds and cribs that `next` empties taken from it: what a discharge
+ * or transfer leaves, without counting an identity correction as another patient.
+ */
+export const withVacatedSlots = (stored: DailyRecord, next: DailyRecord): DailyRecord => ({
+  ...stored,
+  beds: Object.fromEntries(
+    Object.entries(stored.beds ?? {}).map(([bedId, bed]) => {
+      const nextBed = next.beds?.[bedId];
+      const kept = isEmptySlot(nextBed) ? nextBed : bed;
+      return [
+        bedId,
+        {
+          ...kept,
+          clinicalCrib: isEmptySlot(nextBed?.clinicalCrib)
+            ? nextBed?.clinicalCrib
+            : bed?.clinicalCrib,
+        } as PatientData,
+      ];
+    })
+  ),
+});

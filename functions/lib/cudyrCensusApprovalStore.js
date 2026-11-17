@@ -25,7 +25,7 @@ const parseCensusApproval = data => {
     data.action !== 'approve_census' ||
     local < next + ' 12:00' ||
     !Number.isSafeInteger(data.expectedRevision) ||
-    data.expectedRevision < 1 ||
+    data.expectedRevision < 0 ||
     typeof data.operationId !== 'string' ||
     !/^[a-zA-Z0-9-]{16,100}$/.test(data.operationId) ||
     typeof data.reason !== 'string' ||
@@ -58,6 +58,7 @@ const parseCensusApproval = data => {
   };
 };
 
+const VERIFICATIONS = ['reviewed_documentary_context', 'census_approval_only'];
 // Authorized human attestation, not a claim of automatic source equality.
 const saveCudyrCensusApproval = async ({ hospital, data, actor, runTransaction }) => {
   if (!['admin', 'nurse_hospital'].includes(actor.role))
@@ -74,17 +75,26 @@ const saveCudyrCensusApproval = async ({ hospital, data, actor, runTransaction }
       return { persisted: true, revision: receipt.data().review.revision };
     }
     const prior = await tx.get(ref);
-    if (
-      !prior.exists ||
-      prior.data().verification !== 'reviewed_documentary_context' ||
-      !prior.data().entries?.length
-    )
-      fail('Documentary reconstruction required.', 'failed-precondition');
-    if (prior.data().revision !== input.expectedRevision)
+    if (prior.exists && !VERIFICATIONS.includes(prior.data().verification))
+      fail('Unknown monthly review.', 'failed-precondition');
+    if ((prior.exists ? prior.data().revision : 0) !== input.expectedRevision)
       fail('La conciliación cambió; recargue antes de aprobar.', 'aborted');
     const now = new Date().toISOString();
+    // A month that needed no documentary reconciliation must not claim one.
+    const base = prior.exists
+      ? prior.data()
+      : {
+          schemaVersion: 1,
+          month: input.month,
+          entries: [],
+          files: [],
+          reconstructedDays: [],
+          reviewedBy: actor,
+          updatedAt: now,
+          verification: 'census_approval_only',
+        };
     const review = {
-      ...prior.data(),
+      ...base,
       revision: input.expectedRevision + 1,
       censusApproval: {
         policyVersion: input.policyVersion,

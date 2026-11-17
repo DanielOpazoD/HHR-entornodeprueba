@@ -37,7 +37,7 @@ export const useCensusMigrationBootstrap = (enabled = true): void => {
         window.cancelIdleCallback(idleCallback as number);
         return;
       }
-      clearTimeout(idleCallback as unknown as ReturnType<typeof setTimeout>);
+      window.clearTimeout(idleCallback);
     };
   }, [enabled, migrationStorage]);
 };

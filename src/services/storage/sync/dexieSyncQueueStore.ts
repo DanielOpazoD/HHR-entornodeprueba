@@ -218,7 +218,7 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
                     rebase: undefined,
                     wholeRecordBase,
                     patchWrite,
-                  })
+                  }).task
                 : task,
               authoringSession
             )

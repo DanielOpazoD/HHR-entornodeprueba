@@ -14,10 +14,17 @@ import {
   type PendingProjectionRebase,
 } from '@/services/storage/sync/pendingProjectionRebase';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+import { applyPatches } from '@/utils/patchUtils';
 import type { DailyRecordPatchWrite } from '@/services/storage/sync/syncQueuePorts';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 // The replay-time occupant checks ship with the enqueue-time one, with the durable writer.
 export { detachStaleOccupantPaths } from '@/services/storage/sync/dayTaskOccupantDetach';
+import {
+  detachStaleOccupantPaths,
+  keepDetachedConflicts,
+  withVacatedSlots,
+} from '@/services/storage/sync/dayTaskOccupantDetach';
 export {
   hasOtherOccupantInUntouchedBed,
   keepStoredNoteFields,
@@ -61,7 +68,7 @@ export const foldWriteIntoOutbox = ({
   rebase: PendingProjectionRebase | undefined;
   wholeRecordBase?: DailyRecord;
   patchWrite?: DailyRecordPatchWrite;
-}): SyncTask => {
+}): { task: SyncTask; heldConflicts: SyncTask[] } => {
   const owner = unresolved.find(
     candidate => stored && hasSameComparableValue(candidate.payload, stored)
   );
@@ -81,13 +88,35 @@ export const foldWriteIntoOutbox = ({
     });
   }
   const rebased = stored && rebase ? rebase(stored, pendingPaths) : null;
-  const merged = mergeSyncTaskContracts(existing?.syncContract, task.syncContract);
   const payload = rebased ?? (task.payload as DailyRecord);
-  const previous = existing ?? owner;
+  // A write that empties a bed or crib (a discharge, a transfer) never carries the unsent edits
+  // written for the patient who leaves onto the empty slot or its next occupant, nor replaces them:
+  // they stay held for that patient and episode (ID-01, SAVE-03), as when a confirmed command
+  // empties the bed (`adoptAuthoritativeDailyRecordInOutbox`). The write keeps the rest.
+  const detached =
+    existing && stored
+      ? detachStaleOccupantPaths(existing, stored, withVacatedSlots(stored, payload))
+      : null;
+  const merged = mergeSyncTaskContracts(
+    (detached?.task ?? existing)?.syncContract,
+    task.syncContract
+  );
+  // The held write's remote version stays this write's version, as for any compaction below.
+  const previous = detached?.task ?? existing ?? owner;
   const baseContract = previous?.syncContract;
   const patchBaseValues = { ...previous?.patchBaseValues };
   if (patchWrite) {
-    const base = patchWrite.prepare(patchWrite.baseRecord, {});
+    // Where an edit was detached, this write's base is the value that edit was written over,
+    // never its unsent text (#1661): the server holding that value is not a change elsewhere.
+    const remaining = detached?.task.syncContract?.changedPaths ?? [];
+    const heldBases = Object.fromEntries(
+      (detached ? (existing?.syncContract?.changedPaths ?? []) : [])
+        .filter(
+          path => !remaining.includes(path) && Object.hasOwn(existing?.patchBaseValues ?? {}, path)
+        )
+        .map(path => [path, existing?.patchBaseValues?.[path]])
+    ) as DailyRecordPatch;
+    const base = patchWrite.prepare(applyPatches(patchWrite.baseRecord, heldBases), {});
     for (const path of Object.keys(patchWrite.patch)) {
       const overlapsPending = (previous?.syncContract?.changedPaths ?? ['*']).some(
         pending =>
@@ -99,7 +128,7 @@ export const foldWriteIntoOutbox = ({
       if (!previous || !overlapsPending) patchBaseValues[path] = getValueAtPath(base, path);
     }
   }
-  return {
+  const nextTask: SyncTask = {
     ...task,
     payload,
     patchBaseValues,
@@ -121,6 +150,7 @@ export const foldWriteIntoOutbox = ({
         : {}),
     },
   };
+  return { task: nextTask, heldConflicts: detached?.conflicts ?? [] };
 };
 
 /** Writes the day's record and its outbox task in one transaction. */
@@ -148,7 +178,7 @@ export const saveDailyRecordInOutbox = (
       if (!patchWrite && isOpaqueChangedPaths(task.syncContract?.changedPaths ?? [])) {
         assertFullSaveNoteBase(record, stored, wholeRecordBase);
       }
-      const nextTask = foldWriteIntoOutbox({
+      const { task: nextTask, heldConflicts } = foldWriteIntoOutbox({
         task,
         existing,
         rebase,
@@ -162,6 +192,7 @@ export const saveDailyRecordInOutbox = (
       });
       const persistedRecord = nextTask.payload as DailyRecord;
       await hospitalDB.dailyRecords.put(persistedRecord);
+      await keepDetachedConflicts(hospitalDB, heldConflicts, existing?.ownerKey);
       if (existing?.id) {
         await hospitalDB.syncQueue.put({ ...existing, ...nextTask, id: existing.id });
         return { mode: 'reused' as const, persistedRecord };

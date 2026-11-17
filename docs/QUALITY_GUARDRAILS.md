@@ -19,7 +19,7 @@ Evitar que la deuda estructural vuelva a crecer después de las fases de estabil
 
 1. Se divide por responsabilidad, no por tamaño. Un módulo debe poder describirse con una sola frase; si cuesta, ese es el criterio para separarlo, no su número de líneas.
 2. No crear controllers, helpers o archivos `*Support` solo para bajar líneas: un archivo nuevo necesita un nombre de dominio y una razón propia (lógica que se prueba sola, otro consumidor o un ciclo de cambio distinto). Antes de dividir, eliminar código muerto o duplicado.
-3. El tope global de 600 líneas (`scripts/module-size-allowlist.json`, `npm run check:module-size`) es una alarma para revisar cohesión, no una meta. Un módulo cohesivo que necesite superarlo entra a la allowlist con motivo, owner y estado en el backlog, y no puede crecer por sobre ese límite sin actualizarla.
+3. El tope global de 600 líneas (`scripts/module-size-allowlist.json`, `npm run check:module-size`) vale para `src/` y para las Functions de `functions/lib/`, y es una alarma para revisar cohesión, no una meta. Un módulo cohesivo que necesite superarlo entra a la allowlist con motivo, owner y estado en el backlog; su techo es su tamaño al entrar, no crece, y baja cuando el archivo se achica.
 4. Un hotspot (archivo grande con mucho churn) se revisa por responsabilidades mezcladas en la revisión del PR; no hay presupuestos por archivo más estrictos que el tope global.
 5. Al extraer lógica, preferir funciones puras y conservar estables los contratos públicos y el JSX.
 6. `npm run lint` es tolerancia cero; no se aceptan warnings nuevos en `src/`.

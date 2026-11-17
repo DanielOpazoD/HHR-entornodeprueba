@@ -99,6 +99,7 @@ const withHolderAt = (
       [location.bedId]: location.kind === 'bed' ? holder : { ...bed, clinicalCrib: holder },
     };
   }
+  // A backup is untyped JSON: only the holder at `location` was replaced, the rest is as read.
   return next as unknown as DailyRecord;
 };
 

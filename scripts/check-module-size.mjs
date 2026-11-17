@@ -4,14 +4,23 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const ROOT = process.cwd();
-const SRC_ROOT = path.join(ROOT, 'src');
 const ALLOWLIST_PATH = path.join(ROOT, 'scripts', 'module-size-allowlist.json');
-const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx']);
+// The app (`src/`) and the Cloud Functions (`functions/lib/`, deployed with real patient data)
+// share one cap. A missing root is an error: an unscanned tree is unmeasured, not compliant.
+const SOURCE_ROOTS = [
+  { dir: 'src', extensions: new Set(['.ts', '.tsx']) },
+  { dir: 'functions/lib', extensions: new Set(['.js']) },
+];
+const SPLIT_HINT = 'split it by responsibility (CONTRIBUTING.md, "Elegir dónde cambiar")';
+const FIX_HINT_BY_MODE = {
+  'new-overflow': `${SPLIT_HINT}; a cohesive exception needs an allowlist entry with its backlog reason`,
+  'allowlist-overflow': `${SPLIT_HINT}; the ceiling is the size it was listed at and does not rise`,
+};
 
 const toPosix = value => value.split(path.sep).join('/');
 
-const isSourceFile = filePath => {
-  if (!SOURCE_EXTENSIONS.has(path.extname(filePath))) {
+const isSourceFile = (filePath, extensions) => {
+  if (!extensions.has(path.extname(filePath))) {
     return false;
   }
 
@@ -23,17 +32,17 @@ const isSourceFile = filePath => {
   return !normalized.includes('/tests/') && !normalized.includes('.test.');
 };
 
-const walkFiles = dirPath => {
+const walkFiles = (dirPath, extensions) => {
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });
   const result = [];
 
   for (const entry of entries) {
     const absolutePath = path.join(dirPath, entry.name);
     if (entry.isDirectory()) {
-      result.push(...walkFiles(absolutePath));
+      result.push(...walkFiles(absolutePath, extensions));
       continue;
     }
-    if (entry.isFile() && isSourceFile(absolutePath)) {
+    if (entry.isFile() && isSourceFile(absolutePath, extensions)) {
       result.push(absolutePath);
     }
   }
@@ -62,10 +71,22 @@ const loadAllowlist = () => {
   };
 };
 
-const files = walkFiles(SRC_ROOT);
+const missingRoots = SOURCE_ROOTS.filter(({ dir }) => !fs.existsSync(path.join(ROOT, dir)));
+if (missingRoots.length > 0) {
+  console.error(
+    `Module size check cannot measure missing source roots: ${missingRoots
+      .map(({ dir }) => dir)
+      .join(', ')}. Run it from the repository root.`
+  );
+  process.exit(1);
+}
+
+const files = SOURCE_ROOTS.flatMap(({ dir, extensions }) =>
+  walkFiles(path.join(ROOT, dir), extensions)
+);
 const { globalMax, allowlist, backlog } = loadAllowlist();
 const violations = [];
-const seen = new Set();
+const seen = new Map();
 
 for (const absolutePath of files) {
   const relativePath = toPosix(path.relative(ROOT, absolutePath));
@@ -73,7 +94,7 @@ for (const absolutePath of files) {
   const allowedMax = allowlist[relativePath];
   const effectiveLimit = typeof allowedMax === 'number' ? allowedMax : globalMax;
 
-  seen.add(relativePath);
+  seen.set(relativePath, lineCount);
 
   if (lineCount > effectiveLimit) {
     violations.push({
@@ -86,6 +107,12 @@ for (const absolutePath of files) {
 }
 
 const staleAllowlistEntries = Object.keys(allowlist).filter(filePath => !seen.has(filePath));
+// A ceiling is the file's size when it was listed; once the file shrinks, the ceiling follows,
+// so the lines just moved out cannot come back.
+const slackAllowlistEntries = Object.entries(allowlist)
+  .filter(([filePath, limit]) => typeof limit === 'number' && seen.has(filePath))
+  .map(([filePath, limit]) => ({ filePath, limit, lines: seen.get(filePath) }))
+  .filter(({ limit, lines }) => lines > globalMax && lines < limit);
 const redundantAllowlistEntries = Object.entries(allowlist)
   .filter(([, limit]) => typeof limit === 'number' && limit > globalMax)
   .map(([filePath, limit]) => ({
@@ -111,6 +138,7 @@ const undocumentedHotspots = Object.entries(allowlist)
 if (
   violations.length === 0 &&
   staleAllowlistEntries.length === 0 &&
+  slackAllowlistEntries.length === 0 &&
   redundantAllowlistEntries.length === 0 &&
   undocumentedHotspots.length === 0
 ) {
@@ -123,7 +151,7 @@ if (violations.length > 0) {
   for (const violation of violations.sort((a, b) => b.lines - a.lines)) {
     const label = violation.mode === 'allowlist-overflow' ? 'allowlist exceeded' : 'new overflow';
     console.error(
-      `- [${label}] ${violation.file}: ${violation.lines} lines (limit ${violation.limit})`
+      `- [${label}] ${violation.file}: ${violation.lines} lines (limit ${violation.limit}); ${FIX_HINT_BY_MODE[violation.mode]}`
     );
   }
 }
@@ -132,6 +160,17 @@ if (staleAllowlistEntries.length > 0) {
   console.error('\nStale allowlist entries (file missing or moved):');
   for (const filePath of staleAllowlistEntries.sort()) {
     console.error(`- ${filePath}`);
+  }
+}
+
+if (slackAllowlistEntries.length > 0) {
+  console.error(
+    '\nAllowlist ceilings above the current size (lower them in module-size-allowlist):'
+  );
+  for (const entry of slackAllowlistEntries.sort((left, right) =>
+    left.filePath.localeCompare(right.filePath)
+  )) {
+    console.error(`- ${entry.filePath}: set its limit from ${entry.limit} to ${entry.lines}`);
   }
 }
 
