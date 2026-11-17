@@ -29,7 +29,11 @@ import {
 } from '@/application/census/public';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { BEDS } from '@/constants/beds';
-import { getSyncQueueTelemetry, processSyncQueue } from '@/services/storage/sync';
+import {
+  getSyncQueueTelemetry,
+  processSyncQueue,
+  retryQuarantinedSyncTask,
+} from '@/services/storage/sync';
 import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
 import * as authority from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
@@ -582,21 +586,106 @@ it.each(['first', 'second'])(
   60_000
 );
 
-// W12-CW11, not fixed. With a text of the day held after the notice, a later «Dar de alta» folds
-// into that held write, and its replay refuses the whole write because the text changed
-// elsewhere (`withoutUnchangedPlainDayFields` leaves no part to rebase): the movement waits with
-// the text until someone reviews it, although its bed changed nowhere else. Nothing is lost.
-// Publishing it would mean splitting the day's write at replay, a change of its own.
-it.fails(
-  '«Dar de alta» reaches the server while a text of the day waits after the notice',
-  async () => {
-    const { mutate, hook } = await conflictOnNight();
-    await recover(hook, 'refetch');
-    await moveOut(mutate, 'discharge');
-    await replay();
+// W12-CW12. With a text of the day held after the notice, a later «Dar de alta» folds into that
+// held write. Its replay refused the whole write because the text changed elsewhere, and the
+// patient stayed in the bed on the server until someone reviewed the text. The replay now
+// publishes the movement with its freed bed, and only the text stays held, in the same task, so
+// the next edit of it meets the other computer's text again (rule of 15-11: different fields keep
+// both, the same field warns the second).
+it('«Dar de alta» reaches the server while a text of the day waits after the notice', async () => {
+  const { mutate, edit, hook } = await conflictOnNight();
+  await recover(hook, 'refetch');
+  await moveOut(mutate, 'discharge');
+  await replay();
 
-    expect(movedOut(await server(), 'discharge')).toEqual(['PACIENTE SINTETICO A']);
-    hook.unmount();
-  },
-  60_000
-);
+  const remote = await server();
+  expect(movedOut(remote, 'discharge')).toEqual(['PACIENTE SINTETICO A']);
+  expect(remote.beds.R4).toMatchObject({ rut: '', patientName: '' });
+  expect(remote[night]).toBe('A1');
+  expect(
+    (await hospitalDB.syncQueue.toArray()).map(task => [
+      task.key,
+      task.status,
+      task.syncContract?.changedPaths,
+      (task.payload as DailyRecord)[night],
+      task.lastErrorCode,
+    ])
+  ).toEqual([[`daily:${date}`, 'CONFLICT', [night], 'B3', 'daily_record_field_changed_elsewhere']]);
+  // This computer shows the discharge with the text it keeps.
+  const local = await hospitalDB.dailyRecords.get(date);
+  expect(local?.[night]).toBe('B3');
+  expect(movedOut(local, 'discharge')).toEqual(['PACIENTE SINTETICO A']);
+  expect((await getSyncQueueTelemetry()).conflict).toBe(1);
+
+  // Still a field the other computer changed: met again, not replaced.
+  expect((await edit(night, 'B5'))?.observabilityTags).toContain('field_changed_elsewhere');
+  await replay();
+  expect((await server())[night]).toBe('A1');
+  await expectUnsentNightKept('B5');
+  expect(movedOut(await server(), 'discharge')).toEqual(['PACIENTE SINTETICO A']);
+  hook.unmount();
+}, 60_000);
+
+// W12-CW12. Offline, one save holds a text of the day and the movement, and another computer
+// changes that text. The replay publishes the movement under a mutation id of its own: «Reintentar»
+// on the held text later meets the other computer's text again, never taken as already sent.
+it('publishes «Dar de alta» saved offline with a text changed elsewhere, and keeps the text', async () => {
+  const { mutate, hook } = await censusHere();
+  setFirestoreEnabled(false);
+  await moveOut(partial => mutate({ ...partial, [night]: 'B2' } as DailyRecordPatch), 'discharge');
+  setFirestoreEnabled(true);
+  await admin.doc(dayPath).update({ [night]: 'A1', lastUpdated: Timestamp.now() });
+  await replay();
+
+  expect(movedOut(await server(), 'discharge')).toEqual(['PACIENTE SINTETICO A']);
+  const held = () =>
+    hospitalDB.syncQueue
+      .toArray()
+      .then(tasks =>
+        tasks.map(task => [
+          task.status,
+          task.syncContract?.changedPaths,
+          (task.payload as DailyRecord)[night],
+        ])
+      );
+  expect(await held()).toEqual([['CONFLICT', [night], 'B2']]);
+
+  // «Reintentar» on the held text, in the review of pending changes.
+  const [task] = await hospitalDB.syncQueue.toArray();
+  expect(await retryQuarantinedSyncTask(task.id!)).toBe(true);
+  await replay();
+  expect((await server())[night]).toBe('A1');
+  expect(await held()).toEqual([['CONFLICT', [night], 'B2']]);
+  expect((await hospitalDB.dailyRecords.get(date))?.[night]).toBe('B2');
+  hook.unmount();
+}, 60_000);
+
+// W12-CW12. The browser closed after the server confirmed the movement and before the queue
+// recorded it: the next replay finds the movement already there and the text still held.
+it('keeps the text held when the confirmation of the published movement was lost', async () => {
+  const { mutate, hook } = await censusHere();
+  setFirestoreEnabled(false);
+  await moveOut(partial => mutate({ ...partial, [night]: 'B2' } as DailyRecordPatch), 'discharge');
+  setFirestoreEnabled(true);
+  await admin.doc(dayPath).update({ [night]: 'A1', lastUpdated: Timestamp.now() });
+  const [queued] = await hospitalDB.syncQueue.toArray();
+  const shownBefore = await hospitalDB.dailyRecords.get(date);
+  await replay();
+  expect(movedOut(await server(), 'discharge')).toEqual(['PACIENTE SINTETICO A']);
+  await hospitalDB.syncQueue.clear();
+  await hospitalDB.syncQueue.put(queued);
+  await hospitalDB.dailyRecords.put(shownBefore!);
+
+  await replay();
+  expect(movedOut(await server(), 'discharge')).toEqual(['PACIENTE SINTETICO A']);
+  expect((await server())[night]).toBe('A1');
+  expect(
+    (await hospitalDB.syncQueue.toArray()).map(task => [
+      task.status,
+      task.syncContract?.changedPaths,
+      (task.payload as DailyRecord)[night],
+    ])
+  ).toEqual([['CONFLICT', [night], 'B2']]);
+  expect((await hospitalDB.dailyRecords.get(date))?.[night]).toBe('B2');
+  hook.unmount();
+}, 60_000);

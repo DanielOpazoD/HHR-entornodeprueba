@@ -14,7 +14,10 @@ import {
 } from '@/services/repositories/conflictResolutionUtils';
 import { applyPatches } from '@/utils/patchUtils';
 import { hospitalDB, isDatabaseInFallbackMode } from '@/services/storage/indexeddb/indexedDbCore';
+import { createFieldChangedElsewhereError } from '@/services/storage/syncErrorCatalog';
 import { holdsDailyRecordProjection } from './dexieSyncQueueQuarantine';
+import { resolveHeldConflictState } from './syncQueueFailurePolicy';
+import { clearSyncTaskRuntimeState } from './syncQueueTaskFactory';
 import { UNKNOWN_SERVER_VERSION } from './syncTaskContractPolicy';
 
 const MOVEMENT_LIST_PATH = /^(discharges|transfers|cma)(\.|$)/;
@@ -42,6 +45,17 @@ export const plainDayFieldReplayPaths = (task: SyncTask): string[] | undefined =
   return plain ? paths : undefined;
 };
 
+/** Whether the stored day holds, at a captured field, its base or already the queued value. */
+const holdsBaseOrQueuedValue =
+  (task: SyncTask, stored: DailyRecord, queued: DailyRecord) =>
+  (path: string): boolean => {
+    const value = getValueAtPath(stored, path);
+    return (
+      hasSameComparableValue(value, task.patchBaseValues?.[path]) ||
+      hasSameComparableValue(value, getValueAtPath(queued, path))
+    );
+  };
+
 /**
  * A day write that also holds a bed's diagnosis or status, both unsent edits of this computer, is
  * rebased as each part alone would be: its plain day fields must still hold, in the stored day,
@@ -55,16 +69,9 @@ export const withoutUnchangedPlainDayFields = (
 ): SyncTask | undefined => {
   const paths = normalizeChangedPaths(task.syncContract?.changedPaths);
   const plain = paths.filter(isPlainDayFieldReplayPath);
-  const base = task.patchBaseValues ?? {};
-  const unchanged = plain.every(path => {
-    const value = getValueAtPath(stored, path);
-    return (
-      Object.hasOwn(base, path) &&
-      (hasSameComparableValue(value, base[path]) ||
-        hasSameComparableValue(value, getValueAtPath(queued, path)))
-    );
-  });
-  if (!unchanged) return undefined;
+  const holds = holdsBaseOrQueuedValue(task, stored, queued);
+  if (!plain.every(path => Object.hasOwn(task.patchBaseValues ?? {}, path) && holds(path)))
+    return undefined;
   return {
     ...task,
     syncContract: {
@@ -73,6 +80,99 @@ export const withoutUnchangedPlainDayFields = (
     },
   };
 };
+
+/** The rest of a day write, published without the plain day fields another computer changed. */
+export interface PlainDayFieldsHeldOut {
+  /** Those fields: they stay held in the day task. */
+  paths: string[];
+  /** The write without them, under its own mutation id, and its payload with the stored values there. */
+  task: SyncTask;
+  record: DailyRecord;
+}
+
+/**
+ * A day write that also holds plain day fields another computer changed (the stored day holds
+ * neither their base nor the queued value) publishes the rest (W12-CW12): different fields keep
+ * both edits, and only those fields wait as «El campo cambió en otro equipo» (SAVE-02, SAVE-03).
+ * The published part takes its own mutation id, so the server never acknowledges the held fields.
+ * Undefined when no plain field changed elsewhere, or when nothing else is left to publish.
+ */
+export const holdOutPlainDayFieldsChangedElsewhere = (
+  task: SyncTask,
+  stored: DailyRecord,
+  record: DailyRecord
+): PlainDayFieldsHeldOut | undefined => {
+  const changedPaths = normalizeChangedPaths(task.syncContract?.changedPaths);
+  const holds = holdsBaseOrQueuedValue(task, stored, record);
+  const paths = changedPaths.filter(
+    path =>
+      isPlainDayFieldReplayPath(path) &&
+      Object.hasOwn(task.patchBaseValues ?? {}, path) &&
+      !holds(path)
+  );
+  if (
+    task.nursingHandoffRecovery ||
+    changedPaths.includes('*') ||
+    !paths.length ||
+    paths.length === changedPaths.length
+  )
+    return undefined;
+  const { mutationIds: _compacted, ...contract } = task.syncContract ?? {};
+  return {
+    paths,
+    task: {
+      ...task,
+      syncContract: {
+        ...contract,
+        changedPaths: changedPaths.filter(path => !paths.includes(path)),
+        mutationId: `${contract.mutationId ?? task.opId}:published-part`,
+      },
+    },
+    record: applyPatches(
+      record,
+      Object.fromEntries(
+        paths.map(path => [path, getValueAtPath(stored, path)])
+      ) as DailyRecordPatch
+    ),
+  };
+};
+
+/**
+ * Every field of this write has the base it was written over: the stored day can then be checked
+ * field by field (`assertUnchangedReplayPatchBase`) and the write rebased on its version, as a
+ * direct edit meeting a newer version is.
+ */
+export const hasCapturedBaseForEveryField = (task: SyncTask): boolean => {
+  const paths = normalizeChangedPaths(task.syncContract?.changedPaths);
+  const version = task.syncContract?.expectedVersion;
+  return (
+    version !== UNKNOWN_SERVER_VERSION &&
+    Number.isFinite(Date.parse(version ?? '')) &&
+    paths.length > 0 &&
+    paths.every(path => path !== '*' && Object.hasOwn(task.patchBaseValues ?? {}, path))
+  );
+};
+
+/**
+ * The day task as it stays once the rest of it is published: held with only the fields another
+ * computer changed, their unsent text over the committed day, and the remote base they were
+ * written over, so the next edit of them meets the other computer's text again.
+ */
+export const keepPlainDayFieldsHeld = (
+  task: SyncTask,
+  queued: DailyRecord,
+  paths: string[],
+  committed: DailyRecord
+): Partial<SyncTask> => ({
+  ...clearSyncTaskRuntimeState(),
+  ...resolveHeldConflictState(createFieldChangedElsewhereError(), task.contexts),
+  payload: applyPatches(
+    committed,
+    Object.fromEntries(paths.map(path => [path, getValueAtPath(queued, path)])) as DailyRecordPatch
+  ),
+  syncContract: { ...task.syncContract, changedPaths: paths },
+  patchBaseValues: Object.fromEntries(paths.map(path => [path, task.patchBaseValues?.[path]])),
+});
 
 /**
  * The server instant a direct edit of this day is checked against while a day write of this

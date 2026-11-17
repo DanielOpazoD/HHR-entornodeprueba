@@ -49,9 +49,13 @@ import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import type { DetachedOccupantWork } from './dayTaskOccupantDetach';
 import { nursingHandoffPaths } from './nursingHandoffTasks';
 import {
+  hasCapturedBaseForEveryField,
+  holdOutPlainDayFieldsChangedElsewhere,
+  keepPlainDayFieldsHeld,
   plainDayFieldReplayPaths,
   replayPlainDayFields,
   withoutUnchangedPlainDayFields,
+  type PlainDayFieldsHeldOut,
 } from './plainDayFieldReplay';
 import {
   resolveOptionalBaseRevision,
@@ -165,6 +169,8 @@ interface ResolvedSyncRecordForTask {
   canRebasePatch?: boolean;
   /** Edits left out because their bed or crib now holds another patient or episode. */
   detached?: DetachedOccupantWork;
+  /** Plain day fields another computer changed, left out and kept held in the day task. */
+  heldOut?: PlainDayFieldsHeldOut;
 }
 
 /** The day task's occupant and replay checks, loaded with the outbox. */
@@ -210,12 +216,16 @@ const resolveRecordForSyncTask = async (
       remoteData,
       Object.fromEntries(changedPaths.map(path => [path, getValueAtPath(record, path)]))
     );
-  const alreadyApplied = (detached?: DetachedOccupantWork): ResolvedSyncRecordForTask => ({
+  const alreadyApplied = (
+    detached?: DetachedOccupantWork,
+    heldOut?: PlainDayFieldsHeldOut
+  ): ResolvedSyncRecordForTask => ({
     record: docToRecord(remoteData, record.date),
     resolution: 'already_applied',
     acceptedVersion: remoteLastUpdated,
     storedData: remoteData,
     detached,
+    heldOut,
   });
   // Edits written for a patient who left the bed or crib never reach the next occupant. They are
   // rebuilt even when the rest already landed, since the ACK that kept them may have rolled back.
@@ -255,6 +265,8 @@ const resolveRecordForSyncTask = async (
   }
 
   const remoteRecord = docToRecord(remoteData, record.date);
+  const heldOut = holdOutPlainDayFieldsChangedElsewhere(task, remoteRecord, record);
+  if (heldOut) ({ task, record } = heldOut);
   const appliedPaths = assertUnchangedReplayPatchBase(task, remoteData, remoteRecord, record);
   if (appliedPaths.length) {
     // The server already holds these fields as the edit wants them, a lost ACK included: the
@@ -264,7 +276,7 @@ const resolveRecordForSyncTask = async (
         appliedPaths.includes(path)
       )
     )
-      return alreadyApplied(detached);
+      return alreadyApplied(detached, heldOut);
     record = applyPatches(
       record,
       Object.fromEntries(
@@ -279,11 +291,17 @@ const resolveRecordForSyncTask = async (
       resolution: 'accepted',
       acceptedVersion: remoteLastUpdated,
       storedData: remoteData,
+      heldOut,
     };
   const rebasedPart = withoutUnchangedPlainDayFields(queuedTask, remoteRecord, queuedRecord);
+  // Without the fields another computer changed, the rest was just checked field by field.
   const canRebasePatch =
     !detached &&
-    Boolean(rebasedPart && checks?.hasUnchangedPatchBase(rebasedPart, remoteRecord, queuedRecord));
+    (heldOut
+      ? hasCapturedBaseForEveryField(task)
+      : Boolean(
+          rebasedPart && checks?.hasUnchangedPatchBase(rebasedPart, remoteRecord, queuedRecord)
+        ));
   if (task.nursingHandoffRecovery) {
     record = resolveDailyRecordConflict(remoteRecord, record, {
       changedPaths: task.syncContract?.changedPaths,
@@ -306,6 +324,7 @@ const resolveRecordForSyncTask = async (
       resolution: 'accepted',
       acceptedVersion: record.lastUpdated,
       storedData: remoteData,
+      heldOut,
     };
   }
 
@@ -350,6 +369,7 @@ const resolveRecordForSyncTask = async (
     storedData: remoteData,
     detached,
     canRebasePatch,
+    heldOut,
   };
 };
 
@@ -408,11 +428,14 @@ const syncDailyRecord = async (
   }
   const occupants: ReplayChecks = await import('./dexieDailyRecordOutbox');
   let detached: DetachedOccupantWork | undefined;
+  let heldOut: PlainDayFieldsHeldOut | undefined;
   const result = await measureRepositoryOperation(
     'syncQueue.writeDailyRecord',
     async (): Promise<SyncTransportResult> => {
       const resolved = await resolveRecordForSyncTask(task, record, runtime, undefined, occupants);
-      detached = resolved.detached;
+      ({ detached, heldOut } = resolved);
+      // The part this replay publishes: never the fields left out of it.
+      const publishTask = heldOut?.task ?? detached?.task ?? task;
       if (resolved.resolution === 'already_applied') {
         recordSyncQueueTruthSelectionTelemetry(task, {
           resolution: resolved.resolution,
@@ -422,10 +445,10 @@ const syncDailyRecord = async (
         return { authoritativeRecord: resolved.record };
       }
       const recordToWrite = resolved.record;
-      const plainPaths = plainDayFieldReplayPaths(task);
+      const plainPaths = plainDayFieldReplayPaths(publishTask);
       if (plainPaths && resolved.storedData) {
         const replayed = await replayPlainDayFields(
-          task,
+          publishTask,
           recordToWrite,
           plainPaths,
           runtime,
@@ -444,7 +467,6 @@ const syncDailyRecord = async (
       const effectiveAuthorityMode = await resolveEffectiveDailyRecordAuthorityMode(runtime);
       const writeFenceActive = await isServerClinicalWriteFenceActive(runtime);
       if (effectiveAuthorityMode === 'enforced' || writeFenceActive) {
-        const publishTask = resolved.detached?.task ?? task;
         const freshBase =
           !task.nursingHandoffRecovery &&
           resolved.resolution === 'merged' &&
@@ -507,7 +529,7 @@ const syncDailyRecord = async (
           transaction,
           occupants
         );
-        detached = current.detached;
+        ({ detached, heldOut } = current);
         if (current.resolution === 'already_applied') return current;
         assertResolvedClinicalAuthority(task, current);
         assertCanPublish?.();
@@ -539,9 +561,14 @@ const syncDailyRecord = async (
     },
     { thresholdMs: 180, context: record.date }
   );
-  if (!detached) return result;
+  if (!detached && !heldOut) return result;
   // The conflicts are durable: the store writes them with this task's completion.
-  return { ...result, detachedConflicts: detached.conflicts };
+  return {
+    ...result,
+    detachedConflicts: detached?.conflicts,
+    heldTask:
+      heldOut && keepPlainDayFieldsHeld(task, record, heldOut.paths, result.authoritativeRecord),
+  };
 };
 
 export const createFirestoreSyncTransport = (
