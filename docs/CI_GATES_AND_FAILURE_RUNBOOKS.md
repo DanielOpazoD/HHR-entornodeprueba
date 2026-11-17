@@ -31,8 +31,10 @@ equiparar un job omitido o un informe antiguo con una prueba aprobada.
 
 En la ruta `full`, los jobs de calidad, los cuatro shards unitarios y de cobertura,
 `build-budget` y los carriles de vista previa acreditan los controles equivalentes de
-`ci:merge-gate`. `rules-emulator`, los carriles E2E críticos y `final-confidence-and-readiness`
-aportan reglas, sincronización, E2E y evidencia de rendimiento. Los packs unitarios
+`ci:merge-gate`. `rules-emulator` (reglas, Storage, suite sync del emulador y cuentas),
+`emulator-ui` (suite UI del emulador, en paralelo y con su propio emulador), los carriles E2E
+críticos y `final-confidence-and-readiness` aportan reglas, sincronización, E2E y evidencia de
+rendimiento. Los packs unitarios
 incluidos en los shards no necesitan una segunda ejecución local. Verificar siempre
 el workflow y la selección de archivos vigentes; un cambio de cobertura exige revisar
 esta correspondencia. Los artefactos formales de release, signoff clínico o pruebas
@@ -599,7 +601,7 @@ fallido cuando no hay prueba). Solo lee con `gh api`; `--json` da el detalle con
 
 ### Falla el modelo de la cola de guardado
 
-El modelo (`syncQueueModel.emulator-ui.test.ts`) corre en `rules-emulator`, y en local, siempre
+El modelo (`syncQueueModel.emulator-ui.test.ts`) corre en `emulator-ui`, y en local, siempre
 con las mismas 30 secuencias (semilla 20261115). Un fallo en una PR o en `main` apunta a ese
 cambio: se corrige ahí, no se reintenta. Las semillas nuevas (300 secuencias) las explora cada
 noche el job `nightly-sync-model` de `nightly-test-runtime.yml`, que no bloquea despliegues. Su

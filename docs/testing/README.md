@@ -141,6 +141,7 @@ En PR con alcance `full` deben seguir bloqueando:
 - `unit-risk-shards`
 - `clinical-sync-release-gate`
 - `rules-emulator`
+- `emulator-ui`
 - `e2e-critical`
 
 Los alcances `docs-only` y `functions-only` usan gates enfocados y `ci-summary`
@@ -170,7 +171,7 @@ asignación determinista por duración medida/estimada. Para refrescar la medici
 
 El perfil debe responder qué shard es más lento, qué archivos explican el costo y si el balance
 sigue bajo la tolerancia. La suite clínica crítica sigue cubierta por `unit-risk-shards`,
-`clinical-sync-release-gate`, `rules-emulator` y `e2e-critical`.
+`clinical-sync-release-gate`, `rules-emulator`, `emulator-ui` y `e2e-critical`.
 
 El runtime observado de GitHub Actions complementa ese balance local con `reports/ci-runtime-observed-profile.*`.
 En CI lo genera el job `ci-runtime-telemetry`, que corre después de los gates PR-critical, llama a
