@@ -1,4 +1,5 @@
 import type { FluidBalancePeriod, PatientFluidBalance } from '@/types/domain/fluidBalance';
+import { addCalendarDays, calendarDayAtUtcNoon } from '@/utils/clinicalDateUtils';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import { removeAccents } from '@/utils/stringUtils';
 
@@ -19,12 +20,13 @@ const normalizedName = (value: unknown): string =>
 
 /** Whole successful snapshot replaces totals, so corrections/deletions do not accumulate. */
 export const parseFluidBalance = (entries: unknown[], censusDate: string): PatientFluidBalance => {
-  const nextDate = new Date(`${censusDate}T12:00:00Z`);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(censusDate) || !Number.isFinite(nextDate.getTime()))
+  // As lenient as before: an impossible day such as 2026-02-30 is not rejected here.
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(censusDate) ||
+    !Number.isFinite(calendarDayAtUtcNoon(censusDate).getTime())
+  )
     return invalid();
-  nextDate.setUTCDate(nextDate.getUTCDate() + 1);
-  // Date-only arithmetic, never the date of a clinical instant.
-  const nextDay = nextDate.toISOString().slice(0, 10);
+  const nextDay = addCalendarDays(censusDate, 1);
   const balance: PatientFluidBalance = { censusDate, day: emptyPeriod(), night: emptyPeriod() };
   const seen = new Map<string, string>();
   for (const raw of entries) {

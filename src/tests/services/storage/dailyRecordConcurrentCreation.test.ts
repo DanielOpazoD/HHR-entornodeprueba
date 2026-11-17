@@ -1,3 +1,4 @@
+// @vitest-environment node
 import 'fake-indexeddb/auto';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { harnessState, reconnect } from '@/tests/services/storage/dayRecordOutboxHarness';

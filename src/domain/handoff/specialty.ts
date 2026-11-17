@@ -34,11 +34,6 @@ export type MedicalSpecialtyDailyStatus =
 export const getMedicalSpecialtyLabel = (specialty: MedicalSpecialty): string =>
   MEDICAL_SPECIALTY_LABELS[specialty];
 
-export const getMedicalSpecialtyNote = (
-  record: Pick<DailyRecordMedicalHandoffSummaryState, 'medicalHandoffBySpecialty'>,
-  specialty: MedicalSpecialty
-): MedicalSpecialtyHandoffNote | undefined => record.medicalHandoffBySpecialty?.[specialty];
-
 export const resolveMedicalSpecialtyDailyStatus = (
   note: MedicalSpecialtyHandoffNote | undefined,
   dateKey: string
@@ -50,9 +45,6 @@ export const resolveMedicalSpecialtyDailyStatus = (
   if (continuity?.status === 'updated_by_specialist') return 'updated_by_specialist';
   return 'pending';
 };
-
-export const canConfirmMedicalSpecialtyNoChanges = (role: string | undefined): boolean =>
-  role === 'admin' || role === 'nurse_hospital' || role === 'editor';
 
 const buildSpecialtySummaryBlock = (
   specialty: MedicalSpecialty,

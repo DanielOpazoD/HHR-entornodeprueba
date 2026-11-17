@@ -1,4 +1,4 @@
-import type { PatientData } from './patient';
+import type { AdmissionOrigin, PatientData } from './patient';
 
 export type DischargeType = 'Domicilio (Habitual)' | 'Voluntaria' | 'Fuga' | 'Otra';
 
@@ -129,7 +129,7 @@ export interface CMAData extends MovementTombstoneFields, MovementEpisodeFields 
   birthDate?: string;
   biologicalSex?: 'Masculino' | 'Femenino' | 'Indeterminado';
   insurance?: 'Fonasa' | 'Isapre' | 'Particular';
-  admissionOrigin?: 'CAE' | 'APS' | 'Urgencias' | 'Pabellón' | 'Otro';
+  admissionOrigin?: AdmissionOrigin;
   admissionOriginDetails?: string;
   origin?: 'Residente' | 'Turista Nacional' | 'Turista Extranjero';
   isRapanui?: boolean;

@@ -16,7 +16,7 @@ declare global {
         email: string;
         displayName?: string | null;
         photoURL?: string | null;
-        role?: import('@/types/auth').UserRole;
+        role?: import('@/types/authRoleTypes').UserRole;
       };
       redirectMode?: 'success' | 'error' | 'timeout';
     };

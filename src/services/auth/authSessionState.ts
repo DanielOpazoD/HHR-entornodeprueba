@@ -46,6 +46,3 @@ export const isAuthenticatedAuthSessionState = (
   sessionState: AuthSessionState
 ): sessionState is Extract<AuthSessionState, { status: 'authorized' | 'anonymous_signature' }> =>
   sessionState.status === 'authorized' || sessionState.status === 'anonymous_signature';
-
-export const toLegacyAuthUserFromSessionState = (sessionState: AuthSessionState): AuthUser | null =>
-  getAuthSessionStateUser(sessionState);

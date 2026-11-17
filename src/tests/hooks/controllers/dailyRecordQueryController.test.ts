@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { createUnconfirmedDailyRecordSubscriptionResult } from '@/tests/factories/dailyRecordSubscriptionResult';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { createSyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';

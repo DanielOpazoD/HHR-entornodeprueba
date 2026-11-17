@@ -45,14 +45,6 @@ describe('census startup payload', () => {
     expect(read('src/features/rayen-import/RayenImportButton.ts')).not.toMatch(
       /from '\.\/index'|from '\.'/
     );
-    const file = 'src/features/census/components/CensusStaffHeader.tsx';
-    const entry = '@/features/rayen-import/RayenImportButton';
-    const publicApi = JSON.parse(read('scripts/feature-public-api-allowlist.json'));
-    const dependencies = JSON.parse(read('scripts/feature-dependency-allowlist.json'));
-    expect(publicApi.exceptionsByFeature['rayen-import']).toContain(`${file} -> ${entry}`);
-    expect(dependencies.violations).toContain(
-      `feature-must-use-public-api|${file}|${entry}|rayen-import`
-    );
   });
 
   it('keeps clinical cells independent of synchronization status subscriptions', () => {
@@ -83,11 +75,13 @@ describe('census startup payload', () => {
     );
   });
 
-  it('declares the narrow surface in the governed boundary allowlists', () => {
-    const publicApi = JSON.parse(read('scripts/feature-public-api-allowlist.json'));
-    expect(publicApi.exceptionsByFeature['rayen-import']).toEqual(
+  it('declares the narrow Rayen surfaces as public modules of the feature matrix', () => {
+    const matrix = JSON.parse(read('scripts/feature-dependency-matrix.json'));
+    expect(matrix.publicModulesByFeature['rayen-import']).toEqual(
       expect.arrayContaining([
-        'src/application/census/eloisaAdmissionInput.ts -> @/features/rayen-import/census-status',
+        '@/features/rayen-import/RayenImportButton',
+        '@/features/rayen-import/census-status',
+        '@/features/rayen-import/clinical-panel',
       ])
     );
   });
@@ -107,20 +101,9 @@ describe('census startup payload', () => {
       'clinicalAntecedentEntries.ts',
       'useClinicalPanelSnapshot.ts',
     ].map(file => `${rowDir}/${file}`);
-    const publicApi = JSON.parse(read('scripts/feature-public-api-allowlist.json'));
-    const dependencies = JSON.parse(read('scripts/feature-dependency-allowlist.json'));
     for (const file of consumers) {
       expect(read(file)).toContain('@/features/rayen-import/clinical-panel');
       expect(read(file)).not.toMatch(/from '@\/features\/rayen-import'/);
-      expect(publicApi.publicModulesByFeature['rayen-import']).toContain(
-        '@/features/rayen-import/clinical-panel'
-      );
-      expect(publicApi.exceptionsByFeature['rayen-import']).not.toContain(
-        `${file} -> @/features/rayen-import/clinical-panel`
-      );
-      expect(dependencies.violations).not.toContain(
-        `feature-must-use-public-api|${file}|@/features/rayen-import/clinical-panel|rayen-import`
-      );
     }
     expect(read('src/features/rayen-import/clinical-panel.ts')).not.toMatch(
       /from '\.\/index'|from '\.'/

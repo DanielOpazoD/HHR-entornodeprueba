@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { setImmediate } from 'node:timers/promises';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';

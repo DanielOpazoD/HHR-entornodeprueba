@@ -1,17 +1,9 @@
 import type { FullMetadata, StorageReference } from 'firebase/storage';
+import type { StorageListReport } from '@/types/backupArtifacts';
 
 export interface MonthInfo {
   number: string;
   name: string;
-}
-
-export interface BaseStoredFile {
-  name: string;
-  fullPath: string;
-  downloadUrl: string;
-  date: string;
-  createdAt: string;
-  size: number;
 }
 
 export interface ListFilesConfig<T, TParsed extends { date: string } = { date: string }> {
@@ -23,14 +15,6 @@ export interface ListFilesConfig<T, TParsed extends { date: string } = { date: s
     downloadUrl: string,
     parsed: TParsed
   ) => T;
-}
-
-export interface StorageListReport {
-  skippedNotFound: number;
-  skippedRestricted: number;
-  skippedUnknown: number;
-  skippedUnparsed: number;
-  timedOut: boolean;
 }
 
 export interface StorageListResult<T> {

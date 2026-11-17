@@ -106,7 +106,7 @@ clinical-library/
   diario. Su modo manual no requiere una cama. La ocultación deja los campos en blanco en el
   PDF, mientras el borrador descargado conserva todos los datos, incluidos los ocultos.
 - Consumo externo sólo por `@/features/clinical-library` o `quick-action` desde el shell
-  (`scripts/feature-public-api-allowlist.json`).
+  (`publicModulesByFeature` en `scripts/feature-dependency-matrix.json`).
 
 ## Verificación visual
 

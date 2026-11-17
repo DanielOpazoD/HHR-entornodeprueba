@@ -49,7 +49,6 @@ Capa de datos e integración: repositorios, persistencia, exportadores, integrac
   - `operationalTelemetryRecorder.ts` queda como sink/base compartida
   - los contextos nuevos deben preferir wrappers (`authOperationalTelemetry`, `reminderObservability`, etc.) antes que importar el servicio generico
 - **Auth por flujo y resolución**:
-  - `authFlow.ts` como fachada pública del login
   - `authCredentialFlow.ts` para email/password y creación de usuario
   - `authGoogleFlow.ts` para popup, lock multi-tab y ramas E2E
   - `authFallback.ts` para redirect/bootstrap
@@ -80,5 +79,5 @@ await saveDetailed(record);
 - Mantener contratos de entrada/salida tipados (preferir `types`/`schemas`).
 - `src/services/repositories/index.ts` fue retirado; código nuevo debe entrar por módulos dueños o ports explícitos.
 - En integraciones externas complejas, usar una fachada pública pequeña y mover auth, payload builders y folder/file helpers a módulos internos específicos.
-- Consumir auth desde entrypoints canónicos (`authFlow.ts`, `authSession.ts`, `authFallback.ts`, `authPolicy.ts`) en vez de reintroducir una fachada única.
+- Consumir auth desde entrypoints canónicos (`authCredentialFlow.ts`, `authGoogleFlow.ts`, `authSession.ts`, `authFallback.ts`, `authPolicy.ts`) en vez de reintroducir una fachada única.
 - Mantener `authPolicy.ts` estable y preferir módulos dueños específicos cuando el flujo requiera login, sesión o fallback.

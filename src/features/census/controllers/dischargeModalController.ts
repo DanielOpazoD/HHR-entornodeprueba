@@ -2,7 +2,8 @@ import {
   DISCHARGE_TYPE_OTHER,
   DEFAULT_DISCHARGE_TYPE,
 } from '@/constants/clinicalMovementConstants';
-import type { DischargeStatus, DischargeType } from '@/constants/clinicalMovementConstants';
+import type { DischargeStatus } from '@/constants/clinicalMovementConstants';
+import type { DischargeType } from '@/types/domain/movements';
 import { validateDischargeExecutionInput } from '@/features/census/validation/censusActionValidation';
 import type { DischargeModalConfirmPayload, DischargeTarget } from '@/types/movements';
 import { resolveMovementEditorInitialDate } from '@/features/census/controllers/clinicalShiftCalendarController';

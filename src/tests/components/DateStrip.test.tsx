@@ -18,7 +18,6 @@ describe('DateStrip', () => {
       import('@/components/layout/date-strip/actions/EmailDropdown'),
       import('@/components/layout/date-strip/actions/PdfButtons'),
       import('@/components/layout/date-strip/DateStripQuickActions'),
-      import('@/components/layout/date-strip/DateStripBookmarkToggle'),
       import('@/components/layout/date-strip/DateStripYearNavigator'),
       import('@/components/layout/date-strip/DateStripMonthNavigator'),
     ]);

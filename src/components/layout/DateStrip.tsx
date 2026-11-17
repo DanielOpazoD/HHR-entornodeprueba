@@ -50,11 +50,6 @@ const DateStripQuickActions = React.lazy(() =>
     default: module.DateStripQuickActions,
   }))
 );
-const DateStripBookmarkToggle = React.lazy(() =>
-  import('@/components/layout/date-strip/DateStripBookmarkToggle').then(module => ({
-    default: module.DateStripBookmarkToggle,
-  }))
-);
 const DateStripYearNavigator = React.lazy(() =>
   import('@/components/layout/date-strip/DateStripYearNavigator').then(module => ({
     default: module.DateStripYearNavigator,
@@ -240,12 +235,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
         <div className="hhr-date-navigation flex min-w-0 flex-1 items-center gap-2 max-md:overflow-x-auto">
           <div className="flex items-center gap-1 shrink-0 min-w-0">
             {!isGuest && onToggleBookmarks && (
-              <React.Suspense fallback={<BookmarkButton disabled showBookmarks={showBookmarks} />}>
-                <DateStripBookmarkToggle
-                  onToggleBookmarks={onToggleBookmarks}
-                  showBookmarks={showBookmarks}
-                />
-              </React.Suspense>
+              <BookmarkButton onToggleBookmarks={onToggleBookmarks} showBookmarks={showBookmarks} />
             )}
 
             {currentModule === 'NURSING_HANDOFF' && !isGuest && onExportPDF && (

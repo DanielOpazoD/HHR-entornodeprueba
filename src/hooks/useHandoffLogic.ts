@@ -32,15 +32,16 @@ import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useDailyRecordBedActions } from '@/context/useDailyRecordScopedActions';
 
 // ========== SUB-HOOKS ==========
-import { useHandoffVisibility, NursingShift } from './useHandoffVisibility';
+import { useHandoffVisibility } from './useHandoffVisibility';
+import type { ShiftType } from '@/types/domain/shift';
 import { useHandoffStaff } from './useHandoffStaff';
 import { useNursingHandoffHandlers } from './useNursingHandoffHandlers';
 import { useClinicalEventHandlers } from './useClinicalEventHandlers';
 import { buildHandoffLogicViewState } from '@/hooks/controllers/handoffLogicViewStateController';
 
 interface UseHandoffLogicParams {
-  selectedShift: NursingShift;
-  setSelectedShift: (s: NursingShift) => void;
+  selectedShift: ShiftType;
+  setSelectedShift: (s: ShiftType) => void;
   onSuccess: (message: string, description?: string) => void;
 }
 

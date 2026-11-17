@@ -1,6 +1,20 @@
 # ADR: Adoption Facades para migrar pipelines legacy al contrato canónico
 
-**Estado:** Vigente
+**Estado:** Histórico
+
+## Retiro (2026-11-17)
+
+Las dos fachadas (`dischargeCanonicalAdoptionController`,
+`transferCanonicalAdoptionController`) y sus banderas
+(`USE_DISCHARGE_PATIENT_COMMAND`, `USE_TRANSFER_PATIENT_COMMAND`) se borraron
+sin haberse encendido nunca: las banderas valían `false` por defecto, ninguna
+pantalla, variable `VITE_*` ni prueba las encendía, y la app no ofrece cómo
+cambiarlas. Mientras existieron obligaban a mantener dos caminos de auditoría
+por alta y traslado. El alta y el traslado siguen el único camino que usó
+producción: `usePatientDischarges.addDischarge` / `usePatientTransfers.addTransfer`
+con la auditoría de `usePatientMovementAudit`. Con ellas se borró también el
+bloqueo automático de documentos clínicos por episodio, que solo esa fachada
+de alta llamaba. Lo que sigue describe la decisión original.
 
 ## Contexto
 

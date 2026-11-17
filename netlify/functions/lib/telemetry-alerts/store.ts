@@ -45,7 +45,10 @@ export const createBlobAlertLedgerStore = (
   },
 });
 
-/** SDK 11 may call a non-412 failed PUT modified:true. Verify HTTP, not just that flag. */
+/**
+ * Bounds each Blobs call by the run deadline and rejects every failed response except a GET 404
+ * (no ledger yet) and a PUT 412 (lost race, which the SDK reports as modified:false).
+ */
 export const createAlertBlobFetch =
   (fetcher: typeof fetch = fetch, deadlineAt = Infinity): typeof fetch =>
   async (input, init) => {

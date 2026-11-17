@@ -3,6 +3,7 @@ import type { RayenSyncMeta } from '@/types/domain/dailyRecord';
 import type { RayenSyncStage } from '../hooks/rayenSyncExecutionState';
 import type { RayenFillProgress } from '../hooks/useRayenFillStatus';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
+import { formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
 
 export type RayenSyncBarPhase =
   | 'idle'
@@ -93,16 +94,8 @@ const active = (
   visuallyHidden: false,
 });
 
-const formatTargetDate = (value?: string | null): string | null => {
-  if (!value) return null;
-  const [year, month, day] = value.split('-');
-  return year && month && day ? `${day}-${month}-${year}` : value;
-};
-
-const withTargetDate = (label: string, targetDate?: string | null): string => {
-  const formatted = formatTargetDate(targetDate);
-  return formatted ? `${label} · ${formatted}` : label;
-};
+const withTargetDate = (label: string, targetDate?: string | null): string =>
+  targetDate ? `${label} · ${formatClinicalDayMonthYear(targetDate)}` : label;
 
 const staleSyncPresentation = (input: RayenSyncBarViewModelInput): RayenSyncBarViewModel | null => {
   const now = input.now ?? Date.now();
