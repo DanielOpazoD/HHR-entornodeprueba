@@ -64,7 +64,9 @@ it('runs census, library, pharmacy, clinical-panel, sync-navigation and DICOM/ca
       archive: false,
       'if-no-files-found': 'error',
     });
-    const download = jobs['preview-smoke'].steps.find(step => step.with?.name === blob);
+    const download = jobs['final-confidence-and-readiness'].steps.find(
+      step => step.with?.name === blob
+    );
     expect(download?.uses).toBe('actions/download-artifact@v8');
     expect(download?.with).toEqual({
       name: blob,
@@ -73,7 +75,7 @@ it('runs census, library, pharmacy, clinical-panel, sync-navigation and DICOM/ca
     });
   }
   expect(JSON.stringify(jobs.build)).not.toContain('preview');
-  const mergeRuns = jobs['preview-smoke'].steps.map(step => step.run ?? '');
+  const mergeRuns = jobs['final-confidence-and-readiness'].steps.map(step => step.run ?? '');
   const merge = mergeRuns.findIndex(run => run.startsWith('npx playwright merge-reports'));
   expect(merge).toBeGreaterThanOrEqual(0);
   expect(mergeRuns.indexOf('test "$PREVIEW_LANES_RESULT" = success')).toBeGreaterThan(merge);
@@ -200,7 +202,7 @@ it('does not present an empty or malformed report as a successful run', () => {
   );
   expect(() => renderPreviewSummary({})).toThrow('Informe incompleto');
   const { jobs } = parseWorkflow(fs.readFileSync('.github/workflows/ci-cd.yml', 'utf8'));
-  const summarize = jobs['preview-smoke'].steps.find(
+  const summarize = jobs['final-confidence-and-readiness'].steps.find(
     step => step.name === 'Summarize census and library results'
   );
   expect(summarize?.if).toBe('always()');

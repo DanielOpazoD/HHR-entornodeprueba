@@ -38,7 +38,7 @@ const expected = [
   },
   {
     suiteId: 'critical',
-    job: 'e2e-critical-emulator',
+    job: 'e2e-critical-lanes',
     kind: 'playwright',
     script: 'test:e2e:critical:ci',
     files: ['e2e/clinical.spec.ts'],

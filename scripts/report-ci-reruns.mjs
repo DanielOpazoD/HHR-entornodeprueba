@@ -2,7 +2,7 @@
 
 // Read-only report of CI attempts that failed and later passed on the same commit.
 // Usage: npm run report:ci-reruns -- [--days 7] [--workflow ci-cd.yml] [--repo owner/name]
-//        [--ignore-jobs ci-summary,test-execution-manifest,preview-smoke] [--json]
+//        [--ignore-jobs ci-summary,final-confidence-and-readiness] [--json]
 // Only issues GET requests through the authenticated `gh` CLI.
 
 import { execFile } from 'node:child_process';
@@ -23,7 +23,12 @@ const readOption = (name, fallback) => {
 const days = Number(readOption('--days', '7'));
 const workflow = readOption('--workflow', 'ci-cd.yml');
 // These jobs only collect the results of other jobs, so they fail whenever one of those does.
-const ignoreJobs = readOption('--ignore-jobs', 'ci-summary,test-execution-manifest,preview-smoke')
+// test-execution-manifest and preview-smoke folded into final-confidence-and-readiness on
+// 2026-11-17; they stay listed for older runs in the window.
+const ignoreJobs = readOption(
+  '--ignore-jobs',
+  'ci-summary,final-confidence-and-readiness,test-execution-manifest,preview-smoke'
+)
   .split(',')
   .filter(Boolean);
 const asJson = process.argv.includes('--json');

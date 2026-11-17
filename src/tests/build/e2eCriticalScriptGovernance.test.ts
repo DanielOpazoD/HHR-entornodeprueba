@@ -14,7 +14,7 @@ const readCriticalCiScript = () =>
 
 const readCriticalWorkflowJob = () =>
   parseWorkflow(fs.readFileSync(path.join(process.cwd(), '.github/workflows/ci-cd.yml'), 'utf8'))
-    .jobs['e2e-critical-emulator'];
+    .jobs['final-confidence-and-readiness'];
 
 const readClinicalStabilityCiScript = () =>
   fs.readFileSync(path.join(process.cwd(), 'scripts/run-e2e-clinical-stability-ci.sh'), 'utf8');
