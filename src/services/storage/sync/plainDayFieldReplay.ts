@@ -176,9 +176,10 @@ const rebaseMovementList = (
 
 /**
  * The rest of a day write, rebased on the stored day as a direct edit meeting a newer version is:
- * only when every field has the base it was written over and each one the stored day changed
- * meanwhile (`changed`, from `pathsChangedElsewhere`) is a movement list that rebases item by
- * item. Undefined otherwise, and the whole write then waits for review as before.
+ * only when every field has the base it was written over, no movement list removes an item by
+ * absence, and each value the stored day changed meanwhile (`changed`, from
+ * `pathsChangedElsewhere`) is a movement list that rebases item by item. Undefined otherwise, and
+ * the whole write then waits for review as before.
  */
 const rebaseHeldOutPart = (
   task: SyncTask,
@@ -194,6 +195,14 @@ const rebaseHeldOutPart = (
     !Number.isFinite(Date.parse(version ?? '')) ||
     !paths.every(path => path !== '*' && Object.hasOwn(base, path))
   )
+    return undefined;
+  // A movement this computer removed by absence (no `deletedAt`): the merge by id would bring it
+  // back once published, and the held task would no longer carry that removal.
+  const removesByAbsence = (path: string) => {
+    const kept = new Set(asList(getValueAtPath(record, path)).map(resolveItemId));
+    return asList(base[path]).some(item => !kept.has(resolveItemId(item)));
+  };
+  if (paths.some(path => WHOLE_MOVEMENT_LIST_PATH.test(path) && removesByAbsence(path)))
     return undefined;
   const lists: Record<string, unknown[]> = {};
   for (const path of changed) {

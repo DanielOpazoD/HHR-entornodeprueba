@@ -809,3 +809,54 @@ it('holds «Dar de alta» of mother and newborn when another computer changed th
   expect((await hospitalDB.syncQueue.toArray()).map(task => task.status)).toEqual(['CONFLICT']);
   hook.unmount();
 }, 60_000);
+
+// From the re-review. This computer removed the earlier movement from its list by absence (no
+// `deletedAt`) while adding its own and a text. The merge by id would bring that movement back, so
+// nothing is split off: the whole write, with the removal, waits for review as before.
+it('holds the whole write when it removes an earlier movement by absence', async () => {
+  const { mutate, hook } = await censusHere(earlierMovement('discharge'));
+  setFirestoreEnabled(false);
+  await moveOut(
+    partial =>
+      mutate({
+        ...partial,
+        discharges: (partial.discharges as { id: string }[]).filter(item => item.id !== 'earlier'),
+        [night]: 'B2',
+      } as DailyRecordPatch),
+    'discharge'
+  );
+  setFirestoreEnabled(true);
+  await admin.doc(dayPath).update({ [night]: 'A1', lastUpdated: Timestamp.now() });
+  await replay();
+
+  expect(await earlierTime('discharge')).toBe('08:00');
+  expect(movedOut(await server(), 'discharge')).toEqual(['PACIENTE SINTETICO B']);
+  expect((await server())[night]).toBe('A1');
+  const tasks = await hospitalDB.syncQueue.toArray();
+  expect(tasks.map(task => task.status)).toEqual(['CONFLICT']);
+  const payload = tasks[0].payload as DailyRecord;
+  expect(payload[night]).toBe('B2');
+  expect(movedOut(payload, 'discharge')).toEqual(['PACIENTE SINTETICO A']);
+  hook.unmount();
+}, 60_000);
+
+// Another computer removed the earlier movement by absence: the item this computer did not touch
+// keeps the stored absence, and this computer's movement is published with only the text held.
+it('keeps another computer’s removal of an earlier movement and publishes this one', async () => {
+  const { mutate, hook } = await censusHere(earlierMovement('discharge'));
+  setFirestoreEnabled(false);
+  await moveOut(partial => mutate({ ...partial, [night]: 'B2' } as DailyRecordPatch), 'discharge');
+  setFirestoreEnabled(true);
+  await admin.doc(dayPath).update({ discharges: [], [night]: 'A1', lastUpdated: Timestamp.now() });
+  await replay();
+
+  expect(await earlierTime('discharge')).toBeUndefined();
+  expect(movedOut(await server(), 'discharge')).toEqual(['PACIENTE SINTETICO A']);
+  expect(
+    (await hospitalDB.syncQueue.toArray()).map(task => [
+      task.status,
+      task.syncContract?.changedPaths,
+    ])
+  ).toEqual([['CONFLICT', [night]]]);
+  hook.unmount();
+}, 60_000);
