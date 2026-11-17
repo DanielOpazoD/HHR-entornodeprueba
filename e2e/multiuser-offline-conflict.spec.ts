@@ -739,7 +739,8 @@ for (const retry of ['online', 'save'] as const) {
     await page.evaluate(() =>
       Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => true })
     );
-    await page.unroute('**/*');
+    // Chromium 143 kept a failed import failing after the network returned; Chromium 159
+    // retries it. The modules stay blocked so this covers browsers that cache the failure.
     if (retry === 'online') await page.evaluate(() => window.dispatchEvent(new Event('online')));
     await page.getByTestId('probe-full').click();
     await expect(page.getByTestId('mutation-state')).toHaveText('error');
@@ -749,6 +750,7 @@ for (const retry of ['online', 'save'] as const) {
     expect(await readSyncTask(page)).toEqual([]);
     await expect(page.getByRole('status')).toContainText('no quedó guardado');
     await expect(page.getByRole('button', { name: 'Recargar aplicación' })).toBeVisible();
+    await page.unroute('**/*');
     page.once('dialog', dialog => dialog.accept());
     await Promise.all([
       page.waitForEvent('load'),
@@ -811,10 +813,11 @@ test('audit chunk failure shows recovery after a saved cold edit and reload rest
   expect(await readProbeAuditEvents(page)).toHaveLength(0);
   await expect(page.getByRole('status')).toBeEmpty();
   await context.setOffline(false);
-  await page.unroute('**/writeAuditEventUseCase.ts*');
+  // Kept blocked online, as in a browser that caches a failed import (see the save path test).
   await page.getByTestId('probe-patch').click();
   await expect(page.getByRole('status')).toContainText('sí quedó guardado');
   expect(await readProbeAuditEvents(page)).toHaveLength(0);
+  await page.unroute('**/writeAuditEventUseCase.ts*');
   page.once('dialog', dialog => dialog.accept());
   await Promise.all([
     page.waitForEvent('load'),
