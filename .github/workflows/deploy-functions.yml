@@ -40,6 +40,11 @@ on:
     secrets:
       FIREBASE_SERVICE_ACCOUNT_HHR:
         required: true
+    outputs:
+      # Empty when the preflight never ran; ci-cd.yml's main-only-jobs reads it.
+      eligible:
+        description: The preflight's decision, 'true' or 'false'.
+        value: ${{ jobs.preflight.outputs.eligible }}
   workflow_dispatch:
 
 # Serialize automatic deploys and manual retries of the same test project.

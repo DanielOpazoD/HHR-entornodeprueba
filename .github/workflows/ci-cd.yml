@@ -1642,3 +1642,25 @@ jobs:
     uses: ./.github/workflows/deploy-functions.yml
     secrets:
       FIREBASE_SERVICE_ACCOUNT_HHR: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HHR }}
+
+  # A skipped main-only job leaves the run green (see mainOnlyJobViolations). This job
+  # reads what the jobs really did and turns the run red when one did not run as
+  # ci-summary's result requires. Not required by the ruleset: ci-summary stays the gate.
+  main-only-jobs:
+    name: main-only-jobs
+    needs: [ci-strict-summary, function-deploy-scope, deploy-functions, postmerge-evidence]
+    # `!cancelled()` runs it after skipped or failed ancestors; a cancelled run stays cancelled.
+    if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout validated revision
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Check the main-only jobs ran
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: node scripts/check-main-only-jobs.mjs
