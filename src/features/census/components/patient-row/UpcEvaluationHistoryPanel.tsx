@@ -12,6 +12,7 @@ import {
 import { formatDateDDMMYYYY, formatDateTimeCL } from '@/utils/dateDisplayUtils';
 import type { UpcClassification } from '@/domain/upc/upcClassification';
 import { resolveUpcBadgeColor } from './upcClassificationTone';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const dateLabel = (date: string) => formatDateDDMMYYYY(date);
 const PAGE_SIZE = 4;
@@ -37,12 +38,14 @@ export const UpcEvaluationHistoryPanel = ({
   const [warning, setWarning] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [reload, setReload] = useState(0);
-  useEffect(() => {
-    let cancelled = false;
+  if (useChangedOnRender([patient, date, reload])) {
     setLoading(true);
     setPage(0);
     setEntries(checklistUpcHistory(patient.upcChecklist));
     setWarning(null);
+  }
+  useEffect(() => {
+    let cancelled = false;
     void import('@/services/patient/patientUpcHistoryService')
       .then(service => service.loadPatientUpcHistory(patient, date))
       .then(result => {

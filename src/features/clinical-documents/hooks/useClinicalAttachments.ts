@@ -16,6 +16,7 @@ import {
 import { buildClinicalDocumentActor } from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
 import type { ClinicalAttachmentRecord } from '@/shared/clinical-documents/clinicalAttachmentContracts';
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
+import { useLatestRef } from '@/hooks/useLatestRef';
 
 type UpdateAttachments = (items: ClinicalAttachmentRecord[]) => ClinicalAttachmentRecord[];
 
@@ -75,8 +76,7 @@ export const useClinicalAttachments = ({
     Boolean(selectedEpisodeKey && selectedPatientRut) && (!current || current.isLoading);
   const isUploadingAttachment = upload?.selection === selection;
   const uploadStatusMessage = isUploadingAttachment ? upload.message : null;
-  const notifyRef = useRef(notify);
-  notifyRef.current = notify;
+  const notifyRef = useLatestRef(notify);
 
   useLayoutEffect(() => {
     activeSelection.current = selection;
@@ -158,7 +158,7 @@ export const useClinicalAttachments = ({
       cancelled = true;
       if (pendingRead.current === read) pendingRead.current = null;
     };
-  }, [scope]);
+  }, [scope, notifyRef]);
 
   const updateAttachmentLists = useCallback(
     (update: UpdateAttachments) => {
@@ -216,7 +216,17 @@ export const useClinicalAttachments = ({
         setUpload(current => (current === pendingUpload ? null : current));
       }
     },
-    [canEdit, hospitalId, role, selectedDocument, user, updateAttachmentLists, scope, selection]
+    [
+      canEdit,
+      hospitalId,
+      role,
+      selectedDocument,
+      user,
+      updateAttachmentLists,
+      scope,
+      selection,
+      notifyRef,
+    ]
   );
 
   const uploadPastedImage = useCallback(
@@ -265,7 +275,17 @@ export const useClinicalAttachments = ({
         setUpload(current => (current === pendingUpload ? null : current));
       }
     },
-    [canEdit, hospitalId, role, selectedDocument, user, updateAttachmentLists, scope, selection]
+    [
+      canEdit,
+      hospitalId,
+      role,
+      selectedDocument,
+      user,
+      updateAttachmentLists,
+      scope,
+      selection,
+      notifyRef,
+    ]
   );
 
   const deleteAttachment = useCallback(
@@ -292,7 +312,7 @@ export const useClinicalAttachments = ({
         'El archivo ya no se muestra en los archivos del episodio.'
       );
     },
-    [canEdit, role, user, updateAttachmentLists, scope, selection]
+    [canEdit, role, user, updateAttachmentLists, scope, selection, notifyRef]
   );
 
   const renameAttachment = useCallback(
@@ -322,7 +342,7 @@ export const useClinicalAttachments = ({
         'El nombre visible del archivo fue actualizado.'
       );
     },
-    [canEdit, role, user, updateAttachmentLists, scope, selection]
+    [canEdit, role, user, updateAttachmentLists, scope, selection, notifyRef]
   );
 
   const regenerateAttachmentAccess = useCallback(
@@ -349,7 +369,7 @@ export const useClinicalAttachments = ({
       if (activeSelection.current !== selection) return;
       notifyRef.current.success('Acceso regenerado', 'El archivo vuelve a estar disponible.');
     },
-    [canEdit, role, user, updateAttachmentLists, scope, selection]
+    [canEdit, role, user, updateAttachmentLists, scope, selection, notifyRef]
   );
 
   const suggestAttachmentName = useCallback(
@@ -368,7 +388,7 @@ export const useClinicalAttachments = ({
 
       return outcome.data;
     },
-    [selectedDocument, selection]
+    [selectedDocument, selection, notifyRef]
   );
 
   return {

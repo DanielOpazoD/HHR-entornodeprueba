@@ -31,6 +31,7 @@ import {
 import { useClinicalExplorerImaging } from './useClinicalExplorerImaging';
 import { ClinicalExplorerReportActions } from './ClinicalExplorerReportActions';
 import { ClinicalExplorerIdentityNotice } from './ClinicalExplorerIdentityNotice';
+import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
 const DicomViewerDialog = lazy(() =>
   import('@/components/radiology/DicomViewerDialog').then(module => ({
@@ -107,9 +108,11 @@ export const ClinicalExplorerImaging: React.FC<ClinicalExplorerImagingProps> = (
 
   const pdfOperation = useRef<AbortController | null>(null);
 
-  useLayoutEffect(() => {
+  if (useChangedOnRender([patientIdentity, sessionEpoch])) {
     setPdfBusy(null);
     setPdfMessage(null);
+  }
+  useLayoutEffect(() => {
     const cancel = (): void => {
       const pending = pdfOperation.current;
       pdfOperation.current = null;

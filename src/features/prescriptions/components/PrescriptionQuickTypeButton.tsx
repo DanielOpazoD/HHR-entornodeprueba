@@ -35,7 +35,10 @@ export const PrescriptionQuickTypeButton: React.FC<PrescriptionQuickTypeButtonPr
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [menuStyle, setMenuStyle] = useState<React.CSSProperties | null>(null);
+  const [menu, setMenu] = useState<{
+    style: React.CSSProperties;
+    placement: 'top' | 'bottom';
+  } | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -58,10 +61,9 @@ export const PrescriptionQuickTypeButton: React.FC<PrescriptionQuickTypeButtonPr
               viewportHeight - MENU_ESTIMATED_HEIGHT_PX - VIEWPORT_MARGIN_PX
             )
           );
-      setMenuStyle({
-        left: rect.left + rect.width / 2,
-        top,
-        transform: 'translateX(-50%)',
+      setMenu({
+        style: { left: rect.left + rect.width / 2, top, transform: 'translateX(-50%)' },
+        placement: top < rect.top ? 'top' : 'bottom',
       });
     };
     updateMenuStyle();
@@ -123,18 +125,14 @@ export const PrescriptionQuickTypeButton: React.FC<PrescriptionQuickTypeButtonPr
 
       {open &&
         !pending &&
-        menuStyle &&
+        menu &&
         createPortal(
           <div
             ref={menuRef}
             role="menu"
-            style={menuStyle}
+            style={menu.style}
             className="fixed z-[230] max-h-[min(180px,calc(100vh-16px))] overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-xl"
-            data-placement={
-              Number(menuStyle.top) < (containerRef.current?.getBoundingClientRect().top ?? 0)
-                ? 'top'
-                : 'bottom'
-            }
+            data-placement={menu.placement}
             aria-label="Tipo de receta"
             data-testid="prescription-type-menu"
           >

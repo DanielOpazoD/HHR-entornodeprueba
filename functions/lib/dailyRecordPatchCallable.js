@@ -216,7 +216,7 @@ const createPatchHandler =
           assertNoRayenClinicalOwnedPatch(patch);
         }
         if (patchInspection.requiresStructuralAuthority) {
-          assertStructuralPatchPolicy({ date, policySnapshot, remoteData, role });
+          assertStructuralPatchPolicy({ date, policySnapshot, role });
         }
         // Phase 1a split (clinicalDerivedStore): null unless moved fields go to a split day.
         const derivedSplit = await clinicalDerived.preparePatchSplit({
