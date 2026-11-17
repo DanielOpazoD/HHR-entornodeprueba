@@ -5,11 +5,13 @@ import path from 'node:path';
 
 const ROOT = process.cwd();
 const ALLOWLIST_PATH = path.join(ROOT, 'scripts', 'module-size-allowlist.json');
-// The app (`src/`) and the Cloud Functions (`functions/lib/`, deployed with real patient data)
-// share one cap. A missing root is an error: an unscanned tree is unmeasured, not compliant.
+// The app (`src/`), the Cloud Functions (`functions/lib/`) and the Netlify Functions
+// (`netlify/functions/`), both deployed with real patient data, share one cap. A missing root is
+// an error: an unscanned tree is unmeasured, not compliant.
 const SOURCE_ROOTS = [
   { dir: 'src', extensions: new Set(['.ts', '.tsx']) },
   { dir: 'functions/lib', extensions: new Set(['.js']) },
+  { dir: 'netlify/functions', extensions: new Set(['.ts', '.js']) },
 ];
 const SPLIT_HINT = 'split it by responsibility (CONTRIBUTING.md, "Elegir dónde cambiar")';
 const FIX_HINT_BY_MODE = {
