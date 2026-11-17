@@ -26,7 +26,6 @@ import { useRayenSnapshotPreview } from './useRayenSnapshotPreview';
 import { useNursesQuery, useTensQuery } from '@/hooks/useStaffQuery';
 import { invalidateRayenFillAttempt, reportRayenStaffingOutcome } from './useRayenFillStatus';
 import { useRayenStaffingProposalActions } from './useRayenStaffingProposalActions';
-import { useRayenSyncRequestController } from './useRayenSyncRequestController';
 import { hasPendingStaffingDecision } from '../domain/applyNursingShiftProposal';
 import { useRayenClinicalFillRetry } from './useRayenClinicalFillRetry';
 import { useRayenSyncRecordAccess } from './useRayenSyncRecordAccess';
@@ -49,6 +48,16 @@ import {
   type ClinicalStageResult,
 } from '../contracts/clinicalStageResult';
 import type { DailyRecordWriteLease } from '@/services/repositories/dailyRecordWriteCoordinator';
+import { createRayenSyncRequestController } from './rayenSyncRequestLifecycle';
+
+/** Owns and cancels the single extension request associated with the mounted import flow. */
+const useRayenSyncRequestController = () => {
+  const [controller] = useState(createRayenSyncRequestController);
+  const cancel = useCallback(() => controller.cancel(), [controller]);
+  useEffect(() => cancel, [cancel]);
+  return { controller, cancel };
+};
+
 /** Loaded with the sync run, not with the census button. */
 const loadInvalidEpisodeIds = async () =>
   (await import('@/services/census/invalidClinicalEpisodeService')).loadInvalidClinicalEpisodeIds();
