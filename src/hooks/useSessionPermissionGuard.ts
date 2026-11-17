@@ -51,7 +51,9 @@ const decideStorm = (storm: SessionPermissionStorm): Promise<SessionPermissionSt
         () => getSessionEpoch() === epoch
       )
     )
-    .catch(() => {
+    .catch((): SessionPermissionStormVerdict => {
+      // Otra sesión ya reemplazó a la que vio la tormenta: nada que cerrar ni registrar.
+      if (getSessionEpoch() !== epoch) return 'superseded';
       // Sin el módulo (p. ej. una publicación nueva sin conexión) se cierra como siempre.
       recordOperationalTelemetry({
         category: 'auth',
@@ -61,7 +63,7 @@ const decideStorm = (storm: SessionPermissionStorm): Promise<SessionPermissionSt
         issues: [SESSION_PERMISSIONS_LOST_MESSAGE],
         context: { sources: storm.sources, detectedAt: storm.detectedAt },
       });
-      return 'logout' as const;
+      return 'logout';
     });
   verdictForStorm = { detectedAt: storm.detectedAt, verdict };
   return verdict;
