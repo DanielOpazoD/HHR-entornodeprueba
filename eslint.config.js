@@ -371,6 +371,60 @@ const RUT_REGEX_RESTRICTION = {
     'No copies la expresión de RUT: usa normalizeRut(), isSameRut(), isSameDocument() o documentIdentityKey() de src/utils/rutUtils.ts (AGENTS.md).',
 };
 
+// Identity is patient plus episode (ID-01): only the patient-flow resolver builds or reads the
+// legacy `rut__admission` episode key.
+const EPISODE_KEY_BUILD_RESTRICTION = {
+  selector: "TemplateElement[value.raw='__'][tail=false]:not(:first-child)",
+  message:
+    'No armes una clave `${a}__${b}` a mano: la clave de episodio sale de buildClinicalEpisodeKey() en src/application/patient-flow/clinicalEpisode.ts. Si la clave no es clínica, exime el archivo junto a reminderShared.ts en eslint.config.js.',
+};
+const EPISODE_KEY_PARSE_RESTRICTION = {
+  selector:
+    "CallExpression[callee.property.name=/^(split|includes)$/][arguments.0.value='__']:matches([callee.object.name='episodeKey'], [callee.object.property.name='episodeKey'])",
+  message:
+    'Lee una clave de episodio antigua con isLegacyClinicalEpisodeKey() o parseLegacyClinicalEpisodeKey() de src/application/patient-flow/clinicalEpisode.ts.',
+};
+const LEGACY_DOCUMENT_HYDRATION_RESTRICTION = {
+  selector: "Identifier[name='hydrateLegacyClinicalDocument']",
+  message:
+    'Hidrata documentos clínicos antiguos con ClinicalDocumentCompatibilityPort (src/application/ports/clinicalDocumentCompatibilityPort.ts), no con hydrateLegacyClinicalDocument().',
+};
+const SOURCE_SYNTAX_RESTRICTIONS = [
+  ...GLOSSARY_SYNTAX_RESTRICTIONS,
+  SESSION_MESSAGE_RESTRICTION,
+  RUT_REGEX_RESTRICTION,
+  EPISODE_KEY_BUILD_RESTRICTION,
+  EPISODE_KEY_PARSE_RESTRICTION,
+  LEGACY_DOCUMENT_HYDRATION_RESTRICTION,
+];
+// One rule option per file: a later config replaces the whole list, so homes omit only their own.
+const syntaxRestrictions = ({ omit = [], add = [] } = {}) => [
+  'warn',
+  ...SOURCE_SYNTAX_RESTRICTIONS.filter(restriction => !omit.includes(restriction)),
+  ...add,
+];
+
+// Public entrypoints over focused modules: the code lives in those modules, not here again.
+const REEXPORT_ONLY_RESTRICTION = {
+  selector: 'Program > :not(ExportNamedDeclaration[source], ExportAllDeclaration)',
+  message:
+    'Esta entrada pública solo reexporta (`export … from`): escribe el código o el tipo en su módulo enfocado y reexpórtalo aquí.',
+};
+const BASE_MODAL_ENTRYPOINT_RESTRICTION = {
+  selector:
+    "ImportSpecifier[imported.name='createPortal'], TSInterfaceDeclaration, TSTypeAliasDeclaration",
+  message:
+    'BaseModal es la entrada pública: los tipos van en baseModalContracts.ts y el portal en baseModalContent.tsx.',
+};
+const PATIENT_ROW_CONTRACT_FILES = [
+  'patientRowContracts',
+  'patientRowViewContracts',
+  'patientRowDataContracts',
+  'patientRowInputViewContracts',
+  'patientRowMainViewContracts',
+  'patientRowShellViewContracts',
+].map(name => `src/features/census/components/patient-row/${name}.ts`);
+
 export default tseslint.config(
   {
     ignores: [
@@ -517,37 +571,90 @@ export default tseslint.config(
         },
       ],
 
-      'no-restricted-syntax': [
-        'warn',
-        ...GLOSSARY_SYNTAX_RESTRICTIONS,
-        SESSION_MESSAGE_RESTRICTION,
-        RUT_REGEX_RESTRICTION,
-      ],
+      'no-restricted-syntax': syntaxRestrictions(),
     },
   },
   {
     // The sender of the session message.
     files: ['src/services/storage/sessionStorageTransition.ts'],
-    rules: {
-      'no-restricted-syntax': ['warn', ...GLOSSARY_SYNTAX_RESTRICTIONS, RUT_REGEX_RESTRICTION],
-    },
+    rules: { 'no-restricted-syntax': syntaxRestrictions({ omit: [SESSION_MESSAGE_RESTRICTION] }) },
   },
   {
     // The home of the RUT helpers.
     files: ['src/utils/rutUtils.ts'],
+    rules: { 'no-restricted-syntax': syntaxRestrictions({ omit: [RUT_REGEX_RESTRICTION] }) },
+  },
+  {
+    // The home of the episode key.
+    files: ['src/application/patient-flow/clinicalEpisode.ts'],
     rules: {
-      'no-restricted-syntax': [
-        'warn',
-        ...GLOSSARY_SYNTAX_RESTRICTIONS,
-        SESSION_MESSAGE_RESTRICTION,
+      'no-restricted-syntax': syntaxRestrictions({
+        omit: [EPISODE_KEY_BUILD_RESTRICTION, EPISODE_KEY_PARSE_RESTRICTION],
+      }),
+    },
+  },
+  {
+    // Reminder ids join user, day and shift; they are not clinical keys.
+    files: ['src/services/reminders/reminderShared.ts'],
+    rules: {
+      'no-restricted-syntax': syntaxRestrictions({ omit: [EPISODE_KEY_BUILD_RESTRICTION] }),
+    },
+  },
+  {
+    // The legacy clinical-document hydration and the port that owns it.
+    files: [
+      'src/domain/clinical-documents/compatibility.ts',
+      'src/application/ports/clinicalDocumentCompatibilityPort.ts',
+    ],
+    rules: {
+      'no-restricted-syntax': syntaxRestrictions({ omit: [LEGACY_DOCUMENT_HYDRATION_RESTRICTION] }),
+    },
+  },
+  {
+    files: [
+      'src/utils/clinicalDayUtils.ts',
+      'src/features/census/components/patient-row/patientRowViewContracts.ts',
+    ],
+    rules: { 'no-restricted-syntax': syntaxRestrictions({ add: [REEXPORT_ONLY_RESTRICTION] }) },
+  },
+  {
+    files: ['src/components/shared/BaseModal.tsx'],
+    rules: {
+      'no-restricted-syntax': syntaxRestrictions({ add: [BASE_MODAL_ENTRYPOINT_RESTRICTION] }),
+    },
+  },
+  {
+    // Census rows and controllers read the patient-row contracts from their stable barrel.
+    files: ['src/features/census/{components,controllers}/**/*.{ts,tsx}'],
+    ignores: PATIENT_ROW_CONTRACT_FILES,
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: 'patientRow(Data|View)Contracts$',
+              message:
+                'Importa los contratos de la fila del paciente desde patient-row/patientRowContracts.',
+            },
+          ],
+        },
       ],
     },
   },
   {
-    // Tests assert the page bridge of the session message and build their own document text.
+    // Tests assert the page bridge of the session message, build their own document text and
+    // exercise the legacy readers they guard.
     files: ['src/tests/**/*.{ts,tsx}'],
     rules: {
-      'no-restricted-syntax': ['warn', ...GLOSSARY_SYNTAX_RESTRICTIONS],
+      'no-restricted-syntax': syntaxRestrictions({
+        omit: [
+          SESSION_MESSAGE_RESTRICTION,
+          RUT_REGEX_RESTRICTION,
+          EPISODE_KEY_PARSE_RESTRICTION,
+          LEGACY_DOCUMENT_HYDRATION_RESTRICTION,
+        ],
+      }),
     },
   },
   {
