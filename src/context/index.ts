@@ -2,7 +2,7 @@
  * Context Index
  * Centralized exports for all React contexts and providers
  *
- * Usage: import { useNotification, useDailyRecordContext } from './context';
+ * Usage: import { useNotification, useDailyRecordData } from './context';
  */
 
 // UI System (Notifications + Dialogs unified)
@@ -12,15 +12,12 @@ export {
   // Backward compatibility
   useNotification,
   useConfirmDialog,
-  NotificationProvider,
-  ConfirmDialogProvider,
 } from './UIContext';
 export type { NotificationType, ConfirmOptions, UIContextType } from './UIContext';
 
 // Daily Record Context
 export {
   DailyRecordProvider,
-  useDailyRecordContext,
   useDailyRecordData,
   useDailyRecordActions,
   useDailyRecordDayActions,
