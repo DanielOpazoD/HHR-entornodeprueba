@@ -10,7 +10,7 @@ import type { ScoresCellModel } from '@/features/census/controllers/evaluationSc
 import { BradenCard, DowntonCard } from './ScoresDetailCards';
 import { CudyrHistoryPanel } from './CudyrHistoryPanel';
 import { ScoresHistoryTable } from './ScoresHistoryTable';
-import { formatIsoDay } from './scoresDetailTokens';
+import { formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 
 interface ScoresDetailModalProps {
@@ -56,7 +56,7 @@ export const ScoresDetailModal: React.FC<ScoresDetailModalProps> = ({
         <p className="text-xs text-slate-600">
           Ingreso:{' '}
           <strong className="font-medium tabular-nums">
-            {admissionDate ? formatIsoDay(admissionDate) : 'No informado'}
+            {admissionDate ? formatClinicalDayMonthYear(admissionDate) : 'No informado'}
           </strong>
         </p>
         <div
@@ -119,7 +119,7 @@ export const ScoresDetailModal: React.FC<ScoresDetailModalProps> = ({
               {active === 'BRADEN' && model.braden
                 ? `${model.braden.assessment.conducta.aplicacion} · `
                 : ''}
-              Próxima aplicación: {formatIsoDay(reapplication.dueDate)}
+              Próxima aplicación: {formatClinicalDayMonthYear(reapplication.dueDate)}
             </p>
           )}
           {!selected && (

@@ -3,6 +3,7 @@ import { CalendarDays, Download, ExternalLink, FileClock, Loader2, RefreshCw } f
 
 import { BaseModal } from '@/components/shared/BaseModal';
 import { LAYER_Z_INDEX } from '@/shared/ui/layering';
+import { formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
 import { usePatientHospitalizationReports } from '@/features/census/components/usePatientHospitalizationReports';
 
 interface PatientHospitalizationReportsDialogProps {
@@ -15,11 +16,7 @@ interface PatientHospitalizationReportsDialogProps {
   censusDate?: string;
 }
 
-const formatDate = (value?: string): string => {
-  if (!value) return '';
-  const [year, month, day] = value.split('-');
-  return year && month && day ? `${day}-${month}-${year}` : value;
-};
+const formatDate = (value?: string): string => (value ? formatClinicalDayMonthYear(value) : '');
 
 export const PatientHospitalizationReportsDialog: React.FC<
   PatientHospitalizationReportsDialogProps

@@ -75,10 +75,5 @@ export const CUDYR_BAND: Record<
 export const tokensFor = (level: BradenRiskLevel | null): LevelTokens =>
   level ? LEVEL_TOKENS[level] : NEUTRAL_TOKENS;
 
-export const formatIsoDay = (isoDay: string): string => {
-  const [year, month, day] = isoDay.split('-');
-  return year && month && day ? `${day}-${month}-${year}` : isoDay;
-};
-
 /** Derive a risk level from a source severity text ("Riesgo alto" → 'alto') for history coloring. */
 export const severityLevel = parseSourceRiskLevel;
