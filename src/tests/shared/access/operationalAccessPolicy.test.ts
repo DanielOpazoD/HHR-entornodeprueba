@@ -1,7 +1,17 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
+import type { ModuleType } from '@/constants/navigationConfig';
+import type { UserRole } from '@/types/authRoleTypes';
 import {
   canAccessAppModuleRoute,
+  canAccessAuditSensitivePanelsForRole,
+  canAccessAuditViewForRole,
+  canCorrectCudyrDischarge,
+  canDeleteTodayDailyRecord,
+  canEditAppModule,
+  canEditCudyrForDate,
+  canExportAuditDataForRole,
+  isAdminAppRole,
   canEditAnyAppModule,
   canManageGlobalCensusEmailRecipients,
   canManageClinicalConflictCenter,
@@ -16,6 +26,7 @@ import {
   canViewOrManageBackupFiles,
   canViewPatientHistoryFromRestrictedProfiles,
   getDefaultAppModuleForRole,
+  getRoleDisplayLabel,
   getVisibleAppModules,
   sanitizeAppModuleForRole,
 } from '@/shared/access/operationalAccessPolicy';
@@ -130,5 +141,210 @@ describe('operationalAccessPolicy', () => {
         hasRut: true,
       })
     ).toBe(false);
+  });
+});
+
+describe('role × permission truth table', () => {
+  const knownRoles: UserRole[] = [
+    'admin',
+    'nurse_hospital',
+    'doctor_urgency',
+    'doctor_specialist',
+    'viewer',
+    'editor',
+  ];
+  // Free text a stored profile could still carry: it must keep falling to the default access.
+  const freeTextRoles = ['hacker', '', 'ADMIN', ' admin'];
+  const roles = [...knownRoles, undefined, ...freeTextRoles];
+  const modules: ModuleType[] = [
+    'CENSUS',
+    'ANALYTICS',
+    'CUDYR',
+    'NURSING_HANDOFF',
+    'MEDICAL_HANDOFF',
+    'AUDIT',
+    'WHATSAPP',
+    'BACKUP_FILES',
+    'PATIENT_MASTER_INDEX',
+    'DATA_MAINTENANCE',
+    'DIAGNOSTICS',
+    'FUNCTIONS_TELEMETRY',
+    'CONFIGURATION',
+    'DATA',
+    'COMMUNICATIONS',
+    'ROLE_MANAGEMENT',
+    'REMINDERS',
+    'AUDIT_DOCUMENTS',
+    'ADMISSION_AUDIT',
+  ];
+  const flag = (value: boolean): string => (value ? '1' : '0');
+  const rowFor = (role: string | undefined) => ({
+    visible: getVisibleAppModules(role).join(','),
+    defaultModule: getDefaultAppModuleForRole(role),
+    editable: modules.filter(module => canEditAppModule(role, module)).join(','),
+    routes: modules.filter(module => canAccessAppModuleRoute({ role, module })).join(','),
+    sanitizedAudit: sanitizeAppModuleForRole(role, 'AUDIT'),
+    archiveVerify: ['CENSUS', 'CUDYR', 'NURSING_HANDOFF', 'MEDICAL_HANDOFF', 'other']
+      .map(module => flag(canVerifyArchiveStatusForModule(role, module)))
+      .join(''),
+    flags: [
+      canEditAnyAppModule(role),
+      canForceCreateDayCopyOverride(role),
+      canViewOrManageBackupFiles(role),
+      canManageGlobalCensusEmailRecipients({ role, userId: 'user-1' }),
+      canUseAdminMaintenanceActions(role),
+      canTriggerCensusExports({ role }),
+      canEditCudyrForDate({
+        role,
+        readOnly: false,
+        recordDate: '2026-11-17',
+        todayISO: '2026-11-17',
+      }),
+      canEditCudyrForDate({
+        role,
+        readOnly: false,
+        recordDate: '2026-11-15',
+        todayISO: '2026-11-17',
+      }),
+      canCorrectCudyrDischarge({ role, readOnly: false }),
+      canOpenClinicalDocumentsFromCensus({
+        role,
+        isBlocked: false,
+        isEmpty: false,
+        hasPatientName: true,
+      }),
+      canResetOrDeleteDailyRecord({ role, isToday: true }),
+      canResetOrDeleteDailyRecord({ role, isToday: false }),
+      canDeleteTodayDailyRecord(role),
+      isAdminAppRole(role),
+      canAccessAuditViewForRole(role),
+      canAccessAuditSensitivePanelsForRole(role),
+      canManageClinicalConflictCenter(role),
+      canExportAuditDataForRole(role),
+    ]
+      .map(flag)
+      .join(''),
+  });
+
+  it('keeps every access decision for known, missing and free-text roles', () => {
+    expect(Object.fromEntries(roles.map(role => [String(role), rowFor(role)])))
+      .toMatchInlineSnapshot(`
+      {
+        "": {
+          "archiveVerify": "00000",
+          "defaultModule": "CENSUS",
+          "editable": "",
+          "flags": "000000000000000000",
+          "routes": "CENSUS",
+          "sanitizedAudit": "CENSUS",
+          "visible": "CENSUS",
+        },
+        " admin": {
+          "archiveVerify": "00000",
+          "defaultModule": "CENSUS",
+          "editable": "",
+          "flags": "000000000000000000",
+          "routes": "CENSUS",
+          "sanitizedAudit": "CENSUS",
+          "visible": "CENSUS",
+        },
+        "ADMIN": {
+          "archiveVerify": "00000",
+          "defaultModule": "CENSUS",
+          "editable": "",
+          "flags": "000000000000000000",
+          "routes": "CENSUS",
+          "sanitizedAudit": "CENSUS",
+          "visible": "CENSUS",
+        },
+        "admin": {
+          "archiveVerify": "10100",
+          "defaultModule": "CENSUS",
+          "editable": "CENSUS,ANALYTICS,CUDYR,NURSING_HANDOFF,MEDICAL_HANDOFF,AUDIT,WHATSAPP,BACKUP_FILES,PATIENT_MASTER_INDEX,DATA_MAINTENANCE,DIAGNOSTICS,FUNCTIONS_TELEMETRY,CONFIGURATION,DATA,COMMUNICATIONS,ROLE_MANAGEMENT,REMINDERS,AUDIT_DOCUMENTS,ADMISSION_AUDIT",
+          "flags": "111111111111111111",
+          "routes": "CENSUS,ANALYTICS,CUDYR,NURSING_HANDOFF,MEDICAL_HANDOFF,AUDIT,WHATSAPP,BACKUP_FILES,PATIENT_MASTER_INDEX,DATA_MAINTENANCE,DIAGNOSTICS,FUNCTIONS_TELEMETRY,CONFIGURATION,DATA,COMMUNICATIONS,ROLE_MANAGEMENT,REMINDERS,AUDIT_DOCUMENTS,ADMISSION_AUDIT",
+          "sanitizedAudit": "AUDIT",
+          "visible": "CENSUS,ANALYTICS,CUDYR,NURSING_HANDOFF,MEDICAL_HANDOFF,AUDIT,WHATSAPP,PATIENT_MASTER_INDEX,DATA_MAINTENANCE,DIAGNOSTICS,FUNCTIONS_TELEMETRY,CONFIGURATION,DATA,COMMUNICATIONS,BACKUP_FILES,ROLE_MANAGEMENT,REMINDERS,AUDIT_DOCUMENTS,ADMISSION_AUDIT",
+        },
+        "doctor_specialist": {
+          "archiveVerify": "00000",
+          "defaultModule": "CENSUS",
+          "editable": "MEDICAL_HANDOFF",
+          "flags": "100000000100000000",
+          "routes": "CENSUS,MEDICAL_HANDOFF",
+          "sanitizedAudit": "CENSUS",
+          "visible": "CENSUS,MEDICAL_HANDOFF",
+        },
+        "doctor_urgency": {
+          "archiveVerify": "00000",
+          "defaultModule": "CENSUS",
+          "editable": "MEDICAL_HANDOFF",
+          "flags": "100000000100000001",
+          "routes": "CENSUS,NURSING_HANDOFF,MEDICAL_HANDOFF",
+          "sanitizedAudit": "CENSUS",
+          "visible": "CENSUS,NURSING_HANDOFF,MEDICAL_HANDOFF",
+        },
+        "editor": {
+          "archiveVerify": "10100",
+          "defaultModule": "CENSUS",
+          "editable": "CENSUS,CUDYR,NURSING_HANDOFF,MEDICAL_HANDOFF",
+          "flags": "101101000100000000",
+          "routes": "CENSUS,CUDYR,NURSING_HANDOFF,MEDICAL_HANDOFF",
+          "sanitizedAudit": "CENSUS",
+          "visible": "CENSUS,CUDYR,NURSING_HANDOFF,MEDICAL_HANDOFF",
+        },
+        "hacker": {
+          "archiveVerify": "00000",
+          "defaultModule": "CENSUS",
+          "editable": "",
+          "flags": "000000000000000000",
+          "routes": "CENSUS",
+          "sanitizedAudit": "CENSUS",
+          "visible": "CENSUS",
+        },
+        "nurse_hospital": {
+          "archiveVerify": "10100",
+          "defaultModule": "CENSUS",
+          "editable": "CENSUS,CUDYR,NURSING_HANDOFF",
+          "flags": "101101101110100001",
+          "routes": "CENSUS,CUDYR,NURSING_HANDOFF,MEDICAL_HANDOFF,AUDIT_DOCUMENTS",
+          "sanitizedAudit": "CENSUS",
+          "visible": "CENSUS,CUDYR,NURSING_HANDOFF,MEDICAL_HANDOFF,AUDIT_DOCUMENTS",
+        },
+        "undefined": {
+          "archiveVerify": "00000",
+          "defaultModule": "CENSUS",
+          "editable": "",
+          "flags": "000000000000000000",
+          "routes": "CENSUS",
+          "sanitizedAudit": "CENSUS",
+          "visible": "CENSUS",
+        },
+        "viewer": {
+          "archiveVerify": "00000",
+          "defaultModule": "CENSUS",
+          "editable": "",
+          "flags": "000000000000000000",
+          "routes": "CENSUS",
+          "sanitizedAudit": "CENSUS",
+          "visible": "CENSUS",
+        },
+      }
+    `);
+  });
+
+  it('keeps the role label of every known role and of no role', () => {
+    expect([...knownRoles, undefined].map(role => `${role}: ${getRoleDisplayLabel(role)}`))
+      .toMatchInlineSnapshot(`
+      [
+        "admin: Administrador",
+        "nurse_hospital: Enfermería Hospitalizados",
+        "doctor_urgency: Médico de Urgencia",
+        "doctor_specialist: Especialista",
+        "viewer: Visualizador de Censo",
+        "editor: Invitado",
+        "undefined: Invitado",
+      ]
+    `);
   });
 });
