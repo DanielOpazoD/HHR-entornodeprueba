@@ -1609,7 +1609,9 @@ jobs:
   function-deploy-scope:
     name: function-deploy-scope
     needs: [ci-strict-summary]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # `!cancelled()` is required: without a status function GitHub skips this job whenever
+    # any ancestor was skipped, which is every gate on a main push that reuses evidence.
+    if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.ci-strict-summary.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       # Reads earlier main runs so a failed deployment is retried by the next push.
@@ -1633,7 +1635,7 @@ jobs:
   deploy-functions:
     name: validated-functions-deployment
     needs: [ci-strict-summary, function-deploy-scope]
-    if: needs.function-deploy-scope.outputs.changed == 'true'
+    if: ${{ !cancelled() && needs.ci-strict-summary.result == 'success' && needs.function-deploy-scope.result == 'success' && needs.function-deploy-scope.outputs.changed == 'true' }}
     permissions:
       contents: read
       actions: read
