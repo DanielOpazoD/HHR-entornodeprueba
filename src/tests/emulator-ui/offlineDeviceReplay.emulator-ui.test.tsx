@@ -187,8 +187,12 @@ afterAll(async () => {
 
 type Holder = 'bed' | 'crib';
 
-/** This computer's census on the server's day, with the devices cell of R4 (bed or crib). */
-const censusHere = async (holder: Holder) => {
+/**
+ * This computer's census on the server's day, with the devices cell of R4 (bed or crib).
+ * `localWithoutSng`: R4 has CVC and SNG with confirmed notes, and this computer's copy of the same
+ * version never got the SNG detail.
+ */
+const censusHere = async (holder: Holder, localWithoutSng = false) => {
   await env.clearFirestore();
   await clearSessionScopedClientState('manual');
   await hospitalDB.dailyRecords.clear();
@@ -204,7 +208,12 @@ const censusHere = async (holder: Holder) => {
   const day: DailyRecord = JSON.parse(
     JSON.stringify(preparePatchedRecordPersistence(base(), date, {}).record)
   );
+  if (localWithoutSng) {
+    day.beds.R4.devices = ['CVC', 'SNG'];
+    day.beds.R4.deviceDetails = { CVC: { note: 'base' }, SNG: { note: 'observación confirmada' } };
+  }
   await admin.doc(dayPath).set(day);
+  if (localWithoutSng) delete day.beds.R4.deviceDetails?.SNG;
   await reconcileAuthorizedSessionOwner('user:synthetic-B');
   await hospitalDB.dailyRecords.put(day);
   client = new QueryClient({ defaultOptions: { mutations: { retry: false, gcTime: 0 } } });
@@ -332,3 +341,33 @@ it('online, the same gesture reaches the server as a patch', async () => {
     census.hook.unmount();
   }
 }, 60_000);
+
+// Review of #1759: a task that names one device's detail must not carry this computer's partial map
+// over the other confirmed details, through either path.
+it.each(['online', 'offline'] as const)(
+  'a detail named for one device keeps the other confirmed details (%s)',
+  async mode => {
+    const census = await censusHere('bed', true);
+    try {
+      if (mode === 'offline') setFirestoreSyncState({ mode: 'local_only', reason: 'offline' });
+      await act(async () => {
+        await census.hook.result.current.patchRecord({
+          'beds.R4.deviceDetails.CVC': { note: 'nueva' },
+        } as DailyRecordPatch);
+      });
+      if (mode === 'offline') {
+        const [queued] = await hospitalDB.syncQueue.toArray();
+        expect(queued.syncContract?.changedPaths).toEqual(['beds.R4.deviceDetails.CVC']);
+        await networkBack();
+      }
+      expect((await server()).beds.R4.deviceDetails).toEqual({
+        CVC: { note: 'nueva' },
+        SNG: { note: 'observación confirmada' },
+      });
+      expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
+    } finally {
+      census.hook.unmount();
+    }
+  },
+  60_000
+);

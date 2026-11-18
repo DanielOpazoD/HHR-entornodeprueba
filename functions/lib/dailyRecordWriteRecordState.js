@@ -231,5 +231,6 @@ module.exports = {
   collectChangedPaths,
   hasAlreadyAppliedMutation,
   readValueAtPath,
+  setValueAtPath,
   specialtyFieldSnapshot,
 };

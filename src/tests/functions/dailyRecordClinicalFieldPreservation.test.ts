@@ -96,6 +96,34 @@ describe('daily-record clinical field preservation', () => {
     ).toEqual([]);
   });
 
+  it('writes a named device sub-path exactly there, keeping the stored siblings', () => {
+    const remote = {
+      beds: {
+        R4: {
+          clinicalEpisodeId: 'episode-4',
+          deviceDetails: { CVC: { note: 'base' }, SNG: { note: 'observación confirmada' } },
+        },
+      },
+    };
+    // A partial local copy: it never had the SNG detail.
+    const incoming = {
+      beds: { R4: { clinicalEpisodeId: 'episode-4', deviceDetails: { CVC: { note: 'nueva' } } } },
+    };
+
+    const result = preserveRayenClinicalFields({
+      remoteRecord: remote,
+      incomingRecord: incoming,
+      editedPaths: ['beds.R4.deviceDetails.CVC', 'beds.R9.devices'],
+    });
+
+    expect(result.beds.R4.deviceDetails).toEqual({
+      CVC: { note: 'nueva' },
+      SNG: { note: 'observación confirmada' },
+    });
+    // A named path never creates a bed.
+    expect(Object.hasOwn(result.beds, 'R9')).toBe(false);
+  });
+
   it('never follows a named device path into an object prototype', () => {
     preserveRayenClinicalFields({
       remoteRecord: { beds: {} },
