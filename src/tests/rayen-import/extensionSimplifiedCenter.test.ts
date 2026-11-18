@@ -48,7 +48,7 @@ describe('simplified Centro HHR', () => {
     const modules = Array.from(modal.querySelectorAll<HTMLElement>('.hhr-center-nav-button')).map(
       button => button.dataset.module
     );
-    expect(modules).toEqual(['home', 'recipes', 'lab', 'imaging', 'connection']);
+    expect(modules).toEqual(['home', 'recipes', 'lab', 'imaging', 'settings', 'connection']);
     expect(
       Array.from(modal.querySelectorAll<HTMLElement>('.hhr-home-card')).map(
         card => card.dataset.module

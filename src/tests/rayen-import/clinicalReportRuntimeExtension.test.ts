@@ -67,6 +67,7 @@ describe('clinical report runtime owner', () => {
     expect(fetchWithTimeout).toHaveBeenNthCalledWith(1, expect.any(String), {
       headers: { Authorization: 'Bearer session-token', Accept: 'application/pdf' },
       credentials: 'omit',
+      cache: 'no-store',
     });
     expect(forbidden).toEqual({
       fatal: true,

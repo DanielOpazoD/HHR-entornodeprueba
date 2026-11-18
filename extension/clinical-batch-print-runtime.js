@@ -197,7 +197,7 @@
     const handleHospitalizedPrescriptionPrintRequest = async ({
       batchId,
       encIds,
-      printFormat,
+      printFormat, preview = false,
       sender,
     }) => {
       extensionRuntime.ensurePdf();
@@ -266,7 +266,7 @@
         };
       }
       const opened = await openPdfPrintDialog({
-        buffer: combinedBuffer,
+        buffer: combinedBuffer, preview, sender,
         filename: prescriptionPrint.buildBatchPrescriptionFilename(
           completed.length,
           format,

@@ -1,9 +1,9 @@
 /**
  * content-prescription-print.js (ISOLATED world)
  *
- * Adds compact prescription and examination tools across Ficha Médico. Prescription and
- * indications shortcuts remain contextual to the nursing medication view. The panel asks the
- * service worker for official Eloisa reports and verified nursing workflows. Clinical writes are
+ * Adds compact prescription and examination tools across Ficha Médico through Centro HHR.
+ * The panel asks the service worker for official Eloisa reports and verified nursing workflows.
+ * Clinical writes are
  * delegated to the service worker and shown as synchronized only after a read-back succeeds.
  */
 (() => {
@@ -55,6 +55,9 @@
   uiLifecycle.claim();
   globalThis.__hhrPrescriptionPrintInjected = true;
   let active = true;
+  const historyNavigation = globalThis.HhrHistoryDateNavigation?.create();
+  const nativePresentation = globalThis.HhrNativeFichaPresentation?.create();
+  const worklistPresentation = globalThis.HhrNativeWorklistPresentation?.create();
 
   const BUTTON_ID = 'hhr-prescription-print-button';
   const INDICATIONS_BUTTON_ID = 'hhr-indications-print-button';
@@ -163,10 +166,49 @@
     runtimeMessages, chromeApi: chrome, windowRef: window,
   });
 
+  const onWorklistEdit = async event => {
+    const button = event.target.closest?.('button[data-hhr-edit-episode]');
+    if (!event.isTrusted || !button || !uiLifecycle.owns() ||
+        !/^\/dashboard\/encounter-list-nurse\/?$/.test(location.pathname) ||
+        !button.closest('table[data-hhr-compact-worklist]')) return;
+    event.stopPropagation();
+    if (button.disabled) return;
+    button.disabled = true;
+    try {
+      const result = await sendMessage({ type: runtimeMessages.WORKLIST_PATIENT_EDIT, encId: button.dataset.hhrEditEpisode });
+      if (!result?.ok && active) showPageNotice(result?.error || 'No se pudo abrir Gestión de Camas.', { title: 'Modificar paciente', error: true });
+    } finally { button.disabled = false; }
+  };
+  document.addEventListener('click', onWorklistEdit, true);
+  const pendingWorklistPrints = new Set();
+  const onWorklistPrint = async event => {
+    const button = event.target.closest?.('button[data-hhr-print-document]');
+    if (!event.isTrusted || !button || button.disabled || !uiLifecycle.owns() ||
+        !/^\/dashboard\/encounter-list(?:-nurse)?\/?$/.test(location.pathname) ||
+        !button.closest('table[data-hhr-compact-worklist]')) return;
+    const cell = button.closest('td.hhr-worklist-documents');
+    const encId = cell?.dataset.hhrWorklistEpisode;
+    const documentKind = button.dataset.hhrPrintDocument;
+    if (!/^[1-9]\d*$/.test(encId) || !['indications', 'prescription'].includes(documentKind)) return;
+    event.stopPropagation();
+    const key = encId + '/' + documentKind;
+    if (pendingWorklistPrints.has(key)) return;
+    pendingWorklistPrints.add(key);
+    button.setAttribute('aria-busy', 'true');
+    try {
+      const result = await sendMessage({ type: runtimeMessages.WORKLIST_DOCUMENT_PRINT_REQUEST, encId, documentKind, expectedPatientId: cell.dataset.hhrWorklistPatient });
+      if (!result?.ok && active) showPageNotice(result?.error || 'No se pudo abrir la impresión.', { title: 'Imprimir', error: true });
+    } finally {
+      pendingWorklistPrints.delete(key);
+      button.removeAttribute('aria-busy');
+    }
+  };
+  document.addEventListener('click', onWorklistPrint, true);
+
   const focusableElements = root => Array.from(root.querySelectorAll(
     'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), ' +
       'a[href], [tabindex]:not([tabindex="-1"])'
-  )).filter(element => element.getAttribute('aria-hidden') !== 'true' &&
+  )).filter(element => !element.closest('[inert]') && element.getAttribute('aria-hidden') !== 'true' &&
     (element.offsetParent !== null || element === document.activeElement));
 
   const trapModalFocus = (root, event) => {
@@ -318,10 +360,7 @@
     setLiveRegion,
   });
   const {
-    findPharmaHeading,
-    downloadIndications,
     hasVisibleNursingRole,
-    findToolbarAnchor,
     createFavoritesDialog,
   } = medicationActionsRuntime;
 
@@ -419,11 +458,14 @@
   const fetchPatientHeaderView = async encId => {
     const response = await sendMessage({ type: runtimeMessages.PATIENT_HEADER_REQUEST, encId });
     if (!response || response.error) {
-      return { error: (response && response.error) || 'No se pudo identificar al paciente.' };
+      return { error: (response && response.error) || 'No se pudo identificar al paciente.',
+        errorCode: response?.errorCode, code: response?.code, requiresLogin: response?.requiresLogin,
+        state: response?.state, status: response?.status };
     }
     const patient = response.patient || {};
     return {
       patient,
+      actorId: response.actorId,
       view: requestForms.buildPatientView(patient, patient.formattedRun),
     };
   };
@@ -489,14 +531,14 @@
     return root ? root.querySelector(selector) : null;
   };
 
-  const createOperationsCenterModal = (module, encId, returnFocusTarget = null, existingRoot = null) => {
+  const createOperationsCenterModal = (module, encId, returnFocusTarget = null, existingRoot = null, flow) => {
     if (existingRoot && typeof existingRoot.__hhrConnectionDispose === 'function') {
       invalidateConnectionState(existingRoot);
     }
     const focusReturnTarget = existingRoot && existingRoot.__hhrFocusReturnTarget
       ? existingRoot.__hhrFocusReturnTarget
       : returnFocusTarget || document.activeElement;
-    const activeModule = ['connection', 'lab', 'imaging', 'home'].includes(module) ? module : 'home';
+    const activeModule = ['connection', 'lab', 'imaging', 'home', 'settings'].includes(module) ? module : 'home';
     const root = prepareCenterModalRoot({
       existingRoot,
       activeModule,
@@ -504,8 +546,12 @@
       focusReturnTarget,
     });
     if (!root) return;
+    if (flow === 'results' || flow === 'request') root.dataset.labFlow = flow;
     const renderModule = targetEncId => {
-      if (activeModule === 'lab') labCenterRuntime.renderLabRequestView(root, targetEncId);
+      if (activeModule === 'lab') {
+        if (root.dataset.labFlow === 'results') labCenterRuntime.renderLabCenter(root, targetEncId);
+        else labCenterRuntime.renderLabRequestView(root, targetEncId);
+      }
       else if (activeModule === 'imaging') {
         if (!imagingCenterRuntime) {
           root.querySelector('.hhr-center-main').innerHTML =
@@ -515,6 +561,9 @@
         }
         imagingCenterRuntime.renderImagingCenter(root, targetEncId);
       }
+      else if (activeModule === 'settings') globalThis.HhrCenterSettings.render({ root,
+        operationsBar: document.getElementById(OPERATIONS_BAR_ID),
+        openFavorites: panel => createFavoritesDialog(panel, () => createOperationsCenterModal('settings', targetEncId, null, panel)) });
       else if (activeModule === 'home') renderHomeCenter(root, targetEncId);
       else renderConnectionCenter(root, targetEncId);
     };
@@ -545,18 +594,23 @@
       })
       .sort((a, b) => b.rect.bottom - a.rect.bottom);
     const headerBottom = candidates[0]?.rect.bottom || 64;
-    bar.style.setProperty('--hhr-ops-top', Math.round(headerBottom + 5) + 'px');
+    const dateRect = document.getElementById('hhr-history-date-navigation')?.getBoundingClientRect();
+    const barRect = bar.getBoundingClientRect();
+    const top = headerBottom + 5;
+    const overlapsDates = dateRect && dateRect.left < barRect.right && dateRect.right > barRect.left &&
+      dateRect.bottom > top && dateRect.top < top + barRect.height;
+    bar.style.setProperty('--hhr-ops-top', Math.round(overlapsDates ? dateRect.bottom + 5 : top) + 'px');
   };
 
   const OPERATIONS_MODULES = [
     {
-      key: 'recipes', label: 'Recetas', icon: 'recipes',
+      key: 'recipes', icon: 'recipes',
       tip: 'Recetas médicas',
       note: 'Recetas e indicaciones del paciente o de los hospitalizados.',
       aria: 'Abrir centro de recetas',
     },
     {
-      key: 'exams', label: 'Exámenes', icon: 'lab',
+      key: 'exams', icon: 'lab',
       tip: 'Exámenes', note: 'Laboratorio e imágenes del paciente.',
       aria: 'Exámenes: laboratorio e imágenes', hasMenu: true,
     },
@@ -587,20 +641,17 @@
               aria-label="${module.aria}" data-tip="${module.tip}" data-tip-note="${module.note}"
               ${module.hasMenu ? 'aria-haspopup="menu" aria-expanded="false" aria-controls="hhr-exams-menu"' : ''}>
               ${ui.icons[module.icon]}
-              <span>${module.label}</span>
-              ${module.hasMenu ? `<span class="module-caret">${ui.icons.chevronDown}</span>` : ''}
             </button>
           `).join('')}
-          <button class="module module-icon hhr-ops-favorites" type="button" aria-label="Favoritos"
-            data-tip="Favoritos" data-tip-note="Tus páginas web frecuentes, siempre a un clic.">
-            ${ui.icons.star}
-          </button>
           <div class="exams-menu" id="hhr-exams-menu" role="menu" aria-label="Tipos de exámenes" hidden>
-            <button class="exam-item hhr-exams-lab" type="button" role="menuitem" tabindex="-1" data-module="lab">
-              ${ui.icons.lab}<strong>Laboratorio</strong><small>Resultados y solicitudes Syslab</small>
+            <button class="exam-item hhr-exams-results" type="button" role="menuitem" tabindex="-1" data-module="lab" data-flow="results">
+              ${ui.icons.lab}<strong>Ver resultados</strong><small>Laboratorio Syslab</small>
+            </button>
+            <button class="exam-item hhr-exams-lab" type="button" role="menuitem" tabindex="-1" data-module="lab" data-flow="request">
+              ${ui.icons.lab}<strong>Solicitar laboratorio</strong>
             </button>
             <button class="exam-item hhr-exams-imaging" type="button" role="menuitem" tabindex="-1" data-module="imaging">
-              ${ui.icons.imaging}<strong>Imágenes</strong><small>Solicitudes y formularios oficiales</small>
+              ${ui.icons.imaging}<strong>Solicitar imágenes</strong>
             </button>
           </div>
         </div>
@@ -614,11 +665,8 @@
           </span>
           <span class="session-copy" aria-hidden="true">
             <span class="session-name">Conexiones</span>
-            <span class="session-state">Comprobando…</span>
           </span>
         </button>
-        <button class="collapse" type="button" aria-label="Contraer barra HHR"
-          data-tip="Contraer" data-tip-note="Deja visible solo el acceso HHR.">${ui.icons.chevronsRight}</button>
         <div class="tip" role="tooltip"><strong></strong><span></span></div>
       `;
       try {
@@ -634,26 +682,21 @@
       sessionButton.addEventListener('click', () =>
         centerShellRuntime.openCenterModule('connection', bar.dataset.encounterId, sessionButton)
       );
-      shadow.querySelector('.hhr-ops-favorites').addEventListener('click', () =>
-        createFavoritesDialog()
-      );
       ui.enableBarTooltips(shadow, bar);
       ui.enableRovingFocus(shadow);
       bar.__hhrUi = ui.createOperationsBarController({
         root: shadow, host: bar, storageArea: chrome.storage?.local,
         onOpenBrand: () => centerShellRuntime.openCenterModule(undefined, bar.dataset.encounterId, brandButton),
-        onExamSelect: (module, trigger) => centerShellRuntime.openCenterModule(module, bar.dataset.encounterId, trigger),
+        onExamSelect: (module, trigger, flow) => centerShellRuntime.openCenterModule(module, bar.dataset.encounterId, trigger, flow),
       });
       document.body.appendChild(bar);
     }
     bar.dataset.encounterId = encId || '';
-    const labButton = barPart(bar, '.hhr-exams-lab');
-    if (labButton) {
+    [barPart(bar, '.hhr-exams-lab'), barPart(bar, '.hhr-exams-results')].filter(Boolean).forEach(labButton => {
       const labDisabled = !labHelper;
       labButton.setAttribute('aria-disabled', String(labDisabled));
-      labButton.querySelector('small').textContent = labDisabled
-        ? 'Recarga la extensión para activar laboratorio' : 'Resultados y solicitudes Syslab';
-    }
+      labButton.title = labDisabled ? 'Recarga la extensión para activar laboratorio' : '';
+    });
     updateOperationsBarPosition(bar);
     void refreshOperationsConnectionBadge(
       bar,
@@ -698,66 +741,19 @@
         closeModal(true);
       }
     }
+    if (modal?.isConnected) globalThis.HhrCenterPatientContext?.refreshRoute(modal, encId);
+    nativePresentation?.refresh(encId);
+    historyNavigation?.refresh(encId);
+    worklistPresentation?.refresh(window.location.pathname);
     ensureOperationsBar(encId);
     ensureCorrectedDischargePrintItems();
     ensureNursingMedicalEpicrisisPrintItem(nursingContext);
-    if (!encId || !nursingContext) {
-      document.documentElement.setAttribute(
-        'data-hhr-prescription-print-state',
-        !encId ? 'operations-ready' : 'operations-ready-no-context-actions'
-      );
-      if (existing) existing.remove();
-      if (existingIndications) existingIndications.remove();
-      return;
-    }
-    if (existing && existingIndications) {
-      existing.dataset.encounterId = encId;
-      existingIndications.dataset.encounterId = encId;
-      return;
-    }
-    const heading = findPharmaHeading();
-    if (!heading) {
-      document.documentElement.setAttribute('data-hhr-prescription-print-state', 'waiting-pharma');
-      return;
-    }
-    const anchor = findToolbarAnchor(heading);
-    ensureStyles();
-    let indicationsButton = existingIndications;
-    if (!indicationsButton) {
-      indicationsButton = document.createElement('button');
-      indicationsButton.id = INDICATIONS_BUTTON_ID;
-      indicationsButton.type = 'button';
-      indicationsButton.title = 'Indicaciones';
-      indicationsButton.setAttribute('aria-label', 'Descargar indicaciones');
-      indicationsButton.innerHTML = `
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6Zm1 7V3.5L20.5 9H15ZM8 13h8v2H8v-2Zm0 4h8v2H8v-2Zm0-8h4v2H8V9Z"/>
-        </svg>
-      `;
-      indicationsButton.addEventListener('click', () =>
-        downloadIndications(indicationsButton.dataset.encounterId, indicationsButton)
-      );
-      anchor.insertAdjacentElement('afterend', indicationsButton);
-    }
-    indicationsButton.dataset.encounterId = encId;
-
-    let button = existing;
-    if (!button) {
-      button = document.createElement('button');
-      button.id = BUTTON_ID;
-      button.type = 'button';
-      button.title = 'Receta médica';
-      button.setAttribute('aria-label', 'Imprimir receta médica');
-      button.innerHTML = `
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M19 8H5c-1.66 0-3 1.34-3 3v4h4v4h12v-4h4v-4c0-1.66-1.34-3-3-3Zm-3 9H8v-5h8v5Zm3-5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2ZM18 3H6v4h12V3Z"/>
-        </svg>
-      `;
-      button.addEventListener('click', () => createModal(button.dataset.encounterId));
-      indicationsButton.insertAdjacentElement('afterend', button);
-    }
-    button.dataset.encounterId = encId;
-    document.documentElement.setAttribute('data-hhr-prescription-print-state', 'ready');
+    // Remove only extension-owned shortcuts left by an older injected version.
+    existing?.remove();
+    existingIndications?.remove();
+    document.documentElement.setAttribute(
+      'data-hhr-prescription-print-state', encId ? 'ready' : 'operations-ready'
+    );
   };
 
   let scheduled = false;
@@ -771,8 +767,16 @@
     }, 80);
   };
 
-  const observer = new MutationObserver(scheduleEnsureButton);
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+  // Apply density to replacement tables before the browser paints. The other
+  // controls still use the debounced operations UI refresh.
+  const observer = new MutationObserver(records => {
+    if (!active || !uiLifecycle.owns()) return;
+    worklistPresentation?.refresh(window.location.pathname);
+    if (records.some(record => record.type !== 'characterData')) scheduleEnsureButton();
+  });
+  observer.observe(document.documentElement, {
+    childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['aria-selected', 'hidden'],
+  });
   window.addEventListener('popstate', scheduleEnsureButton);
   window.addEventListener('hashchange', scheduleEnsureButton);
   window.addEventListener('hhr:fichamedico-locationchange', scheduleEnsureButton);
@@ -791,6 +795,8 @@
         if (guard.pending.size || guard.dirty.size) return false;
       }
       active = false;
+      document.removeEventListener('click', onWorklistPrint, true);
+      document.removeEventListener('click', onWorklistEdit, true);
       observer.disconnect();
       window.removeEventListener('popstate', scheduleEnsureButton);
       window.removeEventListener('hashchange', scheduleEnsureButton);
@@ -801,6 +807,11 @@
       document.removeEventListener('visibilitychange', onVisibilityChange);
       try { chrome.runtime.onMessage?.removeListener?.(onRuntimeMessage); } catch (_error) {}
       connectionCenterRuntime.dispose();
+      historyNavigation?.dispose();
+      nativePresentation?.dispose();
+      worklistPresentation?.dispose();
+      modal?.__hhrDocumentPreview?.dispose();
+      modal?.__hhrPanel?.dispose();
       [BUTTON_ID, INDICATIONS_BUTTON_ID, OPERATIONS_BAR_ID, MODAL_ID, NOTICE_HOST_ID]
         .forEach(id => document.getElementById(id)?.remove());
       return true;

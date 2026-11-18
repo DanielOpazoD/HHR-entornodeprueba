@@ -32,7 +32,7 @@
       prescriptionPdf,
       epicrisisPdf,
       pdfLib,
-      now,
+      now, prepareDocumentPreview,
     } = dependencies || {};
 
     if (
@@ -63,6 +63,7 @@
         const res = await fetchWithTimeout(url, {
           headers: { Authorization: token, Accept: 'application/pdf' },
           credentials: 'omit',
+          cache: 'no-store',
         });
         if (res.status === 401 || res.status === 403) {
           return {
@@ -94,8 +95,17 @@
       }
     };
 
-    const fetchPrescriptionReportBuffer = async ({ encId, info: knownInfo }) => {
-      const context = await getClinicalReportContext(encId, knownInfo);
+    const patientReportContext = async ({ encId, info, expectedPatientId }) => {
+      const context = await getClinicalReportContext(encId, info);
+      if (!context.error && expectedPatientId != null && expectedPatientId !== String(context.patientId)) {
+        return { error: 'El paciente del episodio no coincide con la fila seleccionada. Actualiza la lista.' };
+      }
+      return context;
+    };
+
+    const fetchPrescriptionReportBuffer = async (request) => {
+      const { encId } = request;
+      const context = await patientReportContext(request);
       if (context.error) return context;
       const { info, patientId } = context;
       const url = prescriptionPrint.buildPrescriptionReportUrl(
@@ -113,8 +123,9 @@
       return result.buffer ? { buffer: result.buffer } : { error: result.error };
     };
 
-    const fetchIndicationsReportBuffer = async ({ encId, info: knownInfo }) => {
-      const context = await getClinicalReportContext(encId, knownInfo);
+    const fetchIndicationsReportBuffer = async (request) => {
+      const { encId } = request;
+      const context = await patientReportContext(request);
       if (context.error) return context;
       const { info, patientId } = context;
       const url = prescriptionPrint.buildIndicationsReportUrl(
@@ -162,8 +173,12 @@
       }
     };
 
-    const openPdfPrintDialog = async ({ buffer, filename }) => {
+    const openPdfPrintDialog = async ({ buffer, filename, preview = false, sender }) => {
       try {
+        if (preview) {
+          if (typeof prepareDocumentPreview !== 'function') return { error: 'La vista previa no quedó disponible. Recarga la extensión.' };
+          return await prepareDocumentPreview({ buffer, filename, sender });
+        }
         extensionRuntime.ensurePdf();
         const printableBuffer = await pdfPrint.preparePdfForBrowserPrint(buffer);
         const jobId = cryptoApi.randomUUID();
@@ -186,6 +201,28 @@
             String((error && error.message) || error),
         };
       }
+    };
+
+    const printWorklistDocument = async ({ encId, documentKind, expectedPatientId, sender }) => {
+      const worklistUrl = /^https:\/\/fichamedico\.rayensalud\.cl\/dashboard\/encounter-list(?:-nurse)?\/?(?:[?#].*)?$/;
+      if (!Number.isInteger(sender?.tab?.id) || sender.frameId !== 0 ||
+          !worklistUrl.test(sender.tab.url) || !worklistUrl.test(sender.url) ||
+          !/^[1-9]\d*$/.test(encId) || !['indications', 'prescription'].includes(documentKind)) {
+        return { error: 'Elige un documento desde la fila del episodio en la lista de Eloísa.' };
+      }
+      const session = await getFichaFetchInfo(sender);
+      if (session.error) return session;
+      const access = await dependencies.checkWorklistChartAccess(session.info);
+      if (access.error) return access;
+      const request = { encId, info: session.info, expectedPatientId };
+      const report = documentKind === 'indications'
+        ? await fetchIndicationsReportBuffer(request)
+        : await fetchPrescriptionReportBuffer(request);
+      if (report.error) return report;
+      return openPdfPrintDialog({
+        buffer: report.buffer,
+        filename: documentKind === 'indications' ? `Indicaciones_${encId}.pdf` : prescriptionPrint.buildPrescriptionFilename(encId),
+      });
     };
 
     const handleCorrectedEpicrisisPrintRequest = async ({ pdfBase64, patientRun }) => {
@@ -474,6 +511,7 @@
       fetchRegimenReportBuffer,
       downloadPdfBuffer,
       openPdfPrintDialog,
+      printWorklistDocument,
       handleCorrectedEpicrisisPrintRequest,
       handleNursingMedicalEpicrisisPrintRequest: routeNursingMedicalEpicrisisRequest,
       createCompletePrescriptionPdf,

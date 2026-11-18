@@ -8,6 +8,23 @@
   const isTransportFailure = (report, transportFailed) =>
     transportFailed || report?.transportError === true;
   const isUnavailable = report => !report || Boolean(report.error);
+  const capabilities = report => {
+    const ficha = report?.fichaMedico || {};
+    const camas = report?.gestionCamas || {};
+    const fichaReady = ficha.status === 'ready';
+    const camasReady = camas.status === 'ready';
+    const expiring = source => source.expiring === true ||
+      (Number.isFinite(source.remainingSeconds) && source.remainingSeconds >= 0 && source.remainingSeconds < 240);
+    return {
+      summary: !fichaReady ? 'Conecta Ficha Médico para recetas' : expiring(ficha) ? 'Renueva la sesión de Ficha Médico' :
+        expiring(camas) ? 'Renueva la sesión de Camas' : camasReady ? 'Recetas y egresos conectados' : 'Recetas conectadas · Egresos pendientes',
+      details: [
+        fichaReady ? 'Recetas e imágenes: sesión de Ficha Médico conectada.' : 'Recetas e imágenes: inicia sesión en Ficha Médico.',
+        camasReady ? 'Egresos y Alta Administrativa: Gestión de Camas conectada.' : 'Egresos y Alta Administrativa: conecta Gestión de Camas.',
+        'Los resultados de laboratorio comprueban la sesión de Syslab al abrirlos.',
+      ],
+    };
+  };
   const renderSource = (card, source, fallbackName, actionModel, connectionTimeLabel) => {
     const ready = source && source.status === 'ready';
     const stale = source && source.status === 'stale';
@@ -59,12 +76,6 @@
     button.querySelector('.hhr-ops-avatar').textContent = connectionInitials(name);
     const sessionName = button.querySelector('.session-name');
     if (sessionName) sessionName.textContent = name;
-    const sessionState = button.querySelector('.session-state');
-    if (sessionState) {
-      sessionState.textContent = state === 'is-ready'
-        ? 'Conectado'
-        : state === 'is-degraded' ? 'Conexión parcial' : 'Sin conexión';
-    }
     const details = [
       ficha.status === 'ready' ? 'Ficha Médico conectada' : 'Ficha Médico no conectada',
       camas.status === 'ready'
@@ -72,7 +83,7 @@
         : 'Gestión de Camas no conectada',
     ];
     button.dataset.tip = name;
-    button.dataset.tipNote = details.join(' · ');
+    button.dataset.tipNote = capabilities(report).details.join(' ');
     button.setAttribute('aria-label', [name, ...details].join(' · '));
     return report;
   };
@@ -82,7 +93,6 @@
     button.classList.remove('is-ready', 'is-degraded');
     button.classList.add('is-offline');
     const label = transportFailed ? 'Extensión sin respuesta' : 'Estado no disponible';
-    button.querySelector('.session-state').textContent = label;
     button.dataset.tip = label;
     button.dataset.tipNote = 'Comprueba la extensión en Chrome y reintenta.';
     button.setAttribute('aria-label', label + '. ' + button.dataset.tipNote);
@@ -100,7 +110,7 @@
       'Esta pestaña perdió el enlace con la extensión. Ábrela nuevamente desde una conexión vigente.';
   };
   root.HhrConnectionPresentation = Object.freeze({
-    readHealth, isTransportFailure, isUnavailable, renderSource, renderPanelUnavailable,
+    readHealth, isTransportFailure, isUnavailable, capabilities, renderSource, renderPanelUnavailable,
     renderBadgeReport, renderBadgeUnavailable, renderIndicatorUnavailable,
   });
 })(typeof self !== 'undefined' ? self : globalThis);

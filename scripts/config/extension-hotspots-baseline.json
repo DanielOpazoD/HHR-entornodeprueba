@@ -26,11 +26,11 @@
       "hotspots": {}
     },
     "background.js": {
-      "maxLines": 1498,
+      "maxLines": 1521,
       "hotspots": {
         "variable:handleExamRequestCombinePrint": 25,
-        "variable:handleImagingFormPrintRequest": 18,
-        "variable:handlePrescriptionPrintRequest": 29,
+        "variable:handleImagingFormPrintRequest": 19,
+        "variable:handlePrescriptionPrintRequest": 30,
         "variable:parseClinicalTimestamp": 18
       }
     },
@@ -63,7 +63,7 @@
       "hotspots": {}
     },
     "clinical-antecedents-detail.js": {
-      "maxLines": 99,
+      "maxLines": 85,
       "hotspots": {}
     },
     "clinical-antecedents-fields.js": {
@@ -71,7 +71,7 @@
       "hotspots": {}
     },
     "clinical-antecedents-runtime.js": {
-      "maxLines": 211,
+      "maxLines": 195,
       "hotspots": {}
     },
     "clinical-antecedents-sources.js": {
@@ -91,7 +91,7 @@
       "hotspots": {
         "iife>variable:create": 41,
         "iife>variable:create>variable:handleHospitalizedIndicationsPrintRequest": 16,
-        "iife>variable:create>variable:handleHospitalizedPrescriptionPrintRequest": 16
+        "iife>variable:create>variable:handleHospitalizedPrescriptionPrintRequest": 17
       }
     },
     "clinical-day-runtime.js": {
@@ -132,7 +132,7 @@
       "hotspots": {}
     },
     "clinical-report-runtime.js": {
-      "maxLines": 485,
+      "maxLines": 523,
       "hotspots": {
         "iife>variable:create": 26,
         "iife>variable:create>variable:createCompletePrescriptionPdf": 16,
@@ -245,11 +245,16 @@
       }
     },
     "content-prescription-print.js": {
-      "maxLines": 813,
+      "maxLines": 824,
       "hotspots": {
         "iife": 16,
-        "iife>variable:initialize>variable:ensureButton": 22
+        "iife>variable:initialize>variable:ensureButton": 21,
+        "iife>variable:initialize>variable:onWorklistPrint": 17
       }
+    },
+    "content-worklist-editor-destination.js": {
+      "maxLines": 49,
+      "hotspots": {}
     },
     "cudyr-capture-support.js": {
       "maxLines": 68,
@@ -260,6 +265,10 @@
       "hotspots": {
         "iife>variable:buildPlacements": 16
       }
+    },
+    "document-preview-jobs.js": {
+      "maxLines": 64,
+      "hotspots": {}
     },
     "eloisa-patient-code-contract.js": {
       "maxLines": 81,
@@ -286,7 +295,7 @@
       }
     },
     "exalab-auto-runtime.js": {
-      "maxLines": 75,
+      "maxLines": 72,
       "hotspots": {}
     },
     "exalab-background.js": {
@@ -294,7 +303,7 @@
       "hotspots": {}
     },
     "exalab-connect.js": {
-      "maxLines": 42,
+      "maxLines": 39,
       "hotspots": {}
     },
     "exalab-session-transport.js": {
@@ -310,7 +319,7 @@
       "hotspots": {}
     },
     "extension-status.js": {
-      "maxLines": 17,
+      "maxLines": 16,
       "hotspots": {}
     },
     "extension-worker-status.js": {
@@ -340,7 +349,7 @@
       "hotspots": {}
     },
     "fichamedico-diagnosis-coding.js": {
-      "maxLines": 108,
+      "maxLines": 107,
       "hotspots": {}
     },
     "fichamedico-fluid-balance-runtime.js": {
@@ -359,10 +368,6 @@
       "maxLines": 63,
       "hotspots": {}
     },
-    "fichamedico-manual-patient-copy.js": {
-      "maxLines": 144,
-      "hotspots": {}
-    },
     "fichamedico-normalization.js": {
       "maxLines": 103,
       "hotspots": {
@@ -370,7 +375,7 @@
       }
     },
     "fichamedico-patient-context.js": {
-      "maxLines": 370,
+      "maxLines": 372,
       "hotspots": {
         "iife>variable:create>variable:getClinicalReportContext": 16
       }
@@ -506,12 +511,37 @@
       "maxLines": 102,
       "hotspots": {}
     },
-    "hhr-center-shell-runtime.js": {
-      "maxLines": 348,
+    "hhr-center-panel-runtime.js": {
+      "maxLines": 131,
       "hotspots": {}
     },
+    "hhr-center-patient-context.js": {
+      "maxLines": 42,
+      "hotspots": {
+        "iife>variable:set": 23
+      }
+    },
+    "hhr-center-preferences.js": {
+      "maxLines": 99,
+      "hotspots": {}
+    },
+    "hhr-center-settings.js": {
+      "maxLines": 30,
+      "hotspots": {}
+    },
+    "hhr-center-shell-runtime.js": {
+      "maxLines": 367,
+      "hotspots": {
+        "iife>variable:create>variable:prepareCenterModalRoot": 18,
+        "iife>variable:create>variable:setupCenterPatientContext>variable:refreshIdentity": 18
+      }
+    },
     "hhr-center-styles.js": {
-      "maxLines": 523,
+      "maxLines": 535,
+      "hotspots": {}
+    },
+    "hhr-center-workspace-styles.js": {
+      "maxLines": 125,
       "hotspots": {}
     },
     "hhr-clinical-write-client-runtime.js": {
@@ -525,15 +555,19 @@
       "hotspots": {}
     },
     "hhr-connection-center-runtime.js": {
-      "maxLines": 408,
+      "maxLines": 416,
       "hotspots": {}
     },
     "hhr-connection-presentation.js": {
-      "maxLines": 107,
+      "maxLines": 117,
       "hotspots": {}
     },
     "hhr-connection-repair-controls.js": {
       "maxLines": 127,
+      "hotspots": {}
+    },
+    "hhr-continuous-worklist-main.js": {
+      "maxLines": 100,
       "hotspots": {}
     },
     "hhr-discharge-actions-runtime.js": {
@@ -543,18 +577,32 @@
         "iife>variable:create>variable:requestNursingMedicalEpicrisisPrint": 21
       }
     },
+    "hhr-document-preview-runtime.js": {
+      "maxLines": 264,
+      "hotspots": {
+        "iife>variable:open>callback:print.addEventListener:1": 26,
+        "iife>variable:open>variable:prepare": 28
+      }
+    },
+    "hhr-history-date-navigation.js": {
+      "maxLines": 210,
+      "hotspots": {
+        "iife>variable:create>variable:refresh": 18
+      }
+    },
     "hhr-hospitalized-documents-center.js": {
       "maxLines": 258,
       "hotspots": {}
     },
     "hhr-imaging-center.js": {
-      "maxLines": 309,
+      "maxLines": 346,
       "hotspots": {}
     },
     "hhr-lab-center.js": {
-      "maxLines": 698,
+      "maxLines": 793,
       "hotspots": {
-        "iife>variable:create>variable:renderLabCenter>variable:load": 19
+        "iife>variable:create>variable:renderLabCenter>callback:syslabAccessForm.addEventListener:1": 16,
+        "iife>variable:create>variable:renderLabCenter>variable:load": 26
       }
     },
     "hhr-lab-request-patient.js": {
@@ -565,23 +613,45 @@
       "maxLines": 74,
       "hotspots": {}
     },
+    "hhr-lab-selection-runtime.js": {
+      "maxLines": 129,
+      "hotspots": {
+        "iife>variable:attach>callback:host.addEventListener:1": 23
+      }
+    },
     "hhr-medication-actions-runtime.js": {
-      "maxLines": 324,
+      "maxLines": 335,
       "hotspots": {
         "iife>variable:create": 16
       }
+    },
+    "hhr-native-ficha-presentation.js": {
+      "maxLines": 173,
+      "hotspots": {
+        "iife>variable:create>variable:refresh": 22
+      }
+    },
+    "hhr-native-worklist-presentation.js": {
+      "maxLines": 147,
+      "hotspots": {
+        "iife>variable:create>variable:refresh": 20
+      }
+    },
+    "hhr-nursing-worklist.js": {
+      "maxLines": 151,
+      "hotspots": {}
     },
     "hhr-origin-policy.js": {
       "maxLines": 32,
       "hotspots": {}
     },
     "hhr-prescription-center.js": {
-      "maxLines": 691,
+      "maxLines": 686,
       "hotspots": {
-        "iife>variable:create>variable:open": 17,
-        "iife>variable:create>variable:open>variable:renderCurrentPatient": 35,
+        "iife>variable:create>variable:open": 19,
+        "iife>variable:create>variable:open>variable:renderCurrentPatient": 38,
         "iife>variable:create>variable:open>variable:renderCurrentPatient>callback:groups.forEach:0": 16,
-        "iife>variable:create>variable:open>variable:renderHospitalized>assignment:submit.onclick": 16,
+        "iife>variable:create>variable:open>variable:renderHospitalized>assignment:submit.onclick": 17,
         "iife>variable:create>variable:open>variable:renderHospitalized>callback:patients.forEach:0": 16
       }
     },
@@ -590,7 +660,18 @@
       "hotspots": {}
     },
     "hhr-prescription-ui-lifecycle.js": {
-      "maxLines": 67,
+      "maxLines": 69,
+      "hotspots": {}
+    },
+    "hhr-read-recovery.js": {
+      "maxLines": 57,
+      "hotspots": {
+        "iife>variable:attach>callback:button.addEventListener:1": 21,
+        "iife>variable:isSessionFailure": 16
+      }
+    },
+    "hhr-request-drafts.js": {
+      "maxLines": 64,
       "hotspots": {}
     },
     "hhr-request-forms.js": {
@@ -598,8 +679,14 @@
       "hotspots": {}
     },
     "hhr-ui.js": {
-      "maxLines": 275,
+      "maxLines": 276,
       "hotspots": {}
+    },
+    "hhr-worklist-print-column.js": {
+      "maxLines": 138,
+      "hotspots": {
+        "iife>function:patientCell>function:present": 17
+      }
     },
     "hospitalization-report-search-runtime.js": {
       "maxLines": 62,
@@ -636,7 +723,7 @@
       "hotspots": {}
     },
     "message-contract.js": {
-      "maxLines": 289,
+      "maxLines": 297,
       "hotspots": {}
     },
     "offscreen-contract.js": {
@@ -652,7 +739,7 @@
       "hotspots": {}
     },
     "patient-clinical-bundle-runtime.js": {
-      "maxLines": 38,
+      "maxLines": 36,
       "hotspots": {}
     },
     "patient-document-manager-runtime.js": {
@@ -733,10 +820,6 @@
     },
     "runtime-loader.js": {
       "maxLines": 45,
-      "hotspots": {}
-    },
-    "runtime-message-client.js": {
-      "maxLines": 20,
       "hotspots": {}
     },
     "sync-bundle-cancellation-runtime.js": {
@@ -820,7 +903,7 @@
       "hotspots": {}
     },
     "urgency-dau-runtime.js": {
-      "maxLines": 44,
+      "maxLines": 36,
       "hotspots": {}
     },
     "urgency-dau-source.js": {
@@ -834,6 +917,14 @@
     "urgency-session-page.js": {
       "maxLines": 26,
       "hotspots": {}
+    },
+    "worklist-patient-editor.js": {
+      "maxLines": 197,
+      "hotspots": {
+        "iife>function:create>function:resume": 23,
+        "iife>function:inspectSession": 18,
+        "iife>function:openNativeEditor": 49
+      }
     },
     "zip-store-writer.js": {
       "maxLines": 121,

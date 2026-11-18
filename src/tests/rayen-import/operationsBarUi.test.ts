@@ -105,10 +105,10 @@ describe('HHR operations bar UI controller', () => {
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
   });
 
-  it('keeps the mobile control within the viewport by hiding secondary actions', () => {
+  it('keeps the compact mobile control within the viewport', () => {
     const styles = (globalThis as unknown as { HhrUI: { barCss: string } }).HhrUI.barCss;
     expect(styles).toContain('@media(max-width:560px)');
-    expect(styles).toContain('.session,.hhr-ops-favorites{display:none}');
+    expect(styles).toContain('max-width:calc(100vw - 32px)');
     expect(styles).toContain('@media(max-width:340px)');
     expect(styles).toContain('.module{width:28px;padding:0 5px}');
   });

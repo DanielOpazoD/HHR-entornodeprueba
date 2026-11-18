@@ -9,8 +9,10 @@
     const modal = () => root.document?.getElementById(MODAL_ID);
     const removeOrphans = () => {
       ['hhr-prescription-print-button', 'hhr-indications-print-button',
-        'hhr-clinical-operations-bar', 'hhr-clinical-page-notices']
+        'hhr-clinical-operations-bar', 'hhr-clinical-page-notices', 'hhr-history-date-navigation']
         .forEach(name => root.document?.getElementById(name)?.remove());
+      delete root.document.documentElement.dataset.hhrCenterDocked;
+      root.document.documentElement.style.removeProperty('--hhr-center-reserved');
       root.__hhrPrescriptionPrintInjected = false;
     };
     const preparePrevious = () => {

@@ -294,8 +294,10 @@
       const payload = {
         ok: true,
         encId: encounterId,
+        actorId: String(infoResult.info.practitionerId || ''),
         patient: {
           ...patient,
+          patientId: context.patientId,
           formattedRun: formatRun(patient.run) || String(patient.run || ''),
         },
       };

@@ -50,12 +50,12 @@ describe('extension prescription print content flow', () => {
       isNursingRouteUrl: () => true,
     };
 
-    const messages: Array<{ type?: string }> = [];
+    const messages: Array<{ type?: string; preview?: boolean }> = [];
     let healthPushListener: ((message: Record<string, unknown>) => void) | undefined;
     let runtimeLastError: { message: string } | undefined;
     let optionAttempts = 0;
     const sendMessage = vi.fn(
-      (message: { type?: string }, callback: (response: unknown) => void) => {
+      (message: { type?: string; preview?: boolean }, callback: (response: unknown) => void) => {
         messages.push(message);
         if (message.type === 'RAYEN_PRESCRIPTION_OPTIONS_REQUEST') {
           optionAttempts += 1;
@@ -134,7 +134,9 @@ describe('extension prescription print content flow', () => {
           return;
         }
         if (message.type === 'RAYEN_PRESCRIPTION_PRINT_REQUEST') {
-          callback({ ok: true, printTabId: 77 });
+          callback(
+            message.preview ? { html: '<p>Receta sintética</p>' } : { ok: true, printTabId: 77 }
+          );
           return;
         }
         callback({ ok: true });
@@ -209,16 +211,19 @@ describe('extension prescription print content flow', () => {
       expect(
         document
           .getElementById('hhr-clinical-operations-bar')
-          ?.shadowRoot?.querySelector('.hhr-ops-session .session-state')?.textContent
-      ).toBe('Conectado')
+          ?.shadowRoot?.querySelector('.hhr-ops-session')
+          ?.classList.contains('is-ready')
+      ).toBe(true)
     );
 
-    const pageButton = await vi.waitFor(() => {
-      const button = document.getElementById('hhr-prescription-print-button');
-      expect(button).not.toBeNull();
+    const recipesButton = await vi.waitFor(() => {
+      const button = document
+        .getElementById('hhr-clinical-operations-bar')
+        ?.shadowRoot?.querySelector<HTMLButtonElement>('.hhr-ops-recipes');
+      expect(button).toBeTruthy();
       return button as HTMLButtonElement;
     });
-    pageButton.click();
+    recipesButton.click();
 
     const firstPrint = await vi.waitFor(() => {
       const button = document.querySelector<HTMLButtonElement>('.hhr-rx-submit');
@@ -271,25 +276,30 @@ describe('extension prescription print content flow', () => {
     expect(completeOption?.closest('label')?.textContent).toContain('incluye 1 receta externa');
     const completePreview = completeOption?.closest('.hhr-rx-option-card')?.textContent || '';
     expect(completePreview.match(/Mometasona Furoato/g)).toHaveLength(1);
-    firstPrint.click();
-
-    await vi.waitFor(() => {
-      expect(document.querySelector('.hhr-rx-print-feedback')?.textContent).toContain(
-        'Puedes imprimir otra'
-      );
+    const printRequests = () =>
+      messages.filter(message => message.type === 'RAYEN_PRESCRIPTION_PRINT_REQUEST');
+    // Printing opens the in-panel preview; Volver returns to the same list for the next one.
+    const previewAndReturn = async (expectedRequests: number) => {
+      firstPrint.click();
+      await vi.waitFor(() => {
+        expect(document.querySelector('.hhr-preview-status')?.textContent).toContain(
+          'Documento listo para revisar e imprimir'
+        );
+        expect(printRequests()).toHaveLength(expectedRequests);
+      });
+      expect(printRequests().at(-1)).toMatchObject({ preview: true });
+      document.querySelector<HTMLButtonElement>('[data-preview="back"]')?.click();
+      expect(document.querySelector('.hhr-document-preview')).toBeNull();
       expect(firstPrint.isConnected).toBe(true);
       expect(firstPrint.disabled).toBe(false);
-      expect(document.getElementById('hhr-prescription-print-button')).toBe(pageButton);
-    });
-
-    firstPrint.click();
-    await vi.waitFor(() => {
       expect(
-        messages.filter(message => message.type === 'RAYEN_PRESCRIPTION_PRINT_REQUEST')
-      ).toHaveLength(2);
-      expect(firstPrint.isConnected).toBe(true);
-      expect(firstPrint.disabled).toBe(false);
-    });
+        document
+          .getElementById('hhr-clinical-operations-bar')
+          ?.shadowRoot?.querySelector('.hhr-ops-recipes')
+      ).toBe(recipesButton);
+    };
+    await previewAndReturn(1);
+    await previewAndReturn(2);
 
     const centerRoot = document.getElementById('hhr-prescription-print-modal');
     document.querySelector<HTMLButtonElement>('[data-rx-module="indications"]')?.click();

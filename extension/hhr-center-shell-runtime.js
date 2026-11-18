@@ -69,6 +69,9 @@
         </button>
       `;
       return items.map(navButton).join('') + navButton({
+        key: 'settings', label: 'Ajustes', title: 'Ajustes y favoritos',
+        icon: '<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="18" r="2"/>',
+      }) + navButton({
         key: 'connection', label: 'Sesión', title: 'Conexiones y sesión', session: true,
         icon: '<circle cx="12" cy="12" r="3"/><path d="M12 4.5V3M12 21v-1.5M19.5 12H21M3 12h1.5M17.3 6.7l1.1-1.1M5.6 18.4l1.1-1.1M17.3 17.3l1.1 1.1M5.6 5.6l1.1 1.1"/>',
       });
@@ -83,11 +86,12 @@
           <a class="hhr-center-app-link" href="https://hhr-hospitalizados.app/" target="_blank" rel="noopener noreferrer">Abrir HHR <span aria-hidden="true">↗</span></a>
         </header>
         <div class="hhr-center-patientbar" hidden>
+          <span class="hhr-patientbar-episode"></span>
           <span class="hhr-patientbar-tag">Paciente</span>
           <strong class="hhr-patientbar-name">—</strong>
           <span class="hhr-patientbar-meta"></span>
           <span class="hhr-patientbar-route" hidden>Distinto al episodio abierto en Eloísa</span>
-          <button class="hhr-center-action hhr-center-action-primary hhr-patientbar-change" type="button" aria-expanded="false">Cambiar paciente ▾</button>
+          <button class="hhr-center-action hhr-patientbar-change" type="button" aria-expanded="false">Cambiar paciente ▾</button>
           <div class="hhr-patientbar-picker" hidden>
             <input class="hhr-rx-search hhr-patientbar-search" type="search"
               placeholder="Buscar por paciente, RUN o cama" aria-label="Buscar paciente en el censo">
@@ -110,22 +114,27 @@
       }
     };
 
-    const openCenterModule = (module, encId, trigger) => {
+    const openCenterModule = (module, encId, trigger, flow) => {
       const targetModule = module || lastCenterModule;
+      const existing = document.getElementById(modalId);
+      if (existing?.querySelector('.hhr-center-shell') && existing.dataset.encounterId === (currentRouteEncounterId() || '')) {
+        runClinicalTransition(existing, () => switchCenterModule(existing, targetModule, encId, trigger, flow));
+        return;
+      }
       if (targetModule === 'recipes') openPrescriptionCenter(encId);
       else if (targetModule === 'indications') {
         openHospitalizedDocuments(targetModule, encId);
-      } else openOperationsCenter(targetModule, encId, trigger);
+      } else openOperationsCenter(targetModule, encId, trigger, null, flow);
     };
 
-    const switchCenterModule = (root, module, encId, focusReturnTarget) => {
+    const switchCenterModule = (root, module, encId, focusReturnTarget, flow) => {
       if (root && typeof root.__hhrConnectionDispose === 'function') {
         root.__hhrConnectionDispose();
       }
       if (module === 'recipes') openPrescriptionCenter(encId, '', root);
       else if (module === 'indications') {
         openHospitalizedDocuments(module, encId, root);
-      } else openOperationsCenter(module, encId, focusReturnTarget, root);
+      } else openOperationsCenter(module, encId, focusReturnTarget, root, flow);
     };
 
     const wireCenterNavButtons = (root, activeModule, encId, focusReturnTarget) => {
@@ -144,6 +153,8 @@
 
     const prepareCenterModalRoot = ({ existingRoot = null, activeModule, encId, focusReturnTarget }) => {
       if (!existingRoot && !closeModal()) return null;
+      if (existingRoot) globalThis.HhrRequestDrafts?.checkpoint(existingRoot);
+      existingRoot?.__hhrDocumentPreview?.dispose();
       ensureStyles();
       const root = existingRoot || document.createElement('div');
       const isNew = !existingRoot;
@@ -167,7 +178,7 @@
             root.__hhrDismiss();
             return;
           }
-          trapModalFocus(root, event);
+          if (root.dataset.panelMode !== 'docked' && root.dataset.minimized !== 'true') trapModalFocus(root, event);
         });
       }
       if (isNew) root.dataset.encounterId = /^\d+$/.test(String(encId || '')) ? String(encId) : '';
@@ -175,6 +186,10 @@
       if (typeof onCenterModuleChange === 'function') onCenterModuleChange(activeModule);
       root.innerHTML = centerShellMarkup(activeModule);
       applyCenterShellLogo(root);
+      globalThis.HhrCenterPanelRuntime?.attach(root);
+      globalThis.HhrCenterPatientContext?.prepare(root, {
+        encId, activeModule, currentRouteEncounterId, sendMessage, runtimeMessages,
+      });
       getClinicalGuard(root);
       root.querySelector('.hhr-rx-close').addEventListener('click', root.__hhrDismiss);
       root.querySelector('.hhr-rx-backdrop').addEventListener('click', root.__hhrDismiss);
@@ -198,7 +213,9 @@
       const picker = bar.querySelector('.hhr-patientbar-picker');
       const search = bar.querySelector('.hhr-patientbar-search');
       const list = bar.querySelector('.hhr-patientbar-list');
-      if (module === 'connection' || module === 'home') return;
+      const episode = bar.querySelector('.hhr-patientbar-episode');
+      if (episode) episode.textContent = initialEncId ? 'Episodio ' + initialEncId : '';
+      if (module === 'connection' || module === 'home' || module === 'settings') return;
       bar.hidden = false;
       if (!PATIENT_BOUND_MODULES.has(module)) {
         nameEl.textContent = 'Todos los hospitalizados';
@@ -214,6 +231,7 @@
 
       const refreshIdentity = async () => {
         const requestedEncId = selected;
+        if (episode) episode.textContent = requestedEncId ? 'Episodio ' + requestedEncId : '';
         const routeEncId = currentRouteEncounterId();
         routeBadge.hidden = !requestedEncId || !routeEncId || requestedEncId === routeEncId;
         if (!requestedEncId) {
@@ -228,6 +246,7 @@
           encId: requestedEncId,
         });
         if (!root.isConnected || root.dataset.selectedEncounterId !== requestedEncId) return;
+        if (module === 'lab' && root.querySelector('[name="hhr-labreq-patient-source"]:checked')?.value === 'manual') return;
         if (!response || response.error) {
           nameEl.textContent = 'Paciente no identificado';
           metaEl.textContent = String((response && response.error) || '');
