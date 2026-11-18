@@ -430,15 +430,46 @@ const lists = {
     path: 'discharges',
     item: (id: string) => ({ id, bedId: 'R2', patientName: `ALTA ${id}`, status: 'Vivo' }),
   },
+  cma: {
+    path: 'cma',
+    item: (id: string) => ({ id, bedName: 'CMA', patientName: `CMA ${id}` }),
+  },
+  cribClinicalEvents: {
+    path: 'beds.R4.clinicalCrib.clinicalEvents',
+    item: (id: string) => ({
+      id,
+      name: `EVENTO RN ${id}`,
+      date,
+      createdAt: `${date}T10:00:00.000Z`,
+    }),
+  },
+  tensDayShift: {
+    path: 'tensDayShift',
+    item: (id: string) => `TENS ${id}`,
+  },
 } as const;
+/** An element of a list as stored: an object may gain normalized fields, a text stays as is. */
+const matching = (value: unknown) =>
+  typeof value === 'object' && value !== null ? expect.objectContaining(value) : value;
+/** The newborn in R4's crib, for the lists that live on it. */
+const withNewborn = (day: DailyRecord) => {
+  day.beds.R4.clinicalCrib = DataFactory.createMockPatient('R4', {
+    patientName: 'RN SINTETICO',
+    rut: '',
+    clinicalEpisodeId: 'episode-newborn',
+    bedMode: 'Cuna',
+    admissionDate: date,
+  });
+};
 
 it.each(Object.keys(lists) as (keyof typeof lists)[])(
   'shows a pending %s item with the server’s day, and never confirms it when the server changed that list too',
   async kind => {
     const { path, item } = lists[kind];
-    const c = await censusHere();
+    const c = await censusHere(kind === 'cribClinicalEvents' ? withNewborn : undefined);
     c.hook.unmount();
-    const day = await server();
+    // The base is the day as the app read it (normalized), as a census edit's base is.
+    const day = (await getForDateWithMeta(date)).record!;
     const patch = { [path]: [item('local')] } as DailyRecordPatch;
     expect(
       await queueDailyRecordSyncTaskWithLocalRecord(
@@ -459,7 +490,7 @@ it.each(Object.keys(lists) as (keyof typeof lists)[])(
     const composed = await getForDateWithMeta(date);
     expect(composed.serverConfirmed).toBe(true);
     expect(composed.record?.handoffNovedadesDayShift).toBe('OTRO EQUIPO');
-    expect(getValueAtPath(composed.record, path)).toEqual([expect.objectContaining(item('local'))]);
+    expect(getValueAtPath(composed.record, path)).toEqual([matching(item('local'))]);
 
     // Another computer adds to the same list: it cannot be shown with certainty, so not confirmed.
     const stored = await hospitalDB.dailyRecords.get(date);
@@ -469,8 +500,260 @@ it.each(Object.keys(lists) as (keyof typeof lists)[])(
     expect(kept.record).toEqual(stored);
     expect(await hospitalDB.dailyRecords.get(date)).toEqual(stored);
     expect(getValueAtPath((await hospitalDB.syncQueue.toArray())[0].payload, path)).toEqual([
-      expect.objectContaining(item('local')),
+      matching(item('local')),
     ]);
   },
   30_000
 );
+
+import { createRequire } from 'node:module';
+const { createRayenClinicalEnrichmentFunctions } = createRequire(import.meta.url)(
+  '../../../functions/lib/rayenClinicalEnrichmentFunctions.js'
+);
+const readLive = async () => {
+  let delivered: SyncDailyRecordResult | undefined;
+  const stop = subscribeDetailed(date, result => {
+    if (result.outcome === 'clean') delivered = result;
+  });
+  try {
+    await waitFor(() => expect(delivered?.record).toBeTruthy(), { timeout: 10000 });
+    return delivered!;
+  } finally {
+    stop();
+  }
+};
+type Where = 'bed' | 'crib';
+const here = (record: DailyRecord, where: Where) =>
+  where === 'bed' ? record.beds.R1 : record.beds.R1.clinicalCrib!;
+const prefix = (where: Where) => (where === 'bed' ? 'beds.R1' : 'beds.R1.clinicalCrib');
+const deviceEntry = (id: string, type: string, episode: string) => ({
+  id,
+  type,
+  installationDate: date,
+  source: 'eloisa' as const,
+  status: 'Active' as const,
+  createdAt: 1,
+  updatedAt: 2,
+  clinicalEpisodeId: episode,
+});
+const cases = [
+  ['bed', 'devices'],
+  ['crib', 'devices'],
+  ['bed', 'history'],
+  ['crib', 'history'],
+  ['bed', 'unowned-history'],
+  ['crib', 'unowned-history'],
+  ['bed', 'replace'],
+  ['crib', 'replace'],
+  ['crib', 'replace-parent'],
+  ['bed', 'missing-base'],
+  ['crib', 'missing-base'],
+] as const;
+// Recheck 4, finding 1: the newborn's lists are lists too, wherever they live.
+it.each(cases)(
+  'device review %s %s',
+  async (where, mode) => {
+    const episode = where === 'bed' ? 'episode-synthetic-parent' : 'episode-synthetic-crib';
+    const remoteEntry = deviceEntry('from-eloisa', 'SNG', episode);
+    const c = await censusHere(day => {
+      Object.assign(day, { meta: { revision: 2 } });
+      day.rayenSyncHistory = [
+        {
+          id: 'synthetic-run',
+          sourceDate: date,
+          status: 'applied',
+          startedAt: new Date().toISOString(),
+          by: 'synthetic-rayen',
+          policy: { schemaVersion: 2, mode: 'preview', revision: 7, clinicalBatchMode: 'enforced' },
+        },
+      ] as never;
+      day.beds.R1 = DataFactory.createMockPatient('R1', {
+        patientName: 'MADRE SINTETICA',
+        rut: '22222222-2',
+        clinicalEpisodeId: 'episode-synthetic-parent',
+        admissionDate: date,
+        devices: [],
+        deviceInstanceHistory: [],
+        clinicalCrib: DataFactory.createMockPatient('R1', {
+          patientName: 'RN SINTETICO',
+          rut: '',
+          clinicalEpisodeId: 'episode-synthetic-crib',
+          bedMode: 'Cuna',
+          admissionDate: date,
+          devices: [],
+          deviceInstanceHistory: [],
+        }),
+      });
+    });
+    try {
+      setFirestoreEnabled(false);
+      if (mode === 'unowned-history') await c.edit(night, 'nota local');
+      else {
+        const calls: Promise<unknown>[] = [];
+        const device = renderHook(() =>
+          useDevicesCellController({
+            data: here(shown()!.record!, where),
+            onDevicesChange: vi.fn(),
+            onDeviceDetailsChange: vi.fn(),
+            onDeviceHistoryChange: vi.fn(),
+            onDeviceBundleChange: fields =>
+              calls.push(
+                c.mutate(
+                  bedManagementReducer(shown()!.record!, {
+                    type:
+                      where === 'bed' ? 'UPDATE_PATIENT_MULTIPLE' : 'UPDATE_CLINICAL_CRIB_MULTIPLE',
+                    bedId: 'R1',
+                    fields,
+                  }) as DailyRecordPatch
+                )
+              ),
+          })
+        );
+        device.result.current.handleDevicesChange(['CVC']);
+        await Promise.all(calls);
+        device.unmount();
+      }
+      c.hook.unmount();
+      setFirestoreEnabled(true);
+      const root = prefix(where);
+      const [task] = await hospitalDB.syncQueue.toArray();
+      if (mode !== 'unowned-history') {
+        expect(task.syncContract?.changedPaths).toContain(root + '.devices');
+        expect(here(task.payload as DailyRecord, where).devices).toEqual(['CVC']);
+      }
+      if (mode === 'missing-base')
+        await hospitalDB.syncQueue.update(task.id!, { patchBaseValues: {} });
+      const other =
+        mode === 'devices'
+          ? { [root + '.devices']: ['SNG'], [root + '.deviceInstanceHistory']: [remoteEntry] }
+          : mode.includes('history')
+            ? { [root + '.deviceInstanceHistory']: [remoteEntry] }
+            : mode === 'replace' || mode === 'replace-parent'
+              ? {
+                  [(mode === 'replace-parent' ? 'beds.R1' : root) + '.clinicalEpisodeId']:
+                    'episode-replacement',
+                  [(mode === 'replace-parent' ? 'beds.R1' : root) + '.patientName']:
+                    'REEMPLAZO SINTETICO',
+                }
+              : {};
+      if (mode.includes('history')) {
+        const api = createRayenClinicalEnrichmentFunctions({
+          firestore: admin,
+          Timestamp,
+          resolveRoleForEmail: async () => 'admin',
+        });
+        const prior = await server();
+        const response = await api.applyRayenClinicalEnrichmentBatch.run(
+          {
+            date,
+            authorityDate: date,
+            runId: 'synthetic-run',
+            mutationId: 'synthetic-rayen-device',
+            expectedLastUpdated: prior.lastUpdated,
+            baseRevision: 2,
+            mode: 'enforced',
+            fieldContractVersion: 2,
+            patches: [
+              {
+                bedId: 'R1',
+                clinicalCrib: where === 'crib',
+                clinicalEpisodeId: episode,
+                fields: {
+                  deviceInstanceHistory: [{ ...remoteEntry, status: 'Removed', removalDate: date }],
+                },
+              },
+            ],
+          },
+          { auth: { uid: 'synthetic-rayen', token: { email: 'rayen@example.invalid' } } }
+        );
+        expect(response.authorityStatus).toBe('ok');
+        expect(response.patientWrites).toBe(1);
+      } else
+        await admin.doc(dayPath).update({
+          ...other,
+          handoffNovedadesDayShift: 'otro equipo',
+          lastUpdated: Timestamp.now(),
+        });
+      const point = await getForDateWithMeta(date);
+      const live = await readLive();
+      const stored = (await hospitalDB.dailyRecords.get(date))!;
+      const remote = await server();
+      const [after] = await hospitalDB.syncQueue.toArray();
+      const view = (r: DailyRecord) => {
+        const p = here(r, where);
+        return {
+          devices: p.devices,
+          history: p.deviceInstanceHistory?.map(row => row.type),
+          id: p.clinicalEpisodeId,
+        };
+      };
+      expect(view(remote).devices).toBeDefined();
+      expect(live.serverConfirmed).toBe(point.serverConfirmed);
+      expect(view(live.record!)).toEqual(view(point.record!));
+      expect(after.payload).toEqual(task.payload);
+      expect(point.record).toEqual(stored);
+      if (mode === 'unowned-history') {
+        expect(point.serverConfirmed).toBe(true);
+        expect(view(point.record!).history).toEqual(['SNG']);
+        expect(point.record?.[night]).toBe('nota local');
+      } else {
+        expect(point.serverConfirmed).toBe(false);
+        expect(view(stored).devices).toEqual(['CVC']);
+        expect(view(stored).id).toBe(episode);
+      }
+    } finally {
+      c.hook.unmount();
+    }
+  },
+  30000
+);
+
+it('preserves another bed activated while a different extra bed activation is pending', async () => {
+  const c = await censusHere(day => {
+    day.activeExtraBeds = [];
+  });
+  try {
+    setFirestoreEnabled(false);
+    await c.mutate(buildToggleExtraBedPatches(shown()!.record!, 'E1'));
+    c.hook.unmount();
+    setFirestoreEnabled(true);
+    const current = await server();
+    const patch = buildToggleExtraBedPatches(current, 'E2');
+    const previous = h.db;
+    h.db = env
+      .authenticatedContext('synthetic-A', {
+        role: 'nurse_hospital',
+        email: 'synthetic-A@example.invalid',
+      })
+      .firestore();
+    try {
+      await updateRecordPartial(date, patch, current.lastUpdated, {
+        baseRecord: current,
+        historyPolicy: 'skip',
+        syncContract: { changedPaths: Object.keys(patch), mutationId: 'synthetic-extra-e2' },
+      });
+    } finally {
+      h.db = previous;
+    }
+    const result = await getForDateWithMeta(date);
+    const live = await readLive();
+    const [task] = await hospitalDB.syncQueue.toArray();
+    const stored = await hospitalDB.dailyRecords.get(date);
+    const actual = (await server()).activeExtraBeds;
+    const visible = buildVisibleBeds({
+      allBeds: BEDS,
+      activeExtraBeds: live.record!.activeExtraBeds,
+    })
+      .filter(b => b.isExtra)
+      .map(b => b.id);
+    // Recheck 4, finding 2: never only E1 as confirmed while the server has E2.
+    if (!result.serverConfirmed) expect(stored?.activeExtraBeds).toEqual(['E1']);
+    if (live.serverConfirmed) expect(visible).toEqual(expect.arrayContaining(['E1', 'E2']));
+    expect(actual).toContain('E2');
+    expect((task.payload as DailyRecord).activeExtraBeds).toEqual(['E1']);
+    if (result.serverConfirmed)
+      expect(result.record?.activeExtraBeds).toEqual(expect.arrayContaining(['E1', 'E2']));
+  } finally {
+    c.hook.unmount();
+  }
+}, 30000);
