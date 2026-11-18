@@ -190,6 +190,13 @@ describe('Interactive census CUDYR card', () => {
     await screen.findByText('1/2 elegibles');
     expect(screen.getByRole('combobox')).toHaveValue('2026-09');
   });
+  it('hides the previous person’s summaries as soon as the session changes, without another render', async () => {
+    render(<CudyrMonthlyIndicator date="2026-10-10" />);
+    await screen.findByText('50/100 elegibles');
+    vi.mocked(loadCudyrReport).mockImplementation(() => new Promise(() => {}));
+    act(() => admitSyntheticSession('owner-b', 'b'));
+    expect(screen.queryByText('50/100 elegibles')).not.toBeInTheDocument();
+  });
   it('aborts obsolete in-flight readers when navigating quickly across a longer history', async () => {
     vi.setSystemTime(new Date('2027-04-10T20:00:00Z'));
     vi.mocked(loadCudyrReport).mockImplementation(() => new Promise(() => {}));
