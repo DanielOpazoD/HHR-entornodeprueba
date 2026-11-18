@@ -2,6 +2,7 @@ const functions = require('firebase-functions/v1');
 const { HOSPITAL_CAPACITY, HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { requireAuthenticatedEmail } = require('./auth/authPolicies');
 const { sanitizeLogValue } = require('./logging/redaction');
+const { wholeRecordFieldWrites } = require('./dailyRecordFieldWrites');
 
 const VALID_CUDYR_CATEGORIES = new Set([
   'A1',
@@ -216,7 +217,10 @@ const createAdminCudyrResultFunctions = ({ firestore, Timestamp, resolveRoleForE
 
     try {
       await firestore.runTransaction(async transaction => {
-        const snapshot = await transaction.get(recordRef);
+        const [snapshot, policySnapshot] = await Promise.all([
+          transaction.get(recordRef),
+          transaction.get(hospitalRef.collection('settings').doc('rayenImportPolicy')),
+        ]);
         if (!snapshot.exists) {
           throw new functions.https.HttpsError('not-found', 'Daily record not found.');
         }
@@ -315,6 +319,10 @@ const createAdminCudyrResultFunctions = ({ firestore, Timestamp, resolveRoleForE
           ),
           updatedAt: now,
         };
+        // Which fields the adjustment changed, with no edit of anyone's (dailyRecordFieldWrites).
+        nextRecord.meta.fieldWrites = wholeRecordFieldWrites(nextRecord, remoteRecord, {
+          policySnapshot,
+        });
         nextRecord.lastUpdated = now;
 
         transaction.set(historyRef, {

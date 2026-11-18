@@ -63,6 +63,16 @@ patches stay direct: the server rejects them unless the fence is active.
 
 Other server writers (CUDYR admin adjustments, specialty policy application) also stamp `meta.lastChangedPaths`. Client direct writes never do.
 
+The save callables and the Rayen batch also record `meta.fieldWrites`
+(`functions/lib/dailyRecordFieldWrites.js`): for each field the write changed (a whole-day save and
+a batch by comparing with the stored day), the revision that wrote it and a digest of the stored
+value, and for each such revision the edit and computer behind it (newest 300 fields); so do the
+CUDYR adjustment and the specialty policy application. A write that leaves the map behind is found
+by the next recording write: a restore marks `incompleteThrough`; a client direct write between two
+writes under the Rayen fence (the rules keep it out of `beds`) marks `outsideBedsIncompleteThrough`,
+which ends the attribution of day fields only. The queue replay reads it per field
+(`fieldWriteAttribution.ts`, see the sync README).
+
 ## Guards, by path
 
 ### Full save — direct: `saveRecordAtomically` (`firestoreWriteSupport.ts`)

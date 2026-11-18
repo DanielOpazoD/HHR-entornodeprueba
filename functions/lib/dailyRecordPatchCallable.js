@@ -294,7 +294,27 @@ const createPatchHandler =
           intentionalBedClear,
         });
         assertNoPersistedEpisodeDowngrades({ snapshot, record: patchedRecord });
-        patchedRecord.meta = buildNextMeta({ remoteData, syncContract, now });
+        // The fields this write stores: the patch and the specialty fields the server changed.
+        const writtenPaths = [
+          ...Object.keys(authorizedPatch),
+          ...[...specialtyFieldSnapshot(patchedRecord)]
+            .filter(
+              ([path, value]) =>
+                specialtyFieldsBefore.get(path) !== value &&
+                !Object.keys(authorizedPatch).some(
+                  patchedPath => path === patchedPath || path.startsWith(`${patchedPath}.`)
+                )
+            )
+            .map(([path]) => path),
+        ];
+        patchedRecord.meta = buildNextMeta({
+          remoteData,
+          syncContract,
+          now,
+          record: patchedRecord,
+          writtenPaths,
+          fenced: isRayenClinicalWriteFenceActive(policySnapshot),
+        });
         const derivedWrite = derivedSplit?.plan({ patchedRecord, now, mutationId });
 
         authority = assertClinicalAuthority(patchedRecord);
@@ -326,18 +346,7 @@ const createPatchHandler =
         // completo (~0,5MB): el documento resultante es idéntico al set()
         // anterior y el payload de la transacción baja de cientos de KB a KBs.
         const txnUpdate = { date, meta: patchedRecord.meta, lastUpdated: now };
-        Object.keys(authorizedPatch).forEach(path => {
-          const finalValue = readValueAtPath(patchedRecord, path);
-          txnUpdate[path] = finalValue === undefined ? null : finalValue;
-        });
-        specialtyFieldSnapshot(patchedRecord).forEach((value, path) => {
-          if (
-            specialtyFieldsBefore.get(path) === value ||
-            Object.keys(authorizedPatch).some(
-              patchedPath => path === patchedPath || path.startsWith(`${patchedPath}.`)
-            )
-          )
-            return;
+        writtenPaths.forEach(path => {
           const finalValue = readValueAtPath(patchedRecord, path);
           txnUpdate[path] = finalValue === undefined ? null : finalValue;
         });

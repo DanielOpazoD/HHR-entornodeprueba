@@ -1,5 +1,6 @@
 const functions = require('firebase-functions/v1');
 const { applyPendingSpecialtyRules, isCurrentRapaNuiDay } = require('./specialtyRules');
+const { wholeRecordFieldWrites } = require('./dailyRecordFieldWrites');
 const {
   assertTrustedSpecialtyAssignments,
   assertUnusedSpecialtyDecisionIds,
@@ -81,25 +82,23 @@ const prepareSpecialtyPolicyApplication = async ({
     ({ bedId, target }) =>
       `beds.${bedId}.${target === 'clinicalCrib' ? 'clinicalCrib.' : ''}specialty`
   );
-  return {
-    status: 'applied',
-    recordRef,
-    decisions,
-    record: {
-      ...remote,
-      beds,
-      lastUpdated: now,
-      meta: {
-        ...remote.meta,
-        revision: (Number.isFinite(revision) && revision >= 0 ? revision : 0) + 1,
-        lastMutationId: mutationId,
-        lastWriterClientId: null,
-        lastWriterTabId: null,
-        lastChangedPaths: changedPaths,
-        updatedAt: now,
-      },
+  const record = {
+    ...remote,
+    beds,
+    lastUpdated: now,
+    meta: {
+      ...remote.meta,
+      revision: (Number.isFinite(revision) && revision >= 0 ? revision : 0) + 1,
+      lastMutationId: mutationId,
+      lastWriterClientId: null,
+      lastWriterTabId: null,
+      lastChangedPaths: changedPaths,
+      updatedAt: now,
     },
   };
+  // Which fields the application changed (dailyRecordFieldWrites); it states no Rayen fence.
+  record.meta.fieldWrites = wholeRecordFieldWrites(record, remote, { mutationId });
+  return { status: 'applied', recordRef, decisions, record };
 };
 
 /** Collapse equivalent codes; conflicting duplicate decisions require explicit review. */

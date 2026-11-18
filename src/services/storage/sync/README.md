@@ -59,33 +59,62 @@ o una tarea antigua sin esta evidencia conserva la revisión existente; no se pu
 ni se confirma como guardada.
 No requiere cambios en Functions ni reglas (SAVE-01 a SAVE-03).
 
+El servidor anota en cada guardado (parche, guardado completo y lote de Rayen) qué edición escribió
+cada campo que ese guardado cambió: `meta.fieldWrites` (`functions/lib/dailyRecordFieldWrites.js`).
+El parche anota sus rutas y las de especialidad que cambió el servidor; el guardado completo y el lote
+de Rayen, las rutas cuyo valor difiere del día guardado. Por campo guarda la revisión que lo escribió
+y una huella del valor guardado; por revisión, la edición (`mutationId`) y el equipo (`clientId`).
+Una ruta escrita reemplaza su entrada y las de debajo; las demás se conservan, y quedan las 300 más
+nuevas. El ajuste administrativo de CUDYR y la aplicación de la política de especialidad también anotan lo
+que cambian, sin edición de nadie. El mapa guarda la revisión con que se actualizó (`revision`) y si
+ese guardado corrió bajo la valla clínica de Rayen (`fenced`: con la política v2 las reglas impiden
+al cliente cambiar `beds` y `bedTypeOverrides`, `preservesServerOwnedClinicalState`). Una escritura
+que no lo actualiza la detecta el guardado siguiente del servidor:
+
+- la restauración (o cualquier escritor del servidor que no anote) deja el mapa bajo la revisión
+  del día: el mapa marca `incompleteThrough` y ninguna entrada de esa revisión o anterior acredita
+  un campo;
+- una escritura directa del cliente (novedades y listas de la entrega, dotación, y el reenvío de
+  esos datos) deja un `lastUpdated` que no es el sello `meta.updatedAt` del servidor. Entre dos
+  guardados bajo la valla solo pudo cambiar datos del día fuera de las camas: el mapa marca
+  `outsideBedsIncompleteThrough` y el corte vale solo para esos campos. Sin la valla en alguno de
+  los dos, marca `incompleteThrough`.
+
+Solo lo escribe
+el servidor: las reglas de Firestore no cambian. El reenvío lo lee con `fieldWriteAttribution.ts`,
+con la misma huella; un día guardado sin ese dato, o cuya última escritura no lo actualizó, se lee
+también por su última escritura (`meta.lastMutationId` y `meta.lastChangedPaths`), como antes, salvo
+que el mapa dé ese identificador a una revisión anterior (la escritura lo heredó, no lo escribió).
+
 Si la respuesta de una edición se perdió y una corrección se juntó en su tarea, el servidor puede
-tener ya esa primera edición. Esa edición pasa a ser la base de la corrección solo si se cumplen
-tres condiciones. `meta.lastMutationId` debe ser uno de los identificadores anteriores de la tarea.
-El día guardado debe ser la versión que esa edición produjo: cada escritura del servidor pone en
-`meta.updatedAt` el mismo valor que en `lastUpdated`, así que cualquier escritura posterior rompe la
-coincidencia, incluso una que deje `meta` igual. Y el campo debe estar en `meta.lastChangedPaths`.
-En ese caso el valor guardado reemplaza la base del campo en la tarea, y la corrección sigue por la
-conciliación de arriba, con la misma exigencia de episodio y versión
-(`withOwnEarlierWriteAsBase`). Un texto igual escrito por otro equipo no cumple esas condiciones,
-y la tarea queda completa en `CONFLICT`.
+tener ya esa primera edición. Esa edición pasa a ser la base de la corrección en cada campo donde la
+escritura más nueva que lo toca es una de las ediciones anteriores de la tarea, escribió ese mismo
+campo, sigue acreditada (la última escritura del día es del servidor, el mapa está en la revisión del
+día y la entrada es posterior a `incompleteThrough`) y dejó el valor que guardó (la huella coincide
+con el valor guardado ahora). Que otro equipo haya guardado otro campo después, por parche, guardado
+completo o lote, no cambia nada. Si no, el campo se decide por sus valores, como antes del mapa. En ese caso el valor guardado reemplaza la base del campo en la tarea,
+y la corrección sigue por la conciliación de arriba, con la misma exigencia de episodio y versión
+(`withOwnEarlierWriteAsBase`). Un texto igual escrito por otro equipo no cumple esas condiciones, y
+la tarea queda completa en `CONFLICT`.
 
 Un campo que otro equipo volvió a dejar en su valor base también cambió. Cuenta como cambiado en
 otro equipo aunque su valor coincida con la base (`pathsChangedElsewhere`), y la tarea queda en
-`CONFLICT` como en cualquier otro cambio, cuando la última escritura del día:
+`CONFLICT` como en cualquier otro cambio, cuando una escritura anotada:
 
-- nombra ese campo o una subruta suya en `meta.lastChangedPaths`;
-- no es ninguna de las ediciones de la tarea (`meta.lastMutationId` fuera de sus identificadores);
-- vino después de lo último que este equipo había leído del día: `meta.revision` es mayor que la
-  revisión base de la tarea y que la del día guardado en la tarea en su última edición. Una
-  escritura que la persona ya había leído es el valor sobre el que editó, no un cambio. Un día
-  sin revisión cuenta desde 0, como el servidor.
+- escribió ese campo o una subruta suya;
+- no es ninguna de las ediciones de la tarea ni de este equipo (su `clientId`: lo que este equipo
+  guardó ya lo mostraba su censo);
+- vino después de la revisión en que la tarea leyó ese campo (`patchBaseRevisions`, la del día que
+  mostraba el censo al editarlo). Una escritura que la persona ya había leído es el valor sobre el
+  que editó, no un cambio. Una tarea encolada sin ese dato usa lo último que había leído del día:
+  su revisión base y la del día guardado en la tarea en su última edición. Un día sin revisión
+  cuenta desde 0, como el servidor.
 
 Las partes publicadas o separadas de una tarea se juzgan con la tarea en cola. Una escritura que
-nombra la cama o el día entero (`beds.R1`, `*`) no dice que escribió el campo. Solo la última
-escritura deja su rastro en `meta`, y la tarea guarda una sola revisión leída, no una por campo: si
-este equipo volvió a leer el día después de la restauración mientras su propia edición del campo
-seguía pendiente (la celda mostraba su valor), el reenvío no la distingue y publica como antes.
+nombra la cama o el día entero (`beds.R1`, `*`) no dice que escribió el campo. Las escrituras
+directas del cliente y los escritores del servidor que no actualizan el mapa no dejan rastro por
+campo: mientras son la última escritura se leen por su `meta`, y después `incompleteThrough` impide
+atribuir a la tarea un valor anterior a ellas, aunque vuelva a ser el mismo texto.
 
 Los datos simples del día (fuera de camas, dotación y movimientos), con el valor base de cada
 campo y una versión conocida, se reenvían con la misma escritura que una edición directa

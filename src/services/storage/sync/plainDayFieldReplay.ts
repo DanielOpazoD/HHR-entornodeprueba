@@ -234,6 +234,12 @@ export const keepPlainDayFieldsHeld = (
   ),
   syncContract: { ...task.syncContract, changedPaths: paths },
   patchBaseValues: Object.fromEntries(paths.map(path => [path, task.patchBaseValues?.[path]])),
+  patchBaseRevisions: Object.fromEntries(
+    paths.flatMap(path => {
+      const revision = task.patchBaseRevisions?.[path];
+      return revision === undefined ? [] : [[path, revision]];
+    })
+  ),
 });
 
 /**
