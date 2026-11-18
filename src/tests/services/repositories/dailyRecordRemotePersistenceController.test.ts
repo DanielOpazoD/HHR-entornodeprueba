@@ -360,7 +360,8 @@ describe('dailyRecordRemotePersistenceController', () => {
         autoMerged: true,
         decision: {
           consistencyState: 'auto_merged',
-          observabilityTags: ['field_changed_elsewhere'],
+          observabilityTags: ['auto_merged'],
+          reason: 'field_changed_elsewhere',
           userSafeMessage: 'El campo cambió en otro equipo.',
         },
       };
@@ -394,6 +395,113 @@ describe('dailyRecordRemotePersistenceController', () => {
 
     expect(result).toBe('return');
     expect(steps).toEqual(['recovery', 'release']);
+  });
+
+  // W14-D1-3: each way a write meets an ended session names it; the notice and the guards read it.
+  describe('a session that ended before the write finished', () => {
+    const departedSession = { ownerKey: 'user:synthetic-departed', generation: 'departed' };
+    const change = {
+      date: '2026-05-23',
+      record: buildRecord('2026-05-23'),
+      changedPaths: ['handoffNovedadesNightShift'],
+      expectedVersion: '2026-05-23T10:00:00.000Z',
+    };
+    const acceptedOutbox = () =>
+      vi.fn().mockResolvedValue({
+        accepted: true,
+        mode: 'created',
+        pendingTasks: 1,
+        maxPendingTasks: 192,
+      });
+
+    it('server first: nothing is sent and the reason says the session changed', async () => {
+      const state = createRemoteWriteState();
+      const remoteWrite = vi.fn();
+
+      const result = await persistLocalAndAttemptRemoteSync({
+        authoringSession: departedSession,
+        change,
+        remoteState: state,
+        remote: { remoteWrite, onRemoteFailure: vi.fn() },
+        policy: { remoteAuthorityFirst: true },
+      });
+
+      expect(result).toBe('return');
+      expect(remoteWrite).not.toHaveBeenCalled();
+      expect(state).toMatchObject({ savedLocally: false, reason: 'session_changed' });
+    });
+
+    it('the queue kept the edit for its author: the reason says the session changed', async () => {
+      const state = createRemoteWriteState();
+      const remoteWrite = vi.fn();
+
+      const result = await persistLocalAndAttemptRemoteSync({
+        authoringSession: captureAuthoringSession(),
+        change,
+        remoteState: state,
+        remote: { remoteWrite, onRemoteFailure: vi.fn() },
+        outbox: {
+          queueLocalBeforeRemote: vi.fn().mockResolvedValue({
+            accepted: false,
+            mode: 'retained_for_owner',
+            pendingTasks: 1,
+            maxPendingTasks: 192,
+          }),
+        },
+      });
+
+      expect(result).toBe('return');
+      expect(remoteWrite).not.toHaveBeenCalled();
+      expect(state).toMatchObject({ savedLocally: false, reason: 'session_changed' });
+    });
+
+    it('direct send: the edit stays queued for its author with the reason', async () => {
+      const state = createRemoteWriteState();
+      const releaseLocalPreOutboxHold = vi.fn().mockResolvedValue(undefined);
+
+      const result = await persistLocalAndAttemptRemoteSync({
+        authoringSession: departedSession,
+        change,
+        remoteState: state,
+        remote: {
+          remoteWrite: vi.fn().mockRejectedValue(new Error('La sesión cambió antes de enviar.')),
+          onRemoteFailure: vi.fn(),
+        },
+        outbox: { queueLocalBeforeRemote: acceptedOutbox(), releaseLocalPreOutboxHold },
+      });
+
+      expect(result).toBe('return');
+      expect(resolveRemoteWriteRecoveryMock).not.toHaveBeenCalled();
+      expect(releaseLocalPreOutboxHold).toHaveBeenCalledTimes(1);
+      expect(state).toMatchObject({ savedLocally: true, reason: 'session_changed' });
+    });
+
+    it('a refusal while the session is current carries no session reason', async () => {
+      const state = createRemoteWriteState();
+      resolveRemoteWriteRecoveryMock.mockResolvedValueOnce({
+        status: 'queued_for_retry',
+        queuedForRetry: true,
+        autoMerged: false,
+        decision: {
+          consistencyState: 'queued_for_retry',
+          conflictSummary: null,
+          observabilityTags: [],
+        },
+      });
+
+      await persistLocalAndAttemptRemoteSync({
+        authoringSession: captureAuthoringSession(),
+        change,
+        remoteState: state,
+        remote: {
+          remoteWrite: vi.fn().mockRejectedValue(new Error('network down')),
+          onRemoteFailure: vi.fn(),
+        },
+        outbox: { queueLocalBeforeRemote: acceptedOutbox() },
+      });
+
+      expect(state.reason).toBeUndefined();
+    });
   });
 
   it('blocks the remote write when transactional outbox preflight is rejected', async () => {

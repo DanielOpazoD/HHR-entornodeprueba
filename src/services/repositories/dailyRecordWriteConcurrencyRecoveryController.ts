@@ -7,7 +7,6 @@ import {
   buildThrowUnrecoverableRecoveryResult,
 } from '@/services/repositories/dailyRecordWriteRecoveryResultController';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { FIELD_CHANGED_ELSEWHERE_TAG } from '@/services/repositories/contracts/dailyRecordResults';
 import {
   FIELD_CHANGED_ELSEWHERE_MESSAGE,
   isFieldChangedElsewhereError,
@@ -54,7 +53,8 @@ export const resolveConcurrencyRemoteWriteRecovery = async (
     return buildAutoMergedRecoveryResult(
       buildConflictSummary('concurrency', FIELD_CHANGED_ELSEWHERE_MESSAGE),
       FIELD_CHANGED_ELSEWHERE_MESSAGE,
-      ['daily_record', 'write', 'auto_merged', FIELD_CHANGED_ELSEWHERE_TAG]
+      ['daily_record', 'write', 'auto_merged'],
+      'field_changed_elsewhere'
     );
   }
   if (mergeResult.status === 'auto_merged') {

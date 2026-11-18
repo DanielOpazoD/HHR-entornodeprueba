@@ -16,6 +16,14 @@ const assertDate = (date: string, operation: string): void => {
   }
 };
 
+/**
+ * Why a write did not simply land, set by the producer that decided it (never read from tags):
+ * `session_changed`: the authoring session ended before the write finished; `field_changed_elsewhere`:
+ * another device changed the same field, so the edit is held as a conflict with this device's text
+ * (SAVE-02); `queue_route`: only the day's queue task saves it (a movement that frees a bed).
+ */
+export type DailyRecordWriteReason = 'session_changed' | 'field_changed_elsewhere' | 'queue_route';
+
 export interface SaveDailyRecordResult {
   date: string;
   outcome: 'clean' | 'queued' | 'auto_merged' | 'blocked' | 'unrecoverable';
@@ -26,6 +34,7 @@ export interface SaveDailyRecordResult {
   consistencyState: DailyRecordWriteConsistencyState;
   conflictSummary: DailyRecordConflictSummary | null;
   observabilityTags: string[];
+  reason?: DailyRecordWriteReason;
   userSafeMessage?: string;
   blockingError?: Error;
   /** Exact server-confirmed state returned by the authority callable, when available. */
@@ -55,6 +64,7 @@ export interface UpdatePartialDailyRecordResult {
   consistencyState: DailyRecordWriteConsistencyState;
   conflictSummary: DailyRecordConflictSummary | null;
   observabilityTags: string[];
+  reason?: DailyRecordWriteReason;
   userSafeMessage?: string;
   blockingError?: Error;
   /** Exact server-confirmed state returned or read back after the patch, when requested. */
@@ -104,24 +114,6 @@ export interface CopyPatientResult {
   targetDate: string;
   outcome: 'clean' | 'repaired';
 }
-
-/** Tags a write queued as a conflict because another device changed the same field (SAVE-02). */
-export const FIELD_CHANGED_ELSEWHERE_TAG = 'field_changed_elsewhere';
-
-/** Tags an edit that only the day's queue task saves (a movement that frees a bed). */
-export const SAVED_BY_QUEUE_ROUTE_TAG = 'saved_by_queue_route';
-
-/** Persistence evidence for the attempted write, independent of promise resolution. */
-export const resolveDailyRecordSavedState = (result: {
-  savedLocally: boolean;
-  savedRemotely?: boolean;
-  updatedRemotely?: boolean;
-}): 'saved' | 'local' | 'error' =>
-  result.savedRemotely || result.updatedRemotely
-    ? 'saved'
-    : result.savedLocally
-      ? 'local'
-      : 'error';
 
 const resolveWriteConsistencyState = (
   outcome: SaveDailyRecordResult['outcome'],
@@ -221,13 +213,70 @@ export const isDailyRecordWriteBlockedResult = (
       result.consistencyState === 'blocked_validation')
   );
 
-/** A write that cannot safely continue the caller's workflow, even if it returned a result. */
+/**
+ * What a write left, in one place. `savedHere`: its producer recorded a copy on this computer.
+ * `confirmed`: the server holds it (`stale`: this computer's copy could not follow). `local`: not
+ * refused, and the queue sends it by itself; without `savedHere` the producer recorded no copy,
+ * so the box says error. `held`: kept here, waiting for a person or for its author. `not_saved`:
+ * not on the day: blocked, not stored, or its session ended first.
+ */
+export type DailyRecordWriteStatus = { savedHere: boolean } & (
+  | { state: 'confirmed'; localCopy: 'current' | 'stale' }
+  | { state: 'local'; cause: 'stored' | 'retrying' | 'merged' | 'queue_route' }
+  | { state: 'held'; reason: 'field_changed_elsewhere' | 'session_changed' | 'needs_review' }
+  | { state: 'not_saved'; reason: 'blocked' | 'session_changed' | 'local_failed' }
+);
+
+/** The only derivation of a write's state: the notice, the sync box and the guards read it. */
+export const resolveDailyRecordWriteStatus = (
+  result: SaveDailyRecordResult | UpdatePartialDailyRecordResult
+): DailyRecordWriteStatus => {
+  const savedHere = result.savedLocally;
+  if (result.reason === 'session_changed') {
+    return savedHere
+      ? { savedHere, state: 'held', reason: 'session_changed' }
+      : { savedHere, state: 'not_saved', reason: 'session_changed' };
+  }
+  if (result.reason === 'queue_route') return { savedHere, state: 'local', cause: 'queue_route' };
+  if (result.reason === 'field_changed_elsewhere') {
+    return { savedHere, state: 'held', reason: 'field_changed_elsewhere' };
+  }
+  if (result.outcome === 'blocked' || isDailyRecordWriteBlockedResult(result)) {
+    return { savedHere, state: 'not_saved', reason: 'blocked' };
+  }
+  const unrecoverable =
+    result.outcome === 'unrecoverable' || result.consistencyState === 'unrecoverable';
+  const savedRemotely = 'savedRemotely' in result ? result.savedRemotely : result.updatedRemotely;
+  if (savedRemotely) {
+    return { savedHere, state: 'confirmed', localCopy: unrecoverable ? 'stale' : 'current' };
+  }
+  // A full save merged before its local write keeps `savedHere` false: the box says error.
+  if (result.outcome === 'auto_merged' && result.autoMerged) {
+    return { savedHere, state: 'local', cause: 'merged' };
+  }
+  if (unrecoverable) {
+    return savedHere
+      ? { savedHere, state: 'held', reason: 'needs_review' }
+      : { savedHere, state: 'not_saved', reason: 'local_failed' };
+  }
+  if (result.outcome === 'queued' && result.queuedForRetry) {
+    return { savedHere, state: 'local', cause: 'retrying' };
+  }
+  return { savedHere, state: 'local', cause: 'stored' };
+};
+
+/**
+ * A write that cannot safely continue the caller's workflow, even if it returned a result. A
+ * session that ended during a direct send keeps the edit in its author's queue and is not one.
+ */
 export const isDailyRecordWriteRejectedResult = (
   result: SaveDailyRecordResult | UpdatePartialDailyRecordResult | null | undefined
-): boolean =>
-  Boolean(
-    result &&
-    (result.outcome === 'blocked' ||
-      result.outcome === 'unrecoverable' ||
-      isDailyRecordWriteBlockedResult(result))
+): boolean => {
+  if (!result) return false;
+  const status = resolveDailyRecordWriteStatus(result);
+  return (
+    status.state === 'not_saved' ||
+    (status.state === 'held' && status.reason === 'needs_review') ||
+    (status.state === 'confirmed' && status.localCopy === 'stale')
   );
+};

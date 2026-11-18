@@ -1,5 +1,6 @@
 import type { DailyRecordConflictSummary } from '@/services/repositories/contracts/dailyRecordConsistency';
 import type { RemoteWriteRecoveryResult } from '@/services/repositories/contracts/dailyRecordWriteRecoveryResult';
+import type { DailyRecordWriteReason } from '@/services/repositories/contracts/dailyRecordResults';
 
 export const buildBlockedRecoveryResult = (input: {
   error: unknown;
@@ -24,7 +25,8 @@ export const buildBlockedRecoveryResult = (input: {
 export const buildAutoMergedRecoveryResult = (
   conflictSummary: DailyRecordConflictSummary,
   userSafeMessage: string,
-  observabilityTags: string[]
+  observabilityTags: string[],
+  reason?: DailyRecordWriteReason
 ): RemoteWriteRecoveryResult => ({
   status: 'auto_merged',
   queuedForRetry: true,
@@ -33,6 +35,7 @@ export const buildAutoMergedRecoveryResult = (
     consistencyState: 'auto_merged',
     conflictSummary,
     observabilityTags,
+    reason,
     userSafeMessage,
   },
 });
@@ -58,7 +61,8 @@ export const buildThrowUnrecoverableRecoveryResult = (input: {
 export const buildQueuedRetryRecoveryResult = (
   conflictSummary: DailyRecordConflictSummary | null,
   userSafeMessage: string,
-  observabilityTags: string[]
+  observabilityTags: string[],
+  reason?: DailyRecordWriteReason
 ): RemoteWriteRecoveryResult => ({
   status: 'queued_for_retry',
   queuedForRetry: true,
@@ -67,6 +71,7 @@ export const buildQueuedRetryRecoveryResult = (
     consistencyState: 'queued_for_retry',
     conflictSummary,
     observabilityTags,
+    reason,
     userSafeMessage,
   },
 });

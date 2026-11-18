@@ -928,12 +928,12 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     const second = await edit(night, 'B3');
     expect((await readServer())[night]).toBe('A1');
     expect(second.updatedRemotely).toBe(false);
-    expect(second.observabilityTags).toContain('field_changed_elsewhere');
+    expect(second.reason).toBe('field_changed_elsewhere');
 
     // A field nobody else changed is still saved at once, without a notice (#1603).
     const day = await edit('handoffNovedadesDayShift', 'B4');
     expect(day).toMatchObject({ updatedRemotely: true });
-    expect(day.observabilityTags).not.toContain('field_changed_elsewhere');
+    expect(day.reason).not.toBe('field_changed_elsewhere');
     expect(await readServer()).toMatchObject({
       handoffNovedadesDayShift: 'B4',
       handoffNovedadesNightShift: 'A1',
@@ -960,7 +960,7 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
 
     const online = await edit('B2');
     expect(online).toMatchObject({ updatedRemotely: true });
-    expect(online.observabilityTags).not.toContain('field_changed_elsewhere');
+    expect(online.reason).not.toBe('field_changed_elsewhere');
     expect((await readServer())[night]).toBe('B2');
   }, 60_000);
 

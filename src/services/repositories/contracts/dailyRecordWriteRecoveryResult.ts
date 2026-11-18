@@ -2,11 +2,13 @@ import type {
   DailyRecordConflictSummary,
   DailyRecordWriteConsistencyState,
 } from '@/services/repositories/contracts/dailyRecordConsistency';
+import type { DailyRecordWriteReason } from '@/services/repositories/contracts/dailyRecordResults';
 
 export interface DailyRecordRecoveryDecision {
   consistencyState: DailyRecordWriteConsistencyState;
   conflictSummary: DailyRecordConflictSummary | null;
   observabilityTags: string[];
+  reason?: DailyRecordWriteReason;
   userSafeMessage?: string;
 }
 

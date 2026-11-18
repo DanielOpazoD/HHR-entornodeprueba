@@ -2,6 +2,7 @@ import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { VersionMismatchError } from '@/utils/integrityGuard';
+import { createSavedByQueueRouteError } from '@/services/storage/syncErrorCatalog';
 
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
   getRecordFromFirestore: vi.fn(),
@@ -112,6 +113,37 @@ describe('dailyRecordRemoteWriteController', () => {
       }),
       { authoringSession: captureAuthoringSession() }
     );
+  });
+
+  it('names the queue route as the reason when only the day task saves the edit', async () => {
+    const recover = (alreadyQueued: boolean) =>
+      resolveRemoteWriteRecovery(
+        '2026-04-16',
+        buildRecord('2026-04-16', '2026-04-16T12:00:00.000Z'),
+        ['discharges'],
+        createSavedByQueueRouteError('synthetic movement from a bed'),
+        captureAuthoringSession(),
+        '2026-04-16T11:00:00.000Z',
+        true,
+        alreadyQueued
+      );
+
+    expect(await recover(true)).toMatchObject({
+      status: 'queued_for_retry',
+      decision: { reason: 'queue_route' },
+    });
+    expect(queueDailyRecordSyncTaskWithLocalRecord).not.toHaveBeenCalled();
+
+    // Not stored in the queue: no reason, the edit was not routed anywhere.
+    vi.mocked(queueDailyRecordSyncTaskWithLocalRecord).mockResolvedValueOnce({
+      accepted: false,
+      mode: 'rejected_backpressure',
+      pendingTasks: 192,
+      maxPendingTasks: 192,
+    });
+    const refused = await recover(false);
+    expect(refused.status).toBe('unrecoverable');
+    expect(refused.decision.reason).toBeUndefined();
   });
 
   it('reuses durable acceptance without enqueueing or claiming a remote confirmation', async () => {

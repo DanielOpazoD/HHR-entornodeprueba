@@ -30,7 +30,6 @@ import { resolveConcurrencyRemoteWriteRecovery } from '@/services/repositories/d
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { dailyRecordWriteLogger } from '@/services/repositories/repositoryLoggers';
 import { buildQueuedRetryRecoveryResult } from '@/services/repositories/dailyRecordWriteRecoveryResultController';
-import { SAVED_BY_QUEUE_ROUTE_TAG } from '@/services/repositories/contracts/dailyRecordResults';
 import { isSavedByQueueRouteError } from '@/services/storage/syncErrorCatalog';
 
 const isConcurrencyError = (error: unknown): boolean =>
@@ -138,7 +137,8 @@ export const resolveRemoteWriteRecovery = async (
       ? buildQueuedRetryRecoveryResult(
           null,
           'Los cambios se guardaron localmente y quedaron pendientes de sincronización.',
-          ['daily_record', 'write', SAVED_BY_QUEUE_ROUTE_TAG]
+          ['daily_record', 'write'],
+          'queue_route'
         )
       : resolveQueuedRetryRecoveryResult(
           false,

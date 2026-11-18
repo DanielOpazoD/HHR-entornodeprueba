@@ -1,8 +1,7 @@
 import type { SyncStatus } from '@/context/dailyRecordContextContracts';
 
 import {
-  resolveDailyRecordSavedState,
-  isDailyRecordWriteBlockedResult,
+  resolveDailyRecordWriteStatus,
   type SaveDailyRecordResult,
   type UpdatePartialDailyRecordResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
@@ -23,12 +22,13 @@ export const resolveDailyRecordSyncStatus = (
 
   const states = mutations.map(mutation => {
     const result = mutation.data?.result;
-    if (
-      mutation.isError ||
-      (result && (result.outcome === 'blocked' || isDailyRecordWriteBlockedResult(result)))
-    )
-      return 'error';
-    return mutation.isSuccess && result ? resolveDailyRecordSavedState(result) : 'idle';
+    if (mutation.isError) return 'error';
+    if (!result) return 'idle';
+    const status = resolveDailyRecordWriteStatus(result);
+    const blocked = status.state === 'not_saved' && status.reason === 'blocked';
+    if (!mutation.isSuccess && !blocked) return 'idle';
+    if (status.state === 'confirmed') return 'saved';
+    return status.state !== 'not_saved' && status.savedHere ? 'local' : 'error';
   });
   if (states.includes('error')) {
     return 'error';
