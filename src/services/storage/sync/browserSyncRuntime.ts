@@ -27,7 +27,7 @@ export const createBrowserSyncRuntime = (): SyncRuntimePort => {
     },
     getOwnerKey: () => getStoredSessionOwnerKey(),
     getSessionGeneration,
-    getAdmittedOwnerKey: getSessionOwner,
+    getAdmittedOwnerKey: () => getSessionOwner(),
     getActorKey: () => {
       const uid = defaultAuthRuntime.getCurrentUser()?.uid;
       return uid ? `user:${uid}` : null;
