@@ -70,14 +70,22 @@ conciliación de arriba, con la misma exigencia de episodio y versión
 (`withOwnEarlierWriteAsBase`). Un texto igual escrito por otro equipo no cumple esas condiciones,
 y la tarea queda completa en `CONFLICT`.
 
-Un campo que otro equipo volvió a dejar en su valor base también cambió: si la última escritura del
-día vino después de la revisión base de la tarea (`meta.revision` mayor que `baseRevision`), no es
-ninguna de las ediciones de la tarea (`meta.lastMutationId` fuera de sus identificadores) y nombra
-ese campo o una subruta suya en `meta.lastChangedPaths`, el campo cuenta como cambiado en otro
-equipo aunque su valor coincida con la base (`pathsChangedElsewhere`), y la tarea queda en
-`CONFLICT` como en cualquier otro cambio. Las partes publicadas o separadas de una tarea se juzgan
-con los identificadores de la tarea en cola. Una escritura que nombra la cama o el día entero
-(`beds.R1`, `*`) no dice que escribió el campo, y solo la última escritura deja su rastro en `meta`.
+Un campo que otro equipo volvió a dejar en su valor base también cambió. Cuenta como cambiado en
+otro equipo aunque su valor coincida con la base (`pathsChangedElsewhere`), y la tarea queda en
+`CONFLICT` como en cualquier otro cambio, cuando la última escritura del día:
+
+- nombra ese campo o una subruta suya en `meta.lastChangedPaths`;
+- no es ninguna de las ediciones de la tarea (`meta.lastMutationId` fuera de sus identificadores);
+- vino después de lo último que este equipo había leído del día: `meta.revision` es mayor que la
+  revisión base de la tarea y que la del día guardado en la tarea en su última edición. Una
+  escritura que la persona ya había leído es el valor sobre el que editó, no un cambio. Un día
+  sin revisión cuenta desde 0, como el servidor.
+
+Las partes publicadas o separadas de una tarea se juzgan con la tarea en cola. Una escritura que
+nombra la cama o el día entero (`beds.R1`, `*`) no dice que escribió el campo. Solo la última
+escritura deja su rastro en `meta`, y la tarea guarda una sola revisión leída, no una por campo: si
+este equipo volvió a leer el día después de la restauración mientras su propia edición del campo
+seguía pendiente (la celda mostraba su valor), el reenvío no la distingue y publica como antes.
 
 Los datos simples del día (fuera de camas, dotación y movimientos), con el valor base de cada
 campo y una versión conocida, se reenvían con la misma escritura que una edición directa

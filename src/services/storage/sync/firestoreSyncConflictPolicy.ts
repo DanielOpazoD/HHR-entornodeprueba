@@ -5,7 +5,7 @@ import { FIELD_CHANGED_ELSEWHERE_MESSAGE } from '@/services/storage/syncErrorCat
 
 import { getValueAtPath } from '@/services/repositories/conflictResolutionUtils';
 import { hasSameNoteValue } from './dayTaskReplayGuard';
-import { resolveOptionalBaseRevision } from './syncTaskContractPolicy';
+import { resolveOptionalBaseRevision, resolveRecordBaseRevision } from './syncTaskContractPolicy';
 
 const MERGEABLE_MOVEMENT_ARRAY_ROOTS = new Set(['discharges', 'transfers', 'cma']);
 const MEDICAL_HANDOFF_SUMMARY_PATH = 'medicalHandoffNovedades';
@@ -254,11 +254,13 @@ const remoteHolds = (
   hasEquivalentReplayValue(getValueAtPath(remoteRecord, path), expected);
 
 /**
- * Whether another computer wrote a field after this task's base: the stored day's last write named
- * it, came after the task's base revision and is none of the task's own edits (`queued`, the task
- * as queued: a part published or detached from it carries none of its earlier identifiers). Only
- * that last write's meta tells, and a write naming a whole bed or day (`beds.R1`, `*`) does not
- * say it wrote the field.
+ * Whether another computer wrote a field after this computer last saw the day: the stored day's
+ * last write named it, is none of the task's own edits and came after the newest revision the task
+ * knows (`queued`, the task as queued: its payload is the day as shown at its last edit, and a part
+ * published or detached from it carries none of its earlier identifiers). A write the person had
+ * already read is the value they edited over, not a change. A day with no known revision counts
+ * from 0, as the server does. Only that last write's meta tells, and a write naming a whole bed or
+ * day (`beds.R1`, `*`) does not say it wrote the field.
  */
 const writtenElsewhereSinceBase = (
   queued: SyncTask,
@@ -267,13 +269,16 @@ const writtenElsewhereSinceBase = (
   const meta = remoteData.meta as Record<string, unknown> | undefined;
   const contract = queued.syncContract;
   const revision = resolveOptionalBaseRevision(meta?.revision);
+  const seen = Math.max(
+    contract?.baseRevision ?? 0,
+    resolveRecordBaseRevision(queued.payload as DailyRecord) ?? 0
+  );
   const writer = meta?.lastMutationId;
   if (
-    contract?.baseRevision === undefined ||
     revision === undefined ||
-    revision <= contract.baseRevision ||
-    writer === contract.mutationId ||
-    (typeof writer === 'string' && contract.mutationIds?.includes(writer))
+    revision <= seen ||
+    writer === contract?.mutationId ||
+    (typeof writer === 'string' && contract?.mutationIds?.includes(writer))
   )
     return () => false;
   const named = normalizeChangedPaths(meta?.lastChangedPaths);

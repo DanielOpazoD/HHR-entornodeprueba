@@ -10,6 +10,7 @@ import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import { bedManagementReducer } from '@/hooks/useBedManagementReducer';
 import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
+import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
 import type { UpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import {
   presentSyncOutcomeFeedback,
@@ -602,27 +603,68 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
     // diagnosis back while the first edit's answer is lost. The server then holds the base value
     // again, so the value alone looks untouched; the other computer's write naming that field after
     // this task's base makes it a change.
-    it('holds the correction when another computer restored the original diagnosis', async () => {
-      // A diagnosis already typed by hand: restoring it leaves every field of the edit at its base.
-      const day = baseRecord();
+    /** The other computer's census, when its person types `value` in the R1 diagnosis cell. */
+    const otherComputerTypesDiagnosis = async (value: string) => {
+      const patch = bedManagementReducer(await readServer(), {
+        type: 'UPDATE_PATIENT',
+        bedId: 'R1',
+        field: 'pathology',
+        value,
+      });
+      if (!patch) throw new Error('The census produced no patch');
+      await otherComputerSaves(patch);
+      expect(await serverDiagnosis()).toBe(value);
+    };
+    /** A day whose diagnosis was already typed by hand, so a restore leaves every edited field at its base. */
+    const seedManualDiagnosis = async (day = baseRecord()) => {
       day.beds.R1.diagnosisManualOverride = true;
       await admin.doc(dayPath).set(day);
       await hospitalDB.dailyRecords.put(day);
-      await correctWhileAnswerLost(async () => {
-        // What the other computer's census sends when its person types the original diagnosis.
-        const patch = bedManagementReducer(await readServer(), {
-          type: 'UPDATE_PATIENT',
-          bedId: 'R1',
-          field: 'pathology',
-          value: BASE,
-        });
-        if (!patch) throw new Error('The census produced no patch');
-        await otherComputerSaves(patch);
-        expect(await serverDiagnosis()).toBe(BASE);
-      });
+    };
+
+    it('holds the correction when another computer restored the original diagnosis', async () => {
+      await seedManualDiagnosis();
+      await correctWhileAnswerLost(() => otherComputerTypesDiagnosis(BASE));
       await expectCorrectionHeld(BASE, 3);
       // Transport: the queue never sends the correction over the restored diagnosis.
       expectDelivered([DIAGNOSIS]);
+    });
+
+    it('holds the correction when another computer restored the diagnosis of a day saved without a revision', async () => {
+      // An older day: the server numbers its first authority write 1.
+      const day = baseRecord();
+      delete (day as { meta?: unknown }).meta;
+      await seedManualDiagnosis(day);
+      await correctWhileAnswerLost(() => otherComputerTypesDiagnosis(BASE));
+      await expectCorrectionHeld(BASE, 2);
+      expectDelivered([DIAGNOSIS]);
+    });
+
+    // Found by the review of W16-ABA1: a field first edited after this computer read another
+    // computer's write of it joins a task pending since an older revision. That write is the value
+    // the person edited over, not a change after it.
+    it('publishes a diagnosis corrected over another computer’s save this computer had read, with an older edit pending', async () => {
+      await seedManualDiagnosis();
+      network.requestsLost = Infinity;
+      const shown = (await hospitalDB.dailyRecords.get(date)) as DailyRecord;
+      const status = await asP1(() =>
+        updatePartialDetailed(date, { 'beds.R1.status': 'Grave' } as DailyRecordPatch, {
+          authoringSession: captureAuthoringSession(),
+          baseRecord: shown,
+        })
+      );
+      await expectShownPending(status, BASE);
+      await otherComputerTypesDiagnosis(OTHER);
+      // This computer reads the day again and shows the other computer's diagnosis.
+      const read = await asP1(() => getForDateWithMeta(date));
+      expect(read.record?.beds.R1.pathology).toBe(OTHER);
+      expect(await cellDiagnosis()).toBe(OTHER);
+      await expectShownPending(await typeDiagnosis(CORRECTED), CORRECTED);
+      network.requestsLost = 0;
+      await runQueue();
+      expect((await readServer()).beds.R1).toMatchObject({ pathology: CORRECTED, status: 'Grave' });
+      expect(await hospitalDB.syncQueue.toArray()).toEqual([]);
+      expect(await waiting()).toBe(0);
     });
 
     it('publishes a pending diagnosis after another computer changed another field of the bed', async () => {
