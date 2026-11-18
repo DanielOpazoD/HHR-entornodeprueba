@@ -12,6 +12,12 @@ import {
 import { markDailyRecordRemoteConfirmed } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { setRemoteConfirmedDailyRecordQueryData } from '@/hooks/controllers/dailyRecordConfirmedCacheController';
 import { runExclusiveDailyRecordWrite } from '@/services/repositories/dailyRecordWriteCoordinator';
+import {
+  assertAuthoringSessionCurrent,
+  captureAuthoringSession,
+  isAuthoringSessionCurrent,
+  type AuthoringSession,
+} from '@/services/storage/authoringSession';
 import type { ConfirmedRayenCensusApplyResult } from './useRayenCensusDiffApplication';
 import { assertRayenCensusPersistenceConfirmed } from './rayenCensusPersistenceGuard';
 import { matchesDischargeSubject } from '../domain/dischargeSubjectIdentity';
@@ -47,10 +53,24 @@ export const finalizeRayenHistoricalDischarges = async (
   result: ConfirmedRayenCensusApplyResult,
   repository: Pick<DailyRecordRepositoryPort, 'getAuthoritativeForDate' | 'updatePartialDetailed'>,
   queryClient: QueryClient,
-  clearHistoricalOccupants = false
+  clearHistoricalOccupants = false,
+  /** The session that began the run: once it ends, nothing more is written or shown. */
+  authoringSession: AuthoringSession = captureAuthoringSession()
 ): Promise<ConfirmedRayenCensusApplyResult> => {
   const entries = result.deferredHistoricalDischarges ?? [];
   if (!entries.length) return result;
+  // Logout clears the census cache; an answer arriving after it must not fill the next census.
+  const publish = async (record: DailyRecord, markConfirmed?: () => void) => {
+    assertAuthoringSessionCurrent(authoringSession);
+    markConfirmed?.();
+    const published = await setRemoteConfirmedDailyRecordQueryData(
+      queryClient,
+      record.date,
+      record,
+      { stillCurrent: () => isAuthoringSessionCurrent(authoringSession) }
+    );
+    if (!published) assertAuthoringSessionCurrent(authoringSession);
+  };
   return runExclusiveDailyRecordWrite(result.record.date, async dailyRecordWriteLease => {
     let confirmed = result.record;
     for (const entry of entries) {
@@ -126,6 +146,7 @@ export const finalizeRayenHistoricalDischarges = async (
             requireRemoteAuthorityFirst: true,
             requireConfirmedRecord: true,
             dailyRecordWriteLease: historicalLease,
+            authoringSession,
           });
           assertRayenCensusPersistenceConfirmed({ record: fresh, result: write });
           if (
@@ -136,11 +157,7 @@ export const finalizeRayenHistoricalDischarges = async (
             !hasConfirmedMovement(write.confirmedRecord, entry)
           )
             throw conflict();
-          await setRemoteConfirmedDailyRecordQueryData(
-            queryClient,
-            fresh.date,
-            write.confirmedRecord
-          );
+          await publish(write.confirmedRecord);
         });
       }
       const current = await repository.getAuthoritativeForDate(result.record.date);
@@ -182,6 +199,7 @@ export const finalizeRayenHistoricalDischarges = async (
         requireRemoteAuthorityFirst: true,
         requireConfirmedRecord: true,
         dailyRecordWriteLease,
+        authoringSession,
       });
       assertRayenCensusPersistenceConfirmed({ record: current, result: write });
       if (
@@ -194,13 +212,14 @@ export const finalizeRayenHistoricalDischarges = async (
         throw conflict();
       confirmed = write.confirmedRecord;
     }
-    markDailyRecordRemoteConfirmed(confirmed.date, {
-      source: 'write',
-      remoteLastUpdated: confirmed.lastUpdated,
-      previousRecord: result.record,
-      confirmedRecord: confirmed,
-    });
-    await setRemoteConfirmedDailyRecordQueryData(queryClient, confirmed.date, confirmed);
+    await publish(confirmed, () =>
+      markDailyRecordRemoteConfirmed(confirmed.date, {
+        source: 'write',
+        remoteLastUpdated: confirmed.lastUpdated,
+        previousRecord: result.record,
+        confirmedRecord: confirmed,
+      })
+    );
     // Keep the accepted episode allowlist: a concurrently admitted patient must not inherit this
     // run's clinical capture, and discharged episodes remain excluded after finalization.
     const handoff = {

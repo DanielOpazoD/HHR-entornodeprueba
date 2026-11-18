@@ -26,6 +26,12 @@ import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordP
 import type { QueryClient } from '@tanstack/react-query';
 import { setRemoteConfirmedDailyRecordQueryData } from '@/hooks/controllers/dailyRecordConfirmedCacheController';
 import { markDailyRecordRemoteConfirmed } from '@/hooks/controllers/dailyRecordFreshnessGateController';
+import {
+  assertAuthoringSessionCurrent,
+  captureAuthoringSession,
+  isAuthoringSessionCurrent,
+  type AuthoringSession,
+} from '@/services/storage/authoringSession';
 
 export interface ConfirmedRayenCensusApplyResult extends ApplyResult {
   confirmedHandoff: ConfirmedRayenCensusHandoff;
@@ -40,7 +46,8 @@ interface RayenCensusDiffApplicationInput {
     record: DailyRecord,
     expectedLastUpdated: string,
     writeLease: DailyRecordWriteLease,
-    baseRecord: DailyRecord
+    baseRecord: DailyRecord,
+    authoringSession: AuthoringSession
   ) => Promise<RayenCensusPersistencePayload>;
   checkpointRepository: Pick<DailyRecordRepositoryPort, 'updatePartialDetailed'>;
   queryClient: QueryClient;
@@ -70,6 +77,8 @@ export const useRayenCensusDiffApplication = ({
         record.date,
         async writeLease => {
           const run = ensureRun();
+          // Every write and cache update below belongs to the session that began the run.
+          const authoringSession = run.authoringSession ?? captureAuthoringSession();
           const localResult = await loadLocalRecord(record.date);
           const persistenceBase = buildRayenStructuralPersistenceBase(
             record,
@@ -136,6 +145,7 @@ export const useRayenCensusDiffApplication = ({
                 requireConfirmedRecord: true,
                 requireRemoteAuthorityFirst: true,
                 dailyRecordWriteLease: writeLease,
+                authoringSession,
               }
             );
             let confirmedCheckpointRecord = checkpointResult.confirmedRecord ?? null;
@@ -156,24 +166,30 @@ export const useRayenCensusDiffApplication = ({
               result: checkpointResult,
             };
             if (confirmedCheckpointRecord) {
+              // Logout clears the census cache. An answer that arrives after the run's session
+              // ended stops the run instead of filling the next person's census.
+              assertAuthoringSessionCurrent(authoringSession);
               markDailyRecordRemoteConfirmed(persistenceBase.date, {
                 source: 'write',
                 remoteLastUpdated: confirmedCheckpointRecord.lastUpdated,
                 previousRecord: persistenceBase,
                 confirmedRecord: confirmedCheckpointRecord,
               });
-              await setRemoteConfirmedDailyRecordQueryData(
+              const published = await setRemoteConfirmedDailyRecordQueryData(
                 queryClient,
                 persistenceBase.date,
-                confirmedCheckpointRecord
+                confirmedCheckpointRecord,
+                { stillCurrent: () => isAuthoringSessionCurrent(authoringSession) }
               );
+              if (!published) assertAuthoringSessionCurrent(authoringSession);
             }
           } else {
             persistence = await saveDailyRecord(
               stamped,
               record.lastUpdated,
               writeLease,
-              persistenceBase
+              persistenceBase,
+              authoringSession
             );
             // Paridad con la ruta checkpoint (#267): un guardado completo aceptado
             // cuya confirmación llega sin el sello puede venir de una lectura

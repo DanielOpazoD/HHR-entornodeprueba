@@ -1,5 +1,9 @@
 import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import {
+  captureAuthoringSession,
+  type AuthoringSession,
+} from '@/services/storage/authoringSession';
 import { useCallback, useRef, type MutableRefObject } from 'react';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
@@ -107,10 +111,10 @@ export const useRayenSyncAudit = ({
   const persistMetadataPatch = useCallback(
     async <T>(
       fallbackRecord: DailyRecord,
-      build: (freshRecord: DailyRecord) => { patch: DailyRecordPatch | null; value: T }
+      build: (freshRecord: DailyRecord) => { patch: DailyRecordPatch | null; value: T },
+      session: AuthoringSession = captureAuthoringSession()
     ): Promise<T> => {
-      const owner = getStoredSessionOwnerKey(),
-        generation = getSessionGeneration();
+      const { ownerKey: owner, generation } = session;
       const check = () => {
         if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration())
           throw new Error('La sesión cambió.');
@@ -169,6 +173,7 @@ export const useRayenSyncAudit = ({
         by: actor,
         source: sourceFromHealth(health),
         ...(health?.report?.buildId ? { extensionBuildId: health.report.buildId } : {}),
+        authoringSession: captureAuthoringSession(),
         policy,
         reviewRequirement,
         performance: mergeRayenSyncPerformance(undefined, performance),
@@ -384,12 +389,17 @@ export const useRayenSyncAudit = ({
       if (evidence) event.structuralReview = evidence;
       if (record) {
         try {
-          await persistMetadataPatch(record, base => ({
-            patch: {
-              rayenSyncHistory: upsertRayenSyncEvent(base.rayenSyncHistory, event),
-            },
-            value: undefined,
-          }));
+          // A run that ends after its session did records nothing in the next one.
+          await persistMetadataPatch(
+            record,
+            base => ({
+              patch: {
+                rayenSyncHistory: upsertRayenSyncEvent(base.rayenSyncHistory, event),
+              },
+              value: undefined,
+            }),
+            run.authoringSession
+          );
         } catch (error) {
           reportRayenSyncWarning('sync_audit_persist_failed', {
             runId: run.id,

@@ -36,6 +36,10 @@ import {
   type CommittedRayenStructuralPersistenceOutcome,
 } from './rayenSnapshotPersistenceExecution';
 import { defaultMonotonicNow } from '../domain/rayenSyncPerformance';
+import {
+  captureAuthoringSession,
+  isAuthoringSessionCurrent,
+} from '@/services/storage/authoringSession';
 
 type ExecutionController = ReturnType<typeof useRayenSyncExecutionController>;
 type SyncAudit = ReturnType<typeof useRayenSyncAudit>;
@@ -141,6 +145,10 @@ export const useRayenImportConfirmation = ({
         return;
       }
       const confirmationKey = rayenSyncExecutionKey(executionIdentity);
+      // Once the session that began the run ends, the run stops without continuing or telling
+      // anyone; what the server already confirmed stays confirmed.
+      const authoringSession = run.authoringSession ?? captureAuthoringSession();
+      const sessionEnded = () => !isAuthoringSessionCurrent(authoringSession);
       let confirmedStructuralReplan: RayenStructuralReplan | null = null;
       let reviewReadyStructuralReplan: RayenStructuralReplan | null = null;
       let structureCommitted = false;
@@ -148,6 +156,7 @@ export const useRayenImportConfirmation = ({
         outcome: CommittedRayenStructuralPersistenceOutcome
       ): Promise<void> => {
         structureCommitted = true;
+        if (sessionEnded()) return;
         const requiresFreshCapture = outcome.kind === 'requires_fresh_capture';
         const correctionError = requiresFreshCapture
           ? getRayenImportErrorMessage(outcome.error)
@@ -190,6 +199,7 @@ export const useRayenImportConfirmation = ({
         await runClinicalStage(outcome.commit.clinicalHandoff);
       };
       const finishFailedConfirmation = (error: unknown) => {
+        if (sessionEnded()) return;
         if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
         if (isRayenStructuralPlanChangedError(error) && reviewReadyStructuralReplan) {
           const preparedContext = preparedSyncContextRef.current;
@@ -293,7 +303,8 @@ export const useRayenImportConfirmation = ({
                   result,
                   dailyRecord,
                   queryClient,
-                  applyPreviousDays
+                  applyPreviousDays,
+                  authoringSession
                 ),
               getFreshRecord: () => loadAuthoritativeStructuralRecord(base.date),
               replanDiff: async record => {

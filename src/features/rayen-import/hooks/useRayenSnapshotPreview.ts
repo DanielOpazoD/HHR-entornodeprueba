@@ -123,11 +123,12 @@ export const useRayenSnapshotPreview = ({
       if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
       const sessionOwner = getStoredSessionOwnerKey();
       const sessionGeneration = getSessionGeneration();
-      // A failure that arrives after the session or the execution changed belongs to no one.
+      // A failure or a commit that arrives after the session changed belongs to no one: the run
+      // stops there without continuing or telling anyone.
+      const ownsSession = () =>
+        sessionOwner === getStoredSessionOwnerKey() && sessionGeneration === getSessionGeneration();
       const ownsPlanning = () =>
-        isRayenSyncExecutionCurrent(executionRef.current, executionIdentity) &&
-        sessionOwner === getStoredSessionOwnerKey() &&
-        sessionGeneration === getSessionGeneration();
+        isRayenSyncExecutionCurrent(executionRef.current, executionIdentity) && ownsSession();
       const execution = createRayenSnapshotExecutionReporter(dispatchExecution, executionIdentity);
       const returnReplanToReview = (error: unknown) =>
         returnRayenReplanToReview({
@@ -253,6 +254,7 @@ export const useRayenSnapshotPreview = ({
         });
       let structureCommitted = false;
       const finishFailedPersistence = (error: unknown) => {
+        if (!ownsSession()) return;
         if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
         if (returnReplanToReview(error)) {
           const replan = structuralReplanRef.current;
@@ -279,6 +281,7 @@ export const useRayenSnapshotPreview = ({
         updateVisibleState?: () => void
       ): Promise<void> => {
         structureCommitted = true;
+        if (!ownsSession()) return;
         if (isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) {
           execution.recordOutcome({
             structuralConflicts: commit.structuralConflicts,

@@ -112,7 +112,11 @@ export const setRemoteConfirmedDailyRecordQueryData = (
   queryClient: QueryClient,
   date: string,
   confirmedRecord: DailyRecord,
-  options: { replaceOptimisticLastUpdated?: string; optimisticRecord?: DailyRecord } = {}
+  options: {
+    replaceOptimisticLastUpdated?: string;
+    optimisticRecord?: DailyRecord;
+    stillCurrent?: () => boolean;
+  } = {}
 ) =>
   setAcknowledgedDailyRecordQueryData(
     queryClient,
@@ -120,5 +124,5 @@ export const setRemoteConfirmedDailyRecordQueryData = (
     confirmedRecord,
     confirmedRecord,
     options.replaceOptimisticLastUpdated,
-    { optimisticRecord: options.optimisticRecord }
+    { optimisticRecord: options.optimisticRecord, stillCurrent: options.stillCurrent }
   );

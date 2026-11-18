@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
@@ -8,6 +8,10 @@ import {
   RayenStructuralPlanChangedError,
 } from '@/features/rayen-import/hooks/confirmRayenImport';
 import { useRayenImportConfirmation } from '@/features/rayen-import/hooks/useRayenImportConfirmation';
+import {
+  getSessionGeneration,
+  setSessionGeneration,
+} from '@/services/storage/sessionStorageTransition';
 import type { RayenImportState } from '@/features/rayen-import/hooks/rayenImportState';
 import type {
   ClinicalFillRequest,
@@ -487,5 +491,66 @@ describe('useRayenImportConfirmation execution ownership', () => {
       }),
       expect.anything()
     );
+  });
+
+  describe('the session that began the run ends while its structure is saved', () => {
+    let generationBefore: string | null;
+    beforeEach(() => {
+      generationBefore = getSessionGeneration();
+    });
+    afterEach(() => setSessionGeneration(generationBefore));
+
+    const confirmAcrossSessionChange = async (settle: () => unknown) => {
+      let release!: () => void;
+      mocks.applyConfirmedRayenImport.mockReturnValue(
+        new Promise<void>(resolve => {
+          release = resolve;
+        }).then(settle)
+      );
+      const harness = renderConfirmation();
+      let confirmation!: Promise<void>;
+      act(() => {
+        confirmation = harness.result.current();
+      });
+      await vi.waitFor(() => expect(mocks.applyConfirmedRayenImport).toHaveBeenCalledOnce());
+      const statesBefore = harness.setState.mock.calls.length;
+      setSessionGeneration('synthetic-next-session');
+      release();
+      await act(async () => confirmation);
+      return { harness, statesAfter: harness.setState.mock.calls.length - statesBefore };
+    };
+
+    it.each([
+      ['a commit', () => committedResult()],
+      [
+        'a commit whose historical step stopped',
+        () => {
+          throw new RayenHistoricalCorrectionAfterCommitError(
+            committedResult(),
+            new Error('La sesión cambió antes de enviar la escritura.')
+          );
+        },
+      ],
+    ])(
+      '%s answered afterwards starts no clinical work and shows nothing',
+      async (_label, settle) => {
+        const { harness, statesAfter } = await confirmAcrossSessionChange(settle);
+
+        expect(harness.runClinicalStage).not.toHaveBeenCalled();
+        expect(harness.dispatchExecution).not.toHaveBeenCalledWith(
+          expect.objectContaining({ type: 'record_outcome' })
+        );
+        expect(statesAfter).toBe(0);
+      }
+    );
+
+    it('a failure answered afterwards records and shows nothing', async () => {
+      const { harness, statesAfter } = await confirmAcrossSessionChange(() => {
+        throw new Error('La sesión cambió antes de enviar la escritura.');
+      });
+
+      expect(harness.failRun).not.toHaveBeenCalled();
+      expect(statesAfter).toBe(0);
+    });
   });
 });

@@ -8,6 +8,10 @@ import {
   RayenStructuralPlanChangedError,
 } from '@/features/rayen-import/hooks/confirmRayenImport';
 import { useRayenSnapshotPreview } from '@/features/rayen-import/hooks/useRayenSnapshotPreview';
+import {
+  getSessionGeneration,
+  setSessionGeneration,
+} from '@/services/storage/sessionStorageTransition';
 
 const mocks = vi.hoisted(() => ({
   applyConfirmedRayenImport: vi.fn(),
@@ -495,5 +499,54 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
       }),
       expect.anything()
     );
+  });
+
+  describe('the session that planned the run ends while its structure is saved', () => {
+    let generationBefore: string | null;
+    beforeEach(() => {
+      generationBefore = getSessionGeneration();
+    });
+    afterEach(() => setSessionGeneration(generationBefore));
+
+    const persistAcrossSessionChange = async (
+      settle: (harness: ReturnType<typeof renderPreview>) => void
+    ) => {
+      mocks.prepareRayenStructuralPlan.mockResolvedValue({
+        diff: noChangeDiff,
+        replanDiff: vi.fn(),
+      });
+      let release!: () => void;
+      const harness = renderPreview();
+      mocks.applyConfirmedRayenImport.mockReturnValue(
+        new Promise<void>(resolve => {
+          release = resolve;
+        }).then(() => settle(harness))
+      );
+      const persistence = harness.result.current(snapshot, {} as never, 'run-1', 'request-1');
+      await vi.waitFor(() => expect(mocks.applyConfirmedRayenImport).toHaveBeenCalledOnce());
+      const statesBefore = harness.setState.mock.calls.length;
+      setSessionGeneration('synthetic-next-session');
+      release();
+      await act(async () => persistence);
+      return { harness, statesAfter: harness.setState.mock.calls.length - statesBefore };
+    };
+
+    it('a commit answered afterwards starts no clinical work and shows nothing', async () => {
+      const { harness, statesAfter } = await persistAcrossSessionChange(() =>
+        committedResult(noChangeDiff)
+      );
+
+      expect(harness.runClinicalStage).not.toHaveBeenCalled();
+      expect(statesAfter).toBe(0);
+    });
+
+    it('a failure answered afterwards records and shows nothing', async () => {
+      const { harness, statesAfter } = await persistAcrossSessionChange(() => {
+        throw new Error('La sesión cambió antes de enviar la escritura.');
+      });
+
+      expect(harness.failRun).not.toHaveBeenCalled();
+      expect(statesAfter).toBe(0);
+    });
   });
 });

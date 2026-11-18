@@ -25,6 +25,7 @@ import {
   rayenSyncIssueCauseKey,
 } from '@/types/domain/rayenSync';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
+import type { AuthoringSession } from '@/services/storage/authoringSession';
 import {
   hasUnresolvedStaffingAmbiguity,
   NURSING_STAFFING_STANDARD_SLOTS,
@@ -44,6 +45,8 @@ export interface RayenSyncRun {
   performance?: RayenSyncPerformance;
   /** Package fingerprint the extension reported at start. Telemetry only, never persisted. */
   extensionBuildId?: string;
+  /** The session that began the run. Its later writes stop once it ends; never persisted. */
+  authoringSession?: AuthoringSession;
 }
 
 export const upsertRayenSyncEvent = (
