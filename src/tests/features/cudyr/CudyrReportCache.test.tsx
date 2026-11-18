@@ -1,17 +1,11 @@
 import { loadCudyrReport } from '@/services/cudyr/cudyrReportLoader';
 import { readCudyrReadView, saveCudyrReadView } from '@/features/cudyr/report/cudyrReadView';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCudyrReport } from '@/features/cudyr/hooks/useCudyrReport';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import { reportInput } from '../../services/cudyr/reportFixtures';
-const session = vi.hoisted(() => ({ owner: 'owner-a', generation: 'a' }));
-vi.mock('@/services/storage/sessionScopedStorageService', () => ({
-  getStoredSessionOwnerKey: () => session.owner,
-}));
-vi.mock('@/services/storage/sessionStorageTransition', () => ({
-  getSessionGeneration: () => session.generation,
-}));
+import { admitSyntheticSession, clearSyntheticSession } from '@/tests/utils/syntheticSession';
 vi.mock('@/features/cudyr/report/cudyrReadView', () => ({
   readCudyrReadView: vi.fn(),
   saveCudyrReadView: vi.fn(),
@@ -24,9 +18,9 @@ const dataset = (from: string, to: string, version = 'v1') => ({
   ],
 });
 beforeEach(() => {
-  session.owner = 'owner-a';
-  session.generation = 'a';
+  admitSyntheticSession('owner-a', 'a');
 });
+afterEach(clearSyntheticSession);
 describe('CUDYR navigation cache', () => {
   it('reuses an official month across live census revisions but still verifies on refresh and expiry', async () => {
     const loader = vi.fn().mockImplementation(async (from, to) => ({
@@ -103,8 +97,7 @@ describe('CUDYR navigation cache', () => {
     await waitFor(() => expect(result.current.data?.to).toBe('2026-10-07'));
     rerender({ date: '2026-10-06' });
     await waitFor(() => expect(loader).toHaveBeenCalledTimes(3));
-    session.owner = 'owner-b';
-    session.generation = 'b';
+    admitSyntheticSession('owner-b', 'b');
     rerender({ date: '2026-10-06' });
     await waitFor(() => expect(loader).toHaveBeenCalledTimes(4));
   });
@@ -391,7 +384,7 @@ it('refreshes on the next clinical day when a cached read merely finished after 
 });
 
 it('displays a saved Firebase view while verifying and replaces it with fresh evidence', async () => {
-  session.owner = 'firebase-copy-owner';
+  admitSyntheticSession('firebase-copy-owner', 'a');
   let finish!: (value: ReturnType<typeof dataset>) => void;
   const saved = { ...dataset('2026-10-01', '2026-10-12'), readViewSnapshot: 'saved' };
   vi.mocked(readCudyrReadView).mockResolvedValue(saved);
@@ -414,7 +407,7 @@ it('displays a saved Firebase view while verifying and replaces it with fresh ev
 });
 
 it('a late presentation copy cannot replace a completed authoritative read', async () => {
-  session.owner = 'firebase-late-copy-owner';
+  admitSyntheticSession('firebase-late-copy-owner', 'a');
   let finish!: (value: ReturnType<typeof dataset> & { readViewSnapshot: string }) => void;
   vi.mocked(readCudyrReadView).mockImplementationOnce(
     () =>
@@ -438,7 +431,7 @@ it('a late presentation copy cannot replace a completed authoritative read', asy
 it.each(['incomplete', 'failed'])(
   'discards the provisional Firebase copy after a %s authoritative attempt',
   async failure => {
-    session.owner = `firebase-failure-${failure}`;
+    admitSyntheticSession(`firebase-failure-${failure}`, 'a');
     const saved = { ...dataset('2026-10-01', '2026-10-12'), readViewSnapshot: 'saved' };
     vi.mocked(readCudyrReadView).mockResolvedValueOnce(saved);
     let finish!: () => void;
@@ -466,7 +459,7 @@ it.each(['incomplete', 'failed'])(
 );
 
 it('does not promote the display copy to last-good data when a census revision restarts verification', async () => {
-  session.owner = 'firebase-restarted-copy';
+  admitSyntheticSession('firebase-restarted-copy', 'a');
   const saved = { ...dataset('2026-10-01', '2026-10-12'), readViewSnapshot: 'saved' };
   vi.mocked(readCudyrReadView).mockResolvedValue(saved);
   let fail!: () => void;

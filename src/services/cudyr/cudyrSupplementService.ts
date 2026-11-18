@@ -1,5 +1,4 @@
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { CudyrSupplementReport } from '@/types/domain/cudyrSupplement';
 export interface ArchivedCudyrSupplement {
@@ -54,13 +53,7 @@ export const supplementMonths = (from: string, to: string) => {
   return months;
 };
 export const loadCudyrSupplements = async (from: string, to: string, signal: AbortSignal) => {
-  const generation = getSessionGeneration(),
-    owner = getStoredSessionOwnerKey();
-  const check = () => {
-    signal.throwIfAborted();
-    if (generation !== getSessionGeneration() || owner !== getStoredSessionOwnerKey())
-      throw new Error('La sesión cambió.');
-  };
+  const { check } = guardAuthoringSession({ signal });
   const reports: ArchivedCudyrSupplement[] = [];
   for (const month of supplementMonths(from, to)) {
     let cursor: string | null = null;

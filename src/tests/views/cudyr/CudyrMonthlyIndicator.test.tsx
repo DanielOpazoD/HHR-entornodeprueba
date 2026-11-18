@@ -1,20 +1,15 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { CudyrMonthlyIndicator } from '@/features/cudyr/components/CudyrMonthlyIndicator';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import { confirmedReportInput } from '../../services/cudyr/reportFixtures';
 import type { RayenSyncMeta } from '@/types/domain/rayenSync';
 import { loadCudyrReport } from '@/services/cudyr/cudyrReportLoader';
+import { admitSyntheticSession, clearSyntheticSession } from '@/tests/utils/syntheticSession';
 const context = vi.hoisted(() => ({
   record: null as { date: string; lastUpdated?: string; rayenSync?: RayenSyncMeta } | null,
 }));
-const session = vi.hoisted(() => ({ owner: 'owner-a', generation: 'a' }));
-vi.mock('@/services/storage/sessionScopedStorageService', () => ({
-  getStoredSessionOwnerKey: () => session.owner,
-}));
-vi.mock('@/services/storage/sessionStorageTransition', () => ({
-  getSessionGeneration: () => session.generation,
-}));
+let generation = 'a';
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordData: () => ({ record: context.record, bootstrapPhase: 'confirmed_empty' }),
 }));
@@ -50,7 +45,8 @@ const synced = (completedAt: string) => ({
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-10T20:00:00Z'));
-  session.generation += 'a';
+  generation += 'a';
+  admitSyntheticSession('owner-a', generation);
   context.record = null;
   sessionStorage.clear();
   vi.mocked(loadCudyrReport)
@@ -63,7 +59,10 @@ beforeEach(() => {
           : dataset(from, to, 100, 50)
     );
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  clearSyntheticSession();
+});
 describe('Interactive census CUDYR card', () => {
   it('navigates cleaned months without repeating loaded reads and shows a weighted annual rate', async () => {
     render(<CudyrMonthlyIndicator date="2026-10-10" />);
@@ -183,12 +182,20 @@ describe('Interactive census CUDYR card', () => {
   it('clears displayed summaries on session change and follows the census month', async () => {
     const view = render(<CudyrMonthlyIndicator date="2026-10-10" />);
     await screen.findByText('50/100 elegibles');
-    session.generation += 'new';
+    generation += 'new';
+    act(() => admitSyntheticSession('owner-a', generation));
     vi.mocked(loadCudyrReport).mockImplementation(async (from, to) => dataset(from, to, 2, 1));
     view.rerender(<CudyrMonthlyIndicator date="2026-09-30" />);
     expect(screen.queryByText('50/100 elegibles')).not.toBeInTheDocument();
     await screen.findByText('1/2 elegibles');
     expect(screen.getByRole('combobox')).toHaveValue('2026-09');
+  });
+  it('hides the previous person’s summaries as soon as the session changes, without another render', async () => {
+    render(<CudyrMonthlyIndicator date="2026-10-10" />);
+    await screen.findByText('50/100 elegibles');
+    vi.mocked(loadCudyrReport).mockImplementation(() => new Promise(() => {}));
+    act(() => admitSyntheticSession('owner-b', 'b'));
+    expect(screen.queryByText('50/100 elegibles')).not.toBeInTheDocument();
   });
   it('aborts obsolete in-flight readers when navigating quickly across a longer history', async () => {
     vi.setSystemTime(new Date('2027-04-10T20:00:00Z'));

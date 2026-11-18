@@ -1,16 +1,9 @@
 import { callCudyrArchive, supplementMonths } from './cudyrSupplementService';
 import { readInCudyrWorker } from './cudyrWorkerRead';
 import type { CudyrCensusSource, ArchivedCudyrCensus } from '@/types/domain/cudyrCensusEvidence';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 export const loadCudyrCensusSources = async (from: string, to: string, signal: AbortSignal) => {
-  const generation = getSessionGeneration(),
-    owner = getStoredSessionOwnerKey();
-  const check = () => {
-    signal.throwIfAborted();
-    if (generation !== getSessionGeneration() || owner !== getStoredSessionOwnerKey())
-      throw new Error('La sesión cambió.');
-  };
+  const { check } = guardAuthoringSession({ signal });
   const result: ArchivedCudyrCensus[] = [];
   for (const month of supplementMonths(from, to)) {
     let cursor: string | null = null;

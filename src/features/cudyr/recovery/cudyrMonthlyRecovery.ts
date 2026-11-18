@@ -12,8 +12,7 @@ import {
   readCudyrCensusFile,
 } from '@/services/cudyr/cudyrCensusSourceService';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { authoringSessionScope, guardAuthoringSession } from '@/services/storage/authoringSession';
 import {
   loadCudyrSupplements,
   type ArchivedCudyrSupplement,
@@ -75,18 +74,14 @@ export const recoverCudyrMonthlyReports = async (
   const startedAt = Date.now();
   const period = monthlyRecoveryWindow(month, now);
   if (!period) throw new Error('Aún no hay turnos cerrados para verificar en este mes.');
-  const owner = getStoredSessionOwnerKey(),
-    generation = getSessionGeneration();
-  const check = () => {
-    signal.throwIfAborted();
-    if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration())
-      throw new Error('La sesión cambió.');
-  };
+  const guard = guardAuthoringSession({ signal });
+  const { check } = guard;
+  const scope = authoringSessionScope(guard.session);
   check();
   const remember = (data: CudyrReportDataset) => {
     check();
-    if (ports.readCensus === loadCudyrReport && owner && generation)
-      cudyrReportCache(loadCudyrReport, `${owner}:${generation}`, true).put({
+    if (ports.readCensus === loadCudyrReport && scope)
+      cudyrReportCache(loadCudyrReport, scope, true).put({
         ...data,
         loadedAt: new Date().toISOString(),
         readStartedAt: new Date(startedAt).toISOString(),

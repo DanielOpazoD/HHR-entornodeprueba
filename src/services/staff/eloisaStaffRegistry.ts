@@ -1,5 +1,4 @@
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import { liveQuery } from 'dexie';
 import { ensureDbReady, hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import {
@@ -23,12 +22,7 @@ export const readEloisaStaff = async (): Promise<EloisaStaffIdentity[]> => {
 export const saveDiscoveredStaff = async (
   incoming: EloisaStaffIdentity[]
 ): Promise<EloisaStaffIdentity[]> => {
-  const owner = getStoredSessionOwnerKey(),
-    generation = getSessionGeneration();
-  const check = () => {
-    if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration())
-      throw new Error('La sesión cambió.');
-  };
+  const { check } = guardAuthoringSession();
   await ensureDbReady();
   check();
   let identities = await hospitalDB.transaction('rw', hospitalDB.catalogs, async () => {

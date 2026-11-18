@@ -112,6 +112,23 @@ describe('passive supplement interactions', () => {
     expect(screen.getByText('new-session.xls')).toBeInTheDocument();
     expect(screen.queryByText('synthetic.xls')).not.toBeInTheDocument();
   });
+  it('starts a clean import when the same person signs in again, without another render', async () => {
+    let resolveOld!: (value: ReturnType<typeof preview>) => void;
+    vi.mocked(readCudyrSupplementFile).mockReturnValueOnce(
+      new Promise(resolve => {
+        resolveOld = resolve;
+      })
+    );
+    render(<CudyrSupplementImport from="2026-10-01" to="2026-10-07" onSaved={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Agregar informe mensual de Eloísa'), {
+      target: { files: [new File(['fake'], 'synthetic.xls')] },
+    });
+    expect(screen.getByLabelText('Agregar informe mensual de Eloísa')).toBeDisabled();
+    act(() => setSessionGeneration('same-user-new-generation'));
+    expect(screen.getByLabelText('Agregar informe mensual de Eloísa')).toBeEnabled();
+    await act(async () => resolveOld(preview()));
+    expect(screen.queryByText('synthetic.xls')).not.toBeInTheDocument();
+  });
   it('ignores old period results and withholds ready state after a failed read', async () => {
     let resolveOld!: (value: []) => void;
     vi.mocked(loadCudyrSupplements)

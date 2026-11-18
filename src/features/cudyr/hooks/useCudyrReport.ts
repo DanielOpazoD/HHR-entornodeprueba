@@ -5,15 +5,9 @@ import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { loadCudyrReport } from '@/services/cudyr/cudyrReportLoader';
 import { cudyrReportCache, cudyrReportReadIncomplete } from '@/services/cudyr/cudyrReportCache';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { authoringSessionScope } from '@/services/storage/authoringSession';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 
-const sessionScope = () => {
-  const owner = getStoredSessionOwnerKey();
-  const generation = getSessionGeneration();
-  return owner && generation ? `${owner}:${generation}` : '';
-};
 const dailyReadIsFresh = (
   report:
     | (CudyrReportDataset & { readStartedAt?: string; indicatorSyncAt?: string })
@@ -42,7 +36,7 @@ export const useCudyrReport = (
   refreshWindow = false,
   dailyRead?: { day: string; firstSyncAt: string }
 ) => {
-  const scope = sessionScope();
+  const scope = authoringSessionScope();
   const dailyDay = dailyRead?.day || '';
   const firstSyncAt = dailyRead?.firstSyncAt || '';
   const cache = () => cudyrReportCache(loader, scope, Boolean(scope) && loader === loadCudyrReport);
@@ -106,7 +100,7 @@ export const useCudyrReport = (
               !authoritativeFinished &&
               !request.signal.aborted &&
               active.current === request &&
-              sessionScope() === scope
+              authoringSessionScope() === scope
             ) {
               setData(saved);
             }
@@ -126,7 +120,11 @@ export const useCudyrReport = (
           indicatorSyncAt: dailyDay ? firstSyncAt : undefined,
           loadedAt: new Date().toISOString(),
         };
-        if (!request.signal.aborted && active.current === request && sessionScope() === scope) {
+        if (
+          !request.signal.aborted &&
+          active.current === request &&
+          authoringSessionScope() === scope
+        ) {
           authoritativeFinished = true;
           if (scope) {
             if (cudyrReportReadIncomplete(result)) store.requireVerification();
@@ -152,7 +150,11 @@ export const useCudyrReport = (
           }
         }
       } catch (caught) {
-        if (!request.signal.aborted && active.current === request && sessionScope() === scope) {
+        if (
+          !request.signal.aborted &&
+          active.current === request &&
+          authoringSessionScope() === scope
+        ) {
           recordCudyrOperation('cudyr_report_read', startedAt, 'failed');
           store.requireVerification();
           setData(lastGood);

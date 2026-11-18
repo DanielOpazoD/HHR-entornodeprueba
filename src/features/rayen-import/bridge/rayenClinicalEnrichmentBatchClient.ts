@@ -1,6 +1,5 @@
 import type { RayenOwnedClinicalField as RayenClinicalEnrichmentField } from '@/types/domain/rayenClinicalFields';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { withClientRuntimeContractVersion } from '@/services/storage/clinicalAuthorityClientVersion';
 import { RAYEN_OWNED_CLINICAL_FIELDS } from '@/types/domain/rayenClinicalFields';
@@ -84,12 +83,7 @@ const CALLABLE_NAME = 'applyRayenClinicalEnrichmentBatch';
 export const callRayenClinicalEnrichmentBatch = async (
   payload: RayenClinicalEnrichmentBatchPayload
 ): Promise<RayenClinicalEnrichmentBatchResponse> => {
-  const owner = getStoredSessionOwnerKey(),
-    generation = getSessionGeneration();
-  const check = () => {
-    if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration())
-      throw new Error('La sesión cambió.');
-  };
+  const { check } = guardAuthoringSession();
   const functions = await defaultFunctionsRuntime.getRegionalFunctions(CALLABLE_REGION);
   check();
   const { httpsCallable } = await import('firebase/functions');

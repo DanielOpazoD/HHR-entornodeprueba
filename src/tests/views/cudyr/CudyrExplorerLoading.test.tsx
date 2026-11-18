@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import CudyrReportExplorer from '@/features/cudyr/components/CudyrReportExplorer';
 import { CudyrView } from '@/features/cudyr/components/CudyrView';
 import { loadCudyrReport } from '@/services/cudyr/cudyrReportLoader';
@@ -8,20 +8,15 @@ import { cudyrReportCache } from '@/services/cudyr/cudyrReportCache';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
 import { reportInput } from '@/tests/services/cudyr/reportFixtures';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
+import { admitSyntheticSession, clearSyntheticSession } from '@/tests/utils/syntheticSession';
 
-const session = vi.hoisted(() => ({ generation: 0 }));
+let generation = 0;
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordData: () => ({ record: null, bootstrapPhase: 'loading' }),
 }));
 vi.mock('@/hooks/useUIState', () => ({ useUIState: () => ({ setCurrentModule: vi.fn() }) }));
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ role: 'viewer', currentUser: { uid: 'synthetic' } }),
-}));
-vi.mock('@/services/storage/sessionScopedStorageService', () => ({
-  getStoredSessionOwnerKey: () => 'synthetic',
-}));
-vi.mock('@/services/storage/sessionStorageTransition', () => ({
-  getSessionGeneration: () => String(session.generation),
 }));
 vi.mock('@/services/cudyr/cudyrReportLoader', () => ({ loadCudyrReport: vi.fn() }));
 vi.mock('@/services/cudyr/cudyrSupplementService', () => ({
@@ -61,17 +56,19 @@ const report = () => ({
   loadedAt: new Date().toISOString(),
 });
 const seed = (data: CudyrReportDataset) =>
-  cudyrReportCache(loadCudyrReport, `synthetic:${session.generation}`, true).put(data);
+  cudyrReportCache(loadCudyrReport, `synthetic:${generation}`, true).put(data);
 const exports = () => [
   screen.getByRole('button', { name: 'Excel para Estadística' }),
   screen.getByRole('button', { name: 'Excel de auditoría' }),
 ];
 beforeEach(() => {
-  session.generation++;
+  generation++;
+  admitSyntheticSession('synthetic', String(generation));
   sessionStorage.clear();
   vi.mocked(loadCudyrReport).mockReset();
   vi.mocked(loadCudyrSupplements).mockReset().mockResolvedValue([]);
 });
+afterEach(clearSyntheticSession);
 
 describe('CUDYR explorer loading with real report and supplement hooks', () => {
   const enterFromDaily = async (data: CudyrReportDataset) => {
@@ -108,7 +105,7 @@ describe('CUDYR explorer loading with real report and supplement hooks', () => {
     async state => {
       const data = report();
       await enterFromDaily(data);
-      const store = cudyrReportCache(loadCudyrReport, `synthetic:${session.generation}`, true);
+      const store = cudyrReportCache(loadCudyrReport, `synthetic:${generation}`, true);
       const clock =
         state === 'expired'
           ? vi

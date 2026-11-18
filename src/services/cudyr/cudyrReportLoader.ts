@@ -30,8 +30,7 @@ import { buildCudyrReport, type CudyrReportInput } from './cudyrReportModel';
 import { collectCudyrDailyFacts } from './cudyrReportFacts';
 import type { CudyrHistoryCursor } from '@/types/domain/cudyrHistory';
 import type { DailyRecordCudyrExportState } from '@/types/domain/dailyRecordSlices';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { authoringSessionScope, guardAuthoringSession } from '@/services/storage/authoringSession';
 
 export const cudyrReportDates = (from: string, to: string): string[] => {
   const span = diffCalendarDays(from, to);
@@ -82,16 +81,14 @@ export const loadCudyrReport = async (
   ports = cudyrReportLoaderPorts
 ) => {
   const dates = cudyrReportDates(from, to);
-  const generation = getSessionGeneration();
-  const owner = getStoredSessionOwnerKey();
-  const check = () => {
-    signal?.throwIfAborted();
-    if (generation !== getSessionGeneration() || owner !== getStoredSessionOwnerKey())
-      throw new Error('La sesión cambió; vuelva a abrir el reporte.');
-  };
+  const guard = guardAuthoringSession({
+    signal,
+    message: 'La sesión cambió; vuelva a abrir el reporte.',
+  });
+  const { check } = guard;
   // A closed official month is served as one saved projection. No Eloísa request is made.
   const native = ports === cudyrReportLoaderPorts;
-  const scope = owner && generation ? `${owner}:${generation}` : '';
+  const scope = authoringSessionScope(guard.session);
   const month = from.slice(0, 7);
   const last = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5)), 0))
     .toISOString()

@@ -1,5 +1,4 @@
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { normalizeDailyRecordAuthorityError } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import type {
@@ -18,12 +17,7 @@ const callHistory = async <Request, Response>(
   name: string,
   payload: Request
 ): Promise<Response> => {
-  const owner = getStoredSessionOwnerKey(),
-    generation = getSessionGeneration();
-  const check = () => {
-    if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration())
-      throw new Error('La sesión cambió.');
-  };
+  const { check } = guardAuthoringSession();
   const functions = await defaultFunctionsRuntime.getRegionalFunctions('southamerica-east1');
   check();
   try {

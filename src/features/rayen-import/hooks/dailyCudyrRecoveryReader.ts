@@ -17,8 +17,7 @@ import type {
   RayenSyncIssueReason,
 } from '@/types/domain/rayenSync';
 import { planDailyCudyrGaps, recoverDailyCudyrGap } from '@/services/cudyr/dailyCudyrRecoveryPlan';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import { readClinicalFillDerivedView } from './clinicalFillDerivedView';
 import { buildClinicalFillError } from '../observability/rayenSyncDiagnostics';
 
@@ -58,13 +57,7 @@ export const createDailyCudyrRecoveryReader = ({
   now?: () => Date;
   capture?: typeof captureCudyrMonthlyReport;
 }): NonNullable<ClinicalFillDeps['recoverMissingCudyr']> => {
-  const owner = getStoredSessionOwnerKey(),
-    generation = getSessionGeneration();
-  const check = () => {
-    signal.throwIfAborted();
-    if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration())
-      throw new Error('La sesión cambió.');
-  };
+  const { check } = guardAuthoringSession({ signal });
   return async (record, episodes, source) => {
     const result: DailyCudyrRecoveryResult = { current: new Map(), previous: [], errors: [] };
     if (!episodes.length) return result;

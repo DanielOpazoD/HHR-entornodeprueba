@@ -6,8 +6,7 @@ import { cudyrIndicatorFirstSync } from '@/features/cudyr/indicator/cudyrIndicat
 import type { CudyrIndicatorRead } from '@/features/cudyr/indicator/cudyrIndicatorHistory';
 import { getNextDay } from '@/utils/clinicalDayUtils';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { authoringSessionScope } from '@/services/storage/authoringSession';
 
 /** Daily indicator snapshot. The detailed report keeps its interactive freshness policy. */
 export const useCudyrIndicatorRead = (
@@ -18,9 +17,7 @@ export const useCudyrIndicatorRead = (
 ) => {
   const { record } = useDailyRecordData();
   const day = getClinicalCalendarDateISO(now);
-  const owner = getStoredSessionOwnerKey();
-  const generation = getSessionGeneration();
-  const scope = owner && generation ? `${owner}:${generation}` : '';
+  const scope = authoringSessionScope();
   // Structural application precedes clinical persistence; only use its completed pass.
   const completedAt =
     record && (record.date.slice(0, 7) === month || record.date === getNextDay(through))

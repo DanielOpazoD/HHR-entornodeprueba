@@ -1,16 +1,12 @@
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { CudyrDailyExclusion, SaveCudyrExclusionRequest } from '@/types/domain/cudyrExclusion';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 
 const call = async <T>(endpoint: string, request: unknown, signal?: AbortSignal): Promise<T> => {
-  const generation = getSessionGeneration(),
-    owner = getStoredSessionOwnerKey();
-  const check = () => {
-    signal?.throwIfAborted();
-    if (generation !== getSessionGeneration() || owner !== getStoredSessionOwnerKey())
-      throw new Error('La sesión cambió. Vuelva a consultar.');
-  };
+  const { check } = guardAuthoringSession({
+    signal,
+    message: 'La sesión cambió. Vuelva a consultar.',
+  });
   check();
   const runtime = await defaultFunctionsRuntime.getRegionalFunctions('southamerica-east1');
   check();

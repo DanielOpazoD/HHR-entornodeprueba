@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import { prepareCudyrCensusApproval } from '@/services/cudyr/cudyrCensusApproval';
 import {
@@ -28,13 +27,10 @@ export const CudyrCensusApprovalButton = ({
     const controller = new AbortController();
     active.current?.abort();
     active.current = controller;
-    const owner = getStoredSessionOwnerKey();
-    const generation = getSessionGeneration();
-    const check = () => {
-      controller.signal.throwIfAborted();
-      if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration())
-        throw new Error('La sesión cambió. Vuelva a abrir el mes.');
-    };
+    const { check } = guardAuthoringSession({
+      signal: controller.signal,
+      message: 'La sesión cambió. Vuelva a abrir el mes.',
+    });
     setBusy(true);
     setError('');
     try {

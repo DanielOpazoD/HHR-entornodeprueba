@@ -7,8 +7,7 @@ import {
 } from '@/services/storage/indexeddb/indexedDbCore';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { queueCudyrArchiveTask, processSyncQueue } from '@/services/storage/sync/publicSyncQueue';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 
 export type CudyrArchiveDisposition = 'persisted' | 'queued' | 'failed';
 
@@ -18,10 +17,8 @@ export const persistCudyrArchivePart = async (
   signal?: AbortSignal,
   checkSession: () => void = () => undefined
 ): Promise<CudyrArchiveDisposition> => {
-  const owner = getStoredSessionOwnerKey();
-  const generation = getSessionGeneration();
-  const sameSession = () =>
-    owner === getStoredSessionOwnerKey() && generation === getSessionGeneration();
+  const { session, isCurrent: sameSession } = guardAuthoringSession();
+  const { ownerKey: owner, generation } = session;
   checkSession();
   await ensureDbReady();
   checkSession();

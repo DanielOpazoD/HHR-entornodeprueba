@@ -1,6 +1,6 @@
 import type { RayenSyncExecutionState } from './rayenSyncExecutionState';
 import { useLayoutEffect, useRef } from 'react';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import type { AuthoringSessionGuard } from '@/services/storage/authoringSession';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import {
   isClinicalRetryToken,
@@ -39,7 +39,7 @@ export const recoverCudyrArchivesAfterClinicalSync = async (
   result: ClinicalStageResult,
   readPolicy: () => { status: RayenImportPolicyStatus; policy: RayenImportPolicy },
   expectedRevision: number,
-  generation: string | null,
+  session: AuthoringSessionGuard,
   isCurrentRun: () => boolean = () => true
 ): Promise<void> => {
   const isAuthorized = () => {
@@ -51,17 +51,13 @@ export const recoverCudyrArchivesAfterClinicalSync = async (
       current.policy.revision === expectedRevision
     );
   };
-  if (
-    result.status !== 'complete' ||
-    !isAuthorized() ||
-    !generation ||
-    generation !== getSessionGeneration()
-  )
+  const { generation } = session.session;
+  if (result.status !== 'complete' || !isAuthorized() || !generation || !session.isCurrent())
     return;
   try {
     const { recoverPolicyBlockedCudyrArchives } =
       await import('@/services/storage/sync/publicCudyrPolicyRecovery');
-    if (!isAuthorized() || generation !== getSessionGeneration()) return;
+    if (!isAuthorized() || !session.isCurrent()) return;
     await recoverPolicyBlockedCudyrArchives(true, generation, isAuthorized);
   } catch {
     // A recovery chunk failure cannot undo an already confirmed clinical stage. The archives stay

@@ -1,15 +1,12 @@
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionScopedStorageService';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import { callCudyrArchive } from '@/services/cudyr/cudyrSupplementService';
 
 const sessionGuard = (signal?: AbortSignal) => {
-  const generation = getSessionGeneration(),
-    owner = getStoredSessionOwnerKey();
+  const guard = guardAuthoringSession({ signal });
   return () => {
-    signal?.throwIfAborted();
-    if (!owner || generation !== getSessionGeneration() || owner !== getStoredSessionOwnerKey())
-      throw new Error('La sesión cambió.');
+    guard.check();
+    if (!guard.session.ownerKey) throw new Error('La sesión cambió.');
   };
 };
 

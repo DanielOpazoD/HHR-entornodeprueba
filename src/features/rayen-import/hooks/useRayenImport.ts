@@ -1,11 +1,13 @@
-import { captureAuthoringSession } from '@/services/storage/authoringSession';
+import {
+  captureAuthoringSession,
+  guardAuthoringSession,
+} from '@/services/storage/authoringSession';
 import {
   recoverCudyrArchivesAfterClinicalSync,
   isCurrentRayenClinicalRun,
   clinicalFillRequestRunId,
   useCurrentRayenRecoveryPolicy,
 } from './recoverCudyrArchivesAfterClinicalSync';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
@@ -231,7 +233,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
   });
   const runClinicalStage = useCallback(
     async (request: ClinicalFillRequest): Promise<ClinicalStageResult> => {
-      const generation = getSessionGeneration();
+      const session = guardAuthoringSession();
       const result = await fillClinicalData(request);
       const runId = clinicalFillRequestRunId(request);
       const isCurrentRun = () => isCurrentRayenClinicalRun(executionRef.current, runId);
@@ -240,7 +242,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
         result,
         () => recoveryPolicyRef.current,
         policy.revision,
-        generation,
+        session,
         isCurrentRun
       );
       if (isCurrentRun()) {

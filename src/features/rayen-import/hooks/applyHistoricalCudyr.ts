@@ -1,7 +1,6 @@
 import type { UserRole } from '@/types/authRoleTypes';
 import { addCalendarDays, isCalendarDate } from '@/utils/clinicalDateUtils';
-import { getStoredSessionOwnerKey } from '@/services/storage/sessionOwnerKey';
-import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type {
   HistoricalCudyrBatchExecutionResult,
@@ -56,12 +55,10 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
   runId: string;
   applyBatch?: ApplyClinicalEnrichmentBatch;
 }): Promise<HistoricalCudyrBatchExecutionResult> => {
-  const owner = getStoredSessionOwnerKey(),
-    generation = getSessionGeneration();
+  const session = guardAuthoringSession();
   const check = () => {
     checkSession?.();
-    if (owner !== getStoredSessionOwnerKey() || generation !== getSessionGeneration())
-      throw new Error('La sesión cambió.');
+    session.check();
   };
   check();
   const uniqueItems = uniqueBatchItems(items);

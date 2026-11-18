@@ -1,10 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ recover: vi.fn(), telemetry: vi.fn(), generation: 'session' }));
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+const mocks = vi.hoisted(() => ({ recover: vi.fn(), telemetry: vi.fn() }));
 vi.mock('@/services/storage/sync/publicCudyrPolicyRecovery', () => ({
   recoverPolicyBlockedCudyrArchives: mocks.recover,
-}));
-vi.mock('@/services/storage/sessionStorageTransition', () => ({
-  getSessionGeneration: () => mocks.generation,
 }));
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: mocks.telemetry,
@@ -13,6 +10,17 @@ import { recoverCudyrArchivesAfterClinicalSync as recoverWithPolicy } from '@/fe
 import type { ClinicalStageResult } from '@/features/rayen-import/contracts/clinicalStageResult';
 import type { RayenImportPolicyStatus } from '@/features/rayen-import/hooks/useRayenImportMode';
 import type { ClinicalEnrichmentBatchMode } from '@/features/rayen-import/settings/rayenImportSettings';
+import { guardAuthoringSession } from '@/services/storage/authoringSession';
+import { admitSyntheticSession, clearSyntheticSession } from '@/tests/utils/syntheticSession';
+
+const OWNER = 'user:synthetic-a';
+/** The guard of a run that began under `generation`; the current session is then 'session'. */
+const guardFrom = (generation: string | null) => {
+  admitSyntheticSession(generation ? OWNER : null, generation);
+  const guard = guardAuthoringSession();
+  admitSyntheticSession(OWNER, 'session');
+  return guard;
+};
 
 const recoverCudyrArchivesAfterClinicalSync = (
   result: ClinicalStageResult,
@@ -31,13 +39,14 @@ const recoverCudyrArchivesAfterClinicalSync = (
       },
     }),
     3,
-    generation
+    guardFrom(generation)
   );
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.recover.mockResolvedValue(17);
-  mocks.generation = 'session';
+  admitSyntheticSession(OWNER, 'session');
 });
+afterEach(clearSyntheticSession);
 describe('CUDYR recovery after the normal clinical synchronization', () => {
   it('recovers after completion under confirmed enforced authority, fenced by the originating attempt', async () => {
     await recoverCudyrArchivesAfterClinicalSync(
@@ -77,7 +86,7 @@ describe('CUDYR recovery after the normal clinical synchronization', () => {
         policy: { mode: 'preview', clinicalBatchMode: 'enforced', revision: 3 },
       }),
       3,
-      'session',
+      guardFrom('session'),
       () => current
     );
     current = false;
@@ -104,7 +113,12 @@ describe('CUDYR recovery after the normal clinical synchronization', () => {
         status: 'ready' as RayenImportPolicyStatus,
         policy: { mode: 'preview' as const, clinicalBatchMode: 'enforced' as const, revision: 3 },
       };
-      const pending = recoverWithPolicy({ status: 'complete' }, () => current, 3, 'session');
+      const pending = recoverWithPolicy(
+        { status: 'complete' },
+        () => current,
+        3,
+        guardFrom('session')
+      );
       if (change === 'fallback') current.status = 'fallback';
       else current.policy.revision = 4;
       return pending.then(() => expect(mocks.recover).not.toHaveBeenCalled());
