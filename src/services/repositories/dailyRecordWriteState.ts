@@ -2,6 +2,7 @@ import { DataRegressionError, VersionMismatchError } from '@/utils/integrityGuar
 import {
   createSaveDailyRecordResult,
   createUpdatePartialDailyRecordResult,
+  type DailyRecordWriteReason,
 } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecordRecoveryDecision } from '@/services/repositories/contracts/dailyRecordWriteRecoveryResult';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -22,6 +23,8 @@ export interface RemoteWriteState {
     | 'unrecoverable';
   conflictSummary: DailyRecordRecoveryDecision['conflictSummary'];
   observabilityTags: string[];
+  /** Set by the producer that held or routed the write; the result's state is derived from it. */
+  reason?: DailyRecordWriteReason;
   userSafeMessage?: string;
   blockingError?: Error;
   confirmedRecord?: DailyRecord;
@@ -67,6 +70,7 @@ export const applyRecoveryDecisionToState = (
   state.consistencyState = decision.consistencyState;
   state.conflictSummary = decision.conflictSummary;
   state.observabilityTags = decision.observabilityTags;
+  state.reason = decision.reason;
   state.userSafeMessage = decision.userSafeMessage;
   state.blockingError = blockingError;
 };
@@ -82,6 +86,7 @@ export const buildSaveResult = (date: string, state: RemoteWriteState) =>
     consistencyState: state.consistencyState,
     conflictSummary: state.conflictSummary,
     observabilityTags: state.observabilityTags,
+    reason: state.reason,
     userSafeMessage: state.userSafeMessage,
     blockingError: state.blockingError,
     confirmedRecord: state.confirmedRecord,
@@ -99,6 +104,7 @@ export const buildPartialUpdateResult = (date: string, state: RemoteWriteState) 
     consistencyState: state.consistencyState,
     conflictSummary: state.conflictSummary,
     observabilityTags: state.observabilityTags,
+    reason: state.reason,
     userSafeMessage: state.userSafeMessage,
     blockingError: state.blockingError,
     confirmedRecord: state.confirmedRecord,

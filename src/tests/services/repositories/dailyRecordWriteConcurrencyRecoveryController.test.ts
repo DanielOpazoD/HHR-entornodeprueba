@@ -3,6 +3,7 @@ import { captureAuthoringSession } from '@/services/storage/authoringSession';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { resolveConcurrencyRemoteWriteRecovery } from '@/services/repositories/dailyRecordWriteConcurrencyRecoveryController';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { createFieldChangedElsewhereError } from '@/services/storage/syncErrorCatalog';
 
 vi.mock('@/services/repositories/dailyRecordConflictAutoMergeController', () => ({
   attemptConflictAutoMergeRecovery: vi.fn(),
@@ -48,6 +49,38 @@ describe('dailyRecordWriteConcurrencyRecoveryController', () => {
     expect(result.status).toBe('auto_merged');
     expect(result.autoMerged).toBe(true);
     expect(result.decision.conflictSummary?.kind).toBe('concurrency');
+    // A real merge integrated the other device's change: nothing is held.
+    expect(result.decision.reason).toBeUndefined();
+  });
+
+  it('holds the edit with its reason when another device changed the same field', async () => {
+    const error = createFieldChangedElsewhereError();
+    vi.mocked(attemptConflictAutoMergeRecovery).mockResolvedValueOnce({ status: 'auto_merged' });
+
+    const result = await resolveConcurrencyRemoteWriteRecovery(
+      '2026-04-15',
+      buildRecord('2026-04-15'),
+      ['handoffNovedadesNightShift'],
+      error,
+      (kind, message) => ({
+        kind,
+        sourceOfTruth: 'none',
+        localTimestamp: '2026-04-15T10:00:00.000Z',
+        changedPaths: ['handoffNovedadesNightShift'],
+        message,
+      }),
+      captureAuthoringSession()
+    );
+
+    expect(result.decision.reason).toBe('field_changed_elsewhere');
+    // The refusal travels to the queue so the task is stored held, not resent.
+    expect(attemptConflictAutoMergeRecovery).toHaveBeenCalledWith(
+      '2026-04-15',
+      expect.anything(),
+      ['handoffNovedadesNightShift'],
+      expect.anything(),
+      error
+    );
   });
 
   it('returns an unrecoverable throw result when merge is not possible', async () => {

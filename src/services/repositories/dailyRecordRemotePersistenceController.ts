@@ -296,8 +296,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
         },
         remoteState
       );
-      // The existing outcome tag silences work belonging to a departed session.
-      remoteState.observabilityTags.push('sync_queue_write_retained_for_owner');
+      remoteState.reason = 'session_changed';
       recordOperationalTelemetry({
         category: 'sync',
         operation: 'remote_first_write_session_changed',
@@ -387,9 +386,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
         toRejectedOutboxPersistenceResult(outboxResult),
         remoteState
       );
-      if (outboxResult.mode === 'retained_for_owner') {
-        remoteState.observabilityTags.push('sync_queue_write_retained_for_owner');
-      }
+      if (outboxResult.mode === 'retained_for_owner') remoteState.reason = 'session_changed';
       return 'return';
     }
     markLocalWriteSucceeded(remoteState);
@@ -471,7 +468,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
       await releaseLocalPreOutboxHold?.();
       remoteState.queuedForRetry = true;
       remoteState.consistencyState = 'queued_for_retry';
-      remoteState.observabilityTags.push('sync_queue_write_retained_for_owner');
+      remoteState.reason = 'session_changed';
       recordOperationalTelemetry({
         category: 'sync',
         operation: 'direct_send_session_changed',

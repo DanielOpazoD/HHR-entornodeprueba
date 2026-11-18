@@ -105,7 +105,7 @@ describe('dailyRecordSyncNotificationController', () => {
     const conflict = resolvePatchOutcomeFeedback(
       createUpdatePartialDailyRecordResult({
         ...queued,
-        observabilityTags: ['daily_record', 'write', 'auto_merged', 'field_changed_elsewhere'],
+        reason: 'field_changed_elsewhere',
       })
     );
 
@@ -138,7 +138,7 @@ describe('dailyRecordSyncNotificationController', () => {
       resolvePatchOutcomeFeedback(
         createUpdatePartialDailyRecordResult({
           ...queued,
-          observabilityTags: ['daily_record', 'write', 'saved_by_queue_route'],
+          reason: 'queue_route',
         })
       )
     ).toBeNull();

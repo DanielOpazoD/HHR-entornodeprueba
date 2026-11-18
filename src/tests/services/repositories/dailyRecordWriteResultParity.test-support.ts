@@ -11,7 +11,7 @@ import {
   assertDailyRecordSaveAccepted,
 } from '@/services/repositories/dailyRecordRepositoryWriteOutcome';
 import {
-  resolveDailyRecordSavedState,
+  resolveDailyRecordWriteStatus,
   type SaveDailyRecordResult,
   type UpdatePartialDailyRecordResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
@@ -202,8 +202,8 @@ export const observeConsumers = async (result: WriteResult, record: DailyRecord)
         )
       : 'no aplica',
     confirmado: {
-      // resolveDailyRecordSavedState: what the sync box and the notice call «saved».
-      cuadroYAviso: resolveDailyRecordSavedState(result) === 'saved',
+      // resolveDailyRecordWriteStatus: what the sync box and the notice call «saved».
+      cuadroYAviso: resolveDailyRecordWriteStatus(result).state === 'confirmed',
       // The timing event (useDailyRecordSyncQuery.ts:263) and the backup restore
       // (dataMaintenanceService.ts:318) are observed through their own flows: see
       // dailyRecordWriteRejectionAsSeen.test.tsx and dailyRecordWriteResultParityMaintenance.test.ts.
