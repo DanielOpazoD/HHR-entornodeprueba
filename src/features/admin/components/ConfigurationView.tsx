@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import {
   Bot,
   Settings2,
@@ -8,12 +8,12 @@ import {
   Stethoscope,
   TableProperties,
 } from 'lucide-react';
-import clsx from 'clsx';
 import { useAuth } from '@/context/AuthContext';
 import { useTableConfig } from '@/context/TableConfigContext';
 import { useUISettings } from '@/context/UISettingsContext';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { AccessRestricted } from './internal/AccessRestricted';
+import { AdminTabsShell } from './internal/AdminTabsShell';
 import RoleManagementView from './RoleManagementView';
 import { ClinicalAIProviderRoutingPanel } from './ClinicalAIProviderRoutingPanel';
 import {
@@ -25,8 +25,6 @@ import { TreatingPhysiciansSettings } from './TreatingPhysiciansSettings';
 import { VitalSignsVisualRangesSettings } from './VitalSignsVisualRangesSettings';
 import { CensusNursingScalesSetting } from './CensusNursingScalesSetting';
 
-type ConfigurationTab = 'VISUAL' | 'TABLE' | 'SECURITY' | 'ROLES' | 'PHYSICIANS' | 'AI_PROVIDERS';
-
 // Configuration view — admin-only page grouping BOTH user preferences (formerly
 // "Preferencias" modal: visual, table, security) AND system administration
 // (roles) as tabs on a single page.
@@ -34,7 +32,6 @@ export const ConfigurationView: React.FC = () => {
   const { role } = useAuth();
   const { confirm } = useConfirmDialog();
   const { notify } = useNotification();
-  const [activeTab, setActiveTab] = useState<ConfigurationTab>('VISUAL');
   const {
     config,
     exportConfig,
@@ -89,85 +86,74 @@ export const ConfigurationView: React.FC = () => {
     }
   };
 
-  const tabs: Array<{
-    id: ConfigurationTab;
-    label: string;
-    icon: typeof Settings2;
-    color: string;
-  }> = [
-    { id: 'VISUAL', label: 'Visual', icon: Sparkles, color: 'text-fuchsia-400' },
-    { id: 'TABLE', label: 'Tabla', icon: TableProperties, color: 'text-sky-400' },
-    { id: 'SECURITY', label: 'Seguridad', icon: Shield, color: 'text-amber-400' },
-    { id: 'ROLES', label: 'Roles y permisos', icon: ShieldCheck, color: 'text-indigo-400' },
-    { id: 'PHYSICIANS', label: 'Médicos', icon: Stethoscope, color: 'text-sky-400' },
-    {
-      id: 'AI_PROVIDERS',
-      label: 'IA',
-      icon: Bot,
-      color: 'text-cyan-400',
-    },
-  ];
-
   return (
-    <div className="animate-fade-in font-sans pb-16">
-      <div className="bg-white border-b border-slate-200 px-6 py-3 shadow-sm sticky top-0 z-10">
-        <div className="max-w-[1400px] mx-auto flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-2 pr-4 border-r border-slate-200">
-            <Settings2 size={16} className="text-slate-500" />
-            <h1 className="text-sm font-bold text-slate-800">Configuración</h1>
-          </div>
-
-          <div className="flex gap-1 flex-wrap">
-            {tabs.map(tab => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={clsx(
-                    'px-3 py-1.5 rounded-lg font-semibold text-xs transition-all flex items-center gap-1.5',
-                    isActive
-                      ? 'bg-slate-900 text-white shadow-sm'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  )}
-                >
-                  <Icon size={13} className={isActive ? '' : tab.color} />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-[1200px] mx-auto px-4 py-6">
-        {activeTab === 'VISUAL' && (
-          <>
-            <SettingsVisualTab settings={settings} updateSetting={updateSetting} />
-            <CensusNursingScalesSetting />
-            <VitalSignsVisualRangesSettings />
-          </>
-        )}
-        {activeTab === 'TABLE' && (
-          <SettingsTableTab
-            pageMargin={config.pageMargin}
-            exportConfig={exportConfig}
-            fileInputRef={fileInputRef}
-            handleFileChange={handleFileChange}
-            handleImportClick={handleImportClick}
-            handleReset={handleReset}
-            isEditMode={isEditMode}
-            onClose={() => {}}
-            setEditMode={setEditMode}
-            updatePageMargin={updatePageMargin}
-          />
-        )}
-        {activeTab === 'SECURITY' && <SettingsSecurityTab />}
-        {activeTab === 'ROLES' && <RoleManagementView />}
-        {activeTab === 'PHYSICIANS' && <TreatingPhysiciansSettings />}
-        {activeTab === 'AI_PROVIDERS' && <ClinicalAIProviderRoutingPanel />}
-      </div>
-    </div>
+    <AdminTabsShell
+      title="Configuración"
+      icon={Settings2}
+      contentClassName="max-w-[1200px] mx-auto px-4 py-6"
+      tabs={[
+        {
+          id: 'VISUAL',
+          label: 'Visual',
+          icon: Sparkles,
+          color: 'text-fuchsia-400',
+          content: (
+            <>
+              <SettingsVisualTab settings={settings} updateSetting={updateSetting} />
+              <CensusNursingScalesSetting />
+              <VitalSignsVisualRangesSettings />
+            </>
+          ),
+        },
+        {
+          id: 'TABLE',
+          label: 'Tabla',
+          icon: TableProperties,
+          color: 'text-sky-400',
+          content: (
+            <SettingsTableTab
+              pageMargin={config.pageMargin}
+              exportConfig={exportConfig}
+              fileInputRef={fileInputRef}
+              handleFileChange={handleFileChange}
+              handleImportClick={handleImportClick}
+              handleReset={handleReset}
+              isEditMode={isEditMode}
+              onClose={() => {}}
+              setEditMode={setEditMode}
+              updatePageMargin={updatePageMargin}
+            />
+          ),
+        },
+        {
+          id: 'SECURITY',
+          label: 'Seguridad',
+          icon: Shield,
+          color: 'text-amber-400',
+          content: <SettingsSecurityTab />,
+        },
+        {
+          id: 'ROLES',
+          label: 'Roles y permisos',
+          icon: ShieldCheck,
+          color: 'text-indigo-400',
+          content: <RoleManagementView />,
+        },
+        {
+          id: 'PHYSICIANS',
+          label: 'Médicos',
+          icon: Stethoscope,
+          color: 'text-sky-400',
+          content: <TreatingPhysiciansSettings />,
+        },
+        {
+          id: 'AI_PROVIDERS',
+          label: 'IA',
+          icon: Bot,
+          color: 'text-cyan-400',
+          content: <ClinicalAIProviderRoutingPanel />,
+        },
+      ]}
+    />
   );
 };
