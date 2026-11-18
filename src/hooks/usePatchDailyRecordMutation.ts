@@ -14,6 +14,7 @@ import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/co
 import {
   createUpdatePartialDailyRecordResult,
   isDailyRecordWriteRejectedResult,
+  resolveDailyRecordWriteStatus,
 } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import {
@@ -391,15 +392,20 @@ export const usePatchDailyRecordMutation = (currentDate: string) => {
         }
         return;
       }
-      if (!payload.result?.updatedRemotely) {
+      if (!payload.result) return;
+      const status = resolveDailyRecordWriteStatus(payload.result);
+      if (status.state !== 'confirmed') {
         // A queued clinical-events edit is the base for this tab's next edit, but is not an ACK.
         // Publish only after local CAS accepted it, and never replace a newer visible record.
         const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
           getDailyRecordQueryKey(date)
         )?.record;
+        // Kept on this computer with its queue task: retrying, merged, queue-routed or held.
+        const waitsInQueue =
+          status.savedHere &&
+          (status.state === 'held' || (status.state === 'local' && status.cause !== 'stored'));
         if (
-          payload.result?.savedLocally &&
-          payload.result.queuedForRetry &&
+          waitsInQueue &&
           isClinicalEventsOnlyDailyRecordPatch(payload.partial) &&
           context &&
           cachedRecord &&
