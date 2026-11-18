@@ -6,7 +6,10 @@ import {
   ensureFreshDailyRecordQuery,
   patchDailyRecordWithCompatibility,
 } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
-import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
+import {
+  isDailyRecordWriteRejectedResult,
+  toDailyRecordWriteError,
+} from '@/services/repositories/contracts/dailyRecordResults';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import {
@@ -110,9 +113,8 @@ export const useRayenStaffingProposalActions = ({
         patch,
         { baseRecord: fresh.record, authoringSession: captureAuthoringSession() }
       );
-      if (result?.blockingError) throw result.blockingError;
-      if (isDailyRecordWriteRejectedResult(result)) {
-        throw new Error(result?.userSafeMessage || 'El guardado fue bloqueado.');
+      if (result && isDailyRecordWriteRejectedResult(result)) {
+        throw toDailyRecordWriteError(result, 'El guardado fue bloqueado.');
       }
       await ensureFreshDailyRecordQuery(
         proposal.censusDate,

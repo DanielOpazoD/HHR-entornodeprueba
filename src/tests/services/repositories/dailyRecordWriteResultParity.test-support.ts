@@ -6,10 +6,7 @@ import {
 } from '@/services/storage/sessionStorageTransition';
 import { SESSION_OWNER_KEY } from '@/services/storage/sessionOwnerKey';
 import * as writeService from '@/services/repositories/dailyRecordRepositoryWriteService';
-import {
-  assertDailyRecordPartialUpdateAccepted,
-  assertDailyRecordSaveAccepted,
-} from '@/services/repositories/dailyRecordRepositoryWriteOutcome';
+import { assertDailyRecordRepositoryWriteAccepted } from '@/services/repositories/dailyRecordRepositoryWriteOutcome';
 import {
   resolveDailyRecordWriteStatus,
   type SaveDailyRecordResult,
@@ -23,7 +20,7 @@ import { assertDailyRecordWriteAccepted } from '@/hooks/controllers/dailyRecordW
 import { createDailyRecordAdmitPatientPort } from '@/services/daily-record/dailyRecordAdmitPatientPort';
 import { assignSpecialtyManually } from '@/services/specialty/specialtyJevClient';
 import {
-  classifyHistoricalPatchOutcome,
+  isHistoricalPatchOnlyQueued,
   persistHistoricalOccupancyCorrection,
 } from '@/features/rayen-import/domain/historicalCorrectionPersistence';
 import { assertRayenCensusPersistenceConfirmed } from '@/features/rayen-import/hooks/rayenCensusPersistenceGuard';
@@ -182,11 +179,7 @@ export const observeConsumers = async (result: WriteResult, record: DailyRecord)
     // useDailyRecordSyncQuery.ts:182 / :260: the census flow continues or throws.
     flujo: await outcomeOf(() => assertDailyRecordWriteAccepted(result)),
     // dailyRecordRepositoryWriteOutcome.ts: what `save`/`updatePartial` callers get.
-    repositorio: await outcomeOf(() =>
-      patch
-        ? assertDailyRecordPartialUpdateAccepted(result as UpdatePartialDailyRecordResult)
-        : assertDailyRecordSaveAccepted(result as SaveDailyRecordResult)
-    ),
+    repositorio: await outcomeOf(() => assertDailyRecordRepositoryWriteAccepted(result)),
     ingreso: patch
       ? await outcomeOf(() =>
           createDailyRecordAdmitPatientPort(async () => result as UpdatePartialDailyRecordResult)
@@ -228,7 +221,9 @@ export const observeConsumers = async (result: WriteResult, record: DailyRecord)
     },
     historico: patch
       ? await outcomeOf(() =>
-          classifyHistoricalPatchOutcome(result as UpdatePartialDailyRecordResult)
+          isHistoricalPatchOnlyQueued(result as UpdatePartialDailyRecordResult)
+            ? 'durably_queued'
+            : 'confirmed'
         )
       : await outcomeOf(async () => {
           await persistHistoricalOccupancyCorrection(repository, record, record);

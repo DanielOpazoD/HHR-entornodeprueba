@@ -8,7 +8,8 @@ import { isClinicalDerivedLayoutRegression } from '@/services/storage/clinicalDe
 import { getSessionGeneration } from '@/services/storage/sessionStorageTransition';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { saveDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { assertDailyRecordSaveAccepted } from '@/services/repositories/dailyRecordRepositoryWriteOutcome';
+import { assertDailyRecordRepositoryWriteAccepted } from '@/services/repositories/dailyRecordRepositoryWriteOutcome';
+import { resolveDailyRecordWriteStatus } from '@/services/repositories/contracts/dailyRecordResults';
 
 /** D3 checks every date the file names (even if D10 skips it) and every date it will write. */
 export const saveBackupImport = async (records: DailyRecord[], sourceDates: string[]) => {
@@ -60,8 +61,9 @@ export const saveBackupImport = async (records: DailyRecord[], sourceDates: stri
             deferRemoteSync: true,
             dailyRecordWriteLease: leases.get(record.date),
           });
-          assertDailyRecordSaveAccepted(saved);
-          if (!saved.savedLocally) throw new Error('No fue posible guardar el respaldo local.');
+          assertDailyRecordRepositoryWriteAccepted(saved);
+          if (!resolveDailyRecordWriteStatus(saved).savedHere)
+            throw new Error('No fue posible guardar el respaldo local.');
         }
         if (generation !== getSessionGeneration() || owner !== getStoredSessionOwnerKey())
           throw new Error('La sesión cambió durante la importación.');

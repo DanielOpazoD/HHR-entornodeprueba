@@ -58,10 +58,7 @@ import { AdmissionDatePolicyViolationError } from '@/domain/clinical-episode/adm
 import { classifyConflictChangedContexts } from '@/services/repositories/conflictResolutionDomainPolicy';
 import { isMovementReclassificationPatch } from '@/domain/movements/movementReclassificationConcurrencyPolicy';
 import { runWithDailyRecordWriteLock } from '@/services/repositories/dailyRecordWriteCoordinator';
-import {
-  assertDailyRecordPartialUpdateAccepted,
-  assertDailyRecordSaveAccepted,
-} from '@/services/repositories/dailyRecordRepositoryWriteOutcome';
+import { assertDailyRecordRepositoryWriteAccepted } from '@/services/repositories/dailyRecordRepositoryWriteOutcome';
 import {
   buildGuardedDailyRecordPatchPolicy,
   buildGuardedDailyRecordRemoteWriteOptions,
@@ -292,7 +289,7 @@ export const saveDetailed = (
   );
 
 export const save = async (...args: Parameters<typeof saveDetailed>): Promise<void> =>
-  assertDailyRecordSaveAccepted(await saveDetailed(...args));
+  assertDailyRecordRepositoryWriteAccepted(await saveDetailed(...args));
 
 const updatePartialDetailedWithinLock = async (
   date: string,
@@ -483,4 +480,4 @@ export const updatePartialDetailed = (
   );
 export const updatePartial = async (
   ...args: Parameters<typeof updatePartialDetailed>
-): Promise<void> => assertDailyRecordPartialUpdateAccepted(await updatePartialDetailed(...args));
+): Promise<void> => assertDailyRecordRepositoryWriteAccepted(await updatePartialDetailed(...args));
