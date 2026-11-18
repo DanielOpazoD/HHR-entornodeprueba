@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect, useRef, type Dispatch, type SetStateAction } from 'react';
 import type { ConfirmOptions } from '@/context/uiContracts';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { canRunCensusEmailAction } from '@/hooks/controllers/censusEmailActionController';
+import { canRunCensusEmailAction } from '@/features/census/email/controllers/censusEmailActionController';
 import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
 import { resolveUpcEmailBlockReason } from '@/shared/census/upcEvaluationPolicy';
 
@@ -29,7 +29,7 @@ export interface UseCensusEmailDeliveryActionsParams {
 }
 
 const loadCensusEmailDelivery = createCachedRuntimeLoader(
-  () => import('@/hooks/controllers/censusEmailDeliveryRuntime')
+  () => import('@/features/census/email/controllers/censusEmailDeliveryRuntime')
 );
 
 const resolveLazyEmailModuleError = (error: unknown): string =>

@@ -8,7 +8,7 @@ import {
   type RecipientRuntimeState,
   resolveRecipientRuntimeMetadata,
   resolveRecipientSyncState,
-} from '@/hooks/controllers/censusEmailRecipientRuntimeController';
+} from '@/features/census/email/controllers/censusEmailRecipientRuntimeController';
 
 export const useCensusEmailRecipientRuntimeState = () => {
   const [recipients, setRecipientsState] = useState<string[]>(CENSUS_DEFAULT_RECIPIENTS);

@@ -1,6 +1,6 @@
-import { resolveRecipientSyncState } from '@/hooks/controllers/censusEmailRecipientRuntimeController';
-import type { DeferredRecipientSyncInput } from '@/hooks/controllers/censusEmailRecipientSyncController';
-import type { RecipientUseCaseResult } from '@/hooks/controllers/censusEmailRecipientUseCaseLoader';
+import { resolveRecipientSyncState } from '@/features/census/email/controllers/censusEmailRecipientRuntimeController';
+import type { DeferredRecipientSyncInput } from '@/features/census/email/controllers/censusEmailRecipientSyncController';
+import type { RecipientUseCaseResult } from '@/features/census/email/controllers/censusEmailRecipientUseCaseLoader';
 
 interface ScheduleDeferredRecipientSyncOptions {
   syncInput: DeferredRecipientSyncInput;

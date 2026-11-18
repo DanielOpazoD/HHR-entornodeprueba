@@ -5,7 +5,7 @@ import { BEDS } from '@/constants/beds';
 import {
   buildCensusWorkbookPlan,
   buildCensusWorkbookSheetDescriptors,
-} from '@/hooks/controllers/censusExcelSheetController';
+} from '@/features/census/email/controllers/censusExcelSheetController';
 import { clinicalWallClockToDate } from '@/utils/clinicalWallClock';
 
 const buildRecord = (date: string): DailyRecord =>

@@ -4,9 +4,9 @@ import {
   type GlobalEmailRecipientList,
 } from '@/services/email/emailRecipientListService';
 import { getSetting } from '@/services/storage/indexeddb/indexedDbSettingsService';
-import type { CensusEmailBrowserRuntime } from '@/hooks/controllers/censusEmailBrowserRuntimeController';
-import { resolveCensusRecipientsBootstrap } from '@/hooks/controllers/censusEmailRecipientsBootstrapController';
-import { resolveBootstrapRecipientSelection } from '@/hooks/controllers/censusEmailRecipientSelectionController';
+import type { CensusEmailBrowserRuntime } from '@/features/census/email/controllers/censusEmailBrowserRuntimeController';
+import { resolveCensusRecipientsBootstrap } from '@/features/census/email/controllers/censusEmailRecipientsBootstrapController';
+import { resolveBootstrapRecipientSelection } from '@/features/census/email/controllers/censusEmailRecipientSelectionController';
 import {
   buildCreatedRecipientList,
   buildRecipientListSavePayload,
@@ -15,17 +15,17 @@ import {
   resolveRecipientListFallback,
   resolveRenamedRecipientListName,
   resolveRenameRecipientListError,
-} from '@/hooks/controllers/censusEmailRecipientListController';
+} from '@/features/census/email/controllers/censusEmailRecipientListController';
 import {
   buildRecipientSyncPayload,
   resolveActiveRecipientListForSync,
   shouldSkipRecipientSync,
-} from '@/hooks/controllers/censusEmailRecipientSyncController';
+} from '@/features/census/email/controllers/censusEmailRecipientSyncController';
 import {
   resolveBootstrapRecipientFallbackMessage,
   resolveBootstrapRecipientRuntimeState,
   resolveStoredRecipientRuntimeState,
-} from '@/hooks/controllers/censusEmailRecipientRuntimeController';
+} from '@/features/census/email/controllers/censusEmailRecipientRuntimeController';
 import { createApplicationSuccess } from '@/shared/contracts/applicationOutcomeFactories';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 
@@ -33,7 +33,7 @@ import {
   buildRecipientListServiceFailure,
   buildRecipientListUnknownFailure,
   buildRecipientListValidationFailure,
-} from '@/application/census-email/censusRecipientListOutcomeController';
+} from '@/features/census/email/controllers/censusRecipientListOutcomeController';
 
 interface RecipientListActor {
   uid?: string;

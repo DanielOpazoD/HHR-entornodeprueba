@@ -105,7 +105,7 @@ const accepted: Array<[why: string, file: string, source: string]> = [
   ['the shared runtime', 'src/shared/runtime/a.ts', "window.open(url); alert('x');"],
   [
     'the census email runtime controller',
-    'src/hooks/controllers/censusEmailBrowserRuntimeController.ts',
+    'src/features/census/email/controllers/censusEmailBrowserRuntimeController.ts',
     'navigator.clipboard;',
   ],
   ['a test-named file', 'src/tests/a.test.ts', "window.open(url); alert('x');"],

@@ -1,11 +1,11 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { RecipientRuntimeMutationSpec } from '@/hooks/controllers/censusEmailRecipientMutationActionController';
-import type { RecipientRuntimeState } from '@/hooks/controllers/censusEmailRecipientRuntimeController';
-import { executeRecipientRuntimeMutationSpec } from '@/hooks/controllers/censusEmailRecipientMutationRunner';
-import { withRecipientListUseCases } from '@/hooks/controllers/censusEmailRecipientUseCaseLoader';
+import type { RecipientRuntimeMutationSpec } from '@/features/census/email/controllers/censusEmailRecipientMutationActionController';
+import type { RecipientRuntimeState } from '@/features/census/email/controllers/censusEmailRecipientRuntimeController';
+import { executeRecipientRuntimeMutationSpec } from '@/features/census/email/controllers/censusEmailRecipientMutationRunner';
+import { withRecipientListUseCases } from '@/features/census/email/controllers/censusEmailRecipientUseCaseLoader';
 
-vi.mock('@/hooks/controllers/censusEmailRecipientUseCaseLoader', () => ({
+vi.mock('@/features/census/email/controllers/censusEmailRecipientUseCaseLoader', () => ({
   withRecipientListUseCases: vi.fn(),
 }));
 

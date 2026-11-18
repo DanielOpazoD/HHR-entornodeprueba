@@ -20,7 +20,7 @@ const MODULE_ALLOWLIST_PATH = path.join(ROOT, 'scripts', 'module-size-allowlist.
 const WATCHLIST_FILES = [
   'firestore.rules',
   'src/services/repositories/dailyRecordPatchPersistenceController.ts',
-  'src/hooks/useCensusEmailRecipientLists.ts',
+  'src/features/census/email/hooks/useCensusEmailRecipientLists.ts',
   'src/hooks/useBedManagementReducer.ts',
   'src/features/laboratory/controllers/labAnalyticsController.ts',
 ];

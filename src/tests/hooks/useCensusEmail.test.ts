@@ -1,20 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useCensusEmail } from '@/hooks/useCensusEmail';
+import { useCensusEmail } from '@/features/census/email/hooks/useCensusEmail';
 import { useConfirmDialog } from '@/context/UIContext';
-import { useCensusEmailRecipientLists } from '@/hooks/useCensusEmailRecipientLists';
-import { useCensusEmailDeliveryActions } from '@/hooks/useCensusEmailDeliveryActions';
+import { useCensusEmailRecipientLists } from '@/features/census/email/hooks/useCensusEmailRecipientLists';
+import { useCensusEmailDeliveryActions } from '@/features/census/email/hooks/useCensusEmailDeliveryActions';
 import { DailyRecord } from '@/types/domain/dailyRecord';
 
 vi.mock('@/context/UIContext', () => ({
   useConfirmDialog: vi.fn(),
 }));
 
-vi.mock('@/hooks/useCensusEmailRecipientLists', () => ({
+vi.mock('@/features/census/email/hooks/useCensusEmailRecipientLists', () => ({
   useCensusEmailRecipientLists: vi.fn(),
 }));
 
-vi.mock('@/hooks/useCensusEmailDeliveryActions', () => ({
+vi.mock('@/features/census/email/hooks/useCensusEmailDeliveryActions', () => ({
   useCensusEmailDeliveryActions: vi.fn(),
 }));
 

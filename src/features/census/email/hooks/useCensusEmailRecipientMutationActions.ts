@@ -1,10 +1,10 @@
 import { useCallback } from 'react';
 import type { GlobalEmailRecipientList } from '@/services/email/emailRecipientListService';
-import type { RecipientRuntimeMutationSpec } from '@/hooks/controllers/censusEmailRecipientMutationActionController';
+import type { RecipientRuntimeMutationSpec } from '@/features/census/email/controllers/censusEmailRecipientMutationActionController';
 import { createCachedRuntimeLoader } from '@/services/runtime/createCachedRuntimeLoader';
 
 const loadMutationActions = createCachedRuntimeLoader(
-  () => import('@/hooks/controllers/censusEmailRecipientMutationActionController')
+  () => import('@/features/census/email/controllers/censusEmailRecipientMutationActionController')
 );
 
 interface RecipientListActor {

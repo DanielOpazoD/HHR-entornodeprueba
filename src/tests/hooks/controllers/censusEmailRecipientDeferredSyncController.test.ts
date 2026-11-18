@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { scheduleDeferredRecipientSync } from '@/hooks/controllers/censusEmailRecipientDeferredSyncController';
-import type { DeferredRecipientSyncInput } from '@/hooks/controllers/censusEmailRecipientSyncController';
+import { scheduleDeferredRecipientSync } from '@/features/census/email/controllers/censusEmailRecipientDeferredSyncController';
+import type { DeferredRecipientSyncInput } from '@/features/census/email/controllers/censusEmailRecipientSyncController';
 
 const buildSyncInput = (): DeferredRecipientSyncInput => ({
   canManageGlobalRecipientLists: true,

@@ -60,6 +60,12 @@ const OPTIONAL_TARGETS: Record<string, string> = {
     'Fuga notification can mount on first paint; failures stay inside Altas del Día.',
   'src/features/census/controllers/invalidEpisodePreviousDayCleanup':
     'Previous-day cleanup runs after a «paciente no válido» mark; a failure is reported.',
+  'src/features/census/email/controllers/censusEmailDeliveryRuntime':
+    'Census email sending loads when a person presses send; a load failure shows in the send status.',
+  'src/features/census/email/controllers/censusEmailRecipientMutationActionController':
+    'Recipient list create, rename and delete load on request; a load failure is reported.',
+  'src/features/census/email/use-cases/censusRecipientListUseCases':
+    'Recipient lists load after first paint; the default recipients stay until they arrive.',
   'src/features/census/components/PatientHospitalizationReportsDialog':
     'Reports open on request with a local error boundary.',
   'src/features/census/components/StaffShiftDetailsModal': 'Staff detail dialog opens on request.',
@@ -110,6 +116,8 @@ const OPTIONAL_TARGETS: Record<string, string> = {
   'src/services/census/invalidClinicalEpisodeService':
     'The «paciente no válido» mark starts on request; without the server nothing is removed.',
   'src/services/exporters/censusMasterExport': 'Export starts only on request.',
+  'src/services/exporters/censusMasterWorkbook':
+    'The backup workbook is built only after a census email is sent.',
   'src/services/firebase-runtime/authRuntime':
     'Authorization lookup for an explicit specialty action.',
   'src/services/patient/patientHistoryService': 'History reads start on patient selection.',

@@ -4,7 +4,7 @@ import {
   buildRecipientListServiceFailure,
   buildRecipientListUnknownFailure,
   buildRecipientListValidationFailure,
-} from '@/application/census-email/censusRecipientListOutcomeController';
+} from '@/features/census/email/controllers/censusRecipientListOutcomeController';
 
 describe('censusRecipientListOutcomeController', () => {
   it('builds validation failures preserving the provided data payload', () => {
